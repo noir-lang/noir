@@ -71,235 +71,289 @@
 <a href=#71 id=71 data-nosnippet>71</a>    /// type's method set — so they're tracked by id and removed when the method is called or
 <a href=#72 id=72 data-nosnippet>72</a>    /// otherwise referenced. The `Ident` is the method name, used to locate the unused warning.
 <a href=#73 id=73 data-nosnippet>73</a>    </span>unused_impl_functions: HashMap&lt;FuncId, Ident&gt;,
-<a href=#74 id=74 data-nosnippet>74</a>    <span class="doccomment">/// The undo log of the speculative transaction in progress, if any. `None` means no
-<a href=#75 id=75 data-nosnippet>75</a>    /// transaction is open; `Some` records every entry removed from `unused_items`/`unused_imports`
-<a href=#76 id=76 data-nosnippet>76</a>    /// while it is open, so they can be restored on rollback. This lets a speculative
-<a href=#77 id=77 data-nosnippet>77</a>    /// path-resolution probe (which marks segments as used/referenced while resolving) undo those
-<a href=#78 id=78 data-nosnippet>78</a>    /// marks when it turns out the path wasn't what it was probing for. Only one transaction may be
-<a href=#79 id=79 data-nosnippet>79</a>    /// open at a time — see [`begin_speculative`](Self::begin_speculative).
-<a href=#80 id=80 data-nosnippet>80</a>    </span>speculative_undo: <span class="prelude-ty">Option</span>&lt;Vec&lt;SpeculativeUndo&gt;&gt;,
-<a href=#81 id=81 data-nosnippet>81</a>}
-<a href=#82 id=82 data-nosnippet>82</a>
-<a href=#83 id=83 data-nosnippet>83</a><span class="doccomment">/// A single removal recorded during a speculative transaction, kept so it can be re-inserted on
-<a href=#84 id=84 data-nosnippet>84</a>/// rollback.
-<a href=#85 id=85 data-nosnippet>85</a></span><span class="attr">#[derive(Debug)]
-<a href=#86 id=86 data-nosnippet>86</a></span><span class="kw">enum </span>SpeculativeUndo {
-<a href=#87 id=87 data-nosnippet>87</a>    Item(ModuleId, (Namespace, Ident), UnusedItem),
-<a href=#88 id=88 data-nosnippet>88</a>    Import(ModuleId, (Ident, Location), HashSet&lt;Namespace&gt;),
-<a href=#89 id=89 data-nosnippet>89</a>}
-<a href=#90 id=90 data-nosnippet>90</a>
-<a href=#91 id=91 data-nosnippet>91</a><span class="doccomment">/// Proof that a speculative transaction is open, returned by [`UsageTracker::begin_speculative`]
-<a href=#92 id=92 data-nosnippet>92</a>/// and consumed by [`UsageTracker::commit_speculative`] / [`UsageTracker::rollback_speculative`].
-<a href=#93 id=93 data-nosnippet>93</a>/// It can only be constructed here, so a transaction cannot be started without going through
-<a href=#94 id=94 data-nosnippet>94</a>/// `begin_speculative`, and `#[must_use]` nudges callers to finish it. Prefer driving this through
-<a href=#95 id=95 data-nosnippet>95</a>/// [`Elaborator::speculatively`](crate::elaborator::Elaborator) rather than by hand.
-<a href=#96 id=96 data-nosnippet>96</a></span><span class="attr">#[must_use]
-<a href=#97 id=97 data-nosnippet>97</a></span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>SpeculativeTx {
-<a href=#98 id=98 data-nosnippet>98</a>    _private: (),
-<a href=#99 id=99 data-nosnippet>99</a>}
-<a href=#100 id=100 data-nosnippet>100</a>
-<a href=#101 id=101 data-nosnippet>101</a><span class="kw">impl </span>UsageTracker {
-<a href=#102 id=102 data-nosnippet>102</a>    <span class="doccomment">/// Register a definition as unused, waiting to be marked as used later.
-<a href=#103 id=103 data-nosnippet>103</a>    /// Things that should not emit warnings should not be added at all.
-<a href=#104 id=104 data-nosnippet>104</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>add_unused_item(
-<a href=#105 id=105 data-nosnippet>105</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-<a href=#106 id=106 data-nosnippet>106</a>        module_id: ModuleId,
-<a href=#107 id=107 data-nosnippet>107</a>        name: Ident,
-<a href=#108 id=108 data-nosnippet>108</a>        item: UnusedItem,
-<a href=#109 id=109 data-nosnippet>109</a>        visibility: ItemVisibility,
-<a href=#110 id=110 data-nosnippet>110</a>    ) {
-<a href=#111 id=111 data-nosnippet>111</a>        <span class="comment">// Empty spans could come from implicitly injected imports, and we don't want to track those
-<a href=#112 id=112 data-nosnippet>112</a>        </span><span class="kw">if </span>visibility != ItemVisibility::Public &amp;&amp; !name.span().is_empty() {
-<a href=#113 id=113 data-nosnippet>113</a>            <span class="comment">// A genuine same-namespace clash is a duplicate-definition error reported elsewhere;
-<a href=#114 id=114 data-nosnippet>114</a>            // `entry(..).or_insert` keeps the first item we saw so the unused warning's recorded
-<a href=#115 id=115 data-nosnippet>115</a>            // location and item kind stay self-consistent.
-<a href=#116 id=116 data-nosnippet>116</a>            </span><span class="self">self</span>.unused_items
-<a href=#117 id=117 data-nosnippet>117</a>                .entry(module_id)
-<a href=#118 id=118 data-nosnippet>118</a>                .or_default()
-<a href=#119 id=119 data-nosnippet>119</a>                .entry((item.namespace(), name))
-<a href=#120 id=120 data-nosnippet>120</a>                .or_insert(item);
-<a href=#121 id=121 data-nosnippet>121</a>        }
-<a href=#122 id=122 data-nosnippet>122</a>    }
-<a href=#123 id=123 data-nosnippet>123</a>
-<a href=#124 id=124 data-nosnippet>124</a>    <span class="doccomment">/// Register an unused import. Imports are keyed by name and location; the imported name may
-<a href=#125 id=125 data-nosnippet>125</a>    /// occupy both namespaces (e.g. a re-exported `struct N` and `fn N`), in which case this is
-<a href=#126 id=126 data-nosnippet>126</a>    /// called once per namespace with the same name and location, accumulating into the one
-<a href=#127 id=127 data-nosnippet>127</a>    /// `use`'s entry.
-<a href=#128 id=128 data-nosnippet>128</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>add_unused_import(
-<a href=#129 id=129 data-nosnippet>129</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-<a href=#130 id=130 data-nosnippet>130</a>        module_id: ModuleId,
-<a href=#131 id=131 data-nosnippet>131</a>        name: Ident,
-<a href=#132 id=132 data-nosnippet>132</a>        namespace: Namespace,
-<a href=#133 id=133 data-nosnippet>133</a>        visibility: ItemVisibility,
-<a href=#134 id=134 data-nosnippet>134</a>    ) {
-<a href=#135 id=135 data-nosnippet>135</a>        <span class="kw">if </span>visibility != ItemVisibility::Public &amp;&amp; !name.span().is_empty() {
-<a href=#136 id=136 data-nosnippet>136</a>            <span class="self">self</span>.unused_imports
-<a href=#137 id=137 data-nosnippet>137</a>                .entry(module_id)
-<a href=#138 id=138 data-nosnippet>138</a>                .or_default()
-<a href=#139 id=139 data-nosnippet>139</a>                .entry((name.clone(), name.location()))
-<a href=#140 id=140 data-nosnippet>140</a>                .or_default()
-<a href=#141 id=141 data-nosnippet>141</a>                .insert(namespace);
-<a href=#142 id=142 data-nosnippet>142</a>        }
-<a href=#143 id=143 data-nosnippet>143</a>    }
-<a href=#144 id=144 data-nosnippet>144</a>
-<a href=#145 id=145 data-nosnippet>145</a>    <span class="doccomment">/// Marks the import that brought `name` into `namespace` as used. A `use` is a single
-<a href=#146 id=146 data-nosnippet>146</a>    /// syntactic unit, so using the name in any namespace it occupies uses that whole import (its
-<a href=#147 id=147 data-nosnippet>147</a>    /// entry is dropped). Each entry is keyed by the importing `use`'s location, so a same-named
-<a href=#148 id=148 data-nosnippet>148</a>    /// item imported by a *different* `use` (a different location) into another namespace is left
-<a href=#149 id=149 data-nosnippet>149</a>    /// alone.
-<a href=#150 id=150 data-nosnippet>150</a>    </span><span class="kw">fn </span>mark_import_as_used(
-<a href=#151 id=151 data-nosnippet>151</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-<a href=#152 id=152 data-nosnippet>152</a>        current_mod_id: ModuleId,
-<a href=#153 id=153 data-nosnippet>153</a>        name: <span class="kw-2">&amp;</span>Ident,
-<a href=#154 id=154 data-nosnippet>154</a>        namespace: Namespace,
-<a href=#155 id=155 data-nosnippet>155</a>    ) {
-<a href=#156 id=156 data-nosnippet>156</a>        <span class="kw">let </span>recording = <span class="self">self</span>.speculative_undo.is_some();
-<a href=#157 id=157 data-nosnippet>157</a>        <span class="kw">let </span><span class="prelude-val">Some</span>(imports) = <span class="self">self</span>.unused_imports.get_mut(<span class="kw-2">&amp;</span>current_mod_id) <span class="kw">else </span>{
-<a href=#158 id=158 data-nosnippet>158</a>            <span class="kw">return</span>;
-<a href=#159 id=159 data-nosnippet>159</a>        };
-<a href=#160 id=160 data-nosnippet>160</a>        <span class="kw">let </span><span class="kw-2">mut </span>removed = Vec::new();
-<a href=#161 id=161 data-nosnippet>161</a>        imports.retain(|(import_name, location), namespaces| {
-<a href=#162 id=162 data-nosnippet>162</a>            <span class="kw">let </span>remove = import_name == name &amp;&amp; namespaces.contains(<span class="kw-2">&amp;</span>namespace);
-<a href=#163 id=163 data-nosnippet>163</a>            <span class="kw">if </span>remove &amp;&amp; recording {
-<a href=#164 id=164 data-nosnippet>164</a>                removed.push(((import_name.clone(), <span class="kw-2">*</span>location), namespaces.clone()));
-<a href=#165 id=165 data-nosnippet>165</a>            }
-<a href=#166 id=166 data-nosnippet>166</a>            !remove
-<a href=#167 id=167 data-nosnippet>167</a>        });
-<a href=#168 id=168 data-nosnippet>168</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>(undo) = <span class="kw-2">&amp;mut </span><span class="self">self</span>.speculative_undo {
-<a href=#169 id=169 data-nosnippet>169</a>            <span class="kw">for </span>(key, namespaces) <span class="kw">in </span>removed {
-<a href=#170 id=170 data-nosnippet>170</a>                undo.push(SpeculativeUndo::Import(current_mod_id, key, namespaces));
-<a href=#171 id=171 data-nosnippet>171</a>            }
-<a href=#172 id=172 data-nosnippet>172</a>        }
-<a href=#173 id=173 data-nosnippet>173</a>    }
-<a href=#174 id=174 data-nosnippet>174</a>
-<a href=#175 id=175 data-nosnippet>175</a>    <span class="doccomment">/// Marks an item as being referenced. This doesn't always makes the item as used. For example
-<a href=#176 id=176 data-nosnippet>176</a>    /// if a struct is referenced it will still be considered unused unless it's constructed somewhere.
-<a href=#177 id=177 data-nosnippet>177</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>mark_as_referenced(
-<a href=#178 id=178 data-nosnippet>178</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-<a href=#179 id=179 data-nosnippet>179</a>        current_mod_id: ModuleId,
-<a href=#180 id=180 data-nosnippet>180</a>        name: <span class="kw-2">&amp;</span>Ident,
-<a href=#181 id=181 data-nosnippet>181</a>        namespace: Namespace,
-<a href=#182 id=182 data-nosnippet>182</a>    ) {
-<a href=#183 id=183 data-nosnippet>183</a>        <span class="self">self</span>.mark_import_as_used(current_mod_id, name, namespace);
-<a href=#184 id=184 data-nosnippet>184</a>
-<a href=#185 id=185 data-nosnippet>185</a>        <span class="kw">let </span>key = (namespace, name.clone());
-<a href=#186 id=186 data-nosnippet>186</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>(UnusedItem::Struct(<span class="kw">_</span>)) =
-<a href=#187 id=187 data-nosnippet>187</a>            <span class="self">self</span>.unused_items.get(<span class="kw-2">&amp;</span>current_mod_id).and_then(|items| items.get(<span class="kw-2">&amp;</span>key))
-<a href=#188 id=188 data-nosnippet>188</a>        {
-<a href=#189 id=189 data-nosnippet>189</a>            <span class="kw">return</span>;
-<a href=#190 id=190 data-nosnippet>190</a>        }
-<a href=#191 id=191 data-nosnippet>191</a>
-<a href=#192 id=192 data-nosnippet>192</a>        <span class="kw">let </span>removed =
-<a href=#193 id=193 data-nosnippet>193</a>            <span class="self">self</span>.unused_items.get_mut(<span class="kw-2">&amp;</span>current_mod_id).and_then(|items| items.remove_entry(<span class="kw-2">&amp;</span>key));
-<a href=#194 id=194 data-nosnippet>194</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>((stored_key, item)) = removed {
-<a href=#195 id=195 data-nosnippet>195</a>            <span class="self">self</span>.record_item_removal(current_mod_id, stored_key, item);
-<a href=#196 id=196 data-nosnippet>196</a>        }
-<a href=#197 id=197 data-nosnippet>197</a>    }
-<a href=#198 id=198 data-nosnippet>198</a>
-<a href=#199 id=199 data-nosnippet>199</a>    <span class="doccomment">/// Marks an item as being used.
-<a href=#200 id=200 data-nosnippet>200</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>mark_as_used(
-<a href=#201 id=201 data-nosnippet>201</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-<a href=#202 id=202 data-nosnippet>202</a>        current_mod_id: ModuleId,
-<a href=#203 id=203 data-nosnippet>203</a>        name: <span class="kw-2">&amp;</span>Ident,
-<a href=#204 id=204 data-nosnippet>204</a>        namespace: Namespace,
-<a href=#205 id=205 data-nosnippet>205</a>    ) {
-<a href=#206 id=206 data-nosnippet>206</a>        <span class="self">self</span>.mark_import_as_used(current_mod_id, name, namespace);
-<a href=#207 id=207 data-nosnippet>207</a>
-<a href=#208 id=208 data-nosnippet>208</a>        <span class="kw">let </span>key = (namespace, name.clone());
-<a href=#209 id=209 data-nosnippet>209</a>        <span class="kw">let </span>removed =
-<a href=#210 id=210 data-nosnippet>210</a>            <span class="self">self</span>.unused_items.get_mut(<span class="kw-2">&amp;</span>current_mod_id).and_then(|items| items.remove_entry(<span class="kw-2">&amp;</span>key));
-<a href=#211 id=211 data-nosnippet>211</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>((stored_key, item)) = removed {
-<a href=#212 id=212 data-nosnippet>212</a>            <span class="self">self</span>.record_item_removal(current_mod_id, stored_key, item);
-<a href=#213 id=213 data-nosnippet>213</a>        }
-<a href=#214 id=214 data-nosnippet>214</a>    }
-<a href=#215 id=215 data-nosnippet>215</a>
-<a href=#216 id=216 data-nosnippet>216</a>    <span class="doccomment">/// While a speculative transaction is open, record an `unused_items` removal so it can be
-<a href=#217 id=217 data-nosnippet>217</a>    /// restored on rollback. A no-op when no transaction is in progress.
-<a href=#218 id=218 data-nosnippet>218</a>    ///
-<a href=#219 id=219 data-nosnippet>219</a>    /// `key` must be the *stored* key returned by `remove_entry`, not the lookup key built from the
-<a href=#220 id=220 data-nosnippet>220</a>    /// caller's ident. `Ident`'s `Eq`/`Hash` ignore location, so a lookup ident carries the
-<a href=#221 id=221 data-nosnippet>221</a>    /// reference's location while the stored ident carries the definition's. Recording the stored
-<a href=#222 id=222 data-nosnippet>222</a>    /// key keeps the restored entry pointing at the definition, so a later unused warning lands on
-<a href=#223 id=223 data-nosnippet>223</a>    /// the definition rather than the (rolled-back) reference site.
-<a href=#224 id=224 data-nosnippet>224</a>    </span><span class="kw">fn </span>record_item_removal(
-<a href=#225 id=225 data-nosnippet>225</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-<a href=#226 id=226 data-nosnippet>226</a>        module_id: ModuleId,
-<a href=#227 id=227 data-nosnippet>227</a>        key: (Namespace, Ident),
-<a href=#228 id=228 data-nosnippet>228</a>        item: UnusedItem,
-<a href=#229 id=229 data-nosnippet>229</a>    ) {
-<a href=#230 id=230 data-nosnippet>230</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>(undo) = <span class="kw-2">&amp;mut </span><span class="self">self</span>.speculative_undo {
-<a href=#231 id=231 data-nosnippet>231</a>            undo.push(SpeculativeUndo::Item(module_id, key, item));
-<a href=#232 id=232 data-nosnippet>232</a>        }
-<a href=#233 id=233 data-nosnippet>233</a>    }
-<a href=#234 id=234 data-nosnippet>234</a>
-<a href=#235 id=235 data-nosnippet>235</a>    <span class="doccomment">/// Begin a speculative transaction: until it is committed or rolled back, every removal from
-<a href=#236 id=236 data-nosnippet>236</a>    /// `unused_items`/`unused_imports` is recorded so it can be undone. Panics if one is already
-<a href=#237 id=237 data-nosnippet>237</a>    /// open — transactions don't nest. Prefer [`Elaborator::speculatively`] over calling this
-<a href=#238 id=238 data-nosnippet>238</a>    /// directly.
-<a href=#239 id=239 data-nosnippet>239</a>    ///
-<a href=#240 id=240 data-nosnippet>240</a>    /// [`Elaborator::speculatively`]: crate::elaborator::Elaborator
-<a href=#241 id=241 data-nosnippet>241</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>begin_speculative(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; SpeculativeTx {
-<a href=#242 id=242 data-nosnippet>242</a>        <span class="macro">assert!</span>(
-<a href=#243 id=243 data-nosnippet>243</a>            <span class="self">self</span>.speculative_undo.is_none(),
-<a href=#244 id=244 data-nosnippet>244</a>            <span class="string">"a speculative transaction is already in progress; they do not nest"
-<a href=#245 id=245 data-nosnippet>245</a>        </span>);
-<a href=#246 id=246 data-nosnippet>246</a>        <span class="self">self</span>.speculative_undo = <span class="prelude-val">Some</span>(Vec::new());
-<a href=#247 id=247 data-nosnippet>247</a>        SpeculativeTx { _private: () }
-<a href=#248 id=248 data-nosnippet>248</a>    }
-<a href=#249 id=249 data-nosnippet>249</a>
-<a href=#250 id=250 data-nosnippet>250</a>    <span class="doccomment">/// Commit a speculative transaction, keeping every change made while it was open.
-<a href=#251 id=251 data-nosnippet>251</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>commit_speculative(<span class="kw-2">&amp;mut </span><span class="self">self</span>, _tx: SpeculativeTx) {
-<a href=#252 id=252 data-nosnippet>252</a>        <span class="self">self</span>.speculative_undo = <span class="prelude-val">None</span>;
-<a href=#253 id=253 data-nosnippet>253</a>    }
-<a href=#254 id=254 data-nosnippet>254</a>
-<a href=#255 id=255 data-nosnippet>255</a>    <span class="doccomment">/// Roll back a speculative transaction, restoring every entry removed while it was open.
-<a href=#256 id=256 data-nosnippet>256</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>rollback_speculative(<span class="kw-2">&amp;mut </span><span class="self">self</span>, _tx: SpeculativeTx) {
-<a href=#257 id=257 data-nosnippet>257</a>        <span class="kw">let </span>undo =
-<a href=#258 id=258 data-nosnippet>258</a>            <span class="self">self</span>.speculative_undo.take().expect(<span class="string">"speculative transaction must be in progress"</span>);
-<a href=#259 id=259 data-nosnippet>259</a>        <span class="kw">for </span>entry <span class="kw">in </span>undo.into_iter().rev() {
-<a href=#260 id=260 data-nosnippet>260</a>            <span class="kw">match </span>entry {
-<a href=#261 id=261 data-nosnippet>261</a>                SpeculativeUndo::Item(module_id, key, item) =&gt; {
-<a href=#262 id=262 data-nosnippet>262</a>                    <span class="self">self</span>.unused_items.entry(module_id).or_default().insert(key, item);
-<a href=#263 id=263 data-nosnippet>263</a>                }
-<a href=#264 id=264 data-nosnippet>264</a>                SpeculativeUndo::Import(module_id, key, namespaces) =&gt; {
-<a href=#265 id=265 data-nosnippet>265</a>                    <span class="self">self</span>.unused_imports.entry(module_id).or_default().insert(key, namespaces);
-<a href=#266 id=266 data-nosnippet>266</a>                }
-<a href=#267 id=267 data-nosnippet>267</a>            }
-<a href=#268 id=268 data-nosnippet>268</a>        }
-<a href=#269 id=269 data-nosnippet>269</a>    }
-<a href=#270 id=270 data-nosnippet>270</a>
-<a href=#271 id=271 data-nosnippet>271</a>    <span class="doccomment">/// Register an inherent impl function as unused.
-<a href=#272 id=272 data-nosnippet>272</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>add_unused_impl_function(
-<a href=#273 id=273 data-nosnippet>273</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-<a href=#274 id=274 data-nosnippet>274</a>        func_id: FuncId,
-<a href=#275 id=275 data-nosnippet>275</a>        name: Ident,
-<a href=#276 id=276 data-nosnippet>276</a>        visibility: ItemVisibility,
-<a href=#277 id=277 data-nosnippet>277</a>    ) {
-<a href=#278 id=278 data-nosnippet>278</a>        <span class="kw">if </span>visibility != ItemVisibility::Public &amp;&amp; !name.span().is_empty() {
-<a href=#279 id=279 data-nosnippet>279</a>            <span class="self">self</span>.unused_impl_functions.insert(func_id, name);
-<a href=#280 id=280 data-nosnippet>280</a>        }
-<a href=#281 id=281 data-nosnippet>281</a>    }
-<a href=#282 id=282 data-nosnippet>282</a>
-<a href=#283 id=283 data-nosnippet>283</a>    <span class="doccomment">/// Marks an inherent impl function as used.
-<a href=#284 id=284 data-nosnippet>284</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>mark_impl_function_as_used(<span class="kw-2">&amp;mut </span><span class="self">self</span>, func_id: <span class="kw-2">&amp;</span>FuncId) {
-<a href=#285 id=285 data-nosnippet>285</a>        <span class="self">self</span>.unused_impl_functions.remove(func_id);
-<a href=#286 id=286 data-nosnippet>286</a>    }
-<a href=#287 id=287 data-nosnippet>287</a>
-<a href=#288 id=288 data-nosnippet>288</a>    <span class="doccomment">/// Get all the unused impl functions.
-<a href=#289 id=289 data-nosnippet>289</a>    </span><span class="kw">pub fn </span>unused_impl_functions(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>HashMap&lt;FuncId, Ident&gt; {
-<a href=#290 id=290 data-nosnippet>290</a>        <span class="kw-2">&amp;</span><span class="self">self</span>.unused_impl_functions
-<a href=#291 id=291 data-nosnippet>291</a>    }
-<a href=#292 id=292 data-nosnippet>292</a>
-<a href=#293 id=293 data-nosnippet>293</a>    <span class="doccomment">/// Get all the unused definitions per module, keyed by `(namespace, name)`.
-<a href=#294 id=294 data-nosnippet>294</a>    </span><span class="kw">pub fn </span>unused_items(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>HashMap&lt;ModuleId, HashMap&lt;(Namespace, Ident), UnusedItem&gt;&gt; {
-<a href=#295 id=295 data-nosnippet>295</a>        <span class="kw-2">&amp;</span><span class="self">self</span>.unused_items
+<a href=#74 id=74 data-nosnippet>74</a>    <span class="doccomment">/// A stack of resolution-mode frames. The top frame decides how removals from
+<a href=#75 id=75 data-nosnippet>75</a>    /// `unused_items`/`unused_imports` are treated; an empty stack means they are committed (the
+<a href=#76 id=76 data-nosnippet>76</a>    /// default outside any probe):
+<a href=#77 id=77 data-nosnippet>77</a>    ///
+<a href=#78 id=78 data-nosnippet>78</a>    /// * [`Journal::Speculative`] records every removal so it can be undone on rollback. This lets a
+<a href=#79 id=79 data-nosnippet>79</a>    ///   speculative path-resolution probe (which marks segments as used/referenced while resolving)
+<a href=#80 id=80 data-nosnippet>80</a>    ///   undo those marks when the path turns out not to be what it was probing for.
+<a href=#81 id=81 data-nosnippet>81</a>    /// * [`Journal::Suspended`] commits removals unconditionally, used to run a committed side
+<a href=#82 id=82 data-nosnippet>82</a>    ///   effect — e.g. resolving a function's [`FuncMeta`] — from inside a probe without its marks
+<a href=#83 id=83 data-nosnippet>83</a>    ///   being rolled back when the probe fails.
+<a href=#84 id=84 data-nosnippet>84</a>    ///
+<a href=#85 id=85 data-nosnippet>85</a>    /// Frames nest and interleave freely: a probe may suspend, and a suspended resolution may itself
+<a href=#86 id=86 data-nosnippet>86</a>    /// open a probe. Each frame is entered and exited in pairs — `begin`/`commit`/`rollback` for
+<a href=#87 id=87 data-nosnippet>87</a>    /// speculative frames, `suspend`/`resume` for suspended ones — so the stay-balanced invariant is
+<a href=#88 id=88 data-nosnippet>88</a>    /// what keeps the stack consistent.
+<a href=#89 id=89 data-nosnippet>89</a>    ///
+<a href=#90 id=90 data-nosnippet>90</a>    /// [`FuncMeta`]: crate::hir_def::function::FuncMeta
+<a href=#91 id=91 data-nosnippet>91</a>    </span>journal: Vec&lt;Journal&gt;,
+<a href=#92 id=92 data-nosnippet>92</a>}
+<a href=#93 id=93 data-nosnippet>93</a>
+<a href=#94 id=94 data-nosnippet>94</a><span class="doccomment">/// A single removal recorded during a speculative transaction, kept so it can be re-inserted on
+<a href=#95 id=95 data-nosnippet>95</a>/// rollback.
+<a href=#96 id=96 data-nosnippet>96</a></span><span class="attr">#[derive(Debug)]
+<a href=#97 id=97 data-nosnippet>97</a></span><span class="kw">enum </span>SpeculativeUndo {
+<a href=#98 id=98 data-nosnippet>98</a>    Item(ModuleId, (Namespace, Ident), UnusedItem),
+<a href=#99 id=99 data-nosnippet>99</a>    Import(ModuleId, (Ident, Location), HashSet&lt;Namespace&gt;),
+<a href=#100 id=100 data-nosnippet>100</a>}
+<a href=#101 id=101 data-nosnippet>101</a>
+<a href=#102 id=102 data-nosnippet>102</a><span class="doccomment">/// A resolution-mode frame on the [`UsageTracker`]'s journal stack. The top frame determines how
+<a href=#103 id=103 data-nosnippet>103</a>/// removals from the unused maps are treated; see [`UsageTracker::journal`].
+<a href=#104 id=104 data-nosnippet>104</a></span><span class="attr">#[derive(Debug)]
+<a href=#105 id=105 data-nosnippet>105</a></span><span class="kw">enum </span>Journal {
+<a href=#106 id=106 data-nosnippet>106</a>    <span class="doccomment">/// Removals are committed unconditionally (not recorded for rollback).
+<a href=#107 id=107 data-nosnippet>107</a>    </span>Suspended,
+<a href=#108 id=108 data-nosnippet>108</a>    <span class="doccomment">/// Removals are recorded here so they can be undone if the probe is rolled back.
+<a href=#109 id=109 data-nosnippet>109</a>    </span>Speculative(Vec&lt;SpeculativeUndo&gt;),
+<a href=#110 id=110 data-nosnippet>110</a>}
+<a href=#111 id=111 data-nosnippet>111</a>
+<a href=#112 id=112 data-nosnippet>112</a><span class="doccomment">/// Proof that a speculative transaction is open, returned by [`UsageTracker::begin_speculative`]
+<a href=#113 id=113 data-nosnippet>113</a>/// and consumed by [`UsageTracker::commit_speculative`] / [`UsageTracker::rollback_speculative`].
+<a href=#114 id=114 data-nosnippet>114</a>/// It can only be constructed here, so a transaction cannot be started without going through
+<a href=#115 id=115 data-nosnippet>115</a>/// `begin_speculative`, and `#[must_use]` nudges callers to finish it. Prefer driving this through
+<a href=#116 id=116 data-nosnippet>116</a>/// [`Elaborator::speculatively`](crate::elaborator::Elaborator) rather than by hand.
+<a href=#117 id=117 data-nosnippet>117</a></span><span class="attr">#[must_use]
+<a href=#118 id=118 data-nosnippet>118</a></span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>SpeculativeTx {
+<a href=#119 id=119 data-nosnippet>119</a>    _private: (),
+<a href=#120 id=120 data-nosnippet>120</a>}
+<a href=#121 id=121 data-nosnippet>121</a>
+<a href=#122 id=122 data-nosnippet>122</a><span class="doccomment">/// Proof that a suspended frame is open, returned by [`UsageTracker::suspend_speculative`] and
+<a href=#123 id=123 data-nosnippet>123</a>/// consumed by [`UsageTracker::resume_speculative`]. Like [`SpeculativeTx`], it can only be
+<a href=#124 id=124 data-nosnippet>124</a>/// constructed here and `#[must_use]` nudges callers to pair the suspend with a resume.
+<a href=#125 id=125 data-nosnippet>125</a></span><span class="attr">#[must_use]
+<a href=#126 id=126 data-nosnippet>126</a></span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>SuspendTx {
+<a href=#127 id=127 data-nosnippet>127</a>    _private: (),
+<a href=#128 id=128 data-nosnippet>128</a>}
+<a href=#129 id=129 data-nosnippet>129</a>
+<a href=#130 id=130 data-nosnippet>130</a><span class="kw">impl </span>UsageTracker {
+<a href=#131 id=131 data-nosnippet>131</a>    <span class="doccomment">/// Register a definition as unused, waiting to be marked as used later.
+<a href=#132 id=132 data-nosnippet>132</a>    /// Things that should not emit warnings should not be added at all.
+<a href=#133 id=133 data-nosnippet>133</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>add_unused_item(
+<a href=#134 id=134 data-nosnippet>134</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+<a href=#135 id=135 data-nosnippet>135</a>        module_id: ModuleId,
+<a href=#136 id=136 data-nosnippet>136</a>        name: Ident,
+<a href=#137 id=137 data-nosnippet>137</a>        item: UnusedItem,
+<a href=#138 id=138 data-nosnippet>138</a>        visibility: ItemVisibility,
+<a href=#139 id=139 data-nosnippet>139</a>    ) {
+<a href=#140 id=140 data-nosnippet>140</a>        <span class="comment">// Empty spans could come from implicitly injected imports, and we don't want to track those
+<a href=#141 id=141 data-nosnippet>141</a>        </span><span class="kw">if </span>visibility != ItemVisibility::Public &amp;&amp; !name.span().is_empty() {
+<a href=#142 id=142 data-nosnippet>142</a>            <span class="comment">// A genuine same-namespace clash is a duplicate-definition error reported elsewhere;
+<a href=#143 id=143 data-nosnippet>143</a>            // `entry(..).or_insert` keeps the first item we saw so the unused warning's recorded
+<a href=#144 id=144 data-nosnippet>144</a>            // location and item kind stay self-consistent.
+<a href=#145 id=145 data-nosnippet>145</a>            </span><span class="self">self</span>.unused_items
+<a href=#146 id=146 data-nosnippet>146</a>                .entry(module_id)
+<a href=#147 id=147 data-nosnippet>147</a>                .or_default()
+<a href=#148 id=148 data-nosnippet>148</a>                .entry((item.namespace(), name))
+<a href=#149 id=149 data-nosnippet>149</a>                .or_insert(item);
+<a href=#150 id=150 data-nosnippet>150</a>        }
+<a href=#151 id=151 data-nosnippet>151</a>    }
+<a href=#152 id=152 data-nosnippet>152</a>
+<a href=#153 id=153 data-nosnippet>153</a>    <span class="doccomment">/// Register an unused import. Imports are keyed by name and location; the imported name may
+<a href=#154 id=154 data-nosnippet>154</a>    /// occupy both namespaces (e.g. a re-exported `struct N` and `fn N`), in which case this is
+<a href=#155 id=155 data-nosnippet>155</a>    /// called once per namespace with the same name and location, accumulating into the one
+<a href=#156 id=156 data-nosnippet>156</a>    /// `use`'s entry.
+<a href=#157 id=157 data-nosnippet>157</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>add_unused_import(
+<a href=#158 id=158 data-nosnippet>158</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+<a href=#159 id=159 data-nosnippet>159</a>        module_id: ModuleId,
+<a href=#160 id=160 data-nosnippet>160</a>        name: Ident,
+<a href=#161 id=161 data-nosnippet>161</a>        namespace: Namespace,
+<a href=#162 id=162 data-nosnippet>162</a>        visibility: ItemVisibility,
+<a href=#163 id=163 data-nosnippet>163</a>    ) {
+<a href=#164 id=164 data-nosnippet>164</a>        <span class="kw">if </span>visibility != ItemVisibility::Public &amp;&amp; !name.span().is_empty() {
+<a href=#165 id=165 data-nosnippet>165</a>            <span class="self">self</span>.unused_imports
+<a href=#166 id=166 data-nosnippet>166</a>                .entry(module_id)
+<a href=#167 id=167 data-nosnippet>167</a>                .or_default()
+<a href=#168 id=168 data-nosnippet>168</a>                .entry((name.clone(), name.location()))
+<a href=#169 id=169 data-nosnippet>169</a>                .or_default()
+<a href=#170 id=170 data-nosnippet>170</a>                .insert(namespace);
+<a href=#171 id=171 data-nosnippet>171</a>        }
+<a href=#172 id=172 data-nosnippet>172</a>    }
+<a href=#173 id=173 data-nosnippet>173</a>
+<a href=#174 id=174 data-nosnippet>174</a>    <span class="doccomment">/// Marks the import that brought `name` into `namespace` as used. A `use` is a single
+<a href=#175 id=175 data-nosnippet>175</a>    /// syntactic unit, so using the name in any namespace it occupies uses that whole import (its
+<a href=#176 id=176 data-nosnippet>176</a>    /// entry is dropped). Each entry is keyed by the importing `use`'s location, so a same-named
+<a href=#177 id=177 data-nosnippet>177</a>    /// item imported by a *different* `use` (a different location) into another namespace is left
+<a href=#178 id=178 data-nosnippet>178</a>    /// alone.
+<a href=#179 id=179 data-nosnippet>179</a>    </span><span class="kw">fn </span>mark_import_as_used(
+<a href=#180 id=180 data-nosnippet>180</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+<a href=#181 id=181 data-nosnippet>181</a>        current_mod_id: ModuleId,
+<a href=#182 id=182 data-nosnippet>182</a>        name: <span class="kw-2">&amp;</span>Ident,
+<a href=#183 id=183 data-nosnippet>183</a>        namespace: Namespace,
+<a href=#184 id=184 data-nosnippet>184</a>    ) {
+<a href=#185 id=185 data-nosnippet>185</a>        <span class="kw">let </span>recording = <span class="macro">matches!</span>(<span class="self">self</span>.journal.last(), <span class="prelude-val">Some</span>(Journal::Speculative(<span class="kw">_</span>)));
+<a href=#186 id=186 data-nosnippet>186</a>        <span class="kw">let </span><span class="prelude-val">Some</span>(imports) = <span class="self">self</span>.unused_imports.get_mut(<span class="kw-2">&amp;</span>current_mod_id) <span class="kw">else </span>{
+<a href=#187 id=187 data-nosnippet>187</a>            <span class="kw">return</span>;
+<a href=#188 id=188 data-nosnippet>188</a>        };
+<a href=#189 id=189 data-nosnippet>189</a>        <span class="kw">let </span><span class="kw-2">mut </span>removed = Vec::new();
+<a href=#190 id=190 data-nosnippet>190</a>        imports.retain(|(import_name, location), namespaces| {
+<a href=#191 id=191 data-nosnippet>191</a>            <span class="kw">let </span>remove = import_name == name &amp;&amp; namespaces.contains(<span class="kw-2">&amp;</span>namespace);
+<a href=#192 id=192 data-nosnippet>192</a>            <span class="kw">if </span>remove &amp;&amp; recording {
+<a href=#193 id=193 data-nosnippet>193</a>                removed.push(((import_name.clone(), <span class="kw-2">*</span>location), namespaces.clone()));
+<a href=#194 id=194 data-nosnippet>194</a>            }
+<a href=#195 id=195 data-nosnippet>195</a>            !remove
+<a href=#196 id=196 data-nosnippet>196</a>        });
+<a href=#197 id=197 data-nosnippet>197</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>(Journal::Speculative(undo)) = <span class="self">self</span>.journal.last_mut() {
+<a href=#198 id=198 data-nosnippet>198</a>            <span class="kw">for </span>(key, namespaces) <span class="kw">in </span>removed {
+<a href=#199 id=199 data-nosnippet>199</a>                undo.push(SpeculativeUndo::Import(current_mod_id, key, namespaces));
+<a href=#200 id=200 data-nosnippet>200</a>            }
+<a href=#201 id=201 data-nosnippet>201</a>        }
+<a href=#202 id=202 data-nosnippet>202</a>    }
+<a href=#203 id=203 data-nosnippet>203</a>
+<a href=#204 id=204 data-nosnippet>204</a>    <span class="doccomment">/// Marks an item as being referenced. This doesn't always makes the item as used. For example
+<a href=#205 id=205 data-nosnippet>205</a>    /// if a struct is referenced it will still be considered unused unless it's constructed somewhere.
+<a href=#206 id=206 data-nosnippet>206</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>mark_as_referenced(
+<a href=#207 id=207 data-nosnippet>207</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+<a href=#208 id=208 data-nosnippet>208</a>        current_mod_id: ModuleId,
+<a href=#209 id=209 data-nosnippet>209</a>        name: <span class="kw-2">&amp;</span>Ident,
+<a href=#210 id=210 data-nosnippet>210</a>        namespace: Namespace,
+<a href=#211 id=211 data-nosnippet>211</a>    ) {
+<a href=#212 id=212 data-nosnippet>212</a>        <span class="self">self</span>.mark_import_as_used(current_mod_id, name, namespace);
+<a href=#213 id=213 data-nosnippet>213</a>
+<a href=#214 id=214 data-nosnippet>214</a>        <span class="kw">let </span>key = (namespace, name.clone());
+<a href=#215 id=215 data-nosnippet>215</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>(UnusedItem::Struct(<span class="kw">_</span>)) =
+<a href=#216 id=216 data-nosnippet>216</a>            <span class="self">self</span>.unused_items.get(<span class="kw-2">&amp;</span>current_mod_id).and_then(|items| items.get(<span class="kw-2">&amp;</span>key))
+<a href=#217 id=217 data-nosnippet>217</a>        {
+<a href=#218 id=218 data-nosnippet>218</a>            <span class="kw">return</span>;
+<a href=#219 id=219 data-nosnippet>219</a>        }
+<a href=#220 id=220 data-nosnippet>220</a>
+<a href=#221 id=221 data-nosnippet>221</a>        <span class="kw">let </span>removed =
+<a href=#222 id=222 data-nosnippet>222</a>            <span class="self">self</span>.unused_items.get_mut(<span class="kw-2">&amp;</span>current_mod_id).and_then(|items| items.remove_entry(<span class="kw-2">&amp;</span>key));
+<a href=#223 id=223 data-nosnippet>223</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>((stored_key, item)) = removed {
+<a href=#224 id=224 data-nosnippet>224</a>            <span class="self">self</span>.record_item_removal(current_mod_id, stored_key, item);
+<a href=#225 id=225 data-nosnippet>225</a>        }
+<a href=#226 id=226 data-nosnippet>226</a>    }
+<a href=#227 id=227 data-nosnippet>227</a>
+<a href=#228 id=228 data-nosnippet>228</a>    <span class="doccomment">/// Marks an item as being used.
+<a href=#229 id=229 data-nosnippet>229</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>mark_as_used(
+<a href=#230 id=230 data-nosnippet>230</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+<a href=#231 id=231 data-nosnippet>231</a>        current_mod_id: ModuleId,
+<a href=#232 id=232 data-nosnippet>232</a>        name: <span class="kw-2">&amp;</span>Ident,
+<a href=#233 id=233 data-nosnippet>233</a>        namespace: Namespace,
+<a href=#234 id=234 data-nosnippet>234</a>    ) {
+<a href=#235 id=235 data-nosnippet>235</a>        <span class="self">self</span>.mark_import_as_used(current_mod_id, name, namespace);
+<a href=#236 id=236 data-nosnippet>236</a>
+<a href=#237 id=237 data-nosnippet>237</a>        <span class="kw">let </span>key = (namespace, name.clone());
+<a href=#238 id=238 data-nosnippet>238</a>        <span class="kw">let </span>removed =
+<a href=#239 id=239 data-nosnippet>239</a>            <span class="self">self</span>.unused_items.get_mut(<span class="kw-2">&amp;</span>current_mod_id).and_then(|items| items.remove_entry(<span class="kw-2">&amp;</span>key));
+<a href=#240 id=240 data-nosnippet>240</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>((stored_key, item)) = removed {
+<a href=#241 id=241 data-nosnippet>241</a>            <span class="self">self</span>.record_item_removal(current_mod_id, stored_key, item);
+<a href=#242 id=242 data-nosnippet>242</a>        }
+<a href=#243 id=243 data-nosnippet>243</a>    }
+<a href=#244 id=244 data-nosnippet>244</a>
+<a href=#245 id=245 data-nosnippet>245</a>    <span class="doccomment">/// While a speculative transaction is open, record an `unused_items` removal so it can be
+<a href=#246 id=246 data-nosnippet>246</a>    /// restored on rollback. A no-op when no transaction is in progress.
+<a href=#247 id=247 data-nosnippet>247</a>    ///
+<a href=#248 id=248 data-nosnippet>248</a>    /// `key` must be the *stored* key returned by `remove_entry`, not the lookup key built from the
+<a href=#249 id=249 data-nosnippet>249</a>    /// caller's ident. `Ident`'s `Eq`/`Hash` ignore location, so a lookup ident carries the
+<a href=#250 id=250 data-nosnippet>250</a>    /// reference's location while the stored ident carries the definition's. Recording the stored
+<a href=#251 id=251 data-nosnippet>251</a>    /// key keeps the restored entry pointing at the definition, so a later unused warning lands on
+<a href=#252 id=252 data-nosnippet>252</a>    /// the definition rather than the (rolled-back) reference site.
+<a href=#253 id=253 data-nosnippet>253</a>    </span><span class="kw">fn </span>record_item_removal(
+<a href=#254 id=254 data-nosnippet>254</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+<a href=#255 id=255 data-nosnippet>255</a>        module_id: ModuleId,
+<a href=#256 id=256 data-nosnippet>256</a>        key: (Namespace, Ident),
+<a href=#257 id=257 data-nosnippet>257</a>        item: UnusedItem,
+<a href=#258 id=258 data-nosnippet>258</a>    ) {
+<a href=#259 id=259 data-nosnippet>259</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>(Journal::Speculative(undo)) = <span class="self">self</span>.journal.last_mut() {
+<a href=#260 id=260 data-nosnippet>260</a>            undo.push(SpeculativeUndo::Item(module_id, key, item));
+<a href=#261 id=261 data-nosnippet>261</a>        }
+<a href=#262 id=262 data-nosnippet>262</a>    }
+<a href=#263 id=263 data-nosnippet>263</a>
+<a href=#264 id=264 data-nosnippet>264</a>    <span class="doccomment">/// Begin a speculative transaction by pushing a [`Journal::Speculative`] frame: until it is
+<a href=#265 id=265 data-nosnippet>265</a>    /// committed or rolled back, every removal from `unused_items`/`unused_imports` made while it is
+<a href=#266 id=266 data-nosnippet>266</a>    /// on top of the stack is recorded so it can be undone. Prefer [`Elaborator::speculatively`]
+<a href=#267 id=267 data-nosnippet>267</a>    /// over calling this directly.
+<a href=#268 id=268 data-nosnippet>268</a>    ///
+<a href=#269 id=269 data-nosnippet>269</a>    /// [`Elaborator::speculatively`]: crate::elaborator::Elaborator
+<a href=#270 id=270 data-nosnippet>270</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>begin_speculative(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; SpeculativeTx {
+<a href=#271 id=271 data-nosnippet>271</a>        <span class="self">self</span>.journal.push(Journal::Speculative(Vec::new()));
+<a href=#272 id=272 data-nosnippet>272</a>        SpeculativeTx { _private: () }
+<a href=#273 id=273 data-nosnippet>273</a>    }
+<a href=#274 id=274 data-nosnippet>274</a>
+<a href=#275 id=275 data-nosnippet>275</a>    <span class="doccomment">/// Commit a speculative transaction, keeping every change made while it was open.
+<a href=#276 id=276 data-nosnippet>276</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>commit_speculative(<span class="kw-2">&amp;mut </span><span class="self">self</span>, _tx: SpeculativeTx) {
+<a href=#277 id=277 data-nosnippet>277</a>        <span class="kw">match </span><span class="self">self</span>.journal.pop() {
+<a href=#278 id=278 data-nosnippet>278</a>            <span class="prelude-val">Some</span>(Journal::Speculative(<span class="kw">_</span>)) =&gt; {}
+<a href=#279 id=279 data-nosnippet>279</a>            other =&gt; {
+<a href=#280 id=280 data-nosnippet>280</a>                <span class="macro">panic!</span>(<span class="string">"commit_speculative expected a speculative frame on top, found {other:?}"</span>)
+<a href=#281 id=281 data-nosnippet>281</a>            }
+<a href=#282 id=282 data-nosnippet>282</a>        }
+<a href=#283 id=283 data-nosnippet>283</a>    }
+<a href=#284 id=284 data-nosnippet>284</a>
+<a href=#285 id=285 data-nosnippet>285</a>    <span class="doccomment">/// Suspend rollback recording by pushing a [`Journal::Suspended`] frame: while it is on top,
+<a href=#286 id=286 data-nosnippet>286</a>    /// removals from the unused maps are committed unconditionally (never recorded for rollback).
+<a href=#287 id=287 data-nosnippet>287</a>    /// Used to run a committed side effect — e.g. resolving a function's [`FuncMeta`], which
+<a href=#288 id=288 data-nosnippet>288</a>    /// structurally strikes the function off the to-be-resolved list and so cannot be undone — from
+<a href=#289 id=289 data-nosnippet>289</a>    /// inside a speculative probe without its usage-marks being rolled back when the probe fails.
+<a href=#290 id=290 data-nosnippet>290</a>    /// Pair with [`resume_speculative`](Self::resume_speculative).
+<a href=#291 id=291 data-nosnippet>291</a>    ///
+<a href=#292 id=292 data-nosnippet>292</a>    /// [`FuncMeta`]: crate::hir_def::function::FuncMeta
+<a href=#293 id=293 data-nosnippet>293</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>suspend_speculative(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; SuspendTx {
+<a href=#294 id=294 data-nosnippet>294</a>        <span class="self">self</span>.journal.push(Journal::Suspended);
+<a href=#295 id=295 data-nosnippet>295</a>        SuspendTx { _private: () }
 <a href=#296 id=296 data-nosnippet>296</a>    }
 <a href=#297 id=297 data-nosnippet>297</a>
-<a href=#298 id=298 data-nosnippet>298</a>    <span class="doccomment">/// Get all the unused imports per module, keyed by the imported name and its location; the
-<a href=#299 id=299 data-nosnippet>299</a>    /// value is the set of namespaces that one `use` brought the name into.
-<a href=#300 id=300 data-nosnippet>300</a>    </span><span class="kw">pub fn </span>unused_imports(
-<a href=#301 id=301 data-nosnippet>301</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
-<a href=#302 id=302 data-nosnippet>302</a>    ) -&gt; <span class="kw-2">&amp;</span>HashMap&lt;ModuleId, HashMap&lt;(Ident, Location), HashSet&lt;Namespace&gt;&gt;&gt; {
-<a href=#303 id=303 data-nosnippet>303</a>        <span class="kw-2">&amp;</span><span class="self">self</span>.unused_imports
-<a href=#304 id=304 data-nosnippet>304</a>    }
-<a href=#305 id=305 data-nosnippet>305</a>}</code></pre></div></section></main></body></html>
+<a href=#298 id=298 data-nosnippet>298</a>    <span class="doccomment">/// Resume after a [`suspend_speculative`](Self::suspend_speculative), popping its suspended frame.
+<a href=#299 id=299 data-nosnippet>299</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>resume_speculative(<span class="kw-2">&amp;mut </span><span class="self">self</span>, _tx: SuspendTx) {
+<a href=#300 id=300 data-nosnippet>300</a>        <span class="kw">match </span><span class="self">self</span>.journal.pop() {
+<a href=#301 id=301 data-nosnippet>301</a>            <span class="prelude-val">Some</span>(Journal::Suspended) =&gt; {}
+<a href=#302 id=302 data-nosnippet>302</a>            other =&gt; {
+<a href=#303 id=303 data-nosnippet>303</a>                <span class="macro">panic!</span>(<span class="string">"resume_speculative expected a suspended frame on top, found {other:?}"</span>)
+<a href=#304 id=304 data-nosnippet>304</a>            }
+<a href=#305 id=305 data-nosnippet>305</a>        }
+<a href=#306 id=306 data-nosnippet>306</a>    }
+<a href=#307 id=307 data-nosnippet>307</a>
+<a href=#308 id=308 data-nosnippet>308</a>    <span class="doccomment">/// Roll back a speculative transaction, restoring every entry removed while it was open.
+<a href=#309 id=309 data-nosnippet>309</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>rollback_speculative(<span class="kw-2">&amp;mut </span><span class="self">self</span>, _tx: SpeculativeTx) {
+<a href=#310 id=310 data-nosnippet>310</a>        <span class="kw">let </span><span class="prelude-val">Some</span>(Journal::Speculative(undo)) = <span class="self">self</span>.journal.pop() <span class="kw">else </span>{
+<a href=#311 id=311 data-nosnippet>311</a>            <span class="macro">panic!</span>(<span class="string">"rollback_speculative expected a speculative frame on top"</span>);
+<a href=#312 id=312 data-nosnippet>312</a>        };
+<a href=#313 id=313 data-nosnippet>313</a>        <span class="kw">for </span>entry <span class="kw">in </span>undo.into_iter().rev() {
+<a href=#314 id=314 data-nosnippet>314</a>            <span class="kw">match </span>entry {
+<a href=#315 id=315 data-nosnippet>315</a>                SpeculativeUndo::Item(module_id, key, item) =&gt; {
+<a href=#316 id=316 data-nosnippet>316</a>                    <span class="self">self</span>.unused_items.entry(module_id).or_default().insert(key, item);
+<a href=#317 id=317 data-nosnippet>317</a>                }
+<a href=#318 id=318 data-nosnippet>318</a>                SpeculativeUndo::Import(module_id, key, namespaces) =&gt; {
+<a href=#319 id=319 data-nosnippet>319</a>                    <span class="self">self</span>.unused_imports.entry(module_id).or_default().insert(key, namespaces);
+<a href=#320 id=320 data-nosnippet>320</a>                }
+<a href=#321 id=321 data-nosnippet>321</a>            }
+<a href=#322 id=322 data-nosnippet>322</a>        }
+<a href=#323 id=323 data-nosnippet>323</a>    }
+<a href=#324 id=324 data-nosnippet>324</a>
+<a href=#325 id=325 data-nosnippet>325</a>    <span class="doccomment">/// Register an inherent impl function as unused.
+<a href=#326 id=326 data-nosnippet>326</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>add_unused_impl_function(
+<a href=#327 id=327 data-nosnippet>327</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+<a href=#328 id=328 data-nosnippet>328</a>        func_id: FuncId,
+<a href=#329 id=329 data-nosnippet>329</a>        name: Ident,
+<a href=#330 id=330 data-nosnippet>330</a>        visibility: ItemVisibility,
+<a href=#331 id=331 data-nosnippet>331</a>    ) {
+<a href=#332 id=332 data-nosnippet>332</a>        <span class="kw">if </span>visibility != ItemVisibility::Public &amp;&amp; !name.span().is_empty() {
+<a href=#333 id=333 data-nosnippet>333</a>            <span class="self">self</span>.unused_impl_functions.insert(func_id, name);
+<a href=#334 id=334 data-nosnippet>334</a>        }
+<a href=#335 id=335 data-nosnippet>335</a>    }
+<a href=#336 id=336 data-nosnippet>336</a>
+<a href=#337 id=337 data-nosnippet>337</a>    <span class="doccomment">/// Marks an inherent impl function as used.
+<a href=#338 id=338 data-nosnippet>338</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>mark_impl_function_as_used(<span class="kw-2">&amp;mut </span><span class="self">self</span>, func_id: <span class="kw-2">&amp;</span>FuncId) {
+<a href=#339 id=339 data-nosnippet>339</a>        <span class="self">self</span>.unused_impl_functions.remove(func_id);
+<a href=#340 id=340 data-nosnippet>340</a>    }
+<a href=#341 id=341 data-nosnippet>341</a>
+<a href=#342 id=342 data-nosnippet>342</a>    <span class="doccomment">/// Get all the unused impl functions.
+<a href=#343 id=343 data-nosnippet>343</a>    </span><span class="kw">pub fn </span>unused_impl_functions(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>HashMap&lt;FuncId, Ident&gt; {
+<a href=#344 id=344 data-nosnippet>344</a>        <span class="kw-2">&amp;</span><span class="self">self</span>.unused_impl_functions
+<a href=#345 id=345 data-nosnippet>345</a>    }
+<a href=#346 id=346 data-nosnippet>346</a>
+<a href=#347 id=347 data-nosnippet>347</a>    <span class="doccomment">/// Get all the unused definitions per module, keyed by `(namespace, name)`.
+<a href=#348 id=348 data-nosnippet>348</a>    </span><span class="kw">pub fn </span>unused_items(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>HashMap&lt;ModuleId, HashMap&lt;(Namespace, Ident), UnusedItem&gt;&gt; {
+<a href=#349 id=349 data-nosnippet>349</a>        <span class="kw-2">&amp;</span><span class="self">self</span>.unused_items
+<a href=#350 id=350 data-nosnippet>350</a>    }
+<a href=#351 id=351 data-nosnippet>351</a>
+<a href=#352 id=352 data-nosnippet>352</a>    <span class="doccomment">/// Get all the unused imports per module, keyed by the imported name and its location; the
+<a href=#353 id=353 data-nosnippet>353</a>    /// value is the set of namespaces that one `use` brought the name into.
+<a href=#354 id=354 data-nosnippet>354</a>    </span><span class="kw">pub fn </span>unused_imports(
+<a href=#355 id=355 data-nosnippet>355</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
+<a href=#356 id=356 data-nosnippet>356</a>    ) -&gt; <span class="kw-2">&amp;</span>HashMap&lt;ModuleId, HashMap&lt;(Ident, Location), HashSet&lt;Namespace&gt;&gt;&gt; {
+<a href=#357 id=357 data-nosnippet>357</a>        <span class="kw-2">&amp;</span><span class="self">self</span>.unused_imports
+<a href=#358 id=358 data-nosnippet>358</a>    }
+<a href=#359 id=359 data-nosnippet>359</a>}</code></pre></div></section></main></body></html>
