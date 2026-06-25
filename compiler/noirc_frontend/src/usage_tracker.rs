@@ -71,57 +71,24 @@ pub struct UsageTracker {
     /// type's method set — so they're tracked by id and removed when the method is called or
     /// otherwise referenced. The `Ident` is the method name, used to locate the unused warning.
     unused_impl_functions: HashMap<FuncId, Ident>,
-    /// A stack of resolution-mode frames. The top frame decides how removals from
-    /// `unused_items`/`unused_imports` are treated; an empty stack means they are committed (the
-    /// default outside any probe):
-    ///
-    /// * [`Journal::Speculative`] records every removal so it can be undone on rollback. This lets a
-    ///   speculative path-resolution probe (which marks segments as used/referenced while resolving)
-    ///   undo those marks when the path turns out not to be what it was probing for.
-    /// * [`Journal::Suspended`] commits removals unconditionally, used to run a committed side
-    ///   effect — e.g. resolving a function's [`FuncMeta`] — from inside a probe without its marks
-    ///   being rolled back when the probe fails.
-    ///
-    /// Frames nest and interleave freely: a probe may suspend, and a suspended resolution may itself
-    /// open a probe. Each frame is entered and exited in pairs — `begin`/`commit`/`rollback` for
-    /// speculative frames, `suspend`/`resume` for suspended ones — so the stay-balanced invariant is
-    /// what keeps the stack consistent.
+    /// A stack of [`Journal::Suspended`] frames. Each marks a region where removals from
+    /// `unused_items`/`unused_imports` are committed unconditionally, used to run a committed side
+    /// effect — e.g. resolving a function's [`FuncMeta`] — without its marks being rolled back.
     ///
     /// [`FuncMeta`]: crate::hir_def::function::FuncMeta
     journal: Vec<Journal>,
 }
 
-/// A single removal recorded during a speculative transaction, kept so it can be re-inserted on
-/// rollback.
-#[derive(Debug)]
-enum SpeculativeUndo {
-    Item(ModuleId, (Namespace, Ident), UnusedItem),
-    Import(ModuleId, (Ident, Location), HashSet<Namespace>),
-}
-
-/// A resolution-mode frame on the [`UsageTracker`]'s journal stack. The top frame determines how
-/// removals from the unused maps are treated; see [`UsageTracker::journal`].
+/// A resolution-mode frame on the [`UsageTracker`]'s journal stack.
 #[derive(Debug)]
 enum Journal {
-    /// Removals are committed unconditionally (not recorded for rollback).
+    /// Removals are committed unconditionally.
     Suspended,
-    /// Removals are recorded here so they can be undone if the probe is rolled back.
-    Speculative(Vec<SpeculativeUndo>),
-}
-
-/// Proof that a speculative transaction is open, returned by [`UsageTracker::begin_speculative`]
-/// and consumed by [`UsageTracker::commit_speculative`] / [`UsageTracker::rollback_speculative`].
-/// It can only be constructed here, so a transaction cannot be started without going through
-/// `begin_speculative`, and `#[must_use]` nudges callers to finish it. Prefer driving this through
-/// [`Elaborator::speculatively`](crate::elaborator::Elaborator) rather than by hand.
-#[must_use]
-pub(crate) struct SpeculativeTx {
-    _private: (),
 }
 
 /// Proof that a suspended frame is open, returned by [`UsageTracker::suspend_speculative`] and
-/// consumed by [`UsageTracker::resume_speculative`]. Like [`SpeculativeTx`], it can only be
-/// constructed here and `#[must_use]` nudges callers to pair the suspend with a resume.
+/// consumed by [`UsageTracker::resume_speculative`]. It can only be constructed here, and
+/// `#[must_use]` nudges callers to pair the suspend with a resume.
 #[must_use]
 pub(crate) struct SuspendTx {
     _private: (),
@@ -182,23 +149,12 @@ impl UsageTracker {
         name: &Ident,
         namespace: Namespace,
     ) {
-        let recording = matches!(self.journal.last(), Some(Journal::Speculative(_)));
         let Some(imports) = self.unused_imports.get_mut(&current_mod_id) else {
             return;
         };
-        let mut removed = Vec::new();
-        imports.retain(|(import_name, location), namespaces| {
-            let remove = import_name == name && namespaces.contains(&namespace);
-            if remove && recording {
-                removed.push(((import_name.clone(), *location), namespaces.clone()));
-            }
-            !remove
+        imports.retain(|(import_name, _location), namespaces| {
+            !(import_name == name && namespaces.contains(&namespace))
         });
-        if let Some(Journal::Speculative(undo)) = self.journal.last_mut() {
-            for (key, namespaces) in removed {
-                undo.push(SpeculativeUndo::Import(current_mod_id, key, namespaces));
-            }
-        }
     }
 
     /// Marks an item as being referenced. This doesn't always makes the item as used. For example
@@ -218,10 +174,8 @@ impl UsageTracker {
             return;
         }
 
-        let removed =
-            self.unused_items.get_mut(&current_mod_id).and_then(|items| items.remove_entry(&key));
-        if let Some((stored_key, item)) = removed {
-            self.record_item_removal(current_mod_id, stored_key, item);
+        if let Some(items) = self.unused_items.get_mut(&current_mod_id) {
+            items.remove(&key);
         }
     }
 
@@ -235,50 +189,8 @@ impl UsageTracker {
         self.mark_import_as_used(current_mod_id, name, namespace);
 
         let key = (namespace, name.clone());
-        let removed =
-            self.unused_items.get_mut(&current_mod_id).and_then(|items| items.remove_entry(&key));
-        if let Some((stored_key, item)) = removed {
-            self.record_item_removal(current_mod_id, stored_key, item);
-        }
-    }
-
-    /// While a speculative transaction is open, record an `unused_items` removal so it can be
-    /// restored on rollback. A no-op when no transaction is in progress.
-    ///
-    /// `key` must be the *stored* key returned by `remove_entry`, not the lookup key built from the
-    /// caller's ident. `Ident`'s `Eq`/`Hash` ignore location, so a lookup ident carries the
-    /// reference's location while the stored ident carries the definition's. Recording the stored
-    /// key keeps the restored entry pointing at the definition, so a later unused warning lands on
-    /// the definition rather than the (rolled-back) reference site.
-    fn record_item_removal(
-        &mut self,
-        module_id: ModuleId,
-        key: (Namespace, Ident),
-        item: UnusedItem,
-    ) {
-        if let Some(Journal::Speculative(undo)) = self.journal.last_mut() {
-            undo.push(SpeculativeUndo::Item(module_id, key, item));
-        }
-    }
-
-    /// Begin a speculative transaction by pushing a [`Journal::Speculative`] frame: until it is
-    /// committed or rolled back, every removal from `unused_items`/`unused_imports` made while it is
-    /// on top of the stack is recorded so it can be undone. Prefer [`Elaborator::speculatively`]
-    /// over calling this directly.
-    ///
-    /// [`Elaborator::speculatively`]: crate::elaborator::Elaborator
-    pub(crate) fn begin_speculative(&mut self) -> SpeculativeTx {
-        self.journal.push(Journal::Speculative(Vec::new()));
-        SpeculativeTx { _private: () }
-    }
-
-    /// Commit a speculative transaction, keeping every change made while it was open.
-    pub(crate) fn commit_speculative(&mut self, _tx: SpeculativeTx) {
-        match self.journal.pop() {
-            Some(Journal::Speculative(_)) => {}
-            other => {
-                panic!("commit_speculative expected a speculative frame on top, found {other:?}")
-            }
+        if let Some(items) = self.unused_items.get_mut(&current_mod_id) {
+            items.remove(&key);
         }
     }
 
@@ -301,23 +213,6 @@ impl UsageTracker {
             Some(Journal::Suspended) => {}
             other => {
                 panic!("resume_speculative expected a suspended frame on top, found {other:?}")
-            }
-        }
-    }
-
-    /// Roll back a speculative transaction, restoring every entry removed while it was open.
-    pub(crate) fn rollback_speculative(&mut self, _tx: SpeculativeTx) {
-        let Some(Journal::Speculative(undo)) = self.journal.pop() else {
-            panic!("rollback_speculative expected a speculative frame on top");
-        };
-        for entry in undo.into_iter().rev() {
-            match entry {
-                SpeculativeUndo::Item(module_id, key, item) => {
-                    self.unused_items.entry(module_id).or_default().insert(key, item);
-                }
-                SpeculativeUndo::Import(module_id, key, namespaces) => {
-                    self.unused_imports.entry(module_id).or_default().insert(key, namespaces);
-                }
             }
         }
     }

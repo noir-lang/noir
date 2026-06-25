@@ -86,9 +86,14 @@ pub(super) enum PathPrefixKind {
     /// A generic parameter with a `: Trait` bound in scope (e.g. `T` in `T::method`). The last
     /// segment is a method or associated constant reached through one of those bounds.
     BoundedGeneric,
-    /// A trait (e.g. `Trait` in `Trait::CONST`). The last segment is an associated constant.
-    /// (`Trait::method` is handled earlier as a canonical trait method.)
-    Trait { trait_id: TraitId, last_segment: TypedPathSegment, resolution: PathResolution },
+    /// A trait (e.g. `Trait` in `Trait::method` / `Trait::CONST`). The last segment is a trait
+    /// static method or an associated constant. `turbofish` is the trait segment's turbofish.
+    Trait {
+        trait_id: TraitId,
+        turbofish: Option<Turbofish>,
+        last_segment: TypedPathSegment,
+        resolution: PathResolution,
+    },
     /// A concrete type, type alias, primitive type, or `Self` bound to a data type (e.g. `Type`
     /// in `Type::method`). The last segment is an inherent or qualified trait method.
     Type {
@@ -1455,38 +1460,6 @@ impl Elaborator<'_> {
         None
     }
 
-    /// This resolves `TraitName::some_static_method`
-    ///
-    /// Returns the trait method, trait constraint, and whether the impl is assumed to exist by a where clause or not
-    /// E.g. `t.method()` with `where T: Foo<Bar>` in scope will return `(Foo::method, T, vec![Bar])`
-    #[tracing::instrument(level = "trace", skip_all)]
-    fn resolve_trait_static_method(&mut self, path: &TypedPath) -> Option<TraitPathResolution> {
-        // This is a speculative probe: the path may turn out not to be a trait static method at
-        // all (e.g. a plain `N()` call where `N` is also a struct or imported type). Resolving it
-        // marks the segments along the way as used/referenced, but a *failed* probe must not leave
-        // those marks behind — otherwise a same-named type or import is wrongly considered used.
-        // When it *does* resolve to a trait static method (e.g. `T::from(..)`), this resolution is
-        // the only thing that marks the trait/type used, so the marks must be kept.
-        self.speculatively(|this| this.resolve_trait_static_method_inner(path))
-    }
-
-    fn resolve_trait_static_method_inner(
-        &mut self,
-        path: &TypedPath,
-    ) -> Option<TraitPathResolution> {
-        let path_resolution = self.resolve_path_as_type(path.clone()).ok()?;
-        let func_id = path_resolution.item.function_id()?;
-        let meta = self.try_function_meta(func_id)?;
-        let trait_id = meta.trait_id?;
-        let the_trait = self.interner.get_trait(trait_id);
-        let method = the_trait.find_method(path.last_name(), self.interner)?;
-        let constraint = the_trait.as_constraint(path.location);
-        let trait_method = TraitItem { definition: method, constraint, assumed: false };
-        let method = TraitPathResolutionMethod::TraitItem(trait_method);
-        let item = Some(path_resolution.item);
-        Some(TraitPathResolution { method, item, errors: path_resolution.errors })
-    }
-
     /// Classify the prefix (every segment but the last) of a path used as an expression. This does
     /// not resolve the last segment — it only answers "what is the prefix?", which the caller uses
     /// to decide how to resolve the last segment. Returns `None` if the path has no prefix.
@@ -1536,7 +1509,7 @@ impl Elaborator<'_> {
         );
 
         Some(if let Some(trait_id) = trait_id {
-            PathPrefixKind::Trait { trait_id, last_segment, resolution }
+            PathPrefixKind::Trait { trait_id, turbofish, last_segment, resolution }
         } else if is_type_prefix {
             PathPrefixKind::Type { last_segment, turbofish, is_self_prefix, resolution }
         } else {
@@ -1554,28 +1527,48 @@ impl Elaborator<'_> {
         })
     }
 
-    /// Resolves `Trait::SOME_CONSTANT` to the trait's associated constant, given a prefix that has
-    /// already been resolved to a trait.
+    /// Resolves the last segment of a `Trait::item` path against a prefix already resolved to a
+    /// trait. The segment is either a trait static method (`Trait::method`) or an associated
+    /// constant (`Trait::CONST`); returns `None` if it is neither.
     ///
-    /// An associated constant is not a function, so resolving the full path as a type fails (only
-    /// paths ending in a type or function resolve that way). Instead the trait prefix is resolved
-    /// separately and the constant looked up by name. The resulting `TraitItem` is lowered to the
-    /// selected impl's value during monomorphization, mirroring how `Self::SOME_CONSTANT` is
-    /// handled by [`Self::resolve_trait_static_method_by_self`].
-    fn resolve_trait_constant_on_prefix(
-        &self,
+    /// The method is looked up directly on the trait rather than by re-resolving the whole path:
+    /// the trait was already marked when its prefix was resolved, so only the method's own
+    /// reference/dependency is recorded here (as inherent-method resolution does). An associated
+    /// constant is not a function, so it could not be resolved as a path anyway; its `TraitItem`
+    /// is lowered to the selected impl's value during monomorphization.
+    fn resolve_trait_item_on_prefix(
+        &mut self,
         trait_id: TraitId,
+        turbofish: Option<Turbofish>,
+        last_segment: &TypedPathSegment,
         location: Location,
-        last_segment: TypedPathSegment,
         resolution: PathResolution,
     ) -> Option<TraitPathResolution> {
         let the_trait = self.interner.get_trait(trait_id);
-        let definition =
-            the_trait.associated_constant_ids.get(last_segment.ident.as_str()).copied()?;
+        let name = last_segment.ident.as_str();
+        let method_func_id = the_trait.method_ids.get(name).copied();
+        let associated_constant = the_trait.associated_constant_ids.get(name).copied();
         let constraint = the_trait.as_constraint(location);
+
+        if let Some(func_id) = method_func_id {
+            let definition = self.interner.function_definition_id(func_id);
+            self.record_direct_method_reference(func_id, &last_segment.ident);
+            let trait_item = TraitItem { definition, constraint, assumed: false };
+            let item = PathResolutionItem::TraitFunction(trait_id, turbofish, func_id);
+            return Some(TraitPathResolution {
+                method: TraitPathResolutionMethod::TraitItem(trait_item),
+                item: Some(item),
+                errors: resolution.errors,
+            });
+        }
+
+        let definition = associated_constant?;
         let trait_item = TraitItem { definition, constraint, assumed: true };
-        let method = TraitPathResolutionMethod::TraitItem(trait_item);
-        Some(TraitPathResolution { method, item: None, errors: resolution.errors })
+        Some(TraitPathResolution {
+            method: TraitPathResolutionMethod::TraitItem(trait_item),
+            item: None,
+            errors: resolution.errors,
+        })
     }
 
     /// This resolves a static trait method `T::trait_method` by iterating over the where clause
@@ -2180,16 +2173,14 @@ impl Elaborator<'_> {
                 ),
             // A trait prefix: the last segment is either a trait static method (`Trait::method`)
             // or an associated constant (`Trait::CONST`).
-            PathPrefixKind::Trait { trait_id, last_segment, resolution } => {
-                self.resolve_trait_static_method(path).or_else(|| {
-                    self.resolve_trait_constant_on_prefix(
-                        trait_id,
-                        path.location,
-                        last_segment,
-                        resolution,
-                    )
-                })
-            }
+            PathPrefixKind::Trait { trait_id, turbofish, last_segment, resolution } => self
+                .resolve_trait_item_on_prefix(
+                    trait_id,
+                    turbofish,
+                    &last_segment,
+                    path.location,
+                    resolution,
+                ),
             PathPrefixKind::Module => None,
         }
     }
