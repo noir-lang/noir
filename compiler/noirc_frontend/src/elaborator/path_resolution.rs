@@ -755,8 +755,7 @@ impl Elaborator<'_> {
                             return Err(PathResolutionError::Unresolved(current_ident.clone()));
                         } else {
                             let traits = vecmap(method_traits, |trait_id| {
-                                let trait_ = self.interner.get_trait(trait_id);
-                                self.fully_qualified_trait_path(trait_)
+                                self.fully_qualified_trait_path_by_id(trait_id)
                             });
                             return Err(
                                 PathResolutionError::UnresolvedWithPossibleTraitsToImport {
@@ -772,8 +771,7 @@ impl Elaborator<'_> {
                         per_ns
                     }
                     MethodLookupResult::FoundOneTraitMethodButNotInScope(per_ns, trait_id) => {
-                        let trait_ = self.interner.get_trait(trait_id);
-                        let trait_name = self.fully_qualified_trait_path(trait_);
+                        let trait_name = self.fully_qualified_trait_path_by_id(trait_id);
                         errors.push(PathResolutionError::TraitMethodNotInScope {
                             ident: current_ident.clone(),
                             trait_name,
@@ -782,13 +780,12 @@ impl Elaborator<'_> {
                     }
                     MethodLookupResult::FoundMultipleTraitMethods(vec) => {
                         let traits = vecmap(vec, |(trait_id, name)| {
-                            let trait_ = self.interner.get_trait(trait_id);
                             self.usage_tracker.mark_as_used(
                                 importing_module,
                                 &name,
                                 Namespace::Type,
                             );
-                            self.fully_qualified_trait_path(trait_)
+                            self.fully_qualified_trait_path_by_id(trait_id)
                         });
                         return Err(PathResolutionError::MultipleTraitsInScope {
                             ident: current_ident.clone(),
@@ -1040,8 +1037,7 @@ impl Elaborator<'_> {
                 let same_trait =
                     in_scope.iter().all(|(_, trait_id, _)| *trait_id == first_trait_id);
                 if same_trait {
-                    let trait_name =
-                        self.fully_qualified_trait_path(self.interner.get_trait(first_trait_id));
+                    let trait_name = self.fully_qualified_trait_path_by_id(first_trait_id);
                     let type_name = self_type.to_string();
                     let impls = vecmap(&in_scope, |(_, _, impl_id)| {
                         let ordered = &self.interner.get_trait_generics_for_impl(*impl_id).ordered;
@@ -1063,8 +1059,7 @@ impl Elaborator<'_> {
                     }))
                 } else {
                     let mut traits = vecmap(&in_scope, |(_, trait_id, _)| {
-                        let trait_ = self.interner.get_trait(*trait_id);
-                        self.fully_qualified_trait_path(trait_)
+                        self.fully_qualified_trait_path_by_id(*trait_id)
                     });
                     traits.sort();
                     traits.dedup();
@@ -1172,8 +1167,7 @@ impl Elaborator<'_> {
         if results.is_empty() {
             if trait_methods.len() == 1 {
                 let (func_id, trait_id, _) = trait_methods.first().expect("Expected an item");
-                let trait_ = self.interner.get_trait(*trait_id);
-                let trait_name = self.fully_qualified_trait_path(trait_);
+                let trait_name = self.fully_qualified_trait_path_by_id(*trait_id);
                 let ident = method_name_ident.clone();
                 errors.push(PathResolutionError::TraitMethodNotInScope { ident, trait_name });
                 return Ok(*func_id);

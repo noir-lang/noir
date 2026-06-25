@@ -951,26 +951,26 @@ impl Elaborator<'_> {
                 return Some(generic.into_named_generic(None));
             }
         } else if let Some(typ) = self.lookup_associated_type_on_self(path) {
-            if let Some(last_segment) = path.segments.last()
-                && last_segment.generics.is_some()
-            {
-                self.push_err(ResolverError::GenericsOnAssociatedType {
-                    location: last_segment.turbofish_location(),
-                });
-            }
+            self.error_if_generics_on_associated_type(path);
             return Some(typ);
         } else if let Some(typ) = self.lookup_associated_type_on_generic(path) {
-            if let Some(last_segment) = path.segments.last()
-                && last_segment.generics.is_some()
-            {
-                self.push_err(ResolverError::GenericsOnAssociatedType {
-                    location: last_segment.turbofish_location(),
-                });
-            }
+            self.error_if_generics_on_associated_type(path);
             return Some(typ);
         }
 
         None
+    }
+
+    /// Associated types cannot carry turbofish generics; report an error if the path's last
+    /// segment has any.
+    fn error_if_generics_on_associated_type(&mut self, path: &TypedPath) {
+        if let Some(last_segment) = path.segments.last()
+            && last_segment.generics.is_some()
+        {
+            self.push_err(ResolverError::GenericsOnAssociatedType {
+                location: last_segment.turbofish_location(),
+            });
+        }
     }
 
     /// Look up a path as a global used as a numeric type (e.g. `global N: u32 = 5;`
@@ -1602,10 +1602,8 @@ impl Elaborator<'_> {
         if matches.len() > 1 {
             let location = path.location;
             let ident = Ident::new(method_name.to_string(), location);
-            let traits = vecmap(matches, |(_, trait_id)| {
-                let trait_ = self.interner.get_trait(trait_id);
-                self.fully_qualified_trait_path(trait_)
-            });
+            let traits =
+                vecmap(matches, |(_, trait_id)| self.fully_qualified_trait_path_by_id(trait_id));
             let errors = vec![PathResolutionError::MultipleTraitsInScope { ident, traits }];
             return Some(TraitPathResolution {
                 method: TraitPathResolutionMethod::MultipleTraitsInScope,
@@ -3076,8 +3074,7 @@ impl Elaborator<'_> {
             if traits.len() == 1 {
                 // This is the backwards-compatible case where there's a single trait but it's not in scope
                 let trait_id = *traits.iter().next().unwrap();
-                let trait_ = self.interner.get_trait(trait_id);
-                let trait_name = self.fully_qualified_trait_path(trait_);
+                let trait_name = self.fully_qualified_trait_path_by_id(trait_id);
                 let method =
                     self.trait_hir_method_reference(trait_id, trait_methods, method_name, location);
                 let error = PathResolutionError::TraitMethodNotInScope {
@@ -3086,10 +3083,8 @@ impl Elaborator<'_> {
                 };
                 return (Some(method), Some(error));
             } else {
-                let traits = vecmap(traits, |trait_id| {
-                    let trait_ = self.interner.get_trait(trait_id);
-                    self.fully_qualified_trait_path(trait_)
-                });
+                let traits =
+                    vecmap(traits, |trait_id| self.fully_qualified_trait_path_by_id(trait_id));
                 let method_not_found = None;
                 let error = PathResolutionError::UnresolvedWithPossibleTraitsToImport {
                     ident: Ident::new(method_name.into(), location),
@@ -3100,10 +3095,7 @@ impl Elaborator<'_> {
         }
 
         if traits_in_scope.len() > 1 {
-            let traits = vecmap(traits, |trait_id| {
-                let trait_ = self.interner.get_trait(trait_id);
-                self.fully_qualified_trait_path(trait_)
-            });
+            let traits = vecmap(traits, |trait_id| self.fully_qualified_trait_path_by_id(trait_id));
             let method_not_found = None;
             let error = PathResolutionError::MultipleTraitsInScope {
                 ident: Ident::new(method_name.into(), location),
@@ -3260,10 +3252,8 @@ impl Elaborator<'_> {
 
         if matches.len() > 1 {
             let ident = Ident::new(method_name.to_string(), location);
-            let traits = vecmap(matches, |method| {
-                let trait_ = self.interner.get_trait(method.trait_id);
-                self.fully_qualified_trait_path(trait_)
-            });
+            let traits =
+                vecmap(matches, |method| self.fully_qualified_trait_path_by_id(method.trait_id));
             self.push_err(PathResolutionError::MultipleTraitsInScope { ident, traits });
             return None;
         }
@@ -3722,6 +3712,10 @@ impl Elaborator<'_> {
             trait_generics: parent_trait_bound.trait_generics.map(|typ| typ.substitute(&bindings)),
             ..*parent_trait_bound
         }
+    }
+
+    pub(crate) fn fully_qualified_trait_path_by_id(&self, trait_id: TraitId) -> String {
+        self.fully_qualified_trait_path(self.interner.get_trait(trait_id))
     }
 
     pub(crate) fn fully_qualified_trait_path(&self, trait_: &Trait) -> String {
