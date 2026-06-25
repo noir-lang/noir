@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1782383159757,
+  "lastUpdate": 1782383270137,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23071,48 +23071,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "e4dcf93004bb5d5412c8acceb9a09d87987e57d5",
-          "message": "feat(ssa): Only merge modified array indices  (#11512)\n\nCo-authored-by: Akosh Farkash <aakoshh@gmail.com>\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
-          "timestamp": "2026-06-18T19:38:24Z",
-          "tree_id": "66e34fdb0e6ebda98e87be8e07faf1d6ec30afaa",
-          "url": "https://github.com/noir-lang/noir/commit/e4dcf93004bb5d5412c8acceb9a09d87987e57d5"
-        },
-        "date": 1781813162032,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 166653,
-            "range": "± 355",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 136019,
-            "range": "± 469",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2649735,
-            "range": "± 2315",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "47281315+guipublic@users.noreply.github.com",
             "name": "guipublic",
             "username": "guipublic"
@@ -25164,6 +25122,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 3044194,
             "range": "± 3608",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "fb35077e285cd4d321b075e342ccae8ec7efb34d",
+          "message": "chore: validate write_heap_array lengths (#13169)",
+          "timestamp": "2026-06-25T10:05:59Z",
+          "tree_id": "dbcfe712e4e4d3553328d3904e6399f61212e302",
+          "url": "https://github.com/noir-lang/noir/commit/fb35077e285cd4d321b075e342ccae8ec7efb34d"
+        },
+        "date": 1782383193891,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 127142,
+            "range": "± 783",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 113484,
+            "range": "± 2554",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 3041687,
+            "range": "± 5743",
             "unit": "ns/iter"
           }
         ]
