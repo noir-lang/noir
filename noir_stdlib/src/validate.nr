@@ -9,6 +9,26 @@ use crate::meta::derive_via;
 ///
 /// `#[derive(Validate)]` implements it by validating each field in turn; the no-op implementations
 /// below are the leaves of that recursion (primitive types carry no invariant of their own).
+///
+/// A type can also assert invariants of its own (ones that span several fields, or that the field
+/// recursion cannot see) by naming one or more methods with `#[validate(Type::method)]`. The derived
+/// `validate` calls each named method before recursing into the fields:
+///
+/// ```noir
+/// #[derive(Validate)]
+/// #[validate(Percent::in_range)]
+/// struct Percent {
+///     value: u8,
+/// }
+///
+/// impl Percent {
+///     fn in_range(&self) {
+///         assert(self.value <= 100);
+///     }
+/// }
+/// ```
+///
+/// Each named method must take a single `self` argument and return nothing.
 #[derive_via(derive_validate)]
 pub trait Validate {
     fn validate(&self);
@@ -17,7 +37,16 @@ pub trait Validate {
 comptime fn derive_validate(s: TypeDefinition) -> Quoted {
     let signature = quote { fn validate(&self) };
     let for_each_field = |name| quote { self.$name.validate(); };
-    let body = |fields| fields;
+
+    // Splice a call to each `#[validate(Type::method)]` method ahead of the field recursion, so the
+    // type's own invariants are asserted before its contents are descended into.
+    let mut custom = quote {};
+    for occurrence in s.named_attribute_args("validate") {
+        let method = occurrence[0];
+        custom = quote { $custom $method(self); };
+    }
+    let body = |fields| quote { $custom $fields };
+
     crate::meta::make_trait_impl(
         s,
         quote { $crate::validate::Validate },
@@ -26,6 +55,31 @@ comptime fn derive_validate(s: TypeDefinition) -> Quoted {
         quote {},
         body,
     )
+}
+
+/// Attribute backing `#[validate(Type::method)]`. It does not generate any code itself — the
+/// `#[derive(Validate)]` handler reads these attributes and splices the calls — but it checks that
+/// each named method has the shape the derived `validate` expects to call: a single `self` argument
+/// and no return value. Reporting that here points the error at the attribute rather than at the
+/// generated impl.
+pub comptime fn validate(s: TypeDefinition, method: FunctionDefinition) {
+    let parameters = method.parameters();
+    assert_eq(
+        parameters.len(),
+        1,
+        "a #[validate(...)] method must take a single `&self` argument",
+    );
+    let self_type = s.as_type();
+    assert_eq(
+        parameters[0].1,
+        quote { &$self_type }.as_type(),
+        "a #[validate(...)] method must take `&self`",
+    );
+    assert_eq(
+        method.return_type(),
+        quote { () }.as_type(),
+        "a #[validate(...)] method must not return a value",
+    );
 }
 
 // Primitive leaves: their representation is their value, so there is nothing to assert.

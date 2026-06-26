@@ -1,0 +1,6 @@
+[package]
+name = "validate_custom"
+type = "bin"
+authors = [""]
+
+[dependencies]
