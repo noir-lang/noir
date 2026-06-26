@@ -17,9 +17,9 @@
 //! callers, and re-compute it based on the calling context. In any of these cases,
 //! we can trust the purity from the custom purity analysis:
 //!
-//! - the caller is brillig — brillig calls are never predicate-masked;
+//! - the caller is Brillig — Brillig calls are never predicate-masked;
 //! - the callee is ACIR — ACIR calls do not zero their outputs
-//! - the caller is ACIR, the callee is brillig, and the call site's predicate is the constant `1`.
+//! - the caller is ACIR, the callee is Brillig, and the call site's predicate is the constant `1`.
 //!
 //! This pass should be run after flattening but it is still sound otherwise.
 
