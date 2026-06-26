@@ -30,9 +30,11 @@ use crate::meta::derive_via;
 ///
 /// Each named method must take a single `self` argument and return nothing.
 #[derive_via(derive_validate)]
+// docs:start:validate-trait
 pub trait Validate {
     fn validate(&self);
 }
+// docs:end:validate-trait
 
 comptime fn derive_validate(s: TypeDefinition) -> Quoted {
     let signature = quote { fn validate(&self) };
