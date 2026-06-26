@@ -1,7 +1,6 @@
-// Phase 1 of the `Validate` work (https://github.com/noir-lang/noir/issues/13188):
-// `#[derive(Validate)]` recurses through a type's fields. With only the no-op leaf impls in
-// place there are no invariants to assert yet, so this just demonstrates that the derive
-// resolves and recurses (through nested structs, arrays, tuples, and `Option`) and that
+// `#[derive(Validate)]` recurses through a type's fields. With only the no-op leaf impls for
+// primitive types in place there are no invariants to assert here, so this exercises that the
+// derive resolves and recurses through nested structs, arrays, tuples, and `Option`, and that
 // `validate` is callable.
 use std::validate::Validate;
 

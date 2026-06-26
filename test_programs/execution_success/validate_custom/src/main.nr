@@ -1,4 +1,3 @@
-// Phase 2 of the `Validate` work (https://github.com/noir-lang/noir/issues/13188):
 // `#[validate(Type::method)]` lets a type assert an invariant of its own on top of the field
 // recursion `#[derive(Validate)]` generates. Here the invariant (`lo <= hi`) spans two fields, so
 // the field recursion alone could never check it; the derived `validate` calls `Bounds::ordered`

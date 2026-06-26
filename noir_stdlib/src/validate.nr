@@ -69,10 +69,16 @@ pub comptime fn validate(s: TypeDefinition, method: FunctionDefinition) {
         1,
         "a #[validate(...)] method must take a single `&self` argument",
     );
+    // The single argument must be `&self`: a reference to the annotated type. Comparing the
+    // tokenized types rather than the `Type` values matches by the names a generic type prints
+    // (e.g. `&BoundedVec<T, MaxLen>`), so the method's generics need not be the same type-variable
+    // instances as the type definition's for the comparison to hold.
     let self_type = s.as_type();
+    let parameter_type = parameters[0].1;
+    let self_reference = quote { &$self_type }.as_type();
     assert_eq(
-        parameters[0].1,
-        quote { &$self_type }.as_type(),
+        quote { $parameter_type },
+        quote { $self_reference },
         "a #[validate(...)] method must take `&self`",
     );
     assert_eq(
