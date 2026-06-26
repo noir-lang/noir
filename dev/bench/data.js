@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1782471070057,
+  "lastUpdate": 1782472243752,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23091,48 +23091,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "d62435eb0ff0723dec8fdeb2b000a6f009d24596",
-          "message": "fix(acvm): treat Opcode::Call as a side-effect boundary in RangeOptimizer (#13130)\n\nCo-authored-by: Claude Opus 4.8 (1M context) <noreply@anthropic.com>",
-          "timestamp": "2026-06-22T10:05:24Z",
-          "tree_id": "832e91a637301f1adb28867060d952df49434f59",
-          "url": "https://github.com/noir-lang/noir/commit/d62435eb0ff0723dec8fdeb2b000a6f009d24596"
-        },
-        "date": 1782123898790,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 126694,
-            "range": "± 621",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 112744,
-            "range": "± 1882",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 3043454,
-            "range": "± 15810",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "jfecher11@gmail.com",
             "name": "jfecher",
             "username": "jfecher"
@@ -25184,6 +25142,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 3041534,
             "range": "± 12169",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "47281315+guipublic@users.noreply.github.com",
+            "name": "guipublic",
+            "username": "guipublic"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "d13cf5e179bc284dff0bdd92960543b6c3213594",
+          "message": "feat(ssa): post-flattening validation pass for escaping side-effects (#13084)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>\nCo-authored-by: AztecBot <tech@aztec-labs.com>",
+          "timestamp": "2026-06-26T10:49:10Z",
+          "tree_id": "a76be05f90a0784fa728fbbc4966d00e11321bfa",
+          "url": "https://github.com/noir-lang/noir/commit/d13cf5e179bc284dff0bdd92960543b6c3213594"
+        },
+        "date": 1782472168245,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 175693,
+            "range": "± 367",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 143057,
+            "range": "± 334",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2650995,
+            "range": "± 3819",
             "unit": "ns/iter"
           }
         ]
