@@ -19,6 +19,11 @@ impl FunctionDefinition {
     pub comptime fn has_named_attribute<let N: u32>(self, name: str<N>) -> bool {}
     // docs:end:has_named_attribute
 
+    #[builtin(function_def_named_attribute_args)]
+    // docs:start:named_attribute_args
+    pub comptime fn named_attribute_args<let N: u32>(self, name: str<N>) -> [[Quoted]] {}
+    // docs:end:named_attribute_args
+
     #[builtin(function_def_has_builtin_attribute)]
     // docs:start:has_builtin_attribute
     pub comptime fn has_builtin_attribute<let N: u32>(self, name: str<N>) -> bool {}

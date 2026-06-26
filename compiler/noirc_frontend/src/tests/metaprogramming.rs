@@ -2515,6 +2515,9 @@ const META_API_STDLIB: &str = r#"
     impl Module {
         #[builtin(module_functions)]
         pub comptime fn functions(self) -> [FunctionDefinition] {}
+
+        #[builtin(module_named_attribute_args)]
+        pub comptime fn named_attribute_args<let N: u32>(self, _name: str<N>) -> [[Quoted]] {}
     }
 
     impl FunctionDefinition {
@@ -2529,6 +2532,9 @@ const META_API_STDLIB: &str = r#"
 
         #[builtin(function_def_return_type)]
         pub comptime fn return_type(self) -> Type {}
+
+        #[builtin(function_def_named_attribute_args)]
+        pub comptime fn named_attribute_args<let N: u32>(self, _name: str<N>) -> [[Quoted]] {}
     }
 
     impl TypedExpr {
@@ -3445,6 +3451,48 @@ fn type_def_named_attribute_args_captures_zero_arg_occurrence() {
         let occurrences = s.named_attribute_args("mark");
         assert(occurrences.len() == 1);
         assert(occurrences[0].len() == 0);
+    }
+
+    fn main() {}
+    "#;
+    check_errors_with_stdlib(src, [META_API_STDLIB]);
+}
+
+#[test]
+fn function_def_named_attribute_args_returns_attribute_arguments() {
+    // The same accessor exists on `FunctionDefinition`, reading the function's own attributes.
+    let src = r#"
+    #[generate]
+    #[value(7)]
+    pub fn target() {}
+
+    comptime fn value(_f: FunctionDefinition, _v: Field) {}
+
+    comptime fn generate(f: FunctionDefinition) {
+        let occurrences = f.named_attribute_args("value");
+        assert(occurrences.len() == 1);
+        assert(occurrences[0].len() == 1);
+    }
+
+    fn main() {}
+    "#;
+    check_errors_with_stdlib(src, [META_API_STDLIB]);
+}
+
+#[test]
+fn module_named_attribute_args_returns_attribute_arguments() {
+    // The same accessor exists on `Module`, reading the module's own attributes.
+    let src = r#"
+    #[generate]
+    #[value(9)]
+    mod my_mod {}
+
+    comptime fn value(_m: Module, _v: Field) {}
+
+    comptime fn generate(m: Module) {
+        let occurrences = m.named_attribute_args("value");
+        assert(occurrences.len() == 1);
+        assert(occurrences[0].len() == 1);
     }
 
     fn main() {}
