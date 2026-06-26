@@ -167,6 +167,9 @@ impl Interpreter<'_, '_> {
             "function_def_has_named_attribute" => {
                 function_def_has_attribute(interner, arguments, location, false)
             }
+            "function_def_named_attribute_args" => {
+                function_def_named_attribute_args(interner, arguments, location)
+            }
             "function_def_hash" => hash_item(arguments, location, get_function_def),
             "function_def_is_unconstrained" => {
                 function_def_is_unconstrained(self, arguments, location)
@@ -182,6 +185,7 @@ impl Interpreter<'_, '_> {
             "module_functions" => module_functions(self, arguments, location),
             "module_has_builtin_attribute" => module_has_attribute(self, arguments, location, true),
             "module_has_named_attribute" => module_has_attribute(self, arguments, location, false),
+            "module_named_attribute_args" => module_named_attribute_args(self, arguments, location),
             "module_hash" => hash_item(arguments, location, get_module),
             "module_is_contract" => module_is_contract(self, arguments, location),
             "module_location" => module_location(interner, arguments, location),
@@ -257,6 +261,9 @@ impl Interpreter<'_, '_> {
             }
             "type_def_has_named_attribute" => {
                 type_def_has_attribute(interner, arguments, location, false)
+            }
+            "type_def_named_attribute_args" => {
+                type_def_named_attribute_args(interner, arguments, location)
             }
             "type_def_hash" => hash_item(arguments, location, get_type_id),
             "type_def_location" => type_def_location(interner, arguments, location),
@@ -631,6 +638,105 @@ fn type_def_has_attribute(
         has_named_attribute(&name, attrs, interner)
     };
     Ok(Value::Bool(matched))
+}
+
+/// Collect the argument expressions of each `#[name(..)]` occurrence among `attributes`.
+/// Only `Meta` attributes (`#[name(args)]`) carry argument expressions; tags and built-in
+/// attributes have none and are skipped. The arguments are cloned so the interner can be
+/// mutated afterwards while building the result.
+fn collect_meta_attribute_args(
+    name: &str,
+    attributes: &[SecondaryAttribute],
+    interner: &NodeInterner,
+) -> Vec<Vec<Expression>> {
+    attributes
+        .iter()
+        .filter_map(|attribute| match &attribute.kind {
+            SecondaryAttributeKind::Meta(meta)
+                if interner.get_meta_attribute_name(meta).as_deref() == Some(name) =>
+            {
+                Some(meta.arguments.clone())
+            }
+            _ => None,
+        })
+        .collect()
+}
+
+/// Build the `[[Quoted]]` value returned by `named_attribute_args`: an outer slice with one
+/// entry per attribute occurrence, an inner slice of that occurrence's arguments, each argument
+/// a token stream that can be spliced into generated code.
+fn named_attribute_args_value(
+    occurrences: Vec<Vec<Expression>>,
+    interner: &mut NodeInterner,
+) -> Value {
+    let quoted_vec_type = Type::Vector(Box::new(Type::Quoted(QuotedType::Quoted)));
+    let occurrences = occurrences
+        .into_iter()
+        .map(|args| {
+            let args = args
+                .into_iter()
+                .map(|arg| {
+                    let arg_location = arg.location;
+                    let token = Token::InternedExpr(interner.push_expression_kind(arg.kind));
+                    Value::Quoted(Rc::new(vec![LocatedToken::new(token, arg_location)]))
+                })
+                .collect();
+            Value::Vector(args, quoted_vec_type.clone())
+        })
+        .collect();
+    Value::Vector(occurrences, Type::Vector(Box::new(quoted_vec_type)))
+}
+
+// fn named_attribute_args<let N: u32>(self, name: str<N>) -> [[Quoted]]
+fn type_def_named_attribute_args(
+    interner: &mut NodeInterner,
+    arguments: Vec<(Value, Location)>,
+    location: Location,
+) -> IResult<Value> {
+    let (self_argument, name) = check_two_arguments(arguments, location)?;
+    let type_id = get_type_id(self_argument)?;
+    let name = get_str(name)?;
+    let name = String::from_utf8_lossy(&name).to_string();
+
+    let occurrences =
+        collect_meta_attribute_args(&name, interner.type_attributes(&type_id), interner);
+    Ok(named_attribute_args_value(occurrences, interner))
+}
+
+// fn named_attribute_args<let N: u32>(self, name: str<N>) -> [[Quoted]]
+fn function_def_named_attribute_args(
+    interner: &mut NodeInterner,
+    arguments: Vec<(Value, Location)>,
+    location: Location,
+) -> IResult<Value> {
+    let (self_argument, name) = check_two_arguments(arguments, location)?;
+    let func_id = get_function_def(self_argument)?;
+    let name = get_str(name)?;
+    let name = String::from_utf8_lossy(&name).to_string();
+
+    let occurrences = {
+        let secondary = &interner.function_modifiers(&func_id).attributes.secondary;
+        collect_meta_attribute_args(&name, secondary, interner)
+    };
+    Ok(named_attribute_args_value(occurrences, interner))
+}
+
+// fn named_attribute_args<let N: u32>(self, name: str<N>) -> [[Quoted]]
+fn module_named_attribute_args(
+    interpreter: &mut Interpreter,
+    arguments: Vec<(Value, Location)>,
+    location: Location,
+) -> IResult<Value> {
+    let (self_argument, name) = check_two_arguments(arguments, location)?;
+    let module_id = get_module(self_argument)?;
+    let name = get_str(name)?;
+    let name = String::from_utf8_lossy(&name).to_string();
+
+    let occurrences = {
+        let attrs = &interpreter.elaborator.get_module(module_id).attributes;
+        collect_meta_attribute_args(&name, attrs, interpreter.elaborator.interner)
+    };
+    Ok(named_attribute_args_value(occurrences, interpreter.elaborator.interner))
 }
 
 /// fn fields(self, `generic_args`: [Type]) -> [(Quoted, Type, Quoted)]

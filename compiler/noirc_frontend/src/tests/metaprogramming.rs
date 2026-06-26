@@ -2515,6 +2515,9 @@ const META_API_STDLIB: &str = r#"
     impl Module {
         #[builtin(module_functions)]
         pub comptime fn functions(self) -> [FunctionDefinition] {}
+
+        #[builtin(module_named_attribute_args)]
+        pub comptime fn named_attribute_args<let N: u32>(self, _name: str<N>) -> [[Quoted]] {}
     }
 
     impl FunctionDefinition {
@@ -2529,11 +2532,19 @@ const META_API_STDLIB: &str = r#"
 
         #[builtin(function_def_return_type)]
         pub comptime fn return_type(self) -> Type {}
+
+        #[builtin(function_def_named_attribute_args)]
+        pub comptime fn named_attribute_args<let N: u32>(self, _name: str<N>) -> [[Quoted]] {}
     }
 
     impl TypedExpr {
         #[builtin(typed_expr_as_function_definition)]
         pub comptime fn as_function_definition(self) -> Option<FunctionDefinition> {}
+    }
+
+    impl TypeDefinition {
+        #[builtin(type_def_named_attribute_args)]
+        pub comptime fn named_attribute_args<let N: u32>(self, _name: str<N>) -> [[Quoted]] {}
     }
 "#;
 
@@ -3367,4 +3378,124 @@ fn meta_attribute_function_definition_argument_must_be_a_function() {
             .any(|error| format!("{error:?}").contains("FailedToResolveFunctionDefinition")),
         "expected FailedToResolveFunctionDefinition, got: {errors:?}"
     );
+}
+
+#[test]
+fn type_def_named_attribute_args_returns_attribute_arguments() {
+    // https://github.com/noir-lang/noir/issues/13187
+    // `named_attribute_args` captures *every* occurrence of an attribute and *all* of each
+    // occurrence's argument expressions, as token streams that can be spliced into generated code.
+    let src = r#"
+    #[generate]
+    #[value(1, 2)]
+    #[value(3, 4, 5)]
+    pub struct Foo {}
+
+    #[varargs]
+    comptime fn value(_s: TypeDefinition, _v: [Field]) {}
+
+    comptime fn generate(s: TypeDefinition) -> Quoted {
+        let occurrences = s.named_attribute_args("value");
+
+        // Both `#[value(..)]` occurrences are captured, in source order, with all their arguments.
+        assert(occurrences.len() == 2);
+        assert(occurrences[0].len() == 2);
+        assert(occurrences[1].len() == 3);
+
+        // Each argument comes back as a `Quoted` token stream; splice all five into a sum.
+        let a = occurrences[0][0];
+        let b = occurrences[0][1];
+        let c = occurrences[1][0];
+        let d = occurrences[1][1];
+        let e = occurrences[1][2];
+        quote {
+            pub global TOTAL: Field = $a + $b + $c + $d + $e;
+        }
+    }
+
+    fn main() {
+        assert(TOTAL == 15);
+    }
+    "#;
+    check_errors_with_stdlib(src, [META_API_STDLIB]);
+}
+
+#[test]
+fn type_def_named_attribute_args_is_empty_when_attribute_absent() {
+    // An absent attribute yields no occurrences, so `named_attribute_args` subsumes
+    // `has_named_attribute` (`!args.is_empty()`).
+    let src = r#"
+    #[check]
+    pub struct Foo {}
+
+    comptime fn check(s: TypeDefinition) {
+        assert(s.named_attribute_args("nonexistent").len() == 0);
+    }
+
+    fn main() {}
+    "#;
+    check_errors_with_stdlib(src, [META_API_STDLIB]);
+}
+
+#[test]
+fn type_def_named_attribute_args_captures_zero_arg_occurrence() {
+    // An attribute used without arguments still counts as an occurrence, with an empty argument list.
+    let src = r#"
+    #[check]
+    #[mark]
+    pub struct Foo {}
+
+    comptime fn mark(_s: TypeDefinition) {}
+
+    comptime fn check(s: TypeDefinition) {
+        let occurrences = s.named_attribute_args("mark");
+        assert(occurrences.len() == 1);
+        assert(occurrences[0].len() == 0);
+    }
+
+    fn main() {}
+    "#;
+    check_errors_with_stdlib(src, [META_API_STDLIB]);
+}
+
+#[test]
+fn function_def_named_attribute_args_returns_attribute_arguments() {
+    // The same accessor exists on `FunctionDefinition`, reading the function's own attributes.
+    let src = r#"
+    #[generate]
+    #[value(7)]
+    pub fn target() {}
+
+    comptime fn value(_f: FunctionDefinition, _v: Field) {}
+
+    comptime fn generate(f: FunctionDefinition) {
+        let occurrences = f.named_attribute_args("value");
+        assert(occurrences.len() == 1);
+        assert(occurrences[0].len() == 1);
+    }
+
+    fn main() {}
+    "#;
+    check_errors_with_stdlib(src, [META_API_STDLIB]);
+}
+
+#[test]
+fn module_named_attribute_args_returns_attribute_arguments() {
+    // The same accessor exists on `Module`, reading the module's own attributes.
+    let src = r#"
+    #[generate]
+    #[value(9)]
+    mod my_mod {}
+
+    comptime fn value(_m: Module, _v: Field) {}
+
+    comptime fn generate(m: Module) {
+        let occurrences = m.named_attribute_args("value");
+        assert(occurrences.len() == 1);
+        assert(occurrences[0].len() == 1);
+    }
+
+    fn main() {}
+    "#;
+    check_errors_with_stdlib(src, [META_API_STDLIB]);
 }
