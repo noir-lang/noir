@@ -45,8 +45,8 @@ use crate::{
     },
     modules::{get_ancestor_module_reexport, module_def_id_is_visible},
     node_interner::{
-        DependencyId, ExprId, FuncId, GlobalValue, TraitId, TraitImplKind, TraitItemId,
-        TraitLookupMode,
+        DependencyId, ExprId, FuncId, GlobalValue, TraitId, TraitImplId, TraitImplKind,
+        TraitItemId, TraitLookupMode,
     },
     shared::Signedness,
 };
@@ -91,14 +91,14 @@ struct ResolvedPrefix {
 /// "rest" (last segment, turbofish) lives on [`ResolvedPrefix`].
 #[derive(Debug)]
 enum PathPrefixKind {
-    /// `Self` inside a trait *impl*, where `Self` is a concrete type with associated items. The
-    /// last segment is an associated-type method, an associated constant, a primitive-`Self`
-    /// method, or a plain method on the self type
-    /// ([`Elaborator::resolve_self_in_trait_impl`]).
-    SelfInTraitImpl,
-    /// `Self` inside a trait *definition*: an assumed constraint on the current trait (or a
-    /// supertrait reached through it) ([`Elaborator::resolve_self_in_trait`]).
-    SelfInTrait,
+    /// `Self` inside a trait *impl*, where `Self` is the impl's concrete type (carried here, along
+    /// with the impl) since a trait impl always has both. The last segment is an associated-type
+    /// method, an associated constant, a primitive-`Self` method, or a plain method on the self
+    /// type ([`Elaborator::resolve_self_in_trait_impl`]).
+    SelfInTraitImpl { self_type: Type, trait_impl_id: TraitImplId },
+    /// `Self` inside a trait *definition* (carried here): an assumed constraint on the current
+    /// trait (or a supertrait reached through it) ([`Elaborator::resolve_self_in_trait`]).
+    SelfInTrait { trait_id: TraitId },
     /// `Self` as a plain concrete type (an inherent impl, or any other context where `Self` names
     /// a data type): the last segment resolves like `Type::method`
     /// ([`Elaborator::resolve_self_in_impl`]).
@@ -1450,15 +1450,11 @@ impl Elaborator<'_> {
     ///
     /// Returns the trait method, trait constraint, and whether the impl is assumed to exist by a where clause or not
     /// E.g. `t.method()` with `where T: Foo<Bar>` in scope will return `(Foo::method, T, vec![Bar])`
-    fn resolve_trait_static_method_by_self(&self, path: &TypedPath) -> Option<TraitPathResolution> {
-        // If we are inside a trait impl, `Self` is known to be a concrete type so we don't have
-        // to solve the path via trait method lookup.
-        if self.current_trait_impl.is_some() {
-            return None;
-        }
-
-        let trait_id = self.current_trait?;
-
+    fn resolve_trait_static_method_by_self(
+        &self,
+        path: &TypedPath,
+        trait_id: TraitId,
+    ) -> Option<TraitPathResolution> {
         if path.kind == PathKind::Plain && path.segments.len() == 2 {
             let is_self_type = path.segments[0].ident.is_self_type_name();
             let method = &path.segments[1].ident;
@@ -1479,7 +1475,8 @@ impl Elaborator<'_> {
 
     /// Classify the prefix (every segment but the last) of a path used as an expression. This does
     /// not resolve the last segment — it only answers "what is the prefix?", which the caller uses
-    /// to decide how to resolve the last segment. Returns `None` if the path has no prefix.
+    /// to decide how to resolve the last segment. The caller only invokes this for a path that has
+    /// a prefix (more than one segment).
     ///
     /// The classification order is significant: it decides which interpretation wins when a path
     /// is ambiguous, and mirrors the historical probe order. `Self` and a bounded generic are
@@ -1503,10 +1500,12 @@ impl Elaborator<'_> {
             // `Self` is contextual; which kind it is depends only on where we are (a trait impl, a
             // trait definition, somewhere `Self` is a plain type, or nowhere at all), so it is
             // classified here and the matching arm resolves the last segment.
-            if self.current_trait_impl.is_some() {
-                PathPrefixKind::SelfInTraitImpl
-            } else if self.current_trait.is_some() {
-                PathPrefixKind::SelfInTrait
+            if let Some(trait_impl_id) = self.current_trait_impl {
+                let self_type =
+                    self.self_type.clone().expect("a trait impl always has a self type");
+                PathPrefixKind::SelfInTraitImpl { self_type, trait_impl_id }
+            } else if let Some(trait_id) = self.current_trait {
+                PathPrefixKind::SelfInTrait { trait_id }
             } else if self.self_type.is_some() {
                 PathPrefixKind::SelfInImpl
             } else {
@@ -2189,11 +2188,16 @@ impl Elaborator<'_> {
 
         match kind {
             // `Self` is contextual; each context resolves the last segment its own way.
-            PathPrefixKind::SelfInTraitImpl => {
-                self.resolve_self_in_trait_impl(path, last_segment, turbofish)
-            }
-            PathPrefixKind::SelfInTrait => {
-                self.resolve_self_in_trait(path, last_segment, turbofish)
+            PathPrefixKind::SelfInTraitImpl { self_type, trait_impl_id } => self
+                .resolve_self_in_trait_impl(
+                    path,
+                    self_type,
+                    trait_impl_id,
+                    last_segment,
+                    turbofish,
+                ),
+            PathPrefixKind::SelfInTrait { trait_id } => {
+                self.resolve_self_in_trait(path, trait_id, last_segment, turbofish)
             }
             // `Self` is a concrete type here (classification guarantees `self_type` exists), so it
             // resolves exactly like `Type::method`.
@@ -2242,12 +2246,16 @@ impl Elaborator<'_> {
     fn resolve_self_in_trait_impl(
         &mut self,
         path: TypedPath,
+        self_type: Type,
+        trait_impl_id: TraitImplId,
         last_segment: TypedPathSegment,
         turbofish: Option<Turbofish>,
     ) -> Option<VariableResolution> {
-        if let Some((expr_id, typ)) =
-            self.elaborate_variable_as_self_method_or_associated_constant(&path)
-        {
+        if let Some((expr_id, typ)) = self.elaborate_variable_as_self_method_or_associated_constant(
+            &path,
+            self_type,
+            trait_impl_id,
+        ) {
             return Some(VariableResolution::Expression(expr_id, typ));
         }
         self.resolve_self_as_concrete_type(path, last_segment, turbofish)
@@ -2258,10 +2266,11 @@ impl Elaborator<'_> {
     fn resolve_self_in_trait(
         &mut self,
         path: TypedPath,
+        trait_id: TraitId,
         last_segment: TypedPathSegment,
         turbofish: Option<Turbofish>,
     ) -> Option<VariableResolution> {
-        if let Some(resolution) = self.resolve_trait_static_method_by_self(&path) {
+        if let Some(resolution) = self.resolve_trait_static_method_by_self(&path, trait_id) {
             return self.variable_from_trait_resolution(path.location, resolution);
         }
         // Fall back to a supertrait reached through the assumed `Self` bound.

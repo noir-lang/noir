@@ -395,12 +395,9 @@ impl Elaborator<'_> {
     pub(super) fn elaborate_variable_as_self_method_or_associated_constant(
         &mut self,
         variable: &TypedPath,
+        self_type: Type,
+        trait_impl_id: TraitImplId,
     ) -> Option<(ExprId, Type)> {
-        // Reached only for a `Self`-prefixed path with at least two segments. These forms need the
-        // impl's concrete `Self` and its associated items.
-        let self_type = self.self_type.clone()?;
-        let trait_impl_id = self.current_trait_impl?;
-
         match &variable.segments[1..] {
             [associated_type, method] => {
                 let associated_type = self
