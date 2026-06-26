@@ -1483,11 +1483,16 @@ impl Elaborator<'_> {
         let last_segment = prefix.pop();
         let turbofish = prefix.last_segment().turbofish();
 
-        let kind = if path.segments[0].ident.is_self_type_name() {
+        // `Self` and a generic parameter are only meaningful as a plain path: `crate::Self` /
+        // `super::T` name an item in another module, not the contextual `Self` or an in-scope
+        // generic, so they must not be classified as such.
+        let kind = if path.kind == PathKind::Plain && path.segments[0].ident.is_self_type_name() {
             // `Self` is contextual (the current trait, or a concrete self type), so it is classified
             // by syntax alone; its handler resolves what it means.
             PathPrefixKind::SelfType
-        } else if let Some(bounds) = self.matching_generic_bounds(path) {
+        } else if path.kind == PathKind::Plain
+            && let Some(bounds) = self.matching_generic_bounds(path)
+        {
             // A generic parameter (e.g. `T`) with a `T: Trait` bound in scope. A generic is not in
             // the module namespace, so this is recognized from the in-scope bounds, not resolution.
             PathPrefixKind::BoundedGeneric(bounds)
