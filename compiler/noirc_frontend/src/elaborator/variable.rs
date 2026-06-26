@@ -501,10 +501,10 @@ impl Elaborator<'_> {
     #[tracing::instrument(level = "trace", skip_all)]
     fn resolve_variable(&mut self, path: TypedPath) -> Option<VariableResolution> {
         if path.segments.len() > 1 {
-            return self.resolve_prefixed_variable(&path);
+            self.resolve_prefixed_variable(&path)
+        } else {
+            self.resolve_variable_in_scope(path)
         }
-
-        self.resolve_variable_in_scope(path)
     }
 
     /// Resolve a path in the current scope to a local variable or a value item (global, function,
