@@ -1563,37 +1563,40 @@ impl Elaborator<'_> {
     /// is lowered to the selected impl's value during monomorphization.
     fn resolve_trait_item_on_prefix(
         &mut self,
+        path: &TypedPath,
         trait_id: TraitId,
         turbofish: Option<Turbofish>,
         last_segment: &TypedPathSegment,
-        location: Location,
         resolution: PathResolution,
-    ) -> Option<TraitPathResolution> {
+    ) -> Option<VariableResolution> {
         let the_trait = self.interner.get_trait(trait_id);
         let name = last_segment.ident.as_str();
         let method_func_id = the_trait.method_ids.get(name).copied();
         let associated_constant = the_trait.associated_constant_ids.get(name).copied();
-        let constraint = the_trait.as_constraint(location);
+        let constraint = the_trait.as_constraint(path.location);
 
-        if let Some(func_id) = method_func_id {
+        let trait_resolution = if let Some(func_id) = method_func_id {
             let definition = self.interner.function_definition_id(func_id);
             self.record_direct_method_reference(func_id, &last_segment.ident);
             let trait_item = TraitItem { definition, constraint, assumed: false };
             let item = PathResolutionItem::TraitFunction(trait_id, turbofish, func_id);
-            return Some(TraitPathResolution {
+            Some(TraitPathResolution {
                 method: TraitPathResolutionMethod::TraitItem(trait_item),
                 item: Some(item),
                 errors: resolution.errors,
-            });
-        }
+            })
+        } else if let Some(definition) = associated_constant {
+            let trait_item = TraitItem { definition, constraint, assumed: true };
+            Some(TraitPathResolution {
+                method: TraitPathResolutionMethod::TraitItem(trait_item),
+                item: None,
+                errors: resolution.errors,
+            })
+        } else {
+            None
+        };
 
-        let definition = associated_constant?;
-        let trait_item = TraitItem { definition, constraint, assumed: true };
-        Some(TraitPathResolution {
-            method: TraitPathResolutionMethod::TraitItem(trait_item),
-            item: None,
-            errors: resolution.errors,
-        })
+        self.variable_or_value_fallback(path, trait_resolution)
     }
 
     /// Resolves `T::item` to a method or associated constant of a generic `T`, given the `T: Trait`
@@ -1603,11 +1606,11 @@ impl Elaborator<'_> {
     #[tracing::instrument(level = "trace", skip_all)]
     fn resolve_bounded_generic_item(
         &mut self,
+        path: &TypedPath,
         bounds: Vec<TraitConstraint>,
         last_segment: &TypedPathSegment,
         turbofish: Option<Turbofish>,
-        location: Location,
-    ) -> Option<TraitPathResolution> {
+    ) -> Option<VariableResolution> {
         let method_name = last_segment.ident.as_str();
 
         let mut matches = Vec::new();
@@ -1622,7 +1625,7 @@ impl Elaborator<'_> {
             ));
         }
 
-        if matches.len() == 1 {
+        let trait_resolution = if matches.len() == 1 {
             let method = matches.remove(0).0;
 
             // A turbofish on the generic itself (e.g. `T::<u32>::method`) is not allowed.
@@ -1633,22 +1636,22 @@ impl Elaborator<'_> {
                 });
             }
 
-            return Some(TraitPathResolution { method, item: None, errors: Vec::new() });
-        }
-
-        if matches.len() > 1 {
-            let ident = Ident::new(method_name.to_string(), location);
+            Some(TraitPathResolution { method, item: None, errors: Vec::new() })
+        } else if matches.len() > 1 {
+            let ident = Ident::new(method_name.to_string(), path.location);
             let traits =
                 vecmap(matches, |(_, trait_id)| self.fully_qualified_trait_path_by_id(trait_id));
             let errors = vec![PathResolutionError::MultipleTraitsInScope { ident, traits }];
-            return Some(TraitPathResolution {
+            Some(TraitPathResolution {
                 method: TraitPathResolutionMethod::MultipleTraitsInScope,
                 item: None,
                 errors,
-            });
-        }
+            })
+        } else {
+            None
+        };
 
-        None
+        self.variable_or_value_fallback(path, trait_resolution)
     }
 
     fn find_methods_or_constants_in_trait(
@@ -1746,21 +1749,26 @@ impl Elaborator<'_> {
     #[tracing::instrument(level = "trace", skip_all)]
     fn resolve_method_on_type_prefix(
         &mut self,
-        location: Location,
+        path: &TypedPath,
         last_segment: TypedPathSegment,
         turbofish: Option<Turbofish>,
         is_self_prefix: bool,
         path_resolution: PathResolution,
-    ) -> Option<TraitPathResolution> {
+    ) -> Option<VariableResolution> {
         // `Self::method` must anchor on the impl's own `self_type` and produce a `SelfMethod`, so it
         // gets dedicated handling (in `resolve_self_or_inherent_method`) distinct from a plain
         // `TypeName::method`.
         let mut errors = Vec::new();
-        let typ = self.path_resolution_item_to_type(
+        let Some(typ) = self.path_resolution_item_to_type(
             &path_resolution.item,
             turbofish.clone(),
             &mut errors,
-        )?;
+        ) else {
+            // The prefix isn't a type/alias/primitive, so the last segment isn't a method on it;
+            // resolve the whole path as a value instead.
+            self.push_errors(errors);
+            return self.resolve_variable_in_scope(path.clone());
+        };
 
         let method_name = last_segment.ident.as_str();
 
@@ -1770,7 +1778,7 @@ impl Elaborator<'_> {
         // Resolve inherent methods (`TypeName::method`, and `Self::method`) through this
         // type-directed lookup. Names that aren't an inherent method here (associated constants,
         // trait methods not in scope) fall through to trait-method resolution.
-        if turbofish.is_some() {
+        let trait_resolution = if turbofish.is_some() {
             self.resolve_turbofish_type_method(
                 typ,
                 direct_method,
@@ -1778,7 +1786,7 @@ impl Elaborator<'_> {
                 turbofish,
                 path_resolution,
                 errors,
-                location,
+                path.location,
             )
         } else if let Some(direct_method) = direct_method {
             Some(self.resolve_self_or_inherent_method(
@@ -1798,9 +1806,11 @@ impl Elaborator<'_> {
                 turbofish,
                 path_resolution,
                 errors,
-                location,
+                path.location,
             )
-        }
+        };
+
+        self.variable_or_value_fallback(path, trait_resolution)
     }
 
     /// Resolves a turbofished `TypeName::<..>::method` path. Resolves to the single inherent method
@@ -2181,27 +2191,26 @@ impl Elaborator<'_> {
             return self.resolve_variable_in_scope(path.clone());
         };
 
-        let trait_resolution = match kind {
-            // Each `Self` context produces its resolution directly (it may be an elaborated
-            // expression, not a trait resolution).
+        match kind {
+            // `Self` is contextual; each context resolves the last segment its own way.
             PathPrefixKind::SelfInTraitImpl => {
-                return self.resolve_self_in_trait_impl(path, last_segment, turbofish);
+                self.resolve_self_in_trait_impl(path, last_segment, turbofish)
             }
             PathPrefixKind::SelfInTrait => {
-                return self.resolve_self_in_trait(path, last_segment, turbofish);
+                self.resolve_self_in_trait(path, last_segment, turbofish)
             }
             // `Self` is a concrete type here (classification guarantees `self_type` exists), so it
             // resolves exactly like `Type::method`.
             PathPrefixKind::SelfInImpl => {
-                return self.resolve_self_as_concrete_type(path, last_segment, turbofish);
+                self.resolve_self_as_concrete_type(path, last_segment, turbofish)
             }
             PathPrefixKind::BoundedGeneric(bounds) => {
-                self.resolve_bounded_generic_item(bounds, &last_segment, turbofish, path.location)
+                self.resolve_bounded_generic_item(path, bounds, &last_segment, turbofish)
             }
             PathPrefixKind::Type { resolution } => {
                 let is_self_prefix = false;
                 self.resolve_method_on_type_prefix(
-                    path.location,
+                    path,
                     last_segment,
                     turbofish,
                     is_self_prefix,
@@ -2211,20 +2220,14 @@ impl Elaborator<'_> {
             // A trait prefix: the last segment is either a trait static method (`Trait::method`)
             // or an associated constant (`Trait::CONST`).
             PathPrefixKind::Trait { trait_id, resolution } => self.resolve_trait_item_on_prefix(
+                path,
                 trait_id,
                 turbofish,
                 &last_segment,
-                path.location,
                 resolution,
             ),
-            PathPrefixKind::Module => None,
-        };
-
-        match trait_resolution {
-            Some(resolution) => self.variable_from_trait_resolution(path.location, resolution),
-            // Not a method or trait item: resolve the whole path as a value (a module value, an
-            // enum variant, an associated constant, …).
-            None => self.resolve_variable_in_scope(path.clone()),
+            // A module prefix: the last segment is an ordinary value item, resolved as a value.
+            PathPrefixKind::Module => self.resolve_variable_in_scope(path.clone()),
         }
     }
 
@@ -2254,14 +2257,14 @@ impl Elaborator<'_> {
         last_segment: TypedPathSegment,
         turbofish: Option<Turbofish>,
     ) -> Option<VariableResolution> {
-        let resolution = self.resolve_trait_static_method_by_self(path).or_else(|| {
-            let bounds = self.matching_generic_bounds(path)?;
-            self.resolve_bounded_generic_item(bounds, &last_segment, turbofish, path.location)
-        });
-        match resolution {
-            Some(resolution) => self.variable_from_trait_resolution(path.location, resolution),
-            None => self.resolve_variable_in_scope(path.clone()),
+        if let Some(resolution) = self.resolve_trait_static_method_by_self(path) {
+            return self.variable_from_trait_resolution(path.location, resolution);
         }
+        // Fall back to a supertrait reached through the assumed `Self` bound.
+        if let Some(bounds) = self.matching_generic_bounds(path) {
+            return self.resolve_bounded_generic_item(path, bounds, &last_segment, turbofish);
+        }
+        self.resolve_variable_in_scope(path.clone())
     }
 
     /// Resolve `Self::method` (or `Self::AssocType::method`) by resolving the `Self` prefix as a
@@ -2275,17 +2278,15 @@ impl Elaborator<'_> {
     ) -> Option<VariableResolution> {
         let mut prefix = path.clone();
         prefix.pop();
-        let resolution = self.use_path_as_type(prefix).ok().and_then(|type_resolution| {
-            self.resolve_method_on_type_prefix(
-                path.location,
+        match self.use_path_as_type(prefix).ok() {
+            Some(type_resolution) => self.resolve_method_on_type_prefix(
+                path,
                 last_segment,
                 turbofish,
                 true, // is_self_prefix
                 type_resolution,
-            )
-        });
-        match resolution {
-            Some(resolution) => self.variable_from_trait_resolution(path.location, resolution),
+            ),
+            // The `Self` prefix doesn't resolve as a type; resolve the whole path as a value.
             None => self.resolve_variable_in_scope(path.clone()),
         }
     }
@@ -2319,6 +2320,21 @@ impl Elaborator<'_> {
                 Some(VariableResolution::Ident(ident, item))
             }
             TraitPathResolutionMethod::MultipleTraitsInScope => None,
+        }
+    }
+
+    /// Map a prefix's last-segment resolution to a [`VariableResolution`]: a `Some` trait
+    /// resolution becomes the trait item (or `None` for an already-reported ambiguity), while a
+    /// `None` means the last segment is not a method/trait item, so the whole path is resolved as a
+    /// value (a module value, an enum variant, an associated constant, …) or its error reported.
+    fn variable_or_value_fallback(
+        &mut self,
+        path: &TypedPath,
+        trait_resolution: Option<TraitPathResolution>,
+    ) -> Option<VariableResolution> {
+        match trait_resolution {
+            Some(resolution) => self.variable_from_trait_resolution(path.location, resolution),
+            None => self.resolve_variable_in_scope(path.clone()),
         }
     }
 
