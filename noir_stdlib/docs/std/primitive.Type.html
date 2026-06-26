@@ -28,7 +28,6 @@
 <li><a href="#as_data_type">as_data_type</a></li>
 <li><a href="#as_integer">as_integer</a></li>
 <li><a href="#as_mutable_reference">as_mutable_reference</a></li>
-<li><a href="#as_slice">as_slice</a></li>
 <li><a href="#as_str">as_str</a></li>
 <li><a href="#as_struct">as_struct</a></li>
 <li><a href="#as_tuple">as_tuple</a></li>
@@ -160,15 +159,6 @@ if the type is signed, as well as the number of bits of this integer type.</p>
 </div><code id="as_vector" class="code-header">pub comptime fn <a href="#as_vector" class="fn">as_vector</a>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;Self&gt;</code>
 
 <div class="padded-description"><div class="comments">
-<p>If this is a vector type, return the element type of the vector.</p>
-</div>
-</div><code id="as_slice" class="code-header">pub comptime fn <a href="#as_slice" class="fn">as_slice</a>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;Self&gt;</code>
-
-<div class="padded-description"><div class="deprecated">
-<span class="emoji">👎</span>
-Deprecated: This method has been renamed to `as_vector`
-</div>
-<div class="comments">
 <p>If this is a vector type, return the element type of the vector.</p>
 </div>
 </div><code id="as_str" class="code-header">pub comptime fn <a href="#as_str" class="fn">as_str</a>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;Self&gt;</code>
