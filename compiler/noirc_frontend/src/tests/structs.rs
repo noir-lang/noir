@@ -150,8 +150,8 @@ fn cannot_determine_type_of_generic_argument_in_function_call_for_generic_impl()
 
     fn main() {
         Foo::one();
-             ^^^ Type annotation needed
-             ~~~ Could not determine the type of the generic argument `T` declared on the struct `Foo`
+        ^^^^^^^^ Type annotation needed
+        ~~~~~~~~ Could not determine the type of the generic argument `T` declared on the struct `Foo`
     }
     "#;
     check_errors(src);
@@ -415,6 +415,74 @@ fn non_overlapping_inherent_impls() {
         fn main() {
             let _ = Foo { _x: 1_i32 };
             let _ = Foo { _x: 1_u64 };
+        }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn non_turbofish_qualified_call_with_multiple_inherent_impls_is_ambiguous() {
+    // Regression test for https://github.com/noir-lang/noir-claude/issues/1327
+    // `Foo::tag` names a method defined by two non-overlapping inherent impls, so the qualified
+    // path is ambiguous (as in Rust's E0034) and must report it clearly, rather than binding to the
+    // first-declared impl and rejecting the argument with a declaration-order-dependent type error.
+    let src = r#"
+        struct Foo<T> { x: T }
+
+        impl Foo<i32> {
+            pub fn tag(_self: Self) -> Field { 11 }
+        }
+
+        impl Foo<u64> {
+            pub fn tag(_self: Self) -> Field { 22 }
+        }
+
+        fn main() {
+            let _ = Foo::tag(Foo { x: 9_u64 });
+                         ^^^ Multiple applicable methods named `tag` in scope
+                         ~~~ `tag` is defined in `Foo<i32>`, `Foo<u64>`; use a method call or turbofish to disambiguate
+        }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn multiple_inherent_impls_resolved_via_turbofish_or_method_call() {
+    // The disambiguating spellings work and select the impl by the receiver's type.
+    let src = r#"
+        struct Foo<T> { x: T }
+
+        impl Foo<i32> {
+            pub fn tag(_self: Self) -> Field { 11 }
+        }
+
+        impl Foo<u64> {
+            pub fn tag(_self: Self) -> Field { 22 }
+        }
+
+        fn main() {
+            let u = Foo { x: 9_u64 };
+            assert(Foo::<u64>::tag(u) == 22);
+
+            let u2 = Foo { x: 9_u64 };
+            assert(u2.tag() == 22);
+        }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn single_inherent_impl_qualified_call_still_resolves() {
+    // A single inherent impl is not ambiguous: `Foo::tag` resolves to it.
+    let src = r#"
+        struct Foo<T> { x: T }
+
+        impl Foo<u64> {
+            pub fn tag(_self: Self) -> Field { 22 }
+        }
+
+        fn main() {
+            assert(Foo::tag(Foo { x: 9_u64 }) == 22);
         }
     "#;
     assert_no_errors(src);
@@ -696,6 +764,22 @@ fn struct_takes_priority_over_global_with_same_name() {
         fn main() {
             Foo::bar();
         }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn placeholder_not_allowed_in_struct_field_type() {
+    let src = r#"
+    pub struct Foo {
+        x: [_; _],
+            ^ The placeholder `_` is not allowed in struct field types
+               ^ The placeholder `_` is not allowed in struct field types
+    }
+
+    fn main() {
+        let _ = Foo { x: [1] };
+    }
     "#;
     check_errors(src);
 }

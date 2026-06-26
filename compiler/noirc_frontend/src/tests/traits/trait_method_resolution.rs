@@ -1115,3 +1115,17 @@ fn trait_method_and_struct_method_with_same_name_and_turbofish() {
     "#;
     assert_no_errors(src);
 }
+
+#[test]
+fn no_eq_impl_for_struct_in_assert_eq() {
+    let src = r#"
+    struct myStruct {}
+
+    fn main(x: myStruct, y: pub myStruct) {
+        assert_eq(x, y);
+                  ^^^^ No matching impl found for `myStruct: Eq`
+                  ~~~~ No impl for `myStruct: Eq`
+    }
+    "#;
+    check_errors_with_stdlib(src, [stdlib_src::EQ]);
+}

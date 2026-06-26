@@ -10,9 +10,11 @@ use crate::{
             errors::{DefCollectorErrorKind, DuplicateType},
         },
     },
-    test_utils::stdlib_src,
+    test_utils::{get_monomorphized_with_stdlib, stdlib_src},
     tests::{check_errors_using_features, check_errors_with_stdlib},
 };
+
+use noirc_errors::CustomDiagnostic;
 
 use crate::tests::{
     assert_no_errors, assert_no_errors_and_to_string, check_errors, get_program_errors,
@@ -2192,4 +2194,1093 @@ fn comptime_as_witness_returns_unit() {
     }
     "#;
     check_errors_with_stdlib(src, [stdlib]);
+}
+
+#[test]
+fn quote_at_runtime() {
+    let src = r#"
+    fn main() {
+        foo(quote { test })
+            ^^^^^^^^^^^^^^ `quote` cannot be used in runtime code
+            ~~~~~~~~~~~~~~ Wrap this in a `comptime` block or function to use it
+    }
+
+    fn foo(q: Quoted) {
+              ^^^^^^ Comptime-only type `Quoted` cannot be used in non-comptime function
+        let _ = q;
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn quoted_in_non_comptime_global() {
+    let src = r#"
+    global foo: Quoted = quote { 1 };
+                ^^^^^^ Comptime-only type `Quoted` cannot be used in non-comptime global
+
+    fn main() {
+        let _ = foo;
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn macro_inserts_non_generic_type_into_generics_list() {
+    let stdlib = r#"
+        impl Quoted {
+            #[builtin(quoted_as_type)]
+            pub comptime fn as_type(self) -> Type {}
+        }
+    "#;
+    let src = r#"
+    #[foo]
+    ~~~~~~ While running this function attribute
+    comptime fn foo(_: FunctionDefinition) -> Quoted {
+        let t = quote { [i32; 3] }.as_type();
+        quote {
+            struct Foo<$t> {
+                        ^ Type `[i32; 3]` was inserted into a generics list from a macro, but it is not a generic
+                        ~ Type `[i32; 3]` is not a generic
+                x: $t,
+            }
+        }
+    }
+
+    fn main() {
+        let _ = Foo::<i32> { x: [1, 2, 3] };
+    }
+    "#;
+    check_errors_with_stdlib(src, [stdlib]);
+}
+
+#[test]
+fn type_definition_attribute_assertion_failure() {
+    let src = r#"
+    #[fail_assert]
+    pub struct Foo { x: Field }
+
+    comptime fn fail_assert(_typ: TypeDefinition) {
+        assert(false);
+               ^^^^^ Assertion failed
+    }
+
+    fn main() {
+        let _ = Foo { x: 1 };
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn comptime_attribute_fails_to_parse_token_stream_into_item() {
+    let stdlib = r#"
+        impl Quoted {
+            #[builtin(quoted_as_type)]
+            pub comptime fn as_type(self) -> Type {}
+        }
+    "#;
+    let src = r#"
+    #[foo]
+    ~~~~~~ Failed to parse macro's token stream into top-level item
+    fn main() {}
+
+    comptime fn foo(_f: FunctionDefinition) -> Quoted {
+        let t = quote { Field }.as_type();
+        quote { use $t; }
+                     ^ Expected an identifier, `crate`, `dep` or `super` but found '(type)'
+    }
+    "#;
+    check_errors_with_stdlib(src, [stdlib]);
+}
+
+#[test]
+fn comptime_pattern_match_struct_params() {
+    let src = r#"
+    pub struct Foo {
+        msg: str<5>,
+        value: u32,
+    }
+    pub struct Bar {
+        msg: str<5>,
+        value: u32,
+    }
+    fn main() {
+        comptime {
+            print_foo(Bar { msg: "Hello", value: 123 })
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ Expected type Foo, found type Bar
+        }
+    }
+
+    fn print_foo(_foo: Foo) {}
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn comptime_signed_division_by_minus_one_overflow() {
+    let src = r#"
+    fn main() {
+        let _ = comptime { -128_i8 / -1 };
+                           ^^^^^^^^^^^^ Attempt to divide with overflow
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn comptime_signed_modulo_by_minus_one_overflow() {
+    let src = r#"
+    fn main() {
+        let _ = comptime { -128_i8 % -1 };
+                           ^^^^^^^^^^^^ Attempt to calculate the remainder with overflow
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn comptime_right_shift_overflow() {
+    let src = r#"
+    fn main(x: Field) -> pub Field {
+        let y = comptime { 1 >> 32 };
+                           ^^^^^^^ Attempt to bit-shift with overflow
+        x + y as Field
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn comptime_bitshift_failure() {
+    let src = r#"
+    unconstrained fn main() {
+        comptime {
+            func_1(false)
+        }
+    }
+
+    unconstrained fn func_1(terminate: bool) {
+        if !terminate {
+            let _ = -8_i8 >> -8_i8;
+                    ^^^^^^^^^^^^^^ Attempt to bit-shift with overflow
+            func_1(true)
+        }
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn comptime_negate_with_overflow() {
+    let src = r#"
+    fn main() {
+        comptime {
+            let i: i8 = -128;
+            let _ = -i;
+                    ^^ Attempt to negate with overflow
+        }
+
+        comptime {
+            let i: u8 = 1;
+            let _ = -i;
+                    ^^ Cannot apply unary operator `-` to type `u8`
+        }
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn associated_constants_do_not_accept_turbofish() {
+    let src = r#"
+    pub trait Foo {
+        let N: u32;
+
+        fn foo() -> [Field; Self::N::<i32>] {
+                                   ^^^^^^^ Generic Associated Types (GATs) are currently unsupported in Noir
+                                   ~~~~~~~ Cannot apply generics to an associated type
+            [0; Self::N::<i32>]
+                       ^^^^^^^ Generic Associated Types (GATs) are currently unsupported in Noir
+                       ~~~~~~~ Cannot apply generics to an associated type
+        }
+    }
+
+    fn main() {}
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn comptime_static_assert_failure() {
+    let stdlib = r#"
+        #[builtin(static_assert)]
+        pub fn static_assert<T>(_predicate: bool, _message: T) {}
+    "#;
+    let src = r#"
+    comptime fn foo(x: Field) -> bool {
+        static_assert(x == 4, "x != 4");
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ static_assert failed: x != 4
+        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Assertion failed
+        x == 4
+    }
+
+    fn main() {
+        comptime {
+            static_assert(foo(3), "expected message");
+        }
+    }
+    "#;
+    check_errors_with_stdlib(src, [stdlib]);
+}
+
+// This program should fail to compile, but it must not panic the compiler.
+#[test]
+fn regression_10924_comptime_closure_arity_mismatch() {
+    let src = r#"
+    fn main() -> pub u32 {
+        comptime {
+            let a = 10;
+            foo();
+            a
+        }
+    }
+
+    fn foo() -> u32 {
+        comptime {
+            let f = |a: u32, b: u32| a + b;
+            let _ = f(1);
+        }
+    }
+    "#;
+    let errors = get_program_errors(src);
+    let messages: Vec<_> = errors.iter().map(|e| e.to_string()).collect();
+    assert!(
+        messages.iter().any(|m| m.contains("Function expects 2 parameters but 1 were given")),
+        "expected arity mismatch error, got {messages:?}"
+    );
+    assert!(
+        messages.iter().any(|m| m.contains(r#"Expected type "u32" is not the same as "()""#)),
+        "expected type mismatch error, got {messages:?}"
+    );
+}
+
+/// Stub stdlib for tests that drive the comptime meta API: a minimal `Option`,
+/// the `Quoted`/`Module`/`FunctionDefinition` builtins, and `quoted_eq` for name
+/// comparison. Enough to enumerate a module's functions and call `as_typed_expr`.
+const META_API_STDLIB: &str = r#"
+    pub struct Option<T> {
+        _is_some: bool,
+        _value: T,
+    }
+
+    impl<T> Option<T> {
+        pub comptime fn none() -> Self {
+            Option { _is_some: false, _value: zeroed() }
+        }
+        pub fn some(value: T) -> Self {
+            Option { _is_some: true, _value: value }
+        }
+        pub fn unwrap(self) -> T {
+            assert(self._is_some);
+            self._value
+        }
+    }
+
+    #[builtin(zeroed)]
+    pub comptime fn zeroed<T>() -> T {}
+
+    impl<T> [T] {
+        #[builtin(array_len)]
+        pub fn len(self) -> u32 {}
+    }
+
+    impl Quoted {
+        #[builtin(quoted_as_module)]
+        pub comptime fn as_module(self) -> Option<Module> {}
+
+        #[builtin(quoted_as_expr)]
+        pub comptime fn as_expr(self) -> Option<Expr> {}
+    }
+
+    impl Expr {
+        #[builtin(expr_resolve)]
+        pub comptime fn resolve(self, _in_function: Option<FunctionDefinition>) -> TypedExpr {}
+    }
+
+    #[builtin(quoted_eq)]
+    pub comptime fn quoted_eq(_first: Quoted, _second: Quoted) -> bool {}
+
+    impl Module {
+        #[builtin(module_functions)]
+        pub comptime fn functions(self) -> [FunctionDefinition] {}
+    }
+
+    impl FunctionDefinition {
+        #[builtin(function_def_name)]
+        pub comptime fn name(self) -> Quoted {}
+
+        #[builtin(function_def_as_typed_expr)]
+        pub comptime fn as_typed_expr(self) -> TypedExpr {}
+    }
+
+    impl TypedExpr {
+        #[builtin(typed_expr_as_function_definition)]
+        pub comptime fn as_function_definition(self) -> Option<FunctionDefinition> {}
+    }
+"#;
+
+#[test]
+fn comptime_as_typed_expr_visibility() {
+    let src = r#"
+    mod victim {
+        pub struct Vault {
+            secret: Field,
+        }
+
+        pub fn new() -> Vault {
+            Vault { secret: 1 }
+        }
+
+        pub fn read(v: Vault) -> Field {
+            v.secret
+        }
+
+        fn set_secret(mut v: Vault, new_secret: Field) -> Vault {
+           ^^^^^^^^^^ unused function set_secret
+           ~~~~~~~~~~ unused function
+            v.secret = new_secret;
+            v
+        }
+    }
+
+    fn main() {
+        let original_vault = victim::new();
+            ^^^^^^^^^^^^^^ unused variable original_vault
+            ~~~~~~~~~~~~~~ unused variable
+
+        let hijacked_vault = comptime {
+            let victim_module = quote { victim }.as_module().unwrap();
+            let mut found = Option::none();
+            for f in victim_module.functions() {
+                if quoted_eq(f.name(), quote { set_secret }) {
+                    found = Option::some(f);
+                }
+            }
+            let set_secret = found.unwrap();
+            let set_secret_expr = set_secret.as_typed_expr();
+                                  ^^^^^^^^^^^^^^^^^^^^^^^^^^ Function `set_secret` is private
+                                  ~~~~~~~~~~~~~~~~~~~~~~~~~~ `set_secret` is declared in `victim`
+            quote { $set_secret_expr(original_vault, 31337) }
+        };
+
+        assert(victim::read(hijacked_vault) == 31337);
+    }
+    "#;
+    check_errors_with_stdlib(src, [META_API_STDLIB]);
+}
+
+// Mirrors `type_def_fields_kind_mismatch`: calling `TypeDefinition::fields` with a
+// `Normal`-kinded type in a slot whose generic is `Numeric(u32)` errors at comptime.
+#[test]
+fn type_def_fields_kind_mismatch() {
+    let stdlib = r#"
+        pub struct Option<T> {
+            _is_some: bool,
+            _value: T,
+        }
+        impl<T> Option<T> {
+            #[builtin(zeroed)]
+            pub comptime fn zeroed() -> Self {}
+            pub fn unwrap(self) -> T {
+                assert(self._is_some);
+                self._value
+            }
+        }
+
+        impl Quoted {
+            #[builtin(quoted_as_type)]
+            pub comptime fn as_type(self) -> Type {}
+        }
+
+        impl Type {
+            #[builtin(type_as_data_type)]
+            pub comptime fn as_data_type(self) -> Option<(TypeDefinition, [Type])> {}
+        }
+
+        impl TypeDefinition {
+            #[builtin(type_def_fields)]
+            pub comptime fn fields(self, _generic_args: [Type]) -> [(Quoted, Type, Quoted)] {}
+        }
+    "#;
+    let src = r#"
+    pub struct Foo<let N: u32, T> {
+        a: [T; N],
+    }
+
+    fn main() {
+        comptime {
+            let (foo_def, _) =
+                quote { Foo<3, Field> }.as_type().as_data_type().unwrap();
+
+            let bool_t = quote { bool }.as_type();
+            let field_t = quote { Field }.as_type();
+
+            let _ = foo_def.fields(@[bool_t, field_t]);
+                                   ^^^^^^^^^^^^^^^^^^ `TypeDefinition::fields` expected generic argument 0 of `Foo` to have kind `u32` but found kind `normal`
+                                   ~~~~~~~~~~~~~~~~~~ Assertion failed
+        }
+    }
+    "#;
+    check_errors_with_stdlib(src, [stdlib]);
+}
+
+// Mirrors `comptime_user_error`: a comptime attribute that calls `std::meta::error`
+// to issue a user diagnostic with a primary and secondary message.
+#[test]
+fn comptime_user_error() {
+    let stdlib = r#"
+        pub struct Option<T> {
+            _is_some: bool,
+            _value: T,
+        }
+        impl<T> Option<T> {
+            pub fn some(value: T) -> Self {
+                Option { _is_some: true, _value: value }
+            }
+        }
+
+        impl FunctionDefinition {
+            #[builtin(function_def_location)]
+            pub comptime fn location(self) -> Location {}
+        }
+
+        #[builtin(issue_error)]
+        pub comptime fn error<let N: u32, T, let N2: u32, T2>(
+            _msg: fmtstr<N, T>,
+            _secondary: Option<fmtstr<N2, T2>>,
+            _location: Location,
+        ) {}
+    "#;
+    let src = r#"
+    #[reject]
+    fn forbidden() {}
+       ^^^^^^^^^ I am the error on `forbidden`
+       ~~~~~~~~~ I am the secondary on `forbidden`
+
+    comptime fn reject(f: FunctionDefinition) {
+        error(
+            f"I am the error on `{f}`",
+            Option::some(f"I am the secondary on `{f}`"),
+            f.location(),
+        );
+    }
+
+    fn main() {
+        forbidden();
+    }
+    "#;
+    check_errors_with_stdlib(src, [stdlib]);
+}
+
+// Mirrors `macro_result_type`: a method call in a comptime block whose providing
+// trait is implemented but not imported into scope.
+#[test]
+fn comptime_method_call_with_trait_not_in_scope() {
+    let src = r#"
+    mod m {
+        pub trait AsCtString {
+            fn as_ctstring(self) -> Field;
+        }
+
+        impl AsCtString for Field {
+            fn as_ctstring(self) -> Field {
+                self
+            }
+        }
+    }
+
+    fn main() {
+        comptime {
+            let _ = (1 as Field).as_ctstring();
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^ trait `m::AsCtString` which provides `as_ctstring` is implemented but not in scope, please import it
+        }
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn comptime_resolve_visibility() {
+    let src = r#"
+    mod victim {
+        pub struct Vault {
+            secret: Field,
+        }
+
+        pub fn new() -> Vault {
+            Vault { secret: 1 }
+        }
+
+        fn set_secret(mut v: Vault, new_secret: Field) -> Vault {
+            v.secret = new_secret;
+            v
+        }
+    }
+
+    fn main() {
+        let _hijacked = comptime {
+            let victim_module = quote { victim }.as_module().unwrap();
+            let secret_expr = quote { set_secret }.as_expr().unwrap().resolve(Option::some(victim_module.functions()[0]));
+                              ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ While evaluating `Expr::resolve`
+                                      ^^^^^^^^^^ set_secret is private and not visible from the current module
+                                      ~~~~~~~~~~ set_secret is private
+            quote { $secret_expr(victim::new(), 31337) }
+        };
+    }
+    "#;
+    check_errors_with_stdlib(src, [META_API_STDLIB]);
+}
+
+#[test]
+fn comptime_division_overflow() {
+    let src = r#"
+    fn main() -> pub i8 {
+        comptime {
+            func_1(-128_i8)
+        }
+    }
+
+    unconstrained fn func_1(a: i8) -> i8 {
+        (a / -1)
+         ^^^^^^ Attempt to divide with overflow
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn comptime_bit_shift_overflow() {
+    let src = r#"
+    fn main() -> pub i64 {
+        comptime {
+            func_1()
+        }
+    }
+    unconstrained fn func_1() -> i64 {
+        (-1525866727742442465_i64 / -7342926532602101880_i64) << func_2()
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ Attempt to bit-shift with overflow
+    }
+    unconstrained fn func_2() -> i64 {
+        -877061792390071735_i64
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn comptime_checked_transmute_failure() {
+    let src = r#"
+    fn main() {
+        comptime {
+            let x: Field = 1;
+            let _: u32 = checked_transmute(x);
+                                           ^ Checked transmute failed: `Field` != `u32`
+        }
+    }
+    "#;
+    check_errors_with_stdlib(src, [stdlib_src::CHECKED_TRANSMUTE]);
+}
+
+#[test]
+fn checked_transmute_array_length_mismatch() {
+    let src = r#"
+    fn main() {
+        let _: [Field; 2] = transmute_fail([1]);
+    }
+
+    pub fn transmute_fail<let N: u32>(x: [Field; N]) -> [Field; N + 1] {
+        checked_transmute(x)
+    }
+    "#;
+    let error = get_monomorphized_with_stdlib(src, &[stdlib_src::CHECKED_TRANSMUTE])
+        .expect_err("Expected a monomorphization error");
+    let diagnostic = CustomDiagnostic::from(error);
+    assert_eq!(
+        diagnostic.message,
+        "checked_transmute failed: expected `[Field; 2]` but found `[Field; 1]`"
+    );
+}
+
+#[test]
+fn comptime_closure_callstack_reports_assertion_failure() {
+    let src = r#"
+    fn main() {
+        comptime {
+            let z = || assert(false);
+                              ^^^^^ Assertion failed
+            let y = || z();
+            let x = || y();
+            x()
+        }
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn comptime_invalid_struct_constructor() {
+    let src = r#"
+    struct Foo {
+        a: u32,
+        b: bool,
+    }
+    fn main() {
+        comptime {
+            let x = Foo { a: 1, a: "hello", c: true };
+                    ^^^ missing field b in struct Foo
+                                ^ duplicate field a
+                                            ^ no such field c defined in struct Foo
+            println(x);
+            println(x.c);
+                      ^ Type Foo has no member named c
+        }
+    }
+    "#;
+    check_errors_with_stdlib(src, [stdlib_src::PRINT]);
+}
+
+#[test]
+fn comptime_error_on_macro_expansion() {
+    // Type errors inside code generated by a function attribute (both directly in the
+    // macro's quoted block and via an unquoted value from another module) must be reported.
+    let src = r#"
+    mod other {
+        pub comptime fn expr() -> Quoted {
+            quote { 1 + "a" }
+        }
+    }
+    use other::expr;
+
+    #[foo]
+    comptime fn foo(_: FunctionDefinition) -> Quoted {
+        quote {
+            pub fn generated_by_foo() {
+                1 + "a";
+            }
+        }
+    }
+
+    #[bar]
+    comptime fn bar(_: FunctionDefinition) -> Quoted {
+        let expr = expr();
+        quote {
+            pub fn generated_by_bar() {
+                $expr;
+            }
+        }
+    }
+
+    fn main() {}
+    "#;
+    let errors = get_program_errors(src);
+    let messages: Vec<String> = errors.iter().map(|e| CustomDiagnostic::from(e).message).collect();
+    let type_errors = messages
+        .iter()
+        .filter(|m| {
+            m.as_str() == "Types in a binary operation should match, but found Field and str<1>"
+        })
+        .count();
+    assert_eq!(
+        type_errors, 2,
+        "Expected a binary operation type error from each generated function, got: {messages:?}"
+    );
+}
+
+#[test]
+fn self_in_macro_inside_comptime_block_inside_impl_method() {
+    let src = r#"
+    struct S { x: Field }
+
+    impl S {
+        fn foo(_self: Self) {
+            comptime {
+                let _: Quoted = quote { Self { x: 0 } };
+                let _ = make_self!();
+            };
+        }
+    }
+
+    comptime fn make_self() -> Quoted {
+        quote { Self { x: 0 } }
+    }
+
+    fn main() {
+        S { x: 0 }.foo();
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn assoc_type_in_macro_inside_comptime_block_inside_impl_method() {
+    let src = r#"
+    struct S {}
+
+    trait HasAssoc {
+        type Assoc;
+        fn foo(self);
+    }
+
+    impl HasAssoc for S {
+        type Assoc = Field;
+        fn foo(_self: Self) {
+            comptime {
+                let _ = make!();
+            };
+        }
+    }
+
+    comptime fn make() -> Quoted {
+        quote { let _: Self::Assoc = 0; }
+    }
+
+    fn main() {
+        S {}.foo();
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn qualified_self_assoc_in_macro_inside_comptime_block_inside_impl_method() {
+    let src = r#"
+    struct S {}
+
+    trait HasAssoc {
+        type Assoc;
+        fn foo(self);
+    }
+
+    impl HasAssoc for S {
+        type Assoc = Field;
+        fn foo(_self: Self) {
+            comptime {
+                let _ = make!();
+            };
+        }
+    }
+
+    comptime fn make() -> Quoted {
+        quote { let _: <Self as HasAssoc>::Assoc = 0; }
+    }
+
+    fn main() {
+        S {}.foo();
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+// `Expr::resolve` elaborates a quoted expression eagerly and stores the resulting `ExprId`
+// inside a `TypedExpr`. When that `TypedExpr` is later unquoted into a different context the
+// elaborator must revalidate it against the splice site rather than trusting the context it
+// was originally resolved in. The following tests pin that revalidation.
+
+#[test]
+fn resolve_does_not_let_comptime_local_escape_into_runtime() {
+    let src = r#"
+    comptime fn emit(_f: FunctionDefinition) -> Quoted {
+        let secret = 42;
+        let _ = secret;
+        let typed = quote { secret }.as_expr().unwrap().resolve(Option::none());
+                            ^^^^^^ Comptime variable `secret` cannot be used in runtime code
+                            ~~~~~~ `secret` was resolved in a comptime scope that is no longer in scope here
+        quote {
+            fn generated() -> Field {
+                $typed
+            }
+        }
+    }
+
+    #[emit]
+    ~~~~~~~ While running this function attribute
+    fn main() -> pub Field {
+        generated()
+    }
+    "#;
+    check_errors_with_stdlib(src, [META_API_STDLIB]);
+}
+
+#[test]
+fn resolve_revalidates_unconstrained_call_spliced_into_constrained() {
+    let src = r#"
+    unconstrained fn helper() -> Field {
+        0
+    }
+
+    comptime fn emit(_f: FunctionDefinition) -> Quoted {
+        let call = quote { helper() }.as_expr().unwrap().resolve(Option::none());
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ Call to unconstrained function from constrained function is unsafe and must be in an unconstrained function or unsafe block
+        quote {
+            fn generated() -> Field {
+                $call
+            }
+        }
+    }
+
+    #[emit]
+    ~~~~~~~ While running this function attribute
+    fn main() -> pub Field {
+        generated()
+    }
+    "#;
+    check_errors_with_stdlib(src, [META_API_STDLIB]);
+}
+
+#[test]
+fn resolve_revalidates_verify_proof_spliced_into_unconstrained() {
+    let stdlib = r#"
+    pub fn verify_proof_with_type<let N: u32, let M: u32, let K: u32>(
+        _verification_key: [Field; N],
+        _proof: [Field; M],
+        _public_inputs: [Field; K],
+        _key_hash: Field,
+        _proof_type: u32,
+    ) {}
+    "#;
+    let src = r#"
+    comptime fn emit(_f: FunctionDefinition) -> Quoted {
+        let scope = quote { safe_scope }
+            .as_expr()
+            .unwrap()
+            .resolve(Option::none())
+            .as_function_definition()
+            .unwrap();
+
+        let call = quote {
+            crate::verify_proof_with_type([0; 114], [0; 94], [0], 0, 0)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ Cannot call `std::verify_proof_with_type` in unconstrained context
+        }
+            .as_expr()
+            .unwrap()
+            .resolve(Option::some(scope));
+
+        quote {
+            unconstrained fn generated() {
+                $call
+            }
+        }
+    }
+
+    fn safe_scope() {}
+
+    #[emit]
+    ~~~~~~~ While running this function attribute
+    fn main() {
+        safe_scope();
+        // Safety: test
+        unsafe { generated() };
+    }
+    "#;
+    check_errors_with_stdlib(src, [META_API_STDLIB, stdlib]);
+}
+
+#[test]
+fn resolve_revalidates_while_loop_spliced_into_constrained() {
+    let src = r#"
+    comptime fn emit(_f: FunctionDefinition) -> Quoted {
+        let body = quote { { while true {} } }.as_expr().unwrap().resolve(Option::none());
+                             ^^^^^^^^^^^^^ `while` is only allowed in unconstrained functions
+                             ~~~~~~~~~~~~~ Constrained code must always have a known number of loop iterations
+        quote {
+            fn generated() {
+                $body
+            }
+        }
+    }
+
+    #[emit]
+    ~~~~~~~ While running this function attribute
+    fn main() {
+        generated()
+    }
+    "#;
+    check_errors_with_stdlib(src, [META_API_STDLIB]);
+}
+
+#[test]
+fn resolve_revalidates_loop_spliced_into_constrained() {
+    let src = r#"
+    comptime fn emit(_f: FunctionDefinition) -> Quoted {
+        let body = quote { { loop { break; } } }.as_expr().unwrap().resolve(Option::none());
+                             ^^^^^^^^^^^^^^^ `loop` is only allowed in unconstrained functions
+                             ~~~~~~~~~~~~~~~ Constrained code must always have a known number of loop iterations
+                                    ^^^^^^ break is only allowed in unconstrained functions
+                                    ~~~~~~ Constrained code must always have a known number of loop iterations
+        quote {
+            fn generated() {
+                $body
+            }
+        }
+    }
+
+    #[emit]
+    ~~~~~~~ While running this function attribute
+    fn main() {
+        generated()
+    }
+    "#;
+    check_errors_with_stdlib(src, [META_API_STDLIB]);
+}
+
+#[test]
+fn resolve_revalidates_break_spliced_into_constrained() {
+    let src = r#"
+    comptime fn emit(_f: FunctionDefinition) -> Quoted {
+        let body = quote { { for _ in 0..3 { break; } } }.as_expr().unwrap().resolve(Option::none());
+                                             ^^^^^^ break is only allowed in unconstrained functions
+                                             ~~~~~~ Constrained code must always have a known number of loop iterations
+        quote {
+            fn generated() {
+                $body
+            }
+        }
+    }
+
+    #[emit]
+    ~~~~~~~ While running this function attribute
+    fn main() {
+        generated()
+    }
+    "#;
+    check_errors_with_stdlib(src, [META_API_STDLIB]);
+}
+
+// The revalidation walk recurses into the structure of a resolved expression, so a
+// boundary-crossing call nested inside a block is caught the same as a top-level one.
+#[test]
+fn resolve_revalidates_unconstrained_call_nested_in_block() {
+    let src = r#"
+    unconstrained fn helper() -> Field {
+        0
+    }
+
+    comptime fn emit(_f: FunctionDefinition) -> Quoted {
+        let body = quote { { helper() } }.as_expr().unwrap().resolve(Option::none());
+                             ^^^^^^^^ Call to unconstrained function from constrained function is unsafe and must be in an unconstrained function or unsafe block
+        quote {
+            fn generated() -> Field {
+                $body
+            }
+        }
+    }
+
+    #[emit]
+    ~~~~~~~ While running this function attribute
+    fn main() -> pub Field {
+        generated()
+    }
+    "#;
+    check_errors_with_stdlib(src, [META_API_STDLIB]);
+}
+
+// Revalidation must not reject a resolved unconstrained call that is spliced into an
+// `unsafe` block: the boundary is crossed legally there, exactly as for hand-written code.
+#[test]
+fn resolve_allows_unconstrained_call_spliced_into_unsafe_block() {
+    let src = r#"
+    unconstrained fn helper() -> Field {
+        0
+    }
+
+    comptime fn emit(_f: FunctionDefinition) -> Quoted {
+        let call = quote { helper() }.as_expr().unwrap().resolve(Option::none());
+        quote {
+            fn generated() -> Field {
+                // Safety: test
+                unsafe { $call }
+            }
+        }
+    }
+
+    #[emit]
+    fn main() -> pub Field {
+        generated()
+    }
+    "#;
+    check_errors_with_stdlib(src, [META_API_STDLIB]);
+}
+
+// An assignment target referencing a comptime local must be revalidated just like a read: the
+// `Assign` lvalue is walked so the comptime local cannot escape into runtime code (where it would
+// otherwise reach monomorphization with no value).
+#[test]
+fn resolve_does_not_let_comptime_local_escape_via_assignment_lvalue() {
+    let src = r#"
+    comptime fn emit(_f: FunctionDefinition) -> Quoted {
+        let mut secret = 42;
+        secret = 0;
+        let _ = secret;
+        let typed = quote { { secret = 1; } }.as_expr().unwrap().resolve(Option::none());
+                              ^^^^^^ Comptime variable `secret` cannot be used in runtime code
+                              ~~~~~~ `secret` was resolved in a comptime scope that is no longer in scope here
+        quote {
+            fn generated() {
+                $typed
+            }
+        }
+    }
+
+    #[emit]
+    ~~~~~~~ While running this function attribute
+    fn main() {
+        generated()
+    }
+    "#;
+    check_errors_with_stdlib(src, [META_API_STDLIB]);
+}
+
+// Revalidation must preserve the unsafe-block context of a resolved expression: an unconstrained
+// call wrapped in an `unsafe` block *inside* the resolved expression crosses the boundary legally,
+// so it must not be reported as needing an `unsafe` block at the splice site.
+#[test]
+fn resolve_allows_unconstrained_call_in_resolved_unsafe_block() {
+    let src = r#"
+    unconstrained fn helper() -> Field {
+        0
+    }
+
+    comptime fn emit(_f: FunctionDefinition) -> Quoted {
+        let scope = quote { constrained_scope }
+            .as_expr()
+            .unwrap()
+            .resolve(Option::none())
+            .as_function_definition()
+            .unwrap();
+
+        let call = quote {
+            // Safety: test
+            unsafe { helper() }
+        }
+            .as_expr()
+            .unwrap()
+            .resolve(Option::some(scope));
+
+        quote {
+            fn generated() -> Field {
+                $call
+            }
+        }
+    }
+
+    fn constrained_scope() {}
+
+    #[emit]
+    fn main() -> pub Field {
+        generated()
+    }
+    "#;
+    check_errors_with_stdlib(src, [META_API_STDLIB]);
 }

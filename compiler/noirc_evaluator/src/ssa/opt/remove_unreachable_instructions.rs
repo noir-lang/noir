@@ -347,9 +347,7 @@ impl Function {
                     };
 
                     let array_op_always_fails = len.0 == 0
-                        || context.dfg.get_numeric_constant(*index).is_some_and(|index| {
-                            (index.try_to_u32().unwrap()) >= (array_type.element_size() * len).0
-                        });
+                        || context.dfg.constant_index_is_out_of_bounds(*array, *index, len);
                     if !array_op_always_fails {
                         return;
                     }
