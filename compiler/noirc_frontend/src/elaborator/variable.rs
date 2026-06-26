@@ -396,11 +396,8 @@ impl Elaborator<'_> {
         &mut self,
         variable: &TypedPath,
     ) -> Option<(ExprId, Type)> {
-        // We need at least 2 segments and the first must be `Self`
-        if variable.segments.len() < 2 || !variable.segments[0].ident.is_self_type_name() {
-            return None;
-        }
-
+        // The caller only reaches this for a `Self`-prefixed path with at least two segments
+        // (the `PathPrefixKind::SelfType` classification), so that is taken as a precondition.
         let location = variable.location;
         let name = variable.segments[1].ident.as_str();
         let self_type = self.self_type.as_ref()?;
