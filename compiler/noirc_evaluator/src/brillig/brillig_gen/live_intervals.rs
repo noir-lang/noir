@@ -640,7 +640,7 @@ mod tests {
         let rpo = PostOrder::with_function(func).into_vec_reverse();
 
         let [b0, b1, b2, b3, b4, b5, b6] = block_ids();
-        assert_eq!(rpo, vec![b0, b1, b2, b5, b3, b4, b6]);
+        assert_eq!(rpo, vec![b0, b1, b2, b3, b4, b6, b5]);
 
         let v0 = func.dfg[b0].parameters()[0]; // outer bound
         let v1 = func.dfg[b0].parameters()[1]; // inner bound
@@ -666,6 +666,7 @@ mod tests {
         let b4_term = intervals.terminator_point(b4).unwrap();
         let b6_inst_pt = intervals.instruction_point(b6_inst).unwrap();
         let b6_term = intervals.terminator_point(b6).unwrap();
+        let b5_term = intervals.terminator_point(b5).unwrap();
 
         let iv0 = intervals.get(v0).expect("v0 should have an interval");
         let iv1 = intervals.get(v1).expect("v1 should have an interval");
@@ -679,16 +680,19 @@ mod tests {
         // Exact interval assertions.
         assert_eq!(iv0.def, b0_entry, "v0 def");
         // v0 is live throughout both loops.
-        // RPO is [b0, b1, b2, b5, b3, b4, b6], so b6 comes after b4 -> term(b6) > term(b4).
+        // RPO is [b0, b1, b2, b3, b4, b6, b5], so b6 comes after b4 -> term(b6) > term(b4).
+        // v0 is the outer bound, used only in b1, so its last use is the outer back-edge in b6
+        // rather than the loop exit b5 (which does not use v0).
         assert_eq!(iv0.last_use, b6_term, "v0 last_use");
 
         assert_eq!(iv1.def, b0_entry, "v1 def");
         assert_eq!(iv1.last_use, b6_term, "v1 last_use");
 
         assert_eq!(iv2.def, b0_entry, "v2 def (idom adjusted to b0)");
-        // v2 (outer loop header param) is live through b4 (inner loop) and
-        // b6 (outer back-edge).
-        assert_eq!(iv2.last_use, b6_term, "v2 last_use");
+        // v2 (outer loop header param) is live through b4 (inner loop) and b6 (outer back-edge),
+        // and is also returned in the loop exit b5. Since b5 is ordered last, its `return v2` is
+        // v2's last use.
+        assert_eq!(iv2.last_use, b5_term, "v2 last_use");
 
         assert_eq!(iv3.def, b1_inst_pt, "v3 def");
         assert_eq!(iv3.last_use, b1_term, "v3 last_use");

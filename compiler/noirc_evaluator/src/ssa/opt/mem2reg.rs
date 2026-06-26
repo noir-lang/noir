@@ -1159,22 +1159,22 @@ brillig(inline) fn main f0 {
             v52 = add v11, v51
             jmp b10(u32 0, v52, v12)
           b9():
-            v54 = eq v11, u32 41472
+            v58 = eq v11, u32 41472
             constrain v11 == u32 41472
-            v55 = array_get v1, index u32 4 -> u32
-            jmp b13(u32 0, v55)
+            v59 = array_get v1, index u32 4 -> u32
+            jmp b13(u32 0, v59)
           b10(v13: u32, v14: u32, v15: u32):
-            v57 = lt v13, u32 3
-            jmpif v57 then: b11(), else: b12()
+            v54 = lt v13, u32 3
+            jmpif v54 then: b11(), else: b12()
           b11():
-            v59 = unchecked_add v13, u32 1
-            jmp b10(v59, u32 4, u32 3)
+            v55 = unchecked_add v13, u32 1
+            jmp b10(v55, u32 4, u32 3)
           b12():
-            v60 = unchecked_add v10, u32 1
-            jmp b7(v60, v14, v15)
+            v56 = unchecked_add v10, u32 1
+            jmp b7(v56, v14, v15)
           b13(v16: u32, v17: u32):
-            v58 = lt v16, u32 3
-            jmpif v58 then: b14(), else: b15()
+            v60 = lt v16, u32 3
+            jmpif v60 then: b14(), else: b15()
           b14():
             v61 = array_get v0, index v16 -> u32
             v62 = array_get v1, index v16 -> u32
@@ -1182,25 +1182,25 @@ brillig(inline) fn main f0 {
             v64 = add v17, v63
             jmp b16(u32 0, v64)
           b15():
-            v66 = eq v17, u32 11539
+            v75 = eq v17, u32 11539
             constrain v17 == u32 11539
-            v67 = eq v17, u32 0
-            jmpif v67 then: b19(), else: b20()
+            v76 = eq v17, u32 0
+            jmpif v76 then: b19(), else: b20()
           b16(v18: u32, v19: u32):
-            v68 = lt v18, u32 2
-            jmpif v68 then: b17(), else: b18()
+            v65 = lt v18, u32 2
+            jmpif v65 then: b17(), else: b18()
           b17():
-            v69 = add v16, v18
-            v70 = array_get v0, index v69 -> u32
-            v71 = add v16, v18
-            v72 = array_get v1, index v71 -> u32
-            v73 = sub v70, v72
-            v74 = add v19, v73
-            v75 = unchecked_add v18, u32 1
-            jmp b16(v75, v74)
+            v66 = add v16, v18
+            v67 = array_get v0, index v66 -> u32
+            v68 = add v16, v18
+            v69 = array_get v1, index v68 -> u32
+            v70 = sub v67, v69
+            v71 = add v19, v70
+            v72 = unchecked_add v18, u32 1
+            jmp b16(v72, v71)
           b18():
-            v76 = unchecked_add v16, u32 1
-            jmp b13(v76, v19)
+            v73 = unchecked_add v16, u32 1
+            jmp b13(v73, v19)
           b19():
             jmp b21(v0)
           b20():
@@ -1218,27 +1218,27 @@ brillig(inline) fn main f0 {
             v81 = array_get v1, index v21 -> u32
             jmp b25(u32 0)
           b24():
-            v88 = make_array [Field 1, Field 2, Field 3, Field 4, Field 5, Field 6] : [(Field, Field); 3]
-            v90 = array_set v88, index u32 2, value Field 7
-            v92 = array_set v90, index u32 3, value Field 8
-            v93 = array_get v92, index u32 2 -> Field
-            v94 = array_get v92, index u32 3 -> Field
-            v95 = eq v94, Field 8
-            constrain v94 == Field 8
+            v95 = make_array [Field 1, Field 2, Field 3, Field 4, Field 5, Field 6] : [(Field, Field); 3]
+            v97 = array_set v95, index u32 2, value Field 7
+            v99 = array_set v97, index u32 3, value Field 8
+            v100 = array_get v99, index u32 2 -> Field
+            v101 = array_get v99, index u32 3 -> Field
+            v102 = eq v101, Field 8
+            constrain v101 == Field 8
             return
           b25(v22: u32):
-            v96 = lt v22, u32 5
-            jmpif v96 then: b26(), else: b27()
+            v82 = lt v22, u32 5
+            jmpif v82 then: b26(), else: b27()
           b26():
-            v97 = array_get v0, index v22 -> u32
-            v98 = eq v97, v81
-            v99 = not v98
-            constrain v98 == u1 0
-            v101 = unchecked_add v22, u32 1
-            jmp b25(v101)
+            v83 = array_get v0, index v22 -> u32
+            v84 = eq v83, v81
+            v85 = not v84
+            constrain v84 == u1 0
+            v87 = unchecked_add v22, u32 1
+            jmp b25(v87)
           b27():
-            v102 = unchecked_add v21, u32 1
-            jmp b22(v102)
+            v88 = unchecked_add v21, u32 1
+            jmp b22(v88)
         }
         ");
     }

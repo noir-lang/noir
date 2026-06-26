@@ -1559,20 +1559,20 @@ mod tests {
          3: jump to 0 // -> 4: f0/b1
          4: sp[7] = u32 lt sp[4], sp[2] // f0/b1
          5: jump if sp[7] to 0 // -> 7: f0/b2
-         6: jump to 0 // -> 9: f0/b5
+         6: jump to 0 // -> 18: f0/b5
          7: sp[7] = sp[5] // f0/b2
-         8: jump to 0 // -> 11: f0/b3
-         9: sp[2] = sp[4] // f0/b5
-        10: return
-        11: sp[8] = u32 lt sp[7], sp[3] // f0/b3
-        12: jump if sp[8] to 0 // -> 14: f0/b4
-        13: jump to 0 // -> 17: f0/b6
-        14: sp[8] = u32 add sp[7], sp[6] // f0/b4
-        15: sp[7] = sp[8]
-        16: jump to 0 // -> 11: f0/b3
-        17: sp[7] = u32 add sp[4], sp[6] // f0/b6
-        18: sp[4] = sp[7]
-        19: jump to 0 // -> 4: f0/b1
+         8: jump to 0 // -> 9: f0/b3
+         9: sp[8] = u32 lt sp[7], sp[3] // f0/b3
+        10: jump if sp[8] to 0 // -> 12: f0/b4
+        11: jump to 0 // -> 15: f0/b6
+        12: sp[8] = u32 add sp[7], sp[6] // f0/b4
+        13: sp[7] = sp[8]
+        14: jump to 0 // -> 9: f0/b3
+        15: sp[7] = u32 add sp[4], sp[6] // f0/b6
+        16: sp[4] = sp[7]
+        17: jump to 0 // -> 4: f0/b1
+        18: sp[2] = sp[4] // f0/b5
+        19: return
         ");
     }
 

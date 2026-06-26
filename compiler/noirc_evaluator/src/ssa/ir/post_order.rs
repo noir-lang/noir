@@ -3,7 +3,7 @@
 //! This ordering is beneficial to the efficiency of various algorithms, such as those for dead
 //! code elimination and calculating dominance trees.
 
-use std::collections::HashSet;
+use std::collections::{BTreeMap, BTreeSet, HashSet};
 
 use rustc_hash::FxHashMap as HashMap;
 
@@ -60,7 +60,9 @@ impl PostOrder {
     /// In RPO, each block is visited only after all of its predecessors, except for the
     /// back-edge predecessors of loop headers. Blocks are ordered by the maximum cost to reach
     /// them from the entry block (the longest path once back-edges are removed), with ties
-    /// broken by block id.
+    /// broken by block id. The cost of each loop's exit blocks is then raised above the loop
+    /// body so that every loop's blocks are contiguous and precede the blocks reached by
+    /// exiting the loop.
     ///
     /// Take this CFG for example:
     /// ```text
@@ -90,6 +92,10 @@ impl PostOrder {
     ///
     /// Each block is visited at most once during the depth-first traversal; the cost of each
     /// block is then computed in a single linear scan before a final sort.
+    ///
+    /// After the base costs are computed, the cost of each loop's exit blocks is raised above
+    /// the loop body (see [`Self::raise_loop_exit_costs`]) so that loops stay contiguous and
+    /// the blocks reached by exiting a loop are ordered after the entire loop body.
     fn compute_post_order(cfg: &ControlFlowGraph, roots: Vec<BasicBlockId>) -> Vec<BasicBlockId> {
         let post_order = Self::depth_first_post_order(cfg, roots);
 
@@ -124,6 +130,8 @@ impl PostOrder {
             cost.insert(block, block_cost);
         }
 
+        Self::raise_loop_exit_costs(cfg, &post_order, &rpo_index, &mut cost);
+
         // Order by ascending cost (ties broken by block id) to get the reverse-post-order, then
         // reverse it to recover the post-order.
         let mut reverse_post_order = post_order;
@@ -131,6 +139,167 @@ impl PostOrder {
         reverse_post_order.sort_by_key(|block| (cost[block], *block));
         reverse_post_order.reverse();
         reverse_post_order
+    }
+
+    /// Raise the cost of every loop's exit blocks above the maximum cost within the loop,
+    /// propagating each increase forward. After this, sorting by `(cost, block id)` keeps each
+    /// natural loop's blocks contiguous and orders the blocks reached by exiting a loop after the
+    /// entire loop body. Without it a loop exit branches off the loop header (a low-cost block)
+    /// and so inherits a low cost, letting it sort ahead of deeper loop-body blocks (see
+    /// <https://github.com/noir-lang/noir/issues/9771>).
+    ///
+    /// An exit is a successor `e` of a loop block `b` that is not itself in the loop and is
+    /// reached by a *forward* edge (`rpo_index[e] > rpo_index[b]`); a successor reached by a
+    /// back-edge is an enclosing loop header, which legitimately precedes the loop. Note a forward
+    /// exit may still have a smaller `rpo_index` than other blocks of the loop, which is why the
+    /// raise is propagated rather than folded into the single cost scan.
+    ///
+    /// Bumping one loop's exit can raise a block of another loop (e.g. two sequential loops where
+    /// the first's exit feeds the second's body), so the bumps are repeated to a fixpoint. Each
+    /// raise only ever increases a cost and only propagates along forward edges, so costs are
+    /// bounded by the longest forward path and the fixpoint is reached quickly; the iteration cap
+    /// is a safety bound for irreducible CFGs. The result is a valid reverse-post-order regardless
+    /// (every non-back edge `u -> v` keeps `cost[u] < cost[v]`), so loop-set approximation only
+    /// affects contiguity, never correctness.
+    fn raise_loop_exit_costs(
+        cfg: &ControlFlowGraph,
+        post_order: &[BasicBlockId],
+        rpo_index: &HashMap<BasicBlockId, u32>,
+        cost: &mut HashMap<BasicBlockId, u32>,
+    ) {
+        let loops = Self::collect_loop_block_sets(cfg, post_order, rpo_index);
+        if loops.is_empty() {
+            return;
+        }
+
+        // The forward exits of each loop are structural, so compute them once. `BTreeSet` keeps
+        // the iteration order below deterministic.
+        let loop_exits: Vec<BTreeSet<BasicBlockId>> = loops
+            .iter()
+            .map(|blocks| {
+                let mut exits = BTreeSet::new();
+                for &block in blocks {
+                    let block_index = rpo_index[&block];
+                    for successor in cfg.successors(block) {
+                        if blocks.contains(&successor) {
+                            continue;
+                        }
+                        if rpo_index.get(&successor).is_some_and(|&index| index > block_index) {
+                            exits.insert(successor);
+                        }
+                    }
+                }
+                exits
+            })
+            .collect();
+
+        for _ in 0..=post_order.len() {
+            let mut changed = false;
+            for (blocks, exits) in loops.iter().zip(&loop_exits) {
+                let Some(max_cost_in_loop) =
+                    blocks.iter().filter_map(|block| cost.get(block).copied()).max()
+                else {
+                    continue;
+                };
+                for &exit in exits {
+                    if cost.get(&exit).is_some_and(|&current| current < max_cost_in_loop + 1) {
+                        Self::raise_cost(cfg, rpo_index, cost, exit, max_cost_in_loop + 1);
+                        changed = true;
+                    }
+                }
+            }
+            if !changed {
+                break;
+            }
+        }
+    }
+
+    /// Raise `cost[start]` to `new_cost` and propagate the increase forward so that every forward
+    /// (non-back) edge `u -> v` keeps `cost[v] >= cost[u] + 1`. Propagation only follows forward
+    /// edges (strictly increasing `rpo_index`) and costs only increase, so the traversal is over a
+    /// DAG and always terminates.
+    fn raise_cost(
+        cfg: &ControlFlowGraph,
+        rpo_index: &HashMap<BasicBlockId, u32>,
+        cost: &mut HashMap<BasicBlockId, u32>,
+        start: BasicBlockId,
+        new_cost: u32,
+    ) {
+        match cost.get(&start) {
+            Some(&current) if current >= new_cost => return,
+            None => return,
+            _ => {}
+        }
+        cost.insert(start, new_cost);
+
+        let mut stack = vec![start];
+        while let Some(block) = stack.pop() {
+            let block_cost = cost[&block];
+            let Some(&block_index) = rpo_index.get(&block) else {
+                continue;
+            };
+            for successor in cfg.successors(block) {
+                let Some(&successor_index) = rpo_index.get(&successor) else {
+                    continue;
+                };
+                if block_index < successor_index && cost[&successor] < block_cost + 1 {
+                    cost.insert(successor, block_cost + 1);
+                    stack.push(successor);
+                }
+            }
+        }
+    }
+
+    /// The natural loop block sets of the CFG, one per loop header.
+    ///
+    /// A retreating edge `p -> h` (`rpo_index[p] >= rpo_index[h]`) is a back-edge to header `h`.
+    /// The blocks of `h`'s natural loop are `h` together with every block that can reach a
+    /// back-edge source without passing through `h`. When a header has several back-edges (e.g. a
+    /// loop with `break`/`continue` arms that each jump back) the natural loop is the *union* of
+    /// the per-edge sets — otherwise a block internal to the larger arm would look like an exit of
+    /// the smaller one, and the two would fight over its position.
+    fn collect_loop_block_sets(
+        cfg: &ControlFlowGraph,
+        post_order: &[BasicBlockId],
+        rpo_index: &HashMap<BasicBlockId, u32>,
+    ) -> Vec<BTreeSet<BasicBlockId>> {
+        // `BTreeMap`/`BTreeSet` keep header discovery and the merged sets deterministic.
+        let mut loops: BTreeMap<BasicBlockId, BTreeSet<BasicBlockId>> = BTreeMap::new();
+        for &header in post_order {
+            let header_index = rpo_index[&header];
+            for predecessor in cfg.predecessors(header) {
+                let Some(&predecessor_index) = rpo_index.get(&predecessor) else {
+                    continue;
+                };
+                if predecessor_index >= header_index {
+                    let blocks = Self::find_blocks_in_loop(cfg, header, predecessor);
+                    loops.entry(header).or_default().extend(blocks);
+                }
+            }
+        }
+        loops.into_values().collect()
+    }
+
+    /// The blocks of the natural loop with the given `header` and back-edge source
+    /// `back_edge_start`: collected by walking predecessors backwards from `back_edge_start`,
+    /// stopping at the header.
+    fn find_blocks_in_loop(
+        cfg: &ControlFlowGraph,
+        header: BasicBlockId,
+        back_edge_start: BasicBlockId,
+    ) -> BTreeSet<BasicBlockId> {
+        let mut blocks = BTreeSet::new();
+        blocks.insert(header);
+
+        let mut stack = vec![back_edge_start];
+        while let Some(block) = stack.pop() {
+            // The header is already inserted, so reaching it returns `false` and we stop walking
+            // past it; this also terminates the walk for a single-block (self-edge) loop.
+            if blocks.insert(block) {
+                stack.extend(cfg.predecessors(block));
+            }
+        }
+        blocks
     }
 
     // Computes the post-order of the CFG by doing a depth-first traversal of the given
@@ -312,6 +481,42 @@ mod tests {
         assert_eq!(post_order.0, [b3, b2, b1, b0]);
     }
 
+    /// A loop whose body and back-edge live in different blocks (a separate "latch"). The
+    /// loop exit branches off the header, so under a plain max-cost order it is hoisted ahead
+    /// of the deeper latch block. The order must keep the whole loop body before the exit.
+    #[test]
+    fn loop_with_separate_latch() {
+        // b0 -> b1 <--+
+        //       |\    |
+        //       | b2  |
+        //       |  \  |
+        //       |  b4-+   (b4 is the latch: jumps back to the header b1)
+        //       V
+        //      b3        (loop exit)
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u1):
+            jmp b1()
+          b1():
+            jmpif v0 then: b2(), else: b3()
+          b2():
+            jmp b4()
+          b3():
+            return
+          b4():
+            jmp b1()
+        }";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let func = ssa.main();
+        let post_order = PostOrder::with_function(func);
+
+        // Loop = {b1, b2, b4}, exit = b3. The exit b3 must come after the entire loop body in
+        // the forward order, so it must appear *first* in the post-order:
+        // forward order [b0, b1, b2, b4, b3] -> post-order [b3, b4, b2, b1, b0].
+        assert_eq!(post_order.0, [b(3), b(4), b(2), b(1), b(0)]);
+    }
+
     #[test]
     fn simple_if() {
         let src = "
@@ -418,21 +623,227 @@ mod tests {
         //
         // [b1, b2, b4, b5, b7, b8, b6]
         //
-        // Blocks are instead ordered by their maximum cost to reach them from the entry block,
+        // Blocks are first ordered by their maximum cost to reach them from the entry block,
         // i.e. the longest path from b0 once the back-edges (b6->b1 and b8->b4) are removed:
         //
         //   b0=0, b1=1, b2=2, b3=2, b4=3, b5=4, b6=4, b7=5, b8=6
         //
+        // Each loop's exit costs are then raised above the loop body. The inner loop
+        // {b4, b5, b7, b8} (max cost 6) pushes its exit b6 to 7; the outer loop
+        // {b1, b2, b4, b5, b6, b7, b8} (now max cost 7) pushes its exit b3 to 8:
+        //
+        //   b0=0, b1=1, b2=2, b4=3, b5=4, b7=5, b8=6, b6=7, b3=8
+        //
         // Sorting by (cost, block-id) ascending gives the reverse-post-order
-        // [b0, b1, b2, b3, b4, b5, b6, b7, b8]. This still visits every block only after all of
-        // its (non-back-edge) predecessors, which is what #9771 requires; the loop exit b3 is no
-        // longer hoisted ahead of the loop body. The expected post-order is the reverse:
-        let expected_post_order = [b(8), b(7), b(6), b(5), b(4), b(3), b(2), b(1), b(0)];
+        // [b0, b1, b2, b4, b5, b7, b8, b6, b3]. Every block still comes after all of its
+        // (non-back-edge) predecessors, and now each loop is contiguous with its exit ordered
+        // after the entire loop body. The expected post-order is the reverse:
+        let expected_post_order = [b(3), b(6), b(8), b(7), b(5), b(4), b(2), b(1), b(0)];
 
         let ssa = Ssa::from_str(src).unwrap();
 
         let func = ssa.main();
         let post_order = PostOrder::with_function(func);
         assert_eq!(post_order.0, expected_post_order);
+    }
+}
+
+/// Verifies, over real programs compiled through the full SSA pipeline, that the forward order
+/// places every block reached by exiting a loop after the entire loop body (see
+/// [`PostOrder::raise_loop_exit_costs`]).
+#[cfg(test)]
+mod loop_ordering_property_tests {
+    use std::collections::{BTreeMap, BTreeSet};
+
+    use rustc_hash::FxHashMap;
+
+    use super::PostOrder;
+    use crate::ssa::ir::{basic_block::BasicBlockId, cfg::ControlFlowGraph, function::Function};
+    use crate::ssa::opt::{LoopOrder, Loops};
+    use crate::ssa::ssa_gen::generate_ssa;
+    use crate::ssa::{Ssa, SsaBuilder, SsaEvaluatorOptions, primary_passes};
+    use noirc_frontend::test_utils::get_monomorphized;
+
+    /// A place where a loop's exit block is ordered at or before a block of that loop in the
+    /// function's forward (reverse-post) order. The fields are reported through `Debug` in the
+    /// failure message.
+    #[derive(Debug)]
+    #[allow(dead_code)]
+    struct Violation {
+        loop_header: BasicBlockId,
+        exit_block: BasicBlockId,
+        offending_loop_block: BasicBlockId,
+        exit_position: usize,
+        offending_position: usize,
+    }
+
+    /// For each natural loop in `func`, check that every block reached by exiting the loop comes
+    /// after the entire loop body in the forward order.
+    fn find_loop_exit_ordering_violations(func: &Function) -> Vec<Violation> {
+        let forward = PostOrder::with_function(func).into_vec_reverse();
+        let position: FxHashMap<BasicBlockId, usize> =
+            forward.iter().copied().enumerate().map(|(index, block)| (block, index)).collect();
+
+        let cfg = ControlFlowGraph::with_function(func);
+        // `find_all` does not mutate the function; it only reads the CFG to discover loops. It
+        // returns one entry per back-edge, so merge entries that share a header into the header's
+        // natural loop (the union of its back-edge block sets).
+        let loops = Loops::find_all(func, LoopOrder::InsideOut);
+        let mut natural_loops: BTreeMap<BasicBlockId, BTreeSet<BasicBlockId>> = BTreeMap::new();
+        for loop_ in &loops.yet_to_unroll {
+            natural_loops.entry(loop_.header).or_default().extend(loop_.blocks.iter().copied());
+        }
+
+        let mut violations = Vec::new();
+        for (header, blocks) in &natural_loops {
+            // The latest position among the loop's blocks, and which block holds it. Loop blocks
+            // unreachable from the entry have no position and are ignored.
+            let Some((max_position, offending_loop_block)) = blocks
+                .iter()
+                .filter_map(|block| position.get(block).map(|pos| (*pos, *block)))
+                .max_by_key(|(pos, _)| *pos)
+            else {
+                continue;
+            };
+
+            // The blocks reached by *forward*-exiting the loop: successors of a loop block that
+            // are not themselves in the loop and are not an enclosing header reached by a
+            // back-edge (such a header dominates the block and legitimately precedes the loop).
+            // `BTreeSet` keeps the reported order deterministic.
+            let mut exits: BTreeSet<BasicBlockId> = BTreeSet::new();
+            for &block in blocks {
+                for successor in cfg.successors(block) {
+                    if !blocks.contains(&successor) && !loops.dom.dominates(successor, block) {
+                        exits.insert(successor);
+                    }
+                }
+            }
+
+            for exit_block in exits {
+                let Some(&exit_position) = position.get(&exit_block) else {
+                    continue;
+                };
+                if exit_position <= max_position {
+                    violations.push(Violation {
+                        loop_header: *header,
+                        exit_block,
+                        offending_loop_block,
+                        exit_position,
+                        offending_position: max_position,
+                    });
+                }
+            }
+        }
+        violations
+    }
+
+    /// Compile a Noir source string to fully-optimized SSA, mirroring the primary pass pipeline.
+    ///
+    /// The corpus programs are self-contained (no `std` imports, no operators on aggregate types)
+    /// so the frontend test helper, which does not link the standard library, can compile them.
+    /// Broad coverage over real `test_programs/` (which use the full stdlib) is exercised
+    /// separately by running the property check inside the `nargo_cli` execution suite.
+    fn optimized_ssa(src: &str) -> Ssa {
+        let program = get_monomorphized(src).expect("program should monomorphize");
+        let ssa = generate_ssa(program).expect("SSA generation should succeed");
+        let options = SsaEvaluatorOptions::default();
+        let builder = SsaBuilder::from_ssa(
+            ssa,
+            options.ssa_logging.clone(),
+            options.ssa_logging_hide_unchanged,
+            false,
+            None,
+        );
+        builder.run_passes(&primary_passes(&options)).expect("passes should run").finish()
+    }
+
+    /// Self-contained programs with complex control flow whose loops survive into optimized SSA:
+    /// `unconstrained` functions with runtime bounds (so the unroller cannot flatten them) and a
+    /// mix of nested loops, `break`, `continue`, and early `return` — which is what produces the
+    /// extra loop-exit blocks this ordering property targets.
+    const CORPUS: &[(&str, &str)] = &[
+        (
+            "triple_nested_with_break_and_continue",
+            "unconstrained fn main(n: u32, m: u32, k: u32) -> pub u32 {
+                let mut acc: u32 = 0;
+                for i in 0..n {
+                    for j in 0..m {
+                        if j == i {
+                            continue;
+                        }
+                        for l in 0..k {
+                            if l == 3 {
+                                break;
+                            }
+                            acc += i * j + l;
+                        }
+                    }
+                }
+                acc
+            }",
+        ),
+        (
+            "sequential_loops_with_break",
+            "unconstrained fn main(n: u32) -> pub u32 {
+                let mut a: u32 = 0;
+                for i in 0..n {
+                    if i == 7 {
+                        break;
+                    }
+                    a += i;
+                }
+                let mut b: u32 = a;
+                for j in 0..n {
+                    b += j * a;
+                }
+                b
+            }",
+        ),
+        (
+            "nested_loops_across_calls",
+            "unconstrained fn inner(x: u32, bound: u32) -> u32 {
+                let mut total: u32 = 0;
+                for i in 0..bound {
+                    if i == x {
+                        break;
+                    }
+                    total += i;
+                }
+                total
+            }
+            unconstrained fn main(n: u32, m: u32) -> pub u32 {
+                let mut acc: u32 = 0;
+                for i in 0..n {
+                    acc += inner(i, m);
+                }
+                acc
+            }",
+        ),
+    ];
+
+    #[test]
+    fn loop_exits_follow_loop_bodies_in_optimized_ssa() {
+        let mut functions_checked = 0;
+        for (name, src) in CORPUS {
+            let ssa = optimized_ssa(src);
+            for func in ssa.functions.values() {
+                let violations = find_loop_exit_ordering_violations(func);
+                let forward = PostOrder::with_function(func).into_vec_reverse();
+                assert!(
+                    violations.is_empty(),
+                    "program `{name}` fn `{}` ({:?}): loop blocks ordered after a loop exit.\nforward order: {forward:?}\nviolations: {violations:#?}\n{func}",
+                    func.name(),
+                    func.runtime(),
+                );
+                functions_checked += 1;
+            }
+        }
+
+        // Guard against the corpus silently compiling to nothing (which would make the assertions
+        // vacuous), and against losing all loops to optimization.
+        assert!(
+            functions_checked >= CORPUS.len(),
+            "expected to check at least one function per corpus program, only checked {functions_checked}"
+        );
     }
 }
