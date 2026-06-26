@@ -43,27 +43,6 @@ pub(crate) enum VariableResolution {
     TypeAlias(TypeAliasId),
 }
 
-/// Outcome of [`Elaborator::resolve_variable_with_prefix`] for a path that has a prefix. A `None`
-/// result from that method means the path names no item accessed through its prefix, so the
-/// caller falls back to plain value resolution; a `Some` distinguishes the two handled outcomes.
-#[allow(clippy::large_enum_variant)]
-pub(super) enum PrefixedVariable {
-    /// The path resolved to this item.
-    Resolved(VariableResolution),
-    /// The path named a prefixed item but it could not be resolved unambiguously; an error was
-    /// already reported, so no value-resolution fallback should be attempted.
-    Errored,
-}
-
-impl PrefixedVariable {
-    fn into_option(self) -> Option<VariableResolution> {
-        match self {
-            PrefixedVariable::Resolved(resolution) => Some(resolution),
-            PrefixedVariable::Errored => None,
-        }
-    }
-}
-
 impl Elaborator<'_> {
     #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn elaborate_variable(&mut self, variable: Path) -> (ExprId, Type) {
@@ -500,20 +479,26 @@ impl Elaborator<'_> {
 
     /// Resolve a [`TypedPath`] used as an expression to the item it names.
     ///
-    /// A path with a prefix (more than one segment) may name an item accessed *through* that
-    /// prefix: a `Self`-prefixed associated item (elaborated directly to an expression), or a
-    /// trait item reached through `Self`, a trait, a concrete type, or an in-scope generic bound
-    /// (see [`Self::resolve_prefixed_variable`]). A single-segment path — or a prefixed path
-    /// that names no such item — resolves to a local variable, a definition (global, function,
-    /// enum-variant global), or a numeric type alias (see [`Self::get_ident_from_path`]).
+    /// A path with a prefix (more than one segment) names an item accessed *through* that prefix,
+    /// fully handled by [`Self::resolve_prefixed_variable`]. A single-segment path resolves in the
+    /// current scope (a local variable, or a value item — global, function, enum-variant global,
+    /// numeric type alias) via [`Self::resolve_variable_in_scope`].
     #[tracing::instrument(level = "trace", skip_all)]
     fn resolve_variable(&mut self, path: TypedPath) -> Option<VariableResolution> {
-        if path.segments.len() > 1
-            && let Some(resolution) = self.resolve_prefixed_variable(&path)
-        {
-            return resolution.into_option();
+        if path.segments.len() > 1 {
+            return self.resolve_prefixed_variable(&path);
         }
 
+        self.resolve_variable_in_scope(path)
+    }
+
+    /// Resolve a path in the current scope to a local variable or a value item (global, function,
+    /// enum-variant global, numeric type alias), looked up across modules. Also serves as the
+    /// value fallback for a prefixed path whose last segment is not a method or trait item.
+    pub(super) fn resolve_variable_in_scope(
+        &mut self,
+        path: TypedPath,
+    ) -> Option<VariableResolution> {
         // The location of variables or definitions we register (for LSP) must be that of the
         // path's last segment, as intermediate segments solve to other definitions.
         let location = path.last_ident().location();
@@ -522,8 +507,8 @@ impl Elaborator<'_> {
         // Otherwise, then it is referring to an Identifier
         // This lookup allows support of such statements: let x = foo::bar::SOME_GLOBAL + 10;
         // If the expression is a singular indent, we search the resolver's current scope as normal.
-        let ident_from_path = self.get_ident_from_path(path);
-        ident_from_path.map(|ident_from_path| match ident_from_path {
+        let ident_from_path = self.get_ident_from_path(path)?;
+        Some(match ident_from_path {
             IdentFromPath::Variable(variable) => {
                 self.handle_local_variable(&variable);
                 let hir_ident = HirIdent::non_trait_method(variable.ident.id, location);

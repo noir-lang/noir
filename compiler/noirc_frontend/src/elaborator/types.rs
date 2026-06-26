@@ -55,7 +55,7 @@ use crate::{
 use super::{
     Elaborator, PathResolutionTarget, UnsafeBlockStatus, lints,
     path_resolution::{PathResolutionItem, PathResolutionMode, TypedPath, TypedPathSegment},
-    variable::{PrefixedVariable, VariableResolution},
+    variable::VariableResolution,
 };
 
 pub const SELF_TYPE_NAME: &str = "Self";
@@ -2143,17 +2143,29 @@ impl Elaborator<'_> {
         TraitPathResolution { method, item: Some(item), errors }
     }
 
-    /// Resolve a [`TypedPath`] that has a prefix (more than one segment) to the item it names.
-    /// [`Self::resolve_path_prefix`] classifies the prefix once; the last segment is resolved
-    /// against that classification and mapped to a [`PrefixedVariable`].
+    /// Resolve a [`TypedPath`] that has a prefix (more than one segment) to the item it names —
+    /// fully: it always resolves the path, reports an error, or falls back to a value lookup, so
+    /// the caller never needs a further fallback. [`Self::resolve_path_prefix`] classifies the
+    /// prefix once; the last segment is resolved against that classification, and anything that is
+    /// not a method/trait-item (an enum variant, a module value, an associated constant, …) is
+    /// resolved by [`Self::resolve_variable_in_scope`] on the whole path.
+    ///
+    /// Returns `None` only when an error has already been reported (an ambiguous trait method, or
+    /// an unresolved name), so the caller should produce an error expression rather than retry.
     #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn resolve_prefixed_variable(
         &mut self,
         path: &TypedPath,
-    ) -> Option<PrefixedVariable> {
-        let resolution = match self.resolve_path_prefix(path)? {
-            // `Self` is contextual; its handler produces the `PrefixedVariable` directly (it may be
-            // an elaborated expression, not a trait resolution).
+    ) -> Option<VariableResolution> {
+        let Some(kind) = self.resolve_path_prefix(path) else {
+            // The prefix doesn't resolve to a type/trait/module; let the value lookup of the whole
+            // path resolve it or report the error.
+            return self.resolve_variable_in_scope(path.clone());
+        };
+
+        let trait_resolution = match kind {
+            // `Self` is contextual; its handler produces the resolution directly (it may be an
+            // elaborated expression, not a trait resolution).
             PathPrefixKind::SelfType => return self.resolve_self_prefix(path),
             PathPrefixKind::BoundedGeneric => self.resolve_trait_method_by_named_generic(path),
             PathPrefixKind::Type { last_segment, turbofish, is_self_prefix, resolution } => self
@@ -2175,9 +2187,14 @@ impl Elaborator<'_> {
                     resolution,
                 ),
             PathPrefixKind::Module => None,
-        }?;
+        };
 
-        Some(self.prefixed_variable_from_trait_resolution(path.location, resolution))
+        match trait_resolution {
+            Some(resolution) => self.variable_from_trait_resolution(path.location, resolution),
+            // Not a method or trait item: resolve the whole path as a value (a module value, an
+            // enum variant, an associated constant, …).
+            None => self.resolve_variable_in_scope(path.clone()),
+        }
     }
 
     /// Resolve a `Self::…` path used as an expression. `Self` is contextual, so this enumerates its
@@ -2188,50 +2205,58 @@ impl Elaborator<'_> {
     ///   resolved as an assumed constraint on `Self`;
     /// - otherwise (`Self` is a concrete data type, e.g. inside an impl method): `Self::method`,
     ///   resolved the same way as `Type::method`.
-    fn resolve_self_prefix(&mut self, path: &TypedPath) -> Option<PrefixedVariable> {
+    ///
+    /// Anything that isn't one of these (e.g. `Self::Variant`) falls back to a value lookup.
+    fn resolve_self_prefix(&mut self, path: &TypedPath) -> Option<VariableResolution> {
         // Cases the module resolver can't reach: a method/constant on a primitive `Self`, an
         // associated constant, or a method on an associated type (all inside a trait impl).
         if let Some((expr_id, typ)) =
             self.elaborate_variable_as_self_method_or_associated_constant(path)
         {
-            return Some(PrefixedVariable::Resolved(VariableResolution::Expression(expr_id, typ)));
+            return Some(VariableResolution::Expression(expr_id, typ));
         }
 
         // Inside a trait definition, `Self` is the trait: resolve to an assumed constraint on it,
         // falling back to a supertrait reached through that bound.
         if self.current_trait.is_some() && self.current_trait_impl.is_none() {
-            let resolution = self
+            return match self
                 .resolve_trait_static_method_by_self(path)
-                .or_else(|| self.resolve_trait_method_by_named_generic(path))?;
-            return Some(self.prefixed_variable_from_trait_resolution(path.location, resolution));
+                .or_else(|| self.resolve_trait_method_by_named_generic(path))
+            {
+                Some(resolution) => self.variable_from_trait_resolution(path.location, resolution),
+                None => self.resolve_variable_in_scope(path.clone()),
+            };
         }
 
         // Otherwise `Self` is a concrete data type: resolve the method exactly as `Type::method`
-        // does, on `Self`'s type.
+        // does, on `Self`'s type. A non-method (e.g. `Self::Variant`) falls back to a value lookup.
         let mut prefix = path.clone();
         let last_segment = prefix.pop();
         let turbofish = prefix.last_segment().turbofish();
-        let type_resolution = self.use_path_as_type(prefix).ok()?;
-        let is_self_prefix = true;
-        let resolution = self.resolve_method_on_type_prefix(
-            path.location,
-            last_segment,
-            turbofish,
-            is_self_prefix,
-            type_resolution,
-        )?;
-        Some(self.prefixed_variable_from_trait_resolution(path.location, resolution))
+        let resolution = self.use_path_as_type(prefix).ok().and_then(|type_resolution| {
+            self.resolve_method_on_type_prefix(
+                path.location,
+                last_segment,
+                turbofish,
+                true, // is_self_prefix
+                type_resolution,
+            )
+        });
+        match resolution {
+            Some(resolution) => self.variable_from_trait_resolution(path.location, resolution),
+            None => self.resolve_variable_in_scope(path.clone()),
+        }
     }
 
-    /// Turn a [`TraitPathResolution`] into the [`PrefixedVariable`] a prefixed path resolves to,
-    /// pushing the resolution's errors. An unresolvable trait method (`MultipleTraitsInScope`) has
-    /// already reported its error, so it becomes [`PrefixedVariable::Errored`] rather than an
-    /// identifier (and the caller must not fall back to value resolution).
-    fn prefixed_variable_from_trait_resolution(
+    /// Turn a [`TraitPathResolution`] into the [`VariableResolution`] a prefixed path resolves to,
+    /// pushing the resolution's errors. Returns `None` for an ambiguous trait method
+    /// (`MultipleTraitsInScope`), whose error was already reported, so the caller produces an error
+    /// expression rather than falling back to a value lookup.
+    fn variable_from_trait_resolution(
         &mut self,
         location: Location,
         resolution: TraitPathResolution,
-    ) -> PrefixedVariable {
+    ) -> Option<VariableResolution> {
         self.push_errors(resolution.errors);
         let item = resolution.item;
         match resolution.method {
@@ -2241,7 +2266,7 @@ impl Elaborator<'_> {
                     id: self.interner.function_definition_id(func_id),
                     impl_kind: ImplKind::NotATraitMethod,
                 };
-                PrefixedVariable::Resolved(VariableResolution::Ident(ident, item))
+                Some(VariableResolution::Ident(ident, item))
             }
             TraitPathResolutionMethod::TraitItem(trait_item) => {
                 let ident = HirIdent {
@@ -2249,10 +2274,9 @@ impl Elaborator<'_> {
                     id: trait_item.definition,
                     impl_kind: ImplKind::TraitItem(trait_item),
                 };
-                PrefixedVariable::Resolved(VariableResolution::Ident(ident, item))
+                Some(VariableResolution::Ident(ident, item))
             }
-            // An error has already been pushed, don't return an identifier.
-            TraitPathResolutionMethod::MultipleTraitsInScope => PrefixedVariable::Errored,
+            TraitPathResolutionMethod::MultipleTraitsInScope => None,
         }
     }
 
