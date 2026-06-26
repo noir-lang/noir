@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1782472672904,
+  "lastUpdate": 1782472790056,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23071,48 +23071,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "jfecher11@gmail.com",
-            "name": "jfecher",
-            "username": "jfecher"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "73cc02bedaf76fc9d9bb3f7ebe774353a78e629b",
-          "message": "fix: Add mono error for functions in globals (#13100)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
-          "timestamp": "2026-06-22T11:36:17Z",
-          "tree_id": "e609b025c014dcf0a7b221fd19feb19696b68613",
-          "url": "https://github.com/noir-lang/noir/commit/73cc02bedaf76fc9d9bb3f7ebe774353a78e629b"
-        },
-        "date": 1782129344596,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 127152,
-            "range": "± 914",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 112972,
-            "range": "± 1786",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 3042879,
-            "range": "± 11240",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -25164,6 +25122,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2650995,
             "range": "± 3819",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jfecher11@gmail.com",
+            "name": "jfecher",
+            "username": "jfecher"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "f212af7085032e3022900637ad29eef7b323e39c",
+          "message": "fix: prevent stack overflow on deeply nested blocks (#13184)",
+          "timestamp": "2026-06-26T10:59:02Z",
+          "tree_id": "dfc367ef3ce526c8c9d3b4576d62c418dbaf842b",
+          "url": "https://github.com/noir-lang/noir/commit/f212af7085032e3022900637ad29eef7b323e39c"
+        },
+        "date": 1782472714810,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 175448,
+            "range": "± 672",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 143529,
+            "range": "± 1592",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2655484,
+            "range": "± 8875",
             "unit": "ns/iter"
           }
         ]
