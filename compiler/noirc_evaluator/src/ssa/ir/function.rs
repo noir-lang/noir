@@ -1,4 +1,4 @@
-use std::collections::BTreeSet;
+use std::collections::{BTreeSet, HashMap};
 use std::sync::Arc;
 
 use acvm::FieldElement;
@@ -190,6 +190,15 @@ impl Function {
             TerminatorInstruction::Return { return_values, .. } => Some(return_values),
             _ => None,
         }
+    }
+
+    /// Return the index of the forwarded parameters, if the function returns its inputs.
+    /// Returns `None` if any returned value is not a parameter,
+    /// (or if the function has no reachable `Return`).
+    pub(crate) fn pass_through_indices(&self) -> Option<Vec<usize>> {
+        let parameter_index: HashMap<ValueId, usize> =
+            self.parameters().iter().enumerate().map(|(index, param)| (*param, index)).collect();
+        self.returns()?.iter().map(|ret| parameter_index.get(ret).copied()).collect()
     }
 
     /// Retrieve the return instruction of this function, if any.
@@ -388,4 +397,47 @@ fn sign_smoke() {
 
     signature.params.push(Type::Numeric(NumericType::NativeField));
     signature.returns.push(Type::Numeric(NumericType::Unsigned { bit_size: 32 }));
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::ssa::ssa_gen::Ssa;
+
+    #[test]
+    fn forwarded_parameter_indices_map_each_return_to_its_parameter() {
+        // `return v1, v0` forwards parameter 1 then parameter 0.
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u32, v1: u32):
+            return v1, v0
+        }";
+        let ssa = Ssa::from_str(src).unwrap();
+        assert_eq!(ssa.main().pass_through_indices(), Some(vec![1, 0]));
+    }
+
+    #[test]
+    fn forwarded_parameter_indices_are_structural_and_ignore_side_effects() {
+        // Structurally a pass-through (`return v1`) even though it also constrains an input.
+        // Purity is not checked here.
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u32, v1: u32):
+            constrain v0 == u32 0
+            return v1
+        }";
+        let ssa = Ssa::from_str(src).unwrap();
+        assert_eq!(ssa.main().pass_through_indices(), Some(vec![1]));
+    }
+
+    #[test]
+    fn forwarded_parameter_indices_none_for_computed_returns() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u32, v1: u32):
+            v2 = add v0, v1
+            return v0, v2
+        }";
+        let ssa = Ssa::from_str(src).unwrap();
+        assert_eq!(ssa.main().pass_through_indices(), None);
+    }
 }
