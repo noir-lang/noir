@@ -91,11 +91,18 @@ struct ResolvedPrefix {
 /// "rest" (last segment, turbofish) lives on [`ResolvedPrefix`].
 #[derive(Debug)]
 enum PathPrefixKind {
-    /// The prefix starts with `Self`. What `Self` means is contextual — the current trait in a
-    /// trait definition, or a concrete self type in an impl — and the forms differ
-    /// (`Self::method`, `Self::CONST`, `Self::AssocType::method`), so the dedicated handler
-    /// ([`Elaborator::resolve_self_prefix`]) enumerates the cases.
-    SelfType,
+    /// `Self` inside a trait *impl*, where `Self` is a concrete type with associated items. The
+    /// last segment is an associated-type method, an associated constant, a primitive-`Self`
+    /// method, or a plain method on the self type
+    /// ([`Elaborator::resolve_self_in_trait_impl`]).
+    SelfInTraitImpl,
+    /// `Self` inside a trait *definition*: an assumed constraint on the current trait (or a
+    /// supertrait reached through it) ([`Elaborator::resolve_self_in_trait`]).
+    SelfInTrait,
+    /// `Self` as a plain concrete type (an inherent impl, or any other context where `Self` names
+    /// a data type): the last segment resolves like `Type::method`
+    /// ([`Elaborator::resolve_self_in_impl`]).
+    SelfInImpl,
     /// A generic parameter with `: Trait` bound(s) in scope (e.g. `T` in `T::method`); the carried
     /// constraints are the matched bounds. The last segment is a method or associated constant
     /// reached through one of them.
@@ -1487,9 +1494,21 @@ impl Elaborator<'_> {
         // `super::T` name an item in another module, not the contextual `Self` or an in-scope
         // generic, so they must not be classified as such.
         let kind = if path.kind == PathKind::Plain && path.segments[0].ident.is_self_type_name() {
-            // `Self` is contextual (the current trait, or a concrete self type), so it is classified
-            // by syntax alone; its handler resolves what it means.
-            PathPrefixKind::SelfType
+            // `Self` is contextual; which kind it is depends only on where we are (a trait impl, a
+            // trait definition, or somewhere `Self` is a plain type), so it is classified here and
+            // the matching handler resolves the last segment.
+            if self.current_trait_impl.is_some() {
+                PathPrefixKind::SelfInTraitImpl
+            } else if self.current_trait.is_some() {
+                PathPrefixKind::SelfInTrait
+            } else if self.self_type.is_some() {
+                PathPrefixKind::SelfInImpl
+            } else {
+                // `Self` with no self type in scope (e.g. in a free function): report it directly
+                // rather than re-resolving the path just to discover the same thing.
+                self.push_err(PathResolutionError::Unresolved(path.segments[0].ident.clone()));
+                return None;
+            }
         } else if path.kind == PathKind::Plain
             && let Some(bounds) = self.matching_generic_bounds(path)
         {
@@ -2153,15 +2172,29 @@ impl Elaborator<'_> {
     ) -> Option<VariableResolution> {
         let Some(ResolvedPrefix { last_segment, turbofish, kind }) = self.resolve_path_prefix(path)
         else {
-            // The prefix doesn't resolve to a type/trait/module; let the value lookup of the whole
-            // path resolve it or report the error.
+            // A plain `Self` with no self type in scope was already reported by
+            // `resolve_path_prefix`, so don't fall back. Any other unresolved prefix resolves the
+            // whole path as a value (or reports the error there).
+            if path.kind == PathKind::Plain && path.segments[0].ident.is_self_type_name() {
+                return None;
+            }
             return self.resolve_variable_in_scope(path.clone());
         };
 
         let trait_resolution = match kind {
-            // `Self` is contextual; its handler produces the resolution directly (it may be an
-            // elaborated expression, not a trait resolution) and works from the path.
-            PathPrefixKind::SelfType => return self.resolve_self_prefix(path),
+            // Each `Self` context produces its resolution directly (it may be an elaborated
+            // expression, not a trait resolution).
+            PathPrefixKind::SelfInTraitImpl => {
+                return self.resolve_self_in_trait_impl(path, last_segment, turbofish);
+            }
+            PathPrefixKind::SelfInTrait => {
+                return self.resolve_self_in_trait(path, last_segment, turbofish);
+            }
+            // `Self` is a concrete type here (classification guarantees `self_type` exists), so it
+            // resolves exactly like `Type::method`.
+            PathPrefixKind::SelfInImpl => {
+                return self.resolve_self_as_concrete_type(path, last_segment, turbofish);
+            }
             PathPrefixKind::BoundedGeneric(bounds) => {
                 self.resolve_bounded_generic_item(bounds, &last_segment, turbofish, path.location)
             }
@@ -2195,44 +2228,53 @@ impl Elaborator<'_> {
         }
     }
 
-    /// Resolve a `Self::…` path used as an expression. `Self` is contextual, so this enumerates its
-    /// cases:
-    /// - inside a trait impl: `Self::AssocType::method`, `Self::CONST`, or a method on a primitive
-    ///   `Self` (handled by [`Self::elaborate_variable_as_self_method_or_associated_constant`]);
-    /// - inside a trait definition: a method or constant of the current trait (or a supertrait),
-    ///   resolved as an assumed constraint on `Self`;
-    /// - otherwise (`Self` is a concrete data type, e.g. inside an impl method): `Self::method`,
-    ///   resolved the same way as `Type::method`.
-    ///
-    /// Anything that isn't one of these (e.g. `Self::Variant`) falls back to a value lookup.
-    fn resolve_self_prefix(&mut self, path: &TypedPath) -> Option<VariableResolution> {
-        // Cases the module resolver can't reach: a method/constant on a primitive `Self`, an
-        // associated constant, or a method on an associated type (all inside a trait impl).
+    /// `Self::…` inside a trait impl. `Self` is the impl's concrete type with associated items, so
+    /// the last segment may be an associated-type method, an associated constant, or a method on a
+    /// primitive `Self` (none of which a plain type-prefix resolution reaches); otherwise it is a
+    /// plain method on the self type, resolved like `Type::method`.
+    fn resolve_self_in_trait_impl(
+        &mut self,
+        path: &TypedPath,
+        last_segment: TypedPathSegment,
+        turbofish: Option<Turbofish>,
+    ) -> Option<VariableResolution> {
         if let Some((expr_id, typ)) =
             self.elaborate_variable_as_self_method_or_associated_constant(path)
         {
             return Some(VariableResolution::Expression(expr_id, typ));
         }
+        self.resolve_self_as_concrete_type(path, last_segment, turbofish)
+    }
 
-        let mut prefix = path.clone();
-        let last_segment = prefix.pop();
-        let turbofish = prefix.last_segment().turbofish();
-
-        // Inside a trait definition, `Self` is the trait: resolve to an assumed constraint on it,
-        // falling back to a supertrait reached through that bound.
-        if self.current_trait.is_some() && self.current_trait_impl.is_none() {
-            let resolution = self.resolve_trait_static_method_by_self(path).or_else(|| {
-                let bounds = self.matching_generic_bounds(path)?;
-                self.resolve_bounded_generic_item(bounds, &last_segment, turbofish, path.location)
-            });
-            return match resolution {
-                Some(resolution) => self.variable_from_trait_resolution(path.location, resolution),
-                None => self.resolve_variable_in_scope(path.clone()),
-            };
+    /// `Self::…` inside a trait definition. `Self` is the trait, so the last segment resolves to an
+    /// assumed constraint on the current trait, falling back to a supertrait reached through it.
+    fn resolve_self_in_trait(
+        &mut self,
+        path: &TypedPath,
+        last_segment: TypedPathSegment,
+        turbofish: Option<Turbofish>,
+    ) -> Option<VariableResolution> {
+        let resolution = self.resolve_trait_static_method_by_self(path).or_else(|| {
+            let bounds = self.matching_generic_bounds(path)?;
+            self.resolve_bounded_generic_item(bounds, &last_segment, turbofish, path.location)
+        });
+        match resolution {
+            Some(resolution) => self.variable_from_trait_resolution(path.location, resolution),
+            None => self.resolve_variable_in_scope(path.clone()),
         }
+    }
 
-        // Otherwise `Self` is a concrete data type: resolve the method exactly as `Type::method`
-        // does, on `Self`'s type. A non-method (e.g. `Self::Variant`) falls back to a value lookup.
+    /// Resolve `Self::method` (or `Self::AssocType::method`) by resolving the `Self` prefix as a
+    /// type and looking the last segment up on it, exactly as `Type::method` does. A non-method
+    /// (e.g. `Self::Variant`) falls back to a value lookup of the whole path.
+    fn resolve_self_as_concrete_type(
+        &mut self,
+        path: &TypedPath,
+        last_segment: TypedPathSegment,
+        turbofish: Option<Turbofish>,
+    ) -> Option<VariableResolution> {
+        let mut prefix = path.clone();
+        prefix.pop();
         let resolution = self.use_path_as_type(prefix).ok().and_then(|type_resolution| {
             self.resolve_method_on_type_prefix(
                 path.location,
