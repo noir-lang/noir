@@ -1,32 +1,38 @@
 //! Post-flattening validation pass that ensures predicated values escaping
 //! their enable-side-effect definition are properly predicated.
 //!
-//! In ACIR, a
+//! In ACIR, the result of a
 //! [`requires_acir_gen_predicate`][crate::ssa::ir::instruction::Instruction::requires_acir_gen_predicate]
-//! *side-effecting* instruction has its result multiplied by the active `enable_side_effects`
-//! predicate. When the predicate is false, this will be `0`.
+//! instruction depends on the active `enable_side_effects` predicate. For
+//! side-effecting *arithmetic* (the overflow-checked `Binary` operations) the
+//! result is multiplied by the predicate, so it is `0` whenever the predicate is
+//! false. The other predicated instructions consume the predicate differently
+//! (for example `ArrayGet` clamps its index and a `Call` forwards the predicate
+//! to the callee), so their result is not necessarily `0` when the predicate is
+//! false; this pass conservatively tracks all of them and still requires them to
+//! be guarded before they can escape.
 //!
 //! Some optimization passes (such as `checked_to_unchecked`) can remove
-//! *side-effect* checks and optimize instructions into instructions
-//! having `requires_acir_gen_predicate` set to `false`.
-//! When the predicate is false, the result will unlikely be `0`.
-//! However, in practice a predicate multiplication is added during flattening
-//! so that the above transformation is semantically correct, and still results
-//! in `0` when the predicate is false.
+//! *side-effect* checks and rewrite instructions into ones having
+//! `requires_acir_gen_predicate` set to `false`. The rewritten instruction's
+//! result is then no longer `0` when the predicate is false. This stays sound
+//! only because flattening adds a predicate multiplication, so the escaping
+//! value is still `0` when the predicate is false.
 //!
-//! This pass makes it an invariant and validates that no `requires_acir_gen_predicate`
-//! instructions can escape their enclosing `enable_side_effects` without a
-//! predicate multiplication.
+//! This pass makes that an invariant and validates that no `requires_acir_gen_predicate`
+//! value can escape its enclosing `enable_side_effects` without a predicate
+//! multiplication (or an equivalent `IfElse` merge, which gates each branch by
+//! its own condition).
 //!
 //! As a result, any optimization on `requires_acir_gen_predicate` done after
 //! flattening is ensured to be sound.
 //!
-//! Since this validation is post-flattening check, we assume the function is
-//! just one block (as ensured by another post-check), which makes the validation
-//! a simple iteration over the instructions:
+//! This is a post-flattening check, so each ACIR function is a single block. The
+//! pass asserts this rather than assuming it, which makes the validation a simple
+//! iteration over the instructions:
 //! - mark `requires_acir_gen_predicate` instructions,
-//! - mark also their uses
-//! - reports a violation if used outside `enable_side_effects`,
+//! - mark also their uses,
+//! - report a violation if used outside `enable_side_effects`,
 //!   unless multiplied with the predicate.
 
 use acvm::AcirField as _;
@@ -55,6 +61,18 @@ fn verify_function(function: &Function) -> RtResult<()> {
     if function.runtime().is_brillig() {
         return Ok(());
     }
+
+    // The single-instruction-iteration below only inspects the entry block, which
+    // is only complete because flattening reduces every ACIR function to one block.
+    // Assert the invariant instead of trusting it: it is a cheap check when it holds
+    // and turns a future regression into a clear failure rather than silently
+    // skipping the instructions of any other block.
+    assert_eq!(
+        function.reachable_blocks().len(),
+        1,
+        "ACIR function {} should be a single block after flattening",
+        function.name()
+    );
 
     let dfg = &function.dfg;
     let block = function.entry_block();
