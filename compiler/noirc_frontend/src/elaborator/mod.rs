@@ -821,6 +821,30 @@ impl<'context> Elaborator<'context> {
         None
     }
 
+    #[tracing::instrument(level = "trace", skip_all)]
+    fn resolve_function_by_path(&mut self, path: TypedPath) -> Option<FuncId> {
+        let location = path.location;
+        match self.resolve_path_or_error(path, PathResolutionTarget::Value) {
+            Ok(item) => {
+                if let Some(func_id) = item.function_id() {
+                    Some(func_id)
+                } else {
+                    let found = item.description(self.interner);
+                    self.push_err(ResolverError::Expected {
+                        location,
+                        expected: "function",
+                        found,
+                    });
+                    None
+                }
+            }
+            Err(error) => {
+                self.push_err(error);
+                None
+            }
+        }
+    }
+
     /// Traverse the type and call `mark_struct_as_constructed` on any [`Type::DataType`].
     #[tracing::instrument(level = "trace", skip_all)]
     fn mark_type_as_used(&mut self, typ: &Type) {

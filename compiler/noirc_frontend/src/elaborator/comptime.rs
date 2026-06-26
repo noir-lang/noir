@@ -637,6 +637,18 @@ impl<'context> Elaborator<'context> {
                     _ => Err(InterpreterError::TraitDefinitionMustBeAPath { location }),
                 }?;
                 push_arg(Value::TraitDefinition(trait_id));
+            } else if *param_type == Type::Quoted(crate::QuotedType::FunctionDefinition) {
+                let func_id = match arg.kind {
+                    ExpressionKind::Variable(path) => {
+                        let path = interpreter.elaborator.validate_path(path);
+                        interpreter
+                            .elaborator
+                            .resolve_function_by_path(path)
+                            .ok_or(InterpreterError::FailedToResolveFunctionDefinition { location })
+                    }
+                    _ => Err(InterpreterError::FunctionDefinitionMustBeAPath { location }),
+                }?;
+                push_arg(Value::FunctionDefinition(func_id));
             } else {
                 let (expr_id, expr_type) = interpreter.elaborator.elaborate_expression(arg);
                 let mut errors = Vec::new();
