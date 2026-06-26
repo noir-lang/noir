@@ -101,7 +101,7 @@ enum PathPrefixKind {
     SelfInTrait { trait_id: TraitId },
     /// `Self` as a plain concrete type (an inherent impl, or any other context where `Self` names
     /// a data type): the last segment resolves like `Type::method`
-    /// ([`Elaborator::resolve_self_in_impl`]).
+    /// ([`Elaborator::resolve_self_as_concrete_type`]).
     SelfInImpl,
     /// A generic parameter with `: Trait` bound(s) in scope (e.g. `T` in `T::method`); the carried
     /// constraints are the matched bounds. The last segment is a method or associated constant
