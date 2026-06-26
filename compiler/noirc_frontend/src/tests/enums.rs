@@ -225,6 +225,81 @@ fn nested_struct_pattern_non_alphabetical_field_order() {
 }
 
 #[test]
+fn nested_enum_variant_with_payload_is_not_unreachable() {
+    // Regression test for https://github.com/noir-lang/noir/issues/7637.
+    // Matching a payload-carrying variant at more than one nesting level (here
+    // both elements of the tuple) let-binds the payload, rewriting the arm's
+    // body. Reconstructing the row used to reset `original_body` to the rewritten
+    // body, so the arm was never pruned from `unreachable_cases` and was falsely
+    // reported as redundant.
+    let features = vec![UnstableFeature::Enums];
+    assert_no_errors_using_features(
+        r#"
+        pub enum Foo { Bar, Baz(()) }
+
+        pub fn foo(x: Foo, y: Foo) {
+            match (x, y) {
+                (Foo::Bar, Foo::Bar) => (),
+                (Foo::Baz(_x), Foo::Baz(_y)) => (),
+                _ => (),
+            }
+        }
+
+        fn main() {}
+        "#,
+        &features,
+    );
+}
+
+#[test]
+fn nested_enum_variant_with_non_unit_payload_is_not_unreachable() {
+    // The same bug is not specific to unit payloads: any variant with arguments
+    // matched across nesting levels must remain reachable.
+    let features = vec![UnstableFeature::Enums];
+    assert_no_errors_using_features(
+        r#"
+        pub enum Foo { Bar, Baz(u32) }
+
+        pub fn foo(x: Foo, y: Foo) -> u32 {
+            match (x, y) {
+                (Foo::Bar, Foo::Bar) => 1,
+                (Foo::Baz(_x), Foo::Baz(_y)) => 2,
+                _ => 3,
+            }
+        }
+
+        fn main() {}
+        "#,
+        &features,
+    );
+}
+
+#[test]
+fn redundant_nested_enum_variant_with_payload_is_still_unreachable() {
+    // The fix must not suppress genuine unreachability: a second, identical
+    // payload-carrying arm in a nested match is still redundant and must warn.
+    let features = vec![UnstableFeature::Enums];
+    check_errors_using_features(
+        r#"
+        pub enum Foo { Bar, Baz(u32) }
+
+        pub fn foo(x: Foo, y: Foo) -> u32 {
+            match (x, y) {
+                (Foo::Baz(_x), Foo::Baz(_y)) => 1,
+                (Foo::Baz(_a), Foo::Baz(_b)) => 2,
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ Unreachable match case
+                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~ This pattern is redundant with one or more prior patterns
+                _ => 3,
+            }
+        }
+
+        fn main() {}
+        "#,
+        &features,
+    );
+}
+
+#[test]
 fn missing_field_in_non_alphabetical_match_struct_pattern() {
     // The missing-field diagnostic must name the field that is actually absent
     // even when the struct is not declared in alphabetical order.

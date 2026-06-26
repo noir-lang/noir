@@ -1314,13 +1314,12 @@ impl<'elab, 'ctx> MatchCompiler<'elab, 'ctx> {
             if let Some(col) = row.remove_column(branch_var) {
                 if let Pattern::Constructor(cons, args) = col.pattern {
                     let idx = cons.variant_index();
-                    let mut cols = row.columns;
 
                     for (var, pat) in cases[idx].1.iter().zip_eq(args.into_iter()) {
-                        cols.push(Column::new(*var, pat));
+                        row.columns.push(Column::new(*var, pat));
                     }
 
-                    cases[idx].2.push(Row::new(cols, row.guard, row.body, row.location));
+                    cases[idx].2.push(row);
                 }
             } else {
                 for (_, _, rows) in &mut cases {
