@@ -2183,30 +2183,30 @@ impl Elaborator<'_> {
     #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn resolve_prefixed_variable(
         &mut self,
-        path: &TypedPath,
+        path: TypedPath,
     ) -> Option<VariableResolution> {
-        let ResolvedPrefix { last_segment, turbofish, kind } = self.resolve_path_prefix(path);
+        let ResolvedPrefix { last_segment, turbofish, kind } = self.resolve_path_prefix(&path);
 
         match kind {
             // `Self` is contextual; each context resolves the last segment its own way.
             PathPrefixKind::SelfInTraitImpl => {
-                self.resolve_self_in_trait_impl(path, last_segment, turbofish)
+                self.resolve_self_in_trait_impl(&path, last_segment, turbofish)
             }
             PathPrefixKind::SelfInTrait => {
-                self.resolve_self_in_trait(path, last_segment, turbofish)
+                self.resolve_self_in_trait(&path, last_segment, turbofish)
             }
             // `Self` is a concrete type here (classification guarantees `self_type` exists), so it
             // resolves exactly like `Type::method`.
             PathPrefixKind::SelfInImpl => {
-                self.resolve_self_as_concrete_type(path, last_segment, turbofish)
+                self.resolve_self_as_concrete_type(&path, last_segment, turbofish)
             }
             PathPrefixKind::BoundedGeneric(bounds) => {
-                self.resolve_bounded_generic_item(path, bounds, &last_segment, turbofish)
+                self.resolve_bounded_generic_item(&path, bounds, &last_segment, turbofish)
             }
             PathPrefixKind::Type { resolution } => {
                 let is_self_prefix = false;
                 self.resolve_method_on_type_prefix(
-                    path,
+                    &path,
                     last_segment,
                     turbofish,
                     is_self_prefix,
@@ -2216,7 +2216,7 @@ impl Elaborator<'_> {
             // A trait prefix: the last segment is either a trait static method (`Trait::method`)
             // or an associated constant (`Trait::CONST`).
             PathPrefixKind::Trait { trait_id, resolution } => self.resolve_trait_item_on_prefix(
-                path,
+                &path,
                 trait_id,
                 turbofish,
                 &last_segment,
@@ -2225,7 +2225,7 @@ impl Elaborator<'_> {
             // A module prefix's value item, or a prefix that isn't an item carrier at all: resolve
             // the whole path as a value (reporting the error if it doesn't resolve).
             PathPrefixKind::Module | PathPrefixKind::NoPrefix => {
-                self.resolve_variable_in_scope(path.clone())
+                self.resolve_variable_in_scope(path)
             }
             // `Self` with no self type in scope: report it directly.
             PathPrefixKind::SelfNotInScope => {
