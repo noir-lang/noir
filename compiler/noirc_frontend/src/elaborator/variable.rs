@@ -11,6 +11,7 @@ use crate::ast::{
 use crate::elaborator::TypedPath;
 use crate::elaborator::function_context::BindableTypeVariableKind;
 use crate::elaborator::path_resolution::PathResolutionItem;
+use crate::elaborator::path_resolution::TypedPathSegment;
 use crate::elaborator::patterns::{IdentFromPath, Variable};
 use crate::elaborator::types::{SELF_TYPE_NAME, WildcardAllowed};
 use crate::hir::def_collector::dc_crate::CompilationError;
@@ -21,7 +22,7 @@ use crate::hir_def::expr::{
 };
 use crate::node_interner::pusher::{HasLocation, PushedExpr};
 use crate::node_interner::{
-    DefinitionId, DefinitionInfo, DefinitionKind, ExprId, TraitImplKind, TypeAliasId,
+    DefinitionId, DefinitionInfo, DefinitionKind, ExprId, TraitImplId, TraitImplKind, TypeAliasId,
 };
 use crate::{Kind, Type, TypeBindings, TypeVariable, TypeVariableId};
 use iter_extended::{btree_map, vecmap};
@@ -378,67 +379,81 @@ impl Elaborator<'_> {
         }
     }
 
-    /// Checks whether `variable` is `Self::method_name`, `Self::AssociatedConstant`, or
-    /// `Self::AssociatedType::method_name` when we are inside a trait impl and `Self`
-    /// resolves to a primitive type.
+    /// Resolves the `Self::…` forms that only make sense inside a trait impl, where `Self` is a
+    /// concrete type with associated items. The segments *after* `Self` (the "rest") select the
+    /// form:
     ///
-    /// In the first case we elaborate this as if it were a [TypePath]
-    /// (for example, if `Self` is `u32` then we consider this the same as `u32::method_name`).
-    /// A regular path lookup won't work here for the same reason [TypePath] exists.
+    /// - `[AssociatedType, method]` — resolve the associated type, then elaborate the method on it.
+    /// - `[item]` — an associated constant (looked up for its value, later a literal), or, when
+    ///   `Self` is a primitive type, a method elaborated as if it were a [TypePath]
+    ///   (`u32::method_name`); a regular path lookup won't work, for the same reason [TypePath]
+    ///   exists.
     ///
-    /// In the second case we solve the associated constant by looking up its value, later
-    /// turning it into a literal.
-    ///
-    /// In the third case, we resolve the associated type first, then elaborate the method
-    /// call on that resolved type.
+    /// Returns `None` for any other shape (including a data-type `Self`, handled as a plain type
+    /// prefix), so the caller falls back to resolving `Self` as a type.
     #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn elaborate_variable_as_self_method_or_associated_constant(
         &mut self,
         variable: &TypedPath,
     ) -> Option<(ExprId, Type)> {
-        // The caller only reaches this for a `Self`-prefixed path with at least two segments
-        // (the `PathPrefixKind::SelfType` classification), so that is taken as a precondition.
-        let location = variable.location;
-        let name = variable.segments[1].ident.as_str();
-        let self_type = self.self_type.as_ref()?;
-        let trait_impl_id = &self.current_trait_impl?;
+        // Reached only for a `Self`-prefixed path with at least two segments. These forms need the
+        // impl's concrete `Self` and its associated items.
+        let self_type = self.self_type.clone()?;
+        let trait_impl_id = self.current_trait_impl?;
 
-        // Check for `Self::AssociatedType::method_name` (exactly 3 segments).
-        // Longer paths like `Self::AssocType::foo::bar` are not valid since associated types
-        // resolve to concrete types and you cannot chain further path segments after a method name.
-        if variable.segments.len() == 3 {
-            // Try to resolve the second segment as an associated type
-            if let Some(assoc_type) =
-                self.interner.find_associated_type_for_impl(*trait_impl_id, name).cloned()
-            {
-                let method_ident = variable.segments[2].ident.clone();
-                let typ_location = variable.segments[1].location;
-                // Extract already-resolved turbofish generics from the path segment
-                let resolved_generics = variable.segments[2].generics.as_ref().map(|generics| {
+        match &variable.segments[1..] {
+            [associated_type, method] => {
+                let associated_type = self
+                    .interner
+                    .find_associated_type_for_impl(trait_impl_id, associated_type.ident.as_str())
+                    .cloned()?;
+                // Extract already-resolved turbofish generics from the method segment.
+                let resolved_generics = method.generics.as_ref().map(|generics| {
                     generics.iter().map(|located| located.contents.clone()).collect()
                 });
-                return Some(self.elaborate_type_path_impl_with_resolved_generics(
-                    assoc_type,
-                    method_ident,
+                Some(self.elaborate_type_path_impl_with_resolved_generics(
+                    associated_type,
+                    method.ident.clone(),
                     resolved_generics,
-                    typ_location,
-                ));
+                    variable.segments[1].location,
+                ))
             }
-            // If it's not an associated type, fall through to let regular path resolution handle it
-            return None;
+            [item] => self.elaborate_self_associated_constant_or_primitive_method(
+                &self_type,
+                trait_impl_id,
+                item,
+                variable.location,
+                variable.segments[0].location,
+            ),
+            _ => None,
         }
+    }
 
-        // Check the `Self::AssociatedConstant` case when inside a trait impl (2 segments)
+    /// The `Self::item` (single segment after `Self`) case of
+    /// [`Self::elaborate_variable_as_self_method_or_associated_constant`]: an associated constant
+    /// (from the impl, or from the trait when the impl is missing it), or a method when `Self` is a
+    /// primitive type. A data-type `Self` returns `None` so it is resolved as a plain type prefix.
+    fn elaborate_self_associated_constant_or_primitive_method(
+        &mut self,
+        self_type: &Type,
+        trait_impl_id: TraitImplId,
+        item: &TypedPathSegment,
+        location: Location,
+        self_location: Location,
+    ) -> Option<(ExprId, Type)> {
+        let name = item.ident.as_str();
+
+        // The associated constant declared on the impl.
         if let Some((definition_id, numeric_type)) =
-            self.interner.get_trait_impl_associated_constant(*trait_impl_id, name).cloned()
+            self.interner.get_trait_impl_associated_constant(trait_impl_id, name).cloned()
         {
             return Some(self.intern_associated_constant(definition_id, numeric_type, location));
         }
 
-        // Check if the constant exists in the trait definition (even if impl is missing it).
-        // This prevents spurious "Could not resolve" errors inside trait methods when the impl is missing the constant,
-        // since the "missing associated constant" error is reported elsewhere.
-        if let Some(trait_impl) = self.interner.try_get_trait_implementation(*trait_impl_id) {
+        // The constant declared on the trait, even if the impl is missing it. This prevents a
+        // spurious "Could not resolve" inside trait methods; the "missing associated constant"
+        // error is reported elsewhere.
+        if let Some(trait_impl) = self.interner.try_get_trait_implementation(trait_impl_id) {
             let trait_id = trait_impl.borrow().trait_id;
             let trait_ = self.interner.get_trait(trait_id);
             if let Some(definition_id) = trait_.associated_constant_ids.get(name).copied() {
@@ -451,14 +466,17 @@ impl Elaborator<'_> {
             }
         }
 
-        // Check the `Self::method_name` case when `Self` is a primitive type (2 segments)
-        if matches!(self.self_type, Some(Type::DataType(..))) {
+        // A data-type `Self::method` is resolved as a plain type prefix, not here.
+        if matches!(self_type, Type::DataType(..)) {
             return None;
         }
 
-        let ident = variable.segments[1].ident.clone();
-        let typ_location = variable.segments[0].location;
-        Some(self.elaborate_type_path_impl(self_type.clone(), ident, None, typ_location))
+        Some(self.elaborate_type_path_impl(
+            self_type.clone(),
+            item.ident.clone(),
+            None,
+            self_location,
+        ))
     }
 
     /// Intern an identifier expression referring to an associated constant of the given type.
