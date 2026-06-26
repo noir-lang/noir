@@ -41,7 +41,7 @@ use crate::{
             display::tokens_to_string,
             errors::IResult,
             interpreter::{
-                builtin::builtin_helpers::fragments_to_string,
+                builtin::builtin_helpers::{fragments_to_bytes, fragments_to_string},
                 builtin_helpers::{check_item_crate_matches_current_crate, get_option},
             },
             value::{ExprValue, FormatStringFragment, TypedExpr},
@@ -88,8 +88,9 @@ impl Interpreter<'_, '_> {
             "as_witness" => as_witness(arguments, location),
             "black_box" => black_box(arguments, location),
             "checked_transmute" => checked_transmute(arguments, return_type, location),
-            "ctstring_eq" => ctstring_eq(arguments, location),
-            "ctstring_hash" => ctstring_hash(arguments, location),
+            "ctstring_append" => ctstring_append(arguments, location),
+            "ctstring_eq" => eq_item(arguments, location, get_ctstring),
+            "ctstring_hash" => hash_item(arguments, location, get_ctstring),
             "derive_pedersen_generators" => derive_generators(arguments, return_type, location),
             "expr_as_array" => expr_as_array(interner, arguments, return_type, location),
             "expr_as_assert" => expr_as_assert(interner, arguments, return_type, location),
@@ -147,8 +148,8 @@ impl Interpreter<'_, '_> {
             "field_less_than" => field_less_than(arguments, location),
             "issue_error" => issue_diagnostic(self, arguments, location, false),
             "issue_warning" => issue_diagnostic(self, arguments, location, true),
-            "location_eq" => location_eq(arguments, location),
-            "location_hash" => location_hash(arguments, location),
+            "location_eq" => eq_item(arguments, location, get_location),
+            "location_hash" => hash_item(arguments, location, get_location),
             "fmtstr_as_ctstring" => {
                 fmtstr_as_ctstring(interner, self.elaborator.files, arguments, location)
             }
@@ -159,14 +160,14 @@ impl Interpreter<'_, '_> {
             "function_def_as_typed_expr" => function_def_as_typed_expr(self, arguments, location),
             "function_def_body" => function_def_body(self, arguments, location),
             "function_def_disable" => function_def_disable(self, arguments, location),
-            "function_def_eq" => function_def_eq(arguments, location),
+            "function_def_eq" => eq_item(arguments, location, get_function_def),
             "function_def_has_builtin_attribute" => {
                 function_def_has_attribute(interner, arguments, location, true)
             }
             "function_def_has_named_attribute" => {
                 function_def_has_attribute(interner, arguments, location, false)
             }
-            "function_def_hash" => function_def_hash(arguments, location),
+            "function_def_hash" => hash_item(arguments, location, get_function_def),
             "function_def_is_unconstrained" => {
                 function_def_is_unconstrained(self, arguments, location)
             }
@@ -177,11 +178,11 @@ impl Interpreter<'_, '_> {
             "function_def_return_type" => function_def_return_type(self, arguments, location),
             "function_def_visibility" => function_def_visibility(interner, arguments, location),
             "module_child_modules" => module_child_modules(self, arguments, location),
-            "module_eq" => module_eq(arguments, location),
+            "module_eq" => eq_item(arguments, location, get_module),
             "module_functions" => module_functions(self, arguments, location),
             "module_has_builtin_attribute" => module_has_attribute(self, arguments, location, true),
             "module_has_named_attribute" => module_has_attribute(self, arguments, location, false),
-            "module_hash" => module_hash(arguments, location),
+            "module_hash" => hash_item(arguments, location, get_module),
             "module_is_contract" => module_is_contract(self, arguments, location),
             "module_location" => module_location(interner, arguments, location),
             "module_name" => module_name(interner, arguments, location),
@@ -220,13 +221,13 @@ impl Interpreter<'_, '_> {
             "to_le_radix" => to_le_radix(arguments, return_type, location, call_stack),
             "to_be_bits" => to_be_bits(arguments, return_type, location, call_stack),
             "to_le_bits" => to_le_bits(arguments, return_type, location, call_stack),
-            "trait_constraint_eq" => trait_constraint_eq(arguments, location),
-            "trait_constraint_hash" => trait_constraint_hash(arguments, location),
+            "trait_constraint_eq" => eq_item(arguments, location, get_trait_constraint),
+            "trait_constraint_hash" => hash_item(arguments, location, get_trait_constraint),
             "trait_def_as_trait_constraint" => {
                 trait_def_as_trait_constraint(interner, arguments, location)
             }
-            "trait_def_eq" => trait_def_eq(arguments, location),
-            "trait_def_hash" => trait_def_hash(arguments, location),
+            "trait_def_eq" => eq_item(arguments, location, get_trait_def),
+            "trait_def_hash" => hash_item(arguments, location, get_trait_def),
             "trait_def_location" => trait_def_location(interner, arguments, location),
             "trait_impl_methods" => trait_impl_methods(interner, arguments, location),
             "trait_impl_trait_generic_args" => {
@@ -247,7 +248,7 @@ impl Interpreter<'_, '_> {
             "type_def_as_type_with_generics" => {
                 type_def_as_type_with_generics(interner, arguments, return_type, location)
             }
-            "type_def_eq" => type_def_eq(arguments, location),
+            "type_def_eq" => eq_item(arguments, location, get_type_id),
             "type_def_fields" => type_def_fields(self, arguments, location, call_stack),
             "type_def_fields_as_written" => type_def_fields_as_written(self, arguments, location),
             "type_def_generics" => type_def_generics(interner, arguments, return_type, location),
@@ -257,15 +258,15 @@ impl Interpreter<'_, '_> {
             "type_def_has_named_attribute" => {
                 type_def_has_attribute(interner, arguments, location, false)
             }
-            "type_def_hash" => type_def_hash(arguments, location),
+            "type_def_hash" => hash_item(arguments, location, get_type_id),
             "type_def_location" => type_def_location(interner, arguments, location),
             "type_def_module" => type_def_module(self, arguments, location),
             "type_def_name" => type_def_name(interner, arguments, location),
-            "type_eq" => type_eq(arguments, location),
+            "type_eq" => eq_item(arguments, location, get_type),
             "type_get_trait_impl" => {
                 type_get_trait_impl(interner, arguments, return_type, location)
             }
-            "type_hash" => type_hash(arguments, location),
+            "type_hash" => hash_item(arguments, location, get_type),
             "type_implements" => type_implements(interner, arguments, location),
             "type_is_bool" => type_is_bool(arguments, location),
             "type_is_field" => type_is_field(arguments, location),
@@ -607,14 +608,6 @@ fn type_def_generics(
         .collect();
 
     Ok(Value::Vector(generics, Type::Vector(Box::new(vector_item_type))))
-}
-
-fn type_def_hash(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
-    hash_item(arguments, location, get_type_id)
-}
-
-fn type_def_eq(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
-    eq_item(arguments, location, get_type_id)
 }
 
 // fn has_named_attribute<let N: u32>(self, name: str<N>) -> bool {}
@@ -1300,15 +1293,6 @@ where
 }
 
 // fn type_eq(_first: Type, _second: Type) -> bool
-fn type_eq(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
-    eq_item(arguments, location, get_type)
-}
-
-// fn type_hash(_t: Type) -> Field
-fn type_hash(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
-    hash_item(arguments, location, get_type)
-}
-
 // fn get_trait_impl(self, constraint: TraitConstraint) -> Option<TraitImpl>
 fn type_get_trait_impl(
     interner: &NodeInterner,
@@ -1380,26 +1364,6 @@ fn type_of(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Val
     let (value, _) = check_one_argument(arguments, location)?;
     let typ = value.get_type().into_owned();
     Ok(Value::Type(typ))
-}
-
-// fn constraint_hash(constraint: TraitConstraint) -> Field
-fn trait_constraint_hash(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
-    hash_item(arguments, location, get_trait_constraint)
-}
-
-// fn constraint_eq(constraint_a: TraitConstraint, constraint_b: TraitConstraint) -> bool
-fn trait_constraint_eq(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
-    eq_item(arguments, location, get_trait_constraint)
-}
-
-// fn trait_def_hash(def: TraitDefinition) -> Field
-fn trait_def_hash(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
-    hash_item(arguments, location, get_trait_def)
-}
-
-// fn trait_def_eq(def_a: TraitDefinition, def_b: TraitDefinition) -> bool
-fn trait_def_eq(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
-    eq_item(arguments, location, get_trait_def)
 }
 
 // fn methods(self) -> [FunctionDefinition]
@@ -2571,8 +2535,7 @@ fn fmtstr_as_ctstring(
 ) -> IResult<Value> {
     let self_argument = check_one_argument(arguments, location)?;
     let (fragments, _, _) = get_format_string(self_argument)?;
-    let string = fragments_to_string(&fragments, interner, files);
-    let bytes = string.bytes().collect();
+    let bytes = fragments_to_bytes(&fragments, interner, files);
     Ok(Value::CtString(Rc::new(bytes)))
 }
 
@@ -2734,9 +2697,12 @@ fn function_def_disable(
 
     let func_meta = interpreter.elaborator.function_meta_mut(func_id);
 
-    // Lie and say that the body of this function is resolved in order to avoid any
-    // errors from resolving it since it is now disabled. The addition of `deprecated(deny, _)`
-    // above should ensure it is never called.
+    // Mark the body resolved so it is never elaborated: macro authors disable functions whose
+    // bodies are placeholders or are no longer valid, and type-checking those would raise spurious
+    // errors. The `deprecated(deny, _)` attribute added above makes calls error during elaboration.
+    // A disabled function therefore has no interned `HirFunction`; monomorphization rejects any that
+    // it still manages to reach via `MonomorphizationError::CalledDisabledFunction` rather than
+    // reading the missing body and panicking.
     func_meta.function_body = FunctionBody::Resolved;
     Ok(Value::Unit)
 }
@@ -2769,14 +2735,6 @@ fn function_def_has_attribute(
         has_named_attribute(&name, secondary, interner)
     };
     Ok(Value::Bool(matched))
-}
-
-fn function_def_hash(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
-    hash_item(arguments, location, get_function_def)
-}
-
-fn function_def_eq(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
-    eq_item(arguments, location, get_function_def)
 }
 
 // fn is_unconstrained(self) -> bool
@@ -2908,14 +2866,6 @@ fn module_child_modules(
 
     let vector_type = Type::Vector(Box::new(Type::Quoted(QuotedType::Module)));
     Ok(Value::Vector(children, vector_type))
-}
-
-fn module_hash(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
-    hash_item(arguments, location, get_module)
-}
-
-fn module_eq(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
-    eq_item(arguments, location, get_module)
 }
 
 // fn functions(self) -> [FunctionDefinition]
@@ -3169,16 +3119,6 @@ fn typed_expr_location(
     Ok(Value::Location(loc))
 }
 
-// fn location_eq(a: Location, b: Location) -> bool
-fn location_eq(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
-    eq_item(arguments, location, get_location)
-}
-
-// fn location_hash(loc: Location) -> Field
-fn location_hash(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
-    hash_item(arguments, location, get_location)
-}
-
 /// Creates a value that holds an `Option`.
 /// `option_type` must be a Type referencing the `Option` type.
 pub(crate) fn option(option_type: Type, value: Option<Value>, location: Location) -> Value {
@@ -3207,12 +3147,15 @@ pub(crate) fn extract_option_generic_type(typ: Type) -> Type {
     generics.pop().expect("Expected Option to have a T generic type")
 }
 
-fn ctstring_eq(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
-    eq_item(arguments, location, get_ctstring)
-}
+// fn append(self, other: CtString) -> CtString
+fn ctstring_append(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
+    let (self_argument, other_argument) = check_two_arguments(arguments, location)?;
+    let self_bytes = get_ctstring(self_argument)?;
+    let other_bytes = get_ctstring(other_argument)?;
 
-fn ctstring_hash(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
-    hash_item(arguments, location, get_ctstring)
+    let mut bytes = self_bytes.as_ref().clone();
+    bytes.extend_from_slice(&other_bytes);
+    Ok(Value::CtString(Rc::new(bytes)))
 }
 
 fn derive_generators(

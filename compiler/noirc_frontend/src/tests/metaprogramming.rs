@@ -2523,6 +2523,17 @@ const META_API_STDLIB: &str = r#"
 
         #[builtin(function_def_as_typed_expr)]
         pub comptime fn as_typed_expr(self) -> TypedExpr {}
+
+        #[builtin(function_def_parameters)]
+        pub comptime fn parameters(self) -> [(Quoted, Type)] {}
+
+        #[builtin(function_def_return_type)]
+        pub comptime fn return_type(self) -> Type {}
+    }
+
+    impl TypedExpr {
+        #[builtin(typed_expr_as_function_definition)]
+        pub comptime fn as_function_definition(self) -> Option<FunctionDefinition> {}
     }
 "#;
 
@@ -2976,4 +2987,384 @@ fn qualified_self_assoc_in_macro_inside_comptime_block_inside_impl_method() {
     }
     "#;
     assert_no_errors(src);
+}
+
+// `Expr::resolve` elaborates a quoted expression eagerly and stores the resulting `ExprId`
+// inside a `TypedExpr`. When that `TypedExpr` is later unquoted into a different context the
+// elaborator must revalidate it against the splice site rather than trusting the context it
+// was originally resolved in. The following tests pin that revalidation.
+
+#[test]
+fn resolve_does_not_let_comptime_local_escape_into_runtime() {
+    let src = r#"
+    comptime fn emit(_f: FunctionDefinition) -> Quoted {
+        let secret = 42;
+        let _ = secret;
+        let typed = quote { secret }.as_expr().unwrap().resolve(Option::none());
+                            ^^^^^^ Comptime variable `secret` cannot be used in runtime code
+                            ~~~~~~ `secret` was resolved in a comptime scope that is no longer in scope here
+        quote {
+            fn generated() -> Field {
+                $typed
+            }
+        }
+    }
+
+    #[emit]
+    ~~~~~~~ While running this function attribute
+    fn main() -> pub Field {
+        generated()
+    }
+    "#;
+    check_errors_with_stdlib(src, [META_API_STDLIB]);
+}
+
+#[test]
+fn resolve_revalidates_unconstrained_call_spliced_into_constrained() {
+    let src = r#"
+    unconstrained fn helper() -> Field {
+        0
+    }
+
+    comptime fn emit(_f: FunctionDefinition) -> Quoted {
+        let call = quote { helper() }.as_expr().unwrap().resolve(Option::none());
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ Call to unconstrained function from constrained function is unsafe and must be in an unconstrained function or unsafe block
+        quote {
+            fn generated() -> Field {
+                $call
+            }
+        }
+    }
+
+    #[emit]
+    ~~~~~~~ While running this function attribute
+    fn main() -> pub Field {
+        generated()
+    }
+    "#;
+    check_errors_with_stdlib(src, [META_API_STDLIB]);
+}
+
+#[test]
+fn resolve_revalidates_verify_proof_spliced_into_unconstrained() {
+    let stdlib = r#"
+    pub fn verify_proof_with_type<let N: u32, let M: u32, let K: u32>(
+        _verification_key: [Field; N],
+        _proof: [Field; M],
+        _public_inputs: [Field; K],
+        _key_hash: Field,
+        _proof_type: u32,
+    ) {}
+    "#;
+    let src = r#"
+    comptime fn emit(_f: FunctionDefinition) -> Quoted {
+        let scope = quote { safe_scope }
+            .as_expr()
+            .unwrap()
+            .resolve(Option::none())
+            .as_function_definition()
+            .unwrap();
+
+        let call = quote {
+            crate::verify_proof_with_type([0; 114], [0; 94], [0], 0, 0)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ Cannot call `std::verify_proof_with_type` in unconstrained context
+        }
+            .as_expr()
+            .unwrap()
+            .resolve(Option::some(scope));
+
+        quote {
+            unconstrained fn generated() {
+                $call
+            }
+        }
+    }
+
+    fn safe_scope() {}
+
+    #[emit]
+    ~~~~~~~ While running this function attribute
+    fn main() {
+        safe_scope();
+        // Safety: test
+        unsafe { generated() };
+    }
+    "#;
+    check_errors_with_stdlib(src, [META_API_STDLIB, stdlib]);
+}
+
+#[test]
+fn resolve_revalidates_while_loop_spliced_into_constrained() {
+    let src = r#"
+    comptime fn emit(_f: FunctionDefinition) -> Quoted {
+        let body = quote { { while true {} } }.as_expr().unwrap().resolve(Option::none());
+                             ^^^^^^^^^^^^^ `while` is only allowed in unconstrained functions
+                             ~~~~~~~~~~~~~ Constrained code must always have a known number of loop iterations
+        quote {
+            fn generated() {
+                $body
+            }
+        }
+    }
+
+    #[emit]
+    ~~~~~~~ While running this function attribute
+    fn main() {
+        generated()
+    }
+    "#;
+    check_errors_with_stdlib(src, [META_API_STDLIB]);
+}
+
+#[test]
+fn resolve_revalidates_loop_spliced_into_constrained() {
+    let src = r#"
+    comptime fn emit(_f: FunctionDefinition) -> Quoted {
+        let body = quote { { loop { break; } } }.as_expr().unwrap().resolve(Option::none());
+                             ^^^^^^^^^^^^^^^ `loop` is only allowed in unconstrained functions
+                             ~~~~~~~~~~~~~~~ Constrained code must always have a known number of loop iterations
+                                    ^^^^^^ break is only allowed in unconstrained functions
+                                    ~~~~~~ Constrained code must always have a known number of loop iterations
+        quote {
+            fn generated() {
+                $body
+            }
+        }
+    }
+
+    #[emit]
+    ~~~~~~~ While running this function attribute
+    fn main() {
+        generated()
+    }
+    "#;
+    check_errors_with_stdlib(src, [META_API_STDLIB]);
+}
+
+#[test]
+fn resolve_revalidates_break_spliced_into_constrained() {
+    let src = r#"
+    comptime fn emit(_f: FunctionDefinition) -> Quoted {
+        let body = quote { { for _ in 0..3 { break; } } }.as_expr().unwrap().resolve(Option::none());
+                                             ^^^^^^ break is only allowed in unconstrained functions
+                                             ~~~~~~ Constrained code must always have a known number of loop iterations
+        quote {
+            fn generated() {
+                $body
+            }
+        }
+    }
+
+    #[emit]
+    ~~~~~~~ While running this function attribute
+    fn main() {
+        generated()
+    }
+    "#;
+    check_errors_with_stdlib(src, [META_API_STDLIB]);
+}
+
+// The revalidation walk recurses into the structure of a resolved expression, so a
+// boundary-crossing call nested inside a block is caught the same as a top-level one.
+#[test]
+fn resolve_revalidates_unconstrained_call_nested_in_block() {
+    let src = r#"
+    unconstrained fn helper() -> Field {
+        0
+    }
+
+    comptime fn emit(_f: FunctionDefinition) -> Quoted {
+        let body = quote { { helper() } }.as_expr().unwrap().resolve(Option::none());
+                             ^^^^^^^^ Call to unconstrained function from constrained function is unsafe and must be in an unconstrained function or unsafe block
+        quote {
+            fn generated() -> Field {
+                $body
+            }
+        }
+    }
+
+    #[emit]
+    ~~~~~~~ While running this function attribute
+    fn main() -> pub Field {
+        generated()
+    }
+    "#;
+    check_errors_with_stdlib(src, [META_API_STDLIB]);
+}
+
+// Revalidation must not reject a resolved unconstrained call that is spliced into an
+// `unsafe` block: the boundary is crossed legally there, exactly as for hand-written code.
+#[test]
+fn resolve_allows_unconstrained_call_spliced_into_unsafe_block() {
+    let src = r#"
+    unconstrained fn helper() -> Field {
+        0
+    }
+
+    comptime fn emit(_f: FunctionDefinition) -> Quoted {
+        let call = quote { helper() }.as_expr().unwrap().resolve(Option::none());
+        quote {
+            fn generated() -> Field {
+                // Safety: test
+                unsafe { $call }
+            }
+        }
+    }
+
+    #[emit]
+    fn main() -> pub Field {
+        generated()
+    }
+    "#;
+    check_errors_with_stdlib(src, [META_API_STDLIB]);
+}
+
+// An assignment target referencing a comptime local must be revalidated just like a read: the
+// `Assign` lvalue is walked so the comptime local cannot escape into runtime code (where it would
+// otherwise reach monomorphization with no value).
+#[test]
+fn resolve_does_not_let_comptime_local_escape_via_assignment_lvalue() {
+    let src = r#"
+    comptime fn emit(_f: FunctionDefinition) -> Quoted {
+        let mut secret = 42;
+        secret = 0;
+        let _ = secret;
+        let typed = quote { { secret = 1; } }.as_expr().unwrap().resolve(Option::none());
+                              ^^^^^^ Comptime variable `secret` cannot be used in runtime code
+                              ~~~~~~ `secret` was resolved in a comptime scope that is no longer in scope here
+        quote {
+            fn generated() {
+                $typed
+            }
+        }
+    }
+
+    #[emit]
+    ~~~~~~~ While running this function attribute
+    fn main() {
+        generated()
+    }
+    "#;
+    check_errors_with_stdlib(src, [META_API_STDLIB]);
+}
+
+// Revalidation must preserve the unsafe-block context of a resolved expression: an unconstrained
+// call wrapped in an `unsafe` block *inside* the resolved expression crosses the boundary legally,
+// so it must not be reported as needing an `unsafe` block at the splice site.
+#[test]
+fn resolve_allows_unconstrained_call_in_resolved_unsafe_block() {
+    let src = r#"
+    unconstrained fn helper() -> Field {
+        0
+    }
+
+    comptime fn emit(_f: FunctionDefinition) -> Quoted {
+        let scope = quote { constrained_scope }
+            .as_expr()
+            .unwrap()
+            .resolve(Option::none())
+            .as_function_definition()
+            .unwrap();
+
+        let call = quote {
+            // Safety: test
+            unsafe { helper() }
+        }
+            .as_expr()
+            .unwrap()
+            .resolve(Option::some(scope));
+
+        quote {
+            fn generated() -> Field {
+                $call
+            }
+        }
+    }
+
+    fn constrained_scope() {}
+
+    #[emit]
+    fn main() -> pub Field {
+        generated()
+    }
+    "#;
+    check_errors_with_stdlib(src, [META_API_STDLIB]);
+}
+
+#[test]
+fn meta_attribute_coerces_function_path_to_function_definition() {
+    // https://github.com/noir-lang/noir/issues/13186
+    // A function path passed as a meta-attribute argument should coerce to a
+    // `FunctionDefinition` parameter, mirroring how a trait path coerces to `TraitDefinition`.
+    let src = r#"
+    #[validate(check)]
+    pub fn target() {}
+
+    pub fn check() {}
+
+    comptime fn validate(_f: FunctionDefinition, _method: FunctionDefinition) {}
+
+    fn main() {}
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn meta_attribute_function_definition_argument_can_be_inspected() {
+    // The coerced `FunctionDefinition` is a real definition whose signature can be inspected,
+    // which is the point of accepting it as `FunctionDefinition` rather than `Quoted`.
+    let src = r#"
+    #[validate(check)]
+    pub fn target() {}
+
+    pub fn check(_x: Field) {}
+
+    comptime fn validate(_f: FunctionDefinition, method: FunctionDefinition) {
+        assert(method.parameters().len() == 1);
+        let _ = method.return_type();
+    }
+
+    fn main() {}
+    "#;
+    check_errors_with_stdlib(src, [META_API_STDLIB]);
+}
+
+#[test]
+fn meta_attribute_function_definition_argument_must_be_a_path() {
+    // A non-path argument (here an integer literal) is rejected.
+    let src = r#"
+    #[validate(1)]
+    pub fn target() {}
+
+    comptime fn validate(_f: FunctionDefinition, _method: FunctionDefinition) {}
+
+    fn main() {}
+    "#;
+    let errors = get_program_errors(src);
+    assert!(
+        errors.iter().any(|error| format!("{error:?}").contains("FunctionDefinitionMustBeAPath")),
+        "expected FunctionDefinitionMustBeAPath, got: {errors:?}"
+    );
+}
+
+#[test]
+fn meta_attribute_function_definition_argument_must_be_a_function() {
+    // A path that resolves to a non-function value (here a global) is rejected.
+    let src = r#"
+    global NOT_A_FN: Field = 0;
+
+    #[validate(NOT_A_FN)]
+    pub fn target() {}
+
+    comptime fn validate(_f: FunctionDefinition, _method: FunctionDefinition) {}
+
+    fn main() {}
+    "#;
+    let errors = get_program_errors(src);
+    assert!(
+        errors
+            .iter()
+            .any(|error| format!("{error:?}").contains("FailedToResolveFunctionDefinition")),
+        "expected FailedToResolveFunctionDefinition, got: {errors:?}"
+    );
 }

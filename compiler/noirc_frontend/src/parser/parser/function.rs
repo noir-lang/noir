@@ -335,7 +335,10 @@ impl Parser<'_> {
         (Visibility::Private, self.location_at_previous_token_end())
     }
 
-    fn validate_attributes(&mut self, attributes: Vec<(Attribute, Location)>) -> Attributes {
+    pub(super) fn validate_attributes(
+        &mut self,
+        attributes: Vec<(Attribute, Location)>,
+    ) -> Attributes {
         let mut function = None;
         let mut secondary = Vec::new();
 

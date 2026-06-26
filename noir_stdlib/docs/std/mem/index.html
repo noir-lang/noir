@@ -3,7 +3,10 @@
 <head>
 <meta charset="UTF-8">
 <link rel="stylesheet" href="../../styles.css">
+<script>window.docRoot = "../../";</script>
+<script defer src="../../search-index.js"></script>
 <script defer src="../../nargo_doc.js"></script>
+<script defer src="../../search.js"></script>
 <title>Module mem documentation</title>
 </head>
 <body>
@@ -87,7 +90,13 @@
 </nav>
 <main>
 <div><a href="../../index.html">noir_stdlib</a> - <a href="../index.html">std</a>::mem</div>
-<h1>Module <span id="mod" class="module">mem</span></h1>
+<div class="heading-row">
+<h1 class="heading-content">Module <span id="mod" class="module">mem</span></h1>
+<button id="search-toggle" type="button">Search</button>
+</div>
+<input id="search-input" type="search" placeholder="Type 's' or '/' to search" autocomplete="off" spellcheck="false" aria-label="Search" hidden>
+<div id="search-results" hidden></div>
+<div id="page-content">
 <h2 id="functions">Functions</h2><ul class="item-list">
 <li><div class="item-name"><a href="fn.array_refcount.html" class="fn">array_refcount</a></div><div class="item-description">Returns the internal reference count of an array value in unconstrained code.</div></li>
 <li><div class="item-name"><a href="fn.checked_transmute.html" class="fn">checked_transmute</a></div><div class="item-description">Transmutes a value of type T to a value of type U.</div></li>
@@ -96,6 +105,7 @@
 all of its fields to 0. This is considered to be unsafe since there
 is no guarantee that all zeroes is a valid bit pattern for every type.</div></li>
 </ul>
+</div>
 </main>
 </span>
 </body>

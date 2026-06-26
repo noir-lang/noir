@@ -200,6 +200,16 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
     /// we don't have access to the spill manager the context necessary to properly spill an
     /// SSA variable, so we have to make room in anticipation of such need.
     pub(crate) fn ensure_register_capacity(&mut self, n: usize) {
+        if !self.needs_spill_for(n) {
+            return;
+        }
+        // We need to spill `n - available` registers.
+        // We spill them by batch, which is more efficient and avoids
+        // some address computations in case of consecutive slots.
+        let available = self.brillig_context.registers().available_registers();
+        self.spill_lru_values(n.saturating_sub(available));
+
+        // Fall back to single spills, in case of.
         while self.needs_spill_for(n) {
             self.spill_lru_value();
         }
@@ -214,6 +224,42 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
     fn codegen_spill_store(&mut self, offset: usize, source_reg: MemoryAddress) {
         let addr = self.codegen_spill_slot_address(offset);
         self.brillig_context.store_instruction(addr, source_reg);
+    }
+
+    /// Emit the stores for a batch of spills, computing the slot addresses incrementally.
+    ///
+    /// `stores` pairs each spill slot offset with the register holding the value to store.
+    /// Emitting them together lets a run of consecutive slots share a single address
+    /// computation: the first non-zero offset in a run is materialized with the usual
+    /// const + add (via [`Self::codegen_spill_slot_address`]), and every following slot in
+    /// the run only needs a single increment of the scratch address register — replacing
+    /// the per-slot const + add (2 opcodes) with one. Slot 0 is the spill base pointer
+    /// itself, so its store needs no address computation at all.
+    fn codegen_spill_stores(&mut self, mut stores: Vec<(usize, MemoryAddress)>) {
+        stores.sort_by_key(|(offset, _)| *offset);
+
+        let (scratch_addr, _) = ReservedRegisters::spill_scratch();
+        // The offset currently materialized in `scratch_addr`, if any.
+        let mut previous_offset: Option<usize> = None;
+
+        for (offset, source_reg) in stores {
+            let addr = if offset == 0 {
+                // Slot 0 is the spill base pointer directly.
+                previous_offset = None;
+                ReservedRegisters::spill_base_pointer()
+            } else if previous_offset == Some(offset - 1) {
+                // Consecutive with the previous slot: bump the address by one.
+                self.brillig_context.memory_op_inc_by_usize_one(scratch_addr);
+                previous_offset = Some(offset);
+                scratch_addr
+            } else {
+                // fallback to computing the slot address.
+                let addr = self.codegen_spill_slot_address(offset);
+                previous_offset = Some(offset);
+                addr
+            };
+            self.brillig_context.store_instruction(addr, source_reg);
+        }
     }
 
     /// Spill a value: record it in the spill manager, optionally emit a store to its slot,
@@ -313,6 +359,43 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
         let sm = self.function_context.spill_manager.as_mut().unwrap();
         let victim_id = sm.lru_victim().expect("No values available to spill");
         self.spill_value(victim_id, false, true);
+    }
+
+    /// Spill the `k` least-recently-used values in a single batch.
+    ///
+    /// Batched version of [`Self::spill_lru_value`]. It records all `k`
+    /// spills first, updates the LRU once, and emits all the stores together
+    /// which allows to share address computations.
+    fn spill_lru_values(&mut self, k: usize) {
+        let sm = self.function_context.spill_manager.as_ref().unwrap();
+        let victims = sm.lru_victims(k);
+        if victims.is_empty() {
+            return;
+        }
+
+        // Record each spill and collect the stores that must be emitted. A value that
+        // already has a slot keeps it and does not need a store.
+        let mut stores = Vec::with_capacity(victims.len());
+        for value_id in &victims {
+            let var = *self.function_context.ssa_value_allocations.get(value_id).unwrap();
+            let sm = self.function_context.spill_manager.as_mut().unwrap();
+            let prior_offset = sm.get_spill_offset(value_id);
+            let offset = prior_offset.unwrap_or_else(|| sm.allocate_spill_offset());
+            sm.record_spill(*value_id, offset, var);
+            if prior_offset.is_none() {
+                stores.push((offset, var.extract_register()));
+            }
+        }
+
+        // Drop every victim from the LRU in a single pass.
+        let victim_set: HashSet<ValueId> = victims.iter().copied().collect();
+        self.function_context.spill_manager.as_mut().unwrap().remove_victims_from_lru(&victim_set);
+
+        // Emit the stores while the source registers are still allocated, then free them.
+        self.codegen_spill_stores(stores);
+        for value_id in &victims {
+            self.variables.remove_variable(value_id, self.function_context, self.brillig_context);
+        }
     }
 
     /// Reload a previously spilled value into a freshly allocated register

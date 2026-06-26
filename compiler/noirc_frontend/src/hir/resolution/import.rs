@@ -443,15 +443,23 @@ impl<'def_maps, 'usage_tracker, 'references_tracker>
                 None => {
                     return Err(PathResolutionError::Unresolved(last_ident.clone()));
                 }
-                Some((typ, visibility, _)) => (typ, visibility),
+                Some(scope) => (scope.id, scope.visibility),
             };
 
             self.add_reference(typ, last_segment.location, last_segment.ident.is_self_type_name());
 
-            // In the type namespace, only Mod can be used in a path.
+            // In the type namespace, only a module can be navigated through in a path. A type's
+            // associated items (methods, and for enums their variants) can't be imported through
+            // it, matching Rust: `use Type::method` is rejected. Such items remain reachable via a
+            // qualified path (`Type::method(..)`).
             current_module_id = match typ {
                 ModuleDefId::ModuleId(id) => id,
-                ModuleDefId::TypeId(id) => id.module_id(),
+                ModuleDefId::TypeId(..) => {
+                    return Err(PathResolutionError::NotAModule {
+                        ident: last_segment.ident.clone(),
+                        kind: "type",
+                    });
+                }
                 ModuleDefId::TypeAliasId(..) => {
                     return Err(PathResolutionError::NotAModule {
                         ident: last_segment.ident.clone(),
@@ -464,7 +472,12 @@ impl<'def_maps, 'usage_tracker, 'references_tracker>
                         kind: "associated type",
                     });
                 }
-                ModuleDefId::TraitId(id) => id.0,
+                ModuleDefId::TraitId(..) => {
+                    return Err(PathResolutionError::NotAModule {
+                        ident: last_segment.ident.clone(),
+                        kind: "trait",
+                    });
+                }
                 ModuleDefId::FunctionId(_) => panic!("functions cannot be in the type namespace"),
                 ModuleDefId::GlobalId(_) => panic!("globals cannot be in the type namespace"),
             };
@@ -500,23 +513,27 @@ impl<'def_maps, 'usage_tracker, 'references_tracker>
         // An import references whatever the leaf resolves to, which may occupy both namespaces
         // (e.g. a re-exported `struct N` and `fn N`), so mark each occupied namespace.
         let leaf_ident = &path.segments.last().unwrap().ident;
-        for (id, _, _) in current_ns.iter_items() {
-            self.usage_tracker.mark_as_referenced(current_module_id, leaf_ident, id.namespace());
+        for item in current_ns.iter_items() {
+            self.usage_tracker.mark_as_referenced(
+                current_module_id,
+                leaf_ident,
+                item.id.namespace(),
+            );
         }
 
-        let (module_def_id, _, _) =
-            current_ns.values.or(current_ns.types).expect("Found empty namespace");
+        let module_def_id =
+            current_ns.values.or(current_ns.types).expect("Found empty namespace").id;
 
         self.add_reference(module_def_id, path.segments.last().unwrap().ident.location(), false);
 
         // The final segment resolves to at most one item in the type namespace and one in the value
         // namespace. Evaluate the visibility of each occupied slot independently.
-        let type_item = current_ns
-            .types
-            .map(|(id, vis, _)| (id, self.item_in_module_is_visible(current_module_id, vis)));
-        let value_item = current_ns
-            .values
-            .map(|(id, vis, _)| (id, self.item_in_module_is_visible(current_module_id, vis)));
+        let type_item = current_ns.types.map(|scope| {
+            (scope.id, self.item_in_module_is_visible(current_module_id, scope.visibility))
+        });
+        let value_item = current_ns.values.map(|scope| {
+            (scope.id, self.item_in_module_is_visible(current_module_id, scope.visibility))
+        });
 
         let both_namespaces_occupied = type_item.is_some() && value_item.is_some();
         let any_visible = [type_item, value_item].into_iter().flatten().any(|(_, visible)| visible);

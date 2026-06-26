@@ -776,6 +776,7 @@ impl TraitItem {
                 is_unconstrained: _,
                 visibility: _,
                 is_comptime: _,
+                attributes: _,
             } => {
                 if visitor.visit_trait_item_function(
                     name,
