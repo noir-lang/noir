@@ -113,9 +113,15 @@ enum PathPrefixKind {
     /// A concrete type, type alias, or primitive type (e.g. `Type` in `Type::method`). The last
     /// segment is an inherent or qualified trait method.
     Type { resolution: PathResolution },
-    /// A module, or anything else that cannot prefix an associated item (e.g. `foo::bar` in
-    /// `foo::bar::GLOBAL`). The last segment is an ordinary value item, resolved elsewhere.
+    /// A module (e.g. `foo::bar` in `foo::bar::GLOBAL`). The last segment is an ordinary value
+    /// item, resolved as a value.
     Module,
+    /// The prefix is `Self` but there is no self type in scope (e.g. in a free function), so `Self`
+    /// names nothing.
+    SelfNotInScope,
+    /// The prefix resolves to nothing that can carry an associated item (it is not a type, trait,
+    /// or module). The whole path is resolved as a value, which reports the error if there is one.
+    NoPrefix,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -1481,10 +1487,10 @@ impl Elaborator<'_> {
     /// before the prefix is resolved as a type to tell trait-, type-, and module-prefixed forms
     /// apart.
     #[tracing::instrument(level = "trace", skip_all)]
-    fn resolve_path_prefix(&mut self, path: &TypedPath) -> Option<ResolvedPrefix> {
-        if path.segments.len() < 2 {
-            return None;
-        }
+    fn resolve_path_prefix(&mut self, path: &TypedPath) -> ResolvedPrefix {
+        // The caller (`resolve_variable`) only takes this path for a multi-segment path, so popping
+        // the last segment is always valid.
+        debug_assert!(path.segments.len() >= 2);
 
         let mut prefix = path.clone();
         let last_segment = prefix.pop();
@@ -1495,8 +1501,8 @@ impl Elaborator<'_> {
         // generic, so they must not be classified as such.
         let kind = if path.kind == PathKind::Plain && path.segments[0].ident.is_self_type_name() {
             // `Self` is contextual; which kind it is depends only on where we are (a trait impl, a
-            // trait definition, or somewhere `Self` is a plain type), so it is classified here and
-            // the matching handler resolves the last segment.
+            // trait definition, somewhere `Self` is a plain type, or nowhere at all), so it is
+            // classified here and the matching arm resolves the last segment.
             if self.current_trait_impl.is_some() {
                 PathPrefixKind::SelfInTraitImpl
             } else if self.current_trait.is_some() {
@@ -1504,10 +1510,7 @@ impl Elaborator<'_> {
             } else if self.self_type.is_some() {
                 PathPrefixKind::SelfInImpl
             } else {
-                // `Self` with no self type in scope (e.g. in a free function): report it directly
-                // rather than re-resolving the path just to discover the same thing.
-                self.push_err(PathResolutionError::Unresolved(path.segments[0].ident.clone()));
-                return None;
+                PathPrefixKind::SelfNotInScope
             }
         } else if path.kind == PathKind::Plain
             && let Some(bounds) = self.matching_generic_bounds(path)
@@ -1517,19 +1520,21 @@ impl Elaborator<'_> {
             PathPrefixKind::BoundedGeneric(bounds)
         } else {
             // Otherwise the prefix is resolved as a type to distinguish trait/type/module.
-            let resolution = self.use_path_as_type(prefix).ok()?;
-            match &resolution.item {
-                PathResolutionItem::Trait(trait_id) => {
-                    PathPrefixKind::Trait { trait_id: *trait_id, resolution }
-                }
-                PathResolutionItem::Type(..)
-                | PathResolutionItem::TypeAlias(..)
-                | PathResolutionItem::PrimitiveType(..) => PathPrefixKind::Type { resolution },
-                _ => PathPrefixKind::Module,
+            match self.use_path_as_type(prefix) {
+                Ok(resolution) => match &resolution.item {
+                    PathResolutionItem::Trait(trait_id) => {
+                        PathPrefixKind::Trait { trait_id: *trait_id, resolution }
+                    }
+                    PathResolutionItem::Type(..)
+                    | PathResolutionItem::TypeAlias(..)
+                    | PathResolutionItem::PrimitiveType(..) => PathPrefixKind::Type { resolution },
+                    _ => PathPrefixKind::Module,
+                },
+                Err(_) => PathPrefixKind::NoPrefix,
             }
         };
 
-        Some(ResolvedPrefix { last_segment, turbofish, kind })
+        ResolvedPrefix { last_segment, turbofish, kind }
     }
 
     /// If the path's first segment names a generic parameter with `: Trait` bound(s) in scope,
@@ -2180,16 +2185,7 @@ impl Elaborator<'_> {
         &mut self,
         path: &TypedPath,
     ) -> Option<VariableResolution> {
-        let Some(ResolvedPrefix { last_segment, turbofish, kind }) = self.resolve_path_prefix(path)
-        else {
-            // A plain `Self` with no self type in scope was already reported by
-            // `resolve_path_prefix`, so don't fall back. Any other unresolved prefix resolves the
-            // whole path as a value (or reports the error there).
-            if path.kind == PathKind::Plain && path.segments[0].ident.is_self_type_name() {
-                return None;
-            }
-            return self.resolve_variable_in_scope(path.clone());
-        };
+        let ResolvedPrefix { last_segment, turbofish, kind } = self.resolve_path_prefix(path);
 
         match kind {
             // `Self` is contextual; each context resolves the last segment its own way.
@@ -2226,8 +2222,16 @@ impl Elaborator<'_> {
                 &last_segment,
                 resolution,
             ),
-            // A module prefix: the last segment is an ordinary value item, resolved as a value.
-            PathPrefixKind::Module => self.resolve_variable_in_scope(path.clone()),
+            // A module prefix's value item, or a prefix that isn't an item carrier at all: resolve
+            // the whole path as a value (reporting the error if it doesn't resolve).
+            PathPrefixKind::Module | PathPrefixKind::NoPrefix => {
+                self.resolve_variable_in_scope(path.clone())
+            }
+            // `Self` with no self type in scope: report it directly.
+            PathPrefixKind::SelfNotInScope => {
+                self.push_err(PathResolutionError::Unresolved(path.segments[0].ident.clone()));
+                None
+            }
         }
     }
 
