@@ -476,7 +476,7 @@ impl Elaborator<'_> {
 
     /// Resolve a [`TypedPath`] to a [`HirIdent`] of either some trait method, or a local or global variable.
     #[tracing::instrument(level = "trace", skip_all)]
-    fn resolve_variable(&mut self, path: TypedPath) -> Option<VariableResolution> {
+    pub(super) fn resolve_variable(&mut self, path: TypedPath) -> Option<VariableResolution> {
         if let Some(trait_path_resolution) = self.resolve_trait_generic_path(&path) {
             self.push_errors(trait_path_resolution.errors);
 
