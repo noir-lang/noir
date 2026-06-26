@@ -78,7 +78,7 @@ enum TraitPathResolutionMethod {
 /// [`Elaborator::resolve_path_prefix`]; [`Elaborator::resolve_prefixed_variable`] resolves the last
 /// segment against the kind without re-deriving anything from the original path.
 #[derive(Debug)]
-pub(super) struct ResolvedPrefix {
+struct ResolvedPrefix {
     /// The path's last segment: the item being accessed on the prefix.
     last_segment: TypedPathSegment,
     /// Turbofish on the prefix's own last segment (e.g. the `<T>` in `Foo::<T>::bar`).
@@ -90,7 +90,7 @@ pub(super) struct ResolvedPrefix {
 /// expression. This describes *what the prefix is*, not the already-resolved item; the shared
 /// "rest" (last segment, turbofish) lives on [`ResolvedPrefix`].
 #[derive(Debug)]
-pub(super) enum PathPrefixKind {
+enum PathPrefixKind {
     /// The prefix starts with `Self`. What `Self` means is contextual — the current trait in a
     /// trait definition, or a concrete self type in an impl — and the forms differ
     /// (`Self::method`, `Self::CONST`, `Self::AssocType::method`), so the dedicated handler
