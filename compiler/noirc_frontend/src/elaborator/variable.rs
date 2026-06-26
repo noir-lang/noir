@@ -413,7 +413,7 @@ impl Elaborator<'_> {
     /// In the third case, we resolve the associated type first, then elaborate the method
     /// call on that resolved type.
     #[tracing::instrument(level = "trace", skip_all)]
-    fn elaborate_variable_as_self_method_or_associated_constant(
+    pub(super) fn elaborate_variable_as_self_method_or_associated_constant(
         &mut self,
         variable: &TypedPath,
     ) -> Option<(ExprId, Type)> {
@@ -503,13 +503,13 @@ impl Elaborator<'_> {
     /// A path with a prefix (more than one segment) may name an item accessed *through* that
     /// prefix: a `Self`-prefixed associated item (elaborated directly to an expression), or a
     /// trait item reached through `Self`, a trait, a concrete type, or an in-scope generic bound
-    /// (see [`Self::resolve_variable_with_prefix`]). A single-segment path — or a prefixed path
+    /// (see [`Self::resolve_prefixed_variable`]). A single-segment path — or a prefixed path
     /// that names no such item — resolves to a local variable, a definition (global, function,
     /// enum-variant global), or a numeric type alias (see [`Self::get_ident_from_path`]).
     #[tracing::instrument(level = "trace", skip_all)]
     fn resolve_variable(&mut self, path: TypedPath) -> Option<VariableResolution> {
         if path.segments.len() > 1
-            && let Some(resolution) = self.resolve_variable_with_prefix(&path)
+            && let Some(resolution) = self.resolve_prefixed_variable(&path)
         {
             return resolution.into_option();
         }
@@ -536,21 +536,6 @@ impl Elaborator<'_> {
             }
             IdentFromPath::TypeAlias(type_alias_id) => VariableResolution::TypeAlias(type_alias_id),
         })
-    }
-
-    /// Resolve a path that has a prefix (more than one segment) to an item accessed *through* that
-    /// prefix. Returns `None` if the path names no such item, so the caller falls back to plain
-    /// value resolution.
-    fn resolve_variable_with_prefix(&mut self, path: &TypedPath) -> Option<PrefixedVariable> {
-        // A `Self`-prefixed associated item inside a trait impl, elaborated directly.
-        if let Some((expr_id, typ)) =
-            self.elaborate_variable_as_self_method_or_associated_constant(path)
-        {
-            return Some(PrefixedVariable::Resolved(VariableResolution::Expression(expr_id, typ)));
-        }
-
-        // A trait item reached through the prefix.
-        self.resolve_trait_generic_path(path)
     }
 
     /// Solve any generics that are part of the path before the function, for example:

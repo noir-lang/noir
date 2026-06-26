@@ -75,15 +75,16 @@ enum TraitPathResolutionMethod {
 }
 
 /// What the prefix of a path (every segment but the last) is, when the path is used as an
-/// expression. Produced by [`Elaborator::resolve_path_prefix`]; [`Elaborator::resolve_trait_generic_path`]
+/// expression. Produced by [`Elaborator::resolve_path_prefix`]; [`Elaborator::resolve_prefixed_variable`]
 /// then resolves the last segment against it. Only the data needed to resolve the last segment is
 /// carried — this describes *what the prefix is*, not the already-resolved item.
 #[derive(Debug)]
 pub(super) enum PathPrefixKind {
-    /// `Self` inside a trait *definition*: the prefix is the current trait (an assumed `Self`
-    /// constraint). The last segment is a method or associated constant of that trait or a
-    /// supertrait.
-    SelfTrait,
+    /// The prefix starts with `Self`. What `Self` means is contextual — the current trait in a
+    /// trait definition, or a concrete self type in an impl — and the forms differ
+    /// (`Self::method`, `Self::CONST`, `Self::AssocType::method`), so the dedicated handler
+    /// ([`Elaborator::resolve_self_prefix`]) enumerates the cases.
+    SelfType,
     /// A generic parameter with a `: Trait` bound in scope (e.g. `T` in `T::method`). The last
     /// segment is a method or associated constant reached through one of those bounds.
     BoundedGeneric,
@@ -1466,23 +1467,20 @@ impl Elaborator<'_> {
     /// to decide how to resolve the last segment. Returns `None` if the path has no prefix.
     ///
     /// The classification order is significant: it decides which interpretation wins when a path
-    /// is ambiguous, and mirrors the historical probe order. `Self` inside a trait definition and a
-    /// bounded generic are recognized from context (the current trait, the in-scope bounds) before
-    /// the prefix is resolved as a type to tell trait-, type-, and module-prefixed forms apart.
+    /// is ambiguous, and mirrors the historical probe order. `Self` and a bounded generic are
+    /// recognized from context (`Self` is contextual; a generic is not in the module namespace)
+    /// before the prefix is resolved as a type to tell trait-, type-, and module-prefixed forms
+    /// apart.
     #[tracing::instrument(level = "trace", skip_all)]
     fn resolve_path_prefix(&mut self, path: &TypedPath) -> Option<PathPrefixKind> {
         if path.segments.len() < 2 {
             return None;
         }
 
-        // `Self` inside a trait definition: `Self` is the current trait, not a concrete type.
-        if path.kind == PathKind::Plain
-            && path.segments.len() == 2
-            && path.segments[0].ident.is_self_type_name()
-            && self.current_trait_impl.is_none()
-            && self.current_trait.is_some()
-        {
-            return Some(PathPrefixKind::SelfTrait);
+        // `Self` is contextual (the current trait, or a concrete self type), so it is classified
+        // by syntax alone; its handler resolves what it means.
+        if path.segments[0].ident.is_self_type_name() {
+            return Some(PathPrefixKind::SelfType);
         }
 
         // A generic parameter (e.g. `T`) with a `T: Trait` bound in scope. A generic is not in the
@@ -2145,20 +2143,18 @@ impl Elaborator<'_> {
         TraitPathResolution { method, item: Some(item), errors }
     }
 
-    /// Resolve a [`TypedPath`] that has a prefix to the trait item it names (method or associated
-    /// constant). [`Self::resolve_path_prefix`] classifies the prefix once; the last segment is
-    /// resolved against that classification, and the result is mapped to a [`PrefixedVariable`].
+    /// Resolve a [`TypedPath`] that has a prefix (more than one segment) to the item it names.
+    /// [`Self::resolve_path_prefix`] classifies the prefix once; the last segment is resolved
+    /// against that classification and mapped to a [`PrefixedVariable`].
     #[tracing::instrument(level = "trace", skip_all)]
-    pub(super) fn resolve_trait_generic_path(
+    pub(super) fn resolve_prefixed_variable(
         &mut self,
         path: &TypedPath,
     ) -> Option<PrefixedVariable> {
         let resolution = match self.resolve_path_prefix(path)? {
-            // `Self` in a trait definition: a method/constant of the current trait, falling back to
-            // a supertrait reached through the assumed `Self` bound.
-            PathPrefixKind::SelfTrait => self
-                .resolve_trait_static_method_by_self(path)
-                .or_else(|| self.resolve_trait_method_by_named_generic(path)),
+            // `Self` is contextual; its handler produces the `PrefixedVariable` directly (it may be
+            // an elaborated expression, not a trait resolution).
+            PathPrefixKind::SelfType => return self.resolve_self_prefix(path),
             PathPrefixKind::BoundedGeneric => self.resolve_trait_method_by_named_generic(path),
             PathPrefixKind::Type { last_segment, turbofish, is_self_prefix, resolution } => self
                 .resolve_method_on_type_prefix(
@@ -2181,6 +2177,49 @@ impl Elaborator<'_> {
             PathPrefixKind::Module => None,
         }?;
 
+        Some(self.prefixed_variable_from_trait_resolution(path.location, resolution))
+    }
+
+    /// Resolve a `Self::…` path used as an expression. `Self` is contextual, so this enumerates its
+    /// cases:
+    /// - inside a trait impl: `Self::AssocType::method`, `Self::CONST`, or a method on a primitive
+    ///   `Self` (handled by [`Self::elaborate_variable_as_self_method_or_associated_constant`]);
+    /// - inside a trait definition: a method or constant of the current trait (or a supertrait),
+    ///   resolved as an assumed constraint on `Self`;
+    /// - otherwise (`Self` is a concrete data type, e.g. inside an impl method): `Self::method`,
+    ///   resolved the same way as `Type::method`.
+    fn resolve_self_prefix(&mut self, path: &TypedPath) -> Option<PrefixedVariable> {
+        // Cases the module resolver can't reach: a method/constant on a primitive `Self`, an
+        // associated constant, or a method on an associated type (all inside a trait impl).
+        if let Some((expr_id, typ)) =
+            self.elaborate_variable_as_self_method_or_associated_constant(path)
+        {
+            return Some(PrefixedVariable::Resolved(VariableResolution::Expression(expr_id, typ)));
+        }
+
+        // Inside a trait definition, `Self` is the trait: resolve to an assumed constraint on it,
+        // falling back to a supertrait reached through that bound.
+        if self.current_trait.is_some() && self.current_trait_impl.is_none() {
+            let resolution = self
+                .resolve_trait_static_method_by_self(path)
+                .or_else(|| self.resolve_trait_method_by_named_generic(path))?;
+            return Some(self.prefixed_variable_from_trait_resolution(path.location, resolution));
+        }
+
+        // Otherwise `Self` is a concrete data type: resolve the method exactly as `Type::method`
+        // does, on `Self`'s type.
+        let mut prefix = path.clone();
+        let last_segment = prefix.pop();
+        let turbofish = prefix.last_segment().turbofish();
+        let type_resolution = self.use_path_as_type(prefix).ok()?;
+        let is_self_prefix = true;
+        let resolution = self.resolve_method_on_type_prefix(
+            path.location,
+            last_segment,
+            turbofish,
+            is_self_prefix,
+            type_resolution,
+        )?;
         Some(self.prefixed_variable_from_trait_resolution(path.location, resolution))
     }
 
