@@ -1455,22 +1455,21 @@ impl Elaborator<'_> {
         path: &TypedPath,
         trait_id: TraitId,
     ) -> Option<TraitPathResolution> {
-        if path.kind == PathKind::Plain && path.segments.len() == 2 {
-            let is_self_type = path.segments[0].ident.is_self_type_name();
-            let method = &path.segments[1].ident;
-
-            if is_self_type {
-                let the_trait = self.interner.get_trait(trait_id);
-                // Allow referring to trait constants via Self:: as well
-                let definition =
-                    the_trait.find_method_or_constant(method.as_str(), self.interner)?;
-                let constraint = the_trait.as_constraint(path.location);
-                let trait_method = TraitItem { definition, constraint, assumed: true };
-                let method = TraitPathResolutionMethod::TraitItem(trait_method);
-                return Some(TraitPathResolution { method, item: None, errors: Vec::new() });
-            }
+        // Reached only for a plain `Self::…` prefix, so the only thing left to distinguish is the
+        // single-segment `Self::item` form (a longer `Self::A::b` is left to the bounds fallback).
+        debug_assert!(path.kind == PathKind::Plain && path.segments[0].ident.is_self_type_name());
+        if path.segments.len() != 2 {
+            return None;
         }
-        None
+
+        let method = &path.segments[1].ident;
+        let the_trait = self.interner.get_trait(trait_id);
+        // Allow referring to trait constants via Self:: as well
+        let definition = the_trait.find_method_or_constant(method.as_str(), self.interner)?;
+        let constraint = the_trait.as_constraint(path.location);
+        let trait_method = TraitItem { definition, constraint, assumed: true };
+        let method = TraitPathResolutionMethod::TraitItem(trait_method);
+        Some(TraitPathResolution { method, item: None, errors: Vec::new() })
     }
 
     /// Classify the prefix (every segment but the last) of a path used as an expression. This does
