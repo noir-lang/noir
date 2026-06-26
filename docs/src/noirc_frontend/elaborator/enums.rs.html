@@ -1314,343 +1314,342 @@
 <a href=#1314 id=1314 data-nosnippet>1314</a>            <span class="kw">if let </span><span class="prelude-val">Some</span>(col) = row.remove_column(branch_var) {
 <a href=#1315 id=1315 data-nosnippet>1315</a>                <span class="kw">if let </span>Pattern::Constructor(cons, args) = col.pattern {
 <a href=#1316 id=1316 data-nosnippet>1316</a>                    <span class="kw">let </span>idx = cons.variant_index();
-<a href=#1317 id=1317 data-nosnippet>1317</a>                    <span class="kw">let </span><span class="kw-2">mut </span>cols = row.columns;
-<a href=#1318 id=1318 data-nosnippet>1318</a>
-<a href=#1319 id=1319 data-nosnippet>1319</a>                    <span class="kw">for </span>(var, pat) <span class="kw">in </span>cases[idx].<span class="number">1</span>.iter().zip_eq(args.into_iter()) {
-<a href=#1320 id=1320 data-nosnippet>1320</a>                        cols.push(Column::new(<span class="kw-2">*</span>var, pat));
-<a href=#1321 id=1321 data-nosnippet>1321</a>                    }
-<a href=#1322 id=1322 data-nosnippet>1322</a>
-<a href=#1323 id=1323 data-nosnippet>1323</a>                    cases[idx].<span class="number">2</span>.push(Row::new(cols, row.guard, row.body, row.location));
-<a href=#1324 id=1324 data-nosnippet>1324</a>                }
-<a href=#1325 id=1325 data-nosnippet>1325</a>            } <span class="kw">else </span>{
-<a href=#1326 id=1326 data-nosnippet>1326</a>                <span class="kw">for </span>(<span class="kw">_</span>, <span class="kw">_</span>, rows) <span class="kw">in </span><span class="kw-2">&amp;mut </span>cases {
-<a href=#1327 id=1327 data-nosnippet>1327</a>                    rows.push(row.clone());
-<a href=#1328 id=1328 data-nosnippet>1328</a>                }
-<a href=#1329 id=1329 data-nosnippet>1329</a>            }
-<a href=#1330 id=1330 data-nosnippet>1330</a>        }
-<a href=#1331 id=1331 data-nosnippet>1331</a>
-<a href=#1332 id=1332 data-nosnippet>1332</a>        <span class="kw">let </span>cases = try_vecmap(cases, |(cons, vars, rows)| {
-<a href=#1333 id=1333 data-nosnippet>1333</a>            <span class="macro">assert!</span>(<span class="macro">matches!</span>(
-<a href=#1334 id=1334 data-nosnippet>1334</a>                cons,
-<a href=#1335 id=1335 data-nosnippet>1335</a>                Constructor::True
-<a href=#1336 id=1336 data-nosnippet>1336</a>                    | Constructor::False
-<a href=#1337 id=1337 data-nosnippet>1337</a>                    | Constructor::Unit
-<a href=#1338 id=1338 data-nosnippet>1338</a>                    | Constructor::Tuple(<span class="kw">_</span>)
-<a href=#1339 id=1339 data-nosnippet>1339</a>                    | Constructor::Variant(..)
-<a href=#1340 id=1340 data-nosnippet>1340</a>            ));
-<a href=#1341 id=1341 data-nosnippet>1341</a>            <span class="kw">let </span>rows = <span class="self">self</span>.compile_rows(rows)<span class="question-mark">?</span>;
-<a href=#1342 id=1342 data-nosnippet>1342</a>            <span class="prelude-val">Ok</span>::&lt;<span class="kw">_</span>, ResolverError&gt;(Case::new(cons, vars, rows))
-<a href=#1343 id=1343 data-nosnippet>1343</a>        })<span class="question-mark">?</span>;
-<a href=#1344 id=1344 data-nosnippet>1344</a>
-<a href=#1345 id=1345 data-nosnippet>1345</a>        <span class="prelude-val">Ok</span>(<span class="self">Self</span>::deduplicate_cases(cases))
-<a href=#1346 id=1346 data-nosnippet>1346</a>    }
-<a href=#1347 id=1347 data-nosnippet>1347</a>
-<a href=#1348 id=1348 data-nosnippet>1348</a>    <span class="doccomment">/// Move any cases with duplicate branches into a shared 'else' branch
-<a href=#1349 id=1349 data-nosnippet>1349</a>    </span><span class="kw">fn </span>deduplicate_cases(<span class="kw-2">mut </span>cases: Vec&lt;Case&gt;) -&gt; (Vec&lt;Case&gt;, <span class="prelude-ty">Option</span>&lt;Box&lt;HirMatch&gt;&gt;) {
-<a href=#1350 id=1350 data-nosnippet>1350</a>        <span class="kw">let </span><span class="kw-2">mut </span>opt_else_case = <span class="prelude-val">None</span>;
-<a href=#1351 id=1351 data-nosnippet>1351</a>        <span class="kw">let </span><span class="kw-2">mut </span>ending_cases = Vec::with_capacity(cases.len());
-<a href=#1352 id=1352 data-nosnippet>1352</a>        <span class="kw">let </span><span class="kw-2">mut </span>previous_case: <span class="prelude-ty">Option</span>&lt;Case&gt; = <span class="prelude-val">None</span>;
-<a href=#1353 id=1353 data-nosnippet>1353</a>
-<a href=#1354 id=1354 data-nosnippet>1354</a>        <span class="comment">// Go through each of the cases, looking for duplicates.
-<a href=#1355 id=1355 data-nosnippet>1355</a>        // This is simplified such that the first (consecutive) duplicates
-<a href=#1356 id=1356 data-nosnippet>1356</a>        // we find we move to an else case. Each case afterward is then compared
-<a href=#1357 id=1357 data-nosnippet>1357</a>        // to the else case. This could be improved in a couple ways:
-<a href=#1358 id=1358 data-nosnippet>1358</a>        // - Instead of the the first consecutive duplicates we find, we could
-<a href=#1359 id=1359 data-nosnippet>1359</a>        //   expand the check to find non-consecutive duplicates as well.
-<a href=#1360 id=1360 data-nosnippet>1360</a>        // - We should also ideally move the most duplicated case to the else
-<a href=#1361 id=1361 data-nosnippet>1361</a>        //   case, not just the first duplicated case we find. I suspect in most
-<a href=#1362 id=1362 data-nosnippet>1362</a>        //   actual code snippets these are the same but it could still be nice to guarantee.
-<a href=#1363 id=1363 data-nosnippet>1363</a>        </span><span class="kw">while let </span><span class="prelude-val">Some</span>(case) = cases.pop() {
-<a href=#1364 id=1364 data-nosnippet>1364</a>            <span class="kw">if let </span><span class="prelude-val">Some</span>(else_case) = <span class="kw-2">&amp;</span>opt_else_case {
-<a href=#1365 id=1365 data-nosnippet>1365</a>                <span class="kw">if </span>case.body == <span class="kw-2">*</span>else_case {
-<a href=#1366 id=1366 data-nosnippet>1366</a>                    <span class="comment">// Delete the current case by not pushing it to `ending_cases`
-<a href=#1367 id=1367 data-nosnippet>1367</a>                    </span><span class="kw">continue</span>;
-<a href=#1368 id=1368 data-nosnippet>1368</a>                } <span class="kw">else </span>{
-<a href=#1369 id=1369 data-nosnippet>1369</a>                    ending_cases.push(case);
-<a href=#1370 id=1370 data-nosnippet>1370</a>                }
-<a href=#1371 id=1371 data-nosnippet>1371</a>            } <span class="kw">else if let </span><span class="prelude-val">Some</span>(previous) = previous_case {
-<a href=#1372 id=1372 data-nosnippet>1372</a>                <span class="kw">if </span>case.body == previous.body {
-<a href=#1373 id=1373 data-nosnippet>1373</a>                    <span class="comment">// opt_else_case is known to be None here
-<a href=#1374 id=1374 data-nosnippet>1374</a>                    </span>opt_else_case = <span class="prelude-val">Some</span>(previous.body);
-<a href=#1375 id=1375 data-nosnippet>1375</a>
-<a href=#1376 id=1376 data-nosnippet>1376</a>                    <span class="comment">// Delete both previous_case and case
-<a href=#1377 id=1377 data-nosnippet>1377</a>                    </span>previous_case = <span class="prelude-val">None</span>;
-<a href=#1378 id=1378 data-nosnippet>1378</a>                    <span class="kw">continue</span>;
-<a href=#1379 id=1379 data-nosnippet>1379</a>                } <span class="kw">else </span>{
-<a href=#1380 id=1380 data-nosnippet>1380</a>                    previous_case = <span class="prelude-val">Some</span>(case);
-<a href=#1381 id=1381 data-nosnippet>1381</a>                    ending_cases.push(previous);
-<a href=#1382 id=1382 data-nosnippet>1382</a>                }
-<a href=#1383 id=1383 data-nosnippet>1383</a>            } <span class="kw">else </span>{
-<a href=#1384 id=1384 data-nosnippet>1384</a>                previous_case = <span class="prelude-val">Some</span>(case);
-<a href=#1385 id=1385 data-nosnippet>1385</a>            }
-<a href=#1386 id=1386 data-nosnippet>1386</a>        }
-<a href=#1387 id=1387 data-nosnippet>1387</a>
-<a href=#1388 id=1388 data-nosnippet>1388</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>(case) = previous_case {
-<a href=#1389 id=1389 data-nosnippet>1389</a>            ending_cases.push(case);
-<a href=#1390 id=1390 data-nosnippet>1390</a>        }
-<a href=#1391 id=1391 data-nosnippet>1391</a>
-<a href=#1392 id=1392 data-nosnippet>1392</a>        ending_cases.reverse();
-<a href=#1393 id=1393 data-nosnippet>1393</a>        (ending_cases, opt_else_case.map(Box::new))
-<a href=#1394 id=1394 data-nosnippet>1394</a>    }
-<a href=#1395 id=1395 data-nosnippet>1395</a>
-<a href=#1396 id=1396 data-nosnippet>1396</a>    <span class="doccomment">/// Return the variable that was referred to the most in `rows`, or panic if there are zero
-<a href=#1397 id=1397 data-nosnippet>1397</a>    /// `rows`
-<a href=#1398 id=1398 data-nosnippet>1398</a>    </span><span class="kw">fn </span>branch_variable(<span class="kw-2">&amp;</span><span class="self">self</span>, rows: <span class="kw-2">&amp;</span>[Row]) -&gt; DefinitionId {
-<a href=#1399 id=1399 data-nosnippet>1399</a>        <span class="macro">assert!</span>(!rows.is_empty(), <span class="string">"ICE branch_variable: expected at least one row"</span>);
-<a href=#1400 id=1400 data-nosnippet>1400</a>        <span class="kw">let </span><span class="kw-2">mut </span>counts = HashMap::default();
-<a href=#1401 id=1401 data-nosnippet>1401</a>
-<a href=#1402 id=1402 data-nosnippet>1402</a>        <span class="kw">for </span>row <span class="kw">in </span>rows {
-<a href=#1403 id=1403 data-nosnippet>1403</a>            <span class="kw">for </span>col <span class="kw">in </span><span class="kw-2">&amp;</span>row.columns {
-<a href=#1404 id=1404 data-nosnippet>1404</a>                <span class="kw-2">*</span>counts.entry(<span class="kw-2">&amp;</span>col.variable_to_match).or_insert(<span class="number">0_usize</span>) += <span class="number">1</span>;
-<a href=#1405 id=1405 data-nosnippet>1405</a>            }
-<a href=#1406 id=1406 data-nosnippet>1406</a>        }
-<a href=#1407 id=1407 data-nosnippet>1407</a>
-<a href=#1408 id=1408 data-nosnippet>1408</a>        rows[<span class="number">0</span>]
-<a href=#1409 id=1409 data-nosnippet>1409</a>            .columns
-<a href=#1410 id=1410 data-nosnippet>1410</a>            .iter()
-<a href=#1411 id=1411 data-nosnippet>1411</a>            .map(|col| col.variable_to_match)
-<a href=#1412 id=1412 data-nosnippet>1412</a>            .max_by_key(|var| counts[var])
-<a href=#1413 id=1413 data-nosnippet>1413</a>            .unwrap()
-<a href=#1414 id=1414 data-nosnippet>1414</a>    }
-<a href=#1415 id=1415 data-nosnippet>1415</a>
-<a href=#1416 id=1416 data-nosnippet>1416</a>    <span class="attr">#[tracing::instrument(level = <span class="string">"trace"</span>, skip_all)]
-<a href=#1417 id=1417 data-nosnippet>1417</a>    </span><span class="kw">fn </span>push_tests_against_bare_variables(<span class="kw-2">&amp;mut </span><span class="self">self</span>, rows: <span class="kw-2">&amp;mut </span>Vec&lt;Row&gt;) {
-<a href=#1418 id=1418 data-nosnippet>1418</a>        <span class="kw">for </span>row <span class="kw">in </span>rows {
-<a href=#1419 id=1419 data-nosnippet>1419</a>            row.columns.retain(|col| {
-<a href=#1420 id=1420 data-nosnippet>1420</a>                <span class="kw">if let </span>Pattern::Binding(variable) = col.pattern {
-<a href=#1421 id=1421 data-nosnippet>1421</a>                    row.body = <span class="self">self</span>.let_binding(variable, col.variable_to_match, row.body);
-<a href=#1422 id=1422 data-nosnippet>1422</a>                    <span class="bool-val">false
-<a href=#1423 id=1423 data-nosnippet>1423</a>                </span>} <span class="kw">else </span>{
-<a href=#1424 id=1424 data-nosnippet>1424</a>                    <span class="bool-val">true
-<a href=#1425 id=1425 data-nosnippet>1425</a>                </span>}
-<a href=#1426 id=1426 data-nosnippet>1426</a>            });
-<a href=#1427 id=1427 data-nosnippet>1427</a>        }
-<a href=#1428 id=1428 data-nosnippet>1428</a>    }
-<a href=#1429 id=1429 data-nosnippet>1429</a>
-<a href=#1430 id=1430 data-nosnippet>1430</a>    <span class="doccomment">/// Creates:
-<a href=#1431 id=1431 data-nosnippet>1431</a>    /// `{ let &lt;variable&gt; = &lt;rhs&gt;; &lt;body&gt; }`
-<a href=#1432 id=1432 data-nosnippet>1432</a>    </span><span class="attr">#[tracing::instrument(level = <span class="string">"trace"</span>, skip_all)]
-<a href=#1433 id=1433 data-nosnippet>1433</a>    </span><span class="kw">fn </span>let_binding(<span class="kw-2">&amp;mut </span><span class="self">self</span>, variable: DefinitionId, rhs: DefinitionId, body: ExprId) -&gt; ExprId {
-<a href=#1434 id=1434 data-nosnippet>1434</a>        <span class="kw">let </span>location = <span class="self">self</span>.elaborator.interner.definition(rhs).location;
-<a href=#1435 id=1435 data-nosnippet>1435</a>
-<a href=#1436 id=1436 data-nosnippet>1436</a>        <span class="kw">let </span>r#type = <span class="self">self</span>.elaborator.interner.definition_type(variable);
-<a href=#1437 id=1437 data-nosnippet>1437</a>        <span class="kw">let </span>rhs_type = <span class="self">self</span>.elaborator.interner.definition_type(rhs);
-<a href=#1438 id=1438 data-nosnippet>1438</a>        <span class="kw">let </span>variable = HirIdent::non_trait_method(variable, location);
-<a href=#1439 id=1439 data-nosnippet>1439</a>
-<a href=#1440 id=1440 data-nosnippet>1440</a>        <span class="kw">let </span>rhs = HirExpression::Ident(HirIdent::non_trait_method(rhs, location), <span class="prelude-val">None</span>);
-<a href=#1441 id=1441 data-nosnippet>1441</a>        <span class="kw">let </span>rhs = <span class="self">self</span>.elaborator.interner.push_expr_full(rhs, location, rhs_type);
-<a href=#1442 id=1442 data-nosnippet>1442</a>
-<a href=#1443 id=1443 data-nosnippet>1443</a>        <span class="kw">let </span>let_ = HirStatement::Let(HirLetStatement {
-<a href=#1444 id=1444 data-nosnippet>1444</a>            pattern: HirPattern::Identifier(variable),
-<a href=#1445 id=1445 data-nosnippet>1445</a>            r#type,
-<a href=#1446 id=1446 data-nosnippet>1446</a>            expression: rhs,
-<a href=#1447 id=1447 data-nosnippet>1447</a>            attributes: Vec::new(),
-<a href=#1448 id=1448 data-nosnippet>1448</a>            comptime: <span class="bool-val">false</span>,
-<a href=#1449 id=1449 data-nosnippet>1449</a>            is_global_let: <span class="bool-val">false</span>,
-<a href=#1450 id=1450 data-nosnippet>1450</a>        });
-<a href=#1451 id=1451 data-nosnippet>1451</a>
-<a href=#1452 id=1452 data-nosnippet>1452</a>        <span class="kw">let </span>body_type = <span class="self">self</span>.elaborator.interner.id_type(body);
-<a href=#1453 id=1453 data-nosnippet>1453</a>        <span class="kw">let </span>let_ = <span class="self">self</span>.elaborator.interner.push_stmt_full(let_, location);
-<a href=#1454 id=1454 data-nosnippet>1454</a>        <span class="kw">let </span>body =
-<a href=#1455 id=1455 data-nosnippet>1455</a>            <span class="self">self</span>.elaborator.interner.push_stmt_full(HirStatement::Expression(body), location);
-<a href=#1456 id=1456 data-nosnippet>1456</a>
-<a href=#1457 id=1457 data-nosnippet>1457</a>        <span class="kw">let </span>block = HirExpression::Block(HirBlockExpression { statements: <span class="macro">vec!</span>[let_, body] });
-<a href=#1458 id=1458 data-nosnippet>1458</a>        <span class="self">self</span>.elaborator.interner.push_expr_full(block, location, body_type)
-<a href=#1459 id=1459 data-nosnippet>1459</a>    }
-<a href=#1460 id=1460 data-nosnippet>1460</a>
-<a href=#1461 id=1461 data-nosnippet>1461</a>    <span class="doccomment">/// Any case that isn't branched to when the match is finished must be covered by another
-<a href=#1462 id=1462 data-nosnippet>1462</a>    /// case and is thus redundant.
-<a href=#1463 id=1463 data-nosnippet>1463</a>    </span><span class="attr">#[tracing::instrument(level = <span class="string">"trace"</span>, skip_all)]
-<a href=#1464 id=1464 data-nosnippet>1464</a>    </span><span class="kw">fn </span>issue_unreachable_cases_warning(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
-<a href=#1465 id=1465 data-nosnippet>1465</a>        <span class="kw">for </span>location <span class="kw">in </span><span class="self">self</span>.unreachable_cases.values().copied() {
-<a href=#1466 id=1466 data-nosnippet>1466</a>            <span class="self">self</span>.elaborator.push_err(TypeCheckError::UnreachableCase { location });
-<a href=#1467 id=1467 data-nosnippet>1467</a>        }
-<a href=#1468 id=1468 data-nosnippet>1468</a>    }
-<a href=#1469 id=1469 data-nosnippet>1469</a>
-<a href=#1470 id=1470 data-nosnippet>1470</a>    <span class="doccomment">/// Traverse the resulting `HirMatch` to build counter-examples of values which would
-<a href=#1471 id=1471 data-nosnippet>1471</a>    /// not be covered by the match.
-<a href=#1472 id=1472 data-nosnippet>1472</a>    </span><span class="attr">#[tracing::instrument(level = <span class="string">"trace"</span>, skip_all)]
-<a href=#1473 id=1473 data-nosnippet>1473</a>    </span><span class="kw">fn </span>issue_missing_cases_error(
-<a href=#1474 id=1474 data-nosnippet>1474</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-<a href=#1475 id=1475 data-nosnippet>1475</a>        tree: <span class="kw-2">&amp;</span>HirMatch,
-<a href=#1476 id=1476 data-nosnippet>1476</a>        type_matched_on: <span class="kw-2">&amp;</span>Type,
-<a href=#1477 id=1477 data-nosnippet>1477</a>        location: Location,
-<a href=#1478 id=1478 data-nosnippet>1478</a>    ) {
-<a href=#1479 id=1479 data-nosnippet>1479</a>        <span class="kw">let </span>starting_id = <span class="kw">match </span>tree {
-<a href=#1480 id=1480 data-nosnippet>1480</a>            HirMatch::Switch(id, ..) =&gt; <span class="kw-2">*</span>id,
-<a href=#1481 id=1481 data-nosnippet>1481</a>            <span class="kw">_ </span>=&gt; <span class="kw">return </span><span class="self">self</span>.issue_missing_cases_error_for_type(type_matched_on, location),
-<a href=#1482 id=1482 data-nosnippet>1482</a>        };
-<a href=#1483 id=1483 data-nosnippet>1483</a>
-<a href=#1484 id=1484 data-nosnippet>1484</a>        <span class="kw">let </span><span class="kw-2">mut </span>cases = BTreeSet::new();
-<a href=#1485 id=1485 data-nosnippet>1485</a>        <span class="self">self</span>.find_missing_values(tree, <span class="kw-2">&amp;mut </span>Default::default(), <span class="kw-2">&amp;mut </span>cases, <span class="prelude-val">Some</span>(starting_id));
-<a href=#1486 id=1486 data-nosnippet>1486</a>
-<a href=#1487 id=1487 data-nosnippet>1487</a>        <span class="comment">// It's possible to trigger this matching on an empty enum like `enum Void {}`
-<a href=#1488 id=1488 data-nosnippet>1488</a>        </span><span class="kw">if </span>!cases.is_empty() {
-<a href=#1489 id=1489 data-nosnippet>1489</a>            <span class="self">self</span>.elaborator.push_err(TypeCheckError::MissingCases { cases, location });
-<a href=#1490 id=1490 data-nosnippet>1490</a>        }
-<a href=#1491 id=1491 data-nosnippet>1491</a>    }
-<a href=#1492 id=1492 data-nosnippet>1492</a>
-<a href=#1493 id=1493 data-nosnippet>1493</a>    <span class="doccomment">/// Issue a missing cases error if necessary for the given type, assuming that no
-<a href=#1494 id=1494 data-nosnippet>1494</a>    /// case of the type is covered. This is the case for empty matches `match foo {}`.
-<a href=#1495 id=1495 data-nosnippet>1495</a>    /// Note that this is expected not to error if the given type is an enum with zero variants.
-<a href=#1496 id=1496 data-nosnippet>1496</a>    </span><span class="attr">#[tracing::instrument(level = <span class="string">"trace"</span>, skip_all)]
-<a href=#1497 id=1497 data-nosnippet>1497</a>    </span><span class="kw">fn </span>issue_missing_cases_error_for_type(<span class="kw-2">&amp;mut </span><span class="self">self</span>, type_matched_on: <span class="kw-2">&amp;</span>Type, location: Location) {
-<a href=#1498 id=1498 data-nosnippet>1498</a>        <span class="kw">let </span>typ = type_matched_on.follow_bindings_shallow();
-<a href=#1499 id=1499 data-nosnippet>1499</a>        <span class="kw">if let </span>Type::DataType(shared, <span class="kw">_</span>) = typ.as_ref() {
-<a href=#1500 id=1500 data-nosnippet>1500</a>            <span class="self">self</span>.elaborator.define_enum_variants_if_undefined(shared.borrow().id);
-<a href=#1501 id=1501 data-nosnippet>1501</a>        }
-<a href=#1502 id=1502 data-nosnippet>1502</a>        <span class="kw">if let </span>Type::DataType(shared, generics) = typ.as_ref()
-<a href=#1503 id=1503 data-nosnippet>1503</a>            &amp;&amp; <span class="kw">let </span><span class="prelude-val">Some</span>(variants) = shared.borrow().get_variants(generics)
-<a href=#1504 id=1504 data-nosnippet>1504</a>        {
-<a href=#1505 id=1505 data-nosnippet>1505</a>            <span class="kw">let </span>cases: BTreeSet&lt;<span class="kw">_</span>&gt; = variants.into_iter().map(|(name, <span class="kw">_</span>)| name).collect();
-<a href=#1506 id=1506 data-nosnippet>1506</a>            <span class="kw">if </span>!cases.is_empty() {
-<a href=#1507 id=1507 data-nosnippet>1507</a>                <span class="self">self</span>.elaborator.push_err(TypeCheckError::MissingCases { cases, location });
-<a href=#1508 id=1508 data-nosnippet>1508</a>            }
-<a href=#1509 id=1509 data-nosnippet>1509</a>            <span class="kw">return</span>;
-<a href=#1510 id=1510 data-nosnippet>1510</a>        }
-<a href=#1511 id=1511 data-nosnippet>1511</a>        <span class="kw">let </span>typ = typ.to_string();
-<a href=#1512 id=1512 data-nosnippet>1512</a>        <span class="self">self</span>.elaborator.push_err(TypeCheckError::MissingManyCases { typ, location });
-<a href=#1513 id=1513 data-nosnippet>1513</a>    }
-<a href=#1514 id=1514 data-nosnippet>1514</a>
-<a href=#1515 id=1515 data-nosnippet>1515</a>    <span class="kw">fn </span>find_missing_values(
-<a href=#1516 id=1516 data-nosnippet>1516</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
-<a href=#1517 id=1517 data-nosnippet>1517</a>        tree: <span class="kw-2">&amp;</span>HirMatch,
-<a href=#1518 id=1518 data-nosnippet>1518</a>        env: <span class="kw-2">&amp;mut </span>HashMap&lt;DefinitionId, (String, Vec&lt;<span class="prelude-ty">Option</span>&lt;DefinitionId&gt;&gt;)&gt;,
-<a href=#1519 id=1519 data-nosnippet>1519</a>        missing_cases: <span class="kw-2">&amp;mut </span>BTreeSet&lt;String&gt;,
-<a href=#1520 id=1520 data-nosnippet>1520</a>        starting_id: <span class="prelude-ty">Option</span>&lt;DefinitionId&gt;,
-<a href=#1521 id=1521 data-nosnippet>1521</a>    ) {
-<a href=#1522 id=1522 data-nosnippet>1522</a>        <span class="kw">match </span>tree {
-<a href=#1523 id=1523 data-nosnippet>1523</a>            HirMatch::Success(<span class="kw">_</span>) | HirMatch::Failure { missing_case: <span class="bool-val">false </span>} =&gt; (),
-<a href=#1524 id=1524 data-nosnippet>1524</a>            HirMatch::Guard { otherwise, .. } =&gt; {
-<a href=#1525 id=1525 data-nosnippet>1525</a>                <span class="self">self</span>.find_missing_values(otherwise, env, missing_cases, starting_id);
-<a href=#1526 id=1526 data-nosnippet>1526</a>            }
-<a href=#1527 id=1527 data-nosnippet>1527</a>            HirMatch::Failure { missing_case: <span class="bool-val">true </span>} =&gt; {
-<a href=#1528 id=1528 data-nosnippet>1528</a>                <span class="kw">let </span>case = <span class="self">Self</span>::construct_missing_case(starting_id, env);
-<a href=#1529 id=1529 data-nosnippet>1529</a>                missing_cases.insert(case);
-<a href=#1530 id=1530 data-nosnippet>1530</a>            }
-<a href=#1531 id=1531 data-nosnippet>1531</a>            HirMatch::Switch(definition_id, cases, else_case) =&gt; {
-<a href=#1532 id=1532 data-nosnippet>1532</a>                <span class="kw">for </span>case <span class="kw">in </span>cases {
-<a href=#1533 id=1533 data-nosnippet>1533</a>                    <span class="kw">let </span>name = case.constructor.to_string();
-<a href=#1534 id=1534 data-nosnippet>1534</a>                    <span class="kw">let </span>arguments = vecmap(<span class="kw-2">&amp;</span>case.arguments, |arg| <span class="prelude-val">Some</span>(<span class="kw-2">*</span>arg));
-<a href=#1535 id=1535 data-nosnippet>1535</a>                    env.insert(<span class="kw-2">*</span>definition_id, (name, arguments));
-<a href=#1536 id=1536 data-nosnippet>1536</a>                    <span class="self">self</span>.find_missing_values(<span class="kw-2">&amp;</span>case.body, env, missing_cases, starting_id);
-<a href=#1537 id=1537 data-nosnippet>1537</a>                }
-<a href=#1538 id=1538 data-nosnippet>1538</a>
-<a href=#1539 id=1539 data-nosnippet>1539</a>                <span class="kw">if let </span><span class="prelude-val">Some</span>(else_case) = else_case {
-<a href=#1540 id=1540 data-nosnippet>1540</a>                    <span class="kw">let </span>typ = <span class="self">self</span>.elaborator.interner.definition_type(<span class="kw-2">*</span>definition_id);
-<a href=#1541 id=1541 data-nosnippet>1541</a>
-<a href=#1542 id=1542 data-nosnippet>1542</a>                    <span class="kw">for </span>case <span class="kw">in </span><span class="self">self</span>.missing_cases(cases, <span class="kw-2">&amp;</span>typ) {
-<a href=#1543 id=1543 data-nosnippet>1543</a>                        env.insert(<span class="kw-2">*</span>definition_id, case);
-<a href=#1544 id=1544 data-nosnippet>1544</a>                        <span class="self">self</span>.find_missing_values(else_case, env, missing_cases, starting_id);
-<a href=#1545 id=1545 data-nosnippet>1545</a>                    }
-<a href=#1546 id=1546 data-nosnippet>1546</a>                }
-<a href=#1547 id=1547 data-nosnippet>1547</a>
-<a href=#1548 id=1548 data-nosnippet>1548</a>                env.remove(definition_id);
-<a href=#1549 id=1549 data-nosnippet>1549</a>            }
-<a href=#1550 id=1550 data-nosnippet>1550</a>        }
-<a href=#1551 id=1551 data-nosnippet>1551</a>    }
-<a href=#1552 id=1552 data-nosnippet>1552</a>
-<a href=#1553 id=1553 data-nosnippet>1553</a>    <span class="kw">fn </span>missing_cases(
-<a href=#1554 id=1554 data-nosnippet>1554</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
-<a href=#1555 id=1555 data-nosnippet>1555</a>        cases: <span class="kw-2">&amp;</span>[Case],
-<a href=#1556 id=1556 data-nosnippet>1556</a>        typ: <span class="kw-2">&amp;</span>Type,
-<a href=#1557 id=1557 data-nosnippet>1557</a>    ) -&gt; Vec&lt;(String, Vec&lt;<span class="prelude-ty">Option</span>&lt;DefinitionId&gt;&gt;)&gt; {
-<a href=#1558 id=1558 data-nosnippet>1558</a>        <span class="comment">// Cases can be empty if a type error was already emitted
-<a href=#1559 id=1559 data-nosnippet>1559</a>        </span><span class="kw">let </span><span class="prelude-val">Some</span>(first_case) = cases.first() <span class="kw">else </span>{
-<a href=#1560 id=1560 data-nosnippet>1560</a>            <span class="kw">return </span>Vec::new();
-<a href=#1561 id=1561 data-nosnippet>1561</a>        };
-<a href=#1562 id=1562 data-nosnippet>1562</a>
-<a href=#1563 id=1563 data-nosnippet>1563</a>        <span class="kw">if </span><span class="macro">matches!</span>(<span class="kw-2">&amp;</span>first_case.constructor, Constructor::Int(<span class="kw">_</span>) | Constructor::Range(..)) {
-<a href=#1564 id=1564 data-nosnippet>1564</a>            <span class="kw">return </span><span class="self">self</span>.missing_integer_cases(cases, typ);
-<a href=#1565 id=1565 data-nosnippet>1565</a>        }
-<a href=#1566 id=1566 data-nosnippet>1566</a>
-<a href=#1567 id=1567 data-nosnippet>1567</a>        <span class="kw">let </span>all_constructors = first_case.constructor.all_constructors();
-<a href=#1568 id=1568 data-nosnippet>1568</a>        <span class="kw">let </span><span class="kw-2">mut </span>all_constructors =
-<a href=#1569 id=1569 data-nosnippet>1569</a>            btree_map(all_constructors, |(constructor, arg_count)| (constructor, arg_count));
-<a href=#1570 id=1570 data-nosnippet>1570</a>
-<a href=#1571 id=1571 data-nosnippet>1571</a>        <span class="kw">for </span>case <span class="kw">in </span>cases {
-<a href=#1572 id=1572 data-nosnippet>1572</a>            all_constructors.remove(<span class="kw-2">&amp;</span>case.constructor);
-<a href=#1573 id=1573 data-nosnippet>1573</a>        }
-<a href=#1574 id=1574 data-nosnippet>1574</a>
-<a href=#1575 id=1575 data-nosnippet>1575</a>        vecmap(all_constructors, |(constructor, arg_count)| {
-<a href=#1576 id=1576 data-nosnippet>1576</a>            <span class="comment">// Safety: this None should only be used in `env` of `find_missing_values` which
-<a href=#1577 id=1577 data-nosnippet>1577</a>            //         only uses it for display, and we use "_" (WILDCARD_PATTERN) when it's hit
-<a href=#1578 id=1578 data-nosnippet>1578</a>            </span><span class="kw">let </span>args = vecmap(<span class="number">0</span>..arg_count, |<span class="kw">_</span>| <span class="prelude-val">None</span>);
-<a href=#1579 id=1579 data-nosnippet>1579</a>            (constructor.to_string(), args)
-<a href=#1580 id=1580 data-nosnippet>1580</a>        })
-<a href=#1581 id=1581 data-nosnippet>1581</a>    }
-<a href=#1582 id=1582 data-nosnippet>1582</a>
-<a href=#1583 id=1583 data-nosnippet>1583</a>    <span class="kw">fn </span>missing_integer_cases(
-<a href=#1584 id=1584 data-nosnippet>1584</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
-<a href=#1585 id=1585 data-nosnippet>1585</a>        cases: <span class="kw-2">&amp;</span>[Case],
-<a href=#1586 id=1586 data-nosnippet>1586</a>        typ: <span class="kw-2">&amp;</span>Type,
-<a href=#1587 id=1587 data-nosnippet>1587</a>    ) -&gt; Vec&lt;(String, Vec&lt;<span class="prelude-ty">Option</span>&lt;DefinitionId&gt;&gt;)&gt; {
-<a href=#1588 id=1588 data-nosnippet>1588</a>        <span class="comment">// We could give missed cases for field ranges of `0 .. field_modulus` but since the field
-<a href=#1589 id=1589 data-nosnippet>1589</a>        // used in Noir may change we recommend a match-all pattern instead.
-<a href=#1590 id=1590 data-nosnippet>1590</a>        // If the type is a type variable, we don't know exactly which integer type this may
-<a href=#1591 id=1591 data-nosnippet>1591</a>        // resolve to so also just suggest a catch-all in that case.
-<a href=#1592 id=1592 data-nosnippet>1592</a>        </span><span class="kw">if </span>typ.is_field() || typ.is_bindable() {
-<a href=#1593 id=1593 data-nosnippet>1593</a>            <span class="kw">return </span><span class="macro">vec!</span>[(WILDCARD_PATTERN.to_string(), Vec::new())];
-<a href=#1594 id=1594 data-nosnippet>1594</a>        }
-<a href=#1595 id=1595 data-nosnippet>1595</a>
-<a href=#1596 id=1596 data-nosnippet>1596</a>        <span class="doccomment">/// There's no integer type which fits both `i128::MIN` and `u128::MAX`, and `BigInt`
-<a href=#1597 id=1597 data-nosnippet>1597</a>        /// requires dynamic allocations with Vecs for every int. So we instead run this same
-<a href=#1598 id=1598 data-nosnippet>1598</a>        /// snippet with `i128` for signed cases and `u128` for unsigned cases.
-<a href=#1599 id=1599 data-nosnippet>1599</a>        </span><span class="macro">macro_rules!</span> get_missing_cases {
-<a href=#1600 id=1600 data-nosnippet>1600</a>            (<span class="macro-nonterminal">$typ</span>: ty) =&gt; {{
-<a href=#1601 id=1601 data-nosnippet>1601</a>                <span class="kw">let </span><span class="kw-2">mut </span>missing_cases = rangemap::RangeInclusiveSet::new();
-<a href=#1602 id=1602 data-nosnippet>1602</a>
-<a href=#1603 id=1603 data-nosnippet>1603</a>                <span class="kw">let </span>int_max: <span class="macro-nonterminal">$typ </span>= typ.integral_maximum_size().unwrap().try_into().unwrap();
-<a href=#1604 id=1604 data-nosnippet>1604</a>                <span class="kw">let </span>int_min: <span class="macro-nonterminal">$typ </span>= typ.integral_minimum_size().unwrap().try_into().unwrap();
-<a href=#1605 id=1605 data-nosnippet>1605</a>                missing_cases.insert(int_min..=int_max);
-<a href=#1606 id=1606 data-nosnippet>1606</a>
-<a href=#1607 id=1607 data-nosnippet>1607</a>                <span class="kw">for </span>case <span class="kw">in </span>cases {
-<a href=#1608 id=1608 data-nosnippet>1608</a>                    <span class="kw">match </span><span class="kw-2">&amp;</span>case.constructor {
-<a href=#1609 id=1609 data-nosnippet>1609</a>                        Constructor::Int(field) =&gt; {
-<a href=#1610 id=1610 data-nosnippet>1610</a>                            <span class="kw">let </span>field: <span class="macro-nonterminal">$typ </span>= (<span class="kw-2">*</span>field).try_into().unwrap();
-<a href=#1611 id=1611 data-nosnippet>1611</a>                            missing_cases.remove(field..=field);
-<a href=#1612 id=1612 data-nosnippet>1612</a>                        }
-<a href=#1613 id=1613 data-nosnippet>1613</a>                        Constructor::Range(start, end) =&gt; {
-<a href=#1614 id=1614 data-nosnippet>1614</a>                            <span class="comment">// Our ranges are exclusive, so adjust for that
-<a href=#1615 id=1615 data-nosnippet>1615</a>                            </span><span class="kw">let </span>start: <span class="macro-nonterminal">$typ </span>= (<span class="kw-2">*</span>start).try_into().unwrap();
-<a href=#1616 id=1616 data-nosnippet>1616</a>                            <span class="kw">let </span>end: <span class="macro-nonterminal">$typ </span>= (<span class="kw-2">*</span>end).try_into().unwrap();
-<a href=#1617 id=1617 data-nosnippet>1617</a>                            missing_cases.remove(start..= end - <span class="number">1</span>);
-<a href=#1618 id=1618 data-nosnippet>1618</a>                        }
-<a href=#1619 id=1619 data-nosnippet>1619</a>                        <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(
-<a href=#1620 id=1620 data-nosnippet>1620</a>                            <span class="string">"missing_integer_cases should only be called with Int or Range constructors"
-<a href=#1621 id=1621 data-nosnippet>1621</a>                        </span>),
-<a href=#1622 id=1622 data-nosnippet>1622</a>                    }
-<a href=#1623 id=1623 data-nosnippet>1623</a>                }
-<a href=#1624 id=1624 data-nosnippet>1624</a>
-<a href=#1625 id=1625 data-nosnippet>1625</a>                vecmap(missing_cases, |range| {
-<a href=#1626 id=1626 data-nosnippet>1626</a>                    <span class="kw">if </span>range.start() == range.end() {
-<a href=#1627 id=1627 data-nosnippet>1627</a>                        (<span class="macro">format!</span>(<span class="string">"{}"</span>, range.start()), Vec::new())
-<a href=#1628 id=1628 data-nosnippet>1628</a>                    } <span class="kw">else </span>{
-<a href=#1629 id=1629 data-nosnippet>1629</a>                        <span class="macro">assert!</span>(range.start() &lt; range.end());
-<a href=#1630 id=1630 data-nosnippet>1630</a>                        (<span class="macro">format!</span>(<span class="string">"{}..={}"</span>, range.start(), range.end()), Vec::new())
-<a href=#1631 id=1631 data-nosnippet>1631</a>                    }
-<a href=#1632 id=1632 data-nosnippet>1632</a>                })
-<a href=#1633 id=1633 data-nosnippet>1633</a>            }};
-<a href=#1634 id=1634 data-nosnippet>1634</a>        }
-<a href=#1635 id=1635 data-nosnippet>1635</a>
-<a href=#1636 id=1636 data-nosnippet>1636</a>        <span class="kw">if </span>typ.is_signed() { <span class="macro">get_missing_cases!</span>(i128) } <span class="kw">else </span>{ <span class="macro">get_missing_cases!</span>(u128) }
-<a href=#1637 id=1637 data-nosnippet>1637</a>    }
-<a href=#1638 id=1638 data-nosnippet>1638</a>    <span class="kw">fn </span>construct_missing_case(
-<a href=#1639 id=1639 data-nosnippet>1639</a>        starting_id: <span class="prelude-ty">Option</span>&lt;DefinitionId&gt;,
-<a href=#1640 id=1640 data-nosnippet>1640</a>        env: <span class="kw-2">&amp;</span>HashMap&lt;DefinitionId, (String, Vec&lt;<span class="prelude-ty">Option</span>&lt;DefinitionId&gt;&gt;)&gt;,
-<a href=#1641 id=1641 data-nosnippet>1641</a>    ) -&gt; String {
-<a href=#1642 id=1642 data-nosnippet>1642</a>        <span class="kw">let </span><span class="prelude-val">Some</span>(starting_id) = starting_id <span class="kw">else </span>{
-<a href=#1643 id=1643 data-nosnippet>1643</a>            <span class="kw">return </span>WILDCARD_PATTERN.to_string();
-<a href=#1644 id=1644 data-nosnippet>1644</a>        };
-<a href=#1645 id=1645 data-nosnippet>1645</a>
-<a href=#1646 id=1646 data-nosnippet>1646</a>        <span class="kw">let </span><span class="prelude-val">Some</span>((constructor_str, arguments)) = env.get(<span class="kw-2">&amp;</span>starting_id) <span class="kw">else </span>{
-<a href=#1647 id=1647 data-nosnippet>1647</a>            <span class="kw">return </span>WILDCARD_PATTERN.to_string();
-<a href=#1648 id=1648 data-nosnippet>1648</a>        };
-<a href=#1649 id=1649 data-nosnippet>1649</a>
-<a href=#1650 id=1650 data-nosnippet>1650</a>        <span class="kw">let </span>no_arguments = arguments.is_empty();
-<a href=#1651 id=1651 data-nosnippet>1651</a>
-<a href=#1652 id=1652 data-nosnippet>1652</a>        <span class="kw">let </span>args = vecmap(arguments, |arg| <span class="self">Self</span>::construct_missing_case(<span class="kw-2">*</span>arg, env)).join(<span class="string">", "</span>);
-<a href=#1653 id=1653 data-nosnippet>1653</a>
-<a href=#1654 id=1654 data-nosnippet>1654</a>        <span class="kw">if </span>no_arguments { constructor_str.clone() } <span class="kw">else </span>{ <span class="macro">format!</span>(<span class="string">"{constructor_str}({args})"</span>) }
-<a href=#1655 id=1655 data-nosnippet>1655</a>    }
-<a href=#1656 id=1656 data-nosnippet>1656</a>}</code></pre></div></section></main></body></html>
+<a href=#1317 id=1317 data-nosnippet>1317</a>
+<a href=#1318 id=1318 data-nosnippet>1318</a>                    <span class="kw">for </span>(var, pat) <span class="kw">in </span>cases[idx].<span class="number">1</span>.iter().zip_eq(args.into_iter()) {
+<a href=#1319 id=1319 data-nosnippet>1319</a>                        row.columns.push(Column::new(<span class="kw-2">*</span>var, pat));
+<a href=#1320 id=1320 data-nosnippet>1320</a>                    }
+<a href=#1321 id=1321 data-nosnippet>1321</a>
+<a href=#1322 id=1322 data-nosnippet>1322</a>                    cases[idx].<span class="number">2</span>.push(row);
+<a href=#1323 id=1323 data-nosnippet>1323</a>                }
+<a href=#1324 id=1324 data-nosnippet>1324</a>            } <span class="kw">else </span>{
+<a href=#1325 id=1325 data-nosnippet>1325</a>                <span class="kw">for </span>(<span class="kw">_</span>, <span class="kw">_</span>, rows) <span class="kw">in </span><span class="kw-2">&amp;mut </span>cases {
+<a href=#1326 id=1326 data-nosnippet>1326</a>                    rows.push(row.clone());
+<a href=#1327 id=1327 data-nosnippet>1327</a>                }
+<a href=#1328 id=1328 data-nosnippet>1328</a>            }
+<a href=#1329 id=1329 data-nosnippet>1329</a>        }
+<a href=#1330 id=1330 data-nosnippet>1330</a>
+<a href=#1331 id=1331 data-nosnippet>1331</a>        <span class="kw">let </span>cases = try_vecmap(cases, |(cons, vars, rows)| {
+<a href=#1332 id=1332 data-nosnippet>1332</a>            <span class="macro">assert!</span>(<span class="macro">matches!</span>(
+<a href=#1333 id=1333 data-nosnippet>1333</a>                cons,
+<a href=#1334 id=1334 data-nosnippet>1334</a>                Constructor::True
+<a href=#1335 id=1335 data-nosnippet>1335</a>                    | Constructor::False
+<a href=#1336 id=1336 data-nosnippet>1336</a>                    | Constructor::Unit
+<a href=#1337 id=1337 data-nosnippet>1337</a>                    | Constructor::Tuple(<span class="kw">_</span>)
+<a href=#1338 id=1338 data-nosnippet>1338</a>                    | Constructor::Variant(..)
+<a href=#1339 id=1339 data-nosnippet>1339</a>            ));
+<a href=#1340 id=1340 data-nosnippet>1340</a>            <span class="kw">let </span>rows = <span class="self">self</span>.compile_rows(rows)<span class="question-mark">?</span>;
+<a href=#1341 id=1341 data-nosnippet>1341</a>            <span class="prelude-val">Ok</span>::&lt;<span class="kw">_</span>, ResolverError&gt;(Case::new(cons, vars, rows))
+<a href=#1342 id=1342 data-nosnippet>1342</a>        })<span class="question-mark">?</span>;
+<a href=#1343 id=1343 data-nosnippet>1343</a>
+<a href=#1344 id=1344 data-nosnippet>1344</a>        <span class="prelude-val">Ok</span>(<span class="self">Self</span>::deduplicate_cases(cases))
+<a href=#1345 id=1345 data-nosnippet>1345</a>    }
+<a href=#1346 id=1346 data-nosnippet>1346</a>
+<a href=#1347 id=1347 data-nosnippet>1347</a>    <span class="doccomment">/// Move any cases with duplicate branches into a shared 'else' branch
+<a href=#1348 id=1348 data-nosnippet>1348</a>    </span><span class="kw">fn </span>deduplicate_cases(<span class="kw-2">mut </span>cases: Vec&lt;Case&gt;) -&gt; (Vec&lt;Case&gt;, <span class="prelude-ty">Option</span>&lt;Box&lt;HirMatch&gt;&gt;) {
+<a href=#1349 id=1349 data-nosnippet>1349</a>        <span class="kw">let </span><span class="kw-2">mut </span>opt_else_case = <span class="prelude-val">None</span>;
+<a href=#1350 id=1350 data-nosnippet>1350</a>        <span class="kw">let </span><span class="kw-2">mut </span>ending_cases = Vec::with_capacity(cases.len());
+<a href=#1351 id=1351 data-nosnippet>1351</a>        <span class="kw">let </span><span class="kw-2">mut </span>previous_case: <span class="prelude-ty">Option</span>&lt;Case&gt; = <span class="prelude-val">None</span>;
+<a href=#1352 id=1352 data-nosnippet>1352</a>
+<a href=#1353 id=1353 data-nosnippet>1353</a>        <span class="comment">// Go through each of the cases, looking for duplicates.
+<a href=#1354 id=1354 data-nosnippet>1354</a>        // This is simplified such that the first (consecutive) duplicates
+<a href=#1355 id=1355 data-nosnippet>1355</a>        // we find we move to an else case. Each case afterward is then compared
+<a href=#1356 id=1356 data-nosnippet>1356</a>        // to the else case. This could be improved in a couple ways:
+<a href=#1357 id=1357 data-nosnippet>1357</a>        // - Instead of the the first consecutive duplicates we find, we could
+<a href=#1358 id=1358 data-nosnippet>1358</a>        //   expand the check to find non-consecutive duplicates as well.
+<a href=#1359 id=1359 data-nosnippet>1359</a>        // - We should also ideally move the most duplicated case to the else
+<a href=#1360 id=1360 data-nosnippet>1360</a>        //   case, not just the first duplicated case we find. I suspect in most
+<a href=#1361 id=1361 data-nosnippet>1361</a>        //   actual code snippets these are the same but it could still be nice to guarantee.
+<a href=#1362 id=1362 data-nosnippet>1362</a>        </span><span class="kw">while let </span><span class="prelude-val">Some</span>(case) = cases.pop() {
+<a href=#1363 id=1363 data-nosnippet>1363</a>            <span class="kw">if let </span><span class="prelude-val">Some</span>(else_case) = <span class="kw-2">&amp;</span>opt_else_case {
+<a href=#1364 id=1364 data-nosnippet>1364</a>                <span class="kw">if </span>case.body == <span class="kw-2">*</span>else_case {
+<a href=#1365 id=1365 data-nosnippet>1365</a>                    <span class="comment">// Delete the current case by not pushing it to `ending_cases`
+<a href=#1366 id=1366 data-nosnippet>1366</a>                    </span><span class="kw">continue</span>;
+<a href=#1367 id=1367 data-nosnippet>1367</a>                } <span class="kw">else </span>{
+<a href=#1368 id=1368 data-nosnippet>1368</a>                    ending_cases.push(case);
+<a href=#1369 id=1369 data-nosnippet>1369</a>                }
+<a href=#1370 id=1370 data-nosnippet>1370</a>            } <span class="kw">else if let </span><span class="prelude-val">Some</span>(previous) = previous_case {
+<a href=#1371 id=1371 data-nosnippet>1371</a>                <span class="kw">if </span>case.body == previous.body {
+<a href=#1372 id=1372 data-nosnippet>1372</a>                    <span class="comment">// opt_else_case is known to be None here
+<a href=#1373 id=1373 data-nosnippet>1373</a>                    </span>opt_else_case = <span class="prelude-val">Some</span>(previous.body);
+<a href=#1374 id=1374 data-nosnippet>1374</a>
+<a href=#1375 id=1375 data-nosnippet>1375</a>                    <span class="comment">// Delete both previous_case and case
+<a href=#1376 id=1376 data-nosnippet>1376</a>                    </span>previous_case = <span class="prelude-val">None</span>;
+<a href=#1377 id=1377 data-nosnippet>1377</a>                    <span class="kw">continue</span>;
+<a href=#1378 id=1378 data-nosnippet>1378</a>                } <span class="kw">else </span>{
+<a href=#1379 id=1379 data-nosnippet>1379</a>                    previous_case = <span class="prelude-val">Some</span>(case);
+<a href=#1380 id=1380 data-nosnippet>1380</a>                    ending_cases.push(previous);
+<a href=#1381 id=1381 data-nosnippet>1381</a>                }
+<a href=#1382 id=1382 data-nosnippet>1382</a>            } <span class="kw">else </span>{
+<a href=#1383 id=1383 data-nosnippet>1383</a>                previous_case = <span class="prelude-val">Some</span>(case);
+<a href=#1384 id=1384 data-nosnippet>1384</a>            }
+<a href=#1385 id=1385 data-nosnippet>1385</a>        }
+<a href=#1386 id=1386 data-nosnippet>1386</a>
+<a href=#1387 id=1387 data-nosnippet>1387</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>(case) = previous_case {
+<a href=#1388 id=1388 data-nosnippet>1388</a>            ending_cases.push(case);
+<a href=#1389 id=1389 data-nosnippet>1389</a>        }
+<a href=#1390 id=1390 data-nosnippet>1390</a>
+<a href=#1391 id=1391 data-nosnippet>1391</a>        ending_cases.reverse();
+<a href=#1392 id=1392 data-nosnippet>1392</a>        (ending_cases, opt_else_case.map(Box::new))
+<a href=#1393 id=1393 data-nosnippet>1393</a>    }
+<a href=#1394 id=1394 data-nosnippet>1394</a>
+<a href=#1395 id=1395 data-nosnippet>1395</a>    <span class="doccomment">/// Return the variable that was referred to the most in `rows`, or panic if there are zero
+<a href=#1396 id=1396 data-nosnippet>1396</a>    /// `rows`
+<a href=#1397 id=1397 data-nosnippet>1397</a>    </span><span class="kw">fn </span>branch_variable(<span class="kw-2">&amp;</span><span class="self">self</span>, rows: <span class="kw-2">&amp;</span>[Row]) -&gt; DefinitionId {
+<a href=#1398 id=1398 data-nosnippet>1398</a>        <span class="macro">assert!</span>(!rows.is_empty(), <span class="string">"ICE branch_variable: expected at least one row"</span>);
+<a href=#1399 id=1399 data-nosnippet>1399</a>        <span class="kw">let </span><span class="kw-2">mut </span>counts = HashMap::default();
+<a href=#1400 id=1400 data-nosnippet>1400</a>
+<a href=#1401 id=1401 data-nosnippet>1401</a>        <span class="kw">for </span>row <span class="kw">in </span>rows {
+<a href=#1402 id=1402 data-nosnippet>1402</a>            <span class="kw">for </span>col <span class="kw">in </span><span class="kw-2">&amp;</span>row.columns {
+<a href=#1403 id=1403 data-nosnippet>1403</a>                <span class="kw-2">*</span>counts.entry(<span class="kw-2">&amp;</span>col.variable_to_match).or_insert(<span class="number">0_usize</span>) += <span class="number">1</span>;
+<a href=#1404 id=1404 data-nosnippet>1404</a>            }
+<a href=#1405 id=1405 data-nosnippet>1405</a>        }
+<a href=#1406 id=1406 data-nosnippet>1406</a>
+<a href=#1407 id=1407 data-nosnippet>1407</a>        rows[<span class="number">0</span>]
+<a href=#1408 id=1408 data-nosnippet>1408</a>            .columns
+<a href=#1409 id=1409 data-nosnippet>1409</a>            .iter()
+<a href=#1410 id=1410 data-nosnippet>1410</a>            .map(|col| col.variable_to_match)
+<a href=#1411 id=1411 data-nosnippet>1411</a>            .max_by_key(|var| counts[var])
+<a href=#1412 id=1412 data-nosnippet>1412</a>            .unwrap()
+<a href=#1413 id=1413 data-nosnippet>1413</a>    }
+<a href=#1414 id=1414 data-nosnippet>1414</a>
+<a href=#1415 id=1415 data-nosnippet>1415</a>    <span class="attr">#[tracing::instrument(level = <span class="string">"trace"</span>, skip_all)]
+<a href=#1416 id=1416 data-nosnippet>1416</a>    </span><span class="kw">fn </span>push_tests_against_bare_variables(<span class="kw-2">&amp;mut </span><span class="self">self</span>, rows: <span class="kw-2">&amp;mut </span>Vec&lt;Row&gt;) {
+<a href=#1417 id=1417 data-nosnippet>1417</a>        <span class="kw">for </span>row <span class="kw">in </span>rows {
+<a href=#1418 id=1418 data-nosnippet>1418</a>            row.columns.retain(|col| {
+<a href=#1419 id=1419 data-nosnippet>1419</a>                <span class="kw">if let </span>Pattern::Binding(variable) = col.pattern {
+<a href=#1420 id=1420 data-nosnippet>1420</a>                    row.body = <span class="self">self</span>.let_binding(variable, col.variable_to_match, row.body);
+<a href=#1421 id=1421 data-nosnippet>1421</a>                    <span class="bool-val">false
+<a href=#1422 id=1422 data-nosnippet>1422</a>                </span>} <span class="kw">else </span>{
+<a href=#1423 id=1423 data-nosnippet>1423</a>                    <span class="bool-val">true
+<a href=#1424 id=1424 data-nosnippet>1424</a>                </span>}
+<a href=#1425 id=1425 data-nosnippet>1425</a>            });
+<a href=#1426 id=1426 data-nosnippet>1426</a>        }
+<a href=#1427 id=1427 data-nosnippet>1427</a>    }
+<a href=#1428 id=1428 data-nosnippet>1428</a>
+<a href=#1429 id=1429 data-nosnippet>1429</a>    <span class="doccomment">/// Creates:
+<a href=#1430 id=1430 data-nosnippet>1430</a>    /// `{ let &lt;variable&gt; = &lt;rhs&gt;; &lt;body&gt; }`
+<a href=#1431 id=1431 data-nosnippet>1431</a>    </span><span class="attr">#[tracing::instrument(level = <span class="string">"trace"</span>, skip_all)]
+<a href=#1432 id=1432 data-nosnippet>1432</a>    </span><span class="kw">fn </span>let_binding(<span class="kw-2">&amp;mut </span><span class="self">self</span>, variable: DefinitionId, rhs: DefinitionId, body: ExprId) -&gt; ExprId {
+<a href=#1433 id=1433 data-nosnippet>1433</a>        <span class="kw">let </span>location = <span class="self">self</span>.elaborator.interner.definition(rhs).location;
+<a href=#1434 id=1434 data-nosnippet>1434</a>
+<a href=#1435 id=1435 data-nosnippet>1435</a>        <span class="kw">let </span>r#type = <span class="self">self</span>.elaborator.interner.definition_type(variable);
+<a href=#1436 id=1436 data-nosnippet>1436</a>        <span class="kw">let </span>rhs_type = <span class="self">self</span>.elaborator.interner.definition_type(rhs);
+<a href=#1437 id=1437 data-nosnippet>1437</a>        <span class="kw">let </span>variable = HirIdent::non_trait_method(variable, location);
+<a href=#1438 id=1438 data-nosnippet>1438</a>
+<a href=#1439 id=1439 data-nosnippet>1439</a>        <span class="kw">let </span>rhs = HirExpression::Ident(HirIdent::non_trait_method(rhs, location), <span class="prelude-val">None</span>);
+<a href=#1440 id=1440 data-nosnippet>1440</a>        <span class="kw">let </span>rhs = <span class="self">self</span>.elaborator.interner.push_expr_full(rhs, location, rhs_type);
+<a href=#1441 id=1441 data-nosnippet>1441</a>
+<a href=#1442 id=1442 data-nosnippet>1442</a>        <span class="kw">let </span>let_ = HirStatement::Let(HirLetStatement {
+<a href=#1443 id=1443 data-nosnippet>1443</a>            pattern: HirPattern::Identifier(variable),
+<a href=#1444 id=1444 data-nosnippet>1444</a>            r#type,
+<a href=#1445 id=1445 data-nosnippet>1445</a>            expression: rhs,
+<a href=#1446 id=1446 data-nosnippet>1446</a>            attributes: Vec::new(),
+<a href=#1447 id=1447 data-nosnippet>1447</a>            comptime: <span class="bool-val">false</span>,
+<a href=#1448 id=1448 data-nosnippet>1448</a>            is_global_let: <span class="bool-val">false</span>,
+<a href=#1449 id=1449 data-nosnippet>1449</a>        });
+<a href=#1450 id=1450 data-nosnippet>1450</a>
+<a href=#1451 id=1451 data-nosnippet>1451</a>        <span class="kw">let </span>body_type = <span class="self">self</span>.elaborator.interner.id_type(body);
+<a href=#1452 id=1452 data-nosnippet>1452</a>        <span class="kw">let </span>let_ = <span class="self">self</span>.elaborator.interner.push_stmt_full(let_, location);
+<a href=#1453 id=1453 data-nosnippet>1453</a>        <span class="kw">let </span>body =
+<a href=#1454 id=1454 data-nosnippet>1454</a>            <span class="self">self</span>.elaborator.interner.push_stmt_full(HirStatement::Expression(body), location);
+<a href=#1455 id=1455 data-nosnippet>1455</a>
+<a href=#1456 id=1456 data-nosnippet>1456</a>        <span class="kw">let </span>block = HirExpression::Block(HirBlockExpression { statements: <span class="macro">vec!</span>[let_, body] });
+<a href=#1457 id=1457 data-nosnippet>1457</a>        <span class="self">self</span>.elaborator.interner.push_expr_full(block, location, body_type)
+<a href=#1458 id=1458 data-nosnippet>1458</a>    }
+<a href=#1459 id=1459 data-nosnippet>1459</a>
+<a href=#1460 id=1460 data-nosnippet>1460</a>    <span class="doccomment">/// Any case that isn't branched to when the match is finished must be covered by another
+<a href=#1461 id=1461 data-nosnippet>1461</a>    /// case and is thus redundant.
+<a href=#1462 id=1462 data-nosnippet>1462</a>    </span><span class="attr">#[tracing::instrument(level = <span class="string">"trace"</span>, skip_all)]
+<a href=#1463 id=1463 data-nosnippet>1463</a>    </span><span class="kw">fn </span>issue_unreachable_cases_warning(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
+<a href=#1464 id=1464 data-nosnippet>1464</a>        <span class="kw">for </span>location <span class="kw">in </span><span class="self">self</span>.unreachable_cases.values().copied() {
+<a href=#1465 id=1465 data-nosnippet>1465</a>            <span class="self">self</span>.elaborator.push_err(TypeCheckError::UnreachableCase { location });
+<a href=#1466 id=1466 data-nosnippet>1466</a>        }
+<a href=#1467 id=1467 data-nosnippet>1467</a>    }
+<a href=#1468 id=1468 data-nosnippet>1468</a>
+<a href=#1469 id=1469 data-nosnippet>1469</a>    <span class="doccomment">/// Traverse the resulting `HirMatch` to build counter-examples of values which would
+<a href=#1470 id=1470 data-nosnippet>1470</a>    /// not be covered by the match.
+<a href=#1471 id=1471 data-nosnippet>1471</a>    </span><span class="attr">#[tracing::instrument(level = <span class="string">"trace"</span>, skip_all)]
+<a href=#1472 id=1472 data-nosnippet>1472</a>    </span><span class="kw">fn </span>issue_missing_cases_error(
+<a href=#1473 id=1473 data-nosnippet>1473</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+<a href=#1474 id=1474 data-nosnippet>1474</a>        tree: <span class="kw-2">&amp;</span>HirMatch,
+<a href=#1475 id=1475 data-nosnippet>1475</a>        type_matched_on: <span class="kw-2">&amp;</span>Type,
+<a href=#1476 id=1476 data-nosnippet>1476</a>        location: Location,
+<a href=#1477 id=1477 data-nosnippet>1477</a>    ) {
+<a href=#1478 id=1478 data-nosnippet>1478</a>        <span class="kw">let </span>starting_id = <span class="kw">match </span>tree {
+<a href=#1479 id=1479 data-nosnippet>1479</a>            HirMatch::Switch(id, ..) =&gt; <span class="kw-2">*</span>id,
+<a href=#1480 id=1480 data-nosnippet>1480</a>            <span class="kw">_ </span>=&gt; <span class="kw">return </span><span class="self">self</span>.issue_missing_cases_error_for_type(type_matched_on, location),
+<a href=#1481 id=1481 data-nosnippet>1481</a>        };
+<a href=#1482 id=1482 data-nosnippet>1482</a>
+<a href=#1483 id=1483 data-nosnippet>1483</a>        <span class="kw">let </span><span class="kw-2">mut </span>cases = BTreeSet::new();
+<a href=#1484 id=1484 data-nosnippet>1484</a>        <span class="self">self</span>.find_missing_values(tree, <span class="kw-2">&amp;mut </span>Default::default(), <span class="kw-2">&amp;mut </span>cases, <span class="prelude-val">Some</span>(starting_id));
+<a href=#1485 id=1485 data-nosnippet>1485</a>
+<a href=#1486 id=1486 data-nosnippet>1486</a>        <span class="comment">// It's possible to trigger this matching on an empty enum like `enum Void {}`
+<a href=#1487 id=1487 data-nosnippet>1487</a>        </span><span class="kw">if </span>!cases.is_empty() {
+<a href=#1488 id=1488 data-nosnippet>1488</a>            <span class="self">self</span>.elaborator.push_err(TypeCheckError::MissingCases { cases, location });
+<a href=#1489 id=1489 data-nosnippet>1489</a>        }
+<a href=#1490 id=1490 data-nosnippet>1490</a>    }
+<a href=#1491 id=1491 data-nosnippet>1491</a>
+<a href=#1492 id=1492 data-nosnippet>1492</a>    <span class="doccomment">/// Issue a missing cases error if necessary for the given type, assuming that no
+<a href=#1493 id=1493 data-nosnippet>1493</a>    /// case of the type is covered. This is the case for empty matches `match foo {}`.
+<a href=#1494 id=1494 data-nosnippet>1494</a>    /// Note that this is expected not to error if the given type is an enum with zero variants.
+<a href=#1495 id=1495 data-nosnippet>1495</a>    </span><span class="attr">#[tracing::instrument(level = <span class="string">"trace"</span>, skip_all)]
+<a href=#1496 id=1496 data-nosnippet>1496</a>    </span><span class="kw">fn </span>issue_missing_cases_error_for_type(<span class="kw-2">&amp;mut </span><span class="self">self</span>, type_matched_on: <span class="kw-2">&amp;</span>Type, location: Location) {
+<a href=#1497 id=1497 data-nosnippet>1497</a>        <span class="kw">let </span>typ = type_matched_on.follow_bindings_shallow();
+<a href=#1498 id=1498 data-nosnippet>1498</a>        <span class="kw">if let </span>Type::DataType(shared, <span class="kw">_</span>) = typ.as_ref() {
+<a href=#1499 id=1499 data-nosnippet>1499</a>            <span class="self">self</span>.elaborator.define_enum_variants_if_undefined(shared.borrow().id);
+<a href=#1500 id=1500 data-nosnippet>1500</a>        }
+<a href=#1501 id=1501 data-nosnippet>1501</a>        <span class="kw">if let </span>Type::DataType(shared, generics) = typ.as_ref()
+<a href=#1502 id=1502 data-nosnippet>1502</a>            &amp;&amp; <span class="kw">let </span><span class="prelude-val">Some</span>(variants) = shared.borrow().get_variants(generics)
+<a href=#1503 id=1503 data-nosnippet>1503</a>        {
+<a href=#1504 id=1504 data-nosnippet>1504</a>            <span class="kw">let </span>cases: BTreeSet&lt;<span class="kw">_</span>&gt; = variants.into_iter().map(|(name, <span class="kw">_</span>)| name).collect();
+<a href=#1505 id=1505 data-nosnippet>1505</a>            <span class="kw">if </span>!cases.is_empty() {
+<a href=#1506 id=1506 data-nosnippet>1506</a>                <span class="self">self</span>.elaborator.push_err(TypeCheckError::MissingCases { cases, location });
+<a href=#1507 id=1507 data-nosnippet>1507</a>            }
+<a href=#1508 id=1508 data-nosnippet>1508</a>            <span class="kw">return</span>;
+<a href=#1509 id=1509 data-nosnippet>1509</a>        }
+<a href=#1510 id=1510 data-nosnippet>1510</a>        <span class="kw">let </span>typ = typ.to_string();
+<a href=#1511 id=1511 data-nosnippet>1511</a>        <span class="self">self</span>.elaborator.push_err(TypeCheckError::MissingManyCases { typ, location });
+<a href=#1512 id=1512 data-nosnippet>1512</a>    }
+<a href=#1513 id=1513 data-nosnippet>1513</a>
+<a href=#1514 id=1514 data-nosnippet>1514</a>    <span class="kw">fn </span>find_missing_values(
+<a href=#1515 id=1515 data-nosnippet>1515</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
+<a href=#1516 id=1516 data-nosnippet>1516</a>        tree: <span class="kw-2">&amp;</span>HirMatch,
+<a href=#1517 id=1517 data-nosnippet>1517</a>        env: <span class="kw-2">&amp;mut </span>HashMap&lt;DefinitionId, (String, Vec&lt;<span class="prelude-ty">Option</span>&lt;DefinitionId&gt;&gt;)&gt;,
+<a href=#1518 id=1518 data-nosnippet>1518</a>        missing_cases: <span class="kw-2">&amp;mut </span>BTreeSet&lt;String&gt;,
+<a href=#1519 id=1519 data-nosnippet>1519</a>        starting_id: <span class="prelude-ty">Option</span>&lt;DefinitionId&gt;,
+<a href=#1520 id=1520 data-nosnippet>1520</a>    ) {
+<a href=#1521 id=1521 data-nosnippet>1521</a>        <span class="kw">match </span>tree {
+<a href=#1522 id=1522 data-nosnippet>1522</a>            HirMatch::Success(<span class="kw">_</span>) | HirMatch::Failure { missing_case: <span class="bool-val">false </span>} =&gt; (),
+<a href=#1523 id=1523 data-nosnippet>1523</a>            HirMatch::Guard { otherwise, .. } =&gt; {
+<a href=#1524 id=1524 data-nosnippet>1524</a>                <span class="self">self</span>.find_missing_values(otherwise, env, missing_cases, starting_id);
+<a href=#1525 id=1525 data-nosnippet>1525</a>            }
+<a href=#1526 id=1526 data-nosnippet>1526</a>            HirMatch::Failure { missing_case: <span class="bool-val">true </span>} =&gt; {
+<a href=#1527 id=1527 data-nosnippet>1527</a>                <span class="kw">let </span>case = <span class="self">Self</span>::construct_missing_case(starting_id, env);
+<a href=#1528 id=1528 data-nosnippet>1528</a>                missing_cases.insert(case);
+<a href=#1529 id=1529 data-nosnippet>1529</a>            }
+<a href=#1530 id=1530 data-nosnippet>1530</a>            HirMatch::Switch(definition_id, cases, else_case) =&gt; {
+<a href=#1531 id=1531 data-nosnippet>1531</a>                <span class="kw">for </span>case <span class="kw">in </span>cases {
+<a href=#1532 id=1532 data-nosnippet>1532</a>                    <span class="kw">let </span>name = case.constructor.to_string();
+<a href=#1533 id=1533 data-nosnippet>1533</a>                    <span class="kw">let </span>arguments = vecmap(<span class="kw-2">&amp;</span>case.arguments, |arg| <span class="prelude-val">Some</span>(<span class="kw-2">*</span>arg));
+<a href=#1534 id=1534 data-nosnippet>1534</a>                    env.insert(<span class="kw-2">*</span>definition_id, (name, arguments));
+<a href=#1535 id=1535 data-nosnippet>1535</a>                    <span class="self">self</span>.find_missing_values(<span class="kw-2">&amp;</span>case.body, env, missing_cases, starting_id);
+<a href=#1536 id=1536 data-nosnippet>1536</a>                }
+<a href=#1537 id=1537 data-nosnippet>1537</a>
+<a href=#1538 id=1538 data-nosnippet>1538</a>                <span class="kw">if let </span><span class="prelude-val">Some</span>(else_case) = else_case {
+<a href=#1539 id=1539 data-nosnippet>1539</a>                    <span class="kw">let </span>typ = <span class="self">self</span>.elaborator.interner.definition_type(<span class="kw-2">*</span>definition_id);
+<a href=#1540 id=1540 data-nosnippet>1540</a>
+<a href=#1541 id=1541 data-nosnippet>1541</a>                    <span class="kw">for </span>case <span class="kw">in </span><span class="self">self</span>.missing_cases(cases, <span class="kw-2">&amp;</span>typ) {
+<a href=#1542 id=1542 data-nosnippet>1542</a>                        env.insert(<span class="kw-2">*</span>definition_id, case);
+<a href=#1543 id=1543 data-nosnippet>1543</a>                        <span class="self">self</span>.find_missing_values(else_case, env, missing_cases, starting_id);
+<a href=#1544 id=1544 data-nosnippet>1544</a>                    }
+<a href=#1545 id=1545 data-nosnippet>1545</a>                }
+<a href=#1546 id=1546 data-nosnippet>1546</a>
+<a href=#1547 id=1547 data-nosnippet>1547</a>                env.remove(definition_id);
+<a href=#1548 id=1548 data-nosnippet>1548</a>            }
+<a href=#1549 id=1549 data-nosnippet>1549</a>        }
+<a href=#1550 id=1550 data-nosnippet>1550</a>    }
+<a href=#1551 id=1551 data-nosnippet>1551</a>
+<a href=#1552 id=1552 data-nosnippet>1552</a>    <span class="kw">fn </span>missing_cases(
+<a href=#1553 id=1553 data-nosnippet>1553</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
+<a href=#1554 id=1554 data-nosnippet>1554</a>        cases: <span class="kw-2">&amp;</span>[Case],
+<a href=#1555 id=1555 data-nosnippet>1555</a>        typ: <span class="kw-2">&amp;</span>Type,
+<a href=#1556 id=1556 data-nosnippet>1556</a>    ) -&gt; Vec&lt;(String, Vec&lt;<span class="prelude-ty">Option</span>&lt;DefinitionId&gt;&gt;)&gt; {
+<a href=#1557 id=1557 data-nosnippet>1557</a>        <span class="comment">// Cases can be empty if a type error was already emitted
+<a href=#1558 id=1558 data-nosnippet>1558</a>        </span><span class="kw">let </span><span class="prelude-val">Some</span>(first_case) = cases.first() <span class="kw">else </span>{
+<a href=#1559 id=1559 data-nosnippet>1559</a>            <span class="kw">return </span>Vec::new();
+<a href=#1560 id=1560 data-nosnippet>1560</a>        };
+<a href=#1561 id=1561 data-nosnippet>1561</a>
+<a href=#1562 id=1562 data-nosnippet>1562</a>        <span class="kw">if </span><span class="macro">matches!</span>(<span class="kw-2">&amp;</span>first_case.constructor, Constructor::Int(<span class="kw">_</span>) | Constructor::Range(..)) {
+<a href=#1563 id=1563 data-nosnippet>1563</a>            <span class="kw">return </span><span class="self">self</span>.missing_integer_cases(cases, typ);
+<a href=#1564 id=1564 data-nosnippet>1564</a>        }
+<a href=#1565 id=1565 data-nosnippet>1565</a>
+<a href=#1566 id=1566 data-nosnippet>1566</a>        <span class="kw">let </span>all_constructors = first_case.constructor.all_constructors();
+<a href=#1567 id=1567 data-nosnippet>1567</a>        <span class="kw">let </span><span class="kw-2">mut </span>all_constructors =
+<a href=#1568 id=1568 data-nosnippet>1568</a>            btree_map(all_constructors, |(constructor, arg_count)| (constructor, arg_count));
+<a href=#1569 id=1569 data-nosnippet>1569</a>
+<a href=#1570 id=1570 data-nosnippet>1570</a>        <span class="kw">for </span>case <span class="kw">in </span>cases {
+<a href=#1571 id=1571 data-nosnippet>1571</a>            all_constructors.remove(<span class="kw-2">&amp;</span>case.constructor);
+<a href=#1572 id=1572 data-nosnippet>1572</a>        }
+<a href=#1573 id=1573 data-nosnippet>1573</a>
+<a href=#1574 id=1574 data-nosnippet>1574</a>        vecmap(all_constructors, |(constructor, arg_count)| {
+<a href=#1575 id=1575 data-nosnippet>1575</a>            <span class="comment">// Safety: this None should only be used in `env` of `find_missing_values` which
+<a href=#1576 id=1576 data-nosnippet>1576</a>            //         only uses it for display, and we use "_" (WILDCARD_PATTERN) when it's hit
+<a href=#1577 id=1577 data-nosnippet>1577</a>            </span><span class="kw">let </span>args = vecmap(<span class="number">0</span>..arg_count, |<span class="kw">_</span>| <span class="prelude-val">None</span>);
+<a href=#1578 id=1578 data-nosnippet>1578</a>            (constructor.to_string(), args)
+<a href=#1579 id=1579 data-nosnippet>1579</a>        })
+<a href=#1580 id=1580 data-nosnippet>1580</a>    }
+<a href=#1581 id=1581 data-nosnippet>1581</a>
+<a href=#1582 id=1582 data-nosnippet>1582</a>    <span class="kw">fn </span>missing_integer_cases(
+<a href=#1583 id=1583 data-nosnippet>1583</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
+<a href=#1584 id=1584 data-nosnippet>1584</a>        cases: <span class="kw-2">&amp;</span>[Case],
+<a href=#1585 id=1585 data-nosnippet>1585</a>        typ: <span class="kw-2">&amp;</span>Type,
+<a href=#1586 id=1586 data-nosnippet>1586</a>    ) -&gt; Vec&lt;(String, Vec&lt;<span class="prelude-ty">Option</span>&lt;DefinitionId&gt;&gt;)&gt; {
+<a href=#1587 id=1587 data-nosnippet>1587</a>        <span class="comment">// We could give missed cases for field ranges of `0 .. field_modulus` but since the field
+<a href=#1588 id=1588 data-nosnippet>1588</a>        // used in Noir may change we recommend a match-all pattern instead.
+<a href=#1589 id=1589 data-nosnippet>1589</a>        // If the type is a type variable, we don't know exactly which integer type this may
+<a href=#1590 id=1590 data-nosnippet>1590</a>        // resolve to so also just suggest a catch-all in that case.
+<a href=#1591 id=1591 data-nosnippet>1591</a>        </span><span class="kw">if </span>typ.is_field() || typ.is_bindable() {
+<a href=#1592 id=1592 data-nosnippet>1592</a>            <span class="kw">return </span><span class="macro">vec!</span>[(WILDCARD_PATTERN.to_string(), Vec::new())];
+<a href=#1593 id=1593 data-nosnippet>1593</a>        }
+<a href=#1594 id=1594 data-nosnippet>1594</a>
+<a href=#1595 id=1595 data-nosnippet>1595</a>        <span class="doccomment">/// There's no integer type which fits both `i128::MIN` and `u128::MAX`, and `BigInt`
+<a href=#1596 id=1596 data-nosnippet>1596</a>        /// requires dynamic allocations with Vecs for every int. So we instead run this same
+<a href=#1597 id=1597 data-nosnippet>1597</a>        /// snippet with `i128` for signed cases and `u128` for unsigned cases.
+<a href=#1598 id=1598 data-nosnippet>1598</a>        </span><span class="macro">macro_rules!</span> get_missing_cases {
+<a href=#1599 id=1599 data-nosnippet>1599</a>            (<span class="macro-nonterminal">$typ</span>: ty) =&gt; {{
+<a href=#1600 id=1600 data-nosnippet>1600</a>                <span class="kw">let </span><span class="kw-2">mut </span>missing_cases = rangemap::RangeInclusiveSet::new();
+<a href=#1601 id=1601 data-nosnippet>1601</a>
+<a href=#1602 id=1602 data-nosnippet>1602</a>                <span class="kw">let </span>int_max: <span class="macro-nonterminal">$typ </span>= typ.integral_maximum_size().unwrap().try_into().unwrap();
+<a href=#1603 id=1603 data-nosnippet>1603</a>                <span class="kw">let </span>int_min: <span class="macro-nonterminal">$typ </span>= typ.integral_minimum_size().unwrap().try_into().unwrap();
+<a href=#1604 id=1604 data-nosnippet>1604</a>                missing_cases.insert(int_min..=int_max);
+<a href=#1605 id=1605 data-nosnippet>1605</a>
+<a href=#1606 id=1606 data-nosnippet>1606</a>                <span class="kw">for </span>case <span class="kw">in </span>cases {
+<a href=#1607 id=1607 data-nosnippet>1607</a>                    <span class="kw">match </span><span class="kw-2">&amp;</span>case.constructor {
+<a href=#1608 id=1608 data-nosnippet>1608</a>                        Constructor::Int(field) =&gt; {
+<a href=#1609 id=1609 data-nosnippet>1609</a>                            <span class="kw">let </span>field: <span class="macro-nonterminal">$typ </span>= (<span class="kw-2">*</span>field).try_into().unwrap();
+<a href=#1610 id=1610 data-nosnippet>1610</a>                            missing_cases.remove(field..=field);
+<a href=#1611 id=1611 data-nosnippet>1611</a>                        }
+<a href=#1612 id=1612 data-nosnippet>1612</a>                        Constructor::Range(start, end) =&gt; {
+<a href=#1613 id=1613 data-nosnippet>1613</a>                            <span class="comment">// Our ranges are exclusive, so adjust for that
+<a href=#1614 id=1614 data-nosnippet>1614</a>                            </span><span class="kw">let </span>start: <span class="macro-nonterminal">$typ </span>= (<span class="kw-2">*</span>start).try_into().unwrap();
+<a href=#1615 id=1615 data-nosnippet>1615</a>                            <span class="kw">let </span>end: <span class="macro-nonterminal">$typ </span>= (<span class="kw-2">*</span>end).try_into().unwrap();
+<a href=#1616 id=1616 data-nosnippet>1616</a>                            missing_cases.remove(start..= end - <span class="number">1</span>);
+<a href=#1617 id=1617 data-nosnippet>1617</a>                        }
+<a href=#1618 id=1618 data-nosnippet>1618</a>                        <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(
+<a href=#1619 id=1619 data-nosnippet>1619</a>                            <span class="string">"missing_integer_cases should only be called with Int or Range constructors"
+<a href=#1620 id=1620 data-nosnippet>1620</a>                        </span>),
+<a href=#1621 id=1621 data-nosnippet>1621</a>                    }
+<a href=#1622 id=1622 data-nosnippet>1622</a>                }
+<a href=#1623 id=1623 data-nosnippet>1623</a>
+<a href=#1624 id=1624 data-nosnippet>1624</a>                vecmap(missing_cases, |range| {
+<a href=#1625 id=1625 data-nosnippet>1625</a>                    <span class="kw">if </span>range.start() == range.end() {
+<a href=#1626 id=1626 data-nosnippet>1626</a>                        (<span class="macro">format!</span>(<span class="string">"{}"</span>, range.start()), Vec::new())
+<a href=#1627 id=1627 data-nosnippet>1627</a>                    } <span class="kw">else </span>{
+<a href=#1628 id=1628 data-nosnippet>1628</a>                        <span class="macro">assert!</span>(range.start() &lt; range.end());
+<a href=#1629 id=1629 data-nosnippet>1629</a>                        (<span class="macro">format!</span>(<span class="string">"{}..={}"</span>, range.start(), range.end()), Vec::new())
+<a href=#1630 id=1630 data-nosnippet>1630</a>                    }
+<a href=#1631 id=1631 data-nosnippet>1631</a>                })
+<a href=#1632 id=1632 data-nosnippet>1632</a>            }};
+<a href=#1633 id=1633 data-nosnippet>1633</a>        }
+<a href=#1634 id=1634 data-nosnippet>1634</a>
+<a href=#1635 id=1635 data-nosnippet>1635</a>        <span class="kw">if </span>typ.is_signed() { <span class="macro">get_missing_cases!</span>(i128) } <span class="kw">else </span>{ <span class="macro">get_missing_cases!</span>(u128) }
+<a href=#1636 id=1636 data-nosnippet>1636</a>    }
+<a href=#1637 id=1637 data-nosnippet>1637</a>    <span class="kw">fn </span>construct_missing_case(
+<a href=#1638 id=1638 data-nosnippet>1638</a>        starting_id: <span class="prelude-ty">Option</span>&lt;DefinitionId&gt;,
+<a href=#1639 id=1639 data-nosnippet>1639</a>        env: <span class="kw-2">&amp;</span>HashMap&lt;DefinitionId, (String, Vec&lt;<span class="prelude-ty">Option</span>&lt;DefinitionId&gt;&gt;)&gt;,
+<a href=#1640 id=1640 data-nosnippet>1640</a>    ) -&gt; String {
+<a href=#1641 id=1641 data-nosnippet>1641</a>        <span class="kw">let </span><span class="prelude-val">Some</span>(starting_id) = starting_id <span class="kw">else </span>{
+<a href=#1642 id=1642 data-nosnippet>1642</a>            <span class="kw">return </span>WILDCARD_PATTERN.to_string();
+<a href=#1643 id=1643 data-nosnippet>1643</a>        };
+<a href=#1644 id=1644 data-nosnippet>1644</a>
+<a href=#1645 id=1645 data-nosnippet>1645</a>        <span class="kw">let </span><span class="prelude-val">Some</span>((constructor_str, arguments)) = env.get(<span class="kw-2">&amp;</span>starting_id) <span class="kw">else </span>{
+<a href=#1646 id=1646 data-nosnippet>1646</a>            <span class="kw">return </span>WILDCARD_PATTERN.to_string();
+<a href=#1647 id=1647 data-nosnippet>1647</a>        };
+<a href=#1648 id=1648 data-nosnippet>1648</a>
+<a href=#1649 id=1649 data-nosnippet>1649</a>        <span class="kw">let </span>no_arguments = arguments.is_empty();
+<a href=#1650 id=1650 data-nosnippet>1650</a>
+<a href=#1651 id=1651 data-nosnippet>1651</a>        <span class="kw">let </span>args = vecmap(arguments, |arg| <span class="self">Self</span>::construct_missing_case(<span class="kw-2">*</span>arg, env)).join(<span class="string">", "</span>);
+<a href=#1652 id=1652 data-nosnippet>1652</a>
+<a href=#1653 id=1653 data-nosnippet>1653</a>        <span class="kw">if </span>no_arguments { constructor_str.clone() } <span class="kw">else </span>{ <span class="macro">format!</span>(<span class="string">"{constructor_str}({args})"</span>) }
+<a href=#1654 id=1654 data-nosnippet>1654</a>    }
+<a href=#1655 id=1655 data-nosnippet>1655</a>}</code></pre></div></section></main></body></html>
