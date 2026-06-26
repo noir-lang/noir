@@ -562,11 +562,8 @@ impl Elaborator<'_> {
             });
         }
 
-        // The condition is the loop guard, evaluated outside the while's loop scope (like a
-        // `for` range). Both SSA codegen and the comptime interpreter treat a `break`/`continue`
-        // in it as targeting the enclosing loop, so it is elaborated under the enclosing loop's
-        // context — yielding a `JumpOutsideLoop` error rather than a backend panic when there is
-        // no enclosing loop.
+        // The condition is evaluated once per loop, however any `break` or `continue` in it
+        // targets the enclosing loop, so we have to elaborate it outside the scope of this loop.
         let location = while_.condition.type_location();
         let (condition, cond_type) = self.elaborate_expression(while_.condition);
         self.unify_or_type_mismatch(&cond_type, &Type::Bool, location);
