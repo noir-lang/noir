@@ -3377,25 +3377,38 @@ fn meta_attribute_function_definition_argument_must_be_a_function() {
 #[test]
 fn type_def_named_attribute_args_returns_attribute_arguments() {
     // https://github.com/noir-lang/noir/issues/13187
-    // `named_attribute_args` reads the argument expressions of a (sibling) attribute as tokens,
-    // which can then be spliced into generated code.
+    // `named_attribute_args` captures *every* occurrence of an attribute and *all* of each
+    // occurrence's argument expressions, as token streams that can be spliced into generated code.
     let src = r#"
     #[generate]
-    #[value(42)]
+    #[value(1, 2)]
+    #[value(3, 4, 5)]
     pub struct Foo {}
 
-    comptime fn value(_s: TypeDefinition, _v: Field) {}
+    #[varargs]
+    comptime fn value(_s: TypeDefinition, _v: [Field]) {}
 
     comptime fn generate(s: TypeDefinition) -> Quoted {
         let occurrences = s.named_attribute_args("value");
-        let arg = occurrences[0][0];
+
+        // Both `#[value(..)]` occurrences are captured, in source order, with all their arguments.
+        assert(occurrences.len() == 2);
+        assert(occurrences[0].len() == 2);
+        assert(occurrences[1].len() == 3);
+
+        // Each argument comes back as a `Quoted` token stream; splice all five into a sum.
+        let a = occurrences[0][0];
+        let b = occurrences[0][1];
+        let c = occurrences[1][0];
+        let d = occurrences[1][1];
+        let e = occurrences[1][2];
         quote {
-            pub global FOO: Field = $arg;
+            pub global TOTAL: Field = $a + $b + $c + $d + $e;
         }
     }
 
     fn main() {
-        let _ = FOO;
+        assert(TOTAL == 15);
     }
     "#;
     check_errors_with_stdlib(src, [META_API_STDLIB]);
