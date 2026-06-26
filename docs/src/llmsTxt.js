@@ -1,7 +1,10 @@
-// Shared wiring for agent-readable docs (llms.txt + a markdown sibling per page).
+// Build-time wiring for agent-readable docs (llms.txt + a markdown sibling per page).
 //
-// Used by docusaurus.config.ts and src/theme/Root.js. Everything here plugs into a
-// native Docusaurus extension point rather than walking the built site after the fact:
+// Imported only by docusaurus.config.ts (a Node/build context), so it may read
+// `process.env.ENV`. The browser-safe path helper used by the theme `Root` lives in
+// llmsPaths.js instead, so the client bundle never pulls this module (and its
+// `process.env` access) in. Everything here plugs into a native Docusaurus extension
+// point rather than walking the built site after the fact:
 //
 //   - `llmExcludeRoutes`        -> sitemap `ignorePatterns` + the llms-txt plugin's
 //                                  `content.excludeRoutes` (coverage denominator).
@@ -9,16 +12,12 @@
 //                                  each generated page's markdown AST.
 //   - `llmsDiscoveryPlugin`     -> a plugin whose `injectHtmlTags()` adds the hidden
 //                                  documentation-index link to every page.
-//   - `markdownSiblingForPathname` -> the theme `Root` <Head>, for the per-page
-//                                  `<link rel="alternate" type="text/markdown">`.
 
-const versions = require('../versions.json');
+const { olderVersions } = require('./llmsPaths');
 
 // baseUrl the site is served under: '/docs/' for prod/staging, '/' for local dev.
 const BASE_URL = process.env.ENV === 'dev' ? '/' : '/docs/';
 const BASE = BASE_URL.replace(/\/+$/, ''); // '/docs' or '' (root)
-
-const olderVersions = versions.slice(1);
 
 // Routes kept OUT of both the llms.txt/markdown index and the sitemap, so the
 // agent-readiness coverage denominator equals exactly the pages we index: the latest
@@ -41,33 +40,9 @@ const llmExcludeRoutes = [
   ...olderVersions.flatMap((v) => [`/${v}`, `/${v}/**`, `/docs/${v}`, `/docs/${v}/**`]),
 ];
 
-// First path segments (relative to baseUrl) for which the llms-txt plugin emits no
-// markdown sibling, so a page under them must not advertise a (nonexistent) `.md`.
-// Mirrors the route set above, reduced to its leading segments.
-const EXCLUDED_SEGMENTS = new Set(['search', 'tags', 'dev', '404', ...olderVersions]);
-
 // Pointer to the documentation index, used in both the in-page markdown directive and
 // the hidden HTML body link.
 const LLMS_TXT_HREF = `${BASE}/llms.txt`;
-
-/**
- * Map a served page pathname (which already carries the baseUrl, e.g. `/docs/foo`) to
- * the absolute path of its markdown sibling (`/docs/foo.md`), or null when the page has
- * no sibling (the homepage maps to the root `index.md`; excluded routes map to null).
- * `baseUrl` is passed in (not read from the environment) so the result is identical
- * during server rendering and client hydration.
- */
-function markdownSiblingForPathname(pathname, baseUrl) {
-  if (!pathname) return null;
-  const base = (baseUrl || '/').replace(/\/+$/, ''); // '/docs' or ''
-  let p = pathname;
-  if (p.length > 1 && p.endsWith('/')) p = p.slice(0, -1);
-  if (p === base || p === '' || p === '/') return `${base}/index.md`;
-  const rel = p.startsWith(base) ? p.slice(base.length) : p;
-  const firstSegment = rel.split('/').filter(Boolean)[0];
-  if (firstSegment && EXCLUDED_SEGMENTS.has(firstSegment)) return null;
-  return `${p}.md`;
-}
 
 /**
  * remark plugin run after the llms-txt plugin's built-in processing on each generated
@@ -127,7 +102,6 @@ function llmsDiscoveryPlugin() {
 
 module.exports = {
   llmExcludeRoutes,
-  markdownSiblingForPathname,
   remarkLlmsTweaks,
   llmsDiscoveryPlugin,
 };

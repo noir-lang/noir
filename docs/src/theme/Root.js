@@ -6,7 +6,7 @@ import BrowserOnly from '@docusaurus/BrowserOnly';
 import useIsBrowser from '@docusaurus/useIsBrowser';
 import useDocusaurusContext from '@docusaurus/useDocusaurusContext';
 import { AnalyticsManager } from '@site/src/utils/analytics';
-import { markdownSiblingForPathname } from '@site/src/llmsTxt';
+import { markdownSiblingForPathname } from '@site/src/llmsPaths';
 import NPSWidget from '@site/src/components/NPSWidget';
 
 // Advertise the clean markdown sibling of the current page to agents via a
