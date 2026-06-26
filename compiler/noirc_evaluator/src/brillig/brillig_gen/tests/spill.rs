@@ -380,6 +380,46 @@ fn brillig_spill_does_not_leak_reloaded_permanent_values_bytecode() {
     ");
 }
 
+/// Quantify the opcode saving from batching consecutive spill-slot stores.
+///
+/// `codegen_make_array` calls `ensure_register_capacity(4)`. With all three
+/// parameters live across the array construction and only 4 usable registers,
+/// that one call must spill four values at once into freshly allocated,
+/// consecutive spill slots (0–3).
+/// Each consecutive slot after the first in a run is emitted as the increment
+/// `@3 = u32 add @3, @2` followed by a `store` — 2 opcodes — in place of the
+/// `const` + `add` + `store` (3 opcodes) the per-slot path would emit.
+#[test]
+fn brillig_spill_batch_reduces_consecutive_spill_opcodes() {
+    let src = "
+    brillig(inline) fn main f0 {
+      b0(v0: u32, v1: u32, v2: u32):
+        v4 = make_array [u32 0] : [u32; 1]
+        v5 = array_get v4, index u32 0 -> u32
+        v6 = unchecked_add v5, v0
+        v7 = unchecked_add v6, v1
+        v8 = unchecked_add v7, v2
+        return v8
+    }
+    ";
+
+    let layout = LayoutConfig::new(6, 16, MAX_SCRATCH_SPACE);
+    let options = BrilligOptions { layout, ..Default::default() };
+    let brillig = ssa_to_brillig_artifacts_with_options(src, &options);
+    let bytecode = brillig.ssa_function_to_brillig[&Id::test_new(0)].to_string();
+
+    // An increment-based spill advances the held scratch address to the next
+    // consecutive slot with `@3 = u32 add @3, @2` instead of recomputing the
+    // address with `const` + `add`.
+    let incremental_spills =
+        bytecode.lines().filter(|line| line.contains("@3 = u32 add @3, @2")).count();
+    assert!(
+        incremental_spills >= 2,
+        "expected the make_array batch to emit at least two increment-based spills, \
+         got {incremental_spills}"
+    );
+}
+
 /// Regression for issue #12266.
 ///
 /// On the previously buggy path, `spill_non_param_live_ins` marked reloaded values as
