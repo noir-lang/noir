@@ -821,6 +821,11 @@ impl<'context> Elaborator<'context> {
         None
     }
 
+    /// Resolve a path to the [`FuncId`] of the function it refers to, pushing a diagnostic and
+    /// returning `None` if the path does not resolve or resolves to a non-function item.
+    ///
+    /// Used to coerce a path passed as a `FunctionDefinition` attribute argument into the function
+    /// it names, mirroring [`Self::resolve_trait_by_path`].
     #[tracing::instrument(level = "trace", skip_all)]
     fn resolve_function_by_path(&mut self, path: TypedPath) -> Option<FuncId> {
         let location = path.location;
