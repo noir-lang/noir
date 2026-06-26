@@ -1615,7 +1615,13 @@ impl Elaborator<'_> {
             None
         };
 
-        self.variable_or_value_fallback(path, trait_resolution)
+        // A trait prefix can only carry a trait method or associated constant; if the last segment
+        // is neither, it names nothing.
+        self.variable_from_trait_resolution_or_unresolved(
+            path.location,
+            last_segment,
+            trait_resolution,
+        )
     }
 
     /// Resolves `T::item` to a method or associated constant of a generic `T`, given the `T: Trait`
@@ -1670,7 +1676,13 @@ impl Elaborator<'_> {
             None
         };
 
-        self.variable_or_value_fallback(path, trait_resolution)
+        // The generic is in scope; the last segment must be a method or associated constant
+        // reached through one of its bounds. If it is neither, it names nothing.
+        self.variable_from_trait_resolution_or_unresolved(
+            path.location,
+            last_segment,
+            trait_resolution,
+        )
     }
 
     fn find_methods_or_constants_in_trait(
@@ -2295,7 +2307,11 @@ impl Elaborator<'_> {
         if let Some(bounds) = self.matching_generic_bounds(&path) {
             return self.resolve_bounded_generic_item(path, bounds, &last_segment, turbofish);
         }
-        self.resolve_variable_in_scope(path)
+        // `Self` here is the trait itself, so the last segment can only be a trait static method or
+        // associated constant (handled above); anything else names nothing. Report the last
+        // segment rather than the in-scope `Self`.
+        self.push_err(PathResolutionError::Unresolved(last_segment.ident.clone()));
+        None
     }
 
     /// Resolve `Self::method` (or `Self::AssocType::method`) by resolving the `Self` prefix as a
@@ -2366,6 +2382,26 @@ impl Elaborator<'_> {
         match trait_resolution {
             Some(resolution) => self.variable_from_trait_resolution(path.location, resolution),
             None => self.resolve_variable_in_scope(path),
+        }
+    }
+
+    /// Like [`Self::variable_or_value_fallback`], but for a prefix whose last segment can only be a
+    /// trait item — a trait (`Trait::x`) or a bounded generic (`T::x`). When it is not one, the
+    /// path names nothing, so report the last segment as unresolved directly: a value lookup would
+    /// fail anyway, and on a trait or generic prefix it blames the (in-scope) prefix segment rather
+    /// than the missing item.
+    fn variable_from_trait_resolution_or_unresolved(
+        &mut self,
+        location: Location,
+        last_segment: &TypedPathSegment,
+        trait_resolution: Option<TraitPathResolution>,
+    ) -> Option<VariableResolution> {
+        match trait_resolution {
+            Some(resolution) => self.variable_from_trait_resolution(location, resolution),
+            None => {
+                self.push_err(PathResolutionError::Unresolved(last_segment.ident.clone()));
+                None
+            }
         }
     }
 
