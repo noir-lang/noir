@@ -14,8 +14,7 @@ use rustc_hash::FxHashMap as HashMap;
 pub(crate) use similarly_named_types::SimilarlyNamedType;
 
 use crate::{
-    BinaryTypeOperator, Kind, NamedGeneric, ResolvedGeneric, Type, TypeBinding, TypeBindings,
-    UnificationError,
+    BinaryTypeOperator, Kind, ResolvedGeneric, Type, TypeBinding, TypeBindings, UnificationError,
     ast::{
         AsTraitPath, BinaryOpKind, GenericTypeArgs, Ident, IntegerBitSize, PathKind, UnaryOp,
         UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression, WILDCARD_TYPE,
@@ -97,9 +96,10 @@ pub(super) enum PathPrefixKind {
     /// (`Self::method`, `Self::CONST`, `Self::AssocType::method`), so the dedicated handler
     /// ([`Elaborator::resolve_self_prefix`]) enumerates the cases.
     SelfType,
-    /// A generic parameter with a `: Trait` bound in scope (e.g. `T` in `T::method`). The last
-    /// segment is a method or associated constant reached through one of those bounds.
-    BoundedGeneric,
+    /// A generic parameter with `: Trait` bound(s) in scope (e.g. `T` in `T::method`); the carried
+    /// constraints are the matched bounds. The last segment is a method or associated constant
+    /// reached through one of them.
+    BoundedGeneric(Vec<TraitConstraint>),
     /// A trait (e.g. `Trait` in `Trait::method` / `Trait::CONST`). The last segment is a trait
     /// static method or an associated constant.
     Trait { trait_id: TraitId, resolution: PathResolution },
@@ -1487,10 +1487,10 @@ impl Elaborator<'_> {
             // `Self` is contextual (the current trait, or a concrete self type), so it is classified
             // by syntax alone; its handler resolves what it means.
             PathPrefixKind::SelfType
-        } else if path.segments.len() == 2 && self.path_head_is_bounded_generic(path) {
+        } else if let Some(bounds) = self.matching_generic_bounds(path) {
             // A generic parameter (e.g. `T`) with a `T: Trait` bound in scope. A generic is not in
             // the module namespace, so this is recognized from the in-scope bounds, not resolution.
-            PathPrefixKind::BoundedGeneric
+            PathPrefixKind::BoundedGeneric(bounds)
         } else {
             // Otherwise the prefix is resolved as a type to distinguish trait/type/module.
             let resolution = self.use_path_as_type(prefix).ok()?;
@@ -1508,14 +1508,24 @@ impl Elaborator<'_> {
         Some(ResolvedPrefix { last_segment, turbofish, kind })
     }
 
-    /// Whether the path's first segment names a generic parameter that has a `: Trait` bound in
-    /// scope (so `Head::item` resolves through that bound). Mirrors the constraint scan in
-    /// [`Self::resolve_trait_method_by_named_generic`].
-    fn path_head_is_bounded_generic(&self, path: &TypedPath) -> bool {
+    /// If the path's first segment names a generic parameter with `: Trait` bound(s) in scope,
+    /// return those matching bounds (so `Head::item` can be resolved through them). Only meaningful
+    /// for a two-segment path; a generic is not in the module namespace, so this scans the in-scope
+    /// bounds rather than resolving.
+    fn matching_generic_bounds(&self, path: &TypedPath) -> Option<Vec<TraitConstraint>> {
+        if path.segments.len() != 2 {
+            return None;
+        }
         let head = path.segments[0].ident.as_str();
-        self.trait_bounds.iter().any(|constraint| {
-            matches!(&constraint.typ, Type::NamedGeneric(generic) if generic.name.as_str() == head)
-        })
+        let bounds: Vec<_> = self
+            .trait_bounds
+            .iter()
+            .filter(|constraint| {
+                matches!(&constraint.typ, Type::NamedGeneric(generic) if generic.name.as_str() == head)
+            })
+            .cloned()
+            .collect();
+        (!bounds.is_empty()).then_some(bounds)
     }
 
     /// Resolves the last segment of a `Trait::item` path against a prefix already resolved to a
@@ -1562,51 +1572,40 @@ impl Elaborator<'_> {
         })
     }
 
-    /// This resolves a static trait method `T::trait_method` by iterating over the where clause
-    ///
-    /// Returns the trait method, trait constraint, and whether the impl is assumed from a where
-    /// clause. This is always true since this helper searches where clauses for a generic constraint.
-    /// E.g. `t.method()` with `where T: Foo<Bar>` in scope will return `(Foo::method, T, vec![Bar])`
+    /// Resolves `T::item` to a method or associated constant of a generic `T`, given the `T: Trait`
+    /// bounds matched in scope (and the trait/supertrait hierarchy they reach). Reports an error and
+    /// resolves to nothing identifiable when the item is ambiguous across in-scope traits.
+    /// E.g. `t.method()` with `where T: Foo<Bar>` in scope returns `(Foo::method, T, vec![Bar])`.
     #[tracing::instrument(level = "trace", skip_all)]
-    fn resolve_trait_method_by_named_generic(
+    fn resolve_bounded_generic_item(
         &mut self,
-        path: &TypedPath,
+        bounds: Vec<TraitConstraint>,
+        last_segment: &TypedPathSegment,
+        turbofish: Option<Turbofish>,
+        location: Location,
     ) -> Option<TraitPathResolution> {
-        if path.segments.len() != 2 {
-            return None;
-        }
-
-        let type_name = path.segments[0].ident.as_str();
-        let method_name = path.last_name();
+        let method_name = last_segment.ident.as_str();
 
         let mut matches = Vec::new();
         let mut visited = BTreeSet::new();
-
-        for constraint in self.trait_bounds.clone() {
-            if let Type::NamedGeneric(NamedGeneric { name, .. }) = &constraint.typ {
-                // if `path` is `T::method_name`, we're looking for constraint of the form `T: SomeTrait`
-                if type_name != name.as_str() {
-                    continue;
-                }
-
-                let the_trait = self.interner.get_trait(constraint.trait_bound.trait_id);
-                matches.extend(self.find_methods_or_constants_in_trait(
-                    path,
-                    constraint,
-                    the_trait,
-                    &mut visited,
-                ));
-            }
+        for constraint in bounds {
+            let the_trait = self.interner.get_trait(constraint.trait_bound.trait_id);
+            matches.extend(self.find_methods_or_constants_in_trait(
+                method_name,
+                constraint,
+                the_trait,
+                &mut visited,
+            ));
         }
 
         if matches.len() == 1 {
             let method = matches.remove(0).0;
 
-            if path.segments[0].generics.is_some() {
-                let turbofish_location = path.segments[0].turbofish_location();
+            // A turbofish on the generic itself (e.g. `T::<u32>::method`) is not allowed.
+            if let Some(turbofish) = &turbofish {
                 self.push_err(PathResolutionError::TurbofishNotAllowedOnItem {
                     item: "generic parameter".to_string(),
-                    location: turbofish_location,
+                    location: turbofish.location,
                 });
             }
 
@@ -1614,7 +1613,6 @@ impl Elaborator<'_> {
         }
 
         if matches.len() > 1 {
-            let location = path.location;
             let ident = Ident::new(method_name.to_string(), location);
             let traits =
                 vecmap(matches, |(_, trait_id)| self.fully_qualified_trait_path_by_id(trait_id));
@@ -1631,7 +1629,7 @@ impl Elaborator<'_> {
 
     fn find_methods_or_constants_in_trait(
         &self,
-        path: &TypedPath,
+        method_name: &str,
         constraint: TraitConstraint,
         the_trait: &Trait,
         visited: &mut BTreeSet<TraitId>,
@@ -1643,8 +1641,7 @@ impl Elaborator<'_> {
 
         let mut matches = Vec::new();
 
-        if let Some(definition) = the_trait.find_method_or_constant(path.last_name(), self.interner)
-        {
+        if let Some(definition) = the_trait.find_method_or_constant(method_name, self.interner) {
             let trait_item =
                 TraitItem { definition, constraint: constraint.clone(), assumed: true };
             let method = TraitPathResolutionMethod::TraitItem(trait_item);
@@ -1657,7 +1654,7 @@ impl Elaborator<'_> {
             let constraint =
                 TraitConstraint { typ: constraint.typ.clone(), trait_bound: trait_bound.clone() };
             matches.extend(self.find_methods_or_constants_in_trait(
-                path,
+                method_name,
                 constraint,
                 parent_trait,
                 visited,
@@ -2160,7 +2157,9 @@ impl Elaborator<'_> {
             // `Self` is contextual; its handler produces the resolution directly (it may be an
             // elaborated expression, not a trait resolution) and works from the path.
             PathPrefixKind::SelfType => return self.resolve_self_prefix(path),
-            PathPrefixKind::BoundedGeneric => self.resolve_trait_method_by_named_generic(path),
+            PathPrefixKind::BoundedGeneric(bounds) => {
+                self.resolve_bounded_generic_item(bounds, &last_segment, turbofish, path.location)
+            }
             PathPrefixKind::Type { resolution } => {
                 let is_self_prefix = false;
                 self.resolve_method_on_type_prefix(
@@ -2210,13 +2209,18 @@ impl Elaborator<'_> {
             return Some(VariableResolution::Expression(expr_id, typ));
         }
 
+        let mut prefix = path.clone();
+        let last_segment = prefix.pop();
+        let turbofish = prefix.last_segment().turbofish();
+
         // Inside a trait definition, `Self` is the trait: resolve to an assumed constraint on it,
         // falling back to a supertrait reached through that bound.
         if self.current_trait.is_some() && self.current_trait_impl.is_none() {
-            return match self
-                .resolve_trait_static_method_by_self(path)
-                .or_else(|| self.resolve_trait_method_by_named_generic(path))
-            {
+            let resolution = self.resolve_trait_static_method_by_self(path).or_else(|| {
+                let bounds = self.matching_generic_bounds(path)?;
+                self.resolve_bounded_generic_item(bounds, &last_segment, turbofish, path.location)
+            });
+            return match resolution {
                 Some(resolution) => self.variable_from_trait_resolution(path.location, resolution),
                 None => self.resolve_variable_in_scope(path.clone()),
             };
@@ -2224,9 +2228,6 @@ impl Elaborator<'_> {
 
         // Otherwise `Self` is a concrete data type: resolve the method exactly as `Type::method`
         // does, on `Self`'s type. A non-method (e.g. `Self::Variant`) falls back to a value lookup.
-        let mut prefix = path.clone();
-        let last_segment = prefix.pop();
-        let turbofish = prefix.last_segment().turbofish();
         let resolution = self.use_path_as_type(prefix).ok().and_then(|type_resolution| {
             self.resolve_method_on_type_prefix(
                 path.location,
