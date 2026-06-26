@@ -1526,7 +1526,23 @@ impl Elaborator<'_> {
                     PathResolutionItem::Type(..)
                     | PathResolutionItem::TypeAlias(..)
                     | PathResolutionItem::PrimitiveType(..) => PathPrefixKind::Type { resolution },
-                    _ => PathPrefixKind::Module,
+                    PathResolutionItem::Module(..) => PathPrefixKind::Module,
+                    // Resolving a type path falls back to the value namespace, so the prefix can
+                    // also resolve to a value item; that (and an associated type) can't carry the
+                    // last segment as an associated item, so there is no usable prefix and the
+                    // whole path is resolved as a value. Listed explicitly (rather than `_`) so a
+                    // new `PathResolutionItem` must be classified here.
+                    PathResolutionItem::TraitAssociatedType(..)
+                    | PathResolutionItem::Global(..)
+                    | PathResolutionItem::EnumVariant(..)
+                    | PathResolutionItem::ModuleFunction(..)
+                    | PathResolutionItem::Method(..)
+                    | PathResolutionItem::SelfMethod(..)
+                    | PathResolutionItem::TypeAliasFunction(..)
+                    | PathResolutionItem::TraitFunction(..)
+                    | PathResolutionItem::TypeTraitFunction(..)
+                    | PathResolutionItem::PrimitiveFunction(..)
+                    | PathResolutionItem::TraitConstant(..) => PathPrefixKind::NoPrefix,
                 },
                 Err(_) => PathPrefixKind::NoPrefix,
             }
