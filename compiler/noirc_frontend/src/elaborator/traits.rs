@@ -895,6 +895,7 @@ impl Elaborator<'_> {
                 is_unconstrained,
                 visibility: _,
                 is_comptime: _,
+                attributes,
             } = &item.item
             {
                 self.recover_generics(|this| {
@@ -941,6 +942,7 @@ impl Elaborator<'_> {
                     );
                     // Trait functions always have the same visibility as the trait they are in
                     def.visibility = unresolved_trait.trait_def.visibility;
+                    def.attributes = attributes.clone();
 
                     let default_impl = unresolved_trait
                         .fns_with_default_impl

@@ -3,7 +3,10 @@
 <head>
 <meta charset="UTF-8">
 <link rel="stylesheet" href="../styles.css">
+<script>window.docRoot = "../";</script>
+<script defer src="../search-index.js"></script>
 <script defer src="../nargo_doc.js"></script>
+<script defer src="../search.js"></script>
 <title>Primitive type TypedExpr documentation</title>
 </head>
 <body>
@@ -89,7 +92,13 @@
 </nav>
 <main>
 <div><a href="../index.html">noir_stdlib</a> - <a href="index.html">std</a></div>
-<h1>Primitive type <span id="primitive" class="primitive">TypedExpr</span></h1>
+<div class="heading-row">
+<h1 class="heading-content">Primitive type <span id="primitive" class="primitive">TypedExpr</span></h1>
+<button id="search-toggle" type="button">Search</button>
+</div>
+<input id="search-input" type="search" placeholder="Type 's' or '/' to search" autocomplete="off" spellcheck="false" aria-label="Search" hidden>
+<div id="search-results" hidden></div>
+<div id="page-content">
 <div class="comments">
 <p>A compile-time type which represents a resolved and type-checked expression.</p>
 <p>A <code>TypedExpr</code> can be obtained using <a href="../std/primitive.Expr.html#resolve"><code>Expr::resolve</code></a>:</p>
@@ -103,22 +112,23 @@
 <h2>Implementations</h2>
 <h3><code class="code-header">impl <a href="../std/primitive.TypedExpr.html" class="primitive">TypedExpr</a></code></h3>
 
-<div class="padded-methods"><code id="as_function_definition" class="code-header">pub comptime fn <a href="#as_function_definition"><span class="fn">as_function_definition</span></a>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;<a href="../std/primitive.FunctionDefinition.html" class="primitive">FunctionDefinition</a>&gt;</code>
+<div class="padded-methods"><code id="as_function_definition" class="code-header">pub comptime fn <a href="#as_function_definition" class="fn">as_function_definition</a>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;<a href="../std/primitive.FunctionDefinition.html" class="primitive">FunctionDefinition</a>&gt;</code>
 
 <div class="padded-description"><div class="comments">
 <p>If this expression refers to a function definitions, returns it. Otherwise returns <code>Option::none()</code>.</p>
 </div>
-</div><code id="get_type" class="code-header">pub comptime fn <a href="#get_type"><span class="fn">get_type</span></a>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;<a href="../std/primitive.Type.html" class="primitive">Type</a>&gt;</code>
+</div><code id="get_type" class="code-header">pub comptime fn <a href="#get_type" class="fn">get_type</a>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;<a href="../std/primitive.Type.html" class="primitive">Type</a>&gt;</code>
 
 <div class="padded-description"><div class="comments">
 <p>Returns the type of the expression, if the expression could be resolved without errors.</p>
 </div>
-</div><code id="location" class="code-header">pub comptime fn <a href="#location"><span class="fn">location</span></a>(self) -> <a href="../std/primitive.Location.html" class="primitive">Location</a></code>
+</div><code id="location" class="code-header">pub comptime fn <a href="#location" class="fn">location</a>(self) -> <a href="../std/primitive.Location.html" class="primitive">Location</a></code>
 
 <div class="padded-description"><div class="comments">
 <p>Returns the source location of this expression.</p>
 </div>
-</div></div></main>
+</div></div></div>
+</main>
 </span>
 </body>
 </html>

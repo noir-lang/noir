@@ -15,7 +15,7 @@ use crate::Shared;
 use crate::ast::{BinaryOp, ItemVisibility, UnaryOp};
 use crate::elaborator::Elaborator;
 use crate::hir::comptime::Integer;
-use crate::hir::comptime::display::tokens_to_string;
+use crate::hir::comptime::display::{tokens_to_string, value_to_bytes};
 use crate::hir::comptime::value::unwrap_rc;
 use crate::hir::comptime::value::{FormatStringFragment, StructFields};
 use crate::hir::def_collector::dc_crate::CompilationError;
@@ -268,15 +268,19 @@ pub(crate) fn get_fixed_array_map<T, const N: usize>(
 ) -> IResult<([T; N], Type)> {
     let (values, typ) = get_array_map((value, location), f)?;
 
+    let len = values.len();
     values.try_into().map(|v| (v, typ.clone())).map_err(|_| {
-        // Assuming that `values.len()` corresponds to `typ`.
         let Type::Array(ref elem, _) = typ else {
             unreachable!("get_array_map checked it was an array")
         };
-        let len: u32 =
+        let expected_len: u32 =
             N.try_into().expect("ICE: get_fixed_array_map: N is expected to fit into a u32");
-        let expected = Type::Array(elem.clone(), Box::new(Type::constant_u32(len))).to_string();
-        InterpreterError::TypeMismatch { expected, actual: typ, location }
+        let expected =
+            Type::Array(elem.clone(), Box::new(Type::constant_u32(expected_len))).to_string();
+        let actual_len: u32 =
+            len.try_into().expect("ICE: get_fixed_array_map: array length should fit into a u32");
+        let actual = Type::Array(elem.clone(), Box::new(Type::constant_u32(actual_len)));
+        InterpreterError::TypeMismatch { expected, actual, location }
     })
 }
 
@@ -912,16 +916,17 @@ pub(crate) fn visibility_to_quoted(visibility: ItemVisibility, location: Locatio
     Value::Quoted(Rc::new(tokens))
 }
 
-pub(crate) fn fragments_to_string(
+/// Renders format string fragments to bytes.
+pub(crate) fn fragments_to_bytes(
     fragments: &[FormatStringFragment],
     interner: &NodeInterner,
     files: &FileMap,
-) -> String {
-    let mut result = String::new();
+) -> Vec<u8> {
+    let mut result = Vec::new();
     for fragment in fragments {
         match fragment {
             FormatStringFragment::String(string) => {
-                result.push_str(string);
+                result.extend_from_slice(string.as_bytes());
             }
             FormatStringFragment::Value { name: _, value } => {
                 match value {
@@ -930,25 +935,28 @@ pub(crate) fn fragments_to_string(
                         // surrounding `quote {` ... `}` as if we are unquoting the quoted value inside the string.
                         for (index, token) in tokens.iter().enumerate() {
                             if index > 0 {
-                                result.push(' ');
+                                result.push(b' ');
                             }
-                            result.push_str(&token.token().display(interner, files).to_string());
+                            let token = token.token().display(interner, files).to_string();
+                            result.extend_from_slice(token.as_bytes());
                         }
                     }
-                    Value::FormatString(fragments, _, _) => {
-                        // Nested format strings might have quoted values inside them,
-                        // so we need to recurse here instead of calling `value.display`.
-                        let inner_string = fragments_to_string(fragments, interner, files);
-                        result.push_str(&inner_string);
-                    }
                     _ => {
-                        result.push_str(&value.display(interner, files).to_string());
+                        result.extend_from_slice(&value_to_bytes(value, interner, files));
                     }
                 }
             }
         }
     }
     result
+}
+
+pub(crate) fn fragments_to_string(
+    fragments: &[FormatStringFragment],
+    interner: &NodeInterner,
+    files: &FileMap,
+) -> String {
+    String::from_utf8_lossy(&fragments_to_bytes(fragments, interner, files)).into_owned()
 }
 
 /// Converts a `Value` of noir type `Option<T>`, to a `Option<Value>` where the noir type is `T`

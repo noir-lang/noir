@@ -301,3 +301,191 @@ fn expands_method_where_clause_with_associated_type_binding() {
     let expanded = assert_no_errors_and_to_string(src);
     insta::assert_snapshot!(expanded);
 }
+
+#[test]
+fn expands_inherent_impl_inside_module() {
+    // An inherent impl declared inside a submodule must be printed inside that module, not
+    // hoisted to the type's module. Hoisting it would change method-resolution visibility.
+    let src = r#"
+    pub struct Foo {}
+
+    mod impls {
+        use super::Foo;
+
+        impl Foo {
+            pub fn bar(self) -> u32 {
+                let _ = self;
+                1
+            }
+        }
+    }
+
+    fn main() {
+        let _ = Foo::bar(Foo {});
+    }
+    "#;
+    let expanded = assert_no_errors_and_to_string(src);
+    insta::assert_snapshot!(expanded, @r"
+    pub struct Foo {
+    }
+
+    mod impls {
+        use crate::Foo;
+
+        impl Foo {
+            pub fn bar(self) -> u32 {
+                let _: Self = self;
+                1_u32
+            }
+        }
+    }
+
+    fn main() {
+        let _: u32 = Foo { }.bar();
+    }
+    ");
+}
+
+#[test]
+fn expands_trait_and_inherent_impl_inside_module() {
+    // Both the inherent `impl Foo` and the trait `impl Bar for Foo` are declared inside the
+    // `impls` module; they must be printed there so the private inherent method stays private.
+    let src = r#"
+    pub struct Foo {}
+
+    trait Bar {
+        fn bar(self) -> u32;
+    }
+
+    mod impls {
+        use super::{Bar, Foo};
+
+        impl Foo {
+            fn bar(self) -> u32 {
+                let _ = self;
+                1
+            }
+        }
+
+        impl Bar for Foo {
+            fn bar(self) -> u32 {
+                let _ = self;
+                2
+            }
+        }
+
+        pub fn calls_inherent_bar(foo: Foo) -> u32 {
+            foo.bar()
+        }
+    }
+
+    fn main() {
+        let _ = (Foo {}).bar();
+        let _ = impls::calls_inherent_bar(Foo {});
+    }
+    "#;
+    let expanded = assert_no_errors_and_to_string(src);
+    insta::assert_snapshot!(expanded, @r"
+    pub struct Foo {
+    }
+
+    trait Bar {
+        fn bar(self) -> u32;
+    }
+
+    mod impls {
+        use crate::Bar;
+        use crate::Foo;
+
+        impl Foo {
+            fn bar(self) -> u32 {
+                let _: Self = self;
+                1_u32
+            }
+        }
+
+        impl Bar for Foo {
+            fn bar(self) -> u32 {
+                let _: Self = self;
+                2_u32
+            }
+        }
+
+        pub fn calls_inherent_bar(foo: Foo) -> u32 {
+            foo.bar()
+        }
+    }
+
+    fn main() {
+        let _: u32 = Foo { }.bar();
+        let _: u32 = impls::calls_inherent_bar(Foo { });
+    }
+    ");
+}
+
+#[test]
+fn expands_trait_impl_calling_private_inherent_method_inside_module() {
+    // The trait method body calls a module-private inherent method (`secret`). Both impls must be
+    // emitted inside `impls` so the call stays visible; hoisting the trait impl to the root would
+    // make the expanded source fail to compile. `assert_no_errors_and_to_string` re-checks that the
+    // expanded output compiles, so this also guards the round-trip.
+    let src = r#"
+    pub struct Foo {}
+
+    trait Bar {
+        fn bar(self) -> u32;
+    }
+
+    mod impls {
+        use super::{Bar, Foo};
+
+        impl Foo {
+            fn secret(self) -> u32 {
+                let _ = self;
+                42
+            }
+        }
+
+        impl Bar for Foo {
+            fn bar(self) -> u32 {
+                self.secret()
+            }
+        }
+    }
+
+    fn main() {
+        let _ = (Foo {}).bar();
+    }
+    "#;
+    let expanded = assert_no_errors_and_to_string(src);
+    insta::assert_snapshot!(expanded, @r"
+    pub struct Foo {
+    }
+
+    trait Bar {
+        fn bar(self) -> u32;
+    }
+
+    mod impls {
+        use crate::Bar;
+        use crate::Foo;
+
+        impl Foo {
+            fn secret(self) -> u32 {
+                let _: Self = self;
+                42_u32
+            }
+        }
+
+        impl Bar for Foo {
+            fn bar(self) -> u32 {
+                self.secret()
+            }
+        }
+    }
+
+    fn main() {
+        let _: u32 = Foo { }.bar();
+    }
+    ");
+}

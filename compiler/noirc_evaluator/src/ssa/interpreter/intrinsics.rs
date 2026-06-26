@@ -653,10 +653,9 @@ impl<W: Write> Interpreter<'_, W> {
         let new_values = try_vecmap(args.iter().skip(3), |arg| self.lookup(*arg))?;
 
         let (_, new_vector) = self.update_vector_elements(vector, |elements| {
-            let mut index = index as usize * width;
-            for value in new_values {
-                elements.insert(index, value);
-                index += 1;
+            let start = index as usize * width;
+            for (offset, value) in new_values.into_iter().enumerate() {
+                elements.insert(start + offset, value);
             }
             Ok(())
         })?;

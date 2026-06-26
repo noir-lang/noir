@@ -73,14 +73,13 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         // Pass the arguments starting at the callee's start offset.
         // Offset 0 holds the saved stack pointer;
         // when spill support is active, offset 1 is reserved for the spill base pointer.
-        let mut current_argument_location = stack_size + reserved_len;
-        for item in arguments {
+        let arguments_start = stack_size + reserved_len;
+        for (offset, item) in arguments.iter().enumerate() {
             // Here we are still using addresses relative to the current stack pointer.
             self.mov_instruction(
-                MemoryAddress::relative(current_argument_location),
+                MemoryAddress::relative(arguments_start + offset as u32),
                 item.extract_register(),
             );
-            current_argument_location += 1;
         }
 
         // Increment the stack pointer for the call: stack_pointer := stack_pointer + stack_size.
@@ -99,13 +98,12 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         self.mov_instruction(ReservedRegisters::stack_pointer(), MemoryAddress::relative(0));
 
         // Move the return values back. The return values are expected to overwrite the args.
-        let mut current_return_location = stack_size + reserved_len;
-        for item in returns {
+        let returns_start = stack_size + reserved_len;
+        for (offset, item) in returns.iter().enumerate() {
             self.mov_instruction(
                 item.extract_register(),
-                MemoryAddress::relative(current_return_location),
+                MemoryAddress::relative(returns_start + offset as u32),
             );
-            current_return_location += 1;
         }
     }
 

@@ -281,6 +281,21 @@ fn deny_inline_attribute_on_unconstrained() {
 }
 
 #[test]
+fn deny_inline_attribute_on_unconstrained_trait_method() {
+    let src = r#"
+        pub trait Foo {
+            #[no_predicates]
+            ^^^^^^^^^^^^^^^^ misplaced #[no_predicates] attribute on unconstrained function foo. Only allowed on constrained functions
+            ~~~~~~~~~~~~~~~~ misplaced #[no_predicates] attribute
+            unconstrained fn foo(x: Field, y: Field) {
+                assert(x != y);
+            }
+        }
+    "#;
+    check_errors(src);
+}
+
+#[test]
 fn deny_fold_attribute_on_unconstrained() {
     let src = r#"
         #[fold]
@@ -375,15 +390,13 @@ fn break_and_continue_in_constrained_fn() {
 
 #[test]
 fn disallows_test_attribute_on_impl_method() {
-    // TODO: improve the error location
     let src = "
         pub struct Foo { }
 
         impl Foo {
-
-#[test]
+            #[test]
+            ^^^^^^^ The `#[test]` attribute is disallowed on `impl` methods
             fn foo() { }
-               ^^^ The `#[test]` attribute is disallowed on `impl` methods
         }
     ";
     check_errors(src);
@@ -400,8 +413,40 @@ fn disallows_test_attribute_on_trait_impl_method() {
 
         impl Trait for Foo {
             #[test]
+            ^^^^^^^ The `#[test]` attribute is disallowed on `impl` methods
             fn foo() { }
-               ^^^ The `#[test]` attribute is disallowed on `impl` methods
+        }
+    ";
+    check_errors(src);
+}
+
+#[test]
+fn disallows_fuzz_attribute_on_impl_method() {
+    let src = "
+        pub struct Foo { }
+
+        impl Foo {
+            #[fuzz]
+            ^^^^^^^ The `#[fuzz]` attribute is disallowed on `impl` methods
+            fn foo(x: u32) { let _ = x; }
+        }
+    ";
+    check_errors(src);
+}
+
+#[test]
+fn disallows_fuzz_attribute_on_trait_impl_method() {
+    let src = "
+        pub trait Trait {
+            fn foo(x: u32);
+        }
+
+        pub struct Foo { }
+
+        impl Trait for Foo {
+            #[fuzz]
+            ^^^^^^^ The `#[fuzz]` attribute is disallowed on `impl` methods
+            fn foo(x: u32) { let _ = x; }
         }
     ";
     check_errors(src);
