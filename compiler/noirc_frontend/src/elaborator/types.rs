@@ -55,6 +55,7 @@ use crate::{
 use super::{
     Elaborator, PathResolutionTarget, UnsafeBlockStatus, lints,
     path_resolution::{PathResolutionItem, PathResolutionMode, TypedPath, TypedPathSegment},
+    variable::PrefixedVariable,
 };
 
 pub const SELF_TYPE_NAME: &str = "Self";
@@ -2144,19 +2145,15 @@ impl Elaborator<'_> {
         TraitPathResolution { method, item: Some(item), errors }
     }
 
-    /// Try to resolve a [`TypedPath`] to a trait item (method or associated constant).
-    ///
-    /// Returns the trait method, trait constraint, and whether the impl is assumed to exist by a where clause or not
-    /// E.g. `t.method()` with `where T: Foo<Bar>` in scope will return `(Foo::method, T, vec![Bar])`
-    ///
-    /// [`Self::resolve_path_prefix`] classifies the prefix once; here the last segment is resolved
-    /// against that classification.
+    /// Resolve a [`TypedPath`] that has a prefix to the trait item it names (method or associated
+    /// constant). [`Self::resolve_path_prefix`] classifies the prefix once; the last segment is
+    /// resolved against that classification, and the result is mapped to a [`PrefixedVariable`].
     #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn resolve_trait_generic_path(
         &mut self,
         path: &TypedPath,
-    ) -> Option<TraitPathResolution> {
-        match self.resolve_path_prefix(path)? {
+    ) -> Option<PrefixedVariable> {
+        let resolution = match self.resolve_path_prefix(path)? {
             // `Self` in a trait definition: a method/constant of the current trait, falling back to
             // a supertrait reached through the assumed `Self` bound.
             PathPrefixKind::SelfTrait => self
@@ -2182,7 +2179,9 @@ impl Elaborator<'_> {
                     resolution,
                 ),
             PathPrefixKind::Module => None,
-        }
+        }?;
+
+        Some(self.prefixed_variable_from_trait_resolution(path.location, resolution))
     }
 
     /// Unify two types, modifying both in the process.

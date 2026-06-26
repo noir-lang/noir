@@ -12,7 +12,9 @@ use crate::elaborator::TypedPath;
 use crate::elaborator::function_context::BindableTypeVariableKind;
 use crate::elaborator::path_resolution::PathResolutionItem;
 use crate::elaborator::patterns::{IdentFromPath, Variable};
-use crate::elaborator::types::{SELF_TYPE_NAME, TraitPathResolutionMethod, WildcardAllowed};
+use crate::elaborator::types::{
+    SELF_TYPE_NAME, TraitPathResolution, TraitPathResolutionMethod, WildcardAllowed,
+};
 use crate::hir::def_collector::dc_crate::CompilationError;
 use crate::hir::resolution::errors::ResolverError;
 use crate::hir::type_check::TypeCheckError;
@@ -47,7 +49,7 @@ pub(crate) enum VariableResolution {
 /// result from that method means the path names no item accessed through its prefix, so the
 /// caller falls back to plain value resolution; a `Some` distinguishes the two handled outcomes.
 #[allow(clippy::large_enum_variant)]
-enum PrefixedVariable {
+pub(super) enum PrefixedVariable {
     /// The path resolved to this item.
     Resolved(VariableResolution),
     /// The path named a prefixed item but it could not be resolved unambiguously; an error was
@@ -550,39 +552,40 @@ impl Elaborator<'_> {
         }
 
         // A trait item reached through the prefix.
-        let trait_path_resolution = self.resolve_trait_generic_path(path)?;
-        self.push_errors(trait_path_resolution.errors);
+        self.resolve_trait_generic_path(path)
+    }
 
-        Some(match trait_path_resolution.method {
+    /// Turn a [`TraitPathResolution`] into the [`PrefixedVariable`] a prefixed path resolves to,
+    /// pushing the resolution's errors. An unresolvable trait method (`MultipleTraitsInScope`) has
+    /// already reported its error, so it becomes [`PrefixedVariable::Errored`] rather than an
+    /// identifier (and the caller must not fall back to value resolution).
+    pub(super) fn prefixed_variable_from_trait_resolution(
+        &mut self,
+        location: Location,
+        resolution: TraitPathResolution,
+    ) -> PrefixedVariable {
+        self.push_errors(resolution.errors);
+        let item = resolution.item;
+        match resolution.method {
             TraitPathResolutionMethod::NotATraitMethod(func_id) => {
                 let ident = HirIdent {
-                    location: path.location,
+                    location,
                     id: self.interner.function_definition_id(func_id),
                     impl_kind: ImplKind::NotATraitMethod,
                 };
-                PrefixedVariable::Resolved(VariableResolution::Ident(
-                    ident,
-                    trait_path_resolution.item,
-                ))
+                PrefixedVariable::Resolved(VariableResolution::Ident(ident, item))
             }
-
-            TraitPathResolutionMethod::TraitItem(item) => {
+            TraitPathResolutionMethod::TraitItem(trait_item) => {
                 let ident = HirIdent {
-                    location: path.location,
-                    id: item.definition,
-                    impl_kind: ImplKind::TraitItem(item),
+                    location,
+                    id: trait_item.definition,
+                    impl_kind: ImplKind::TraitItem(trait_item),
                 };
-                PrefixedVariable::Resolved(VariableResolution::Ident(
-                    ident,
-                    trait_path_resolution.item,
-                ))
+                PrefixedVariable::Resolved(VariableResolution::Ident(ident, item))
             }
-
-            TraitPathResolutionMethod::MultipleTraitsInScope => {
-                // An error has already been pushed, don't return an identifier
-                PrefixedVariable::Errored
-            }
-        })
+            // An error has already been pushed, don't return an identifier.
+            TraitPathResolutionMethod::MultipleTraitsInScope => PrefixedVariable::Errored,
+        }
     }
 
     /// Solve any generics that are part of the path before the function, for example:
