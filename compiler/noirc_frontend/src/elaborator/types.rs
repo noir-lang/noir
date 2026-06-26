@@ -1783,10 +1783,13 @@ impl Elaborator<'_> {
             turbofish.clone(),
             &mut errors,
         ) else {
-            // The prefix isn't a type/alias/primitive, so the last segment isn't a method on it;
-            // resolve the whole path as a value instead.
-            self.push_errors(errors);
-            return self.resolve_variable_in_scope(path);
+            // Both callers pass a prefix already known to name a concrete type — the `Type` prefix
+            // kind is classified as exactly a type/alias/primitive, and `Self` (the other caller)
+            // resolves to its concrete self type — so this conversion cannot fail.
+            unreachable!(
+                "a type-prefix path must resolve to a type, got {:?}",
+                path_resolution.item
+            );
         };
 
         let method_name = last_segment.ident.as_str();
