@@ -2523,6 +2523,12 @@ const META_API_STDLIB: &str = r#"
 
         #[builtin(function_def_as_typed_expr)]
         pub comptime fn as_typed_expr(self) -> TypedExpr {}
+
+        #[builtin(function_def_parameters)]
+        pub comptime fn parameters(self) -> [(Quoted, Type)] {}
+
+        #[builtin(function_def_return_type)]
+        pub comptime fn return_type(self) -> Type {}
     }
 
     impl TypedExpr {
@@ -3283,4 +3289,82 @@ fn resolve_allows_unconstrained_call_in_resolved_unsafe_block() {
     }
     "#;
     check_errors_with_stdlib(src, [META_API_STDLIB]);
+}
+
+#[test]
+fn meta_attribute_coerces_function_path_to_function_definition() {
+    // https://github.com/noir-lang/noir/issues/13186
+    // A function path passed as a meta-attribute argument should coerce to a
+    // `FunctionDefinition` parameter, mirroring how a trait path coerces to `TraitDefinition`.
+    let src = r#"
+    #[validate(check)]
+    pub fn target() {}
+
+    pub fn check() {}
+
+    comptime fn validate(_f: FunctionDefinition, _method: FunctionDefinition) {}
+
+    fn main() {}
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn meta_attribute_function_definition_argument_can_be_inspected() {
+    // The coerced `FunctionDefinition` is a real definition whose signature can be inspected,
+    // which is the point of accepting it as `FunctionDefinition` rather than `Quoted`.
+    let src = r#"
+    #[validate(check)]
+    pub fn target() {}
+
+    pub fn check(_x: Field) {}
+
+    comptime fn validate(_f: FunctionDefinition, method: FunctionDefinition) {
+        assert(method.parameters().len() == 1);
+        let _ = method.return_type();
+    }
+
+    fn main() {}
+    "#;
+    check_errors_with_stdlib(src, [META_API_STDLIB]);
+}
+
+#[test]
+fn meta_attribute_function_definition_argument_must_be_a_path() {
+    // A non-path argument (here an integer literal) is rejected.
+    let src = r#"
+    #[validate(1)]
+    pub fn target() {}
+
+    comptime fn validate(_f: FunctionDefinition, _method: FunctionDefinition) {}
+
+    fn main() {}
+    "#;
+    let errors = get_program_errors(src);
+    assert!(
+        errors.iter().any(|error| format!("{error:?}").contains("FunctionDefinitionMustBeAPath")),
+        "expected FunctionDefinitionMustBeAPath, got: {errors:?}"
+    );
+}
+
+#[test]
+fn meta_attribute_function_definition_argument_must_be_a_function() {
+    // A path that resolves to a non-function value (here a global) is rejected.
+    let src = r#"
+    global NOT_A_FN: Field = 0;
+
+    #[validate(NOT_A_FN)]
+    pub fn target() {}
+
+    comptime fn validate(_f: FunctionDefinition, _method: FunctionDefinition) {}
+
+    fn main() {}
+    "#;
+    let errors = get_program_errors(src);
+    assert!(
+        errors
+            .iter()
+            .any(|error| format!("{error:?}").contains("FailedToResolveFunctionDefinition")),
+        "expected FailedToResolveFunctionDefinition, got: {errors:?}"
+    );
 }
