@@ -3284,3 +3284,21 @@ fn resolve_allows_unconstrained_call_in_resolved_unsafe_block() {
     "#;
     check_errors_with_stdlib(src, [META_API_STDLIB]);
 }
+
+#[test]
+fn meta_attribute_coerces_function_path_to_function_definition() {
+    // https://github.com/noir-lang/noir/issues/13186
+    // A function path passed as a meta-attribute argument should coerce to a
+    // `FunctionDefinition` parameter, mirroring how a trait path coerces to `TraitDefinition`.
+    let src = r#"
+    #[validate(check)]
+    pub fn target() {}
+
+    pub fn check() {}
+
+    comptime fn validate(_f: FunctionDefinition, _method: FunctionDefinition) {}
+
+    fn main() {}
+    "#;
+    assert_no_errors(src);
+}
