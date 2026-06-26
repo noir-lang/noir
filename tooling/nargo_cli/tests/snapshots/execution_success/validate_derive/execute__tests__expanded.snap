@@ -2,8 +2,6 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: expanded_code
 ---
-use std::validate::Validate;
-
 struct Point {
     x: Field,
     y: Field,

@@ -4,7 +4,7 @@
 // https://github.com/noir-lang/noir-claude/issues/814). `#[derive(Validate)]` recurses into the
 // backing array; `#[validate(Buffer::len_within_capacity)]` adds the cross-field length check the
 // recursion cannot see.
-use std::validate::{validate, Validate};
+use std::validate::validate;
 
 #[derive(Validate)]
 #[validate(Buffer::len_within_capacity)]

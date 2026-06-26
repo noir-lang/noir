@@ -2,7 +2,7 @@
 // the circuit inputs with `len = 5` while its capacity is only `3` — the invariant violation from
 // https://github.com/noir-lang/noir-claude/issues/814. The `#[validate(Buffer::len_within_capacity)]`
 // check the derived `validate` calls rejects it at runtime.
-use std::validate::{validate, Validate};
+use std::validate::validate;
 
 #[derive(Validate)]
 #[validate(Buffer::len_within_capacity)]

@@ -2,7 +2,7 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: expanded_code
 ---
-use std::validate::{Validate, validate};
+use std::validate::validate;
 
 struct Buffer<let N: u32> {
     storage: [Field; N],

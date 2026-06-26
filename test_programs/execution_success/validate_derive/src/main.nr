@@ -2,7 +2,6 @@
 // primitive types in place there are no invariants to assert here, so this exercises that the
 // derive resolves and recurses through nested structs, arrays, tuples, and `Option`, and that
 // `validate` is callable.
-use std::validate::Validate;
 
 #[derive(Validate)]
 struct Point {

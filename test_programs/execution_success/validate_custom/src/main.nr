@@ -2,7 +2,7 @@
 // recursion `#[derive(Validate)]` generates. Here the invariant (`lo <= hi`) spans two fields, so
 // the field recursion alone could never check it; the derived `validate` calls `Bounds::ordered`
 // before descending into the fields.
-use std::validate::{validate, Validate};
+use std::validate::validate;
 
 #[derive(Validate)]
 #[validate(Bounds::ordered)]
