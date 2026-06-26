@@ -3413,3 +3413,41 @@ fn type_def_named_attribute_args_returns_attribute_arguments() {
     "#;
     check_errors_with_stdlib(src, [META_API_STDLIB]);
 }
+
+#[test]
+fn type_def_named_attribute_args_is_empty_when_attribute_absent() {
+    // An absent attribute yields no occurrences, so `named_attribute_args` subsumes
+    // `has_named_attribute` (`!args.is_empty()`).
+    let src = r#"
+    #[check]
+    pub struct Foo {}
+
+    comptime fn check(s: TypeDefinition) {
+        assert(s.named_attribute_args("nonexistent").len() == 0);
+    }
+
+    fn main() {}
+    "#;
+    check_errors_with_stdlib(src, [META_API_STDLIB]);
+}
+
+#[test]
+fn type_def_named_attribute_args_captures_zero_arg_occurrence() {
+    // An attribute used without arguments still counts as an occurrence, with an empty argument list.
+    let src = r#"
+    #[check]
+    #[mark]
+    pub struct Foo {}
+
+    comptime fn mark(_s: TypeDefinition) {}
+
+    comptime fn check(s: TypeDefinition) {
+        let occurrences = s.named_attribute_args("mark");
+        assert(occurrences.len() == 1);
+        assert(occurrences[0].len() == 0);
+    }
+
+    fn main() {}
+    "#;
+    check_errors_with_stdlib(src, [META_API_STDLIB]);
+}
