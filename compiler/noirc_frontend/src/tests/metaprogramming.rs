@@ -2535,6 +2535,11 @@ const META_API_STDLIB: &str = r#"
         #[builtin(typed_expr_as_function_definition)]
         pub comptime fn as_function_definition(self) -> Option<FunctionDefinition> {}
     }
+
+    impl TypeDefinition {
+        #[builtin(type_def_named_attribute_args)]
+        pub comptime fn named_attribute_args<let N: u32>(self, _name: str<N>) -> [[Quoted]] {}
+    }
 "#;
 
 #[test]
@@ -3367,4 +3372,31 @@ fn meta_attribute_function_definition_argument_must_be_a_function() {
             .any(|error| format!("{error:?}").contains("FailedToResolveFunctionDefinition")),
         "expected FailedToResolveFunctionDefinition, got: {errors:?}"
     );
+}
+
+#[test]
+fn type_def_named_attribute_args_returns_attribute_arguments() {
+    // https://github.com/noir-lang/noir/issues/13187
+    // `named_attribute_args` reads the argument expressions of a (sibling) attribute as tokens,
+    // which can then be spliced into generated code.
+    let src = r#"
+    #[generate]
+    #[value(42)]
+    pub struct Foo {}
+
+    comptime fn value(_s: TypeDefinition, _v: Field) {}
+
+    comptime fn generate(s: TypeDefinition) -> Quoted {
+        let occurrences = s.named_attribute_args("value");
+        let arg = occurrences[0][0];
+        quote {
+            pub global FOO: Field = $arg;
+        }
+    }
+
+    fn main() {
+        let _ = FOO;
+    }
+    "#;
+    check_errors_with_stdlib(src, [META_API_STDLIB]);
 }
