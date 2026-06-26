@@ -37,8 +37,8 @@ use crate::{
     },
     hir_def::{
         expr::{
-            HirBinaryOp, HirCallExpression, HirExpression, HirLiteral, HirMemberAccess,
-            HirMethodReference, HirPrefixExpression, HirTraitMethodReference, TraitItem,
+            HirBinaryOp, HirCallExpression, HirExpression, HirIdent, HirLiteral, HirMemberAccess,
+            HirMethodReference, HirPrefixExpression, HirTraitMethodReference, ImplKind, TraitItem,
         },
         function::FuncMeta,
         stmt::HirStatement,
@@ -55,20 +55,20 @@ use crate::{
 use super::{
     Elaborator, PathResolutionTarget, UnsafeBlockStatus, lints,
     path_resolution::{PathResolutionItem, PathResolutionMode, TypedPath, TypedPathSegment},
-    variable::PrefixedVariable,
+    variable::{PrefixedVariable, VariableResolution},
 };
 
 pub const SELF_TYPE_NAME: &str = "Self";
 
 #[derive(Debug)]
-pub(super) struct TraitPathResolution {
-    pub(super) method: TraitPathResolutionMethod,
-    pub(super) item: Option<PathResolutionItem>,
-    pub(super) errors: Vec<PathResolutionError>,
+struct TraitPathResolution {
+    method: TraitPathResolutionMethod,
+    item: Option<PathResolutionItem>,
+    errors: Vec<PathResolutionError>,
 }
 
 #[derive(Debug)]
-pub(super) enum TraitPathResolutionMethod {
+enum TraitPathResolutionMethod {
     NotATraitMethod(FuncId),
     TraitItem(TraitItem),
     MultipleTraitsInScope,
@@ -2182,6 +2182,39 @@ impl Elaborator<'_> {
         }?;
 
         Some(self.prefixed_variable_from_trait_resolution(path.location, resolution))
+    }
+
+    /// Turn a [`TraitPathResolution`] into the [`PrefixedVariable`] a prefixed path resolves to,
+    /// pushing the resolution's errors. An unresolvable trait method (`MultipleTraitsInScope`) has
+    /// already reported its error, so it becomes [`PrefixedVariable::Errored`] rather than an
+    /// identifier (and the caller must not fall back to value resolution).
+    fn prefixed_variable_from_trait_resolution(
+        &mut self,
+        location: Location,
+        resolution: TraitPathResolution,
+    ) -> PrefixedVariable {
+        self.push_errors(resolution.errors);
+        let item = resolution.item;
+        match resolution.method {
+            TraitPathResolutionMethod::NotATraitMethod(func_id) => {
+                let ident = HirIdent {
+                    location,
+                    id: self.interner.function_definition_id(func_id),
+                    impl_kind: ImplKind::NotATraitMethod,
+                };
+                PrefixedVariable::Resolved(VariableResolution::Ident(ident, item))
+            }
+            TraitPathResolutionMethod::TraitItem(trait_item) => {
+                let ident = HirIdent {
+                    location,
+                    id: trait_item.definition,
+                    impl_kind: ImplKind::TraitItem(trait_item),
+                };
+                PrefixedVariable::Resolved(VariableResolution::Ident(ident, item))
+            }
+            // An error has already been pushed, don't return an identifier.
+            TraitPathResolutionMethod::MultipleTraitsInScope => PrefixedVariable::Errored,
+        }
     }
 
     /// Unify two types, modifying both in the process.

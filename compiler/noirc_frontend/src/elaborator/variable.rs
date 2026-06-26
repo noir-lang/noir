@@ -12,9 +12,7 @@ use crate::elaborator::TypedPath;
 use crate::elaborator::function_context::BindableTypeVariableKind;
 use crate::elaborator::path_resolution::PathResolutionItem;
 use crate::elaborator::patterns::{IdentFromPath, Variable};
-use crate::elaborator::types::{
-    SELF_TYPE_NAME, TraitPathResolution, TraitPathResolutionMethod, WildcardAllowed,
-};
+use crate::elaborator::types::{SELF_TYPE_NAME, WildcardAllowed};
 use crate::hir::def_collector::dc_crate::CompilationError;
 use crate::hir::resolution::errors::ResolverError;
 use crate::hir::type_check::TypeCheckError;
@@ -553,39 +551,6 @@ impl Elaborator<'_> {
 
         // A trait item reached through the prefix.
         self.resolve_trait_generic_path(path)
-    }
-
-    /// Turn a [`TraitPathResolution`] into the [`PrefixedVariable`] a prefixed path resolves to,
-    /// pushing the resolution's errors. An unresolvable trait method (`MultipleTraitsInScope`) has
-    /// already reported its error, so it becomes [`PrefixedVariable::Errored`] rather than an
-    /// identifier (and the caller must not fall back to value resolution).
-    pub(super) fn prefixed_variable_from_trait_resolution(
-        &mut self,
-        location: Location,
-        resolution: TraitPathResolution,
-    ) -> PrefixedVariable {
-        self.push_errors(resolution.errors);
-        let item = resolution.item;
-        match resolution.method {
-            TraitPathResolutionMethod::NotATraitMethod(func_id) => {
-                let ident = HirIdent {
-                    location,
-                    id: self.interner.function_definition_id(func_id),
-                    impl_kind: ImplKind::NotATraitMethod,
-                };
-                PrefixedVariable::Resolved(VariableResolution::Ident(ident, item))
-            }
-            TraitPathResolutionMethod::TraitItem(trait_item) => {
-                let ident = HirIdent {
-                    location,
-                    id: trait_item.definition,
-                    impl_kind: ImplKind::TraitItem(trait_item),
-                };
-                PrefixedVariable::Resolved(VariableResolution::Ident(ident, item))
-            }
-            // An error has already been pushed, don't return an identifier.
-            TraitPathResolutionMethod::MultipleTraitsInScope => PrefixedVariable::Errored,
-        }
     }
 
     /// Solve any generics that are part of the path before the function, for example:
