@@ -1,6 +1,7 @@
 use crate::cmp::{Eq, Ord, Ordering};
 use crate::default::Default;
 use crate::hash::{Hash, Hasher};
+use crate::validate::Validate;
 
 /// Represents a value of type T or its absence.
 /// Use `Option::some(value)` to construct a value or `Option::none()` to record the absence of one.
@@ -194,6 +195,17 @@ where
             }
         } else {
             false
+        }
+    }
+}
+
+impl<T> Validate for Option<T>
+where
+    T: Validate,
+{
+    fn validate(&self) {
+        if self._is_some {
+            self._value.validate();
         }
     }
 }

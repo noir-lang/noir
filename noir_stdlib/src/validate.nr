@@ -91,3 +91,148 @@ where
         }
     }
 }
+
+impl<A> Validate for (A,)
+where
+    A: Validate,
+{
+    fn validate(&self) {
+        self.0.validate();
+    }
+}
+impl<A, B> Validate for (A, B)
+where
+    A: Validate,
+    B: Validate,
+{
+    fn validate(&self) {
+        self.0.validate();
+        self.1.validate();
+    }
+}
+impl<A, B, C> Validate for (A, B, C)
+where
+    A: Validate,
+    B: Validate,
+    C: Validate,
+{
+    fn validate(&self) {
+        self.0.validate();
+        self.1.validate();
+        self.2.validate();
+    }
+}
+impl<A, B, C, D> Validate for (A, B, C, D)
+where
+    A: Validate,
+    B: Validate,
+    C: Validate,
+    D: Validate,
+{
+    fn validate(&self) {
+        self.0.validate();
+        self.1.validate();
+        self.2.validate();
+        self.3.validate();
+    }
+}
+impl<A, B, C, D, E> Validate for (A, B, C, D, E)
+where
+    A: Validate,
+    B: Validate,
+    C: Validate,
+    D: Validate,
+    E: Validate,
+{
+    fn validate(&self) {
+        self.0.validate();
+        self.1.validate();
+        self.2.validate();
+        self.3.validate();
+        self.4.validate();
+    }
+}
+impl<A, B, C, D, E, F> Validate for (A, B, C, D, E, F)
+where
+    A: Validate,
+    B: Validate,
+    C: Validate,
+    D: Validate,
+    E: Validate,
+    F: Validate,
+{
+    fn validate(&self) {
+        self.0.validate();
+        self.1.validate();
+        self.2.validate();
+        self.3.validate();
+        self.4.validate();
+        self.5.validate();
+    }
+}
+impl<A, B, C, D, E, F, G> Validate for (A, B, C, D, E, F, G)
+where
+    A: Validate,
+    B: Validate,
+    C: Validate,
+    D: Validate,
+    E: Validate,
+    F: Validate,
+    G: Validate,
+{
+    fn validate(&self) {
+        self.0.validate();
+        self.1.validate();
+        self.2.validate();
+        self.3.validate();
+        self.4.validate();
+        self.5.validate();
+        self.6.validate();
+    }
+}
+impl<A, B, C, D, E, F, G, H> Validate for (A, B, C, D, E, F, G, H)
+where
+    A: Validate,
+    B: Validate,
+    C: Validate,
+    D: Validate,
+    E: Validate,
+    F: Validate,
+    G: Validate,
+    H: Validate,
+{
+    fn validate(&self) {
+        self.0.validate();
+        self.1.validate();
+        self.2.validate();
+        self.3.validate();
+        self.4.validate();
+        self.5.validate();
+        self.6.validate();
+        self.7.validate();
+    }
+}
+impl<A, B, C, D, E, F, G, H, I> Validate for (A, B, C, D, E, F, G, H, I)
+where
+    A: Validate,
+    B: Validate,
+    C: Validate,
+    D: Validate,
+    E: Validate,
+    F: Validate,
+    G: Validate,
+    H: Validate,
+    I: Validate,
+{
+    fn validate(&self) {
+        self.0.validate();
+        self.1.validate();
+        self.2.validate();
+        self.3.validate();
+        self.4.validate();
+        self.5.validate();
+        self.6.validate();
+        self.7.validate();
+        self.8.validate();
+    }
+}
