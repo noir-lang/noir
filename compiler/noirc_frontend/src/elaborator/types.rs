@@ -1844,7 +1844,13 @@ impl Elaborator<'_> {
             )
         };
 
-        self.variable_or_value_fallback(path, trait_resolution)
+        // The last segment isn't an inherent or qualified trait method on the type; it may still be
+        // an enum variant or an associated constant accessed as `Type::CONST`, so resolve the whole
+        // path as a value (which also reports the error if it is none of these).
+        match trait_resolution {
+            Some(resolution) => self.variable_from_trait_resolution(path.location, resolution),
+            None => self.resolve_variable_in_scope(path),
+        }
     }
 
     /// Resolves a turbofished `TypeName::<..>::method` path. Resolves to the single inherent method
@@ -2370,26 +2376,12 @@ impl Elaborator<'_> {
         }
     }
 
-    /// Map a prefix's last-segment resolution to a [`VariableResolution`]: a `Some` trait
-    /// resolution becomes the trait item (or `None` for an already-reported ambiguity), while a
-    /// `None` means the last segment is not a method/trait item, so the whole path is resolved as a
-    /// value (a module value, an enum variant, an associated constant, …) or its error reported.
-    fn variable_or_value_fallback(
-        &mut self,
-        path: TypedPath,
-        trait_resolution: Option<TraitPathResolution>,
-    ) -> Option<VariableResolution> {
-        match trait_resolution {
-            Some(resolution) => self.variable_from_trait_resolution(path.location, resolution),
-            None => self.resolve_variable_in_scope(path),
-        }
-    }
-
-    /// Like [`Self::variable_or_value_fallback`], but for a prefix whose last segment can only be a
-    /// trait item — a trait (`Trait::x`) or a bounded generic (`T::x`). When it is not one, the
-    /// path names nothing, so report the last segment as unresolved directly: a value lookup would
-    /// fail anyway, and on a trait or generic prefix it blames the (in-scope) prefix segment rather
-    /// than the missing item.
+    /// Map a trait/bounded-generic prefix's last-segment resolution to a [`VariableResolution`]: a
+    /// `Some` trait resolution becomes the trait item (or `None` for an already-reported
+    /// ambiguity), while a `None` means the last segment is not a method or associated constant of
+    /// the trait, which is the only thing such a prefix can carry, so report it as unresolved
+    /// directly. A value lookup would fail anyway, and on a trait or generic prefix it blames the
+    /// (in-scope) prefix segment rather than the missing item.
     fn variable_from_trait_resolution_or_unresolved(
         &mut self,
         location: Location,
