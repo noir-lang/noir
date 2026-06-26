@@ -258,6 +258,9 @@ impl Interpreter<'_, '_> {
             "type_def_has_named_attribute" => {
                 type_def_has_attribute(interner, arguments, location, false)
             }
+            "type_def_named_attribute_args" => {
+                type_def_named_attribute_args(interner, arguments, location)
+            }
             "type_def_hash" => hash_item(arguments, location, get_type_id),
             "type_def_location" => type_def_location(interner, arguments, location),
             "type_def_module" => type_def_module(self, arguments, location),
@@ -631,6 +634,54 @@ fn type_def_has_attribute(
         has_named_attribute(&name, attrs, interner)
     };
     Ok(Value::Bool(matched))
+}
+
+// fn named_attribute_args<let N: u32>(self, name: str<N>) -> [[Quoted]]
+fn type_def_named_attribute_args(
+    interner: &mut NodeInterner,
+    arguments: Vec<(Value, Location)>,
+    location: Location,
+) -> IResult<Value> {
+    let (self_argument, name) = check_two_arguments(arguments, location)?;
+    let type_id = get_type_id(self_argument)?;
+
+    let name = get_str(name)?;
+    let name = String::from_utf8_lossy(&name).to_string();
+
+    // Collect the argument expressions of each matching attribute occurrence, cloned so we can
+    // mutate the interner afterwards. Only `Meta` attributes (`#[name(args)]`) carry arguments.
+    let occurrences: Vec<Vec<Expression>> = interner
+        .type_attributes(&type_id)
+        .iter()
+        .filter_map(|attribute| match &attribute.kind {
+            SecondaryAttributeKind::Meta(meta)
+                if interner.get_meta_attribute_name(meta).as_deref() == Some(name.as_str()) =>
+            {
+                Some(meta.arguments.clone())
+            }
+            _ => None,
+        })
+        .collect();
+
+    // Each argument expression becomes a `Quoted` token stream that can be spliced; each
+    // occurrence becomes a `[Quoted]`, and the whole result is `[[Quoted]]`.
+    let quoted_vec_type = Type::Vector(Box::new(Type::Quoted(QuotedType::Quoted)));
+    let occurrences = occurrences
+        .into_iter()
+        .map(|args| {
+            let args = args
+                .into_iter()
+                .map(|arg| {
+                    let arg_location = arg.location;
+                    let token = Token::InternedExpr(interner.push_expression_kind(arg.kind));
+                    Value::Quoted(Rc::new(vec![LocatedToken::new(token, arg_location)]))
+                })
+                .collect();
+            Value::Vector(args, quoted_vec_type.clone())
+        })
+        .collect();
+
+    Ok(Value::Vector(occurrences, Type::Vector(Box::new(quoted_vec_type))))
 }
 
 /// fn fields(self, `generic_args`: [Type]) -> [(Quoted, Type, Quoted)]
