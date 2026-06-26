@@ -1,29 +1,38 @@
-//! Verifies the implicit invariant that Brillig SSA must satisfy around
-//! `array_set` and reference counts.
+//! Shared machinery for the Brillig reference-count aliasing invariant,
+//! applied by the [`array_set`] and [`call`] submodule verifiers.
 //!
 //! # The invariant
 //!
-//! In Brillig, `array_set vX, i, x` may modify `vX`'s storage in place at runtime
-//! when `vX`'s reference count is 1. SSA-level semantics still says `vX` is unchanged
-//! and the `array_set` produces a fresh value; the in-place mutation is a runtime
-//! optimization that's only sound when no later use can observe `vX`'s pre-mutation
-//! contents through aliasing.
+//! In Brillig, an operation may modify an array's storage in place at runtime
+//! when that storage's reference count is 1: an `array_set vX, i, x` whose
+//! source `vX` has RC 1 (see [`array_set`]), or a `call` whose callee mutates
+//! an argument it received at RC 1 — directly, or by returning an alias the
+//! caller then mutates (see [`call`]). SSA-level semantics still treat the
+//! source array value as unchanged, and a mutating instruction as producing a
+//! fresh value; the in-place mutation is a runtime optimization that's only
+//! sound when no later use can observe the source's pre-mutation contents
+//! through aliasing.
 //!
 //! Two mechanisms keep the optimization invisible to SSA semantics:
 //!
-//! 1. **`inc_rc`** before the `array_set` forces RC ≥ 2 at runtime so `array_set`
-//!    copies rather than mutating in place.
-//! 2. **Block-parameter threading** routes the post-mutation value forward as a new
-//!    SSA value (the `array_set`'s result), so no later instruction references
-//!    `vX` after the mutation.
+//! 1. **`inc_rc`** before the mutation forces RC ≥ 2 at runtime, so the
+//!    operation copies rather than mutating in place.
+//! 2. **Block-parameter threading** routes the post-mutation value forward as a
+//!    new SSA value, so no later instruction references the source after the
+//!    mutation.
 //!
-//! The frontend uses whichever mechanism the program needs. This pass verifies
-//! that one of them is in place for every `array_set` whose source has an
-//! aliased use reachable forward in the CFG.
+//! The frontend uses whichever mechanism the program needs. Each submodule
+//! identifies its own *mutation sites* and uses the shared [`Context`] to
+//! verify that one of these mechanisms is in place for every source whose
+//! storage has an aliased use reachable forward in the CFG.
 //!
 //! # Algorithm
 //!
-//! For each `array_set vX, …`:
+//! Driven by [`Context::aliased_use_for_source`] for a mutation of a *source*
+//! value `vX` at a given program point. The steps below use `array_set` as the
+//! canonical mutation site; the [`call`] verifier applies the same machinery to
+//! a call's array argument, seeding the chain state in step 5 empty (a call has
+//! no in-place result or known write index to chain from).
 //!
 //! 1. **Backward alias-set.** Compute the set of values that may share `vX`'s
 //!    storage *at the `array_set`'s program point* by walking block-parameter →
@@ -83,7 +92,9 @@
 //!    crossing we both **kill** params that the predecessor rebinds to a
 //!    non-alias and **add** params whose arg is still an alias (so alias
 //!    propagation stays accurate as the walk crosses joins and loops). The
-//!    walk maintains two additional pieces of state:
+//!    walk maintains two additional pieces of state, both seeded by the caller
+//!    — the [`array_set`] verifier from the write; the [`call`] verifier leaves
+//!    them empty / "all positions":
 //!
 //!    - **`derived`**, the set of values that may share the source's storage
 //!      through transitive in-place chain mutations. Seeded with the
@@ -146,21 +157,38 @@ use std::collections::BTreeSet;
 
 use acvm::FieldElement;
 
-use crate::ssa::{
-    ir::{
-        basic_block::BasicBlockId,
-        cfg::ControlFlowGraph,
-        dom::DominatorTree,
-        function::Function,
-        instruction::{Instruction, InstructionId, TerminatorInstruction},
-        post_order::PostOrder,
-        value::ValueId,
+use crate::{
+    errors::RtResult,
+    ssa::{
+        ir::{
+            basic_block::BasicBlockId,
+            cfg::ControlFlowGraph,
+            dom::DominatorTree,
+            function::Function,
+            instruction::{Instruction, InstructionId, TerminatorInstruction},
+            post_order::PostOrder,
+            value::ValueId,
+        },
+        opt::{LoopOrder, Loops},
+        ssa_gen::Ssa,
     },
-    opt::{LoopOrder, Loops},
 };
 
 pub(crate) mod array_set;
 pub(crate) mod call;
+
+/// Run the full `rc_invariant` check — every submodule verifier — over
+/// `ssa`, returning the first violation.
+///
+/// The entire module containing this function is gated behind
+/// `#[cfg(debug_assertions)]`, so it is a no-op (and absent at the linker
+/// level) in release builds — see the pipeline wiring in
+/// [`crate::ssa::primary_passes`].
+pub(crate) fn verify_all(ssa: &Ssa) -> RtResult<()> {
+    array_set::verify(ssa)?;
+    call::verify(ssa)?;
+    Ok(())
+}
 
 /// Pre-computed indices over a Brillig function. The verifier's per-array_set
 /// checks read from these structures rather than re-scanning the function.
@@ -968,9 +996,54 @@ impl<'f> Context<'f> {
         }
     }
 
-    /// Forward CFG walk from after the `array_set` looking for a
-    /// non-terminator instruction that reads a value still in the alias
-    /// use-set.
+    /// Run the coverage narrowing + forward reachable-use walk for a single
+    /// potential in-place mutation of `source` at `(block, idx)` (the
+    /// instruction `mutator_id`). Returns the aliased use that would observe
+    /// the mutation, or `None` when `source` has no unprotected alias with a
+    /// forward-reachable read.
+    ///
+    /// `write_index_const` and `initial_derived` are forwarded to
+    /// [`Context::find_reachable_aliased_use`]: for an `array_set` they are the
+    /// (optional) constant write index and the singleton of the `array_set`'s
+    /// result; for a `call` argument they are `None` and the empty set.
+    fn aliased_use_for_source(
+        &self,
+        source: ValueId,
+        block: BasicBlockId,
+        idx: usize,
+        mutator_id: InstructionId,
+        write_index_const: Option<FieldElement>,
+        initial_derived: im::HashSet<ValueId>,
+    ) -> Option<AliasedUse> {
+        let alias_set = self.alias_set_for(source, block, idx);
+
+        // Narrow the alias-set to the members not provably protected on every
+        // path to the mutation. An empty result means every member is RC-bumped
+        // or freshly allocated beforehand on all paths, so the in-place
+        // mutation is never observable — accept without the forward walk.
+        let use_set = self.unprotected_aliases(&alias_set, source, block, idx);
+        if use_set.is_empty() {
+            return None;
+        }
+
+        // Expensive: forward CFG walk looking for an aliased read. A hit means
+        // the mutation may happen in place (RC=1) and a downstream instruction
+        // will observe the pre-mutation contents through an aliased name.
+        self.find_reachable_aliased_use(
+            &use_set,
+            source,
+            mutator_id,
+            block,
+            idx,
+            write_index_const,
+            initial_derived,
+        )
+    }
+
+    /// Forward CFG walk from after the *mutating instruction* — an
+    /// `array_set`, or a `call` that may mutate an array argument in place at
+    /// runtime — looking for a non-terminator instruction that reads a value
+    /// still in the alias use-set.
     ///
     /// **Use-set evolution.** Starts as `alias_set` — which is **already
     /// narrowed** to the uncovered members by [`Context::unprotected_aliases`]
@@ -985,7 +1058,7 @@ impl<'f> Context<'f> {
     /// the next block where it is re-bound to that block's parameter. The
     /// kill logic already accounts for these args.
     ///
-    /// The original `array_set` itself is also skipped, in case a cycle
+    /// The mutating instruction itself is also skipped, in case a cycle
     /// re-enters its block — it is, by construction, a use of its own
     /// source, not a hazard.
     ///
@@ -993,11 +1066,13 @@ impl<'f> Context<'f> {
     /// `use_set` to make the filter sound in the presence of `array_set`
     /// chains:
     ///
-    /// - **`derived`** tracks values that may share the `array_set`'s source
-    ///   storage at runtime through transitive in-place mutations. Seeded
-    ///   with the `array_set`'s own result; grown on every later `array_set`
-    ///   whose `array` operand is already in `derived`; propagated across
-    ///   block-param edges the same way the alias use-set is.
+    /// - **`derived`** tracks values that may share the source storage at
+    ///   runtime through transitive in-place mutations. Seeded by the caller
+    ///   via `initial_derived` (the `array_set`'s own result for an
+    ///   `array_set`; empty for a `call`, which has no in-place result to
+    ///   chain from); grown on every later `array_set` whose `array` operand
+    ///   is already in `derived`; propagated across block-param edges the
+    ///   same way the alias use-set is.
     /// - **`tainted_indices`** tracks the set of storage positions any
     ///   chain link may have already written. `Some(set)` accumulates
     ///   constant write indices (seeded with `write_index_const`); set to
@@ -1028,14 +1103,16 @@ impl<'f> Context<'f> {
     /// unioned into the frontier on entry; for `tainted_indices`, `None`
     /// is the absorbing element (a previously-`None` frontier covers any
     /// re-entry).
+    #[allow(clippy::too_many_arguments)]
     fn find_reachable_aliased_use(
         &self,
         alias_set: &im::HashSet<ValueId>,
         source: ValueId,
-        array_set_id: InstructionId,
-        array_set_block: BasicBlockId,
-        array_set_idx: usize,
+        mutator_id: InstructionId,
+        mutator_block: BasicBlockId,
+        mutator_idx: usize,
         write_index_const: Option<FieldElement>,
+        initial_derived: im::HashSet<ValueId>,
     ) -> Option<AliasedUse> {
         let mut visited: HashMap<BasicBlockId, WalkState> = HashMap::default();
 
@@ -1087,15 +1164,14 @@ impl<'f> Context<'f> {
         let use_set: im::HashSet<ValueId> =
             alias_set.iter().copied().filter(|v| !protected.contains(v)).collect();
 
-        let array_set_result = self.function.dfg.instruction_results(array_set_id)[0];
         let initial_state = WalkState {
             use_set,
-            derived: im::HashSet::unit(array_set_result),
+            derived: initial_derived,
             tainted: write_index_const.map(im::HashSet::unit),
         };
         let mut worklist: Vec<WalkFrame> = vec![WalkFrame {
-            block: array_set_block,
-            start_idx: array_set_idx + 1,
+            block: mutator_block,
+            start_idx: mutator_idx + 1,
             state: initial_state,
         }];
 
@@ -1126,7 +1202,7 @@ impl<'f> Context<'f> {
 
             let instructions = self.function.dfg[block].instructions();
             for &inst_id in instructions.iter().skip(start_idx) {
-                if inst_id == array_set_id {
+                if inst_id == mutator_id {
                     continue;
                 }
                 let inst = &self.function.dfg[inst_id];
@@ -1538,16 +1614,7 @@ struct AliasedUse {
 /// property for both — *neither* verifier rejects — so it lives here.
 #[cfg(test)]
 pub(crate) mod tests {
-    use super::{array_set, call};
-    use crate::{errors::RtResult, ssa::ssa_gen::Ssa};
-
-    /// Run the full `rc_invariant` check — every submodule verifier — over
-    /// `ssa`, returning the first violation.
-    pub(crate) fn verify_all(ssa: &Ssa) -> RtResult<()> {
-        array_set::verify(ssa)?;
-        call::verify(ssa)?;
-        Ok(())
-    }
+    use crate::ssa::ssa_gen::Ssa;
 
     /// Assert the full `rc_invariant` check ([`verify_all`]) accepts `src`.
     pub(crate) fn assert_verifier_accepts(src: &str) {
@@ -1559,7 +1626,7 @@ pub(crate) mod tests {
     /// accepted (e.g. "loop exit reads a rebound block-param").
     pub(crate) fn assert_verifier_accepts_because(src: &str, reason: &str) {
         let ssa = Ssa::from_str(src).expect("SSA parses");
-        if let Err(err) = verify_all(&ssa) {
+        if let Err(err) = super::verify_all(&ssa) {
             if reason.is_empty() {
                 panic!("expected the verifier to accept, but it rejected: {err:?}");
             } else {

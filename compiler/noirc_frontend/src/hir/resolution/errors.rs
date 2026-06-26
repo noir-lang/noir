@@ -167,6 +167,8 @@ pub enum ResolverError {
     ComptimeTypeInNonComptimeItem { typ: String, location: Location, item: &'static str },
     #[error("Comptime variable `{name}` cannot be mutated in a non-comptime context")]
     MutatingComptimeInNonComptimeContext { name: String, location: Location },
+    #[error("Comptime variable `{name}` cannot be used in runtime code")]
+    ComptimeVariableEscapesScope { name: String, location: Location },
     #[error("Failed to parse `{statement}` as an expression")]
     InvalidInternedStatementInExpr { statement: String, location: Location },
     #[error("{0}")]
@@ -306,6 +308,7 @@ impl ResolverError {
             | ResolverError::QuoteInRuntimeCode { location }
             | ResolverError::ComptimeTypeInNonComptimeItem { location, .. }
             | ResolverError::MutatingComptimeInNonComptimeContext { location, .. }
+            | ResolverError::ComptimeVariableEscapesScope { location, .. }
             | ResolverError::InvalidInternedStatementInExpr { location, .. }
             | ResolverError::InvalidSyntaxInPattern { location }
             | ResolverError::NonIntegerGlobalUsedInPattern { location, .. }
@@ -854,6 +857,13 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                 Diagnostic::simple_error(
                     format!("Comptime variable `{name}` cannot be mutated in a non-comptime context"),
                     format!("`{name}` mutated here"),
+                    *location,
+                )
+            },
+            ResolverError::ComptimeVariableEscapesScope { name, location } => {
+                Diagnostic::simple_error(
+                    format!("Comptime variable `{name}` cannot be used in runtime code"),
+                    format!("`{name}` was resolved in a comptime scope that is no longer in scope here"),
                     *location,
                 )
             },

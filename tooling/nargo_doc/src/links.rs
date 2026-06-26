@@ -413,12 +413,12 @@ fn path_to_link_target_searching_modules(
 
         // We are at the last segment so we can return the item if it's public
         if index == segments.len() - 1 {
-            let (module_def_id, _, _) = per_ns.iter_items().next()?;
+            let module_def_id = per_ns.iter_items().next()?.id;
             return Some(LinkTarget::TopLevelItem(module_def_id));
         }
 
         // We are not at the last segment. Find a module, type or trait to continue.
-        let (module_def_id, _, _) = per_ns.types?;
+        let module_def_id = per_ns.types?.id;
         match module_def_id {
             ModuleDefId::ModuleId(module_id) => {
                 current_module = &def_maps[&module_id.krate][module_id.local_id];

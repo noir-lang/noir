@@ -1122,7 +1122,10 @@ impl Parser<'_> {
             return None;
         }
 
-        Some(self.parse_block_after_left_brace())
+        // Guard against deeply nested blocks overflowing the stack. On overflow this
+        // emits a recursion-depth error and skips to a recovery point, so `None` here
+        // means the block was abandoned rather than absent.
+        self.with_max_recursion_depth_guard(|this| Some(this.parse_block_after_left_brace()))
     }
 
     fn parse_block_after_left_brace(&mut self) -> BlockExpression {

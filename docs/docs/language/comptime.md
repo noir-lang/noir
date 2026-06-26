@@ -260,6 +260,28 @@ When this is done, these additional arguments are passed to the attribute functi
 
 #include_code annotation-arguments-example noir_stdlib/src/meta/mod.nr rust
 
+If an argument is a path and the corresponding parameter is typed `TraitDefinition` or
+`FunctionDefinition`, the path is resolved to that trait or function rather than evaluated as a
+value. This lets an attribute receive a function (or trait) by name and inspect it:
+
+```rust
+#[validate(MyType::check)]
+struct MyType {
+    x: u32,
+}
+
+impl MyType {
+    fn check(self) {
+        assert(self.x < 100);
+    }
+}
+
+comptime fn validate(_s: TypeDefinition, method: FunctionDefinition) {
+    // `method` is the resolved definition of `MyType::check`, so its signature can be inspected.
+    assert(method.parameters().len() == 1);
+}
+```
+
 We can also take any number of arguments by adding the `varargs` attribute:
 
 #include_code annotation-varargs-example noir_stdlib/src/meta/mod.nr rust
