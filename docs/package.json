@@ -6,7 +6,7 @@
     "preprocess": "./scripts/codegen_nargo_reference.sh && yarn node ./scripts/preprocess/index.js",
     "dev": "HOST=0.0.0.0 ENV=dev yarn preprocess && ENV=dev docusaurus start --host ${HOST:-localhost}",
     "dev:netlify": "yarn netlify dev",
-    "build": "yarn preprocess && docusaurus build && node scripts/normalize_llm_links.js && node scripts/inject_md_directive.js && node scripts/inject_llms_directive.js",
+    "build": "yarn preprocess && docusaurus build",
     "clean": "rm -rf ./processed-docs ./processed-docs-cache ./build",
     "version::stables": "ts-node ./scripts/setStable.ts",
     "serve": "serve build",
