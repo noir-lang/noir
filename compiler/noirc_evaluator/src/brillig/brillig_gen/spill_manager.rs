@@ -272,7 +272,23 @@ impl SpillManager {
 
     /// Rebuild `lru_order` for a new block from scratch, retaining only live-in
     /// values that are not currently spilled, in deterministic ValueId order.
+    ///  
+    /// This discards any ordering carried over from the previous block, which is sound while
+    /// spilling is enabled: every value live across a block boundary is permanently spilled
+    /// before its block is entered (block parameters via `convert_block_params`, other
+    /// live-ins via `spill_non_param_live_ins`), so no non-spilled value is ever carried over
+    /// and there is no recency order to preserve. The `debug_assert!` enforces that premise.
+    ///
+    /// If a future register allocator (<https://github.com/noir-lang/noir/issues/11638>) lets
+    /// values stay in registers across blocks, the assert will fire — at which point the
+    /// surviving entries' previous-block order is a real eviction hint and should be preserved
+    /// here rather than re-sorted by `ValueId`.
     fn reset_lru_for_block(&mut self, live_in: &HashSet<ValueId>) {
+        debug_assert!(
+            !self.lru_order.iter().any(|v| live_in.contains(v) && !self.is_spilled(v)),
+            "cross-block LRU carryover is non-empty; preserve the previous block's order instead of re-sorting: {:?}",
+            self.lru_order
+        );
         self.lru_order = live_in.iter().copied().filter(|v| !self.is_spilled(v)).sorted().collect();
     }
 
