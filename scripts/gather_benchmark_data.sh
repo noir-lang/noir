@@ -49,6 +49,22 @@ save_artifact() {
     mv ./target/*.json $OUTPUT_DIR/artifact.json
 }
 
+# Counts the instructions executed during a single compilation using cachegrind.
+#
+# Unlike wall-clock time, the instruction count is unaffected by which machine the benchmark
+# is scheduled onto or by other processes competing for the CPU, so a single run gives a stable
+# signal (~0.05% variation in practice vs ~5-20% for wall-clock time on hosted runners).
+# Rayon is pinned to a single thread as instructions spent spinning in idle worker threads
+# would otherwise be counted as well.
+count_compilation_instructions() {
+    echo "Counting instructions (ACIR compilation)"
+    RAYON_NUM_THREADS=1 valgrind --tool=cachegrind --cache-sim=no --branch-sim=no \
+      --cachegrind-out-file=/dev/null --log-file=./cachegrind.log \
+      $NARGO compile --force --silence-warnings 2> /dev/null
+    grep "I refs:" ./cachegrind.log | tr -d ',' | awk '{print $NF}' > $OUTPUT_DIR/compilation_instructions.txt
+    rm ./cachegrind.log
+}
+
 compile_brillig_project() {
     echo "Compiling program (Brillig)"
     for ((i = 1; i <= NUM_COMPILE_RUNS; i++)); do
@@ -89,6 +105,9 @@ cd "$REPO_DIR/$PROJECT_DIR"
 $NARGO check --silence-warnings
 
 compile_project
+if [ "${COUNT_INSTRUCTIONS:-"false"}" == "true" ]; then
+    count_compilation_instructions
+fi
 if [ "${HAS_PROVER_INPUTS:-"false"}" == "true" ]; then
     execute_project
 fi

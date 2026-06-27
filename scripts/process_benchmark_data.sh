@@ -4,7 +4,9 @@ set -ue
 
 INPUT_DIR=$(realpath $1)
 
-average_times() {
+# Parses a list of `tracing` duration strings (e.g. "1.2s", "340ms", "57µs") and prints
+# each value in seconds on its own line.
+parse_times_as_seconds() {
   awk -v RS=" " '
     function parse_time(value) {
       micro_seconds = match($1, /µs$/);
@@ -29,25 +31,38 @@ average_times() {
         exit 1
     }
 
-    {
-      seconds = parse_time($1);
-      sum += seconds;
-      n++;
-    }
-    END {
-      if (n > 0)
-        printf "%.3f\n", sum / n
-      else
-        printf "%.3f\n", 0
+    NF {
+      printf "%.6f\n", parse_time($1);
     }' <<<${@}
+}
+
+# We report the median rather than the mean as wall-clock times on shared CI runners are
+# subject to large one-sided spikes which would otherwise drag the average upwards.
+#
+# Exits with a non-zero status when given no parseable times so that callers skip the metric
+# entirely (e.g. execution times for projects marked `cannot_execute`).
+median_times() {
+  (
+    set -o pipefail
+    parse_times_as_seconds ${@} | sort -g | awk '
+      { values[NR] = $1 }
+      END {
+        if (NR == 0)
+          exit 1
+        else if (NR % 2 == 1)
+          printf "%.3f\n", values[(NR + 1) / 2]
+        else
+          printf "%.3f\n", (values[NR / 2] + values[NR / 2 + 1]) / 2
+      }'
+  )
 }
 
 compilation_time() {
   TIMES=($(jq -r '. | select(.target == "nargo::cli" and .fields.message == "close") | .fields."time.busy"' "$INPUT_DIR/compilation.jsonl"))
 
-  AVG_TIME=$(average_times "${TIMES[@]}")
+  MEDIAN_TIME=$(median_times "${TIMES[@]}")
 
-  jq -rc "{name: \"$PROJECT_NAME\", metric: \"compilation_time\", value: \""$AVG_TIME"\" | tonumber, unit: \"s\"}" --null-input
+  jq -rc "{name: \"$PROJECT_NAME\", metric: \"compilation_time\", value: \""$MEDIAN_TIME"\" | tonumber, unit: \"s\"}" --null-input
 }
 
 # This measures the time taken for definition collection along with elaboration/type checking. This notably includes
@@ -57,23 +72,34 @@ compilation_time() {
 elaboration_time() {
   TIMES=($(jq -r '. | select(.target == "noirc_driver" and .span.name == "check_crate" and .fields.message == "close") | .fields."time.busy"' "$INPUT_DIR/compilation.jsonl"))
 
-  AVG_TIME=$(average_times "${TIMES[@]}")
+  MEDIAN_TIME=$(median_times "${TIMES[@]}")
 
-  jq -rc "{name: \"$PROJECT_NAME\", metric: \"elaboration_time\", value: \""$AVG_TIME"\" | tonumber, unit: \"s\"}" --null-input
+  jq -rc "{name: \"$PROJECT_NAME\", metric: \"elaboration_time\", value: \""$MEDIAN_TIME"\" | tonumber, unit: \"s\"}" --null-input
 }
 
 execution_time() {
   TIMES=($(jq -r '. | select(.target == "nargo::ops::execute" and .fields.message == "close") | .fields."time.busy"' "$INPUT_DIR/execution.jsonl"))
 
-  AVG_TIME=$(average_times "${TIMES[@]}")
+  MEDIAN_TIME=$(median_times "${TIMES[@]}")
 
-  jq -rc "{name: \"$PROJECT_NAME\", metric: \"execution_time\", value: \""$AVG_TIME"\" | tonumber, unit: \"s\"}" --null-input
+  jq -rc "{name: \"$PROJECT_NAME\", metric: \"execution_time\", value: \""$MEDIAN_TIME"\" | tonumber, unit: \"s\"}" --null-input
 }
 
 artifact_size() {
   ARTIFACT_SIZE=$(wc -c <"$INPUT_DIR/artifact.json" | awk '{printf "%.1f\n", $1/1000}')
 
   jq -rc "{name: \"$PROJECT_NAME\", metric: \"artifact_size\", value: \""$ARTIFACT_SIZE"\" | tonumber, unit: \"KB\"}" --null-input
+}
+
+# Reports the number of instructions executed when compiling the program, as counted by
+# cachegrind. Only produced for projects which set `instruction_count: true` in
+# `.github/benchmark_projects.yml`.
+compilation_instructions() {
+  if [ -f "$INPUT_DIR/compilation_instructions.txt" ]; then
+    INSTRUCTIONS=$(awk '{printf "%.1f", $1/1000000}' "$INPUT_DIR/compilation_instructions.txt")
+
+    jq -rc "{name: \"$PROJECT_NAME\", metric: \"compilation_instructions\", value: \""$INSTRUCTIONS"\" | tonumber, unit: \"M instrs\"}" --null-input
+  fi
 }
 
 num_opcodes() {
@@ -85,17 +111,17 @@ num_opcodes() {
 brillig_compilation_time() {
   TIMES=($(jq -r '. | select(.target == "nargo::cli" and .fields.message == "close") | .fields."time.busy"' "$INPUT_DIR/brillig_compilation.jsonl"))
 
-  AVG_TIME=$(average_times "${TIMES[@]}")
+  MEDIAN_TIME=$(median_times "${TIMES[@]}")
 
-  jq -rc "{name: \"$PROJECT_NAME\", metric: \"brillig_compilation_time\", value: \""$AVG_TIME"\" | tonumber, unit: \"s\"}" --null-input
+  jq -rc "{name: \"$PROJECT_NAME\", metric: \"brillig_compilation_time\", value: \""$MEDIAN_TIME"\" | tonumber, unit: \"s\"}" --null-input
 }
 
 brillig_execution_time() {
   TIMES=($(jq -r '. | select(.target == "nargo::ops::execute" and .fields.message == "close") | .fields."time.busy"' "$INPUT_DIR/brillig_execution.jsonl"))
 
-  AVG_TIME=$(average_times "${TIMES[@]}")
+  MEDIAN_TIME=$(median_times "${TIMES[@]}")
 
-  jq -rc "{name: \"$PROJECT_NAME\", metric: \"brillig_execution_time\", value: \""$AVG_TIME"\" | tonumber, unit: \"s\"}" --null-input
+  jq -rc "{name: \"$PROJECT_NAME\", metric: \"brillig_execution_time\", value: \""$MEDIAN_TIME"\" | tonumber, unit: \"s\"}" --null-input
 }
 
 brillig_artifact_size() {
@@ -104,4 +130,4 @@ brillig_artifact_size() {
   jq -rc "{name: \"$PROJECT_NAME\", metric: \"brillig_artifact_size\", value: \""$ARTIFACT_SIZE"\" | tonumber, unit: \"KB\"}" --null-input
 }
 
-jq --slurp 'reduce .[] as $i ({}; .[$i.metric] = ($i | del(.metric)))' <<< "$(compilation_time)$(elaboration_time)$(execution_time)$(artifact_size)$(num_opcodes)$(brillig_compilation_time)$(brillig_execution_time)$(brillig_artifact_size)"
+jq --slurp 'reduce .[] as $i ({}; .[$i.metric] = ($i | del(.metric)))' <<< "$(compilation_time)$(compilation_instructions)$(elaboration_time)$(execution_time)$(artifact_size)$(num_opcodes)$(brillig_compilation_time)$(brillig_execution_time)$(brillig_artifact_size)"
