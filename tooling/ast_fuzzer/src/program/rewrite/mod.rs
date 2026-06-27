@@ -104,13 +104,13 @@ pub fn change_all_functions_into_unconstrained(mut program: Program) -> Program 
 
 /// Wrap the fuzzer's direct oracle print calls in unconstrained wrapper functions.
 ///
-/// In constrained (ACIR) code, direct oracle calls are not allowed. In nargo-compiled
-/// code, `println` goes through unconstrained wrapper functions
+/// In nargo-compiled code, `println` goes through unconstrained wrapper functions
 /// (`println` -> `print_unconstrained` -> oracle). The fuzzer generates direct oracle
-/// print calls, so this rewrite wraps them in unconstrained functions to match nargo's
-/// structure, enabling prints in ACIR functions.
+/// print calls, so this rewrite wraps them in wrapper functions to match nargo's structure.
 ///
-/// Unconstrained functions can call oracles directly, so they are skipped.
+/// This is done for all functions, not just constrained ones. SSA generation strips
+/// `Clone` (inc_rc) on arguments to oracle calls, assuming they are read-only. Wrapping
+/// in a function call preserves the `Clone`, keeping reference counts correct.
 pub(crate) fn wrap_oracle_prints_in_functions(ctx: &mut Context) {
     let func_ids: Vec<FuncId> = ctx.functions.keys().copied().collect();
     let mut next_func_id = ctx.functions.len() as u32;
@@ -118,10 +118,6 @@ pub(crate) fn wrap_oracle_prints_in_functions(ctx: &mut Context) {
 
     for &func_id in &func_ids {
         let func = ctx.functions.get_mut(&func_id).unwrap();
-        // Unconstrained functions can call oracles directly.
-        if func.unconstrained {
-            continue;
-        }
         visit_expr_mut(&mut func.body, &mut |e| {
             // Clone to release the borrow on `e` so we can mutate it below.
             let info =

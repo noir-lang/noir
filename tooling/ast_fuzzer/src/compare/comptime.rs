@@ -98,30 +98,37 @@ impl CompareComptime {
         let (res2, print2) =
             Self::exec_bytecode(&self.ssa.artifact.program, initial_witness.clone());
 
-        // Include the print part of stdlib for the elaborator to be able to use the print oracle
-        let import_print = r#"
-        #[oracle(print)]
-        unconstrained fn print_oracle<T>(with_newline: bool, input: T) {}
+        // The comptime `interpret` function uses a bare context without stdlib.
+        // Inline the definitions the generated code may call.
+        let stdlib_stubs = r#"
+#[oracle(print)]
+unconstrained fn print_oracle<T>(with_newline: bool, input: T) {}
+unconstrained fn print_unconstrained<T>(with_newline: bool, input: T) {
+    print_oracle(with_newline, input);
+}
+pub fn println<T>(input: T) { unsafe { print_unconstrained(true, input); } }
+pub fn print<T>(input: T) { unsafe { print_unconstrained(false, input); } }
 
-        unconstrained fn print_unconstrained<T>(with_newline: bool, input: T) {
-            print_oracle(with_newline, input);
-        }
-
-        pub fn println<T>(input: T) {
-            unsafe {
-                print_unconstrained(true, input);
-            }
-        }
-
-        pub fn print<T>(input: T) {
-            unsafe {
-                print_unconstrained(false, input);
-            }
-        }
-        "#;
+impl<T> [T] {
+    #[builtin(array_len)]
+    pub fn len(self) -> u32 {}
+    #[builtin(vector_push_back)]
+    pub fn push_back(self, elem: T) -> Self {}
+    #[builtin(vector_push_front)]
+    pub fn push_front(self, elem: T) -> Self {}
+    #[builtin(vector_pop_back)]
+    pub fn pop_back(self) -> (Self, T) {}
+    #[builtin(vector_pop_front)]
+    pub fn pop_front(self) -> (T, Self) {}
+    #[builtin(vector_insert)]
+    pub fn insert(self, index: u32, elem: T) -> Self {}
+    #[builtin(vector_remove)]
+    pub fn remove(self, index: u32) -> (Self, T) {}
+}
+"#;
 
         // Add comptime modifier for main
-        let source = format!("comptime {}{}", self.source, import_print);
+        let source = format!("comptime {}{}", self.source, stdlib_stubs);
         let output = Rc::new(RefCell::new(Vec::new()));
 
         // Take the printed output.
@@ -380,6 +387,27 @@ unconstrained fn func_1_proxy(mut ctx_limit: u32) -> ((str<2>, str<2>, bool, str
 }
         "#;
 
+        let _ = prepare_and_compile_snippet(src.to_string(), false, std::io::stdout());
+    }
+
+    /// Verify that the comptime interpreter can handle slice builtin methods
+    /// via the stubs inlined into the comptime source.
+    #[test]
+    fn test_comptime_slice_builtins() {
+        let src = r#"
+fn main() -> pub [Field; 5] {
+    comptime {
+        let s: [Field] = &[1, 2, 3];
+        let s = s.push_back(4);
+        let (first, s) = s.pop_front();
+        let s = s.push_front(10);
+        let (s, last) = s.pop_back();
+        let s = s.insert(1, 20);
+        let (s, removed) = s.remove(0);
+        [first, last, removed, s[0], s.len() as Field]
+    }
+}
+        "#;
         let _ = prepare_and_compile_snippet(src.to_string(), false, std::io::stdout());
     }
 }
