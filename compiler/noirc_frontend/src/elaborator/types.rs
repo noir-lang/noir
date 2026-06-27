@@ -2331,16 +2331,21 @@ impl Elaborator<'_> {
     ) -> Option<VariableResolution> {
         let mut prefix = path.clone();
         prefix.pop();
-        match self.use_path_as_type(prefix).ok() {
-            Some(type_resolution) => self.resolve_method_on_type_prefix(
+        match self.use_path_as_type(prefix) {
+            Ok(type_resolution) => self.resolve_method_on_type_prefix(
                 path,
                 last_segment,
                 turbofish,
                 true, // is_self_prefix
                 type_resolution,
             ),
-            // The `Self` prefix doesn't resolve as a type; resolve the whole path as a value.
-            None => self.resolve_variable_in_scope(path),
+            // The `Self` prefix itself doesn't resolve as a type (e.g. `Self::not_a_type::method`):
+            // report that resolution failure, which already points at the offending segment, rather
+            // than re-resolving the whole path as a value just to rediscover it.
+            Err(error) => {
+                self.push_err(error);
+                None
+            }
         }
     }
 
