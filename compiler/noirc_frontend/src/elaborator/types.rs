@@ -119,9 +119,10 @@ enum PathPrefixKind {
     /// The prefix is `Self` but there is no self type in scope (e.g. in a free function), so `Self`
     /// names nothing.
     SelfNotInScope,
-    /// The prefix resolves to nothing that can carry an associated item (it is not a type, trait,
-    /// or module). The whole path is resolved as a value, which reports the error if there is one.
-    NoPrefix,
+    /// The prefix resolves to nothing that can carry an associated item: it is not a type, trait,
+    /// or module, so the path names nothing. The carried error (either the prefix's own resolution
+    /// failure, or that its last segment is a value rather than a namespace) is reported as-is.
+    NoPrefix { error: PathResolutionError },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -1518,6 +1519,7 @@ impl Elaborator<'_> {
             PathPrefixKind::BoundedGeneric(bounds)
         } else {
             // Otherwise the prefix is resolved as a type to distinguish trait/type/module.
+            let prefix_last_ident = prefix.last_segment().ident;
             match self.use_path_as_type(prefix) {
                 Ok(resolution) => match &resolution.item {
                     PathResolutionItem::Trait(trait_id) => {
@@ -1527,11 +1529,11 @@ impl Elaborator<'_> {
                     | PathResolutionItem::TypeAlias(..)
                     | PathResolutionItem::PrimitiveType(..) => PathPrefixKind::Type { resolution },
                     PathResolutionItem::Module(..) => PathPrefixKind::Module,
-                    // Resolving a type path falls back to the value namespace, so the prefix can
-                    // also resolve to a value item; that (and an associated type) can't carry the
-                    // last segment as an associated item, so there is no usable prefix and the
-                    // whole path is resolved as a value. Listed explicitly (rather than `_`) so a
-                    // new `PathResolutionItem` must be classified here.
+                    // Resolving a type path falls back to the value namespace, so the prefix's last
+                    // segment can also resolve to a value item; that (and an associated type) can't
+                    // carry the last segment of the path as an associated item, so the path names
+                    // nothing. Listed explicitly (rather than `_`) so a new `PathResolutionItem`
+                    // must be classified here.
                     PathResolutionItem::TraitAssociatedType(..)
                     | PathResolutionItem::Global(..)
                     | PathResolutionItem::EnumVariant(..)
@@ -1542,9 +1544,11 @@ impl Elaborator<'_> {
                     | PathResolutionItem::TraitFunction(..)
                     | PathResolutionItem::TypeTraitFunction(..)
                     | PathResolutionItem::PrimitiveFunction(..)
-                    | PathResolutionItem::TraitConstant(..) => PathPrefixKind::NoPrefix,
+                    | PathResolutionItem::TraitConstant(..) => PathPrefixKind::NoPrefix {
+                        error: PathResolutionError::Unresolved(prefix_last_ident),
+                    },
                 },
-                Err(_) => PathPrefixKind::NoPrefix,
+                Err(error) => PathPrefixKind::NoPrefix { error },
             }
         };
 
@@ -2262,10 +2266,13 @@ impl Elaborator<'_> {
                 &last_segment,
                 resolution,
             ),
-            // A module prefix's value item, or a prefix that isn't an item carrier at all: resolve
-            // the whole path as a value (reporting the error if it doesn't resolve).
-            PathPrefixKind::Module | PathPrefixKind::NoPrefix => {
-                self.resolve_variable_in_scope(path)
+            // A module prefix: the last segment is an ordinary value item, resolved as a value.
+            PathPrefixKind::Module => self.resolve_variable_in_scope(path),
+            // No usable prefix: the path names nothing, and a value lookup would only rediscover
+            // the resolution failure already carried here, so report it directly.
+            PathPrefixKind::NoPrefix { error } => {
+                self.push_err(error);
+                None
             }
             // `Self` with no self type in scope: report it directly.
             PathPrefixKind::SelfNotInScope => {

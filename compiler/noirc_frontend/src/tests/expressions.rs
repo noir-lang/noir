@@ -551,3 +551,29 @@ fn does_not_trigger_unnecessary_mut_if_mut_self_method_is_called() {
     "#;
     assert_no_errors(src);
 }
+
+#[test]
+fn unresolved_path_prefix_reports_missing_segment() {
+    let src = r#"
+    fn main() {
+        let _ = nonexistent::foo();
+                ^^^^^^^^^^^ Could not resolve 'nonexistent' in path
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn value_used_as_path_prefix_reports_that_segment() {
+    // The prefix resolves (to a function) but a value can't carry an associated item, so the path
+    // names nothing; the error points at that segment.
+    let src = r#"
+    fn helper() {}
+
+    fn main() {
+        let _ = helper::foo();
+                ^^^^^^ Could not resolve 'helper' in path
+    }
+    "#;
+    check_errors(src);
+}
