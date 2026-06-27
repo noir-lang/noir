@@ -1,0 +1,19 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+unconstrained fn main(n: u32) -> pub Field {
+    let mut x: [Field; 3] = [1_Field, 2_Field, 3_Field];
+    let mut i: u32 = 0_u32;
+    let mut total: Field = 0_Field;
+    while {
+        let mut y: [Field; 3] = x;
+        y[0_u32] = 9_Field;
+        i < n
+    } {
+        total = total + x[0_u32];
+        i = i + 1_u32;
+        x = [4_Field, 5_Field, 6_Field];
+    }
+    total
+}

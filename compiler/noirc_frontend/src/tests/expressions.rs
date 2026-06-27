@@ -71,6 +71,20 @@ fn resolve_fmt_strings() {
 }
 
 #[test]
+fn comptime_fmt_string_with_duplicate_name_keeps_all_captures() {
+    let src = r#"
+    fn main() {
+        let s = comptime {
+            let n: u8 = 7;
+            f"a{n}b{n}c"
+        };
+        let _: fmtstr<9, (u8, u8)> = s;
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
 fn resolve_fmt_string_with_global() {
     let src = r#"
     global VALUE: u32 = 42;

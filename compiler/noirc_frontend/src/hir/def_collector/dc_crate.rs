@@ -712,8 +712,8 @@ impl DefCollector {
         // method is registered as `Public` in the type's module scope). Compute this before
         // taking a mutable borrow of `context.def_maps` below.
         let importing_module = ModuleId { krate: crate_id, local_id: local_module_id };
-        for (module_def_id, _, _) in resolved_import.namespace.iter_items() {
-            if let ModuleDefId::FunctionId(func_id) = module_def_id
+        for item in resolved_import.namespace.iter_items() {
+            if let ModuleDefId::FunctionId(func_id) = item.id
                 && !trait_visibility_for_method_is_satisfied(
                     func_id,
                     importing_module,
@@ -744,14 +744,15 @@ impl DefCollector {
         // Populate module namespaces according to the imports used
         let visibility = collected_import.visibility;
         let is_prelude = collected_import.is_prelude;
-        for (module_def_id, item_visibility, _) in resolved_import.namespace.iter_items() {
-            if item_visibility < visibility {
+        for item in resolved_import.namespace.iter_items() {
+            let module_def_id = item.id;
+            if item.visibility < visibility {
                 errors.push(DefCollectorErrorKind::CannotReexportItemWithLessVisibility {
                     item_name: name.clone(),
                     desired_visibility: visibility,
                 });
             }
-            let visibility = visibility.min(item_visibility);
+            let visibility = visibility.min(item.visibility);
             let effective_visibility =
                 effective_item_visibility(&context.def_interner, importing_module, visibility);
 
@@ -921,8 +922,7 @@ fn inject_prelude(
 
     assert!(resolved_import.errors.is_empty(), "Tried to add private item to prelude");
 
-    let (module_def_id, _, _) =
-        resolved_import.namespace.types.expect("couldn't resolve std::prelude");
+    let module_def_id = resolved_import.namespace.types.expect("couldn't resolve std::prelude").id;
     let module_id = module_def_id.as_module().expect("std::prelude should be a module");
     let directives = vecmap(context.module(module_id).scope().names(), |path| {
         let mut segments = segments.clone();

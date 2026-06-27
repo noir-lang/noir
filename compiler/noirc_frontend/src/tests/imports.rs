@@ -152,6 +152,26 @@ fn errors_if_using_alias_in_import() {
 }
 
 #[test]
+fn errors_if_importing_trait_method() {
+    // Like Rust, a trait's methods can't be imported through the trait. The method is still
+    // callable via a qualified path (`Trait::method(..)`).
+    let src = r#"
+    mod foo {
+        pub trait Trait {
+            fn method(self);
+        }
+    }
+
+    use foo::Trait::method;
+             ^^^^^ Trait is a trait, not a module
+
+    fn main() {
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
 fn private_use_reexports_that_comes_later() {
     let src = r#"
     mod history {

@@ -646,10 +646,10 @@ impl Parser<'_> {
                         Token::LeftParen => closing_delimiters.push(Token::RightParen),
                         Token::LeftBracket => closing_delimiters.push(Token::RightBracket),
                         Token::LeftBrace => closing_delimiters.push(Token::RightBrace),
-                        Token::RightParen | Token::RightBracket | Token::RightBrace => {
-                            if closing_delimiters.last() == Some(&token) {
-                                closing_delimiters.pop();
-                            }
+                        Token::RightParen | Token::RightBracket | Token::RightBrace
+                            if closing_delimiters.last() == Some(&token) =>
+                        {
+                            closing_delimiters.pop();
                         }
                         _ => {}
                     }
@@ -1122,7 +1122,10 @@ impl Parser<'_> {
             return None;
         }
 
-        Some(self.parse_block_after_left_brace())
+        // Guard against deeply nested blocks overflowing the stack. On overflow this
+        // emits a recursion-depth error and skips to a recovery point, so `None` here
+        // means the block was abandoned rather than absent.
+        self.with_max_recursion_depth_guard(|this| Some(this.parse_block_after_left_brace()))
     }
 
     fn parse_block_after_left_brace(&mut self) -> BlockExpression {
@@ -1178,7 +1181,7 @@ mod tests {
             parser::tests::{check_errors, expect_no_errors},
         },
     };
-    use acvm::FieldElement;
+    use num_bigint::BigInt;
 
     fn parse_expression_no_errors(src: &str) -> Expression {
         let mut parser = Parser::for_str_with_dummy_file(src);
@@ -1217,7 +1220,7 @@ mod tests {
         let ExpressionKind::Literal(Literal::Integer(value, None)) = expr.kind else {
             panic!("Expected integer literal");
         };
-        assert_eq!(value, -FieldElement::from(42u128));
+        assert_eq!(value, BigInt::from(-42));
     }
 
     #[test]

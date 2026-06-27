@@ -103,17 +103,16 @@ impl ModuleData {
         name: Ident,
         visibility: ItemVisibility,
         item_id: ModuleDefId,
-        trait_id: Option<TraitId>,
     ) -> Result<(), (Ident, Ident)> {
         if let ModuleDefId::ModuleId(child) = item_id {
             self.child_declaration_order.push(child.local_id);
         }
 
-        let result1 = self.scope.add_definition(name.clone(), visibility, item_id, trait_id);
+        let result1 = self.scope.add_definition(name.clone(), visibility, item_id);
 
         // definitions is a subset of self.scope so it is expected if self.scope.define_func_def
         // returns without error, so will self.definitions.define_func_def.
-        let result2 = self.definitions.add_definition(name, visibility, item_id, trait_id);
+        let result2 = self.definitions.add_definition(name, visibility, item_id);
 
         result1.or(result2)
     }
@@ -124,21 +123,7 @@ impl ModuleData {
         visibility: ItemVisibility,
         id: FuncId,
     ) -> Result<(), (Ident, Ident)> {
-        self.declare(name, visibility, id.into(), None)
-    }
-
-    pub fn declare_trait_function(
-        &mut self,
-        name: Ident,
-        id: FuncId,
-        trait_id: TraitId,
-    ) -> Result<(), (Ident, Ident)> {
-        self.declare(name, ItemVisibility::Public, id.into(), Some(trait_id))
-    }
-
-    pub fn remove_function(&mut self, name: &Ident) {
-        self.scope.remove_definition(name);
-        self.definitions.remove_definition(name);
+        self.declare(name, visibility, id.into())
     }
 
     pub fn declare_global(
@@ -147,7 +132,7 @@ impl ModuleData {
         visibility: ItemVisibility,
         id: GlobalId,
     ) -> Result<(), (Ident, Ident)> {
-        self.declare(name, visibility, id.into(), None)
+        self.declare(name, visibility, id.into())
     }
 
     pub fn declare_type(
@@ -156,7 +141,7 @@ impl ModuleData {
         visibility: ItemVisibility,
         id: TypeId,
     ) -> Result<(), (Ident, Ident)> {
-        self.declare(name, visibility, ModuleDefId::TypeId(id), None)
+        self.declare(name, visibility, ModuleDefId::TypeId(id))
     }
 
     pub fn declare_type_alias(
@@ -165,7 +150,7 @@ impl ModuleData {
         visibility: ItemVisibility,
         id: TypeAliasId,
     ) -> Result<(), (Ident, Ident)> {
-        self.declare(name, visibility, id.into(), None)
+        self.declare(name, visibility, id.into())
     }
 
     pub fn declare_trait(
@@ -176,7 +161,7 @@ impl ModuleData {
     ) -> Result<(), (Ident, Ident)> {
         self.traits_in_scope.insert(id, name.clone());
 
-        self.declare(name, visibility, ModuleDefId::TraitId(id), None)
+        self.declare(name, visibility, ModuleDefId::TraitId(id))
     }
 
     pub fn declare_trait_associated_type(
@@ -184,7 +169,7 @@ impl ModuleData {
         name: Ident,
         id: TraitAssociatedTypeId,
     ) -> Result<(), (Ident, Ident)> {
-        self.declare(name, ItemVisibility::Public, id.into(), None)
+        self.declare(name, ItemVisibility::Public, id.into())
     }
 
     pub fn declare_child_module(
@@ -193,7 +178,7 @@ impl ModuleData {
         visibility: ItemVisibility,
         child_id: ModuleId,
     ) -> Result<(), (Ident, Ident)> {
-        self.declare(name, visibility, child_id.into(), None)
+        self.declare(name, visibility, child_id.into())
     }
 
     pub fn find_func_with_name(&self, name: &Ident) -> Option<FuncId> {
@@ -211,7 +196,7 @@ impl ModuleData {
             self.traits_in_scope.insert(trait_id, name.clone());
         }
 
-        self.scope.add_item_to_namespace(name, visibility, id, None, is_prelude)
+        self.scope.add_item_to_namespace(name, visibility, id, is_prelude)
     }
 
     /// Find an [Ident] in the types and values in scope.
@@ -228,13 +213,13 @@ impl ModuleData {
     }
 
     pub fn type_definitions(&self) -> impl Iterator<Item = ModuleDefId> + '_ {
-        self.definitions.types().values().flat_map(|a| a.values().map(|(id, _, _)| *id))
+        self.definitions.types().values().map(|scope| scope.id)
     }
 
     /// Return an iterator over all definitions defined within this module,
     /// excluding any type definitions.
     pub fn value_definitions(&self) -> impl Iterator<Item = ModuleDefId> + '_ {
-        self.definitions.values().values().flat_map(|a| a.values().map(|(id, _, _)| *id))
+        self.definitions.values().values().map(|scope| scope.id)
     }
 
     /// Clears all scope and definitions in this module.

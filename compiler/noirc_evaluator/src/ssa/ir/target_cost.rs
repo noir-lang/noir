@@ -28,7 +28,7 @@ impl Instruction {
     /// reaching either here is an ICE. Hoisting an `inc_rc` out of a branch only
     /// ever *raises* an array's runtime reference count, which makes a later
     /// `array_set` copy rather than mutate in place — always sound (the
-    /// `array_set_rc_invariant` validator rejects any SSA whose result would
+    /// `rc_invariant::array_set` validator rejects any SSA whose result would
     /// depend on the un-hoisted bump).
     ///
     /// `DecrementRc` is **not** safe to hoist: running it on a path that did not

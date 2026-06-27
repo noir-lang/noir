@@ -295,6 +295,51 @@ fn trait_static_method_call_marks_trait_import_used() {
 }
 
 #[test]
+fn import_used_only_in_signature_not_dropped_by_speculative_probe() {
+    // `Bar` is imported into `mod m` and used *only* in `mk`'s parameter type. Calling `crate::m::mk`
+    // via a multi-segment path from a global initializer (where `mk`'s meta is still unresolved)
+    // routes through the speculative trait-static-method probe. The probe resolves `mk`'s meta —
+    // marking `Bar` used — then fails (mk is not a trait method). Resolving a function's meta is a
+    // committed structural change, so its usage marks must survive the probe's rollback; otherwise
+    // `mk` is never re-resolved and `Bar` is wrongly reported unused.
+    let src = r#"
+    mod other { pub struct Bar {} }
+    mod m {
+        use crate::other::Bar;
+        pub fn mk(_x: Bar) -> u32 { 0 }
+    }
+    global X: u32 = crate::m::mk(crate::other::Bar {});
+    fn main() { let _ = X; }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn inherent_assoc_fn_return_import_used_from_global() {
+    // `Bar` is imported into `mod m` and used only in the return type of the inherent associated
+    // function `Foo::new`, invoked from the global initializer `X`. Resolving `Foo::new` from the
+    // global routes through the speculative trait-static-method probe; its import must not be
+    // dropped by the probe's rollback.
+    let src = r#"
+    mod other {
+        pub struct Bar {}
+        pub fn mk() -> Bar { Bar {} }
+    }
+    mod m {
+        use crate::other::Bar;
+        use crate::other::mk;
+        pub struct Foo {}
+        impl Foo {
+            pub fn new() -> Bar { mk() }
+        }
+    }
+    global X: crate::other::Bar = crate::m::Foo::new();
+    fn main() { let _ = X; }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
 fn same_namespace_imports_with_same_name_clash() {
     // Contrast with the cross-namespace case above: when two `use`s bring the same name into the
     // *same* namespace (here both `foo::N` and `bar::N` are type-namespace `struct`s), they are no

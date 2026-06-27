@@ -14,6 +14,14 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.ref || github.run_id }}
   cancel-in-progress: true
 
+# Authenticate cargo-binstall's GitHub API requests (run by `just build-package`
+# via install-js-tools). Unauthenticated they hit GitHub's 60 req/hour limit, get
+# 403, and binstall falls back to compiling the wasm toolchain from source —
+# turning a ~30s step into minutes. A valid token raises the limit to 5000/hour;
+# it needs no permission scopes for this (only public release metadata is read).
+env:
+  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
 jobs:
   critical-library-list:
     name: Load critical library list
@@ -601,9 +609,13 @@ jobs:
           path: ./tooling/noirc_abi_wasm
 
       - name: Build noir_js
+        # @noir-lang/types and @noir-lang/noir_js are pure TypeScript (tsc) and
+        # don't need the wasm toolchain that `just build-package` installs via
+        # install-js-tools; the wasm packages they depend on are downloaded as
+        # prebuilt artifacts above. Build them directly to skip that install.
         run: |
-          just build-package @noir-lang/types
-          just build-package @noir-lang/noir_js
+          yarn workspace @noir-lang/types build
+          yarn workspace @noir-lang/noir_js build
 
       - name: Run examples
         run: just run-examples
