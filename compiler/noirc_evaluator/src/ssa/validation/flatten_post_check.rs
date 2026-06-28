@@ -182,23 +182,46 @@ fn is_predicate_guard(
     }
 }
 
-/// Whether `value` is the predicate `p`, possibly through `cast`s.
-fn is_predicate(dfg: &crate::ssa::ir::dfg::DataFlowGraph, mut value: ValueId, p: ValueId) -> bool {
-    loop {
-        if value == p {
-            return true;
-        }
-        match &dfg[value] {
-            crate::ssa::ir::value::Value::Instruction { instruction, .. } => {
-                if let Instruction::Cast(src, _) = &dfg[*instruction] {
-                    value = *src;
-                    continue;
-                }
-                return false;
-            }
-            _ => return false,
+/// Whether multiplying by `value` re-applies predicate `p`, i.e. `value` is `0`
+/// whenever `p` is `0`.
+///
+/// Predicates are `u1` conditions; casting one to a wider type preserves its
+/// zero/non-zero-ness, so casts on either side are ignored when comparing. This
+/// holds when `value` is `p` itself, but also when:
+/// - `value` is a product `p * r` (in any nesting or operand order): such a
+///   product is `0` whenever `p` is `0`, so `value * operand` is still `0` on the
+///   disabled branch. Flattening gates a nested branch by the *conjunction* of all
+///   enclosing conditions, so a value tainted by an outer predicate `p` is
+///   re-guarded by an inner predicate of the form `p * inner_condition`.
+/// - `value` and `p` are different casts of the same source: the signed-division
+///   expansion, for example, derives both the branch predicate and the merge
+///   multiplier as separate casts of one sign value.
+fn is_predicate(dfg: &crate::ssa::ir::dfg::DataFlowGraph, value: ValueId, p: ValueId) -> bool {
+    let value = strip_casts(dfg, value);
+    let p = strip_casts(dfg, p);
+    if value == p {
+        return true;
+    }
+    if let crate::ssa::ir::value::Value::Instruction { instruction, .. } = &dfg[value] {
+        if let Instruction::Binary(Binary { lhs, rhs, operator: BinaryOp::Mul { .. } }) =
+            &dfg[*instruction]
+        {
+            return is_predicate(dfg, *lhs, p) || is_predicate(dfg, *rhs, p);
         }
     }
+    false
+}
+
+/// Follow a chain of `cast` instructions to the underlying source value.
+fn strip_casts(dfg: &crate::ssa::ir::dfg::DataFlowGraph, mut value: ValueId) -> ValueId {
+    while let crate::ssa::ir::value::Value::Instruction { instruction, .. } = &dfg[value] {
+        if let Instruction::Cast(src, _) = &dfg[*instruction] {
+            value = *src;
+        } else {
+            break;
+        }
+    }
+    value
 }
 
 fn is_one(function: &Function, value: ValueId) -> bool {
@@ -304,6 +327,52 @@ mod tests {
             v3 = cast v1 as u32
             v4 = add v2, v3
             return v4
+        }
+        ";
+        let ssa = Ssa::from_str_no_validation(src).unwrap();
+        assert!(verify_side_effect_predicates(&ssa).is_ok());
+    }
+
+    #[test]
+    fn accepts_guard_by_conjoined_sub_predicate() {
+        // A checked add tainted by `v0` is re-guarded by `v0 * v1`, the
+        // conjunction flattening builds for a nested branch. `v0 * v1` is `0`
+        // whenever `v0` is `0`, so the guard zeroes the value on the disabled
+        // branch and the escape is spurious.
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u1, v1: u1, v2: u16):
+            enable_side_effects v0
+            v3 = cast v2 as u32
+            v4 = add v3, u32 1
+            v5 = unchecked_mul v0, v1
+            v6 = cast v5 as u32
+            v7 = mul v6, v4
+            enable_side_effects u1 1
+            return v7
+        }
+        ";
+        let ssa = Ssa::from_str_no_validation(src).unwrap();
+        assert!(verify_side_effect_predicates(&ssa).is_ok());
+    }
+
+    #[test]
+    fn accepts_guard_by_other_cast_of_predicate_source() {
+        // The branch predicate (`cast v0 as u1`) and the merge multiplier
+        // (`cast v0 as u32`) are different casts of the same source `v0`, as the
+        // signed-division expansion produces. Casts preserve zero-ness, so the
+        // multiplier still zeroes the tainted value when the predicate is `0`.
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u32, v1: u16):
+            v2 = cast v0 as u1
+            enable_side_effects v2
+            v3 = cast v1 as u32
+            v4 = add v3, u32 1
+            enable_side_effects u1 1
+            v5 = cast v0 as u32
+            v6 = mul v5, v4
+            return v6
         }
         ";
         let ssa = Ssa::from_str_no_validation(src).unwrap();
