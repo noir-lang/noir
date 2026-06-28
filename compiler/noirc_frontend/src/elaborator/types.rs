@@ -1853,7 +1853,7 @@ impl Elaborator<'_> {
         // path as a value (which also reports the error if it is none of these).
         match trait_resolution {
             Some(resolution) => self.variable_from_trait_resolution(path.location, resolution),
-            None => self.resolve_variable_in_scope(path),
+            None => self.resolve_value_item(path),
         }
     }
 
@@ -2215,7 +2215,7 @@ impl Elaborator<'_> {
     /// the caller never needs a further fallback. [`Self::resolve_path_prefix`] classifies the
     /// prefix once; the last segment is resolved against that classification, and anything that is
     /// not a method/trait-item (an enum variant, a module value, an associated constant, …) is
-    /// resolved by [`Self::resolve_variable_in_scope`] on the whole path.
+    /// resolved by [`Self::resolve_value_item`] on the whole path.
     ///
     /// Returns `None` only when an error has already been reported (an ambiguous trait method, or
     /// an unresolved name), so the caller should produce an error expression rather than retry.
@@ -2267,7 +2267,7 @@ impl Elaborator<'_> {
                 resolution,
             ),
             // A module prefix: the last segment is an ordinary value item, resolved as a value.
-            PathPrefixKind::Module => self.resolve_variable_in_scope(path),
+            PathPrefixKind::Module => self.resolve_value_item(path),
             // No usable prefix: the path names nothing, and a value lookup would only rediscover
             // the resolution failure already carried here, so report it directly.
             PathPrefixKind::NoPrefix { error } => {
@@ -2294,7 +2294,7 @@ impl Elaborator<'_> {
         last_segment: TypedPathSegment,
         turbofish: Option<Turbofish>,
     ) -> Option<VariableResolution> {
-        if let Some((expr_id, typ)) = self.elaborate_variable_as_self_method_or_associated_constant(
+        if let Some((expr_id, typ)) = self.resolve_variable_as_self_method_or_associated_constant(
             &path,
             self_type,
             trait_impl_id,
