@@ -9,7 +9,7 @@ use crate::{
         LoopStatement, Statement, StatementKind, UnaryOp, WhileStatement,
     },
     elaborator::{
-        PathResolutionTarget, WildcardDisallowedContext, patterns::IdentFromPath,
+        PathResolutionTarget, WildcardDisallowedContext, patterns::PathValue,
         types::WildcardAllowed,
     },
     hir::{
@@ -640,15 +640,15 @@ impl Elaborator<'_> {
                 let location = path.location;
                 let path = self.validate_path(path);
                 match self.get_ident_from_path_or_error(path.clone()) {
-                    Ok(IdentFromPath::Variable(variable)) => {
+                    Ok(PathValue::Variable(variable)) => {
                         self.check_if_variable_is_captured_by_closure(&variable);
                         self.elaborate_lvalue_ident(variable.ident, location)
                     }
-                    Ok(IdentFromPath::Definition { id, item: _ }) => {
+                    Ok(PathValue::Definition { id, item: _ }) => {
                         let ident = HirIdent::non_trait_method(id, location);
                         self.elaborate_lvalue_ident(ident, location)
                     }
-                    Ok(IdentFromPath::TypeAlias(type_alias_id)) => {
+                    Ok(PathValue::TypeAlias(type_alias_id)) => {
                         let type_alias = self.interner.get_type_alias(type_alias_id);
                         self.push_err(ResolverError::Expected {
                             location,

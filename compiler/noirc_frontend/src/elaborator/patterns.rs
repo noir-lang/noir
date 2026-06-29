@@ -5,7 +5,6 @@ use noirc_errors::{Located, Location};
 use rustc_hash::FxHashMap as HashMap;
 use rustc_hash::FxHashSet as HashSet;
 
-use crate::elaborator::scope::ItemAsValue;
 use crate::hir::def_collector::dc_crate::CompilationError;
 use crate::node_interner::DefinitionId;
 use crate::{
@@ -34,22 +33,13 @@ pub(crate) struct Variable {
 }
 
 /// The result of [`Elaborator::get_ident_from_path`] and [`Elaborator::get_ident_from_path_or_error`].
-pub(crate) enum IdentFromPath {
+pub(crate) enum PathValue {
     /// A variable was found.
     Variable(Variable),
     /// A definition was found.
     Definition { id: DefinitionId, item: PathResolutionItem },
     /// A type alias that is numeric, infinitely recursive or one that errored, was found.
     TypeAlias(TypeAliasId),
-}
-
-impl From<ItemAsValue> for IdentFromPath {
-    fn from(item: ItemAsValue) -> Self {
-        match item {
-            ItemAsValue::Definition { id, item } => IdentFromPath::Definition { id, item },
-            ItemAsValue::TypeAlias(type_alias_id) => IdentFromPath::TypeAlias(type_alias_id),
-        }
-    }
 }
 
 impl Elaborator<'_> {
@@ -818,7 +808,7 @@ impl Elaborator<'_> {
     ///
     /// If it cannot be found, then it pushes the error and returns [None].
     #[tracing::instrument(level = "trace", skip_all)]
-    pub(crate) fn get_ident_from_path(&mut self, path: TypedPath) -> Option<IdentFromPath> {
+    pub(crate) fn get_ident_from_path(&mut self, path: TypedPath) -> Option<PathValue> {
         match self.get_ident_from_path_or_error(path) {
             Ok(value) => Some(value),
             Err(error) => {
@@ -833,7 +823,7 @@ impl Elaborator<'_> {
     pub(crate) fn get_ident_from_path_or_error(
         &mut self,
         path: TypedPath,
-    ) -> Result<IdentFromPath, ResolverError> {
+    ) -> Result<PathValue, ResolverError> {
         // If the path is a single segment, try to resolve it as a local variable first
         let use_variable_error = match path.as_single_segment() {
             Some(segment) => match self.use_variable(&segment.ident) {
@@ -846,7 +836,7 @@ impl Elaborator<'_> {
                             PathResolutionError::TurbofishNotAllowedOnItem { item, location };
                         self.push_err(error);
                     }
-                    return Ok(IdentFromPath::Variable(variable));
+                    return Ok(PathValue::Variable(variable));
                 }
                 Err(error) => Some(error),
             },
@@ -882,14 +872,14 @@ impl Elaborator<'_> {
     }
 
     /// Resolve a [`TypedPath`] to the value item it names — a global, function, enum-variant
-    /// global, trait associated constant, or numeric type alias — as an [`IdentFromPath`]. Unlike
+    /// global, trait associated constant, or numeric type alias — as an [`PathValue`]. Unlike
     /// [`Self::get_ident_from_path_or_error`] this never tries a local variable, so it is what a
     /// multi-segment path (which can never name a local variable) needs.
     #[tracing::instrument(level = "trace", skip_all)]
     pub(crate) fn ident_from_value_item(
         &mut self,
         path: TypedPath,
-    ) -> Result<IdentFromPath, ResolverError> {
-        self.lookup_item_as_value(path).map(IdentFromPath::from)
+    ) -> Result<PathValue, ResolverError> {
+        self.lookup_item_as_value(path)
     }
 }

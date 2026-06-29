@@ -12,7 +12,7 @@ use crate::elaborator::TypedPath;
 use crate::elaborator::function_context::BindableTypeVariableKind;
 use crate::elaborator::path_resolution::PathResolutionItem;
 use crate::elaborator::path_resolution::TypedPathSegment;
-use crate::elaborator::patterns::{IdentFromPath, Variable};
+use crate::elaborator::patterns::{PathValue, Variable};
 use crate::elaborator::types::{SELF_TYPE_NAME, WildcardAllowed};
 use crate::hir::def_collector::dc_crate::CompilationError;
 use crate::hir::def_map::ModuleId;
@@ -531,7 +531,7 @@ impl Elaborator<'_> {
     /// segment is not a method or trait item, and a prefixed path can never name a local variable.
     pub(super) fn resolve_value_item(&mut self, path: TypedPath) -> Option<VariableResolution> {
         let location = path.last_ident().location();
-        let ident = self.lookup_item_as_value(path).map(IdentFromPath::from);
+        let ident = self.lookup_item_as_value(path);
         self.variable_resolution_from_value_item(ident, location)
     }
 
@@ -545,8 +545,7 @@ impl Elaborator<'_> {
         last_segment: TypedPathSegment,
     ) -> Option<VariableResolution> {
         let location = last_segment.ident.location();
-        let ident =
-            self.lookup_item_as_value_in_module(last_segment, module_id).map(IdentFromPath::from);
+        let ident = self.lookup_item_as_value_in_module(last_segment, module_id);
         self.variable_resolution_from_value_item(ident, location)
     }
 
@@ -554,7 +553,7 @@ impl Elaborator<'_> {
     /// error if it could not be resolved as a value.
     fn variable_resolution_from_value_item(
         &mut self,
-        ident: Result<IdentFromPath, ResolverError>,
+        ident: Result<PathValue, ResolverError>,
         location: Location,
     ) -> Option<VariableResolution> {
         match ident {
@@ -568,25 +567,25 @@ impl Elaborator<'_> {
         }
     }
 
-    /// Build the [`VariableResolution`] an already-resolved [`IdentFromPath`] denotes, registering
+    /// Build the [`VariableResolution`] an already-resolved [`PathValue`] denotes, registering
     /// the reference (for LSP) along the way.
     fn variable_resolution_from_ident_from_path(
         &mut self,
-        ident_from_path: IdentFromPath,
+        ident_from_path: PathValue,
         location: Location,
     ) -> VariableResolution {
         match ident_from_path {
-            IdentFromPath::Variable(variable) => {
+            PathValue::Variable(variable) => {
                 self.handle_local_variable(&variable);
                 let hir_ident = HirIdent::non_trait_method(variable.ident.id, location);
                 VariableResolution::Ident(hir_ident, None)
             }
-            IdentFromPath::Definition { id, item } => {
+            PathValue::Definition { id, item } => {
                 self.handle_definition_id(id, location);
                 let hir_ident = HirIdent::non_trait_method(id, location);
                 VariableResolution::Ident(hir_ident, Some(item))
             }
-            IdentFromPath::TypeAlias(type_alias_id) => VariableResolution::TypeAlias(type_alias_id),
+            PathValue::TypeAlias(type_alias_id) => VariableResolution::TypeAlias(type_alias_id),
         }
     }
 
