@@ -66,11 +66,7 @@ comptime fn derive_validate(s: TypeDefinition) -> Quoted {
 /// generated impl.
 pub comptime fn validate(s: TypeDefinition, method: FunctionDefinition) {
     let parameters = method.parameters();
-    assert_eq(
-        parameters.len(),
-        1,
-        "a #[validate(...)] method must take a single `&self` argument",
-    );
+    assert_eq(parameters.len(), 1, "a #[validate(...)] method must take a single `&self` argument");
     // The single argument must be `&self`: a reference to the annotated type. Comparing the
     // tokenized types rather than the `Type` values matches by the names a generic type prints
     // (e.g. `&BoundedVec<T, MaxLen>`), so the method's generics need not be the same type-variable
