@@ -11,6 +11,12 @@ broken by collection order, so every container iterated during collection must b
 `comptime` blocks within functions are affected by function's arbitrary elaboration order.
 Since functions are lazily elaborated now, this will affect ordering of comptime blocks as well.
 
+# Attributes on trait methods
+
+Comptime attributes on a trait's default methods run just like attributes on
+top-level or impl methods. A comptime attribute on a bodyless trait method declaration has no body
+to run against, so it is rejected with an error rather than silently ignored or run.
+
 # Repeat diagnostics
 
 The comptime interpreter can be run on functions which created errors during elaboration.
