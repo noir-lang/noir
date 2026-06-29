@@ -26,6 +26,7 @@ use crate::{
         path_resolution::{TypedPath, TypedPathSegment},
         types::{WildcardAllowed, WildcardDisallowedContext},
     },
+    graph::CrateId,
     hir::{
         def_collector::dc_crate::{
             ImplMap, UnresolvedFunctions, UnresolvedImpl, UnresolvedTraitImpl,
@@ -39,6 +40,7 @@ use crate::{
         function::{FuncMeta, FunctionBody, HirFunction},
         stmt::HirPattern,
         traits::{Impl, TraitConstraint},
+        types::recursion::TypeRecursionContext,
     },
     node_interner::{
         DefinitionKind, DependencyId, FuncId, FunctionModifiers, ImplId, NodeInterner, TraitId,
@@ -742,16 +744,26 @@ impl Elaborator<'_> {
         let Some(trait_id) = self.try_resolve_trait_by_path(validate_path) else {
             return body;
         };
+        let worth = ValidationWorth::new(stdlib);
 
         let mut prelude = Vec::new();
         for (pattern, typ, _visibility) in func_meta.parameters.iter() {
             if self.interner.lookup_trait_implementation(typ, trait_id, &[], &[]).is_err() {
                 continue;
             }
+            // Skip the call when the type's `validate` is provably a no-op (only our own
+            // primitive/array/tuple/`Option` machinery is involved), so trivial inputs don't accrue
+            // boilerplate. A user type that implements `Validate` is always validated.
+            if !worth.is_worth_validating(typ) {
+                continue;
+            }
             let Some(name) = identifier_pattern_name(self.interner, pattern).map(str::to_string)
             else {
                 continue;
             };
+            // Attribute the synthesized call to the parameter, so a failure points at the input
+            // being validated rather than at the function signature.
+            let location = pattern.location();
             let object = Expression::new(
                 ExpressionKind::Variable(Path::from_single(name, location)),
                 location,
@@ -935,5 +947,66 @@ fn identifier_pattern_name<'a>(
         HirPattern::Identifier(ident) => Some(interner.definition_name(ident.id)),
         HirPattern::Mutable(inner, _) => identifier_pattern_name(interner, inner),
         HirPattern::Tuple(..) | HirPattern::Struct(..) => None,
+    }
+}
+
+/// Decides whether injecting `validate()` for an entry-point parameter could assert anything,
+/// used to avoid emitting boilerplate no-op calls for trivial inputs.
+struct ValidationWorth {
+    /// The crate `std::option::Option` belongs to, used to recognize it (by crate and name) and
+    /// recurse through it as a transparent wrapper.
+    stdlib: CrateId,
+}
+
+impl ValidationWorth {
+    fn new(stdlib: CrateId) -> Self {
+        Self { stdlib }
+    }
+
+    /// Returns `false` only when the type's `Validate` implementation is provably a no-op because
+    /// just our own machinery is involved: a primitive, an array/slice/tuple built recursively from
+    /// such, or an `Option` of such. Any other named type — a user struct/enum, `BoundedVec`, etc.
+    /// — is treated as worth validating, so a type the user opted into validating is never silently
+    /// skipped.
+    fn is_worth_validating(&self, typ: &Type) -> bool {
+        self.is_worth_validating_helper(typ, TypeRecursionContext::default())
+    }
+
+    /// `context` bounds the recursion depth and tracks aliases, guarding against degenerate or
+    /// cyclic types.
+    fn is_worth_validating_helper(&self, typ: &Type, mut context: TypeRecursionContext) -> bool {
+        match typ {
+            Type::FieldElement | Type::Integer(..) | Type::Bool | Type::Unit | Type::String(_) => {
+                false
+            }
+            Type::Array(element, _) | Type::Vector(element) => {
+                self.is_worth_validating_helper(element, context.recur())
+            }
+            Type::Tuple(elements) => elements
+                .iter()
+                .any(|element| self.is_worth_validating_helper(element, context.clone().recur())),
+            Type::DataType(definition, generics) => {
+                let definition = definition.borrow();
+                if definition.id.krate() == self.stdlib && definition.name.as_str() == "Option" {
+                    generics.first().is_some_and(|inner| {
+                        self.is_worth_validating_helper(inner, context.recur())
+                    })
+                } else {
+                    true
+                }
+            }
+            // Follow an alias to its underlying type: an alias for a primitive (e.g.
+            // `type Age = u32`) can't carry a validation of its own. A cyclic alias re-enters a
+            // type already on the stack and contributes nothing further.
+            Type::Alias(alias, generics) => {
+                let alias = alias.borrow();
+                if context.insert_alias(alias.id, generics.clone()) {
+                    self.is_worth_validating_helper(&alias.get_type(generics), context.recur())
+                } else {
+                    false
+                }
+            }
+            _ => true,
+        }
     }
 }

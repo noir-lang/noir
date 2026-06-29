@@ -9,8 +9,8 @@ error: Assertion failed: BoundedVec length exceeds its capacity
     │         ----------------------------------------------------------------------
     │
     = Call stack:
-      1: main
-              at src/main.nr:6:7
+      1: ?
+              at src/main.nr:5:11
       2: <impl Validate for BoundedVec<T, MaxLen>>::validate
               at std/collections/bounded_vec.nr:678:9
 

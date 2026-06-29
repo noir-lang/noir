@@ -3,17 +3,17 @@ source: tooling/nargo_cli/tests/execute.rs
 expression: stderr
 ---
 error: Assertion failed: Buffer length exceeds its capacity
-   ┌─ src/main.nr:16:9
+   ┌─ src/main.nr:17:9
    │
-16 │         assert(self.len <= N, "Buffer length exceeds its capacity");
+17 │         assert(self.len <= N, "Buffer length exceeds its capacity");
    │         -----------------------------------------------------------
    │
    = Call stack:
-     1: main
-             at src/main.nr:21:7
+     1: Buffer<N>::len_within_capacity
+             at src/main.nr:21:11
      2: ?
-             at src/main.nr:8:14
+             at src/main.nr:9:14
      3: Buffer<N>::len_within_capacity
-             at src/main.nr:16:11
+             at src/main.nr:17:11
 
 Failed assertion

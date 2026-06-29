@@ -20,5 +20,7 @@ impl<let N: u32> Buffer<N> {
 }
 
 fn main(buffer: Buffer<3>) {
+    // Redundant with the injected auto-validation; left here to demonstrate 100%
+    // that the validation is called, and that it passes with the circuit inputs.
     buffer.validate();
 }
