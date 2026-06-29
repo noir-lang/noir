@@ -296,12 +296,12 @@ impl<'a> From<&'a DefCollectorErrorKind> for Diagnostic {
                 diag
             }
             DefCollectorErrorKind::TestOnAssociatedFunction { location } => Diagnostic::simple_error(
-                "The `#[test]` attribute is disallowed on `impl` methods".into(),
+                "The `#[test]` attribute is disallowed on associated functions".into(),
                 String::new(),
                 *location,
             ),
             DefCollectorErrorKind::FuzzOnAssociatedFunction { location } => Diagnostic::simple_error(
-                "The `#[fuzz]` attribute is disallowed on `impl` methods".into(),
+                "The `#[fuzz]` attribute is disallowed on associated functions".into(),
                 String::new(),
                 *location,
             ),

@@ -561,6 +561,18 @@ impl ModCollector<'_> {
                         is_comptime,
                         attributes,
                     } => {
+                        if let Some((_, location)) = attributes.as_test_function() {
+                            let error =
+                                DefCollectorErrorKind::TestOnAssociatedFunction { location };
+                            errors.push(error);
+                        }
+
+                        if let Some((_, location)) = attributes.as_fuzzing_harness() {
+                            let error =
+                                DefCollectorErrorKind::FuzzOnAssociatedFunction { location };
+                            errors.push(error);
+                        }
+
                         let func_id = context.def_interner.push_empty_fn();
                         if !method_ids.contains_key(name.as_str()) {
                             method_ids.insert(name.to_string(), func_id);
