@@ -1,0 +1,6 @@
+[package]
+name = "validate_main_input_inherent_method"
+type = "bin"
+authors = [""]
+
+[dependencies]

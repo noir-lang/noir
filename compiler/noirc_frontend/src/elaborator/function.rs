@@ -16,10 +16,10 @@ use noirc_errors::Location;
 use crate::{
     Kind, ResolvedGeneric, Type, TypeVariable,
     ast::{
-        BlockExpression, Expression, ExpressionKind, FunctionKind, Ident, IdentOrQuotedType,
-        MethodCallExpression, NoirFunction, Param, Path, Statement, StatementKind,
-        UnresolvedGeneric, UnresolvedGenerics, UnresolvedTraitConstraint, UnresolvedType,
-        UnresolvedTypeData,
+        BlockExpression, CallExpression, Expression, ExpressionKind, FunctionKind, Ident,
+        IdentOrQuotedType, NoirFunction, Param, Path, PathKind, PathSegment, Statement,
+        StatementKind, UnaryOp, UnresolvedGeneric, UnresolvedGenerics, UnresolvedTraitConstraint,
+        UnresolvedType, UnresolvedTypeData,
     },
     elaborator::{
         UnstableFeature, lints,
@@ -762,18 +762,37 @@ impl Elaborator<'_> {
             // Attribute the synthesized call to the parameter, so a failure points at the input
             // being validated rather than at the function signature.
             let location = pattern.location();
-            let object = Expression::new(
+            // Call the trait method explicitly as `std::validate::Validate::validate(&param)`
+            // rather than `param.validate()`: a method call would prefer an inherent `validate`
+            // method on the type (which need not enforce any invariant) over the trait
+            // implementation we resolved above. Rooting the path in the stdlib crate keeps it from
+            // resolving to a different `Validate` brought into scope by the program.
+            let path = Path {
+                segments: vec![
+                    PathSegment::from(Ident::new("validate".to_string(), location)),
+                    PathSegment::from(Ident::new("Validate".to_string(), location)),
+                    PathSegment::from(Ident::new("validate".to_string(), location)),
+                ],
+                kind: PathKind::Resolved(stdlib),
+                location,
+                kind_location: location,
+            };
+            let func = Expression::new(ExpressionKind::Variable(path), location);
+            let receiver = Expression::new(
                 ExpressionKind::Variable(Path::from_single(name, location)),
                 location,
             );
-            let call = MethodCallExpression {
-                object,
-                method_name: Ident::new("validate".to_string(), location),
-                generics: None,
-                arguments: Vec::new(),
+            // The trait method takes `&self`, so pass the parameter by reference.
+            let argument = Expression::new(
+                ExpressionKind::prefix(UnaryOp::Reference { mutable: false }, receiver),
+                location,
+            );
+            let call = CallExpression {
+                func: Box::new(func),
+                arguments: vec![argument],
                 is_macro_call: false,
             };
-            let expr = Expression::new(ExpressionKind::MethodCall(Box::new(call)), location);
+            let expr = Expression::new(ExpressionKind::Call(Box::new(call)), location);
             let statement = Statement { kind: StatementKind::Semi(expr), location };
 
             // Elaborate the call without marking the parameter used, so the synthesized reference

@@ -58,9 +58,10 @@ it; a plain `impl` has no such ordering constraint (the same reason `Option`'s i
 ## Automatic validation of entry-point inputs
 
 For every entry-point function (`main`, and a contract's entry-point functions — `is_entry_point`),
-the elaborator injects a `param.validate()` call at the start of the body for each parameter whose
-type implements `Validate`. See `Elaborator::entry_point_validation_statements` and
-`prepend_statements` in `compiler/noirc_frontend/src/elaborator/function.rs`.
+the elaborator injects a `std::validate::Validate::validate(&param)` call at the start of the body
+for each parameter whose type implements `Validate`. See
+`Elaborator::entry_point_validation_statements` and `prepend_statements` in
+`compiler/noirc_frontend/src/elaborator/function.rs`.
 
 Decisions:
 
@@ -92,6 +93,16 @@ Decisions:
   the feature is inert without the stdlib, which is why frontend unit tests (no stdlib crate) never
   see it.
 
+- **Call the trait method, not a method-call.** The injected statement is a fully-qualified call
+  `std::validate::Validate::validate(&param)`, not `param.validate()`. A method-call would prefer an
+  *inherent* `validate` method on the type over the trait implementation, so a type that happened to
+  define its own `validate` (one that need not enforce any invariant) would silently bypass the
+  stdlib trait we resolved above — the implements-check would pass while the wrong method ran. The
+  fully-qualified path is rooted at the stdlib crate (`PathKind::Resolved`) for the same shadow-proof
+  reason as the trait lookup, and the `&param` receiver is explicit because UFCS does not auto-ref
+  the first argument. The `validate_main_input_inherent_method` execution-failure test pins this:
+  an input that the inherent method would accept still fails against the trait invariant.
+
 - **The call lives in the body.** Because injection prepends to `main`'s body rather than wrapping
   the call site, anything that calls `main` runs the validation — including a `#[test]`. `main` stays
   an entry point under `nargo test` (`is_entry_point` is static: root module + the name `main`), so
@@ -115,8 +126,8 @@ would be a silent gap.
 
 ## Not masking the unused-variable lint
 
-The injected `param.validate()` references the parameter, which would normally mark it used and
-suppress a genuine "unused variable" warning — the auto-validation would hide a real mistake. To
+The injected `std::validate::Validate::validate(&param)` references the parameter, which would
+normally mark it used and suppress a genuine "unused variable" warning — the auto-validation would hide a real mistake. To
 avoid that, the elaborator carries a `mark_variables_used` flag (default true) that
 `Elaborator::use_variable` honors; the injected statements are elaborated with it off. The injection
 therefore happens *separately* from the user body (the body records real usage), and the unused lint,

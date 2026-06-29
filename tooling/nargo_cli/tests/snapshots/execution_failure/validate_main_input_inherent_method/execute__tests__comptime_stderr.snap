@@ -1,0 +1,31 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+warning: unused variable p
+   ┌─ src/main.nr:26:9
+   │
+26 │ fn main(p: Percent) {}
+   │         - unused variable
+   │
+
+warning: unused function validate
+   ┌─ src/main.nr:15:8
+   │
+15 │     fn validate(&self) {
+   │        -------- unused function
+   │
+
+error: percent out of range
+   ┌─ src/main.nr:22:16
+   │
+22 │         assert(self.value <= 100, "percent out of range");
+   │                ----------------- Assertion failed
+   │
+   = Call stack:
+     1: ?
+             at src/main.nr:26:8
+     2: ?
+             at src/main.nr:26:13
+
+Error interpreting main function
