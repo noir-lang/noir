@@ -7,6 +7,8 @@ const darkTheme = themes.dracula;
 import math from 'remark-math';
 import katex from 'rehype-katex';
 
+const { llmExcludeRoutes, remarkLlmsTweaks, llmsDiscoveryPlugin } = require('./src/llmsTxt');
+
 // noindex every served documentation version except the latest stable (`versions[0]`, the
 // default served at the site root): the unreleased `dev` version and the older stable
 // snapshots. This stops search engines indexing duplicate copies of the docs and treats
@@ -47,6 +49,9 @@ export default {
         blog: false,
         theme: {
           customCss: ['./src/css/custom.css', './src/css/sidebar.css'],
+        },
+        sitemap: {
+          ignorePatterns: llmExcludeRoutes,
         },
       },
     ],
@@ -149,6 +154,8 @@ export default {
     },
   },
   plugins: [
+    // Inject the hidden documentation-index (llms.txt) link into every built page.
+    llmsDiscoveryPlugin,
     () => ({
       name: 'resolve-react',
       configureWebpack() {
@@ -169,9 +176,14 @@ export default {
         if (process.env.ENV !== 'dev') {
           const { writeFileSync } = await import('fs');
           const { join } = await import('path');
+          // The /docs/404 rules return a real 404 status for the error page; without
+          // them the catch-all below rewrites it to a 200 ("soft 404"). They must come
+          // before the catch-all because Netlify applies the first matching rule.
           const redirectsContent = `# Netlify redirects for /docs/ routing
 /docs/assets/* /assets/:splat 200
 /docs/img/* /img/:splat 200
+/docs/404 /404.html 404
+/docs/404.html /404.html 404
 /docs/* /:splat 200`;
           writeFileSync(join(outDir, '_redirects'), redirectsContent);
         }
@@ -230,19 +242,31 @@ export default {
       },
     ],
     [
-      'docusaurus-plugin-llms',
+      '@signalwire/docusaurus-plugin-llms-txt',
       {
-        generateLLMsTxt: true,
-        generateLLMsFullTxt: true,
-        docsDir: `versioned_docs/version-${versions[0]}`,
-        title: 'Noir Language Documentation',
-        excludeImports: true,
-        ignoreFiles: [],
-        version: versions[0],
-        addMdExtension: false,
-        pathTransformation: {
-          ignorePaths: [`versioned_docs/version-${versions[0]}`],
-          addPaths: ['docs'],
+        siteTitle: 'Noir Language Documentation',
+        siteDescription:
+          'Noir is the universal ZK circuit language for writing privacy-preserving, zero-knowledge programs.',
+        content: {
+          // Emit a `.md` sibling for every route and a single-file `llms-full.txt`.
+          enableMarkdownFiles: true,
+          enableLlmsFullTxt: true,
+          // Absolute URLs so the llms.txt index links carry the `/docs/` baseUrl and
+          // resolve on the deployed site. NOTE: under a non-root baseUrl this plugin
+          // double-applies the base to in-page links (`/docs/docs/...`); remarkLlmsTweaks
+          // (a `remarkPlugins` entry below) collapses that back to `/docs/`.
+          relativePaths: false,
+          // Run on each generated page's markdown AST: collapse the doubled `/docs/docs/`
+          // links and prepend the llms.txt discovery pointer.
+          remarkPlugins: [remarkLlmsTweaks],
+          includeDocs: true,
+          // The served docs ARE versioned snapshots (the default version is the latest
+          // stable in versioned_docs/), so versioned docs must be included or the index
+          // is empty. Older snapshots and `dev` are dropped via excludeRoutes.
+          includeVersionedDocs: true,
+          includeBlog: false,
+          includePages: false,
+          excludeRoutes: llmExcludeRoutes,
         },
       },
     ],
