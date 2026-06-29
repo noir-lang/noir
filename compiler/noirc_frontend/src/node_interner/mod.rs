@@ -888,6 +888,11 @@ impl NodeInterner {
         &self.traits[&id]
     }
 
+    /// Returns the ids of every trait known to the interner, in unspecified order.
+    pub fn trait_ids(&self) -> Vec<TraitId> {
+        self.traits.keys().copied().collect()
+    }
+
     pub fn get_trait_associated_type(&self, id: TraitAssociatedTypeId) -> &TraitAssociatedType {
         &self.trait_associated_types[id.0]
     }
