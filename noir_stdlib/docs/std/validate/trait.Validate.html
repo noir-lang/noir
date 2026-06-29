@@ -87,7 +87,8 @@ inputs, oracle results), where those invariants would otherwise be assumed witho
 below are the leaves of that recursion (primitive types carry no invariant of their own).</p>
 <p>A type can also assert invariants of its own (ones that span several fields, or that the field
 recursion cannot see) by naming one or more methods with <code>#[validate(Type::method)]</code>. The derived
-<code>validate</code> calls each named method before recursing into the fields:</p>
+<code>validate</code> calls each named method after recursing into the fields, so a custom invariant reads
+fields that have already passed their own validation:</p>
 <pre><code>#[derive(Validate)]
 #[validate(Percent::in_range)]
 <span class="kw">struct</span> Percent {
@@ -99,7 +100,7 @@ recursion cannot see) by naming one or more methods with <code>#[validate(Type::
         <span class="kw">assert</span>(self.value &lt;= <span class="number">100</span>);
     }
 }</code></pre>
-<p>Each named method must take a single <code>self</code> argument and return nothing.</p></div>
+<p>Each named method must take a single <code>&amp;self</code> argument and return nothing.</p></div>
 <h2>Required methods</h2>
 <div class="padded-methods"><code id="validate" class="code-header">pub fn <a href="#validate" class="fn">validate</a>(&mut self: &Self)</code>
 

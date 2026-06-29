@@ -12,7 +12,8 @@ use crate::meta::derive_via;
 ///
 /// A type can also assert invariants of its own (ones that span several fields, or that the field
 /// recursion cannot see) by naming one or more methods with `#[validate(Type::method)]`. The derived
-/// `validate` calls each named method before recursing into the fields:
+/// `validate` calls each named method after recursing into the fields, so a custom invariant reads
+/// fields that have already passed their own validation:
 ///
 /// ```noir
 /// #[derive(Validate)]
@@ -40,14 +41,15 @@ comptime fn derive_validate(s: TypeDefinition) -> Quoted {
     let signature = quote { fn validate(&self) };
     let for_each_field = |name| quote { self.$name.validate(); };
 
-    // Splice a call to each `#[validate(Type::method)]` method ahead of the field recursion, so the
-    // type's own invariants are asserted before its contents are descended into.
+    // Splice a call to each `#[validate(Type::method)]` method after the field recursion, so a
+    // custom invariant reads fields that have already passed their own validation rather than
+    // unchecked data (e.g. a length field a method indexes by has already been bounds-checked).
     let mut custom = quote {};
     for occurrence in s.named_attribute_args("validate") {
         let method = occurrence[0];
         custom = quote { $custom $method(self); };
     }
-    let body = |fields| quote { $custom $fields };
+    let body = |fields| quote { $fields $custom };
 
     crate::meta::make_trait_impl(
         s,

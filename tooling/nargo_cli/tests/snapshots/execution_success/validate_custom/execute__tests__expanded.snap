@@ -17,9 +17,9 @@ impl Bounds {
 
 impl Validate for Bounds {
     fn validate(&self) {
-        self.ordered();
         self.lo.validate();
         self.hi.validate();
+        self.ordered();
     }
 }
 
