@@ -2,6 +2,14 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: stderr
 ---
+warning: unvalidated entry point input `x`
+  ┌─ src/main.nr:6:9
+  │
+6 │ fn main(mut x: [Foo; 3], y: pub u32) {
+  │         ----- `[Foo; 3]` does not implement `Validate`
+  │
+  = Implement or derive `Validate` for this type so its representation invariants are checked when it enters the circuit from an untrusted source, or silence this warning.
+
 error: Index out of bounds: 4 is out of bounds for the array of length 3
   ┌─ src/main.nr:7:12
   │

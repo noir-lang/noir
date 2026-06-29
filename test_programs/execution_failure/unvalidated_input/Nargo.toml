@@ -1,0 +1,6 @@
+[package]
+name = "unvalidated_input"
+type = "bin"
+authors = [""]
+
+[dependencies]

@@ -747,7 +747,23 @@ impl Elaborator<'_> {
 
         let mut statements = Vec::new();
         for (pattern, typ, _visibility) in func_meta.parameters.iter() {
+            let Some(name) = identifier_pattern_name(self.interner, pattern).map(str::to_string)
+            else {
+                continue;
+            };
             if self.interner.lookup_trait_implementation(typ, trait_id, &[], &[]).is_err() {
+                // The type does not implement `Validate`, so the input cannot be checked on entry.
+                // Warn, unless the parameter is `_`-prefixed — the convention (shared with the
+                // unused-variable lint) for deliberately opting out. Note this opts out only of the
+                // warning: a parameter whose type *does* implement `Validate` is still validated
+                // regardless of its name, since a `_`-prefixed binding may still be used.
+                if !name.starts_with('_') {
+                    self.push_err(ResolverError::UnvalidatedInput {
+                        name,
+                        typ: typ.to_string(),
+                        location: pattern.location(),
+                    });
+                }
                 continue;
             }
             // Skip the call when the type's `validate` is provably a no-op (only our own
@@ -756,10 +772,6 @@ impl Elaborator<'_> {
             if !worth.is_worth_validating(typ) {
                 continue;
             }
-            let Some(name) = identifier_pattern_name(self.interner, pattern).map(str::to_string)
-            else {
-                continue;
-            };
             // Attribute the synthesized call to the parameter, so a failure points at the input
             // being validated rather than at the function signature.
             let location = pattern.location();

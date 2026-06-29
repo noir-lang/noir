@@ -1,0 +1,27 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+warning: unvalidated entry point input `w`
+   ┌─ src/main.nr:28:9
+   │
+28 │ fn main(w: Wrapper) {
+   │         - `Wrapper` does not implement `Validate`
+   │
+   = Implement or derive `Validate` for this type so its representation invariants are checked when it enters the circuit from an untrusted source, or silence this warning.
+
+error: Assertion failed: value out of range
+   ┌─ src/main.nr:20:9
+   │
+20 │         assert(self.value <= 100, "value out of range");
+   │         -----------------------------------------------
+   │
+   = Call stack:
+     1: main
+             at src/main.nr:29:7
+     2: ?
+             at src/main.nr:13:14
+     3: Bounded::in_range
+             at src/main.nr:20:11
+
+Failed assertion
