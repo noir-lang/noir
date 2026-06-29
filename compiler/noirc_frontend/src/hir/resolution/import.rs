@@ -53,6 +53,8 @@ pub enum PathResolutionError {
     TurbofishNotAllowedOnItem { item: String, location: Location },
     #[error("{ident} is a {kind}, not a module")]
     NotAModule { ident: Ident, kind: &'static str },
+    #[error("{kind} `{name}` has no associated items")]
+    NoAssociatedItems { name: Ident, kind: &'static str },
     #[error(
         "trait `{trait_name}` which provides `{ident}` is implemented but not in scope, please import it"
     )]
@@ -86,6 +88,7 @@ impl PathResolutionError {
             PathResolutionError::Unresolved(ident)
             | PathResolutionError::Private(ident)
             | PathResolutionError::NotAModule { ident, .. }
+            | PathResolutionError::NoAssociatedItems { name: ident, .. }
             | PathResolutionError::TraitMethodNotInScope { ident, .. }
             | PathResolutionError::MultipleTraitsInScope { ident, .. }
             | PathResolutionError::MultipleApplicableImpls { ident, .. }
@@ -136,6 +139,9 @@ impl<'a> From<&'a PathResolutionError> for CustomDiagnostic {
             }
             PathResolutionError::NotAModule { ident, kind: _ } => {
                 CustomDiagnostic::simple_error(error.to_string(), String::new(), ident.location())
+            }
+            PathResolutionError::NoAssociatedItems { name, kind: _ } => {
+                CustomDiagnostic::simple_error(error.to_string(), String::new(), name.location())
             }
             PathResolutionError::TraitMethodNotInScope { ident, .. } => {
                 CustomDiagnostic::simple_error(error.to_string(), String::new(), ident.location())

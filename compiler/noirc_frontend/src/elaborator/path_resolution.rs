@@ -551,34 +551,24 @@ impl Elaborator<'_> {
         typ: &Type,
         turbofish: Option<Turbofish>,
     ) -> Result<PathResolutionItem, ResolverError> {
-        let member = &last_segment.ident;
         let Type::DataType(datatype, _) = typ else {
-            return Err(PathResolutionError::Unresolved(member.clone()).into());
+            return Err(PathResolutionError::Unresolved(last_segment.ident.clone()).into());
         };
         let type_id = datatype.borrow().id;
-        let type_module_id = type_id.module_id();
 
-        // An enum-variant constructor is the only value kept in the type's module scope; finalize a
-        // hit through the same path as the segment loop's tail.
-        if let Some(per_ns) = self.resolve_method(self.get_module(type_module_id), member) {
-            let scope = per_ns.values.expect("resolve_method only returns a value namespace");
-            let mut errors = Vec::new();
-            let path = TypedPath::plain(vec![last_segment.clone()], member.location());
-            let item = self.finalize_resolved_leaf(
-                path,
-                IntermediatePathResolutionItem::Type(type_id, turbofish),
-                type_module_id,
-                scope,
-                PathResolutionMode::MarkAsUsed,
-                &mut errors,
-            );
-            self.push_errors(errors);
-            return Ok(item);
-        }
-
-        // Otherwise it may be a trait associated constant accessed as `Type::CONST`, looked up on
-        // the resolved `typ` (so an alias's generics are applied correctly).
-        Ok(self.resolve_associated_constant_or_unresolved(type_id, typ, member)?)
+        // The associated constant is looked up on the resolved `typ` (so an alias's generics are
+        // applied correctly).
+        let mut errors = Vec::new();
+        let item = self.resolve_value_member_of_type(
+            last_segment,
+            type_id.module_id(),
+            IntermediatePathResolutionItem::Type(type_id, turbofish),
+            Some((type_id, typ)),
+            PathResolutionMode::MarkAsUsed,
+            &mut errors,
+        )?;
+        self.push_errors(errors);
+        Ok(item)
     }
 
     /// Resolves a [`TypedPath`] assuming it is inside `starting_module`.
@@ -782,50 +772,53 @@ impl Elaborator<'_> {
             // Switch to the module the current segment is defined in.
             current_module = self.get_module(current_module_id);
 
-            // Check if namespace
-            let found_ns = if current_module_id_is_type {
-                match self.resolve_method(current_module, current_ident) {
-                    Some(per_ns) => per_ns,
-                    None => {
-                        // Not an enum-variant constructor; it may be an associated constant on the
-                        // type. (A non-`Type` intermediate, e.g. a type alias, can't be, so error.)
-                        if let IntermediatePathResolutionItem::Type(type_id, turbofish) =
-                            &intermediate_item
-                        {
-                            let self_type =
-                                self.data_type_as_self_type(*type_id, turbofish.as_ref());
-                            return self
-                                .resolve_associated_constant_or_unresolved(
-                                    *type_id,
-                                    &self_type,
-                                    current_ident,
-                                )
-                                .map(|item| PathResolution { item, errors });
-                        }
+            let is_last_segment = index == path.segments.len() - 2;
 
-                        // The name isn't a method or associated constant of the type. If a trait
-                        // defines an associated item with this name, point the user at it rather
-                        // than reporting a bare "could not resolve".
-                        if let Some(error) = self
-                            .resolve_associated_item_diagnostic(&intermediate_item, current_ident)
-                        {
-                            return Err(error);
-                        }
+            // A type's path members (an enum-variant constructor or a trait associated constant) are
+            // terminal — they have no members of their own — so resolve and finalize the member here
+            // and reject any trailing segment.
+            if current_module_id_is_type {
+                // Associated constants apply to a concrete type, not a type-alias intermediate.
+                let self_type;
+                let associated_constant =
+                    if let IntermediatePathResolutionItem::Type(type_id, turbofish) =
+                        &intermediate_item
+                    {
+                        self_type = self.data_type_as_self_type(*type_id, turbofish.as_ref());
+                        Some((*type_id, &self_type))
+                    } else {
+                        None
+                    };
 
-                        return Err(PathResolutionError::Unresolved(current_ident.clone()));
-                    }
+                let item = self.resolve_value_member_of_type(
+                    current_segment,
+                    current_module_id,
+                    intermediate_item,
+                    associated_constant,
+                    mode,
+                    &mut errors,
+                )?;
+
+                if !is_last_segment {
+                    let kind = match &item {
+                        PathResolutionItem::EnumVariant(..) => "enum variant",
+                        _ => "associated constant",
+                    };
+                    return Err(PathResolutionError::NoAssociatedItems {
+                        name: current_ident.clone(),
+                        kind,
+                    });
                 }
-            } else {
-                current_module.find_name(current_ident)
-            };
+                return Ok(PathResolution { item, errors });
+            }
 
+            let found_ns = current_module.find_name(current_ident);
             if found_ns.is_none() {
                 return Err(PathResolutionError::Unresolved(current_ident.clone()));
             }
 
             // Every segment but the last is traversed as a module or type. The last segment is
             // the leaf, marked after the loop with the namespace it actually resolved to.
-            let is_last_segment = index == path.segments.len() - 2;
             if !is_last_segment {
                 self.mark_segment(mode, current_module_id, current_ident, Namespace::Type);
             }
@@ -987,6 +980,41 @@ impl Elaborator<'_> {
         Type::DataType(datatype, generics)
     }
 
+    /// Resolve `member` as a value member of a data type whose own module is `module`: an
+    /// enum-variant constructor kept in that module's value scope, or — for a concrete type, with
+    /// `associated_constant` set to its `(TypeId, self type)` — a trait associated constant
+    /// (`Type::CONST`). Returns the finalized item, or an error if it names neither. Shared by the
+    /// segment loop and [`Self::use_value_in_type`].
+    fn resolve_value_member_of_type(
+        &mut self,
+        member: &TypedPathSegment,
+        module: ModuleId,
+        intermediate_item: IntermediatePathResolutionItem,
+        associated_constant: Option<(TypeId, &Type)>,
+        mode: PathResolutionMode,
+        errors: &mut Vec<PathResolutionError>,
+    ) -> Result<PathResolutionItem, PathResolutionError> {
+        if let Some(per_ns) = self.resolve_method(self.get_module(module), &member.ident) {
+            let scope = per_ns.values.expect("resolve_method only returns a value namespace");
+            let path = TypedPath::plain(vec![member.clone()], member.ident.location());
+            return Ok(self.finalize_resolved_leaf(
+                path,
+                intermediate_item,
+                module,
+                scope,
+                mode,
+                errors,
+            ));
+        }
+
+        match associated_constant {
+            Some((type_id, self_type)) => {
+                self.resolve_associated_constant_or_unresolved(type_id, self_type, &member.ident)
+            }
+            None => Err(PathResolutionError::Unresolved(member.ident.clone())),
+        }
+    }
+
     /// A segment that named the data type `self_type` but is not an enum-variant constructor in its
     /// module scope may still be a trait associated constant (`Type::CONST`) on it; otherwise it is
     /// unresolved. `type_id` is the data type, carried into the resulting
@@ -997,8 +1025,15 @@ impl Elaborator<'_> {
         self_type: &Type,
         ident: &Ident,
     ) -> Result<PathResolutionItem, PathResolutionError> {
-        self.try_resolve_trait_constant(type_id, self_type, ident)
-            .unwrap_or_else(|| Err(PathResolutionError::Unresolved(ident.clone())))
+        if let Some(result) = self.try_resolve_trait_constant(type_id, self_type, ident) {
+            return result;
+        }
+        // Not an associated constant. If a trait defines an associated item with this name, point
+        // the user at it rather than reporting a bare "could not resolve".
+        if let Some(error) = self.resolve_associated_item_diagnostic(self_type, ident) {
+            return Err(error);
+        }
+        Err(PathResolutionError::Unresolved(ident.clone()))
     }
 
     /// Try to resolve an identifier as a trait associated constant (e.g., `Foo::N`) on `self_type`
@@ -1095,20 +1130,9 @@ impl Elaborator<'_> {
     /// to fall back to its generic "could not resolve" handling.
     fn resolve_associated_item_diagnostic(
         &self,
-        intermediate_item: &IntermediatePathResolutionItem,
+        self_type: &Type,
         ident: &Ident,
     ) -> Option<PathResolutionError> {
-        let IntermediatePathResolutionItem::Type(type_id, turbofish) = intermediate_item else {
-            return None;
-        };
-        let datatype = self.interner.get_type(*type_id);
-        let generics = if let Some(turbofish) = turbofish {
-            turbofish.generics.iter().map(|t| t.contents.clone()).collect()
-        } else {
-            datatype.borrow().generic_types()
-        };
-        let self_type = Type::DataType(datatype, generics);
-
         let name = ident.as_str();
         // Traits that define an associated type named `name` and which `self_type` implements.
         let mut accessible_type_traits = Vec::new();
@@ -1125,7 +1149,7 @@ impl Elaborator<'_> {
 
             let trait_name = self.fully_qualified_trait_path_by_id(trait_id);
             defining_traits.push(trait_name.clone());
-            if defines_type && self.type_implements_trait(&self_type, trait_id) {
+            if defines_type && self.type_implements_trait(self_type, trait_id) {
                 accessible_type_traits.push(trait_name);
             }
         }
