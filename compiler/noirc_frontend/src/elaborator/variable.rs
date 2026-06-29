@@ -97,10 +97,11 @@ enum PathPrefixKind {
     /// The prefix is `Self` but there is no self type in scope (e.g. in a free function), so `Self`
     /// names nothing.
     SelfNotInScope,
-    /// The prefix resolves to nothing that can carry an associated item: it is not a type, trait,
-    /// or module, so the path names nothing. The carried error (either the prefix's own resolution
-    /// failure, or that its last segment is a value rather than a namespace) is reported as-is.
-    NoPrefix { error: PathResolutionError },
+    /// The prefix is not something that can carry an associated item: it is not a type, trait, or
+    /// module (it is a value, or it failed to resolve), so the path names nothing. The carried error
+    /// (either the prefix's own resolution failure, or that it is a value rather than a namespace) is
+    /// reported as-is.
+    InvalidPrefix { error: PathResolutionError },
 }
 
 impl Elaborator<'_> {
@@ -624,7 +625,7 @@ impl Elaborator<'_> {
             }
             // No usable prefix: the path names nothing, and a value lookup would only rediscover
             // the resolution failure already carried here, so report it directly.
-            PathPrefixKind::NoPrefix { error } => {
+            PathPrefixKind::InvalidPrefix { error } => {
                 self.push_err(error);
                 None
             }
@@ -710,11 +711,11 @@ impl Elaborator<'_> {
                     | PathResolutionItem::TraitFunction(..)
                     | PathResolutionItem::TypeTraitFunction(..)
                     | PathResolutionItem::PrimitiveFunction(..)
-                    | PathResolutionItem::TraitConstant(..) => PathPrefixKind::NoPrefix {
+                    | PathResolutionItem::TraitConstant(..) => PathPrefixKind::InvalidPrefix {
                         error: PathResolutionError::Unresolved(prefix_last_ident),
                     },
                 },
-                Err(error) => PathPrefixKind::NoPrefix { error },
+                Err(error) => PathPrefixKind::InvalidPrefix { error },
             }
         };
 
