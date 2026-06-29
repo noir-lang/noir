@@ -507,8 +507,9 @@ impl HeaderGuard {
     }
 }
 
-/// The constant `[lower, upper)` bounds of a loop together with the [`LoopBoundKind`] describing
-/// how its guard decides, from the lower bound, whether the body executes.
+/// The `lower` (pre-header) and `upper` (header guard) constants of a loop, together with the
+/// [`LoopBoundKind`] describing how the guard decides, from `lower`, whether the body executes.
+/// Not necessarily ordered: `upper < lower` is possible for any kind.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) struct LoopBounds {
     pub(crate) lower: IntegerConstant,
@@ -530,15 +531,22 @@ impl LoopBounds {
         }
     }
 
-    /// Indicates whether the iteration variable will stay within loop bounds, ensuring a proper termination.
-    /// We assume the loop bounds are constants, the iteration variable is known and
-    /// incremented at each iteration by a constant step.
-    /// The function is conservative and may returns false if it could not prove.
-    /// - Returns `True` when the induction variable is ensured to 'falsify the guard', so the loop
-    ///   terminates.
-    /// - Returns `False` if it may escape the bounds:
-    ///   for `NotEqual` condition with a non unit step, in which case escaping the bounds can lead to infinite loop.
-    ///   for `LessThan` or `Equal` conditions where upper < lower.
+    /// Whether `[lower, upper)` is a sound value range for the induction variable: every value it
+    /// holds in the body is guaranteed to satisfy `lower <= i < upper`. Callers use this before
+    /// trusting the bounds as a range (folding a comparison on `i`, proving `i + c` can't overflow,
+    /// bounding an array index, or deciding a `NotEqual` guard must fold). Conservative: returns
+    /// `false` when containment can't be proven, never a false `true`. `step` is constant,
+    /// non-negative and non-overflowing (see [`Step`]).
+    ///
+    /// - `LessThan` / `Equal`: the guard re-tests the variable each iteration (`i < upper`, or
+    ///   `i == upper - 1`), so the body never sees a value `>= upper`, for any `step`. Returns
+    ///   `lower <= upper`; a reversed `upper < lower` is an *empty* loop (not an escape), reported
+    ///   `false` rather than passed on as a malformed interval.
+    ///
+    /// - `NotEqual`: `i != upper` doesn't cap the variable, so a non-unit `step` can step *past*
+    ///   `upper` and escape (and, with wrapping, loop forever). Returns `true` only when the step is
+    ///   proven to land on `upper`: a zero/unit step, or unsigned constant bounds with `upper >= lower`
+    ///   and `(upper - lower)` divisible by `step`.
     pub(super) fn iterator_in_bounds(self, step: Step) -> bool {
         match self.kind {
             LoopBoundKind::LessThan | LoopBoundKind::Equal => self.lower <= self.upper,
