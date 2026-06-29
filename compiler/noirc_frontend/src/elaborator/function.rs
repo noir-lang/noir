@@ -708,7 +708,7 @@ impl Elaborator<'_> {
     }
 
     /// The `param.validate()` statements to prepend to an entry point's body — one per parameter
-    /// whose type implements [`Validate`][std::validate::Validate] and is worth validating — so that
+    /// whose type implements `std::validate::Validate` and is worth validating — so that
     /// values arriving from an untrusted source (circuit inputs, oracle results) are checked before
     /// the body runs. Empty for non-entry-point functions or when there is nothing to validate;
     /// parameters whose type does not implement `Validate` are left alone (a separate lint flags
