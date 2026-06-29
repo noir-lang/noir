@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1782746912596,
+  "lastUpdate": 1782746915252,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -25183,105 +25183,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": false,
-          "id": "a40f5fa293430c418f2c14b5a2c43cf8cb1278fd",
-          "message": "chore(deps): bump libfuzzer-sys from 0.4.12 to 0.4.13 (#13151)\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
-          "timestamp": "2026-06-23T11:36:34Z",
-          "tree_id": "a2674dae4fd5f81e7eba4c3c91f0b663a390f8a3",
-          "url": "https://github.com/noir-lang/noir/commit/a40f5fa293430c418f2c14b5a2c43cf8cb1278fd"
-        },
-        "date": 1782216449705,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 1054.6,
-            "unit": "KB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 2247.6,
-            "unit": "KB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 533.3,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-block-root-first-empty-tx",
-            "value": 272.4,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 275.8,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 333.3,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-checkpoint-merge",
-            "value": 413.3,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-checkpoint-root-single-block",
-            "value": 30628.8,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-checkpoint-root",
-            "value": 30663.8,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 438.2,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-tx-base-private",
-            "value": 4579.4,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-tx-base-public",
-            "value": 5167.8,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-tx-merge",
-            "value": 206.3,
-            "unit": "KB"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 502.9,
-            "unit": "KB"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 450.9,
-            "unit": "KB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "49699333+dependabot[bot]@users.noreply.github.com",
-            "name": "dependabot[bot]",
-            "username": "dependabot[bot]"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
           "id": "4030f156b3cca04ddfff4894f13e4065aa08f7e4",
           "message": "chore(deps): bump insta from 1.47.2 to 1.48.0 (#13150)\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
           "timestamp": "2026-06-23T11:37:12Z",
@@ -30041,6 +29942,105 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/536fe15e2148ecfdf8ded577f2d752d04bf7f885"
         },
         "date": 1782736759367,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 1054,
+            "unit": "KB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 2246.9,
+            "unit": "KB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 532.6,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root-first-empty-tx",
+            "value": 272.2,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 275.6,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 333,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-checkpoint-merge",
+            "value": 413.1,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-checkpoint-root-single-block",
+            "value": 30628.1,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-checkpoint-root",
+            "value": 30663.1,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 438,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-tx-base-private",
+            "value": 4578.7,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-tx-base-public",
+            "value": 5167.1,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-tx-merge",
+            "value": 206,
+            "unit": "KB"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 502.9,
+            "unit": "KB"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 450.9,
+            "unit": "KB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "b9e47b221b009cee0814d32d34cd25bcc985ba21",
+          "message": "fix: check intermediate path segment visibility against its declaring module (#13204)\n\nCo-authored-by: Claude Opus 4.8 <noreply@anthropic.com>",
+          "timestamp": "2026-06-29T14:53:19Z",
+          "tree_id": "db971743e4aec0dc13d19b2a22100254f39692f9",
+          "url": "https://github.com/noir-lang/noir/commit/b9e47b221b009cee0814d32d34cd25bcc985ba21"
+        },
+        "date": 1782746822328,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
