@@ -44,9 +44,7 @@
 <li><a href="#as_member_access">as_member_access</a></li>
 <li><a href="#as_method_call">as_method_call</a></li>
 <li><a href="#as_repeated_element_array">as_repeated_element_array</a></li>
-<li><a href="#as_repeated_element_slice">as_repeated_element_slice</a></li>
 <li><a href="#as_repeated_element_vector">as_repeated_element_vector</a></li>
-<li><a href="#as_slice">as_slice</a></li>
 <li><a href="#as_tuple">as_tuple</a></li>
 <li><a href="#as_unary_op">as_unary_op</a></li>
 <li><a href="#as_unsafe">as_unsafe</a></li>
@@ -274,33 +272,11 @@ the repeated element and the length expressions.</p>
 <p>If this expression is a repeated element vector <code>[elem; length]</code>, return
 the repeated element and the length expressions.</p>
 </div>
-</div><code id="as_repeated_element_slice" class="code-header">pub comptime fn <a href="#as_repeated_element_slice" class="fn">as_repeated_element_slice</a>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;(Self, Self)&gt;</code>
-
-<div class="padded-description"><div class="deprecated">
-<span class="emoji">👎</span>
-Deprecated: This method has been renamed to `as_repeated_element_vector`
-</div>
-<div class="comments">
-<p>If this expression is a repeated element vector <code>[elem; length]</code>, return
-the repeated element and the length expressions.
-This method is deprecated in favor of <code>as_repeated_element_vector</code></p>
-</div>
 </div><code id="as_vector" class="code-header">pub comptime fn <a href="#as_vector" class="fn">as_vector</a>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;[Self]&gt;</code>
 
 <div class="padded-description"><div class="comments">
 <p>If this expression is a vector literal <code>@[elem1, ..., elemN]</code>,
 return each element of the vector.</p>
-</div>
-</div><code id="as_slice" class="code-header">pub comptime fn <a href="#as_slice" class="fn">as_slice</a>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;[Self]&gt;</code>
-
-<div class="padded-description"><div class="deprecated">
-<span class="emoji">👎</span>
-Deprecated: This method has been renamed to `as_vector`
-</div>
-<div class="comments">
-<p>If this expression is a vector literal <code>@[elem1, ..., elemN]</code>,
-return each element of the vector.
-This method is deprecated in favor of <code>as_vector</code></p>
 </div>
 </div><code id="as_tuple" class="code-header">pub comptime fn <a href="#as_tuple" class="fn">as_tuple</a>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;[Self]&gt;</code>
 

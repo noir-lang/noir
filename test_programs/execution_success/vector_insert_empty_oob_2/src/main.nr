@@ -1,5 +1,5 @@
 fn main(arr: [u32; 1], cond: bool) {
-    let slice = arr.as_slice();
+    let slice = arr.as_vector();
     let (empty, _) = slice.remove(0);
 
     if cond {

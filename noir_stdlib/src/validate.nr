@@ -12,7 +12,8 @@ use crate::meta::derive_via;
 ///
 /// A type can also assert invariants of its own (ones that span several fields, or that the field
 /// recursion cannot see) by naming one or more methods with `#[validate(Type::method)]`. The derived
-/// `validate` calls each named method before recursing into the fields:
+/// `validate` calls each named method after recursing into the fields, so a custom invariant reads
+/// fields that have already passed their own validation:
 ///
 /// ```noir
 /// #[derive(Validate)]
@@ -28,7 +29,7 @@ use crate::meta::derive_via;
 /// }
 /// ```
 ///
-/// Each named method must take a single `self` argument and return nothing.
+/// Each named method must take a single `&self` argument and return nothing.
 #[derive_via(derive_validate)]
 // docs:start:validate-trait
 pub trait Validate {
@@ -40,14 +41,15 @@ comptime fn derive_validate(s: TypeDefinition) -> Quoted {
     let signature = quote { fn validate(&self) };
     let for_each_field = |name| quote { self.$name.validate(); };
 
-    // Splice a call to each `#[validate(Type::method)]` method ahead of the field recursion, so the
-    // type's own invariants are asserted before its contents are descended into.
+    // Splice a call to each `#[validate(Type::method)]` method after the field recursion, so a
+    // custom invariant reads fields that have already passed their own validation rather than
+    // unchecked data (e.g. a length field a method indexes by has already been bounds-checked).
     let mut custom = quote {};
     for occurrence in s.named_attribute_args("validate") {
         let method = occurrence[0];
         custom = quote { $custom $method(self); };
     }
-    let body = |fields| quote { $custom $fields };
+    let body = |fields| quote { $fields $custom };
 
     crate::meta::make_trait_impl(
         s,
@@ -292,5 +294,89 @@ where
         self.6.validate();
         self.7.validate();
         self.8.validate();
+    }
+}
+impl<A, B, C, D, E, F, G, H, I, J> Validate for (A, B, C, D, E, F, G, H, I, J)
+where
+    A: Validate,
+    B: Validate,
+    C: Validate,
+    D: Validate,
+    E: Validate,
+    F: Validate,
+    G: Validate,
+    H: Validate,
+    I: Validate,
+    J: Validate,
+{
+    fn validate(&self) {
+        self.0.validate();
+        self.1.validate();
+        self.2.validate();
+        self.3.validate();
+        self.4.validate();
+        self.5.validate();
+        self.6.validate();
+        self.7.validate();
+        self.8.validate();
+        self.9.validate();
+    }
+}
+impl<A, B, C, D, E, F, G, H, I, J, K> Validate for (A, B, C, D, E, F, G, H, I, J, K)
+where
+    A: Validate,
+    B: Validate,
+    C: Validate,
+    D: Validate,
+    E: Validate,
+    F: Validate,
+    G: Validate,
+    H: Validate,
+    I: Validate,
+    J: Validate,
+    K: Validate,
+{
+    fn validate(&self) {
+        self.0.validate();
+        self.1.validate();
+        self.2.validate();
+        self.3.validate();
+        self.4.validate();
+        self.5.validate();
+        self.6.validate();
+        self.7.validate();
+        self.8.validate();
+        self.9.validate();
+        self.10.validate();
+    }
+}
+impl<A, B, C, D, E, F, G, H, I, J, K, L> Validate for (A, B, C, D, E, F, G, H, I, J, K, L)
+where
+    A: Validate,
+    B: Validate,
+    C: Validate,
+    D: Validate,
+    E: Validate,
+    F: Validate,
+    G: Validate,
+    H: Validate,
+    I: Validate,
+    J: Validate,
+    K: Validate,
+    L: Validate,
+{
+    fn validate(&self) {
+        self.0.validate();
+        self.1.validate();
+        self.2.validate();
+        self.3.validate();
+        self.4.validate();
+        self.5.validate();
+        self.6.validate();
+        self.7.validate();
+        self.8.validate();
+        self.9.validate();
+        self.10.validate();
+        self.11.validate();
     }
 }

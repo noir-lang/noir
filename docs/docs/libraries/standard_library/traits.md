@@ -239,8 +239,9 @@ live elements (the first `len`), skipping the unused backing storage past them.
 
 A type can assert invariants of its own — ones that span several fields, or that the field recursion
 cannot see — by naming one or more methods with `#[validate(Type::method)]`. The derived `validate`
-calls each named method before recursing into the fields. Each method must take `&self` and return
-nothing. Unlike `Validate`, the `validate` attribute is not in the prelude and must be imported:
+calls each named method after recursing into the fields, so a custom invariant reads fields that
+have already passed their own validation. Each method must take `&self` and return nothing. Unlike
+`Validate`, the `validate` attribute is not in the prelude and must be imported:
 
 ```rust
 use std::validate::validate;

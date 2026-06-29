@@ -17,9 +17,9 @@ impl<let N: u32> Buffer<N> {
 
 impl<let N: u32> Validate for Buffer<N> {
     fn validate(&self) {
-        self.len_within_capacity();
         self.storage.validate();
         self.len.validate();
+        self.len_within_capacity();
     }
 }
 

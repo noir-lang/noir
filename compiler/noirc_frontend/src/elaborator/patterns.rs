@@ -844,11 +844,8 @@ impl Elaborator<'_> {
             None => None,
         };
 
-        match self.lookup_item_as_value(path) {
-            Ok(ItemAsValue::Definition { id, item }) => Ok(IdentFromPath::Definition { id, item }),
-            Ok(ItemAsValue::TypeAlias(type_alias_id)) => {
-                Ok(IdentFromPath::TypeAlias(type_alias_id))
-            }
+        match self.ident_from_value_item(path) {
+            Ok(ident) => Ok(ident),
             Err(ResolverError::PathResolutionError(PathResolutionError::Unresolved(ident))) => {
                 // If we can't resolve a path, but we have an error from trying to resolve a variable
                 // (in which case the path was a single segment), prefer saying "variable not found"
@@ -873,5 +870,20 @@ impl Elaborator<'_> {
                 }
             }
         }
+    }
+
+    /// Resolve a [`TypedPath`] to the value item it names — a global, function, enum-variant
+    /// global, trait associated constant, or numeric type alias — as an [`IdentFromPath`]. Unlike
+    /// [`Self::get_ident_from_path_or_error`] this never tries a local variable, so it is what a
+    /// multi-segment path (which can never name a local variable) needs.
+    #[tracing::instrument(level = "trace", skip_all)]
+    pub(crate) fn ident_from_value_item(
+        &mut self,
+        path: TypedPath,
+    ) -> Result<IdentFromPath, ResolverError> {
+        self.lookup_item_as_value(path).map(|item| match item {
+            ItemAsValue::Definition { id, item } => IdentFromPath::Definition { id, item },
+            ItemAsValue::TypeAlias(type_alias_id) => IdentFromPath::TypeAlias(type_alias_id),
+        })
     }
 }
