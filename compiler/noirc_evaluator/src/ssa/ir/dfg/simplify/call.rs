@@ -287,19 +287,18 @@ pub(super) fn simplify_call(
             let index = dfg.get_numeric_constant(arguments[2]);
             if let (Some((mut vector, typ)), Some(index)) = (vector, index) {
                 let elements = &arguments[3..];
-                let mut index = index.to_u128() as usize * elements.len();
+                let start = index.to_u128() as usize * elements.len();
 
-                // Do not simplify the index is greater than the vector capacity
+                // Do not simplify if the index is greater than the vector capacity
                 // or else we will panic inside of the im::Vector insert method
                 // Constraints should be generated during SSA gen to tell the user
                 // they are attempting to insert at too large of an index
-                if index > vector.len() {
+                if start > vector.len() {
                     return SimplifyResult::None;
                 }
 
-                for elem in &arguments[3..] {
-                    vector.insert(index, *elem);
-                    index += 1;
+                for (offset, elem) in elements.iter().enumerate() {
+                    vector.insert(start + offset, *elem);
                 }
 
                 let new_vector_length =
@@ -481,128 +480,158 @@ fn simplify_as_vector_for_zero_sized_vector(
     Some(SimplifyResult::SimplifiedToMultiple(vec![vector_length, new_vector]))
 }
 
+/// Guard for the `*_for_zero_sized_vector` simplifications: succeeds only when the vector argument
+/// has zero-sized elements (e.g. `[()]`), the case those simplifications handle.
+///
+/// Vector intrinsics take the length as `arguments[0]` and the vector as `arguments[1]`; on success
+/// those two values are returned as `(length, vector)`. Returns `None` to defer to the general
+/// handling when the elements are not zero-sized. Bails as malformed if the argument is not a
+/// vector type at all, which cannot arise from well-formed SSA.
+fn zero_sized_vector_length_and_value(
+    arguments: &[ValueId],
+    dfg: &DataFlowGraph,
+) -> Option<(ValueId, ValueId)> {
+    let length = arguments[0];
+    let vector = arguments[1];
+    let vector_type = dfg.type_of_value(vector);
+    let Type::Vector(element_types) = vector_type.as_ref() else {
+        bail_malformed!(
+            @ret None;
+            dfg,
+            "vector intrinsic expects a vector argument, got {vector_type:?}"
+        );
+    };
+    element_types.is_empty().then_some((length, vector))
+}
+
+/// Simplify a push back/front on a vector whose elements are zero-sized (e.g. `[()]`).
+///
+/// Zero-sized elements carry no data, so the backing array is always empty and the push only needs
+/// to increment the semantic length. Returns `None` (deferring to the general handling) if the
+/// element type is not zero-sized.
 fn simplify_vector_push_back_or_front_for_zero_sized_vector(
     arguments: &[ValueId],
     dfg: &mut DataFlowGraph,
     block: BasicBlockId,
     call_stack: CallStackId,
 ) -> Option<SimplifyResult> {
-    let vector_type = dfg.type_of_value(arguments[1]);
-    let Type::Vector(element_types) = vector_type.as_ref() else {
-        bail_malformed!(
-            @ret Some(SimplifyResult::None);
-            dfg,
-            "vector intrinsic expects a vector argument, got {vector_type:?}"
-        );
-    };
-    if !element_types.is_empty() {
-        return None;
-    }
+    let (length, vector) = zero_sized_vector_length_and_value(arguments, dfg)?;
 
     // If this is a zero-sized vector then it can never have values in it, so we can just
     // return an incremented length and return the same vector.
-    let length = arguments[0];
     let new_vector_length = increment_vector_length(length, dfg, block, call_stack);
-    Some(SimplifyResult::SimplifiedToMultiple(vec![new_vector_length, arguments[1]]))
+    Some(SimplifyResult::SimplifiedToMultiple(vec![new_vector_length, vector]))
 }
 
+/// Insert `constrain length != 0`, failing with `message`, so that a subsequent unchecked decrement
+/// of a zero-sized vector's length cannot underflow into a wrapped value.
+fn constrain_vector_not_empty(
+    length: ValueId,
+    message: &str,
+    dfg: &mut DataFlowGraph,
+    block: BasicBlockId,
+    call_stack: CallStackId,
+) {
+    let zero_u32 = dfg.make_constant(FieldElement::zero(), NumericType::length_type());
+    let length_eq_zero = dfg
+        .insert_instruction_and_results(
+            Instruction::Binary(Binary { lhs: length, operator: BinaryOp::Eq, rhs: zero_u32 }),
+            block,
+            None,
+            call_stack,
+        )
+        .first();
+    let false_value = dfg.make_constant(FieldElement::zero(), NumericType::bool());
+    let message = Some(ConstrainError::StaticString(message.into()));
+    dfg.insert_instruction_and_results(
+        Instruction::Constrain(length_eq_zero, false_value, message),
+        block,
+        None,
+        call_stack,
+    );
+}
+
+/// Decrement a zero-sized vector's length, returning the `[new_length, vector]` results.
+///
+/// When the length is a statically-known zero the caller's empty-vector guard always fails, so the
+/// decrement is skipped to avoid emitting an underflowing `unchecked_sub`; the returned length is
+/// irrelevant on that trapping path.
+fn decrement_zero_sized_vector_length(
+    length: ValueId,
+    vector: ValueId,
+    dfg: &mut DataFlowGraph,
+    block: BasicBlockId,
+    call_stack: CallStackId,
+) -> SimplifyResult {
+    let new_length = if dfg.get_numeric_constant(length).is_some_and(|len| len.is_zero()) {
+        length
+    } else {
+        decrement_vector_length(length, dfg, block, call_stack)
+    };
+    SimplifyResult::SimplifiedToMultiple(vec![new_length, vector])
+}
+
+/// Simplify a pop back/front on a vector whose elements are zero-sized (e.g. `[()]`).
+///
+/// The backing array is always empty, so the pop only changes the semantic length. A guard against
+/// popping from an empty vector is inserted so the unchecked length decrement cannot wrap; we emit
+/// it here rather than relying on a check inserted elsewhere, so the simplification is self-contained
+/// for any well-typed SSA. Returns `None` (deferring to the general handling) if the element type is
+/// not zero-sized.
 fn simplify_vector_pop_back_or_front_for_zero_sized_vector(
     arguments: &[ValueId],
     dfg: &mut DataFlowGraph,
     block: BasicBlockId,
     call_stack: CallStackId,
 ) -> Option<SimplifyResult> {
-    let vector_type = dfg.type_of_value(arguments[1]);
-    let Type::Vector(element_types) = vector_type.as_ref() else {
-        bail_malformed!(
-            @ret Some(SimplifyResult::None);
-            dfg,
-            "vector intrinsic expects a vector argument, got {vector_type:?}"
-        );
-    };
-    if !element_types.is_empty() {
-        return None;
-    }
-
-    // If this is a zero-sized vector then it can never have values in it.
-    // We do need to check that the length is not zero, though, but only in ACIR
-    // because in Brillig we already insert such check in FunctionContext::codegen_intrinsic_call_checks.
-    let length = arguments[0];
-
-    if dfg.runtime().is_acir() {
-        let zero_u32 = dfg.make_constant(FieldElement::zero(), NumericType::length_type());
-        let length_eq_zero = dfg
-            .insert_instruction_and_results(
-                Instruction::Binary(Binary { lhs: length, operator: BinaryOp::Eq, rhs: zero_u32 }),
-                block,
-                None,
-                call_stack,
-            )
-            .first();
-        let zero = dfg.make_constant(FieldElement::zero(), NumericType::bool());
-        let message = Some(ConstrainError::StaticString("Cannot pop from an empty vector".into()));
-        dfg.insert_instruction_and_results(
-            Instruction::Constrain(length_eq_zero, zero, message),
-            block,
-            None,
-            call_stack,
-        );
-    }
-
-    let new_vector_length = decrement_vector_length(length, dfg, block, call_stack);
-    Some(SimplifyResult::SimplifiedToMultiple(vec![new_vector_length, arguments[1]]))
+    let (length, vector) = zero_sized_vector_length_and_value(arguments, dfg)?;
+    constrain_vector_not_empty(length, "Cannot pop from an empty vector", dfg, block, call_stack);
+    Some(decrement_zero_sized_vector_length(length, vector, dfg, block, call_stack))
 }
 
+/// Simplify a `vector_insert` on a vector whose elements are zero-sized (e.g. `[()]`).
+///
+/// The backing array is always empty, so the insert only increments the semantic length (the
+/// in-bounds check is already emitted in `FunctionContext::codegen_intrinsic_call_checks`). Returns
+/// `None` (deferring to the general handling) if the element type is not zero-sized.
 fn simplify_vector_insert_for_zero_sized_vector(
     arguments: &[ValueId],
     dfg: &mut DataFlowGraph,
     block: BasicBlockId,
     call_stack: CallStackId,
 ) -> Option<SimplifyResult> {
-    let vector_type = dfg.type_of_value(arguments[1]);
-    let Type::Vector(element_types) = vector_type.as_ref() else {
-        bail_malformed!(
-            @ret Some(SimplifyResult::None);
-            dfg,
-            "vector intrinsic expects a vector argument, got {vector_type:?}"
-        );
-    };
-    if !element_types.is_empty() {
-        return None;
-    }
+    let (length, vector) = zero_sized_vector_length_and_value(arguments, dfg)?;
 
     // If this is a zero-sized vector we would need to check if the index is in bounds.
     // However, this was already done in FunctionContext::codegen_intrinsic_call_checks so there's
     // no need to repeat that here.
-    let new_vector_length = increment_vector_length(arguments[0], dfg, block, call_stack);
+    let new_vector_length = increment_vector_length(length, dfg, block, call_stack);
 
-    Some(SimplifyResult::SimplifiedToMultiple(vec![new_vector_length, arguments[1]]))
+    Some(SimplifyResult::SimplifiedToMultiple(vec![new_vector_length, vector]))
 }
 
+/// Simplify a `vector_remove` on a vector whose elements are zero-sized (e.g. `[()]`).
+///
+/// The backing array is always empty, so the remove only changes the semantic length. A guard
+/// against removing from an empty vector is inserted so the unchecked length decrement cannot wrap;
+/// we emit it here rather than relying on the frontend's access check, which is absent from
+/// directly-constructed SSA. Returns `None` (deferring to the general handling) if the element type
+/// is not zero-sized.
 fn simplify_vector_remove_for_zero_sized_vector(
     arguments: &[ValueId],
     dfg: &mut DataFlowGraph,
     block: BasicBlockId,
     call_stack: CallStackId,
 ) -> Option<SimplifyResult> {
-    let vector_type = dfg.type_of_value(arguments[1]);
-    let Type::Vector(element_types) = vector_type.as_ref() else {
-        bail_malformed!(
-            @ret Some(SimplifyResult::None);
-            dfg,
-            "VectorRemove expects a vector argument, got {vector_type:?}"
-        );
-    };
-    if !element_types.is_empty() {
-        return None;
-    }
-
-    // If this is a zero-sized vector we would need to check if the index is in bounds.
-    // However, this was already done in FunctionContext::codegen_intrinsic_call_checks so there's
-    // no need to repeat that here.
-    let new_vector_length = decrement_vector_length(arguments[0], dfg, block, call_stack);
-
-    Some(SimplifyResult::SimplifiedToMultiple(vec![new_vector_length, arguments[1]]))
+    let (length, vector) = zero_sized_vector_length_and_value(arguments, dfg)?;
+    constrain_vector_not_empty(
+        length,
+        "Cannot remove from an empty vector",
+        dfg,
+        block,
+        call_stack,
+    );
+    Some(decrement_zero_sized_vector_length(length, vector, dfg, block, call_stack))
 }
 
 /// Returns a vector (represented by a tuple (len, vector)) of constants corresponding to the limbs of the radix decomposition.
@@ -721,7 +750,10 @@ fn decrement_vector_length(
     block: BasicBlockId,
     call_stack: CallStackId,
 ) -> ValueId {
-    // Simplifications only run if the length is a known non-zero constant, so the subtraction should never overflow.
+    // The subtraction is unchecked because every caller reaches this point only once the length is
+    // known to be non-zero: either it is a known non-zero constant (`simplify_vector_pop_back`), or
+    // a bounds check guaranteeing a non-empty vector has already been emitted (the zero-sized
+    // pop/remove paths, which run for dynamic lengths too). In well-formed SSA it cannot underflow.
     update_vector_length(vector_len, dfg, BinaryOp::Sub { unchecked: true }, block, call_stack)
 }
 
@@ -775,6 +807,11 @@ fn simplify_vector_push_back(
     SimplifyResult::SimplifiedToMultiple(vec![new_vector_length, set_last_vector])
 }
 
+/// Simplify a `vector_pop_back` whose backing array is a known constant.
+///
+/// Decrements the semantic length and reads the popped element(s) off the end of the flattened
+/// array, returning `[new_length, new_vector, popped_elements..]`. A vector of tuples pops several
+/// flattened slots per element, so the elements are read in reverse from the tail.
 fn simplify_vector_pop_back(
     mut vector: im::Vector<ValueId>,
     vector_type: Type,
@@ -1485,13 +1522,38 @@ mod tests {
         }
         ";
         let ssa = Ssa::from_str_simplifying(src).unwrap();
-        assert_ssa_snapshot!(ssa, @r"
+        assert_ssa_snapshot!(ssa, @r#"
         acir(inline) fn main f0 {
           b0(v0: u32, v1: [()], v2: u32):
-            v4 = unchecked_sub v0, u32 1
-            return v4, v1
+            v4 = eq v0, u32 0
+            constrain v4 == u1 0, "Cannot remove from an empty vector"
+            v7 = unchecked_sub v0, u32 1
+            return v7, v1
         }
-        ");
+        "#);
+    }
+
+    #[test]
+    fn simplifies_vector_remove_for_empty_zero_sized_array() {
+        // Removing from a statically-empty zero-sized vector must not produce a wrapping length:
+        // see https://github.com/noir-lang/noir/issues/1394.
+        let src = r"
+        acir(inline) fn main func {
+          b0():
+            v0 = make_array [] : [()]
+            v1, v2 = call vector_remove(u32 0, v0, u32 0) -> (u32, [()])
+            return v1
+        }
+        ";
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+        assert_ssa_snapshot!(ssa, @r#"
+        acir(inline) fn main f0 {
+          b0():
+            v0 = make_array [] : [()]
+            constrain u1 1 == u1 0, "Cannot remove from an empty vector"
+            return u32 0
+        }
+        "#);
     }
 
     #[test]
@@ -1584,13 +1646,15 @@ mod tests {
         }
         ";
         let ssa = Ssa::from_str_simplifying(src).unwrap();
-        assert_ssa_snapshot!(ssa, @r"
+        assert_ssa_snapshot!(ssa, @r#"
         brillig(inline) fn main f0 {
           b0(v0: u32, v1: [()]):
-            v3 = unchecked_sub v0, u32 1
-            return v3, v1
+            v3 = eq v0, u32 0
+            constrain v3 == u1 0, "Cannot pop from an empty vector"
+            v6 = unchecked_sub v0, u32 1
+            return v6, v1
         }
-        ");
+        "#);
     }
 
     #[test]
@@ -1603,12 +1667,14 @@ mod tests {
         }
         ";
         let ssa = Ssa::from_str_simplifying(src).unwrap();
-        assert_ssa_snapshot!(ssa, @r"
+        assert_ssa_snapshot!(ssa, @r#"
         brillig(inline) fn main f0 {
           b0(v0: u32, v1: [()]):
-            v3 = unchecked_sub v0, u32 1
-            return v3, v1
+            v3 = eq v0, u32 0
+            constrain v3 == u1 0, "Cannot pop from an empty vector"
+            v6 = unchecked_sub v0, u32 1
+            return v6, v1
         }
-        ");
+        "#);
     }
 }

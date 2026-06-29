@@ -1,0 +1,37 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+pub struct Foo {}
+
+trait Bar {
+    fn bar(self) -> u32;
+}
+
+mod impls {
+    use crate::{Bar, Foo};
+
+    impl Foo {
+        fn bar(self) -> u32 {
+            let _: Self = self;
+            1_u32
+        }
+    }
+
+    impl Bar for Foo {
+        fn bar(self) -> u32 {
+            let _: Self = self;
+            2_u32
+        }
+    }
+
+    pub fn calls_inherent_bar(foo: Foo) -> u32 {
+        foo.bar()
+    }
+}
+
+fn main() {
+    assert(Foo {}.bar() == 2_u32);
+    assert(Foo {}.bar() == 2_u32);
+    assert(impls::calls_inherent_bar(Foo {}) == 1_u32);
+}

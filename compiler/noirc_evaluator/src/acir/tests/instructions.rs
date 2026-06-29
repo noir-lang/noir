@@ -138,6 +138,45 @@ fn truncate_u16_to_6_bits() {
 }
 
 #[test]
+fn truncate_i16_to_6_bits_matches_unsigned() {
+    let src = "
+    acir(inline) fn main f0 {
+      b0(v0: i16):
+        v1 = truncate v0 to 6 bits, max_bit_size: 16
+        return v1
+    }
+    ";
+    let program = ssa_to_acir_program(src);
+
+    // Truncating a *signed* value lowers to exactly the same modular-reduction gadget
+    // (euclidean division by 2^6 = 64) as the unsigned case in `truncate_u16_to_6_bits`:
+    // the backend performs no sign-specific steps. The signed-ness only matters for the
+    // surrounding cast/sign-extension instructions, not for the truncate itself.
+    assert_circuit_snapshot!(program, @r"
+    func 0
+    private parameters: [w0]
+    public parameters: []
+    return values: [w1]
+    BLACKBOX::RANGE input: w0, bits: 16
+    BRILLIG CALL func: 0, predicate: 1, inputs: [w0, 64], outputs: [w2, w3]
+    BLACKBOX::RANGE input: w2, bits: 10
+    BLACKBOX::RANGE input: w3, bits: 6
+    ASSERT w3 = w0 - 64*w2
+    ASSERT w1 = w3
+
+    unconstrained func 0: directive_integer_quotient
+    0: @10 = const u32 2
+    1: @11 = const u32 0
+    2: @0 = calldata copy [@11; @10]
+    3: @2 = field int_div @0, @1
+    4: @1 = field mul @2, @1
+    5: @1 = field sub @0, @1
+    6: @0 = @2
+    7: stop @[@11; @10]
+    ");
+}
+
+#[test]
 fn truncate_field_to_6_bits() {
     let src = "
     acir(inline) fn main f0 {

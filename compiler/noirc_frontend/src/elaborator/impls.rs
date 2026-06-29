@@ -171,45 +171,10 @@ impl Elaborator<'_> {
                 return;
             }
 
-            let module_id = data_ref.id.module_id();
-
-            // Declare each method in the data type's module for qualified access (TypeName::method).
-            // Conflicts are resolved in two steps so we don't hold a `&mut def_maps` borrow when
-            // we ask the elaborator whether the existing method is a trait-impl method.
-            let mut conflicts = Vec::new();
-            {
-                let module = Self::get_module_mut(self.def_maps, module_id);
-                for (_, method_id, method) in &functions.functions {
-                    let name = method.name_ident().clone();
-                    let result = if let Some(trait_id) = trait_id {
-                        module.declare_trait_function(name, *method_id, trait_id)
-                    } else {
-                        module.declare_function(name, method.def.visibility, *method_id)
-                    };
-
-                    if result.is_err()
-                        && let Some(existing) = module.find_func_with_name(method.name_ident())
-                    {
-                        conflicts.push((existing, method.name_ident().clone()));
-                    }
-                }
-            }
-
-            for (existing, name) in conflicts {
-                // Inherent impls take precedence over trait impls for qualified calls.
-                // If the existing method is from a trait impl, remove it from module scope
-                // so that `TypeName::method` resolves to the inherent impl version.
-                //
-                // For trait-impl vs trait-impl duplicates, we also remove the existing
-                // method to prevent qualified access. This allows specialization (e.g.,
-                // `impl Trait<A> for Foo` and `impl Trait<B> for Foo` can coexist).
-                // Checking whether the object types in each method overlap (which will be rejected)
-                // happens later during trait resolution.
-                if self.function_is_trait_impl_method(existing) {
-                    let module = Self::get_module_mut(self.def_maps, module_id);
-                    module.remove_function(&name);
-                }
-            }
+            // Neither inherent nor trait-impl methods are declared in the data type's module scope:
+            // qualified `TypeName::method` calls resolve through the interner's type-directed lookup
+            // (see `resolve_type_method_or_trait_method`), which checks inherent impls before trait
+            // impls and handles trait-in-scope selection itself.
 
             // Trait impl methods are already declared in NodeInterner::add_trait_implementation
             if trait_id.is_none() {

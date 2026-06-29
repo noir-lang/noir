@@ -36,6 +36,18 @@ If the module is in a subdirectory, you can define a subdirectory in your git re
 blob = {tag ="v1.2.1", git = "https://github.com/AztecProtocol/aztec-packages", directory = "noir-projects/noir-protocol-circuits/crates/blob"}
 ```
 
+:::tip
+
+Instead of editing _Nargo.toml_ by hand, you can let `nargo add` write the entry for you. It downloads the dependency, verifies it, and names the entry after the dependency's own package:
+
+```sh
+nargo add --git https://github.com/noir-lang/noir-bignum --tag v0.8.0
+```
+
+Add `--directory <subdir>` when the package lives in a subdirectory of the repository.
+
+:::
+
 :::info
 
 Currently, there are no requirements applied on the contents of `tag`. Requirements based on semver 2.0 guidelines could be introduced in the future.
@@ -67,6 +79,12 @@ Inside of the binary crate, you can specify:
 [dependencies]
 lib_a = { path = "../lib_a" }
 ```
+
+:::tip
+
+This entry can also be added with `nargo add --path ../lib_a` instead of editing _Nargo.toml_ by hand.
+
+:::
 
 ## Importing dependencies
 

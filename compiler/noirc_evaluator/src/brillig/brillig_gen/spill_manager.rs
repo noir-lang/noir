@@ -229,6 +229,19 @@ impl SpillManager {
         None
     }
 
+    /// Batched version of [`Self::lru_victim`]
+    ///
+    /// Return up to `k` least-recently-used values that are not currently spilled,
+    /// ordered least-recently-used first.
+    pub(crate) fn lru_victims(&self, k: usize) -> Vec<ValueId> {
+        self.lru_order.iter().copied().filter(|v| !self.is_spilled(v)).take(k).collect()
+    }
+
+    /// Remove every value in `victims` from LRU tracking in one shot.
+    pub(crate) fn remove_victims_from_lru(&mut self, victims: &HashSet<ValueId>) {
+        self.lru_order.retain(|v| !victims.contains(v));
+    }
+
     /// Record that a value has been spilled.
     ///
     /// If the value already has a record (e.g., it was reloaded and then
@@ -379,6 +392,7 @@ impl SpillManager {
 #[cfg(test)]
 mod tests {
     use acvm::acir::brillig::MemoryAddress;
+    use rustc_hash::FxHashSet as HashSet;
 
     use crate::{
         brillig::brillig_ir::brillig_variable::{BrilligVariable, SingleAddrVariable},
@@ -411,6 +425,26 @@ mod tests {
 
         // Victim should now be v1
         assert_eq!(sm.lru_victim(), Some(v1));
+    }
+
+    #[test]
+    fn remove_many_from_lru_drops_the_whole_set_in_one_pass() {
+        let mut sm = SpillManager::new();
+        let v0 = Id::test_new(0);
+        let v1 = Id::test_new(1);
+        let v2 = Id::test_new(2);
+        let v3 = Id::test_new(3);
+
+        sm.touch(v0);
+        sm.touch(v1);
+        sm.touch(v2);
+        sm.touch(v3);
+
+        let victims: HashSet<_> = [v0, v2].into_iter().collect();
+        sm.remove_victims_from_lru(&victims);
+
+        // Surviving entries keep their relative order: [v1, v3].
+        assert_eq!(sm.lru_victims(10), vec![v1, v3]);
     }
 
     #[test]

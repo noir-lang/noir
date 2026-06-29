@@ -270,6 +270,7 @@ fn trait_item_with_file(item: TraitItem, file: FileId) -> TraitItem {
             return_type,
             where_clause,
             body,
+            attributes,
         } => TraitItem::Function {
             is_unconstrained,
             visibility,
@@ -282,6 +283,7 @@ fn trait_item_with_file(item: TraitItem, file: FileId) -> TraitItem {
             return_type: function_return_type_with_file(return_type, file),
             where_clause: unresolved_trait_constraints_with_file(where_clause, file),
             body: body.map(|body| block_expression_with_file(body, file)),
+            attributes: attributes_with_file(attributes, file),
         },
         TraitItem::Constant { name, typ } => TraitItem::Constant {
             name: ident_with_file(name, file),

@@ -421,38 +421,24 @@ impl Elaborator<'_> {
                 parameter_names_in_list,
             );
 
-            if unseen_fields.contains(&field) {
-                unseen_fields.remove(&field);
-                seen_fields.insert(field.clone());
-
+            if self.check_constructor_field(
+                &field,
+                &mut seen_fields,
+                &mut unseen_fields,
+                struct_type,
+            ) {
                 self.check_struct_field_visibility(
                     &struct_type.borrow(),
                     field.as_str(),
                     visibility,
                     field.location(),
                 );
-            } else if seen_fields.contains(&field) {
-                // duplicate field
-                self.push_err(ResolverError::DuplicateField { field: field.clone() });
-            } else {
-                // field not required by struct
-                self.push_err(ResolverError::NoSuchField {
-                    field: field.clone(),
-                    struct_definition: struct_type.borrow().name.clone(),
-                });
             }
 
             ret.push((field, resolved));
         }
 
-        if !unseen_fields.is_empty() {
-            self.push_err(ResolverError::MissingFields {
-                location,
-                missing_fields: unseen_fields.into_iter().map(|field| field.to_string()).collect(),
-                struct_definition: struct_type.borrow().name.clone(),
-            });
-        }
-
+        self.report_missing_fields(unseen_fields, location, struct_type);
         ret
     }
 

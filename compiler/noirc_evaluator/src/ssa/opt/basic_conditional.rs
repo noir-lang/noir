@@ -253,7 +253,7 @@ fn differing_merge_cost(
 /// must be skipped before the `can_flatten_in_conditional` call, which treats
 /// reaching them as an ICE.) Hoisting an `inc_rc` only ever raises a reference
 /// count, so the later `array_set` copies rather than mutating in place — sound,
-/// and guarded by the `array_set_rc_invariant` validator.
+/// and guarded by the `rc_invariant::array_set` validator.
 fn block_flatten_cost(block: BasicBlockId, dfg: &DataFlowGraph) -> Option<u32> {
     let mut cost: u32 = 0;
     for instruction_id in dfg[block].instructions() {
