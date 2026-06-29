@@ -573,7 +573,7 @@ impl Elaborator<'_> {
     /// Returns `None` only when an error has already been reported (an ambiguous trait method, or
     /// an unresolved name), so the caller should produce an error expression rather than retry.
     #[tracing::instrument(level = "trace", skip_all)]
-    pub(super) fn resolve_prefixed_variable(
+    fn resolve_prefixed_variable(
         &mut self,
         path: TypedPath,
     ) -> Option<VariableResolution> {
@@ -749,7 +749,7 @@ impl Elaborator<'_> {
     /// [`Self::resolve_prefixed_variable`], which resolves a prefixed path's last segment directly
     /// in the already-resolved prefix ([`Self::resolve_value_in_module`] /
     /// [`Self::resolve_value_in_type`]) and never looks for a local variable.
-    pub(super) fn resolve_unprefixed_variable(
+    fn resolve_unprefixed_variable(
         &mut self,
         path: TypedPath,
     ) -> Option<VariableResolution> {
@@ -768,7 +768,7 @@ impl Elaborator<'_> {
     /// Resolve a module-prefixed path's last segment as a value item, looked up directly in the
     /// already-resolved prefix `module_id`, avoiding re-resolving the whole path now that the prefix
     /// is known to be a module. The module counterpart of [`Self::resolve_value_in_type`].
-    pub(super) fn resolve_value_in_module(
+    fn resolve_value_in_module(
         &mut self,
         module_id: ModuleId,
         last_segment: TypedPathSegment,

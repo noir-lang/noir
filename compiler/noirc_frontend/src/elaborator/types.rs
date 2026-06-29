@@ -2417,7 +2417,7 @@ impl Elaborator<'_> {
     }
 
     #[tracing::instrument(level = "trace", skip_all)]
-    pub(super) fn bind_function_type(
+    fn bind_function_type(
         &mut self,
         function: Type,
         args: Vec<(Type, ExprId, Location)>,
