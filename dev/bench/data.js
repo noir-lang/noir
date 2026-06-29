@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1782771968053,
+  "lastUpdate": 1782772193728,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23116,48 +23116,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "jfecher11@gmail.com",
-            "name": "jfecher",
-            "username": "jfecher"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "23042def6557fc3852781164bbe2e633523b8390",
-          "message": "fix: Monomorphization error when calling a disabled function (#13145)",
-          "timestamp": "2026-06-23T12:24:42Z",
-          "tree_id": "923f2aa36d827e3720dd69b151bd4e22b6d8f4b7",
-          "url": "https://github.com/noir-lang/noir/commit/23042def6557fc3852781164bbe2e633523b8390"
-        },
-        "date": 1782218700625,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 172881,
-            "range": "± 445",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 141865,
-            "range": "± 1023",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2650811,
-            "range": "± 2685",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -25209,6 +25167,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 3039048,
             "range": "± 5390",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "6b47f5304e50a79e7c6ef4844569847e82d3362b",
+          "message": "chore: Add logarithmic LRU in `spill_manager` (#13128)",
+          "timestamp": "2026-06-29T22:09:04Z",
+          "tree_id": "5ae9417ef20f71838c3f3ce1e15466dc70234b8b",
+          "url": "https://github.com/noir-lang/noir/commit/6b47f5304e50a79e7c6ef4844569847e82d3362b"
+        },
+        "date": 1782772117784,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 176264,
+            "range": "± 331",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 143874,
+            "range": "± 296",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2654540,
+            "range": "± 1787",
             "unit": "ns/iter"
           }
         ]
