@@ -580,10 +580,7 @@ impl Elaborator<'_> {
 
         // Otherwise it may be a trait associated constant accessed as `Type::CONST`, looked up on
         // the resolved `typ` (so an alias's generics are applied correctly).
-        match self.try_resolve_trait_constant(type_id, typ, member) {
-            Some(result) => Ok(result?),
-            None => Err(PathResolutionError::Unresolved(member.clone()).into()),
-        }
+        Ok(self.resolve_associated_constant_or_unresolved(type_id, typ, member)?)
     }
 
     /// Resolves a [`TypedPath`] assuming it is inside `starting_module`.
@@ -792,17 +789,20 @@ impl Elaborator<'_> {
                 match self.resolve_method(current_module, current_ident) {
                     Some(per_ns) => per_ns,
                     None => {
-                        // Before returning an error, try to look up as an associated constant
+                        // Not an enum-variant constructor; it may be an associated constant on the
+                        // type. (A non-`Type` intermediate, e.g. a type alias, can't be, so error.)
                         if let IntermediatePathResolutionItem::Type(type_id, turbofish) =
                             &intermediate_item
                         {
                             let self_type =
                                 self.data_type_as_self_type(*type_id, turbofish.as_ref());
-                            if let Some(result) =
-                                self.try_resolve_trait_constant(*type_id, &self_type, current_ident)
-                            {
-                                return result.map(|item| PathResolution { item, errors });
-                            }
+                            return self
+                                .resolve_associated_constant_or_unresolved(
+                                    *type_id,
+                                    &self_type,
+                                    current_ident,
+                                )
+                                .map(|item| PathResolution { item, errors });
                         }
 
                         // The name isn't a method or associated constant of the type. If a trait
@@ -966,6 +966,20 @@ impl Elaborator<'_> {
             datatype.borrow().generic_types()
         };
         Type::DataType(datatype, generics)
+    }
+
+    /// A segment that named the data type `self_type` but is not an enum-variant constructor in its
+    /// module scope may still be a trait associated constant (`Type::CONST`) on it; otherwise it is
+    /// unresolved. `type_id` is the data type, carried into the resulting
+    /// [`PathResolutionItem::TraitConstant`]. Shared by the segment loop and [`Self::use_value_in_type`].
+    fn resolve_associated_constant_or_unresolved(
+        &self,
+        type_id: TypeId,
+        self_type: &Type,
+        ident: &Ident,
+    ) -> Result<PathResolutionItem, PathResolutionError> {
+        self.try_resolve_trait_constant(type_id, self_type, ident)
+            .unwrap_or_else(|| Err(PathResolutionError::Unresolved(ident.clone())))
     }
 
     /// Try to resolve an identifier as a trait associated constant (e.g., `Foo::N`) on `self_type`
