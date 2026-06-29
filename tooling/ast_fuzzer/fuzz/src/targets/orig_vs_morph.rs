@@ -309,7 +309,7 @@ mod rules {
     use noirc_frontend::{
         Type as HirType,
         ast::BinaryOpKind,
-        hir::comptime::Integer,
+        hir::comptime::{Integer, bigint_to_field, field_to_signed_bigint},
         monomorphization::ast::{Binary, Definition, Expression, Ident, Literal, Type},
     };
 
@@ -440,27 +440,33 @@ mod rules {
                 };
                 let hir_type = HirType::Integer(*sign, *bits);
 
+                // Materialize the exact literals to field elements to reuse the field's modular
+                // arithmetic; convert back to an exact literal when storing the result.
+                let a_field = bigint_to_field(a);
+                let b_field = bigint_to_field(b);
+
                 // Convert to Integer for correct signed/unsigned comparison.
                 // FieldElement ordering does not match signed integer ordering.
-                let Some(a_int) = Integer::try_from_type(*a, &hir_type) else {
+                let Some(a_int) = Integer::try_from_type(a_field, &hir_type) else {
                     return Ok(());
                 };
-                let Some(b_int) = Integer::try_from_type(*b, &hir_type) else {
+                let Some(b_int) = Integer::try_from_type(b_field, &hir_type) else {
                     return Ok(());
                 };
 
-                let (op, c) = if a_int >= b_int {
-                    (BinaryOpKind::Add, *a - *b)
+                let (op, c_field) = if a_int >= b_int {
+                    (BinaryOpKind::Add, a_field - b_field)
                 } else {
-                    (BinaryOpKind::Subtract, *b - *a)
+                    (BinaryOpKind::Subtract, b_field - a_field)
                 };
 
                 // Verify c fits in the type (modular subtraction can yield out-of-range values
                 // for signed integers, e.g. 100_i8 - (-28_i8) = 128 which overflows i8).
-                if Integer::try_from_type(c, &hir_type).is_none() {
+                if Integer::try_from_type(c_field, &hir_type).is_none() {
                     return Ok(());
                 }
 
+                let c = field_to_signed_bigint(&c_field);
                 let c_expr = Expression::Literal(Literal::Integer(c, typ.clone(), *loc));
                 *expr = expr::binary(b_expr, op, c_expr);
                 Ok(())
