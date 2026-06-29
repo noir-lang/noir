@@ -440,8 +440,7 @@ impl Elaborator<'_> {
         target: PathResolutionTarget,
         mode: PathResolutionMode,
     ) -> PathResolutionResult {
-        let importing_module = self.module_id();
-        let mut starting_module = importing_module;
+        let mut starting_module = self.module_id();
         let mut intermediate_item = IntermediatePathResolutionItem::Module;
 
         if path.kind == PathKind::Plain
@@ -463,14 +462,8 @@ impl Elaborator<'_> {
 
         let turbofished_leaf =
             path.segments.last().filter(|segment| segment.generics.is_some()).cloned();
-        let result = self.resolve_path_in_module(
-            path,
-            starting_module,
-            importing_module,
-            intermediate_item,
-            target,
-            mode,
-        );
+        let result =
+            self.resolve_path_in_module(path, starting_module, intermediate_item, target, mode);
         Self::check_leaf_turbofish(result, turbofished_leaf.as_ref())
     }
 
@@ -536,7 +529,6 @@ impl Elaborator<'_> {
         let result = self.resolve_name_in_module(
             path,
             module_id,
-            self.module_id(),
             IntermediatePathResolutionItem::Module,
             PathResolutionTarget::Value,
             PathResolutionMode::MarkAsUsed,
@@ -549,15 +541,12 @@ impl Elaborator<'_> {
 
     /// Resolves a [`TypedPath`] assuming it is inside `starting_module`.
     ///
-    /// `importing_module` is the module where the lookup originally started.
-    ///
     /// This method first checks the path's kind and resolves it accordingly.
     #[tracing::instrument(level = "trace", skip_all)]
     fn resolve_path_in_module(
         &mut self,
         path: TypedPath,
         starting_module: ModuleId,
-        importing_module: ModuleId,
         intermediate_item: IntermediatePathResolutionItem,
         target: PathResolutionTarget,
         mode: PathResolutionMode,
@@ -569,18 +558,11 @@ impl Elaborator<'_> {
             resolve_path_kind(path.clone(), starting_module, self.def_maps, references_tracker);
 
         match res {
-            Ok((path, module_id, _)) => self.resolve_name_in_module(
-                path,
-                module_id,
-                importing_module,
-                intermediate_item,
-                target,
-                mode,
-            ),
+            Ok((path, module_id, _)) => {
+                self.resolve_name_in_module(path, module_id, intermediate_item, target, mode)
+            }
             Err(error @ PathResolutionError::Unresolved(_)) => {
-                if let Some(result) =
-                    self.resolve_primitive_type_or_function(path, importing_module)
-                {
+                if let Some(result) = self.resolve_primitive_type_or_function(path) {
                     return result;
                 }
                 Err(error)
@@ -609,8 +591,6 @@ impl Elaborator<'_> {
 
     /// Resolves a [`TypedPath`] assuming it is inside `starting_module`.
     ///
-    /// `importing_module` is the module where the lookup originally started.
-    ///
     /// This method does not check the path kind, it just checks its segments.
     ///
     /// Marks the segments in the path as used or referenced, depending on the [`PathResolutionMode`].
@@ -620,7 +600,6 @@ impl Elaborator<'_> {
         &mut self,
         path: TypedPath,
         starting_module: ModuleId,
-        importing_module: ModuleId,
         mut intermediate_item: IntermediatePathResolutionItem,
         target: PathResolutionTarget,
         mode: PathResolutionMode,
@@ -634,11 +613,11 @@ impl Elaborator<'_> {
         }
 
         // The module to use for visibility check.
-        // Use the caller's module if set, else use the resolution scope.
-        let visibility_module = self.caller_module.unwrap_or(importing_module);
+        // Use the caller's module if set, else the module the lookup started in.
+        let visibility_module = self.caller_module.unwrap_or(self.module_id());
 
         let first_segment_is_always_visible =
-            first_segment_is_always_visible(&path, importing_module, starting_module);
+            first_segment_is_always_visible(&path, self.module_id(), starting_module);
 
         // The current module and module ID as we resolve path segments
         let mut current_module_id = starting_module;
@@ -725,7 +704,6 @@ impl Elaborator<'_> {
                                 id,
                                 prev_segment.turbofish(),
                                 current_ident,
-                                importing_module,
                                 &mut errors,
                             );
                         }
@@ -768,11 +746,9 @@ impl Elaborator<'_> {
                     Some(per_ns) => per_ns,
                     None => {
                         // Before returning an error, try to look up as an associated constant
-                        if let Some(result) = self.try_resolve_trait_constant(
-                            &intermediate_item,
-                            current_ident,
-                            importing_module,
-                        ) {
+                        if let Some(result) =
+                            self.try_resolve_trait_constant(&intermediate_item, current_ident)
+                        {
                             return result.map(|item| PathResolution { item, errors });
                         }
 
@@ -838,7 +814,7 @@ impl Elaborator<'_> {
     fn per_ns_item_to_path_resolution_item(
         &mut self,
         path: TypedPath,
-        importing_module: ModuleId,
+        visibility_module: ModuleId,
         intermediate_item: IntermediatePathResolutionItem,
         current_module_id: ModuleId,
         errors: &mut Vec<PathResolutionError>,
@@ -876,7 +852,7 @@ impl Elaborator<'_> {
                 ModuleId { krate: func_meta.source_crate, local_id: func_meta.source_module };
             if !item_in_module_is_visible(
                 self.def_maps,
-                importing_module,
+                visibility_module,
                 source_module,
                 visibility,
             ) {
@@ -884,7 +860,7 @@ impl Elaborator<'_> {
             }
         } else if !item_in_module_is_visible(
             self.def_maps,
-            importing_module,
+            visibility_module,
             current_module_id,
             visibility,
         ) {
@@ -903,7 +879,7 @@ impl Elaborator<'_> {
         if let ModuleDefId::FunctionId(func_id) = module_def_id
             && !trait_visibility_for_method_is_satisfied(
                 func_id,
-                importing_module,
+                visibility_module,
                 self.interner,
                 self.def_maps,
             )
@@ -936,7 +912,6 @@ impl Elaborator<'_> {
         &self,
         intermediate_item: &IntermediatePathResolutionItem,
         ident: &Ident,
-        importing_module: ModuleId,
     ) -> Option<Result<PathResolutionItem, PathResolutionError>> {
         // Extract type info
         let (type_id, turbofish) = match intermediate_item {
@@ -961,7 +936,7 @@ impl Elaborator<'_> {
         }
 
         // Filter to traits that are in scope
-        let starting_module = self.get_module(importing_module);
+        let starting_module = self.get_module(self.module_id());
         let in_scope: Vec<_> = constants
             .iter()
             .filter(|(_, trait_id, _)| starting_module.find_trait_in_scope(*trait_id).is_some())
@@ -1121,15 +1096,12 @@ impl Elaborator<'_> {
         alias_id: TypeAliasId,
         turbofish: Option<Turbofish>,
         method_name_ident: &Ident,
-        importing_module_id: ModuleId,
         errors: &mut Vec<PathResolutionError>,
     ) -> PathResolutionResult {
-        self.resolve_primitive_type_method(typ, method_name_ident, importing_module_id, errors).map(
-            |func_id| {
-                let item = PathResolutionItem::TypeAliasFunction(alias_id, turbofish, func_id);
-                PathResolution { item, errors: std::mem::take(errors) }
-            },
-        )
+        self.resolve_primitive_type_method(typ, method_name_ident, errors).map(|func_id| {
+            let item = PathResolutionItem::TypeAliasFunction(alias_id, turbofish, func_id);
+            PathResolution { item, errors: std::mem::take(errors) }
+        })
     }
 
     /// Try to resolve a path with 1 or 2 segments as a [`PathResolutionItem::PrimitiveType`] or [`PathResolutionItem::PrimitiveFunction`].
@@ -1140,7 +1112,6 @@ impl Elaborator<'_> {
     fn resolve_primitive_type_or_function(
         &mut self,
         path: TypedPath,
-        importing_module_id: ModuleId,
     ) -> Option<PathResolutionResult> {
         if path.segments.len() != 1 && path.segments.len() != 2 {
             return None;
@@ -1158,12 +1129,7 @@ impl Elaborator<'_> {
         }
 
         let method_name_ident = &path.segments[1].ident;
-        let method = self.resolve_primitive_type_method(
-            typ,
-            method_name_ident,
-            importing_module_id,
-            &mut errors,
-        );
+        let method = self.resolve_primitive_type_method(typ, method_name_ident, &mut errors);
         Some(method.map(|func_id| PathResolution {
             item: PathResolutionItem::PrimitiveFunction(primitive_type, turbofish, func_id),
             errors,
@@ -1174,7 +1140,6 @@ impl Elaborator<'_> {
         &mut self,
         typ: Type,
         method_name_ident: &Ident,
-        importing_module_id: ModuleId,
         errors: &mut Vec<PathResolutionError>,
     ) -> Result<FuncId, PathResolutionError> {
         let method_name = method_name_ident.as_str();
@@ -1185,9 +1150,10 @@ impl Elaborator<'_> {
         }
 
         // Split the matching trait methods by whether their trait is currently in scope.
+        let current_module_id = self.module_id();
         let trait_methods = self.lookup_trait_methods(&typ, method_name, false);
         let total = trait_methods.len();
-        let starting_module = self.get_module(importing_module_id);
+        let starting_module = self.get_module(current_module_id);
         let mut in_scope = Vec::new();
         let mut out_of_scope = Vec::new();
         for (func_id, trait_id, _) in trait_methods {
@@ -1227,7 +1193,7 @@ impl Elaborator<'_> {
             _ => {
                 let traits = vecmap(in_scope, |(trait_id, name, _)| {
                     let trait_ = self.interner.get_trait(trait_id);
-                    self.usage_tracker.mark_as_used(importing_module_id, &name, Namespace::Type);
+                    self.usage_tracker.mark_as_used(current_module_id, &name, Namespace::Type);
                     self.fully_qualified_trait_path(trait_)
                 });
                 Err(PathResolutionError::MultipleTraitsInScope {
