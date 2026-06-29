@@ -322,6 +322,11 @@ pub struct Elaborator<'context> {
     /// True if we are elaborating arguments of a function call to an unconstrained function.
     in_unconstrained_args: bool,
 
+    /// Whether resolving a variable should mark it used for the unused-variable lint. Normally
+    /// true; temporarily disabled while elaborating compiler-synthesized code (such as the
+    /// validation injected for entry-point parameters) so it does not mask a genuinely unused input.
+    mark_variables_used: bool,
+
     crate_id: CrateId,
 
     interpreter_call_stack: im::Vector<Location>,
@@ -513,6 +518,7 @@ impl<'context> Elaborator<'context> {
             interpreter_call_stack,
             in_comptime_context: false,
             in_unconstrained_args: false,
+            mark_variables_used: true,
             silence_field_visibility_errors: 0,
             caller_module: None,
             options,

@@ -2,6 +2,13 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: stderr
 ---
+warning: unused variable vec
+   ┌─ src/main.nr:10:9
+   │
+10 │ fn main(vec: BoundedVec<Field, 3>) {}
+   │         --- unused variable
+   │
+
 error: Assertion failed: BoundedVec length exceeds its capacity
     ┌─ std/collections/bounded_vec.nr:678:9
     │
@@ -10,7 +17,7 @@ error: Assertion failed: BoundedVec length exceeds its capacity
     │
     = Call stack:
       1: ?
-              at src/main.nr:9:9
+              at src/main.nr:10:11
       2: <impl Validate for BoundedVec<T, MaxLen>>::validate
               at std/collections/bounded_vec.nr:678:9
 

@@ -2,6 +2,13 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: stderr
 ---
+warning: unused variable vec
+   ┌─ src/main.nr:10:9
+   │
+10 │ fn main(vec: BoundedVec<Field, 3>) {}
+   │         --- unused variable
+   │
+
 error: BoundedVec length exceeds its capacity
     ┌─ std/collections/bounded_vec.nr:678:16
     │
@@ -10,8 +17,8 @@ error: BoundedVec length exceeds its capacity
     │
     = Call stack:
       1: ?
-              at src/main.nr:9:4
+              at src/main.nr:10:6
       2: ?
-              at src/main.nr:9:9
+              at src/main.nr:10:11
 
 Error interpreting main function

@@ -36,15 +36,15 @@ use crate::{
         type_check::TypeCheckError,
     },
     hir_def::{
-        expr::HirIdent,
+        expr::{HirExpression, HirIdent},
         function::{FuncMeta, FunctionBody, HirFunction},
         stmt::HirPattern,
         traits::{Impl, TraitConstraint},
         types::recursion::TypeRecursionContext,
     },
     node_interner::{
-        DefinitionKind, DependencyId, FuncId, FunctionModifiers, ImplId, NodeInterner, TraitId,
-        TraitImplId,
+        DefinitionKind, DependencyId, FuncId, FunctionModifiers, ImplId, NodeInterner, StmtId,
+        TraitId, TraitImplId,
     },
     shared::Visibility,
 };
@@ -707,23 +707,22 @@ impl Elaborator<'_> {
         self.run_lint(|_| lints::check_varargs(func, modifiers).map(Into::into));
     }
 
-    /// For an entry-point function, prepend a `param.validate()` call to its body for each parameter
-    /// whose type implements [`Validate`][std::validate::Validate], so that values arriving from an
-    /// untrusted source (circuit inputs, oracle results) are checked before the body runs.
-    /// Parameters whose type does not implement `Validate` are left alone here (a separate lint
-    /// flags them). The body is returned untouched for non-entry-point functions.
+    /// The `param.validate()` statements to prepend to an entry point's body — one per parameter
+    /// whose type implements [`Validate`][std::validate::Validate] and is worth validating — so that
+    /// values arriving from an untrusted source (circuit inputs, oracle results) are checked before
+    /// the body runs. Empty for non-entry-point functions or when there is nothing to validate;
+    /// parameters whose type does not implement `Validate` are left alone (a separate lint flags
+    /// them).
     ///
-    /// The calls are synthesized as AST and elaborated with the rest of the body, so ordinary name
-    /// and method resolution applies; entry-point parameters are guaranteed to be simple
-    /// identifiers (see `InvalidPatternForEntryPoint`).
+    /// The calls are synthesized as AST and elaborated with variable-usage marking suppressed, so
+    /// the synthesized references do not contribute to the unused-variable lint. The user's body
+    /// (elaborated separately, with marking on) records the real usage, so a genuinely unused input
+    /// still warns. Entry-point parameters are guaranteed to be simple identifiers (see
+    /// `InvalidPatternForEntryPoint`).
     #[tracing::instrument(level = "trace", skip_all)]
-    fn inject_entry_point_validation(
-        &mut self,
-        func_meta: &FuncMeta,
-        mut body: BlockExpression,
-    ) -> BlockExpression {
+    fn entry_point_validation_statements(&mut self, func_meta: &FuncMeta) -> Vec<StmtId> {
         if !func_meta.is_entry_point {
-            return body;
+            return Vec::new();
         }
 
         let location = func_meta.location;
@@ -731,7 +730,7 @@ impl Elaborator<'_> {
         // an unqualified name, which could resolve to a different `Validate` in scope. Absent in
         // minimal programs compiled without the stdlib, in which case there is nothing to inject.
         let Some(stdlib) = self.crate_graph.try_stdlib_crate_id().copied() else {
-            return body;
+            return Vec::new();
         };
         let segment = |name: &str| {
             TypedPathSegment::without_generics(Ident::new(name.to_string(), location), location)
@@ -742,11 +741,11 @@ impl Elaborator<'_> {
             location,
         );
         let Some(trait_id) = self.try_resolve_trait_by_path(validate_path) else {
-            return body;
+            return Vec::new();
         };
         let worth = ValidationWorth::new(stdlib);
 
-        let mut prelude = Vec::new();
+        let mut statements = Vec::new();
         for (pattern, typ, _visibility) in func_meta.parameters.iter() {
             if self.interner.lookup_trait_implementation(typ, trait_id, &[], &[]).is_err() {
                 continue;
@@ -776,12 +775,17 @@ impl Elaborator<'_> {
                 is_macro_call: false,
             };
             let expr = Expression::new(ExpressionKind::MethodCall(Box::new(call)), location);
-            prelude.push(Statement { kind: StatementKind::Semi(expr), location });
+            let statement = Statement { kind: StatementKind::Semi(expr), location };
+
+            // Elaborate the call without marking the parameter used, so the synthesized reference
+            // does not contribute to the unused-variable lint.
+            let previously_marking = std::mem::replace(&mut self.mark_variables_used, false);
+            let (statement, _) = self.elaborate_statement(statement);
+            self.mark_variables_used = previously_marking;
+            statements.push(statement);
         }
 
-        prelude.append(&mut body.statements);
-        body.statements = prelude;
-        body
+        statements
     }
 
     /// Elaborates a function's body and performs type checking.
@@ -795,7 +799,7 @@ impl Elaborator<'_> {
         let func_meta =
             func_meta.expect("FuncMetas should be declared before a function is elaborated");
 
-        let (kind, mut body, body_location) = match func_meta.take_body() {
+        let (kind, body, body_location) = match func_meta.take_body() {
             FunctionBody::Unresolved(kind, body, location) => (kind, body, location),
             FunctionBody::Resolved => return,
             // Do not error for the still-resolving case. If there is a dependency cycle,
@@ -874,9 +878,10 @@ impl Elaborator<'_> {
                 (HirFunction::empty(), Type::Error)
             }
             FunctionKind::Normal => {
-                body = self.inject_entry_point_validation(&func_meta, body);
+                let validations = self.entry_point_validation_statements(&func_meta);
                 let return_type = func_meta.return_type();
                 let (block, body_type) = self.elaborate_block(body, Some(return_type));
+                let block = prepend_statements(block, validations);
                 let expr_id = self.interner.push_expr_full(block, body_location, body_type.clone());
                 (HirFunction::unchecked_from_expr(expr_id), body_type)
             }
@@ -930,6 +935,19 @@ impl Elaborator<'_> {
         self.current_item = old_item;
         self.local_module = previous_local_module;
     }
+}
+
+/// Prepend statements to the front of a function body, which always elaborates to a block.
+fn prepend_statements(body: HirExpression, mut statements: Vec<StmtId>) -> HirExpression {
+    if statements.is_empty() {
+        return body;
+    }
+    let HirExpression::Block(mut block) = body else {
+        unreachable!("ICE: a function body always elaborates to a block");
+    };
+    statements.append(&mut block.statements);
+    block.statements = statements;
+    HirExpression::Block(block)
 }
 
 /// Whether a pattern binds the whole value to a single name. ABI generation requires this for

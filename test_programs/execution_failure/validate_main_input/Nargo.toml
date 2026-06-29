@@ -1,6 +1,0 @@
-[package]
-name = "validate_main_input"
-type = "bin"
-authors = [""]
-
-[dependencies]
