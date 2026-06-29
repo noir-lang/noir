@@ -5,7 +5,7 @@ use itertools::Itertools;
 use noirc_errors::{Located, Location, Span};
 
 use crate::ast::{Ident, PathKind};
-use crate::hir::def_map::{ModuleData, ModuleDefId, ModuleId, Namespace, PerNs};
+use crate::hir::def_map::{ModuleData, ModuleDefId, ModuleId, Namespace, NamespaceItem, PerNs};
 use crate::hir::resolution::import::{
     PathResolutionError, first_segment_is_always_visible, resolve_path_kind,
 };
@@ -559,20 +559,18 @@ impl Elaborator<'_> {
         let type_module_id = type_id.module_id();
 
         // An enum-variant constructor is the only value kept in the type's module scope; finalize a
-        // hit the same way the segment loop's tail does (visibility check + enum-variant detection).
+        // hit through the same path as the segment loop's tail.
         if let Some(per_ns) = self.resolve_method(self.get_module(type_module_id), member) {
             let scope = per_ns.values.expect("resolve_method only returns a value namespace");
             let mut errors = Vec::new();
             let path = TypedPath::plain(vec![last_segment.clone()], member.location());
-            let visibility_module = self.caller_module.unwrap_or(self.module_id());
-            let item = self.per_ns_item_to_path_resolution_item(
+            let item = self.finalize_resolved_leaf(
                 path,
-                visibility_module,
                 IntermediatePathResolutionItem::Type(type_id, turbofish),
                 type_module_id,
+                scope,
+                PathResolutionMode::MarkAsUsed,
                 &mut errors,
-                scope.id,
-                scope.visibility,
             );
             self.push_errors(errors);
             return Ok(item);
@@ -841,23 +839,44 @@ impl Elaborator<'_> {
         };
 
         let scope = target_ns.or(fallback_ns).expect("A namespace should never be empty");
-        let (module_def_id, visibility) = (scope.id, scope.visibility);
 
-        // Mark the leaf segment as used/referenced in the namespace it resolved to, so that a
-        // same-named sibling in the other namespace stays tracked.
-        self.mark_segment(mode, current_module_id, &path.last_ident(), module_def_id.namespace());
+        let item = self.finalize_resolved_leaf(
+            path,
+            intermediate_item,
+            current_module_id,
+            scope,
+            mode,
+            &mut errors,
+        );
 
-        let item = self.per_ns_item_to_path_resolution_item(
+        Ok(PathResolution { item, errors })
+    }
+
+    /// Finalize a path's leaf: mark its segment as used/referenced in the namespace it resolved to
+    /// (so a same-named sibling in the other namespace stays tracked), then turn the namespace item
+    /// into a [`PathResolutionItem`], pushing any visibility errors onto `errors`. Shared by the
+    /// segment loop's tail and [`Self::use_value_in_type`].
+    fn finalize_resolved_leaf(
+        &mut self,
+        path: TypedPath,
+        intermediate_item: IntermediatePathResolutionItem,
+        current_module_id: ModuleId,
+        scope: NamespaceItem,
+        mode: PathResolutionMode,
+        errors: &mut Vec<PathResolutionError>,
+    ) -> PathResolutionItem {
+        // Use the caller's module if set, else the module the lookup started in.
+        let visibility_module = self.caller_module.unwrap_or(self.module_id());
+        self.mark_segment(mode, current_module_id, &path.last_ident(), scope.id.namespace());
+        self.per_ns_item_to_path_resolution_item(
             path,
             visibility_module,
             intermediate_item,
             current_module_id,
-            &mut errors,
-            module_def_id,
-            visibility,
-        );
-
-        Ok(PathResolution { item, errors })
+            errors,
+            scope.id,
+            scope.visibility,
+        )
     }
 
     /// Transform a result from [`PerNs`] into a [`PathResolutionItem`],
