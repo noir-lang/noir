@@ -262,7 +262,7 @@ fn test_assign_ref_element_type() {
     };
 
     let rhs = Expression::Literal(Literal::Integer(
-        acir::FieldElement::from(0u32),
+        0u32.into(),
         crate::program::types::U32,
         Location::dummy(),
     ));

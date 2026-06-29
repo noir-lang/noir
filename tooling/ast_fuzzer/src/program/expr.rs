@@ -6,6 +6,7 @@ use nargo::errors::Location;
 use arbitrary::{Arbitrary, Unstructured};
 use noirc_frontend::{
     ast::{BinaryOpKind, IntegerBitSize, UnaryOp},
+    hir::comptime::field_to_signed_bigint,
     monomorphization::{
         ast::{
             ArrayLiteral, Assign, Binary, BinaryOp, Call, Cast, Definition, Expression, FuncId,
@@ -38,7 +39,11 @@ pub fn gen_literal(
         Type::Bool => lit_bool(bool::arbitrary(u)?),
         Type::Field => {
             let field = Field::from(u128::arbitrary(u)?);
-            Expression::Literal(Literal::Integer(field, Type::Field, Location::dummy()))
+            Expression::Literal(Literal::Integer(
+                field_to_signed_bigint(&field),
+                Type::Field,
+                Location::dummy(),
+            ))
         }
         Type::Integer(signedness, integer_bit_size) => {
             let field = if signedness.is_signed() {
@@ -64,7 +69,7 @@ pub fn gen_literal(
             };
 
             Expression::Literal(Literal::Integer(
-                field,
+                field_to_signed_bigint(&field),
                 Type::Integer(*signedness, *integer_bit_size),
                 Location::dummy(),
             ))
@@ -221,7 +226,7 @@ pub fn gen_range(
 
     let to_lit = |field| {
         Expression::Literal(Literal::Integer(
-            field,
+            field_to_signed_bigint(&field),
             Type::Integer(*signedness, *integer_bit_size),
             Location::dummy(),
         ))
@@ -267,7 +272,8 @@ pub fn int_literal<V>(value: V, typ: Type) -> Expression
 where
     FieldElement: From<V>,
 {
-    Expression::Literal(Literal::Integer(value.into(), typ, Location::dummy()))
+    let field = FieldElement::from(value);
+    Expression::Literal(Literal::Integer(field_to_signed_bigint(&field), typ, Location::dummy()))
 }
 
 /// 8-bit unsigned int literal, used in bit shifts.
