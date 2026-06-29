@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1782732935201,
+  "lastUpdate": 1782736100512,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23071,48 +23071,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "96542e53c9cea47cf4210d61fba6250e4e0c4b46",
-          "message": "feat(stdlib): Add `BoundedVec::truncate` (#13137)",
-          "timestamp": "2026-06-23T10:29:49Z",
-          "tree_id": "27bf78ed4480b9befc14405195b3358ae90a5e21",
-          "url": "https://github.com/noir-lang/noir/commit/96542e53c9cea47cf4210d61fba6250e4e0c4b46"
-        },
-        "date": 1782211784334,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 166430,
-            "range": "± 660",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 135951,
-            "range": "± 1747",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2652096,
-            "range": "± 4859",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "49699333+dependabot[bot]@users.noreply.github.com",
             "name": "dependabot[bot]",
             "username": "dependabot[bot]"
@@ -25164,6 +25122,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2124021,
             "range": "± 2134",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jfecher11@gmail.com",
+            "name": "jfecher",
+            "username": "jfecher"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "536fe15e2148ecfdf8ded577f2d752d04bf7f885",
+          "message": "fix: ts codegen for Unit/void functions (#13183)",
+          "timestamp": "2026-06-29T12:07:12Z",
+          "tree_id": "85a5a0328b19192363e71e7717c24ba7ce00c0a7",
+          "url": "https://github.com/noir-lang/noir/commit/536fe15e2148ecfdf8ded577f2d752d04bf7f885"
+        },
+        "date": 1782736024413,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 175806,
+            "range": "± 518",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 143303,
+            "range": "± 855",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2656066,
+            "range": "± 8917",
             "unit": "ns/iter"
           }
         ]
