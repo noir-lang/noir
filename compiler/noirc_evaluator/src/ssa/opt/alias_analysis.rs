@@ -403,6 +403,17 @@ impl AliasAnalysisContext {
         for block_id in blocks {
             self.analyze_block(function, block_id, ssa);
         }
+
+        // Make the analysis total: insert every reference-typed value into the
+        // union-find (most are added while processing constraints, but values
+        // never involved in one would otherwise be missing). With the structure
+        // total, a post-analysis lookup of an unknown value is a bug —
+        // see `find_existing` — rather than a silently-created singleton.
+        for (value_id, _) in function.dfg.values_iter() {
+            if function.dfg.type_of_value(value_id).contains_reference() {
+                self.aliases.make_set(GlobalValueId::new(function, value_id));
+            }
+        }
     }
 
     // Returns the set of values that `pointer` may point to.
