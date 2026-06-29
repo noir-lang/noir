@@ -884,8 +884,7 @@ impl Elaborator<'_> {
     /// `ident` as one of that type's enum variant constructors.
     ///
     /// These are the only function-like items kept in a type's module scope: inherent and trait
-    /// methods are not declared there and resolve through the interner's type-directed lookup (see
-    /// [Elaborator::resolve_type_method_or_trait_method]).
+    /// methods are not declared there and resolve through the interner's type-directed lookup.
     fn resolve_method(&self, current_module: &ModuleData, ident: &Ident) -> Option<PerNs> {
         current_module
             .scope()
