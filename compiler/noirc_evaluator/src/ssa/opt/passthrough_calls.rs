@@ -1,7 +1,7 @@
 //! This module defines a SSA pass that simplifies calls to *pass-through* functions.
 //!
 //! A pass-through function is one whose every returned value is one of its own parameters
-//! ([`Function::pass_through_indices`]) and whose body has no observable side effects
+//! ([`crate::ssa::ir::function::Function::pass_through_indices`]) and whose body has no observable side effects
 //! ([`Purity::Pure`] after call-graph propagation). Calling such a function produces exactly its
 //! arguments and does nothing else, so its call can be replaced by forwarding the
 //! matching argument to each result and dropping the call.
