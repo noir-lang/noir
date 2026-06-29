@@ -261,6 +261,33 @@ impl Percent {
 Note that `validate` is an explicit, point-in-time check: it is not run on construction or
 mutation, so a value can hold invariant-violating data until the next `validate` call surfaces it.
 
+#### Automatic validation of entry-point inputs
+
+The compiler validates the inputs of entry points (`main`, and a contract's entry-point functions)
+automatically: for each parameter whose type implements `Validate`, a `validate()` call is inserted
+at the start of the function, so untrusted inputs are checked before any other code runs. Parameters
+of trivial types — primitives, and arrays, tuples, or `Option`s built only from them — are skipped,
+since their `validate` does nothing.
+
+A parameter whose type does **not** implement `Validate` raises an `unvalidated_input` warning, since
+its representation invariants cannot be checked on entry:
+
+```rust
+struct Untrusted { /* ... */ }
+
+fn main(x: Untrusted) {} // warning: unvalidated entry point input `x`
+```
+
+To resolve it, either derive or implement `Validate` for the type — which both silences the warning
+and validates the input — or opt out: prefix the parameter with `_` to skip the warning for that
+input specifically (as with the unused-variable lint), or pass `--silence-warnings` to drop all
+warnings. Under `--deny-warnings`, an unvalidated input becomes a hard error, making validation
+mandatory. Opting out of the warning does not opt out of validation: a parameter whose type *does*
+implement `Validate` is validated regardless of its name.
+
+Because the injected call lives in the function's body, a `#[test]` that calls an entry point
+exercises its input validation too.
+
 ---
 
 ## `std::ops`
