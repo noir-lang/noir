@@ -159,8 +159,7 @@ impl Formatter<'_> {
                     // changes (`///` and `//!` arrive as separate token variants), or
                     // when the leading comment is attached to code on its own line.
                     if self.config.wrap_comments && !self.ignore_next && !first_is_trailing_inline {
-                        loop {
-                            let Token::Whitespace(ws) = &self.token else { break };
+                        while let Token::Whitespace(ws) = &self.token {
                             let newlines = ws.chars().filter(|c| *c == '\n').count();
                             if newlines != 1 {
                                 break;

@@ -3,6 +3,7 @@ import { abiEncode } from '@noir-lang/noirc_abi';
 import { abi as abi_uint_overflow, inputs as inputs_uint_overflow } from '../shared/uint_overflow';
 import { abi as abi_field_as_array, inputs as inputs_field_as_array } from '../shared/field_as_array';
 import { abi as abi_array_as_field, inputs as inputs_array_as_field } from '../shared/array_as_field';
+import { abi as abi_unsafe_integer, unsafeInteger } from '../shared/unsafe_integer';
 
 it('errors when an integer input overflows', () => {
   expect(() => abiEncode(abi_uint_overflow, inputs_uint_overflow)).to.throw(
@@ -20,4 +21,8 @@ it('errors when passing an array in place of a field', () => {
   expect(() => abiEncode(abi_array_as_field, inputs_array_as_field)).to.throw(
     'cannot parse value `Array([String("1"), String("2")])` into Field',
   );
+});
+
+it('errors when passing a JavaScript number that is not a safe integer', () => {
+  expect(() => abiEncode(abi_unsafe_integer, { foo: unsafeInteger })).to.throw('is not a safe integer');
 });

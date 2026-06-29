@@ -1,9 +1,8 @@
 use std::fmt::Display;
 
-use acvm::FieldElement;
-use acvm::acir::AcirField;
 use iter_extended::vecmap;
 use noirc_errors::{Located, Location, Span};
+use num_bigint::BigInt;
 
 use super::{
     BlockExpression, ConstructorExpression, Expression, ExpressionKind, GenericTypeArgs,
@@ -848,7 +847,7 @@ impl ForRange {
             }
             ForRange::Array(array) => {
                 let array_location = array.location;
-                let start_range = ExpressionKind::integer(FieldElement::zero(), None);
+                let start_range = ExpressionKind::integer(BigInt::ZERO, None);
                 let start_range = Expression::new(start_range, array_location);
 
                 let next_unique_id = unique_name_counter;
