@@ -461,11 +461,8 @@ impl Elaborator<'_> {
             intermediate_item = IntermediatePathResolutionItem::SelfType;
         }
 
-        let last_segment_turbofish_location = path
-            .segments
-            .last()
-            .and_then(|segment| segment.generics.is_some().then(|| segment.turbofish_location()));
-
+        let turbofished_leaf =
+            path.segments.last().filter(|segment| segment.generics.is_some()).cloned();
         let result = self.resolve_path_in_module(
             path,
             starting_module,
@@ -474,43 +471,80 @@ impl Elaborator<'_> {
             target,
             mode,
         );
-        let Some(last_segment_turbofish_location) = last_segment_turbofish_location else {
+        Self::check_leaf_turbofish(result, turbofished_leaf.as_ref())
+    }
+
+    /// If `turbofished_leaf` (a resolved path's last segment, present only when it carries a
+    /// turbofish) is set, reject the turbofish unless the item it resolved to is one a turbofish is
+    /// allowed on. A fieldless enum variant may carry the enum's generics, so a turbofish is allowed
+    /// there (e.g. `Foo::Spam::<u32>`); it is bound when the variable is elaborated. Any other
+    /// errors, and the `Err` case, pass through untouched.
+    fn check_leaf_turbofish(
+        mut result: PathResolutionResult,
+        turbofished_leaf: Option<&TypedPathSegment>,
+    ) -> PathResolutionResult {
+        let Some(leaf) = turbofished_leaf else {
+            return result;
+        };
+        let Ok(resolution) = &mut result else {
             return result;
         };
 
-        result.map(|mut resolution| {
-            match resolution.item {
-                // A fieldless enum variant may carry the enum's generics, so a turbofish is
-                // allowed (e.g. `Foo::Spam::<u32>`); it is bound when the variable is elaborated.
-                PathResolutionItem::EnumVariant(..) => {}
-                PathResolutionItem::Global(..) => {
-                    resolution.errors.push(PathResolutionError::TurbofishNotAllowedOnItem {
-                        item: "globals".to_string(),
-                        location: last_segment_turbofish_location,
-                    });
-                }
-                PathResolutionItem::Module(..) => {
-                    resolution.errors.push(PathResolutionError::TurbofishNotAllowedOnItem {
-                        item: "modules".to_string(),
-                        location: last_segment_turbofish_location,
-                    });
-                }
-                PathResolutionItem::Type(..)
-                | PathResolutionItem::TypeAlias(..)
-                | PathResolutionItem::PrimitiveType(..)
-                | PathResolutionItem::Trait(..)
-                | PathResolutionItem::TraitAssociatedType(..)
-                | PathResolutionItem::ModuleFunction(..)
-                | PathResolutionItem::Method(..)
-                | PathResolutionItem::SelfMethod(..)
-                | PathResolutionItem::TypeAliasFunction(..)
-                | PathResolutionItem::TraitFunction(..)
-                | PathResolutionItem::TypeTraitFunction(..)
-                | PathResolutionItem::PrimitiveFunction(..)
-                | PathResolutionItem::TraitConstant(..) => (),
+        let location = leaf.turbofish_location();
+        match resolution.item {
+            PathResolutionItem::EnumVariant(..) => {}
+            PathResolutionItem::Global(..) => {
+                resolution.errors.push(PathResolutionError::TurbofishNotAllowedOnItem {
+                    item: "globals".to_string(),
+                    location,
+                });
             }
-            resolution
-        })
+            PathResolutionItem::Module(..) => {
+                resolution.errors.push(PathResolutionError::TurbofishNotAllowedOnItem {
+                    item: format!("module `{}`", leaf.ident),
+                    location,
+                });
+            }
+            PathResolutionItem::Type(..)
+            | PathResolutionItem::TypeAlias(..)
+            | PathResolutionItem::PrimitiveType(..)
+            | PathResolutionItem::Trait(..)
+            | PathResolutionItem::TraitAssociatedType(..)
+            | PathResolutionItem::ModuleFunction(..)
+            | PathResolutionItem::Method(..)
+            | PathResolutionItem::SelfMethod(..)
+            | PathResolutionItem::TypeAliasFunction(..)
+            | PathResolutionItem::TraitFunction(..)
+            | PathResolutionItem::TypeTraitFunction(..)
+            | PathResolutionItem::PrimitiveFunction(..)
+            | PathResolutionItem::TraitConstant(..) => (),
+        }
+        result
+    }
+
+    /// Resolve `path` as a value, looking it up directly in the already-resolved `module_id`
+    /// instead of from the current module. The current module stays the importing module, so
+    /// visibility is still checked from where the lookup originates. The [`Self::use_path_or_error`]
+    /// counterpart for when a path's prefix module is already known.
+    pub(super) fn use_value_in_module(
+        &mut self,
+        path: TypedPath,
+        module_id: ModuleId,
+    ) -> Result<PathResolutionItem, ResolverError> {
+        let turbofished_leaf =
+            path.segments.last().filter(|segment| segment.generics.is_some()).cloned();
+        let result = self.resolve_name_in_module(
+            path,
+            module_id,
+            self.module_id(),
+            IntermediatePathResolutionItem::Module,
+            PathResolutionTarget::Value,
+            PathResolutionMode::MarkAsUsed,
+        );
+
+        let resolution = Self::check_leaf_turbofish(result, turbofished_leaf.as_ref())?;
+        self.push_errors(resolution.errors);
+        Ok(resolution.item)
     }
 
     /// Resolves a [`TypedPath`] assuming it is inside `starting_module`.

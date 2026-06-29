@@ -15,6 +15,7 @@ use crate::elaborator::path_resolution::TypedPathSegment;
 use crate::elaborator::patterns::{IdentFromPath, Variable};
 use crate::elaborator::types::{SELF_TYPE_NAME, WildcardAllowed};
 use crate::hir::def_collector::dc_crate::CompilationError;
+use crate::hir::def_map::ModuleId;
 use crate::hir::resolution::errors::ResolverError;
 use crate::hir::type_check::TypeCheckError;
 use crate::hir_def::expr::{
@@ -530,7 +531,33 @@ impl Elaborator<'_> {
     /// segment is not a method or trait item, and a prefixed path can never name a local variable.
     pub(super) fn resolve_value_item(&mut self, path: TypedPath) -> Option<VariableResolution> {
         let location = path.last_ident().location();
-        match self.ident_from_value_item(path) {
+        let ident = self.lookup_item_as_value(path).map(IdentFromPath::from);
+        self.variable_resolution_from_value_item(ident, location)
+    }
+
+    /// Resolve a module-prefixed path's last segment as a value item, looked up directly in the
+    /// already-resolved prefix `module_id`. This is the module-prefix counterpart of
+    /// [`Self::resolve_value_item`]: it avoids re-resolving the whole path now that the prefix is
+    /// known to be a module.
+    pub(super) fn resolve_value_in_module(
+        &mut self,
+        module_id: ModuleId,
+        last_segment: TypedPathSegment,
+    ) -> Option<VariableResolution> {
+        let location = last_segment.ident.location();
+        let ident =
+            self.lookup_item_as_value_in_module(last_segment, module_id).map(IdentFromPath::from);
+        self.variable_resolution_from_value_item(ident, location)
+    }
+
+    /// Finish resolving a value item: build the [`VariableResolution`] it denotes, or report the
+    /// error if it could not be resolved as a value.
+    fn variable_resolution_from_value_item(
+        &mut self,
+        ident: Result<IdentFromPath, ResolverError>,
+        location: Location,
+    ) -> Option<VariableResolution> {
+        match ident {
             Ok(ident_from_path) => {
                 Some(self.variable_resolution_from_ident_from_path(ident_from_path, location))
             }

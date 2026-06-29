@@ -43,6 +43,15 @@ pub(crate) enum IdentFromPath {
     TypeAlias(TypeAliasId),
 }
 
+impl From<ItemAsValue> for IdentFromPath {
+    fn from(item: ItemAsValue) -> Self {
+        match item {
+            ItemAsValue::Definition { id, item } => IdentFromPath::Definition { id, item },
+            ItemAsValue::TypeAlias(type_alias_id) => IdentFromPath::TypeAlias(type_alias_id),
+        }
+    }
+}
+
 impl Elaborator<'_> {
     /// Elaborate a pattern, which can appear in a `let <pattern> = <expr>`, or a `match` statement.
     ///
@@ -881,9 +890,6 @@ impl Elaborator<'_> {
         &mut self,
         path: TypedPath,
     ) -> Result<IdentFromPath, ResolverError> {
-        self.lookup_item_as_value(path).map(|item| match item {
-            ItemAsValue::Definition { id, item } => IdentFromPath::Definition { id, item },
-            ItemAsValue::TypeAlias(type_alias_id) => IdentFromPath::TypeAlias(type_alias_id),
-        })
+        self.lookup_item_as_value(path).map(IdentFromPath::from)
     }
 }

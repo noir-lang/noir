@@ -1,5 +1,7 @@
 //! Lexical scoping, variable lookup, and closure capture tracking.
 
+use noirc_errors::Location;
+
 use crate::ast::{ERROR_IDENT, Ident};
 use crate::elaborator::path_resolution::PathResolution;
 use crate::elaborator::patterns::Variable;
@@ -16,7 +18,7 @@ use crate::{
 };
 use crate::{Type, TypeAlias};
 
-use super::path_resolution::{PathResolutionItem, PathResolutionMode, TypedPath};
+use super::path_resolution::{PathResolutionItem, PathResolutionMode, TypedPath, TypedPathSegment};
 use super::{Elaborator, PathResolutionTarget, ResolverMeta};
 
 type ScopeTree = GenericScopeTree<String, ResolverMeta>;
@@ -145,7 +147,29 @@ impl Elaborator<'_> {
     ) -> Result<ItemAsValue, ResolverError> {
         let location = path.location;
         let item = self.use_path_or_error(path, PathResolutionTarget::Value)?;
+        self.path_resolution_item_as_value(item, location)
+    }
 
+    /// Like [`Self::lookup_item_as_value`], but resolves `segment` directly in the already-resolved
+    /// `module_id` rather than from the current module.
+    pub(super) fn lookup_item_as_value_in_module(
+        &mut self,
+        segment: TypedPathSegment,
+        module_id: ModuleId,
+    ) -> Result<ItemAsValue, ResolverError> {
+        let location = segment.ident.location();
+        let item =
+            self.use_value_in_module(TypedPath::plain(vec![segment], location), module_id)?;
+        self.path_resolution_item_as_value(item, location)
+    }
+
+    /// Interpret an already-resolved [`PathResolutionItem`] as a value (the definition it refers
+    /// to), or return an `Expected` error when it is not a value. `location` is used for that error.
+    pub(super) fn path_resolution_item_as_value(
+        &mut self,
+        item: PathResolutionItem,
+        location: Location,
+    ) -> Result<ItemAsValue, ResolverError> {
         if let Some(function) = item.function_id() {
             let definition_id = self.interner.function_definition_id(function);
             let item_as_value = ItemAsValue::Definition { id: definition_id, item };

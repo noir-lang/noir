@@ -114,8 +114,9 @@ enum PathPrefixKind {
     /// segment is an inherent or qualified trait method.
     Type { resolution: PathResolution },
     /// A module (e.g. `foo::bar` in `foo::bar::GLOBAL`). The last segment is an ordinary value
-    /// item, resolved as a value.
-    Module,
+    /// item, resolved as a value directly in `module_id`. `errors` are the prefix's own resolution
+    /// errors (e.g. an intermediate segment's visibility), reported when the last segment resolves.
+    Module { module_id: ModuleId, errors: Vec<PathResolutionError> },
     /// The prefix is `Self` but there is no self type in scope (e.g. in a free function), so `Self`
     /// names nothing.
     SelfNotInScope,
@@ -1528,7 +1529,10 @@ impl Elaborator<'_> {
                     PathResolutionItem::Type(..)
                     | PathResolutionItem::TypeAlias(..)
                     | PathResolutionItem::PrimitiveType(..) => PathPrefixKind::Type { resolution },
-                    PathResolutionItem::Module(..) => PathPrefixKind::Module,
+                    PathResolutionItem::Module(module_id) => PathPrefixKind::Module {
+                        module_id: *module_id,
+                        errors: resolution.errors.clone(),
+                    },
                     // Resolving a type path falls back to the value namespace, so the prefix's last
                     // segment can also resolve to a value item; that (and an associated type) can't
                     // carry the last segment of the path as an associated item, so the path names
@@ -2266,8 +2270,12 @@ impl Elaborator<'_> {
                 &last_segment,
                 resolution,
             ),
-            // A module prefix: the last segment is an ordinary value item, resolved as a value.
-            PathPrefixKind::Module => self.resolve_value_item(path),
+            // A module prefix: the last segment is an ordinary value item, resolved as a value
+            // directly in the already-resolved module.
+            PathPrefixKind::Module { module_id, errors } => {
+                self.push_errors(errors);
+                self.resolve_value_in_module(module_id, last_segment)
+            }
             // No usable prefix: the path names nothing, and a value lookup would only rediscover
             // the resolution failure already carried here, so report it directly.
             PathPrefixKind::NoPrefix { error } => {
