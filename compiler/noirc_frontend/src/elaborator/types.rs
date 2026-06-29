@@ -1662,8 +1662,7 @@ impl Elaborator<'_> {
             return None;
         }
 
-        // Kept for the value fallback below (the method-lookup branches consume `typ`/`turbofish`).
-        let fallback_type = typ.clone();
+        // Kept for the value fallback below (the method-lookup branches consume `turbofish`).
         let fallback_turbofish = turbofish.clone();
 
         let method_name = last_segment.ident.as_str();
@@ -1676,7 +1675,7 @@ impl Elaborator<'_> {
         // trait methods not in scope) fall through to trait-method resolution.
         let trait_resolution = if turbofish.is_some() {
             self.resolve_turbofish_type_method(
-                typ,
+                &typ,
                 direct_method,
                 &last_segment,
                 turbofish,
@@ -1686,7 +1685,7 @@ impl Elaborator<'_> {
             )
         } else if let Some(direct_method) = direct_method {
             Some(self.resolve_self_or_inherent_method(
-                typ,
+                &typ,
                 direct_method,
                 is_self_prefix,
                 &last_segment,
@@ -1696,7 +1695,7 @@ impl Elaborator<'_> {
             ))
         } else {
             self.resolve_qualified_trait_method(
-                typ,
+                &typ,
                 None,
                 &last_segment,
                 turbofish,
@@ -1711,7 +1710,7 @@ impl Elaborator<'_> {
         // the type. The error is reported if it is none of these.
         match trait_resolution {
             Some(resolution) => self.variable_from_trait_resolution(path.location, resolution),
-            None => self.resolve_value_in_type(&last_segment, &fallback_type, fallback_turbofish),
+            None => self.resolve_value_in_type(&last_segment, &typ, fallback_turbofish),
         }
     }
 
@@ -1721,7 +1720,7 @@ impl Elaborator<'_> {
     #[allow(clippy::too_many_arguments)]
     fn resolve_turbofish_type_method(
         &mut self,
-        typ: Type,
+        typ: &Type,
         direct_method: Option<FuncId>,
         last_segment: &TypedPathSegment,
         turbofish: Option<Turbofish>,
@@ -1743,17 +1742,17 @@ impl Elaborator<'_> {
         }
 
         let has_self_arg = false;
-        let type_trait_methods = self.lookup_trait_methods(&typ, method_name, has_self_arg);
+        let type_trait_methods = self.lookup_trait_methods(typ, method_name, has_self_arg);
 
         // If no method matches the turbofish type but the name is a known method for this type
         // (just incompatible), report an error. If the name isn't a method at all (e.g. it's an
         // associated constant), return None and let the fallback handle it.
-        if type_trait_methods.is_empty() && self.interner.has_method_with_name(&typ, method_name) {
+        if type_trait_methods.is_empty() && self.interner.has_method_with_name(typ, method_name) {
             self.push_errors(generics_errors);
             let mut errors = path_resolution.errors;
             let available_impls = self
                 .interner
-                .get_direct_method_impl_types(&typ, method_name)
+                .get_direct_method_impl_types(typ, method_name)
                 .into_iter()
                 .map(|t| t.to_string())
                 .collect();
@@ -1786,7 +1785,7 @@ impl Elaborator<'_> {
     #[allow(clippy::too_many_arguments)]
     fn resolve_self_or_inherent_method(
         &mut self,
-        typ: Type,
+        typ: &Type,
         direct_method: FuncId,
         is_self_prefix: bool,
         last_segment: &TypedPathSegment,
@@ -1818,7 +1817,7 @@ impl Elaborator<'_> {
         // defines a `method` applicable to `typ` (mirroring Rust's E0034): the path names more
         // than one function and nothing here disambiguates. Require a method call
         // (`value.method(..)`) or turbofish (`TypeName::<..>::method(..)`) instead.
-        let impl_types = self.interner.matching_direct_method_types(&typ, method_name);
+        let impl_types = self.interner.matching_direct_method_types(typ, method_name);
         if impl_types.len() >= 2 {
             self.push_errors(generics_errors);
             let mut errors = path_resolution.errors;
@@ -1903,7 +1902,7 @@ impl Elaborator<'_> {
     #[allow(clippy::too_many_arguments)]
     fn resolve_qualified_trait_method(
         &mut self,
-        typ: Type,
+        typ: &Type,
         trait_methods: Option<Vec<(FuncId, TraitId, Type)>>,
         last_segment: &TypedPathSegment,
         turbofish: Option<Turbofish>,
@@ -1917,7 +1916,7 @@ impl Elaborator<'_> {
 
         let has_self_arg = false;
         let trait_methods = trait_methods
-            .unwrap_or_else(|| self.lookup_trait_methods(&typ, method_name, has_self_arg));
+            .unwrap_or_else(|| self.lookup_trait_methods(typ, method_name, has_self_arg));
 
         if trait_methods.is_empty() {
             return None;
@@ -1969,7 +1968,7 @@ impl Elaborator<'_> {
 
                 let trait_method = TraitItem { definition, constraint, assumed: false };
                 let func_id = hir_method_reference.func_id(self.interner)?;
-                let item = PathResolutionItem::TypeTraitFunction(typ, trait_id, func_id);
+                let item = PathResolutionItem::TypeTraitFunction(typ.clone(), trait_id, func_id);
 
                 let mut errors = path_resolution_errors;
                 if let Some(error) = error {

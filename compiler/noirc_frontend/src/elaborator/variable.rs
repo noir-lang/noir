@@ -573,10 +573,7 @@ impl Elaborator<'_> {
     /// Returns `None` only when an error has already been reported (an ambiguous trait method, or
     /// an unresolved name), so the caller should produce an error expression rather than retry.
     #[tracing::instrument(level = "trace", skip_all)]
-    fn resolve_prefixed_variable(
-        &mut self,
-        path: TypedPath,
-    ) -> Option<VariableResolution> {
+    fn resolve_prefixed_variable(&mut self, path: TypedPath) -> Option<VariableResolution> {
         let ResolvedPrefix { last_segment, turbofish, kind } = self.resolve_path_prefix(&path);
 
         match kind {
@@ -749,10 +746,7 @@ impl Elaborator<'_> {
     /// [`Self::resolve_prefixed_variable`], which resolves a prefixed path's last segment directly
     /// in the already-resolved prefix ([`Self::resolve_value_in_module`] /
     /// [`Self::resolve_value_in_type`]) and never looks for a local variable.
-    fn resolve_unprefixed_variable(
-        &mut self,
-        path: TypedPath,
-    ) -> Option<VariableResolution> {
+    fn resolve_unprefixed_variable(&mut self, path: TypedPath) -> Option<VariableResolution> {
         // The location of variables or definitions we register (for LSP) must be that of the
         // path's last segment, as intermediate segments solve to other definitions.
         let location = path.last_ident().location();
