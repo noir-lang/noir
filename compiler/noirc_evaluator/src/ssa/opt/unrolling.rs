@@ -2601,20 +2601,8 @@ mod tests {
         assert!(errors.is_empty(), "a runtime loop should be skipped, not error: {errors:?}");
 
         // The loop is left as a runtime loop: re-entered at `u32 0`, not peeled to a large value.
-        assert_ssa_snapshot!(ssa, @r"
-        brillig(inline) fn main f0 {
-          b0():
-            jmp b1(u32 0)
-          b1(v0: u32):
-            v3 = eq v0, u32 5
-            jmpif v3 then: b3(), else: b2()
-          b2():
-            v5 = add v0, u32 2
-            jmp b1(v5)
-          b3():
-            return
-        }
-        ");
+        // The SSA is unchanged from the input.
+        assert_normalized_ssa_equals(ssa, &src);
     }
 
     #[test]
