@@ -227,19 +227,19 @@ impl SpillManager {
 
     /// Remove a (dead) value from spill tracking and from the LRU.
     ///
-    /// Transient slots are freed for reuse; permanent slots are never freed — they must remain
-    /// valid across all blocks (for a `Permanent` record this only flips the status to
-    /// `PermanentReloaded`). Either way the value is dropped from the LRU, since a value that is
-    /// gone must never be an eviction candidate.
+    /// Transient slots are freed for reuse. Permanent slots are never freed — they must remain
+    /// valid across all blocks — so a permanently-spilled value keeps its record and is left in
+    /// the `Permanent` state (its register, if any, was already freed by the caller). Either
+    /// way the value is dropped from the LRU, since a value that is gone must never be an
+    /// eviction candidate.
     ///
     /// TODO(<https://github.com/noir-lang/noir/issues/11695>) - Free globally dead permanent spill slots
     pub(crate) fn remove_spill(&mut self, value_id: &ValueId) {
         if let Entry::Occupied(mut entry) = self.records.entry(*value_id) {
             match entry.get().status {
-                SpillStatus::Permanent => {
-                    entry.get_mut().status = SpillStatus::PermanentReloaded;
+                SpillStatus::Permanent | SpillStatus::PermanentReloaded => {
+                    entry.get_mut().status = SpillStatus::Permanent;
                 }
-                SpillStatus::PermanentReloaded => {}
                 SpillStatus::Transient | SpillStatus::TransientReloaded => {
                     let record = entry.remove();
                     self.free_spill_slots.push(record.offset);
@@ -681,17 +681,23 @@ mod tests {
         assert!(sm.has_permanent_slot(&v0));
         assert_eq!(sm.get_permanent_spill_offset(&v0), Some(0));
 
+        // While reloaded (in a register) the value is a normal eviction candidate.
+        sm.touch(v0);
+        assert_eq!(sm.lru_victim(), Some(v0));
+
         // Restore permanent spills (block entry) — re-marks as spilled
         sm.restore_permanent_spills();
         assert!(sm.is_spilled(&v0));
 
-        // Remove spill on a permanent record — keeps record, clears spilled
+        // Remove spill on a permanent record — keeps the record and slot, stays `Permanent`.
         sm.remove_spill(&v0);
-        assert!(!sm.is_spilled(&v0));
+        assert!(sm.is_spilled(&v0));
         // Permanent record still exists
         assert!(sm.has_permanent_slot(&v0));
         // Slot is NOT freed (no slot in free list)
         assert!(sm.free_spill_slots.is_empty());
+        // The dead value was dropped from the LRU, so it is no longer an eviction candidate.
+        assert_eq!(sm.lru_victim(), None);
     }
 
     #[test]
@@ -711,10 +717,12 @@ mod tests {
         assert!(sm.has_permanent_slot(&v0));
         assert_eq!(sm.get_permanent_spill_offset(&v0), Some(0));
 
-        // Removing a promoted permanent spill should NOT free the slot
+        // Removing a promoted permanent spill keeps it `Permanent` and does NOT free the slot.
         sm.remove_spill(&v0);
-        assert!(!sm.is_spilled(&v0));
+        assert!(sm.is_spilled(&v0));
         assert!(sm.free_spill_slots.is_empty());
+        // Although still `is_spilled`, the dead value must not be returned by the LRU.
+        assert_eq!(sm.lru_victim(), None);
     }
 
     #[test]
