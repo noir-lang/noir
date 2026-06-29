@@ -595,7 +595,7 @@ impl Elaborator<'_> {
                 self.resolve_self_as_concrete_type(path, last_segment, turbofish)
             }
             PathPrefixKind::BoundedGeneric(bounds) => {
-                self.resolve_bounded_generic_item(path, bounds, &last_segment, turbofish)
+                self.resolve_bounded_generic_item(bounds, &last_segment, turbofish, path.location)
             }
             PathPrefixKind::Type { resolution } => {
                 let is_self_prefix = false;
@@ -610,11 +610,11 @@ impl Elaborator<'_> {
             // A trait prefix: the last segment is either a trait static method (`Trait::method`)
             // or an associated constant (`Trait::CONST`).
             PathPrefixKind::Trait { trait_id, resolution } => self.resolve_trait_item_on_prefix(
-                path,
                 trait_id,
                 turbofish,
                 &last_segment,
                 resolution,
+                path.location,
             ),
             // A module prefix: the last segment is an ordinary value item, resolved as a value
             // directly in the already-resolved module.

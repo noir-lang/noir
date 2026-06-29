@@ -1432,17 +1432,17 @@ impl Elaborator<'_> {
     /// is lowered to the selected impl's value during monomorphization.
     pub(super) fn resolve_trait_item_on_prefix(
         &mut self,
-        path: TypedPath,
         trait_id: TraitId,
         turbofish: Option<Turbofish>,
         last_segment: &TypedPathSegment,
         resolution: PathResolution,
+        location: Location,
     ) -> Option<VariableResolution> {
         let the_trait = self.interner.get_trait(trait_id);
         let name = last_segment.ident.as_str();
         let method_func_id = the_trait.method_ids.get(name).copied();
         let associated_constant = the_trait.associated_constant_ids.get(name).copied();
-        let constraint = the_trait.as_constraint(path.location);
+        let constraint = the_trait.as_constraint(location);
 
         let trait_resolution = if let Some(func_id) = method_func_id {
             let definition = self.interner.function_definition_id(func_id);
@@ -1467,11 +1467,7 @@ impl Elaborator<'_> {
 
         // A trait prefix can only carry a trait method or associated constant; if the last segment
         // is neither, it names nothing.
-        self.variable_from_trait_resolution_or_unresolved(
-            path.location,
-            last_segment,
-            trait_resolution,
-        )
+        self.variable_from_trait_resolution_or_unresolved(location, last_segment, trait_resolution)
     }
 
     /// Resolves `T::item` to a method or associated constant of a generic `T`, given the `T: Trait`
@@ -1481,10 +1477,10 @@ impl Elaborator<'_> {
     #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn resolve_bounded_generic_item(
         &mut self,
-        path: TypedPath,
         bounds: Vec<TraitConstraint>,
         last_segment: &TypedPathSegment,
         turbofish: Option<Turbofish>,
+        location: Location,
     ) -> Option<VariableResolution> {
         let method_name = last_segment.ident.as_str();
 
@@ -1513,7 +1509,7 @@ impl Elaborator<'_> {
 
             Some(TraitPathResolution { method, item: None, errors: Vec::new() })
         } else if matches.len() > 1 {
-            let ident = Ident::new(method_name.to_string(), path.location);
+            let ident = Ident::new(method_name.to_string(), location);
             let traits =
                 vecmap(matches, |(_, trait_id)| self.fully_qualified_trait_path_by_id(trait_id));
             let errors = vec![PathResolutionError::MultipleTraitsInScope { ident, traits }];
@@ -1528,11 +1524,7 @@ impl Elaborator<'_> {
 
         // The generic is in scope; the last segment must be a method or associated constant
         // reached through one of its bounds. If it is neither, it names nothing.
-        self.variable_from_trait_resolution_or_unresolved(
-            path.location,
-            last_segment,
-            trait_resolution,
-        )
+        self.variable_from_trait_resolution_or_unresolved(location, last_segment, trait_resolution)
     }
 
     fn find_methods_or_constants_in_trait(
@@ -2093,7 +2085,12 @@ impl Elaborator<'_> {
         }
         // Fall back to a supertrait reached through the assumed `Self` bound.
         if let Some(bounds) = self.matching_generic_bounds(&path) {
-            return self.resolve_bounded_generic_item(path, bounds, &last_segment, turbofish);
+            return self.resolve_bounded_generic_item(
+                bounds,
+                &last_segment,
+                turbofish,
+                path.location,
+            );
         }
         // `Self` here is the trait itself, so the last segment can only be a trait static method or
         // associated constant (handled above); anything else names nothing. Report the last
