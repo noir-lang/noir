@@ -176,7 +176,7 @@ impl Elaborator<'_> {
     /// Interpret an already-resolved [`PathResolutionItem`] as a value (the definition it refers
     /// to), or return an `Expected` error when it is not a value. `location` is used for that error.
     fn path_resolution_item_as_value(
-        &mut self,
+        &self,
         item: PathResolutionItem,
         location: Location,
     ) -> Result<PathValue, ResolverError> {
