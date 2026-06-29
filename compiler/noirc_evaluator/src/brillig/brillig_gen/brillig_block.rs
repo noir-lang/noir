@@ -304,7 +304,6 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
         let var = *self.function_context.ssa_value_allocations.get(&value_id).unwrap();
         let prior_offset = sm.get_spill_offset(&value_id);
         let offset = prior_offset.unwrap_or_else(|| sm.allocate_spill_offset());
-        sm.remove_from_lru(&value_id);
         if permanent {
             sm.record_permanent_spill(value_id, offset, var);
         } else {
@@ -362,9 +361,8 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
 
     /// Spill the `k` least-recently-used values in a single batch.
     ///
-    /// Batched version of [`Self::spill_lru_value`]. It records all `k`
-    /// spills first, updates the LRU once, and emits all the stores together
-    /// which allows to share address computations.
+    /// Batched version of [`Self::spill_lru_value`]. Each `record_spill` drops its value from
+    /// the LRU, and the stores are emitted together so they can share address computations.
     fn spill_lru_values(&mut self, k: usize) {
         let sm = self.function_context.spill_manager.as_ref().unwrap();
         let victims = sm.lru_victims(k);
@@ -385,10 +383,6 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                 stores.push((offset, var.extract_register()));
             }
         }
-
-        // Drop every victim from the LRU in a single pass.
-        let victim_set: HashSet<ValueId> = victims.iter().copied().collect();
-        self.function_context.spill_manager.as_mut().unwrap().remove_victims_from_lru(&victim_set);
 
         // Emit the stores while the source registers are still allocated, then free them.
         self.codegen_spill_stores(stores);

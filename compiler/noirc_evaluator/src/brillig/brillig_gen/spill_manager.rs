@@ -119,9 +119,9 @@ pub(crate) struct SpillRecord {
 /// the first element of `order`, the most-recently-used the last.
 ///
 /// Invariant: when `SpillManager::lru_victim` consults the LRU, no tracked value is spilled.
-/// Every transition to a spilled state removes the value from the LRU — `ensure_permanent_spill`
-/// does so directly, and `BrilligBlock::spill_value` calls `remove_from_lru` before recording a
-/// spill — so the order only ever yields values that are in a register. `lru_victim` asserts it.
+/// The methods that record a spill (`record_spill`, `record_permanent_spill`,
+/// `ensure_permanent_spill`) drop the value from the LRU, so the order only ever yields values
+/// that are in a register. `lru_victim` asserts it.
 #[derive(Default)]
 struct Lru {
     /// Logical clock, incremented once per `touch`. Strictly increasing, so no two entries
@@ -292,14 +292,8 @@ impl SpillManager {
         victims
     }
 
-    /// Remove every value in `victims` from LRU tracking in one shot.
-    pub(crate) fn remove_victims_from_lru(&mut self, victims: &HashSet<ValueId>) {
-        for victim in victims {
-            self.lru.remove(victim);
-        }
-    }
-
-    /// Record that a value has been spilled.
+    /// Record that a value has been spilled, dropping it from the LRU since a value living in
+    /// its heap slot must never be an eviction candidate.
     ///
     /// If the value already has a record (e.g., it was reloaded and then
     /// re-evicted by LRU), this updates the existing record:
@@ -334,6 +328,7 @@ impl SpillManager {
                 );
             }
         }
+        self.remove_from_lru(&value_id);
     }
 
     /// Get the spill record for a value if it is currently spilled and is not in a register.
@@ -368,7 +363,7 @@ impl SpillManager {
         }
     }
 
-    /// Record a value as permanently spilled.
+    /// Record a value as permanently spilled, dropping it from the LRU (like [`Self::record_spill`]).
     ///
     /// If the value already has a transient spill record, it is promoted to `Permanent`.
     /// The permanent record ensures consistency regardless of what happens during
@@ -387,6 +382,7 @@ impl SpillManager {
                 record.variable = variable;
             })
             .or_insert(SpillRecord { offset, variable, status: SpillStatus::Permanent });
+        self.remove_from_lru(&value_id);
     }
 
     /// Get the permanent spill slot offset for a value, if any.
@@ -461,7 +457,6 @@ impl SpillManager {
 #[cfg(test)]
 mod tests {
     use acvm::acir::brillig::MemoryAddress;
-    use rustc_hash::FxHashSet as HashSet;
 
     use crate::{
         brillig::brillig_ir::brillig_variable::{BrilligVariable, SingleAddrVariable},
@@ -550,7 +545,7 @@ mod tests {
     }
 
     #[test]
-    fn remove_many_from_lru_drops_the_whole_set_in_one_pass() {
+    fn lru_victims_returns_the_k_least_recently_used() {
         let mut sm = SpillManager::new();
         let v0 = Id::test_new(0);
         let v1 = Id::test_new(1);
@@ -562,11 +557,10 @@ mod tests {
         sm.touch(v2);
         sm.touch(v3);
 
-        let victims: HashSet<_> = [v0, v2].into_iter().collect();
-        sm.remove_victims_from_lru(&victims);
-
-        // Surviving entries keep their relative order: [v1, v3].
-        assert_eq!(sm.lru_victims(10), vec![v1, v3]);
+        // The `k` least-recently-used, oldest first.
+        assert_eq!(sm.lru_victims(2), vec![v0, v1]);
+        // `k` larger than the tracked set returns everything.
+        assert_eq!(sm.lru_victims(10), vec![v0, v1, v2, v3]);
     }
 
     #[test]
@@ -580,8 +574,7 @@ mod tests {
         sm.touch(v1);
         sm.touch(v2);
 
-        // Spill v0 the way `BrilligBlock::spill_value` does: drop it from the LRU, then record.
-        sm.remove_from_lru(&v0);
+        // `record_spill` itself drops the value from the LRU.
         let offset = sm.allocate_spill_offset();
         sm.record_spill(v0, offset, test_var(0));
 
@@ -599,15 +592,15 @@ mod tests {
     #[test]
     #[should_panic(expected = "returned a spilled value")]
     fn lru_victim_rejects_a_spilled_oldest_value() {
-        // Recording a spill without first removing the value from the LRU breaks the
-        // manager's invariant; lru_victim must catch it rather than hand back a value
-        // whose re-spill would free no register.
+        // Recording a spill drops the value from the LRU, so a spilled value can only re-enter
+        // it through an erroneous `touch`. `lru_victim` must catch that rather than hand back a
+        // value whose re-spill would free no register.
         let mut sm = SpillManager::new();
         let v0 = Id::test_new(0);
 
-        sm.touch(v0);
         let offset = sm.allocate_spill_offset();
         sm.record_spill(v0, offset, test_var(0));
+        sm.touch(v0);
 
         let _ = sm.lru_victim();
     }
