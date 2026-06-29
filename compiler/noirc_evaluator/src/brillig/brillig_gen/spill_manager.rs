@@ -281,10 +281,14 @@ impl SpillManager {
 
     /// Batched version of [`Self::lru_victim`]
     ///
-    /// Return up to `k` least-recently-used values that are not currently spilled,
+    /// Return up to `k` least-recently-used values, asserting that they are not currently spilled,
     /// ordered least-recently-used first.
     pub(crate) fn lru_victims(&self, k: usize) -> Vec<ValueId> {
-        self.lru.iter().filter(|v| !self.is_spilled(v)).take(k).collect()
+        let victims = self.lru.iter().take(k).collect();
+        for victim in &victims {
+            assert!(!self.is_spilled(victim), "lru_victim returned a spilled value: {victim:?}");
+        }
+        victims
     }
 
     /// Remove every value in `victims` from LRU tracking in one shot.
