@@ -521,8 +521,8 @@ impl Elaborator<'_> {
         // Otherwise, then it is referring to an Identifier
         // This lookup allows support of such statements: let x = foo::bar::SOME_GLOBAL + 10;
         // If the expression is a singular indent, we search the resolver's current scope as normal.
-        let ident_from_path = self.get_ident_from_path(path)?;
-        Some(self.variable_resolution_from_ident_from_path(ident_from_path, location))
+        let ident_from_path = self.resolve_path_as_value(path)?;
+        Some(self.variable_resolution_from_path_value(ident_from_path, location))
     }
 
     /// Resolve a path's last segment as a value item (a global, function, enum-variant global,
@@ -531,7 +531,7 @@ impl Elaborator<'_> {
     /// segment is not a method or trait item, and a prefixed path can never name a local variable.
     pub(super) fn resolve_value_item(&mut self, path: TypedPath) -> Option<VariableResolution> {
         let location = path.last_ident().location();
-        let ident = self.lookup_item_as_value(path);
+        let ident = self.lookup_path_as_value(path);
         self.variable_resolution_from_value_item(ident, location)
     }
 
@@ -545,7 +545,7 @@ impl Elaborator<'_> {
         last_segment: TypedPathSegment,
     ) -> Option<VariableResolution> {
         let location = last_segment.ident.location();
-        let ident = self.lookup_item_as_value_in_module(last_segment, module_id);
+        let ident = self.lookup_path_as_value_in_module(last_segment, module_id);
         self.variable_resolution_from_value_item(ident, location)
     }
 
@@ -558,7 +558,7 @@ impl Elaborator<'_> {
     ) -> Option<VariableResolution> {
         match ident {
             Ok(ident_from_path) => {
-                Some(self.variable_resolution_from_ident_from_path(ident_from_path, location))
+                Some(self.variable_resolution_from_path_value(ident_from_path, location))
             }
             Err(error) => {
                 self.push_err(error);
@@ -569,7 +569,7 @@ impl Elaborator<'_> {
 
     /// Build the [`VariableResolution`] an already-resolved [`PathValue`] denotes, registering
     /// the reference (for LSP) along the way.
-    fn variable_resolution_from_ident_from_path(
+    fn variable_resolution_from_path_value(
         &mut self,
         ident_from_path: PathValue,
         location: Location,

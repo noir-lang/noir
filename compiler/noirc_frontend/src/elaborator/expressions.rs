@@ -513,7 +513,7 @@ impl Elaborator<'_> {
         for fragment in &fragments {
             if let FmtStrFragment::Interpolation(ident_name, location) = fragment {
                 let (typ, expr_id) = match self
-                    .get_ident_from_path(TypedPath::from_single(ident_name.clone(), *location))
+                    .resolve_path_as_value(TypedPath::from_single(ident_name.clone(), *location))
                 {
                     Some(PathValue::Variable(variable)) => {
                         self.handle_local_variable(&variable);

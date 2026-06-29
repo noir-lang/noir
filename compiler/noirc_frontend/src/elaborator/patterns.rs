@@ -32,7 +32,7 @@ pub(crate) struct Variable {
     pub(crate) scope: usize,
 }
 
-/// The result of [`Elaborator::get_ident_from_path`] and [`Elaborator::get_ident_from_path_or_error`].
+/// The result of [`Elaborator::resolve_path_as_value`] and [`Elaborator::resolve_path_as_value_or_error`].
 pub(crate) enum PathValue {
     /// A variable was found.
     Variable(Variable),
@@ -518,7 +518,7 @@ impl Elaborator<'_> {
     /// This will increment its use counter by one and return the variable if found.
     /// If the variable is not found, an error is returned.
     ///
-    /// This method is private and is expected to be called through [`Self::get_ident_from_path_or_error`].
+    /// This method is private and is expected to be called through [`Self::resolve_path_as_value_or_error`].
     #[tracing::instrument(level = "trace", skip_all)]
     fn use_variable(&mut self, name: &Ident) -> Result<Variable, ResolverError> {
         // Find the definition for this Ident
@@ -808,8 +808,8 @@ impl Elaborator<'_> {
     ///
     /// If it cannot be found, then it pushes the error and returns [None].
     #[tracing::instrument(level = "trace", skip_all)]
-    pub(crate) fn get_ident_from_path(&mut self, path: TypedPath) -> Option<PathValue> {
-        match self.get_ident_from_path_or_error(path) {
+    pub(crate) fn resolve_path_as_value(&mut self, path: TypedPath) -> Option<PathValue> {
+        match self.resolve_path_as_value_or_error(path) {
             Ok(value) => Some(value),
             Err(error) => {
                 self.push_err(error);
@@ -820,7 +820,7 @@ impl Elaborator<'_> {
 
     /// Resolve a [`TypedPath`] into a local or global [`HirIdent`], or return `Err` if it could not be found.
     #[tracing::instrument(level = "trace", skip_all)]
-    pub(crate) fn get_ident_from_path_or_error(
+    pub(crate) fn resolve_path_as_value_or_error(
         &mut self,
         path: TypedPath,
     ) -> Result<PathValue, ResolverError> {
@@ -843,7 +843,7 @@ impl Elaborator<'_> {
             None => None,
         };
 
-        match self.lookup_item_as_value(path) {
+        match self.lookup_path_as_value(path) {
             Ok(ident) => Ok(ident),
             Err(ResolverError::PathResolutionError(PathResolutionError::Unresolved(ident))) => {
                 // If we can't resolve a path, but we have an error from trying to resolve a variable

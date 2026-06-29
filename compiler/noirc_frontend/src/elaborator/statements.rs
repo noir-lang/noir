@@ -639,7 +639,7 @@ impl Elaborator<'_> {
             LValue::Path(path) => {
                 let location = path.location;
                 let path = self.validate_path(path);
-                match self.get_ident_from_path_or_error(path.clone()) {
+                match self.resolve_path_as_value_or_error(path.clone()) {
                     Ok(PathValue::Variable(variable)) => {
                         self.check_if_variable_is_captured_by_closure(&variable);
                         self.elaborate_lvalue_ident(variable.ident, location)

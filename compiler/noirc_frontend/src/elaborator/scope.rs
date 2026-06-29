@@ -133,10 +133,10 @@ impl Elaborator<'_> {
     /// a type alias, etc.), returns a `ResolverError`. `ResolverError` is also returned
     /// when no item is found.
     ///
-    /// Unlike [`Self::get_ident_from_path_or_error`] this never tries a local variable, so it is
+    /// Unlike [`Self::resolve_path_as_value_or_error`] this never tries a local variable, so it is
     /// what a multi-segment path (which can never name a local variable) needs.
     #[tracing::instrument(level = "trace", skip_all)]
-    pub(super) fn lookup_item_as_value(
+    pub(super) fn lookup_path_as_value(
         &mut self,
         path: TypedPath,
     ) -> Result<PathValue, ResolverError> {
@@ -145,9 +145,9 @@ impl Elaborator<'_> {
         self.path_resolution_item_as_value(item, location)
     }
 
-    /// Like [`Self::lookup_item_as_value`], but resolves `segment` directly in the already-resolved
+    /// Like [`Self::lookup_path_as_value`], but resolves `segment` directly in the already-resolved
     /// `module_id` rather than from the current module.
-    pub(super) fn lookup_item_as_value_in_module(
+    pub(super) fn lookup_path_as_value_in_module(
         &mut self,
         segment: TypedPathSegment,
         module_id: ModuleId,
