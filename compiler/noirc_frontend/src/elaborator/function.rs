@@ -228,17 +228,6 @@ impl Elaborator<'_> {
         }
     }
 
-    /// Returns whether `func_id` is a method on a trait impl, looking through both
-    /// resolved and yet-to-be-resolved metas. Useful when callers only need to
-    /// distinguish trait-impl methods without forcing full meta resolution (which
-    /// may not be possible if other borrows are live).
-    pub(crate) fn function_is_trait_impl_method(&self, func_id: FuncId) -> bool {
-        if let Some(info) = self.unresolved_function_metas.get(&func_id) {
-            return info.current_trait_impl.is_some();
-        }
-        self.interner.try_function_meta(&func_id).is_some_and(|meta| meta.trait_impl.is_some())
-    }
-
     /// If `func_id` was registered but its meta hasn't been resolved yet, resolve
     /// it now under the registered context. This is the lazy entry point used by
     /// callers that need a function's meta before the end-of-elaboration drain.
