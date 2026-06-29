@@ -888,7 +888,6 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                         // Spilled: register was already freed. Just clean up tracking.
                         let sm = self.function_context.spill_manager.as_mut().unwrap();
                         sm.remove_spill(dead_variable);
-                        sm.remove_from_lru(dead_variable);
                         // Only remove from available_variables if it's actually there.
                         // A permanently spilled value may have been filtered out at block
                         // entry and never reloaded, so it was never in available_variables.
@@ -918,7 +917,6 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                             // value with no spill record, or a permanently spilled one, this is a
                             // no-op.
                             sm.remove_spill(dead_variable);
-                            sm.remove_from_lru(dead_variable);
                         }
                     }
                 }

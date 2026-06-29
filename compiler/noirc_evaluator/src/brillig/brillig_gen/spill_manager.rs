@@ -221,15 +221,16 @@ impl SpillManager {
     }
 
     /// Remove a value from LRU tracking entirely.
-    pub(crate) fn remove_from_lru(&mut self, value_id: &ValueId) {
+    fn remove_from_lru(&mut self, value_id: &ValueId) {
         self.lru.remove(value_id);
     }
 
-    /// Remove a value from the spill tracking.
+    /// Remove a (dead) value from spill tracking and from the LRU.
     ///
-    /// Permanent spill slots are never freed — they must remain valid across all blocks.
-    /// For `Permanent` records, this transitions to `PermanentReloaded` (value is live in
-    /// a register again). For transient records, the record is removed and the slot is freed.
+    /// Transient slots are freed for reuse; permanent slots are never freed — they must remain
+    /// valid across all blocks (for a `Permanent` record this only flips the status to
+    /// `PermanentReloaded`). Either way the value is dropped from the LRU, since a value that is
+    /// gone must never be an eviction candidate.
     ///
     /// TODO(<https://github.com/noir-lang/noir/issues/11695>) - Free globally dead permanent spill slots
     pub(crate) fn remove_spill(&mut self, value_id: &ValueId) {
@@ -245,6 +246,7 @@ impl SpillManager {
                 }
             }
         }
+        self.remove_from_lru(value_id);
     }
 
     /// Allocate a spill slot offset, reusing a freed slot if available.
@@ -267,10 +269,9 @@ impl SpillManager {
 
     /// Return the least recently used value tracked in the LRU, or `None` if it is empty.
     ///
-    /// Spilling a value removes it from the LRU (`BrilligBlock::spill_value` calls
-    /// `remove_from_lru` before recording the spill), so by the time we pick a victim every
-    /// tracked value is in a register. The `assert!` guards that invariant: handing back a
-    /// spilled value would be a bug, since re-spilling it is a no-op that frees no register.
+    /// Recording a spill drops the value from the LRU (see `record_spill`), so by the time we
+    /// pick a victim every tracked value is in a register. The `assert!` guards that invariant:
+    /// handing back a spilled value would be a bug, since re-spilling it frees no register.
     pub(crate) fn lru_victim(&self) -> Option<ValueId> {
         let victim = self.lru.iter().next();
         assert!(
