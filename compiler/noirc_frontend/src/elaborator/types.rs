@@ -1630,11 +1630,11 @@ impl Elaborator<'_> {
     #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn resolve_method_on_type_prefix(
         &mut self,
-        path: TypedPath,
         last_segment: TypedPathSegment,
         turbofish: Option<Turbofish>,
         is_self_prefix: bool,
         path_resolution: PathResolution,
+        location: Location,
     ) -> Option<VariableResolution> {
         // `Self::method` must anchor on the impl's own `self_type` and produce a `SelfMethod`, so it
         // gets dedicated handling (in `resolve_self_or_inherent_method`) distinct from a plain
@@ -1653,14 +1653,6 @@ impl Elaborator<'_> {
                 path_resolution.item
             );
         };
-
-        // A broken prefix (e.g. a cyclic type alias) resolves to an error type; report its segment
-        // as unresolved rather than misattributing the failure to the (unresolvable) member.
-        if matches!(typ, Type::Error) {
-            let prefix = &path.segments[path.segments.len() - 2].ident;
-            self.push_err(PathResolutionError::Unresolved(prefix.clone()));
-            return None;
-        }
 
         // Kept for the value fallback below (the method-lookup branches consume `turbofish`).
         let fallback_turbofish = turbofish.clone();
@@ -1681,7 +1673,7 @@ impl Elaborator<'_> {
                 turbofish,
                 path_resolution,
                 errors,
-                path.location,
+                location,
             )
         } else if let Some(direct_method) = direct_method {
             Some(self.resolve_self_or_inherent_method(
@@ -1701,15 +1693,16 @@ impl Elaborator<'_> {
                 turbofish,
                 path_resolution,
                 errors,
-                path.location,
+                location,
             )
         };
 
         // The last segment isn't an inherent or qualified trait method on the type; it may still be
         // an enum variant or an associated constant accessed as `Type::CONST`, resolved directly on
-        // the type. The error is reported if it is none of these.
+        // the type (or, if the prefix was a broken type alias whose type is `Type::Error`, reported
+        // there as an unresolved member). The error is reported if it is none of these.
         match trait_resolution {
-            Some(resolution) => self.variable_from_trait_resolution(path.location, resolution),
+            Some(resolution) => self.variable_from_trait_resolution(location, resolution),
             None => self.resolve_value_in_type(&last_segment, &typ, fallback_turbofish),
         }
     }
@@ -2122,11 +2115,11 @@ impl Elaborator<'_> {
         prefix.pop();
         match self.use_path_as_type(prefix) {
             Ok(type_resolution) => self.resolve_method_on_type_prefix(
-                path,
                 last_segment,
                 turbofish,
                 true, // is_self_prefix
                 type_resolution,
+                path.location,
             ),
             // The `Self` prefix itself doesn't resolve as a type (e.g. `Self::not_a_type::method`):
             // report that resolution failure, which already points at the offending segment, rather

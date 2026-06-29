@@ -600,11 +600,11 @@ impl Elaborator<'_> {
             PathPrefixKind::Type { resolution } => {
                 let is_self_prefix = false;
                 self.resolve_method_on_type_prefix(
-                    path,
                     last_segment,
                     turbofish,
                     is_self_prefix,
                     resolution,
+                    path.location,
                 )
             }
             // A trait prefix: the last segment is either a trait static method (`Trait::method`)
