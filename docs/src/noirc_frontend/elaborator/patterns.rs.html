@@ -844,34 +844,46 @@
 <a href=#844 id=844 data-nosnippet>844</a>            <span class="prelude-val">None </span>=&gt; <span class="prelude-val">None</span>,
 <a href=#845 id=845 data-nosnippet>845</a>        };
 <a href=#846 id=846 data-nosnippet>846</a>
-<a href=#847 id=847 data-nosnippet>847</a>        <span class="kw">match </span><span class="self">self</span>.lookup_item_as_value(path) {
-<a href=#848 id=848 data-nosnippet>848</a>            <span class="prelude-val">Ok</span>(ItemAsValue::Definition { id, item }) =&gt; <span class="prelude-val">Ok</span>(IdentFromPath::Definition { id, item }),
-<a href=#849 id=849 data-nosnippet>849</a>            <span class="prelude-val">Ok</span>(ItemAsValue::TypeAlias(type_alias_id)) =&gt; {
-<a href=#850 id=850 data-nosnippet>850</a>                <span class="prelude-val">Ok</span>(IdentFromPath::TypeAlias(type_alias_id))
-<a href=#851 id=851 data-nosnippet>851</a>            }
-<a href=#852 id=852 data-nosnippet>852</a>            <span class="prelude-val">Err</span>(ResolverError::PathResolutionError(PathResolutionError::Unresolved(ident))) =&gt; {
-<a href=#853 id=853 data-nosnippet>853</a>                <span class="comment">// If we can't resolve a path, but we have an error from trying to resolve a variable
-<a href=#854 id=854 data-nosnippet>854</a>                // (in which case the path was a single segment), prefer saying "variable not found"
-<a href=#855 id=855 data-nosnippet>855</a>                // instead of "Cannot resolve '...' in path".
-<a href=#856 id=856 data-nosnippet>856</a>                </span><span class="kw">match </span>use_variable_error {
-<a href=#857 id=857 data-nosnippet>857</a>                    <span class="prelude-val">Some</span>(error) =&gt; <span class="prelude-val">Err</span>(error),
-<a href=#858 id=858 data-nosnippet>858</a>                    <span class="prelude-val">None </span>=&gt; <span class="prelude-val">Err</span>(ResolverError::PathResolutionError(
-<a href=#859 id=859 data-nosnippet>859</a>                        PathResolutionError::Unresolved(ident),
-<a href=#860 id=860 data-nosnippet>860</a>                    )),
-<a href=#861 id=861 data-nosnippet>861</a>                }
-<a href=#862 id=862 data-nosnippet>862</a>            }
-<a href=#863 id=863 data-nosnippet>863</a>            <span class="prelude-val">Err</span>(item_as_value_error) =&gt; {
-<a href=#864 id=864 data-nosnippet>864</a>                <span class="kw">match </span>use_variable_error {
-<a href=#865 id=865 data-nosnippet>865</a>                    <span class="comment">// If the path was "_" then we want to preserve that error as it's clearer
-<a href=#866 id=866 data-nosnippet>866</a>                    // than the error of an item not being found (it will mention that "_" is
-<a href=#867 id=867 data-nosnippet>867</a>                    // not valid as an expression).
-<a href=#868 id=868 data-nosnippet>868</a>                    </span><span class="prelude-val">Some</span>(ResolverError::VariableNotDeclared { name, .. }) <span class="kw">if </span>name != <span class="string">"_" </span>=&gt; {
-<a href=#869 id=869 data-nosnippet>869</a>                        <span class="prelude-val">Err</span>(item_as_value_error)
-<a href=#870 id=870 data-nosnippet>870</a>                    }
-<a href=#871 id=871 data-nosnippet>871</a>                    <span class="prelude-val">Some</span>(use_variable_error) =&gt; <span class="prelude-val">Err</span>(use_variable_error),
-<a href=#872 id=872 data-nosnippet>872</a>                    <span class="prelude-val">None </span>=&gt; <span class="prelude-val">Err</span>(item_as_value_error),
-<a href=#873 id=873 data-nosnippet>873</a>                }
-<a href=#874 id=874 data-nosnippet>874</a>            }
-<a href=#875 id=875 data-nosnippet>875</a>        }
-<a href=#876 id=876 data-nosnippet>876</a>    }
-<a href=#877 id=877 data-nosnippet>877</a>}</code></pre></div></section></main></body></html>
+<a href=#847 id=847 data-nosnippet>847</a>        <span class="kw">match </span><span class="self">self</span>.ident_from_value_item(path) {
+<a href=#848 id=848 data-nosnippet>848</a>            <span class="prelude-val">Ok</span>(ident) =&gt; <span class="prelude-val">Ok</span>(ident),
+<a href=#849 id=849 data-nosnippet>849</a>            <span class="prelude-val">Err</span>(ResolverError::PathResolutionError(PathResolutionError::Unresolved(ident))) =&gt; {
+<a href=#850 id=850 data-nosnippet>850</a>                <span class="comment">// If we can't resolve a path, but we have an error from trying to resolve a variable
+<a href=#851 id=851 data-nosnippet>851</a>                // (in which case the path was a single segment), prefer saying "variable not found"
+<a href=#852 id=852 data-nosnippet>852</a>                // instead of "Cannot resolve '...' in path".
+<a href=#853 id=853 data-nosnippet>853</a>                </span><span class="kw">match </span>use_variable_error {
+<a href=#854 id=854 data-nosnippet>854</a>                    <span class="prelude-val">Some</span>(error) =&gt; <span class="prelude-val">Err</span>(error),
+<a href=#855 id=855 data-nosnippet>855</a>                    <span class="prelude-val">None </span>=&gt; <span class="prelude-val">Err</span>(ResolverError::PathResolutionError(
+<a href=#856 id=856 data-nosnippet>856</a>                        PathResolutionError::Unresolved(ident),
+<a href=#857 id=857 data-nosnippet>857</a>                    )),
+<a href=#858 id=858 data-nosnippet>858</a>                }
+<a href=#859 id=859 data-nosnippet>859</a>            }
+<a href=#860 id=860 data-nosnippet>860</a>            <span class="prelude-val">Err</span>(item_as_value_error) =&gt; {
+<a href=#861 id=861 data-nosnippet>861</a>                <span class="kw">match </span>use_variable_error {
+<a href=#862 id=862 data-nosnippet>862</a>                    <span class="comment">// If the path was "_" then we want to preserve that error as it's clearer
+<a href=#863 id=863 data-nosnippet>863</a>                    // than the error of an item not being found (it will mention that "_" is
+<a href=#864 id=864 data-nosnippet>864</a>                    // not valid as an expression).
+<a href=#865 id=865 data-nosnippet>865</a>                    </span><span class="prelude-val">Some</span>(ResolverError::VariableNotDeclared { name, .. }) <span class="kw">if </span>name != <span class="string">"_" </span>=&gt; {
+<a href=#866 id=866 data-nosnippet>866</a>                        <span class="prelude-val">Err</span>(item_as_value_error)
+<a href=#867 id=867 data-nosnippet>867</a>                    }
+<a href=#868 id=868 data-nosnippet>868</a>                    <span class="prelude-val">Some</span>(use_variable_error) =&gt; <span class="prelude-val">Err</span>(use_variable_error),
+<a href=#869 id=869 data-nosnippet>869</a>                    <span class="prelude-val">None </span>=&gt; <span class="prelude-val">Err</span>(item_as_value_error),
+<a href=#870 id=870 data-nosnippet>870</a>                }
+<a href=#871 id=871 data-nosnippet>871</a>            }
+<a href=#872 id=872 data-nosnippet>872</a>        }
+<a href=#873 id=873 data-nosnippet>873</a>    }
+<a href=#874 id=874 data-nosnippet>874</a>
+<a href=#875 id=875 data-nosnippet>875</a>    <span class="doccomment">/// Resolve a [`TypedPath`] to the value item it names — a global, function, enum-variant
+<a href=#876 id=876 data-nosnippet>876</a>    /// global, trait associated constant, or numeric type alias — as an [`IdentFromPath`]. Unlike
+<a href=#877 id=877 data-nosnippet>877</a>    /// [`Self::get_ident_from_path_or_error`] this never tries a local variable, so it is what a
+<a href=#878 id=878 data-nosnippet>878</a>    /// multi-segment path (which can never name a local variable) needs.
+<a href=#879 id=879 data-nosnippet>879</a>    </span><span class="attr">#[tracing::instrument(level = <span class="string">"trace"</span>, skip_all)]
+<a href=#880 id=880 data-nosnippet>880</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>ident_from_value_item(
+<a href=#881 id=881 data-nosnippet>881</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+<a href=#882 id=882 data-nosnippet>882</a>        path: TypedPath,
+<a href=#883 id=883 data-nosnippet>883</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;IdentFromPath, ResolverError&gt; {
+<a href=#884 id=884 data-nosnippet>884</a>        <span class="self">self</span>.lookup_item_as_value(path).map(|item| <span class="kw">match </span>item {
+<a href=#885 id=885 data-nosnippet>885</a>            ItemAsValue::Definition { id, item } =&gt; IdentFromPath::Definition { id, item },
+<a href=#886 id=886 data-nosnippet>886</a>            ItemAsValue::TypeAlias(type_alias_id) =&gt; IdentFromPath::TypeAlias(type_alias_id),
+<a href=#887 id=887 data-nosnippet>887</a>        })
+<a href=#888 id=888 data-nosnippet>888</a>    }
+<a href=#889 id=889 data-nosnippet>889</a>}</code></pre></div></section></main></body></html>

@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":["Journal","SpeculativeUndo","UnusedItem"],"struct":["SpeculativeTx","SuspendTx","UsageTracker"]};
+window.SIDEBAR_ITEMS = {"enum":["UnusedItem"],"struct":["UsageTracker"]};
