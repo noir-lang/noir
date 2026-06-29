@@ -219,6 +219,12 @@ pub enum InterpreterError {
     FailedToResolveTraitDefinition {
         location: Location,
     },
+    FunctionDefinitionMustBeAPath {
+        location: Location,
+    },
+    FailedToResolveFunctionDefinition {
+        location: Location,
+    },
     FunctionAlreadyResolved {
         location: Location,
     },
@@ -417,6 +423,8 @@ impl InterpreterError {
             | InterpreterError::ContinueNotInLoop { location, .. }
             | InterpreterError::TraitDefinitionMustBeAPath { location }
             | InterpreterError::FailedToResolveTraitDefinition { location }
+            | InterpreterError::FunctionDefinitionMustBeAPath { location }
+            | InterpreterError::FailedToResolveFunctionDefinition { location }
             | InterpreterError::FailedToResolveTraitBound { location, .. }
             | InterpreterError::FunctionAlreadyResolved { location, .. }
             | InterpreterError::MultipleMatchingImpls { location, .. }
@@ -768,6 +776,14 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
             }
             InterpreterError::FailedToResolveTraitDefinition { location } => {
                 let msg = "Failed to resolve to a trait definition".to_string();
+                CustomDiagnostic::simple_error(msg, String::new(), *location)
+            }
+            InterpreterError::FunctionDefinitionMustBeAPath { location } => {
+                let msg = "Function definition arguments must be a variable or path".to_string();
+                CustomDiagnostic::simple_error(msg, String::new(), *location)
+            }
+            InterpreterError::FailedToResolveFunctionDefinition { location } => {
+                let msg = "Failed to resolve to a function definition".to_string();
                 CustomDiagnostic::simple_error(msg, String::new(), *location)
             }
             InterpreterError::FunctionAlreadyResolved { location } => {
