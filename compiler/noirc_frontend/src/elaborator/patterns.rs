@@ -843,7 +843,7 @@ impl Elaborator<'_> {
             None => None,
         };
 
-        match self.ident_from_value_item(path) {
+        match self.lookup_item_as_value(path) {
             Ok(ident) => Ok(ident),
             Err(ResolverError::PathResolutionError(PathResolutionError::Unresolved(ident))) => {
                 // If we can't resolve a path, but we have an error from trying to resolve a variable
@@ -869,17 +869,5 @@ impl Elaborator<'_> {
                 }
             }
         }
-    }
-
-    /// Resolve a [`TypedPath`] to the value item it names — a global, function, enum-variant
-    /// global, trait associated constant, or numeric type alias — as an [`PathValue`]. Unlike
-    /// [`Self::get_ident_from_path_or_error`] this never tries a local variable, so it is what a
-    /// multi-segment path (which can never name a local variable) needs.
-    #[tracing::instrument(level = "trace", skip_all)]
-    pub(crate) fn ident_from_value_item(
-        &mut self,
-        path: TypedPath,
-    ) -> Result<PathValue, ResolverError> {
-        self.lookup_item_as_value(path)
     }
 }
