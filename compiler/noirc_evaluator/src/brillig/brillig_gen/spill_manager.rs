@@ -49,6 +49,7 @@
 
 use std::collections::hash_map::Entry;
 
+use itertools::Itertools;
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
 use crate::brillig::brillig_ir::brillig_variable::BrilligVariable;
@@ -127,9 +128,7 @@ impl SpillManager {
     ///    (only `Permanent` and `PermanentReloaded` records may survive).
     /// 2. Restores permanently-spilled values by marking them as currently spilled.
     /// 3. Removes spilled values from the live-in set (they have no register).
-    /// 4. Updates the LRU: retains existing entries still live-in and not spilled
-    ///    (preserving eviction hints from the previous block), then appends any
-    ///    new live-in values sorted by [`ValueId`] for determinism.
+    /// 4. Updates the LRU: rebuilds the LRU from the live-in set in [`ValueId`] order.
     pub(crate) fn begin_block(&mut self, live_in: &mut HashSet<ValueId>) {
         // No transient spills should survive across block boundaries.
         assert!(
@@ -284,25 +283,26 @@ impl SpillManager {
         self.records.get(value_id).filter(|r| r.status.is_spilled())
     }
 
-    /// Reset the LRU for a new block, retaining ordering from the previous block.
+    /// Rebuild `lru_order` for a new block from scratch, retaining only live-in
+    /// values that are not currently spilled, in deterministic ValueId order.
+    ///  
+    /// This discards any ordering carried over from the previous block, which is sound while
+    /// spilling is enabled: every value live across a block boundary is permanently spilled
+    /// before its block is entered (block parameters via `convert_block_params`, other
+    /// live-ins via `spill_non_param_live_ins`), so no non-spilled value is ever carried over
+    /// and there is no recency order to preserve. The `debug_assert!` enforces that premise.
     ///
-    /// Entries already in `lru_order` that are still live-in and not spilled are kept
-    /// in their existing order (preserving eviction hints from the previous block).
-    /// New live-in values not yet in the LRU are appended, sorted by [`ValueId`] for
-    /// determinism.
+    /// If a future register allocator (<https://github.com/noir-lang/noir/issues/11638>) lets
+    /// values stay in registers across blocks, the assert will fire — at which point the
+    /// surviving entries' previous-block order is a real eviction hint and should be preserved
+    /// here rather than re-sorted by `ValueId`.
     fn reset_lru_for_block(&mut self, live_in: &HashSet<ValueId>) {
-        let records = &self.records;
-        let is_spilled = |v: &ValueId| records.get(v).is_some_and(|r| r.status.is_spilled());
-
-        // Retain existing entries that are still live-in and not spilled.
-        self.lru_order.retain(|v| live_in.contains(v) && !is_spilled(v));
-
-        // Collect live-in values not already present in LRU, sorted for determinism.
-        let existing: HashSet<ValueId> = self.lru_order.iter().copied().collect();
-        let mut new_entries: Vec<ValueId> =
-            live_in.iter().copied().filter(|v| !existing.contains(v) && !is_spilled(v)).collect();
-        new_entries.sort();
-        self.lru_order.extend(new_entries);
+        debug_assert!(
+            !self.lru_order.iter().any(|v| live_in.contains(v) && !self.is_spilled(v)),
+            "cross-block LRU carryover is non-empty; preserve the previous block's order instead of re-sorting: {:?}",
+            self.lru_order
+        );
+        self.lru_order = live_in.iter().copied().filter(|v| !self.is_spilled(v)).sorted().collect();
     }
 
     /// Record a value as permanently spilled.
