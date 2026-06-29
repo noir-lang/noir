@@ -489,3 +489,67 @@ fn expands_trait_impl_calling_private_inherent_method_inside_module() {
     }
     ");
 }
+
+/// A trait method and an inherent method can share a name. A method call (`foo.method()`) prefers
+/// the inherent method, so calling the trait method requires the disambiguated form
+/// `Trait::method(foo)`. The HIR printer must preserve that distinction: rendering the trait call
+/// back as `foo.method()` would make the expanded source re-resolve to the inherent method,
+/// silently changing which method runs.
+///
+/// This test pins the *buggy* output (both calls collapse to `foo.method()`) so the fix is visible
+/// as a snapshot change.
+#[test]
+fn expands_trait_method_call_shadowed_by_inherent_method() {
+    let src = r#"
+    trait Trait {
+        fn method(self);
+    }
+
+    struct Foo {}
+
+    impl Foo {
+        fn method(self) {
+            let _ = self;
+        }
+    }
+
+    impl Trait for Foo {
+        fn method(self) {
+            let _ = self;
+        }
+    }
+
+    fn main() {
+        let foo = Foo {};
+        foo.method();
+        Trait::method(foo);
+    }
+    "#;
+    let expanded = assert_no_errors_and_to_string(src);
+    insta::assert_snapshot!(expanded, @r"
+    trait Trait {
+        fn method(self);
+    }
+
+    struct Foo {
+    }
+
+    impl Foo {
+        fn method(self) {
+            let _: Self = self;
+        }
+    }
+
+    impl Trait for Foo {
+        fn method(self) {
+            let _: Self = self;
+        }
+    }
+
+    fn main() {
+        let foo: Foo = Foo { };
+        foo.method();
+        foo.method();
+    }
+    ");
+}
