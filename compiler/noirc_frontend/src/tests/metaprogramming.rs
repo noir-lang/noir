@@ -3499,3 +3499,135 @@ fn module_named_attribute_args_returns_attribute_arguments() {
     "#;
     check_errors_with_stdlib(src, [META_API_STDLIB]);
 }
+
+/// Returns true if `error` is the `assert(false)` failure raised by the
+/// `must_abort` attribute, looking through any `ComptimeError` wrapping added
+/// while running the attribute.
+fn is_failing_constraint(error: &CompilationError) -> bool {
+    use crate::hir::comptime::InterpreterError;
+    match error {
+        CompilationError::InterpreterError(InterpreterError::FailingConstraint { .. }) => true,
+        CompilationError::ComptimeError(ComptimeError::ErrorRunningAttribute { error, .. }) => {
+            is_failing_constraint(error)
+        }
+        _ => false,
+    }
+}
+
+/// Regression for https://github.com/noir-lang/noir-claude/issues/1439.
+///
+/// A comptime attribute on a top-level function aborts compilation. This is the
+/// control case for the trait-method variants below.
+#[test]
+fn comptime_attribute_on_top_level_function_runs() {
+    let src = r#"
+    #[must_abort]
+    fn touched() {}
+
+    comptime fn must_abort(_: FunctionDefinition) {
+        assert(false);
+    }
+
+    fn main() {
+        touched();
+    }
+    "#;
+    let errors = get_program_errors(src);
+    assert!(
+        errors.iter().any(is_failing_constraint),
+        "Expected the attribute's `assert(false)` to abort compilation, but got: {errors:#?}"
+    );
+}
+
+/// Regression for https://github.com/noir-lang/noir-claude/issues/1439.
+///
+/// A comptime attribute on a trait default method must run, just like one on a
+/// top-level function.
+#[test]
+fn comptime_attribute_on_trait_default_method_runs() {
+    let src = r#"
+    trait T {
+        #[must_abort]
+        fn default_method(self) {}
+    }
+
+    struct S {}
+    impl T for S {}
+
+    comptime fn must_abort(_: FunctionDefinition) {
+        assert(false);
+    }
+
+    fn main() {
+        let s = S {};
+        s.default_method();
+    }
+    "#;
+    let errors = get_program_errors(src);
+    assert!(
+        errors.iter().any(is_failing_constraint),
+        "Expected the attribute's `assert(false)` to abort compilation, but got: {errors:#?}"
+    );
+}
+
+/// Regression for https://github.com/noir-lang/noir-claude/issues/1439.
+///
+/// A comptime attribute on a bodyless trait method declaration must run, just
+/// like one on a top-level function.
+#[test]
+fn comptime_attribute_on_trait_method_declaration_runs() {
+    let src = r#"
+    trait T {
+        #[must_abort]
+        fn required(self);
+    }
+
+    struct S {}
+
+    impl T for S {
+        fn required(self) {}
+    }
+
+    comptime fn must_abort(_: FunctionDefinition) {
+        assert(false);
+    }
+
+    fn main() {
+        let s = S {};
+        s.required();
+    }
+    "#;
+    let errors = get_program_errors(src);
+    assert!(
+        errors.iter().any(is_failing_constraint),
+        "Expected the attribute's `assert(false)` to abort compilation, but got: {errors:#?}"
+    );
+}
+
+/// Regression for https://github.com/noir-lang/noir-claude/issues/1439.
+///
+/// A code-generating attribute on a trait default method runs and its generated
+/// item is usable, matching the macro-author use case.
+#[test]
+fn comptime_attribute_on_trait_method_can_generate_items() {
+    let src = r#"
+    trait T {
+        #[make_generated]
+        fn method(self) -> Self { self }
+    }
+
+    struct S {}
+    impl T for S {}
+
+    comptime fn make_generated(_: FunctionDefinition) -> Quoted {
+        quote { fn generated() -> Field { 1 } }
+    }
+
+    fn main() {
+        let s = S {};
+        let _ = s.method();
+        assert(generated() == 1);
+    }
+    "#;
+    assert_no_errors(src);
+}

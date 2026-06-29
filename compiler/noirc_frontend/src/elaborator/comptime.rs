@@ -282,6 +282,8 @@ impl<'context> Elaborator<'context> {
                 None,
                 &mut attributes_to_run,
             );
+
+            self.collect_attributes_on_trait_methods(trait_, &mut attributes_to_run);
         }
 
         for (struct_id, struct_def) in types {
@@ -388,6 +390,33 @@ impl<'context> Elaborator<'context> {
                     attributes_to_run,
                 );
             }
+        }
+    }
+
+    /// Collect comptime attributes on a trait's method declarations and default methods.
+    ///
+    /// A trait method's attributes are stored on its [`FunctionModifiers`][crate::node_interner::FunctionModifiers]
+    /// whether or not the method has a body, so both bodyless declarations and default-bodied
+    /// methods are reached uniformly by reading each method's modifiers. The item passed to the
+    /// attribute is the method's [`Value::FunctionDefinition`], matching how impl and top-level
+    /// function attributes are run.
+    #[tracing::instrument(level = "trace", skip_all)]
+    fn collect_attributes_on_trait_methods(
+        &mut self,
+        trait_: &UnresolvedTrait,
+        attributes_to_run: &mut CollectedAttributes,
+    ) {
+        let context = AttributeContext::new(trait_.module_id);
+        for func_id in trait_.method_ids.values() {
+            let attributes = self.interner.function_modifiers(func_id).attributes.secondary.clone();
+            let item = Value::FunctionDefinition(*func_id);
+            self.collect_comptime_attributes_on_item(
+                &attributes,
+                item,
+                context,
+                None,
+                attributes_to_run,
+            );
         }
     }
 
