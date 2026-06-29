@@ -255,8 +255,8 @@ This is a helper function factored out from <code>try_unify</code>.</p>
     make_error: impl <a class="trait" href="https://doc.rust-lang.org/1.89.0/core/ops/function/trait.FnOnce.html" title="trait core::ops::function::FnOnce">FnOnce</a>(&amp;<a class="struct" href="../../elaborator/struct.Elaborator.html" title="struct noirc_frontend::elaborator::Elaborator">Elaborator</a>&lt;'_&gt;) -&gt; <a class="enum" href="../../hir/def_collector/dc_crate/enum.CompilationError.html" title="enum noirc_frontend::hir::def_collector::dc_crate::CompilationError">CompilationError</a>,
 )</h4></section></summary><div class="docblock"><p>Similar to <code>unify</code> but if the check fails this will attempt to coerce the
 argument to the target type. When this happens, the given expression is wrapped in
-a new expression to convert its type. E.g. <code>array</code> -&gt; <code>array.as_slice()</code></p>
-<p>Currently the only type coercion in Noir is <code>[T; N]</code> into <code>[T]</code> via <code>.as_slice()</code>.</p>
+a new expression to convert its type. E.g. <code>array</code> -&gt; <code>array.as_vector()</code></p>
+<p>Currently the only type coercion in Noir is <code>[T; N]</code> into <code>[T]</code> via <code>.as_vector()</code>.</p>
 </div></details><details class="toggle method-toggle" open><summary><section id="method.try_fn_to_unconstrained_fn_coercion" class="method"><a class="src rightside" href="../../../src/noirc_frontend/hir_def/types/unification.rs.html#563-581">Source</a><h4 class="code-header">fn <a href="#method.try_fn_to_unconstrained_fn_coercion" class="fn">try_fn_to_unconstrained_fn_coercion</a>(
     &amp;self,
     expected: &amp;<a class="enum" href="enum.Type.html" title="enum noirc_frontend::hir_def::types::Type">Type</a>,

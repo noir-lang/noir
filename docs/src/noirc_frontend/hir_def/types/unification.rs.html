@@ -509,9 +509,9 @@
 <a href=#509 id=509 data-nosnippet>509</a>
 <a href=#510 id=510 data-nosnippet>510</a>    <span class="doccomment">/// Similar to `unify` but if the check fails this will attempt to coerce the
 <a href=#511 id=511 data-nosnippet>511</a>    /// argument to the target type. When this happens, the given expression is wrapped in
-<a href=#512 id=512 data-nosnippet>512</a>    /// a new expression to convert its type. E.g. `array` -&gt; `array.as_slice()`
+<a href=#512 id=512 data-nosnippet>512</a>    /// a new expression to convert its type. E.g. `array` -&gt; `array.as_vector()`
 <a href=#513 id=513 data-nosnippet>513</a>    ///
-<a href=#514 id=514 data-nosnippet>514</a>    /// Currently the only type coercion in Noir is `[T; N]` into `[T]` via `.as_slice()`.
+<a href=#514 id=514 data-nosnippet>514</a>    /// Currently the only type coercion in Noir is `[T; N]` into `[T]` via `.as_vector()`.
 <a href=#515 id=515 data-nosnippet>515</a>    </span><span class="kw">pub fn </span>unify_with_coercions(
 <a href=#516 id=516 data-nosnippet>516</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
 <a href=#517 id=517 data-nosnippet>517</a>        expected: <span class="kw-2">&amp;</span>Type,
@@ -594,12 +594,12 @@
 <a href=#594 id=594 data-nosnippet>594</a>        <span class="kw">if let </span>(Type::Array(element1, _size), Type::Vector(element2)) = (<span class="kw-2">&amp;</span>this, <span class="kw-2">&amp;</span>target) {
 <a href=#595 id=595 data-nosnippet>595</a>            <span class="comment">// We can only do the coercion if the `as_vector` method exists.
 <a href=#596 id=596 data-nosnippet>596</a>            // This is usually true, but some tests don't have access to the standard library.
-<a href=#597 id=597 data-nosnippet>597</a>            </span><span class="kw">if let </span><span class="prelude-val">Some</span>(as_slice) = interner.lookup_direct_method(<span class="kw-2">&amp;</span>this, <span class="string">"as_slice"</span>, <span class="bool-val">true</span>) {
+<a href=#597 id=597 data-nosnippet>597</a>            </span><span class="kw">if let </span><span class="prelude-val">Some</span>(as_vector) = interner.lookup_direct_method(<span class="kw-2">&amp;</span>this, <span class="string">"as_vector"</span>, <span class="bool-val">true</span>) {
 <a href=#598 id=598 data-nosnippet>598</a>                <span class="comment">// Still have to ensure the element types match.
 <a href=#599 id=599 data-nosnippet>599</a>                // Don't need to issue an error here if not, it will be done in unify_with_coercions
 <a href=#600 id=600 data-nosnippet>600</a>                </span><span class="kw">let </span><span class="kw-2">mut </span>bindings = TypeBindings::default();
 <a href=#601 id=601 data-nosnippet>601</a>                <span class="kw">if </span>element1.try_unify(element2, <span class="kw-2">&amp;mut </span>bindings).is_ok() {
-<a href=#602 id=602 data-nosnippet>602</a>                    invoke_function_on_expression(expression, this, target, as_slice, interner);
+<a href=#602 id=602 data-nosnippet>602</a>                    invoke_function_on_expression(expression, this, target, as_vector, interner);
 <a href=#603 id=603 data-nosnippet>603</a>                    <span class="self">Self</span>::apply_type_bindings(bindings);
 <a href=#604 id=604 data-nosnippet>604</a>                    <span class="kw">return </span><span class="bool-val">true</span>;
 <a href=#605 id=605 data-nosnippet>605</a>                }
@@ -674,14 +674,14 @@
 <a href=#674 id=674 data-nosnippet>674</a>) {
 <a href=#675 id=675 data-nosnippet>675</a>    <span class="kw">let </span>method_id = interner.function_definition_id(method);
 <a href=#676 id=676 data-nosnippet>676</a>    <span class="kw">let </span>location = interner.expr_location(<span class="kw-2">&amp;</span>expression);
-<a href=#677 id=677 data-nosnippet>677</a>    <span class="kw">let </span>as_slice = HirExpression::Ident(HirIdent::non_trait_method(method_id, location), <span class="prelude-val">None</span>);
+<a href=#677 id=677 data-nosnippet>677</a>    <span class="kw">let </span>method = HirExpression::Ident(HirIdent::non_trait_method(method_id, location), <span class="prelude-val">None</span>);
 <a href=#678 id=678 data-nosnippet>678</a>    <span class="kw">let </span>func_type = Type::Function(
 <a href=#679 id=679 data-nosnippet>679</a>        <span class="macro">vec!</span>[expression_type.clone()],
 <a href=#680 id=680 data-nosnippet>680</a>        Box::new(target_type.clone()),
 <a href=#681 id=681 data-nosnippet>681</a>        Box::new(Type::Unit),
 <a href=#682 id=682 data-nosnippet>682</a>        <span class="bool-val">false</span>,
 <a href=#683 id=683 data-nosnippet>683</a>    );
-<a href=#684 id=684 data-nosnippet>684</a>    <span class="kw">let </span>func = interner.push_expr_full(as_slice, location, func_type);
+<a href=#684 id=684 data-nosnippet>684</a>    <span class="kw">let </span>func = interner.push_expr_full(method, location, func_type);
 <a href=#685 id=685 data-nosnippet>685</a>
 <a href=#686 id=686 data-nosnippet>686</a>    <span class="comment">// Copy the expression and give it a new ExprId. The old one
 <a href=#687 id=687 data-nosnippet>687</a>    // will be mutated in place into a Call expression.
