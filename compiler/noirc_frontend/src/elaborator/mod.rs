@@ -322,6 +322,11 @@ pub struct Elaborator<'context> {
     /// True if we are elaborating arguments of a function call to an unconstrained function.
     in_unconstrained_args: bool,
 
+    /// Whether resolving a variable should mark it used for the unused-variable lint. Normally
+    /// true; temporarily disabled while elaborating compiler-synthesized code (such as the
+    /// validation injected for entry-point parameters) so it does not mask a genuinely unused input.
+    mark_variables_used: bool,
+
     crate_id: CrateId,
 
     interpreter_call_stack: im::Vector<Location>,
@@ -513,6 +518,7 @@ impl<'context> Elaborator<'context> {
             interpreter_call_stack,
             in_comptime_context: false,
             in_unconstrained_args: false,
+            mark_variables_used: true,
             silence_field_visibility_errors: 0,
             caller_module: None,
             options,
@@ -801,6 +807,19 @@ impl<'context> Elaborator<'context> {
         };
         self.push_err(error);
         None
+    }
+
+    /// Like [`Self::resolve_trait_by_path`] but returns `None` without emitting an error when the
+    /// path does not resolve to a trait. Used to opportunistically locate a well-known trait (such
+    /// as `Validate`) which may be absent in minimal programs compiled without the standard library.
+    pub(super) fn try_resolve_trait_by_path(&mut self, path: TypedPath) -> Option<TraitId> {
+        match self.resolve_path_as_type(path) {
+            Ok(PathResolution { item: PathResolutionItem::Trait(trait_id), errors }) => {
+                self.push_errors(errors);
+                Some(trait_id)
+            }
+            _ => None,
+        }
     }
 
     /// Resolve a path to the [`FuncId`] of the function it refers to, pushing a diagnostic and

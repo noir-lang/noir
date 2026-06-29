@@ -57,6 +57,8 @@ pub enum ResolverError {
     UnnecessaryPub { name: String, location: Location, position: PubPosition },
     #[error("Required 'pub', main function must return public value")]
     NecessaryPub { name: String, location: Location },
+    #[error("Unvalidated entry point input")]
+    UnvalidatedInput { name: String, typ: String, location: Location },
     #[error("No global or generic type parameter found with the given name")]
     NoSuchNumericTypeVariable { path: TypedPath },
     #[error("Only struct types can be used in constructor expressions")]
@@ -350,6 +352,7 @@ impl ResolverError {
             | ResolverError::VarargsLastParameterIsNotAVector { location }
             | ResolverError::UnnecessaryPub { location, .. }
             | ResolverError::NecessaryPub { location, .. }
+            | ResolverError::UnvalidatedInput { location, .. }
             | ResolverError::DataBusOnNonEntryPoint { location, .. }
             | ResolverError::DataBusOnWrongPosition { location, .. }
             | ResolverError::RemovedType { location, .. }
@@ -523,6 +526,18 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                 );
                 diag.add_note("The `pub` keyword is mandatory for the entry-point function return type because the verifier cannot retrieve private witness and thus the function will not be able to return a 'priv' value".to_owned());
                 diag
+            }
+            ResolverError::UnvalidatedInput { name, typ, location } => {
+                let mut diagnostic = Diagnostic::simple_warning(
+                    format!("unvalidated entry point input `{name}`"),
+                    format!("`{typ}` does not implement `Validate`"),
+                    *location,
+                );
+                diagnostic.add_note(
+                    "Implement or derive `Validate` for this type so its representation invariants are checked when it enters the circuit from an untrusted source, or silence this warning."
+                        .to_owned(),
+                );
+                diagnostic
             }
             ResolverError::NoSuchNumericTypeVariable { path } => Diagnostic::simple_error(
                 format!("Cannot find a global or generic type parameter named `{path}`"),

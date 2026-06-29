@@ -25,4 +25,5 @@ impl<let N: u32> Validate for Buffer<N> {
 
 fn main(buffer: Buffer<3>) {
     buffer.validate();
+    buffer.validate();
 }

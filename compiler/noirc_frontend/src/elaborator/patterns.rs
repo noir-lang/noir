@@ -528,7 +528,7 @@ impl Elaborator<'_> {
 
         let location = name.location();
         if let Some((variable_found, scope)) = variable {
-            variable_found.used = true;
+            variable_found.used |= self.mark_variables_used;
             let id = variable_found.ident.id;
             let ident = HirIdent::non_trait_method(id, location);
             let variable = Variable { ident, scope };

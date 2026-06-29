@@ -5,6 +5,7 @@ use itertools::Itertools;
 use noirc_errors::{Located, Location, Span};
 
 use crate::ast::{Ident, PathKind};
+use crate::graph::CrateId;
 use crate::hir::def_map::{ModuleData, ModuleDefId, ModuleId, Namespace, PerNs};
 use crate::hir::resolution::import::{
     PathResolutionError, first_segment_is_always_visible, resolve_path_kind,
@@ -237,6 +238,16 @@ impl TypedPath {
     /// Construct a [`PathKind::Plain`] from a number of segments.
     pub fn plain(segments: Vec<TypedPathSegment>, location: Location) -> Self {
         Self { segments, location, kind: PathKind::Plain, kind_location: location }
+    }
+
+    /// Construct a [`PathKind::Resolved`] path whose segments are resolved within the given crate,
+    /// regardless of what the leading name resolves to in the current scope.
+    pub fn resolved_in_crate(
+        segments: Vec<TypedPathSegment>,
+        crate_id: CrateId,
+        location: Location,
+    ) -> Self {
+        Self { segments, location, kind: PathKind::Resolved(crate_id), kind_location: location }
     }
 
     /// Removes and returns the last segment.

@@ -16,14 +16,17 @@ use noirc_errors::Location;
 use crate::{
     Kind, ResolvedGeneric, Type, TypeVariable,
     ast::{
-        BlockExpression, FunctionKind, Ident, IdentOrQuotedType, NoirFunction, Param,
-        UnresolvedGeneric, UnresolvedGenerics, UnresolvedTraitConstraint, UnresolvedType,
-        UnresolvedTypeData,
+        BlockExpression, CallExpression, Expression, ExpressionKind, FunctionKind, Ident,
+        IdentOrQuotedType, NoirFunction, Param, Path, PathKind, PathSegment, Statement,
+        StatementKind, UnaryOp, UnresolvedGeneric, UnresolvedGenerics, UnresolvedTraitConstraint,
+        UnresolvedType, UnresolvedTypeData,
     },
     elaborator::{
         UnstableFeature, lints,
+        path_resolution::{TypedPath, TypedPathSegment},
         types::{WildcardAllowed, WildcardDisallowedContext},
     },
+    graph::CrateId,
     hir::{
         def_collector::dc_crate::{
             ImplMap, UnresolvedFunctions, UnresolvedImpl, UnresolvedTraitImpl,
@@ -33,13 +36,15 @@ use crate::{
         type_check::TypeCheckError,
     },
     hir_def::{
-        expr::HirIdent,
+        expr::{HirExpression, HirIdent},
         function::{FuncMeta, FunctionBody, HirFunction},
         stmt::HirPattern,
         traits::{Impl, TraitConstraint},
+        types::recursion::TypeRecursionContext,
     },
     node_interner::{
-        DefinitionKind, DependencyId, FuncId, FunctionModifiers, ImplId, TraitId, TraitImplId,
+        DefinitionKind, DependencyId, FuncId, FunctionModifiers, ImplId, NodeInterner, StmtId,
+        TraitId, TraitImplId,
     },
     shared::Visibility,
 };
@@ -625,7 +630,7 @@ impl Elaborator<'_> {
                 &mut parameter_names_in_list,
             );
 
-            if is_entry_point && !is_identifier_pattern(&pattern) {
+            if is_entry_point && !is_identifier_pattern(self.interner, &pattern) {
                 self.push_err(TypeCheckError::InvalidPatternForEntryPoint {
                     location: pattern.location(),
                 });
@@ -687,6 +692,118 @@ impl Elaborator<'_> {
             lints::oracle_name_clashes_with_stdlib(modifiers, elaborator.crate_id).map(Into::into)
         });
         self.run_lint(|_| lints::check_varargs(func, modifiers).map(Into::into));
+    }
+
+    /// The `param.validate()` statements to prepend to an entry point's body — one per parameter
+    /// whose type implements `std::validate::Validate` and is worth validating — so that
+    /// values arriving from an untrusted source (circuit inputs, oracle results) are checked before
+    /// the body runs. Empty for non-entry-point functions or when there is nothing to validate;
+    /// parameters whose type does not implement `Validate` are left alone (a separate lint flags
+    /// them).
+    ///
+    /// The calls are synthesized as AST and elaborated with variable-usage marking suppressed, so
+    /// the synthesized references do not contribute to the unused-variable lint. The user's body
+    /// (elaborated separately, with marking on) records the real usage, so a genuinely unused input
+    /// still warns. Entry-point parameters are guaranteed to be simple identifiers (see
+    /// `InvalidPatternForEntryPoint`).
+    #[tracing::instrument(level = "trace", skip_all)]
+    fn entry_point_validation_statements(&mut self, func_meta: &FuncMeta) -> Vec<StmtId> {
+        if !func_meta.is_entry_point {
+            return Vec::new();
+        }
+
+        let location = func_meta.location;
+        // Resolve `std::validate::Validate` explicitly in the stdlib crate rather than relying on
+        // an unqualified name, which could resolve to a different `Validate` in scope. Absent in
+        // minimal programs compiled without the stdlib, in which case there is nothing to inject.
+        let Some(stdlib) = self.crate_graph.try_stdlib_crate_id().copied() else {
+            return Vec::new();
+        };
+        let segment = |name: &str| {
+            TypedPathSegment::without_generics(Ident::new(name.to_string(), location), location)
+        };
+        let validate_path = TypedPath::resolved_in_crate(
+            vec![segment("validate"), segment("Validate")],
+            stdlib,
+            location,
+        );
+        let Some(trait_id) = self.try_resolve_trait_by_path(validate_path) else {
+            return Vec::new();
+        };
+        let worth = ValidationWorth::new(stdlib);
+
+        let mut statements = Vec::new();
+        for (pattern, typ, _visibility) in func_meta.parameters.iter() {
+            let Some(name) = identifier_pattern_name(self.interner, pattern).map(str::to_string)
+            else {
+                continue;
+            };
+            if self.interner.lookup_trait_implementation(typ, trait_id, &[], &[]).is_err() {
+                // The type does not implement `Validate`, so the input cannot be checked on entry.
+                // Warn, unless the parameter is `_`-prefixed — the convention (shared with the
+                // unused-variable lint) for deliberately opting out. Note this opts out only of the
+                // warning: a parameter whose type *does* implement `Validate` is still validated
+                // regardless of its name, since a `_`-prefixed binding may still be used.
+                if !name.starts_with('_') {
+                    self.push_err(ResolverError::UnvalidatedInput {
+                        name,
+                        typ: typ.to_string(),
+                        location: pattern.location(),
+                    });
+                }
+                continue;
+            }
+            // Skip the call when the type's `validate` is provably a no-op (only our own
+            // primitive/array/tuple/`Option` machinery is involved), so trivial inputs don't accrue
+            // boilerplate. A user type that implements `Validate` is always validated.
+            if !worth.is_worth_validating(typ) {
+                continue;
+            }
+            // Attribute the synthesized call to the parameter, so a failure points at the input
+            // being validated rather than at the function signature.
+            let location = pattern.location();
+            // Call the trait method explicitly as `std::validate::Validate::validate(&param)`
+            // rather than `param.validate()`: a method call would prefer an inherent `validate`
+            // method on the type (which need not enforce any invariant) over the trait
+            // implementation we resolved above. Rooting the path in the stdlib crate keeps it from
+            // resolving to a different `Validate` brought into scope by the program.
+            let path = Path {
+                segments: vec![
+                    PathSegment::from(Ident::new("validate".to_string(), location)),
+                    PathSegment::from(Ident::new("Validate".to_string(), location)),
+                    PathSegment::from(Ident::new("validate".to_string(), location)),
+                ],
+                kind: PathKind::Resolved(stdlib),
+                location,
+                kind_location: location,
+            };
+            let func = Expression::new(ExpressionKind::Variable(path), location);
+            let receiver = Expression::new(
+                ExpressionKind::Variable(Path::from_single(name, location)),
+                location,
+            );
+            // The trait method takes `&self`, so pass the parameter by reference.
+            let argument = Expression::new(
+                ExpressionKind::prefix(UnaryOp::Reference { mutable: false }, receiver),
+                location,
+            );
+            let call = CallExpression {
+                func: Box::new(func),
+                arguments: vec![argument],
+                is_macro_call: false,
+            };
+            let expr = Expression::new(ExpressionKind::Call(Box::new(call)), location);
+            let statement = Statement { kind: StatementKind::Semi(expr), location };
+
+            // Elaborate the call without marking the parameter used, so the synthesized reference
+            // does not contribute to the unused-variable lint.
+            let previously_marking = std::mem::replace(&mut self.mark_variables_used, false);
+            let (statement, _) = self.elaborate_statement(statement);
+            self.mark_variables_used = previously_marking;
+            statements.push(statement);
+        }
+
+        statements
     }
 
     /// Elaborates a function's body and performs type checking.
@@ -779,8 +896,10 @@ impl Elaborator<'_> {
                 (HirFunction::empty(), Type::Error)
             }
             FunctionKind::Normal => {
+                let validations = self.entry_point_validation_statements(&func_meta);
                 let return_type = func_meta.return_type();
                 let (block, body_type) = self.elaborate_block(body, Some(return_type));
+                let block = prepend_statements(block, validations);
                 let expr_id = self.interner.push_expr_full(block, body_location, body_type.clone());
                 (HirFunction::unchecked_from_expr(expr_id), body_type)
             }
@@ -836,12 +955,94 @@ impl Elaborator<'_> {
     }
 }
 
+/// Prepend statements to the front of a function body, which always elaborates to a block.
+fn prepend_statements(body: HirExpression, mut statements: Vec<StmtId>) -> HirExpression {
+    if statements.is_empty() {
+        return body;
+    }
+    let HirExpression::Block(mut block) = body else {
+        unreachable!("ICE: a function body always elaborates to a block");
+    };
+    statements.append(&mut block.statements);
+    block.statements = statements;
+    HirExpression::Block(block)
+}
+
 /// Whether a pattern binds the whole value to a single name. ABI generation requires this for
 /// entry point parameters since each parameter is keyed by a single name.
-fn is_identifier_pattern(pattern: &HirPattern) -> bool {
+fn is_identifier_pattern(interner: &NodeInterner, pattern: &HirPattern) -> bool {
+    identifier_pattern_name(interner, pattern).is_some()
+}
+
+/// The name bound by a (possibly `mut`) identifier pattern, or `None` for tuple/struct patterns.
+fn identifier_pattern_name<'a>(
+    interner: &'a NodeInterner,
+    pattern: &HirPattern,
+) -> Option<&'a str> {
     match pattern {
-        HirPattern::Identifier(_) => true,
-        HirPattern::Mutable(inner, _) => is_identifier_pattern(inner),
-        HirPattern::Tuple(..) | HirPattern::Struct(..) => false,
+        HirPattern::Identifier(ident) => Some(interner.definition_name(ident.id)),
+        HirPattern::Mutable(inner, _) => identifier_pattern_name(interner, inner),
+        HirPattern::Tuple(..) | HirPattern::Struct(..) => None,
+    }
+}
+
+/// Decides whether injecting `validate()` for an entry-point parameter could assert anything,
+/// used to avoid emitting boilerplate no-op calls for trivial inputs.
+struct ValidationWorth {
+    /// The crate `std::option::Option` belongs to, used to recognize it (by crate and name) and
+    /// recurse through it as a transparent wrapper.
+    stdlib: CrateId,
+}
+
+impl ValidationWorth {
+    fn new(stdlib: CrateId) -> Self {
+        Self { stdlib }
+    }
+
+    /// Returns `false` only when the type's `Validate` implementation is provably a no-op because
+    /// just our own machinery is involved: a primitive, an array/slice/tuple built recursively from
+    /// such, or an `Option` of such. Any other named type — a user struct/enum, `BoundedVec`, etc.
+    /// — is treated as worth validating, so a type the user opted into validating is never silently
+    /// skipped.
+    fn is_worth_validating(&self, typ: &Type) -> bool {
+        self.is_worth_validating_helper(typ, TypeRecursionContext::default())
+    }
+
+    /// `context` bounds the recursion depth and tracks aliases, guarding against degenerate or
+    /// cyclic types.
+    fn is_worth_validating_helper(&self, typ: &Type, mut context: TypeRecursionContext) -> bool {
+        match typ {
+            Type::FieldElement | Type::Integer(..) | Type::Bool | Type::Unit | Type::String(_) => {
+                false
+            }
+            Type::Array(element, _) | Type::Vector(element) => {
+                self.is_worth_validating_helper(element, context.recur())
+            }
+            Type::Tuple(elements) => elements
+                .iter()
+                .any(|element| self.is_worth_validating_helper(element, context.clone().recur())),
+            Type::DataType(definition, generics) => {
+                let definition = definition.borrow();
+                if definition.id.krate() == self.stdlib && definition.name.as_str() == "Option" {
+                    generics.first().is_some_and(|inner| {
+                        self.is_worth_validating_helper(inner, context.recur())
+                    })
+                } else {
+                    true
+                }
+            }
+            // Follow an alias to its underlying type: an alias for a primitive (e.g.
+            // `type Age = u32`) can't carry a validation of its own. A cyclic alias re-enters a
+            // type already on the stack and contributes nothing further.
+            Type::Alias(alias, generics) => {
+                let alias = alias.borrow();
+                if context.insert_alias(alias.id, generics.clone()) {
+                    self.is_worth_validating_helper(&alias.get_type(generics), context.recur())
+                } else {
+                    false
+                }
+            }
+            _ => true,
+        }
     }
 }
