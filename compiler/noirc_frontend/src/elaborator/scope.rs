@@ -18,7 +18,9 @@ use crate::{
 };
 use crate::{Type, TypeAlias};
 
-use super::path_resolution::{PathResolutionItem, PathResolutionMode, TypedPath, TypedPathSegment};
+use super::path_resolution::{
+    PathResolutionItem, PathResolutionMode, Turbofish, TypedPath, TypedPathSegment,
+};
 use super::{Elaborator, PathResolutionTarget, ResolverMeta};
 
 type ScopeTree = GenericScopeTree<String, ResolverMeta>;
@@ -155,6 +157,19 @@ impl Elaborator<'_> {
         let location = segment.ident.location();
         let item =
             self.use_value_in_module(TypedPath::plain(vec![segment], location), module_id)?;
+        self.path_resolution_item_as_value(item, location)
+    }
+
+    /// Like [`Self::lookup_path_as_value`], but resolves `segment` directly as a value member (an
+    /// enum variant or associated constant) of the already-resolved type `type_id`.
+    pub(super) fn lookup_path_as_value_in_type(
+        &mut self,
+        segment: &TypedPathSegment,
+        type_id: TypeId,
+        turbofish: Option<Turbofish>,
+    ) -> Result<PathValue, ResolverError> {
+        let location = segment.ident.location();
+        let item = self.use_value_in_type(segment, type_id, turbofish)?;
         self.path_resolution_item_as_value(item, location)
     }
 

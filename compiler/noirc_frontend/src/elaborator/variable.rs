@@ -11,7 +11,7 @@ use crate::ast::{
 use crate::elaborator::TypedPath;
 use crate::elaborator::function_context::BindableTypeVariableKind;
 use crate::elaborator::path_resolution::PathResolutionItem;
-use crate::elaborator::path_resolution::TypedPathSegment;
+use crate::elaborator::path_resolution::{Turbofish, TypedPathSegment};
 use crate::elaborator::patterns::{PathValue, Variable};
 use crate::elaborator::types::{SELF_TYPE_NAME, WildcardAllowed};
 use crate::hir::def_collector::dc_crate::CompilationError;
@@ -24,6 +24,7 @@ use crate::hir_def::expr::{
 use crate::node_interner::pusher::{HasLocation, PushedExpr};
 use crate::node_interner::{
     DefinitionId, DefinitionInfo, DefinitionKind, ExprId, TraitImplId, TraitImplKind, TypeAliasId,
+    TypeId,
 };
 use crate::{Kind, Type, TypeBindings, TypeVariable, TypeVariableId};
 use iter_extended::{btree_map, vecmap};
@@ -546,6 +547,20 @@ impl Elaborator<'_> {
     ) -> Option<VariableResolution> {
         let location = last_segment.ident.location();
         let ident = self.lookup_path_as_value_in_module(last_segment, module_id);
+        self.variable_resolution_from_value_item(ident, location)
+    }
+
+    /// Resolve a type-prefixed path's last segment as a value member (an enum variant or associated
+    /// constant) of the already-resolved type `type_id`. The type-prefix counterpart of
+    /// [`Self::resolve_value_in_module`], avoiding re-resolving the whole path.
+    pub(super) fn resolve_value_in_type(
+        &mut self,
+        last_segment: &TypedPathSegment,
+        type_id: TypeId,
+        turbofish: Option<Turbofish>,
+    ) -> Option<VariableResolution> {
+        let location = last_segment.ident.location();
+        let ident = self.lookup_path_as_value_in_type(last_segment, type_id, turbofish);
         self.variable_resolution_from_value_item(ident, location)
     }
 

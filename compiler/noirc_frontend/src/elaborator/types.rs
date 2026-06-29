@@ -1812,6 +1812,13 @@ impl Elaborator<'_> {
             );
         };
 
+        // For the value fallback below: an enum variant or associated constant is resolved directly
+        // on a concrete type. Alias/primitive prefixes still fall back to re-resolving the path.
+        let value_fallback = match &path_resolution.item {
+            PathResolutionItem::Type(type_id) => Some((*type_id, turbofish.clone())),
+            _ => None,
+        };
+
         let method_name = last_segment.ident.as_str();
 
         let check_self_param = false;
@@ -1853,11 +1860,17 @@ impl Elaborator<'_> {
         };
 
         // The last segment isn't an inherent or qualified trait method on the type; it may still be
-        // an enum variant or an associated constant accessed as `Type::CONST`, so resolve the whole
-        // path as a value (which also reports the error if it is none of these).
+        // an enum variant or an associated constant accessed as `Type::CONST`. For a concrete type
+        // resolve the member directly; an alias/primitive prefix re-resolves the whole path as a
+        // value. Either way the error is reported if it is none of these.
         match trait_resolution {
             Some(resolution) => self.variable_from_trait_resolution(path.location, resolution),
-            None => self.resolve_value_item(path),
+            None => match value_fallback {
+                Some((type_id, turbofish)) => {
+                    self.resolve_value_in_type(&last_segment, type_id, turbofish)
+                }
+                None => self.resolve_value_item(path),
+            },
         }
     }
 

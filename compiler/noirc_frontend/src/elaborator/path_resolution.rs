@@ -539,6 +539,48 @@ impl Elaborator<'_> {
         Ok(resolution.item)
     }
 
+    /// Resolve `last_segment` as a value member of the already-resolved type `type_id`, instead of
+    /// re-resolving the whole path. This is the type-prefix counterpart of [`Self::use_value_in_module`]:
+    /// the member is either an enum-variant constructor (kept in the type's module value scope) or a
+    /// trait associated constant (`Type::CONST`). `turbofish` carries the prefix's generics, used to
+    /// pick the concrete self type when looking up the constant.
+    pub(super) fn use_value_in_type(
+        &mut self,
+        last_segment: &TypedPathSegment,
+        type_id: TypeId,
+        turbofish: Option<Turbofish>,
+    ) -> Result<PathResolutionItem, ResolverError> {
+        let member = &last_segment.ident;
+        let type_module_id = type_id.module_id();
+        let intermediate_item = IntermediatePathResolutionItem::Type(type_id, turbofish);
+
+        // An enum-variant constructor is the only value kept in the type's module scope; finalize a
+        // hit the same way the segment loop's tail does (visibility check + enum-variant detection).
+        if let Some(per_ns) = self.resolve_method(self.get_module(type_module_id), member) {
+            let scope = per_ns.values.expect("resolve_method only returns a value namespace");
+            let mut errors = Vec::new();
+            let path = TypedPath::plain(vec![last_segment.clone()], member.location());
+            let visibility_module = self.caller_module.unwrap_or(self.module_id());
+            let item = self.per_ns_item_to_path_resolution_item(
+                path,
+                visibility_module,
+                intermediate_item,
+                type_module_id,
+                &mut errors,
+                scope.id,
+                scope.visibility,
+            );
+            self.push_errors(errors);
+            return Ok(item);
+        }
+
+        // Otherwise it may be a trait associated constant accessed as `Type::CONST`.
+        match self.try_resolve_trait_constant(&intermediate_item, member) {
+            Some(result) => Ok(result?),
+            None => Err(PathResolutionError::Unresolved(member.clone()).into()),
+        }
+    }
+
     /// Resolves a [`TypedPath`] assuming it is inside `starting_module`.
     ///
     /// This method first checks the path's kind and resolves it accordingly.
