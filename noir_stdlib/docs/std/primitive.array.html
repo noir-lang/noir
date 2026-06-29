@@ -25,7 +25,6 @@
 <ul class="sidebar-list">
 <li><a href="#all">all</a></li>
 <li><a href="#any">any</a></li>
-<li><a href="#as_slice">as_slice</a></li>
 <li><a href="#as_str_unchecked">as_str_unchecked</a></li>
 <li><a href="#as_vector">as_vector</a></li>
 <li><a href="#concat">concat</a></li>
@@ -140,18 +139,6 @@ and the non-negative compile-time constant size, <code>N</code>.</p>
 <p>Returns this array as a vector.</p>
 <pre><code><span class="kw">let</span> array = [<span class="number">1</span>, <span class="number">2</span>];
 <span class="kw">let</span> vector = array.as_vector();
-<span class="kw">assert_eq</span>(vector, [<span class="number">1</span>, <span class="number">2</span>].as_vector());</code></pre></div>
-</div><code id="as_slice" class="code-header">pub fn <a href="#as_slice" class="fn">as_slice</a>(self) -> [T]</code>
-
-<div class="padded-description"><div class="deprecated">
-<span class="emoji">👎</span>
-Deprecated: This method has been renamed to `as_vector`
-</div>
-<div class="comments">
-<p>Returns this array as a vector.
-This method is deprecated in favor of <code>as_vector</code>.</p>
-<pre><code><span class="kw">let</span> array = [<span class="number">1</span>, <span class="number">2</span>];
-<span class="kw">let</span> vector = array.as_slice();
 <span class="kw">assert_eq</span>(vector, [<span class="number">1</span>, <span class="number">2</span>].as_vector());</code></pre></div>
 </div><code id="map" class="code-header">pub fn <a href="#map" class="fn">map</a>&lt;U, Env&gt;(&mut self: &Self, f: fn[Env](T) -> U) -> [U; N]</code>
 

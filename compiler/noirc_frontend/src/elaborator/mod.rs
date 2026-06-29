@@ -771,25 +771,6 @@ impl<'context> Elaborator<'context> {
         (result, has_new_errors)
     }
 
-    /// Run a resolution speculatively, keeping the usage it records only if it succeeds.
-    ///
-    /// Some resolutions probe a path before knowing it's the right kind — e.g. resolving `N` as a
-    /// type to check whether `N()` is a `Type::method` call. Such a probe marks the segments it
-    /// walks as used/referenced, but a *failed* probe must not leave those marks behind (they would
-    /// wrongly silence an unused warning for a same-named type or import). This wraps `f` in a
-    /// usage-tracker transaction: if `f` returns `Some`, the marks are committed; if it returns
-    /// `None`, they are rolled back.
-    pub(crate) fn speculatively<T>(&mut self, f: impl FnOnce(&mut Self) -> Option<T>) -> Option<T> {
-        let transaction = self.usage_tracker.begin_speculative();
-        let result = f(self);
-        if result.is_some() {
-            self.usage_tracker.commit_speculative(transaction);
-        } else {
-            self.usage_tracker.rollback_speculative(transaction);
-        }
-        result
-    }
-
     #[tracing::instrument(level = "trace", skip_all)]
     fn run_lint(&mut self, lint: impl Fn(&Elaborator) -> Option<CompilationError>) {
         if let Some(error) = lint(self) {
