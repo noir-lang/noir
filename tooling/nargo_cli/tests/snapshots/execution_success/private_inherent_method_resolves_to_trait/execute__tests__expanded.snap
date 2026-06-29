@@ -32,6 +32,6 @@ mod impls {
 
 fn main() {
     assert(Foo {}.bar() == 2_u32);
-    assert(Foo {}.bar() == 2_u32);
+    assert(<Foo as Bar>::bar(Foo {}) == 2_u32);
     assert(impls::calls_inherent_bar(Foo {}) == 1_u32);
 }
