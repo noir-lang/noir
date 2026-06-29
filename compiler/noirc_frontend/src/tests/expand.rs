@@ -557,8 +557,8 @@ fn expands_trait_method_call_shadowed_by_inherent_method() {
         let foo: Foo = Foo { };
         foo.method();
         foo.method();
-        foo.method();
-        foo.method();
+        <Foo as Trait>::method(foo);
+        <Foo as Trait>::method(foo);
     }
     ");
 }
