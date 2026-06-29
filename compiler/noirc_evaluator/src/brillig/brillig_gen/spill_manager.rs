@@ -407,6 +407,11 @@ impl SpillManager {
     /// A reload in a previous block sets the status to `PermanentReloaded`, but the
     /// value must be reloaded again in every block that uses it (since the
     /// permanent spill slot is always the source of truth).
+    ///
+    /// Unlike the other spill transitions, this does not drop the affected values from the
+    /// LRU: it runs only from `begin_block`, which rebuilds the LRU wholesale via
+    /// `reset_lru_for_block` immediately afterwards, so any per-value removal here would be
+    /// redundant.
     pub(crate) fn restore_permanent_spills(&mut self) {
         for record in self.records.values_mut() {
             if record.status == SpillStatus::PermanentReloaded {
