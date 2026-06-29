@@ -2122,11 +2122,9 @@ impl Elaborator<'_> {
                     errors.push(error);
                 }
 
-                let importing_module =
-                    ModuleId { krate: self.crate_id, local_id: self.local_module() };
                 if !trait_visibility_for_method_is_satisfied(
                     func_id,
-                    importing_module,
+                    self.module_id(),
                     self.interner,
                     self.def_maps,
                 ) {
@@ -2180,10 +2178,9 @@ impl Elaborator<'_> {
         if let Some(func_meta) = self.interner.try_function_meta(&func_id) {
             let source_module =
                 ModuleId { krate: func_meta.source_crate, local_id: func_meta.source_module };
-            let importing_module = ModuleId { krate: self.crate_id, local_id: self.local_module() };
             if !item_in_module_is_visible(
                 self.def_maps,
-                importing_module,
+                self.module_id(),
                 source_module,
                 visibility,
             ) {
