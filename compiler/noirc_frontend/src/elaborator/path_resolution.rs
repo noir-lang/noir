@@ -539,20 +539,24 @@ impl Elaborator<'_> {
         Ok(resolution.item)
     }
 
-    /// Resolve `last_segment` as a value member of the already-resolved type `type_id`, instead of
+    /// Resolve `last_segment` as a value member of the already-resolved type `typ`, instead of
     /// re-resolving the whole path. This is the type-prefix counterpart of [`Self::use_value_in_module`]:
     /// the member is either an enum-variant constructor (kept in the type's module value scope) or a
     /// trait associated constant (`Type::CONST`). `turbofish` carries the prefix's generics, used to
-    /// pick the concrete self type when looking up the constant.
+    /// finalize an enum variant. Only a concrete data type has value members; anything else (e.g. a
+    /// primitive type) resolves nothing here.
     pub(super) fn use_value_in_type(
         &mut self,
         last_segment: &TypedPathSegment,
-        type_id: TypeId,
+        typ: &Type,
         turbofish: Option<Turbofish>,
     ) -> Result<PathResolutionItem, ResolverError> {
         let member = &last_segment.ident;
+        let Type::DataType(datatype, _) = typ else {
+            return Err(PathResolutionError::Unresolved(member.clone()).into());
+        };
+        let type_id = datatype.borrow().id;
         let type_module_id = type_id.module_id();
-        let intermediate_item = IntermediatePathResolutionItem::Type(type_id, turbofish);
 
         // An enum-variant constructor is the only value kept in the type's module scope; finalize a
         // hit the same way the segment loop's tail does (visibility check + enum-variant detection).
@@ -564,7 +568,7 @@ impl Elaborator<'_> {
             let item = self.per_ns_item_to_path_resolution_item(
                 path,
                 visibility_module,
-                intermediate_item,
+                IntermediatePathResolutionItem::Type(type_id, turbofish),
                 type_module_id,
                 &mut errors,
                 scope.id,
@@ -574,8 +578,9 @@ impl Elaborator<'_> {
             return Ok(item);
         }
 
-        // Otherwise it may be a trait associated constant accessed as `Type::CONST`.
-        match self.try_resolve_trait_constant(&intermediate_item, member) {
+        // Otherwise it may be a trait associated constant accessed as `Type::CONST`, looked up on
+        // the resolved `typ` (so an alias's generics are applied correctly).
+        match self.try_resolve_trait_constant(type_id, typ, member) {
             Some(result) => Ok(result?),
             None => Err(PathResolutionError::Unresolved(member.clone()).into()),
         }
@@ -788,10 +793,16 @@ impl Elaborator<'_> {
                     Some(per_ns) => per_ns,
                     None => {
                         // Before returning an error, try to look up as an associated constant
-                        if let Some(result) =
-                            self.try_resolve_trait_constant(&intermediate_item, current_ident)
+                        if let IntermediatePathResolutionItem::Type(type_id, turbofish) =
+                            &intermediate_item
                         {
-                            return result.map(|item| PathResolution { item, errors });
+                            let self_type =
+                                self.data_type_as_self_type(*type_id, turbofish.as_ref());
+                            if let Some(result) =
+                                self.try_resolve_trait_constant(*type_id, &self_type, current_ident)
+                            {
+                                return result.map(|item| PathResolution { item, errors });
+                            }
                         }
 
                         // The name isn't a method or associated constant of the type. If a trait
@@ -945,33 +956,33 @@ impl Elaborator<'_> {
             .map(|item| PerNs { types: None, values: Some(*item) })
     }
 
-    /// Try to resolve an identifier as a trait associated constant (e.g., `Foo::N`).
+    /// Build the `self` type for a data type accessed in a path: its generics come from the path's
+    /// turbofish if present, otherwise from the type's own (fresh) generics.
+    fn data_type_as_self_type(&self, type_id: TypeId, turbofish: Option<&Turbofish>) -> Type {
+        let datatype = self.interner.get_type(type_id);
+        let generics = if let Some(turbofish) = turbofish {
+            turbofish.generics.iter().map(|t| t.contents.clone()).collect()
+        } else {
+            datatype.borrow().generic_types()
+        };
+        Type::DataType(datatype, generics)
+    }
+
+    /// Try to resolve an identifier as a trait associated constant (e.g., `Foo::N`) on `self_type`
+    /// (`type_id` is its data type, carried into the resulting [`PathResolutionItem::TraitConstant`]).
     ///
     /// Returns `Some(Ok(PathResolutionItem))` if the constant was found,
     /// `Some(Err(PathResolutionError))` if there's an ambiguity error,
     /// or `None` if no matching constant was found.
     fn try_resolve_trait_constant(
         &self,
-        intermediate_item: &IntermediatePathResolutionItem,
+        type_id: TypeId,
+        self_type: &Type,
         ident: &Ident,
     ) -> Option<Result<PathResolutionItem, PathResolutionError>> {
-        // Extract type info
-        let (type_id, turbofish) = match intermediate_item {
-            IntermediatePathResolutionItem::Type(id, turbofish) => (*id, turbofish),
-            _ => return None,
-        };
-        let datatype = self.interner.get_type(type_id);
-        // Use concrete types from turbofish if present, otherwise fresh type variables
-        let generics = if let Some(turbofish) = turbofish {
-            turbofish.generics.iter().map(|t| t.contents.clone()).collect()
-        } else {
-            datatype.borrow().generic_types()
-        };
-        let self_type = Type::DataType(datatype, generics);
-
         // Look up constants matching the identifier
         let constants =
-            self.interner.lookup_trait_impl_constants_for_type(&self_type, ident.as_str());
+            self.interner.lookup_trait_impl_constants_for_type(self_type, ident.as_str());
 
         if constants.is_empty() {
             return None;

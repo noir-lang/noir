@@ -24,7 +24,6 @@ use crate::hir_def::expr::{
 use crate::node_interner::pusher::{HasLocation, PushedExpr};
 use crate::node_interner::{
     DefinitionId, DefinitionInfo, DefinitionKind, ExprId, TraitImplId, TraitImplKind, TypeAliasId,
-    TypeId,
 };
 use crate::{Kind, Type, TypeBindings, TypeVariable, TypeVariableId};
 use iter_extended::{btree_map, vecmap};
@@ -508,8 +507,9 @@ impl Elaborator<'_> {
 
     /// Resolve an unprefixed (single-segment) path to a local variable, or to a value item it
     /// names (global, function, enum-variant global, numeric type alias). The counterpart to
-    /// [`Self::resolve_prefixed_variable`]; a prefixed path's value fallback uses
-    /// [`Self::resolve_value_item`], which skips the local-variable lookup.
+    /// [`Self::resolve_prefixed_variable`], which resolves a prefixed path's last segment directly
+    /// in the already-resolved prefix ([`Self::resolve_value_in_module`] /
+    /// [`Self::resolve_value_in_type`]) and never looks for a local variable.
     pub(super) fn resolve_unprefixed_variable(
         &mut self,
         path: TypedPath,
@@ -526,20 +526,9 @@ impl Elaborator<'_> {
         Some(self.variable_resolution_from_path_value(ident_from_path, location))
     }
 
-    /// Resolve a path's last segment as a value item (a global, function, enum-variant global,
-    /// trait constant, or numeric type alias). Unlike [`Self::resolve_unprefixed_variable`] this does
-    /// not look for a local variable, so it is the value fallback for a prefixed path: its last
-    /// segment is not a method or trait item, and a prefixed path can never name a local variable.
-    pub(super) fn resolve_value_item(&mut self, path: TypedPath) -> Option<VariableResolution> {
-        let location = path.last_ident().location();
-        let ident = self.lookup_path_as_value(path);
-        self.variable_resolution_from_value_item(ident, location)
-    }
-
     /// Resolve a module-prefixed path's last segment as a value item, looked up directly in the
-    /// already-resolved prefix `module_id`. This is the module-prefix counterpart of
-    /// [`Self::resolve_value_item`]: it avoids re-resolving the whole path now that the prefix is
-    /// known to be a module.
+    /// already-resolved prefix `module_id`, avoiding re-resolving the whole path now that the prefix
+    /// is known to be a module. The module counterpart of [`Self::resolve_value_in_type`].
     pub(super) fn resolve_value_in_module(
         &mut self,
         module_id: ModuleId,
@@ -551,16 +540,16 @@ impl Elaborator<'_> {
     }
 
     /// Resolve a type-prefixed path's last segment as a value member (an enum variant or associated
-    /// constant) of the already-resolved type `type_id`. The type-prefix counterpart of
+    /// constant) of the already-resolved type `typ`. The type-prefix counterpart of
     /// [`Self::resolve_value_in_module`], avoiding re-resolving the whole path.
     pub(super) fn resolve_value_in_type(
         &mut self,
         last_segment: &TypedPathSegment,
-        type_id: TypeId,
+        typ: &Type,
         turbofish: Option<Turbofish>,
     ) -> Option<VariableResolution> {
         let location = last_segment.ident.location();
-        let ident = self.lookup_path_as_value_in_type(last_segment, type_id, turbofish);
+        let ident = self.lookup_path_as_value_in_type(last_segment, typ, turbofish);
         self.variable_resolution_from_value_item(ident, location)
     }
 

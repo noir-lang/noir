@@ -1812,12 +1812,17 @@ impl Elaborator<'_> {
             );
         };
 
-        // For the value fallback below: an enum variant or associated constant is resolved directly
-        // on a concrete type. Alias/primitive prefixes still fall back to re-resolving the path.
-        let value_fallback = match &path_resolution.item {
-            PathResolutionItem::Type(type_id) => Some((*type_id, turbofish.clone())),
-            _ => None,
-        };
+        // A broken prefix (e.g. a cyclic type alias) resolves to an error type; report its segment
+        // as unresolved rather than misattributing the failure to the (unresolvable) member.
+        if matches!(typ, Type::Error) {
+            let prefix = &path.segments[path.segments.len() - 2].ident;
+            self.push_err(PathResolutionError::Unresolved(prefix.clone()));
+            return None;
+        }
+
+        // Kept for the value fallback below (the method-lookup branches consume `typ`/`turbofish`).
+        let fallback_type = typ.clone();
+        let fallback_turbofish = turbofish.clone();
 
         let method_name = last_segment.ident.as_str();
 
@@ -1860,17 +1865,11 @@ impl Elaborator<'_> {
         };
 
         // The last segment isn't an inherent or qualified trait method on the type; it may still be
-        // an enum variant or an associated constant accessed as `Type::CONST`. For a concrete type
-        // resolve the member directly; an alias/primitive prefix re-resolves the whole path as a
-        // value. Either way the error is reported if it is none of these.
+        // an enum variant or an associated constant accessed as `Type::CONST`, resolved directly on
+        // the type. The error is reported if it is none of these.
         match trait_resolution {
             Some(resolution) => self.variable_from_trait_resolution(path.location, resolution),
-            None => match value_fallback {
-                Some((type_id, turbofish)) => {
-                    self.resolve_value_in_type(&last_segment, type_id, turbofish)
-                }
-                None => self.resolve_value_item(path),
-            },
+            None => self.resolve_value_in_type(&last_segment, &fallback_type, fallback_turbofish),
         }
     }
 
@@ -2227,9 +2226,9 @@ impl Elaborator<'_> {
     /// Resolve a [`TypedPath`] that has a prefix (more than one segment) to the item it names —
     /// fully: it always resolves the path, reports an error, or falls back to a value lookup, so
     /// the caller never needs a further fallback. [`Self::resolve_path_prefix`] classifies the
-    /// prefix once; the last segment is resolved against that classification, and anything that is
-    /// not a method/trait-item (an enum variant, a module value, an associated constant, …) is
-    /// resolved by [`Self::resolve_value_item`] on the whole path.
+    /// prefix once; the last segment is resolved against that classification directly in the
+    /// already-resolved prefix (a module value via [`Self::resolve_value_in_module`], an enum
+    /// variant or associated constant on a type via [`Self::resolve_value_in_type`]).
     ///
     /// Returns `None` only when an error has already been reported (an ambiguous trait method, or
     /// an unresolved name), so the caller should produce an error expression rather than retry.

@@ -161,15 +161,15 @@ impl Elaborator<'_> {
     }
 
     /// Like [`Self::lookup_path_as_value`], but resolves `segment` directly as a value member (an
-    /// enum variant or associated constant) of the already-resolved type `type_id`.
+    /// enum variant or associated constant) of the already-resolved type `typ`.
     pub(super) fn lookup_path_as_value_in_type(
         &mut self,
         segment: &TypedPathSegment,
-        type_id: TypeId,
+        typ: &Type,
         turbofish: Option<Turbofish>,
     ) -> Result<PathValue, ResolverError> {
         let location = segment.ident.location();
-        let item = self.use_value_in_type(segment, type_id, turbofish)?;
+        let item = self.use_value_in_type(segment, typ, turbofish)?;
         self.path_resolution_item_as_value(item, location)
     }
 

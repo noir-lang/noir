@@ -1229,6 +1229,28 @@ fn cyclic_type_aliases_referenced_from_comptime_global_do_not_stack_overflow() {
 }
 
 #[test]
+fn resolves_trait_associated_constant_through_type_alias() {
+    let src = r#"
+    pub trait Trait {
+        let N: u32;
+    }
+
+    struct Foo {}
+
+    impl Trait for Foo {
+        let N: u32 = 42;
+    }
+
+    type Alias = Foo;
+
+    fn main() {
+        let _ = Alias::N;
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
 fn unused_expression_result_correct_span() {
     let src = r#"
     pub type Double<let N: u32>: u32 = N * 2;
