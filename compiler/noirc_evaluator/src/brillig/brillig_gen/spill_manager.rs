@@ -435,16 +435,19 @@ impl SpillManager {
         };
     }
 
-    /// Ensure a value has a permanent spill slot.
+    /// Promote an existing spill record to `Permanent`: the heap slot becomes the value's
+    /// authoritative copy, so it is also dropped from the LRU (an in-memory value must never
+    /// be an eviction victim).
     ///
-    /// Any existing record — regardless of its current state — is promoted to
-    /// `Permanent` (the slot is the source of truth and the value is not in a register).
-    /// Promoting a `PermanentReloaded` value happens in place, so this also drops it from the
-    /// LRU to preserve the invariant that spilled values are never eviction candidates.
+    /// This updates spill bookkeeping only. A `*Reloaded` value still physically occupies a
+    /// register at this point; whether that register is freed or kept alive is the caller's
+    /// decision — see `BrilligBlock::spill_value`.
     ///
     /// # Returns
-    /// * `true` if a record already existed (caller should skip further processing),
-    /// * `false` if no record exists (first encounter — caller must allocate a slot).
+    /// * `true` — a record already existed, so the value already owns a permanent slot; the
+    ///   caller can return early without allocating a slot or emitting a store.
+    /// * `false` — no record existed: this is the value's first spill, so the caller must
+    ///   allocate a slot and record the spill itself.
     pub(crate) fn ensure_permanent_spill(&mut self, value_id: &ValueId) -> bool {
         let Some(record) = self.records.get_mut(value_id) else {
             return false;
