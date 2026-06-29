@@ -287,7 +287,6 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
             let was_transient_reloaded = sm.is_transient_reloaded(&value_id);
             if sm.ensure_permanent_spill(&value_id) {
                 if was_transient_reloaded {
-                    sm.remove_from_lru(&value_id);
                     self.variables.remove_variable(
                         &value_id,
                         self.function_context,

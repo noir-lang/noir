@@ -118,9 +118,10 @@ pub(crate) struct SpillRecord {
 /// Values are ordered by the time they were last touched: the least-recently-used value is
 /// the first element of `order`, the most-recently-used the last.
 ///
-/// Invariant: every tracked value is currently in a register. A value is removed from the LRU
-/// when it is spilled (`BrilligBlock::spill_value`), so `order` and `last_used` only ever hold
-/// eviction candidates; `SpillManager::lru_victim` asserts this.
+/// Invariant: when `SpillManager::lru_victim` consults the LRU, no tracked value is spilled.
+/// Every transition to a spilled state removes the value from the LRU — `ensure_permanent_spill`
+/// does so directly, and `BrilligBlock::spill_value` calls `remove_from_lru` before recording a
+/// spill — so the order only ever yields values that are in a register. `lru_victim` asserts it.
 #[derive(Default)]
 struct Lru {
     /// Logical clock, incremented once per `touch`. Strictly increasing, so no two entries
@@ -438,6 +439,8 @@ impl SpillManager {
     ///
     /// Any existing record — regardless of its current state — is promoted to
     /// `Permanent` (the slot is the source of truth and the value is not in a register).
+    /// Promoting a `PermanentReloaded` value happens in place, so this also drops it from the
+    /// LRU to preserve the invariant that spilled values are never eviction candidates.
     ///
     /// # Returns
     /// * `true` if a record already existed (caller should skip further processing),
@@ -447,6 +450,7 @@ impl SpillManager {
             return false;
         };
         record.status = SpillStatus::Permanent;
+        self.remove_from_lru(value_id);
         true
     }
 }
@@ -814,5 +818,27 @@ mod tests {
         assert_eq!(sm.records[&v2].status, SpillStatus::PermanentReloaded);
         assert!(sm.ensure_permanent_spill(&v2));
         assert_eq!(sm.records[&v2].status, SpillStatus::Permanent);
+    }
+
+    /// Promoting a `PermanentReloaded` value back to `Permanent` must drop it from the LRU,
+    /// otherwise a spilled value lingers as an eviction candidate. In real codegen this
+    /// happens for a JmpIf condition that is re-spilled by `spill_non_param_live_ins` and
+    /// then reloaded, with `ensure_register_capacity` querying `lru_victim` in between.
+    #[test]
+    fn ensure_permanent_spill_drops_reloaded_value_from_lru() {
+        let mut sm = SpillManager::new();
+        let v0 = Id::test_new(0);
+
+        let off = sm.allocate_spill_offset();
+        sm.record_permanent_spill(v0, off, test_var(0));
+        sm.unmark_spilled(&v0); // PermanentReloaded: currently in a register
+        sm.touch(v0); // tracked in the LRU
+
+        assert!(!sm.is_transient_reloaded(&v0));
+        assert!(sm.ensure_permanent_spill(&v0));
+        assert!(sm.is_spilled(&v0));
+
+        // The value is spilled again, so it must no longer be an eviction candidate.
+        assert_eq!(sm.lru_victim(), None);
     }
 }
