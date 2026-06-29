@@ -28,7 +28,7 @@ use crate::meta::derive_via;
 /// }
 /// ```
 ///
-/// Each named method must take a single `self` argument and return nothing.
+/// Each named method must take a single `&self` argument and return nothing.
 #[derive_via(derive_validate)]
 // docs:start:validate-trait
 pub trait Validate {
