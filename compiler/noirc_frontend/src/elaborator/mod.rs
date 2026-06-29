@@ -822,6 +822,19 @@ impl<'context> Elaborator<'context> {
         None
     }
 
+    /// Like [`Self::resolve_trait_by_path`] but returns `None` without emitting an error when the
+    /// path does not resolve to a trait. Used to opportunistically locate a well-known trait (such
+    /// as `Validate`) which may be absent in minimal programs compiled without the standard library.
+    pub(super) fn try_resolve_trait_by_path(&mut self, path: TypedPath) -> Option<TraitId> {
+        match self.resolve_path_as_type(path) {
+            Ok(PathResolution { item: PathResolutionItem::Trait(trait_id), errors }) => {
+                self.push_errors(errors);
+                Some(trait_id)
+            }
+            _ => None,
+        }
+    }
+
     /// Resolve a path to the [`FuncId`] of the function it refers to, pushing a diagnostic and
     /// returning `None` if the path does not resolve or resolves to a non-function item.
     ///

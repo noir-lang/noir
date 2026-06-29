@@ -202,10 +202,13 @@ impl CrateGraph {
     }
 
     pub fn stdlib_crate_id(&self) -> &CrateId {
-        self.arena
-            .keys()
-            .find(|crate_id| crate_id.is_stdlib())
-            .expect("ICE: The stdlib should exist in the CrateGraph")
+        self.try_stdlib_crate_id().expect("ICE: The stdlib should exist in the CrateGraph")
+    }
+
+    /// The stdlib crate id, or `None` when the graph has no stdlib (e.g. minimal programs compiled
+    /// in tests without it). Prefer this over [`Self::stdlib_crate_id`] where absence is expected.
+    pub fn try_stdlib_crate_id(&self) -> Option<&CrateId> {
+        self.arena.keys().find(|crate_id| crate_id.is_stdlib())
     }
 
     pub fn add_crate_root(&mut self, file_id: FileId) -> CrateId {

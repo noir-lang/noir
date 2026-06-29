@@ -16,12 +16,14 @@ use noirc_errors::Location;
 use crate::{
     Kind, ResolvedGeneric, Type, TypeVariable,
     ast::{
-        BlockExpression, FunctionKind, Ident, IdentOrQuotedType, NoirFunction, Param,
+        BlockExpression, Expression, ExpressionKind, FunctionKind, Ident, IdentOrQuotedType,
+        MethodCallExpression, NoirFunction, Param, Path, Statement, StatementKind,
         UnresolvedGeneric, UnresolvedGenerics, UnresolvedTraitConstraint, UnresolvedType,
         UnresolvedTypeData,
     },
     elaborator::{
         UnstableFeature, lints,
+        path_resolution::{TypedPath, TypedPathSegment},
         types::{WildcardAllowed, WildcardDisallowedContext},
     },
     hir::{
@@ -39,7 +41,8 @@ use crate::{
         traits::{Impl, TraitConstraint},
     },
     node_interner::{
-        DefinitionKind, DependencyId, FuncId, FunctionModifiers, ImplId, TraitId, TraitImplId,
+        DefinitionKind, DependencyId, FuncId, FunctionModifiers, ImplId, NodeInterner, TraitId,
+        TraitImplId,
     },
     shared::Visibility,
 };
@@ -638,7 +641,7 @@ impl Elaborator<'_> {
                 &mut parameter_names_in_list,
             );
 
-            if is_entry_point && !is_identifier_pattern(&pattern) {
+            if is_entry_point && !is_identifier_pattern(self.interner, &pattern) {
                 self.push_err(TypeCheckError::InvalidPatternForEntryPoint {
                     location: pattern.location(),
                 });
@@ -702,6 +705,73 @@ impl Elaborator<'_> {
         self.run_lint(|_| lints::check_varargs(func, modifiers).map(Into::into));
     }
 
+    /// For an entry-point function, prepend a `param.validate()` call to its body for each parameter
+    /// whose type implements [`Validate`][std::validate::Validate], so that values arriving from an
+    /// untrusted source (circuit inputs, oracle results) are checked before the body runs.
+    /// Parameters whose type does not implement `Validate` are left alone here (a separate lint
+    /// flags them). The body is returned untouched for non-entry-point functions.
+    ///
+    /// The calls are synthesized as AST and elaborated with the rest of the body, so ordinary name
+    /// and method resolution applies; entry-point parameters are guaranteed to be simple
+    /// identifiers (see `InvalidPatternForEntryPoint`).
+    #[tracing::instrument(level = "trace", skip_all)]
+    fn inject_entry_point_validation(
+        &mut self,
+        func_meta: &FuncMeta,
+        mut body: BlockExpression,
+    ) -> BlockExpression {
+        if !func_meta.is_entry_point {
+            return body;
+        }
+
+        let location = func_meta.location;
+        // Resolve `std::validate::Validate` explicitly in the stdlib crate rather than relying on
+        // an unqualified name, which could resolve to a different `Validate` in scope. Absent in
+        // minimal programs compiled without the stdlib, in which case there is nothing to inject.
+        let Some(stdlib) = self.crate_graph.try_stdlib_crate_id().copied() else {
+            return body;
+        };
+        let segment = |name: &str| {
+            TypedPathSegment::without_generics(Ident::new(name.to_string(), location), location)
+        };
+        let validate_path = TypedPath::resolved_in_crate(
+            vec![segment("validate"), segment("Validate")],
+            stdlib,
+            location,
+        );
+        let Some(trait_id) = self.try_resolve_trait_by_path(validate_path) else {
+            return body;
+        };
+
+        let mut prelude = Vec::new();
+        for (pattern, typ, _visibility) in func_meta.parameters.iter() {
+            if self.interner.lookup_trait_implementation(typ, trait_id, &[], &[]).is_err() {
+                continue;
+            }
+            let Some(name) = identifier_pattern_name(self.interner, pattern).map(str::to_string)
+            else {
+                continue;
+            };
+            let object = Expression::new(
+                ExpressionKind::Variable(Path::from_single(name, location)),
+                location,
+            );
+            let call = MethodCallExpression {
+                object,
+                method_name: Ident::new("validate".to_string(), location),
+                generics: None,
+                arguments: Vec::new(),
+                is_macro_call: false,
+            };
+            let expr = Expression::new(ExpressionKind::MethodCall(Box::new(call)), location);
+            prelude.push(Statement { kind: StatementKind::Semi(expr), location });
+        }
+
+        prelude.append(&mut body.statements);
+        body.statements = prelude;
+        body
+    }
+
     /// Elaborates a function's body and performs type checking.
     ///
     /// This is the second pass of function elaboration that processes the function body,
@@ -713,7 +783,7 @@ impl Elaborator<'_> {
         let func_meta =
             func_meta.expect("FuncMetas should be declared before a function is elaborated");
 
-        let (kind, body, body_location) = match func_meta.take_body() {
+        let (kind, mut body, body_location) = match func_meta.take_body() {
             FunctionBody::Unresolved(kind, body, location) => (kind, body, location),
             FunctionBody::Resolved => return,
             // Do not error for the still-resolving case. If there is a dependency cycle,
@@ -792,6 +862,7 @@ impl Elaborator<'_> {
                 (HirFunction::empty(), Type::Error)
             }
             FunctionKind::Normal => {
+                body = self.inject_entry_point_validation(&func_meta, body);
                 let return_type = func_meta.return_type();
                 let (block, body_type) = self.elaborate_block(body, Some(return_type));
                 let expr_id = self.interner.push_expr_full(block, body_location, body_type.clone());
@@ -851,10 +922,18 @@ impl Elaborator<'_> {
 
 /// Whether a pattern binds the whole value to a single name. ABI generation requires this for
 /// entry point parameters since each parameter is keyed by a single name.
-fn is_identifier_pattern(pattern: &HirPattern) -> bool {
+fn is_identifier_pattern(interner: &NodeInterner, pattern: &HirPattern) -> bool {
+    identifier_pattern_name(interner, pattern).is_some()
+}
+
+/// The name bound by a (possibly `mut`) identifier pattern, or `None` for tuple/struct patterns.
+fn identifier_pattern_name<'a>(
+    interner: &'a NodeInterner,
+    pattern: &HirPattern,
+) -> Option<&'a str> {
     match pattern {
-        HirPattern::Identifier(_) => true,
-        HirPattern::Mutable(inner, _) => is_identifier_pattern(inner),
-        HirPattern::Tuple(..) | HirPattern::Struct(..) => false,
+        HirPattern::Identifier(ident) => Some(interner.definition_name(ident.id)),
+        HirPattern::Mutable(inner, _) => identifier_pattern_name(interner, inner),
+        HirPattern::Tuple(..) | HirPattern::Struct(..) => None,
     }
 }
