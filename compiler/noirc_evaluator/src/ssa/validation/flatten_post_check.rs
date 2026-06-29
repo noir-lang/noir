@@ -196,6 +196,9 @@ fn is_predicate_guard(
 /// - `value` and `p` are different casts of the same source: the signed-division
 ///   expansion, for example, derives both the branch predicate and the merge
 ///   multiplier as separate casts of one sign value.
+/// - `value` is an `IfElse` merge `then_condition * then_value + else_condition *
+///   else_value`: the sum is `0` whenever `p` is `0` exactly when each product term
+///   is, and a product term is `0` whenever either of its factors is.
 fn is_predicate(dfg: &crate::ssa::ir::dfg::DataFlowGraph, value: ValueId, p: ValueId) -> bool {
     let value = strip_casts(dfg, value);
     let p = strip_casts(dfg, p);
@@ -203,10 +206,17 @@ fn is_predicate(dfg: &crate::ssa::ir::dfg::DataFlowGraph, value: ValueId, p: Val
         return true;
     }
     if let crate::ssa::ir::value::Value::Instruction { instruction, .. } = &dfg[value] {
-        if let Instruction::Binary(Binary { lhs, rhs, operator: BinaryOp::Mul { .. } }) =
-            &dfg[*instruction]
-        {
-            return is_predicate(dfg, *lhs, p) || is_predicate(dfg, *rhs, p);
+        match &dfg[*instruction] {
+            Instruction::Binary(Binary { lhs, rhs, operator: BinaryOp::Mul { .. } }) => {
+                return is_predicate(dfg, *lhs, p) || is_predicate(dfg, *rhs, p);
+            }
+            Instruction::IfElse { then_condition, then_value, else_condition, else_value } => {
+                return (is_predicate(dfg, *then_condition, p)
+                    || is_predicate(dfg, *then_value, p))
+                    && (is_predicate(dfg, *else_condition, p)
+                        || is_predicate(dfg, *else_value, p));
+            }
+            _ => {}
         }
     }
     false
@@ -238,7 +248,40 @@ fn escape_error(function: &Function, operand: ValueId, call_stack: CallStack) ->
 #[cfg(test)]
 mod tests {
     use super::verify_side_effect_predicates;
+    use crate::ssa::interpreter::value::Value;
     use crate::ssa::ssa_gen::Ssa;
+
+    #[test]
+    fn ifelse_on_the_multiplier_side_is_recognized() {
+        // Here the `IfElse` sits on the *predicate side*: it is the multiplier of a
+        // `mul` guard, not the merge of the tainted value. `is_predicate`'s `IfElse`
+        // arm sees that each branch of `if v1 then v0 else v0` is `0` whenever `v0`
+        // is, so the merge is `0` whenever `v0` is, and the guard is recognized.
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u1, v1: u1, v2: u16):
+            enable_side_effects v0
+            v3 = cast v2 as u32
+            v4 = add v3, u32 1
+            enable_side_effects u1 1
+            v5 = not v1
+            v6 = if v1 then v0 else (if v5) v0
+            v7 = cast v6 as u32
+            v8 = mul v7, v4
+            return v8
+        }
+        ";
+        let ssa = Ssa::from_str_no_validation(src).unwrap();
+        assert!(verify_side_effect_predicates(&ssa).is_ok());
+
+        // `v6 = v0`, so with `v0 = 0` the escaping value really is `0`.
+        let disabled =
+            ssa.interpret(vec![Value::bool(false), Value::bool(true), Value::u16(7)]).unwrap();
+        assert_eq!(disabled, vec![Value::u32(0)]);
+        let enabled =
+            ssa.interpret(vec![Value::bool(true), Value::bool(true), Value::u16(7)]).unwrap();
+        assert_eq!(enabled, vec![Value::u32(8)]);
+    }
 
     #[test]
     fn rejects_ungated_escape_to_return() {
