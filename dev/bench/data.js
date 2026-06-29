@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1782754226074,
+  "lastUpdate": 1782770953662,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23081,48 +23081,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": false,
-          "id": "97720eb7c5cdc15268a7db97e8eaa51f98bcc1ab",
-          "message": "fix: Implement attributes on trait methods (#13144)",
-          "timestamp": "2026-06-23T12:12:45Z",
-          "tree_id": "b80ecb4a47b02f1c5e1d7ef8f408065673990f64",
-          "url": "https://github.com/noir-lang/noir/commit/97720eb7c5cdc15268a7db97e8eaa51f98bcc1ab"
-        },
-        "date": 1782217945667,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 173572,
-            "range": "± 520",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 141214,
-            "range": "± 1285",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2647692,
-            "range": "± 1516",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "jfecher11@gmail.com",
-            "name": "jfecher",
-            "username": "jfecher"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
           "id": "23042def6557fc3852781164bbe2e633523b8390",
           "message": "fix: Monomorphization error when calling a disabled function (#13145)",
           "timestamp": "2026-06-23T12:24:42Z",
@@ -25164,6 +25122,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2655137,
             "range": "± 1473",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "2ae554dec36f258430b4e0411407d59036f73ea0",
+          "message": "fix: Preserve fully-qualified trait call syntax if it clashes with inherent method (#13207)",
+          "timestamp": "2026-06-29T21:47:49Z",
+          "tree_id": "0c4b878e260dcc948953a57714caf831f089f75c",
+          "url": "https://github.com/noir-lang/noir/commit/2ae554dec36f258430b4e0411407d59036f73ea0"
+        },
+        "date": 1782770875219,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 126885,
+            "range": "± 433",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 113409,
+            "range": "± 887",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 3039048,
+            "range": "± 5390",
             "unit": "ns/iter"
           }
         ]
