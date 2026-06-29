@@ -296,3 +296,87 @@ where
         self.8.validate();
     }
 }
+impl<A, B, C, D, E, F, G, H, I, J> Validate for (A, B, C, D, E, F, G, H, I, J)
+where
+    A: Validate,
+    B: Validate,
+    C: Validate,
+    D: Validate,
+    E: Validate,
+    F: Validate,
+    G: Validate,
+    H: Validate,
+    I: Validate,
+    J: Validate,
+{
+    fn validate(&self) {
+        self.0.validate();
+        self.1.validate();
+        self.2.validate();
+        self.3.validate();
+        self.4.validate();
+        self.5.validate();
+        self.6.validate();
+        self.7.validate();
+        self.8.validate();
+        self.9.validate();
+    }
+}
+impl<A, B, C, D, E, F, G, H, I, J, K> Validate for (A, B, C, D, E, F, G, H, I, J, K)
+where
+    A: Validate,
+    B: Validate,
+    C: Validate,
+    D: Validate,
+    E: Validate,
+    F: Validate,
+    G: Validate,
+    H: Validate,
+    I: Validate,
+    J: Validate,
+    K: Validate,
+{
+    fn validate(&self) {
+        self.0.validate();
+        self.1.validate();
+        self.2.validate();
+        self.3.validate();
+        self.4.validate();
+        self.5.validate();
+        self.6.validate();
+        self.7.validate();
+        self.8.validate();
+        self.9.validate();
+        self.10.validate();
+    }
+}
+impl<A, B, C, D, E, F, G, H, I, J, K, L> Validate for (A, B, C, D, E, F, G, H, I, J, K, L)
+where
+    A: Validate,
+    B: Validate,
+    C: Validate,
+    D: Validate,
+    E: Validate,
+    F: Validate,
+    G: Validate,
+    H: Validate,
+    I: Validate,
+    J: Validate,
+    K: Validate,
+    L: Validate,
+{
+    fn validate(&self) {
+        self.0.validate();
+        self.1.validate();
+        self.2.validate();
+        self.3.validate();
+        self.4.validate();
+        self.5.validate();
+        self.6.validate();
+        self.7.validate();
+        self.8.validate();
+        self.9.validate();
+        self.10.validate();
+        self.11.validate();
+    }
+}
