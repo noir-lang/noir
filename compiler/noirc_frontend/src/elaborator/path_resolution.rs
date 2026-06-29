@@ -653,6 +653,10 @@ impl Elaborator<'_> {
 
             let current_module_id_is_type;
 
+            // The module `prev_segment` is declared in (its visibility is checked against this),
+            // captured before stepping `current_module_id` into the module/type it refers to.
+            let prev_segment_module_id = current_module_id;
+
             (current_module_id, current_module_id_is_type, intermediate_item) = match typ {
                 ModuleDefId::ModuleId(id) => {
                     if prev_segment_generics.is_some() {
@@ -713,7 +717,7 @@ impl Elaborator<'_> {
                 || item_in_module_is_visible(
                     self.def_maps,
                     visibility_module,
-                    current_module_id,
+                    prev_segment_module_id,
                     visibility,
                 ))
             {
