@@ -45,7 +45,7 @@ pub enum Value {
 /// * Brillig stores native fixed-width unsigned registers (`u8..u128`), always in range, wrapping
 ///   on overflow. Signed integers are the unsigned bit pattern plus signed operations.
 ///
-/// "In range" is therefore a computed predicate ([`NumericValue::is_in_range`]): the stored field is
+/// "In range" is therefore a computed predicate: the stored field is
 /// less than `2^bit_size`. An in-range field is the ordinary value; an out-of-range field only
 /// arises in ACIR mode, where unchecked arithmetic does not reduce.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
