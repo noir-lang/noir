@@ -15,6 +15,17 @@ pub enum ManifestError {
     #[error("Cannot read file {0} - does it exist?")]
     ReadFailed(PathBuf),
 
+    #[error("Cannot write to file {0}")]
+    WriteFailed(PathBuf),
+
+    #[error(
+        "A dependency named `{0}` already exists. Pass `--override` to replace it, or remove it from Nargo.toml first"
+    )]
+    DependencyAlreadyExists(String),
+
+    #[error("The `dependencies` section in {0} is not a table")]
+    InvalidDependenciesTable(PathBuf),
+
     #[error("Nargo.toml is missing a parent directory")]
     MissingParent,
 
@@ -27,6 +38,10 @@ pub enum ManifestError {
     /// Package manifest is unreadable.
     #[error("Nargo.toml is badly formed, could not parse.\n\n{}", .0.message())]
     MalformedFile(#[from] toml::de::Error),
+
+    /// Package manifest could not be parsed while editing it.
+    #[error("Nargo.toml is badly formed, could not parse.\n\n{0}")]
+    MalformedFileEdit(#[from] toml_edit::TomlError),
 
     #[error(
         "Unexpected workspace definition found in {0}. If you're attempting to load this as a dependency, you may need to add a `directory` field to your `Nargo.toml` to show which package within the workspace to use"

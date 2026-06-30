@@ -18,6 +18,7 @@ use color_eyre::eyre;
 
 use crate::errors::CliError;
 
+mod add_cmd;
 mod check_cmd;
 pub mod compile_cmd;
 mod dap_cmd;
@@ -26,6 +27,7 @@ mod doc_cmd;
 mod execute_cmd;
 mod expand_cmd;
 mod export_cmd;
+mod fetch_cmd;
 mod fmt_cmd;
 mod fuzz_cmd;
 mod generate_completion_script_cmd;
@@ -107,6 +109,8 @@ enum NargoCommand {
     Interpret(interpret_cmd::InterpretCommand),
     New(new_cmd::NewCommand),
     Init(init_cmd::InitCommand),
+    Add(add_cmd::AddCommand),
+    Fetch(fetch_cmd::FetchCommand),
     Execute(execute_cmd::ExecuteCommand),
     Export(export_cmd::ExportCommand),
     Debug(debug_cmd::DebugCommand),
@@ -149,6 +153,13 @@ pub(crate) fn start_cli() -> eyre::Result<()> {
     match command {
         NargoCommand::New(args) => new_cmd::run(args, config),
         NargoCommand::Init(args) => init_cmd::run(args, config),
+        NargoCommand::Add(args) => with_workspace(args, config, add_cmd::run),
+        NargoCommand::Fetch(args) => {
+            // Snapshot the dependency cache before resolution downloads anything, so the command
+            // can report exactly what was fetched during this run.
+            let fetched_before = nargo_toml::list_cached_git_dependencies();
+            with_workspace(args, config, move |_args, _workspace| fetch_cmd::run(fetched_before))
+        }
         NargoCommand::Check(args) => with_workspace(args, config, check_cmd::run),
         NargoCommand::Compile(args) => compile_with_maybe_dummy_workspace(args, config),
         NargoCommand::Interpret(args) => with_workspace(args, config, interpret_cmd::run),
@@ -192,7 +203,7 @@ fn read_workspace(
     Ok(workspace)
 }
 
-/// "with_workspace", but use a dummy workspace when 'debug_compile_stdin' is enabled
+/// "`with_workspace`", but use a dummy workspace when '`debug_compile_stdin`' is enabled
 #[allow(clippy::field_reassign_with_default)]
 fn compile_with_maybe_dummy_workspace(
     cmd: compile_cmd::CompileCommand,
@@ -315,17 +326,56 @@ mod tests {
     use super::NargoCli;
     use clap::Parser;
 
+    fn parse_cli(cmd: &str) -> Result<NargoCli, clap::Error> {
+        NargoCli::try_parse_from(cmd.split_ascii_whitespace())
+    }
+
     #[test]
     fn test_parse_target_dir() {
         let cmd = "nargo --program-dir . --target-dir ../foo/bar execute";
-        let cli = NargoCli::try_parse_from(cmd.split_ascii_whitespace()).expect("should parse");
+        let cli = parse_cli(cmd).expect("should parse");
 
         let target_dir = cli.config.target_dir.expect("should parse target dir");
         assert!(target_dir.is_absolute(), "should be made absolute");
         assert!(target_dir.ends_with("foo/bar"));
 
         let cmd = "nargo --program-dir . execute";
-        let cli = NargoCli::try_parse_from(cmd.split_ascii_whitespace()).expect("should parse");
+        let cli = parse_cli(cmd).expect("should parse");
         assert!(cli.config.target_dir.is_none());
+    }
+
+    #[test]
+    fn add_requires_a_source() {
+        parse_cli("nargo add my_lib").expect_err("either --path or --git is required");
+    }
+
+    #[test]
+    fn add_path_and_git_conflict() {
+        parse_cli("nargo add --path ../lib --git https://example.com/repo --tag v1")
+            .expect_err("--path and --git are mutually exclusive");
+    }
+
+    #[test]
+    fn add_git_requires_tag() {
+        parse_cli("nargo add --git https://example.com/repo").expect_err("--git requires --tag");
+    }
+
+    #[test]
+    fn add_rejects_scp_style_git_url() {
+        parse_cli("nargo add --git git@github.com:noir-lang/sha256.git --tag v0.3.0")
+            .expect_err("scp-style SSH URLs are not valid URLs and should be rejected");
+    }
+
+    #[test]
+    fn add_accepts_path() {
+        parse_cli("nargo add --path ../lib").expect("a path dependency should parse");
+    }
+
+    #[test]
+    fn add_accepts_git_with_tag_directory_and_override() {
+        parse_cli(
+            "nargo add my_alias --git https://example.com/repo --tag v1 --directory crates/lib --override",
+        )
+        .expect("a git dependency with all options should parse");
     }
 }

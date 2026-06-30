@@ -26,7 +26,7 @@ use crate::{
             instruction::{Instruction, InstructionId, Intrinsic},
             value::ValueId,
         },
-        opt::{LoopOrder, Loops},
+        opt::{LoopBounds, LoopOrder, Loops},
         ssa_gen::Ssa,
     },
 };
@@ -36,7 +36,14 @@ impl Ssa {
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn evaluate_static_assert_and_assert_constant(self) -> Result<Ssa, RuntimeError> {
         let error_on_failure = true;
-        self.evaluate_static_assert_and_assert_constant_helper(error_on_failure)
+        let ssa = self.evaluate_static_assert_and_assert_constant_helper(error_on_failure)?;
+
+        #[cfg(debug_assertions)]
+        for function in ssa.functions.values() {
+            evaluate_static_assert_and_assert_constant_post_check(function);
+        }
+
+        Ok(ssa)
     }
 
     /// See [`evaluate_static_assert_and_assert_constant`][self] module for more information.
@@ -101,6 +108,31 @@ impl Function {
     }
 }
 
+/// Post-check condition for [`Ssa::evaluate_static_assert_and_assert_constant`].
+///
+/// Panics if a call to `static_assert` or `assert_constant` remains in a reachable block.
+/// Unlike the lenient [`Ssa::try_evaluate_static_assert_and_assert_constant`], the strict
+/// variant either evaluates and removes every such call or errors, so any survivor would
+/// otherwise only be caught at ACIR generation.
+#[cfg(debug_assertions)]
+fn evaluate_static_assert_and_assert_constant_post_check(function: &Function) {
+    use crate::ssa::ir::value::Value;
+
+    super::checks::for_each_instruction(function, |instruction, dfg| {
+        if let Instruction::Call { func, .. } = instruction
+            && let Value::Intrinsic(
+                intrinsic @ (Intrinsic::StaticAssert | Intrinsic::AssertConstant),
+            ) = &dfg[*func]
+        {
+            panic!(
+                "Call to {intrinsic} remains in function {} {} after `static_assert` and `assert_constant` evaluation",
+                function.name(),
+                function.id(),
+            );
+        }
+    });
+}
+
 /// Returns all of a function's block that are part of empty loops.
 fn get_blocks_within_empty_loop(function: &Function) -> HashSet<BasicBlockId> {
     let loops = Loops::find_all(function, LoopOrder::OutsideIn);
@@ -114,13 +146,9 @@ fn get_blocks_within_empty_loop(function: &Function) -> HashSet<BasicBlockId> {
         };
         let const_bounds = loop_.get_const_bounds(&function.dfg, pre_header, |v| v);
 
-        let does_execute = const_bounds
-            .and_then(|(lower_bound, upper_bound)| {
-                upper_bound.reduce(lower_bound, |u, l| u > l, |u, l| u > l)
-            })
-            // We default to `true` if the bounds are dynamic so that we still
-            // evaluate static assertion in dynamic loops.
-            .unwrap_or(true);
+        // We default to `true` if the bounds are dynamic so that we still
+        // evaluate static assertion in dynamic loops.
+        let does_execute = const_bounds.is_none_or(LoopBounds::loop_executes);
 
         if !does_execute {
             blocks_within_empty_loop.extend(loop_.blocks);
@@ -182,6 +210,10 @@ fn evaluate_assert_constant(
     arguments: &[ValueId],
     error_on_failure: bool,
 ) -> Result<bool, RuntimeError> {
+    if arguments.is_empty() {
+        panic!("ICE: assert_constant called with no arguments")
+    }
+
     if arguments.iter().all(|arg| function.dfg.is_constant(*arg)) {
         Ok(false)
     } else if error_on_failure {
@@ -193,7 +225,7 @@ fn evaluate_assert_constant(
 }
 
 /// Evaluate a call to `static_assert`, returning an error if the value is false
-/// or not constant (see assert_constant).
+/// or not constant (see `assert_constant`).
 ///
 /// When it passes, Ok(false) is returned. This signifies a
 /// success but also that the instruction need not be reinserted into the block being unrolled
@@ -368,6 +400,92 @@ mod tests {
     }
 
     #[test]
+    fn do_not_fail_on_assert_constant_in_empty_eq_guarded_loop() {
+        // Regression for noir-lang/noir-claude#1365: `while i == 4` with `i` starting at 0 never
+        // executes, but the `eq v0, u32 4` header yields bounds `[0, 5)`. Classifying execution
+        // as `upper > lower` would treat this skipped body as live and evaluate the
+        // `assert_constant` inside it, raising a spurious runtime error. The `Equal` bound kind
+        // makes `lower + 1 == upper` (0 + 1 != 5) read as "does not execute", so the call is
+        // removed instead.
+        let src = r"
+        acir(inline) fn main f0 {
+          b0():
+            v2 = call f1() -> [Field; 0]
+            jmp b1(u32 0)
+          b1(v0: u32):
+            v4 = eq v0, u32 4
+            jmpif v4 then: b2(), else: b3()
+          b2():
+            call assert_constant(v2)
+            v7 = unchecked_add v0, u32 1
+            jmp b1(v7)
+          b3():
+            return
+        }
+        brillig(inline) fn foo f1 {
+          b0():
+            v0 = make_array [] : [Field; 0]
+            return v0
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.evaluate_static_assert_and_assert_constant().unwrap();
+
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0():
+            v2 = call f1() -> [Field; 0]
+            jmp b1(u32 0)
+          b1(v0: u32):
+            v5 = eq v0, u32 4
+            jmpif v5 then: b2(), else: b3()
+          b2():
+            v7 = unchecked_add v0, u32 1
+            jmp b1(v7)
+          b3():
+            return
+        }
+        brillig(inline) fn foo f1 {
+          b0():
+            v0 = make_array [] : [Field; 0]
+            return v0
+        }
+        ");
+    }
+
+    #[test]
+    fn fail_on_static_assert_in_live_not_equal_loop() {
+        // Regression for noir-lang/noir-claude#1397: a `!=` guarded loop whose body is on the
+        // `else` branch executes whenever `lower != upper`. Here the induction variable starts at
+        // 5 and the guard is `eq v0, u8 4`, so the body runs (5 != 4) and must reach the failing
+        // `static_assert(false)`.
+        let src = r#"
+        brillig(inline) fn main f0 {
+          b0():
+            jmp b1(u8 5)
+          b1(v0: u8):
+            v1 = eq v0, u8 4
+            jmpif v1 then: b3(), else: b2()
+          b2():
+            v2 = make_array b"should fail"
+            v3 = make_array b"{\"kind\":\"string\",\"length\":11}"
+            call static_assert(u1 0, v2, v3, u1 0)
+            v4 = unchecked_sub v0, u8 1
+            jmp b1(v4)
+          b3():
+            return
+        }
+        "#;
+        let ssa = Ssa::from_str(src).unwrap();
+        let Err(RuntimeError::StaticAssertFailed { message, .. }) =
+            ssa.evaluate_static_assert_and_assert_constant()
+        else {
+            panic!("Expected a static assert failure");
+        };
+        assert_eq!(message, "should fail");
+    }
+
+    #[test]
     fn fail_on_assert_constant_in_dynamic_loop() {
         let src = r"
         acir(inline) fn main f0 {
@@ -473,5 +591,20 @@ mod tests {
         else {
             panic!("Expected a static assert dynamic message failure");
         };
+    }
+
+    #[test]
+    #[should_panic(expected = "remains in function")]
+    #[cfg(debug_assertions)]
+    fn post_check_detects_remaining_assert_constant() {
+        let src = r"
+        acir(inline) fn main f0 {
+          b0(v0: Field):
+            call assert_constant(v0)
+            return
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        super::evaluate_static_assert_and_assert_constant_post_check(ssa.main());
     }
 }

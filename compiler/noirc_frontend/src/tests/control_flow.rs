@@ -96,6 +96,63 @@ fn break_and_continue_outside_loop() {
 }
 
 #[test]
+fn break_in_while_condition_without_enclosing_loop() {
+    // A `break` in a `while` condition targets the *enclosing* loop (the condition is the loop
+    // guard, evaluated outside the while's body scope, as in SSA codegen and the comptime
+    // interpreter). With no enclosing loop it is a break outside any loop, which must be a clean
+    // error rather than a backend panic.
+    let src = r#"
+        pub unconstrained fn foo(cond: bool) {
+            let mut i = 0;
+            while ({
+                if cond {
+                    break;
+                    ^^^^^^ break is only allowed within loops
+                }
+                i < 3
+            }) {
+                i += 1;
+            }
+        }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn break_in_while_condition_targets_enclosing_loop() {
+    // The same `break` is accepted when the `while` is nested in another loop: it targets that
+    // enclosing loop, which therefore counts as having a break.
+    let src = r#"
+        pub unconstrained fn foo(cond: bool) {
+            loop {
+                let mut i = 0;
+                while ({
+                    if cond {
+                        break;
+                    }
+                    i < 3
+                }) {
+                    i += 1;
+                }
+            }
+        }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn break_in_infix_operand() {
+    let src = r#"
+    unconstrained fn main() {
+        let _ = 1 + { break; };
+                ^^^^^^^^^^^^^^ Types in a binary operation should match, but found Field and ()
+                      ^^^^^^ break is only allowed within loops
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
 fn wrong_type_in_for_range() {
     let src = r#"
     pub fn foo() {

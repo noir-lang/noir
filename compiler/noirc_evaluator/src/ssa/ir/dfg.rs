@@ -40,14 +40,14 @@ use simplify::{SimplifyResult, simplify};
 
 pub(crate) mod simplify;
 
-/// The DataFlowGraph contains most of the actual data in a function including
+/// The `DataFlowGraph` contains most of the actual data in a function including
 /// its blocks, instructions, and values. This struct is largely responsible for
 /// owning most data in a function and handing out Ids to this data that can be
 /// shared without worrying about ownership.
 #[serde_as]
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub(crate) struct DataFlowGraph {
-    /// Runtime of the [function][super::function::Function] that owns this [DataFlowGraph].
+    /// Runtime of the [function][super::function::Function] that owns this [`DataFlowGraph`].
     /// This might change during the `runtime_separation` pass where
     /// ACIR functions are cloned as Brillig functions.
     runtime: RuntimeType,
@@ -72,25 +72,25 @@ pub(crate) struct DataFlowGraph {
     values: DenseMap<Value>,
 
     /// Each constant is unique, attempting to insert the same constant
-    /// twice will return the same ValueId.
+    /// twice will return the same `ValueId`.
     #[serde(skip)]
     constants: HashMap<(FieldElement, NumericType), ValueId>,
 
     /// Contains each function that has been imported into the current function.
-    /// A unique `ValueId` for each function's [`Value::Function`] is stored so any given FunctionId
-    /// will always have the same ValueId within this function.
+    /// A unique `ValueId` for each function's [`Value::Function`] is stored so any given `FunctionId`
+    /// will always have the same `ValueId` within this function.
     #[serde(skip)]
     functions: HashMap<FunctionId, ValueId>,
 
     /// Contains each intrinsic that has been imported into the current function.
-    /// This map is used to ensure that the ValueId for any given intrinsic is always
-    /// represented by only 1 ValueId within this function.
+    /// This map is used to ensure that the `ValueId` for any given intrinsic is always
+    /// represented by only 1 `ValueId` within this function.
     #[serde(skip)]
     intrinsics: HashMap<Intrinsic, ValueId>,
 
     /// Contains each foreign function that has been imported into the current function.
-    /// This map is used to ensure that the ValueId for any given foreign function is always
-    /// represented by only 1 ValueId within this function.
+    /// This map is used to ensure that the `ValueId` for any given foreign function is always
+    /// represented by only 1 `ValueId` within this function.
     #[serde(skip)]
     foreign_functions: HashMap<String, ValueId>,
 
@@ -122,18 +122,26 @@ pub(crate) struct DataFlowGraph {
 
     /// Indicate whether the Brillig array index offset optimizations have been performed.
     pub(crate) brillig_arrays_offset: bool,
+
+    /// When `false` (the default), a `simplify_*` routine that detects malformed input — SSA that
+    /// could not arise from well-formed compilation — panics via [`bail_malformed!`][crate::ssa::ir::dfg::simplify::bail_malformed].
+    /// When `true`, those routines instead emit a trace and decline to simplify, leaving the
+    /// instruction untouched. Only producers of deliberately malformed SSA (the `ssa_fuzzer`) set
+    /// this; the normal pipeline keeps it `false` so malformed SSA surfaces loudly.
+    #[serde(skip)]
+    pub(crate) allow_malformed_simplify: bool,
 }
 
-/// The GlobalsGraph contains the actual global data.
-/// Global data is expected to only be numeric constants or array constants (which are represented by Instruction::MakeArray).
-/// The global's data will shared across functions and should be accessible inside of a function's DataFlowGraph.
+/// The `GlobalsGraph` contains the actual global data.
+/// Global data is expected to only be numeric constants or array constants (which are represented by `Instruction::MakeArray`).
+/// The global's data will shared across functions and should be accessible inside of a function's `DataFlowGraph`.
 #[serde_as]
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct GlobalsGraph {
     /// Storage for all of the global values
     values: DenseMap<Value>,
     /// All of the instructions in the global value space.
-    /// These are expected to all be Instruction::MakeArray
+    /// These are expected to all be `Instruction::MakeArray`
     instructions: DenseMap<Instruction>,
     #[serde_as(as = "HashMap<DisplayFromStr, _>")]
     results: HashMap<InstructionId, smallvec::SmallVec<[ValueId; 1]>>,
@@ -196,7 +204,7 @@ impl DataFlowGraph {
     /// Create a new block with the same parameter count and parameter
     /// types from the given block.
     /// This is a somewhat niche operation used in loop unrolling but is included
-    /// here as doing it outside the DataFlowGraph would require cloning the parameters.
+    /// here as doing it outside the `DataFlowGraph` would require cloning the parameters.
     pub(crate) fn make_block_with_parameters_from_block(
         &mut self,
         block: BasicBlockId,
@@ -227,7 +235,7 @@ impl DataFlowGraph {
     /// This does not add the instruction to the block.
     /// Returns the id of the new instruction and its results.
     ///
-    /// Populates the instruction's results with the given ctrl_typevars if the instruction
+    /// Populates the instruction's results with the given `ctrl_typevars` if the instruction
     /// is a Load, Call, or Intrinsic. Otherwise the instruction's results will be known
     /// by the instruction itself and None can safely be passed for this parameter.
     pub(crate) fn make_instruction(
@@ -426,7 +434,7 @@ impl DataFlowGraph {
         }
     }
 
-    /// Set the type of value_id to the target_type.
+    /// Set the type of `value_id` to the `target_type`.
     pub(crate) fn set_type_of_value(&mut self, value_id: ValueId, target_type: Type) {
         let value = &mut self.values[value_id];
         match value {
@@ -460,7 +468,7 @@ impl DataFlowGraph {
         self.values.insert(Value::Global(typ))
     }
 
-    /// Gets or creates a ValueId for the given FunctionId.
+    /// Gets or creates a `ValueId` for the given `FunctionId`.
     pub(crate) fn import_function(&mut self, function: FunctionId) -> ValueId {
         if let Some(existing) = self.functions.get(&function) {
             return *existing;
@@ -470,7 +478,7 @@ impl DataFlowGraph {
         result
     }
 
-    /// Gets or creates a ValueId for the given FunctionId.
+    /// Gets or creates a `ValueId` for the given `FunctionId`.
     pub(crate) fn import_foreign_function(&mut self, function: &str, pure: bool) -> ValueId {
         if let Some(existing) = self.foreign_functions.get(function) {
             return *existing;
@@ -480,7 +488,7 @@ impl DataFlowGraph {
         result
     }
 
-    /// Gets or creates a ValueId for the given Intrinsic.
+    /// Gets or creates a `ValueId` for the given Intrinsic.
     pub(crate) fn import_intrinsic(&mut self, intrinsic: Intrinsic) -> ValueId {
         if let Some(existing) = self.get_intrinsic(intrinsic) {
             return *existing;
@@ -497,7 +505,7 @@ impl DataFlowGraph {
     /// Attaches results to the instruction, clearing any previous results.
     ///
     /// This does not normally need to be called manually as it is called within
-    /// make_instruction automatically.
+    /// `make_instruction` automatically.
     ///
     /// Returns the results of the instruction
     pub(crate) fn make_instruction_results(
@@ -519,8 +527,8 @@ impl DataFlowGraph {
     /// Return the result types of this instruction.
     ///
     /// In the case of Load, Call, and Intrinsic, the function's result
-    /// type may be unknown. In this case, the given ctrl_typevars are returned instead.
-    /// ctrl_typevars is taken in as an Option since it is common to omit them when getting
+    /// type may be unknown. In this case, the given `ctrl_typevars` are returned instead.
+    /// `ctrl_typevars` is taken in as an Option since it is common to omit them when getting
     /// the type of an instruction that does not require them. Compared to passing an empty Vec,
     /// Option has the benefit of panicking if it is accidentally used for a Call instruction,
     /// rather than silently returning the empty Vec and continuing.
@@ -576,8 +584,8 @@ impl DataFlowGraph {
         }
     }
 
-    /// True if the type of this value is Type::Reference.
-    /// Using this method over type_of_value avoids cloning the value's type.
+    /// True if the type of this value is `Type::Reference`.
+    /// Using this method over `type_of_value` avoids cloning the value's type.
     pub(crate) fn value_is_reference(&self, value: ValueId) -> bool {
         matches!(self.values[value].get_type().as_ref(), Type::Reference(..))
     }
@@ -653,7 +661,7 @@ impl DataFlowGraph {
         }
     }
 
-    /// Returns the item values in with this ValueId if it refers to an array constant, along with the type of the array item.
+    /// Returns the item values in with this `ValueId` if it refers to an array constant, along with the type of the array item.
     /// Otherwise, this returns None.
     pub(crate) fn get_array_constant(&self, value: ValueId) -> Option<(im::Vector<ValueId>, Type)> {
         match self.get_local_or_global_instruction(value)? {
@@ -825,8 +833,8 @@ impl DataFlowGraph {
         }
     }
 
-    /// True if the given [ValueId] refers to a constant value.
-    /// A [MakeArray][Instruction::MakeArray] instruction is considered constant if all its elements are constants.
+    /// True if the given [`ValueId`] refers to a constant value.
+    /// A [`MakeArray`][Instruction::MakeArray] instruction is considered constant if all its elements are constants.
     pub(crate) fn is_constant(&self, argument: ValueId) -> bool {
         match &self[argument] {
             Value::Param { .. } => false,
@@ -848,10 +856,19 @@ impl DataFlowGraph {
         }
     }
 
-    /// True that the input is a non-zero `Value::NumericConstant`
+    /// True if the input is a non-zero `Value::NumericConstant`
     pub(crate) fn is_constant_true(&self, argument: ValueId) -> bool {
         if let Some(constant) = self.get_numeric_constant(argument) {
             !constant.is_zero()
+        } else {
+            false
+        }
+    }
+
+    /// True if the input is a zero `Value::NumericConstant`
+    pub(crate) fn is_constant_false(&self, argument: ValueId) -> bool {
+        if let Some(constant) = self.get_numeric_constant(argument) {
+            constant.is_zero()
         } else {
             false
         }
@@ -897,7 +914,7 @@ impl DataFlowGraph {
         self.function_purities.get(&function).copied()
     }
 
-    /// Determine the appropriate [ArrayOffset] to use for indexing an array or vector.
+    /// Determine the appropriate [`ArrayOffset`] to use for indexing an array or vector.
     pub(crate) fn array_offset(&self, array: ValueId, index: ValueId) -> ArrayOffset {
         if !self.runtime.is_brillig()
             || !self.brillig_arrays_offset
@@ -910,6 +927,31 @@ impl DataFlowGraph {
             Type::Vector(_) => ArrayOffset::Vector,
             _ => ArrayOffset::None,
         }
+    }
+
+    /// Returns `true` when `index` is a compile-time constant that is provably out of bounds for
+    /// `array`, given its statically known `length`. Returns `false` for non-constant indices and
+    /// for in-bounds accesses.
+    ///
+    /// In Brillig a constant array/vector index is shifted past the in-memory header (see
+    /// `brillig_array_gets`); [`Self::array_offset`] is that shift in Brillig and `None` (`0`) in
+    /// ACIR, so subtracting it recovers the logical index and the same check serves both runtimes.
+    pub(crate) fn constant_index_is_out_of_bounds(
+        &self,
+        array: ValueId,
+        index: ValueId,
+        length: SemanticLength,
+    ) -> bool {
+        let Some(index_constant) = self.get_numeric_constant(index) else {
+            return false;
+        };
+        let semi_flattened_length =
+            u128::from((length * self.type_of_value(array).element_size()).0);
+        let offset = u128::from(self.array_offset(array, index).to_u32());
+        index_constant
+            .to_u128()
+            .checked_sub(offset)
+            .is_none_or(|logical_index| logical_index >= semi_flattened_length)
     }
 
     /// Check if the results of an instruction are used in the databus to return a value..
@@ -925,7 +967,7 @@ impl DataFlowGraph {
 
     /// Computes the number of flattened values returned by the SSA terminator.
     ///
-    /// Returns [RuntimeError::ReturnLimitExceeded] if it exceeds [MAX_ELEMENTS].
+    /// Returns [`RuntimeError::ReturnLimitExceeded`] if it exceeds [`MAX_ELEMENTS`].
     pub(crate) fn get_num_return_witnesses(&self, func: &Function) -> Result<usize, RuntimeError> {
         if let Some(TerminatorInstruction::Return { return_values, call_stack }) =
             func.return_instruction()
@@ -1041,7 +1083,7 @@ impl<'dfg> InsertInstructionResult<'dfg> {
         }
     }
 
-    /// Returns the amount of ValueIds contained
+    /// Returns the amount of `ValueIds` contained
     pub(crate) fn len(&self) -> usize {
         match self {
             InsertInstructionResult::SimplifiedTo(_) => 1,

@@ -480,7 +480,7 @@ fn get_main_src(typ: &str) -> String {
 
 /// Create a SSA instruction corresponding to the operator, using v1 and v2 as operands.
 /// Additional information can be added to the string,
-/// for instance, "range_check 8" creates 'range_check v1 to 8 bits'
+/// for instance, "`range_check` 8" creates '`range_check` v1 to 8 bits'
 fn generate_test_instruction_from_operator(operator: &str) -> (String, bool) {
     let ops = operator.split(" ").collect::<Vec<_>>();
     let op = ops[0];

@@ -1,0 +1,13 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+use midlib::generate;
+
+pub fn trigger() {}
+
+fn main() {}
+
+pub fn call_public_trait_method() -> Field {
+    <leaflib::Public as leaflib::Compute>::compute()
+}

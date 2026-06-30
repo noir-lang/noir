@@ -90,10 +90,10 @@ pub enum BlackBoxFuncCall<F> {
     },
     /// Performs the bitwise AND of `lhs` and `rhs`. `bit_size` must be the same for
     /// both inputs.
-    /// - lhs: (witness, bit_size)
-    /// - rhs: (witness, bit_size)
+    /// - lhs: (witness, `bit_size`)
+    /// - rhs: (witness, `bit_size`)
     /// - output: a witness whose value is constrained to be lhs AND rhs, as
-    ///   bit_size bit integers
+    ///   `bit_size` bit integers
     #[tag(1)]
     AND {
         #[tag(0)]
@@ -107,10 +107,10 @@ pub enum BlackBoxFuncCall<F> {
     },
     /// Performs the bitwise XOR of `lhs` and `rhs`. `bit_size` must be the same for
     /// both inputs.
-    /// - lhs: (witness, bit_size)
-    /// - rhs: (witness, bit_size)
+    /// - lhs: (witness, `bit_size`)
+    /// - rhs: (witness, `bit_size`)
     /// - output: a witness whose value is constrained to be lhs XOR rhs, as
-    ///   bit_size bit integers
+    ///   `bit_size` bit integers
     #[tag(2)]
     XOR {
         #[tag(0)]
@@ -124,7 +124,7 @@ pub enum BlackBoxFuncCall<F> {
     },
     /// Range constraint to ensure that a witness
     /// can be represented in the specified number of bits.
-    /// - input: (witness, bit_size)
+    /// - input: (witness, `bit_size`)
     #[tag(3)]
     RANGE {
         #[tag(0)]
@@ -197,7 +197,7 @@ pub enum BlackBoxFuncCall<F> {
     },
     /// Verifies a ECDSA signature over the secp256r1 curve.
     ///
-    /// Same as EcdsaSecp256k1, but done over another curve.
+    /// Same as `EcdsaSecp256k1`, but done over another curve.
     #[tag(7)]
     EcdsaSecp256r1 {
         #[tag(0)]
@@ -298,9 +298,9 @@ pub enum BlackBoxFuncCall<F> {
     /// It delays the expensive part of verification out of the SNARK
     /// and leaves it to the final verifier outside of the SNARK circuit.
     ///
-    /// This opcode also verifies that the key_hash is indeed a hash of verification_key,
+    /// This opcode also verifies that the `key_hash` is indeed a hash of `verification_key`,
     /// allowing the user to use the verification key as private inputs and only
-    /// have the key_hash as public input, which is more performant.
+    /// have the `key_hash` as public input, which is more performant.
     ///
     /// **Warning: the key hash logic does not need to be part of the black box and subject to be removed.**
     ///

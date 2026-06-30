@@ -42,7 +42,7 @@ pub struct GeneratedAcir<F: AcirField> {
     /// and thus next witness index that be declared is zero.
     /// This field is private should only ever be accessed through its getter and setter.
     ///
-    /// Equivalent to acvm::acir::circuit::Circuit's field of the same name.
+    /// Equivalent to `acvm::acir::circuit::Circuit`'s field of the same name.
     current_witness_index: Option<u32>,
 
     /// The opcodes of which the compiled ACIR will comprise.
@@ -412,16 +412,23 @@ impl<F: AcirField> GeneratedAcir<F> {
             radix_pow *= &radix_big;
         }
 
-        self.assert_is_zero(input_expr - &composed_limbs);
-        let assertion_payload = self.generate_assertion_message_payload(format!(
-            "Field failed to decompose into specified {limb_count} limbs"
-        ));
-        self.attach_assertion_payload(assertion_payload);
+        // With `limb_count == 0` there are no limbs to compose, so `composed_limbs` is the zero
+        // constant. When `input_expr` is also a known constant the difference folds away: a zero
+        // input yields a trivially-true `0 == 0` (which must not be emitted as an empty opcode),
+        // while a non-zero input yields an always-false constraint that fails at solve time.
+        let difference = input_expr - &composed_limbs;
+        if !difference.is_zero() {
+            self.assert_is_zero(difference);
+            let assertion_payload = self.generate_assertion_message_payload(format!(
+                "Field failed to decompose into specified {limb_count} limbs"
+            ));
+            self.attach_assertion_payload(assertion_payload);
+        }
 
         Ok(limb_witnesses)
     }
 
-    /// Adds brillig opcode for to_radix
+    /// Adds brillig opcode for `to_radix`
     ///
     /// This code will decompose `expr` in a radix-base
     /// and return  `Witnesses` which may (or not, because it does not apply constraints)
@@ -667,11 +674,11 @@ impl<F: AcirField> GeneratedAcir<F> {
                 .insert(procedure_id.to_debug_id(), (*start_index, *end_index));
         }
 
+        // Ensure every Brillig function we compile has a `brillig_locations`
+        // entry, even when it emits no per-opcode locations.
+        let brillig_locations = self.brillig_locations.entry(brillig_function_index).or_default();
         for (brillig_index, call_stack) in &generated_brillig.locations {
-            self.brillig_locations
-                .entry(brillig_function_index)
-                .or_default()
-                .insert(BrilligOpcodeLocation(*brillig_index), *call_stack);
+            brillig_locations.insert(BrilligOpcodeLocation(*brillig_index), *call_stack);
         }
     }
 
@@ -714,77 +721,6 @@ impl<F: AcirField> GeneratedAcir<F> {
     }
 }
 
-/// This function will return the number of inputs that a blackbox function
-/// expects. Returning `None` if there is no expectation.
-fn black_box_func_expected_input_size(name: BlackBoxFunc) -> Option<usize> {
-    match name {
-        // Bitwise opcodes will take in 2 parameters
-        BlackBoxFunc::AND | BlackBoxFunc::XOR => Some(2),
-
-        // All of the hash/cipher methods will take in a
-        // variable number of inputs.
-        BlackBoxFunc::AES128Encrypt | BlackBoxFunc::Blake2s | BlackBoxFunc::Blake3 => None,
-
-        BlackBoxFunc::Keccakf1600 => Some(25),
-        // The permutation takes a fixed number of inputs, but the inputs length depends on the proving system implementation.
-        BlackBoxFunc::Poseidon2Permutation => None,
-
-        // SHA256 compression requires 16 u32s as input message and 8 u32s for the hash state.
-        BlackBoxFunc::Sha256Compression => Some(24),
-        // Can only apply a range constraint to one
-        // witness at a time.
-        BlackBoxFunc::RANGE => Some(1),
-
-        // 64 bytes for the signature, 32 bytes for the hashed message,
-        // and 32 bytes each for the x and y coordinates of the public key, plus a predicate.
-        BlackBoxFunc::EcdsaSecp256k1 | BlackBoxFunc::EcdsaSecp256r1 => Some(161),
-
-        // Inputs for multi scalar multiplication is an arbitrary number of [point, scalar] pairs.
-        BlackBoxFunc::MultiScalarMul => None,
-
-        // Recursive aggregation has a variable number of inputs
-        BlackBoxFunc::RecursiveAggregation => None,
-
-        // Addition over the embedded curve: inputs are coordinates (x1,y1) and (x2,y2) of the Grumpkin points
-        // to add, plus a predicate to conditionally perform the addition.
-        BlackBoxFunc::EmbeddedCurveAdd => Some(5),
-    }
-}
-
-/// This function will return the number of outputs that a blackbox function
-/// expects. Returning `None` if there is no expectation.
-fn black_box_expected_output_size(name: BlackBoxFunc) -> Option<usize> {
-    match name {
-        // Bitwise opcodes will return 1 parameter which is the output
-        // or the operation.
-        BlackBoxFunc::AND | BlackBoxFunc::XOR => Some(1),
-
-        // 32 byte hash algorithms
-        BlackBoxFunc::Blake2s | BlackBoxFunc::Blake3 => Some(32),
-
-        BlackBoxFunc::Keccakf1600 => Some(25),
-        // The permutation returns a fixed number of outputs, equals to the inputs length which depends on the proving system implementation.
-        BlackBoxFunc::Poseidon2Permutation => None,
-
-        BlackBoxFunc::Sha256Compression => Some(8),
-
-        BlackBoxFunc::RANGE => Some(0),
-
-        // Signature verification algorithms will return a boolean
-        BlackBoxFunc::EcdsaSecp256k1 | BlackBoxFunc::EcdsaSecp256r1 => Some(1),
-
-        // Output of operations over the embedded curve
-        // will be 2 field elements representing the point, i.e. (x,y)
-        BlackBoxFunc::MultiScalarMul | BlackBoxFunc::EmbeddedCurveAdd => Some(2),
-
-        // Recursive aggregation has no output
-        BlackBoxFunc::RecursiveAggregation => Some(0),
-
-        // AES encryption returns a variable number of outputs
-        BlackBoxFunc::AES128Encrypt => None,
-    }
-}
-
 /// Checks that the number of inputs being used to call the blackbox function
 /// is correct according to the function definition.
 ///
@@ -801,7 +737,7 @@ fn black_box_expected_output_size(name: BlackBoxFunc) -> Option<usize> {
 /// fn sha256<N>(_input : [u8; N]) -> [u8; 32] {}
 /// ``
 fn intrinsics_check_inputs(name: BlackBoxFunc, input_count: usize) {
-    let Some(expected_num_inputs) = black_box_func_expected_input_size(name) else {
+    let Some(expected_num_inputs) = name.expected_input_size() else {
         return;
     };
 
@@ -833,7 +769,7 @@ fn intrinsics_check_inputs(name: BlackBoxFunc, input_count: usize) {
 /// ) -> [Field; N] {}
 /// ``
 fn intrinsics_check_outputs(name: BlackBoxFunc, output_count: usize) {
-    let Some(expected_num_outputs) = black_box_expected_output_size(name) else {
+    let Some(expected_num_outputs) = name.expected_output_size() else {
         return;
     };
 

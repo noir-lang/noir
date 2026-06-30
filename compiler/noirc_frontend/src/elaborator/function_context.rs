@@ -38,7 +38,7 @@ pub(super) struct FunctionContext {
     /// case of checking generic arguments)
     trait_constraints: Vec<LocalTraitConstraint>,
 
-    /// All ExprId in a function that correspond to integer literals.
+    /// All `ExprId` in a function that correspond to integer literals.
     /// At the end, if they don't fit in their type's min/max range, we'll produce an error.
     integer_literal_expr_ids: Vec<ExprId>,
 }
@@ -52,7 +52,7 @@ struct RequiredTypeVariable {
     location: Location,
 }
 
-/// A constraint local to the current [FunctionContext] to solve at the end of the context.
+/// A constraint local to the current [`FunctionContext`] to solve at the end of the context.
 #[derive(Debug)]
 struct LocalTraitConstraint {
     constraint: TraitConstraint,
@@ -79,7 +79,7 @@ pub(super) enum BindableTypeVariableKind {
 }
 
 impl Elaborator<'_> {
-    /// Push a type variable into the current FunctionContext to be defaulted if needed
+    /// Push a type variable into the current `FunctionContext` to be defaulted if needed
     /// at the end of the earlier of either the current function or the current comptime scope.
     #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn push_defaultable_type_variable(&mut self, typ: Type) {
@@ -108,7 +108,7 @@ impl Elaborator<'_> {
         }
     }
 
-    /// Push a trait constraint into the current FunctionContext to be solved if needed
+    /// Push a trait constraint into the current `FunctionContext` to be solved if needed
     /// at the end of the earlier of either the current function or the current comptime scope.
     #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn push_trait_constraint(
@@ -155,10 +155,35 @@ impl Elaborator<'_> {
     #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn check_and_pop_function_context(&mut self) {
         let context = self.function_context.pop().expect("Imbalanced function_context pushes");
+        self.bind_type_variables_from_trait_constraints(&context.trait_constraints);
         self.check_defaultable_type_variables(context.defaultable_type_variables);
         self.check_integer_literal_fit_their_type(context.integer_literal_expr_ids);
         self.check_trait_constraints(context.trait_constraints);
         self.check_required_type_variables(context.required_type_variables);
+    }
+
+    /// Best-effort trait-constraint resolution that runs before integer-literal defaulting.
+    ///
+    /// When a constraint has exactly one impl that unifies with the current types,
+    /// `find_impl` succeeds and auto-applies its type bindings — including binding
+    /// `IntegerOrField` type variables to whatever the impl requires (e.g. `i32`).
+    /// Defaulting then becomes a no-op for those variables, so the real
+    /// [`Self::check_trait_constraints`] pass sees the impl-chosen type rather than
+    /// the defaulted `Field`.
+    ///
+    /// On failure (no match, multiple matches, or insufficient annotations), no
+    /// bindings are applied and no error is reported — the constraint is left
+    /// for the post-defaulting pass, which is responsible for the final verdict
+    /// and error reporting.
+    #[tracing::instrument(level = "trace", skip_all)]
+    fn bind_type_variables_from_trait_constraints(
+        &self,
+        trait_constraints: &[LocalTraitConstraint],
+    ) {
+        let current_trait_self = self.current_trait.and_then(|_| self.self_type.clone());
+        for local in trait_constraints {
+            let _ = local.constraint.find_impl(self.interner, current_trait_self.as_ref());
+        }
     }
 
     fn check_defaultable_type_variables(&self, type_variables: Vec<Type>) {

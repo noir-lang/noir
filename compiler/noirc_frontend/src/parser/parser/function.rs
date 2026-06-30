@@ -12,7 +12,6 @@ use crate::{
     },
     parser::ParserErrorReason,
 };
-use acvm::AcirField;
 
 use noirc_errors::{Location, Span};
 
@@ -33,7 +32,7 @@ pub(crate) struct FunctionDefinitionWithOptionalBody {
 }
 
 impl Parser<'_> {
-    /// Function = 'fn' identifier Generics FunctionParameters ( '->' Visibility Type )? WhereClause ( Block | ';' )
+    /// Function = 'fn' identifier Generics `FunctionParameters` ( '->' Visibility Type )? `WhereClause` ( Block | ';' )
     pub(crate) fn parse_function(
         &mut self,
         attributes: Vec<(Attribute, Location)>,
@@ -185,11 +184,11 @@ impl Parser<'_> {
         }
     }
 
-    /// FunctionParameters = '(' FunctionParametersList? ')'
+    /// `FunctionParameters` = '(' `FunctionParametersList`? ')'
     ///
-    /// FunctionParametersList = FunctionParameter ( ',' FunctionParameter )* ','?
+    /// `FunctionParametersList` = `FunctionParameter` ( ',' `FunctionParameter` )* ','?
     ///
-    /// FunctionParameter = Visibility PatternOrSelf ':' Type
+    /// `FunctionParameter` = Visibility `PatternOrSelf` ':' Type
     fn parse_function_parameters(&mut self, allow_self: bool) -> Option<Vec<Param>> {
         if !self.eat_left_paren() {
             return None;
@@ -295,8 +294,8 @@ impl Parser<'_> {
 
     /// Visibility
     ///     = 'pub'
-    ///     | 'return_data'
-    ///     | 'call_data' '(' int ')'
+    ///     | '`return_data`'
+    ///     | '`call_data`' '(' int ')'
     ///     | nothing
     fn parse_visibility(&mut self) -> (Visibility, Location) {
         let start_location = self.current_token_location;
@@ -315,7 +314,7 @@ impl Parser<'_> {
                     let int_location = self.previous_token_location;
                     self.eat_or_error(Token::RightParen);
                     let location = self.location_since(start_location);
-                    let id = int.try_to_u32().unwrap_or_else(|| {
+                    let id = u32::try_from(&int).unwrap_or_else(|_| {
                         self.push_error(ParserErrorReason::CallDataIdMustFitInU32, int_location);
                         0
                     });
@@ -336,7 +335,10 @@ impl Parser<'_> {
         (Visibility::Private, self.location_at_previous_token_end())
     }
 
-    fn validate_attributes(&mut self, attributes: Vec<(Attribute, Location)>) -> Attributes {
+    pub(super) fn validate_attributes(
+        &mut self,
+        attributes: Vec<(Attribute, Location)>,
+    ) -> Attributes {
         let mut function = None;
         let mut secondary = Vec::new();
 

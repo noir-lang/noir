@@ -13,6 +13,7 @@ use crate::{
         has_uri::HasUri,
         id_to_info::{ItemInfo, compute_id_to_info},
         markdown_utils::{fix_markdown, markdown_summary},
+        search_index::{compute_search_index, render_search_index_js},
         trait_impls::gather_all_trait_impls,
     },
     items::{
@@ -29,6 +30,7 @@ mod has_class;
 mod has_uri;
 mod id_to_info;
 mod markdown_utils;
+mod search_index;
 mod trait_impls;
 
 /// Returns a list of (path, contents) representing the HTML files for the given crates.
@@ -90,6 +92,7 @@ impl HTMLCreator {
     fn process_workspace(&mut self, workspace: &Workspace) {
         self.create_styles();
         self.create_js();
+        self.create_search_index(workspace);
         self.create_all_items(workspace);
         self.create_index(workspace);
 
@@ -112,6 +115,16 @@ impl HTMLCreator {
         let contents = include_str!("nargo_doc.js");
         self.output.push_str(contents);
         self.push_file(PathBuf::from("nargo_doc.js"));
+
+        let contents = include_str!("search.js");
+        self.output.push_str(contents);
+        self.push_file(PathBuf::from("search.js"));
+    }
+
+    fn create_search_index(&mut self, workspace: &Workspace) {
+        let entries = compute_search_index(workspace);
+        self.output.push_str(&render_search_index_js(&entries));
+        self.push_file(PathBuf::from("search-index.js"));
     }
 
     fn create_all_items(&mut self, workspace: &Workspace) {
@@ -120,8 +133,7 @@ impl HTMLCreator {
         self.sidebar_start();
         self.render_all_items_sidebar(&all_items);
         self.sidebar_end();
-        self.main_start(false);
-        self.h1(&format!("All items in {}", workspace.name));
+        self.main_start(false, &format!("All items in {}", workspace.name));
         self.render_all_items_list("Structs", "struct", &all_items.structs);
         self.render_all_items_list("Traits", "trait", &all_items.traits);
         self.render_all_items_list("Type aliases", "type", &all_items.type_aliases);
@@ -197,8 +209,7 @@ impl HTMLCreator {
         self.sidebar_start();
         self.sidebar_end();
 
-        self.main_start(false);
-        self.h1(&format!("{} documentation", workspace.name));
+        self.main_start(false, &format!("{} documentation", workspace.name));
         self.render_list("Crates", "crates", false, 0, &crates);
         self.main_end();
         self.html_end();
@@ -213,8 +224,7 @@ impl HTMLCreator {
         self.sidebar_start();
         self.render_crate_sidebar(workspace, krate);
         self.sidebar_end();
-        self.main_start(false);
-        self.h1(&format!("Crate <span class=\"crate\">{}</span>", krate.name));
+        self.main_start(false, &format!("Crate <span class=\"crate\">{}</span>", krate.name));
         self.render_comments(krate.root_module.comments.as_ref(), 1);
         self.render_items(&krate.root_module.items, false, 0);
         self.main_end();
@@ -469,8 +479,10 @@ impl HTMLCreator {
         self.sidebar_start();
         self.render_module_sidebar(parent_module, module);
         self.sidebar_end();
-        self.main_start(false);
-        self.h1(&format!("{kind} <span id=\"mod\" class=\"module\">{}</span>", module.name));
+        self.main_start(
+            false,
+            &format!("{kind} <span id=\"mod\" class=\"module\">{}</span>", module.name),
+        );
         self.render_comments(module.comments.as_ref(), 1);
         self.render_items(&module.items, false, 0);
         self.main_end();
@@ -538,8 +550,10 @@ impl HTMLCreator {
         self.render_struct_sidebar(struct_);
         self.render_module_contents_sidebar(parent_module, 0);
         self.sidebar_end();
-        self.main_start(true);
-        self.h1(&format!("Struct <span id=\"struct\" class=\"struct\">{}</span>", struct_.name));
+        self.main_start(
+            true,
+            &format!("Struct <span id=\"struct\" class=\"struct\">{}</span>", struct_.name),
+        );
         self.render_struct_code(struct_);
         self.render_comments(struct_.comments.as_ref(), 1);
         self.render_struct_fields(&struct_.fields);
@@ -600,8 +614,10 @@ impl HTMLCreator {
         self.render_trait_sidebar(trait_);
         self.render_module_contents_sidebar(parent_module, 0);
         self.sidebar_end();
-        self.main_start(true);
-        self.h1(&format!("Trait <span id=\"trait\" class=\"trait\">{}</span>", trait_.name));
+        self.main_start(
+            true,
+            &format!("Trait <span id=\"trait\" class=\"trait\">{}</span>", trait_.name),
+        );
         self.render_trait_code(trait_);
         self.render_comments(trait_.comments.as_ref(), 1);
         self.render_trait_methods("Required methods", &trait_.required_methods);
@@ -689,8 +705,7 @@ impl HTMLCreator {
         self.sidebar_start();
         self.render_module_contents_sidebar(parent_module, 0);
         self.sidebar_end();
-        self.main_start(true);
-        self.h1(&format!("Type alias <span class=\"type\">{}</span>", alias.name));
+        self.main_start(true, &format!("Type alias <span class=\"type\">{}</span>", alias.name));
         self.render_type_alias_code(alias);
         self.render_comments(alias.comments.as_ref(), 1);
         self.main_end();
@@ -703,8 +718,7 @@ impl HTMLCreator {
         self.sidebar_start();
         self.render_module_contents_sidebar(parent_module, 0);
         self.sidebar_end();
-        self.main_start(true);
-        self.h1(&format!("Function <span class=\"fn\">{}</span>", function.name));
+        self.main_start(true, &format!("Function <span class=\"fn\">{}</span>", function.name));
         let as_header = false;
         let link = false;
         let output_id = false;
@@ -719,8 +733,7 @@ impl HTMLCreator {
         self.sidebar_start();
         self.render_module_contents_sidebar(parent_module, 0);
         self.sidebar_end();
-        self.main_start(true);
-        self.h1(&format!("Global <span class=\"global\">{}</span>", global.name));
+        self.main_start(true, &format!("Global <span class=\"global\">{}</span>", global.name));
         self.render_global_code(global);
         self.render_comments(global.comments.as_ref(), 1);
         self.main_end();
@@ -734,11 +747,13 @@ impl HTMLCreator {
         self.render_primitive_sidebar(primitive);
         self.render_module_contents_sidebar(parent_module, 0);
         self.sidebar_end();
-        self.main_start(true);
-        self.h1(&format!(
-            "Primitive type <span id=\"primitive\" class=\"primitive\">{}</span>",
-            primitive.kind
-        ));
+        self.main_start(
+            true,
+            &format!(
+                "Primitive type <span id=\"primitive\" class=\"primitive\">{}</span>",
+                primitive.kind
+            ),
+        );
         self.render_comments(primitive.comments.as_ref(), 1);
         self.render_impls(&primitive.impls);
 
@@ -840,7 +855,12 @@ impl HTMLCreator {
         self.render_generics(&impl_.generics);
         self.output.push(' ');
         self.render_type(&impl_.r#type);
+        let indent = 0;
+        self.render_where_clause(&impl_.where_clause, indent);
         self.output.push_str("</code></h3>\n\n");
+
+        self.render_comments(impl_.comments.as_ref(), 3);
+
         let output_id = true;
 
         self.self_type = Some(impl_.r#type.clone());
@@ -1108,18 +1128,19 @@ impl HTMLCreator {
             self.output.push_str("comptime ");
         }
         self.output.push_str("fn ");
-        if link {
-            self.output.push_str(&format!("<a href=\"#{}\">", function.name));
-        }
-        if color_name {
-            self.output.push_str("<span class=\"fn\">");
-            self.output.push_str(&function.name);
-            self.output.push_str("</span>");
-        } else {
-            self.output.push_str(&function.name);
-        }
-        if link {
-            self.output.push_str("</a>");
+        // Put the `fn` color class on the link itself (rather than a nested span) so the hover
+        // underline, which takes the link's color, matches the name's color.
+        match (link, color_name) {
+            (true, true) => self
+                .output
+                .push_str(&format!("<a href=\"#{0}\" class=\"fn\">{0}</a>", function.name)),
+            (true, false) => {
+                self.output.push_str(&format!("<a href=\"#{0}\">{0}</a>", function.name));
+            }
+            (false, true) => {
+                self.output.push_str(&format!("<span class=\"fn\">{}</span>", function.name));
+            }
+            (false, false) => self.output.push_str(&function.name),
         }
         self.render_generics(&function.generics);
         self.output.push('(');
@@ -1518,14 +1539,14 @@ impl HTMLCreator {
         }
 
         let nesting = self.current_path.len();
-        self.output.push_str(&format!(
-            "<link rel=\"stylesheet\" href=\"{}styles.css\">\n",
-            "../".repeat(nesting)
-        ));
-        self.output.push_str(&format!(
-            "<script defer src=\"{}nargo_doc.js\"></script>\n",
-            "../".repeat(nesting)
-        ));
+        let root = "../".repeat(nesting);
+        self.output.push_str(&format!("<link rel=\"stylesheet\" href=\"{root}styles.css\">\n"));
+        // `docRoot` lets the search results link to pages relative to the documentation root
+        // from any page, regardless of how deeply nested it is.
+        self.output.push_str(&format!("<script>window.docRoot = \"{root}\";</script>\n"));
+        self.output.push_str(&format!("<script defer src=\"{root}search-index.js\"></script>\n"));
+        self.output.push_str(&format!("<script defer src=\"{root}nargo_doc.js\"></script>\n"));
+        self.output.push_str(&format!("<script defer src=\"{root}search.js\"></script>\n"));
         self.output.push_str(&format!("<title>{title} documentation</title>\n"));
         self.output.push_str("</head>\n");
         self.output.push_str("<body>\n");
@@ -1542,12 +1563,26 @@ impl HTMLCreator {
         self.output.push_str("</html>\n");
     }
 
-    fn main_start(&mut self, last_breadcrumb_is_link: bool) {
+    fn main_start(&mut self, last_breadcrumb_is_link: bool, heading: &str) {
         self.output.push_str("<main>\n");
         self.render_breadcrumbs(last_breadcrumb_is_link);
+        // The heading and the search toggle share a flex row, so the toggle lines up with the
+        // item's name. Activating search reveals the input below and replaces the page content
+        // with the results.
+        self.output.push_str("<div class=\"heading-row\">\n");
+        self.output.push_str(&format!("<h1 class=\"heading-content\">{heading}</h1>\n"));
+        self.output.push_str("<button id=\"search-toggle\" type=\"button\">Search</button>\n");
+        self.output.push_str("</div>\n");
+        self.output.push_str(
+            "<input id=\"search-input\" type=\"search\" placeholder=\"Type 's' or '/' to search\" \
+             autocomplete=\"off\" spellcheck=\"false\" aria-label=\"Search\" hidden>\n",
+        );
+        self.output.push_str("<div id=\"search-results\" hidden></div>\n");
+        self.output.push_str("<div id=\"page-content\">\n");
     }
 
     fn main_end(&mut self) {
+        self.output.push_str("</div>\n");
         self.output.push_str("</main>\n");
     }
 

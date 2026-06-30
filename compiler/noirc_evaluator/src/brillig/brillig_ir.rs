@@ -80,7 +80,7 @@ impl ReservedRegisters {
         FREE_MEMORY_POINTER_ADDRESS
     }
 
-    /// This register stores a 1_usize constant.
+    /// This register stores a `1_usize` constant.
     pub(crate) fn usize_one() -> MemoryAddress {
         MemoryAddress::direct(2)
     }
@@ -100,9 +100,9 @@ impl ReservedRegisters {
         (MemoryAddress::direct(assert_u32(start)), MemoryAddress::direct(assert_u32(start + 1)))
     }
 
-    /// A third scratch address (`@5`) used by [crate::brillig::brillig_gen::brillig_block::BrilligBlock::codegen_conditional_spill_store]
+    /// A third scratch address (`@5`) used by [`crate::brillig::brillig_gen::brillig_block::BrilligBlock::codegen_conditional_spill_store`]
     /// to hold a value across the load → cmov → store sequence. Disjoint from
-    /// [Self::spill_scratch] so the address-materialization scratch registers
+    /// [`Self::spill_scratch`] so the address-materialization scratch registers
     /// can be reused by the inner load/store without clobbering the value.
     pub(crate) fn spill_conditional_value() -> MemoryAddress {
         MemoryAddress::direct(assert_u32(ScratchSpace::start() + 2))
@@ -135,7 +135,7 @@ pub(crate) struct BrilligContext<F, Registers> {
 }
 
 impl<F, R: RegisterAllocator> BrilligContext<F, R> {
-    /// Memory layout information. See [self::registers] for more information about the memory layout.
+    /// Memory layout information. See [`self::registers`] for more information about the memory layout.
     pub(crate) fn layout(&self) -> LayoutConfig {
         self.registers().layout()
     }
@@ -265,7 +265,7 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
 
 impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<F, Registers> {
     /// Splits a two's complement signed integer in the sign bit and the absolute value.
-    /// For example, -6 i8 (11111010) is split to 00000110 (6, absolute value) and 1 (is_negative).
+    /// For example, -6 i8 (11111010) is split to 00000110 (6, absolute value) and 1 (`is_negative`).
     pub(crate) fn absolute_value(
         &mut self,
         num: SingleAddrVariable,
@@ -362,7 +362,7 @@ pub(crate) enum SignedDivisionOperator {
 
 /// Special brillig context to codegen compiler intrinsic shared procedures
 impl<F: AcirField + DebugToString> BrilligContext<F, ScratchSpace> {
-    /// Create a [BrilligContext] with a [ScratchSpace] for passing procedure arguments.
+    /// Create a [`BrilligContext`] with a [`ScratchSpace`] for passing procedure arguments.
     pub(crate) fn new_for_procedure(
         procedure_id: ProcedureId,
         options: &BrilligOptions,
@@ -387,7 +387,7 @@ impl<F: AcirField + DebugToString> BrilligContext<F, ScratchSpace> {
 
 /// Special brillig context to codegen global values initialization
 impl<F: AcirField + DebugToString> BrilligContext<F, GlobalSpace> {
-    /// Create a [BrilligContext] with a [GlobalSpace] for memory allocations.
+    /// Create a [`BrilligContext`] with a [`GlobalSpace`] for memory allocations.
     pub(crate) fn new_for_global_init(
         options: &BrilligOptions,
         entry_point: FunctionId,
@@ -407,7 +407,7 @@ impl<F: AcirField + DebugToString> BrilligContext<F, GlobalSpace> {
     }
 
     /// Total size of the global memory space.
-    /// Returns 0 when nothing has been allocated (max_memory_address < start).
+    /// Returns 0 when nothing has been allocated (`max_memory_address` < start).
     pub(crate) fn global_space_size(&self) -> usize {
         (self.registers().max_memory_address() + 1).saturating_sub(self.registers().start())
     }
@@ -650,7 +650,7 @@ pub(crate) mod tests {
     /// 3. If allocation would overflow, VM fails with "Out of memory" before the loop runs
     ///
     /// This test compiles SSA with a large constant array, then patches `free_memory_pointer`
-    /// to near u32::MAX to demonstrate that allocation triggers "Out of memory".
+    /// to near `u32::MAX` to demonstrate that allocation triggers "Out of memory".
     #[test]
     fn initialize_constant_array_protected_by_allocation_check() {
         // SSA with array of 11 identical tuples - triggers initialize_constant_array_runtime
@@ -730,7 +730,7 @@ pub(crate) mod tests {
         assert!(message.contains("Out of memory"), "Expected 'Out of memory', got: {message}");
     }
 
-    /// Test proving [BrilligContext::codegen_mem_copy_from_the_end] handles `num_elements=0`.
+    /// Test proving [`BrilligContext::codegen_mem_copy_from_the_end`] handles `num_elements=0`.
     ///
     /// See the function's `# Safety` documentation for why the underflow is safe.
     /// This test directly verifies the loop continue condition is immediately `false`.
@@ -861,9 +861,9 @@ pub(crate) mod tests {
 
     /// Test proving that empty array allocation near heap limit triggers OOM.
     ///
-    /// This demonstrates that [BrilligContext::codegen_make_array_items_pointer] is transitively protected
-    /// from overflow. Even an empty array allocates [offsets::ARRAY_META_COUNT] slot for metadata,
-    /// so if the free memory pointer (FMP) is near u32::MAX, the allocation fails with "Out of memory"
+    /// This demonstrates that [`BrilligContext::codegen_make_array_items_pointer`] is transitively protected
+    /// from overflow. Even an empty array allocates [`offsets::ARRAY_META_COUNT`] slot for metadata,
+    /// so if the free memory pointer (FMP) is near `u32::MAX`, the allocation fails with "Out of memory"
     /// before we ever compute the items pointer.
     #[test]
     fn empty_array_allocation_near_heap_limit_triggers_oom() {
@@ -880,9 +880,9 @@ pub(crate) mod tests {
 
     /// Test proving that empty vector allocation near heap limit triggers OOM.
     ///
-    /// This demonstrates that [BrilligContext::codegen_vector_items_pointer] is transitively protected
-    /// from overflow. Even an empty vector allocates [offsets::VECTOR_META_COUNT] slots for metadata,
-    /// so if the free memory pointer (FMP) is near u32::MAX, the allocation fails with "Out of memory"
+    /// This demonstrates that [`BrilligContext::codegen_vector_items_pointer`] is transitively protected
+    /// from overflow. Even an empty vector allocates [`offsets::VECTOR_META_COUNT`] slots for metadata,
+    /// so if the free memory pointer (FMP) is near `u32::MAX`, the allocation fails with "Out of memory"
     /// before we ever compute the items pointer.
     #[test]
     fn empty_vector_allocation_near_heap_limit_triggers_oom() {
@@ -899,7 +899,7 @@ pub(crate) mod tests {
 
     /// Helper to test that allocation near heap limit triggers OOM.
     ///
-    /// Generates Brillig from the given SSA, patches the free memory pointer (FMP) to u32::MAX
+    /// Generates Brillig from the given SSA, patches the free memory pointer (FMP) to `u32::MAX`
     /// just before the first allocation, and asserts the VM fails with "Out of memory".
     fn assert_allocation_near_heap_limit_triggers_oom(ssa_src: &str) {
         use acvm::acir::brillig::BinaryIntOp;
@@ -1012,7 +1012,7 @@ pub(crate) mod tests {
     ///
     /// This test demonstrates the defensive check that prevents heap corruption.
     /// Without this check, call arguments could be written beyond the stack frame boundary
-    /// before CheckMaxStackDepth runs in the called function.
+    /// before `CheckMaxStackDepth` runs in the called function.
     #[test_case(7, 0; "arguments alone exceed bounds")]
     #[test_case(3, 0; "arguments together with reserved slots exceed bounds")]
     #[test_case(1, 5; "arguments are okay but returns exceed bounds")]

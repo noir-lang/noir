@@ -76,6 +76,24 @@ struct LastUseContext {
     /// By preventing moves of aliased variables, we ensure that subsequent copies increment
     /// the refcount, so that writes through the reference correctly trigger COW.
     referenced_variables: HashSet<LocalId>,
+
+    /// Whether a `break`/`continue` targeting the current loop is reachable *after* the
+    /// point currently being traversed (in forward order), within the current scope.
+    ///
+    /// Because traversal is in reverse, this is set when a `break`/`continue` is reached and
+    /// remains set for the code that precedes it. The `if`/`match` handlers save/restore it
+    /// per branch (a `break` in one branch doesn't apply to the others) and loop boundaries
+    /// save/restore it (a `break` targeting a nested loop doesn't escape that loop).
+    has_break: bool,
+
+    /// Uses recorded while [`Self::has_break`] was set, i.e. uses on a path where a
+    /// `break`/`continue` can fire before the surrounding scope completes.
+    ///
+    /// Such a use cannot be promoted to a [confirmed move](Self::confirmed_moves) by an
+    /// enclosing assignment: if the assignment is skipped by the `break`, the old value is
+    /// still live after the loop, so it must be cloned rather than moved. The use stays in
+    /// `pending_last_uses` instead, where loop-exit truncation forces the clone.
+    break_dependent_uses: HashSet<IdentId>,
 }
 
 impl Context {
@@ -92,6 +110,8 @@ impl Context {
             loop_depth: 0,
             killed: HashSet::default(),
             referenced_variables: HashSet::default(),
+            has_break: false,
+            break_dependent_uses: HashSet::default(),
         };
 
         for (parameter, ..) in &function.parameters {
@@ -108,10 +128,13 @@ impl LastUseContext {
     }
 
     /// Record a use of a local variable. If this is the first encounter in the
-    /// reverse traversal (i.e. the last use in forward order), add it to pending_last_uses.
+    /// reverse traversal (i.e. the last use in forward order), add it to `pending_last_uses`.
     fn use_variable(&mut self, id: LocalId, ident_id: IdentId) {
         if self.seen.insert(id) {
             self.pending_last_uses.entry(id).or_default().push(ident_id);
+            if self.has_break {
+                self.break_dependent_uses.insert(ident_id);
+            }
         }
     }
 
@@ -155,10 +178,15 @@ impl LastUseContext {
             }
             Expression::Cast(cast) => self.find_last_uses_in_expression(&cast.lhs),
             Expression::For(for_expr) => self.find_last_uses_in_for(for_expr),
-            Expression::Loop(body) => self.find_last_uses_in_loop_body(&[body]),
+            Expression::Loop(body) => self.find_last_uses_in_loop_body(body, None),
             Expression::While(while_expr) => {
-                // Both condition and body are re-evaluated each iteration
-                self.find_last_uses_in_loop_body(&[&while_expr.body, &while_expr.condition]);
+                // The body and condition are both re-evaluated each iteration, so both are
+                // analyzed at the loop's depth. A variable read in the condition and again in the
+                // body has its last use in the body (the condition runs first), so the body read
+                // becomes the move and the condition read is cloned. The condition is also where a
+                // `break` escapes to the enclosing loop, which `find_last_uses_in_loop_body`
+                // accounts for.
+                self.find_last_uses_in_loop_body(&while_expr.body, Some(&while_expr.condition));
             }
             Expression::If(if_expr) => self.find_last_uses_in_if(if_expr),
             Expression::Match(match_expr) => self.find_last_uses_in_match(match_expr),
@@ -186,6 +214,7 @@ impl LastUseContext {
                 // break/continue can skip assignments that were processed earlier in
                 // the reverse traversal, making those assignments conditional.
                 self.killed.clear();
+                self.has_break = true;
             }
         }
     }
@@ -224,15 +253,21 @@ impl LastUseContext {
     fn find_last_uses_in_for(&mut self, for_expr: &ast::For) {
         // The body is inside the loop scope; start/end ranges are evaluated once before
         // the loop begins and are tracked outside the loop scope.
-        self.find_last_uses_in_loop_body(&[&for_expr.block]);
+        self.find_last_uses_in_loop_body(&for_expr.block, None);
         self.find_last_uses_in_expression(&for_expr.end_range);
         self.find_last_uses_in_expression(&for_expr.start_range);
     }
 
-    /// Process loop body expressions at an increased loop depth.
+    /// Process a loop body (and, for a `while`, its condition) at an increased loop depth.
     /// After processing, remove any pending last uses for variables declared outside the loop
     /// since they cannot be safely moved inside a loop that may execute multiple times.
-    fn find_last_uses_in_loop_body(&mut self, body_exprs: &[&Expression]) {
+    ///
+    /// The body is traversed first because, in the reverse traversal, an iteration's body runs
+    /// after its condition. A `break`/`continue` in the body targets this loop and must not be
+    /// observed outside it; but a `break`/`continue` in a `while` condition targets the
+    /// *enclosing* loop (consistent with SSA lowering and the comptime interpreter), so its
+    /// effect is propagated outward while the body's is not.
+    fn find_last_uses_in_loop_body(&mut self, body: &Expression, condition: Option<&Expression>) {
         let pending_lengths: HashMap<LocalId, usize> =
             self.pending_last_uses.iter().map(|(id, uses)| (*id, uses.len())).collect();
         let saved_seen = self.seen.clone();
@@ -240,11 +275,22 @@ impl LastUseContext {
         // Kills inside the loop don't propagate outward (the loop may execute 0 times).
         let saved_killed = std::mem::take(&mut self.killed);
 
+        let saved_has_break = std::mem::take(&mut self.has_break);
+
         let loop_body_depth = self.loop_depth + 1;
         self.loop_depth = loop_body_depth;
-        for expr in body_exprs.iter().rev() {
-            self.find_last_uses_in_expression(expr);
+
+        self.find_last_uses_in_expression(body);
+
+        // The body's breaks target this loop, so discard them (the enclosing value is restored
+        // below). A `break` in a `while` condition targets the enclosing loop, so process the
+        // condition with a clean flag and let whatever it sets propagate outward.
+        self.has_break = false;
+        if let Some(condition) = condition {
+            self.find_last_uses_in_expression(condition);
         }
+        let condition_has_break = self.has_break;
+
         self.loop_depth = loop_body_depth - 1;
 
         // Variables declared outside this loop cannot be moved inside it — unless
@@ -265,16 +311,21 @@ impl LastUseContext {
             }
         }
         self.killed = saved_killed;
+        self.has_break = saved_has_break || condition_has_break;
     }
 
     fn find_last_uses_in_if(&mut self, if_expr: &ast::If) {
         let saved_seen = self.seen.clone();
         let saved_killed = self.killed.clone();
+        let saved_has_break = self.has_break;
 
         // Process the then-branch
         self.find_last_uses_in_expression(&if_expr.consequence);
         let mut merged = std::mem::replace(&mut self.seen, saved_seen.clone());
         let then_killed = std::mem::replace(&mut self.killed, saved_killed);
+        // Reset to the incoming value so a `break` in the then-branch doesn't apply to the
+        // else-branch (each branch's reachable breaks are independent).
+        let then_has_break = std::mem::replace(&mut self.has_break, saved_has_break);
 
         // Process the else-branch, or use saved_seen for the implicit "do nothing" path
         if let Some(alt) = &if_expr.alternative {
@@ -286,6 +337,8 @@ impl LastUseContext {
 
         // A variable is killed only if it is reassigned on ALL paths
         self.killed.retain(|id| then_killed.contains(id));
+        // A break is reachable through the `if` if it is reachable through either branch.
+        self.has_break |= then_has_break;
 
         self.seen = merged;
 
@@ -299,17 +352,22 @@ impl LastUseContext {
         // happens at its actual use sites.
         let saved_seen = self.seen.clone();
         let saved_killed = self.killed.clone();
+        let saved_has_break = self.has_break;
         let mut merged = HashSet::default();
         let mut all_killed: Option<HashSet<LocalId>> = None;
+        // A break is reachable through the match if it is reachable through any arm.
+        let mut any_has_break = saved_has_break;
 
         for case in &match_expr.cases {
             self.seen = saved_seen.clone();
             self.killed = saved_killed.clone();
+            self.has_break = saved_has_break;
             for (argument, _) in &case.arguments {
                 self.declare_variable(*argument);
             }
             self.find_last_uses_in_expression(&case.branch);
             merged.extend(&self.seen);
+            any_has_break |= self.has_break;
             match &mut all_killed {
                 None => all_killed = Some(self.killed.clone()),
                 Some(acc) => acc.retain(|id| self.killed.contains(id)),
@@ -319,8 +377,10 @@ impl LastUseContext {
         if let Some(default_case) = &match_expr.default_case {
             self.seen = saved_seen;
             self.killed = saved_killed.clone();
+            self.has_break = saved_has_break;
             self.find_last_uses_in_expression(default_case);
             merged.extend(&self.seen);
+            any_has_break |= self.has_break;
             match &mut all_killed {
                 None => all_killed = Some(self.killed.clone()),
                 Some(acc) => acc.retain(|id| self.killed.contains(id)),
@@ -336,6 +396,7 @@ impl LastUseContext {
 
         self.seen = merged;
         self.killed = all_killed.unwrap_or(saved_killed);
+        self.has_break = any_has_break;
     }
 
     fn find_last_uses_in_call(&mut self, call: &ast::Call) {
@@ -381,19 +442,50 @@ impl LastUseContext {
             self.seen.remove(local_id);
             let pending_before = self.pending_last_uses.get(local_id).map_or(0, |v| v.len());
 
+            // Detect whether the RHS itself can `break`/`continue` before the assignment
+            // commits. Reset the flag so we only observe breaks introduced by the RHS, then
+            // restore it (propagating upward) afterwards.
+            let saved_has_break = std::mem::replace(&mut self.has_break, false);
             self.find_last_uses_in_expression(&assign.expression);
+            let rhs_has_break = self.has_break;
+            self.has_break = saved_has_break || rhs_has_break;
 
-            // Any uses of the variable added while processing the RHS (e.g. `x = f(x)`)
-            // are confirmed as last uses of the old value being killed by this assignment.
-            // Confirmed moves survive loop-exit truncation.
-            if let Some(uses) = self.pending_last_uses.get_mut(local_id)
-                && uses.len() > pending_before
-            {
-                let confirmed: Vec<_> = uses.drain(pending_before..).collect();
-                self.confirmed_moves.entry(*local_id).or_default().extend(confirmed);
-            } else {
-                // x does not appear in RHS: fresh value, safe to treat as killed
-                self.killed.insert(*local_id);
+            let new_uses = self
+                .pending_last_uses
+                .get_mut(local_id)
+                .filter(|uses| uses.len() > pending_before)
+                .map(|uses| uses.split_off(pending_before));
+
+            match new_uses {
+                Some(new_uses) => {
+                    // Uses of the variable added while processing the RHS (e.g. `x = f(x)`) are
+                    // confirmed as last uses of the old value killed by this assignment, except
+                    // those on a path that can `break`/`continue` before the assignment commits.
+                    // Confirmed moves survive loop-exit truncation.
+                    let (breakable, confirmed): (Vec<_>, Vec<_>) =
+                        new_uses.into_iter().partition(|id| self.break_dependent_uses.contains(id));
+
+                    self.confirmed_moves.entry(*local_id).or_default().extend(confirmed);
+
+                    // Break-dependent uses go back to `pending_last_uses` rather than being
+                    // confirmed or dropped. They are never confirmed: their `IdentId` stays in
+                    // `break_dependent_uses`, so this partition excludes them from every
+                    // assignment, not just this one. Keeping them pending lets the normal
+                    // last-use rules apply — loop-exit truncation drops them for variables
+                    // declared outside the loop (forcing a clone, since the old value is still
+                    // live on the break path), while a loop-local variable keeps the move (its
+                    // old value cannot be observed after the loop). Dropping them here instead
+                    // would needlessly clone loop-local variables.
+                    if !breakable.is_empty() {
+                        self.pending_last_uses.entry(*local_id).or_default().extend(breakable);
+                    }
+                }
+                // `x` does not appear in RHS: fresh value, safe to treat as killed — unless the
+                // RHS can break before committing, in which case the kill is not guaranteed.
+                None if !rhs_has_break => {
+                    self.killed.insert(*local_id);
+                }
+                None => {}
             }
             return;
         }

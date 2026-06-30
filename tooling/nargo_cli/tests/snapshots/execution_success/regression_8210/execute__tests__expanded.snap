@@ -1,0 +1,44 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+trait Foo {
+    let BAR: u32;
+
+    fn via_trait(_: Self) -> u32 {
+        BAR
+    }
+
+    fn via_self(_: Self) -> u32 {
+        BAR
+    }
+
+    fn arith(_: Self) -> u32 {
+        BAR + 1_u32
+    }
+}
+
+impl Foo for Field {
+    let BAR: u32 = 254;
+}
+
+impl Foo for u8 {
+    let BAR: u32 = 7;
+}
+
+struct Wrapper<T> {
+    inner: T,
+}
+
+impl<T> Foo for Wrapper<T> {
+    let BAR: u32 = 11;
+}
+
+fn main() {
+    assert(<Field as Foo>::via_trait(42_Field as Field) == 254_u32);
+    assert(<Field as Foo>::via_self(42_Field as Field) == 254_u32);
+    assert(<Field as Foo>::arith(42_Field as Field) == 255_u32);
+    assert(<u8 as Foo>::via_trait(0_Field as u8) == 7_u32);
+    let w: Wrapper<Field> = Wrapper::<Field> { inner: 0_Field };
+    assert(<Wrapper<Field> as Foo>::via_trait(w) == 11_u32);
+}

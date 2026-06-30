@@ -20,7 +20,7 @@
 //! v2 = array_get v1, index 0 -> Field
 //! ```
 //!
-//! it would be wrong to replace `v2` with "42" as the previous array_set might not have
+//! it would be wrong to replace `v2` with "42" as the previous `array_set` might not have
 //! been executed.
 //!
 //! However, in this case:
@@ -308,7 +308,7 @@ fn constant_index(dfg: &DataFlowGraph, index: ValueId) -> Option<u32> {
     dfg.get_numeric_constant(index)?.try_to_u32()
 }
 
-/// The result of the array_get optimization.
+/// The result of the `array_get` optimization.
 pub(crate) enum ArrayGetOptimizationResult {
     /// The `array_get` can be replaced with the given value.
     Value(ValueId),

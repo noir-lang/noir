@@ -31,7 +31,6 @@ fn main() -> Result<(), String> {
 
     generate_execution_success_tests(&mut test_file, &test_dir);
     generate_execution_failure_tests(&mut test_file, &test_dir);
-    generate_execution_panic_tests(&mut test_file, &test_dir);
     generate_noir_test_success_tests(&mut test_file, &test_dir);
     generate_noir_test_failure_tests(&mut test_file, &test_dir);
     generate_compile_success_empty_tests(&mut test_file, &test_dir);
@@ -81,14 +80,12 @@ fn main() -> Result<(), String> {
 /// Tests expected to fail with `--force-brillig --max-stack-frame-size 64`
 /// because they need register spilling (not yet implemented).
 /// Remove tests from this list as spilling is implemented.
-const IGNORED_BRILLIG_SMALL_STACK_TESTS: [&str; 4] = [
+const IGNORED_BRILLIG_SMALL_STACK_TESTS: [&str; 2] = [
     // TODO: Enabling this would require an indirect call convention. We are returning more args than allowed in the stack.
     // To enable this code we would need to pass/return call args through a pointer.
     "brillig_block_parameter_liveness",
-    // These tests rely on specific inliner settings, while we only run
+    // This test relies on a specific inliner setting, while we only run
     // the small stack tests with the default maximally aggressive inliner.
-    "reference_counts_inliner_0",
-    "reference_counts_inliner_min",
     "reference_counts_vectors_inliner_0",
 ];
 
@@ -159,14 +156,15 @@ const IGNORED_COMPTIME_INTERPRET_EXECUTION_TESTS: [&str; 0] = [];
 
 /// `nargo execute --force-comptime` ignored tests because of bugs or because some
 /// programs don't behave the same way in comptime (for example: reference counting).
-const PANICKING_COMPTIME_INTERPRET_EXECUTION_TESTS: [&str; 5] = [
+const PANICKING_COMPTIME_INTERPRET_EXECUTION_TESTS: [&str; 6] = [
     // These check reference counts, which aren't tracked in comptime code
     "reference_counts_inliner_0",
     "reference_counts_inliner_max",
     "reference_counts_inliner_min",
     "reference_counts_vectors_inliner_0",
-    // Enums are currently unsupported in comptime code
+    // Enums (and `match`) are currently unsupported in comptime code
     "regression_7323",
+    "match_struct_pattern_field_order",
 ];
 
 const PANICKING_COMPTIME_INTERPRET_EXECUTION_FAILURE_TESTS: [&str; 0] = [];
@@ -186,7 +184,7 @@ const IGNORED_COMPTIME_INTERPRET_NOIR_TESTS: [&str; 1] = [
 ];
 
 /// `nargo execute --minimal-ssa` ignored tests
-const IGNORED_MINIMAL_EXECUTION_TESTS: [&str; 17] = [
+const IGNORED_MINIMAL_EXECUTION_TESTS: [&str; 18] = [
     // internal error: entered unreachable code: unsupported function call type Intrinsic(AssertConstant)
     // These tests contain calls to `assert_constant`, which are evaluated and removed in the full SSA
     // pipeline, but in the minimal they are untouched, and trying to remove them causes a failure because
@@ -206,6 +204,8 @@ const IGNORED_MINIMAL_EXECUTION_TESTS: [&str; 17] = [
     "conditional_black_box_function_pointer_call",
     "lambda_from_dynamic_if",
     "regression_10156",
+    // The constrained foreign-function proxy can't run in the Brillig-only minimal pipeline.
+    "regression_foreign_proxy_generic",
     // This relies on maximum inliner setting
     "reference_counts_inliner_max",
     "reference_counts_inliner_min",
@@ -216,7 +216,10 @@ const IGNORED_MINIMAL_EXECUTION_TESTS: [&str; 17] = [
 /// might not be worth it.
 /// Others are ignored because of existing bugs in `nargo expand`.
 /// As the bugs are fixed these tests should be removed from this list.
-const IGNORED_NARGO_EXPAND_EXECUTION_TESTS: [&str; 11] = [
+const IGNORED_NARGO_EXPAND_EXECUTION_TESTS: [&str; 12] = [
+    // `nargo expand` prints an associated-constant access by its bare name (e.g. `N`),
+    // dropping the `Box::<Field>::` qualifier, so the expanded source no longer resolves.
+    "comptime_resolve_associated_constant_scope",
     // There's nothing special about this program but making it work with a custom entry would involve
     // having to parse the Nargo.toml file, etc., which is not worth it
     "custom_entry",
@@ -247,7 +250,7 @@ const TESTS_WITHOUT_STDOUT_CHECK: [&str; 0] = [];
 /// These tests are ignored because of existing bugs in `nargo expand`.
 /// As the bugs are fixed these tests should be removed from this list.
 /// (some are ignored on purpose for the same reason as `IGNORED_NARGO_EXPAND_EXECUTION_TESTS`)
-const IGNORED_NARGO_EXPAND_COMPILE_SUCCESS_EMPTY_TESTS: [&str; 8] = [
+const IGNORED_NARGO_EXPAND_COMPILE_SUCCESS_EMPTY_TESTS: [&str; 10] = [
     // There's no "src/main.nr" here so it's trickier to make this work
     "overlapping_dep_and_mod",
     // this one works, but copying its `Nargo.toml` file to somewhere else doesn't work
@@ -265,6 +268,12 @@ const IGNORED_NARGO_EXPAND_COMPILE_SUCCESS_EMPTY_TESTS: [&str; 8] = [
     "trait_call_in_global",
     // `nargo expand` drops the trait generic arguments on `impl Trait<...>` parameters
     "regression_7648",
+    // The expanded code names a transitive-only dependency (`leaflib`) by path, which isn't
+    // directly importable when the expansion is recompiled as a standalone program.
+    "comptime_as_typed_expr_public_type_trait_method",
+    // The expanded code names a transitive-only dependency (`leaflib`) by path, which isn't
+    // directly importable when the expansion is recompiled as a standalone program.
+    "comptime_transitive_public_dependency_type",
 ];
 
 /// These tests are ignored because of existing bugs in `nargo expand`.
@@ -297,8 +306,10 @@ fn read_test_cases(
     test_sub_dir: &str,
 ) -> impl Iterator<Item = (String, PathBuf)> {
     let test_data_dir = test_data_dir.join(test_sub_dir);
+    // A missing directory means the test category currently has no tests, so we yield nothing
+    // rather than panicking. The inner `flatten` also skips any entry that fails to read.
     let test_case_dirs =
-        fs::read_dir(test_data_dir).unwrap().flatten().filter(|c| c.path().is_dir());
+        fs::read_dir(test_data_dir).into_iter().flatten().flatten().filter(|c| c.path().is_dir());
 
     test_case_dirs.into_iter().filter_map(|dir| {
         // When switching git branches we might end up with non-empty directories that have a `target`
@@ -528,32 +539,6 @@ fn generate_execution_failure_tests(test_file: &mut File, test_data_dir: &Path) 
                 vary_brillig: !IGNORED_BRILLIG_TESTS.contains(&test_name.as_str()),
                 ..Default::default()
             },
-        );
-    }
-    writeln!(test_file, "}}").unwrap();
-}
-
-fn generate_execution_panic_tests(test_file: &mut File, test_data_dir: &Path) {
-    let test_type = "execution_panic";
-    let test_cases = read_test_cases(test_data_dir, test_type);
-
-    writeln!(
-        test_file,
-        "mod {test_type} {{
-        use super::*;
-    "
-    )
-    .unwrap();
-    for (test_name, test_dir) in test_cases {
-        let test_dir = test_dir.display();
-
-        generate_test_cases(
-            test_file,
-            &test_name,
-            &test_dir,
-            "execute",
-            "execution_panic(nargo);",
-            &MatrixConfig::default(),
         );
     }
     writeln!(test_file, "}}").unwrap();
