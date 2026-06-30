@@ -271,38 +271,12 @@ impl PostOrder {
                     continue;
                 };
                 if predecessor_index >= header_index {
-                    let blocks = Self::find_blocks_in_loop(cfg, header, predecessor);
+                    let blocks = cfg.find_blocks_in_loop(header, predecessor);
                     loops.entry(header).or_default().extend(blocks);
                 }
             }
         }
         loops.into_values().collect()
-    }
-
-    /// The blocks of the natural loop with the given `header` and back-edge source
-    /// `back_edge_start`: collected by walking predecessors backwards from `back_edge_start`,
-    /// stopping at the header.
-    ///
-    /// This mirrors `Loop::find_blocks_in_loop` from the unrolling pass but is kept local: that
-    /// type lives in the `opt` layer, which builds on `ir`, and `Loops::find_all` itself relies on
-    /// `PostOrder`, so reusing it here would invert the layering and recurse through `PostOrder`.
-    fn find_blocks_in_loop(
-        cfg: &ControlFlowGraph,
-        header: BasicBlockId,
-        back_edge_start: BasicBlockId,
-    ) -> BTreeSet<BasicBlockId> {
-        let mut blocks = BTreeSet::new();
-        blocks.insert(header);
-
-        let mut stack = vec![back_edge_start];
-        while let Some(block) = stack.pop() {
-            // The header is already inserted, so reaching it returns `false` and we stop walking
-            // past it; this also terminates the walk for a single-block (self-edge) loop.
-            if blocks.insert(block) {
-                stack.extend(cfg.predecessors(block));
-            }
-        }
-        blocks
     }
 
     // Computes the post-order of the CFG by doing a depth-first traversal of the given

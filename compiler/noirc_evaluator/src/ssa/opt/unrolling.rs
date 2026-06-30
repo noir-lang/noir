@@ -600,27 +600,7 @@ impl Loop {
         back_edge_start: BasicBlockId,
         cfg: &ControlFlowGraph,
     ) -> Self {
-        let mut blocks = BTreeSet::default();
-        // Insert the header so we don't go past it when traversing backwards from the back-edge.
-        blocks.insert(header);
-
-        let mut insert = |block, stack: &mut Vec<BasicBlockId>| {
-            if !blocks.contains(&block) {
-                blocks.insert(block);
-                stack.push(block);
-            }
-        };
-
-        // Starting from the back edge of the loop, enqueue each predecessor of this block until we reach the header.
-        let mut stack = vec![];
-        insert(back_edge_start, &mut stack);
-
-        while let Some(block) = stack.pop() {
-            for predecessor in cfg.predecessors(block) {
-                insert(predecessor, &mut stack);
-            }
-        }
-
+        let blocks = cfg.find_blocks_in_loop(header, back_edge_start);
         Self { header, back_edge_start, blocks }
     }
 
