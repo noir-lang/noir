@@ -391,12 +391,12 @@ impl LastUseContext {
             {
                 let confirmed: Vec<_> = uses.drain(pending_before..).collect();
                 self.confirmed_moves.entry(*local_id).or_default().extend(confirmed);
-            } else if rhs_cannot_alias(&assign.expression) {
-                // x does not appear in RHS and RHS is a fresh allocation (or scalar), so each
-                // iteration produces an independent value: safe to treat as killed. A place
-                // expression RHS (e.g. a bare variable) may alias the buffer being moved out of
-                // x within the loop, so it must NOT be marked killed — that would let loop
-                // truncation skip and wrongly enable a move, sharing one refcount-1 buffer.
+            } else if rhs_cannot_alias(&assign.expression)
+                && !local_occurs_in(*local_id, &assign.expression)
+            {
+                // A fresh value that does not mention x is independent each iteration, so x's
+                // prior in-loop uses can be moved. The occurrence scan also rejects mentions of
+                // x that an inner loop truncated from the pending uses checked above.
                 self.killed.insert(*local_id);
             }
             return;
@@ -455,6 +455,9 @@ impl LastUseContext {
 /// Only the OUTER buffer matters here; inner-array aliasing inside `[a, b]` or `[arr; N]` is
 /// handled separately by clone insertion at element/index sites, so array, vector, and repeated
 /// literals are fresh at this level regardless of their element expressions.
+///
+/// This only rules out the value *being* an existing buffer, not side effects (e.g. an in-place
+/// write to an element) during its construction; the caller pairs it with `local_occurs_in`.
 fn rhs_cannot_alias(expr: &Expression) -> bool {
     match expr {
         Expression::Literal(literal) => matches!(
@@ -471,6 +474,26 @@ fn rhs_cannot_alias(expr: &Expression) -> bool {
         Expression::Cast(cast) => rhs_cannot_alias(&cast.lhs),
         _ => false,
     }
+}
+
+/// Returns `true` if `local_id` occurs anywhere within `expr`, in value position (`x`, `x[i]`)
+/// or as the base of an assignment lvalue (`x[i] = ..`). Monomorphized `LocalId`s are unique,
+/// so any occurrence is a free occurrence.
+fn local_occurs_in(local_id: LocalId, expr: &Expression) -> bool {
+    let mut occurs = false;
+    crate::monomorphization::visitor::visit_expr_be(
+        expr,
+        &mut |_| (true, ()),
+        &mut |_, ()| {},
+        &mut |ident: &ast::Ident| {
+            if let Definition::Local(id) = ident.definition
+                && id == local_id
+            {
+                occurs = true;
+            }
+        },
+    );
+    occurs
 }
 
 /// Given an expression that is the operand of a reference (`&expr` or `&mut expr`),

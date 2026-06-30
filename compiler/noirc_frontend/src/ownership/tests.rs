@@ -1675,6 +1675,105 @@ fn clone_for_loop_buffer_rotation_via_aliasing_reassignment() {
     ");
 }
 
+/// `c = [ { ...; c[0] = 99; a[0] }, 20 ]` reassigns `c` to a fresh array, but constructing it
+/// writes `c[0]` in place. Because `c` occurs in its own right-hand side it must not be killed,
+/// so the loop-carried `a = c` is cloned rather than sharing one refcount-1 buffer. The mention
+/// of `c` is nested in an inner `while`, so only the `local_occurs_in` scan catches it.
+#[test]
+fn clone_for_loop_buffer_rotation_via_aliasing_array_literal() {
+    let src = "
+    unconstrained fn main() -> pub [Field; 2] {
+        let mut a = [1, 2];
+        let mut c = [10, 20];
+        let mut j: u32 = 0;
+        while j < 2 {
+            j += 1;
+            c = [
+                {
+                    let mut i: u32 = 0;
+                    while i < 1 { i += 1; c[0] = 99; };
+                    a[0]
+                },
+                20,
+            ];
+            a = c;
+        }
+        a
+    }
+    ";
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    unconstrained fn main$f0() -> pub [Field; 2] {
+        let mut a$l0 = [1, 2];
+        let mut c$l1 = [10, 20];
+        let mut j$l2 = 0;
+        while (j$l2 < 2) {
+            j$l2 = (j$l2 + 1);
+            c$l1 = [{
+                let mut i$l3 = 0;
+                while (i$l3 < 1) {
+                    i$l3 = (i$l3 + 1);
+                    c$l1[0] = 99
+                };
+                a$l0[0]
+            }, 20];
+            a$l0 = c$l1.clone()
+        };
+        a$l0
+    }
+    ");
+}
+
+/// Same shape as the test above, but the in-place write targets a fresh local `k`, so `c` does
+/// not occur in its own right-hand side. `c` is then killed and the loop-carried `a = c` moved
+/// without a clone, confirming a non-literal element alone does not force a clone.
+#[test]
+fn move_for_loop_buffer_rotation_when_variable_absent_from_rhs() {
+    let src = "
+    unconstrained fn main() -> pub [Field; 2] {
+        let mut a = [1, 2];
+        let mut c = [10, 20];
+        let mut j: u32 = 0;
+        while j < 2 {
+            j += 1;
+            c = [
+                {
+                    let mut k = [0, 0];
+                    let mut i: u32 = 0;
+                    while i < 1 { i += 1; k[0] = 99; };
+                    a[0]
+                },
+                20,
+            ];
+            a = c;
+        }
+        a
+    }
+    ";
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    unconstrained fn main$f0() -> pub [Field; 2] {
+        let mut a$l0 = [1, 2];
+        let mut c$l1 = [10, 20];
+        let mut j$l2 = 0;
+        while (j$l2 < 2) {
+            j$l2 = (j$l2 + 1);
+            c$l1 = [{
+                let mut k$l3 = [0, 0];
+                let mut i$l4 = 0;
+                while (i$l4 < 1) {
+                    i$l4 = (i$l4 + 1);
+                    k$l3[0] = 99
+                };
+                a$l0[0]
+            }, 20];
+            a$l0 = c$l1
+        };
+        a$l0
+    }
+    ");
+}
+
 /// Regression: when a nested array is passed alongside one of its inner arrays
 /// (`foo(a, a[1])`), `a[1]` is the textually-last use of `a`, but moving `a`
 /// only transfers the outer array's reference count. The inner array at
