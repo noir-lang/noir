@@ -375,8 +375,8 @@ impl Context<'_> {
                 // the stored element becomes `predicate * value + (1 - predicate) * dummy`: unchanged
                 // when the predicate is false. Folding it into the `AcirValue::Array` this way avoids
                 // initializing a memory block purely to read that dummy back out.
-                let dummy = array[index].clone();
-                let predicated_value = self.convert_array_set_store_value(&store_value, &dummy)?;
+                let predicated_value =
+                    self.convert_array_set_store_value(&store_value, &array[index])?;
                 let value = AcirValue::Array(array.update(index, predicated_value));
                 self.define_result(dfg, instruction, value);
                 Ok(true)
