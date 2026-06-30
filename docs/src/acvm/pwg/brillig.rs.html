@@ -132,7 +132,7 @@
 <a href=#132 id=132 data-nosnippet>132</a>                BrilligInputs::MemoryArray(block_id) =&gt; {
 <a href=#133 id=133 data-nosnippet>133</a>                    <span class="kw">let </span>memory_block = memory
 <a href=#134 id=134 data-nosnippet>134</a>                        .get(block_id)
-<a href=#135 id=135 data-nosnippet>135</a>                        .ok_or(OpcodeNotSolvable::MissingMemoryBlock(block_id.<span class="number">0</span>))<span class="question-mark">?</span>;
+<a href=#135 id=135 data-nosnippet>135</a>                        .ok_or(OpcodeNotSolvable::MissingMemoryBlock(block_id.as_u32()))<span class="question-mark">?</span>;
 <a href=#136 id=136 data-nosnippet>136</a>                    calldata.extend(<span class="kw-2">&amp;</span>memory_block.block_value);
 <a href=#137 id=137 data-nosnippet>137</a>                }
 <a href=#138 id=138 data-nosnippet>138</a>            }

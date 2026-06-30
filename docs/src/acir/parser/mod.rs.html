@@ -720,7 +720,7 @@
 <a href=#720 id=720 data-nosnippet>720</a>        <span class="self">self</span>.eat_or_error(Token::Colon)<span class="question-mark">?</span>;
 <a href=#721 id=721 data-nosnippet>721</a>        <span class="kw">let </span>outputs = <span class="self">self</span>.parse_brillig_outputs()<span class="question-mark">?</span>;
 <a href=#722 id=722 data-nosnippet>722</a>
-<a href=#723 id=723 data-nosnippet>723</a>        <span class="prelude-val">Ok</span>(Opcode::BrilligCall { id: BrilligFunctionId(func_id), inputs, outputs, predicate })
+<a href=#723 id=723 data-nosnippet>723</a>        <span class="prelude-val">Ok</span>(Opcode::BrilligCall { id: BrilligFunctionId::new(func_id), inputs, outputs, predicate })
 <a href=#724 id=724 data-nosnippet>724</a>    }
 <a href=#725 id=725 data-nosnippet>725</a>
 <a href=#726 id=726 data-nosnippet>726</a>    <span class="kw">fn </span>parse_brillig_inputs(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; ParseResult&lt;Vec&lt;BrilligInputs&lt;FieldElement&gt;&gt;&gt; {
@@ -772,7 +772,7 @@
 <a href=#772 id=772 data-nosnippet>772</a>        <span class="self">self</span>.eat_or_error(Token::Colon)<span class="question-mark">?</span>;
 <a href=#773 id=773 data-nosnippet>773</a>        <span class="kw">let </span>outputs = <span class="self">self</span>.parse_witness_vector()<span class="question-mark">?</span>;
 <a href=#774 id=774 data-nosnippet>774</a>
-<a href=#775 id=775 data-nosnippet>775</a>        <span class="prelude-val">Ok</span>(Opcode::Call { id: AcirFunctionId(id), inputs, outputs, predicate })
+<a href=#775 id=775 data-nosnippet>775</a>        <span class="prelude-val">Ok</span>(Opcode::Call { id: AcirFunctionId::new(id), inputs, outputs, predicate })
 <a href=#776 id=776 data-nosnippet>776</a>    }
 <a href=#777 id=777 data-nosnippet>777</a>
 <a href=#778 id=778 data-nosnippet>778</a>    <span class="kw">fn </span>eat_predicate(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; ParseResult&lt;Expression&lt;FieldElement&gt;&gt; {
@@ -918,7 +918,7 @@
 <a href=#918 id=918 data-nosnippet>918</a>        <span class="kw">if </span>is_block_type {
 <a href=#919 id=919 data-nosnippet>919</a>            <span class="kw">let </span>token = <span class="self">self</span>.bump()<span class="question-mark">?</span>;
 <a href=#920 id=920 data-nosnippet>920</a>            <span class="kw">match </span>token.into_token() {
-<a href=#921 id=921 data-nosnippet>921</a>                Token::Block(block) =&gt; <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(BlockId(block))),
+<a href=#921 id=921 data-nosnippet>921</a>                Token::Block(block) =&gt; <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(BlockId::new(block))),
 <a href=#922 id=922 data-nosnippet>922</a>                <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(),
 <a href=#923 id=923 data-nosnippet>923</a>            }
 <a href=#924 id=924 data-nosnippet>924</a>        } <span class="kw">else </span>{

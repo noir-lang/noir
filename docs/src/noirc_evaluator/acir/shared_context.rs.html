@@ -125,7 +125,7 @@
 <a href=#125 id=125 data-nosnippet>125</a>
 <a href=#126 id=126 data-nosnippet>126</a>    <span class="doccomment">/// Allocate a fresh Brillig function pointer
 <a href=#127 id=127 data-nosnippet>127</a>    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>new_generated_pointer(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; BrilligFunctionId {
-<a href=#128 id=128 data-nosnippet>128</a>        BrilligFunctionId(<span class="self">self</span>.generated_brillig.len() <span class="kw">as </span>u32)
+<a href=#128 id=128 data-nosnippet>128</a>        BrilligFunctionId::new(<span class="self">self</span>.generated_brillig.len() <span class="kw">as </span>u32)
 <a href=#129 id=129 data-nosnippet>129</a>    }
 <a href=#130 id=130 data-nosnippet>130</a>
 <a href=#131 id=131 data-nosnippet>131</a>    <span class="doccomment">/// Register a stdlib Brillig call for later resolution.
@@ -312,7 +312,7 @@
 <a href=#312 id=312 data-nosnippet>312</a>        <span class="comment">// Manually insert a pointer without inserting the corresponding Brillig bytecode
 <a href=#313 id=313 data-nosnippet>313</a>        </span>context
 <a href=#314 id=314 data-nosnippet>314</a>            .brillig_generated_func_pointers
-<a href=#315 id=315 data-nosnippet>315</a>            .insert((func_id, args.clone()), BrilligFunctionId(<span class="number">0</span>));
+<a href=#315 id=315 data-nosnippet>315</a>            .insert((func_id, args.clone()), BrilligFunctionId::new(<span class="number">0</span>));
 <a href=#316 id=316 data-nosnippet>316</a>        <span class="comment">// This should panic because the list of Brillig artifacts is empty
 <a href=#317 id=317 data-nosnippet>317</a>        </span><span class="kw">let </span>pointer = context.generated_brillig_pointer(func_id, args).unwrap();
 <a href=#318 id=318 data-nosnippet>318</a>        <span class="kw">let _ </span>= <span class="kw-2">&amp;</span>context.generated_brillig(pointer.as_usize());

@@ -640,7 +640,7 @@
 <a href=#640 id=640 data-nosnippet>640</a>            <span class="number">44</span>, <span class="number">45</span>, <span class="number">46</span>, <span class="number">47</span>, <span class="number">48</span>, <span class="number">49</span>, <span class="number">50</span>, <span class="number">51</span>, <span class="number">52</span>, <span class="number">53</span>, <span class="number">54</span>, <span class="number">55</span>, <span class="number">56</span>, <span class="number">57</span>, <span class="number">58</span>, <span class="number">59</span>, <span class="number">60</span>, <span class="number">61</span>, <span class="number">62</span>, <span class="number">63</span>, <span class="number">64</span>,
 <a href=#641 id=641 data-nosnippet>641</a>        ];
 <a href=#642 id=642 data-nosnippet>642</a>        <span class="kw">let </span><span class="kw-2">mut </span>brillig_side_effects = BTreeMap::new();
-<a href=#643 id=643 data-nosnippet>643</a>        brillig_side_effects.insert(BrilligFunctionId(<span class="number">0</span>), <span class="bool-val">false</span>);
+<a href=#643 id=643 data-nosnippet>643</a>        brillig_side_effects.insert(BrilligFunctionId::new(<span class="number">0</span>), <span class="bool-val">false</span>);
 <a href=#644 id=644 data-nosnippet>644</a>
 <a href=#645 id=645 data-nosnippet>645</a>        <span class="kw">let </span>(<span class="kw">_</span>, <span class="kw">_</span>, opcode_count_stabilized) =
 <a href=#646 id=646 data-nosnippet>646</a>            transform_internal(acir, acir_opcode_positions, <span class="kw-2">&amp;</span>brillig_side_effects, <span class="prelude-val">None</span>);

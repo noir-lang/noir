@@ -130,7 +130,7 @@
 <a href=#130 id=130 data-nosnippet>130</a>            <span class="kw">let </span>brillig_function_id = std::mem::take(<span class="kw-2">&amp;mut </span>sample.brillig_function_id);
 <a href=#131 id=131 data-nosnippet>131</a>            <span class="kw">let </span>last_entry = call_stack.last();
 <a href=#132 id=132 data-nosnippet>132</a>            <span class="kw">let </span>opcode = brillig_function_id
-<a href=#133 id=133 data-nosnippet>133</a>                .and_then(|id| program.bytecode.unconstrained_functions.get(id.<span class="number">0 </span><span class="kw">as </span>usize))
+<a href=#133 id=133 data-nosnippet>133</a>                .and_then(|id| program.bytecode.unconstrained_functions.get(id.as_usize()))
 <a href=#134 id=134 data-nosnippet>134</a>                .and_then(|func| {
 <a href=#135 id=135 data-nosnippet>135</a>                    <span class="kw">if let </span><span class="prelude-val">Some</span>(OpcodeLocation::Brillig { brillig_index, .. }) = last_entry {
 <a href=#136 id=136 data-nosnippet>136</a>                        func.bytecode.get(<span class="kw-2">*</span>brillig_index)

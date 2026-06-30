@@ -42,7 +42,7 @@
 <a href=#42 id=42 data-nosnippet>42</a>    <span class="kw">fn </span>from(js_map: JsWitnessMap) -&gt; <span class="self">Self </span>{
 <a href=#43 id=43 data-nosnippet>43</a>        <span class="kw">let </span><span class="kw-2">mut </span>witness_map = WitnessMap::new();
 <a href=#44 id=44 data-nosnippet>44</a>        js_map.for_each(<span class="kw-2">&amp;mut </span>|value, key| {
-<a href=#45 id=45 data-nosnippet>45</a>            <span class="kw">let </span>witness_index = Witness(key.as_f64().unwrap() <span class="kw">as </span>u32);
+<a href=#45 id=45 data-nosnippet>45</a>            <span class="kw">let </span>witness_index = Witness::new(key.as_f64().unwrap() <span class="kw">as </span>u32);
 <a href=#46 id=46 data-nosnippet>46</a>            <span class="kw">let </span>witness_value = js_value_to_field_element(value).unwrap();
 <a href=#47 id=47 data-nosnippet>47</a>            witness_map.insert(witness_index, witness_value);
 <a href=#48 id=48 data-nosnippet>48</a>        });

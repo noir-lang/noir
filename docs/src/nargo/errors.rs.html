@@ -186,7 +186,7 @@
 <a href=#186 id=186 data-nosnippet>186</a>                    OpcodeLocation::Brillig { brillig_index, .. } =&gt; <span class="kw-2">*</span>debug
 <a href=#187 id=187 data-nosnippet>187</a>                        [resolved_location.acir_function_index]
 <a href=#188 id=188 data-nosnippet>188</a>                        .brillig_locations[<span class="kw-2">&amp;</span>brillig_function_id.unwrap()]
-<a href=#189 id=189 data-nosnippet>189</a>                        .get(<span class="kw-2">&amp;</span>BrilligOpcodeLocation(brillig_index))
+<a href=#189 id=189 data-nosnippet>189</a>                        .get(<span class="kw-2">&amp;</span>BrilligOpcodeLocation::new(brillig_index))
 <a href=#190 id=190 data-nosnippet>190</a>                        .unwrap_or(<span class="kw-2">&amp;</span>CallStackId::root()),
 <a href=#191 id=191 data-nosnippet>191</a>                };
 <a href=#192 id=192 data-nosnippet>192</a>                debug[resolved_location.acir_function_index]

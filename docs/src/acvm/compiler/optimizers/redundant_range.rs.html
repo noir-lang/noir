@@ -542,7 +542,7 @@
 <a href=#542 id=542 data-nosnippet>542</a>            circuit.opcodes.iter().enumerate().map(|(i, <span class="kw">_</span>)| i).collect();
 <a href=#543 id=543 data-nosnippet>543</a>
 <a href=#544 id=544 data-nosnippet>544</a>        <span class="comment">// Consider the Brillig function to have a side effect.
-<a href=#545 id=545 data-nosnippet>545</a>        </span><span class="kw">let </span>brillig_side_effects = BTreeMap::from_iter(<span class="macro">vec!</span>[(BrilligFunctionId(<span class="number">0</span>), <span class="bool-val">true</span>)]);
+<a href=#545 id=545 data-nosnippet>545</a>        </span><span class="kw">let </span>brillig_side_effects = BTreeMap::from_iter(<span class="macro">vec!</span>[(BrilligFunctionId::new(<span class="number">0</span>), <span class="bool-val">true</span>)]);
 <a href=#546 id=546 data-nosnippet>546</a>
 <a href=#547 id=547 data-nosnippet>547</a>        <span class="kw">let </span>optimizer = RangeOptimizer::new(circuit, <span class="kw-2">&amp;</span>brillig_side_effects);
 <a href=#548 id=548 data-nosnippet>548</a>        <span class="kw">let </span>(optimized_circuit, <span class="kw">_</span>) =

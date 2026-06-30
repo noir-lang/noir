@@ -108,10 +108,10 @@
 <a href=#108 id=108 data-nosnippet>108</a>        <span class="macro">write!</span>(
 <a href=#109 id=109 data-nosnippet>109</a>            f,
 <a href=#110 id=110 data-nosnippet>110</a>            <span class="string">"id: {}, len: {}, value_types: {:?}, element_type_sizes: {:?}"</span>,
-<a href=#111 id=111 data-nosnippet>111</a>            <span class="self">self</span>.block_id.<span class="number">0</span>,
+<a href=#111 id=111 data-nosnippet>111</a>            <span class="self">self</span>.block_id.as_u32(),
 <a href=#112 id=112 data-nosnippet>112</a>            <span class="self">self</span>.len,
 <a href=#113 id=113 data-nosnippet>113</a>            <span class="self">self</span>.value_types,
-<a href=#114 id=114 data-nosnippet>114</a>            <span class="self">self</span>.element_type_sizes.map(|block_id| block_id.<span class="number">0</span>)
+<a href=#114 id=114 data-nosnippet>114</a>            <span class="self">self</span>.element_type_sizes.map(|block_id| block_id.as_u32())
 <a href=#115 id=115 data-nosnippet>115</a>        )
 <a href=#116 id=116 data-nosnippet>116</a>    }
 <a href=#117 id=117 data-nosnippet>117</a>}

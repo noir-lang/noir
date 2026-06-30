@@ -145,7 +145,7 @@
 <a href=#145 id=145 data-nosnippet>145</a><span class="kw">impl </span>Context&lt;<span class="lifetime">'_</span>&gt; {
 <a href=#146 id=146 data-nosnippet>146</a>    <span class="doccomment">/// Allocate a fresh, unique [`BlockId`] for a memory block.
 <a href=#147 id=147 data-nosnippet>147</a>    </span><span class="kw">fn </span>next_block_id(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; BlockId {
-<a href=#148 id=148 data-nosnippet>148</a>        <span class="kw">let </span>block_id = BlockId(<span class="self">self</span>.max_block_id);
+<a href=#148 id=148 data-nosnippet>148</a>        <span class="kw">let </span>block_id = BlockId::new(<span class="self">self</span>.max_block_id);
 <a href=#149 id=149 data-nosnippet>149</a>        <span class="self">self</span>.max_block_id += <span class="number">1</span>;
 <a href=#150 id=150 data-nosnippet>150</a>        block_id
 <a href=#151 id=151 data-nosnippet>151</a>    }
@@ -154,7 +154,7 @@
 <a href=#154 id=154 data-nosnippet>154</a>    /// If there is no matching `BlockId`, we create a new one.
 <a href=#155 id=155 data-nosnippet>155</a>    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>block_id(<span class="kw-2">&amp;mut </span><span class="self">self</span>, value: ValueId) -&gt; BlockId {
 <a href=#156 id=156 data-nosnippet>156</a>        <span class="kw-2">*</span><span class="self">self</span>.memory_blocks.entry(value).or_insert_with(|| {
-<a href=#157 id=157 data-nosnippet>157</a>            <span class="kw">let </span>block_id = BlockId(<span class="self">self</span>.max_block_id);
+<a href=#157 id=157 data-nosnippet>157</a>            <span class="kw">let </span>block_id = BlockId::new(<span class="self">self</span>.max_block_id);
 <a href=#158 id=158 data-nosnippet>158</a>            <span class="self">self</span>.max_block_id += <span class="number">1</span>;
 <a href=#159 id=159 data-nosnippet>159</a>            block_id
 <a href=#160 id=160 data-nosnippet>160</a>        })
@@ -174,7 +174,7 @@
 <a href=#174 id=174 data-nosnippet>174</a>    /// of non-homogenous arrays.
 <a href=#175 id=175 data-nosnippet>175</a>    </span><span class="kw">fn </span>type_sizes_block_id(<span class="kw-2">&amp;mut </span><span class="self">self</span>, value: ValueId) -&gt; BlockId {
 <a href=#176 id=176 data-nosnippet>176</a>        <span class="kw-2">*</span><span class="self">self</span>.element_type_sizes_blocks.entry(value).or_insert_with(|| {
-<a href=#177 id=177 data-nosnippet>177</a>            <span class="kw">let </span>block_id = BlockId(<span class="self">self</span>.max_block_id);
+<a href=#177 id=177 data-nosnippet>177</a>            <span class="kw">let </span>block_id = BlockId::new(<span class="self">self</span>.max_block_id);
 <a href=#178 id=178 data-nosnippet>178</a>            <span class="self">self</span>.max_block_id += <span class="number">1</span>;
 <a href=#179 id=179 data-nosnippet>179</a>            block_id
 <a href=#180 id=180 data-nosnippet>180</a>        })

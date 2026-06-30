@@ -112,7 +112,7 @@
 <a href=#112 id=112 data-nosnippet>112</a>                    brillig_index,
 <a href=#113 id=113 data-nosnippet>113</a>                }],
 <a href=#114 id=114 data-nosnippet>114</a>                count: <span class="number">1</span>,
-<a href=#115 id=115 data-nosnippet>115</a>                brillig_function_id: <span class="prelude-val">Some</span>(BrilligFunctionId(brillig_fn_index <span class="kw">as </span>u32)),
+<a href=#115 id=115 data-nosnippet>115</a>                brillig_function_id: <span class="prelude-val">Some</span>(BrilligFunctionId::new(brillig_fn_index <span class="kw">as </span>u32)),
 <a href=#116 id=116 data-nosnippet>116</a>            })
 <a href=#117 id=117 data-nosnippet>117</a>            .collect();
 <a href=#118 id=118 data-nosnippet>118</a>
@@ -231,19 +231,19 @@
 <a href=#231 id=231 data-nosnippet>231</a>
 <a href=#232 id=232 data-nosnippet>232</a>        <span class="kw">let </span>acir: Vec&lt;Opcode&lt;FieldElement&gt;&gt; = <span class="macro">vec!</span>[
 <a href=#233 id=233 data-nosnippet>233</a>            Opcode::BrilligCall {
-<a href=#234 id=234 data-nosnippet>234</a>                id: BrilligFunctionId(<span class="number">0</span>),
+<a href=#234 id=234 data-nosnippet>234</a>                id: BrilligFunctionId::new(<span class="number">0</span>),
 <a href=#235 id=235 data-nosnippet>235</a>                inputs: <span class="macro">vec!</span>[],
 <a href=#236 id=236 data-nosnippet>236</a>                outputs: <span class="macro">vec!</span>[],
 <a href=#237 id=237 data-nosnippet>237</a>                predicate: Expression::one(),
 <a href=#238 id=238 data-nosnippet>238</a>            },
 <a href=#239 id=239 data-nosnippet>239</a>            Opcode::BrilligCall {
-<a href=#240 id=240 data-nosnippet>240</a>                id: BrilligFunctionId(<span class="number">1</span>),
+<a href=#240 id=240 data-nosnippet>240</a>                id: BrilligFunctionId::new(<span class="number">1</span>),
 <a href=#241 id=241 data-nosnippet>241</a>                inputs: <span class="macro">vec!</span>[],
 <a href=#242 id=242 data-nosnippet>242</a>                outputs: <span class="macro">vec!</span>[],
 <a href=#243 id=243 data-nosnippet>243</a>                predicate: Expression::one(),
 <a href=#244 id=244 data-nosnippet>244</a>            },
 <a href=#245 id=245 data-nosnippet>245</a>            Opcode::BrilligCall {
-<a href=#246 id=246 data-nosnippet>246</a>                id: BrilligFunctionId(<span class="number">2</span>),
+<a href=#246 id=246 data-nosnippet>246</a>                id: BrilligFunctionId::new(<span class="number">2</span>),
 <a href=#247 id=247 data-nosnippet>247</a>                inputs: <span class="macro">vec!</span>[],
 <a href=#248 id=248 data-nosnippet>248</a>                outputs: <span class="macro">vec!</span>[],
 <a href=#249 id=249 data-nosnippet>249</a>                predicate: Expression::one(),

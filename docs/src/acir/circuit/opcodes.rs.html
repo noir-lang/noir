@@ -200,10 +200,10 @@
 <a href=#200 id=200 data-nosnippet>200</a>        Opcode::BlackBoxFuncCall(g) =&gt; std::fmt::Display::fmt(<span class="kw-2">&amp;</span>g, f),
 <a href=#201 id=201 data-nosnippet>201</a>        Opcode::MemoryOp { block_id, op } =&gt; <span class="kw">match </span>op.operation {
 <a href=#202 id=202 data-nosnippet>202</a>            MemOpKind::Read =&gt; {
-<a href=#203 id=203 data-nosnippet>203</a>                <span class="macro">write!</span>(f, <span class="string">"READ {} = b{}[{}]"</span>, op.value, block_id.<span class="number">0</span>, op.index)
+<a href=#203 id=203 data-nosnippet>203</a>                <span class="macro">write!</span>(f, <span class="string">"READ {} = {}[{}]"</span>, op.value, block_id, op.index)
 <a href=#204 id=204 data-nosnippet>204</a>            }
 <a href=#205 id=205 data-nosnippet>205</a>            MemOpKind::Write =&gt; {
-<a href=#206 id=206 data-nosnippet>206</a>                <span class="macro">write!</span>(f, <span class="string">"WRITE b{}[{}] = {}"</span>, block_id.<span class="number">0</span>, op.index, op.value)
+<a href=#206 id=206 data-nosnippet>206</a>                <span class="macro">write!</span>(f, <span class="string">"WRITE {}[{}] = {}"</span>, block_id, op.index, op.value)
 <a href=#207 id=207 data-nosnippet>207</a>            }
 <a href=#208 id=208 data-nosnippet>208</a>        },
 <a href=#209 id=209 data-nosnippet>209</a>        Opcode::MemoryInit { block_id, init, block_type: databus } =&gt; {
@@ -213,7 +213,7 @@
 <a href=#213 id=213 data-nosnippet>213</a>                BlockType::ReturnData =&gt; <span class="macro">write!</span>(f, <span class="string">"INIT RETURNDATA "</span>)<span class="question-mark">?</span>,
 <a href=#214 id=214 data-nosnippet>214</a>            }
 <a href=#215 id=215 data-nosnippet>215</a>            <span class="kw">let </span>witnesses = init.iter().map(|w| <span class="macro">format!</span>(<span class="string">"{w}"</span>)).collect::&lt;Vec&lt;String&gt;&gt;().join(<span class="string">", "</span>);
-<a href=#216 id=216 data-nosnippet>216</a>            <span class="macro">write!</span>(f, <span class="string">"b{} = [{witnesses}]"</span>, block_id.<span class="number">0</span>)
+<a href=#216 id=216 data-nosnippet>216</a>            <span class="macro">write!</span>(f, <span class="string">"{block_id} = [{witnesses}]"</span>)
 <a href=#217 id=217 data-nosnippet>217</a>        }
 <a href=#218 id=218 data-nosnippet>218</a>        <span class="comment">// We keep the display for a BrilligCall and circuit Call separate as they
 <a href=#219 id=219 data-nosnippet>219</a>        // are distinct in their functionality and we should maintain this separation for debugging.
@@ -259,7 +259,7 @@
 <a href=#259 id=259 data-nosnippet>259</a>    <span class="attr">#[test]
 <a href=#260 id=260 data-nosnippet>260</a>    </span><span class="kw">fn </span>mem_init_display_snapshot() {
 <a href=#261 id=261 data-nosnippet>261</a>        <span class="kw">let </span>mem_init: Opcode&lt;FieldElement&gt; = Opcode::MemoryInit {
-<a href=#262 id=262 data-nosnippet>262</a>            block_id: BlockId(<span class="number">42</span>),
+<a href=#262 id=262 data-nosnippet>262</a>            block_id: BlockId::new(<span class="number">42</span>),
 <a href=#263 id=263 data-nosnippet>263</a>            init: (<span class="number">0</span>..<span class="number">10u32</span>).map(Witness).collect(),
 <a href=#264 id=264 data-nosnippet>264</a>            block_type: BlockType::Memory,
 <a href=#265 id=265 data-nosnippet>265</a>        };

@@ -106,16 +106,26 @@
 <a href=#106 id=106 data-nosnippet>106</a>#[derive(Serialize, Deserialize, MsgpackTagged)]
 <a href=#107 id=107 data-nosnippet>107</a>#[cfg_attr(feature = <span class="string">"arb"</span>, derive(proptest_derive::Arbitrary))]
 <a href=#108 id=108 data-nosnippet>108</a>#[serde(transparent)]
-<a href=#109 id=109 data-nosnippet>109</a></span><span class="kw">pub struct </span>BrilligFunctionId(<span class="kw">pub </span>u32);
+<a href=#109 id=109 data-nosnippet>109</a></span><span class="kw">pub struct </span>BrilligFunctionId(u32);
 <a href=#110 id=110 data-nosnippet>110</a>
 <a href=#111 id=111 data-nosnippet>111</a><span class="kw">impl </span>BrilligFunctionId {
-<a href=#112 id=112 data-nosnippet>112</a>    <span class="kw">pub fn </span>as_usize(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; usize {
-<a href=#113 id=113 data-nosnippet>113</a>        <span class="self">self</span>.<span class="number">0 </span><span class="kw">as </span>usize
-<a href=#114 id=114 data-nosnippet>114</a>    }
-<a href=#115 id=115 data-nosnippet>115</a>}
-<a href=#116 id=116 data-nosnippet>116</a>
-<a href=#117 id=117 data-nosnippet>117</a><span class="kw">impl </span>std::fmt::Display <span class="kw">for </span>BrilligFunctionId {
-<a href=#118 id=118 data-nosnippet>118</a>    <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>std::fmt::Formatter&lt;<span class="lifetime">'_</span>&gt;) -&gt; std::fmt::Result {
-<a href=#119 id=119 data-nosnippet>119</a>        <span class="macro">write!</span>(f, <span class="string">"{}"</span>, <span class="self">self</span>.<span class="number">0</span>)
-<a href=#120 id=120 data-nosnippet>120</a>    }
-<a href=#121 id=121 data-nosnippet>121</a>}</code></pre></div></section></main></body></html>
+<a href=#112 id=112 data-nosnippet>112</a>    <span class="doccomment">/// Creates a `BrilligFunctionId` indexing into a [program][super::Program]'s table of
+<a href=#113 id=113 data-nosnippet>113</a>    /// Brillig functions by its raw index.
+<a href=#114 id=114 data-nosnippet>114</a>    </span><span class="kw">pub const fn </span>new(id: u32) -&gt; <span class="self">Self </span>{
+<a href=#115 id=115 data-nosnippet>115</a>        BrilligFunctionId(id)
+<a href=#116 id=116 data-nosnippet>116</a>    }
+<a href=#117 id=117 data-nosnippet>117</a>
+<a href=#118 id=118 data-nosnippet>118</a>    <span class="kw">pub fn </span>as_u32(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; u32 {
+<a href=#119 id=119 data-nosnippet>119</a>        <span class="self">self</span>.<span class="number">0
+<a href=#120 id=120 data-nosnippet>120</a>    </span>}
+<a href=#121 id=121 data-nosnippet>121</a>
+<a href=#122 id=122 data-nosnippet>122</a>    <span class="kw">pub fn </span>as_usize(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; usize {
+<a href=#123 id=123 data-nosnippet>123</a>        <span class="self">self</span>.<span class="number">0 </span><span class="kw">as </span>usize
+<a href=#124 id=124 data-nosnippet>124</a>    }
+<a href=#125 id=125 data-nosnippet>125</a>}
+<a href=#126 id=126 data-nosnippet>126</a>
+<a href=#127 id=127 data-nosnippet>127</a><span class="kw">impl </span>std::fmt::Display <span class="kw">for </span>BrilligFunctionId {
+<a href=#128 id=128 data-nosnippet>128</a>    <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>std::fmt::Formatter&lt;<span class="lifetime">'_</span>&gt;) -&gt; std::fmt::Result {
+<a href=#129 id=129 data-nosnippet>129</a>        <span class="macro">write!</span>(f, <span class="string">"{}"</span>, <span class="self">self</span>.<span class="number">0</span>)
+<a href=#130 id=130 data-nosnippet>130</a>    }
+<a href=#131 id=131 data-nosnippet>131</a>}</code></pre></div></section></main></body></html>

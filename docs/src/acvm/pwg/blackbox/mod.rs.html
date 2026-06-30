@@ -73,7 +73,7 @@
 <a href=#73 id=73 data-nosnippet>73</a>        <span class="kw">let </span>unassigned_witness = first_missing_assignment(initial_witness, <span class="kw-2">&amp;</span>inputs)
 <a href=#74 id=74 data-nosnippet>74</a>            .expect(<span class="string">"Some assignments must be missing because it does not contains all inputs"</span>);
 <a href=#75 id=75 data-nosnippet>75</a>        <span class="kw">return </span><span class="prelude-val">Err</span>(OpcodeResolutionError::OpcodeNotSolvable(
-<a href=#76 id=76 data-nosnippet>76</a>            OpcodeNotSolvable::MissingAssignment(unassigned_witness.<span class="number">0</span>),
+<a href=#76 id=76 data-nosnippet>76</a>            OpcodeNotSolvable::MissingAssignment(unassigned_witness.witness_index()),
 <a href=#77 id=77 data-nosnippet>77</a>        ));
 <a href=#78 id=78 data-nosnippet>78</a>    }
 <a href=#79 id=79 data-nosnippet>79</a>

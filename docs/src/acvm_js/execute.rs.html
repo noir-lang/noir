@@ -191,7 +191,7 @@
 <a href=#191 id=191 data-nosnippet>191</a>
 <a href=#192 id=192 data-nosnippet>192</a>        <span class="kw">let </span><span class="kw-2">mut </span>witness_stack = WitnessStack::default();
 <a href=#193 id=193 data-nosnippet>193</a>        <span class="kw">let </span>main_witness = <span class="self">self
-<a href=#194 id=194 data-nosnippet>194</a>            </span>.execute_circuit(main, AcirFunctionId(<span class="number">0</span>), initial_witness, <span class="kw-2">&amp;mut </span>witness_stack)
+<a href=#194 id=194 data-nosnippet>194</a>            </span>.execute_circuit(main, AcirFunctionId::new(<span class="number">0</span>), initial_witness, <span class="kw-2">&amp;mut </span>witness_stack)
 <a href=#195 id=195 data-nosnippet>195</a>            .<span class="kw">await</span><span class="question-mark">?</span>;
 <a href=#196 id=196 data-nosnippet>196</a>        witness_stack.push(<span class="number">0</span>, main_witness);
 <a href=#197 id=197 data-nosnippet>197</a>        <span class="prelude-val">Ok</span>(witness_stack)
@@ -308,7 +308,7 @@
 <a href=#308 id=308 data-nosnippet>308</a>                            }
 <a href=#309 id=309 data-nosnippet>309</a>                        }
 <a href=#310 id=310 data-nosnippet>310</a>                        acvm.resolve_pending_acir_call(call_resolved_outputs);
-<a href=#311 id=311 data-nosnippet>311</a>                        witness_stack.push(call_info.id.<span class="number">0</span>, call_solved_witness.clone());
+<a href=#311 id=311 data-nosnippet>311</a>                        witness_stack.push(call_info.id.as_u32(), call_solved_witness.clone());
 <a href=#312 id=312 data-nosnippet>312</a>                    }
 <a href=#313 id=313 data-nosnippet>313</a>                }
 <a href=#314 id=314 data-nosnippet>314</a>            }

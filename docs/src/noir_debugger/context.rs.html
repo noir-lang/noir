@@ -680,7 +680,7 @@
 <a href=#680 id=680 data-nosnippet>680</a>        <span class="kw">let </span>caller_acvm = std::mem::replace(<span class="kw-2">&amp;mut </span><span class="self">self</span>.acvm, callee_acvm);
 <a href=#681 id=681 data-nosnippet>681</a>        <span class="self">self</span>.acvm_stack
 <a href=#682 id=682 data-nosnippet>682</a>            .push(ExecutionFrame { circuit_id: <span class="self">self</span>.current_circuit_id, acvm: caller_acvm });
-<a href=#683 id=683 data-nosnippet>683</a>        <span class="self">self</span>.current_circuit_id = call_info.id.<span class="number">0</span>;
+<a href=#683 id=683 data-nosnippet>683</a>        <span class="self">self</span>.current_circuit_id = call_info.id.as_u32();
 <a href=#684 id=684 data-nosnippet>684</a>
 <a href=#685 id=685 data-nosnippet>685</a>        <span class="comment">// Explicitly handling the new ACVM status here handles two edge cases:
 <a href=#686 id=686 data-nosnippet>686</a>        // 1. there is a breakpoint set at the beginning of a circuit
@@ -1018,7 +1018,7 @@
 <a href=#1018 id=1018 data-nosnippet>1018</a>                .map(|(key, val)| {
 <a href=#1019 id=1019 data-nosnippet>1019</a>                    (
 <a href=#1020 id=1020 data-nosnippet>1020</a>                        <span class="comment">// TODO: this is a temporary placeholder until the debugger is updated to handle the new brillig debug locations.
-<a href=#1021 id=1021 data-nosnippet>1021</a>                        </span>OpcodeLocation::Brillig { acir_index: <span class="number">0</span>, brillig_index: key.<span class="number">0 </span>},
+<a href=#1021 id=1021 data-nosnippet>1021</a>                        </span>OpcodeLocation::Brillig { acir_index: <span class="number">0</span>, brillig_index: key.index() },
 <a href=#1022 id=1022 data-nosnippet>1022</a>                        <span class="kw-2">*</span>val,
 <a href=#1023 id=1023 data-nosnippet>1023</a>                    )
 <a href=#1024 id=1024 data-nosnippet>1024</a>                })
@@ -1177,7 +1177,7 @@
 <a href=#1177 id=1177 data-nosnippet>1177</a>            <span class="prelude-val">Some</span>(DebugLocation {
 <a href=#1178 id=1178 data-nosnippet>1178</a>                circuit_id: <span class="number">0</span>,
 <a href=#1179 id=1179 data-nosnippet>1179</a>                opcode_location: OpcodeLocation::Brillig { acir_index: <span class="number">0</span>, brillig_index: <span class="number">1 </span>},
-<a href=#1180 id=1180 data-nosnippet>1180</a>                brillig_function_id: <span class="prelude-val">Some</span>(BrilligFunctionId(<span class="number">0</span>)),
+<a href=#1180 id=1180 data-nosnippet>1180</a>                brillig_function_id: <span class="prelude-val">Some</span>(BrilligFunctionId::new(<span class="number">0</span>)),
 <a href=#1181 id=1181 data-nosnippet>1181</a>            })
 <a href=#1182 id=1182 data-nosnippet>1182</a>        );
 <a href=#1183 id=1183 data-nosnippet>1183</a>
@@ -1189,7 +1189,7 @@
 <a href=#1189 id=1189 data-nosnippet>1189</a>            <span class="prelude-val">Some</span>(DebugLocation {
 <a href=#1190 id=1190 data-nosnippet>1190</a>                circuit_id: <span class="number">0</span>,
 <a href=#1191 id=1191 data-nosnippet>1191</a>                opcode_location: OpcodeLocation::Brillig { acir_index: <span class="number">0</span>, brillig_index: <span class="number">2 </span>},
-<a href=#1192 id=1192 data-nosnippet>1192</a>                brillig_function_id: <span class="prelude-val">Some</span>(BrilligFunctionId(<span class="number">0</span>)),
+<a href=#1192 id=1192 data-nosnippet>1192</a>                brillig_function_id: <span class="prelude-val">Some</span>(BrilligFunctionId::new(<span class="number">0</span>)),
 <a href=#1193 id=1193 data-nosnippet>1193</a>            })
 <a href=#1194 id=1194 data-nosnippet>1194</a>        );
 <a href=#1195 id=1195 data-nosnippet>1195</a>
@@ -1202,7 +1202,7 @@
 <a href=#1202 id=1202 data-nosnippet>1202</a>            <span class="prelude-val">Some</span>(DebugLocation {
 <a href=#1203 id=1203 data-nosnippet>1203</a>                circuit_id: <span class="number">0</span>,
 <a href=#1204 id=1204 data-nosnippet>1204</a>                opcode_location: OpcodeLocation::Brillig { acir_index: <span class="number">0</span>, brillig_index: <span class="number">3 </span>},
-<a href=#1205 id=1205 data-nosnippet>1205</a>                brillig_function_id: <span class="prelude-val">Some</span>(BrilligFunctionId(<span class="number">0</span>)),
+<a href=#1205 id=1205 data-nosnippet>1205</a>                brillig_function_id: <span class="prelude-val">Some</span>(BrilligFunctionId::new(<span class="number">0</span>)),
 <a href=#1206 id=1206 data-nosnippet>1206</a>            })
 <a href=#1207 id=1207 data-nosnippet>1207</a>        );
 <a href=#1208 id=1208 data-nosnippet>1208</a>
@@ -1214,7 +1214,7 @@
 <a href=#1214 id=1214 data-nosnippet>1214</a>            <span class="prelude-val">Some</span>(DebugLocation {
 <a href=#1215 id=1215 data-nosnippet>1215</a>                circuit_id: <span class="number">0</span>,
 <a href=#1216 id=1216 data-nosnippet>1216</a>                opcode_location: OpcodeLocation::Brillig { acir_index: <span class="number">0</span>, brillig_index: <span class="number">3 </span>},
-<a href=#1217 id=1217 data-nosnippet>1217</a>                brillig_function_id: <span class="prelude-val">Some</span>(BrilligFunctionId(<span class="number">0</span>)),
+<a href=#1217 id=1217 data-nosnippet>1217</a>                brillig_function_id: <span class="prelude-val">Some</span>(BrilligFunctionId::new(<span class="number">0</span>)),
 <a href=#1218 id=1218 data-nosnippet>1218</a>            })
 <a href=#1219 id=1219 data-nosnippet>1219</a>        );
 <a href=#1220 id=1220 data-nosnippet>1220</a>
@@ -1226,7 +1226,7 @@
 <a href=#1226 id=1226 data-nosnippet>1226</a>            <span class="prelude-val">Some</span>(DebugLocation {
 <a href=#1227 id=1227 data-nosnippet>1227</a>                circuit_id: <span class="number">0</span>,
 <a href=#1228 id=1228 data-nosnippet>1228</a>                opcode_location: OpcodeLocation::Brillig { acir_index: <span class="number">0</span>, brillig_index: <span class="number">4 </span>},
-<a href=#1229 id=1229 data-nosnippet>1229</a>                brillig_function_id: <span class="prelude-val">Some</span>(BrilligFunctionId(<span class="number">0</span>)),
+<a href=#1229 id=1229 data-nosnippet>1229</a>                brillig_function_id: <span class="prelude-val">Some</span>(BrilligFunctionId::new(<span class="number">0</span>)),
 <a href=#1230 id=1230 data-nosnippet>1230</a>            })
 <a href=#1231 id=1231 data-nosnippet>1231</a>        );
 <a href=#1232 id=1232 data-nosnippet>1232</a>
@@ -1321,7 +1321,7 @@
 <a href=#1321 id=1321 data-nosnippet>1321</a>        </span><span class="kw">let </span>breakpoint_location = DebugLocation {
 <a href=#1322 id=1322 data-nosnippet>1322</a>            circuit_id: <span class="number">0</span>,
 <a href=#1323 id=1323 data-nosnippet>1323</a>            opcode_location: OpcodeLocation::Brillig { acir_index: <span class="number">0</span>, brillig_index: <span class="number">1 </span>},
-<a href=#1324 id=1324 data-nosnippet>1324</a>            brillig_function_id: <span class="prelude-val">Some</span>(BrilligFunctionId(<span class="number">0</span>)),
+<a href=#1324 id=1324 data-nosnippet>1324</a>            brillig_function_id: <span class="prelude-val">Some</span>(BrilligFunctionId::new(<span class="number">0</span>)),
 <a href=#1325 id=1325 data-nosnippet>1325</a>        };
 <a href=#1326 id=1326 data-nosnippet>1326</a>        <span class="macro">assert!</span>(context.add_breakpoint(breakpoint_location));
 <a href=#1327 id=1327 data-nosnippet>1327</a>
@@ -1417,7 +1417,7 @@
 <a href=#1417 id=1417 data-nosnippet>1417</a>                <span class="prelude-val">Some</span>(DebugLocation {
 <a href=#1418 id=1418 data-nosnippet>1418</a>                    circuit_id: <span class="number">0</span>,
 <a href=#1419 id=1419 data-nosnippet>1419</a>                    opcode_location: OpcodeLocation::Brillig { acir_index: <span class="number">1</span>, brillig_index: <span class="number">1 </span>},
-<a href=#1420 id=1420 data-nosnippet>1420</a>                    brillig_function_id: <span class="prelude-val">Some</span>(BrilligFunctionId(<span class="number">0</span>)),
+<a href=#1420 id=1420 data-nosnippet>1420</a>                    brillig_function_id: <span class="prelude-val">Some</span>(BrilligFunctionId::new(<span class="number">0</span>)),
 <a href=#1421 id=1421 data-nosnippet>1421</a>                }),
 <a href=#1422 id=1422 data-nosnippet>1422</a>                <span class="prelude-val">Some</span>(DebugLocation {
 <a href=#1423 id=1423 data-nosnippet>1423</a>                    circuit_id: <span class="number">0</span>,
@@ -1437,12 +1437,12 @@
 <a href=#1437 id=1437 data-nosnippet>1437</a>                <span class="prelude-val">Some</span>(DebugLocation {
 <a href=#1438 id=1438 data-nosnippet>1438</a>                    circuit_id: <span class="number">1</span>,
 <a href=#1439 id=1439 data-nosnippet>1439</a>                    opcode_location: OpcodeLocation::Brillig { acir_index: <span class="number">0</span>, brillig_index: <span class="number">1 </span>},
-<a href=#1440 id=1440 data-nosnippet>1440</a>                    brillig_function_id: <span class="prelude-val">Some</span>(BrilligFunctionId(<span class="number">1</span>)),
+<a href=#1440 id=1440 data-nosnippet>1440</a>                    brillig_function_id: <span class="prelude-val">Some</span>(BrilligFunctionId::new(<span class="number">1</span>)),
 <a href=#1441 id=1441 data-nosnippet>1441</a>                }),
 <a href=#1442 id=1442 data-nosnippet>1442</a>                <span class="prelude-val">Some</span>(DebugLocation {
 <a href=#1443 id=1443 data-nosnippet>1443</a>                    circuit_id: <span class="number">1</span>,
 <a href=#1444 id=1444 data-nosnippet>1444</a>                    opcode_location: OpcodeLocation::Brillig { acir_index: <span class="number">0</span>, brillig_index: <span class="number">2 </span>},
-<a href=#1445 id=1445 data-nosnippet>1445</a>                    brillig_function_id: <span class="prelude-val">Some</span>(BrilligFunctionId(<span class="number">1</span>)),
+<a href=#1445 id=1445 data-nosnippet>1445</a>                    brillig_function_id: <span class="prelude-val">Some</span>(BrilligFunctionId::new(<span class="number">1</span>)),
 <a href=#1446 id=1446 data-nosnippet>1446</a>                }),
 <a href=#1447 id=1447 data-nosnippet>1447</a>                <span class="prelude-val">Some</span>(DebugLocation {
 <a href=#1448 id=1448 data-nosnippet>1448</a>                    circuit_id: <span class="number">1</span>,
@@ -1468,7 +1468,7 @@
 <a href=#1468 id=1468 data-nosnippet>1468</a>            context.debug_location_to_address(<span class="kw-2">&amp;</span>DebugLocation {
 <a href=#1469 id=1469 data-nosnippet>1469</a>                circuit_id: <span class="number">0</span>,
 <a href=#1470 id=1470 data-nosnippet>1470</a>                opcode_location: OpcodeLocation::Brillig { acir_index: <span class="number">1</span>, brillig_index: <span class="number">0 </span>},
-<a href=#1471 id=1471 data-nosnippet>1471</a>                brillig_function_id: <span class="prelude-val">Some</span>(BrilligFunctionId(<span class="number">0</span>)),
+<a href=#1471 id=1471 data-nosnippet>1471</a>                brillig_function_id: <span class="prelude-val">Some</span>(BrilligFunctionId::new(<span class="number">0</span>)),
 <a href=#1472 id=1472 data-nosnippet>1472</a>            })
 <a href=#1473 id=1473 data-nosnippet>1473</a>        );
 <a href=#1474 id=1474 data-nosnippet>1474</a>        <span class="macro">assert_eq!</span>(
@@ -1476,7 +1476,7 @@
 <a href=#1476 id=1476 data-nosnippet>1476</a>            context.debug_location_to_address(<span class="kw-2">&amp;</span>DebugLocation {
 <a href=#1477 id=1477 data-nosnippet>1477</a>                circuit_id: <span class="number">1</span>,
 <a href=#1478 id=1478 data-nosnippet>1478</a>                opcode_location: OpcodeLocation::Brillig { acir_index: <span class="number">0</span>, brillig_index: <span class="number">0 </span>},
-<a href=#1479 id=1479 data-nosnippet>1479</a>                brillig_function_id: <span class="prelude-val">Some</span>(BrilligFunctionId(<span class="number">1</span>)),
+<a href=#1479 id=1479 data-nosnippet>1479</a>                brillig_function_id: <span class="prelude-val">Some</span>(BrilligFunctionId::new(<span class="number">1</span>)),
 <a href=#1480 id=1480 data-nosnippet>1480</a>            })
 <a href=#1481 id=1481 data-nosnippet>1481</a>        );
 <a href=#1482 id=1482 data-nosnippet>1482</a>    }

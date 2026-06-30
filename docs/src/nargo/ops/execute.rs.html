@@ -211,7 +211,7 @@
 <a href=#211 id=211 data-nosnippet>211</a>                        }
 <a href=#212 id=212 data-nosnippet>212</a>                    }
 <a href=#213 id=213 data-nosnippet>213</a>                    acvm.resolve_pending_acir_call(call_resolved_outputs);
-<a href=#214 id=214 data-nosnippet>214</a>                    <span class="self">self</span>.witness_stack.push(call_info.id.<span class="number">0</span>, call_solved_witness);
+<a href=#214 id=214 data-nosnippet>214</a>                    <span class="self">self</span>.witness_stack.push(call_info.id.as_u32(), call_solved_witness);
 <a href=#215 id=215 data-nosnippet>215</a>                }
 <a href=#216 id=216 data-nosnippet>216</a>            }
 <a href=#217 id=217 data-nosnippet>217</a>        }
@@ -397,7 +397,7 @@
 <a href=#397 id=397 data-nosnippet>397</a>        <span class="kw">let </span>function = [Circuit {
 <a href=#398 id=398 data-nosnippet>398</a>            function_name: <span class="string">"main"</span>.to_string(),
 <a href=#399 id=399 data-nosnippet>399</a>            opcodes: <span class="macro">vec!</span>[Opcode::BrilligCall {
-<a href=#400 id=400 data-nosnippet>400</a>                id: BrilligFunctionId(<span class="number">0</span>),
+<a href=#400 id=400 data-nosnippet>400</a>                id: BrilligFunctionId::new(<span class="number">0</span>),
 <a href=#401 id=401 data-nosnippet>401</a>                inputs: Vec::new(),
 <a href=#402 id=402 data-nosnippet>402</a>                outputs: Vec::new(),
 <a href=#403 id=403 data-nosnippet>403</a>                predicate: Expression::&lt;FieldElement&gt;::one(),
