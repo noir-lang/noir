@@ -360,9 +360,9 @@ impl Value {
     }
 
     /// Build an integer value directly from a raw bit-pattern field and a numeric type, without
-    /// checking that the field is in range. This is used only in tests to construct expected
-    /// values that may be out of range (as ACIR's unchecked field arithmetic can produce).
-    #[cfg(test)]
+    /// checking that the field is in range. Used to relabel a value's type (as `cast` does) and in
+    /// tests to construct expected values that may be out of range (as ACIR's unchecked field
+    /// arithmetic can produce).
     pub(crate) fn int_from_field(field: FieldElement, typ: NumericType) -> IResult<Self> {
         NumericValue::int_from_field(field, typ).map(Self::Numeric)
     }

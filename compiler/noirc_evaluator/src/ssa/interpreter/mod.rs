@@ -626,11 +626,14 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
                 self.define(results[0], result)?;
                 Ok(())
             }
-            // Cast in SSA changes the type without altering the value
+            // Cast in SSA relabels the value's type, keeping its bit pattern. Like ACIR (where a
+            // cast is a no-op on the underlying field) it does not range-check: a value that
+            // overflowed its source type via unchecked field arithmetic keeps its extended bits.
+            // Narrowing casts are preceded by an explicit `truncate`, so no truncation is needed here.
             Instruction::Cast(value, numeric_type) => {
                 let value = self.lookup_numeric(*value, "cast")?;
                 let field = value.convert_to_field();
-                let result = Value::from_constant(field, *numeric_type)?;
+                let result = Value::int_from_field(field, *numeric_type)?;
                 self.define(results[0], result)?;
                 Ok(())
             }

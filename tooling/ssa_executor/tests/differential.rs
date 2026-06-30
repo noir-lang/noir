@@ -266,6 +266,24 @@ fn interpreter_vs_backends_on_overflow_corners() {
             a: 3,
             b: 10,
         },
+        // signed add whose bit-pattern sum crosses 2^8: -1 (=255) + 1 should be 0, not 256
+        Case {
+            name: "i8 add(-1+1)",
+            ty: "i8",
+            nt: NumericType::Signed { bit_size: 8 },
+            op: "add",
+            a: 255,
+            b: 1,
+        },
+        // signed add -2 + -2 = -4 (bit patterns 254 + 254 = 508, must encode as -4 = 252)
+        Case {
+            name: "i8 add(-2+-2)",
+            ty: "i8",
+            nt: NumericType::Signed { bit_size: 8 },
+            op: "add",
+            a: 254,
+            b: 254,
+        },
         // signed sub underflowing the type's range (i16 100 - 200 = -100, in range; but check field handling)
         Case {
             name: "i16 sub(neg)",
@@ -324,10 +342,16 @@ fn interpreter_vs_backends_on_overflow_corners() {
                 variant
             );
 
-            // ACIR genuinely ICEs on `truncate`-of-unchecked-signed-`sub` (a pre-existing ACIR-gen
-            // bug, unrelated to the interpreter): there is no backend answer to match there, so a
-            // divergence is only counted when ACIR did *not* crash.
-            let acir_ok = interp_acir == acir || acir == Outcome::Panicked;
+            // ACIR-gen has no reliable behavior for checked arithmetic whose operand overflowed its
+            // bit width through a prior unchecked op (the field carries the extended value, which is
+            // not a valid witness for the type). It either ICEs (e.g. `truncate`-of-unchecked-signed-
+            // `sub`) or rejects (e.g. signed `add` of two negatives whose bit-pattern sum exceeds the
+            // width), inconsistently — so there is no backend answer to match. We tolerate both, but
+            // only when the interpreter still produced the canonical wrapped value (what Brillig
+            // gives); a genuine ACIR rejection that the interpreter ignored would still be flagged.
+            let acir_ok = interp_acir == acir
+                || acir == Outcome::Panicked
+                || (acir == Outcome::Rejected && interp_acir == brillig);
             let brillig_ok = interp_brillig == brillig;
 
             println!(

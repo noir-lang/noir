@@ -1792,6 +1792,27 @@ fn signed_integer_casting() {
 }
 
 #[test]
+fn cast_of_out_of_range_acir_value_relabels() {
+    // In an ACIR function an unchecked op does field arithmetic and can leave a value out of its
+    // type's range (here `unchecked_add u8 255, 1` = 256). A `cast` must relabel that value's type
+    // while keeping its bits — matching ACIR, where a cast is a no-op on the underlying field — and
+    // must not reject it the way a fresh constant would. This loops/casts the way the fuzzer found.
+    let src = r#"
+      acir(inline) fn main f0 {
+        b0():
+          v2 = unchecked_add u8 255, u8 1
+          v3 = cast v2 as i8
+          return v3
+      }
+      "#;
+    let value = expect_value(src);
+    assert_eq!(
+        value,
+        Value::int_from_field(FieldElement::from(256u32), NumericType::signed(8)).unwrap()
+    );
+}
+
+#[test]
 fn signed_integer_casting_2() {
     // fn main() -> pub i64 {
     //     (-(func_4() as i64))
