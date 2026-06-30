@@ -3,7 +3,10 @@
 <head>
 <meta charset="UTF-8">
 <link rel="stylesheet" href="../styles.css">
+<script>window.docRoot = "../";</script>
+<script defer src="../search-index.js"></script>
 <script defer src="../nargo_doc.js"></script>
+<script defer src="../search.js"></script>
 <title>Primitive type u64 documentation</title>
 </head>
 <body>
@@ -18,6 +21,12 @@
 <h2 id="crate-name"><a href="index.html">std</a></h2>
 <div id="crate-version">1.0.0-beta.22</div>
 <h2><a href="#primitive">Primitive type u64</a></h2>
+<h3>Methods</h3>
+<ul class="sidebar-list">
+<li><a href="#bits">bits</a></li>
+<li><a href="#max_value">max_value</a></li>
+<li><a href="#min_value">min_value</a></li>
+</ul>
 <h3>Trait implementations</h3>
 <ul class="sidebar-list">
 <li><a href="#impl-Add-for-u64">Add</a></li>
@@ -119,11 +128,35 @@
 </nav>
 <main>
 <div><a href="../index.html">noir_stdlib</a> - <a href="index.html">std</a></div>
-<h1>Primitive type <span id="primitive" class="primitive">u64</span></h1>
+<div class="heading-row">
+<h1 class="heading-content">Primitive type <span id="primitive" class="primitive">u64</span></h1>
+<button id="search-toggle" type="button">Search</button>
+</div>
+<input id="search-input" type="search" placeholder="Type 's' or '/' to search" autocomplete="off" spellcheck="false" aria-label="Search" hidden>
+<div id="search-results" hidden></div>
+<div id="page-content">
 <div class="comments">
 <p>The 64-bit unsigned integer type.</p>
 </div>
-<h2>Trait implementations</h2>
+<h2>Implementations</h2>
+<h3><code class="code-header">impl <a href="../std/primitive.u64.html" class="primitive">u64</a></code></h3>
+
+<div class="padded-methods"><code id="max_value" class="code-header">pub fn <a href="#max_value" class="fn">max_value</a>() -> Self</code>
+
+<div class="padded-description"><div class="comments">
+<p>Returns the maximum value representable by <code>u64</code>: 18446744073709551615.</p>
+</div>
+</div><code id="min_value" class="code-header">pub fn <a href="#min_value" class="fn">min_value</a>() -> Self</code>
+
+<div class="padded-description"><div class="comments">
+<p>Returns the minimum value representable by <code>u64</code>: 0.</p>
+</div>
+</div><code id="bits" class="code-header">pub fn <a href="#bits" class="fn">bits</a>() -> <a href="../std/primitive.u32.html" class="primitive">u32</a></code>
+
+<div class="padded-description"><div class="comments">
+<p>Returns the number of bits in <code>u64</code>: 64.</p>
+</div>
+</div></div><h2>Trait implementations</h2>
 <h3 id="impl-Add-for-u64"><code class="code-header">impl <a href="../std/ops/trait.Add.html" class="trait">Add</a> for <a href="../std/primitive.u64.html" class="primitive">u64</a></code></h3>
 
 <div class="padded-methods"><code class="code-header">pub fn <span class="fn">add</span>(self, other: Self) -> Self</code>
@@ -258,7 +291,8 @@
 
 <div class="padded-methods"><code class="code-header">pub fn <span class="fn">wrapping_sub</span>(self, y: Self) -> Self</code>
 
-</div></main>
+</div></div>
+</main>
 </span>
 </body>
 </html>

@@ -10,8 +10,9 @@ use crate::ssa::{
         dfg::DataFlowGraph,
         dom::DominatorTree,
         function::Function,
-        instruction::{Instruction, InstructionId},
+        instruction::{BinaryOp, Instruction, InstructionId, binary::Binary},
         post_order::PostOrder,
+        types::{NumericType, Type},
         value::{Value, ValueId},
     },
     opt::{LoopOrder, Loops},
@@ -21,7 +22,7 @@ use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
 use super::constant_allocation::{ConstantAllocation, InstructionLocation};
 
-/// A set of [ValueId]s referring to SSA variables (not functions).
+/// A set of [`ValueId`]s referring to SSA variables (not functions).
 type Variables = HashSet<ValueId>;
 /// The set variables which are dead after a given instruction (in a given block).
 type LastUses = HashMap<InstructionId, Variables>;
@@ -37,7 +38,7 @@ struct BackEdge {
     start: BasicBlockId,
 }
 
-/// Check if the [Value] behind the [ValueId] requires register allocation (like a function parameter),
+/// Check if the [Value] behind the [`ValueId`] requires register allocation (like a function parameter),
 /// rather than a global value like a user-defined function, intrinsic, or foreign function.
 pub(super) fn is_variable(value_id: ValueId, dfg: &DataFlowGraph) -> bool {
     let value = &dfg[value_id];
@@ -52,7 +53,7 @@ pub(super) fn is_variable(value_id: ValueId, dfg: &DataFlowGraph) -> bool {
     }
 }
 
-/// Collect all [ValueId]s used in an [Instruction] which refer to variables (not functions).
+/// Collect all [`ValueId`]s used in an [Instruction] which refer to variables (not functions).
 pub(super) fn variables_used_in_instruction(
     instruction: &Instruction,
     dfg: &DataFlowGraph,
@@ -68,7 +69,7 @@ pub(super) fn variables_used_in_instruction(
     used
 }
 
-/// Collect all [ValueId]s returned by an [Instruction] which refer to variables (not functions).
+/// Collect all [`ValueId`]s returned by an [Instruction] which refer to variables (not functions).
 fn variables_returned_by_instruction(
     instruction_id: InstructionId,
     dfg: &DataFlowGraph,
@@ -80,7 +81,7 @@ fn variables_returned_by_instruction(
         .collect()
 }
 
-/// Collect all [ValueId]s used in an [BasicBlock] which refer to [Variables].
+/// Collect all [`ValueId`]s used in an [`BasicBlock`] which refer to [Variables].
 ///
 /// Includes all the variables in the parameters, instructions and the terminator.
 fn variables_used_in_block(block: &BasicBlock, dfg: &DataFlowGraph) -> Variables {
@@ -181,7 +182,7 @@ impl VariableLiveness {
         self.param_definitions.get(block_id).cloned().unwrap_or_default()
     }
 
-    /// Compute [VariableLiveness::param_definitions].
+    /// Compute [`VariableLiveness::param_definitions`].
     ///
     /// Append the parameters of each block to the parameter definition list of
     /// its immediate dominator.
@@ -202,7 +203,7 @@ impl VariableLiveness {
         self
     }
 
-    /// Compute [VariableLiveness::live_in].
+    /// Compute [`VariableLiveness::live_in`].
     ///
     /// Collect the variables which are alive before each block.
     fn compute_live_in_of_blocks(
@@ -310,7 +311,7 @@ impl VariableLiveness {
         }
     }
 
-    /// Compute [VariableLiveness::last_uses].
+    /// Compute [`VariableLiveness::last_uses`].
     ///
     /// For each block, starting from the terminator than going backwards through the instructions,
     /// take note of the first (technically last) instruction the value is used in.
@@ -348,7 +349,7 @@ impl VariableLiveness {
 
                 // Check results as well: if they are not used by anything after,
                 // they can be deallocated. DIE should remove these, but in isolated
-                // unit tests they can be expected to be removed.
+                // unit tests they may not be removed.
                 let unused_instruction_results =
                     variables_returned_by_instruction(*instruction_id, &func.dfg)
                         .into_iter()
@@ -372,16 +373,21 @@ impl VariableLiveness {
         self
     }
 
-    /// Compute [VariableLiveness::max_live_count].
+    /// Compute [`VariableLiveness::max_live_count`].
     ///
     /// Walk each block instruction-by-instruction, tracking the set of variables
     /// simultaneously alive: start with `live_in` plus block param definitions,
     /// materialize constants at their allocation points, add instruction results,
     /// and remove dead variables from `last_uses`. Record the highest count.
     ///
+    /// On top of the live SSA values, allocated constants, and `MakeArray` elements, this
+    /// adds a per-instruction upper bound on the transient scratch registers the code
+    /// generator allocates (see [`instruction_scratch_demand`]).
+    ///
     /// # Safety
-    /// This is a rough estimate. Until we have solidified an exact live count we expect consumers
-    /// of the max live count to have some extra margin to account for potentially temporary allocated registers.
+    /// This remains a lower bound, not an exact live count: some transients are not
+    /// attributed per-instruction. Consumers of the max live count are expected to keep
+    /// some extra margin to account for those.
     /// See this example [spill margin][crate::brillig::brillig_gen::FunctionContext::SPILL_MARGIN].
     fn compute_max_live_count(mut self, func: &Function, constants: &ConstantAllocation) -> Self {
         let mut max_count: usize = 0;
@@ -417,7 +423,13 @@ impl VariableLiveness {
                 // Add results defined by this instruction.
                 let results = func.dfg.instruction_results(*instruction_id);
                 live_set.extend(results.iter().copied());
-                max_count = max_count.max(live_set.len());
+
+                // The code generator also allocates transient scratch registers while
+                // lowering this instruction (overflow checks, address arithmetic, call
+                // setup). They are live simultaneously with the operands and results, so
+                // include them in the peak rather than relying solely on the spill margin.
+                let scratch = instruction_scratch_demand(instruction, &func.dfg);
+                max_count = max_count.max(live_set.len() + scratch);
 
                 // Subtract variables that die after this instruction.
                 if let Some(dead) = last_uses.get(instruction_id) {
@@ -442,6 +454,71 @@ impl VariableLiveness {
 
     pub(super) fn cfg(&self) -> &ControlFlowGraph {
         &self.cfg
+    }
+}
+
+/// Upper bound on the temporary scratch registers the Brillig code generator allocates
+/// while lowering a single instruction (not counting the SSA values tracked by the live set).
+///
+/// [`compute_max_live_count`] counts live SSA values, allocated constants, and `MakeArray`
+/// elements. The code generator additionally allocates short-lived registers that never
+/// appear as SSA values — overflow/range-check predicates, address-arithmetic temporaries,
+/// and call setup registers. These are live at the same program point as the instruction's
+/// operands and results, so they raise the true register peak there.
+///
+/// The result is a conservative upper bound added on top of the live set. It does not cover
+/// everything, the rest been handled by [`FunctionContext::SPILL_MARGIN`].
+///
+/// [`compute_max_live_count`]: VariableLiveness::compute_max_live_count
+/// [`FunctionContext::SPILL_MARGIN`]: crate::brillig::brillig_gen::brillig_fn::FunctionContext::SPILL_MARGIN
+fn instruction_scratch_demand(instruction: &Instruction, dfg: &DataFlowGraph) -> usize {
+    match instruction {
+        Instruction::Binary(binary) => binary_op_scratch_demand(binary, dfg),
+        // Call setup allocates a `stack_size_register` held across the call sequence.
+        Instruction::Call { .. } => 1,
+        // Memory accesses compute the target address into a temporary register before the
+        // load/store. This is an upper bound on the address arithmetic.
+        Instruction::Store { .. } | Instruction::ArrayGet { .. } | Instruction::ArraySet { .. } => {
+            1
+        }
+        _ => 0,
+    }
+}
+
+/// Peak number of scratch registers held simultaneously while lowering a signed division,
+/// modulo, or arithmetic right shift.
+const SIGNED_DIVISION_SCRATCH: usize = 8;
+
+/// Peak number of scratch registers held simultaneously while lowering a [`Binary`]
+/// instruction. The hard-coded values used here are validated in the test
+/// `binary_scratch_demand_matches_codegen`
+fn binary_op_scratch_demand(binary: &Binary, dfg: &DataFlowGraph) -> usize {
+    let (is_field, is_signed) = match dfg.type_of_value(binary.lhs).as_ref() {
+        Type::Numeric(NumericType::Signed { .. }) => (false, true),
+        Type::Numeric(NumericType::Unsigned { .. }) => (false, false),
+        Type::Numeric(NumericType::NativeField) => (true, false),
+        _ => (false, false),
+    };
+
+    match binary.operator {
+        // Signed division performs an unsigned division, compute absolute values and signs
+        BinaryOp::Div if is_signed => SIGNED_DIVISION_SCRATCH,
+        // Signed modulo wraps the signed division with two extra scratch registers.
+        BinaryOp::Mod if is_signed => SIGNED_DIVISION_SCRATCH + 2,
+        // Unsigned (non-field) modulo emits a divisor-is-nonzero pre-check.
+        BinaryOp::Mod if !is_field => 2,
+        // Signed comparison biases both operands before an unsigned comparison.
+        BinaryOp::Lt if is_signed => 3,
+        // Arithmetic right shift on signed values reuses the signed-division expansion plus
+        // the shift-overflow check and sign-handling temporaries.
+        BinaryOp::Shr if is_signed => SIGNED_DIVISION_SCRATCH + 4,
+        // Bit shifts emit an overflow check (a predicate plus the bit-width constant).
+        BinaryOp::Shl | BinaryOp::Shr => 2,
+        // Checked unsigned arithmetic emits an overflow check after the operation.
+        BinaryOp::Add { unchecked: false } if !is_field && !is_signed => 1,
+        BinaryOp::Sub { unchecked: false } if !is_field && !is_signed => 1,
+        BinaryOp::Mul { unchecked: false } if !is_field && !is_signed => 4,
+        _ => 0,
     }
 }
 
@@ -1072,6 +1149,167 @@ mod tests {
     }
 
     #[test]
+    fn max_live_count_accounts_for_signed_comparison_scratch() {
+        // Ensure that `liveness.max_live_count` is properly computed for `lt` instruction.
+        // We know that the expected value 6 is correct thanks
+        // to `binary_scratch_demand_matches_codegen()` test
+
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: i32, v1: i32):
+            v2 = lt v0, v1
+            return v2
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let func = ssa.main();
+        let constants = ConstantAllocation::from_function(func);
+        let liveness = VariableLiveness::from_function(func, &constants);
+
+        assert_eq!(
+            liveness.max_live_count, 6,
+            "expected live set (v0,v1,v2 = 3) + signed-compare scratch (3) = 6, got {}",
+            liveness.max_live_count
+        );
+    }
+
+    #[test]
+    fn max_live_count_accounts_for_call_setup_scratch() {
+        // Lowering a call allocates a `stack_size_register` that is held across the call
+        // setup/teardown (see `codegen_call` in `brillig_ir`). It is not an SSA value, so
+        // the raw live-set count misses it.
+        //
+        // Live set at the call is {v0, v1} = 2 (the argument is still live, plus the
+        // result). The call scratch demand adds 1, for a peak of 3.
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: u32):
+            v2 = call f1(v0) -> u32
+            return v2
+        }
+        brillig(inline) fn foo f1 {
+          b0(v0: u32):
+            return v0
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let func = ssa.main();
+        let constants = ConstantAllocation::from_function(func);
+        let liveness = VariableLiveness::from_function(func, &constants);
+
+        assert_eq!(
+            liveness.max_live_count, 3,
+            "expected live set (v0,v2 = 2) + call scratch (1) = 3, got {}",
+            liveness.max_live_count
+        );
+    }
+
+    #[test]
+    fn max_live_count_accounts_for_store_address_scratch() {
+        // Lowering a store computes the target address into a temporary register (see
+        // `codegen_store_with_offset` in `brillig_ir`). That address temporary is not an
+        // SSA value, so the raw live-set count misses it.
+        //
+        // Live set at the store is {v0, v1} = 2 (the value being stored plus the address).
+        // With the temporary address, `liveness.max_live_count` should be 3.
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: Field):
+            v1 = allocate -> &mut Field
+            store v0 at v1
+            return
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let func = ssa.main();
+        let constants = ConstantAllocation::from_function(func);
+        let liveness = VariableLiveness::from_function(func, &constants);
+
+        assert_eq!(
+            liveness.max_live_count, 3,
+            "expected live set (v0,v1 = 2) + store address scratch (1) = 3, got {}",
+            liveness.max_live_count
+        );
+    }
+
+    /// Peak stack-frame register index referenced by `main`'s bytecode after real codegen.
+    fn measured_register_peak(src: &str) -> usize {
+        let brillig = ssa_to_brillig_artifacts(src);
+        let main = &brillig.ssa_function_to_brillig[&Id::test_new(0)];
+        crate::brillig::brillig_check::max_relative_register(&main.byte_code)
+    }
+
+    /// The scratch `instruction_scratch_demand` predicts for the first instruction of `src`'s
+    /// entry block.
+    fn predicted_scratch(src: &str) -> usize {
+        let ssa = Ssa::from_str(src).unwrap();
+        let func = ssa.main();
+        let entry = func.entry_block();
+        let instruction_id = func.dfg[entry].instructions()[0];
+        super::instruction_scratch_demand(&func.dfg[instruction_id], &func.dfg)
+    }
+
+    #[test]
+    fn binary_scratch_demand_matches_codegen() {
+        // Ensure that the hardcoded `instruction_scratch_demand` for binary operations
+        // correspond to real allocations made by the code-gen.
+        // To compute the real allocations, we brillig-gen from a SSA function having
+        // exactly one binary instruction, and get the highest written register.
+        // We then compare it to an `unchecked_add` that does not need any additional register.
+        // This real allocation is then checked against the `instruction_scratch_demand` function.
+        // So this test ensure the hardcoded function is correct against real binary operations.
+        let baseline = measured_register_peak(
+            "brillig(inline) fn main f0 {
+              b0(v0: u32, v1: u32):
+                v2 = unchecked_add v0, v1
+                return v2
+            }",
+        );
+
+        // (operator, lhs type, rhs type)
+        let cases = [
+            ("lt", "i32", "i32"),
+            ("div", "i32", "i32"),
+            ("mod", "i32", "i32"),
+            ("mod", "u32", "u32"),
+            ("shr", "i32", "i32"),
+            ("shl", "u32", "u32"),
+            ("sub", "u32", "u32"),
+            ("mul", "u32", "u32"),
+            ("div", "i64", "i64"),
+            ("div", "u128", "u128"),
+            ("mul", "u128", "u128"),
+            ("add", "Field", "Field"),
+        ];
+
+        let mut mismatches = Vec::new();
+        for (op, lhs_ty, rhs_ty) in cases {
+            let src = format!(
+                "brillig(inline) fn main f0 {{
+                  b0(v0: {lhs_ty}, v1: {rhs_ty}):
+                    v2 = {op} v0, v1
+                    return v2
+                }}"
+            );
+
+            let measured = measured_register_peak(&src) - baseline;
+            let predicted = predicted_scratch(&src);
+
+            if measured != predicted {
+                mismatches.push(format!(
+                    "`{op}` on {lhs_ty}: codegen uses {measured}, table predicts {predicted}"
+                ));
+            }
+        }
+
+        assert!(
+            mismatches.is_empty(),
+            "binary scratch demand drifted from codegen:\n  {}",
+            mismatches.join("\n  "),
+        );
+    }
+
+    #[test]
     fn test_terminator_arguments_stay_alive() {
         // Arguments to terminator instructions must remain alive until the terminator executes.
         // They cannot be deallocated in the last instruction of the block.
@@ -1231,5 +1469,184 @@ mod tests {
              3 element params + 1 result = 4, got {}",
             liveness.max_live_count
         );
+    }
+
+    #[test]
+    fn max_live_count_make_array_vs_plain_chain() {
+        // MakeArray forces every element value to be simultaneously live, since each
+        // element becomes a register during codegen. A chain that feeds its
+        // intermediate results into a MakeArray therefore has a higher peak than the
+        // same chain that only returns its last value (where each intermediate dies
+        // as soon as the next one is produced).
+        let plain_chain = "
+        brillig(inline) fn main f0 {
+          b0(v0: Field):
+            v1 = add v0, Field 1
+            v2 = add v1, Field 2
+            v3 = add v2, Field 3
+            return v3
+        }
+        ";
+        let with_make_array = "
+        brillig(inline) fn main f0 {
+          b0(v0: Field):
+            v1 = add v0, Field 1
+            v2 = add v1, Field 2
+            v3 = add v2, Field 3
+            v4 = make_array [v1, v2, v3] : [Field; 3]
+            return v4
+        }
+        ";
+
+        let peak = |src: &str| {
+            let ssa = Ssa::from_str(src).unwrap();
+            let func = ssa.main();
+            let constants = ConstantAllocation::from_function(func);
+            VariableLiveness::from_function(func, &constants).max_live_count
+        };
+
+        // Plain chain: peak is {previous, constant, new_result} = 3.
+        assert_eq!(peak(plain_chain), 3, "plain chain peak should be 3");
+
+        // With MakeArray: v1 and v2 can no longer die early because they are elements,
+        // so by `v3 = add v2, Field 3` the live set is {v1, v2, Field 3, v3} = 4.
+        assert_eq!(
+            peak(with_make_array),
+            4,
+            "MakeArray keeps elements live, raising the peak to 4"
+        );
+
+        assert!(
+            peak(with_make_array) > peak(plain_chain),
+            "MakeArray must raise the peak above the equivalent plain chain"
+        );
+    }
+
+    #[test]
+    fn test_nested_loop_liveness() {
+        // Nested loops: the outer loop variable (b1's param) must stay alive across the
+        // entire inner loop, because the outer header reuses it once the inner loop exits.
+        // The inner loop bound (v0) and the outer bound are likewise kept alive throughout.
+        let src = "
+        brillig(inline) fn main f0 {
+        b0(v0: u32, v1: u32):
+            jmp b1(u32 0)
+        b1(v2: u32):
+            v3 = lt v2, v0
+            jmpif v3 then: b2(), else: b5()
+        b2():
+            jmp b3(u32 0)
+        b3(v4: u32):
+            v5 = lt v4, v1
+            jmpif v5 then: b4(), else: b6()
+        b4():
+            v6 = unchecked_add v4, u32 1
+            jmp b3(v6)
+        b5():
+            return v2
+        b6():
+            v7 = unchecked_add v2, u32 1
+            jmp b1(v7)
+        }
+        ";
+        let brillig = ssa_to_brillig_artifacts(src);
+        let main = &brillig.ssa_function_to_brillig[&Id::test_new(0)];
+        assert_artifact_snapshot!(main, @r"
+        fn main
+         0: sp[5] = const u32 0
+         1: sp[6] = const u32 1
+         2: sp[4] = sp[5]
+         3: jump to 0 // -> 4: f0/b1
+         4: sp[7] = u32 lt sp[4], sp[2] // f0/b1
+         5: jump if sp[7] to 0 // -> 9: f0/b2
+         6: jump to 0 // -> 7: f0/b5
+         7: sp[2] = sp[4] // f0/b5
+         8: return
+         9: sp[7] = sp[5] // f0/b2
+        10: jump to 0 // -> 11: f0/b3
+        11: sp[8] = u32 lt sp[7], sp[3] // f0/b3
+        12: jump if sp[8] to 0 // -> 17: f0/b4
+        13: jump to 0 // -> 14: f0/b6
+        14: sp[7] = u32 add sp[4], sp[6] // f0/b6
+        15: sp[4] = sp[7]
+        16: jump to 0 // -> 4: f0/b1
+        17: sp[8] = u32 add sp[7], sp[6] // f0/b4
+        18: sp[7] = sp[8]
+        19: jump to 0 // -> 11: f0/b3
+        ");
+    }
+
+    #[test]
+    fn test_if_last_use_deallocation() {
+        // IF variant of `test_last_use_deallocation`: a value computed before the branch
+        // is consumed in one arm and must be deallocated at its last use within that arm,
+        // freeing the register for the join.
+        let src = "
+        brillig(inline) fn main f0 {
+        b0(v0: Field, v1: u1):
+            v2 = add v0, Field 1
+            jmpif v1 then: b1(), else: b2()
+        b1():
+            v3 = add v2, Field 2
+            jmp b3(v3)
+        b2():
+            v4 = mul v2, Field 3
+            jmp b3(v4)
+        b3(v5: Field):
+            return v5
+        }
+        ";
+        let brillig = ssa_to_brillig_artifacts(src);
+        let main = &brillig.ssa_function_to_brillig[&Id::test_new(0)];
+        assert_artifact_snapshot!(main, @r"
+        fn main
+         0: sp[5] = const field 1
+         1: sp[6] = field add sp[2], sp[5]
+         2: jump if sp[3] to 0 // -> 7: f0/b1
+         3: jump to 0 // -> 4: f0/b2
+         4: sp[2] = const field 3 // f0/b2
+         5: sp[4] = field mul sp[6], sp[2]
+         6: jump to 0 // -> 10: f0/b3
+         7: sp[2] = const field 2 // f0/b1
+         8: sp[4] = field add sp[6], sp[2]
+         9: jump to 0 // -> 10: f0/b3
+        10: sp[2] = sp[4] // f0/b3
+        11: return
+        ");
+    }
+
+    #[test]
+    fn test_if_constants_liveness() {
+        // IF variant of `test_constants_liveness`: a constant used in both arms is
+        // allocated once at the common dominator (b0) rather than separately in each arm.
+        // The shared parameter v1 is likewise allocated at the dominator.
+        let src = "
+        brillig(inline) fn main f0 {
+        b0(v0: u1, v1: Field):
+            jmpif v0 then: b1(), else: b2()
+        b1():
+            v2 = add v1, Field 10
+            jmp b3(v2)
+        b2():
+            v3 = mul v1, Field 10
+            jmp b3(v3)
+        b3(v4: Field):
+            return v4
+        }
+        ";
+        let brillig = ssa_to_brillig_artifacts(src);
+        let main = &brillig.ssa_function_to_brillig[&Id::test_new(0)];
+        assert_artifact_snapshot!(main, @r"
+        fn main
+        0: sp[5] = const field 10
+        1: jump if sp[2] to 0 // -> 5: f0/b1
+        2: jump to 0 // -> 3: f0/b2
+        3: sp[4] = field mul sp[3], sp[5] // f0/b2
+        4: jump to 0 // -> 7: f0/b3
+        5: sp[4] = field add sp[3], sp[5] // f0/b1
+        6: jump to 0 // -> 7: f0/b3
+        7: sp[2] = sp[4] // f0/b3
+        8: return
+        ");
     }
 }

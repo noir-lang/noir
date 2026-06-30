@@ -95,7 +95,7 @@ pub enum MemoryTypeError {
     )]
     MismatchedBitSize { value_bit_size: u32, expected_bit_size: u32 },
     /// The memory value is not an integer and cannot be interpreted as one.
-    /// For example, this can be triggered when attempting to convert a field element to an integer such as in [MemoryValue::to_u128].
+    /// For example, this can be triggered when attempting to convert a field element to an integer such as in [`MemoryValue::to_u128`].
     #[error("Value is not an integer")]
     NotAnInteger,
 }
@@ -390,10 +390,10 @@ pub struct Memory<F> {
     /// Cached stack pointer to avoid a memory read + enum match on every
     /// relative address resolution.
     ///
-    /// The canonical value lives in memory slot [STACK_POINTER_ADDRESS]
+    /// The canonical value lives in memory slot [`STACK_POINTER_ADDRESS`]
     /// and must remain there for downstream ZK VM proving. We mirror it here
-    /// because [Self::resolve] is called on every memory access
-    /// with a relative address. Updated on writes to slot [STACK_POINTER_ADDRESS]
+    /// because [`Self::resolve`] is called on every memory access
+    /// with a relative address. Updated on writes to slot [`STACK_POINTER_ADDRESS`]
     /// which are more rare than reads.
     stack_pointer: u32,
 }
@@ -476,7 +476,8 @@ impl<F: AcirField> Memory<F> {
     /// Sets the value at `address` to `value`
     pub fn write(&mut self, address: MemoryAddress, value: MemoryValue<F>) {
         let resolved_addr = assert_usize(self.resolve(address));
-        self.resize_to_fit(resolved_addr + 1);
+        // Saturate avoids errors, and leave them to `resize_to_fit`
+        self.resize_to_fit(resolved_addr.saturating_add(1));
         self.inner[resolved_addr] = value;
         if address == STACK_POINTER_ADDRESS
             && let MemoryValue::U32(sp) = value

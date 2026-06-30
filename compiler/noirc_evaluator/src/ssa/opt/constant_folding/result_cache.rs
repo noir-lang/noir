@@ -94,7 +94,7 @@ impl AsRef<Instruction> for CacheKey {
     }
 }
 
-/// HashMap from `(Instruction, side_effects_enabled_var)` to the results of the instruction.
+/// `HashMap` from `(Instruction, side_effects_enabled_var)` to the results of the instruction.
 /// Stored as a two-level map to avoid cloning Instructions during the `.get` call.
 ///
 /// The `side_effects_enabled_var` is optional because we only use them when `Instruction::requires_acir_gen_predicate`
@@ -110,7 +110,7 @@ impl InstructionResultCache {
     pub(super) fn get(
         &self,
         dfg: &DataFlowGraph,
-        dom: &mut DominatorTree,
+        dom: &DominatorTree,
         id: InstructionId,
         instruction: &Instruction,
         predicate: Option<ValueId>,
@@ -144,7 +144,7 @@ impl InstructionResultCache {
 
     pub(super) fn cache(
         &mut self,
-        dom: &mut DominatorTree,
+        dom: &DominatorTree,
         instruction: Instruction,
         predicate: Option<ValueId>,
         block: BasicBlockId,
@@ -165,10 +165,10 @@ impl InstructionResultCache {
         self.0.remove(&CacheKeyRef::from(instruction))
     }
 
-    /// Remove all cached MakeArray instructions that produce the given type.
+    /// Remove all cached `MakeArray` instructions that produce the given type.
     /// Used when we encounter a mutation of an array value that we can't trace back
     /// to a specific instruction (e.g. block parameters), so we must conservatively
-    /// invalidate all cached MakeArrays that could be the source.
+    /// invalidate all cached `MakeArrays` that could be the source.
     fn remove_make_arrays_of_type(&mut self, typ: &Type) {
         self.0.retain(|instruction, _| {
             !matches!(instruction.as_ref(), Instruction::MakeArray { typ: make_array_typ, .. } if make_array_typ == typ)
@@ -230,20 +230,42 @@ impl InstructionResultCache {
 
         let mut remove_if_array = |value| go(dfg, self, value);
 
-        // Should we consider calls to vector_push_back and similar to be mutating operations as well?
         match instruction {
-            Store { value, .. } | ArraySet { array: value, .. } => {
-                // If we write to a value, it's not safe for reuse, as its value has changed since its creation.
+            // A mutable `array_set` writes through its input array's backing store in place rather
+            // than producing a fresh array, so the input is no longer safe to reuse. In ACIR the
+            // `mutable` flag is only set by `mutable_array_set_optimization`, which runs after
+            // constant folding; keying off the flag (rather than the runtime) keeps this invalidation
+            // correct even if that ordering ever changes. In Brillig in-place mutation happens under
+            // copy-on-write regardless of the flag, which the runtime-guarded arm below handles.
+            ArraySet { array: value, mutable: true, .. } => {
+                remove_if_array(value);
+            }
+            // In Brillig, `array_set`/`store` may mutate their array operand in place under
+            // copy-on-write, so the operand is not safe for reuse. In ACIR these are value-semantic:
+            // a non-mutable `array_set` produces a fresh array, and a `store` cannot lead to in-place
+            // mutation because the only source of mutable sets (`mutable_array_set_optimization`)
+            // runs after mem2reg has removed all loads/stores, so the two never coexist.
+            Store { value, .. } | ArraySet { array: value, .. } if dfg.runtime().is_brillig() => {
                 remove_if_array(value);
             }
             Call { arguments, func } if dfg.runtime().is_brillig() => {
-                // If we pass a value to a function, it might get modified, making it unsafe for reuse after the call.
-                let Value::Function(func_id) = &dfg[*func] else { return };
-                if matches!(dfg.purity_of(*func_id), None | Some(Purity::Impure)) {
-                    // Arrays passed to functions might be mutated by them if there are no `inc_rc` instructions
-                    // placed *before* the call to protect them. Currently we don't track the ref count in this
-                    // context, so be conservative and do not reuse any array shared with a callee.
-                    // In ACIR we don't track refcounts, so it should be fine.
+                // Arrays passed to a callee might be mutated by it if there are no `inc_rc` instructions
+                // placed *before* the call to protect them. Currently we don't track the ref count in this
+                // context, so be conservative and do not reuse any array shared with such a callee.
+                // In ACIR we don't track refcounts, so it should be fine.
+                let mutates_arguments = match &dfg[*func] {
+                    // A non-pure user-defined function may mutate its array arguments in place.
+                    Value::Function(func_id) => {
+                        matches!(dfg.purity_of(*func_id), None | Some(Purity::Impure))
+                    }
+                    // The vector mutators (`push`/`pop`/`insert`/`remove`) write through their
+                    // vector argument when its copy-on-write reference count is 1, even though they
+                    // are otherwise "pure". Treat them like an impure call so a later identical
+                    // array-producing instruction is not deduplicated against the now-mutated value.
+                    Value::Intrinsic(intrinsic) => intrinsic.unsafe_for_clone_elision_in_brillig(),
+                    _ => false,
+                };
+                if mutates_arguments {
                     for arg in arguments {
                         remove_if_array(arg);
                     }
@@ -263,7 +285,7 @@ pub(super) struct ResultCache {
 }
 impl ResultCache {
     /// Records that an `Instruction` in block `block` produced the result values `results`.
-    fn cache(&mut self, block: BasicBlockId, dom: &mut DominatorTree, results: Vec<ValueId>) {
+    fn cache(&mut self, block: BasicBlockId, dom: &DominatorTree, results: Vec<ValueId>) {
         let overwrite = match self.result {
             None => true,
             Some((origin, _)) => origin != block && dom.dominates(block, origin),
@@ -283,7 +305,7 @@ impl ResultCache {
     pub(super) fn get(
         &self,
         block: BasicBlockId,
-        dom: &mut DominatorTree,
+        dom: &DominatorTree,
         has_side_effects: bool,
     ) -> Option<CacheResult> {
         let (origin, results) = self.result.as_ref()?;

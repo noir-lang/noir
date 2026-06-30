@@ -44,7 +44,7 @@ impl Ssa {
 }
 
 /// Compute the purity of every function in the SSA, including call-graph propagation,
-/// without mutating the SSA. Shared by [Ssa::purity_analysis] and by the SSA parser,
+/// without mutating the SSA. Shared by [`Ssa::purity_analysis`] and by the SSA parser,
 /// which uses it to validate hand-written purity annotations against the actual
 /// instruction-level behavior.
 pub(crate) fn compute_function_purities(ssa: &Ssa) -> FunctionPurities {
@@ -71,7 +71,7 @@ pub(crate) fn compute_function_purities(ssa: &Ssa) -> FunctionPurities {
     FunctionPurities { purities, brillig_functions }
 }
 
-/// Post-check condition for [Ssa::purity_analysis].
+/// Post-check condition for [`Ssa::purity_analysis`].
 ///
 /// Succeeds if:
 ///   - all functions have a purity status attached to it.
@@ -126,7 +126,7 @@ pub(crate) enum Purity {
     /// so the function is conceptually pure from a deduplication perspective
     /// even though it can still interact with the `enable_side_effects`/predicate variable.
     ///
-    /// PureWithPredicate functions can only be deduplicated with identical predicates
+    /// `PureWithPredicate` functions can only be deduplicated with identical predicates
     /// or a predicate that is a subset of the original.
     PureWithPredicate,
 
@@ -654,7 +654,7 @@ mod tests {
         assert_eq!(purities[&FunctionId::test_new(1)], Purity::Pure);
     }
 
-    /// Functions using inc_rc or dec_rc are always impure - see constant_folding::do_not_deduplicate_call_with_inc_rc
+    /// Functions using `inc_rc` or `dec_rc` are always impure - see `constant_folding::do_not_deduplicate_call_with_inc_rc`
     /// as an example of a case in which semantics are changed if these are considered pure.
     #[test]
     fn inc_rc_is_impure() {
@@ -803,7 +803,7 @@ mod tests {
         assert_eq!(purities[&FunctionId::test_new(2)], Purity::PureWithPredicate);
     }
 
-    /// This test matches [mutual_recursion_marks_functions_pure] except all functions have a Brillig runtime
+    /// This test matches [`mutual_recursion_marks_functions_pure`] except all functions have a Brillig runtime
     #[test]
     fn brillig_mutual_recursion_marks_functions_pure_with_predicate() {
         let src = r#"
@@ -896,7 +896,7 @@ mod tests {
         assert_eq!(purities[&FunctionId::test_new(3)], Purity::Impure);
     }
 
-    /// This test matches [mutual_recursion_marks_functions_impure] except all functions have a Brillig runtime
+    /// This test matches [`mutual_recursion_marks_functions_impure`] except all functions have a Brillig runtime
     #[test]
     fn brillig_mutual_recursion_marks_functions_impure() {
         let src = r#"

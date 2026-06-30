@@ -1,5 +1,5 @@
-use acvm::FieldElement;
 use noirc_errors::{Location, Span};
+use num_bigint::BigInt;
 
 use crate::{
     BinaryTypeOperator, ParsedModule,
@@ -174,7 +174,7 @@ pub trait Visitor {
 
     fn visit_literal_integer(
         &mut self,
-        _value: FieldElement,
+        _value: &BigInt,
         _suffix: Option<IntegerTypeSuffix>,
         _: Span,
     ) {
@@ -356,7 +356,7 @@ pub trait Visitor {
         true
     }
 
-    fn visit_lvalue_dereference(&mut self, _lvalue: &LValue, _span: Span) -> bool {
+    fn visit_lvalue_dereference(&mut self, _expr: &Expression, _span: Span) -> bool {
         true
     }
 
@@ -472,7 +472,7 @@ pub trait Visitor {
 
     fn visit_constant_type_expression(
         &mut self,
-        _value: &FieldElement,
+        _value: &BigInt,
         _suffix: Option<IntegerTypeSuffix>,
         _span: Span,
     ) {
@@ -776,6 +776,7 @@ impl TraitItem {
                 is_unconstrained: _,
                 visibility: _,
                 is_comptime: _,
+                attributes: _,
             } => {
                 if visitor.visit_trait_item_function(
                     name,
@@ -1011,7 +1012,7 @@ impl Literal {
             }
             Literal::Bool(value) => visitor.visit_literal_bool(*value, span),
             Literal::Integer(value, suffix) => {
-                visitor.visit_literal_integer(*value, *suffix, span);
+                visitor.visit_literal_integer(value, *suffix, span);
             }
             Literal::Str(str) => visitor.visit_literal_str(str, span),
             Literal::RawStr(str, length) => visitor.visit_literal_raw_str(str, *length, span),
@@ -1358,9 +1359,9 @@ impl LValue {
                     index.accept(visitor);
                 }
             }
-            LValue::Dereference(lvalue, location) => {
-                if visitor.visit_lvalue_dereference(lvalue, location.span) {
-                    lvalue.accept(visitor);
+            LValue::Dereference(expr, location) => {
+                if visitor.visit_lvalue_dereference(expr, location.span) {
+                    expr.accept(visitor);
                 }
             }
             LValue::Interned(id, location) => visitor.visit_lvalue_interned(*id, location.span),

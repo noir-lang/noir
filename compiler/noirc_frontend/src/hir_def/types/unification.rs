@@ -74,7 +74,7 @@ impl Kind {
 impl Type {
     /// Try to unify this type with another, setting any type variables found
     /// equal to the other type in the process. When comparing types, unification
-    /// (including try_unify) are almost always preferred over Type::eq as unification
+    /// (including `try_unify`) are almost always preferred over `Type::eq` as unification
     /// will correctly handle generic types.
     pub fn unify(&self, expected: &Type) -> Result<(), UnificationError> {
         let mut bindings = TypeBindings::default();
@@ -316,7 +316,7 @@ impl Type {
     }
 
     /// Try to unify a type variable to `self`.
-    /// This is a helper function factored out from try_unify.
+    /// This is a helper function factored out from `try_unify`.
     fn try_unify_to_type_variable(
         &self,
         type_variable: &TypeVariable,
@@ -439,7 +439,7 @@ impl Type {
         Err(UnificationError)
     }
 
-    /// Try to unify the following equations, unless prohibited by DoNotMoveConstants flag:
+    /// Try to unify the following equations, unless prohibited by `DoNotMoveConstants` flag:
     /// - `(..a..) + 1 = (..b..)` -> `(..a..) = (..b..) - 1`
     /// - `(..a..) - 1 = (..b..)` -> `(..a..) = (..b..) + 1`
     /// - `(..a..) = (..b..) + 1` -> `(..b..) = (..a..) - 1`
@@ -509,9 +509,9 @@ impl Type {
 
     /// Similar to `unify` but if the check fails this will attempt to coerce the
     /// argument to the target type. When this happens, the given expression is wrapped in
-    /// a new expression to convert its type. E.g. `array` -> `array.as_slice()`
+    /// a new expression to convert its type. E.g. `array` -> `array.as_vector()`
     ///
-    /// Currently the only type coercion in Noir is `[T; N]` into `[T]` via `.as_slice()`.
+    /// Currently the only type coercion in Noir is `[T; N]` into `[T]` via `.as_vector()`.
     pub fn unify_with_coercions(
         &self,
         expected: &Type,
@@ -594,12 +594,12 @@ impl Type {
         if let (Type::Array(element1, _size), Type::Vector(element2)) = (&this, &target) {
             // We can only do the coercion if the `as_vector` method exists.
             // This is usually true, but some tests don't have access to the standard library.
-            if let Some(as_slice) = interner.lookup_direct_method(&this, "as_slice", true) {
+            if let Some(as_vector) = interner.lookup_direct_method(&this, "as_vector", true) {
                 // Still have to ensure the element types match.
                 // Don't need to issue an error here if not, it will be done in unify_with_coercions
                 let mut bindings = TypeBindings::default();
                 if element1.try_unify(element2, &mut bindings).is_ok() {
-                    invoke_function_on_expression(expression, this, target, as_slice, interner);
+                    invoke_function_on_expression(expression, this, target, as_vector, interner);
                     Self::apply_type_bindings(bindings);
                     return true;
                 }
@@ -674,14 +674,14 @@ fn invoke_function_on_expression(
 ) {
     let method_id = interner.function_definition_id(method);
     let location = interner.expr_location(&expression);
-    let as_slice = HirExpression::Ident(HirIdent::non_trait_method(method_id, location), None);
+    let method = HirExpression::Ident(HirIdent::non_trait_method(method_id, location), None);
     let func_type = Type::Function(
         vec![expression_type.clone()],
         Box::new(target_type.clone()),
         Box::new(Type::Unit),
         false,
     );
-    let func = interner.push_expr_full(as_slice, location, func_type);
+    let func = interner.push_expr_full(method, location, func_type);
 
     // Copy the expression and give it a new ExprId. The old one
     // will be mutated in place into a Call expression.

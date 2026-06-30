@@ -26,3 +26,9 @@ it('errors when passing an array in place of a field', async () => {
 
   expect(() => abiEncode(abi, inputs)).to.throw('cannot parse value `Array([String("1"), String("2")])` into Field');
 });
+
+it('errors when passing a JavaScript number that is not a safe integer', async () => {
+  const { abi, unsafeInteger } = await import('../shared/unsafe_integer');
+
+  expect(() => abiEncode(abi, { foo: unsafeInteger })).to.throw('is not a safe integer');
+});

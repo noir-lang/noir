@@ -12,9 +12,9 @@ use crate::node_interner::{ExprId, InternedExpressionKind, InternedStatementKind
 use crate::shared::Visibility;
 use crate::token::{Attributes, FmtStrFragment, IntegerTypeSuffix, Token, Tokens};
 use crate::{Kind, Type};
-use acvm::FieldElement;
 use iter_extended::vecmap;
 use noirc_errors::{Located, Location, Span};
+use num_bigint::BigInt;
 
 use super::{AsTraitPath, TraitBound, TypePath, UnsafeExpression};
 
@@ -54,7 +54,7 @@ pub enum ExpressionKind {
     Interned(InternedExpressionKind),
 
     /// Interned statements are allowed to be parsed as expressions in case they resolve
-    /// to an StatementKind::Expression or StatementKind::Semi.
+    /// to an `StatementKind::Expression` or `StatementKind::Semi`.
     InternedStatement(InternedStatementKind),
 
     Error,
@@ -77,7 +77,7 @@ pub enum IdentOrQuotedType {
     /// Already-resolved generics can be parsed as generics when a macro
     /// splices existing types into a generic list. In this case we have
     /// to validate the type refers to a named generic and treat that
-    /// as a ResolvedGeneric when this is resolved.
+    /// as a `ResolvedGeneric` when this is resolved.
     Quoted(QuotedTypeId, Location),
 }
 
@@ -199,20 +199,20 @@ impl From<Ident> for UnresolvedGeneric {
 
 impl ExpressionKind {
     pub fn prefix(operator: UnaryOp, rhs: Expression) -> ExpressionKind {
-        match (operator, &rhs) {
+        match (operator, rhs) {
             (
                 UnaryOp::Minus,
                 Expression {
-                    kind: ExpressionKind::Literal(Literal::Integer(field, suffix)), ..
+                    kind: ExpressionKind::Literal(Literal::Integer(value, suffix)), ..
                 },
-            ) if field.fits_in_u128() => {
-                ExpressionKind::Literal(Literal::Integer(-*field, *suffix))
+            ) if value >= BigInt::ZERO && value <= BigInt::from(u128::MAX) => {
+                ExpressionKind::Literal(Literal::Integer(-value, suffix))
             }
-            _ => ExpressionKind::Prefix(Box::new(PrefixExpression { operator, rhs })),
+            (operator, rhs) => ExpressionKind::Prefix(Box::new(PrefixExpression { operator, rhs })),
         }
     }
 
-    pub fn integer(contents: FieldElement, suffix: Option<IntegerTypeSuffix>) -> ExpressionKind {
+    pub fn integer(contents: BigInt, suffix: Option<IntegerTypeSuffix>) -> ExpressionKind {
         ExpressionKind::Literal(Literal::Integer(contents, suffix))
     }
 
@@ -423,7 +423,7 @@ pub enum Literal {
     Array(ArrayLiteral),
     Vector(ArrayLiteral),
     Bool(bool),
-    Integer(FieldElement, Option<IntegerTypeSuffix>),
+    Integer(BigInt, Option<IntegerTypeSuffix>),
     Str(String),
     RawStr(String, u8),
     FmtStr(Vec<FmtStrFragment>, u32 /* length */),

@@ -59,7 +59,7 @@
 //! v0 = call f1(Field 5, Field 10) -> Field
 //! ```
 //!
-//! After pruning::
+//! After `pruning::`
 //! ```text
 //! brillig(inline) fn f1:
 //!   b0():

@@ -36,6 +36,9 @@ impl Ssa {
     pub(crate) fn mem2reg(mut self) -> Ssa {
         for function in self.functions.values_mut() {
             function.mem2reg();
+
+            #[cfg(debug_assertions)]
+            mem2reg_post_check(function);
         }
         self
     }
@@ -46,17 +49,30 @@ impl Ssa {
         for function in self.functions.values_mut() {
             if function.runtime().is_brillig() {
                 function.mem2reg();
+
+                #[cfg(debug_assertions)]
+                mem2reg_post_check(function);
             }
         }
         self
     }
 }
 
+/// Post-check condition for [`Function::mem2reg`].
+///
+/// Panics if promoting memory to block parameters left any `Jmp`/`JmpIf` terminator
+/// passing a different number of arguments (or differently typed arguments) than its
+/// destination block declares as parameters.
+#[cfg(debug_assertions)]
+fn mem2reg_post_check(function: &Function) {
+    crate::ssa::validation::validate_terminators(function);
+}
+
 impl Function {
     pub(crate) fn mem2reg(&mut self) {
         let cfg = ControlFlowGraph::with_function(self);
         let post_order = PostOrder::with_cfg(&cfg);
-        let mut dom_tree = DominatorTree::with_cfg_and_post_order(&cfg, &post_order);
+        let dom_tree = DominatorTree::with_cfg_and_post_order(&cfg, &post_order);
         let mut dom_frontiers = None;
         let blocks = post_order.into_vec_reverse();
 
@@ -139,8 +155,12 @@ type BlockStates = BTreeMap<BasicBlockId, BlockState>;
 /// Contains the starting & ending values of each variable in one block
 #[derive(Default)]
 struct BlockState {
-    /// Maps each variable visible in this block to its starting value in the block. This is always
-    /// a block parameter or a forwarded value from a previous block.
+    /// Maps each variable visible in this block to its starting value in the block. This is
+    /// normally a block parameter or a value forwarded from a previous block.
+    ///
+    /// In the block where a variable is declared the variable is not yet defined at block entry,
+    /// so it is mapped to its own allocate result as a placeholder. `abstract_interpret_block`
+    /// overwrites this with the real value once it processes the variable's initial `Store`.
     entry_state: BTreeMap<ValueId, ValueId>,
 
     /// Maps each variable modified within this block to the value it is set to at the end of
@@ -204,18 +224,18 @@ fn compute_visible_vars(
     blocks: &[BasicBlockId],
     variables: &BTreeMap<ValueId, BasicBlockId>,
     dom_tree: &DominatorTree,
-) -> HashMap<BasicBlockId, BTreeMap<ValueId, BasicBlockId>> {
+) -> HashMap<BasicBlockId, im::OrdMap<ValueId, BasicBlockId>> {
     // Group variables by their declaration block
     let mut vars_by_decl_block: HashMap<BasicBlockId, Vec<ValueId>> = HashMap::default();
     for (var, decl_block) in variables {
         vars_by_decl_block.entry(*decl_block).or_default().push(*var);
     }
 
-    let mut visible: HashMap<BasicBlockId, BTreeMap<ValueId, BasicBlockId>> = HashMap::default();
+    let mut visible: HashMap<BasicBlockId, im::OrdMap<ValueId, BasicBlockId>> = HashMap::default();
     for &block in blocks {
         let mut vars = match dom_tree.immediate_dominator(block) {
             Some(idom) => visible[&idom].clone(),
-            None => BTreeMap::new(),
+            None => im::OrdMap::new(),
         };
         if let Some(declared_here) = vars_by_decl_block.get(&block) {
             for var in declared_here {
@@ -229,11 +249,11 @@ fn compute_visible_vars(
 
 /// Find the starting & ending states of each variable in each block.
 ///
-/// Block parameters are only added at blocks in the variable's IDF (param_locations).
+/// Block parameters are only added at blocks in the variable's IDF (`param_locations`).
 /// For all other blocks, the entry value is inherited from the predecessor's exit state.
 fn add_block_params_and_find_exit_states(
     blocks: &[BasicBlockId],
-    visible_vars: &HashMap<BasicBlockId, BTreeMap<ValueId, BasicBlockId>>,
+    visible_vars: &HashMap<BasicBlockId, im::OrdMap<ValueId, BasicBlockId>>,
     param_locations: &ParamLocations,
     inserter: &mut FunctionInserter,
     block_states: &mut BlockStates,
@@ -263,7 +283,7 @@ fn add_block_params_and_find_exit_states(
 /// - If this block is in the variable's IDF: add a fresh block parameter
 /// - Otherwise: inherit the value from a visited predecessor's exit state
 fn compute_entry_state(
-    visible_vars: &BTreeMap<ValueId, BasicBlockId>,
+    visible_vars: &im::OrdMap<ValueId, BasicBlockId>,
     param_locations: &ParamLocations,
     block: BasicBlockId,
     dfg: &mut DataFlowGraph,
@@ -274,7 +294,9 @@ fn compute_entry_state(
         .iter()
         .filter_map(|(var, decl_block)| {
             let value = if block == *decl_block {
-                // Declaration block: use original allocate result
+                // Declaration block: the variable is not yet defined at block entry, so map it to
+                // its own allocate result as a placeholder. `abstract_interpret_block` replaces it
+                // with the real value when it processes the variable's initial `Store`.
                 *var
             } else if param_locations[var].contains(&block) {
                 // IDF block: add a block parameter for this variable
@@ -369,7 +391,7 @@ impl BlockState {
 ///
 /// A `JmpIf` may have both `then_destination` and `else_destination` pointing at the
 /// same successor, in which case `f` is called once per matching edge so the caller
-/// can wire each one. Panics if the given block does not terminate in a Jmp or JmpIf.
+/// can wire each one. Panics if the given block does not terminate in a Jmp or `JmpIf`.
 fn for_each_terminator_edge_mut(
     dfg: &mut DataFlowGraph,
     block: BasicBlockId,
@@ -393,7 +415,7 @@ fn for_each_terminator_edge_mut(
             }
         }
         TerminatorInstruction::Return { .. } | TerminatorInstruction::Unreachable { .. } => panic!(
-            "for_each_terminator_edge_mut called on block edge {block} -> {jmp_target} but {block} does not have any arguments"
+            "for_each_terminator_edge_mut called on edge: {block} -> {jmp_target}, but {block} terminates with Return or Unreachable, and has no outgoing edge"
         ),
     }
 }
@@ -456,8 +478,12 @@ fn collect_eligible_variables_and_def_sites(
     // Whether there's any allocate that can't be optimized out
     let mut has_ineligible_variables = false;
 
-    // Workaround for https://github.com/noir-lang/noir/issues/11482
+    // Workaround for https://github.com/noir-lang/noir/issues/11482:
     // If the declaration block of an allocate has no starting store then it isn't eligible for mem2reg.
+    // This is because the current implementation expects a value for forwarding the loads.
+    // A use before initialization (load before store) is an invalid program, but still,
+    // a valid program may have an allocate without a store in the same allocate block.
+    // This case is currently skipped and would panic if not.
     let mut variables_with_stores_in_decl_block = HashSet::default();
 
     for block_id in blocks.iter().copied() {
@@ -1529,5 +1555,193 @@ brillig(inline) fn main f0 {
             unreachable
         }
         ");
+    }
+
+    #[test]
+    fn regression_11482() {
+        // An allocate with no stores (an orphan, as earlier passes can leave behind) must be
+        // left untouched and not promoted: there is no stored value to forward, and treating it
+        // as eligible would break the "every eligible variable has a def site" invariant.
+        let src = "
+        brillig(inline) fn foo f0 {
+          b0():
+            v0 = allocate -> &mut u1
+            return
+        }
+        ";
+        assert_ssa_does_not_change(src, Ssa::mem2reg);
+    }
+
+    /// Passing a tracked reference as a block terminator argument is a first-class use of
+    /// the address: the successor block receives the reference as a parameter and may mutate
+    /// it, so the reference and its surrounding load/store cannot be optimized away. This
+    /// exercises the terminator scan in `collect_eligible_variables_and_def_sites`, distinct
+    /// from instruction-operand uses like `call` or `make_array`.
+    #[test]
+    fn reference_passed_as_terminator_argument_prevents_optimization() {
+        let src = "
+        brillig(inline) fn func f0 {
+          b0():
+            v0 = allocate -> &mut Field
+            store Field 1 at v0
+            jmp b1(v0)
+          b1(v1: &mut Field):
+            v3 = load v1 -> Field
+            return v3
+        }
+        ";
+        assert_ssa_does_not_change(src, Ssa::mem2reg);
+    }
+
+    /// mem2reg runs on ACIR functions too, not just Brillig. This exercises the full
+    /// load/store removal and block-parameter insertion path on an `acir` function with a
+    /// control-flow merge (the IDF of {b0, b1} is {b3}).
+    #[test]
+    fn acir_function_is_optimized() {
+        let src = "
+        acir(inline) fn func f0 {
+          b0(v0: u1):
+            v1 = allocate -> &mut Field
+            store Field 0 at v1
+            jmpif v0 then: b1(), else: b2()
+          b1():
+            store Field 1 at v1
+            jmp b3()
+          b2():
+            store Field 2 at v1
+            jmp b3()
+          b3():
+            v4 = load v1 -> Field
+            return v4
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.mem2reg();
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn func f0 {
+          b0(v0: u1):
+            jmpif v0 then: b1(), else: b2()
+          b1():
+            jmp b3(Field 1)
+          b2():
+            jmp b3(Field 2)
+          b3(v1: Field):
+            return v1
+        }
+        ");
+    }
+
+    /// Storing a tracked reference *as a value* into another reference aliases it: the
+    /// reference could now be mutated through the holder, so it is no longer eligible for
+    /// mem2reg. Here `v1` is stored into the `&mut &mut Field` parameter `v0`, so neither
+    /// `v1` nor its load may be optimized away.
+    #[test]
+    fn store_of_tracked_reference_prevents_optimization() {
+        let src = "
+        brillig(inline) fn func f0 {
+          b0(v0: &mut &mut Field):
+            v1 = allocate -> &mut Field
+            store Field 1 at v1
+            store v1 at v0
+            v2 = load v1 -> Field
+            return v2
+        }
+        ";
+        assert_ssa_does_not_change(src, Ssa::mem2reg);
+    }
+
+    /// Passing a tracked reference to a function call is a first-class use of the address:
+    /// the callee may mutate it, so the reference and its surrounding load/store cannot be
+    /// optimized away.
+    #[test]
+    fn reference_passed_to_call_prevents_optimization() {
+        let src = "
+        brillig(inline) fn func f0 {
+          b0():
+            v1 = allocate -> &mut Field
+            store Field 1 at v1
+            call f1(v1)
+            v3 = load v1 -> Field
+            return v3
+        }
+        brillig(inline) fn callee f1 {
+          b0(v0: &mut Field):
+            return
+        }
+        ";
+        assert_ssa_does_not_change(src, Ssa::mem2reg);
+    }
+
+    /// A store inside a loop body forces a block parameter at the loop header via the
+    /// *iterated* dominance frontier: the store in b2 has b1 (the header) in its dominance
+    /// frontier through the back edge, and the worklist in `iterated_dominance_frontier`
+    /// then re-examines b1's own frontier before converging. The header therefore receives
+    /// the merged value as a parameter.
+    #[test]
+    fn iterated_dominance_frontier_through_loop() {
+        let src = "
+        brillig(inline) fn func f0 {
+          b0(v0: u1):
+            v1 = allocate -> &mut Field
+            store Field 0 at v1
+            jmp b1()
+          b1():
+            v2 = load v1 -> Field
+            jmpif v0 then: b2(), else: b3()
+          b2():
+            v3 = add v2, Field 1
+            store v3 at v1
+            jmp b1()
+          b3():
+            return v2
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.mem2reg();
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) fn func f0 {
+          b0(v0: u1):
+            jmp b1(Field 0)
+          b1(v1: Field):
+            jmpif v0 then: b2(), else: b3()
+          b2():
+            v4 = add v1, Field 1
+            jmp b1(v4)
+          b3():
+            return v1
+        }
+        ");
+    }
+
+    /// `get_value_from_visited_predecessor` returns `None` when none of a block's
+    /// predecessors have a recorded `BlockState` yet. `compute_entry_state` relies on this
+    /// to drop a variable whose value cannot be inherited (e.g. for a block that is not
+    /// reached through any already-visited predecessor). Exercised directly because the
+    /// reverse-post-order traversal always visits a forward predecessor first for reachable
+    /// blocks, so the branch is otherwise defensive.
+    #[test]
+    fn get_value_from_visited_predecessor_returns_none_without_visited_predecessor() {
+        use crate::ssa::ir::{cfg::ControlFlowGraph, map::Id};
+
+        let src = "
+        brillig(inline) fn func f0 {
+          b0():
+            jmp b1()
+          b1():
+            return
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let function = ssa.main();
+        let cfg = ControlFlowGraph::with_function(function);
+
+        // b1 is reached from b0, but with an empty `block_states` no predecessor is "visited".
+        let b1 = cfg.successors(function.entry_block()).next().expect("b0 has a successor");
+        let block_states = super::BlockStates::default();
+        let dummy_var = Id::test_new(0);
+
+        assert!(
+            super::get_value_from_visited_predecessor(dummy_var, b1, &cfg, &block_states).is_none()
+        );
     }
 }

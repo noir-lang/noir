@@ -26,7 +26,7 @@ pub enum RuntimeType {
 
 impl RuntimeType {
     /// Returns whether the runtime type represents an entry point.
-    /// We return `false` for InlineType::Inline on default, which is true
+    /// We return `false` for `InlineType::Inline` on default, which is true
     /// in all cases except for main. `main` should be supported with special
     /// handling in any places where this function determines logic.
     ///
@@ -85,7 +85,7 @@ impl Default for RuntimeType {
 /// These instructions are further grouped into Basic blocks
 ///
 /// All functions outside of the current function are seen as external.
-/// To reference external functions its FunctionId can be used but this
+/// To reference external functions its `FunctionId` can be used but this
 /// cannot be checked for correctness until inlining is performed.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Function {
@@ -97,7 +97,7 @@ pub struct Function {
 
     id: Option<FunctionId>,
 
-    /// The DataFlowGraph holds the majority of data pertaining to the function
+    /// The `DataFlowGraph` holds the majority of data pertaining to the function
     /// including its blocks, instructions, and values.
     pub(crate) dfg: DataFlowGraph,
 }
@@ -203,7 +203,7 @@ impl Function {
 
     /// Collects all the reachable blocks of this function.
     ///
-    /// Note that self.dfg.basic_blocks_iter() iterates over all blocks,
+    /// Note that `self.dfg.basic_blocks_iter()` iterates over all blocks,
     /// whether reachable or not. This function should be used if you
     /// want to iterate only reachable blocks.
     pub(crate) fn reachable_blocks(&self) -> BTreeSet<BasicBlockId> {
@@ -254,7 +254,7 @@ impl Function {
 
     /// Re-insert all instructions through the DFG simplification path.                                                                                                                                                              
     ///                                                                                                                                                                                                                              
-    /// This creates a [FunctionInserter][crate::ssa::ir::function_inserter::FunctionInserter], iterates every reachable block in RPO,                                                                                                                                                    
+    /// This creates a [`FunctionInserter`][crate::ssa::ir::function_inserter::FunctionInserter], iterates every reachable block in RPO,                                                                                                                                                    
     /// takes each instruction and re-inserts it via `push_instruction` (which                                                                                                                                                       
     /// resolves value mappings and triggers DFG simplification such as constant                                                                                                                                                     
     /// folding of binary ops), then remaps terminators and the data bus.                                                                                                                                                            
@@ -357,7 +357,7 @@ impl<'a> FunctionView<'a> {
     }
 }
 
-/// FunctionId is a reference for a function
+/// `FunctionId` is a reference for a function
 ///
 /// This Id is how each function refers to other functions
 /// within Call instructions.
@@ -373,7 +373,7 @@ impl Signature {
     /// Construct a [Signature] whose parameter and return types have all
     /// reference mutability canonicalized away. This makes `&T` and `&mut T`
     /// compare equal when a [Signature] is used as a map key, matching
-    /// [Type::canonical_eq] leniency and the frontend's `&mut T → &T` coercion.
+    /// [`Type::canonical_eq`] leniency and the frontend's `&mut T → &T` coercion.
     pub(crate) fn new(mut params: Vec<Type>, mut returns: Vec<Type>) -> Self {
         for typ in params.iter_mut().chain(returns.iter_mut()) {
             typ.canonicalize();

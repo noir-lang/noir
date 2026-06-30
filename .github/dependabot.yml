@@ -27,6 +27,10 @@ updates:
       arkworks:
         patterns:
           - "ark-*"
+      rustcrypto:
+        patterns:
+          - "p256"
+          - "k256"
 
   # Enable version updates for npm
   - package-ecosystem: "npm"

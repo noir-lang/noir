@@ -1,6 +1,6 @@
 //! Brillig target cost estimation for SSA IR types.
 //!
-//! Provides cost methods on [BinaryOp], [Instruction], [TerminatorInstruction],
+//! Provides cost methods on [`BinaryOp`], [Instruction], [`TerminatorInstruction`],
 //! and [Function] that estimate Brillig opcode counts. These are useful for any
 //! pass that needs to reason about Brillig code size (inlining, optimization ordering, etc.).
 //!
@@ -23,14 +23,17 @@ impl Instruction {
     /// Instructions with side effects (constraints, calls, memory ops) cannot be
     /// flattened because they would execute unconditionally in the merged block.
     ///
-    /// `Allocate` is not predicate-dependent and is safe to duplicate, but the caller
-    /// excludes it from the flatten-cost estimate before asking, so reaching it here is
-    /// an ICE.
+    /// `Allocate` and `IncrementRc` are safe to execute unconditionally, so the
+    /// caller excludes them from the flatten-cost estimate before asking;
+    /// reaching either here is an ICE. Hoisting an `inc_rc` out of a branch only
+    /// ever *raises* an array's runtime reference count, which makes a later
+    /// `array_set` copy rather than mutate in place — always sound (the
+    /// `rc_invariant::array_set` validator rejects any SSA whose result would
+    /// depend on the un-hoisted bump).
     ///
-    /// `IncrementRc` / `DecrementRc` ARE predicate-dependent: hoisting them out of a
-    /// branch changes an array's runtime reference count, which in turn changes the
-    /// copy-on-write behavior of a later `array_set`. They are reported as
-    /// non-flattenable, consistent with their `has_side_effects` classification.
+    /// `DecrementRc` is **not** safe to hoist: running it on a path that did not
+    /// before *lowers* a reference count, which can enable an unsafe in-place
+    /// mutation. It is reported as non-flattenable.
     ///
     /// Div/Mod and Shl/Shr are blocked unconditionally — even when `has_side_effects`
     /// would allow them (e.g. known non-zero divisor), they are rarely worth flattening.
@@ -43,11 +46,11 @@ impl Instruction {
                     true
                 }
             }
-            Instruction::Allocate => {
-                panic!("ICE: Caller should handle Allocate");
+            Instruction::Allocate | Instruction::IncrementRc { .. } => {
+                panic!("ICE: Caller should handle Allocate and IncrementRc");
             }
 
-            Instruction::IncrementRc { .. } | Instruction::DecrementRc { .. } => false,
+            Instruction::DecrementRc { .. } => false,
 
             // Calls are never worth flattening — even pure intrinsics can expand
             // into many Brillig opcodes, making unconditional execution expensive.
@@ -67,7 +70,7 @@ impl BinaryOp {
     /// Estimate the Brillig opcode cost of this binary operation given the operand type.
     ///
     /// Field operations are single opcodes. Checked unsigned operations are more expensive
-    /// (e.g., checked add = add + lt_eq + constrain = 3 opcodes). Unchecked integer operations
+    /// (e.g., checked add = add + `lt_eq` + constrain = 3 opcodes). Unchecked integer operations
     /// are single opcodes. Signed operations that reach Brillig are always unchecked.
     pub(crate) fn cost(&self, typ: NumericType) -> usize {
         match self {
@@ -237,12 +240,12 @@ impl Function {
     /// Per-call-site overhead of retaining this function, in Brillig opcode units.
     ///
     /// A Brillig function call costs `5 + N + M` opcodes at the call site (from `codegen_call`):
-    ///   1 Const (stack size) + 1 Mov (save sp) + 1 BinaryIntOp (sp += size) + 1 Call + 1 Mov (restore sp)
+    ///   1 Const (stack size) + 1 Mov (save sp) + 1 `BinaryIntOp` (sp += size) + 1 Call + 1 Mov (restore sp)
     ///   + N Mov's for arguments + M Mov's for returns.
     ///
     /// Additionally, every retained function executes `CheckMaxStackDepth` at entry.
     /// The happy-path execution cost is 5 opcodes:
-    ///   1 Call (to procedure) + 1 Const + 1 BinaryIntOp(Lt) + 1 JumpIf + 1 Return.
+    ///   1 Call (to procedure) + 1 Const + 1 BinaryIntOp(Lt) + 1 `JumpIf` + 1 Return.
     ///
     /// This overhead vanishes when the function is inlined.
     pub(crate) fn call_overhead(&self) -> usize {

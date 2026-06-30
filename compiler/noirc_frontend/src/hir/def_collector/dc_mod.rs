@@ -35,8 +35,8 @@ use super::dc_crate::ModuleAttribute;
 use super::dc_crate::{CollectedItems, UnresolvedEnum};
 use super::{
     dc_crate::{
-        CompilationError, DefCollector, UnresolvedFunctions, UnresolvedGlobal, UnresolvedTraitImpl,
-        UnresolvedTypeAlias,
+        CompilationError, DefCollector, UnresolvedFunctions, UnresolvedGlobal, UnresolvedImpl,
+        UnresolvedTraitImpl, UnresolvedTypeAlias,
     },
     errors::{DefCollectorErrorKind, DuplicateType},
 };
@@ -45,7 +45,7 @@ use crate::hir::def_map::{CrateDefMap, LocalModuleId, MAIN_FUNCTION, ModuleData,
 use crate::hir::resolution::import::ImportDirective;
 use crate::hir_def::stmt::HirStatement;
 
-/// Given a module collect all definitions into ModuleData
+/// Given a module collect all definitions into `ModuleData`
 struct ModCollector<'a> {
     pub(crate) def_collector: &'a mut DefCollector,
     pub(crate) file_id: FileId,
@@ -228,10 +228,13 @@ impl ModCollector<'_> {
             let module = ModuleId { krate, local_id: self.module_id };
 
             for (_, func_id, noir_function) in &mut unresolved_functions.functions {
-                if noir_function.def.attributes.is_test_function() {
-                    let error = DefCollectorErrorKind::TestOnAssociatedFunction {
-                        location: noir_function.name_ident().location(),
-                    };
+                if let Some((_, location)) = noir_function.def.attributes.as_test_function() {
+                    let error = DefCollectorErrorKind::TestOnAssociatedFunction { location };
+                    errors.push(error);
+                }
+
+                if let Some((_, location)) = noir_function.def.attributes.as_fuzzing_harness() {
+                    let error = DefCollectorErrorKind::FuzzOnAssociatedFunction { location };
                     errors.push(error);
                 }
 
@@ -419,7 +422,7 @@ impl ModCollector<'_> {
 
             if let Err((first_def, second_def)) = result {
                 let err = DefCollectorErrorKind::Duplicate {
-                    typ: DuplicateType::Function,
+                    typ: DuplicateType::TypeDefinition,
                     first_def,
                     second_def,
                 };
@@ -556,7 +559,20 @@ impl ModCollector<'_> {
                         is_unconstrained,
                         visibility: _,
                         is_comptime,
+                        attributes,
                     } => {
+                        if let Some((_, location)) = attributes.as_test_function() {
+                            let error =
+                                DefCollectorErrorKind::TestOnAssociatedFunction { location };
+                            errors.push(error);
+                        }
+
+                        if let Some((_, location)) = attributes.as_fuzzing_harness() {
+                            let error =
+                                DefCollectorErrorKind::FuzzOnAssociatedFunction { location };
+                            errors.push(error);
+                        }
+
                         let func_id = context.def_interner.push_empty_fn();
                         if !method_ids.contains_key(name.as_str()) {
                             method_ids.insert(name.to_string(), func_id);
@@ -566,8 +582,7 @@ impl ModCollector<'_> {
                         let modifiers = FunctionModifiers {
                             name: name.to_string(),
                             visibility: trait_definition.visibility,
-                            // TODO(Maddiaa): Investigate trait implementations with attributes see: https://github.com/noir-lang/noir/issues/2629
-                            attributes: crate::token::Attributes::empty(),
+                            attributes: attributes.clone(),
                             generic_count: generics.len(),
                             is_comptime: *is_comptime,
                             name_location: location,
@@ -594,16 +609,17 @@ impl ModCollector<'_> {
                         ) {
                             Ok(()) => {
                                 if let Some(body) = body {
-                                    let impl_method =
-                                        NoirFunction::normal(FunctionDefinition::normal(
-                                            name,
-                                            *is_unconstrained,
-                                            generics,
-                                            parameters,
-                                            body.clone(),
-                                            where_clause.clone(),
-                                            return_type,
-                                        ));
+                                    let mut def = FunctionDefinition::normal(
+                                        name,
+                                        *is_unconstrained,
+                                        generics,
+                                        parameters,
+                                        body.clone(),
+                                        where_clause.clone(),
+                                        return_type,
+                                    );
+                                    def.attributes = attributes.clone();
+                                    let impl_method = NoirFunction::normal(def);
                                     unresolved_functions.push_fn(
                                         self.module_id,
                                         func_id,
@@ -818,7 +834,7 @@ impl ModCollector<'_> {
     /// and then collect all definitions of the child module
     ///
     /// If `reuse_existing_module_declarations` is true, this will first check if a module is
-    /// already registered in the CrateDefMap at the file where `mod mod_name;` happens, and reuse
+    /// already registered in the `CrateDefMap` at the file where `mod mod_name;` happens, and reuse
     /// that module declaration's contents.
     /// This is only used by LSP when a file is modified, to avoid parsing and type-checking nested modules
     /// that happen in separate files as these were already parsed and type-checked before.
@@ -945,7 +961,7 @@ impl ModCollector<'_> {
         errors
     }
 
-    /// Add a child module to the current def_map.
+    /// Add a child module to the current `def_map`.
     /// On error this returns None and pushes to `errors`
     #[allow(clippy::too_many_arguments)]
     fn push_child_module(
@@ -1019,7 +1035,7 @@ fn check_nargo_doc_primitive(crate_id: CrateId, submodule: &SortedSubModule) -> 
     })
 }
 
-/// Add a child module to the current def_map.
+/// Add a child module to the current `def_map`.
 /// On error this returns None and pushes to `errors`
 #[allow(clippy::too_many_arguments)]
 fn push_child_module(
@@ -1437,10 +1453,13 @@ pub fn collect_impl(
         let doc_comments = method.doc_comments;
         let mut method = method.item;
 
-        if method.def.attributes.is_test_function() {
-            let error = DefCollectorErrorKind::TestOnAssociatedFunction {
-                location: method.name_ident().location(),
-            };
+        if let Some((_, location)) = method.def.attributes.as_test_function() {
+            let error = DefCollectorErrorKind::TestOnAssociatedFunction { location };
+            errors.push(error);
+            continue;
+        }
+        if let Some((_, location)) = method.def.attributes.as_fuzzing_harness() {
+            let error = DefCollectorErrorKind::FuzzOnAssociatedFunction { location };
             errors.push(error);
             continue;
         }
@@ -1464,14 +1483,18 @@ pub fn collect_impl(
         interner.set_doc_comments(ReferenceId::Function(func_id), doc_comments);
     }
 
+    let impl_id = interner.next_impl_id();
+
     let key = (r#impl.object_type, module_id.local_id);
-    let methods = items.impls.entry(key).or_default();
-    methods.push((
-        r#impl.generics,
-        r#impl.where_clause,
-        r#impl.type_location,
-        unresolved_functions,
-    ));
+    let impls = items.impls.entry(key).or_default();
+    impls.push(UnresolvedImpl {
+        generics: r#impl.generics,
+        where_clause: r#impl.where_clause,
+        object_type_location: r#impl.type_location,
+        methods: unresolved_functions,
+        impl_id,
+        doc_comments: r#impl.doc_comments,
+    });
 }
 
 fn find_module(
