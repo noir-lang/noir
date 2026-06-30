@@ -851,7 +851,7 @@ impl Loop {
     ///
     /// - `true`: the bound is `NotEqual` and the induction variable may escape `[lower, upper)`.
     ///   Based on the step, we either know for sure (unsigned constant bounds) or conservatively
-    ///   assume it may escape.
+    ///   assume it may escape (e.g no induction variable).
     ///
     /// - `false`: the loop stays within its bound - `LessThan`/`Equal` guard, or a `NotEqual`
     ///   with a step landing exactly on `upper`.
@@ -860,20 +860,29 @@ impl Loop {
     ///
     /// `pre_header` is the loop's pre-header.
     fn induction_step_may_miss_bound(&self, function: &Function, pre_header: BasicBlockId) -> bool {
+        // We cannot determine the induction variable:
+        // we conservatively say that it may miss.
+        if self.induction_variable(&function.dfg).is_none() {
+            return true;
+        }
         let Some((bounds, step)) = self.bounds_and_step(function, pre_header) else {
+            // Non-constant bound:
+            // optimistically says that it won't miss and leave the real check to `unroll`.
             return false;
         };
         let Some(step) = step else {
-            // The guard folds each iteration but we cannot determine the step, we conservatively
-            // say that it may miss.
+            // The guard folds each iteration but we cannot determine the step:
+            // we conservatively say that it may miss.
             return true;
         };
         // Use the step to see if the bounds are reached.
         !bounds.iterator_in_bounds(step)
     }
 
-    /// Same as `induction_step_may_miss_bound` but returns `false` when the
-    /// step is unknown, rather than assuming it may miss.
+    /// Similar to `induction_step_may_miss_bound`, but returns `false` when:
+    /// The bounds are not constant.
+    /// The step is unknown, rather than assuming it may miss.
+    /// The induction variable cannot be determined.
     fn induction_step_must_miss_bound(
         &self,
         function: &Function,
@@ -893,9 +902,7 @@ impl Loop {
         function: &Function,
         pre_header: BasicBlockId,
     ) -> Option<(LoopBounds, Option<Step>)> {
-        let Some(bounds) = self.get_const_bounds(&function.dfg, pre_header, |v| v) else {
-            return None;
-        };
+        let bounds = self.get_const_bounds(&function.dfg, pre_header, |v| v)?;
         if bounds.kind != LoopBoundKind::NotEqual {
             return None;
         }
@@ -1229,11 +1236,9 @@ impl Loop {
             return Err(call_stack);
         }
 
-        // Whether we can prove this loop terminates.
-        let termination_unproven = match induction_index {
-            None => true,
-            Some(_) => self.induction_step_may_miss_bound(function, unroll_into),
-        };
+        // The termination is proven when we are sure that the induction variable
+        // does not miss its bounds.
+        let termination_unproven = self.induction_step_may_miss_bound(function, unroll_into);
 
         let mut iterations = 0;
         while let Some((context, loop_header_id)) =
