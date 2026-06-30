@@ -480,136 +480,193 @@
 <a href=#480 id=480 data-nosnippet>480</a>                        <span class="self">self</span>.pending_last_uses.entry(<span class="kw-2">*</span>local_id).or_default().extend(breakable);
 <a href=#481 id=481 data-nosnippet>481</a>                    }
 <a href=#482 id=482 data-nosnippet>482</a>                }
-<a href=#483 id=483 data-nosnippet>483</a>                <span class="comment">// `x` does not appear in RHS: fresh value, safe to treat as killed — unless the
-<a href=#484 id=484 data-nosnippet>484</a>                // RHS can break before committing, in which case the kill is not guaranteed.
-<a href=#485 id=485 data-nosnippet>485</a>                </span><span class="prelude-val">None </span><span class="kw">if </span>!rhs_has_break =&gt; {
-<a href=#486 id=486 data-nosnippet>486</a>                    <span class="self">self</span>.killed.insert(<span class="kw-2">*</span>local_id);
-<a href=#487 id=487 data-nosnippet>487</a>                }
-<a href=#488 id=488 data-nosnippet>488</a>                <span class="prelude-val">None </span>=&gt; {}
-<a href=#489 id=489 data-nosnippet>489</a>            }
-<a href=#490 id=490 data-nosnippet>490</a>            <span class="kw">return</span>;
-<a href=#491 id=491 data-nosnippet>491</a>        }
-<a href=#492 id=492 data-nosnippet>492</a>
-<a href=#493 id=493 data-nosnippet>493</a>        <span class="comment">// For compound lvalues (e.g. `a[i] = expr`), process in reverse evaluation order:
-<a href=#494 id=494 data-nosnippet>494</a>        // the lvalue is accessed after the RHS is evaluated.
-<a href=#495 id=495 data-nosnippet>495</a>        </span><span class="self">self</span>.find_last_uses_in_lvalue(<span class="kw-2">&amp;</span>assign.lvalue, <span class="bool-val">false</span>);
-<a href=#496 id=496 data-nosnippet>496</a>        <span class="self">self</span>.find_last_uses_in_expression(<span class="kw-2">&amp;</span>assign.expression);
-<a href=#497 id=497 data-nosnippet>497</a>    }
-<a href=#498 id=498 data-nosnippet>498</a>
-<a href=#499 id=499 data-nosnippet>499</a>    <span class="doccomment">/// A variable in an lvalue position is never moved (otherwise you wouldn't
-<a href=#500 id=500 data-nosnippet>500</a>    /// be able to access the variable you assigned to afterward). However, the
-<a href=#501 id=501 data-nosnippet>501</a>    /// index in an array expression `a[i] = ...` is an arbitrary expression that
-<a href=#502 id=502 data-nosnippet>502</a>    /// is actually in an rvalue position and can thus be moved.
-<a href=#503 id=503 data-nosnippet>503</a>    ///
-<a href=#504 id=504 data-nosnippet>504</a>    /// The `nested` parameter indicates whether this lvalue is nested inside another lvalue.
-<a href=#505 id=505 data-nosnippet>505</a>    /// For top-level identifiers there's nothing to track, but for an identifier happening
-<a href=#506 id=506 data-nosnippet>506</a>    /// as part of an index (`ident[index] = ...`) we do want to consider `ident` as used,
-<a href=#507 id=507 data-nosnippet>507</a>    /// which should preclude any previous last uses that could result in it being moved.
-<a href=#508 id=508 data-nosnippet>508</a>    </span><span class="kw">fn </span>find_last_uses_in_lvalue(<span class="kw-2">&amp;mut </span><span class="self">self</span>, lvalue: <span class="kw-2">&amp;</span>ast::LValue, nested: bool) {
-<a href=#509 id=509 data-nosnippet>509</a>        <span class="kw">match </span>lvalue {
-<a href=#510 id=510 data-nosnippet>510</a>            ast::LValue::Ident(ident) =&gt; {
-<a href=#511 id=511 data-nosnippet>511</a>                <span class="kw">if </span>nested {
-<a href=#512 id=512 data-nosnippet>512</a>                    <span class="self">self</span>.find_last_uses_in_ident(ident);
-<a href=#513 id=513 data-nosnippet>513</a>                }
-<a href=#514 id=514 data-nosnippet>514</a>            }
-<a href=#515 id=515 data-nosnippet>515</a>            ast::LValue::Index { array, index, .. } =&gt; {
-<a href=#516 id=516 data-nosnippet>516</a>                <span class="comment">// As in the rvalue Index case, SSA codegen evaluates the index before
-<a href=#517 id=517 data-nosnippet>517</a>                // touching the array in an lvalue position, so visit the array first in
-<a href=#518 id=518 data-nosnippet>518</a>                // the reverse traversal to make it the last use.
-<a href=#519 id=519 data-nosnippet>519</a>                </span><span class="self">self</span>.find_last_uses_in_lvalue(array, <span class="bool-val">true</span>);
-<a href=#520 id=520 data-nosnippet>520</a>                <span class="self">self</span>.find_last_uses_in_expression(index);
-<a href=#521 id=521 data-nosnippet>521</a>            }
-<a href=#522 id=522 data-nosnippet>522</a>            ast::LValue::MemberAccess { object, .. } =&gt; {
-<a href=#523 id=523 data-nosnippet>523</a>                <span class="self">self</span>.find_last_uses_in_lvalue(object, <span class="bool-val">true</span>);
-<a href=#524 id=524 data-nosnippet>524</a>            }
-<a href=#525 id=525 data-nosnippet>525</a>            ast::LValue::Dereference { reference, .. } =&gt; {
-<a href=#526 id=526 data-nosnippet>526</a>                <span class="self">self</span>.find_last_uses_in_lvalue(reference, <span class="bool-val">true</span>);
-<a href=#527 id=527 data-nosnippet>527</a>            }
-<a href=#528 id=528 data-nosnippet>528</a>            ast::LValue::Clone(<span class="kw">_</span>) =&gt; {
-<a href=#529 id=529 data-nosnippet>529</a>                <span class="macro">unreachable!</span>(<span class="string">"LValue::Clone should only be inserted by the ownership pass"</span>)
-<a href=#530 id=530 data-nosnippet>530</a>            }
-<a href=#531 id=531 data-nosnippet>531</a>        }
-<a href=#532 id=532 data-nosnippet>532</a>    }
-<a href=#533 id=533 data-nosnippet>533</a>}
-<a href=#534 id=534 data-nosnippet>534</a>
-<a href=#535 id=535 data-nosnippet>535</a><span class="doccomment">/// Given an expression that is the operand of a reference (`&amp;expr` or `&amp;mut expr`),
-<a href=#536 id=536 data-nosnippet>536</a>/// walk through any chain of struct-field accesses (`expr.field` = `ExtractTupleField`)
-<a href=#537 id=537 data-nosnippet>537</a>/// and return the `LocalId` of the base variable, if it is a local variable.
-<a href=#538 id=538 data-nosnippet>538</a>///
-<a href=#539 id=539 data-nosnippet>539</a>/// For example:
-<a href=#540 id=540 data-nosnippet>540</a>/// - `&amp;mut x`         → `Some(x_id)`
-<a href=#541 id=541 data-nosnippet>541</a>/// - `&amp;mut x.field`   → `Some(x_id)`  (field is `ExtractTupleField(x, _)`)
-<a href=#542 id=542 data-nosnippet>542</a>/// - `&amp;mut x.a.b`     → `Some(x_id)`
-<a href=#543 id=543 data-nosnippet>543</a>/// - `&amp;mut some_call()` → `None`
-<a href=#544 id=544 data-nosnippet>544</a>///
-<a href=#545 id=545 data-nosnippet>545</a>/// Block expressions intentionally return `None`: `&amp;mut { ...; expr }` always allocates
-<a href=#546 id=546 data-nosnippet>546</a>/// fresh storage and copies the tail's value into it, so the operand is no longer a
-<a href=#547 id=547 data-nosnippet>547</a>/// "direct reference" to a local. The clones needed to keep refcounts honest are
-<a href=#548 id=548 data-nosnippet>548</a>/// inserted by the forward pass when it processes the block's tail in normal context
-<a href=#549 id=549 data-nosnippet>549</a>/// (see `handle_reference_expression`).
-<a href=#550 id=550 data-nosnippet>550</a></span><span class="kw">fn </span>base_ident_of_field_access(expr: <span class="kw-2">&amp;</span>Expression) -&gt; <span class="prelude-ty">Option</span>&lt;LocalId&gt; {
-<a href=#551 id=551 data-nosnippet>551</a>    <span class="kw">match </span>expr {
-<a href=#552 id=552 data-nosnippet>552</a>        Expression::Ident(ident) =&gt; {
-<a href=#553 id=553 data-nosnippet>553</a>            <span class="kw">if let </span>Definition::Local(local_id) = ident.definition {
-<a href=#554 id=554 data-nosnippet>554</a>                <span class="prelude-val">Some</span>(local_id)
-<a href=#555 id=555 data-nosnippet>555</a>            } <span class="kw">else </span>{
-<a href=#556 id=556 data-nosnippet>556</a>                <span class="prelude-val">None
-<a href=#557 id=557 data-nosnippet>557</a>            </span>}
-<a href=#558 id=558 data-nosnippet>558</a>        }
-<a href=#559 id=559 data-nosnippet>559</a>        Expression::ExtractTupleField(inner, <span class="kw">_</span>) =&gt; base_ident_of_field_access(inner),
-<a href=#560 id=560 data-nosnippet>560</a>        <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,
-<a href=#561 id=561 data-nosnippet>561</a>    }
-<a href=#562 id=562 data-nosnippet>562</a>}
-<a href=#563 id=563 data-nosnippet>563</a>
-<a href=#564 id=564 data-nosnippet>564</a><span class="doccomment">/// Returns `true` if `arg`'s type can be used to store a reference, i.e. the type
-<a href=#565 id=565 data-nosnippet>565</a>/// contains a `&amp;mut T` (at any depth) where `T` itself contains a reference.
-<a href=#566 id=566 data-nosnippet>566</a>///
-<a href=#567 id=567 data-nosnippet>567</a>/// When this is true for any argument, all `&amp;mut x` arguments in the call must conservatively
-<a href=#568 id=568 data-nosnippet>568</a>/// be treated as aliasing `x`, because the callee might write the reference into the location
-<a href=#569 id=569 data-nosnippet>569</a>/// reachable through that argument.
-<a href=#570 id=570 data-nosnippet>570</a></span><span class="kw">fn </span>arg_can_store_reference(arg: <span class="kw-2">&amp;</span>Expression) -&gt; bool {
-<a href=#571 id=571 data-nosnippet>571</a>    <span class="kw">match </span>arg.return_type() {
-<a href=#572 id=572 data-nosnippet>572</a>        <span class="prelude-val">Some</span>(typ) =&gt; type_can_store_reference(<span class="kw-2">&amp;</span>typ),
-<a href=#573 id=573 data-nosnippet>573</a>        <span class="prelude-val">None </span>=&gt; <span class="bool-val">true</span>,
-<a href=#574 id=574 data-nosnippet>574</a>    }
-<a href=#575 id=575 data-nosnippet>575</a>}
-<a href=#576 id=576 data-nosnippet>576</a>
-<a href=#577 id=577 data-nosnippet>577</a><span class="doccomment">/// Returns `true` if `typ` contains — at any depth — a `&amp;mut T` where `T` itself contains
-<a href=#578 id=578 data-nosnippet>578</a>/// a reference. Such a type allows a reference to be written somewhere persistent.
-<a href=#579 id=579 data-nosnippet>579</a></span><span class="kw">fn </span>type_can_store_reference(typ: <span class="kw-2">&amp;</span>ast::Type) -&gt; bool {
-<a href=#580 id=580 data-nosnippet>580</a>    <span class="kw">use </span>ast::Type;
-<a href=#581 id=581 data-nosnippet>581</a>    <span class="kw">match </span>typ {
-<a href=#582 id=582 data-nosnippet>582</a>        Type::Reference(inner, <span class="bool-val">true </span><span class="comment">/* mutable */</span>) =&gt; type_contains_reference(inner),
-<a href=#583 id=583 data-nosnippet>583</a>        Type::Reference(inner, <span class="bool-val">false</span>) =&gt; type_can_store_reference(inner),
-<a href=#584 id=584 data-nosnippet>584</a>        Type::Tuple(elements) =&gt; elements.iter().any(type_can_store_reference),
-<a href=#585 id=585 data-nosnippet>585</a>        Type::Array(<span class="kw">_</span>, elem) | Type::Vector(elem) | Type::FmtString(<span class="kw">_</span>, elem) =&gt; {
-<a href=#586 id=586 data-nosnippet>586</a>            type_can_store_reference(elem)
-<a href=#587 id=587 data-nosnippet>587</a>        }
-<a href=#588 id=588 data-nosnippet>588</a>        Type::Function(args, ret, env, <span class="kw">_</span>) =&gt; {
-<a href=#589 id=589 data-nosnippet>589</a>            args.iter().any(type_can_store_reference)
-<a href=#590 id=590 data-nosnippet>590</a>                || type_can_store_reference(ret)
-<a href=#591 id=591 data-nosnippet>591</a>                || type_can_store_reference(env)
-<a href=#592 id=592 data-nosnippet>592</a>        }
-<a href=#593 id=593 data-nosnippet>593</a>        Type::Field | Type::Integer(..) | Type::Bool | Type::String(..) | Type::Unit =&gt; <span class="bool-val">false</span>,
-<a href=#594 id=594 data-nosnippet>594</a>    }
-<a href=#595 id=595 data-nosnippet>595</a>}
-<a href=#596 id=596 data-nosnippet>596</a>
-<a href=#597 id=597 data-nosnippet>597</a><span class="doccomment">/// Returns `true` if the type contains a `Reference` anywhere (directly or nested within
-<a href=#598 id=598 data-nosnippet>598</a>/// tuples, arrays, or function types). Used to decide whether a call might return a
-<a href=#599 id=599 data-nosnippet>599</a>/// reference that aliases a variable passed by `&amp;mut` to that call.
-<a href=#600 id=600 data-nosnippet>600</a></span><span class="kw">fn </span>type_contains_reference(typ: <span class="kw-2">&amp;</span>ast::Type) -&gt; bool {
-<a href=#601 id=601 data-nosnippet>601</a>    <span class="kw">use </span>ast::Type;
-<a href=#602 id=602 data-nosnippet>602</a>    <span class="kw">match </span>typ {
-<a href=#603 id=603 data-nosnippet>603</a>        Type::Reference(..) =&gt; <span class="bool-val">true</span>,
-<a href=#604 id=604 data-nosnippet>604</a>        Type::Tuple(elements) =&gt; elements.iter().any(type_contains_reference),
-<a href=#605 id=605 data-nosnippet>605</a>        Type::Array(<span class="kw">_</span>, elem) | Type::Vector(elem) | Type::FmtString(<span class="kw">_</span>, elem) =&gt; {
-<a href=#606 id=606 data-nosnippet>606</a>            type_contains_reference(elem)
-<a href=#607 id=607 data-nosnippet>607</a>        }
-<a href=#608 id=608 data-nosnippet>608</a>        Type::Function(args, ret, env, <span class="kw">_</span>) =&gt; {
-<a href=#609 id=609 data-nosnippet>609</a>            args.iter().any(type_contains_reference)
-<a href=#610 id=610 data-nosnippet>610</a>                || type_contains_reference(ret)
-<a href=#611 id=611 data-nosnippet>611</a>                || type_contains_reference(env)
-<a href=#612 id=612 data-nosnippet>612</a>        }
-<a href=#613 id=613 data-nosnippet>613</a>        Type::Field | Type::Integer(..) | Type::Bool | Type::String(..) | Type::Unit =&gt; <span class="bool-val">false</span>,
-<a href=#614 id=614 data-nosnippet>614</a>    }
-<a href=#615 id=615 data-nosnippet>615</a>}</code></pre></div></section></main></body></html>
+<a href=#483 id=483 data-nosnippet>483</a>                <span class="comment">// A fresh value that does not mention x is independent each iteration, so x's
+<a href=#484 id=484 data-nosnippet>484</a>                // prior in-loop uses can be moved — unless the RHS can break before committing,
+<a href=#485 id=485 data-nosnippet>485</a>                // in which case the kill is not guaranteed. `local_occurs_in` also rejects
+<a href=#486 id=486 data-nosnippet>486</a>                // mentions of x that an inner loop truncated from the pending uses checked above.
+<a href=#487 id=487 data-nosnippet>487</a>                </span><span class="prelude-val">None </span><span class="kw">if </span>!rhs_has_break
+<a href=#488 id=488 data-nosnippet>488</a>                    &amp;&amp; rhs_cannot_alias(<span class="kw-2">&amp;</span>assign.expression)
+<a href=#489 id=489 data-nosnippet>489</a>                    &amp;&amp; !local_occurs_in(<span class="kw-2">*</span>local_id, <span class="kw-2">&amp;</span>assign.expression) =&gt;
+<a href=#490 id=490 data-nosnippet>490</a>                {
+<a href=#491 id=491 data-nosnippet>491</a>                    <span class="self">self</span>.killed.insert(<span class="kw-2">*</span>local_id);
+<a href=#492 id=492 data-nosnippet>492</a>                }
+<a href=#493 id=493 data-nosnippet>493</a>                <span class="prelude-val">None </span>=&gt; {}
+<a href=#494 id=494 data-nosnippet>494</a>            }
+<a href=#495 id=495 data-nosnippet>495</a>            <span class="kw">return</span>;
+<a href=#496 id=496 data-nosnippet>496</a>        }
+<a href=#497 id=497 data-nosnippet>497</a>
+<a href=#498 id=498 data-nosnippet>498</a>        <span class="comment">// For compound lvalues (e.g. `a[i] = expr`), process in reverse evaluation order:
+<a href=#499 id=499 data-nosnippet>499</a>        // the lvalue is accessed after the RHS is evaluated.
+<a href=#500 id=500 data-nosnippet>500</a>        </span><span class="self">self</span>.find_last_uses_in_lvalue(<span class="kw-2">&amp;</span>assign.lvalue, <span class="bool-val">false</span>);
+<a href=#501 id=501 data-nosnippet>501</a>        <span class="self">self</span>.find_last_uses_in_expression(<span class="kw-2">&amp;</span>assign.expression);
+<a href=#502 id=502 data-nosnippet>502</a>    }
+<a href=#503 id=503 data-nosnippet>503</a>
+<a href=#504 id=504 data-nosnippet>504</a>    <span class="doccomment">/// A variable in an lvalue position is never moved (otherwise you wouldn't
+<a href=#505 id=505 data-nosnippet>505</a>    /// be able to access the variable you assigned to afterward). However, the
+<a href=#506 id=506 data-nosnippet>506</a>    /// index in an array expression `a[i] = ...` is an arbitrary expression that
+<a href=#507 id=507 data-nosnippet>507</a>    /// is actually in an rvalue position and can thus be moved.
+<a href=#508 id=508 data-nosnippet>508</a>    ///
+<a href=#509 id=509 data-nosnippet>509</a>    /// The `nested` parameter indicates whether this lvalue is nested inside another lvalue.
+<a href=#510 id=510 data-nosnippet>510</a>    /// For top-level identifiers there's nothing to track, but for an identifier happening
+<a href=#511 id=511 data-nosnippet>511</a>    /// as part of an index (`ident[index] = ...`) we do want to consider `ident` as used,
+<a href=#512 id=512 data-nosnippet>512</a>    /// which should preclude any previous last uses that could result in it being moved.
+<a href=#513 id=513 data-nosnippet>513</a>    </span><span class="kw">fn </span>find_last_uses_in_lvalue(<span class="kw-2">&amp;mut </span><span class="self">self</span>, lvalue: <span class="kw-2">&amp;</span>ast::LValue, nested: bool) {
+<a href=#514 id=514 data-nosnippet>514</a>        <span class="kw">match </span>lvalue {
+<a href=#515 id=515 data-nosnippet>515</a>            ast::LValue::Ident(ident) =&gt; {
+<a href=#516 id=516 data-nosnippet>516</a>                <span class="kw">if </span>nested {
+<a href=#517 id=517 data-nosnippet>517</a>                    <span class="self">self</span>.find_last_uses_in_ident(ident);
+<a href=#518 id=518 data-nosnippet>518</a>                }
+<a href=#519 id=519 data-nosnippet>519</a>            }
+<a href=#520 id=520 data-nosnippet>520</a>            ast::LValue::Index { array, index, .. } =&gt; {
+<a href=#521 id=521 data-nosnippet>521</a>                <span class="comment">// As in the rvalue Index case, SSA codegen evaluates the index before
+<a href=#522 id=522 data-nosnippet>522</a>                // touching the array in an lvalue position, so visit the array first in
+<a href=#523 id=523 data-nosnippet>523</a>                // the reverse traversal to make it the last use.
+<a href=#524 id=524 data-nosnippet>524</a>                </span><span class="self">self</span>.find_last_uses_in_lvalue(array, <span class="bool-val">true</span>);
+<a href=#525 id=525 data-nosnippet>525</a>                <span class="self">self</span>.find_last_uses_in_expression(index);
+<a href=#526 id=526 data-nosnippet>526</a>            }
+<a href=#527 id=527 data-nosnippet>527</a>            ast::LValue::MemberAccess { object, .. } =&gt; {
+<a href=#528 id=528 data-nosnippet>528</a>                <span class="self">self</span>.find_last_uses_in_lvalue(object, <span class="bool-val">true</span>);
+<a href=#529 id=529 data-nosnippet>529</a>            }
+<a href=#530 id=530 data-nosnippet>530</a>            ast::LValue::Dereference { reference, .. } =&gt; {
+<a href=#531 id=531 data-nosnippet>531</a>                <span class="self">self</span>.find_last_uses_in_lvalue(reference, <span class="bool-val">true</span>);
+<a href=#532 id=532 data-nosnippet>532</a>            }
+<a href=#533 id=533 data-nosnippet>533</a>            ast::LValue::Clone(<span class="kw">_</span>) =&gt; {
+<a href=#534 id=534 data-nosnippet>534</a>                <span class="macro">unreachable!</span>(<span class="string">"LValue::Clone should only be inserted by the ownership pass"</span>)
+<a href=#535 id=535 data-nosnippet>535</a>            }
+<a href=#536 id=536 data-nosnippet>536</a>        }
+<a href=#537 id=537 data-nosnippet>537</a>    }
+<a href=#538 id=538 data-nosnippet>538</a>}
+<a href=#539 id=539 data-nosnippet>539</a>
+<a href=#540 id=540 data-nosnippet>540</a><span class="doccomment">/// Returns `true` if assigning `expr` to a variable produces a value whose outer buffer
+<a href=#541 id=541 data-nosnippet>541</a>/// identity cannot alias the buffer being moved out of that variable by the same assignment.
+<a href=#542 id=542 data-nosnippet>542</a>///
+<a href=#543 id=543 data-nosnippet>543</a>/// Only fresh allocations and scalar literals qualify. A fresh allocation gets a new outer
+<a href=#544 id=544 data-nosnippet>544</a>/// reference count, so moving the variable's prior in-loop uses cannot recreate a refcount-1
+<a href=#545 id=545 data-nosnippet>545</a>/// alias with the reassigned value. A place expression (`Ident`, `Index`, member access, …),
+<a href=#546 id=546 data-nosnippet>546</a>/// call result, or block tail may evaluate to an existing buffer and is treated as aliasing.
+<a href=#547 id=547 data-nosnippet>547</a>///
+<a href=#548 id=548 data-nosnippet>548</a>/// Only the OUTER buffer matters here; inner-array aliasing inside `[a, b]` or `[arr; N]` is
+<a href=#549 id=549 data-nosnippet>549</a>/// handled separately by clone insertion at element/index sites, so array, vector, and repeated
+<a href=#550 id=550 data-nosnippet>550</a>/// literals are fresh at this level regardless of their element expressions.
+<a href=#551 id=551 data-nosnippet>551</a>///
+<a href=#552 id=552 data-nosnippet>552</a>/// This only rules out the value *being* an existing buffer, not side effects (e.g. an in-place
+<a href=#553 id=553 data-nosnippet>553</a>/// write to an element) during its construction; the caller pairs it with `local_occurs_in`.
+<a href=#554 id=554 data-nosnippet>554</a></span><span class="kw">fn </span>rhs_cannot_alias(expr: <span class="kw-2">&amp;</span>Expression) -&gt; bool {
+<a href=#555 id=555 data-nosnippet>555</a>    <span class="kw">match </span>expr {
+<a href=#556 id=556 data-nosnippet>556</a>        Expression::Literal(literal) =&gt; <span class="macro">matches!</span>(
+<a href=#557 id=557 data-nosnippet>557</a>            literal,
+<a href=#558 id=558 data-nosnippet>558</a>            Literal::Array(<span class="kw">_</span>)
+<a href=#559 id=559 data-nosnippet>559</a>                | Literal::Vector(<span class="kw">_</span>)
+<a href=#560 id=560 data-nosnippet>560</a>                | Literal::Repeated { .. }
+<a href=#561 id=561 data-nosnippet>561</a>                | Literal::Integer(..)
+<a href=#562 id=562 data-nosnippet>562</a>                | Literal::Bool(<span class="kw">_</span>)
+<a href=#563 id=563 data-nosnippet>563</a>                | Literal::Unit
+<a href=#564 id=564 data-nosnippet>564</a>                | Literal::Str(<span class="kw">_</span>)
+<a href=#565 id=565 data-nosnippet>565</a>        ),
+<a href=#566 id=566 data-nosnippet>566</a>        <span class="comment">// A cast cannot change buffer identity, so it is fresh iff its operand is.
+<a href=#567 id=567 data-nosnippet>567</a>        </span>Expression::Cast(cast) =&gt; rhs_cannot_alias(<span class="kw-2">&amp;</span>cast.lhs),
+<a href=#568 id=568 data-nosnippet>568</a>        <span class="kw">_ </span>=&gt; <span class="bool-val">false</span>,
+<a href=#569 id=569 data-nosnippet>569</a>    }
+<a href=#570 id=570 data-nosnippet>570</a>}
+<a href=#571 id=571 data-nosnippet>571</a>
+<a href=#572 id=572 data-nosnippet>572</a><span class="doccomment">/// Returns `true` if `local_id` occurs anywhere within `expr`, in value position (`x`, `x[i]`)
+<a href=#573 id=573 data-nosnippet>573</a>/// or as the base of an assignment lvalue (`x[i] = ..`). Monomorphized `LocalId`s are unique,
+<a href=#574 id=574 data-nosnippet>574</a>/// so any occurrence is a free occurrence.
+<a href=#575 id=575 data-nosnippet>575</a></span><span class="kw">fn </span>local_occurs_in(local_id: LocalId, expr: <span class="kw-2">&amp;</span>Expression) -&gt; bool {
+<a href=#576 id=576 data-nosnippet>576</a>    <span class="kw">let </span><span class="kw-2">mut </span>occurs = <span class="bool-val">false</span>;
+<a href=#577 id=577 data-nosnippet>577</a>    <span class="kw">crate</span>::monomorphization::visitor::visit_expr_be(
+<a href=#578 id=578 data-nosnippet>578</a>        expr,
+<a href=#579 id=579 data-nosnippet>579</a>        <span class="kw-2">&amp;mut </span>|<span class="kw">_</span>| (<span class="bool-val">true</span>, ()),
+<a href=#580 id=580 data-nosnippet>580</a>        <span class="kw-2">&amp;mut </span>|<span class="kw">_</span>, ()| {},
+<a href=#581 id=581 data-nosnippet>581</a>        <span class="kw-2">&amp;mut </span>|ident: <span class="kw-2">&amp;</span>ast::Ident| {
+<a href=#582 id=582 data-nosnippet>582</a>            <span class="kw">if let </span>Definition::Local(id) = ident.definition
+<a href=#583 id=583 data-nosnippet>583</a>                &amp;&amp; id == local_id
+<a href=#584 id=584 data-nosnippet>584</a>            {
+<a href=#585 id=585 data-nosnippet>585</a>                occurs = <span class="bool-val">true</span>;
+<a href=#586 id=586 data-nosnippet>586</a>            }
+<a href=#587 id=587 data-nosnippet>587</a>        },
+<a href=#588 id=588 data-nosnippet>588</a>    );
+<a href=#589 id=589 data-nosnippet>589</a>    occurs
+<a href=#590 id=590 data-nosnippet>590</a>}
+<a href=#591 id=591 data-nosnippet>591</a>
+<a href=#592 id=592 data-nosnippet>592</a><span class="doccomment">/// Given an expression that is the operand of a reference (`&amp;expr` or `&amp;mut expr`),
+<a href=#593 id=593 data-nosnippet>593</a>/// walk through any chain of struct-field accesses (`expr.field` = `ExtractTupleField`)
+<a href=#594 id=594 data-nosnippet>594</a>/// and return the `LocalId` of the base variable, if it is a local variable.
+<a href=#595 id=595 data-nosnippet>595</a>///
+<a href=#596 id=596 data-nosnippet>596</a>/// For example:
+<a href=#597 id=597 data-nosnippet>597</a>/// - `&amp;mut x`         → `Some(x_id)`
+<a href=#598 id=598 data-nosnippet>598</a>/// - `&amp;mut x.field`   → `Some(x_id)`  (field is `ExtractTupleField(x, _)`)
+<a href=#599 id=599 data-nosnippet>599</a>/// - `&amp;mut x.a.b`     → `Some(x_id)`
+<a href=#600 id=600 data-nosnippet>600</a>/// - `&amp;mut some_call()` → `None`
+<a href=#601 id=601 data-nosnippet>601</a>///
+<a href=#602 id=602 data-nosnippet>602</a>/// Block expressions intentionally return `None`: `&amp;mut { ...; expr }` always allocates
+<a href=#603 id=603 data-nosnippet>603</a>/// fresh storage and copies the tail's value into it, so the operand is no longer a
+<a href=#604 id=604 data-nosnippet>604</a>/// "direct reference" to a local. The clones needed to keep refcounts honest are
+<a href=#605 id=605 data-nosnippet>605</a>/// inserted by the forward pass when it processes the block's tail in normal context
+<a href=#606 id=606 data-nosnippet>606</a>/// (see `handle_reference_expression`).
+<a href=#607 id=607 data-nosnippet>607</a></span><span class="kw">fn </span>base_ident_of_field_access(expr: <span class="kw-2">&amp;</span>Expression) -&gt; <span class="prelude-ty">Option</span>&lt;LocalId&gt; {
+<a href=#608 id=608 data-nosnippet>608</a>    <span class="kw">match </span>expr {
+<a href=#609 id=609 data-nosnippet>609</a>        Expression::Ident(ident) =&gt; {
+<a href=#610 id=610 data-nosnippet>610</a>            <span class="kw">if let </span>Definition::Local(local_id) = ident.definition {
+<a href=#611 id=611 data-nosnippet>611</a>                <span class="prelude-val">Some</span>(local_id)
+<a href=#612 id=612 data-nosnippet>612</a>            } <span class="kw">else </span>{
+<a href=#613 id=613 data-nosnippet>613</a>                <span class="prelude-val">None
+<a href=#614 id=614 data-nosnippet>614</a>            </span>}
+<a href=#615 id=615 data-nosnippet>615</a>        }
+<a href=#616 id=616 data-nosnippet>616</a>        Expression::ExtractTupleField(inner, <span class="kw">_</span>) =&gt; base_ident_of_field_access(inner),
+<a href=#617 id=617 data-nosnippet>617</a>        <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,
+<a href=#618 id=618 data-nosnippet>618</a>    }
+<a href=#619 id=619 data-nosnippet>619</a>}
+<a href=#620 id=620 data-nosnippet>620</a>
+<a href=#621 id=621 data-nosnippet>621</a><span class="doccomment">/// Returns `true` if `arg`'s type can be used to store a reference, i.e. the type
+<a href=#622 id=622 data-nosnippet>622</a>/// contains a `&amp;mut T` (at any depth) where `T` itself contains a reference.
+<a href=#623 id=623 data-nosnippet>623</a>///
+<a href=#624 id=624 data-nosnippet>624</a>/// When this is true for any argument, all `&amp;mut x` arguments in the call must conservatively
+<a href=#625 id=625 data-nosnippet>625</a>/// be treated as aliasing `x`, because the callee might write the reference into the location
+<a href=#626 id=626 data-nosnippet>626</a>/// reachable through that argument.
+<a href=#627 id=627 data-nosnippet>627</a></span><span class="kw">fn </span>arg_can_store_reference(arg: <span class="kw-2">&amp;</span>Expression) -&gt; bool {
+<a href=#628 id=628 data-nosnippet>628</a>    <span class="kw">match </span>arg.return_type() {
+<a href=#629 id=629 data-nosnippet>629</a>        <span class="prelude-val">Some</span>(typ) =&gt; type_can_store_reference(<span class="kw-2">&amp;</span>typ),
+<a href=#630 id=630 data-nosnippet>630</a>        <span class="prelude-val">None </span>=&gt; <span class="bool-val">true</span>,
+<a href=#631 id=631 data-nosnippet>631</a>    }
+<a href=#632 id=632 data-nosnippet>632</a>}
+<a href=#633 id=633 data-nosnippet>633</a>
+<a href=#634 id=634 data-nosnippet>634</a><span class="doccomment">/// Returns `true` if `typ` contains — at any depth — a `&amp;mut T` where `T` itself contains
+<a href=#635 id=635 data-nosnippet>635</a>/// a reference. Such a type allows a reference to be written somewhere persistent.
+<a href=#636 id=636 data-nosnippet>636</a></span><span class="kw">fn </span>type_can_store_reference(typ: <span class="kw-2">&amp;</span>ast::Type) -&gt; bool {
+<a href=#637 id=637 data-nosnippet>637</a>    <span class="kw">use </span>ast::Type;
+<a href=#638 id=638 data-nosnippet>638</a>    <span class="kw">match </span>typ {
+<a href=#639 id=639 data-nosnippet>639</a>        Type::Reference(inner, <span class="bool-val">true </span><span class="comment">/* mutable */</span>) =&gt; type_contains_reference(inner),
+<a href=#640 id=640 data-nosnippet>640</a>        Type::Reference(inner, <span class="bool-val">false</span>) =&gt; type_can_store_reference(inner),
+<a href=#641 id=641 data-nosnippet>641</a>        Type::Tuple(elements) =&gt; elements.iter().any(type_can_store_reference),
+<a href=#642 id=642 data-nosnippet>642</a>        Type::Array(<span class="kw">_</span>, elem) | Type::Vector(elem) | Type::FmtString(<span class="kw">_</span>, elem) =&gt; {
+<a href=#643 id=643 data-nosnippet>643</a>            type_can_store_reference(elem)
+<a href=#644 id=644 data-nosnippet>644</a>        }
+<a href=#645 id=645 data-nosnippet>645</a>        Type::Function(args, ret, env, <span class="kw">_</span>) =&gt; {
+<a href=#646 id=646 data-nosnippet>646</a>            args.iter().any(type_can_store_reference)
+<a href=#647 id=647 data-nosnippet>647</a>                || type_can_store_reference(ret)
+<a href=#648 id=648 data-nosnippet>648</a>                || type_can_store_reference(env)
+<a href=#649 id=649 data-nosnippet>649</a>        }
+<a href=#650 id=650 data-nosnippet>650</a>        Type::Field | Type::Integer(..) | Type::Bool | Type::String(..) | Type::Unit =&gt; <span class="bool-val">false</span>,
+<a href=#651 id=651 data-nosnippet>651</a>    }
+<a href=#652 id=652 data-nosnippet>652</a>}
+<a href=#653 id=653 data-nosnippet>653</a>
+<a href=#654 id=654 data-nosnippet>654</a><span class="doccomment">/// Returns `true` if the type contains a `Reference` anywhere (directly or nested within
+<a href=#655 id=655 data-nosnippet>655</a>/// tuples, arrays, or function types). Used to decide whether a call might return a
+<a href=#656 id=656 data-nosnippet>656</a>/// reference that aliases a variable passed by `&amp;mut` to that call.
+<a href=#657 id=657 data-nosnippet>657</a></span><span class="kw">fn </span>type_contains_reference(typ: <span class="kw-2">&amp;</span>ast::Type) -&gt; bool {
+<a href=#658 id=658 data-nosnippet>658</a>    <span class="kw">use </span>ast::Type;
+<a href=#659 id=659 data-nosnippet>659</a>    <span class="kw">match </span>typ {
+<a href=#660 id=660 data-nosnippet>660</a>        Type::Reference(..) =&gt; <span class="bool-val">true</span>,
+<a href=#661 id=661 data-nosnippet>661</a>        Type::Tuple(elements) =&gt; elements.iter().any(type_contains_reference),
+<a href=#662 id=662 data-nosnippet>662</a>        Type::Array(<span class="kw">_</span>, elem) | Type::Vector(elem) | Type::FmtString(<span class="kw">_</span>, elem) =&gt; {
+<a href=#663 id=663 data-nosnippet>663</a>            type_contains_reference(elem)
+<a href=#664 id=664 data-nosnippet>664</a>        }
+<a href=#665 id=665 data-nosnippet>665</a>        Type::Function(args, ret, env, <span class="kw">_</span>) =&gt; {
+<a href=#666 id=666 data-nosnippet>666</a>            args.iter().any(type_contains_reference)
+<a href=#667 id=667 data-nosnippet>667</a>                || type_contains_reference(ret)
+<a href=#668 id=668 data-nosnippet>668</a>                || type_contains_reference(env)
+<a href=#669 id=669 data-nosnippet>669</a>        }
+<a href=#670 id=670 data-nosnippet>670</a>        Type::Field | Type::Integer(..) | Type::Bool | Type::String(..) | Type::Unit =&gt; <span class="bool-val">false</span>,
+<a href=#671 id=671 data-nosnippet>671</a>    }
+<a href=#672 id=672 data-nosnippet>672</a>}</code></pre></div></section></main></body></html>
