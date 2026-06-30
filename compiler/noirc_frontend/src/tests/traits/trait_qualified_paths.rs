@@ -630,3 +630,67 @@ fn generic_substitution_with_turbofish_trait_method() {
     "#;
     assert_no_errors(src);
 }
+
+#[test]
+fn unresolved_self_item_in_trait_definition_points_at_item() {
+    // In a trait definition `Self` is the trait itself, so `Self::nope` can only be a trait static
+    // method or associated constant. When it is neither, the error points at the item, not `Self`.
+    let src = r#"
+    trait MyTrait {
+        fn f() -> Field {
+            Self::nope()
+                  ^^^^ Could not resolve 'nope' in path
+        }
+    }
+
+    struct S {}
+
+    impl MyTrait for S {}
+
+    fn main() {
+        let _ = S::f();
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn unresolved_bounded_generic_item_points_at_item() {
+    // `T::nope` on a bounded generic must be a method or associated constant reached through a
+    // bound; when it is neither, the error points at the item, not the generic `T`.
+    let src = r#"
+    trait MyTrait {}
+
+    struct S {}
+
+    impl MyTrait for S {}
+
+    fn foo<T>() -> Field where T: MyTrait {
+        T::nope()
+           ^^^^ Could not resolve 'nope' in path
+    }
+
+    fn main() {
+        let _ = foo::<S>();
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn unresolved_trait_item_points_at_item() {
+    let src = r#"
+    trait MyTrait {}
+
+    struct S {}
+
+    impl MyTrait for S {}
+
+    fn main() {
+        let _ = S {};
+        MyTrait::nope()
+                 ^^^^ Could not resolve 'nope' in path
+    }
+    "#;
+    check_errors(src);
+}

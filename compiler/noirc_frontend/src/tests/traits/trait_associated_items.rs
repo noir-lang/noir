@@ -885,7 +885,6 @@ fn associated_constant_direct_access() {
     assert_no_errors(src);
 }
 
-/// TODO(https://github.com/noir-lang/noir/issues/11362): Improve error message for missing associated constants
 #[test]
 fn associated_constant_direct_access_no_impl() {
     let src = r#"
@@ -900,7 +899,8 @@ fn associated_constant_direct_access_no_impl() {
     fn main() {
         let _ = Bar {};
         let _: u32 = Foo::N;
-                          ^ Could not resolve 'N' in path
+                          ^ associated item `N` not found for `Foo`
+                          ~ associated item `N` is defined by trait `MyTrait`, which is not implemented for `Foo`
     }
     "#;
     check_errors(src);
@@ -961,7 +961,8 @@ fn associated_constant_direct_access_generic_impl_wrong_struct() {
         let _ = Wrapper::<Field> { inner: 1 };
         let _ = Other::<Field> { inner: 1 };
         let _: u32 = Other::<Field>::N;
-                                     ^ Could not resolve 'N' in path
+                                     ^ associated item `N` not found for `Other<Field>`
+                                     ~ associated item `N` is defined by trait `MyTrait`, which is not implemented for `Other<Field>`
     }
     "#;
     check_errors(src);
@@ -985,7 +986,8 @@ fn associated_constant_direct_access_generic_impl_wrong_type_arg() {
         let _ = Wrapper::<Field> { inner: 1 };
         let _ = Wrapper::<u32> { inner: 1 };
         let _: u32 = Wrapper::<u32>::N;
-                                     ^ Could not resolve 'N' in path
+                                     ^ associated item `N` not found for `Wrapper<u32>`
+                                     ~ associated item `N` is defined by trait `MyTrait`, which is not implemented for `Wrapper<u32>`
     }
     "#;
     check_errors(src);
@@ -1040,7 +1042,6 @@ fn associated_constant_direct_access_ambiguous_resolved_with_fully_qualified_pat
     assert_no_errors(src);
 }
 
-// TODO(https://github.com/noir-lang/noir/issues/10770): Improve error message for Foo::MyType syntax for associated types
 #[test]
 fn associated_type_direct_access() {
     let src = r#"
@@ -1054,12 +1055,78 @@ fn associated_type_direct_access() {
         type MyType = CustomType;
     }
     fn main() {
-        // Succeeds
-        // let _: <Foo as MyTrait>::MyType = CustomType { };
-        // Fails
+        // `<Foo as MyTrait>::MyType` would succeed; the unqualified form below does not.
         let _: Foo::MyType = CustomType { };
-                    ^^^^^^ Could not resolve 'MyType' in path
+                    ^^^^^^ associated type `MyType` cannot be accessed directly
+                    ~~~~~~ use the fully-qualified syntax `<Foo as MyTrait>::MyType` instead
     }"#;
+    check_errors(src);
+}
+
+#[test]
+fn associated_type_direct_access_no_impl() {
+    let src = r#"
+    pub struct CustomType {}
+
+    trait MyTrait {
+        type MyType;
+    }
+    struct Foo {}
+    struct Bar {}
+    impl MyTrait for Bar {
+        type MyType = CustomType;
+    }
+    fn main() {
+        let _ = Bar {};
+        let _: Foo::MyType = CustomType { };
+                    ^^^^^^ associated item `MyType` not found for `Foo`
+                    ~~~~~~ associated item `MyType` is defined by trait `MyTrait`, which is not implemented for `Foo`
+    }"#;
+    check_errors(src);
+}
+
+#[test]
+fn associated_constant_direct_access_no_impl_multiple_traits() {
+    let src = r#"
+    trait Trait1 {
+        let N: u32;
+    }
+    trait Trait2 {
+        let N: u32;
+    }
+    struct Foo {}
+    struct Bar {}
+    impl Trait1 for Bar {
+        let N: u32 = 1;
+    }
+    impl Trait2 for Bar {
+        let N: u32 = 2;
+    }
+    fn main() {
+        let _ = Bar {};
+        let _: u32 = Foo::N;
+                          ^ associated item `N` not found for `Foo`
+                          ~ associated item `N` is defined by traits `Trait1`, `Trait2`, which are not implemented for `Foo`
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn nonexistent_associated_item_still_unresolved() {
+    let src = r#"
+    trait MyTrait {
+        let N: u32;
+    }
+    struct Foo {}
+    impl MyTrait for Foo {
+        let N: u32 = 5;
+    }
+    fn main() {
+        let _: u32 = Foo::DoesNotExist;
+                          ^^^^^^^^^^^^ Could not resolve 'DoesNotExist' in path
+    }
+    "#;
     check_errors(src);
 }
 

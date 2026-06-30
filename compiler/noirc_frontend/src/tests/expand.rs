@@ -489,3 +489,76 @@ fn expands_trait_impl_calling_private_inherent_method_inside_module() {
     }
     ");
 }
+
+/// A trait method and an inherent method can share a name, and the four ways to call one resolve
+/// to different methods:
+///
+/// - `foo.method()` and `Foo::method(foo)` both prefer the *inherent* method.
+/// - `Trait::method(foo)` and `<Foo as Trait>::method(foo)` select the *trait* method.
+///
+/// The HIR printer must keep each faithful. Rendering a trait call back as `foo.method()` (or
+/// `Foo::method(foo)`) would make the expanded source re-resolve to the inherent method, silently
+/// changing which method runs. The fully-qualified `<Foo as Trait>::method(foo)` is the only form
+/// that round-trips to the trait method regardless of the inherent one.
+///
+/// This test pins the *buggy* output (all four calls collapse to `foo.method()`) so the fix is
+/// visible as a snapshot change.
+#[test]
+fn expands_trait_method_call_shadowed_by_inherent_method() {
+    let src = r#"
+    trait Trait {
+        fn method(self);
+    }
+
+    struct Foo {}
+
+    impl Foo {
+        fn method(self) {
+            let _ = self;
+        }
+    }
+
+    impl Trait for Foo {
+        fn method(self) {
+            let _ = self;
+        }
+    }
+
+    fn main() {
+        let foo = Foo {};
+        foo.method();
+        Foo::method(foo);
+        Trait::method(foo);
+        <Foo as Trait>::method(foo);
+    }
+    "#;
+    let expanded = assert_no_errors_and_to_string(src);
+    insta::assert_snapshot!(expanded, @r"
+    trait Trait {
+        fn method(self);
+    }
+
+    struct Foo {
+    }
+
+    impl Foo {
+        fn method(self) {
+            let _: Self = self;
+        }
+    }
+
+    impl Trait for Foo {
+        fn method(self) {
+            let _: Self = self;
+        }
+    }
+
+    fn main() {
+        let foo: Foo = Foo { };
+        foo.method();
+        foo.method();
+        <Foo as Trait>::method(foo);
+        <Foo as Trait>::method(foo);
+    }
+    ");
+}
