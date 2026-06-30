@@ -86,10 +86,11 @@
 //! `array_get` at a constant index is then a lookup into that view rather than a walk back over
 //! previous instructions, so a long chain of `array_set`s no longer makes each read more expensive.
 //! Each cached element records the side-effects predicate it was written under, and a read only uses
-//! it when that predicate is unconditional or equal to the read's own predicate. Because
-//! [`simple_optimization`][Function::simple_optimization] resets the predicate to `1` at the start of
-//! each block, this comparison is sound whether the write and the read are in the same block or not,
-//! so the cache is kept for the whole function.
+//! it when that predicate is unconditional or equal to the read's own predicate. The defining
+//! `array_set` dominates the read (the array reaches it by data flow) and a false predicate leaves
+//! the element unchanged, so that comparison is sound whether the write and the read are in the same
+//! block or not; the cache is therefore kept for the whole function. See
+//! [the pass][Function::array_get_optimization] for the full argument.
 //!
 //! This module also provides a [`try_optimize_array_get_from_previous_instructions`] function
 //! that is used in other SSA-related optimizations. For example, whenever an `array_get` is inserted
@@ -133,11 +134,15 @@ impl Function {
         // instructions.
         //
         // Each cached element records the side-effects predicate of the `array_set` that wrote it,
-        // and `resolve` only uses it under a matching or unconditional predicate. A non-trivial
-        // predicate (`enable_side_effects`) only exists in single-block functions, so in a function
-        // with more than one block every recorded predicate is `1` and a read resolved against a
-        // write from an earlier block always folds an unconditional store. The cache is therefore
-        // safe to keep for the whole function rather than reset per block.
+        // and `resolve` only uses it when the write was unconditional or carried the same predicate
+        // value the read sees. That condition is sound on its own: the array value is reached by
+        // data flow, so its defining `array_set` dominates the read, and an `array_set` whose
+        // predicate is false leaves the element unchanged — so a matching (or unconditional)
+        // predicate means the written value is really there. `simple_optimization` resets the
+        // predicate to `1` at the start of every block, so a non-trivial predicate is only ever
+        // seen within a single block; a read in a later block sees predicate `1` and folds only
+        // unconditional writes. Either way the comparison holds across blocks, so the cache is kept
+        // for the whole function rather than reset per block.
         let mut views: HashMap<ValueId, ArrayView> = HashMap::new();
 
         self.simple_optimization(|context| {
@@ -181,6 +186,10 @@ impl Function {
                             context.replace_value(result, value);
                         }
                         Resolution::ReadFrom(source) => {
+                            debug_assert_ne!(
+                                source, array,
+                                "a read rewritten to the same array would re-trigger forever"
+                            );
                             let array_get = Instruction::ArrayGet { array: source, index };
                             let result_typ = context.dfg.type_of_value(result).into_owned();
                             let new_result = context
@@ -624,6 +633,39 @@ mod tests {
           b1(v2: [Field; 3]):
             v3 = array_get v2, index u32 0 -> Field
             return v3
+        }
+        ";
+        assert_ssa_does_not_change(src, Ssa::array_get_optimization);
+    }
+
+    #[test]
+    fn does_not_resolve_array_get_after_dynamic_array_set() {
+        // A dynamic-index `array_set` may write any element, so its result is left uncached and
+        // resolves as `Unknown`. The read of index 0 must not fold to the `Field 1` written further
+        // up the chain — the dynamic write could have clobbered index 0.
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: [Field; 3], v1: u32):
+            v2 = array_set v0, index u32 0, value Field 1
+            v3 = array_set v2, index v1, value Field 2
+            v4 = array_get v3, index u32 0 -> Field
+            return v4
+        }
+        ";
+        assert_ssa_does_not_change(src, Ssa::array_get_optimization);
+    }
+
+    #[test]
+    fn does_not_resolve_array_get_beyond_param_length() {
+        // The read index is outside the parameter's length, so the `ReadFrom` base cannot vouch for
+        // it and the read is left in place rather than rewritten to read the parameter out of
+        // bounds.
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: [Field; 2]):
+            v1 = array_set v0, index u32 0, value Field 1
+            v2 = array_get v1, index u32 2 -> Field
+            return v2
         }
         ";
         assert_ssa_does_not_change(src, Ssa::array_get_optimization);
