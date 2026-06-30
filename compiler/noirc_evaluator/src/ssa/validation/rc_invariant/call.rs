@@ -159,12 +159,24 @@ fn intrinsic_may_mutate_args(intrinsic: Intrinsic) -> bool {
         || !matches!(intrinsic.purity(), Purity::Pure | Purity::PureWithPredicate)
 }
 
-/// Run `update` over every function until a full round makes no change, then
-/// return the final state. `update` receives each function and a mutable
-/// reference to the state, mutates it in place, and returns whether it changed
-/// anything; returning `false` short-circuits a function whose contribution is
-/// already settled. The caller keeps whichever part of the final state it needs.
-fn fixpoint<S>(ssa: &Ssa, mut state: S, mut update: impl FnMut(&Function, &mut S) -> bool) -> S {
+/// Populate per-function state with `init`, then run `update` over every
+/// function until a full round makes no change, and return the final state.
+///
+/// `init` receives each function and a mutable reference to the
+/// default-initialized state to fill in that function's entry. `update`
+/// likewise receives each function and the state, mutates it in place, and
+/// returns whether it changed anything; returning `false` short-circuits a
+/// function whose contribution is already settled. The caller keeps whichever
+/// part of the final state it needs.
+fn fixpoint<S: Default>(
+    ssa: &Ssa,
+    mut init: impl FnMut(&Function, &mut S),
+    mut update: impl FnMut(&Function, &mut S) -> bool,
+) -> S {
+    let mut state = S::default();
+    for function in ssa.functions.values() {
+        init(function, &mut state);
+    }
     let mut changed = true;
     while changed {
         changed = false;
@@ -187,47 +199,53 @@ fn fixpoint<S>(ssa: &Ssa, mut state: S, mut update: impl FnMut(&Function, &mut S
 /// never trips the check on well-formed SSA. Propagated to a fixed point over
 /// the call graph.
 fn compute_may_mutate_args(ssa: &Ssa) -> HashMap<FunctionId, bool> {
-    let mut may_mutate: HashMap<FunctionId, bool> = HashMap::default();
-    let mut callees: HashMap<FunctionId, Vec<FunctionId>> = HashMap::default();
-
-    for function in ssa.functions.values() {
-        let mut base = false;
-        let mut calls = Vec::new();
-        for block_id in function.reachable_blocks() {
-            for instruction_id in function.dfg[block_id].instructions() {
-                match &function.dfg[*instruction_id] {
-                    Instruction::ArraySet { .. } | Instruction::Store { .. } => base = true,
-                    Instruction::Call { func, .. } => match &function.dfg[*func] {
-                        Value::Function(callee) => calls.push(*callee),
-                        Value::Intrinsic(intrinsic) => {
-                            base |= intrinsic_may_mutate_args(*intrinsic);
-                        }
-                        // Foreign calls only read their inputs.
-                        Value::ForeignFunction { .. } => {}
-                        // An unresolved or dynamic callee: assume the worst.
-                        _ => base = true,
-                    },
-                    _ => {}
+    let (may_mutate, _callees) = fixpoint(
+        ssa,
+        // Initialize the state to each function's own (non-propagated) may-mutate flag,
+        // plus its callee list. The callee list, built once by `init`, lets the propagation
+        // rounds avoid re-scanning instruction bodies.
+        |function,
+         (may_mutate, callees): &mut (
+            HashMap<FunctionId, bool>,
+            HashMap<FunctionId, Vec<FunctionId>>,
+        )| {
+            let mut base = false;
+            let mut calls = Vec::new();
+            for block_id in function.reachable_blocks() {
+                for instruction_id in function.dfg[block_id].instructions() {
+                    match &function.dfg[*instruction_id] {
+                        Instruction::ArraySet { .. } | Instruction::Store { .. } => base = true,
+                        Instruction::Call { func, .. } => match &function.dfg[*func] {
+                            Value::Function(callee) => calls.push(*callee),
+                            Value::Intrinsic(intrinsic) => {
+                                base |= intrinsic_may_mutate_args(*intrinsic);
+                            }
+                            // Foreign calls only read their inputs.
+                            Value::ForeignFunction { .. } => {}
+                            // An unresolved or dynamic callee: assume the worst.
+                            _ => base = true,
+                        },
+                        _ => {}
+                    }
                 }
             }
-        }
-        may_mutate.insert(function.id(), base);
-        callees.insert(function.id(), calls);
-    }
-
-    // Propagate: a function may-mutate if any callee may-mutate. The pre-built
-    // callee list lets each round avoid re-scanning instruction bodies.
-    fixpoint(ssa, may_mutate, |function, may_mutate| {
-        let id = function.id();
-        if may_mutate[&id] {
-            return false;
-        }
-        let now = callees[&id].iter().any(|c| may_mutate.get(c).copied().unwrap_or(true));
-        if now {
-            may_mutate.insert(id, true);
-        }
-        now
-    })
+            may_mutate.insert(function.id(), base);
+            callees.insert(function.id(), calls);
+        },
+        // Propagate: a function may-mutate if any callee may-mutate.
+        |function, (may_mutate, callees)| {
+            let id = function.id();
+            if may_mutate[&id] {
+                return false;
+            }
+            let now = callees[&id].iter().any(|c| may_mutate.get(c).copied().unwrap_or(true));
+            if now {
+                may_mutate.insert(id, true);
+            }
+            now
+        },
+    );
+    may_mutate
 }
 
 /// Compute, for every function, whether it may return an array value that
@@ -242,22 +260,26 @@ fn compute_may_mutate_args(ssa: &Ssa) -> HashMap<FunctionId, bool> {
 /// accepted. Propagated to a fixed point over the call graph because the
 /// alias property flows through `Value::Function` call results.
 fn compute_returns_arg_alias(ssa: &Ssa) -> HashMap<FunctionId, bool> {
-    let returns_arg_alias: HashMap<FunctionId, bool> =
-        ssa.functions.keys().map(|id| (*id, false)).collect();
-
-    // Monotonic fixed point: a function only ever flips from false to true, and
-    // `function_returns_arg_alias` reads the current map for callee results.
-    fixpoint(ssa, returns_arg_alias, |function, returns_arg_alias| {
-        let id = function.id();
-        if returns_arg_alias[&id] {
-            return false;
-        }
-        let now = function_returns_arg_alias(function, returns_arg_alias);
-        if now {
-            returns_arg_alias.insert(id, true);
-        }
-        now
-    })
+    // Monotonic fixed point: every function starts `false`; one only ever flips
+    // to true, and `function_returns_arg_alias` reads the current map to resolve
+    // callee results.
+    fixpoint(
+        ssa,
+        |function, returns_arg_alias: &mut HashMap<FunctionId, bool>| {
+            returns_arg_alias.insert(function.id(), false);
+        },
+        |function, returns_arg_alias| {
+            let id = function.id();
+            if returns_arg_alias[&id] {
+                return false;
+            }
+            let now = function_returns_arg_alias(function, returns_arg_alias);
+            if now {
+                returns_arg_alias.insert(id, true);
+            }
+            now
+        },
+    )
 }
 
 /// Whether `function` returns an array value that may alias one of its array
