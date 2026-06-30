@@ -980,18 +980,11 @@ impl Context<'_> {
         table: Vec<u32>,
         preferred_block: BlockId,
     ) -> Result<BlockId, RuntimeError> {
-        if !table.is_empty() {
-            let reusable = self
-                .type_sizes_to_blocks
-                .iter()
-                .filter(|(existing, _)| {
-                    existing.len() >= table.len() && existing[..table.len()] == table[..]
-                })
-                .min_by_key(|(existing, block)| (existing.len(), block.0))
-                .map(|(_, block)| *block);
-            if let Some(block) = reusable {
-                return Ok(block);
-            }
+        if !table.is_empty()
+            && let Some((existing, block)) = self.type_sizes_to_blocks.range(table.clone()..).next()
+            && existing.starts_with(&table)
+        {
+            return Ok(*block);
         }
 
         let block = if self.initialized_arrays.contains(&preferred_block) {
