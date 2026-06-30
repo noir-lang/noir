@@ -913,10 +913,26 @@ impl<'a> Context<'a> {
 /// * No empty `AssertZero` opcodes (asserting `0 == 0`) should be emitted.
 /// * No memory opcodes should be laid down that write to the internal type sizes array.
 ///   See [arrays] for more information on the type sizes array.
+/// * No `Read` at a constant, in-bounds index should be emitted on a block which has not yet been
+///   written to. The value of such a read is fully determined by the block's `MemoryInit`, so it
+///   should have been resolved at compile time rather than laid down as a memory opcode. An
+///   out-of-bounds constant index is exempt: it has no resolvable value and is deliberately deferred
+///   to a runtime bounds failure.
 #[cfg(debug_assertions)]
 fn acir_post_check(context: &Context<'_>, acir: &GeneratedAcir<FieldElement>) {
     use acvm::acir::circuit::Opcode;
     use acvm::acir::circuit::opcodes::MemOpKind;
+
+    // The value of each witness which holds a compile-time constant.
+    let constant_witnesses: HashMap<Witness, FieldElement> =
+        context.acir_context.constant_witness_values().collect();
+    // The number of slots each block was initialized with, used to tell in-bounds reads from
+    // out-of-bounds ones.
+    let mut block_lengths: HashMap<BlockId, usize> = HashMap::default();
+    // Blocks for which a `Write` has already been emitted: once written, the contents at a slot can
+    // no longer be resolved statically, so constant-index reads of them are legitimate.
+    let mut written_blocks: HashSet<BlockId> = HashSet::default();
+
     for opcode in acir.opcodes() {
         match opcode {
             Opcode::AssertZero(expr) => {
@@ -925,15 +941,34 @@ fn acir_post_check(context: &Context<'_>, acir: &GeneratedAcir<FieldElement>) {
                     "ICE: Empty AssertZero opcodes (0 == 0) should not be emitted"
                 );
             }
-            Opcode::MemoryOp { block_id, op } if op.operation == MemOpKind::Write => {
-                // Check that we have no writes to the type size arrays
-                let is_type_sizes_array =
-                    context.element_type_sizes_blocks.values().any(|id| id == block_id);
-                assert!(
-                    !is_type_sizes_array,
-                    "ICE: Writes to the internal type sizes array are forbidden"
-                );
+            Opcode::MemoryInit { block_id, init, .. } => {
+                block_lengths.insert(*block_id, init.len());
             }
+            Opcode::MemoryOp { block_id, op } => match op.operation {
+                MemOpKind::Write => {
+                    // Check that we have no writes to the type size arrays
+                    let is_type_sizes_array =
+                        context.element_type_sizes_blocks.values().any(|id| id == block_id);
+                    assert!(
+                        !is_type_sizes_array,
+                        "ICE: Writes to the internal type sizes array are forbidden"
+                    );
+
+                    written_blocks.insert(*block_id);
+                }
+                MemOpKind::Read => {
+                    let in_bounds_constant_index = constant_witnesses
+                        .get(&op.index)
+                        .and_then(AcirField::try_to_u64)
+                        .zip(block_lengths.get(block_id))
+                        .is_some_and(|(index, len)| (index as usize) < *len);
+                    assert!(
+                        !in_bounds_constant_index || written_blocks.contains(block_id),
+                        "ICE: Read at constant in-bounds index on memory block {block_id} which has \
+                         no preceding write should be resolved at compile time"
+                    );
+                }
+            },
             _ => {}
         }
     }

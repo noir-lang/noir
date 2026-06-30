@@ -99,6 +99,18 @@ impl<F: AcirField> AcirContext<F> {
             .collect()
     }
 
+    /// Returns each witness that has been constrained to hold a constant value, paired with that
+    /// value.
+    ///
+    /// Whenever a constant [`AcirVar`] is materialized into a [`Witness`] (e.g. to be used as the
+    /// index of a memory operation) it is recorded in `constant_witnesses`. This exposes that map so
+    /// the post-ACIR check can tell whether a memory-op index is a compile-time constant and what
+    /// its value is.
+    #[cfg(debug_assertions)]
+    pub(crate) fn constant_witness_values(&self) -> impl Iterator<Item = (Witness, F)> + '_ {
+        self.constant_witnesses.iter().map(|(value, witness)| (*witness, *value))
+    }
+
     /// Adds a constant to the context and assigns a Variable to represent it
     pub(crate) fn add_constant(&mut self, constant: impl Into<F>) -> AcirVar {
         let constant_data = AcirVarData::Const(constant.into());
