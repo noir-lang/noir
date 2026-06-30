@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1782816355634,
+  "lastUpdate": 1782816361716,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -14872,95 +14872,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": false,
-          "id": "9e86bd1945451a7a67231abb3fe23f36d478d7e2",
-          "message": "chore(deps): bump log from 0.4.32 to 0.4.33 (#13159)\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
-          "timestamp": "2026-06-23T13:33:28Z",
-          "tree_id": "c1e7066bb589aef789f5058268f276d6efa92369",
-          "url": "https://github.com/noir-lang/noir/commit/9e86bd1945451a7a67231abb3fe23f36d478d7e2"
-        },
-        "date": 1782224016726,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 289.5,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 313.96,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 285.55,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 362.81,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-checkpoint-merge",
-            "value": 362.75,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-checkpoint-root-single-block",
-            "value": 1280,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-checkpoint-root",
-            "value": 1280,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 362.92,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-tx-base-private",
-            "value": 468.18,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-tx-base-public",
-            "value": 480.87,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-tx-merge",
-            "value": 362.44,
-            "unit": "MB"
-          },
-          {
-            "name": "semaphore_depth_10",
-            "value": 84.91,
-            "unit": "MB"
-          },
-          {
-            "name": "sha512_100_bytes",
-            "value": 78.67,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "49699333+dependabot[bot]@users.noreply.github.com",
-            "name": "dependabot[bot]",
-            "username": "dependabot[bot]"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
           "id": "b6c019fd1c8055caa5f4c0697a46af086cd66b61",
           "message": "chore(deps): bump smallvec from 1.15.1 to 1.15.2 (#13157)\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
           "timestamp": "2026-06-23T13:38:24Z",
@@ -19245,6 +19156,95 @@ window.BENCHMARK_DATA = {
           {
             "name": "private-kernel-inner",
             "value": 283.39,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 307.85,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 279.44,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 354.09,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-merge",
+            "value": 354.04,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-root-single-block",
+            "value": 1280,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-root",
+            "value": 1280,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 354.2,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-base-private",
+            "value": 459.43,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-base-public",
+            "value": 472.13,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-merge",
+            "value": 353.73,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 83.99,
+            "unit": "MB"
+          },
+          {
+            "name": "sha512_100_bytes",
+            "value": 77.74,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "c12ae0ca5ddbd81f8850aabe4c800040af9e0aad",
+          "message": "chore(deps): bump ethers from 6.16.0 to 6.17.0 in the hardhat group (#13213)\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2026-06-30T10:00:54Z",
+          "tree_id": "9f4fa442b6d449b3223404b5d7fccd0a022e2558",
+          "url": "https://github.com/noir-lang/noir/commit/c12ae0ca5ddbd81f8850aabe4c800040af9e0aad"
+        },
+        "date": 1782816271937,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 283.38,
             "unit": "MB"
           },
           {
