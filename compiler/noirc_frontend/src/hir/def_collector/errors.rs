@@ -67,6 +67,8 @@ pub enum DefCollectorErrorKind {
     },
     #[error("The `#[test]` attribute may only be used on a non-associated function")]
     TestOnAssociatedFunction { location: Location },
+    #[error("The `#[fuzz]` attribute may only be used on a non-associated function")]
+    FuzzOnAssociatedFunction { location: Location },
     #[error("The `#[export]` attribute may only be used on a non-associated function")]
     ExportOnAssociatedFunction { location: Location },
     #[error(
@@ -100,6 +102,7 @@ impl DefCollectorErrorKind {
                 ..
             }
             | DefCollectorErrorKind::TestOnAssociatedFunction { location }
+            | DefCollectorErrorKind::FuzzOnAssociatedFunction { location }
             | DefCollectorErrorKind::ExportOnAssociatedFunction { location }
             | DefCollectorErrorKind::NonEnumNonStructTypeInImpl { location, .. }
             | DefCollectorErrorKind::ReferenceInTraitImpl { location, .. }
@@ -293,7 +296,12 @@ impl<'a> From<&'a DefCollectorErrorKind> for Diagnostic {
                 diag
             }
             DefCollectorErrorKind::TestOnAssociatedFunction { location } => Diagnostic::simple_error(
-                "The `#[test]` attribute is disallowed on `impl` methods".into(),
+                "The `#[test]` attribute is disallowed on associated functions".into(),
+                String::new(),
+                *location,
+            ),
+            DefCollectorErrorKind::FuzzOnAssociatedFunction { location } => Diagnostic::simple_error(
+                "The `#[fuzz]` attribute is disallowed on associated functions".into(),
                 String::new(),
                 *location,
             ),

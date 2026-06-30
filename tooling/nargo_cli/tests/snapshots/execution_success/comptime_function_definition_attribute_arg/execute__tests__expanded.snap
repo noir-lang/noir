@@ -1,0 +1,33 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+pub struct Percent {
+    value: u32,
+}
+
+pub fn check_percent(p: Percent) {
+    assert(p.value <= 100_u32);
+}
+
+comptime fn validate_with(s: TypeDefinition, check: FunctionDefinition) -> Quoted {
+    let typ: Type = s.as_type();
+    let params: [(Quoted, Type)] = check.parameters();
+    assert(params.len() == 1_u32, "a validation function must take exactly one argument");
+    assert(params[0_u32].1 == typ, "the validation function must take the annotated type");
+    let check_name: Quoted = check.name();
+    quote {
+        pub fn validate_percent(p: $typ) {
+            $check_name(p)
+        }
+    }
+}
+
+pub fn validate_percent(p: Percent) {
+    check_percent(p)
+}
+
+fn main(value: u32) {
+    let p: Percent = Percent { value: value };
+    validate_percent(p);
+}

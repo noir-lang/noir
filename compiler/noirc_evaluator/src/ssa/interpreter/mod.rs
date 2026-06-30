@@ -1543,8 +1543,11 @@ macro_rules! apply_int_binop_opt {
     ($lhs:expr, $rhs:expr, $binary:expr, $f:expr, $display_binary:expr) => {{
         use value::NumericValue::*;
 
-        let lhs = $lhs;
-        let rhs = $rhs;
+        // A checked op consuming an operand that escaped its type via an overflowing unchecked
+        // op must see the wrapped, in-range value the backends carry forward, not the extended
+        // `Unfit` field; otherwise it would error where ACIR/Brillig succeed. See `restore_unfit`.
+        let lhs = restore_unfit($lhs)?;
+        let rhs = restore_unfit($rhs)?;
         let binary = $binary;
         let operator = binary.operator;
 
@@ -1638,6 +1641,32 @@ macro_rules! apply_int_comparison_op {
             }
         }
     }};
+}
+
+/// "Restore" a value that escaped its type via an overflowing unchecked operation into the
+/// wrapped, in-range value that the ACIR and Brillig backends carry forward.
+///
+/// An overflowing unchecked op leaves a [`value::Fitted::Unfit`] field that exceeds the operand's
+/// type (e.g. `unchecked_mul i32 i32::MAX, 2` yields the field `4294967294`). The backends do not
+/// keep that extended value: Brillig wraps in its fixed-width registers and ACIR truncates when
+/// lowering the consuming checked op, so both treat the operand as its `bit_size`-bit representative
+/// (`i32 -2`). Truncating here mirrors that, so a checked op over an `Unfit` operand evaluates
+/// consistently with the backends instead of erroring. Operands that already fit are returned
+/// unchanged.
+fn restore_unfit(value: NumericValue) -> IResult<NumericValue> {
+    use value::Fitted::Unfit;
+    use value::NumericValue::*;
+
+    let (U8(Unfit(field)) | U16(Unfit(field)) | U32(Unfit(field)) | U64(Unfit(field))
+    | U128(Unfit(field)) | I8(Unfit(field)) | I16(Unfit(field)) | I32(Unfit(field))
+    | I64(Unfit(field))) = value
+    else {
+        return Ok(value);
+    };
+
+    let typ = value.get_type();
+    let truncated = truncate_field(field, typ.bit_size::<FieldElement>());
+    NumericValue::from_constant(truncated, typ)
 }
 
 fn evaluate_binary(

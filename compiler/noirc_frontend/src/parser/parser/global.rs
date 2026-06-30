@@ -68,7 +68,6 @@ fn ident_to_pattern(ident: Ident, mutable: bool) -> Pattern {
 
 #[cfg(test)]
 mod tests {
-    use acvm::FieldElement;
 
     use crate::{
         ast::{ExpressionKind, ItemVisibility, LetStatement, Literal, Pattern},
@@ -192,6 +191,6 @@ mod tests {
             panic!("Expected integer literal expression, got {:?}", let_statement.expression.kind);
         };
 
-        assert_eq!(value, -FieldElement::from(17u128));
+        assert_eq!(value, num_bigint::BigInt::from(-17));
     }
 }
