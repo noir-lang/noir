@@ -369,7 +369,7 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
         // Ask the spill_manager for the LRU variable, and then spill it.
         let victim_id = {
             let sm = self.function_context.spill_manager.as_ref().unwrap();
-            sm.lru_victim(&self.variables).expect("No values available to spill")
+            sm.lru_victim().expect("No values available to spill")
         };
         self.spill_value(victim_id, false, true);
     }
@@ -381,7 +381,7 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
     fn spill_lru_values(&mut self, k: usize) {
         let victims = {
             let sm = self.function_context.spill_manager.as_ref().unwrap();
-            sm.lru_victims(k, &self.variables)
+            sm.lru_victims(k)
         };
         if victims.is_empty() {
             return;
@@ -430,14 +430,14 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
         // Update SSA mapping to point to new register
         self.function_context.ssa_value_allocations.insert(value_id, new_var);
 
-        // The slot is kept (the emitted load may re-execute in a loop iteration, so its data
-        // must stay valid); the value is back in a register, which we record by re-adding it to
-        // the available set below. Touch it as most-recently-used.
-        self.function_context.spill_manager.as_mut().unwrap().touch(value_id);
-
         // Re-add to available variables (was removed during spill); this is what marks the value
         // as no longer spilled now that it holds a register again.
         self.variables.add_available(value_id);
+
+        // The slot is kept (the emitted load may re-execute in a loop iteration, so its data must
+        // stay valid). The value is back in a register (added just above), so touch it as MRU —
+        // which `touch` asserts.
+        self.function_context.spill_manager.as_mut().unwrap().touch(value_id, &self.variables);
 
         new_var
     }
@@ -493,7 +493,7 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
             dfg,
         );
         if let Some(sm) = self.function_context.spill_manager.as_mut() {
-            sm.touch(value_id);
+            sm.touch(value_id, &self.variables);
         }
         var
     }
@@ -1017,7 +1017,7 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                     }
                     let var = self.variables.get_allocation(self.function_context, value_id);
                     if let Some(sm) = self.function_context.spill_manager.as_mut() {
-                        sm.touch(value_id);
+                        sm.touch(value_id, &self.variables);
                     }
                     var
                 }
@@ -1034,7 +1034,7 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                 if self.variables.is_allocated(&value_id) {
                     let var = self.variables.get_allocation(self.function_context, value_id);
                     if let Some(sm) = self.function_context.spill_manager.as_mut() {
-                        sm.touch(value_id);
+                        sm.touch(value_id, &self.variables);
                     }
                     var
                 } else if dfg.is_global(value_id) {

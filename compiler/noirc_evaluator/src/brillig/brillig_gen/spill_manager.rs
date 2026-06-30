@@ -265,9 +265,18 @@ impl SpillManager {
         self.records.get(value_id).is_some_and(|r| r.permanent)
     }
 
-    /// Move a value to the back of the LRU (most recently used).
-    /// If the value isn't tracked yet, add it.
-    pub(crate) fn touch(&mut self, value_id: ValueId) {
+    /// Move a value to the back of the LRU (most recently used), inserting it if absent.
+    ///
+    /// The value must currently be in a register: the LRU only ever holds register-resident
+    /// values (a definition or a reload is the only way one enters). Asserting that here keeps a
+    /// spilled value from ever entering the LRU, which is what lets [`Self::lru_victim`] hand back
+    /// its oldest entry without re-checking — a spilled value can only get in through an erroneous
+    /// touch, and this catches it at the source.
+    pub(crate) fn touch(&mut self, value_id: ValueId, registers: &impl RegisterState) {
+        assert!(
+            registers.is_in_register(&value_id),
+            "touched {value_id} which is not in a register"
+        );
         self.lru.touch(value_id);
     }
 
@@ -314,31 +323,16 @@ impl SpillManager {
 
     /// Return the least recently used value tracked in the LRU, or `None` if it is empty.
     ///
-    /// Recording a spill drops the value from the LRU (see `record_spill`), so by the time we
-    /// pick a victim every tracked value is in a register. The `assert!` guards that invariant:
-    /// handing back a spilled value would be a bug, since re-spilling it frees no register.
-    pub(crate) fn lru_victim(&self, registers: &impl RegisterState) -> Option<ValueId> {
-        let victim = self.lru.iter().next();
-        assert!(
-            victim.is_none_or(|v| !self.is_spilled(&v, registers)),
-            "lru_victim returned a spilled value: {victim:?}"
-        );
-        victim
+    /// Every tracked value is in a register — [`Self::touch`] only admits register-resident
+    /// values and spills/deaths drop them — so the oldest entry is always a valid eviction
+    /// candidate, with no spill check needed here.
+    pub(crate) fn lru_victim(&self) -> Option<ValueId> {
+        self.lru.iter().next()
     }
 
-    /// Batched version of [`Self::lru_victim`]
-    ///
-    /// Return up to `k` least-recently-used values, asserting that they are not currently spilled,
-    /// ordered least-recently-used first.
-    pub(crate) fn lru_victims(&self, k: usize, registers: &impl RegisterState) -> Vec<ValueId> {
-        let victims: Vec<ValueId> = self.lru.iter().take(k).collect();
-        for victim in &victims {
-            assert!(
-                !self.is_spilled(victim, registers),
-                "lru_victim returned a spilled value: {victim:?}"
-            );
-        }
-        victims
+    /// Batched version of [`Self::lru_victim`]: the `k` least-recently-used values, oldest first.
+    pub(crate) fn lru_victims(&self, k: usize) -> Vec<ValueId> {
+        self.lru.iter().take(k).collect()
     }
 
     /// Record that a value has been spilled to a transient slot, dropping it from the LRU since
@@ -567,44 +561,45 @@ mod tests {
     #[test]
     fn lru_ordering_and_victim_selection() {
         let mut sm = SpillManager::new();
-        let regs = MockRegisters::default();
+        let mut regs = MockRegisters::default();
         let v0 = Id::test_new(0);
         let v1 = Id::test_new(1);
         let v2 = Id::test_new(2);
 
-        // Touch v0, v1, v2 in order. LRU order: [v0, v1, v2]
-        sm.touch(v0);
-        sm.touch(v1);
-        sm.touch(v2);
+        // Touch v0, v1, v2 in order (all in registers). LRU order: [v0, v1, v2]
+        for v in [v0, v1, v2] {
+            regs.allocate(v);
+            sm.touch(v, &regs);
+        }
 
         // Victim should be v0 (least recently used)
-        assert_eq!(sm.lru_victim(&regs), Some(v0));
+        assert_eq!(sm.lru_victim(), Some(v0));
 
         // Touch v0 again, making it most recent. LRU order: [v1, v2, v0]
-        sm.touch(v0);
+        sm.touch(v0, &regs);
 
         // Victim should now be v1
-        assert_eq!(sm.lru_victim(&regs), Some(v1));
+        assert_eq!(sm.lru_victim(), Some(v1));
     }
 
     #[test]
     fn lru_victims_returns_the_k_least_recently_used() {
         let mut sm = SpillManager::new();
-        let regs = MockRegisters::default();
+        let mut regs = MockRegisters::default();
         let v0 = Id::test_new(0);
         let v1 = Id::test_new(1);
         let v2 = Id::test_new(2);
         let v3 = Id::test_new(3);
 
-        sm.touch(v0);
-        sm.touch(v1);
-        sm.touch(v2);
-        sm.touch(v3);
+        for v in [v0, v1, v2, v3] {
+            regs.allocate(v);
+            sm.touch(v, &regs);
+        }
 
         // The `k` least-recently-used, oldest first.
-        assert_eq!(sm.lru_victims(2, &regs), vec![v0, v1]);
+        assert_eq!(sm.lru_victims(2), vec![v0, v1]);
         // `k` larger than the tracked set returns everything.
-        assert_eq!(sm.lru_victims(10, &regs), vec![v0, v1, v2, v3]);
+        assert_eq!(sm.lru_victims(10), vec![v0, v1, v2, v3]);
     }
 
     #[test]
@@ -618,7 +613,7 @@ mod tests {
         // All three are in registers and tracked in the LRU.
         for v in [v0, v1, v2] {
             regs.allocate(v);
-            sm.touch(v);
+            sm.touch(v, &regs);
         }
 
         // Spill v0: record_spill drops it from the LRU, then its register is freed.
@@ -634,14 +629,14 @@ mod tests {
         assert!(!sm.has_permanent_slot(&v0)); // it is a transient slot
 
         // v0 is no longer tracked, so the next-oldest live value is the victim.
-        assert_eq!(sm.lru_victim(&regs), Some(v1));
+        assert_eq!(sm.lru_victim(), Some(v1));
     }
 
     #[test]
-    #[should_panic(expected = "returned a spilled value")]
-    fn lru_victim_rejects_a_spilled_oldest_value() {
-        // A spilled value can only re-enter the LRU through an erroneous `touch`; `lru_victim`
-        // must catch that rather than hand back a value whose re-spill would free no register.
+    #[should_panic(expected = "is not in a register")]
+    fn touch_rejects_a_value_not_in_a_register() {
+        // The LRU must only ever hold register-resident values. Touching a spilled value is the
+        // only way a spilled value could enter it, and `touch` catches that at the source.
         let mut sm = SpillManager::new();
         let mut regs = MockRegisters::default();
         let v0 = Id::test_new(0);
@@ -649,10 +644,9 @@ mod tests {
         regs.allocate(v0);
         let offset = sm.allocate_spill_offset();
         sm.record_spill(v0, offset, test_var(0), &regs);
-        regs.free(v0); // v0 is now spilled (has a slot, not in a register)
-        sm.touch(v0); // erroneously re-track it
+        regs.free(v0); // v0 is now spilled (out of a register)
 
-        let _ = sm.lru_victim(&regs);
+        sm.touch(v0, &regs); // touching a value that is not in a register panics
     }
 
     #[test]
@@ -688,26 +682,27 @@ mod tests {
     #[test]
     fn remove_from_lru() {
         let mut sm = SpillManager::new();
-        let regs = MockRegisters::default();
+        let mut regs = MockRegisters::default();
         let v0 = Id::test_new(0);
         let v1 = Id::test_new(1);
         let v2 = Id::test_new(2);
 
-        sm.touch(v0);
-        sm.touch(v1);
-        sm.touch(v2);
+        for v in [v0, v1, v2] {
+            regs.allocate(v);
+            sm.touch(v, &regs);
+        }
 
         // Remove v1 from LRU entirely. LRU order: [v0, v2]
         sm.remove_from_lru(&v1);
 
         // Victim should be v0 (v1 is absent)
-        assert_eq!(sm.lru_victim(&regs), Some(v0));
+        assert_eq!(sm.lru_victim(), Some(v0));
 
         // Touch v0, making it most recent. LRU order: [v2, v0]
-        sm.touch(v0);
+        sm.touch(v0, &regs);
 
         // Victim should be v2 (v1 is absent, v0 was touched)
-        assert_eq!(sm.lru_victim(&regs), Some(v2));
+        assert_eq!(sm.lru_victim(), Some(v2));
     }
 
     #[test]
@@ -733,8 +728,8 @@ mod tests {
         assert_eq!(sm.get_permanent_spill_offset(&v0), Some(0));
 
         // While reloaded (in a register) the value is a normal eviction candidate.
-        sm.touch(v0);
-        assert_eq!(sm.lru_victim(&regs), Some(v0));
+        sm.touch(v0, &regs);
+        assert_eq!(sm.lru_victim(), Some(v0));
 
         // Block entry resets the register state (was `restore_permanent_spills`): no longer resident.
         regs.free(v0);
@@ -748,7 +743,7 @@ mod tests {
         // Slot is NOT freed (no slot in free list)
         assert!(sm.free_spill_slots.is_empty());
         // The dead value was dropped from the LRU, so it is no longer an eviction candidate.
-        assert_eq!(sm.lru_victim(&regs), None);
+        assert_eq!(sm.lru_victim(), None);
     }
 
     #[test]
@@ -776,7 +771,7 @@ mod tests {
         assert!(sm.is_spilled(&v0, &regs));
         assert!(sm.free_spill_slots.is_empty());
         // Although still `is_spilled`, the dead value must not be returned by the LRU.
-        assert_eq!(sm.lru_victim(&regs), None);
+        assert_eq!(sm.lru_victim(), None);
     }
 
     #[test]
@@ -896,12 +891,12 @@ mod tests {
         regs.allocate(v0);
         let off = sm.allocate_spill_offset();
         sm.record_permanent_spill(v0, off, test_var(0));
-        sm.touch(v0);
+        sm.touch(v0, &regs);
         assert!(!sm.is_transient_reloaded(&v0, &regs)); // it is permanent, not transient
-        assert_eq!(sm.lru_victim(&regs), Some(v0));
+        assert_eq!(sm.lru_victim(), Some(v0));
 
         // ensure_permanent_spill drops it from the LRU, so it is no longer a victim.
         assert!(sm.ensure_permanent_spill(&v0));
-        assert_eq!(sm.lru_victim(&regs), None);
+        assert_eq!(sm.lru_victim(), None);
     }
 }
