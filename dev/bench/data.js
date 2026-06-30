@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1782841846892,
+  "lastUpdate": 1782848455015,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23146,48 +23146,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "jfecher11@gmail.com",
-            "name": "jfecher",
-            "username": "jfecher"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "75f36a8c9f58395139bb8c8ef7992125f7db47be",
-          "message": "fix(enums): Resolve turbofish on enum variants (#13070)\n\nCo-authored-by: Claude Opus 4.8 (1M context) <noreply@anthropic.com>",
-          "timestamp": "2026-06-23T17:16:12Z",
-          "tree_id": "ffba7a386be9dab9b682b8299ee380fbfd879754",
-          "url": "https://github.com/noir-lang/noir/commit/75f36a8c9f58395139bb8c8ef7992125f7db47be"
-        },
-        "date": 1782236211825,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 169926,
-            "range": "± 724",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 140192,
-            "range": "± 2982",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2650711,
-            "range": "± 2548",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -25239,6 +25197,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2658230,
             "range": "± 2982",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49558828+AztecBot@users.noreply.github.com",
+            "name": "Aztec Bot",
+            "username": "AztecBot"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "b8a24b543519fc0ad476449a1d083ef05235de20",
+          "message": "fix(ssa): map Brillig-offset constant index back to logical space when folding make_array reads (#13200)",
+          "timestamp": "2026-06-30T19:20:03Z",
+          "tree_id": "2867a0dd45cb94653aa119e864ea1e8167f25488",
+          "url": "https://github.com/noir-lang/noir/commit/b8a24b543519fc0ad476449a1d083ef05235de20"
+        },
+        "date": 1782848374706,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 127859,
+            "range": "± 474",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 114241,
+            "range": "± 1770",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 3056108,
+            "range": "± 12646",
             "unit": "ns/iter"
           }
         ]
