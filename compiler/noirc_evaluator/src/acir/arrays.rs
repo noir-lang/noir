@@ -143,6 +143,13 @@ use super::{
 };
 
 impl Context<'_> {
+    /// Allocate a fresh, unique [`BlockId`] for a memory block.
+    fn next_block_id(&mut self) -> BlockId {
+        let block_id = BlockId::new(self.max_block_id);
+        self.max_block_id += 1;
+        block_id
+    }
+
     /// Get the `BlockId` corresponding to the `ValueId`
     /// If there is no matching `BlockId`, we create a new one.
     pub(super) fn block_id(&mut self, value: ValueId) -> BlockId {
@@ -155,8 +162,7 @@ impl Context<'_> {
 
     pub(crate) fn return_data_block_id(&mut self) -> BlockId {
         self.return_data_block_id.unwrap_or_else(|| {
-            let block_id = BlockId::new(self.max_block_id);
-            self.max_block_id += 1;
+            let block_id = self.next_block_id();
             self.return_data_block_id = Some(block_id);
             block_id
         })
@@ -910,18 +916,13 @@ impl Context<'_> {
         dfg: &DataFlowGraph,
         shift: ElementTypeSizesArrayShift,
     ) -> Result<BlockId, RuntimeError> {
-        let element_type_sizes = self.type_sizes_block_id(array_id);
-        // Check whether an internal type sizes array has already been initialized.
-        // Need to look into how to optimize for vectors as this could lead to different element type sizes
-        // for different vectors that do not have consistent sizes.
-        // If we are initializing an element type sizes array for a growth operation (e.g., vector insert),
-        // we do not want to use a pre-initialized type sizes array as it will be for a smaller size.
-        // By definition the `additional_capacity` being over zero indicates that we desire a type sizes array
-        // that is bigger than what is needed for the supplied type/value.
-        if self.initialized_arrays.contains(&element_type_sizes)
+        let base_block = self.type_sizes_block_id(array_id);
+
+        // A non-shifted request can reuse a table already initialized for this value as-is.
+        if self.initialized_arrays.contains(&base_block)
             && matches!(shift, ElementTypeSizesArrayShift::None)
         {
-            return Ok(element_type_sizes);
+            return Ok(base_block);
         }
 
         if !matches!(array_typ, Type::Array(_, _) | Type::Vector(_)) {
@@ -942,91 +943,66 @@ impl Context<'_> {
             .into());
         }
 
-        // An instruction representing the vector means it has been processed previously during ACIR gen.
-        // Use the previously defined result of an array operation to fetch the internal type information.
+        // An instruction/param representing the array means it has been processed previously during
+        // ACIR gen. Use that result to recover its flattened length, then apply the requested shift
+        // (e.g. one extra element for a vector insert) to size the table.
         let array_acir_value =
             supplied_acir_value.unwrap_or_else(|| self.convert_value(array_id, dfg));
-        let flattened_len = flattened_value_size(&array_acir_value);
-        let result = match array_acir_value {
-            AcirValue::Array(_) => {
-                self.init_type_sizes_helper(array_typ, flattened_len, shift, element_type_sizes)
-            }
-            AcirValue::DynamicArray(inner) if matches!(shift, ElementTypeSizesArrayShift::None) => {
-                let inner_elem_type_sizes = inner.element_type_sizes;
-                let Some(inner_elem_type_sizes) = &inner_elem_type_sizes else {
-                    return Err(InternalError::General {
-                        message: format!("Array {array_id}'s inner element type sizes array should be initialized"),
-                        call_stack: self.acir_context.get_call_stack(),
-                    }
-                    .into());
-                };
-
-                if !self.initialized_arrays.contains(inner_elem_type_sizes) {
-                    // We're copying the element type sizes array from another array so we expect it to be initialized.
-                    unreachable!("ICE: element type size arrays are expected to be initialized");
-                }
-
-                // We can safely overwrite the memory block from the initial call to `self.internal_block_id(&array_id)` here.
-                // The type sizes array is never mutated so we can re-use it.
-                self.element_type_sizes_blocks.insert(array_id, *inner_elem_type_sizes);
-                Ok(*inner_elem_type_sizes)
-            }
-            AcirValue::DynamicArray(inner)
-                if !matches!(shift, ElementTypeSizesArrayShift::None) =>
-            {
-                // Recalculate with additional capacity for growth operations
-                self.init_type_sizes_helper(array_typ, inner.len, shift, element_type_sizes)
-            }
-            _ => Err(InternalError::Unexpected {
+        if !matches!(array_acir_value, AcirValue::Array(_) | AcirValue::DynamicArray(_)) {
+            return Err(InternalError::Unexpected {
                 expected: "AcirValue::DynamicArray or AcirValue::Array".to_owned(),
                 found: format!("{array_acir_value:?}"),
                 call_stack: self.acir_context.get_call_stack(),
             }
-            .into()),
-        }?;
-
-        // Remap this array_id to point at the reused block. This ensures subsequent lookups via
-        // type_sizes_block_id(array_id) find the initialized block.
-        // But not for growth operations (Increase/Decrease) which do not match with the base mapping.
-        if result != element_type_sizes && matches!(shift, ElementTypeSizesArrayShift::None) {
-            self.element_type_sizes_blocks.insert(array_id, result);
+            .into());
         }
+        let flattened_len = flattened_value_size(&array_acir_value);
+        let table = calculate_element_type_sizes_array(array_typ, flattened_len, shift);
 
-        Ok(result)
+        let block = self.reuse_or_init_element_type_sizes(table, base_block)?;
+
+        // Record which block backs this value's helper table. This also keeps the post-ACIR check's
+        // set of element-type-sizes blocks complete (it scans these values to forbid writes to them).
+        self.element_type_sizes_blocks.insert(array_id, block);
+        Ok(block)
     }
 
-    /// Helper to calculate and initialize `element_type_sizes` array from a flattened length.
-    fn init_type_sizes_helper(
+    /// Returns a memory block holding the given element-type-sizes `table`, reusing an existing one
+    /// when possible.
+    ///
+    /// Reuses the smallest already-initialized table that is at least as large and shares `table`'s
+    /// prefix (the table is never mutated and is a cumulative prefix-offset array, so reading only
+    /// the first entries of a larger table yields the same offsets). Otherwise initializes a new
+    /// table into `preferred_block`, or a fresh block when `preferred_block` is already in use (it
+    /// may hold this value's smaller, non-shifted table).
+    fn reuse_or_init_element_type_sizes(
         &mut self,
-        array_typ: &Type,
-        flattened_length: FlattenedLength,
-        shift: ElementTypeSizesArrayShift,
-        element_type_sizes_block: BlockId,
+        table: Vec<u32>,
+        preferred_block: BlockId,
     ) -> Result<BlockId, RuntimeError> {
-        let flat_elem_type_sizes =
-            calculate_element_type_sizes_array(array_typ, flattened_length, shift);
-
-        // If there's already a block with these same sizes, reuse it. It's fine to do so
-        // because the element type sizes array is never mutated.
-        if let Some(block_id) = self.type_sizes_to_blocks.get(&flat_elem_type_sizes) {
-            return Ok(*block_id);
+        if !table.is_empty()
+            && let Some((existing, block)) = self.type_sizes_to_blocks.range(table.clone()..).next()
+            && existing.starts_with(&table)
+        {
+            return Ok(*block);
         }
 
-        // The final array contains the flattened index at each outer array index
-        let init_values = vecmap(flat_elem_type_sizes.clone(), |type_size| {
+        let block = if self.initialized_arrays.contains(&preferred_block) {
+            self.next_block_id()
+        } else {
+            preferred_block
+        };
+
+        // The final array contains the flattened index at each outer array index.
+        let init_values = vecmap(table.clone(), |type_size| {
             let var = self.acir_context.add_constant(type_size);
             AcirValue::Var(var, NumericType::NativeField)
         });
-        let element_type_sizes_len = FlattenedLength(assert_u32(init_values.len()));
-        self.initialize_array(
-            element_type_sizes_block,
-            element_type_sizes_len,
-            Some(AcirValue::Array(init_values.into())),
-        )?;
+        let len = FlattenedLength(assert_u32(init_values.len()));
+        self.initialize_array(block, len, Some(AcirValue::Array(init_values.into())))?;
 
-        self.type_sizes_to_blocks.insert(flat_elem_type_sizes, element_type_sizes_block);
-
-        Ok(element_type_sizes_block)
+        self.type_sizes_to_blocks.insert(table, block);
+        Ok(block)
     }
 
     /// Read an array and reconstruct its structure based on the SSA type.
