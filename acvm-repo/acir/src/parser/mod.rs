@@ -720,7 +720,7 @@ impl<'a> Parser<'a> {
         self.eat_or_error(Token::Colon)?;
         let outputs = self.parse_brillig_outputs()?;
 
-        Ok(Opcode::BrilligCall { id: BrilligFunctionId(func_id), inputs, outputs, predicate })
+        Ok(Opcode::BrilligCall { id: BrilligFunctionId::new(func_id), inputs, outputs, predicate })
     }
 
     fn parse_brillig_inputs(&mut self) -> ParseResult<Vec<BrilligInputs<FieldElement>>> {
@@ -772,7 +772,7 @@ impl<'a> Parser<'a> {
         self.eat_or_error(Token::Colon)?;
         let outputs = self.parse_witness_vector()?;
 
-        Ok(Opcode::Call { id: AcirFunctionId(id), inputs, outputs, predicate })
+        Ok(Opcode::Call { id: AcirFunctionId::new(id), inputs, outputs, predicate })
     }
 
     fn eat_predicate(&mut self) -> ParseResult<Expression<FieldElement>> {
@@ -918,7 +918,7 @@ impl<'a> Parser<'a> {
         if is_block_type {
             let token = self.bump()?;
             match token.into_token() {
-                Token::Block(block) => Ok(Some(BlockId(block))),
+                Token::Block(block) => Ok(Some(BlockId::new(block))),
                 _ => unreachable!(),
             }
         } else {

@@ -180,7 +180,16 @@ impl AcirOpcodeLocation {
 /// Index of Brillig opcode within a list of Brillig opcodes.
 /// To be used by callers for resolving debug information.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
-pub struct BrilligOpcodeLocation(pub usize);
+pub struct BrilligOpcodeLocation(usize);
+
+impl BrilligOpcodeLocation {
+    pub fn new(index: usize) -> Self {
+        BrilligOpcodeLocation(index)
+    }
+    pub fn index(&self) -> usize {
+        self.0
+    }
+}
 
 impl OpcodeLocation {
     // Utility method to allow easily comparing a resolved Brillig location and a debug Brillig location.
@@ -189,7 +198,7 @@ impl OpcodeLocation {
     pub fn to_brillig_location(self) -> Option<BrilligOpcodeLocation> {
         match self {
             OpcodeLocation::Brillig { brillig_index, .. } => {
-                Some(BrilligOpcodeLocation(brillig_index))
+                Some(BrilligOpcodeLocation::new(brillig_index))
             }
             OpcodeLocation::Acir(_) => None,
         }
@@ -447,7 +456,7 @@ impl PublicInputs {
     }
 
     pub fn contains(&self, index: usize) -> bool {
-        self.0.contains(&Witness(index as u32))
+        self.0.contains(&Witness::new(index as u32))
     }
 }
 

@@ -542,7 +542,7 @@ mod tests {
             circuit.opcodes.iter().enumerate().map(|(i, _)| i).collect();
 
         // Consider the Brillig function to have a side effect.
-        let brillig_side_effects = BTreeMap::from_iter(vec![(BrilligFunctionId(0), true)]);
+        let brillig_side_effects = BTreeMap::from_iter(vec![(BrilligFunctionId::new(0), true)]);
 
         let optimizer = RangeOptimizer::new(circuit, &brillig_side_effects);
         let (optimized_circuit, _) =

@@ -125,7 +125,7 @@ impl<F: AcirField> SharedContext<F> {
 
     /// Allocate a fresh Brillig function pointer
     pub(super) fn new_generated_pointer(&self) -> BrilligFunctionId {
-        BrilligFunctionId(self.generated_brillig.len() as u32)
+        BrilligFunctionId::new(self.generated_brillig.len() as u32)
     }
 
     /// Register a stdlib Brillig call for later resolution.
@@ -312,7 +312,7 @@ mod tests {
         // Manually insert a pointer without inserting the corresponding Brillig bytecode
         context
             .brillig_generated_func_pointers
-            .insert((func_id, args.clone()), BrilligFunctionId(0));
+            .insert((func_id, args.clone()), BrilligFunctionId::new(0));
         // This should panic because the list of Brillig artifacts is empty
         let pointer = context.generated_brillig_pointer(func_id, args).unwrap();
         let _ = &context.generated_brillig(pointer.as_usize());
