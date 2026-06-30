@@ -7,7 +7,7 @@ use crate::ast::{
     BlockExpression, Expression, FunctionReturnType, Ident, NoirFunction, Path, UnresolvedGenerics,
     UnresolvedType,
 };
-use crate::token::SecondaryAttribute;
+use crate::token::{Attributes, SecondaryAttribute};
 
 use super::{
     DocComment, Documented, GenericTypeArgs, IdentOrQuotedType, ItemVisibility, UnresolvedGeneric,
@@ -43,6 +43,7 @@ pub enum TraitItem {
         return_type: FunctionReturnType,
         where_clause: Vec<UnresolvedTraitConstraint>,
         body: Option<BlockExpression>,
+        attributes: Attributes,
     },
     Constant {
         name: Ident,
@@ -185,7 +186,15 @@ impl Display for TraitItem {
                 is_unconstrained,
                 visibility,
                 is_comptime,
+                attributes,
             } => {
+                if let Some(attribute) = attributes.function() {
+                    writeln!(f, "{attribute}")?;
+                }
+                for attribute in &attributes.secondary {
+                    writeln!(f, "{attribute}")?;
+                }
+
                 let generics = vecmap(generics, |generic| generic.to_string());
                 let parameters = vecmap(parameters, |(name, typ)| format!("{name}: {typ}"));
                 let where_clause = vecmap(where_clause, ToString::to_string);

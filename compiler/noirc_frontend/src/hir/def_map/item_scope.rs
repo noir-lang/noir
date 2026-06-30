@@ -1,19 +1,30 @@
-use super::{ModuleDefId, ModuleId, namespace::PerNs};
+use super::{ModuleDefId, ModuleId, Namespace, namespace::PerNs};
 use crate::ast::{Ident, ItemVisibility};
-use crate::node_interner::{FuncId, TraitId};
+use crate::node_interner::FuncId;
 
 use std::collections::{BTreeMap, btree_map};
-use std::collections::{HashMap, hash_map};
 
-/// Definitions of an [Ident]: it can be a standalone without a [`TraitId`],
-/// or it can appear across multiple traits.
-type Scope = HashMap<Option<TraitId>, (ModuleDefId, ItemVisibility, bool /*is_prelude*/)>;
+/// A single [Ident]'s definition in a namespace.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct NamespaceItem {
+    pub id: ModuleDefId,
+    pub visibility: ItemVisibility,
+    /// Whether this definition was brought into scope by the stdlib prelude.
+    pub is_prelude: bool,
+}
 
 /// All the definitions of [Ident]s in scope, either as `types` or `values`.
 #[derive(Default, Debug, PartialEq, Eq)]
 pub struct ItemScope {
-    types: BTreeMap<Ident, Scope>,
-    values: BTreeMap<Ident, Scope>,
+    types: BTreeMap<Ident, NamespaceItem>,
+    values: BTreeMap<Ident, NamespaceItem>,
+
+    /// Every definition added via [`Self::add_definition`], in declaration (insertion) order.
+    ///
+    /// `types` and `values` are keyed by [Ident] and so are ordered alphabetically; they can't
+    /// recover the order items were written in. `defs` preserves that order for [`Self::definitions`],
+    /// which backs the comptime `Module::functions` / `Module::structs` reflection — those expose a
+    /// module's items in source order (as Rust's proc-macros see them), not alphabetically.
     defs: Vec<ModuleDefId>,
 }
 
@@ -25,9 +36,8 @@ impl ItemScope {
         name: Ident,
         visibility: ItemVisibility,
         mod_def: ModuleDefId,
-        trait_id: Option<TraitId>,
     ) -> Result<(), (Ident, Ident)> {
-        self.add_item_to_namespace(name, visibility, mod_def, trait_id, false)?;
+        self.add_item_to_namespace(name, visibility, mod_def, false)?;
         self.defs.push(mod_def);
         Ok(())
     }
@@ -42,69 +52,53 @@ impl ItemScope {
         name: Ident,
         visibility: ItemVisibility,
         mod_def: ModuleDefId,
-        trait_id: Option<TraitId>,
         is_prelude: bool,
     ) -> Result<(), (Ident, Ident)> {
-        let add_item = |map: &mut BTreeMap<Ident, Scope>| {
+        let add_item = |map: &mut BTreeMap<Ident, NamespaceItem>| {
             if let btree_map::Entry::Occupied(mut o) = map.entry(name.clone()) {
-                let trait_hashmap = o.get_mut();
-                if let hash_map::Entry::Occupied(mut n) = trait_hashmap.entry(trait_id) {
-                    // Generally we want to reject having two of the same ident in the same namespace.
-                    // The exception to this is when we're explicitly importing something
-                    // which exists in the Noir stdlib prelude.
-                    //
-                    // In this case we ignore the prelude and favour the explicit import.
-                    let old_is_prelude = n.get().2;
-                    if old_is_prelude && !is_prelude {
-                        // Explicit import or definition overrides prelude
-                        *n.get_mut() = (mod_def, visibility, is_prelude);
-                        Ok(())
-                    } else if is_prelude {
-                        // Prelude cannot override anything: silently drop prelude import
-                        Ok(())
-                    } else {
-                        // Two non-prelude definitions: genuine duplicate
-                        let old_ident = o.key();
-                        Err((old_ident.clone(), name))
-                    }
-                } else {
-                    trait_hashmap.insert(trait_id, (mod_def, visibility, is_prelude));
+                // Generally we want to reject having two of the same ident in the same namespace.
+                // The exception to this is when we're explicitly importing something
+                // which exists in the Noir stdlib prelude.
+                //
+                // In this case we ignore the prelude and favour the explicit import.
+                if o.get().is_prelude && !is_prelude {
+                    // Explicit import or definition overrides prelude
+                    *o.get_mut() = NamespaceItem { id: mod_def, visibility, is_prelude };
                     Ok(())
+                } else if is_prelude {
+                    // Prelude cannot override anything: silently drop prelude import
+                    Ok(())
+                } else {
+                    // Two non-prelude definitions: genuine duplicate
+                    let old_ident = o.key();
+                    Err((old_ident.clone(), name))
                 }
             } else {
-                let mut trait_hashmap = HashMap::new();
-                trait_hashmap.insert(trait_id, (mod_def, visibility, is_prelude));
-                map.insert(name, trait_hashmap);
+                map.insert(name, NamespaceItem { id: mod_def, visibility, is_prelude });
                 Ok(())
             }
         };
 
-        match mod_def {
-            ModuleDefId::ModuleId(_) => add_item(&mut self.types),
-            ModuleDefId::FunctionId(_) => add_item(&mut self.values),
-            ModuleDefId::TypeId(_) => add_item(&mut self.types),
-            ModuleDefId::TypeAliasId(_) => add_item(&mut self.types),
-            ModuleDefId::TraitId(_) => add_item(&mut self.types),
-            ModuleDefId::TraitAssociatedTypeId(_) => add_item(&mut self.types),
-            ModuleDefId::GlobalId(_) => add_item(&mut self.values),
+        match mod_def.namespace() {
+            Namespace::Type => add_item(&mut self.types),
+            Namespace::Value => add_item(&mut self.values),
         }
     }
 
-    /// Look up an [Ident] in `types` with no [`TraitId`], and return it _iff_ it's a [`ModuleDefId::ModuleId`].
+    /// Look up an [Ident] in `types`, and return it _iff_ it's a [`ModuleDefId::ModuleId`].
     pub fn find_module_with_name(&self, mod_name: &Ident) -> Option<&ModuleId> {
-        let (module_def, _, _) = self.types.get(mod_name)?.get(&None)?;
-        match module_def {
+        match &self.types.get(mod_name)?.id {
             ModuleDefId::ModuleId(id) => Some(id),
             _ => None,
         }
     }
 
-    /// Look up an [Ident] in `values`, then return the [`FuncId`] if the definition is a [`ModuleDefId::FunctionId`],
-    ///
-    /// Methods introduced without trait take priority and hide methods with the same name that come from a trait.
+    /// Look up an [Ident] in `values`, then return the [`FuncId`] if the definition is a [`ModuleDefId::FunctionId`].
     pub fn find_func_with_name(&self, func_name: &Ident) -> Option<FuncId> {
-        let (module_def, _, _) = Self::find_name_in(func_name, &self.values)?;
-        if let ModuleDefId::FunctionId(id) = module_def { Some(*id) } else { None }
+        match Self::find_name_in(func_name, &self.values)?.id {
+            ModuleDefId::FunctionId(id) => Some(id),
+            _ => None,
+        }
     }
 
     /// Look for an [Ident] in both `types` and `values`.
@@ -117,17 +111,6 @@ impl ItemScope {
         }
     }
 
-    /// Look for an [Ident] in both `types` and `values`,
-    ///
-    /// It returns the entry matching the `trait_id`, that is, either the standalone definition,
-    /// or one in a specific trait (regardless of the presence of other traits).
-    pub fn find_name_for_trait_id(&self, name: &Ident, trait_id: &Option<TraitId>) -> PerNs {
-        PerNs {
-            types: self.types.get(name).and_then(|t| t.get(trait_id)).copied(),
-            values: self.values.get(name).and_then(|v| v.get(trait_id)).copied(),
-        }
-    }
-
     /// All [Ident]s in `types` and `values`.
     pub fn names(&self) -> impl Iterator<Item = &Ident> {
         self.types.keys().chain(self.values.keys())
@@ -137,38 +120,20 @@ impl ItemScope {
         &self.defs
     }
 
-    pub fn types(&self) -> &BTreeMap<Ident, Scope> {
+    pub fn types(&self) -> &BTreeMap<Ident, NamespaceItem> {
         &self.types
     }
 
-    pub fn values(&self) -> &BTreeMap<Ident, Scope> {
+    pub fn values(&self) -> &BTreeMap<Ident, NamespaceItem> {
         &self.values
     }
 
-    pub fn remove_definition(&mut self, name: &Ident) {
-        self.types.remove(name);
-        self.values.remove(name);
-    }
-
-    /// Look up an [Ident] in `types` or `values`:
-    /// * if a definition without a [`TraitId`] exists, return that
-    /// * if there is exactly 1 definition with a [`TraitId`], return that
-    /// * otherwise return nothing, as the name is ambiguous, exists in multiple traits
+    /// Look up an [Ident] in `types` or `values`.
     fn find_name_in<'a>(
         name: &Ident,
-        map: &'a BTreeMap<Ident, Scope>,
-    ) -> Option<&'a (ModuleDefId, ItemVisibility, bool)> {
-        if let Some(t) = map.get(name) {
-            if let Some(tt) = t.get(&None) {
-                Some(tt)
-            } else if t.len() == 1 {
-                t.values().last()
-            } else {
-                None
-            }
-        } else {
-            None
-        }
+        map: &'a BTreeMap<Ident, NamespaceItem>,
+    ) -> Option<&'a NamespaceItem> {
+        map.get(name)
     }
 
     /// Clears all definitions in this scope.

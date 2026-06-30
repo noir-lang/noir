@@ -27,6 +27,7 @@ mod call;
 mod coalescing;
 mod memory;
 mod spill;
+mod truncate;
 
 pub(crate) fn ssa_to_brillig_artifacts(src: &str) -> Brillig {
     ssa_to_brillig_artifacts_with_options(src, &BrilligOptions::default())

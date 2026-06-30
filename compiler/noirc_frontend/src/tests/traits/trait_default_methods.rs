@@ -290,3 +290,21 @@ fn issue_8687_trait_default_method_return_type_is_trait_generic() {
     "#;
     check_errors(src);
 }
+
+/// Regression test for <https://github.com/noir-lang/noir/issues/8687>.
+#[test]
+fn issue_8687_trait_default_method_return_type() {
+    let src = r#"
+    pub trait Trait<T> {
+        fn one(self) -> T;
+
+        fn foo(self) {
+            let t = self.one();
+            let _: T = t;
+        }
+    }
+
+    fn main() {}
+    "#;
+    assert_no_errors(src);
+}

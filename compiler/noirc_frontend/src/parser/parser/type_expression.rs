@@ -230,7 +230,15 @@ impl Parser<'_> {
         let start_location = self.current_token_location;
         let lhs = self.parse_multiply_or_divide_or_modulo_type_or_type_expression()?;
 
-        // If lhs is a type then no operator can follow, so we stop right away
+        // If no add/subtract operator follows, return the type as-is. This preserves
+        // types that are not type expressions (e.g. a parenthesized type `(Field)`)
+        // instead of normalizing them into type expressions.
+        if !self.at(&Token::Plus) && !self.at(&Token::Minus) {
+            return Some(lhs);
+        }
+
+        // An operator follows, so lhs must be usable as a type expression to continue.
+        // If it isn't, return it and let the caller report the dangling operator.
         if !type_is_type_expr(&lhs) {
             return Some(lhs);
         }
@@ -246,7 +254,15 @@ impl Parser<'_> {
         let start_location = self.current_token_location;
         let lhs = self.parse_term_type_or_type_expression()?;
 
-        // If lhs is a type then no operator can follow, so we stop right away
+        // If no multiply/divide/modulo operator follows, return the type as-is. This
+        // preserves types that are not type expressions (e.g. a parenthesized type
+        // `(Field)`) instead of normalizing them into type expressions.
+        if !self.at(&Token::Star) && !self.at(&Token::Slash) && !self.at(&Token::Percent) {
+            return Some(lhs);
+        }
+
+        // An operator follows, so lhs must be usable as a type expression to continue.
+        // If it isn't, return it and let the caller report the dangling operator.
         if !type_is_type_expr(&lhs) {
             return Some(lhs);
         }
@@ -384,6 +400,10 @@ fn type_to_type_expr(typ: UnresolvedType) -> Option<UnresolvedTypeExpression> {
             Some(UnresolvedTypeExpression::AsTraitPath(as_trait_path))
         }
         UnresolvedTypeData::Expression(type_expr) => Some(type_expr),
+        // A parenthesized type can be used as a type expression when its inner type can.
+        // The parentheses are redundant once we're parsing a type expression, so we unwrap
+        // them and reuse the inner expression (e.g. `(N) + 1` parses like `N + 1`).
+        UnresolvedTypeData::Parenthesized(inner) => type_to_type_expr(*inner),
         _ => None,
     }
 }
@@ -393,6 +413,7 @@ fn type_is_type_expr(typ: &UnresolvedType) -> bool {
         UnresolvedTypeData::Named(_, generics, _) => generics.named_args.is_empty(),
         UnresolvedTypeData::AsTraitPath(..) => true,
         UnresolvedTypeData::Expression(..) => true,
+        UnresolvedTypeData::Parenthesized(inner) => type_is_type_expr(inner),
         _ => false,
     }
 }
@@ -615,6 +636,51 @@ mod tests {
             panic!("Expected expression type");
         };
         assert_eq!(expr.to_string(), "(N - 1)");
+    }
+
+    #[test]
+    fn parses_type_or_type_expression_parenthesized_variable_addition() {
+        let src = "(N) + 1";
+        let typ = parse_type_or_type_expression_no_errors(src);
+        let UnresolvedTypeData::Expression(expr) = typ.typ else {
+            panic!("Expected expression type");
+        };
+        let UnresolvedTypeExpression::BinaryOperation(lhs, operator, rhs, _) = expr else {
+            panic!("Expected binary operation");
+        };
+        assert_eq!(operator, BinaryTypeOperator::Addition);
+        assert_eq!(lhs.to_string(), "N");
+        assert_eq!(rhs.to_string(), "1");
+    }
+
+    #[test]
+    fn parses_type_or_type_expression_parenthesized_variable_multiplication() {
+        let src = "(N) * 2";
+        let typ = parse_type_or_type_expression_no_errors(src);
+        let UnresolvedTypeData::Expression(expr) = typ.typ else {
+            panic!("Expected expression type");
+        };
+        let UnresolvedTypeExpression::BinaryOperation(lhs, operator, rhs, _) = expr else {
+            panic!("Expected binary operation");
+        };
+        assert_eq!(operator, BinaryTypeOperator::Multiplication);
+        assert_eq!(lhs.to_string(), "N");
+        assert_eq!(rhs.to_string(), "2");
+    }
+
+    #[test]
+    fn parses_type_or_type_expression_parenthesized_as_trait_path_addition() {
+        let src = "(<Foo as MyTrait>::N) + 1";
+        let typ = parse_type_or_type_expression_no_errors(src);
+        let UnresolvedTypeData::Expression(expr) = typ.typ else {
+            panic!("Expected expression type");
+        };
+        let UnresolvedTypeExpression::BinaryOperation(lhs, operator, rhs, _) = expr else {
+            panic!("Expected binary operation");
+        };
+        assert_eq!(operator, BinaryTypeOperator::Addition);
+        assert_eq!(lhs.to_string(), "<Foo as MyTrait>::N");
+        assert_eq!(rhs.to_string(), "1");
     }
 
     #[test]

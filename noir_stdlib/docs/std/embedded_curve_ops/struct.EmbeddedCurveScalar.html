@@ -3,7 +3,10 @@
 <head>
 <meta charset="UTF-8">
 <link rel="stylesheet" href="../../styles.css">
+<script>window.docRoot = "../../";</script>
+<script defer src="../../search-index.js"></script>
 <script defer src="../../nargo_doc.js"></script>
+<script defer src="../../search.js"></script>
 <title>Struct EmbeddedCurveScalar documentation</title>
 </head>
 <body>
@@ -46,7 +49,13 @@
 </nav>
 <main>
 <div><a href="../../index.html">noir_stdlib</a> - <a href="../index.html">std</a>::<a href="index.html">embedded_curve_ops</a></div>
-<h1>Struct <span id="struct" class="struct">EmbeddedCurveScalar</span></h1>
+<div class="heading-row">
+<h1 class="heading-content">Struct <span id="struct" class="struct">EmbeddedCurveScalar</span></h1>
+<button id="search-toggle" type="button">Search</button>
+</div>
+<input id="search-input" type="search" placeholder="Type 's' or '/' to search" autocomplete="off" spellcheck="false" aria-label="Search" hidden>
+<div id="search-results" hidden></div>
+<div id="page-content">
 <pre><code>pub struct EmbeddedCurveScalar {
     pub lo: <a href="../../std/primitive.Field.html" class="primitive">Field</a>,
     pub hi: <a href="../../std/primitive.Field.html" class="primitive">Field</a>,
@@ -63,12 +72,12 @@ It may not fit into a Field element, so it is represented with two Field element
 <div class="padded-description"></div><h2>Implementations</h2>
 <h3><code class="code-header">impl <a href="../../std/embedded_curve_ops/struct.EmbeddedCurveScalar.html" class="struct">EmbeddedCurveScalar</a></code></h3>
 
-<div class="padded-methods"><code id="new" class="code-header">pub fn <a href="#new"><span class="fn">new</span></a>(lo: <a href="../../std/primitive.Field.html" class="primitive">Field</a>, hi: <a href="../../std/primitive.Field.html" class="primitive">Field</a>) -> Self</code>
+<div class="padded-methods"><code id="new" class="code-header">pub fn <a href="#new" class="fn">new</a>(lo: <a href="../../std/primitive.Field.html" class="primitive">Field</a>, hi: <a href="../../std/primitive.Field.html" class="primitive">Field</a>) -> Self</code>
 
 <div class="padded-description"><div class="comments">
 <p>Create a new scalar using the provided (lo, hi) pair</p>
 </div>
-</div><code id="from_field" class="code-header">pub fn <a href="#from_field"><span class="fn">from_field</span></a>(scalar: <a href="../../std/primitive.Field.html" class="primitive">Field</a>) -> Self</code>
+</div><code id="from_field" class="code-header">pub fn <a href="#from_field" class="fn">from_field</a>(scalar: <a href="../../std/primitive.Field.html" class="primitive">Field</a>) -> Self</code>
 
 <div class="padded-description"><div class="comments">
 <p>Create a scalar from the given bn254 field value</p>
@@ -84,7 +93,8 @@ It may not fit into a Field element, so it is represented with two Field element
 <div class="where-clause">where
     H: <a href="../../std/hash/trait.Hasher.html" class="trait">Hasher</a></div></code>
 
-</div></main>
+</div></div>
+</main>
 </span>
 </body>
 </html>

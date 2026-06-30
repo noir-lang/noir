@@ -229,8 +229,11 @@ impl Parser<'_> {
         Some(TraitItem::Constant { name, typ })
     }
 
-    /// `TraitFunction` = Modifiers Function
+    /// `TraitFunction` = Attributes Modifiers Function
     fn parse_trait_function(&mut self) -> Option<TraitItem> {
+        let attributes = self.parse_attributes();
+        let attributes = self.validate_attributes(attributes);
+
         let modifiers = self.parse_modifiers(
             false, // allow mut
         );
@@ -275,6 +278,7 @@ impl Parser<'_> {
             return_type: function.return_type,
             where_clause: function.where_clause,
             body: function.body,
+            attributes,
         })
     }
 }
@@ -555,6 +559,37 @@ mod tests {
         };
         assert!(body.is_none());
         assert!(!noir_trait.is_alias);
+    }
+
+    #[test]
+    fn parse_trait_with_function_with_function_attribute() {
+        let src = "trait Foo { #[no_predicates] fn foo(x: Field) -> Field { x } }";
+        let mut noir_trait = parse_trait_no_errors(src);
+        assert_eq!(noir_trait.items.len(), 1);
+
+        let item = noir_trait.items.remove(0).item;
+        let TraitItem::Function { attributes, .. } = item else {
+            panic!("Expected function");
+        };
+        assert!(matches!(
+            attributes.function.map(|(attr, _)| attr.kind),
+            Some(crate::token::FunctionAttributeKind::NoPredicates)
+        ));
+        assert!(attributes.secondary.is_empty());
+    }
+
+    #[test]
+    fn parse_trait_with_function_with_secondary_attribute() {
+        let src = "trait Foo { #[my_tag] fn foo(); }";
+        let mut noir_trait = parse_trait_no_errors(src);
+        assert_eq!(noir_trait.items.len(), 1);
+
+        let item = noir_trait.items.remove(0).item;
+        let TraitItem::Function { attributes, .. } = item else {
+            panic!("Expected function");
+        };
+        assert!(attributes.function.is_none());
+        assert_eq!(attributes.secondary.len(), 1);
     }
 
     #[test]

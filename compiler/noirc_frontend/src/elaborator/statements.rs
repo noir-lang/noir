@@ -561,14 +561,15 @@ impl Elaborator<'_> {
             });
         }
 
+        // The condition is evaluated once per loop, however any `break` or `continue` in it
+        // targets the enclosing loop, so we have to elaborate it outside the scope of this loop.
+        let location = while_.condition.type_location();
+        let (condition, cond_type) = self.elaborate_expression(while_.condition);
+        self.unify_or_type_mismatch(&cond_type, &Type::Bool, location);
+
         let old_loop = std::mem::take(&mut self.current_loop);
         self.current_loop = Some(Loop { is_for: false, has_break: false });
         self.push_scope();
-
-        let location = while_.condition.type_location();
-        let (condition, cond_type) = self.elaborate_expression(while_.condition);
-
-        self.unify_or_type_mismatch(&cond_type, &Type::Bool, location);
 
         let block_location = while_.body.type_location();
         let (block, block_type) = self.elaborate_expression(while_.body);

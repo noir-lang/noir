@@ -26,6 +26,7 @@ mod instructions;
 
 use std::{cell::RefCell, rc::Rc};
 
+use acvm::brillig_vm::MEMORY_ADDRESSING_BIT_SIZE;
 use artifact::Label;
 use brillig_variable::SingleAddrVariable;
 pub(crate) use instructions::BrilligBinaryOp;
@@ -52,7 +53,7 @@ use super::{BrilligOptions, FunctionId, GlobalSpace, ProcedureId};
 /// The Brillig VM does not apply a limit to the memory address space,
 /// As a convention, we take use 32 bits. This means that we assume that
 /// memory has 2^32 memory slots.
-pub(crate) const BRILLIG_MEMORY_ADDRESSING_BIT_SIZE: u32 = 32;
+pub(crate) const BRILLIG_MEMORY_ADDRESSING_BIT_SIZE: u32 = MEMORY_ADDRESSING_BIT_SIZE.to_u32();
 
 /// Registers reserved in runtime for special purposes.
 pub(crate) struct ReservedRegisters;

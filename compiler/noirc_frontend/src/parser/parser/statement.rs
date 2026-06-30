@@ -168,10 +168,19 @@ impl Parser<'_> {
 
         let expression = self.parse_expression()?;
 
+        Some(self.parse_assignment_or_expression_statement(expression))
+    }
+
+    /// Given an already-parsed left-hand expression, parses an assignment (`= rhs`),
+    /// a compound assignment (`+= rhs`, etc.) or, if neither follows, an expression statement.
+    pub(super) fn parse_assignment_or_expression_statement(
+        &mut self,
+        expression: Expression,
+    ) -> StatementKind {
         if self.eat_assign() {
             if let Some(lvalue) = LValue::from_expression(expression.clone()) {
                 let expression = self.parse_expression_or_error();
-                return Some(StatementKind::Assign(AssignStatement { lvalue, expression }));
+                return StatementKind::Assign(AssignStatement { lvalue, expression });
             } else {
                 self.push_error(
                     ParserErrorReason::InvalidLeftHandSideOfAssignment,
@@ -183,7 +192,7 @@ impl Parser<'_> {
         if let Some(op) = self.next_is_op_assign() {
             if let Some(lvalue) = LValue::from_expression(expression.clone()) {
                 let expression = self.parse_expression_or_error();
-                return Some(StatementKind::AssignOp(AssignOpStatement { lvalue, op, expression }));
+                return StatementKind::AssignOp(AssignOpStatement { lvalue, op, expression });
             } else {
                 self.push_error(
                     ParserErrorReason::InvalidLeftHandSideOfAssignment,
@@ -192,7 +201,7 @@ impl Parser<'_> {
             }
         }
 
-        Some(StatementKind::Expression(expression))
+        StatementKind::Expression(expression)
     }
 
     /// Parses an expression that looks like a block (ends with '}'):

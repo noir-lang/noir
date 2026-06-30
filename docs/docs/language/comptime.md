@@ -260,6 +260,28 @@ When this is done, these additional arguments are passed to the attribute functi
 
 #include_code annotation-arguments-example noir_stdlib/src/meta/mod.nr rust
 
+If an argument is a path and the corresponding parameter is typed `TraitDefinition` or
+`FunctionDefinition`, the path is resolved to that trait or function rather than evaluated as a
+value. This lets an attribute receive a function (or trait) by name and inspect it:
+
+```rust
+#[validate(MyType::check)]
+struct MyType {
+    x: u32,
+}
+
+impl MyType {
+    fn check(self) {
+        assert(self.x < 100);
+    }
+}
+
+comptime fn validate(_s: TypeDefinition, method: FunctionDefinition) {
+    // `method` is the resolved definition of `MyType::check`, so its signature can be inspected.
+    assert(method.parameters().len() == 1);
+}
+```
+
 We can also take any number of arguments by adding the `varargs` attribute:
 
 #include_code annotation-varargs-example noir_stdlib/src/meta/mod.nr rust
@@ -278,6 +300,34 @@ mod bar; // followed by attributes in bar
 // followed by any attributes in the parent module
 #[derive(Eq)]
 struct Baz {}
+```
+
+Here's a more involved example showing evaluation order:
+
+```rust
+// Assume `nth` asserts this is the `nth` attribute which runs.
+// In this case, it is the third which runs due to the inline submodule further below
+#[nth(2)]
+mod child1;
+
+#[nth(3)]
+pub fn foo() {}
+
+#![nth(4)]
+
+// This attribute is on a submodule rather than in it, so it is ordered with the rest of the parent module
+#[nth(5)]
+mod child2 {
+    #![nth(0)]
+
+    #[nth(1)]
+    pub fn foo() {}
+}
+
+#[nth(6)]
+pub fn bar() {}
+
+#![nth(7)]
 ```
 
 Note that because of this evaluation order, you may get an error trying to derive a trait for a struct whose fields

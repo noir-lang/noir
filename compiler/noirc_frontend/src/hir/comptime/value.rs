@@ -267,7 +267,6 @@ impl Value {
                 // block expression.
                 let mut statements = Vec::new();
                 let mut new_fragments = Vec::with_capacity(fragments.len());
-                let mut has_values = false;
                 let mut seen_names: HashSet<String> = HashSet::default();
                 for fragment in fragments.iter() {
                     let new_fragment = match fragment {
@@ -276,32 +275,34 @@ impl Value {
                         }
                         FormatStringFragment::Value { name, value } => {
                             // A name might be interpolated multiple times. In that case it will always
-                            // have the same value: we just need one `let` for it.
-                            if !seen_names.insert(name.clone()) {
-                                continue;
+                            // have the same value: we just need one `let` for it. We must still emit an
+                            // interpolation fragment per occurrence so the lowered format string keeps
+                            // the same number of captures as the source template.
+                            if seen_names.insert(name.clone()) {
+                                let expression =
+                                    value.clone().into_expression(elaborator, location)?;
+                                let let_statement = LetStatement {
+                                    pattern: Pattern::Identifier(Ident::new(
+                                        name.clone(),
+                                        location,
+                                    )),
+                                    r#type: None,
+                                    expression,
+                                    attributes: Vec::new(),
+                                    comptime: false,
+                                    is_global_let: false,
+                                };
+                                let statement =
+                                    Statement { kind: StatementKind::Let(let_statement), location };
+                                statements.push(statement);
                             }
-
-                            has_values = true;
-
-                            let expression = value.clone().into_expression(elaborator, location)?;
-                            let let_statement = LetStatement {
-                                pattern: Pattern::Identifier(Ident::new(name.clone(), location)),
-                                r#type: None,
-                                expression,
-                                attributes: Vec::new(),
-                                comptime: false,
-                                is_global_let: false,
-                            };
-                            let statement =
-                                Statement { kind: StatementKind::Let(let_statement), location };
-                            statements.push(statement);
                             FmtStrFragment::Interpolation(name.clone(), location)
                         }
                     };
                     new_fragments.push(new_fragment);
                 }
                 let fmtstr = Literal(FmtStr(new_fragments, length));
-                if has_values {
+                if !statements.is_empty() {
                     statements.push(Statement {
                         kind: StatementKind::Expression(Expression { kind: fmtstr, location }),
                         location,
@@ -595,8 +596,11 @@ impl Value {
                     return Err(InterpreterError::CannotInlineMacro { value, typ, location });
                 }
             }
-            // Only convert pointers with auto_deref = true. These are mutable variables
-            // and we don't need to wrap them in `&mut`.
+            // An auto-deref pointer (the second flag) stands in for a variable that is
+            // transparently dereferenced on use, so we convert the pointed-to value directly
+            // rather than wrapping it in `&mut`. The mutability flag is irrelevant here:
+            // auto-deref pointers are produced for both mutable and immutable bindings
+            // (e.g. indexing an immutable array yields an immutable auto-deref pointer).
             Value::Pointer(element, true, _) => {
                 return element
                     .unwrap_or_clone()

@@ -154,7 +154,7 @@ impl Elaborator<'_> {
 
         let expected = "value";
         match item {
-            PathResolutionItem::Global(global) => {
+            PathResolutionItem::Global(global) | PathResolutionItem::EnumVariant(global) => {
                 let global = self.interner.get_global(global);
                 let item_as_value = ItemAsValue::Definition { id: global.definition_id, item };
                 Ok(item_as_value)
@@ -306,10 +306,16 @@ impl Elaborator<'_> {
             Ok(PathResolutionItem::Type(struct_id)) => {
                 let struct_type = self.get_type(struct_id);
                 let generics = struct_type.borrow().instantiate(self.interner);
-                Some(Type::DataType(struct_type, generics))
+                let typ = Type::DataType(struct_type, generics);
+                self.check_comptime_type_in_non_comptime_item(&typ, location);
+                Some(typ)
             }
             Ok(PathResolutionItem::TypeAlias(alias_id)) => {
                 let alias = self.interner.get_type_alias(alias_id);
+                self.check_comptime_type_in_non_comptime_item(
+                    &Type::Alias(alias.clone(), Vec::new()),
+                    location,
+                );
                 let alias = alias.borrow();
                 Some(alias.instantiate(self.interner))
             }

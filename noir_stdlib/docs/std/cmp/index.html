@@ -3,7 +3,10 @@
 <head>
 <meta charset="UTF-8">
 <link rel="stylesheet" href="../../styles.css">
+<script>window.docRoot = "../../";</script>
+<script defer src="../../search-index.js"></script>
 <script defer src="../../nargo_doc.js"></script>
+<script defer src="../../search.js"></script>
 <title>Module cmp documentation</title>
 </head>
 <body>
@@ -89,7 +92,13 @@
 </nav>
 <main>
 <div><a href="../../index.html">noir_stdlib</a> - <a href="../index.html">std</a>::cmp</div>
-<h1>Module <span id="mod" class="module">cmp</span></h1>
+<div class="heading-row">
+<h1 class="heading-content">Module <span id="mod" class="module">cmp</span></h1>
+<button id="search-toggle" type="button">Search</button>
+</div>
+<input id="search-input" type="search" placeholder="Type 's' or '/' to search" autocomplete="off" spellcheck="false" aria-label="Search" hidden>
+<div id="search-results" hidden></div>
+<div id="page-content">
 <h2 id="structs">Structs</h2><ul class="item-list">
 <li><div class="item-name"><a href="struct.Ordering.html" class="struct">Ordering</a></div><div class="item-description">A value with three states: <code>Ordering::less()</code>, <code>Ordering::equal()</code> or <code>Ordering::greater()</code>.
 Most often used to encode the result of a comparison operation.</div></li>
@@ -103,6 +112,7 @@ or greater-than the other object.</div></li>
 <li><div class="item-name"><a href="fn.max.html" class="fn">max</a></div><div class="item-description">Compares and returns the maximum of two values.</div></li>
 <li><div class="item-name"><a href="fn.min.html" class="fn">min</a></div><div class="item-description">Compares and returns the minimum of two values.</div></li>
 </ul>
+</div>
 </main>
 </span>
 </body>

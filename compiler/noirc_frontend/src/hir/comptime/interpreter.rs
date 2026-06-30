@@ -35,11 +35,12 @@
 use std::collections::VecDeque;
 use std::{collections::hash_map::Entry, rc::Rc};
 
-use acvm::{AcirField, FieldElement};
+use acvm::AcirField;
 use im::Vector;
 use iter_extended::{try_vecmap, vecmap};
 use itertools::Itertools;
 use noirc_errors::Location;
+use num_bigint::BigInt;
 use rustc_hash::FxHashMap as HashMap;
 
 use crate::ast::{BinaryOpKind, FunctionKind, IntegerBitSize, UnaryOp};
@@ -169,14 +170,24 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
 
         resolve_type_bindings(&mut instantiation_bindings);
 
+        self.elaborator.push_interpreter_call_stack(location)?;
+
         self.unbind_generics_from_previous_function();
         perform_instantiation_bindings(&instantiation_bindings);
 
         let impl_bindings =
-            perform_impl_bindings(self.elaborator.interner, trait_method, function, location)?;
+            match perform_impl_bindings(self.elaborator.interner, trait_method, function, location)
+            {
+                Ok(impl_bindings) => impl_bindings,
+                Err(error) => {
+                    self.elaborator.pop_interpreter_call_stack();
+                    undo_instantiation_bindings(instantiation_bindings);
+                    self.rebind_generics_from_previous_function();
+                    return Err(error);
+                }
+            };
 
         self.remember_function_bindings(&instantiation_bindings, &impl_bindings);
-        self.elaborator.push_interpreter_call_stack(location)?;
 
         if let Some(tracker) = self.elaborator.evaluation_tracker.as_mut() {
             tracker.track_function_call(function, location);
@@ -346,6 +357,8 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         arguments: Vec<(Value, Location)>,
         call_location: Location,
     ) -> IResult<Value> {
+        self.elaborator.push_interpreter_call_stack(call_location)?;
+
         // Set the closure's scope to that of the function it was originally evaluated in
         let old_module = self.elaborator.replace_module(closure.module_scope);
         let old_function = std::mem::replace(&mut self.current_function, closure.function_scope);
@@ -354,7 +367,6 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         perform_bindings(&closure.bindings);
 
         self.remember_closure_bindings(&closure.bindings);
-        self.elaborator.push_interpreter_call_stack(call_location)?;
 
         let result = self.call_closure_inner(closure.lambda, closure.env, arguments, call_location);
 
@@ -677,6 +689,9 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         }
 
         match self.evaluate_no_dereference(id)? {
+            // An auto-deref pointer (the second flag) stands in for a variable that is
+            // dereferenced automatically on use, regardless of whether it is mutable: indexing
+            // an immutable array, for instance, yields an immutable auto-deref pointer.
             Value::Pointer(elem, true, _) => Ok(elem.unwrap_or_clone().move_struct()),
             other => Ok(other.move_struct()),
         }
@@ -797,6 +812,10 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                         {
                             Ok(value.clone())
                         } else {
+                            // Roll the sentinel back so that a later reference to this same
+                            // global isn't misreported as a dependency cycle.
+                            self.elaborator.interner.get_global_mut(global_id).value =
+                                GlobalValue::Unresolved;
                             let location = self.elaborator.interner.expr_location(&id);
                             Err(InterpreterError::GlobalCouldNotBeResolved { location })
                         }
@@ -808,17 +827,12 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 self.evaluate_numeric_generic(&value, numeric_typ, id)
             }
             DefinitionKind::AssociatedConstant(trait_impl_id, name) => {
-                let associated_types =
-                    self.elaborator.interner.get_associated_types_for_impl(*trait_impl_id);
-                let associated_type = associated_types
-                    .iter()
-                    .find(|typ| typ.name.as_str() == name)
-                    .expect("Expected to find associated type");
-
+                let typ =
+                    self.elaborator.interner.find_associated_type_for_impl(*trait_impl_id, name);
+                let typ = typ.expect("Expected to find associated type");
                 let location = self.elaborator.interner.expr_location(&id);
-                match associated_type.typ.evaluate_to_integer(&associated_type.typ.kind(), location)
-                {
-                    Ok(value) => self.evaluate_field_as_integer(value.as_field(), id),
+                match typ.evaluate_to_integer(&typ.kind(), location) {
+                    Ok(value) => self.evaluate_integer_literal(value.to_bigint(), id),
                     Err(err) => Err(InterpreterError::InvalidAssociatedConstant {
                         err: Box::new(err),
                         location,
@@ -845,7 +859,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 InterpreterError::InvalidNumericGeneric { err, location }
             })?;
 
-        self.evaluate_field_as_integer(value.as_field(), id)
+        self.evaluate_integer_literal(value.to_bigint(), id)
     }
 
     fn evaluate_trait_item(&mut self, item: TraitItemId, id: ExprId) -> IResult<Value> {
@@ -886,7 +900,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         match literal {
             HirLiteral::Unit => Ok(Value::Unit),
             HirLiteral::Bool(value) => Ok(Value::Bool(value)),
-            HirLiteral::Integer(value) => self.evaluate_field_as_integer(value, id),
+            HirLiteral::Integer(value) => self.evaluate_integer_literal(value, id),
             HirLiteral::Str(string) => Ok(Value::String(Rc::new(string))),
             HirLiteral::FmtStr(fragments, captures, length) => {
                 self.evaluate_format_string(fragments, captures, length, id)
@@ -938,10 +952,10 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
 
     /// Since integers are polymorphic, evaluating one requires the result type.
     /// We pass down the result type the elaborator previously inferred.
-    fn evaluate_field_as_integer(&self, value: FieldElement, id: ExprId) -> IResult<Value> {
+    fn evaluate_integer_literal(&self, value: BigInt, id: ExprId) -> IResult<Value> {
         let typ = self.elaborator.interner.id_type(id).follow_bindings();
         let location = self.elaborator.interner.expr_location(&id);
-        Integer::try_from_type(value, &typ).map(Value::Integer).ok_or_else(|| {
+        Integer::try_from_bigint(&value, &typ).map(Value::Integer).ok_or_else(|| {
             let typ = typ.clone();
             InterpreterError::IntegerOutOfRangeForType { value, typ, location }
         })

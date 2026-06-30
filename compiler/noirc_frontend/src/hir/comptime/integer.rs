@@ -1,6 +1,7 @@
 use std::fmt::Display;
 
 use acvm::{AcirField, FieldElement};
+use num_bigint::{BigInt, BigUint, Sign};
 
 use crate::{
     Kind, Type,
@@ -9,6 +10,44 @@ use crate::{
     shared::Signedness,
     token::{IntegerTypeSuffix, Token},
 };
+
+/// Converts a `FieldElement` to the `BigInt` holding its canonical (non-negative) representative.
+pub(crate) fn field_to_bigint(value: &FieldElement) -> BigInt {
+    BigInt::from_biguint(Sign::Plus, BigUint::from_bytes_be(&value.to_be_bytes()))
+}
+
+/// Converts a `BigInt` to a `FieldElement`, encoding negative values via field negation:
+/// `-7` becomes `-FieldElement::from(7)`.
+///
+/// Returns `None` if the value's magnitude is not canonical (not less than the field
+/// modulus) rather than silently reducing it. The lexer rejects literals which exceed
+/// the field modulus, so every value in the literal pipeline is already canonical.
+pub(crate) fn try_bigint_to_field(value: &BigInt) -> Option<FieldElement> {
+    if *value.magnitude() >= FieldElement::modulus() {
+        return None;
+    }
+    let field = FieldElement::from_be_bytes_reduce(&value.magnitude().to_bytes_be());
+    Some(if value.sign() == Sign::Minus { -field } else { field })
+}
+
+/// Converts a `BigInt` to a `FieldElement`, like [try_bigint_to_field], for values which
+/// are known to be canonical (with a magnitude less than the field modulus).
+///
+/// Panics if the value is not canonical: a non-canonical value here is a compiler bug,
+/// since the lexer rejects literals which exceed the field modulus.
+pub(crate) fn bigint_to_field(value: &BigInt) -> FieldElement {
+    try_bigint_to_field(value)
+        .unwrap_or_else(|| panic!("ICE: value does not fit in the field: {value}"))
+}
+
+/// Converts a `FieldElement` to a `BigInt`, choosing the sign which gives the shorter
+/// decimal representation, mirroring `FieldElement`'s `Display` impl. This keeps values
+/// which encode negative numbers via field negation displaying as negative numbers.
+pub(crate) fn field_to_signed_bigint(value: &FieldElement) -> BigInt {
+    let positive = field_to_bigint(value);
+    let negated = field_to_bigint(&-*value);
+    if negated.to_string().len() < positive.to_string().len() { -negated } else { positive }
+}
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Integer {
@@ -61,13 +100,23 @@ impl Integer {
         }
     }
 
+    /// Returns whether this integer is strictly less than zero.
+    ///
+    /// Only the signed variants can be negative. Unsigned integers cannot represent a negative
+    /// value, and a Noir `Field` has no signedness: `Integer::Field` wraps a `FieldElement`,
+    /// which is an element of a prime field with no notion of sign. Both therefore return `false`.
     pub fn is_negative(&self) -> bool {
         match self {
             Integer::I8(x) => *x < 0,
             Integer::I16(x) => *x < 0,
             Integer::I32(x) => *x < 0,
             Integer::I64(x) => *x < 0,
-            _ => false, // Unsigned or Field types are never negative
+            Integer::Field(_)
+            | Integer::U8(_)
+            | Integer::U16(_)
+            | Integer::U32(_)
+            | Integer::U64(_)
+            | Integer::U128(_) => false,
         }
     }
 
@@ -93,11 +142,31 @@ impl Integer {
         Kind::Numeric(Box::new(self.get_type()))
     }
 
+    /// Converts this [Integer] to a [BigInt]. Negative signed values become negative
+    /// bigints, and field values which display as negative numbers (see
+    /// [field_to_signed_bigint]) also become negative bigints.
+    pub(crate) fn to_bigint(self) -> BigInt {
+        match self {
+            Integer::Field(value) => field_to_signed_bigint(&value),
+            Integer::I8(value) => value.into(),
+            Integer::I16(value) => value.into(),
+            Integer::I32(value) => value.into(),
+            Integer::I64(value) => value.into(),
+            Integer::U8(value) => value.into(),
+            Integer::U16(value) => value.into(),
+            Integer::U32(value) => value.into(),
+            Integer::U64(value) => value.into(),
+            Integer::U128(value) => value.into(),
+        }
+    }
+
     pub(crate) fn into_expression_kind(self) -> ExpressionKind {
         use crate::ast::Literal::Integer as Int;
         use ExpressionKind::Literal;
         match self {
-            Integer::Field(value) => Literal(Int(value, Some(IntegerTypeSuffix::Field))),
+            Integer::Field(value) => {
+                Literal(Int(field_to_signed_bigint(&value), Some(IntegerTypeSuffix::Field)))
+            }
             Integer::I8(value) => Literal(Int(value.into(), Some(IntegerTypeSuffix::I8))),
             Integer::I16(value) => Literal(Int(value.into(), Some(IntegerTypeSuffix::I16))),
             Integer::I32(value) => Literal(Int(value.into(), Some(IntegerTypeSuffix::I32))),
@@ -112,7 +181,9 @@ impl Integer {
 
     pub(crate) fn into_hir_expression(self) -> HirExpression {
         match self {
-            Integer::Field(value) => HirExpression::Literal(HirLiteral::Integer(value)),
+            Integer::Field(value) => {
+                HirExpression::Literal(HirLiteral::Integer(field_to_signed_bigint(&value)))
+            }
             Integer::I8(value) => HirExpression::Literal(HirLiteral::Integer(value.into())),
             Integer::I16(value) => HirExpression::Literal(HirLiteral::Integer(value.into())),
             Integer::I32(value) => HirExpression::Literal(HirLiteral::Integer(value.into())),
@@ -155,7 +226,7 @@ impl Integer {
                 vec![Token::Int(value.into(), Some(IntegerTypeSuffix::I64))]
             }
             Integer::Field(value) => {
-                vec![Token::Int(value, Some(IntegerTypeSuffix::Field))]
+                vec![Token::Int(field_to_signed_bigint(&value), Some(IntegerTypeSuffix::Field))]
             }
         }
     }
@@ -213,10 +284,38 @@ impl Integer {
         }
     }
 
-    /// Create an [Integer] from the given [`IntegerTypeSuffix`]. Returns `None` if the
-    /// given field does not fit in the desired integer type.
-    pub fn try_from_type_suffix(value: FieldElement, suffix: IntegerTypeSuffix) -> Option<Integer> {
-        Self::try_from_type(value, &suffix.as_type())
+    /// Try to create an integer of the given type from the given bigint value.
+    ///
+    /// Returns `None` if the given type is not a field or integer, or
+    /// if the value does not fit the type. Field values may be negative,
+    /// in which case they are encoded via field negation.
+    pub(crate) fn try_from_bigint(value: &BigInt, typ: &Type) -> Option<Integer> {
+        use IntegerBitSize::*;
+        use Signedness::*;
+        match typ.follow_bindings_shallow().as_ref() {
+            Type::FieldElement => try_bigint_to_field(value).map(Integer::Field),
+            Type::Integer(Unsigned, Eight) => u8::try_from(value).ok().map(Integer::U8),
+            Type::Integer(Unsigned, Sixteen) => u16::try_from(value).ok().map(Integer::U16),
+            Type::Integer(Unsigned, ThirtyTwo) => u32::try_from(value).ok().map(Integer::U32),
+            Type::Integer(Unsigned, SixtyFour) => u64::try_from(value).ok().map(Integer::U64),
+            Type::Integer(Unsigned, HundredTwentyEight) => {
+                u128::try_from(value).ok().map(Integer::U128)
+            }
+            Type::Integer(Signed, Eight) => i8::try_from(value).ok().map(Integer::I8),
+            Type::Integer(Signed, Sixteen) => i16::try_from(value).ok().map(Integer::I16),
+            Type::Integer(Signed, ThirtyTwo) => i32::try_from(value).ok().map(Integer::I32),
+            Type::Integer(Signed, SixtyFour) => i64::try_from(value).ok().map(Integer::I64),
+            _ => None,
+        }
+    }
+
+    /// Create an [Integer] from the given [IntegerTypeSuffix]. Returns `None` if the
+    /// given value does not fit in the desired integer type.
+    pub(crate) fn try_from_bigint_and_type_suffix(
+        value: &BigInt,
+        suffix: IntegerTypeSuffix,
+    ) -> Option<Integer> {
+        Self::try_from_bigint(value, &suffix.as_type())
     }
 
     pub fn integer_type_suffix(&self) -> IntegerTypeSuffix {
@@ -438,7 +537,11 @@ mod tests {
     use acvm::{AcirField, FieldElement};
     use proptest::prelude::*;
 
-    use super::Integer;
+    use num_bigint::{BigInt, Sign};
+
+    use super::{
+        Integer, bigint_to_field, field_to_bigint, field_to_signed_bigint, try_bigint_to_field,
+    };
     use crate::Type;
     use crate::ast::IntegerBitSize;
     use crate::shared::Signedness;
@@ -683,5 +786,101 @@ mod tests {
         let zero = Integer::Field(FieldElement::zero());
         assert_eq!(neg_one.lte(&zero), None);
         assert_eq!(zero.lte(&neg_one), None);
+    }
+
+    // === BigInt conversions ===
+
+    proptest! {
+        // Round-trip: FieldElement -> BigInt -> FieldElement
+        #[test]
+        fn field_to_bigint_roundtrips(a: u64) {
+            let field = FieldElement::from(u128::from(a));
+            assert_eq!(bigint_to_field(&field_to_bigint(&field)), field);
+        }
+
+        // Negative bigints are encoded via field negation: -x == -FieldElement::from(x)
+        #[test]
+        fn bigint_to_field_encodes_negatives_via_field_negation(a: u64) {
+            let value = -BigInt::from(a);
+            assert_eq!(bigint_to_field(&value), -FieldElement::from(u128::from(a)));
+        }
+
+        // Field-encoded negatives convert back to negative bigints
+        #[test]
+        fn field_to_signed_bigint_recovers_negatives(a in 1u64..) {
+            let field = -FieldElement::from(u128::from(a));
+            assert_eq!(field_to_signed_bigint(&field), -BigInt::from(a));
+        }
+
+        // try_from_bigint matches try_from_type given the equivalent field encoding
+        #[test]
+        fn try_from_bigint_matches_try_from_type_for_i8(a: i128) {
+            let value = BigInt::from(a);
+            let typ = Type::Integer(Signedness::Signed, IntegerBitSize::Eight);
+            let expected = i8::try_from(a).ok().map(Integer::I8);
+            assert_eq!(Integer::try_from_bigint(&value, &typ), expected);
+        }
+
+        #[test]
+        fn try_from_bigint_matches_try_from_type_for_u8(a: i128) {
+            let value = BigInt::from(a);
+            let typ = Type::Integer(Signedness::Unsigned, IntegerBitSize::Eight);
+            let expected = u8::try_from(a).ok().map(Integer::U8);
+            assert_eq!(Integer::try_from_bigint(&value, &typ), expected);
+        }
+
+        // Integer -> BigInt -> Integer round-trips through try_from_bigint
+        #[test]
+        fn to_bigint_roundtrips_for_i64(a: i64) {
+            let integer = Integer::I64(a);
+            let typ = Type::Integer(Signedness::Signed, IntegerBitSize::SixtyFour);
+            assert_eq!(Integer::try_from_bigint(&integer.to_bigint(), &typ), Some(integer));
+        }
+    }
+
+    #[test]
+    fn try_from_bigint_respects_boundaries() {
+        use IntegerBitSize::*;
+        use Signedness::*;
+
+        let i8_type = Type::Integer(Signed, Eight);
+        assert_eq!(
+            Integer::try_from_bigint(&BigInt::from(-128), &i8_type),
+            Some(Integer::I8(-128))
+        );
+        assert_eq!(Integer::try_from_bigint(&BigInt::from(127), &i8_type), Some(Integer::I8(127)));
+        assert_eq!(Integer::try_from_bigint(&BigInt::from(-129), &i8_type), None);
+        assert_eq!(Integer::try_from_bigint(&BigInt::from(128), &i8_type), None);
+
+        let u128_type = Type::Integer(Unsigned, HundredTwentyEight);
+        assert_eq!(
+            Integer::try_from_bigint(&BigInt::from(u128::MAX), &u128_type),
+            Some(Integer::U128(u128::MAX))
+        );
+        assert_eq!(Integer::try_from_bigint(&(BigInt::from(u128::MAX) + 1), &u128_type), None);
+        assert_eq!(Integer::try_from_bigint(&BigInt::from(-1), &u128_type), None);
+    }
+
+    #[test]
+    fn bigint_to_field_does_not_reduce_non_canonical_values() {
+        let modulus = BigInt::from_biguint(Sign::Plus, FieldElement::modulus());
+
+        // The largest canonical magnitudes convert, for both signs
+        let max_canonical = modulus.clone() - 1;
+        assert_eq!(try_bigint_to_field(&max_canonical), Some(-FieldElement::one()));
+        assert_eq!(try_bigint_to_field(&-max_canonical), Some(FieldElement::one()));
+
+        // Magnitudes of at least the modulus are rejected rather than reduced
+        assert_eq!(try_bigint_to_field(&modulus), None);
+        assert_eq!(try_bigint_to_field(&-(modulus.clone())), None);
+        assert_eq!(try_bigint_to_field(&(modulus.clone() + 1)), None);
+        assert_eq!(Integer::try_from_bigint(&modulus, &Type::FieldElement), None);
+    }
+
+    #[test]
+    #[should_panic(expected = "ICE: value does not fit in the field")]
+    fn bigint_to_field_panics_on_non_canonical_values() {
+        let modulus = BigInt::from_biguint(Sign::Plus, FieldElement::modulus());
+        bigint_to_field(&modulus);
     }
 }

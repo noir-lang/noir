@@ -711,8 +711,8 @@ impl DefCollector {
         // method is registered as `Public` in the type's module scope). Compute this before
         // taking a mutable borrow of `context.def_maps` below.
         let importing_module = ModuleId { krate: crate_id, local_id: local_module_id };
-        for (module_def_id, _, _) in resolved_import.namespace.iter_items() {
-            if let ModuleDefId::FunctionId(func_id) = module_def_id
+        for item in resolved_import.namespace.iter_items() {
+            if let ModuleDefId::FunctionId(func_id) = item.id
                 && !trait_visibility_for_method_is_satisfied(
                     func_id,
                     importing_module,
@@ -743,14 +743,15 @@ impl DefCollector {
         // Populate module namespaces according to the imports used
         let visibility = collected_import.visibility;
         let is_prelude = collected_import.is_prelude;
-        for (module_def_id, item_visibility, _) in resolved_import.namespace.iter_items() {
-            if item_visibility < visibility {
+        for item in resolved_import.namespace.iter_items() {
+            let module_def_id = item.id;
+            if item.visibility < visibility {
                 errors.push(DefCollectorErrorKind::CannotReexportItemWithLessVisibility {
                     item_name: name.clone(),
                     desired_visibility: visibility,
                 });
             }
-            let visibility = visibility.min(item_visibility);
+            let visibility = visibility.min(item.visibility);
 
             let result = current_def_map.index_mut(local_module_id).import(
                 name.clone(),
@@ -761,12 +762,10 @@ impl DefCollector {
 
             // If we error on path resolution don't also say it's unused (in case it ends up being unused)
             if !has_path_resolution_error {
-                let defining_module = ModuleId { krate: crate_id, local_id: local_module_id };
-
-                context.usage_tracker.add_unused_item(
-                    defining_module,
+                context.usage_tracker.add_unused_import(
+                    importing_module,
                     name.clone(),
-                    UnusedItem::Import,
+                    module_def_id.namespace(),
                     visibility,
                 );
 
@@ -776,12 +775,12 @@ impl DefCollector {
                         module_def_id,
                         file_id,
                         visibility,
-                        Some(defining_module),
+                        Some(importing_module),
                     );
 
                     context.def_interner.add_reexport(
                         module_def_id,
-                        defining_module,
+                        importing_module,
                         name.clone(),
                         visibility,
                     );
@@ -804,16 +803,32 @@ impl DefCollector {
     }
 
     fn check_unused_items(context: &Context, crate_id: CrateId, errors: &mut CompilationErrors) {
-        let unused_imports = context.usage_tracker.unused_items().iter();
-        let unused_imports = unused_imports.filter(|(module_id, _)| module_id.krate == crate_id);
-        let mut unused_errors = unused_imports
+        let in_crate = |module_id: &&ModuleId| module_id.krate == crate_id;
+
+        let unused_definitions = context
+            .usage_tracker
+            .unused_items()
+            .iter()
+            .filter(|(module_id, _)| in_crate(module_id))
             .flat_map(|(_, unused_items)| {
-                unused_items.iter().map(|(ident, unused_item)| {
-                    let ident = ident.clone();
-                    CompilationError::ResolverError(ResolverError::UnusedItem {
-                        ident,
-                        item: *unused_item,
-                    })
+                unused_items.iter().map(|((_namespace, ident), unused_item)| (ident, *unused_item))
+            });
+
+        let unused_imports = context
+            .usage_tracker
+            .unused_imports()
+            .iter()
+            .filter(|(module_id, _)| in_crate(module_id))
+            .flat_map(|(_, names)| {
+                names.keys().map(|(ident, _location)| (ident, UnusedItem::Import))
+            });
+
+        let mut unused_errors = unused_definitions
+            .chain(unused_imports)
+            .map(|(ident, item)| {
+                CompilationError::ResolverError(ResolverError::UnusedItem {
+                    ident: ident.clone(),
+                    item,
                 })
             })
             .collect::<Vec<_>>();
@@ -887,8 +902,7 @@ fn inject_prelude(
 
     assert!(resolved_import.errors.is_empty(), "Tried to add private item to prelude");
 
-    let (module_def_id, _, _) =
-        resolved_import.namespace.types.expect("couldn't resolve std::prelude");
+    let module_def_id = resolved_import.namespace.types.expect("couldn't resolve std::prelude").id;
     let module_id = module_def_id.as_module().expect("std::prelude should be a module");
     let directives = vecmap(context.module(module_id).scope().names(), |path| {
         let mut segments = segments.clone();
