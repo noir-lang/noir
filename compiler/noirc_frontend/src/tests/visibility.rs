@@ -1611,3 +1611,27 @@ fn errors_when_two_inherent_methods_with_same_name_exist_in_different_modules() 
     "#;
     check_errors(src);
 }
+
+#[test]
+fn private_module_is_accessible_from_within_its_parent() {
+    // A private module's public items are reachable from the module it is declared in (and that
+    // module's descendants), exactly like any other private item. Here `inner` is private to
+    // `outer`, and `outer::bar` (inside `outer`) accesses `inner::foo` through a fully-qualified
+    // path. This is allowed in Rust, but is currently rejected with "inner is private".
+    let src = r#"
+    mod outer {
+        mod inner {
+            pub fn foo() {}
+        }
+
+        pub fn bar() {
+            crate::outer::inner::foo();
+        }
+    }
+
+    fn main() {
+        outer::bar();
+    }
+    "#;
+    assert_no_errors(src);
+}

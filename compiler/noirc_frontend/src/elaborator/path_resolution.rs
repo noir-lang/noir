@@ -15,12 +15,13 @@ use crate::hir::resolution::visibility::{
     item_in_module_is_visible, trait_visibility_for_method_is_satisfied,
 };
 
+use crate::hir_def::traits::NamedType;
 use crate::locations::ReferencesTracker;
 use crate::node_interner::{
-    DefinitionId, FuncId, GlobalId, NodeInterner, TraitAssociatedTypeId, TraitId, TypeAliasId,
-    TypeId,
+    DefinitionId, FuncId, GlobalId, NodeInterner, TraitAssociatedTypeId, TraitId, TraitLookupMode,
+    TypeAliasId, TypeId,
 };
-use crate::{Shared, Type, TypeAlias};
+use crate::{Kind, Shared, Type, TypeAlias};
 
 use super::Elaborator;
 use super::primitive_types::PrimitiveType;
@@ -653,6 +654,10 @@ impl Elaborator<'_> {
 
             let current_module_id_is_type;
 
+            // The module `prev_segment` is declared in (its visibility is checked against this),
+            // captured before stepping `current_module_id` into the module/type it refers to.
+            let prev_segment_module_id = current_module_id;
+
             (current_module_id, current_module_id_is_type, intermediate_item) = match typ {
                 ModuleDefId::ModuleId(id) => {
                     if prev_segment_generics.is_some() {
@@ -713,7 +718,7 @@ impl Elaborator<'_> {
                 || item_in_module_is_visible(
                     self.def_maps,
                     visibility_module,
-                    current_module_id,
+                    prev_segment_module_id,
                     visibility,
                 ))
             {
@@ -735,6 +740,15 @@ impl Elaborator<'_> {
                             importing_module,
                         ) {
                             return result.map(|item| PathResolution { item, errors });
+                        }
+
+                        // The name isn't a method or associated constant of the type. If a trait
+                        // defines an associated item with this name, point the user at it rather
+                        // than reporting a bare "could not resolve".
+                        if let Some(error) = self
+                            .resolve_associated_item_diagnostic(&intermediate_item, current_ident)
+                        {
+                            return Err(error);
                         }
 
                         return Err(PathResolutionError::Unresolved(current_ident.clone()));
@@ -870,8 +884,7 @@ impl Elaborator<'_> {
     /// `ident` as one of that type's enum variant constructors.
     ///
     /// These are the only function-like items kept in a type's module scope: inherent and trait
-    /// methods are not declared there and resolve through the interner's type-directed lookup (see
-    /// [Elaborator::resolve_type_method_or_trait_method]).
+    /// methods are not declared there and resolve through the interner's type-directed lookup.
     fn resolve_method(&self, current_module: &ModuleData, ident: &Ident) -> Option<PerNs> {
         current_module
             .scope()
@@ -973,6 +986,93 @@ impl Elaborator<'_> {
                 }
             }
         }
+    }
+
+    /// Build a helpful diagnostic for a `Type::item` path whose `item` is neither a method nor a
+    /// resolvable associated constant of `Type`, but does name an associated item of some trait.
+    ///
+    /// - If `item` is an associated type of a trait that `Type` implements, direct access isn't
+    ///   supported: suggest the fully-qualified `<Type as Trait>::item` form.
+    /// - Otherwise, if a trait defines an associated item with this name, `Type` simply doesn't
+    ///   implement it: report that and name the trait(s).
+    ///
+    /// Returns `None` when no trait defines an associated item with this name, leaving the caller
+    /// to fall back to its generic "could not resolve" handling.
+    fn resolve_associated_item_diagnostic(
+        &self,
+        intermediate_item: &IntermediatePathResolutionItem,
+        ident: &Ident,
+    ) -> Option<PathResolutionError> {
+        let IntermediatePathResolutionItem::Type(type_id, turbofish) = intermediate_item else {
+            return None;
+        };
+        let datatype = self.interner.get_type(*type_id);
+        let generics = if let Some(turbofish) = turbofish {
+            turbofish.generics.iter().map(|t| t.contents.clone()).collect()
+        } else {
+            datatype.borrow().generic_types()
+        };
+        let self_type = Type::DataType(datatype, generics);
+
+        let name = ident.as_str();
+        // Traits that define an associated type named `name` and which `self_type` implements.
+        let mut accessible_type_traits = Vec::new();
+        // Every trait that defines an associated item (type or constant) named `name`.
+        let mut defining_traits = Vec::new();
+
+        for trait_id in self.interner.trait_ids() {
+            let the_trait = self.interner.get_trait(trait_id);
+            let defines_type = the_trait.get_associated_type(name).is_some();
+            let defines_constant = the_trait.associated_constant_ids.contains_key(name);
+            if !defines_type && !defines_constant {
+                continue;
+            }
+
+            let trait_name = self.fully_qualified_trait_path_by_id(trait_id);
+            defining_traits.push(trait_name.clone());
+            if defines_type && self.type_implements_trait(&self_type, trait_id) {
+                accessible_type_traits.push(trait_name);
+            }
+        }
+
+        if defining_traits.is_empty() {
+            return None;
+        }
+
+        let type_name = self_type.to_string();
+        if !accessible_type_traits.is_empty() {
+            return Some(PathResolutionError::AssociatedTypeNotAccessibleDirectly {
+                ident: ident.clone(),
+                type_name,
+                traits: accessible_type_traits,
+            });
+        }
+
+        Some(PathResolutionError::AssociatedItemNotImplemented {
+            ident: ident.clone(),
+            type_name,
+            traits: defining_traits,
+        })
+    }
+
+    /// Returns whether `typ` implements `trait_id` for some instantiation of the trait's generics.
+    fn type_implements_trait(&self, typ: &Type, trait_id: TraitId) -> bool {
+        let the_trait = self.interner.get_trait(trait_id);
+        let ordered =
+            vecmap(&the_trait.generics, |_| self.interner.next_type_variable_with_kind(Kind::Any));
+        let named = vecmap(&the_trait.associated_types, |generic| NamedType {
+            name: Ident::new(generic.name.to_string(), Location::dummy()),
+            typ: self.interner.next_type_variable_with_kind(Kind::Any),
+        });
+        self.interner
+            .try_lookup_trait_implementation(
+                typ,
+                trait_id,
+                &ordered,
+                &named,
+                TraitLookupMode::Default,
+            )
+            .is_ok()
     }
 
     /// Resolve a method on a type alias that points to a primitive type.

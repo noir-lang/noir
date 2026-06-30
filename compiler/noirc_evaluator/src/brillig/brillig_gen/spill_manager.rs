@@ -47,8 +47,10 @@
 //! [`BrilligBlock::spill_value`]: super::brillig_block::BrilligBlock::spill_value
 //! [`BrilligBlock::reload_spilled_value`]: super::brillig_block::BrilligBlock::reload_spilled_value
 
+use std::collections::BTreeSet;
 use std::collections::hash_map::Entry;
 
+use itertools::Itertools;
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
 use crate::brillig::brillig_ir::brillig_variable::BrilligVariable;
@@ -89,9 +91,8 @@ impl SpillStatus {
 pub(crate) struct SpillManager {
     /// Map of all spill records
     records: HashMap<ValueId, SpillRecord>,
-    /// LRU order: front = least recently used, back = most recently used.
-    /// Only tracks local SSA values (not globals, not hoisted constants).
-    lru_order: Vec<ValueId>,
+    /// Least-recently-used tracker over local SSA values (not globals, not hoisted constants).
+    lru: Lru,
     /// Next offset within the spill region (relative to spill base register).
     next_spill_offset: usize,
     /// Free list of spill slots that have been reclaimed.
@@ -110,11 +111,66 @@ pub(crate) struct SpillRecord {
     pub(crate) status: SpillStatus,
 }
 
+/// Least-recently-used tracker over local SSA values, keyed by a monotonic touch clock.
+///
+/// Backs the eviction heuristic with logarithmic `touch`/`remove` instead of the linear
+/// scans and shifts a `Vec` would require (see <https://github.com/noir-lang/noir/issues/11694>).
+/// Values are ordered by the time they were last touched: the least-recently-used value is
+/// the first element of `order`, the most-recently-used the last.
+///
+/// Invariant: when `SpillManager::lru_victim` consults the LRU, no tracked value is spilled.
+/// The methods that record a spill (`record_spill`, `record_permanent_spill`,
+/// `ensure_permanent_spill`) drop the value from the LRU, so the order only ever yields values
+/// that are in a register. `lru_victim` asserts it.
+#[derive(Default)]
+struct Lru {
+    /// Logical clock, incremented once per `touch`. Strictly increasing, so no two entries
+    /// ever share a key and the ordering is total and deterministic.
+    clock: u64,
+    /// Last touch time of each tracked value.
+    last_used: HashMap<ValueId, u64>,
+    /// Tracked values ordered by touch time (ascending): first = least recently used.
+    order: BTreeSet<(u64, ValueId)>,
+}
+
+impl Lru {
+    fn new() -> Self {
+        Self::default()
+    }
+
+    /// Mark `value_id` as the most recently used value, inserting it if not already tracked.
+    fn touch(&mut self, value_id: ValueId) {
+        self.clock += 1;
+        if let Some(previous) = self.last_used.insert(value_id, self.clock) {
+            self.order.remove(&(previous, value_id));
+        }
+        self.order.insert((self.clock, value_id));
+    }
+
+    /// Stop tracking `value_id` entirely.
+    fn remove(&mut self, value_id: &ValueId) {
+        if let Some(previous) = self.last_used.remove(value_id) {
+            self.order.remove(&(previous, *value_id));
+        }
+    }
+
+    /// Iterate tracked values from least- to most-recently used.
+    fn iter(&self) -> impl Iterator<Item = ValueId> + '_ {
+        self.order.iter().map(|&(_, value_id)| value_id)
+    }
+
+    /// Forget all tracked values. The clock is left untouched so it stays monotonic.
+    fn clear(&mut self) {
+        self.last_used.clear();
+        self.order.clear();
+    }
+}
+
 impl SpillManager {
     pub(crate) fn new() -> Self {
         Self {
             records: HashMap::default(),
-            lru_order: Vec::new(),
+            lru: Lru::new(),
             next_spill_offset: 0,
             free_spill_slots: Vec::new(),
             max_spill_offset: 0,
@@ -127,9 +183,7 @@ impl SpillManager {
     ///    (only `Permanent` and `PermanentReloaded` records may survive).
     /// 2. Restores permanently-spilled values by marking them as currently spilled.
     /// 3. Removes spilled values from the live-in set (they have no register).
-    /// 4. Updates the LRU: retains existing entries still live-in and not spilled
-    ///    (preserving eviction hints from the previous block), then appends any
-    ///    new live-in values sorted by [`ValueId`] for determinism.
+    /// 4. Updates the LRU: rebuilds the LRU from the live-in set in [`ValueId`] order.
     pub(crate) fn begin_block(&mut self, live_in: &mut HashSet<ValueId>) {
         // No transient spills should survive across block boundaries.
         assert!(
@@ -163,37 +217,36 @@ impl SpillManager {
     /// Move a value to the back of the LRU (most recently used).
     /// If the value isn't tracked yet, add it.
     pub(crate) fn touch(&mut self, value_id: ValueId) {
-        self.remove_from_lru(&value_id);
-        self.lru_order.push(value_id);
+        self.lru.touch(value_id);
     }
 
     /// Remove a value from LRU tracking entirely.
-    pub(crate) fn remove_from_lru(&mut self, value_id: &ValueId) {
-        if let Some(pos) = self.lru_order.iter().position(|v| v == value_id) {
-            self.lru_order.remove(pos);
-        }
+    fn remove_from_lru(&mut self, value_id: &ValueId) {
+        self.lru.remove(value_id);
     }
 
-    /// Remove a value from the spill tracking.
+    /// Remove a (dead) value from spill tracking and from the LRU.
     ///
-    /// Permanent spill slots are never freed — they must remain valid across all blocks.
-    /// For `Permanent` records, this transitions to `PermanentReloaded` (value is live in
-    /// a register again). For transient records, the record is removed and the slot is freed.
+    /// Transient slots are freed for reuse. Permanent slots are never freed — they must remain
+    /// valid across all blocks — so a permanently-spilled value keeps its record and is left in
+    /// the `Permanent` state (its register, if any, was already freed by the caller). Either
+    /// way the value is dropped from the LRU, since a value that is gone must never be an
+    /// eviction candidate.
     ///
     /// TODO(<https://github.com/noir-lang/noir/issues/11695>) - Free globally dead permanent spill slots
     pub(crate) fn remove_spill(&mut self, value_id: &ValueId) {
         if let Entry::Occupied(mut entry) = self.records.entry(*value_id) {
             match entry.get().status {
-                SpillStatus::Permanent => {
-                    entry.get_mut().status = SpillStatus::PermanentReloaded;
+                SpillStatus::Permanent | SpillStatus::PermanentReloaded => {
+                    entry.get_mut().status = SpillStatus::Permanent;
                 }
-                SpillStatus::PermanentReloaded => {}
                 SpillStatus::Transient | SpillStatus::TransientReloaded => {
                     let record = entry.remove();
                     self.free_spill_slots.push(record.offset);
                 }
             }
         }
+        self.remove_from_lru(value_id);
     }
 
     /// Allocate a spill slot offset, reusing a freed slot if available.
@@ -214,35 +267,34 @@ impl SpillManager {
         self.max_spill_offset
     }
 
-    /// Return the least recently used value that is not currently spilled.
-    /// Returns None if there are no eligible values in the LRU.
+    /// Return the least recently used value tracked in the LRU, or `None` if it is empty.
     ///
-    /// Note: permanently-spilled values may appear in the LRU if they were
-    /// reloaded (which calls `touch()`). This is correct — a reloaded value
-    /// has a register and is a valid eviction candidate.
+    /// Recording a spill drops the value from the LRU (see `record_spill`), so by the time we
+    /// pick a victim every tracked value is in a register. The `assert!` guards that invariant:
+    /// handing back a spilled value would be a bug, since re-spilling it frees no register.
     pub(crate) fn lru_victim(&self) -> Option<ValueId> {
-        for value_id in &self.lru_order {
-            if !self.is_spilled(value_id) {
-                return Some(*value_id);
-            }
-        }
-        None
+        let victim = self.lru.iter().next();
+        assert!(
+            victim.is_none_or(|v| !self.is_spilled(&v)),
+            "lru_victim returned a spilled value: {victim:?}"
+        );
+        victim
     }
 
     /// Batched version of [`Self::lru_victim`]
     ///
-    /// Return up to `k` least-recently-used values that are not currently spilled,
+    /// Return up to `k` least-recently-used values, asserting that they are not currently spilled,
     /// ordered least-recently-used first.
     pub(crate) fn lru_victims(&self, k: usize) -> Vec<ValueId> {
-        self.lru_order.iter().copied().filter(|v| !self.is_spilled(v)).take(k).collect()
+        let victims = self.lru.iter().take(k).collect();
+        for victim in &victims {
+            assert!(!self.is_spilled(victim), "lru_victim returned a spilled value: {victim:?}");
+        }
+        victims
     }
 
-    /// Remove every value in `victims` from LRU tracking in one shot.
-    pub(crate) fn remove_victims_from_lru(&mut self, victims: &HashSet<ValueId>) {
-        self.lru_order.retain(|v| !victims.contains(v));
-    }
-
-    /// Record that a value has been spilled.
+    /// Record that a value has been spilled, dropping it from the LRU since a value living in
+    /// its heap slot must never be an eviction candidate.
     ///
     /// If the value already has a record (e.g., it was reloaded and then
     /// re-evicted by LRU), this updates the existing record:
@@ -277,6 +329,7 @@ impl SpillManager {
                 );
             }
         }
+        self.remove_from_lru(&value_id);
     }
 
     /// Get the spill record for a value if it is currently spilled and is not in a register.
@@ -284,28 +337,34 @@ impl SpillManager {
         self.records.get(value_id).filter(|r| r.status.is_spilled())
     }
 
-    /// Reset the LRU for a new block, retaining ordering from the previous block.
+    /// Rebuild `lru_order` for a new block from scratch, retaining only live-in
+    /// values that are not currently spilled, in deterministic ValueId order.
     ///
-    /// Entries already in `lru_order` that are still live-in and not spilled are kept
-    /// in their existing order (preserving eviction hints from the previous block).
-    /// New live-in values not yet in the LRU are appended, sorted by [`ValueId`] for
-    /// determinism.
+    /// This discards any ordering carried over from the previous block, which is sound while
+    /// spilling is enabled: every value live across a block boundary is permanently spilled
+    /// before its block is entered (block parameters via `convert_block_params`, other
+    /// live-ins via `spill_non_param_live_ins`), so no non-spilled value is ever carried over
+    /// and there is no recency order to preserve. The `debug_assert!` enforces that premise.
+    ///
+    /// If a future register allocator (<https://github.com/noir-lang/noir/issues/11638>) lets
+    /// values stay in registers across blocks, the assert will fire — at which point the
+    /// surviving entries' previous-block order is a real eviction hint and should be preserved
+    /// here rather than re-sorted by `ValueId`.
     fn reset_lru_for_block(&mut self, live_in: &HashSet<ValueId>) {
-        let records = &self.records;
-        let is_spilled = |v: &ValueId| records.get(v).is_some_and(|r| r.status.is_spilled());
-
-        // Retain existing entries that are still live-in and not spilled.
-        self.lru_order.retain(|v| live_in.contains(v) && !is_spilled(v));
-
-        // Collect live-in values not already present in LRU, sorted for determinism.
-        let existing: HashSet<ValueId> = self.lru_order.iter().copied().collect();
-        let mut new_entries: Vec<ValueId> =
-            live_in.iter().copied().filter(|v| !existing.contains(v) && !is_spilled(v)).collect();
-        new_entries.sort();
-        self.lru_order.extend(new_entries);
+        debug_assert!(
+            !self.lru.iter().any(|v| live_in.contains(&v) && !self.is_spilled(&v)),
+            "cross-block LRU carryover is non-empty; preserve the previous block's order instead of re-sorting: {:?}",
+            self.lru.iter().collect::<Vec<_>>()
+        );
+        let seed: Vec<ValueId> =
+            live_in.iter().copied().filter(|v| !self.is_spilled(v)).sorted().collect();
+        self.lru.clear();
+        for value_id in seed {
+            self.lru.touch(value_id);
+        }
     }
 
-    /// Record a value as permanently spilled.
+    /// Record a value as permanently spilled, dropping it from the LRU (like [`Self::record_spill`]).
     ///
     /// If the value already has a transient spill record, it is promoted to `Permanent`.
     /// The permanent record ensures consistency regardless of what happens during
@@ -324,6 +383,7 @@ impl SpillManager {
                 record.variable = variable;
             })
             .or_insert(SpillRecord { offset, variable, status: SpillStatus::Permanent });
+        self.remove_from_lru(&value_id);
     }
 
     /// Get the permanent spill slot offset for a value, if any.
@@ -347,6 +407,11 @@ impl SpillManager {
     /// A reload in a previous block sets the status to `PermanentReloaded`, but the
     /// value must be reloaded again in every block that uses it (since the
     /// permanent spill slot is always the source of truth).
+    ///
+    /// Unlike the other spill transitions, this does not drop the affected values from the
+    /// LRU: it runs only from `begin_block`, which rebuilds the LRU wholesale via
+    /// `reset_lru_for_block` immediately afterwards, so any per-value removal here would be
+    /// redundant.
     pub(crate) fn restore_permanent_spills(&mut self) {
         for record in self.records.values_mut() {
             if record.status == SpillStatus::PermanentReloaded {
@@ -372,19 +437,25 @@ impl SpillManager {
         };
     }
 
-    /// Ensure a value has a permanent spill slot.
+    /// Promote an existing spill record to `Permanent`: the heap slot becomes the value's
+    /// authoritative copy, so it is also dropped from the LRU (an in-memory value must never
+    /// be an eviction victim).
     ///
-    /// Any existing record — regardless of its current state — is promoted to
-    /// `Permanent` (the slot is the source of truth and the value is not in a register).
+    /// This updates spill bookkeeping only. A `*Reloaded` value still physically occupies a
+    /// register at this point; whether that register is freed or kept alive is the caller's
+    /// decision — see `BrilligBlock::spill_value`.
     ///
     /// # Returns
-    /// * `true` if a record already existed (caller should skip further processing),
-    /// * `false` if no record exists (first encounter — caller must allocate a slot).
+    /// * `true` — a record already existed, so the value already owns a permanent slot; the
+    ///   caller can return early without allocating a slot or emitting a store.
+    /// * `false` — no record existed: this is the value's first spill, so the caller must
+    ///   allocate a slot and record the spill itself.
     pub(crate) fn ensure_permanent_spill(&mut self, value_id: &ValueId) -> bool {
         let Some(record) = self.records.get_mut(value_id) else {
             return false;
         };
         record.status = SpillStatus::Permanent;
+        self.remove_from_lru(value_id);
         true
     }
 }
@@ -392,17 +463,69 @@ impl SpillManager {
 #[cfg(test)]
 mod tests {
     use acvm::acir::brillig::MemoryAddress;
-    use rustc_hash::FxHashSet as HashSet;
 
     use crate::{
         brillig::brillig_ir::brillig_variable::{BrilligVariable, SingleAddrVariable},
         ssa::ir::map::Id,
     };
 
-    use super::{SpillManager, SpillStatus};
+    use super::{Lru, SpillManager, SpillStatus};
 
     fn test_var(n: u32) -> BrilligVariable {
         BrilligVariable::SingleAddr(SingleAddrVariable::new(MemoryAddress::relative(n), 32))
+    }
+
+    #[test]
+    fn lru_orders_values_by_touch_recency() {
+        let mut lru = Lru::new();
+        let v0 = Id::test_new(0);
+        let v1 = Id::test_new(1);
+        let v2 = Id::test_new(2);
+
+        lru.touch(v0);
+        lru.touch(v1);
+        lru.touch(v2);
+        assert_eq!(lru.iter().collect::<Vec<_>>(), vec![v0, v1, v2]);
+
+        // Re-touching a tracked value moves it to the most-recently-used end.
+        lru.touch(v0);
+        assert_eq!(lru.iter().collect::<Vec<_>>(), vec![v1, v2, v0]);
+    }
+
+    #[test]
+    fn lru_remove_drops_value_from_both_collections() {
+        let mut lru = Lru::new();
+        let v0 = Id::test_new(0);
+        let v1 = Id::test_new(1);
+
+        lru.touch(v0);
+        lru.touch(v1);
+
+        lru.remove(&v0);
+        assert_eq!(lru.iter().collect::<Vec<_>>(), vec![v1]);
+        assert!(!lru.last_used.contains_key(&v0), "stamp must be dropped too");
+
+        // Removing an untracked value is a no-op.
+        lru.remove(&v0);
+        assert_eq!(lru.iter().collect::<Vec<_>>(), vec![v1]);
+    }
+
+    #[test]
+    fn lru_clear_empties_order_but_keeps_clock_monotonic() {
+        let mut lru = Lru::new();
+        let v0 = Id::test_new(0);
+        let v1 = Id::test_new(1);
+
+        lru.touch(v0);
+        let clock_before_clear = lru.clock;
+
+        lru.clear();
+        assert!(lru.iter().next().is_none());
+
+        // A later touch must outrank anything from before the clear.
+        lru.touch(v1);
+        assert!(lru.clock > clock_before_clear, "clock must keep increasing across clear");
+        assert_eq!(lru.iter().collect::<Vec<_>>(), vec![v1]);
     }
 
     #[test]
@@ -428,7 +551,7 @@ mod tests {
     }
 
     #[test]
-    fn remove_many_from_lru_drops_the_whole_set_in_one_pass() {
+    fn lru_victims_returns_the_k_least_recently_used() {
         let mut sm = SpillManager::new();
         let v0 = Id::test_new(0);
         let v1 = Id::test_new(1);
@@ -440,15 +563,14 @@ mod tests {
         sm.touch(v2);
         sm.touch(v3);
 
-        let victims: HashSet<_> = [v0, v2].into_iter().collect();
-        sm.remove_victims_from_lru(&victims);
-
-        // Surviving entries keep their relative order: [v1, v3].
-        assert_eq!(sm.lru_victims(10), vec![v1, v3]);
+        // The `k` least-recently-used, oldest first.
+        assert_eq!(sm.lru_victims(2), vec![v0, v1]);
+        // `k` larger than the tracked set returns everything.
+        assert_eq!(sm.lru_victims(10), vec![v0, v1, v2, v3]);
     }
 
     #[test]
-    fn spill_record_and_victim_skips_spilled() {
+    fn spilling_removes_value_from_lru_so_it_is_not_a_victim() {
         let mut sm = SpillManager::new();
         let v0 = Id::test_new(0);
         let v1 = Id::test_new(1);
@@ -458,7 +580,7 @@ mod tests {
         sm.touch(v1);
         sm.touch(v2);
 
-        // Spill v0 (the LRU victim)
+        // `record_spill` itself drops the value from the LRU.
         let offset = sm.allocate_spill_offset();
         sm.record_spill(v0, offset, test_var(0));
 
@@ -469,8 +591,24 @@ mod tests {
         assert_eq!(record.offset, 0);
         assert_eq!(record.status, SpillStatus::Transient);
 
-        // Victim should skip v0 (spilled) and return v1
+        // v0 is no longer tracked, so the next-oldest live value is the victim.
         assert_eq!(sm.lru_victim(), Some(v1));
+    }
+
+    #[test]
+    #[should_panic(expected = "returned a spilled value")]
+    fn lru_victim_rejects_a_spilled_oldest_value() {
+        // Recording a spill drops the value from the LRU, so a spilled value can only re-enter
+        // it through an erroneous `touch`. `lru_victim` must catch that rather than hand back a
+        // value whose re-spill would free no register.
+        let mut sm = SpillManager::new();
+        let v0 = Id::test_new(0);
+
+        let offset = sm.allocate_spill_offset();
+        sm.record_spill(v0, offset, test_var(0));
+        sm.touch(v0);
+
+        let _ = sm.lru_victim();
     }
 
     #[test]
@@ -543,17 +681,23 @@ mod tests {
         assert!(sm.has_permanent_slot(&v0));
         assert_eq!(sm.get_permanent_spill_offset(&v0), Some(0));
 
+        // While reloaded (in a register) the value is a normal eviction candidate.
+        sm.touch(v0);
+        assert_eq!(sm.lru_victim(), Some(v0));
+
         // Restore permanent spills (block entry) — re-marks as spilled
         sm.restore_permanent_spills();
         assert!(sm.is_spilled(&v0));
 
-        // Remove spill on a permanent record — keeps record, clears spilled
+        // Remove spill on a permanent record — keeps the record and slot, stays `Permanent`.
         sm.remove_spill(&v0);
-        assert!(!sm.is_spilled(&v0));
+        assert!(sm.is_spilled(&v0));
         // Permanent record still exists
         assert!(sm.has_permanent_slot(&v0));
         // Slot is NOT freed (no slot in free list)
         assert!(sm.free_spill_slots.is_empty());
+        // The dead value was dropped from the LRU, so it is no longer an eviction candidate.
+        assert_eq!(sm.lru_victim(), None);
     }
 
     #[test]
@@ -573,10 +717,12 @@ mod tests {
         assert!(sm.has_permanent_slot(&v0));
         assert_eq!(sm.get_permanent_spill_offset(&v0), Some(0));
 
-        // Removing a promoted permanent spill should NOT free the slot
+        // Removing a promoted permanent spill keeps it `Permanent` and does NOT free the slot.
         sm.remove_spill(&v0);
-        assert!(!sm.is_spilled(&v0));
+        assert!(sm.is_spilled(&v0));
         assert!(sm.free_spill_slots.is_empty());
+        // Although still `is_spilled`, the dead value must not be returned by the LRU.
+        assert_eq!(sm.lru_victim(), None);
     }
 
     #[test]
@@ -682,5 +828,27 @@ mod tests {
         assert_eq!(sm.records[&v2].status, SpillStatus::PermanentReloaded);
         assert!(sm.ensure_permanent_spill(&v2));
         assert_eq!(sm.records[&v2].status, SpillStatus::Permanent);
+    }
+
+    /// Promoting a `PermanentReloaded` value back to `Permanent` must drop it from the LRU,
+    /// otherwise a spilled value lingers as an eviction candidate. In real codegen this
+    /// happens for a JmpIf condition that is re-spilled by `spill_non_param_live_ins` and
+    /// then reloaded, with `ensure_register_capacity` querying `lru_victim` in between.
+    #[test]
+    fn ensure_permanent_spill_drops_reloaded_value_from_lru() {
+        let mut sm = SpillManager::new();
+        let v0 = Id::test_new(0);
+
+        let off = sm.allocate_spill_offset();
+        sm.record_permanent_spill(v0, off, test_var(0));
+        sm.unmark_spilled(&v0); // PermanentReloaded: currently in a register
+        sm.touch(v0); // tracked in the LRU
+
+        assert!(!sm.is_transient_reloaded(&v0));
+        assert!(sm.ensure_permanent_spill(&v0));
+        assert!(sm.is_spilled(&v0));
+
+        // The value is spilled again, so it must no longer be an eviction candidate.
+        assert_eq!(sm.lru_victim(), None);
     }
 }
