@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":["IdentFromPath"],"struct":["Variable"]};
+window.SIDEBAR_ITEMS = {"enum":["PathValue"],"struct":["Variable"]};

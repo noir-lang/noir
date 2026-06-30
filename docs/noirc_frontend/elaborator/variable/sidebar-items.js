@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":["VariableResolution"],"fn":["data_type_name","get_type_alias_generics"]};
+window.SIDEBAR_ITEMS = {"enum":["PathPrefixKind","VariableResolution"],"fn":["data_type_name","get_type_alias_generics"],"struct":["ResolvedPrefix"]};

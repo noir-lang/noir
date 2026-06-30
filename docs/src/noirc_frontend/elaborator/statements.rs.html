@@ -9,7 +9,7 @@
 <a href=#9 id=9 data-nosnippet>9</a>        LoopStatement, Statement, StatementKind, UnaryOp, WhileStatement,
 <a href=#10 id=10 data-nosnippet>10</a>    },
 <a href=#11 id=11 data-nosnippet>11</a>    elaborator::{
-<a href=#12 id=12 data-nosnippet>12</a>        PathResolutionTarget, WildcardDisallowedContext, patterns::IdentFromPath,
+<a href=#12 id=12 data-nosnippet>12</a>        PathResolutionTarget, WildcardDisallowedContext, patterns::PathValue,
 <a href=#13 id=13 data-nosnippet>13</a>        types::WildcardAllowed,
 <a href=#14 id=14 data-nosnippet>14</a>    },
 <a href=#15 id=15 data-nosnippet>15</a>    hir::{
@@ -638,16 +638,16 @@
 <a href=#638 id=638 data-nosnippet>638</a>            LValue::Path(path) =&gt; {
 <a href=#639 id=639 data-nosnippet>639</a>                <span class="kw">let </span>location = path.location;
 <a href=#640 id=640 data-nosnippet>640</a>                <span class="kw">let </span>path = <span class="self">self</span>.validate_path(path);
-<a href=#641 id=641 data-nosnippet>641</a>                <span class="kw">match </span><span class="self">self</span>.get_ident_from_path_or_error(path.clone()) {
-<a href=#642 id=642 data-nosnippet>642</a>                    <span class="prelude-val">Ok</span>(IdentFromPath::Variable(variable)) =&gt; {
+<a href=#641 id=641 data-nosnippet>641</a>                <span class="kw">match </span><span class="self">self</span>.resolve_path_as_value_or_error(path.clone()) {
+<a href=#642 id=642 data-nosnippet>642</a>                    <span class="prelude-val">Ok</span>(PathValue::Variable(variable)) =&gt; {
 <a href=#643 id=643 data-nosnippet>643</a>                        <span class="self">self</span>.check_if_variable_is_captured_by_closure(<span class="kw-2">&amp;</span>variable);
 <a href=#644 id=644 data-nosnippet>644</a>                        <span class="self">self</span>.elaborate_lvalue_ident(variable.ident, location)
 <a href=#645 id=645 data-nosnippet>645</a>                    }
-<a href=#646 id=646 data-nosnippet>646</a>                    <span class="prelude-val">Ok</span>(IdentFromPath::Definition { id, item: <span class="kw">_ </span>}) =&gt; {
+<a href=#646 id=646 data-nosnippet>646</a>                    <span class="prelude-val">Ok</span>(PathValue::Definition { id, item: <span class="kw">_ </span>}) =&gt; {
 <a href=#647 id=647 data-nosnippet>647</a>                        <span class="kw">let </span>ident = HirIdent::non_trait_method(id, location);
 <a href=#648 id=648 data-nosnippet>648</a>                        <span class="self">self</span>.elaborate_lvalue_ident(ident, location)
 <a href=#649 id=649 data-nosnippet>649</a>                    }
-<a href=#650 id=650 data-nosnippet>650</a>                    <span class="prelude-val">Ok</span>(IdentFromPath::TypeAlias(type_alias_id)) =&gt; {
+<a href=#650 id=650 data-nosnippet>650</a>                    <span class="prelude-val">Ok</span>(PathValue::TypeAlias(type_alias_id)) =&gt; {
 <a href=#651 id=651 data-nosnippet>651</a>                        <span class="kw">let </span>type_alias = <span class="self">self</span>.interner.get_type_alias(type_alias_id);
 <a href=#652 id=652 data-nosnippet>652</a>                        <span class="self">self</span>.push_err(ResolverError::Expected {
 <a href=#653 id=653 data-nosnippet>653</a>                            location,

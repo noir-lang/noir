@@ -19,7 +19,7 @@
 <a href=#19 id=19 data-nosnippet>19</a>    },
 <a href=#20 id=20 data-nosnippet>20</a>    elaborator::{
 <a href=#21 id=21 data-nosnippet>21</a>        ScopeForest,
-<a href=#22 id=22 data-nosnippet>22</a>        patterns::IdentFromPath,
+<a href=#22 id=22 data-nosnippet>22</a>        patterns::PathValue,
 <a href=#23 id=23 data-nosnippet>23</a>        types::{WildcardAllowed, WildcardDisallowedContext},
 <a href=#24 id=24 data-nosnippet>24</a>    },
 <a href=#25 id=25 data-nosnippet>25</a>    hir::{
@@ -513,18 +513,18 @@
 <a href=#513 id=513 data-nosnippet>513</a>        <span class="kw">for </span>fragment <span class="kw">in </span><span class="kw-2">&amp;</span>fragments {
 <a href=#514 id=514 data-nosnippet>514</a>            <span class="kw">if let </span>FmtStrFragment::Interpolation(ident_name, location) = fragment {
 <a href=#515 id=515 data-nosnippet>515</a>                <span class="kw">let </span>(typ, expr_id) = <span class="kw">match </span><span class="self">self
-<a href=#516 id=516 data-nosnippet>516</a>                    </span>.get_ident_from_path(TypedPath::from_single(ident_name.clone(), <span class="kw-2">*</span>location))
+<a href=#516 id=516 data-nosnippet>516</a>                    </span>.resolve_path_as_value(TypedPath::from_single(ident_name.clone(), <span class="kw-2">*</span>location))
 <a href=#517 id=517 data-nosnippet>517</a>                {
-<a href=#518 id=518 data-nosnippet>518</a>                    <span class="prelude-val">Some</span>(IdentFromPath::Variable(variable)) =&gt; {
+<a href=#518 id=518 data-nosnippet>518</a>                    <span class="prelude-val">Some</span>(PathValue::Variable(variable)) =&gt; {
 <a href=#519 id=519 data-nosnippet>519</a>                        <span class="self">self</span>.handle_local_variable(<span class="kw-2">&amp;</span>variable);
 <a href=#520 id=520 data-nosnippet>520</a>                        <span class="self">self</span>.elaborate_fmt_string_ident(variable.ident, <span class="kw-2">*</span>location)
 <a href=#521 id=521 data-nosnippet>521</a>                    }
-<a href=#522 id=522 data-nosnippet>522</a>                    <span class="prelude-val">Some</span>(IdentFromPath::Definition { id, item: <span class="kw">_ </span>}) =&gt; {
+<a href=#522 id=522 data-nosnippet>522</a>                    <span class="prelude-val">Some</span>(PathValue::Definition { id, item: <span class="kw">_ </span>}) =&gt; {
 <a href=#523 id=523 data-nosnippet>523</a>                        <span class="self">self</span>.handle_definition_id(id, <span class="kw-2">*</span>location);
 <a href=#524 id=524 data-nosnippet>524</a>                        <span class="kw">let </span>hir_ident = HirIdent::non_trait_method(id, <span class="kw-2">*</span>location);
 <a href=#525 id=525 data-nosnippet>525</a>                        <span class="self">self</span>.elaborate_fmt_string_ident(hir_ident, <span class="kw-2">*</span>location)
 <a href=#526 id=526 data-nosnippet>526</a>                    }
-<a href=#527 id=527 data-nosnippet>527</a>                    <span class="prelude-val">Some</span>(IdentFromPath::TypeAlias(<span class="kw">_</span>)) | <span class="prelude-val">None </span>=&gt; {
+<a href=#527 id=527 data-nosnippet>527</a>                    <span class="prelude-val">Some</span>(PathValue::TypeAlias(<span class="kw">_</span>)) | <span class="prelude-val">None </span>=&gt; {
 <a href=#528 id=528 data-nosnippet>528</a>                        <span class="kw">let </span>hir_expr = HirExpression::Error;
 <a href=#529 id=529 data-nosnippet>529</a>                        <span class="kw">let </span>expr_id = <span class="self">self</span>.intern_expr(hir_expr, <span class="kw-2">*</span>location);
 <a href=#530 id=530 data-nosnippet>530</a>                        <span class="kw">let </span>typ = Type::Error;

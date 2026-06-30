@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":["ItemAsValue"],"struct":["ReplacedModule"],"type":["ScopeTree"]};
+window.SIDEBAR_ITEMS = {"struct":["ReplacedModule"],"type":["ScopeTree"]};
