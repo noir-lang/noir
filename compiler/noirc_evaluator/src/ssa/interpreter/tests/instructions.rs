@@ -149,12 +149,19 @@ fn checked_signed_op_over_unfit_operand_wraps() {
     assert_eq!(value, Value::i32(3));
 }
 
-// Companion to [`checked_signed_op_over_unfit_operand_wraps`] exercising an unfit value that
-// exceeds the type's bit width (so wrapping must truncate modulo `2^bit_size`, not just
-// reinterpret): `unchecked_add u8 200, u8 100` yields 300, which wraps to `u8 44`.
+// Companion to [`checked_signed_op_over_unfit_operand_wraps`] for *unsigned* checked ops, and a
+// regression test for noir-lang/noir-claude#1441.
+//
+// Unlike the signed case, ACIR does not truncate the operand of an unsigned checked op: it keeps it
+// as a field and range-constrains the *result*, so an operand that overflowed/underflowed an
+// earlier unchecked op makes the range check fail and ACIR rejects the program. The interpreter must
+// therefore report the overflow rather than wrap the operand. Wrapping would diverge from ACIR and,
+// for underflow, would not even match Brillig: `0 - 10` carries the field `p - 10`, whose low 8 bits
+// are `247`, not the wrapped `246`.
 #[test]
-fn checked_unsigned_op_over_unfit_operand_wraps() {
-    let value = expect_value(
+fn checked_unsigned_op_over_unfit_operand_errors() {
+    // `unchecked_add u8 200, u8 100` yields 300 (> u8::MAX); the checked add must not wrap to 44.
+    let error = expect_error(
         "
         acir(inline) fn main f0 {
           b0():
@@ -164,7 +171,21 @@ fn checked_unsigned_op_over_unfit_operand_wraps() {
         }
     ",
     );
-    assert_eq!(value, Value::u8(44));
+    assert!(matches!(error, InterpreterError::Overflow { .. }));
+
+    // `unchecked_sub u8 0, u8 10` underflows; the checked add must not wrap (and in particular must
+    // not return `247` from truncating the field `p - 10`).
+    let error = expect_error(
+        "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = unchecked_sub u8 0, u8 10
+            v1 = add v0, u8 0
+            return v1
+        }
+    ",
+    );
+    assert!(matches!(error, InterpreterError::Overflow { .. }));
 }
 
 #[test]
