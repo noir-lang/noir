@@ -255,10 +255,12 @@ fn compute_may_mutate_args(ssa: &Ssa) -> HashMap<FunctionId, bool> {
 /// call must be checked even when the callee does not itself mutate.
 ///
 /// Distinct from "returns any array": a callee that returns a *fresh* array (a
-/// `make_array`, or a foreign/intrinsic-call result — the shape of an oracle
-/// wrapper) is not flagged, so its caller's clone-elided arguments stay
-/// accepted. Propagated to a fixed point over the call graph because the
-/// alias property flows through `Value::Function` call results.
+/// `make_array`, or a foreign-call result — the shape of an oracle wrapper that
+/// returns an array) is not flagged, so its caller's clone-elided arguments stay
+/// accepted. Propagated to a fixed point over the call graph because the alias
+/// property flows through `Value::Function` call results. (Alias-returning
+/// intrinsics such as the vector mutators are left to `may_mutate` — see
+/// [`function_returns_arg_alias`].)
 fn compute_returns_arg_alias(ssa: &Ssa) -> HashMap<FunctionId, bool> {
     // Monotonic fixed point: every function starts `false`; one only ever flips
     // to true, and `function_returns_arg_alias` reads the current map to resolve
@@ -287,10 +289,13 @@ fn compute_returns_arg_alias(ssa: &Ssa) -> HashMap<FunctionId, bool> {
 /// callee results.
 ///
 /// Computes the set of *parameter-derived* values to a fixed point: an array
-/// parameter, a block parameter threaded from one, an `array_set` of one, or a
-/// `Value::Function` call result whose callee `returns_arg_alias` and is fed a
-/// parameter-derived argument. `make_array`, foreign-call and intrinsic results
-/// are fresh and stop the trace. The function returns an arg alias iff any
+/// parameter, a block parameter threaded from one, an `array_set` or nested
+/// `array_get` of one, or a `Value::Function` call result whose callee
+/// `returns_arg_alias` and is fed a parameter-derived argument. `make_array` and
+/// foreign-call results stop the trace (genuinely fresh). Intrinsic results also
+/// stop the trace here — the alias-returning ones
+/// (`unsafe_for_clone_elision_in_brillig`) are instead covered by `may_mutate`,
+/// since calling one sets that flag. The function returns an arg alias iff any
 /// returned value is parameter-derived.
 fn function_returns_arg_alias(
     function: &Function,
@@ -362,9 +367,21 @@ fn function_returns_arg_alias(
                     // result below restricts this to the nested case — a
                     // non-nested get yields a scalar and propagates nothing.
                     Instruction::ArrayGet { array, .. } => param_derived.contains(array),
-                    // A call result aliases an argument only if the callee
-                    // returns an arg alias and is fed a parameter-derived
-                    // argument. Foreign/intrinsic results are fresh.
+                    // A user-function call result aliases an argument only if
+                    // the callee returns an arg alias and is fed a
+                    // parameter-derived argument.
+                    //
+                    // Foreign-call results are genuinely fresh (oracles copy
+                    // across the boundary). Intrinsic results are *not* always
+                    // fresh — the `unsafe_for_clone_elision_in_brillig`
+                    // intrinsics (vector mutators, `str_as_bytes`,
+                    // `array_as_str_unchecked`) return an alias of their input —
+                    // but we deliberately don't trace through them here: calling
+                    // one already makes the function `may_mutate`
+                    // (`intrinsic_may_mutate_args`), so `needs_check` flags it
+                    // via that summary. This pass only has to cover the gap
+                    // `may_mutate` misses: a non-mutating function that passes an
+                    // input straight back.
                     Instruction::Call { func, arguments } => match &dfg[*func] {
                         Value::Function(callee) => {
                             returns_arg_alias[callee]
