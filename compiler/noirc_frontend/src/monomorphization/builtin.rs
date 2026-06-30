@@ -3,6 +3,7 @@ use std::rc::Rc;
 use acvm::{AcirField, FieldElement};
 use iter_extended::vecmap;
 use noirc_errors::Location;
+use num_bigint::BigInt;
 
 use crate::{
     Type,
@@ -182,7 +183,7 @@ impl Monomorphizer<'_> {
         match typ {
             ast::Type::Field | ast::Type::Integer(..) => {
                 let typ = typ.clone();
-                let zero = FieldElement::zero();
+                let zero = BigInt::ZERO;
                 ast::Expression::Literal(ast::Literal::Integer(zero, typ, location))
             }
             ast::Type::Bool => ast::Expression::Literal(ast::Literal::Bool(false)),

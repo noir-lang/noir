@@ -2,10 +2,10 @@
 
 use std::collections::{BTreeMap, BTreeSet, HashSet};
 
-use acvm::{AcirField, FieldElement};
 use iter_extended::{btree_map, try_vecmap, vecmap};
 use itertools::Itertools;
 use noirc_errors::Location;
+use num_bigint::BigInt;
 use rustc_hash::FxHashMap as HashMap;
 
 use crate::{
@@ -21,7 +21,7 @@ use crate::{
         types::{WildcardAllowed, WildcardDisallowedContext},
     },
     hir::{
-        comptime::{Value, bigint_to_field},
+        comptime::Value,
         def_collector::dc_crate::UnresolvedEnum,
         def_map::LocalModuleId,
         resolution::{errors::ResolverError, import::PathResolutionError},
@@ -69,7 +69,7 @@ enum Pattern {
     /// A pattern checking for a tag and possibly binding variables such as `Some(42)`
     Constructor(Constructor, Vec<Pattern>),
     /// An integer literal pattern such as `4`, `12345`, or `-56`
-    Int(FieldElement),
+    Int(BigInt),
     /// A pattern binding a variable such as `a` or `_`
     Binding(DefinitionId),
 
@@ -81,7 +81,7 @@ enum Pattern {
     /// An integer range pattern such as `1..20` which will match any integer n such that
     /// 1 <= n < 20.
     #[allow(unused)]
-    Range(FieldElement, FieldElement),
+    Range(BigInt, BigInt),
 
     /// An error occurred while translating this pattern. This Pattern kind always translates
     /// to a Fail branch in the decision tree, although the compiler is expected to halt
@@ -550,13 +550,12 @@ impl Elaborator<'_> {
                 };
                 unify_with_expected_type(self, &actual);
 
-                let field_value = bigint_to_field(&value);
-                let expr = HirExpression::Literal(HirLiteral::Integer(value));
+                let expr = HirExpression::Literal(HirLiteral::Integer(value.clone()));
                 let location = expr_location;
                 let expr_id = self.interner.push_expr_full(expr, location, actual);
                 self.push_integer_literal_expr_id(expr_id);
 
-                Pattern::Int(field_value)
+                Pattern::Int(value)
             }
             ExpressionKind::Literal(Literal::Bool(value)) => {
                 unify_with_expected_type(self, &Type::Bool);
@@ -992,9 +991,9 @@ impl Elaborator<'_> {
         self.unify_or_type_mismatch(&actual_type, expected_type, location);
 
         let value = match constant {
-            Value::Bool(value) => value.into(),
-            Value::Integer(int) => int.as_field(),
-            Value::Zeroed(_) => FieldElement::zero(),
+            Value::Bool(value) => BigInt::from(u8::from(value)),
+            Value::Integer(int) => int.to_bigint(),
+            Value::Zeroed(_) => BigInt::ZERO,
             _ => {
                 self.push_err(ResolverError::NonIntegerGlobalUsedInPattern { location });
                 return Pattern::Error;
@@ -1238,13 +1237,15 @@ impl<'elab, 'ctx> MatchCompiler<'elab, 'ctx> {
         // Elements of 'raw_cases' are of the form (Constructor, Variables, Rows)
         let mut raw_cases: Vec<(Constructor, Vec<DefinitionId>, Vec<Row>)> = Vec::new();
         let mut fallback_rows: Vec<Row> = Vec::new();
-        let mut tested: HashMap<(FieldElement, FieldElement), usize> = HashMap::default();
+        let mut tested: HashMap<(BigInt, BigInt), usize> = HashMap::default();
 
         for mut row in rows {
             if let Some(col) = row.remove_column(branch_var) {
                 let (key, cons) = match col.pattern {
-                    Pattern::Int(val) => ((val, val), Constructor::Int(val)),
-                    Pattern::Range(start, stop) => ((start, stop), Constructor::Range(start, stop)),
+                    Pattern::Int(val) => ((val.clone(), val.clone()), Constructor::Int(val)),
+                    Pattern::Range(start, stop) => {
+                        ((start.clone(), stop.clone()), Constructor::Range(start, stop))
+                    }
                     // Any other pattern shouldn't have an integer type and we expect a type
                     // check error to already have been issued.
                     _ => continue,
@@ -1606,13 +1607,19 @@ impl<'elab, 'ctx> MatchCompiler<'elab, 'ctx> {
                 for case in cases {
                     match &case.constructor {
                         Constructor::Int(field) => {
-                            let field: $typ = (*field).try_into().unwrap();
+                            let field: $typ = field
+                                .try_into()
+                                .expect("ICE: integer pattern value escaped the elaborator range check");
                             missing_cases.remove(field..=field);
                         }
                         Constructor::Range(start, end) => {
                             // Our ranges are exclusive, so adjust for that
-                            let start: $typ = (*start).try_into().unwrap();
-                            let end: $typ = (*end).try_into().unwrap();
+                            let start: $typ = start
+                                .try_into()
+                                .expect("ICE: integer pattern value escaped the elaborator range check");
+                            let end: $typ = end
+                                .try_into()
+                                .expect("ICE: integer pattern value escaped the elaborator range check");
                             missing_cases.remove(start..= end - 1);
                         }
                         _ => unreachable!(

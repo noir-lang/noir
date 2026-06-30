@@ -370,7 +370,7 @@ impl ItemPrinter<'_, '_> {
             Constructor::True => self.push_str("true"),
             Constructor::False => self.push_str("false"),
             Constructor::Unit => self.push_str("()"),
-            Constructor::Int(signed_field) => self.push_str(&signed_field.to_string()),
+            Constructor::Int(value) => self.push_str(&value.to_string()),
             Constructor::Tuple(items) => {
                 let len = items.len();
                 self.push('(');
