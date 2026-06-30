@@ -28,11 +28,11 @@ pub struct Baz<T> {
     t: T,
 }
 
-impl<T> Baz<T> {
-    pub fn baz_method(t: T)
-    where
-        T: Foo,
-    {
+impl<T> Baz<T>
+where
+    T: Foo,
+{
+    pub fn baz_method(t: T) {
         let bar: <T as Foo>::E = t.bar();
         bar.bar_method();
     }

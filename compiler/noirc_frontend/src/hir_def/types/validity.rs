@@ -108,7 +108,7 @@ impl Type {
     /// This is only Some for unsized types like vectors or vectors that do not make sense
     /// as a program input such as named generics or mutable references.
     ///
-    /// This function should match the same check done in `create_value_from_type` in acir_gen.
+    /// This function should match the same check done in `create_value_from_type` in `acir_gen`.
     /// If this function does not catch a case where a type should be valid, it will later lead to a
     /// panic in that function instead of a user-facing compiler error message.
     ///
@@ -253,10 +253,10 @@ impl Type {
     /// function that is not `main` or a contract function.
     /// This encapsulates functions for which we may not want to inline during compilation.
     ///
-    /// This check is intentionally more permissive than [Self::program_validity]:
+    /// This check is intentionally more permissive than [`Self::program_validity`]:
     /// - It does not enforce entry-point sizing rules (e.g. concrete array/string lengths).
-    /// - It allows symbolic size expressions such as [Type::InfixExpr].
-    /// - It does not special-case entry point only rules like allowing [Type::Unit] outputs.
+    /// - It allows symbolic size expressions such as [`Type::InfixExpr`].
+    /// - It does not special-case entry point only rules like allowing [`Type::Unit`] outputs.
     ///
     /// The inputs allowed for a function entry point differ from those allowed as input to a program as there are
     /// certain types which through compilation we know what their size should be.

@@ -36,7 +36,14 @@ impl Ssa {
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn evaluate_static_assert_and_assert_constant(self) -> Result<Ssa, RuntimeError> {
         let error_on_failure = true;
-        self.evaluate_static_assert_and_assert_constant_helper(error_on_failure)
+        let ssa = self.evaluate_static_assert_and_assert_constant_helper(error_on_failure)?;
+
+        #[cfg(debug_assertions)]
+        for function in ssa.functions.values() {
+            evaluate_static_assert_and_assert_constant_post_check(function);
+        }
+
+        Ok(ssa)
     }
 
     /// See [`evaluate_static_assert_and_assert_constant`][self] module for more information.
@@ -99,6 +106,31 @@ impl Function {
         }
         Ok(())
     }
+}
+
+/// Post-check condition for [`Ssa::evaluate_static_assert_and_assert_constant`].
+///
+/// Panics if a call to `static_assert` or `assert_constant` remains in a reachable block.
+/// Unlike the lenient [`Ssa::try_evaluate_static_assert_and_assert_constant`], the strict
+/// variant either evaluates and removes every such call or errors, so any survivor would
+/// otherwise only be caught at ACIR generation.
+#[cfg(debug_assertions)]
+fn evaluate_static_assert_and_assert_constant_post_check(function: &Function) {
+    use crate::ssa::ir::value::Value;
+
+    super::checks::for_each_instruction(function, |instruction, dfg| {
+        if let Instruction::Call { func, .. } = instruction
+            && let Value::Intrinsic(
+                intrinsic @ (Intrinsic::StaticAssert | Intrinsic::AssertConstant),
+            ) = &dfg[*func]
+        {
+            panic!(
+                "Call to {intrinsic} remains in function {} {} after `static_assert` and `assert_constant` evaluation",
+                function.name(),
+                function.id(),
+            );
+        }
+    });
 }
 
 /// Returns all of a function's block that are part of empty loops.
@@ -178,6 +210,10 @@ fn evaluate_assert_constant(
     arguments: &[ValueId],
     error_on_failure: bool,
 ) -> Result<bool, RuntimeError> {
+    if arguments.is_empty() {
+        panic!("ICE: assert_constant called with no arguments")
+    }
+
     if arguments.iter().all(|arg| function.dfg.is_constant(*arg)) {
         Ok(false)
     } else if error_on_failure {
@@ -189,7 +225,7 @@ fn evaluate_assert_constant(
 }
 
 /// Evaluate a call to `static_assert`, returning an error if the value is false
-/// or not constant (see assert_constant).
+/// or not constant (see `assert_constant`).
 ///
 /// When it passes, Ok(false) is returned. This signifies a
 /// success but also that the instruction need not be reinserted into the block being unrolled
@@ -418,6 +454,38 @@ mod tests {
     }
 
     #[test]
+    fn fail_on_static_assert_in_live_not_equal_loop() {
+        // Regression for noir-lang/noir-claude#1397: a `!=` guarded loop whose body is on the
+        // `else` branch executes whenever `lower != upper`. Here the induction variable starts at
+        // 5 and the guard is `eq v0, u8 4`, so the body runs (5 != 4) and must reach the failing
+        // `static_assert(false)`.
+        let src = r#"
+        brillig(inline) fn main f0 {
+          b0():
+            jmp b1(u8 5)
+          b1(v0: u8):
+            v1 = eq v0, u8 4
+            jmpif v1 then: b3(), else: b2()
+          b2():
+            v2 = make_array b"should fail"
+            v3 = make_array b"{\"kind\":\"string\",\"length\":11}"
+            call static_assert(u1 0, v2, v3, u1 0)
+            v4 = unchecked_sub v0, u8 1
+            jmp b1(v4)
+          b3():
+            return
+        }
+        "#;
+        let ssa = Ssa::from_str(src).unwrap();
+        let Err(RuntimeError::StaticAssertFailed { message, .. }) =
+            ssa.evaluate_static_assert_and_assert_constant()
+        else {
+            panic!("Expected a static assert failure");
+        };
+        assert_eq!(message, "should fail");
+    }
+
+    #[test]
     fn fail_on_assert_constant_in_dynamic_loop() {
         let src = r"
         acir(inline) fn main f0 {
@@ -523,5 +591,20 @@ mod tests {
         else {
             panic!("Expected a static assert dynamic message failure");
         };
+    }
+
+    #[test]
+    #[should_panic(expected = "remains in function")]
+    #[cfg(debug_assertions)]
+    fn post_check_detects_remaining_assert_constant() {
+        let src = r"
+        acir(inline) fn main f0 {
+          b0(v0: Field):
+            call assert_constant(v0)
+            return
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        super::evaluate_static_assert_and_assert_constant_post_check(ssa.main());
     }
 }

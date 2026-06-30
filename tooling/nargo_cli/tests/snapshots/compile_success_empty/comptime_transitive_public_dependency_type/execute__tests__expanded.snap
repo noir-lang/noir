@@ -1,0 +1,30 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+use midlib::PublicBox;
+
+comptime fn emit_transitive_type_api(_f: FunctionDefinition) -> Quoted {
+    let typ: Type = quote { PublicBox }.as_type();
+    let (def, generics): (TypeDefinition, [Type]) = typ.as_data_type().unwrap();
+    let fields: [(Quoted, Type, Quoted)] = def.fields(generics);
+    let transitive_type: Type = fields[0_u32].1;
+    quote {
+        pub fn transitive_type_api() -> Option<$transitive_type> {
+            Option::none()
+        }
+        pub struct TransitivePublicField {
+            pub value: Option<$transitive_type>,
+        }
+    }
+}
+
+pub fn transitive_type_api() -> Option<leaflib::deep::LeafPublic> {
+    Option::<leaflib::deep::LeafPublic>::none()
+}
+
+pub struct TransitivePublicField {
+    pub value: Option<leaflib::deep::LeafPublic>,
+}
+
+fn main() {}

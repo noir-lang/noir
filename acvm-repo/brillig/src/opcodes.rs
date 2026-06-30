@@ -105,7 +105,7 @@ pub enum HeapValueType {
     /// A single field element is enough to represent the value with a given bit size.
     #[tag(0)]
     Simple(BitSize),
-    /// The value read should be interpreted as a pointer to a [HeapArray], which
+    /// The value read should be interpreted as a pointer to a [`HeapArray`], which
     /// consists of a pointer to a slice of memory of size elements, and a
     /// reference count, to avoid cloning arrays that are not shared.
     #[tag(1)]
@@ -115,7 +115,7 @@ pub enum HeapValueType {
         #[tag(1)]
         size: SemanticLength,
     },
-    /// The value read should be interpreted as a pointer to a [HeapVector], which
+    /// The value read should be interpreted as a pointer to a [`HeapVector`], which
     /// consists of a pointer to a slice of memory, a number of elements in that
     /// vector, and a reference count.
     #[tag(2)]
@@ -266,9 +266,9 @@ pub enum IntegerBitSize {
     U128,
 }
 
-impl From<IntegerBitSize> for u32 {
-    fn from(bit_size: IntegerBitSize) -> u32 {
-        match bit_size {
+impl IntegerBitSize {
+    pub const fn to_u32(self) -> u32 {
+        match self {
             IntegerBitSize::U1 => 1,
             IntegerBitSize::U8 => 8,
             IntegerBitSize::U16 => 16,
@@ -276,6 +276,12 @@ impl From<IntegerBitSize> for u32 {
             IntegerBitSize::U64 => 64,
             IntegerBitSize::U128 => 128,
         }
+    }
+}
+
+impl From<IntegerBitSize> for u32 {
+    fn from(bit_size: IntegerBitSize) -> u32 {
+        bit_size.to_u32()
     }
 }
 
@@ -334,7 +340,7 @@ impl BitSize {
         }
     }
 
-    /// Try to create a BitSize from a u32 value.
+    /// Try to create a `BitSize` from a u32 value.
     ///
     /// If the value matches the field's maximum bit count, returns `BitSize::Field`.
     /// Otherwise, attempts to interpret it as an integer bit size.
@@ -530,7 +536,7 @@ pub enum BrilligOpcode<F> {
         function: String,
         /// Destination addresses (may be single values or memory pointers).
         ///
-        /// Output vectors are passed as a [ValueOrArray::MemoryAddress]. Since their size is not known up front,
+        /// Output vectors are passed as a [`ValueOrArray::MemoryAddress`]. Since their size is not known up front,
         /// we cannot allocate space for them on the heap. Instead, the VM is expected to write their data after
         /// the current free memory pointer, and store the heap address into the destination.
         #[tag(1)]
@@ -815,7 +821,7 @@ mod tests {
     use super::{BitSize, IntegerBitSize};
     use acir_field::FieldElement;
 
-    /// Test that IntegerBitSize round trips correctly through From/TryFrom u32
+    /// Test that `IntegerBitSize` round trips correctly through From/TryFrom u32
     #[test]
     fn test_integer_bitsize_roundtrip() {
         let integer_sizes = [
@@ -865,7 +871,7 @@ mod tests {
         assert!(IntegerBitSize::try_from(256).is_err());
     }
 
-    /// Test that BitSize round-trips correctly through to_u32/try_from_u32
+    /// Test that `BitSize` round-trips correctly through `to_u32/try_from_u32`
     #[test]
     fn test_bitsize_roundtrip() {
         // Test all integer bit sizes

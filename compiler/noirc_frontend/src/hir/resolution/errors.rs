@@ -89,6 +89,8 @@ pub enum ResolverError {
     OracleNameClashesWithStdlib { location: Location },
     #[error("Usage of the `#[oracle]` function attribute is only valid on unconstrained functions")]
     OracleMarkedAsConstrained { ident: Ident, location: Location },
+    #[error("Usage of the `#[oracle]` function attribute is only valid on free functions")]
+    OracleNotAFreeFunction { ident: Ident, location: Location },
     #[error("Usage of the `#[oracle]` function attribute is not allowed on comptime functions")]
     OracleMarkedAsComptime { ident: Ident, location: Location },
     #[error("Oracle functions cannot return multiple vectors")]
@@ -169,6 +171,8 @@ pub enum ResolverError {
     ComptimeTypeInNonComptimeItem { typ: String, location: Location, item: &'static str },
     #[error("Comptime variable `{name}` cannot be mutated in a non-comptime context")]
     MutatingComptimeInNonComptimeContext { name: String, location: Location },
+    #[error("Comptime variable `{name}` cannot be used in runtime code")]
+    ComptimeVariableEscapesScope { name: String, location: Location },
     #[error("Failed to parse `{statement}` as an expression")]
     InvalidInternedStatementInExpr { statement: String, location: Location },
     #[error("{0}")]
@@ -310,6 +314,7 @@ impl ResolverError {
             | ResolverError::QuoteInRuntimeCode { location }
             | ResolverError::ComptimeTypeInNonComptimeItem { location, .. }
             | ResolverError::MutatingComptimeInNonComptimeContext { location, .. }
+            | ResolverError::ComptimeVariableEscapesScope { location, .. }
             | ResolverError::InvalidInternedStatementInExpr { location, .. }
             | ResolverError::InvalidSyntaxInPattern { location }
             | ResolverError::NonIntegerGlobalUsedInPattern { location, .. }
@@ -328,6 +333,7 @@ impl ResolverError {
             | ResolverError::InlineNeverAttributeOnConstrained { location, .. }
             | ResolverError::OracleNameClashesWithStdlib { location, .. }
             | ResolverError::OracleMarkedAsConstrained { location, .. }
+            | ResolverError::OracleNotAFreeFunction { location, .. }
             | ResolverError::OracleMarkedAsComptime { location, .. }
             | ResolverError::OracleReturnsMultipleVectors { location, .. }
             | ResolverError::OracleReturnsReference { location, .. }
@@ -603,6 +609,15 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                 diagnostic.add_secondary("Oracle functions must have the `unconstrained` keyword applied".into(), ident.location());
                 diagnostic
             },
+            ResolverError::OracleNotAFreeFunction { ident, location } => {
+                let mut diagnostic = Diagnostic::simple_error(
+                    error.to_string(),
+                    String::new(),
+                    *location,
+                );
+                diagnostic.add_secondary("Oracle functions cannot be defined within a trait or impl block".into(), ident.location());
+                diagnostic
+            },
             ResolverError::OracleMarkedAsComptime { ident, location } => {
                 let mut diagnostic = Diagnostic::simple_error(
                     error.to_string(),
@@ -858,6 +873,13 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                 Diagnostic::simple_error(
                     format!("Comptime variable `{name}` cannot be mutated in a non-comptime context"),
                     format!("`{name}` mutated here"),
+                    *location,
+                )
+            },
+            ResolverError::ComptimeVariableEscapesScope { name, location } => {
+                Diagnostic::simple_error(
+                    format!("Comptime variable `{name}` cannot be used in runtime code"),
+                    format!("`{name}` was resolved in a comptime scope that is no longer in scope here"),
                     *location,
                 )
             },

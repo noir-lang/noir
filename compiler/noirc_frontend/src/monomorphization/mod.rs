@@ -2,15 +2,15 @@
 //! It accepts the type checked HIR as input and produces a monomorphized AST as output.
 //! This file implements the pass itself, while the AST is defined in the ast module.
 //!
-//! Unlike the HIR, which is stored within the NodeInterner, the monomorphized AST is
-//! self-contained and does not need an external context struct. As a result, the NodeInterner
+//! Unlike the HIR, which is stored within the `NodeInterner`, the monomorphized AST is
+//! self-contained and does not need an external context struct. As a result, the `NodeInterner`
 //! can be safely discarded after monomorphization.
 //!
 //! The entry point to this pass is the `monomorphize` function which, starting from a given
 //! function, will monomorphize the entire reachable program.
 //!
 //! The monomorphized AST (mAST) has a few notable differences from the HIR:
-//! - It is self-contained without the need for an external context like the NodeInterner.
+//! - It is self-contained without the need for an external context like the `NodeInterner`.
 //! - All generics are gone, they are specialized away by creating a new copy of each function
 //!   for each combination of generic arguments it is used with.
 //! - All local lambdas are gone and closure environments are explicit. Closures are converted
@@ -37,7 +37,7 @@
 //! At the end of monomorphization, a couple sub-passes are performed:
 //! - [ownership](crate::ownership): infers when values should be cloned or moved for unconstrained code.
 //!   This is only relevant for arrays in unconstrained code which are implemented with copy on
-//!   write semantics. An [ast::Expression::Clone] corresponds to an increment of the reference-count on
+//!   write semantics. An [`ast::Expression::Clone`] corresponds to an increment of the reference-count on
 //!   a particular array rather than a deep clone. The deep clone itself will be performed by the
 //!   Brillig runtime when mutating an array with a reference count greater than one.
 //! - [proxies]: wraps oracle functions in unconstrained function wrappers automatically.
@@ -49,7 +49,7 @@
 //! when a normal lambda is compiled in an unconstrained context and uses types, such as references,
 //! which shouldn't leave the current context.
 use crate::ast::{FunctionKind, ItemVisibility, UnaryOp};
-use crate::hir::comptime::InterpreterError;
+use crate::hir::comptime::{InterpreterError, bigint_to_field};
 use crate::hir::type_check::NoMatchingImplFoundError;
 use crate::node_interner::{ExprId, GlobalValue, ImplSearchErrorKind, TraitItemId};
 use crate::recursion::TypeRecursionContext;
@@ -131,7 +131,7 @@ pub struct Monomorphizer<'interner> {
     finished_globals: HashMap<GlobalId, (String, ast::Type, ast::Expression)>,
 
     /// Queue of functions to monomorphize next each item in the queue is a tuple of:
-    /// (old_id, new_monomorphized_id, any type bindings to apply, the trait method if old_id is from a trait impl, is_unconstrained, location)
+    /// (`old_id`, `new_monomorphized_id`, any type bindings to apply, the trait method if `old_id` is from a trait impl, `is_unconstrained`, location)
     queue: VecDeque<(
         node_interner::FuncId,
         FuncId,
@@ -141,8 +141,8 @@ pub struct Monomorphizer<'interner> {
         Location,
     )>,
 
-    /// When a function finishes being monomorphized, the monomorphized [ast::Function] is
-    /// stored here along with its [FuncId].
+    /// When a function finishes being monomorphized, the monomorphized [`ast::Function`] is
+    /// stored here along with its [`FuncId`].
     finished_functions: BTreeMap<FuncId, Function>,
 
     /// Used to reference existing definitions in the HIR.
@@ -161,7 +161,7 @@ pub struct Monomorphizer<'interner> {
 
     debug_type_tracker: DebugTypeTracker,
 
-    /// The CrateId of the `__debug` crate, used to verify that debug patching
+    /// The `CrateId` of the `__debug` crate, used to verify that debug patching
     /// only applies to functions from the debug crate (not user-defined functions
     /// that happen to share the same name).
     debug_crate_id: Option<crate::graph::CrateId>,
@@ -176,10 +176,10 @@ pub struct Monomorphizer<'interner> {
     force_unconstrained: bool,
 }
 
-/// Using nested HashMaps here lets us avoid cloning HirTypes when calling .get()
+/// Using nested `HashMaps` here lets us avoid cloning `HirTypes` when calling `.get()`
 ///
-/// Maps (interner FuncId, unconstrained) -> Map (Func Type) -> Map (Turbofish Generics)
-///   -> Map (Canonical Instantiation Bindings) -> monomorphized FuncId
+/// Maps (interner `FuncId`, unconstrained) -> Map (Func Type) -> Map (Turbofish Generics)
+///   -> Map (Canonical Instantiation Bindings) -> monomorphized `FuncId`
 ///
 /// The bindings key distinguishes calls with the same type but under different impl generics.
 type Functions = HashMap<
@@ -195,7 +195,7 @@ type CanonicalBindings = Vec<(TypeVariableId, HirType)>;
 const MAX_TYPE_COMPLEXITY: usize = 100_000;
 
 /// Starting from the given `main` function, monomorphize the entire program,
-/// replacing all references to type variables and NamedGenerics with concrete
+/// replacing all references to type variables and `NamedGenerics` with concrete
 /// types, duplicating definitions as necessary to do so.
 ///
 /// Instead of iterating over every function, this pass starts with the main function
@@ -223,7 +223,7 @@ pub fn monomorphize(
 }
 
 /// A more general entry-point for the monomorphization pass containing an optional
-/// [DebugInstrumenter] which can be set to [DebugInstrumenter::default] in case it
+/// [`DebugInstrumenter`] which can be set to [`DebugInstrumenter::default`] in case it
 /// is not desired. If debugging is desired, additional function calls will be inserted
 /// to inspect values via debug functions.
 pub fn monomorphize_debug(
@@ -541,7 +541,7 @@ impl<'interner> Monomorphizer<'interner> {
             .insert(bindings_key, new_id);
     }
 
-    /// Monomorphize the `main` function, ensuring it gets the ID expected by [Program::main_id].
+    /// Monomorphize the `main` function, ensuring it gets the ID expected by [`Program::main_id`].
     ///
     /// Sets the `return_location` expected by `into_program` later.
     ///
@@ -588,7 +588,7 @@ impl<'interner> Monomorphizer<'interner> {
     /// an incorrect value. This incorrect type value will not be caught by monomorphization but
     /// may or may not lead to panics later. Either way, it is best to only call this function
     /// directly only when you know there should be no generics in your function, such as in
-    /// [Self::compile_main], or through a wrapper such as [Self::process_next_job] which will
+    /// [`Self::compile_main`], or through a wrapper such as [`Self::process_next_job`] which will
     /// handle the instantiation bindings for you.
     pub fn function(
         &mut self,
@@ -610,7 +610,14 @@ impl<'interner> Monomorphizer<'interner> {
             return Err(MonomorphizationError::ComptimeFnInRuntimeCode { name, location });
         }
 
-        let body_expr_id = self.interner.function(&f).as_expr();
+        // A disabled function (`FunctionDefinition::disable`) has its body marked resolved without
+        // being elaborated, so it has no interned expression. A call to it should have been rejected
+        // during elaboration by the `deprecated(deny, _)` lint; if one still reaches here (e.g. a
+        // call constructed via `as_typed_expr` that bypasses that lint), error cleanly instead of
+        // panicking on the missing body.
+        let Some(body_expr_id) = self.interner.function(&f).try_as_expr() else {
+            return Err(MonomorphizationError::CalledDisabledFunction { name, location });
+        };
         let body_return_type = self.interner.id_type(body_expr_id);
         let return_target_type = match meta.return_type() {
             Type::TraitAsType(..) => &body_return_type,
@@ -776,7 +783,7 @@ impl<'interner> Monomorphizer<'interner> {
             HirExpression::Literal(HirLiteral::Integer(value)) => {
                 let location = self.interner.id_location(expr);
                 let typ = Self::convert_type(&self.interner.id_type(expr), location)?;
-                Literal(Integer(value, typ, location))
+                Literal(Integer(bigint_to_field(&value), typ, location))
             }
             HirExpression::Literal(HirLiteral::Array(array)) => match array {
                 HirArrayLiteral::Standard(array) => self.standard_array(expr, array, false)?,
@@ -1341,7 +1348,7 @@ impl<'interner> Monomorphizer<'interner> {
         Some(ast::Expression::ExtractTupleField(Box::new(ast::Expression::Ident(env_ident)), index))
     }
 
-    /// Find a captured variable in the innermost closure construct a LValue
+    /// Find a captured variable in the innermost closure construct a `LValue`
     fn lookup_captured_lvalue(&mut self, id: node_interner::DefinitionId) -> Option<ast::LValue> {
         let (env_ident, index) = self.lookup_captured_env_field(id)?;
         Some(ast::LValue::MemberAccess {
@@ -1487,18 +1494,11 @@ impl<'interner> Monomorphizer<'interner> {
             }
             DefinitionKind::AssociatedConstant(trait_impl_id, name) => {
                 let location = ident.location;
-                let associated_types = self.interner.get_associated_types_for_impl(*trait_impl_id);
-                let associated_type = associated_types
-                    .iter()
-                    .find(|typ| typ.name.as_str() == name)
-                    .expect("Expected to find associated type");
-                let Kind::Numeric(numeric_type) = associated_type.typ.kind() else {
-                    unreachable!("Expected associated type to be numeric");
-                };
-                match associated_type.typ.evaluate_to_integer(&associated_type.typ.kind(), location)
-                {
+                let assoc_typ = self.interner.find_associated_type_for_impl(*trait_impl_id, name);
+                let assoc_typ = assoc_typ.expect("Expected to find associated type");
+                match assoc_typ.evaluate_to_integer(&assoc_typ.kind(), location) {
                     Ok(value) => {
-                        let typ = Self::convert_type(&numeric_type, location)?;
+                        let typ = Self::convert_type(&typ, location)?;
                         Ok(ast::Expression::Literal(ast::Literal::Integer(
                             value.as_field(),
                             typ,
@@ -1614,6 +1614,7 @@ impl<'interner> Monomorphizer<'interner> {
     ) -> Result<ast::Expression, MonomorphizationError> {
         let global = self.interner.get_global(global_id);
         let id = global.id;
+        let global_location = global.location;
 
         // Follow bindings otherwise it's not safe to use it as a hash map key.
         let typ = typ.follow_bindings();
@@ -1658,7 +1659,18 @@ impl<'interner> Monomorphizer<'interner> {
             // just with an extra step of indirection through a global variable.
             // For simplicity, we chose to instead inline closures at their callsite as we do not expect
             // placing a closure in the global context to change the final result of the program.
-            if !contains_function {
+            if contains_function {
+                // Value has a closure, for simplicity we chose to inline closures at their
+                // callsite as we do not expect placing a closure in the global context
+                // to change the final result of the program.
+                expr
+            } else if typ.contains_function() {
+                // Type indicates function pointer which is invalid in the global context.
+                return Err(MonomorphizationError::GlobalContainsFunctionPointer {
+                    typ: typ.to_string(),
+                    location: global_location,
+                });
+            } else {
                 let new_id = self.next_global_id();
                 self.globals.entry(id).or_default().insert(typ.clone(), new_id);
                 let typ = Self::convert_type(&typ, location)?;
@@ -1672,8 +1684,6 @@ impl<'interner> Monomorphizer<'interner> {
                     id: self.next_ident_id(),
                 };
                 ast::Expression::Ident(ident)
-            } else {
-                expr
             }
         };
         Ok(expr)
@@ -1683,7 +1693,7 @@ impl<'interner> Monomorphizer<'interner> {
     /// This is roughly the number of "nodes" in the type tree.
     ///
     /// To prevent stack overflow on deeply nested types, we stop recursion when
-    /// accumulated complexity exceeds [MAX_TYPE_COMPLEXITY].
+    /// accumulated complexity exceeds [`MAX_TYPE_COMPLEXITY`].
     fn error_on_complex_type(
         typ: &HirType,
         location: &Location,
@@ -1796,7 +1806,7 @@ impl<'interner> Monomorphizer<'interner> {
         Self::convert_type_helper(typ, location, &mut HashSet::default())
     }
 
-    /// Converts a [HirType] into a [ast::Type].
+    /// Converts a [`HirType`] into a [`ast::Type`].
     ///
     /// Returns an error if the type was invalid somehow. For example, if the type contains:
     /// - an array with a size that does not evaluate to a positive integer
@@ -1878,7 +1888,7 @@ impl<'interner> Monomorphizer<'interner> {
                 // Not all generic arguments may be used in a datatype's fields so we have to check
                 // the arguments as well as the fields in case any need to be defaulted or are unbound.
                 for arg in args {
-                    Self::check_type(arg, location)?;
+                    Self::check_type_helper(arg, location, seen_types)?;
                 }
 
                 if !seen_types.insert(typ.clone()) {
@@ -1916,7 +1926,7 @@ impl<'interner> Monomorphizer<'interner> {
                 // Similar to the struct case above: generics of an alias might not end up being
                 // used in the type that is aliased.
                 for arg in args {
-                    Self::check_type(arg, location)?;
+                    Self::check_type_helper(arg, location, seen_types)?;
                 }
 
                 Self::convert_type_helper(&def.borrow().get_type(args), location, seen_types)?
@@ -1980,105 +1990,39 @@ impl<'interner> Monomorphizer<'interner> {
         })
     }
 
-    /// Similar to `convert_type` but only checks for errors and does not actually convert to a
-    /// [ast::Type].
-    ///
-    /// This function also does not recur completely on a type (for example, it does
-    /// not check fields of a struct) to prevent infinite recursion.
+    /// Checks that `typ` is a valid type to monomorphize, returning the same errors
+    /// `convert_type` would, without producing an [ast::Type].
     fn check_type(typ: &HirType, location: Location) -> Result<(), MonomorphizationError> {
+        Self::check_type_helper(typ, location, &mut HashSet::default())
+    }
+
+    fn check_type_helper(
+        typ: &HirType,
+        location: Location,
+        seen_types: &mut HashSet<Type>,
+    ) -> Result<(), MonomorphizationError> {
         let typ = typ.follow_bindings_shallow();
         match typ.as_ref() {
-            HirType::FieldElement
-            | HirType::Integer(..)
-            | HirType::Bool
-            | HirType::String(..)
-            | HirType::Unit
+            // `convert_type` cannot lower these: it panics on `Forall`/`TraitAsType` and emits
+            // dedicated errors for `Error`/`Quoted`. `check_type` runs in contexts that
+            // legitimately see them (e.g. unresolved placeholders), so tolerate them here.
+            HirType::Forall(..)
             | HirType::TraitAsType(..)
-            | HirType::Forall(_, _)
             | HirType::Error
-            | HirType::Constant(_)
             | HirType::Quoted(_) => Ok(()),
+            // A `CheckedCast` over numeric generics must still have its cast validated, but its
+            // `to` side is a type-level numeric value that `convert_type` cannot lower, so check
+            // it rather than convert it.
             HirType::CheckedCast { from, to } => {
                 Self::check_checked_cast(from, to, location)?;
-                Self::check_type(to, location)
+                Self::check_type_helper(to, location, seen_types)
             }
-
-            HirType::FmtString(_size, fields) => Self::check_type(fields.as_ref(), location),
-            HirType::Array(element, _length) => {
-                if element.contains_vector() {
-                    return Err(MonomorphizationError::NestedVectors { location });
-                }
-                Self::check_type(element.as_ref(), location)
-            }
-            HirType::Vector(element) => {
-                if element.contains_vector() {
-                    return Err(MonomorphizationError::NestedVectors { location });
-                }
-                Self::check_type(element.as_ref(), location)
-            }
-            HirType::NamedGeneric(NamedGeneric { type_var, .. }) => {
-                if let TypeBinding::Bound(binding) = &*type_var.borrow() {
-                    return Self::check_type(binding, location);
-                }
-
-                Ok(())
-            }
-            HirType::TypeVariable(binding) => {
-                let type_var_kind = match &*binding.borrow() {
-                    TypeBinding::Bound(binding) => {
-                        return Self::check_type(binding, location);
-                    }
-                    TypeBinding::Unbound(_, type_var_kind) => type_var_kind.clone(),
-                };
-
-                // Default any remaining unbound type variables.
-                // This should only happen if the variable in question is unused
-                // and within a larger generic type.
-                let Some(default) = type_var_kind.default_type() else {
-                    return Err(MonomorphizationError::NoDefaultType { location });
-                };
-
-                Self::check_type(&default, location)
-            }
-
-            HirType::DataType(_def, args) => {
-                for arg in args {
-                    Self::check_type(arg, location)?;
-                }
-
-                Ok(())
-            }
-
-            HirType::Alias(_def, args) => {
-                for arg in args {
-                    Self::check_type(arg, location)?;
-                }
-
-                Ok(())
-            }
-
-            HirType::Tuple(fields) => {
-                for field in fields {
-                    Self::check_type(field, location)?;
-                }
-
-                Ok(())
-            }
-
-            HirType::Function(args, ret, env, _) => {
-                for arg in args {
-                    Self::check_type(arg, location)?;
-                }
-
-                Self::check_type(ret, location)?;
-                Self::check_type(env, location)
-            }
-
-            HirType::Reference(element, _mutable) => Self::check_type(element, location),
-            HirType::InfixExpr(lhs, _, rhs, _) => {
-                Self::check_type(lhs, location)?;
-                Self::check_type(rhs, location)
-            }
+            // Type-level numeric values — a `Constant`, an `InfixExpr`, or a numeric generic —
+            // are not lowerable runtime value types and would hit `convert_type`'s
+            // `unreachable!`. They reach `check_type` through numeric generic bindings, so
+            // tolerate them here rather than delegating.
+            _ if matches!(typ.kind(), Kind::Numeric(..)) => Ok(()),
+            _ => Self::convert_type_helper(typ.as_ref(), location, seen_types).map(|_| ()),
         }
     }
 
@@ -2206,13 +2150,15 @@ impl<'interner> Monomorphizer<'interner> {
         function_type: HirType,
         trait_item_id: TraitItemId,
     ) -> Result<ast::Expression, MonomorphizationError> {
+        let location = self.interner.expr_location(&expr_id);
+        let typ = Rc::new(Self::convert_type(&function_type, location)?);
+
         let Definition::Function(func_id) =
             self.lookup_function(func_id, expr_id, &function_type, &[], Some(trait_item_id), true)?
         else {
             unreachable!();
         };
 
-        let location = self.interner.expr_location(&expr_id);
         let name = self.interner.definition_name(trait_item_id.item_id).to_string();
 
         Ok(ast::Expression::Ident(ast::Ident {
@@ -2220,7 +2166,7 @@ impl<'interner> Monomorphizer<'interner> {
             mutable: false,
             location: None,
             name,
-            typ: Rc::new(Self::convert_type(&function_type, location)?),
+            typ,
             id: self.next_ident_id(),
         }))
     }
@@ -2603,9 +2549,9 @@ impl<'interner> Monomorphizer<'interner> {
         new_id
     }
 
-    /// Follow any type variable links within the given TypeBindings to produce
-    /// a new TypeBindings that won't be changed when bindings are pushed or popped
-    /// during {perform,undo}_monomorphization_bindings.
+    /// Follow any type variable links within the given `TypeBindings` to produce
+    /// a new `TypeBindings` that won't be changed when bindings are pushed or popped
+    /// during {perform,undo}_`monomorphization_bindings`.
     ///
     /// Without this, a monomorphized type may fail to propagate passed more than 2
     /// function calls deep since it is possible for a previous link in the chain to
@@ -2757,7 +2703,7 @@ impl<'interner> Monomorphizer<'interner> {
             parameter_types,
             Rc::new(ret_type),
             Rc::new(ast::Type::Unit),
-            false,
+            self.in_unconstrained_function,
         );
 
         let name = lambda_name.to_owned();
@@ -3254,7 +3200,7 @@ fn unwrap_enum_type(
 }
 
 /// Unbinds a trait's `Self` type variable once a trait method is done being monomorphized,
-/// restoring the unbound state it had beforehand. See [Monomorphizer::bind_function_trait_self].
+/// restoring the unbound state it had beforehand. See [`Monomorphizer::bind_function_trait_self`].
 struct TraitSelfBindingGuard {
     self_type_typevar: TypeVariable,
     kind: Kind,
@@ -3594,9 +3540,9 @@ pub(crate) enum TraitItem {
 }
 
 impl TraitItem {
-    /// Get the function ID from a [TraitItem::Method].
+    /// Get the function ID from a [`TraitItem::Method`].
     ///
-    /// Panics if called on a [TraitItem::Constant].
+    /// Panics if called on a [`TraitItem::Constant`].
     pub(crate) fn unwrap_method(&self) -> node_interner::FuncId {
         match self {
             TraitItem::Method(func_id) => *func_id,

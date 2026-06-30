@@ -71,6 +71,20 @@ fn resolve_fmt_strings() {
 }
 
 #[test]
+fn comptime_fmt_string_with_duplicate_name_keeps_all_captures() {
+    let src = r#"
+    fn main() {
+        let s = comptime {
+            let n: u8 = 7;
+            f"a{n}b{n}c"
+        };
+        let _: fmtstr<9, (u8, u8)> = s;
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
 fn resolve_fmt_string_with_global() {
     let src = r#"
     global VALUE: u32 = 42;
@@ -379,6 +393,20 @@ fn let_comptime_block_inner_semicolon_unused_warning() {
 }
 
 #[test]
+fn comptime_var_not_defined() {
+    let src = r#"
+        fn main() {
+            comptime {
+                foo();
+                ^^^ cannot find `foo` in this scope
+                ~~~ not found in this scope
+            }
+        }
+    "#;
+    check_errors(src);
+}
+
+#[test]
 fn let_comptime_block_semicolon_no_warning() {
     let src = r#"
         fn main() {
@@ -522,4 +550,30 @@ fn does_not_trigger_unnecessary_mut_if_mut_self_method_is_called() {
     }
     "#;
     assert_no_errors(src);
+}
+
+#[test]
+fn unresolved_path_prefix_reports_missing_segment() {
+    let src = r#"
+    fn main() {
+        let _ = nonexistent::foo();
+                ^^^^^^^^^^^ Could not resolve 'nonexistent' in path
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn value_used_as_path_prefix_reports_that_segment() {
+    // The prefix resolves (to a function) but a value can't carry an associated item, so the path
+    // names nothing; the error points at that segment.
+    let src = r#"
+    fn helper() {}
+
+    fn main() {
+        let _ = helper::foo();
+                ^^^^^^ Could not resolve 'helper' in path
+    }
+    "#;
+    check_errors(src);
 }

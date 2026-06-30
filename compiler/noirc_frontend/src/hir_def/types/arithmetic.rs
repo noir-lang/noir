@@ -32,12 +32,12 @@ impl Type {
         self.follow_bindings().canonicalize_helper(false, run_simplifications)
     }
 
-    /// Only simplify constants and drop/skip any CheckedCast's
+    /// Only simplify constants and drop/skip any `CheckedCast`'s
     pub(crate) fn canonicalize_checked(&self) -> Type {
         self.follow_bindings().canonicalize_checked_helper()
     }
 
-    /// Only simplify constants and drop/skip any CheckedCast's
+    /// Only simplify constants and drop/skip any `CheckedCast`'s
     fn canonicalize_checked_helper(&self) -> Type {
         let found_checked_cast = true;
         let run_simplifications = false;
@@ -45,7 +45,7 @@ impl Type {
         self.canonicalize_helper(found_checked_cast, run_simplifications)
     }
 
-    /// Run all simplifications and drop/skip any CheckedCast's
+    /// Run all simplifications and drop/skip any `CheckedCast`'s
     fn canonicalize_unchecked(&self) -> Type {
         let found_checked_cast = true;
         let run_simplifications = true;
@@ -53,13 +53,13 @@ impl Type {
         self.canonicalize_helper(found_checked_cast, run_simplifications)
     }
 
-    /// If `found_checked_cast`, then drop additional CheckedCast's
+    /// If `found_checked_cast`, then drop additional `CheckedCast`'s
     ///
     /// If `run_simplifications` is false, then only:
     /// - Attempt to evaluate each sub-expression to a constant
-    /// - Drop nested CheckedCast's
+    /// - Drop nested `CheckedCast`'s
     ///
-    /// Otherwise also attempt try_simplify_partial_constants, sort_commutative,
+    /// Otherwise also attempt `try_simplify_partial_constants`, `sort_commutative`,
     /// and other simplifications
     fn canonicalize_helper(&self, found_checked_cast: bool, run_simplifications: bool) -> Type {
         match self {
@@ -767,8 +767,7 @@ mod proptests {
             }
             Type::Constant(value) => {
                 let integer_type_suffix = value.integer_type_suffix();
-                let field = value.as_field();
-                let literal = Literal::Integer(field, Some(integer_type_suffix));
+                let literal = Literal::Integer(value.to_bigint(), Some(integer_type_suffix));
                 ExpressionKind::Literal(literal)
             }
             Type::TypeVariable(type_var) => unimplemented!(

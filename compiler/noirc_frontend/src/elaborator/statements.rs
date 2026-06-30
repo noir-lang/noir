@@ -121,8 +121,8 @@ impl Elaborator<'_> {
     }
 
     /// Elaborate a local or global let statement.
-    /// If this is a global let, the DefinitionId of the global is specified so that
-    /// elaborate_pattern can create a Global definition kind with the correct ID
+    /// If this is a global let, the `DefinitionId` of the global is specified so that
+    /// `elaborate_pattern` can create a Global definition kind with the correct ID
     /// instead of a local one with a fresh ID.
     #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn elaborate_let(
@@ -375,7 +375,7 @@ impl Elaborator<'_> {
         }
     }
 
-    /// Convert a HIR lvalue into a read expression, reusing the same ident ExprIds.
+    /// Convert a HIR lvalue into a read expression, reusing the same ident `ExprIds`.
     /// This is used to build the read side of a desugared op-assign without re-evaluating
     /// any index sub-expressions.
     fn hir_lvalue_as_expr(&mut self, lvalue: &HirLValue) -> ExprId {
@@ -562,14 +562,15 @@ impl Elaborator<'_> {
             });
         }
 
+        // The condition is evaluated once per loop, however any `break` or `continue` in it
+        // targets the enclosing loop, so we have to elaborate it outside the scope of this loop.
+        let location = while_.condition.type_location();
+        let (condition, cond_type) = self.elaborate_expression(while_.condition);
+        self.unify_or_type_mismatch(&cond_type, &Type::Bool, location);
+
         let old_loop = std::mem::take(&mut self.current_loop);
         self.current_loop = Some(Loop { is_for: false, has_break: false });
         self.push_scope();
-
-        let location = while_.condition.type_location();
-        let (condition, cond_type) = self.elaborate_expression(while_.condition);
-
-        self.unify_or_type_mismatch(&cond_type, &Type::Bool, location);
 
         let block_location = while_.body.type_location();
         let (block, block_type) = self.elaborate_expression(while_.body);
@@ -623,7 +624,7 @@ impl Elaborator<'_> {
     }
 
     /// Elaborates an lvalue returning:
-    /// - The HirLValue equivalent of the given `lvalue`
+    /// - The `HirLValue` equivalent of the given `lvalue`
     /// - The type being assigned to
     /// - Whether the underlying variable is mutable
     /// - A vector of new statements which need to prefix the resulting assign statement.

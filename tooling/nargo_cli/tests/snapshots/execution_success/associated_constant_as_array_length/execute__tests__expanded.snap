@@ -1,0 +1,17 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+trait HasSize {
+    let SIZE: u32;
+}
+
+struct Packet {}
+
+impl HasSize for Packet {
+    let SIZE: u32 = 4;
+}
+
+global N: u32 = 4;
+
+fn main(_a: [Field; 4]) {}

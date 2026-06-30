@@ -83,8 +83,8 @@ impl Elaborator<'_> {
         self.interner.get_trait(trait_id)
     }
 
-    /// For each [crate::elaborator::LambdaContext] on the lambda stack with a scope index higher than that
-    /// of the variable, add the [crate::elaborator::HirIdent] to the list of captures.
+    /// For each [`crate::elaborator::LambdaContext`] on the lambda stack with a scope index higher than that
+    /// of the variable, add the [`crate::elaborator::HirIdent`] to the list of captures.
     #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn check_if_variable_is_captured_by_closure(&mut self, variable: &Variable) {
         // Only local variables can be captured by closures.
@@ -134,7 +134,7 @@ impl Elaborator<'_> {
         }
     }
 
-    /// Try to look up a [TypedPath] as a value (a global, a numeric type alias or a function).
+    /// Try to look up a [`TypedPath`] as a value (a global, a numeric type alias or a function).
     /// If the path resolves to an item that is not a value (for example a struct, an enum,
     /// a type alias, etc.), returns a `ResolverError`. `ResolverError` is also returned
     /// when no item is found.
@@ -154,7 +154,7 @@ impl Elaborator<'_> {
 
         let expected = "value";
         match item {
-            PathResolutionItem::Global(global) => {
+            PathResolutionItem::Global(global) | PathResolutionItem::EnumVariant(global) => {
                 let global = self.interner.get_global(global);
                 let item_as_value = ItemAsValue::Definition { id: global.definition_id, item };
                 Ok(item_as_value)
@@ -306,10 +306,16 @@ impl Elaborator<'_> {
             Ok(PathResolutionItem::Type(struct_id)) => {
                 let struct_type = self.get_type(struct_id);
                 let generics = struct_type.borrow().instantiate(self.interner);
-                Some(Type::DataType(struct_type, generics))
+                let typ = Type::DataType(struct_type, generics);
+                self.check_comptime_type_in_non_comptime_item(&typ, location);
+                Some(typ)
             }
             Ok(PathResolutionItem::TypeAlias(alias_id)) => {
                 let alias = self.interner.get_type_alias(alias_id);
+                self.check_comptime_type_in_non_comptime_item(
+                    &Type::Alias(alias.clone(), Vec::new()),
+                    location,
+                );
                 let alias = alias.borrow();
                 Some(alias.instantiate(self.interner))
             }

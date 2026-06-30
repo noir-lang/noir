@@ -665,9 +665,9 @@ fn memory_operations() {
     assert_eq!(witness_map[&Witness(8)], FieldElement::from(6u128));
 }
 
-/// Whether to use a FunctionInput::constant or FunctionInput::witness:
+/// Whether to use a `FunctionInput::constant` or `FunctionInput::witness`:
 ///
-/// (value, use_constant)
+/// (value, `use_constant`)
 type ConstantOrWitness = (FieldElement, bool);
 
 // For each ConstantOrWitness,
