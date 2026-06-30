@@ -140,6 +140,41 @@ fn max_len_docs_example() {
 }
 
 #[test]
+fn set_len_docs_example() {
+    // docs:start:bounded-vec-set-len-example
+    let mut v: BoundedVec<Field, 10> = BoundedVec::from_array([1, 2, 3, 4, 5]);
+
+    v.set_unchecked(5, 6);
+    v.set_unchecked(6, 7);
+    v.set_unchecked(7, 8);
+    assert(v.len() == 5);
+
+    // Grow the length to expose the elements written above.
+    v.set_len(8);
+    assert(v.len() == 8);
+    assert(v.get(7) == 8);
+
+    // The length can also be reduced.
+    v.set_len(2);
+    assert(v.len() == 2);
+    // docs:end:bounded-vec-set-len-example
+}
+
+#[test]
+fn truncate_docs_example() {
+    // docs:start:bounded-vec-truncate-example
+    let mut v: BoundedVec<Field, 10> = BoundedVec::from_array([1, 2, 3, 4, 5]);
+
+    v.truncate(3);
+    assert(v.len() == 3);
+
+    // Truncating to a length greater than the current length is a no-op.
+    v.truncate(8);
+    assert(v.len() == 3);
+    // docs:end:bounded-vec-truncate-example
+}
+
+#[test]
 fn storage_docs_example() {
     // docs:start:bounded-vec-storage-example
     let mut v: BoundedVec<Field, 5> = BoundedVec::new();

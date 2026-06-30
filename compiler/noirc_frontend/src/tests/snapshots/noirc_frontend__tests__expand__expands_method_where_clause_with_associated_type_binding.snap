@@ -1,0 +1,32 @@
+---
+source: compiler/noirc_frontend/src/tests/expand.rs
+expression: expanded
+---
+trait Foo {
+    type Assoc;
+
+    fn get(self) -> Self::Assoc;
+}
+
+impl Foo for Field {
+    type Assoc = Self;
+
+    fn get(self) -> Self {
+        self
+    }
+}
+
+struct W<T> {
+    x: T,
+}
+
+impl<T> W<T> where T: Foo {
+    fn m(self) -> Field where T: Foo<Assoc = Field> {
+        self.x.get()
+    }
+}
+
+fn main() {
+    let w: W<Field> = W::<Field> { x: 1_Field};
+    let _: Field = w.m();
+}

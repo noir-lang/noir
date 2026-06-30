@@ -187,7 +187,6 @@ fn uses_self_type_in_trait_where_clause() {
                               ~~~~~ required by this bound in `Foo`
         fn foo(self) -> bool {
             self.trait_func()
-            ^^^^^^^^^^^^^^^^^ No method named 'trait_func' found for type 'Bar'
         }
     }
 
@@ -270,7 +269,7 @@ fn as_trait_path_self_type() {
     assert_no_errors(src);
 }
 
-/// Regression test for https://github.com/noir-lang/noir/issues/9562
+/// Regression test for <https://github.com/noir-lang/noir/issues/9562>
 #[test]
 fn as_trait_path_with_method_turbofish() {
     let src = r#"
@@ -291,7 +290,7 @@ fn as_trait_path_with_method_turbofish() {
     assert_no_errors(src);
 }
 
-/// Regression test for https://github.com/noir-lang/noir/issues/12395
+/// Regression test for <https://github.com/noir-lang/noir/issues/12395>
 #[test]
 fn as_trait_path_with_turbofish_no_args() {
     let src = r#"
@@ -312,7 +311,7 @@ fn as_trait_path_with_turbofish_no_args() {
     assert_no_errors(src);
 }
 
-/// Regression test for https://github.com/noir-lang/noir/issues/12395
+/// Regression test for <https://github.com/noir-lang/noir/issues/12395>
 #[test]
 fn as_trait_path_with_numeric_generic_turbofish() {
     let src = r#"
@@ -331,7 +330,7 @@ fn as_trait_path_with_numeric_generic_turbofish() {
     assert_no_errors(src);
 }
 
-/// Regression test for https://github.com/noir-lang/noir/issues/12395
+/// Regression test for <https://github.com/noir-lang/noir/issues/12395>
 #[test]
 fn as_trait_path_with_mixed_type_and_numeric_generic_turbofish() {
     let src = r#"
@@ -371,7 +370,7 @@ fn as_trait_path_turbofish_on_associated_constant_errors() {
     check_errors(src);
 }
 
-/// Regression test for https://github.com/noir-lang/noir/issues/10436
+/// Regression test for <https://github.com/noir-lang/noir/issues/10436>
 #[test]
 fn self_with_associated_type_method_call_on_non_primitives() {
     // Self::AssocType::method() should work for non-primitives
@@ -406,7 +405,7 @@ fn self_with_associated_type_method_call_on_non_primitives() {
     assert_no_errors(src);
 }
 
-/// Regression test for https://github.com/noir-lang/noir/issues/10434
+/// Regression test for <https://github.com/noir-lang/noir/issues/10434>
 #[test]
 fn self_with_associated_type_method_call_on_primitive() {
     // Self::AssocType::method() should work for primitives
@@ -437,7 +436,7 @@ fn self_with_associated_type_method_call_on_primitive() {
     assert_no_errors(src);
 }
 
-/// Test that Self::AssocType::method() with generic methods works when generics are inferable.
+/// Test that `Self::AssocType::method()` with generic methods works when generics are inferable.
 #[test]
 fn self_with_associated_type_method_call_with_inferable_generics() {
     // This tests a case where the method has generics but they can be inferred from return type.
@@ -475,7 +474,7 @@ fn self_with_associated_type_method_call_with_inferable_generics() {
     assert_no_errors(src);
 }
 
-/// Turbofish on Self::AssocType::method::<T>() is correctly handled.
+/// Turbofish on `Self::AssocType::method::<T>()` is correctly handled.
 /// When turbofish is explicitly provided, it takes precedence over inference.
 #[test]
 fn self_with_associated_type_method_call_turbofish_type_mismatch() {
@@ -609,7 +608,7 @@ fn self_resolves_correctly_when_multiple_trait_impls_exist() {
     assert_no_errors(src);
 }
 
-/// Regression test for https://github.com/noir-lang/noir/issues/11539
+/// Regression test for <https://github.com/noir-lang/noir/issues/11539>
 #[test]
 fn generic_substitution_with_turbofish_trait_method() {
     let src = r#"
@@ -630,4 +629,68 @@ fn generic_substitution_with_turbofish_trait_method() {
     fn main() {}
     "#;
     assert_no_errors(src);
+}
+
+#[test]
+fn unresolved_self_item_in_trait_definition_points_at_item() {
+    // In a trait definition `Self` is the trait itself, so `Self::nope` can only be a trait static
+    // method or associated constant. When it is neither, the error points at the item, not `Self`.
+    let src = r#"
+    trait MyTrait {
+        fn f() -> Field {
+            Self::nope()
+                  ^^^^ Could not resolve 'nope' in path
+        }
+    }
+
+    struct S {}
+
+    impl MyTrait for S {}
+
+    fn main() {
+        let _ = S::f();
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn unresolved_bounded_generic_item_points_at_item() {
+    // `T::nope` on a bounded generic must be a method or associated constant reached through a
+    // bound; when it is neither, the error points at the item, not the generic `T`.
+    let src = r#"
+    trait MyTrait {}
+
+    struct S {}
+
+    impl MyTrait for S {}
+
+    fn foo<T>() -> Field where T: MyTrait {
+        T::nope()
+           ^^^^ Could not resolve 'nope' in path
+    }
+
+    fn main() {
+        let _ = foo::<S>();
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn unresolved_trait_item_points_at_item() {
+    let src = r#"
+    trait MyTrait {}
+
+    struct S {}
+
+    impl MyTrait for S {}
+
+    fn main() {
+        let _ = S {};
+        MyTrait::nope()
+                 ^^^^ Could not resolve 'nope' in path
+    }
+    "#;
+    check_errors(src);
 }

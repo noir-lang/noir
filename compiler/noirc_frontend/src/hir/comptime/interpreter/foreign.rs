@@ -19,9 +19,9 @@ use crate::{
 use super::{
     Interpreter,
     builtin::builtin_helpers::{
-        check_arguments, check_one_argument, check_three_arguments, check_two_arguments,
-        get_array_map, get_field, get_fixed_array_map, get_struct_field, get_struct_fields, get_u8,
-        get_u32, get_u64, to_struct,
+        check_arguments, check_one_argument, check_return_type_shape, check_three_arguments,
+        check_two_arguments, get_array_map, get_field, get_fixed_array_map, get_struct_field,
+        get_struct_fields, get_u8, get_u32, get_u64, to_struct, type_shape,
     },
 };
 
@@ -46,7 +46,8 @@ fn call_foreign(
     return_type: Type,
     location: Location,
 ) -> IResult<Value> {
-    match name {
+    let expected_return_shape = type_shape(&return_type);
+    let result = match name {
         "aes128_encrypt" => aes128_encrypt(args, location),
         "blake2s" => blake_hash(args, location, acvm::blackbox_solver::blake2s),
         "blake3" => blake_hash(args, location, acvm::blackbox_solver::blake3),
@@ -61,7 +62,7 @@ fn call_foreign(
         "embedded_curve_add" => embedded_curve_add(args, return_type, location),
         "multi_scalar_mul" => multi_scalar_mul(args, return_type, location),
         "poseidon2_permutation" => poseidon2_permutation(args, location),
-        "poseidon2_config_state_size" => poseidon2_config_state_size(args, location),
+        "poseidon2_config_state_size" => poseidon2_config_state_size(&args, location),
         "keccakf1600" => keccakf1600(args, location),
         "sha256_compression" => sha256_compression(args, location),
         _ => {
@@ -77,21 +78,56 @@ fn call_foreign(
             let item = format!("Attempting to evaluate foreign function '{name}'");
             Err(InterpreterError::InvalidInComptimeContext { item, location, explanation })
         }
-    }
+    }?;
+
+    check_return_type_shape(&result, expected_return_shape, location)?;
+    Ok(result)
 }
 
 /// `pub fn aes128_encrypt<let N: u32>(input: [u8; N], iv: [u8; 16], key: [u8; 16]) -> [u8]`
 fn aes128_encrypt(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
-    let (inputs, iv, key) = check_three_arguments(arguments, location)?;
+    let (inputs_arg, iv_arg, key_arg) = check_three_arguments(arguments, location)?;
+    let inputs_location = inputs_arg.1;
+    let iv_location = iv_arg.1;
+    let key_location = key_arg.1;
 
-    let (inputs, _) = get_array_map(inputs, get_u8)?;
-    let (iv, _) = get_fixed_array_map(iv, get_u8)?;
-    let (key, _) = get_fixed_array_map(key, get_u8)?;
+    let (inputs, _) = get_array_map(inputs_arg, get_u8)?;
+    if !inputs.len().is_multiple_of(16) {
+        return Err(aes128_error(
+            format!("input length {} is not a multiple of 16", inputs.len()),
+            inputs_location,
+        ));
+    }
+
+    let iv = get_aes128_block(iv_arg, "iv", iv_location)?;
+    let key = get_aes128_block(key_arg, "key", key_location)?;
 
     let output = acvm::blackbox_solver::aes128_encrypt(&inputs, iv, key)
-        .map_err(|e| InterpreterError::BlackBoxError(e, location))?;
+        .map_err(|e| InterpreterError::BlackBoxError(e, inputs_location))?;
 
     Ok(to_byte_array(&output))
+}
+
+/// Reads an AES128 `iv` or `key` argument as a `[u8; 16]`, reporting an AES-tagged
+/// diagnostic at the argument location if its length is wrong. This mirrors the
+/// per-argument validation done by the Brillig VM's blackbox handler.
+fn get_aes128_block(
+    argument: (Value, Location),
+    name: &str,
+    location: Location,
+) -> IResult<[u8; 16]> {
+    let (values, _) = get_array_map(argument, get_u8)?;
+    let len = values.len();
+    values
+        .try_into()
+        .map_err(|_| aes128_error(format!("Invalid {name} length {len}, expected 16"), location))
+}
+
+fn aes128_error(reason: String, location: Location) -> InterpreterError {
+    InterpreterError::BlackBoxError(
+        BlackBoxResolutionError::Failed(acvm::acir::BlackBoxFunc::AES128Encrypt, reason),
+        location,
+    )
 }
 
 /// Run one of the Blake hash functions.
@@ -235,10 +271,10 @@ fn poseidon2_permutation(arguments: Vec<(Value, Location)>, location: Location) 
 }
 
 fn poseidon2_config_state_size(
-    arguments: Vec<(Value, Location)>,
+    arguments: &[(Value, Location)],
     location: Location,
 ) -> IResult<Value> {
-    check_argument_count(0, &arguments, location)?;
+    check_argument_count(0, arguments, location)?;
     let size = bn254_blackbox_solver::poseidon2_config_state_size();
     Ok(Value::u32(size))
 }

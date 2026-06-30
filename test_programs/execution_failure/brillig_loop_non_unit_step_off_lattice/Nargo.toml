@@ -1,0 +1,6 @@
+[package]
+name = "brillig_loop_non_unit_step_off_lattice"
+type = "bin"
+authors = [""]
+
+[dependencies]

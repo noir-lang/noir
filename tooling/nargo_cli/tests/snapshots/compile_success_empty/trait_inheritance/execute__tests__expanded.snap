@@ -25,10 +25,6 @@ impl Foo for Struct {
 }
 
 impl Bar for Struct {
-    fn bar(self) -> Field {
-        self.foo() + 1_Field
-    }
-
     fn baz(self) -> Field {
         self.foo() + 2_Field
     }

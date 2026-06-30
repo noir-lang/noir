@@ -119,7 +119,7 @@ pub enum NumericValue {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ReferenceValue {
     /// This is included mostly for debugging to distinguish different
-    /// ReferenceValues which store the same element.
+    /// `ReferenceValues` which store the same element.
     pub original_id: ValueId,
 
     /// A value of `None` here means this allocation is currently uninitialized
@@ -136,8 +136,8 @@ pub struct ArrayValue {
     pub elements: Shared<Vec<Value>>,
 
     /// The `Shared` type contains its own reference count but we need to track
-    /// the reference count separate to ensure it is only changed by IncrementRc and
-    /// DecrementRc instructions.
+    /// the reference count separate to ensure it is only changed by `IncrementRc` and
+    /// `DecrementRc` instructions.
     pub rc: Shared<u32>,
 
     pub element_types: Arc<CompositeType>,
@@ -290,11 +290,25 @@ impl Value {
         assert!(!element_types.is_empty());
 
         let length = assert_u32(elements.len() / element_types.len());
+        Self::array_with_length(elements, element_types, SemanticLength(length))
+    }
+
+    /// Build an array value with an explicit semantic length.
+    ///
+    /// Unlike [`Value::array`], this supports zero-sized element types (empty `element_types`),
+    /// where the length cannot be recovered by dividing the flattened element count by the number
+    /// of element types.
+    pub(crate) fn array_with_length(
+        elements: Vec<Value>,
+        element_types: Vec<Type>,
+        length: SemanticLength,
+    ) -> Self {
+        assert_eq!(length.0 as usize * element_types.len(), elements.len());
         Self::ArrayOrVector(ArrayValue {
             elements: Shared::new(elements),
             rc: Shared::new(1),
             element_types: Arc::new(element_types),
-            length: Some(SemanticLength(length)),
+            length: Some(length),
         })
     }
 
@@ -330,7 +344,7 @@ impl Value {
                     vecmap(element_types.iter(), |typ| Self::uninitialized(typ, id));
                 let elements = std::iter::repeat_n(first_elements, assert_usize(length.0));
                 let elements = elements.flatten().collect();
-                Self::array(elements, element_types.to_vec())
+                Self::array_with_length(elements, element_types.to_vec(), *length)
             }
             Type::Vector(element_types) => Self::uninitialized_vector(element_types, 0, id),
             Type::Function => Value::ForeignFunction("uninitialized!".to_string()),

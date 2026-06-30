@@ -21,6 +21,7 @@ use crate::{
 };
 
 use noirc_errors::Location;
+use num_bigint::BigInt;
 
 pub(super) fn deprecated_function(interner: &NodeInterner, expr: ExprId) -> Option<TypeCheckError> {
     let HirExpression::Ident(HirIdent { location, id, impl_kind: _ }, _) =
@@ -134,6 +135,54 @@ pub(super) fn oracle_not_marked_unconstrained(
         let ident = func_meta_name_ident(func, modifiers);
         let location = attribute.location;
         Some(ResolverError::OracleMarkedAsConstrained { ident, location })
+    } else {
+        None
+    }
+}
+
+/// Oracle definitions (functions with the `#[oracle]` attribute) must be free functions.
+///
+/// An oracle defined as a method of a regular impl or a trait impl is rejected here.
+/// Generic dispatch through a trait-impl oracle method panics during monomorphization, and
+/// binding an oracle to a `Self` type has no meaningful semantics: the `#[oracle(name)]`
+/// attribute already names the single foreign call the function lowers to.
+///
+/// `self_type` is set for both regular and trait impls; the parser already rejects attributes
+/// on trait method declarations, so a trait that is not an impl never reaches here.
+pub(super) fn oracle_must_be_a_free_function(
+    func: &FuncMeta,
+    modifiers: &FunctionModifiers,
+) -> Option<ResolverError> {
+    let attribute = modifiers.attributes.function()?;
+    if !attribute.kind.is_oracle() {
+        return None;
+    }
+
+    if func.self_type.is_some() {
+        let ident = func_meta_name_ident(func, modifiers);
+        Some(ResolverError::OracleNotAFreeFunction { ident, location: attribute.location })
+    } else {
+        None
+    }
+}
+
+/// Oracle definitions (functions with the `#[oracle]` attribute) cannot be marked as comptime.
+///
+/// An oracle is resolved at runtime by the external oracle handler, whereas a `comptime` function
+/// is evaluated at compile time, so the two are fundamentally incompatible.
+pub(super) fn oracle_marked_as_comptime(
+    modifiers: &FunctionModifiers,
+    func: &FuncMeta,
+) -> Option<ResolverError> {
+    if !modifiers.is_comptime {
+        return None;
+    }
+
+    let attribute = modifiers.attributes.function()?;
+    if attribute.kind.is_oracle() {
+        let ident = func_meta_name_ident(func, modifiers);
+        let location = attribute.location;
+        Some(ResolverError::OracleMarkedAsComptime { ident, location })
     } else {
         None
     }
@@ -253,6 +302,25 @@ pub(super) fn oracle_returns_reference(
     }
 }
 
+/// Oracle functions cannot accept references as parameters.
+///
+/// Oracle are foreign functions running in an unknown execution context which
+/// does not have access to Brillig internal memory
+pub(super) fn oracle_parameter_is_reference(
+    func: &FuncMeta,
+    modifiers: &FunctionModifiers,
+) -> Option<ResolverError> {
+    let attribute = modifiers.attributes.function()?;
+    if !attribute.kind.is_oracle() {
+        return None;
+    }
+
+    let reference_parameter = func.parameters.iter().find(|(_, typ, _)| typ.contains_reference());
+    reference_parameter.map(|(pattern, _, _)| ResolverError::OracleParameterIsReference {
+        location: pattern.location(),
+    })
+}
+
 /// The `#[pure]` attribute is only valid on functions also marked `#[oracle(...)]`
 pub(super) fn pure_attribute_only_on_oracle(
     func: &FuncMeta,
@@ -324,6 +392,8 @@ pub(super) fn unconstrained_function_args(
 /// * cannot return vectors
 /// * cannot return functions
 /// * cannot return types which in general cannot be passed between runtimes, e.g. references
+/// * cannot return enums: their tag is an unconstrained `Field` witness, so a malicious prover
+///   could supply an out-of-range tag and force the wrong match arm in the constrained caller.
 pub(super) fn unconstrained_function_return(
     return_type: &Type,
     location: Location,
@@ -334,12 +404,14 @@ pub(super) fn unconstrained_function_return(
         Some(TypeCheckError::UnconstrainedFunctionReturnToConstrained { location })
     } else if return_type.contains_reference() {
         Some(TypeCheckError::UnconstrainedReferenceToConstrained { location })
+    } else if return_type.contains_enum() {
+        Some(TypeCheckError::UnconstrainedEnumReturnToConstrained { location })
     } else {
         None
     }
 }
 
-/// Errors if func_expr_id is `std::verify_proof_with_type`
+/// Errors if `func_expr_id` is `std::verify_proof_with_type`
 pub(super) fn error_if_verify_proof_with_type(
     interner: &NodeInterner,
     func_expr_id: ExprId,
@@ -414,28 +486,59 @@ pub(super) fn unnecessary_pub_argument(
     }
 }
 
-/// call_data and return_data visibility modifiers are only allowed on entry point functions.
-pub(super) fn databus_on_non_entry_point(
+/// `call_data` marks a parameter and `return_data` a return, so only `call_data` is
+/// meaningful on a parameter, and only on an entry point function.
+pub(super) fn databus_visibility_on_parameter(
     func: &NoirFunction,
     visibility: Visibility,
     visibility_location: Location,
     is_entry_point: bool,
 ) -> Option<ResolverError> {
-    if is_entry_point {
-        return None;
-    }
-
     match visibility {
-        Visibility::CallData(_) | Visibility::ReturnData => {
-            let name = func.name().to_string();
-            let visibility = visibility.to_string();
-            Some(ResolverError::DataBusOnNonEntryPoint {
-                name,
-                location: visibility_location,
-                visibility,
-            })
+        Visibility::ReturnData => Some(ResolverError::DataBusOnWrongPosition {
+            visibility: visibility.to_string(),
+            position: "a parameter",
+            allowed: "the return value",
+            location: visibility_location,
+        }),
+        Visibility::CallData(_) if !is_entry_point => {
+            Some(databus_on_non_entry_point(func, visibility, visibility_location))
         }
         _ => None,
+    }
+}
+
+/// `return_data` marks a return and `call_data` a parameter, so only `return_data` is
+/// meaningful on a return value, and only on an entry point function.
+pub(super) fn databus_visibility_on_return(
+    func: &NoirFunction,
+    visibility: Visibility,
+    visibility_location: Location,
+    is_entry_point: bool,
+) -> Option<ResolverError> {
+    match visibility {
+        Visibility::CallData(_) => Some(ResolverError::DataBusOnWrongPosition {
+            visibility: visibility.to_string(),
+            position: "the return value",
+            allowed: "a parameter",
+            location: visibility_location,
+        }),
+        Visibility::ReturnData if !is_entry_point => {
+            Some(databus_on_non_entry_point(func, visibility, visibility_location))
+        }
+        _ => None,
+    }
+}
+
+fn databus_on_non_entry_point(
+    func: &NoirFunction,
+    visibility: Visibility,
+    visibility_location: Location,
+) -> ResolverError {
+    ResolverError::DataBusOnNonEntryPoint {
+        name: func.name().to_string(),
+        location: visibility_location,
+        visibility: visibility.to_string(),
     }
 }
 
@@ -463,7 +566,7 @@ pub(crate) fn check_varargs(
     None
 }
 
-/// Checks if an ExprId, which has to be an integer literal, fits in its type.
+/// Checks if an `ExprId`, which has to be an integer literal, fits in its type.
 pub(crate) fn check_integer_literal_fits_its_type(
     interner: &NodeInterner,
     expr_id: &ExprId,
@@ -477,7 +580,7 @@ pub(crate) fn check_integer_literal_fits_its_type(
             Type::Integer(Signedness::Unsigned, bit_size) => {
                 let bit_size: u32 = bit_size.into();
                 let max = if bit_size == 128 { u128::MAX } else { 2u128.pow(bit_size) - 1 };
-                if value > max.into() {
+                if value < BigInt::ZERO || value > BigInt::from(max) {
                     return Some(TypeCheckError::IntegerLiteralDoesNotFitItsType {
                         expr: value,
                         ty: typ,
@@ -491,19 +594,13 @@ pub(crate) fn check_integer_literal_fits_its_type(
                 let modulus = 2u128.pow(bit_count - 1);
                 let max = modulus - 1;
 
-                if value > max.into() {
-                    // FieldElement negatives are very large values, to test if this is a negative
-                    // within range, add the bit modulus back to it and check if it is within range
-                    // now or not.
-                    let wrapped = value + modulus.into();
-                    if wrapped > max.into() {
-                        return Some(TypeCheckError::IntegerLiteralDoesNotFitItsType {
-                            expr: value,
-                            ty: typ,
-                            range: format!("-{modulus}..={max}"),
-                            location,
-                        });
-                    }
+                if value > BigInt::from(max) || value < -BigInt::from(modulus) {
+                    return Some(TypeCheckError::IntegerLiteralDoesNotFitItsType {
+                        expr: value,
+                        ty: typ,
+                        range: format!("-{modulus}..={max}"),
+                        location,
+                    });
                 }
             }
             _ => (),

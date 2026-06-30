@@ -217,8 +217,8 @@ type NewCallSitesMap = HashMap<FunctionId, HashMap<FunctionId, FunctionId>>;
 
 /// Clones new functions and returns a mapping representing the calls to update.
 ///
-/// Returns a set of [CallToUpdate] containing all information needed to rewrite
-/// a call site and a [NewCallSitesMap]
+/// Returns a set of [`CallToUpdate`] containing all information needed to rewrite
+/// a call site and a [`NewCallSitesMap`]
 fn build_calls_to_update(
     ssa: &mut Ssa,
     functions_to_clone_map: HashMap<FunctionId, Vec<FunctionId>>,
@@ -285,7 +285,7 @@ struct CallToUpdate {
 /// set in the `calls_to_update` map build the set of call sites
 /// that should be rewritten.
 /// Upon finding call sites that should be rewritten this method will also
-/// update the mapping of old functions to new functions in the supplied [NewCallSitesMap].
+/// update the mapping of old functions to new functions in the supplied [`NewCallSitesMap`].
 fn collect_callsites_to_rewrite(
     function: &Function,
     entry_point: FunctionId,
@@ -370,7 +370,7 @@ pub(crate) fn get_brillig_entry_points_with_reachability(
     get_brillig_entry_points_with_recursive(functions, main_id, call_graph, &recursive_functions)
 }
 
-/// Like [get_brillig_entry_points_with_reachability], but uses a precomputed set of recursive functions
+/// Like [`get_brillig_entry_points_with_reachability`], but uses a precomputed set of recursive functions
 /// to avoid recomputing SCCs.
 pub(crate) fn get_brillig_entry_points_with_recursive(
     functions: &BTreeMap<FunctionId, Function>,
@@ -759,7 +759,7 @@ mod tests {
         // is recursive.
         // f1 and f2 in the SSA below are recursive with themselves and another entry point.
         let src = "
-        acir(inline) impure fn main f0 {
+        acir(inline) predicate_pure fn main f0 {
           b0():
             v3 = call f1(u1 1, u32 5) -> u1
             constrain v3 == u1 0
@@ -767,7 +767,7 @@ mod tests {
             constrain v6 == u1 0
             return
         }
-        brillig(inline) impure fn func_1 f1 {
+        brillig(inline) predicate_pure fn func_1 f1 {
           b0(v0: u1, v1: u32):
             v4 = eq v1, u32 0
             jmpif v4 then: b1(), else: b2()
@@ -781,7 +781,7 @@ mod tests {
           b3(v2: u1):
             return v2
         }
-        brillig(inline) impure fn func_2 f2 {
+        brillig(inline) predicate_pure fn func_2 f2 {
           b0(v0: u1, v1: u32):
             v4 = eq v1, u32 0
             jmpif v4 then: b1(), else: b2()
@@ -802,8 +802,8 @@ mod tests {
         // We want no shared callees between entry points.
         // Each Brillig entry point (f1 and f2 called from f0) should have its own
         // specialized function call graph.
-        assert_ssa_snapshot!(ssa, @r"
-        acir(inline) impure fn main f0 {
+        assert_ssa_snapshot!(ssa, @"
+        acir(inline) predicate_pure fn main f0 {
           b0():
             v3 = call f1(u1 1, u32 5) -> u1
             constrain v3 == u1 0
@@ -811,7 +811,7 @@ mod tests {
             constrain v6 == u1 0
             return
         }
-        brillig(inline) impure fn func_1 f1 {
+        brillig(inline) predicate_pure fn func_1 f1 {
           b0(v0: u1, v1: u32):
             v4 = eq v1, u32 0
             jmpif v4 then: b1(), else: b2()
@@ -825,7 +825,7 @@ mod tests {
           b3(v2: u1):
             return v2
         }
-        brillig(inline) impure fn func_2 f2 {
+        brillig(inline) predicate_pure fn func_2 f2 {
           b0(v0: u1, v1: u32):
             v4 = eq v1, u32 0
             jmpif v4 then: b1(), else: b2()
@@ -904,18 +904,18 @@ mod tests {
         // except that the one recursive entry point does not recurse on itself directly.
         // f1 is recursive, but only through calling itself in f2.
         let src = "
-        acir(inline) impure fn main f0 {
+        acir(inline) predicate_pure fn main f0 {
           b0():
             call f1(Field 1)
             call f2(Field 1)
             return
         }
-        brillig(inline) impure fn foo f1 {
+        brillig(inline) predicate_pure fn foo f1 {
           b0(v0: Field):
             call f2(v0)
             return
         }
-        brillig(inline) impure fn bar f2 {
+        brillig(inline) predicate_pure fn bar f2 {
           b0(v0: Field):
             call f1(Field 1)
             call f2(Field 1)
@@ -928,19 +928,19 @@ mod tests {
         // We want no shared callees between entry points.
         // Each Brillig entry point (f1 and f2 called from f0) should have its own
         // specialized function call graph.
-        assert_ssa_snapshot!(ssa, @r"
-        acir(inline) impure fn main f0 {
+        assert_ssa_snapshot!(ssa, @"
+        acir(inline) predicate_pure fn main f0 {
           b0():
             call f1(Field 1)
             call f2(Field 1)
             return
         }
-        brillig(inline) impure fn foo f1 {
+        brillig(inline) predicate_pure fn foo f1 {
           b0(v0: Field):
             call f5(v0)
             return
         }
-        brillig(inline) impure fn bar f2 {
+        brillig(inline) predicate_pure fn bar f2 {
           b0(v0: Field):
             call f4(Field 1)
             call f3(Field 1)

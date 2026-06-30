@@ -18,9 +18,9 @@ use crate::hir::resolution::import::{
 };
 use crate::hir::resolution::visibility::trait_visibility_for_method_is_satisfied;
 
-use crate::ast::{Expression, NoirEnumeration, PathKind, TypeAlias};
+use crate::ast::{DocComment, Expression, NoirEnumeration, PathKind, TypeAlias};
 use crate::node_interner::{
-    FuncId, GlobalId, ModuleAttributes, NodeInterner, ReferenceId, TraitId, TraitImplId,
+    FuncId, GlobalId, ImplId, ModuleAttributes, NodeInterner, ReferenceId, TraitId, TraitImplId,
     TypeAliasId, TypeId,
 };
 
@@ -34,9 +34,12 @@ use crate::parser::{ParserError, SortedModule};
 use noirc_errors::{CustomDiagnostic, Location, Span};
 
 use fm::FileId;
+use indexmap::IndexMap;
 use iter_extended::vecmap;
+use rustc_hash::FxBuildHasher;
 use rustc_hash::FxHashMap as HashMap;
-use std::collections::{BTreeMap, HashSet};
+use rustc_hash::FxHashSet as HashSet;
+use std::collections::BTreeMap;
 use std::fmt::Write;
 use std::ops::IndexMut;
 use std::path::PathBuf;
@@ -104,6 +107,13 @@ pub struct UnresolvedTraitImpl {
     pub resolved_object_type: Option<Type>,
     pub resolved_generics: ResolvedGenerics,
     pub unresolved_associated_types: Vec<(Ident, UnresolvedType)>,
+
+    /// `FuncIds` in `methods.functions` that refer to a trait's own default-method
+    /// `FuncId` because this impl did not override the method. The default body
+    /// has already been elaborated once at the trait definition, so these
+    /// slots must not be re-registered or re-elaborated per impl. Populated by
+    /// `collect_trait_impl_methods`.
+    pub inherited_default_method_func_ids: HashSet<FuncId>,
 }
 
 #[derive(Clone)]
@@ -182,17 +192,26 @@ impl CollectedItems {
     }
 }
 
-/// Maps the type and the module id in which the impl is defined to the functions contained in that
-/// impl along with the generics declared on the impl itself. This also contains the Span
-/// of the object_type of the impl, used to issue an error if the object type fails to resolve.
+/// An inherent `impl` block collected during def collection, before elaboration.
+#[derive(Clone)]
+pub(crate) struct UnresolvedImpl {
+    /// The generics declared on the impl itself, e.g. `T` in `impl<T> Foo<T>`.
+    pub generics: UnresolvedGenerics,
+    pub where_clause: Vec<UnresolvedTraitConstraint>,
+    /// Location of the impl's object type, used to report an error if it fails to resolve.
+    pub object_type_location: Location,
+    pub methods: UnresolvedFunctions,
+    pub impl_id: ImplId,
+    pub doc_comments: Vec<DocComment>,
+}
+
+/// Maps the type and the module id in which an impl is defined to the impls collected for it.
 ///
-/// Note that because these are keyed by unresolved types, the impl map is one of the few instances
-/// of HashMap rather than BTreeMap. For this reason, we should be careful not to iterate over it
-/// since it would be non-deterministic.
-pub(crate) type ImplMap = HashMap<
-    (UnresolvedType, LocalModuleId),
-    Vec<(UnresolvedGenerics, Location, UnresolvedFunctions)>,
->;
+/// The keys are unresolved types, which are not `Ord`, so a `BTreeMap` cannot be used here.
+/// An `IndexMap` is used instead of a `HashMap` because iteration order is observable
+/// (attribute run order, method declaration order). Using an `IndexMap` keeps source-order for evaluation.
+pub(crate) type ImplMap =
+    IndexMap<(UnresolvedType, LocalModuleId), Vec<UnresolvedImpl>, FxBuildHasher>;
 
 /// Wraps a list of compilation errors.
 ///
@@ -387,7 +406,7 @@ impl DefCollector {
                 enums: BTreeMap::new(),
                 type_aliases: BTreeMap::new(),
                 traits: BTreeMap::new(),
-                impls: HashMap::default(),
+                impls: ImplMap::default(),
                 globals: vec![],
                 trait_impls: vec![],
                 module_attributes: vec![],
@@ -395,7 +414,7 @@ impl DefCollector {
         }
     }
 
-    /// Collect all of the definitions in a given crate into a CrateDefMap
+    /// Collect all of the definitions in a given crate into a `CrateDefMap`
     /// Modules which are not a part of the module hierarchy starting with
     /// the root module, will be ignored.
     #[allow(clippy::too_many_arguments)]
@@ -692,8 +711,8 @@ impl DefCollector {
         // method is registered as `Public` in the type's module scope). Compute this before
         // taking a mutable borrow of `context.def_maps` below.
         let importing_module = ModuleId { krate: crate_id, local_id: local_module_id };
-        for (module_def_id, _, _) in resolved_import.namespace.iter_items() {
-            if let ModuleDefId::FunctionId(func_id) = module_def_id
+        for item in resolved_import.namespace.iter_items() {
+            if let ModuleDefId::FunctionId(func_id) = item.id
                 && !trait_visibility_for_method_is_satisfied(
                     func_id,
                     importing_module,
@@ -715,17 +734,24 @@ impl DefCollector {
             errors.push(DefCollectorErrorKind::PathResolutionError(error));
         }
 
+        // An item that resolved alongside a visible colliding item but is not itself visible:
+        // bring it into scope below, but remember that referencing it is a privacy error.
+        if let Some(module_def_id) = resolved_import.deferred_private {
+            current_def_map.index_mut(local_module_id).defer_private_import(module_def_id);
+        }
+
         // Populate module namespaces according to the imports used
         let visibility = collected_import.visibility;
         let is_prelude = collected_import.is_prelude;
-        for (module_def_id, item_visibility, _) in resolved_import.namespace.iter_items() {
-            if item_visibility < visibility {
+        for item in resolved_import.namespace.iter_items() {
+            let module_def_id = item.id;
+            if item.visibility < visibility {
                 errors.push(DefCollectorErrorKind::CannotReexportItemWithLessVisibility {
                     item_name: name.clone(),
                     desired_visibility: visibility,
                 });
             }
-            let visibility = visibility.min(item_visibility);
+            let visibility = visibility.min(item.visibility);
 
             let result = current_def_map.index_mut(local_module_id).import(
                 name.clone(),
@@ -736,12 +762,10 @@ impl DefCollector {
 
             // If we error on path resolution don't also say it's unused (in case it ends up being unused)
             if !has_path_resolution_error {
-                let defining_module = ModuleId { krate: crate_id, local_id: local_module_id };
-
-                context.usage_tracker.add_unused_item(
-                    defining_module,
+                context.usage_tracker.add_unused_import(
+                    importing_module,
                     name.clone(),
-                    UnusedItem::Import,
+                    module_def_id.namespace(),
                     visibility,
                 );
 
@@ -751,12 +775,12 @@ impl DefCollector {
                         module_def_id,
                         file_id,
                         visibility,
-                        Some(defining_module),
+                        Some(importing_module),
                     );
 
                     context.def_interner.add_reexport(
                         module_def_id,
-                        defining_module,
+                        importing_module,
                         name.clone(),
                         visibility,
                     );
@@ -779,16 +803,32 @@ impl DefCollector {
     }
 
     fn check_unused_items(context: &Context, crate_id: CrateId, errors: &mut CompilationErrors) {
-        let unused_imports = context.usage_tracker.unused_items().iter();
-        let unused_imports = unused_imports.filter(|(module_id, _)| module_id.krate == crate_id);
-        let mut unused_errors = unused_imports
+        let in_crate = |module_id: &&ModuleId| module_id.krate == crate_id;
+
+        let unused_definitions = context
+            .usage_tracker
+            .unused_items()
+            .iter()
+            .filter(|(module_id, _)| in_crate(module_id))
             .flat_map(|(_, unused_items)| {
-                unused_items.iter().map(|(ident, unused_item)| {
-                    let ident = ident.clone();
-                    CompilationError::ResolverError(ResolverError::UnusedItem {
-                        ident,
-                        item: *unused_item,
-                    })
+                unused_items.iter().map(|((_namespace, ident), unused_item)| (ident, *unused_item))
+            });
+
+        let unused_imports = context
+            .usage_tracker
+            .unused_imports()
+            .iter()
+            .filter(|(module_id, _)| in_crate(module_id))
+            .flat_map(|(_, names)| {
+                names.keys().map(|(ident, _location)| (ident, UnusedItem::Import))
+            });
+
+        let mut unused_errors = unused_definitions
+            .chain(unused_imports)
+            .map(|(ident, item)| {
+                CompilationError::ResolverError(ResolverError::UnusedItem {
+                    ident: ident.clone(),
+                    item,
                 })
             })
             .collect::<Vec<_>>();
@@ -862,8 +902,7 @@ fn inject_prelude(
 
     assert!(resolved_import.errors.is_empty(), "Tried to add private item to prelude");
 
-    let (module_def_id, _, _) =
-        resolved_import.namespace.types.expect("couldn't resolve std::prelude");
+    let module_def_id = resolved_import.namespace.types.expect("couldn't resolve std::prelude").id;
     let module_id = module_def_id.as_module().expect("std::prelude should be a module");
     let directives = vecmap(context.module(module_id).scope().names(), |path| {
         let mut segments = segments.clone();
@@ -884,8 +923,8 @@ fn inject_prelude(
 }
 
 /// Filter the errors so that:
-/// * if we have any errors which are _not_ [ExpectingOtherError], then we remove all [ExpectingOtherError] instances
-/// * if there are no other kind of errors, then we leave and deduplicate the [ExpectingOtherError]s
+/// * if we have any errors which are _not_ [`ExpectingOtherError`], then we remove all [`ExpectingOtherError`] instances
+/// * if there are no other kind of errors, then we leave and deduplicate the [`ExpectingOtherError`]s
 fn filter_expecting_other_errors(mut errors: Vec<CompilationError>) -> Vec<CompilationError> {
     let has_expected_errors =
         errors.iter().any(|error| !error.is_expecting_other_error() && error.is_error());
@@ -903,7 +942,7 @@ fn filter_expecting_other_errors(mut errors: Vec<CompilationError>) -> Vec<Compi
 /// in the output repeatedly.
 fn dedup_expecting_other_errors(mut errors: Vec<CompilationError>) -> Vec<CompilationError> {
     // Using a HashSet of the inner error, because CompilationError does not implement Ord or Hash.
-    let mut seen: HashSet<ExpectingOtherError> = HashSet::new();
+    let mut seen: HashSet<ExpectingOtherError> = HashSet::default();
     errors.retain(|error| match error.as_expecting_other_error() {
         Some(e) if seen.contains(e) => false,
         Some(e) => {

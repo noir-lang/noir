@@ -67,6 +67,8 @@ pub enum DefCollectorErrorKind {
     },
     #[error("The `#[test]` attribute may only be used on a non-associated function")]
     TestOnAssociatedFunction { location: Location },
+    #[error("The `#[fuzz]` attribute may only be used on a non-associated function")]
+    FuzzOnAssociatedFunction { location: Location },
     #[error("The `#[export]` attribute may only be used on a non-associated function")]
     ExportOnAssociatedFunction { location: Location },
     #[error(
@@ -100,6 +102,7 @@ impl DefCollectorErrorKind {
                 ..
             }
             | DefCollectorErrorKind::TestOnAssociatedFunction { location }
+            | DefCollectorErrorKind::FuzzOnAssociatedFunction { location }
             | DefCollectorErrorKind::ExportOnAssociatedFunction { location }
             | DefCollectorErrorKind::NonEnumNonStructTypeInImpl { location, .. }
             | DefCollectorErrorKind::ReferenceInTraitImpl { location, .. }
@@ -161,12 +164,15 @@ impl<'a> From<&'a DefCollectorErrorKind> for Diagnostic {
                 let primary_message =
                     format!("Duplicate definitions of {typ} with name {first_def} found");
                 {
+                    // The secondaries point at both definitions, which may be of different
+                    // kinds when names clash across namespaces, so they stay kind-neutral
+                    // rather than repeating `typ` (which describes only the second one).
                     let mut diag = Diagnostic::simple_error(
                         primary_message,
-                        format!("Second {typ} found here"),
+                        "Second definition found here".to_string(),
                         second_def.location(),
                     );
-                    diag.add_secondary(format!("First {typ} found here"), first_def.location());
+                    diag.add_secondary("First definition found here".to_string(), first_def.location());
                     diag
                 }
             }
@@ -290,7 +296,12 @@ impl<'a> From<&'a DefCollectorErrorKind> for Diagnostic {
                 diag
             }
             DefCollectorErrorKind::TestOnAssociatedFunction { location } => Diagnostic::simple_error(
-                "The `#[test]` attribute is disallowed on `impl` methods".into(),
+                "The `#[test]` attribute is disallowed on associated functions".into(),
+                String::new(),
+                *location,
+            ),
+            DefCollectorErrorKind::FuzzOnAssociatedFunction { location } => Diagnostic::simple_error(
+                "The `#[fuzz]` attribute is disallowed on associated functions".into(),
                 String::new(),
                 *location,
             ),

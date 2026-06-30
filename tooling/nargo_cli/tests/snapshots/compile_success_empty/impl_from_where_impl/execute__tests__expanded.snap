@@ -17,10 +17,6 @@ where
     fn ok(self) -> Self {
         self
     }
-
-    fn ref_ok(self) -> Self {
-        self.ok()
-    }
 }
 
 fn main() {}

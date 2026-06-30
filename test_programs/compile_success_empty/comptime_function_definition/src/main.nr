@@ -18,6 +18,20 @@ pub fn foo(
     1
 }
 
+#[singleton_tuple_attr]
+pub fn singleton_tuples(((nested,),): ((Field,),)) {
+    let _ = nested;
+}
+
+pub struct Wrapper {
+    value: (Field,),
+}
+
+#[struct_field_attr]
+pub fn struct_field(Wrapper { value: (inner,) }: Wrapper) {
+    let _ = inner;
+}
+
 #[test]
 #[deprecated]
 #[check_named_attribute]
@@ -54,6 +68,23 @@ comptime fn function_attr(f: FunctionDefinition) {
     assert(f.has_named_attribute("function_attr"));
 
     assert_eq(f.visibility(), quote { pub })
+}
+
+comptime fn singleton_tuple_attr(f: FunctionDefinition) {
+    let parameters = f.parameters();
+    assert_eq(parameters.len(), 1);
+
+    // A singleton tuple in a nested position must keep its trailing comma:
+    // `((nested,),)` must not be reflected as `((nested))`.
+    assert_eq(parameters[0].0, quote { ((nested,),) });
+}
+
+comptime fn struct_field_attr(f: FunctionDefinition) {
+    // Reflecting a struct-destructure parameter forces the struct's fields to be
+    // resolved on demand; this must not panic when the fields are still deferred.
+    let parameters = f.parameters();
+    assert_eq(parameters.len(), 1);
+    assert_eq(parameters[0].0, quote { Wrapper { value: (inner,) } });
 }
 
 comptime fn check_named_attribute(f: FunctionDefinition) {
@@ -107,7 +138,7 @@ mod test_as_typed_expr_1 {
 mod test_as_typed_expr_2 {
     #![foo]
 
-    unconstrained fn method<T, let N: u32>(xs: [T; N]) -> u32 {
+    pub unconstrained fn method<T, let N: u32>(xs: [T; N]) -> u32 {
         xs.len()
     }
 
@@ -205,7 +236,7 @@ mod test_as_typed_expr_5 {
         fn pack(self) {}
     }
 
-    fn foo() {
+    pub fn foo() {
         comptime {
             let foo = quote { Foo<i32> }.as_type();
             let t = quote { Packable<10> }.as_trait_constraint();

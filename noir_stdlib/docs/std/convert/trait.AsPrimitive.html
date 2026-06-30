@@ -3,7 +3,10 @@
 <head>
 <meta charset="UTF-8">
 <link rel="stylesheet" href="../../styles.css">
+<script>window.docRoot = "../../";</script>
+<script defer src="../../search-index.js"></script>
 <script defer src="../../nargo_doc.js"></script>
+<script defer src="../../search.js"></script>
 <title>Trait AsPrimitive documentation</title>
 </head>
 <body>
@@ -16,7 +19,7 @@
 <h1><a href="../../index.html">noir_stdlib</a></h1>
 <div><a href="../../all.html">All items</a></div>
 <h2 id="crate-name"><a href="../index.html">std</a></h2>
-<div id="crate-version">1.0.0-beta.21</div>
+<div id="crate-version">1.0.0-beta.22</div>
 <h2><a href="#trait">Trait AsPrimitive</a></h2>
 <h3>Required methods</h3>
 <ul class="sidebar-list">
@@ -146,10 +149,16 @@
 </nav>
 <main>
 <div><a href="../../index.html">noir_stdlib</a> - <a href="../index.html">std</a>::<a href="index.html">convert</a></div>
-<h1>Trait <span id="trait" class="trait">AsPrimitive</span></h1>
+<div class="heading-row">
+<h1 class="heading-content">Trait <span id="trait" class="trait">AsPrimitive</span></h1>
+<button id="search-toggle" type="button">Search</button>
+</div>
+<input id="search-input" type="search" placeholder="Type 's' or '/' to search" autocomplete="off" spellcheck="false" aria-label="Search" hidden>
+<div id="search-results" hidden></div>
+<div id="page-content">
 <pre><code>pub trait AsPrimitive&lt;T&gt; {
     <span class="comment">// Required methods</span>
-    pub fn <a href="#as_"><span class="fn">as_</span></a>(self) -> T;
+    pub fn <a href="#as_" class="fn">as_</a>(self) -> T;
 }</code></pre>
 
 <div class="comments">
@@ -161,7 +170,7 @@ equivalent of using the <code>as</code> keyword between values.</p>
 <span class="kw">let</span> z: u8 = x.as_();
 <span class="kw">assert_eq</span>(y, z);</code></pre></div>
 <h2>Required methods</h2>
-<div class="padded-methods"><code id="as_" class="code-header">pub fn <a href="#as_"><span class="fn">as_</span></a>(self) -> T</code>
+<div class="padded-methods"><code id="as_" class="code-header">pub fn <a href="#as_" class="fn">as_</a>(self) -> T</code>
 
 <div class="padded-description"><div class="comments">
 <p>The equivalent of doing <code>self as T</code>.</p>
@@ -391,6 +400,7 @@ equivalent of using the <code>as</code> keyword between values.</p>
 
 <h3 id="impl-AsPrimitive&lt;u8&gt;-for-u8"><code class="code-header">impl <a href="../../std/convert/trait.AsPrimitive.html" class="trait">AsPrimitive</a>&lt;<a href="../../std/primitive.u8.html" class="primitive">u8</a>&gt; for <a href="../../std/primitive.u8.html" class="primitive">u8</a></code></h3>
 
+</div>
 </main>
 </span>
 </body>

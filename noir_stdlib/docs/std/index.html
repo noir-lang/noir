@@ -3,7 +3,10 @@
 <head>
 <meta charset="UTF-8">
 <link rel="stylesheet" href="../styles.css">
+<script>window.docRoot = "../";</script>
+<script defer src="../search-index.js"></script>
 <script defer src="../nargo_doc.js"></script>
+<script defer src="../search.js"></script>
 <title>Crate std documentation</title>
 </head>
 <body>
@@ -16,7 +19,7 @@
 <h1><a href="../index.html">noir_stdlib</a></h1>
 <div><a href="../all.html">All items</a></div>
 <h2 id="crate-name"><a href="index.html">std</a></h2>
-<div id="crate-version">1.0.0-beta.21</div>
+<div id="crate-version">1.0.0-beta.22</div>
 <h3>Crate items</h3>
 <ul class="sidebar-list">
 <li><a href="#modules">Modules</a></li>
@@ -29,7 +32,13 @@
 </nav>
 <main>
 <div><a href="../index.html">noir_stdlib</a> - std</div>
-<h1>Crate <span class="crate">std</span></h1>
+<div class="heading-row">
+<h1 class="heading-content">Crate <span class="crate">std</span></h1>
+<button id="search-toggle" type="button">Search</button>
+</div>
+<input id="search-input" type="search" placeholder="Type 's' or '/' to search" autocomplete="off" spellcheck="false" aria-label="Search" hidden>
+<div id="search-results" hidden></div>
+<div id="page-content">
 <h2 id="modules">Modules</h2><ul class="item-list">
 <li><div class="item-name"><a href="aes128/index.html" class="module">aes128</a></div><div class="item-description"></div></li>
 <li><div class="item-name"><a href="append/index.html" class="module">append</a></div><div class="item-description"></div></li>
@@ -96,6 +105,7 @@ Useful for debugging for-loop bounds.</div></li>
 The message can be a string, a format string, or any value, as long as it is known at compile-time</div></li>
 <li><div class="item-name"><a href="fn.verify_proof_with_type.html" class="fn">verify_proof_with_type</a></div><div class="item-description">Asserts the validity of the provided proof and public inputs against the provided verification key and hash.</div></li>
 </ul>
+</div>
 </main>
 </span>
 </body>

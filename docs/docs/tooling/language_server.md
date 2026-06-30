@@ -2,7 +2,6 @@
 title: Language Server
 description: Learn about the Noir Language Server, how to install the components, and configuration that may be required.
 keywords: [Nargo, Language Server, LSP, VSCode, Visual Studio Code]
-sidebar_position: 0
 ---
 
 This section helps you install and configure the Noir Language Server.

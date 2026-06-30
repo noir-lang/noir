@@ -111,8 +111,6 @@ impl<'a> Lexer<'a> {
             let start = self.position;
             self.next_char();
             Ok(Token::LogicalAnd.into_span(start, start + 1))
-        } else if self.peek_char_is('[') {
-            self.single_char_token(Token::DeprecatedVectorStart)
         } else {
             self.single_char_token(Token::Ampersand)
         }
@@ -442,7 +440,7 @@ impl<'a> Lexer<'a> {
 
         let end = self.position;
 
-        // Underscores needs to be stripped out before the literal can be converted to a `FieldElement.
+        // Underscores needs to be stripped out before the literal can be converted to a `BigInt`.
         let mut integer_str = original_str.replace('_', "");
         let type_suffix = Self::check_for_integer_type_suffix(&mut integer_str);
 
@@ -459,8 +457,7 @@ impl<'a> Lexer<'a> {
                         limit: self.max_integer.to_string(),
                     });
                 }
-                let big_uint = bigint.magnitude();
-                FieldElement::from_be_bytes_reduce(&big_uint.to_bytes_be())
+                bigint
             }
             Err(_) => {
                 return Err(LexerErrorKind::InvalidIntegerLiteral {
@@ -1223,7 +1220,7 @@ mod tests {
             Token::Keyword(Keyword::Let),
             Token::Ident("x".to_string()),
             Token::Assign,
-            Token::Int(FieldElement::from(5_i128), None),
+            Token::Int(BigInt::from(5), None),
         ];
 
         let mut lexer = Lexer::new_with_dummy_file(input);
@@ -1245,7 +1242,7 @@ mod tests {
             Token::Keyword(Keyword::Let),
             Token::Ident("x".to_string()),
             Token::Assign,
-            Token::Int(FieldElement::from(5_i128), None),
+            Token::Int(BigInt::from(5), None),
         ];
 
         let mut lexer = Lexer::new_with_dummy_file(input);
@@ -1293,7 +1290,7 @@ mod tests {
             Token::Keyword(Keyword::Let),
             Token::Ident("x".to_string()),
             Token::Assign,
-            Token::Int(FieldElement::from(5_i128), None),
+            Token::Int(BigInt::from(5), None),
         ];
 
         let mut lexer = Lexer::new_with_dummy_file(input);

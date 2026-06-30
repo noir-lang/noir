@@ -3,7 +3,10 @@
 <head>
 <meta charset="UTF-8">
 <link rel="stylesheet" href="../../styles.css">
+<script>window.docRoot = "../../";</script>
+<script defer src="../../search-index.js"></script>
 <script defer src="../../nargo_doc.js"></script>
+<script defer src="../../search.js"></script>
 <title>Function make_trait_impl documentation</title>
 </head>
 <body>
@@ -16,7 +19,7 @@
 <h1><a href="../../index.html">noir_stdlib</a></h1>
 <div><a href="../../all.html">All items</a></div>
 <h2 id="crate-name"><a href="../index.html">std</a></h2>
-<div id="crate-version">1.0.0-beta.21</div>
+<div id="crate-version">1.0.0-beta.22</div>
 <h2>In module meta</h2>
 <h3>Modules</h3><ul class="item-list">
 <li><a href="ctstring/index.html">ctstring</a></div></li>
@@ -38,7 +41,13 @@
 </nav>
 <main>
 <div><a href="../../index.html">noir_stdlib</a> - <a href="../index.html">std</a>::<a href="index.html">meta</a></div>
-<h1>Function <span class="fn">make_trait_impl</span></h1>
+<div class="heading-row">
+<h1 class="heading-content">Function <span class="fn">make_trait_impl</span></h1>
+<button id="search-toggle" type="button">Search</button>
+</div>
+<input id="search-input" type="search" placeholder="Type 's' or '/' to search" autocomplete="off" spellcheck="false" aria-label="Search" hidden>
+<div id="search-results" hidden></div>
+<div id="page-content">
 <pre><code>pub comptime fn make_trait_impl&lt;Env1, Env2&gt;(
     s: <a href="../../std/primitive.TypeDefinition.html" class="primitive">TypeDefinition</a>,
     trait_name: <a href="../../std/primitive.Quoted.html" class="primitive">Quoted</a>,
@@ -61,6 +70,7 @@ The function body is created by mapping each field with <code>for_each_field</co
 results with <code>join_fields_with</code>. The result of this is passed to the <code>body</code> function for
 any final processing - e.g. wrapping each field in a <code>StructConstructor { .. }</code> expression.</p>
 <p>See <code>derive_eq</code> and <code>derive_default</code> for example usage.</p>
+</div>
 </div>
 </main>
 </span>

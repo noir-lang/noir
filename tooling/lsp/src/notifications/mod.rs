@@ -16,6 +16,7 @@ use async_lsp::lsp_types::{
 };
 use async_lsp::{ErrorCode, LanguageClient, ResponseError};
 use fm::{FileId, FileManager, FileMap, PathString};
+use nargo::constants::PKG_FILE;
 use nargo::package::{Package, PackageType};
 use nargo::workspace::Workspace;
 use noirc_driver::check_crate;
@@ -228,7 +229,7 @@ pub(crate) fn workspace_from_document_uri(
     match resolve_workspace_for_source_path(&file_path) {
         Ok(workspace) => {
             // If this workspace's Nargo.toml previously had errors, clear them now.
-            if let Ok(toml_uri) = Url::from_file_path(workspace.root_dir.join("Nargo.toml"))
+            if let Ok(toml_uri) = Url::from_file_path(workspace.root_dir.join(PKG_FILE))
                 && state.toml_files_with_errors.remove(&toml_uri)
             {
                 let _ = state.client.publish_diagnostics(PublishDiagnosticsParams {
@@ -371,7 +372,7 @@ pub(crate) fn process_workspace(
 }
 
 /// Type-checks a single file that changed by using existing cached data for the workspace/package,
-/// such as the cached NodeInterner, CrateGraph and DefMaps.
+/// such as the cached `NodeInterner`, `CrateGraph` and `DefMaps`.
 ///
 /// This greatly improves the responsiveness of the LSP server when editing files. However,
 /// the cost is a slight decrease in autocompletion accuracy. For example, if a struct is removed
@@ -632,7 +633,7 @@ fn uri_from_path(path: &Path) -> Option<Url> {
     if let Ok(uri) = Url::from_file_path(path) {
         Some(uri)
     } else if path.starts_with("std") {
-        Some(Url::parse(&format!("noir-std://{}", path.to_string_lossy())).unwrap())
+        Some(crate::requests::stdlib_path_to_uri(&path.to_string_lossy()))
     } else {
         None
     }

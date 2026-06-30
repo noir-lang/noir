@@ -6,6 +6,7 @@ This folder is organized into several key components:
 - `acvm/` - Implementation of ACVM that executes ACIR
 - `brillig/` - Definition and implementation of unconstrained Brillig opcodes
 - `brillig_vm/` - Implementation of Brillig VM that executes Brillig
+- `msgpack_tagged/` - Tagged-map serialization format for evolvable bytecode (paired with the `msgpack_tagged_derive` proc-macro)
 
 Click into each folder to learn more from their READMEs.
 

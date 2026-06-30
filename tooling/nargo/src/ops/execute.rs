@@ -211,7 +211,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>, E: ForeignCallExecutor<F>>
                         }
                     }
                     acvm.resolve_pending_acir_call(call_resolved_outputs);
-                    self.witness_stack.push(call_info.id.0, call_solved_witness);
+                    self.witness_stack.push(call_info.id.as_u32(), call_solved_witness);
                 }
             }
         }
@@ -226,7 +226,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>, E: ForeignCallExecutor<F>>
     }
 }
 
-/// Execute a [Program], returning the [WitnessStack].
+/// Execute a [Program], returning the [`WitnessStack`].
 pub fn execute_program<F: AcirField, B: BlackBoxFunctionSolver<F>, E: ForeignCallExecutor<F>>(
     program: &Program<F>,
     initial_witness: WitnessMap<F>,
@@ -246,7 +246,7 @@ pub fn execute_program<F: AcirField, B: BlackBoxFunctionSolver<F>, E: ForeignCal
     Ok(witness_stack)
 }
 
-/// Execute a [Program] with profiling turned on, returning the [WitnessStack] along with the [ProfilingSamples].
+/// Execute a [Program] with profiling turned on, returning the [`WitnessStack`] along with the [`ProfilingSamples`].
 pub fn execute_program_with_profiling<
     F: AcirField,
     B: BlackBoxFunctionSolver<F>,
@@ -397,7 +397,7 @@ mod test {
         let function = [Circuit {
             function_name: "main".to_string(),
             opcodes: vec![Opcode::BrilligCall {
-                id: BrilligFunctionId(0),
+                id: BrilligFunctionId::new(0),
                 inputs: Vec::new(),
                 outputs: Vec::new(),
                 predicate: Expression::<FieldElement>::one(),

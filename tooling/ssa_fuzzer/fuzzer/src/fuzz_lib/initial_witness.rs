@@ -9,7 +9,7 @@ use noir_ssa_fuzzer::typed_value::{NumericType, Type};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
-/// Field modulus has 254 bits, and FieldElement::from supports u128, so we use two unsigned integers to represent a field element
+/// Field modulus has 254 bits, and `FieldElement::from` supports u128, so we use two unsigned integers to represent a field element
 /// field = low + high * 2^128
 #[derive(Debug, Clone, Copy, Hash, Arbitrary, Serialize, Deserialize)]
 pub(crate) struct FieldRepresentation {
@@ -149,7 +149,7 @@ pub(crate) fn initialize_witness_map(
     types.push(Type::Numeric(NumericType::Boolean));
     let mut witness_map = WitnessMap::new();
     for (i, value) in witness_vec.iter().enumerate() {
-        witness_map.insert(Witness(i as u32), *value);
+        witness_map.insert(Witness::new(i as u32), *value);
     }
     (witness_map, witness_vec, types)
 }

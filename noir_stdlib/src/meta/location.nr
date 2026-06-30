@@ -2,9 +2,8 @@ use crate::cmp::Eq;
 use crate::hash::{Hash, Hasher};
 
 impl Eq for Location {
-    comptime fn eq(self, other: Self) -> bool {
-        location_eq(self, other)
-    }
+    #[builtin(location_eq)]
+    comptime fn eq(self, other: Self) -> bool {}
 }
 
 impl Hash for Location {
@@ -15,9 +14,6 @@ impl Hash for Location {
         state.write(location_hash(self));
     }
 }
-
-#[builtin(location_eq)]
-comptime fn location_eq(_first: Location, _second: Location) -> bool {}
 
 #[builtin(location_hash)]
 comptime fn location_hash(_loc: Location) -> Field {}
