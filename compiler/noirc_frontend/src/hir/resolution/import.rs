@@ -72,6 +72,10 @@ pub enum PathResolutionError {
     UnresolvedMethodForType { typ: String, ident: Ident, available_impls: Vec<String> },
     #[error("Multiple applicable methods named `{ident}` in scope")]
     MultipleApplicableMethods { ident: Ident, impl_types: Vec<String> },
+    #[error("associated item `{ident}` not found for `{type_name}`")]
+    AssociatedItemNotImplemented { ident: Ident, type_name: String, traits: Vec<String> },
+    #[error("associated type `{ident}` cannot be accessed directly")]
+    AssociatedTypeNotAccessibleDirectly { ident: Ident, type_name: String, traits: Vec<String> },
 }
 
 impl PathResolutionError {
@@ -87,6 +91,8 @@ impl PathResolutionError {
             | PathResolutionError::MultipleApplicableImpls { ident, .. }
             | PathResolutionError::UnresolvedWithPossibleTraitsToImport { ident, .. }
             | PathResolutionError::MultipleApplicableMethods { ident, .. }
+            | PathResolutionError::AssociatedItemNotImplemented { ident, .. }
+            | PathResolutionError::AssociatedTypeNotAccessibleDirectly { ident, .. }
             | PathResolutionError::UnresolvedMethodForType { ident, .. } => ident.location(),
         }
     }
@@ -179,6 +185,36 @@ impl<'a> From<&'a PathResolutionError> for CustomDiagnostic {
                     ),
                     ident.location(),
                 )
+            }
+            PathResolutionError::AssociatedItemNotImplemented { ident, type_name, traits } => {
+                let mut traits = vecmap(traits, |trait_name| format!("`{trait_name}`"));
+                traits.sort();
+                let (noun, verb) =
+                    if traits.len() == 1 { ("trait", "is") } else { ("traits", "are") };
+                CustomDiagnostic::simple_error(
+                    error.to_string(),
+                    format!(
+                        "associated item `{ident}` is defined by {noun} {}, which {verb} not implemented for `{type_name}`",
+                        traits.join(", ")
+                    ),
+                    ident.location(),
+                )
+            }
+            PathResolutionError::AssociatedTypeNotAccessibleDirectly {
+                ident,
+                type_name,
+                traits,
+            } => {
+                let mut suggestions = vecmap(traits, |trait_name| {
+                    format!("`<{type_name} as {trait_name}>::{ident}`")
+                });
+                suggestions.sort();
+                let secondary = if suggestions.len() == 1 {
+                    format!("use the fully-qualified syntax {} instead", suggestions[0])
+                } else {
+                    format!("use a fully-qualified syntax such as {}", suggestions.join(" or "))
+                };
+                CustomDiagnostic::simple_error(error.to_string(), secondary, ident.location())
             }
             PathResolutionError::UnresolvedMethodForType { typ: _, ident, available_impls } => {
                 let secondary = if available_impls.is_empty() {
