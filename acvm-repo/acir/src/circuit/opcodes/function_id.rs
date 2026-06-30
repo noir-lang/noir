@@ -1,8 +1,10 @@
+use msgpack_tagged::MsgpackTagged;
 use serde::{Deserialize, Serialize};
 
 /// Id for the function being called.
 /// Indexes into the table of ACIR function's specified in a [program][crate::circuit::Program]
-#[derive(Clone, Copy, PartialEq, Eq, Debug, Serialize, Deserialize, Hash)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Hash)]
+#[derive(Serialize, Deserialize, MsgpackTagged)]
 #[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
 #[serde(transparent)]
 pub struct AcirFunctionId(pub u32);

@@ -3,7 +3,10 @@
 <head>
 <meta charset="UTF-8">
 <link rel="stylesheet" href="../styles.css">
+<script>window.docRoot = "../";</script>
+<script defer src="../search-index.js"></script>
 <script defer src="../nargo_doc.js"></script>
+<script defer src="../search.js"></script>
 <title>Primitive type vector documentation</title>
 </head>
 <body>
@@ -16,7 +19,7 @@
 <h1><a href="../index.html">noir_stdlib</a></h1>
 <div><a href="../all.html">All items</a></div>
 <h2 id="crate-name"><a href="index.html">std</a></h2>
-<div id="crate-version">1.0.0-beta.21</div>
+<div id="crate-version">1.0.0-beta.22</div>
 <h2><a href="#primitive">Primitive type vector</a></h2>
 <h3>Methods</h3>
 <ul class="sidebar-list">
@@ -105,7 +108,13 @@
 </nav>
 <main>
 <div><a href="../index.html">noir_stdlib</a> - <a href="index.html">std</a></div>
-<h1>Primitive type <span id="primitive" class="primitive">vector</span></h1>
+<div class="heading-row">
+<h1 class="heading-content">Primitive type <span id="primitive" class="primitive">vector</span></h1>
+<button id="search-toggle" type="button">Search</button>
+</div>
+<input id="search-input" type="search" placeholder="Type 's' or '/' to search" autocomplete="off" spellcheck="false" aria-label="Search" hidden>
+<div id="search-results" hidden></div>
+<div id="page-content">
 <div class="comments">
 <p>A dynamically-sized view into a contiguous sequence, <code>[T]</code>.</p>
 <p>There are two syntactic forms for creating a vector:</p>
@@ -117,122 +126,123 @@
 <h2>Implementations</h2>
 <h3><code class="code-header">impl&lt;T&gt; [T]</code></h3>
 
-<div class="padded-methods"><code id="len" class="code-header">pub fn <a href="#len"><span class="fn">len</span></a>(self) -> <a href="../std/primitive.u32.html" class="primitive">u32</a></code>
+<div class="padded-methods"><code id="len" class="code-header">pub fn <a href="#len" class="fn">len</a>(self) -> <a href="../std/primitive.u32.html" class="primitive">u32</a></code>
 
 <div class="padded-description"><div class="comments">
 <p>Returns the length of the vector.</p>
 </div>
-</div><code id="push_back" class="code-header">pub fn <a href="#push_back"><span class="fn">push_back</span></a>(self, elem: T) -> Self</code>
+</div><code id="push_back" class="code-header">pub fn <a href="#push_back" class="fn">push_back</a>(self, elem: T) -> Self</code>
 
 <div class="padded-description"><div class="comments">
 <p>Push a new element to the end of the vector, returning a
 new vector with a length one greater than the
 original unmodified vector.</p>
 </div>
-</div><code id="push_front" class="code-header">pub fn <a href="#push_front"><span class="fn">push_front</span></a>(self, elem: T) -> Self</code>
+</div><code id="push_front" class="code-header">pub fn <a href="#push_front" class="fn">push_front</a>(self, elem: T) -> Self</code>
 
 <div class="padded-description"><div class="comments">
 <p>Push a new element to the front of the vector, returning a
 new vector with a length one greater than the
 original unmodified vector.</p>
 </div>
-</div><code id="pop_back" class="code-header">pub fn <a href="#pop_back"><span class="fn">pop_back</span></a>(self) -> (Self, T)</code>
+</div><code id="pop_back" class="code-header">pub fn <a href="#pop_back" class="fn">pop_back</a>(self) -> (Self, T)</code>
 
 <div class="padded-description"><div class="comments">
 <p>Remove the last element of the vector, returning the
 popped vector and the element in a tuple</p>
 </div>
-</div><code id="pop_front" class="code-header">pub fn <a href="#pop_front"><span class="fn">pop_front</span></a>(self) -> (T, Self)</code>
+</div><code id="pop_front" class="code-header">pub fn <a href="#pop_front" class="fn">pop_front</a>(self) -> (T, Self)</code>
 
 <div class="padded-description"><div class="comments">
 <p>Remove the first element of the vector, returning the
 element and the popped vector in a tuple</p>
 </div>
-</div><code id="insert" class="code-header">pub fn <a href="#insert"><span class="fn">insert</span></a>(self, index: <a href="../std/primitive.u32.html" class="primitive">u32</a>, elem: T) -> Self</code>
+</div><code id="insert" class="code-header">pub fn <a href="#insert" class="fn">insert</a>(self, index: <a href="../std/primitive.u32.html" class="primitive">u32</a>, elem: T) -> Self</code>
 
 <div class="padded-description"><div class="comments">
 <p>Insert an element at a specified index, shifting all elements
 after it to the right</p>
 </div>
-</div><code id="remove" class="code-header">pub fn <a href="#remove"><span class="fn">remove</span></a>(self, index: <a href="../std/primitive.u32.html" class="primitive">u32</a>) -> (Self, T)</code>
+</div><code id="remove" class="code-header">pub fn <a href="#remove" class="fn">remove</a>(self, index: <a href="../std/primitive.u32.html" class="primitive">u32</a>) -> (Self, T)</code>
 
 <div class="padded-description"><div class="comments">
 <p>Remove an element at a specified index, shifting all elements
 after it to the left, returning the altered vector and
 the removed element</p>
 </div>
-</div><code id="append" class="code-header">pub fn <a href="#append"><span class="fn">append</span></a>(self, other: Self) -> Self</code>
+</div><code id="append" class="code-header">pub fn <a href="#append" class="fn">append</a>(self, other: Self) -> Self</code>
 
 <div class="padded-description"><div class="comments">
 <p>Append each element of the <code>other</code> vector to the end of <code>self</code>.
 This returns a new vector and leaves both input vectors unchanged.</p>
 </div>
-</div><code id="as_array" class="code-header">pub fn <a href="#as_array"><span class="fn">as_array</span></a>&lt;let N: <a href="../std/primitive.u32.html" class="primitive">u32</a>&gt;(self) -> [T; N]</code>
+</div><code id="as_array" class="code-header">pub fn <a href="#as_array" class="fn">as_array</a>&lt;let N: <a href="../std/primitive.u32.html" class="primitive">u32</a>&gt;(self) -> [T; N]</code>
 
 <div class="padded-description"><div class="comments">
 <p>Converts this vector into an array of length N.
 Panics if the length of this vector is not N.</p>
 </div>
-</div><code id="map" class="code-header">pub fn <a href="#map"><span class="fn">map</span></a>&lt;U, Env&gt;(self, f: fn[Env](T) -> U) -> [U]</code>
+</div><code id="map" class="code-header">pub fn <a href="#map" class="fn">map</a>&lt;U, Env&gt;(self, f: fn[Env](T) -> U) -> [U]</code>
 
 <div class="padded-description"><div class="comments">
 <p>Apply a function to each element of the vector, returning a new vector
 containing the mapped elements.</p>
 </div>
-</div><code id="mapi" class="code-header">pub fn <a href="#mapi"><span class="fn">mapi</span></a>&lt;U, Env&gt;(self, f: fn[Env](<a href="../std/primitive.u32.html" class="primitive">u32</a>, T) -> U) -> [U]</code>
+</div><code id="mapi" class="code-header">pub fn <a href="#mapi" class="fn">mapi</a>&lt;U, Env&gt;(self, f: fn[Env](<a href="../std/primitive.u32.html" class="primitive">u32</a>, T) -> U) -> [U]</code>
 
 <div class="padded-description"><div class="comments">
 <p>Apply a function to each element of the vector with its index, returning a
 new vector containing the mapped elements.</p>
 </div>
-</div><code id="for_each" class="code-header">pub fn <a href="#for_each"><span class="fn">for_each</span></a>&lt;Env&gt;(self, f: fn[Env](T))</code>
+</div><code id="for_each" class="code-header">pub fn <a href="#for_each" class="fn">for_each</a>&lt;Env&gt;(self, f: fn[Env](T))</code>
 
 <div class="padded-description"><div class="comments">
 <p>Apply a function to each element of the vector</p>
 </div>
-</div><code id="for_eachi" class="code-header">pub fn <a href="#for_eachi"><span class="fn">for_eachi</span></a>&lt;Env&gt;(self, f: fn[Env](<a href="../std/primitive.u32.html" class="primitive">u32</a>, T))</code>
+</div><code id="for_eachi" class="code-header">pub fn <a href="#for_eachi" class="fn">for_eachi</a>&lt;Env&gt;(self, f: fn[Env](<a href="../std/primitive.u32.html" class="primitive">u32</a>, T))</code>
 
 <div class="padded-description"><div class="comments">
 <p>Apply a function to each element of the vector with its index</p>
 </div>
-</div><code id="fold" class="code-header">pub fn <a href="#fold"><span class="fn">fold</span></a>&lt;U, Env&gt;(self, accumulator: U, f: fn[Env](U, T) -> U) -> U</code>
+</div><code id="fold" class="code-header">pub fn <a href="#fold" class="fn">fold</a>&lt;U, Env&gt;(self, accumulator: U, f: fn[Env](U, T) -> U) -> U</code>
 
 <div class="padded-description"><div class="comments">
 <p>Apply a function to each element of the vector and an accumulator value,
 returning the final accumulated value. This function is also sometimes
 called <code>foldl</code>, <code>fold_left</code>, <code>reduce</code>, or <code>inject</code>.</p>
 </div>
-</div><code id="reduce" class="code-header">pub fn <a href="#reduce"><span class="fn">reduce</span></a>&lt;Env&gt;(self, f: fn[Env](T, T) -> T) -> T</code>
+</div><code id="reduce" class="code-header">pub fn <a href="#reduce" class="fn">reduce</a>&lt;Env&gt;(self, f: fn[Env](T, T) -> T) -> T</code>
 
 <div class="padded-description"><div class="comments">
 <p>Apply a function to each element of the vector and an accumulator value,
 returning the final accumulated value. Unlike fold, reduce uses the first
 element of the given vector as its starting accumulator value.</p>
 </div>
-</div><code id="filter" class="code-header">pub fn <a href="#filter"><span class="fn">filter</span></a>&lt;Env&gt;(self, predicate: fn[Env](T) -> <a href="../std/primitive.bool.html" class="primitive">bool</a>) -> Self</code>
+</div><code id="filter" class="code-header">pub fn <a href="#filter" class="fn">filter</a>&lt;Env&gt;(self, predicate: fn[Env](T) -> <a href="../std/primitive.bool.html" class="primitive">bool</a>) -> Self</code>
 
 <div class="padded-description"><div class="comments">
 <p>Returns a new vector containing only elements for which the given predicate
 returns true.</p>
 </div>
-</div><code id="join" class="code-header">pub fn <a href="#join"><span class="fn">join</span></a>(self, separator: T) -> T
+</div><code id="join" class="code-header">pub fn <a href="#join" class="fn">join</a>(self, separator: T) -> T
 <div class="where-clause">where
     T: <a href="../std/append/trait.Append.html" class="trait">Append</a></div></code>
 
 <div class="padded-description"><div class="comments">
 <p>Flatten each element in the vector into one value, separated by <code>separator</code>.</p>
 </div>
-</div><code id="all" class="code-header">pub fn <a href="#all"><span class="fn">all</span></a>&lt;Env&gt;(self, predicate: fn[Env](T) -> <a href="../std/primitive.bool.html" class="primitive">bool</a>) -> <a href="../std/primitive.bool.html" class="primitive">bool</a></code>
+</div><code id="all" class="code-header">pub fn <a href="#all" class="fn">all</a>&lt;Env&gt;(self, predicate: fn[Env](T) -> <a href="../std/primitive.bool.html" class="primitive">bool</a>) -> <a href="../std/primitive.bool.html" class="primitive">bool</a></code>
 
 <div class="padded-description"><div class="comments">
 <p>Returns true if all elements in the vector satisfy the predicate</p>
 </div>
-</div><code id="any" class="code-header">pub fn <a href="#any"><span class="fn">any</span></a>&lt;Env&gt;(self, predicate: fn[Env](T) -> <a href="../std/primitive.bool.html" class="primitive">bool</a>) -> <a href="../std/primitive.bool.html" class="primitive">bool</a></code>
+</div><code id="any" class="code-header">pub fn <a href="#any" class="fn">any</a>&lt;Env&gt;(self, predicate: fn[Env](T) -> <a href="../std/primitive.bool.html" class="primitive">bool</a>) -> <a href="../std/primitive.bool.html" class="primitive">bool</a></code>
 
 <div class="padded-description"><div class="comments">
 <p>Returns true if any element in the vector satisfies the predicate</p>
 </div>
-</div></div></main>
+</div></div></div>
+</main>
 </span>
 </body>
 </html>

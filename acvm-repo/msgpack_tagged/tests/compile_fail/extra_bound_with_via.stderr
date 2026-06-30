@@ -1,0 +1,6 @@
+error: `#[tagged(via(...))]` is incompatible with `extra_bound = "..."` — the public type's where clause is just the delegation glue; if a custom bound is needed, put it on the wire DTO
+  --> tests/compile_fail/extra_bound_with_via.rs:15:1
+   |
+15 | / #[tagged(via(WireDto), extra_bound = "u32: msgpack_tagged::MsgpackTagged")]
+16 | | struct Public;
+   | |______________^

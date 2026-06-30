@@ -292,9 +292,8 @@ unconstrained fn doc_tests() {
 }
 
 // docs:start:get_example
-fn get_example(map: &UHashMap<Field, Field, BuildHasherDefault<Poseidon2Hasher>>) {
-    // Safety: testing context
-    let x = unsafe { map.get(12) };
+unconstrained fn get_example(map: &UHashMap<Field, Field, BuildHasherDefault<Poseidon2Hasher>>) {
+    let x = map.get(12);
 
     if x.is_some() {
         assert(x.unwrap() == 42);
@@ -302,7 +301,9 @@ fn get_example(map: &UHashMap<Field, Field, BuildHasherDefault<Poseidon2Hasher>>
 }
 // docs:end:get_example
 
-fn entries_examples(map: &UHashMap<Field, Field, BuildHasherDefault<Poseidon2Hasher>>) {
+unconstrained fn entries_examples(
+    map: &UHashMap<Field, Field, BuildHasherDefault<Poseidon2Hasher>>,
+) {
     // docs:start:entries_example
     let entries = map.entries();
 
@@ -319,8 +320,7 @@ fn entries_examples(map: &UHashMap<Field, Field, BuildHasherDefault<Poseidon2Has
     let keys = map.keys();
 
     for key in keys {
-        // Safety: testing context
-        let value = unsafe { map.get(key) }.unwrap_unchecked();
+        let value = map.get(key).unwrap_unchecked();
         println(f"{key} -> {value}");
     }
     // docs:end:keys_example

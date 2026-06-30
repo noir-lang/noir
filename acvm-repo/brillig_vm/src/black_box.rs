@@ -25,12 +25,20 @@ fn read_heap_array<'a, F: AcirField>(
 
 /// Write values to a [array][HeapArray] in memory.
 fn write_heap_array<F: AcirField>(
+    bb_func: BlackBoxFunc,
     memory: &mut Memory<F>,
     array: &HeapArray,
     values: &[MemoryValue<F>],
-) {
+) -> Result<(), BlackBoxResolutionError> {
+    if values.len() != array.size.0 as usize {
+        return Err(BlackBoxResolutionError::Failed(
+            bb_func,
+            format!("Expected output of size {} but encountered {}", array.size.0, values.len()),
+        ));
+    }
     let items_start = memory.read_ref(array.pointer);
     memory.write_slice(items_start, values);
+    Ok(())
 }
 
 /// Extracts the last byte of every value
@@ -43,7 +51,7 @@ fn to_u8_vec<F: AcirField>(inputs: &[MemoryValue<F>]) -> Vec<u8> {
 }
 
 /// Converts a slice of u8 values into a Vec<[`MemoryValue<F>`]>,
-/// wrapping each byte as a [MemoryValue::U8].
+/// wrapping each byte as a [`MemoryValue::U8`].
 fn to_value_vec<F: AcirField>(input: &[u8]) -> Vec<MemoryValue<F>> {
     input.iter().map(|&x| x.into()).collect()
 }
@@ -51,21 +59,21 @@ fn to_value_vec<F: AcirField>(input: &[u8]) -> Vec<MemoryValue<F>> {
 /// Evaluates a black box function inside the VM, performing the actual native computation.
 ///
 /// Delegates the execution to the corresponding cryptographic or arithmetic
-/// function, depending on the [BlackBoxOp] variant.
+/// function, depending on the [`BlackBoxOp`] variant.
 /// Handles input conversion, writing the result to memory, and error propagation.
 ///
 /// # Arguments
 /// - op: The black box operation to evaluate.
-/// - solver: An implementation of [BlackBoxFunctionSolver] providing external function behavior.
+/// - solver: An implementation of [`BlackBoxFunctionSolver`] providing external function behavior.
 /// - memory: The VM memory from which inputs are read and to which results are written.
-/// - bigint_solver: A solver used for big integer operations.
+/// - `bigint_solver`: A solver used for big integer operations.
 ///
 /// # Returns
 /// - Ok(()) if evaluation succeeds.
-/// - Err([BlackBoxResolutionError]) if an error occurs during execution or input is invalid.
+/// - Err([`BlackBoxResolutionError`]) if an error occurs during execution or input is invalid.
 ///
 /// # Panics
-/// If any required memory value cannot be converted to the expected type (e.g., [expect_u8][MemoryValue::expect_u8])
+/// If any required memory value cannot be converted to the expected type (e.g., [`expect_u8`][MemoryValue::expect_u8])
 /// or if the [radix decomposition][BlackBoxOp::ToRadix] constraints are violated internally, such as an invalid radix range (e.g., radix of 1).
 pub(crate) fn evaluate_black_box<F: AcirField, Solver: BlackBoxFunctionSolver<F>>(
     op: &BlackBoxOp,
@@ -87,20 +95,20 @@ pub(crate) fn evaluate_black_box<F: AcirField, Solver: BlackBoxFunctionSolver<F>
                 })?;
             let ciphertext = aes128_encrypt(&inputs, iv, key)?;
 
-            write_heap_array(memory, outputs, &to_value_vec(&ciphertext));
+            write_heap_array(bb_func, memory, outputs, &to_value_vec(&ciphertext))?;
 
             Ok(())
         }
         BlackBoxOp::Blake2s { message, output } => {
             let message = to_u8_vec(read_heap_array(memory, message));
             let bytes = blake2s(message.as_slice())?;
-            write_heap_array(memory, output, &to_value_vec(&bytes));
+            write_heap_array(BlackBoxFunc::Blake2s, memory, output, &to_value_vec(&bytes))?;
             Ok(())
         }
         BlackBoxOp::Blake3 { message, output } => {
             let message = to_u8_vec(read_heap_array(memory, message));
             let bytes = blake3(message.as_slice())?;
-            write_heap_array(memory, output, &to_value_vec(&bytes));
+            write_heap_array(BlackBoxFunc::Blake3, memory, output, &to_value_vec(&bytes))?;
             Ok(())
         }
         BlackBoxOp::Keccakf1600 { input, output } => {
@@ -113,7 +121,7 @@ pub(crate) fn evaluate_black_box<F: AcirField, Solver: BlackBoxFunctionSolver<F>
             let new_state = keccakf1600(state)?;
 
             let new_state: Vec<MemoryValue<F>> = new_state.into_iter().map(|x| x.into()).collect();
-            write_heap_array(memory, output, &new_state);
+            write_heap_array(BlackBoxFunc::Keccakf1600, memory, output, &new_state)?;
             Ok(())
         }
         BlackBoxOp::EcdsaSecp256k1 {
@@ -151,21 +159,21 @@ pub(crate) fn evaluate_black_box<F: AcirField, Solver: BlackBoxFunctionSolver<F>
                     BlackBoxResolutionError::Failed(bb_func, "Invalid signature length".to_string())
                 })?;
 
-            let hashed_msg = to_u8_vec(read_heap_array(memory, hashed_msg));
+            let hashed_msg: [u8; 32] =
+                to_u8_vec(read_heap_array(memory, hashed_msg)).try_into().map_err(|_| {
+                    BlackBoxResolutionError::Failed(
+                        bb_func,
+                        "Invalid hashed message length".to_string(),
+                    )
+                })?;
 
             let result = match op {
-                BlackBoxOp::EcdsaSecp256k1 { .. } => ecdsa_secp256k1_verify(
-                    &hashed_msg.try_into().unwrap(),
-                    &public_key_x,
-                    &public_key_y,
-                    &signature,
-                )?,
-                BlackBoxOp::EcdsaSecp256r1 { .. } => ecdsa_secp256r1_verify(
-                    &hashed_msg.try_into().unwrap(),
-                    &public_key_x,
-                    &public_key_y,
-                    &signature,
-                )?,
+                BlackBoxOp::EcdsaSecp256k1 { .. } => {
+                    ecdsa_secp256k1_verify(&hashed_msg, &public_key_x, &public_key_y, &signature)?
+                }
+                BlackBoxOp::EcdsaSecp256r1 { .. } => {
+                    ecdsa_secp256r1_verify(&hashed_msg, &public_key_x, &public_key_y, &signature)?
+                }
                 _ => unreachable!("`BlackBoxOp` is guarded against being a non-ecdsa operation"),
             };
 
@@ -173,18 +181,8 @@ pub(crate) fn evaluate_black_box<F: AcirField, Solver: BlackBoxFunctionSolver<F>
             Ok(())
         }
         BlackBoxOp::MultiScalarMul { points, scalars, outputs: result } => {
-            let points: Vec<F> = read_heap_array(memory, points)
-                .iter()
-                .enumerate()
-                .map(|(i, x)| {
-                    if i % 3 == 2 {
-                        let is_infinite: bool = x.expect_u1().unwrap();
-                        F::from(is_infinite)
-                    } else {
-                        x.expect_field().unwrap()
-                    }
-                })
-                .collect();
+            let points: Vec<F> =
+                read_heap_array(memory, points).iter().map(|x| x.expect_field().unwrap()).collect();
             let scalars: Vec<F> = read_heap_array(memory, scalars)
                 .iter()
                 .map(|x| x.expect_field().unwrap())
@@ -198,57 +196,36 @@ pub(crate) fn evaluate_black_box<F: AcirField, Solver: BlackBoxFunctionSolver<F>
                     scalars_hi.push(*scalar);
                 }
             }
-            let (x, y, is_infinite) = solver.multi_scalar_mul(
+            let (x, y) = solver.multi_scalar_mul(
                 &points,
                 &scalars_lo,
                 &scalars_hi,
                 true, // Predicate is always true as brillig has control flow to handle false case
             )?;
             write_heap_array(
+                BlackBoxFunc::MultiScalarMul,
                 memory,
                 result,
-                &[
-                    MemoryValue::new_field(x),
-                    MemoryValue::new_field(y),
-                    MemoryValue::U1(is_infinite != F::zero()),
-                ],
-            );
+                &[MemoryValue::new_field(x), MemoryValue::new_field(y)],
+            )?;
             Ok(())
         }
-        BlackBoxOp::EmbeddedCurveAdd {
-            input1_x,
-            input1_y,
-            input2_x,
-            input2_y,
-            result,
-            input1_infinite,
-            input2_infinite,
-        } => {
+        BlackBoxOp::EmbeddedCurveAdd { input1_x, input1_y, input2_x, input2_y, result } => {
             let input1_x = memory.read(*input1_x).expect_field().unwrap();
             let input1_y = memory.read(*input1_y).expect_field().unwrap();
-            let input1_infinite: bool = memory.read(*input1_infinite).expect_u1().unwrap();
             let input2_x = memory.read(*input2_x).expect_field().unwrap();
             let input2_y = memory.read(*input2_y).expect_field().unwrap();
-            let input2_infinite: bool = memory.read(*input2_infinite).expect_u1().unwrap();
-            let (x, y, infinite) = solver.ec_add(
-                &input1_x,
-                &input1_y,
-                &input1_infinite.into(),
-                &input2_x,
-                &input2_y,
-                &input2_infinite.into(),
+            let (x, y) = solver.ec_add(
+                &input1_x, &input1_y, &input2_x, &input2_y,
                 true, // Predicate is always true as brillig has control flow to handle false case
             )?;
 
             write_heap_array(
+                BlackBoxFunc::EmbeddedCurveAdd,
                 memory,
                 result,
-                &[
-                    MemoryValue::new_field(x),
-                    MemoryValue::new_field(y),
-                    MemoryValue::U1(infinite != F::zero()),
-                ],
-            );
+                &[MemoryValue::new_field(x), MemoryValue::new_field(y)],
+            )?;
             Ok(())
         }
         BlackBoxOp::Poseidon2Permutation { message, output } => {
@@ -259,7 +236,7 @@ pub(crate) fn evaluate_black_box<F: AcirField, Solver: BlackBoxFunctionSolver<F>
             for i in result {
                 values.push(MemoryValue::new_field(i));
             }
-            write_heap_array(memory, output, &values);
+            write_heap_array(BlackBoxFunc::Poseidon2Permutation, memory, output, &values)?;
             Ok(())
         }
         BlackBoxOp::Sha256Compression { input, hash_values, output } => {
@@ -289,7 +266,7 @@ pub(crate) fn evaluate_black_box<F: AcirField, Solver: BlackBoxFunctionSolver<F>
             sha256_compression(&mut state, &message);
             let state = state.map(|x| x.into());
 
-            write_heap_array(memory, output, &state);
+            write_heap_array(BlackBoxFunc::Sha256Compression, memory, output, &state)?;
             Ok(())
         }
         BlackBoxOp::ToRadix { input, radix, output_pointer, num_limbs, output_bits } => {
@@ -311,11 +288,11 @@ pub(crate) fn evaluate_black_box<F: AcirField, Solver: BlackBoxFunctionSolver<F>
     }
 }
 
-/// Maps a [BlackBoxOp] variant to its corresponding [BlackBoxFunc].
+/// Maps a [`BlackBoxOp`] variant to its corresponding [`BlackBoxFunc`].
 /// Used primarily for error reporting and resolution purposes.
 ///
 /// # Panics
-/// If called with a [BlackBoxOp::ToRadix] operation, which is not part of the [BlackBoxFunc] enum.
+/// If called with a [`BlackBoxOp::ToRadix`] operation, which is not part of the [`BlackBoxFunc`] enum.
 fn black_box_function_from_op(op: &BlackBoxOp) -> BlackBoxFunc {
     match op {
         BlackBoxOp::AES128Encrypt { .. } => BlackBoxFunc::AES128Encrypt,
@@ -341,11 +318,6 @@ fn to_be_radix<F: AcirField>(
     assert!(
         (2u32..=256u32).contains(&radix),
         "Radix out of the valid range [2,256]. Value: {radix}"
-    );
-
-    assert!(
-        num_limbs >= 1 || input.is_zero(),
-        "Input value {input} is not zero but number of limbs is zero."
     );
 
     assert!(
@@ -377,6 +349,91 @@ fn to_be_radix<F: AcirField>(
     }
 
     Ok(limbs)
+}
+
+#[cfg(test)]
+mod ecdsa_tests {
+    use acir::brillig::lengths::SemiFlattenedLength;
+    use acir::brillig::{BlackBoxOp, HeapArray, MemoryAddress};
+    use acvm_blackbox_solver::{BlackBoxResolutionError, StubbedBlackBoxSolver};
+
+    use crate::Memory;
+    use crate::black_box::evaluate_black_box;
+    use crate::memory::MemoryValue;
+
+    use acir::FieldElement;
+
+    /// Writes a byte array into memory and returns a [`HeapArray`] pointing at it.
+    ///
+    /// `pointer_addr` holds the address of the items, `items_addr` is where the
+    /// bytes are stored. `len` is the size advertised by the heap array, which is
+    /// allowed to differ from `bytes.len()` so tests can exercise mismatched sizes.
+    fn write_heap_array(
+        memory: &mut Memory<FieldElement>,
+        pointer_addr: u32,
+        items_addr: u32,
+        bytes: &[u8],
+        len: u32,
+    ) -> HeapArray {
+        let pointer = MemoryAddress::direct(pointer_addr);
+        memory.write_ref(pointer, MemoryAddress::direct(items_addr));
+        let values: Vec<MemoryValue<FieldElement>> = bytes.iter().map(|&b| b.into()).collect();
+        memory.write_slice(MemoryAddress::direct(items_addr), &values);
+        HeapArray { pointer, size: SemiFlattenedLength(len) }
+    }
+
+    /// A `hashed_msg` of the wrong length must surface a recoverable
+    /// [`BlackBoxResolutionError`], not panic the VM.
+    #[test]
+    fn ecdsa_secp256k1_rejects_wrong_hashed_msg_length() {
+        let mut memory = Memory::default();
+
+        // Valid lengths for the keys and signature so evaluation reaches the
+        // `hashed_msg` length check.
+        let public_key_x = write_heap_array(&mut memory, 0, 1000, &[0u8; 32], 32);
+        let public_key_y = write_heap_array(&mut memory, 1, 2000, &[0u8; 32], 32);
+        let signature = write_heap_array(&mut memory, 2, 3000, &[0u8; 64], 64);
+        // A 31-byte hashed message: one short of the expected 32.
+        let hashed_msg = write_heap_array(&mut memory, 3, 4000, &[0u8; 31], 31);
+
+        let op = BlackBoxOp::EcdsaSecp256k1 {
+            hashed_msg,
+            public_key_x,
+            public_key_y,
+            signature,
+            result: MemoryAddress::direct(5),
+        };
+
+        let result = evaluate_black_box(&op, &StubbedBlackBoxSolver, &mut memory);
+        assert!(
+            matches!(result, Err(BlackBoxResolutionError::Failed(..))),
+            "expected a recoverable error, got {result:?}"
+        );
+    }
+
+    #[test]
+    fn ecdsa_secp256r1_rejects_wrong_hashed_msg_length() {
+        let mut memory = Memory::default();
+
+        let public_key_x = write_heap_array(&mut memory, 0, 1000, &[0u8; 32], 32);
+        let public_key_y = write_heap_array(&mut memory, 1, 2000, &[0u8; 32], 32);
+        let signature = write_heap_array(&mut memory, 2, 3000, &[0u8; 64], 64);
+        let hashed_msg = write_heap_array(&mut memory, 3, 4000, &[0u8; 31], 31);
+
+        let op = BlackBoxOp::EcdsaSecp256r1 {
+            hashed_msg,
+            public_key_x,
+            public_key_y,
+            signature,
+            result: MemoryAddress::direct(5),
+        };
+
+        let result = evaluate_black_box(&op, &StubbedBlackBoxSolver, &mut memory);
+        assert!(
+            matches!(result, Err(BlackBoxResolutionError::Failed(..))),
+            "expected a recoverable error, got {result:?}"
+        );
+    }
 }
 
 #[cfg(test)]
@@ -434,5 +491,18 @@ mod to_be_radix_tests {
             .map(|byte| byte.expect_u8().unwrap())
             .collect();
         assert_eq!(limbs, expected_limbs);
+    }
+
+    #[test]
+    fn rejects_non_zero_field_with_zero_limbs() {
+        let value = FieldElement::from(1u128);
+
+        let error = to_be_radix(value, 256, 0, false).unwrap_err();
+        assert_eq!(
+            error,
+            acvm_blackbox_solver::BlackBoxResolutionError::AssertFailed(
+                "Field failed to decompose into specified 0 limbs".to_string()
+            )
+        );
     }
 }

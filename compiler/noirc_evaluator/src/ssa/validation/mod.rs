@@ -7,10 +7,12 @@
 //! - That the function contains exactly one return block.
 //! - That every checked signed addition or subtraction instruction is
 //!   followed by a corresponding truncate instruction with the expected bit sizes.
+//! - That every narrowing cast is preceded by an instruction proving the value
+//!   being cast fits into the destination type.
 //!
 //! Type checking
 //! - Check that the input values of certain instructions matches that instruction's constraint
-//!   At the moment, only [Instruction::Binary], [Instruction::ArrayGet], and [Instruction::ArraySet]
+//!   At the moment, only [`Instruction::Binary`], [`Instruction::ArrayGet`], and [`Instruction::ArraySet`]
 //!   are type checked.
 use core::panic;
 use std::borrow::Cow;
@@ -27,6 +29,10 @@ use itertools::Itertools;
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
 pub(crate) mod dynamic_array_indices;
+#[cfg(debug_assertions)]
+pub(crate) mod flatten_post_check;
+#[cfg(debug_assertions)]
+pub(crate) mod rc_invariant;
 
 use crate::ssa::{
     ir::{
@@ -49,10 +55,10 @@ struct Validator<'f> {
     function: &'f Function,
     ssa: &'f Ssa,
 
-    // State for valid Field to integer casts
+    // State for validating narrowing casts.
     // Range checks are laid down in isolation and can make for safe casts
-    // If they occurred before the value being cast to a smaller type
-    // Stores: A set of (value being range constrained, the value's max bit size)
+    // if they occurred before the value being cast to a smaller type.
+    // Stores: A map of (value being range constrained, the value's max bit size)
     range_checks: HashMap<ValueId, u32>,
 
     // Element type of each `allocate` result, populated as we traverse blocks in
@@ -70,20 +76,38 @@ impl<'f> Validator<'f> {
         }
     }
 
-    /// Enforces that every cast from Field -> unsigned/signed integer must obey the following invariants:
-    /// The value being cast is either:
-    /// 1. A truncate instruction that ensures the cast is valid
-    /// 2. A constant value known to be in-range
-    /// 3. A division or other operation whose result is known to fit within the target bit size
+    /// Enforces that every narrowing cast is preceded by an instruction that
+    /// guarantees the value being cast fits into the destination type.
+    ///
+    /// A `Cast` lowers to an assertion that the value fits in the destination
+    /// type (see the SSA interpreter's handling of [`Instruction::Cast`], which
+    /// errors when the value does not fit), so a *narrowing* cast — one whose
+    /// source type can hold values that do not fit in the destination — is only
+    /// sound when an earlier instruction has already constrained the value. A
+    /// raw narrowing cast on e.g. a program input would otherwise let a value
+    /// that should fail to convert slip through, and downstream passes are then
+    /// free to drop the now-dead failing cast (see the cast-chain simplifier).
+    ///
+    /// The value being cast must therefore be one of:
+    /// 1. A value that was range-checked to a bit size that fits the destination.
+    /// 2. The result of a `Truncate` to a bit size that fits the destination.
+    /// 3. The quotient of a division by a constant whose result is known to fit.
+    /// 4. A constant that is already in-range.
     ///
     /// Our initial SSA gen only generates preceding truncates for safe casts.
-    /// The cases accepted here are extended past what we perform during our initial SSA gen
-    /// to mirror the instruction simplifier and other logic that could be accepted as a safe cast.
-    fn validate_field_to_integer_cast_invariant(&mut self, instruction_id: InstructionId) {
+    /// The cases accepted here are extended past what we perform during our
+    /// initial SSA gen to mirror the instruction simplifier and other logic that
+    /// could be accepted as a safe cast.
+    ///
+    /// Widening casts, identity casts, and casts to `Field` cannot fail and are
+    /// not checked.
+    fn validate_narrowing_cast_invariant(&mut self, instruction_id: InstructionId) {
         let dfg = &self.function.dfg;
 
-        let (cast_input, typ) = match &dfg[instruction_id] {
-            Instruction::Cast(cast_input, typ) => (*cast_input, *typ),
+        let (cast_input, target_type) = match &dfg[instruction_id] {
+            Instruction::Cast(cast_input, target_type) => (*cast_input, *target_type),
+            // Range checks are laid down in isolation; record the constrained bit
+            // size so a later cast of the same value can be recognized as safe.
             Instruction::RangeCheck { value, max_bit_size, .. } => {
                 self.range_checks.insert(*value, *max_bit_size);
                 return;
@@ -91,56 +115,76 @@ impl<'f> Validator<'f> {
             _ => return,
         };
 
-        if !matches!(*dfg.type_of_value(cast_input), Type::Numeric(NumericType::NativeField)) {
-            return;
-        }
-
-        let (NumericType::Signed { bit_size: target_type_size }
-        | NumericType::Unsigned { bit_size: target_type_size }) = typ
-        else {
+        let source_type = dfg.type_of_value(cast_input).unwrap_numeric();
+        let Some(target_bit_size) = narrowing_cast_target_bit_size(source_type, target_type) else {
             return;
         };
 
         // If the cast input has already been range constrained to a bit size that fits
         // in the destination type, we have a safe cast.
         if let Some(max_bit_size) = self.range_checks.get(&cast_input) {
-            assert!(*max_bit_size <= target_type_size);
+            assert!(
+                *max_bit_size <= target_bit_size,
+                "Narrowing cast is preceded by a range check to {max_bit_size} bits, \
+                 which does not fit in the {target_bit_size}-bit destination type {target_type}"
+            );
             return;
         }
 
         match &dfg[cast_input] {
             Value::Instruction { instruction, .. } => match &dfg[*instruction] {
                 Instruction::Truncate { value: _, bit_size, max_bit_size } => {
-                    assert!(*bit_size <= target_type_size);
+                    assert!(
+                        *bit_size <= target_bit_size,
+                        "Narrowing cast is preceded by a truncate to {bit_size} bits, \
+                         which does not fit in the {target_bit_size}-bit destination type {target_type}"
+                    );
                     assert!(*max_bit_size <= FieldElement::max_num_bits());
                 }
+                // Dividing a `numerator_bits`-bit value by a constant with `divisor_bits`
+                // significant bits bounds the quotient: the divisor is ≥ 2^(divisor_bits - 1),
+                // so the quotient is < 2^numerator_bits / 2^(divisor_bits - 1), i.e. it occupies
+                // at most `numerator_bits - divisor_bits + 1` bits. (This matches the `< bit_size`
+                // check in `simplify_truncate`, which folds the same `+ 1` into a strict
+                // comparison.) The bound reasons about magnitude, so it only holds for
+                // non-negative values: a signed division can yield a negative quotient whose
+                // field representation spans the full source width, so signed numerators are
+                // not accepted here.
                 Instruction::Binary(Binary { lhs, rhs, operator: BinaryOp::Div, .. })
-                    if dfg.is_constant(*rhs) =>
+                    if dfg.is_constant(*rhs)
+                        && !matches!(source_type, NumericType::Signed { .. }) =>
                 {
                     let numerator_bits = dfg.type_of_value(*lhs).bit_size();
                     let divisor = dfg.get_numeric_constant(*rhs).unwrap();
                     let divisor_bits = divisor.num_bits();
-                    let max_quotient_bits = numerator_bits - divisor_bits;
+                    let max_quotient_bits = numerator_bits.saturating_sub(divisor_bits) + 1;
 
                     assert!(
-                        max_quotient_bits <= target_type_size,
-                        "Cast from field after div could exceed bit size: expected ≤ {target_type_size}, got {max_quotient_bits}"
+                        max_quotient_bits <= target_bit_size,
+                        "Cast after div could exceed bit size: expected ≤ {target_bit_size}, got {max_quotient_bits}"
                     );
                 }
                 _ => {
-                    panic!("Invalid cast from Field, must be truncated or provably safe");
+                    panic!(
+                        "Invalid narrowing cast from {source_type} to {target_type}: the value \
+                         being cast is not guaranteed to fit in the destination type. A narrowing \
+                         cast must be preceded by a truncate, a range check, or a division by a \
+                         constant that bounds the value."
+                    );
                 }
             },
             Value::NumericConstant { constant, .. } => {
                 let max_val_bits = constant.num_bits();
                 assert!(
-                    max_val_bits <= target_type_size,
-                    "Constant too large for cast target: {max_val_bits} bits > {target_type_size}"
+                    max_val_bits <= target_bit_size,
+                    "Constant too large for cast target: {max_val_bits} bits > {target_bit_size}"
                 );
             }
             _ => {
                 panic!(
-                    "Invalid cast from Field, not preceded by valid truncation or known safe value"
+                    "Invalid narrowing cast from {source_type} to {target_type}: the value being \
+                     cast is not preceded by a valid truncation or range check, nor otherwise \
+                     known to be in range."
                 );
             }
         }
@@ -162,6 +206,32 @@ impl<'f> Validator<'f> {
 
         if return_blocks.len() > 1 {
             panic!("Function {} has multiple return blocks {return_blocks:?}", self.function.id())
+        }
+    }
+
+    /// `enable_side_effects` is only introduced once a function has been reduced to a
+    /// single block by `flatten_cfg`; encountering one alongside any branching control
+    /// flow indicates a malformed SSA.
+    fn validate_enable_side_effects_only_without_control_flow(&self) {
+        let reachable_blocks = self.function.reachable_blocks();
+        if reachable_blocks.len() <= 1 {
+            return;
+        }
+
+        for block in &reachable_blocks {
+            for instruction in self.function.dfg[*block].instructions() {
+                if matches!(
+                    self.function.dfg[*instruction],
+                    Instruction::EnableSideEffectsIf { .. }
+                ) {
+                    panic!(
+                        "Function {} contains an enable_side_effects instruction but has {} blocks; \
+                         enable_side_effects is only valid in functions with no control flow",
+                        self.function.id(),
+                        reachable_blocks.len(),
+                    );
+                }
+            }
         }
     }
 
@@ -275,7 +345,7 @@ impl<'f> Validator<'f> {
                 for (index, element) in elements.iter().enumerate() {
                     let element_type = dfg.type_of_value(*element);
                     let expected_type = &composite_type[index % composite_type_len];
-                    if &*element_type != expected_type {
+                    if !element_type.canonical_eq(expected_type) {
                         panic!(
                             "MakeArray has incorrect element type at index {index}: expected {expected_type}, got {element_type}"
                         );
@@ -289,7 +359,7 @@ impl<'f> Validator<'f> {
                 };
 
                 let value_type = dfg.type_of_value(*value);
-                if **address_value_type != *value_type {
+                if !address_value_type.canonical_eq(&value_type) {
                     panic!(
                         "Store address type {address_value_type} does not match value type {value_type}"
                     );
@@ -349,9 +419,7 @@ impl<'f> Validator<'f> {
                     arguments.iter().zip_eq(parameter_types).enumerate()
                 {
                     let argument_type = dfg.type_of_value(*argument);
-                    if *argument_type != parameter_type
-                        && !is_mut_ref_to_immutable_ref(&argument_type, &parameter_type)
-                    {
+                    if !argument_type.canonical_eq(&parameter_type) {
                         panic!(
                             "Argument #{} to {func_id} has type {parameter_type}, but {argument_type} was given",
                             index + 1,
@@ -374,7 +442,7 @@ impl<'f> Validator<'f> {
                     {
                         let return_type = called_function.dfg.type_of_value(*return_value);
                         let instruction_result_type = dfg.type_of_value(*instruction_result);
-                        if return_type != instruction_result_type {
+                        if !return_type.canonical_eq(&instruction_result_type) {
                             panic!(
                                 "Function call to {} expected return type {}, but got {} (at position {})",
                                 func_id,
@@ -783,14 +851,13 @@ impl<'f> Validator<'f> {
                 // struct EmbeddedCurvePoint {
                 //     x: Field,
                 //     y: Field,
-                //     is_infinite: bool,
                 // }
-                assert_arguments_length(arguments, 7, "embedded_curve_add");
+                assert_arguments_length(arguments, 5, "embedded_curve_add");
 
                 assert_embedded_curve_point(arguments, 0, dfg, "embedded_curve_add _point1");
-                assert_embedded_curve_point(arguments, 3, dfg, "embedded_curve_add _point2");
+                assert_embedded_curve_point(arguments, 2, dfg, "embedded_curve_add _point2");
 
-                let predicate_type = dfg.type_of_value(arguments[6]);
+                let predicate_type = dfg.type_of_value(arguments[4]);
                 assert_u1(&predicate_type, "embedded_curve_add _predicate");
 
                 let result_type = self.assert_one_result(instruction, "embedded_curve_add");
@@ -799,13 +866,12 @@ impl<'f> Validator<'f> {
                 assert_array_length(result_length, 1, "embedded_curve_add result length");
                 assert_eq!(
                     result_elements.len(),
-                    3,
-                    "Expected embedded_curve_add result element types length to be 3, got: {}",
+                    2,
+                    "Expected embedded_curve_add result element types length to be 2, got: {}",
                     result_elements.len(),
                 );
                 assert_field(&result_elements[0], "embedded_curve_add result x");
                 assert_field(&result_elements[1], "embedded_curve_add result y");
-                assert_u1(&result_elements[2], "embedded_curve_add result is_infinite");
             }
             BlackBoxFunc::Keccakf1600 => {
                 // fn keccakf1600(input: [u64; 25]) -> [u64; 25] {}
@@ -832,13 +898,12 @@ impl<'f> Validator<'f> {
                     assert_array(&points_type, "multi_scalar_mul points");
                 assert_eq!(
                     points_elements.len(),
-                    3,
-                    "Expected multi_scalar_mul points element types length to be 3, got: {}",
+                    2,
+                    "Expected multi_scalar_mul points element types length to be 2, got: {}",
                     points_elements.len()
                 );
                 assert_field(&points_elements[0], "multi_scalar_mul points x");
                 assert_field(&points_elements[1], "multi_scalar_mul points y");
-                assert_u1(&points_elements[2], "multi_scalar_mul points is_infinite");
 
                 let (scalars_elements, scalars_length) =
                     assert_array(&scalars_type, "multi_scalar_mul scalars");
@@ -1063,98 +1128,20 @@ impl<'f> Validator<'f> {
         }
     }
 
-    fn validate_block_terminator(&self, block: BasicBlockId) {
-        let terminator = self.function.dfg[block]
-            .terminator()
-            .expect("Block is expected to have a terminator instruction");
-
-        let entry_block = self.function.entry_block();
-        match terminator {
-            TerminatorInstruction::JmpIf {
-                condition,
-                then_destination,
-                then_arguments,
-                else_destination,
-                else_arguments,
-                call_stack: _,
-            } => {
-                let condition_type = self.function.dfg.type_of_value(*condition);
-                assert_ne!(
-                    *then_destination, entry_block,
-                    "Entry block cannot be the target of a jump"
-                );
-                assert_ne!(
-                    *else_destination, entry_block,
-                    "Entry block cannot be the target of a jump"
-                );
-                assert_eq!(
-                    *condition_type,
-                    Type::bool(),
-                    "JmpIf conditions should have boolean type"
-                );
-                self.check_jump_arguments_match_block_parameters(
-                    *then_destination,
-                    then_arguments,
-                    "jmpif then branch",
-                );
-                self.check_jump_arguments_match_block_parameters(
-                    *else_destination,
-                    else_arguments,
-                    "jmpif else branch",
-                );
-            }
-            TerminatorInstruction::Jmp { destination, arguments, call_stack: _ } => {
-                assert_ne!(*destination, entry_block, "Entry block cannot be the target of a jump");
-                self.check_jump_arguments_match_block_parameters(*destination, arguments, "jmp");
-            }
-            TerminatorInstruction::Return { return_values, .. } => {
-                if let Some(return_data_id) = self.function.dfg.data_bus.return_data {
-                    assert_eq!(
-                        *return_values,
-                        vec![return_data_id],
-                        "Databus return_data does not match return terminator"
-                    );
-                }
-            }
-            TerminatorInstruction::Unreachable { .. } => (),
-        }
-    }
-
-    fn check_jump_arguments_match_block_parameters(
-        &self,
-        destination: BasicBlockId,
-        arguments: &[ValueId],
-        kind: &str,
-    ) {
-        let block_parameters = self.function.dfg.block_parameters(destination);
-        assert_eq!(
-            arguments.len(),
-            block_parameters.len(),
-            "Number of arguments in {kind} must match number of block parameters"
-        );
-        for (argument, parameter) in arguments.iter().zip_eq(block_parameters) {
-            let argument_type = self.function.dfg.type_of_value(*argument);
-            let parameter_type = self.function.dfg.type_of_value(*parameter);
-            assert!(
-                types_equal_ignoring_reference_mutability(&argument_type, &parameter_type),
-                "Argument type in {kind} must match block parameter type\n  left: {argument_type}\n right: {parameter_type}"
-            );
-        }
-    }
-
     fn run(&mut self) {
         self.type_check_globals();
         self.validate_single_return_block();
+        self.validate_enable_side_effects_only_without_control_flow();
 
         for block in PostOrder::with_function_from_entry(self.function).into_vec_reverse() {
             for instruction in self.function.dfg[block].instructions() {
                 self.track_allocate_and_check_load_store(*instruction);
-                self.validate_field_to_integer_cast_invariant(*instruction);
+                self.validate_narrowing_cast_invariant(*instruction);
                 self.type_check_instruction(*instruction);
                 self.check_calls_in_unconstrained(*instruction);
                 self.check_calls_in_constrained(*instruction);
             }
-            self.validate_block_terminator(block);
+            validate_block_terminator(self.function, block);
         }
     }
 
@@ -1178,8 +1165,10 @@ impl<'f> Validator<'f> {
                 };
                 let result = dfg.instruction_results(instruction)[0];
                 let result_type = dfg.type_of_value(result);
-                if *result_type != *expected_type {
-                    panic!("load should return {expected_type}, not {result_type}");
+                if !result_type.canonical_eq(expected_type) {
+                    panic!(
+                        "load should return {expected_type}, not {result_type}; address = {address}, result = {result}"
+                    );
                 }
             }
             Instruction::Store { address, value } => {
@@ -1187,8 +1176,10 @@ impl<'f> Validator<'f> {
                     return;
                 };
                 let value_type = dfg.type_of_value(*value);
-                if *value_type != *expected_type {
-                    panic!("store value should have type {expected_type}, not {value_type}");
+                if !value_type.canonical_eq(expected_type) {
+                    panic!(
+                        "store value should have type {expected_type}, not {value_type}; address = {address}, value = {value}"
+                    );
                 }
             }
             _ => (),
@@ -1204,14 +1195,109 @@ pub(crate) fn validate_function(function: &Function, ssa: &Ssa) {
     validator.run();
 }
 
+/// Validates every reachable block's terminator: see [`validate_block_terminator`].
+///
+/// This is a general SSA well-formedness property which must hold at every point in the
+/// pipeline, so passes which rewrite block parameters or terminator arguments (e.g.
+/// mem2reg, `remove_redundant_params`) call this in their debug post-checks.
+#[cfg(debug_assertions)]
+pub(crate) fn validate_terminators(function: &Function) {
+    for block in function.reachable_blocks() {
+        validate_block_terminator(function, block);
+    }
+}
+
+/// Validates that the block has a terminator, that no jump targets the entry block, that
+/// `JmpIf` conditions are boolean, that `Jmp`/`JmpIf` arguments match the destination
+/// block's parameters (in arity and canonical type), and that a `Return` returns the
+/// databus when one is present.
+fn validate_block_terminator(function: &Function, block: BasicBlockId) {
+    let terminator = function.dfg[block]
+        .terminator()
+        .expect("Block is expected to have a terminator instruction");
+
+    let entry_block = function.entry_block();
+    match terminator {
+        TerminatorInstruction::JmpIf {
+            condition,
+            then_destination,
+            then_arguments,
+            else_destination,
+            else_arguments,
+            call_stack: _,
+        } => {
+            let condition_type = function.dfg.type_of_value(*condition);
+            assert_ne!(
+                *then_destination, entry_block,
+                "Entry block cannot be the target of a jump"
+            );
+            assert_ne!(
+                *else_destination, entry_block,
+                "Entry block cannot be the target of a jump"
+            );
+            assert_eq!(*condition_type, Type::bool(), "JmpIf conditions should have boolean type");
+            check_jump_arguments_match_block_parameters(
+                function,
+                *then_destination,
+                then_arguments,
+                "jmpif then branch",
+            );
+            check_jump_arguments_match_block_parameters(
+                function,
+                *else_destination,
+                else_arguments,
+                "jmpif else branch",
+            );
+        }
+        TerminatorInstruction::Jmp { destination, arguments, call_stack: _ } => {
+            assert_ne!(*destination, entry_block, "Entry block cannot be the target of a jump");
+            check_jump_arguments_match_block_parameters(function, *destination, arguments, "jmp");
+        }
+        TerminatorInstruction::Return { return_values, .. } => {
+            if let Some(return_data_id) = function.dfg.data_bus.return_data {
+                assert_eq!(
+                    *return_values,
+                    vec![return_data_id],
+                    "Databus return_data does not match return terminator"
+                );
+            }
+        }
+        TerminatorInstruction::Unreachable { .. } => (),
+    }
+}
+
+fn check_jump_arguments_match_block_parameters(
+    function: &Function,
+    destination: BasicBlockId,
+    arguments: &[ValueId],
+    kind: &str,
+) {
+    let block_parameters = function.dfg.block_parameters(destination);
+    assert_eq!(
+        arguments.len(),
+        block_parameters.len(),
+        "Number of arguments in {kind} must match number of block parameters"
+    );
+    for (argument, parameter) in arguments.iter().zip_eq(block_parameters) {
+        let argument_type = function.dfg.type_of_value(*argument);
+        let parameter_type = function.dfg.type_of_value(*parameter);
+        assert!(
+            argument_type.canonical_eq(&parameter_type),
+            "Argument type in {kind} must match block parameter type\n  left: {argument_type}\n right: {parameter_type}"
+        );
+    }
+}
+
 /// Pipeline-level sanity check: at the end of SSA, ACIR functions must contain no
 /// [Load][Instruction::Load], [Store][Instruction::Store], or [Allocate][Instruction::Allocate]
 /// instructions. Mem2reg + CFG flattening replace stack memory with SSA values; if either
-/// of those passes regresses we want this to panic at the pipeline boundary instead of
+/// of those passes regresses we want this to fail at the pipeline boundary instead of
 /// allowing stale memory ops to trip later passes (e.g. `mutable_array_set_optimization`,
 /// which `unreachable!`s on `Store`).
 #[cfg(debug_assertions)]
-pub(crate) fn validate_no_acir_memory_ops(ssa: &Ssa) {
+pub(crate) fn validate_no_acir_memory_ops(ssa: &Ssa) -> crate::errors::RtResult<()> {
+    use crate::errors::RuntimeError;
+
     for func in ssa.functions.values() {
         if !func.runtime().is_acir() {
             continue;
@@ -1219,48 +1305,41 @@ pub(crate) fn validate_no_acir_memory_ops(ssa: &Ssa) {
         for block_id in func.reachable_blocks() {
             for instruction_id in func.dfg[block_id].instructions() {
                 let instruction = &func.dfg[*instruction_id];
-                assert!(
-                    !matches!(
-                        instruction,
-                        Instruction::Load { .. }
-                            | Instruction::Store { .. }
-                            | Instruction::Allocate
-                    ),
-                    "ACIR function {} contains a Load/Store/Allocate at the end of the SSA \
-                     pipeline; mem2reg + flatten_cfg should have removed it",
-                    func.name()
-                );
+                if matches!(
+                    instruction,
+                    Instruction::Load { .. } | Instruction::Store { .. } | Instruction::Allocate
+                ) {
+                    let call_stack = func.dfg.get_instruction_call_stack(*instruction_id);
+                    let message = format!(
+                        "ACIR function {} contains a Load/Store/Allocate at the end of the SSA \
+                         pipeline; mem2reg + flatten_cfg should have removed it",
+                        func.name()
+                    );
+                    return Err(RuntimeError::SsaValidationError { message, call_stack });
+                }
             }
         }
     }
+    Ok(())
 }
 
-/// Returns true if `arg` is `&mut T` and `param` is `&T` with the same element type.
-/// A mutable reference is compatible with an immutable reference parameter.
-fn is_mut_ref_to_immutable_ref(arg: &Type, param: &Type) -> bool {
-    matches!(
-        (arg, param),
-        (Type::Reference(a, true), Type::Reference(b, false)) if a == b
-    )
-}
-
-/// Compares two types, treating mutable and immutable references as equivalent.
-fn types_equal_ignoring_reference_mutability(a: &Type, b: &Type) -> bool {
-    let all_eq = |a: &[Type], b: &[Type]| {
-        a.len() == b.len()
-            && a.iter().zip(b).all(|(a, b)| types_equal_ignoring_reference_mutability(a, b))
-    };
-
-    match (a, b) {
-        (Type::Reference(a_elem, _), Type::Reference(b_elem, _)) => {
-            types_equal_ignoring_reference_mutability(a_elem, b_elem)
-        }
-        (Type::Array(a_elems, a_len), Type::Array(b_elems, b_len)) => {
-            a_len == b_len && all_eq(a_elems, b_elems)
-        }
-        (Type::Vector(a_elems), Type::Vector(b_elems)) => all_eq(a_elems, b_elems),
-        _ => a == b,
+/// Returns the destination bit size when casting `source` to `target` is a
+/// narrowing cast — one where the source may hold values that do not fit in the
+/// destination, so the cast can fail at runtime. Returns `None` when the cast is
+/// always safe (widening, identity, or a cast to `Field`).
+///
+/// Every numeric value is represented as a field element in `[0, 2^bit_size)`
+/// (signed values are stored in two's complement and zero-extended — see the
+/// interpreter's `convert_to_field`), so casting `source` to `target` is safe
+/// for every input exactly when `source`'s bit size does not exceed `target`'s.
+fn narrowing_cast_target_bit_size(source: NumericType, target: NumericType) -> Option<u32> {
+    // Any value fits in a field.
+    if matches!(target, NumericType::NativeField) {
+        return None;
     }
+    let source_bit_size = source.bit_size::<FieldElement>();
+    let target_bit_size = target.bit_size::<FieldElement>();
+    (source_bit_size > target_bit_size).then_some(target_bit_size)
 }
 
 fn assert_arguments_length(arguments: &[ValueId], expected: usize, object: &str) {
@@ -1388,7 +1467,6 @@ fn assert_embedded_curve_point(
     // struct EmbeddedCurvePoint {
     //     x: Field,
     //     y: Field,
-    //     is_infinite: bool,
     // }
     let point_x = arguments[index];
     let point_x_type = dfg.type_of_value(point_x);
@@ -1397,10 +1475,6 @@ fn assert_embedded_curve_point(
     let point_y = arguments[index + 1];
     let point_y_type = dfg.type_of_value(point_y);
     assert_field(&point_y_type, &format!("{object} y"));
-
-    let point_is_infinite = arguments[index + 2];
-    let point_is_infinite_type = dfg.type_of_value(point_is_infinite);
-    assert_u1(&point_is_infinite_type, &format!("{object} is_infinite"));
 }
 
 #[cfg(test)]
@@ -1433,7 +1507,7 @@ mod tests {
     #[should_panic(expected = "Cannot use `lt` with field elements")]
     fn disallows_comparing_fields_with_lt() {
         let src = "
-        acir(inline) impure fn main f0 {
+        acir(inline) pure fn main f0 {
           b0():
             v2 = lt Field 1, Field 2
             return
@@ -1619,7 +1693,7 @@ mod tests {
     #[test]
     fn cast_from_field_constant_in_range() {
         let src = "
-        acir(inline) predicate_pure fn main f0 {
+        acir(inline) pure fn main f0 {
           b0():
             v0 = cast Field 42 as u8
             return v0
@@ -1631,7 +1705,7 @@ mod tests {
     #[test]
     fn cast_from_field_constant_out_of_range_with_truncate() {
         let src = "
-        acir(inline) predicate_pure fn main f0 {
+        acir(inline) pure fn main f0 {
           b0():
             v0 = truncate Field 123456 to 8 bits, max_bit_size: 16
             v1 = cast v0 as u8
@@ -1658,7 +1732,7 @@ mod tests {
     #[should_panic(expected = "Constant too large")]
     fn cast_from_field_constant_too_large() {
         let src = "
-        acir(inline) predicate_pure fn main f0 {
+        acir(inline) pure fn main f0 {
           b0():
             v0 = cast Field 300 as u8
             return v0
@@ -1668,10 +1742,10 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "Invalid cast from Field")]
+    #[should_panic(expected = "Invalid narrowing cast from Field to u8")]
     fn cast_from_raw_field() {
         let src = "
-        acir(inline) predicate_pure fn main f0 {
+        acir(inline) pure fn main f0 {
           b0():
             v0 = add Field 255, Field 1
             v1 = cast v0 as u8
@@ -1682,14 +1756,239 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "assertion")]
+    #[should_panic(expected = "does not fit in the 8-bit destination type u8")]
     fn cast_after_unsafe_truncate() {
         let src = "
-        acir(inline) predicate_pure fn main f0 {
+        acir(inline) pure fn main f0 {
           b0():
             v0 = truncate Field 1000 to 16 bits, max_bit_size: 16
             v1 = cast v0 as u8
             return v1
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    #[should_panic(expected = "Invalid narrowing cast from u16 to u8")]
+    fn cast_narrowing_integer_param_is_rejected() {
+        // Audit repro: a raw `u16 -> u8` narrowing cast on a program input, with
+        // nothing proving the value fits in `u8`. Such SSA lets later passes erase
+        // a cast that should fail at runtime.
+        let src = "
+        acir(inline) pure fn main f0 {
+          b0(v0: u16):
+            v1 = cast v0 as u8
+            v2 = cast v1 as u16
+            return v2
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    #[should_panic(expected = "Invalid narrowing cast from i16 to i8")]
+    fn cast_narrowing_signed_param_is_rejected() {
+        let src = "
+        acir(inline) pure fn main f0 {
+          b0(v0: i16):
+            v1 = cast v0 as i8
+            return v1
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    fn cast_narrowing_integer_after_truncate_is_allowed() {
+        let src = "
+        acir(inline) pure fn main f0 {
+          b0(v0: u16):
+            v1 = truncate v0 to 8 bits, max_bit_size: 16
+            v2 = cast v1 as u8
+            return v2
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    fn cast_narrowing_integer_after_range_check_is_allowed() {
+        let src = "
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u16):
+            range_check v0 to 8 bits
+            v1 = cast v0 as u8
+            return v1
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    fn cast_widening_integer_is_allowed() {
+        let src = "
+        acir(inline) pure fn main f0 {
+          b0(v0: u8):
+            v1 = cast v0 as u16
+            return v1
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    fn cast_signed_to_unsigned_same_bit_size_is_allowed() {
+        // `i8` and `u8` share the field representation `[0, 2^8)`, so this
+        // reinterpretation can never fail and needs no preceding guard.
+        let src = "
+        acir(inline) pure fn main f0 {
+          b0(v0: i8):
+            v1 = cast v0 as u8
+            return v1
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    fn cast_integer_to_field_is_allowed() {
+        let src = "
+        acir(inline) pure fn main f0 {
+          b0(v0: u64):
+            v1 = cast v0 as Field
+            return v1
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    #[should_panic(expected = "Constant too large for cast target")]
+    fn cast_narrowing_integer_constant_too_large_is_rejected() {
+        let src = "
+        acir(inline) pure fn main f0 {
+          b0():
+            v0 = cast u16 300 as u8
+            return v0
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    fn cast_narrowing_integer_constant_in_range_is_allowed() {
+        let src = "
+        acir(inline) pure fn main f0 {
+          b0():
+            v0 = cast u16 200 as u8
+            return v0
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    #[should_panic(expected = "Cast after div could exceed bit size")]
+    fn cast_after_div_quotient_too_large_is_rejected() {
+        // `u16 / 128` (128 has 9 significant bits) can yield 65535/128 = 511, which
+        // needs 9 bits and does not fit `u8`. The bound is `16 - 9 + 1 = 9 > 8`.
+        let src = "
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u16):
+            v1 = div v0, u16 128
+            v2 = cast v1 as u8
+            return v2
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    #[should_panic(expected = "Invalid narrowing cast from i16 to i8")]
+    fn cast_after_signed_div_is_rejected() {
+        // A signed division can produce a negative quotient (e.g. -32768 / 256 = -128),
+        // whose field representation spans the full source width and does not fit `i8`.
+        // The magnitude-based div bound does not apply to signed numerators.
+        let src = "
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: i16):
+            v1 = div v0, i16 256
+            v2 = cast v1 as i8
+            return v2
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    fn cast_after_div_with_sufficient_divisor_is_allowed() {
+        // `u16 / 256` yields at most 65535/256 = 255, which fits `u8`.
+        // The bound is `16 - 9 + 1 = 8 <= 8`.
+        let src = "
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u16):
+            v1 = div v0, u16 256
+            v2 = cast v1 as u8
+            return v2
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    fn cast_narrowing_signed_after_truncate_is_allowed() {
+        // A truncate bounds the value's field representation regardless of signedness,
+        // so a signed narrowing cast guarded by a truncate is safe.
+        let src = "
+        acir(inline) pure fn main f0 {
+          b0(v0: i16):
+            v1 = truncate v0 to 8 bits, max_bit_size: 16
+            v2 = cast v1 as i8
+            return v2
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    fn cast_narrowing_signed_after_range_check_is_allowed() {
+        let src = "
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: i16):
+            range_check v0 to 8 bits
+            v1 = cast v0 as i8
+            return v1
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    fn cast_narrowing_signed_constant_in_range_is_allowed() {
+        // `i16 200` has field representation 200 (8 bits), which fits `i8`
+        // (where it is reinterpreted as -56).
+        let src = "
+        acir(inline) pure fn main f0 {
+          b0():
+            v0 = cast i16 200 as i8
+            return v0
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    #[should_panic(expected = "Constant too large for cast target")]
+    fn cast_narrowing_signed_negative_constant_is_rejected() {
+        // `i16 -1` has field representation 65535 (16 bits), which does not fit `i8`:
+        // a raw signed narrowing cast does not sign-extend, it reinterprets the field
+        // representation, so this cast fails at runtime.
+        let src = "
+        acir(inline) pure fn main f0 {
+          b0():
+            v0 = cast i16 -1 as i8
+            return v0
         }
         ";
         let _ = Ssa::from_str(src).unwrap();
@@ -1800,6 +2099,158 @@ mod tests {
     }
 
     #[test]
+    fn call_allows_argument_reference_mutability_mismatch() {
+        // Reference mutability is a frontend concern with no meaning at the SSA
+        // level, so a `&mut Field` argument is accepted by a `&Field` parameter
+        // (and vice versa).
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = allocate -> &mut Field
+            call f1(v0)
+            return
+        }
+        acir(inline) fn foo f1 {
+          b0(v0: &Field):
+            return
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = allocate -> &Field
+            call f1(v0)
+            return
+        }
+        acir(inline) fn foo f1 {
+          b0(v0: &mut Field):
+            return
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    fn call_allows_argument_reference_mutability_mismatch_nested_in_array() {
+        // The mutability-equivalence rule must look through composite types:
+        // a `[&mut Field; 1]` argument is accepted by a `[&Field; 1]` parameter.
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = allocate -> &mut Field
+            v1 = make_array [v0] : [&mut Field; 1]
+            call f1(v1)
+            return
+        }
+        acir(inline) fn foo f1 {
+          b0(v0: [&Field; 1]):
+            return
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    fn call_allows_argument_reference_mutability_mismatch_nested_in_reference() {
+        // The mutability-equivalence rule must recurse through nested references:
+        // a `&mut &mut Field` argument is accepted by a `&mut &Field` parameter.
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = allocate -> &mut Field
+            v1 = allocate -> &mut &mut Field
+            store v0 at v1
+            call f1(v1)
+            return
+        }
+        acir(inline) fn foo f1 {
+          b0(v0: &mut &Field):
+            return
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    fn call_allows_return_reference_mutability_mismatch() {
+        // Reference mutability is a frontend concern with no meaning at the SSA
+        // level, so a callee returning `&mut Field` satisfies a call instruction
+        // declaring `&Field` (and vice versa).
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = call f1() -> &Field
+            return
+        }
+        acir(inline) fn foo f1 {
+          b0():
+            v0 = allocate -> &mut Field
+            return v0
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = call f1() -> &mut Field
+            return
+        }
+        acir(inline) fn foo f1 {
+          b0():
+            v0 = allocate -> &Field
+            return v0
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    fn call_allows_return_reference_mutability_mismatch_nested_in_array() {
+        // The mutability-equivalence rule must look through composite types:
+        // a callee returning `[&mut Field; 1]` satisfies a call declaring
+        // `[&Field; 1]`.
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = call f1() -> [&Field; 1]
+            return
+        }
+        acir(inline) fn foo f1 {
+          b0():
+            v0 = allocate -> &mut Field
+            v1 = make_array [v0] : [&mut Field; 1]
+            return v1
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    fn call_allows_return_reference_mutability_mismatch_nested_in_reference() {
+        // The mutability-equivalence rule must recurse through nested references:
+        // a callee returning `&mut &mut Field` satisfies a call declaring
+        // `&mut &Field`.
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = call f1() -> &mut &Field
+            return
+        }
+        acir(inline) fn foo f1 {
+          b0():
+            v0 = allocate -> &mut Field
+            v1 = allocate -> &mut &mut Field
+            store v0 at v1
+            return v1
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
     #[should_panic(expected = "Function f1 has multiple return blocks")]
     fn multiple_return_blocks() {
         let src = "
@@ -1894,6 +2345,124 @@ mod tests {
     }
 
     #[test]
+    fn make_array_allows_reference_mutability_mismatch() {
+        // Reference mutability is a frontend concern with no meaning at the SSA
+        // level, so a `&mut Field` element is accepted in a `&Field` composite
+        // slot (and vice versa).
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = allocate -> &mut Field
+            v1 = make_array [v0] : [&Field; 1]
+            return
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = allocate -> &Field
+            v1 = make_array [v0] : [&mut Field; 1]
+            return
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    fn make_array_allows_reference_mutability_mismatch_nested_in_array() {
+        // The mutability-equivalence rule must look through composite types:
+        // a `[&mut Field; 1]` element is accepted in a `[&Field; 1]` composite
+        // slot.
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = allocate -> &mut Field
+            v1 = make_array [v0] : [&mut Field; 1]
+            v2 = make_array [v1] : [[&Field; 1]; 1]
+            return
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    fn make_array_allows_reference_mutability_mismatch_nested_in_reference() {
+        // The mutability-equivalence rule must recurse through nested references:
+        // a `&mut &mut Field` element is accepted in a `&mut &Field` composite
+        // slot.
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = allocate -> &mut Field
+            v1 = allocate -> &mut &mut Field
+            store v0 at v1
+            v2 = make_array [v1] : [&mut &Field; 1]
+            return
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    fn store_allows_reference_mutability_mismatch() {
+        // Reference mutability is a frontend concern with no meaning at the SSA
+        // level, so a `&mut Field` value is accepted at a `&mut &Field` slot
+        // (and vice versa). The minimal SSA-gen pattern this guards is an
+        // assignment like `b.1 = &b.0` inside an unconstrained mutable tuple:
+        // the slot is allocated as `&mut &T` while the right-hand side carries
+        // `&mut T` because `b.0` itself lives in a mutable binding.
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = allocate -> &mut Field
+            v1 = allocate -> &mut &Field
+            store v0 at v1
+            return
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = allocate -> &Field
+            v1 = allocate -> &mut &mut Field
+            store v0 at v1
+            return
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    fn load_allows_reference_mutability_mismatch() {
+        // The Load path mirrors the Store path: when an Allocate's recorded
+        // element type only differs from the Load result type by reference
+        // mutability we must accept it.
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = allocate -> &mut &mut Field
+            v1 = load v0 -> &Field
+            return
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = allocate -> &mut &Field
+            v1 = load v0 -> &mut Field
+            return
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
     #[should_panic(expected = "store value should have type u8, not Field")]
     fn store_has_incorrect_type() {
         let src = "
@@ -1947,12 +2516,14 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "multi_scalar_mul points is_infinite must be u1, not Field")]
+    #[should_panic(
+        expected = "Expected multi_scalar_mul points element types length to be 2, got: 3"
+    )]
     fn msm_has_incorrect_type() {
         let src = "
         acir(inline) fn main f0 {
           b0(v0: [(Field, Field, Field); 3], v1: [(Field, Field); 3], v2: u1):
-            v3 = call multi_scalar_mul(v0, v1, v2) -> [(Field, Field, u1); 1]
+            v3 = call multi_scalar_mul(v0, v1, v2) -> [(Field, Field); 1]
             return v3
         }
         ";
@@ -2295,6 +2866,75 @@ mod tests {
     }
 
     #[test]
+    fn enable_side_effects_in_single_block_function_is_allowed() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u1):
+            enable_side_effects v0
+            return
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    #[should_panic(expected = "contains an enable_side_effects instruction but has 4 blocks; \
+                    enable_side_effects is only valid in functions with no control flow")]
+    fn enable_side_effects_in_function_with_control_flow_is_rejected() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u1):
+            enable_side_effects v0
+            jmpif v0 then: b1(), else: b2()
+          b1():
+            jmp b3()
+          b2():
+            jmp b3()
+          b3():
+            return
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    #[should_panic(expected = "contains an enable_side_effects instruction but has 4 blocks; \
+                    enable_side_effects is only valid in functions with no control flow")]
+    fn enable_side_effects_inside_non_entry_block_is_rejected() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u1):
+            jmpif v0 then: b1(), else: b2()
+          b1():
+            enable_side_effects v0
+            jmp b3()
+          b2():
+            jmp b3()
+          b3():
+            return
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    fn multi_block_function_without_enable_side_effects_is_allowed() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u1):
+            jmpif v0 then: b1(), else: b2()
+          b1():
+            jmp b3()
+          b2():
+            jmp b3()
+          b3():
+            return
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
     #[should_panic(expected = "Number of arguments in jmp must match number of block parameters")]
     fn jmp_incorrect_block_arguments_length() {
         let src = "
@@ -2520,5 +3160,37 @@ mod tests {
         }
         ";
         let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    #[cfg(debug_assertions)]
+    #[should_panic(expected = "Number of arguments in jmp must match number of block parameters")]
+    fn detects_terminator_argument_arity_mismatch() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            jmp b1()
+          b1(v0: Field):
+            return
+        }
+        ";
+        let ssa = Ssa::from_str_no_validation(src).unwrap();
+        super::validate_terminators(ssa.main());
+    }
+
+    #[test]
+    #[cfg(debug_assertions)]
+    #[should_panic(expected = "Argument type in jmp must match block parameter type")]
+    fn detects_terminator_argument_type_mismatch() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            jmp b1(u1 1)
+          b1(v0: Field):
+            return
+        }
+        ";
+        let ssa = Ssa::from_str_no_validation(src).unwrap();
+        super::validate_terminators(ssa.main());
     }
 }

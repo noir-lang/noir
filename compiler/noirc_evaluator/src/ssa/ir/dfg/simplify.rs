@@ -31,7 +31,37 @@ pub(crate) mod value_merger;
 
 pub(crate) use call::constant_to_radix;
 
-/// Contains the result to Instruction::simplify, specifying how the instruction
+/// Bail out of a `simplify_*` routine on input that cannot arise from well-formed SSA — a wrong
+/// argument count, a mismatched type, an unexpected array length, and the like.
+///
+/// Simplification runs during SSA construction, before the validation pass that would reject such
+/// input, so it cannot rely on validation as a backstop. By default this panics at the call site
+/// (preserving a precise stack trace) since the normal pipeline never produces malformed SSA.
+/// When the owning [`DataFlowGraph`]'s `allow_malformed_simplify` is set — only the `ssa_fuzzer`,
+/// which builds malformed SSA on purpose, does this — it instead emits a trace and returns
+/// [`SimplifyResult::None`], leaving the instruction untouched.
+///
+/// Only for checks on the instruction's *inputs*. Invariants on the simplifier's own logic or
+/// output should remain hard `assert!`s, so genuine compiler bugs still surface even under the fuzzer.
+macro_rules! bail_malformed {
+    // Default form, for routines that return `SimplifyResult`: decline by returning `None`.
+    ($dfg:expr, $($arg:tt)*) => {
+        $crate::ssa::ir::dfg::simplify::bail_malformed!(
+            @ret $crate::ssa::ir::dfg::simplify::SimplifyResult::None; $dfg, $($arg)*
+        )
+    };
+    // Explicit-return form, for routines whose decline value is not a bare `SimplifyResult`
+    // (e.g. an `Option<SimplifyResult>` helper returning `Some(SimplifyResult::None)`).
+    (@ret $ret:expr; $dfg:expr, $($arg:tt)*) => {{
+        let msg = format!($($arg)*);
+        assert!($dfg.allow_malformed_simplify, "malformed SSA reached simplify: {msg}");
+        tracing::warn!("malformed SSA reached simplify, leaving instruction unsimplified: {msg}");
+        return $ret;
+    }};
+}
+pub(crate) use bail_malformed;
+
+/// Contains the result to `Instruction::simplify`, specifying how the instruction
 /// should be simplified.
 #[derive(Debug)]
 pub(crate) enum SimplifyResult {
@@ -143,6 +173,17 @@ pub(crate) fn simplify(
         }
         Instruction::ConstrainNotEqual(..) => None,
         Instruction::ArrayGet { array, index } => {
+            if trap_on_constant_out_of_bounds(dfg, block, call_stack, *array, *index) {
+                // The result is dead (the trap aborts first) but must stay well-typed. Reading a
+                // fixed slot such as index 0 is unsound for arrays whose element type flattens to
+                // several differently-typed fields (tuples/structs): slot 0 holds the first
+                // field's type, which need not match the type this `array_get` produces. Collapse
+                // the out-of-bounds index onto an in-bounds slot of the *same* flattened field.
+                let in_bounds = in_bounds_index_of_same_field(dfg, *array, *index);
+                let index = dfg.make_constant(in_bounds.into(), NumericType::length_type());
+                return SimplifiedToInstruction(Instruction::ArrayGet { array: *array, index });
+            }
+
             if let Some(index) = dfg.get_numeric_constant(*index) {
                 return try_optimize_array_get_from_previous_instructions(dfg, *array, index);
             }
@@ -159,6 +200,11 @@ pub(crate) fn simplify(
             }
         }
         Instruction::ArraySet { array: array_id, index: index_id, value, .. } => {
+            if trap_on_constant_out_of_bounds(dfg, block, call_stack, *array_id, *index_id) {
+                // The result is dead (the trap aborts first); forward the unmodified source array
+                // so any downstream use stays well-typed.
+                return SimplifiedTo(*array_id);
+            }
             try_optimize_array_set_from_previous_get(dfg, *array_id, *index_id, *value)
         }
         Instruction::Truncate { value, bit_size, max_bit_size } => {
@@ -393,6 +439,75 @@ fn optimize_length_one_array_read(
     }
 }
 
+/// In a Brillig function, a constant index that is statically out of bounds for a known-length
+/// array can never be valid, so the array operation is replaced with an "Index out of bounds" trap.
+/// Without this, the operation reaches Brillig codegen as a plain memory access at the out-of-bounds
+/// offset, and the Brillig VM grows its memory to fit that offset — a large constant index requests
+/// gigabytes of memory before any check fires.
+///
+/// Returns `false` (leaving the instruction for the normal simplification path) for ACIR functions,
+/// whose memory model and the `array_oob_checks` DIE pass already cover this; for vectors, whose
+/// length is not known at compile time; for non-constant indices; and for in-bounds indices.
+///
+/// In Brillig there is no global side-effects predicate (`EnableSideEffectsIf` is stripped before
+/// codegen and conditionally-dead array operations are never flattened), so the inserted trap stays
+/// in the same branch as the original operation and inherits its exact reachability.
+fn trap_on_constant_out_of_bounds(
+    dfg: &mut DataFlowGraph,
+    block: BasicBlockId,
+    call_stack: CallStackId,
+    array: ValueId,
+    index: ValueId,
+) -> bool {
+    if !dfg.runtime().is_brillig() {
+        return false;
+    }
+    // Only known-length arrays have a compile-time bound; vectors do not.
+    let Some(length) = dfg.try_get_array_length(array) else {
+        return false;
+    };
+    if !dfg.constant_index_is_out_of_bounds(array, index, length) {
+        return false;
+    }
+
+    let false_const = dfg.make_constant(false.into(), NumericType::bool());
+    let true_const = dfg.make_constant(true.into(), NumericType::bool());
+    let trap = Instruction::Constrain(
+        false_const,
+        true_const,
+        Some(ConstrainError::from("Index out of bounds".to_string())),
+    );
+    dfg.insert_instruction_and_results(trap, block, None, call_stack);
+    true
+}
+
+/// Map a statically out-of-bounds constant `array_get` index onto an in-bounds index that selects
+/// a slot of the *same flattened field type*.
+///
+/// An array of `N` elements whose element type flattens to `element_size` fields lays those fields
+/// out as `element_size` repeating slots, so the flattened slot at index `i` has the same type as
+/// the slot at `i % element_size`. Collapsing the out-of-bounds index into the first element —
+/// `offset + (i - offset) % element_size` — preserves that field type while guaranteeing the result
+/// is in bounds, since every array has at least one element. This keeps the (dead) result of an
+/// out-of-bounds access well-typed even for arrays of tuples/structs, where reading a fixed slot
+/// such as index 0 would change the result type.
+///
+/// The index is required to be a constant; this is only called once
+/// [`trap_on_constant_out_of_bounds`] has confirmed a constant, out-of-bounds index.
+fn in_bounds_index_of_same_field(dfg: &DataFlowGraph, array: ValueId, index: ValueId) -> u128 {
+    let element_size = u128::from(dfg.type_of_value(array).element_size().0);
+    let offset = u128::from(dfg.array_offset(array, index).to_u32());
+    let index = dfg
+        .get_numeric_constant(index)
+        .expect("trap_on_constant_out_of_bounds only returns true for constant indices")
+        .to_u128();
+    // An empty element type has no slots to read; there is no field type to preserve.
+    if element_size == 0 {
+        return offset;
+    }
+    offset + (index.saturating_sub(offset) % element_size)
+}
+
 /// See [`crate::ssa::opt::try_optimize_array_get_from_previous_instructions`] for more information.
 fn try_optimize_array_get_from_previous_instructions(
     dfg: &mut DataFlowGraph,
@@ -428,20 +543,20 @@ fn try_optimize_array_get_from_previous_instructions(
 /// we can simplify that array set to the array we were looking to perform an array set upon.
 ///
 /// Simple case:
-/// v3 = array_get v1, index v2
-/// v5 = array_set v1, index v2, value v3
+/// v3 = `array_get` v1, index v2
+/// v5 = `array_set` v1, index v2, value v3
 ///
 /// If we could not immediately simplify the array set from its value, we can try to follow
 /// the array set backwards in the case we have constant indices:
 ///
-/// v3 = array_get v1, index 1
-/// v5 = array_set v1, index 2, value [Field 100, Field 101, Field 102]
-/// v7 = array_set mut v5, index 1, value v3
+/// v3 = `array_get` v1, index 1
+/// v5 = `array_set` v1, index 2, value [Field 100, Field 101, Field 102]
+/// v7 = `array_set` mut v5, index 1, value v3
 ///
 /// We want to optimize `v7` to `v5`. We see that `v3` comes from an array get to `v1`. We follow `v5` backwards and see an array set
 /// to `v1` and see that the previous array set occurs to a different constant index.
 ///
-/// For each array_set:
+/// For each `array_set`:
 /// - If the index is non-constant we fail the optimization since any index may be changed.
 /// - If the index is constant and is our target index, we conservatively fail the optimization.
 /// - Otherwise, we check the array value of the `array_set`. We will refer to this array as array'.
@@ -546,6 +661,37 @@ mod tests {
         }
         ";
         let _ = Ssa::from_str_simplifying(src).unwrap();
+    }
+
+    /// Regression for a type-unsoundness in the constant out-of-bounds Brillig array-get
+    /// handling. When a constant index is statically out of bounds the access is preceded by
+    /// an "Index out of bounds" trap, so its result is dead — but it must still be well-typed.
+    /// The handling rewrote the access to read flattened index 0, which only has the right
+    /// type when every element field shares a type. For an array of tuples (heterogeneous
+    /// flattened fields) index 0 has the *first* field's type, so a `[u8; 1]` (or any non-first
+    /// field) access folded to the leading `u64`, producing a `jmp` argument whose type no
+    /// longer matched its destination block parameter (fuzzer seeds 0xc8d17dd100100000 and
+    /// 0xfa4515e400100000).
+    ///
+    /// `from_str_simplifying` performs the out-of-bounds rewrite; `array_get_optimization` then
+    /// folds the in-bounds constant-index get to its element, which is where a wrongly-typed slot
+    /// would surface. Validating the SSA afterwards must not panic.
+    #[test]
+    fn oob_constant_array_get_on_tuple_array_stays_well_typed() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0():
+            v0 = make_array b\"A\"
+            v1 = make_array [u64 0, v0] : [(u64, [u8; 1]); 1]
+            v2 = array_get v1, index u32 3 -> [u8; 1]
+            jmp b1(v2)
+          b1(v3: [u8; 1]):
+            return v3
+        }
+        ";
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+        let ssa = ssa.array_get_optimization();
+        crate::ssa::ssa_gen::validate_ssa(&ssa);
     }
 
     #[test]
@@ -826,5 +972,98 @@ mod tests {
             !matches!(truncate_result, InsertInstructionResult::SimplifiedTo(v) if v == div_result),
             "truncate of field division result was incorrectly simplified to the division result"
         );
+    }
+
+    #[test]
+    fn brillig_array_set_with_constant_oob_index_traps() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: u32):
+            v1 = make_array [v0, v0, v0, v0] : [u32; 4]
+            v2 = array_set v1, index u32 1000000000, value v0
+            return v2
+        }
+        ";
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+
+        assert_ssa_snapshot!(ssa, @r#"
+        brillig(inline) fn main f0 {
+          b0(v0: u32):
+            v1 = make_array [v0, v0, v0, v0] : [u32; 4]
+            constrain u1 0 == u1 1, "Index out of bounds"
+            return v1
+        }
+        "#);
+    }
+
+    #[test]
+    fn brillig_array_get_with_constant_oob_index_traps() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: u32):
+            v1 = make_array [v0, v0, v0, v0] : [u32; 4]
+            v2 = array_get v1, index u32 1000000000 -> u32
+            return v2
+        }
+        ";
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+
+        assert_ssa_snapshot!(ssa, @r#"
+        brillig(inline) fn main f0 {
+          b0(v0: u32):
+            v1 = make_array [v0, v0, v0, v0] : [u32; 4]
+            constrain u1 0 == u1 1, "Index out of bounds"
+            v5 = array_get v1, index u32 0 -> u32
+            return v5
+        }
+        "#);
+    }
+
+    #[test]
+    fn acir_array_set_with_constant_oob_index_is_not_trapped_at_simplify() {
+        // The constant-OOB trap is Brillig-only: ACIR relies on its memory model and the
+        // dedicated `array_oob_checks` DIE pass, so simplification must leave ACIR untouched.
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u32):
+            v1 = make_array [v0, v0, v0, v0] : [u32; 4]
+            v2 = array_set v1, index u32 1000000000, value v0
+            return v2
+        }
+        ";
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+        assert_normalized_ssa_equals(ssa, src);
+    }
+
+    #[test]
+    fn brillig_in_bounds_offset_index_is_not_trapped() {
+        // After `brillig_array_get_and_set` shifts a constant index past the array header, a valid
+        // in-bounds access (here logical index 0, written as `1 minus 1`) must not be trapped: the
+        // out-of-bounds check has to undo the offset before comparing against the length.
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: u32):
+            v1 = make_array [v0, v0, v0, v0] : [u32; 4]
+            v3 = array_set v1, index u32 1 minus 1, value u32 9
+            return v3
+        }
+        ";
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+        assert_normalized_ssa_equals(ssa, src);
+    }
+
+    #[test]
+    fn brillig_array_set_with_constant_oob_index_on_vector_is_not_trapped() {
+        // Vectors have a dynamic length unknown at compile time, so a constant index can never
+        // be proven out of bounds here; only known-length arrays are trapped.
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: [u32]):
+            v2 = array_set v0, index u32 1000000000, value u32 0
+            return v2
+        }
+        ";
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+        assert_normalized_ssa_equals(ssa, src);
     }
 }

@@ -101,8 +101,8 @@ fn convert_to_2s_complement_field(value: Value, location: Location) -> IResult<F
     })
 }
 
-/// evaluate_cast without recursion
-pub(super) fn evaluate_cast_one_step(
+/// `evaluate_cast` without recursion
+pub(crate) fn evaluate_cast_one_step(
     output_type: &Type,
     location: Location,
     evaluated_lhs: Value,

@@ -6,6 +6,16 @@ impl Module {
     pub comptime fn has_named_attribute<let N: u32>(self, name: str<N>) -> bool {}
     // docs:end:has_named_attribute
 
+    #[builtin(module_named_attribute_args)]
+    // docs:start:named_attribute_args
+    pub comptime fn named_attribute_args<let N: u32>(self, name: str<N>) -> [[Quoted]] {}
+    // docs:end:named_attribute_args
+
+    #[builtin(module_has_builtin_attribute)]
+    // docs:start:has_builtin_attribute
+    pub comptime fn has_builtin_attribute<let N: u32>(self, name: str<N>) -> bool {}
+    // docs:end:has_builtin_attribute
+
     #[builtin(module_is_contract)]
     // docs:start:is_contract
     pub comptime fn is_contract(self) -> bool {}
@@ -52,13 +62,9 @@ impl crate::hash::Hash for Module {
 }
 
 impl crate::cmp::Eq for Module {
-    comptime fn eq(self, other: Self) -> bool {
-        module_eq(self, other)
-    }
+    #[builtin(module_eq)]
+    comptime fn eq(self, other: Self) -> bool {}
 }
-
-#[builtin(module_eq)]
-comptime fn module_eq(_first: Module, _second: Module) -> bool {}
 
 #[builtin(module_hash)]
 comptime fn module_hash(_module: Module) -> Field {}

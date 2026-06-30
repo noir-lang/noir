@@ -63,7 +63,7 @@ pub(crate) enum BrilligVariable {
 }
 
 impl BrilligVariable {
-    /// Extract a [SingleAddrVariable].
+    /// Extract a [`SingleAddrVariable`].
     ///
     /// Panics if the variable is an array or vector.
     pub(crate) fn extract_single_addr(self) -> SingleAddrVariable {
@@ -73,7 +73,7 @@ impl BrilligVariable {
         }
     }
 
-    /// Extract a [BrilligArray].
+    /// Extract a [`BrilligArray`].
     ///
     /// Panics if it's a single address variable or a vector.
     pub(crate) fn extract_array(self) -> BrilligArray {
@@ -83,7 +83,7 @@ impl BrilligVariable {
         }
     }
 
-    /// Extract a [BrilligVector].
+    /// Extract a [`BrilligVector`].
     ///
     /// Panics if it's a single address variable or an array.
     pub(crate) fn extract_vector(self) -> BrilligVector {
@@ -93,7 +93,7 @@ impl BrilligVariable {
         }
     }
 
-    /// Extract the [MemoryAddress] out of any [BrilligVariable].
+    /// Extract the [`MemoryAddress`] out of any [`BrilligVariable`].
     ///
     /// This can be deallocated to make the memory available for reuse.
     ///
@@ -157,13 +157,13 @@ where
     BrilligVariable: From<T>,
     T: Copy,
 {
-    /// Convert the allocated value into a [BrilligVariable].
+    /// Convert the allocated value into a [`BrilligVariable`].
     pub(crate) fn to_var(&self) -> BrilligVariable {
         BrilligVariable::from(**self)
     }
 }
 
-/// Convert an SSA [Type] to [HeapValueType] for passing values to foreign calls.
+/// Convert an SSA [Type] to [`HeapValueType`] for passing values to foreign calls.
 pub(crate) fn type_to_heap_value_type(typ: &Type) -> HeapValueType {
     match typ {
         Type::Numeric(_) | Type::Reference(..) | Type::Function => HeapValueType::Simple(

@@ -157,13 +157,7 @@ impl ChunkFormatter<'_, '_> {
 
         group.text(self.chunk(|formatter| {
             if is_vector {
-                if formatter.is_at(Token::DeprecatedVectorStart) {
-                    // Support the old vector syntax `&[1, 2, 3]`
-                    formatter.bump();
-                    formatter.write("@");
-                } else {
-                    formatter.write_token(Token::At);
-                }
+                formatter.write_token(Token::At);
             }
             formatter.write_left_bracket();
         }));
@@ -1569,13 +1563,6 @@ mod tests {
     #[test]
     fn format_standard_vector() {
         let src = "global x = @ [ 1 , 2 , 3 , ] ;";
-        let expected = "global x = @[1, 2, 3];\n";
-        assert_format(src, expected);
-    }
-
-    #[test]
-    fn format_old_vector_syntax() {
-        let src = "global x = &[ 1 , 2 , 3 , ] ;";
         let expected = "global x = @[1, 2, 3];\n";
         assert_format(src, expected);
     }

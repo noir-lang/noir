@@ -1,0 +1,12 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+error: Index out of bounds: 1000000000 is out of bounds for the array of length 4
+  ┌─ src/main.nr:6:5
+  │
+6 │     array[index()] = value;
+  │     --------------
+  │
+
+Error interpreting main function

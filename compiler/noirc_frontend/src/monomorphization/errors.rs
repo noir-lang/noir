@@ -17,6 +17,7 @@ pub enum MonomorphizationError {
     ComptimeTypeInRuntimeCode { typ: String, location: Location },
     CheckedTransmuteFailed { actual: String, expected: String, location: Location },
     CheckedCastFailed { actual: String, expected: Type, location: Location },
+    CheckedCastEvaluationFailed { err: TypeCheckError, location: Location },
     RecursiveType { typ: Type, location: Location },
     CannotComputeAssociatedConstant { name: String, err: TypeCheckError, location: Location },
     ReferenceReturnedFromIfOrMatch { typ: String, location: Location },
@@ -28,11 +29,15 @@ pub enum MonomorphizationError {
     UnconstrainedReferenceReturnToConstrained { typ: String, location: Location },
     UnconstrainedVectorReturnToConstrained { typ: String, location: Location },
     UnconstrainedFunctionReturnToConstrained { typ: String, location: Location },
+    UnconstrainedEnumReturnToConstrained { typ: String, location: Location },
     ReferenceReturnedFromOracle { typ: String, location: Location },
+    ReferenceParameterToOracle { typ: String, location: Location },
     VectorWithNestedArrayReturnedFromOracle { typ: String, location: Location },
     InvalidTypeForEntryPoint { invalid_type: InvalidType, location: Location },
     ComplexType { complexity: usize, max_complexity: usize, location: Location },
     CannotUseFunctionAsValue { name: String, location: Location },
+    GlobalContainsFunctionPointer { typ: String, location: Location },
+    CalledDisabledFunction { name: String, location: Location },
 }
 
 impl MonomorphizationError {
@@ -45,6 +50,7 @@ impl MonomorphizationError {
             | MonomorphizationError::ComptimeTypeInRuntimeCode { location, .. }
             | MonomorphizationError::CheckedTransmuteFailed { location, .. }
             | MonomorphizationError::CheckedCastFailed { location, .. }
+            | MonomorphizationError::CheckedCastEvaluationFailed { location, .. }
             | MonomorphizationError::RecursiveType { location, .. }
             | MonomorphizationError::NoDefaultType { location, .. }
             | MonomorphizationError::ReferenceReturnedFromIfOrMatch { location, .. }
@@ -63,11 +69,15 @@ impl MonomorphizationError {
             | MonomorphizationError::UnconstrainedFunctionReturnToConstrained {
                 location, ..
             }
+            | MonomorphizationError::UnconstrainedEnumReturnToConstrained { location, .. }
             | MonomorphizationError::ReferenceReturnedFromOracle { location, .. }
+            | MonomorphizationError::ReferenceParameterToOracle { location, .. }
             | MonomorphizationError::VectorWithNestedArrayReturnedFromOracle { location, .. }
             | MonomorphizationError::InvalidTypeForEntryPoint { location, .. }
             | MonomorphizationError::ComplexType { location, .. }
-            | MonomorphizationError::CannotUseFunctionAsValue { location, .. } => *location,
+            | MonomorphizationError::CannotUseFunctionAsValue { location, .. }
+            | MonomorphizationError::GlobalContainsFunctionPointer { location, .. }
+            | MonomorphizationError::CalledDisabledFunction { location, .. } => *location,
             MonomorphizationError::InterpreterError(error) => error.location(),
         }
     }
@@ -90,6 +100,9 @@ impl From<MonomorphizationError> for CustomDiagnostic {
             MonomorphizationError::CheckedCastFailed { actual, expected, .. } => {
                 format!("Arithmetic generics simplification failed: `{actual:?}` != `{expected:?}`")
             }
+            // Show the underlying type-check error (e.g. a division by zero)
+            // as the user-facing diagnostic.
+            MonomorphizationError::CheckedCastEvaluationFailed { err, .. } => return err.into(),
             MonomorphizationError::NoDefaultType { location } => {
                 let message = "Type annotation needed".into();
                 let secondary = "Could not determine type of generic argument".into();
@@ -106,6 +119,11 @@ impl From<MonomorphizationError> for CustomDiagnostic {
             MonomorphizationError::ComptimeTypeInRuntimeCode { typ, location } => {
                 let message = format!("Comptime-only type `{typ}` used in runtime code");
                 let secondary = "Comptime type used here".into();
+                return CustomDiagnostic::simple_error(message, secondary, *location);
+            }
+            MonomorphizationError::CalledDisabledFunction { name, location } => {
+                let message = format!("Called disabled function `{name}`");
+                let secondary = "This function was disabled by a comptime attribute".into();
                 return CustomDiagnostic::simple_error(message, secondary, *location);
             }
             MonomorphizationError::RecursiveType { typ, location } => {
@@ -175,8 +193,16 @@ impl From<MonomorphizationError> for CustomDiagnostic {
                     "Function `{typ}` cannot be returned from an unconstrained runtime to a constrained runtime"
                 )
             }
+            MonomorphizationError::UnconstrainedEnumReturnToConstrained { typ, .. } => {
+                format!(
+                    "Enum `{typ}` cannot be returned from an unconstrained runtime to a constrained runtime"
+                )
+            }
             MonomorphizationError::ReferenceReturnedFromOracle { typ, .. } => {
-                format!("Mutable reference `{typ}` cannot be returned from an oracle function")
+                format!("Reference `{typ}` cannot be returned from an oracle function")
+            }
+            MonomorphizationError::ReferenceParameterToOracle { typ, .. } => {
+                format!("Reference `{typ}` cannot be passed to an oracle function")
             }
             MonomorphizationError::VectorWithNestedArrayReturnedFromOracle { typ, .. } => {
                 format!(
@@ -216,6 +242,12 @@ impl From<MonomorphizationError> for CustomDiagnostic {
                     "`{name}` cannot be used as a function value; it must be called directly"
                 );
                 let secondary = "Used as a value here".to_string();
+                return CustomDiagnostic::simple_error(message, secondary, *location);
+            }
+            MonomorphizationError::GlobalContainsFunctionPointer { typ, location } => {
+                let message = "Globals cannot contain function pointers".to_string();
+                let secondary =
+                    format!("This global has type `{typ}`, which contains a function pointer");
                 return CustomDiagnostic::simple_error(message, secondary, *location);
             }
         };

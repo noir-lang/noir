@@ -131,9 +131,6 @@ where
     F: Fn(Box<dyn std::io::Write + 'a>, layers::Unhandled) -> E,
     E: ForeignCallExecutor<FieldElement>,
 {
-    // Do the same optimizations as `compile_cmd`.
-    let compiled_program = crate::ops::optimize_program(compiled_program);
-
     let ignore_foreign_call_failures =
         std::env::var("NARGO_IGNORE_TEST_FAILURES_FROM_FOREIGN_CALLS")
             .is_ok_and(|var| &var == "true");

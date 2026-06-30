@@ -26,11 +26,11 @@ impl BlackBoxFunctionSolver<FieldElement> for Bn254BlackBoxSolver {
         scalars_lo: &[FieldElement],
         scalars_hi: &[FieldElement],
         predicate: bool,
-    ) -> Result<(FieldElement, FieldElement, FieldElement), BlackBoxResolutionError> {
+    ) -> Result<(FieldElement, FieldElement), BlackBoxResolutionError> {
         if predicate {
             multi_scalar_mul(points, scalars_lo, scalars_hi)
         } else {
-            Ok((FieldElement::zero(), FieldElement::zero(), FieldElement::one()))
+            Ok((FieldElement::zero(), FieldElement::zero()))
         }
     }
 
@@ -38,19 +38,14 @@ impl BlackBoxFunctionSolver<FieldElement> for Bn254BlackBoxSolver {
         &self,
         input1_x: &FieldElement,
         input1_y: &FieldElement,
-        input1_infinite: &FieldElement,
         input2_x: &FieldElement,
         input2_y: &FieldElement,
-        input2_infinite: &FieldElement,
         predicate: bool,
-    ) -> Result<(FieldElement, FieldElement, FieldElement), BlackBoxResolutionError> {
+    ) -> Result<(FieldElement, FieldElement), BlackBoxResolutionError> {
         if predicate {
-            embedded_curve_add(
-                [*input1_x, *input1_y, *input1_infinite],
-                [*input2_x, *input2_y, *input2_infinite],
-            )
+            embedded_curve_add([*input1_x, *input1_y], [*input2_x, *input2_y])
         } else {
-            Ok((FieldElement::zero(), FieldElement::zero(), FieldElement::one()))
+            Ok((FieldElement::zero(), FieldElement::zero()))
         }
     }
 

@@ -49,9 +49,13 @@ impl Function {
         let mut cfg = ControlFlowGraph::with_function(self);
         let mut values_to_replace = ValueMapping::default();
         let mut stack = vec![self.entry_block()];
+        // Tracks which blocks are currently in `stack`
+        let mut queued: HashSet<BasicBlockId> = stack.iter().copied().collect();
         let mut visited = HashSet::new();
 
         while let Some(block) = stack.pop() {
+            queued.remove(&block);
+
             if cfg.predecessors(block).len() == 0 && block != self.entry_block() {
                 // If the block has no predecessors, it's no longer reachable and can be ignored.
                 cfg.invalidate_block_successors(block);
@@ -67,30 +71,41 @@ impl Function {
             let simplified = simplify_current_block(self, block, &mut cfg, &mut values_to_replace);
 
             if visited.insert(block) || simplified {
-                stack.extend(self.dfg[block].successors().filter(|block| !visited.contains(block)));
+                let successors: Vec<_> = self.dfg[block]
+                    .successors()
+                    .filter(|block| !visited.contains(block) && queued.insert(*block))
+                    .collect();
+                stack.extend(successors);
             }
 
             // If this block was simplified (e.g. a jmpif was folded to a jmp), its predecessors
             // may now have new simplification opportunities (e.g. converging branches).
             // Re-add them to the stack so they get re-checked.
             if simplified {
-                stack.extend(cfg.predecessors(block).filter(|b| visited.contains(b)));
+                let predecessors: Vec<_> = cfg
+                    .predecessors(block)
+                    .filter(|b| visited.contains(b) && queued.insert(*b))
+                    .collect();
+                stack.extend(predecessors);
             }
 
             let mut predecessors = cfg.predecessors(block);
-            if predecessors.len() == 1 {
+            let inlined = if predecessors.len() == 1 {
                 let predecessor =
                     predecessors.next().expect("Already checked length of predecessors");
                 drop(predecessors);
 
-                try_inline_successor(self, &mut cfg, predecessor, &mut values_to_replace);
+                try_inline_successor(self, &mut cfg, predecessor, &mut values_to_replace)
             } else {
                 drop(predecessors);
 
                 check_for_double_jmp(self, block, &mut cfg);
-            }
+                false
+            };
 
-            if !values_to_replace.is_empty() {
+            // When `block` is inlined into its predecessor it becomes empty and unreachable,
+            // so it no longer has a terminator worth updating.
+            if !inlined && !values_to_replace.is_empty() {
                 self.dfg.replace_values_in_block_terminator(block, &values_to_replace);
             }
         }
@@ -247,18 +262,27 @@ fn check_for_double_jmp(function: &mut Function, block: BasicBlockId, cfg: &mut 
                 else_arguments,
                 call_stack,
             } => {
-                let then_destination =
-                    if then_destination == block { final_destination } else { then_destination };
-                let else_destination =
-                    if else_destination == block { final_destination } else { else_destination };
-                assert!(then_arguments.is_empty(), "ICE: predecessor jmpif has then-arguments");
-                assert!(else_arguments.is_empty(), "ICE: predecessor jmpif has else-arguments");
+                // Only the branch targeting `block` is guaranteed to be argument-less, as `block`
+                // has no parameters. The other branch may validly target a parameterized block, so
+                // its destination and arguments must be preserved.
+                let (then_destination, then_arguments) = if then_destination == block {
+                    assert!(then_arguments.is_empty(), "ICE: predecessor jmpif has then-arguments");
+                    (final_destination, Vec::new())
+                } else {
+                    (then_destination, then_arguments)
+                };
+                let (else_destination, else_arguments) = if else_destination == block {
+                    assert!(else_arguments.is_empty(), "ICE: predecessor jmpif has else-arguments");
+                    (final_destination, Vec::new())
+                } else {
+                    (else_destination, else_arguments)
+                };
                 TerminatorInstruction::JmpIf {
                     condition,
                     then_destination,
-                    then_arguments: Vec::new(),
+                    then_arguments,
                     else_destination,
-                    else_arguments: Vec::new(),
+                    else_arguments,
                     call_stack,
                 }
             }
@@ -479,9 +503,8 @@ fn resolve_jmp_chain(function: &Function, mut current: BasicBlockId) -> BasicBlo
 
 /// If the given block has block parameters, replace them with the jump arguments from the predecessor.
 ///
-/// Currently, if this function is needed, `try_inline_into_predecessor` will also always apply,
-/// although in the future it is possible for only this function to apply if jmpif instructions
-/// with block arguments are ever added.
+/// This is only called for a predecessor that terminates in a plain `Jmp` whose sole successor is
+/// the given block, so whenever this function is needed `try_inline_into_predecessor` also applies.
 fn remove_block_parameters(
     function: &mut Function,
     block: BasicBlockId,
@@ -495,11 +518,8 @@ fn remove_block_parameters(
 
         let jump_args = match function.dfg[predecessor].unwrap_terminator_mut() {
             TerminatorInstruction::Jmp { arguments, .. } => std::mem::take(arguments),
-            TerminatorInstruction::JmpIf { .. } => unreachable!(
-                "If jmpif instructions are modified to support block arguments in the future, this match will need to be updated"
-            ),
             _ => unreachable!(
-                "Predecessor was already validated to have only a single jmp destination"
+                "Predecessor was already validated to terminate in a single jmp destination"
             ),
         };
 
@@ -806,7 +826,7 @@ mod tests {
     #[test]
     fn do_not_remove_non_converging_jmpif_acir() {
         let src = r#"
-        acir(inline) predicate_pure fn main f0 {
+        acir(inline) pure fn main f0 {
           b0(v13: [(u1, u1, [u8; 1], [u8; 1]); 3]):
             v23 = array_get v13, index u32 8 -> u1
             jmpif v23 then: b1(), else: b2()
@@ -854,8 +874,8 @@ mod tests {
 
         // Non-converging jmpifs remain because the flattening pass expects to merge them.
         // Converging jmpifs (where both branches reach the same block) are folded.
-        assert_ssa_snapshot!(ssa, @r"
-        acir(inline) predicate_pure fn main f0 {
+        assert_ssa_snapshot!(ssa, @"
+        acir(inline) pure fn main f0 {
           b0(v0: [(u1, u1, [u8; 1], [u8; 1]); 3]):
             v3 = array_get v0, index u32 8 -> u1
             jmpif v3 then: b1(), else: b2()
@@ -974,7 +994,7 @@ mod tests {
         // The new terminator instruction of the block is then a jmpif which can be simplified to a jmp.
         let src = format!(
             "
-        {runtime}(inline) impure fn main f0 {{
+        {runtime}(inline) fn main f0 {{
           b0():
             jmpif u1 1 then: b1(), else: b2()
           b1():
@@ -998,7 +1018,7 @@ mod tests {
 
         let expected = format!(
             "\
-{runtime}(inline) impure fn main f0 {{
+{runtime}(inline) fn main f0 {{
   b0():
     return
 }}"
@@ -1009,7 +1029,7 @@ mod tests {
     #[test]
     fn fully_simplifies_negated_constant_condition() {
         let src = r#"
-        brillig(inline) impure fn main f0 {
+        brillig(inline) predicate_pure fn main f0 {
           b0():
             jmp b1(u1 1)
           b1(v0: u1):
@@ -1027,8 +1047,8 @@ mod tests {
         let ssa = Ssa::from_str(src).unwrap();
         let ssa = ssa.simplify_cfg();
 
-        assert_ssa_snapshot!(ssa, @r"
-        brillig(inline) impure fn main f0 {
+        assert_ssa_snapshot!(ssa, @"
+        brillig(inline) predicate_pure fn main f0 {
           b0():
             v1 = not u1 1
             return
@@ -1039,7 +1059,7 @@ mod tests {
     #[test]
     fn removes_unreachable_block() {
         let src = r#"
-        brillig(inline) impure fn main f0 {
+        brillig(inline) predicate_pure fn main f0 {
           b0():
             jmp b1()
           b1():
@@ -1052,8 +1072,8 @@ mod tests {
         let ssa = Ssa::from_str(src).unwrap();
         let ssa = ssa.simplify_cfg();
 
-        assert_ssa_snapshot!(ssa, @r"
-        brillig(inline) impure fn main f0 {
+        assert_ssa_snapshot!(ssa, @"
+        brillig(inline) predicate_pure fn main f0 {
           b0():
             return
         }
@@ -1109,13 +1129,54 @@ mod tests {
     }
 
     #[test]
+    fn double_jmp_jmpif_predecessor_preserves_other_branch_arguments() {
+        // Regression: when removing an empty argument-less jump block, a `JmpIf`
+        // predecessor may target the removed block on one branch while the other
+        // branch validly targets a parameterized block with arguments. Only the
+        // branch targeting the removed block must be argument-less; the other
+        // branch's destination and arguments must be preserved.
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: u1, v1: Field):
+            jmpif v0 then: b1(), else: b4()
+          b1():
+            jmp b3()
+          b2(v2: Field):
+            jmp b5()
+          b3():
+            jmp b5()
+          b4():
+            jmpif v0 then: b1(), else: b2(v1)
+          b5():
+            return
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.simplify_cfg();
+
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) fn main f0 {
+          b0(v0: u1, v1: Field):
+            jmpif v0 then: b3(), else: b2()
+          b1(v2: Field):
+            jmp b3()
+          b2():
+            jmpif v0 then: b3(), else: b1(v1)
+          b3():
+            return
+        }
+        ");
+    }
+
+    #[test]
     fn fold_constant_jmpif_after_negation_swap() {
         // Regression: simplify_cfg must fold constant-condition jmpifs that become
         // visible after a negation swap. When `not v0` produces a constant that
         // causes the first jmpif to be folded, the second `jmpif v0` also has a
         // constant condition and must be folded in the same pass invocation.
         let src = "
-        acir(inline) predicate_pure fn main f0 {
+        acir(inline) pure fn main f0 {
           b0():
             jmp b1(u1 0)
           b1(v0: u1):
@@ -1133,8 +1194,8 @@ mod tests {
         let ssa = Ssa::from_str(src).unwrap();
         let ssa = ssa.simplify_cfg();
 
-        assert_ssa_snapshot!(ssa, @r"
-        acir(inline) predicate_pure fn main f0 {
+        assert_ssa_snapshot!(ssa, @"
+        acir(inline) pure fn main f0 {
           b0():
             v1 = not u1 0
             return
@@ -1150,7 +1211,7 @@ mod tests {
         // other went through extra blocks, causing "Expected two blocks to join
         // to the same block" in flatten_cfg.
         let src = "
-        acir(inline) impure fn main f0 {
+        acir(inline) pure fn main f0 {
           b0(v1: u1, v2: u1, v3: u1, v4: u32):
             v5 = eq v4, u32 1
             jmpif v5 then: b1(), else: b2()
@@ -1346,7 +1407,7 @@ mod tests {
     }
 
     /// A `jmpif` whose two edges point at the same block with *matching* arguments is
-    /// observationally redundant. simplify_cfg must fold it into a `jmp` while
+    /// observationally redundant. `simplify_cfg` must fold it into a `jmp` while
     /// preserving the shared arguments — the previous implementation silently
     /// constructed the replacement `jmp` with an empty argument vector, producing
     /// malformed SSA whenever the target block had parameters.
@@ -1374,7 +1435,7 @@ mod tests {
 
     /// A `jmpif` whose two edges point at the same block with *differing* arguments
     /// is semantically meaningful — the condition selects between the two argument
-    /// lists. simplify_cfg must leave it alone rather than folding.
+    /// lists. `simplify_cfg` must leave it alone rather than folding.
     #[test]
     fn preserve_jmpif_same_target_differing_arguments() {
         let src = "

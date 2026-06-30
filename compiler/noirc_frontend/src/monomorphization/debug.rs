@@ -1,8 +1,8 @@
-use acvm::acir::AcirField;
 use iter_extended::vecmap;
 use noirc_artifacts::debug::DebugVarId;
 use noirc_errors::Location;
 use noirc_printable_type::PrintableType;
+use num_traits::ToPrimitive;
 
 use crate::debug::{SourceFieldId, SourceVarId};
 use crate::hir_def::expr::*;
@@ -69,7 +69,7 @@ impl Monomorphizer<'_> {
     }
 
     /// Update instrumentation code inserted on variable assignment. We need to
-    /// register the variable instance, its type and replace the source_var_id
+    /// register the variable instance, its type and replace the `source_var_id`
     /// with the ID of the registration. Multiple registrations of the same
     /// variable are possible if using generic functions, hence the temporary ID
     /// created when injecting the instrumentation code can map to multiple IDs
@@ -88,7 +88,7 @@ impl Monomorphizer<'_> {
         // instantiate tracked variable for the value type and associate it with
         // the ID used by the injected instrumentation code
         let var_type = self.interner.id_type(call.arguments[DEBUG_VALUE_ARG_SLOT]);
-        let source_var_id = source_var_id.to_u128().into();
+        let source_var_id = source_var_id.to_u128().expect("var id too large").into();
         // then update the ID used for tracking at runtime
         let var_id = self.debug_type_tracker.insert_var(source_var_id, &var_type);
         let interned_var_id = self.intern_var_id(var_id, &call.location);
@@ -97,7 +97,7 @@ impl Monomorphizer<'_> {
     }
 
     /// Update instrumentation code for a variable being dropped out of scope.
-    /// Given the source_var_id we search for the last assigned debug var_id and
+    /// Given the `source_var_id` we search for the last assigned debug `var_id` and
     /// replace it instead.
     fn patch_debug_var_drop(
         &mut self,
@@ -110,7 +110,7 @@ impl Monomorphizer<'_> {
             unreachable!("Missing source_var_id in __debug_var_drop call");
         };
         // update variable ID for tracked drops (ie. when the var goes out of scope)
-        let source_var_id = source_var_id.to_u128().into();
+        let source_var_id = source_var_id.to_u128().expect("var id too large").into();
         let var_id = self
             .debug_type_tracker
             .get_var_id(source_var_id)
@@ -121,7 +121,7 @@ impl Monomorphizer<'_> {
     }
 
     /// Update instrumentation code inserted when assigning to a member of an
-    /// existing variable. Same as above for replacing the source_var_id, but also
+    /// existing variable. Same as above for replacing the `source_var_id`, but also
     /// we need to resolve the path and the type of the member being assigned.
     /// For this last part, we need to resolve the mapping from field names in
     /// structs to positions in the runtime tuple, since all structs are
@@ -138,7 +138,7 @@ impl Monomorphizer<'_> {
             unreachable!("Missing source_var_id in __debug_member_assign call");
         };
         // update variable member assignments
-        let source_var_id = source_var_id.to_u128().into();
+        let source_var_id = source_var_id.to_u128().expect("var id too large").into();
 
         let var_type = self
             .debug_type_tracker
@@ -150,7 +150,7 @@ impl Monomorphizer<'_> {
             if let Some(HirExpression::Literal(HirLiteral::Integer(fe_i))) =
                 hir_arguments.get(DEBUG_MEMBER_FIELD_INDEX_ARG_SLOT + i)
             {
-                let fe_i = fe_i.to_i128();
+                let fe_i = fe_i.to_i128().expect("member index too large");
                 let index = fe_i.unsigned_abs();
                 if fe_i.is_negative() {
                     // We use negative indices at instrumentation time to indicate

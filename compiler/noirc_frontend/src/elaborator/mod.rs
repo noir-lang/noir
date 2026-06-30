@@ -58,7 +58,7 @@ use std::{
 
 use crate::{
     Type,
-    ast::{Ident, UnresolvedGenerics},
+    ast::Ident,
     elaborator::types::WildcardDisallowedContext,
     graph::CrateId,
     hir::{
@@ -67,7 +67,7 @@ use crate::{
         def_collector::{
             dc_crate::{
                 CollectedItems, CompilationError, CompilationErrors, UnresolvedFunctions,
-                UnresolvedGlobal, UnresolvedTraitImpl, UnresolvedTypeAlias,
+                UnresolvedGlobal, UnresolvedImpl, UnresolvedTraitImpl, UnresolvedTypeAlias,
             },
             errors::DefCollectorErrorKind,
         },
@@ -81,7 +81,8 @@ use crate::{
         types::{Kind, ResolvedGeneric},
     },
     node_interner::{
-        DependencyId, FuncId, GlobalId, NodeInterner, TraitId, TraitImplId, TypeAliasId, TypeId,
+        DependencyId, FuncId, GlobalId, ImplId, NodeInterner, TraitId, TraitImplId, TypeAliasId,
+        TypeId,
     },
     parser::{ParserError, ParserErrorReason},
     recursion::TypeRecursionContext,
@@ -162,7 +163,7 @@ const MAX_RECURSION_DEPTH: usize = 200;
 /// expansion involves more stack frames per level (elaboration, comptime evaluation, etc.).
 pub(crate) const MAX_MACRO_EXPANSION_DEPTH: usize = 32;
 
-/// ResolverMetas are tagged onto each definition to track how many times they are used
+/// `ResolverMetas` are tagged onto each definition to track how many times they are used
 #[derive(Debug, PartialEq, Eq)]
 pub struct ResolverMeta {
     used: bool,
@@ -177,7 +178,7 @@ type ScopeForest = GenericScopeForest<String, ResolverMeta>;
 pub struct LambdaContext {
     pub captures: Vec<HirCapturedVar>,
     /// the index in the scope tree
-    /// (sometimes being filled by ScopeTree's find method)
+    /// (sometimes being filled by `ScopeTree`'s find method)
     pub scope_index: usize,
     /// If we know this lambda to be unconstrained.
     pub unconstrained: bool,
@@ -273,6 +274,10 @@ pub struct Elaborator<'context> {
     /// to the corresponding trait impl ID.
     current_trait_impl: Option<TraitImplId>,
 
+    /// If we're currently resolving methods within an inherent (non-trait) impl,
+    /// this will be set to the corresponding impl ID.
+    current_impl: Option<ImplId>,
+
     /// The trait we're currently resolving or implementing, if any.
     /// Set during both trait definitions (`trait Foo { ... }`) and
     /// trait impl elaboration (`impl Foo for Bar { ... }`).
@@ -325,6 +330,10 @@ pub struct Elaborator<'context> {
     /// like `Foo { inner: 5 }`: in that case we already elaborated the code that led to
     /// that comptime value and any visibility errors were already reported.
     silence_field_visibility_errors: usize,
+
+    /// When set, visibility checks during path resolution use this module
+    /// instead of the default importing module.
+    pub(crate) caller_module: Option<ModuleId>,
 
     /// Options from the nargo cli
     options: ElaboratorOptions<'context>,
@@ -381,18 +390,18 @@ pub struct Elaborator<'context> {
     /// up-front (capturing the impl/trait-impl context) and resolve lazily on first read,
     /// so that forward references between functions, globals, and trait associated
     /// constants don't depend on source order. Any entries left after lazy resolution
-    /// has played out are drained at the end of [Self::elaborate_items].
+    /// has played out are drained at the end of [`Self::elaborate_items`].
     unresolved_function_metas: BTreeMap<FuncId, function::UnresolvedFunctionMeta>,
 
     /// Struct definitions whose fields have been *registered* but not yet *resolved*.
-    /// Mirrors [Self::unresolved_function_metas]: we register up-front (during
+    /// Mirrors [`Self::unresolved_function_metas`]: we register up-front (during
     /// def-collection) and resolve lazily on first read, so that struct field types
     /// may reference items produced by comptime attribute expansion. Any entries
     /// left after lazy resolution are drained post-attributes.
     unresolved_struct_fields: BTreeMap<TypeId, structs::UnresolvedStructFields>,
 
     /// Enum definitions whose variants have been *registered* but not yet *resolved*.
-    /// Same posture as [Self::unresolved_struct_fields], for enum variants: variant
+    /// Same posture as [`Self::unresolved_struct_fields`], for enum variants: variant
     /// parameter types may reference items produced by comptime attribute expansion,
     /// so we defer them. Any entries left after lazy resolution are drained
     /// post-attributes.
@@ -400,7 +409,7 @@ pub struct Elaborator<'context> {
 
     /// Bookkeeping for trait-related work that has to wait until the
     /// post-attribute drain has resolved the involved metas. See
-    /// [PendingTraitWork] for what each list is for.
+    /// [`PendingTraitWork`] for what each list is for.
     pending_trait_work: PendingTraitWork,
 }
 
@@ -498,11 +507,13 @@ impl<'context> Elaborator<'context> {
             trait_bounds: Vec::new(),
             function_context: vec![FunctionContext::default()],
             current_trait_impl: None,
+            current_impl: None,
             current_trait: None,
             interpreter_call_stack,
             in_comptime_context: false,
             in_unconstrained_args: false,
             silence_field_visibility_errors: 0,
+            caller_module: None,
             options,
             elaborate_reasons,
             comptime_evaluation_halted: false,
@@ -652,6 +663,7 @@ impl<'context> Elaborator<'context> {
             &items.traits,
             &items.structs,
             &items.functions,
+            &items.impls,
             &items.module_attributes,
         );
 
@@ -790,7 +802,36 @@ impl<'context> Elaborator<'context> {
         None
     }
 
-    /// Traverse the type and call `mark_struct_as_constructed` on any [Type::DataType].
+    /// Resolve a path to the [`FuncId`] of the function it refers to, pushing a diagnostic and
+    /// returning `None` if the path does not resolve or resolves to a non-function item.
+    ///
+    /// Used to coerce a path passed as a `FunctionDefinition` attribute argument into the function
+    /// it names, mirroring [`Self::resolve_trait_by_path`].
+    #[tracing::instrument(level = "trace", skip_all)]
+    fn resolve_function_by_path(&mut self, path: TypedPath) -> Option<FuncId> {
+        let location = path.location;
+        match self.resolve_path_or_error(path, PathResolutionTarget::Value) {
+            Ok(item) => {
+                if let Some(func_id) = item.function_id() {
+                    Some(func_id)
+                } else {
+                    let found = item.description(self.interner);
+                    self.push_err(ResolverError::Expected {
+                        location,
+                        expected: "function",
+                        found,
+                    });
+                    None
+                }
+            }
+            Err(error) => {
+                self.push_err(error);
+                None
+            }
+        }
+    }
+
+    /// Traverse the type and call `mark_struct_as_constructed` on any [`Type::DataType`].
     #[tracing::instrument(level = "trace", skip_all)]
     fn mark_type_as_used(&mut self, typ: &Type) {
         self.mark_type_as_used_helper(
@@ -800,7 +841,7 @@ impl<'context> Elaborator<'context> {
         );
     }
 
-    /// Traverse the type and call `mark_struct_as_constructed` on any [Type::DataType].
+    /// Traverse the type and call `mark_struct_as_constructed` on any [`Type::DataType`].
     ///
     /// We use two helper contexts:
     /// * `type_recursion_context` is used to prevent infinite recursion in cycles,
@@ -912,7 +953,7 @@ impl<'context> Elaborator<'context> {
         }
     }
 
-    /// Walk `typ` and lazy-resolve any [Type::DataType]'s struct fields or
+    /// Walk `typ` and lazy-resolve any [`Type::DataType`]'s struct fields or
     /// enum variants encountered. Used at sites that ask whole-type questions
     /// (`is_valid_for_unconstrained_boundary`, `contains_vector`, etc.) which
     /// read fields/variants directly and would otherwise misinterpret a stub
@@ -1062,15 +1103,15 @@ impl<'context> Elaborator<'context> {
     }
 
     #[tracing::instrument(level = "trace", skip_all)]
-    fn elaborate_impls(&mut self, impls: Vec<(UnresolvedGenerics, Location, UnresolvedFunctions)>) {
-        for (_, _, functions) in impls {
-            self.recover_generics(|this| this.elaborate_functions(functions));
+    fn elaborate_impls(&mut self, impls: Vec<UnresolvedImpl>) {
+        for unresolved_impl in impls {
+            self.recover_generics(|this| this.elaborate_functions(unresolved_impl.methods));
         }
     }
 
     #[tracing::instrument(level = "trace", skip_all)]
     fn elaborate_trait_impl(&mut self, trait_impl: UnresolvedTraitImpl) {
-        self.local_module = Some(trait_impl.module_id);
+        let previous_local_module = self.replace_local_module(trait_impl.module_id);
 
         self.generics = trait_impl.resolved_generics.clone();
         self.current_trait_impl = trait_impl.impl_id;
@@ -1080,19 +1121,33 @@ impl<'context> Elaborator<'context> {
         self.check_trait_impl_where_clause_matches_trait_where_clause(&trait_impl);
         self.remove_trait_impl_assumed_trait_implementations(trait_impl.impl_id);
 
+        // Inherited defaults are typed once at the trait definition; their bodies match the
+        // declaration by construction and re-elaborating them per impl would duplicate
+        // diagnostics (and waste work).
         for (module, function, noir_function) in &trait_impl.methods.functions {
-            self.local_module = Some(*module);
+            if trait_impl.inherited_default_method_func_ids.contains(function) {
+                continue;
+            }
+            let previous_method_module = self.replace_local_module(*module);
             let errors =
                 check_trait_impl_method_matches_declaration(self, *function, noir_function);
+            self.local_module = previous_method_module;
             self.push_errors(errors);
         }
 
-        self.elaborate_functions(trait_impl.methods);
+        for (_, id, _) in &trait_impl.methods.functions {
+            if trait_impl.inherited_default_method_func_ids.contains(id) {
+                continue;
+            }
+            self.elaborate_function(*id);
+        }
+        self.generics.clear();
 
         self.self_type = None;
         self.current_trait_impl = None;
         self.current_trait = None;
         self.generics.clear();
+        self.local_module = previous_local_module;
     }
 
     pub fn get_module(&self, module: ModuleId) -> &ModuleData {
@@ -1108,7 +1163,7 @@ impl<'context> Elaborator<'context> {
 
     #[tracing::instrument(level = "trace", skip_all)]
     fn define_type_alias(&mut self, alias_id: TypeAliasId, alias: UnresolvedTypeAlias) {
-        self.local_module = Some(alias.module_id);
+        let previous_local_module = self.replace_local_module(alias.module_id);
 
         let previous_in_comptime_context =
             std::mem::replace(&mut self.in_comptime_context, alias.type_alias_def.comptime);
@@ -1167,6 +1222,7 @@ impl<'context> Elaborator<'context> {
 
         self.current_item = None;
         self.in_comptime_context = previous_in_comptime_context;
+        self.local_module = previous_local_module;
     }
 
     /// True if we're currently within a constrained function or lambda.
@@ -1228,7 +1284,7 @@ impl<'context> Elaborator<'context> {
 
     /// Push a new location to the interpreter call stack.
     ///
-    /// Return [InterpreterError::StackOverflow] if the stack size exceeds `MAX_INTERPRETER_CALL_STACK_SIZE`.
+    /// Return [`InterpreterError::StackOverflow`] if the stack size exceeds `MAX_INTERPRETER_CALL_STACK_SIZE`.
     #[tracing::instrument(level = "trace", skip_all)]
     pub(crate) fn push_interpreter_call_stack(
         &mut self,
@@ -1328,7 +1384,7 @@ pub mod test_utils {
             hir::{
                 Context, ParsedFiles,
                 def_collector::{dc_crate::DefCollector, dc_mod::collect_defs},
-                def_map::{CrateDefMap, ModuleData},
+                def_map::{CrateDefMap, ModuleData, ModuleId},
             },
         };
         use fm::{FileId, FileManager};
@@ -1396,29 +1452,26 @@ pub mod test_utils {
             return Err(ElaboratorError::Compile(errors));
         }
 
-        let mut interpreter = elaborator.setup_interpreter();
+        // Mirror `Context::interpret_function`: enter the interpreter with the module of the
+        // function being run rather than relying on the module the elaborator happened to leave set.
+        let source_module = elaborator.interner.function_meta(&main).source_module;
+        let module = ModuleId { krate, local_id: source_module };
 
         // The most straightforward way to convert the interpreter result into
         // an acceptable monomorphized AST expression seems to be converting it
         // into HIR first and then processing it with the monomorphizer
-        let expr_id = match interpreter.call_function(
-            main,
-            Vec::new(),
-            Default::default(),
-            Location::dummy(),
-        ) {
-            Err(e) => return Err(ElaboratorError::Interpret(e)),
-            Ok(value) => {
-                match value.into_runtime_hir_expression(
-                    elaborator.interner,
-                    elaborator.files,
+        let expr_id = elaborator.setup_interpreter_for(module, |interpreter| match interpreter
+            .call_function(main, Vec::new(), Default::default(), Location::dummy())
+        {
+            Err(e) => Err(ElaboratorError::Interpret(e)),
+            Ok(value) => value
+                .into_runtime_hir_expression(
+                    interpreter.elaborator.interner,
+                    interpreter.elaborator.files,
                     Location::dummy(),
-                ) {
-                    Err(e) => return Err(ElaboratorError::HIRConvert(e)),
-                    Ok(expr_id) => expr_id,
-                }
-            }
-        };
+                )
+                .map_err(ElaboratorError::HIRConvert),
+        })?;
 
         let mut monomorphizer = Monomorphizer::new(
             elaborator.interner,

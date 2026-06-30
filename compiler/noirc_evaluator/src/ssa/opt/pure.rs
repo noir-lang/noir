@@ -33,24 +33,8 @@ impl Ssa {
     /// This is purely an analysis pass on its own but can help future optimizations.
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn purity_analysis(mut self) -> Ssa {
-        // Purity falls back to `Impure` for any call whose callee cannot be statically
-        // resolved, so an incomplete call graph is fine — use the partial constructor
-        // to allow running on pre-defunctionalize SSA in unit tests.
-        let call_graph = CallGraph::from_ssa_partial(&self);
+        let purities = Arc::new(compute_function_purities(&self));
 
-        let (sccs, recursive_functions) = call_graph.sccs();
-
-        // First look through each function to get a baseline on its purity and collect
-        // the functions it calls to build a call graph.
-        let purities: HashMap<_, _> =
-            self.functions.values().map(|function| (function.id(), function.is_pure())).collect();
-
-        // Then transitively 'infect' any functions which call impure functions as also
-        // impure.
-        let purities = analyze_call_graph(call_graph, purities, &sccs, &recursive_functions);
-        let purities = Arc::new(purities);
-
-        // We're done, now store purities somewhere every dfg can find it.
         for function in self.functions.values_mut() {
             function.dfg.set_function_purities(purities.clone());
         }
@@ -62,7 +46,22 @@ impl Ssa {
     }
 }
 
-/// Post-check condition for [Ssa::purity_analysis].
+/// Compute the purity of every function in the SSA, including call-graph propagation,
+/// without mutating the SSA. Shared by [`Ssa::purity_analysis`] and by the SSA parser,
+/// which uses it to validate hand-written purity annotations against the actual
+/// instruction-level behavior.
+pub(crate) fn compute_function_purities(ssa: &Ssa) -> FunctionPurities {
+    // Purity falls back to `Impure` for any call whose callee cannot be statically
+    // resolved, so an incomplete call graph is fine — use the partial constructor
+    // to allow running on pre-defunctionalize SSA in unit tests.
+    let call_graph = CallGraph::from_ssa_partial(ssa);
+    let (sccs, recursive_functions) = call_graph.sccs();
+    let purities: HashMap<_, _> =
+        ssa.functions.values().map(|function| (function.id(), function.is_pure())).collect();
+    analyze_call_graph(call_graph, purities, &sccs, &recursive_functions)
+}
+
+/// Post-check condition for [`Ssa::purity_analysis`].
 ///
 /// Succeeds if:
 ///   - all functions have a purity status attached to it.
@@ -91,7 +90,7 @@ pub enum Purity {
     /// so the function is conceptually pure from a deduplication perspective
     /// even though it can still interact with the `enable_side_effects`/predicate variable.
     ///
-    /// PureWithPredicate functions can only be deduplicated with identical predicates
+    /// `PureWithPredicate` functions can only be deduplicated with identical predicates
     /// or a predicate that is a subset of the original.
     PureWithPredicate,
 
@@ -323,7 +322,7 @@ impl Function {
         result
     }
 
-    fn is_pure(&self) -> Purity {
+    pub(crate) fn is_pure(&self) -> Purity {
         let start = if self.runtime().is_acir() {
             Purity::Pure
         } else {
@@ -658,7 +657,7 @@ mod tests {
         assert_eq!(purities[&FunctionId::test_new(1)], Purity::PureWithPredicate);
     }
 
-    /// Functions using inc_rc or dec_rc are always impure - see constant_folding::do_not_deduplicate_call_with_inc_rc
+    /// Functions using `inc_rc` or `dec_rc` are always impure - see `constant_folding::do_not_deduplicate_call_with_inc_rc`
     /// as an example of a case in which semantics are changed if these are considered pure.
     #[test]
     fn inc_rc_is_impure() {
@@ -807,7 +806,7 @@ mod tests {
         assert_eq!(purities[&FunctionId::test_new(2)], Purity::PureWithPredicate);
     }
 
-    /// This test matches [mutual_recursion_marks_functions_pure] except all functions have a Brillig runtime
+    /// This test matches [`mutual_recursion_marks_functions_pure`] except all functions have a Brillig runtime
     #[test]
     fn brillig_mutual_recursion_marks_functions_pure_with_predicate() {
         let src = r#"
@@ -900,7 +899,7 @@ mod tests {
         assert_eq!(purities[&FunctionId::test_new(3)], Purity::Impure);
     }
 
-    /// This test matches [mutual_recursion_marks_functions_impure] except all functions have a Brillig runtime
+    /// This test matches [`mutual_recursion_marks_functions_impure`] except all functions have a Brillig runtime
     #[test]
     fn brillig_mutual_recursion_marks_functions_impure() {
         let src = r#"
