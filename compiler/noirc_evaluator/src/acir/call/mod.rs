@@ -158,8 +158,7 @@ impl Context<'_> {
                 None,
             )?
         } else {
-            let code =
-                gen_brillig_for(func, arguments.clone(), self.brillig, self.brillig_options)?;
+            let code = gen_brillig_for(func, &arguments, self.brillig, self.brillig_options)?;
             let generated_pointer = self.shared_context.new_generated_pointer();
             let skip_output_range_checks = false;
             let output_values = self.acir_context.brillig_call(

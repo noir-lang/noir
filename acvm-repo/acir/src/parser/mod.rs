@@ -297,18 +297,18 @@ impl<'a> Parser<'a> {
 
     fn parse_terms_or_error(&mut self) -> ParseResult<Vec<Term>> {
         let mut terms = Vec::new();
-        let mut negative = self.eat(Token::Minus)?;
+        let mut negative = self.eat(&Token::Minus)?;
         loop {
             let term = self.parse_term_or_error()?;
             let term = if negative { term.negate() } else { term };
             terms.push(term);
 
-            if self.eat(Token::Plus)? {
+            if self.eat(&Token::Plus)? {
                 negative = false;
                 continue;
             }
 
-            if self.eat(Token::Minus)? {
+            if self.eat(&Token::Minus)? {
                 negative = true;
                 continue;
             }
@@ -320,7 +320,7 @@ impl<'a> Parser<'a> {
 
     fn parse_term_or_error(&mut self) -> ParseResult<Term> {
         if let Some(coefficient) = self.eat_field_element()? {
-            if self.eat(Token::Star)? {
+            if self.eat(&Token::Star)? {
                 let w1 = self.eat_witness_or_error()?;
                 self.parse_linear_or_multiplication_term(coefficient, w1)
             } else {
@@ -338,7 +338,7 @@ impl<'a> Parser<'a> {
         coefficient: FieldElement,
         w1: Witness,
     ) -> Result<Term, ParserError> {
-        if self.eat(Token::Star)? {
+        if self.eat(&Token::Star)? {
             let w2 = self.eat_witness_or_error()?;
             Ok(Term::Multiplication(coefficient, w1, w2))
         } else {
@@ -728,7 +728,7 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_brillig_input(&mut self) -> Result<BrilligInputs<FieldElement>, ParserError> {
-        if self.at(Token::LeftBracket) {
+        if self.at(&Token::LeftBracket) {
             // It's an array of expressions
             let exprs = self.parse_bracketed_list(|parser| parser.parse_arithmetic_expression())?;
             Ok(BrilligInputs::Array(exprs))
@@ -745,7 +745,7 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_brillig_output(&mut self) -> Result<BrilligOutputs, ParserError> {
-        if self.at(Token::LeftBracket) {
+        if self.at(&Token::LeftBracket) {
             let witnesses = self.parse_witness_vector()?;
             Ok(BrilligOutputs::Array(witnesses))
         } else if let Some(witness) = self.eat_witness()? {
@@ -791,12 +791,12 @@ impl<'a> Parser<'a> {
 
         let mut values = Vec::new();
 
-        while !self.eat(Token::RightBracket)? {
+        while !self.eat(&Token::RightBracket)? {
             let value = parser(self)?;
             values.push(value);
 
             // Eat optional comma
-            if self.eat(Token::Comma)? {
+            if self.eat(&Token::Comma)? {
                 continue;
             }
 
@@ -935,17 +935,17 @@ impl<'a> Parser<'a> {
     }
 
     fn eat_or_error(&mut self, token: Token) -> ParseResult<()> {
-        if self.eat(token.clone())? { Ok(()) } else { self.expected_token(token) }
+        if self.eat(&token)? { Ok(()) } else { self.expected_token(token) }
     }
 
-    fn at(&self, token: Token) -> bool {
-        self.token.token() == &token
+    fn at(&self, token: &Token) -> bool {
+        self.token.token() == token
     }
 
     /// Returns true if the token is eaten and bumps to the next token.
     /// Otherwise will return false and no bump will occur.
-    fn eat(&mut self, token: Token) -> ParseResult<bool> {
-        if self.token.token() == &token {
+    fn eat(&mut self, token: &Token) -> ParseResult<bool> {
+        if self.token.token() == token {
             self.bump()?;
             Ok(true)
         } else {

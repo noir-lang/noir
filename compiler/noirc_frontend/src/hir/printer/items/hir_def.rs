@@ -264,7 +264,7 @@ impl ItemPrinter<'_, '_> {
                 }
                 self.push(')');
             }
-            HirExpression::Lambda(hir_lambda) => self.show_hir_lambda(hir_lambda),
+            HirExpression::Lambda(hir_lambda) => self.show_hir_lambda(&hir_lambda),
             HirExpression::Quote(tokens) => {
                 self.show_quoted(&tokens.0);
             }
@@ -278,7 +278,7 @@ impl ItemPrinter<'_, '_> {
         }
     }
 
-    pub(crate) fn show_hir_lambda(&mut self, hir_lambda: HirLambda) {
+    pub(crate) fn show_hir_lambda(&mut self, hir_lambda: &HirLambda) {
         if hir_lambda.unconstrained {
             self.push_str("unconstrained ");
         }

@@ -410,7 +410,7 @@ impl Elaborator<'_> {
                 });
                 Some(self.elaborate_type_path_impl_with_resolved_generics(
                     associated_type,
-                    method.ident.clone(),
+                    &method.ident,
                     resolved_generics,
                     variable.segments[1].location,
                 ))
@@ -468,12 +468,7 @@ impl Elaborator<'_> {
             return None;
         }
 
-        Some(self.elaborate_type_path_impl(
-            self_type.clone(),
-            item.ident.clone(),
-            None,
-            self_location,
-        ))
+        Some(self.elaborate_type_path_impl(self_type.clone(), &item.ident, None, self_location))
     }
 
     /// Intern an identifier expression referring to an associated constant of the given type.
@@ -670,7 +665,7 @@ impl Elaborator<'_> {
         let turbofish = path.turbofish;
         let wildcard_allowed = WildcardAllowed::Yes;
         let typ = self.use_type(path.typ, wildcard_allowed);
-        self.elaborate_type_path_impl(typ, path.item, turbofish, typ_location)
+        self.elaborate_type_path_impl(typ, &path.item, turbofish, typ_location)
     }
 
     /// Variant of [`Self::elaborate_type_path_impl_inner`] that accepts unresolved generics.
@@ -678,7 +673,7 @@ impl Elaborator<'_> {
     fn elaborate_type_path_impl(
         &mut self,
         typ: Type,
-        ident: Ident,
+        ident: &Ident,
         turbofish: Option<GenericTypeArgs>,
         typ_location: Location,
     ) -> (ExprId, Type) {
@@ -714,7 +709,7 @@ impl Elaborator<'_> {
     fn elaborate_type_path_impl_with_resolved_generics(
         &mut self,
         typ: Type,
-        ident: Ident,
+        ident: &Ident,
         resolved_generics: Option<Vec<Type>>,
         typ_location: Location,
     ) -> (ExprId, Type) {

@@ -223,7 +223,7 @@ impl Elaborator<'_> {
         let mut parameter_names_in_list = rustc_hash::FxHashMap::default();
         let pattern = self.elaborate_pattern(
             let_stmt.pattern,
-            r#type.clone(),
+            &r#type,
             definition,
             warn_if_unused,
             warn_if_not_mutated,
@@ -303,16 +303,15 @@ impl Elaborator<'_> {
         // Convert the HIR lvalue into a read expression, reusing the same ident ExprIds
         // that were already bound by the index let-statements in new_statements.
         let lhs_expr = self.hir_lvalue_as_expr(&hir_lvalue);
-        let lhs_type = lvalue_type.clone();
 
         let op_kind = assign_op.op.contents.to_binary_op_kind();
         let operator = HirBinaryOp { kind: op_kind, location: assign_op.op.location() };
         let (expression, expression_type) = self.finish_infix(
             lhs_expr,
-            lhs_type,
+            &lvalue_type,
             operator,
             rhs_expr,
-            rhs_type,
+            &rhs_type,
             expression_location,
         );
 

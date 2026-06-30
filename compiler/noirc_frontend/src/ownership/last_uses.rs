@@ -359,8 +359,8 @@ impl LastUseContext {
         let mut any_has_break = saved_has_break;
 
         for case in &match_expr.cases {
-            self.seen = saved_seen.clone();
-            self.killed = saved_killed.clone();
+            self.seen.clone_from(&saved_seen);
+            self.killed.clone_from(&saved_killed);
             self.has_break = saved_has_break;
             for (argument, _) in &case.arguments {
                 self.declare_variable(*argument);
@@ -376,7 +376,7 @@ impl LastUseContext {
 
         if let Some(default_case) = &match_expr.default_case {
             self.seen = saved_seen;
-            self.killed = saved_killed.clone();
+            self.killed.clone_from(&saved_killed);
             self.has_break = saved_has_break;
             self.find_last_uses_in_expression(default_case);
             merged.extend(&self.seen);
