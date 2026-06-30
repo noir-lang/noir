@@ -8,6 +8,6 @@ would generate. Only parameters where both branches pass different values need
 merge instructions; identical values simplify to a no-op.</p>
 <p>For <code>SingleAddr</code> types (numerics and references), the merge is a single
 <code>ConditionalMov</code> = 1 opcode.
-For array/slice parameters, the <code>IfElse</code> generates a conditional memory copy
+For array/vector parameters, the <code>IfElse</code> generates a conditional memory copy
 which is much more expensive (~20 opcodes).</p>
 </div></details></section></div></main></body></html>

@@ -208,7 +208,7 @@
 <a href=#208 id=208 data-nosnippet>208</a>///
 <a href=#209 id=209 data-nosnippet>209</a>/// For `SingleAddr` types (numerics and references), the merge is a single
 <a href=#210 id=210 data-nosnippet>210</a>/// `ConditionalMov` = 1 opcode.
-<a href=#211 id=211 data-nosnippet>211</a>/// For array/slice parameters, the `IfElse` generates a conditional memory copy
+<a href=#211 id=211 data-nosnippet>211</a>/// For array/vector parameters, the `IfElse` generates a conditional memory copy
 <a href=#212 id=212 data-nosnippet>212</a>/// which is much more expensive (~20 opcodes).
 <a href=#213 id=213 data-nosnippet>213</a></span><span class="kw">fn </span>differing_merge_cost(
 <a href=#214 id=214 data-nosnippet>214</a>    then_block: BasicBlockId,
@@ -232,7 +232,7 @@
 <a href=#232 id=232 data-nosnippet>232</a>            <span class="kw">if </span>typ.is_numeric() || <span class="macro">matches!</span>(<span class="kw-2">*</span>typ, Type::Reference(..)) {
 <a href=#233 id=233 data-nosnippet>233</a>                cost += <span class="number">1</span>; <span class="comment">// SingleAddr: one ConditionalMov in Brillig
 <a href=#234 id=234 data-nosnippet>234</a>            </span>} <span class="kw">else </span>{
-<a href=#235 id=235 data-nosnippet>235</a>                <span class="comment">// Array/slice: conditional memory copy (~20 opcodes)
+<a href=#235 id=235 data-nosnippet>235</a>                <span class="comment">// Array/vector: conditional memory copy (~20 opcodes)
 <a href=#236 id=236 data-nosnippet>236</a>                </span>cost += <span class="number">20</span>;
 <a href=#237 id=237 data-nosnippet>237</a>            }
 <a href=#238 id=238 data-nosnippet>238</a>        }

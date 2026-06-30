@@ -352,7 +352,7 @@
 <a href=#352 id=352 data-nosnippet>352</a>            // clone analysis at their use sites, so destructuring needs no extra handling here.
 <a href=#353 id=353 data-nosnippet>353</a>            //
 <a href=#354 id=354 data-nosnippet>354</a>            // This exhaustive match is a deliberate tripwire: if a constructor that binds a
-<a href=#355 id=355 data-nosnippet>355</a>            // value out of a *nested* aggregate is ever added (e.g. array/slice patterns like
+<a href=#355 id=355 data-nosnippet>355</a>            // value out of a *nested* aggregate is ever added (e.g. array/vector patterns like
 <a href=#356 id=356 data-nosnippet>356</a>            // `[head, tail @ ..]`), this stops compiling and forces a decision. Such bindings
 <a href=#357 id=357 data-nosnippet>357</a>            // can alias nested array storage the same way an indexed lvalue does, so they must
 <a href=#358 id=358 data-nosnippet>358</a>            // replicate the nested-array clone handling in `handle_lvalue`'s `LValue::Index`

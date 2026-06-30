@@ -887,7 +887,7 @@
 <a href=#887 id=887 data-nosnippet>887</a>    /// before we ever compute the items pointer.
 <a href=#888 id=888 data-nosnippet>888</a>    </span><span class="attr">#[test]
 <a href=#889 id=889 data-nosnippet>889</a>    </span><span class="kw">fn </span>empty_vector_allocation_near_heap_limit_triggers_oom() {
-<a href=#890 id=890 data-nosnippet>890</a>        <span class="comment">// SSA with an empty slice (vector) - triggers vector allocation with VECTOR_META_COUNT (3) slots
+<a href=#890 id=890 data-nosnippet>890</a>        <span class="comment">// SSA with an empty vector - triggers vector allocation with VECTOR_META_COUNT (3) slots
 <a href=#891 id=891 data-nosnippet>891</a>        </span><span class="kw">let </span>src = <span class="string">r#"
 <a href=#892 id=892 data-nosnippet>892</a>            brillig(inline) predicate_pure fn main f0 {
 <a href=#893 id=893 data-nosnippet>893</a>              b0():

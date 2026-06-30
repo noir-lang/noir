@@ -49,7 +49,7 @@
 <a href=#49 id=49 data-nosnippet>49</a>/// inconsistent with their declared return type.
 <a href=#50 id=50 data-nosnippet>50</a>///
 <a href=#51 id=51 data-nosnippet>51</a>/// Types whose shape cannot be judged cheaply and reliably (type variables, generics, aliases,
-<a href=#52 id=52 data-nosnippet>52</a>/// references, functions, ...) have no shape and are therefore never flagged. Arrays and slices
+<a href=#52 id=52 data-nosnippet>52</a>/// references, functions, ...) have no shape and are therefore never flagged. Arrays and vectors
 <a href=#53 id=53 data-nosnippet>53</a>/// share a shape because some builtins legitimately return one where the other is declared.
 <a href=#54 id=54 data-nosnippet>54</a></span><span class="attr">#[derive(PartialEq, Clone, Copy)]
 <a href=#55 id=55 data-nosnippet>55</a></span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">enum </span>TypeShape {
@@ -72,7 +72,7 @@
 <a href=#72 id=72 data-nosnippet>72</a>            TypeShape::Integer(sign, size) =&gt; <span class="macro">write!</span>(f, <span class="string">"{}"</span>, Type::Integer(<span class="kw-2">*</span>sign, <span class="kw-2">*</span>size)),
 <a href=#73 id=73 data-nosnippet>73</a>            TypeShape::Bool =&gt; <span class="macro">write!</span>(f, <span class="string">"bool"</span>),
 <a href=#74 id=74 data-nosnippet>74</a>            TypeShape::Unit =&gt; <span class="macro">write!</span>(f, <span class="string">"()"</span>),
-<a href=#75 id=75 data-nosnippet>75</a>            TypeShape::Sequence =&gt; <span class="macro">write!</span>(f, <span class="string">"an array or slice"</span>),
+<a href=#75 id=75 data-nosnippet>75</a>            TypeShape::Sequence =&gt; <span class="macro">write!</span>(f, <span class="string">"an array or vector"</span>),
 <a href=#76 id=76 data-nosnippet>76</a>            TypeShape::String =&gt; <span class="macro">write!</span>(f, <span class="string">"a string"</span>),
 <a href=#77 id=77 data-nosnippet>77</a>            TypeShape::FmtString =&gt; <span class="macro">write!</span>(f, <span class="string">"a format string"</span>),
 <a href=#78 id=78 data-nosnippet>78</a>            TypeShape::Tuple(arity) =&gt; <span class="macro">write!</span>(f, <span class="string">"a {arity}-element tuple"</span>),
@@ -1006,13 +1006,13 @@
 <a href=#1006 id=1006 data-nosnippet>1006</a>        <span class="kw">let </span>u32 = Type::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo);
 <a href=#1007 id=1007 data-nosnippet>1007</a>        check_return_type_shape(<span class="kw-2">&amp;</span>Value::u32(<span class="number">0</span>), type_shape(<span class="kw-2">&amp;</span>u32), loc).unwrap();
 <a href=#1008 id=1008 data-nosnippet>1008</a>
-<a href=#1009 id=1009 data-nosnippet>1009</a>        <span class="comment">// Arrays and slices share a shape, so an array value satisfies a slice-declared return.
+<a href=#1009 id=1009 data-nosnippet>1009</a>        <span class="comment">// Arrays and vectors share a shape, so an array value satisfies a vector-declared return.
 <a href=#1010 id=1010 data-nosnippet>1010</a>        </span><span class="kw">let </span>array = Value::Array(
 <a href=#1011 id=1011 data-nosnippet>1011</a>            Vector::new(),
 <a href=#1012 id=1012 data-nosnippet>1012</a>            Type::Array(Box::new(Type::Bool), Box::new(Type::constant_u32(<span class="number">0</span>))),
 <a href=#1013 id=1013 data-nosnippet>1013</a>        );
-<a href=#1014 id=1014 data-nosnippet>1014</a>        <span class="kw">let </span>slice = Type::Vector(Box::new(Type::Bool));
-<a href=#1015 id=1015 data-nosnippet>1015</a>        check_return_type_shape(<span class="kw-2">&amp;</span>array, type_shape(<span class="kw-2">&amp;</span>slice), loc).unwrap();
+<a href=#1014 id=1014 data-nosnippet>1014</a>        <span class="kw">let </span>vector = Type::Vector(Box::new(Type::Bool));
+<a href=#1015 id=1015 data-nosnippet>1015</a>        check_return_type_shape(<span class="kw-2">&amp;</span>array, type_shape(<span class="kw-2">&amp;</span>vector), loc).unwrap();
 <a href=#1016 id=1016 data-nosnippet>1016</a>    }
 <a href=#1017 id=1017 data-nosnippet>1017</a>
 <a href=#1018 id=1018 data-nosnippet>1018</a>    <span class="attr">#[test]

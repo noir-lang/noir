@@ -549,7 +549,7 @@
 <a href=#549 id=549 data-nosnippet>549</a>        <span class="kw">let </span>is_safe_index = <span class="self">Self</span>::is_index_safe(arguments[<span class="number">2</span>], dfg, <span class="kw-2">&amp;</span>vector_typ, vector_size);
 <a href=#550 id=550 data-nosnippet>550</a>        <span class="kw">let </span>insert_index = <span class="self">self</span>.acir_context.mul_var(insert_index, item_size)<span class="question-mark">?</span>;
 <a href=#551 id=551 data-nosnippet>551</a>
-<a href=#552 id=552 data-nosnippet>552</a>        <span class="comment">// Because the insert index might be at the end of the slice, the element type sizes we
+<a href=#552 id=552 data-nosnippet>552</a>        <span class="comment">// Because the insert index might be at the end of the vector, the element type sizes we
 <a href=#553 id=553 data-nosnippet>553</a>        // index here need to have room for this extra element.
 <a href=#554 id=554 data-nosnippet>554</a>        </span><span class="kw">let </span>shift = ElementTypeSizesArrayShift::Increase;
 <a href=#555 id=555 data-nosnippet>555</a>        <span class="kw">let </span>flat_user_index = <span class="self">self</span>.get_flattened_index(
