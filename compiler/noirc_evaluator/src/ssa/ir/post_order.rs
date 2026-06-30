@@ -135,7 +135,6 @@ impl PostOrder {
         // Order by ascending cost (ties broken by block id) to get the reverse-post-order, then
         // reverse it to recover the post-order.
         let mut reverse_post_order = post_order;
-        reverse_post_order.reverse();
         reverse_post_order.sort_by_key(|block| (cost[block], *block));
         reverse_post_order.reverse();
         reverse_post_order
@@ -283,6 +282,10 @@ impl PostOrder {
     /// The blocks of the natural loop with the given `header` and back-edge source
     /// `back_edge_start`: collected by walking predecessors backwards from `back_edge_start`,
     /// stopping at the header.
+    ///
+    /// This mirrors `Loop::find_blocks_in_loop` from the unrolling pass but is kept local: that
+    /// type lives in the `opt` layer, which builds on `ir`, and `Loops::find_all` itself relies on
+    /// `PostOrder`, so reusing it here would invert the layering and recurse through `PostOrder`.
     fn find_blocks_in_loop(
         cfg: &ControlFlowGraph,
         header: BasicBlockId,
