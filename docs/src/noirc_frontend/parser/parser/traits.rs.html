@@ -144,7 +144,7 @@
 <a href=#144 id=144 data-nosnippet>144</a>    }
 <a href=#145 id=145 data-nosnippet>145</a>
 <a href=#146 id=146 data-nosnippet>146</a>    <span class="kw">fn </span>parse_trait_item_in_list(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;Documented&lt;TraitItem&gt;&gt; {
-<a href=#147 id=147 data-nosnippet>147</a>        <span class="self">self</span>.parse_item_in_list(ParsingRuleLabel::TraitItem, |parser| {
+<a href=#147 id=147 data-nosnippet>147</a>        <span class="self">self</span>.parse_item_in_list(<span class="kw-2">&amp;</span>ParsingRuleLabel::TraitItem, |parser| {
 <a href=#148 id=148 data-nosnippet>148</a>            <span class="kw">let </span>doc_comments = parser.parse_outer_doc_comments();
 <a href=#149 id=149 data-nosnippet>149</a>            parser.parse_trait_item().map(|item| Documented::new(item, doc_comments))
 <a href=#150 id=150 data-nosnippet>150</a>        })

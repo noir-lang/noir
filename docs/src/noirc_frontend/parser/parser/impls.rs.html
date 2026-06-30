@@ -70,7 +70,7 @@
 <a href=#70 id=70 data-nosnippet>70</a>    }
 <a href=#71 id=71 data-nosnippet>71</a>
 <a href=#72 id=72 data-nosnippet>72</a>    <span class="kw">fn </span>parse_type_impl_method(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;(Documented&lt;NoirFunction&gt;, Location)&gt; {
-<a href=#73 id=73 data-nosnippet>73</a>        <span class="self">self</span>.parse_item_in_list(ParsingRuleLabel::Function, |parser| {
+<a href=#73 id=73 data-nosnippet>73</a>        <span class="self">self</span>.parse_item_in_list(<span class="kw-2">&amp;</span>ParsingRuleLabel::Function, |parser| {
 <a href=#74 id=74 data-nosnippet>74</a>            <span class="kw">let </span>doc_comments = parser.parse_outer_doc_comments();
 <a href=#75 id=75 data-nosnippet>75</a>            <span class="kw">let </span>start_location = parser.current_token_location;
 <a href=#76 id=76 data-nosnippet>76</a>            <span class="kw">let </span>attributes = parser.parse_attributes();
@@ -123,7 +123,7 @@
 <a href=#123 id=123 data-nosnippet>123</a>    }
 <a href=#124 id=124 data-nosnippet>124</a>
 <a href=#125 id=125 data-nosnippet>125</a>    <span class="kw">fn </span>parse_trait_impl_item(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;Documented&lt;TraitImplItem&gt;&gt; {
-<a href=#126 id=126 data-nosnippet>126</a>        <span class="self">self</span>.parse_item_in_list(ParsingRuleLabel::TraitImplItem, |parser| {
+<a href=#126 id=126 data-nosnippet>126</a>        <span class="self">self</span>.parse_item_in_list(<span class="kw-2">&amp;</span>ParsingRuleLabel::TraitImplItem, |parser| {
 <a href=#127 id=127 data-nosnippet>127</a>            <span class="kw">let </span>start_location = parser.current_token_location;
 <a href=#128 id=128 data-nosnippet>128</a>            <span class="kw">let </span>doc_comments = parser.parse_outer_doc_comments();
 <a href=#129 id=129 data-nosnippet>129</a>

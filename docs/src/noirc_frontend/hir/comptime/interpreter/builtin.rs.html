@@ -192,11 +192,11 @@
 <a href=#192 id=192 data-nosnippet>192</a>            <span class="string">"module_name" </span>=&gt; module_name(interner, arguments, location),
 <a href=#193 id=193 data-nosnippet>193</a>            <span class="string">"module_parent" </span>=&gt; module_parent(<span class="self">self</span>, arguments, return_type, location),
 <a href=#194 id=194 data-nosnippet>194</a>            <span class="string">"module_structs" </span>=&gt; module_structs(<span class="self">self</span>, arguments, location),
-<a href=#195 id=195 data-nosnippet>195</a>            <span class="string">"modulus_be_bits" </span>=&gt; modulus_be_bits(arguments, location),
-<a href=#196 id=196 data-nosnippet>196</a>            <span class="string">"modulus_be_bytes" </span>=&gt; modulus_be_bytes(arguments, location),
-<a href=#197 id=197 data-nosnippet>197</a>            <span class="string">"modulus_le_bits" </span>=&gt; modulus_le_bits(arguments, location),
-<a href=#198 id=198 data-nosnippet>198</a>            <span class="string">"modulus_le_bytes" </span>=&gt; modulus_le_bytes(arguments, location),
-<a href=#199 id=199 data-nosnippet>199</a>            <span class="string">"modulus_num_bits" </span>=&gt; modulus_num_bits(arguments, location),
+<a href=#195 id=195 data-nosnippet>195</a>            <span class="string">"modulus_be_bits" </span>=&gt; modulus_be_bits(<span class="kw-2">&amp;</span>arguments, location),
+<a href=#196 id=196 data-nosnippet>196</a>            <span class="string">"modulus_be_bytes" </span>=&gt; modulus_be_bytes(<span class="kw-2">&amp;</span>arguments, location),
+<a href=#197 id=197 data-nosnippet>197</a>            <span class="string">"modulus_le_bits" </span>=&gt; modulus_le_bits(<span class="kw-2">&amp;</span>arguments, location),
+<a href=#198 id=198 data-nosnippet>198</a>            <span class="string">"modulus_le_bytes" </span>=&gt; modulus_le_bytes(<span class="kw-2">&amp;</span>arguments, location),
+<a href=#199 id=199 data-nosnippet>199</a>            <span class="string">"modulus_num_bits" </span>=&gt; modulus_num_bits(<span class="kw-2">&amp;</span>arguments, location),
 <a href=#200 id=200 data-nosnippet>200</a>            <span class="string">"quoted_as_expr" </span>=&gt; quoted_as_expr(<span class="self">self</span>.elaborator, arguments, return_type, location),
 <a href=#201 id=201 data-nosnippet>201</a>            <span class="string">"quoted_as_module" </span>=&gt; quoted_as_module(<span class="self">self</span>, arguments, return_type, location),
 <a href=#202 id=202 data-nosnippet>202</a>            <span class="string">"quoted_as_trait_constraint" </span>=&gt; quoted_as_trait_constraint(<span class="self">self</span>, arguments, location),
@@ -1910,7 +1910,7 @@
 <a href=#1910 id=1910 data-nosnippet>1910</a>
 <a href=#1911 id=1911 data-nosnippet>1911</a>            tuple_types.pop().unwrap();
 <a href=#1912 id=1912 data-nosnippet>1912</a>            <span class="kw">let </span>binary_op_type = tuple_types.pop().unwrap();
-<a href=#1913 id=1913 data-nosnippet>1913</a>            <span class="kw">let </span>binary_op = Shared::new(new_binary_op(infix_expr.operator, binary_op_type));
+<a href=#1913 id=1913 data-nosnippet>1913</a>            <span class="kw">let </span>binary_op = Shared::new(new_binary_op(<span class="kw-2">&amp;</span>infix_expr.operator, binary_op_type));
 <a href=#1914 id=1914 data-nosnippet>1914</a>            <span class="kw">let </span>lhs = Shared::new(Value::expression(infix_expr.lhs.kind));
 <a href=#1915 id=1915 data-nosnippet>1915</a>            <span class="kw">let </span>rhs = Shared::new(Value::expression(infix_expr.rhs.kind));
 <a href=#1916 id=1916 data-nosnippet>1916</a>            <span class="prelude-val">Some</span>(Value::Tuple(<span class="macro">vec!</span>[lhs, binary_op, rhs]))
@@ -2122,7 +2122,7 @@
 <a href=#2122 id=2122 data-nosnippet>2122</a>    expr_as(interner, arguments, return_type.clone(), location, |expr| {
 <a href=#2123 id=2123 data-nosnippet>2123</a>        <span class="kw">if let </span>ExprValue::Expression(ExpressionKind::If(if_expr)) = expr {
 <a href=#2124 id=2124 data-nosnippet>2124</a>            <span class="comment">// Get the type of `Option&lt;Expr&gt;`
-<a href=#2125 id=2125 data-nosnippet>2125</a>            </span><span class="kw">let </span>option_type = extract_option_generic_type(return_type.clone());
+<a href=#2125 id=2125 data-nosnippet>2125</a>            </span><span class="kw">let </span>option_type = extract_option_generic_type(return_type);
 <a href=#2126 id=2126 data-nosnippet>2126</a>            <span class="kw">let </span>Type::Tuple(option_types) = option_type <span class="kw">else </span>{
 <a href=#2127 id=2127 data-nosnippet>2127</a>                <span class="macro">panic!</span>(<span class="string">"Expected the return type option generic arg to be a tuple"</span>);
 <a href=#2128 id=2128 data-nosnippet>2128</a>            };
@@ -3094,8 +3094,8 @@
 <a href=#3094 id=3094 data-nosnippet>3094</a>    <span class="prelude-val">Ok</span>(Value::Quoted(tokens))
 <a href=#3095 id=3095 data-nosnippet>3095</a>}
 <a href=#3096 id=3096 data-nosnippet>3096</a>
-<a href=#3097 id=3097 data-nosnippet>3097</a><span class="kw">fn </span>modulus_be_bits(arguments: Vec&lt;(Value, Location)&gt;, location: Location) -&gt; IResult&lt;Value&gt; {
-<a href=#3098 id=3098 data-nosnippet>3098</a>    check_argument_count(<span class="number">0</span>, <span class="kw-2">&amp;</span>arguments, location)<span class="question-mark">?</span>;
+<a href=#3097 id=3097 data-nosnippet>3097</a><span class="kw">fn </span>modulus_be_bits(arguments: <span class="kw-2">&amp;</span>[(Value, Location)], location: Location) -&gt; IResult&lt;Value&gt; {
+<a href=#3098 id=3098 data-nosnippet>3098</a>    check_argument_count(<span class="number">0</span>, arguments, location)<span class="question-mark">?</span>;
 <a href=#3099 id=3099 data-nosnippet>3099</a>
 <a href=#3100 id=3100 data-nosnippet>3100</a>    <span class="kw">let </span>bits = FieldElement::modulus().to_radix_be(<span class="number">2</span>);
 <a href=#3101 id=3101 data-nosnippet>3101</a>    <span class="kw">let </span>bits_vector = bits.into_iter().map(|bit| Value::Bool(bit != <span class="number">0</span>)).collect();
@@ -3104,8 +3104,8 @@
 <a href=#3104 id=3104 data-nosnippet>3104</a>    <span class="prelude-val">Ok</span>(Value::Vector(bits_vector, typ))
 <a href=#3105 id=3105 data-nosnippet>3105</a>}
 <a href=#3106 id=3106 data-nosnippet>3106</a>
-<a href=#3107 id=3107 data-nosnippet>3107</a><span class="kw">fn </span>modulus_be_bytes(arguments: Vec&lt;(Value, Location)&gt;, location: Location) -&gt; IResult&lt;Value&gt; {
-<a href=#3108 id=3108 data-nosnippet>3108</a>    check_argument_count(<span class="number">0</span>, <span class="kw-2">&amp;</span>arguments, location)<span class="question-mark">?</span>;
+<a href=#3107 id=3107 data-nosnippet>3107</a><span class="kw">fn </span>modulus_be_bytes(arguments: <span class="kw-2">&amp;</span>[(Value, Location)], location: Location) -&gt; IResult&lt;Value&gt; {
+<a href=#3108 id=3108 data-nosnippet>3108</a>    check_argument_count(<span class="number">0</span>, arguments, location)<span class="question-mark">?</span>;
 <a href=#3109 id=3109 data-nosnippet>3109</a>
 <a href=#3110 id=3110 data-nosnippet>3110</a>    <span class="kw">let </span>bytes = FieldElement::modulus().to_bytes_be();
 <a href=#3111 id=3111 data-nosnippet>3111</a>    <span class="kw">let </span>bytes_vector = bytes.into_iter().map(Value::u8).collect();
@@ -3115,7 +3115,7 @@
 <a href=#3115 id=3115 data-nosnippet>3115</a>    <span class="prelude-val">Ok</span>(Value::Vector(bytes_vector, typ))
 <a href=#3116 id=3116 data-nosnippet>3116</a>}
 <a href=#3117 id=3117 data-nosnippet>3117</a>
-<a href=#3118 id=3118 data-nosnippet>3118</a><span class="kw">fn </span>modulus_le_bits(arguments: Vec&lt;(Value, Location)&gt;, location: Location) -&gt; IResult&lt;Value&gt; {
+<a href=#3118 id=3118 data-nosnippet>3118</a><span class="kw">fn </span>modulus_le_bits(arguments: <span class="kw-2">&amp;</span>[(Value, Location)], location: Location) -&gt; IResult&lt;Value&gt; {
 <a href=#3119 id=3119 data-nosnippet>3119</a>    <span class="kw">let </span>Value::Vector(bits, typ) = modulus_be_bits(arguments, location)<span class="question-mark">? </span><span class="kw">else </span>{
 <a href=#3120 id=3120 data-nosnippet>3120</a>        <span class="macro">unreachable!</span>(<span class="string">"modulus_be_bits must return vector"</span>)
 <a href=#3121 id=3121 data-nosnippet>3121</a>    };
@@ -3123,7 +3123,7 @@
 <a href=#3123 id=3123 data-nosnippet>3123</a>    <span class="prelude-val">Ok</span>(Value::Vector(reversed_bits, typ))
 <a href=#3124 id=3124 data-nosnippet>3124</a>}
 <a href=#3125 id=3125 data-nosnippet>3125</a>
-<a href=#3126 id=3126 data-nosnippet>3126</a><span class="kw">fn </span>modulus_le_bytes(arguments: Vec&lt;(Value, Location)&gt;, location: Location) -&gt; IResult&lt;Value&gt; {
+<a href=#3126 id=3126 data-nosnippet>3126</a><span class="kw">fn </span>modulus_le_bytes(arguments: <span class="kw-2">&amp;</span>[(Value, Location)], location: Location) -&gt; IResult&lt;Value&gt; {
 <a href=#3127 id=3127 data-nosnippet>3127</a>    <span class="kw">let </span>Value::Vector(bytes, typ) = modulus_be_bytes(arguments, location)<span class="question-mark">? </span><span class="kw">else </span>{
 <a href=#3128 id=3128 data-nosnippet>3128</a>        <span class="macro">unreachable!</span>(<span class="string">"modulus_be_bytes must return vector"</span>)
 <a href=#3129 id=3129 data-nosnippet>3129</a>    };
@@ -3131,8 +3131,8 @@
 <a href=#3131 id=3131 data-nosnippet>3131</a>    <span class="prelude-val">Ok</span>(Value::Vector(reversed_bytes, typ))
 <a href=#3132 id=3132 data-nosnippet>3132</a>}
 <a href=#3133 id=3133 data-nosnippet>3133</a>
-<a href=#3134 id=3134 data-nosnippet>3134</a><span class="kw">fn </span>modulus_num_bits(arguments: Vec&lt;(Value, Location)&gt;, location: Location) -&gt; IResult&lt;Value&gt; {
-<a href=#3135 id=3135 data-nosnippet>3135</a>    check_argument_count(<span class="number">0</span>, <span class="kw-2">&amp;</span>arguments, location)<span class="question-mark">?</span>;
+<a href=#3134 id=3134 data-nosnippet>3134</a><span class="kw">fn </span>modulus_num_bits(arguments: <span class="kw-2">&amp;</span>[(Value, Location)], location: Location) -&gt; IResult&lt;Value&gt; {
+<a href=#3135 id=3135 data-nosnippet>3135</a>    check_argument_count(<span class="number">0</span>, arguments, location)<span class="question-mark">?</span>;
 <a href=#3136 id=3136 data-nosnippet>3136</a>    <span class="kw">let </span>bits = FieldElement::max_num_bits().into();
 <a href=#3137 id=3137 data-nosnippet>3137</a>    <span class="prelude-val">Ok</span>(Value::u64(bits))
 <a href=#3138 id=3138 data-nosnippet>3138</a>}

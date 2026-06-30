@@ -27,7 +27,7 @@
 <a href=#27 id=27 data-nosnippet>27</a>        // expression (see `NodeInterner::push_lvalue`), so we treat it as the leading atom of
 <a href=#28 id=28 data-nosnippet>28</a>        // an expression and let the normal postfix and assignment machinery consume whatever
 <a href=#29 id=29 data-nosnippet>29</a>        // follows: `$lv`, `$lv.field`, `$lv.method(args)`, `$lv[i]`, `$lv = rhs`, `$lv += rhs`.
-<a href=#30 id=30 data-nosnippet>30</a>        </span><span class="kw">if let </span><span class="prelude-val">Some</span>(token) = <span class="self">self</span>.eat_kind(TokenKind::InternedLValue) {
+<a href=#30 id=30 data-nosnippet>30</a>        </span><span class="kw">if let </span><span class="prelude-val">Some</span>(token) = <span class="self">self</span>.eat_kind(<span class="kw-2">&amp;</span>TokenKind::InternedLValue) {
 <a href=#31 id=31 data-nosnippet>31</a>            <span class="kw">let </span>Token::InternedLValue(interned) = token.into_token() <span class="kw">else </span>{
 <a href=#32 id=32 data-nosnippet>32</a>                <span class="macro">unreachable!</span>(<span class="string">"eat_kind(InternedLValue) only matches InternedLValue tokens"</span>)
 <a href=#33 id=33 data-nosnippet>33</a>            };

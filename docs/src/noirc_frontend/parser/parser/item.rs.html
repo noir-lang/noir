@@ -24,7 +24,7 @@
 <a href=#24 id=24 data-nosnippet>24</a>    <span class="kw">fn </span>parse_module_item_in_list(<span class="kw-2">&amp;mut </span><span class="self">self</span>, nested: bool) -&gt; Vec&lt;Item&gt; {
 <a href=#25 id=25 data-nosnippet>25</a>        <span class="kw">loop </span>{
 <a href=#26 id=26 data-nosnippet>26</a>            <span class="comment">// We only break out of the loop on `}` if we are inside a `mod { ..`
-<a href=#27 id=27 data-nosnippet>27</a>            </span><span class="kw">if </span>nested &amp;&amp; <span class="self">self</span>.at(Token::RightBrace) {
+<a href=#27 id=27 data-nosnippet>27</a>            </span><span class="kw">if </span>nested &amp;&amp; <span class="self">self</span>.at(<span class="kw-2">&amp;</span>Token::RightBrace) {
 <a href=#28 id=28 data-nosnippet>28</a>                <span class="kw">return </span><span class="macro">vec!</span>[];
 <a href=#29 id=29 data-nosnippet>29</a>            }
 <a href=#30 id=30 data-nosnippet>30</a>
@@ -60,7 +60,7 @@
 <a href=#60 id=60 data-nosnippet>60</a>    /// - If we can't parse an item and we don't end up in '}', error but try with the next token
 <a href=#61 id=61 data-nosnippet>61</a>    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>parse_item_in_list&lt;T, F&gt;(
 <a href=#62 id=62 data-nosnippet>62</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-<a href=#63 id=63 data-nosnippet>63</a>        label: ParsingRuleLabel,
+<a href=#63 id=63 data-nosnippet>63</a>        label: <span class="kw-2">&amp;</span>ParsingRuleLabel,
 <a href=#64 id=64 data-nosnippet>64</a>        <span class="kw-2">mut </span>f: F,
 <a href=#65 id=65 data-nosnippet>65</a>    ) -&gt; <span class="prelude-ty">Option</span>&lt;T&gt;
 <a href=#66 id=66 data-nosnippet>66</a>    <span class="kw">where
@@ -73,7 +73,7 @@
 <a href=#73 id=73 data-nosnippet>73</a>            }
 <a href=#74 id=74 data-nosnippet>74</a>
 <a href=#75 id=75 data-nosnippet>75</a>            <span class="kw">let </span><span class="prelude-val">Some</span>(item) = f(<span class="self">self</span>) <span class="kw">else </span>{
-<a href=#76 id=76 data-nosnippet>76</a>                <span class="kw">if </span>!<span class="self">self</span>.at(Token::RightBrace) {
+<a href=#76 id=76 data-nosnippet>76</a>                <span class="kw">if </span>!<span class="self">self</span>.at(<span class="kw-2">&amp;</span>Token::RightBrace) {
 <a href=#77 id=77 data-nosnippet>77</a>                    <span class="self">self</span>.expected_label(label.clone());
 <a href=#78 id=78 data-nosnippet>78</a>
 <a href=#79 id=79 data-nosnippet>79</a>                    <span class="comment">// Try with the next token
@@ -238,7 +238,7 @@
 <a href=#238 id=238 data-nosnippet>238</a>            <span class="bool-val">true
 <a href=#239 id=239 data-nosnippet>239</a>        </span>} <span class="kw">else if </span>!modifiers.is_empty()
 <a href=#240 id=240 data-nosnippet>240</a>            &amp;&amp; <span class="macro">matches!</span>(<span class="self">self</span>.token.token(), Token::Ident(..))
-<a href=#241 id=241 data-nosnippet>241</a>            &amp;&amp; <span class="self">self</span>.next_is(Token::LeftParen)
+<a href=#241 id=241 data-nosnippet>241</a>            &amp;&amp; <span class="self">self</span>.next_is(<span class="kw-2">&amp;</span>Token::LeftParen)
 <a href=#242 id=242 data-nosnippet>242</a>        {
 <a href=#243 id=243 data-nosnippet>243</a>            <span class="comment">// If it's something like `pub foo(` then it's likely the user forgot to put `fn` after `pub`,
 <a href=#244 id=244 data-nosnippet>244</a>            // so we error but keep parsing what comes next as a function.

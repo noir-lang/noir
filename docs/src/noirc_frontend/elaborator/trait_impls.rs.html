@@ -497,7 +497,7 @@
 <a href=#497 id=497 data-nosnippet>497</a>    ) {
 <a href=#498 id=498 data-nosnippet>498</a>        <span class="comment">// First get the general trait to impl bindings.
 <a href=#499 id=499 data-nosnippet>499</a>        // Then we'll need to add the bindings for this specific method.
-<a href=#500 id=500 data-nosnippet>500</a>        </span><span class="kw">let </span>self_type = <span class="self">self</span>.self_type.as_ref().unwrap().clone();
+<a href=#500 id=500 data-nosnippet>500</a>        </span><span class="kw">let </span>self_type = <span class="self">self</span>.self_type.as_ref().unwrap();
 <a href=#501 id=501 data-nosnippet>501</a>
 <a href=#502 id=502 data-nosnippet>502</a>        <span class="kw">let </span><span class="kw-2">mut </span>bindings =
 <a href=#503 id=503 data-nosnippet>503</a>            <span class="self">self</span>.interner.trait_to_impl_bindings(trait_id, impl_id, trait_impl_generics, self_type);

@@ -314,7 +314,7 @@
 <a href=#314 id=314 data-nosnippet>314</a>            context.codegen_return(<span class="kw-2">&amp;</span>[target_vector.to_var()]);
 <a href=#315 id=315 data-nosnippet>315</a>
 <a href=#316 id=316 data-nosnippet>316</a>            <span class="comment">// Compile to byte code.
-<a href=#317 id=317 data-nosnippet>317</a>            </span><span class="kw">let </span>bytecode = create_entry_point_bytecode(context, arguments, returns).byte_code;
+<a href=#317 id=317 data-nosnippet>317</a>            </span><span class="kw">let </span>bytecode = create_entry_point_bytecode(context, <span class="kw-2">&amp;</span>arguments, <span class="kw-2">&amp;</span>returns).byte_code;
 <a href=#318 id=318 data-nosnippet>318</a>
 <a href=#319 id=319 data-nosnippet>319</a>            <span class="comment">// Prepare flattened inputs.
 <a href=#320 id=320 data-nosnippet>320</a>            </span><span class="kw">let </span>inputs = [<span class="macro">vec!</span>[source_len.into()], source, <span class="macro">vec!</span>[item_to_push]].concat();
@@ -499,7 +499,7 @@
 <a href=#499 id=499 data-nosnippet>499</a>
 <a href=#500 id=500 data-nosnippet>500</a>            context.codegen_return(<span class="kw-2">&amp;</span>[removed_item.to_var(), target_vector.to_var()]);
 <a href=#501 id=501 data-nosnippet>501</a>
-<a href=#502 id=502 data-nosnippet>502</a>            <span class="kw">let </span>bytecode = create_entry_point_bytecode(context, arguments, returns).byte_code;
+<a href=#502 id=502 data-nosnippet>502</a>            <span class="kw">let </span>bytecode = create_entry_point_bytecode(context, <span class="kw-2">&amp;</span>arguments, <span class="kw-2">&amp;</span>returns).byte_code;
 <a href=#503 id=503 data-nosnippet>503</a>
 <a href=#504 id=504 data-nosnippet>504</a>            <span class="kw">let </span>inputs = [<span class="macro">vec!</span>[source_len.into()], source].concat();
 <a href=#505 id=505 data-nosnippet>505</a>
@@ -641,7 +641,7 @@
 <a href=#641 id=641 data-nosnippet>641</a>            context.codegen_return(<span class="kw-2">&amp;</span>[target_vector.to_var()]);
 <a href=#642 id=642 data-nosnippet>642</a>            <span class="kw">let </span>calldata = array.into_iter().chain(<span class="macro">vec!</span>[item]).chain(<span class="macro">vec!</span>[index]).collect();
 <a href=#643 id=643 data-nosnippet>643</a>
-<a href=#644 id=644 data-nosnippet>644</a>            <span class="kw">let </span>bytecode = create_entry_point_bytecode(context, arguments, returns).byte_code;
+<a href=#644 id=644 data-nosnippet>644</a>            <span class="kw">let </span>bytecode = create_entry_point_bytecode(context, <span class="kw-2">&amp;</span>arguments, <span class="kw-2">&amp;</span>returns).byte_code;
 <a href=#645 id=645 data-nosnippet>645</a>            <span class="kw">let </span>(vm, return_data_offset, return_data_size) = create_and_run_vm(calldata, <span class="kw-2">&amp;</span>bytecode);
 <a href=#646 id=646 data-nosnippet>646</a>            <span class="macro">assert_eq!</span>(return_data_size, result_length_with_metadata);
 <a href=#647 id=647 data-nosnippet>647</a>
@@ -783,7 +783,7 @@
 <a href=#783 id=783 data-nosnippet>783</a>
 <a href=#784 id=784 data-nosnippet>784</a>            <span class="kw">let </span>calldata: Vec&lt;<span class="kw">_</span>&gt; = array.into_iter().chain(<span class="macro">vec!</span>[index]).collect();
 <a href=#785 id=785 data-nosnippet>785</a>
-<a href=#786 id=786 data-nosnippet>786</a>            <span class="kw">let </span>bytecode = create_entry_point_bytecode(context, arguments, returns).byte_code;
+<a href=#786 id=786 data-nosnippet>786</a>            <span class="kw">let </span>bytecode = create_entry_point_bytecode(context, <span class="kw-2">&amp;</span>arguments, <span class="kw-2">&amp;</span>returns).byte_code;
 <a href=#787 id=787 data-nosnippet>787</a>            <span class="kw">let </span>(vm, return_data_offset, return_data_size) = create_and_run_vm(calldata, <span class="kw-2">&amp;</span>bytecode);
 <a href=#788 id=788 data-nosnippet>788</a>
 <a href=#789 id=789 data-nosnippet>789</a>            <span class="comment">// vector + removed item

@@ -79,7 +79,7 @@
 <a href=#79 id=79 data-nosnippet>79</a>            <span class="kw">return </span><span class="prelude-val">Some</span>(IdentOrQuotedType::Ident(ident));
 <a href=#80 id=80 data-nosnippet>80</a>        }
 <a href=#81 id=81 data-nosnippet>81</a>
-<a href=#82 id=82 data-nosnippet>82</a>        <span class="kw">let </span>token = <span class="self">self</span>.eat_kind(TokenKind::QuotedType)<span class="question-mark">?</span>;
+<a href=#82 id=82 data-nosnippet>82</a>        <span class="kw">let </span>token = <span class="self">self</span>.eat_kind(<span class="kw-2">&amp;</span>TokenKind::QuotedType)<span class="question-mark">?</span>;
 <a href=#83 id=83 data-nosnippet>83</a>        <span class="kw">match </span>token.into_token() {
 <a href=#84 id=84 data-nosnippet>84</a>            Token::QuotedType(id) =&gt; {
 <a href=#85 id=85 data-nosnippet>85</a>                <span class="prelude-val">Some</span>(IdentOrQuotedType::Quoted(id, <span class="self">self</span>.previous_token_location))
@@ -142,7 +142,7 @@
 <a href=#142 id=142 data-nosnippet>142</a>
 <a href=#143 id=143 data-nosnippet>143</a>        <span class="comment">// Allow `Type::&lt;Generic&gt;` and `Type&lt;Generic&gt;` as it's common to confuse them.
 <a href=#144 id=144 data-nosnippet>144</a>        // The formatter will remove the double colon.
-<a href=#145 id=145 data-nosnippet>145</a>        </span><span class="kw">if </span><span class="self">self</span>.at(Token::DoubleColon) &amp;&amp; <span class="self">self</span>.next_is(Token::Less) {
+<a href=#145 id=145 data-nosnippet>145</a>        </span><span class="kw">if </span><span class="self">self</span>.at(<span class="kw-2">&amp;</span>Token::DoubleColon) &amp;&amp; <span class="self">self</span>.next_is(<span class="kw-2">&amp;</span>Token::Less) {
 <a href=#146 id=146 data-nosnippet>146</a>            <span class="self">self</span>.bump();
 <a href=#147 id=147 data-nosnippet>147</a>        }
 <a href=#148 id=148 data-nosnippet>148</a>
@@ -173,7 +173,7 @@
 <a href=#173 id=173 data-nosnippet>173</a>    }
 <a href=#174 id=174 data-nosnippet>174</a>
 <a href=#175 id=175 data-nosnippet>175</a>    <span class="kw">fn </span>parse_generic_type_arg(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;GenericTypeArg&gt; {
-<a href=#176 id=176 data-nosnippet>176</a>        <span class="kw">if </span><span class="macro">matches!</span>(<span class="self">self</span>.token.token(), Token::Ident(..)) &amp;&amp; <span class="self">self</span>.next_is(Token::Assign) {
+<a href=#176 id=176 data-nosnippet>176</a>        <span class="kw">if </span><span class="macro">matches!</span>(<span class="self">self</span>.token.token(), Token::Ident(..)) &amp;&amp; <span class="self">self</span>.next_is(<span class="kw-2">&amp;</span>Token::Assign) {
 <a href=#177 id=177 data-nosnippet>177</a>            <span class="kw">let </span>ident = <span class="self">self</span>.eat_ident().unwrap();
 <a href=#178 id=178 data-nosnippet>178</a>
 <a href=#179 id=179 data-nosnippet>179</a>            <span class="self">self</span>.eat_assign();

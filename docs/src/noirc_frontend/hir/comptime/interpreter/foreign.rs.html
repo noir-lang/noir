@@ -62,7 +62,7 @@
 <a href=#62 id=62 data-nosnippet>62</a>        <span class="string">"embedded_curve_add" </span>=&gt; embedded_curve_add(args, return_type, location),
 <a href=#63 id=63 data-nosnippet>63</a>        <span class="string">"multi_scalar_mul" </span>=&gt; multi_scalar_mul(args, return_type, location),
 <a href=#64 id=64 data-nosnippet>64</a>        <span class="string">"poseidon2_permutation" </span>=&gt; poseidon2_permutation(args, location),
-<a href=#65 id=65 data-nosnippet>65</a>        <span class="string">"poseidon2_config_state_size" </span>=&gt; poseidon2_config_state_size(args, location),
+<a href=#65 id=65 data-nosnippet>65</a>        <span class="string">"poseidon2_config_state_size" </span>=&gt; poseidon2_config_state_size(<span class="kw-2">&amp;</span>args, location),
 <a href=#66 id=66 data-nosnippet>66</a>        <span class="string">"keccakf1600" </span>=&gt; keccakf1600(args, location),
 <a href=#67 id=67 data-nosnippet>67</a>        <span class="string">"sha256_compression" </span>=&gt; sha256_compression(args, location),
 <a href=#68 id=68 data-nosnippet>68</a>        <span class="kw">_ </span>=&gt; {
@@ -271,10 +271,10 @@
 <a href=#271 id=271 data-nosnippet>271</a>}
 <a href=#272 id=272 data-nosnippet>272</a>
 <a href=#273 id=273 data-nosnippet>273</a><span class="kw">fn </span>poseidon2_config_state_size(
-<a href=#274 id=274 data-nosnippet>274</a>    arguments: Vec&lt;(Value, Location)&gt;,
+<a href=#274 id=274 data-nosnippet>274</a>    arguments: <span class="kw-2">&amp;</span>[(Value, Location)],
 <a href=#275 id=275 data-nosnippet>275</a>    location: Location,
 <a href=#276 id=276 data-nosnippet>276</a>) -&gt; IResult&lt;Value&gt; {
-<a href=#277 id=277 data-nosnippet>277</a>    check_argument_count(<span class="number">0</span>, <span class="kw-2">&amp;</span>arguments, location)<span class="question-mark">?</span>;
+<a href=#277 id=277 data-nosnippet>277</a>    check_argument_count(<span class="number">0</span>, arguments, location)<span class="question-mark">?</span>;
 <a href=#278 id=278 data-nosnippet>278</a>    <span class="kw">let </span>size = bn254_blackbox_solver::poseidon2_config_state_size();
 <a href=#279 id=279 data-nosnippet>279</a>    <span class="prelude-val">Ok</span>(Value::u32(size))
 <a href=#280 id=280 data-nosnippet>280</a>}

@@ -541,7 +541,7 @@
 <a href=#541 id=541 data-nosnippet>541</a>        <span class="self">self</span>.push_str(<span class="string">" {\n"</span>);
 <a href=#542 id=542 data-nosnippet>542</a>        <span class="self">self</span>.increase_indent();
 <a href=#543 id=543 data-nosnippet>543</a>
-<a href=#544 id=544 data-nosnippet>544</a>        <span class="self">self</span>.trait_constraints = trait_impl.where_clause.clone();
+<a href=#544 id=544 data-nosnippet>544</a>        <span class="self">self</span>.trait_constraints.clone_from(<span class="kw-2">&amp;</span>trait_impl.where_clause);
 <a href=#545 id=545 data-nosnippet>545</a>
 <a href=#546 id=546 data-nosnippet>546</a>        <span class="self">self</span>.self_type = <span class="prelude-val">Some</span>(trait_impl.typ.clone());
 <a href=#547 id=547 data-nosnippet>547</a>
@@ -1099,7 +1099,7 @@
 <a href=#1099 id=1099 data-nosnippet>1099</a>                <span class="self">self</span>.push_str(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">"{std}::mem::zeroed()"</span>));
 <a href=#1100 id=1100 data-nosnippet>1100</a>            }
 <a href=#1101 id=1101 data-nosnippet>1101</a>            Value::Closure(closure) =&gt; {
-<a href=#1102 id=1102 data-nosnippet>1102</a>                <span class="self">self</span>.show_hir_lambda(closure.lambda.clone());
+<a href=#1102 id=1102 data-nosnippet>1102</a>                <span class="self">self</span>.show_hir_lambda(<span class="kw-2">&amp;</span>closure.lambda);
 <a href=#1103 id=1103 data-nosnippet>1103</a>            }
 <a href=#1104 id=1104 data-nosnippet>1104</a>            Value::TypeDefinition(<span class="kw">_</span>)
 <a href=#1105 id=1105 data-nosnippet>1105</a>            | Value::TraitConstraint(..)

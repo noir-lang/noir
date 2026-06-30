@@ -2446,21 +2446,21 @@
 <a href=#2446 id=2446 data-nosnippet>2446</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
 <a href=#2447 id=2447 data-nosnippet>2447</a>        var: <span class="kw-2">&amp;</span>TypeVariable,
 <a href=#2448 id=2448 data-nosnippet>2448</a>        bindings: <span class="kw-2">&amp;mut </span>TypeBindings,
-<a href=#2449 id=2449 data-nosnippet>2449</a>        kind: Kind,
+<a href=#2449 id=2449 data-nosnippet>2449</a>        kind: <span class="kw-2">&amp;</span>Kind,
 <a href=#2450 id=2450 data-nosnippet>2450</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;(), UnificationError&gt; {
 <a href=#2451 id=2451 data-nosnippet>2451</a>        <span class="kw">let </span>target_id = <span class="kw">match </span><span class="kw-2">&amp;*</span>var.borrow() {
 <a href=#2452 id=2452 data-nosnippet>2452</a>            TypeBinding::Bound(<span class="kw">_</span>) =&gt; <span class="macro">unreachable!</span>(),
 <a href=#2453 id=2453 data-nosnippet>2453</a>            TypeBinding::Unbound(id, <span class="kw">_</span>) =&gt; <span class="kw-2">*</span>id,
 <a href=#2454 id=2454 data-nosnippet>2454</a>        };
 <a href=#2455 id=2455 data-nosnippet>2455</a>
-<a href=#2456 id=2456 data-nosnippet>2456</a>        <span class="kw">if </span>!<span class="self">self</span>.kind().unifies(<span class="kw-2">&amp;</span>kind) {
+<a href=#2456 id=2456 data-nosnippet>2456</a>        <span class="kw">if </span>!<span class="self">self</span>.kind().unifies(kind) {
 <a href=#2457 id=2457 data-nosnippet>2457</a>            <span class="kw">return </span><span class="prelude-val">Err</span>(UnificationError);
 <a href=#2458 id=2458 data-nosnippet>2458</a>        }
 <a href=#2459 id=2459 data-nosnippet>2459</a>
 <a href=#2460 id=2460 data-nosnippet>2460</a>        <span class="kw">let </span>this = <span class="self">self</span>.substitute(bindings).follow_bindings();
 <a href=#2461 id=2461 data-nosnippet>2461</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>((binding, kind)) = this.get_inner_type_variable() {
 <a href=#2462 id=2462 data-nosnippet>2462</a>            <span class="kw">match </span><span class="kw-2">&amp;*</span>binding.borrow() {
-<a href=#2463 id=2463 data-nosnippet>2463</a>                TypeBinding::Bound(typ) =&gt; <span class="kw">return </span>typ.try_bind_to(var, bindings, kind),
+<a href=#2463 id=2463 data-nosnippet>2463</a>                TypeBinding::Bound(typ) =&gt; <span class="kw">return </span>typ.try_bind_to(var, bindings, <span class="kw-2">&amp;</span>kind),
 <a href=#2464 id=2464 data-nosnippet>2464</a>                <span class="comment">// Don't recursively bind the same id to itself
 <a href=#2465 id=2465 data-nosnippet>2465</a>                </span>TypeBinding::Unbound(id, <span class="kw">_</span>) <span class="kw">if </span><span class="kw-2">*</span>id == target_id =&gt; <span class="kw">return </span><span class="prelude-val">Ok</span>(()),
 <a href=#2466 id=2466 data-nosnippet>2466</a>                TypeBinding::Unbound(..) =&gt; (),
@@ -2491,8 +2491,8 @@
 <a href=#2491 id=2491 data-nosnippet>2491</a>    <span class="doccomment">/// Apply the given type bindings, making them permanently visible for each
 <a href=#2492 id=2492 data-nosnippet>2492</a>    /// clone of each type variable bound.
 <a href=#2493 id=2493 data-nosnippet>2493</a>    </span><span class="kw">pub fn </span>apply_type_bindings(bindings: TypeBindings) {
-<a href=#2494 id=2494 data-nosnippet>2494</a>        <span class="kw">for </span>(type_variable, _kind, binding) <span class="kw">in </span>bindings.values() {
-<a href=#2495 id=2495 data-nosnippet>2495</a>            type_variable.bind(binding.clone());
+<a href=#2494 id=2494 data-nosnippet>2494</a>        <span class="kw">for </span>(type_variable, _kind, binding) <span class="kw">in </span>bindings.into_values() {
+<a href=#2495 id=2495 data-nosnippet>2495</a>            type_variable.bind(binding);
 <a href=#2496 id=2496 data-nosnippet>2496</a>        }
 <a href=#2497 id=2497 data-nosnippet>2497</a>    }
 <a href=#2498 id=2498 data-nosnippet>2498</a>

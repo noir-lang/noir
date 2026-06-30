@@ -496,8 +496,8 @@
 <a href=#496 id=496 data-nosnippet>496</a>
 <a href=#497 id=497 data-nosnippet>497</a>    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>create_entry_point_bytecode(
 <a href=#498 id=498 data-nosnippet>498</a>        context: BrilligContext&lt;FieldElement, Stack&gt;,
-<a href=#499 id=499 data-nosnippet>499</a>        arguments: Vec&lt;BrilligParameter&gt;,
-<a href=#500 id=500 data-nosnippet>500</a>        returns: Vec&lt;BrilligParameter&gt;,
+<a href=#499 id=499 data-nosnippet>499</a>        arguments: <span class="kw-2">&amp;</span>[BrilligParameter],
+<a href=#500 id=500 data-nosnippet>500</a>        returns: <span class="kw-2">&amp;</span>[BrilligParameter],
 <a href=#501 id=501 data-nosnippet>501</a>    ) -&gt; GeneratedBrillig&lt;FieldElement&gt; {
 <a href=#502 id=502 data-nosnippet>502</a>        <span class="kw">let </span>options = BrilligOptions {
 <a href=#503 id=503 data-nosnippet>503</a>            enable_debug_trace: <span class="bool-val">false</span>,
@@ -680,7 +680,7 @@
 <a href=#680 id=680 data-nosnippet>680</a>        <span class="kw">let </span>options = BrilligOptions::default();
 <a href=#681 id=681 data-nosnippet>681</a>        <span class="kw">let </span>brillig = ssa.to_brillig(<span class="kw-2">&amp;</span>options);
 <a href=#682 id=682 data-nosnippet>682</a>        <span class="kw">let </span>args = <span class="macro">vec!</span>[BrilligParameter::SingleAddr(<span class="number">32</span>)];
-<a href=#683 id=683 data-nosnippet>683</a>        <span class="kw">let </span><span class="kw-2">mut </span>generated = gen_brillig_for(main, args, <span class="kw-2">&amp;</span>brillig, <span class="kw-2">&amp;</span>options).unwrap();
+<a href=#683 id=683 data-nosnippet>683</a>        <span class="kw">let </span><span class="kw-2">mut </span>generated = gen_brillig_for(main, <span class="kw-2">&amp;</span>args, <span class="kw-2">&amp;</span>brillig, <span class="kw-2">&amp;</span>options).unwrap();
 <a href=#684 id=684 data-nosnippet>684</a>
 <a href=#685 id=685 data-nosnippet>685</a>        <span class="comment">// Find the first BinaryIntOp::Add that writes to the free_memory_pointer (FMP)
 <a href=#686 id=686 data-nosnippet>686</a>        // and insert a patch just before it.
@@ -909,7 +909,7 @@
 <a href=#909 id=909 data-nosnippet>909</a>        <span class="kw">let </span>main = ssa.main();
 <a href=#910 id=910 data-nosnippet>910</a>        <span class="kw">let </span>options = BrilligOptions::default();
 <a href=#911 id=911 data-nosnippet>911</a>        <span class="kw">let </span>brillig = ssa.to_brillig(<span class="kw-2">&amp;</span>options);
-<a href=#912 id=912 data-nosnippet>912</a>        <span class="kw">let </span><span class="kw-2">mut </span>generated = gen_brillig_for(main, <span class="macro">vec!</span>[], <span class="kw-2">&amp;</span>brillig, <span class="kw-2">&amp;</span>options).unwrap();
+<a href=#912 id=912 data-nosnippet>912</a>        <span class="kw">let </span><span class="kw-2">mut </span>generated = gen_brillig_for(main, <span class="kw-2">&amp;</span>[], <span class="kw-2">&amp;</span>brillig, <span class="kw-2">&amp;</span>options).unwrap();
 <a href=#913 id=913 data-nosnippet>913</a>
 <a href=#914 id=914 data-nosnippet>914</a>        <span class="comment">// Find the first BinaryIntOp::Add that writes to the free_memory_pointer (FMP)
 <a href=#915 id=915 data-nosnippet>915</a>        // and insert a patch just before it.
@@ -1070,7 +1070,7 @@
 <a href=#1070 id=1070 data-nosnippet>1070</a>        <span class="kw">let </span>main = ssa.main();
 <a href=#1071 id=1071 data-nosnippet>1071</a>        <span class="kw">let </span>options = BrilligOptions::default();
 <a href=#1072 id=1072 data-nosnippet>1072</a>        <span class="kw">let </span>brillig = ssa.to_brillig(<span class="kw-2">&amp;</span>options);
-<a href=#1073 id=1073 data-nosnippet>1073</a>        <span class="kw">let </span>generated = gen_brillig_for(main, <span class="macro">vec!</span>[], <span class="kw-2">&amp;</span>brillig, <span class="kw-2">&amp;</span>options).unwrap();
+<a href=#1073 id=1073 data-nosnippet>1073</a>        <span class="kw">let </span>generated = gen_brillig_for(main, <span class="kw-2">&amp;</span>[], <span class="kw-2">&amp;</span>brillig, <span class="kw-2">&amp;</span>options).unwrap();
 <a href=#1074 id=1074 data-nosnippet>1074</a>
 <a href=#1075 id=1075 data-nosnippet>1075</a>        <span class="kw">let </span><span class="kw-2">mut </span>vm = VM::new(<span class="macro">vec!</span>[], <span class="kw-2">&amp;</span>generated.byte_code, <span class="kw-2">&amp;</span>DummyBlackBoxSolver, <span class="bool-val">false</span>, <span class="prelude-val">None</span>);
 <a href=#1076 id=1076 data-nosnippet>1076</a>        <span class="kw">let </span>status = vm.process_opcodes();
@@ -1110,7 +1110,7 @@
 <a href=#1110 id=1110 data-nosnippet>1110</a>        <span class="kw">let </span>main = ssa.main();
 <a href=#1111 id=1111 data-nosnippet>1111</a>        <span class="kw">let </span>options = BrilligOptions::default();
 <a href=#1112 id=1112 data-nosnippet>1112</a>        <span class="kw">let </span>brillig = ssa.to_brillig(<span class="kw-2">&amp;</span>options);
-<a href=#1113 id=1113 data-nosnippet>1113</a>        <span class="kw">let </span>generated = gen_brillig_for(main, <span class="macro">vec!</span>[], <span class="kw-2">&amp;</span>brillig, <span class="kw-2">&amp;</span>options).unwrap();
+<a href=#1113 id=1113 data-nosnippet>1113</a>        <span class="kw">let </span>generated = gen_brillig_for(main, <span class="kw-2">&amp;</span>[], <span class="kw-2">&amp;</span>brillig, <span class="kw-2">&amp;</span>options).unwrap();
 <a href=#1114 id=1114 data-nosnippet>1114</a>
 <a href=#1115 id=1115 data-nosnippet>1115</a>        <span class="kw">let </span><span class="kw-2">mut </span>vm = VM::new(<span class="macro">vec!</span>[], <span class="kw-2">&amp;</span>generated.byte_code, <span class="kw-2">&amp;</span>DummyBlackBoxSolver, <span class="bool-val">false</span>, <span class="prelude-val">None</span>);
 <a href=#1116 id=1116 data-nosnippet>1116</a>        <span class="kw">let </span>status = vm.process_opcodes();

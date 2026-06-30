@@ -246,7 +246,7 @@
 <a href=#246 id=246 data-nosnippet>246</a>        // which the next iteration discovers and unrolls.
 <a href=#247 id=247 data-nosnippet>247</a>        </span><span class="kw">loop </span>{
 <a href=#248 id=248 data-nosnippet>248</a>            <span class="kw">let </span><span class="kw-2">mut </span>loops = Loops::find_all(<span class="self">self</span>, order);
-<a href=#249 id=249 data-nosnippet>249</a>            loops.callee_costs = callee_costs.clone();
+<a href=#249 id=249 data-nosnippet>249</a>            loops.callee_costs.clone_from(callee_costs);
 <a href=#250 id=250 data-nosnippet>250</a>
 <a href=#251 id=251 data-nosnippet>251</a>            <span class="kw">let </span>(unrolled, refresh, errors) = <span class="self">self</span>.try_unroll_loops_with_order(
 <a href=#252 id=252 data-nosnippet>252</a>                loops,

@@ -339,8 +339,8 @@
 <a href=#339 id=339 data-nosnippet>339</a>        }
 <a href=#340 id=340 data-nosnippet>340</a>    }
 <a href=#341 id=341 data-nosnippet>341</a>
-<a href=#342 id=342 data-nosnippet>342</a>    <span class="kw">fn </span>eat_kind(<span class="kw-2">&amp;mut </span><span class="self">self</span>, kind: TokenKind) -&gt; <span class="prelude-ty">Option</span>&lt;LocatedToken&gt; {
-<a href=#343 id=343 data-nosnippet>343</a>        <span class="kw">if </span><span class="self">self</span>.token.kind() == kind { <span class="prelude-val">Some</span>(<span class="self">self</span>.bump()) } <span class="kw">else </span>{ <span class="prelude-val">None </span>}
+<a href=#342 id=342 data-nosnippet>342</a>    <span class="kw">fn </span>eat_kind(<span class="kw-2">&amp;mut </span><span class="self">self</span>, kind: <span class="kw-2">&amp;</span>TokenKind) -&gt; <span class="prelude-ty">Option</span>&lt;LocatedToken&gt; {
+<a href=#343 id=343 data-nosnippet>343</a>        <span class="kw">if </span><span class="self">self</span>.token.kind() == <span class="kw-2">*</span>kind { <span class="prelude-val">Some</span>(<span class="self">self</span>.bump()) } <span class="kw">else </span>{ <span class="prelude-val">None </span>}
 <a href=#344 id=344 data-nosnippet>344</a>    }
 <a href=#345 id=345 data-nosnippet>345</a>
 <a href=#346 id=346 data-nosnippet>346</a>    <span class="kw">fn </span>eat_keyword(<span class="kw-2">&amp;mut </span><span class="self">self</span>, keyword: Keyword) -&gt; bool {
@@ -366,7 +366,7 @@
 <a href=#366 id=366 data-nosnippet>366</a>    }
 <a href=#367 id=367 data-nosnippet>367</a>
 <a href=#368 id=368 data-nosnippet>368</a>    <span class="kw">fn </span>eat_ident(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;Ident&gt; {
-<a href=#369 id=369 data-nosnippet>369</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>(token) = <span class="self">self</span>.eat_kind(TokenKind::Ident) {
+<a href=#369 id=369 data-nosnippet>369</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>(token) = <span class="self">self</span>.eat_kind(<span class="kw-2">&amp;</span>TokenKind::Ident) {
 <a href=#370 id=370 data-nosnippet>370</a>            <span class="kw">return match </span>token.into_token() {
 <a href=#371 id=371 data-nosnippet>371</a>                Token::Ident(ident) =&gt; <span class="prelude-val">Some</span>(Ident::new(ident, <span class="self">self</span>.previous_token_location)),
 <a href=#372 id=372 data-nosnippet>372</a>                <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(),
@@ -492,7 +492,7 @@
 <a href=#492 id=492 data-nosnippet>492</a>    }
 <a href=#493 id=493 data-nosnippet>493</a>
 <a href=#494 id=494 data-nosnippet>494</a>    <span class="kw">fn </span>eat_unquote_marker(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;ExprId&gt; {
-<a href=#495 id=495 data-nosnippet>495</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>(token) = <span class="self">self</span>.eat_kind(TokenKind::UnquoteMarker) {
+<a href=#495 id=495 data-nosnippet>495</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>(token) = <span class="self">self</span>.eat_kind(<span class="kw-2">&amp;</span>TokenKind::UnquoteMarker) {
 <a href=#496 id=496 data-nosnippet>496</a>            <span class="kw">match </span>token.into_token() {
 <a href=#497 id=497 data-nosnippet>497</a>                Token::UnquoteMarker(expr_id) =&gt; <span class="kw">return </span><span class="prelude-val">Some</span>(expr_id),
 <a href=#498 id=498 data-nosnippet>498</a>                <span class="kw">_ </span>=&gt; {
@@ -543,11 +543,11 @@
 <a href=#543 id=543 data-nosnippet>543</a>    }
 <a href=#544 id=544 data-nosnippet>544</a>
 <a href=#545 id=545 data-nosnippet>545</a>    <span class="kw">fn </span>eat_comma(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; bool {
-<a href=#546 id=546 data-nosnippet>546</a>        <span class="self">self</span>.eat(Token::Comma)
+<a href=#546 id=546 data-nosnippet>546</a>        <span class="self">self</span>.eat(<span class="kw-2">&amp;</span>Token::Comma)
 <a href=#547 id=547 data-nosnippet>547</a>    }
 <a href=#548 id=548 data-nosnippet>548</a>
 <a href=#549 id=549 data-nosnippet>549</a>    <span class="kw">fn </span>eat_semicolon(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; bool {
-<a href=#550 id=550 data-nosnippet>550</a>        <span class="self">self</span>.eat(Token::Semicolon)
+<a href=#550 id=550 data-nosnippet>550</a>        <span class="self">self</span>.eat(<span class="kw-2">&amp;</span>Token::Semicolon)
 <a href=#551 id=551 data-nosnippet>551</a>    }
 <a href=#552 id=552 data-nosnippet>552</a>
 <a href=#553 id=553 data-nosnippet>553</a>    <span class="kw">fn </span>eat_semicolons(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; bool {
@@ -571,50 +571,50 @@
 <a href=#571 id=571 data-nosnippet>571</a>    }
 <a href=#572 id=572 data-nosnippet>572</a>
 <a href=#573 id=573 data-nosnippet>573</a>    <span class="kw">fn </span>eat_colon(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; bool {
-<a href=#574 id=574 data-nosnippet>574</a>        <span class="self">self</span>.eat(Token::Colon)
+<a href=#574 id=574 data-nosnippet>574</a>        <span class="self">self</span>.eat(<span class="kw-2">&amp;</span>Token::Colon)
 <a href=#575 id=575 data-nosnippet>575</a>    }
 <a href=#576 id=576 data-nosnippet>576</a>
 <a href=#577 id=577 data-nosnippet>577</a>    <span class="kw">fn </span>eat_double_colon(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; bool {
-<a href=#578 id=578 data-nosnippet>578</a>        <span class="self">self</span>.eat(Token::DoubleColon)
+<a href=#578 id=578 data-nosnippet>578</a>        <span class="self">self</span>.eat(<span class="kw-2">&amp;</span>Token::DoubleColon)
 <a href=#579 id=579 data-nosnippet>579</a>    }
 <a href=#580 id=580 data-nosnippet>580</a>
 <a href=#581 id=581 data-nosnippet>581</a>    <span class="kw">fn </span>eat_left_paren(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; bool {
-<a href=#582 id=582 data-nosnippet>582</a>        <span class="self">self</span>.eat(Token::LeftParen)
+<a href=#582 id=582 data-nosnippet>582</a>        <span class="self">self</span>.eat(<span class="kw-2">&amp;</span>Token::LeftParen)
 <a href=#583 id=583 data-nosnippet>583</a>    }
 <a href=#584 id=584 data-nosnippet>584</a>
 <a href=#585 id=585 data-nosnippet>585</a>    <span class="kw">fn </span>eat_right_paren(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; bool {
-<a href=#586 id=586 data-nosnippet>586</a>        <span class="self">self</span>.eat(Token::RightParen)
+<a href=#586 id=586 data-nosnippet>586</a>        <span class="self">self</span>.eat(<span class="kw-2">&amp;</span>Token::RightParen)
 <a href=#587 id=587 data-nosnippet>587</a>    }
 <a href=#588 id=588 data-nosnippet>588</a>
 <a href=#589 id=589 data-nosnippet>589</a>    <span class="kw">fn </span>eat_left_brace(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; bool {
-<a href=#590 id=590 data-nosnippet>590</a>        <span class="self">self</span>.eat(Token::LeftBrace)
+<a href=#590 id=590 data-nosnippet>590</a>        <span class="self">self</span>.eat(<span class="kw-2">&amp;</span>Token::LeftBrace)
 <a href=#591 id=591 data-nosnippet>591</a>    }
 <a href=#592 id=592 data-nosnippet>592</a>
 <a href=#593 id=593 data-nosnippet>593</a>    <span class="kw">fn </span>eat_left_bracket(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; bool {
-<a href=#594 id=594 data-nosnippet>594</a>        <span class="self">self</span>.eat(Token::LeftBracket)
+<a href=#594 id=594 data-nosnippet>594</a>        <span class="self">self</span>.eat(<span class="kw-2">&amp;</span>Token::LeftBracket)
 <a href=#595 id=595 data-nosnippet>595</a>    }
 <a href=#596 id=596 data-nosnippet>596</a>
 <a href=#597 id=597 data-nosnippet>597</a>    <span class="kw">fn </span>eat_right_bracket(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; bool {
-<a href=#598 id=598 data-nosnippet>598</a>        <span class="self">self</span>.eat(Token::RightBracket)
+<a href=#598 id=598 data-nosnippet>598</a>        <span class="self">self</span>.eat(<span class="kw-2">&amp;</span>Token::RightBracket)
 <a href=#599 id=599 data-nosnippet>599</a>    }
 <a href=#600 id=600 data-nosnippet>600</a>
 <a href=#601 id=601 data-nosnippet>601</a>    <span class="kw">fn </span>eat_less(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; bool {
-<a href=#602 id=602 data-nosnippet>602</a>        <span class="self">self</span>.eat(Token::Less)
+<a href=#602 id=602 data-nosnippet>602</a>        <span class="self">self</span>.eat(<span class="kw-2">&amp;</span>Token::Less)
 <a href=#603 id=603 data-nosnippet>603</a>    }
 <a href=#604 id=604 data-nosnippet>604</a>
 <a href=#605 id=605 data-nosnippet>605</a>    <span class="kw">fn </span>eat_assign(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; bool {
-<a href=#606 id=606 data-nosnippet>606</a>        <span class="self">self</span>.eat(Token::Assign)
+<a href=#606 id=606 data-nosnippet>606</a>        <span class="self">self</span>.eat(<span class="kw-2">&amp;</span>Token::Assign)
 <a href=#607 id=607 data-nosnippet>607</a>    }
 <a href=#608 id=608 data-nosnippet>608</a>
 <a href=#609 id=609 data-nosnippet>609</a>    <span class="kw">fn </span>eat_dot(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; bool {
-<a href=#610 id=610 data-nosnippet>610</a>        <span class="self">self</span>.eat(Token::Dot)
+<a href=#610 id=610 data-nosnippet>610</a>        <span class="self">self</span>.eat(<span class="kw-2">&amp;</span>Token::Dot)
 <a href=#611 id=611 data-nosnippet>611</a>    }
 <a href=#612 id=612 data-nosnippet>612</a>
 <a href=#613 id=613 data-nosnippet>613</a>    <span class="kw">fn </span>eat_pipe(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; bool {
-<a href=#614 id=614 data-nosnippet>614</a>        <span class="self">self</span>.eat(Token::Pipe)
+<a href=#614 id=614 data-nosnippet>614</a>        <span class="self">self</span>.eat(<span class="kw-2">&amp;</span>Token::Pipe)
 <a href=#615 id=615 data-nosnippet>615</a>    }
 <a href=#616 id=616 data-nosnippet>616</a>
-<a href=#617 id=617 data-nosnippet>617</a>    <span class="kw">fn </span>eat(<span class="kw-2">&amp;mut </span><span class="self">self</span>, token: Token) -&gt; bool {
+<a href=#617 id=617 data-nosnippet>617</a>    <span class="kw">fn </span>eat(<span class="kw-2">&amp;mut </span><span class="self">self</span>, token: <span class="kw-2">&amp;</span>Token) -&gt; bool {
 <a href=#618 id=618 data-nosnippet>618</a>        <span class="kw">if </span><span class="self">self</span>.current_is(token) {
 <a href=#619 id=619 data-nosnippet>619</a>            <span class="self">self</span>.bump();
 <a href=#620 id=620 data-nosnippet>620</a>            <span class="bool-val">true
@@ -630,17 +630,17 @@
 <a href=#630 id=630 data-nosnippet>630</a>    }
 <a href=#631 id=631 data-nosnippet>631</a>
 <a href=#632 id=632 data-nosnippet>632</a>    <span class="kw">fn </span>eat_or_error(<span class="kw-2">&amp;mut </span><span class="self">self</span>, token: Token) {
-<a href=#633 id=633 data-nosnippet>633</a>        <span class="kw">if </span>!<span class="self">self</span>.eat(token.clone()) {
+<a href=#633 id=633 data-nosnippet>633</a>        <span class="kw">if </span>!<span class="self">self</span>.eat(<span class="kw-2">&amp;</span>token) {
 <a href=#634 id=634 data-nosnippet>634</a>            <span class="self">self</span>.expected_token(token);
 <a href=#635 id=635 data-nosnippet>635</a>        }
 <a href=#636 id=636 data-nosnippet>636</a>    }
 <a href=#637 id=637 data-nosnippet>637</a>
-<a href=#638 id=638 data-nosnippet>638</a>    <span class="kw">fn </span>at(<span class="kw-2">&amp;</span><span class="self">self</span>, token: Token) -&gt; bool {
-<a href=#639 id=639 data-nosnippet>639</a>        <span class="self">self</span>.token.token() == <span class="kw-2">&amp;</span>token
+<a href=#638 id=638 data-nosnippet>638</a>    <span class="kw">fn </span>at(<span class="kw-2">&amp;</span><span class="self">self</span>, token: <span class="kw-2">&amp;</span>Token) -&gt; bool {
+<a href=#639 id=639 data-nosnippet>639</a>        <span class="self">self</span>.token.token() == token
 <a href=#640 id=640 data-nosnippet>640</a>    }
 <a href=#641 id=641 data-nosnippet>641</a>
 <a href=#642 id=642 data-nosnippet>642</a>    <span class="kw">fn </span>at_keyword(<span class="kw-2">&amp;</span><span class="self">self</span>, keyword: Keyword) -&gt; bool {
-<a href=#643 id=643 data-nosnippet>643</a>        <span class="self">self</span>.at(Token::Keyword(keyword))
+<a href=#643 id=643 data-nosnippet>643</a>        <span class="self">self</span>.at(<span class="kw-2">&amp;</span>Token::Keyword(keyword))
 <a href=#644 id=644 data-nosnippet>644</a>    }
 <a href=#645 id=645 data-nosnippet>645</a>
 <a href=#646 id=646 data-nosnippet>646</a>    <span class="kw">fn </span>at_whitespace(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
@@ -653,16 +653,16 @@
 <a href=#653 id=653 data-nosnippet>653</a>        }
 <a href=#654 id=654 data-nosnippet>654</a>    }
 <a href=#655 id=655 data-nosnippet>655</a>
-<a href=#656 id=656 data-nosnippet>656</a>    <span class="kw">fn </span>current_is(<span class="kw-2">&amp;</span><span class="self">self</span>, token: Token) -&gt; bool {
-<a href=#657 id=657 data-nosnippet>657</a>        <span class="self">self</span>.token.token() == <span class="kw-2">&amp;</span>token
+<a href=#656 id=656 data-nosnippet>656</a>    <span class="kw">fn </span>current_is(<span class="kw-2">&amp;</span><span class="self">self</span>, token: <span class="kw-2">&amp;</span>Token) -&gt; bool {
+<a href=#657 id=657 data-nosnippet>657</a>        <span class="self">self</span>.token.token() == token
 <a href=#658 id=658 data-nosnippet>658</a>    }
 <a href=#659 id=659 data-nosnippet>659</a>
-<a href=#660 id=660 data-nosnippet>660</a>    <span class="kw">fn </span>next_is(<span class="kw-2">&amp;</span><span class="self">self</span>, token: Token) -&gt; bool {
-<a href=#661 id=661 data-nosnippet>661</a>        <span class="self">self</span>.next_token.token() == <span class="kw-2">&amp;</span>token
+<a href=#660 id=660 data-nosnippet>660</a>    <span class="kw">fn </span>next_is(<span class="kw-2">&amp;</span><span class="self">self</span>, token: <span class="kw-2">&amp;</span>Token) -&gt; bool {
+<a href=#661 id=661 data-nosnippet>661</a>        <span class="self">self</span>.next_token.token() == token
 <a href=#662 id=662 data-nosnippet>662</a>    }
 <a href=#663 id=663 data-nosnippet>663</a>
 <a href=#664 id=664 data-nosnippet>664</a>    <span class="kw">fn </span>at_eof(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
-<a href=#665 id=665 data-nosnippet>665</a>        <span class="self">self</span>.current_is(Token::EOF)
+<a href=#665 id=665 data-nosnippet>665</a>        <span class="self">self</span>.current_is(<span class="kw-2">&amp;</span>Token::EOF)
 <a href=#666 id=666 data-nosnippet>666</a>    }
 <a href=#667 id=667 data-nosnippet>667</a>
 <a href=#668 id=668 data-nosnippet>668</a>    <span class="doccomment">/// Check if we reached the maximum recursion depth.

@@ -304,7 +304,7 @@
 <a href=#304 id=304 data-nosnippet>304</a>                <span class="macro">vec!</span>[AcirValue::Var(var, NumericType::NativeField)],
 <a href=#305 id=305 data-nosnippet>305</a>                <span class="macro">vec!</span>[AcirType::NumericType(NumericType::NativeField)],
 <a href=#306 id=306 data-nosnippet>306</a>            )<span class="question-mark">?</span>;
-<a href=#307 id=307 data-nosnippet>307</a>            <span class="self">Self</span>::expect_one_var(results)
+<a href=#307 id=307 data-nosnippet>307</a>            <span class="self">Self</span>::expect_one_var(<span class="kw-2">&amp;</span>results)
 <a href=#308 id=308 data-nosnippet>308</a>        };
 <a href=#309 id=309 data-nosnippet>309</a>
 <a href=#310 id=310 data-nosnippet>310</a>        <span class="comment">// Check that the inverted var is valid.
@@ -321,7 +321,7 @@
 <a href=#321 id=321 data-nosnippet>321</a>    }
 <a href=#322 id=322 data-nosnippet>322</a>
 <a href=#323 id=323 data-nosnippet>323</a>    <span class="comment">// Returns the variable from the results, assuming it is the only result
-<a href=#324 id=324 data-nosnippet>324</a>    </span><span class="kw">fn </span>expect_one_var(results: Vec&lt;AcirValue&gt;) -&gt; AcirVar {
+<a href=#324 id=324 data-nosnippet>324</a>    </span><span class="kw">fn </span>expect_one_var(results: <span class="kw-2">&amp;</span>[AcirValue]) -&gt; AcirVar {
 <a href=#325 id=325 data-nosnippet>325</a>        <span class="macro">assert_eq!</span>(results.len(), <span class="number">1</span>);
 <a href=#326 id=326 data-nosnippet>326</a>        <span class="kw">match </span>results[<span class="number">0</span>] {
 <a href=#327 id=327 data-nosnippet>327</a>            AcirValue::Var(var, <span class="kw">_</span>) =&gt; var,

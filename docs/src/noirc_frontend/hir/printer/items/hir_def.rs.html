@@ -264,7 +264,7 @@
 <a href=#264 id=264 data-nosnippet>264</a>                }
 <a href=#265 id=265 data-nosnippet>265</a>                <span class="self">self</span>.push(<span class="string">')'</span>);
 <a href=#266 id=266 data-nosnippet>266</a>            }
-<a href=#267 id=267 data-nosnippet>267</a>            HirExpression::Lambda(hir_lambda) =&gt; <span class="self">self</span>.show_hir_lambda(hir_lambda),
+<a href=#267 id=267 data-nosnippet>267</a>            HirExpression::Lambda(hir_lambda) =&gt; <span class="self">self</span>.show_hir_lambda(<span class="kw-2">&amp;</span>hir_lambda),
 <a href=#268 id=268 data-nosnippet>268</a>            HirExpression::Quote(tokens) =&gt; {
 <a href=#269 id=269 data-nosnippet>269</a>                <span class="self">self</span>.show_quoted(<span class="kw-2">&amp;</span>tokens.<span class="number">0</span>);
 <a href=#270 id=270 data-nosnippet>270</a>            }
@@ -278,7 +278,7 @@
 <a href=#278 id=278 data-nosnippet>278</a>        }
 <a href=#279 id=279 data-nosnippet>279</a>    }
 <a href=#280 id=280 data-nosnippet>280</a>
-<a href=#281 id=281 data-nosnippet>281</a>    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>show_hir_lambda(<span class="kw-2">&amp;mut </span><span class="self">self</span>, hir_lambda: HirLambda) {
+<a href=#281 id=281 data-nosnippet>281</a>    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>show_hir_lambda(<span class="kw-2">&amp;mut </span><span class="self">self</span>, hir_lambda: <span class="kw-2">&amp;</span>HirLambda) {
 <a href=#282 id=282 data-nosnippet>282</a>        <span class="kw">if </span>hir_lambda.unconstrained {
 <a href=#283 id=283 data-nosnippet>283</a>            <span class="self">self</span>.push_str(<span class="string">"unconstrained "</span>);
 <a href=#284 id=284 data-nosnippet>284</a>        }

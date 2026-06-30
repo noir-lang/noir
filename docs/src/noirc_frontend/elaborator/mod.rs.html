@@ -876,7 +876,7 @@
 <a href=#876 id=876 data-nosnippet>876</a>            }
 <a href=#877 id=877 data-nosnippet>877</a>            Type::DataType(datatype, generics) =&gt; {
 <a href=#878 id=878 data-nosnippet>878</a>                <span class="kw">if </span>type_recursion_context.insert_data_type(datatype.borrow().id, generics.clone()) {
-<a href=#879 id=879 data-nosnippet>879</a>                    <span class="self">self</span>.mark_struct_as_constructed(datatype.clone());
+<a href=#879 id=879 data-nosnippet>879</a>                    <span class="self">self</span>.mark_struct_as_constructed(datatype);
 <a href=#880 id=880 data-nosnippet>880</a>                    <span class="kw">for </span>generic <span class="kw">in </span>generics {
 <a href=#881 id=881 data-nosnippet>881</a>                        <span class="self">self</span>.mark_type_as_used_helper(
 <a href=#882 id=882 data-nosnippet>882</a>                            generic,
@@ -1113,7 +1113,7 @@
 <a href=#1113 id=1113 data-nosnippet>1113</a>    </span><span class="kw">fn </span>elaborate_trait_impl(<span class="kw-2">&amp;mut </span><span class="self">self</span>, trait_impl: UnresolvedTraitImpl) {
 <a href=#1114 id=1114 data-nosnippet>1114</a>        <span class="kw">let </span>previous_local_module = <span class="self">self</span>.replace_local_module(trait_impl.module_id);
 <a href=#1115 id=1115 data-nosnippet>1115</a>
-<a href=#1116 id=1116 data-nosnippet>1116</a>        <span class="self">self</span>.generics = trait_impl.resolved_generics.clone();
+<a href=#1116 id=1116 data-nosnippet>1116</a>        <span class="self">self</span>.generics.clone_from(<span class="kw-2">&amp;</span>trait_impl.resolved_generics);
 <a href=#1117 id=1117 data-nosnippet>1117</a>        <span class="self">self</span>.current_trait_impl = trait_impl.impl_id;
 <a href=#1118 id=1118 data-nosnippet>1118</a>        <span class="self">self</span>.current_trait = trait_impl.trait_id;
 <a href=#1119 id=1119 data-nosnippet>1119</a>

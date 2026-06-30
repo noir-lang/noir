@@ -297,18 +297,18 @@
 <a href=#297 id=297 data-nosnippet>297</a>
 <a href=#298 id=298 data-nosnippet>298</a>    <span class="kw">fn </span>parse_terms_or_error(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; ParseResult&lt;Vec&lt;Term&gt;&gt; {
 <a href=#299 id=299 data-nosnippet>299</a>        <span class="kw">let </span><span class="kw-2">mut </span>terms = Vec::new();
-<a href=#300 id=300 data-nosnippet>300</a>        <span class="kw">let </span><span class="kw-2">mut </span>negative = <span class="self">self</span>.eat(Token::Minus)<span class="question-mark">?</span>;
+<a href=#300 id=300 data-nosnippet>300</a>        <span class="kw">let </span><span class="kw-2">mut </span>negative = <span class="self">self</span>.eat(<span class="kw-2">&amp;</span>Token::Minus)<span class="question-mark">?</span>;
 <a href=#301 id=301 data-nosnippet>301</a>        <span class="kw">loop </span>{
 <a href=#302 id=302 data-nosnippet>302</a>            <span class="kw">let </span>term = <span class="self">self</span>.parse_term_or_error()<span class="question-mark">?</span>;
 <a href=#303 id=303 data-nosnippet>303</a>            <span class="kw">let </span>term = <span class="kw">if </span>negative { term.negate() } <span class="kw">else </span>{ term };
 <a href=#304 id=304 data-nosnippet>304</a>            terms.push(term);
 <a href=#305 id=305 data-nosnippet>305</a>
-<a href=#306 id=306 data-nosnippet>306</a>            <span class="kw">if </span><span class="self">self</span>.eat(Token::Plus)<span class="question-mark">? </span>{
+<a href=#306 id=306 data-nosnippet>306</a>            <span class="kw">if </span><span class="self">self</span>.eat(<span class="kw-2">&amp;</span>Token::Plus)<span class="question-mark">? </span>{
 <a href=#307 id=307 data-nosnippet>307</a>                negative = <span class="bool-val">false</span>;
 <a href=#308 id=308 data-nosnippet>308</a>                <span class="kw">continue</span>;
 <a href=#309 id=309 data-nosnippet>309</a>            }
 <a href=#310 id=310 data-nosnippet>310</a>
-<a href=#311 id=311 data-nosnippet>311</a>            <span class="kw">if </span><span class="self">self</span>.eat(Token::Minus)<span class="question-mark">? </span>{
+<a href=#311 id=311 data-nosnippet>311</a>            <span class="kw">if </span><span class="self">self</span>.eat(<span class="kw-2">&amp;</span>Token::Minus)<span class="question-mark">? </span>{
 <a href=#312 id=312 data-nosnippet>312</a>                negative = <span class="bool-val">true</span>;
 <a href=#313 id=313 data-nosnippet>313</a>                <span class="kw">continue</span>;
 <a href=#314 id=314 data-nosnippet>314</a>            }
@@ -320,7 +320,7 @@
 <a href=#320 id=320 data-nosnippet>320</a>
 <a href=#321 id=321 data-nosnippet>321</a>    <span class="kw">fn </span>parse_term_or_error(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; ParseResult&lt;Term&gt; {
 <a href=#322 id=322 data-nosnippet>322</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>(coefficient) = <span class="self">self</span>.eat_field_element()<span class="question-mark">? </span>{
-<a href=#323 id=323 data-nosnippet>323</a>            <span class="kw">if </span><span class="self">self</span>.eat(Token::Star)<span class="question-mark">? </span>{
+<a href=#323 id=323 data-nosnippet>323</a>            <span class="kw">if </span><span class="self">self</span>.eat(<span class="kw-2">&amp;</span>Token::Star)<span class="question-mark">? </span>{
 <a href=#324 id=324 data-nosnippet>324</a>                <span class="kw">let </span>w1 = <span class="self">self</span>.eat_witness_or_error()<span class="question-mark">?</span>;
 <a href=#325 id=325 data-nosnippet>325</a>                <span class="self">self</span>.parse_linear_or_multiplication_term(coefficient, w1)
 <a href=#326 id=326 data-nosnippet>326</a>            } <span class="kw">else </span>{
@@ -338,7 +338,7 @@
 <a href=#338 id=338 data-nosnippet>338</a>        coefficient: FieldElement,
 <a href=#339 id=339 data-nosnippet>339</a>        w1: Witness,
 <a href=#340 id=340 data-nosnippet>340</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;Term, ParserError&gt; {
-<a href=#341 id=341 data-nosnippet>341</a>        <span class="kw">if </span><span class="self">self</span>.eat(Token::Star)<span class="question-mark">? </span>{
+<a href=#341 id=341 data-nosnippet>341</a>        <span class="kw">if </span><span class="self">self</span>.eat(<span class="kw-2">&amp;</span>Token::Star)<span class="question-mark">? </span>{
 <a href=#342 id=342 data-nosnippet>342</a>            <span class="kw">let </span>w2 = <span class="self">self</span>.eat_witness_or_error()<span class="question-mark">?</span>;
 <a href=#343 id=343 data-nosnippet>343</a>            <span class="prelude-val">Ok</span>(Term::Multiplication(coefficient, w1, w2))
 <a href=#344 id=344 data-nosnippet>344</a>        } <span class="kw">else </span>{
@@ -728,7 +728,7 @@
 <a href=#728 id=728 data-nosnippet>728</a>    }
 <a href=#729 id=729 data-nosnippet>729</a>
 <a href=#730 id=730 data-nosnippet>730</a>    <span class="kw">fn </span>parse_brillig_input(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;BrilligInputs&lt;FieldElement&gt;, ParserError&gt; {
-<a href=#731 id=731 data-nosnippet>731</a>        <span class="kw">if </span><span class="self">self</span>.at(Token::LeftBracket) {
+<a href=#731 id=731 data-nosnippet>731</a>        <span class="kw">if </span><span class="self">self</span>.at(<span class="kw-2">&amp;</span>Token::LeftBracket) {
 <a href=#732 id=732 data-nosnippet>732</a>            <span class="comment">// It's an array of expressions
 <a href=#733 id=733 data-nosnippet>733</a>            </span><span class="kw">let </span>exprs = <span class="self">self</span>.parse_bracketed_list(|parser| parser.parse_arithmetic_expression())<span class="question-mark">?</span>;
 <a href=#734 id=734 data-nosnippet>734</a>            <span class="prelude-val">Ok</span>(BrilligInputs::Array(exprs))
@@ -745,7 +745,7 @@
 <a href=#745 id=745 data-nosnippet>745</a>    }
 <a href=#746 id=746 data-nosnippet>746</a>
 <a href=#747 id=747 data-nosnippet>747</a>    <span class="kw">fn </span>parse_brillig_output(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;BrilligOutputs, ParserError&gt; {
-<a href=#748 id=748 data-nosnippet>748</a>        <span class="kw">if </span><span class="self">self</span>.at(Token::LeftBracket) {
+<a href=#748 id=748 data-nosnippet>748</a>        <span class="kw">if </span><span class="self">self</span>.at(<span class="kw-2">&amp;</span>Token::LeftBracket) {
 <a href=#749 id=749 data-nosnippet>749</a>            <span class="kw">let </span>witnesses = <span class="self">self</span>.parse_witness_vector()<span class="question-mark">?</span>;
 <a href=#750 id=750 data-nosnippet>750</a>            <span class="prelude-val">Ok</span>(BrilligOutputs::Array(witnesses))
 <a href=#751 id=751 data-nosnippet>751</a>        } <span class="kw">else if let </span><span class="prelude-val">Some</span>(witness) = <span class="self">self</span>.eat_witness()<span class="question-mark">? </span>{
@@ -791,12 +791,12 @@
 <a href=#791 id=791 data-nosnippet>791</a>
 <a href=#792 id=792 data-nosnippet>792</a>        <span class="kw">let </span><span class="kw-2">mut </span>values = Vec::new();
 <a href=#793 id=793 data-nosnippet>793</a>
-<a href=#794 id=794 data-nosnippet>794</a>        <span class="kw">while </span>!<span class="self">self</span>.eat(Token::RightBracket)<span class="question-mark">? </span>{
+<a href=#794 id=794 data-nosnippet>794</a>        <span class="kw">while </span>!<span class="self">self</span>.eat(<span class="kw-2">&amp;</span>Token::RightBracket)<span class="question-mark">? </span>{
 <a href=#795 id=795 data-nosnippet>795</a>            <span class="kw">let </span>value = parser(<span class="self">self</span>)<span class="question-mark">?</span>;
 <a href=#796 id=796 data-nosnippet>796</a>            values.push(value);
 <a href=#797 id=797 data-nosnippet>797</a>
 <a href=#798 id=798 data-nosnippet>798</a>            <span class="comment">// Eat optional comma
-<a href=#799 id=799 data-nosnippet>799</a>            </span><span class="kw">if </span><span class="self">self</span>.eat(Token::Comma)<span class="question-mark">? </span>{
+<a href=#799 id=799 data-nosnippet>799</a>            </span><span class="kw">if </span><span class="self">self</span>.eat(<span class="kw-2">&amp;</span>Token::Comma)<span class="question-mark">? </span>{
 <a href=#800 id=800 data-nosnippet>800</a>                <span class="kw">continue</span>;
 <a href=#801 id=801 data-nosnippet>801</a>            }
 <a href=#802 id=802 data-nosnippet>802</a>
@@ -935,17 +935,17 @@
 <a href=#935 id=935 data-nosnippet>935</a>    }
 <a href=#936 id=936 data-nosnippet>936</a>
 <a href=#937 id=937 data-nosnippet>937</a>    <span class="kw">fn </span>eat_or_error(<span class="kw-2">&amp;mut </span><span class="self">self</span>, token: Token) -&gt; ParseResult&lt;()&gt; {
-<a href=#938 id=938 data-nosnippet>938</a>        <span class="kw">if </span><span class="self">self</span>.eat(token.clone())<span class="question-mark">? </span>{ <span class="prelude-val">Ok</span>(()) } <span class="kw">else </span>{ <span class="self">self</span>.expected_token(token) }
+<a href=#938 id=938 data-nosnippet>938</a>        <span class="kw">if </span><span class="self">self</span>.eat(<span class="kw-2">&amp;</span>token)<span class="question-mark">? </span>{ <span class="prelude-val">Ok</span>(()) } <span class="kw">else </span>{ <span class="self">self</span>.expected_token(token) }
 <a href=#939 id=939 data-nosnippet>939</a>    }
 <a href=#940 id=940 data-nosnippet>940</a>
-<a href=#941 id=941 data-nosnippet>941</a>    <span class="kw">fn </span>at(<span class="kw-2">&amp;</span><span class="self">self</span>, token: Token) -&gt; bool {
-<a href=#942 id=942 data-nosnippet>942</a>        <span class="self">self</span>.token.token() == <span class="kw-2">&amp;</span>token
+<a href=#941 id=941 data-nosnippet>941</a>    <span class="kw">fn </span>at(<span class="kw-2">&amp;</span><span class="self">self</span>, token: <span class="kw-2">&amp;</span>Token) -&gt; bool {
+<a href=#942 id=942 data-nosnippet>942</a>        <span class="self">self</span>.token.token() == token
 <a href=#943 id=943 data-nosnippet>943</a>    }
 <a href=#944 id=944 data-nosnippet>944</a>
 <a href=#945 id=945 data-nosnippet>945</a>    <span class="doccomment">/// Returns true if the token is eaten and bumps to the next token.
 <a href=#946 id=946 data-nosnippet>946</a>    /// Otherwise will return false and no bump will occur.
-<a href=#947 id=947 data-nosnippet>947</a>    </span><span class="kw">fn </span>eat(<span class="kw-2">&amp;mut </span><span class="self">self</span>, token: Token) -&gt; ParseResult&lt;bool&gt; {
-<a href=#948 id=948 data-nosnippet>948</a>        <span class="kw">if </span><span class="self">self</span>.token.token() == <span class="kw-2">&amp;</span>token {
+<a href=#947 id=947 data-nosnippet>947</a>    </span><span class="kw">fn </span>eat(<span class="kw-2">&amp;mut </span><span class="self">self</span>, token: <span class="kw-2">&amp;</span>Token) -&gt; ParseResult&lt;bool&gt; {
+<a href=#948 id=948 data-nosnippet>948</a>        <span class="kw">if </span><span class="self">self</span>.token.token() == token {
 <a href=#949 id=949 data-nosnippet>949</a>            <span class="self">self</span>.bump()<span class="question-mark">?</span>;
 <a href=#950 id=950 data-nosnippet>950</a>            <span class="prelude-val">Ok</span>(<span class="bool-val">true</span>)
 <a href=#951 id=951 data-nosnippet>951</a>        } <span class="kw">else </span>{

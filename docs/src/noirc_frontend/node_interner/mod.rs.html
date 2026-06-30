@@ -1637,7 +1637,7 @@
 <a href=#1637 id=1637 data-nosnippet>1637</a>        trait_id: TraitId,
 <a href=#1638 id=1638 data-nosnippet>1638</a>        impl_id: TraitImplId,
 <a href=#1639 id=1639 data-nosnippet>1639</a>        trait_impl_generics: <span class="kw-2">&amp;</span>[Type],
-<a href=#1640 id=1640 data-nosnippet>1640</a>        impl_self_type: Type,
+<a href=#1640 id=1640 data-nosnippet>1640</a>        impl_self_type: <span class="kw-2">&amp;</span>Type,
 <a href=#1641 id=1641 data-nosnippet>1641</a>    ) -&gt; TypeBindings {
 <a href=#1642 id=1642 data-nosnippet>1642</a>        <span class="kw">let </span><span class="kw-2">mut </span>bindings = TypeBindings::default();
 <a href=#1643 id=1643 data-nosnippet>1643</a>        <span class="kw">let </span><span class="kw-2">mut </span>visited = HashSet::default();
@@ -1646,7 +1646,7 @@
 <a href=#1646 id=1646 data-nosnippet>1646</a>            trait_id,
 <a href=#1647 id=1647 data-nosnippet>1647</a>            impl_id,
 <a href=#1648 id=1648 data-nosnippet>1648</a>            trait_impl_generics,
-<a href=#1649 id=1649 data-nosnippet>1649</a>            <span class="kw-2">&amp;</span>impl_self_type,
+<a href=#1649 id=1649 data-nosnippet>1649</a>            impl_self_type,
 <a href=#1650 id=1650 data-nosnippet>1650</a>            TYPE_RECURSION_LIMIT,
 <a href=#1651 id=1651 data-nosnippet>1651</a>            <span class="kw-2">&amp;mut </span>visited,
 <a href=#1652 id=1652 data-nosnippet>1652</a>            <span class="kw-2">&amp;mut </span>bindings,

@@ -173,7 +173,7 @@
 <a href=#173 id=173 data-nosnippet>173</a>            <span class="self">Self</span>::parse_parameter,
 <a href=#174 id=174 data-nosnippet>174</a>        );
 <a href=#175 id=175 data-nosnippet>175</a>
-<a href=#176 id=176 data-nosnippet>176</a>        <span class="kw">let </span>ret = <span class="kw">if </span><span class="self">self</span>.eat(Token::Arrow) {
+<a href=#176 id=176 data-nosnippet>176</a>        <span class="kw">let </span>ret = <span class="kw">if </span><span class="self">self</span>.eat(<span class="kw-2">&amp;</span>Token::Arrow) {
 <a href=#177 id=177 data-nosnippet>177</a>            <span class="self">self</span>.parse_type_or_error()
 <a href=#178 id=178 data-nosnippet>178</a>        } <span class="kw">else </span>{
 <a href=#179 id=179 data-nosnippet>179</a>            UnresolvedTypeData::Unit.with_location(<span class="self">self</span>.location_at_previous_token_end())
@@ -208,7 +208,7 @@
 <a href=#208 id=208 data-nosnippet>208</a>    }
 <a href=#209 id=209 data-nosnippet>209</a>
 <a href=#210 id=210 data-nosnippet>210</a>    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>parse_resolved_type(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;UnresolvedTypeData&gt; {
-<a href=#211 id=211 data-nosnippet>211</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>(token) = <span class="self">self</span>.eat_kind(TokenKind::QuotedType) {
+<a href=#211 id=211 data-nosnippet>211</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>(token) = <span class="self">self</span>.eat_kind(<span class="kw-2">&amp;</span>TokenKind::QuotedType) {
 <a href=#212 id=212 data-nosnippet>212</a>            <span class="kw">match </span>token.into_token() {
 <a href=#213 id=213 data-nosnippet>213</a>                Token::QuotedType(id) =&gt; {
 <a href=#214 id=214 data-nosnippet>214</a>                    <span class="kw">return </span><span class="prelude-val">Some</span>(UnresolvedTypeData::Resolved(id));
@@ -221,7 +221,7 @@
 <a href=#221 id=221 data-nosnippet>221</a>    </span>}
 <a href=#222 id=222 data-nosnippet>222</a>
 <a href=#223 id=223 data-nosnippet>223</a>    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>parse_interned_type(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;UnresolvedTypeData&gt; {
-<a href=#224 id=224 data-nosnippet>224</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>(token) = <span class="self">self</span>.eat_kind(TokenKind::InternedUnresolvedTypeData) {
+<a href=#224 id=224 data-nosnippet>224</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>(token) = <span class="self">self</span>.eat_kind(<span class="kw-2">&amp;</span>TokenKind::InternedUnresolvedTypeData) {
 <a href=#225 id=225 data-nosnippet>225</a>            <span class="kw">match </span>token.into_token() {
 <a href=#226 id=226 data-nosnippet>226</a>                Token::InternedUnresolvedTypeData(id) =&gt; {
 <a href=#227 id=227 data-nosnippet>227</a>                    <span class="kw">return </span><span class="prelude-val">Some</span>(UnresolvedTypeData::Interned(id));
@@ -237,7 +237,7 @@
 <a href=#237 id=237 data-nosnippet>237</a>        <span class="kw">let </span>start_location = <span class="self">self</span>.current_token_location;
 <a href=#238 id=238 data-nosnippet>238</a>
 <a href=#239 id=239 data-nosnippet>239</a>        <span class="comment">// This is '&amp;&amp;', which in this context is a double reference type
-<a href=#240 id=240 data-nosnippet>240</a>        </span><span class="kw">if </span><span class="self">self</span>.eat(Token::LogicalAnd) {
+<a href=#240 id=240 data-nosnippet>240</a>        </span><span class="kw">if </span><span class="self">self</span>.eat(<span class="kw-2">&amp;</span>Token::LogicalAnd) {
 <a href=#241 id=241 data-nosnippet>241</a>            <span class="kw">let </span>mutable = <span class="self">self</span>.eat_keyword(Keyword::Mut);
 <a href=#242 id=242 data-nosnippet>242</a>            <span class="kw">let </span>inner_type =
 <a href=#243 id=243 data-nosnippet>243</a>                UnresolvedTypeData::Reference(Box::new(<span class="self">self</span>.parse_type_or_error()), mutable);
@@ -247,7 +247,7 @@
 <a href=#247 id=247 data-nosnippet>247</a>            <span class="kw">return </span><span class="prelude-val">Some</span>(typ);
 <a href=#248 id=248 data-nosnippet>248</a>        }
 <a href=#249 id=249 data-nosnippet>249</a>
-<a href=#250 id=250 data-nosnippet>250</a>        <span class="kw">if </span><span class="self">self</span>.eat(Token::Ampersand) {
+<a href=#250 id=250 data-nosnippet>250</a>        <span class="kw">if </span><span class="self">self</span>.eat(<span class="kw-2">&amp;</span>Token::Ampersand) {
 <a href=#251 id=251 data-nosnippet>251</a>            <span class="kw">let </span>mutable = <span class="self">self</span>.eat_keyword(Keyword::Mut);
 <a href=#252 id=252 data-nosnippet>252</a>
 <a href=#253 id=253 data-nosnippet>253</a>            <span class="kw">return </span><span class="prelude-val">Some</span>(UnresolvedTypeData::Reference(

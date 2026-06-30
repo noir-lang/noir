@@ -37,9 +37,9 @@
 <a href=#37 id=37 data-nosnippet>37</a>        start_location: Location,
 <a href=#38 id=38 data-nosnippet>38</a>    ) -&gt; UnresolvedTypeExpression {
 <a href=#39 id=39 data-nosnippet>39</a>        <span class="kw">loop </span>{
-<a href=#40 id=40 data-nosnippet>40</a>            <span class="kw">let </span>operator = <span class="kw">if </span><span class="self">self</span>.eat(Token::Plus) {
+<a href=#40 id=40 data-nosnippet>40</a>            <span class="kw">let </span>operator = <span class="kw">if </span><span class="self">self</span>.eat(<span class="kw-2">&amp;</span>Token::Plus) {
 <a href=#41 id=41 data-nosnippet>41</a>                BinaryTypeOperator::Addition
-<a href=#42 id=42 data-nosnippet>42</a>            } <span class="kw">else if </span><span class="self">self</span>.eat(Token::Minus) {
+<a href=#42 id=42 data-nosnippet>42</a>            } <span class="kw">else if </span><span class="self">self</span>.eat(<span class="kw-2">&amp;</span>Token::Minus) {
 <a href=#43 id=43 data-nosnippet>43</a>                BinaryTypeOperator::Subtraction
 <a href=#44 id=44 data-nosnippet>44</a>            } <span class="kw">else </span>{
 <a href=#45 id=45 data-nosnippet>45</a>                <span class="kw">break</span>;
@@ -80,11 +80,11 @@
 <a href=#80 id=80 data-nosnippet>80</a>        start_location: Location,
 <a href=#81 id=81 data-nosnippet>81</a>    ) -&gt; UnresolvedTypeExpression {
 <a href=#82 id=82 data-nosnippet>82</a>        <span class="kw">loop </span>{
-<a href=#83 id=83 data-nosnippet>83</a>            <span class="kw">let </span>operator = <span class="kw">if </span><span class="self">self</span>.eat(Token::Star) {
+<a href=#83 id=83 data-nosnippet>83</a>            <span class="kw">let </span>operator = <span class="kw">if </span><span class="self">self</span>.eat(<span class="kw-2">&amp;</span>Token::Star) {
 <a href=#84 id=84 data-nosnippet>84</a>                BinaryTypeOperator::Multiplication
-<a href=#85 id=85 data-nosnippet>85</a>            } <span class="kw">else if </span><span class="self">self</span>.eat(Token::Slash) {
+<a href=#85 id=85 data-nosnippet>85</a>            } <span class="kw">else if </span><span class="self">self</span>.eat(<span class="kw-2">&amp;</span>Token::Slash) {
 <a href=#86 id=86 data-nosnippet>86</a>                BinaryTypeOperator::Division
-<a href=#87 id=87 data-nosnippet>87</a>            } <span class="kw">else if </span><span class="self">self</span>.eat(Token::Percent) {
+<a href=#87 id=87 data-nosnippet>87</a>            } <span class="kw">else if </span><span class="self">self</span>.eat(<span class="kw-2">&amp;</span>Token::Percent) {
 <a href=#88 id=88 data-nosnippet>88</a>                BinaryTypeOperator::Modulo
 <a href=#89 id=89 data-nosnippet>89</a>            } <span class="kw">else </span>{
 <a href=#90 id=90 data-nosnippet>90</a>                <span class="kw">break</span>;
@@ -115,7 +115,7 @@
 <a href=#115 id=115 data-nosnippet>115</a>    ///    | `AtomTypeExpression`
 <a href=#116 id=116 data-nosnippet>116</a>    </span><span class="kw">fn </span>parse_term_type_expression(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;UnresolvedTypeExpression&gt; {
 <a href=#117 id=117 data-nosnippet>117</a>        <span class="kw">let </span>start_location = <span class="self">self</span>.current_token_location;
-<a href=#118 id=118 data-nosnippet>118</a>        <span class="kw">if </span><span class="self">self</span>.eat(Token::Minus) {
+<a href=#118 id=118 data-nosnippet>118</a>        <span class="kw">if </span><span class="self">self</span>.eat(<span class="kw-2">&amp;</span>Token::Minus) {
 <a href=#119 id=119 data-nosnippet>119</a>            <span class="kw">return match </span><span class="self">self</span>.parse_term_type_expression() {
 <a href=#120 id=120 data-nosnippet>120</a>                <span class="prelude-val">Some</span>(rhs) =&gt; {
 <a href=#121 id=121 data-nosnippet>121</a>                    <span class="kw">let </span>location = <span class="self">self</span>.location_since(start_location);
@@ -171,7 +171,7 @@
 <a href=#171 id=171 data-nosnippet>171</a>    <span class="doccomment">/// `ParenthesizedTypeExpression` = '(' `TypeExpression` ')'
 <a href=#172 id=172 data-nosnippet>172</a>    </span><span class="kw">fn </span>parse_parenthesized_type_expression(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;UnresolvedTypeExpression&gt; {
 <a href=#173 id=173 data-nosnippet>173</a>        <span class="comment">// Make sure not to parse `()` as a parenthesized expression
-<a href=#174 id=174 data-nosnippet>174</a>        </span><span class="kw">if </span><span class="self">self</span>.at(Token::LeftParen) &amp;&amp; !<span class="self">self</span>.next_is(Token::RightParen) {
+<a href=#174 id=174 data-nosnippet>174</a>        </span><span class="kw">if </span><span class="self">self</span>.at(<span class="kw-2">&amp;</span>Token::LeftParen) &amp;&amp; !<span class="self">self</span>.next_is(<span class="kw-2">&amp;</span>Token::RightParen) {
 <a href=#175 id=175 data-nosnippet>175</a>            <span class="self">self</span>.bump();
 <a href=#176 id=176 data-nosnippet>176</a>            <span class="kw">match </span><span class="self">self</span>.parse_type_expression() {
 <a href=#177 id=177 data-nosnippet>177</a>                <span class="prelude-val">Ok</span>(type_expr) =&gt; {
@@ -233,7 +233,7 @@
 <a href=#233 id=233 data-nosnippet>233</a>        <span class="comment">// If no add/subtract operator follows, return the type as-is. This preserves
 <a href=#234 id=234 data-nosnippet>234</a>        // types that are not type expressions (e.g. a parenthesized type `(Field)`)
 <a href=#235 id=235 data-nosnippet>235</a>        // instead of normalizing them into type expressions.
-<a href=#236 id=236 data-nosnippet>236</a>        </span><span class="kw">if </span>!<span class="self">self</span>.at(Token::Plus) &amp;&amp; !<span class="self">self</span>.at(Token::Minus) {
+<a href=#236 id=236 data-nosnippet>236</a>        </span><span class="kw">if </span>!<span class="self">self</span>.at(<span class="kw-2">&amp;</span>Token::Plus) &amp;&amp; !<span class="self">self</span>.at(<span class="kw-2">&amp;</span>Token::Minus) {
 <a href=#237 id=237 data-nosnippet>237</a>            <span class="kw">return </span><span class="prelude-val">Some</span>(lhs);
 <a href=#238 id=238 data-nosnippet>238</a>        }
 <a href=#239 id=239 data-nosnippet>239</a>
@@ -257,7 +257,7 @@
 <a href=#257 id=257 data-nosnippet>257</a>        <span class="comment">// If no multiply/divide/modulo operator follows, return the type as-is. This
 <a href=#258 id=258 data-nosnippet>258</a>        // preserves types that are not type expressions (e.g. a parenthesized type
 <a href=#259 id=259 data-nosnippet>259</a>        // `(Field)`) instead of normalizing them into type expressions.
-<a href=#260 id=260 data-nosnippet>260</a>        </span><span class="kw">if </span>!<span class="self">self</span>.at(Token::Star) &amp;&amp; !<span class="self">self</span>.at(Token::Slash) &amp;&amp; !<span class="self">self</span>.at(Token::Percent) {
+<a href=#260 id=260 data-nosnippet>260</a>        </span><span class="kw">if </span>!<span class="self">self</span>.at(<span class="kw-2">&amp;</span>Token::Star) &amp;&amp; !<span class="self">self</span>.at(<span class="kw-2">&amp;</span>Token::Slash) &amp;&amp; !<span class="self">self</span>.at(<span class="kw-2">&amp;</span>Token::Percent) {
 <a href=#261 id=261 data-nosnippet>261</a>            <span class="kw">return </span><span class="prelude-val">Some</span>(lhs);
 <a href=#262 id=262 data-nosnippet>262</a>        }
 <a href=#263 id=263 data-nosnippet>263</a>
@@ -275,7 +275,7 @@
 <a href=#275 id=275 data-nosnippet>275</a>
 <a href=#276 id=276 data-nosnippet>276</a>    <span class="kw">fn </span>parse_term_type_or_type_expression(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;UnresolvedType&gt; {
 <a href=#277 id=277 data-nosnippet>277</a>        <span class="kw">let </span>start_location = <span class="self">self</span>.current_token_location;
-<a href=#278 id=278 data-nosnippet>278</a>        <span class="kw">if </span><span class="self">self</span>.eat(Token::Minus) {
+<a href=#278 id=278 data-nosnippet>278</a>        <span class="kw">if </span><span class="self">self</span>.eat(<span class="kw-2">&amp;</span>Token::Minus) {
 <a href=#279 id=279 data-nosnippet>279</a>            <span class="comment">// If we ate '-' what follows must be a type expression, never a type
 <a href=#280 id=280 data-nosnippet>280</a>            </span><span class="kw">return match </span><span class="self">self</span>.parse_term_type_expression() {
 <a href=#281 id=281 data-nosnippet>281</a>                <span class="prelude-val">Some</span>(rhs) =&gt; {

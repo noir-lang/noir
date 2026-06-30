@@ -42,7 +42,7 @@
 <a href=#42 id=42 data-nosnippet>42</a>            <span class="kw">let </span>kind = <span class="self">self</span>.parse_statement_kind(attributes);
 <a href=#43 id=43 data-nosnippet>43</a>            <span class="self">self</span>.statement_comments = <span class="prelude-val">None</span>;
 <a href=#44 id=44 data-nosnippet>44</a>
-<a href=#45 id=45 data-nosnippet>45</a>            <span class="kw">let </span>(semicolon_token, semicolon_location) = <span class="kw">if </span><span class="self">self</span>.at(Token::Semicolon) {
+<a href=#45 id=45 data-nosnippet>45</a>            <span class="kw">let </span>(semicolon_token, semicolon_location) = <span class="kw">if </span><span class="self">self</span>.at(<span class="kw-2">&amp;</span>Token::Semicolon) {
 <a href=#46 id=46 data-nosnippet>46</a>                <span class="kw">let </span>token = <span class="self">self</span>.token.clone();
 <a href=#47 id=47 data-nosnippet>47</a>                <span class="self">self</span>.bump();
 <a href=#48 id=48 data-nosnippet>48</a>                <span class="kw">let </span>location = token.location();
@@ -61,7 +61,7 @@
 <a href=#61 id=61 data-nosnippet>61</a>
 <a href=#62 id=62 data-nosnippet>62</a>            <span class="self">self</span>.expected_label(ParsingRuleLabel::Statement);
 <a href=#63 id=63 data-nosnippet>63</a>
-<a href=#64 id=64 data-nosnippet>64</a>            <span class="kw">if </span>semicolon_token.is_some() || <span class="self">self</span>.at(Token::RightBrace) || <span class="self">self</span>.at_eof() {
+<a href=#64 id=64 data-nosnippet>64</a>            <span class="kw">if </span>semicolon_token.is_some() || <span class="self">self</span>.at(<span class="kw-2">&amp;</span>Token::RightBrace) || <span class="self">self</span>.at_eof() {
 <a href=#65 id=65 data-nosnippet>65</a>                <span class="kw">return </span><span class="prelude-val">None</span>;
 <a href=#66 id=66 data-nosnippet>66</a>            } <span class="kw">else </span>{
 <a href=#67 id=67 data-nosnippet>67</a>                <span class="self">self</span>.bump();
@@ -102,7 +102,7 @@
 <a href=#102 id=102 data-nosnippet>102</a>    ) -&gt; <span class="prelude-ty">Option</span>&lt;StatementKind&gt; {
 <a href=#103 id=103 data-nosnippet>103</a>        <span class="kw">let </span>start_location = <span class="self">self</span>.current_token_location;
 <a href=#104 id=104 data-nosnippet>104</a>
-<a href=#105 id=105 data-nosnippet>105</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>(token) = <span class="self">self</span>.eat_kind(TokenKind::InternedStatement) {
+<a href=#105 id=105 data-nosnippet>105</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>(token) = <span class="self">self</span>.eat_kind(<span class="kw-2">&amp;</span>TokenKind::InternedStatement) {
 <a href=#106 id=106 data-nosnippet>106</a>            <span class="kw">match </span>token.into_token() {
 <a href=#107 id=107 data-nosnippet>107</a>                Token::InternedStatement(statement) =&gt; {
 <a href=#108 id=108 data-nosnippet>108</a>                    <span class="kw">return </span><span class="prelude-val">Some</span>(StatementKind::Interned(statement));
@@ -154,7 +154,7 @@
 <a href=#154 id=154 data-nosnippet>154</a>            <span class="kw">return </span><span class="prelude-val">Some</span>(StatementKind::Expression(expression));
 <a href=#155 id=155 data-nosnippet>155</a>        }
 <a href=#156 id=156 data-nosnippet>156</a>
-<a href=#157 id=157 data-nosnippet>157</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>(token) = <span class="self">self</span>.eat_kind(TokenKind::InternedLValue) {
+<a href=#157 id=157 data-nosnippet>157</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>(token) = <span class="self">self</span>.eat_kind(<span class="kw-2">&amp;</span>TokenKind::InternedLValue) {
 <a href=#158 id=158 data-nosnippet>158</a>            <span class="kw">match </span>token.into_token() {
 <a href=#159 id=159 data-nosnippet>159</a>                Token::InternedLValue(lvalue) =&gt; {
 <a href=#160 id=160 data-nosnippet>160</a>                    <span class="kw">let </span>lvalue = LValue::Interned(lvalue, <span class="self">self</span>.location_since(start_location));
@@ -224,7 +224,7 @@
 <a href=#224 id=224 data-nosnippet>224</a>
 <a href=#225 id=225 data-nosnippet>225</a>    <span class="kw">fn </span>next_is_op_assign(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;AssignOp&gt; {
 <a href=#226 id=226 data-nosnippet>226</a>        <span class="kw">let </span>start_location = <span class="self">self</span>.current_token_location;
-<a href=#227 id=227 data-nosnippet>227</a>        <span class="kw">let </span>operator = <span class="kw">if </span><span class="self">self</span>.next_is(Token::Assign) {
+<a href=#227 id=227 data-nosnippet>227</a>        <span class="kw">let </span>operator = <span class="kw">if </span><span class="self">self</span>.next_is(<span class="kw-2">&amp;</span>Token::Assign) {
 <a href=#228 id=228 data-nosnippet>228</a>            <span class="kw">match </span><span class="self">self</span>.token.token() {
 <a href=#229 id=229 data-nosnippet>229</a>                Token::Plus =&gt; <span class="prelude-val">Some</span>(AssignOpKind::Add),
 <a href=#230 id=230 data-nosnippet>230</a>                Token::Minus =&gt; <span class="prelude-val">Some</span>(AssignOpKind::Subtract),
@@ -236,10 +236,10 @@
 <a href=#236 id=236 data-nosnippet>236</a>                Token::Pipe =&gt; <span class="prelude-val">Some</span>(AssignOpKind::Or),
 <a href=#237 id=237 data-nosnippet>237</a>                <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,
 <a href=#238 id=238 data-nosnippet>238</a>            }
-<a href=#239 id=239 data-nosnippet>239</a>        } <span class="kw">else if </span><span class="self">self</span>.at(Token::Greater) &amp;&amp; <span class="self">self</span>.next_is(Token::GreaterEqual) {
+<a href=#239 id=239 data-nosnippet>239</a>        } <span class="kw">else if </span><span class="self">self</span>.at(<span class="kw-2">&amp;</span>Token::Greater) &amp;&amp; <span class="self">self</span>.next_is(<span class="kw-2">&amp;</span>Token::GreaterEqual) {
 <a href=#240 id=240 data-nosnippet>240</a>            <span class="comment">// &gt;&gt;=
 <a href=#241 id=241 data-nosnippet>241</a>            </span><span class="prelude-val">Some</span>(AssignOpKind::ShiftRight)
-<a href=#242 id=242 data-nosnippet>242</a>        } <span class="kw">else if </span><span class="self">self</span>.at(Token::Less) &amp;&amp; <span class="self">self</span>.next_is(Token::LessEqual) {
+<a href=#242 id=242 data-nosnippet>242</a>        } <span class="kw">else if </span><span class="self">self</span>.at(<span class="kw-2">&amp;</span>Token::Less) &amp;&amp; <span class="self">self</span>.next_is(<span class="kw-2">&amp;</span>Token::LessEqual) {
 <a href=#243 id=243 data-nosnippet>243</a>            <span class="comment">// &lt;&lt;=
 <a href=#244 id=244 data-nosnippet>244</a>            </span><span class="prelude-val">Some</span>(AssignOpKind::ShiftLeft)
 <a href=#245 id=245 data-nosnippet>245</a>        } <span class="kw">else </span>{
@@ -354,10 +354,10 @@
 <a href=#354 id=354 data-nosnippet>354</a>    </span><span class="kw">fn </span>parse_for_range(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; ForRange {
 <a href=#355 id=355 data-nosnippet>355</a>        <span class="kw">let </span>expr = <span class="self">self</span>.parse_expression_except_constructor_or_error();
 <a href=#356 id=356 data-nosnippet>356</a>
-<a href=#357 id=357 data-nosnippet>357</a>        <span class="kw">if </span><span class="self">self</span>.eat(Token::DoubleDot) {
+<a href=#357 id=357 data-nosnippet>357</a>        <span class="kw">if </span><span class="self">self</span>.eat(<span class="kw-2">&amp;</span>Token::DoubleDot) {
 <a href=#358 id=358 data-nosnippet>358</a>            <span class="kw">let </span>end = <span class="self">self</span>.parse_expression_except_constructor_or_error();
 <a href=#359 id=359 data-nosnippet>359</a>            ForRange::Range(ForBounds { start: expr, end, inclusive: <span class="bool-val">false </span>})
-<a href=#360 id=360 data-nosnippet>360</a>        } <span class="kw">else if </span><span class="self">self</span>.eat(Token::DoubleDotEqual) {
+<a href=#360 id=360 data-nosnippet>360</a>        } <span class="kw">else if </span><span class="self">self</span>.eat(<span class="kw-2">&amp;</span>Token::DoubleDotEqual) {
 <a href=#361 id=361 data-nosnippet>361</a>            <span class="kw">let </span>end = <span class="self">self</span>.parse_expression_except_constructor_or_error();
 <a href=#362 id=362 data-nosnippet>362</a>            ForRange::Range(ForBounds { start: expr, end, inclusive: <span class="bool-val">true </span>})
 <a href=#363 id=363 data-nosnippet>363</a>        } <span class="kw">else </span>{
@@ -448,8 +448,8 @@
 <a href=#448 id=448 data-nosnippet>448</a>        <span class="kw">let </span>pattern = <span class="self">self</span>.parse_pattern_or_error();
 <a href=#449 id=449 data-nosnippet>449</a>        <span class="kw">let </span>r#type = <span class="self">self</span>.parse_optional_type_annotation();
 <a href=#450 id=450 data-nosnippet>450</a>        <span class="kw">let </span>r#type = <span class="kw">if </span>r#type.is_none()
-<a href=#451 id=451 data-nosnippet>451</a>            &amp;&amp; !<span class="self">self</span>.at(Token::Assign)
-<a href=#452 id=452 data-nosnippet>452</a>            &amp;&amp; !<span class="self">self</span>.at(Token::Semicolon)
+<a href=#451 id=451 data-nosnippet>451</a>            &amp;&amp; !<span class="self">self</span>.at(<span class="kw-2">&amp;</span>Token::Assign)
+<a href=#452 id=452 data-nosnippet>452</a>            &amp;&amp; !<span class="self">self</span>.at(<span class="kw-2">&amp;</span>Token::Semicolon)
 <a href=#453 id=453 data-nosnippet>453</a>            &amp;&amp; !<span class="self">self</span>.at_eof()
 <a href=#454 id=454 data-nosnippet>454</a>        {
 <a href=#455 id=455 data-nosnippet>455</a>            <span class="kw">if let </span><span class="prelude-val">Some</span>(typ) = <span class="self">self</span>.parse_type_allowing_generics(<span class="bool-val">true</span>) {

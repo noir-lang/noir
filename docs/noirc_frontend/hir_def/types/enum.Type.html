@@ -396,7 +396,7 @@ given <code>TypeBindings</code> map rather than linked immediately.</p>
     &amp;self,
     var: &amp;<a class="struct" href="struct.TypeVariable.html" title="struct noirc_frontend::hir_def::types::TypeVariable">TypeVariable</a>,
     bindings: &amp;mut <a class="type" href="type.TypeBindings.html" title="type noirc_frontend::hir_def::types::TypeBindings">TypeBindings</a>,
-    kind: <a class="enum" href="enum.Kind.html" title="enum noirc_frontend::hir_def::types::Kind">Kind</a>,
+    kind: &amp;<a class="enum" href="enum.Kind.html" title="enum noirc_frontend::hir_def::types::Kind">Kind</a>,
 ) -&gt; <a class="enum" href="https://doc.rust-lang.org/1.89.0/core/result/enum.Result.html" title="enum core::result::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/1.89.0/std/primitive.unit.html">()</a>, <a class="struct" href="struct.UnificationError.html" title="struct noirc_frontend::hir_def::types::UnificationError">UnificationError</a>&gt;</h4></section></summary><div class="docblock"><p>Try to bind the given type variable to self. Although the given type variable
 is expected to be of <code>Kind::Normal</code>, this binding can still fail
 if the given type variable occurs within <code>self</code> as that would create a recursive type.</p>

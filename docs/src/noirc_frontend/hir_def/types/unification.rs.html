@@ -140,7 +140,7 @@
 <a href=#140 id=140 data-nosnippet>140</a>                        })
 <a href=#141 id=141 data-nosnippet>141</a>                    } <span class="kw">else </span>{
 <a href=#142 id=142 data-nosnippet>142</a>                        other.try_unify_to_type_variable(var, flags, bindings, |bindings| {
-<a href=#143 id=143 data-nosnippet>143</a>                            other.try_bind_to(var, bindings, typ.kind())
+<a href=#143 id=143 data-nosnippet>143</a>                            other.try_bind_to(var, bindings, <span class="kw-2">&amp;</span>typ.kind())
 <a href=#144 id=144 data-nosnippet>144</a>                        })
 <a href=#145 id=145 data-nosnippet>145</a>                    }
 <a href=#146 id=146 data-nosnippet>146</a>                }
@@ -157,7 +157,7 @@
 <a href=#157 id=157 data-nosnippet>157</a>                }
 <a href=#158 id=158 data-nosnippet>158</a>                TypeBinding::Unbound(_id, type_var_kind) =&gt; {
 <a href=#159 id=159 data-nosnippet>159</a>                    other.try_unify_to_type_variable(var, flags, bindings, |bindings| {
-<a href=#160 id=160 data-nosnippet>160</a>                        other.try_bind_to(var, bindings, type_var_kind.clone())
+<a href=#160 id=160 data-nosnippet>160</a>                        other.try_bind_to(var, bindings, type_var_kind)
 <a href=#161 id=161 data-nosnippet>161</a>                    })
 <a href=#162 id=162 data-nosnippet>162</a>                }
 <a href=#163 id=163 data-nosnippet>163</a>            },

@@ -352,8 +352,8 @@
 <a href=#352 id=352 data-nosnippet>352</a>
 <a href=#353 id=353 data-nosnippet>353</a>        <span class="comment">// Entry point level comparison
 <a href=#354 id=354 data-nosnippet>354</a>        </span><span class="kw">let </span>args = <span class="macro">vec!</span>[BrilligParameter::SingleAddr(<span class="number">32</span>)];
-<a href=#355 id=355 data-nosnippet>355</a>        <span class="kw">let </span>entry1 = gen_brillig_for(main, args.clone(), <span class="kw-2">&amp;</span>brillig1, <span class="kw-2">&amp;</span>options1).unwrap();
-<a href=#356 id=356 data-nosnippet>356</a>        <span class="kw">let </span>entry2 = gen_brillig_for(main, args, <span class="kw-2">&amp;</span>brillig2, <span class="kw-2">&amp;</span>options2).unwrap();
+<a href=#355 id=355 data-nosnippet>355</a>        <span class="kw">let </span>entry1 = gen_brillig_for(main, <span class="kw-2">&amp;</span>args, <span class="kw-2">&amp;</span>brillig1, <span class="kw-2">&amp;</span>options1).unwrap();
+<a href=#356 id=356 data-nosnippet>356</a>        <span class="kw">let </span>entry2 = gen_brillig_for(main, <span class="kw-2">&amp;</span>args, <span class="kw-2">&amp;</span>brillig2, <span class="kw-2">&amp;</span>options2).unwrap();
 <a href=#357 id=357 data-nosnippet>357</a>
 <a href=#358 id=358 data-nosnippet>358</a>        assert_equivalent_bytecode(<span class="kw-2">&amp;</span>entry1.byte_code, <span class="kw-2">&amp;</span>entry2.byte_code, <span class="kw-2">&amp;</span>options1, <span class="kw-2">&amp;</span>options2);
 <a href=#359 id=359 data-nosnippet>359</a>    }
@@ -477,7 +477,7 @@
 <a href=#477 id=477 data-nosnippet>477</a>        <span class="kw">let </span>options = BrilligOptions { layout, ..Default::default() };
 <a href=#478 id=478 data-nosnippet>478</a>        <span class="kw">let </span>brillig = ssa.to_brillig(<span class="kw-2">&amp;</span>options);
 <a href=#479 id=479 data-nosnippet>479</a>        <span class="kw">let </span>main = ssa.main();
-<a href=#480 id=480 data-nosnippet>480</a>        <span class="kw">let </span>generated = gen_brillig_for(main, args, <span class="kw-2">&amp;</span>brillig, <span class="kw-2">&amp;</span>options).unwrap();
+<a href=#480 id=480 data-nosnippet>480</a>        <span class="kw">let </span>generated = gen_brillig_for(main, <span class="kw-2">&amp;</span>args, <span class="kw-2">&amp;</span>brillig, <span class="kw-2">&amp;</span>options).unwrap();
 <a href=#481 id=481 data-nosnippet>481</a>
 <a href=#482 id=482 data-nosnippet>482</a>        <span class="kw">let </span>(vm, return_data_offset, return_data_size) =
 <a href=#483 id=483 data-nosnippet>483</a>            create_and_run_vm(calldata, <span class="kw-2">&amp;</span>generated.byte_code);
