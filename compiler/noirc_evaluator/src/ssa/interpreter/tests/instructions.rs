@@ -23,7 +23,7 @@ use crate::ssa::{
 use super::{Ssa, executes_with_no_errors, expect_error};
 
 fn make_unfit(value: impl Into<FieldElement>, typ: NumericType) -> Value {
-    Value::unfit(value.into(), typ).unwrap()
+    Value::int_from_field(value.into(), typ).unwrap()
 }
 
 #[test]
@@ -114,12 +114,11 @@ fn add_unchecked_signed() {
 
 // Regression test for noir-lang/noir-claude#1430.
 //
-// A checked arithmetic op whose operand escaped its type via an earlier overflowing unchecked
-// op (a `Fitted::Unfit` value) must evaluate against the operand's wrapped, in-range value —
-// the value ACIR (which truncates when lowering the checked op) and Brillig (fixed-width
-// registers) carry forward — instead of erroring. Otherwise the interpreter reports an overflow
-// where the backends, and the expanded SSA after `expand_signed_checks`, return the wrapped
-// result.
+// A checked arithmetic op whose operand escaped its type via an earlier overflowing unchecked op
+// (an out-of-range value) must evaluate against the operand's wrapped, in-range value — the value
+// ACIR (which truncates when lowering the checked op) and Brillig (fixed-width registers) carry
+// forward — instead of erroring. Otherwise the interpreter reports an overflow where the backends,
+// and the expanded SSA after `expand_signed_checks`, return the wrapped result.
 #[test]
 fn checked_signed_op_over_unfit_operand_wraps() {
     // `unchecked_mul i32 i32::MAX, 2` yields the field 4294967294, whose i32 bit pattern is -2.
@@ -271,7 +270,12 @@ fn sub_unchecked_signed() {
         }
     ",
     );
-    assert_eq!(value, Value::i8(-7));
+    // 3 - 10 = -7. On an ACIR function the unchecked subtraction is field arithmetic, which extends
+    // to the field-negative `-7` (i.e. `p - 7`) rather than the wrapped 8-bit pattern Brillig keeps.
+    assert_eq!(
+        value.as_numeric().unwrap().convert_to_field(),
+        FieldElement::from(3u32) - FieldElement::from(10u32)
+    );
 }
 
 #[test]
@@ -359,8 +363,8 @@ fn mul_unchecked_signed() {
         }
     ",
     );
-    assert_ne!(value, Value::i8(-2), "no wrapping");
-    assert_eq!(value, make_unfit(254u32, NumericType::signed(8)));
+    // 127 * 2 = 254, whose i8 bit pattern is -2 — an in-range value that both backends agree on.
+    assert_eq!(value, Value::i8(-2));
 }
 
 #[test]

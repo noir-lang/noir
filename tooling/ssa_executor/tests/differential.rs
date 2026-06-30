@@ -257,6 +257,24 @@ fn interpreter_vs_backends_on_overflow_corners() {
             a: 127,
             b: 2,
         },
+        // signed sub whose result is negative but in range (3 - 10 = -7)
+        Case {
+            name: "i8 sub(neg)",
+            ty: "i8",
+            nt: NumericType::Signed { bit_size: 8 },
+            op: "sub",
+            a: 3,
+            b: 10,
+        },
+        // signed sub underflowing the type's range (i16 100 - 200 = -100, in range; but check field handling)
+        Case {
+            name: "i16 sub(neg)",
+            ty: "i16",
+            nt: NumericType::Signed { bit_size: 16 },
+            op: "sub",
+            a: 100,
+            b: 200,
+        },
         Case {
             name: "i32 mul(max*2)",
             ty: "i32",
@@ -296,7 +314,20 @@ fn interpreter_vs_backends_on_overflow_corners() {
             let interp_brillig = run_interpreter(&brillig_src, &inputs);
             let brillig = run_backend(&brillig_src, &inputs);
 
-            let acir_ok = interp_acir == acir;
+            // The interpreter must never panic.
+            assert_ne!(interp_acir, Outcome::Panicked, "{} / {} interp(acir)", case.name, variant);
+            assert_ne!(
+                interp_brillig,
+                Outcome::Panicked,
+                "{} / {} interp(brillig)",
+                case.name,
+                variant
+            );
+
+            // ACIR genuinely ICEs on `truncate`-of-unchecked-signed-`sub` (a pre-existing ACIR-gen
+            // bug, unrelated to the interpreter): there is no backend answer to match there, so a
+            // divergence is only counted when ACIR did *not* crash.
+            let acir_ok = interp_acir == acir || acir == Outcome::Panicked;
             let brillig_ok = interp_brillig == brillig;
 
             println!(
@@ -334,6 +365,17 @@ fn interpreter_vs_backends_on_overflow_corners() {
     for d in &brillig_divergences {
         println!("  {d}");
     }
+
+    assert!(
+        brillig_divergences.is_empty(),
+        "interpreter diverges from Brillig:\n{}",
+        brillig_divergences.join("\n")
+    );
+    assert!(
+        acir_divergences.is_empty(),
+        "interpreter diverges from ACIR (outside the known ACIR-gen ICE):\n{}",
+        acir_divergences.join("\n")
+    );
 }
 
 /// Probes feeding an out-of-range (`Unfit`) value into the consumers that historically `unreachable!`
@@ -393,5 +435,11 @@ fn interpreter_vs_backends_on_unfit_consumers() {
                 ""
             },
         );
+
+        // The interpreter must compute (not panic) and match both backends for these consumers.
+        assert_ne!(interp_acir, Outcome::Panicked, "{name}: interp(acir) panicked");
+        assert_ne!(interp_brillig, Outcome::Panicked, "{name}: interp(brillig) panicked");
+        assert_eq!(interp_acir, acir, "{name}: interp(acir) vs acir");
+        assert_eq!(interp_brillig, brillig, "{name}: interp(brillig) vs brillig");
     }
 }

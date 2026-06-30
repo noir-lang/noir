@@ -136,7 +136,7 @@ fn test_shl() {
             (1, 8),
             Err(InterpreterError::Overflow {
                 operator: BinaryOp::Shl,
-                instruction: "`` (i8 1 << i8 8)".to_string(),
+                instruction: "`` (shl i8 1, i8 8)".to_string(),
             }),
         ),
     ];
@@ -145,12 +145,17 @@ fn test_shl() {
         assert_eq!(
             super::evaluate_binary(
                 &binary,
-                NumericValue::I8(lhs.into()),
-                NumericValue::I8(rhs.into()),
+                NumericValue::int_from_field(lhs.into(), NumericType::signed(8)).unwrap(),
+                NumericValue::int_from_field(rhs.into(), NumericType::signed(8)).unwrap(),
                 true,
+                false,
                 display
             ),
-            expected_result.map(|i| NumericValue::I8(i.into())),
+            expected_result.map(|i| NumericValue::int_from_field(
+                FieldElement::from(i128::from(i as u8)),
+                NumericType::signed(8)
+            )
+            .unwrap()),
             "{lhs} << {rhs}",
         );
     }
@@ -174,7 +179,7 @@ fn value_snapshot_detaches_from_original() {
     // Access `array[0][0]`
     fn with_0_0<F>(value: &Value, f: F)
     where
-        F: FnOnce(&mut bool),
+        F: FnOnce(&mut Value),
     {
         let Value::ArrayOrVector(ArrayValue { elements, .. }) = value else {
             unreachable!("values are arrays")
@@ -185,21 +190,17 @@ fn value_snapshot_detaches_from_original() {
             unreachable!("inner values are arrays")
         };
         let mut elements = elements.borrow_mut();
-        let mut value = &mut elements[0];
-        let Value::Numeric(NumericValue::U1(b)) = &mut value else {
-            unreachable!("elements are bool");
-        };
-        f(b);
+        f(&mut elements[0]);
     }
 
     // Update the original.
-    with_0_0(&v0, |b| {
-        *b = true;
+    with_0_0(&v0, |v| {
+        *v = Value::bool(true);
     });
     // The clone is also changed.
-    with_0_0(&v1, |b| assert!(*b));
+    with_0_0(&v1, |v| assert_eq!(v.as_bool(), Some(true)));
     // The snapshot is not changed.
-    with_0_0(&v2, |b| assert!(!(*b)));
+    with_0_0(&v2, |v| assert_eq!(v.as_bool(), Some(false)));
 }
 
 #[test]

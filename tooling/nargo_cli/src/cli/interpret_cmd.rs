@@ -17,7 +17,7 @@ use noirc_driver::{CompilationResult, CompileOptions, gen_abi};
 use clap::Args;
 use noirc_errors::CustomDiagnostic;
 use noirc_evaluator::ssa::interpreter::InterpreterOptions;
-use noirc_evaluator::ssa::interpreter::value::{NumericValue, Value};
+use noirc_evaluator::ssa::interpreter::value::Value;
 use noirc_evaluator::ssa::ir::types::{NumericType, Type};
 use noirc_evaluator::ssa::ssa_gen::{Ssa, generate_ssa};
 use noirc_evaluator::ssa::{SsaEvaluatorOptions, SsaLogging, primary_passes};
@@ -492,7 +492,7 @@ fn flatten_databus_value(value: Value, flattened_values: &mut Vec<Value>) {
             }
         }
         Value::Numeric(value) => {
-            flattened_values.push(Value::Numeric(NumericValue::Field(value.convert_to_field())));
+            flattened_values.push(Value::field(value.convert_to_field()));
         }
         Value::Reference(..)
         | Value::Function(..)
