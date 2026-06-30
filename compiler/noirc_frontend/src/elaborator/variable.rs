@@ -6,23 +6,29 @@ use itertools::Itertools;
 use super::Elaborator;
 use crate::TypeAlias;
 use crate::ast::{
-    Expression, ExpressionKind, GenericTypeArgs, Ident, Path, TypePath, UnresolvedTypeExpression,
+    Expression, ExpressionKind, GenericTypeArgs, Ident, Path, PathKind, TypePath,
+    UnresolvedTypeExpression,
 };
 use crate::elaborator::TypedPath;
 use crate::elaborator::function_context::BindableTypeVariableKind;
-use crate::elaborator::path_resolution::PathResolutionItem;
-use crate::elaborator::path_resolution::TypedPathSegment;
-use crate::elaborator::patterns::{IdentFromPath, Variable};
+use crate::elaborator::path_resolution::{
+    PathResolution, PathResolutionItem, Turbofish, TypedPathSegment,
+};
+use crate::elaborator::patterns::{PathValue, Variable};
 use crate::elaborator::types::{SELF_TYPE_NAME, WildcardAllowed};
 use crate::hir::def_collector::dc_crate::CompilationError;
+use crate::hir::def_map::ModuleId;
 use crate::hir::resolution::errors::ResolverError;
+use crate::hir::resolution::import::PathResolutionError;
 use crate::hir::type_check::TypeCheckError;
 use crate::hir_def::expr::{
     HirExpression, HirIdent, HirMethodReference, HirTraitMethodReference, ImplKind, TraitItem,
 };
+use crate::hir_def::traits::TraitConstraint;
 use crate::node_interner::pusher::{HasLocation, PushedExpr};
 use crate::node_interner::{
-    DefinitionId, DefinitionInfo, DefinitionKind, ExprId, TraitImplId, TraitImplKind, TypeAliasId,
+    DefinitionId, DefinitionInfo, DefinitionKind, ExprId, TraitId, TraitImplId, TraitImplKind,
+    TypeAliasId,
 };
 use crate::{Kind, Type, TypeBindings, TypeVariable, TypeVariableId};
 use iter_extended::{btree_map, vecmap};
@@ -42,6 +48,60 @@ pub(crate) enum VariableResolution {
     Ident(HirIdent, Option<PathResolutionItem>),
     /// The path resolved to a type alias that is numeric, infinitely recursive or one that errored.
     TypeAlias(TypeAliasId),
+}
+
+/// A path's prefix resolved into [its kind](PathPrefixKind) plus the "rest" — the last segment
+/// (the item accessed on the prefix) and the prefix's own turbofish. Produced by
+/// [`Elaborator::resolve_path_prefix`]; [`Elaborator::resolve_prefixed_variable`] resolves the last
+/// segment against the kind without re-deriving anything from the original path.
+#[derive(Debug)]
+struct ResolvedPrefix {
+    /// The path's last segment: the item being accessed on the prefix.
+    last_segment: TypedPathSegment,
+    /// Turbofish on the prefix's own last segment (e.g. the `<T>` in `Foo::<T>::bar`).
+    turbofish: Option<Turbofish>,
+    kind: PathPrefixKind,
+}
+
+/// What the prefix of a path (every segment but the last) is, when the path is used as an
+/// expression. This describes *what the prefix is*, not the already-resolved item; the shared
+/// "rest" (last segment, turbofish) lives on [`ResolvedPrefix`].
+#[derive(Debug)]
+enum PathPrefixKind {
+    /// `Self` inside a trait *impl*, where `Self` is the impl's concrete type (carried here, along
+    /// with the impl) since a trait impl always has both. The last segment is an associated-type
+    /// method, an associated constant, a primitive-`Self` method, or a plain method on the self
+    /// type ([`Elaborator::resolve_self_in_trait_impl`]).
+    SelfInTraitImpl { self_type: Type, trait_impl_id: TraitImplId },
+    /// `Self` inside a trait *definition* (carried here): an assumed constraint on the current
+    /// trait (or a supertrait reached through it) ([`Elaborator::resolve_self_in_trait`]).
+    SelfInTrait { trait_id: TraitId },
+    /// `Self` as a plain concrete type (an inherent impl, or any other context where `Self` names
+    /// a data type): the last segment resolves like `Type::method`
+    /// ([`Elaborator::resolve_self_as_concrete_type`]).
+    SelfInImpl,
+    /// A generic parameter with `: Trait` bound(s) in scope (e.g. `T` in `T::method`); the carried
+    /// constraints are the matched bounds. The last segment is a method or associated constant
+    /// reached through one of them.
+    BoundedGeneric(Vec<TraitConstraint>),
+    /// A trait (e.g. `Trait` in `Trait::method` / `Trait::CONST`). The last segment is a trait
+    /// static method or an associated constant.
+    Trait { trait_id: TraitId, resolution: PathResolution },
+    /// A concrete type, type alias, or primitive type (e.g. `Type` in `Type::method`). The last
+    /// segment is an inherent or qualified trait method.
+    Type { resolution: PathResolution },
+    /// A module (e.g. `foo::bar` in `foo::bar::GLOBAL`). The last segment is an ordinary value
+    /// item, resolved as a value directly in `module_id`. `errors` are the prefix's own resolution
+    /// errors (e.g. an intermediate segment's visibility), reported when the last segment resolves.
+    Module { module_id: ModuleId, errors: Vec<PathResolutionError> },
+    /// The prefix is `Self` but there is no self type in scope (e.g. in a free function), so `Self`
+    /// names nothing.
+    SelfNotInScope,
+    /// The prefix is not something that can carry an associated item: it is not a type, trait, or
+    /// module (it is a value, or it failed to resolve), so the path names nothing. The carried error
+    /// (either the prefix's own resolution failure, or that it is a value rather than a namespace) is
+    /// reported as-is.
+    InvalidPrefix { error: PathResolutionError },
 }
 
 impl Elaborator<'_> {
@@ -499,14 +559,190 @@ impl Elaborator<'_> {
         }
     }
 
+    /// Resolve a [`TypedPath`] that has a prefix (more than one segment) to the item it names —
+    /// fully: it always resolves the path, reports an error, or falls back to a value lookup, so
+    /// the caller never needs a further fallback. [`Self::resolve_path_prefix`] classifies the
+    /// prefix once; the last segment is resolved against that classification directly in the
+    /// already-resolved prefix (a module value via [`Self::resolve_value_in_module`], an enum
+    /// variant or associated constant on a type via [`Self::resolve_value_in_type`]).
+    ///
+    /// Returns `None` only when an error has already been reported (an ambiguous trait method, or
+    /// an unresolved name), so the caller should produce an error expression rather than retry.
+    #[tracing::instrument(level = "trace", skip_all)]
+    fn resolve_prefixed_variable(&mut self, path: TypedPath) -> Option<VariableResolution> {
+        let ResolvedPrefix { last_segment, turbofish, kind } = self.resolve_path_prefix(&path);
+
+        match kind {
+            // `Self` is contextual; each context resolves the last segment its own way.
+            PathPrefixKind::SelfInTraitImpl { self_type, trait_impl_id } => self
+                .resolve_self_in_trait_impl(
+                    path,
+                    self_type,
+                    trait_impl_id,
+                    last_segment,
+                    turbofish,
+                ),
+            PathPrefixKind::SelfInTrait { trait_id } => {
+                self.resolve_self_in_trait(path, trait_id, last_segment, turbofish)
+            }
+            // `Self` is a concrete type here (classification guarantees `self_type` exists), so it
+            // resolves exactly like `Type::method`.
+            PathPrefixKind::SelfInImpl => {
+                self.resolve_self_as_concrete_type(path, last_segment, turbofish)
+            }
+            PathPrefixKind::BoundedGeneric(bounds) => {
+                self.resolve_bounded_generic_item(bounds, &last_segment, turbofish, path.location)
+            }
+            PathPrefixKind::Type { resolution } => {
+                let is_self_prefix = false;
+                self.resolve_method_on_type_prefix(
+                    last_segment,
+                    turbofish,
+                    is_self_prefix,
+                    resolution,
+                    path.location,
+                )
+            }
+            // A trait prefix: the last segment is either a trait static method (`Trait::method`)
+            // or an associated constant (`Trait::CONST`).
+            PathPrefixKind::Trait { trait_id, resolution } => self.resolve_trait_item_on_prefix(
+                trait_id,
+                turbofish,
+                &last_segment,
+                resolution,
+                path.location,
+            ),
+            // A module prefix: the last segment is an ordinary value item, resolved as a value
+            // directly in the already-resolved module.
+            PathPrefixKind::Module { module_id, errors } => {
+                self.push_errors(errors);
+                self.resolve_value_in_module(module_id, last_segment)
+            }
+            // No usable prefix: the path names nothing, and a value lookup would only rediscover
+            // the resolution failure already carried here, so report it directly.
+            PathPrefixKind::InvalidPrefix { error } => {
+                self.push_err(error);
+                None
+            }
+            // `Self` with no self type in scope: report it directly.
+            PathPrefixKind::SelfNotInScope => {
+                self.push_err(PathResolutionError::Unresolved(path.segments[0].ident.clone()));
+                None
+            }
+        }
+    }
+
+    /// Classify the prefix (every segment but the last) of a path used as an expression. This does
+    /// not resolve the last segment — it only answers "what is the prefix?", which the caller uses
+    /// to decide how to resolve the last segment. The caller only invokes this for a path that has
+    /// a prefix (more than one segment).
+    ///
+    /// The classification order is significant: it decides which interpretation wins when a path
+    /// is ambiguous, and mirrors the historical probe order. `Self` and a bounded generic are
+    /// recognized from context (`Self` is contextual; a generic is not in the module namespace)
+    /// before the prefix is resolved as a type to tell trait-, type-, and module-prefixed forms
+    /// apart.
+    #[tracing::instrument(level = "trace", skip_all)]
+    fn resolve_path_prefix(&mut self, path: &TypedPath) -> ResolvedPrefix {
+        // The caller (`resolve_variable`) only takes this path for a multi-segment path, so popping
+        // the last segment is always valid.
+        debug_assert!(path.segments.len() >= 2);
+
+        let mut prefix = path.clone();
+        let last_segment = prefix.pop();
+        let turbofish = prefix.last_segment().turbofish();
+
+        // `Self` and a generic parameter are only meaningful as a plain path: `crate::Self` /
+        // `super::T` name an item in another module, not the contextual `Self` or an in-scope
+        // generic, so they must not be classified as such.
+        let kind = if path.kind == PathKind::Plain && path.segments[0].ident.is_self_type_name() {
+            // `Self` is contextual; which kind it is depends only on where we are (a trait impl, a
+            // trait definition, somewhere `Self` is a plain type, or nowhere at all), so it is
+            // classified here and the matching arm resolves the last segment.
+            if let Some(trait_impl_id) = self.current_trait_impl {
+                let self_type =
+                    self.self_type.clone().expect("a trait impl always has a self type");
+                PathPrefixKind::SelfInTraitImpl { self_type, trait_impl_id }
+            } else if let Some(trait_id) = self.current_trait {
+                PathPrefixKind::SelfInTrait { trait_id }
+            } else if self.self_type.is_some() {
+                PathPrefixKind::SelfInImpl
+            } else {
+                PathPrefixKind::SelfNotInScope
+            }
+        } else if path.kind == PathKind::Plain
+            && let Some(bounds) = self.matching_generic_bounds(path)
+        {
+            // A generic parameter (e.g. `T`) with a `T: Trait` bound in scope. A generic is not in
+            // the module namespace, so this is recognized from the in-scope bounds, not resolution.
+            PathPrefixKind::BoundedGeneric(bounds)
+        } else {
+            // Otherwise the prefix is resolved as a type to distinguish trait/type/module.
+            let prefix_last_ident = prefix.last_segment().ident;
+            match self.use_path_as_type(prefix) {
+                Ok(resolution) => match &resolution.item {
+                    PathResolutionItem::Trait(trait_id) => {
+                        PathPrefixKind::Trait { trait_id: *trait_id, resolution }
+                    }
+                    PathResolutionItem::Type(..)
+                    | PathResolutionItem::TypeAlias(..)
+                    | PathResolutionItem::PrimitiveType(..) => PathPrefixKind::Type { resolution },
+                    PathResolutionItem::Module(module_id) => PathPrefixKind::Module {
+                        module_id: *module_id,
+                        errors: resolution.errors.clone(),
+                    },
+                    // Resolving a type path falls back to the value namespace, so the prefix's last
+                    // segment can also resolve to a value item; that (and an associated type) can't
+                    // carry the last segment of the path as an associated item, so the path names
+                    // nothing. Listed explicitly (rather than `_`) so a new `PathResolutionItem`
+                    // must be classified here.
+                    PathResolutionItem::TraitAssociatedType(..)
+                    | PathResolutionItem::Global(..)
+                    | PathResolutionItem::EnumVariant(..)
+                    | PathResolutionItem::ModuleFunction(..)
+                    | PathResolutionItem::Method(..)
+                    | PathResolutionItem::SelfMethod(..)
+                    | PathResolutionItem::TypeAliasFunction(..)
+                    | PathResolutionItem::TraitFunction(..)
+                    | PathResolutionItem::TypeTraitFunction(..)
+                    | PathResolutionItem::PrimitiveFunction(..)
+                    | PathResolutionItem::TraitConstant(..) => PathPrefixKind::InvalidPrefix {
+                        error: PathResolutionError::Unresolved(prefix_last_ident),
+                    },
+                },
+                Err(error) => PathPrefixKind::InvalidPrefix { error },
+            }
+        };
+
+        ResolvedPrefix { last_segment, turbofish, kind }
+    }
+
+    /// If the path's first segment names a generic parameter with `: Trait` bound(s) in scope,
+    /// return those matching bounds (so `Head::item` can be resolved through them). Only meaningful
+    /// for a two-segment path; a generic is not in the module namespace, so this scans the in-scope
+    /// bounds rather than resolving.
+    pub(super) fn matching_generic_bounds(&self, path: &TypedPath) -> Option<Vec<TraitConstraint>> {
+        if path.segments.len() != 2 {
+            return None;
+        }
+        let head = path.segments[0].ident.as_str();
+        let bounds: Vec<_> = self
+            .trait_bounds
+            .iter()
+            .filter(|constraint| {
+                matches!(&constraint.typ, Type::NamedGeneric(generic) if generic.name.as_str() == head)
+            })
+            .cloned()
+            .collect();
+        (!bounds.is_empty()).then_some(bounds)
+    }
+
     /// Resolve an unprefixed (single-segment) path to a local variable, or to a value item it
     /// names (global, function, enum-variant global, numeric type alias). The counterpart to
-    /// [`Self::resolve_prefixed_variable`]; a prefixed path's value fallback uses
-    /// [`Self::resolve_value_item`], which skips the local-variable lookup.
-    pub(super) fn resolve_unprefixed_variable(
-        &mut self,
-        path: TypedPath,
-    ) -> Option<VariableResolution> {
+    /// [`Self::resolve_prefixed_variable`], which resolves a prefixed path's last segment directly
+    /// in the already-resolved prefix ([`Self::resolve_value_in_module`] /
+    /// [`Self::resolve_value_in_type`]) and never looks for a local variable.
+    fn resolve_unprefixed_variable(&mut self, path: TypedPath) -> Option<VariableResolution> {
         // The location of variables or definitions we register (for LSP) must be that of the
         // path's last segment, as intermediate segments solve to other definitions.
         let location = path.last_ident().location();
@@ -515,19 +751,47 @@ impl Elaborator<'_> {
         // Otherwise, then it is referring to an Identifier
         // This lookup allows support of such statements: let x = foo::bar::SOME_GLOBAL + 10;
         // If the expression is a singular indent, we search the resolver's current scope as normal.
-        let ident_from_path = self.get_ident_from_path(path)?;
-        Some(self.variable_resolution_from_ident_from_path(ident_from_path, location))
+        let ident_from_path = self.resolve_path_as_value(path)?;
+        Some(self.variable_resolution_from_path_value(ident_from_path, location))
     }
 
-    /// Resolve a path's last segment as a value item (a global, function, enum-variant global,
-    /// trait constant, or numeric type alias). Unlike [`Self::resolve_unprefixed_variable`] this does
-    /// not look for a local variable, so it is the value fallback for a prefixed path: its last
-    /// segment is not a method or trait item, and a prefixed path can never name a local variable.
-    pub(super) fn resolve_value_item(&mut self, path: TypedPath) -> Option<VariableResolution> {
-        let location = path.last_ident().location();
-        match self.ident_from_value_item(path) {
+    /// Resolve a module-prefixed path's last segment as a value item, looked up directly in the
+    /// already-resolved prefix `module_id`, avoiding re-resolving the whole path now that the prefix
+    /// is known to be a module. The module counterpart of [`Self::resolve_value_in_type`].
+    fn resolve_value_in_module(
+        &mut self,
+        module_id: ModuleId,
+        last_segment: TypedPathSegment,
+    ) -> Option<VariableResolution> {
+        let location = last_segment.ident.location();
+        let ident = self.lookup_path_as_value_in_module(last_segment, module_id);
+        self.variable_resolution_from_value_item(ident, location)
+    }
+
+    /// Resolve a type-prefixed path's last segment as a value member (an enum variant or associated
+    /// constant) of the already-resolved type `typ`. The type-prefix counterpart of
+    /// [`Self::resolve_value_in_module`], avoiding re-resolving the whole path.
+    pub(super) fn resolve_value_in_type(
+        &mut self,
+        last_segment: &TypedPathSegment,
+        typ: &Type,
+        turbofish: Option<Turbofish>,
+    ) -> Option<VariableResolution> {
+        let location = last_segment.ident.location();
+        let ident = self.lookup_path_as_value_in_type(last_segment, typ, turbofish);
+        self.variable_resolution_from_value_item(ident, location)
+    }
+
+    /// Finish resolving a value item: build the [`VariableResolution`] it denotes, or report the
+    /// error if it could not be resolved as a value.
+    fn variable_resolution_from_value_item(
+        &mut self,
+        ident: Result<PathValue, ResolverError>,
+        location: Location,
+    ) -> Option<VariableResolution> {
+        match ident {
             Ok(ident_from_path) => {
-                Some(self.variable_resolution_from_ident_from_path(ident_from_path, location))
+                Some(self.variable_resolution_from_path_value(ident_from_path, location))
             }
             Err(error) => {
                 self.push_err(error);
@@ -536,25 +800,25 @@ impl Elaborator<'_> {
         }
     }
 
-    /// Build the [`VariableResolution`] an already-resolved [`IdentFromPath`] denotes, registering
+    /// Build the [`VariableResolution`] an already-resolved [`PathValue`] denotes, registering
     /// the reference (for LSP) along the way.
-    fn variable_resolution_from_ident_from_path(
+    fn variable_resolution_from_path_value(
         &mut self,
-        ident_from_path: IdentFromPath,
+        ident_from_path: PathValue,
         location: Location,
     ) -> VariableResolution {
         match ident_from_path {
-            IdentFromPath::Variable(variable) => {
+            PathValue::Variable(variable) => {
                 self.handle_local_variable(&variable);
                 let hir_ident = HirIdent::non_trait_method(variable.ident.id, location);
                 VariableResolution::Ident(hir_ident, None)
             }
-            IdentFromPath::Definition { id, item } => {
+            PathValue::Definition { id, item } => {
                 self.handle_definition_id(id, location);
                 let hir_ident = HirIdent::non_trait_method(id, location);
                 VariableResolution::Ident(hir_ident, Some(item))
             }
-            IdentFromPath::TypeAlias(type_alias_id) => VariableResolution::TypeAlias(type_alias_id),
+            PathValue::TypeAlias(type_alias_id) => VariableResolution::TypeAlias(type_alias_id),
         }
     }
 
