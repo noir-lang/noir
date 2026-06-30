@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1782840633774,
+  "lastUpdate": 1782840896613,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23146,48 +23146,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "503361731aae2cf5660a6297578fc96618fbbd67",
-          "message": "chore(ssa): Refactor `array_set_rc_invariant` into `rc_invariant::array_set` (#13162)",
-          "timestamp": "2026-06-23T17:13:14Z",
-          "tree_id": "844fab461452b4d316fb080da7d6dd32f49614e7",
-          "url": "https://github.com/noir-lang/noir/commit/503361731aae2cf5660a6297578fc96618fbbd67"
-        },
-        "date": 1782236030687,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 169532,
-            "range": "± 654",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 139128,
-            "range": "± 2642",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2650504,
-            "range": "± 10751",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "jfecher11@gmail.com",
             "name": "jfecher",
             "username": "jfecher"
@@ -25239,6 +25197,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2658031,
             "range": "± 3982",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jfecher11@gmail.com",
+            "name": "jfecher",
+            "username": "jfecher"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "fd5f5413550f5133e127c2a02ea56396fde9e265",
+          "message": "fix: Limit killed optimization in ownership pass (#13099)",
+          "timestamp": "2026-06-30T17:13:26Z",
+          "tree_id": "495e5b88740e93cb910ba3aa042be6f1cf5f292a",
+          "url": "https://github.com/noir-lang/noir/commit/fd5f5413550f5133e127c2a02ea56396fde9e265"
+        },
+        "date": 1782840815395,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 175789,
+            "range": "± 1517",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 145486,
+            "range": "± 1535",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2658230,
+            "range": "± 2982",
             "unit": "ns/iter"
           }
         ]
