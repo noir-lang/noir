@@ -65,8 +65,7 @@ impl Formatter<'_> {
         if !self.config.wrap_comments || self.ignore_next {
             return bodies;
         }
-        loop {
-            let Token::Whitespace(ws) = &self.token else { break };
+        while let Token::Whitespace(ws) = &self.token {
             let newlines = ws.chars().filter(|c| *c == '\n').count();
             if newlines != 1 {
                 break;

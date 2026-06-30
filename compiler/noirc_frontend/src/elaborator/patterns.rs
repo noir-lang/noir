@@ -421,38 +421,24 @@ impl Elaborator<'_> {
                 parameter_names_in_list,
             );
 
-            if unseen_fields.contains(&field) {
-                unseen_fields.remove(&field);
-                seen_fields.insert(field.clone());
-
+            if self.check_constructor_field(
+                &field,
+                &mut seen_fields,
+                &mut unseen_fields,
+                struct_type,
+            ) {
                 self.check_struct_field_visibility(
                     &struct_type.borrow(),
                     field.as_str(),
                     visibility,
                     field.location(),
                 );
-            } else if seen_fields.contains(&field) {
-                // duplicate field
-                self.push_err(ResolverError::DuplicateField { field: field.clone() });
-            } else {
-                // field not required by struct
-                self.push_err(ResolverError::NoSuchField {
-                    field: field.clone(),
-                    struct_definition: struct_type.borrow().name.clone(),
-                });
             }
 
             ret.push((field, resolved));
         }
 
-        if !unseen_fields.is_empty() {
-            self.push_err(ResolverError::MissingFields {
-                location,
-                missing_fields: unseen_fields.into_iter().map(|field| field.to_string()).collect(),
-                struct_definition: struct_type.borrow().name.clone(),
-            });
-        }
-
+        self.report_missing_fields(unseen_fields, location, struct_type);
         ret
     }
 
@@ -858,11 +844,8 @@ impl Elaborator<'_> {
             None => None,
         };
 
-        match self.lookup_item_as_value(path) {
-            Ok(ItemAsValue::Definition { id, item }) => Ok(IdentFromPath::Definition { id, item }),
-            Ok(ItemAsValue::TypeAlias(type_alias_id)) => {
-                Ok(IdentFromPath::TypeAlias(type_alias_id))
-            }
+        match self.ident_from_value_item(path) {
+            Ok(ident) => Ok(ident),
             Err(ResolverError::PathResolutionError(PathResolutionError::Unresolved(ident))) => {
                 // If we can't resolve a path, but we have an error from trying to resolve a variable
                 // (in which case the path was a single segment), prefer saying "variable not found"
@@ -887,5 +870,20 @@ impl Elaborator<'_> {
                 }
             }
         }
+    }
+
+    /// Resolve a [`TypedPath`] to the value item it names — a global, function, enum-variant
+    /// global, trait associated constant, or numeric type alias — as an [`IdentFromPath`]. Unlike
+    /// [`Self::get_ident_from_path_or_error`] this never tries a local variable, so it is what a
+    /// multi-segment path (which can never name a local variable) needs.
+    #[tracing::instrument(level = "trace", skip_all)]
+    pub(crate) fn ident_from_value_item(
+        &mut self,
+        path: TypedPath,
+    ) -> Result<IdentFromPath, ResolverError> {
+        self.lookup_item_as_value(path).map(|item| match item {
+            ItemAsValue::Definition { id, item } => IdentFromPath::Definition { id, item },
+            ItemAsValue::TypeAlias(type_alias_id) => IdentFromPath::TypeAlias(type_alias_id),
+        })
     }
 }

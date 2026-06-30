@@ -770,25 +770,6 @@ impl<'context> Elaborator<'context> {
         (result, has_new_errors)
     }
 
-    /// Run a resolution speculatively, keeping the usage it records only if it succeeds.
-    ///
-    /// Some resolutions probe a path before knowing it's the right kind — e.g. resolving `N` as a
-    /// type to check whether `N()` is a `Type::method` call. Such a probe marks the segments it
-    /// walks as used/referenced, but a *failed* probe must not leave those marks behind (they would
-    /// wrongly silence an unused warning for a same-named type or import). This wraps `f` in a
-    /// usage-tracker transaction: if `f` returns `Some`, the marks are committed; if it returns
-    /// `None`, they are rolled back.
-    pub(crate) fn speculatively<T>(&mut self, f: impl FnOnce(&mut Self) -> Option<T>) -> Option<T> {
-        let transaction = self.usage_tracker.begin_speculative();
-        let result = f(self);
-        if result.is_some() {
-            self.usage_tracker.commit_speculative(transaction);
-        } else {
-            self.usage_tracker.rollback_speculative(transaction);
-        }
-        result
-    }
-
     #[tracing::instrument(level = "trace", skip_all)]
     fn run_lint(&mut self, lint: impl Fn(&Elaborator) -> Option<CompilationError>) {
         if let Some(error) = lint(self) {
@@ -819,6 +800,35 @@ impl<'context> Elaborator<'context> {
         };
         self.push_err(error);
         None
+    }
+
+    /// Resolve a path to the [`FuncId`] of the function it refers to, pushing a diagnostic and
+    /// returning `None` if the path does not resolve or resolves to a non-function item.
+    ///
+    /// Used to coerce a path passed as a `FunctionDefinition` attribute argument into the function
+    /// it names, mirroring [`Self::resolve_trait_by_path`].
+    #[tracing::instrument(level = "trace", skip_all)]
+    fn resolve_function_by_path(&mut self, path: TypedPath) -> Option<FuncId> {
+        let location = path.location;
+        match self.resolve_path_or_error(path, PathResolutionTarget::Value) {
+            Ok(item) => {
+                if let Some(func_id) = item.function_id() {
+                    Some(func_id)
+                } else {
+                    let found = item.description(self.interner);
+                    self.push_err(ResolverError::Expected {
+                        location,
+                        expected: "function",
+                        found,
+                    });
+                    None
+                }
+            }
+            Err(error) => {
+                self.push_err(error);
+                None
+            }
+        }
     }
 
     /// Traverse the type and call `mark_struct_as_constructed` on any [`Type::DataType`].

@@ -518,6 +518,27 @@ fn errors_if_global_is_needed_in_initialize_and_function_signature() {
 }
 
 #[test]
+fn does_not_report_false_cycle_after_failed_comptime_global() {
+    let src = r#"
+    global LATE: u32 = {
+        assert(false);
+               ^^^^^ Assertion failed
+        0
+    };
+    global SECOND: u32 = LATE;
+                         ^^^^ Failed to resolve this global
+    global THIRD: u32 = LATE;
+                        ^^^^ Failed to resolve this global
+    fn main() {
+        let _ = LATE;
+        let _ = SECOND;
+        let _ = THIRD;
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
 fn comptime_global_used_in_runtime_code() {
     let src = r#"
     fn bar() {}
@@ -536,6 +557,20 @@ fn comptime_global_used_in_runtime_code() {
     }
     "#;
     check_errors(src);
+}
+
+#[test]
+fn global_containing_function_pointer_errors() {
+    let src = r#"
+    global FN_ARRAY: [fn()] = @[];
+           ^^^^^^^^ Globals cannot contain function pointers
+           ~~~~~~~~ This global has type `[fn() -> ()]`, which contains a function pointer
+
+    fn main() {
+        let _ = FN_ARRAY;
+    }
+    "#;
+    check_monomorphization_error(src);
 }
 
 #[test]

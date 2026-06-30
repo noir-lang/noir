@@ -279,7 +279,11 @@ impl Context<'_> {
             if let Type::Vector(elements_type) = &*result_type {
                 let error = "ICE - cannot get vector length when converting vector to AcirValue";
                 let len = values.last().expect(error).borrow_var().expect(error);
-                let len = self.acir_context.constant(len).to_u128();
+                let len = self
+                    .acir_context
+                    .constant(&len, "len".to_string())
+                    .expect("ICE - expected the variable to be a constant value")
+                    .to_u128();
                 let mut element_values = im::Vector::new();
                 for _ in 0..len {
                     for element_type in elements_type.iter() {

@@ -323,11 +323,9 @@ fn parse_blocks(lines: &[&str], reflow_paragraphs: bool) -> Vec<Block> {
                                 merged = true;
                             }
                         }
-                        Block::Paragraph { words } => {
-                            if indent == 0 {
-                                words.extend(new_words.clone());
-                                merged = true;
-                            }
+                        Block::Paragraph { words } if indent == 0 => {
+                            words.extend(new_words.clone());
+                            merged = true;
                         }
                         _ => {}
                     }
