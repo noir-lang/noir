@@ -317,13 +317,19 @@ const codegenFunction = (
     ? `export const ${name}_circuit: CompiledCircuit = ${JSON.stringify(compiled_program)};`
     : '';
 
+  const returnType = function_signature.returnValue;
+  const hasReturnValue = returnType != null;
+  const body = hasReturnValue
+    ? `  const { returnValue } = await program.execute(args, foreignCallHandler);
+  return returnValue as ${returnType};`
+    : `  await program.execute(args, foreignCallHandler);`;
+
   return `${artifact}
 
-export async function ${name}(${args_with_types_joined_by_comma}): Promise<${function_signature.returnValue}> {
+export async function ${name}(${args_with_types_joined_by_comma}): Promise<${hasReturnValue ? returnType : 'void'}> {
   const program = new Noir(${name}_circuit);
   const args: InputMap = { ${args} };
-  const { returnValue } = await program.execute(args, foreignCallHandler);
-  return returnValue as ${function_signature.returnValue};
+${body}
 }
 `;
 };

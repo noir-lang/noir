@@ -72,6 +72,10 @@ pub enum PathResolutionError {
     UnresolvedMethodForType { typ: String, ident: Ident, available_impls: Vec<String> },
     #[error("Multiple applicable methods named `{ident}` in scope")]
     MultipleApplicableMethods { ident: Ident, impl_types: Vec<String> },
+    #[error("associated item `{ident}` not found for `{type_name}`")]
+    AssociatedItemNotImplemented { ident: Ident, type_name: String, traits: Vec<String> },
+    #[error("associated type `{ident}` cannot be accessed directly")]
+    AssociatedTypeNotAccessibleDirectly { ident: Ident, type_name: String, traits: Vec<String> },
 }
 
 impl PathResolutionError {
@@ -87,6 +91,8 @@ impl PathResolutionError {
             | PathResolutionError::MultipleApplicableImpls { ident, .. }
             | PathResolutionError::UnresolvedWithPossibleTraitsToImport { ident, .. }
             | PathResolutionError::MultipleApplicableMethods { ident, .. }
+            | PathResolutionError::AssociatedItemNotImplemented { ident, .. }
+            | PathResolutionError::AssociatedTypeNotAccessibleDirectly { ident, .. }
             | PathResolutionError::UnresolvedMethodForType { ident, .. } => ident.location(),
         }
     }
@@ -180,6 +186,36 @@ impl<'a> From<&'a PathResolutionError> for CustomDiagnostic {
                     ident.location(),
                 )
             }
+            PathResolutionError::AssociatedItemNotImplemented { ident, type_name, traits } => {
+                let mut traits = vecmap(traits, |trait_name| format!("`{trait_name}`"));
+                traits.sort();
+                let (noun, verb) =
+                    if traits.len() == 1 { ("trait", "is") } else { ("traits", "are") };
+                CustomDiagnostic::simple_error(
+                    error.to_string(),
+                    format!(
+                        "associated item `{ident}` is defined by {noun} {}, which {verb} not implemented for `{type_name}`",
+                        traits.join(", ")
+                    ),
+                    ident.location(),
+                )
+            }
+            PathResolutionError::AssociatedTypeNotAccessibleDirectly {
+                ident,
+                type_name,
+                traits,
+            } => {
+                let mut suggestions = vecmap(traits, |trait_name| {
+                    format!("`<{type_name} as {trait_name}>::{ident}`")
+                });
+                suggestions.sort();
+                let secondary = if suggestions.len() == 1 {
+                    format!("use the fully-qualified syntax {} instead", suggestions[0])
+                } else {
+                    format!("use a fully-qualified syntax such as {}", suggestions.join(" or "))
+                };
+                CustomDiagnostic::simple_error(error.to_string(), secondary, ident.location())
+            }
             PathResolutionError::UnresolvedMethodForType { typ: _, ident, available_impls } => {
                 let secondary = if available_impls.is_empty() {
                     String::new()
@@ -210,7 +246,7 @@ pub fn resolve_import(
         resolve_path_kind(path, importing_module, def_maps, references_tracker)?;
     let mut solver =
         ImportSolver::new(importing_module, def_maps, usage_tracker, references_tracker);
-    solver.resolve_name_in_module(path, module_id)
+    solver.resolve_name_in_module(&path, module_id)
 }
 
 fn path_to_typed_path(path: Path) -> TypedPath {
@@ -395,7 +431,7 @@ impl<'def_maps, 'usage_tracker, 'references_tracker>
     /// This is very similar to `Elaborator::resolve_name_in_module`.
     fn resolve_name_in_module(
         &mut self,
-        path: TypedPath,
+        path: &TypedPath,
         starting_module: ModuleId,
     ) -> ImportResolutionResult {
         // There is a possibility that the import path is empty. In that case, early return.
@@ -408,7 +444,7 @@ impl<'def_maps, 'usage_tracker, 'references_tracker>
         }
 
         let first_segment_is_always_visible =
-            first_segment_is_always_visible(&path, self.importing_module, starting_module);
+            first_segment_is_always_visible(path, self.importing_module, starting_module);
 
         // The current module and module ID as we resolve path segments
         let mut current_module_id = starting_module;
@@ -443,15 +479,23 @@ impl<'def_maps, 'usage_tracker, 'references_tracker>
                 None => {
                     return Err(PathResolutionError::Unresolved(last_ident.clone()));
                 }
-                Some((typ, visibility, _)) => (typ, visibility),
+                Some(scope) => (scope.id, scope.visibility),
             };
 
             self.add_reference(typ, last_segment.location, last_segment.ident.is_self_type_name());
 
-            // In the type namespace, only Mod can be used in a path.
+            // In the type namespace, only a module can be navigated through in a path. A type's
+            // associated items (methods, and for enums their variants) can't be imported through
+            // it, matching Rust: `use Type::method` is rejected. Such items remain reachable via a
+            // qualified path (`Type::method(..)`).
             current_module_id = match typ {
                 ModuleDefId::ModuleId(id) => id,
-                ModuleDefId::TypeId(id) => id.module_id(),
+                ModuleDefId::TypeId(..) => {
+                    return Err(PathResolutionError::NotAModule {
+                        ident: last_segment.ident.clone(),
+                        kind: "type",
+                    });
+                }
                 ModuleDefId::TypeAliasId(..) => {
                     return Err(PathResolutionError::NotAModule {
                         ident: last_segment.ident.clone(),
@@ -464,7 +508,12 @@ impl<'def_maps, 'usage_tracker, 'references_tracker>
                         kind: "associated type",
                     });
                 }
-                ModuleDefId::TraitId(id) => id.0,
+                ModuleDefId::TraitId(..) => {
+                    return Err(PathResolutionError::NotAModule {
+                        ident: last_segment.ident.clone(),
+                        kind: "trait",
+                    });
+                }
                 ModuleDefId::FunctionId(_) => panic!("functions cannot be in the type namespace"),
                 ModuleDefId::GlobalId(_) => panic!("globals cannot be in the type namespace"),
             };
@@ -500,23 +549,27 @@ impl<'def_maps, 'usage_tracker, 'references_tracker>
         // An import references whatever the leaf resolves to, which may occupy both namespaces
         // (e.g. a re-exported `struct N` and `fn N`), so mark each occupied namespace.
         let leaf_ident = &path.segments.last().unwrap().ident;
-        for (id, _, _) in current_ns.iter_items() {
-            self.usage_tracker.mark_as_referenced(current_module_id, leaf_ident, id.namespace());
+        for item in current_ns.iter_items() {
+            self.usage_tracker.mark_as_referenced(
+                current_module_id,
+                leaf_ident,
+                item.id.namespace(),
+            );
         }
 
-        let (module_def_id, _, _) =
-            current_ns.values.or(current_ns.types).expect("Found empty namespace");
+        let module_def_id =
+            current_ns.values.or(current_ns.types).expect("Found empty namespace").id;
 
         self.add_reference(module_def_id, path.segments.last().unwrap().ident.location(), false);
 
         // The final segment resolves to at most one item in the type namespace and one in the value
         // namespace. Evaluate the visibility of each occupied slot independently.
-        let type_item = current_ns
-            .types
-            .map(|(id, vis, _)| (id, self.item_in_module_is_visible(current_module_id, vis)));
-        let value_item = current_ns
-            .values
-            .map(|(id, vis, _)| (id, self.item_in_module_is_visible(current_module_id, vis)));
+        let type_item = current_ns.types.map(|scope| {
+            (scope.id, self.item_in_module_is_visible(current_module_id, scope.visibility))
+        });
+        let value_item = current_ns.values.map(|scope| {
+            (scope.id, self.item_in_module_is_visible(current_module_id, scope.visibility))
+        });
 
         let both_namespaces_occupied = type_item.is_some() && value_item.is_some();
         let any_visible = [type_item, value_item].into_iter().flatten().any(|(_, visible)| visible);

@@ -11,8 +11,9 @@ use crate::ast::{
 use crate::elaborator::TypedPath;
 use crate::elaborator::function_context::BindableTypeVariableKind;
 use crate::elaborator::path_resolution::PathResolutionItem;
+use crate::elaborator::path_resolution::TypedPathSegment;
 use crate::elaborator::patterns::{IdentFromPath, Variable};
-use crate::elaborator::types::{SELF_TYPE_NAME, TraitPathResolutionMethod, WildcardAllowed};
+use crate::elaborator::types::{SELF_TYPE_NAME, WildcardAllowed};
 use crate::hir::def_collector::dc_crate::CompilationError;
 use crate::hir::resolution::errors::ResolverError;
 use crate::hir::type_check::TypeCheckError;
@@ -21,16 +22,23 @@ use crate::hir_def::expr::{
 };
 use crate::node_interner::pusher::{HasLocation, PushedExpr};
 use crate::node_interner::{
-    DefinitionId, DefinitionInfo, DefinitionKind, ExprId, TraitImplKind, TypeAliasId,
+    DefinitionId, DefinitionInfo, DefinitionKind, ExprId, TraitImplId, TraitImplKind, TypeAliasId,
 };
 use crate::{Kind, Type, TypeBindings, TypeVariable, TypeVariableId};
 use iter_extended::{btree_map, vecmap};
 use noirc_errors::{Located, Location};
 
-/// The result of [`Elaborator::resolve_variable`].
+/// The result of [`Elaborator::resolve_variable`]: what a path used as an expression resolves
+/// to. See [`Elaborator::resolve_variable`] for the full, ordered list of the path forms each
+/// variant covers.
 #[allow(clippy::large_enum_variant)]
 pub(crate) enum VariableResolution {
-    /// The path resolved to a variable or a definition.
+    /// The path was elaborated straight to an expression. This happens for the `Self::*` forms
+    /// handled inside a trait impl: an associated constant, an associated-type method, or a
+    /// method when `Self` is a primitive type.
+    Expression(ExprId, Type),
+    /// The path resolved to a local variable, a definition (global, function, enum-variant
+    /// global), or a trait item (method or associated constant).
     Ident(HirIdent, Option<PathResolutionItem>),
     /// The path resolved to a type alias that is numeric, infinitely recursive or one that errored.
     TypeAlias(TypeAliasId),
@@ -67,11 +75,6 @@ impl Elaborator<'_> {
     #[tracing::instrument(level = "trace", skip_all)]
     fn elaborate_variable_inner(&mut self, variable: Path) -> (ExprId, Type, bool, Location) {
         let variable = self.validate_path(variable);
-        if let Some((expr_id, typ)) =
-            self.elaborate_variable_as_self_method_or_associated_constant(&variable)
-        {
-            return (expr_id, typ, false, variable.location);
-        }
 
         let resolved_turbofish = variable.segments.last().unwrap().generics.clone();
 
@@ -86,6 +89,7 @@ impl Elaborator<'_> {
         let variable_resolution = self.resolve_variable(variable);
 
         let (hir_ident, item) = match variable_resolution {
+            Some(VariableResolution::Expression(id, typ)) => return (id, typ, false, location),
             Some(VariableResolution::TypeAlias(type_alias_id)) => {
                 // A type alias to a numeric generics is considered like a variable,
                 // but it is not a real variable so it does not resolve to a valid Identifier.
@@ -375,70 +379,78 @@ impl Elaborator<'_> {
         }
     }
 
-    /// Checks whether `variable` is `Self::method_name`, `Self::AssociatedConstant`, or
-    /// `Self::AssociatedType::method_name` when we are inside a trait impl and `Self`
-    /// resolves to a primitive type.
+    /// Resolves the `Self::…` forms that only make sense inside a trait impl, where `Self` is a
+    /// concrete type with associated items. The segments *after* `Self` (the "rest") select the
+    /// form:
     ///
-    /// In the first case we elaborate this as if it were a [TypePath]
-    /// (for example, if `Self` is `u32` then we consider this the same as `u32::method_name`).
-    /// A regular path lookup won't work here for the same reason [TypePath] exists.
+    /// - `[AssociatedType, method]` — resolve the associated type, then elaborate the method on it.
+    /// - `[item]` — an associated constant (looked up for its value, later a literal), or, when
+    ///   `Self` is a primitive type, a method elaborated as if it were a [TypePath]
+    ///   (`u32::method_name`); a regular path lookup won't work, for the same reason [TypePath]
+    ///   exists.
     ///
-    /// In the second case we solve the associated constant by looking up its value, later
-    /// turning it into a literal.
-    ///
-    /// In the third case, we resolve the associated type first, then elaborate the method
-    /// call on that resolved type.
+    /// Returns `None` for any other shape (including a data-type `Self`, handled as a plain type
+    /// prefix), so the caller falls back to resolving `Self` as a type.
     #[tracing::instrument(level = "trace", skip_all)]
-    fn elaborate_variable_as_self_method_or_associated_constant(
+    pub(super) fn resolve_variable_as_self_method_or_associated_constant(
         &mut self,
         variable: &TypedPath,
+        self_type: Type,
+        trait_impl_id: TraitImplId,
     ) -> Option<(ExprId, Type)> {
-        // We need at least 2 segments and the first must be `Self`
-        if variable.segments.len() < 2 || !variable.segments[0].ident.is_self_type_name() {
-            return None;
-        }
-
-        let location = variable.location;
-        let name = variable.segments[1].ident.as_str();
-        let self_type = self.self_type.as_ref()?;
-        let trait_impl_id = &self.current_trait_impl?;
-
-        // Check for `Self::AssociatedType::method_name` (exactly 3 segments).
-        // Longer paths like `Self::AssocType::foo::bar` are not valid since associated types
-        // resolve to concrete types and you cannot chain further path segments after a method name.
-        if variable.segments.len() == 3 {
-            // Try to resolve the second segment as an associated type
-            if let Some(assoc_type) =
-                self.interner.find_associated_type_for_impl(*trait_impl_id, name).cloned()
-            {
-                let method_ident = variable.segments[2].ident.clone();
-                let typ_location = variable.segments[1].location;
-                // Extract already-resolved turbofish generics from the path segment
-                let resolved_generics = variable.segments[2].generics.as_ref().map(|generics| {
+        match &variable.segments[1..] {
+            [associated_type, method] => {
+                let associated_type = self
+                    .interner
+                    .find_associated_type_for_impl(trait_impl_id, associated_type.ident.as_str())
+                    .cloned()?;
+                // Extract already-resolved turbofish generics from the method segment.
+                let resolved_generics = method.generics.as_ref().map(|generics| {
                     generics.iter().map(|located| located.contents.clone()).collect()
                 });
-                return Some(self.elaborate_type_path_impl_with_resolved_generics(
-                    assoc_type,
-                    method_ident,
+                Some(self.elaborate_type_path_impl_with_resolved_generics(
+                    associated_type,
+                    &method.ident,
                     resolved_generics,
-                    typ_location,
-                ));
+                    variable.segments[1].location,
+                ))
             }
-            // If it's not an associated type, fall through to let regular path resolution handle it
-            return None;
+            [item] => self.elaborate_self_associated_constant_or_primitive_method(
+                &self_type,
+                trait_impl_id,
+                item,
+                variable.location,
+                variable.segments[0].location,
+            ),
+            _ => None,
         }
+    }
 
-        // Check the `Self::AssociatedConstant` case when inside a trait impl (2 segments)
+    /// The `Self::item` (single segment after `Self`) case of
+    /// [`Self::resolve_variable_as_self_method_or_associated_constant`]: an associated constant
+    /// (from the impl, or from the trait when the impl is missing it), or a method when `Self` is a
+    /// primitive type. A data-type `Self` returns `None` so it is resolved as a plain type prefix.
+    fn elaborate_self_associated_constant_or_primitive_method(
+        &mut self,
+        self_type: &Type,
+        trait_impl_id: TraitImplId,
+        item: &TypedPathSegment,
+        location: Location,
+        self_location: Location,
+    ) -> Option<(ExprId, Type)> {
+        let name = item.ident.as_str();
+
+        // The associated constant declared on the impl.
         if let Some((definition_id, numeric_type)) =
-            self.interner.get_trait_impl_associated_constant(*trait_impl_id, name).cloned()
+            self.interner.get_trait_impl_associated_constant(trait_impl_id, name).cloned()
         {
             return Some(self.intern_associated_constant(definition_id, numeric_type, location));
         }
 
-        // Check if the constant exists in the trait definition (even if impl is missing it).
-        // This prevents spurious "Could not resolve" errors inside trait methods when the impl is missing the constant,
-        // since the "missing associated constant" error is reported elsewhere.
-        if let Some(trait_impl) = self.interner.try_get_trait_implementation(*trait_impl_id) {
+        // The constant declared on the trait, even if the impl is missing it. This prevents a
+        // spurious "Could not resolve" inside trait methods; the "missing associated constant"
+        // error is reported elsewhere.
+        if let Some(trait_impl) = self.interner.try_get_trait_implementation(trait_impl_id) {
             let trait_id = trait_impl.borrow().trait_id;
             let trait_ = self.interner.get_trait(trait_id);
             if let Some(definition_id) = trait_.associated_constant_ids.get(name).copied() {
@@ -451,14 +463,12 @@ impl Elaborator<'_> {
             }
         }
 
-        // Check the `Self::method_name` case when `Self` is a primitive type (2 segments)
-        if matches!(self.self_type, Some(Type::DataType(..))) {
+        // A data-type `Self::method` is resolved as a plain type prefix, not here.
+        if matches!(self_type, Type::DataType(..)) {
             return None;
         }
 
-        let ident = variable.segments[1].ident.clone();
-        let typ_location = variable.segments[0].location;
-        Some(self.elaborate_type_path_impl(self_type.clone(), ident, None, typ_location))
+        Some(self.elaborate_type_path_impl(self_type.clone(), &item.ident, None, self_location))
     }
 
     /// Intern an identifier expression referring to an associated constant of the given type.
@@ -474,38 +484,29 @@ impl Elaborator<'_> {
         (id, numeric_type)
     }
 
-    /// Resolve a [`TypedPath`] to a [`HirIdent`] of either some trait method, or a local or global variable.
+    /// Resolve a [`TypedPath`] used as an expression to the item it names.
+    ///
+    /// A path with a prefix (more than one segment) names an item accessed *through* that prefix,
+    /// fully handled by [`Self::resolve_prefixed_variable`]. A single-segment path resolves in the
+    /// current scope (a local variable, or a value item — global, function, enum-variant global,
+    /// numeric type alias) via [`Self::resolve_unprefixed_variable`].
     #[tracing::instrument(level = "trace", skip_all)]
     fn resolve_variable(&mut self, path: TypedPath) -> Option<VariableResolution> {
-        if let Some(trait_path_resolution) = self.resolve_trait_generic_path(&path) {
-            self.push_errors(trait_path_resolution.errors);
-
-            return match trait_path_resolution.method {
-                TraitPathResolutionMethod::NotATraitMethod(func_id) => {
-                    let ident = HirIdent {
-                        location: path.location,
-                        id: self.interner.function_definition_id(func_id),
-                        impl_kind: ImplKind::NotATraitMethod,
-                    };
-                    Some(VariableResolution::Ident(ident, trait_path_resolution.item))
-                }
-
-                TraitPathResolutionMethod::TraitItem(item) => {
-                    let ident = HirIdent {
-                        location: path.location,
-                        id: item.definition,
-                        impl_kind: ImplKind::TraitItem(item),
-                    };
-                    Some(VariableResolution::Ident(ident, trait_path_resolution.item))
-                }
-
-                TraitPathResolutionMethod::MultipleTraitsInScope => {
-                    // An error has already been pushed, don't return an identifier
-                    None
-                }
-            };
+        if path.segments.len() > 1 {
+            self.resolve_prefixed_variable(path)
+        } else {
+            self.resolve_unprefixed_variable(path)
         }
+    }
 
+    /// Resolve an unprefixed (single-segment) path to a local variable, or to a value item it
+    /// names (global, function, enum-variant global, numeric type alias). The counterpart to
+    /// [`Self::resolve_prefixed_variable`]; a prefixed path's value fallback uses
+    /// [`Self::resolve_value_item`], which skips the local-variable lookup.
+    pub(super) fn resolve_unprefixed_variable(
+        &mut self,
+        path: TypedPath,
+    ) -> Option<VariableResolution> {
         // The location of variables or definitions we register (for LSP) must be that of the
         // path's last segment, as intermediate segments solve to other definitions.
         let location = path.last_ident().location();
@@ -514,8 +515,35 @@ impl Elaborator<'_> {
         // Otherwise, then it is referring to an Identifier
         // This lookup allows support of such statements: let x = foo::bar::SOME_GLOBAL + 10;
         // If the expression is a singular indent, we search the resolver's current scope as normal.
-        let ident_from_path = self.get_ident_from_path(path);
-        ident_from_path.map(|ident_from_path| match ident_from_path {
+        let ident_from_path = self.get_ident_from_path(path)?;
+        Some(self.variable_resolution_from_ident_from_path(ident_from_path, location))
+    }
+
+    /// Resolve a path's last segment as a value item (a global, function, enum-variant global,
+    /// trait constant, or numeric type alias). Unlike [`Self::resolve_unprefixed_variable`] this does
+    /// not look for a local variable, so it is the value fallback for a prefixed path: its last
+    /// segment is not a method or trait item, and a prefixed path can never name a local variable.
+    pub(super) fn resolve_value_item(&mut self, path: TypedPath) -> Option<VariableResolution> {
+        let location = path.last_ident().location();
+        match self.ident_from_value_item(path) {
+            Ok(ident_from_path) => {
+                Some(self.variable_resolution_from_ident_from_path(ident_from_path, location))
+            }
+            Err(error) => {
+                self.push_err(error);
+                None
+            }
+        }
+    }
+
+    /// Build the [`VariableResolution`] an already-resolved [`IdentFromPath`] denotes, registering
+    /// the reference (for LSP) along the way.
+    fn variable_resolution_from_ident_from_path(
+        &mut self,
+        ident_from_path: IdentFromPath,
+        location: Location,
+    ) -> VariableResolution {
+        match ident_from_path {
             IdentFromPath::Variable(variable) => {
                 self.handle_local_variable(&variable);
                 let hir_ident = HirIdent::non_trait_method(variable.ident.id, location);
@@ -527,7 +555,7 @@ impl Elaborator<'_> {
                 VariableResolution::Ident(hir_ident, Some(item))
             }
             IdentFromPath::TypeAlias(type_alias_id) => VariableResolution::TypeAlias(type_alias_id),
-        })
+        }
     }
 
     /// Solve any generics that are part of the path before the function, for example:
@@ -637,7 +665,7 @@ impl Elaborator<'_> {
         let turbofish = path.turbofish;
         let wildcard_allowed = WildcardAllowed::Yes;
         let typ = self.use_type(path.typ, wildcard_allowed);
-        self.elaborate_type_path_impl(typ, path.item, turbofish, typ_location)
+        self.elaborate_type_path_impl(typ, &path.item, turbofish, typ_location)
     }
 
     /// Variant of [`Self::elaborate_type_path_impl_inner`] that accepts unresolved generics.
@@ -645,7 +673,7 @@ impl Elaborator<'_> {
     fn elaborate_type_path_impl(
         &mut self,
         typ: Type,
-        ident: Ident,
+        ident: &Ident,
         turbofish: Option<GenericTypeArgs>,
         typ_location: Location,
     ) -> (ExprId, Type) {
@@ -681,7 +709,7 @@ impl Elaborator<'_> {
     fn elaborate_type_path_impl_with_resolved_generics(
         &mut self,
         typ: Type,
-        ident: Ident,
+        ident: &Ident,
         resolved_generics: Option<Vec<Type>>,
         typ_location: Location,
     ) -> (ExprId, Type) {

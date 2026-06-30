@@ -1,0 +1,6 @@
+[package]
+name = "loop_buffer_rotation_aliasing_regression"
+type = "bin"
+authors = [""]
+
+[dependencies]

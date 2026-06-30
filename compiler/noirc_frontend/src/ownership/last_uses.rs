@@ -359,8 +359,8 @@ impl LastUseContext {
         let mut any_has_break = saved_has_break;
 
         for case in &match_expr.cases {
-            self.seen = saved_seen.clone();
-            self.killed = saved_killed.clone();
+            self.seen.clone_from(&saved_seen);
+            self.killed.clone_from(&saved_killed);
             self.has_break = saved_has_break;
             for (argument, _) in &case.arguments {
                 self.declare_variable(*argument);
@@ -376,7 +376,7 @@ impl LastUseContext {
 
         if let Some(default_case) = &match_expr.default_case {
             self.seen = saved_seen;
-            self.killed = saved_killed.clone();
+            self.killed.clone_from(&saved_killed);
             self.has_break = saved_has_break;
             self.find_last_uses_in_expression(default_case);
             merged.extend(&self.seen);
@@ -480,9 +480,14 @@ impl LastUseContext {
                         self.pending_last_uses.entry(*local_id).or_default().extend(breakable);
                     }
                 }
-                // `x` does not appear in RHS: fresh value, safe to treat as killed — unless the
-                // RHS can break before committing, in which case the kill is not guaranteed.
-                None if !rhs_has_break => {
+                // A fresh value that does not mention x is independent each iteration, so x's
+                // prior in-loop uses can be moved — unless the RHS can break before committing,
+                // in which case the kill is not guaranteed. `local_occurs_in` also rejects
+                // mentions of x that an inner loop truncated from the pending uses checked above.
+                None if !rhs_has_break
+                    && rhs_cannot_alias(&assign.expression)
+                    && !local_occurs_in(*local_id, &assign.expression) =>
+                {
                     self.killed.insert(*local_id);
                 }
                 None => {}
@@ -530,6 +535,58 @@ impl LastUseContext {
             }
         }
     }
+}
+
+/// Returns `true` if assigning `expr` to a variable produces a value whose outer buffer
+/// identity cannot alias the buffer being moved out of that variable by the same assignment.
+///
+/// Only fresh allocations and scalar literals qualify. A fresh allocation gets a new outer
+/// reference count, so moving the variable's prior in-loop uses cannot recreate a refcount-1
+/// alias with the reassigned value. A place expression (`Ident`, `Index`, member access, …),
+/// call result, or block tail may evaluate to an existing buffer and is treated as aliasing.
+///
+/// Only the OUTER buffer matters here; inner-array aliasing inside `[a, b]` or `[arr; N]` is
+/// handled separately by clone insertion at element/index sites, so array, vector, and repeated
+/// literals are fresh at this level regardless of their element expressions.
+///
+/// This only rules out the value *being* an existing buffer, not side effects (e.g. an in-place
+/// write to an element) during its construction; the caller pairs it with `local_occurs_in`.
+fn rhs_cannot_alias(expr: &Expression) -> bool {
+    match expr {
+        Expression::Literal(literal) => matches!(
+            literal,
+            Literal::Array(_)
+                | Literal::Vector(_)
+                | Literal::Repeated { .. }
+                | Literal::Integer(..)
+                | Literal::Bool(_)
+                | Literal::Unit
+                | Literal::Str(_)
+        ),
+        // A cast cannot change buffer identity, so it is fresh iff its operand is.
+        Expression::Cast(cast) => rhs_cannot_alias(&cast.lhs),
+        _ => false,
+    }
+}
+
+/// Returns `true` if `local_id` occurs anywhere within `expr`, in value position (`x`, `x[i]`)
+/// or as the base of an assignment lvalue (`x[i] = ..`). Monomorphized `LocalId`s are unique,
+/// so any occurrence is a free occurrence.
+fn local_occurs_in(local_id: LocalId, expr: &Expression) -> bool {
+    let mut occurs = false;
+    crate::monomorphization::visitor::visit_expr_be(
+        expr,
+        &mut |_| (true, ()),
+        &mut |_, ()| {},
+        &mut |ident: &ast::Ident| {
+            if let Definition::Local(id) = ident.definition
+                && id == local_id
+            {
+                occurs = true;
+            }
+        },
+    );
+    occurs
 }
 
 /// Given an expression that is the operand of a reference (`&expr` or `&mut expr`),

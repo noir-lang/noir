@@ -57,7 +57,7 @@ impl Elaborator<'_> {
     pub(super) fn elaborate_pattern(
         &mut self,
         pattern: Pattern,
-        expected_type: Type,
+        expected_type: &Type,
         definition_kind: DefinitionKind,
         warn_if_unused: bool,
         warn_if_not_mutated: bool,
@@ -86,7 +86,7 @@ impl Elaborator<'_> {
     pub fn elaborate_pattern_and_store_ids(
         &mut self,
         pattern: Pattern,
-        expected_type: Type,
+        expected_type: &Type,
         definition_kind: DefinitionKind,
         created_ids: &mut Vec<HirIdent>,
         warn_if_unused: bool,
@@ -118,7 +118,7 @@ impl Elaborator<'_> {
     fn elaborate_pattern_mut(
         &mut self,
         pattern: Pattern,
-        expected_type: Type,
+        expected_type: &Type,
         definition: DefinitionKind,
         // Location of the `mut` keyword.
         mutable: Option<Location>,
@@ -168,7 +168,7 @@ impl Elaborator<'_> {
                         definition,
                     )
                 };
-                self.interner.push_definition_type(ident.id, expected_type);
+                self.interner.push_definition_type(ident.id, expected_type.clone());
                 new_definitions.push(ident.clone());
                 HirPattern::Identifier(ident)
             }
@@ -227,11 +227,10 @@ impl Elaborator<'_> {
                     });
                 }
 
+                let error = Type::Error;
                 let fields = vecmap(fields.into_iter().enumerate(), |(i, field)| {
-                    let field_type = field_types
-                        .as_ref()
-                        .and_then(|types| types.get(i).cloned())
-                        .unwrap_or(Type::Error);
+                    let field_type =
+                        field_types.as_ref().and_then(|types| types.get(i)).unwrap_or(&error);
                     self.elaborate_pattern_mut(
                         field,
                         field_type,
@@ -297,7 +296,7 @@ impl Elaborator<'_> {
         name: TypedPath,
         fields: Vec<(Ident, Pattern)>,
         location: Location,
-        expected_type: Type,
+        expected_type: &Type,
         definition: DefinitionKind,
         mutable: Option<Location>,
         new_definitions: &mut Vec<HirIdent>,
@@ -349,7 +348,7 @@ impl Elaborator<'_> {
 
         self.unify_or_type_mismatch_with_source(
             &actual_type,
-            &expected_type,
+            expected_type,
             Source::Assignment,
             location,
         );
@@ -361,7 +360,7 @@ impl Elaborator<'_> {
         let fields = self.resolve_constructor_pattern_fields(
             fields,
             location,
-            actual_type.clone(),
+            &actual_type,
             definition,
             mutable,
             new_definitions,
@@ -388,7 +387,7 @@ impl Elaborator<'_> {
         &mut self,
         fields: Vec<(Ident, Pattern)>,
         location: Location,
-        typ: Type,
+        typ: &Type,
         definition: DefinitionKind,
         mutable: Option<Location>,
         new_definitions: &mut Vec<HirIdent>,
@@ -397,7 +396,7 @@ impl Elaborator<'_> {
     ) -> Vec<(Ident, HirPattern)> {
         let mut ret = Vec::with_capacity(fields.len());
         let mut seen_fields = HashSet::default();
-        let Type::DataType(struct_type, _) = &typ else {
+        let Type::DataType(struct_type, _) = typ else {
             unreachable!("Should be validated as struct before getting here")
         };
         let mut unseen_fields = struct_type
@@ -411,7 +410,7 @@ impl Elaborator<'_> {
                 .unwrap_or((Type::Error, ItemVisibility::Public));
             let resolved = self.elaborate_pattern_mut(
                 pattern,
-                field_type,
+                &field_type,
                 definition.clone(),
                 mutable,
                 new_definitions,
@@ -421,38 +420,24 @@ impl Elaborator<'_> {
                 parameter_names_in_list,
             );
 
-            if unseen_fields.contains(&field) {
-                unseen_fields.remove(&field);
-                seen_fields.insert(field.clone());
-
+            if self.check_constructor_field(
+                &field,
+                &mut seen_fields,
+                &mut unseen_fields,
+                struct_type,
+            ) {
                 self.check_struct_field_visibility(
                     &struct_type.borrow(),
                     field.as_str(),
                     visibility,
                     field.location(),
                 );
-            } else if seen_fields.contains(&field) {
-                // duplicate field
-                self.push_err(ResolverError::DuplicateField { field: field.clone() });
-            } else {
-                // field not required by struct
-                self.push_err(ResolverError::NoSuchField {
-                    field: field.clone(),
-                    struct_definition: struct_type.borrow().name.clone(),
-                });
             }
 
             ret.push((field, resolved));
         }
 
-        if !unseen_fields.is_empty() {
-            self.push_err(ResolverError::MissingFields {
-                location,
-                missing_fields: unseen_fields.into_iter().map(|field| field.to_string()).collect(),
-                struct_definition: struct_type.borrow().name.clone(),
-            });
-        }
-
+        self.report_missing_fields(unseen_fields, location, struct_type);
         ret
     }
 
@@ -858,11 +843,8 @@ impl Elaborator<'_> {
             None => None,
         };
 
-        match self.lookup_item_as_value(path) {
-            Ok(ItemAsValue::Definition { id, item }) => Ok(IdentFromPath::Definition { id, item }),
-            Ok(ItemAsValue::TypeAlias(type_alias_id)) => {
-                Ok(IdentFromPath::TypeAlias(type_alias_id))
-            }
+        match self.ident_from_value_item(path) {
+            Ok(ident) => Ok(ident),
             Err(ResolverError::PathResolutionError(PathResolutionError::Unresolved(ident))) => {
                 // If we can't resolve a path, but we have an error from trying to resolve a variable
                 // (in which case the path was a single segment), prefer saying "variable not found"
@@ -887,5 +869,20 @@ impl Elaborator<'_> {
                 }
             }
         }
+    }
+
+    /// Resolve a [`TypedPath`] to the value item it names — a global, function, enum-variant
+    /// global, trait associated constant, or numeric type alias — as an [`IdentFromPath`]. Unlike
+    /// [`Self::get_ident_from_path_or_error`] this never tries a local variable, so it is what a
+    /// multi-segment path (which can never name a local variable) needs.
+    #[tracing::instrument(level = "trace", skip_all)]
+    pub(crate) fn ident_from_value_item(
+        &mut self,
+        path: TypedPath,
+    ) -> Result<IdentFromPath, ResolverError> {
+        self.lookup_item_as_value(path).map(|item| match item {
+            ItemAsValue::Definition { id, item } => IdentFromPath::Definition { id, item },
+            ItemAsValue::TypeAlias(type_alias_id) => IdentFromPath::TypeAlias(type_alias_id),
+        })
     }
 }

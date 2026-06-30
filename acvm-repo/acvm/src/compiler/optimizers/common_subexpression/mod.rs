@@ -640,7 +640,7 @@ mod tests {
             44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64,
         ];
         let mut brillig_side_effects = BTreeMap::new();
-        brillig_side_effects.insert(BrilligFunctionId(0), false);
+        brillig_side_effects.insert(BrilligFunctionId::new(0), false);
 
         let (_, _, opcode_count_stabilized) =
             transform_internal(acir, acir_opcode_positions, &brillig_side_effects, None);

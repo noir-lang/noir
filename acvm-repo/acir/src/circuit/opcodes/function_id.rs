@@ -7,9 +7,19 @@ use serde::{Deserialize, Serialize};
 #[derive(Serialize, Deserialize, MsgpackTagged)]
 #[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
 #[serde(transparent)]
-pub struct AcirFunctionId(pub u32);
+pub struct AcirFunctionId(u32);
 
 impl AcirFunctionId {
+    /// Creates an `AcirFunctionId` indexing into a [program][crate::circuit::Program]'s
+    /// table of ACIR functions by its raw index.
+    pub fn new(id: u32) -> Self {
+        AcirFunctionId(id)
+    }
+
+    pub fn as_u32(&self) -> u32 {
+        self.0
+    }
+
     pub fn as_usize(&self) -> usize {
         self.0 as usize
     }

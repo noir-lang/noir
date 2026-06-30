@@ -31,7 +31,24 @@ runs:
       with:
         run: timeout 240 npx -y playwright@${{ inputs.playwright-version }} install ${{ inputs.browsers }}
 
+    # GitHub-hosted Ubuntu runner images already ship Chromium's system
+    # libraries, so `install-deps` is only needed for engines like WebKit.
+    # Running it otherwise is a pure apt round-trip against the Azure-hosted
+    # Ubuntu mirrors — the slowest and flakiest part of this action — so skip it
+    # for chromium-only installs.
+    #
+    # Failures here are best-effort rather than fatal: this is `apt-get` under
+    # the hood, and mirror congestion is a persistent (not transient) condition,
+    # so the retry wrapper's "near-independent draw" assumption does not hold —
+    # all attempts in the same window hit the same slow mirror. A genuinely
+    # missing library surfaces loudly at browser-launch time anyway, whereas a
+    # congested mirror should not red the whole build, so we run once and warn.
     - name: Install Playwright system dependencies
-      uses: ./.github/actions/retry
-      with:
-        run: timeout 120 npx -y playwright@${{ inputs.playwright-version }} install-deps ${{ inputs.browsers }}
+      if: contains(inputs.browsers, 'webkit') || contains(inputs.browsers, 'firefox')
+      shell: bash
+      env:
+        PLAYWRIGHT_VERSION: ${{ inputs.playwright-version }}
+        BROWSERS: ${{ inputs.browsers }}
+      run: |
+        timeout 120 npx -y "playwright@${PLAYWRIGHT_VERSION}" install-deps ${BROWSERS} \
+          || echo "::warning::playwright install-deps failed; continuing (browser launch will fail later if a library is genuinely missing)"

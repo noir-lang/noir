@@ -445,7 +445,7 @@ mod tests {
                     data: vec![],
                 }),
                 Vec::new(),
-                Some(BrilligFunctionId(0)),
+                Some(BrilligFunctionId::new(0)),
             )),
             BTreeMap::from_iter([(
                 ErrorSelector::new(14514982005979867414),
@@ -458,7 +458,7 @@ mod tests {
                     "Attempted to shift by 4294958994 bits on a type of bit size 8".to_string(),
                 ),
                 Vec::new(),
-                Some(BrilligFunctionId(0)),
+                Some(BrilligFunctionId::new(0)),
             )),
             BTreeMap::from_iter([(
                 ErrorSelector::new(14514982005979867414),
@@ -490,7 +490,7 @@ mod tests {
                     data: vec![],
                 }),
                 Vec::new(),
-                Some(BrilligFunctionId(0)),
+                Some(BrilligFunctionId::new(0)),
             )),
             BTreeMap::from_iter([(
                 ErrorSelector::new(17370598246489328139),
@@ -508,7 +508,7 @@ mod tests {
                     ],
                 }),
                 Vec::new(),
-                Some(BrilligFunctionId(0)),
+                Some(BrilligFunctionId::new(0)),
             )),
             BTreeMap::new(),
         );
@@ -545,7 +545,7 @@ mod tests {
                     data: vec![],
                 }),
                 Vec::new(),
-                Some(BrilligFunctionId(0)),
+                Some(BrilligFunctionId::new(0)),
             )),
             BTreeMap::from_iter([(
                 ErrorSelector::new(14990209321349310352),
@@ -579,7 +579,7 @@ mod tests {
             nargo::NargoError::ExecutionError(ExecutionError::AssertionFailed(
                 ResolvedAssertionPayload::Raw(RawAssertionPayload { selector, data: plh_payload }),
                 Vec::new(),
-                Some(BrilligFunctionId(0)),
+                Some(BrilligFunctionId::new(0)),
             )),
             BTreeMap::from_iter([(selector, ErrorType::Dynamic(str_type))]),
         );
@@ -587,7 +587,7 @@ mod tests {
             nargo::NargoError::ExecutionError(ExecutionError::AssertionFailed(
                 ResolvedAssertionPayload::String("PLH".to_string()),
                 Vec::new(),
-                Some(BrilligFunctionId(0)),
+                Some(BrilligFunctionId::new(0)),
             )),
             BTreeMap::new(),
         );
