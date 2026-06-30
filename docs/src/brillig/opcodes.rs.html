@@ -266,9 +266,9 @@
 <a href=#266 id=266 data-nosnippet>266</a>    </span>U128,
 <a href=#267 id=267 data-nosnippet>267</a>}
 <a href=#268 id=268 data-nosnippet>268</a>
-<a href=#269 id=269 data-nosnippet>269</a><span class="kw">impl </span>From&lt;IntegerBitSize&gt; <span class="kw">for </span>u32 {
-<a href=#270 id=270 data-nosnippet>270</a>    <span class="kw">fn </span>from(bit_size: IntegerBitSize) -&gt; u32 {
-<a href=#271 id=271 data-nosnippet>271</a>        <span class="kw">match </span>bit_size {
+<a href=#269 id=269 data-nosnippet>269</a><span class="kw">impl </span>IntegerBitSize {
+<a href=#270 id=270 data-nosnippet>270</a>    <span class="kw">pub const fn </span>to_u32(<span class="self">self</span>) -&gt; u32 {
+<a href=#271 id=271 data-nosnippet>271</a>        <span class="kw">match </span><span class="self">self </span>{
 <a href=#272 id=272 data-nosnippet>272</a>            IntegerBitSize::U1 =&gt; <span class="number">1</span>,
 <a href=#273 id=273 data-nosnippet>273</a>            IntegerBitSize::U8 =&gt; <span class="number">8</span>,
 <a href=#274 id=274 data-nosnippet>274</a>            IntegerBitSize::U16 =&gt; <span class="number">16</span>,
@@ -279,697 +279,703 @@
 <a href=#279 id=279 data-nosnippet>279</a>    }
 <a href=#280 id=280 data-nosnippet>280</a>}
 <a href=#281 id=281 data-nosnippet>281</a>
-<a href=#282 id=282 data-nosnippet>282</a><span class="kw">impl </span>TryFrom&lt;u32&gt; <span class="kw">for </span>IntegerBitSize {
-<a href=#283 id=283 data-nosnippet>283</a>    <span class="kw">type </span>Error = <span class="kw-2">&amp;</span><span class="lifetime">'static </span>str;
-<a href=#284 id=284 data-nosnippet>284</a>
-<a href=#285 id=285 data-nosnippet>285</a>    <span class="kw">fn </span>try_from(value: u32) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>, <span class="self">Self</span>::Error&gt; {
-<a href=#286 id=286 data-nosnippet>286</a>        <span class="kw">match </span>value {
-<a href=#287 id=287 data-nosnippet>287</a>            <span class="number">1 </span>=&gt; <span class="prelude-val">Ok</span>(IntegerBitSize::U1),
-<a href=#288 id=288 data-nosnippet>288</a>            <span class="number">8 </span>=&gt; <span class="prelude-val">Ok</span>(IntegerBitSize::U8),
-<a href=#289 id=289 data-nosnippet>289</a>            <span class="number">16 </span>=&gt; <span class="prelude-val">Ok</span>(IntegerBitSize::U16),
-<a href=#290 id=290 data-nosnippet>290</a>            <span class="number">32 </span>=&gt; <span class="prelude-val">Ok</span>(IntegerBitSize::U32),
-<a href=#291 id=291 data-nosnippet>291</a>            <span class="number">64 </span>=&gt; <span class="prelude-val">Ok</span>(IntegerBitSize::U64),
-<a href=#292 id=292 data-nosnippet>292</a>            <span class="number">128 </span>=&gt; <span class="prelude-val">Ok</span>(IntegerBitSize::U128),
-<a href=#293 id=293 data-nosnippet>293</a>            <span class="kw">_ </span>=&gt; <span class="prelude-val">Err</span>(<span class="string">"Invalid bit size"</span>),
-<a href=#294 id=294 data-nosnippet>294</a>        }
-<a href=#295 id=295 data-nosnippet>295</a>    }
-<a href=#296 id=296 data-nosnippet>296</a>}
-<a href=#297 id=297 data-nosnippet>297</a>
-<a href=#298 id=298 data-nosnippet>298</a><span class="kw">impl </span>std::fmt::Display <span class="kw">for </span>IntegerBitSize {
-<a href=#299 id=299 data-nosnippet>299</a>    <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>std::fmt::Formatter) -&gt; std::fmt::Result {
-<a href=#300 id=300 data-nosnippet>300</a>        <span class="kw">match </span><span class="self">self </span>{
-<a href=#301 id=301 data-nosnippet>301</a>            IntegerBitSize::U1 =&gt; <span class="macro">write!</span>(f, <span class="string">"bool"</span>),
-<a href=#302 id=302 data-nosnippet>302</a>            IntegerBitSize::U8 =&gt; <span class="macro">write!</span>(f, <span class="string">"u8"</span>),
-<a href=#303 id=303 data-nosnippet>303</a>            IntegerBitSize::U16 =&gt; <span class="macro">write!</span>(f, <span class="string">"u16"</span>),
-<a href=#304 id=304 data-nosnippet>304</a>            IntegerBitSize::U32 =&gt; <span class="macro">write!</span>(f, <span class="string">"u32"</span>),
-<a href=#305 id=305 data-nosnippet>305</a>            IntegerBitSize::U64 =&gt; <span class="macro">write!</span>(f, <span class="string">"u64"</span>),
-<a href=#306 id=306 data-nosnippet>306</a>            IntegerBitSize::U128 =&gt; <span class="macro">write!</span>(f, <span class="string">"u128"</span>),
-<a href=#307 id=307 data-nosnippet>307</a>        }
-<a href=#308 id=308 data-nosnippet>308</a>    }
-<a href=#309 id=309 data-nosnippet>309</a>}
-<a href=#310 id=310 data-nosnippet>310</a>
-<a href=#311 id=311 data-nosnippet>311</a><span class="doccomment">/// Represents the bit size of values in Brillig.
-<a href=#312 id=312 data-nosnippet>312</a>///
-<a href=#313 id=313 data-nosnippet>313</a>/// Values can either be field elements (whose size depends on the field being used)
-<a href=#314 id=314 data-nosnippet>314</a>/// or fixed-size unsigned integers.
-<a href=#315 id=315 data-nosnippet>315</a></span><span class="attr">#[derive(Debug, Clone, PartialEq, Eq, Copy, PartialOrd, Ord, Hash)]
-<a href=#316 id=316 data-nosnippet>316</a>#[derive(Serialize, Deserialize, MsgpackTagged)]
-<a href=#317 id=317 data-nosnippet>317</a>#[cfg_attr(feature = <span class="string">"arb"</span>, derive(proptest_derive::Arbitrary))]
-<a href=#318 id=318 data-nosnippet>318</a></span><span class="kw">pub enum </span>BitSize {
-<a href=#319 id=319 data-nosnippet>319</a>    <span class="attr">#[tag(<span class="number">0</span>)]
-<a href=#320 id=320 data-nosnippet>320</a>    </span>Field,
-<a href=#321 id=321 data-nosnippet>321</a>    <span class="attr">#[tag(<span class="number">1</span>)]
-<a href=#322 id=322 data-nosnippet>322</a>    </span>Integer(IntegerBitSize),
-<a href=#323 id=323 data-nosnippet>323</a>}
-<a href=#324 id=324 data-nosnippet>324</a>
-<a href=#325 id=325 data-nosnippet>325</a><span class="kw">impl </span>BitSize {
-<a href=#326 id=326 data-nosnippet>326</a>    <span class="doccomment">/// Convert the bit size to a u32 value.
-<a href=#327 id=327 data-nosnippet>327</a>    ///
-<a href=#328 id=328 data-nosnippet>328</a>    /// For field elements, returns the maximum number of bits in the field.
-<a href=#329 id=329 data-nosnippet>329</a>    /// For integers, returns the bit size of the integer type.
-<a href=#330 id=330 data-nosnippet>330</a>    </span><span class="kw">pub fn </span>to_u32&lt;F: AcirField&gt;(<span class="self">self</span>) -&gt; u32 {
-<a href=#331 id=331 data-nosnippet>331</a>        <span class="kw">match </span><span class="self">self </span>{
-<a href=#332 id=332 data-nosnippet>332</a>            BitSize::Field =&gt; F::max_num_bits(),
-<a href=#333 id=333 data-nosnippet>333</a>            BitSize::Integer(bit_size) =&gt; bit_size.into(),
-<a href=#334 id=334 data-nosnippet>334</a>        }
-<a href=#335 id=335 data-nosnippet>335</a>    }
-<a href=#336 id=336 data-nosnippet>336</a>
-<a href=#337 id=337 data-nosnippet>337</a>    <span class="doccomment">/// Try to create a `BitSize` from a u32 value.
-<a href=#338 id=338 data-nosnippet>338</a>    ///
-<a href=#339 id=339 data-nosnippet>339</a>    /// If the value matches the field's maximum bit count, returns `BitSize::Field`.
-<a href=#340 id=340 data-nosnippet>340</a>    /// Otherwise, attempts to interpret it as an integer bit size.
-<a href=#341 id=341 data-nosnippet>341</a>    </span><span class="kw">pub fn </span>try_from_u32&lt;F: AcirField&gt;(value: u32) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>, <span class="kw-2">&amp;</span><span class="lifetime">'static </span>str&gt; {
-<a href=#342 id=342 data-nosnippet>342</a>        <span class="kw">if </span>value == F::max_num_bits() {
-<a href=#343 id=343 data-nosnippet>343</a>            <span class="prelude-val">Ok</span>(BitSize::Field)
-<a href=#344 id=344 data-nosnippet>344</a>        } <span class="kw">else </span>{
-<a href=#345 id=345 data-nosnippet>345</a>            <span class="prelude-val">Ok</span>(BitSize::Integer(IntegerBitSize::try_from(value)<span class="question-mark">?</span>))
-<a href=#346 id=346 data-nosnippet>346</a>        }
-<a href=#347 id=347 data-nosnippet>347</a>    }
-<a href=#348 id=348 data-nosnippet>348</a>}
-<a href=#349 id=349 data-nosnippet>349</a>
-<a href=#350 id=350 data-nosnippet>350</a><span class="kw">impl </span>std::fmt::Display <span class="kw">for </span>BitSize {
-<a href=#351 id=351 data-nosnippet>351</a>    <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>std::fmt::Formatter) -&gt; std::fmt::Result {
-<a href=#352 id=352 data-nosnippet>352</a>        <span class="kw">match </span><span class="self">self </span>{
-<a href=#353 id=353 data-nosnippet>353</a>            BitSize::Field =&gt; <span class="macro">write!</span>(f, <span class="string">"field"</span>),
-<a href=#354 id=354 data-nosnippet>354</a>            BitSize::Integer(bit_size) =&gt; <span class="macro">write!</span>(f, <span class="string">"{bit_size}"</span>),
-<a href=#355 id=355 data-nosnippet>355</a>        }
-<a href=#356 id=356 data-nosnippet>356</a>    }
-<a href=#357 id=357 data-nosnippet>357</a>}
-<a href=#358 id=358 data-nosnippet>358</a>
-<a href=#359 id=359 data-nosnippet>359</a><span class="doccomment">/// Lays out various ways an external foreign call's input and output data may be interpreted inside Brillig.
-<a href=#360 id=360 data-nosnippet>360</a>/// This data can either be an individual value or memory.
-<a href=#361 id=361 data-nosnippet>361</a>///
-<a href=#362 id=362 data-nosnippet>362</a>/// While we are usually agnostic to how memory is passed within Brillig,
-<a href=#363 id=363 data-nosnippet>363</a>/// this needs to be encoded somehow when dealing with an external system.
-<a href=#364 id=364 data-nosnippet>364</a>/// For simplicity, the extra type information is given right in the `ForeignCall` instructions.
-<a href=#365 id=365 data-nosnippet>365</a></span><span class="attr">#[derive(Debug, Clone, PartialEq, Eq, Copy, Hash)]
-<a href=#366 id=366 data-nosnippet>366</a>#[derive(Serialize, Deserialize, MsgpackTagged)]
-<a href=#367 id=367 data-nosnippet>367</a>#[cfg_attr(feature = <span class="string">"arb"</span>, derive(proptest_derive::Arbitrary))]
-<a href=#368 id=368 data-nosnippet>368</a></span><span class="kw">pub enum </span>ValueOrArray {
-<a href=#369 id=369 data-nosnippet>369</a>    <span class="doccomment">/// A single value to be passed to or from an external call.
-<a href=#370 id=370 data-nosnippet>370</a>    /// It is an 'immediate' value - used without dereferencing.
-<a href=#371 id=371 data-nosnippet>371</a>    /// For a foreign call input, the value is read directly from memory.
-<a href=#372 id=372 data-nosnippet>372</a>    /// For a foreign call output, the value is written directly to memory.
-<a href=#373 id=373 data-nosnippet>373</a>    </span><span class="attr">#[tag(<span class="number">0</span>)]
-<a href=#374 id=374 data-nosnippet>374</a>    </span>MemoryAddress(MemoryAddress),
-<a href=#375 id=375 data-nosnippet>375</a>    <span class="doccomment">/// An array to be passed to or from an external call.
-<a href=#376 id=376 data-nosnippet>376</a>    /// In the case of a foreign call input, the array is read from this Brillig memory location + `size` more cells.
-<a href=#377 id=377 data-nosnippet>377</a>    /// In the case of a foreign call output, the array is written to this Brillig memory location with the `size` being here just as a sanity check for the write size.
-<a href=#378 id=378 data-nosnippet>378</a>    </span><span class="attr">#[tag(<span class="number">1</span>)]
-<a href=#379 id=379 data-nosnippet>379</a>    </span>HeapArray(HeapArray),
-<a href=#380 id=380 data-nosnippet>380</a>    <span class="doccomment">/// A vector to be passed to or from an external call.
-<a href=#381 id=381 data-nosnippet>381</a>    /// In the case of a foreign call input, the vector is read from this Brillig memory location + as many cells as the second address indicates.
-<a href=#382 id=382 data-nosnippet>382</a>    /// In the case of a foreign call output, the vector is written to this Brillig memory location as 'size' cells, with size being stored in the second address.
-<a href=#383 id=383 data-nosnippet>383</a>    </span><span class="attr">#[tag(<span class="number">2</span>)]
-<a href=#384 id=384 data-nosnippet>384</a>    </span>HeapVector(HeapVector),
-<a href=#385 id=385 data-nosnippet>385</a>}
-<a href=#386 id=386 data-nosnippet>386</a>
-<a href=#387 id=387 data-nosnippet>387</a><span class="kw">impl </span>std::fmt::Display <span class="kw">for </span>ValueOrArray {
-<a href=#388 id=388 data-nosnippet>388</a>    <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>std::fmt::Formatter&lt;<span class="lifetime">'_</span>&gt;) -&gt; std::fmt::Result {
-<a href=#389 id=389 data-nosnippet>389</a>        <span class="kw">match </span><span class="self">self </span>{
-<a href=#390 id=390 data-nosnippet>390</a>            ValueOrArray::MemoryAddress(memory_address) =&gt; {
-<a href=#391 id=391 data-nosnippet>391</a>                <span class="macro">write!</span>(f, <span class="string">"{memory_address}"</span>)
-<a href=#392 id=392 data-nosnippet>392</a>            }
-<a href=#393 id=393 data-nosnippet>393</a>            ValueOrArray::HeapArray(heap_array) =&gt; {
-<a href=#394 id=394 data-nosnippet>394</a>                <span class="macro">write!</span>(f, <span class="string">"{heap_array}"</span>)
-<a href=#395 id=395 data-nosnippet>395</a>            }
-<a href=#396 id=396 data-nosnippet>396</a>            ValueOrArray::HeapVector(heap_vector) =&gt; {
-<a href=#397 id=397 data-nosnippet>397</a>                <span class="macro">write!</span>(f, <span class="string">"{heap_vector}"</span>)
+<a href=#282 id=282 data-nosnippet>282</a><span class="kw">impl </span>From&lt;IntegerBitSize&gt; <span class="kw">for </span>u32 {
+<a href=#283 id=283 data-nosnippet>283</a>    <span class="kw">fn </span>from(bit_size: IntegerBitSize) -&gt; u32 {
+<a href=#284 id=284 data-nosnippet>284</a>        bit_size.to_u32()
+<a href=#285 id=285 data-nosnippet>285</a>    }
+<a href=#286 id=286 data-nosnippet>286</a>}
+<a href=#287 id=287 data-nosnippet>287</a>
+<a href=#288 id=288 data-nosnippet>288</a><span class="kw">impl </span>TryFrom&lt;u32&gt; <span class="kw">for </span>IntegerBitSize {
+<a href=#289 id=289 data-nosnippet>289</a>    <span class="kw">type </span>Error = <span class="kw-2">&amp;</span><span class="lifetime">'static </span>str;
+<a href=#290 id=290 data-nosnippet>290</a>
+<a href=#291 id=291 data-nosnippet>291</a>    <span class="kw">fn </span>try_from(value: u32) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>, <span class="self">Self</span>::Error&gt; {
+<a href=#292 id=292 data-nosnippet>292</a>        <span class="kw">match </span>value {
+<a href=#293 id=293 data-nosnippet>293</a>            <span class="number">1 </span>=&gt; <span class="prelude-val">Ok</span>(IntegerBitSize::U1),
+<a href=#294 id=294 data-nosnippet>294</a>            <span class="number">8 </span>=&gt; <span class="prelude-val">Ok</span>(IntegerBitSize::U8),
+<a href=#295 id=295 data-nosnippet>295</a>            <span class="number">16 </span>=&gt; <span class="prelude-val">Ok</span>(IntegerBitSize::U16),
+<a href=#296 id=296 data-nosnippet>296</a>            <span class="number">32 </span>=&gt; <span class="prelude-val">Ok</span>(IntegerBitSize::U32),
+<a href=#297 id=297 data-nosnippet>297</a>            <span class="number">64 </span>=&gt; <span class="prelude-val">Ok</span>(IntegerBitSize::U64),
+<a href=#298 id=298 data-nosnippet>298</a>            <span class="number">128 </span>=&gt; <span class="prelude-val">Ok</span>(IntegerBitSize::U128),
+<a href=#299 id=299 data-nosnippet>299</a>            <span class="kw">_ </span>=&gt; <span class="prelude-val">Err</span>(<span class="string">"Invalid bit size"</span>),
+<a href=#300 id=300 data-nosnippet>300</a>        }
+<a href=#301 id=301 data-nosnippet>301</a>    }
+<a href=#302 id=302 data-nosnippet>302</a>}
+<a href=#303 id=303 data-nosnippet>303</a>
+<a href=#304 id=304 data-nosnippet>304</a><span class="kw">impl </span>std::fmt::Display <span class="kw">for </span>IntegerBitSize {
+<a href=#305 id=305 data-nosnippet>305</a>    <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>std::fmt::Formatter) -&gt; std::fmt::Result {
+<a href=#306 id=306 data-nosnippet>306</a>        <span class="kw">match </span><span class="self">self </span>{
+<a href=#307 id=307 data-nosnippet>307</a>            IntegerBitSize::U1 =&gt; <span class="macro">write!</span>(f, <span class="string">"bool"</span>),
+<a href=#308 id=308 data-nosnippet>308</a>            IntegerBitSize::U8 =&gt; <span class="macro">write!</span>(f, <span class="string">"u8"</span>),
+<a href=#309 id=309 data-nosnippet>309</a>            IntegerBitSize::U16 =&gt; <span class="macro">write!</span>(f, <span class="string">"u16"</span>),
+<a href=#310 id=310 data-nosnippet>310</a>            IntegerBitSize::U32 =&gt; <span class="macro">write!</span>(f, <span class="string">"u32"</span>),
+<a href=#311 id=311 data-nosnippet>311</a>            IntegerBitSize::U64 =&gt; <span class="macro">write!</span>(f, <span class="string">"u64"</span>),
+<a href=#312 id=312 data-nosnippet>312</a>            IntegerBitSize::U128 =&gt; <span class="macro">write!</span>(f, <span class="string">"u128"</span>),
+<a href=#313 id=313 data-nosnippet>313</a>        }
+<a href=#314 id=314 data-nosnippet>314</a>    }
+<a href=#315 id=315 data-nosnippet>315</a>}
+<a href=#316 id=316 data-nosnippet>316</a>
+<a href=#317 id=317 data-nosnippet>317</a><span class="doccomment">/// Represents the bit size of values in Brillig.
+<a href=#318 id=318 data-nosnippet>318</a>///
+<a href=#319 id=319 data-nosnippet>319</a>/// Values can either be field elements (whose size depends on the field being used)
+<a href=#320 id=320 data-nosnippet>320</a>/// or fixed-size unsigned integers.
+<a href=#321 id=321 data-nosnippet>321</a></span><span class="attr">#[derive(Debug, Clone, PartialEq, Eq, Copy, PartialOrd, Ord, Hash)]
+<a href=#322 id=322 data-nosnippet>322</a>#[derive(Serialize, Deserialize, MsgpackTagged)]
+<a href=#323 id=323 data-nosnippet>323</a>#[cfg_attr(feature = <span class="string">"arb"</span>, derive(proptest_derive::Arbitrary))]
+<a href=#324 id=324 data-nosnippet>324</a></span><span class="kw">pub enum </span>BitSize {
+<a href=#325 id=325 data-nosnippet>325</a>    <span class="attr">#[tag(<span class="number">0</span>)]
+<a href=#326 id=326 data-nosnippet>326</a>    </span>Field,
+<a href=#327 id=327 data-nosnippet>327</a>    <span class="attr">#[tag(<span class="number">1</span>)]
+<a href=#328 id=328 data-nosnippet>328</a>    </span>Integer(IntegerBitSize),
+<a href=#329 id=329 data-nosnippet>329</a>}
+<a href=#330 id=330 data-nosnippet>330</a>
+<a href=#331 id=331 data-nosnippet>331</a><span class="kw">impl </span>BitSize {
+<a href=#332 id=332 data-nosnippet>332</a>    <span class="doccomment">/// Convert the bit size to a u32 value.
+<a href=#333 id=333 data-nosnippet>333</a>    ///
+<a href=#334 id=334 data-nosnippet>334</a>    /// For field elements, returns the maximum number of bits in the field.
+<a href=#335 id=335 data-nosnippet>335</a>    /// For integers, returns the bit size of the integer type.
+<a href=#336 id=336 data-nosnippet>336</a>    </span><span class="kw">pub fn </span>to_u32&lt;F: AcirField&gt;(<span class="self">self</span>) -&gt; u32 {
+<a href=#337 id=337 data-nosnippet>337</a>        <span class="kw">match </span><span class="self">self </span>{
+<a href=#338 id=338 data-nosnippet>338</a>            BitSize::Field =&gt; F::max_num_bits(),
+<a href=#339 id=339 data-nosnippet>339</a>            BitSize::Integer(bit_size) =&gt; bit_size.into(),
+<a href=#340 id=340 data-nosnippet>340</a>        }
+<a href=#341 id=341 data-nosnippet>341</a>    }
+<a href=#342 id=342 data-nosnippet>342</a>
+<a href=#343 id=343 data-nosnippet>343</a>    <span class="doccomment">/// Try to create a `BitSize` from a u32 value.
+<a href=#344 id=344 data-nosnippet>344</a>    ///
+<a href=#345 id=345 data-nosnippet>345</a>    /// If the value matches the field's maximum bit count, returns `BitSize::Field`.
+<a href=#346 id=346 data-nosnippet>346</a>    /// Otherwise, attempts to interpret it as an integer bit size.
+<a href=#347 id=347 data-nosnippet>347</a>    </span><span class="kw">pub fn </span>try_from_u32&lt;F: AcirField&gt;(value: u32) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>, <span class="kw-2">&amp;</span><span class="lifetime">'static </span>str&gt; {
+<a href=#348 id=348 data-nosnippet>348</a>        <span class="kw">if </span>value == F::max_num_bits() {
+<a href=#349 id=349 data-nosnippet>349</a>            <span class="prelude-val">Ok</span>(BitSize::Field)
+<a href=#350 id=350 data-nosnippet>350</a>        } <span class="kw">else </span>{
+<a href=#351 id=351 data-nosnippet>351</a>            <span class="prelude-val">Ok</span>(BitSize::Integer(IntegerBitSize::try_from(value)<span class="question-mark">?</span>))
+<a href=#352 id=352 data-nosnippet>352</a>        }
+<a href=#353 id=353 data-nosnippet>353</a>    }
+<a href=#354 id=354 data-nosnippet>354</a>}
+<a href=#355 id=355 data-nosnippet>355</a>
+<a href=#356 id=356 data-nosnippet>356</a><span class="kw">impl </span>std::fmt::Display <span class="kw">for </span>BitSize {
+<a href=#357 id=357 data-nosnippet>357</a>    <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>std::fmt::Formatter) -&gt; std::fmt::Result {
+<a href=#358 id=358 data-nosnippet>358</a>        <span class="kw">match </span><span class="self">self </span>{
+<a href=#359 id=359 data-nosnippet>359</a>            BitSize::Field =&gt; <span class="macro">write!</span>(f, <span class="string">"field"</span>),
+<a href=#360 id=360 data-nosnippet>360</a>            BitSize::Integer(bit_size) =&gt; <span class="macro">write!</span>(f, <span class="string">"{bit_size}"</span>),
+<a href=#361 id=361 data-nosnippet>361</a>        }
+<a href=#362 id=362 data-nosnippet>362</a>    }
+<a href=#363 id=363 data-nosnippet>363</a>}
+<a href=#364 id=364 data-nosnippet>364</a>
+<a href=#365 id=365 data-nosnippet>365</a><span class="doccomment">/// Lays out various ways an external foreign call's input and output data may be interpreted inside Brillig.
+<a href=#366 id=366 data-nosnippet>366</a>/// This data can either be an individual value or memory.
+<a href=#367 id=367 data-nosnippet>367</a>///
+<a href=#368 id=368 data-nosnippet>368</a>/// While we are usually agnostic to how memory is passed within Brillig,
+<a href=#369 id=369 data-nosnippet>369</a>/// this needs to be encoded somehow when dealing with an external system.
+<a href=#370 id=370 data-nosnippet>370</a>/// For simplicity, the extra type information is given right in the `ForeignCall` instructions.
+<a href=#371 id=371 data-nosnippet>371</a></span><span class="attr">#[derive(Debug, Clone, PartialEq, Eq, Copy, Hash)]
+<a href=#372 id=372 data-nosnippet>372</a>#[derive(Serialize, Deserialize, MsgpackTagged)]
+<a href=#373 id=373 data-nosnippet>373</a>#[cfg_attr(feature = <span class="string">"arb"</span>, derive(proptest_derive::Arbitrary))]
+<a href=#374 id=374 data-nosnippet>374</a></span><span class="kw">pub enum </span>ValueOrArray {
+<a href=#375 id=375 data-nosnippet>375</a>    <span class="doccomment">/// A single value to be passed to or from an external call.
+<a href=#376 id=376 data-nosnippet>376</a>    /// It is an 'immediate' value - used without dereferencing.
+<a href=#377 id=377 data-nosnippet>377</a>    /// For a foreign call input, the value is read directly from memory.
+<a href=#378 id=378 data-nosnippet>378</a>    /// For a foreign call output, the value is written directly to memory.
+<a href=#379 id=379 data-nosnippet>379</a>    </span><span class="attr">#[tag(<span class="number">0</span>)]
+<a href=#380 id=380 data-nosnippet>380</a>    </span>MemoryAddress(MemoryAddress),
+<a href=#381 id=381 data-nosnippet>381</a>    <span class="doccomment">/// An array to be passed to or from an external call.
+<a href=#382 id=382 data-nosnippet>382</a>    /// In the case of a foreign call input, the array is read from this Brillig memory location + `size` more cells.
+<a href=#383 id=383 data-nosnippet>383</a>    /// In the case of a foreign call output, the array is written to this Brillig memory location with the `size` being here just as a sanity check for the write size.
+<a href=#384 id=384 data-nosnippet>384</a>    </span><span class="attr">#[tag(<span class="number">1</span>)]
+<a href=#385 id=385 data-nosnippet>385</a>    </span>HeapArray(HeapArray),
+<a href=#386 id=386 data-nosnippet>386</a>    <span class="doccomment">/// A vector to be passed to or from an external call.
+<a href=#387 id=387 data-nosnippet>387</a>    /// In the case of a foreign call input, the vector is read from this Brillig memory location + as many cells as the second address indicates.
+<a href=#388 id=388 data-nosnippet>388</a>    /// In the case of a foreign call output, the vector is written to this Brillig memory location as 'size' cells, with size being stored in the second address.
+<a href=#389 id=389 data-nosnippet>389</a>    </span><span class="attr">#[tag(<span class="number">2</span>)]
+<a href=#390 id=390 data-nosnippet>390</a>    </span>HeapVector(HeapVector),
+<a href=#391 id=391 data-nosnippet>391</a>}
+<a href=#392 id=392 data-nosnippet>392</a>
+<a href=#393 id=393 data-nosnippet>393</a><span class="kw">impl </span>std::fmt::Display <span class="kw">for </span>ValueOrArray {
+<a href=#394 id=394 data-nosnippet>394</a>    <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>std::fmt::Formatter&lt;<span class="lifetime">'_</span>&gt;) -&gt; std::fmt::Result {
+<a href=#395 id=395 data-nosnippet>395</a>        <span class="kw">match </span><span class="self">self </span>{
+<a href=#396 id=396 data-nosnippet>396</a>            ValueOrArray::MemoryAddress(memory_address) =&gt; {
+<a href=#397 id=397 data-nosnippet>397</a>                <span class="macro">write!</span>(f, <span class="string">"{memory_address}"</span>)
 <a href=#398 id=398 data-nosnippet>398</a>            }
-<a href=#399 id=399 data-nosnippet>399</a>        }
-<a href=#400 id=400 data-nosnippet>400</a>    }
-<a href=#401 id=401 data-nosnippet>401</a>}
-<a href=#402 id=402 data-nosnippet>402</a>
-<a href=#403 id=403 data-nosnippet>403</a><span class="attr">#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-<a href=#404 id=404 data-nosnippet>404</a>#[derive(Serialize, Deserialize, MsgpackTagged)]
-<a href=#405 id=405 data-nosnippet>405</a>#[cfg_attr(feature = <span class="string">"arb"</span>, derive(proptest_derive::Arbitrary))]
-<a href=#406 id=406 data-nosnippet>406</a></span><span class="kw">pub enum </span>BrilligOpcode&lt;F&gt; {
-<a href=#407 id=407 data-nosnippet>407</a>    <span class="doccomment">/// Takes the fields in addresses `lhs` and `rhs`,
-<a href=#408 id=408 data-nosnippet>408</a>    /// performs the specified binary operation,
-<a href=#409 id=409 data-nosnippet>409</a>    /// and stores the value in the `destination` address.
-<a href=#410 id=410 data-nosnippet>410</a>    </span><span class="attr">#[tag(<span class="number">0</span>)]
-<a href=#411 id=411 data-nosnippet>411</a>    </span>BinaryFieldOp {
-<a href=#412 id=412 data-nosnippet>412</a>        <span class="attr">#[tag(<span class="number">0</span>)]
-<a href=#413 id=413 data-nosnippet>413</a>        </span>destination: MemoryAddress,
-<a href=#414 id=414 data-nosnippet>414</a>        <span class="attr">#[tag(<span class="number">1</span>)]
-<a href=#415 id=415 data-nosnippet>415</a>        </span>op: BinaryFieldOp,
-<a href=#416 id=416 data-nosnippet>416</a>        <span class="attr">#[tag(<span class="number">2</span>)]
-<a href=#417 id=417 data-nosnippet>417</a>        </span>lhs: MemoryAddress,
-<a href=#418 id=418 data-nosnippet>418</a>        <span class="attr">#[tag(<span class="number">3</span>)]
-<a href=#419 id=419 data-nosnippet>419</a>        </span>rhs: MemoryAddress,
-<a href=#420 id=420 data-nosnippet>420</a>    },
-<a href=#421 id=421 data-nosnippet>421</a>    <span class="doccomment">/// Takes the `bit_size` size integers in addresses `lhs` and `rhs`,
-<a href=#422 id=422 data-nosnippet>422</a>    /// performs the specified binary operation,
-<a href=#423 id=423 data-nosnippet>423</a>    /// and stores the value in the `destination` address.
-<a href=#424 id=424 data-nosnippet>424</a>    </span><span class="attr">#[tag(<span class="number">1</span>)]
-<a href=#425 id=425 data-nosnippet>425</a>    </span>BinaryIntOp {
-<a href=#426 id=426 data-nosnippet>426</a>        <span class="attr">#[tag(<span class="number">0</span>)]
-<a href=#427 id=427 data-nosnippet>427</a>        </span>destination: MemoryAddress,
-<a href=#428 id=428 data-nosnippet>428</a>        <span class="attr">#[tag(<span class="number">1</span>)]
-<a href=#429 id=429 data-nosnippet>429</a>        </span>op: BinaryIntOp,
-<a href=#430 id=430 data-nosnippet>430</a>        <span class="attr">#[tag(<span class="number">2</span>)]
-<a href=#431 id=431 data-nosnippet>431</a>        </span>bit_size: IntegerBitSize,
-<a href=#432 id=432 data-nosnippet>432</a>        <span class="attr">#[tag(<span class="number">3</span>)]
-<a href=#433 id=433 data-nosnippet>433</a>        </span>lhs: MemoryAddress,
-<a href=#434 id=434 data-nosnippet>434</a>        <span class="attr">#[tag(<span class="number">4</span>)]
-<a href=#435 id=435 data-nosnippet>435</a>        </span>rhs: MemoryAddress,
-<a href=#436 id=436 data-nosnippet>436</a>    },
-<a href=#437 id=437 data-nosnippet>437</a>    <span class="doccomment">/// Takes the value from the `source` address, inverts it,
-<a href=#438 id=438 data-nosnippet>438</a>    /// and stores the value in the `destination` address.
-<a href=#439 id=439 data-nosnippet>439</a>    </span><span class="attr">#[tag(<span class="number">2</span>)]
-<a href=#440 id=440 data-nosnippet>440</a>    </span>Not {
-<a href=#441 id=441 data-nosnippet>441</a>        <span class="attr">#[tag(<span class="number">0</span>)]
-<a href=#442 id=442 data-nosnippet>442</a>        </span>destination: MemoryAddress,
-<a href=#443 id=443 data-nosnippet>443</a>        <span class="attr">#[tag(<span class="number">1</span>)]
-<a href=#444 id=444 data-nosnippet>444</a>        </span>source: MemoryAddress,
-<a href=#445 id=445 data-nosnippet>445</a>        <span class="attr">#[tag(<span class="number">2</span>)]
-<a href=#446 id=446 data-nosnippet>446</a>        </span>bit_size: IntegerBitSize,
-<a href=#447 id=447 data-nosnippet>447</a>    },
-<a href=#448 id=448 data-nosnippet>448</a>    <span class="doccomment">/// Takes the value from the `source` address,
-<a href=#449 id=449 data-nosnippet>449</a>    /// casts it into the type indicated by `bit_size`,
-<a href=#450 id=450 data-nosnippet>450</a>    /// and stores the value in the `destination` address.
-<a href=#451 id=451 data-nosnippet>451</a>    </span><span class="attr">#[tag(<span class="number">3</span>)]
-<a href=#452 id=452 data-nosnippet>452</a>    </span>Cast {
-<a href=#453 id=453 data-nosnippet>453</a>        <span class="attr">#[tag(<span class="number">0</span>)]
-<a href=#454 id=454 data-nosnippet>454</a>        </span>destination: MemoryAddress,
-<a href=#455 id=455 data-nosnippet>455</a>        <span class="attr">#[tag(<span class="number">1</span>)]
-<a href=#456 id=456 data-nosnippet>456</a>        </span>source: MemoryAddress,
-<a href=#457 id=457 data-nosnippet>457</a>        <span class="attr">#[tag(<span class="number">2</span>)]
-<a href=#458 id=458 data-nosnippet>458</a>        </span>bit_size: BitSize,
-<a href=#459 id=459 data-nosnippet>459</a>    },
-<a href=#460 id=460 data-nosnippet>460</a>    <span class="doccomment">/// Sets the program counter to the value of `location`
-<a href=#461 id=461 data-nosnippet>461</a>    /// if the value at `condition` is non-zero.
-<a href=#462 id=462 data-nosnippet>462</a>    </span><span class="attr">#[tag(<span class="number">4</span>)]
-<a href=#463 id=463 data-nosnippet>463</a>    </span>JumpIf {
-<a href=#464 id=464 data-nosnippet>464</a>        <span class="attr">#[tag(<span class="number">0</span>)]
-<a href=#465 id=465 data-nosnippet>465</a>        </span>condition: MemoryAddress,
-<a href=#466 id=466 data-nosnippet>466</a>        <span class="attr">#[tag(<span class="number">1</span>)]
-<a href=#467 id=467 data-nosnippet>467</a>        </span>location: Label,
-<a href=#468 id=468 data-nosnippet>468</a>    },
-<a href=#469 id=469 data-nosnippet>469</a>    <span class="doccomment">/// Sets the program counter to the value of `location`.
-<a href=#470 id=470 data-nosnippet>470</a>    </span><span class="attr">#[tag(<span class="number">5</span>)]
-<a href=#471 id=471 data-nosnippet>471</a>    </span>Jump {
-<a href=#472 id=472 data-nosnippet>472</a>        <span class="attr">#[tag(<span class="number">0</span>)]
+<a href=#399 id=399 data-nosnippet>399</a>            ValueOrArray::HeapArray(heap_array) =&gt; {
+<a href=#400 id=400 data-nosnippet>400</a>                <span class="macro">write!</span>(f, <span class="string">"{heap_array}"</span>)
+<a href=#401 id=401 data-nosnippet>401</a>            }
+<a href=#402 id=402 data-nosnippet>402</a>            ValueOrArray::HeapVector(heap_vector) =&gt; {
+<a href=#403 id=403 data-nosnippet>403</a>                <span class="macro">write!</span>(f, <span class="string">"{heap_vector}"</span>)
+<a href=#404 id=404 data-nosnippet>404</a>            }
+<a href=#405 id=405 data-nosnippet>405</a>        }
+<a href=#406 id=406 data-nosnippet>406</a>    }
+<a href=#407 id=407 data-nosnippet>407</a>}
+<a href=#408 id=408 data-nosnippet>408</a>
+<a href=#409 id=409 data-nosnippet>409</a><span class="attr">#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+<a href=#410 id=410 data-nosnippet>410</a>#[derive(Serialize, Deserialize, MsgpackTagged)]
+<a href=#411 id=411 data-nosnippet>411</a>#[cfg_attr(feature = <span class="string">"arb"</span>, derive(proptest_derive::Arbitrary))]
+<a href=#412 id=412 data-nosnippet>412</a></span><span class="kw">pub enum </span>BrilligOpcode&lt;F&gt; {
+<a href=#413 id=413 data-nosnippet>413</a>    <span class="doccomment">/// Takes the fields in addresses `lhs` and `rhs`,
+<a href=#414 id=414 data-nosnippet>414</a>    /// performs the specified binary operation,
+<a href=#415 id=415 data-nosnippet>415</a>    /// and stores the value in the `destination` address.
+<a href=#416 id=416 data-nosnippet>416</a>    </span><span class="attr">#[tag(<span class="number">0</span>)]
+<a href=#417 id=417 data-nosnippet>417</a>    </span>BinaryFieldOp {
+<a href=#418 id=418 data-nosnippet>418</a>        <span class="attr">#[tag(<span class="number">0</span>)]
+<a href=#419 id=419 data-nosnippet>419</a>        </span>destination: MemoryAddress,
+<a href=#420 id=420 data-nosnippet>420</a>        <span class="attr">#[tag(<span class="number">1</span>)]
+<a href=#421 id=421 data-nosnippet>421</a>        </span>op: BinaryFieldOp,
+<a href=#422 id=422 data-nosnippet>422</a>        <span class="attr">#[tag(<span class="number">2</span>)]
+<a href=#423 id=423 data-nosnippet>423</a>        </span>lhs: MemoryAddress,
+<a href=#424 id=424 data-nosnippet>424</a>        <span class="attr">#[tag(<span class="number">3</span>)]
+<a href=#425 id=425 data-nosnippet>425</a>        </span>rhs: MemoryAddress,
+<a href=#426 id=426 data-nosnippet>426</a>    },
+<a href=#427 id=427 data-nosnippet>427</a>    <span class="doccomment">/// Takes the `bit_size` size integers in addresses `lhs` and `rhs`,
+<a href=#428 id=428 data-nosnippet>428</a>    /// performs the specified binary operation,
+<a href=#429 id=429 data-nosnippet>429</a>    /// and stores the value in the `destination` address.
+<a href=#430 id=430 data-nosnippet>430</a>    </span><span class="attr">#[tag(<span class="number">1</span>)]
+<a href=#431 id=431 data-nosnippet>431</a>    </span>BinaryIntOp {
+<a href=#432 id=432 data-nosnippet>432</a>        <span class="attr">#[tag(<span class="number">0</span>)]
+<a href=#433 id=433 data-nosnippet>433</a>        </span>destination: MemoryAddress,
+<a href=#434 id=434 data-nosnippet>434</a>        <span class="attr">#[tag(<span class="number">1</span>)]
+<a href=#435 id=435 data-nosnippet>435</a>        </span>op: BinaryIntOp,
+<a href=#436 id=436 data-nosnippet>436</a>        <span class="attr">#[tag(<span class="number">2</span>)]
+<a href=#437 id=437 data-nosnippet>437</a>        </span>bit_size: IntegerBitSize,
+<a href=#438 id=438 data-nosnippet>438</a>        <span class="attr">#[tag(<span class="number">3</span>)]
+<a href=#439 id=439 data-nosnippet>439</a>        </span>lhs: MemoryAddress,
+<a href=#440 id=440 data-nosnippet>440</a>        <span class="attr">#[tag(<span class="number">4</span>)]
+<a href=#441 id=441 data-nosnippet>441</a>        </span>rhs: MemoryAddress,
+<a href=#442 id=442 data-nosnippet>442</a>    },
+<a href=#443 id=443 data-nosnippet>443</a>    <span class="doccomment">/// Takes the value from the `source` address, inverts it,
+<a href=#444 id=444 data-nosnippet>444</a>    /// and stores the value in the `destination` address.
+<a href=#445 id=445 data-nosnippet>445</a>    </span><span class="attr">#[tag(<span class="number">2</span>)]
+<a href=#446 id=446 data-nosnippet>446</a>    </span>Not {
+<a href=#447 id=447 data-nosnippet>447</a>        <span class="attr">#[tag(<span class="number">0</span>)]
+<a href=#448 id=448 data-nosnippet>448</a>        </span>destination: MemoryAddress,
+<a href=#449 id=449 data-nosnippet>449</a>        <span class="attr">#[tag(<span class="number">1</span>)]
+<a href=#450 id=450 data-nosnippet>450</a>        </span>source: MemoryAddress,
+<a href=#451 id=451 data-nosnippet>451</a>        <span class="attr">#[tag(<span class="number">2</span>)]
+<a href=#452 id=452 data-nosnippet>452</a>        </span>bit_size: IntegerBitSize,
+<a href=#453 id=453 data-nosnippet>453</a>    },
+<a href=#454 id=454 data-nosnippet>454</a>    <span class="doccomment">/// Takes the value from the `source` address,
+<a href=#455 id=455 data-nosnippet>455</a>    /// casts it into the type indicated by `bit_size`,
+<a href=#456 id=456 data-nosnippet>456</a>    /// and stores the value in the `destination` address.
+<a href=#457 id=457 data-nosnippet>457</a>    </span><span class="attr">#[tag(<span class="number">3</span>)]
+<a href=#458 id=458 data-nosnippet>458</a>    </span>Cast {
+<a href=#459 id=459 data-nosnippet>459</a>        <span class="attr">#[tag(<span class="number">0</span>)]
+<a href=#460 id=460 data-nosnippet>460</a>        </span>destination: MemoryAddress,
+<a href=#461 id=461 data-nosnippet>461</a>        <span class="attr">#[tag(<span class="number">1</span>)]
+<a href=#462 id=462 data-nosnippet>462</a>        </span>source: MemoryAddress,
+<a href=#463 id=463 data-nosnippet>463</a>        <span class="attr">#[tag(<span class="number">2</span>)]
+<a href=#464 id=464 data-nosnippet>464</a>        </span>bit_size: BitSize,
+<a href=#465 id=465 data-nosnippet>465</a>    },
+<a href=#466 id=466 data-nosnippet>466</a>    <span class="doccomment">/// Sets the program counter to the value of `location`
+<a href=#467 id=467 data-nosnippet>467</a>    /// if the value at `condition` is non-zero.
+<a href=#468 id=468 data-nosnippet>468</a>    </span><span class="attr">#[tag(<span class="number">4</span>)]
+<a href=#469 id=469 data-nosnippet>469</a>    </span>JumpIf {
+<a href=#470 id=470 data-nosnippet>470</a>        <span class="attr">#[tag(<span class="number">0</span>)]
+<a href=#471 id=471 data-nosnippet>471</a>        </span>condition: MemoryAddress,
+<a href=#472 id=472 data-nosnippet>472</a>        <span class="attr">#[tag(<span class="number">1</span>)]
 <a href=#473 id=473 data-nosnippet>473</a>        </span>location: Label,
 <a href=#474 id=474 data-nosnippet>474</a>    },
-<a href=#475 id=475 data-nosnippet>475</a>    <span class="doccomment">/// Copies the data from `calldata` from the `offset_address` with length indicated by `size_address`
-<a href=#476 id=476 data-nosnippet>476</a>    /// to the specified `destination_address` in the memory.
-<a href=#477 id=477 data-nosnippet>477</a>    </span><span class="attr">#[tag(<span class="number">6</span>)]
-<a href=#478 id=478 data-nosnippet>478</a>    </span>CalldataCopy {
-<a href=#479 id=479 data-nosnippet>479</a>        <span class="attr">#[tag(<span class="number">0</span>)]
-<a href=#480 id=480 data-nosnippet>480</a>        </span>destination_address: MemoryAddress,
-<a href=#481 id=481 data-nosnippet>481</a>        <span class="attr">#[tag(<span class="number">1</span>)]
-<a href=#482 id=482 data-nosnippet>482</a>        </span>size_address: MemoryAddress,
-<a href=#483 id=483 data-nosnippet>483</a>        <span class="attr">#[tag(<span class="number">2</span>)]
-<a href=#484 id=484 data-nosnippet>484</a>        </span>offset_address: MemoryAddress,
-<a href=#485 id=485 data-nosnippet>485</a>    },
-<a href=#486 id=486 data-nosnippet>486</a>    <span class="doccomment">/// Pushes the current program counter to the call stack as to set a return location.
-<a href=#487 id=487 data-nosnippet>487</a>    /// Sets the program counter to the value of `location`.
-<a href=#488 id=488 data-nosnippet>488</a>    ///
-<a href=#489 id=489 data-nosnippet>489</a>    /// We don't support dynamic jumps or calls;
-<a href=#490 id=490 data-nosnippet>490</a>    /// see &lt;https://github.com/ethereum/aleth/issues/3404&gt; for reasoning.
-<a href=#491 id=491 data-nosnippet>491</a>    </span><span class="attr">#[tag(<span class="number">7</span>)]
-<a href=#492 id=492 data-nosnippet>492</a>    </span>Call {
-<a href=#493 id=493 data-nosnippet>493</a>        <span class="attr">#[tag(<span class="number">0</span>)]
-<a href=#494 id=494 data-nosnippet>494</a>        </span>location: Label,
-<a href=#495 id=495 data-nosnippet>495</a>    },
-<a href=#496 id=496 data-nosnippet>496</a>    <span class="doccomment">/// Stores a constant `value` with a `bit_size` in the `destination` address.
-<a href=#497 id=497 data-nosnippet>497</a>    </span><span class="attr">#[tag(<span class="number">8</span>)]
-<a href=#498 id=498 data-nosnippet>498</a>    </span>Const {
+<a href=#475 id=475 data-nosnippet>475</a>    <span class="doccomment">/// Sets the program counter to the value of `location`.
+<a href=#476 id=476 data-nosnippet>476</a>    </span><span class="attr">#[tag(<span class="number">5</span>)]
+<a href=#477 id=477 data-nosnippet>477</a>    </span>Jump {
+<a href=#478 id=478 data-nosnippet>478</a>        <span class="attr">#[tag(<span class="number">0</span>)]
+<a href=#479 id=479 data-nosnippet>479</a>        </span>location: Label,
+<a href=#480 id=480 data-nosnippet>480</a>    },
+<a href=#481 id=481 data-nosnippet>481</a>    <span class="doccomment">/// Copies the data from `calldata` from the `offset_address` with length indicated by `size_address`
+<a href=#482 id=482 data-nosnippet>482</a>    /// to the specified `destination_address` in the memory.
+<a href=#483 id=483 data-nosnippet>483</a>    </span><span class="attr">#[tag(<span class="number">6</span>)]
+<a href=#484 id=484 data-nosnippet>484</a>    </span>CalldataCopy {
+<a href=#485 id=485 data-nosnippet>485</a>        <span class="attr">#[tag(<span class="number">0</span>)]
+<a href=#486 id=486 data-nosnippet>486</a>        </span>destination_address: MemoryAddress,
+<a href=#487 id=487 data-nosnippet>487</a>        <span class="attr">#[tag(<span class="number">1</span>)]
+<a href=#488 id=488 data-nosnippet>488</a>        </span>size_address: MemoryAddress,
+<a href=#489 id=489 data-nosnippet>489</a>        <span class="attr">#[tag(<span class="number">2</span>)]
+<a href=#490 id=490 data-nosnippet>490</a>        </span>offset_address: MemoryAddress,
+<a href=#491 id=491 data-nosnippet>491</a>    },
+<a href=#492 id=492 data-nosnippet>492</a>    <span class="doccomment">/// Pushes the current program counter to the call stack as to set a return location.
+<a href=#493 id=493 data-nosnippet>493</a>    /// Sets the program counter to the value of `location`.
+<a href=#494 id=494 data-nosnippet>494</a>    ///
+<a href=#495 id=495 data-nosnippet>495</a>    /// We don't support dynamic jumps or calls;
+<a href=#496 id=496 data-nosnippet>496</a>    /// see &lt;https://github.com/ethereum/aleth/issues/3404&gt; for reasoning.
+<a href=#497 id=497 data-nosnippet>497</a>    </span><span class="attr">#[tag(<span class="number">7</span>)]
+<a href=#498 id=498 data-nosnippet>498</a>    </span>Call {
 <a href=#499 id=499 data-nosnippet>499</a>        <span class="attr">#[tag(<span class="number">0</span>)]
-<a href=#500 id=500 data-nosnippet>500</a>        </span>destination: MemoryAddress,
-<a href=#501 id=501 data-nosnippet>501</a>        <span class="attr">#[tag(<span class="number">1</span>)]
-<a href=#502 id=502 data-nosnippet>502</a>        </span>bit_size: BitSize,
-<a href=#503 id=503 data-nosnippet>503</a>        <span class="attr">#[tag(<span class="number">2</span>)]
-<a href=#504 id=504 data-nosnippet>504</a>        </span>value: F,
-<a href=#505 id=505 data-nosnippet>505</a>    },
-<a href=#506 id=506 data-nosnippet>506</a>    <span class="doccomment">/// Reads the address from `destination_pointer`, then stores a constant `value` with a `bit_size` at that address.
-<a href=#507 id=507 data-nosnippet>507</a>    </span><span class="attr">#[tag(<span class="number">9</span>)]
-<a href=#508 id=508 data-nosnippet>508</a>    </span>IndirectConst {
-<a href=#509 id=509 data-nosnippet>509</a>        <span class="attr">#[tag(<span class="number">0</span>)]
-<a href=#510 id=510 data-nosnippet>510</a>        </span>destination_pointer: MemoryAddress,
-<a href=#511 id=511 data-nosnippet>511</a>        <span class="attr">#[tag(<span class="number">1</span>)]
-<a href=#512 id=512 data-nosnippet>512</a>        </span>bit_size: BitSize,
-<a href=#513 id=513 data-nosnippet>513</a>        <span class="attr">#[tag(<span class="number">2</span>)]
-<a href=#514 id=514 data-nosnippet>514</a>        </span>value: F,
-<a href=#515 id=515 data-nosnippet>515</a>    },
-<a href=#516 id=516 data-nosnippet>516</a>    <span class="doccomment">/// Pops the top element from the call stack, which represents the return location,
-<a href=#517 id=517 data-nosnippet>517</a>    /// and sets the program counter to that value. This operation is used to return
-<a href=#518 id=518 data-nosnippet>518</a>    /// from a function call.
-<a href=#519 id=519 data-nosnippet>519</a>    </span><span class="attr">#[tag(<span class="number">10</span>)]
-<a href=#520 id=520 data-nosnippet>520</a>    </span>Return,
-<a href=#521 id=521 data-nosnippet>521</a>    <span class="doccomment">/// Used to get data from an outside source.
-<a href=#522 id=522 data-nosnippet>522</a>    ///
-<a href=#523 id=523 data-nosnippet>523</a>    /// Also referred to as an Oracle, intended for things like state tree reads;
-<a href=#524 id=524 data-nosnippet>524</a>    /// it shouldn't be confused with e.g. blockchain price oracles.
-<a href=#525 id=525 data-nosnippet>525</a>    </span><span class="attr">#[tag(<span class="number">11</span>)]
-<a href=#526 id=526 data-nosnippet>526</a>    </span>ForeignCall {
-<a href=#527 id=527 data-nosnippet>527</a>        <span class="doccomment">/// Interpreted by caller context, ie. this will have different meanings depending on
-<a href=#528 id=528 data-nosnippet>528</a>        /// who the caller is.
-<a href=#529 id=529 data-nosnippet>529</a>        </span><span class="attr">#[tag(<span class="number">0</span>)]
-<a href=#530 id=530 data-nosnippet>530</a>        </span>function: String,
-<a href=#531 id=531 data-nosnippet>531</a>        <span class="doccomment">/// Destination addresses (may be single values or memory pointers).
-<a href=#532 id=532 data-nosnippet>532</a>        ///
-<a href=#533 id=533 data-nosnippet>533</a>        /// Output vectors are passed as a [`ValueOrArray::MemoryAddress`]. Since their size is not known up front,
-<a href=#534 id=534 data-nosnippet>534</a>        /// we cannot allocate space for them on the heap. Instead, the VM is expected to write their data after
-<a href=#535 id=535 data-nosnippet>535</a>        /// the current free memory pointer, and store the heap address into the destination.
-<a href=#536 id=536 data-nosnippet>536</a>        </span><span class="attr">#[tag(<span class="number">1</span>)]
-<a href=#537 id=537 data-nosnippet>537</a>        </span>destinations: Vec&lt;ValueOrArray&gt;,
-<a href=#538 id=538 data-nosnippet>538</a>        <span class="doccomment">/// Destination value types.
-<a href=#539 id=539 data-nosnippet>539</a>        </span><span class="attr">#[tag(<span class="number">2</span>)]
-<a href=#540 id=540 data-nosnippet>540</a>        </span>destination_value_types: Vec&lt;HeapValueType&gt;,
-<a href=#541 id=541 data-nosnippet>541</a>        <span class="doccomment">/// Input addresses (may be single values or memory pointers).
-<a href=#542 id=542 data-nosnippet>542</a>        </span><span class="attr">#[tag(<span class="number">3</span>)]
-<a href=#543 id=543 data-nosnippet>543</a>        </span>inputs: Vec&lt;ValueOrArray&gt;,
-<a href=#544 id=544 data-nosnippet>544</a>        <span class="doccomment">/// Input value types (for heap allocated structures indicates how to
-<a href=#545 id=545 data-nosnippet>545</a>        /// retrieve the elements).
-<a href=#546 id=546 data-nosnippet>546</a>        </span><span class="attr">#[tag(<span class="number">4</span>)]
-<a href=#547 id=547 data-nosnippet>547</a>        </span>input_value_types: Vec&lt;HeapValueType&gt;,
-<a href=#548 id=548 data-nosnippet>548</a>    },
-<a href=#549 id=549 data-nosnippet>549</a>    <span class="doccomment">/// Moves the content in the `source` address to the `destination` address.
-<a href=#550 id=550 data-nosnippet>550</a>    </span><span class="attr">#[tag(<span class="number">12</span>)]
-<a href=#551 id=551 data-nosnippet>551</a>    </span>Mov {
-<a href=#552 id=552 data-nosnippet>552</a>        <span class="attr">#[tag(<span class="number">0</span>)]
-<a href=#553 id=553 data-nosnippet>553</a>        </span>destination: MemoryAddress,
-<a href=#554 id=554 data-nosnippet>554</a>        <span class="attr">#[tag(<span class="number">1</span>)]
-<a href=#555 id=555 data-nosnippet>555</a>        </span>source: MemoryAddress,
-<a href=#556 id=556 data-nosnippet>556</a>    },
-<a href=#557 id=557 data-nosnippet>557</a>    <span class="doccomment">/// If the value at `condition` is non-zero, moves the content in the `source_a`
-<a href=#558 id=558 data-nosnippet>558</a>    /// address to the `destination` address, otherwise moves the content from the
-<a href=#559 id=559 data-nosnippet>559</a>    /// `source_b` address instead.
-<a href=#560 id=560 data-nosnippet>560</a>    ///
-<a href=#561 id=561 data-nosnippet>561</a>    /// `destination = condition &gt; 0 ? source_a : source_b`
-<a href=#562 id=562 data-nosnippet>562</a>    </span><span class="attr">#[tag(<span class="number">13</span>)]
-<a href=#563 id=563 data-nosnippet>563</a>    </span>ConditionalMov {
-<a href=#564 id=564 data-nosnippet>564</a>        <span class="attr">#[tag(<span class="number">0</span>)]
-<a href=#565 id=565 data-nosnippet>565</a>        </span>destination: MemoryAddress,
-<a href=#566 id=566 data-nosnippet>566</a>        <span class="attr">#[tag(<span class="number">1</span>)]
-<a href=#567 id=567 data-nosnippet>567</a>        </span>source_a: MemoryAddress,
-<a href=#568 id=568 data-nosnippet>568</a>        <span class="attr">#[tag(<span class="number">2</span>)]
-<a href=#569 id=569 data-nosnippet>569</a>        </span>source_b: MemoryAddress,
-<a href=#570 id=570 data-nosnippet>570</a>        <span class="attr">#[tag(<span class="number">3</span>)]
-<a href=#571 id=571 data-nosnippet>571</a>        </span>condition: MemoryAddress,
-<a href=#572 id=572 data-nosnippet>572</a>    },
-<a href=#573 id=573 data-nosnippet>573</a>    <span class="doccomment">/// Reads the `source_pointer` to obtain a memory address, then retrieves the data
-<a href=#574 id=574 data-nosnippet>574</a>    /// stored at that address and writes it to the `destination` address.
-<a href=#575 id=575 data-nosnippet>575</a>    </span><span class="attr">#[tag(<span class="number">14</span>)]
-<a href=#576 id=576 data-nosnippet>576</a>    </span>Load {
-<a href=#577 id=577 data-nosnippet>577</a>        <span class="attr">#[tag(<span class="number">0</span>)]
-<a href=#578 id=578 data-nosnippet>578</a>        </span>destination: MemoryAddress,
-<a href=#579 id=579 data-nosnippet>579</a>        <span class="attr">#[tag(<span class="number">1</span>)]
-<a href=#580 id=580 data-nosnippet>580</a>        </span>source_pointer: MemoryAddress,
-<a href=#581 id=581 data-nosnippet>581</a>    },
-<a href=#582 id=582 data-nosnippet>582</a>    <span class="doccomment">/// Reads the `destination_pointer` to obtain a memory address, then stores the value
-<a href=#583 id=583 data-nosnippet>583</a>    /// from the `source` address at that location.
-<a href=#584 id=584 data-nosnippet>584</a>    </span><span class="attr">#[tag(<span class="number">15</span>)]
-<a href=#585 id=585 data-nosnippet>585</a>    </span>Store {
-<a href=#586 id=586 data-nosnippet>586</a>        <span class="attr">#[tag(<span class="number">0</span>)]
-<a href=#587 id=587 data-nosnippet>587</a>        </span>destination_pointer: MemoryAddress,
-<a href=#588 id=588 data-nosnippet>588</a>        <span class="attr">#[tag(<span class="number">1</span>)]
-<a href=#589 id=589 data-nosnippet>589</a>        </span>source: MemoryAddress,
-<a href=#590 id=590 data-nosnippet>590</a>    },
-<a href=#591 id=591 data-nosnippet>591</a>    <span class="doccomment">/// Native functions in the VM.
-<a href=#592 id=592 data-nosnippet>592</a>    /// These are equivalent to the black box functions in ACIR.
-<a href=#593 id=593 data-nosnippet>593</a>    </span><span class="attr">#[tag(<span class="number">16</span>)]
-<a href=#594 id=594 data-nosnippet>594</a>    </span>BlackBox(BlackBoxOp),
-<a href=#595 id=595 data-nosnippet>595</a>    <span class="doccomment">/// Used to denote execution failure, halting the VM and returning data specified by a dynamically-sized vector.
-<a href=#596 id=596 data-nosnippet>596</a>    </span><span class="attr">#[tag(<span class="number">17</span>)]
-<a href=#597 id=597 data-nosnippet>597</a>    </span>Trap {
-<a href=#598 id=598 data-nosnippet>598</a>        <span class="attr">#[tag(<span class="number">0</span>)]
-<a href=#599 id=599 data-nosnippet>599</a>        </span>revert_data: HeapVector,
-<a href=#600 id=600 data-nosnippet>600</a>    },
-<a href=#601 id=601 data-nosnippet>601</a>    <span class="doccomment">/// Halts execution and returns data specified by a dynamically-sized vector.
-<a href=#602 id=602 data-nosnippet>602</a>    </span><span class="attr">#[tag(<span class="number">18</span>)]
-<a href=#603 id=603 data-nosnippet>603</a>    </span>Stop {
+<a href=#500 id=500 data-nosnippet>500</a>        </span>location: Label,
+<a href=#501 id=501 data-nosnippet>501</a>    },
+<a href=#502 id=502 data-nosnippet>502</a>    <span class="doccomment">/// Stores a constant `value` with a `bit_size` in the `destination` address.
+<a href=#503 id=503 data-nosnippet>503</a>    </span><span class="attr">#[tag(<span class="number">8</span>)]
+<a href=#504 id=504 data-nosnippet>504</a>    </span>Const {
+<a href=#505 id=505 data-nosnippet>505</a>        <span class="attr">#[tag(<span class="number">0</span>)]
+<a href=#506 id=506 data-nosnippet>506</a>        </span>destination: MemoryAddress,
+<a href=#507 id=507 data-nosnippet>507</a>        <span class="attr">#[tag(<span class="number">1</span>)]
+<a href=#508 id=508 data-nosnippet>508</a>        </span>bit_size: BitSize,
+<a href=#509 id=509 data-nosnippet>509</a>        <span class="attr">#[tag(<span class="number">2</span>)]
+<a href=#510 id=510 data-nosnippet>510</a>        </span>value: F,
+<a href=#511 id=511 data-nosnippet>511</a>    },
+<a href=#512 id=512 data-nosnippet>512</a>    <span class="doccomment">/// Reads the address from `destination_pointer`, then stores a constant `value` with a `bit_size` at that address.
+<a href=#513 id=513 data-nosnippet>513</a>    </span><span class="attr">#[tag(<span class="number">9</span>)]
+<a href=#514 id=514 data-nosnippet>514</a>    </span>IndirectConst {
+<a href=#515 id=515 data-nosnippet>515</a>        <span class="attr">#[tag(<span class="number">0</span>)]
+<a href=#516 id=516 data-nosnippet>516</a>        </span>destination_pointer: MemoryAddress,
+<a href=#517 id=517 data-nosnippet>517</a>        <span class="attr">#[tag(<span class="number">1</span>)]
+<a href=#518 id=518 data-nosnippet>518</a>        </span>bit_size: BitSize,
+<a href=#519 id=519 data-nosnippet>519</a>        <span class="attr">#[tag(<span class="number">2</span>)]
+<a href=#520 id=520 data-nosnippet>520</a>        </span>value: F,
+<a href=#521 id=521 data-nosnippet>521</a>    },
+<a href=#522 id=522 data-nosnippet>522</a>    <span class="doccomment">/// Pops the top element from the call stack, which represents the return location,
+<a href=#523 id=523 data-nosnippet>523</a>    /// and sets the program counter to that value. This operation is used to return
+<a href=#524 id=524 data-nosnippet>524</a>    /// from a function call.
+<a href=#525 id=525 data-nosnippet>525</a>    </span><span class="attr">#[tag(<span class="number">10</span>)]
+<a href=#526 id=526 data-nosnippet>526</a>    </span>Return,
+<a href=#527 id=527 data-nosnippet>527</a>    <span class="doccomment">/// Used to get data from an outside source.
+<a href=#528 id=528 data-nosnippet>528</a>    ///
+<a href=#529 id=529 data-nosnippet>529</a>    /// Also referred to as an Oracle, intended for things like state tree reads;
+<a href=#530 id=530 data-nosnippet>530</a>    /// it shouldn't be confused with e.g. blockchain price oracles.
+<a href=#531 id=531 data-nosnippet>531</a>    </span><span class="attr">#[tag(<span class="number">11</span>)]
+<a href=#532 id=532 data-nosnippet>532</a>    </span>ForeignCall {
+<a href=#533 id=533 data-nosnippet>533</a>        <span class="doccomment">/// Interpreted by caller context, ie. this will have different meanings depending on
+<a href=#534 id=534 data-nosnippet>534</a>        /// who the caller is.
+<a href=#535 id=535 data-nosnippet>535</a>        </span><span class="attr">#[tag(<span class="number">0</span>)]
+<a href=#536 id=536 data-nosnippet>536</a>        </span>function: String,
+<a href=#537 id=537 data-nosnippet>537</a>        <span class="doccomment">/// Destination addresses (may be single values or memory pointers).
+<a href=#538 id=538 data-nosnippet>538</a>        ///
+<a href=#539 id=539 data-nosnippet>539</a>        /// Output vectors are passed as a [`ValueOrArray::MemoryAddress`]. Since their size is not known up front,
+<a href=#540 id=540 data-nosnippet>540</a>        /// we cannot allocate space for them on the heap. Instead, the VM is expected to write their data after
+<a href=#541 id=541 data-nosnippet>541</a>        /// the current free memory pointer, and store the heap address into the destination.
+<a href=#542 id=542 data-nosnippet>542</a>        </span><span class="attr">#[tag(<span class="number">1</span>)]
+<a href=#543 id=543 data-nosnippet>543</a>        </span>destinations: Vec&lt;ValueOrArray&gt;,
+<a href=#544 id=544 data-nosnippet>544</a>        <span class="doccomment">/// Destination value types.
+<a href=#545 id=545 data-nosnippet>545</a>        </span><span class="attr">#[tag(<span class="number">2</span>)]
+<a href=#546 id=546 data-nosnippet>546</a>        </span>destination_value_types: Vec&lt;HeapValueType&gt;,
+<a href=#547 id=547 data-nosnippet>547</a>        <span class="doccomment">/// Input addresses (may be single values or memory pointers).
+<a href=#548 id=548 data-nosnippet>548</a>        </span><span class="attr">#[tag(<span class="number">3</span>)]
+<a href=#549 id=549 data-nosnippet>549</a>        </span>inputs: Vec&lt;ValueOrArray&gt;,
+<a href=#550 id=550 data-nosnippet>550</a>        <span class="doccomment">/// Input value types (for heap allocated structures indicates how to
+<a href=#551 id=551 data-nosnippet>551</a>        /// retrieve the elements).
+<a href=#552 id=552 data-nosnippet>552</a>        </span><span class="attr">#[tag(<span class="number">4</span>)]
+<a href=#553 id=553 data-nosnippet>553</a>        </span>input_value_types: Vec&lt;HeapValueType&gt;,
+<a href=#554 id=554 data-nosnippet>554</a>    },
+<a href=#555 id=555 data-nosnippet>555</a>    <span class="doccomment">/// Moves the content in the `source` address to the `destination` address.
+<a href=#556 id=556 data-nosnippet>556</a>    </span><span class="attr">#[tag(<span class="number">12</span>)]
+<a href=#557 id=557 data-nosnippet>557</a>    </span>Mov {
+<a href=#558 id=558 data-nosnippet>558</a>        <span class="attr">#[tag(<span class="number">0</span>)]
+<a href=#559 id=559 data-nosnippet>559</a>        </span>destination: MemoryAddress,
+<a href=#560 id=560 data-nosnippet>560</a>        <span class="attr">#[tag(<span class="number">1</span>)]
+<a href=#561 id=561 data-nosnippet>561</a>        </span>source: MemoryAddress,
+<a href=#562 id=562 data-nosnippet>562</a>    },
+<a href=#563 id=563 data-nosnippet>563</a>    <span class="doccomment">/// If the value at `condition` is non-zero, moves the content in the `source_a`
+<a href=#564 id=564 data-nosnippet>564</a>    /// address to the `destination` address, otherwise moves the content from the
+<a href=#565 id=565 data-nosnippet>565</a>    /// `source_b` address instead.
+<a href=#566 id=566 data-nosnippet>566</a>    ///
+<a href=#567 id=567 data-nosnippet>567</a>    /// `destination = condition &gt; 0 ? source_a : source_b`
+<a href=#568 id=568 data-nosnippet>568</a>    </span><span class="attr">#[tag(<span class="number">13</span>)]
+<a href=#569 id=569 data-nosnippet>569</a>    </span>ConditionalMov {
+<a href=#570 id=570 data-nosnippet>570</a>        <span class="attr">#[tag(<span class="number">0</span>)]
+<a href=#571 id=571 data-nosnippet>571</a>        </span>destination: MemoryAddress,
+<a href=#572 id=572 data-nosnippet>572</a>        <span class="attr">#[tag(<span class="number">1</span>)]
+<a href=#573 id=573 data-nosnippet>573</a>        </span>source_a: MemoryAddress,
+<a href=#574 id=574 data-nosnippet>574</a>        <span class="attr">#[tag(<span class="number">2</span>)]
+<a href=#575 id=575 data-nosnippet>575</a>        </span>source_b: MemoryAddress,
+<a href=#576 id=576 data-nosnippet>576</a>        <span class="attr">#[tag(<span class="number">3</span>)]
+<a href=#577 id=577 data-nosnippet>577</a>        </span>condition: MemoryAddress,
+<a href=#578 id=578 data-nosnippet>578</a>    },
+<a href=#579 id=579 data-nosnippet>579</a>    <span class="doccomment">/// Reads the `source_pointer` to obtain a memory address, then retrieves the data
+<a href=#580 id=580 data-nosnippet>580</a>    /// stored at that address and writes it to the `destination` address.
+<a href=#581 id=581 data-nosnippet>581</a>    </span><span class="attr">#[tag(<span class="number">14</span>)]
+<a href=#582 id=582 data-nosnippet>582</a>    </span>Load {
+<a href=#583 id=583 data-nosnippet>583</a>        <span class="attr">#[tag(<span class="number">0</span>)]
+<a href=#584 id=584 data-nosnippet>584</a>        </span>destination: MemoryAddress,
+<a href=#585 id=585 data-nosnippet>585</a>        <span class="attr">#[tag(<span class="number">1</span>)]
+<a href=#586 id=586 data-nosnippet>586</a>        </span>source_pointer: MemoryAddress,
+<a href=#587 id=587 data-nosnippet>587</a>    },
+<a href=#588 id=588 data-nosnippet>588</a>    <span class="doccomment">/// Reads the `destination_pointer` to obtain a memory address, then stores the value
+<a href=#589 id=589 data-nosnippet>589</a>    /// from the `source` address at that location.
+<a href=#590 id=590 data-nosnippet>590</a>    </span><span class="attr">#[tag(<span class="number">15</span>)]
+<a href=#591 id=591 data-nosnippet>591</a>    </span>Store {
+<a href=#592 id=592 data-nosnippet>592</a>        <span class="attr">#[tag(<span class="number">0</span>)]
+<a href=#593 id=593 data-nosnippet>593</a>        </span>destination_pointer: MemoryAddress,
+<a href=#594 id=594 data-nosnippet>594</a>        <span class="attr">#[tag(<span class="number">1</span>)]
+<a href=#595 id=595 data-nosnippet>595</a>        </span>source: MemoryAddress,
+<a href=#596 id=596 data-nosnippet>596</a>    },
+<a href=#597 id=597 data-nosnippet>597</a>    <span class="doccomment">/// Native functions in the VM.
+<a href=#598 id=598 data-nosnippet>598</a>    /// These are equivalent to the black box functions in ACIR.
+<a href=#599 id=599 data-nosnippet>599</a>    </span><span class="attr">#[tag(<span class="number">16</span>)]
+<a href=#600 id=600 data-nosnippet>600</a>    </span>BlackBox(BlackBoxOp),
+<a href=#601 id=601 data-nosnippet>601</a>    <span class="doccomment">/// Used to denote execution failure, halting the VM and returning data specified by a dynamically-sized vector.
+<a href=#602 id=602 data-nosnippet>602</a>    </span><span class="attr">#[tag(<span class="number">17</span>)]
+<a href=#603 id=603 data-nosnippet>603</a>    </span>Trap {
 <a href=#604 id=604 data-nosnippet>604</a>        <span class="attr">#[tag(<span class="number">0</span>)]
-<a href=#605 id=605 data-nosnippet>605</a>        </span>return_data: HeapVector,
+<a href=#605 id=605 data-nosnippet>605</a>        </span>revert_data: HeapVector,
 <a href=#606 id=606 data-nosnippet>606</a>    },
-<a href=#607 id=607 data-nosnippet>607</a>}
-<a href=#608 id=608 data-nosnippet>608</a>
-<a href=#609 id=609 data-nosnippet>609</a><span class="kw">impl</span>&lt;F: std::fmt::Display&gt; std::fmt::Display <span class="kw">for </span>BrilligOpcode&lt;F&gt; {
-<a href=#610 id=610 data-nosnippet>610</a>    <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>std::fmt::Formatter&lt;<span class="lifetime">'_</span>&gt;) -&gt; std::fmt::Result {
-<a href=#611 id=611 data-nosnippet>611</a>        <span class="kw">match </span><span class="self">self </span>{
-<a href=#612 id=612 data-nosnippet>612</a>            BrilligOpcode::BinaryFieldOp { destination, op, lhs, rhs } =&gt; {
-<a href=#613 id=613 data-nosnippet>613</a>                <span class="macro">write!</span>(f, <span class="string">"{destination} = field {op} {lhs}, {rhs}"</span>)
-<a href=#614 id=614 data-nosnippet>614</a>            }
-<a href=#615 id=615 data-nosnippet>615</a>            BrilligOpcode::BinaryIntOp { destination, op, bit_size, lhs, rhs } =&gt; {
-<a href=#616 id=616 data-nosnippet>616</a>                <span class="macro">write!</span>(f, <span class="string">"{destination} = {bit_size} {op} {lhs}, {rhs}"</span>)
-<a href=#617 id=617 data-nosnippet>617</a>            }
-<a href=#618 id=618 data-nosnippet>618</a>            BrilligOpcode::Not { destination, source, bit_size } =&gt; {
-<a href=#619 id=619 data-nosnippet>619</a>                <span class="macro">write!</span>(f, <span class="string">"{destination} = {bit_size} not {source}"</span>)
+<a href=#607 id=607 data-nosnippet>607</a>    <span class="doccomment">/// Halts execution and returns data specified by a dynamically-sized vector.
+<a href=#608 id=608 data-nosnippet>608</a>    </span><span class="attr">#[tag(<span class="number">18</span>)]
+<a href=#609 id=609 data-nosnippet>609</a>    </span>Stop {
+<a href=#610 id=610 data-nosnippet>610</a>        <span class="attr">#[tag(<span class="number">0</span>)]
+<a href=#611 id=611 data-nosnippet>611</a>        </span>return_data: HeapVector,
+<a href=#612 id=612 data-nosnippet>612</a>    },
+<a href=#613 id=613 data-nosnippet>613</a>}
+<a href=#614 id=614 data-nosnippet>614</a>
+<a href=#615 id=615 data-nosnippet>615</a><span class="kw">impl</span>&lt;F: std::fmt::Display&gt; std::fmt::Display <span class="kw">for </span>BrilligOpcode&lt;F&gt; {
+<a href=#616 id=616 data-nosnippet>616</a>    <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>std::fmt::Formatter&lt;<span class="lifetime">'_</span>&gt;) -&gt; std::fmt::Result {
+<a href=#617 id=617 data-nosnippet>617</a>        <span class="kw">match </span><span class="self">self </span>{
+<a href=#618 id=618 data-nosnippet>618</a>            BrilligOpcode::BinaryFieldOp { destination, op, lhs, rhs } =&gt; {
+<a href=#619 id=619 data-nosnippet>619</a>                <span class="macro">write!</span>(f, <span class="string">"{destination} = field {op} {lhs}, {rhs}"</span>)
 <a href=#620 id=620 data-nosnippet>620</a>            }
-<a href=#621 id=621 data-nosnippet>621</a>            BrilligOpcode::Cast { destination, source, bit_size } =&gt; {
-<a href=#622 id=622 data-nosnippet>622</a>                <span class="macro">write!</span>(f, <span class="string">"{destination} = cast {source} to {bit_size}"</span>)
+<a href=#621 id=621 data-nosnippet>621</a>            BrilligOpcode::BinaryIntOp { destination, op, bit_size, lhs, rhs } =&gt; {
+<a href=#622 id=622 data-nosnippet>622</a>                <span class="macro">write!</span>(f, <span class="string">"{destination} = {bit_size} {op} {lhs}, {rhs}"</span>)
 <a href=#623 id=623 data-nosnippet>623</a>            }
-<a href=#624 id=624 data-nosnippet>624</a>            BrilligOpcode::JumpIf { condition, location } =&gt; {
-<a href=#625 id=625 data-nosnippet>625</a>                <span class="macro">write!</span>(f, <span class="string">"jump if {condition} to {location}"</span>)
+<a href=#624 id=624 data-nosnippet>624</a>            BrilligOpcode::Not { destination, source, bit_size } =&gt; {
+<a href=#625 id=625 data-nosnippet>625</a>                <span class="macro">write!</span>(f, <span class="string">"{destination} = {bit_size} not {source}"</span>)
 <a href=#626 id=626 data-nosnippet>626</a>            }
-<a href=#627 id=627 data-nosnippet>627</a>            BrilligOpcode::Jump { location } =&gt; {
-<a href=#628 id=628 data-nosnippet>628</a>                <span class="macro">write!</span>(f, <span class="string">"jump to {location}"</span>)
+<a href=#627 id=627 data-nosnippet>627</a>            BrilligOpcode::Cast { destination, source, bit_size } =&gt; {
+<a href=#628 id=628 data-nosnippet>628</a>                <span class="macro">write!</span>(f, <span class="string">"{destination} = cast {source} to {bit_size}"</span>)
 <a href=#629 id=629 data-nosnippet>629</a>            }
-<a href=#630 id=630 data-nosnippet>630</a>            BrilligOpcode::CalldataCopy { destination_address, size_address, offset_address } =&gt; {
-<a href=#631 id=631 data-nosnippet>631</a>                <span class="macro">write!</span>(
-<a href=#632 id=632 data-nosnippet>632</a>                    f,
-<a href=#633 id=633 data-nosnippet>633</a>                    <span class="string">"{destination_address} = calldata copy [{offset_address}; {size_address}]"
-<a href=#634 id=634 data-nosnippet>634</a>                </span>)
+<a href=#630 id=630 data-nosnippet>630</a>            BrilligOpcode::JumpIf { condition, location } =&gt; {
+<a href=#631 id=631 data-nosnippet>631</a>                <span class="macro">write!</span>(f, <span class="string">"jump if {condition} to {location}"</span>)
+<a href=#632 id=632 data-nosnippet>632</a>            }
+<a href=#633 id=633 data-nosnippet>633</a>            BrilligOpcode::Jump { location } =&gt; {
+<a href=#634 id=634 data-nosnippet>634</a>                <span class="macro">write!</span>(f, <span class="string">"jump to {location}"</span>)
 <a href=#635 id=635 data-nosnippet>635</a>            }
-<a href=#636 id=636 data-nosnippet>636</a>            BrilligOpcode::Call { location } =&gt; {
-<a href=#637 id=637 data-nosnippet>637</a>                <span class="macro">write!</span>(f, <span class="string">"call {location}"</span>)
-<a href=#638 id=638 data-nosnippet>638</a>            }
-<a href=#639 id=639 data-nosnippet>639</a>            BrilligOpcode::Const { destination, bit_size, value } =&gt; {
-<a href=#640 id=640 data-nosnippet>640</a>                <span class="macro">write!</span>(f, <span class="string">"{destination} = const {bit_size} {value}"</span>)
+<a href=#636 id=636 data-nosnippet>636</a>            BrilligOpcode::CalldataCopy { destination_address, size_address, offset_address } =&gt; {
+<a href=#637 id=637 data-nosnippet>637</a>                <span class="macro">write!</span>(
+<a href=#638 id=638 data-nosnippet>638</a>                    f,
+<a href=#639 id=639 data-nosnippet>639</a>                    <span class="string">"{destination_address} = calldata copy [{offset_address}; {size_address}]"
+<a href=#640 id=640 data-nosnippet>640</a>                </span>)
 <a href=#641 id=641 data-nosnippet>641</a>            }
-<a href=#642 id=642 data-nosnippet>642</a>            BrilligOpcode::IndirectConst { destination_pointer, bit_size, value } =&gt; {
-<a href=#643 id=643 data-nosnippet>643</a>                <span class="macro">write!</span>(f, <span class="string">"{destination_pointer} = indirect const {bit_size} {value}"</span>)
+<a href=#642 id=642 data-nosnippet>642</a>            BrilligOpcode::Call { location } =&gt; {
+<a href=#643 id=643 data-nosnippet>643</a>                <span class="macro">write!</span>(f, <span class="string">"call {location}"</span>)
 <a href=#644 id=644 data-nosnippet>644</a>            }
-<a href=#645 id=645 data-nosnippet>645</a>            BrilligOpcode::Return =&gt; {
-<a href=#646 id=646 data-nosnippet>646</a>                <span class="macro">write!</span>(f, <span class="string">"return"</span>)
+<a href=#645 id=645 data-nosnippet>645</a>            BrilligOpcode::Const { destination, bit_size, value } =&gt; {
+<a href=#646 id=646 data-nosnippet>646</a>                <span class="macro">write!</span>(f, <span class="string">"{destination} = const {bit_size} {value}"</span>)
 <a href=#647 id=647 data-nosnippet>647</a>            }
-<a href=#648 id=648 data-nosnippet>648</a>            BrilligOpcode::ForeignCall {
-<a href=#649 id=649 data-nosnippet>649</a>                function,
-<a href=#650 id=650 data-nosnippet>650</a>                destinations,
-<a href=#651 id=651 data-nosnippet>651</a>                destination_value_types,
-<a href=#652 id=652 data-nosnippet>652</a>                inputs,
-<a href=#653 id=653 data-nosnippet>653</a>                input_value_types,
-<a href=#654 id=654 data-nosnippet>654</a>            } =&gt; {
-<a href=#655 id=655 data-nosnippet>655</a>                <span class="kw">if </span>!destinations.is_empty() {
-<a href=#656 id=656 data-nosnippet>656</a>                    <span class="kw">for </span>(index, (destination, destination_value_type)) <span class="kw">in
-<a href=#657 id=657 data-nosnippet>657</a>                        </span>destinations.iter().zip_eq(destination_value_types).enumerate()
-<a href=#658 id=658 data-nosnippet>658</a>                    {
-<a href=#659 id=659 data-nosnippet>659</a>                        <span class="kw">if </span>index &gt; <span class="number">0 </span>{
-<a href=#660 id=660 data-nosnippet>660</a>                            <span class="macro">write!</span>(f, <span class="string">", "</span>)<span class="question-mark">?</span>;
-<a href=#661 id=661 data-nosnippet>661</a>                        }
-<a href=#662 id=662 data-nosnippet>662</a>                        <span class="macro">write!</span>(f, <span class="string">"{destination}: {destination_value_type}"</span>)<span class="question-mark">?</span>;
-<a href=#663 id=663 data-nosnippet>663</a>                    }
-<a href=#664 id=664 data-nosnippet>664</a>                    <span class="macro">write!</span>(f, <span class="string">" = "</span>)<span class="question-mark">?</span>;
-<a href=#665 id=665 data-nosnippet>665</a>                }
-<a href=#666 id=666 data-nosnippet>666</a>
-<a href=#667 id=667 data-nosnippet>667</a>                <span class="macro">write!</span>(f, <span class="string">"foreign call {function}("</span>)<span class="question-mark">?</span>;
-<a href=#668 id=668 data-nosnippet>668</a>
-<a href=#669 id=669 data-nosnippet>669</a>                <span class="kw">for </span>(index, (input, input_value_type)) <span class="kw">in
-<a href=#670 id=670 data-nosnippet>670</a>                    </span>inputs.iter().zip_eq(input_value_types).enumerate()
-<a href=#671 id=671 data-nosnippet>671</a>                {
-<a href=#672 id=672 data-nosnippet>672</a>                    <span class="kw">if </span>index &gt; <span class="number">0 </span>{
-<a href=#673 id=673 data-nosnippet>673</a>                        <span class="macro">write!</span>(f, <span class="string">", "</span>)<span class="question-mark">?</span>;
-<a href=#674 id=674 data-nosnippet>674</a>                    }
-<a href=#675 id=675 data-nosnippet>675</a>                    <span class="macro">write!</span>(f, <span class="string">"{input}: {input_value_type}"</span>)<span class="question-mark">?</span>;
-<a href=#676 id=676 data-nosnippet>676</a>                }
-<a href=#677 id=677 data-nosnippet>677</a>
-<a href=#678 id=678 data-nosnippet>678</a>                <span class="macro">write!</span>(f, <span class="string">")"</span>)<span class="question-mark">?</span>;
-<a href=#679 id=679 data-nosnippet>679</a>                <span class="prelude-val">Ok</span>(())
-<a href=#680 id=680 data-nosnippet>680</a>            }
-<a href=#681 id=681 data-nosnippet>681</a>            BrilligOpcode::Mov { destination, source } =&gt; {
-<a href=#682 id=682 data-nosnippet>682</a>                <span class="macro">write!</span>(f, <span class="string">"{destination} = {source}"</span>)
-<a href=#683 id=683 data-nosnippet>683</a>            }
-<a href=#684 id=684 data-nosnippet>684</a>            BrilligOpcode::ConditionalMov { destination, source_a, source_b, condition } =&gt; {
-<a href=#685 id=685 data-nosnippet>685</a>                <span class="macro">write!</span>(f, <span class="string">"{destination} = if {condition} then {source_a} else {source_b}"</span>)
+<a href=#648 id=648 data-nosnippet>648</a>            BrilligOpcode::IndirectConst { destination_pointer, bit_size, value } =&gt; {
+<a href=#649 id=649 data-nosnippet>649</a>                <span class="macro">write!</span>(f, <span class="string">"{destination_pointer} = indirect const {bit_size} {value}"</span>)
+<a href=#650 id=650 data-nosnippet>650</a>            }
+<a href=#651 id=651 data-nosnippet>651</a>            BrilligOpcode::Return =&gt; {
+<a href=#652 id=652 data-nosnippet>652</a>                <span class="macro">write!</span>(f, <span class="string">"return"</span>)
+<a href=#653 id=653 data-nosnippet>653</a>            }
+<a href=#654 id=654 data-nosnippet>654</a>            BrilligOpcode::ForeignCall {
+<a href=#655 id=655 data-nosnippet>655</a>                function,
+<a href=#656 id=656 data-nosnippet>656</a>                destinations,
+<a href=#657 id=657 data-nosnippet>657</a>                destination_value_types,
+<a href=#658 id=658 data-nosnippet>658</a>                inputs,
+<a href=#659 id=659 data-nosnippet>659</a>                input_value_types,
+<a href=#660 id=660 data-nosnippet>660</a>            } =&gt; {
+<a href=#661 id=661 data-nosnippet>661</a>                <span class="kw">if </span>!destinations.is_empty() {
+<a href=#662 id=662 data-nosnippet>662</a>                    <span class="kw">for </span>(index, (destination, destination_value_type)) <span class="kw">in
+<a href=#663 id=663 data-nosnippet>663</a>                        </span>destinations.iter().zip_eq(destination_value_types).enumerate()
+<a href=#664 id=664 data-nosnippet>664</a>                    {
+<a href=#665 id=665 data-nosnippet>665</a>                        <span class="kw">if </span>index &gt; <span class="number">0 </span>{
+<a href=#666 id=666 data-nosnippet>666</a>                            <span class="macro">write!</span>(f, <span class="string">", "</span>)<span class="question-mark">?</span>;
+<a href=#667 id=667 data-nosnippet>667</a>                        }
+<a href=#668 id=668 data-nosnippet>668</a>                        <span class="macro">write!</span>(f, <span class="string">"{destination}: {destination_value_type}"</span>)<span class="question-mark">?</span>;
+<a href=#669 id=669 data-nosnippet>669</a>                    }
+<a href=#670 id=670 data-nosnippet>670</a>                    <span class="macro">write!</span>(f, <span class="string">" = "</span>)<span class="question-mark">?</span>;
+<a href=#671 id=671 data-nosnippet>671</a>                }
+<a href=#672 id=672 data-nosnippet>672</a>
+<a href=#673 id=673 data-nosnippet>673</a>                <span class="macro">write!</span>(f, <span class="string">"foreign call {function}("</span>)<span class="question-mark">?</span>;
+<a href=#674 id=674 data-nosnippet>674</a>
+<a href=#675 id=675 data-nosnippet>675</a>                <span class="kw">for </span>(index, (input, input_value_type)) <span class="kw">in
+<a href=#676 id=676 data-nosnippet>676</a>                    </span>inputs.iter().zip_eq(input_value_types).enumerate()
+<a href=#677 id=677 data-nosnippet>677</a>                {
+<a href=#678 id=678 data-nosnippet>678</a>                    <span class="kw">if </span>index &gt; <span class="number">0 </span>{
+<a href=#679 id=679 data-nosnippet>679</a>                        <span class="macro">write!</span>(f, <span class="string">", "</span>)<span class="question-mark">?</span>;
+<a href=#680 id=680 data-nosnippet>680</a>                    }
+<a href=#681 id=681 data-nosnippet>681</a>                    <span class="macro">write!</span>(f, <span class="string">"{input}: {input_value_type}"</span>)<span class="question-mark">?</span>;
+<a href=#682 id=682 data-nosnippet>682</a>                }
+<a href=#683 id=683 data-nosnippet>683</a>
+<a href=#684 id=684 data-nosnippet>684</a>                <span class="macro">write!</span>(f, <span class="string">")"</span>)<span class="question-mark">?</span>;
+<a href=#685 id=685 data-nosnippet>685</a>                <span class="prelude-val">Ok</span>(())
 <a href=#686 id=686 data-nosnippet>686</a>            }
-<a href=#687 id=687 data-nosnippet>687</a>            BrilligOpcode::Load { destination, source_pointer } =&gt; {
-<a href=#688 id=688 data-nosnippet>688</a>                <span class="macro">write!</span>(f, <span class="string">"{destination} = load {source_pointer}"</span>)
+<a href=#687 id=687 data-nosnippet>687</a>            BrilligOpcode::Mov { destination, source } =&gt; {
+<a href=#688 id=688 data-nosnippet>688</a>                <span class="macro">write!</span>(f, <span class="string">"{destination} = {source}"</span>)
 <a href=#689 id=689 data-nosnippet>689</a>            }
-<a href=#690 id=690 data-nosnippet>690</a>            BrilligOpcode::Store { destination_pointer, source } =&gt; {
-<a href=#691 id=691 data-nosnippet>691</a>                <span class="macro">write!</span>(f, <span class="string">"store {source} at {destination_pointer}"</span>)
+<a href=#690 id=690 data-nosnippet>690</a>            BrilligOpcode::ConditionalMov { destination, source_a, source_b, condition } =&gt; {
+<a href=#691 id=691 data-nosnippet>691</a>                <span class="macro">write!</span>(f, <span class="string">"{destination} = if {condition} then {source_a} else {source_b}"</span>)
 <a href=#692 id=692 data-nosnippet>692</a>            }
-<a href=#693 id=693 data-nosnippet>693</a>            BrilligOpcode::BlackBox(black_box_op) =&gt; {
-<a href=#694 id=694 data-nosnippet>694</a>                <span class="macro">write!</span>(f, <span class="string">"{black_box_op}"</span>)
+<a href=#693 id=693 data-nosnippet>693</a>            BrilligOpcode::Load { destination, source_pointer } =&gt; {
+<a href=#694 id=694 data-nosnippet>694</a>                <span class="macro">write!</span>(f, <span class="string">"{destination} = load {source_pointer}"</span>)
 <a href=#695 id=695 data-nosnippet>695</a>            }
-<a href=#696 id=696 data-nosnippet>696</a>            BrilligOpcode::Trap { revert_data } =&gt; {
-<a href=#697 id=697 data-nosnippet>697</a>                <span class="macro">write!</span>(f, <span class="string">"trap {revert_data}"</span>)
+<a href=#696 id=696 data-nosnippet>696</a>            BrilligOpcode::Store { destination_pointer, source } =&gt; {
+<a href=#697 id=697 data-nosnippet>697</a>                <span class="macro">write!</span>(f, <span class="string">"store {source} at {destination_pointer}"</span>)
 <a href=#698 id=698 data-nosnippet>698</a>            }
-<a href=#699 id=699 data-nosnippet>699</a>            BrilligOpcode::Stop { return_data } =&gt; {
-<a href=#700 id=700 data-nosnippet>700</a>                <span class="macro">write!</span>(f, <span class="string">"stop {return_data}"</span>)
+<a href=#699 id=699 data-nosnippet>699</a>            BrilligOpcode::BlackBox(black_box_op) =&gt; {
+<a href=#700 id=700 data-nosnippet>700</a>                <span class="macro">write!</span>(f, <span class="string">"{black_box_op}"</span>)
 <a href=#701 id=701 data-nosnippet>701</a>            }
-<a href=#702 id=702 data-nosnippet>702</a>        }
-<a href=#703 id=703 data-nosnippet>703</a>    }
-<a href=#704 id=704 data-nosnippet>704</a>}
-<a href=#705 id=705 data-nosnippet>705</a>
-<a href=#706 id=706 data-nosnippet>706</a><span class="doccomment">/// Binary operations on field elements.
-<a href=#707 id=707 data-nosnippet>707</a>///
-<a href=#708 id=708 data-nosnippet>708</a>/// Most operations work with field arithmetic, but some operations like
-<a href=#709 id=709 data-nosnippet>709</a>/// `IntegerDiv` interpret the field elements as unsigned integers for the purpose
-<a href=#710 id=710 data-nosnippet>710</a>/// of the operation (useful when field elements are used to represent integer values).
-<a href=#711 id=711 data-nosnippet>711</a></span><span class="attr">#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-<a href=#712 id=712 data-nosnippet>712</a>#[derive(Serialize, Deserialize, MsgpackTagged)]
-<a href=#713 id=713 data-nosnippet>713</a>#[cfg_attr(feature = <span class="string">"arb"</span>, derive(proptest_derive::Arbitrary))]
-<a href=#714 id=714 data-nosnippet>714</a></span><span class="kw">pub enum </span>BinaryFieldOp {
-<a href=#715 id=715 data-nosnippet>715</a>    <span class="attr">#[tag(<span class="number">0</span>)]
-<a href=#716 id=716 data-nosnippet>716</a>    </span>Add,
-<a href=#717 id=717 data-nosnippet>717</a>    <span class="attr">#[tag(<span class="number">1</span>)]
-<a href=#718 id=718 data-nosnippet>718</a>    </span>Sub,
-<a href=#719 id=719 data-nosnippet>719</a>    <span class="attr">#[tag(<span class="number">2</span>)]
-<a href=#720 id=720 data-nosnippet>720</a>    </span>Mul,
-<a href=#721 id=721 data-nosnippet>721</a>    <span class="doccomment">/// Field division (inverse multiplication in the field)
-<a href=#722 id=722 data-nosnippet>722</a>    </span><span class="attr">#[tag(<span class="number">3</span>)]
-<a href=#723 id=723 data-nosnippet>723</a>    </span>Div,
-<a href=#724 id=724 data-nosnippet>724</a>    <span class="doccomment">/// Unsigned integer division (treating field elements as unsigned integers)
-<a href=#725 id=725 data-nosnippet>725</a>    </span><span class="attr">#[tag(<span class="number">4</span>)]
-<a href=#726 id=726 data-nosnippet>726</a>    </span>IntegerDiv,
-<a href=#727 id=727 data-nosnippet>727</a>    <span class="doccomment">/// (==) Equal
-<a href=#728 id=728 data-nosnippet>728</a>    </span><span class="attr">#[tag(<span class="number">5</span>)]
-<a href=#729 id=729 data-nosnippet>729</a>    </span>Equals,
-<a href=#730 id=730 data-nosnippet>730</a>    <span class="doccomment">/// (&lt;) Field less than
-<a href=#731 id=731 data-nosnippet>731</a>    </span><span class="attr">#[tag(<span class="number">6</span>)]
-<a href=#732 id=732 data-nosnippet>732</a>    </span>LessThan,
-<a href=#733 id=733 data-nosnippet>733</a>    <span class="doccomment">/// (&lt;=) Field less or equal
-<a href=#734 id=734 data-nosnippet>734</a>    </span><span class="attr">#[tag(<span class="number">7</span>)]
-<a href=#735 id=735 data-nosnippet>735</a>    </span>LessThanEquals,
-<a href=#736 id=736 data-nosnippet>736</a>}
-<a href=#737 id=737 data-nosnippet>737</a>
-<a href=#738 id=738 data-nosnippet>738</a><span class="kw">impl </span>std::fmt::Display <span class="kw">for </span>BinaryFieldOp {
-<a href=#739 id=739 data-nosnippet>739</a>    <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>std::fmt::Formatter&lt;<span class="lifetime">'_</span>&gt;) -&gt; std::fmt::Result {
-<a href=#740 id=740 data-nosnippet>740</a>        <span class="kw">match </span><span class="self">self </span>{
-<a href=#741 id=741 data-nosnippet>741</a>            BinaryFieldOp::Add =&gt; <span class="macro">write!</span>(f, <span class="string">"add"</span>),
-<a href=#742 id=742 data-nosnippet>742</a>            BinaryFieldOp::Sub =&gt; <span class="macro">write!</span>(f, <span class="string">"sub"</span>),
-<a href=#743 id=743 data-nosnippet>743</a>            BinaryFieldOp::Mul =&gt; <span class="macro">write!</span>(f, <span class="string">"mul"</span>),
-<a href=#744 id=744 data-nosnippet>744</a>            BinaryFieldOp::Div =&gt; <span class="macro">write!</span>(f, <span class="string">"field_div"</span>),
-<a href=#745 id=745 data-nosnippet>745</a>            BinaryFieldOp::IntegerDiv =&gt; <span class="macro">write!</span>(f, <span class="string">"int_div"</span>),
-<a href=#746 id=746 data-nosnippet>746</a>            BinaryFieldOp::Equals =&gt; <span class="macro">write!</span>(f, <span class="string">"eq"</span>),
-<a href=#747 id=747 data-nosnippet>747</a>            BinaryFieldOp::LessThan =&gt; <span class="macro">write!</span>(f, <span class="string">"lt"</span>),
-<a href=#748 id=748 data-nosnippet>748</a>            BinaryFieldOp::LessThanEquals =&gt; <span class="macro">write!</span>(f, <span class="string">"lt_eq"</span>),
-<a href=#749 id=749 data-nosnippet>749</a>        }
-<a href=#750 id=750 data-nosnippet>750</a>    }
-<a href=#751 id=751 data-nosnippet>751</a>}
-<a href=#752 id=752 data-nosnippet>752</a>
-<a href=#753 id=753 data-nosnippet>753</a><span class="doccomment">/// Binary fixed-length integer expressions
-<a href=#754 id=754 data-nosnippet>754</a></span><span class="attr">#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-<a href=#755 id=755 data-nosnippet>755</a>#[derive(Serialize, Deserialize, MsgpackTagged)]
-<a href=#756 id=756 data-nosnippet>756</a>#[cfg_attr(feature = <span class="string">"arb"</span>, derive(proptest_derive::Arbitrary))]
-<a href=#757 id=757 data-nosnippet>757</a></span><span class="kw">pub enum </span>BinaryIntOp {
-<a href=#758 id=758 data-nosnippet>758</a>    <span class="attr">#[tag(<span class="number">0</span>)]
-<a href=#759 id=759 data-nosnippet>759</a>    </span>Add,
-<a href=#760 id=760 data-nosnippet>760</a>    <span class="attr">#[tag(<span class="number">1</span>)]
-<a href=#761 id=761 data-nosnippet>761</a>    </span>Sub,
-<a href=#762 id=762 data-nosnippet>762</a>    <span class="attr">#[tag(<span class="number">2</span>)]
-<a href=#763 id=763 data-nosnippet>763</a>    </span>Mul,
-<a href=#764 id=764 data-nosnippet>764</a>    <span class="attr">#[tag(<span class="number">3</span>)]
-<a href=#765 id=765 data-nosnippet>765</a>    </span>Div,
-<a href=#766 id=766 data-nosnippet>766</a>    <span class="doccomment">/// (==) Equal
-<a href=#767 id=767 data-nosnippet>767</a>    </span><span class="attr">#[tag(<span class="number">4</span>)]
-<a href=#768 id=768 data-nosnippet>768</a>    </span>Equals,
-<a href=#769 id=769 data-nosnippet>769</a>    <span class="doccomment">/// (&lt;) Integer less than
-<a href=#770 id=770 data-nosnippet>770</a>    </span><span class="attr">#[tag(<span class="number">5</span>)]
-<a href=#771 id=771 data-nosnippet>771</a>    </span>LessThan,
-<a href=#772 id=772 data-nosnippet>772</a>    <span class="doccomment">/// (&lt;=) Integer less or equal
-<a href=#773 id=773 data-nosnippet>773</a>    </span><span class="attr">#[tag(<span class="number">6</span>)]
-<a href=#774 id=774 data-nosnippet>774</a>    </span>LessThanEquals,
-<a href=#775 id=775 data-nosnippet>775</a>    <span class="doccomment">/// (&amp;) Bitwise AND
-<a href=#776 id=776 data-nosnippet>776</a>    </span><span class="attr">#[tag(<span class="number">7</span>)]
-<a href=#777 id=777 data-nosnippet>777</a>    </span>And,
-<a href=#778 id=778 data-nosnippet>778</a>    <span class="doccomment">/// (|) Bitwise OR
-<a href=#779 id=779 data-nosnippet>779</a>    </span><span class="attr">#[tag(<span class="number">8</span>)]
-<a href=#780 id=780 data-nosnippet>780</a>    </span>Or,
-<a href=#781 id=781 data-nosnippet>781</a>    <span class="doccomment">/// (^) Bitwise XOR
-<a href=#782 id=782 data-nosnippet>782</a>    </span><span class="attr">#[tag(<span class="number">9</span>)]
-<a href=#783 id=783 data-nosnippet>783</a>    </span>Xor,
-<a href=#784 id=784 data-nosnippet>784</a>    <span class="doccomment">/// (&lt;&lt;) Shift left
-<a href=#785 id=785 data-nosnippet>785</a>    </span><span class="attr">#[tag(<span class="number">10</span>)]
-<a href=#786 id=786 data-nosnippet>786</a>    </span>Shl,
-<a href=#787 id=787 data-nosnippet>787</a>    <span class="doccomment">/// (&gt;&gt;) Shift right
-<a href=#788 id=788 data-nosnippet>788</a>    </span><span class="attr">#[tag(<span class="number">11</span>)]
-<a href=#789 id=789 data-nosnippet>789</a>    </span>Shr,
-<a href=#790 id=790 data-nosnippet>790</a>}
-<a href=#791 id=791 data-nosnippet>791</a>
-<a href=#792 id=792 data-nosnippet>792</a><span class="kw">impl </span>std::fmt::Display <span class="kw">for </span>BinaryIntOp {
-<a href=#793 id=793 data-nosnippet>793</a>    <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>std::fmt::Formatter&lt;<span class="lifetime">'_</span>&gt;) -&gt; std::fmt::Result {
-<a href=#794 id=794 data-nosnippet>794</a>        <span class="kw">match </span><span class="self">self </span>{
-<a href=#795 id=795 data-nosnippet>795</a>            BinaryIntOp::Add =&gt; <span class="macro">write!</span>(f, <span class="string">"add"</span>),
-<a href=#796 id=796 data-nosnippet>796</a>            BinaryIntOp::Sub =&gt; <span class="macro">write!</span>(f, <span class="string">"sub"</span>),
-<a href=#797 id=797 data-nosnippet>797</a>            BinaryIntOp::Mul =&gt; <span class="macro">write!</span>(f, <span class="string">"mul"</span>),
-<a href=#798 id=798 data-nosnippet>798</a>            BinaryIntOp::Div =&gt; <span class="macro">write!</span>(f, <span class="string">"div"</span>),
-<a href=#799 id=799 data-nosnippet>799</a>            BinaryIntOp::Equals =&gt; <span class="macro">write!</span>(f, <span class="string">"eq"</span>),
-<a href=#800 id=800 data-nosnippet>800</a>            BinaryIntOp::LessThan =&gt; <span class="macro">write!</span>(f, <span class="string">"lt"</span>),
-<a href=#801 id=801 data-nosnippet>801</a>            BinaryIntOp::LessThanEquals =&gt; <span class="macro">write!</span>(f, <span class="string">"lt_eq"</span>),
-<a href=#802 id=802 data-nosnippet>802</a>            BinaryIntOp::And =&gt; <span class="macro">write!</span>(f, <span class="string">"and"</span>),
-<a href=#803 id=803 data-nosnippet>803</a>            BinaryIntOp::Or =&gt; <span class="macro">write!</span>(f, <span class="string">"or"</span>),
-<a href=#804 id=804 data-nosnippet>804</a>            BinaryIntOp::Xor =&gt; <span class="macro">write!</span>(f, <span class="string">"xor"</span>),
-<a href=#805 id=805 data-nosnippet>805</a>            BinaryIntOp::Shl =&gt; <span class="macro">write!</span>(f, <span class="string">"shl"</span>),
-<a href=#806 id=806 data-nosnippet>806</a>            BinaryIntOp::Shr =&gt; <span class="macro">write!</span>(f, <span class="string">"shr"</span>),
-<a href=#807 id=807 data-nosnippet>807</a>        }
-<a href=#808 id=808 data-nosnippet>808</a>    }
-<a href=#809 id=809 data-nosnippet>809</a>}
-<a href=#810 id=810 data-nosnippet>810</a>
-<a href=#811 id=811 data-nosnippet>811</a><span class="attr">#[cfg(test)]
-<a href=#812 id=812 data-nosnippet>812</a></span><span class="kw">mod </span>tests {
-<a href=#813 id=813 data-nosnippet>813</a>    <span class="kw">use </span><span class="kw">crate</span>::MemoryAddress;
-<a href=#814 id=814 data-nosnippet>814</a>
-<a href=#815 id=815 data-nosnippet>815</a>    <span class="kw">use super</span>::{BitSize, IntegerBitSize};
-<a href=#816 id=816 data-nosnippet>816</a>    <span class="kw">use </span>acir_field::FieldElement;
-<a href=#817 id=817 data-nosnippet>817</a>
-<a href=#818 id=818 data-nosnippet>818</a>    <span class="doccomment">/// Test that `IntegerBitSize` round trips correctly through From/TryFrom u32
-<a href=#819 id=819 data-nosnippet>819</a>    </span><span class="attr">#[test]
-<a href=#820 id=820 data-nosnippet>820</a>    </span><span class="kw">fn </span>test_integer_bitsize_roundtrip() {
-<a href=#821 id=821 data-nosnippet>821</a>        <span class="kw">let </span>integer_sizes = [
-<a href=#822 id=822 data-nosnippet>822</a>            IntegerBitSize::U1,
-<a href=#823 id=823 data-nosnippet>823</a>            IntegerBitSize::U8,
-<a href=#824 id=824 data-nosnippet>824</a>            IntegerBitSize::U16,
-<a href=#825 id=825 data-nosnippet>825</a>            IntegerBitSize::U32,
-<a href=#826 id=826 data-nosnippet>826</a>            IntegerBitSize::U64,
-<a href=#827 id=827 data-nosnippet>827</a>            IntegerBitSize::U128,
-<a href=#828 id=828 data-nosnippet>828</a>        ];
-<a href=#829 id=829 data-nosnippet>829</a>
-<a href=#830 id=830 data-nosnippet>830</a>        <span class="kw">for </span>int_size <span class="kw">in </span>integer_sizes {
-<a href=#831 id=831 data-nosnippet>831</a>            <span class="comment">// Convert to u32 using From trait
-<a href=#832 id=832 data-nosnippet>832</a>            </span><span class="kw">let </span>as_u32: u32 = int_size.into();
-<a href=#833 id=833 data-nosnippet>833</a>            <span class="comment">// Convert back using TryFrom trait
-<a href=#834 id=834 data-nosnippet>834</a>            </span><span class="kw">let </span>roundtrip = IntegerBitSize::try_from(as_u32)
-<a href=#835 id=835 data-nosnippet>835</a>                .expect(<span class="string">"Should successfully convert back from u32"</span>);
-<a href=#836 id=836 data-nosnippet>836</a>            <span class="macro">assert_eq!</span>(
-<a href=#837 id=837 data-nosnippet>837</a>                int_size, roundtrip,
-<a href=#838 id=838 data-nosnippet>838</a>                <span class="string">"IntegerBitSize::{int_size} should roundtrip through From&lt;IntegerBitSize&gt; for u32 and TryFrom&lt;u32&gt;"
-<a href=#839 id=839 data-nosnippet>839</a>            </span>);
-<a href=#840 id=840 data-nosnippet>840</a>        }
-<a href=#841 id=841 data-nosnippet>841</a>    }
-<a href=#842 id=842 data-nosnippet>842</a>
-<a href=#843 id=843 data-nosnippet>843</a>    <span class="attr">#[test]
-<a href=#844 id=844 data-nosnippet>844</a>    </span><span class="kw">fn </span>test_integer_bitsize_values() {
-<a href=#845 id=845 data-nosnippet>845</a>        <span class="comment">// Verify the actual u32 values returned by From trait
-<a href=#846 id=846 data-nosnippet>846</a>        </span><span class="macro">assert_eq!</span>(u32::from(IntegerBitSize::U1), <span class="number">1</span>);
-<a href=#847 id=847 data-nosnippet>847</a>        <span class="macro">assert_eq!</span>(u32::from(IntegerBitSize::U8), <span class="number">8</span>);
-<a href=#848 id=848 data-nosnippet>848</a>        <span class="macro">assert_eq!</span>(u32::from(IntegerBitSize::U16), <span class="number">16</span>);
-<a href=#849 id=849 data-nosnippet>849</a>        <span class="macro">assert_eq!</span>(u32::from(IntegerBitSize::U32), <span class="number">32</span>);
-<a href=#850 id=850 data-nosnippet>850</a>        <span class="macro">assert_eq!</span>(u32::from(IntegerBitSize::U64), <span class="number">64</span>);
-<a href=#851 id=851 data-nosnippet>851</a>        <span class="macro">assert_eq!</span>(u32::from(IntegerBitSize::U128), <span class="number">128</span>);
-<a href=#852 id=852 data-nosnippet>852</a>    }
-<a href=#853 id=853 data-nosnippet>853</a>
-<a href=#854 id=854 data-nosnippet>854</a>    <span class="attr">#[test]
-<a href=#855 id=855 data-nosnippet>855</a>    </span><span class="kw">fn </span>test_integer_bitsize_try_from_invalid() {
-<a href=#856 id=856 data-nosnippet>856</a>        <span class="comment">// Test that invalid bit sizes return an error
-<a href=#857 id=857 data-nosnippet>857</a>        </span><span class="macro">assert!</span>(IntegerBitSize::try_from(<span class="number">0</span>).is_err());
-<a href=#858 id=858 data-nosnippet>858</a>        <span class="macro">assert!</span>(IntegerBitSize::try_from(<span class="number">2</span>).is_err());
-<a href=#859 id=859 data-nosnippet>859</a>        <span class="macro">assert!</span>(IntegerBitSize::try_from(<span class="number">7</span>).is_err());
-<a href=#860 id=860 data-nosnippet>860</a>        <span class="macro">assert!</span>(IntegerBitSize::try_from(<span class="number">15</span>).is_err());
-<a href=#861 id=861 data-nosnippet>861</a>        <span class="macro">assert!</span>(IntegerBitSize::try_from(<span class="number">31</span>).is_err());
-<a href=#862 id=862 data-nosnippet>862</a>        <span class="macro">assert!</span>(IntegerBitSize::try_from(<span class="number">63</span>).is_err());
-<a href=#863 id=863 data-nosnippet>863</a>        <span class="macro">assert!</span>(IntegerBitSize::try_from(<span class="number">127</span>).is_err());
-<a href=#864 id=864 data-nosnippet>864</a>        <span class="macro">assert!</span>(IntegerBitSize::try_from(<span class="number">129</span>).is_err());
-<a href=#865 id=865 data-nosnippet>865</a>        <span class="macro">assert!</span>(IntegerBitSize::try_from(<span class="number">256</span>).is_err());
-<a href=#866 id=866 data-nosnippet>866</a>    }
-<a href=#867 id=867 data-nosnippet>867</a>
-<a href=#868 id=868 data-nosnippet>868</a>    <span class="doccomment">/// Test that `BitSize` round-trips correctly through `to_u32/try_from_u32`
-<a href=#869 id=869 data-nosnippet>869</a>    </span><span class="attr">#[test]
-<a href=#870 id=870 data-nosnippet>870</a>    </span><span class="kw">fn </span>test_bitsize_roundtrip() {
-<a href=#871 id=871 data-nosnippet>871</a>        <span class="comment">// Test all integer bit sizes
-<a href=#872 id=872 data-nosnippet>872</a>        </span><span class="kw">let </span>integer_sizes = [
-<a href=#873 id=873 data-nosnippet>873</a>            IntegerBitSize::U1,
-<a href=#874 id=874 data-nosnippet>874</a>            IntegerBitSize::U8,
-<a href=#875 id=875 data-nosnippet>875</a>            IntegerBitSize::U16,
-<a href=#876 id=876 data-nosnippet>876</a>            IntegerBitSize::U32,
-<a href=#877 id=877 data-nosnippet>877</a>            IntegerBitSize::U64,
-<a href=#878 id=878 data-nosnippet>878</a>            IntegerBitSize::U128,
-<a href=#879 id=879 data-nosnippet>879</a>        ];
-<a href=#880 id=880 data-nosnippet>880</a>
-<a href=#881 id=881 data-nosnippet>881</a>        <span class="kw">for </span>int_size <span class="kw">in </span>integer_sizes {
-<a href=#882 id=882 data-nosnippet>882</a>            <span class="kw">let </span>bit_size = BitSize::Integer(int_size);
-<a href=#883 id=883 data-nosnippet>883</a>            <span class="kw">let </span>as_u32 = bit_size.to_u32::&lt;FieldElement&gt;();
-<a href=#884 id=884 data-nosnippet>884</a>            <span class="kw">let </span>roundtrip = BitSize::try_from_u32::&lt;FieldElement&gt;(as_u32)
-<a href=#885 id=885 data-nosnippet>885</a>                .expect(<span class="string">"Should successfully convert back from u32"</span>);
-<a href=#886 id=886 data-nosnippet>886</a>            <span class="macro">assert_eq!</span>(
-<a href=#887 id=887 data-nosnippet>887</a>                bit_size, roundtrip,
-<a href=#888 id=888 data-nosnippet>888</a>                <span class="string">"BitSize::Integer({int_size}) should roundtrip through to_u32/try_from_u32"
-<a href=#889 id=889 data-nosnippet>889</a>            </span>);
-<a href=#890 id=890 data-nosnippet>890</a>        }
-<a href=#891 id=891 data-nosnippet>891</a>
-<a href=#892 id=892 data-nosnippet>892</a>        <span class="comment">// Test Field type
-<a href=#893 id=893 data-nosnippet>893</a>        </span><span class="kw">let </span>field_bit_size = BitSize::Field;
-<a href=#894 id=894 data-nosnippet>894</a>        <span class="kw">let </span>as_u32 = field_bit_size.to_u32::&lt;FieldElement&gt;();
-<a href=#895 id=895 data-nosnippet>895</a>        <span class="kw">let </span>roundtrip = BitSize::try_from_u32::&lt;FieldElement&gt;(as_u32)
-<a href=#896 id=896 data-nosnippet>896</a>            .expect(<span class="string">"Should successfully convert Field back from u32"</span>);
-<a href=#897 id=897 data-nosnippet>897</a>        <span class="macro">assert_eq!</span>(
-<a href=#898 id=898 data-nosnippet>898</a>            field_bit_size, roundtrip,
-<a href=#899 id=899 data-nosnippet>899</a>            <span class="string">"BitSize::Field should roundtrip through to_u32/try_from_u32"
-<a href=#900 id=900 data-nosnippet>900</a>        </span>);
-<a href=#901 id=901 data-nosnippet>901</a>    }
-<a href=#902 id=902 data-nosnippet>902</a>
-<a href=#903 id=903 data-nosnippet>903</a>    <span class="attr">#[test]
-<a href=#904 id=904 data-nosnippet>904</a>    </span><span class="kw">fn </span>test_bitsize_to_u32_values_integers() {
-<a href=#905 id=905 data-nosnippet>905</a>        <span class="comment">// Verify the actual u32 values returned for integer types
-<a href=#906 id=906 data-nosnippet>906</a>        </span><span class="macro">assert_eq!</span>(BitSize::Integer(IntegerBitSize::U1).to_u32::&lt;FieldElement&gt;(), <span class="number">1</span>);
-<a href=#907 id=907 data-nosnippet>907</a>        <span class="macro">assert_eq!</span>(BitSize::Integer(IntegerBitSize::U8).to_u32::&lt;FieldElement&gt;(), <span class="number">8</span>);
-<a href=#908 id=908 data-nosnippet>908</a>        <span class="macro">assert_eq!</span>(BitSize::Integer(IntegerBitSize::U16).to_u32::&lt;FieldElement&gt;(), <span class="number">16</span>);
-<a href=#909 id=909 data-nosnippet>909</a>        <span class="macro">assert_eq!</span>(BitSize::Integer(IntegerBitSize::U32).to_u32::&lt;FieldElement&gt;(), <span class="number">32</span>);
-<a href=#910 id=910 data-nosnippet>910</a>        <span class="macro">assert_eq!</span>(BitSize::Integer(IntegerBitSize::U64).to_u32::&lt;FieldElement&gt;(), <span class="number">64</span>);
-<a href=#911 id=911 data-nosnippet>911</a>        <span class="macro">assert_eq!</span>(BitSize::Integer(IntegerBitSize::U128).to_u32::&lt;FieldElement&gt;(), <span class="number">128</span>);
-<a href=#912 id=912 data-nosnippet>912</a>    }
-<a href=#913 id=913 data-nosnippet>913</a>
-<a href=#914 id=914 data-nosnippet>914</a>    <span class="attr">#[test]
-<a href=#915 id=915 data-nosnippet>915</a>    #[cfg(feature = <span class="string">"bn254"</span>)]
-<a href=#916 id=916 data-nosnippet>916</a>    </span><span class="kw">fn </span>test_bitsize_to_u32_field_bn254() {
-<a href=#917 id=917 data-nosnippet>917</a>        <span class="comment">// Field type returns 254 bits for bn254
-<a href=#918 id=918 data-nosnippet>918</a>        </span><span class="macro">assert_eq!</span>(BitSize::Field.to_u32::&lt;FieldElement&gt;(), <span class="number">254</span>);
-<a href=#919 id=919 data-nosnippet>919</a>    }
-<a href=#920 id=920 data-nosnippet>920</a>
-<a href=#921 id=921 data-nosnippet>921</a>    <span class="attr">#[test]
-<a href=#922 id=922 data-nosnippet>922</a>    #[cfg(feature = <span class="string">"bls12_381"</span>)]
-<a href=#923 id=923 data-nosnippet>923</a>    </span><span class="kw">fn </span>test_bitsize_to_u32_field_bls12_381() {
-<a href=#924 id=924 data-nosnippet>924</a>        <span class="comment">// Field type returns 255 bits for bls12_381
-<a href=#925 id=925 data-nosnippet>925</a>        </span><span class="macro">assert_eq!</span>(BitSize::Field.to_u32::&lt;FieldElement&gt;(), <span class="number">255</span>);
-<a href=#926 id=926 data-nosnippet>926</a>    }
-<a href=#927 id=927 data-nosnippet>927</a>
-<a href=#928 id=928 data-nosnippet>928</a>    <span class="attr">#[test]
-<a href=#929 id=929 data-nosnippet>929</a>    </span><span class="kw">fn </span>test_bitsize_try_from_u32_invalid() {
-<a href=#930 id=930 data-nosnippet>930</a>        <span class="comment">// Test that invalid bit sizes return an error
-<a href=#931 id=931 data-nosnippet>931</a>        </span><span class="macro">assert!</span>(BitSize::try_from_u32::&lt;FieldElement&gt;(<span class="number">2</span>).is_err());
-<a href=#932 id=932 data-nosnippet>932</a>        <span class="macro">assert!</span>(BitSize::try_from_u32::&lt;FieldElement&gt;(<span class="number">7</span>).is_err());
-<a href=#933 id=933 data-nosnippet>933</a>        <span class="macro">assert!</span>(BitSize::try_from_u32::&lt;FieldElement&gt;(<span class="number">0</span>).is_err());
-<a href=#934 id=934 data-nosnippet>934</a>        <span class="macro">assert!</span>(BitSize::try_from_u32::&lt;FieldElement&gt;(<span class="number">256</span>).is_err());
-<a href=#935 id=935 data-nosnippet>935</a>    }
-<a href=#936 id=936 data-nosnippet>936</a>
-<a href=#937 id=937 data-nosnippet>937</a>    <span class="attr">#[test]
-<a href=#938 id=938 data-nosnippet>938</a>    #[should_panic = <span class="string">"memory offset overflow"</span>]
-<a href=#939 id=939 data-nosnippet>939</a>    </span><span class="kw">fn </span>memory_offset_overflow() {
-<a href=#940 id=940 data-nosnippet>940</a>        <span class="kw">let </span>addr = MemoryAddress::direct(u32::MAX);
-<a href=#941 id=941 data-nosnippet>941</a>        <span class="kw">let _ </span>= addr.offset(<span class="number">1</span>);
-<a href=#942 id=942 data-nosnippet>942</a>    }
-<a href=#943 id=943 data-nosnippet>943</a>}
-<a href=#944 id=944 data-nosnippet>944</a>
-<a href=#945 id=945 data-nosnippet>945</a><span class="attr">#[cfg(feature = <span class="string">"arb"</span>)]
-<a href=#946 id=946 data-nosnippet>946</a></span><span class="kw">mod </span>prop_tests {
-<a href=#947 id=947 data-nosnippet>947</a>    <span class="kw">use </span>proptest::arbitrary::Arbitrary;
-<a href=#948 id=948 data-nosnippet>948</a>    <span class="kw">use </span>proptest::prelude::<span class="kw-2">*</span>;
-<a href=#949 id=949 data-nosnippet>949</a>
-<a href=#950 id=950 data-nosnippet>950</a>    <span class="kw">use </span><span class="kw">crate</span>::lengths::SemanticLength;
-<a href=#951 id=951 data-nosnippet>951</a>
-<a href=#952 id=952 data-nosnippet>952</a>    <span class="kw">use super</span>::{BitSize, HeapValueType};
-<a href=#953 id=953 data-nosnippet>953</a>
-<a href=#954 id=954 data-nosnippet>954</a>    <span class="comment">// Need to define recursive strategy for `HeapValueType`
-<a href=#955 id=955 data-nosnippet>955</a>    </span><span class="kw">impl </span>Arbitrary <span class="kw">for </span>HeapValueType {
-<a href=#956 id=956 data-nosnippet>956</a>        <span class="kw">type </span>Parameters = ();
-<a href=#957 id=957 data-nosnippet>957</a>        <span class="kw">type </span>Strategy = BoxedStrategy&lt;<span class="self">Self</span>&gt;;
-<a href=#958 id=958 data-nosnippet>958</a>
-<a href=#959 id=959 data-nosnippet>959</a>        <span class="kw">fn </span>arbitrary_with(_args: <span class="self">Self</span>::Parameters) -&gt; <span class="self">Self</span>::Strategy {
-<a href=#960 id=960 data-nosnippet>960</a>            <span class="kw">let </span>leaf = any::&lt;BitSize&gt;().prop_map(HeapValueType::Simple);
-<a href=#961 id=961 data-nosnippet>961</a>            leaf.prop_recursive(<span class="number">2</span>, <span class="number">3</span>, <span class="number">2</span>, |inner| {
-<a href=#962 id=962 data-nosnippet>962</a>                <span class="macro">prop_oneof!</span>[
-<a href=#963 id=963 data-nosnippet>963</a>                    (prop::collection::vec(inner.clone(), <span class="number">1</span>..<span class="number">3</span>), any::&lt;u32&gt;()).prop_map(
-<a href=#964 id=964 data-nosnippet>964</a>                        |(value_types, size)| {
-<a href=#965 id=965 data-nosnippet>965</a>                            HeapValueType::Array { value_types, size: SemanticLength(size) }
-<a href=#966 id=966 data-nosnippet>966</a>                        }
-<a href=#967 id=967 data-nosnippet>967</a>                    ),
-<a href=#968 id=968 data-nosnippet>968</a>                    (prop::collection::vec(inner, <span class="number">1</span>..<span class="number">3</span>))
-<a href=#969 id=969 data-nosnippet>969</a>                        .prop_map(|value_types| { HeapValueType::Vector { value_types } }),
-<a href=#970 id=970 data-nosnippet>970</a>                ]
-<a href=#971 id=971 data-nosnippet>971</a>            })
-<a href=#972 id=972 data-nosnippet>972</a>            .boxed()
-<a href=#973 id=973 data-nosnippet>973</a>        }
-<a href=#974 id=974 data-nosnippet>974</a>    }
-<a href=#975 id=975 data-nosnippet>975</a>}</code></pre></div></section></main></body></html>
+<a href=#702 id=702 data-nosnippet>702</a>            BrilligOpcode::Trap { revert_data } =&gt; {
+<a href=#703 id=703 data-nosnippet>703</a>                <span class="macro">write!</span>(f, <span class="string">"trap {revert_data}"</span>)
+<a href=#704 id=704 data-nosnippet>704</a>            }
+<a href=#705 id=705 data-nosnippet>705</a>            BrilligOpcode::Stop { return_data } =&gt; {
+<a href=#706 id=706 data-nosnippet>706</a>                <span class="macro">write!</span>(f, <span class="string">"stop {return_data}"</span>)
+<a href=#707 id=707 data-nosnippet>707</a>            }
+<a href=#708 id=708 data-nosnippet>708</a>        }
+<a href=#709 id=709 data-nosnippet>709</a>    }
+<a href=#710 id=710 data-nosnippet>710</a>}
+<a href=#711 id=711 data-nosnippet>711</a>
+<a href=#712 id=712 data-nosnippet>712</a><span class="doccomment">/// Binary operations on field elements.
+<a href=#713 id=713 data-nosnippet>713</a>///
+<a href=#714 id=714 data-nosnippet>714</a>/// Most operations work with field arithmetic, but some operations like
+<a href=#715 id=715 data-nosnippet>715</a>/// `IntegerDiv` interpret the field elements as unsigned integers for the purpose
+<a href=#716 id=716 data-nosnippet>716</a>/// of the operation (useful when field elements are used to represent integer values).
+<a href=#717 id=717 data-nosnippet>717</a></span><span class="attr">#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+<a href=#718 id=718 data-nosnippet>718</a>#[derive(Serialize, Deserialize, MsgpackTagged)]
+<a href=#719 id=719 data-nosnippet>719</a>#[cfg_attr(feature = <span class="string">"arb"</span>, derive(proptest_derive::Arbitrary))]
+<a href=#720 id=720 data-nosnippet>720</a></span><span class="kw">pub enum </span>BinaryFieldOp {
+<a href=#721 id=721 data-nosnippet>721</a>    <span class="attr">#[tag(<span class="number">0</span>)]
+<a href=#722 id=722 data-nosnippet>722</a>    </span>Add,
+<a href=#723 id=723 data-nosnippet>723</a>    <span class="attr">#[tag(<span class="number">1</span>)]
+<a href=#724 id=724 data-nosnippet>724</a>    </span>Sub,
+<a href=#725 id=725 data-nosnippet>725</a>    <span class="attr">#[tag(<span class="number">2</span>)]
+<a href=#726 id=726 data-nosnippet>726</a>    </span>Mul,
+<a href=#727 id=727 data-nosnippet>727</a>    <span class="doccomment">/// Field division (inverse multiplication in the field)
+<a href=#728 id=728 data-nosnippet>728</a>    </span><span class="attr">#[tag(<span class="number">3</span>)]
+<a href=#729 id=729 data-nosnippet>729</a>    </span>Div,
+<a href=#730 id=730 data-nosnippet>730</a>    <span class="doccomment">/// Unsigned integer division (treating field elements as unsigned integers)
+<a href=#731 id=731 data-nosnippet>731</a>    </span><span class="attr">#[tag(<span class="number">4</span>)]
+<a href=#732 id=732 data-nosnippet>732</a>    </span>IntegerDiv,
+<a href=#733 id=733 data-nosnippet>733</a>    <span class="doccomment">/// (==) Equal
+<a href=#734 id=734 data-nosnippet>734</a>    </span><span class="attr">#[tag(<span class="number">5</span>)]
+<a href=#735 id=735 data-nosnippet>735</a>    </span>Equals,
+<a href=#736 id=736 data-nosnippet>736</a>    <span class="doccomment">/// (&lt;) Field less than
+<a href=#737 id=737 data-nosnippet>737</a>    </span><span class="attr">#[tag(<span class="number">6</span>)]
+<a href=#738 id=738 data-nosnippet>738</a>    </span>LessThan,
+<a href=#739 id=739 data-nosnippet>739</a>    <span class="doccomment">/// (&lt;=) Field less or equal
+<a href=#740 id=740 data-nosnippet>740</a>    </span><span class="attr">#[tag(<span class="number">7</span>)]
+<a href=#741 id=741 data-nosnippet>741</a>    </span>LessThanEquals,
+<a href=#742 id=742 data-nosnippet>742</a>}
+<a href=#743 id=743 data-nosnippet>743</a>
+<a href=#744 id=744 data-nosnippet>744</a><span class="kw">impl </span>std::fmt::Display <span class="kw">for </span>BinaryFieldOp {
+<a href=#745 id=745 data-nosnippet>745</a>    <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>std::fmt::Formatter&lt;<span class="lifetime">'_</span>&gt;) -&gt; std::fmt::Result {
+<a href=#746 id=746 data-nosnippet>746</a>        <span class="kw">match </span><span class="self">self </span>{
+<a href=#747 id=747 data-nosnippet>747</a>            BinaryFieldOp::Add =&gt; <span class="macro">write!</span>(f, <span class="string">"add"</span>),
+<a href=#748 id=748 data-nosnippet>748</a>            BinaryFieldOp::Sub =&gt; <span class="macro">write!</span>(f, <span class="string">"sub"</span>),
+<a href=#749 id=749 data-nosnippet>749</a>            BinaryFieldOp::Mul =&gt; <span class="macro">write!</span>(f, <span class="string">"mul"</span>),
+<a href=#750 id=750 data-nosnippet>750</a>            BinaryFieldOp::Div =&gt; <span class="macro">write!</span>(f, <span class="string">"field_div"</span>),
+<a href=#751 id=751 data-nosnippet>751</a>            BinaryFieldOp::IntegerDiv =&gt; <span class="macro">write!</span>(f, <span class="string">"int_div"</span>),
+<a href=#752 id=752 data-nosnippet>752</a>            BinaryFieldOp::Equals =&gt; <span class="macro">write!</span>(f, <span class="string">"eq"</span>),
+<a href=#753 id=753 data-nosnippet>753</a>            BinaryFieldOp::LessThan =&gt; <span class="macro">write!</span>(f, <span class="string">"lt"</span>),
+<a href=#754 id=754 data-nosnippet>754</a>            BinaryFieldOp::LessThanEquals =&gt; <span class="macro">write!</span>(f, <span class="string">"lt_eq"</span>),
+<a href=#755 id=755 data-nosnippet>755</a>        }
+<a href=#756 id=756 data-nosnippet>756</a>    }
+<a href=#757 id=757 data-nosnippet>757</a>}
+<a href=#758 id=758 data-nosnippet>758</a>
+<a href=#759 id=759 data-nosnippet>759</a><span class="doccomment">/// Binary fixed-length integer expressions
+<a href=#760 id=760 data-nosnippet>760</a></span><span class="attr">#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+<a href=#761 id=761 data-nosnippet>761</a>#[derive(Serialize, Deserialize, MsgpackTagged)]
+<a href=#762 id=762 data-nosnippet>762</a>#[cfg_attr(feature = <span class="string">"arb"</span>, derive(proptest_derive::Arbitrary))]
+<a href=#763 id=763 data-nosnippet>763</a></span><span class="kw">pub enum </span>BinaryIntOp {
+<a href=#764 id=764 data-nosnippet>764</a>    <span class="attr">#[tag(<span class="number">0</span>)]
+<a href=#765 id=765 data-nosnippet>765</a>    </span>Add,
+<a href=#766 id=766 data-nosnippet>766</a>    <span class="attr">#[tag(<span class="number">1</span>)]
+<a href=#767 id=767 data-nosnippet>767</a>    </span>Sub,
+<a href=#768 id=768 data-nosnippet>768</a>    <span class="attr">#[tag(<span class="number">2</span>)]
+<a href=#769 id=769 data-nosnippet>769</a>    </span>Mul,
+<a href=#770 id=770 data-nosnippet>770</a>    <span class="attr">#[tag(<span class="number">3</span>)]
+<a href=#771 id=771 data-nosnippet>771</a>    </span>Div,
+<a href=#772 id=772 data-nosnippet>772</a>    <span class="doccomment">/// (==) Equal
+<a href=#773 id=773 data-nosnippet>773</a>    </span><span class="attr">#[tag(<span class="number">4</span>)]
+<a href=#774 id=774 data-nosnippet>774</a>    </span>Equals,
+<a href=#775 id=775 data-nosnippet>775</a>    <span class="doccomment">/// (&lt;) Integer less than
+<a href=#776 id=776 data-nosnippet>776</a>    </span><span class="attr">#[tag(<span class="number">5</span>)]
+<a href=#777 id=777 data-nosnippet>777</a>    </span>LessThan,
+<a href=#778 id=778 data-nosnippet>778</a>    <span class="doccomment">/// (&lt;=) Integer less or equal
+<a href=#779 id=779 data-nosnippet>779</a>    </span><span class="attr">#[tag(<span class="number">6</span>)]
+<a href=#780 id=780 data-nosnippet>780</a>    </span>LessThanEquals,
+<a href=#781 id=781 data-nosnippet>781</a>    <span class="doccomment">/// (&amp;) Bitwise AND
+<a href=#782 id=782 data-nosnippet>782</a>    </span><span class="attr">#[tag(<span class="number">7</span>)]
+<a href=#783 id=783 data-nosnippet>783</a>    </span>And,
+<a href=#784 id=784 data-nosnippet>784</a>    <span class="doccomment">/// (|) Bitwise OR
+<a href=#785 id=785 data-nosnippet>785</a>    </span><span class="attr">#[tag(<span class="number">8</span>)]
+<a href=#786 id=786 data-nosnippet>786</a>    </span>Or,
+<a href=#787 id=787 data-nosnippet>787</a>    <span class="doccomment">/// (^) Bitwise XOR
+<a href=#788 id=788 data-nosnippet>788</a>    </span><span class="attr">#[tag(<span class="number">9</span>)]
+<a href=#789 id=789 data-nosnippet>789</a>    </span>Xor,
+<a href=#790 id=790 data-nosnippet>790</a>    <span class="doccomment">/// (&lt;&lt;) Shift left
+<a href=#791 id=791 data-nosnippet>791</a>    </span><span class="attr">#[tag(<span class="number">10</span>)]
+<a href=#792 id=792 data-nosnippet>792</a>    </span>Shl,
+<a href=#793 id=793 data-nosnippet>793</a>    <span class="doccomment">/// (&gt;&gt;) Shift right
+<a href=#794 id=794 data-nosnippet>794</a>    </span><span class="attr">#[tag(<span class="number">11</span>)]
+<a href=#795 id=795 data-nosnippet>795</a>    </span>Shr,
+<a href=#796 id=796 data-nosnippet>796</a>}
+<a href=#797 id=797 data-nosnippet>797</a>
+<a href=#798 id=798 data-nosnippet>798</a><span class="kw">impl </span>std::fmt::Display <span class="kw">for </span>BinaryIntOp {
+<a href=#799 id=799 data-nosnippet>799</a>    <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>std::fmt::Formatter&lt;<span class="lifetime">'_</span>&gt;) -&gt; std::fmt::Result {
+<a href=#800 id=800 data-nosnippet>800</a>        <span class="kw">match </span><span class="self">self </span>{
+<a href=#801 id=801 data-nosnippet>801</a>            BinaryIntOp::Add =&gt; <span class="macro">write!</span>(f, <span class="string">"add"</span>),
+<a href=#802 id=802 data-nosnippet>802</a>            BinaryIntOp::Sub =&gt; <span class="macro">write!</span>(f, <span class="string">"sub"</span>),
+<a href=#803 id=803 data-nosnippet>803</a>            BinaryIntOp::Mul =&gt; <span class="macro">write!</span>(f, <span class="string">"mul"</span>),
+<a href=#804 id=804 data-nosnippet>804</a>            BinaryIntOp::Div =&gt; <span class="macro">write!</span>(f, <span class="string">"div"</span>),
+<a href=#805 id=805 data-nosnippet>805</a>            BinaryIntOp::Equals =&gt; <span class="macro">write!</span>(f, <span class="string">"eq"</span>),
+<a href=#806 id=806 data-nosnippet>806</a>            BinaryIntOp::LessThan =&gt; <span class="macro">write!</span>(f, <span class="string">"lt"</span>),
+<a href=#807 id=807 data-nosnippet>807</a>            BinaryIntOp::LessThanEquals =&gt; <span class="macro">write!</span>(f, <span class="string">"lt_eq"</span>),
+<a href=#808 id=808 data-nosnippet>808</a>            BinaryIntOp::And =&gt; <span class="macro">write!</span>(f, <span class="string">"and"</span>),
+<a href=#809 id=809 data-nosnippet>809</a>            BinaryIntOp::Or =&gt; <span class="macro">write!</span>(f, <span class="string">"or"</span>),
+<a href=#810 id=810 data-nosnippet>810</a>            BinaryIntOp::Xor =&gt; <span class="macro">write!</span>(f, <span class="string">"xor"</span>),
+<a href=#811 id=811 data-nosnippet>811</a>            BinaryIntOp::Shl =&gt; <span class="macro">write!</span>(f, <span class="string">"shl"</span>),
+<a href=#812 id=812 data-nosnippet>812</a>            BinaryIntOp::Shr =&gt; <span class="macro">write!</span>(f, <span class="string">"shr"</span>),
+<a href=#813 id=813 data-nosnippet>813</a>        }
+<a href=#814 id=814 data-nosnippet>814</a>    }
+<a href=#815 id=815 data-nosnippet>815</a>}
+<a href=#816 id=816 data-nosnippet>816</a>
+<a href=#817 id=817 data-nosnippet>817</a><span class="attr">#[cfg(test)]
+<a href=#818 id=818 data-nosnippet>818</a></span><span class="kw">mod </span>tests {
+<a href=#819 id=819 data-nosnippet>819</a>    <span class="kw">use </span><span class="kw">crate</span>::MemoryAddress;
+<a href=#820 id=820 data-nosnippet>820</a>
+<a href=#821 id=821 data-nosnippet>821</a>    <span class="kw">use super</span>::{BitSize, IntegerBitSize};
+<a href=#822 id=822 data-nosnippet>822</a>    <span class="kw">use </span>acir_field::FieldElement;
+<a href=#823 id=823 data-nosnippet>823</a>
+<a href=#824 id=824 data-nosnippet>824</a>    <span class="doccomment">/// Test that `IntegerBitSize` round trips correctly through From/TryFrom u32
+<a href=#825 id=825 data-nosnippet>825</a>    </span><span class="attr">#[test]
+<a href=#826 id=826 data-nosnippet>826</a>    </span><span class="kw">fn </span>test_integer_bitsize_roundtrip() {
+<a href=#827 id=827 data-nosnippet>827</a>        <span class="kw">let </span>integer_sizes = [
+<a href=#828 id=828 data-nosnippet>828</a>            IntegerBitSize::U1,
+<a href=#829 id=829 data-nosnippet>829</a>            IntegerBitSize::U8,
+<a href=#830 id=830 data-nosnippet>830</a>            IntegerBitSize::U16,
+<a href=#831 id=831 data-nosnippet>831</a>            IntegerBitSize::U32,
+<a href=#832 id=832 data-nosnippet>832</a>            IntegerBitSize::U64,
+<a href=#833 id=833 data-nosnippet>833</a>            IntegerBitSize::U128,
+<a href=#834 id=834 data-nosnippet>834</a>        ];
+<a href=#835 id=835 data-nosnippet>835</a>
+<a href=#836 id=836 data-nosnippet>836</a>        <span class="kw">for </span>int_size <span class="kw">in </span>integer_sizes {
+<a href=#837 id=837 data-nosnippet>837</a>            <span class="comment">// Convert to u32 using From trait
+<a href=#838 id=838 data-nosnippet>838</a>            </span><span class="kw">let </span>as_u32: u32 = int_size.into();
+<a href=#839 id=839 data-nosnippet>839</a>            <span class="comment">// Convert back using TryFrom trait
+<a href=#840 id=840 data-nosnippet>840</a>            </span><span class="kw">let </span>roundtrip = IntegerBitSize::try_from(as_u32)
+<a href=#841 id=841 data-nosnippet>841</a>                .expect(<span class="string">"Should successfully convert back from u32"</span>);
+<a href=#842 id=842 data-nosnippet>842</a>            <span class="macro">assert_eq!</span>(
+<a href=#843 id=843 data-nosnippet>843</a>                int_size, roundtrip,
+<a href=#844 id=844 data-nosnippet>844</a>                <span class="string">"IntegerBitSize::{int_size} should roundtrip through From&lt;IntegerBitSize&gt; for u32 and TryFrom&lt;u32&gt;"
+<a href=#845 id=845 data-nosnippet>845</a>            </span>);
+<a href=#846 id=846 data-nosnippet>846</a>        }
+<a href=#847 id=847 data-nosnippet>847</a>    }
+<a href=#848 id=848 data-nosnippet>848</a>
+<a href=#849 id=849 data-nosnippet>849</a>    <span class="attr">#[test]
+<a href=#850 id=850 data-nosnippet>850</a>    </span><span class="kw">fn </span>test_integer_bitsize_values() {
+<a href=#851 id=851 data-nosnippet>851</a>        <span class="comment">// Verify the actual u32 values returned by From trait
+<a href=#852 id=852 data-nosnippet>852</a>        </span><span class="macro">assert_eq!</span>(u32::from(IntegerBitSize::U1), <span class="number">1</span>);
+<a href=#853 id=853 data-nosnippet>853</a>        <span class="macro">assert_eq!</span>(u32::from(IntegerBitSize::U8), <span class="number">8</span>);
+<a href=#854 id=854 data-nosnippet>854</a>        <span class="macro">assert_eq!</span>(u32::from(IntegerBitSize::U16), <span class="number">16</span>);
+<a href=#855 id=855 data-nosnippet>855</a>        <span class="macro">assert_eq!</span>(u32::from(IntegerBitSize::U32), <span class="number">32</span>);
+<a href=#856 id=856 data-nosnippet>856</a>        <span class="macro">assert_eq!</span>(u32::from(IntegerBitSize::U64), <span class="number">64</span>);
+<a href=#857 id=857 data-nosnippet>857</a>        <span class="macro">assert_eq!</span>(u32::from(IntegerBitSize::U128), <span class="number">128</span>);
+<a href=#858 id=858 data-nosnippet>858</a>    }
+<a href=#859 id=859 data-nosnippet>859</a>
+<a href=#860 id=860 data-nosnippet>860</a>    <span class="attr">#[test]
+<a href=#861 id=861 data-nosnippet>861</a>    </span><span class="kw">fn </span>test_integer_bitsize_try_from_invalid() {
+<a href=#862 id=862 data-nosnippet>862</a>        <span class="comment">// Test that invalid bit sizes return an error
+<a href=#863 id=863 data-nosnippet>863</a>        </span><span class="macro">assert!</span>(IntegerBitSize::try_from(<span class="number">0</span>).is_err());
+<a href=#864 id=864 data-nosnippet>864</a>        <span class="macro">assert!</span>(IntegerBitSize::try_from(<span class="number">2</span>).is_err());
+<a href=#865 id=865 data-nosnippet>865</a>        <span class="macro">assert!</span>(IntegerBitSize::try_from(<span class="number">7</span>).is_err());
+<a href=#866 id=866 data-nosnippet>866</a>        <span class="macro">assert!</span>(IntegerBitSize::try_from(<span class="number">15</span>).is_err());
+<a href=#867 id=867 data-nosnippet>867</a>        <span class="macro">assert!</span>(IntegerBitSize::try_from(<span class="number">31</span>).is_err());
+<a href=#868 id=868 data-nosnippet>868</a>        <span class="macro">assert!</span>(IntegerBitSize::try_from(<span class="number">63</span>).is_err());
+<a href=#869 id=869 data-nosnippet>869</a>        <span class="macro">assert!</span>(IntegerBitSize::try_from(<span class="number">127</span>).is_err());
+<a href=#870 id=870 data-nosnippet>870</a>        <span class="macro">assert!</span>(IntegerBitSize::try_from(<span class="number">129</span>).is_err());
+<a href=#871 id=871 data-nosnippet>871</a>        <span class="macro">assert!</span>(IntegerBitSize::try_from(<span class="number">256</span>).is_err());
+<a href=#872 id=872 data-nosnippet>872</a>    }
+<a href=#873 id=873 data-nosnippet>873</a>
+<a href=#874 id=874 data-nosnippet>874</a>    <span class="doccomment">/// Test that `BitSize` round-trips correctly through `to_u32/try_from_u32`
+<a href=#875 id=875 data-nosnippet>875</a>    </span><span class="attr">#[test]
+<a href=#876 id=876 data-nosnippet>876</a>    </span><span class="kw">fn </span>test_bitsize_roundtrip() {
+<a href=#877 id=877 data-nosnippet>877</a>        <span class="comment">// Test all integer bit sizes
+<a href=#878 id=878 data-nosnippet>878</a>        </span><span class="kw">let </span>integer_sizes = [
+<a href=#879 id=879 data-nosnippet>879</a>            IntegerBitSize::U1,
+<a href=#880 id=880 data-nosnippet>880</a>            IntegerBitSize::U8,
+<a href=#881 id=881 data-nosnippet>881</a>            IntegerBitSize::U16,
+<a href=#882 id=882 data-nosnippet>882</a>            IntegerBitSize::U32,
+<a href=#883 id=883 data-nosnippet>883</a>            IntegerBitSize::U64,
+<a href=#884 id=884 data-nosnippet>884</a>            IntegerBitSize::U128,
+<a href=#885 id=885 data-nosnippet>885</a>        ];
+<a href=#886 id=886 data-nosnippet>886</a>
+<a href=#887 id=887 data-nosnippet>887</a>        <span class="kw">for </span>int_size <span class="kw">in </span>integer_sizes {
+<a href=#888 id=888 data-nosnippet>888</a>            <span class="kw">let </span>bit_size = BitSize::Integer(int_size);
+<a href=#889 id=889 data-nosnippet>889</a>            <span class="kw">let </span>as_u32 = bit_size.to_u32::&lt;FieldElement&gt;();
+<a href=#890 id=890 data-nosnippet>890</a>            <span class="kw">let </span>roundtrip = BitSize::try_from_u32::&lt;FieldElement&gt;(as_u32)
+<a href=#891 id=891 data-nosnippet>891</a>                .expect(<span class="string">"Should successfully convert back from u32"</span>);
+<a href=#892 id=892 data-nosnippet>892</a>            <span class="macro">assert_eq!</span>(
+<a href=#893 id=893 data-nosnippet>893</a>                bit_size, roundtrip,
+<a href=#894 id=894 data-nosnippet>894</a>                <span class="string">"BitSize::Integer({int_size}) should roundtrip through to_u32/try_from_u32"
+<a href=#895 id=895 data-nosnippet>895</a>            </span>);
+<a href=#896 id=896 data-nosnippet>896</a>        }
+<a href=#897 id=897 data-nosnippet>897</a>
+<a href=#898 id=898 data-nosnippet>898</a>        <span class="comment">// Test Field type
+<a href=#899 id=899 data-nosnippet>899</a>        </span><span class="kw">let </span>field_bit_size = BitSize::Field;
+<a href=#900 id=900 data-nosnippet>900</a>        <span class="kw">let </span>as_u32 = field_bit_size.to_u32::&lt;FieldElement&gt;();
+<a href=#901 id=901 data-nosnippet>901</a>        <span class="kw">let </span>roundtrip = BitSize::try_from_u32::&lt;FieldElement&gt;(as_u32)
+<a href=#902 id=902 data-nosnippet>902</a>            .expect(<span class="string">"Should successfully convert Field back from u32"</span>);
+<a href=#903 id=903 data-nosnippet>903</a>        <span class="macro">assert_eq!</span>(
+<a href=#904 id=904 data-nosnippet>904</a>            field_bit_size, roundtrip,
+<a href=#905 id=905 data-nosnippet>905</a>            <span class="string">"BitSize::Field should roundtrip through to_u32/try_from_u32"
+<a href=#906 id=906 data-nosnippet>906</a>        </span>);
+<a href=#907 id=907 data-nosnippet>907</a>    }
+<a href=#908 id=908 data-nosnippet>908</a>
+<a href=#909 id=909 data-nosnippet>909</a>    <span class="attr">#[test]
+<a href=#910 id=910 data-nosnippet>910</a>    </span><span class="kw">fn </span>test_bitsize_to_u32_values_integers() {
+<a href=#911 id=911 data-nosnippet>911</a>        <span class="comment">// Verify the actual u32 values returned for integer types
+<a href=#912 id=912 data-nosnippet>912</a>        </span><span class="macro">assert_eq!</span>(BitSize::Integer(IntegerBitSize::U1).to_u32::&lt;FieldElement&gt;(), <span class="number">1</span>);
+<a href=#913 id=913 data-nosnippet>913</a>        <span class="macro">assert_eq!</span>(BitSize::Integer(IntegerBitSize::U8).to_u32::&lt;FieldElement&gt;(), <span class="number">8</span>);
+<a href=#914 id=914 data-nosnippet>914</a>        <span class="macro">assert_eq!</span>(BitSize::Integer(IntegerBitSize::U16).to_u32::&lt;FieldElement&gt;(), <span class="number">16</span>);
+<a href=#915 id=915 data-nosnippet>915</a>        <span class="macro">assert_eq!</span>(BitSize::Integer(IntegerBitSize::U32).to_u32::&lt;FieldElement&gt;(), <span class="number">32</span>);
+<a href=#916 id=916 data-nosnippet>916</a>        <span class="macro">assert_eq!</span>(BitSize::Integer(IntegerBitSize::U64).to_u32::&lt;FieldElement&gt;(), <span class="number">64</span>);
+<a href=#917 id=917 data-nosnippet>917</a>        <span class="macro">assert_eq!</span>(BitSize::Integer(IntegerBitSize::U128).to_u32::&lt;FieldElement&gt;(), <span class="number">128</span>);
+<a href=#918 id=918 data-nosnippet>918</a>    }
+<a href=#919 id=919 data-nosnippet>919</a>
+<a href=#920 id=920 data-nosnippet>920</a>    <span class="attr">#[test]
+<a href=#921 id=921 data-nosnippet>921</a>    #[cfg(feature = <span class="string">"bn254"</span>)]
+<a href=#922 id=922 data-nosnippet>922</a>    </span><span class="kw">fn </span>test_bitsize_to_u32_field_bn254() {
+<a href=#923 id=923 data-nosnippet>923</a>        <span class="comment">// Field type returns 254 bits for bn254
+<a href=#924 id=924 data-nosnippet>924</a>        </span><span class="macro">assert_eq!</span>(BitSize::Field.to_u32::&lt;FieldElement&gt;(), <span class="number">254</span>);
+<a href=#925 id=925 data-nosnippet>925</a>    }
+<a href=#926 id=926 data-nosnippet>926</a>
+<a href=#927 id=927 data-nosnippet>927</a>    <span class="attr">#[test]
+<a href=#928 id=928 data-nosnippet>928</a>    #[cfg(feature = <span class="string">"bls12_381"</span>)]
+<a href=#929 id=929 data-nosnippet>929</a>    </span><span class="kw">fn </span>test_bitsize_to_u32_field_bls12_381() {
+<a href=#930 id=930 data-nosnippet>930</a>        <span class="comment">// Field type returns 255 bits for bls12_381
+<a href=#931 id=931 data-nosnippet>931</a>        </span><span class="macro">assert_eq!</span>(BitSize::Field.to_u32::&lt;FieldElement&gt;(), <span class="number">255</span>);
+<a href=#932 id=932 data-nosnippet>932</a>    }
+<a href=#933 id=933 data-nosnippet>933</a>
+<a href=#934 id=934 data-nosnippet>934</a>    <span class="attr">#[test]
+<a href=#935 id=935 data-nosnippet>935</a>    </span><span class="kw">fn </span>test_bitsize_try_from_u32_invalid() {
+<a href=#936 id=936 data-nosnippet>936</a>        <span class="comment">// Test that invalid bit sizes return an error
+<a href=#937 id=937 data-nosnippet>937</a>        </span><span class="macro">assert!</span>(BitSize::try_from_u32::&lt;FieldElement&gt;(<span class="number">2</span>).is_err());
+<a href=#938 id=938 data-nosnippet>938</a>        <span class="macro">assert!</span>(BitSize::try_from_u32::&lt;FieldElement&gt;(<span class="number">7</span>).is_err());
+<a href=#939 id=939 data-nosnippet>939</a>        <span class="macro">assert!</span>(BitSize::try_from_u32::&lt;FieldElement&gt;(<span class="number">0</span>).is_err());
+<a href=#940 id=940 data-nosnippet>940</a>        <span class="macro">assert!</span>(BitSize::try_from_u32::&lt;FieldElement&gt;(<span class="number">256</span>).is_err());
+<a href=#941 id=941 data-nosnippet>941</a>    }
+<a href=#942 id=942 data-nosnippet>942</a>
+<a href=#943 id=943 data-nosnippet>943</a>    <span class="attr">#[test]
+<a href=#944 id=944 data-nosnippet>944</a>    #[should_panic = <span class="string">"memory offset overflow"</span>]
+<a href=#945 id=945 data-nosnippet>945</a>    </span><span class="kw">fn </span>memory_offset_overflow() {
+<a href=#946 id=946 data-nosnippet>946</a>        <span class="kw">let </span>addr = MemoryAddress::direct(u32::MAX);
+<a href=#947 id=947 data-nosnippet>947</a>        <span class="kw">let _ </span>= addr.offset(<span class="number">1</span>);
+<a href=#948 id=948 data-nosnippet>948</a>    }
+<a href=#949 id=949 data-nosnippet>949</a>}
+<a href=#950 id=950 data-nosnippet>950</a>
+<a href=#951 id=951 data-nosnippet>951</a><span class="attr">#[cfg(feature = <span class="string">"arb"</span>)]
+<a href=#952 id=952 data-nosnippet>952</a></span><span class="kw">mod </span>prop_tests {
+<a href=#953 id=953 data-nosnippet>953</a>    <span class="kw">use </span>proptest::arbitrary::Arbitrary;
+<a href=#954 id=954 data-nosnippet>954</a>    <span class="kw">use </span>proptest::prelude::<span class="kw-2">*</span>;
+<a href=#955 id=955 data-nosnippet>955</a>
+<a href=#956 id=956 data-nosnippet>956</a>    <span class="kw">use </span><span class="kw">crate</span>::lengths::SemanticLength;
+<a href=#957 id=957 data-nosnippet>957</a>
+<a href=#958 id=958 data-nosnippet>958</a>    <span class="kw">use super</span>::{BitSize, HeapValueType};
+<a href=#959 id=959 data-nosnippet>959</a>
+<a href=#960 id=960 data-nosnippet>960</a>    <span class="comment">// Need to define recursive strategy for `HeapValueType`
+<a href=#961 id=961 data-nosnippet>961</a>    </span><span class="kw">impl </span>Arbitrary <span class="kw">for </span>HeapValueType {
+<a href=#962 id=962 data-nosnippet>962</a>        <span class="kw">type </span>Parameters = ();
+<a href=#963 id=963 data-nosnippet>963</a>        <span class="kw">type </span>Strategy = BoxedStrategy&lt;<span class="self">Self</span>&gt;;
+<a href=#964 id=964 data-nosnippet>964</a>
+<a href=#965 id=965 data-nosnippet>965</a>        <span class="kw">fn </span>arbitrary_with(_args: <span class="self">Self</span>::Parameters) -&gt; <span class="self">Self</span>::Strategy {
+<a href=#966 id=966 data-nosnippet>966</a>            <span class="kw">let </span>leaf = any::&lt;BitSize&gt;().prop_map(HeapValueType::Simple);
+<a href=#967 id=967 data-nosnippet>967</a>            leaf.prop_recursive(<span class="number">2</span>, <span class="number">3</span>, <span class="number">2</span>, |inner| {
+<a href=#968 id=968 data-nosnippet>968</a>                <span class="macro">prop_oneof!</span>[
+<a href=#969 id=969 data-nosnippet>969</a>                    (prop::collection::vec(inner.clone(), <span class="number">1</span>..<span class="number">3</span>), any::&lt;u32&gt;()).prop_map(
+<a href=#970 id=970 data-nosnippet>970</a>                        |(value_types, size)| {
+<a href=#971 id=971 data-nosnippet>971</a>                            HeapValueType::Array { value_types, size: SemanticLength(size) }
+<a href=#972 id=972 data-nosnippet>972</a>                        }
+<a href=#973 id=973 data-nosnippet>973</a>                    ),
+<a href=#974 id=974 data-nosnippet>974</a>                    (prop::collection::vec(inner, <span class="number">1</span>..<span class="number">3</span>))
+<a href=#975 id=975 data-nosnippet>975</a>                        .prop_map(|value_types| { HeapValueType::Vector { value_types } }),
+<a href=#976 id=976 data-nosnippet>976</a>                ]
+<a href=#977 id=977 data-nosnippet>977</a>            })
+<a href=#978 id=978 data-nosnippet>978</a>            .boxed()
+<a href=#979 id=979 data-nosnippet>979</a>        }
+<a href=#980 id=980 data-nosnippet>980</a>    }
+<a href=#981 id=981 data-nosnippet>981</a>}</code></pre></div></section></main></body></html>
