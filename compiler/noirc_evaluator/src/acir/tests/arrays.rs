@@ -5,8 +5,10 @@ use acvm::{
 
 use crate::{
     acir::{
-        AcirDynamicArray, Context, SharedContext, acir_context::BrilligStdLib,
-        tests::ssa_to_acir_program, types::AcirValue,
+        AcirDynamicArray, Context, SharedContext,
+        acir_context::BrilligStdLib,
+        tests::{ssa_to_acir_program, ssa_to_generated_acir},
+        types::AcirValue,
     },
     brillig::{Brillig, BrilligOptions},
     ssa::{ir::value::ValueId, ssa_gen::Ssa},
@@ -160,6 +162,37 @@ fn constant_array_access_in_bounds() {
 }
 
 #[test]
+fn constant_reads_on_parameter_array_avoid_memory_blocks() {
+    // A parameter array that is only ever read at constant indices should be resolved
+    // entirely against its `AcirValue::Array`. ACIR generation must not initialize a memory
+    // block for it, nor emit any `READ`/`WRITE` memory operations: each read folds directly to
+    // the corresponding input witness.
+    //
+    // We inspect the raw `GeneratedAcir` rather than the optimized program because the ACVM
+    // unused-memory optimizer would otherwise prune an eagerly-emitted `MemoryInit`, hiding
+    // whether ACIR gen created the block in the first place.
+    let src = "
+    acir(inline) fn main f0 {
+      b0(v0: [Field; 3]):
+        v2 = array_get v0, index u32 0 -> Field
+        v4 = array_get v0, index u32 2 -> Field
+        v5 = add v2, v4
+        return v5
+    }
+    ";
+    let generated_acir = ssa_to_generated_acir(src);
+
+    assert!(
+        !generated_acir
+            .opcodes()
+            .iter()
+            .any(|opcode| matches!(opcode, Opcode::MemoryInit { .. } | Opcode::MemoryOp { .. })),
+        "constant reads on a parameter array should not generate a memory block, got opcodes:\n{:#?}",
+        generated_acir.opcodes()
+    );
+}
+
+#[test]
 fn generates_memory_op_for_dynamic_read() {
     let src = "
     acir(inline) fn main f0 {
@@ -234,14 +267,14 @@ fn generates_predicated_index_for_dynamic_read() {
     // the read to fall back to a safe in-bounds slot when the predicate is `0`. Since
     // `compute_offset` returns `Some(0)` for `[Field; 3]`, no offset-fallback bias is
     // applied and we read directly at `w5`.
-    assert_circuit_snapshot!(program, @"
+    assert_circuit_snapshot!(program, @r"
     func 0
     private parameters: [w0, w1, w2, w3, w4]
     public parameters: []
     return values: []
-    INIT b0 = [w0, w1, w2]
     BLACKBOX::RANGE input: w3, bits: 32
     BLACKBOX::RANGE input: w4, bits: 1
+    INIT b0 = [w0, w1, w2]
     ASSERT w5 = w3*w4
     READ w6 = b0[w5]
     ASSERT w6 = 10
@@ -272,14 +305,14 @@ fn generates_predicated_index_and_dummy_value_for_dynamic_write() {
     // `-w4*w9` -> (-predicate * dummy)
     // `w9` -> dummy
     // As expected, we then store `w10` at the predicated index `w8`.
-    assert_circuit_snapshot!(program, @"
+    assert_circuit_snapshot!(program, @r"
     func 0
     private parameters: [w0, w1, w2, w3, w4]
     public parameters: []
     return values: [w5, w6, w7]
-    INIT b0 = [w0, w1, w2]
     BLACKBOX::RANGE input: w3, bits: 32
     BLACKBOX::RANGE input: w4, bits: 1
+    INIT b0 = [w0, w1, w2]
     ASSERT w8 = w3*w4
     READ w9 = b0[w8]
     INIT b1 = [w0, w1, w2]

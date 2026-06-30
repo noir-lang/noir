@@ -14,7 +14,7 @@ use noirc_frontend::shared::Visibility;
 use std::collections::BTreeMap;
 
 use crate::{
-    acir::{acir_context::BrilligStdLib, ssa::codegen_acir},
+    acir::{GeneratedAcir, acir_context::BrilligStdLib, ssa::codegen_acir},
     brillig::{Brillig, BrilligOptions, brillig_ir::artifact::GeneratedBrillig},
     errors::RuntimeError,
     ssa::{
@@ -34,6 +34,23 @@ mod intrinsics;
 /// into the final [ACIR Program][Program] in order to use its parser and human-readable text format.
 fn ssa_to_acir_program(src: &str) -> Program<FieldElement> {
     ssa_to_acir_program_with_debug_info(src).0
+}
+
+/// Converts SSA into the raw [`GeneratedAcir`] for `main`, *before* any ACIR-level
+/// optimization (such as unused-memory removal) is applied.
+///
+/// [`ssa_to_acir_program`] runs the ACVM optimizer, which prunes `MemoryInit` opcodes for
+/// blocks that are never read or written. That masks whether ACIR generation emitted a memory
+/// block in the first place, so tests that care about what ACIR gen itself produces should use
+/// this helper instead.
+fn ssa_to_generated_acir(src: &str) -> GeneratedAcir<FieldElement> {
+    let ssa = Ssa::from_str(src).unwrap();
+    let brillig = ssa.to_brillig(&BrilligOptions::default());
+    let (mut acir_functions, _, _) = ssa
+        .generate_entry_point_index()
+        .into_acir(&brillig, &BrilligOptions::default())
+        .expect("Should compile manually written SSA into ACIR");
+    acir_functions.swap_remove(0)
 }
 
 fn ssa_to_acir_program_with_debug_info(src: &str) -> (Program<FieldElement>, Vec<DebugInfo>) {

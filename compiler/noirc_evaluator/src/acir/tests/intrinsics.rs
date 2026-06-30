@@ -439,38 +439,38 @@ fn vector_pop_back_nested_arrays() {
     ASSERT w9 = 5
     ASSERT w10 = 8
     ASSERT w11 = 9
-    INIT b2 = [w6, w7, w8, w9, w10, w11]
-    INIT b3 = [w0, w1, w2, w3, w0, w1, w2, w3, w6, w6, w6, w6]
-    READ w12 = b2[w8]
-    WRITE b3[w12] = w4
+    INIT b1 = [w6, w7, w8, w9, w10, w11]
+    INIT b2 = [w0, w1, w2, w3, w0, w1, w2, w3, w6, w6, w6, w6]
+    READ w12 = b1[w8]
+    WRITE b2[w12] = w4
     ASSERT w13 = w12 + 1
-    WRITE b3[w13] = w1
+    WRITE b2[w13] = w1
     ASSERT w14 = w13 + 1
-    WRITE b3[w14] = w2
+    WRITE b2[w14] = w2
     ASSERT w15 = w14 + 1
-    WRITE b3[w15] = w3
-    READ w16 = b3[w10]
-    READ w17 = b3[w11]
+    WRITE b2[w15] = w3
+    READ w16 = b2[w10]
+    READ w17 = b2[w11]
     ASSERT w18 = 10
-    READ w19 = b3[w18]
+    READ w19 = b2[w18]
     ASSERT w20 = 11
-    READ w21 = b3[w20]
-    READ w22 = b3[w6]
-    READ w23 = b3[w7]
+    READ w21 = b2[w20]
+    READ w22 = b2[w6]
+    READ w23 = b2[w7]
     ASSERT w24 = 2
-    READ w25 = b3[w24]
+    READ w25 = b2[w24]
     ASSERT w26 = 3
-    READ w27 = b3[w26]
-    READ w28 = b3[w8]
-    READ w29 = b3[w9]
+    READ w27 = b2[w26]
+    READ w28 = b2[w8]
+    READ w29 = b2[w9]
     ASSERT w30 = 6
-    READ w31 = b3[w30]
+    READ w31 = b2[w30]
     ASSERT w32 = 7
-    READ w33 = b3[w32]
-    READ w34 = b3[w10]
-    READ w35 = b3[w11]
-    READ w36 = b3[w18]
-    READ w37 = b3[w20]
+    READ w33 = b2[w32]
+    READ w34 = b2[w10]
+    READ w35 = b2[w11]
+    READ w36 = b2[w18]
+    READ w37 = b2[w20]
     ASSERT w16 = w5
     ");
 }
@@ -861,12 +861,12 @@ fn vector_pop_back_empty_vector_with_unknown_length_from_previous_pop() {
     BLACKBOX::RANGE input: w0, bits: 32
     BLACKBOX::RANGE input: w1, bits: 32
     BLACKBOX::RANGE input: w2, bits: 32
-    INIT b1 = [w0]
+    INIT b0 = [w0]
     BRILLIG CALL func: 0, predicate: 1, inputs: [w1 - 3], outputs: [w3]
     ASSERT w4 = -w1*w3 + 3*w3 + 1
     ASSERT 0 = w1*w4 - 3*w4
     ASSERT w5 = 0
-    READ w6 = b1[w5]
+    READ w6 = b0[w5]
     ASSERT w4 = 1
 
     unconstrained func 0: directive_invert
