@@ -932,11 +932,10 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                         );
                         if let Some(sm) = self.function_context.spill_manager.as_mut() {
                             // A value can reach this branch while still owning a spill slot: a
-                            // transiently spilled value that was reloaded into a register
-                            // (TransientReloaded) is no longer `is_spilled`, yet its slot stays
-                            // reserved. Release it so the offset returns to the free list. For a
-                            // value with no spill record, or a permanently spilled one, this is a
-                            // no-op.
+                            // transiently spilled value that was reloaded into a register is no
+                            // longer spilled, yet its transient slot stays reserved. Release it so
+                            // the offset returns to the free list. For a value with no spill
+                            // record, or a permanently spilled one, this is a no-op.
                             sm.remove_spill(dead_variable);
                         }
                     }

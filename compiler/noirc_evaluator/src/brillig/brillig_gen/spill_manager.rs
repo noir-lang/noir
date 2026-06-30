@@ -19,30 +19,40 @@
 //! _permanent_ spills: their slot is reserved for the remainder of the function and every
 //! use reloads from it.
 //!
+//! The manager owns only this *slot* bookkeeping plus an LRU eviction order. Whether a value is
+//! currently in a register is owned by the register allocator ([`BlockVariables`]) and read
+//! through the [`RegisterState`] trait; "currently spilled" is *derived* as having a slot while
+//! not in a register, never stored.
+//!
 //! Transient slots are freed as soon as the value dies; permanent slots are never freed
 //! (see <https://github.com/noir-lang/noir/issues/11695>). Each block begins with
-//! [`SpillManager::begin_block`], which (a) asserts no transient spills leaked from the
-//! previous block, (b) re-marks permanent slots as "currently spilled" so their owners
-//! must reload before use, and (c) rebuilds the LRU with this block's live-in set.
+//! [`SpillManager::begin_block`], which (a) asserts no live-in value carries a transient slot
+//! (values living across a boundary must be permanently spilled), and (b) rebuilds the LRU from
+//! this block's live-in set. It consults no [`RegisterState`]: the block's registers are reset
+//! by the caller immediately afterwards, so a permanently-spilled value is automatically "not in
+//! a register" at entry.
 //!
 //! # Per-use flow
 //!
 //! The code generator calls into the spill manager at a small number of well-defined points:
 //!
 //! - Before making room for a fresh value, [`BrilligBlock::ensure_register_capacity`] asks
-//!   [`SpillManager::lru_victim`] for the least-recently-used non-spilled value and spills
-//!   it via [`BrilligBlock::spill_value`]. That emits the store and frees the register.
-//! - When a spilled value is needed, [`BrilligBlock::reload_spilled_value`] allocates a
-//!   fresh register, emits the load, and calls [`SpillManager::unmark_spilled`] to record
-//!   that the value is once again in a register (the slot still holds a valid copy).
-//! - When a value is used, [`SpillManager::touch`] bumps it to the most-recently-used end
-//!   of the LRU, so that freshly-loaded and just-produced values aren't the first victims
-//!   of the next eviction.
-//! - When a value dies, [`SpillManager::remove_spill`] frees its transient slot (permanent
-//!   slots are kept for the rest of the function).
+//!   [`SpillManager::lru_victim`] for the least-recently-used value (the LRU only ever holds
+//!   register-resident values) and spills it via [`BrilligBlock::spill_value`]. That emits the
+//!   store, records the slot, and frees the register.
+//! - When a spilled value is needed, [`BrilligBlock::reload_spilled_value`] allocates a fresh
+//!   register and emits the load; re-adding the value to the register set is what marks it no
+//!   longer spilled (the slot is kept, since the load may re-execute in a loop iteration).
+//! - When a value is used, [`SpillManager::touch`] bumps it to the most-recently-used end of
+//!   the LRU, so that freshly-loaded and just-produced values aren't the first victims of the
+//!   next eviction. `touch` also asserts the value is in a register, keeping spilled values out
+//!   of the LRU at the source.
+//! - When a value dies, [`SpillManager::remove_spill`] frees its transient slot (permanent slots
+//!   are kept for the rest of the function) and drops it from the LRU.
 //!
 //! [`VariableLiveness::max_live_count`]: super::variable_liveness::VariableLiveness::max_live_count
 //! [`LayoutConfig`]: crate::brillig::brillig_ir::LayoutConfig
+//! [`BlockVariables`]: super::brillig_block_variables::BlockVariables
 //! [`BrilligBlock::ensure_register_capacity`]: super::brillig_block::BrilligBlock::ensure_register_capacity
 //! [`BrilligBlock::spill_value`]: super::brillig_block::BrilligBlock::spill_value
 //! [`BrilligBlock::reload_spilled_value`]: super::brillig_block::BrilligBlock::reload_spilled_value
