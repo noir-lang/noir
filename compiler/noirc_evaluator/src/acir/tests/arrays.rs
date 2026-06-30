@@ -187,15 +187,8 @@ fn predicated_constant_index_set_folds_without_memory_block() {
     private parameters: [w0, w1, w2, w3]
     public parameters: []
     return values: [w4]
-    INIT b0 = [w0, w1, w2]
     BLACKBOX::RANGE input: w3, bits: 1
-    ASSERT w5 = 0
-    READ w6 = b0[w5]
-    INIT b1 = [w0, w1, w2]
-    ASSERT w7 = w0*w3 - w3*w6 + w3 + w6
-    WRITE b1[w5] = w7
-    READ w8 = b1[w5]
-    ASSERT w4 = w8
+    ASSERT w4 = w0 + w3
     ");
 }
 
