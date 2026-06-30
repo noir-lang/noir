@@ -324,6 +324,12 @@ fn function_returns_arg_alias(
                 let propagate = match &dfg[*instruction_id] {
                     // An array_set result shares the operand's storage.
                     Instruction::ArraySet { array, .. } => param_derived.contains(array),
+                    // A *nested* array_get returns a sub-array that shares the
+                    // source's storage (a brillig array_get on a nested array
+                    // aliases rather than copies). The `is_array` gate on the
+                    // result below restricts this to the nested case — a
+                    // non-nested get yields a scalar and propagates nothing.
+                    Instruction::ArrayGet { array, .. } => param_derived.contains(array),
                     // A call result aliases an argument only if the callee
                     // returns an arg alias and is fed a parameter-derived
                     // argument. Foreign/intrinsic results are fresh.
@@ -564,5 +570,30 @@ mod tests {
             src,
             "the callee returns a fresh foreign-call result, not an alias of its input",
         );
+    }
+
+    /// `returns_arg_alias` must trace through a **nested** `array_get`: a brillig
+    /// `array_get` on a nested array returns a sub-array that *aliases* the
+    /// source's storage (the same "the input was moved" case `pure.rs` models).
+    /// Here `f1` returns `v0[0]`, an alias of its nested-array input; the caller
+    /// `array_set`s that result (mutating the input's storage in place) and then
+    /// reads the input. With no `inc_rc` on the reused argument the verifier must
+    /// reject.
+    #[test]
+    fn end_to_end_callee_returns_nested_array_get_alias_is_rejected() {
+        let src = r#"
+            brillig(inline) fn main f0 {
+              b0(v0: [[u8; 3]; 2]):
+                v1 = call f1(v0) -> [u8; 3]
+                v2 = array_set v1, index u32 0, value u8 9
+                v3 = array_get v0, index u32 0 -> [u8; 3]
+                return v3
+            }
+            brillig(inline) fn nested_identity f1 {
+              b0(v0: [[u8; 3]; 2]):
+                v1 = array_get v0, index u32 0 -> [u8; 3]
+                return v1
+            }"#;
+        assert_verifier_rejects(src);
     }
 }
