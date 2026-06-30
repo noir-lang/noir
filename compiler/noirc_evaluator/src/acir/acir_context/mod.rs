@@ -1608,7 +1608,7 @@ mod tests {
 
         // Claim a flattened length of 2 but provide only a single value.
         let result = context.initialize_array(
-            BlockId(0),
+            BlockId::new(0),
             FlattenedLength(2),
             Some(value),
             BlockType::Memory,

@@ -119,7 +119,7 @@ impl Context<'_> {
         };
 
         let output_vars = self.acir_context.call_acir_function(
-            AcirFunctionId(acir_function_id),
+            AcirFunctionId::new(acir_function_id),
             inputs,
             output_count,
             self.current_side_effects_enabled_var,

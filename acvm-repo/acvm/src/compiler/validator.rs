@@ -111,7 +111,7 @@ pub fn validate_witness<F: AcirField>(
                         let and_result = bit_and(lhs_value, rhs_value, *num_bits);
                         let output_value = witness_map
                             .get(output)
-                            .ok_or(OpcodeNotSolvable::MissingAssignment(output.0))?;
+                            .ok_or(OpcodeNotSolvable::MissingAssignment(output.witness_index()))?;
                         if and_result != *output_value {
                             return Err(unsatisfied_constraint(
                                 opcode_index,
@@ -129,7 +129,7 @@ pub fn validate_witness<F: AcirField>(
                         let xor_result = bit_xor(lhs_value, rhs_value, *num_bits);
                         let output_value = witness_map
                             .get(output)
-                            .ok_or(OpcodeNotSolvable::MissingAssignment(output.0))?;
+                            .ok_or(OpcodeNotSolvable::MissingAssignment(output.witness_index()))?;
                         if xor_result != *output_value {
                             return Err(unsatisfied_constraint(
                                 opcode_index,
@@ -148,9 +148,11 @@ pub fn validate_witness<F: AcirField>(
                         let digest: [u8; 32] = blake2s(&message_input)?;
                         for i in 0..32 {
                             let output_witness = &outputs[i];
-                            let witness_value = witness_map
-                                .get(output_witness)
-                                .ok_or(OpcodeNotSolvable::MissingAssignment(output_witness.0))?;
+                            let witness_value = witness_map.get(output_witness).ok_or(
+                                OpcodeNotSolvable::MissingAssignment(
+                                    output_witness.witness_index(),
+                                ),
+                            )?;
                             if *witness_value != F::from_be_bytes_reduce(&[digest[i]]) {
                                 return Err(unsatisfied_constraint(
                                     opcode_index,
@@ -330,9 +332,11 @@ pub fn validate_witness<F: AcirField>(
                             inputs,
                         )?;
                         for (output_witness, value) in outputs.iter().zip_eq(state) {
-                            let witness_value = witness_map
-                                .get(output_witness)
-                                .ok_or(OpcodeNotSolvable::MissingAssignment(output_witness.0))?;
+                            let witness_value = witness_map.get(output_witness).ok_or(
+                                OpcodeNotSolvable::MissingAssignment(
+                                    output_witness.witness_index(),
+                                ),
+                            )?;
                             if *witness_value != value {
                                 return Err(unsatisfied_constraint(
                                     opcode_index,
@@ -351,9 +355,11 @@ pub fn validate_witness<F: AcirField>(
                         )?;
 
                         for (output_witness, value) in outputs.iter().zip_eq(state) {
-                            let witness_value = witness_map
-                                .get(output_witness)
-                                .ok_or(OpcodeNotSolvable::MissingAssignment(output_witness.0))?;
+                            let witness_value = witness_map.get(output_witness).ok_or(
+                                OpcodeNotSolvable::MissingAssignment(
+                                    output_witness.witness_index(),
+                                ),
+                            )?;
                             if *witness_value != F::from(u128::from(value)) {
                                 return Err(unsatisfied_constraint(
                                     opcode_index,
@@ -381,7 +387,10 @@ pub fn validate_witness<F: AcirField>(
                 if existing_block_id.is_some() {
                     return Err(unsatisfied_constraint(
                         opcode_index,
-                        format!("Attempted reinitialization of memory block {:?}", block_id.0,),
+                        format!(
+                            "Attempted reinitialization of memory block {:?}",
+                            block_id.as_u32(),
+                        ),
                     ));
                 }
             }
@@ -399,14 +408,18 @@ pub fn validate_witness<F: AcirField>(
                 // Verify input witnesses exist
                 for input in inputs {
                     if witness_map.get(input).is_none() {
-                        return Err(OpcodeNotSolvable::MissingAssignment(input.0).into());
+                        return Err(
+                            OpcodeNotSolvable::MissingAssignment(input.witness_index()).into()
+                        );
                     }
                 }
 
                 // Verify output witnesses exist (value should have been validated by the called function)
                 for output in outputs {
                     if witness_map.get(output).is_none() {
-                        return Err(OpcodeNotSolvable::MissingAssignment(output.0).into());
+                        return Err(
+                            OpcodeNotSolvable::MissingAssignment(output.witness_index()).into()
+                        );
                     }
                 }
             }
@@ -720,7 +733,7 @@ mod tests {
     #[test]
     fn test_call_opcode_valid() {
         let circuit = make_circuit(vec![Opcode::Call {
-            id: AcirFunctionId(1),
+            id: AcirFunctionId::new(1),
             inputs: vec![Witness(1), Witness(2)],
             outputs: vec![Witness(3)],
             predicate: Expression::one(),
@@ -739,7 +752,7 @@ mod tests {
     #[test]
     fn test_call_opcode_missing_input() {
         let circuit = make_circuit(vec![Opcode::Call {
-            id: AcirFunctionId(1),
+            id: AcirFunctionId::new(1),
             inputs: vec![Witness(1), Witness(2)],
             outputs: vec![Witness(3)],
             predicate: Expression::one(),
@@ -761,7 +774,7 @@ mod tests {
     #[test]
     fn test_call_opcode_missing_output() {
         let circuit = make_circuit(vec![Opcode::Call {
-            id: AcirFunctionId(1),
+            id: AcirFunctionId::new(1),
             inputs: vec![Witness(1), Witness(2)],
             outputs: vec![Witness(3)],
             predicate: Expression::one(),
@@ -784,7 +797,7 @@ mod tests {
     fn test_call_opcode_skipped_with_zero_predicate() {
         // Predicate is zero, so call should be skipped even with missing witnesses
         let circuit = make_circuit(vec![Opcode::Call {
-            id: AcirFunctionId(1),
+            id: AcirFunctionId::new(1),
             inputs: vec![Witness(1), Witness(2)],
             outputs: vec![Witness(3)],
             predicate: Expression {
@@ -805,7 +818,7 @@ mod tests {
 
     #[test]
     fn test_memory_init_and_read() {
-        let block_id = BlockId(0);
+        let block_id = BlockId::new(0);
 
         let circuit = make_circuit(vec![
             // Initialize memory block with witnesses 1 and 2
@@ -831,7 +844,7 @@ mod tests {
 
     #[test]
     fn test_memory_read_wrong_value() {
-        let block_id = BlockId(0);
+        let block_id = BlockId::new(0);
 
         let circuit = make_circuit(vec![
             Opcode::MemoryInit {
@@ -859,7 +872,7 @@ mod tests {
 
     #[test]
     fn test_memory_write_then_read() {
-        let block_id = BlockId(0);
+        let block_id = BlockId::new(0);
 
         let circuit = make_circuit(vec![
             // Initialize memory block
@@ -892,7 +905,7 @@ mod tests {
         // Brillig calls are unconstrained and should be skipped during validation,
         // so this should pass even with an empty witness map
         let circuit = make_circuit(vec![Opcode::BrilligCall {
-            id: BrilligFunctionId(0),
+            id: BrilligFunctionId::new(0),
             inputs: vec![
                 BrilligInputs::Single(Witness(1).into()),
                 BrilligInputs::Single(Witness(2).into()),
@@ -916,7 +929,7 @@ mod tests {
         // witness satisfies every constraint in the circuit (there are none). This is exactly the
         // behaviour audit finding noir-claude#502 mistook for a bug.
         let circuit = make_circuit(vec![Opcode::BrilligCall {
-            id: BrilligFunctionId(0),
+            id: BrilligFunctionId::new(0),
             inputs: vec![BrilligInputs::Single(Witness(1).into())],
             outputs: vec![BrilligOutputs::Simple(Witness(2))],
             predicate: Expression::one(),
@@ -938,7 +951,7 @@ mod tests {
         // against the unconstrained `BrilligCall` (index 0).
         let circuit = make_circuit(vec![
             Opcode::BrilligCall {
-                id: BrilligFunctionId(0),
+                id: BrilligFunctionId::new(0),
                 inputs: vec![],
                 outputs: vec![BrilligOutputs::Simple(Witness(1))],
                 predicate: Expression::one(),
@@ -964,7 +977,7 @@ mod tests {
 
     #[test]
     fn error_on_memory_init_duplicate_block_id() {
-        let block_id = BlockId(0);
+        let block_id = BlockId::new(0);
 
         let circuit = make_circuit(vec![
             Opcode::MemoryInit {
@@ -985,7 +998,7 @@ mod tests {
         assert_unsatisfied_constraint(
             validate_witness(&backend, witness_map, &circuit),
             1,
-            format!("Attempted reinitialization of memory block {}", block_id.0).as_str(),
+            format!("Attempted reinitialization of memory block {}", block_id.as_u32()).as_str(),
         );
     }
 

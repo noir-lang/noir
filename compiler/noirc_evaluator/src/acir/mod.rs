@@ -326,13 +326,13 @@ impl<'a> Context<'a> {
             outputs,
             skip_output_range_checks,
             // We are guaranteed to have a Brillig function pointer of `0` as main itself is marked as unconstrained
-            BrilligFunctionId(0),
+            BrilligFunctionId::new(0),
             None,
         )?;
         self.shared_context.insert_generated_brillig(
             main_func.id(),
             arguments,
-            BrilligFunctionId(0),
+            BrilligFunctionId::new(0),
             code,
         );
 
@@ -394,7 +394,9 @@ impl<'a> Context<'a> {
             return Ok(Vec::new());
         };
         // Range is inclusive, because the for example if there was only one witness, the start and end are both 0.
-        let witnesses = (start_witness.0..=end_witness.0).map(Witness::from).collect();
+        let witnesses = (start_witness.witness_index()..=end_witness.witness_index())
+            .map(Witness::from)
+            .collect();
         Ok(witnesses)
     }
 

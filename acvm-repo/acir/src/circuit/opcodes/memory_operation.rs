@@ -6,7 +6,19 @@ use serde::{Deserialize, Serialize};
 #[derive(Clone, Debug, PartialEq, Eq, Hash, Copy, Default)]
 #[derive(Serialize, Deserialize, MsgpackTagged)]
 #[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
-pub struct BlockId(pub u32);
+pub struct BlockId(u32);
+
+impl BlockId {
+    /// Creates a `BlockId` identifying a block of memory by its raw index.
+    pub fn new(id: u32) -> Self {
+        BlockId(id)
+    }
+
+    /// Returns the raw index identifying this block of memory.
+    pub fn as_u32(&self) -> u32 {
+        self.0
+    }
+}
 
 impl std::fmt::Display for BlockId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

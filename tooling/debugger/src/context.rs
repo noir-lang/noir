@@ -680,7 +680,7 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> DebugContext<'a, B> {
         let caller_acvm = std::mem::replace(&mut self.acvm, callee_acvm);
         self.acvm_stack
             .push(ExecutionFrame { circuit_id: self.current_circuit_id, acvm: caller_acvm });
-        self.current_circuit_id = call_info.id.0;
+        self.current_circuit_id = call_info.id.as_u32();
 
         // Explicitly handling the new ACVM status here handles two edge cases:
         // 1. there is a breakpoint set at the beginning of a circuit
@@ -1018,7 +1018,7 @@ fn build_source_to_opcode_debug_mappings(
                 .map(|(key, val)| {
                     (
                         // TODO: this is a temporary placeholder until the debugger is updated to handle the new brillig debug locations.
-                        OpcodeLocation::Brillig { acir_index: 0, brillig_index: key.0 },
+                        OpcodeLocation::Brillig { acir_index: 0, brillig_index: key.index() },
                         *val,
                     )
                 })
@@ -1177,7 +1177,7 @@ mod tests {
             Some(DebugLocation {
                 circuit_id: 0,
                 opcode_location: OpcodeLocation::Brillig { acir_index: 0, brillig_index: 1 },
-                brillig_function_id: Some(BrilligFunctionId(0)),
+                brillig_function_id: Some(BrilligFunctionId::new(0)),
             })
         );
 
@@ -1189,7 +1189,7 @@ mod tests {
             Some(DebugLocation {
                 circuit_id: 0,
                 opcode_location: OpcodeLocation::Brillig { acir_index: 0, brillig_index: 2 },
-                brillig_function_id: Some(BrilligFunctionId(0)),
+                brillig_function_id: Some(BrilligFunctionId::new(0)),
             })
         );
 
@@ -1202,7 +1202,7 @@ mod tests {
             Some(DebugLocation {
                 circuit_id: 0,
                 opcode_location: OpcodeLocation::Brillig { acir_index: 0, brillig_index: 3 },
-                brillig_function_id: Some(BrilligFunctionId(0)),
+                brillig_function_id: Some(BrilligFunctionId::new(0)),
             })
         );
 
@@ -1214,7 +1214,7 @@ mod tests {
             Some(DebugLocation {
                 circuit_id: 0,
                 opcode_location: OpcodeLocation::Brillig { acir_index: 0, brillig_index: 3 },
-                brillig_function_id: Some(BrilligFunctionId(0)),
+                brillig_function_id: Some(BrilligFunctionId::new(0)),
             })
         );
 
@@ -1226,7 +1226,7 @@ mod tests {
             Some(DebugLocation {
                 circuit_id: 0,
                 opcode_location: OpcodeLocation::Brillig { acir_index: 0, brillig_index: 4 },
-                brillig_function_id: Some(BrilligFunctionId(0)),
+                brillig_function_id: Some(BrilligFunctionId::new(0)),
             })
         );
 
@@ -1321,7 +1321,7 @@ mod tests {
         let breakpoint_location = DebugLocation {
             circuit_id: 0,
             opcode_location: OpcodeLocation::Brillig { acir_index: 0, brillig_index: 1 },
-            brillig_function_id: Some(BrilligFunctionId(0)),
+            brillig_function_id: Some(BrilligFunctionId::new(0)),
         };
         assert!(context.add_breakpoint(breakpoint_location));
 
@@ -1417,7 +1417,7 @@ mod tests {
                 Some(DebugLocation {
                     circuit_id: 0,
                     opcode_location: OpcodeLocation::Brillig { acir_index: 1, brillig_index: 1 },
-                    brillig_function_id: Some(BrilligFunctionId(0)),
+                    brillig_function_id: Some(BrilligFunctionId::new(0)),
                 }),
                 Some(DebugLocation {
                     circuit_id: 0,
@@ -1437,12 +1437,12 @@ mod tests {
                 Some(DebugLocation {
                     circuit_id: 1,
                     opcode_location: OpcodeLocation::Brillig { acir_index: 0, brillig_index: 1 },
-                    brillig_function_id: Some(BrilligFunctionId(1)),
+                    brillig_function_id: Some(BrilligFunctionId::new(1)),
                 }),
                 Some(DebugLocation {
                     circuit_id: 1,
                     opcode_location: OpcodeLocation::Brillig { acir_index: 0, brillig_index: 2 },
-                    brillig_function_id: Some(BrilligFunctionId(1)),
+                    brillig_function_id: Some(BrilligFunctionId::new(1)),
                 }),
                 Some(DebugLocation {
                     circuit_id: 1,
@@ -1468,7 +1468,7 @@ mod tests {
             context.debug_location_to_address(&DebugLocation {
                 circuit_id: 0,
                 opcode_location: OpcodeLocation::Brillig { acir_index: 1, brillig_index: 0 },
-                brillig_function_id: Some(BrilligFunctionId(0)),
+                brillig_function_id: Some(BrilligFunctionId::new(0)),
             })
         );
         assert_eq!(
@@ -1476,7 +1476,7 @@ mod tests {
             context.debug_location_to_address(&DebugLocation {
                 circuit_id: 1,
                 opcode_location: OpcodeLocation::Brillig { acir_index: 0, brillig_index: 0 },
-                brillig_function_id: Some(BrilligFunctionId(1)),
+                brillig_function_id: Some(BrilligFunctionId::new(1)),
             })
         );
     }
