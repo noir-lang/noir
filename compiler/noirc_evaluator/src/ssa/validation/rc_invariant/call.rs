@@ -323,4 +323,87 @@ mod tests {
             "the call argument is a &mut reference, not an array value, so it is not a COW hazard",
         );
     }
+
+    /// Regression for noir-lang/noir-claude#1443. `identity` (`f1`) does not
+    /// mutate its argument, so `callee_may_mutate_args` is `false`; but by
+    /// returning `v0` unchanged it makes the call result `v1` an **alias** of
+    /// `v0`. The caller then `array_set v1` (mutating `v0`'s storage in place at
+    /// RC 1) and reads `v0` afterwards, observing the mutation. The frontend
+    /// would emit an `inc_rc v0` before the call (`v0` is reused), so this SSA
+    /// is malformed. The call verifier must not skip a callee that may return an
+    /// alias of an array input — `returns_arg_alias` — and so flags the reused
+    /// `v0`.
+    #[test]
+    fn end_to_end_callee_returns_input_alias_mutated_by_caller_is_rejected() {
+        let src = r#"
+            brillig(inline) fn main f0 {
+              b0():
+                v0 = make_array [Field 1, Field 2] : [Field; 2]
+                v1 = call f1(v0) -> [Field; 2]
+                v2 = array_set v1, index u32 0, value Field 9
+                v3 = array_get v0, index u32 0 -> Field
+                return v3
+            }
+            brillig(inline) fn identity f1 {
+              b0(v0: [Field; 2]):
+                return v0
+            }"#;
+        assert_verifier_rejects(src);
+    }
+
+    /// The well-formed counterpart of
+    /// [`end_to_end_callee_returns_input_alias_mutated_by_caller_is_rejected`]:
+    /// the `inc_rc v0` the ownership pass emits before the reused call argument
+    /// is present, so the later `array_set` copies rather than mutating `v0` in
+    /// place and the read of `v0` is sound. Accepted.
+    #[test]
+    fn end_to_end_callee_returns_input_alias_with_inc_rc_is_accepted() {
+        let src = r#"
+            brillig(inline) fn main f0 {
+              b0():
+                v0 = make_array [Field 1, Field 2] : [Field; 2]
+                inc_rc v0
+                v1 = call f1(v0) -> [Field; 2]
+                v2 = array_set v1, index u32 0, value Field 9
+                v3 = array_get v0, index u32 0 -> Field
+                return v3
+            }
+            brillig(inline) fn identity f1 {
+              b0(v0: [Field; 2]):
+                return v0
+            }"#;
+        assert_verifier_accepts_because(
+            src,
+            "the reused argument is protected by a preceding inc_rc",
+        );
+    }
+
+    /// Soundness guard for `returns_arg_alias`: a callee that returns a *fresh*
+    /// array (here a foreign-call result, the shape of an oracle wrapper that
+    /// returns an array) does **not** alias its input. Even though the caller
+    /// reuses the argument with no `inc_rc` — which the frontend legitimately
+    /// elides for oracle wrappers — there is no aliasing hazard, so the call
+    /// verifier must skip it and accept. A coarser "returns any array" rule
+    /// would have falsely flagged this.
+    #[test]
+    fn end_to_end_callee_returns_fresh_array_reused_arg_is_accepted() {
+        let src = r#"
+            brillig(inline) fn main f0 {
+              b0():
+                v0 = make_array [Field 1, Field 2] : [Field; 2]
+                v1 = call f1(v0) -> [Field; 2]
+                v2 = array_set v1, index u32 0, value Field 9
+                v3 = array_get v0, index u32 0 -> Field
+                return v3
+            }
+            brillig(inline) fn wrapper f1 {
+              b0(v0: [Field; 2]):
+                v1 = call my_oracle(v0) -> [Field; 2]
+                return v1
+            }"#;
+        assert_verifier_accepts_because(
+            src,
+            "the callee returns a fresh foreign-call result, not an alias of its input",
+        );
+    }
 }
