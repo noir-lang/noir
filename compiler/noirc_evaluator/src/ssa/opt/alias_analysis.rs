@@ -5,13 +5,10 @@
 //! references that may point to the same memory location.
 //!
 //! On top of Steensgaard analysis, we also collect allocation sites and propagate their definition when possible.
-//! In order to benefit the most from the allocation tracking, we process the blocks in RPO,
-//! to ensure allocation site are collected in the predecessors of a block before being
-//! propagated in the block. Any other order will still be sound but much less precise.
+//! This is done in a separate must_alias pass.
 //!
 //! The analysis is a pure read-only pass: it does not modify the IR. Other
 //! passes can consume the result to make sound optimization decisions.
-//! It runs in two passes; the second recovers some precision and is not mandatory.
 //!
 //! # Preconditions
 //! The analysis should be done after defunctionalization and lower ACIR references,
@@ -58,39 +55,14 @@
 //! This part is quadratic in the number of arguments/results, while the classic Steensgaard analysis is quasi-linear.
 //!
 //! ### Allocation sites
-//! We recover some precision by tracking allocation sites (i.e values that are the result of an Allocate instruction).
-//! Allocate instructions are propagated among blocks following the terminator arguments (when all predecessor arguments have the same allocation site).
-//! Allocation Sites are tracked:
-//! - per value, in `allocation_sites`, and inherited for block parameters when arguments all match to the same site
-//! - per `points_to` sets, in `points_to_sites`, if all write to a pointer have the same site.
 //!
-//! A second pass will conservatively associate allocation sites to load operations,
-//! when the `points_to` sets of the loaded address have a known allocation site.
-//! It is important to skip load operations during pass 1 so that store operations are not polluted by transient load results.
-//! The points-to-set sites are computed using stored values only — load results stay `NoAllocation` in pass 1 (less precise but sound).
-//! Pass 2 then propagates those points-to sites into to the load results.
 //!
 //! #### Must Alias
+//! We can recover some precision by tracking allocation sites (i.e values that are the result of an Allocate instruction).
 //! Two values sharing the same `Known(site)` only must-alias if that static
-//! `Allocate` instruction fires at most once per program execution. Otherwise
-//! the same site corresponds to distinct runtime cells across calls, and
-//! trusting the site as an equality check would be unsound.
-//!
-//! A site is *untrusted* when it can fire multiple times. We track this in:
-//! - `loop_allocates` — `Allocate`s sitting inside a CFG loop in their
-//!   defining function: each iteration produces a fresh cell.
-//! - `untrusted_site_functions` — functions whose body itself runs more than
-//!   once per execution. This is seeded with the recursive (self- and
-//!   mutually-recursive) functions from the call graph and extended during
-//!   pass 1 with callee-side replication: a callee whose `return_values`
-//!   slot is reused and a callee invoked from a loop block
-//!   in the caller. Pass 1 walks functions caller-before-callee in
-//!   call-graph topological order so this propagates transitively — when
-//!   analyzing an already-untrusted function, every block is treated as a
-//!   loop block, marking every nested callee untrusted in turn.
-//!
-//! `must_alias` rejects sites caught by either filter; only trusted sites
-//! survive as equivalence keys.
+//! `Allocate` instruction fires at most once per program execution.
+//! The allocation sites are computed in a separate `MustAliasAnalysis` pass, run at the end.
+//! They are used for `must_alias` and `cannot_alias queries`.
 //!
 //! ## References
 //!
@@ -115,7 +87,7 @@ use crate::ssa::{
         union_find::UnionFind,
         value::{Value, ValueId},
     },
-    opt::unrolling::{LoopOrder, Loops},
+    opt::must_alias::{AllocationLattice, MustAliasAnalysis},
     ssa_gen::Ssa,
 };
 
@@ -129,12 +101,12 @@ impl GlobalValueId {
         GlobalValueId(function.id(), value)
     }
 
-    pub(crate) fn func_id(self) -> FunctionId {
-        self.0
+    pub(crate) fn value_id(&self) -> ValueId {
+        self.1
     }
 
-    pub(crate) fn value_id(self) -> ValueId {
-        self.1
+    pub(crate) fn function_id(&self) -> FunctionId {
+        self.0
     }
 }
 
@@ -150,18 +122,11 @@ pub(crate) struct AliasAnalysis {
     /// cheap for consumers that only query `may_alias`.
     class_sizes: Option<HashMap<GlobalValueId, u32>>,
 
-    /// Track known allocation sites: map a value to the `Allocate` that defined it.
+    /// Known allocation sites: map a value to the `Allocate` that defined it.
     /// This is used to recover precision by saying that two values having
-    /// two distinct allocation sites cannot alias.
+    /// two distinct allocation sites cannot alias, and computed during
+    /// the must-alias analysis pass.
     allocation_sites: HashMap<GlobalValueId, AllocationLattice>,
-
-    /// Functions whose body may run more than once per program execution.
-    untrusted_site_functions: HashSet<FunctionId>,
-
-    /// Individual `Allocate` instructions inside loops. Each iteration
-    /// of a loop produces a fresh cell, so the static site must not pin
-    /// runtime cells together.
-    loop_allocates: HashSet<GlobalValueId>,
 }
 
 impl AliasAnalysis {
@@ -169,7 +134,41 @@ impl AliasAnalysis {
     ///
     /// The constraints are monotone and converge in a single pass.
     pub(crate) fn analyze(ssa: &Ssa) -> Self {
-        AliasAnalysisContext::analyze_ssa(ssa)
+        let mut alias = AliasAnalysisContext::analyze_ssa(ssa);
+        let must_alias = MustAliasAnalysis::analyze(ssa, &alias);
+        alias.allocation_sites = must_alias.allocation_sites();
+        alias
+    }
+
+    /// Build an analysis for one function in isolation. All calls are treated as
+    /// opaque via `unresolved_call`. Less precise than [`Self::analyze`] but usable
+    /// when the whole SSA is unavailable.
+    // The single-function scope is exercised by unit tests; no production consumer
+    // yet (intended for an early, pre-inlining mem2reg run).
+    #[allow(dead_code)]
+    pub(crate) fn analyze_single_function(function: &Function) -> Self {
+        let mut alias = AliasAnalysisContext::analyze_single_function(function);
+        let must_alias = MustAliasAnalysis::analyze_single_function(function, &alias);
+        alias.allocation_sites = must_alias.allocation_sites();
+        alias
+    }
+
+    /// Returns the representative of the alias class containing `value`.
+    /// Two values share a class iff their `class_root` is equal.
+    pub(crate) fn class_root(&self, value: GlobalValueId) -> GlobalValueId {
+        self.aliases.find_immutable(value).unwrap_or(value)
+    }
+
+    /// Returns the alias class that `value`'s class points to, if any.
+    /// Lets the must-alias pass walk reference chains (e.g. to poison the
+    /// pointees reachable from an entry-point parameter).
+    pub(crate) fn pointee(&self, value: GlobalValueId) -> Option<GlobalValueId> {
+        self.points_to.get(&self.class_root(value)).copied()
+    }
+
+    /// Returns each alias-class representative mapped to its members.
+    pub(crate) fn class_sets(&self) -> HashMap<GlobalValueId, Vec<GlobalValueId>> {
+        self.aliases.class_sets()
     }
 
     /// Returns `true` if `a` and `b` may refer to the same memory location.
@@ -191,7 +190,7 @@ impl AliasAnalysis {
         // Note that this check is done only when both `a` and `b` match the given `function`.
         // This is purely for convenience, because the type filter would need access to the SSA
         // to look up types in other functions, which it doesn't currently.
-        if function.id() == a.func_id() && a.func_id() == b.func_id() {
+        if function.id() == a.function_id() && a.function_id() == b.function_id() {
             let type_a = function.dfg.type_of_value(a.value_id());
             let type_b = function.dfg.type_of_value(b.value_id());
             if !type_a.canonical_eq(&type_b) {
@@ -199,7 +198,7 @@ impl AliasAnalysis {
             }
         }
 
-        if self.get_allocation(a).cannot_equal(&self.get_allocation(b)) {
+        if self.cannot_equal(a, b) {
             return false;
         }
 
@@ -231,7 +230,7 @@ impl AliasAnalysis {
         let from_rep = self.aliases.find_existing(from);
         let target_rep = self.aliases.find_existing(target);
         if from_rep == target_rep {
-            return !self.get_allocation(from).cannot_equal(&self.get_allocation(target));
+            return !self.cannot_equal(from, target);
         }
         let mut seen = HashSet::default();
         let mut current = from_rep;
@@ -260,77 +259,40 @@ impl AliasAnalysis {
         if a == b {
             return true;
         }
-        match (self.get_trusted_allocation_site(a), self.get_trusted_allocation_site(b)) {
+        let result = match (self.known_site(a), self.known_site(b)) {
             (Some(sa), Some(sb)) => sa == sb,
             _ => false,
-        }
-    }
-
-    fn get_allocation(&self, arg: GlobalValueId) -> AllocationLattice {
-        self.allocation_sites.get(&arg).copied().unwrap_or(AllocationLattice::NoAllocation)
-    }
-
-    /// Returns the trusted allocation site (if it exists and is trusted)
-    pub(crate) fn get_trusted_allocation_site(
-        &self,
-        value: GlobalValueId,
-    ) -> Option<GlobalValueId> {
-        let allocation_site = self.get_allocation(value);
-        if let Some(site) = self.is_trusted(allocation_site) {
-            // Sanity check: ensure Steensgaard analysis agrees with allocation sites tracking
+        };
+        if result {
+            //Sanity check: must-alias values must be in the same alias class
             debug_assert_eq!(
-                self.aliases.find_immutable(value).unwrap(),
-                self.aliases.find_immutable(site).unwrap()
+                self.aliases.find_immutable(a).unwrap(),
+                self.aliases.find_immutable(b).unwrap()
             );
-            return Some(site);
         }
-        None
+        result
     }
 
-    /// Extract the allocation site if it is trusted:
-    /// A site is untrusted if multiple runtime cells may share it.
-    /// This happens when:
-    /// - the defining function may be called multiple times (e.g. recursion), or
-    /// - the allocation is done inside a loop.
-    fn is_trusted(&self, allocation_site: AllocationLattice) -> Option<GlobalValueId> {
-        match allocation_site {
-            AllocationLattice::Known(site)
-                if !(self.untrusted_site_functions.contains(&site.func_id())
-                    || self.loop_allocates.contains(&site)) =>
-            {
-                Some(site)
-            }
+    pub(crate) fn cannot_equal(&self, a: GlobalValueId, b: GlobalValueId) -> bool {
+        if a == b {
+            return false;
+        }
+        let site_a = self.get_site(a);
+        let site_b = self.get_site(b);
+        site_a.cannot_equal(site_b)
+    }
+
+    /// Returns the known allocation site for `value`, if any.
+    pub(crate) fn known_site(&self, value: GlobalValueId) -> Option<GlobalValueId> {
+        match self.get_site(value) {
+            AllocationLattice::Known(site) => Some(site),
             _ => None,
         }
     }
-}
 
-#[derive(PartialEq, Clone, Copy)]
-enum AllocationLattice {
-    Undef,
-    External,
-    Known(GlobalValueId),
-    NoAllocation,
-}
-
-impl AllocationLattice {
-    fn join(self, other: Self) -> Self {
-        use AllocationLattice::*;
-        match (self, other) {
-            (Undef, x) | (x, Undef) => x,
-            (NoAllocation, _) | (_, NoAllocation) => NoAllocation,
-            (x, y) if x == y => x,
-            _ => NoAllocation,
-        }
-    }
-
-    fn cannot_equal(&self, other: &Self) -> bool {
-        use AllocationLattice::*;
-        match (self, other) {
-            (Known(a), Known(b)) if a != b => true,
-            (Known(_), External) | (External, Known(_)) => true,
-            _ => false,
-        }
+    /// Read `value_sites[value]`, defaulting to `Undef` if absent.
+    pub(crate) fn get_site(&self, value: GlobalValueId) -> AllocationLattice {
+        self.allocation_sites.get(&value).copied().unwrap_or(AllocationLattice::Undef)
     }
 }
 
@@ -362,182 +324,71 @@ struct AliasAnalysisContext {
     /// `Arc<HashSet<_>>` is used to avoid borrow checker issues
     reference_types: HashMap<Type, Arc<HashSet<Type>>>,
 
-    /// Known allocation sites
-    allocation_sites: HashMap<GlobalValueId, AllocationLattice>,
-
-    /// Joined allocation site of every value ever placed into the `points_to` alias class.
-    points_to_sites: HashMap<GlobalValueId, AllocationLattice>,
-
-    /// Functions whose body may run more than once per program execution.
-    untrusted_site_functions: HashSet<FunctionId>,
-
-    /// Individual loop-resident Allocates
-    loop_allocates: HashSet<GlobalValueId>,
-
     /// Signature Templates: cache template rules for a canonicalized signature
     /// represented by a vector of (distinct and ordered) Types
     signatures: HashMap<Vec<Type>, Vec<SignatureTemplate>>,
 }
 
-/// Collect the set of basic blocks that lie inside a loop body. Allocates
-/// in these blocks fire once per iteration and produce a fresh cell each
-/// time, so their static site may pin runtime cells together.
-fn loop_blocks(function: &Function) -> HashSet<BasicBlockId> {
-    let loops = Loops::find_all(function, LoopOrder::InsideOut);
-    loops.yet_to_unroll.into_iter().flat_map(|l| l.blocks.into_iter()).collect()
-}
-
 impl AliasAnalysisContext {
     fn analyze_ssa(ssa: &Ssa) -> AliasAnalysis {
-        // Precondition: globals are expected to be pure constants (numeric or
-        // composite-of-numeric) as documented.
-        let functions: Vec<&Function> = ssa.functions.values().collect();
-        if let Some(first) = functions.first() {
-            for (_, global) in first.dfg.globals.values_iter() {
-                assert!(
-                    !global.get_type().contains_reference(),
-                    "ICE: alias_analysis assumes globals do not have references"
-                );
-            }
-        }
-
         let mut analysis = Self::default();
 
-        // Process functions in calling order so the inline multi-invocation
-        // detection in `analyze_block` propagates transitively: when we reach a
-        // callee, every site that has already flagged it as untrusted has
-        // already run, and that knowledge feeds back into how we analyze it.
         // The analysis tolerates incomplete call-graphs, via `unresolved_call` handling
         let call_graph = CallGraph::from_ssa_partial(ssa);
-        let (sccs, recursive) = call_graph.sccs();
-        analysis.untrusted_site_functions = recursive;
-        let pass1_functions: Vec<&Function> =
+        let (sccs, _) = call_graph.sccs();
+        // Process functions in calling order. Any order works.
+        let functions: Vec<&Function> =
             sccs.into_iter().rev().flatten().filter_map(|fid| ssa.functions.get(&fid)).collect();
 
-        for function in &pass1_functions {
-            analysis.analyze_function(ssa, function);
+        if let Some(first) = functions.first() {
+            Self::assert_globals_without_references(first);
         }
 
-        // Pass 2: propagate sites for Load / ArrayGet from the allocation site of their address's pointees
         for function in &functions {
-            analysis.refine_allocation_sites(function, ssa.is_entry_point(function.id()));
+            analysis.analyze_function(Some(ssa), function);
         }
 
-        // Make the analysis total: insert every reference-typed value into the
-        // union-find (most are added while processing constraints, but values
-        // never involved in one would otherwise be missing). With the structure
-        // total, a post-analysis lookup of an unknown value is a bug —
-        // see `find_existing` — rather than a silently-created singleton.
-        for function in &functions {
-            for (value_id, _) in function.dfg.values_iter() {
-                if function.dfg.type_of_value(value_id).contains_reference() {
-                    analysis.aliases.make_set(GlobalValueId::new(function, value_id));
-                }
-            }
-        }
+        analysis.into_result()
+    }
 
+    fn analyze_single_function(function: &Function) -> AliasAnalysis {
+        Self::assert_globals_without_references(function);
+        let mut analysis = Self::default();
+        analysis.analyze_function(None, function);
+        analysis.into_result()
+    }
+
+    /// Globals are expected to be pure constants (numeric or composite-of-numeric)
+    /// as documented. The global table is shared across functions, so checking any
+    /// one function's globals covers the whole analysis.
+    fn assert_globals_without_references(function: &Function) {
+        for (_, global) in function.dfg.globals.values_iter() {
+            assert!(
+                !global.get_type().contains_reference(),
+                "ICE: alias_analysis assumes globals do not have references"
+            );
+        }
+    }
+
+    /// Finalize the accumulated union-find into the queryable [`AliasAnalysis`].
+    fn into_result(self) -> AliasAnalysis {
         AliasAnalysis {
-            aliases: analysis.aliases,
-            points_to: analysis.points_to,
+            aliases: self.aliases,
+            points_to: self.points_to,
             class_sizes: None,
-            allocation_sites: analysis.allocation_sites,
-            untrusted_site_functions: analysis.untrusted_site_functions,
-            loop_allocates: analysis.loop_allocates,
+            allocation_sites: HashMap::default(),
         }
-    }
-
-    /// Pass 2: refine allocation site information using the post-pass-1 state of `points_to_sites`
-    /// to recover precision for load operations (and non-store instructions).
-    /// This pass must be done after the first one to benefit from `points_to_sites` computations.
-    /// Stores sites must NOT be handled here because this can impact Load sites,
-    /// and this would require a fixed-point computation. They are explicitly added as an empty case.
-    fn refine_allocation_sites(&mut self, function: &Function, is_entry_point: bool) {
-        let cfg = ControlFlowGraph::with_function(function);
-        let blocks = PostOrder::with_cfg(&cfg).into_vec_reverse();
-        for block_id in blocks {
-            self.track_allocations_from_predecessors(block_id, function, &cfg, is_entry_point);
-            for inst_id in function.dfg[block_id].instructions() {
-                let results = function.dfg.instruction_results(*inst_id);
-                match &function.dfg[*inst_id] {
-                    Instruction::Load { address } => {
-                        self.set_pointer_allocation_site(function, results[0], *address);
-                    }
-                    Instruction::ArrayGet { array, .. } => {
-                        self.set_pointer_allocation_site(function, results[0], *array);
-                    }
-                    Instruction::IfElse { then_value, else_value, .. } => {
-                        self.allocation_site_for_ifelse(
-                            function,
-                            results[0],
-                            *then_value,
-                            *else_value,
-                        );
-                    }
-                    Instruction::Store { .. } | Instruction::ArraySet { .. } => {
-                        //Must not propagate any allocation site.
-                    }
-                    _ => {}
-                }
-            }
-        }
-    }
-
-    /// Assign a known allocation site to the result of a load operation
-    /// if the loaded address points to a known site.
-    fn set_pointer_allocation_site(
-        &mut self,
-        function: &Function,
-        result: ValueId,
-        container: ValueId,
-    ) {
-        if !function.dfg.type_of_value(result).contains_reference() {
-            return;
-        }
-        let result_global = GlobalValueId::new(function, result);
-        let site = self.get_pointer_allocation_site(function, container);
-        self.set_allocation(result_global, site);
-    }
-
-    /// Retrieve a `pointer allocation site`, i.e the site of the elements pointed by it
-    fn get_pointer_allocation_site(
-        &mut self,
-        function: &Function,
-        pointer: ValueId,
-    ) -> AllocationLattice {
-        let pointer_global = GlobalValueId::new(function, pointer);
-        let pointee =
-            self.get_pointee(pointer_global).expect("ICE - Pointer does not reference a value");
-        let pointee_root = self.aliases.find(pointee);
-        *self.points_to_sites.get(&pointee_root).unwrap_or(&AllocationLattice::NoAllocation)
-    }
-
-    /// Compute the IfElse-result site as the join of the two branches'
-    /// allocation lattices and insert it into `allocation_sites` if Known.
-    fn allocation_site_for_ifelse(
-        &mut self,
-        function: &Function,
-        result: ValueId,
-        then_value: ValueId,
-        else_value: ValueId,
-    ) {
-        let typ = function.dfg.type_of_value(then_value);
-        if !typ.contains_reference() {
-            return;
-        }
-
-        let result_g = GlobalValueId::new(function, result);
-        let then_g = GlobalValueId::new(function, then_value);
-        let else_g = GlobalValueId::new(function, else_value);
-
-        let allocation = self.get_allocation(then_g).join(self.get_allocation(else_g));
-        self.set_allocation(result_g, allocation);
     }
 
     /// Walk every block in one function, processing instructions and terminators.
     /// If the function is an entry point of the SSA, also unify its
     /// same-typed reference parameters.
-    fn analyze_function(&mut self, ssa: &Ssa, function: &Function) {
-        let is_entry_point = ssa.is_entry_point(function.id());
+    fn analyze_function(&mut self, ssa: Option<&Ssa>, function: &Function) {
+        let is_entry_point = match ssa {
+            Some(ssa) => ssa.is_entry_point(function.id()),
+            None => true,
+        };
+
         if is_entry_point {
             // Unify the reference parameters of the entry point because the
             // external caller may pass the same reference to 2 reference parameters.
@@ -549,32 +400,18 @@ impl AliasAnalysisContext {
         let post_order = PostOrder::with_cfg(&cfg);
         let blocks = post_order.into_vec_reverse();
 
-        // Compute loop blocks once per function. Allocates inside them are untrusted.
-        let function_is_untrusted = self.untrusted_site_functions.contains(&function.id());
-        // Skip loop detection when the whole function is already untrusted —
-        // every Allocate in it is rejected by `is_trusted` regardless.
-        let loop_block_set =
-            if function_is_untrusted { HashSet::default() } else { loop_blocks(function) };
-
         for block_id in blocks {
-            self.track_allocations_from_predecessors(block_id, function, &cfg, is_entry_point);
-            // When the whole function is untrusted, treat every block as a loop
-            // block. This propagates multi-invocation transitively: any callee
-            // invoked from this body is itself flagged via the inline detection
-            // in `analyze_block`.
-            let ignore_allocations_in_block =
-                function_is_untrusted || loop_block_set.contains(&block_id);
-            self.analyze_block(function, block_id, ssa, ignore_allocations_in_block);
+            self.analyze_block(function, block_id, ssa);
         }
 
-        if is_entry_point {
-            // The external caller's pre-call state is opaque: we mark them as External
-            // Done at the end so that the pointee classes have been
-            // lazily created by the body's stores/loads
-            let params = function.dfg[function.entry_block()].parameters();
-            for &param in params {
-                let param_g = GlobalValueId::new(function, param);
-                self.mark_pointees_external(param_g);
+        // Make the analysis total: insert every reference-typed value into the
+        // union-find (most are added while processing constraints, but values
+        // never involved in one would otherwise be missing). With the structure
+        // total, a post-analysis lookup of an unknown value is a bug —
+        // see `find_existing` — rather than a silently-created singleton.
+        for (value_id, _) in function.dfg.values_iter() {
+            if function.dfg.type_of_value(value_id).contains_reference() {
+                self.aliases.make_set(GlobalValueId::new(function, value_id));
             }
         }
     }
@@ -590,107 +427,10 @@ impl AliasAnalysisContext {
         self.points_to.insert(self.aliases.find(pointer), target);
     }
 
-    fn get_allocation(&self, arg: GlobalValueId) -> AllocationLattice {
-        self.allocation_sites.get(&arg).copied().unwrap_or(AllocationLattice::NoAllocation)
-    }
-
-    fn set_allocation(&mut self, arg: GlobalValueId, site: AllocationLattice) {
-        use AllocationLattice::*;
-        match site {
-            Known(_) | External => {
-                self.allocation_sites.insert(arg, site);
-            }
-            NoAllocation => {} // absent from allocation_sites means NoAllocation
-            Undef => unreachable!(), // Undef is only used for computing the site for a fresh value. A computed site is never Undef.
-        }
-    }
-
-    /// Join the allocation site of `value` with the allocation site of `address`'s pointee class
-    fn join_reference(&mut self, function: &Function, value: ValueId, address: ValueId) {
-        if !function.dfg.type_of_value(value).contains_reference() {
-            return;
-        }
-        let value = GlobalValueId::new(function, value);
-        let pointer = GlobalValueId::new(function, address);
-        let pointee = self.get_pointee(pointer).expect("ICE - Pointer does not reference a value");
-        let pointee_root = self.aliases.find(pointee);
-        let value_site = self.get_allocation(value);
-        let entry = self.points_to_sites.entry(pointee_root).or_insert(AllocationLattice::Undef);
-        *entry = entry.join(value_site);
-    }
-
-    fn track_allocations_from_predecessors(
-        &mut self,
-        block_id: BasicBlockId,
-        function: &Function,
-        cfg: &ControlFlowGraph,
-        is_entry_point: bool,
-    ) {
-        let params = function.dfg[block_id].parameters();
-        // The entry block parameters are default to NoAllocation, but the entry point function
-        if function.entry_block() == block_id {
-            if is_entry_point {
-                for &param in params {
-                    if function.dfg.type_of_value(param).contains_reference() {
-                        self.set_allocation(
-                            GlobalValueId::new(function, param),
-                            AllocationLattice::External,
-                        );
-                    }
-                }
-            }
-            return;
-        }
-
-        let mut allocations = vec![AllocationLattice::Undef; params.len()];
-        let mut join_arguments = |args: &[ValueId]| {
-            for (i, &arg) in args.iter().enumerate() {
-                let l = self.get_allocation(GlobalValueId::new(function, arg));
-                allocations[i] = allocations[i].join(l);
-            }
-        };
-        for predecessor in cfg.predecessors(block_id) {
-            match function.dfg[predecessor].terminator().unwrap() {
-                TerminatorInstruction::JmpIf {
-                    then_destination,
-                    then_arguments,
-                    else_destination,
-                    else_arguments,
-                    ..
-                } => {
-                    if *then_destination == block_id {
-                        join_arguments(then_arguments);
-                    }
-                    if *else_destination == block_id {
-                        join_arguments(else_arguments);
-                    }
-                }
-                TerminatorInstruction::Jmp { destination, arguments, .. } => {
-                    debug_assert_eq!(*destination, block_id);
-                    join_arguments(arguments);
-                }
-                TerminatorInstruction::Return { .. }
-                | TerminatorInstruction::Unreachable { .. } => {
-                    unreachable!("ICE - unreachable predecessor block")
-                }
-            }
-        }
-
-        for (&param, allocation) in params.iter().zip(allocations) {
-            self.set_allocation(GlobalValueId::new(function, param), allocation);
-        }
-    }
-
     /// Process all instructions in a single block, updating the alias sets.
     /// `ignore_allocations_in_block` is  used to mark every `Allocate` defined in
     /// this block as `loop_allocate`, since the loop may fire it many times per invocation.
-    fn analyze_block(
-        &mut self,
-        function: &Function,
-        block_id: BasicBlockId,
-        ssa: &Ssa,
-        mut ignore_allocations_in_block: bool,
-    ) {
+    fn analyze_block(&mut self, function: &Function, block_id: BasicBlockId, ssa: Option<&Ssa>) {
         let block = &function.dfg[block_id];
 
         for instruction_id in block.instructions() {
@@ -700,11 +440,6 @@ impl AliasAnalysisContext {
                     // Defines a new pointer value.
                     let address = GlobalValueId::new(function, results[0]);
                     self.aliases.make_set(address);
-                    self.allocation_sites.insert(address, AllocationLattice::Known(address));
-                    if ignore_allocations_in_block {
-                        // the allocation site is tagged as a 'loop allocate', so it will be ignored in must_alias.
-                        self.loop_allocates.insert(address);
-                    }
                 }
                 Instruction::Load { address } => {
                     // Complex constraint type 1: result = *address
@@ -713,7 +448,6 @@ impl AliasAnalysisContext {
                 Instruction::Store { address, value } => {
                     // Complex constraint type 2: *address = value
                     self.merge_reference(function, *value, *address);
-                    self.join_reference(function, *value, *address);
                 }
                 Instruction::Call { func: callee_id, arguments } => {
                     match &function.dfg[*callee_id] {
@@ -722,16 +456,13 @@ impl AliasAnalysisContext {
                         // - process the function body (i.e analyze the instructions, but only once since it context-insensitive).
                         //   This is done through analyze_function() which process all the functions.
                         // - merge return values with the instruction results
-                        Value::Function(callee_id) => {
-                            // Multi-invocation detection: a populated `return_values`
-                            // entry means this is at least the second call site.
-                            if self.return_values.contains_key(callee_id)
-                                || ignore_allocations_in_block
-                            {
-                                self.untrusted_site_functions.insert(*callee_id);
-                            }
+                        Value::Function(callee_id) if ssa.is_some() => {
                             self.unify_call_arguments_and_return(
-                                ssa, *callee_id, function, arguments, results,
+                                ssa.unwrap(),
+                                *callee_id,
+                                function,
+                                arguments,
+                                results,
                             );
                         }
                         Value::Intrinsic(Intrinsic::Hint(_)) => {
@@ -746,19 +477,15 @@ impl AliasAnalysisContext {
                             // Only Hint or Vector operations may alias.
                             assert!(!Self::intrinsic_may_alias(intrinsic));
                         }
-                        // Foreign calls cannot call Noir functions, so we do not mark them as recursive
-                        Value::ForeignFunction { .. } => {
-                            self.unresolved_call(function, arguments, results);
-                        }
+                        // Foreign calls cannot receive or return references in
+                        // Noir, so they cannot create or transport aliases —
+                        // handle them optimistically (no effect). Only genuinely
+                        // unresolved callees (the fallthrough) are conservative.
+                        Value::ForeignFunction { .. } => {}
                         // Fallthrough for unresolved functions whose function body
                         // is not available, via a conservative type-based analysis.
                         _ => {
                             self.unresolved_call(function, arguments, results);
-                            // Conservatively assume that any function called
-                            // may put us in indirect recursive calls
-                            self.untrusted_site_functions.insert(function.id());
-                            // no need to continue collecting the in-loop allocations
-                            ignore_allocations_in_block = true;
                         }
                     }
                 }
@@ -778,15 +505,12 @@ impl AliasAnalysisContext {
                     // a[1] and a1[1] are the same. Because of field-insensitivity, a[1] aliases with a and a1[1] aliases with a1,
                     // so a and a1 aliases.
                     self.merge_reference(function, *value, *array);
-                    // join array's allocation site with value's
-                    self.join_reference(function, *value, new_array);
                 }
                 Instruction::MakeArray { elements, .. } => {
                     let array = results[0];
                     for element in elements {
                         // Field-insensitive: each element joins new_array's pointee class
                         self.merge_reference(function, *element, array);
-                        self.join_reference(function, *element, array);
                     }
                 }
                 Instruction::IfElse { then_value, else_value, .. } => {
@@ -797,9 +521,6 @@ impl AliasAnalysisContext {
                         let else_g = GlobalValueId::new(function, *else_value);
                         self.merge_alias(then_g, result_g);
                         self.merge_alias(else_g, result_g);
-                        let allocation =
-                            self.get_allocation(then_g).join(self.get_allocation(else_g));
-                        self.set_allocation(result_g, allocation);
                     }
                 }
                 // All other instructions have no alias effects.
@@ -861,14 +582,6 @@ impl AliasAnalysisContext {
                 self.points_to.insert(root, pb);
             }
             (None, None) => {} // Nothing to do, root points_to will be lazily initialized when it is used.
-        }
-
-        // Merge pointee_sites entries under the new root.
-        let site_a = self.points_to_sites.remove(&root_a).unwrap_or(AllocationLattice::Undef);
-        let site_b = self.points_to_sites.remove(&root_b).unwrap_or(AllocationLattice::Undef);
-        let merged = site_a.join(site_b);
-        if !matches!(merged, AllocationLattice::Undef) {
-            self.points_to_sites.insert(root, merged);
         }
     }
 
@@ -989,28 +702,8 @@ impl AliasAnalysisContext {
                         representatives[pointed].1,
                         representatives[pointer].1,
                     );
-                    self.join_reference(
-                        function,
-                        representatives[pointed].1,
-                        representatives[pointer].1,
-                    );
                 }
             }
-        }
-    }
-
-    /// Walk the `points_to` chain rooted at `value` and mark every reached
-    /// pointee class as `External`.
-    fn mark_pointees_external(&mut self, value: GlobalValueId) {
-        let mut current = self.aliases.find(value);
-        let mut seen: HashSet<GlobalValueId> = HashSet::default();
-        while seen.insert(current) {
-            let Some(pointee) = self.points_to.get(&current).copied() else {
-                break;
-            };
-            let pointee_root = self.aliases.find(pointee);
-            self.points_to_sites.insert(pointee_root, AllocationLattice::External);
-            current = pointee_root;
         }
     }
 
@@ -1202,16 +895,10 @@ impl AliasAnalysisContext {
             Intrinsic::VectorPushBack | Intrinsic::VectorPushFront => {
                 let elements = &arguments[2..];
                 self.unify_vector_op(function, arguments[1], results[1], elements);
-                for element in elements {
-                    self.join_reference(function, *element, arguments[1]);
-                }
             }
             Intrinsic::VectorInsert => {
                 let elements = &arguments[3..];
                 self.unify_vector_op(function, arguments[1], results[1], elements);
-                for element in elements {
-                    self.join_reference(function, *element, arguments[1]);
-                }
             }
             Intrinsic::VectorPopBack | Intrinsic::VectorRemove => {
                 self.unify_vector_op(function, arguments[1], results[1], &results[2..]);
@@ -1430,10 +1117,10 @@ mod tests {
         // Use oracles so v0 and v1 carry to avoid allocation-site.
         let src = "
         brillig(inline) fn main f0 {
-          b0():
+          b0(v10: function):
             v0 = call oracle_mut() -> &mut Field
             v1 = call oracle_ref() -> &Field
-            call print(v0, v1)
+            call v10(v0, v1)
             return
         }
         ";
@@ -2202,15 +1889,17 @@ mod tests {
 
     // ============================================================
     // `unresolved_call` — conservative handling of opaque calls
-    // (foreign functions / unresolved function pointers).
+    // (unresolved function pointers / indirect calls).
     // Tests exercise the four cases of the cascade:
     //   1. Same type         → merge_alias
     //   2. Containment       → merge_reference
     //   3. Shared inner ref  → merge_alias
     //   4. Complex relation  → escape
     //
-    // Uses `call print(...)` which the SSA parser resolves to a
-    // ForeignFunction call, routed through `unify_on_signature`.
+    // Driven by an indirect `call v_fn(...)` through a `function`-typed
+    // parameter — the genuinely-unresolved path. Foreign calls (e.g. `print`)
+    // are NOT used here: references cannot be passed to foreign functions in
+    // Noir, so the analysis handles them optimistically (no aliasing effect).
     // ============================================================
 
     /// Case 1: two args of the same ref type are merged via `merge_alias` —
@@ -2221,10 +1910,10 @@ mod tests {
         // Oracles so v0 and v1 start in separate classes.
         let src = "
         brillig(inline) fn main f0 {
-          b0():
+          b0(v10: function):
             v0 = call oracle_a() -> &mut Field
             v1 = call oracle_b() -> &mut Field
-            call print(v0, v1)
+            call v10(v0, v1)
             return
         }
         ";
@@ -2241,13 +1930,14 @@ mod tests {
     /// the call, a ref extracted from the composite aliases the passed ref.
     #[test]
     fn opaque_call_links_ref_into_composite_pointee() {
+        // `v4` is an unresolved (indirect) callee — the conservative path.
         let src = "
         brillig(inline) fn main f0 {
-          b0():
+          b0(v4: function):
             v0 = allocate -> &mut Field
             v1 = allocate -> &mut Field
             v2 = make_array [v1] : [&mut Field; 1]
-            call print(v0, v2)
+            call v4(v0, v2)
             v3 = array_get v2, index u32 0 -> &mut Field
             return
         }
@@ -2271,12 +1961,12 @@ mod tests {
         // the allocation-site refinement stays out of the way.
         let src = "
         brillig(inline) fn main f0 {
-          b0():
+          b0(v10: function):
             v0 = call oracle_a() -> &mut Field
             v1 = call oracle_b() -> &mut Field
             v2 = make_array [v0] : [&mut Field; 1]
             v3 = make_array [v1, v1] : [&mut Field; 2]
-            call print(v2, v3)
+            call v10(v2, v3)
             v4 = array_get v2, index u32 0 -> &mut Field
             v5 = array_get v3, index u32 0 -> &mut Field
             return
@@ -2302,11 +1992,11 @@ mod tests {
     fn opaque_call_does_not_merge_unrelated_ref_types() {
         let src = "
         brillig(inline) fn main f0 {
-          b0():
+          b0(v10: function):
             v0 = allocate -> &mut Field
             v1 = allocate -> &mut Field
             v2 = allocate -> &mut u32
-            call print(v0, v2)
+            call v10(v0, v2)
             return
         }
         ";
@@ -2327,12 +2017,12 @@ mod tests {
     fn opaque_call_with_sub_ref_pattern_marks_values_as_escaped() {
         let src = "
         brillig(inline) fn main f0 {
-          b0():
+          b0(v10: function):
             v0 = allocate -> &mut Field
             v1 = allocate -> &mut [Field; 2]
             v2 = allocate -> &mut Field
             v3 = allocate -> &mut u32
-            call print(v0, v1)
+            call v10(v0, v1)
             return
         }
         ";
@@ -2361,12 +2051,12 @@ mod tests {
     fn unresolved_call_buckets_n_same_typed_refs_into_one_class() {
         let src = "
         brillig(inline) fn main f0 {
-          b0():
+          b0(v10: function):
             v0 = call oracle_a() -> &mut Field
             v1 = call oracle_b() -> &mut Field
             v2 = call oracle_c() -> &mut Field
             v3 = call oracle_d() -> &mut Field
-            call print(v0, v1, v2, v3)
+            call v10(v0, v1, v2, v3)
             return
         }
         ";
@@ -2390,11 +2080,11 @@ mod tests {
     fn unresolved_call_combines_bucket_merge_and_cross_bucket_containment() {
         let src = "
         brillig(inline) fn main f0 {
-          b0():
+          b0(v10: function):
             v0 = call oracle_inner_a() -> &mut Field
             v1 = call oracle_inner_b() -> &mut Field
             v2 = make_array [v0] : [&mut Field; 1]
-            call print(v0, v1, v2)
+            call v10(v0, v1, v2)
             v3 = array_get v2, index u32 0 -> &mut Field
             return
         }
@@ -2418,13 +2108,13 @@ mod tests {
     fn unresolved_call_signature_is_argument_order_invariant() {
         let src = "
         brillig(inline) fn main f0 {
-          b0():
+          b0(v10: function):
             v0 = call oracle_inner_a() -> &mut Field
             v1 = make_array [v0] : [&mut Field; 1]
-            call print(v0, v1)
+            call v10(v0, v1)
             v2 = call oracle_inner_b() -> &mut Field
             v3 = make_array [v2] : [&mut Field; 1]
-            call print(v3, v2)
+            call v10(v3, v2)
             v4 = array_get v1, index u32 0 -> &mut Field
             v5 = array_get v3, index u32 0 -> &mut Field
             return
@@ -2862,7 +2552,6 @@ mod tests {
         let allocs = collect_allocates(&ssa);
         let loads = collect_loads(&ssa);
         let analysis = analyze_main(&ssa);
-        // assert !may_alias(v1, v2)
         assert!(!analysis.must_alias(allocs[0], loads[0]));
     }
 
@@ -2876,10 +2565,7 @@ mod tests {
     /// call's result) and `main.v3` (load through the second call's
     /// result). The two `inner` cells are distinct at runtime — each
     /// call to `f1` allocates a fresh one — so `must_alias` between
-    /// them must be `false`. `is_trusted` enforces this by also
-    /// rejecting sites in `untrusted_site_functions`, which is
-    /// populated as soon as a callee's `return_values` slot is reused
-    /// by a second call site.
+    /// them must be `false`.
     #[test]
     fn must_alias_sound_on_multi_call_site_non_recursive_callee() {
         let src = "
@@ -2955,10 +2641,225 @@ mod tests {
         // We assert here that the load's site is *not* a trusted one —
         // i.e. that nothing trusts `Known(f1::inner)` for this load.
         assert!(
-            analysis.get_trusted_allocation_site(loads[0]).is_none(),
+            analysis.known_site(loads[0]).is_none(),
             "the load's allocation site is trusted, but each loop \
              iteration produces a fresh `f1::inner` cell — any consumer \
              treating this site as a must-alias key is unsound"
         );
+    }
+
+    // ============================================================
+    // Single-function scope (`analyze_single_function`)
+    //
+    // The whole SSA is unavailable: every call is opaque, and the analyzed
+    // function is its own entry point. Site trust follows the "untrust any
+    // caller" rule — a function that calls any other Noir function has all
+    // its local allocations classified `Multiple`.
+    // ============================================================
+
+    /// A call-free function: its single allocate is a trusted (`Known`) site.
+    #[test]
+    fn single_fn_call_free_allocate_is_known() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = allocate -> &mut Field
+            return
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let allocs = collect_allocates(&ssa);
+        let analysis = AliasAnalysis::analyze_single_function(ssa.main());
+        assert_eq!(analysis.known_site(allocs[0]), Some(allocs[0]));
+    }
+
+    /// Two distinct allocates in a call-free function have distinct trusted
+    /// sites: they do not must-alias and provably cannot be equal.
+    #[test]
+    fn single_fn_distinct_allocates_cannot_equal() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = allocate -> &mut Field
+            v1 = allocate -> &mut Field
+            return
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let allocs = collect_allocates(&ssa);
+        let analysis = AliasAnalysis::analyze_single_function(ssa.main());
+        assert!(!analysis.must_alias(allocs[0], allocs[1]));
+        assert!(analysis.cannot_equal(allocs[0], allocs[1]));
+        assert_eq!(analysis.known_site(allocs[0]), Some(allocs[0]));
+        assert_eq!(analysis.known_site(allocs[1]), Some(allocs[1]));
+    }
+
+    /// In a call-free function a load through a single-stored pointer recovers
+    /// the stored value's site, so the two must-alias.
+    #[test]
+    fn single_fn_load_after_store_recovers_must_alias() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0():
+            v0 = allocate -> &mut Field
+            v1 = allocate -> &mut &mut Field
+            store v0 at v1
+            v2 = load v1 -> &mut Field
+            return
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let allocs = collect_allocates(&ssa);
+        let loads = collect_loads(&ssa);
+        let analysis = AliasAnalysis::analyze_single_function(ssa.main());
+        assert!(analysis.must_alias(allocs[0], loads[0]));
+        assert_eq!(analysis.known_site(loads[0]), Some(allocs[0]));
+    }
+
+    /// A loop-resident allocate fires once per iteration, so even a call-free
+    /// function classifies it `Multiple` — no trusted site.
+    #[test]
+    fn single_fn_loop_allocate_is_multiple() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: u1):
+            jmp b1(v0)
+          b1(v1: u1):
+            v2 = allocate -> &mut Field
+            jmpif v1 then: b1(v1), else: b2()
+          b2():
+            return
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let allocs = collect_allocates(&ssa);
+        let analysis = AliasAnalysis::analyze_single_function(ssa.main());
+        assert_eq!(analysis.known_site(allocs[0]), None);
+    }
+
+    /// "Untrust any caller": the same allocate is `Known` with no call present
+    /// but `Multiple` (untrusted) once the function calls another function,
+    /// because the opaque callee could transitively re-enter this function.
+    #[test]
+    fn single_fn_any_call_untrusts_local_allocates() {
+        let call_free = "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = allocate -> &mut Field
+            return
+        }
+        ";
+        let ssa = Ssa::from_str(call_free).unwrap();
+        let allocs = collect_allocates(&ssa);
+        let analysis = AliasAnalysis::analyze_single_function(ssa.main());
+        assert_eq!(analysis.known_site(allocs[0]), Some(allocs[0]));
+
+        let with_call = "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = allocate -> &mut Field
+            call f1()
+            return
+        }
+        acir(inline) fn f1 f1 {
+          b0():
+            return
+        }
+        ";
+        let ssa = Ssa::from_str(with_call).unwrap();
+        let allocs = collect_allocates(&ssa);
+        let analysis = AliasAnalysis::analyze_single_function(ssa.main());
+        assert_eq!(analysis.known_site(allocs[0]), None);
+    }
+
+    /// An out-of-scope call's result is opaque: it carries no trusted site.
+    #[test]
+    fn single_fn_opaque_call_result_has_no_site() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = call f1() -> &mut Field
+            return
+        }
+        acir(inline) fn f1 f1 {
+          b0():
+            v0 = allocate -> &mut Field
+            return v0
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let call_results = collect_call_results_in_main(&ssa);
+        let analysis = AliasAnalysis::analyze_single_function(ssa.main());
+        assert_eq!(analysis.known_site(call_results[0]), None);
+    }
+
+    /// An entry-point reference parameter is `External`: it cannot be equal to
+    /// a cell allocated locally after entry.
+    #[test]
+    fn single_fn_entry_param_cannot_equal_local_allocate() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: &mut Field):
+            v1 = allocate -> &mut Field
+            return
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let main = ssa.main();
+        let param = GlobalValueId::new(main, main.dfg[main.entry_block()].parameters()[0]);
+        let allocs = collect_allocates(&ssa);
+        let analysis = AliasAnalysis::analyze_single_function(main);
+        assert!(analysis.cannot_equal(param, allocs[0]));
+    }
+
+    /// An entry-point parameter's pointees are poisoned: a value stored through
+    /// the parameter and then loaded back does not must-alias the stored value,
+    /// because the external caller's pre-entry writes are opaque.
+    #[test]
+    fn single_fn_entry_param_pointee_poisoned() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: &mut &mut Field):
+            v1 = allocate -> &mut Field
+            store v1 at v0
+            v2 = load v0 -> &mut Field
+            return
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let allocs = collect_allocates(&ssa);
+        let loads = collect_loads(&ssa);
+        let analysis = AliasAnalysis::analyze_single_function(ssa.main());
+        assert!(!analysis.must_alias(allocs[0], loads[0]));
+    }
+
+    #[test]
+    fn allocation_site_propagates_to_loop_header_param_via_fixed_point() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = allocate -> &mut Field
+            jmp b1(v0)
+          b1(v1: &mut Field):
+            jmpif u1 0 then: b2(v1), else: b3()
+          b2(v2: &mut Field):
+            jmp b1(v2)
+          b3():
+            return
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let func = ssa.main();
+        let allocs = collect_allocates(&ssa);
+        let loop_header = func.reachable_blocks().into_iter().find(|block| {
+            let params = func.dfg[*block].parameters();
+            params.len() == 1 && *block != func.entry_block()
+        });
+        let loop_param = func.dfg[loop_header.unwrap()].parameters()[0];
+
+        let mut analysis = analyze_main(&ssa);
+        let loop_param = GlobalValueId::new(func, loop_param);
+        assert!(analysis.may_alias(func, allocs[0], loop_param));
+        assert!(analysis.must_alias(allocs[0], loop_param));
     }
 }
