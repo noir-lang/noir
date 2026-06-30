@@ -66,7 +66,7 @@ dependencies = [
  "criterion",
  "indexmap 2.14.0",
  "insta",
- "itertools 0.14.0",
+ "itertools 0.15.0",
  "num-bigint",
  "pprof",
  "proptest",
@@ -840,7 +840,7 @@ dependencies = [
  "ark-grumpkin",
  "criterion",
  "hex",
- "itertools 0.14.0",
+ "itertools 0.15.0",
  "num-bigint",
  "pprof",
  "proptest",
@@ -862,7 +862,7 @@ name = "brillig"
 version = "1.0.0-beta.22"
 dependencies = [
  "acir_field",
- "itertools 0.14.0",
+ "itertools 0.15.0",
  "msgpack_tagged",
  "proptest",
  "proptest-derive",
@@ -875,7 +875,7 @@ version = "1.0.0-beta.22"
 dependencies = [
  "acir",
  "acvm_blackbox_solver",
- "itertools 0.14.0",
+ "itertools 0.15.0",
  "num-bigint",
  "num-traits",
  "proptest",
@@ -2851,6 +2851,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "itertools"
+version = "0.15.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8b4baf93f58d4425749ca49a51c50ebab072c5df6994d08fed93541c331481dc"
+dependencies = [
+ "either",
+]
+
+[[package]]
 name = "itoa"
 version = "1.0.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3423,7 +3432,7 @@ dependencies = [
  "iai",
  "insta",
  "iter-extended",
- "itertools 0.14.0",
+ "itertools 0.15.0",
  "lcov",
  "nargo",
  "nargo_doc",
@@ -3597,7 +3606,7 @@ dependencies = [
  "color-eyre",
  "const_format",
  "fm",
- "itertools 0.14.0",
+ "itertools 0.15.0",
  "nargo",
  "noirc_abi",
  "noirc_artifacts",
@@ -3625,7 +3634,7 @@ dependencies = [
  "im",
  "insta",
  "iter-extended",
- "itertools 0.14.0",
+ "itertools 0.15.0",
  "log",
  "nargo",
  "noir_greybox_fuzzer",
@@ -3690,7 +3699,7 @@ dependencies = [
  "acvm",
  "build-data",
  "fm",
- "itertools 0.14.0",
+ "itertools 0.15.0",
  "noirc_abi",
  "noirc_artifacts",
  "num-bigint",
@@ -3767,7 +3776,7 @@ dependencies = [
  "fm",
  "im",
  "inferno 0.12.6",
- "itertools 0.14.0",
+ "itertools 0.15.0",
  "nargo",
  "noir_artifact_cli",
  "noirc_abi",
@@ -3871,7 +3880,7 @@ version = "1.0.0-beta.22"
 dependencies = [
  "acvm",
  "iter-extended",
- "itertools 0.14.0",
+ "itertools 0.15.0",
  "noirc_printable_type",
  "num-bigint",
  "num-traits",
@@ -3989,7 +3998,7 @@ dependencies = [
  "indexmap 2.14.0",
  "insta",
  "iter-extended",
- "itertools 0.14.0",
+ "itertools 0.15.0",
  "noirc_artifacts",
  "noirc_errors",
  "noirc_frontend",
@@ -4026,7 +4035,7 @@ dependencies = [
  "indexmap 2.14.0",
  "insta",
  "iter-extended",
- "itertools 0.14.0",
+ "itertools 0.15.0",
  "noirc_arena",
  "noirc_artifacts",
  "noirc_errors",
@@ -4056,7 +4065,7 @@ version = "1.0.0-beta.22"
 dependencies = [
  "acvm",
  "iter-extended",
- "itertools 0.14.0",
+ "itertools 0.15.0",
  "proptest",
  "serde",
  "serde_json",
@@ -5856,7 +5865,7 @@ dependencies = [
  "env_logger",
  "flate2",
  "hex",
- "itertools 0.14.0",
+ "itertools 0.15.0",
  "k256",
  "libfuzzer-sys",
  "log",
