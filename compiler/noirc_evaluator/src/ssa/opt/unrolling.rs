@@ -858,26 +858,12 @@ impl Loop {
     ///   The subtlety is that a non constant bound also returns false, because then the bound check
     ///   is delegated to `unroll`.
     ///
-    /// `index` is the induction variable's position among the header parameters,
     /// `pre_header` is the loop's pre-header.
-    fn induction_step_may_miss_bound(
-        &self,
-        function: &Function,
-        pre_header: BasicBlockId,
-        index: usize,
-    ) -> bool {
-        let Some(bounds) = self.get_const_bounds(&function.dfg, pre_header, |v| v) else {
-            // Non-constant bounds: the guard cannot fold, this case is handled by the unrolling.
+    fn induction_step_may_miss_bound(&self, function: &Function, pre_header: BasicBlockId) -> bool {
+        let Some((bounds, step)) = self.bounds_and_step(function, pre_header) else {
             return false;
         };
-        // Only a `NotEqual` guard can be stepped over; `LessThan`/`Equal` stop at or before `upper`.
-        if bounds.kind != LoopBoundKind::NotEqual {
-            return false;
-        }
-        let induction_variable = function.dfg.block_parameters(self.header)[index];
-        let Some(step) =
-            self.monotonic_back_edge_step(&function.dfg, induction_variable, bounds.upper)
-        else {
+        let Some(step) = step else {
             // The guard folds each iteration but we cannot determine the step, we conservatively
             // say that it may miss.
             return true;
@@ -893,21 +879,31 @@ impl Loop {
         function: &Function,
         pre_header: BasicBlockId,
     ) -> bool {
-        let Some(bounds) = self.get_const_bounds(&function.dfg, pre_header, |v| v) else {
-            return false;
-        };
-        if bounds.kind != LoopBoundKind::NotEqual {
-            return false;
-        }
-        let Some(induction_variable) = self.induction_variable(&function.dfg) else {
-            return false;
-        };
-        let Some(step) =
-            self.monotonic_back_edge_step(&function.dfg, induction_variable, bounds.upper)
-        else {
+        let Some((bounds, Some(step))) = self.bounds_and_step(function, pre_header) else {
             return false;
         };
         !bounds.iterator_in_bounds(step)
+    }
+
+    /// Helper function which returns the loop bounds and induction step:
+    /// The loop bounds: if the bounds are constants and the guard is NotEqual
+    /// The induction step: if it could find an induction variable and a positive constant step
+    fn bounds_and_step(
+        &self,
+        function: &Function,
+        pre_header: BasicBlockId,
+    ) -> Option<(LoopBounds, Option<Step>)> {
+        let Some(bounds) = self.get_const_bounds(&function.dfg, pre_header, |v| v) else {
+            return None;
+        };
+        if bounds.kind != LoopBoundKind::NotEqual {
+            return None;
+        }
+        let Some(induction_variable) = self.induction_variable(&function.dfg) else {
+            return Some((bounds, None));
+        };
+        let step = self.monotonic_back_edge_step(&function.dfg, induction_variable, bounds.upper);
+        Some((bounds, step))
     }
 
     /// Check if the loop header has a constant zero jump condition, which indicates an empty loop.
@@ -1236,7 +1232,7 @@ impl Loop {
         // Whether we can prove this loop terminates.
         let termination_unproven = match induction_index {
             None => true,
-            Some(index) => self.induction_step_may_miss_bound(function, unroll_into, index),
+            Some(_) => self.induction_step_may_miss_bound(function, unroll_into),
         };
 
         let mut iterations = 0;
