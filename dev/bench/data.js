@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1782815180096,
+  "lastUpdate": 1782815198752,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23116,48 +23116,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "3e90d85243e254b79ccaa2a3f19eed46cce3d800",
-          "message": "chore(ci): fix cargo-binstall rate-limit slowdowns in JS workflows (#13138)\n\nCo-authored-by: Claude Opus 4.8 (1M context) <noreply@anthropic.com>",
-          "timestamp": "2026-06-23T12:55:12Z",
-          "tree_id": "75665d25e85a7931fc63bdc076a2630d3b4e76c2",
-          "url": "https://github.com/noir-lang/noir/commit/3e90d85243e254b79ccaa2a3f19eed46cce3d800"
-        },
-        "date": 1782220506632,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 181041,
-            "range": "± 246",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 148589,
-            "range": "± 261",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2658172,
-            "range": "± 1201",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "49699333+dependabot[bot]@users.noreply.github.com",
             "name": "dependabot[bot]",
             "username": "dependabot[bot]"
@@ -25209,6 +25167,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 3039082,
             "range": "± 7136",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "c12ae0ca5ddbd81f8850aabe4c800040af9e0aad",
+          "message": "chore(deps): bump ethers from 6.16.0 to 6.17.0 in the hardhat group (#13213)\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2026-06-30T10:00:54Z",
+          "tree_id": "9f4fa442b6d449b3223404b5d7fccd0a022e2558",
+          "url": "https://github.com/noir-lang/noir/commit/c12ae0ca5ddbd81f8850aabe4c800040af9e0aad"
+        },
+        "date": 1782815122047,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 179683,
+            "range": "± 864",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 147035,
+            "range": "± 5759",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2651797,
+            "range": "± 15555",
             "unit": "ns/iter"
           }
         ]
