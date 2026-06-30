@@ -166,6 +166,34 @@ impl PostOrder {
         }
     }
 
+    /// Re-establish the invariant `cost[v] >= cost[u] + 1` for every forward edge `u -> v` with a
+    /// single relaxation pass in reverse-post-order, making the sorted order a valid
+    /// reverse-post-order (every block ends up after a predecessor) as the dominator tree requires.
+    ///
+    /// This is the irreducible-CFG fallback for [`Self::raise_loop_exit_costs`]: it is invoked only
+    /// when the loop-exit longest path could not be ordered topologically (a cycle in the augmented
+    /// graph). Because a forward edge always points to a strictly larger reverse-post-order index,
+    /// processing blocks in that order finalizes every forward predecessor before the block, so a
+    /// single pass suffices to repair the invariant.
+    fn enforce_forward_order(
+        cfg: &ControlFlowGraph,
+        post_order: &[BasicBlockId],
+        rpo_index: &[u32],
+        cost: &mut [u32],
+    ) {
+        for &block in post_order.iter().rev() {
+            let block_slot = block.to_u32() as usize;
+            let block_index = rpo_index[block_slot];
+            let mut new_cost = cost[block_slot];
+            for predecessor in cfg.predecessors(block) {
+                if Self::index_of(rpo_index, predecessor).is_some_and(|index| index < block_index) {
+                    new_cost = new_cost.max(cost[predecessor.to_u32() as usize] + 1);
+                }
+            }
+            cost[block_slot] = new_cost;
+        }
+    }
+
     /// Raise the cost of every loop's exit blocks above the maximum cost within the loop. After
     /// this, sorting by `(cost, block id)` keeps each natural loop's blocks contiguous and orders
     /// the blocks reached by exiting a loop after the entire loop body. Without it a loop exit
@@ -261,7 +289,9 @@ impl PostOrder {
             }
         }
 
+        let mut processed = 0usize;
         while let Some(node) = queue.pop() {
+            processed += 1;
             let node_cost = if node < block_node_count {
                 cost[node]
             } else {
@@ -281,6 +311,17 @@ impl PostOrder {
                     queue.push(successor);
                 }
             }
+        }
+
+        // The augmented graph is acyclic for reducible CFGs, so Kahn's algorithm processes every
+        // node and the longest path above is exact. An irreducible CFG, however, can yield an
+        // over-approximate loop set whose exit feeds back into the loop, leaving a cycle that Kahn
+        // cannot order; the nodes on it keep partial costs that may violate `cost[v] >= cost[u] + 1`
+        // for a forward edge. That is purely a contiguity heuristic gone wrong, but it would make
+        // the sort produce an invalid reverse-post-order, so repair the forward-edge invariant. This
+        // runs only when a cycle was actually left unprocessed, so reducible CFGs pay nothing.
+        if processed < post_order.len() + loops.len() {
+            Self::enforce_forward_order(cfg, post_order, rpo_index, cost);
         }
     }
 
@@ -657,6 +698,83 @@ mod tests {
         let func = ssa.main();
         let post_order = PostOrder::with_function(func);
         assert_eq!(post_order.0, expected_post_order);
+    }
+
+    /// Regression test for the dominator-tree panic on irreducible control flow. The loop-exit
+    /// cost raising builds an auxiliary graph that is acyclic only for reducible CFGs; an
+    /// irreducible loop can leave a cycle there, and a naive longest-path over it once ordered a
+    /// block ahead of its own predecessor — an invalid reverse-post-order that made
+    /// `DominatorTree::compute_immediate_dominator` panic with "block node must have one reachable
+    /// predecessor". The order must remain a valid reverse-post-order regardless.
+    #[test]
+    fn irreducible_cfg_produces_valid_reverse_post_order() {
+        use crate::ssa::ir::{cfg::ControlFlowGraph, dom::DominatorTree};
+
+        // This CFG was reduced from a program the AST fuzzer generated for the dominator-tree
+        // panic. It contains nested irreducible loops (e.g. `b6`'s loop is entered both at its
+        // header and, via `b14 -> b15`, in its middle), so the natural-loop approximation produces
+        // a loop whose exit re-enters it — the cycle that the loop-exit longest path cannot order
+        // topologically, and which made the unguarded version place a block before its predecessor.
+        // The condition `v0` is threaded through every block only to keep the SSA well-formed.
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u1):
+            jmpif v0 then: b1(v0), else: b2(v0)
+          b1(v1: u1):
+            jmp b12(v1)
+          b2(v2: u1):
+            jmp b3(v2)
+          b3(v3: u1):
+            jmpif v3 then: b5(v3), else: b4(v3)
+          b4(v4: u1):
+            jmp b3(v4)
+          b5(v5: u1):
+            jmpif v5 then: b7(v5), else: b8(v5)
+          b6(v6: u1):
+            jmpif v6 then: b9(v6), else: b10(v6)
+          b7(v7: u1):
+            jmp b6(v7)
+          b8(v8: u1):
+            jmp b11(v8)
+          b9(v9: u1):
+            jmp b12(v9)
+          b10(v10: u1):
+            jmp b15(v10)
+          b11(v11: u1):
+            jmpif v11 then: b14(v11), else: b13(v11)
+          b12(v12: u1):
+            return
+          b13(v13: u1):
+            jmp b11(v13)
+          b14(v14: u1):
+            jmp b15(v14)
+          b15(v15: u1):
+            jmp b6(v15)
+        }";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let func = ssa.main();
+
+        // Every reachable block other than the entry must appear after one of its predecessors in
+        // the reverse-post-order; otherwise the order is not a valid RPO.
+        let forward = PostOrder::with_function(func).into_vec_reverse();
+        let cfg = ControlFlowGraph::with_function(func);
+        for (position, &block) in forward.iter().enumerate() {
+            if position == 0 {
+                continue;
+            }
+            let has_earlier_predecessor = cfg.predecessors(block).any(|predecessor| {
+                forward.iter().take(position).any(|&earlier| earlier == predecessor)
+            });
+            assert!(
+                has_earlier_predecessor,
+                "block {block:?} at reverse-post-order position {position} has no earlier \
+                 predecessor; order = {forward:?}",
+            );
+        }
+
+        // Building the dominator tree exercises that invariant directly and must not panic.
+        let _dominator_tree = DominatorTree::with_function(func);
     }
 }
 
