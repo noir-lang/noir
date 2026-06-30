@@ -425,7 +425,7 @@ fn databus_deduplicate_call_and_return_data() {
 }
 
 #[test]
-fn blake3_slice_regression() {
+fn blake3_blackbox_brillig_regression() {
     // Sanity check for blake3 black box call brillig codegen.
     let src = "
     brillig(inline) predicate_pure fn main f0 {

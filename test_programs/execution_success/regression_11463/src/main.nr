@@ -25,7 +25,7 @@ unconstrained fn recursive(mut c: [Field], n: &mut u32, expected: [Field]) {
         recursive(c.push_front(0), n, expected.push_front(0));
 
         // This assertion would fail before the fix because c was corrupted
-        assert(c == expected, "slice was corrupted after recursive call");
+        assert(c == expected, "vector was corrupted after recursive call");
     }
 }
 

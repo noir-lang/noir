@@ -887,7 +887,7 @@ pub(crate) mod tests {
     /// before we ever compute the items pointer.
     #[test]
     fn empty_vector_allocation_near_heap_limit_triggers_oom() {
-        // SSA with an empty slice (vector) - triggers vector allocation with VECTOR_META_COUNT (3) slots
+        // SSA with an empty vector - triggers vector allocation with VECTOR_META_COUNT (3) slots
         let src = r#"
             brillig(inline) predicate_pure fn main f0 {
               b0():
