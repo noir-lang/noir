@@ -424,23 +424,39 @@ impl ItemPrinter<'_, '_> {
 
         // Special case: assumed trait method
         if let ImplKind::TraitItem(trait_method) = &hir_ident.impl_kind {
-            let show_as_trait_as_path = if trait_method.assumed {
-                // Is this `self.foo()` where `self` is currently a trait?
-                // If so, show it as `self.foo()` instead of `Self::foo(self)`.
-                let method_on_trait_self =
-                    if let Type::NamedGeneric(NamedGeneric { name, .. }) =
-                        &trait_method.constraint.typ
-                    {
-                        name.to_string() == "Self"
-                    } else {
-                        false
-                    };
-                !method_on_trait_self
-            } else {
-                let trait_id = trait_method.constraint.trait_bound.trait_id;
-                let module_data = &self.def_maps[&self.module_id.krate][self.module_id.local_id];
-                module_data.find_trait_in_scope(trait_id).is_none()
+            // If the receiver type has an inherent method of the same name, neither the method-call
+            // sugar `foo.method()` nor the `Type::method(foo)` path form resolves back to this trait
+            // method — both prefer the inherent one. Only the fully-qualified `<Type as Trait>::method`
+            // form is faithful, so force it.
+            let shadowed_by_inherent = {
+                let instantiation_bindings =
+                    self.interner.get_instantiation_bindings(hir_call_expression.func);
+                let mut constraint = trait_method.constraint.clone();
+                constraint.apply_bindings(instantiation_bindings);
+                let self_type = constraint.typ.follow_bindings();
+                let method_name = self.interner.function_name(&func_id);
+                self.interner.lookup_direct_method(&self_type, method_name, false).is_some()
             };
+
+            let show_as_trait_as_path = shadowed_by_inherent
+                || if trait_method.assumed {
+                    // Is this `self.foo()` where `self` is currently a trait?
+                    // If so, show it as `self.foo()` instead of `Self::foo(self)`.
+                    let method_on_trait_self =
+                        if let Type::NamedGeneric(NamedGeneric { name, .. }) =
+                            &trait_method.constraint.typ
+                        {
+                            name.to_string() == "Self"
+                        } else {
+                            false
+                        };
+                    !method_on_trait_self
+                } else {
+                    let trait_id = trait_method.constraint.trait_bound.trait_id;
+                    let module_data =
+                        &self.def_maps[&self.module_id.krate][self.module_id.local_id];
+                    module_data.find_trait_in_scope(trait_id).is_none()
+                };
             if show_as_trait_as_path {
                 self.show_hir_call_as_trait_as_path(
                     hir_call_expression,
@@ -448,6 +464,7 @@ impl ItemPrinter<'_, '_> {
                     generics,
                     func_id,
                     trait_method,
+                    shadowed_by_inherent,
                 );
                 return true;
             }
@@ -521,6 +538,7 @@ impl ItemPrinter<'_, '_> {
         generics: Option<Vec<Type>>,
         func_id: FuncId,
         trait_method: &TraitItem,
+        force_fully_qualified: bool,
     ) {
         let instantiation_bindings =
             self.interner.get_instantiation_bindings(hir_call_expression.func);
@@ -529,9 +547,11 @@ impl ItemPrinter<'_, '_> {
 
         let trait_id = trait_method.constraint.trait_bound.trait_id;
         let module_data = &self.def_maps[&self.module_id.krate][self.module_id.local_id];
-        if module_data.find_trait_in_scope(trait_id).is_none() {
-            // It can happen that the trait is not in scope, for example if this call
-            // was generated via macros using `get_trait_impl -> methods`.
+        if force_fully_qualified || module_data.find_trait_in_scope(trait_id).is_none() {
+            // Print `<Type as Trait>::method`. This is required when the trait is not in scope (for
+            // example if this call was generated via macros using `get_trait_impl -> methods`), and
+            // when an inherent method of the same name would otherwise capture the unqualified
+            // `Type::method` form.
             self.push('<');
             self.show_type(&constraint.typ);
             self.push_str(" as ");
