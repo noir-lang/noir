@@ -107,9 +107,15 @@ impl<F: AcirField> AcirContext<F> {
 
     /// Returns the constant represented by the given variable.
     ///
-    /// Panics: if the variable does not represent a constant.
-    pub(crate) fn constant(&self, var: AcirVar) -> &F {
-        self.vars[&var].as_constant().expect("ICE - expected the variable to be a constant value")
+    /// Error if the variable does not represent a constant.
+    pub(crate) fn constant(&self, var: &AcirVar, name: String) -> Result<&F, RuntimeError> {
+        match self.vars.get(var) {
+            Some(AcirVarData::Const(field)) => Ok(field),
+            _ => Err(RuntimeError::InternalError(InternalError::NotAConstant {
+                name,
+                call_stack: self.get_call_stack(),
+            })),
+        }
     }
 
     /// Adds a Variable to the context, whose exact value is resolved at runtime.
@@ -247,29 +253,33 @@ impl<F: AcirField> AcirContext<F> {
 
     /// True if the given `AcirVar` refers to a constant one value
     pub(crate) fn is_constant_one(&self, var: &AcirVar) -> bool {
-        match self.vars[var] {
-            AcirVarData::Const(field) => field.is_one(),
+        match self.vars.get(var) {
+            Some(AcirVarData::Const(field)) => field.is_one(),
             _ => false,
         }
     }
 
     /// True if the given `AcirVar` refers to a constant value
     pub(crate) fn is_constant(&self, var: &AcirVar) -> bool {
-        matches!(self.vars[var], AcirVarData::Const(_))
+        matches!(self.vars.get(var), Some(AcirVarData::Const(_)))
     }
 
     /// Adds a new Variable to context whose value will
     /// be constrained to be the negation of `var`.
     ///
     /// Note: `Variables` are immutable.
-    pub(crate) fn neg_var(&mut self, var: AcirVar) -> AcirVar {
-        let var_data = &self.vars[&var];
+    pub(crate) fn neg_var(&mut self, var: AcirVar) -> Result<AcirVar, RuntimeError> {
+        let Some(var_data) = self.vars.get(&var) else {
+            return Err(RuntimeError::InternalError(InternalError::UndeclaredAcirVar {
+                call_stack: self.get_call_stack(),
+            }));
+        };
         let result_data = if let AcirVarData::Const(constant) = var_data {
             AcirVarData::Const(-*constant)
         } else {
             AcirVarData::Expr(-var_data.to_expression().as_ref())
         };
-        self.add_data(result_data)
+        Ok(self.add_data(result_data))
     }
 
     /// Adds a new Variable to context whose value will
@@ -279,7 +289,11 @@ impl<F: AcirField> AcirContext<F> {
         var: AcirVar,
         predicate: AcirVar,
     ) -> Result<AcirVar, RuntimeError> {
-        let var_data = &self.vars[&var];
+        let Some(var_data) = self.vars.get(&var) else {
+            return Err(RuntimeError::InternalError(InternalError::UndeclaredAcirVar {
+                call_stack: self.get_call_stack(),
+            }));
+        };
         let inverted_var = if let AcirVarData::Const(constant) = var_data {
             // Note that this will return a 0 if the inverse is not available
             self.add_data(AcirVarData::Const(constant.inverse()))
@@ -612,8 +626,16 @@ impl<F: AcirField> AcirContext<F> {
     /// Adds a new Variable to context whose value will
     /// be constrained to be the multiplication of `lhs` and `rhs`
     pub(crate) fn mul_var(&mut self, lhs: AcirVar, rhs: AcirVar) -> Result<AcirVar, RuntimeError> {
-        let lhs_data = self.vars[&lhs].clone();
-        let rhs_data = self.vars[&rhs].clone();
+        let Some(lhs_data) = self.vars.get(&lhs).cloned() else {
+            return Err(RuntimeError::InternalError(InternalError::UndeclaredAcirVar {
+                call_stack: self.get_call_stack(),
+            }));
+        };
+        let Some(rhs_data) = self.vars.get(&rhs).cloned() else {
+            return Err(RuntimeError::InternalError(InternalError::UndeclaredAcirVar {
+                call_stack: self.get_call_stack(),
+            }));
+        };
 
         let result = match (lhs_data, rhs_data) {
             // (x * 1) == (1 * x) == x
@@ -638,7 +660,7 @@ impl<F: AcirField> AcirContext<F> {
             }
             (AcirVarData::Const(constant), AcirVarData::Expr(expr))
             | (AcirVarData::Expr(expr), AcirVarData::Const(constant)) => {
-                self.add_data(AcirVarData::from(&expr * constant))
+                self.add_data(AcirVarData::from(expr * constant))
             }
             (AcirVarData::Witness(lhs_witness), AcirVarData::Witness(rhs_witness)) => {
                 let mut expr = Expression::default();
@@ -693,7 +715,7 @@ impl<F: AcirField> AcirContext<F> {
     /// Adds a new Variable to context whose value will
     /// be constrained to be the subtraction of `lhs` and `rhs`
     pub(crate) fn sub_var(&mut self, lhs: AcirVar, rhs: AcirVar) -> Result<AcirVar, RuntimeError> {
-        let neg_rhs = self.neg_var(rhs);
+        let neg_rhs = self.neg_var(rhs)?;
         self.add_var(lhs, neg_rhs)
     }
 
@@ -1233,15 +1255,10 @@ impl<F: AcirField> AcirContext<F> {
         limb_count: SemanticLength,
         result_element_type: NumericType,
     ) -> Result<AcirValue, RuntimeError> {
-        let radix = match self.vars[&radix_var].as_constant() {
-            Some(radix) => radix.try_into_u128().expect("expected radix to fit within a u128"),
-            None => {
-                return Err(RuntimeError::InternalError(InternalError::NotAConstant {
-                    name: "radix".to_string(),
-                    call_stack: self.get_call_stack(),
-                }));
-            }
-        };
+        let radix = self
+            .constant(&radix_var, "radix".to_string())?
+            .try_into_u128()
+            .expect("expected radix to fit within a u128");
 
         // Match the assertions of `Field::to_le_radix` and `Field::to_be_radix`.
         assert!(2 <= radix);
@@ -1520,17 +1537,6 @@ enum AcirVarData<F> {
     Const(F),
 }
 
-impl<F> AcirVarData<F> {
-    /// Returns a `FieldElement`, if the underlying `AcirVarData`
-    /// represents a constant.
-    pub(crate) fn as_constant(&self) -> Option<&F> {
-        if let AcirVarData::Const(field) = self {
-            return Some(field);
-        }
-        None
-    }
-}
-
 impl<F: AcirField> AcirVarData<F> {
     /// Converts all enum variants to an Expression.
     pub(crate) fn to_expression(&self) -> Cow<Expression<F>> {
@@ -1646,6 +1652,7 @@ mod tests {
             let circuit = convert_generated_acir_into_circuit(
                 circuit,
                 &[(1, Visibility::Private)],
+                &BTreeMap::default(),
                 BTreeMap::default(),
                 BTreeMap::default(),
                 BTreeMap::default(),
@@ -1701,6 +1708,7 @@ mod tests {
         let circuit = convert_generated_acir_into_circuit(
             circuit,
             &[(1, Visibility::Private)],
+            &BTreeMap::default(),
             BTreeMap::default(),
             BTreeMap::default(),
             BTreeMap::default(),

@@ -1152,6 +1152,24 @@ fn signed_numeric_generic_negative_turbofish(typ: &str, literal: &str, expected:
     assert_no_errors(&src);
 }
 
+// Regression for https://github.com/noir-lang/noir-claude/issues/864.
+#[test_case("i8", "-128i8", "-128")]
+#[test_case("i16", "-32768i16", "-32768")]
+#[test_case("i32", "-2147483648i32", "-2147483648")]
+#[test_case("i64", "-9223372036854775808i64", "-9223372036854775808")]
+fn signed_numeric_generic_min_turbofish(typ: &str, literal: &str, expected: &str) {
+    let src = format!(
+        r#"
+    pub fn foo<let N: {typ}>() -> {typ} {{ N }}
+
+    fn main() {{
+        assert(foo::<{literal}>() == {expected});
+    }}
+    "#,
+    );
+    assert_no_errors(&src);
+}
+
 #[test]
 fn cannot_deduce_numeric_generic() {
     let src = r#"
@@ -1255,8 +1273,8 @@ fn type_annotation_needed_on_struct_new() {
 
     fn main() {
         let _foo = Foo::new();
-                        ^^^ Type annotation needed
-                        ~~~ Could not determine the type of the generic argument `T` declared on the struct `Foo`
+                   ^^^^^^^^ Type annotation needed
+                   ~~~~~~~~ Could not determine the type of the generic argument `T` declared on the struct `Foo`
     }
     "#;
     check_errors(src);

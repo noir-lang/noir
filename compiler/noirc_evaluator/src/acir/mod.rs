@@ -9,6 +9,7 @@
 use noirc_artifacts::ssa::{InternalWarning, SsaReport};
 use noirc_errors::call_stack::CallStack;
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
+use std::collections::BTreeMap;
 use types::{AcirDynamicArray, AcirValue};
 
 use acvm::acir::{
@@ -101,7 +102,7 @@ struct Context<'a> {
 
     /// Maps type sizes to `BlockId`. This is used to reuse the same `BlockId` if different
     /// non-homogenous arrays end up having the same type sizes layout.
-    type_sizes_to_blocks: HashMap<Vec<u32>, BlockId>,
+    type_sizes_to_blocks: BTreeMap<Vec<u32>, BlockId>,
 
     /// Number of the next `BlockId`, it is used to construct
     /// a new `BlockId`
@@ -136,7 +137,7 @@ impl<'a> Context<'a> {
             memory_blocks: HashMap::default(),
             return_data_block_id: None,
             element_type_sizes_blocks: HashMap::default(),
-            type_sizes_to_blocks: HashMap::default(),
+            type_sizes_to_blocks: BTreeMap::default(),
             max_block_id: 0,
             data_bus: DataBus::default(),
             shared_context,
@@ -923,16 +924,14 @@ fn acir_post_check(context: &Context<'_>, acir: &GeneratedAcir<FieldElement>) {
                     "ICE: Empty AssertZero opcodes (0 == 0) should not be emitted"
                 );
             }
-            Opcode::MemoryOp { block_id, op } => {
-                if op.operation == MemOpKind::Write {
-                    // Check that we have no writes to the type size arrays
-                    let is_type_sizes_array =
-                        context.element_type_sizes_blocks.values().any(|id| id == block_id);
-                    assert!(
-                        !is_type_sizes_array,
-                        "ICE: Writes to the internal type sizes array are forbidden"
-                    );
-                }
+            Opcode::MemoryOp { block_id, op } if op.operation == MemOpKind::Write => {
+                // Check that we have no writes to the type size arrays
+                let is_type_sizes_array =
+                    context.element_type_sizes_blocks.values().any(|id| id == block_id);
+                assert!(
+                    !is_type_sizes_array,
+                    "ICE: Writes to the internal type sizes array are forbidden"
+                );
             }
             _ => {}
         }

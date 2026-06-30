@@ -1,0 +1,43 @@
+name: Retry a flaky command
+description: >
+  Run a shell command, retrying from scratch up to a few times. Intended for
+  environmental flakes — notably WebKit content-process crashes ("Page crashed")
+  while instantiating WASM in the browser tests, which are engine/runner crashes
+  rather than test failures. Each attempt is a fresh invocation (a new process
+  and, for the browser tests, a freshly launched browser), so a retry is a
+  near-independent draw; resuming a crashed session would not be.
+
+inputs:
+  run:
+    description: The command to run.
+    required: true
+  max-attempts:
+    description: Maximum number of attempts (including the first).
+    required: false
+    default: "3"
+
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      env:
+        # Passed via env rather than inlined into the script to avoid embedding
+        # the command in the shell source.
+        RETRY_CMD: ${{ inputs.run }}
+        RETRY_MAX_ATTEMPTS: ${{ inputs.max-attempts }}
+      run: |
+        for i in $(seq 1 "$RETRY_MAX_ATTEMPTS"); do
+          echo "::group::Attempt $i/$RETRY_MAX_ATTEMPTS: $RETRY_CMD"
+          if bash -c "$RETRY_CMD"; then
+            echo "::endgroup::"
+            exit 0
+          fi
+          echo "::endgroup::"
+          echo "Attempt $i of $RETRY_MAX_ATTEMPTS failed."
+          if [ "$i" -lt "$RETRY_MAX_ATTEMPTS" ]; then
+            echo "Retrying with a fresh process..."
+            sleep 5
+          fi
+        done
+        echo "::error::Command failed after $RETRY_MAX_ATTEMPTS attempts: $RETRY_CMD"
+        exit 1

@@ -2,7 +2,7 @@ use noirc_errors::Location;
 use noirc_frontend::shared::Visibility;
 use noirc_frontend::{
     ast::{NoirTrait, Param, Pattern, TraitItem},
-    token::{Attributes, Keyword, Token},
+    token::{Keyword, Token},
 };
 
 use super::{Formatter, function::FunctionToFormat};
@@ -86,6 +86,7 @@ impl Formatter<'_> {
                 return_type,
                 where_clause,
                 body,
+                attributes,
             } => {
                 let parameters = parameters
                     .into_iter()
@@ -99,7 +100,7 @@ impl Formatter<'_> {
                     .collect();
 
                 let func = FunctionToFormat {
-                    attributes: Attributes::empty(),
+                    attributes,
                     visibility,
                     name,
                     generics,
@@ -260,6 +261,24 @@ mod tests {
         let expected = "mod moo {
     trait Foo {
         /// hello
+        fn foo() {
+            1
+        }
+    }
+}
+";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_trait_with_function_with_attribute() {
+        let src = " mod moo { trait Foo {
+            #[no_predicates]
+            fn  foo ( ) { 1 }
+         } }";
+        let expected = "mod moo {
+    trait Foo {
+        #[no_predicates]
         fn foo() {
             1
         }

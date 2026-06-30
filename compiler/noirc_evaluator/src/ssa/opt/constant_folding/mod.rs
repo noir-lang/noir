@@ -158,7 +158,7 @@ impl Function {
             })
             .collect::<HashMap<_, _>>();
 
-        let mut dom = loops.dom;
+        let dom = loops.dom;
         let mutated_types = find_mutated_block_param_array_types(self);
         let mut context = Context::new(use_constraint_info, mutated_types.clone());
 
@@ -168,7 +168,7 @@ impl Function {
             while let Some(block) = context.block_queue.pop_front() {
                 context.fold_constants_in_block(
                     &mut self.dfg,
-                    &mut dom,
+                    &dom,
                     &mut loop_headers,
                     block,
                     interpreter,
@@ -344,7 +344,7 @@ impl Context {
     fn fold_constants_in_block(
         &mut self,
         dfg: &mut DataFlowGraph,
-        dom: &mut DominatorTree,
+        dom: &DominatorTree,
         loop_headers: &mut HashMap<BasicBlockId, HashSet<ValueId>>,
         block_id: BasicBlockId,
         interpreter: &mut Interpreter<Empty>,
@@ -398,7 +398,7 @@ impl Context {
     fn fold_constants_into_instruction(
         &mut self,
         dfg: &mut DataFlowGraph,
-        dom: &mut DominatorTree,
+        dom: &DominatorTree,
         loop_headers: &mut HashMap<BasicBlockId, HashSet<ValueId>>,
         block: BasicBlockId,
         id: InstructionId,
@@ -579,7 +579,7 @@ impl Context {
         instruction_id: InstructionId,
         block: BasicBlockId,
         dfg: &DataFlowGraph,
-        dom: &mut DominatorTree,
+        dom: &DominatorTree,
         constraint_simplification_mapping: Option<&HashMap<ValueId, SimplificationCache>>,
     ) -> Instruction {
         let mut instruction = dfg[instruction_id].clone();
@@ -779,19 +779,21 @@ impl Context {
 // constraints to the cache.
 fn resolve_cache(
     block: BasicBlockId,
-    dom: &mut DominatorTree,
+    dom: &DominatorTree,
     cache: Option<&HashMap<ValueId, SimplificationCache>>,
-    value_id: ValueId,
+    mut value_id: ValueId,
 ) -> ValueId {
-    match cache.and_then(|cache| cache.get(&value_id)) {
-        Some(simplification_cache) => {
-            if let Some(simplified) = simplification_cache.get(block, dom) {
-                resolve_cache(block, dom, cache, simplified)
-            } else {
-                value_id
-            }
-        }
-        None => value_id,
+    // Follow the simplification chain iteratively. A recursive walk would use one stack
+    // frame per link, and on large programs the chain can be thousands deep — enough to
+    // overflow the (smaller) wasm stack.
+    loop {
+        let Some(simplification_cache) = cache.and_then(|cache| cache.get(&value_id)) else {
+            return value_id;
+        };
+        let Some(simplified) = simplification_cache.get(block, dom) else {
+            return value_id;
+        };
+        value_id = simplified;
     }
 }
 
@@ -1203,6 +1205,65 @@ mod test {
         }
         ";
         assert_ssa_does_not_change(src, |ssa| ssa.fold_constants(MIN_ITER));
+    }
+
+    // Regression for NRSEC-903.
+    // Two identical calls to a pure brillig function each return a fresh array. A
+    // `vector_pop_front` between them mutates the first call's array in place (RC == 1 in
+    // brillig, no protecting `inc_rc`), so the second call must NOT be deduplicated against
+    // the first: reusing the mutated array makes the trailing `array_get` read the wrong value.
+    #[test]
+    fn mutating_vector_intrinsic_prevents_call_dedup() {
+        let src = "
+        brillig(inline) predicate_pure fn main f0 {
+          b0():
+            v1, v2 = call f1() -> (u32, [u32])
+            v5, v6, v7 = call vector_pop_front(v1, v2) -> (u32, u32, [u32])
+            v8, v9 = call f1() -> (u32, [u32])
+            v10 = array_get v9, index u32 0 -> u32
+            return v10
+        }
+        brillig(inline_never) predicate_pure fn get_slice f1 {
+          b0():
+            v1 = make_array [u32 100] : [u32]
+            return u32 1, v1
+        }
+        ";
+        assert_ssa_does_not_change(src, |ssa| ssa.fold_constants_using_constraints(MIN_ITER));
+    }
+
+    // Regression for noir-claude#1224.
+    // A constant zero-sized-type array (empty `element_types`, e.g. `[(); 3]`) passed as a
+    // constant argument to a brillig call reaches the constant-folding interpreter, which must
+    // rehydrate it into an interpreter value without panicking on the empty element-type list.
+    #[test]
+    fn interpret_call_with_zero_sized_type_array_argument() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = make_array [] : [(); 3]
+            v1 = call f1(v0) -> [(); 3]
+            return v1
+        }
+        brillig(inline) fn id_zst f1 {
+          b0(v0: [(); 3]):
+            return v0
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.fold_constants(MIN_ITER);
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0():
+            v0 = make_array [] : [(); 3]
+            v1 = make_array [] : [(); 3]
+            return v1
+        }
+        brillig(inline) fn id_zst f1 {
+          b0(v0: [(); 3]):
+            return v0
+        }
+        ");
     }
 
     // In ACIR, arrays are value-semantic: `array_set` produces a fresh array and never mutates

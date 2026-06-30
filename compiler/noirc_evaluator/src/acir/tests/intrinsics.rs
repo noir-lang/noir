@@ -545,7 +545,6 @@ fn vector_insert_no_predicate() {
     private parameters: [w0, w1]
     public parameters: []
     return values: []
-    BLACKBOX::RANGE input: w1, bits: 32
     ASSERT w2 = 2
     ASSERT w3 = 3
     ASSERT w4 = 5
@@ -939,6 +938,29 @@ fn vector_insert_affected_by_predicate() {
     let program_side_effects = ssa_to_acir_program(src_side_effects);
     let program_no_side_effects = ssa_to_acir_program(src_no_side_effects);
     assert_ne!(program_side_effects, program_no_side_effects);
+}
+
+#[test]
+fn vector_insert_after_dynamic_read_of_non_homogenous_vector() {
+    // Regression for https://github.com/noir-lang/noir/issues/1121.
+    // A dynamic read of a non-homogenous vector initializes that vector's element-type-sizes
+    // helper block. A subsequent `vector_insert` on the same vector needs a *shifted* (grown)
+    // helper table, which must not be initialized into the already-used base helper block.
+    let src = "
+    acir(inline) predicate_pure fn main f0 {
+      b0(v0: u32, v1: u32):
+        v4 = make_array [Field 2, Field 3] : [Field; 2]
+        v7 = make_array [Field 5, Field 6] : [Field; 2]
+        v10 = make_array [Field 8, Field 9] : [Field; 2]
+        v14 = make_array [Field 1, v4, Field 4, v7, Field 7, v10] : [(Field, [Field; 2])]
+        v19 = unchecked_mul v1, u32 2
+        v20 = array_get v14, index v19 -> Field
+        v23 = make_array [Field 11, Field 12] : [Field; 2]
+        v28, v29 = call vector_insert(u32 3, v14, v0, Field 10, v23) -> (u32, [(Field, [Field; 2])])
+        return
+    }
+    ";
+    try_ssa_to_acir(src).expect("vector_insert after a dynamic read should compile to ACIR");
 }
 
 #[test]
