@@ -12,14 +12,15 @@
 //! sources, and gated on whether the callee can modify its arguments (mirroring
 //! `can_modify_args` in `ssa_gen`).
 
-use rustc_hash::FxHashMap as HashMap;
+use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
 use crate::{
     errors::{RtResult, RuntimeError},
     ssa::{
         ir::{
+            basic_block::BasicBlockId,
             function::{Function, FunctionId},
-            instruction::{Instruction, Intrinsic},
+            instruction::{Instruction, Intrinsic, TerminatorInstruction},
             value::{Value, ValueId},
         },
         opt::pure::Purity,
@@ -33,18 +34,31 @@ use super::Context;
 /// `ssa`. See the module docs for the invariant.
 pub(crate) fn verify(ssa: &Ssa) -> RtResult<()> {
     let may_mutate = compute_may_mutate_args(ssa);
+    let returns_arg_alias = compute_returns_arg_alias(ssa);
+
+    // A user-function call must have its array arguments checked if the callee
+    // may mutate one in place, *or* may hand back an alias of one that the
+    // caller then mutates (e.g. an identity function — see [#1443]). Either way,
+    // reusing the argument without a protecting `inc_rc` is a hazard. Both
+    // summaries cover every function, so we can index them directly.
+    //
+    // [#1443]: https://github.com/noir-lang/noir-claude/issues/1443
+    let needs_check: HashMap<FunctionId, bool> =
+        ssa.functions.keys().map(|id| (*id, may_mutate[id] || returns_arg_alias[id])).collect();
+
     for function in ssa.functions.values() {
-        verify_function(function, &may_mutate)?;
+        verify_function(function, &needs_check)?;
     }
     Ok(())
 }
 
 /// Per-function check. Skips ACIR functions (the invariant only applies to
 /// Brillig, where a callee may mutate an argument in place). For every `call`
-/// whose callee may mutate its arguments, treats each array-typed argument as
-/// an all-index in-place mutation and runs the shared coverage + forward walk:
-/// a forward-reachable aliased read with no protecting `inc_rc` is a hazard.
-fn verify_function(function: &Function, may_mutate: &HashMap<FunctionId, bool>) -> RtResult<()> {
+/// whose callee may mutate an argument or return an alias of one (`needs_check`),
+/// treats each array-typed argument as an all-index in-place mutation and runs
+/// the shared coverage + forward walk: a forward-reachable aliased read with no
+/// protecting `inc_rc` is a hazard.
+fn verify_function(function: &Function, needs_check: &HashMap<FunctionId, bool>) -> RtResult<()> {
     if !function.runtime().is_brillig() {
         return Ok(());
     }
@@ -59,12 +73,13 @@ fn verify_function(function: &Function, may_mutate: &HashMap<FunctionId, bool>) 
             };
 
             // Mirror `ssa_gen`'s `can_modify_args`: a callee that provably
-            // cannot mutate its arguments (a foreign call, a pure builtin, or a
-            // non-mutating function) has its argument clones elided by the
-            // ownership pass, so a reused argument legitimately carries no
-            // `inc_rc`. Skipping such calls is what keeps this check from
-            // flagging well-formed SSA.
-            if !callee_may_mutate_args(function, *func, may_mutate) {
+            // cannot mutate an argument *or* hand back an alias of one (a
+            // foreign call, a pure builtin, or a function that neither mutates
+            // an argument nor returns an alias of one) has its argument clones
+            // elided by the ownership pass, so a reused argument legitimately
+            // carries no `inc_rc`. Skipping such calls is what keeps this check
+            // from flagging well-formed SSA.
+            if !callee_needs_arg_check(function, *func, needs_check) {
                 continue;
             }
 
@@ -98,7 +113,8 @@ fn verify_function(function: &Function, may_mutate: &HashMap<FunctionId, bool>) 
                 let message = format!(
                     "call in function {} passes array {arg} that is read again as {} on a \
                      forward path with no preceding `inc_rc`; if the callee mutates the argument \
-                     in place the mutation would be observable through that alias",
+                     in place, or returns an alias of it that is then mutated, the mutation would \
+                     be observable through that alias",
                     function.name(),
                     hit.value,
                 );
@@ -115,18 +131,20 @@ fn verify_function(function: &Function, may_mutate: &HashMap<FunctionId, bool>) 
     Ok(())
 }
 
-/// Whether the callee referenced by `func` may mutate an array argument in a
-/// way observable to the caller. Mirrors `ssa_gen`'s `can_modify_args`:
-/// foreign calls only read their inputs; pure builtins that are safe for clone
-/// elision cannot mutate; an unresolved/dynamic callee is assumed to be able
-/// to; and a known function is looked up in the call-graph summary.
-fn callee_may_mutate_args(
+/// Whether a call to the callee referenced by `func` needs its array arguments
+/// checked — i.e. the callee may mutate an argument in place or return an alias
+/// of one. Mirrors `ssa_gen`'s `can_modify_args`: foreign calls only read their
+/// inputs and return fresh results; pure builtins that are safe for clone
+/// elision do neither; an unresolved/dynamic callee is assumed to need
+/// checking; and a known function is looked up in the combined call-graph
+/// summary (`may_mutate || returns_arg_alias`).
+fn callee_needs_arg_check(
     function: &Function,
     func: ValueId,
-    may_mutate: &HashMap<FunctionId, bool>,
+    needs_check: &HashMap<FunctionId, bool>,
 ) -> bool {
     match &function.dfg[func] {
-        Value::Function(callee) => may_mutate.get(callee).copied().unwrap_or(true),
+        Value::Function(callee) => needs_check.get(callee).copied().unwrap_or(true),
         Value::Intrinsic(intrinsic) => intrinsic_may_mutate_args(*intrinsic),
         Value::ForeignFunction { .. } => false,
         _ => true,
@@ -196,6 +214,147 @@ fn compute_may_mutate_args(ssa: &Ssa) -> HashMap<FunctionId, bool> {
     }
 
     may_mutate
+}
+
+/// Compute, for every function, whether it may return an array value that
+/// aliases one of its array parameters — e.g. an identity function that returns
+/// its input unchanged. Such a call hands the caller an alias of the argument,
+/// so an in-place mutation of the *result* mutates the *argument's* storage; the
+/// call must be checked even when the callee does not itself mutate.
+///
+/// Distinct from "returns any array": a callee that returns a *fresh* array (a
+/// `make_array`, or a foreign/intrinsic-call result — the shape of an oracle
+/// wrapper) is not flagged, so its caller's clone-elided arguments stay
+/// accepted. Propagated to a fixed point over the call graph because the
+/// alias property flows through `Value::Function` call results.
+fn compute_returns_arg_alias(ssa: &Ssa) -> HashMap<FunctionId, bool> {
+    let mut returns_arg_alias: HashMap<FunctionId, bool> =
+        ssa.functions.keys().map(|id| (*id, false)).collect();
+
+    // Monotonic fixed point: a function only ever flips from false to true, and
+    // `function_returns_arg_alias` reads the current map for callee results.
+    let mut changed = true;
+    while changed {
+        changed = false;
+        for function in ssa.functions.values() {
+            if returns_arg_alias[&function.id()] {
+                continue;
+            }
+            if function_returns_arg_alias(function, &returns_arg_alias) {
+                returns_arg_alias.insert(function.id(), true);
+                changed = true;
+            }
+        }
+    }
+
+    returns_arg_alias
+}
+
+/// Whether `function` returns an array value that may alias one of its array
+/// parameters, given the current `returns_arg_alias` summary for resolving
+/// callee results.
+///
+/// Computes the set of *parameter-derived* values to a fixed point: an array
+/// parameter, a block parameter threaded from one, an `array_set` of one, or a
+/// `Value::Function` call result whose callee `returns_arg_alias` and is fed a
+/// parameter-derived argument. `make_array`, foreign-call and intrinsic results
+/// are fresh and stop the trace. The function returns an arg alias iff any
+/// returned value is parameter-derived.
+fn function_returns_arg_alias(
+    function: &Function,
+    returns_arg_alias: &HashMap<FunctionId, bool>,
+) -> bool {
+    let dfg = &function.dfg;
+
+    // Incoming block-parameter arguments per destination block, to thread
+    // parameter-derived-ness across edges.
+    let mut incoming: HashMap<BasicBlockId, Vec<Vec<ValueId>>> = HashMap::default();
+    for block_id in function.reachable_blocks() {
+        match dfg[block_id].terminator() {
+            Some(TerminatorInstruction::Jmp { destination, arguments, .. }) => {
+                incoming.entry(*destination).or_default().push(arguments.clone());
+            }
+            Some(TerminatorInstruction::JmpIf {
+                then_destination,
+                then_arguments,
+                else_destination,
+                else_arguments,
+                ..
+            }) => {
+                incoming.entry(*then_destination).or_default().push(then_arguments.clone());
+                incoming.entry(*else_destination).or_default().push(else_arguments.clone());
+            }
+            _ => {}
+        }
+    }
+
+    // Seed with the function's array-value parameters (entry block parameters).
+    let entry = function.entry_block();
+    let mut param_derived: HashSet<ValueId> = dfg
+        .block_parameters(entry)
+        .iter()
+        .copied()
+        .filter(|&p| dfg.type_of_value(p).is_array())
+        .collect();
+
+    let mut changed = true;
+    while changed {
+        changed = false;
+
+        for block_id in function.reachable_blocks() {
+            // Block parameters fed a parameter-derived argument on some edge.
+            if let Some(edges) = incoming.get(&block_id) {
+                let params = dfg.block_parameters(block_id);
+                for (i, &param) in params.iter().enumerate() {
+                    if param_derived.contains(&param) {
+                        continue;
+                    }
+                    // Check any of the incoming edges for arguments which are derived from function inputs.
+                    let fed = edges
+                        .iter()
+                        .any(|args| args.get(i).is_some_and(|a| param_derived.contains(a)));
+                    if fed {
+                        param_derived.insert(param);
+                        changed = true;
+                    }
+                }
+            }
+
+            for instruction_id in dfg[block_id].instructions() {
+                let propagate = match &dfg[*instruction_id] {
+                    // An array_set result shares the operand's storage.
+                    Instruction::ArraySet { array, .. } => param_derived.contains(array),
+                    // A call result aliases an argument only if the callee
+                    // returns an arg alias and is fed a parameter-derived
+                    // argument. Foreign/intrinsic results are fresh.
+                    Instruction::Call { func, arguments } => match &dfg[*func] {
+                        Value::Function(callee) => {
+                            returns_arg_alias[callee]
+                                && arguments.iter().any(|a| param_derived.contains(a))
+                        }
+                        _ => false,
+                    },
+                    _ => false,
+                };
+                if propagate {
+                    for &result in dfg.instruction_results(*instruction_id) {
+                        if dfg.type_of_value(result).is_array() && param_derived.insert(result) {
+                            changed = true;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // Check if the return block contains a value that was derived from the inputs.
+    function.reachable_blocks().iter().any(|&block_id| {
+        matches!(
+            dfg[block_id].terminator(),
+            Some(TerminatorInstruction::Return { return_values, .. })
+                if return_values.iter().any(|v| param_derived.contains(v))
+        )
+    })
 }
 
 #[cfg(test)]
