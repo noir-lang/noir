@@ -166,32 +166,28 @@ impl PostOrder {
         }
     }
 
-    /// The maximum cost to reach `block`, or `None` if `block` has no reverse-post-order index
-    /// (and therefore no meaningful `cost` entry).
-    fn cost_of(rpo_index: &[u32], cost: &[u32], block: BasicBlockId) -> Option<u32> {
-        Self::index_of(rpo_index, block).map(|_| cost[block.to_u32() as usize])
-    }
-
-    /// Raise the cost of every loop's exit blocks above the maximum cost within the loop,
-    /// propagating each increase forward. After this, sorting by `(cost, block id)` keeps each
-    /// natural loop's blocks contiguous and orders the blocks reached by exiting a loop after the
-    /// entire loop body. Without it a loop exit branches off the loop header (a low-cost block)
-    /// and so inherits a low cost, letting it sort ahead of deeper loop-body blocks (see
-    /// <https://github.com/noir-lang/noir/issues/9771>).
+    /// Raise the cost of every loop's exit blocks above the maximum cost within the loop. After
+    /// this, sorting by `(cost, block id)` keeps each natural loop's blocks contiguous and orders
+    /// the blocks reached by exiting a loop after the entire loop body. Without it a loop exit
+    /// branches off the loop header (a low-cost block) and so inherits a low cost, letting it sort
+    /// ahead of deeper loop-body blocks (see <https://github.com/noir-lang/noir/issues/9771>).
     ///
     /// An exit is a successor `e` of a loop block `b` that is not itself in the loop and is
     /// reached by a *forward* edge (`rpo_index[e] > rpo_index[b]`); a successor reached by a
-    /// back-edge is an enclosing loop header, which legitimately precedes the loop. Note a forward
-    /// exit may still have a smaller `rpo_index` than other blocks of the loop, which is why the
-    /// raise is propagated rather than folded into the single cost scan.
+    /// back-edge is an enclosing loop header, which legitimately precedes the loop.
     ///
-    /// Bumping one loop's exit can raise a block of another loop (e.g. two sequential loops where
-    /// the first's exit feeds the second's body), so the bumps are repeated to a fixpoint. Each
-    /// raise only ever increases a cost and only propagates along forward edges, so costs are
-    /// bounded by the longest forward path and the fixpoint is reached quickly; the iteration cap
-    /// is a safety bound for irreducible CFGs. The result is a valid reverse-post-order regardless
-    /// (every non-back edge `u -> v` keeps `cost[u] < cost[v]`), so loop-set approximation only
-    /// affects contiguity, never correctness.
+    /// The final cost of every block is the longest path to it in the directed acyclic graph of:
+    ///
+    /// * the forward CFG edges (`u -> v` with `rpo_index[u] < rpo_index[v]`, weight 1), and
+    /// * for each loop `L`, a virtual loop node with an edge `b -> L` (weight 0) from every block
+    ///   `b` of `L` and an edge `L -> e` (weight 1) to every exit `e` of `L`. Routing the exit
+    ///   constraint through one node per loop keeps the edge count linear (`O(|L| + exits)` rather
+    ///   than `O(|L| * exits)`) and forces `cost[e] >= max_{b in L} cost[b] + 1`.
+    ///
+    /// This graph is acyclic — a loop's exits are strictly outside it — so a single longest-path
+    /// pass in topological order (Kahn's algorithm) computes every cost in linear time. The result
+    /// is the unique least fixpoint of the above constraints; the previous block costs (the longest
+    /// path over forward edges alone) are a valid lower bound and so seed the block nodes directly.
     fn raise_loop_exit_costs(
         cfg: &ControlFlowGraph,
         post_order: &[BasicBlockId],
@@ -203,86 +199,86 @@ impl PostOrder {
             return;
         }
 
-        // The forward exits of each loop are structural, so compute them once. `BTreeSet` keeps
-        // the iteration order below deterministic.
-        let loop_exits: Vec<BTreeSet<BasicBlockId>> = loops
-            .iter()
-            .map(|blocks| {
-                let mut exits = BTreeSet::new();
-                for &block in blocks {
-                    let Some(block_index) = Self::index_of(rpo_index, block) else {
+        // Nodes `0..block_node_count` are blocks (indexed by `block.to_u32()`); nodes
+        // `block_node_count + loop_index` are the virtual loop nodes.
+        let block_node_count = rpo_index.len();
+        let node_count = block_node_count + loops.len();
+        let mut successors: Vec<Vec<(u32, u32)>> = vec![Vec::new(); node_count];
+        let mut in_degree = vec![0u32; node_count];
+        let mut add_edge = |from: usize, to: usize, weight: u32| {
+            successors[from].push((to as u32, weight));
+            in_degree[to] += 1;
+        };
+
+        // Loop-node edges: `b -> L` (weight 0) for each block, and `L -> e` (weight 1) for each
+        // distinct forward exit. `BTreeSet` keeps the exit edges deterministic.
+        for (loop_index, blocks) in loops.iter().enumerate() {
+            let loop_node = block_node_count + loop_index;
+            let mut exits = BTreeSet::new();
+            for &block in blocks {
+                let Some(block_index) = Self::index_of(rpo_index, block) else {
+                    continue;
+                };
+                add_edge(block.to_u32() as usize, loop_node, 0);
+                for successor in cfg.successors(block) {
+                    if blocks.contains(&successor) {
                         continue;
-                    };
-                    for successor in cfg.successors(block) {
-                        if blocks.contains(&successor) {
-                            continue;
-                        }
-                        if Self::index_of(rpo_index, successor)
-                            .is_some_and(|index| index > block_index)
-                        {
-                            exits.insert(successor);
-                        }
                     }
-                }
-                exits
-            })
-            .collect();
-
-        for _ in 0..=post_order.len() {
-            let mut changed = false;
-            for (blocks, exits) in loops.iter().zip(&loop_exits) {
-                let Some(max_cost_in_loop) =
-                    blocks.iter().filter_map(|&block| Self::cost_of(rpo_index, cost, block)).max()
-                else {
-                    continue;
-                };
-                for &exit in exits {
-                    if Self::cost_of(rpo_index, cost, exit)
-                        .is_some_and(|current| current < max_cost_in_loop + 1)
+                    if Self::index_of(rpo_index, successor).is_some_and(|index| index > block_index)
                     {
-                        Self::raise_cost(cfg, rpo_index, cost, exit, max_cost_in_loop + 1);
-                        changed = true;
+                        exits.insert(successor);
                     }
                 }
             }
-            if !changed {
-                break;
+            for exit in exits {
+                add_edge(loop_node, exit.to_u32() as usize, 1);
             }
         }
-    }
 
-    /// Raise `cost[start]` to `new_cost` and propagate the increase forward so that every forward
-    /// (non-back) edge `u -> v` keeps `cost[v] >= cost[u] + 1`. Propagation only follows forward
-    /// edges (strictly increasing `rpo_index`) and costs only increase, so the traversal is over a
-    /// DAG and always terminates.
-    fn raise_cost(
-        cfg: &ControlFlowGraph,
-        rpo_index: &[u32],
-        cost: &mut [u32],
-        start: BasicBlockId,
-        new_cost: u32,
-    ) {
-        match Self::cost_of(rpo_index, cost, start) {
-            Some(current) if current >= new_cost => return,
-            None => return,
-            _ => {}
-        }
-        cost[start.to_u32() as usize] = new_cost;
-
-        let mut stack = vec![start];
-        while let Some(block) = stack.pop() {
-            let block_cost = cost[block.to_u32() as usize];
-            let Some(block_index) = Self::index_of(rpo_index, block) else {
-                continue;
-            };
+        // Forward CFG edges among reachable blocks.
+        for &block in post_order {
+            let block_index = rpo_index[block.to_u32() as usize];
             for successor in cfg.successors(block) {
-                let Some(successor_index) = Self::index_of(rpo_index, successor) else {
-                    continue;
-                };
-                let successor_slot = successor.to_u32() as usize;
-                if block_index < successor_index && cost[successor_slot] < block_cost + 1 {
-                    cost[successor_slot] = block_cost + 1;
-                    stack.push(successor);
+                if Self::index_of(rpo_index, successor).is_some_and(|index| index > block_index) {
+                    add_edge(block.to_u32() as usize, successor.to_u32() as usize, 1);
+                }
+            }
+        }
+
+        // Longest path in topological order. Block costs live in `cost`; loop-node costs are held
+        // separately. Seed the queue with the sources (blocks with no forward predecessor, plus any
+        // loop node with no reachable member).
+        let mut loop_cost = vec![0u32; loops.len()];
+        let mut queue: Vec<usize> = Vec::new();
+        for &block in post_order {
+            if in_degree[block.to_u32() as usize] == 0 {
+                queue.push(block.to_u32() as usize);
+            }
+        }
+        for loop_index in 0..loops.len() {
+            if in_degree[block_node_count + loop_index] == 0 {
+                queue.push(block_node_count + loop_index);
+            }
+        }
+
+        while let Some(node) = queue.pop() {
+            let node_cost = if node < block_node_count {
+                cost[node]
+            } else {
+                loop_cost[node - block_node_count]
+            };
+            for &(successor, weight) in &successors[node] {
+                let successor = successor as usize;
+                let candidate = node_cost + weight;
+                if successor < block_node_count {
+                    cost[successor] = cost[successor].max(candidate);
+                } else {
+                    let slot = successor - block_node_count;
+                    loop_cost[slot] = loop_cost[slot].max(candidate);
+                }
+                in_degree[successor] -= 1;
+                if in_degree[successor] == 0 {
+                    queue.push(successor);
                 }
             }
         }
