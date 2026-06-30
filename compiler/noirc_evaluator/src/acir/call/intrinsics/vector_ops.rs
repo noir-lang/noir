@@ -1,6 +1,6 @@
 use itertools::Itertools;
 
-use crate::acir::arrays::ElementTypeSizesArrayShift;
+use crate::acir::arrays::{ElementTypeSizesArrayShift, flattened_inline_source};
 use crate::acir::types::flat_element_types;
 use crate::acir::{AcirDynamicArray, AcirValue, AcirVar};
 use crate::brillig::assert_u32;
@@ -321,9 +321,15 @@ impl Context<'_> {
         let item_size = self.acir_context.add_constant(flat_item_size.0);
         var_index = self.acir_context.mul_var(var_index, item_size)?;
 
+        let flattened_source = flattened_inline_source(&vector_contents_value);
         let mut popped_elements = Vec::new();
         for res in &result_ids[2..] {
-            let elem = self.array_get_value(&dfg.type_of_value(*res), block_id, &mut var_index)?;
+            let elem = self.read_array_value(
+                flattened_source.as_deref(),
+                block_id,
+                &dfg.type_of_value(*res),
+                &mut var_index,
+            )?;
             popped_elements.push(elem);
         }
 
@@ -464,6 +470,7 @@ impl Context<'_> {
         let new_vector_length_var =
             self.vector_pop_new_length(dfg, vector_length_id, vector_length_value)?;
 
+        let flattened_source = flattened_inline_source(&vector_contents_value);
         let mut new_vector = self.read_array_with_type(vector_contents_value, &vector_type)?;
 
         let mut popped_elements: Vec<AcirValue> = Vec::new();
@@ -472,8 +479,12 @@ impl Context<'_> {
         // In the case of non-nested vector the logic is simple as we do not
         // need to account for the internal vector sizes or flattening the index.
         for res in &result_ids[..element_size.to_usize()] {
-            let element =
-                self.array_get_value(&dfg.type_of_value(*res), block_id, &mut var_index)?;
+            let element = self.read_array_value(
+                flattened_source.as_deref(),
+                block_id,
+                &dfg.type_of_value(*res),
+                &mut var_index,
+            )?;
             popped_elements.push(element);
         }
 
@@ -534,6 +545,7 @@ impl Context<'_> {
         let has_zero_length = self.has_zero_length(vector_contents, dfg);
 
         let vector = self.convert_value(vector_contents, dfg);
+        let flattened_source = flattened_inline_source(&vector);
         let insert_index = self.convert_value(arguments[2], dfg).into_var()?;
 
         let one = self.acir_context.add_constant(FieldElement::one());
@@ -653,7 +665,7 @@ impl Context<'_> {
                 // and `not_pred` will be 0, so it doesn't matter what value we use here.
                 one
             } else {
-                self.acir_context.read_from_memory(block_id, &shifted_index)?
+                self.read_array_scalar(flattened_source.as_deref(), block_id, &shifted_index)?
             };
 
             // Final predicate to determine whether we are within the insertion bounds
@@ -795,6 +807,7 @@ impl Context<'_> {
         }
 
         let vector = self.convert_value(vector_contents, dfg);
+        let flattened_source = flattened_inline_source(&vector);
         let remove_index = self.convert_value(arguments[2], dfg).into_var()?;
 
         let one = self.acir_context.add_constant(FieldElement::one());
@@ -835,8 +848,12 @@ impl Context<'_> {
         let mut temp_index = flat_user_index;
         let element_size = vector_typ.element_size().to_usize();
         for res in &result_ids[2..(2 + element_size)] {
-            let element =
-                self.array_get_value(&dfg.type_of_value(*res), block_id, &mut temp_index)?;
+            let element = self.read_array_value(
+                flattened_source.as_deref(),
+                block_id,
+                &dfg.type_of_value(*res),
+                &mut temp_index,
+            )?;
             let elem_size = super::arrays::flattened_value_size(&element);
             popped_elements_size += elem_size;
             popped_elements.push(element);
@@ -862,7 +879,7 @@ impl Context<'_> {
 
             // Fetch the value from the initial vector
             let value_shifted_index =
-                self.acir_context.read_from_memory(block_id, &shifted_index)?;
+                self.read_array_scalar(flattened_source.as_deref(), block_id, &shifted_index)?;
 
             let use_shifted_value =
                 self.acir_context.more_than_eq_var(current_index, flat_user_index, 64)?;
