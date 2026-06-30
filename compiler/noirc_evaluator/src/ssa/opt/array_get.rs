@@ -145,6 +145,18 @@ impl Function {
         // for the whole function rather than reset per block.
         let mut views: HashMap<ValueId, ArrayView> = HashMap::new();
 
+        // A non-trivial predicate is only ever seen within a single block (see above), which holds
+        // exactly when a multi-block function contains no `enable_side_effects` instruction. SSA
+        // validation enforces this at construction but not between passes, so guard it here too: a
+        // breach means the cross-block cache can no longer be trusted, and asserting it once up
+        // front catches a future pipeline change that breaks the invariant rather than letting it
+        // silently emit an unsound fold.
+        debug_assert!(
+            !has_cross_block_side_effects(self),
+            "a multi-block function contains an enable_side_effects instruction; \
+             the cross-block array_get cache would be unsound"
+        );
+
         self.simple_optimization(|context| {
             let instruction_id = context.instruction_id;
 
@@ -265,9 +277,7 @@ impl ArrayView {
         if let Some(element) = self.elements.get(&index) {
             // A known element can only be used if it was written unconditionally or under the same
             // predicate as the `array_get`; otherwise the write might not have happened.
-            let unconditional =
-                dfg.get_numeric_constant(element.predicate).is_some_and(|var| var.is_one());
-            return (unconditional || element.predicate == predicate)
+            return (is_unconditional(dfg, element.predicate) || element.predicate == predicate)
                 .then_some(Resolution::Value(element.value));
         }
 
@@ -315,6 +325,26 @@ fn array_view(
 
 fn constant_index(dfg: &DataFlowGraph, index: ValueId) -> Option<u32> {
     dfg.get_numeric_constant(index)?.try_to_u32()
+}
+
+/// Whether `predicate` is the constant side-effects predicate `1`, i.e. the value is written or
+/// read unconditionally.
+fn is_unconditional(dfg: &DataFlowGraph, predicate: ValueId) -> bool {
+    dfg.get_numeric_constant(predicate).is_some_and(|var| var.is_one())
+}
+
+/// Whether `func` has more than one block yet still contains an `enable_side_effects` instruction.
+/// Such a function would break the assumption that a non-trivial predicate is confined to a single
+/// block, which the cross-block `array_get` cache relies on.
+fn has_cross_block_side_effects(func: &Function) -> bool {
+    let blocks = func.reachable_blocks();
+    blocks.len() > 1
+        && blocks.iter().any(|block| {
+            func.dfg[*block]
+                .instructions()
+                .iter()
+                .any(|instr| matches!(func.dfg[*instr], Instruction::EnableSideEffectsIf { .. }))
+        })
 }
 
 /// The result of the `array_get` optimization.
@@ -669,6 +699,32 @@ mod tests {
         }
         ";
         assert_ssa_does_not_change(src, Ssa::array_get_optimization);
+    }
+
+    #[test]
+    #[cfg(debug_assertions)]
+    #[should_panic(expected = "enable_side_effects instruction")]
+    fn rejects_enable_side_effects_in_multi_block_function() {
+        // The cross-block cache assumes a non-trivial side-effects predicate is confined to a
+        // single block, which holds exactly when a multi-block function contains no
+        // `enable_side_effects` instruction (those appear only after flattening, which yields a
+        // single block). A multi-block function carrying one breaks that invariant, so the pass
+        // must reject it.
+        //
+        // This malformed shape is normally rejected by SSA validation, which does not run between
+        // every pass, so parse it without validation to exercise the pass's own guard directly.
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u1, v1: [Field; 3]):
+            enable_side_effects v0
+            v2 = array_set v1, index u32 0, value Field 1
+            jmp b1()
+          b1():
+            return
+        }
+        ";
+        let ssa = Ssa::from_str_no_validation(src).unwrap();
+        let _ = ssa.array_get_optimization();
     }
 
     #[test]
