@@ -1346,10 +1346,7 @@ fn evaluate_integer_binary(
     let lhs_field = lhs.convert_to_field();
     let rhs_field = rhs.convert_to_field();
 
-    let overflow = || {
-        let instruction = format!("`{}` ({operator} {lhs}, {rhs})", display_binary(binary));
-        InterpreterError::Overflow { operator, instruction }
-    };
+    let overflow = || overflow_error(binary, &display_binary, lhs, rhs);
 
     // Field arithmetic for add/sub/mul (no wrapping, no reduction).
     let field_arith = || match operator {
@@ -1363,12 +1360,8 @@ fn evaluate_integer_binary(
         // Unchecked arithmetic: Brillig wraps to the bit size; ACIR extends in the field.
         Add { unchecked: true } | Sub { unchecked: true } | Mul { unchecked: true } => {
             let result = if is_brillig {
-                let a = truncate_field(lhs_field, bit_size)
-                    .try_into_u128()
-                    .expect("a reduced value fits in u128");
-                let b = truncate_field(rhs_field, bit_size)
-                    .try_into_u128()
-                    .expect("a reduced value fits in u128");
+                let a = bits_u128(lhs_field, bit_size);
+                let b = bits_u128(rhs_field, bit_size);
                 let wrapped = match operator {
                     Add { .. } => a.wrapping_add(b),
                     Sub { .. } => a.wrapping_sub(b),
@@ -1400,12 +1393,8 @@ fn evaluate_integer_binary(
         // Shifts wrap the value to the bit size (a shift amount >= the bit width is an overflow,
         // matching `checked_shl`/`checked_shr`); they are not folded as checked overflows.
         BinaryOp::Shl | BinaryOp::Shr => {
-            let value_bits = truncate_field(lhs_field, bit_size)
-                .try_into_u128()
-                .expect("a reduced value fits in u128");
-            let shift = truncate_field(rhs_field, bit_size)
-                .try_into_u128()
-                .expect("a reduced value fits in u128");
+            let value_bits = bits_u128(lhs_field, bit_size);
+            let shift = bits_u128(rhs_field, bit_size);
             if shift >= u128::from(bit_size) {
                 return Err(overflow());
             }
@@ -1461,12 +1450,7 @@ fn eval_via_constant_binary_op(
             let divisor_is_zero = matches!(operator, BinaryOp::Div | BinaryOp::Mod)
                 && truncate_field(rhs_field, typ.bit_size::<FieldElement>()).is_zero();
             if divisor_is_zero {
-                Err(InterpreterError::DivisionByZero {
-                    lhs_id: binary.lhs,
-                    lhs: lhs_field.to_string(),
-                    rhs_id: binary.rhs,
-                    rhs: rhs_field.to_string(),
-                })
+                Err(division_by_zero(binary.lhs, lhs_field, binary.rhs, rhs_field))
             } else {
                 Err(overflow())
             }
@@ -1531,9 +1515,7 @@ fn interpret_field_binary_op(
         BinaryOp::Mul { unchecked: _ } => NumericValue::field(lhs * rhs),
         BinaryOp::Div => {
             if rhs.is_zero() {
-                let lhs = lhs.to_string();
-                let rhs = rhs.to_string();
-                return Err(InterpreterError::DivisionByZero { lhs_id, lhs, rhs_id, rhs });
+                return Err(division_by_zero(lhs_id, lhs, rhs_id, rhs));
             }
             NumericValue::field(lhs / rhs)
         }
@@ -1555,11 +1537,7 @@ fn interpret_u1_binary_op(
     binary: &Binary,
     display_binary: &impl Fn(&Binary) -> String,
 ) -> IResult<NumericValue> {
-    let overflow = || {
-        let instruction = format!("`{}` ({lhs} << {rhs})", display_binary(binary));
-        let operator = binary.operator;
-        InterpreterError::Overflow { operator, instruction }
-    };
+    let overflow = || overflow_error(binary, display_binary, lhs, rhs);
 
     let lhs_id = binary.lhs;
     let rhs_id = binary.rhs;
@@ -1594,9 +1572,7 @@ fn interpret_u1_binary_op(
             // (1, 0) -> (division by 0)
             // (1, 1) -> 1
             if !rhs {
-                let lhs = u8::from(lhs).to_string();
-                let rhs = u8::from(rhs).to_string();
-                return Err(InterpreterError::DivisionByZero { lhs_id, lhs, rhs_id, rhs });
+                return Err(division_by_zero(lhs_id, u8::from(lhs), rhs_id, u8::from(rhs)));
             }
             lhs
         }
@@ -1608,7 +1584,7 @@ fn interpret_u1_binary_op(
             if !rhs {
                 let lhs = format!("u1 {}", u8::from(lhs));
                 let rhs = format!("u1 {}", u8::from(rhs));
-                return Err(InterpreterError::DivisionByZero { lhs_id, lhs, rhs_id, rhs });
+                return Err(division_by_zero(lhs_id, lhs, rhs_id, rhs));
             }
             false
         }
@@ -1656,6 +1632,37 @@ where
     Ok(T::try_from(result).expect(
         "The truncated result should always be smaller than or equal to the original `value`",
     ))
+}
+
+/// Reduce `field` to its `bit_size`-bit pattern as a `u128`.
+///
+/// ACIR operands may carry an extended (out-of-range) field; truncating to the bit size yields the
+/// canonical bit pattern, which always fits in `u128` for the integer widths the interpreter models.
+fn bits_u128(field: FieldElement, bit_size: u32) -> u128 {
+    truncate_field(field, bit_size).try_into_u128().expect("a reduced value fits in u128")
+}
+
+/// Build an `Overflow` error for `binary`, rendering the instruction as
+/// `` `<ssa instruction>` (<operator> <lhs>, <rhs>) ``.
+fn overflow_error(
+    binary: &Binary,
+    display_binary: impl Fn(&Binary) -> String,
+    lhs: impl std::fmt::Display,
+    rhs: impl std::fmt::Display,
+) -> InterpreterError {
+    let operator = binary.operator;
+    let instruction = format!("`{}` ({operator} {lhs}, {rhs})", display_binary(binary));
+    InterpreterError::Overflow { operator, instruction }
+}
+
+/// Build a `DivisionByZero` error, rendering each operand with its `Display`.
+fn division_by_zero(
+    lhs_id: ValueId,
+    lhs: impl std::fmt::Display,
+    rhs_id: ValueId,
+    rhs: impl std::fmt::Display,
+) -> InterpreterError {
+    InterpreterError::DivisionByZero { lhs_id, lhs: lhs.to_string(), rhs_id, rhs: rhs.to_string() }
 }
 
 fn internal(error: InternalError) -> InterpreterError {
