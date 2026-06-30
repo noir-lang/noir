@@ -1,13 +1,14 @@
-//! Phase 0 differential harness for the SSA interpreter's integer model.
+//! Differential harness for the SSA interpreter's integer model.
 //!
 //! Runs the same SSA through three engines and compares the results:
 //!   - the SSA interpreter (`Ssa::interpret`),
 //!   - ACIR, compiled and solved via ACVM,
 //!   - Brillig, compiled and solved via ACVM.
 //!
-//! The interpreter is meant to be a faithful reference for whichever backend a function targets.
-//! This harness surfaces where it isn't — in particular the overflow/underflow corners of the
-//! `Fitted`/`Unfit` model that produced noir-lang/noir-claude#1430 and #1441.
+//! The interpreter is meant to be a faithful reference for whichever backend a function targets:
+//! ACIR's field arithmetic (a value can exceed its type's range until a range check brings it back)
+//! or Brillig's fixed-width wrapping registers. This harness pins that down on the overflow and
+//! underflow corners where the two backends disagree, so the interpreter stays in step with both.
 //!
 //! Run with: `cargo test -p noir_ssa_executor --test differential -- --nocapture`
 
@@ -402,11 +403,11 @@ fn interpreter_vs_backends_on_overflow_corners() {
     );
 }
 
-/// Probes feeding an out-of-range (`Unfit`) value into the consumers that historically `unreachable!`
-/// on `Unfit` operands (`lt`, `and`, `cast`, `truncate`), to see whether the interpreter panics
-/// where the backends compute. The producer is `unchecked_mul i32 i32::MAX, 2` (overflows).
+/// Feeds an out-of-range value (the overflowing product `unchecked_mul i32 i32::MAX, 2`) into the
+/// operations that consume it — `lt`, `and`, `truncate` — and checks the interpreter computes the
+/// same result as each backend rather than rejecting or panicking on the wider-than-the-type value.
 #[test]
-fn interpreter_vs_backends_on_unfit_consumers() {
+fn interpreter_vs_backends_on_out_of_range_consumers() {
     let i32t = NumericType::Signed { bit_size: 32 };
     let inputs = [(field(2_147_483_647), i32t), (field(2), i32t)];
 
