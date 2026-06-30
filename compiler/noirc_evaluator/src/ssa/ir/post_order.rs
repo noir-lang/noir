@@ -5,8 +5,6 @@
 
 use std::collections::{BTreeMap, BTreeSet, HashSet};
 
-use rustc_hash::FxHashMap as HashMap;
-
 use crate::ssa::ir::{basic_block::BasicBlockId, function::Function};
 
 use super::cfg::ControlFlowGraph;
@@ -99,45 +97,79 @@ impl PostOrder {
     fn compute_post_order(cfg: &ControlFlowGraph, roots: Vec<BasicBlockId>) -> Vec<BasicBlockId> {
         let post_order = Self::depth_first_post_order(cfg, roots);
 
+        // The per-block scratch data below is held in dense arrays indexed by `block.to_u32()`,
+        // sized to cover every reachable block. Block ids are dense, so this avoids the per-call
+        // hashing and allocation churn of a map on what is a very hot path.
+        let capacity =
+            post_order.iter().map(|block| block.to_u32() as usize + 1).max().unwrap_or(0);
+
         // A block's index in the depth-first reverse-post-order. Crucially, every non-back edge
         // points forwards in this order (smaller index -> larger index) while every back edge
         // points backwards. So a predecessor `u` of `v` is a non-back-edge ("forward")
         // predecessor exactly when `rpo_index[u] < rpo_index[v]`; no explicit edge classification
-        // is needed.
-        let rpo_index: HashMap<BasicBlockId, u32> = post_order
-            .iter()
-            .rev()
-            .enumerate()
-            .map(|(index, block)| (*block, index as u32))
-            .collect();
+        // is needed. Blocks unreachable from the roots keep the `u32::MAX` sentinel and are
+        // treated as having no index.
+        let mut rpo_index = vec![u32::MAX; capacity];
+        for (index, block) in post_order.iter().rev().enumerate() {
+            rpo_index[block.to_u32() as usize] = index as u32;
+        }
 
         // The maximum cost to reach each block: `cost(v) = max(cost(u) + 1)` over the forward
         // predecessors `u` of `v`, or 0 for a root. Iterating in reverse-post-order guarantees
         // every forward predecessor has already been assigned its cost. Predecessors that are
         // unreachable from the roots have no `rpo_index` and are ignored, as are back-edge
-        // predecessors (which have a larger `rpo_index`).
-        let mut cost: HashMap<BasicBlockId, u32> = HashMap::default();
+        // predecessors (which have a larger-or-equal `rpo_index`). A block's `cost` entry is
+        // meaningful only once it has an `rpo_index`, which holds for every block read below.
+        //
+        // A predecessor with `rpo_index >= block_index` is a back-edge, so the loop here also
+        // records whether the CFG has any back-edge at all. When it does not (e.g. ACIR after loop
+        // unrolling), the loop-exit pass is skipped entirely: it would discover no loops, but only
+        // after another full scan over every block's predecessors.
+        let mut has_back_edge = false;
+        let mut cost = vec![0u32; capacity];
         for &block in post_order.iter().rev() {
-            let block_index = rpo_index[&block];
-            let block_cost = cfg
-                .predecessors(block)
-                .filter_map(|predecessor| {
-                    let predecessor_index = *rpo_index.get(&predecessor)?;
-                    (predecessor_index < block_index).then(|| cost[&predecessor] + 1)
-                })
-                .max()
-                .unwrap_or(0);
-            cost.insert(block, block_cost);
+            let block_index = rpo_index[block.to_u32() as usize];
+            let mut block_cost = 0;
+            for predecessor in cfg.predecessors(block) {
+                let Some(predecessor_index) = Self::index_of(&rpo_index, predecessor) else {
+                    continue;
+                };
+                if predecessor_index < block_index {
+                    block_cost = block_cost.max(cost[predecessor.to_u32() as usize] + 1);
+                } else {
+                    has_back_edge = true;
+                }
+            }
+            cost[block.to_u32() as usize] = block_cost;
         }
 
-        Self::raise_loop_exit_costs(cfg, &post_order, &rpo_index, &mut cost);
+        if has_back_edge {
+            Self::raise_loop_exit_costs(cfg, &post_order, &rpo_index, &mut cost);
+        }
 
         // Order by ascending cost (ties broken by block id) to get the reverse-post-order, then
-        // reverse it to recover the post-order.
+        // reverse it to recover the post-order. The cost key is computed once per block via
+        // `sort_by_cached_key`, so the sort itself does no per-comparison array indexing.
         let mut reverse_post_order = post_order;
-        reverse_post_order.sort_by_key(|block| (cost[block], *block));
+        reverse_post_order.sort_by_cached_key(|block| (cost[block.to_u32() as usize], *block));
         reverse_post_order.reverse();
         reverse_post_order
+    }
+
+    /// The reverse-post-order index of `block`, or `None` when `block` is unreachable from the
+    /// roots (absent from the post-order and so still carrying the `u32::MAX` sentinel, or beyond
+    /// the dense array entirely).
+    fn index_of(rpo_index: &[u32], block: BasicBlockId) -> Option<u32> {
+        match rpo_index.get(block.to_u32() as usize).copied() {
+            None | Some(u32::MAX) => None,
+            Some(index) => Some(index),
+        }
+    }
+
+    /// The maximum cost to reach `block`, or `None` if `block` has no reverse-post-order index
+    /// (and therefore no meaningful `cost` entry).
+    fn cost_of(rpo_index: &[u32], cost: &[u32], block: BasicBlockId) -> Option<u32> {
+        Self::index_of(rpo_index, block).map(|_| cost[block.to_u32() as usize])
     }
 
     /// Raise the cost of every loop's exit blocks above the maximum cost within the loop,
@@ -163,8 +195,8 @@ impl PostOrder {
     fn raise_loop_exit_costs(
         cfg: &ControlFlowGraph,
         post_order: &[BasicBlockId],
-        rpo_index: &HashMap<BasicBlockId, u32>,
-        cost: &mut HashMap<BasicBlockId, u32>,
+        rpo_index: &[u32],
+        cost: &mut [u32],
     ) {
         let loops = Self::collect_loop_block_sets(cfg, post_order, rpo_index);
         if loops.is_empty() {
@@ -178,12 +210,16 @@ impl PostOrder {
             .map(|blocks| {
                 let mut exits = BTreeSet::new();
                 for &block in blocks {
-                    let block_index = rpo_index[&block];
+                    let Some(block_index) = Self::index_of(rpo_index, block) else {
+                        continue;
+                    };
                     for successor in cfg.successors(block) {
                         if blocks.contains(&successor) {
                             continue;
                         }
-                        if rpo_index.get(&successor).is_some_and(|&index| index > block_index) {
+                        if Self::index_of(rpo_index, successor)
+                            .is_some_and(|index| index > block_index)
+                        {
                             exits.insert(successor);
                         }
                     }
@@ -196,12 +232,14 @@ impl PostOrder {
             let mut changed = false;
             for (blocks, exits) in loops.iter().zip(&loop_exits) {
                 let Some(max_cost_in_loop) =
-                    blocks.iter().filter_map(|block| cost.get(block).copied()).max()
+                    blocks.iter().filter_map(|&block| Self::cost_of(rpo_index, cost, block)).max()
                 else {
                     continue;
                 };
                 for &exit in exits {
-                    if cost.get(&exit).is_some_and(|&current| current < max_cost_in_loop + 1) {
+                    if Self::cost_of(rpo_index, cost, exit)
+                        .is_some_and(|current| current < max_cost_in_loop + 1)
+                    {
                         Self::raise_cost(cfg, rpo_index, cost, exit, max_cost_in_loop + 1);
                         changed = true;
                     }
@@ -219,30 +257,31 @@ impl PostOrder {
     /// DAG and always terminates.
     fn raise_cost(
         cfg: &ControlFlowGraph,
-        rpo_index: &HashMap<BasicBlockId, u32>,
-        cost: &mut HashMap<BasicBlockId, u32>,
+        rpo_index: &[u32],
+        cost: &mut [u32],
         start: BasicBlockId,
         new_cost: u32,
     ) {
-        match cost.get(&start) {
-            Some(&current) if current >= new_cost => return,
+        match Self::cost_of(rpo_index, cost, start) {
+            Some(current) if current >= new_cost => return,
             None => return,
             _ => {}
         }
-        cost.insert(start, new_cost);
+        cost[start.to_u32() as usize] = new_cost;
 
         let mut stack = vec![start];
         while let Some(block) = stack.pop() {
-            let block_cost = cost[&block];
-            let Some(&block_index) = rpo_index.get(&block) else {
+            let block_cost = cost[block.to_u32() as usize];
+            let Some(block_index) = Self::index_of(rpo_index, block) else {
                 continue;
             };
             for successor in cfg.successors(block) {
-                let Some(&successor_index) = rpo_index.get(&successor) else {
+                let Some(successor_index) = Self::index_of(rpo_index, successor) else {
                     continue;
                 };
-                if block_index < successor_index && cost[&successor] < block_cost + 1 {
-                    cost.insert(successor, block_cost + 1);
+                let successor_slot = successor.to_u32() as usize;
+                if block_index < successor_index && cost[successor_slot] < block_cost + 1 {
+                    cost[successor_slot] = block_cost + 1;
                     stack.push(successor);
                 }
             }
@@ -260,14 +299,14 @@ impl PostOrder {
     fn collect_loop_block_sets(
         cfg: &ControlFlowGraph,
         post_order: &[BasicBlockId],
-        rpo_index: &HashMap<BasicBlockId, u32>,
+        rpo_index: &[u32],
     ) -> Vec<BTreeSet<BasicBlockId>> {
         // `BTreeMap`/`BTreeSet` keep header discovery and the merged sets deterministic.
         let mut loops: BTreeMap<BasicBlockId, BTreeSet<BasicBlockId>> = BTreeMap::new();
         for &header in post_order {
-            let header_index = rpo_index[&header];
+            let header_index = rpo_index[header.to_u32() as usize];
             for predecessor in cfg.predecessors(header) {
-                let Some(&predecessor_index) = rpo_index.get(&predecessor) else {
+                let Some(predecessor_index) = Self::index_of(rpo_index, predecessor) else {
                     continue;
                 };
                 if predecessor_index >= header_index {
