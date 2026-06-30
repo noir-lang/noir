@@ -49,7 +49,7 @@ use rustc_hash::FxHashMap as HashMap;
 /// inconsistent with their declared return type.
 ///
 /// Types whose shape cannot be judged cheaply and reliably (type variables, generics, aliases,
-/// references, functions, ...) have no shape and are therefore never flagged. Arrays and slices
+/// references, functions, ...) have no shape and are therefore never flagged. Arrays and vectors
 /// share a shape because some builtins legitimately return one where the other is declared.
 #[derive(PartialEq, Clone, Copy)]
 pub(crate) enum TypeShape {
@@ -72,7 +72,7 @@ impl std::fmt::Display for TypeShape {
             TypeShape::Integer(sign, size) => write!(f, "{}", Type::Integer(*sign, *size)),
             TypeShape::Bool => write!(f, "bool"),
             TypeShape::Unit => write!(f, "()"),
-            TypeShape::Sequence => write!(f, "an array or slice"),
+            TypeShape::Sequence => write!(f, "an array or vector"),
             TypeShape::String => write!(f, "a string"),
             TypeShape::FmtString => write!(f, "a format string"),
             TypeShape::Tuple(arity) => write!(f, "a {arity}-element tuple"),
@@ -1006,13 +1006,13 @@ mod tests {
         let u32 = Type::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo);
         check_return_type_shape(&Value::u32(0), type_shape(&u32), loc).unwrap();
 
-        // Arrays and slices share a shape, so an array value satisfies a slice-declared return.
+        // Arrays and vectors share a shape, so an array value satisfies a vector-declared return.
         let array = Value::Array(
             Vector::new(),
             Type::Array(Box::new(Type::Bool), Box::new(Type::constant_u32(0))),
         );
-        let slice = Type::Vector(Box::new(Type::Bool));
-        check_return_type_shape(&array, type_shape(&slice), loc).unwrap();
+        let vector = Type::Vector(Box::new(Type::Bool));
+        check_return_type_shape(&array, type_shape(&vector), loc).unwrap();
     }
 
     #[test]

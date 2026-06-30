@@ -538,7 +538,7 @@ fn regression_10352_array() {
 }
 
 #[test]
-fn regression_10352_slice() {
+fn regression_10352_vector() {
     let src = r#"
     type Alias = [Alias];
 

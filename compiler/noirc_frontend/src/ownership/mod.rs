@@ -352,7 +352,7 @@ impl Context {
             // clone analysis at their use sites, so destructuring needs no extra handling here.
             //
             // This exhaustive match is a deliberate tripwire: if a constructor that binds a
-            // value out of a *nested* aggregate is ever added (e.g. array/slice patterns like
+            // value out of a *nested* aggregate is ever added (e.g. array/vector patterns like
             // `[head, tail @ ..]`), this stops compiling and forces a decision. Such bindings
             // can alias nested array storage the same way an indexed lvalue does, so they must
             // replicate the nested-array clone handling in `handle_lvalue`'s `LValue::Index`

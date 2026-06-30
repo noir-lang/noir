@@ -1,6 +1,6 @@
 // Regression test for https://github.com/noir-lang/noir/issues/1121.
-// Dynamically reading from a non-homogenous slice initializes that slice's element-type-sizes
-// helper block; a subsequent `insert` on the same slice must not reinitialize that block.
+// Dynamically reading from a non-homogenous vector initializes that vector's element-type-sizes
+// helper block; a subsequent `insert` on the same vector must not reinitialize that block.
 fn main(x: u32, y: u32) {
     let arr: [(Field, [Field; 2]); 3] = [(1, [2, 3]), (4, [5, 6]), (7, [8, 9])];
     let mut v: [(Field, [Field; 2])] = arr.as_vector();
