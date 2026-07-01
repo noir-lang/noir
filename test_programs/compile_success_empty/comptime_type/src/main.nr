@@ -28,6 +28,10 @@ where
 {}
 // docs:end:serialize-setup
 
+type FieldAlias = Field;
+type BoolAlias = bool;
+type UnitAlias = ();
+
 fn main() {
     comptime {
         // Check type_of works correctly (relies on Eq for Type)
@@ -43,6 +47,8 @@ fn main() {
         // Check Type::is_field
         assert(field_type_1.is_field());
         assert(!i32_type.is_field());
+
+        assert(quote { FieldAlias }.as_type().is_field());
 
         // Check Type::as_integer
         assert(field_type_1.as_integer().is_none());
@@ -93,6 +99,8 @@ fn main() {
         let yes = true;
         let bool_type = type_of(yes);
         assert(bool_type.is_bool());
+
+        assert(quote { BoolAlias }.as_type().is_bool());
 
         // Check Type::as_data_type
         assert(u8_type.as_data_type().is_none());
@@ -150,6 +158,8 @@ fn main() {
         // Check Type::is_unit
         let unit = quote { () }.as_type();
         assert(unit.is_unit());
+
+        assert(quote { UnitAlias }.as_type().is_unit());
 
         // Check Type::as_mutable_reference
         let typ = quote { &mut Field }.as_type();

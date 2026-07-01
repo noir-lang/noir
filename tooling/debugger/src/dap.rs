@@ -92,7 +92,7 @@ impl<'a, R: Read, W: Write, B: BlackBoxFunctionSolver<FieldElement>> DapSession<
     }
 
     fn send_stopped_event(&mut self, reason: StoppedEventReason) -> Result<(), ServerError> {
-        let description = format!("{:?}", &reason);
+        let description = format!("{reason:?}");
         self.server.send_event(Event::Stopped(StoppedEventBody {
             reason,
             description: Some(description),

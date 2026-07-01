@@ -13,7 +13,6 @@ comptime fn add_utility(_: FunctionDefinition) -> Quoted {
 
     quote {
         #[$utility]
-        fn fn2() {
-        }
+        fn fn2() {}
     }
 }

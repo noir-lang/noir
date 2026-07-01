@@ -1,8 +1,6 @@
 //! The foreign function counterpart to `interpreter/builtin.rs`, defines how to call
 //! all foreign functions available to the interpreter.
-use acvm::{
-    AcirField, BlackBoxResolutionError, FieldElement, blackbox_solver::BlackBoxFunctionSolver,
-};
+use acvm::{BlackBoxResolutionError, FieldElement, blackbox_solver::BlackBoxFunctionSolver};
 use bn254_blackbox_solver::Bn254BlackBoxSolver; // Currently locked to only bn254!
 use im::{Vector, vector};
 use noirc_errors::Location;
@@ -21,9 +19,9 @@ use crate::{
 use super::{
     Interpreter,
     builtin::builtin_helpers::{
-        check_arguments, check_one_argument, check_three_arguments, check_two_arguments,
-        get_array_map, get_field, get_fixed_array_map, get_struct_field, get_struct_fields, get_u8,
-        get_u32, get_u64, to_struct,
+        check_arguments, check_one_argument, check_return_type_shape, check_three_arguments,
+        check_two_arguments, get_array_map, get_field, get_fixed_array_map, get_struct_field,
+        get_struct_fields, get_u8, get_u32, get_u64, to_struct, type_shape,
     },
 };
 
@@ -48,7 +46,8 @@ fn call_foreign(
     return_type: Type,
     location: Location,
 ) -> IResult<Value> {
-    match name {
+    let expected_return_shape = type_shape(&return_type);
+    let result = match name {
         "aes128_encrypt" => aes128_encrypt(args, location),
         "blake2s" => blake_hash(args, location, acvm::blackbox_solver::blake2s),
         "blake3" => blake_hash(args, location, acvm::blackbox_solver::blake3),
@@ -63,7 +62,7 @@ fn call_foreign(
         "embedded_curve_add" => embedded_curve_add(args, return_type, location),
         "multi_scalar_mul" => multi_scalar_mul(args, return_type, location),
         "poseidon2_permutation" => poseidon2_permutation(args, location),
-        "poseidon2_config_state_size" => poseidon2_config_state_size(args, location),
+        "poseidon2_config_state_size" => poseidon2_config_state_size(&args, location),
         "keccakf1600" => keccakf1600(args, location),
         "sha256_compression" => sha256_compression(args, location),
         _ => {
@@ -79,21 +78,56 @@ fn call_foreign(
             let item = format!("Attempting to evaluate foreign function '{name}'");
             Err(InterpreterError::InvalidInComptimeContext { item, location, explanation })
         }
-    }
+    }?;
+
+    check_return_type_shape(&result, expected_return_shape, location)?;
+    Ok(result)
 }
 
 /// `pub fn aes128_encrypt<let N: u32>(input: [u8; N], iv: [u8; 16], key: [u8; 16]) -> [u8]`
 fn aes128_encrypt(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
-    let (inputs, iv, key) = check_three_arguments(arguments, location)?;
+    let (inputs_arg, iv_arg, key_arg) = check_three_arguments(arguments, location)?;
+    let inputs_location = inputs_arg.1;
+    let iv_location = iv_arg.1;
+    let key_location = key_arg.1;
 
-    let (inputs, _) = get_array_map(inputs, get_u8)?;
-    let (iv, _) = get_fixed_array_map(iv, get_u8)?;
-    let (key, _) = get_fixed_array_map(key, get_u8)?;
+    let (inputs, _) = get_array_map(inputs_arg, get_u8)?;
+    if !inputs.len().is_multiple_of(16) {
+        return Err(aes128_error(
+            format!("input length {} is not a multiple of 16", inputs.len()),
+            inputs_location,
+        ));
+    }
+
+    let iv = get_aes128_block(iv_arg, "iv", iv_location)?;
+    let key = get_aes128_block(key_arg, "key", key_location)?;
 
     let output = acvm::blackbox_solver::aes128_encrypt(&inputs, iv, key)
-        .map_err(|e| InterpreterError::BlackBoxError(e, location))?;
+        .map_err(|e| InterpreterError::BlackBoxError(e, inputs_location))?;
 
     Ok(to_byte_array(&output))
+}
+
+/// Reads an AES128 `iv` or `key` argument as a `[u8; 16]`, reporting an AES-tagged
+/// diagnostic at the argument location if its length is wrong. This mirrors the
+/// per-argument validation done by the Brillig VM's blackbox handler.
+fn get_aes128_block(
+    argument: (Value, Location),
+    name: &str,
+    location: Location,
+) -> IResult<[u8; 16]> {
+    let (values, _) = get_array_map(argument, get_u8)?;
+    let len = values.len();
+    values
+        .try_into()
+        .map_err(|_| aes128_error(format!("Invalid {name} length {len}, expected 16"), location))
+}
+
+fn aes128_error(reason: String, location: Location) -> InterpreterError {
+    InterpreterError::BlackBoxError(
+        BlackBoxResolutionError::Failed(acvm::acir::BlackBoxFunc::AES128Encrypt, reason),
+        location,
+    )
 }
 
 /// Run one of the Blake hash functions.
@@ -163,14 +197,9 @@ fn embedded_curve_add(
     let (p1x, p1y) = get_embedded_curve_point(point1)?;
     let (p2x, p2y) = get_embedded_curve_point(point2)?;
 
-    let p1inf: FieldElement =
-        if p1x.is_zero() && p1y.is_zero() { FieldElement::one() } else { FieldElement::zero() };
-    let p2inf: FieldElement =
-        if p2x.is_zero() && p2y.is_zero() { FieldElement::one() } else { FieldElement::zero() };
-
-    let (x, y, _inf) = Bn254BlackBoxSolver
+    let (x, y) = Bn254BlackBoxSolver
         .ec_add(
-            &p1x, &p1y, &p1inf, &p2x, &p2y, &p2inf,
+            &p1x, &p1y, &p2x, &p2y,
             true, // Predicate is always true as interpreter has control flow to handle false case
         )
         .map_err(|e| InterpreterError::BlackBoxError(e, location))?;
@@ -196,14 +225,7 @@ fn multi_scalar_mul(
     let (points, _) = get_array_map(points, get_embedded_curve_point)?;
     let (scalars, _) = get_array_map(scalars, get_embedded_curve_scalar)?;
 
-    let points: Vec<_> = points
-        .into_iter()
-        .flat_map(|(x, y)| {
-            let is_infinite: FieldElement =
-                if x.is_zero() && y.is_zero() { FieldElement::one() } else { FieldElement::zero() };
-            [x, y, is_infinite]
-        })
-        .collect();
+    let points: Vec<_> = points.into_iter().flat_map(|(x, y)| [x, y]).collect();
     let mut scalars_lo = Vec::new();
     let mut scalars_hi = Vec::new();
     for (lo, hi) in scalars {
@@ -211,7 +233,7 @@ fn multi_scalar_mul(
         scalars_hi.push(hi);
     }
 
-    let (x, y, _inf) = Bn254BlackBoxSolver
+    let (x, y) = Bn254BlackBoxSolver
         .multi_scalar_mul(
             &points,
             &scalars_lo,
@@ -221,7 +243,7 @@ fn multi_scalar_mul(
         .map_err(|e| InterpreterError::BlackBoxError(e, location))?;
 
     let embedded_curve_point_typ = match &return_type {
-        Type::Array(_, item_type) => item_type.as_ref().clone(),
+        Type::Array(item_type, _) => item_type.as_ref().clone(),
         _ => {
             return Err(InterpreterError::TypeMismatch {
                 expected: "[EmbeddedCurvePoint; 1]".to_string(),
@@ -249,10 +271,10 @@ fn poseidon2_permutation(arguments: Vec<(Value, Location)>, location: Location) 
 }
 
 fn poseidon2_config_state_size(
-    arguments: Vec<(Value, Location)>,
+    arguments: &[(Value, Location)],
     location: Location,
 ) -> IResult<Value> {
-    check_argument_count(0, &arguments, location)?;
+    check_argument_count(0, arguments, location)?;
     let size = bn254_blackbox_solver::poseidon2_config_state_size();
     Ok(Value::u32(size))
 }

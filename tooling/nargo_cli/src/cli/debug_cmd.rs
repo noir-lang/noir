@@ -6,6 +6,7 @@ use acvm::acir::native_types::{WitnessMap, WitnessStack};
 use clap::Args;
 use fm::FileManager;
 use nargo::constants::PROVER_INPUT_FILE;
+use nargo::foreign_calls::OracleResolverUrl;
 use nargo::ops::debug::{
     TestDefinition, compile_bin_package_for_debugging, compile_options_for_debugging,
     compile_test_fn_for_debugging, get_test_function_for_debug, load_workspace_files,
@@ -68,7 +69,7 @@ pub(crate) struct DebugCommand {
 
     /// JSON RPC url to solve oracle calls
     #[clap(long)]
-    oracle_resolver: Option<String>,
+    oracle_resolver: Option<OracleResolverUrl>,
 }
 
 // TODO: find a better name
@@ -104,7 +105,7 @@ pub(crate) fn run(args: DebugCommand, workspace: Workspace) -> Result<(), CliErr
     };
     let run_params = RunParams {
         raw_source_printing: args.raw_source_printing,
-        oracle_resolver_url: args.oracle_resolver,
+        oracle_resolver_url: args.oracle_resolver.as_ref().map(|url| url.to_string()),
     };
     let workspace_clone = workspace.clone();
 

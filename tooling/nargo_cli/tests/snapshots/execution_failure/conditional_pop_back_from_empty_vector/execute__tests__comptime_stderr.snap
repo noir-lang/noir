@@ -2,7 +2,7 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: stderr
 ---
-error: vector_pop_back called on empty vector
+error: Index out of bounds: vector_pop_back called on empty vector
    ┌─ src/main.nr:11:20
    │
 11 │     let (_, ret) = s.pop_back();

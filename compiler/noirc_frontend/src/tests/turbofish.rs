@@ -729,7 +729,7 @@ fn concrete_impl_with_dual_turbofish_mismatch() {
     struct S<T> {}
 
     impl S<u32> {
-        fn foo<U>(_x: U) {}
+        pub fn foo<U>(_x: U) {}
     }
 
     fn main() {
@@ -827,7 +827,7 @@ fn partially_concrete_impl_turbofish_mismatch_on_concrete_param() {
     struct S<A, B> {}
 
     impl<B> S<u32, B> {
-        fn foo(x: B) -> B {
+        pub fn foo(x: B) -> B {
             x
         }
     }
@@ -965,7 +965,7 @@ fn struct_turbofish_same_generic() {
     struct S<A, B> {}
 
     impl<T> S<T, T> {
-        fn foo() {}
+        pub fn foo() {}
     }
 
     fn main() {
@@ -983,11 +983,11 @@ fn struct_turbofish_mixed_generics() {
     struct S<A, B> {}
 
     impl<T> S<T, u64> {
-        fn foo() {}
+        pub fn foo() {}
     }
 
     impl S<u32, u32> {
-        fn foo() {}
+        pub fn foo() {}
     }
 
     fn main() {
@@ -1009,6 +1009,8 @@ fn struct_turbofish_mixed_generics_visibility_error() {
 
         impl super::S<u32, u32> {
             fn foo() {}
+               ^^^ unused function foo
+               ~~~ unused function
         }
     }
 
@@ -1016,6 +1018,119 @@ fn struct_turbofish_mixed_generics_visibility_error() {
         S::<u32, u64>::foo();
                        ^^^ foo is private and not visible from the current module
                        ~~~ foo is private
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn struct_turbofish_matching_identity_type_alias() {
+    let src = r#"
+    type Id<T> = T;
+
+    struct S<A> {
+        x: A,
+    }
+
+    impl<T> S<Id<T>> {
+        fn foo(x: T) -> T {
+            x
+        }
+    }
+
+    fn main() {
+        let x = 10u64;
+        let _y: u64 = S::<Id<u64>>::foo(x);
+        let _y: u64 = S::<u64>::foo(x);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn struct_turbofish_matching_struct_type_alias() {
+    let src = r#"
+    struct Foo<T> {}
+
+    type Id<T> = Foo<T>;
+
+    struct S<A> {
+        x: A,
+    }
+
+    impl<T> S<Id<T>> {
+        fn foo(x: T) -> T {
+            x
+        }
+    }
+
+    fn main() {
+        let x = 10u64;
+        let _y: u64 = S::<Id<u64>>::foo(x);
+        let _y: u64 = S::<Foo<u64>>::foo(x);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn no_turbofish_matching_on_type_alias_without_generics_with_underlaying_struct_with_generics() {
+    let src = r#"
+    struct S<A> {}
+
+    type Alias = S<u32>;
+
+    impl Alias {
+        fn foo() {}
+    }
+
+    fn main() {
+        Alias::foo();
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn turbofish_not_allowed_on_globals() {
+    let src = r#"
+    global x: Field = 1;
+
+    fn main() {
+        let _ = x::<hello, world>;
+                    ^^^^^ Could not resolve 'hello' in path
+                           ^^^^^ Could not resolve 'world' in path
+                 ^^^^^^^^^^^^^^^^ turbofish (`::<_>`) not allowed on globals
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn turbofish_not_allowed_on_local_variables() {
+    let src = r#"
+    fn main() {
+        let foobar = 1;
+        let _ = foobar::<hello, world>;
+                         ^^^^^ Could not resolve 'hello' in path
+                                ^^^^^ Could not resolve 'world' in path
+                      ^^^^^^^^^^^^^^^^ turbofish (`::<_>`) not allowed on local variables
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn turbofish_not_allowed_on_self_type() {
+    let src = r#"
+    struct Foo {}
+
+    impl Foo {
+        pub fn new() -> Self {
+            Self::<hello> {}
+                   ^^^^^ Could not resolve 'hello' in path
+                ^^^^^^^^^ turbofish (`::<_>`) not allowed on self type
+        }
     }
     "#;
     check_errors(src);

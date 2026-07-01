@@ -1,0 +1,34 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+struct Cell {
+    value: Field,
+}
+
+fn main() {
+    assert(pop_front_does_not_leak() == 1_Field);
+    assert(pop_back_does_not_leak() == 2_Field);
+    assert(remove_does_not_leak() == 1_Field);
+}
+
+fn pop_front_does_not_leak() -> Field {
+    let original: [Cell] = [Cell { value: 1_Field }, Cell { value: 2_Field }].as_vector();
+    let value_ref: &mut Field = &mut original.pop_front().0.value;
+    *value_ref = 9_Field;
+    original[0_u32].value
+}
+
+fn pop_back_does_not_leak() -> Field {
+    let original: [Cell] = [Cell { value: 1_Field }, Cell { value: 2_Field }].as_vector();
+    let value_ref: &mut Field = &mut original.pop_back().1.value;
+    *value_ref = 9_Field;
+    original[1_u32].value
+}
+
+fn remove_does_not_leak() -> Field {
+    let original: [Cell] = [Cell { value: 1_Field }, Cell { value: 2_Field }].as_vector();
+    let value_ref: &mut Field = &mut original.remove(0_u32).1.value;
+    *value_ref = 9_Field;
+    original[0_u32].value
+}

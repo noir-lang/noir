@@ -44,7 +44,11 @@ pub fn crate_module(
     file_manager: &FileManager,
     item_id_to_converted_item: &mut HashMap<ItemId, ConvertedItem>,
 ) -> (Module, Vec<BrokenLink>) {
-    let module = noirc_frontend::hir::printer::crate_to_module(crate_id, def_maps, interner);
+    // Documentation groups every impl of a type under that type (like rustdoc), so impls are not
+    // relocated to their declaring module here.
+    let relocate_impls = false;
+    let module =
+        noirc_frontend::hir::printer::crate_to_module(crate_id, def_maps, interner, relocate_impls);
     let mut builder = DocItemBuilder::new(
         interner,
         crate_id,
@@ -75,7 +79,7 @@ struct DocItemBuilder<'a> {
     /// if the visibilities of parents modules are [pub, pub(crate), pub] then
     /// this will be `pub(crate)`.
     visibility: ItemVisibility,
-    /// Maps an ItemId to the item it converted to.
+    /// Maps an `ItemId` to the item it converted to.
     /// This is needed because if an item is publicly exported, but the item
     /// isn't publicly visible (because its parent module is private) then we'll
     /// include the item directly under the module that publicly exports it.
@@ -160,7 +164,7 @@ impl DocItemBuilder<'_> {
         let module_def_id = if let expand_items::Item::PrimitiveType(..) = item {
             None
         } else {
-            Some(item.module_def_id())
+            item.module_def_id()
         };
         let converted_item = match item {
             expand_items::Item::Module(module) => {
@@ -355,6 +359,13 @@ impl DocItemBuilder<'_> {
                 Item::Global(Global { id, name, comments, comptime, mutable, r#type })
             }
             expand_items::Item::Function(func_id) => Item::Function(self.convert_function(func_id)),
+            // Documentation builds with `relocate_impls = false`, so impls are always grouped
+            // under their type as `DataType`/`PrimitiveType` impls and never produced standalone.
+            expand_items::Item::Impl(_) | expand_items::Item::TraitImpl(_) => {
+                unreachable!(
+                    "nargo doc does not relocate impls, so it never sees a standalone impl"
+                )
+            }
         };
         if let Some(module_def_id) = module_def_id {
             let id = get_module_def_id(module_def_id, self.interner);
@@ -385,18 +396,25 @@ impl DocItemBuilder<'_> {
     }
 
     fn convert_impl(&mut self, impl_: expand_items::Impl) -> Impl {
-        let generics = vecmap(impl_.generics, |(name, kind)| {
-            let numeric = self.kind_to_numeric(kind);
+        let generics = vecmap(impl_.generics, |generic| {
+            let name = generic.name.as_ref().clone();
+            let numeric = self.kind_to_numeric(generic.kind());
             Generic { name, numeric }
         });
         let r#type = self.convert_type(&impl_.typ);
+        let comments =
+            (!impl_.doc_comments.is_empty()).then(|| self.doc_comments_from(&impl_.doc_comments));
+        let where_clause =
+            vecmap(&impl_.where_clause, |constraint| self.convert_trait_constraint(constraint));
+        self.trait_constraints = where_clause.clone();
         let methods = impl_
             .methods
             .into_iter()
             .filter(|(visibility, _)| visibility == &ItemVisibility::Public)
             .map(|(_, func_id)| self.convert_function(func_id))
             .collect();
-        Impl { generics, r#type, methods }
+        self.trait_constraints.clear();
+        Impl { generics, r#type, where_clause, methods, comments }
     }
 
     fn convert_trait_impl(&mut self, item_trait_impl: expand_items::TraitImpl) -> TraitImpl {
@@ -506,8 +524,11 @@ impl DocItemBuilder<'_> {
                 noirc_frontend::QuotedType::CtString => {
                     Type::Primitive(PrimitiveTypeKind::CtString)
                 }
+                noirc_frontend::QuotedType::Location => {
+                    Type::Primitive(PrimitiveTypeKind::Location)
+                }
             },
-            noirc_frontend::Type::Array(length, element) => Type::Array {
+            noirc_frontend::Type::Array(element, length) => Type::Array {
                 length: Box::new(self.convert_type(length)),
                 element: Box::new(self.convert_type(element)),
             },
@@ -737,9 +758,13 @@ impl DocItemBuilder<'_> {
     }
 
     fn doc_comments(&mut self, id: ReferenceId) -> Option<(String, Links)> {
+        let comments = self.interner.doc_comments(id)?;
+        Some(self.doc_comments_from(comments))
+    }
+
+    fn doc_comments_from(&mut self, comments: &[DocComment]) -> (String, Links) {
         self.link_finder.reset();
 
-        let comments = self.interner.doc_comments(id)?;
         let mut links = Vec::new();
         let mut line = 0;
 
@@ -761,14 +786,14 @@ impl DocItemBuilder<'_> {
 
         let comments =
             vecmap(comments, |comment| comment.contents.clone()).join("\n").trim().to_string();
-        Some((comments, links))
+        (comments, links)
     }
 
     /// The idea of this method is to find occurrences of markdown links and references in comments.
-    /// For each of these we try to resolve them to a ModuleDefId of sort, which
+    /// For each of these we try to resolve them to a `ModuleDefId` of sort, which
     /// is actually represented as a Link to a type, method, module, etc.
     ///
-    /// The doc generator ([html::to_html]) will then replace occurrences of these links
+    /// The doc generator ([`html::to_html`]) will then replace occurrences of these links
     /// with resolved HTML links.
     fn find_links_in_comments(&mut self, comments: &str) -> Links {
         let current_module_id = ModuleId { krate: self.crate_id, local_id: self.current_module_id };
@@ -916,6 +941,7 @@ pub(crate) fn convert_primitive_type(
         noirc_frontend::elaborator::PrimitiveType::UnresolvedType => {
             PrimitiveTypeKind::UnresolvedType
         }
+        noirc_frontend::elaborator::PrimitiveType::Location => PrimitiveTypeKind::Location,
     }
 }
 

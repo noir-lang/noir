@@ -3,7 +3,10 @@
 <head>
 <meta charset="UTF-8">
 <link rel="stylesheet" href="../../styles.css">
+<script>window.docRoot = "../../";</script>
+<script defer src="../../search-index.js"></script>
 <script defer src="../../nargo_doc.js"></script>
+<script defer src="../../search.js"></script>
 <title>Trait Ord documentation</title>
 </head>
 <body>
@@ -16,7 +19,7 @@
 <h1><a href="../../index.html">noir_stdlib</a></h1>
 <div><a href="../../all.html">All items</a></div>
 <h2 id="crate-name"><a href="../index.html">std</a></h2>
-<div id="crate-version">1.0.0-beta.20</div>
+<div id="crate-version">1.0.0-beta.22</div>
 <h2><a href="#trait">Trait Ord</a></h2>
 <h3>Required methods</h3>
 <ul class="sidebar-list">
@@ -36,6 +39,7 @@
 <li><a href="#impl-Ord-for-(A, B, C, D, E, F, G, H, I, J)">(A, B, C, D, E, F, G, H, I, J)</a></li>
 <li><a href="#impl-Ord-for-(A, B, C, D, E, F, G, H, I, J, K)">(A, B, C, D, E, F, G, H, I, J, K)</a></li>
 <li><a href="#impl-Ord-for-(A, B, C, D, E, F, G, H, I, J, K, L)">(A, B, C, D, E, F, G, H, I, J, K, L)</a></li>
+<li><a href="#impl-Ord-for-(A,)">(A,)</a></li>
 <li><a href="#impl-Ord-for-Option<T>">Option<T></a></li>
 <li><a href="#impl-Ord-for-[T; N]">[T; N]</a></li>
 <li><a href="#impl-Ord-for-[T]">[T]</a></li>
@@ -65,10 +69,16 @@
 </nav>
 <main>
 <div><a href="../../index.html">noir_stdlib</a> - <a href="../index.html">std</a>::<a href="index.html">cmp</a></div>
-<h1>Trait <span id="trait" class="trait">Ord</span></h1>
+<div class="heading-row">
+<h1 class="heading-content">Trait <span id="trait" class="trait">Ord</span></h1>
+<button id="search-toggle" type="button">Search</button>
+</div>
+<input id="search-input" type="search" placeholder="Type 's' or '/' to search" autocomplete="off" spellcheck="false" aria-label="Search" hidden>
+<div id="search-results" hidden></div>
+<div id="page-content">
 <pre><code>pub trait Ord {
     <span class="comment">// Required methods</span>
-    pub fn <a href="#cmp"><span class="fn">cmp</span></a>(self, other: Self) -> <a href="../../std/cmp/struct.Ordering.html" class="struct">Ordering</a>;
+    pub fn <a href="#cmp" class="fn">cmp</a>(self, other: Self) -> <a href="../../std/cmp/struct.Ordering.html" class="struct">Ordering</a>;
 }</code></pre>
 
 <div class="comments">
@@ -76,7 +86,7 @@
 or greater-than the other object.</p>
 </div>
 <h2>Required methods</h2>
-<div class="padded-methods"><code id="cmp" class="code-header">pub fn <a href="#cmp"><span class="fn">cmp</span></a>(self, other: Self) -> <a href="../../std/cmp/struct.Ordering.html" class="struct">Ordering</a></code>
+<div class="padded-methods"><code id="cmp" class="code-header">pub fn <a href="#cmp" class="fn">cmp</a>(self, other: Self) -> <a href="../../std/cmp/struct.Ordering.html" class="struct">Ordering</a></code>
 
 </div><h2>Implementors</h2>
 <h3 id="impl-Ord-for-()"><code class="code-header">impl <a href="../../std/cmp/trait.Ord.html" class="trait">Ord</a> for ()</code></h3>
@@ -191,6 +201,10 @@ or greater-than the other object.</p>
     K: <a href="../../std/cmp/trait.Ord.html" class="trait">Ord</a>,
     L: <a href="../../std/cmp/trait.Ord.html" class="trait">Ord</a></div></code></h3>
 
+<h3 id="impl-Ord-for-(A,)"><code class="code-header">impl&lt;A&gt; <a href="../../std/cmp/trait.Ord.html" class="trait">Ord</a> for (A,)
+<div class="where-clause">where
+    A: <a href="../../std/cmp/trait.Ord.html" class="trait">Ord</a></div></code></h3>
+
 <h3 id="impl-Ord-for-Option<T>"><code class="code-header">impl&lt;T&gt; <a href="../../std/cmp/trait.Ord.html" class="trait">Ord</a> for <a href="../../std/option/struct.Option.html" class="struct">Option</a>&lt;T&gt;
 <div class="where-clause">where
     T: <a href="../../std/cmp/trait.Ord.html" class="trait">Ord</a></div></code></h3>
@@ -223,6 +237,7 @@ or greater-than the other object.</p>
 
 <h3 id="impl-Ord-for-u8"><code class="code-header">impl <a href="../../std/cmp/trait.Ord.html" class="trait">Ord</a> for <a href="../../std/primitive.u8.html" class="primitive">u8</a></code></h3>
 
+</div>
 </main>
 </span>
 </body>

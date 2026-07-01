@@ -22,7 +22,7 @@ pub comptime fn storage(s: TypeDefinition) -> Quoted {
     );
 
     quote {
-        impl Storage<$context> { }
+        impl Storage<$context> {}
     }
 }
 

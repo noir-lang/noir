@@ -3,13 +3,13 @@ source: tooling/nargo_cli/tests/execute.rs
 expression: stderr
 ---
 error: Failed to solve program: 'Failed to solve brillig function'
-   ┌─ src/main.nr:45:15
+   ┌─ src/main.nr:45:5
    │
 45 │     assert_eq(magic, false);
-   │               ------------
+   │     -----------------------
    │
    = Call stack:
      1: main
-             at src/main.nr:45:15
+             at src/main.nr:45:5
 
 Failed to solve program: 'Failed to solve brillig function'

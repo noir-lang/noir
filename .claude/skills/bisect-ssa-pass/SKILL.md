@@ -1,7 +1,6 @@
 ---
 name: bisect-ssa-pass
 description: Workflow for debugging SSA pass semantic preservation using the noir-ssa CLI. Use when a program's behavior changes incorrectly during the SSA pipeline - bisects passes to identify which one breaks semantics. The `pass_vs_prev` fuzzer finds such issues automatically.
-allowed-tools: Bash, Read, Grep, Glob, Write
 ---
 
 # Noir SSA Bisection Debugging

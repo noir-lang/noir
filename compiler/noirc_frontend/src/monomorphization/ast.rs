@@ -216,8 +216,14 @@ pub enum Definition {
     Function(FuncId),
     Builtin(String),
     LowLevel(String),
-    // used as a foreign/externally defined unconstrained function
-    Oracle(String),
+    /// A foreign/externally-defined unconstrained function.
+    ///
+    /// `pure` is `true` when the user marked the oracle declaration with
+    /// `#[pure]`.
+    Oracle {
+        name: String,
+        pure: bool,
+    },
 }
 
 /// ID of a local definition, e.g. from a let binding or
@@ -375,7 +381,7 @@ pub struct Index {
 }
 
 /// Rather than a Pattern containing possibly several variables, Let now
-/// defines a single variable with the given LocalId. By the time this
+/// defines a single variable with the given `LocalId`. By the time this
 /// is produced in monomorphization, let-statements with tuple and struct patterns:
 /// ```nr
 /// let MyStruct { field1, field2 } = get_struct();
@@ -425,7 +431,7 @@ pub enum LValue {
         reference: Box<LValue>,
         element_type: Type,
     },
-    /// Analogous to Expression::Clone. Clone the resulting lvalue after evaluating it.
+    /// Analogous to `Expression::Clone`. Clone the resulting lvalue after evaluating it.
     Clone(Box<LValue>),
 }
 
@@ -434,20 +440,8 @@ pub type Parameters =
 
 /// Represents how an Acir function should be inlined.
 /// This type is only relevant for ACIR functions as we do not inline any Brillig functions
-#[derive(
-    Default,
-    Clone,
-    Copy,
-    PartialEq,
-    Eq,
-    Debug,
-    Hash,
-    Serialize,
-    Deserialize,
-    PartialOrd,
-    Ord,
-    EnumIter,
-)]
+#[derive(Default, Clone, Copy, PartialEq, Eq, Debug, Hash, PartialOrd, Ord, EnumIter)]
+#[derive(Serialize, Deserialize)]
 pub enum InlineType {
     /// The most basic entry point can expect all its functions to be inlined.
     /// All function calls are expected to be inlined into a single ACIR.
@@ -550,10 +544,10 @@ pub struct Function {
     pub is_entry_point: bool,
 }
 
-/// Compared to hir_def::types::Type, this monomorphized Type has:
+/// Compared to `hir_def::types::Type`, this monomorphized Type has:
 /// - All type variables and generics removed
 /// - Concrete lengths for each array and string
-/// - Several other variants removed (such as Type::Constant)
+/// - Several other variants removed (such as `Type::Constant`)
 /// - All structs replaced with tuples
 #[derive(Debug, PartialEq, Eq, Clone, Hash, PartialOrd, Ord)]
 pub enum Type {
@@ -581,6 +575,22 @@ impl Type {
         match self {
             Type::Tuple(fields) => fields.iter().flat_map(|field| field.flatten()).collect(),
             _ => vec![self.clone()],
+        }
+    }
+
+    /// Returns true if this type is, or transitively contains, a reference.
+    pub fn contains_reference(&self) -> bool {
+        match self {
+            Type::Reference(..) => true,
+            Type::Array(_, element) | Type::Vector(element) => element.contains_reference(),
+            Type::Tuple(fields) => fields.iter().any(Type::contains_reference),
+            Type::FmtString(_, fields) => fields.contains_reference(),
+            Type::Field
+            | Type::Integer(..)
+            | Type::Bool
+            | Type::String(_)
+            | Type::Unit
+            | Type::Function(..) => false,
         }
     }
 

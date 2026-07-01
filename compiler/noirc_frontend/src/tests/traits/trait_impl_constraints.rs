@@ -41,7 +41,7 @@ fn impl_stricter_than_trait_no_trait_method_constraints() {
     }
 
     impl<T> MyType<T> {
-        fn do_thing_with_serialization_with_extra_steps(self) -> Field {
+        pub fn do_thing_with_serialization_with_extra_steps(self) -> Field {
             process_array(serialize_thing(self))
         }
     }
@@ -429,4 +429,38 @@ fn impl_block_with_cross_trait_where_clause() {
     }
     "#;
     assert_no_errors(src);
+}
+
+#[test]
+fn placeholder_not_allowed_in_trait_constraint_and_bound() {
+    let src = r#"
+    pub struct Gen<T> {}
+    pub trait Trait2<T> {}
+
+    pub fn bar<T>()
+    where
+        Gen<_>: Trait2<T>,
+            ^ The placeholder `_` is not allowed in trait constraints
+    {}
+
+    fn main() {}
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn placeholder_not_allowed_in_trait_bound_generic() {
+    let src = r#"
+    pub struct Gen<T> {}
+    pub trait Trait2<T> {}
+
+    pub fn bar<T>()
+    where
+        Gen<T>: Trait2<_>,
+                       ^ The placeholder `_` is not allowed in trait bounds
+    {}
+
+    fn main() {}
+    "#;
+    check_errors(src);
 }

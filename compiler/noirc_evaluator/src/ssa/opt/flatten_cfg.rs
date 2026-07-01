@@ -11,7 +11,7 @@
 //!     This also means the only acir functions in the program should be `main` (if main is
 //!     constrained), or any constrained `InlineType::Fold` functions.
 //!   - Precondition: Each constrained function should have no loops (unrolling has been performed).
-//!   - Precondition: "Equal" constraints have not been turned into "NotEqual".
+//!   - Precondition: "Equal" constraints have not been turned into "`NotEqual`".
 //!   - Postcondition: Each constrained function should now consist of only one block where the
 //!     terminator instruction is always a return.
 //!
@@ -164,6 +164,9 @@ use crate::ssa::{
 
 mod branch_analysis;
 
+/// Maximum depth of a chain of array sets to use when trying to find a matching base array.
+const MAX_ARRAY_SET_CHAIN_DEPTH: usize = 100;
+
 impl Ssa {
     /// Flattens the control flow graph of main such that the function is left with a
     /// single block containing all instructions and no more control-flow.
@@ -176,6 +179,19 @@ impl Ssa {
         let no_predicates: HashSet<FunctionId> =
             self.functions.values().filter(|f| f.is_no_predicates()).map(|f| f.id()).collect();
 
+        // ACIR functions which are neither entry points (`Fold`) nor deferred to the
+        // post-flattening inlining pass (`NoPredicates`) must already have been inlined
+        // into their callers, so no calls to them may remain.
+        #[cfg(debug_assertions)]
+        let must_be_inlined: HashSet<FunctionId> = self
+            .functions
+            .values()
+            .filter(|f| {
+                f.runtime().is_acir() && !f.runtime().is_entry_point() && !f.is_no_predicates()
+            })
+            .map(|f| f.id())
+            .collect();
+
         for function in self.functions.values_mut() {
             // This pass may run forever on a brillig function - we check if block predecessors have
             // been processed and push the block to the back of the queue. This loops forever if
@@ -185,7 +201,7 @@ impl Ssa {
             }
 
             #[cfg(debug_assertions)]
-            flatten_cfg_pre_check(function);
+            flatten_cfg_pre_check(function, &must_be_inlined);
 
             flatten_function_cfg(function, &no_predicates);
 
@@ -196,19 +212,31 @@ impl Ssa {
     }
 }
 
-/// Pre-check condition for [Ssa::flatten_cfg].
+/// Pre-check condition for [`Ssa::flatten_cfg`].
 ///
-/// Panics if the ACIR function being flattened has at least 1 loop or contains a
-/// `ConstrainNotEqual` instruction. The caller already skipped Brillig functions.
+/// Panics if the ACIR function being flattened has at least 1 loop, contains a
+/// `ConstrainNotEqual` instruction, or calls an ACIR function in `must_be_inlined`
+/// (one which the inlining pass should have removed before flattening).
+/// The caller already skipped Brillig functions.
 #[cfg(debug_assertions)]
-fn flatten_cfg_pre_check(function: &Function) {
+fn flatten_cfg_pre_check(function: &Function, must_be_inlined: &HashSet<FunctionId>) {
     super::checks::assert_no_loops(function);
-    super::checks::for_each_instruction(function, |instruction, _dfg| {
+    super::checks::for_each_instruction(function, |instruction, dfg| {
         super::checks::assert_not_constrain_not_equal(instruction);
+        if let Instruction::Call { func, .. } = instruction
+            && let Value::Function(callee) = &dfg[*func]
+        {
+            assert!(
+                !must_be_inlined.contains(callee),
+                "Function {} {} calls {callee}, an ACIR function which should have been inlined before flattening",
+                function.name(),
+                function.id(),
+            );
+        }
     });
 }
 
-/// Post-check condition for [Ssa::flatten_cfg].
+/// Post-check condition for [`Ssa::flatten_cfg`].
 ///
 /// Panics if the ACIR function contains more than one block. The caller already
 /// skipped Brillig functions.
@@ -261,18 +289,24 @@ pub(crate) struct Context<'f> {
     /// helps simplifications.
     not_instructions: HashMap<ValueId, ValueId>,
 
-    /// Maps merge result ValueId to the provenance of the IfElse that produced it.
+    /// Maps merge result `ValueId` to the provenance of the `IfElse` that produced it.
     /// Used to detect and collapse redundant nested merges in `inline_branch_end`.
     /// See [`Context::try_collapse_merge`] for the four patterns this enables.
     merge_provenance: HashMap<ValueId, MergeProvenance>,
 
-    /// Flag to tell the context to not issue 'enable_side_effect' instructions during flattening.
+    /// Flag to tell the context to not issue '`enable_side_effect`' instructions during flattening.
     ///
     /// It is set with an attribute when defining a function that cannot fail whatsoever to avoid
     /// the overhead of handling side effects.
     ///
     /// It can also be set to true when no instruction is known to fail.
     pub(crate) no_predicate: bool,
+
+    /// These array sets are collected during `array_set` merge optimizations; if they are
+    /// not used by anything at the end of flattening, we can remove them completely,
+    /// because they have been replaced by an optimized merged array. Doing it during
+    /// flattening rather than leaving it to DIE means we avoid leaving a constraint behind.
+    superseded_array_sets: HashSet<InstructionId>,
 }
 
 /// Tracks the origin of a merge result to collapse redundant nested merges.
@@ -301,6 +335,13 @@ struct ConditionalBranch {
     condition: ValueId,
 }
 
+/// Indicate the current processed branch
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+enum BranchPhase {
+    Then,
+    Else,
+}
+
 /// All bookkeeping for a single `jmpif` that is currently being flattened.
 ///
 /// Pushed onto `Context::condition_stack` when a `jmpif` is entered and popped when
@@ -326,9 +367,13 @@ struct ConditionalContext {
     predicated_values: HashMap<ValueId, ValueId>,
     /// The allocations accumulated before processing the branch.
     local_allocations: HashSet<ValueId>,
-    /// When JmpIf's else_destination is the exit/merge block (no separate else block),
-    /// stores the resolved else_arguments so `inline_branch_end` can use them.
+    /// When `JmpIf`'s `else_destination` is the exit/merge block (no separate else block),
+    /// stores the resolved `else_arguments` so `inline_branch_end` can use them.
     jmpif_else_arguments: Option<Vec<ValueId>>,
+    /// The processing of the conditional branches must start with `Then` before
+    /// `Else`. Tracking on which phase we are allows us to assert the processing
+    /// is done as expected.
+    phase: BranchPhase,
 }
 
 /// Flattens the control flow graph of the function such that it is left with a
@@ -374,6 +419,7 @@ impl<'f> Context<'f> {
             merge_provenance: HashMap::default(),
             target_block,
             no_predicate: false,
+            superseded_array_sets: HashSet::default(),
         }
     }
 
@@ -381,20 +427,20 @@ impl<'f> Context<'f> {
     /// until all blocks have been flattened.
     ///
     /// We follow the terminator of each block to determine which blocks to process next:
-    /// * If the terminator is a 'JumpIf', we assume we are entering a conditional statement and
-    ///   add the start blocks of the 'then_branch', 'else_branch' and the 'exit' block to the queue.
+    /// * If the terminator is a '`JumpIf`', we assume we are entering a conditional statement and
+    ///   add the start blocks of the '`then_branch`', '`else_branch`' and the 'exit' block to the queue.
     /// * Other blocks will have only one successor, so we will process them iteratively,
     ///   until we reach one block already in the queue, added when entering a conditional statement,
-    ///   i.e. the 'else_branch' or the 'exit'. In that case we switch to the next block in the queue,
+    ///   i.e. the '`else_branch`' or the 'exit'. In that case we switch to the next block in the queue,
     ///   instead of the successor.
     ///
     /// This process ensures that the blocks are always processed in this order:
-    /// * if_entry -> then_branch -> else_branch -> exit
+    /// * `if_entry` -> `then_branch` -> `else_branch` -> exit
     ///
-    /// In case of nested if statements, for instance in the 'then_branch', it will be:
-    /// * if_entry -> then_branch -> if_entry_2 -> then_branch_2 -> exit_2 -> else_branch -> exit
+    /// In case of nested if statements, for instance in the '`then_branch`', it will be:
+    /// * `if_entry` -> `then_branch` -> `if_entry_2` -> `then_branch_2` -> `exit_2` -> `else_branch` -> exit
     ///
-    /// Information about the nested if statements is stored in the 'condition_stack' which
+    /// Information about the nested if statements is stored in the '`condition_stack`' which
     /// is popped/pushed when entering/leaving a conditional statement.
     pub(crate) fn flatten(&mut self, no_predicates: &HashSet<FunctionId>) {
         let mut work_list = WorkList::new();
@@ -406,6 +452,7 @@ impl<'f> Context<'f> {
         }
         assert!(self.next_arguments.is_none(), "no leftover arguments");
         self.inserter.map_data_bus_in_place();
+        self.remove_superseded_array_sets();
     }
 
     /// Returns the updated condition so that
@@ -426,7 +473,7 @@ impl<'f> Context<'f> {
     /// The conditions are in a stack, they are added as conditional branches are encountered
     /// so the last one is the current condition.
     /// When processing a conditional branch, we first follow the 'then' branch and only after we
-    /// process the 'else' branch. At that point, the `ConditionalContext` has the 'else_branch'
+    /// process the 'else' branch. At that point, the `ConditionalContext` has the '`else_branch`'
     fn get_last_condition(&self) -> Option<ValueId> {
         self.condition_stack
             .last()
@@ -514,14 +561,14 @@ impl<'f> Context<'f> {
     /// For a normal block, it would be its successor.
     ///
     /// For blocks related to a conditional statement, we ensure to process
-    /// the 'then_branch', then the 'else_branch' (if it exists), and finally the exit block.
+    /// the '`then_branch`', then the '`else_branch`' (if it exists), and finally the exit block.
     ///
     /// The update of the context is done by the functions `if_start`, `then_stop` and `else_stop`
-    /// which perform the business logic when entering a conditional statement, finishing the 'then_branch'
-    /// and the 'else_branch', respectively.
+    /// which perform the business logic when entering a conditional statement, finishing the '`then_branch`'
+    /// and the '`else_branch`', respectively.
     ///
     /// We know if a block is related to the conditional statement if is referenced by the `work_list`.
-    /// Indeed, the start blocks of the 'then_branch' and 'else_branch' are added to the `work_list` when
+    /// Indeed, the start blocks of the '`then_branch`' and '`else_branch`' are added to the `work_list` when
     /// starting to process a conditional statement.
     pub(crate) fn handle_terminator(
         &mut self,
@@ -578,8 +625,7 @@ impl<'f> Context<'f> {
             }
             TerminatorInstruction::Return { return_values, call_stack } => {
                 let call_stack = *call_stack;
-                let return_values =
-                    vecmap(return_values.clone(), |value| self.inserter.resolve(value));
+                let return_values = vecmap(return_values, |value| self.inserter.resolve(*value));
                 let new_return = TerminatorInstruction::Return { return_values, call_stack };
                 let target = self.target_block;
 
@@ -595,8 +641,8 @@ impl<'f> Context<'f> {
 
     /// Process a conditional statement by creating a `ConditionalContext`
     /// with information about the branch, and storing it in the dedicated stack.
-    /// Local allocations are moved to the 'then_branch' of the `ConditionalContext`.
-    /// Returns the blocks corresponding to the 'then_branch', 'else_branch',
+    /// Local allocations are moved to the '`then_branch`' of the `ConditionalContext`.
+    /// Returns the blocks corresponding to the '`then_branch`', '`else_branch`',
     /// and exit block of the conditional statement, so that they will be processed in this order.
     pub(crate) fn if_start(
         &mut self,
@@ -631,6 +677,7 @@ impl<'f> Context<'f> {
             predicated_values: HashMap::default(),
             local_allocations,
             jmpif_else_arguments,
+            phase: BranchPhase::Then,
         };
         // Clear merge provenance from previous conditionals at this nesting level.
         // Provenance from a previous conditional's merges must not be re-used by
@@ -654,15 +701,21 @@ impl<'f> Context<'f> {
         vec![self.branch_ends[if_entry], *else_destination, *then_destination]
     }
 
-    /// Switch context to the 'else_branch':
-    /// - Negates the condition for the 'else_branch' and set it in the `ConditionalContext`
-    /// - Move the local allocations to the 'else_branch'
+    /// Switch context to the '`else_branch`':
+    /// - Negates the condition for the '`else_branch`' and set it in the `ConditionalContext`
+    /// - Move the local allocations to the '`else_branch`'
     /// - Reset the predicated values to their old mapping in the inserter
-    /// - Issues the 'enable_side_effect' instruction
+    /// - Issues the '`enable_side_effect`' instruction
     fn then_stop(&mut self, block: &BasicBlockId) {
         assert_eq!(self.cfg.successors(*block).len(), 1);
 
         let mut cond_context = self.condition_stack.pop().unwrap();
+        assert_eq!(
+            cond_context.phase,
+            BranchPhase::Then,
+            "ICE: then_stop is expected to process the THEN branch"
+        );
+        cond_context.phase = BranchPhase::Else;
         cond_context.then_branch.last_block = Some(*block);
 
         let condition_call_stack =
@@ -698,35 +751,37 @@ impl<'f> Context<'f> {
     /// When nested `jmpif` blocks thread the same value through their arguments,
     /// the outer merge is redundant. This detects four patterns:
     ///
-    /// **Group 1 — shared else_value (y):**
+    /// **Group 1 — shared `else_value` (y):**
     /// - `IfElse(c1, IfElse(c2, x, _, y), _, y)` → `IfElse(c2, x, NOT(c2), y)`
     /// - `IfElse(c1, y, _, IfElse(c2, x, _, y))` → `IfElse(c2, x, NOT(c2), y)`
     ///
-    /// **Group 2 — shared then_value (x):**
+    /// **Group 2 — shared `then_value` (x):**
     /// - `IfElse(c1, x, _, IfElse(_, x, c2e, z))` → `IfElse(c2e, z, NOT(c2e), x)`
     /// - `IfElse(c1, IfElse(_, x, c2e, z), _, x)` → `IfElse(c2e, z, NOT(c2e), x)`
     ///
-    /// Returns `(new_then_condition, new_then_value, new_else_value)` if collapsible.
+    /// Returns `(new_then_condition, new_then_value, new_else_condition, new_else_value)`
+    /// if collapsible. The `new_then_condition` is the inner merge's condition, which
+    /// already incorporates all outer conditions, and `new_else_condition` is its negation.
     fn try_collapse_merge(
         &mut self,
         then_arg: ValueId,
         else_arg: ValueId,
-    ) -> Option<(ValueId, ValueId, ValueId)> {
+    ) -> Option<(ValueId, ValueId, ValueId, ValueId)> {
         // Check then_arg provenance
         if let Some(prov) = self.merge_provenance.get(&then_arg) {
             let prov_else = self.inserter.resolve(prov.else_value);
             let prov_then = self.inserter.resolve(prov.then_value);
             if prov_else == else_arg {
                 // Group 1: IfElse(c1, IfElse(c2, x, _, y), _, y) → IfElse(c2, x, _, y)
-                let result = (prov.then_condition, prov_then, else_arg);
+                let then_condition = prov.then_condition;
                 self.merge_provenance.remove(&then_arg);
-                return Some(result);
+                return Some(self.with_else_condition(then_condition, prov_then, else_arg));
             }
             if prov_then == else_arg {
                 // Group 2: IfElse(c1, IfElse(_, x, c2e, z), _, x) → IfElse(c2e, z, _, x)
-                let result = (prov.else_condition, prov_else, else_arg);
+                let then_condition = prov.else_condition;
                 self.merge_provenance.remove(&then_arg);
-                return Some(result);
+                return Some(self.with_else_condition(then_condition, prov_else, else_arg));
             }
         }
         // Check else_arg provenance (safe because merge_provenance is cleared at
@@ -736,24 +791,38 @@ impl<'f> Context<'f> {
             let prov_then = self.inserter.resolve(prov.then_value);
             if prov_else == then_arg {
                 // Group 1: IfElse(c1, y, _, IfElse(c2, x, _, y)) → IfElse(c2, x, _, y)
-                let result = (prov.then_condition, prov_then, then_arg);
+                let then_condition = prov.then_condition;
                 self.merge_provenance.remove(&else_arg);
-                return Some(result);
+                return Some(self.with_else_condition(then_condition, prov_then, then_arg));
             }
             if prov_then == then_arg {
                 // Group 2: IfElse(c1, x, _, IfElse(_, x, c2e, z)) → IfElse(c2e, z, _, x)
-                let result = (prov.else_condition, prov_else, then_arg);
+                let then_condition = prov.else_condition;
                 self.merge_provenance.remove(&else_arg);
-                return Some(result);
+                return Some(self.with_else_condition(then_condition, prov_else, then_arg));
             }
         }
         None
     }
 
+    /// Build the collapsed merge tuple, deriving the else_condition as `NOT(then_condition)`.
+    fn with_else_condition(
+        &mut self,
+        then_condition: ValueId,
+        then_value: ValueId,
+        else_value: ValueId,
+    ) -> (ValueId, ValueId, ValueId, ValueId) {
+        let else_condition = self.not_instruction(
+            then_condition,
+            self.inserter.function.dfg.get_value_call_stack_id(then_condition),
+        );
+        (then_condition, then_value, else_condition, else_value)
+    }
+
     /// Switch context the 'exit' block of a conditional statement:
     /// - Retrieves the local allocations from the Conditional Context
     /// - Reset the predicated values to their old mapping in the inserter
-    /// - Issues the 'enable_side_effect' instruction
+    /// - Issues the '`enable_side_effect`' instruction
     /// - Joins the arguments from both branches
     fn else_stop(&mut self, block: &BasicBlockId) {
         assert_eq!(self.cfg.successors(*block).len(), 1);
@@ -763,10 +832,20 @@ impl<'f> Context<'f> {
             // `then_stop` has not been called, this means that the conditional statement has no else branch
             // so we simply do the `then_stop` now, sandwiched between pushing the context back on the stack,
             // then popping it again after `then_stop` is done popping and pushing.
+            assert_eq!(
+                cond_context.phase,
+                BranchPhase::Then,
+                "ICE: else_stop expect a single THEN branch"
+            );
             self.condition_stack.push(cond_context);
             self.then_stop(block);
             cond_context = self.condition_stack.pop().unwrap();
         }
+        assert_eq!(
+            cond_context.phase,
+            BranchPhase::Else,
+            "ICE: else_stop is expected to process the ELSE branch"
+        );
 
         let mut else_branch = cond_context.else_branch.unwrap();
         self.local_allocations = std::mem::take(&mut cond_context.local_allocations);
@@ -794,8 +873,8 @@ impl<'f> Context<'f> {
     /// all of the join point's predecessors, and it must handle any differing side effects from
     /// each branch.
     ///
-    /// The merge of arguments is done by inserting an 'IfElse' instructions which returns
-    /// the argument from the 'then_branch' or the 'else_branch' depending the the condition.
+    /// The merge of arguments is done by inserting an '`IfElse`' instructions which returns
+    /// the argument from the '`then_branch`' or the '`else_branch`' depending the the condition.
     ///
     /// The arguments are prepared for the destination to consume in the next immediate inlining.
     fn inline_branch_end(&mut self, destination: BasicBlockId, cond_context: ConditionalContext) {
@@ -803,96 +882,88 @@ impl<'f> Context<'f> {
 
         // Look up and resolve the 'else' and 'then' arguments directly in their terminators,
         // rather than rely on argument passing in the context.
-        // When JmpIf's else_destination is the exit block, the else_arguments were stored
-        // in jmpif_else_arguments since there is no separate else block to read them from.
-        let else_args = if let Some(args) = cond_context.jmpif_else_arguments {
-            args
-        } else if let Some(else_branch) = &cond_context.else_branch {
-            let last_else = else_branch.last_block.unwrap();
-            self.inserter.function.dfg[last_else].terminator_arguments().to_vec()
-        } else {
-            Vec::new()
-        };
-
         let last_then = cond_context.then_branch.last_block.unwrap();
         let then_args = self.inserter.function.dfg[last_then].terminator_arguments().to_vec();
-
         let params = self.inserter.function.dfg.block_parameters(destination);
         assert_eq!(params.len(), then_args.len());
+        // When JmpIf's else_destination is the exit block, the else_arguments were stored
+        // in jmpif_else_arguments since there is no separate else block to read them from.
+        let else_branch = cond_context.else_branch.expect("malformed branch");
+        let else_args = match cond_context.jmpif_else_arguments {
+            Some(args) => args,
+            None => {
+                let last_else = else_branch.last_block.unwrap();
+                self.inserter.function.dfg[last_else].terminator_arguments().to_vec()
+            }
+        };
         assert_eq!(params.len(), else_args.len());
-
-        if params.is_empty() {
-            return;
-        }
 
         let args = vecmap(then_args.iter().zip_eq(else_args), |(then_arg, else_arg)| {
             (self.inserter.resolve(*then_arg), self.inserter.resolve(else_arg))
         });
-        let Some(else_branch) = cond_context.else_branch else {
-            unreachable!("malformed branch");
-        };
         let block = self.target_block;
 
         // Cannot include this in the previous vecmap since it requires exclusive access to self
-        let args = vecmap(args, |(then_arg, else_arg)| {
-            let call_stack = cond_context.call_stack;
+        let args =
+            vecmap(args, |(then_arg, else_arg)| {
+                // Check if we can optimize array merging
+                if let Some(optimized) = self.try_optimize_array_set_merge(
+                    then_arg,
+                    else_arg,
+                    cond_context.then_branch.condition,
+                    cond_context.call_stack,
+                ) {
+                    return optimized;
+                }
 
-            // Try to collapse a redundant nested merge. When the inner merge's
-            // else_value (or then_value) matches the outer merge's corresponding
-            // argument, the two merges can be combined into one.
-            let collapsed = self.try_collapse_merge(then_arg, else_arg);
-            let (then_condition, then_value, else_condition, else_value) =
-                if let Some((inner_then_cond, inner_then_val, shared_val)) = collapsed {
-                    // For the collapsed merge, the then_condition is the inner's
-                    // condition which already incorporates all outer conditions.
-                    // The correct else_condition is NOT(then_condition).
-                    let inner_else_cond = self.not_instruction(
-                        inner_then_cond,
-                        self.inserter.function.dfg.get_value_call_stack_id(inner_then_cond),
-                    );
-                    (inner_then_cond, inner_then_val, inner_else_cond, shared_val)
-                } else {
-                    (cond_context.then_branch.condition, then_arg, else_branch.condition, else_arg)
-                };
+                let call_stack = cond_context.call_stack;
 
-            let instruction =
-                Instruction::IfElse { then_condition, then_value, else_condition, else_value };
-            let result = self
-                .inserter
-                .function
-                .dfg
-                .insert_instruction_and_results(instruction, block, None, call_stack)
-                .first();
-
-            // Record provenance only for non-collapsed merges — collapsed results
-            // carry conditions from an inner nesting level that may not be "under"
-            // the next outer condition. Provenance is also consumed (removed) on
-            // use by `try_collapse_merge`, preventing stale entries from matching
-            // at unrelated merge points. Skip when the IfElse simplified to an
-            // existing value (e.g. then_value == else_value, or one of the conditions).
-            // If we don't skip conditions, an inner merge that simplifies to its
-            // own condition (e.g. IfElse(v0, 1, _, 0) -> v0) would attach provenance
-            // to v0, causing false collapses at outer merges that use v0 as an argument.
-            if collapsed.is_none()
-                && result != then_condition
-                && result != then_value
-                && result != else_condition
-                && result != else_value
-            {
-                self.merge_provenance.insert(
-                    result,
-                    MergeProvenance { then_condition, then_value, else_condition, else_value },
+                // Try to collapse a redundant nested merge. When the inner merge's
+                // else_value (or then_value) matches the outer merge's corresponding
+                // argument, the two merges can be combined into one.
+                let collapsed = self.try_collapse_merge(then_arg, else_arg);
+                let (then_condition, then_value, else_condition, else_value) = collapsed.unwrap_or(
+                    (cond_context.then_branch.condition, then_arg, else_branch.condition, else_arg),
                 );
-            }
 
-            result
-        });
+                let instruction =
+                    Instruction::IfElse { then_condition, then_value, else_condition, else_value };
+                let result = self
+                    .inserter
+                    .function
+                    .dfg
+                    .insert_instruction_and_results(instruction, block, None, call_stack)
+                    .first();
+
+                // Record provenance only for non-collapsed merges — collapsed results
+                // carry conditions from an inner nesting level that may not be "under"
+                // the next outer condition. Provenance is also consumed (removed) on
+                // use by `try_collapse_merge`, preventing stale entries from matching
+                // at unrelated merge points. Skip when the IfElse simplified to an
+                // existing value (e.g. then_value == else_value, or one of the conditions).
+                // If we don't skip conditions, an inner merge that simplifies to its
+                // own condition (e.g. IfElse(v0, 1, _, 0) -> v0) would attach provenance
+                // to v0, causing false collapses at outer merges that use v0 as an argument.
+                if collapsed.is_none()
+                    && result != then_condition
+                    && result != then_value
+                    && result != else_condition
+                    && result != else_value
+                {
+                    self.merge_provenance.insert(
+                        result,
+                        MergeProvenance { then_condition, then_value, else_condition, else_value },
+                    );
+                }
+
+                result
+            });
 
         self.prepare_args(args);
     }
 
     /// Map the value to its predicated value in the current conditional context, and store the previous mapping
-    /// to the 'predicated_values' map if not already stored.
+    /// to the '`predicated_values`' map if not already stored.
     fn predicate_value(&mut self, value: ValueId, predicated_value: ValueId) {
         let conditional_context = self.condition_stack.last_mut().unwrap();
 
@@ -911,8 +982,355 @@ impl<'f> Context<'f> {
         }
     }
 
+    /// Create an array with a merged value at a single index, with an option to protect
+    /// the final `array_set` from `remove_unreachable_instructions`.
+    ///
+    /// This is the core optimization for conditional array modifications. Instead of
+    /// merging entire arrays (O(n) in remove_if_else), we merge just the scalar value
+    /// at the modified index:
+    ///
+    /// ```text
+    /// original = array_get(base_array, index)
+    /// merged = if then_condition { new_value } else { original }
+    /// result = array_set(base_array, index, merged)
+    /// ```
+    ///
+    /// When `protect_array_set` is true, the entire merge sequence (array_get, IfElse,
+    /// array_set) is emitted under `enable_side_effects u1 1`:
+    /// - The `array_get` needs u1 1 because under disabled side effects, ACIR replaces
+    ///   the index with a "safe" first-matching-type index, reading the wrong value.
+    /// - The `array_set` needs u1 1 because `ArraySet` has
+    ///   `requires_acir_gen_predicate = true` and would be zeroed by
+    ///   `remove_unreachable_instructions`.
+    ///
+    /// Potentially out-of-bounds dynamic indices (which would error under the unconditional
+    /// `enable_side_effects u1 1`) are made safe first via [`Self::safe_index`].
+    #[allow(clippy::too_many_arguments)]
+    fn create_merged_array_set(
+        &mut self,
+        base_array: ValueId,
+        index: ValueId,
+        new_value: ValueId,
+        then_condition: ValueId,
+        else_condition: ValueId,
+        mutable: bool,
+        call_stack: CallStackId,
+        mut protect_array_set: bool,
+    ) -> ValueId {
+        let typ = self.inserter.function.dfg.type_of_value(new_value).into_owned();
+
+        let safe_index =
+            self.safe_index(index, base_array, &typ, then_condition, else_condition, call_stack);
+
+        // We can skip emitting `enable_side_effects u1 1` if it wouldn't have any additional effect.
+        if self.no_predicate || self.get_last_condition().is_none() {
+            protect_array_set = false;
+        }
+
+        if protect_array_set {
+            let one =
+                self.inserter.function.dfg.make_constant(FieldElement::one(), NumericType::bool());
+            self.insert_instruction_with_typevars(
+                Instruction::EnableSideEffectsIf { condition: one },
+                None,
+                call_stack,
+            );
+        }
+
+        // Get the original value at this index
+        let get = Instruction::ArrayGet { array: base_array, index: safe_index };
+        let original_value =
+            self.insert_instruction_with_typevars(get, Some(vec![typ]), call_stack).first();
+
+        // Merge the value: if then_condition { new_value } else { original_value }
+        let merge = Instruction::IfElse {
+            then_condition,
+            then_value: new_value,
+            else_condition,
+            else_value: original_value,
+        };
+        let merged_value = self.insert_instruction(merge, call_stack);
+
+        // Create the array_set with merged value
+        let result = self.insert_instruction(
+            Instruction::ArraySet {
+                array: base_array,
+                index: safe_index,
+                value: merged_value,
+                mutable,
+            },
+            call_stack,
+        );
+
+        if protect_array_set {
+            // Restore the branch predicate
+            self.insert_current_side_effects_enabled();
+        }
+
+        result
+    }
+
+    /// Produce an index into `base_array` that is safe to read and write even when
+    /// `then_condition` is false.
+    ///
+    /// [`Self::create_merged_array_set`] emits its `array_get`/`array_set` under an
+    /// unconditional `enable_side_effects u1 1`, so the access happens regardless of the
+    /// condition. If `index` is dynamic and only in bounds on the taken branch, accessing
+    /// it while the condition is false would be out of bounds. When `index` isn't provably
+    /// safe we therefore select a valid fallback for the false case:
+    ///   `safe_idx = IfElse(then_condition, index, fallback)`
+    /// The fallback is the offset of the first element of type `typ` in the array's
+    /// (flattened) element layout, so it is a valid, correctly-typed index even for
+    /// heterogeneous arrays such as `[(Field, u1); N]`. Reading/writing it is harmless: on
+    /// the false branch the merged value is the original value, so the set is a no-op.
+    ///
+    /// A constant, in-bounds `index` is already safe and is returned unchanged, avoiding
+    /// the extra `IfElse` opcodes.
+    fn safe_index(
+        &mut self,
+        index: ValueId,
+        base_array: ValueId,
+        typ: &Type,
+        then_condition: ValueId,
+        else_condition: ValueId,
+        call_stack: CallStackId,
+    ) -> ValueId {
+        let dfg = &self.inserter.function.dfg;
+        if dfg.is_safe_index(index, base_array) {
+            return index;
+        }
+
+        // The fallback must be a valid index of the correct type to avoid type
+        // mismatches in heterogeneous arrays (e.g., [(Field, u1); N]).
+        let Type::Numeric(index_type) = dfg.type_of_value(index).into_owned() else {
+            unreachable!("ICE: array index must be numeric")
+        };
+        let array_type = dfg.type_of_value(base_array);
+        let offset = match array_type.as_ref() {
+            Type::Array(element_types, _) | Type::Vector(element_types) => element_types
+                .iter()
+                .position(|t| t == typ)
+                .expect("ICE: cannot find element with type {typ}")
+                as u128,
+            other => unreachable!("ICE: unexpected array/vector type: {other}"),
+        };
+        let fallback =
+            self.inserter.function.dfg.make_constant(FieldElement::from(offset), index_type);
+        self.insert_instruction(
+            Instruction::IfElse {
+                then_condition,
+                then_value: index,
+                else_condition,
+                else_value: fallback,
+            },
+            call_stack,
+        )
+    }
+
+    /// Try to optimize a Store of an ArraySet by merging just the value at the modified index.
+    ///
+    /// When we have a conditional Store of an ArraySet result:
+    /// ```text
+    /// v1 = load addr
+    /// v2 = array_set v1, index, new_val
+    /// v3 = if cond { v2 } else { v1' }  // v1' is another load from addr
+    /// store v3 at addr
+    /// ```
+    ///
+    /// We transform it to merge just the value at the index:
+    /// ```text
+    /// v1' = load addr
+    /// orig = array_get v1', index
+    /// merged = if cond { new_val } else { orig }
+    /// v2 = array_set v1', index, merged
+    /// store v2 at addr
+    /// ```
+    ///
+    /// This works because if cond is false, the array_set just puts back the original
+    /// value, producing the same array as v1'.
+    fn try_optimize_store_of_array_set(
+        &mut self,
+        value: ValueId,
+        address: ValueId,
+        previous_value: ValueId,
+        condition: ValueId,
+        call_stack: CallStackId,
+    ) -> Option<ValueId> {
+        // Each array_set is emitted under `enable_side_effects u1 1` so that
+        // `remove_unreachable_instructions` won't zero it out. ArraySet has
+        // `requires_acir_gen_predicate = true`, but the merged value (IfElse)
+        // already accounts for the condition, and array_set in ACIR is
+        // protected by memory ops (predicated_index/predicated_store_value).
+        let protect_array_set = true;
+
+        self.try_optimize_array_set_merge_inner(
+            value,
+            previous_value,
+            condition,
+            call_stack,
+            protect_array_set,
+            |this, array| this.was_loaded_from_address(array, address),
+        )
+    }
+
+    /// Check if a value was the result of loading from a specific address.
+    fn was_loaded_from_address(&self, value: ValueId, address: ValueId) -> bool {
+        let Value::Instruction { instruction, .. } = &self.inserter.function.dfg[value] else {
+            return false;
+        };
+        matches!(
+            &self.inserter.function.dfg[*instruction],
+            Instruction::Load { address: load_addr } if *load_addr == address
+        )
+    }
+
+    /// Try to optimize the merging of array values at a join point.
+    ///
+    /// This recognizes the pattern where:
+    /// - `then_value` is the result of `ArraySet(base_array, index, new_value)`
+    /// - `else_value` is `base_array`
+    ///
+    /// Instead of creating an `IfElse` that merges entire arrays (O(n) in remove_if_else),
+    /// we transform this to merge only the value being set:
+    ///
+    /// ```text
+    /// original = array_get(base_array, index)
+    /// merged = if then_condition { new_value } else { original }
+    /// result = array_set(base_array, index, merged)
+    /// ```
+    fn try_optimize_array_set_merge(
+        &mut self,
+        then_value: ValueId,
+        else_value: ValueId,
+        then_condition: ValueId,
+        call_stack: CallStackId,
+    ) -> Option<ValueId> {
+        self.try_optimize_array_set_merge_inner(
+            then_value,
+            else_value,
+            then_condition,
+            call_stack,
+            false,
+            |_, array| array == else_value,
+        )
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn try_optimize_array_set_merge_inner(
+        &mut self,
+        then_value: ValueId,
+        else_value: ValueId,
+        then_condition: ValueId,
+        condition_call_stack: CallStackId,
+        protect_array_set: bool,
+        is_base_array: impl Fn(&Self, ValueId) -> bool,
+    ) -> Option<ValueId> {
+        // If the condition along which we would merge is a constant 1 or 0,
+        // then the simplification of the `IfElse` is easier than what we do here.
+        if self.inserter.function.dfg.is_constant(self.inserter.resolve(then_condition)) {
+            return None;
+        }
+
+        // Walk backwards through a chain of ArraySet instructions from then_value,
+        // collecting (index, value, mutable) at each step, until we find else_value
+        // as the base array.
+        //
+        // This handles the pattern where a conditional modifies multiple fields:
+        //   arr1 = array_set arr0, idx1, val1
+        //   arr2 = array_set arr1, idx2, val2
+        //   arr3 = array_set arr2, idx3, val3
+        // where arr0 == else_value. Instead of an O(array_size) IfElse merge,
+        // we emit O(chain_length) merged array_sets.
+        let mut chain = Vec::new();
+        let mut current = then_value;
+        let mut superseded = Vec::new();
+
+        for _ in 0..MAX_ARRAY_SET_CHAIN_DEPTH {
+            // Global values have their instructions in the global DFG, not the function's DFG.
+            // They are always MakeArray, never ArraySet, so skip them.
+            if self.inserter.function.dfg.is_global(current) {
+                return None;
+            }
+
+            let Value::Instruction { instruction, .. } = &self.inserter.function.dfg[current]
+            else {
+                return None;
+            };
+
+            let Instruction::ArraySet { array, index, value, mutable } =
+                self.inserter.function.dfg[*instruction].clone()
+            else {
+                return None;
+            };
+
+            let array = self.inserter.resolve(array);
+            let index = self.inserter.resolve(index);
+            let value = self.inserter.resolve(value);
+
+            if let Some(length) = self.inserter.function.dfg.try_get_array_length(array) {
+                if length.0 == 0 {
+                    // Any index we tried for safe merging would be unsafe.
+                    return None;
+                }
+                if let Some(index) = self.inserter.function.dfg.get_numeric_constant(index)
+                    && index.to_u128() >= u128::from(length.0)
+                {
+                    // This index is known to be OOB; if we insert the "safe index" fallback machinery,
+                    // it will result in worse opcode count than the base case.
+                    return None;
+                }
+            }
+
+            // We can potentially remove this instruction at the end.
+            superseded.push(*instruction);
+
+            // Preserve the call stack of the original instruction, rather than collapse all new instructions into the condition.
+            let current_call_stack = self.inserter.function.dfg.get_value_call_stack_id(current);
+
+            chain.push((index, value, mutable, current_call_stack));
+
+            if is_base_array(self, array) {
+                // Found the base - emit merged array_sets in forward order (innermost first)
+                chain.reverse();
+
+                // Lazily create the else condition, now that we know the optimization is possible.
+                // The `then_condition` and `else_condition` of a branch can both be zero at the same time,
+                // in which case we might have both _then_ and _fallback_ indexes become 0.
+                // This might happen later, if we have inlining evaluate side effects to known constants.
+                // The element type in slot 0 might be different then what the result requires;
+                // if that happens, then the compiler might crash, trying to multiply values of different types.
+                // Because of this we must use a fallback that is actually 1 when the `then` is 0,
+                // so we always use an explicit negation.
+                let else_condition = self.not_instruction(then_condition, condition_call_stack);
+
+                let mut result = else_value;
+                for (idx, val, mutable, call_stack) in chain {
+                    result = self.create_merged_array_set(
+                        result,
+                        idx,
+                        val,
+                        then_condition,
+                        else_condition,
+                        mutable,
+                        call_stack,
+                        protect_array_set,
+                    );
+                }
+
+                // Remember the potentially superseded chain.
+                self.superseded_array_sets.extend(superseded);
+
+                return Some(result);
+            }
+
+            current = array;
+        }
+
+        None
+    }
+
     /// Insert a new instruction into the target block.
-    /// Unlike push_instruction, this function will not map any ValueIds.
+    /// Unlike `push_instruction`, this function will not map any `ValueIds`.
     /// within the given instruction, nor will it modify self.values in any way.
     fn insert_instruction(&mut self, instruction: Instruction, call_stack: CallStackId) -> ValueId {
         let block = self.target_block;
@@ -925,7 +1343,7 @@ impl<'f> Context<'f> {
 
     /// Inserts a new instruction into the target block, using the given
     /// control type variables to specify result types if needed.
-    /// Unlike push_instruction, this function will not map any ValueIds.
+    /// Unlike `push_instruction`, this function will not map any `ValueIds`.
     /// within the given instruction, nor will it modify self.values in any way.
     fn insert_instruction_with_typevars(
         &mut self,
@@ -964,9 +1382,9 @@ impl<'f> Context<'f> {
 
     /// Push the given instruction to the end of the target block of the current function.
     ///
-    /// Note that each ValueId of the instruction will be mapped via `self.inserter.resolve`.
+    /// Note that each `ValueId` of the instruction will be mapped via `self.inserter.resolve`.
     /// As a result, the instruction that will be pushed will actually be a new instruction
-    /// with a different InstructionId from the original. The results of the given instruction
+    /// with a different `InstructionId` from the original. The results of the given instruction
     /// will also be mapped to the results of the new instruction.
     fn push_instruction(&mut self, id: InstructionId) {
         let (instruction, call_stack) = self.inserter.map_instruction(id);
@@ -1025,6 +1443,19 @@ impl<'f> Context<'f> {
                         .insert_instruction_with_typevars(load, Some(vec![typ]), call_stack)
                         .first();
 
+                    // Optimization: If the stored value is an ArraySet whose base was loaded
+                    // from the same address, we can merge just the scalar value instead of
+                    // the entire array. This transforms O(n) array merging into O(1).
+                    if let Some(optimized) = self.try_optimize_store_of_array_set(
+                        value,
+                        address,
+                        previous_value,
+                        condition,
+                        call_stack,
+                    ) {
+                        return Instruction::Store { address, value: optimized };
+                    }
+
                     let else_condition = self.not_instruction(condition, call_stack);
 
                     let instruction = Instruction::IfElse {
@@ -1081,7 +1512,7 @@ impl<'f> Context<'f> {
             Value::Intrinsic(intrinsic) => {
                 self.handle_intrinsic_side_effects(condition, intrinsic, arguments, call_stack)
             }
-            Value::Function(_) | Value::ForeignFunction(_) => arguments,
+            Value::Function(_) | Value::ForeignFunction { .. } => arguments,
             Value::Instruction { .. }
             | Value::Param { .. }
             | Value::NumericConstant { .. }
@@ -1144,7 +1575,7 @@ impl<'f> Context<'f> {
     ) -> Vec<ValueId> {
         match blackbox {
             BlackBoxFunc::EmbeddedCurveAdd => {
-                arguments[6] = self.mul_by_condition(arguments[6], condition, call_stack);
+                arguments[4] = self.mul_by_condition(arguments[4], condition, call_stack);
                 arguments
             }
 
@@ -1180,7 +1611,7 @@ impl<'f> Context<'f> {
     /// 'Cast' the 'condition' to 'value' type
     ///
     /// This is needed because we need to multiply the condition with several values
-    /// in order to 'nullify' side-effects when the 'condition' is false (in 'handle_instruction_side_effects' function).
+    /// in order to 'nullify' side-effects when the 'condition' is false (in '`handle_instruction_side_effects`' function).
     ///
     /// Since the condition is a boolean, it can be safely casted to any other type.
     fn cast_condition_to_value_type(
@@ -1208,6 +1639,59 @@ impl<'f> Context<'f> {
             call_stack,
         )
     }
+
+    /// At the end of flattening, remove any potentially superseded `array_set` where
+    /// the result isn't used by any other instruction.
+    ///
+    /// We could leave this to the DIE pass, but that doesn't know that we have replaced
+    /// these with another `array_set` using the same index, and while it will remove them,
+    /// it leaves behind an OOB check to preserve the outcome of the circuit. Since we know
+    /// that if the first instruction fails, there is a second instruction that will fail
+    /// the same way, we can save these extra constraints by removing the unused `array_set`
+    /// instructions altogether here.
+    fn remove_superseded_array_sets(&mut self) {
+        if self.superseded_array_sets.is_empty() {
+            return;
+        }
+
+        let block_id = self.target_block;
+        let dfg = &self.inserter.function.dfg;
+
+        // Seed used-values from the terminator and the databus.
+        let mut used = HashSet::default();
+        dfg[block_id].unwrap_terminator().for_each_value(|v| {
+            used.insert(v);
+        });
+        if let Some(data) = dfg.data_bus.return_data {
+            used.insert(data);
+        }
+
+        // Backward walk: non-superseded instructions contribute to `used`;
+        // superseded instructions are removed only when their result is not in `used`.
+        let mut to_remove = HashSet::default();
+        for &id in dfg[block_id].instructions().iter().rev() {
+            let keep = if !self.superseded_array_sets.contains(&id) {
+                true
+            } else {
+                let results = dfg.instruction_results(id);
+                // Keep if the result is externally used
+                results.iter().any(|r| used.contains(r))
+            };
+            if keep {
+                dfg[id].for_each_value(|v| {
+                    used.insert(v);
+                });
+            } else {
+                to_remove.insert(id);
+            }
+        }
+
+        if !to_remove.is_empty() {
+            self.inserter.function.dfg[block_id]
+                .instructions_mut()
+                .retain(|id| !to_remove.contains(id));
+        }
+    }
 }
 
 #[cfg(test)]
@@ -1218,11 +1702,11 @@ mod tests {
         assert_ssa_snapshot,
         ssa::{
             Ssa,
-            interpreter::value::Value as InterpreterValue,
+            interpreter::value::{ArrayValue, Value as InterpreterValue},
             ir::{
                 dfg::DataFlowGraph,
                 instruction::{Instruction, TerminatorInstruction},
-                types::NumericType,
+                types::{NumericType, Type},
                 value::{Value, ValueId},
             },
             opt::assert_pass_does_not_affect_execution,
@@ -1940,7 +2424,7 @@ mod tests {
     #[test]
     #[should_panic = "ICE: branches merge inside of `then` branch"]
     fn panics_if_branches_merge_within_then_branch() {
-        //! This is a regression test for https://github.com/noir-lang/noir/issues/6620
+        //! This is a regression test for <https://github.com/noir-lang/noir/issues/6620>
 
         let src = "
         acir(inline) fn main f0 {
@@ -2009,7 +2493,7 @@ mod tests {
             store v5 at v3
             jmp b2()
           b2():
-            v24 = load v3 -> Field
+            v24 = load v3 -> [Field; 1]
             return v24
         }";
 
@@ -2113,6 +2597,50 @@ mod tests {
     }
 
     #[test]
+    fn predicate_range_checks() {
+        // `predicate_value` maps a range-checked value to its predicated form
+        // for the rest of the branch.
+        // As a result, the truncate in this test is optimized.
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u1, v1: u32):
+            jmpif v0 then: b1(), else: b2()
+          b1():
+            range_check v1 to 16 bits
+            v2 = truncate v1 to 16 bits, max_bit_size: 32
+            jmp b3(v2)
+          b2():
+            jmp b3(v1)
+          b3(v3: u32):
+            return v3
+        }";
+
+        let ssa = Ssa::from_str(src).unwrap();
+
+        let ssa = ssa.flatten_cfg().remove_truncate_after_range_check();
+
+        // No `truncate` remains: the range-checked `v3` (= `v1 * v0`) is the value used by
+        // the merge. Drop the `predicate_value` call and a `truncate v1` reappears here.
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: u1, v1: u32):
+            enable_side_effects v0
+            v2 = cast v0 as u32
+            v3 = unchecked_mul v1, v2
+            range_check v3 to 16 bits
+            v4 = not v0
+            enable_side_effects u1 1
+            v6 = cast v0 as u32
+            v7 = cast v4 as u32
+            v8 = unchecked_mul v6, v3
+            v9 = unchecked_mul v7, v1
+            v10 = unchecked_add v8, v9
+            return v10
+        }
+        ");
+    }
+
+    #[test]
     fn use_predicated_value() {
         let src = "
         acir(inline) fn main f0 {
@@ -2156,6 +2684,80 @@ mod tests {
     }
 
     #[test]
+    fn store_optimization_stale_load_bug() {
+        // Bug: The Store optimization's `was_loaded_from_address` check matches loads
+        // from the same address regardless of WHEN the load happened. If a previous
+        // conditional store modified the address, the ArraySet's base (old load) has a
+        // different value than `previous_value` (fresh load). The optimization incorrectly
+        // uses `previous_value` as the base for the merged array_set, losing the old load's
+        // value.
+        //
+        // Pattern: two sequential conditionals writing to the same address.
+        // - First if: stores array_set(load addr, 0, 10) at addr
+        // - Second if (same condition): stores array_set(load addr, 1, 20) at addr
+        //   The second if's load sees the FIRST if's conditional store result.
+        //   But the optimization creates array_set(previous_value, 1, merged)
+        //   where previous_value is a FRESH load that also sees the first if's result.
+        //   This should be fine IF the values match. The bug is when they DON'T match
+        //   because the first store was conditionally merged.
+        //
+        // Actually, the real issue: inside a single conditional branch, there can be
+        // a load, then an array_set, then a store. During flattening, the store is
+        // conditional. The optimization sees the array_set base was loaded from the same
+        // address. But `previous_value` (the fresh load inserted by handle_instruction_side_effects)
+        // reads from addr AFTER any prior conditional stores in this branch or other branches.
+        // The array_set's base was loaded BEFORE those stores. If a prior conditional store
+        // (from a DIFFERENT branch of a DIFFERENT if-else) modified the address, the two
+        // loads return different values.
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u1, v1: [Field; 4]):
+            v2 = allocate -> &mut [Field; 4]
+            store v1 at v2
+            jmpif v0 then: b1(), else: b2()
+          b1():
+            v3 = load v2 -> [Field; 4]
+            v4 = array_set v3, index u32 0, value Field 10
+            store v4 at v2
+            jmp b2()
+          b2():
+            jmpif v0 then: b3(), else: b4()
+          b3():
+            v5 = load v2 -> [Field; 4]
+            v6 = array_set v5, index u32 1, value Field 20
+            store v6 at v2
+            jmp b4()
+          b4():
+            v7 = load v2 -> [Field; 4]
+            v8 = array_get v7, index u32 0 -> Field
+            v9 = array_get v7, index u32 1 -> Field
+            constrain v8 == Field 10
+            constrain v9 == Field 20
+            return
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.flatten_cfg();
+
+        // After flattening, the interpreter should produce correct results.
+        // The Store optimization must not corrupt the values.
+        let main = ssa.main();
+        let block = main.entry_block();
+        let instructions = main.dfg[block].instructions();
+
+        // Check no always-false constraints
+        for &instr_id in instructions {
+            if let Instruction::Constrain(lhs, rhs, _) = &main.dfg[instr_id] {
+                let lhs_const = main.dfg.get_numeric_constant(*lhs);
+                let rhs_const = main.dfg.get_numeric_constant(*rhs);
+                if let (Some(l), Some(r)) = (lhs_const, rhs_const) {
+                    assert_eq!(l, r, "Found always-false constraint: {l} != {r}");
+                }
+            }
+        }
+    }
+
+    #[test]
     fn simplifies_during_insertion() {
         // `if v0 { false } else { true }`
         let src = "
@@ -2186,8 +2788,496 @@ mod tests {
         ");
     }
 
-    /// Regression test: when JmpIf's else_destination IS the exit/merge block
-    /// (no separate else block), the else_arguments carry the "no-change" value
+    #[test]
+    fn store_optimization_arrayset_zeroed_by_remove_unreachable() {
+        // Bug: The Store optimization emits `array_set` under the branch's
+        // `enable_side_effects`. Since `ArraySet` has `requires_acir_gen_predicate = true`,
+        // `remove_unreachable_instructions` replaces it with a zeroed array when the
+        // branch becomes `UnreachableUnderPredicate` (from div-by-zero after constant
+        // folding propagates v0 = 0). The standard `IfElse` merge survives because
+        // `IfElse` has `requires_acir_gen_predicate = false`.
+        //
+        // Pattern:
+        //   if a == 0 { c[0] = 3; }            ← single ArraySet, Store opt fires
+        //   else { constrain 1==0; c[0]=1; c[1]=10/a; }  ← always-false + div-by-zero
+        //   assert(c[0] == 3);
+        // Directly test the mechanism: an `array_set` under an unreachable predicate
+        // gets replaced with a zeroed array by `remove_unreachable_instructions`
+        // because `ArraySet.requires_acir_gen_predicate() = true`.
+        //
+        // This is a post-flatten SSA that simulates what the Store optimization produces:
+        // an array_set under a branch predicate that contains div-by-zero.
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u1, v1: [u32; 4]):
+            enable_side_effects v0
+            v2 = div u32 10, u32 0
+            v3 = array_set v1, index u32 0, value u32 42
+            enable_side_effects u1 1
+            v4 = array_get v3, index u32 0 -> u32
+            constrain v4 == u32 42
+            return
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+
+        // Just run remove_unreachable_instructions directly on this post-flatten SSA.
+        let ssa = ssa.remove_unreachable_instructions();
+
+        // BUG: The `array_set` is under `enable_side_effects v0` where a div-by-zero
+        // triggers `UnreachableUnderPredicate`. Since `ArraySet` has
+        // `requires_acir_gen_predicate = true`, it gets replaced with a zeroed array.
+        // The constrain then becomes `constrain u32 0 == u32 42` (always false).
+        //
+        // The Store optimization creates this exact pattern: array_set under a branch
+        // predicate where unreachable code (like div-by-zero) can occur.
+        //
+        // Current (buggy) behavior — array_set zeroed, always-false constraint:
+        assert_ssa_snapshot!(ssa, @r#"
+        acir(inline) fn main f0 {
+          b0(v0: u1, v1: [u32; 4]):
+            enable_side_effects v0
+            constrain u1 0 == v0, "attempt to divide by zero"
+            v4 = make_array [u32 0, u32 0, u32 0, u32 0] : [u32; 4]
+            enable_side_effects u1 1
+            constrain u32 0 == u32 42
+            unreachable
+        }
+        "#);
+        // EXPECTED after fix: array_set should NOT be under the predicate,
+        // so it survives remove_unreachable and the constrain resolves correctly.
+    }
+
+    #[test]
+    fn conditional_array_set_scalar_merge_zero_length_array() {
+        let src = "
+          acir(inline) fn main f0 {
+            b0(v0: u1, v1: u32):
+              v3 = make_array [] : [u32; 0]
+              jmpif v0 then: b1(), else: b2(v3)
+            b1():
+              v5 = array_set v3, index v1, value u32 10
+              jmp b2(v5)
+            b2(v2: [u32; 0]):
+              return v2
+          }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.flatten_cfg();
+
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: u1, v1: u32):
+            v2 = make_array [] : [u32; 0]
+            enable_side_effects v0
+            v4 = array_set v2, index v1, value u32 10
+            v5 = not v0
+            enable_side_effects u1 1
+            v7 = if v0 then v4 else (if v5) v2
+            return v7
+        }
+        ");
+    }
+
+    #[test]
+    fn conditional_array_set_scalar_merge_safe_index() {
+        // Test that conditional array_set creates scalar IfElse, not array IfElse at join point.
+        // The array_set should be transformed to:
+        //   1. array_get the original value at the index
+        //   2. if-else merge just the scalar
+        //   3. unconditional array_set with the merged value
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u1, v1: [Field; 4]):
+            jmpif v0 then: b1(), else: b2()
+          b1():
+            v2 = array_set v1, index u32 2, value Field 42
+            jmp b3(v2)
+          b2():
+            jmp b3(v1)
+          b3(v3: [Field; 4]):
+            return v3
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.flatten_cfg();
+
+        // After flattening, the array_set merge should be optimized to a scalar merge.
+        // We should see: array_get from base array, scalar merge (cast/mul/add), then array_set with merged value.
+        // The key is that there's NO IfElse instruction on arrays - just a scalar merge.
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: u1, v1: [Field; 4]):
+            enable_side_effects v0
+            v2 = not v0
+            enable_side_effects u1 1
+            v5 = array_get v1, index u32 2 -> Field
+            v6 = cast v0 as Field
+            v7 = cast v2 as Field
+            v9 = mul v6, Field 42
+            v10 = mul v7, v5
+            v11 = add v9, v10
+            v12 = array_set v1, index u32 2, value v11
+            return v12
+        }
+        ");
+    }
+
+    #[test]
+    fn conditional_array_set_scalar_merge_non_safe_index() {
+        // Test that conditional array_set creates scalar IfElse, not array IfElse at join point.
+        // Similar to conditional_array_set_scalar_merge_safe_index, but we don't know if the index
+        // might cause out-of-bounds error.
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u1, v1: [Field; 4], v4: u32):
+            jmpif v0 then: b1(), else: b2()
+          b1():
+            v2 = array_set v1, index v4, value Field 42
+            jmp b3(v2)
+          b2():
+            jmp b3(v1)
+          b3(v3: [Field; 4]):
+            return v3
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let mut ssa = ssa.flatten_cfg();
+
+        // After flattening, the array_set merge should be optimized to a scalar merge.
+        // The fallback index defaults to 0, but because it's used to read _and_ write,
+        // it should not change the outcome.
+        assert_ssa_snapshot!(&mut ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: u1, v1: [Field; 4], v2: u32):
+            enable_side_effects v0
+            v3 = not v0
+            enable_side_effects u1 1
+            v5 = cast v0 as u32
+            v6 = cast v3 as u32
+            v7 = unchecked_mul v5, v2
+            v8 = array_get v1, index v7 -> Field
+            v9 = cast v0 as Field
+            v10 = cast v3 as Field
+            v12 = mul v9, Field 42
+            v13 = mul v10, v8
+            v14 = add v12, v13
+            v15 = array_set v1, index v7, value v14
+            return v15
+        }
+        ");
+
+        use crate::ssa::interpreter::value::Value;
+        use acvm::FieldElement;
+
+        for cond in [false, true] {
+            let args = vec![
+                Value::bool(cond),
+                Value::array(
+                    vec![
+                        Value::field(FieldElement::from(1)),
+                        Value::field(FieldElement::from(2)),
+                        Value::field(FieldElement::from(3)),
+                        Value::field(FieldElement::from(4)),
+                    ],
+                    vec![Type::field()],
+                ),
+                Value::u32(3),
+            ];
+
+            let result = ssa.interpret(args.clone()).expect("flattened array merge should pass");
+
+            assert_eq!(result.len(), 1);
+
+            if !cond {
+                assert_eq!(result[0], args[1]);
+            } else {
+                match &result[0] {
+                    Value::ArrayOrVector(ArrayValue { elements, .. }) => {
+                        assert_eq!(elements.borrow()[3], Value::field(FieldElement::from(42)));
+                    }
+                    other => panic!("unexpected value: {other}"),
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn conditional_array_set_scalar_merge_oob_index() {
+        // Test that if we know that the index is OOB, we don't apply the conditional optimization.
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u1, v1: [Field; 4]):
+            jmpif v0 then: b1(), else: b2()
+          b1():
+            v2 = array_set v1, index u32 4, value Field 42
+            jmp b3(v2)
+          b2():
+            jmp b3(v1)
+          b3(v3: [Field; 4]):
+            return v3
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.flatten_cfg();
+
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: u1, v1: [Field; 4]):
+            enable_side_effects v0
+            v4 = array_set v1, index u32 4, value Field 42
+            v5 = not v0
+            enable_side_effects u1 1
+            v7 = if v0 then v4 else (if v5) v1
+            return v7
+        }
+        ");
+    }
+
+    #[test]
+    fn conditional_array_set_scalar_merge_non_binary_cond() {
+        // Similar to conditional_array_set_scalar_merge_safe_index and
+        // conditional_array_set_scalar_merge_non_safe_index, but using
+        // a compound condition of `v0 & v1` and a mixed type array.
+        let src = r#"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u1, v1: u1, v2: u32):
+            v9 = make_array [u1 0, u32 0, u1 1, u32 1] : [(u1, u32); 2]
+            jmpif v0 then: b1(), else: b2(v9)
+          b1():
+            jmpif v1 then: b3(), else: b4(v9)
+          b2(v3: [(u1, u32); 2]):
+            return v3
+          b3():
+            v11 = unchecked_mul v2, u32 2
+            v12 = array_get v9, index v11 -> u1
+            v13 = unchecked_add v11, u32 1
+            v14 = cast v13 as u64
+            v16 = lt v14, u64 4
+            constrain v16 == u1 1, "Index out of bounds"
+            v17 = array_set v9, index v13, value u32 2
+            jmp b4(v17)
+          b4(v4: [(u1, u32); 2]):
+            jmp b2(v4)
+        }
+        "#;
+        let ssa = Ssa::from_str(src).unwrap();
+        let mut ssa = ssa.flatten_cfg();
+
+        // After flattening, we should see two merges happen:
+        // * 1st under `enable_side_effects v0`
+        // * 2nd under `enable_side_effects u1 1`
+        // We can see that `v19 = v0 * v18` and `v18 = v0 * v1`;
+        // if we used `else_branch.condition` in the 1st merge, then it would merge
+        // the index and value as e.g. `v24 = v8 * x + v19 * y`, where `z` will be 0
+        // if v0 was 0. This can lead to `array_get v7, index v24 -> u32` returning a `u1`.
+        // Instead of v19 we want to see is merging with `v20 = not v8`, which won't be 0 at the same time.
+        assert_ssa_snapshot!(&mut ssa, @r#"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u1, v1: u1, v2: u32):
+            v7 = make_array [u1 0, u32 0, u1 1, u32 1] : [(u1, u32); 2]
+            enable_side_effects v0
+            v8 = unchecked_mul v0, v1
+            enable_side_effects v8
+            v10 = unchecked_mul v2, u32 2
+            v11 = array_get v7, index v10 -> u1
+            v12 = unchecked_add v10, u32 1
+            v13 = cast v12 as u64
+            v15 = lt v13, u64 4
+            v16 = unchecked_mul v15, v8
+            constrain v16 == v8, "Index out of bounds"
+            v17 = not v1
+            v18 = unchecked_mul v0, v17
+            enable_side_effects v0
+            v19 = not v8
+            v20 = cast v8 as u32
+            v21 = cast v19 as u32
+            v22 = unchecked_mul v20, v12
+            v23 = unchecked_add v22, v21
+            v24 = array_get v7, index v23 -> u32
+            v25 = cast v8 as u32
+            v26 = cast v19 as u32
+            v27 = unchecked_mul v25, u32 2
+            v28 = unchecked_mul v26, v24
+            v29 = unchecked_add v27, v28
+            v30 = not v0
+            enable_side_effects u1 1
+            v31 = cast v0 as u32
+            v32 = cast v30 as u32
+            v33 = unchecked_mul v31, v23
+            v34 = unchecked_add v33, v32
+            v35 = array_get v7, index v34 -> u32
+            v36 = cast v0 as u32
+            v37 = cast v30 as u32
+            v38 = unchecked_mul v36, v29
+            v39 = unchecked_mul v37, v35
+            v40 = unchecked_add v38, v39
+            v41 = array_set v7, index v34, value v40
+            return v41
+        }
+        "#);
+    }
+
+    #[test]
+    fn conditional_array_set_scalar_merge_skipped_when_condition_is_const() {
+        // Test that conditional array_set creates still uses IfElse if the condition is 0 or 1.
+        let src = "
+        g0 = u1 1
+
+        acir(inline) fn main f0 {
+          b0(v1: [Field; 4]):
+            jmpif g0 then: b1(), else: b2()
+          b1():
+            v2 = array_set v1, index u32 2, value Field 42
+            jmp b3(v2)
+          b2():
+            jmp b3(v1)
+          b3(v3: [Field; 4]):
+            return v3
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.flatten_cfg();
+
+        // After flattening, we should see the result be simplified to the the updated array,
+        // with no merging using either IfElse or scalars.
+        assert_ssa_snapshot!(ssa, @r"
+        g0 = u1 1
+
+        acir(inline) fn main f0 {
+          b0(v1: [Field; 4]):
+            enable_side_effects u1 1
+            v4 = array_set v1, index u32 2, value Field 42
+            enable_side_effects u1 1
+            return v4
+        }
+        ");
+    }
+
+    #[test]
+    fn conditional_array_set_merge_removes_superseded_instructions() {
+        let src = "
+          acir(inline) predicate_pure fn main f0 {
+            b0(v0: [u32; 5], v1: u32):
+              v4 = lt v1, u32 3
+              jmpif v4 then: b1(), else: b2(v0)
+            b1():
+              v6 = array_set v0, index v1, value u32 10
+              jmp b2(v6)
+            b2(v2: [u32; 5]):
+              v8 = array_get v2, index u32 4 -> u32
+              constrain v8 == u32 111
+              return
+          }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.flatten_cfg();
+
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: [u32; 5], v1: u32):
+            v3 = lt v1, u32 3
+            enable_side_effects v3
+            v4 = not v3
+            enable_side_effects u1 1
+            v6 = cast v3 as u32
+            v7 = cast v4 as u32
+            v8 = unchecked_mul v6, v1
+            v9 = array_get v0, index v8 -> u32
+            v10 = cast v3 as u32
+            v11 = cast v4 as u32
+            v13 = unchecked_mul v10, u32 10
+            v14 = unchecked_mul v11, v9
+            v15 = unchecked_add v13, v14
+            v16 = array_set v0, index v8, value v15
+            v18 = array_get v16, index u32 4 -> u32
+            constrain v18 == u32 111
+            return
+        }
+        ");
+    }
+
+    #[test]
+    fn store_optimization_chain_with_dynamic_index() {
+        // Regression: the Store optimization's chain merge corrupts the last field
+        // of a struct-like tuple stored in an array when using a dynamic index.
+        //
+        // Pattern: two conditional iterations writing a 4-field "slot" (key, value,
+        // valid, deleted) at a dynamic index. The first iteration fires (condition true),
+        // the second is a no-op (condition false because done=true). After flattening,
+        // the `deleted` field (index+3) incorrectly becomes u1 1 instead of u1 0.
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: Field, v1: u32):
+            v2 = make_array [Field 0, Field 0, u1 0, u1 0, Field 0, Field 0, u1 0, u1 0] : [(Field, Field, u1, u1); 2]
+            v3 = allocate -> &mut [(Field, Field, u1, u1); 2]
+            store v2 at v3
+            v4 = allocate -> &mut u1
+            store u1 0 at v4
+            v5 = load v4 -> u1
+            v6 = not v5
+            v7 = unchecked_mul v1, u32 4
+            jmpif v6 then: b1(), else: b2()
+          b1():
+            v8 = load v3 -> [(Field, Field, u1, u1); 2]
+            v9 = array_set v8, index v7, value v0
+            v10 = unchecked_add v7, u32 1
+            v11 = array_set v9, index v10, value Field 100
+            v12 = unchecked_add v7, u32 2
+            v13 = array_set v11, index v12, value u1 1
+            v14 = unchecked_add v7, u32 3
+            v15 = array_set v13, index v14, value u1 0
+            store v15 at v3
+            store u1 1 at v4
+            jmp b2()
+          b2():
+            v16 = load v4 -> u1
+            v17 = not v16
+            jmpif v17 then: b3(), else: b4()
+          b3():
+            v18 = load v3 -> [(Field, Field, u1, u1); 2]
+            v19 = array_set v18, index v7, value v0
+            v20 = unchecked_add v7, u32 1
+            v21 = array_set v19, index v20, value Field 200
+            v22 = unchecked_add v7, u32 2
+            v23 = array_set v21, index v22, value u1 1
+            v24 = unchecked_add v7, u32 3
+            v25 = array_set v23, index v24, value u1 0
+            store v25 at v3
+            store u1 1 at v4
+            jmp b4()
+          b4():
+            v26 = load v3 -> [(Field, Field, u1, u1); 2]
+            v27 = array_get v26, index v7 -> Field
+            v28 = unchecked_add v7, u32 2
+            v29 = array_get v26, index v28 -> u1
+            v30 = unchecked_add v7, u32 3
+            v31 = array_get v26, index v30 -> u1
+            constrain v27 == v0, \"key mismatch\"
+            constrain v29 == u1 1, \"valid should be true\"
+            constrain v31 == u1 0, \"deleted should be false\"
+            return
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+
+        use crate::ssa::interpreter::value::Value;
+        use acvm::FieldElement;
+
+        let args = vec![Value::field(FieldElement::from(42u64)), Value::u32(0)];
+
+        // Pre-flatten: interpreter should pass
+        ssa.interpret(args.clone()).expect("pre-flatten should pass");
+
+        // Flatten
+        let ssa = ssa.flatten_cfg();
+
+        // Post-flatten: interpreter should still pass
+        ssa.interpret(args).expect("post-flatten should pass — deleted field must remain u1 0");
+    }
+
+    /// Regression test: when `JmpIf`'s `else_destination` IS the exit/merge block
+    /// (no separate else block), the `else_arguments` carry the "no-change" value
     /// directly to the merge. This is the pattern mem2reg produces when
     /// the else branch has no stores (just falls through to the merge block).
     #[test]
@@ -2221,7 +3311,7 @@ mod tests {
         ");
     }
 
-    /// Regression test: when an inner IfElse simplifies to its own condition
+    /// Regression test: when an inner `IfElse` simplifies to its own condition
     /// (e.g. IfElse(v0, 1, _, 0) -> v0), provenance must NOT be stored for that
     /// value. Otherwise the outer merge sees the provenance on v0 and
     /// incorrectly collapses.
@@ -2277,6 +3367,24 @@ mod tests {
         }
         ");
     }
+
+    #[test]
+    #[should_panic(expected = "should have been inlined before flattening")]
+    fn assumes_inlining_has_run() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            call f1()
+            return
+        }
+        acir(inline) fn foo f1 {
+          b0():
+            return
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let _ = ssa.flatten_cfg();
+    }
 }
 
 /// Tests for the merge provenance collapse optimization (issue #12106).
@@ -2289,12 +3397,12 @@ mod tests {
 mod merge_provenance_tests {
     use crate::{assert_ssa_snapshot, ssa::Ssa};
 
-    /// Regression test for #12106: promoted block params with jmpif else_arguments
+    /// Regression test for #12106: promoted block params with jmpif `else_arguments`
     /// should produce the same (or fewer) instructions as the equivalent store/load
     /// pattern after flattening + cleanup.
     ///
     /// The pattern is 3 iterations of: `if !ok { if bit[i] { ok = true } }`
-    /// where `ok` is threaded through else_arguments.
+    /// where `ok` is threaded through `else_arguments`.
     #[test]
     fn collapse_nested_merge_shared_else_value() {
         // Promoted version: `ok` threaded through block params with jmpif else_arguments.
@@ -2534,6 +3642,173 @@ mod merge_provenance_tests {
         ");
     }
 
+    /// Group 2, inner merge as outer `then_arg`:
+    /// `IfElse(c1, IfElse(_, x, c2e, z), _, x)` → `IfElse(c2e, z, NOT(c2e), x)`.
+    ///
+    /// Pins the second return of `try_collapse_merge` (the `prov_then == else_arg`
+    /// arm in the `then_arg` provenance block). Without that arm firing, the outer
+    /// merge would emit a second cast+mul+add; with it firing, only the inner
+    /// mul+add pair remains.
+    #[test]
+    fn collapse_nested_merge_shared_then_value_inner_as_then() {
+        // Outer: if v0 { inner_result } else { 100 }
+        // Inner: if v1 { 100 } else { 200 }       // inner then-value == outer else-value
+        let src = "
+            acir(inline) fn main f0 {
+              b0(v0: u1, v1: u1):
+                jmpif v0 then: b1(), else: b4(Field 100)
+              b1():
+                jmpif v1 then: b2(), else: b3(Field 200)
+              b2():
+                jmp b3(Field 100)
+              b3(v2: Field):
+                jmp b4(v2)
+              b4(v3: Field):
+                return v3
+            }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.flatten_cfg();
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: u1, v1: u1):
+            enable_side_effects v0
+            v2 = unchecked_mul v0, v1
+            enable_side_effects v2
+            v3 = not v1
+            v4 = unchecked_mul v0, v3
+            enable_side_effects v0
+            v5 = cast v2 as Field
+            v6 = cast v4 as Field
+            v8 = mul v5, Field 100
+            v10 = mul v6, Field 200
+            v11 = add v8, v10
+            v12 = not v0
+            enable_side_effects u1 1
+            v14 = not v4
+            v15 = cast v4 as Field
+            v16 = cast v14 as Field
+            v17 = mul v15, Field 200
+            v18 = mul v16, Field 100
+            v19 = add v17, v18
+            return v19
+        }
+        ");
+    }
+
+    /// Group 1, inner merge as outer `else_arg`:
+    /// `IfElse(c1, y, _, IfElse(c2, x, _, y))` → `IfElse(c2, x, NOT(c2), y)`.
+    ///
+    /// Pins the third return of `try_collapse_merge` (the `prov_else == then_arg`
+    /// arm in the `else_arg` provenance block).
+    #[test]
+    fn collapse_nested_merge_shared_else_value_inner_as_else() {
+        // Outer: if v0 { 100 } else { inner_result }
+        // Inner: if v1 { 200 } else { 100 }       // inner else-value == outer then-value
+        let src = "
+            acir(inline) fn main f0 {
+              b0(v0: u1, v1: u1):
+                jmpif v0 then: b1(), else: b2()
+              b1():
+                jmp b5(Field 100)
+              b2():
+                jmpif v1 then: b3(), else: b4(Field 100)
+              b3():
+                jmp b4(Field 200)
+              b4(v2: Field):
+                jmp b5(v2)
+              b5(v3: Field):
+                return v3
+            }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.flatten_cfg();
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: u1, v1: u1):
+            enable_side_effects v0
+            v2 = not v0
+            enable_side_effects v2
+            v3 = unchecked_mul v2, v1
+            enable_side_effects v3
+            v4 = not v1
+            v5 = unchecked_mul v2, v4
+            enable_side_effects v2
+            v6 = cast v3 as Field
+            v7 = cast v5 as Field
+            v9 = mul v6, Field 200
+            v11 = mul v7, Field 100
+            v12 = add v9, v11
+            enable_side_effects u1 1
+            v14 = not v3
+            v15 = cast v3 as Field
+            v16 = cast v14 as Field
+            v17 = mul v15, Field 200
+            v18 = mul v16, Field 100
+            v19 = add v17, v18
+            return v19
+        }
+        ");
+    }
+
+    /// Group 2, inner merge as outer `else_arg`:
+    /// `IfElse(c1, x, _, IfElse(_, x, c2e, z))` → `IfElse(c2e, z, NOT(c2e), x)`.
+    ///
+    /// Pins the fourth return of `try_collapse_merge` (the `prov_then == then_arg`
+    /// arm in the `else_arg` provenance block).
+    #[test]
+    fn collapse_nested_merge_shared_then_value_inner_as_else() {
+        // Outer: if v0 { 100 } else { inner_result }
+        // Inner: if v1 { 100 } else { 200 }       // inner then-value == outer then-value
+        let src = "
+            acir(inline) fn main f0 {
+              b0(v0: u1, v1: u1):
+                jmpif v0 then: b1(), else: b2()
+              b1():
+                jmp b5(Field 100)
+              b2():
+                jmpif v1 then: b3(), else: b4(Field 200)
+              b3():
+                jmp b4(Field 100)
+              b4(v2: Field):
+                jmp b5(v2)
+              b5(v3: Field):
+                return v3
+            }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.flatten_cfg();
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: u1, v1: u1):
+            enable_side_effects v0
+            v2 = not v0
+            enable_side_effects v2
+            v3 = unchecked_mul v2, v1
+            enable_side_effects v3
+            v4 = not v1
+            v5 = unchecked_mul v2, v4
+            enable_side_effects v2
+            v6 = cast v3 as Field
+            v7 = cast v5 as Field
+            v9 = mul v6, Field 100
+            v11 = mul v7, Field 200
+            v12 = add v9, v11
+            enable_side_effects u1 1
+            v14 = not v5
+            v15 = cast v5 as Field
+            v16 = cast v14 as Field
+            v17 = mul v15, Field 200
+            v18 = mul v16, Field 100
+            v19 = add v17, v18
+            return v19
+        }
+        ");
+    }
+
     /// Test that merges with non-matching values are NOT collapsed.
     /// Uses Field values so there are 3 distinct constants (no boolean overlap).
     #[test]
@@ -2591,8 +3866,8 @@ mod merge_provenance_tests {
     ///   1st: `if v0 { x = Field 100 } else { x = Field 200 }` → merge result R
     ///   2nd: `if v1 { y = R } else { y = Field 200 }`
     ///
-    /// R has provenance {else_value = Field 200}. The second conditional also has
-    /// else_arg = Field 200, which would match R's provenance. If provenance
+    /// R has provenance {`else_value` = Field 200}. The second conditional also has
+    /// `else_arg` = Field 200, which would match R's provenance. If provenance
     /// leaked, the second merge would incorrectly collapse to
     /// `IfElse(v0, Field 100, NOT(v0), Field 200)`, dropping v1 entirely.
     ///

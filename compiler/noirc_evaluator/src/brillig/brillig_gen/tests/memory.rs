@@ -129,12 +129,14 @@ fn brillig_array_with_rc_ops() {
     20: @4 = const u32 4
     21: call 0 // -> ArrayCopy
     22: sp[4] = @5
-    23: sp[6] = u32 add sp[4], sp[2]
-    24: store sp[3] at sp[6]
-    25: sp[3] = u32 add sp[4], sp[2]
-    26: sp[3] = load sp[3]
-    27: sp[2] = sp[3]
-    28: return
+    23: sp[6] = u32 add sp[4], @2
+    24: sp[7] = u32 add sp[6], sp[2]
+    25: store sp[3] at sp[7]
+    26: sp[5] = u32 add sp[4], @2
+    27: sp[3] = u32 add sp[5], sp[2]
+    28: sp[3] = load sp[3]
+    29: sp[2] = sp[3]
+    30: return
     ");
 }
 

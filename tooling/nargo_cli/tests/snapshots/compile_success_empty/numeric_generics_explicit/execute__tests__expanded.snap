@@ -2,7 +2,7 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: expanded_code
 ---
-global N: u32 = 1000;
+pub global N: u32 = 1000;
 
 fn main() {
     let a: [Field; 2] = id([1_Field, 2_Field]);
@@ -33,7 +33,7 @@ struct MyStruct<let S: u32> {
 }
 
 impl<let S: u32> MyStruct<S> {
-    fn insert(mut self, index: Field, elem: Field) -> Self {
+    pub fn insert(mut self, index: Field, elem: Field) -> Self {
         assert((index as u32) < S);
         self.data[index as u32] = elem;
         self

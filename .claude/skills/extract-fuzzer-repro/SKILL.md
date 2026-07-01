@@ -1,7 +1,6 @@
 ---
 name: extract-fuzzer-repro
 description: Extract a Noir reproduction project from fuzzer failure logs in GitHub Actions. Use when a CI fuzzer test fails and you need to create a local reproduction.
-allowed-tools: Bash, Read, Write
 ---
 
 # Extract Fuzzer Reproduction from GitHub Actions

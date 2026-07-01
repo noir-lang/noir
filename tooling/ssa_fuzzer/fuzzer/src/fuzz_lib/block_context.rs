@@ -14,7 +14,7 @@ use std::collections::{BTreeMap, VecDeque};
 /// It works with indices of variables Ids, because it cannot handle Ids logic for ACIR and Brillig
 #[derive(Debug, Clone)]
 pub(crate) struct BlockContext {
-    /// Ids of the Program variables stored as TypedValue separated by type
+    /// Ids of the Program variables stored as `TypedValue` separated by type
     pub(crate) stored_variables: BTreeMap<Type, Vec<TypedValue>>,
     /// Parent blocks history
     pub(crate) parent_blocks_history: VecDeque<BasicBlockId>,
@@ -589,7 +589,7 @@ impl BlockContext {
                 let p1 = p1.unwrap();
                 let p2 = p2.unwrap();
                 let acir_point = builder.point_add(p1, p2, predicate);
-                for typed_value in [&acir_point.x, &acir_point.y, &acir_point.is_infinite] {
+                for typed_value in [&acir_point.x, &acir_point.y] {
                     self.store_variable(typed_value);
                 }
             }
@@ -616,7 +616,7 @@ impl BlockContext {
                 }
                 let point =
                     builder.multi_scalar_mul(points_vec.clone(), scalars_vec.clone(), predicate);
-                for typed_value in [&point.x, &point.y, &point.is_infinite] {
+                for typed_value in [&point.x, &point.y] {
                     self.store_variable(typed_value);
                 }
             }
@@ -698,12 +698,11 @@ impl BlockContext {
         let scalar = self.ssa_scalar_from_instruction_scalar(point.scalar);
         scalar.as_ref()?; // wtf clippy forbid me to write if scalar.is_none() {return None}
         let scalar = scalar.unwrap();
-        let is_infinite = builder.insert_constant(point.is_infinite, NumericType::Boolean);
 
         let point = if point.derive_from_scalar_mul {
-            builder.base_scalar_mul(scalar, is_infinite)
+            builder.base_scalar_mul(scalar)
         } else {
-            builder.create_point_from_scalar(scalar, is_infinite)
+            builder.create_point_from_scalar(scalar)
         };
         Some(point)
     }
@@ -739,7 +738,7 @@ impl BlockContext {
     /// * `safe_index` - If true, the index will be taken modulo the array length
     ///
     /// # Returns
-    /// * TypedValue
+    /// * `TypedValue`
     /// * None if the instruction is not enabled or the array is not stored
     fn insert_array_get(
         &self,
@@ -787,7 +786,7 @@ impl BlockContext {
     /// * `safe_index` - If true, the index will be taken modulo the array length
     ///
     /// # Returns
-    /// * TypedValue referencing the new array
+    /// * `TypedValue` referencing the new array
     /// * None if the instruction is not enabled or the array is not stored
     fn insert_array_set(
         &self,
@@ -843,7 +842,7 @@ impl BlockContext {
     /// * `index` - Index of the value to find
     ///
     /// # Returns
-    /// * TypedValue with the given type and index, if index is provided, otherwise the last value
+    /// * `TypedValue` with the given type and index, if index is provided, otherwise the last value
     /// * If no value is found, we create it from predefined boolean
     ///
     /// # Examples

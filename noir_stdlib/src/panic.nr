@@ -13,3 +13,12 @@ trait StringLike {}
 
 impl<let N: u32> StringLike for str<N> {}
 impl<let N: u32, T> StringLike for fmtstr<N, T> {}
+
+mod tests {
+    use crate::prelude::panic;
+
+    #[test(should_fail_with = "OH NO")]
+    fn panics() {
+        panic("OH NO");
+    }
+}

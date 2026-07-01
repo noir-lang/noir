@@ -10,9 +10,7 @@ pub fn foo() {}
 
 comptime fn output_function(_f: FunctionDefinition) -> Quoted {
     quote {
-        fn bar() {
-            
-        }
+        fn bar() {}
     }
 }
 

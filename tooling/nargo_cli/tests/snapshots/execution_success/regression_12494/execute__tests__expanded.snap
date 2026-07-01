@@ -1,0 +1,13 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn main() -> pub bool {
+    let mut hit: bool = false;
+    for i in 0_u128..3_u128 {
+        if 340282366920938463463374607431768211455_u128 < i {
+            hit = true;
+        }
+    }
+    hit
+}

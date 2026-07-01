@@ -333,7 +333,7 @@ impl<'a, 'b> LimitContext<'a, 'b> {
                         // Doesn't have a proxy, but still needs its parameters adjusted.
                         None
                     }
-                    Definition::Oracle(_) | Definition::Builtin(_) => {
+                    Definition::Oracle { .. } | Definition::Builtin(_) => {
                         // Oracles don't participate in recursion, let's leave them alone.
                         return true;
                     }

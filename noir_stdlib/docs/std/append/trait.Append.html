@@ -3,7 +3,10 @@
 <head>
 <meta charset="UTF-8">
 <link rel="stylesheet" href="../../styles.css">
+<script>window.docRoot = "../../";</script>
+<script defer src="../../search-index.js"></script>
 <script defer src="../../nargo_doc.js"></script>
+<script defer src="../../search.js"></script>
 <title>Trait Append documentation</title>
 </head>
 <body>
@@ -16,7 +19,7 @@
 <h1><a href="../../index.html">noir_stdlib</a></h1>
 <div><a href="../../all.html">All items</a></div>
 <h2 id="crate-name"><a href="../index.html">std</a></h2>
-<div id="crate-version">1.0.0-beta.20</div>
+<div id="crate-version">1.0.0-beta.22</div>
 <h2><a href="#trait">Trait Append</a></h2>
 <h3>Required methods</h3>
 <ul class="sidebar-list">
@@ -36,11 +39,17 @@
 </nav>
 <main>
 <div><a href="../../index.html">noir_stdlib</a> - <a href="../index.html">std</a>::<a href="index.html">append</a></div>
-<h1>Trait <span id="trait" class="trait">Append</span></h1>
+<div class="heading-row">
+<h1 class="heading-content">Trait <span id="trait" class="trait">Append</span></h1>
+<button id="search-toggle" type="button">Search</button>
+</div>
+<input id="search-input" type="search" placeholder="Type 's' or '/' to search" autocomplete="off" spellcheck="false" aria-label="Search" hidden>
+<div id="search-results" hidden></div>
+<div id="page-content">
 <pre><code>pub trait Append {
     <span class="comment">// Required methods</span>
-    pub fn <a href="#empty"><span class="fn">empty</span></a>() -> Self;
-    pub fn <a href="#append"><span class="fn">append</span></a>(self, other: Self) -> Self;
+    pub fn <a href="#empty" class="fn">empty</a>() -> Self;
+    pub fn <a href="#append" class="fn">append</a>(self, other: Self) -> Self;
 }</code></pre>
 
 <div class="comments">
@@ -54,9 +63,9 @@ If not, it can be ignored.</p>
 </ul>
 </div>
 <h2>Required methods</h2>
-<div class="padded-methods"><code id="empty" class="code-header">pub fn <a href="#empty"><span class="fn">empty</span></a>() -> Self</code>
+<div class="padded-methods"><code id="empty" class="code-header">pub fn <a href="#empty" class="fn">empty</a>() -> Self</code>
 
-<code id="append" class="code-header">pub fn <a href="#append"><span class="fn">append</span></a>(self, other: Self) -> Self</code>
+<code id="append" class="code-header">pub fn <a href="#append" class="fn">append</a>(self, other: Self) -> Self</code>
 
 </div><h2>Implementors</h2>
 <h3 id="impl-Append-for-CtString"><code class="code-header">impl <a href="../../std/append/trait.Append.html" class="trait">Append</a> for <a href="../../std/primitive.CtString.html" class="primitive">CtString</a></code></h3>
@@ -65,6 +74,7 @@ If not, it can be ignored.</p>
 
 <h3 id="impl-Append-for-[T]"><code class="code-header">impl&lt;T&gt; <a href="../../std/append/trait.Append.html" class="trait">Append</a> for [T]</code></h3>
 
+</div>
 </main>
 </span>
 </body>

@@ -1,4 +1,4 @@
-//! This can most likely be imported from acvm_js to avoid redefining it here.
+//! This can most likely be imported from `acvm_js` to avoid redefining it here.
 
 use acvm::{
     AcirField, FieldElement,
@@ -42,7 +42,7 @@ impl From<JsWitnessMap> for WitnessMap<FieldElement> {
     fn from(js_map: JsWitnessMap) -> Self {
         let mut witness_map = WitnessMap::new();
         js_map.for_each(&mut |value, key| {
-            let witness_index = Witness(key.as_f64().unwrap() as u32);
+            let witness_index = Witness::new(key.as_f64().unwrap() as u32);
             let witness_value = js_value_to_field_element(value).unwrap();
             witness_map.insert(witness_index, witness_value);
         });

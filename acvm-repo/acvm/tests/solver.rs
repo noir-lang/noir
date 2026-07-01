@@ -628,7 +628,7 @@ fn unsatisfied_opcode_resolved_brillig() {
     assert_eq!(
         solver_status,
         ACVMStatus::Failure(OpcodeResolutionError::BrilligFunctionFailed {
-            function_id: BrilligFunctionId(0),
+            function_id: BrilligFunctionId::new(0),
             payload: None,
             call_stack: vec![OpcodeLocation::Brillig { acir_index: 0, brillig_index: 6 }]
         }),
@@ -665,9 +665,9 @@ fn memory_operations() {
     assert_eq!(witness_map[&Witness(8)], FieldElement::from(6u128));
 }
 
-/// Whether to use a FunctionInput::constant or FunctionInput::witness:
+/// Whether to use a `FunctionInput::constant` or `FunctionInput::witness`:
 ///
-/// (value, use_constant)
+/// (value, `use_constant`)
 type ConstantOrWitness = (FieldElement, bool);
 
 // For each ConstantOrWitness,
@@ -969,7 +969,7 @@ where
         + Clone,
 {
     let equal_inputs = drop_use_constant_eq(&inputs, &distinct_inputs);
-    let message = format!("not injective:\n{:?}\n{:?}", &inputs, &distinct_inputs);
+    let message = format!("not injective:\n{inputs:?}\n{distinct_inputs:?}");
     let outputs_not_equal =
         solve_array_input_blackbox_call(inputs, num_outputs, num_bits, op.clone())
             .expect("injectivity test operations to have valid input")

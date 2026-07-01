@@ -1,0 +1,6 @@
+[package]
+name = "regression_noir_claude_1069"
+type = "bin"
+authors = [""]
+
+[dependencies]

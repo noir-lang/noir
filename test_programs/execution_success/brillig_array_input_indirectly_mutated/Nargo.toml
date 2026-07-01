@@ -1,0 +1,6 @@
+[package]
+name = "brillig_array_input_indirectly_mutated"
+type = "bin"
+authors = [""]
+
+[dependencies]

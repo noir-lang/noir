@@ -35,7 +35,7 @@ noir_artifact_cli.workspace = true
 
 # Logs
 tracing-subscriber.workspace = true
-tracing-appender = "0.2.3"
+tracing-appender = "0.2.5"
 
 [dev-dependencies]
 rand.workspace = true

@@ -7,7 +7,7 @@ use acir::native_types::{WitnessMap, WitnessStack};
 use bn254_blackbox_solver::Bn254BlackBoxSolver;
 use clap::Args;
 
-use nargo::foreign_calls::DefaultForeignCallBuilder;
+use nargo::foreign_calls::{DefaultForeignCallBuilder, OracleResolverUrl};
 use noir_artifact_cli::errors::CliError;
 use noir_artifact_cli::fs::artifact::read_bytecode_from_file;
 use noir_artifact_cli::fs::witness::save_witness_to_dir;
@@ -39,14 +39,17 @@ pub(crate) struct ExecuteCommand {
 
     /// JSON RPC url to resolve oracle calls
     #[clap(long)]
-    oracle_resolver: Option<String>,
+    oracle_resolver: Option<OracleResolverUrl>,
 }
 
 fn run_command(args: ExecuteCommand) -> Result<String, CliError> {
     let bytecode = read_bytecode_from_file(&args.working_directory, &args.bytecode)?;
     let input_witness = read_witness_from_file(&args.working_directory.join(&args.input_witness))?;
-    let output_witness =
-        execute_program_from_witness(input_witness, &bytecode, args.oracle_resolver)?;
+    let output_witness = execute_program_from_witness(
+        input_witness,
+        &bytecode,
+        args.oracle_resolver.as_ref().map(|url| url.to_string()),
+    )?;
     assert_eq!(output_witness.length(), 1, "ACVM CLI only supports a witness stack of size 1");
     let output_witness_string = create_output_witness_string(
         &output_witness.peek().expect("Should have a witness stack item").witness,

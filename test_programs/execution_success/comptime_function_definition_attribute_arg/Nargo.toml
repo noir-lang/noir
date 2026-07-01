@@ -1,0 +1,6 @@
+[package]
+name = "comptime_function_definition_attribute_arg"
+type = "bin"
+authors = [""]
+
+[dependencies]

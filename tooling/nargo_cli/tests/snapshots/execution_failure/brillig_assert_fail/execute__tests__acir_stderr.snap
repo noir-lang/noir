@@ -13,15 +13,15 @@ bug: Input to Brillig function is in a separate subgraph to output
             at src/main.nr:6:26
 
 error: Failed to solve program: 'Failed to solve brillig function'
-   ┌─ src/main.nr:10:12
+   ┌─ src/main.nr:10:5
    │
 10 │     assert(x);
-   │            -
+   │     ---------
    │
    = Call stack:
      1: main
              at src/main.nr:6:26
      2: conditional
-             at src/main.nr:10:12
+             at src/main.nr:10:5
 
 Failed to solve program: 'Failed to solve brillig function'

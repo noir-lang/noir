@@ -1,0 +1,16 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+--- The SSA failed to validate after 'Dead Instruction Elimination': Set the NOIR_SHOW_INVALID_SSA env var to see the SSA.
+error: Only constant indices are supported when indexing an array containing reference values
+  ┌─ src/main.nr:9:26
+  │
+9 │     let (_v2, removed) = v.remove(i);
+  │                          --------
+  │
+  = Call stack:
+    1: main
+            at src/main.nr:9:26
+
+Aborting due to 1 previous error

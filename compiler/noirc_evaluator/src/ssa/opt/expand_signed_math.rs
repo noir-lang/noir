@@ -148,8 +148,8 @@ impl Context<'_, '_, '_> {
         // negative value by -1. For example dividing -128 i8 by -1 would give 128, but that
         // does not fit i8. So the first thing we do is check for this case.
         let min_negative_value = self.numeric_constant(1_u128 << (bit_size - 1), unsigned_typ);
-        let max_for_bit_size =
-            if bit_size == 128 { u128::MAX - 1 } else { (1_u128 << bit_size) - 1 };
+        assert!(bit_size <= 64, "There's no i128 so bit_size should be at most 64");
+        let max_for_bit_size = (1_u128 << bit_size) - 1;
         let minus_one = self.numeric_constant(max_for_bit_size, unsigned_typ);
         let lhs_is_min_negative_value =
             self.insert_binary(lhs_unsigned, BinaryOp::Eq, min_negative_value);
@@ -215,19 +215,19 @@ impl Context<'_, '_, '_> {
     ///
     /// The math here is:
     ///
-    /// result = value + 2*((2^(bit_size - 1) - value)*value_is_negative)
+    /// `result = value + 2*((2^(bit_size - 1) - value)*value_is_negative)`
     ///
-    /// For example, for i8 we have bit_size = 8 so:
+    /// For example, for i8 we have `bit_size` = 8 so:
     ///
-    /// result = value + 2*(128 - value)*value_is_negative
+    /// result = value + 2*(128 - value)*`value_is_negative`
     ///
-    /// If the value is positive, so value_is_negative = 0:
+    /// If the value is positive, so `value_is_negative` = 0:
     ///
     /// result = value
     ///
     /// That is, the value stays the same.
     ///
-    /// If value_is_negative = 1 we get:
+    /// If `value_is_negative` = 1 we get:
     ///
     /// result = value + 2*(128 - value) = value + 256 - 2*value = 256 - value
     ///
@@ -306,7 +306,7 @@ impl Context<'_, '_, '_> {
     }
 }
 
-/// Post-check condition for [Function::expand_signed_math].
+/// Post-check condition for [`Function::expand_signed_math`].
 ///
 /// Panics if:
 ///   - Any ACIR function contains signed Lt, Div, or Mod operations.

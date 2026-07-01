@@ -40,6 +40,9 @@ pub(crate) struct ParsedMakeArray {
 pub(crate) struct ParsedFunction {
     pub(crate) runtime_type: RuntimeType,
     pub(crate) purity: Option<Purity>,
+    /// Span of the stated purity keyword, when one is present. Used to point purity
+    /// validation errors at the offending annotation.
+    pub(crate) purity_span: Option<Span>,
     pub(crate) external_name: String,
     pub(crate) internal_name: String,
     pub(crate) data_bus: ParsedDataBus,
@@ -123,6 +126,7 @@ pub(crate) enum ParsedInstruction {
         function: Identifier,
         arguments: Vec<ParsedValue>,
         types: Vec<Type>,
+        pure: bool,
     },
     Cast {
         target: Identifier,

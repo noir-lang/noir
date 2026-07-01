@@ -480,7 +480,7 @@ mod tests {
         ";
 
         let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.defunctionalize();
+        let ssa = ssa.defunctionalize().unwrap();
         let ssa = ssa.lower_refs_at_acir_brillig_boundary();
 
         assert_ssa_snapshot!(ssa, @r"
@@ -493,15 +493,19 @@ mod tests {
         }
         acir(inline) fn caller f1 {
           b0(v0: Field, v1: &mut Field):
-            call f3(v1)
+            v2 = load v1 -> Field
+            call f3(v2)
             return
         }
         brillig(inline) fn consumer f2 {
           b0(v0: &mut Field):
             return
         }
-        acir(inline_always) pure fn apply_dummy f3 {
-          b0(v0: &mut Field):
+        brillig(inline) fn consumer_ref_wrapper f3 {
+          b0(v0: Field):
+            v1 = allocate -> &mut Field
+            store v0 at v1
+            call f2(v1)
             return
         }
         ");

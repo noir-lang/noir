@@ -17,9 +17,7 @@ where
 
 pub struct BN254Params {}
 
-impl CurveParamsTrait<MyBigNum> for BN254Params {
-    fn one() {}
-}
+impl CurveParamsTrait<MyBigNum> for BN254Params {}
 
 trait BigCurveTrait {
     fn two();

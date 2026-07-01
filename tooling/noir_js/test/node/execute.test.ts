@@ -58,7 +58,9 @@ it('circuit with a nested assertion should fail with the resolved call stack', a
     expect(knownError.noirCallStack![0]).to.match(
       /^at make_assertion\(x, y\) \(.*assert_msg_runtime\/src\/main.nr:2:5\)$/,
     );
-    expect(knownError.noirCallStack![1]).to.match(/^at x < y \(.*assert_msg_runtime\/src\/main.nr:7:12\)$/);
+    expect(knownError.noirCallStack![1]).to.match(
+      /^at assert\(x < y, f"Expected x < y but got \{x\} < \{y\}"\) \(.*assert_msg_runtime\/src\/main.nr:7:5\)$/,
+    );
   }
 });
 

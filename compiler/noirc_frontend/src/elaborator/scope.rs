@@ -1,45 +1,73 @@
 //! Lexical scoping, variable lookup, and closure capture tracking.
 
+use noirc_errors::Location;
+
 use crate::ast::{ERROR_IDENT, Ident};
 use crate::elaborator::path_resolution::PathResolution;
-use crate::elaborator::patterns::Variable;
-use crate::hir::def_map::ModuleId;
+use crate::elaborator::patterns::{PathValue, Variable};
+use crate::graph::CrateId;
+use crate::hir::def_map::{LocalModuleId, ModuleId};
 
 use crate::hir::scope::ScopeTree as GenericScopeTree;
-use crate::node_interner::{DefinitionKind, TypeAliasId};
+use crate::node_interner::DefinitionKind;
 use crate::{
     DataType, Shared,
     hir::resolution::errors::ResolverError,
     hir_def::{expr::HirCapturedVar, traits::Trait},
-    node_interner::{DefinitionId, TraitId, TypeId},
+    node_interner::{TraitId, TypeId},
 };
 use crate::{Type, TypeAlias};
 
-use super::path_resolution::{PathResolutionItem, PathResolutionMode, TypedPath};
+use super::path_resolution::{
+    PathResolutionItem, PathResolutionMode, Turbofish, TypedPath, TypedPathSegment,
+};
 use super::{Elaborator, PathResolutionTarget, ResolverMeta};
 
 type ScopeTree = GenericScopeTree<String, ResolverMeta>;
 
-/// The result of [`Elaborator::lookup_item_as_value`].
-pub(crate) enum ItemAsValue {
-    /// A definition was found.
-    Definition { id: DefinitionId, item: PathResolutionItem },
-    /// A type alias that is numeric, infinitely recursive or one that errored, was found.
-    TypeAlias(TypeAliasId),
-}
+pub(crate) struct ReplacedModule(CrateId, Option<LocalModuleId>);
 
 impl Elaborator<'_> {
     pub fn module_id(&self) -> ModuleId {
         ModuleId { krate: self.crate_id, local_id: self.local_module() }
     }
 
+    #[must_use]
     #[tracing::instrument(level = "trace", skip_all)]
-    pub fn replace_module(&mut self, new_module: ModuleId) -> Option<ModuleId> {
-        let current_module =
-            self.local_module.map(|local_id| ModuleId { krate: self.crate_id, local_id });
+    pub(crate) fn replace_module(&mut self, new_module: ModuleId) -> ReplacedModule {
+        let old_crate_id = self.crate_id;
+        let old_local_module = self.local_module;
         self.crate_id = new_module.krate;
         self.local_module = Some(new_module.local_id);
-        current_module
+        ReplacedModule(old_crate_id, old_local_module)
+    }
+
+    #[tracing::instrument(level = "trace", skip_all)]
+    pub(crate) fn restore_module(&mut self, replaced_module: ReplacedModule) {
+        self.crate_id = replaced_module.0;
+        self.local_module = replaced_module.1;
+    }
+
+    /// Runs `f` with `self.local_module` set to `module`, restoring the previous value
+    /// afterwards (on every exit path, including early returns inside `f`). This is the
+    /// module-scope analogue of [`Self::recover_generics`] and should be used instead of a
+    /// bare `self.local_module = Some(..)` so that the caller's module context is never left
+    /// dangling.
+    #[tracing::instrument(level = "trace", skip_all)]
+    pub(super) fn in_local_module<T>(
+        &mut self,
+        module: LocalModuleId,
+        f: impl FnOnce(&mut Self) -> T,
+    ) -> T {
+        let previous = self.replace_local_module(module);
+        let result = f(self);
+        self.local_module = previous;
+        result
+    }
+
+    #[must_use]
+    pub(super) fn replace_local_module(&mut self, module: LocalModuleId) -> Option<LocalModuleId> {
+        self.local_module.replace(module)
     }
 
     pub(super) fn get_type(&self, type_id: TypeId) -> Shared<DataType> {
@@ -51,8 +79,8 @@ impl Elaborator<'_> {
         self.interner.get_trait(trait_id)
     }
 
-    /// For each [crate::elaborator::LambdaContext] on the lambda stack with a scope index higher than that
-    /// of the variable, add the [crate::elaborator::HirIdent] to the list of captures.
+    /// For each [`crate::elaborator::LambdaContext`] on the lambda stack with a scope index higher than that
+    /// of the variable, add the [`crate::elaborator::HirIdent`] to the list of captures.
     #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn check_if_variable_is_captured_by_closure(&mut self, variable: &Variable) {
         // Only local variables can be captured by closures.
@@ -102,30 +130,66 @@ impl Elaborator<'_> {
         }
     }
 
-    /// Try to look up a [TypedPath] as a value (a global, a numeric type alias or a function).
+    /// Try to look up a [`TypedPath`] as a value (a global, a numeric type alias or a function).
     /// If the path resolves to an item that is not a value (for example a struct, an enum,
     /// a type alias, etc.), returns a `ResolverError`. `ResolverError` is also returned
     /// when no item is found.
+    ///
+    /// Unlike [`Self::resolve_path_as_value_or_error`] this never tries a local variable, so it is
+    /// what a multi-segment path (which can never name a local variable) needs.
     #[tracing::instrument(level = "trace", skip_all)]
-    pub(super) fn lookup_item_as_value(
+    pub(super) fn lookup_path_as_value(
         &mut self,
         path: TypedPath,
-    ) -> Result<ItemAsValue, ResolverError> {
+    ) -> Result<PathValue, ResolverError> {
         let location = path.location;
         let item = self.use_path_or_error(path, PathResolutionTarget::Value)?;
+        self.path_resolution_item_as_value(item, location)
+    }
 
+    /// Like [`Self::lookup_path_as_value`], but resolves `segment` directly in the already-resolved
+    /// `module_id` rather than from the current module.
+    pub(super) fn lookup_path_as_value_in_module(
+        &mut self,
+        segment: TypedPathSegment,
+        module_id: ModuleId,
+    ) -> Result<PathValue, ResolverError> {
+        let location = segment.ident.location();
+        let item =
+            self.use_value_in_module(TypedPath::plain(vec![segment], location), module_id)?;
+        self.path_resolution_item_as_value(item, location)
+    }
+
+    /// Like [`Self::lookup_path_as_value`], but resolves `segment` directly as a value member (an
+    /// enum variant or associated constant) of the already-resolved type `typ`.
+    pub(super) fn lookup_path_as_value_in_type(
+        &mut self,
+        segment: &TypedPathSegment,
+        typ: &Type,
+        turbofish: Option<Turbofish>,
+    ) -> Result<PathValue, ResolverError> {
+        let location = segment.ident.location();
+        let item = self.use_value_in_type(segment, typ, turbofish)?;
+        self.path_resolution_item_as_value(item, location)
+    }
+
+    /// Interpret an already-resolved [`PathResolutionItem`] as a value (the definition it refers
+    /// to), or return an `Expected` error when it is not a value. `location` is used for that error.
+    fn path_resolution_item_as_value(
+        &self,
+        item: PathResolutionItem,
+        location: Location,
+    ) -> Result<PathValue, ResolverError> {
         if let Some(function) = item.function_id() {
             let definition_id = self.interner.function_definition_id(function);
-            let item_as_value = ItemAsValue::Definition { id: definition_id, item };
-            return Ok(item_as_value);
+            return Ok(PathValue::Definition { id: definition_id, item });
         }
 
         let expected = "value";
         match item {
-            PathResolutionItem::Global(global) => {
+            PathResolutionItem::Global(global) | PathResolutionItem::EnumVariant(global) => {
                 let global = self.interner.get_global(global);
-                let item_as_value = ItemAsValue::Definition { id: global.definition_id, item };
-                Ok(item_as_value)
+                Ok(PathValue::Definition { id: global.definition_id, item })
             }
             PathResolutionItem::TypeAlias(type_alias_id) => {
                 let type_alias = self.interner.get_type_alias(type_alias_id);
@@ -134,13 +198,13 @@ impl Elaborator<'_> {
                 if type_alias.borrow().numeric_expr.is_some() {
                     // Type alias to numeric generics are aliases to some global value
                     // Therefore we allow this case although we cannot provide the value yet
-                    return Ok(ItemAsValue::TypeAlias(type_alias_id));
+                    return Ok(PathValue::TypeAlias(type_alias_id));
                 }
                 if matches!(type_alias.borrow().typ, Type::Alias(_, _))
                     || matches!(type_alias.borrow().typ, Type::Error)
                 {
                     // Type alias to a type alias is not supported, but the error is handled in define_type_alias()
-                    return Ok(ItemAsValue::TypeAlias(type_alias_id));
+                    return Ok(PathValue::TypeAlias(type_alias_id));
                 }
                 Err(ResolverError::Expected {
                     location,
@@ -150,8 +214,7 @@ impl Elaborator<'_> {
             }
             PathResolutionItem::TraitConstant(_, _, def_id) => {
                 // TraitConstant is returned, item is Some
-                let item_as_value = ItemAsValue::Definition { id: def_id, item };
-                Ok(item_as_value)
+                Ok(PathValue::Definition { id: def_id, item })
             }
             item => Err(ResolverError::Expected {
                 location,
@@ -274,10 +337,16 @@ impl Elaborator<'_> {
             Ok(PathResolutionItem::Type(struct_id)) => {
                 let struct_type = self.get_type(struct_id);
                 let generics = struct_type.borrow().instantiate(self.interner);
-                Some(Type::DataType(struct_type, generics))
+                let typ = Type::DataType(struct_type, generics);
+                self.check_comptime_type_in_non_comptime_item(&typ, location);
+                Some(typ)
             }
             Ok(PathResolutionItem::TypeAlias(alias_id)) => {
                 let alias = self.interner.get_type_alias(alias_id);
+                self.check_comptime_type_in_non_comptime_item(
+                    &Type::Alias(alias.clone(), Vec::new()),
+                    location,
+                );
                 let alias = alias.borrow();
                 Some(alias.instantiate(self.interner))
             }

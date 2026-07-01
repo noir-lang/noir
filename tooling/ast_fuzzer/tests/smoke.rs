@@ -13,17 +13,7 @@ use bn254_blackbox_solver::Bn254BlackBoxSolver;
 use nargo::{NargoError, foreign_calls::DefaultForeignCallBuilder};
 use noir_ast_fuzzer::{Config, DisplayAstAsNoir, arb_inputs, arb_program, program_abi};
 use noirc_abi::input_parser::Format;
-use noirc_evaluator::{
-    brillig::BrilligOptions,
-    ssa::{
-        self,
-        opt::{
-            CONSTANT_FOLDING_MAX_ITER, DEFAULT_MAX_SPECIALIZATIONS_PER_FN,
-            DEFAULT_SPECIALIZATION_THRESHOLD, FORCE_UNROLL_THRESHOLD, INLINING_MAX_INSTRUCTIONS,
-            MAX_UNROLL_ITERATIONS,
-        },
-    },
-};
+use noirc_evaluator::ssa;
 
 fn seed_from_env() -> Option<u64> {
     let Ok(seed) = std::env::var("NOIR_AST_FUZZER_SEED") else { return None };
@@ -41,24 +31,7 @@ fn arb_program_can_be_executed() {
         let program = arb_program(u, config)?;
         let abi = program_abi(&program);
 
-        let options = ssa::SsaEvaluatorOptions {
-            ssa_logging: ssa::SsaLogging::None,
-            brillig_options: BrilligOptions::default(),
-            print_codegen_timings: false,
-            emit_ssa: None,
-            skip_underconstrained_check: true,
-            skip_brillig_constraints_check: true,
-            inliner_aggressiveness: 0,
-            constant_folding_max_iter: CONSTANT_FOLDING_MAX_ITER,
-            small_function_max_instruction: INLINING_MAX_INSTRUCTIONS,
-            max_bytecode_increase_percent: None,
-            max_unroll_iterations: MAX_UNROLL_ITERATIONS,
-            force_unroll_threshold: FORCE_UNROLL_THRESHOLD,
-            specialization_threshold: DEFAULT_SPECIALIZATION_THRESHOLD,
-            max_specializations_per_fn: DEFAULT_MAX_SPECIALIZATIONS_PER_FN,
-            skip_passes: Default::default(),
-            ssa_logging_hide_unchanged: false,
-        };
+        let options = ssa::SsaEvaluatorOptions::default();
 
         // Print the AST if something goes wrong, then panic.
         let print_ast_and_panic = |msg: &str| -> ! {

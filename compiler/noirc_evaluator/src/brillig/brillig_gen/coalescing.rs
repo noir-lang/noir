@@ -17,8 +17,8 @@ use crate::ssa::ir::{
 
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
-use super::union_find::connected_components;
 use super::variable_liveness::VariableLiveness;
+use crate::ssa::ir::union_find::connected_components;
 
 /// Check if param-side coalescing is safe: the destination must have exactly
 /// one predecessor, and arg must not be live-in to dest.
@@ -31,7 +31,7 @@ fn can_coalesce_param_side(
     cfg.predecessors(*destination).count() == 1 && !dest_live_in.contains(arg)
 }
 
-/// Maps SSA ValueIds to partners whose register they should reuse.
+/// Maps SSA `ValueIds` to partners whose register they should reuse.
 ///
 /// An entry `x -> y` means "when defining x, reuse y's register."
 /// This covers two cases:
@@ -145,13 +145,12 @@ impl CoalescingMap {
                             param_side_targets.insert(*arg);
                         }
                     }
-                    Value::Param { .. } => {
+                    Value::Param { .. }
                         // Param-side: block parameter passthrough.
-                        if can_coalesce_param_side(arg, destination, dest_live_in, cfg) {
+                        if can_coalesce_param_side(arg, destination, dest_live_in, cfg) => {
                             coalesced.insert(*param, *arg);
                             param_side_targets.insert(*arg);
                         }
-                    }
                     _ => {} // constants, globals — skip
                 }
             }

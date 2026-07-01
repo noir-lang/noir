@@ -1,0 +1,6 @@
+[package]
+name = "licm_bug_inverted_loop"
+type = "bin"
+authors = [""]
+
+[dependencies]

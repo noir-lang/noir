@@ -3,7 +3,10 @@
 <head>
 <meta charset="UTF-8">
 <link rel="stylesheet" href="../../styles.css">
+<script>window.docRoot = "../../";</script>
+<script defer src="../../search-index.js"></script>
 <script defer src="../../nargo_doc.js"></script>
+<script defer src="../../search.js"></script>
 <title>Function verify_signature documentation</title>
 </head>
 <body>
@@ -16,7 +19,7 @@
 <h1><a href="../../index.html">noir_stdlib</a></h1>
 <div><a href="../../all.html">All items</a></div>
 <h2 id="crate-name"><a href="../index.html">std</a></h2>
-<div id="crate-version">1.0.0-beta.20</div>
+<div id="crate-version">1.0.0-beta.22</div>
 <h2>In module ecdsa_secp256k1</h2>
 <h3>Functions</h3><ul class="item-list">
 <li><a href="fn.verify_signature.html">verify_signature</a></div></li>
@@ -24,7 +27,13 @@
 </nav>
 <main>
 <div><a href="../../index.html">noir_stdlib</a> - <a href="../index.html">std</a>::<a href="index.html">ecdsa_secp256k1</a></div>
-<h1>Function <span class="fn">verify_signature</span></h1>
+<div class="heading-row">
+<h1 class="heading-content">Function <span class="fn">verify_signature</span></h1>
+<button id="search-toggle" type="button">Search</button>
+</div>
+<input id="search-input" type="search" placeholder="Type 's' or '/' to search" autocomplete="off" spellcheck="false" aria-label="Search" hidden>
+<div id="search-results" hidden></div>
+<div id="page-content">
 <pre><code>pub fn verify_signature(
     public_key_x: [<a href="../../std/primitive.u8.html" class="primitive">u8</a>; 32],
     public_key_y: [<a href="../../std/primitive.u8.html" class="primitive">u8</a>; 32],
@@ -53,6 +62,7 @@ For more context regarding malleability you can reference BIP 0062.</li>
 </li>
 <li>output: false for failure and true for success</li>
 </ul>
+</div>
 </div>
 </main>
 </span>

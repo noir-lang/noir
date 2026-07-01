@@ -71,14 +71,17 @@ it(`smart contract can verify a recursive proof`, async function () {
 
   // Smart contract verification
 
-  // Link the ZKTranscriptLib
+  // Link the ZKTranscriptLib and RelationsLib
   const { ethers } = await network.connect();
   const ZKTranscriptLib = await ethers.deployContract('contracts/recursion.sol:ZKTranscriptLib');
   await ZKTranscriptLib.waitForDeployment();
+  const RelationsLib = await ethers.deployContract('contracts/recursion.sol:RelationsLib');
+  await RelationsLib.waitForDeployment();
 
   const contract = await ethers.deployContract('contracts/recursion.sol:HonkVerifier', [], {
     libraries: {
       ZKTranscriptLib: await ZKTranscriptLib.getAddress(),
+      RelationsLib: await RelationsLib.getAddress(),
     },
   });
   const result = await contract.verify.staticCall(recursiveProof, recursivePublicInputs);

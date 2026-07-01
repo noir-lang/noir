@@ -24,7 +24,7 @@ impl ToField2 for Foo {
 }
 
 impl Foo {
-    fn to_field(self) -> Field {
+    pub fn to_field(self) -> Field {
         self.x
     }
 }

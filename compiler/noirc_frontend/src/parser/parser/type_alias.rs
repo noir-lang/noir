@@ -9,7 +9,7 @@ use crate::{
 use super::Parser;
 
 impl Parser<'_> {
-    /// TypeAlias = 'type' identifier Generics '=' Type ';'
+    /// `TypeAlias` = 'type' identifier Generics '=' Type ';'
     pub(crate) fn parse_type_alias(
         &mut self,
         visibility: ItemVisibility,
@@ -92,10 +92,8 @@ mod tests {
         ast::{TypeAlias, UnresolvedType, UnresolvedTypeData},
         parse_program_with_dummy_file,
         parser::{
-            ItemKind, ParserErrorReason,
-            parser::tests::{
-                expect_no_errors, get_single_error_reason, get_source_with_error_span,
-            },
+            ItemKind,
+            parser::tests::{check_errors, expect_no_errors},
         },
     };
 
@@ -164,18 +162,14 @@ mod tests {
     fn parse_numeric_type_alias_without_type() {
         let src = "
         type Foo = 1 + 2;
-                   ^^^^^
+                   ^^^^^ type expression is not allowed for type aliases (Is this a numeric type alias? If so, the numeric type must be specified with `: <type>`
         ";
-        let (src, span) = get_source_with_error_span(src);
-        let (mut module, errors) = parse_program_with_dummy_file(&src);
-        assert!(!errors.is_empty());
+        let mut module = check_errors(src, |parser| parser.parse_program());
         assert_eq!(module.items.len(), 1);
         let item = module.items.remove(0);
         let ItemKind::TypeAlias(alias) = item.kind else {
             panic!("Expected type alias");
         };
         assert_eq!(alias.name.to_string(), "Foo");
-        let reason = get_single_error_reason(&errors, span);
-        assert!(matches!(reason, ParserErrorReason::UnexpectedTypeExpressionInTypeAlias));
     }
 }

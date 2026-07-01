@@ -238,13 +238,6 @@ mod tests {
         });
     }
 
-    fn execution_panic(mut nargo: Command) {
-        nargo
-            .assert()
-            .failure()
-            .stderr(predicate::str::contains("The application panicked (crashed)."));
-    }
-
     fn noir_test_success(mut nargo: Command) {
         nargo.assert().success();
     }
@@ -473,6 +466,20 @@ mod tests {
 
         execution_failure(nargo, test_program_dir, Runtime::Comptime);
 
+        drop(target_dir);
+    }
+
+    fn nargo_test_comptime(test_program_dir: PathBuf) {
+        let (mut nargo, target_dir) = setup_nargo(&test_program_dir);
+        nargo.arg("test").arg("--force-comptime");
+        noir_test_success(nargo);
+        drop(target_dir);
+    }
+
+    fn nargo_test_comptime_expect_failure(test_program_dir: PathBuf) {
+        let (mut nargo, target_dir) = setup_nargo(&test_program_dir);
+        nargo.arg("test").arg("--force-comptime");
+        noir_test_failure(nargo);
         drop(target_dir);
     }
 

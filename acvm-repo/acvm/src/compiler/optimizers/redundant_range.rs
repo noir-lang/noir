@@ -1,4 +1,4 @@
-//! The redundant range constraint optimization pass aims to remove any [BlackBoxFunc::Range] opcodes
+//! The redundant range constraint optimization pass aims to remove any `BlackBoxFunc::Range` opcodes
 //! which doesn't result in additional restrictions on the values of witnesses.
 //!
 //! Suppose we had the following pseudo-code:
@@ -19,7 +19,7 @@
 //!
 //! # Implicit range constraints
 //!
-//! We also consider implicit range constraints on witnesses - constraints other than [BlackBoxFunc::Range]
+//! We also consider implicit range constraints on witnesses - constraints other than `BlackBoxFunc::Range`
 //! which limit the size of a witness.
 //!
 //! ## Constant assignments
@@ -71,7 +71,7 @@ use std::collections::{BTreeMap, BTreeSet, HashMap};
 
 /// Information gathered about witnesses which are subject to range constraints.
 struct RangeInfo {
-    /// Opcode positions which updated this RangeInfo, i.e
+    /// Opcode positions which updated this `RangeInfo`, i.e
     /// at which stricter bit size information becomes available.
     switch_points: BTreeSet<usize>,
     /// Strictest constraint on bit size so far.
@@ -92,6 +92,7 @@ pub(crate) struct RangeOptimizer<'a, F: AcirField> {
 impl<'a, F: AcirField> RangeOptimizer<'a, F> {
     /// Creates a new `RangeOptimizer` by collecting all known range
     /// constraints from `Circuit`.
+    #[tracing::instrument(level = "trace", name = "redundant_range_collect", skip_all)]
     pub(crate) fn new(
         circuit: Circuit<F>,
         brillig_side_effects: &'a BTreeMap<BrilligFunctionId, bool>,
@@ -161,12 +162,10 @@ impl<'a, F: AcirField> RangeOptimizer<'a, F> {
                 }
 
                 Opcode::MemoryOp { block_id, op: MemOp { index, .. }, .. } => {
-                    if let Some(witness) = index.to_witness() {
-                        let num_bits = *memory_block_lengths_bit_size
-                            .get(block_id)
-                            .expect("memory must be initialized before any reads/writes");
-                        update_witness_entry(&mut infos, witness, num_bits, true, idx);
-                    }
+                    let num_bits = *memory_block_lengths_bit_size
+                        .get(block_id)
+                        .expect("memory must be initialized before any reads/writes");
+                    update_witness_entry(&mut infos, *index, num_bits, true, idx);
                 }
 
                 // Barretenberg implementation of the AND and XOR blackbox constrain the inputs and output to be 'num_bit' bits
@@ -185,11 +184,11 @@ impl<'a, F: AcirField> RangeOptimizer<'a, F> {
                     scalars,
                     predicate,
                     ..
-                }) => {
+                })
                     // When predicate is 1, the scalar inputs must be valid Grumpkin scalars.
                     // Barretenberg implementation of the blackbox will implicitly constrain them to not overflow the Grumpkin scalar field modulus,
                     // so we can assume that the low scalars are constrained to 128 bits and the high scalars to 126 bits.
-                    if predicate == &FunctionInput::Constant(F::one()) {
+                    if predicate == &FunctionInput::Constant(F::one()) => {
                         let mut scalar_iters = scalars.iter();
                         let mut lo = scalar_iters.next();
                         while lo.is_some() {
@@ -206,7 +205,6 @@ impl<'a, F: AcirField> RangeOptimizer<'a, F> {
                             lo = scalar_iters.next();
                         }
                     }
-                }
 
                 _ => {}
             }
@@ -224,6 +222,7 @@ impl<'a, F: AcirField> RangeOptimizer<'a, F> {
     /// a 'side-effect' opcode (i.e a Brillig call).
     /// As a result, we simply do a backward pass on the opcodes, so that the last Brillig call
     /// is known before reaching a RANGE opcode.
+    #[tracing::instrument(level = "trace", name = "redundant_range_replace", skip_all)]
     pub(crate) fn replace_redundant_ranges(
         self,
         order_list: Vec<usize>,
@@ -246,10 +245,16 @@ impl<'a, F: AcirField> RangeOptimizer<'a, F> {
                     }
                     None
                 }
+                Opcode::Call { .. } => {
+                    // A call into a separate ACIR circuit can transitively execute side-effecting
+                    // Brillig, so it must act as a side-effect boundary like a direct Brillig call.
+                    next_side_effect = idx;
+                    None
+                }
                 _ => None,
             }) else {
                 // If its not the range opcode, add it to the opcode list and continue.
-                optimized_opcodes.push(opcode.clone());
+                optimized_opcodes.push(opcode);
                 new_order_list.push(order_list[idx]);
                 continue;
             };
@@ -273,7 +278,7 @@ impl<'a, F: AcirField> RangeOptimizer<'a, F> {
             }
 
             new_order_list.push(order_list[idx]);
-            optimized_opcodes.push(opcode.clone());
+            optimized_opcodes.push(opcode);
         }
 
         // Restore forward order.
@@ -310,6 +315,7 @@ mod tests {
         circuit::{Circuit, brillig::BrilligFunctionId},
         native_types::{Expression, Witness},
     };
+    use test_case::test_case;
 
     #[test]
     fn correctly_calculates_memory_block_implied_max_bits() {
@@ -536,7 +542,7 @@ mod tests {
             circuit.opcodes.iter().enumerate().map(|(i, _)| i).collect();
 
         // Consider the Brillig function to have a side effect.
-        let brillig_side_effects = BTreeMap::from_iter(vec![(BrilligFunctionId(0), true)]);
+        let brillig_side_effects = BTreeMap::from_iter(vec![(BrilligFunctionId::new(0), true)]);
 
         let optimizer = RangeOptimizer::new(circuit, &brillig_side_effects);
         let (optimized_circuit, _) =
@@ -560,6 +566,41 @@ mod tests {
         let (double_optimized_circuit, _) =
             optimizer.replace_redundant_ranges(acir_opcode_positions);
         assert_eq!(optimized_circuit.to_string(), double_optimized_circuit.to_string());
+    }
+
+    #[test]
+    fn acir_call_is_a_side_effect_boundary() {
+        // An `Opcode::Call` dispatches into a separate ACIR circuit that can transitively run
+        // side-effecting Brillig. Just like a `BrilligCall`, it must act as a side-effect boundary:
+        // a caller-side explicit RANGE before the call must not be removed even when a later
+        // implied constraint (here `ASSERT w1 = 0`) would otherwise make it redundant.
+        let src = "
+        private parameters: [w1, w2]
+        public parameters: []
+        return values: []
+        BLACKBOX::RANGE input: w1, bits: 32
+        CALL func: 1, predicate: 1, inputs: [w2], outputs: []
+        ASSERT w1 = 0
+        ";
+        let circuit = Circuit::from_str(src).unwrap();
+        assert!(CircuitSimulator::check_circuit(&circuit).is_none());
+
+        let acir_opcode_positions: Vec<usize> =
+            circuit.opcodes.iter().enumerate().map(|(i, _)| i).collect();
+        let brillig_side_effects = BTreeMap::new();
+        let optimizer = RangeOptimizer::new(circuit, &brillig_side_effects);
+        let (optimized_circuit, _) = optimizer.replace_redundant_ranges(acir_opcode_positions);
+        assert!(CircuitSimulator::check_circuit(&optimized_circuit).is_none());
+
+        // The range must be retained before the `CALL`.
+        assert_circuit_snapshot!(optimized_circuit, @r"
+        private parameters: [w1, w2]
+        public parameters: []
+        return values: []
+        BLACKBOX::RANGE input: w1, bits: 32
+        CALL func: 1, predicate: 1, inputs: [w2], outputs: []
+        ASSERT w1 = 0
+        ");
     }
 
     #[test]
@@ -649,7 +690,7 @@ mod tests {
         return values: []
         BLACKBOX::RANGE input: w1, bits: 128
         BLACKBOX::RANGE input: w2, bits: 128
-        BLACKBOX::MULTI_SCALAR_MUL points: [w3, w4, 1], scalars: [w1, w2], predicate: 1, outputs: [w5, w6, w7]
+        BLACKBOX::MULTI_SCALAR_MUL points: [w3, w4], scalars: [w1, w2], predicate: 1, outputs: [w5, w6]
         ";
         let circuit = Circuit::from_str(src).unwrap();
         assert!(CircuitSimulator::check_circuit(&circuit).is_none());
@@ -675,7 +716,7 @@ mod tests {
         private parameters: [w1, w2, w3, w4, w5, w6]
         public parameters: []
         return values: []
-        BLACKBOX::MULTI_SCALAR_MUL points: [w3, w4, 1], scalars: [w1, w2], predicate: 1, outputs: [w5, w6, w7]
+        BLACKBOX::MULTI_SCALAR_MUL points: [w3, w4], scalars: [w1, w2], predicate: 1, outputs: [w5, w6]
         ");
     }
 
@@ -688,7 +729,7 @@ mod tests {
         return values: []
         BLACKBOX::RANGE input: w1, bits: 64
         BLACKBOX::RANGE input: w2, bits: 64
-        BLACKBOX::MULTI_SCALAR_MUL points: [w3, w4, 1], scalars: [w1, w2], predicate: 1, outputs: [w5, w6, w7]
+        BLACKBOX::MULTI_SCALAR_MUL points: [w3, w4], scalars: [w1, w2], predicate: 1, outputs: [w5, w6]
         ";
         let circuit = Circuit::from_str(src).unwrap();
         assert!(CircuitSimulator::check_circuit(&circuit).is_none());
@@ -714,7 +755,52 @@ mod tests {
         return values: []
         BLACKBOX::RANGE input: w1, bits: 64
         BLACKBOX::RANGE input: w2, bits: 64
-        BLACKBOX::MULTI_SCALAR_MUL points: [w3, w4, 1], scalars: [w1, w2], predicate: 1, outputs: [w5, w6, w7]
+        BLACKBOX::MULTI_SCALAR_MUL points: [w3, w4], scalars: [w1, w2], predicate: 1, outputs: [w5, w6]
         ");
+    }
+
+    // A MultiScalarMul only implicitly range-constrains its scalars when it is enabled, i.e. when
+    // the predicate is the constant 1. A constant-0 predicate disables the opcode, and a witness
+    // predicate can be assigned 0 by the prover; in both cases barretenberg imposes no constraint
+    // on the scalars, so the optimizer must not treat the MSM as a source of implied ranges and the
+    // explicit RANGE opcodes must survive.
+    #[test_case("0"; "constant zero predicate")]
+    #[test_case("w7"; "witness predicate")]
+    fn msm_disabled_predicate_retains_explicit_range(predicate: &str) {
+        // `w7` is declared regardless; an unused private parameter is harmless for the constant case.
+        let src = format!(
+            "
+            private parameters: [w1, w2, w3, w4, w5, w6, w7]
+            public parameters: []
+            return values: []
+            BLACKBOX::RANGE input: w1, bits: 128
+            BLACKBOX::RANGE input: w2, bits: 128
+            BLACKBOX::MULTI_SCALAR_MUL points: [w3, w4], scalars: [w1, w2], predicate: {predicate}, outputs: [w5, w6]
+            "
+        );
+        let circuit = Circuit::from_str(&src).unwrap();
+        assert!(CircuitSimulator::check_circuit(&circuit).is_none());
+
+        let acir_opcode_positions = circuit.opcodes.iter().enumerate().map(|(i, _)| i).collect();
+        let brillig_side_effects = BTreeMap::new();
+        let optimizer = RangeOptimizer::new(circuit, &brillig_side_effects);
+
+        // The disabled MSM must not contribute any implied range; the constraint on each scalar must
+        // come from its explicit RANGE opcode.
+        for scalar in [Witness(1), Witness(2)] {
+            let info = optimizer.infos.get(&scalar).expect("scalar should have range info");
+            assert_eq!(info.num_bits, 128, "only the explicit 128-bit range should apply");
+            assert!(
+                !info.is_implied,
+                "constraint should come from the explicit RANGE, not the MSM"
+            );
+        }
+
+        let (optimized_circuit, _) = optimizer.replace_redundant_ranges(acir_opcode_positions);
+        assert!(CircuitSimulator::check_circuit(&optimized_circuit).is_none());
+
+        // Nothing is removed: the optimized circuit is identical to the input.
+        let expected = Circuit::<FieldElement>::from_str(&src).unwrap().to_string();
+        assert_eq!(optimized_circuit.to_string(), expected, "no opcode should be removed");
     }
 }

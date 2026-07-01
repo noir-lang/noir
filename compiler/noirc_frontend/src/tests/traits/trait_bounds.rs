@@ -1138,7 +1138,7 @@ fn associated_type_as_generic_trait_param_spaced() {
     assert_no_errors(src);
 }
 
-/// Regression test for https://github.com/noir-lang/noir/issues/11546
+/// Regression test for <https://github.com/noir-lang/noir/issues/11546>
 #[test]
 fn where_clause_on_associated_type_shorthand_ignored() {
     let src = r#"
@@ -1184,7 +1184,7 @@ fn where_clause_on_associated_type_shorthand_ignored() {
     assert_no_errors(src);
 }
 
-/// Regression test for https://github.com/noir-lang/noir/issues/11546
+/// Regression test for <https://github.com/noir-lang/noir/issues/11546>
 #[test]
 fn where_clause_on_associated_type_shorthand_in_function() {
     let src = r#"
@@ -1225,7 +1225,7 @@ fn where_clause_on_associated_type_shorthand_in_function() {
     assert_no_errors(src);
 }
 
-/// Regression for https://github.com/noir-lang/noir/issues/11546
+/// Regression for <https://github.com/noir-lang/noir/issues/11546>
 #[test]
 fn multiple_associated_types_in_where_clause() {
     let src = r#"
@@ -1277,7 +1277,7 @@ fn multiple_associated_types_in_where_clause() {
     assert_no_errors(src);
 }
 
-/// Regression test for https://github.com/noir-lang/noir/issues/11546
+/// Regression test for <https://github.com/noir-lang/noir/issues/11546>
 #[test]
 fn where_clause_on_associated_type_of_generic_in_trait_impl() {
     let src = r#"
@@ -1327,7 +1327,7 @@ fn where_clause_on_associated_type_of_generic_in_trait_impl() {
     assert_no_errors(src);
 }
 
-/// Regression test for https://github.com/noir-lang/noir/issues/11553
+/// Regression test for <https://github.com/noir-lang/noir/issues/11553>
 #[test]
 fn associated_type_as_generic_trait_param_with_nested_angle_brackets() {
     // Bug: Parser fails on << in type position: Store<<T as HasKey>::Key>
@@ -1368,4 +1368,214 @@ fn associated_type_as_generic_trait_param_with_nested_angle_brackets() {
     }
     "#;
     assert_no_errors(src);
+}
+
+#[test]
+fn no_matching_impl_for_associated_type_bound() {
+    let src = r#"
+    trait Foo {
+        type E: Bar;
+    }
+
+    trait Bar {
+        fn bar_method(self);
+    }
+
+    impl Foo for i32 {
+        type E = i32;
+             ^ No matching impl found for `i32: Bar`
+             ~ No impl for `i32: Bar`
+    }
+
+    fn main() {}
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn no_matching_impl_for_recursive_generic_where_clause() {
+    let src = r#"
+    fn main() {
+        let a: [[[[Field; 2]; 2]; 2]; 2] = [[[[1, 2], [3, 4]], [[5, 6], [7, 8]]], [[[1, 2], [3, 4]], [[5, 6], [7, 8]]]];
+        assert(a.my_eq(a));
+               ^^^^^^^ No matching impl found for `T: MyEq`
+               ~~~~~~~ No impl for `T: MyEq`
+    }
+
+    trait MyEq {
+        fn my_eq(self, other: Self) -> bool;
+    }
+
+    impl<T> MyEq for [T; 2] where T: MyEq {
+        fn my_eq(self, other: Self) -> bool {
+            self[0].my_eq(other[0])
+              & self[0].my_eq(other[0])
+        }
+    }
+
+    impl MyEq for u32 {
+        fn my_eq(self, other: Self) -> bool {
+            self == other
+        }
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn no_matching_impl_for_generic_returned_from_trait_method() {
+    let src = r#"
+    struct Wrapper<T> {
+        _value: T,
+    }
+
+    impl<T> Wrapper<T> {
+        fn new(value: T) -> Self {
+            Self { _value: value }
+        }
+
+        fn unwrap(self) -> T {
+            self._value
+        }
+    }
+
+    trait MyTrait {
+        fn new() -> Self;
+    }
+
+    struct MyType {}
+
+    impl MyTrait for MyType {
+        fn new() -> Self {
+            MyType {}
+        }
+    }
+
+    fn foo<T>() -> T where T: MyTrait {
+        MyTrait::new()
+    }
+
+    struct BadType {}
+
+    fn concise_regression() -> BadType {
+        Wrapper::new(foo()).unwrap()
+                     ^^^ No matching impl found for `BadType: MyTrait`
+                     ~~~ No impl for `BadType: MyTrait`
+    }
+
+    fn main() {
+        let _ = concise_regression();
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn no_matching_impl_for_inner_impl_constraint() {
+    let src = r#"
+    trait Serialize<let N: u32> {
+        fn serialize(self) -> [Field; N];
+    }
+
+    trait ToField {
+        fn to_field(self) -> Field;
+    }
+
+    fn process_array<let N: u32>(array: [Field; N]) -> Field {
+        array[0]
+    }
+
+    fn serialize_thing<A, let N: u32>(thing: A) -> [Field; N]
+    where
+        A: Serialize<N>,
+    {
+        thing.serialize()
+    }
+
+    struct MyType<T> {
+        a: T,
+        b: T,
+    }
+
+    impl<T> Serialize<2> for MyType<T>
+    where
+        T: ToField,
+    {
+        fn serialize(self) -> [Field; 2] {
+            [self.a.to_field(), self.b.to_field()]
+        }
+    }
+
+    impl<T> MyType<T> {
+        pub fn do_thing_with_serialization_with_extra_steps(self) -> Field {
+            process_array(serialize_thing(self))
+            ^^^^^^^^^^^^^ Type annotation needed
+            ~~~~~~~~~~~~~ Could not determine the value of the generic argument `N` declared on the function `process_array`
+                          ^^^^^^^^^^^^^^^ No matching impl found for `T: ToField`
+                          ~~~~~~~~~~~~~~~ No impl for `T: ToField`
+                          ^^^^^^^^^^^^^^^ Type annotation needed
+                          ~~~~~~~~~~~~~~~ Could not determine the value of the generic argument `N` declared on the function `serialize_thing`
+        }
+    }
+
+    fn main() {
+        let _ = MyType { a: 1, b: 1 };
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn regression_8485_does_not_panic() {
+    let src = r#"
+    pub trait Deserialize {
+        let N: u32;
+
+        fn deserialize(fields: [Field; Self::N]) -> Self;
+    }
+
+    pub struct PrivateCallInterface<T> {
+      return_type: T
+    }
+
+    pub struct PrivateVoidCallInterface {
+      return_type: ()
+    }
+
+    trait SuperCallInterface where Self::T: Deserialize<N = Self::M> {
+        type T;
+        let M: u32;
+
+        fn call(self) -> Self::T;
+    }
+
+    impl<T> SuperCallInterface for PrivateCallInterface<T>
+        where T: Deserialize
+    {
+        type T = T;
+        let M: u32 = <T as Deserialize>::N;
+
+        fn call(self) -> T {
+            let preimage: [Field; Self::M] = zeroed();
+
+            let returns: T = T::deserialize(preimage);
+            returns
+        }
+    }
+
+    impl SuperCallInterface<()> for PrivateVoidCallInterface {
+        let M: u32 = 0;
+
+        fn call(self) -> () {
+            ()
+        }
+    }
+
+    unconstrained fn main() {
+      let _should_be_field = PrivateCallInterface {return_type: 1}.call();
+    }
+    "#;
+    let full_src = format!("{}\n\n{}", crate::test_utils::stdlib_src::ZEROED, src);
+    let errors = crate::tests::get_program_errors(&full_src);
+    assert!(!errors.is_empty(), "expected regression_8485 to produce errors without panicking");
 }

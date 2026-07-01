@@ -26,12 +26,10 @@ use crate::BlackBoxResolutionError;
 ///
 /// Returns `true` if the signature is valid, `false` otherwise.
 ///
-/// The function returns an error if the following is not true:
-/// - The signature components `r` and `s` must be non-zero
-/// - The public key point must lie on the Secp256r1 curve
-///
-/// The function do not validate a signature if:
+/// The function does not validate a signature if any of the following are true:
 /// - The signature is not "low S" normalized per BIP 0062 to prevent malleability
+/// - The signature components `r` and `s` is zero
+/// - The public key point is not on the Secp256r1 curve
 ///
 /// If `hashed_msg >= p256::NistP256::ORDER`, the message hash is reduced modulo the curve
 /// order per ECDSA specification (SEC 1, section 4.1.4).
@@ -44,10 +42,8 @@ pub(super) fn verify_signature(
     // Convert the inputs into k256 data structures
     let Ok(signature) = Signature::try_from(signature.as_slice()) else {
         // Signature `r` and `s` are forbidden from being zero.
-        return Err(BlackBoxResolutionError::Failed(
-            BlackBoxFunc::EcdsaSecp256r1,
-            "Signature provided for ECDSA verification is zero".to_string(),
-        ));
+        log::warn!("Signature provided for ECDSA verification is zero");
+        return Ok(false);
     };
 
     let point = Sec1Point::<p256::NistP256>::from_affine_coordinates(
@@ -59,10 +55,8 @@ pub(super) fn verify_signature(
     let pubkey = PublicKey::from_sec1_point(&point);
     if pubkey.is_none().into() {
         // Public key must sit on the Secp256r1 curve.
-        return Err(BlackBoxResolutionError::Failed(
-            BlackBoxFunc::EcdsaSecp256r1,
-            "Invalid public key provided for ECDSA verification".to_string(),
-        ));
+        log::warn!("Invalid public key provided for ECDSA verification");
+        return Ok(false);
     }
     let pubkey = pubkey.unwrap();
 
@@ -149,44 +143,47 @@ mod secp256r1_tests {
     }
 
     #[test]
-    #[should_panic]
-    fn rejects_signature_that_does_not_have_the_full_y_coordinate() {
+    fn signature_does_not_verify_when_does_not_have_the_full_y_coordinate() {
         let mut pub_key_y_bytes = [0u8; 32];
         pub_key_y_bytes[31] = PUB_KEY_Y[31];
-        verify_signature(&HASHED_MESSAGE, &PUB_KEY_X, &pub_key_y_bytes, &SIGNATURE).unwrap();
+        let result =
+            verify_signature(&HASHED_MESSAGE, &PUB_KEY_X, &pub_key_y_bytes, &SIGNATURE).unwrap();
+        assert!(!result);
     }
 
     #[test]
-    #[should_panic]
-    fn rejects_invalid_signature() {
+    fn signature_does_not_verify_on_invalid_signature() {
         // This signature is invalid as ECDSA specifies that `r` and `s` must be non-zero.
         let invalid_signature: [u8; 64] = [0x00; 64];
-        verify_signature(&HASHED_MESSAGE, &PUB_KEY_X, &PUB_KEY_Y, &invalid_signature).unwrap();
+        let result =
+            verify_signature(&HASHED_MESSAGE, &PUB_KEY_X, &PUB_KEY_Y, &invalid_signature).unwrap();
+        assert!(!result);
     }
 
     #[test]
-    #[should_panic]
-    fn rejects_invalid_public_key() {
+    fn signature_does_not_verify_on_invalid_public_key() {
         let invalid_pub_key_x: [u8; 32] = [0xff; 32];
         let invalid_pub_key_y: [u8; 32] = [0xff; 32];
-        verify_signature(&HASHED_MESSAGE, &invalid_pub_key_x, &invalid_pub_key_y, &SIGNATURE)
-            .unwrap();
+        let result =
+            verify_signature(&HASHED_MESSAGE, &invalid_pub_key_x, &invalid_pub_key_y, &SIGNATURE)
+                .unwrap();
+        assert!(!result);
     }
 
     #[test]
-    fn does_not_panic_when_hashed_msg_exceeds_curve_order() {
+    fn signature_does_not_verify_when_hashed_msg_exceeds_curve_order() {
         // All 0xFF bytes is larger than the secp256r1 curve order
         // (0xFFFFFFFF00000000FFFFFFFFFFFFFFFFBCE6FAADA7179E84F3B9CAC2FC632551).
         // The function should reduce it modulo the order, not panic.
         let oversized_hash: [u8; 32] = [0xff; 32];
 
         // The result will be false (signature doesn't match the reduced hash), but no panic.
-        let result = verify_signature(&oversized_hash, &PUB_KEY_X, &PUB_KEY_Y, &SIGNATURE);
-        assert!(result.is_ok());
+        let result = verify_signature(&oversized_hash, &PUB_KEY_X, &PUB_KEY_Y, &SIGNATURE).unwrap();
+        assert!(!result);
     }
 
     #[test]
-    fn does_not_panic_when_hashed_msg_equals_curve_order() {
+    fn signature_does_not_verify_when_hashed_msg_equals_curve_order() {
         // The exact secp256r1 curve order.
         let curve_order: [u8; 32] = [
             0xFF, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
@@ -194,7 +191,7 @@ mod secp256r1_tests {
             0xFC, 0x63, 0x25, 0x51,
         ];
 
-        let result = verify_signature(&curve_order, &PUB_KEY_X, &PUB_KEY_Y, &SIGNATURE);
-        assert!(result.is_ok());
+        let result = verify_signature(&curve_order, &PUB_KEY_X, &PUB_KEY_Y, &SIGNATURE).unwrap();
+        assert!(!result);
     }
 }

@@ -152,6 +152,21 @@ fn brillig_to_bits() {
     ");
 }
 
+// `to_le_bits::<N>` requesting more limbs than the field is rejected at compile time.
+#[test]
+#[should_panic(expected = "ToRadix num_limbs")]
+fn brillig_to_bits_rejects_more_limbs_than_field_bits() {
+    let src = "
+    brillig(inline) fn foo f0 {
+      b0(v0: Field):
+        v1 = call to_le_bits(v0) -> [u1; 255]
+        return v1
+    }
+    ";
+
+    let _ = ssa_to_brillig_artifacts(src);
+}
+
 // Tests ToRadix intrinsic code-gen for Brillig.
 #[test]
 fn brillig_to_radix() {

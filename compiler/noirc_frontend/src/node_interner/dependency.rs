@@ -46,22 +46,22 @@ impl NodeInterner {
         self.add_dependency(dependent, DependencyId::DataType(dependency));
     }
 
-    /// Mark a [DependencyId] as being dependant on a [GlobalId].
+    /// Mark a [`DependencyId`] as being dependant on a [`GlobalId`].
     pub fn add_global_dependency(&mut self, dependent: DependencyId, dependency: GlobalId) {
         self.add_dependency(dependent, DependencyId::Global(dependency));
     }
 
-    /// Mark a [DependencyId] as being dependant on a [FuncId].
+    /// Mark a [`DependencyId`] as being dependant on a [`FuncId`].
     pub fn add_function_dependency(&mut self, dependent: DependencyId, dependency: FuncId) {
         self.add_dependency(dependent, DependencyId::Function(dependency));
     }
 
-    /// Mark a [DependencyId] as being dependant on a [TypeAliasId].
+    /// Mark a [`DependencyId`] as being dependant on a [`TypeAliasId`].
     pub fn add_type_alias_dependency(&mut self, dependent: DependencyId, dependency: TypeAliasId) {
         self.add_dependency(dependent, DependencyId::Alias(dependency));
     }
 
-    /// Mark a [DependencyId] as being dependant on a [TraitId].
+    /// Mark a [`DependencyId`] as being dependant on a [`TraitId`].
     pub fn add_trait_dependency(&mut self, dependent: DependencyId, dependency: TraitId) {
         self.add_dependency(dependent, DependencyId::Trait(dependency));
     }
@@ -108,9 +108,6 @@ impl NodeInterner {
                 }
                 DependencyId::Alias(alias_id) => {
                     let alias = self.get_type_alias(alias_id);
-                    // If type aliases form a cycle, break the cycle to prevent infinite recursion in later phases.
-                    alias.borrow_mut().typ = Type::Error;
-
                     let alias = alias.borrow();
                     push_error(alias.name.to_string(), scc, scc_index, alias.name.location());
                     true
@@ -154,6 +151,28 @@ impl NodeInterner {
         let strongly_connected_components = tarjan_scc(&self.dependency_graph);
         for scc in strongly_connected_components {
             if scc.len() > 1 {
+                // If any alias in this SCC has already had its body replaced with
+                // `Type::Error`, the cycle was broken (and reported) by an earlier
+                // pass. Skip the entire SCC to avoid duplicate diagnostics when
+                // `check_for_dependency_cycles` is called more than once.
+                let already_reported = scc.iter().any(|&node_index| {
+                    if let DependencyId::Alias(alias_id) = self.dependency_graph[node_index] {
+                        matches!(self.get_type_alias(alias_id).borrow().typ, Type::Error)
+                    } else {
+                        false
+                    }
+                });
+                if already_reported {
+                    continue;
+                }
+
+                // Break every alias in the cycle
+                for &node_index in &scc {
+                    if let DependencyId::Alias(alias_id) = self.dependency_graph[node_index] {
+                        self.get_type_alias(alias_id).borrow_mut().typ = Type::Error;
+                    }
+                }
+
                 // If a SCC contains a type, type alias, or global, it must be the only element in the SCC
                 for (scc_index, node_index) in scc.iter().enumerate() {
                     if push_error_from_index(&scc, scc_index, *node_index) {

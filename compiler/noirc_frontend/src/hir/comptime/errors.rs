@@ -11,8 +11,9 @@ use crate::{
     parser::ParserError,
     token::Token,
 };
-use acvm::{BlackBoxResolutionError, FieldElement};
+use acvm::BlackBoxResolutionError;
 use noirc_errors::{CustomDiagnostic, Location, call_stack::CallStack};
+use num_bigint::BigInt;
 
 /// The possible errors that can halt the interpreter.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -39,7 +40,7 @@ pub enum InterpreterError {
         location: Location,
     },
     IntegerOutOfRangeForType {
-        value: FieldElement,
+        value: BigInt,
         typ: Type,
         location: Location,
     },
@@ -218,6 +219,12 @@ pub enum InterpreterError {
     FailedToResolveTraitDefinition {
         location: Location,
     },
+    FunctionDefinitionMustBeAPath {
+        location: Location,
+    },
+    FailedToResolveFunctionDefinition {
+        location: Location,
+    },
     FunctionAlreadyResolved {
         location: Location,
     },
@@ -316,8 +323,23 @@ pub enum InterpreterError {
         module: String,
         location: Location,
     },
+    FunctionNotVisible {
+        name: String,
+        defining_module: String,
+        location: Location,
+    },
     CannotCastNumericToBool {
         typ: Type,
+        location: Location,
+    },
+    UserDefinedError {
+        message: String,
+        secondary: Option<String>,
+        location: Location,
+    },
+    UserDefinedWarning {
+        message: String,
+        secondary: Option<String>,
         location: Location,
     },
 
@@ -401,6 +423,8 @@ impl InterpreterError {
             | InterpreterError::ContinueNotInLoop { location, .. }
             | InterpreterError::TraitDefinitionMustBeAPath { location }
             | InterpreterError::FailedToResolveTraitDefinition { location }
+            | InterpreterError::FunctionDefinitionMustBeAPath { location }
+            | InterpreterError::FailedToResolveFunctionDefinition { location }
             | InterpreterError::FailedToResolveTraitBound { location, .. }
             | InterpreterError::FunctionAlreadyResolved { location, .. }
             | InterpreterError::MultipleMatchingImpls { location, .. }
@@ -423,7 +447,10 @@ impl InterpreterError {
             | InterpreterError::TraitImplResolutionRecursionLimitReached { location }
             | InterpreterError::AttributeRecursionLimitExceeded { location }
             | InterpreterError::CannotCastNumericToBool { location, .. }
-            | InterpreterError::CannotModifyExternalItem { location, .. } => *location,
+            | InterpreterError::CannotModifyExternalItem { location, .. }
+            | InterpreterError::FunctionNotVisible { location, .. } => *location,
+            InterpreterError::UserDefinedError { location, .. }
+            | InterpreterError::UserDefinedWarning { location, .. } => *location,
             InterpreterError::ExpectingOtherError(error) => error.location,
             InterpreterError::FailedToParseMacro { error, .. } => error.location(),
             InterpreterError::NoMatchingImplFound { error } => error.location,
@@ -595,7 +622,7 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
                 CustomDiagnostic::simple_error(msg, secondary, *location)
             }
             InterpreterError::IndexOutOfBounds { index, length, location } => {
-                let msg = format!("{index} is out of bounds for the array of length {length}");
+                let msg = format!("Index out of bounds: {index} is out of bounds for the array of length {length}");
                 CustomDiagnostic::simple_error(msg, String::new(), *location)
             }
             InterpreterError::ExpectedStructToHaveField { typ, field_name, location } => {
@@ -626,6 +653,8 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
                     "+" => "add",
                     "-" => "subtract",
                     "*" => "multiply",
+                    "/" => "divide",
+                    "%" => "calculate the remainder",
                     ">>" | "<<" => "bit-shift",
                     _ => operator,
                 };
@@ -747,6 +776,14 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
             }
             InterpreterError::FailedToResolveTraitDefinition { location } => {
                 let msg = "Failed to resolve to a trait definition".to_string();
+                CustomDiagnostic::simple_error(msg, String::new(), *location)
+            }
+            InterpreterError::FunctionDefinitionMustBeAPath { location } => {
+                let msg = "Function definition arguments must be a variable or path".to_string();
+                CustomDiagnostic::simple_error(msg, String::new(), *location)
+            }
+            InterpreterError::FailedToResolveFunctionDefinition { location } => {
+                let msg = "Failed to resolve to a function definition".to_string();
                 CustomDiagnostic::simple_error(msg, String::new(), *location)
             }
             InterpreterError::FunctionAlreadyResolved { location } => {
@@ -907,10 +944,23 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
                 let secondary = format!("`{item}` was declared in `{module}`");
                 CustomDiagnostic::simple_error(primary, secondary, *location)
             }
+            InterpreterError::FunctionNotVisible { name, defining_module, location } => {
+                let primary = format!("Function `{name}` is private");
+                let secondary = format!("`{name}` is declared in `{defining_module}`");
+                CustomDiagnostic::simple_error(primary, secondary, *location)
+            }
             InterpreterError::CannotCastNumericToBool { typ, location } => {
                 let primary = format!("Cannot cast `{typ}` as `bool`");
                 let secondary = "Compare with zero instead: ` != 0`".to_string();
                 CustomDiagnostic::simple_error(primary, secondary, *location)
+            }
+            InterpreterError::UserDefinedError { message, secondary, location } => {
+                let secondary = secondary.clone().unwrap_or_default();
+                CustomDiagnostic::simple_error(message.clone(), secondary, *location)
+            }
+            InterpreterError::UserDefinedWarning { message, secondary, location } => {
+                let secondary = secondary.clone().unwrap_or_default();
+                CustomDiagnostic::simple_warning(message.clone(), secondary, *location)
             },
         }
     }

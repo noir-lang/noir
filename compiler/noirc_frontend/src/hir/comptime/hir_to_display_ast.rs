@@ -11,6 +11,7 @@ use crate::ast::{
     UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression, UnsafeExpression, WhileStatement,
 };
 use crate::ast::{ConstrainExpression, Expression, Statement, StatementKind};
+use crate::hir::comptime::field_to_signed_bigint;
 use crate::hir_def::expr::{
     Constructor, HirArrayLiteral, HirBlockExpression, HirExpression, HirIdent, HirLiteral, HirMatch,
 };
@@ -64,6 +65,7 @@ impl HirStatement {
             }
             HirStatement::Semi(expr) => StatementKind::Semi(expr.to_display_ast(interner)),
             HirStatement::Error => StatementKind::Error,
+            HirStatement::TraitAssociatedConstant => StatementKind::Error,
             HirStatement::Comptime(statement) => {
                 StatementKind::Comptime(Box::new(statement.to_display_ast(interner)))
             }
@@ -104,14 +106,15 @@ impl HirExpression {
             HirExpression::Literal(HirLiteral::Integer(value)) => {
                 // Losing the integer suffix information here, but this should just be for
                 // displaying these values anyway
-                ExpressionKind::Literal(Literal::Integer(*value, None))
+                ExpressionKind::Literal(Literal::Integer(value.clone(), None))
             }
             HirExpression::Literal(HirLiteral::Str(bytes)) => {
                 // [String::from_utf8_lossy] here should be okay since this is only for display purposes
                 ExpressionKind::Literal(Literal::Str(String::from_utf8_lossy(bytes).into_owned()))
             }
             HirExpression::Literal(HirLiteral::FmtStr(fragments, _exprs, length)) => {
-                // TODO: Is throwing away the exprs here valid?
+                // Dropping the captures is lossless: interpolations are single identifiers whose
+                // names are already in `fragments`, and re-elaboration re-resolves them by name.
                 ExpressionKind::Literal(Literal::FmtStr(fragments.clone(), *length))
             }
             HirExpression::Literal(HirLiteral::Unit) => ExpressionKind::Literal(Literal::Unit),
@@ -280,7 +283,9 @@ impl Constructor {
             Constructor::True => ExpressionKind::Literal(Literal::Bool(true)),
             Constructor::False => ExpressionKind::Literal(Literal::Bool(false)),
             Constructor::Unit => ExpressionKind::Literal(Literal::Unit),
-            Constructor::Int(value) => ExpressionKind::Literal(Literal::Integer(*value, None)),
+            Constructor::Int(value) => {
+                ExpressionKind::Literal(Literal::Integer(field_to_signed_bigint(value), None))
+            }
             Constructor::Tuple(_) => ExpressionKind::Tuple(arguments),
             Constructor::Variant(typ, index) => {
                 let typ = typ.follow_bindings_shallow();
@@ -387,7 +392,7 @@ impl Type {
     fn to_display_ast(&self) -> UnresolvedType {
         let typ = match self {
             Type::FieldElement => UnresolvedTypeData::field(Location::dummy()),
-            Type::Array(length, element) => {
+            Type::Array(element, length) => {
                 let length = length.to_type_expression();
                 let element = Box::new(element.to_display_ast());
                 UnresolvedTypeData::Array(length, element)
@@ -473,7 +478,7 @@ impl Type {
             Type::Forall(_, typ) => return typ.to_display_ast(),
             Type::Constant(value) => {
                 UnresolvedTypeData::Expression(UnresolvedTypeExpression::Constant(
-                    value.as_field(),
+                    value.to_bigint(),
                     Some(value.integer_type_suffix()),
                     Location::dummy(),
                 ))
@@ -500,7 +505,7 @@ impl Type {
 
         match self.follow_bindings() {
             Type::Constant(length) => UnresolvedTypeExpression::Constant(
-                length.as_field(),
+                length.to_bigint(),
                 Some(length.integer_type_suffix()),
                 location,
             ),
@@ -535,8 +540,7 @@ impl HirLValue {
                 if *implicitly_added {
                     lvalue
                 } else {
-                    let lvalue = Box::new(lvalue);
-                    LValue::Dereference(lvalue, *location)
+                    LValue::Dereference(Box::new(lvalue.as_expression()), *location)
                 }
             }
             HirLValue::Error { location } => {
@@ -558,7 +562,7 @@ impl HirArrayLiteral {
                 let length = match length {
                     Type::Constant(length) => {
                         let suffix = Some(length.integer_type_suffix());
-                        let literal = Literal::Integer(length.as_field(), suffix);
+                        let literal = Literal::Integer(length.to_bigint(), suffix);
                         let expr_kind = ExpressionKind::Literal(literal);
                         Box::new(Expression::new(expr_kind, location))
                     }

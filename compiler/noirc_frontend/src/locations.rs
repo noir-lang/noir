@@ -21,7 +21,7 @@ pub(crate) struct LocationIndices {
 impl LocationIndices {
     pub(crate) fn add_location(&mut self, location: Location, node_index: PetGraphIndex) {
         // Some location spans are empty: maybe they are from fictitious nodes?
-        if location.span.start() == location.span.end() {
+        if location.span.is_empty() {
             return;
         }
 
@@ -152,12 +152,12 @@ impl NodeInterner {
         }
     }
 
-    /// In LSP mode, take note that a [ModuleId] was referenced at a [Location].
+    /// In LSP mode, take note that a [`ModuleId`] was referenced at a [Location].
     pub(crate) fn add_module_reference(&mut self, id: ModuleId, location: Location) {
         self.add_reference(ReferenceId::Module(id), location, false);
     }
 
-    /// In LSP mode, take note that a [TypeId] was referenced at a [Location].
+    /// In LSP mode, take note that a [`TypeId`] was referenced at a [Location].
     pub(crate) fn add_type_reference(
         &mut self,
         id: TypeId,
@@ -177,7 +177,7 @@ impl NodeInterner {
         self.add_reference(ReferenceId::StructMember(id, member_index), location, false);
     }
 
-    /// In LSP mode, take note that a [TraitId] was referenced at a [Location].
+    /// In LSP mode, take note that a [`TraitId`] was referenced at a [Location].
     pub(crate) fn add_trait_reference(
         &mut self,
         id: TraitId,
@@ -187,7 +187,7 @@ impl NodeInterner {
         self.add_reference(ReferenceId::Trait(id), location, is_self_type);
     }
 
-    /// In LSP mode, take note that a [TraitAssociatedTypeId] was referenced at a [Location].
+    /// In LSP mode, take note that a [`TraitAssociatedTypeId`] was referenced at a [Location].
     pub(crate) fn add_trait_associated_type_reference(
         &mut self,
         id: TraitAssociatedTypeId,
@@ -196,34 +196,34 @@ impl NodeInterner {
         self.add_reference(ReferenceId::TraitAssociatedType(id), location, false);
     }
 
-    /// In LSP mode, take note that a [TypeAliasId] was referenced at a [Location].
+    /// In LSP mode, take note that a [`TypeAliasId`] was referenced at a [Location].
     pub(crate) fn add_alias_reference(&mut self, id: TypeAliasId, location: Location) {
         self.add_reference(ReferenceId::Alias(id), location, false);
     }
 
-    /// In LSP mode, take note that a [FuncId] was referenced at a [Location].
+    /// In LSP mode, take note that a [`FuncId`] was referenced at a [Location].
     pub(crate) fn add_function_reference(&mut self, id: FuncId, location: Location) {
         self.add_reference(ReferenceId::Function(id), location, false);
     }
 
-    /// In LSP mode, take note that a [GlobalId] was referenced at a [Location].
+    /// In LSP mode, take note that a [`GlobalId`] was referenced at a [Location].
     pub(crate) fn add_global_reference(&mut self, id: GlobalId, location: Location) {
         self.add_reference(ReferenceId::Global(id), location, false);
     }
 
-    /// In LSP mode, take note that a [DefinitionId] was referenced at a [Location].
+    /// In LSP mode, take note that a [`DefinitionId`] was referenced at a [Location].
     pub(crate) fn add_local_reference(&mut self, id: DefinitionId, location: Location) {
         self.add_reference(ReferenceId::Local(id), location, false);
     }
 
-    /// In LSP mode, take note that a [ReferenceId] was referenced at a [Location].
+    /// In LSP mode, take note that a [`ReferenceId`] was referenced at a [Location].
     pub(crate) fn add_reference(
         &mut self,
         referenced: ReferenceId,
         location: Location,
         is_self_type: bool,
     ) {
-        if !self.lsp_mode {
+        if self.lsp_mode.is_none() {
             return;
         }
 
@@ -242,7 +242,7 @@ impl NodeInterner {
         referenced: ReferenceId,
         referenced_location: Location,
     ) {
-        if !self.lsp_mode {
+        if self.lsp_mode.is_none() {
             return;
         }
 
@@ -423,7 +423,7 @@ impl NodeInterner {
         visibility: ItemVisibility,
         defining_module: Option<ModuleId>,
     ) {
-        if !self.lsp_mode {
+        if self.lsp_mode.is_none() {
             return;
         }
 
@@ -437,13 +437,14 @@ impl NodeInterner {
     }
 
     /// Clears all location data associated with a given file.
-    /// Note that this only clears locations in `id_to_location` and `location_indices`.
+    /// Note that this only clears locations in `location_indices`.
+    /// This doesn't delete from `id_to_location` because IDs cannot be deleted from the interner,
+    /// so existing IDs should be able to be resolved to their location.
     /// For example, items that exist in the given `file` will still be present after
     /// this call.
     /// This is only used by LSP when a single file is changed, when just that file
     /// is type-checked again.
     pub(crate) fn clear_file_locations(&mut self, file: FileId) {
-        self.id_to_location.retain(|_index, location| location.file != file);
         self.location_indices.map_file_to_range.remove(&file);
     }
 }

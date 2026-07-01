@@ -1,0 +1,5 @@
+error: field-level `#[tag(...)]` is not allowed on a type with `#[tagged(via(...))]` — fields of a `via`-delegating type are wire-irrelevant; tag the wire DTO's fields instead
+  --> tests/compile_fail/via_with_field_tag.rs:16:5
+   |
+16 |     #[tag(0)] // not allowed: Public's fields don't reach the wire
+   |     ^^^^^^^^^

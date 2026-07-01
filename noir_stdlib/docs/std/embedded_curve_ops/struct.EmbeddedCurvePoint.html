@@ -3,7 +3,10 @@
 <head>
 <meta charset="UTF-8">
 <link rel="stylesheet" href="../../styles.css">
+<script>window.docRoot = "../../";</script>
+<script defer src="../../search-index.js"></script>
 <script defer src="../../nargo_doc.js"></script>
+<script defer src="../../search.js"></script>
 <title>Struct EmbeddedCurvePoint documentation</title>
 </head>
 <body>
@@ -16,7 +19,7 @@
 <h1><a href="../../index.html">noir_stdlib</a></h1>
 <div><a href="../../all.html">All items</a></div>
 <h2 id="crate-name"><a href="../index.html">std</a></h2>
-<div id="crate-version">1.0.0-beta.20</div>
+<div id="crate-version">1.0.0-beta.22</div>
 <h2><a href="#struct">Struct EmbeddedCurvePoint</a></h2>
 <h3>Fields</h3>
 <ul class="sidebar-list">
@@ -52,7 +55,13 @@
 </nav>
 <main>
 <div><a href="../../index.html">noir_stdlib</a> - <a href="../index.html">std</a>::<a href="index.html">embedded_curve_ops</a></div>
-<h1>Struct <span id="struct" class="struct">EmbeddedCurvePoint</span></h1>
+<div class="heading-row">
+<h1 class="heading-content">Struct <span id="struct" class="struct">EmbeddedCurvePoint</span></h1>
+<button id="search-toggle" type="button">Search</button>
+</div>
+<input id="search-input" type="search" placeholder="Type 's' or '/' to search" autocomplete="off" spellcheck="false" aria-label="Search" hidden>
+<div id="search-results" hidden></div>
+<div id="page-content">
 <pre><code>pub struct EmbeddedCurvePoint {
     pub x: <a href="../../std/primitive.Field.html" class="primitive">Field</a>,
     pub y: <a href="../../std/primitive.Field.html" class="primitive">Field</a>,
@@ -69,28 +78,28 @@ x and y denotes the Weierstrass coordinates of the point.</p>
 <div class="padded-description"></div><h2>Implementations</h2>
 <h3><code class="code-header">impl <a href="../../std/embedded_curve_ops/struct.EmbeddedCurvePoint.html" class="struct">EmbeddedCurvePoint</a></code></h3>
 
-<div class="padded-methods"><code id="new" class="code-header">pub fn <a href="#new"><span class="fn">new</span></a>(x: <a href="../../std/primitive.Field.html" class="primitive">Field</a>, y: <a href="../../std/primitive.Field.html" class="primitive">Field</a>) -> Self</code>
+<div class="padded-methods"><code id="new" class="code-header">pub fn <a href="#new" class="fn">new</a>(x: <a href="../../std/primitive.Field.html" class="primitive">Field</a>, y: <a href="../../std/primitive.Field.html" class="primitive">Field</a>) -> Self</code>
 
 <div class="padded-description"><div class="comments">
 <p>Create a new point using the provided (x, y) pair</p>
 </div>
-</div><code id="double" class="code-header">pub fn <a href="#double"><span class="fn">double</span></a>(self) -> Self</code>
+</div><code id="double" class="code-header">pub fn <a href="#double" class="fn">double</a>(self) -> Self</code>
 
 <div class="padded-description"><div class="comments">
 <p>Elliptic curve point doubling operation
 returns the doubled point of a point P, i.e P+P</p>
 </div>
-</div><code id="point_at_infinity" class="code-header">pub fn <a href="#point_at_infinity"><span class="fn">point_at_infinity</span></a>() -> Self</code>
+</div><code id="point_at_infinity" class="code-header">pub fn <a href="#point_at_infinity" class="fn">point_at_infinity</a>() -> Self</code>
 
 <div class="padded-description"><div class="comments">
 <p>Returns the null element of the curve; 'the point at infinity'</p>
 </div>
-</div><code id="generator" class="code-header">pub fn <a href="#generator"><span class="fn">generator</span></a>() -> Self</code>
+</div><code id="generator" class="code-header">pub fn <a href="#generator" class="fn">generator</a>() -> Self</code>
 
 <div class="padded-description"><div class="comments">
 <p>Returns the curve's generator point.</p>
 </div>
-</div><code id="is_infinite" class="code-header">pub fn <a href="#is_infinite"><span class="fn">is_infinite</span></a>(self) -> <a href="../../std/primitive.bool.html" class="primitive">bool</a></code>
+</div><code id="is_infinite" class="code-header">pub fn <a href="#is_infinite" class="fn">is_infinite</a>(self) -> <a href="../../std/primitive.bool.html" class="primitive">bool</a></code>
 
 <div class="padded-description"><div class="comments">
 <p>True if this point is the point at infinity</p>
@@ -131,7 +140,8 @@ If the point is at infinity, then the result is also at infinity.</p>
 <div class="padded-description"><div class="comments">
 <p>Points subtraction operation, using addition and negation</p>
 </div>
-</div></div></main>
+</div></div></div>
+</main>
 </span>
 </body>
 </html>

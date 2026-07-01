@@ -1,0 +1,46 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+use std::default::Default;
+
+struct Log<let N: u32> {
+    fields: [Field; N],
+}
+
+impl<let N: u32> Default for Log<N> {
+    fn default() -> Self {
+        Self { fields: <[Field; N] as Default>::default() }
+    }
+}
+
+struct Wrapper {
+    log: Log<2>,
+}
+
+impl Default for Wrapper {
+    fn default() -> Self {
+        Self { log: <Log<2> as Default>::default() }
+    }
+}
+
+struct Bundle {
+    small: [Log<1>; 1],
+    wrapped: [Wrapper; 1],
+}
+
+impl Default for Bundle {
+    fn default() -> Self {
+        Self {
+            small: <[Log<1>; 1] as Default>::default(),
+            wrapped: <[Wrapper; 1] as Default>::default(),
+        }
+    }
+}
+
+fn main(input: Field) -> pub Field {
+    let mut b: Bundle = <Bundle as Default>::default();
+    b.wrapped[0_u32].log.fields[0_u32] = input;
+    (b.wrapped[0_u32].log.fields[0_u32] + b.wrapped[0_u32].log.fields[1_u32])
+        + b.small[0_u32].fields[0_u32]
+}

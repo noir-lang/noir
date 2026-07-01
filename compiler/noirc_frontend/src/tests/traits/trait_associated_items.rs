@@ -1,7 +1,7 @@
 //! Tests for associated types and associated constants in traits.
 //! Validates accessing, computing with, and constraining associated items.
 
-use crate::tests::{assert_no_errors, check_errors};
+use crate::tests::{assert_no_errors, check_errors, check_monomorphization_error};
 
 #[test]
 fn passes_trait_with_associated_number_to_generic_function() {
@@ -79,6 +79,180 @@ fn accesses_associated_constant_inside_trait_impl_using_self() {
     }
     "#;
     assert_no_errors(src);
+}
+
+/// Regression test for #9020: a default method body whose return value comes from an
+/// associated constant (`Self::N`) must monomorphize correctly when the impl inherits
+/// the default. Without binding the trait's `Self` to the impl's concrete type at
+/// monomorphization time, `Self::N` can't pick the right impl and fails with
+/// "Type annotations needed".
+#[test]
+fn shared_default_method_resolves_self_associated_constant() {
+    let src = r#"
+    trait Foo {
+        let N: i32;
+
+        fn n() -> i32 {
+            Self::N
+        }
+    }
+
+    impl Foo for i32 {
+        let N: i32 = 7i32;
+    }
+
+    fn main() {
+        let _ = i32::n();
+    }
+    "#;
+    check_monomorphization_error(src);
+}
+
+/// Regression test for #9020: when one impl inherits a trait's default method and
+/// another impl overrides the same method, the two paths must not interfere with each
+/// other through the trait's shared `Self` type variable.
+#[test]
+fn shared_and_overridden_default_method_coexist() {
+    let src = r#"
+    pub trait H {
+        fn finish(self) -> Field;
+
+        fn finish_ref(&self) -> Field {
+            (*self).finish()
+        }
+    }
+
+    pub trait BH {
+        type Hasher: H;
+        fn build(self) -> Self::Hasher;
+    }
+
+    pub struct A {}
+    pub struct B {}
+    pub struct BA {}
+    pub struct BB {}
+
+    impl H for A {
+        // Override `finish_ref`.
+        fn finish(self) -> Field { let _ = self; self.finish_ref() }
+        fn finish_ref(&self) -> Field { let _ = self; 1 }
+    }
+    impl H for B {
+        // Inherit `finish_ref` default.
+        fn finish(self) -> Field { let _ = self; 2 }
+    }
+    impl BH for BA {
+        type Hasher = A;
+        fn build(self) -> A { let _ = self; A {} }
+    }
+    impl BH for BB {
+        type Hasher = B;
+        fn build(self) -> B { let _ = self; B {} }
+    }
+
+    pub fn use_hasher<X, T>(bh: T) -> Field where T: BH<Hasher = X>, X: H {
+        let h = bh.build();
+        h.finish_ref()
+    }
+
+    fn main() {
+        let _ = use_hasher(BA {});
+        let _ = use_hasher(BB {});
+    }
+    "#;
+    check_monomorphization_error(src);
+}
+
+/// Regression test: two impls that both inherit a trait's default method must each
+/// resolve `Self::N` to their own associated constant. The default method body is
+/// shared (one `FuncId`), and its `Self: Trait` constraint must use a fresh
+/// associated-type variable per dispatch. Otherwise the trait definition's shared
+/// `N` cell gets bound to the first impl's value (`10`) and leaks into the second,
+/// failing with "No matching impl found for `B: Score<N = 10>`".
+#[test]
+fn shared_default_method_associated_constant_does_not_leak_across_impls() {
+    let src = r#"
+    struct A {}
+    struct B {}
+
+    trait Score {
+        let N: u32;
+
+        fn base(self) -> Field;
+
+        fn value(self) -> Field {
+            self.base() + (Self::N as Field)
+        }
+    }
+
+    impl Score for A {
+        let N: u32 = 10;
+
+        fn base(self) -> Field {
+            1
+        }
+    }
+
+    impl Score for B {
+        let N: u32 = 20;
+
+        fn base(self) -> Field {
+            2
+        }
+    }
+
+    fn main() {
+        assert(A {}.value() == 11);
+        assert(B {}.value() == 22);
+    }
+    "#;
+    check_monomorphization_error(src);
+}
+
+/// Same leak as above, reached through a generic function rather than direct calls on
+/// concrete types, and with the impls resolved in the opposite source order.
+#[test]
+fn shared_default_method_associated_constant_does_not_leak_through_generic_dispatch() {
+    let src = r#"
+    struct A {}
+    struct B {}
+
+    trait Score {
+        let N: u32;
+
+        fn base(self) -> Field;
+
+        fn value(self) -> Field {
+            self.base() + (Self::N as Field)
+        }
+    }
+
+    impl Score for A {
+        let N: u32 = 10;
+
+        fn base(self) -> Field {
+            1
+        }
+    }
+
+    impl Score for B {
+        let N: u32 = 20;
+
+        fn base(self) -> Field {
+            2
+        }
+    }
+
+    fn use_score<T>(x: T) -> Field where T: Score {
+        x.value()
+    }
+
+    fn main() {
+        assert(use_score(B {}) == 22);
+        assert(use_score(A {}) == 11);
+    }
+    "#;
+    check_monomorphization_error(src);
 }
 
 #[test]
@@ -678,6 +852,23 @@ fn associated_type_behind_self_as_trait_with_different_generics() {
 }
 
 #[test]
+fn associated_type_behind_self_as_trait_with_method_generic() {
+    // Regression test: `<Self as Foo<U>>::Bar` where `U` is a method-level generic
+    // (distinct from the trait's own type parameter `Baz`) must not be silently
+    // rewritten to `Self::Bar` (which would resolve to `<Self as Foo<Baz>>::Bar`).
+    let src = r#"
+    pub trait Foo<Baz> {
+        type Bar;
+        fn bar<U>() -> <Self as Foo<U>>::Bar;
+                                ^^^ No matching impl found for `Self: Foo<U, Bar = _>`
+                                ~~~ No impl for `Self: Foo<U, Bar = _>`
+    }
+    fn main() {}
+    "#;
+    check_errors(src);
+}
+
+#[test]
 fn associated_constant_direct_access() {
     let src = "
     trait MyTrait {
@@ -694,7 +885,6 @@ fn associated_constant_direct_access() {
     assert_no_errors(src);
 }
 
-/// TODO(https://github.com/noir-lang/noir/issues/11362): Improve error message for missing associated constants
 #[test]
 fn associated_constant_direct_access_no_impl() {
     let src = r#"
@@ -709,7 +899,8 @@ fn associated_constant_direct_access_no_impl() {
     fn main() {
         let _ = Bar {};
         let _: u32 = Foo::N;
-                          ^ Could not resolve 'N' in path
+                          ^ associated item `N` not found for `Foo`
+                          ~ associated item `N` is defined by trait `MyTrait`, which is not implemented for `Foo`
     }
     "#;
     check_errors(src);
@@ -770,7 +961,8 @@ fn associated_constant_direct_access_generic_impl_wrong_struct() {
         let _ = Wrapper::<Field> { inner: 1 };
         let _ = Other::<Field> { inner: 1 };
         let _: u32 = Other::<Field>::N;
-                                     ^ Could not resolve 'N' in path
+                                     ^ associated item `N` not found for `Other<Field>`
+                                     ~ associated item `N` is defined by trait `MyTrait`, which is not implemented for `Other<Field>`
     }
     "#;
     check_errors(src);
@@ -794,7 +986,8 @@ fn associated_constant_direct_access_generic_impl_wrong_type_arg() {
         let _ = Wrapper::<Field> { inner: 1 };
         let _ = Wrapper::<u32> { inner: 1 };
         let _: u32 = Wrapper::<u32>::N;
-                                     ^ Could not resolve 'N' in path
+                                     ^ associated item `N` not found for `Wrapper<u32>`
+                                     ~ associated item `N` is defined by trait `MyTrait`, which is not implemented for `Wrapper<u32>`
     }
     "#;
     check_errors(src);
@@ -849,7 +1042,6 @@ fn associated_constant_direct_access_ambiguous_resolved_with_fully_qualified_pat
     assert_no_errors(src);
 }
 
-// TODO(https://github.com/noir-lang/noir/issues/10770): Improve error message for Foo::MyType syntax for associated types
 #[test]
 fn associated_type_direct_access() {
     let src = r#"
@@ -863,12 +1055,78 @@ fn associated_type_direct_access() {
         type MyType = CustomType;
     }
     fn main() {
-        // Succeeds
-        // let _: <Foo as MyTrait>::MyType = CustomType { };
-        // Fails
+        // `<Foo as MyTrait>::MyType` would succeed; the unqualified form below does not.
         let _: Foo::MyType = CustomType { };
-                    ^^^^^^ Could not resolve 'MyType' in path
+                    ^^^^^^ associated type `MyType` cannot be accessed directly
+                    ~~~~~~ use the fully-qualified syntax `<Foo as MyTrait>::MyType` instead
     }"#;
+    check_errors(src);
+}
+
+#[test]
+fn associated_type_direct_access_no_impl() {
+    let src = r#"
+    pub struct CustomType {}
+
+    trait MyTrait {
+        type MyType;
+    }
+    struct Foo {}
+    struct Bar {}
+    impl MyTrait for Bar {
+        type MyType = CustomType;
+    }
+    fn main() {
+        let _ = Bar {};
+        let _: Foo::MyType = CustomType { };
+                    ^^^^^^ associated item `MyType` not found for `Foo`
+                    ~~~~~~ associated item `MyType` is defined by trait `MyTrait`, which is not implemented for `Foo`
+    }"#;
+    check_errors(src);
+}
+
+#[test]
+fn associated_constant_direct_access_no_impl_multiple_traits() {
+    let src = r#"
+    trait Trait1 {
+        let N: u32;
+    }
+    trait Trait2 {
+        let N: u32;
+    }
+    struct Foo {}
+    struct Bar {}
+    impl Trait1 for Bar {
+        let N: u32 = 1;
+    }
+    impl Trait2 for Bar {
+        let N: u32 = 2;
+    }
+    fn main() {
+        let _ = Bar {};
+        let _: u32 = Foo::N;
+                          ^ associated item `N` not found for `Foo`
+                          ~ associated item `N` is defined by traits `Trait1`, `Trait2`, which are not implemented for `Foo`
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn nonexistent_associated_item_still_unresolved() {
+    let src = r#"
+    trait MyTrait {
+        let N: u32;
+    }
+    struct Foo {}
+    impl MyTrait for Foo {
+        let N: u32 = 5;
+    }
+    fn main() {
+        let _: u32 = Foo::DoesNotExist;
+                          ^^^^^^^^^^^^ Could not resolve 'DoesNotExist' in path
+    }
+    "#;
     check_errors(src);
 }
 
@@ -1471,7 +1729,7 @@ fn associated_type_in_generic_impl() {
     assert_no_errors(src);
 }
 
-/// Regression test for https://github.com/noir-lang/noir/issues/11545
+/// Regression test for <https://github.com/noir-lang/noir/issues/11545>
 #[test]
 fn associated_type_shorthand_in_return_type() {
     let src = r#"
@@ -1498,7 +1756,7 @@ fn associated_type_shorthand_in_return_type() {
     assert_no_errors(src);
 }
 
-/// Regression test for https://github.com/noir-lang/noir/issues/11545
+/// Regression test for <https://github.com/noir-lang/noir/issues/11545>
 #[test]
 fn associated_type_shorthand_in_return_type_with_trait_having_constant() {
     let src = r#"
@@ -1534,7 +1792,7 @@ fn associated_type_shorthand_in_return_type_with_trait_having_constant() {
     assert_no_errors(src);
 }
 
-/// Regression test for https://github.com/noir-lang/noir/issues/11545
+/// Regression test for <https://github.com/noir-lang/noir/issues/11545>
 #[test]
 fn associated_type_shorthand_simple_identity() {
     let src = r#"
@@ -1561,7 +1819,7 @@ fn associated_type_shorthand_simple_identity() {
     assert_no_errors(src);
 }
 
-/// Regression test for https://github.com/noir-lang/noir/issues/11562
+/// Regression test for <https://github.com/noir-lang/noir/issues/11562>
 #[test]
 fn associated_type_of_self_generic_in_param_position_for_parent() {
     let src = r#"
@@ -1584,7 +1842,7 @@ fn associated_type_of_self_generic_in_param_position_for_parent() {
     assert_no_errors(src);
 }
 
-/// Regression test for https://github.com/noir-lang/noir/issues/11562
+/// Regression test for <https://github.com/noir-lang/noir/issues/11562>
 #[test]
 fn associated_type_of_non_self_generic_in_param_position_for_parent() {
     // M::Key should resolve when Key is defined on parent trait KeyType
@@ -1608,7 +1866,7 @@ fn associated_type_of_non_self_generic_in_param_position_for_parent() {
     assert_no_errors(src);
 }
 
-/// Regression test for https://github.com/noir-lang/noir/issues/11545
+/// Regression test for <https://github.com/noir-lang/noir/issues/11545>
 #[test]
 fn associated_type_shorthand_in_param_position() {
     let src = r#"
@@ -1640,7 +1898,7 @@ fn associated_type_shorthand_in_param_position() {
     assert_no_errors(src);
 }
 
-/// Regression test for https://github.com/noir-lang/noir/issues/11549
+/// Regression test for <https://github.com/noir-lang/noir/issues/11549>
 #[test]
 fn nested_associated_type_access_fails() {
     // Bug: nested associated type resolution fails
@@ -1682,7 +1940,7 @@ fn nested_associated_type_access_fails() {
     assert_no_errors(src);
 }
 
-/// Regression test for https://github.com/noir-lang/noir/issues/11545
+/// Regression test for <https://github.com/noir-lang/noir/issues/11545>
 #[test]
 fn associated_type_in_generic_function_local_var() {
     let src = r#"
@@ -1716,7 +1974,7 @@ fn associated_type_in_generic_function_local_var() {
     assert_no_errors(src);
 }
 
-/// Regression test for https://github.com/noir-lang/noir/issues/11545
+/// Regression test for <https://github.com/noir-lang/noir/issues/11545>
 #[test]
 fn generic_impl_with_associated_type_in_method_signature() {
     let src = r#"
@@ -1750,7 +2008,7 @@ fn generic_impl_with_associated_type_in_method_signature() {
     assert_no_errors(src);
 }
 
-/// Regression test for https://github.com/noir-lang/noir/issues/11550
+/// Regression test for <https://github.com/noir-lang/noir/issues/11550>
 #[test]
 fn generic_fn_returning_tuple_with_associated_type() {
     let src = r#"
@@ -1779,11 +2037,9 @@ fn generic_fn_returning_tuple_with_associated_type() {
     assert_no_errors(src);
 }
 
-/// TODO(https://github.com/noir-lang/noir/issues/11551): remove should_panic once fixed
+/// Regression test for <https://github.com/noir-lang/noir/issues/11551>
 #[test]
-#[should_panic(expected = "Expected no errors")]
 fn trait_with_associated_type_used_in_other_method_signature() {
-    // Bug: Associated type from one trait method used in another's signature
     let src = r#"
     trait Mappable {
         type Target;
@@ -1823,7 +2079,234 @@ fn trait_with_associated_type_used_in_other_method_signature() {
     assert_no_errors(src);
 }
 
-/// Regression test for https://github.com/noir-lang/noir/issues/11538
+/// A chained associated-type projection in a trait method signature normalizes to the concrete
+/// associated type for a concrete impl, so the impl may spell the return type out concretely.
+#[test]
+fn chained_associated_type_in_signature_normalizes_to_concrete() {
+    let src = r#"
+    trait Mappable {
+        type Target;
+        fn map_to(self) -> Self::Target;
+    }
+
+    trait Chainable: Mappable {
+        fn chain(self) -> <Self::Target as Mappable>::Target where Self::Target: Mappable;
+    }
+
+    impl Mappable for Field {
+        type Target = bool;
+        fn map_to(self) -> Self::Target {
+            self != 0
+        }
+    }
+
+    impl Mappable for bool {
+        type Target = u32;
+        fn map_to(self) -> Self::Target {
+            if self { 1 } else { 0 }
+        }
+    }
+
+    impl Chainable for Field {
+        fn chain(self) -> u32 where Self::Target: Mappable {
+            self.map_to().map_to()
+        }
+    }
+
+    fn main() {
+        let x: Field = 5;
+        let result: u32 = x.chain();
+        assert(result == 1);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn chained_associated_type_in_signature_rejects_wrong_concrete_impl_return() {
+    let src = r#"
+    trait Mappable {
+        type Target;
+        fn map_to(self) -> Self::Target;
+    }
+
+    trait Chainable: Mappable {
+        fn chain(self) -> <Self::Target as Mappable>::Target where Self::Target: Mappable;
+    }
+
+    impl Mappable for Field {
+        type Target = bool;
+        fn map_to(self) -> Self::Target {
+            self != 0
+        }
+    }
+
+    impl Mappable for bool {
+        type Target = u32;
+        fn map_to(self) -> Self::Target {
+            if self { 1 } else { 0 }
+        }
+    }
+
+    impl Chainable for Field {
+        fn chain(self) -> bool where Self::Target: Mappable {
+                          ^^^^ Expected type u32, found type bool
+            self.map_to()
+        }
+    }
+
+    fn main() {}
+    "#;
+    check_errors(src);
+}
+
+/// Regression test for <https://github.com/noir-lang/noir/issues/12889>
+///
+/// The projection `<Wrapper<T> as Mappable>::Target` has both a real generic impl and a
+/// `where Self: Mappable` assumed impl in scope. The real impl discharges the hypothesis,
+/// so no "multiple matching impls" ambiguity should be reported.
+#[test]
+fn partially_generic_associated_type_in_signature_subsumed_by_real_impl() {
+    let src = r#"
+    trait Mappable {
+        type Target;
+        fn map_to(self) -> Self::Target;
+    }
+
+    struct Wrapper<T> {
+        val: T,
+    }
+
+    impl<U> Mappable for Wrapper<U> {
+        type Target = U;
+        fn map_to(self) -> U {
+            self.val
+        }
+    }
+
+    trait Chainable {
+        fn chain(self) -> <Self as Mappable>::Target where Self: Mappable;
+    }
+
+    impl<T> Chainable for Wrapper<T> {
+        fn chain(self) -> <Self as Mappable>::Target where Self: Mappable {
+            self.map_to()
+        }
+    }
+
+    fn main() {
+        let w: Wrapper<u32> = Wrapper { val: 5 };
+        assert(w.chain() == 5);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn partially_generic_associated_type_rejects_wrong_impl_return() {
+    let src = r#"
+    trait Mappable {
+        type Target;
+        fn map_to(self) -> Self::Target;
+    }
+
+    struct Wrapper<T> {
+        val: T,
+    }
+
+    impl<U> Mappable for Wrapper<U> {
+        type Target = U;
+        fn map_to(self) -> U {
+            self.val
+        }
+    }
+
+    trait Chainable {
+        fn chain(self) -> <Self as Mappable>::Target where Self: Mappable;
+    }
+
+    impl<T> Chainable for Wrapper<T> {
+        fn chain(self) -> bool where Self: Mappable {
+                          ^^^^ Expected type T, found type bool
+                          ^^^^ expected type bool, found type T
+                          ~~~~ expected bool because of return type
+            self.map_to()
+            ~~~~~~~~~~~~~ T returned here
+        }
+    }
+
+    fn main() {
+        let _ = Wrapper { val: 1 };
+    }
+    "#;
+    check_errors(src);
+}
+
+/// A fully generic object type (bare `T`) has no real impl matching it, so the projection
+/// must still resolve through the assumed `where` clause impl.
+#[test]
+fn fully_generic_object_projection_uses_assumed_impl() {
+    let src = r#"
+    trait Mappable {
+        type Target;
+        fn map_to(self) -> Self::Target;
+    }
+
+    struct Wrapper<T> {
+        val: T,
+    }
+
+    impl<U> Mappable for Wrapper<U> {
+        type Target = U;
+        fn map_to(self) -> U {
+            self.val
+        }
+    }
+
+    fn map_it<T>(x: T) -> <T as Mappable>::Target where T: Mappable {
+        x.map_to()
+    }
+
+    fn main() {
+        let w: Wrapper<u32> = Wrapper { val: 5 };
+        let r: u32 = map_it(w);
+        assert(r == 5);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+/// When the object type still contains an unbound type variable, a real impl and an assumed
+/// impl that bind it differently are genuinely ambiguous: neither discharges the other.
+#[test]
+fn ambiguous_impl_with_unbound_type_variable_still_errors() {
+    let src = r#"
+    trait Foo {
+        type Bar;
+    }
+
+    struct Wrapper<T> {
+        val: T,
+    }
+
+    impl Foo for Wrapper<u32> {
+        type Bar = u8;
+    }
+
+    pub fn f() where Wrapper<u16>: Foo {
+        let _x: <Wrapper<_> as Foo>::Bar = 0;
+                               ^^^ Multiple trait impls match the object type `Wrapper<_>`
+                               ~~~ Ambiguous impl
+    }
+
+    fn main() {
+        let _ = Wrapper { val: 1 };
+    }
+    "#;
+    check_errors(src);
+}
+
+/// Regression test for <https://github.com/noir-lang/noir/issues/11538>
 #[test]
 fn associated_constant_can_reference_generic_from_trait_bound() {
     let src = r#"
@@ -1844,7 +2327,7 @@ fn associated_constant_can_reference_generic_from_trait_bound() {
     assert_no_errors(src);
 }
 
-/// Regression test for https://github.com/noir-lang/noir/issues/11538
+/// Regression test for <https://github.com/noir-lang/noir/issues/11538>
 #[test]
 fn associated_constant_in_return_type_with_generic_impl_forwarding() {
     let src = r#"
@@ -1868,8 +2351,8 @@ fn associated_constant_in_return_type_with_generic_impl_forwarding() {
     assert_no_errors(src);
 }
 
-/// Regression test for https://github.com/noir-lang/noir/issues/11562
-/// M::Key resolves through a grandparent chain: A: B, B: C, type Key on C.
+/// Regression test for <https://github.com/noir-lang/noir/issues/11562>
+/// `M::Key` resolves through a grandparent chain: A: B, B: C, type Key on C.
 #[test]
 fn associated_type_of_generic_resolves_through_grandparent() {
     let src = r#"
@@ -1895,7 +2378,7 @@ fn associated_type_of_generic_resolves_through_grandparent() {
     assert_no_errors(src);
 }
 
-/// Regression test for https://github.com/noir-lang/noir/issues/11562
+/// Regression test for <https://github.com/noir-lang/noir/issues/11562>
 /// Diamond inheritance: both paths to the same associated type should not cause ambiguity.
 /// C inherits from A and B, both of which inherit from Base which defines Key.
 #[test]
@@ -1925,8 +2408,8 @@ fn associated_type_of_generic_diamond_inheritance() {
     assert_no_errors(src);
 }
 
-/// Regression test for https://github.com/noir-lang/noir/issues/11562
-/// M::Key from a parent trait used in an impl method signature and body.
+/// Regression test for <https://github.com/noir-lang/noir/issues/11562>
+/// `M::Key` from a parent trait used in an impl method signature and body.
 #[test]
 fn associated_type_of_generic_in_impl_method() {
     let src = r#"
@@ -1955,7 +2438,7 @@ fn associated_type_of_generic_in_impl_method() {
     assert_no_errors(src);
 }
 
-/// Regression test for https://github.com/noir-lang/noir/issues/11562
+/// Regression test for <https://github.com/noir-lang/noir/issues/11562>
 /// Ambiguous associated type: M has bounds on two unrelated traits that each define Key.
 /// This should produce a clear error.
 #[test]
@@ -2036,7 +2519,7 @@ fn associated_type_conflict_with_parent() {
 }
 
 /// Diamond inheritance with a generic parameter: M: B + C where B shadows Key from A,
-/// and C inherits Key from A. M::Key is ambiguous.
+/// and C inherits Key from A. `M::Key` is ambiguous.
 #[test]
 fn associated_type_diamond_ambiguity_on_generic() {
     let src = r#"
@@ -2229,6 +2712,309 @@ fn explicit_type_mismatch_at_trait_method_call_with_zero_associated_constant() {
     }
 
     fn main() {}
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn trait_associated_constant_global_uses_placeholder_statement() {
+    use crate::hir::def_map::ModuleDefId;
+    use crate::hir_def::stmt::HirStatement;
+
+    let src = r#"
+    pub trait Foo {
+        let N: u32;
+    }
+
+    impl Foo for u32 {
+        let N: u32 = 0u32;
+    }
+
+    fn main() {}
+    "#;
+
+    let context = assert_no_errors(src);
+
+    let mut found_trait_constant_global = false;
+    for def_map in context.def_maps.values() {
+        for (_, module_data) in def_map.modules().iter() {
+            for module_def in module_data.definitions().definitions() {
+                if let ModuleDefId::GlobalId(global_id) = module_def {
+                    let info = context.def_interner.get_global(*global_id);
+                    if info.ident.as_str() == "N" {
+                        match context.def_interner.statement(&info.let_statement) {
+                            HirStatement::TraitAssociatedConstant => {
+                                found_trait_constant_global = true;
+                            }
+                            HirStatement::Let(_) => {} // the impl-side let is fine
+                            other => panic!("unexpected statement for global N: {other:?}"),
+                        }
+                    }
+                }
+            }
+        }
+    }
+    assert!(
+        found_trait_constant_global,
+        "expected at least one global named N backed by HirStatement::TraitAssociatedConstant",
+    );
+}
+
+#[test]
+fn trait_associated_constant_duplicate_is_an_error() {
+    let src = r#"
+    pub trait Foo {
+        let N: u32;
+            ~ First definition found here
+        let N: u8;
+            ^ Duplicate definitions of trait associated item with name N found
+            ~ Second definition found here
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn duplicate_trait_function_is_an_error() {
+    let src = r#"
+    pub trait MyTrait {
+        fn SomeFunc();
+           ~~~~~~~~ First definition found here
+        fn SomeFunc();
+           ^^^^^^^^ Duplicate definitions of trait associated item with name SomeFunc found
+           ~~~~~~~~ Second definition found here
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn duplicate_trait_associated_constant_is_an_error() {
+    let src = r#"
+    pub trait MyTrait {
+        let SomeConst: u32;
+            ~~~~~~~~~ First definition found here
+        let SomeConst: Field;
+            ^^^^^^^^^ Duplicate definitions of trait associated item with name SomeConst found
+            ~~~~~~~~~ Second definition found here
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn duplicate_trait_associated_type_is_an_error() {
+    let src = r#"
+    pub trait MyTrait {
+        type SomeType;
+             ~~~~~~~~ First definition found here
+        type SomeType;
+             ^^^^^^^^ Duplicate definitions of trait associated item with name SomeType found
+             ~~~~~~~~ Second definition found here
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn trait_associated_constant_and_function_with_same_name_is_an_error() {
+    let src = r#"
+    pub trait MyTrait {
+        let MyItem: u32;
+            ~~~~~~ First definition found here
+        fn MyItem();
+           ^^^^^^ Duplicate definitions of trait associated item with name MyItem found
+           ~~~~~~ Second definition found here
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn trait_function_and_associated_constant_with_same_name_is_an_error() {
+    let src = r#"
+    pub trait MyTrait {
+        fn MyItem();
+           ~~~~~~ First definition found here
+        let MyItem: u32;
+            ^^^^^^ Duplicate definitions of trait associated item with name MyItem found
+            ~~~~~~ Second definition found here
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn trait_associated_type_and_constant_with_same_name_is_an_error() {
+    let src = r#"
+    pub trait Trait {
+        type Tralala;
+             ~~~~~~~ First definition found here
+        let Tralala: u32;
+            ^^^^^^^ Duplicate definitions of trait associated item with name Tralala found
+            ~~~~~~~ Second definition found here
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn trait_associated_constant_and_type_with_same_name_is_an_error() {
+    let src = r#"
+    pub trait Trait {
+        let Tralala: u32;
+            ~~~~~~~ First definition found here
+        type Tralala;
+             ^^^^^^^ Duplicate definitions of trait associated item with name Tralala found
+             ~~~~~~~ Second definition found here
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn trait_associated_type_and_function_with_same_name_is_an_error() {
+    let src = r#"
+    pub trait Trait {
+        type Tralala;
+             ~~~~~~~ First definition found here
+        fn Tralala();
+           ^^^^^^^ Duplicate definitions of trait associated item with name Tralala found
+           ~~~~~~~ Second definition found here
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn trait_function_and_associated_type_with_same_name_is_an_error() {
+    let src = r#"
+    pub trait Trait {
+        fn Tralala();
+           ~~~~~~~ First definition found here
+        type Tralala;
+             ^^^^^^^ Duplicate definitions of trait associated item with name Tralala found
+             ~~~~~~~ Second definition found here
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn trait_associated_constant_and_function_name_clash() {
+    let src = r#"
+    pub trait Foo {
+        let N: u32;
+            ~ First definition found here
+
+        fn N() {}
+           ^ Duplicate definitions of trait associated item with name N found
+           ~ Second definition found here
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn resolves_associated_constant_shorthand_on_generic_trait() {
+    let src = r#"
+    trait Foo<T> {
+        let CONST: u32;
+    }
+
+    pub struct Bar {}
+
+    impl Foo<u8> for Bar {
+        let CONST: u32 = 8;
+    }
+
+    fn main() {
+        let _: u32 = Bar::CONST;
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn associated_constant_shorthand_on_generic_trait_is_ambiguous_with_multiple_impls() {
+    let src = r#"
+    trait Foo<T> {
+        let CONST: u32;
+    }
+
+    pub struct Bar {}
+
+    impl Foo<u8> for Bar {
+                     ~~~ candidate `Foo<u8>` defined here
+        let CONST: u32 = 8;
+    }
+
+    impl Foo<u16> for Bar {
+                      ~~~ candidate `Foo<u16>` defined here
+        let CONST: u32 = 16;
+    }
+
+    fn main() {
+        let _: u32 = Bar::CONST;
+                          ^^^^^ Multiple `impl`s of `Foo` apply to `Bar`
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn elided_bounded_associated_type_does_not_wildcard_match_unrelated_type() {
+    // `where T: Foo` elides `Foo`'s bounded associated type `Bar: Baz`, so the
+    // elaborator synthesizes an implicit generic for it and assumes `<T as Foo>::Bar: Baz`.
+    // That assumed bound must be keyed on the rigid associated-type generic, not on a
+    // bindable type variable. Otherwise the assumed `Baz` impl wildcard-matches the
+    // unrelated `u32` query from `needs_baz`, binding the synthetic generic to `u32` and
+    // misreporting the failure at the call site instead of in `caller`'s body.
+    let src = r#"
+    pub trait Baz { fn baz() -> u32; }
+    pub trait Foo {
+        type Bar: Baz;
+        fn make_bar(self) -> Self::Bar;
+    }
+
+    fn needs_baz<X>(_x: X) -> u32 where X: Baz { X::baz() }
+
+    fn caller<T>(_t: T) -> u32 where T: Foo {
+        needs_baz(5_u32)
+        ^^^^^^^^^ No matching impl found for `u32: Baz`
+        ~~~~~~~~~ No impl for `u32: Baz`
+    }
+
+    pub struct S {}
+    impl Baz for S { fn baz() -> u32 { 2 } }
+    pub struct M {}
+    impl Foo for M {
+        type Bar = S;
+        fn make_bar(self) -> S { S {} }
+    }
+
+    fn main() {
+        let m: M = M {};
+        let _ = caller(m);
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn cyclic_associated_type() {
+    let src = r#"
+    trait Foo {
+        type Bar;
+    }
+
+    impl Foo for () {
+        type Bar = Self::Bar;
+                   ^^^^^^^^^ Binding `<() as Foo>::Bar` here to the `_` inside would create a cyclic type
+                   ~~~~~~~~~ Cyclic types have unlimited size and are prohibited in Noir
+    }
+
+    fn main() { }
     "#;
     check_errors(src);
 }

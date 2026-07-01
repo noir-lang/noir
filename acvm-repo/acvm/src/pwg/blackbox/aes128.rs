@@ -20,7 +20,7 @@ pub(super) fn solve_aes128_encryption_opcode<F: AcirField>(
     let ciphertext = execute_aes128_encryption_opcode(initial_witness, inputs, iv, key)?;
 
     // Write witness assignments
-    for (output_witness, value) in outputs.iter().zip_eq(ciphertext.into_iter()) {
+    for (output_witness, value) in outputs.iter().zip_eq(ciphertext) {
         insert_value(output_witness, F::from(u128::from(value)), initial_witness)?;
     }
 

@@ -239,7 +239,9 @@ impl ItemProperties for StructField {
 pub struct Impl {
     pub generics: Vec<Generic>,
     pub r#type: Type,
+    pub where_clause: Vec<TraitConstraint>,
     pub methods: Vec<Function>,
+    pub comments: Option<Comments>,
 }
 
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
@@ -509,6 +511,7 @@ pub enum PrimitiveTypeKind {
     FunctionDefinition,
     Module,
     CtString,
+    Location,
 }
 
 impl std::fmt::Display for PrimitiveTypeKind {
@@ -541,6 +544,7 @@ impl std::fmt::Display for PrimitiveTypeKind {
             PrimitiveTypeKind::FunctionDefinition => "FunctionDefinition",
             PrimitiveTypeKind::Module => "Module",
             PrimitiveTypeKind::CtString => "CtString",
+            PrimitiveTypeKind::Location => "Location",
         };
         write!(f, "{name}")
     }

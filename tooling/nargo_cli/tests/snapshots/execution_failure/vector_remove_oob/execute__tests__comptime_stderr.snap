@@ -2,7 +2,7 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: stderr
 ---
-error: vector_remove called on empty vector
+error: Index out of bounds: vector_remove called on empty vector
   ┌─ src/main.nr:9:23
   │
 9 │         let (s2, x) = vector.remove(0);

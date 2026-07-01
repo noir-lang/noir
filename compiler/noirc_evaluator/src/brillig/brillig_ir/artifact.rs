@@ -3,7 +3,7 @@ use acvm::acir::brillig::lengths::SemanticLength;
 use acvm::acir::circuit::ErrorSelector;
 use iter_extended::vecmap;
 use noirc_errors::call_stack::CallStackId;
-use std::collections::{BTreeMap, HashMap, HashSet};
+use std::collections::{BTreeMap, HashMap, HashSet, hash_map::Entry};
 
 use super::procedures::ProcedureId;
 use crate::ErrorType;
@@ -312,8 +312,8 @@ impl<F: Clone + std::fmt::Debug> BrilligArtifact<F> {
     /// Adds unresolved jumps & function calls from another artifact offset by the current opcode count in the artifact.
     fn add_unresolved_jumps_and_calls(&mut self, obj: &BrilligArtifact<F>) {
         let offset = self.index_of_next_opcode();
-        for (jump_label, jump_location) in &obj.unresolved_jumps {
-            self.unresolved_jumps.push((jump_label + offset, jump_location.clone()));
+        for (jump_position, jump_location) in &obj.unresolved_jumps {
+            self.unresolved_jumps.push((jump_position + offset, jump_location.clone()));
         }
 
         for (label_id, position_in_bytecode) in &obj.labels {
@@ -359,7 +359,10 @@ impl<F: Clone + std::fmt::Debug> BrilligArtifact<F> {
         call_instruction: BrilligOpcode<F>,
         destination: UnresolvedJumpLocation,
     ) {
-        // TODO: Add a check to ensure that the opcode is a call instruction
+        assert!(
+            matches!(call_instruction, BrilligOpcode::Call { .. }),
+            "expected a call instruction, but found {call_instruction:?}"
+        );
 
         self.unresolved_external_call_labels.push((self.index_of_next_opcode(), destination));
         self.push_opcode(call_instruction);
@@ -373,11 +376,18 @@ impl<F: Clone + std::fmt::Debug> BrilligArtifact<F> {
     /// Adds a label in the bytecode to specify where this block's
     /// opcodes will start.
     pub(crate) fn add_label_at_position(&mut self, label: Label, position: OpcodeLocation) {
-        let old_value = self.labels.insert(label.clone(), position);
-        assert!(
-            old_value.is_none(),
-            "overwriting label {label}. old_value = {old_value:?}, new_value = {position}"
-        );
+        match self.labels.entry(label) {
+            Entry::Occupied(entry) => {
+                panic!(
+                    "overwriting label {}. old_value = {:?}, new_value = {position}",
+                    entry.key(),
+                    entry.get()
+                );
+            }
+            Entry::Vacant(entry) => {
+                entry.insert(position);
+            }
+        }
     }
 
     /// Returns the index of the next opcode.

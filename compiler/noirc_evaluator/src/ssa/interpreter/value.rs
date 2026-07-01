@@ -1,9 +1,6 @@
 use std::sync::Arc;
 
-use acvm::{
-    AcirField, FieldElement,
-    acir::brillig::lengths::{ElementTypesLength, SemanticLength, SemiFlattenedLength},
-};
+use acvm::{AcirField, FieldElement, acir::brillig::lengths::SemanticLength};
 use iter_extended::{try_vecmap, vecmap};
 use noirc_frontend::Shared;
 
@@ -122,7 +119,7 @@ pub enum NumericValue {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ReferenceValue {
     /// This is included mostly for debugging to distinguish different
-    /// ReferenceValues which store the same element.
+    /// `ReferenceValues` which store the same element.
     pub original_id: ValueId,
 
     /// A value of `None` here means this allocation is currently uninitialized
@@ -139,12 +136,26 @@ pub struct ArrayValue {
     pub elements: Shared<Vec<Value>>,
 
     /// The `Shared` type contains its own reference count but we need to track
-    /// the reference count separate to ensure it is only changed by IncrementRc and
-    /// DecrementRc instructions.
+    /// the reference count separate to ensure it is only changed by `IncrementRc` and
+    /// `DecrementRc` instructions.
     pub rc: Shared<u32>,
 
     pub element_types: Arc<CompositeType>,
-    pub is_vector: bool,
+    /// Some length, if this is an array, otherwise None.
+    pub length: Option<SemanticLength>,
+}
+
+impl ArrayValue {
+    pub(crate) fn is_vector(&self) -> bool {
+        self.length.is_none()
+    }
+
+    pub(crate) fn get_type(&self) -> Type {
+        match self.length {
+            Some(length) => Type::Array(self.element_types.clone(), length),
+            None => Type::Vector(self.element_types.clone()),
+        }
+    }
 }
 
 impl Value {
@@ -155,21 +166,7 @@ impl Value {
             Value::Reference(reference) => {
                 Type::Reference(reference.element_type.clone(), reference.mutable)
             }
-            Value::ArrayOrVector(array) if array.is_vector => {
-                Type::Vector(array.element_types.clone())
-            }
-            Value::ArrayOrVector(array) => {
-                let element_types_length =
-                    ElementTypesLength(assert_u32(array.element_types.len()));
-                let len = if element_types_length.0 == 0 {
-                    SemanticLength(0)
-                } else {
-                    let semi_flattened_length =
-                        SemiFlattenedLength(assert_u32(array.elements.borrow().len()));
-                    semi_flattened_length / element_types_length
-                };
-                Type::Array(array.element_types.clone(), len)
-            }
+            Value::ArrayOrVector(array) => array.get_type(),
             Value::Function(_) | Value::Intrinsic(_) | Value::ForeignFunction(_) => Type::Function,
         }
     }
@@ -290,11 +287,28 @@ impl Value {
     }
 
     pub fn array(elements: Vec<Value>, element_types: Vec<Type>) -> Self {
+        assert!(!element_types.is_empty());
+
+        let length = assert_u32(elements.len() / element_types.len());
+        Self::array_with_length(elements, element_types, SemanticLength(length))
+    }
+
+    /// Build an array value with an explicit semantic length.
+    ///
+    /// Unlike [`Value::array`], this supports zero-sized element types (empty `element_types`),
+    /// where the length cannot be recovered by dividing the flattened element count by the number
+    /// of element types.
+    pub(crate) fn array_with_length(
+        elements: Vec<Value>,
+        element_types: Vec<Type>,
+        length: SemanticLength,
+    ) -> Self {
+        assert_eq!(length.0 as usize * element_types.len(), elements.len());
         Self::ArrayOrVector(ArrayValue {
             elements: Shared::new(elements),
             rc: Shared::new(1),
             element_types: Arc::new(element_types),
-            is_vector: false,
+            length: Some(length),
         })
     }
 
@@ -303,7 +317,7 @@ impl Value {
             elements: Shared::new(elements),
             rc: Shared::new(1),
             element_types,
-            is_vector: true,
+            length: None,
         })
     }
 
@@ -330,7 +344,7 @@ impl Value {
                     vecmap(element_types.iter(), |typ| Self::uninitialized(typ, id));
                 let elements = std::iter::repeat_n(first_elements, assert_usize(length.0));
                 let elements = elements.flatten().collect();
-                Self::array(elements, element_types.to_vec())
+                Self::array_with_length(elements, element_types.to_vec(), *length)
             }
             Type::Vector(element_types) => Self::uninitialized_vector(element_types, 0, id),
             Type::Function => Value::ForeignFunction("uninitialized!".to_string()),
@@ -380,7 +394,7 @@ impl Value {
                     elements: Shared::new(elements),
                     rc: Shared::new(*a.rc.borrow()),
                     element_types: a.element_types.clone(),
-                    is_vector: a.is_vector,
+                    length: a.length,
                 })
             }
             Value::Function(id) => Value::Function(*id),
@@ -628,7 +642,7 @@ impl std::fmt::Display for ArrayValue {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let rc = self.rc.borrow();
 
-        let is_vector = if self.is_vector { "&" } else { "" };
+        let is_vector = if self.is_vector() { "&" } else { "" };
         write!(f, "rc{rc} {is_vector}")?;
 
         // Check if the array could be shown as a string literal
@@ -699,7 +713,7 @@ impl PartialEq for ArrayValue {
         // Don't compare RC
         self.elements == other.elements
             && self.element_types == other.element_types
-            && self.is_vector == other.is_vector
+            && self.length == other.length
     }
 }
 

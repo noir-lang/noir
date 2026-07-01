@@ -1,0 +1,5 @@
+error: duplicate `on_reserved` modifier in `#[tagged(...)]`
+  --> tests/compile_fail/duplicate_variant_on_reserved.rs:12:27
+   |
+12 |     #[tagged(on_reserved, on_reserved)]
+   |                           ^^^^^^^^^^^

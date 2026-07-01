@@ -1,0 +1,5 @@
+error: tag 2 listed more than once in `reserved(...)`
+ --> tests/compile_fail/duplicate_reserved_across_attributes.rs:9:19
+  |
+9 | #[tagged(reserved(2, 3))]
+  |                   ^

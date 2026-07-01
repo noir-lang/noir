@@ -11,7 +11,7 @@ fn main() {
 comptime fn foo_impl(t: TypeDefinition) -> Quoted {
     let g = t.generics();
 
-    let g_names = g.map(|(name, _)| quote [$name]).join(quote [,]);
+    let g_names = g.map(|(name, _)| quote [ $name ]).join(quote [,]);
 
     let g_intros = g
         .map(|(name, typ)| {
@@ -22,7 +22,9 @@ comptime fn foo_impl(t: TypeDefinition) -> Quoted {
 
     quote {
         impl<$g_intros> Foo<$g_names> {
-            fn foo(self) { let _ = self; }
+            fn foo(self) {
+                let _ = self;
+            }
         }
     }
 }

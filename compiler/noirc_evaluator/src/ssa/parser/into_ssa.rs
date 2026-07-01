@@ -7,7 +7,7 @@ use std::{
 use acvm::acir::circuit::ErrorSelector;
 use itertools::Itertools;
 use noirc_errors::{
-    Location,
+    Location, Span,
     call_stack::{CallStack, CallStackId},
 };
 
@@ -23,7 +23,7 @@ use crate::ssa::{
         instruction::{ArrayOffset, ConstrainError, Instruction},
         value::ValueId,
     },
-    opt::pure::FunctionPurities,
+    opt::pure::{FunctionPurities, compute_function_purities},
     parser::ast::ParsedDataBus,
     ssa_gen::validate_ssa,
 };
@@ -34,8 +34,13 @@ use super::{
 };
 
 impl ParsedSsa {
-    pub(crate) fn into_ssa(self, simplify: bool, validate: bool) -> Result<Ssa, SsaError> {
-        Translator::translate(self, simplify, validate)
+    pub(crate) fn into_ssa(
+        self,
+        simplify: bool,
+        validate: bool,
+        allow_malformed: bool,
+    ) -> Result<Ssa, SsaError> {
+        Translator::translate(self, simplify, validate, allow_malformed)
     }
 }
 
@@ -75,8 +80,21 @@ impl Translator {
         mut parsed_ssa: ParsedSsa,
         simplify: bool,
         validate: bool,
+        allow_malformed: bool,
     ) -> Result<Ssa, SsaError> {
-        let mut translator = Self::new(&mut parsed_ssa, simplify)?;
+        // Function IDs are assigned by position (`main` is 0, the rest follow in source
+        // order), so the stated purity spans are collected here, before `Self::new`
+        // consumes the parsed functions, and keyed to match those IDs.
+        let stated_purity_spans: HashMap<FunctionId, Span> = parsed_ssa
+            .functions
+            .iter()
+            .enumerate()
+            .filter_map(|(index, function)| {
+                Some((FunctionId::new(index as u32), function.purity_span?))
+            })
+            .collect();
+
+        let mut translator = Self::new(&mut parsed_ssa, simplify, allow_malformed)?;
 
         // Note that the `new` call above removed the main function,
         // so all we are left with are non-main functions.
@@ -84,16 +102,22 @@ impl Translator {
             translator.translate_non_main_function(function)?;
         }
 
+        let stated_purities = translator.purities.clone();
         let ssa = translator.finish();
 
         if validate {
+            validate_stated_purities(&ssa, &stated_purities, &stated_purity_spans)?;
             validate_ssa(&ssa);
         }
 
         Ok(ssa)
     }
 
-    fn new(parsed_ssa: &mut ParsedSsa, simplify: bool) -> Result<Self, SsaError> {
+    fn new(
+        parsed_ssa: &mut ParsedSsa,
+        simplify: bool,
+        allow_malformed: bool,
+    ) -> Result<Self, SsaError> {
         let mut purities = FunctionPurities::default();
 
         // A FunctionBuilder must be created with a main Function, so here wer remove it
@@ -103,20 +127,20 @@ impl Translator {
         let mut builder = FunctionBuilder::new(main_function.external_name.clone(), main_id);
         builder.set_runtime(main_function.runtime_type);
         builder.simplify = simplify;
+        builder.set_allow_malformed_simplify(allow_malformed);
 
         if let Some(purity) = main_function.purity {
             purities.insert(main_id, purity);
         }
 
         // Map function names to their IDs so calls can be resolved
-        let mut function_id_counter = 1;
         let mut functions = HashMap::new();
 
         functions.insert(main_function.internal_name.clone(), main_id);
 
-        for function in &parsed_ssa.functions {
-            let function_id = FunctionId::new(function_id_counter);
-            function_id_counter += 1;
+        for (index, function) in parsed_ssa.functions.iter().enumerate() {
+            // Function ID 0 is reserved for `main`, which is inserted above.
+            let function_id = FunctionId::new(index as u32 + 1);
 
             functions.insert(function.internal_name.clone(), function_id);
 
@@ -364,8 +388,8 @@ impl Translator {
                 let value_id = self.builder.insert_binary(lhs, op, rhs);
                 self.define_variable(target, value_id)?;
             }
-            ParsedInstruction::Call { targets, function, arguments, types } => {
-                let function_id = self.lookup_call_function(function)?;
+            ParsedInstruction::Call { targets, function, arguments, types, pure } => {
+                let function_id = self.lookup_call_function(function, pure)?;
                 let arguments = self.translate_values(arguments)?;
 
                 let value_ids = self.builder.insert_call(function_id, arguments, types).to_vec();
@@ -376,7 +400,7 @@ impl Translator {
                     });
                 }
 
-                for (target, value_id) in targets.into_iter().zip_eq(value_ids.into_iter()) {
+                for (target, value_id) in targets.into_iter().zip_eq(value_ids) {
                     self.define_variable(target, value_id)?;
                 }
             }
@@ -527,7 +551,7 @@ impl Translator {
                             match self.lookup_global(identifier.clone()) {
                                 Ok(global) => global,
                                 Err(lookup_global_err) => self
-                                    .lookup_call_function(identifier)
+                                    .lookup_call_function(identifier, false)
                                     .map_err(|_| lookup_global_err)?,
                             }
                         }
@@ -616,24 +640,39 @@ impl Translator {
         }
     }
 
-    fn lookup_call_function(&mut self, function: Identifier) -> Result<ValueId, SsaError> {
+    fn lookup_call_function(
+        &mut self,
+        function: Identifier,
+        pure: bool,
+    ) -> Result<ValueId, SsaError> {
         if let Some(id) = self.builder.import_intrinsic(&function.name) {
+            if pure {
+                return Err(SsaError::PureModifierOnNonForeignFunction(function));
+            }
             return Ok(id);
         }
 
         if let Ok(func_id) = self.lookup_function(&function) {
+            if pure {
+                return Err(SsaError::PureModifierOnNonForeignFunction(function));
+            }
             return Ok(self.builder.import_function(func_id));
         }
 
         // e.g. `v2 = call v0(v1) -> u32`, a lambda passed as a parameter
         if let Ok(var_id) = self.lookup_variable(&function) {
+            if pure {
+                return Err(SsaError::PureModifierOnNonForeignFunction(function));
+            }
             return Ok(var_id);
         }
 
         // We allow calls to the built-in print function, or a function that is named as some kind of "oracle",
         // which is a common pattern in the codebase and allows us to write tests with foreign functions in the SSA.
+        // The optional `pure` modifier on the call (e.g. `call pure my_oracle(...)`) indicates the oracle
+        // was declared with `#[pure]`, and is recorded on the resulting `Value::ForeignFunction`.
         if &function.name == "print" || function.name.contains("oracle") {
-            return Ok(self.builder.import_foreign_function(&function.name));
+            return Ok(self.builder.import_foreign_function(&function.name, pure));
         }
 
         Err(SsaError::UnknownFunction(function))
@@ -666,4 +705,38 @@ impl Translator {
         self.builder.current_function.dfg.brillig_arrays_offset = true;
         Ok(())
     }
+}
+
+/// Check that every explicit purity annotation in the parsed source agrees with the
+/// purity that would be computed from the function's instructions (after call-graph
+/// propagation). A disagreement means the SSA file is lying about its functions and
+/// any subsequent pass that trusts the stated purity will work off a false premise.
+/// Functions whose purity was not explicitly stated in the source are skipped — the
+/// parser must remain a no-op for those.
+fn validate_stated_purities(
+    ssa: &Ssa,
+    stated_purities: &FunctionPurities,
+    stated_purity_spans: &HashMap<FunctionId, Span>,
+) -> Result<(), SsaError> {
+    if stated_purities.is_empty() {
+        return Ok(());
+    }
+
+    let computed_purities = compute_function_purities(ssa);
+
+    for (function_id, stated) in stated_purities {
+        let computed = computed_purities[function_id];
+        if *stated != computed {
+            let function_name = ssa.functions[function_id].name().to_string();
+            let span = stated_purity_spans.get(function_id).copied().unwrap_or_default();
+            return Err(SsaError::PurityMismatch {
+                function_name,
+                stated: *stated,
+                computed,
+                span,
+            });
+        }
+    }
+
+    Ok(())
 }

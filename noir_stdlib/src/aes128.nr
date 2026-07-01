@@ -21,3 +21,16 @@ pub fn aes128_encrypt<let N: u32>(
 fn aes128_encrypt_padded_input<let N: u32>(input: [u8; N], iv: [u8; 16], key: [u8; 16]) -> [u8; N] {}
 
 // docs:end:aes128
+
+mod tests {
+    use super::aes128_encrypt;
+
+    #[test]
+    fn encrypt() {
+        let input = "kevlovesrust".as_bytes();
+        let iv = "0000000000000000".as_bytes();
+        let key = "0000000000000000".as_bytes();
+        let output = [244, 14, 126, 172, 171, 40, 208, 186, 173, 184, 226, 105, 238, 122, 205, 191];
+        assert_eq(aes128_encrypt(input, iv, key), output);
+    }
+}

@@ -21,7 +21,7 @@ use crate::brillig::{
 };
 
 impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<F, Registers> {
-    /// Call [ProcedureId::ArrayCopy].
+    /// Call [`ProcedureId::ArrayCopy`].
     ///
     /// Conditionally copies a source array to a destination array.
     /// If the reference count of the source array is 1, then we can directly copy the pointer of the source array to the destination array.
@@ -54,7 +54,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
     }
 }
 
-/// Compile [ProcedureId::ArrayCopy].
+/// Compile [`ProcedureId::ArrayCopy`].
 pub(super) fn compile_array_copy_procedure<F: AcirField + DebugToString>(
     brillig_context: &mut BrilligContext<F, ScratchSpace>,
 ) {
@@ -158,7 +158,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         });
 
         let newline = ValueOrArray::MemoryAddress(ReservedRegisters::usize_one());
-        let message_with_func_name = format!("Total arrays copied in {}: {{}}", &self.name());
+        let message_with_func_name = format!("Total arrays copied in {}: {{}}", self.name());
         let message = literal_string_to_value(&message_with_func_name, self);
         let item_count = ValueOrArray::MemoryAddress(ReservedRegisters::usize_one());
         let value_to_print = ValueOrArray::MemoryAddress(array_copy_counter.extract_register());

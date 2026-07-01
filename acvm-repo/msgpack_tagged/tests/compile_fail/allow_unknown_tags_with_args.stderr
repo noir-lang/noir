@@ -1,0 +1,5 @@
+error: expected `reserved(...)`, `allow_unknown_tags`, `via(...)`, or `extra_bound = "..."` inside `#[tagged(...)]` on a type
+ --> tests/compile_fail/allow_unknown_tags_with_args.rs:9:10
+  |
+9 | #[tagged(allow_unknown_tags = true)] // attribute takes no arguments
+  |          ^^^^^^^^^^^^^^^^^^^^^^^^^

@@ -432,7 +432,10 @@ fn accepts_globals() {
         brillig(inline) predicate_pure fn main f0 {
         b0():
             v0 = make_array [Field 1, Field 2] : [Field; 2]
-            constrain v0 == g2
+            v1 = array_get v0, index u32 0 -> Field
+            v2 = array_get g2, index u32 0 -> Field
+            constrain v1 == v2
+            constrain v1 == g0
             return
         }
     ";
