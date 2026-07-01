@@ -120,8 +120,12 @@ impl Translator {
     ) -> Result<Self, SsaError> {
         let mut purities = FunctionPurities::default();
 
-        // A FunctionBuilder must be created with a main Function, so here wer remove it
-        // from the parsed SSA to avoid adding it twice later on.
+        // A FunctionBuilder must be created with a main Function, so here we remove it
+        // from the parsed SSA to avoid adding it twice later on. There must be at least one
+        // function; otherwise the input was empty or contained only globals/comments.
+        if parsed_ssa.functions.is_empty() {
+            return Err(SsaError::NoFunctions);
+        }
         let main_function = parsed_ssa.functions.remove(0);
         let main_id = FunctionId::new(0);
         let mut builder = FunctionBuilder::new(main_function.external_name.clone(), main_id);
