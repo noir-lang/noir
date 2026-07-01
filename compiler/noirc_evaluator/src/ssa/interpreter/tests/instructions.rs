@@ -272,6 +272,8 @@ fn sub_unchecked_signed_acir() {
     );
     // 3 - 10 = -7. On an ACIR function the unchecked subtraction is field arithmetic, which extends
     // to the field-negative `-7` (i.e. `p - 7`) rather than the wrapped 8-bit pattern Brillig keeps.
+    // Here we can't compare against `Value::i8(-7)` because that constructor will produce a Field value
+    // that's `256 - 7 = 249`, but in this case we end up with `p - 7`, so a different value.
     assert_eq!(
         value.as_numeric().unwrap().convert_to_field(),
         FieldElement::from(3u32) - FieldElement::from(10u32)
@@ -290,7 +292,7 @@ fn sub_unchecked_signed_brillig() {
     ",
     );
     // On a Brillig function we restrict the value to the 8-bit pattern, which
-    // is why we can compare with `Value::i8`.
+    // is why we can compare with `Value::i8` (it always produces values in the range `[0, 256)`).
     assert_eq!(value, Value::i8(-7),);
 }
 
@@ -380,6 +382,7 @@ fn mul_unchecked_signed() {
     ",
     );
     // 127 * 2 = 254, whose i8 bit pattern is -2 — an in-range value that both backends agree on.
+    // (Value::i8 always produces values in the `[0, 256)` range)
     assert_eq!(value, Value::i8(-2));
 }
 
