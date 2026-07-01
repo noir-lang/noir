@@ -260,7 +260,7 @@ fn sub_unchecked_unsigned() {
 }
 
 #[test]
-fn sub_unchecked_signed() {
+fn sub_unchecked_signed_acir() {
     let value = expect_value(
         "
         acir(inline) fn main f0 {
@@ -276,6 +276,22 @@ fn sub_unchecked_signed() {
         value.as_numeric().unwrap().convert_to_field(),
         FieldElement::from(3u32) - FieldElement::from(10u32)
     );
+}
+
+#[test]
+fn sub_unchecked_signed_brillig() {
+    let value = expect_value(
+        "
+        brillig(inline) fn main f0 {
+          b0():
+            v0 = unchecked_sub i8 3, i8 10
+            return v0
+        }
+    ",
+    );
+    // On a Brillig function we restrict the value to the 8-bit pattern, which
+    // is why we can compare with `Value::i8`.
+    assert_eq!(value, Value::i8(-7),);
 }
 
 #[test]
