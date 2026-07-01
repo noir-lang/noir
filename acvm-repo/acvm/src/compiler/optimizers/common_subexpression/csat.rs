@@ -306,7 +306,7 @@ impl<F: AcirField> CSatTransformer<F> {
             );
             (k / l, iv)
         } else {
-            let inter_var = Witness(*num_witness);
+            let inter_var = Witness::new(*num_witness);
             *num_witness += 1;
             // Add intermediate opcode and variable to map
             intermediate_variables.insert(normalized_expr, (k, inter_var));

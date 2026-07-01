@@ -108,10 +108,10 @@ impl Debug for AcirDynamicArray {
         write!(
             f,
             "id: {}, len: {}, value_types: {:?}, element_type_sizes: {:?}",
-            self.block_id.0,
+            self.block_id.as_u32(),
             self.len,
             self.value_types,
-            self.element_type_sizes.map(|block_id| block_id.0)
+            self.element_type_sizes.map(|block_id| block_id.as_u32())
         )
     }
 }

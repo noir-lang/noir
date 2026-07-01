@@ -27,7 +27,7 @@ impl Parser<'_> {
         // expression (see `NodeInterner::push_lvalue`), so we treat it as the leading atom of
         // an expression and let the normal postfix and assignment machinery consume whatever
         // follows: `$lv`, `$lv.field`, `$lv.method(args)`, `$lv[i]`, `$lv = rhs`, `$lv += rhs`.
-        if let Some(token) = self.eat_kind(TokenKind::InternedLValue) {
+        if let Some(token) = self.eat_kind(&TokenKind::InternedLValue) {
             let Token::InternedLValue(interned) = token.into_token() else {
                 unreachable!("eat_kind(InternedLValue) only matches InternedLValue tokens")
             };

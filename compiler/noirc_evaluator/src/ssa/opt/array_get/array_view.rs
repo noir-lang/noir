@@ -38,8 +38,11 @@ struct KnownElement {
 
 #[derive(Clone)]
 enum ArrayBase {
-    /// Indices not in `elements` come from this `make_array`'s elements.
-    MakeArray(im::Vector<ValueId>),
+    /// Indices not in `elements` come from this `make_array`'s elements, which are stored in logical
+    /// order. `offset` is the Brillig in-memory header baked into constant indices by
+    /// [`brillig_array_get_and_set`][crate::ssa::opt::brillig_array_get_and_set] (`0` in ACIR, or
+    /// before that pass has run), so a constant index maps to the logical element `index - offset`.
+    MakeArray { elements: im::Vector<ValueId>, offset: u32 },
     /// Indices not in `elements` can be read directly from this array (a function parameter), at
     /// the same index. `length` bounds which indices that is valid for.
     ReadFrom { array: ValueId, length: u32 },
@@ -64,7 +67,8 @@ impl ArrayView {
         if let Some((Instruction::MakeArray { elements, .. }, _)) =
             dfg.get_local_or_global_instruction_with_id(array)
         {
-            return ArrayView::from_make_array(elements.clone());
+            let offset = super::make_array_index_offset(dfg, array);
+            return ArrayView::from_make_array(elements.clone(), offset);
         }
 
         if let Value::Param { typ: Type::Array(_, length), .. } = &dfg[array] {
@@ -102,9 +106,12 @@ impl ArrayView {
         }
 
         match self.base {
-            ArrayBase::MakeArray(ref elements) => {
-                elements.get(index as usize).copied().map(Resolution::Value)
-            }
+            // `make_array` elements are in logical order, so a constant index must have the Brillig
+            // header offset removed before it indexes them.
+            ArrayBase::MakeArray { ref elements, offset } => index
+                .checked_sub(offset)
+                .and_then(|logical| elements.get(logical as usize).copied())
+                .map(Resolution::Value),
             // Reading directly from `array` itself wouldn't be an improvement.
             ArrayBase::ReadFrom { array: source, length } => {
                 (index < length && source != array).then_some(Resolution::ReadFrom(source))
@@ -113,8 +120,8 @@ impl ArrayView {
         }
     }
 
-    fn from_make_array(elements: im::Vector<ValueId>) -> Self {
-        ArrayView { elements: OrdMap::new(), base: ArrayBase::MakeArray(elements) }
+    fn from_make_array(elements: im::Vector<ValueId>, offset: u32) -> Self {
+        ArrayView { elements: OrdMap::new(), base: ArrayBase::MakeArray { elements, offset } }
     }
 
     fn unknown() -> Self {
