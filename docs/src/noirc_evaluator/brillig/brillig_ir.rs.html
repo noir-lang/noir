@@ -656,7 +656,7 @@
 <a href=#656 id=656 data-nosnippet>656</a>    </span><span class="kw">fn </span>initialize_constant_array_protected_by_allocation_check() {
 <a href=#657 id=657 data-nosnippet>657</a>        <span class="comment">// SSA with array of 11 identical tuples - triggers initialize_constant_array_runtime
 <a href=#658 id=658 data-nosnippet>658</a>        </span><span class="kw">let </span>src = <span class="string">r#"
-<a href=#659 id=659 data-nosnippet>659</a>            brillig(inline) predicate_pure fn main f0 {
+<a href=#659 id=659 data-nosnippet>659</a>            brillig(inline) pure fn main f0 {
 <a href=#660 id=660 data-nosnippet>660</a>              b0(v0: u32):
 <a href=#661 id=661 data-nosnippet>661</a>                v1 = make_array [
 <a href=#662 id=662 data-nosnippet>662</a>                    u32 42, u32 42, u32 42,
@@ -870,7 +870,7 @@
 <a href=#870 id=870 data-nosnippet>870</a>    </span><span class="kw">fn </span>empty_array_allocation_near_heap_limit_triggers_oom() {
 <a href=#871 id=871 data-nosnippet>871</a>        <span class="comment">// SSA with an empty array - triggers array allocation with just ARRAY_META_COUNT (1) slot
 <a href=#872 id=872 data-nosnippet>872</a>        </span><span class="kw">let </span>src = <span class="string">r#"
-<a href=#873 id=873 data-nosnippet>873</a>            brillig(inline) predicate_pure fn main f0 {
+<a href=#873 id=873 data-nosnippet>873</a>            brillig(inline) pure fn main f0 {
 <a href=#874 id=874 data-nosnippet>874</a>              b0():
 <a href=#875 id=875 data-nosnippet>875</a>                v0 = make_array [] : [Field; 0]
 <a href=#876 id=876 data-nosnippet>876</a>                return
@@ -889,7 +889,7 @@
 <a href=#889 id=889 data-nosnippet>889</a>    </span><span class="kw">fn </span>empty_vector_allocation_near_heap_limit_triggers_oom() {
 <a href=#890 id=890 data-nosnippet>890</a>        <span class="comment">// SSA with an empty vector - triggers vector allocation with VECTOR_META_COUNT (3) slots
 <a href=#891 id=891 data-nosnippet>891</a>        </span><span class="kw">let </span>src = <span class="string">r#"
-<a href=#892 id=892 data-nosnippet>892</a>            brillig(inline) predicate_pure fn main f0 {
+<a href=#892 id=892 data-nosnippet>892</a>            brillig(inline) pure fn main f0 {
 <a href=#893 id=893 data-nosnippet>893</a>              b0():
 <a href=#894 id=894 data-nosnippet>894</a>                v0 = make_array [] : [Field]
 <a href=#895 id=895 data-nosnippet>895</a>                return

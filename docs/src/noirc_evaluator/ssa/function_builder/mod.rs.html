@@ -126,7 +126,7 @@
 <a href=#126 id=126 data-nosnippet>126</a>        <span class="self">self</span>.current_function.set_globals(<span class="self">self</span>.globals.clone());
 <a href=#127 id=127 data-nosnippet>127</a>    }
 <a href=#128 id=128 data-nosnippet>128</a>
-<a href=#129 id=129 data-nosnippet>129</a>    <span class="kw">pub fn </span>set_purities(<span class="kw-2">&amp;mut </span><span class="self">self</span>, purities: Arc&lt;FunctionPurities&gt;) {
+<a href=#129 id=129 data-nosnippet>129</a>    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>set_purities(<span class="kw-2">&amp;mut </span><span class="self">self</span>, purities: Arc&lt;FunctionPurities&gt;) {
 <a href=#130 id=130 data-nosnippet>130</a>        <span class="self">self</span>.purities = purities.clone();
 <a href=#131 id=131 data-nosnippet>131</a>        <span class="self">self</span>.current_function.dfg.set_function_purities(purities);
 <a href=#132 id=132 data-nosnippet>132</a>    }

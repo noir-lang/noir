@@ -1544,7 +1544,7 @@
 <a href=#1544 id=1544 data-nosnippet>1544</a>            constrain v4 == v5
 <a href=#1545 id=1545 data-nosnippet>1545</a>            return
 <a href=#1546 id=1546 data-nosnippet>1546</a>        }
-<a href=#1547 id=1547 data-nosnippet>1547</a>        brillig(inline) predicate_pure fn identity f1 {
+<a href=#1547 id=1547 data-nosnippet>1547</a>        brillig(inline) pure fn identity f1 {
 <a href=#1548 id=1548 data-nosnippet>1548</a>            b0(v0: u64):
 <a href=#1549 id=1549 data-nosnippet>1549</a>            return v0
 <a href=#1550 id=1550 data-nosnippet>1550</a>        }
@@ -1565,7 +1565,7 @@
 <a href=#1565 id=1565 data-nosnippet>1565</a>            constrain v2 == v0
 <a href=#1566 id=1566 data-nosnippet>1566</a>            return
 <a href=#1567 id=1567 data-nosnippet>1567</a>        }
-<a href=#1568 id=1568 data-nosnippet>1568</a>        brillig(inline) predicate_pure fn identity32 f1 {
+<a href=#1568 id=1568 data-nosnippet>1568</a>        brillig(inline) pure fn identity32 f1 {
 <a href=#1569 id=1569 data-nosnippet>1569</a>            b0(v0: Field):
 <a href=#1570 id=1570 data-nosnippet>1570</a>            return v0
 <a href=#1571 id=1571 data-nosnippet>1571</a>        }
@@ -1587,7 +1587,7 @@
 <a href=#1587 id=1587 data-nosnippet>1587</a>            constrain v4 == u1 1     // Since we asserted that v3 equals v1, this should indirectly clear v3.
 <a href=#1588 id=1588 data-nosnippet>1588</a>            return
 <a href=#1589 id=1589 data-nosnippet>1589</a>        }
-<a href=#1590 id=1590 data-nosnippet>1590</a>        brillig(inline) predicate_pure fn f f1 {
+<a href=#1590 id=1590 data-nosnippet>1590</a>        brillig(inline) pure fn f f1 {
 <a href=#1591 id=1591 data-nosnippet>1591</a>          b0(v0: u32):
 <a href=#1592 id=1592 data-nosnippet>1592</a>            return v0
 <a href=#1593 id=1593 data-nosnippet>1593</a>        }
@@ -1609,7 +1609,7 @@
 <a href=#1609 id=1609 data-nosnippet>1609</a>            constrain v3 == v0
 <a href=#1610 id=1610 data-nosnippet>1610</a>            return v3
 <a href=#1611 id=1611 data-nosnippet>1611</a>        }
-<a href=#1612 id=1612 data-nosnippet>1612</a>        brillig(inline) predicate_pure fn helper_func f1 {
+<a href=#1612 id=1612 data-nosnippet>1612</a>        brillig(inline) pure fn helper_func f1 {
 <a href=#1613 id=1613 data-nosnippet>1613</a>          b0(v0: [Field; 1]):
 <a href=#1614 id=1614 data-nosnippet>1614</a>            v2 = array_get v0, index u32 0 -&gt; Field
 <a href=#1615 id=1615 data-nosnippet>1615</a>            return v2
@@ -1633,7 +1633,7 @@
 <a href=#1633 id=1633 data-nosnippet>1633</a>            constrain v4 == v0
 <a href=#1634 id=1634 data-nosnippet>1634</a>            return v4
 <a href=#1635 id=1635 data-nosnippet>1635</a>        }
-<a href=#1636 id=1636 data-nosnippet>1636</a>        brillig(inline) predicate_pure fn helper_func f1 {
+<a href=#1636 id=1636 data-nosnippet>1636</a>        brillig(inline) pure fn helper_func f1 {
 <a href=#1637 id=1637 data-nosnippet>1637</a>          b0(v0: [[Field; 1]; 1]):
 <a href=#1638 id=1638 data-nosnippet>1638</a>            v2 = array_get v0, index u32 0 -&gt; [Field; 1]
 <a href=#1639 id=1639 data-nosnippet>1639</a>            v3 = array_get v2, index u32 0 -&gt; Field
@@ -1659,7 +1659,7 @@
 <a href=#1659 id=1659 data-nosnippet>1659</a>            constrain v4 == v0
 <a href=#1660 id=1660 data-nosnippet>1660</a>            return v4
 <a href=#1661 id=1661 data-nosnippet>1661</a>        }
-<a href=#1662 id=1662 data-nosnippet>1662</a>        brillig(inline) predicate_pure fn helper_func f1 {
+<a href=#1662 id=1662 data-nosnippet>1662</a>        brillig(inline) pure fn helper_func f1 {
 <a href=#1663 id=1663 data-nosnippet>1663</a>          b0(v0: [Field; 2]):
 <a href=#1664 id=1664 data-nosnippet>1664</a>            v2 = array_get v0, index u32 0 -&gt; Field
 <a href=#1665 id=1665 data-nosnippet>1665</a>            return v2
@@ -1689,7 +1689,7 @@
 <a href=#1689 id=1689 data-nosnippet>1689</a>            constrain v5 == v0
 <a href=#1690 id=1690 data-nosnippet>1690</a>            return v5
 <a href=#1691 id=1691 data-nosnippet>1691</a>        }
-<a href=#1692 id=1692 data-nosnippet>1692</a>        brillig(inline) predicate_pure fn helper_func f1 {
+<a href=#1692 id=1692 data-nosnippet>1692</a>        brillig(inline) pure fn helper_func f1 {
 <a href=#1693 id=1693 data-nosnippet>1693</a>          b0(v0: [Field; 2]):
 <a href=#1694 id=1694 data-nosnippet>1694</a>            v2 = array_get v0, index u32 0 -&gt; Field
 <a href=#1695 id=1695 data-nosnippet>1695</a>            return v2
@@ -1722,7 +1722,7 @@
 <a href=#1722 id=1722 data-nosnippet>1722</a>            constrain v7 == v1
 <a href=#1723 id=1723 data-nosnippet>1723</a>            return
 <a href=#1724 id=1724 data-nosnippet>1724</a>        }
-<a href=#1725 id=1725 data-nosnippet>1725</a>        brillig(inline) predicate_pure fn helper_func f1 {
+<a href=#1725 id=1725 data-nosnippet>1725</a>        brillig(inline) pure fn helper_func f1 {
 <a href=#1726 id=1726 data-nosnippet>1726</a>          b0(v0: [Field; 2]):
 <a href=#1727 id=1727 data-nosnippet>1727</a>            return v0
 <a href=#1728 id=1728 data-nosnippet>1728</a>        }
@@ -1746,7 +1746,7 @@
 <a href=#1746 id=1746 data-nosnippet>1746</a>            constrain v1 == v2
 <a href=#1747 id=1747 data-nosnippet>1747</a>            return
 <a href=#1748 id=1748 data-nosnippet>1748</a>        }
-<a href=#1749 id=1749 data-nosnippet>1749</a>        brillig(inline) predicate_pure fn f f1 {
+<a href=#1749 id=1749 data-nosnippet>1749</a>        brillig(inline) pure fn f f1 {
 <a href=#1750 id=1750 data-nosnippet>1750</a>          b0(v0: u32):
 <a href=#1751 id=1751 data-nosnippet>1751</a>            return v0, v0
 <a href=#1752 id=1752 data-nosnippet>1752</a>        }
@@ -1794,7 +1794,7 @@
 <a href=#1794 id=1794 data-nosnippet>1794</a>            constrain v5 == u1 1
 <a href=#1795 id=1795 data-nosnippet>1795</a>            return
 <a href=#1796 id=1796 data-nosnippet>1796</a>        }
-<a href=#1797 id=1797 data-nosnippet>1797</a>        brillig(inline) predicate_pure fn f f1 {
+<a href=#1797 id=1797 data-nosnippet>1797</a>        brillig(inline) pure fn f f1 {
 <a href=#1798 id=1798 data-nosnippet>1798</a>          b0(v0: u32):
 <a href=#1799 id=1799 data-nosnippet>1799</a>            v1 = make_array [v0, v0] : [u32; 2]
 <a href=#1800 id=1800 data-nosnippet>1800</a>            return v1
@@ -1821,7 +1821,7 @@
 <a href=#1821 id=1821 data-nosnippet>1821</a>            constrain v5 == u1 1
 <a href=#1822 id=1822 data-nosnippet>1822</a>            return
 <a href=#1823 id=1823 data-nosnippet>1823</a>        }
-<a href=#1824 id=1824 data-nosnippet>1824</a>        brillig(inline) predicate_pure fn f f1 {
+<a href=#1824 id=1824 data-nosnippet>1824</a>        brillig(inline) pure fn f f1 {
 <a href=#1825 id=1825 data-nosnippet>1825</a>          b0(v0: u32):
 <a href=#1826 id=1826 data-nosnippet>1826</a>            v1 = make_array [
 <a href=#1827 id=1827 data-nosnippet>1827</a>              v0, v0, v0, v0, v0, v0, v0, v0, v0, v0,

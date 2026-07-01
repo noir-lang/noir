@@ -871,7 +871,7 @@
 <a href=#871 id=871 data-nosnippet>871</a>    </span><span class="kw">fn </span>does_not_remove_inc_rc_of_return_value_that_points_to_a_make_array() {
 <a href=#872 id=872 data-nosnippet>872</a>        <span class="comment">// Here we would previously incorrectly remove `inc_rc v1`
 <a href=#873 id=873 data-nosnippet>873</a>        </span><span class="kw">let </span>src = <span class="string">r#"
-<a href=#874 id=874 data-nosnippet>874</a>        brillig(inline) predicate_pure fn main f0 {
+<a href=#874 id=874 data-nosnippet>874</a>        brillig(inline) pure fn main f0 {
 <a href=#875 id=875 data-nosnippet>875</a>          b0():
 <a href=#876 id=876 data-nosnippet>876</a>            v1 = make_array [u1 1] : [u1; 1]
 <a href=#877 id=877 data-nosnippet>877</a>            v2 = make_array [v1] : [[u1; 1]; 1]
@@ -888,7 +888,7 @@
 <a href=#888 id=888 data-nosnippet>888</a>        <span class="kw">let </span>src = <span class="string">r#"
 <a href=#889 id=889 data-nosnippet>889</a>        g0 = make_array [u1 1] : [u1; 1]
 <a href=#890 id=890 data-nosnippet>890</a>
-<a href=#891 id=891 data-nosnippet>891</a>        brillig(inline) predicate_pure fn main f0 {
+<a href=#891 id=891 data-nosnippet>891</a>        brillig(inline) pure fn main f0 {
 <a href=#892 id=892 data-nosnippet>892</a>          b0():
 <a href=#893 id=893 data-nosnippet>893</a>            v0 = make_array [g0] : [[u1; 1]; 1]
 <a href=#894 id=894 data-nosnippet>894</a>            inc_rc v0
@@ -1004,7 +1004,7 @@
 <a href=#1004 id=1004 data-nosnippet>1004</a>        //     constrain v5 == u1 1, "Index out of bounds"
 <a href=#1005 id=1005 data-nosnippet>1005</a>        //     return
 <a href=#1006 id=1006 data-nosnippet>1006</a>        //   }
-<a href=#1007 id=1007 data-nosnippet>1007</a>        // brillig(inline) predicate_pure fn inject_value f1 {
+<a href=#1007 id=1007 data-nosnippet>1007</a>        // brillig(inline) pure fn inject_value f1 {
 <a href=#1008 id=1008 data-nosnippet>1008</a>        //   b0():
 <a href=#1009 id=1009 data-nosnippet>1009</a>        //     return u32 0
 <a href=#1010 id=1010 data-nosnippet>1010</a>        // }
@@ -1401,7 +1401,7 @@
 <a href=#1401 id=1401 data-nosnippet>1401</a>                constrain v8 == u1 1
 <a href=#1402 id=1402 data-nosnippet>1402</a>                return
 <a href=#1403 id=1403 data-nosnippet>1403</a>            }
-<a href=#1404 id=1404 data-nosnippet>1404</a>            brillig(inline_never) predicate_pure fn returns_true f1 {
+<a href=#1404 id=1404 data-nosnippet>1404</a>            brillig(inline_never) pure fn returns_true f1 {
 <a href=#1405 id=1405 data-nosnippet>1405</a>              b0():
 <a href=#1406 id=1406 data-nosnippet>1406</a>                return u1 1
 <a href=#1407 id=1407 data-nosnippet>1407</a>            }

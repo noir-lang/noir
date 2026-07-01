@@ -584,7 +584,7 @@
 <a href=#584 id=584 data-nosnippet>584</a>        // }
 <a href=#585 id=585 data-nosnippet>585</a>        // ```
 <a href=#586 id=586 data-nosnippet>586</a>        </span><span class="kw">let </span>src = <span class="string">r#"
-<a href=#587 id=587 data-nosnippet>587</a>        brillig(inline) predicate_pure fn main f0 {
+<a href=#587 id=587 data-nosnippet>587</a>        brillig(inline) pure fn main f0 {
 <a href=#588 id=588 data-nosnippet>588</a>          b0(v0: i16):
 <a href=#589 id=589 data-nosnippet>589</a>            v5 = lt i16 3, v0
 <a href=#590 id=590 data-nosnippet>590</a>            jmpif v5 then: b1(), else: b2()
@@ -650,7 +650,7 @@
 <a href=#650 id=650 data-nosnippet>650</a>        }
 <a href=#651 id=651 data-nosnippet>651</a>
 <a href=#652 id=652 data-nosnippet>652</a>        <span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r#"
-<a href=#653 id=653 data-nosnippet>653</a>        brillig(inline) predicate_pure fn main f0 {
+<a href=#653 id=653 data-nosnippet>653</a>        brillig(inline) pure fn main f0 {
 <a href=#654 id=654 data-nosnippet>654</a>          b0(v0: i16):
 <a href=#655 id=655 data-nosnippet>655</a>            v2 = lt i16 3, v0
 <a href=#656 id=656 data-nosnippet>656</a>            jmpif v2 then: b1(), else: b2()
@@ -681,7 +681,7 @@
 <a href=#681 id=681 data-nosnippet>681</a>        </span><span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
 <a href=#682 id=682 data-nosnippet>682</a>        <span class="kw">let </span>ssa = ssa.dead_instruction_elimination();
 <a href=#683 id=683 data-nosnippet>683</a>        <span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r#"
-<a href=#684 id=684 data-nosnippet>684</a>        brillig(inline) predicate_pure fn main f0 {
+<a href=#684 id=684 data-nosnippet>684</a>        brillig(inline) pure fn main f0 {
 <a href=#685 id=685 data-nosnippet>685</a>          b0(v0: i16):
 <a href=#686 id=686 data-nosnippet>686</a>            v2 = lt i16 3, v0
 <a href=#687 id=687 data-nosnippet>687</a>            jmpif v2 then: b1(), else: b2()

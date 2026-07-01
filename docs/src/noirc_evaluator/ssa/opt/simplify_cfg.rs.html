@@ -699,7 +699,7 @@
 <a href=#699 id=699 data-nosnippet>699</a>    <span class="attr">#[test]
 <a href=#700 id=700 data-nosnippet>700</a>    </span><span class="kw">fn </span>remove_converging_jmpif() {
 <a href=#701 id=701 data-nosnippet>701</a>        <span class="kw">let </span>src = <span class="string">r"
-<a href=#702 id=702 data-nosnippet>702</a>        brillig(inline) predicate_pure fn main f0 {
+<a href=#702 id=702 data-nosnippet>702</a>        brillig(inline) pure fn main f0 {
 <a href=#703 id=703 data-nosnippet>703</a>          b0(v0: i16):
 <a href=#704 id=704 data-nosnippet>704</a>            v2 = lt i16 3, v0
 <a href=#705 id=705 data-nosnippet>705</a>            jmpif v2 then: b1(), else: b2()
@@ -723,7 +723,7 @@
 <a href=#723 id=723 data-nosnippet>723</a>        <span class="kw">let </span>ssa = ssa.simplify_cfg();
 <a href=#724 id=724 data-nosnippet>724</a>
 <a href=#725 id=725 data-nosnippet>725</a>        <span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
-<a href=#726 id=726 data-nosnippet>726</a>        brillig(inline) predicate_pure fn main f0 {
+<a href=#726 id=726 data-nosnippet>726</a>        brillig(inline) pure fn main f0 {
 <a href=#727 id=727 data-nosnippet>727</a>          b0(v0: i16):
 <a href=#728 id=728 data-nosnippet>728</a>            v2 = lt i16 3, v0
 <a href=#729 id=729 data-nosnippet>729</a>            v4 = lt i16 5, v0
@@ -738,7 +738,7 @@
 <a href=#738 id=738 data-nosnippet>738</a>        // as b1 and b2 jump to b3 and b4 respectively before ultimately jumping to b5.
 <a href=#739 id=739 data-nosnippet>739</a>        // b5 then also continues the jump chain. We expect the b1 and b2 jump chain to settle on b7.
 <a href=#740 id=740 data-nosnippet>740</a>        </span><span class="kw">let </span>src = <span class="string">r"
-<a href=#741 id=741 data-nosnippet>741</a>        brillig(inline) predicate_pure fn main f0 {
+<a href=#741 id=741 data-nosnippet>741</a>        brillig(inline) pure fn main f0 {
 <a href=#742 id=742 data-nosnippet>742</a>          b0(v0: i16):
 <a href=#743 id=743 data-nosnippet>743</a>            v1 = lt i16 1, v0
 <a href=#744 id=744 data-nosnippet>744</a>            jmpif v1 then: b1(), else: b2()
@@ -770,7 +770,7 @@
 <a href=#770 id=770 data-nosnippet>770</a>        <span class="kw">let </span>ssa = ssa.simplify_cfg();
 <a href=#771 id=771 data-nosnippet>771</a>
 <a href=#772 id=772 data-nosnippet>772</a>        <span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
-<a href=#773 id=773 data-nosnippet>773</a>        brillig(inline) predicate_pure fn main f0 {
+<a href=#773 id=773 data-nosnippet>773</a>        brillig(inline) pure fn main f0 {
 <a href=#774 id=774 data-nosnippet>774</a>          b0(v0: i16):
 <a href=#775 id=775 data-nosnippet>775</a>            v2 = lt i16 1, v0
 <a href=#776 id=776 data-nosnippet>776</a>            v4 = lt i16 2, v0
@@ -912,7 +912,7 @@
 <a href=#912 id=912 data-nosnippet>912</a>    <span class="attr">#[test]
 <a href=#913 id=913 data-nosnippet>913</a>    </span><span class="kw">fn </span>do_not_remove_converging_jmpif_with_instructions() {
 <a href=#914 id=914 data-nosnippet>914</a>        <span class="kw">let </span>src = <span class="string">r"
-<a href=#915 id=915 data-nosnippet>915</a>        brillig(inline) predicate_pure fn main f0 {
+<a href=#915 id=915 data-nosnippet>915</a>        brillig(inline) pure fn main f0 {
 <a href=#916 id=916 data-nosnippet>916</a>          b0(v0: i16):
 <a href=#917 id=917 data-nosnippet>917</a>            v2 = lt i16 3, v0
 <a href=#918 id=918 data-nosnippet>918</a>            jmpif v2 then: b1(), else: b2()
@@ -933,7 +933,7 @@
 <a href=#933 id=933 data-nosnippet>933</a>        <span class="comment">// Check that we handle a cyclic jump chain when checking for a converging jmpif.
 <a href=#934 id=934 data-nosnippet>934</a>        // If we were missing the appropriate checks this code could trigger an infinite loop.
 <a href=#935 id=935 data-nosnippet>935</a>        </span><span class="kw">let </span>src = <span class="string">r#"
-<a href=#936 id=936 data-nosnippet>936</a>        brillig(inline) predicate_pure fn main f0 {
+<a href=#936 id=936 data-nosnippet>936</a>        brillig(inline) pure fn main f0 {
 <a href=#937 id=937 data-nosnippet>937</a>          b0(v0: i16):
 <a href=#938 id=938 data-nosnippet>938</a>            v1 = lt i16 1, v0
 <a href=#939 id=939 data-nosnippet>939</a>            jmpif v1 then: b1(), else: b2()
@@ -948,7 +948,7 @@
 <a href=#948 id=948 data-nosnippet>948</a>        <span class="kw">let </span>ssa = ssa.simplify_cfg();
 <a href=#949 id=949 data-nosnippet>949</a>
 <a href=#950 id=950 data-nosnippet>950</a>        <span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
-<a href=#951 id=951 data-nosnippet>951</a>        brillig(inline) predicate_pure fn main f0 {
+<a href=#951 id=951 data-nosnippet>951</a>        brillig(inline) pure fn main f0 {
 <a href=#952 id=952 data-nosnippet>952</a>          b0(v0: i16):
 <a href=#953 id=953 data-nosnippet>953</a>            v2 = lt i16 1, v0
 <a href=#954 id=954 data-nosnippet>954</a>            jmpif v2 then: b1(), else: b1()
@@ -1029,7 +1029,7 @@
 <a href=#1029 id=1029 data-nosnippet>1029</a>    <span class="attr">#[test]
 <a href=#1030 id=1030 data-nosnippet>1030</a>    </span><span class="kw">fn </span>fully_simplifies_negated_constant_condition() {
 <a href=#1031 id=1031 data-nosnippet>1031</a>        <span class="kw">let </span>src = <span class="string">r#"
-<a href=#1032 id=1032 data-nosnippet>1032</a>        brillig(inline) predicate_pure fn main f0 {
+<a href=#1032 id=1032 data-nosnippet>1032</a>        brillig(inline) pure fn main f0 {
 <a href=#1033 id=1033 data-nosnippet>1033</a>          b0():
 <a href=#1034 id=1034 data-nosnippet>1034</a>            jmp b1(u1 1)
 <a href=#1035 id=1035 data-nosnippet>1035</a>          b1(v0: u1):
@@ -1048,7 +1048,7 @@
 <a href=#1048 id=1048 data-nosnippet>1048</a>        <span class="kw">let </span>ssa = ssa.simplify_cfg();
 <a href=#1049 id=1049 data-nosnippet>1049</a>
 <a href=#1050 id=1050 data-nosnippet>1050</a>        <span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">"
-<a href=#1051 id=1051 data-nosnippet>1051</a>        brillig(inline) predicate_pure fn main f0 {
+<a href=#1051 id=1051 data-nosnippet>1051</a>        brillig(inline) pure fn main f0 {
 <a href=#1052 id=1052 data-nosnippet>1052</a>          b0():
 <a href=#1053 id=1053 data-nosnippet>1053</a>            v1 = not u1 1
 <a href=#1054 id=1054 data-nosnippet>1054</a>            return
@@ -1059,7 +1059,7 @@
 <a href=#1059 id=1059 data-nosnippet>1059</a>    <span class="attr">#[test]
 <a href=#1060 id=1060 data-nosnippet>1060</a>    </span><span class="kw">fn </span>removes_unreachable_block() {
 <a href=#1061 id=1061 data-nosnippet>1061</a>        <span class="kw">let </span>src = <span class="string">r#"
-<a href=#1062 id=1062 data-nosnippet>1062</a>        brillig(inline) predicate_pure fn main f0 {
+<a href=#1062 id=1062 data-nosnippet>1062</a>        brillig(inline) pure fn main f0 {
 <a href=#1063 id=1063 data-nosnippet>1063</a>          b0():
 <a href=#1064 id=1064 data-nosnippet>1064</a>            jmp b1()
 <a href=#1065 id=1065 data-nosnippet>1065</a>          b1():
@@ -1073,7 +1073,7 @@
 <a href=#1073 id=1073 data-nosnippet>1073</a>        <span class="kw">let </span>ssa = ssa.simplify_cfg();
 <a href=#1074 id=1074 data-nosnippet>1074</a>
 <a href=#1075 id=1075 data-nosnippet>1075</a>        <span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">"
-<a href=#1076 id=1076 data-nosnippet>1076</a>        brillig(inline) predicate_pure fn main f0 {
+<a href=#1076 id=1076 data-nosnippet>1076</a>        brillig(inline) pure fn main f0 {
 <a href=#1077 id=1077 data-nosnippet>1077</a>          b0():
 <a href=#1078 id=1078 data-nosnippet>1078</a>            return
 <a href=#1079 id=1079 data-nosnippet>1079</a>        }
