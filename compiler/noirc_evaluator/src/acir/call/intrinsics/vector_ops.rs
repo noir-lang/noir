@@ -89,7 +89,16 @@ impl Context<'_> {
         let vector_typ = dfg.type_of_value(vector_contents);
         self.check_vector_element_count("vector_push_back", elements_to_push, &vector_typ)?;
 
-        let new_vector_val = if let Some(len_const) = dfg.get_numeric_constant(arguments[0]) {
+        // The length is known at compile time when it is either an SSA numeric constant or when its
+        // ACIR representation has folded to a constant (e.g. the length of a previous constant-length
+        // push). In that case we know exactly where the pushed elements land, so we can place them
+        // inline and let the block initialize with the final values — no `MemoryOp::Write` at a
+        // constant index into a freshly-initialized block.
+        let len_const = dfg.get_numeric_constant(arguments[0]).or_else(|| {
+            let expr = self.acir_context.var_to_expression(vector_length).ok()?;
+            expr.to_const().copied()
+        });
+        let new_vector_val = if let Some(len_const) = len_const {
             // Length is known at compile time - we can precisely determine where to write
             let mut new_vector = self.read_array_with_type(vector, &vector_typ)?;
             // length of Acir Values vector
