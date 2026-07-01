@@ -368,9 +368,24 @@ impl Context<'_> {
                 let value = AcirValue::Array(array.update(index, store_value));
                 self.define_result(dfg, instruction, value);
                 Ok(true)
-            } else {
-                // If a predicate is applied however we must wait until runtime.
+            } else if contains_dynamic_array(&store_value) || contains_dynamic_array(&array[index])
+            {
+                // The predicated value mixes the store value with the existing element as a dummy
+                // (see below). We can only do this in-place while both are plain values; if either
+                // side holds a nested dynamic array we'd have to read it back out of a memory block,
+                // so we defer the whole operation to the runtime memory-op path instead.
                 Ok(false)
+            } else {
+                // A predicate is active, but the index is a known in-bounds constant, so we can still
+                // resolve the write at compile time. The existing element acts as the dummy value and
+                // the stored element becomes `predicate * value + (1 - predicate) * dummy`: unchanged
+                // when the predicate is false. Folding it into the `AcirValue::Array` this way avoids
+                // initializing a memory block purely to read that dummy back out.
+                let predicated_value =
+                    self.convert_array_set_store_value(&store_value, &array[index])?;
+                let value = AcirValue::Array(array.update(index, predicated_value));
+                self.define_result(dfg, instruction, value);
+                Ok(true)
             }
         } else {
             // If the index is not out of range, we can optimistically perform the read at compile time
@@ -1319,6 +1334,18 @@ pub(super) fn calculate_element_type_sizes_array(
         total_size += element_type_sizes[index % element_types.len()].0;
     }
     flat_elem_type_sizes
+}
+
+/// Returns whether `value` contains an [`AcirValue::DynamicArray`] anywhere within it.
+///
+/// Such values are backed by a memory block rather than being held inline, so they cannot be
+/// folded into another [`AcirValue::Array`] without reading them back out of that block.
+fn contains_dynamic_array(value: &AcirValue) -> bool {
+    match value {
+        AcirValue::Var(_, _) => false,
+        AcirValue::Array(values) => values.iter().any(contains_dynamic_array),
+        AcirValue::DynamicArray(_) => true,
+    }
 }
 
 /// Calculates the total flattened size of an [`AcirValue`].
