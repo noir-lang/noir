@@ -188,7 +188,9 @@ fn find_callsite_labels<'files>(
                 let procedure_locs = debug_symbols.brillig_procedure_locs.get(&brillig_function_id);
                 if let Some(procedure_locs) = procedure_locs {
                     for (procedure, range) in procedure_locs {
-                        if brillig_location.0 >= range.0 && brillig_location.0 <= range.1 {
+                        if brillig_location.index() >= range.0
+                            && brillig_location.index() <= range.1
+                        {
                             procedure_id = Some(*procedure);
                             break;
                         }
@@ -269,10 +271,10 @@ fn add_locations_to_folded_stack_items(
 /// Creates a vector of lines in the format that inferno expects from a nested hashmap of stack items
 /// The lines have to be sorted in the following way, exploring the graph in a depth-first manner:
 /// main 100
-/// main::foo 0
-/// main::foo::bar 200
-/// main::baz 27
-/// main::baz::qux 800
+/// `main::foo` 0
+/// `main::foo::bar` 200
+/// `main::baz` 27
+/// `main::baz::qux` 800
 fn to_folded_sorted_lines(
     folded_stack_items: &BTreeMap<String, FoldedStackItem>,
     parent_stacks: im::Vector<String>,
@@ -426,7 +428,7 @@ mod tests {
             },
             CompilationSample {
                 opcode: Some(format_acir_opcode(&AcirOpcode::MemoryInit::<FieldElement> {
-                    block_id: BlockId(0),
+                    block_id: BlockId::new(0),
                     init: vec![],
                     block_type: acir::circuit::opcodes::BlockType::Memory,
                 })),

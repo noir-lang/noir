@@ -175,7 +175,7 @@ pub struct CompileOptions {
     pub force_brillig: bool,
 
     /// Enable printing results of comptime evaluation: provide a path suffix
-    /// for the module to debug, e.g. "package_name/src/main.nr"
+    /// for the module to debug, e.g. "`package_name/src/main.nr`"
     #[arg(long)]
     pub debug_comptime_in_file: Option<String>,
 
@@ -584,7 +584,7 @@ pub fn compute_function_abi(
 /// On success this returns the compiled program alongside any warnings that were found.
 /// On error this returns the non-empty list of warnings and errors.
 ///
-/// See [compile_no_check] for further information about the use of `cached_program`.
+/// See [`compile_no_check`] for further information about the use of `cached_program`.
 #[tracing::instrument(level = "trace", skip_all)]
 pub fn compile_main(
     context: &mut Context,
@@ -944,14 +944,15 @@ pub fn filter_relevant_files(
 ///
 /// This function assumes [`check_crate`] is called beforehand.
 ///
-/// If the program is not returned from cache, it is backend-agnostic and must go through a transformation
-/// pass before usage in proof generation; if it's returned from cache these transformations might have
-/// already been applied.
+/// Whether returned from cache or freshly compiled, the program has already been fully optimized and
+/// transformed for the proving backend (the width-bounding CSAT pass and intermediate-variable
+/// elimination, using the assembled program's Brillig side-effect information) as part of
+/// SSA-to-ACIR generation, so it is ready for proof generation with no further optimization pass.
 ///
-/// The transformations are _not_ covered by the check that decides whether we can use the cached artifact.
-/// That comparison is based on on [CompiledProgram::hash] which is a persisted version of the hash of the input
-/// [`ast::Program`][noirc_frontend::monomorphization::ast::Program], whereas the output [`circuit::Program`][acvm::acir::circuit::Program]
-/// contains the final optimized ACIR opcodes, including the transformation done after this compilation.
+/// Note that the optimized ACIR is _not_ covered by the check that decides whether we can use the cached
+/// artifact. That comparison is based on [`CompiledProgram::hash`] which is a persisted version of the hash
+/// of the input [`ast::Program`][noirc_frontend::monomorphization::ast::Program], whereas the output
+/// [`circuit::Program`][acvm::acir::circuit::Program] contains the final optimized ACIR opcodes.
 #[tracing::instrument(level = "trace", skip_all, fields(function_name = context.function_name(&main_function)))]
 #[allow(clippy::result_large_err)]
 pub fn compile_no_check(
@@ -1057,9 +1058,9 @@ struct ContractOutputs {
 }
 
 /// A 'contract' in Noir source code with a given name, functions and events.
-/// This is not an AST node, it is just a convenient form to return for CrateDefMap::get_all_contracts.
+/// This is not an AST node, it is just a convenient form to return for `CrateDefMap::get_all_contracts`.
 struct Contract {
-    /// To keep `name` semi-unique, it is prefixed with the names of parent modules via CrateDefMap::get_module_path
+    /// To keep `name` semi-unique, it is prefixed with the names of parent modules via `CrateDefMap::get_module_path`
     name: String,
     functions: Vec<ContractFunctionMeta>,
     outputs: ContractOutputs,

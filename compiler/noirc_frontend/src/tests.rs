@@ -9,6 +9,7 @@ mod cast;
 mod control_flow;
 mod deeply_nested;
 mod enums;
+mod expand;
 mod expressions;
 mod functions;
 mod globals;
@@ -91,18 +92,33 @@ pub fn assert_no_errors_without_report(src: &str) -> Context<'_, '_> {
 
 fn assert_no_errors_and_to_string(src: &str) -> String {
     let context = assert_no_errors(src);
-    display_crate(
+    let expanded = display_crate(
         *context.crate_graph.root_crate_id(),
         &context.crate_graph,
         &context.def_maps,
         &context.def_interner,
         context.file_manager.as_file_map(),
-    )
+    );
+
+    // The expanded source must compile on its own. A faithful expansion reconstructs the original
+    // module structure (and therefore its visibility), so re-elaborating the output should not
+    // surface new errors. This guards against expansions that, for example, hoist an `impl` out of
+    // its module and break access to a module-private item. Only hard errors are checked: the
+    // printer can legitimately produce code whose warnings (e.g. unused imports) differ from the
+    // original.
+    let errors = get_program_errors(&expanded);
+    let errors: Vec<_> =
+        errors.iter().map(CustomDiagnostic::from).filter(CustomDiagnostic::is_error).collect();
+    if !errors.is_empty() {
+        panic!("Expanded source failed to compile:\n\n{expanded}\n\nErrors: {errors:#?}");
+    }
+
+    expanded
 }
 
 /// Given a source file with annotated errors, like this
 ///
-/// fn main() -> pub i32 {
+/// fn `main()` -> pub i32 {
 ///                  ^^^ expected i32 because of return type
 ///     true
 ///     ~~~~ bool returned here
@@ -120,6 +136,23 @@ fn check_errors(src: &str) {
         src,
         monomorphize,
         GetProgramOptions { allow_elaborator_errors: true, ..Default::default() },
+    );
+}
+
+/// Like [`check_errors`], but also runs the elaborator when the source has parser
+/// errors. Use this when the test case deliberately exercises behavior past a
+/// parse failure (e.g. the parser produced `StatementKind::Error` and we want to
+/// verify the elaborator/interpreter handle it gracefully).
+fn check_errors_allowing_parser_errors(src: &str) {
+    let monomorphize = false;
+    check_errors_with_options(
+        src,
+        monomorphize,
+        GetProgramOptions {
+            allow_elaborator_errors: true,
+            allow_parser_errors: true,
+            ..Default::default()
+        },
     );
 }
 

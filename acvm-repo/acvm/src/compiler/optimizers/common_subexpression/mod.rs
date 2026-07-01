@@ -24,9 +24,9 @@
 //!
 //! ## Sub-passes
 //!
-//! ### CSAT: slices AssertZero opcodes towards the backend's preferred width.
+//! ### CSAT: slices `AssertZero` opcodes towards the backend's preferred width.
 //!
-//! For instance, with a width of 4, the AssertZero opcode `x1 + x2 + x3 + x4 + x5 - y = 0` is sliced using
+//! For instance, with a width of 4, the `AssertZero` opcode `x1 + x2 + x3 + x4 + x5 - y = 0` is sliced using
 //! 2 intermediate variables (z1, z2):
 //! ```text
 //! x1 + x2 + x3 = z1
@@ -35,7 +35,7 @@
 //! ```
 //! If x1,..x5 are inputs to the program, they are tagged as 'solvable', and would be used to compute the value of y.
 //! If we generated the intermediate variable `x4 + x5 - y = z3` instead, we would get an unsolvable circuit because
-//! that AssertZero opcode has two unknown values: y and z3.
+//! that `AssertZero` opcode has two unknown values: y and z3.
 //! So the CSAT transformation keeps track of which witnesses would be solved for each opcode in order to only generate
 //! solvable intermediate variables. Identical slices are cached, so a subexpression appearing in several opcodes is
 //! assigned a single shared intermediate witness — this is where the common subexpressions are formed.
@@ -43,7 +43,7 @@
 //! ### Eliminate intermediate variables
 //!
 //! The 'eliminate intermediate variables' pass will remove any intermediate variables (for instance created by the previous transformation)
-//! that are used in exactly two AssertZero opcodes.
+//! that are used in exactly two `AssertZero` opcodes.
 //! This results in arithmetic opcodes having linear combinations of potentially large width.
 //! For instance if the intermediate variable is z1 and is only used in y:
 //! ```text
@@ -57,7 +57,7 @@
 //! However, it is worthwhile to keep an intermediate variable if it is used in more than two opcodes: that is precisely a
 //! common subexpression, and materializing it once is cheaper than recomputing it in each opcode.
 //!
-//! ### redundant_range
+//! ### `redundant_range`
 //!
 //! The 'range optimization' pass, from the optimizers module, will remove any redundant range opcodes.
 use std::collections::BTreeMap;
@@ -85,6 +85,7 @@ use super::RangeOptimizer;
 
 /// We use multiple passes to stabilize the output in many cases
 const DEFAULT_MAX_TRANSFORMER_PASSES: usize = 3;
+const DEFAULT_EXPRESSION_WIDTH: usize = 4;
 
 /// Applies backend specific optimizations to a [`Circuit`].
 ///
@@ -163,7 +164,8 @@ fn transform_internal_once<F: AcirField>(
     // Process each opcode in the circuit by marking the solvable witnesses and slicing the AssertZero opcodes
     // towards the backend's preferred width by creating intermediate variables.
     // Knowing if a witness is solvable avoids creating un-solvable intermediate variables.
-    let mut transformer = CSatTransformer::new(4);
+    let csat_span = tracing::trace_span!("csat_transformer").entered();
+    let mut transformer = CSatTransformer::new(DEFAULT_EXPRESSION_WIDTH);
     for value in acir.circuit_arguments() {
         transformer.mark_solvable(value);
     }
@@ -254,6 +256,7 @@ fn transform_internal_once<F: AcirField>(
         // The transformer does not add new public inputs
         ..acir
     };
+    drop(csat_span);
 
     // 2. Eliminate intermediate variables, when they are used in exactly two arithmetic opcodes.
     let mut merge_optimizer = MergeExpressionsOptimizer::new();
@@ -637,7 +640,7 @@ mod tests {
             44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64,
         ];
         let mut brillig_side_effects = BTreeMap::new();
-        brillig_side_effects.insert(BrilligFunctionId(0), false);
+        brillig_side_effects.insert(BrilligFunctionId::new(0), false);
 
         let (_, _, opcode_count_stabilized) =
             transform_internal(acir, acir_opcode_positions, &brillig_side_effects, None);

@@ -21,7 +21,7 @@ use crate::{
         types::{WildcardAllowed, WildcardDisallowedContext},
     },
     hir::{
-        comptime::Value,
+        comptime::{Value, bigint_to_field},
         def_collector::dc_crate::UnresolvedEnum,
         def_map::LocalModuleId,
         resolution::{errors::ResolverError, import::PathResolutionError},
@@ -48,7 +48,7 @@ use super::{Elaborator, TypedPathSegment, path_resolution::PathResolutionTarget}
 const WILDCARD_PATTERN: &str = "_";
 
 /// Everything needed to resolve an enum's variants later, captured at
-/// registration time. Mirrors [super::structs::UnresolvedStructFields] for
+/// registration time. Mirrors [`super::structs::UnresolvedStructFields`] for
 /// struct fields.
 pub(super) struct UnresolvedEnumVariants {
     pub(super) enum_def: NoirEnumeration,
@@ -332,8 +332,9 @@ impl Elaborator<'_> {
         let statement_id = self.interner.get_global(global_id).let_statement;
         self.interner.replace_statement(statement_id, let_statement);
 
-        self.interner.get_global_mut(global_id).value =
-            GlobalValue::Resolved(Value::Enum(variant_index, Vec::new(), typ));
+        let global = self.interner.get_global_mut(global_id);
+        global.value = GlobalValue::Resolved(Value::Enum(variant_index, Vec::new(), typ));
+        global.is_enum_variant = true;
 
         Self::get_module_mut(self.def_maps, type_id.module_id())
             .declare_global(name.clone(), enum_.visibility, global_id)
@@ -402,6 +403,7 @@ impl Elaborator<'_> {
             type_id: Some(type_id),
             trait_id: None,
             trait_impl: None,
+            impl_id: None,
             enum_variant_index: Some(variant_index),
             is_entry_point: false,
             has_inline_attribute: false,
@@ -548,12 +550,13 @@ impl Elaborator<'_> {
                 };
                 unify_with_expected_type(self, &actual);
 
+                let field_value = bigint_to_field(&value);
                 let expr = HirExpression::Literal(HirLiteral::Integer(value));
                 let location = expr_location;
                 let expr_id = self.interner.push_expr_full(expr, location, actual);
                 self.push_integer_literal_expr_id(expr_id);
 
-                Pattern::Int(value)
+                Pattern::Int(field_value)
             }
             ExpressionKind::Literal(Literal::Bool(value)) => {
                 unify_with_expected_type(self, &Type::Bool);
@@ -786,7 +789,7 @@ impl Elaborator<'_> {
         if let Ok(resolution) = self.resolve_path_or_error(typed_path, PathResolutionTarget::Value)
         {
             return match &resolution {
-                PathResolutionItem::Global(id) => {
+                PathResolutionItem::Global(id) | PathResolutionItem::EnumVariant(id) => {
                     let global = self.interner.get_global(*id);
                     let typ = self.interner.definition_type(global.definition_id);
                     let inner = match &typ {
@@ -865,8 +868,8 @@ impl Elaborator<'_> {
         }
     }
 
-    /// Convert a PathResolutionItem - usually an enum variant or global - to a Constructor.
-    /// If `name` is `Some`, we'll define a Pattern::Binding instead of erroring if the
+    /// Convert a `PathResolutionItem` - usually an enum variant or global - to a Constructor.
+    /// If `name` is `Some`, we'll define a `Pattern::Binding` instead of erroring if the
     /// item doesn't resolve to a variant or global. This would shadow an existing
     /// value such as a free function. Generally this is desired unless the variable was
     /// a path with multiple components such as `foo::bar` which should always be treated as
@@ -882,7 +885,7 @@ impl Elaborator<'_> {
         variables_defined: &mut Vec<Ident>,
     ) -> Pattern {
         let (actual_type, expected_arg_types, variant_index) = match &resolution {
-            PathResolutionItem::Global(id) => {
+            PathResolutionItem::Global(id) | PathResolutionItem::EnumVariant(id) => {
                 // variant constant
                 self.elaborate_global_if_unresolved(id);
                 let global = self.interner.get_global(*id);
@@ -1311,13 +1314,12 @@ impl<'elab, 'ctx> MatchCompiler<'elab, 'ctx> {
             if let Some(col) = row.remove_column(branch_var) {
                 if let Pattern::Constructor(cons, args) = col.pattern {
                     let idx = cons.variant_index();
-                    let mut cols = row.columns;
 
                     for (var, pat) in cases[idx].1.iter().zip_eq(args.into_iter()) {
-                        cols.push(Column::new(*var, pat));
+                        row.columns.push(Column::new(*var, pat));
                     }
 
-                    cases[idx].2.push(Row::new(cols, row.guard, row.body, row.location));
+                    cases[idx].2.push(row);
                 }
             } else {
                 for (_, _, rows) in &mut cases {
@@ -1464,7 +1466,7 @@ impl<'elab, 'ctx> MatchCompiler<'elab, 'ctx> {
         }
     }
 
-    /// Traverse the resulting HirMatch to build counter-examples of values which would
+    /// Traverse the resulting `HirMatch` to build counter-examples of values which would
     /// not be covered by the match.
     #[tracing::instrument(level = "trace", skip_all)]
     fn issue_missing_cases_error(

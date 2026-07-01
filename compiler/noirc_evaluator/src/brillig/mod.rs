@@ -3,7 +3,7 @@
 //!
 //! # Usage
 //!
-//! Brillig generation is performed by calling the [Ssa::to_brillig] method.
+//! Brillig generation is performed by calling the [`Ssa::to_brillig`] method.
 //! All compiled Brillig artifacts will be returned as the [Brillig] context structure.
 mod brillig_check;
 pub(crate) mod brillig_gen;
@@ -454,8 +454,8 @@ mod memory_layout {
 
         // Entry point level comparison
         let args = vec![BrilligParameter::SingleAddr(32)];
-        let entry1 = gen_brillig_for(main, args.clone(), &brillig1, &options1).unwrap();
-        let entry2 = gen_brillig_for(main, args, &brillig2, &options2).unwrap();
+        let entry1 = gen_brillig_for(main, &args, &brillig1, &options1).unwrap();
+        let entry2 = gen_brillig_for(main, &args, &brillig2, &options2).unwrap();
 
         assert_equivalent_bytecode(&entry1.byte_code, &entry2.byte_code, &options1, &options2);
     }
@@ -579,7 +579,7 @@ mod spill_runtime {
         let options = BrilligOptions { layout, ..Default::default() };
         let brillig = ssa.to_brillig(&options);
         let main = ssa.main();
-        let generated = gen_brillig_for(main, args, &brillig, &options).unwrap();
+        let generated = gen_brillig_for(main, &args, &brillig, &options).unwrap();
 
         let (vm, return_data_offset, return_data_size) =
             create_and_run_vm(calldata, &generated.byte_code);
@@ -589,7 +589,7 @@ mod spill_runtime {
             .collect()
     }
 
-    /// Minimal arithmetic spill test. Frame=6 gives 4 usable slots (start_offset=2).
+    /// Minimal arithmetic spill test. Frame=6 gives 4 usable slots (`start_offset=2`).
     /// Two params (v0, v1) use 2 slots, leaving 2 free. Computing v2, v3 fills the
     /// frame. Computing v4 requires a constant temp that pushes past 4, forcing a spill.
     ///

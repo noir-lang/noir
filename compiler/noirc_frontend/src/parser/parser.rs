@@ -1,7 +1,7 @@
-use acvm::{AcirField, FieldElement};
 use fm::FileId;
 use modifiers::Modifiers;
 use noirc_errors::{Location, Span};
+use num_bigint::BigInt;
 
 use crate::{
     ast::{Ident, ItemVisibility},
@@ -46,7 +46,7 @@ pub use statement_or_expression_or_lvalue::StatementOrExpressionOrLValue;
 
 /// Entry function for the parser - also handles lexing internally.
 ///
-/// Given a source_program string, return the ParsedModule Ast representation
+/// Given a `source_program` string, return the `ParsedModule` Ast representation
 /// of the program along with any parsing errors encountered. If the parsing errors
 /// Vec is non-empty, there may be Error nodes in the Ast to fill in the gaps that
 /// failed to parse. Otherwise the Ast is guaranteed to have 0 Error nodes.
@@ -237,7 +237,7 @@ impl<'a> Parser<'a> {
         )
     }
 
-    /// Module = InnerDocComments Item*
+    /// Module = `InnerDocComments` Item*
     pub(crate) fn parse_module(&mut self, nested: bool) -> ParsedModule {
         let inner_doc_comments = self.parse_inner_doc_comments();
         let items = self.parse_module_items(nested);
@@ -317,7 +317,7 @@ impl<'a> Parser<'a> {
                 )) => {
                     let location = error.location();
                     self.errors.push(error.into());
-                    let token = LocatedToken::new(Token::Int(FieldElement::zero(), None), location);
+                    let token = LocatedToken::new(Token::Int(BigInt::ZERO, None), location);
                     return (token, last_comments);
                 }
                 // A non-ASCII identifier is lexed as a single error so the parser can see the
@@ -339,8 +339,8 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn eat_kind(&mut self, kind: TokenKind) -> Option<LocatedToken> {
-        if self.token.kind() == kind { Some(self.bump()) } else { None }
+    fn eat_kind(&mut self, kind: &TokenKind) -> Option<LocatedToken> {
+        if self.token.kind() == *kind { Some(self.bump()) } else { None }
     }
 
     fn eat_keyword(&mut self, keyword: Keyword) -> bool {
@@ -366,7 +366,7 @@ impl<'a> Parser<'a> {
     }
 
     fn eat_ident(&mut self) -> Option<Ident> {
-        if let Some(token) = self.eat_kind(TokenKind::Ident) {
+        if let Some(token) = self.eat_kind(&TokenKind::Ident) {
             return match token.into_token() {
                 Token::Ident(ident) => Some(Ident::new(ident, self.previous_token_location)),
                 _ => unreachable!(),
@@ -419,7 +419,7 @@ impl<'a> Parser<'a> {
         false
     }
 
-    fn eat_int(&mut self) -> Option<(FieldElement, Option<IntegerTypeSuffix>)> {
+    fn eat_int(&mut self) -> Option<(BigInt, Option<IntegerTypeSuffix>)> {
         if matches!(self.token.token(), Token::Int(..)) {
             let token = self.bump();
             match token.into_token() {
@@ -492,7 +492,7 @@ impl<'a> Parser<'a> {
     }
 
     fn eat_unquote_marker(&mut self) -> Option<ExprId> {
-        if let Some(token) = self.eat_kind(TokenKind::UnquoteMarker) {
+        if let Some(token) = self.eat_kind(&TokenKind::UnquoteMarker) {
             match token.into_token() {
                 Token::UnquoteMarker(expr_id) => return Some(expr_id),
                 _ => {
@@ -543,11 +543,11 @@ impl<'a> Parser<'a> {
     }
 
     fn eat_comma(&mut self) -> bool {
-        self.eat(Token::Comma)
+        self.eat(&Token::Comma)
     }
 
     fn eat_semicolon(&mut self) -> bool {
-        self.eat(Token::Semicolon)
+        self.eat(&Token::Semicolon)
     }
 
     fn eat_semicolons(&mut self) -> bool {
@@ -571,50 +571,50 @@ impl<'a> Parser<'a> {
     }
 
     fn eat_colon(&mut self) -> bool {
-        self.eat(Token::Colon)
+        self.eat(&Token::Colon)
     }
 
     fn eat_double_colon(&mut self) -> bool {
-        self.eat(Token::DoubleColon)
+        self.eat(&Token::DoubleColon)
     }
 
     fn eat_left_paren(&mut self) -> bool {
-        self.eat(Token::LeftParen)
+        self.eat(&Token::LeftParen)
     }
 
     fn eat_right_paren(&mut self) -> bool {
-        self.eat(Token::RightParen)
+        self.eat(&Token::RightParen)
     }
 
     fn eat_left_brace(&mut self) -> bool {
-        self.eat(Token::LeftBrace)
+        self.eat(&Token::LeftBrace)
     }
 
     fn eat_left_bracket(&mut self) -> bool {
-        self.eat(Token::LeftBracket)
+        self.eat(&Token::LeftBracket)
     }
 
     fn eat_right_bracket(&mut self) -> bool {
-        self.eat(Token::RightBracket)
+        self.eat(&Token::RightBracket)
     }
 
     fn eat_less(&mut self) -> bool {
-        self.eat(Token::Less)
+        self.eat(&Token::Less)
     }
 
     fn eat_assign(&mut self) -> bool {
-        self.eat(Token::Assign)
+        self.eat(&Token::Assign)
     }
 
     fn eat_dot(&mut self) -> bool {
-        self.eat(Token::Dot)
+        self.eat(&Token::Dot)
     }
 
     fn eat_pipe(&mut self) -> bool {
-        self.eat(Token::Pipe)
+        self.eat(&Token::Pipe)
     }
 
-    fn eat(&mut self, token: Token) -> bool {
+    fn eat(&mut self, token: &Token) -> bool {
         if self.current_is(token) {
             self.bump();
             true
@@ -630,17 +630,17 @@ impl<'a> Parser<'a> {
     }
 
     fn eat_or_error(&mut self, token: Token) {
-        if !self.eat(token.clone()) {
+        if !self.eat(&token) {
             self.expected_token(token);
         }
     }
 
-    fn at(&self, token: Token) -> bool {
-        self.token.token() == &token
+    fn at(&self, token: &Token) -> bool {
+        self.token.token() == token
     }
 
     fn at_keyword(&self, keyword: Keyword) -> bool {
-        self.at(Token::Keyword(keyword))
+        self.at(&Token::Keyword(keyword))
     }
 
     fn at_whitespace(&self) -> bool {
@@ -653,16 +653,16 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn current_is(&self, token: Token) -> bool {
-        self.token.token() == &token
+    fn current_is(&self, token: &Token) -> bool {
+        self.token.token() == token
     }
 
-    fn next_is(&self, token: Token) -> bool {
-        self.next_token.token() == &token
+    fn next_is(&self, token: &Token) -> bool {
+        self.next_token.token() == token
     }
 
     fn at_eof(&self) -> bool {
-        self.current_is(Token::EOF)
+        self.current_is(&Token::EOF)
     }
 
     /// Check if we reached the maximum recursion depth.

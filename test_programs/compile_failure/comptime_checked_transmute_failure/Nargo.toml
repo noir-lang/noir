@@ -1,7 +1,0 @@
-[package]
-name = "comptime_checked_transmute_failure"
-type = "bin"
-authors = [""]
-compiler_version = ">=0.26.0"
-
-[dependencies]

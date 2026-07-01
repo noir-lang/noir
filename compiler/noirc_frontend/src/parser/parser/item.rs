@@ -24,7 +24,7 @@ impl<'a> Parser<'a> {
     fn parse_module_item_in_list(&mut self, nested: bool) -> Vec<Item> {
         loop {
             // We only break out of the loop on `}` if we are inside a `mod { ..`
-            if nested && self.at(Token::RightBrace) {
+            if nested && self.at(&Token::RightBrace) {
                 return vec![];
             }
 
@@ -60,7 +60,7 @@ impl<'a> Parser<'a> {
     /// - If we can't parse an item and we don't end up in '}', error but try with the next token
     pub(super) fn parse_item_in_list<T, F>(
         &mut self,
-        label: ParsingRuleLabel,
+        label: &ParsingRuleLabel,
         mut f: F,
     ) -> Option<T>
     where
@@ -73,7 +73,7 @@ impl<'a> Parser<'a> {
             }
 
             let Some(item) = f(self) else {
-                if !self.at(Token::RightBrace) {
+                if !self.at(&Token::RightBrace) {
                     self.expected_label(label.clone());
 
                     // Try with the next token
@@ -88,7 +88,7 @@ impl<'a> Parser<'a> {
         }
     }
 
-    /// Item = ( Attribute | OuterDocComments )* ItemKind
+    /// Item = ( Attribute | `OuterDocComments` )* `ItemKind`
     fn parse_item(&mut self) -> Vec<Item> {
         let start_location = self.current_token_location;
 
@@ -115,21 +115,21 @@ impl<'a> Parser<'a> {
         vecmap(kinds, |kind| Item { kind, location, doc_comments: doc_comments.clone() })
     }
 
-    /// This method returns one 'ItemKind' in the majority of cases.
+    /// This method returns one '`ItemKind`' in the majority of cases.
     /// The current exception is when parsing a trait alias,
     /// which returns both the trait and the impl.
     ///
-    /// ItemKind
-    ///     = InnerAttribute
+    /// `ItemKind`
+    ///     = `InnerAttribute`
     ///     | Attributes Modifiers
     ///         ( Use
-    ///         | ModOrContract
+    ///         | `ModOrContract`
     ///         | Struct
     ///         | Enum
     ///         | Impl
     ///         | Trait
     ///         | Global
-    ///         | TypeAlias
+    ///         | `TypeAlias`
     ///         | Function
     ///         )
     fn parse_item_kind(&mut self, attributes: Vec<(Attribute, Location)>) -> Vec<ItemKind> {
@@ -238,7 +238,7 @@ impl<'a> Parser<'a> {
             true
         } else if !modifiers.is_empty()
             && matches!(self.token.token(), Token::Ident(..))
-            && self.next_is(Token::LeftParen)
+            && self.next_is(&Token::LeftParen)
         {
             // If it's something like `pub foo(` then it's likely the user forgot to put `fn` after `pub`,
             // so we error but keep parsing what comes next as a function.

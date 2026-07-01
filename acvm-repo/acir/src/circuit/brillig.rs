@@ -87,7 +87,7 @@ impl std::fmt::Display for BrilligOutputs {
 
 /// This is purely a wrapper struct around a list of Brillig opcode's which represents
 /// a full Brillig function to be executed by the Brillig VM.
-/// This is stored separately on a program and accessed through a [BrilligFunctionId].
+/// This is stored separately on a program and accessed through a [`BrilligFunctionId`].
 #[derive(Clone, PartialEq, Eq, Default, Debug, Hash)]
 #[derive(Serialize, Deserialize, MsgpackTagged)]
 #[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
@@ -106,9 +106,19 @@ pub struct BrilligBytecode<F> {
 #[derive(Serialize, Deserialize, MsgpackTagged)]
 #[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
 #[serde(transparent)]
-pub struct BrilligFunctionId(pub u32);
+pub struct BrilligFunctionId(u32);
 
 impl BrilligFunctionId {
+    /// Creates a `BrilligFunctionId` indexing into a [program][super::Program]'s table of
+    /// Brillig functions by its raw index.
+    pub const fn new(id: u32) -> Self {
+        BrilligFunctionId(id)
+    }
+
+    pub fn as_u32(&self) -> u32 {
+        self.0
+    }
+
     pub fn as_usize(&self) -> usize {
         self.0 as usize
     }

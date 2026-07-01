@@ -24,9 +24,9 @@ impl Parser<'_> {
     /// Tries to parse a Path.
     /// Note that `crate::`, `super::`, etc., are not valid paths on their own.
     ///
-    /// Path = PathKind identifier Turbofish? ( '::' identifier Turbofish? )*
+    /// Path = `PathKind` identifier Turbofish? ( '::' identifier Turbofish? )*
     ///
-    /// Turbofish = '::' PathGenerics
+    /// Turbofish = '::' `PathGenerics`
     pub(crate) fn parse_path(&mut self) -> Option<Path> {
         self.parse_path_impl(
             true, // allow turbofish
@@ -44,7 +44,7 @@ impl Parser<'_> {
         }
     }
 
-    /// PathNoTurbofish = PathKind identifier ( '::' identifier )*
+    /// `PathNoTurbofish` = `PathKind` identifier ( '::' identifier )*
     pub fn parse_path_no_turbofish(&mut self) -> Option<Path> {
         self.parse_path_impl(
             false, // allow turbofish
@@ -122,11 +122,11 @@ impl Parser<'_> {
                 let location = ident.location();
 
                 let generics = if allow_turbofish
-                    && self.at(Token::DoubleColon)
-                    && self.next_is(Token::Less)
+                    && self.at(&Token::DoubleColon)
+                    && self.next_is(&Token::Less)
                 {
                     self.bump();
-                    self.parse_path_generics(ParserErrorReason::AssociatedTypesNotAllowedInPaths)
+                    self.parse_path_generics(&ParserErrorReason::AssociatedTypesNotAllowedInPaths)
                 } else {
                     None
                 };
@@ -137,7 +137,7 @@ impl Parser<'_> {
                     location: self.location_since(location),
                 });
 
-                if self.at(Token::DoubleColon) && self.next_starts_path_segment() {
+                if self.at(&Token::DoubleColon) && self.next_starts_path_segment() {
                     // Skip the double colons
                     self.bump();
                 } else {
@@ -155,10 +155,10 @@ impl Parser<'_> {
         Path { segments, kind, kind_location: start_location, location }
     }
 
-    /// PathGenerics = GenericTypeArgs
+    /// `PathGenerics` = `GenericTypeArgs`
     pub(super) fn parse_path_generics(
         &mut self,
-        on_named_arg_error: ParserErrorReason,
+        on_named_arg_error: &ParserErrorReason,
     ) -> Option<Vec<UnresolvedType>> {
         if self.token.token() != &Token::Less {
             return None;
@@ -172,7 +172,7 @@ impl Parser<'_> {
         Some(generics.ordered_args)
     }
 
-    /// PathKind
+    /// `PathKind`
     ///     = '::'
     ///     | 'dep' '::'
     ///     | 'crate' '::'
@@ -182,7 +182,7 @@ impl Parser<'_> {
         let start_location = self.current_token_location;
         let mut deprecated_dep_found = false;
 
-        let mut kind = if self.at(Token::DoubleColon) {
+        let mut kind = if self.at(&Token::DoubleColon) {
             PathKind::Absolute
         } else if self.eat_keyword(Keyword::Dep) {
             deprecated_dep_found = true;
@@ -224,7 +224,7 @@ impl Parser<'_> {
         kind
     }
 
-    /// AsTraitPath = '<' Type 'as' PathNoTurbofish GenericTypeArgs '>' '::' identifier ( '::' GenericTypeArgs )?
+    /// `AsTraitPath` = '<' Type 'as' `PathNoTurbofish` `GenericTypeArgs` '>' '::' identifier ( '::' `GenericTypeArgs` )?
     pub(super) fn parse_as_trait_path(&mut self) -> Option<AsTraitPath> {
         if !self.eat_less() {
             return None;

@@ -119,7 +119,7 @@ impl Context<'_> {
         };
 
         let output_vars = self.acir_context.call_acir_function(
-            AcirFunctionId(acir_function_id),
+            AcirFunctionId::new(acir_function_id),
             inputs,
             output_count,
             self.current_side_effects_enabled_var,
@@ -158,8 +158,7 @@ impl Context<'_> {
                 None,
             )?
         } else {
-            let code =
-                gen_brillig_for(func, arguments.clone(), self.brillig, self.brillig_options)?;
+            let code = gen_brillig_for(func, &arguments, self.brillig, self.brillig_options)?;
             let generated_pointer = self.shared_context.new_generated_pointer();
             let skip_output_range_checks = false;
             let output_values = self.acir_context.brillig_call(
@@ -263,9 +262,9 @@ impl Context<'_> {
 
     /// Convert a `Vec<[AcirVar]>` into a `Vec<[AcirValue]>` using the given result ids.
     /// If the type of a result id is an array, several acir vars are collected into
-    /// a single [AcirValue::Array] of the same length.
+    /// a single [`AcirValue::Array`] of the same length.
     /// If the type of a result id is a vector, the vector length must precede it and we can
-    /// convert to an [AcirValue::Array] when the length is known (constant).
+    /// convert to an [`AcirValue::Array`] when the length is known (constant).
     fn convert_vars_to_values(
         &self,
         vars: Vec<AcirVar>,
@@ -279,7 +278,11 @@ impl Context<'_> {
             if let Type::Vector(elements_type) = &*result_type {
                 let error = "ICE - cannot get vector length when converting vector to AcirValue";
                 let len = values.last().expect(error).borrow_var().expect(error);
-                let len = self.acir_context.constant(len).to_u128();
+                let len = self
+                    .acir_context
+                    .constant(&len, "len".to_string())
+                    .expect("ICE - expected the variable to be a constant value")
+                    .to_u128();
                 let mut element_values = im::Vector::new();
                 for _ in 0..len {
                     for element_type in elements_type.iter() {
@@ -299,10 +302,10 @@ impl Context<'_> {
         values
     }
 
-    /// Recursive helper for [Self::convert_vars_to_values].
-    /// If the given result_type is an array of length N, this will create an [AcirValue::Array] with
+    /// Recursive helper for [`Self::convert_vars_to_values`].
+    /// If the given `result_type` is an array of length N, this will create an [`AcirValue::Array`] with
     /// the first N elements of the given iterator. Otherwise, the result is a single
-    /// [AcirValue::Var] wrapping the first element of the iterator.
+    /// [`AcirValue::Var`] wrapping the first element of the iterator.
     fn convert_var_type_to_values(
         result_type: &Type,
         vars: &mut impl Iterator<Item = AcirVar>,

@@ -115,11 +115,11 @@ struct NodeFinder<'a> {
     /// Type parameters in the current scope. These are collected when entering
     /// a struct, a function, etc., and cleared afterwards.
     type_parameters: HashSet<String>,
-    /// ModuleDefIds we already suggested, so we don't offer these for auto-import.
+    /// `ModuleDefIds` we already suggested, so we don't offer these for auto-import.
     suggested_module_def_ids: HashSet<ModuleDefId>,
     /// How many nested `mod` we are in deep
     nesting: usize,
-    /// The line where an auto_import must be inserted
+    /// The line where an `auto_import` must be inserted
     auto_import_line: usize,
     use_segment_positions: UseSegmentPositions,
     self_type: Option<Type>,
@@ -946,8 +946,9 @@ impl<'a> NodeFinder<'a> {
 
             if name_matches(name, prefix) {
                 let per_ns = module_data.find_name(ident);
-                for (module_def_id, visibility, is_prelude) in per_ns.iter_items() {
-                    if is_prelude && skip_prelude_items {
+                for item in per_ns.iter_items() {
+                    let module_def_id = item.id;
+                    if item.is_prelude && skip_prelude_items {
                         continue;
                     }
 
@@ -955,7 +956,7 @@ impl<'a> NodeFinder<'a> {
                         self.def_maps,
                         self.module_id,
                         module_id,
-                        visibility,
+                        item.visibility,
                     ) {
                         continue;
                     }
@@ -1161,8 +1162,10 @@ impl<'a> NodeFinder<'a> {
                 let typ = self.get_lvalue_type(array)?;
                 get_array_element_type(typ)
             }
-            LValue::Dereference(expr, ..) => LValue::from_expression(expr.as_ref().clone())
-                .and_then(|lvalue| self.get_lvalue_type(&lvalue)),
+            LValue::Dereference(expr, ..) => {
+                let lvalue = LValue::from_expression(expr.as_ref().clone())?;
+                self.get_lvalue_type(&lvalue)
+            }
             LValue::Interned(..) => None,
         }
     }
@@ -2025,6 +2028,7 @@ fn get_type_type_id(typ: &Type) -> Option<TypeId> {
 ///
 /// For example:
 ///
+/// ```text
 /// // "merk" and "ro" match "merkle" and "root" and are in order  // cSpell:disable-line
 /// name_matches("compute_merkle_root", "merk_ro") == true // cSpell:disable-line
 ///
@@ -2033,6 +2037,7 @@ fn get_type_type_id(typ: &Type) -> Option<TypeId> {
 ///
 /// // neither "compute" nor "merkle" nor "root" start with "oot"
 /// name_matches("compute_merkle_root", "oot") == false
+/// ```
 fn name_matches(name: &str, prefix: &str) -> bool {
     let name = name.to_case(Case::Snake);
     let name_parts: Vec<&str> = name.split('_').collect();

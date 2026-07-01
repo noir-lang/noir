@@ -72,8 +72,8 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         clean_iterator(self, iterator);
     }
 
-    /// This codegen will issue a loop for (let iterator_register = loop_start; i < loop_bound; i += step)
-    /// The body of the loop should be issued by the caller in the on_iteration closure.
+    /// This codegen will issue a loop for (let `iterator_register` = `loop_start`; i < `loop_bound`; i += step)
+    /// The body of the loop should be issued by the caller in the `on_iteration` closure.
     ///
     /// # Safety
     /// Iterator increment uses wrapping 32-bit arithmetic. Callers must ensure the iterator

@@ -69,7 +69,7 @@ impl Context<'_> {
     ///
     /// # Returns
     ///
-    /// A vector of [AcirValue]s containing:
+    /// A vector of [`AcirValue`]s containing:
     /// 1. Updated vector length (incremented by one)
     /// 2. New vector with elements appended
     pub(super) fn convert_vector_push_back(
@@ -203,7 +203,7 @@ impl Context<'_> {
     ///
     /// # Returns
     ///
-    /// A vector of [AcirValue]s containing:
+    /// A vector of [`AcirValue`]s containing:
     /// 1. Updated vector length (incremented by one)
     /// 2. New vector with elements prepended
     pub(super) fn convert_vector_push_front(
@@ -247,7 +247,7 @@ impl Context<'_> {
     ///
     /// # Returns
     ///
-    /// A vector of [AcirValue]s containing:
+    /// A vector of [`AcirValue`]s containing:
     /// 1. Updated vector length (decremented by one)
     /// 2. Updated vector contents with the back elements removed
     /// 3. Popped elements in order
@@ -396,11 +396,11 @@ impl Context<'_> {
     /// * `result_ids[element_size]` - Updated vector length
     /// * `result_ids[element_size + 1]` - Updated vector contents
     ///
-    /// `element_size` refers to the result of [crate::ssa::ir::types::Type::element_size].
+    /// `element_size` refers to the result of [`crate::ssa::ir::types::Type::element_size`].
     ///
     /// # Returns
     ///
-    /// A vector of [AcirValue]s containing:
+    /// A vector of [`AcirValue`]s containing:
     /// 1. Popped elements in order
     /// 2. Updated vector length (decremented by one)
     /// 3. Updated vector contents with the front elements removed
@@ -413,7 +413,7 @@ impl Context<'_> {
     /// 2. Read out the first `element_size` values at index `0`.
     /// 3. Shift the update vector's memory forward by `element_size` slots to represent the updated vector.
     ///
-    /// Unlike in [Self::convert_vector_pop_back], the returned vector contents differ from the input:
+    /// Unlike in [`Self::convert_vector_pop_back`], the returned vector contents differ from the input:
     /// the underlying array is logically truncated at the *front* rather than
     /// the back. The `result_ids` ensure that this logical shift is applied
     /// consistently with the element's type.
@@ -499,7 +499,7 @@ impl Context<'_> {
     ///
     /// # Returns
     ///
-    /// A vector of [AcirValue]s containing:
+    /// A vector of [`AcirValue`]s containing:
     /// 1. Updated vector length (incremented by one)
     /// 2. Updated vector contents with the new elements inserted at the given index
     ///
@@ -510,7 +510,7 @@ impl Context<'_> {
     ///
     /// 1. Compute the flattened insert index:
     ///    - Multiply the logical insert index by the element size.
-    ///    - Adjust for non-homogenous structures via [Self::get_flattened_index].
+    ///    - Adjust for non-homogenous structures via [`Self::get_flattened_index`].
     /// 2. Flatten the new elements (`flattened_elements`)
     /// 3. For each position in the result vector:
     ///    - If below the insert index, copy from the original vector.
@@ -549,7 +549,7 @@ impl Context<'_> {
         let is_safe_index = Self::is_index_safe(arguments[2], dfg, &vector_typ, vector_size);
         let insert_index = self.acir_context.mul_var(insert_index, item_size)?;
 
-        // Because the insert index might be at the end of the slice, the element type sizes we
+        // Because the insert index might be at the end of the vector, the element type sizes we
         // index here need to have room for this extra element.
         let shift = ElementTypeSizesArrayShift::Increase;
         let flat_user_index = self.get_flattened_index(
@@ -722,7 +722,7 @@ impl Context<'_> {
     ///
     /// # Returns
     ///
-    /// A vector of [AcirValue]s containing:
+    /// A vector of [`AcirValue`]s containing:
     /// 1. Updated vector length (decremented by one)
     /// 2. Updated vector contents with the target elements removed
     /// 3. The removed elements, in order
@@ -734,10 +734,10 @@ impl Context<'_> {
     ///
     /// 1. Compute the flattened remove index:
     ///    - Multiply the logical remove index by the element size.
-    ///    - Adjust for non-homogenous structures via [Self::get_flattened_index].
+    ///    - Adjust for non-homogenous structures via [`Self::get_flattened_index`].
     /// 2. Read out the element(s) to be removed:
     ///    - Iterate over `result_ids[2..(2 + element_size)]`
-    ///    - `element_size` refers to the result of [crate::ssa::ir::types::Type::element_size].
+    ///    - `element_size` refers to the result of [`crate::ssa::ir::types::Type::element_size`].
     ///    - Use these IDs to fetch the appropriate type information for the values to remove and drive `array_get_value`.
     ///      While extracting the values to remove we compute the total `popped_elements_size` (the flattened width of the removed data).
     /// 3. For each index in the result vector:
@@ -934,11 +934,9 @@ impl Context<'_> {
             let index_const = index_const.to_u128() as usize;
             // A vector with zero-sized elements has a flattened_size of 0 because of the multiplication with element size.
             // As a result, every index will be out-of-bound.
-            if acir_fields_per_element == 0 {
-                false
-            } else {
-                let num_logical_elements = vector_size.to_usize() / acir_fields_per_element;
-                index_const < num_logical_elements
+            match vector_size.to_usize().checked_div(acir_fields_per_element) {
+                Some(num_logical_elements) => index_const < num_logical_elements,
+                None => false,
             }
         } else {
             false

@@ -6,6 +6,7 @@ use iter_extended::vecmap;
 use noirc_errors::CustomDiagnostic as Diagnostic;
 use noirc_errors::DiagnosticKind;
 use noirc_errors::Location;
+use num_bigint::BigInt;
 use thiserror::Error;
 
 use crate::Kind;
@@ -44,12 +45,7 @@ pub enum TypeCheckError {
     #[error("Modulo by zero: {lhs} % {rhs}")]
     ModuloByZero { lhs: Integer, rhs: Integer, location: Location },
     #[error("The value `{expr}` cannot fit into `{ty}` which has range `{range}`")]
-    IntegerLiteralDoesNotFitItsType {
-        expr: FieldElement,
-        ty: Type,
-        range: String,
-        location: Location,
-    },
+    IntegerLiteralDoesNotFitItsType { expr: BigInt, ty: Type, range: String, location: Location },
     #[error(
         "The value `{value}` cannot fit into `{kind}` which has a range of {minimum_size}..={maximum_size}"
     )]
@@ -96,12 +92,7 @@ pub enum TypeCheckError {
     #[error("Casting value of type {from} to a smaller type ({to})")]
     DownsizingCast { from: Type, to: Type, location: Location, reason: String },
     #[error("Negative Field literal `{value}` cast to `{to}` evaluates to `{result}`")]
-    NegativeLiteralCastToInteger {
-        value: FieldElement,
-        result: String,
-        to: Type,
-        location: Location,
-    },
+    NegativeLiteralCastToInteger { value: BigInt, result: String, to: Type, location: Location },
     #[error("Cannot cast `{typ}` as `bool`")]
     CannotCastNumericToBool { typ: Type, location: Location },
     #[error("Expected a function, but found a(n) {found}")]
@@ -322,7 +313,7 @@ impl TypeCheckError {
     }
 
     /// True for errors describing an arithmetic failure on constant operands
-    /// (the closed set of errors producible by [BinaryTypeOperator::function]),
+    /// (the closed set of errors producible by [`BinaryTypeOperator::function`]),
     /// as opposed to errors meaning an expression could not be reduced to a constant.
     pub(crate) fn is_constant_arithmetic_failure(&self) -> bool {
         matches!(

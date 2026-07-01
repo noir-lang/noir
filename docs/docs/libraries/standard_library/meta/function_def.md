@@ -76,6 +76,15 @@ user-written attributes (tags like `#['my_tag]` and applied comptime macros).
 Use `has_builtin_attribute` if you need to match only the built-in attribute
 of the given name.
 
+### named_attribute_args
+
+#include_code named_attribute_args noir_stdlib/src/meta/function_def.nr rust
+
+Returns the arguments of each occurrence of the attribute with the given name, as token
+streams. The outer slice has one entry per occurrence — empty when the attribute is absent,
+so this is a superset of `has_named_attribute` — and each inner slice holds that occurrence's
+argument expressions, which can be spliced into generated code with `quote`.
+
 ### has_builtin_attribute
 
 #include_code has_builtin_attribute noir_stdlib/src/meta/function_def.nr rust
