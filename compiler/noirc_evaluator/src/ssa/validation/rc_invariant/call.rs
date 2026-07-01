@@ -40,11 +40,11 @@ pub(crate) fn verify(ssa: &Ssa) -> RtResult<()> {
     // may mutate one in place, *or* may hand back an alias of one that the
     // caller then mutates (e.g. an identity function — see [#1443]). Either way,
     // reusing the argument without a protecting `inc_rc` is a hazard. Both
-    // summaries cover every function, so we can index them directly.
+    // summaries cover every function, so indexing them is safe (and asserts we
+    // computed a value for every callee).
     //
     // [#1443]: https://github.com/noir-lang/noir-claude/issues/1443
-    let needs_check: HashMap<FunctionId, bool> =
-        ssa.functions.keys().map(|id| (*id, may_mutate[id] || returns_arg_alias[id])).collect();
+    let needs_check = |callee: FunctionId| may_mutate[&callee] || returns_arg_alias[&callee];
 
     for function in ssa.functions.values() {
         verify_function(function, &needs_check)?;
@@ -58,7 +58,7 @@ pub(crate) fn verify(ssa: &Ssa) -> RtResult<()> {
 /// treats each array-typed argument as an all-index in-place mutation and runs
 /// the shared coverage + forward walk: a forward-reachable aliased read with no
 /// protecting `inc_rc` is a hazard.
-fn verify_function(function: &Function, needs_check: &HashMap<FunctionId, bool>) -> RtResult<()> {
+fn verify_function(function: &Function, needs_check: &impl Fn(FunctionId) -> bool) -> RtResult<()> {
     if !function.runtime().is_brillig() {
         return Ok(());
     }
@@ -136,15 +136,15 @@ fn verify_function(function: &Function, needs_check: &HashMap<FunctionId, bool>)
 /// of one. Mirrors `ssa_gen`'s `can_modify_args`: foreign calls only read their
 /// inputs and return fresh results; pure builtins that are safe for clone
 /// elision do neither; an unresolved/dynamic callee is assumed to need
-/// checking; and a known function is looked up in the combined call-graph
-/// summary (`may_mutate || returns_arg_alias`).
+/// checking; and a known function is decided by `needs_check`, which combines
+/// the two call-graph summaries (`may_mutate || returns_arg_alias`).
 fn callee_needs_arg_check(
     function: &Function,
     func: ValueId,
-    needs_check: &HashMap<FunctionId, bool>,
+    needs_check: &impl Fn(FunctionId) -> bool,
 ) -> bool {
     match &function.dfg[func] {
-        Value::Function(callee) => needs_check.get(callee).copied().unwrap_or(true),
+        Value::Function(callee) => needs_check(*callee),
         Value::Intrinsic(intrinsic) => intrinsic_may_mutate_args(*intrinsic),
         Value::ForeignFunction { .. } => false,
         _ => true,
@@ -238,7 +238,7 @@ fn compute_may_mutate_args(ssa: &Ssa) -> HashMap<FunctionId, bool> {
             if may_mutate[&id] {
                 return false;
             }
-            let now = callees[&id].iter().any(|c| may_mutate.get(c).copied().unwrap_or(true));
+            let now = callees[&id].iter().any(|c| may_mutate[c]);
             if now {
                 may_mutate.insert(id, true);
             }
