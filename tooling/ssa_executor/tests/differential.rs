@@ -82,7 +82,7 @@ fn run_interpreter(src: &str, inputs: &[Input]) -> Outcome {
 
 fn value_to_field(value: &Value) -> FieldElement {
     match value {
-        Value::Numeric(numeric) => numeric.convert_to_field(),
+        Value::Numeric(numeric) => numeric.to_field(),
         other => panic!("unexpected non-numeric return value: {other:?}"),
     }
 }

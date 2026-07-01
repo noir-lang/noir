@@ -494,10 +494,7 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
                 && value.get_type() == NumericType::unsigned(32)
                 && !value.is_in_range()
             {
-                return InterpreterError::IndexOutOfBounds {
-                    index: value.convert_to_field(),
-                    length,
-                };
+                return InterpreterError::IndexOutOfBounds { index: value.to_field(), length };
             }
             e
         })
@@ -632,7 +629,7 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
             // Narrowing casts are preceded by an explicit `truncate`, so no truncation is needed here.
             Instruction::Cast(value, numeric_type) => {
                 let value = self.lookup_numeric(*value, "cast")?;
-                let field = value.convert_to_field();
+                let field = value.to_field();
                 let result = Value::int_from_field(field, *numeric_type)?;
                 self.define(results[0], result)?;
                 Ok(())
@@ -753,7 +750,7 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
         // the bit pattern reduced into range. The result is always in range.
         let typ = num_value.get_type();
         let bit_size = num_value.bit_size();
-        let reduced = truncate_field(num_value.convert_to_field(), bit_size);
+        let reduced = truncate_field(num_value.to_field(), bit_size);
         let max =
             FieldElement::from(2u128).pow(&FieldElement::from(bit_size)) - FieldElement::one();
         let new_result = NumericValue::int_from_field(max - reduced, typ)?;
@@ -777,7 +774,7 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
             return self.define(result, Value::Numeric(value));
         }
 
-        let mut field = value.convert_to_field();
+        let mut field = value.to_field();
 
         // An out-of-range value produced by a subtraction holds the field `p - delta` (the field
         // negative of the underflow amount), whose low `bit_size` bits are not the wrapped result.
@@ -830,7 +827,7 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
         if value.as_bool().is_some() {
             return Ok(());
         }
-        let bit_count = value.convert_to_field().num_bits();
+        let bit_count = value.to_field().num_bits();
 
         if bit_count > max_bit_size {
             let value = value.to_string();
@@ -1357,8 +1354,8 @@ fn evaluate_integer_binary(
     let operator = binary.operator;
     let typ = lhs.get_type();
     let bit_size = lhs.bit_size();
-    let lhs_field = lhs.convert_to_field();
-    let rhs_field = rhs.convert_to_field();
+    let lhs_field = lhs.to_field();
+    let rhs_field = rhs.to_field();
 
     let overflow = || overflow_error(binary, &display_binary, lhs, rhs);
 

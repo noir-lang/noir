@@ -275,7 +275,7 @@ fn sub_unchecked_signed_acir() {
     // Here we can't compare against `Value::i8(-7)` because that constructor will produce a Field value
     // that's `256 - 7 = 249`, but in this case we end up with `p - 7`, so a different value.
     assert_eq!(
-        value.as_numeric().unwrap().convert_to_field(),
+        value.as_numeric().unwrap().to_field(),
         FieldElement::from(3u32) - FieldElement::from(10u32)
     );
 }

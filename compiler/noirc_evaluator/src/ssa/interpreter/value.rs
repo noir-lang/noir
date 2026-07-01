@@ -147,7 +147,7 @@ impl Value {
     fn as_unsigned(&self, bit_size: u32) -> Option<u128> {
         let value = self.as_numeric()?;
         (value.get_type() == NumericType::Unsigned { bit_size } && value.is_in_range())
-            .then(|| value.convert_to_field().try_into_u128())
+            .then(|| value.to_field().try_into_u128())
             .flatten()
     }
 
@@ -184,65 +184,48 @@ impl Value {
         Ok(Self::array(values, vec![Type::Numeric(typ)]))
     }
 
-    // Field is 0 or 1.
     pub fn bool(value: bool) -> Self {
-        Self::int(FieldElement::from(u128::from(value)), NumericType::unsigned(1))
+        Self::Numeric(NumericValue::bool(value))
     }
 
-    // Any field value.
     pub fn field(value: FieldElement) -> Self {
-        Self::int(value, NumericType::NativeField)
+        Self::Numeric(NumericValue::field(value))
     }
 
-    // Field in [0, 2^8).
     pub fn u8(value: u8) -> Self {
-        Self::int(FieldElement::from(u128::from(value)), NumericType::unsigned(8))
+        Self::Numeric(NumericValue::u8(value))
     }
 
-    // Field in [0, 2^16).
     pub fn u16(value: u16) -> Self {
-        Self::int(FieldElement::from(u128::from(value)), NumericType::unsigned(16))
+        Self::Numeric(NumericValue::u16(value))
     }
 
-    // Field in [0, 2^32).
     pub fn u32(value: u32) -> Self {
-        Self::int(FieldElement::from(u128::from(value)), NumericType::unsigned(32))
+        Self::Numeric(NumericValue::u32(value))
     }
 
-    // Field in [0, 2^128).
     pub fn u128(value: u128) -> Self {
-        Self::int(FieldElement::from(value), NumericType::unsigned(128))
+        Self::Numeric(NumericValue::u128(value))
     }
 
-    // Field in [0, 2^64).
     pub fn u64(value: u64) -> Self {
-        Self::int(FieldElement::from(u128::from(value)), NumericType::unsigned(64))
+        Self::Numeric(NumericValue::u64(value))
     }
 
-    // Two's-complement bits in [0, 2^8).
     pub fn i8(value: i8) -> Self {
-        Self::int(FieldElement::from(i128::from(value as u8)), NumericType::signed(8))
+        Self::Numeric(NumericValue::i8(value))
     }
 
-    // Two's-complement bits in [0, 2^16).
     pub fn i16(value: i16) -> Self {
-        Self::int(FieldElement::from(i128::from(value as u16)), NumericType::signed(16))
+        Self::Numeric(NumericValue::i16(value))
     }
 
-    // Two's-complement bits in [0, 2^32).
     pub fn i32(value: i32) -> Self {
-        Self::int(FieldElement::from(i128::from(value as u32)), NumericType::signed(32))
+        Self::Numeric(NumericValue::i32(value))
     }
 
-    // Two's-complement bits in [0, 2^64).
     pub fn i64(value: i64) -> Self {
-        Self::int(FieldElement::from(i128::from(value as u64)), NumericType::signed(64))
-    }
-
-    /// Construct a numeric `Value` from a bit-pattern field and type, in-module helper for the
-    /// typed constructors above (the type is statically known to be supported).
-    fn int(value: FieldElement, typ: NumericType) -> Self {
-        Self::Numeric(NumericValue { value, typ })
+        Self::Numeric(NumericValue::i64(value))
     }
 
     pub fn array(elements: Vec<Value>, element_types: Vec<Type>) -> Self {
@@ -423,14 +406,65 @@ impl NumericValue {
         Self::from_constant(FieldElement::zero(), typ).expect("zero should fit in every type")
     }
 
-    /// A `u1` value.
+    // Field is 0 or 1.
     pub(crate) fn bool(value: bool) -> Self {
-        Self { value: FieldElement::from(u128::from(value)), typ: NumericType::unsigned(1) }
+        Self::int(FieldElement::from(u128::from(value)), NumericType::unsigned(1))
     }
 
-    /// A `Field` value.
+    // Any field value.
     pub(crate) fn field(value: FieldElement) -> Self {
-        Self { value, typ: NumericType::NativeField }
+        Self::int(value, NumericType::NativeField)
+    }
+
+    // Field in [0, 2^8).
+    pub(crate) fn u8(value: u8) -> Self {
+        Self::int(FieldElement::from(u128::from(value)), NumericType::unsigned(8))
+    }
+
+    // Field in [0, 2^16).
+    pub(crate) fn u16(value: u16) -> Self {
+        Self::int(FieldElement::from(u128::from(value)), NumericType::unsigned(16))
+    }
+
+    // Field in [0, 2^32).
+    pub(crate) fn u32(value: u32) -> Self {
+        Self::int(FieldElement::from(u128::from(value)), NumericType::unsigned(32))
+    }
+
+    // Field in [0, 2^128).
+    pub(crate) fn u128(value: u128) -> Self {
+        Self::int(FieldElement::from(value), NumericType::unsigned(128))
+    }
+
+    // Field in [0, 2^64).
+    pub(crate) fn u64(value: u64) -> Self {
+        Self::int(FieldElement::from(u128::from(value)), NumericType::unsigned(64))
+    }
+
+    // Two's-complement bits in [0, 2^8).
+    pub(crate) fn i8(value: i8) -> Self {
+        Self::int(FieldElement::from(i128::from(value as u8)), NumericType::signed(8))
+    }
+
+    // Two's-complement bits in [0, 2^16).
+    pub(crate) fn i16(value: i16) -> Self {
+        Self::int(FieldElement::from(i128::from(value as u16)), NumericType::signed(16))
+    }
+
+    // Two's-complement bits in [0, 2^32).
+    pub(crate) fn i32(value: i32) -> Self {
+        Self::int(FieldElement::from(i128::from(value as u32)), NumericType::signed(32))
+    }
+
+    // Two's-complement bits in [0, 2^64).
+    pub(crate) fn i64(value: i64) -> Self {
+        Self::int(FieldElement::from(i128::from(value as u64)), NumericType::signed(64))
+    }
+
+    /// Construct a value from a bit-pattern field and type, in-module helper for the typed
+    /// constructors above (the type is statically known to be supported).
+    fn int(value: FieldElement, typ: NumericType) -> Self {
+        Self { value, typ }
     }
 
     pub(crate) fn as_field(&self) -> Option<FieldElement> {
@@ -449,7 +483,7 @@ impl NumericValue {
         Some(self.value.is_one())
     }
 
-    pub fn convert_to_field(&self) -> FieldElement {
+    pub fn to_field(&self) -> FieldElement {
         self.value
     }
 

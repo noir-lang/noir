@@ -156,19 +156,15 @@ fn test_shl() {
         assert_eq!(
             super::evaluate_binary(
                 &binary,
-                NumericValue::int_from_field(lhs.into(), NumericType::signed(8)).unwrap(),
-                NumericValue::int_from_field(rhs.into(), NumericType::signed(8)).unwrap(),
+                NumericValue::i8(lhs),
+                NumericValue::i8(rhs),
                 true,
                 false,
                 false,
                 false,
                 display
             ),
-            expected_result.map(|i| NumericValue::int_from_field(
-                FieldElement::from(i128::from(i as u8)),
-                NumericType::signed(8)
-            )
-            .unwrap()),
+            expected_result.map(NumericValue::i8),
             "{lhs} << {rhs}",
         );
     }

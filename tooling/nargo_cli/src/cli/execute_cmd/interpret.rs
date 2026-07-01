@@ -173,7 +173,7 @@ fn input_value_to_comptime_value(input: &InputValue, typ: &Type, location: Locat
             // unsigned) integer.
             let bits = || {
                 numeric_value
-                    .convert_to_field()
+                    .to_field()
                     .try_into_u128()
                     .expect("in-range value fits in u128")
             };
