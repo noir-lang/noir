@@ -193,6 +193,40 @@ fn constant_reads_on_parameter_array_avoid_memory_blocks() {
 }
 
 #[test]
+fn predicated_constant_index_set_folds_without_memory_block() {
+    // An `array_set` at a known in-bounds constant index under a predicate can be resolved at
+    // compile time: the stored element becomes `predicate * value + (1 - predicate) * old`, and a
+    // later constant-index read of the result folds to that element. Neither the set nor the read
+    // should require a memory block, so no `INIT`/`READ`/`WRITE` is emitted — the whole thing
+    // collapses to arithmetic on the input witnesses.
+    let src = "
+    acir(inline) fn main f0 {
+      b0(v0: [Field; 3], v1: u1):
+        v3 = array_get v0, index u32 0 -> Field
+        v5 = add v3, Field 1
+        enable_side_effects v1
+        v6 = array_set v0, index u32 0, value v5
+        enable_side_effects u1 1
+        v7 = array_get v6, index u32 0 -> Field
+        return v7
+    }
+    ";
+    let program = ssa_to_acir_program(src);
+
+    // `w0` is the original `v0[0]`, `w3` the predicate. The folded result is `v1 * (v0[0] + 1) +
+    // (1 - v1) * v0[0]` which simplifies to `v0[0] + v1`, returned directly with no memory ops.
+    assert_circuit_snapshot!(program, @r"
+    func 0
+    private parameters: [w0, w1, w2, w3]
+    public parameters: []
+    return values: [w4]
+    BLACKBOX::RANGE input: w3, bits: 1
+    ASSERT w4 = w0 + w3
+    ");
+>>>>>>> master
+}
+
+#[test]
 fn generates_memory_op_for_dynamic_read() {
     let src = "
     acir(inline) fn main f0 {
@@ -494,7 +528,7 @@ fn make_dynamic_array_value_types() {
 
     // Now repeat the step that generates the ACIR for the result of an array set.
     let array_id = ValueId::new(5);
-    let array = context.make_array_set_result_value(array_id, BlockId(0), &main.dfg).unwrap();
+    let array = context.make_array_set_result_value(array_id, BlockId::new(0), &main.dfg).unwrap();
     let AcirValue::DynamicArray(AcirDynamicArray { len, value_types, .. }) = array else {
         panic!("expected DynamicArray, got {array:?}");
     };

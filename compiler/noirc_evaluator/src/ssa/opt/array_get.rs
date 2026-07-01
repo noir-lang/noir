@@ -95,7 +95,7 @@ use crate::ssa::{
     ir::{
         dfg::DataFlowGraph,
         function::Function,
-        instruction::{Instruction, InstructionId},
+        instruction::{ArrayOffset, Instruction, InstructionId},
         types::Type,
         value::{Value, ValueId},
     },
@@ -252,9 +252,16 @@ pub(crate) fn try_optimize_array_get_from_previous_instructions(
                     }
                 }
                 Instruction::MakeArray { elements: array, typ: _ } => {
-                    let index = target_index_u32 as usize;
-                    if index < array.len() {
-                        return Some(ArrayGetOptimizationResult::Value(array[index]));
+                    // `make_array` stores its elements in logical order, but after
+                    // `brillig_array_get_and_set` a constant index is shifted past the
+                    // in-memory header (RC for arrays, RC/Size/Capacity for vectors).
+                    // Map the index back to logical space before reading an element.
+                    let offset = make_array_index_offset(dfg, array_id);
+                    if let Some(index) = target_index_u32.checked_sub(offset) {
+                        let index = index as usize;
+                        if index < array.len() {
+                            return Some(ArrayGetOptimizationResult::Value(array[index]));
+                        }
                     }
                 }
                 _ => (),
@@ -276,11 +283,51 @@ pub(crate) fn try_optimize_array_get_from_previous_instructions(
     None
 }
 
+/// The Brillig in-memory header offset baked into a constant `array_get`/`array_set` index by
+/// [`brillig_array_get_and_set`][crate::ssa::opt::brillig_array_get_and_set], or `0` when indices
+/// have not been shifted (ACIR, or before that pass has run).
+fn make_array_index_offset(dfg: &DataFlowGraph, array: ValueId) -> u32 {
+    if !dfg.brillig_arrays_offset {
+        return 0;
+    }
+    match *dfg.type_of_value(array) {
+        Type::Array(..) => ArrayOffset::Array.to_u32(),
+        Type::Vector(..) => ArrayOffset::Vector.to_u32(),
+        _ => 0,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use crate::{assert_ssa_snapshot, ssa::opt::assert_ssa_does_not_change};
 
     use super::Ssa;
+
+    #[test]
+    fn folds_offset_constant_array_get_to_logical_element() {
+        // In a Brillig function `brillig_array_get_and_set` shifts constant indices past the
+        // array's in-memory header (the `minus 1` here). Folding a `make_array` read must map the
+        // shifted index back to logical space; otherwise it returns the element one slot too far,
+        // which for an array of tuples is also the wrong *type* and crashes Brillig codegen.
+        let src = "
+        brillig(inline) fn main f0 {
+          b0():
+            v0 = make_array [u32 10, u1 1, u32 20, u1 0] : [(u32, u1); 2]
+            v1 = array_get v0, index u32 2 minus 1 -> u1
+            return v1
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+
+        let ssa = ssa.array_get_optimization();
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) fn main f0 {
+          b0():
+            v4 = make_array [u32 10, u1 1, u32 20, u1 0] : [(u32, u1); 2]
+            return u1 1
+        }
+        ");
+    }
 
     #[test]
     fn optimizes_array_get_from_array_set_to_set_value_under_default_predicate() {

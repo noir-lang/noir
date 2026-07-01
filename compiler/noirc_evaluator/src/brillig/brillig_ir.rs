@@ -26,6 +26,7 @@ mod instructions;
 
 use std::{cell::RefCell, rc::Rc};
 
+use acvm::brillig_vm::MEMORY_ADDRESSING_BIT_SIZE;
 use artifact::Label;
 use brillig_variable::SingleAddrVariable;
 pub(crate) use instructions::BrilligBinaryOp;
@@ -52,7 +53,7 @@ use super::{BrilligOptions, FunctionId, GlobalSpace, ProcedureId};
 /// The Brillig VM does not apply a limit to the memory address space,
 /// As a convention, we take use 32 bits. This means that we assume that
 /// memory has 2^32 memory slots.
-pub(crate) const BRILLIG_MEMORY_ADDRESSING_BIT_SIZE: u32 = 32;
+pub(crate) const BRILLIG_MEMORY_ADDRESSING_BIT_SIZE: u32 = MEMORY_ADDRESSING_BIT_SIZE.to_u32();
 
 /// Registers reserved in runtime for special purposes.
 pub(crate) struct ReservedRegisters;
@@ -495,8 +496,8 @@ pub(crate) mod tests {
 
     pub(crate) fn create_entry_point_bytecode(
         context: BrilligContext<FieldElement, Stack>,
-        arguments: Vec<BrilligParameter>,
-        returns: Vec<BrilligParameter>,
+        arguments: &[BrilligParameter],
+        returns: &[BrilligParameter],
     ) -> GeneratedBrillig<FieldElement> {
         let options = BrilligOptions {
             enable_debug_trace: false,
@@ -655,7 +656,7 @@ pub(crate) mod tests {
     fn initialize_constant_array_protected_by_allocation_check() {
         // SSA with array of 11 identical tuples - triggers initialize_constant_array_runtime
         let src = r#"
-            brillig(inline) predicate_pure fn main f0 {
+            brillig(inline) pure fn main f0 {
               b0(v0: u32):
                 v1 = make_array [
                     u32 42, u32 42, u32 42,
@@ -679,7 +680,7 @@ pub(crate) mod tests {
         let options = BrilligOptions::default();
         let brillig = ssa.to_brillig(&options);
         let args = vec![BrilligParameter::SingleAddr(32)];
-        let mut generated = gen_brillig_for(main, args, &brillig, &options).unwrap();
+        let mut generated = gen_brillig_for(main, &args, &brillig, &options).unwrap();
 
         // Find the first BinaryIntOp::Add that writes to the free_memory_pointer (FMP)
         // and insert a patch just before it.
@@ -869,7 +870,7 @@ pub(crate) mod tests {
     fn empty_array_allocation_near_heap_limit_triggers_oom() {
         // SSA with an empty array - triggers array allocation with just ARRAY_META_COUNT (1) slot
         let src = r#"
-            brillig(inline) predicate_pure fn main f0 {
+            brillig(inline) pure fn main f0 {
               b0():
                 v0 = make_array [] : [Field; 0]
                 return
@@ -886,9 +887,9 @@ pub(crate) mod tests {
     /// before we ever compute the items pointer.
     #[test]
     fn empty_vector_allocation_near_heap_limit_triggers_oom() {
-        // SSA with an empty slice (vector) - triggers vector allocation with VECTOR_META_COUNT (3) slots
+        // SSA with an empty vector - triggers vector allocation with VECTOR_META_COUNT (3) slots
         let src = r#"
-            brillig(inline) predicate_pure fn main f0 {
+            brillig(inline) pure fn main f0 {
               b0():
                 v0 = make_array [] : [Field]
                 return
@@ -908,7 +909,7 @@ pub(crate) mod tests {
         let main = ssa.main();
         let options = BrilligOptions::default();
         let brillig = ssa.to_brillig(&options);
-        let mut generated = gen_brillig_for(main, vec![], &brillig, &options).unwrap();
+        let mut generated = gen_brillig_for(main, &[], &brillig, &options).unwrap();
 
         // Find the first BinaryIntOp::Add that writes to the free_memory_pointer (FMP)
         // and insert a patch just before it.
@@ -1069,7 +1070,7 @@ pub(crate) mod tests {
         let main = ssa.main();
         let options = BrilligOptions::default();
         let brillig = ssa.to_brillig(&options);
-        let generated = gen_brillig_for(main, vec![], &brillig, &options).unwrap();
+        let generated = gen_brillig_for(main, &[], &brillig, &options).unwrap();
 
         let mut vm = VM::new(vec![], &generated.byte_code, &DummyBlackBoxSolver, false, None);
         let status = vm.process_opcodes();
@@ -1109,7 +1110,7 @@ pub(crate) mod tests {
         let main = ssa.main();
         let options = BrilligOptions::default();
         let brillig = ssa.to_brillig(&options);
-        let generated = gen_brillig_for(main, vec![], &brillig, &options).unwrap();
+        let generated = gen_brillig_for(main, &[], &brillig, &options).unwrap();
 
         let mut vm = VM::new(vec![], &generated.byte_code, &DummyBlackBoxSolver, false, None);
         let status = vm.process_opcodes();

@@ -1544,7 +1544,7 @@ mod tests {
             constrain v4 == v5
             return
         }
-        brillig(inline) predicate_pure fn identity f1 {
+        brillig(inline) pure fn identity f1 {
             b0(v0: u64):
             return v0
         }
@@ -1565,7 +1565,7 @@ mod tests {
             constrain v2 == v0
             return
         }
-        brillig(inline) predicate_pure fn identity32 f1 {
+        brillig(inline) pure fn identity32 f1 {
             b0(v0: Field):
             return v0
         }
@@ -1587,7 +1587,7 @@ mod tests {
             constrain v4 == u1 1     // Since we asserted that v3 equals v1, this should indirectly clear v3.
             return
         }
-        brillig(inline) predicate_pure fn f f1 {
+        brillig(inline) pure fn f f1 {
           b0(v0: u32):
             return v0
         }
@@ -1609,7 +1609,7 @@ mod tests {
             constrain v3 == v0
             return v3
         }
-        brillig(inline) predicate_pure fn helper_func f1 {
+        brillig(inline) pure fn helper_func f1 {
           b0(v0: [Field; 1]):
             v2 = array_get v0, index u32 0 -> Field
             return v2
@@ -1633,7 +1633,7 @@ mod tests {
             constrain v4 == v0
             return v4
         }
-        brillig(inline) predicate_pure fn helper_func f1 {
+        brillig(inline) pure fn helper_func f1 {
           b0(v0: [[Field; 1]; 1]):
             v2 = array_get v0, index u32 0 -> [Field; 1]
             v3 = array_get v2, index u32 0 -> Field
@@ -1659,7 +1659,7 @@ mod tests {
             constrain v4 == v0
             return v4
         }
-        brillig(inline) predicate_pure fn helper_func f1 {
+        brillig(inline) pure fn helper_func f1 {
           b0(v0: [Field; 2]):
             v2 = array_get v0, index u32 0 -> Field
             return v2
@@ -1689,7 +1689,7 @@ mod tests {
             constrain v5 == v0
             return v5
         }
-        brillig(inline) predicate_pure fn helper_func f1 {
+        brillig(inline) pure fn helper_func f1 {
           b0(v0: [Field; 2]):
             v2 = array_get v0, index u32 0 -> Field
             return v2
@@ -1722,7 +1722,7 @@ mod tests {
             constrain v7 == v1
             return
         }
-        brillig(inline) predicate_pure fn helper_func f1 {
+        brillig(inline) pure fn helper_func f1 {
           b0(v0: [Field; 2]):
             return v0
         }
@@ -1746,7 +1746,7 @@ mod tests {
             constrain v1 == v2
             return
         }
-        brillig(inline) predicate_pure fn f f1 {
+        brillig(inline) pure fn f f1 {
           b0(v0: u32):
             return v0, v0
         }
@@ -1794,7 +1794,7 @@ mod tests {
             constrain v5 == u1 1
             return
         }
-        brillig(inline) predicate_pure fn f f1 {
+        brillig(inline) pure fn f f1 {
           b0(v0: u32):
             v1 = make_array [v0, v0] : [u32; 2]
             return v1
@@ -1821,7 +1821,7 @@ mod tests {
             constrain v5 == u1 1
             return
         }
-        brillig(inline) predicate_pure fn f f1 {
+        brillig(inline) pure fn f f1 {
           b0(v0: u32):
             v1 = make_array [
               v0, v0, v0, v0, v0, v0, v0, v0, v0, v0,

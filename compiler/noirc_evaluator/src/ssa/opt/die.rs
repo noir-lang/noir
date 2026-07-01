@@ -871,7 +871,7 @@ mod tests {
     fn does_not_remove_inc_rc_of_return_value_that_points_to_a_make_array() {
         // Here we would previously incorrectly remove `inc_rc v1`
         let src = r#"
-        brillig(inline) predicate_pure fn main f0 {
+        brillig(inline) pure fn main f0 {
           b0():
             v1 = make_array [u1 1] : [u1; 1]
             v2 = make_array [v1] : [[u1; 1]; 1]
@@ -888,7 +888,7 @@ mod tests {
         let src = r#"
         g0 = make_array [u1 1] : [u1; 1]
 
-        brillig(inline) predicate_pure fn main f0 {
+        brillig(inline) pure fn main f0 {
           b0():
             v0 = make_array [g0] : [[u1; 1]; 1]
             inc_rc v0
@@ -1004,7 +1004,7 @@ mod tests {
         //     constrain v5 == u1 1, "Index out of bounds"
         //     return
         //   }
-        // brillig(inline) predicate_pure fn inject_value f1 {
+        // brillig(inline) pure fn inject_value f1 {
         //   b0():
         //     return u32 0
         // }
@@ -1401,7 +1401,7 @@ mod tests {
                 constrain v8 == u1 1
                 return
             }
-            brillig(inline_never) predicate_pure fn returns_true f1 {
+            brillig(inline_never) pure fn returns_true f1 {
               b0():
                 return u1 1
             }

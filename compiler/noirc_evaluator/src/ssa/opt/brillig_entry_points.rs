@@ -802,7 +802,7 @@ mod tests {
         // We want no shared callees between entry points.
         // Each Brillig entry point (f1 and f2 called from f0) should have its own
         // specialized function call graph.
-        assert_ssa_snapshot!(ssa, @"
+        assert_ssa_snapshot!(ssa, @r"
         acir(inline) predicate_pure fn main f0 {
           b0():
             v3 = call f1(u1 1, u32 5) -> u1
@@ -818,10 +818,10 @@ mod tests {
           b1():
             jmp b3(u1 0)
           b2():
-            v6 = sub v1, u32 1
-            v8 = call f5(v0, v6) -> u1
-            v10 = call f6(v8, v6) -> u1
-            jmp b3(v10)
+            v7 = sub v1, u32 1
+            v9 = call f5(v0, v7) -> u1
+            v11 = call f6(v9, v7) -> u1
+            jmp b3(v11)
           b3(v2: u1):
             return v2
         }
@@ -832,10 +832,10 @@ mod tests {
           b1():
             jmp b3(u1 0)
           b2():
-            v6 = sub v1, u32 1
-            v8 = call f3(v0, v6) -> u1
-            v10 = call f4(v8, v6) -> u1
-            jmp b3(v10)
+            v7 = sub v1, u32 1
+            v9 = call f3(v0, v7) -> u1
+            v11 = call f4(v9, v7) -> u1
+            jmp b3(v11)
           b3(v2: u1):
             return v2
         }
@@ -846,10 +846,10 @@ mod tests {
           b1():
             jmp b3(u1 0)
           b2():
-            v6 = sub v1, u32 1
-            v8 = call f3(v0, v6) -> u1
-            v10 = call f4(v8, v6) -> u1
-            jmp b3(v10)
+            v7 = sub v1, u32 1
+            v9 = call f3(v0, v7) -> u1
+            v11 = call f4(v9, v7) -> u1
+            jmp b3(v11)
           b3(v2: u1):
             return v2
         }
@@ -860,10 +860,10 @@ mod tests {
           b1():
             jmp b3(u1 0)
           b2():
-            v6 = sub v1, u32 1
-            v8 = call f3(v0, v6) -> u1
-            v10 = call f4(v8, v6) -> u1
-            jmp b3(v10)
+            v7 = sub v1, u32 1
+            v9 = call f3(v0, v7) -> u1
+            v11 = call f4(v9, v7) -> u1
+            jmp b3(v11)
           b3(v2: u1):
             return v2
         }
@@ -874,10 +874,10 @@ mod tests {
           b1():
             jmp b3(u1 0)
           b2():
-            v6 = sub v1, u32 1
-            v8 = call f5(v0, v6) -> u1
-            v10 = call f6(v8, v6) -> u1
-            jmp b3(v10)
+            v7 = sub v1, u32 1
+            v9 = call f5(v0, v7) -> u1
+            v11 = call f6(v9, v7) -> u1
+            jmp b3(v11)
           b3(v2: u1):
             return v2
         }
@@ -888,10 +888,10 @@ mod tests {
           b1():
             jmp b3(u1 0)
           b2():
-            v6 = sub v1, u32 1
-            v8 = call f5(v0, v6) -> u1
-            v10 = call f6(v8, v6) -> u1
-            jmp b3(v10)
+            v7 = sub v1, u32 1
+            v9 = call f5(v0, v7) -> u1
+            v11 = call f6(v9, v7) -> u1
+            jmp b3(v11)
           b3(v2: u1):
             return v2
         }

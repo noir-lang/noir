@@ -549,7 +549,7 @@ impl Context<'_> {
         let is_safe_index = Self::is_index_safe(arguments[2], dfg, &vector_typ, vector_size);
         let insert_index = self.acir_context.mul_var(insert_index, item_size)?;
 
-        // Because the insert index might be at the end of the slice, the element type sizes we
+        // Because the insert index might be at the end of the vector, the element type sizes we
         // index here need to have room for this extra element.
         let shift = ElementTypeSizesArrayShift::Increase;
         let flat_user_index = self.get_flattened_index(

@@ -208,7 +208,7 @@ fn is_conditional(
 ///
 /// For `SingleAddr` types (numerics and references), the merge is a single
 /// `ConditionalMov` = 1 opcode.
-/// For array/slice parameters, the `IfElse` generates a conditional memory copy
+/// For array/vector parameters, the `IfElse` generates a conditional memory copy
 /// which is much more expensive (~20 opcodes).
 fn differing_merge_cost(
     then_block: BasicBlockId,
@@ -232,7 +232,7 @@ fn differing_merge_cost(
             if typ.is_numeric() || matches!(*typ, Type::Reference(..)) {
                 cost += 1; // SingleAddr: one ConditionalMov in Brillig
             } else {
-                // Array/slice: conditional memory copy (~20 opcodes)
+                // Array/vector: conditional memory copy (~20 opcodes)
                 cost += 20;
             }
         }
@@ -620,27 +620,27 @@ mod tests {
             v5 = not v4
             jmpif v4 then: b5(), else: b1()
           b1():
-            v17 = lt v0, u32 3
-            jmpif v17 then: b3(), else: b2()
+            v7 = lt v0, u32 3
+            jmpif v7 then: b3(), else: b2()
           b2():
-            v19 = truncate v0 to 2 bits, max_bit_size: 32
-            jmp b4(v19)
-          b3():
-            v18 = truncate v0 to 1 bits, max_bit_size: 32
+            v18 = truncate v0 to 2 bits, max_bit_size: 32
             jmp b4(v18)
+          b3():
+            v19 = truncate v0 to 1 bits, max_bit_size: 32
+            jmp b4(v19)
           b4(v1: u32):
             jmp b6(v1)
           b5():
-            v7 = lt u32 2, v0
-            v8 = and v0, u32 2
-            v9 = not v7
-            v10 = truncate v0 to 3 bits, max_bit_size: 32
-            v11 = cast v7 as u32
-            v12 = cast v9 as u32
-            v13 = unchecked_mul v11, v8
-            v14 = unchecked_mul v12, v10
-            v15 = unchecked_add v13, v14
-            jmp b6(v15)
+            v9 = lt u32 2, v0
+            v10 = and v0, u32 2
+            v11 = not v9
+            v12 = truncate v0 to 3 bits, max_bit_size: 32
+            v13 = cast v9 as u32
+            v14 = cast v11 as u32
+            v15 = unchecked_mul v13, v10
+            v16 = unchecked_mul v14, v12
+            v17 = unchecked_add v15, v16
+            jmp b6(v17)
           b6(v2: u32):
             return v2
         }

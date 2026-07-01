@@ -33,7 +33,7 @@ impl<F: std::fmt::Display> std::fmt::Display for FunctionInput<F> {
                 write!(f, "{constant}")
             }
             FunctionInput::Witness(witness) => {
-                write!(f, "w{}", witness.0)
+                write!(f, "{witness}")
             }
         }
     }

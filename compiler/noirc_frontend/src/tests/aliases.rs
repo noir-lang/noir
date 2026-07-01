@@ -126,7 +126,7 @@ fn cyclic_type_alias_usage_does_not_stack_overflow() {
              ~ 'B' recursively depends on itself: B -> A -> B
         fn main() {
             let _ = A::foo();
-                    ^ Could not resolve 'A' in path
+                       ^^^ Could not resolve 'foo' in path
         }
     "#;
     check_errors(src);
@@ -538,7 +538,7 @@ fn regression_10352_array() {
 }
 
 #[test]
-fn regression_10352_slice() {
+fn regression_10352_vector() {
     let src = r#"
     type Alias = [Alias];
 
@@ -1217,7 +1217,7 @@ fn cyclic_type_aliases_referenced_from_comptime_global_do_not_stack_overflow() {
 
         fn f() -> u32 {
             let _ = A::foo();
-                    ^ Could not resolve 'A' in path
+                       ^^^ Could not resolve 'foo' in path
             1
         }
 
@@ -1226,6 +1226,28 @@ fn cyclic_type_aliases_referenced_from_comptime_global_do_not_stack_overflow() {
         }
     "#;
     check_errors(src);
+}
+
+#[test]
+fn resolves_trait_associated_constant_through_type_alias() {
+    let src = r#"
+    pub trait Trait {
+        let N: u32;
+    }
+
+    struct Foo {}
+
+    impl Trait for Foo {
+        let N: u32 = 42;
+    }
+
+    type Alias = Foo;
+
+    fn main() {
+        let _ = Alias::N;
+    }
+    "#;
+    assert_no_errors(src);
 }
 
 #[test]

@@ -200,10 +200,10 @@ pub(super) fn display_opcode<F: AcirField>(
         Opcode::BlackBoxFuncCall(g) => std::fmt::Display::fmt(&g, f),
         Opcode::MemoryOp { block_id, op } => match op.operation {
             MemOpKind::Read => {
-                write!(f, "READ {} = b{}[{}]", op.value, block_id.0, op.index)
+                write!(f, "READ {} = {}[{}]", op.value, block_id, op.index)
             }
             MemOpKind::Write => {
-                write!(f, "WRITE b{}[{}] = {}", block_id.0, op.index, op.value)
+                write!(f, "WRITE {}[{}] = {}", block_id, op.index, op.value)
             }
         },
         Opcode::MemoryInit { block_id, init, block_type: databus } => {
@@ -213,7 +213,7 @@ pub(super) fn display_opcode<F: AcirField>(
                 BlockType::ReturnData => write!(f, "INIT RETURNDATA ")?,
             }
             let witnesses = init.iter().map(|w| format!("{w}")).collect::<Vec<String>>().join(", ");
-            write!(f, "b{} = [{witnesses}]", block_id.0)
+            write!(f, "{block_id} = [{witnesses}]")
         }
         // We keep the display for a BrilligCall and circuit Call separate as they
         // are distinct in their functionality and we should maintain this separation for debugging.
@@ -259,7 +259,7 @@ mod tests {
     #[test]
     fn mem_init_display_snapshot() {
         let mem_init: Opcode<FieldElement> = Opcode::MemoryInit {
-            block_id: BlockId(42),
+            block_id: BlockId::new(42),
             init: (0..10u32).map(Witness).collect(),
             block_type: BlockType::Memory,
         };
