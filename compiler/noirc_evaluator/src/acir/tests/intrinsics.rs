@@ -472,9 +472,11 @@ fn vector_pop_back_nested_arrays() {
   ";
     let program = ssa_to_acir_program(src);
 
-    // After b3 you can see where we do our final push_back where (v2, v1) are attached to the vector
-    // rather than (v0, v1)
-    // We then read w18 from b3 at index `8` (the flattened starting index of the vector).
+    // Both push_backs have a compile-time-known length (the second's length folds to a constant even
+    // though it is not an SSA constant), so the vector is built entirely inline as an
+    // `AcirValue::Array` and never backed by a memory block. The pop then resolves its element inline
+    // too, so no `INIT`/`WRITE`/`READ` is emitted — the whole program collapses to the final
+    // `constrain v14 == v3`, i.e. asserting the popped element (`w4`) equals `v3` (`w5`).
     assert_circuit_snapshot!(program, @"
     func 0
     private parameters: [w0, w1, w2, w3, w4, w5]
@@ -486,40 +488,7 @@ fn vector_pop_back_nested_arrays() {
     BLACKBOX::RANGE input: w3, bits: 32
     BLACKBOX::RANGE input: w4, bits: 32
     BLACKBOX::RANGE input: w5, bits: 32
-    ASSERT w6 = 0
-    ASSERT w7 = 1
-    ASSERT w8 = 4
-    ASSERT w9 = 5
-    ASSERT w10 = 8
-    ASSERT w11 = 9
-    INIT b3 = [w0, w1, w2, w3, w0, w1, w2, w3, w6, w6, w6, w6]
-    WRITE b3[w10] = w4
-    WRITE b3[w11] = w1
-    ASSERT w12 = 10
-    WRITE b3[w12] = w2
-    ASSERT w13 = 11
-    WRITE b3[w13] = w3
-    READ w14 = b3[w10]
-    READ w15 = b3[w11]
-    READ w16 = b3[w12]
-    READ w17 = b3[w13]
-    READ w18 = b3[w6]
-    READ w19 = b3[w7]
-    ASSERT w20 = 2
-    READ w21 = b3[w20]
-    ASSERT w22 = 3
-    READ w23 = b3[w22]
-    READ w24 = b3[w8]
-    READ w25 = b3[w9]
-    ASSERT w26 = 6
-    READ w27 = b3[w26]
-    ASSERT w28 = 7
-    READ w29 = b3[w28]
-    READ w30 = b3[w10]
-    READ w31 = b3[w11]
-    READ w32 = b3[w12]
-    READ w33 = b3[w13]
-    ASSERT w14 = w5
+    ASSERT w5 = w4
     ");
 }
 
