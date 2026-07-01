@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1782908492542,
+  "lastUpdate": 1782909348410,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23166,48 +23166,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "83edc2a94d0ada2dbaacb67e64473afe741be0e8",
-          "message": "fix(ownership): Do not confirm/kill on assignment when `break` or `continue` is present (#13153)",
-          "timestamp": "2026-06-24T13:17:48Z",
-          "tree_id": "4f9738a9629190c3a18a8f6859076b95b8a0be6d",
-          "url": "https://github.com/noir-lang/noir/commit/83edc2a94d0ada2dbaacb67e64473afe741be0e8"
-        },
-        "date": 1782308308341,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 170066,
-            "range": "± 495",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 139050,
-            "range": "± 728",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2650967,
-            "range": "± 1732",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "jfecher11@gmail.com",
             "name": "jfecher",
             "username": "jfecher"
@@ -25259,6 +25217,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2656706,
             "range": "± 4374",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "47281315+guipublic@users.noreply.github.com",
+            "name": "guipublic",
+            "username": "guipublic"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "bd612e88d93367b7d46ec79ec78903a1795607c2",
+          "message": "fix: loop induction uses the correct block parameter (#13118)",
+          "timestamp": "2026-07-01T12:15:12Z",
+          "tree_id": "40705af792463bba3de6d5c20c62d9768ad9431d",
+          "url": "https://github.com/noir-lang/noir/commit/bd612e88d93367b7d46ec79ec78903a1795607c2"
+        },
+        "date": 1782909269441,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 175041,
+            "range": "± 1254",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 145994,
+            "range": "± 1495",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2658048,
+            "range": "± 6097",
             "unit": "ns/iter"
           }
         ]
