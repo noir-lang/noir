@@ -1635,3 +1635,29 @@ fn private_module_is_accessible_from_within_its_parent() {
     "#;
     assert_no_errors(src);
 }
+
+#[test]
+fn use_path_can_access_private_intermediate_module_from_within_its_parent() {
+    // The `use` resolver must apply the same intermediate-segment visibility rule as qualified
+    // paths: a private module is reachable from the module it is declared in. Here `inner` is
+    // private to `outer`, so `use crate::outer::inner::foo;` inside `outer` is valid (the direct
+    // path `crate::outer::inner::foo()` already compiles). This was rejected as "inner is private".
+    let src = r#"
+    mod outer {
+        mod inner {
+            pub fn foo() {}
+        }
+
+        use crate::outer::inner::foo;
+
+        pub fn bar() {
+            foo();
+        }
+    }
+
+    fn main() {
+        outer::bar();
+    }
+    "#;
+    assert_no_errors(src);
+}

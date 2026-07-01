@@ -490,6 +490,10 @@ impl<'def_maps, 'usage_tracker, 'references_tracker>
 
             self.add_reference(typ, last_segment.location, last_segment.ident.is_self_type_name());
 
+            // The module `last_segment` is declared in (its visibility is checked against this),
+            // captured before stepping `current_module_id` into the module it refers to.
+            let last_segment_module_id = current_module_id;
+
             // In the type namespace, only a module can be navigated through in a path. A type's
             // associated items (methods, and for enums their variants) can't be imported through
             // it, matching Rust: `use Type::method` is rejected. Such items remain reachable via a
@@ -525,7 +529,7 @@ impl<'def_maps, 'usage_tracker, 'references_tracker>
             };
 
             if !((first_segment_is_always_visible && index == 0)
-                || self.item_in_module_is_visible(current_module_id, visibility))
+                || self.item_in_module_is_visible(last_segment_module_id, visibility))
             {
                 errors.push(PathResolutionError::Private(last_ident.clone()));
             }
