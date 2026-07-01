@@ -166,7 +166,7 @@ pub(crate) fn run(args: InterpretCommand, workspace: Workspace) -> Result<(), Cl
                 .map_err(|e| CliError::Generic(format!("failed to run SSA pass {msg}: {e}")))?;
 
             if ssa_options.validate_between_passes {
-                ssa = validate_ssa_or_err(ssa)
+                ssa = validate_ssa_or_err(ssa, false)
                     .map_err(|e| CliError::Generic(format!("SSA invalid after {msg}: {e}")))?;
             }
 

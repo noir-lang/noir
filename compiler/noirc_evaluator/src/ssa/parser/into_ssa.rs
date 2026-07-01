@@ -107,7 +107,7 @@ impl Translator {
 
         if validate {
             validate_stated_purities(&ssa, &stated_purities, &stated_purity_spans)?;
-            validate_ssa(&ssa);
+            validate_ssa(&ssa, true);
         }
 
         Ok(ssa)

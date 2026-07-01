@@ -259,7 +259,7 @@ impl<'local> SsaBuilder<'local> {
         if !skip {
             self.ssa = time(&msg, self.print_codegen_timings, || pass(self.ssa))?;
             if self.validate_between_passes {
-                self.ssa = validate_ssa_or_err(self.ssa).map_err(|e| match e {
+                self.ssa = validate_ssa_or_err(self.ssa, false).map_err(|e| match e {
                     RuntimeError::SsaValidationError { message, call_stack } => {
                         RuntimeError::SsaValidationError {
                             message: format!("after '{msg}': {message}"),

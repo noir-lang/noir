@@ -45,7 +45,7 @@ fn validate_each_pass(program: &Program) -> eyre::Result<()> {
     for pass in &passes {
         ssa = pass.run(ssa).map_err(|e| eyre::eyre!("pass '{}' failed to run: {e}", pass.msg()))?;
         // Prints the SSA when `NOIR_SHOW_INVALID_SSA` is set.
-        ssa = ssa_gen::validate_ssa_or_err(ssa)
+        ssa = ssa_gen::validate_ssa_or_err(ssa, false)
             .map_err(|e| eyre::eyre!("SSA invalid after '{}': {e}", pass.msg()))?;
     }
 
