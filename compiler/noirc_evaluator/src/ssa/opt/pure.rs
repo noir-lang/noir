@@ -25,6 +25,9 @@ use crate::ssa::{
     ssa_gen::Ssa,
 };
 
+#[cfg(debug_assertions)]
+use crate::ssa::ir::basic_block::BasicBlockId;
+
 impl Ssa {
     /// Analyzes the purity of each function and tag each function call with that function's purity.
     /// This is purely an analysis pass on its own but can help future optimizations.
@@ -119,7 +122,12 @@ impl std::fmt::Display for Purity {
 }
 
 impl Function {
-    pub(crate) fn is_pure(&self) -> Purity {
+    /// Computes the purity of this function's body starting from `start` and only ever
+    /// lowering it (`Pure` → `PureWithPredicate` → `Impure`) as side effects are found.
+    /// Callers choose `start` to encode the floor that applies to the function's runtime.
+    /// Calls to other functions are treated as neutral here; callers that need transitive
+    /// purity must follow the call graph themselves.
+    pub(crate) fn body_purity(&self, start: Purity) -> Purity {
         let contains_reference = |value_id: &ValueId| {
             let typ = self.dfg.type_of_value(*value_id);
             typ.contains_reference()
@@ -153,13 +161,7 @@ impl Function {
         // that have nested arrays.
         let mut brillig_array_input_was_moved = false;
 
-        let mut result = if self.runtime().is_acir() {
-            Purity::Pure
-        } else {
-            // Because we return bogus values when a brillig function is called from acir
-            // in a disabled predicate, brillig functions can never be truly pure unfortunately.
-            Purity::PureWithPredicate
-        };
+        let mut result = start;
 
         for block in self.reachable_blocks() {
             for instruction in self.dfg[block].instructions() {
@@ -318,6 +320,55 @@ impl Function {
         }
 
         result
+    }
+
+    pub(crate) fn is_pure(&self) -> Purity {
+        let start = if self.runtime().is_acir() {
+            Purity::Pure
+        } else {
+            // Because we return bogus values when a brillig function is called from acir
+            // in a disabled predicate, brillig functions can never be truly pure unfortunately.
+            Purity::PureWithPredicate
+        };
+        self.body_purity(start)
+    }
+
+    /// Returns true if the function's control-flow graph contains a back-edge (a loop).
+    ///
+    /// This is a cheap depth-first search over block successors. Unlike the loop-finding pass it
+    /// does not build a dominator tree, so it is suitable for running on candidate callees during
+    /// the flatten pre-check without weighing down the fuzzer's hot path.
+    #[cfg(debug_assertions)]
+    pub(crate) fn contains_loop(&self) -> bool {
+        #[derive(Clone, Copy, PartialEq)]
+        enum Color {
+            Gray,
+            Black,
+        }
+
+        let dfg = &self.dfg;
+        let entry = self.entry_block();
+        let mut color: HashMap<BasicBlockId, Color> = HashMap::default();
+        color.insert(entry, Color::Gray);
+        let mut stack = vec![(entry, dfg[entry].successors().collect::<Vec<_>>())];
+        while let Some((_, successors)) = stack.last_mut() {
+            if let Some(successor) = successors.pop() {
+                match color.get(&successor) {
+                    // An edge back to a block on the current DFS path is a back-edge: a loop.
+                    Some(Color::Gray) => return true,
+                    Some(Color::Black) => {}
+                    None => {
+                        color.insert(successor, Color::Gray);
+                        let next = dfg[successor].successors().collect::<Vec<_>>();
+                        stack.push((successor, next));
+                    }
+                }
+            } else {
+                let (node, _) = stack.pop().expect("stack is non-empty in the loop body");
+                color.insert(node, Color::Black);
+            }
+        }
+        false
     }
 }
 

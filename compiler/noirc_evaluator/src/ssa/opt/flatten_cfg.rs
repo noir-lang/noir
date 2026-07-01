@@ -179,6 +179,9 @@ impl Ssa {
         let no_predicates: HashSet<FunctionId> =
             self.functions.values().filter(|f| f.is_no_predicates()).map(|f| f.id()).collect();
 
+        #[cfg(debug_assertions)]
+        assert_no_pure_constant_brillig_calls(&self);
+
         // ACIR functions which are neither entry points (`Fold`) nor deferred to the
         // post-flattening inlining pass (`NoPredicates`) must already have been inlined
         // into their callers, so no calls to them may remain.
@@ -234,6 +237,101 @@ fn flatten_cfg_pre_check(function: &Function, must_be_inlined: &HashSet<Function
             );
         }
     });
+}
+
+/// Asserts that no ACIR function reaching flattening still calls a foldable brillig function
+/// with all-constant arguments.
+///
+/// Such a call has no side effects to preserve and a constant result, so constant folding
+/// should have replaced it with that result before flattening; otherwise the result is
+/// multiplied by a predicate during flattening, turning the constant into a witness and
+/// blocking further simplification.
+///
+/// A brillig call from ACIR is always at most `PureWithPredicate` (ACIRgen returns bogus
+/// values under a disabled predicate), so the stored purity can never be used directly.
+/// Instead [`is_foldable_pure`] asks whether the callee would be entirely pure if it were not
+/// for that floor — transitively side-effect free *and* guaranteed to terminate (no loops, no
+/// recursion). Anything else (an `assert`/out-of-bounds hint, or a non-terminating one like
+/// `regression_9006`) is left in place, matching what constant folding can actually fold.
+///
+/// The foldability check walks only the candidate callee's call-subgraph (memoized), so it
+/// stays cheap on large programs and off the fuzzer's hot path.
+#[cfg(debug_assertions)]
+fn assert_no_pure_constant_brillig_calls(ssa: &Ssa) {
+    let mut foldable_cache: HashMap<FunctionId, bool> = HashMap::default();
+
+    for function in ssa.functions.values() {
+        if function.runtime().is_brillig() {
+            continue;
+        }
+        let dfg = &function.dfg;
+        for block in function.reachable_blocks() {
+            for inst in dfg[block].instructions() {
+                let Instruction::Call { func, arguments } = &dfg[*inst] else { continue };
+                let Value::Function(callee_id) = &dfg[*func] else { continue };
+                if !ssa.functions.get(callee_id).is_some_and(|f| f.runtime().is_brillig()) {
+                    continue;
+                }
+                if arguments.is_empty() || !arguments.iter().all(|arg| dfg.is_constant(*arg)) {
+                    continue;
+                }
+
+                let mut on_stack = HashSet::default();
+                assert!(
+                    !is_foldable_pure(ssa, *callee_id, &mut foldable_cache, &mut on_stack),
+                    "Call to pure brillig function {callee_id:?} with all-constant arguments \
+                     ({} args) should have been interpreted by constant folding before flattening.",
+                    arguments.len(),
+                );
+            }
+        }
+    }
+}
+
+/// Returns true if `id` and everything it transitively calls is side-effect free and
+/// guaranteed to terminate (no loops, no recursion) — i.e. a constant-argument call to it is
+/// safe to fold to a constant. Results are memoized in `cache`; `on_stack` detects recursion,
+/// which is treated as not foldable (it may not terminate).
+#[cfg(debug_assertions)]
+fn is_foldable_pure(
+    ssa: &Ssa,
+    id: FunctionId,
+    cache: &mut HashMap<FunctionId, bool>,
+    on_stack: &mut HashSet<FunctionId>,
+) -> bool {
+    use crate::ssa::opt::pure::Purity;
+
+    if let Some(&result) = cache.get(&id) {
+        return result;
+    }
+    if !on_stack.insert(id) {
+        // `id` is already on the current DFS path, so it is (mutually) recursive and may not
+        // terminate. Don't memoize here; its own frame records the final result.
+        return false;
+    }
+
+    let function = &ssa.functions[&id];
+    let mut foldable =
+        function.body_purity(Purity::Pure) == Purity::Pure && !function.contains_loop();
+
+    if foldable {
+        let dfg = &function.dfg;
+        'outer: for block in function.reachable_blocks() {
+            for inst in dfg[block].instructions() {
+                if let Instruction::Call { func, .. } = &dfg[*inst]
+                    && let Value::Function(callee) = &dfg[*func]
+                    && !is_foldable_pure(ssa, *callee, cache, on_stack)
+                {
+                    foldable = false;
+                    break 'outer;
+                }
+            }
+        }
+    }
+
+    on_stack.remove(&id);
+    cache.insert(id, foldable);
+    foldable
 }
 
 /// Post-check condition for [`Ssa::flatten_cfg`].
@@ -3920,5 +4018,76 @@ mod merge_provenance_tests {
             return v16
         }
         ");
+    }
+
+    #[test]
+    #[should_panic(expected = "should have been interpreted by constant folding before flattening")]
+    fn flatten_pre_check_flags_side_effect_free_constant_brillig_call() {
+        // `f1` has no side effects, so it would be entirely pure if it were not for the
+        // brillig `PureWithPredicate` floor. A constant-argument call to it has a constant
+        // result and nothing to preserve, so it should have been folded before flattening;
+        // with constant folding skipped the surviving call must trip the pre-check.
+        let src = "
+            acir(inline) fn main f0 {
+              b0():
+                v1 = call f1(u32 2) -> u32
+                return v1
+            }
+            brillig(inline) fn f1 f1 {
+              b0(v0: u32):
+                v1 = unchecked_add v0, u32 1
+                return v1
+            }
+            ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let _ = ssa.flatten_cfg();
+    }
+
+    #[test]
+    fn flatten_pre_check_preserves_side_effecting_constant_brillig_call() {
+        // `f1` contains a `constrain`, so it is only `PureWithPredicate` even ignoring the
+        // brillig floor. Folding it away would drop the constraint, so the pre-check must let
+        // the surviving constant-argument call through rather than panic.
+        let src = "
+            acir(inline) fn main f0 {
+              b0():
+                v1 = call f1(u32 0) -> u32
+                return v1
+            }
+            brillig(inline) fn f1 f1 {
+              b0(v0: u32):
+                constrain v0 == u32 1
+                return v0
+            }
+            ";
+        let ssa = Ssa::from_str(src).unwrap();
+        // Must not panic: the callee has a side effect to preserve.
+        let _ = ssa.flatten_cfg();
+    }
+
+    #[test]
+    fn flatten_pre_check_preserves_non_terminating_constant_brillig_call() {
+        // `f1` is side-effect free but loops forever for this argument, so constant folding
+        // cannot fold it (it gives up at its step limit) and the call legitimately reaches
+        // flattening. Because the callee contains a loop it is not considered foldable-pure,
+        // so the pre-check must not panic. Mirrors `compile_success_no_bug/regression_9006`.
+        let src = "
+            acir(inline) fn main f0 {
+              b0():
+                call f1(u1 0)
+                return
+            }
+            brillig(inline) fn f1 f1 {
+              b0(v0: u1):
+                jmp b1()
+              b1():
+                jmpif v0 then: b2(), else: b1()
+              b2():
+                return
+            }
+            ";
+        let ssa = Ssa::from_str(src).unwrap();
+        // Must not panic: a looping callee may not terminate, so it is not foldable-pure.
+        let _ = ssa.flatten_cfg();
     }
 }
