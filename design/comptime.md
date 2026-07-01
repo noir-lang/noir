@@ -29,6 +29,32 @@ to further comptime errors elsewhere.
 Comptime functions mutating existing items in the source code should generally be avoided
 due to security concerns. These can make auditing code more difficult in particular.
 
+# Splicing resolved types into a quote
+
+A `Type` interpolated into a `quote { .. }` via `$typ` (for example one obtained from
+`TypeDefinition::fields_as_written`) is already resolved: its named generics carry the type
+variables of the definition the type came from. When such a type is spliced into a new generic
+scope — e.g. a generated `impl<Context> Foo<Context> { .. }` — its free (unbound) named generics
+are rebound *by name* to the same-named generics in scope at the splice site. This makes a spliced
+`$typ` behave like a textually-written type in the quote, whose identifiers resolve by name in the
+splice scope; without it, two identically-named generics with different type variables fail to
+unify (issue #10747). Rebinding is done in `Elaborator::rebind_resolved_type_generics` when the
+elaborator resolves an `UnresolvedTypeData::Resolved`.
+
+Consequences of this rule (macros are name-based, not hygienic, so it matches how a textual
+identifier in a quote already resolves):
+
+- Rebinding is **per generic**. A spliced `Pair<X, Y>` in an `impl<X> ..` binds `X` to the impl's
+  `X` but leaves `Y` as the origin's generic, so one spliced type can mix captured and origin
+  generics. This only surfaces in programs that were already ill-formed (a `Y` that is not in scope
+  is a dangling generic either way); it never changes the meaning of a program that compiled before.
+- An origin generic whose name is **not** in scope stays bound to its origin (it is not turned into
+  a "could not resolve" error the way a textually-written unknown generic name is). This asymmetry
+  is pre-existing: spliced types were always frozen before this change; the change only *adds*
+  name-capture for the matching case.
+- Capture is by name only and `Type`'s `Display` shows only names, so which generic a spliced
+  `Context` resolves to is not visible in printed types.
+
 # Hashing of comptime items
 
 The comptime `hash` builtins (`Type::hash`, `Quoted::hash`, etc.) make no guarantee that an
