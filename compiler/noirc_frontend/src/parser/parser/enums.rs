@@ -12,9 +12,9 @@ use super::{
 };
 
 impl Parser<'_> {
-    /// Enum = 'enum' identifier Generics '{' EnumVariant* '}'
+    /// Enum = 'enum' identifier Generics '{' `EnumVariant`* '}'
     ///
-    /// EnumField = OuterDocComments identifier ':' Type
+    /// `EnumField` = `OuterDocComments` identifier ':' Type
     pub(crate) fn parse_enum(
         &mut self,
         attributes: Vec<(Attribute, Location)>,
@@ -92,7 +92,7 @@ impl Parser<'_> {
             }
 
             // Or if we find a right brace
-            if self.at(Token::RightBrace) {
+            if self.at(&Token::RightBrace) {
                 return None;
             }
 

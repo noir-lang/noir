@@ -169,7 +169,7 @@ impl<F: AcirField> AcirContext<F> {
         Ok(inputs)
     }
 
-    /// Prepares inputs for the MultiScalarMul opcode.
+    /// Prepares inputs for the `MultiScalarMul` opcode.
     ///
     /// Point coordinates (x, y) and scalar halves (lo, hi) must each be
     /// uniformly constant or witness — the backend's `to_grumpkin_scalar`
@@ -216,7 +216,7 @@ impl<F: AcirField> AcirContext<F> {
         Ok(vec![x_input, y_input])
     }
 
-    /// Black box function calls expect their inputs to be in a specific data structure (FunctionInput).
+    /// Black box function calls expect their inputs to be in a specific data structure (`FunctionInput`).
     ///
     /// This function will convert `AcirVar` into `FunctionInput` for a blackbox function call.
     pub(super) fn prepare_inputs_for_black_box_func_call(

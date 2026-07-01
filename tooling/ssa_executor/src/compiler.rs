@@ -66,8 +66,8 @@ pub fn optimize_ssa_into_acir(
     }
 }
 
-/// Compiles the given FunctionBuilder into a CompiledProgram
-/// its taken from noirc_driver::compile_no_check, but modified to accept ArtifactsAndWarnings
+/// Compiles the given `FunctionBuilder` into a `CompiledProgram`
+/// its taken from `noirc_driver::compile_no_check`, but modified to accept `ArtifactsAndWarnings`
 pub fn compile_from_artifacts(artifacts: ArtifactsAndWarnings) -> CompiledProgram {
     let dummy_arg_info: Vec<Vec<(u32, Visibility)>> = artifacts
         .0

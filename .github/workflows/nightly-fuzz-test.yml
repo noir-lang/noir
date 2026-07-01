@@ -23,7 +23,7 @@ jobs:
       contents: read
     steps:
       - name: Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
 
       - name: Setup toolchain
         uses: dtolnay/rust-toolchain@1.89.0
@@ -78,5 +78,5 @@ jobs:
           payload: |
             workflow-url: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
             seed-count: ${{ steps.seeds.outputs.seed_count }}
-            seeds: ${{ steps.seeds.outputs.seeds }}
+            seeds: "${{ steps.seeds.outputs.seeds }}"
             artifact-name: nightly-fuzz-failure

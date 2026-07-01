@@ -2,7 +2,7 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: expanded_code
 ---
-use std::meta::ctstring::AsCtString;
+use std::{append::Append, cmp::Eq, meta::ctstring::AsCtString};
 
 fn main() {
     ()

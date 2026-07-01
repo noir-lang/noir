@@ -1,7 +1,7 @@
 ---
 title: Recursive Proofs
 description: Learn about how to write recursive proofs in Noir.
-keywords: [recursion, recursive proofs, verification_key, verify_proof]
+keywords: [recursion, recursive proofs, verification_key, verify_proof_with_type]
 ---
 
 import BlackBoxInfo from '@site/src/components/Notes/_blackbox';
@@ -15,11 +15,30 @@ In order to verify recursive proofs from Barretenberg, it's recommended to use t
 ## Verifying Recursive Proofs
 
 ```rust
-#[foreign(recursive_aggregation)]
-pub fn verify_proof(verification_key: [Field], proof: [Field], public_inputs: [Field], key_hash: Field) {}
+pub fn verify_proof_with_type<let N: u32, let M: u32, let K: u32>(
+    verification_key: [Field; N],
+    proof: [Field; M],
+    public_inputs: [Field; K],
+    key_hash: Field,
+    proof_type: u32,
+) {}
 ```
 
+`verify_proof_with_type` is the backend-agnostic way to verify a recursive proof. The `proof_type` argument identifies the proving scheme used to generate the proof, which allows a single backend to support verifying multiple proving schemes. It must be known at compile time.
+
 <BlackBoxInfo to="black_box_fns"/>
+
+### Arguments
+
+- `verification_key`: The verification key of the circuit to be verified.
+- `proof`: The proof to be verified.
+- `public_inputs`: The public inputs associated with `proof`.
+- `key_hash`: The hash of `verification_key` of the form expected by the backend.
+- `proof_type`: An identifier for the proving scheme used to generate the proof to be verified.
+
+Noir cannot by itself constrain that `key_hash` is a valid hash of `verification_key`, since different backends hash their verification keys differently. It is the responsibility of either the developer (by explicitly hashing the verification key in the correct manner) or the proving system itself (by internally asserting the correctness of `key_hash`) to ensure this holds.
+
+If you are not developing your own proving backend, you should not need to call `verify_proof_with_type` directly. Prefer a verification library published by the backend developers — for Barretenberg, the [bb_proof_verification](https://github.com/AztecProtocol/aztec-packages/tree/next/barretenberg/noir/bb_proof_verification) library wraps this function, sets the correct `proof_type` for you, and documents the backend's safety requirements. Calling `verify_proof_with_type` directly without these guarantees can introduce underconstrainedness bugs and make your circuit insecure.
 
 Read [the explainer on recursion](https://barretenberg.aztec.network/docs/explainers/recursive_aggregation) to know more about this function and the [guide on how to use it.](https://barretenberg.aztec.network/docs/how_to_guides/recursive_aggregation)
 

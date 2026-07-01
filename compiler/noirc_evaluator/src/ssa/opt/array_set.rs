@@ -88,7 +88,7 @@ impl Ssa {
     }
 }
 
-/// Pre-check condition for [Function::array_set_optimization].
+/// Pre-check condition for [`Function::array_set_optimization`].
 ///
 /// Panics if:
 ///   - There already exists a mutable array set instruction.
@@ -299,8 +299,8 @@ mod tests {
         ");
     }
 
-    /// ArraySet on a constant array must use merging with the MakeArray when the
-    /// side-effects predicate is different for both instructions, because the array_set may
+    /// `ArraySet` on a constant array must use merging with the `MakeArray` when the
+    /// side-effects predicate is different for both instructions, because the `array_set` may
     /// not actually execute.
     #[test]
     fn merge_folds_array_set_chain_when_side_effects_predicate_is_unknown() {
@@ -364,7 +364,7 @@ mod tests {
         assert_ssa_does_not_change(src, Ssa::array_set_optimization);
     }
 
-    /// ArraySet cannot fold into a param, only into a MakeArray
+    /// `ArraySet` cannot fold into a param, only into a `MakeArray`
     #[test]
     fn does_not_fold_array_set_on_non_constant_array() {
         let src = r#"

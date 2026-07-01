@@ -322,6 +322,31 @@ fn zero_length_array_constant() {
 }
 
 #[test]
+fn zero_length_array_dynamic_set() {
+    // An array of zero-width elements (here `[u8; 0]`, the lowering of `str<0>`)
+    // has a flattened size of zero, so each element flattens to zero numeric types.
+    // A dynamic `array_set` must not divide by that empty `value_types` length.
+    let src = "
+    acir(inline) fn main f0 {
+      b0(v0: u32):
+        v1 = make_array b\"\"
+        v2 = make_array [v1, v1, v1, v1] : [[u8; 0]; 4]
+        v3 = array_set v2, index v0, value v1
+        return v3
+    }
+    ";
+    let program = ssa_to_acir_program(src);
+
+    assert_circuit_snapshot!(program, @r"
+    func 0
+    private parameters: [w0]
+    public parameters: []
+    return values: []
+    BLACKBOX::RANGE input: w0, bits: 32
+    ");
+}
+
+#[test]
 fn zero_length_array_dynamic_predicate() {
     let src = "
     acir(inline) fn main f0 {
@@ -436,7 +461,7 @@ fn make_dynamic_array_value_types() {
 
     // Now repeat the step that generates the ACIR for the result of an array set.
     let array_id = ValueId::new(5);
-    let array = context.make_array_set_result_value(array_id, BlockId(0), &main.dfg).unwrap();
+    let array = context.make_array_set_result_value(array_id, BlockId::new(0), &main.dfg).unwrap();
     let AcirValue::DynamicArray(AcirDynamicArray { len, value_types, .. }) = array else {
         panic!("expected DynamicArray, got {array:?}");
     };

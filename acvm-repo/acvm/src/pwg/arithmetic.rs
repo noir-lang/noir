@@ -208,7 +208,7 @@ impl ExpressionSolver {
     /// q is a constant and a,b are witnesses
     /// If both a and b have known values (in the provided map), it returns the value q*a*b
     /// If only one of a or b has a known value, it returns the linear term c*w where c is a constant and w is the unknown witness
-    /// If both a and b are unknown, it returns MulTerm::TooManyUnknowns
+    /// If both a and b are unknown, it returns `MulTerm::TooManyUnknowns`
     fn solve_mul_term_helper<F: AcirField>(
         term: &(F, Witness, Witness),
         witness_assignments: &WitnessMap<F>,

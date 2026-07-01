@@ -49,6 +49,9 @@ Example:
 Interprets this token stream as a resolved type. Panics if the token
 stream doesn't parse to a type or if the type isn't a valid type in scope.
 
+A numeric literal such as `4` is interpreted as the type-level integer `4`, so it
+can be used to fill a numeric generic slot, such as for an array length.
+
 #include_code implements_example test_programs/compile_success_empty/comptime_type/src/main.nr rust
 
 ### location

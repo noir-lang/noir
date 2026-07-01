@@ -50,7 +50,7 @@ impl BlockType {
 
 /// Defines an operation within an ACIR circuit
 ///
-/// Expects a type parameter `F` which implements [AcirField].
+/// Expects a type parameter `F` which implements [`AcirField`].
 #[allow(clippy::large_enum_variant)]
 #[derive(Clone, PartialEq, Eq, Hash)]
 #[derive(Serialize, Deserialize, MsgpackTagged)]
@@ -86,7 +86,7 @@ pub enum Opcode<F: AcirField> {
     /// Often used for exposing more efficient implementations of
     /// SNARK-unfriendly computations.
     ///
-    /// All black box function inputs are specified as [FunctionInput],
+    /// All black box function inputs are specified as [`FunctionInput`],
     /// and they have one or several witnesses as output.
     ///
     /// Some more advanced computations assume that the proving system has an
@@ -101,10 +101,10 @@ pub enum Opcode<F: AcirField> {
     /// Atomic operation on a block of memory
     ///
     /// ACIR is able to address any array of witnesses. Each array is assigned
-    /// an id ([BlockId]) and needs to be initialized with the [Opcode::MemoryInit] opcode.
+    /// an id ([`BlockId`]) and needs to be initialized with the [`Opcode::MemoryInit`] opcode.
     /// Then it is possible to read and write from/to an array by providing the
     /// index and the value we read/write as arithmetic expressions. Note that
-    /// ACIR arrays all have a known fixed length (given in the [Opcode::MemoryInit]
+    /// ACIR arrays all have a known fixed length (given in the [`Opcode::MemoryInit`]
     /// opcode below)
     #[tag(2)]
     MemoryOp {
@@ -118,8 +118,8 @@ pub enum Opcode<F: AcirField> {
 
     /// Initialize an ACIR array from a vector of witnesses.
     ///
-    /// There must be only one MemoryInit per block_id, and MemoryOp opcodes must
-    /// come after the MemoryInit.
+    /// There must be only one `MemoryInit` per `block_id`, and `MemoryOp` opcodes must
+    /// come after the `MemoryInit`.
     #[tag(3)]
     MemoryInit {
         /// Identifier of the array
@@ -200,10 +200,10 @@ pub(super) fn display_opcode<F: AcirField>(
         Opcode::BlackBoxFuncCall(g) => std::fmt::Display::fmt(&g, f),
         Opcode::MemoryOp { block_id, op } => match op.operation {
             MemOpKind::Read => {
-                write!(f, "READ {} = b{}[{}]", op.value, block_id.0, op.index)
+                write!(f, "READ {} = {}[{}]", op.value, block_id, op.index)
             }
             MemOpKind::Write => {
-                write!(f, "WRITE b{}[{}] = {}", block_id.0, op.index, op.value)
+                write!(f, "WRITE {}[{}] = {}", block_id, op.index, op.value)
             }
         },
         Opcode::MemoryInit { block_id, init, block_type: databus } => {
@@ -213,7 +213,7 @@ pub(super) fn display_opcode<F: AcirField>(
                 BlockType::ReturnData => write!(f, "INIT RETURNDATA ")?,
             }
             let witnesses = init.iter().map(|w| format!("{w}")).collect::<Vec<String>>().join(", ");
-            write!(f, "b{} = [{witnesses}]", block_id.0)
+            write!(f, "{block_id} = [{witnesses}]")
         }
         // We keep the display for a BrilligCall and circuit Call separate as they
         // are distinct in their functionality and we should maintain this separation for debugging.
@@ -259,7 +259,7 @@ mod tests {
     #[test]
     fn mem_init_display_snapshot() {
         let mem_init: Opcode<FieldElement> = Opcode::MemoryInit {
-            block_id: BlockId(42),
+            block_id: BlockId::new(42),
             init: (0..10u32).map(Witness).collect(),
             block_type: BlockType::Memory,
         };

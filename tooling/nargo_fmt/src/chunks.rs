@@ -77,8 +77,8 @@ impl Chunk {
         }
     }
 
-    /// Computes the width of this chunk considering it's inside an ExpressionList.
-    /// The only thing that changes here compared to `width` is that a LambdaAsLastExpressionInList's
+    /// Computes the width of this chunk considering it's inside an `ExpressionList`.
+    /// The only thing that changes here compared to `width` is that a `LambdaAsLastExpressionInList`'s
     /// width is considered to be only the first line, so we can avoid splitting the entire call
     /// arguments into separate lines.
     pub(crate) fn width_inside_an_expression_list(&self) -> usize {
@@ -141,9 +141,9 @@ impl Display for Chunk {
 pub(crate) struct ChunkGroup {
     pub(crate) chunks: Vec<Chunk>,
 
-    /// If `true`, when formatting in multiple lines, and after a SpaceOrLine,
+    /// If `true`, when formatting in multiple lines, and after a `SpaceOrLine`,
     /// a line will be written.
-    /// If `false`, when formatting in multiple lines, and after a SpaceOrLine,
+    /// If `false`, when formatting in multiple lines, and after a `SpaceOrLine`,
     /// a space will be inserted and the next chunk will go in the same line if
     /// it fits that line.
     ///
@@ -246,7 +246,7 @@ impl ChunkGroup {
         }));
     }
 
-    /// Appends a TextChunk to this chunks chunks. However, if the last chunk is a group,
+    /// Appends a `TextChunk` to this chunks chunks. However, if the last chunk is a group,
     /// it's appended to that group's last text.
     pub(crate) fn text_attached_to_last_group(&mut self, chunk: TextChunk) {
         if chunk.width == 0 {
@@ -302,7 +302,7 @@ impl ChunkGroup {
         self.push(Chunk::Line { two });
     }
 
-    /// Appends a SpaceOrLine chunk, which means that it's a space when this group is
+    /// Appends a `SpaceOrLine` chunk, which means that it's a space when this group is
     /// formatted in a single line, or a line when it's formatted in multiple lines.
     pub(crate) fn space_or_line(&mut self) {
         self.push(Chunk::SpaceOrLine);
@@ -340,8 +340,8 @@ impl ChunkGroup {
         self.force_multiple_lines || self.chunks.iter().any(|chunk| chunk.has_newlines())
     }
 
-    /// Determines if this group has a LambdaAsLastExpressionInList chunk.
-    /// Note that if this group is a MethodCall, this is checked for the ExpressionList group
+    /// Determines if this group has a `LambdaAsLastExpressionInList` chunk.
+    /// Note that if this group is a `MethodCall`, this is checked for the `ExpressionList` group
     /// inside it.
     pub(crate) fn has_lambda_as_last_expression_in_list(&self) -> bool {
         self.chunks.iter().any(|chunk| {
@@ -420,8 +420,8 @@ impl ChunkGroup {
         }
     }
 
-    /// Returns the width of text until we hit a Line or LineOrSpace, together
-    /// with whether we hit a Line or LineOrSpace.
+    /// Returns the width of text until we hit a Line or `LineOrSpace`, together
+    /// with whether we hit a Line or `LineOrSpace`.
     fn width_until_line(&self) -> (usize, bool) {
         let mut width = 0;
         for chunk in &self.chunks {
@@ -471,8 +471,8 @@ impl ChunkGroup {
         false
     }
 
-    /// Assuming this is a MethodCall group, if the ExpressionList nested in it
-    /// has a LambdaAsLastExpressionInList, returns its `first_line_width`.
+    /// Assuming this is a `MethodCall` group, if the `ExpressionList` nested in it
+    /// has a `LambdaAsLastExpressionInList`, returns its `first_line_width`.
     fn method_call_lambda_first_line_width(&self) -> Option<usize> {
         for chunk in &self.chunks {
             let Chunk::Group(group) = chunk else {
@@ -522,7 +522,7 @@ pub(crate) enum GroupKind {
     /// `prefix_width` is the width of whatever is before the actual expression list.
     /// For example, for an array this is 1 (for "["), for a vector it's 2 ("@["), etc.
     ExpressionList { prefix_width: usize, expressions_count: usize },
-    /// This is a chunk for a lambda argument that is the last expression of an ExpressionList.
+    /// This is a chunk for a lambda argument that is the last expression of an `ExpressionList`.
     /// `first_line_width` is the width of the first line of the lambda argument: the parameters
     /// list and the left bracket.
     LambdaAsLastExpressionInList { first_line_width: usize, indentation: Option<i32> },
@@ -566,7 +566,7 @@ impl GroupKind {
     }
 }
 
-/// Interface for creating TextChunks.
+/// Interface for creating `TextChunks`.
 pub(crate) struct ChunkFormatter<'a, 'b>(&'b mut Formatter<'a>);
 
 impl<'a, 'b> ChunkFormatter<'a, 'b> {
@@ -623,7 +623,7 @@ impl<'b> Deref for ChunkFormatter<'_, 'b> {
 }
 
 impl<'a> Formatter<'a> {
-    /// Returns an object that has a `chunk` method to get a TextChunk.
+    /// Returns an object that has a `chunk` method to get a `TextChunk`.
     /// This method exists so that we can't mix the two operation modes:
     /// using the formatter directly while writing to the buffer, or creating text chunks.
     pub(super) fn chunk_formatter(&mut self) -> ChunkFormatter<'a, '_> {
@@ -1139,20 +1139,139 @@ impl<'a> Formatter<'a> {
                 if starts_with_space && !self.buffer.ends_with_space() {
                     self.write(" ");
                 }
-                self.write_comment_with_prefix(
-                    line.trim_start().strip_prefix("//").unwrap_or(line),
-                    "//",
-                );
-            } else if (is_block_comment || inside_block_comment) && self.config.wrap_comments {
-                // Only append a space if it's the start of a block comment (no leading spaces in following lines)
-                if starts_with_space && is_block_comment && !self.buffer.ends_with_space() {
+
+                // Collect the longest run of consecutive `//` lines (matching neither
+                // `///` nor `//!`, and not separated by blank lines) starting at `index`
+                // and reflow them as one paragraph-aware group. When the first line is
+                // attached to code on its own line, keep that first line isolated — a
+                // trailing inline comment must not be merged into the standalone comments
+                // that follow it. We detect this by comparing the current column against
+                // the formatter's structural indent: if we're past it, real code precedes
+                // this comment on the same rendered line.
+                let indent_col = (self.indentation.max(0) as usize) * self.config.tab_spaces;
+                let first_is_trailing_inline = index == 0 && self.current_line_width() > indent_col;
+                let mut group_bodies: Vec<String> = Vec::new();
+                let mut peek = index;
+                while peek < lines.len() {
+                    let candidate = lines[peek];
+                    let trimmed = candidate.trim_start();
+                    let is_plain_line_comment = trimmed.starts_with("//")
+                        && !trimmed.starts_with("///")
+                        && !trimmed.starts_with("//!");
+                    if !is_plain_line_comment {
+                        break;
+                    }
+                    let body = trimmed.strip_prefix("//").unwrap_or(trimmed).to_string();
+                    group_bodies.push(body);
+                    peek += 1;
+                    if first_is_trailing_inline && peek == index + 1 {
+                        break;
+                    }
+                }
+
+                self.write_line_comment_group(&group_bodies, "//");
+
+                index = peek;
+                // Handle the run of blank lines that may follow the group.
+                while index < lines.len() && lines[index].is_empty() {
+                    self.write_multiple_lines_without_skipping_whitespace_and_comments();
+                    index += 1;
+                }
+                continue;
+            } else if is_block_comment && self.config.wrap_comments {
+                // We've hit the opening `/*` / `/**` / `/*!` of a block comment inside
+                // a chunk's text. The chunks layer would otherwise process this line by
+                // line with the legacy per-line wrap, which has no awareness of fenced
+                // code blocks, paragraph reflow, etc. To get the same treatment as
+                // top-level block comments, we collect the full block from its opener
+                // down to the line ending in `*/`, reconstruct the body between the
+                // delimiters, and hand it to `write_block_comment` — temporarily
+                // clearing `in_chunk` so the parser-based wrap path actually runs (it's
+                // normally a no-op inside chunks; see the early return at the top of
+                // `write_block_comment`). On success we skip past the entire block and
+                // a single following blank-line separator.
+                //
+                // If we can't find the closing `*/` within this chunk (the block
+                // straddles the chunk boundary somehow — a rare shape that the legacy
+                // path was originally built for), we fall back to the old line-by-line
+                // emission: write this opener line via `write_comment_with_prefix` and
+                // let the `inside_block_comment` arm below pick up subsequent body
+                // lines on later iterations.
+                let trimmed = line.trim_start();
+                let opener = if trimmed.starts_with("/**") {
+                    "/**"
+                } else if trimmed.starts_with("/*!") {
+                    "/*!"
+                } else {
+                    "/*"
+                };
+
+                // Scan forward for the line that contains the closing `*/`. Note that
+                // for a single-line block comment (e.g. `/* foo */`) this loop exits
+                // immediately with `block_end == index`.
+                let mut block_end = index;
+                while block_end < lines.len() && !lines[block_end].trim_end().ends_with("*/") {
+                    block_end += 1;
+                }
+
+                if block_end < lines.len() {
+                    // Strip the opening delimiter from the first line and the closing
+                    // `*/` from the last line, then reassemble the body in between.
+                    let first_after_open = trimmed.strip_prefix(opener).unwrap_or(trimmed);
+                    let last_line = lines[block_end];
+                    let last_before_close =
+                        last_line.trim_end().strip_suffix("*/").unwrap_or(last_line.trim_end());
+
+                    let body = if index == block_end {
+                        // Single-line form: body is whatever lies between opener and `*/`.
+                        first_after_open.strip_suffix("*/").unwrap_or(first_after_open).to_string()
+                    } else {
+                        // Multi-line form: stitch together [first_after_open, middle
+                        // lines..., last_before_close] with `\n` separators so the body
+                        // matches what `write_block_comment` would see at the top level.
+                        let mut parts = vec![first_after_open.to_string()];
+                        for inner_line in &lines[(index + 1)..block_end] {
+                            parts.push(inner_line.to_string());
+                        }
+                        parts.push(last_before_close.to_string());
+                        parts.join("\n")
+                    };
+
+                    // Preserve the leading space that separates the block comment from
+                    // whatever code precedes it (e.g. `let x = 1; /* ... */`).
+                    if starts_with_space && !self.buffer.ends_with_space() {
+                        self.write(" ");
+                    }
+
+                    // Run `write_block_comment` as if at top level so the parser-based
+                    // wrap path executes (otherwise its `self.in_chunk` early return
+                    // would emit the body verbatim).
+                    let saved_in_chunk = self.in_chunk;
+                    self.in_chunk = false;
+                    self.write_block_comment(&body, opener);
+                    self.in_chunk = saved_in_chunk;
+
+                    // Jump past the whole block and any blank lines that follow,
+                    // collapsing the run to at most one blank-line separator.
+                    index = block_end + 1;
+                    while index < lines.len() && lines[index].is_empty() {
+                        self.write_multiple_lines_without_skipping_whitespace_and_comments();
+                        index += 1;
+                    }
+                    continue;
+                }
+
+                // Closing `*/` not found within this chunk: fall back to the legacy
+                // line-by-line wrap and let the `inside_block_comment` arm handle the
+                // subsequent body lines.
+                if starts_with_space && !self.buffer.ends_with_space() {
                     self.write(" ");
                 }
                 self.write_comment_with_prefix(line, "");
-                if inside_block_comment {
-                    self.start_new_line();
-                }
                 inside_block_comment = true;
+            } else if inside_block_comment && self.config.wrap_comments {
+                self.write_comment_with_prefix(line, "");
+                self.start_new_line();
             } else if index < lines.len() - 1 {
                 // Trim the end of all lines except the last one, to avoid trailing spaces
                 self.write(line.trim_end());
@@ -1174,7 +1293,7 @@ impl<'a> Formatter<'a> {
         }
     }
 
-    /// Returns a new GroupTag that is unique compared to other `new_group_tag` calls.
+    /// Returns a new `GroupTag` that is unique compared to other `new_group_tag` calls.
     pub(super) fn new_group_tag(&mut self) -> GroupTag {
         let tag = GroupTag(self.group_tag_counter);
         self.group_tag_counter += 1;

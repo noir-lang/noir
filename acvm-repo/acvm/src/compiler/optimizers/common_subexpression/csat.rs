@@ -1,4 +1,7 @@
-use std::{cmp::Ordering, collections::HashSet};
+use std::{
+    cmp::Ordering,
+    collections::{HashMap, HashSet},
+};
 
 use acir::{
     AcirField,
@@ -11,32 +14,51 @@ use crate::compiler::simulator::unresolved_witnesses;
 /// Minimum width accepted by the `CSatTransformer`.
 pub(crate) const MIN_EXPRESSION_WIDTH: usize = 3;
 
-/// A transformer which processes any [`Expression`]s to break them up such that they
-/// fit within the backend's width.
+/// A transformer which slices [`Expression`]s towards the backend's preferred `width`, creating
+/// intermediate variables to hold partial calculations and then combining them to recover the
+/// original expression.
 ///
-/// This is done by creating intermediate variables to hold partial calculations and then combining them
-/// to calculate the original expression.
+/// This is a sub-pass of the [`CommonSubexpressionOptimizer`](super); see the module documentation
+/// for how the slices it produces become common-subexpression candidates.
+///
+/// `width` is a best-effort target, not a guarantee. ACIR places no upper bound on the width of an
+/// opcode, so the transformer never splits an expression in a way that would harm solvability. In
+/// particular, an emitted opcode may exceed `width` when it cannot be sliced further without becoming
+/// unsolvable. The two cases are:
+/// - The expression has more than one multiplication term whose operands are not all solvable: each
+///   such term must stay in the opcode (an intermediate bound to it would be unsolvable), so several
+///   may remain.
+/// - The sole unknown of the expression sits inside a multiplication term (e.g. `w_known * y = a + b + c + d`,
+///   solving for `y`). The term cannot be hoisted into an intermediate without leaving the opcode with two
+///   unknowns, so the whole expression — multiplication term and all linear terms — is emitted as one opcode.
+///
+/// The property the transformer preserves is solvability (see [`CircuitSimulator`](crate::compiler::CircuitSimulator)),
+/// not width.
 ///
 /// Pre-Condition:
 /// - General Optimizer must run before this pass
-pub(crate) struct CSatTransformer {
+pub(crate) struct CSatTransformer<F: AcirField> {
     width: usize,
     /// Track the witness that can be solved
     solvable_witness: HashSet<Witness>,
+    /// Cache of field-element inverses, used to normalize intermediate expressions.
+    /// Coefficients repeat heavily across a circuit (e.g. constant matrices, powers of two),
+    /// so memoizing avoids recomputing the same expensive modular inversion many times.
+    inverse_cache: HashMap<F, F>,
 }
 
-impl CSatTransformer {
+impl<F: AcirField> CSatTransformer<F> {
     /// Create an optimizer with a given width.
     ///
     /// Panics if `width` is less than `MIN_EXPRESSION_WIDTH`.
-    pub(crate) fn new(width: usize) -> CSatTransformer {
+    pub(crate) fn new(width: usize) -> CSatTransformer<F> {
         assert!(width >= MIN_EXPRESSION_WIDTH, "width has to be at least {MIN_EXPRESSION_WIDTH}");
 
-        CSatTransformer { width, solvable_witness: HashSet::new() }
+        CSatTransformer { width, solvable_witness: HashSet::new(), inverse_cache: HashMap::new() }
     }
 
     /// Check if the equation 'expression=0' can be solved, and if yes, add the solved witness to set of solvable witness
-    fn try_solve<F: AcirField>(&mut self, opcode: &Expression<F>) {
+    fn try_solve(&mut self, opcode: &Expression<F>) {
         if let Some(unresolved) = unresolved_witnesses(opcode, &self.solvable_witness)
             && unresolved.len() == 1
         {
@@ -49,12 +71,23 @@ impl CSatTransformer {
         self.solvable_witness.insert(witness);
     }
 
-    /// Transform the input arithmetic expression into a new one having the correct 'width'
-    /// by creating intermediate variables as needed.
-    /// Having the correct width means:
-    /// - it has at most one multiplicative term
-    /// - it uses at most 'width-1' witness linear combination terms, to account for the new intermediate variable
-    pub(crate) fn transform<F: AcirField>(
+    /// Transform the input arithmetic expression by slicing it towards `self.width` via intermediate
+    /// variables, marking the witness it solves for so later opcodes can reuse it.
+    ///
+    /// The intended shape of the returned opcode is:
+    /// - at most one multiplication term, and
+    /// - a fan-in whose [`Expression::width`] is at most `self.width`.
+    ///
+    /// This is best-effort, not guaranteed: when an unsolvable multiplication term cannot be hoisted
+    /// into an intermediate variable, it (and the linear terms it sits alongside) remain in the opcode,
+    /// which may then have more than one multiplication term and/or a width exceeding `self.width`. This
+    /// is intentional — slicing such a term out would make the circuit unsolvable, and ACIR imposes no
+    /// hard width limit. See the [`CSatTransformer`] documentation for details.
+    ///
+    /// The `width - 1` budget mentioned in the helper functions refers to each *intermediate* opcode:
+    /// an intermediate reserves one wire for the variable it defines, so it can absorb at most `width - 1`
+    /// source terms. The final opcode itself targets the full `self.width`.
+    pub(crate) fn transform(
         &mut self,
         opcode: Expression<F>,
         intermediate_variables: &mut IndexMap<Expression<F>, (F, Witness)>,
@@ -97,7 +130,7 @@ impl CSatTransformer {
     // The polynomial now looks like so t + t2
     // We can no longer extract another full opcode, hence the algorithm terminates. Creating two intermediate variables t and t2.
     // This stage of preprocessing does not guarantee that all polynomials can fit into a opcode. It only guarantees that all full opcodes have been extracted from each polynomial
-    fn full_opcode_scan_optimization<F: AcirField>(
+    fn full_opcode_scan_optimization(
         &mut self,
         mut opcode: Expression<F>,
         intermediate_variables: &mut IndexMap<Expression<F>, (F, Witness)>,
@@ -207,7 +240,7 @@ impl CSatTransformer {
                     // TODO(https://github.com/noir-lang/noir/issues/10192): Another optimization, which could be applied in another algorithm
                     // If two opcodes have a large fan-in/out and they share a few common terms, then we should create intermediate variables for them
                     // Do some sort of subset matching algorithm for this on the terms of the polynomial
-                    let intermediate_var = Self::get_or_create_intermediate_var(
+                    let intermediate_var = self.get_or_create_intermediate_var(
                         intermediate_variables,
                         intermediate_opcode,
                         num_witness,
@@ -230,29 +263,40 @@ impl CSatTransformer {
 
     /// Normalize an expression by dividing it by its first coefficient
     /// The first coefficient here means coefficient of the first linear term, or of the first quadratic term if no linear terms exist.
-    /// This function panics if the input expression is constant or if the first coefficient's inverse is F::zero()
-    fn normalize<F: AcirField>(mut expr: Expression<F>) -> (F, Expression<F>) {
+    /// This function panics if the input expression is constant or if the first coefficient's inverse is `F::zero()`
+    fn normalize(&mut self, mut expr: Expression<F>) -> (F, Expression<F>) {
         expr.sort();
         let a = if !expr.linear_combinations.is_empty() {
             expr.linear_combinations[0].0
         } else {
             expr.mul_terms[0].0
         };
-        let a_inverse = a.inverse();
+        // The expression is already normalized when its leading coefficient is 1,
+        // so we can skip the field inversion and the scaled copy entirely.
+        if a == F::one() {
+            return (a, expr);
+        }
+        // A leading coefficient of -1 normalizes to a plain negation.
+        if a == -F::one() {
+            return (a, -expr);
+        }
+        // Coefficients repeat heavily, so memoize the inverse to avoid recomputing it.
+        let a_inverse = *self.inverse_cache.entry(a).or_insert_with(|| a.inverse());
         assert!(a_inverse != F::zero(), "normalize: the first coefficient is non-invertible");
-        (a, &expr * a_inverse)
+        (a, expr * a_inverse)
     }
 
     /// Get or generate a scaled intermediate witness which is equal to the provided expression
-    /// The sets of previously generated witness and their (normalized) expression is cached in the intermediate_variables map
+    /// The sets of previously generated witness and their (normalized) expression is cached in the `intermediate_variables` map
     /// If there is no cache hit, we generate a new witness (and add the expression to the cache)
     /// else, we return the cached witness along with the scaling factor so it is equal to the provided expression
-    fn get_or_create_intermediate_var<F: AcirField>(
+    fn get_or_create_intermediate_var(
+        &mut self,
         intermediate_variables: &mut IndexMap<Expression<F>, (F, Witness)>,
         expr: Expression<F>,
         num_witness: &mut u32,
     ) -> (F, Witness) {
-        let (k, normalized_expr) = Self::normalize(expr);
+        let (k, normalized_expr) = self.normalize(expr);
 
         if intermediate_variables.contains_key(&normalized_expr) {
             let (l, iv) = intermediate_variables[&normalized_expr];
@@ -262,7 +306,7 @@ impl CSatTransformer {
             );
             (k / l, iv)
         } else {
-            let inter_var = Witness(*num_witness);
+            let inter_var = Witness::new(*num_witness);
             *num_witness += 1;
             // Add intermediate opcode and variable to map
             intermediate_variables.insert(normalized_expr, (k, inter_var));
@@ -307,7 +351,7 @@ impl CSatTransformer {
     // Also remember that since we did full opcode scan, there is no way we can have a non-zero mul term along with the wL and wR terms being non-zero
     //
     // Cases, a lot of mul terms, a lot of fan-in terms, 50/50
-    fn partial_opcode_scan_optimization<F: AcirField>(
+    fn partial_opcode_scan_optimization(
         &mut self,
         mut opcode: Expression<F>,
         intermediate_variables: &mut IndexMap<Expression<F>, (F, Witness)>,
@@ -322,7 +366,10 @@ impl CSatTransformer {
             return opcode;
         }
 
-        // Create Intermediate variables for the multiplication opcodes
+        // Replace each multiplication term with an intermediate variable, so it becomes a single linear
+        // term in the fan-in. We can only do this for terms whose operands are both solvable: an intermediate
+        // bound to an unsolvable multiplication term would itself be unsolvable. Unsolvable terms are kept in
+        // the opcode unchanged.
         let mut remaining_mul_terms = Vec::with_capacity(opcode.mul_terms.len());
         for (scale, w_l, w_r) in opcode.mul_terms {
             if self.solvable_witness.contains(&w_l) && self.solvable_witness.contains(&w_r) {
@@ -331,7 +378,7 @@ impl CSatTransformer {
                 // Push mul term into the opcode
                 intermediate_opcode.mul_terms.push((scale, w_l, w_r));
                 // Get an intermediate variable which squashes the multiplication term
-                let intermediate_var = Self::get_or_create_intermediate_var(
+                let intermediate_var = self.get_or_create_intermediate_var(
                     intermediate_variables,
                     intermediate_opcode,
                     num_witness,
@@ -345,13 +392,13 @@ impl CSatTransformer {
             }
         }
 
-        // Remove all of the mul terms as we have intermediate variables to represent them now
+        // Any multiplication terms left here are unsolvable and could not be hoisted into intermediates.
         opcode.mul_terms = remaining_mul_terms;
 
-        // We now only have a polynomial with only fan-in/fan-out terms i.e. terms of the form Ax + By + Cd + ...
-        // Lets create intermediate variables if all of them cannot fit into the width
-        //
-        // If the polynomial fits perfectly within the given width, we are finished
+        // The remaining work is to squash the linear fan-in down to `self.width` terms. We can only stop once
+        // the linear fan-in fits; any residual unsolvable multiplication terms stay where they are, so the
+        // final opcode's `width()` may still exceed `self.width`. That is acceptable (ACIR has no width limit)
+        // and unavoidable — slicing those terms out would make the circuit unsolvable.
         if opcode.linear_combinations.len() <= self.width {
             return opcode;
         }
@@ -378,7 +425,7 @@ impl CSatTransformer {
             opcode.linear_combinations = remaining_linear_terms;
             let not_full = intermediate_opcode.linear_combinations.len() < self.width - 1;
             if intermediate_opcode.linear_combinations.len() > 1 {
-                let intermediate_var = Self::get_or_create_intermediate_var(
+                let intermediate_var = self.get_or_create_intermediate_var(
                     intermediate_variables,
                     intermediate_opcode,
                     num_witness,
@@ -434,7 +481,7 @@ mod tests {
 
         let mut num_witness = 4;
 
-        let mut optimizer = CSatTransformer::new(3);
+        let mut optimizer = CSatTransformer::new(MIN_EXPRESSION_WIDTH);
         optimizer.mark_solvable(b);
         optimizer.mark_solvable(c);
         optimizer.mark_solvable(d);
@@ -457,7 +504,8 @@ mod tests {
 
         // e = - c - b
         let expected_intermediate_opcode = Expression::from_str(&format!("-{c} - {b}")).unwrap();
-        let (_, normalized_opcode) = CSatTransformer::normalize(expected_intermediate_opcode);
+        let (_, normalized_opcode) =
+            CSatTransformer::new(MIN_EXPRESSION_WIDTH).normalize(expected_intermediate_opcode);
         assert!(intermediate_variables.contains_key(&normalized_opcode));
         assert_eq!(intermediate_variables[&normalized_opcode].1, e);
     }
@@ -480,7 +528,7 @@ mod tests {
 
         let mut num_witness = 4;
 
-        let mut optimizer = CSatTransformer::new(3);
+        let mut optimizer = CSatTransformer::new(MIN_EXPRESSION_WIDTH);
         optimizer.mark_solvable(a);
         optimizer.mark_solvable(c);
         optimizer.mark_solvable(d);
@@ -509,7 +557,7 @@ mod tests {
             linear_combinations: vec![(FieldElement::zero(), Witness(0))],
             q_c: FieldElement::zero(),
         };
-        CSatTransformer::normalize(expr);
+        CSatTransformer::new(MIN_EXPRESSION_WIDTH).normalize(expr);
     }
 
     #[test]
@@ -520,7 +568,7 @@ mod tests {
             linear_combinations: vec![],
             q_c: FieldElement::zero(),
         };
-        CSatTransformer::normalize(expr);
+        CSatTransformer::new(MIN_EXPRESSION_WIDTH).normalize(expr);
     }
 
     #[test]
@@ -539,7 +587,8 @@ mod tests {
 
         let mut num_witness = 2;
 
-        CSatTransformer::get_or_create_intermediate_var(
+        let mut optimizer = CSatTransformer::new(MIN_EXPRESSION_WIDTH);
+        optimizer.get_or_create_intermediate_var(
             &mut intermediate_variables,
             expr,
             &mut num_witness,
@@ -586,7 +635,7 @@ mod tests {
         > = IndexMap::new();
         let mut num_witness = 8u32;
 
-        let mut optimizer = CSatTransformer::new(3);
+        let mut optimizer = CSatTransformer::new(MIN_EXPRESSION_WIDTH);
         for w in [x, a, b, c, d, e, f, g] {
             optimizer.mark_solvable(w);
         }
@@ -647,7 +696,7 @@ mod tests {
 
         let mut num_witness = 4;
 
-        let mut optimizer = CSatTransformer::new(3);
+        let mut optimizer = CSatTransformer::new(MIN_EXPRESSION_WIDTH);
         optimizer.mark_solvable(a);
 
         let _ = optimizer.transform(opcode, &mut intermediate_variables, &mut num_witness);

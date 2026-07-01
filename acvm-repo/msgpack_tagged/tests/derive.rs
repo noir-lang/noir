@@ -249,7 +249,7 @@ struct Cons {
 /// bound (because it contains `Self`), but the recursion call still needs
 /// `Inner: MsgpackTagged` to resolve at the call site. `extra_bound`
 /// restores it; without it, the impl would fail to compile with a clear
-/// "Inner: MsgpackTagged is not satisfied" error.
+/// "Inner: `MsgpackTagged` is not satisfied" error.
 #[derive(MsgpackTagged)]
 #[tagged(extra_bound = "Inner: msgpack_tagged::MsgpackTagged")]
 enum NestedTree {

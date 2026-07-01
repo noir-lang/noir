@@ -1,0 +1,15 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+error: should fail
+   ┌─ src/main.nr:16:9
+   │
+16 │         std::static_assert(false, "should fail");
+   │         ----------------------------------------
+   │
+   = Call stack:
+     1: main
+             at src/main.nr:16:9
+
+Aborting due to 1 previous error

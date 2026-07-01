@@ -2,16 +2,16 @@
 //! which the results are unused.
 //!
 //! DIE also tracks which block parameters are unused.
-//! Unused parameters are then pruned by the [prune_dead_parameters] pass.
+//! Unused parameters are then pruned by the [`prune_dead_parameters`] pass.
 //!
 //! ## Design
 //! - Instructions are scanned in reverse (within each block), keeping track of
 //!   used values. If the current instruction is safe for removal (no side effects)
 //!   and its results are all unused the instruction will be marked for removal.
 //!   Traversing in reverse enables removing entire unused chains of computation.
-//! - The pass also tracks unused [IncrementRc][Instruction::IncrementRc] and [DecrementRc][Instruction::DecrementRc] instructions.
+//! - The pass also tracks unused [`IncrementRc`][Instruction::IncrementRc] and [`DecrementRc`][Instruction::DecrementRc] instructions.
 //!   As these instructions contain side effects we only remove them after analyzing an entire function to see if their values are unused.
-//! - Block parameters are also tracked. Unused parameters are pruned in a follow-up [prune_dead_parameters] pass
+//! - Block parameters are also tracked. Unused parameters are pruned in a follow-up [`prune_dead_parameters`] pass
 //!   to maintain separation of concerns and SSA consistency.
 //! - The main DIE pass and dead parameter pruning are called in a fixed point feedback loop that stops
 //!   once there are no more unused parameters.
@@ -32,8 +32,8 @@
 //!
 //! [Store][Instruction::Store] instructions are never removed by DIE in either runtime.
 //! Deciding when a store is dead requires reasoning about reference aliasing, which the
-//! reverse traversal cannot do soundly: an earlier instruction such as [IfElse][Instruction::IfElse],
-//! [MakeArray][Instruction::MakeArray]/[ArrayGet][Instruction::ArrayGet], or a call returning a
+//! reverse traversal cannot do soundly: an earlier instruction such as [`IfElse`][Instruction::IfElse],
+//! [`MakeArray`][Instruction::MakeArray]/[`ArrayGet`][Instruction::ArrayGet], or a call returning a
 //! reference argument may produce a value that aliases the address, and reads through that alias
 //! sit later in source order. Mem2reg, which has a proper alias-tracking model, is responsible
 //! for removing dead stores.
@@ -197,14 +197,14 @@ struct Context {
     used_values: HashSet<ValueId>,
     instructions_to_remove: HashSet<InstructionId>,
 
-    /// IncrementRc & DecrementRc instructions must be revisited after the main DIE pass since
+    /// `IncrementRc` & `DecrementRc` instructions must be revisited after the main DIE pass since
     /// they technically contain side-effects but we still want to remove them if their
     /// `value` parameter is not used elsewhere.
     rc_instructions: Vec<(InstructionId, BasicBlockId)>,
 
     /// A per-block list indicating which block parameters are still considered alive.
     ///
-    /// Each entry maps a [BasicBlockId] to a `Vec<bool>`, where the `i`th boolean corresponds to
+    /// Each entry maps a [`BasicBlockId`] to a `Vec<bool>`, where the `i`th boolean corresponds to
     /// the `i`th parameter of that block. A value of `true` means the parameter is used and should
     /// be preserved. A value of `false` means it is unused and can be pruned.
     ///
@@ -1382,7 +1382,7 @@ mod tests {
     /// alias-establishing instruction. `v6 = if cond then v0 else v1` makes `v6`
     /// alias `v0` (or `v1`), so `load v6` is effectively a load of the address being
     /// stored to; removing the intervening `store at v0` would leave the load reading
-    /// uninitialized memory. The reverse traversal cannot detect this since the IfElse
+    /// uninitialized memory. The reverse traversal cannot detect this since the `IfElse`
     /// has not been visited when DIE inspects the store, which is the core reason DIE
     /// cannot soundly remove stores in general.
     #[test]
