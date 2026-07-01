@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1782918333114,
+  "lastUpdate": 1782918425634,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23176,48 +23176,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": true,
-          "id": "ae4231da2b49601f8066acaac9686bc7cbeed300",
-          "message": "chore: block type is last statement's type (#13174)",
-          "timestamp": "2026-06-24T16:33:59Z",
-          "tree_id": "487cc7881b02a7fbe5129f85c078548701a78ebb",
-          "url": "https://github.com/noir-lang/noir/commit/ae4231da2b49601f8066acaac9686bc7cbeed300"
-        },
-        "date": 1782320023838,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 171629,
-            "range": "± 1147",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 139707,
-            "range": "± 1630",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2653704,
-            "range": "± 3360",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
           "id": "6456a593a15ba7bcf6d4d0cfed19a9d7561152ea",
           "message": "fix: preserve non-UTF-8 bytes when rendering comptime values to CtString (#13168)",
           "timestamp": "2026-06-24T19:01:08Z",
@@ -25259,6 +25217,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2607322,
             "range": "± 36137",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49558828+AztecBot@users.noreply.github.com",
+            "name": "Aztec Bot",
+            "username": "AztecBot"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "1a5e8b3d564905ce7a5cbfabc32d2342bf4bca3d",
+          "message": "fix(elaborator): suppress duplicate ICE when interpreting parser-error nodes in comptime (#12679)",
+          "timestamp": "2026-07-01T14:47:33Z",
+          "tree_id": "d757636e4c1119abce9d93bfd80814993418c92e",
+          "url": "https://github.com/noir-lang/noir/commit/1a5e8b3d564905ce7a5cbfabc32d2342bf4bca3d"
+        },
+        "date": 1782918344232,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 127462,
+            "range": "± 940",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 113778,
+            "range": "± 3235",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 3041770,
+            "range": "± 14367",
             "unit": "ns/iter"
           }
         ]
