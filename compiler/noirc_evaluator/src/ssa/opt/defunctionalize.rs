@@ -923,11 +923,7 @@ mod tests {
     use crate::{
         assert_ssa_snapshot,
         ssa::{
-            interpreter::{
-                IResults,
-                tests::expect_value_with_args,
-                value::{NumericValue, Value},
-            },
+            interpreter::{IResults, tests::expect_value_with_args, value::Value},
             ir::function::FunctionId,
             opt::{
                 assert_pass_does_not_affect_execution,
@@ -1214,8 +1210,7 @@ mod tests {
         let interpreter_return_values = expect_value_with_args(src, vec![]);
 
         let expected_interpreter_return_values = Value::Function(FunctionId::test_new(1));
-        let expected_defunctionalize_results: IResults =
-            Ok(vec![Value::Numeric(NumericValue::Field(1u128.into()))]);
+        let expected_defunctionalize_results: IResults = Ok(vec![Value::field(1u128.into())]);
 
         assert_eq!(defunctionalize_results, expected_defunctionalize_results);
         assert_eq!(interpreter_return_values, expected_interpreter_return_values);
@@ -2634,7 +2629,7 @@ mod tests {
         let (_, result) =
             assert_pass_does_not_affect_execution(ssa, args, |ssa| ssa.defunctionalize().unwrap());
 
-        let expected: IResults = Ok(vec![Value::Numeric(NumericValue::Field(5u128.into()))]);
+        let expected: IResults = Ok(vec![Value::field(5u128.into())]);
         assert_eq!(result, expected);
     }
 
