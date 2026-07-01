@@ -1,5 +1,5 @@
 use super::{
-    InputValue, field_to_signed_hex, parse_integer_to_signed, parse_str_to_field,
+    InputValue, check_input_keys, field_to_signed_hex, parse_integer_to_signed, parse_str_to_field,
     parse_str_to_signed,
 };
 use crate::{Abi, AbiType, MAIN_RETURN_NAME, errors::InputParserError};
@@ -23,6 +23,7 @@ pub(crate) fn parse_toml(
             err
         }
     })?;
+    check_input_keys(data.keys(), abi)?;
 
     // Convert arguments to field elements.
     let mut parsed_inputs = try_btree_map(abi.to_btree_map(), |(arg_name, abi_type)| {
@@ -257,7 +258,7 @@ mod tests {
     use proptest::prelude::*;
 
     use crate::{
-        Abi, AbiParameter, AbiType, AbiVisibility,
+        Abi, AbiParameter, AbiReturnType, AbiType, AbiVisibility,
         arbitrary::arb_abi_and_input_map,
         input_parser::{InputValue, arbitrary::arb_signed_integer_type_and_value, toml::TomlTypes},
     };
@@ -361,6 +362,45 @@ mod tests {
         let input = parse_toml(toml, &abi).unwrap();
         let value = &input["input"];
         assert!(matches!(value, InputValue::Vec(vec) if vec.len() == 1));
+    }
+
+    fn field_abi(has_return_type: bool) -> Abi {
+        Abi {
+            parameters: vec![AbiParameter {
+                name: "input".to_string(),
+                typ: AbiType::Field,
+                visibility: AbiVisibility::Private,
+            }],
+            return_type: has_return_type.then_some(AbiReturnType {
+                abi_type: AbiType::Field,
+                visibility: AbiVisibility::Public,
+            }),
+            error_types: Default::default(),
+        }
+    }
+
+    #[test]
+    fn rejects_unexpected_toml_input_key() {
+        let abi = field_abi(false);
+        let toml = "input = \"1\"\nextra = \"2\"";
+        let err = parse_toml(toml, &abi).unwrap_err();
+        assert_eq!(err.to_string(), r#"Received input arguments not expected by ABI: ["extra"]"#);
+    }
+
+    #[test]
+    fn accepts_toml_return_key_when_abi_has_return_type() {
+        let abi = field_abi(true);
+        let toml = "input = \"1\"\nreturn = \"2\"";
+        let input = parse_toml(toml, &abi).unwrap();
+        assert!(input.contains_key(crate::MAIN_RETURN_NAME));
+    }
+
+    #[test]
+    fn rejects_toml_return_key_when_abi_has_no_return_type() {
+        let abi = field_abi(false);
+        let toml = "input = \"1\"\nreturn = \"2\"";
+        let err = parse_toml(toml, &abi).unwrap_err();
+        assert_eq!(err.to_string(), r#"Received input arguments not expected by ABI: ["return"]"#);
     }
 
     #[test]
