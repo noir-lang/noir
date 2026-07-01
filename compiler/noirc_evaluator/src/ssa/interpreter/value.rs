@@ -465,11 +465,13 @@ impl NumericValue {
 
     /// Whether the stored field is within the value's type range, i.e. `field < 2^bit_size`.
     ///
-    /// `Field` and `u1` are always in range. An integer is in range when its bit pattern fits in
-    /// `bit_size` bits; out-of-range fields only arise from unreduced ACIR arithmetic.
+    /// `Field` is always in range.
+    /// Every other type is in range when its bit pattern fits in `bit_size` bits.
+    /// An out-of-range field only arises from unreduced ACIR arithmetic or `int_from_field`,
+    /// which does not check; a properly constructed value is always in range.
     pub(crate) fn is_in_range(&self) -> bool {
         match self.typ {
-            NumericType::NativeField | NumericType::Unsigned { bit_size: 1 } => true,
+            NumericType::NativeField => true,
             _ => self.value.num_bits() <= self.bit_size(),
         }
     }

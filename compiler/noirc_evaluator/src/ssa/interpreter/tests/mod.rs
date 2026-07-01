@@ -116,6 +116,17 @@ fn test_truncate_signed() {
 }
 
 #[test]
+fn u1_is_in_range_only_for_zero_and_one() {
+    let u1 = |n: u32| {
+        NumericValue::int_from_field(FieldElement::from(n), NumericType::unsigned(1)).unwrap()
+    };
+    assert!(u1(0).is_in_range());
+    assert!(u1(1).is_in_range());
+    assert!(!u1(2).is_in_range());
+    assert!(!u1(5).is_in_range());
+}
+
+#[test]
 fn test_shl() {
     let binary = Binary { lhs: ValueId::new(0), rhs: ValueId::new(1), operator: BinaryOp::Shl };
 
