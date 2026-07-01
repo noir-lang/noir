@@ -393,6 +393,65 @@ impl CompileOptions {
     }
 }
 
+#[derive(Hash)]
+struct CompileCacheOptions<'a> {
+    instrument_debug: bool,
+    with_ssa_locations: bool,
+    force_brillig: bool,
+    minimal_ssa: bool,
+    deny_warnings: bool,
+    silence_warnings: bool,
+    skip_underconstrained_check: bool,
+    skip_brillig_constraints_check: bool,
+    brillig_constraints_check_max_array_output_length: u32,
+    brillig_constraints_check_max_ancestor_distance: u32,
+    enable_brillig_debug_assertions: bool,
+    inliner_aggressiveness: i64,
+    constant_folding_max_iter: usize,
+    small_function_max_instructions: usize,
+    max_bytecode_increase_percent: Option<i32>,
+    max_unroll_iterations: usize,
+    force_unroll_threshold: usize,
+    specialization_threshold: usize,
+    max_specializations_per_fn: usize,
+    max_stack_frame_size: usize,
+    num_stack_frames: usize,
+    max_scratch_space: usize,
+    skip_ssa_pass: &'a [String],
+}
+
+impl<'a> From<&'a CompileOptions> for CompileCacheOptions<'a> {
+    fn from(options: &'a CompileOptions) -> Self {
+        Self {
+            instrument_debug: options.instrument_debug,
+            with_ssa_locations: options.with_ssa_locations,
+            force_brillig: options.force_brillig,
+            minimal_ssa: options.minimal_ssa,
+            deny_warnings: options.deny_warnings,
+            silence_warnings: options.silence_warnings,
+            skip_underconstrained_check: options.skip_underconstrained_check,
+            skip_brillig_constraints_check: options.skip_brillig_constraints_check,
+            brillig_constraints_check_max_array_output_length: options
+                .brillig_constraints_check_max_array_output_length,
+            brillig_constraints_check_max_ancestor_distance: options
+                .brillig_constraints_check_max_ancestor_distance,
+            enable_brillig_debug_assertions: options.enable_brillig_debug_assertions,
+            inliner_aggressiveness: options.inliner_aggressiveness,
+            constant_folding_max_iter: options.constant_folding_max_iter,
+            small_function_max_instructions: options.small_function_max_instructions,
+            max_bytecode_increase_percent: options.max_bytecode_increase_percent,
+            max_unroll_iterations: options.max_unroll_iterations,
+            force_unroll_threshold: options.force_unroll_threshold,
+            specialization_threshold: options.specialization_threshold,
+            max_specializations_per_fn: options.max_specializations_per_fn,
+            max_stack_frame_size: options.max_stack_frame_size,
+            num_stack_frames: options.num_stack_frames,
+            max_scratch_space: options.max_scratch_space,
+            skip_ssa_pass: &options.skip_ssa_pass,
+        }
+    }
+}
+
 impl CompileOptions {
     pub(crate) fn frontend_options(&self) -> FrontendOptions {
         FrontendOptions {
@@ -858,8 +917,9 @@ pub fn filter_relevant_files(
 ///
 /// Note that the optimized ACIR is _not_ covered by the check that decides whether we can use the cached
 /// artifact. That comparison is based on [`CompiledProgram::hash`] which is a persisted version of the hash
-/// of the input [`ast::Program`][noirc_frontend::monomorphization::ast::Program], whereas the output
-/// [`circuit::Program`][acvm::acir::circuit::Program] contains the final optimized ACIR opcodes.
+/// of the input [`ast::Program`][noirc_frontend::monomorphization::ast::Program] and the relevant compile
+/// options, whereas the output [`circuit::Program`][acvm::acir::circuit::Program] contains the final
+/// optimized ACIR opcodes.
 #[tracing::instrument(level = "trace", skip_all, fields(function_name = context.function_name(&main_function)))]
 #[allow(clippy::result_large_err)]
 pub fn compile_no_check(
@@ -898,6 +958,9 @@ pub fn compile_no_check(
     let force_compile = force_compile
         || options.print_acir
         || options.show_brillig
+        || options.show_brillig_opcode_advisories
+        || options.benchmark_codegen
+        || options.validate_between_passes
         || options.force_brillig
         || context.count_array_copies
         || options.show_ssa
@@ -905,8 +968,9 @@ pub fn compile_no_check(
         || options.emit_ssa
         || options.minimal_ssa;
 
-    // Hash the AST program, which is going to be used to fingerprint the compilation artifact.
-    let hash = rustc_hash::FxBuildHasher.hash_one(&program);
+    // Hash the AST program and every option that can affect the persisted artifact or diagnostics
+    // omitted from cached artifacts.
+    let hash = rustc_hash::FxBuildHasher.hash_one((&program, CompileCacheOptions::from(options)));
 
     if let Some(cached_program) = cached_program
         && !force_compile
@@ -1062,5 +1126,54 @@ impl<F: AcirField> std::fmt::Display for ProgramDisplay<'_, F> {
             })
             .collect::<HashMap<_, _>>();
         display_program(self.program, Some(&error_types), f)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{CompileCacheOptions, CompileOptions};
+    use std::hash::BuildHasher;
+
+    fn cache_options_hash(options: &CompileOptions) -> u64 {
+        rustc_hash::FxBuildHasher.hash_one(CompileCacheOptions::from(options))
+    }
+
+    fn assert_cache_hash_changes(mut mutate: impl FnMut(&mut CompileOptions)) {
+        let options = CompileOptions::default();
+        let mut changed_options = options.clone();
+        mutate(&mut changed_options);
+
+        assert_ne!(cache_options_hash(&options), cache_options_hash(&changed_options));
+    }
+
+    #[test]
+    fn cache_hash_tracks_artifact_and_diagnostic_options() {
+        assert_cache_hash_changes(|options| options.instrument_debug = true);
+        assert_cache_hash_changes(|options| options.with_ssa_locations = true);
+        assert_cache_hash_changes(|options| options.force_brillig = true);
+        assert_cache_hash_changes(|options| options.minimal_ssa = true);
+        assert_cache_hash_changes(|options| options.deny_warnings = true);
+        assert_cache_hash_changes(|options| options.silence_warnings = true);
+        assert_cache_hash_changes(|options| options.skip_underconstrained_check = true);
+        assert_cache_hash_changes(|options| options.skip_brillig_constraints_check = true);
+        assert_cache_hash_changes(|options| {
+            options.brillig_constraints_check_max_array_output_length += 1;
+        });
+        assert_cache_hash_changes(|options| {
+            options.brillig_constraints_check_max_ancestor_distance += 1;
+        });
+        assert_cache_hash_changes(|options| options.enable_brillig_debug_assertions = true);
+        assert_cache_hash_changes(|options| options.inliner_aggressiveness -= 1);
+        assert_cache_hash_changes(|options| options.constant_folding_max_iter -= 1);
+        assert_cache_hash_changes(|options| options.small_function_max_instructions -= 1);
+        assert_cache_hash_changes(|options| options.max_bytecode_increase_percent = Some(0));
+        assert_cache_hash_changes(|options| options.max_unroll_iterations -= 1);
+        assert_cache_hash_changes(|options| options.force_unroll_threshold -= 1);
+        assert_cache_hash_changes(|options| options.specialization_threshold -= 1);
+        assert_cache_hash_changes(|options| options.max_specializations_per_fn -= 1);
+        assert_cache_hash_changes(|options| options.max_stack_frame_size += 1);
+        assert_cache_hash_changes(|options| options.num_stack_frames += 1);
+        assert_cache_hash_changes(|options| options.max_scratch_space += 1);
+        assert_cache_hash_changes(|options| options.skip_ssa_pass.push("pass".to_string()));
     }
 }
