@@ -551,10 +551,19 @@ impl FunctionContext<'_> {
         match array_type {
             Type::Array(_, len) => {
                 if context::array_index_needs_explicit_oob_check(runtime, array_type) {
+                    let logical_len = len.0;
+                    // For a composite element type, ACIR's implicit memory op check reports the
+                    // flattened index and size. Attach a dynamic error carrying the logical index
+                    // and length so the reported message matches what the user wrote.
+                    let dynamic_error = if runtime.is_acir() && array_type.element_size().0 > 1 {
+                        Some(self.out_of_bounds_error(index, logical_len))
+                    } else {
+                        None
+                    };
                     let len = self
                         .builder
-                        .numeric_constant(u128::from(len.0), NumericType::length_type());
-                    self.codegen_access_check(index, len);
+                        .numeric_constant(u128::from(logical_len), NumericType::length_type());
+                    self.codegen_access_check(index, len, dynamic_error);
                 }
             }
             Type::Vector(_) => {
@@ -563,6 +572,7 @@ impl FunctionContext<'_> {
                 self.codegen_access_check(
                     index,
                     length.expect("ICE: a length must be supplied for checking index"),
+                    None,
                 );
             }
 
@@ -595,11 +605,19 @@ impl FunctionContext<'_> {
     /// Prepare an array or vector access.
     /// Check that the index being used to access an array/vector element
     /// is less than the (potentially dynamic) array/vector length.
-    fn codegen_access_check(&mut self, index: ValueId, length: ValueId) {
+    ///
+    /// When `dynamic_error` is `Some`, that error is used as the failure message and the
+    /// range-check optimization is skipped (a range-check opcode can only carry a static
+    /// message). Otherwise a static `"Index out of bounds"` message is used.
+    fn codegen_access_check(
+        &mut self,
+        index: ValueId,
+        length: ValueId,
+        dynamic_error: Option<ConstrainError>,
+    ) {
         let index = self.make_array_index(index);
         // We convert the length as an array index type for comparison
         let array_len = self.make_array_index(length);
-        let assert_message = Some("Index out of bounds".to_owned());
 
         let array_len_constant = self
             .builder
@@ -610,7 +628,10 @@ impl FunctionContext<'_> {
 
         // This optimization seems to cause regressions in brillig so we restrict it to ACIR.
         let runtime = self.builder.current_function.runtime();
-        if runtime.is_acir() && array_len_constant.is_some_and(u32::is_power_of_two) {
+        if dynamic_error.is_none()
+            && runtime.is_acir()
+            && array_len_constant.is_some_and(u32::is_power_of_two)
+        {
             // If the array length is a power of two then we can make use of the range check opcode
             // to assert that the index fits in the relevant number of bits.
             let array_len_constant = array_len_constant.expect("array checked to be constant");
@@ -619,19 +640,53 @@ impl FunctionContext<'_> {
             // TODO(https://github.com/noir-lang/noir/issues/9191): this cast results in better circuit generation.
             // There's an optimization here that we should find automatically.
             let index_as_field = self.builder.insert_cast(index, NumericType::NativeField);
-            self.builder.insert_range_check(index_as_field, array_len_bits, assert_message);
+            self.builder.insert_range_check(
+                index_as_field,
+                array_len_bits,
+                Some("Index out of bounds".to_owned()),
+            );
         } else {
             // If it's not a power of two then we need to do an explicit inequality and constraint.
             let is_offset_out_of_bounds =
                 self.builder.insert_binary(index, BinaryOp::Lt, array_len);
             let true_const = self.builder.numeric_constant(true, NumericType::bool());
+            let error = dynamic_error
+                .unwrap_or_else(|| ConstrainError::from("Index out of bounds".to_owned()));
 
-            self.builder.insert_constrain(
-                is_offset_out_of_bounds,
-                true_const,
-                assert_message.map(ConstrainError::from),
-            );
+            self.builder.insert_constrain(is_offset_out_of_bounds, true_const, Some(error));
         }
+    }
+
+    /// Build a dynamic (format-string) assertion error that renders as
+    /// `Index out of bounds, array has size <array_len>, but index was <index>`, where `index`
+    /// is a runtime value and `array_len` is the logical array length (a compile-time constant).
+    ///
+    /// This matches the message ACVM produces for simple (non-composite) arrays, but reports the
+    /// logical index and length rather than the flattened memory coordinates.
+    fn out_of_bounds_error(&mut self, index: ValueId, array_len: u32) -> ConstrainError {
+        // The template holds a single `{}` interpolation for the runtime index; the logical length
+        // is a compile-time constant so it is baked directly into the static text.
+        let template =
+            format!("Index out of bounds, array has size {array_len}, but index was {{}}");
+        let template_len = template.len() as u32;
+
+        // A format string is represented by the message string, the number of fields to be
+        // formatted, and then the fields themselves.
+        let string = self.codegen_string(template.as_bytes());
+        let field_count = self.builder.numeric_constant(1_u128, NumericType::NativeField);
+        // Render the index as the array-index type (u32) to match the `HirType::u32()` field below.
+        let index = self.make_array_index(index);
+        let values =
+            Tree::Branch(vec![string, field_count.into(), index.into()]).into_value_list(self);
+
+        let hir_type = HirType::FmtString(
+            Box::new(HirType::constant_u32(template_len)),
+            Box::new(HirType::Tuple(vec![HirType::u32()])),
+        );
+        let selector = ErrorType::Dynamic(hir_type.clone()).selector();
+        self.builder.record_error_type(selector, hir_type);
+
+        ConstrainError::Dynamic(selector, false, values)
     }
 
     fn codegen_cast(&mut self, cast: &ast::Cast) -> Result<Values, RuntimeError> {
@@ -1390,10 +1445,10 @@ impl FunctionContext<'_> {
                         one,
                     );
 
-                    self.codegen_access_check(arguments[2], len_plus_one);
+                    self.codegen_access_check(arguments[2], len_plus_one, None);
                 }
                 Intrinsic::VectorRemove => {
-                    self.codegen_access_check(arguments[2], arguments[0]);
+                    self.codegen_access_check(arguments[2], arguments[0], None);
                 }
                 Intrinsic::VectorPopFront | Intrinsic::VectorPopBack
                     if self.builder.current_function.runtime().is_brillig() =>
@@ -1407,7 +1462,7 @@ impl FunctionContext<'_> {
                     // By doing this in the SSA we might be able to optimize this away later.
                     let zero =
                         self.builder.numeric_constant(0u32, NumericType::Unsigned { bit_size: 32 });
-                    self.codegen_access_check(zero, arguments[0]);
+                    self.codegen_access_check(zero, arguments[0], None);
                 }
                 _ => {
                     // Do nothing as the other intrinsics do not require checks
