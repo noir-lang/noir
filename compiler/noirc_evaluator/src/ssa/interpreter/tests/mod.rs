@@ -160,6 +160,8 @@ fn test_shl() {
                 NumericValue::int_from_field(rhs.into(), NumericType::signed(8)).unwrap(),
                 true,
                 false,
+                false,
+                false,
                 display
             ),
             expected_result.map(|i| NumericValue::int_from_field(

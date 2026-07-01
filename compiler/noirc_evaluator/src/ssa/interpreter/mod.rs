@@ -784,24 +784,27 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
         // Mirroring `acir::Context::convert_ssa_truncate`, add the integer modulus `2^max_bit_size`
         // before truncating so the low bits become the wrapped value. This provenance cannot be
         // recovered from the value alone, so it is keyed on the producing instruction being a `sub`.
-        if !value.is_in_range() {
-            let is_sub = if let IrValue::Instruction { instruction, .. } = self.dfg()[value_id] {
-                matches!(
-                    self.dfg()[instruction],
-                    Instruction::Binary(Binary { operator: BinaryOp::Sub { .. }, .. })
-                )
-            } else {
-                false
-            };
-            if is_sub {
-                let integer_modulus =
-                    FieldElement::from(2u128).pow(&FieldElement::from(max_bit_size));
-                field += integer_modulus;
-            }
+        if !value.is_in_range() && self.produced_by_sub(value_id) {
+            field += FieldElement::from(2u128).pow(&FieldElement::from(max_bit_size));
         }
 
         let truncated = NumericValue::int_from_field(truncate_field(field, bit_size), typ)?;
         self.define(result, Value::Numeric(truncated))
+    }
+
+    /// Whether `value_id` is the result of a subtraction. An out-of-range value with this provenance
+    /// holds the field-negative `p - delta` of an underflow, which needs the modulus added back
+    /// before truncation to recover the wrapped result (see [`reduce_operand_to_range`]). The
+    /// provenance cannot be recovered from the value alone, hence this instruction lookup.
+    fn produced_by_sub(&self, value_id: ValueId) -> bool {
+        if let IrValue::Instruction { instruction, .. } = self.dfg()[value_id] {
+            matches!(
+                self.dfg()[instruction],
+                Instruction::Binary(Binary { operator: BinaryOp::Sub { .. }, .. })
+            )
+        } else {
+            false
+        }
     }
 
     fn interpret_range_check(
@@ -1316,9 +1319,18 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
         let lhs = self.lookup_numeric(lhs_id, "binary op lhs")?;
         let rhs = self.lookup_numeric(rhs_id, "binary op rhs")?;
         let is_brillig = self.current_function().runtime().is_brillig();
-        evaluate_binary(binary, lhs, rhs, side_effects_enabled, is_brillig, |binary| {
-            display_binary(binary, self.dfg())
-        })
+        let lhs_from_sub = self.produced_by_sub(lhs_id);
+        let rhs_from_sub = self.produced_by_sub(rhs_id);
+        evaluate_binary(
+            binary,
+            lhs,
+            rhs,
+            side_effects_enabled,
+            is_brillig,
+            lhs_from_sub,
+            rhs_from_sub,
+            |binary| display_binary(binary, self.dfg()),
+        )
         .map(Value::Numeric)
     }
 }
@@ -1336,6 +1348,8 @@ fn evaluate_integer_binary(
     lhs: NumericValue,
     rhs: NumericValue,
     is_brillig: bool,
+    lhs_from_sub: bool,
+    rhs_from_sub: bool,
     display_binary: impl Fn(&Binary) -> String,
 ) -> IResult<NumericValue> {
     use BinaryOp::{Add, Mul, Sub};
@@ -1383,7 +1397,16 @@ fn evaluate_integer_binary(
             if !lhs.is_signed() =>
         {
             if is_brillig {
-                eval_via_constant_binary_op(lhs_field, rhs_field, operator, typ, binary, &overflow)
+                eval_via_constant_binary_op(
+                    lhs_field,
+                    rhs_field,
+                    lhs_from_sub,
+                    rhs_from_sub,
+                    operator,
+                    typ,
+                    binary,
+                    &overflow,
+                )
             } else {
                 let value = NumericValue::int_from_field(field_arith(), typ)?;
                 if value.is_in_range() { Ok(value) } else { Err(overflow()) }
@@ -1420,16 +1443,47 @@ fn evaluate_integer_binary(
 
         // Signed checked arithmetic, div/mod, comparisons and bitwise ops all reduce their
         // operands; reuse the constant-folder's semantics.
-        _ => eval_via_constant_binary_op(lhs_field, rhs_field, operator, typ, binary, &overflow),
+        _ => eval_via_constant_binary_op(
+            lhs_field,
+            rhs_field,
+            lhs_from_sub,
+            rhs_from_sub,
+            operator,
+            typ,
+            binary,
+            &overflow,
+        ),
     }
+}
+
+/// Reduce an operand field to its `bit_size`-bit two's-complement representative.
+///
+/// A value that overflowed its type via unchecked field arithmetic may be out of range. If it
+/// escaped *upward* (add/mul) its low `bit_size` bits are already the wrapped representative, so a
+/// plain truncation suffices. A value from a *subtraction* that underflowed holds `p - delta`, whose
+/// low bits are contaminated by `p`; adding `2^bit_size` first wraps it (in the field) to the small
+/// positive `2^bit_size - delta` so the low bits become the wrapped result. Mirrors the underflow
+/// handling in [`Interpreter::interpret_truncate`] / `acir::Context::convert_ssa_truncate`. The
+/// provenance cannot be recovered from the value alone, so `from_sub` is supplied by the caller.
+fn reduce_operand_to_range(field: FieldElement, bit_size: u32, from_sub: bool) -> FieldElement {
+    let out_of_range = field.num_bits() > bit_size;
+    let field = if from_sub && out_of_range {
+        field + FieldElement::from(2u128).pow(&FieldElement::from(bit_size))
+    } else {
+        field
+    };
+    truncate_field(field, bit_size)
 }
 
 /// Apply [`eval_constant_binary_op`] to two operand fields and map the result into the interpreter's
 /// value/error types. `eval_constant_binary_op` truncates its operands to the type's bit size, so
 /// this is the "reduce then compute" path shared by both runtimes.
+#[allow(clippy::too_many_arguments)]
 fn eval_via_constant_binary_op(
     lhs_field: FieldElement,
     rhs_field: FieldElement,
+    lhs_from_sub: bool,
+    rhs_from_sub: bool,
     operator: BinaryOp,
     typ: NumericType,
     binary: &Binary,
@@ -1439,8 +1493,8 @@ fn eval_via_constant_binary_op(
     // also truncates internally, but its signed conversion requires the field to fit in `u128`,
     // which an extended (out-of-range) ACIR operand such as `p - delta` does not.
     let bit_size = typ.bit_size::<FieldElement>();
-    let lhs_field = truncate_field(lhs_field, bit_size);
-    let rhs_field = truncate_field(rhs_field, bit_size);
+    let lhs_field = reduce_operand_to_range(lhs_field, bit_size, lhs_from_sub);
+    let rhs_field = reduce_operand_to_range(rhs_field, bit_size, rhs_from_sub);
 
     match eval_constant_binary_op(lhs_field, rhs_field, operator, typ) {
         BinaryEvaluationResult::Success(field, result_type) => {
@@ -1460,12 +1514,15 @@ fn eval_via_constant_binary_op(
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn evaluate_binary(
     binary: &Binary,
     lhs: NumericValue,
     rhs: NumericValue,
     side_effects_enabled: bool,
     is_brillig: bool,
+    lhs_from_sub: bool,
+    rhs_from_sub: bool,
     display_binary: impl Fn(&Binary) -> String,
 ) -> IResult<NumericValue> {
     let lhs_id = binary.lhs;
@@ -1494,7 +1551,15 @@ fn evaluate_binary(
         return interpret_u1_binary_op(lhs, rhs, binary, &display_binary);
     }
 
-    evaluate_integer_binary(binary, lhs, rhs, is_brillig, display_binary)
+    evaluate_integer_binary(
+        binary,
+        lhs,
+        rhs,
+        is_brillig,
+        lhs_from_sub,
+        rhs_from_sub,
+        display_binary,
+    )
 }
 
 fn interpret_field_binary_op(
