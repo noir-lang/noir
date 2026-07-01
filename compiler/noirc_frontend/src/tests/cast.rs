@@ -87,6 +87,38 @@ fn error_on_cast_over_type_variable() {
     check_errors(src);
 }
 
+// Regression test for https://github.com/noir-lang/noir-claude/issues/322
+#[test]
+fn cast_polymorphic_to_field_errors_when_later_constrained_to_signed() {
+    let src = r#"
+        fn main() {
+            let x = 5;
+            let _y = x as Field;
+                     ^^^^^^^^^^ Only unsigned integer types may be casted to Field
+            let _z: i8 = x;
+        }
+    "#;
+    check_errors(src);
+}
+
+// Regression test for the bool-branch sibling of
+// https://github.com/noir-lang/noir-claude/issues/322
+#[test]
+fn cast_polymorphic_to_bool_errors_when_later_constrained_to_numeric() {
+    let src = r#"
+        fn main() {
+            let f = |x| {
+                let _y = x as bool;
+                         ^^^^^^^^^ Cannot cast `i32` as `bool`
+                         ~~~~~~~~~ Compare with zero instead: ` != 0`
+                let _z: i32 = x;
+            };
+            f(0);
+        }
+    "#;
+    check_errors(src);
+}
+
 #[test]
 fn cast_numeric_to_bool() {
     let src = "
