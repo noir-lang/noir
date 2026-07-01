@@ -102,7 +102,6 @@
 use std::collections::HashMap;
 
 use acvm::{AcirField, FieldElement};
-use im::OrdMap;
 
 use crate::ssa::{
     ir::{
@@ -114,6 +113,10 @@ use crate::ssa::{
     },
     ssa_gen::Ssa,
 };
+
+mod array_view;
+
+use array_view::{ArrayView, Resolution};
 
 impl Ssa {
     /// Replaces `array_get` instructions with known indices with known values from
@@ -173,7 +176,7 @@ impl Function {
                     let [result] = context.dfg.instruction_result(instruction_id);
 
                     let view = array_view(&views, context.dfg, array)
-                        .with_element(index, KnownElement { value, predicate });
+                        .with_element(index, value, predicate);
                     views.insert(result, view);
                 }
                 Instruction::ArrayGet { array, index } => {
@@ -217,120 +220,18 @@ impl Function {
     }
 }
 
-/// The known contents of an array value, built up incrementally by
-/// [`Function::array_get_optimization`] as it scans a function.
-#[derive(Clone)]
-struct ArrayView {
-    /// Values known to live at specific constant indices, overriding `base`.
-    elements: OrdMap<u32, KnownElement>,
-    /// Where an index that isn't present in `elements` gets its value from.
-    base: ArrayBase,
-}
-
-#[derive(Clone, Copy)]
-struct KnownElement {
-    value: ValueId,
-    /// The side-effects predicate under which this element was written by an `array_set`.
-    predicate: ValueId,
-}
-
-#[derive(Clone)]
-enum ArrayBase {
-    /// Indices not in `elements` come from this `make_array`'s elements.
-    MakeArray(im::Vector<ValueId>),
-    /// Indices not in `elements` can be read directly from this array (a function parameter), at
-    /// the same index. `length` bounds which indices that is valid for.
-    ReadFrom { array: ValueId, length: u32 },
-    /// Nothing is known about indices not in `elements`.
-    Unknown,
-}
-
-/// How an `array_get` at a known index can be resolved against an [`ArrayView`].
-enum Resolution {
-    /// The `array_get` is equal to this value.
-    Value(ValueId),
-    /// The `array_get` can read from this array instead, at the same index.
-    ReadFrom(ValueId),
-}
-
-impl ArrayView {
-    fn from_make_array(elements: im::Vector<ValueId>) -> Self {
-        ArrayView { elements: OrdMap::new(), base: ArrayBase::MakeArray(elements) }
-    }
-
-    fn unknown() -> Self {
-        ArrayView { elements: OrdMap::new(), base: ArrayBase::Unknown }
-    }
-
-    fn with_element(mut self, index: u32, element: KnownElement) -> Self {
-        self.elements.insert(index, element);
-        self
-    }
-
-    fn resolve(
-        &self,
-        array: ValueId,
-        index: u32,
-        predicate: ValueId,
-        dfg: &DataFlowGraph,
-    ) -> Option<Resolution> {
-        if let Some(element) = self.elements.get(&index) {
-            // A known element can only be used if it was written unconditionally or under the same
-            // predicate as the `array_get`; otherwise the write might not have happened.
-            return (is_unconditional(dfg, element.predicate) || element.predicate == predicate)
-                .then_some(Resolution::Value(element.value));
-        }
-
-        match self.base {
-            ArrayBase::MakeArray(ref elements) => {
-                elements.get(index as usize).copied().map(Resolution::Value)
-            }
-            // Reading directly from `array` itself wouldn't be an improvement.
-            ArrayBase::ReadFrom { array: source, length } => {
-                (index < length && source != array).then_some(Resolution::ReadFrom(source))
-            }
-            ArrayBase::Unknown => None,
-        }
-    }
-}
-
-/// Returns the cached view of `array`, seeding one for arrays not written by an `array_set` earlier
-/// in the current block: a `make_array` (local or global) exposes its elements directly, a parameter
-/// can be read from at the same index, and anything else (including arrays from other blocks) is
-/// opaque.
+/// Returns the cached view of `array`, seeding a fresh one with [`ArrayView::for_value`] for arrays
+/// not written by an `array_set` earlier in the current block.
 fn array_view(
     views: &HashMap<ValueId, ArrayView>,
     dfg: &DataFlowGraph,
     array: ValueId,
 ) -> ArrayView {
-    if let Some(view) = views.get(&array) {
-        return view.clone();
-    }
-
-    if let Some((Instruction::MakeArray { elements, .. }, _)) =
-        dfg.get_local_or_global_instruction_with_id(array)
-    {
-        return ArrayView::from_make_array(elements.clone());
-    }
-
-    if let Value::Param { typ: Type::Array(_, length), .. } = &dfg[array] {
-        return ArrayView {
-            elements: OrdMap::new(),
-            base: ArrayBase::ReadFrom { array, length: length.0 },
-        };
-    }
-
-    ArrayView::unknown()
+    views.get(&array).cloned().unwrap_or_else(|| ArrayView::for_value(dfg, array))
 }
 
 fn constant_index(dfg: &DataFlowGraph, index: ValueId) -> Option<u32> {
     dfg.get_numeric_constant(index)?.try_to_u32()
-}
-
-/// Whether `predicate` is the constant side-effects predicate `1`, i.e. the value is written or
-/// read unconditionally.
-fn is_unconditional(dfg: &DataFlowGraph, predicate: ValueId) -> bool {
-    dfg.get_numeric_constant(predicate).is_some_and(|var| var.is_one())
 }
 
 /// Whether `func` has more than one block yet still contains an `enable_side_effects` instruction.
