@@ -429,6 +429,35 @@ fn vector_pop_back_inline_contents_resolves_without_memory_ops() {
 }
 
 #[test]
+fn vector_pop_back_nested_inline_contents_resolves_without_memory_ops() {
+    // The vector holds `[Field; 2]` elements inline as a *nested* `AcirValue::Array`, so its
+    // flattened scalars only line up with the read offsets after flattening the nesting. Popping
+    // resolves the last element (`[v2, v3]`) at compile time with no `INIT`/`READ`. This guards the
+    // nested inline-source path: indexing the nested `AcirValue::Array` positionally rather than by
+    // its flattened layout would read the wrong scalars here.
+    let src = "
+    acir(inline) fn main f0 {
+      b0(v0: Field, v1: Field, v2: Field, v3: Field):
+        v4 = make_array [v0, v1] : [Field; 2]
+        v5 = make_array [v2, v3] : [Field; 2]
+        v6 = make_array [v4, v5] : [[Field; 2]]
+        v8, v9, v10 = call vector_pop_back(u32 2, v6) -> (u32, [[Field; 2]], [Field; 2])
+        return v10
+    }
+    ";
+    let program = ssa_to_acir_program(src);
+
+    assert_circuit_snapshot!(program, @r"
+    func 0
+    private parameters: [w0, w1, w2, w3]
+    public parameters: []
+    return values: [w4, w5]
+    ASSERT w4 = w2
+    ASSERT w5 = w3
+    ");
+}
+
+#[test]
 fn vector_pop_back_nested_arrays() {
     let src = "
   acir(inline) predicate_pure fn main f0 {
