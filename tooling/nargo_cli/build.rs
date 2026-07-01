@@ -969,7 +969,10 @@ fn generate_interpret_execution_success_tests(test_file: &mut File, test_data_di
             &test_name,
             &test_dir,
             "interpret",
-            "interpret_execution_success(nargo);",
+            r#"
+            nargo.arg("--validate-between-passes");
+            interpret_execution_success(nargo);
+            "#,
             &MatrixConfig {
                 vary_brillig: !IGNORED_BRILLIG_TESTS.contains(&test_name.as_str()),
                 vary_inliner: true,
@@ -1000,7 +1003,10 @@ fn generate_interpret_execution_failure_tests(test_file: &mut File, test_data_di
             &test_name,
             &test_dir,
             "interpret",
-            "interpret_execution_failure(nargo);",
+            r#"
+            nargo.arg("--validate-between-passes");
+            interpret_execution_failure(nargo);
+            "#,
             &MatrixConfig {
                 vary_brillig: !IGNORED_BRILLIG_TESTS.contains(&test_name.as_str()),
                 ..Default::default()
