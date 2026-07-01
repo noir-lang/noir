@@ -104,26 +104,38 @@ pub(crate) struct SpillManager {
 ///
 /// # Value lifecycle
 ///
-/// A value's state is the combination of its *slot* (tracked here: none, transient, or
-/// permanent) and whether it is *currently in a register* (tracked by [`RegisterState`], not
-/// stored here). "Spilled" means it has a slot but is not in a register. The combinations —
-/// and the names the former `SpillStatus` enum gave them — are:
+/// A value's state is the combination of its *slot* — none, transient, or permanent, tracked
+/// here — and whether it is *currently in a register*, which is owned by the register allocator
+/// ([`RegisterState`]) and not stored here. A value is "spilled" when it has a slot but is not
+/// in a register. There are five combinations; a `SpillRecord` exists only for the four with a
+/// slot:
 ///
-/// | slot      | in register | former name         | meaning                                       |
-/// |-----------|-------------|---------------------|-----------------------------------------------|
-/// | none      | yes         | (no record)         | normal value, lives only in a register        |
-/// | transient | no          | `Transient`         | within-block spill, awaiting reload           |
-/// | transient | yes         | `TransientReloaded` | reloaded; transient slot still reserved       |
-/// | permanent | no          | `Permanent`         | cross-block spill, heap slot is authoritative |
-/// | permanent | yes         | `PermanentReloaded` | reloaded; permanent slot still authoritative  |
+/// | slot      | in register | meaning                                                     |
+/// |-----------|-------------|-------------------------------------------------------------|
+/// | none      | yes         | normal value — lives only in a register, has no record      |
+/// | transient | no          | spilled within the block, awaiting reload                   |
+/// | transient | yes         | reloaded, but the transient slot is still reserved          |
+/// | permanent | no          | spilled across blocks; the heap slot is the source of truth |
+/// | permanent | yes         | reloaded, but the permanent slot is still authoritative     |
 ///
-/// Transitions:
-/// - First eviction → gains a transient slot (or, across a block boundary, a permanent one);
-///   the register is freed.
-/// - Reloaded into a register, or evicted again by the LRU → purely a [`RegisterState`] change;
-///   the slot itself is unchanged.
-/// - Block boundary → the register state resets (nothing is in a register); permanent slots
-///   persist while transient slots must not survive.
+/// Movement between rows:
+///
+/// - **Spill** (registers run out): a value in a register gains a slot and its register is
+///   freed. Within a block it gets a *transient* slot (`record_spill`); a value that must
+///   survive to another block gets a *permanent* slot instead (`record_permanent_spill`).
+/// - **Reload** (a spilled value is used again): it is loaded back into a register, moving to
+///   the "in register" row of the *same* slot kind. The slot is kept — the emitted load may
+///   re-run in a loop iteration — so nothing is re-allocated.
+/// - **Re-eviction**: a reloaded value the LRU picks again has its register freed, dropping back
+///   to the "not in register" row and reusing its existing slot.
+/// - **Promotion** (`ensure_permanent_spill`): a transient value that turns out to live across a
+///   block boundary is promoted to a permanent slot (transient → permanent, same residence).
+/// - **Block boundary**: the register file is reset, so every value is momentarily "not in a
+///   register" — the reloaded rows collapse onto their spilled rows. Transient slots must not
+///   survive for a live-in value (`begin_block` asserts this); permanent slots persist as the
+///   cross-block source of truth.
+/// - **Death** (`remove_spill`): at a value's last use a transient slot is freed and the value
+///   leaves the table, while a permanent slot is kept for the rest of the function.
 #[derive(Clone, Copy)]
 pub(crate) struct SpillRecord {
     /// Offset relative to the per-frame heap-allocated spill region base.
