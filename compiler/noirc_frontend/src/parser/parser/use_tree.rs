@@ -9,11 +9,11 @@ use crate::{
 use super::{Parser, parse_many::separated_by_comma_until_right_brace};
 
 impl Parser<'_> {
-    /// Use = 'use' PathKind PathNoTurbofish UseTree
+    /// Use = 'use' `PathKind` `PathNoTurbofish` `UseTree`
     ///
-    /// UseTree = PathNoTurbofish ( '::' '{' UseTreeList? '}' )?
+    /// `UseTree` = `PathNoTurbofish` ( '::' '{' `UseTreeList`? '}' )?
     ///
-    /// UseTreeList = UseTree (',' UseTree)* ','?
+    /// `UseTreeList` = `UseTree` (',' `UseTree`)* ','?
     pub(super) fn parse_use_tree(&mut self) -> UseTree {
         let start_location = self.current_token_location;
 
@@ -236,8 +236,22 @@ mod tests {
         let src = "use super::foo;";
         let (use_tree, visibility) = parse_use_tree_no_errors(src);
         assert_eq!(visibility, ItemVisibility::Private);
-        assert_eq!(use_tree.prefix.kind, PathKind::Super);
+        assert_eq!(use_tree.prefix.kind, PathKind::Super(0));
         assert_eq!("super::foo", use_tree.to_string());
+        let UseTreeKind::Path(ident, alias) = use_tree.kind else {
+            panic!("Expected path");
+        };
+        assert_eq!("foo", ident.to_string());
+        assert!(alias.is_none());
+    }
+
+    #[test]
+    fn parse_with_stacked_super_prefix() {
+        let src = "use super::super::foo;";
+        let (use_tree, visibility) = parse_use_tree_no_errors(src);
+        assert_eq!(visibility, ItemVisibility::Private);
+        assert_eq!(use_tree.prefix.kind, PathKind::Super(1));
+        assert_eq!("super::super::foo", use_tree.to_string());
         let UseTreeKind::Path(ident, alias) = use_tree.kind else {
             panic!("Expected path");
         };

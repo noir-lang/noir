@@ -3,7 +3,10 @@
 <head>
 <meta charset="UTF-8">
 <link rel="stylesheet" href="../styles.css">
+<script>window.docRoot = "../";</script>
+<script defer src="../search-index.js"></script>
 <script defer src="../nargo_doc.js"></script>
+<script defer src="../search.js"></script>
 <title>Primitive type Quoted documentation</title>
 </head>
 <body>
@@ -16,7 +19,7 @@
 <h1><a href="../index.html">noir_stdlib</a></h1>
 <div><a href="../all.html">All items</a></div>
 <h2 id="crate-name"><a href="index.html">std</a></h2>
-<div id="crate-version">1.0.0-beta.21</div>
+<div id="crate-version">1.0.0-beta.22</div>
 <h2><a href="#primitive">Primitive type Quoted</a></h2>
 <h3>Methods</h3>
 <ul class="sidebar-list">
@@ -98,7 +101,13 @@
 </nav>
 <main>
 <div><a href="../index.html">noir_stdlib</a> - <a href="index.html">std</a></div>
-<h1>Primitive type <span id="primitive" class="primitive">Quoted</span></h1>
+<div class="heading-row">
+<h1 class="heading-content">Primitive type <span id="primitive" class="primitive">Quoted</span></h1>
+<button id="search-toggle" type="button">Search</button>
+</div>
+<input id="search-input" type="search" placeholder="Type 's' or '/' to search" autocomplete="off" spellcheck="false" aria-label="Search" hidden>
+<div id="search-results" hidden></div>
+<div id="page-content">
 <div class="comments">
 <p>A compile-time type which represents quoted token streams and is the result of the
 <code>quote { ... }</code> expression.</p>
@@ -106,17 +115,17 @@
 <h2>Implementations</h2>
 <h3><code class="code-header">impl <a href="../std/primitive.Quoted.html" class="primitive">Quoted</a></code></h3>
 
-<div class="padded-methods"><code id="as_expr" class="code-header">pub comptime fn <a href="#as_expr"><span class="fn">as_expr</span></a>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;<a href="../std/primitive.Expr.html" class="primitive">Expr</a>&gt;</code>
+<div class="padded-methods"><code id="as_expr" class="code-header">pub comptime fn <a href="#as_expr" class="fn">as_expr</a>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;<a href="../std/primitive.Expr.html" class="primitive">Expr</a>&gt;</code>
 
-<code id="as_module" class="code-header">pub comptime fn <a href="#as_module"><span class="fn">as_module</span></a>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;<a href="../std/primitive.Module.html" class="primitive">Module</a>&gt;</code>
+<code id="as_module" class="code-header">pub comptime fn <a href="#as_module" class="fn">as_module</a>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;<a href="../std/primitive.Module.html" class="primitive">Module</a>&gt;</code>
 
-<code id="as_trait_constraint" class="code-header">pub comptime fn <a href="#as_trait_constraint"><span class="fn">as_trait_constraint</span></a>(self) -> <a href="../std/primitive.TraitConstraint.html" class="primitive">TraitConstraint</a></code>
+<code id="as_trait_constraint" class="code-header">pub comptime fn <a href="#as_trait_constraint" class="fn">as_trait_constraint</a>(self) -> <a href="../std/primitive.TraitConstraint.html" class="primitive">TraitConstraint</a></code>
 
-<code id="as_type" class="code-header">pub comptime fn <a href="#as_type"><span class="fn">as_type</span></a>(self) -> <a href="../std/primitive.Type.html" class="primitive">Type</a></code>
+<code id="as_type" class="code-header">pub comptime fn <a href="#as_type" class="fn">as_type</a>(self) -> <a href="../std/primitive.Type.html" class="primitive">Type</a></code>
 
-<code id="location" class="code-header">pub comptime fn <a href="#location"><span class="fn">location</span></a>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;<a href="../std/primitive.Location.html" class="primitive">Location</a>&gt;</code>
+<code id="location" class="code-header">pub comptime fn <a href="#location" class="fn">location</a>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;<a href="../std/primitive.Location.html" class="primitive">Location</a>&gt;</code>
 
-<code id="tokens" class="code-header">pub comptime fn <a href="#tokens"><span class="fn">tokens</span></a>(self) -> [Self]</code>
+<code id="tokens" class="code-header">pub comptime fn <a href="#tokens" class="fn">tokens</a>(self) -> [Self]</code>
 
 </div><h2>Trait implementations</h2>
 <h3 id="impl-Append-for-Quoted"><code class="code-header">impl <a href="../std/append/trait.Append.html" class="trait">Append</a> for <a href="../std/primitive.Quoted.html" class="primitive">Quoted</a></code></h3>
@@ -135,7 +144,8 @@
 <div class="where-clause">where
     H: <a href="../std/hash/trait.Hasher.html" class="trait">Hasher</a></div></code>
 
-</div></main>
+</div></div>
+</main>
 </span>
 </body>
 </html>

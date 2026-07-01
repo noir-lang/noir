@@ -120,6 +120,8 @@ pub fn lt(a: Field, b: Field) -> bool {
 mod tests {
     // TODO: Allow imports from "super"
     use crate::field::bn254::{assert_gt, decompose, gt, lt, lte_hint, PHI, PLO, TWO_POW_128};
+    use crate::internal::test_unconstrained;
+    use super::assert_lt;
 
     #[test]
     fn check_decompose() {
@@ -141,6 +143,7 @@ mod tests {
     }
 
     #[test]
+    #[test_unconstrained]
     fn check_gt() {
         assert(gt(1, 0));
         assert(gt(0x100, 0));
@@ -193,6 +196,7 @@ mod tests {
     #[test]
     fn check_lt_comprehensive() {
         assert(lt(0, 1));
+        assert_lt(0, 1);
         assert(!lt(1, 0));
         assert(!lt(0, 0));
         assert(!lt(42, 42));

@@ -1,0 +1,6 @@
+error: newtype structs (single-element tuple structs) pass through to the inner type and have no wire shape of their own — `#[tagged(reserved(...))]` doesn't apply
+ --> tests/compile_fail/newtype_with_reserved.rs:8:1
+  |
+8 | / #[tagged(reserved(2, 5))]
+9 | | struct Witness(u32);
+  | |____________________^

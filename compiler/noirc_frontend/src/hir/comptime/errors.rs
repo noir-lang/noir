@@ -11,8 +11,9 @@ use crate::{
     parser::ParserError,
     token::Token,
 };
-use acvm::{BlackBoxResolutionError, FieldElement};
+use acvm::BlackBoxResolutionError;
 use noirc_errors::{CustomDiagnostic, Location, call_stack::CallStack};
+use num_bigint::BigInt;
 
 /// The possible errors that can halt the interpreter.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -39,7 +40,7 @@ pub enum InterpreterError {
         location: Location,
     },
     IntegerOutOfRangeForType {
-        value: FieldElement,
+        value: BigInt,
         typ: Type,
         location: Location,
     },
@@ -218,6 +219,12 @@ pub enum InterpreterError {
     FailedToResolveTraitDefinition {
         location: Location,
     },
+    FunctionDefinitionMustBeAPath {
+        location: Location,
+    },
+    FailedToResolveFunctionDefinition {
+        location: Location,
+    },
     FunctionAlreadyResolved {
         location: Location,
     },
@@ -316,6 +323,11 @@ pub enum InterpreterError {
         module: String,
         location: Location,
     },
+    FunctionNotVisible {
+        name: String,
+        defining_module: String,
+        location: Location,
+    },
     CannotCastNumericToBool {
         typ: Type,
         location: Location,
@@ -411,6 +423,8 @@ impl InterpreterError {
             | InterpreterError::ContinueNotInLoop { location, .. }
             | InterpreterError::TraitDefinitionMustBeAPath { location }
             | InterpreterError::FailedToResolveTraitDefinition { location }
+            | InterpreterError::FunctionDefinitionMustBeAPath { location }
+            | InterpreterError::FailedToResolveFunctionDefinition { location }
             | InterpreterError::FailedToResolveTraitBound { location, .. }
             | InterpreterError::FunctionAlreadyResolved { location, .. }
             | InterpreterError::MultipleMatchingImpls { location, .. }
@@ -434,7 +448,8 @@ impl InterpreterError {
             | InterpreterError::AttributeRecursionLimitExceeded { location }
             | InterpreterError::CannotCastNumericToBool { location, .. }
             | InterpreterError::CannotModifyExternalItem { location, .. }
-            | InterpreterError::UserDefinedError { location, .. }
+            | InterpreterError::FunctionNotVisible { location, .. } => *location,
+            InterpreterError::UserDefinedError { location, .. }
             | InterpreterError::UserDefinedWarning { location, .. } => *location,
             InterpreterError::ExpectingOtherError(error) => error.location,
             InterpreterError::FailedToParseMacro { error, .. } => error.location(),
@@ -763,6 +778,14 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
                 let msg = "Failed to resolve to a trait definition".to_string();
                 CustomDiagnostic::simple_error(msg, String::new(), *location)
             }
+            InterpreterError::FunctionDefinitionMustBeAPath { location } => {
+                let msg = "Function definition arguments must be a variable or path".to_string();
+                CustomDiagnostic::simple_error(msg, String::new(), *location)
+            }
+            InterpreterError::FailedToResolveFunctionDefinition { location } => {
+                let msg = "Failed to resolve to a function definition".to_string();
+                CustomDiagnostic::simple_error(msg, String::new(), *location)
+            }
             InterpreterError::FunctionAlreadyResolved { location } => {
                 let msg = "Function already resolved".to_string();
                 let secondary =
@@ -919,6 +942,11 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
             InterpreterError::CannotModifyExternalItem { item, module, location } => {
                 let primary = "Cannot mutate something from an external crate".to_string();
                 let secondary = format!("`{item}` was declared in `{module}`");
+                CustomDiagnostic::simple_error(primary, secondary, *location)
+            }
+            InterpreterError::FunctionNotVisible { name, defining_module, location } => {
+                let primary = format!("Function `{name}` is private");
+                let secondary = format!("`{name}` is declared in `{defining_module}`");
                 CustomDiagnostic::simple_error(primary, secondary, *location)
             }
             InterpreterError::CannotCastNumericToBool { typ, location } => {

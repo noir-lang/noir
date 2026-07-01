@@ -236,18 +236,15 @@ fn compile_programs(
             cached_program,
         ) {
             Ok((program, warnings)) => {
-                // If the compiled program is the same as the cached one, we don't apply transformations again, unless the target width has changed.
-                // The transformations might not be idempotent, which would risk creating witnesses that don't work with earlier versions,
-                // based on which we might have generated a verifier already.
+                // The program is fully optimized during compilation, so if it matches the cached
+                // artifact there is nothing new to save.
                 if cached_hash == Some(rustc_hash::FxBuildHasher.hash_one(&program)) {
                     return Ok(Ok(((), warnings)));
                 }
-                // Run ACVM optimizations.
-                let program = nargo::ops::optimize_program(program);
                 // Check solvability.
                 match nargo::ops::check_program(&program) {
                     Ok(()) => {
-                        // Overwrite the build artifacts with the final circuit, which includes the backend specific transformations.
+                        // Overwrite the build artifacts with the final, optimized circuit.
                         let _ = save_program_to_file(
                             &program.into(),
                             &package.name,
@@ -291,7 +288,6 @@ fn compile_contracts(
         .map(|package| -> Result<CompilationResult<()>, CliError> {
             match compile_contract(file_manager, parsed_files, package, compile_options) {
                 Ok((contract, warnings)) => {
-                    let contract = nargo::ops::optimize_contract(contract);
                     save_contract(
                         contract,
                         package,

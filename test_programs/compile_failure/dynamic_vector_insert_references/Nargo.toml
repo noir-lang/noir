@@ -1,0 +1,6 @@
+[package]
+name = "dynamic_vector_insert_references"
+type = "bin"
+authors = [""]
+
+[dependencies]

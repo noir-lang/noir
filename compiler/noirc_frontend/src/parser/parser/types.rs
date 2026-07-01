@@ -28,6 +28,18 @@ impl Parser<'_> {
         }
     }
 
+    /// Like [`Self::parse_type_or_error`], but also accepts a numeric type expression
+    /// (such as `4` or `N + 1`) as a standalone type. Used where a quoted token stream
+    /// is reinterpreted as a type, since numeric values are valid in type-level positions.
+    pub(crate) fn parse_type_or_type_expression_or_error(&mut self) -> UnresolvedType {
+        if let Some(typ) = self.parse_type_or_type_expression() {
+            typ
+        } else {
+            self.expected_label(ParsingRuleLabel::Type);
+            UnresolvedTypeData::Error.with_location(self.location_at_previous_token_end())
+        }
+    }
+
     /// Tries to parse a type. If the current token doesn't denote a type and it's not
     /// one of `stop_tokens`, try to parse a type starting from the next token (and so on).
     pub(crate) fn parse_type_or_error_with_recovery(
@@ -161,7 +173,7 @@ impl Parser<'_> {
             Self::parse_parameter,
         );
 
-        let ret = if self.eat(Token::Arrow) {
+        let ret = if self.eat(&Token::Arrow) {
             self.parse_type_or_error()
         } else {
             UnresolvedTypeData::Unit.with_location(self.location_at_previous_token_end())
@@ -196,7 +208,7 @@ impl Parser<'_> {
     }
 
     pub(super) fn parse_resolved_type(&mut self) -> Option<UnresolvedTypeData> {
-        if let Some(token) = self.eat_kind(TokenKind::QuotedType) {
+        if let Some(token) = self.eat_kind(&TokenKind::QuotedType) {
             match token.into_token() {
                 Token::QuotedType(id) => {
                     return Some(UnresolvedTypeData::Resolved(id));
@@ -209,7 +221,7 @@ impl Parser<'_> {
     }
 
     pub(super) fn parse_interned_type(&mut self) -> Option<UnresolvedTypeData> {
-        if let Some(token) = self.eat_kind(TokenKind::InternedUnresolvedTypeData) {
+        if let Some(token) = self.eat_kind(&TokenKind::InternedUnresolvedTypeData) {
             match token.into_token() {
                 Token::InternedUnresolvedTypeData(id) => {
                     return Some(UnresolvedTypeData::Interned(id));
@@ -225,7 +237,7 @@ impl Parser<'_> {
         let start_location = self.current_token_location;
 
         // This is '&&', which in this context is a double reference type
-        if self.eat(Token::LogicalAnd) {
+        if self.eat(&Token::LogicalAnd) {
             let mutable = self.eat_keyword(Keyword::Mut);
             let inner_type =
                 UnresolvedTypeData::Reference(Box::new(self.parse_type_or_error()), mutable);
@@ -235,8 +247,7 @@ impl Parser<'_> {
             return Some(typ);
         }
 
-        // The `&` may be lexed as a vector start if this is an array or vector type
-        if self.eat(Token::Ampersand) || self.eat(Token::DeprecatedVectorStart) {
+        if self.eat(&Token::Ampersand) {
             let mutable = self.eat_keyword(Keyword::Mut);
 
             return Some(UnresolvedTypeData::Reference(
@@ -304,7 +315,7 @@ impl Parser<'_> {
         }
     }
 
-    /// OptionalTypeAnnotation = ( ':' Type )?
+    /// `OptionalTypeAnnotation` = ( ':' Type )?
     pub(super) fn parse_optional_type_annotation(&mut self) -> Option<UnresolvedType> {
         if self.eat_colon() { Some(self.parse_type_or_error()) } else { None }
     }
@@ -316,13 +327,11 @@ impl Parser<'_> {
 
 #[cfg(test)]
 mod tests {
-    use insta::assert_snapshot;
-
     use crate::{
         ast::{UnresolvedType, UnresolvedTypeData},
         parser::{
             Parser,
-            parser::tests::{expect_no_errors, get_single_error, get_source_with_error_span},
+            parser::tests::{check_errors, expect_no_errors},
         },
     };
 
@@ -488,13 +497,9 @@ mod tests {
     fn errors_if_missing_right_bracket_after_vector_type() {
         let src = "
         [Field
-             ^
+             ^ Expected a ']' but found end of input
         ";
-        let (src, span) = get_source_with_error_span(src);
-        let mut parser = Parser::for_str_with_dummy_file(&src);
-        parser.parse_type();
-        let error = get_single_error(&parser.errors, span);
-        assert_snapshot!(error.to_string(), @"Expected a ']' but found end of input");
+        check_errors(src, |parser| parser.parse_type());
     }
 
     #[test]

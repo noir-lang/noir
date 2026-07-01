@@ -1,0 +1,6 @@
+[package]
+name = "range_check_before_acir_call"
+type = "bin"
+authors = [""]
+
+[dependencies]

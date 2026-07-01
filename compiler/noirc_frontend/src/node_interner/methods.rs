@@ -1,8 +1,5 @@
-use std::collections::HashSet;
-
 use crate::{
-    Kind, Type, TypeBindings, TypeVariableId,
-    hir_def::types::NamedGeneric,
+    Type, TypeBindings,
     node_interner::{FuncId, TraitId},
 };
 
@@ -57,18 +54,19 @@ impl Methods {
     /// - `Foo<i32>` and `Foo<u64>` don't overlap
     pub(super) fn find_overlapping_method(
         &self,
+        method_id: &FuncId,
         typ: &Type,
         interner: &NodeInterner,
     ) -> Option<(FuncId, Type)> {
         if self.direct.is_empty() {
             return None;
         }
-        let instantiate_typ = Self::replace_named_generics_with_fresh_type_vars(typ, interner);
+        let instantiate_typ = interner.function_meta(method_id).instantiate(typ, interner);
         for existing in &self.direct {
             // Check if two types overlap, by instantiating both types (replacing NamedGenerics
             // with fresh TypeVariables) and then checking if they can unify.
-            let instantiate_existing =
-                Self::replace_named_generics_with_fresh_type_vars(&existing.typ, interner);
+            let existing_func_meta = interner.function_meta(&existing.method);
+            let instantiate_existing = existing_func_meta.instantiate(&existing.typ, interner);
             let mut bindings = TypeBindings::default();
             let types_can_unify =
                 instantiate_existing.try_unify(&instantiate_typ, &mut bindings).is_ok();
@@ -77,45 +75,6 @@ impl Methods {
             }
         }
         None
-    }
-
-    /// Instantiate a type by finding all NamedGenerics and replacing them with
-    /// fresh type variables.
-    fn replace_named_generics_with_fresh_type_vars(typ: &Type, interner: &NodeInterner) -> Type {
-        let mut named_generics = Vec::new();
-        Self::collect_named_generics(typ, &mut named_generics, &mut HashSet::new());
-
-        if named_generics.is_empty() {
-            return typ.clone();
-        }
-
-        // Create substitutions from each NamedGeneric to a fresh type variable
-        let substitutions: TypeBindings = named_generics
-            .into_iter()
-            .map(|(id, type_var, kind)| {
-                let fresh = interner.next_type_variable_with_kind(kind.clone());
-                (id, (type_var, kind, fresh))
-            })
-            .collect();
-
-        typ.substitute(&substitutions)
-    }
-
-    /// Recursively collect all NamedGenerics from a type.
-    fn collect_named_generics(
-        typ: &Type,
-        result: &mut Vec<(TypeVariableId, crate::TypeVariable, Kind)>,
-        seen: &mut HashSet<TypeVariableId>,
-    ) {
-        typ.visit(&mut |typ| {
-            if let Type::NamedGeneric(NamedGeneric { type_var, .. }) = typ {
-                let id = type_var.id();
-                if seen.insert(id) {
-                    result.push((id, type_var.clone(), type_var.kind()));
-                }
-            }
-            true
-        });
     }
 
     pub(super) fn find_direct_method(
@@ -133,12 +92,33 @@ impl Methods {
         None
     }
 
+    /// Returns the self types of every direct (inherent) method that matches `typ`.
+    ///
+    /// Unlike keying by `typ`'s method key, this matches each impl's self type against `typ`, so it
+    /// distinguishes `Foo<i32>` and `Foo<u64>` (both match `Foo<_>`) from `u8` and `u16` (only `u8`
+    /// matches `u8`) — even though same-key types like the integers share a single `Methods` entry.
+    /// Used to detect when `TypeName::method` is ambiguous (more than one applies).
+    pub(super) fn matching_direct_method_types(
+        &self,
+        typ: &Type,
+        check_self_param: bool,
+        interner: &NodeInterner,
+    ) -> Vec<Type> {
+        self.direct
+            .iter()
+            .filter(|method| {
+                Self::method_matches(typ, check_self_param, method.method, &method.typ, interner)
+            })
+            .map(|method| method.typ.clone())
+            .collect()
+    }
+
     pub(super) fn find_trait_methods(
         &self,
         typ: &Type,
         has_self_param: bool,
         interner: &NodeInterner,
-    ) -> Vec<(FuncId, TraitId)> {
+    ) -> Vec<(FuncId, TraitId, Type)> {
         let mut results = Vec::new();
 
         for trait_impl_method in &self.trait_impl_methods {
@@ -147,7 +127,7 @@ impl Methods {
             let trait_id = trait_impl_method.trait_id;
 
             if Self::method_matches(typ, has_self_param, method, method_type, interner) {
-                results.push((method, trait_id));
+                results.push((method, trait_id, method_type.clone()));
             }
         }
 
@@ -184,7 +164,8 @@ impl Methods {
         method_type: &Type,
         interner: &NodeInterner,
     ) -> bool {
-        let function_typ = &interner.function_meta(&method).typ;
+        let func_meta = interner.function_meta(&method);
+        let function_typ = &func_meta.typ;
         match function_typ.instantiate(interner).0 {
             Type::Function(args, _, _, _) => {
                 if check_self_param {
@@ -201,18 +182,14 @@ impl Methods {
                         }
                     }
                 } else {
-                    let method_type = if let Type::Forall(typevars, _) = function_typ {
-                        method_type.substitute_type_vars_with_fresh_type_vars(typevars, interner).0
-                    } else {
-                        method_type.clone()
-                    };
+                    let method_type = func_meta.instantiate(method_type, interner);
 
                     if method_type.try_unify_with_default_bindings(typ).is_ok() {
                         return true;
                     }
 
                     // Handle auto-dereferencing `&T` and `&mut T` into `T`
-                    if let Type::Reference(method_type, _mutable) = method_type
+                    if let Type::Reference(method_type, _mutable) = method_type.as_ref()
                         && method_type.try_unify_with_default_bindings(typ).is_ok()
                     {
                         return true;

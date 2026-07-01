@@ -88,12 +88,17 @@ pub(super) fn baseline_in_package(context: &Context, crate_id: CrateId) -> Repor
         }
     }
 
-    // Trait impl methods aren't reachable through `module.value_definitions()` — they
-    // live in the trait impl, not in any module's name scope. Enumerate them directly
-    // so the baseline includes impl methods that no test ever calls.
+    // Trait impl methods and inherent impl methods aren't reachable through
+    // `module.value_definitions()` — they live in the impl, not in any module's name scope.
+    // Enumerate them directly so the baseline includes impl methods that no test ever calls.
     for impl_id in context.def_interner.get_trait_implementations_in_crate(crate_id) {
         let trait_impl = context.def_interner.get_trait_implementation(impl_id);
         for func_id in trait_impl.borrow().methods.clone() {
+            record_func(func_id, &mut offsets_by_file, &mut functions_by_file);
+        }
+    }
+    for impl_id in context.def_interner.get_impls_in_crate(crate_id) {
+        for func_id in context.def_interner.get_impl(impl_id).methods.clone() {
             record_func(func_id, &mut offsets_by_file, &mut functions_by_file);
         }
     }
@@ -265,7 +270,8 @@ fn fully_qualified_function_name(context: &Context, meta: &FuncMeta, func_id: &F
         let trait_impl = interner.get_trait_implementation(trait_impl_id);
         let trait_impl = trait_impl.borrow();
         let trait_def = interner.get_trait(trait_impl.trait_id);
-        format!("<{} as {}>::{}", trait_impl.typ, trait_def.name, name)
+        let trait_generics = interner.get_trait_generics_for_impl(trait_impl_id);
+        format!("<{} as {}{}>::{}", trait_impl.typ, trait_def.name, trait_generics, name)
     } else if meta.trait_id.is_some() {
         // Trait function (inside `trait { ... }`): `self_type` here is `Self`, an
         // unbound type variable that would render as `_`. Skip the type prefix — the

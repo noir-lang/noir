@@ -2,16 +2,16 @@
 //! which the results are unused.
 //!
 //! DIE also tracks which block parameters are unused.
-//! Unused parameters are then pruned by the [prune_dead_parameters] pass.
+//! Unused parameters are then pruned by the [`prune_dead_parameters`] pass.
 //!
 //! ## Design
 //! - Instructions are scanned in reverse (within each block), keeping track of
 //!   used values. If the current instruction is safe for removal (no side effects)
 //!   and its results are all unused the instruction will be marked for removal.
 //!   Traversing in reverse enables removing entire unused chains of computation.
-//! - The pass also tracks unused [IncrementRc][Instruction::IncrementRc] and [DecrementRc][Instruction::DecrementRc] instructions.
+//! - The pass also tracks unused [`IncrementRc`][Instruction::IncrementRc] and [`DecrementRc`][Instruction::DecrementRc] instructions.
 //!   As these instructions contain side effects we only remove them after analyzing an entire function to see if their values are unused.
-//! - Block parameters are also tracked. Unused parameters are pruned in a follow-up [prune_dead_parameters] pass
+//! - Block parameters are also tracked. Unused parameters are pruned in a follow-up [`prune_dead_parameters`] pass
 //!   to maintain separation of concerns and SSA consistency.
 //! - The main DIE pass and dead parameter pruning are called in a fixed point feedback loop that stops
 //!   once there are no more unused parameters.
@@ -32,8 +32,8 @@
 //!
 //! [Store][Instruction::Store] instructions are never removed by DIE in either runtime.
 //! Deciding when a store is dead requires reasoning about reference aliasing, which the
-//! reverse traversal cannot do soundly: an earlier instruction such as [IfElse][Instruction::IfElse],
-//! [MakeArray][Instruction::MakeArray]/[ArrayGet][Instruction::ArrayGet], or a call returning a
+//! reverse traversal cannot do soundly: an earlier instruction such as [`IfElse`][Instruction::IfElse],
+//! [`MakeArray`][Instruction::MakeArray]/[`ArrayGet`][Instruction::ArrayGet], or a call returning a
 //! reference argument may produce a value that aliases the address, and reads through that alias
 //! sit later in source order. Mem2reg, which has a proper alias-tracking model, is responsible
 //! for removing dead stores.
@@ -197,14 +197,14 @@ struct Context {
     used_values: HashSet<ValueId>,
     instructions_to_remove: HashSet<InstructionId>,
 
-    /// IncrementRc & DecrementRc instructions must be revisited after the main DIE pass since
+    /// `IncrementRc` & `DecrementRc` instructions must be revisited after the main DIE pass since
     /// they technically contain side-effects but we still want to remove them if their
     /// `value` parameter is not used elsewhere.
     rc_instructions: Vec<(InstructionId, BasicBlockId)>,
 
     /// A per-block list indicating which block parameters are still considered alive.
     ///
-    /// Each entry maps a [BasicBlockId] to a `Vec<bool>`, where the `i`th boolean corresponds to
+    /// Each entry maps a [`BasicBlockId`] to a `Vec<bool>`, where the `i`th boolean corresponds to
     /// the `i`th parameter of that block. A value of `true` means the parameter is used and should
     /// be preserved. A value of `false` means it is unused and can be pruned.
     ///
@@ -1111,9 +1111,75 @@ mod tests {
     }
 
     #[test]
-    fn keeps_unused_databus_return_value() {
+    fn does_not_collapse_independent_dynamic_composite_gets() {
         let src = r#"
         acir(inline) predicate_pure fn main f0 {
+          b0(v0: u32, v1: u32):
+            v2 = make_array [Field 1, Field 2, Field 3, Field 4] : [(Field, Field); 2]
+            v3 = array_get v2, index v0 -> Field
+            v4 = array_get v2, index v1 -> Field
+            return
+        }
+        "#;
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.dead_instruction_elimination();
+
+        assert_ssa_snapshot!(ssa, @r#"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u32, v1: u32):
+            v2 = cast v0 as u64
+            v4 = lt v2, u64 4
+            constrain v4 == u1 1, "Index out of bounds"
+            v6 = cast v1 as u64
+            v7 = lt v6, u64 4
+            constrain v7 == u1 1, "Index out of bounds"
+            return
+        }
+        "#);
+    }
+
+    #[test]
+    fn collapses_composite_group_when_first_read_is_used() {
+        // When the offset-0 read of a composite `array_get` survives (is used) but the
+        // trailing offset reads are unused, the trailing reads still belong to the same
+        // composite access (they share a common base index) and must collapse into a single
+        // out-of-bounds check rather than one check per read.
+        let src = r#"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u32):
+            v2 = make_array [Field 1, Field 2, Field 3, Field 4, Field 5, Field 6] : [(Field, Field, Field); 2]
+            v3 = array_get v2, index v0 -> Field
+            v4 = add v0, u32 1
+            v5 = array_get v2, index v4 -> Field
+            v6 = add v0, u32 2
+            v7 = array_get v2, index v6 -> Field
+            constrain v3 == Field 1
+            return
+        }
+        "#;
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.dead_instruction_elimination();
+
+        assert_ssa_snapshot!(ssa, @r#"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u32):
+            v7 = make_array [Field 1, Field 2, Field 3, Field 4, Field 5, Field 6] : [(Field, Field, Field); 2]
+            v8 = array_get v7, index v0 -> Field
+            v10 = add v0, u32 1
+            v11 = cast v10 as u64
+            v13 = lt v11, u64 6
+            constrain v13 == u1 1, "Index out of bounds"
+            v16 = add v0, u32 2
+            constrain v8 == Field 1
+            return
+        }
+        "#);
+    }
+
+    #[test]
+    fn keeps_unused_databus_return_value() {
+        let src = r#"
+        acir(inline) pure fn main f0 {
           return_data: v0
           b0():
             v0 = make_array [Field 0] : [Field; 1]
@@ -1143,10 +1209,10 @@ mod tests {
         let src = r#"
         acir(inline) fn main f0 {
             b0(v0: Field, v1: Field, v2: Field):
-            v6 = make_array [Field 1, Field 17631683881184975370165255887551781615748388533673675138860, u1 0] : [(Field, Field, u1); 1]
+            v6 = make_array [Field 1, Field 17631683881184975370165255887551781615748388533673675138860] : [(Field, Field); 1]
             v8 = make_array [v0, Field 0] : [(Field, Field); 1]
-            v11 = call multi_scalar_mul(v6, v8, u1 1) -> [(Field, Field, u1); 1]
-            v12 = call embedded_curve_add(v0, v1, u1 0, v2, Field 3, u1 0, u1 0) -> [(Field, Field, u1); 1]
+            v11 = call multi_scalar_mul(v6, v8, u1 1) -> [(Field, Field); 1]
+            v12 = call embedded_curve_add(v0, v1, v2, Field 3, u1 0) -> [(Field, Field); 1]
             return v12
         }
         "#;
@@ -1157,7 +1223,7 @@ mod tests {
     #[test]
     fn removes_unused_known_small_bit_shifts() {
         let src = r#"
-        acir(inline) predicate_pure fn main f0 {
+        acir(inline) pure fn main f0 {
           b0(v0: u32):
             v1 = shl v0, u32 2
             v2 = shr v0, u32 3
@@ -1168,8 +1234,8 @@ mod tests {
         let ssa = Ssa::from_str(src).unwrap();
         let ssa = ssa.dead_instruction_elimination();
 
-        assert_ssa_snapshot!(ssa, @r"
-        acir(inline) predicate_pure fn main f0 {
+        assert_ssa_snapshot!(ssa, @"
+        acir(inline) pure fn main f0 {
           b0(v0: u32):
             return
         }
@@ -1238,7 +1304,7 @@ mod tests {
     #[test]
     fn does_not_remove_used_jmpif_arg() {
         let src = r#"
-        acir(inline) impure fn main f0 {
+        acir(inline) pure fn main f0 {
           b0(v0: u1):
             v1 = make_array [u8 1, u8 2] : [u8; 2]
             v2 = make_array [u8 3, u8 4] : [u8; 2]
@@ -1316,7 +1382,7 @@ mod tests {
     /// alias-establishing instruction. `v6 = if cond then v0 else v1` makes `v6`
     /// alias `v0` (or `v1`), so `load v6` is effectively a load of the address being
     /// stored to; removing the intervening `store at v0` would leave the load reading
-    /// uninitialized memory. The reverse traversal cannot detect this since the IfElse
+    /// uninitialized memory. The reverse traversal cannot detect this since the `IfElse`
     /// has not been visited when DIE inspects the store, which is the core reason DIE
     /// cannot soundly remove stores in general.
     #[test]

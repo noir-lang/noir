@@ -6,4 +6,4 @@ set logscale x;
 set xlabel "Base Bytecode Size (Log)";
 set ylabel "Alt Bytecode Ratio";
 
-plot FILEIN using 2:4 with points;
+plot FILEIN using X_COL:RATIO_COL with points;

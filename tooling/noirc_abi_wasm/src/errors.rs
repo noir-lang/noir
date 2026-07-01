@@ -22,7 +22,7 @@ extern "C" {
 
 impl JsAbiError {
     /// Creates a new execution error with the given call stack.
-    /// Call stacks won't be optional in the future, after removing ErrorLocation in ACVM.
+    /// Call stacks won't be optional in the future, after removing `ErrorLocation` in ACVM.
     pub fn new(message: String) -> Self {
         JsAbiError::constructor(JsString::from(message))
     }

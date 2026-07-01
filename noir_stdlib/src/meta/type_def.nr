@@ -29,6 +29,15 @@ impl TypeDefinition {
     pub comptime fn has_named_attribute<let N: u32>(self, name: str<N>) -> bool {}
     // docs:end:has_named_attribute
 
+    #[builtin(type_def_named_attribute_args)]
+    // docs:start:named_attribute_args
+    pub comptime fn named_attribute_args<let N: u32>(self, name: str<N>) -> [[Quoted]] {}
+    // docs:end:named_attribute_args
+
+    #[builtin(type_def_has_builtin_attribute)]
+    // docs:start:has_builtin_attribute
+    pub comptime fn has_builtin_attribute<let N: u32>(self, name: str<N>) -> bool {}
+    // docs:end:has_builtin_attribute
     #[builtin(type_def_location)]
     // docs:start:location
     pub comptime fn location(self) -> Location {}
@@ -79,13 +88,9 @@ impl crate::hash::Hash for TypeDefinition {
 }
 
 impl crate::cmp::Eq for TypeDefinition {
-    comptime fn eq(self, other: Self) -> bool {
-        type_def_eq(self, other)
-    }
+    #[builtin(type_def_eq)]
+    comptime fn eq(self, other: Self) -> bool {}
 }
-
-#[builtin(type_def_eq)]
-comptime fn type_def_eq(_first: TypeDefinition, _second: TypeDefinition) -> bool {}
 
 #[builtin(type_def_hash)]
 comptime fn type_def_hash(_type: TypeDefinition) -> Field {}

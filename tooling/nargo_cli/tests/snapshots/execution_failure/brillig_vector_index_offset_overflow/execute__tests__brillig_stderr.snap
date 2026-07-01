@@ -1,0 +1,17 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+error: Assertion failed: Index out of bounds
+   ┌─ src/main.nr:12:5
+   │
+12 │     v[4294967295]
+   │     -------------
+   │
+   = Call stack:
+     1: main
+             at src/main.nr:18:14
+     2: get
+             at src/main.nr:12:5
+
+Failed assertion

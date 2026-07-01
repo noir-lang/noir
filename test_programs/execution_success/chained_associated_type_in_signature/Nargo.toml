@@ -1,0 +1,6 @@
+[package]
+name = "chained_associated_type_in_signature"
+type = "bin"
+authors = [""]
+
+[dependencies]

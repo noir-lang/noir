@@ -8,7 +8,7 @@ use arbitrary::Unstructured;
 use color_eyre::eyre;
 use iter_extended::vecmap;
 use itertools::Itertools;
-use noirc_abi::{Abi, AbiType, InputMap, Sign, input_parser::InputValue};
+use noirc_abi::{Abi, AbiType, InputMap, Sign, errors::AbiError, input_parser::InputValue};
 use noirc_evaluator::ssa::{
     self,
     interpreter::{InterpreterOptions, value::Value},
@@ -182,6 +182,9 @@ impl Comparable for ssa::interpreter::errors::InterpreterError {
                         || msg == "attempt to shift right with overflow"
                         || msg == "attempt to shift left with overflow"
                 }
+                // Signed division of `i_N::MIN / -1` overflows. The `expand_signed_math` pass and
+                // the constant-folding of binary ops produce the message with different casing.
+                BinaryOp::Div => msg.to_lowercase() == "attempt to divide with overflow",
                 _ => false,
             },
             (
@@ -252,8 +255,24 @@ impl Comparable for Value {
     }
 }
 
+pub fn encode_to_ssa(
+    abi: &Abi,
+    input_map: &InputMap,
+    return_value: Option<InputValue>,
+) -> Result<(Vec<Value>, Option<Vec<Value>>), AbiError> {
+    abi.encode(input_map, return_value.clone())?;
+    let ssa_args = input_values_to_ssa(abi, input_map);
+    let ssa_return =
+        if let (Some(return_value), Some(return_type)) = (return_value, abi.return_type.as_ref()) {
+            Some(input_value_to_ssa(&return_type.abi_type, &return_value))
+        } else {
+            None
+        };
+    Ok((ssa_args, ssa_return))
+}
+
 /// Convert the ABI encoded inputs to what the SSA interpreter expects.
-pub fn input_values_to_ssa(abi: &Abi, input_map: &InputMap) -> Vec<Value> {
+fn input_values_to_ssa(abi: &Abi, input_map: &InputMap) -> Vec<Value> {
     let mut inputs = Vec::new();
     for param in &abi.parameters {
         let input = &input_map
@@ -268,7 +287,7 @@ pub fn input_values_to_ssa(abi: &Abi, input_map: &InputMap) -> Vec<Value> {
 /// Convert one ABI encoded input to what the SSA interpreter expects.
 ///
 /// Tuple types and structs are flattened.
-pub fn input_value_to_ssa(typ: &AbiType, input: &InputValue) -> Vec<Value> {
+fn input_value_to_ssa(typ: &AbiType, input: &InputValue) -> Vec<Value> {
     let mut values = Vec::new();
     append_input_value_to_ssa(typ, input, &mut values);
     values

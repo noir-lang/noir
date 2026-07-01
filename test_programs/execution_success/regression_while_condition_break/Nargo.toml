@@ -1,0 +1,6 @@
+[package]
+name = "regression_while_condition_break"
+type = "bin"
+authors = [""]
+
+[dependencies]

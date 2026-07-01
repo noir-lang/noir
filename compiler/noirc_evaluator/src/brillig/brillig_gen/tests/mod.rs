@@ -27,6 +27,7 @@ mod call;
 mod coalescing;
 mod memory;
 mod spill;
+mod truncate;
 
 pub(crate) fn ssa_to_brillig_artifacts(src: &str) -> Brillig {
     ssa_to_brillig_artifacts_with_options(src, &BrilligOptions::default())
@@ -65,7 +66,7 @@ pub(crate) fn execute_brillig_from_ssa_with_options(
             FunctionContext::ssa_type_to_parameter(&typ)
         })
         .collect();
-    let generated = gen_brillig_for(func, arguments, &brillig, options).unwrap();
+    let generated = gen_brillig_for(func, &arguments, &brillig, options).unwrap();
     execute_bytecode(&generated.byte_code, calldata)
 }
 

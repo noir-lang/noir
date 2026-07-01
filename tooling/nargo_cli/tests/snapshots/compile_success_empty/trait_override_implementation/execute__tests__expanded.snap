@@ -52,16 +52,8 @@ impl F for Bar {
         10_Field
     }
 
-    fn f2(_self: Self) -> Field {
-        2_Field
-    }
-
     fn f3(_self: Self) -> Field {
         30_Field
-    }
-
-    fn f4(_self: Self) -> Field {
-        4_Field
     }
 
     fn f5(_self: Self) -> Field {

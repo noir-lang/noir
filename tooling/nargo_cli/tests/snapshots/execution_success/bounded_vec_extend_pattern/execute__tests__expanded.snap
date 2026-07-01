@@ -1,0 +1,33 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn main(
+    x: [u8; 64],
+    x_len: u32,
+    y: [u8; 64],
+    y_len: u32,
+    z: [u8; 64],
+    z_len: u32,
+) -> pub [u8; 192] {
+    let mut storage: [u8; 192] = [0_u8; 192];
+    let mut len: u32 = 0_u32;
+    for i in 0_u32..64_u32 {
+        if i < x_len {
+            storage[len + i] = x[i];
+        }
+    }
+    len = len + x_len;
+    for i in 0_u32..64_u32 {
+        if i < y_len {
+            storage[len + i] = y[i];
+        }
+    }
+    len = len + y_len;
+    for i in 0_u32..64_u32 {
+        if i < z_len {
+            storage[len + i] = z[i];
+        }
+    }
+    storage
+}

@@ -9,7 +9,7 @@ mod input;
 mod program;
 
 pub use abi::program_abi;
-pub use compare::{input_value_to_ssa, input_values_to_ssa};
+pub use compare::encode_to_ssa;
 pub use input::arb_inputs;
 use program::freq::Freqs;
 pub use program::{
@@ -115,9 +115,9 @@ impl Default for Config {
             ("assign", 30),
             ("if", 10),
             ("match", 15),
-            ("for", 40),
-            ("loop", 40),
-            ("while", 40),
+            ("for", 45),
+            ("loop", 45),
+            ("while", 45),
             ("let", 20),
             ("call", 5),
             ("print", 15),

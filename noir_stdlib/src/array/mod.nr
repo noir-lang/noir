@@ -33,18 +33,6 @@ impl<T, let N: u32> [T; N] {
     #[builtin(as_vector)]
     pub fn as_vector(self) -> [T] {}
 
-    /// Returns this array as a vector.
-    /// This method is deprecated in favor of `as_vector`.
-    ///
-    /// ```noir
-    /// let array = [1, 2];
-    /// let vector = array.as_slice();
-    /// assert_eq(vector, [1, 2].as_vector());
-    /// ```
-    #[builtin(as_vector)]
-    #[deprecated("This method has been renamed to `as_vector`")]
-    pub fn as_slice(self) -> [T] {}
-
     /// Applies a function to each element of this array, returning a new array containing the mapped elements.
     ///
     /// Example:
@@ -516,5 +504,52 @@ mod test {
         let arr2: [Field; 0] = [];
         let concatenated_arr = arr1.concat(arr2);
         assert_eq(concatenated_arr, []);
+    }
+
+    #[test]
+    fn test_fold() {
+        let array = [1, 2, 3];
+        let sum_plus_10 = array.fold(10, |x, y| x + y);
+        assert_eq(sum_plus_10, 16);
+    }
+
+    #[test]
+    fn test_reduce() {
+        let array = [1, 2, 3];
+        let sum = array.reduce(|x, y| x + y);
+        assert_eq(sum, 6);
+    }
+
+    #[test(should_fail_with = "Index out of bounds")]
+    fn test_reduce_failure_on_empty_array() {
+        let array: [Field; 0] = [];
+        let sum = array.reduce(|x, y| x + y);
+        assert_eq(sum, 6);
+    }
+
+    #[test]
+    fn test_all() {
+        let array = [1, 2, 3];
+        assert(array.all(|x| x >= 1));
+        assert(!array.all(|x| x >= 2));
+    }
+
+    #[test]
+    fn test_any() {
+        let array = [1, 2, 3];
+        assert(array.any(|x| x >= 3));
+        assert(!array.any(|x| x >= 4));
+    }
+
+    #[test]
+    fn test_to_string() {
+        let str = [78_u8, 111, 105, 114].as_str_unchecked();
+        assert_eq(str, "Noir");
+    }
+
+    #[test]
+    fn test_bytes_from_string() {
+        let bytes: [u8; 4] = crate::convert::From::from("Noir");
+        assert_eq(bytes, [78_u8, 111, 105, 114]);
     }
 }

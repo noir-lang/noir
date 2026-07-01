@@ -22,14 +22,6 @@ impl ATrait for Foo {
     fn asd() -> Self {
         Self { x: 100_Field }
     }
-
-    fn static_method() -> Field {
-        Self::static_method_2()
-    }
-
-    fn static_method_2() -> Field {
-        100_Field
-    }
 }
 
 struct Bar {
@@ -41,18 +33,14 @@ impl ATrait for Bar {
         Self { x: 100_Field }
     }
 
-    fn static_method() -> Field {
-        Self::static_method_2()
-    }
-
     fn static_method_2() -> Field {
         200_Field
     }
 }
 
 fn main() {
-    assert(Foo::static_method() == 100_Field);
-    assert(Bar::static_method() == 200_Field);
+    assert(<Foo as ATrait>::static_method() == 100_Field);
+    assert(<Bar as ATrait>::static_method() == 200_Field);
     let zero: Field = <Field as MyDefault>::my_default();
     assert(zero == 0_Field);
 }

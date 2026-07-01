@@ -88,6 +88,42 @@ impl Second {
     }
 }
 
+trait Convert<T> {
+    fn convert(self) -> T;
+}
+
+impl Convert<u8> for u8 {
+    fn convert(self) -> u8 {
+        0
+    }
+}
+
+impl Convert<u16> for u8 {
+    fn convert(self) -> u16 {
+        0
+    }
+}
+
+impl Convert<u8> for u16 {
+    fn convert(self) -> u8 {
+        0
+    }
+}
+
+impl Convert<u16> for u16 {
+    fn convert(self) -> u16 {
+        0
+    }
+}
+
+#[test]
+fn test() {
+    let _: u8 = 0_u8.convert();
+    let _: u16 = 0_u8.convert();
+    let _: u8 = 0_u16.convert();
+    let _: u16 = 0_u16.convert();
+}
+
 #[test]
 fn test_inherent_news() {
     let _ = First::new(1);
@@ -108,4 +144,12 @@ fn test_add() {
 fn test_quadrupled() {
     assert_eq(3u32.quadrupled(), 12);
     assert_eq(3u64.quadrupled(), 12);
+}
+
+#[test]
+fn test_convert() {
+    assert_eq(0_u8.convert(), 0_u8);
+    assert_eq(0_u8.convert(), 0_u16);
+    assert_eq(0_u16.convert(), 0_u8);
+    assert_eq(0_u16.convert(), 0_u16);
 }

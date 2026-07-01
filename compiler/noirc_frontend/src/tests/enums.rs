@@ -1,7 +1,8 @@
 use crate::elaborator::UnstableFeature;
 
 use crate::tests::{
-    assert_no_errors, check_errors, check_errors_using_features, get_program_using_features,
+    assert_no_errors, assert_no_errors_using_features, check_errors, check_errors_using_features,
+    get_program_using_features,
 };
 
 #[test]
@@ -9,11 +10,11 @@ fn error_with_duplicate_enum_variant() {
     let src = r#"
     pub enum Foo {
         Bar(i32),
-        ~~~ First enum variant found here
+        ~~~ First definition found here
         ~~~ Previous impl defined here
         Bar(u8),
         ^^^ Duplicate definitions of enum variant with name Bar found
-        ~~~ Second enum variant found here
+        ~~~ Second definition found here
         ^^^ Impl for type `Foo` overlaps with existing impl
         ~~~ Overlapping impl
     }
@@ -119,6 +120,248 @@ fn no_such_field_in_match_struct_pattern() {
     struct Foo {
         x: i32,
         y: Field,
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn struct_pattern_non_alphabetical_field_order_is_not_unreachable() {
+    // Regression test for https://github.com/noir-lang/noir-claude/issues/1068.
+    // `S` declares its fields in non-alphabetical order (`z` before `a`). The
+    // struct pattern's args used to be ordered by field name while the match
+    // branch variables follow declaration order, so each pattern was paired with
+    // the wrong variable. The arm was then silently dropped and reported as an
+    // unreachable case even though it can match.
+    assert_no_errors(
+        r#"
+        struct S { z: bool, a: i32 }
+
+        fn main(x: S) -> pub i32 {
+            match x {
+                S { z: false, a: 42 } => 100,
+                _ => 0,
+            }
+        }
+    "#,
+    );
+}
+
+#[test]
+fn redundant_struct_pattern_is_still_unreachable() {
+    // The fix must not suppress genuine unreachability: a second, identical arm on
+    // a non-alphabetically-declared struct is still redundant and must be reported.
+    check_errors(
+        r#"
+        struct S { z: bool, a: i32 }
+
+        fn main(x: S) -> pub i32 {
+            match x {
+                S { z: false, a: 42 } => 100,
+                S { z: false, a: 42 } => 200,
+                ^^^^^^^^^^^^^^^^^^^^^ Unreachable match case
+                ~~~~~~~~~~~~~~~~~~~~~ This pattern is redundant with one or more prior patterns
+                _ => 0,
+            }
+        }
+    "#,
+    );
+}
+
+#[test]
+fn struct_pattern_args_bind_by_field_name_not_written_order() {
+    // The pattern lists fields in yet another order, distinct from both the
+    // declaration order and alphabetical order. Each literal sub-pattern must
+    // still be tested against its own field's branch variable.
+    assert_no_errors(
+        r#"
+        struct S { z: bool, a: i32 }
+
+        fn main(x: S) -> pub i32 {
+            match x {
+                S { a: 42, z: false } => 100,
+                _ => 0,
+            }
+        }
+    "#,
+    );
+}
+
+#[test]
+fn struct_pattern_many_fields_scrambled_declaration_order() {
+    // Several fields declared in a deliberately scrambled order, with `bool` and
+    // integer fields interleaved so that ordering args by field name pairs a bool
+    // literal against an integer branch variable (and vice-versa). Such a
+    // mispairing makes `compile_rows` drop the arm and report it as unreachable.
+    assert_no_errors(
+        r#"
+        struct S { d: i32, c: bool, b: i32, a: bool }
+
+        fn main(x: S) -> pub i32 {
+            match x {
+                S { d: 1, c: true, b: 2, a: false } => 100,
+                _ => 0,
+            }
+        }
+    "#,
+    );
+}
+
+#[test]
+fn nested_struct_pattern_non_alphabetical_field_order() {
+    assert_no_errors(
+        r#"
+        struct Inner { y: bool, x: i32 }
+        struct Outer { tag: u8, inner: Inner }
+
+        fn main(o: Outer) -> pub i32 {
+            match o {
+                Outer { tag: 9, inner: Inner { y: true, x: 5 } } => 100,
+                _ => 0,
+            }
+        }
+    "#,
+    );
+}
+
+#[test]
+fn nested_enum_variant_with_payload_is_not_unreachable() {
+    // Regression test for https://github.com/noir-lang/noir/issues/7637.
+    // Matching a payload-carrying variant at more than one nesting level (here
+    // both elements of the tuple) let-binds the payload, rewriting the arm's
+    // body. Reconstructing the row used to reset `original_body` to the rewritten
+    // body, so the arm was never pruned from `unreachable_cases` and was falsely
+    // reported as redundant.
+    let features = vec![UnstableFeature::Enums];
+    assert_no_errors_using_features(
+        r#"
+        pub enum Foo { Bar, Baz(()) }
+
+        pub fn foo(x: Foo, y: Foo) {
+            match (x, y) {
+                (Foo::Bar, Foo::Bar) => (),
+                (Foo::Baz(_x), Foo::Baz(_y)) => (),
+                _ => (),
+            }
+        }
+
+        fn main() {}
+        "#,
+        &features,
+    );
+}
+
+#[test]
+fn nested_enum_variant_with_non_unit_payload_is_not_unreachable() {
+    // The same bug is not specific to unit payloads: any variant with arguments
+    // matched across nesting levels must remain reachable.
+    let features = vec![UnstableFeature::Enums];
+    assert_no_errors_using_features(
+        r#"
+        pub enum Foo { Bar, Baz(u32) }
+
+        pub fn foo(x: Foo, y: Foo) -> u32 {
+            match (x, y) {
+                (Foo::Bar, Foo::Bar) => 1,
+                (Foo::Baz(_x), Foo::Baz(_y)) => 2,
+                _ => 3,
+            }
+        }
+
+        fn main() {}
+        "#,
+        &features,
+    );
+}
+
+#[test]
+fn redundant_nested_enum_variant_with_payload_is_still_unreachable() {
+    // The fix must not suppress genuine unreachability: a second, identical
+    // payload-carrying arm in a nested match is still redundant and must warn.
+    let features = vec![UnstableFeature::Enums];
+    check_errors_using_features(
+        r#"
+        pub enum Foo { Bar, Baz(u32) }
+
+        pub fn foo(x: Foo, y: Foo) -> u32 {
+            match (x, y) {
+                (Foo::Baz(_x), Foo::Baz(_y)) => 1,
+                (Foo::Baz(_a), Foo::Baz(_b)) => 2,
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ Unreachable match case
+                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~ This pattern is redundant with one or more prior patterns
+                _ => 3,
+            }
+        }
+
+        fn main() {}
+        "#,
+        &features,
+    );
+}
+
+#[test]
+fn missing_field_in_non_alphabetical_match_struct_pattern() {
+    // The missing-field diagnostic must name the field that is actually absent
+    // even when the struct is not declared in alphabetical order.
+    let src = r#"
+    fn main() {
+        let foo = Foo { y: 10, x: 20 };
+        match foo {
+            Foo { y: _ } => {}
+            ^^^ missing field x in struct Foo
+        }
+    }
+
+    struct Foo {
+        y: i32,
+        x: Field,
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn duplicate_field_in_non_alphabetical_match_struct_pattern() {
+    // `Foo` declares `y` before `x`, and the duplicated field (`x`) is not the
+    // first declared field. Duplicate detection keys off the field's
+    // declaration-order slot, so it must still flag the repeat regardless of
+    // declaration order or which slot the field occupies.
+    let src = r#"
+    fn main() {
+        let foo = Foo { y: 10, x: 20 };
+        match foo {
+            Foo { x: _, x: _, y: _ } => {}
+                        ^ duplicate field x
+        }
+    }
+
+    struct Foo {
+        y: i32,
+        x: Field,
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn duplicate_field_with_missing_field_in_match_struct_pattern() {
+    // Both fields of `Pair` have the same type, so duplicating one and omitting the
+    // other cannot be caught by a later type error. Struct patterns must bind every
+    // field (there is no partial or `..` rest pattern), so this must report both the
+    // duplicate field and the missing field.
+    let src = r#"
+    fn main() {
+        let pair = Pair { a: 1, b: 2 };
+        match pair {
+            Pair { a: _, a: _ } => {}
+            ^^^^ missing field b in struct Pair
+                         ^ duplicate field a
+        }
+    }
+
+    struct Pair {
+        a: i32,
+        b: i32,
     }
     "#;
     check_errors(src);
@@ -441,6 +684,111 @@ fn regression_7651() {
 }
 
 #[test]
+fn cannot_return_enum_from_unconstrained_to_constrained() {
+    // An enum's tag is an unconstrained `Field` witness when it crosses from an
+    // unconstrained runtime into a constrained one. Mirrors the entry-point rule
+    // (`regression_7651`) so a prover cannot supply an out-of-range tag and force
+    // the wrong match arm in the constrained caller.
+    let src = r#"
+    pub enum Foo {
+        Bar,
+        Baz,
+    }
+
+    fn main() {
+        // safety:
+        unsafe {
+            let _foo = make_foo();
+                       ^^^^^^^^^^ Enums cannot be returned from an unconstrained runtime to a constrained runtime
+        }
+    }
+
+    unconstrained fn make_foo() -> Foo {
+        Foo::Bar
+    }
+    "#;
+
+    let features = vec![UnstableFeature::Enums];
+    check_errors_using_features(src, &features);
+}
+
+#[test]
+fn cannot_return_enum_nested_in_struct_from_unconstrained_to_constrained() {
+    let src = r#"
+    pub enum Foo {
+        Bar,
+        Baz,
+    }
+
+    pub struct Wrapper {
+        foo: Foo,
+    }
+
+    fn main() {
+        // safety:
+        unsafe {
+            let _w = make_wrapper();
+                     ^^^^^^^^^^^^^^ Enums cannot be returned from an unconstrained runtime to a constrained runtime
+        }
+    }
+
+    unconstrained fn make_wrapper() -> Wrapper {
+        Wrapper { foo: Foo::Bar }
+    }
+    "#;
+
+    let features = vec![UnstableFeature::Enums];
+    check_errors_using_features(src, &features);
+}
+
+#[test]
+fn can_pass_enum_from_constrained_to_unconstrained() {
+    // The reverse direction is fine: the enum is built in the constrained caller, so its tag
+    // is already valid by construction. Only returning an enum the other way is rejected.
+    let src = r#"
+    pub enum Foo {
+        Bar,
+        Baz,
+    }
+
+    unconstrained fn consume(_foo: Foo) {}
+
+    fn main() {
+        // safety:
+        unsafe {
+            consume(Foo::Bar);
+        }
+    }
+    "#;
+
+    let features = vec![UnstableFeature::Enums];
+    assert_no_errors_using_features(src, &features);
+}
+
+#[test]
+fn can_return_enum_from_unconstrained_to_unconstrained() {
+    // Returning an enum is only rejected when crossing into a constrained runtime.
+    // A purely unconstrained call chain has no constraints to subvert.
+    let src = r#"
+    pub enum Foo {
+        Bar,
+        Baz,
+    }
+
+    unconstrained fn make_foo() -> Foo {
+        Foo::Bar
+    }
+
+    unconstrained fn main() {
+        let _foo = make_foo();
+    }
+    "#;
+
+    let features = vec![UnstableFeature::Enums];
+    assert_no_errors_using_features(src, &features);
+}
+
+#[test]
 fn errors_if_using_comptime_type_in_non_comptime_enum() {
     let src = r#"
     pub enum Foo {
@@ -562,4 +910,177 @@ fn comptime_generic_enum_variant() {
     fn foo(_f: Foo<str<5>>) {}
     "#;
     assert_no_errors(src);
+}
+
+#[test]
+fn enum_variant_with_fields_type_turbofish() {
+    let src = r#"
+    enum Foo<T> {
+        Spam,
+        Eggs(T),
+    }
+
+    fn main() {
+        let _ = Foo::<u32>::Eggs(0);
+    }
+    "#;
+    let features = vec![UnstableFeature::Enums];
+    assert_no_errors_using_features(src, &features);
+}
+
+#[test]
+fn enum_variant_with_fields_type_turbofish_binds_type() {
+    let src = r#"
+    enum Foo<T> {
+        Eggs(T),
+    }
+
+    fn main() {
+        let _ = Foo::<u32>::Eggs(true);
+                                 ^^^^ Expected type u32, found type bool
+    }
+    "#;
+    let features = vec![UnstableFeature::Enums];
+    check_errors_using_features(src, &features);
+}
+
+#[test]
+fn enum_variant_with_fields_multiple_type_turbofish() {
+    let src = r#"
+    enum Foo<A, B> {
+        Spam(A),
+        Eggs(B),
+    }
+
+    fn main() {
+        let _ = Foo::<bool, u32>::Eggs(0);
+    }
+    "#;
+    let features = vec![UnstableFeature::Enums];
+    assert_no_errors_using_features(src, &features);
+}
+
+#[test]
+fn enum_variant_segment_turbofish_still_works() {
+    let src = r#"
+    enum Foo<A, B> {
+        Spam(A),
+        Eggs(B),
+    }
+
+    fn main() {
+        let _ = Foo::Eggs::<bool, u32>(0);
+    }
+    "#;
+    let features = vec![UnstableFeature::Enums];
+    assert_no_errors_using_features(src, &features);
+}
+
+#[test]
+fn fieldless_enum_variant_type_turbofish_binds_type() {
+    let src = r#"
+    enum Foo<T> {
+        Spam,
+        Eggs(T),
+    }
+
+    fn main() {
+        let _ = Foo::<u32>::Spam;
+    }
+    "#;
+    let features = vec![UnstableFeature::Enums];
+    assert_no_errors_using_features(src, &features);
+}
+
+#[test]
+fn fieldless_enum_variant_segment_turbofish_binds_type() {
+    let src = r#"
+    enum Foo<T> {
+        Spam,
+        Eggs(T),
+    }
+
+    fn main() {
+        let _ = Foo::Spam::<u32>;
+    }
+    "#;
+    let features = vec![UnstableFeature::Enums];
+    assert_no_errors_using_features(src, &features);
+}
+
+#[test]
+fn fieldless_enum_variant_segment_turbofish_count_mismatch() {
+    let src = r#"
+    enum Foo<T> {
+        Spam,
+        Eggs(T),
+    }
+
+    fn main() {
+        let _ = Foo::Spam::<u32, bool>;
+                ^^^^^^^^^^^^^^^^^^^^^^ enum `Foo` expects 1 generic but 2 were given
+    }
+    "#;
+    let features = vec![UnstableFeature::Enums];
+    check_errors_using_features(src, &features);
+}
+
+#[test]
+fn turbofish_not_allowed_on_global_holding_enum_value() {
+    let src = r#"
+    enum Foo<T> {
+        Spam,
+        Eggs(T),
+    }
+
+    global Bar: Foo<u32> = Foo::Spam;
+
+    fn main() {
+        let _ = Bar::<bool>;
+                   ^^^^^^^^ turbofish (`::<_>`) not allowed on globals
+    }
+    "#;
+    let features = vec![UnstableFeature::Enums];
+    check_errors_using_features(src, &features);
+}
+
+#[test]
+fn fieldless_enum_variant_type_turbofish_on_non_generic_enum() {
+    let src = r#"
+    enum Foo {
+        Spam,
+        Eggs(bool),
+    }
+
+    fn main() {
+        let _ = Foo::<u32>::Spam;
+                ^^^^^^^^^^^^^^^^ enum `Foo` expects 0 generics but 1 was given
+    }
+    "#;
+    let features = vec![UnstableFeature::Enums];
+    check_errors_using_features(src, &features);
+}
+
+#[test]
+fn errors_on_segment_after_enum_variant() {
+    let src = r#"
+    pub enum E { A, B }
+    pub fn f(_x: E::A::Bar) {}
+                    ^ enum variant `A` has no associated items
+    fn main() {}
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn errors_on_segment_after_associated_constant() {
+    let src = r#"
+    pub trait T { let C: u32; }
+    pub struct Foo {}
+    impl T for Foo { let C: u32 = 1; }
+    pub fn f(_x: Foo::C::Bar) {}
+                      ^ associated constant `C` has no associated items
+    fn main() {}
+    "#;
+    check_errors(src);
 }

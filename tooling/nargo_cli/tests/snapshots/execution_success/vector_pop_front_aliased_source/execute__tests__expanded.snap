@@ -1,0 +1,12 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+unconstrained fn main() {
+    foo(@[42_Field, 43_Field, 44_Field]);
+}
+
+unconstrained fn foo(mut v: [Field]) {
+    let _: (Field, [Field]) = v.pop_front();
+    println(v);
+}

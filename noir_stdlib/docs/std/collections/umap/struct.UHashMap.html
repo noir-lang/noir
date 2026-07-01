@@ -3,7 +3,10 @@
 <head>
 <meta charset="UTF-8">
 <link rel="stylesheet" href="../../../styles.css">
+<script>window.docRoot = "../../../";</script>
+<script defer src="../../../search-index.js"></script>
 <script defer src="../../../nargo_doc.js"></script>
+<script defer src="../../../search.js"></script>
 <title>Struct UHashMap documentation</title>
 </head>
 <body>
@@ -16,7 +19,7 @@
 <h1><a href="../../../index.html">noir_stdlib</a></h1>
 <div><a href="../../../all.html">All items</a></div>
 <h2 id="crate-name"><a href="../../index.html">std</a></h2>
-<div id="crate-version">1.0.0-beta.21</div>
+<div id="crate-version">1.0.0-beta.22</div>
 <h2><a href="#struct">Struct UHashMap</a></h2>
 <h3>Methods</h3>
 <ul class="sidebar-list">
@@ -50,30 +53,36 @@
 </nav>
 <main>
 <div><a href="../../../index.html">noir_stdlib</a> - <a href="../../index.html">std</a>::<a href="../index.html">collections</a>::<a href="index.html">umap</a></div>
-<h1>Struct <span id="struct" class="struct">UHashMap</span></h1>
+<div class="heading-row">
+<h1 class="heading-content">Struct <span id="struct" class="struct">UHashMap</span></h1>
+<button id="search-toggle" type="button">Search</button>
+</div>
+<input id="search-input" type="search" placeholder="Type 's' or '/' to search" autocomplete="off" spellcheck="false" aria-label="Search" hidden>
+<div id="search-results" hidden></div>
+<div id="page-content">
 <pre><code>pub struct UHashMap&lt;K, V, B&gt;
 { <span class="comment">/* private fields */</span> }
 </code></pre>
 <h2>Implementations</h2>
-<h3><code class="code-header">impl&lt;B, K, V&gt; <a href="../../../std/collections/umap/struct.UHashMap.html" class="struct">UHashMap</a>&lt;K, V, B&gt;</code></h3>
+<h3><code class="code-header">impl&lt;K, V, B&gt; <a href="../../../std/collections/umap/struct.UHashMap.html" class="struct">UHashMap</a>&lt;K, V, B&gt;</code></h3>
 
-<div class="padded-methods"><code id="with_hasher" class="code-header">pub fn <a href="#with_hasher"><span class="fn">with_hasher</span></a>(_build_hasher: B) -> Self
+<div class="padded-methods"><code id="with_hasher" class="code-header">pub fn <a href="#with_hasher" class="fn">with_hasher</a>(_build_hasher: B) -> Self
 <div class="where-clause">where
     B: <a href="../../../std/hash/trait.BuildHasher.html" class="trait">BuildHasher</a></div></code>
 
 <div class="padded-description"><div class="comments">
 <p>Creates a new instance of UHashMap with specified BuildHasher.</p>
 </div>
-</div><code id="with_hasher_and_capacity" class="code-header">pub fn <a href="#with_hasher_and_capacity"><span class="fn">with_hasher_and_capacity</span></a>(_build_hasher: B, capacity: <a href="../../../std/primitive.u32.html" class="primitive">u32</a>) -> Self
+</div><code id="with_hasher_and_capacity" class="code-header">pub fn <a href="#with_hasher_and_capacity" class="fn">with_hasher_and_capacity</a>(_build_hasher: B, capacity: <a href="../../../std/primitive.u32.html" class="primitive">u32</a>) -> Self
 <div class="where-clause">where
     B: <a href="../../../std/hash/trait.BuildHasher.html" class="trait">BuildHasher</a></div></code>
 
-<code id="clear" class="code-header">pub fn <a href="#clear"><span class="fn">clear</span></a>(&mut self)</code>
+<code id="clear" class="code-header">pub unconstrained fn <a href="#clear" class="fn">clear</a>(&mut self)</code>
 
 <div class="padded-description"><div class="comments">
 <p>Clears the map, removing all key-value entries.</p>
 </div>
-</div><code id="contains_key" class="code-header">pub fn <a href="#contains_key"><span class="fn">contains_key</span></a>(&mut self: &Self, key: K) -> <a href="../../../std/primitive.bool.html" class="primitive">bool</a>
+</div><code id="contains_key" class="code-header">pub unconstrained fn <a href="#contains_key" class="fn">contains_key</a>(&mut self: &Self, key: K) -> <a href="../../../std/primitive.bool.html" class="primitive">bool</a>
 <div class="where-clause">where
     K: <a href="../../../std/hash/trait.Hash.html" class="trait">Hash</a>,
     K: <a href="../../../std/cmp/trait.Eq.html" class="trait">Eq</a>,
@@ -82,30 +91,30 @@
 <div class="padded-description"><div class="comments">
 <p>Returns true if the map contains a value for the specified key.</p>
 </div>
-</div><code id="is_empty" class="code-header">pub fn <a href="#is_empty"><span class="fn">is_empty</span></a>(&mut self: &Self) -> <a href="../../../std/primitive.bool.html" class="primitive">bool</a></code>
+</div><code id="is_empty" class="code-header">pub unconstrained fn <a href="#is_empty" class="fn">is_empty</a>(&mut self: &Self) -> <a href="../../../std/primitive.bool.html" class="primitive">bool</a></code>
 
 <div class="padded-description"><div class="comments">
 <p>Returns true if the map contains no elements.</p>
 </div>
-</div><code id="entries" class="code-header">pub fn <a href="#entries"><span class="fn">entries</span></a>(&mut self: &Self) -> [(K, V)]</code>
+</div><code id="entries" class="code-header">pub unconstrained fn <a href="#entries" class="fn">entries</a>(&mut self: &Self) -> [(K, V)]</code>
 
 <div class="padded-description"><div class="comments">
 <p>Returns a vector of all valid entries in this UHashMap.
 The length of the returned vector will always match the length of this UHashMap.</p>
 </div>
-</div><code id="keys" class="code-header">pub fn <a href="#keys"><span class="fn">keys</span></a>(&mut self: &Self) -> [K]</code>
+</div><code id="keys" class="code-header">pub unconstrained fn <a href="#keys" class="fn">keys</a>(&mut self: &Self) -> [K]</code>
 
 <div class="padded-description"><div class="comments">
 <p>Returns a vector containing all the keys within this UHashMap.
 The length of the returned vector will always match the length of this UHashMap.</p>
 </div>
-</div><code id="values" class="code-header">pub fn <a href="#values"><span class="fn">values</span></a>(&mut self: &Self) -> [V]</code>
+</div><code id="values" class="code-header">pub unconstrained fn <a href="#values" class="fn">values</a>(&mut self: &Self) -> [V]</code>
 
 <div class="padded-description"><div class="comments">
 <p>Returns a vector containing all the values within this UHashMap.
 The length of the returned vector will always match the length of this UHashMap.</p>
 </div>
-</div><code id="iter_mut" class="code-header">pub unconstrained fn <a href="#iter_mut"><span class="fn">iter_mut</span></a>(&mut self, f: fn(K, V) -> (K, V))
+</div><code id="iter_mut" class="code-header">pub unconstrained fn <a href="#iter_mut" class="fn">iter_mut</a>(&mut self, f: fn(K, V) -> (K, V))
 <div class="where-clause">where
     K: <a href="../../../std/cmp/trait.Eq.html" class="trait">Eq</a>,
     K: <a href="../../../std/hash/trait.Hash.html" class="trait">Hash</a>,
@@ -114,7 +123,7 @@ The length of the returned vector will always match the length of this UHashMap.
 <div class="padded-description"><div class="comments">
 <p>For each key-value entry applies mutator function.</p>
 </div>
-</div><code id="iter_keys_mut" class="code-header">pub unconstrained fn <a href="#iter_keys_mut"><span class="fn">iter_keys_mut</span></a>(&mut self, f: fn(K) -> K)
+</div><code id="iter_keys_mut" class="code-header">pub unconstrained fn <a href="#iter_keys_mut" class="fn">iter_keys_mut</a>(&mut self, f: fn(K) -> K)
 <div class="where-clause">where
     K: <a href="../../../std/cmp/trait.Eq.html" class="trait">Eq</a>,
     K: <a href="../../../std/hash/trait.Hash.html" class="trait">Hash</a>,
@@ -123,27 +132,27 @@ The length of the returned vector will always match the length of this UHashMap.
 <div class="padded-description"><div class="comments">
 <p>For each key applies mutator function.</p>
 </div>
-</div><code id="iter_values_mut" class="code-header">pub fn <a href="#iter_values_mut"><span class="fn">iter_values_mut</span></a>(&mut self, f: fn(V) -> V)</code>
+</div><code id="iter_values_mut" class="code-header">pub unconstrained fn <a href="#iter_values_mut" class="fn">iter_values_mut</a>(&mut self, f: fn(V) -> V)</code>
 
 <div class="padded-description"><div class="comments">
 <p>For each value applies mutator function.</p>
 </div>
-</div><code id="retain" class="code-header">pub fn <a href="#retain"><span class="fn">retain</span></a>(&mut self, f: fn(K, V) -> <a href="../../../std/primitive.bool.html" class="primitive">bool</a>)</code>
+</div><code id="retain" class="code-header">pub unconstrained fn <a href="#retain" class="fn">retain</a>(&mut self, f: fn(K, V) -> <a href="../../../std/primitive.bool.html" class="primitive">bool</a>)</code>
 
 <div class="padded-description"><div class="comments">
 <p>Retains only the elements specified by the predicate.</p>
 </div>
-</div><code id="len" class="code-header">pub fn <a href="#len"><span class="fn">len</span></a>(&mut self: &Self) -> <a href="../../../std/primitive.u32.html" class="primitive">u32</a></code>
+</div><code id="len" class="code-header">pub unconstrained fn <a href="#len" class="fn">len</a>(&mut self: &Self) -> <a href="../../../std/primitive.u32.html" class="primitive">u32</a></code>
 
 <div class="padded-description"><div class="comments">
 <p>Amount of active key-value entries.</p>
 </div>
-</div><code id="capacity" class="code-header">pub fn <a href="#capacity"><span class="fn">capacity</span></a>(&mut self: &Self) -> <a href="../../../std/primitive.u32.html" class="primitive">u32</a></code>
+</div><code id="capacity" class="code-header">pub unconstrained fn <a href="#capacity" class="fn">capacity</a>(&mut self: &Self) -> <a href="../../../std/primitive.u32.html" class="primitive">u32</a></code>
 
 <div class="padded-description"><div class="comments">
 <p>Get the current capacity of the inner table.</p>
 </div>
-</div><code id="get" class="code-header">pub unconstrained fn <a href="#get"><span class="fn">get</span></a>(&mut self: &Self, key: K) -> <a href="../../../std/option/struct.Option.html" class="struct">Option</a>&lt;V&gt;
+</div><code id="get" class="code-header">pub unconstrained fn <a href="#get" class="fn">get</a>(&mut self: &Self, key: K) -> <a href="../../../std/option/struct.Option.html" class="struct">Option</a>&lt;V&gt;
 <div class="where-clause">where
     K: <a href="../../../std/cmp/trait.Eq.html" class="trait">Eq</a>,
     K: <a href="../../../std/hash/trait.Hash.html" class="trait">Hash</a>,
@@ -152,7 +161,7 @@ The length of the returned vector will always match the length of this UHashMap.
 <div class="padded-description"><div class="comments">
 <p>Get the value by key. If it does not exist, returns none().</p>
 </div>
-</div><code id="insert" class="code-header">pub unconstrained fn <a href="#insert"><span class="fn">insert</span></a>(&mut self, key: K, value: V) -> <a href="../../../std/primitive.bool.html" class="primitive">bool</a>
+</div><code id="insert" class="code-header">pub unconstrained fn <a href="#insert" class="fn">insert</a>(&mut self, key: K, value: V) -> <a href="../../../std/primitive.bool.html" class="primitive">bool</a>
 <div class="where-clause">where
     K: <a href="../../../std/cmp/trait.Eq.html" class="trait">Eq</a>,
     K: <a href="../../../std/hash/trait.Hash.html" class="trait">Hash</a>,
@@ -163,7 +172,7 @@ The length of the returned vector will always match the length of this UHashMap.
 <p>Returns true if the element was newly-inserted. In other words, this returns false
 if the key already has a value in this map.</p>
 </div>
-</div><code id="remove" class="code-header">pub unconstrained fn <a href="#remove"><span class="fn">remove</span></a>(&mut self, key: K)
+</div><code id="remove" class="code-header">pub unconstrained fn <a href="#remove" class="fn">remove</a>(&mut self, key: K)
 <div class="where-clause">where
     K: <a href="../../../std/cmp/trait.Eq.html" class="trait">Eq</a>,
     K: <a href="../../../std/hash/trait.Hash.html" class="trait">Hash</a>,
@@ -189,7 +198,8 @@ if the key already has a value in this map.</p>
 
 <div class="padded-methods"><code class="code-header">pub fn <span class="fn">eq</span>(self, other: Self) -> <a href="../../../std/primitive.bool.html" class="primitive">bool</a></code>
 
-</div></main>
+</div></div>
+</main>
 </span>
 </body>
 </html>

@@ -4,7 +4,7 @@ use crate::acir::arrays::ElementTypeSizesArrayShift;
 use crate::acir::types::flat_element_types;
 use crate::acir::{AcirDynamicArray, AcirValue, AcirVar};
 use crate::brillig::assert_u32;
-use crate::errors::RuntimeError;
+use crate::errors::{InternalError, RuntimeError};
 use crate::ssa::ir::types::{NumericType, Type};
 use crate::ssa::ir::{dfg::DataFlowGraph, value::ValueId};
 use acvm::acir::brillig::lengths::FlattenedLength;
@@ -13,6 +13,50 @@ use acvm::{AcirField, FieldElement};
 use super::Context;
 
 impl Context<'_> {
+    /// Checks that an intrinsic vector operation received one element value per type in the
+    /// vector's logical element (composite elements are passed as separate flattened values).
+    fn check_vector_element_count(
+        &self,
+        op: &str,
+        elements: &[ValueId],
+        vector_typ: &Type,
+    ) -> Result<(), RuntimeError> {
+        let expected = vector_typ.element_size().to_usize();
+        if elements.len() != expected {
+            return Err(InternalError::General {
+                message: format!(
+                    "{op} received {} element values but the vector's logical element consists of {expected} values",
+                    elements.len(),
+                ),
+                call_stack: self.acir_context.get_call_stack(),
+            }
+            .into());
+        }
+        Ok(())
+    }
+
+    /// Checks that an intrinsic vector operation which returns the updated length, the updated
+    /// vector and one logical element (popped or removed) received the matching number of
+    /// result values.
+    fn check_vector_result_count(
+        &self,
+        op: &str,
+        result_ids: &[ValueId],
+        vector_typ: &Type,
+    ) -> Result<(), RuntimeError> {
+        let expected = 2 + vector_typ.element_size().to_usize();
+        if result_ids.len() != expected {
+            return Err(InternalError::General {
+                message: format!(
+                    "{op} received {} result values but expected {expected}",
+                    result_ids.len(),
+                ),
+                call_stack: self.acir_context.get_call_stack(),
+            }
+            .into());
+        }
+        Ok(())
+    }
     /// Pushes one or more elements to the back of a non-nested vector.
     ///
     /// # Arguments
@@ -25,7 +69,7 @@ impl Context<'_> {
     ///
     /// # Returns
     ///
-    /// A vector of [AcirValue]s containing:
+    /// A vector of [`AcirValue`]s containing:
     /// 1. Updated vector length (incremented by one)
     /// 2. New vector with elements appended
     pub(super) fn convert_vector_push_back(
@@ -43,6 +87,7 @@ impl Context<'_> {
 
         let vector = self.convert_value(vector_contents, dfg);
         let vector_typ = dfg.type_of_value(vector_contents);
+        self.check_vector_element_count("vector_push_back", elements_to_push, &vector_typ)?;
 
         let new_vector_val = if let Some(len_const) = dfg.get_numeric_constant(arguments[0]) {
             // Length is known at compile time - we can precisely determine where to write
@@ -158,7 +203,7 @@ impl Context<'_> {
     ///
     /// # Returns
     ///
-    /// A vector of [AcirValue]s containing:
+    /// A vector of [`AcirValue`]s containing:
     /// 1. Updated vector length (incremented by one)
     /// 2. New vector with elements prepended
     pub(super) fn convert_vector_push_front(
@@ -176,6 +221,7 @@ impl Context<'_> {
 
         let vector = self.convert_value(vector_contents, dfg);
         let vector_type = dfg.type_of_value(vector_contents);
+        self.check_vector_element_count("vector_push_front", elements_to_push, &vector_type)?;
         let mut new_vector = self.read_array_with_type(vector, &vector_type)?;
 
         // We must directly push front elements for non-nested vectors
@@ -201,7 +247,7 @@ impl Context<'_> {
     ///
     /// # Returns
     ///
-    /// A vector of [AcirValue]s containing:
+    /// A vector of [`AcirValue`]s containing:
     /// 1. Updated vector length (decremented by one)
     /// 2. Updated vector contents with the back elements removed
     /// 3. Popped elements in order
@@ -236,6 +282,7 @@ impl Context<'_> {
         let block_id = self.ensure_array_is_initialized(vector_contents_id, dfg)?;
         let vector_contents_value = self.convert_value(vector_contents_id, dfg);
         let vector_type = dfg.type_of_value(vector_contents_id);
+        self.check_vector_result_count("vector_pop_back", result_ids, &vector_type)?;
 
         // Check if we're trying to pop from a known empty vector.
         if self.has_zero_length(vector_contents_id, dfg) {
@@ -349,11 +396,11 @@ impl Context<'_> {
     /// * `result_ids[element_size]` - Updated vector length
     /// * `result_ids[element_size + 1]` - Updated vector contents
     ///
-    /// `element_size` refers to the result of [crate::ssa::ir::types::Type::element_size].
+    /// `element_size` refers to the result of [`crate::ssa::ir::types::Type::element_size`].
     ///
     /// # Returns
     ///
-    /// A vector of [AcirValue]s containing:
+    /// A vector of [`AcirValue`]s containing:
     /// 1. Popped elements in order
     /// 2. Updated vector length (decremented by one)
     /// 3. Updated vector contents with the front elements removed
@@ -366,7 +413,7 @@ impl Context<'_> {
     /// 2. Read out the first `element_size` values at index `0`.
     /// 3. Shift the update vector's memory forward by `element_size` slots to represent the updated vector.
     ///
-    /// Unlike in [Self::convert_vector_pop_back], the returned vector contents differ from the input:
+    /// Unlike in [`Self::convert_vector_pop_back`], the returned vector contents differ from the input:
     /// the underlying array is logically truncated at the *front* rather than
     /// the back. The `result_ids` ensure that this logical shift is applied
     /// consistently with the element's type.
@@ -389,6 +436,7 @@ impl Context<'_> {
         let block_id = self.ensure_array_is_initialized(vector_contents_id, dfg)?;
         let vector_contents_value = self.convert_value(vector_contents_id, dfg);
         let vector_type = dfg.type_of_value(vector_contents_id);
+        self.check_vector_result_count("vector_pop_front", result_ids, &vector_type)?;
         let element_size = vector_type.element_size();
 
         // Check if we're trying to pop from a known empty vector.
@@ -451,7 +499,7 @@ impl Context<'_> {
     ///
     /// # Returns
     ///
-    /// A vector of [AcirValue]s containing:
+    /// A vector of [`AcirValue`]s containing:
     /// 1. Updated vector length (incremented by one)
     /// 2. Updated vector contents with the new elements inserted at the given index
     ///
@@ -462,7 +510,7 @@ impl Context<'_> {
     ///
     /// 1. Compute the flattened insert index:
     ///    - Multiply the logical insert index by the element size.
-    ///    - Adjust for non-homogenous structures via [Self::get_flattened_index].
+    ///    - Adjust for non-homogenous structures via [`Self::get_flattened_index`].
     /// 2. Flatten the new elements (`flattened_elements`)
     /// 3. For each position in the result vector:
     ///    - If below the insert index, copy from the original vector.
@@ -494,13 +542,14 @@ impl Context<'_> {
         let mut vector_size: FlattenedLength = super::arrays::flattened_value_size(&vector);
 
         let elements_to_insert = &arguments[3..];
+        self.check_vector_element_count("vector_insert", elements_to_insert, &vector_typ)?;
 
         // Fetch the flattened index from the user provided index argument.
         let item_size = self.acir_context.add_constant(elements_to_insert.len());
         let is_safe_index = Self::is_index_safe(arguments[2], dfg, &vector_typ, vector_size);
         let insert_index = self.acir_context.mul_var(insert_index, item_size)?;
 
-        // Because the insert index might be at the end of the slice, the element type sizes we
+        // Because the insert index might be at the end of the vector, the element type sizes we
         // index here need to have room for this extra element.
         let shift = ElementTypeSizesArrayShift::Increase;
         let flat_user_index = self.get_flattened_index(
@@ -673,7 +722,7 @@ impl Context<'_> {
     ///
     /// # Returns
     ///
-    /// A vector of [AcirValue]s containing:
+    /// A vector of [`AcirValue`]s containing:
     /// 1. Updated vector length (decremented by one)
     /// 2. Updated vector contents with the target elements removed
     /// 3. The removed elements, in order
@@ -685,10 +734,10 @@ impl Context<'_> {
     ///
     /// 1. Compute the flattened remove index:
     ///    - Multiply the logical remove index by the element size.
-    ///    - Adjust for non-homogenous structures via [Self::get_flattened_index].
+    ///    - Adjust for non-homogenous structures via [`Self::get_flattened_index`].
     /// 2. Read out the element(s) to be removed:
     ///    - Iterate over `result_ids[2..(2 + element_size)]`
-    ///    - `element_size` refers to the result of [crate::ssa::ir::types::Type::element_size].
+    ///    - `element_size` refers to the result of [`crate::ssa::ir::types::Type::element_size`].
     ///    - Use these IDs to fetch the appropriate type information for the values to remove and drive `array_get_value`.
     ///      While extracting the values to remove we compute the total `popped_elements_size` (the flattened width of the removed data).
     /// 3. For each index in the result vector:
@@ -716,6 +765,7 @@ impl Context<'_> {
         let vector_contents = arguments[1];
 
         let vector_typ = dfg.type_of_value(vector_contents);
+        self.check_vector_result_count("vector_remove", result_ids, &vector_typ)?;
         let block_id = self.ensure_array_is_initialized(vector_contents, dfg)?;
 
         // Check if we're trying to remove from an empty vector
@@ -884,11 +934,9 @@ impl Context<'_> {
             let index_const = index_const.to_u128() as usize;
             // A vector with zero-sized elements has a flattened_size of 0 because of the multiplication with element size.
             // As a result, every index will be out-of-bound.
-            if acir_fields_per_element == 0 {
-                false
-            } else {
-                let num_logical_elements = vector_size.to_usize() / acir_fields_per_element;
-                index_const < num_logical_elements
+            match vector_size.to_usize().checked_div(acir_fields_per_element) {
+                Some(num_logical_elements) => index_const < num_logical_elements,
+                None => false,
             }
         } else {
             false

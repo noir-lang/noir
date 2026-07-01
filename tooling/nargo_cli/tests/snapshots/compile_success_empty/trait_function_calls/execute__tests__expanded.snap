@@ -20,15 +20,6 @@ struct Struct1a {
 }
 
 impl Trait1a for Struct1a {
-    fn trait_method1(self) -> Field {
-        (self.trait_method2() * 7892_Field) - self.vl()
-    }
-
-    fn trait_method2(self) -> Field {
-        let _: Self = self;
-        43278_Field
-    }
-
     fn vl(self) -> Field {
         self.vl
     }
@@ -52,10 +43,6 @@ struct Struct1b {
 }
 
 impl Trait1b for Struct1b {
-    fn trait_method1(self) -> Field {
-        (self.trait_method2() * 2832_Field) - self.vl()
-    }
-
     fn trait_method2(self) -> Field {
         let _: Self = self;
         2394_Field
@@ -81,10 +68,6 @@ struct Struct1c {
 }
 
 impl Trait1c for Struct1c {
-    fn trait_method1(self) -> Field {
-        (self.trait_method2() * 7635_Field) - self.vl()
-    }
-
     fn trait_method2(self) -> Field {
         let _: Self = self;
         5485_Field
@@ -115,11 +98,6 @@ struct Struct1d {
 impl Trait1d for Struct1d {
     fn trait_method1(self) -> Field {
         (self.trait_method2() * 9342_Field) - self.vl
-    }
-
-    fn trait_method2(self) -> Field {
-        let _: Self = self;
-        29341_Field
     }
 
     fn vl(self) -> Field {
@@ -205,11 +183,6 @@ impl Trait1g for Struct1g {
     fn trait_method1(self) -> Field {
         (self.trait_method2() * 7854_Field) - self.vl
     }
-
-    fn trait_method2(self) -> Field {
-        let _: Self = self;
-        37845_Field
-    }
 }
 
 trait Trait1h {
@@ -274,14 +247,6 @@ struct Struct2a {
 }
 
 impl Trait2a for Struct2a {
-    fn trait_method1(self) -> Field {
-        (Self::trait_function2() * 2385_Field) - self.vl()
-    }
-
-    fn trait_function2() -> Field {
-        7843_Field
-    }
-
     fn vl(self) -> Field {
         self.vl
     }
@@ -304,10 +269,6 @@ struct Struct2b {
 }
 
 impl Trait2b for Struct2b {
-    fn trait_method1(self) -> Field {
-        (Self::trait_function2() * 6583_Field) - self.vl()
-    }
-
     fn trait_function2() -> Field {
         8477_Field
     }
@@ -332,10 +293,6 @@ struct Struct2c {
 }
 
 impl Trait2c for Struct2c {
-    fn trait_method1(self) -> Field {
-        (Self::trait_function2() * 2831_Field) - self.vl()
-    }
-
     fn trait_function2() -> Field {
         8342_Field
     }
@@ -363,11 +320,7 @@ struct Struct2d {
 
 impl Trait2d for Struct2d {
     fn trait_method1(self) -> Field {
-        (Self::trait_function2() * 3984_Field) - self.vl
-    }
-
-    fn trait_function2() -> Field {
-        384_Field
+        (<Self as Trait2d>::trait_function2() * 3984_Field) - self.vl
     }
 
     fn vl(self) -> Field {
@@ -447,11 +400,7 @@ struct Struct2g {
 
 impl Trait2g for Struct2g {
     fn trait_method1(self) -> Field {
-        (Self::trait_function2() * 9123_Field) - self.vl
-    }
-
-    fn trait_function2() -> Field {
-        19273_Field
+        (<Self as Trait2g>::trait_function2() * 9123_Field) - self.vl
     }
 }
 
@@ -515,15 +464,6 @@ struct Struct3a {
 }
 
 impl Trait3a for Struct3a {
-    fn trait_function1(a: Field, b: Self) -> Field {
-        ((b.trait_method2() * 8344_Field) - b.vl()) + a
-    }
-
-    fn trait_method2(self) -> Field {
-        let _: Self = self;
-        19212_Field
-    }
-
     fn vl(self) -> Field {
         self.vl
     }
@@ -547,10 +487,6 @@ struct Struct3b {
 }
 
 impl Trait3b for Struct3b {
-    fn trait_function1(a: Field, b: Self) -> Field {
-        ((b.trait_method2() * 9233_Field) - b.vl()) + a
-    }
-
     fn trait_method2(self) -> Field {
         let _: Self = self;
         2392_Field
@@ -576,10 +512,6 @@ struct Struct3c {
 }
 
 impl Trait3c for Struct3c {
-    fn trait_function1(a: Field, b: Self) -> Field {
-        ((b.trait_method2() * 2822_Field) - b.vl()) + a
-    }
-
     fn trait_method2(self) -> Field {
         let _: Self = self;
         7743_Field
@@ -610,11 +542,6 @@ struct Struct3d {
 impl Trait3d for Struct3d {
     fn trait_function1(a: Field, b: Self) -> Field {
         ((b.trait_method2() * 4933_Field) - b.vl) + a
-    }
-
-    fn trait_method2(self) -> Field {
-        let _: Self = self;
-        3328_Field
     }
 
     fn vl(self) -> Field {
@@ -700,11 +627,6 @@ impl Trait3g for Struct3g {
     fn trait_function1(a: Field, b: Self) -> Field {
         ((b.trait_method2() * 31337_Field) - b.vl) + a
     }
-
-    fn trait_method2(self) -> Field {
-        let _: Self = self;
-        8887_Field
-    }
 }
 
 trait Trait3h {
@@ -766,15 +688,7 @@ pub struct Struct4a {
     vl: Field,
 }
 
-impl Trait4a for Struct4a {
-    fn trait_function1() -> Field {
-        Self::trait_function2() * 3842_Field
-    }
-
-    fn trait_function2() -> Field {
-        2932_Field
-    }
-}
+impl Trait4a for Struct4a {}
 
 trait Trait4b {
     fn trait_function1() -> Field {
@@ -791,10 +705,6 @@ pub struct Struct4b {
 }
 
 impl Trait4b for Struct4b {
-    fn trait_function1() -> Field {
-        Self::trait_function2() * 3842_Field
-    }
-
     fn trait_function2() -> Field {
         9353_Field
     }
@@ -813,10 +723,6 @@ pub struct Struct4c {
 }
 
 impl Trait4c for Struct4c {
-    fn trait_function1() -> Field {
-        Self::trait_function2() * 7832_Field
-    }
-
     fn trait_function2() -> Field {
         2928_Field
     }
@@ -838,11 +744,7 @@ pub struct Struct4d {
 
 impl Trait4d for Struct4d {
     fn trait_function1() -> Field {
-        Self::trait_function2() * 8374_Field
-    }
-
-    fn trait_function2() -> Field {
-        9332_Field
+        <Self as Trait4d>::trait_function2() * 8374_Field
     }
 }
 
@@ -906,11 +808,7 @@ pub struct Struct4g {
 
 impl Trait4g for Struct4g {
     fn trait_function1() -> Field {
-        Self::trait_function2() * 3345_Field
-    }
-
-    fn trait_function2() -> Field {
-        2932_Field
+        <Self as Trait4g>::trait_function2() * 3345_Field
     }
 }
 
@@ -994,11 +892,11 @@ fn main() {
     let t2i: Struct2i = Struct2i { vl: 1821_Field };
     assert(t2i.trait_method1() == 7608881_Field);
     let t3a: Struct3a = Struct3a { vl: 93248_Field };
-    assert(Struct3a::trait_function1(5_Field, t3a) == 160211685_Field);
+    assert(<Struct3a as Trait3a>::trait_function1(5_Field, t3a) == 160211685_Field);
     let t3b: Struct3b = Struct3b { vl: 76763_Field };
-    assert(Struct3b::trait_function1(62_Field, t3b) == 22008635_Field);
+    assert(<Struct3b as Trait3b>::trait_function1(62_Field, t3b) == 22008635_Field);
     let t3c: Struct3c = Struct3c { vl: 3833_Field };
-    assert(Struct3c::trait_function1(25_Field, t3c) == 21846938_Field);
+    assert(<Struct3c as Trait3c>::trait_function1(25_Field, t3c) == 21846938_Field);
     let t3d: Struct3d = Struct3d { vl: 5645_Field };
     assert(Struct3d::trait_function1(73_Field, t3d) == 16411452_Field);
     let t3e: Struct3e = Struct3e { vl: 22912_Field };
@@ -1011,9 +909,9 @@ fn main() {
     assert(Struct3h::trait_function1(17_Field, t3h) == 469630485_Field);
     let t3i: Struct3i = Struct3i { vl: 39432_Field };
     assert(Struct3i::trait_function1(54_Field, t3i) == 104304046_Field);
-    assert(Struct4a::trait_function1() == 11264744_Field);
-    assert(Struct4b::trait_function1() == 35934226_Field);
-    assert(Struct4c::trait_function1() == 22932096_Field);
+    assert(<Struct4a as Trait4a>::trait_function1() == 11264744_Field);
+    assert(<Struct4b as Trait4b>::trait_function1() == 35934226_Field);
+    assert(<Struct4c as Trait4c>::trait_function1() == 22932096_Field);
     assert(Struct4d::trait_function1() == 78146168_Field);
     assert(Struct4e::trait_function1() == 473622182_Field);
     assert(Struct4f::trait_function1() == 93996448_Field);

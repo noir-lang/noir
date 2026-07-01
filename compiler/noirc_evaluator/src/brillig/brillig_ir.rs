@@ -26,6 +26,7 @@ mod instructions;
 
 use std::{cell::RefCell, rc::Rc};
 
+use acvm::brillig_vm::MEMORY_ADDRESSING_BIT_SIZE;
 use artifact::Label;
 use brillig_variable::SingleAddrVariable;
 pub(crate) use instructions::BrilligBinaryOp;
@@ -52,7 +53,7 @@ use super::{BrilligOptions, FunctionId, GlobalSpace, ProcedureId};
 /// The Brillig VM does not apply a limit to the memory address space,
 /// As a convention, we take use 32 bits. This means that we assume that
 /// memory has 2^32 memory slots.
-pub(crate) const BRILLIG_MEMORY_ADDRESSING_BIT_SIZE: u32 = 32;
+pub(crate) const BRILLIG_MEMORY_ADDRESSING_BIT_SIZE: u32 = MEMORY_ADDRESSING_BIT_SIZE.to_u32();
 
 /// Registers reserved in runtime for special purposes.
 pub(crate) struct ReservedRegisters;
@@ -80,7 +81,7 @@ impl ReservedRegisters {
         FREE_MEMORY_POINTER_ADDRESS
     }
 
-    /// This register stores a 1_usize constant.
+    /// This register stores a `1_usize` constant.
     pub(crate) fn usize_one() -> MemoryAddress {
         MemoryAddress::direct(2)
     }
@@ -100,9 +101,9 @@ impl ReservedRegisters {
         (MemoryAddress::direct(assert_u32(start)), MemoryAddress::direct(assert_u32(start + 1)))
     }
 
-    /// A third scratch address (`@5`) used by [crate::brillig::brillig_gen::brillig_block::BrilligBlock::codegen_conditional_spill_store]
+    /// A third scratch address (`@5`) used by [`crate::brillig::brillig_gen::brillig_block::BrilligBlock::codegen_conditional_spill_store`]
     /// to hold a value across the load → cmov → store sequence. Disjoint from
-    /// [Self::spill_scratch] so the address-materialization scratch registers
+    /// [`Self::spill_scratch`] so the address-materialization scratch registers
     /// can be reused by the inner load/store without clobbering the value.
     pub(crate) fn spill_conditional_value() -> MemoryAddress {
         MemoryAddress::direct(assert_u32(ScratchSpace::start() + 2))
@@ -135,7 +136,7 @@ pub(crate) struct BrilligContext<F, Registers> {
 }
 
 impl<F, R: RegisterAllocator> BrilligContext<F, R> {
-    /// Memory layout information. See [self::registers] for more information about the memory layout.
+    /// Memory layout information. See [`self::registers`] for more information about the memory layout.
     pub(crate) fn layout(&self) -> LayoutConfig {
         self.registers().layout()
     }
@@ -265,7 +266,7 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
 
 impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<F, Registers> {
     /// Splits a two's complement signed integer in the sign bit and the absolute value.
-    /// For example, -6 i8 (11111010) is split to 00000110 (6, absolute value) and 1 (is_negative).
+    /// For example, -6 i8 (11111010) is split to 00000110 (6, absolute value) and 1 (`is_negative`).
     pub(crate) fn absolute_value(
         &mut self,
         num: SingleAddrVariable,
@@ -362,7 +363,7 @@ pub(crate) enum SignedDivisionOperator {
 
 /// Special brillig context to codegen compiler intrinsic shared procedures
 impl<F: AcirField + DebugToString> BrilligContext<F, ScratchSpace> {
-    /// Create a [BrilligContext] with a [ScratchSpace] for passing procedure arguments.
+    /// Create a [`BrilligContext`] with a [`ScratchSpace`] for passing procedure arguments.
     pub(crate) fn new_for_procedure(
         procedure_id: ProcedureId,
         options: &BrilligOptions,
@@ -387,7 +388,7 @@ impl<F: AcirField + DebugToString> BrilligContext<F, ScratchSpace> {
 
 /// Special brillig context to codegen global values initialization
 impl<F: AcirField + DebugToString> BrilligContext<F, GlobalSpace> {
-    /// Create a [BrilligContext] with a [GlobalSpace] for memory allocations.
+    /// Create a [`BrilligContext`] with a [`GlobalSpace`] for memory allocations.
     pub(crate) fn new_for_global_init(
         options: &BrilligOptions,
         entry_point: FunctionId,
@@ -407,7 +408,7 @@ impl<F: AcirField + DebugToString> BrilligContext<F, GlobalSpace> {
     }
 
     /// Total size of the global memory space.
-    /// Returns 0 when nothing has been allocated (max_memory_address < start).
+    /// Returns 0 when nothing has been allocated (`max_memory_address` < start).
     pub(crate) fn global_space_size(&self) -> usize {
         (self.registers().max_memory_address() + 1).saturating_sub(self.registers().start())
     }
@@ -458,20 +459,18 @@ pub(crate) mod tests {
             _scalars_lo: &[FieldElement],
             _scalars_hi: &[FieldElement],
             _predicate: bool,
-        ) -> Result<(FieldElement, FieldElement, FieldElement), BlackBoxResolutionError> {
-            Ok((4_u128.into(), 5_u128.into(), 0_u128.into()))
+        ) -> Result<(FieldElement, FieldElement), BlackBoxResolutionError> {
+            Ok((4_u128.into(), 5_u128.into()))
         }
 
         fn ec_add(
             &self,
             _input1_x: &FieldElement,
             _input1_y: &FieldElement,
-            _input1_infinite: &FieldElement,
             _input2_x: &FieldElement,
             _input2_y: &FieldElement,
-            _input2_infinite: &FieldElement,
             _predicate: bool,
-        ) -> Result<(FieldElement, FieldElement, FieldElement), BlackBoxResolutionError> {
+        ) -> Result<(FieldElement, FieldElement), BlackBoxResolutionError> {
             panic!("Path not trodden by this test")
         }
 
@@ -497,8 +496,8 @@ pub(crate) mod tests {
 
     pub(crate) fn create_entry_point_bytecode(
         context: BrilligContext<FieldElement, Stack>,
-        arguments: Vec<BrilligParameter>,
-        returns: Vec<BrilligParameter>,
+        arguments: &[BrilligParameter],
+        returns: &[BrilligParameter],
     ) -> GeneratedBrillig<FieldElement> {
         let options = BrilligOptions {
             enable_debug_trace: false,
@@ -652,7 +651,7 @@ pub(crate) mod tests {
     /// 3. If allocation would overflow, VM fails with "Out of memory" before the loop runs
     ///
     /// This test compiles SSA with a large constant array, then patches `free_memory_pointer`
-    /// to near u32::MAX to demonstrate that allocation triggers "Out of memory".
+    /// to near `u32::MAX` to demonstrate that allocation triggers "Out of memory".
     #[test]
     fn initialize_constant_array_protected_by_allocation_check() {
         // SSA with array of 11 identical tuples - triggers initialize_constant_array_runtime
@@ -681,7 +680,7 @@ pub(crate) mod tests {
         let options = BrilligOptions::default();
         let brillig = ssa.to_brillig(&options);
         let args = vec![BrilligParameter::SingleAddr(32)];
-        let mut generated = gen_brillig_for(main, args, &brillig, &options).unwrap();
+        let mut generated = gen_brillig_for(main, &args, &brillig, &options).unwrap();
 
         // Find the first BinaryIntOp::Add that writes to the free_memory_pointer (FMP)
         // and insert a patch just before it.
@@ -732,7 +731,7 @@ pub(crate) mod tests {
         assert!(message.contains("Out of memory"), "Expected 'Out of memory', got: {message}");
     }
 
-    /// Test proving [BrilligContext::codegen_mem_copy_from_the_end] handles `num_elements=0`.
+    /// Test proving [`BrilligContext::codegen_mem_copy_from_the_end`] handles `num_elements=0`.
     ///
     /// See the function's `# Safety` documentation for why the underflow is safe.
     /// This test directly verifies the loop continue condition is immediately `false`.
@@ -863,9 +862,9 @@ pub(crate) mod tests {
 
     /// Test proving that empty array allocation near heap limit triggers OOM.
     ///
-    /// This demonstrates that [BrilligContext::codegen_make_array_items_pointer] is transitively protected
-    /// from overflow. Even an empty array allocates [offsets::ARRAY_META_COUNT] slot for metadata,
-    /// so if the free memory pointer (FMP) is near u32::MAX, the allocation fails with "Out of memory"
+    /// This demonstrates that [`BrilligContext::codegen_make_array_items_pointer`] is transitively protected
+    /// from overflow. Even an empty array allocates [`offsets::ARRAY_META_COUNT`] slot for metadata,
+    /// so if the free memory pointer (FMP) is near `u32::MAX`, the allocation fails with "Out of memory"
     /// before we ever compute the items pointer.
     #[test]
     fn empty_array_allocation_near_heap_limit_triggers_oom() {
@@ -882,13 +881,13 @@ pub(crate) mod tests {
 
     /// Test proving that empty vector allocation near heap limit triggers OOM.
     ///
-    /// This demonstrates that [BrilligContext::codegen_vector_items_pointer] is transitively protected
-    /// from overflow. Even an empty vector allocates [offsets::VECTOR_META_COUNT] slots for metadata,
-    /// so if the free memory pointer (FMP) is near u32::MAX, the allocation fails with "Out of memory"
+    /// This demonstrates that [`BrilligContext::codegen_vector_items_pointer`] is transitively protected
+    /// from overflow. Even an empty vector allocates [`offsets::VECTOR_META_COUNT`] slots for metadata,
+    /// so if the free memory pointer (FMP) is near `u32::MAX`, the allocation fails with "Out of memory"
     /// before we ever compute the items pointer.
     #[test]
     fn empty_vector_allocation_near_heap_limit_triggers_oom() {
-        // SSA with an empty slice (vector) - triggers vector allocation with VECTOR_META_COUNT (3) slots
+        // SSA with an empty vector - triggers vector allocation with VECTOR_META_COUNT (3) slots
         let src = r#"
             brillig(inline) predicate_pure fn main f0 {
               b0():
@@ -901,7 +900,7 @@ pub(crate) mod tests {
 
     /// Helper to test that allocation near heap limit triggers OOM.
     ///
-    /// Generates Brillig from the given SSA, patches the free memory pointer (FMP) to u32::MAX
+    /// Generates Brillig from the given SSA, patches the free memory pointer (FMP) to `u32::MAX`
     /// just before the first allocation, and asserts the VM fails with "Out of memory".
     fn assert_allocation_near_heap_limit_triggers_oom(ssa_src: &str) {
         use acvm::acir::brillig::BinaryIntOp;
@@ -910,7 +909,7 @@ pub(crate) mod tests {
         let main = ssa.main();
         let options = BrilligOptions::default();
         let brillig = ssa.to_brillig(&options);
-        let mut generated = gen_brillig_for(main, vec![], &brillig, &options).unwrap();
+        let mut generated = gen_brillig_for(main, &[], &brillig, &options).unwrap();
 
         // Find the first BinaryIntOp::Add that writes to the free_memory_pointer (FMP)
         // and insert a patch just before it.
@@ -1014,7 +1013,7 @@ pub(crate) mod tests {
     ///
     /// This test demonstrates the defensive check that prevents heap corruption.
     /// Without this check, call arguments could be written beyond the stack frame boundary
-    /// before CheckMaxStackDepth runs in the called function.
+    /// before `CheckMaxStackDepth` runs in the called function.
     #[test_case(7, 0; "arguments alone exceed bounds")]
     #[test_case(3, 0; "arguments together with reserved slots exceed bounds")]
     #[test_case(1, 5; "arguments are okay but returns exceed bounds")]
@@ -1051,7 +1050,7 @@ pub(crate) mod tests {
     #[test]
     fn jmp_block_params_parallel_move() {
         let src = r#"
-            brillig(inline) impure fn main f0 {
+            brillig(inline) predicate_pure fn main f0 {
               b0():
                 jmp b1(u32 0, u32 0, u32 0)
               b1(v3: u32, v35: u32, v36: u32):
@@ -1071,7 +1070,7 @@ pub(crate) mod tests {
         let main = ssa.main();
         let options = BrilligOptions::default();
         let brillig = ssa.to_brillig(&options);
-        let generated = gen_brillig_for(main, vec![], &brillig, &options).unwrap();
+        let generated = gen_brillig_for(main, &[], &brillig, &options).unwrap();
 
         let mut vm = VM::new(vec![], &generated.byte_code, &DummyBlackBoxSolver, false, None);
         let status = vm.process_opcodes();
@@ -1091,7 +1090,7 @@ pub(crate) mod tests {
     #[test]
     fn jmp_block_params_parallel_move_swap() {
         let src = r#"
-            brillig(inline) impure fn main f0 {
+            brillig(inline) predicate_pure fn main f0 {
               b0():
                 jmp b1(u32 0, u32 1, u32 0)
               b1(v0: u32, v1: u32, v2: u32):
@@ -1111,7 +1110,7 @@ pub(crate) mod tests {
         let main = ssa.main();
         let options = BrilligOptions::default();
         let brillig = ssa.to_brillig(&options);
-        let generated = gen_brillig_for(main, vec![], &brillig, &options).unwrap();
+        let generated = gen_brillig_for(main, &[], &brillig, &options).unwrap();
 
         let mut vm = VM::new(vec![], &generated.byte_code, &DummyBlackBoxSolver, false, None);
         let status = vm.process_opcodes();

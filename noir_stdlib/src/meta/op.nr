@@ -222,3 +222,98 @@ impl BinaryOp {
         }
     }
 }
+
+mod tests {
+    use crate::meta::op::{BinaryOp, UnaryOp};
+
+    comptime fn unary_op(quoted: Quoted) -> UnaryOp {
+        let (op, _) = quoted.as_expr().unwrap().as_unary_op().unwrap();
+        op
+    }
+
+    comptime fn binary_op(quoted: Quoted) -> BinaryOp {
+        let (_, op, _) = quoted.as_expr().unwrap().as_binary_op().unwrap();
+        op
+    }
+
+    #[test]
+    fn unary_op_is_methods() {
+        comptime {
+            assert(unary_op(quote { -x }).is_minus());
+            assert(unary_op(quote { !x }).is_not());
+            assert(unary_op(quote { &mut x }).is_mutable_reference());
+            assert(unary_op(quote { *x }).is_dereference());
+        }
+    }
+
+    #[test]
+    fn unary_op_quoted() {
+        comptime {
+            assert_eq(unary_op(quote { -x }).quoted(), quote { - });
+            assert_eq(unary_op(quote { !x }).quoted(), quote { ! });
+            assert_eq(unary_op(quote { &mut x }).quoted(), quote { &mut });
+            assert_eq(unary_op(quote { *x }).quoted(), quote { * });
+        }
+    }
+
+    #[test]
+    fn unary_op_eq() {
+        comptime {
+            assert(unary_op(quote { -x }) == unary_op(quote { -x }));
+            assert(unary_op(quote { -x }) != unary_op(quote { !x }));
+        }
+    }
+
+    #[test]
+    fn binary_op_is_methods() {
+        comptime {
+            assert(binary_op(quote { x + y }).is_add());
+            assert(binary_op(quote { x - y }).is_subtract());
+            assert(binary_op(quote { x * y }).is_multiply());
+            assert(binary_op(quote { x / y }).is_divide());
+            assert(binary_op(quote { x == y }).is_equal());
+            assert(binary_op(quote { x != y }).is_not_equal());
+            assert(binary_op(quote { x < y }).is_less_than());
+            assert(binary_op(quote { x <= y }).is_less_than_or_equal());
+            assert(binary_op(quote { x > y }).is_greater_than());
+            assert(binary_op(quote { x >= y }).is_greater_than_or_equal());
+            assert(binary_op(quote { x & y }).is_and());
+            assert(binary_op(quote { x | y }).is_or());
+            assert(binary_op(quote { x ^ y }).is_xor());
+            assert(binary_op(quote { x >> y }).is_shift_right());
+            assert(binary_op(quote { x << y }).is_shift_left());
+            assert(binary_op(quote { x % y }).is_modulo());
+        }
+    }
+
+    #[test]
+    fn binary_op_quoted() {
+        comptime {
+            assert_eq(binary_op(quote { x + y }).quoted(), quote { + });
+            assert_eq(binary_op(quote { x - y }).quoted(), quote { - });
+            assert_eq(binary_op(quote { x * y }).quoted(), quote { * });
+            assert_eq(binary_op(quote { x / y }).quoted(), quote { / });
+            assert_eq(binary_op(quote { x == y }).quoted(), quote { == });
+            assert_eq(binary_op(quote { x != y }).quoted(), quote { != });
+            assert_eq(binary_op(quote { x < y }).quoted(), quote { < });
+            assert_eq(binary_op(quote { x <= y }).quoted(), quote { <= });
+            assert_eq(binary_op(quote { x > y }).quoted(), quote { > });
+            assert_eq(binary_op(quote { x >= y }).quoted(), quote { >= });
+            assert_eq(binary_op(quote { x & y }).quoted(), quote { & });
+            assert_eq(binary_op(quote { x | y }).quoted(), quote { | });
+            assert_eq(binary_op(quote { x ^ y }).quoted(), quote { ^ });
+            assert_eq(binary_op(quote { x >> y }).quoted(), quote { >> });
+            assert_eq(binary_op(quote { x << y }).quoted(), quote { << });
+            assert_eq(binary_op(quote { x % y }).quoted(), quote { % });
+        }
+    }
+
+    #[test]
+    fn binary_op_eq() {
+        comptime {
+            assert(binary_op(quote { x + y }) == binary_op(quote { x + y }));
+            assert(binary_op(quote { x + y }) != binary_op(quote { x - y }));
+        }
+    }
+
+}
