@@ -331,7 +331,7 @@ impl DataFlowGraph {
         }
 
         let simplify_result =
-            simplify(&instruction, self, block, ctrl_typevars.clone(), call_stack);
+            simplify(&instruction, self, block, ctrl_typevars.as_deref(), call_stack);
 
         match simplify_result {
             SimplifyResult::SimplifiedTo(simplification) => {
@@ -386,10 +386,12 @@ impl DataFlowGraph {
                 // Pull off the last instruction as we want to return its results.
                 let last_instruction = instructions.pop().expect("`instructions` can't be empty");
                 for instruction in instructions {
+                    // These are all `Constrain` instructions, which have no results and so
+                    // never need control type variables.
                     self.insert_instruction_without_simplification(
                         instruction,
                         block,
-                        ctrl_typevars.clone(),
+                        None,
                         call_stack,
                     );
                 }
@@ -910,8 +912,15 @@ impl DataFlowGraph {
         self.function_purities = purities;
     }
 
+    /// Returns the purity of `function` as observed from this function (the caller).
+    ///
+    /// This is the callee's own purity, except that a pure Brillig function called from an ACIR
+    /// function is observed as [Purity::PureWithPredicate]: the call lowers to a predicated
+    /// `Opcode::BrilligCall` whose outputs are left unconstrained when the predicate is disabled,
+    /// so the result is predicate-dependent from an ACIR caller's perspective. From a Brillig
+    /// caller (whose calls are not predicated) the function's true purity is observed.
     pub(crate) fn purity_of(&self, function: FunctionId) -> Option<Purity> {
-        self.function_purities.get(&function).copied()
+        self.function_purities.purity_of(function, self.runtime())
     }
 
     /// Determine the appropriate [`ArrayOffset`] to use for indexing an array or vector.
@@ -927,6 +936,31 @@ impl DataFlowGraph {
             Type::Vector(_) => ArrayOffset::Vector,
             _ => ArrayOffset::None,
         }
+    }
+
+    /// Returns `true` when `index` is a compile-time constant that is provably out of bounds for
+    /// `array`, given its statically known `length`. Returns `false` for non-constant indices and
+    /// for in-bounds accesses.
+    ///
+    /// In Brillig a constant array/vector index is shifted past the in-memory header (see
+    /// `brillig_array_gets`); [`Self::array_offset`] is that shift in Brillig and `None` (`0`) in
+    /// ACIR, so subtracting it recovers the logical index and the same check serves both runtimes.
+    pub(crate) fn constant_index_is_out_of_bounds(
+        &self,
+        array: ValueId,
+        index: ValueId,
+        length: SemanticLength,
+    ) -> bool {
+        let Some(index_constant) = self.get_numeric_constant(index) else {
+            return false;
+        };
+        let semi_flattened_length =
+            u128::from((length * self.type_of_value(array).element_size()).0);
+        let offset = u128::from(self.array_offset(array, index).to_u32());
+        index_constant
+            .to_u128()
+            .checked_sub(offset)
+            .is_none_or(|logical_index| logical_index >= semi_flattened_length)
     }
 
     /// Check if the results of an instruction are used in the databus to return a value..

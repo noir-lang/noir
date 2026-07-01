@@ -110,7 +110,7 @@ impl Parser<'_> {
             }
 
             // Or if we find a right brace
-            if self.at(Token::RightBrace) {
+            if self.at(&Token::RightBrace) {
                 return None;
             }
 

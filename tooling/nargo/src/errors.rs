@@ -186,7 +186,7 @@ fn extract_locations_from_error<F: AcirField>(
                     OpcodeLocation::Brillig { brillig_index, .. } => *debug
                         [resolved_location.acir_function_index]
                         .brillig_locations[&brillig_function_id.unwrap()]
-                        .get(&BrilligOpcodeLocation(brillig_index))
+                        .get(&BrilligOpcodeLocation::new(brillig_index))
                         .unwrap_or(&CallStackId::root()),
                 };
                 debug[resolved_location.acir_function_index]

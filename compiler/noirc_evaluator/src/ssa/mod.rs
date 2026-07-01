@@ -214,7 +214,7 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
             .and_then(Ssa::remove_redundant_params)
             .and_then_validate(|#[allow(unused)] ssa| {
                 #[cfg(debug_assertions)]
-                validation::array_set_rc_invariant::verify_array_set_rc_invariant(ssa)?;
+                validation::rc_invariant::verify_all(ssa)?;
                 Ok(())
             }),
         SsaPass::new_try(Ssa::defunctionalize, "Defunctionalization"),
@@ -308,7 +308,11 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
         SsaPass::new(Ssa::remove_redundant_params, "Remove Redundant Parameters"),
         // Removing redundant block parameters can reveal new CFG structures that can be simplified further.
         SsaPass::new(Ssa::simplify_cfg, "Simplifying"),
-        SsaPass::new(Ssa::flatten_cfg, "Flattening"),
+        SsaPass::new(Ssa::flatten_cfg, "Flattening").and_then_validate(|#[allow(unused)] ssa| {
+            #[cfg(debug_assertions)]
+            validation::flatten_post_check::verify_side_effect_predicates(ssa)?;
+            Ok(())
+        }),
         SsaPass::new(Ssa::array_set_window_optimization, "ArraySet Window optimization"),
         // Run mem2reg on all functions after flattening to handle cross-block promotion
         // (Brillig still multi-block; ACIR is single-block so this is trivial for ACIR).
@@ -653,7 +657,7 @@ fn brillig_side_effects(
         .iter()
         .enumerate()
         .map(|(idx, function)| {
-            let id = BrilligFunctionId(idx as u32);
+            let id = BrilligFunctionId::new(idx as u32);
             let has_side_effect = function
                 .bytecode
                 .iter()
@@ -851,7 +855,7 @@ mod brillig_side_effects_tests {
         let side_effects = brillig_side_effects(&brillig);
 
         // A foreign call is the only thing that lets a Brillig function affect the outside world.
-        assert!(!side_effects[&BrilligFunctionId(0)]);
-        assert!(side_effects[&BrilligFunctionId(1)]);
+        assert!(!side_effects[&BrilligFunctionId::new(0)]);
+        assert!(side_effects[&BrilligFunctionId::new(1)]);
     }
 }

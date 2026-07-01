@@ -228,10 +228,13 @@ impl ModCollector<'_> {
             let module = ModuleId { krate, local_id: self.module_id };
 
             for (_, func_id, noir_function) in &mut unresolved_functions.functions {
-                if noir_function.def.attributes.is_test_function() {
-                    let error = DefCollectorErrorKind::TestOnAssociatedFunction {
-                        location: noir_function.name_ident().location(),
-                    };
+                if let Some((_, location)) = noir_function.def.attributes.as_test_function() {
+                    let error = DefCollectorErrorKind::TestOnAssociatedFunction { location };
+                    errors.push(error);
+                }
+
+                if let Some((_, location)) = noir_function.def.attributes.as_fuzzing_harness() {
+                    let error = DefCollectorErrorKind::FuzzOnAssociatedFunction { location };
                     errors.push(error);
                 }
 
@@ -556,7 +559,20 @@ impl ModCollector<'_> {
                         is_unconstrained,
                         visibility: _,
                         is_comptime,
+                        attributes,
                     } => {
+                        if let Some((_, location)) = attributes.as_test_function() {
+                            let error =
+                                DefCollectorErrorKind::TestOnAssociatedFunction { location };
+                            errors.push(error);
+                        }
+
+                        if let Some((_, location)) = attributes.as_fuzzing_harness() {
+                            let error =
+                                DefCollectorErrorKind::FuzzOnAssociatedFunction { location };
+                            errors.push(error);
+                        }
+
                         let func_id = context.def_interner.push_empty_fn();
                         if !method_ids.contains_key(name.as_str()) {
                             method_ids.insert(name.to_string(), func_id);
@@ -566,8 +582,7 @@ impl ModCollector<'_> {
                         let modifiers = FunctionModifiers {
                             name: name.to_string(),
                             visibility: trait_definition.visibility,
-                            // TODO(Maddiaa): Investigate trait implementations with attributes see: https://github.com/noir-lang/noir/issues/2629
-                            attributes: crate::token::Attributes::empty(),
+                            attributes: attributes.clone(),
                             generic_count: generics.len(),
                             is_comptime: *is_comptime,
                             name_location: location,
@@ -594,16 +609,17 @@ impl ModCollector<'_> {
                         ) {
                             Ok(()) => {
                                 if let Some(body) = body {
-                                    let impl_method =
-                                        NoirFunction::normal(FunctionDefinition::normal(
-                                            name,
-                                            *is_unconstrained,
-                                            generics,
-                                            parameters,
-                                            body.clone(),
-                                            where_clause.clone(),
-                                            return_type,
-                                        ));
+                                    let mut def = FunctionDefinition::normal(
+                                        name,
+                                        *is_unconstrained,
+                                        generics,
+                                        parameters,
+                                        body.clone(),
+                                        where_clause.clone(),
+                                        return_type,
+                                    );
+                                    def.attributes = attributes.clone();
+                                    let impl_method = NoirFunction::normal(def);
                                     unresolved_functions.push_fn(
                                         self.module_id,
                                         func_id,
@@ -1437,10 +1453,13 @@ pub fn collect_impl(
         let doc_comments = method.doc_comments;
         let mut method = method.item;
 
-        if method.def.attributes.is_test_function() {
-            let error = DefCollectorErrorKind::TestOnAssociatedFunction {
-                location: method.name_ident().location(),
-            };
+        if let Some((_, location)) = method.def.attributes.as_test_function() {
+            let error = DefCollectorErrorKind::TestOnAssociatedFunction { location };
+            errors.push(error);
+            continue;
+        }
+        if let Some((_, location)) = method.def.attributes.as_fuzzing_harness() {
+            let error = DefCollectorErrorKind::FuzzOnAssociatedFunction { location };
             errors.push(error);
             continue;
         }

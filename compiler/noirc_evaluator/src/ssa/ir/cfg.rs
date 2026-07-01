@@ -117,6 +117,28 @@ impl ControlFlowGraph {
             .copied()
     }
 
+    /// The blocks of the natural loop with the given `header` and back-edge source
+    /// `back_edge_start`: the header together with every block that reaches `back_edge_start`
+    /// by walking predecessors backwards, stopping at the header.
+    pub(crate) fn find_blocks_in_loop(
+        &self,
+        header: BasicBlockId,
+        back_edge_start: BasicBlockId,
+    ) -> BTreeSet<BasicBlockId> {
+        let mut blocks = BTreeSet::new();
+        blocks.insert(header);
+
+        let mut stack = vec![back_edge_start];
+        while let Some(block) = stack.pop() {
+            // The header is already inserted, so reaching it returns `false` and stops the walk
+            // past it; this also terminates a single-block (self-edge) loop.
+            if blocks.insert(block) {
+                stack.extend(self.predecessors(block));
+            }
+        }
+        blocks
+    }
+
     /// Get an iterator over the CFG successors to `basic_block_id`.
     pub(crate) fn successors(
         &self,

@@ -28,9 +28,11 @@ use acvm::{
 use itertools::Itertools;
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
-#[cfg(debug_assertions)]
-pub(crate) mod array_set_rc_invariant;
 pub(crate) mod dynamic_array_indices;
+#[cfg(debug_assertions)]
+pub(crate) mod flatten_post_check;
+#[cfg(debug_assertions)]
+pub(crate) mod rc_invariant;
 
 use crate::ssa::{
     ir::{
@@ -1653,7 +1655,7 @@ mod tests {
     #[test]
     fn constrain_with_array_operands_is_rejected() {
         let src = "
-        brillig(inline) predicate_pure fn main f0 {
+        brillig(inline) pure fn main f0 {
           b0(v0: [u8; 2], v1: [u8; 2]):
             constrain v0 == v1
             return
@@ -1679,7 +1681,7 @@ mod tests {
     #[test]
     fn constrain_with_reference_operands_is_rejected() {
         let src = "
-        brillig(inline) predicate_pure fn main f0 {
+        brillig(inline) pure fn main f0 {
           b0(v0: &mut Field, v1: &mut Field):
             constrain v0 == v1
             return

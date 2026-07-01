@@ -209,6 +209,58 @@ impl<T, let MaxLen: u32> BoundedVec<T, MaxLen> {
         self.len
     }
 
+    /// Sets the length of the vector to any value between `0` and `MaxLen`.
+    ///
+    /// Increasing the length exposes elements that were written past the current
+    /// length (e.g. with `set_unchecked`); decreasing it discards trailing
+    /// elements. Note that this does not zero out any element of the backing storage,
+    /// so elements beyond the new length remain readable through `storage`.
+    ///
+    /// Example:
+    ///
+    /// ```noir
+    /// let mut v: BoundedVec<Field, 10> = BoundedVec::from([1, 2, 3, 4, 5]);
+    ///
+    /// assert(v.len() == 5);
+    /// v.set_unchecked(5, 6);
+    /// v.set_unchecked(6, 7);
+    /// v.set_unchecked(7, 8);
+    /// v.set_len(8);
+    /// assert(v.len() == 8);
+    ///
+    /// // The length can also be reduced.
+    /// v.set_len(2);
+    /// assert(v.len() == 2);
+    /// ```
+    pub fn set_len(&mut self, len: u32) {
+        assert(len <= MaxLen, "set_len out of bounds");
+        self.len = len;
+    }
+
+    /// Shortens the vector to `len`, keeping the first `len` elements.
+    ///
+    /// If `len` is greater than or equal to the current length, the vector is
+    /// left unchanged. Regardless of the current length, after this call the
+    /// vector is guaranteed to hold no more than `len` elements.
+    ///
+    /// Example:
+    ///
+    /// ```noir
+    /// let mut v: BoundedVec<Field, 10> = BoundedVec::from([1, 2, 3, 4, 5]);
+    ///
+    /// v.truncate(3);
+    /// assert(v.len() == 3);
+    ///
+    /// // Truncating to a length greater than the current length is a no-op.
+    /// v.truncate(8);
+    /// assert(v.len() == 3);
+    /// ```
+    pub fn truncate(&mut self, len: u32) {
+        if len < self.len() {
+            self.len = len;
+        }
+    }
+
     /// Returns the maximum length of this vector. This is always
     /// equal to the `MaxLen` parameter this vector was initialized with.
     ///
@@ -718,6 +770,114 @@ mod bounded_vec_tests {
             assert_eq(vec.get(2), 30);
             assert_eq(vec.get(3), 4);
             assert_eq(vec.get(4), 5);
+        }
+    }
+
+    mod set_len {
+        use crate::collections::bounded_vec::BoundedVec;
+
+        #[test]
+        fn set_len_works_after_multiple_unchecked_sets() {
+            let mut vec: BoundedVec<u8, 10> = BoundedVec::from_array([1, 2, 3]);
+            vec.set_unchecked(3, 44);
+            vec.set_unchecked(4, 55);
+            vec.set_unchecked(5, 66);
+            // Index 6 is intentionally left untouched: it stays zeroed.
+            vec.set_len(8);
+            assert_eq(vec.len(), 8);
+
+            // The explicitly written elements are exposed at their indices...
+            assert_eq(vec.get(3), 44);
+            assert_eq(vec.get(4), 55);
+            assert_eq(vec.get(5), 66);
+            // ...while the gap between the last write and the new length is zeroed.
+            assert_eq(vec.get(6), 0);
+            assert_eq(vec.get(7), 0);
+
+            vec.extend_from_array([88, 99]);
+            assert_eq(vec.len(), 10);
+        }
+
+        #[test]
+        fn set_len_can_reduce_the_length() {
+            let mut vec: BoundedVec<u32, 5> = BoundedVec::from_array([1, 2, 3, 4, 5]);
+            vec.set_len(2);
+            assert_eq(vec.len(), 2);
+            // Reducing the length does not zero the backing storage, so the
+            // discarded elements remain readable through `storage`.
+            assert_eq(vec.storage()[2], 3);
+            assert_eq(vec.storage()[3], 4);
+            assert_eq(vec.storage()[4], 5);
+        }
+
+        #[test(should_fail_with = "set_len out of bounds")]
+        fn panics_when_set_len_beyond_max_len() {
+            let mut vec: BoundedVec<u32, 5> = BoundedVec::from_array([1, 2, 3]);
+            vec.set_len(6);
+        }
+    }
+
+    mod truncate {
+        use crate::collections::bounded_vec::BoundedVec;
+
+        #[test]
+        fn truncate_shortens_to_len() {
+            let mut vec: BoundedVec<u32, 10> = BoundedVec::from_array([1, 2, 3, 4, 5]);
+            vec.truncate(3);
+            assert_eq(vec.len(), 3);
+            assert_eq(vec.storage()[0], 1);
+            assert_eq(vec.storage()[1], 2);
+            assert_eq(vec.storage()[2], 3);
+        }
+
+        #[test]
+        fn truncate_to_zero_empties_the_vec() {
+            let mut vec: BoundedVec<u32, 10> = BoundedVec::from_array([1, 2, 3]);
+            vec.truncate(0);
+            assert_eq(vec.len(), 0);
+        }
+
+        #[test]
+        fn truncate_to_equal_len_is_noop() {
+            let mut vec: BoundedVec<u32, 10> = BoundedVec::from_array([1, 2, 3]);
+            vec.truncate(3);
+            assert_eq(vec.len(), 3);
+        }
+
+        #[test]
+        fn truncate_to_greater_len_is_noop() {
+            let mut vec: BoundedVec<u32, 10> = BoundedVec::from_array([1, 2, 3]);
+            vec.truncate(8);
+            assert_eq(vec.len(), 3);
+        }
+
+        #[test]
+        fn truncate_beyond_max_len_is_noop() {
+            let mut vec: BoundedVec<u32, 5> = BoundedVec::from_array([1, 2, 3]);
+            vec.truncate(100);
+            assert_eq(vec.len(), 3);
+        }
+
+        #[test]
+        fn truncate_does_not_zero_remaining_storage() {
+            let mut vec: BoundedVec<u32, 5> = BoundedVec::from_array([1, 2, 3, 4, 5]);
+            vec.truncate(2);
+            assert_eq(vec.len(), 2);
+            // Items beyond the new length are left untouched in the backing storage.
+            assert_eq(vec.storage()[2], 3);
+            assert_eq(vec.storage()[3], 4);
+            assert_eq(vec.storage()[4], 5);
+        }
+
+        #[test]
+        fn truncate_then_push_continues_from_new_len() {
+            let mut vec: BoundedVec<u32, 10> = BoundedVec::from_array([1, 2, 3, 4, 5]);
+            vec.truncate(2);
+            vec.push(30);
+            assert_eq(vec.len(), 3);
+            assert_eq(vec.storage()[0], 1);
+            assert_eq(vec.storage()[1], 2);
+            assert_eq(vec.storage()[2], 30);
         }
     }
 

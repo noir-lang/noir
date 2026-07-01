@@ -1,0 +1,20 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+unconstrained fn main(cond: bool, brk: bool) -> pub [Field; 2] {
+    let mut x: [Field; 1] = [1_Field];
+    let mut z: [Field; 1] = [0_Field];
+    loop {
+        x = if cond {
+            let mut y: [Field; 1] = x;
+            y[0_u32] = 9_Field;
+            z = y;
+            if brk { break; };
+            [0_Field]
+        } else {
+            x
+        };
+    }
+    [x[0_u32], z[0_u32]]
+}

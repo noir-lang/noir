@@ -1,0 +1,25 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+unconstrained fn main(a: [Field; 2], c: [Field; 2]) {
+    let mut a: [Field; 2] = a;
+    let mut c: [Field; 2] = c;
+    let mut j: u32 = 0_u32;
+    while j < 2_u32 {
+        j = j + 1_u32;
+        c = [
+            {
+                let mut i: u32 = 0_u32;
+                while i < 1_u32 {
+                    i = i + 1_u32;
+                    c[0_u32] = 99_Field;
+                }
+                a[0_u32]
+            },
+            20_Field,
+        ];
+        a = c;
+    }
+    assert(a == [1_Field, 20_Field]);
+}

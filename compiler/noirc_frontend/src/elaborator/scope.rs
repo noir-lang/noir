@@ -1,33 +1,29 @@
 //! Lexical scoping, variable lookup, and closure capture tracking.
 
+use noirc_errors::Location;
+
 use crate::ast::{ERROR_IDENT, Ident};
 use crate::elaborator::path_resolution::PathResolution;
-use crate::elaborator::patterns::Variable;
+use crate::elaborator::patterns::{PathValue, Variable};
 use crate::graph::CrateId;
 use crate::hir::def_map::{LocalModuleId, ModuleId};
 
 use crate::hir::scope::ScopeTree as GenericScopeTree;
-use crate::node_interner::{DefinitionKind, TypeAliasId};
+use crate::node_interner::DefinitionKind;
 use crate::{
     DataType, Shared,
     hir::resolution::errors::ResolverError,
     hir_def::{expr::HirCapturedVar, traits::Trait},
-    node_interner::{DefinitionId, TraitId, TypeId},
+    node_interner::{TraitId, TypeId},
 };
 use crate::{Type, TypeAlias};
 
-use super::path_resolution::{PathResolutionItem, PathResolutionMode, TypedPath};
+use super::path_resolution::{
+    PathResolutionItem, PathResolutionMode, Turbofish, TypedPath, TypedPathSegment,
+};
 use super::{Elaborator, PathResolutionTarget, ResolverMeta};
 
 type ScopeTree = GenericScopeTree<String, ResolverMeta>;
-
-/// The result of [`Elaborator::lookup_item_as_value`].
-pub(crate) enum ItemAsValue {
-    /// A definition was found.
-    Definition { id: DefinitionId, item: PathResolutionItem },
-    /// A type alias that is numeric, infinitely recursive or one that errored, was found.
-    TypeAlias(TypeAliasId),
-}
 
 pub(crate) struct ReplacedModule(CrateId, Option<LocalModuleId>);
 
@@ -138,26 +134,62 @@ impl Elaborator<'_> {
     /// If the path resolves to an item that is not a value (for example a struct, an enum,
     /// a type alias, etc.), returns a `ResolverError`. `ResolverError` is also returned
     /// when no item is found.
+    ///
+    /// Unlike [`Self::resolve_path_as_value_or_error`] this never tries a local variable, so it is
+    /// what a multi-segment path (which can never name a local variable) needs.
     #[tracing::instrument(level = "trace", skip_all)]
-    pub(super) fn lookup_item_as_value(
+    pub(super) fn lookup_path_as_value(
         &mut self,
         path: TypedPath,
-    ) -> Result<ItemAsValue, ResolverError> {
+    ) -> Result<PathValue, ResolverError> {
         let location = path.location;
         let item = self.use_path_or_error(path, PathResolutionTarget::Value)?;
+        self.path_resolution_item_as_value(item, location)
+    }
 
+    /// Like [`Self::lookup_path_as_value`], but resolves `segment` directly in the already-resolved
+    /// `module_id` rather than from the current module.
+    pub(super) fn lookup_path_as_value_in_module(
+        &mut self,
+        segment: TypedPathSegment,
+        module_id: ModuleId,
+    ) -> Result<PathValue, ResolverError> {
+        let location = segment.ident.location();
+        let item =
+            self.use_value_in_module(TypedPath::plain(vec![segment], location), module_id)?;
+        self.path_resolution_item_as_value(item, location)
+    }
+
+    /// Like [`Self::lookup_path_as_value`], but resolves `segment` directly as a value member (an
+    /// enum variant or associated constant) of the already-resolved type `typ`.
+    pub(super) fn lookup_path_as_value_in_type(
+        &mut self,
+        segment: &TypedPathSegment,
+        typ: &Type,
+        turbofish: Option<Turbofish>,
+    ) -> Result<PathValue, ResolverError> {
+        let location = segment.ident.location();
+        let item = self.use_value_in_type(segment, typ, turbofish)?;
+        self.path_resolution_item_as_value(item, location)
+    }
+
+    /// Interpret an already-resolved [`PathResolutionItem`] as a value (the definition it refers
+    /// to), or return an `Expected` error when it is not a value. `location` is used for that error.
+    fn path_resolution_item_as_value(
+        &self,
+        item: PathResolutionItem,
+        location: Location,
+    ) -> Result<PathValue, ResolverError> {
         if let Some(function) = item.function_id() {
             let definition_id = self.interner.function_definition_id(function);
-            let item_as_value = ItemAsValue::Definition { id: definition_id, item };
-            return Ok(item_as_value);
+            return Ok(PathValue::Definition { id: definition_id, item });
         }
 
         let expected = "value";
         match item {
-            PathResolutionItem::Global(global) => {
+            PathResolutionItem::Global(global) | PathResolutionItem::EnumVariant(global) => {
                 let global = self.interner.get_global(global);
-                let item_as_value = ItemAsValue::Definition { id: global.definition_id, item };
-                Ok(item_as_value)
+                Ok(PathValue::Definition { id: global.definition_id, item })
             }
             PathResolutionItem::TypeAlias(type_alias_id) => {
                 let type_alias = self.interner.get_type_alias(type_alias_id);
@@ -166,13 +198,13 @@ impl Elaborator<'_> {
                 if type_alias.borrow().numeric_expr.is_some() {
                     // Type alias to numeric generics are aliases to some global value
                     // Therefore we allow this case although we cannot provide the value yet
-                    return Ok(ItemAsValue::TypeAlias(type_alias_id));
+                    return Ok(PathValue::TypeAlias(type_alias_id));
                 }
                 if matches!(type_alias.borrow().typ, Type::Alias(_, _))
                     || matches!(type_alias.borrow().typ, Type::Error)
                 {
                     // Type alias to a type alias is not supported, but the error is handled in define_type_alias()
-                    return Ok(ItemAsValue::TypeAlias(type_alias_id));
+                    return Ok(PathValue::TypeAlias(type_alias_id));
                 }
                 Err(ResolverError::Expected {
                     location,
@@ -182,8 +214,7 @@ impl Elaborator<'_> {
             }
             PathResolutionItem::TraitConstant(_, _, def_id) => {
                 // TraitConstant is returned, item is Some
-                let item_as_value = ItemAsValue::Definition { id: def_id, item };
-                Ok(item_as_value)
+                Ok(PathValue::Definition { id: def_id, item })
             }
             item => Err(ResolverError::Expected {
                 location,

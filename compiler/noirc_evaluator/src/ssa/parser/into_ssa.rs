@@ -23,7 +23,7 @@ use crate::ssa::{
         instruction::{ArrayOffset, ConstrainError, Instruction},
         value::ValueId,
     },
-    opt::pure::{FunctionPurities, compute_function_purities},
+    opt::pure::{FunctionPurities, Purity, compute_function_purities},
     parser::ast::ParsedDataBus,
     ssa_gen::validate_ssa,
 };
@@ -130,23 +130,28 @@ impl Translator {
         builder.set_allow_malformed_simplify(allow_malformed);
 
         if let Some(purity) = main_function.purity {
-            purities.insert(main_id, purity);
+            purities.insert_purity(main_id, purity);
+        }
+        if main_function.runtime_type.is_brillig() {
+            purities.insert_brillig_function(main_id);
         }
 
         // Map function names to their IDs so calls can be resolved
-        let mut function_id_counter = 1;
         let mut functions = HashMap::new();
 
         functions.insert(main_function.internal_name.clone(), main_id);
 
-        for function in &parsed_ssa.functions {
-            let function_id = FunctionId::new(function_id_counter);
-            function_id_counter += 1;
+        for (index, function) in parsed_ssa.functions.iter().enumerate() {
+            // Function ID 0 is reserved for `main`, which is inserted above.
+            let function_id = FunctionId::new(index as u32 + 1);
 
             functions.insert(function.internal_name.clone(), function_id);
 
             if let Some(purity) = function.purity {
-                purities.insert(function_id, purity);
+                purities.insert_purity(function_id, purity);
+            }
+            if function.runtime_type.is_brillig() {
+                purities.insert_brillig_function(function_id);
             }
         }
 
@@ -724,8 +729,10 @@ fn validate_stated_purities(
     }
 
     let computed_purities = compute_function_purities(ssa);
+    let computed_purities: HashMap<FunctionId, Purity> =
+        computed_purities.intrinsic_purities().map(|(id, purity)| (*id, *purity)).collect();
 
-    for (function_id, stated) in stated_purities {
+    for (function_id, stated) in stated_purities.intrinsic_purities() {
         let computed = computed_purities[function_id];
         if *stated != computed {
             let function_name = ssa.functions[function_id].name().to_string();

@@ -23,6 +23,16 @@ use crate::assert_usize;
 /// All memory pointers are interpreted as `u32` values, meaning the VM can directly address up to 2^32 memory slots.
 pub const MEMORY_ADDRESSING_BIT_SIZE: IntegerBitSize = IntegerBitSize::U32;
 
+/// Maximum number of memory slots that can be allocated.
+///
+/// This limit is set to `i32::MAX` to ensure deterministic behavior across all architectures.
+/// On 32-bit systems, Rust's allocator limits allocations to `isize::MAX` bytes, which would
+/// restrict us to fewer elements anyway. By using `i32::MAX`, we ensure the same behavior
+/// on both 32-bit and 64-bit systems.
+///
+/// See: <https://github.com/rust-lang/rust/pull/95295> and <https://doc.rust-lang.org/1.81.0/src/core/alloc/layout.rs.html>
+pub const MAX_MEMORY_SIZE: usize = i32::MAX as usize;
+
 /// The current stack pointer is always in slot 0.
 ///
 /// It gets manipulated by opcodes laid down for calls by codegen.
@@ -486,26 +496,15 @@ impl<F: AcirField> Memory<F> {
         }
     }
 
-    /// Maximum number of memory slots that can be allocated.
-    ///
-    /// This limit is set to `i32::MAX` to ensure deterministic behavior across all architectures.
-    /// On 32-bit systems, Rust's allocator limits allocations to `isize::MAX` bytes, which would
-    /// restrict us to fewer elements anyway. By using `i32::MAX`, we ensure the same behavior
-    /// on both 32-bit and 64-bit systems.
-    ///
-    /// See: <https://github.com/rust-lang/rust/pull/95295> and <https://doc.rust-lang.org/1.81.0/src/core/alloc/layout.rs.html>
-    const MAX_MEMORY_SIZE: usize = i32::MAX as usize;
-
     /// Increase the size of memory fit `size` elements, or the current length, whichever is bigger.
     ///
     /// # Panics
     ///
-    /// Panics if `size` exceeds [`Self::MAX_MEMORY_SIZE`].
+    /// Panics if `size` exceeds [`MAX_MEMORY_SIZE`].
     fn resize_to_fit(&mut self, size: usize) {
         assert!(
-            size <= Self::MAX_MEMORY_SIZE,
-            "Memory address space exceeded: requested {size} slots, maximum is {} (i32::MAX)",
-            Self::MAX_MEMORY_SIZE
+            size <= MAX_MEMORY_SIZE,
+            "Memory address space exceeded: requested {size} slots, maximum is {MAX_MEMORY_SIZE} (i32::MAX)"
         );
         // Calculate new memory size
         let new_size = std::cmp::max(self.inner.len(), size);
@@ -683,7 +682,7 @@ mod tests {
     fn resize_to_fit_panics_when_exceeding_max_memory_size() {
         let mut memory = Memory::<FieldElement>::default();
         // Attempting to resize beyond i32::MAX should panic
-        memory.resize_to_fit(Memory::<FieldElement>::MAX_MEMORY_SIZE + 1);
+        memory.resize_to_fit(MAX_MEMORY_SIZE + 1);
     }
 
     #[test_case(IntegerBitSize::U1, 2)]

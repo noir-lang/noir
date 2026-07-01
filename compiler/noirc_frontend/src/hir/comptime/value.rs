@@ -267,7 +267,6 @@ impl Value {
                 // block expression.
                 let mut statements = Vec::new();
                 let mut new_fragments = Vec::with_capacity(fragments.len());
-                let mut has_values = false;
                 let mut seen_names: HashSet<String> = HashSet::default();
                 for fragment in fragments.iter() {
                     let new_fragment = match fragment {
@@ -276,32 +275,34 @@ impl Value {
                         }
                         FormatStringFragment::Value { name, value } => {
                             // A name might be interpolated multiple times. In that case it will always
-                            // have the same value: we just need one `let` for it.
-                            if !seen_names.insert(name.clone()) {
-                                continue;
+                            // have the same value: we just need one `let` for it. We must still emit an
+                            // interpolation fragment per occurrence so the lowered format string keeps
+                            // the same number of captures as the source template.
+                            if seen_names.insert(name.clone()) {
+                                let expression =
+                                    value.clone().into_expression(elaborator, location)?;
+                                let let_statement = LetStatement {
+                                    pattern: Pattern::Identifier(Ident::new(
+                                        name.clone(),
+                                        location,
+                                    )),
+                                    r#type: None,
+                                    expression,
+                                    attributes: Vec::new(),
+                                    comptime: false,
+                                    is_global_let: false,
+                                };
+                                let statement =
+                                    Statement { kind: StatementKind::Let(let_statement), location };
+                                statements.push(statement);
                             }
-
-                            has_values = true;
-
-                            let expression = value.clone().into_expression(elaborator, location)?;
-                            let let_statement = LetStatement {
-                                pattern: Pattern::Identifier(Ident::new(name.clone(), location)),
-                                r#type: None,
-                                expression,
-                                attributes: Vec::new(),
-                                comptime: false,
-                                is_global_let: false,
-                            };
-                            let statement =
-                                Statement { kind: StatementKind::Let(let_statement), location };
-                            statements.push(statement);
                             FmtStrFragment::Interpolation(name.clone(), location)
                         }
                     };
                     new_fragments.push(new_fragment);
                 }
                 let fmtstr = Literal(FmtStr(new_fragments, length));
-                if has_values {
+                if !statements.is_empty() {
                     statements.push(Statement {
                         kind: StatementKind::Expression(Expression { kind: fmtstr, location }),
                         location,
@@ -777,7 +778,7 @@ impl Value {
         let parser = Parser::parse_top_level_items;
         match self {
             Value::Quoted(tokens) => {
-                parse_tokens(tokens, elaborator, parser, location, "top-level item")
+                parse_tokens(&tokens, elaborator, parser, location, "top-level item")
             }
             _ => {
                 let typ = self.get_type().into_owned();
@@ -818,7 +819,7 @@ pub(crate) fn unwrap_rc<T: Clone>(rc: Rc<T>) -> T {
 ///
 /// If they fail to parse, [`InterpreterError::FailedToParseMacro`] is returned.
 fn parse_tokens<'a, T, F>(
-    tokens: Rc<Vec<LocatedToken>>,
+    tokens: &Rc<Vec<LocatedToken>>,
     elaborator: &mut Elaborator,
     parsing_function: F,
     location: Location,
@@ -839,7 +840,7 @@ where
         Err(errors) => {
             let error = errors.into_iter().find(|error| !error.is_warning()).unwrap();
             let error = Box::new(error);
-            let tokens = tokens_to_string(&tokens, elaborator.interner, elaborator.files);
+            let tokens = tokens_to_string(tokens, elaborator.interner, elaborator.files);
             Err(InterpreterError::FailedToParseMacro { error, tokens, rule, location })
         }
     }

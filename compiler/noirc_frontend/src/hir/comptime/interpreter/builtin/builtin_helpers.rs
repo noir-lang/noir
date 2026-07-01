@@ -15,7 +15,7 @@ use crate::Shared;
 use crate::ast::{BinaryOp, ItemVisibility, UnaryOp};
 use crate::elaborator::Elaborator;
 use crate::hir::comptime::Integer;
-use crate::hir::comptime::display::tokens_to_string;
+use crate::hir::comptime::display::{tokens_to_string, value_to_bytes};
 use crate::hir::comptime::value::unwrap_rc;
 use crate::hir::comptime::value::{FormatStringFragment, StructFields};
 use crate::hir::def_collector::dc_crate::CompilationError;
@@ -49,7 +49,7 @@ use rustc_hash::FxHashMap as HashMap;
 /// inconsistent with their declared return type.
 ///
 /// Types whose shape cannot be judged cheaply and reliably (type variables, generics, aliases,
-/// references, functions, ...) have no shape and are therefore never flagged. Arrays and slices
+/// references, functions, ...) have no shape and are therefore never flagged. Arrays and vectors
 /// share a shape because some builtins legitimately return one where the other is declared.
 #[derive(PartialEq, Clone, Copy)]
 pub(crate) enum TypeShape {
@@ -72,7 +72,7 @@ impl std::fmt::Display for TypeShape {
             TypeShape::Integer(sign, size) => write!(f, "{}", Type::Integer(*sign, *size)),
             TypeShape::Bool => write!(f, "bool"),
             TypeShape::Unit => write!(f, "()"),
-            TypeShape::Sequence => write!(f, "an array or slice"),
+            TypeShape::Sequence => write!(f, "an array or vector"),
             TypeShape::String => write!(f, "a string"),
             TypeShape::FmtString => write!(f, "a format string"),
             TypeShape::Tuple(arity) => write!(f, "a {arity}-element tuple"),
@@ -644,7 +644,7 @@ where
     let tokens = get_quoted((value, location))?;
     let quoted = Tokens(unwrap_rc(tokens.clone()));
     let (result, warnings) = parse_tokens(
-        tokens,
+        &tokens,
         quoted,
         elaborator.interner,
         elaborator.files,
@@ -660,7 +660,7 @@ where
 }
 
 pub(super) fn parse_tokens<'a, T, F>(
-    tokens: Rc<Vec<LocatedToken>>,
+    tokens: &[LocatedToken],
     quoted: Tokens,
     interner: &NodeInterner,
     files: &FileMap,
@@ -677,7 +677,7 @@ where
             .find(|error| !error.is_warning())
             .expect("there is at least 1 error");
         let error = Box::new(error);
-        let tokens = tokens_to_string(&tokens, interner, files);
+        let tokens = tokens_to_string(tokens, interner, files);
         InterpreterError::FailedToParseMacro { error, tokens, rule, location }
     })
 }
@@ -891,7 +891,7 @@ pub(crate) fn new_unary_op(operator: UnaryOp, typ: Type) -> Option<Value> {
     Some(Value::Struct(fields, typ))
 }
 
-pub(crate) fn new_binary_op(operator: BinaryOp, typ: Type) -> Value {
+pub(crate) fn new_binary_op(operator: &BinaryOp, typ: Type) -> Value {
     // For the op value we use the enum member index, which should match noir_stdlib/src/meta/op.nr
     let binary_op_value = operator.contents as u128;
 
@@ -916,16 +916,17 @@ pub(crate) fn visibility_to_quoted(visibility: ItemVisibility, location: Locatio
     Value::Quoted(Rc::new(tokens))
 }
 
-pub(crate) fn fragments_to_string(
+/// Renders format string fragments to bytes.
+pub(crate) fn fragments_to_bytes(
     fragments: &[FormatStringFragment],
     interner: &NodeInterner,
     files: &FileMap,
-) -> String {
-    let mut result = String::new();
+) -> Vec<u8> {
+    let mut result = Vec::new();
     for fragment in fragments {
         match fragment {
             FormatStringFragment::String(string) => {
-                result.push_str(string);
+                result.extend_from_slice(string.as_bytes());
             }
             FormatStringFragment::Value { name: _, value } => {
                 match value {
@@ -934,25 +935,28 @@ pub(crate) fn fragments_to_string(
                         // surrounding `quote {` ... `}` as if we are unquoting the quoted value inside the string.
                         for (index, token) in tokens.iter().enumerate() {
                             if index > 0 {
-                                result.push(' ');
+                                result.push(b' ');
                             }
-                            result.push_str(&token.token().display(interner, files).to_string());
+                            let token = token.token().display(interner, files).to_string();
+                            result.extend_from_slice(token.as_bytes());
                         }
                     }
-                    Value::FormatString(fragments, _, _) => {
-                        // Nested format strings might have quoted values inside them,
-                        // so we need to recurse here instead of calling `value.display`.
-                        let inner_string = fragments_to_string(fragments, interner, files);
-                        result.push_str(&inner_string);
-                    }
                     _ => {
-                        result.push_str(&value.display(interner, files).to_string());
+                        result.extend_from_slice(&value_to_bytes(value, interner, files));
                     }
                 }
             }
         }
     }
     result
+}
+
+pub(crate) fn fragments_to_string(
+    fragments: &[FormatStringFragment],
+    interner: &NodeInterner,
+    files: &FileMap,
+) -> String {
+    String::from_utf8_lossy(&fragments_to_bytes(fragments, interner, files)).into_owned()
 }
 
 /// Converts a `Value` of noir type `Option<T>`, to a `Option<Value>` where the noir type is `T`
@@ -1002,13 +1006,13 @@ mod tests {
         let u32 = Type::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo);
         check_return_type_shape(&Value::u32(0), type_shape(&u32), loc).unwrap();
 
-        // Arrays and slices share a shape, so an array value satisfies a slice-declared return.
+        // Arrays and vectors share a shape, so an array value satisfies a vector-declared return.
         let array = Value::Array(
             Vector::new(),
             Type::Array(Box::new(Type::Bool), Box::new(Type::constant_u32(0))),
         );
-        let slice = Type::Vector(Box::new(Type::Bool));
-        check_return_type_shape(&array, type_shape(&slice), loc).unwrap();
+        let vector = Type::Vector(Box::new(Type::Bool));
+        check_return_type_shape(&array, type_shape(&vector), loc).unwrap();
     }
 
     #[test]

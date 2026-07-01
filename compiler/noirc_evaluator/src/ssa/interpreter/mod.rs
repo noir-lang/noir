@@ -1543,8 +1543,11 @@ macro_rules! apply_int_binop_opt {
     ($lhs:expr, $rhs:expr, $binary:expr, $f:expr, $display_binary:expr) => {{
         use value::NumericValue::*;
 
-        let lhs = $lhs;
-        let rhs = $rhs;
+        // A checked op consuming an operand that escaped its type via an overflowing unchecked
+        // op must see the wrapped, in-range value the backends carry forward, not the extended
+        // `Unfit` field; otherwise it would error where ACIR/Brillig succeed. See `restore_unfit`.
+        let lhs = restore_unfit($lhs)?;
+        let rhs = restore_unfit($rhs)?;
         let binary = $binary;
         let operator = binary.operator;
 
@@ -1638,6 +1641,38 @@ macro_rules! apply_int_comparison_op {
             }
         }
     }};
+}
+
+/// "Restore" a signed value that escaped its type via an overflowing unchecked operation into the
+/// wrapped, in-range value that ACIR carries forward when lowering a checked signed op.
+///
+/// An overflowing unchecked op leaves a [`value::Fitted::Unfit`] field that exceeds the operand's
+/// type (e.g. `unchecked_mul i32 i32::MAX, 2` yields the field `4294967294`). ACIR lowers a checked
+/// *signed* add/sub/mul by casting each operand to the unsigned type of the same width — i.e.
+/// truncating it to `bit_size` — before computing, so such an operand is reduced to its
+/// `bit_size`-bit representative there (`i32 -2`). Truncating a signed `Unfit` operand here mirrors
+/// that, so the checked op evaluates consistently with ACIR instead of erroring (noir-lang/noir-claude#1430).
+///
+/// Unsigned checked ops are lowered differently: ACIR keeps the operand as a field and
+/// range-constrains the *result*, so an out-of-range operand makes that range check fail and ACIR
+/// rejects the program. Unsigned `Unfit` operands are therefore left untouched so the checked op
+/// reports the overflow, matching that rejection — wrapping them would be unsound (an underflowed
+/// `unchecked_sub` carries `p - delta`, whose low `bit_size` bits are not the wrapped result, e.g.
+/// `0 - 10` as `u8` would give `247` rather than `246`). See noir-lang/noir-claude#1441.
+///
+/// Operands that already fit, and all unsigned operands, are returned unchanged.
+fn restore_unfit(value: NumericValue) -> IResult<NumericValue> {
+    use value::Fitted::Unfit;
+    use value::NumericValue::*;
+
+    let (I8(Unfit(field)) | I16(Unfit(field)) | I32(Unfit(field)) | I64(Unfit(field))) = value
+    else {
+        return Ok(value);
+    };
+
+    let typ = value.get_type();
+    let truncated = truncate_field(field, typ.bit_size::<FieldElement>());
+    NumericValue::from_constant(truncated, typ)
 }
 
 fn evaluate_binary(

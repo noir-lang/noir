@@ -14,9 +14,9 @@ mod traits;
 mod type_alias;
 mod visitor;
 
-use acvm::FieldElement;
 use noirc_errors::Located;
 use noirc_errors::Location;
+use num_bigint::BigInt;
 pub use visitor::AttributeTarget;
 pub use visitor::Visitor;
 
@@ -221,7 +221,7 @@ impl From<Vec<GenericTypeArg>> for GenericTypeArgs {
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub enum UnresolvedTypeExpression {
     Variable(Path),
-    Constant(FieldElement, Option<IntegerTypeSuffix>, Location),
+    Constant(BigInt, Option<IntegerTypeSuffix>, Location),
     BinaryOperation(
         Box<UnresolvedTypeExpression>,
         BinaryTypeOperator,
@@ -528,7 +528,7 @@ impl UnresolvedTypeExpression {
         match self {
             UnresolvedTypeExpression::Variable(path) => ExpressionKind::Variable(path.clone()),
             UnresolvedTypeExpression::Constant(int, suffix, _) => {
-                ExpressionKind::Literal(Literal::Integer(*int, *suffix))
+                ExpressionKind::Literal(Literal::Integer(int.clone(), *suffix))
             }
             UnresolvedTypeExpression::BinaryOperation(lhs, op, rhs, location) => {
                 ExpressionKind::Infix(Box::new(InfixExpression {
