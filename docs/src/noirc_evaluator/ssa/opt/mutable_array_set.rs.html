@@ -262,7 +262,7 @@
 <a href=#262 id=262 data-nosnippet>262</a>        assert_ssa_snapshot,
 <a href=#263 id=263 data-nosnippet>263</a>        ssa::{
 <a href=#264 id=264 data-nosnippet>264</a>            Ssa,
-<a href=#265 id=265 data-nosnippet>265</a>            interpreter::value::{NumericValue, Value},
+<a href=#265 id=265 data-nosnippet>265</a>            interpreter::value::Value,
 <a href=#266 id=266 data-nosnippet>266</a>            opt::{assert_pass_does_not_affect_execution, assert_ssa_does_not_change},
 <a href=#267 id=267 data-nosnippet>267</a>        },
 <a href=#268 id=268 data-nosnippet>268</a>    };
@@ -537,7 +537,7 @@
 <a href=#537 id=537 data-nosnippet>537</a>
 <a href=#538 id=538 data-nosnippet>538</a>        <span class="kw">let </span>(ssa, value) =
 <a href=#539 id=539 data-nosnippet>539</a>            assert_pass_does_not_affect_execution(ssa, <span class="macro">vec!</span>[], Ssa::mutable_array_set_optimization);
-<a href=#540 id=540 data-nosnippet>540</a>        <span class="macro">assert_eq!</span>(value.unwrap()[<span class="number">0</span>], Value::Numeric(NumericValue::Field(<span class="number">0_u32</span>.into())));
+<a href=#540 id=540 data-nosnippet>540</a>        <span class="macro">assert_eq!</span>(value.unwrap()[<span class="number">0</span>], Value::field(<span class="number">0_u32</span>.into()));
 <a href=#541 id=541 data-nosnippet>541</a>
 <a href=#542 id=542 data-nosnippet>542</a>        <span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
 <a href=#543 id=543 data-nosnippet>543</a>        acir(inline) fn main f0 {

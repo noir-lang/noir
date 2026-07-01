@@ -838,7 +838,7 @@
 <a href=#838 id=838 data-nosnippet>838</a>        <span class="kw">let </span><span class="kw-2">mut </span>vector_length: <span class="prelude-ty">Option</span>&lt;usize&gt; = <span class="prelude-val">None</span>;
 <a href=#839 id=839 data-nosnippet>839</a>        <span class="kw">for </span>value <span class="kw">in </span>values {
 <a href=#840 id=840 data-nosnippet>840</a>            <span class="kw">match </span>value {
-<a href=#841 id=841 data-nosnippet>841</a>                Value::Numeric(numeric_value) =&gt; fields.push(numeric_value.convert_to_field()),
+<a href=#841 id=841 data-nosnippet>841</a>                Value::Numeric(numeric_value) =&gt; fields.push(numeric_value.to_field()),
 <a href=#842 id=842 data-nosnippet>842</a>                Value::Reference(reference_value) =&gt; {
 <a href=#843 id=843 data-nosnippet>843</a>                    <span class="kw">if let </span><span class="prelude-val">Some</span>(value) = reference_value.element.borrow().as_ref() {
 <a href=#844 id=844 data-nosnippet>844</a>                        go(std::iter::once(value), fields);

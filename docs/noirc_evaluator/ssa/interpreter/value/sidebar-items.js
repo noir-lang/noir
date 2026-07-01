@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":["Fitted","NumericValue","Value"],"macro":["impl_fitted"],"struct":["ArrayValue","ReferenceValue"]};
+window.SIDEBAR_ITEMS = {"enum":["Value"],"struct":["ArrayValue","NumericValue","ReferenceValue"]};
