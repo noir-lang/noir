@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["callee_may_mutate_args","compute_may_mutate_args","intrinsic_may_mutate_args","verify","verify_function"]};
+window.SIDEBAR_ITEMS = {"fn":["callee_needs_arg_check","compute_may_mutate_args","compute_returns_arg_alias","fixpoint","function_returns_arg_alias","intrinsic_may_mutate_args","verify","verify_function"]};

@@ -12,315 +12,637 @@
 <a href=#12 id=12 data-nosnippet>12</a>//! sources, and gated on whether the callee can modify its arguments (mirroring
 <a href=#13 id=13 data-nosnippet>13</a>//! `can_modify_args` in `ssa_gen`).
 <a href=#14 id=14 data-nosnippet>14</a>
-<a href=#15 id=15 data-nosnippet>15</a></span><span class="kw">use </span>rustc_hash::FxHashMap <span class="kw">as </span>HashMap;
+<a href=#15 id=15 data-nosnippet>15</a></span><span class="kw">use </span>rustc_hash::{FxHashMap <span class="kw">as </span>HashMap, FxHashSet <span class="kw">as </span>HashSet};
 <a href=#16 id=16 data-nosnippet>16</a>
 <a href=#17 id=17 data-nosnippet>17</a><span class="kw">use crate</span>::{
 <a href=#18 id=18 data-nosnippet>18</a>    errors::{RtResult, RuntimeError},
 <a href=#19 id=19 data-nosnippet>19</a>    ssa::{
 <a href=#20 id=20 data-nosnippet>20</a>        ir::{
-<a href=#21 id=21 data-nosnippet>21</a>            function::{Function, FunctionId},
-<a href=#22 id=22 data-nosnippet>22</a>            instruction::{Instruction, Intrinsic},
-<a href=#23 id=23 data-nosnippet>23</a>            value::{Value, ValueId},
-<a href=#24 id=24 data-nosnippet>24</a>        },
-<a href=#25 id=25 data-nosnippet>25</a>        opt::pure::Purity,
-<a href=#26 id=26 data-nosnippet>26</a>        ssa_gen::Ssa,
-<a href=#27 id=27 data-nosnippet>27</a>    },
-<a href=#28 id=28 data-nosnippet>28</a>};
-<a href=#29 id=29 data-nosnippet>29</a>
-<a href=#30 id=30 data-nosnippet>30</a><span class="kw">use </span><span class="kw">super</span>::Context;
-<a href=#31 id=31 data-nosnippet>31</a>
-<a href=#32 id=32 data-nosnippet>32</a><span class="doccomment">/// Verify the call-argument aliasing invariant on every Brillig function in
-<a href=#33 id=33 data-nosnippet>33</a>/// `ssa`. See the module docs for the invariant.
-<a href=#34 id=34 data-nosnippet>34</a></span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>verify(ssa: <span class="kw-2">&amp;</span>Ssa) -&gt; RtResult&lt;()&gt; {
-<a href=#35 id=35 data-nosnippet>35</a>    <span class="kw">let </span>may_mutate = compute_may_mutate_args(ssa);
-<a href=#36 id=36 data-nosnippet>36</a>    <span class="kw">for </span>function <span class="kw">in </span>ssa.functions.values() {
-<a href=#37 id=37 data-nosnippet>37</a>        verify_function(function, <span class="kw-2">&amp;</span>may_mutate)<span class="question-mark">?</span>;
-<a href=#38 id=38 data-nosnippet>38</a>    }
-<a href=#39 id=39 data-nosnippet>39</a>    <span class="prelude-val">Ok</span>(())
-<a href=#40 id=40 data-nosnippet>40</a>}
-<a href=#41 id=41 data-nosnippet>41</a>
-<a href=#42 id=42 data-nosnippet>42</a><span class="doccomment">/// Per-function check. Skips ACIR functions (the invariant only applies to
-<a href=#43 id=43 data-nosnippet>43</a>/// Brillig, where a callee may mutate an argument in place). For every `call`
-<a href=#44 id=44 data-nosnippet>44</a>/// whose callee may mutate its arguments, treats each array-typed argument as
-<a href=#45 id=45 data-nosnippet>45</a>/// an all-index in-place mutation and runs the shared coverage + forward walk:
-<a href=#46 id=46 data-nosnippet>46</a>/// a forward-reachable aliased read with no protecting `inc_rc` is a hazard.
-<a href=#47 id=47 data-nosnippet>47</a></span><span class="kw">fn </span>verify_function(function: <span class="kw-2">&amp;</span>Function, may_mutate: <span class="kw-2">&amp;</span>HashMap&lt;FunctionId, bool&gt;) -&gt; RtResult&lt;()&gt; {
-<a href=#48 id=48 data-nosnippet>48</a>    <span class="kw">if </span>!function.runtime().is_brillig() {
-<a href=#49 id=49 data-nosnippet>49</a>        <span class="kw">return </span><span class="prelude-val">Ok</span>(());
-<a href=#50 id=50 data-nosnippet>50</a>    }
-<a href=#51 id=51 data-nosnippet>51</a>
-<a href=#52 id=52 data-nosnippet>52</a>    <span class="kw">let </span>ctx = Context::new(function);
-<a href=#53 id=53 data-nosnippet>53</a>
-<a href=#54 id=54 data-nosnippet>54</a>    <span class="kw">for </span>block_id <span class="kw">in </span>function.reachable_blocks() {
-<a href=#55 id=55 data-nosnippet>55</a>        <span class="kw">for </span>(idx, instruction_id) <span class="kw">in </span>function.dfg[block_id].instructions().iter().enumerate() {
-<a href=#56 id=56 data-nosnippet>56</a>            <span class="kw">let </span>instruction_id = <span class="kw-2">*</span>instruction_id;
-<a href=#57 id=57 data-nosnippet>57</a>            <span class="kw">let </span>Instruction::Call { func, arguments } = <span class="kw-2">&amp;</span>function.dfg[instruction_id] <span class="kw">else </span>{
-<a href=#58 id=58 data-nosnippet>58</a>                <span class="kw">continue</span>;
-<a href=#59 id=59 data-nosnippet>59</a>            };
-<a href=#60 id=60 data-nosnippet>60</a>
-<a href=#61 id=61 data-nosnippet>61</a>            <span class="comment">// Mirror `ssa_gen`'s `can_modify_args`: a callee that provably
-<a href=#62 id=62 data-nosnippet>62</a>            // cannot mutate its arguments (a foreign call, a pure builtin, or a
-<a href=#63 id=63 data-nosnippet>63</a>            // non-mutating function) has its argument clones elided by the
-<a href=#64 id=64 data-nosnippet>64</a>            // ownership pass, so a reused argument legitimately carries no
-<a href=#65 id=65 data-nosnippet>65</a>            // `inc_rc`. Skipping such calls is what keeps this check from
-<a href=#66 id=66 data-nosnippet>66</a>            // flagging well-formed SSA.
-<a href=#67 id=67 data-nosnippet>67</a>            </span><span class="kw">if </span>!callee_may_mutate_args(function, <span class="kw-2">*</span>func, may_mutate) {
-<a href=#68 id=68 data-nosnippet>68</a>                <span class="kw">continue</span>;
-<a href=#69 id=69 data-nosnippet>69</a>            }
-<a href=#70 id=70 data-nosnippet>70</a>
-<a href=#71 id=71 data-nosnippet>71</a>            <span class="comment">// Treat the call as an all-index mutation of each array-*value*
-<a href=#72 id=72 data-nosnippet>72</a>            // argument: `derived` is empty (the callee has no in-place result
-<a href=#73 id=73 data-nosnippet>73</a>            // to chain from here) and the write index is unknown (it may touch
-<a href=#74 id=74 data-nosnippet>74</a>            // any position). `is_array` matches a top-level array/vector value
-<a href=#75 id=75 data-nosnippet>75</a>            // and so excludes a reference argument (`&amp;mut [T; N]`): mutation
-<a href=#76 id=76 data-nosnippet>76</a>            // through a reference is the explicit, caller-visible pattern the
-<a href=#77 id=77 data-nosnippet>77</a>            // frontend passes a `&amp;mut` for, not the value-array copy-on-write
-<a href=#78 id=78 data-nosnippet>78</a>            // hazard this check is about (and a reference param already makes
-<a href=#79 id=79 data-nosnippet>79</a>            // the callee impure). A top-level array of references (`[&amp;mut T;
-<a href=#80 id=80 data-nosnippet>80</a>            // N]`) is still a value and is checked.
-<a href=#81 id=81 data-nosnippet>81</a>            </span><span class="kw">let </span>array_args: Vec&lt;ValueId&gt; = arguments
-<a href=#82 id=82 data-nosnippet>82</a>                .iter()
-<a href=#83 id=83 data-nosnippet>83</a>                .copied()
-<a href=#84 id=84 data-nosnippet>84</a>                .filter(|<span class="kw-2">&amp;</span>arg| function.dfg.type_of_value(arg).is_array())
-<a href=#85 id=85 data-nosnippet>85</a>                .collect();
-<a href=#86 id=86 data-nosnippet>86</a>            <span class="kw">for </span>arg <span class="kw">in </span>array_args {
-<a href=#87 id=87 data-nosnippet>87</a>                <span class="kw">let </span><span class="prelude-val">Some</span>(hit) = ctx.aliased_use_for_source(
-<a href=#88 id=88 data-nosnippet>88</a>                    arg,
-<a href=#89 id=89 data-nosnippet>89</a>                    block_id,
-<a href=#90 id=90 data-nosnippet>90</a>                    idx,
-<a href=#91 id=91 data-nosnippet>91</a>                    instruction_id,
-<a href=#92 id=92 data-nosnippet>92</a>                    <span class="prelude-val">None</span>,
-<a href=#93 id=93 data-nosnippet>93</a>                    im::HashSet::new(),
-<a href=#94 id=94 data-nosnippet>94</a>                ) <span class="kw">else </span>{
-<a href=#95 id=95 data-nosnippet>95</a>                    <span class="kw">continue</span>;
-<a href=#96 id=96 data-nosnippet>96</a>                };
-<a href=#97 id=97 data-nosnippet>97</a>
-<a href=#98 id=98 data-nosnippet>98</a>                <span class="kw">let </span>message = <span class="macro">format!</span>(
-<a href=#99 id=99 data-nosnippet>99</a>                    <span class="string">"call in function {} passes array {arg} that is read again as {} on a \
-<a href=#100 id=100 data-nosnippet>100</a>                     forward path with no preceding `inc_rc`; if the callee mutates the argument \
-<a href=#101 id=101 data-nosnippet>101</a>                     in place the mutation would be observable through that alias"</span>,
-<a href=#102 id=102 data-nosnippet>102</a>                    function.name(),
-<a href=#103 id=103 data-nosnippet>103</a>                    hit.value,
-<a href=#104 id=104 data-nosnippet>104</a>                );
-<a href=#105 id=105 data-nosnippet>105</a>                <span class="kw">return </span><span class="prelude-val">Err</span>(RuntimeError::CallArgAliasViolation {
-<a href=#106 id=106 data-nosnippet>106</a>                    message,
-<a href=#107 id=107 data-nosnippet>107</a>                    call_stack: function.dfg.get_instruction_call_stack(instruction_id),
-<a href=#108 id=108 data-nosnippet>108</a>                    aliased_use_call_stack: function
-<a href=#109 id=109 data-nosnippet>109</a>                        .dfg
-<a href=#110 id=110 data-nosnippet>110</a>                        .get_instruction_call_stack(hit.instruction),
-<a href=#111 id=111 data-nosnippet>111</a>                });
-<a href=#112 id=112 data-nosnippet>112</a>            }
-<a href=#113 id=113 data-nosnippet>113</a>        }
-<a href=#114 id=114 data-nosnippet>114</a>    }
-<a href=#115 id=115 data-nosnippet>115</a>    <span class="prelude-val">Ok</span>(())
-<a href=#116 id=116 data-nosnippet>116</a>}
-<a href=#117 id=117 data-nosnippet>117</a>
-<a href=#118 id=118 data-nosnippet>118</a><span class="doccomment">/// Whether the callee referenced by `func` may mutate an array argument in a
-<a href=#119 id=119 data-nosnippet>119</a>/// way observable to the caller. Mirrors `ssa_gen`'s `can_modify_args`:
-<a href=#120 id=120 data-nosnippet>120</a>/// foreign calls only read their inputs; pure builtins that are safe for clone
-<a href=#121 id=121 data-nosnippet>121</a>/// elision cannot mutate; an unresolved/dynamic callee is assumed to be able
-<a href=#122 id=122 data-nosnippet>122</a>/// to; and a known function is looked up in the call-graph summary.
-<a href=#123 id=123 data-nosnippet>123</a></span><span class="kw">fn </span>callee_may_mutate_args(
-<a href=#124 id=124 data-nosnippet>124</a>    function: <span class="kw-2">&amp;</span>Function,
-<a href=#125 id=125 data-nosnippet>125</a>    func: ValueId,
-<a href=#126 id=126 data-nosnippet>126</a>    may_mutate: <span class="kw-2">&amp;</span>HashMap&lt;FunctionId, bool&gt;,
-<a href=#127 id=127 data-nosnippet>127</a>) -&gt; bool {
-<a href=#128 id=128 data-nosnippet>128</a>    <span class="kw">match </span><span class="kw-2">&amp;</span>function.dfg[func] {
-<a href=#129 id=129 data-nosnippet>129</a>        Value::Function(callee) =&gt; may_mutate.get(callee).copied().unwrap_or(<span class="bool-val">true</span>),
-<a href=#130 id=130 data-nosnippet>130</a>        Value::Intrinsic(intrinsic) =&gt; intrinsic_may_mutate_args(<span class="kw-2">*</span>intrinsic),
-<a href=#131 id=131 data-nosnippet>131</a>        Value::ForeignFunction { .. } =&gt; <span class="bool-val">false</span>,
-<a href=#132 id=132 data-nosnippet>132</a>        <span class="kw">_ </span>=&gt; <span class="bool-val">true</span>,
-<a href=#133 id=133 data-nosnippet>133</a>    }
-<a href=#134 id=134 data-nosnippet>134</a>}
-<a href=#135 id=135 data-nosnippet>135</a>
-<a href=#136 id=136 data-nosnippet>136</a><span class="doccomment">/// Whether a call to `intrinsic` may mutate an array argument in place,
-<a href=#137 id=137 data-nosnippet>137</a>/// mirroring `is_pure_builtin_func` in `ssa_gen`: a pure intrinsic that is safe
-<a href=#138 id=138 data-nosnippet>138</a>/// for clone elision in Brillig cannot, everything else conservatively can.
-<a href=#139 id=139 data-nosnippet>139</a></span><span class="kw">fn </span>intrinsic_may_mutate_args(intrinsic: Intrinsic) -&gt; bool {
-<a href=#140 id=140 data-nosnippet>140</a>    intrinsic.unsafe_for_clone_elision_in_brillig()
-<a href=#141 id=141 data-nosnippet>141</a>        || !<span class="macro">matches!</span>(intrinsic.purity(), Purity::Pure | Purity::PureWithPredicate)
-<a href=#142 id=142 data-nosnippet>142</a>}
-<a href=#143 id=143 data-nosnippet>143</a>
-<a href=#144 id=144 data-nosnippet>144</a><span class="doccomment">/// Compute, for every function, whether a call to it may mutate the storage of
-<a href=#145 id=145 data-nosnippet>145</a>/// one of its array arguments observably to the caller.
-<a href=#146 id=146 data-nosnippet>146</a>///
-<a href=#147 id=147 data-nosnippet>147</a>/// A function may-mutate if it contains an in-place mutation (`array_set` or
-<a href=#148 id=148 data-nosnippet>148</a>/// `store`), calls a may-mutate function, calls a mutating intrinsic, or calls
-<a href=#149 id=149 data-nosnippet>149</a>/// an unresolved/dynamic target (assume the worst). Foreign calls contribute
-<a href=#150 id=150 data-nosnippet>150</a>/// nothing — oracles only read their inputs. This is an over-approximation:
-<a href=#151 id=151 data-nosnippet>151</a>/// the only callees marked *not* may-mutate are exactly those whose argument
-<a href=#152 id=152 data-nosnippet>152</a>/// clones the ownership pass elides, so a reused argument with no `inc_rc`
-<a href=#153 id=153 data-nosnippet>153</a>/// never trips the check on well-formed SSA. Propagated to a fixed point over
-<a href=#154 id=154 data-nosnippet>154</a>/// the call graph.
-<a href=#155 id=155 data-nosnippet>155</a></span><span class="kw">fn </span>compute_may_mutate_args(ssa: <span class="kw-2">&amp;</span>Ssa) -&gt; HashMap&lt;FunctionId, bool&gt; {
-<a href=#156 id=156 data-nosnippet>156</a>    <span class="kw">let </span><span class="kw-2">mut </span>may_mutate: HashMap&lt;FunctionId, bool&gt; = HashMap::default();
-<a href=#157 id=157 data-nosnippet>157</a>    <span class="kw">let </span><span class="kw-2">mut </span>callees: HashMap&lt;FunctionId, Vec&lt;FunctionId&gt;&gt; = HashMap::default();
-<a href=#158 id=158 data-nosnippet>158</a>
-<a href=#159 id=159 data-nosnippet>159</a>    <span class="kw">for </span>function <span class="kw">in </span>ssa.functions.values() {
-<a href=#160 id=160 data-nosnippet>160</a>        <span class="kw">let </span><span class="kw-2">mut </span>base = <span class="bool-val">false</span>;
-<a href=#161 id=161 data-nosnippet>161</a>        <span class="kw">let </span><span class="kw-2">mut </span>calls = Vec::new();
-<a href=#162 id=162 data-nosnippet>162</a>        <span class="kw">for </span>block_id <span class="kw">in </span>function.reachable_blocks() {
-<a href=#163 id=163 data-nosnippet>163</a>            <span class="kw">for </span>instruction_id <span class="kw">in </span>function.dfg[block_id].instructions() {
-<a href=#164 id=164 data-nosnippet>164</a>                <span class="kw">match </span><span class="kw-2">&amp;</span>function.dfg[<span class="kw-2">*</span>instruction_id] {
-<a href=#165 id=165 data-nosnippet>165</a>                    Instruction::ArraySet { .. } | Instruction::Store { .. } =&gt; base = <span class="bool-val">true</span>,
-<a href=#166 id=166 data-nosnippet>166</a>                    Instruction::Call { func, .. } =&gt; <span class="kw">match </span><span class="kw-2">&amp;</span>function.dfg[<span class="kw-2">*</span>func] {
-<a href=#167 id=167 data-nosnippet>167</a>                        Value::Function(callee) =&gt; calls.push(<span class="kw-2">*</span>callee),
-<a href=#168 id=168 data-nosnippet>168</a>                        Value::Intrinsic(intrinsic) =&gt; {
-<a href=#169 id=169 data-nosnippet>169</a>                            base |= intrinsic_may_mutate_args(<span class="kw-2">*</span>intrinsic);
-<a href=#170 id=170 data-nosnippet>170</a>                        }
-<a href=#171 id=171 data-nosnippet>171</a>                        <span class="comment">// Foreign calls only read their inputs.
-<a href=#172 id=172 data-nosnippet>172</a>                        </span>Value::ForeignFunction { .. } =&gt; {}
-<a href=#173 id=173 data-nosnippet>173</a>                        <span class="comment">// An unresolved or dynamic callee: assume the worst.
-<a href=#174 id=174 data-nosnippet>174</a>                        </span><span class="kw">_ </span>=&gt; base = <span class="bool-val">true</span>,
-<a href=#175 id=175 data-nosnippet>175</a>                    },
-<a href=#176 id=176 data-nosnippet>176</a>                    <span class="kw">_ </span>=&gt; {}
-<a href=#177 id=177 data-nosnippet>177</a>                }
-<a href=#178 id=178 data-nosnippet>178</a>            }
-<a href=#179 id=179 data-nosnippet>179</a>        }
-<a href=#180 id=180 data-nosnippet>180</a>        may_mutate.insert(function.id(), base);
-<a href=#181 id=181 data-nosnippet>181</a>        callees.insert(function.id(), calls);
-<a href=#182 id=182 data-nosnippet>182</a>    }
-<a href=#183 id=183 data-nosnippet>183</a>
-<a href=#184 id=184 data-nosnippet>184</a>    <span class="kw">let </span><span class="kw-2">mut </span>changed = <span class="bool-val">true</span>;
-<a href=#185 id=185 data-nosnippet>185</a>    <span class="kw">while </span>changed {
-<a href=#186 id=186 data-nosnippet>186</a>        changed = <span class="bool-val">false</span>;
-<a href=#187 id=187 data-nosnippet>187</a>        <span class="kw">for </span>(<span class="kw-2">&amp;</span>id, callee_ids) <span class="kw">in </span><span class="kw-2">&amp;</span>callees {
-<a href=#188 id=188 data-nosnippet>188</a>            <span class="kw">if </span>may_mutate[<span class="kw-2">&amp;</span>id] {
-<a href=#189 id=189 data-nosnippet>189</a>                <span class="kw">continue</span>;
-<a href=#190 id=190 data-nosnippet>190</a>            }
-<a href=#191 id=191 data-nosnippet>191</a>            <span class="kw">if </span>callee_ids.iter().any(|c| may_mutate.get(c).copied().unwrap_or(<span class="bool-val">true</span>)) {
-<a href=#192 id=192 data-nosnippet>192</a>                may_mutate.insert(id, <span class="bool-val">true</span>);
-<a href=#193 id=193 data-nosnippet>193</a>                changed = <span class="bool-val">true</span>;
-<a href=#194 id=194 data-nosnippet>194</a>            }
-<a href=#195 id=195 data-nosnippet>195</a>        }
-<a href=#196 id=196 data-nosnippet>196</a>    }
-<a href=#197 id=197 data-nosnippet>197</a>
-<a href=#198 id=198 data-nosnippet>198</a>    may_mutate
-<a href=#199 id=199 data-nosnippet>199</a>}
-<a href=#200 id=200 data-nosnippet>200</a>
-<a href=#201 id=201 data-nosnippet>201</a><span class="attr">#[cfg(test)]
-<a href=#202 id=202 data-nosnippet>202</a></span><span class="kw">mod </span>tests {
-<a href=#203 id=203 data-nosnippet>203</a>    <span class="kw">use </span><span class="kw">super</span>::<span class="kw">super</span>::tests::assert_verifier_accepts_because;
-<a href=#204 id=204 data-nosnippet>204</a>    <span class="kw">use </span><span class="kw">crate</span>::ssa::ssa_gen::Ssa;
-<a href=#205 id=205 data-nosnippet>205</a>
-<a href=#206 id=206 data-nosnippet>206</a>    <span class="doccomment">/// Parse `src`, run the `call` verifier, and require it to reject the SSA
-<a href=#207 id=207 data-nosnippet>207</a>    /// with a [`crate::errors::RuntimeError::CallArgAliasViolation`]. Panics on
-<a href=#208 id=208 data-nosnippet>208</a>    /// any other outcome. Runs `call::verify` directly (not the combined check)
-<a href=#209 id=209 data-nosnippet>209</a>    /// so the assertion proves the *call* verifier is the one that caught the
-<a href=#210 id=210 data-nosnippet>210</a>    /// hazard.
-<a href=#211 id=211 data-nosnippet>211</a>    </span><span class="kw">fn </span>assert_verifier_rejects(src: <span class="kw-2">&amp;</span>str) {
-<a href=#212 id=212 data-nosnippet>212</a>        <span class="kw">let </span>ssa = Ssa::from_str(src).expect(<span class="string">"SSA parses"</span>);
-<a href=#213 id=213 data-nosnippet>213</a>        <span class="kw">let </span>err = <span class="kw">super</span>::verify(<span class="kw-2">&amp;</span>ssa).expect_err(<span class="string">"expected the verifier to reject"</span>);
-<a href=#214 id=214 data-nosnippet>214</a>        <span class="macro">assert!</span>(
-<a href=#215 id=215 data-nosnippet>215</a>            <span class="macro">matches!</span>(err, <span class="kw">crate</span>::errors::RuntimeError::CallArgAliasViolation { .. }),
-<a href=#216 id=216 data-nosnippet>216</a>            <span class="string">"expected CallArgAliasViolation, got {err:?}"</span>,
-<a href=#217 id=217 data-nosnippet>217</a>        );
-<a href=#218 id=218 data-nosnippet>218</a>    }
-<a href=#219 id=219 data-nosnippet>219</a>
-<a href=#220 id=220 data-nosnippet>220</a>    <span class="doccomment">/// Regression for noir-lang/noir-claude#1426. The ownership pass clones
-<a href=#221 id=221 data-nosnippet>221</a>    /// (`inc_rc`s) every non-last use of an array, so a well-formed program
-<a href=#222 id=222 data-nosnippet>222</a>    /// that reuses an array across a call always RC-protects it. This
-<a href=#223 id=223 data-nosnippet>223</a>    /// hand-written SSA omits those bumps: a pure identity callee (`f2`)
-<a href=#224 id=224 data-nosnippet>224</a>    /// returns the array input unchanged, `f1` then `array_set`s the returned
-<a href=#225 id=225 data-nosnippet>225</a>    /// alias — mutating its caller's array in place at RC 1 — and `main`
-<a href=#226 id=226 data-nosnippet>226</a>    /// reuses the same array across two calls to `f1`. The in-place mutation
-<a href=#227 id=227 data-nosnippet>227</a>    /// is therefore observable to `main` (the first call's mutation is seen by
-<a href=#228 id=228 data-nosnippet>228</a>    /// the second), which is exactly the precondition `purity_analysis`
-<a href=#229 id=229 data-nosnippet>229</a>    /// relies on being absent. The verifier must reject: both the reused arg
-<a href=#230 id=230 data-nosnippet>230</a>    /// in `main` and the reused-then-read arg in `f1` lack a preceding
-<a href=#231 id=231 data-nosnippet>231</a>    /// `inc_rc`.
-<a href=#232 id=232 data-nosnippet>232</a>    </span><span class="attr">#[test]
-<a href=#233 id=233 data-nosnippet>233</a>    </span><span class="kw">fn </span>end_to_end_array_reused_across_call_without_inc_rc_is_rejected() {
-<a href=#234 id=234 data-nosnippet>234</a>        <span class="kw">let </span>src = <span class="string">r#"
-<a href=#235 id=235 data-nosnippet>235</a>            brillig(inline) fn main f0 {
-<a href=#236 id=236 data-nosnippet>236</a>              b0():
-<a href=#237 id=237 data-nosnippet>237</a>                v0 = make_array [Field 1, Field 2] : [Field; 2]
-<a href=#238 id=238 data-nosnippet>238</a>                v1 = call f1(v0) -&gt; Field
-<a href=#239 id=239 data-nosnippet>239</a>                v2 = call f1(v0) -&gt; Field
-<a href=#240 id=240 data-nosnippet>240</a>                return v1, v2
-<a href=#241 id=241 data-nosnippet>241</a>            }
-<a href=#242 id=242 data-nosnippet>242</a>            brillig(inline) fn bump_via_identity f1 {
-<a href=#243 id=243 data-nosnippet>243</a>              b0(v0: [Field; 2]):
-<a href=#244 id=244 data-nosnippet>244</a>                v1 = call f2(v0) -&gt; [Field; 2]
-<a href=#245 id=245 data-nosnippet>245</a>                v2 = array_get v0, index u32 0 -&gt; Field
-<a href=#246 id=246 data-nosnippet>246</a>                v3 = add v2, Field 1
-<a href=#247 id=247 data-nosnippet>247</a>                v4 = array_set v1, index u32 0, value v3
-<a href=#248 id=248 data-nosnippet>248</a>                return v3
-<a href=#249 id=249 data-nosnippet>249</a>            }
-<a href=#250 id=250 data-nosnippet>250</a>            brillig(inline) fn identity f2 {
-<a href=#251 id=251 data-nosnippet>251</a>              b0(v0: [Field; 2]):
-<a href=#252 id=252 data-nosnippet>252</a>                return v0
-<a href=#253 id=253 data-nosnippet>253</a>            }"#</span>;
-<a href=#254 id=254 data-nosnippet>254</a>        assert_verifier_rejects(src);
-<a href=#255 id=255 data-nosnippet>255</a>    }
-<a href=#256 id=256 data-nosnippet>256</a>
-<a href=#257 id=257 data-nosnippet>257</a>    <span class="doccomment">/// The well-formed counterpart of
-<a href=#258 id=258 data-nosnippet>258</a>    /// [`end_to_end_array_reused_across_call_without_inc_rc_is_rejected`]: the
-<a href=#259 id=259 data-nosnippet>259</a>    /// `inc_rc`s the ownership pass emits are present — in `main` before the
-<a href=#260 id=260 data-nosnippet>260</a>    /// reused call arg, and in `f1` before the array escapes to `identity` and
-<a href=#261 id=261 data-nosnippet>261</a>    /// is read again. Every reused array call-arg is now RC-protected, so the
-<a href=#262 id=262 data-nosnippet>262</a>    /// in-place mutation cannot be observed through an alias and the verifier
-<a href=#263 id=263 data-nosnippet>263</a>    /// accepts. This pins down that the call-arg check credits a preceding
-<a href=#264 id=264 data-nosnippet>264</a>    /// `inc_rc` rather than flagging every reused call arg unconditionally.
-<a href=#265 id=265 data-nosnippet>265</a>    </span><span class="attr">#[test]
-<a href=#266 id=266 data-nosnippet>266</a>    </span><span class="kw">fn </span>end_to_end_array_reused_across_call_with_inc_rc_is_accepted() {
-<a href=#267 id=267 data-nosnippet>267</a>        <span class="kw">let </span>src = <span class="string">r#"
-<a href=#268 id=268 data-nosnippet>268</a>            brillig(inline) fn main f0 {
-<a href=#269 id=269 data-nosnippet>269</a>              b0():
-<a href=#270 id=270 data-nosnippet>270</a>                v0 = make_array [Field 1, Field 2] : [Field; 2]
-<a href=#271 id=271 data-nosnippet>271</a>                inc_rc v0
-<a href=#272 id=272 data-nosnippet>272</a>                v1 = call f1(v0) -&gt; Field
-<a href=#273 id=273 data-nosnippet>273</a>                v2 = call f1(v0) -&gt; Field
-<a href=#274 id=274 data-nosnippet>274</a>                return v1, v2
-<a href=#275 id=275 data-nosnippet>275</a>            }
-<a href=#276 id=276 data-nosnippet>276</a>            brillig(inline) fn bump_via_identity f1 {
-<a href=#277 id=277 data-nosnippet>277</a>              b0(v0: [Field; 2]):
-<a href=#278 id=278 data-nosnippet>278</a>                inc_rc v0
-<a href=#279 id=279 data-nosnippet>279</a>                v1 = call f2(v0) -&gt; [Field; 2]
-<a href=#280 id=280 data-nosnippet>280</a>                v2 = array_get v0, index u32 0 -&gt; Field
-<a href=#281 id=281 data-nosnippet>281</a>                v3 = add v2, Field 1
-<a href=#282 id=282 data-nosnippet>282</a>                v4 = array_set v1, index u32 0, value v3
-<a href=#283 id=283 data-nosnippet>283</a>                return v3
-<a href=#284 id=284 data-nosnippet>284</a>            }
-<a href=#285 id=285 data-nosnippet>285</a>            brillig(inline) fn identity f2 {
-<a href=#286 id=286 data-nosnippet>286</a>              b0(v0: [Field; 2]):
-<a href=#287 id=287 data-nosnippet>287</a>                return v0
-<a href=#288 id=288 data-nosnippet>288</a>            }"#</span>;
-<a href=#289 id=289 data-nosnippet>289</a>        assert_verifier_accepts_because(
-<a href=#290 id=290 data-nosnippet>290</a>            src,
-<a href=#291 id=291 data-nosnippet>291</a>            <span class="string">"every reused array call-arg is protected by a preceding inc_rc"</span>,
-<a href=#292 id=292 data-nosnippet>292</a>        );
-<a href=#293 id=293 data-nosnippet>293</a>    }
-<a href=#294 id=294 data-nosnippet>294</a>
-<a href=#295 id=295 data-nosnippet>295</a>    <span class="doccomment">/// Reduced from the `array_sort` execution test (`quicksort`): a `&amp;mut`
-<a href=#296 id=296 data-nosnippet>296</a>    /// **reference** to an array is passed to a callee that sorts it in place
-<a href=#297 id=297 data-nosnippet>297</a>    /// and then loaded back. The argument is a reference, not an array value,
-<a href=#298 id=298 data-nosnippet>298</a>    /// so it is *not* a copy-on-write hazard — mutation through a `&amp;mut` is the
-<a href=#299 id=299 data-nosnippet>299</a>    /// explicit, caller-visible pattern the frontend passes a reference for
-<a href=#300 id=300 data-nosnippet>300</a>    /// (and a reference parameter already makes the callee impure). The call
-<a href=#301 id=301 data-nosnippet>301</a>    /// verifier must skip reference arguments and accept; flagging this was a
-<a href=#302 id=302 data-nosnippet>302</a>    /// false positive fixed by the `contains_reference` filter.
-<a href=#303 id=303 data-nosnippet>303</a>    </span><span class="attr">#[test]
-<a href=#304 id=304 data-nosnippet>304</a>    </span><span class="kw">fn </span>end_to_end_reference_argument_read_back_after_call_is_accepted() {
-<a href=#305 id=305 data-nosnippet>305</a>        <span class="kw">let </span>src = <span class="string">r#"
-<a href=#306 id=306 data-nosnippet>306</a>            brillig(inline) fn main f0 {
-<a href=#307 id=307 data-nosnippet>307</a>              b0(v0: [u8; 3]):
-<a href=#308 id=308 data-nosnippet>308</a>                v1 = allocate -&gt; &amp;mut [u8; 3]
-<a href=#309 id=309 data-nosnippet>309</a>                store v0 at v1
-<a href=#310 id=310 data-nosnippet>310</a>                call f1(v1)
-<a href=#311 id=311 data-nosnippet>311</a>                v2 = load v1 -&gt; [u8; 3]
-<a href=#312 id=312 data-nosnippet>312</a>                return v2
+<a href=#21 id=21 data-nosnippet>21</a>            basic_block::BasicBlockId,
+<a href=#22 id=22 data-nosnippet>22</a>            function::{Function, FunctionId},
+<a href=#23 id=23 data-nosnippet>23</a>            instruction::{Instruction, Intrinsic, TerminatorInstruction},
+<a href=#24 id=24 data-nosnippet>24</a>            value::{Value, ValueId},
+<a href=#25 id=25 data-nosnippet>25</a>        },
+<a href=#26 id=26 data-nosnippet>26</a>        opt::pure::Purity,
+<a href=#27 id=27 data-nosnippet>27</a>        ssa_gen::Ssa,
+<a href=#28 id=28 data-nosnippet>28</a>    },
+<a href=#29 id=29 data-nosnippet>29</a>};
+<a href=#30 id=30 data-nosnippet>30</a>
+<a href=#31 id=31 data-nosnippet>31</a><span class="kw">use </span><span class="kw">super</span>::Context;
+<a href=#32 id=32 data-nosnippet>32</a>
+<a href=#33 id=33 data-nosnippet>33</a><span class="doccomment">/// Verify the call-argument aliasing invariant on every Brillig function in
+<a href=#34 id=34 data-nosnippet>34</a>/// `ssa`. See the module docs for the invariant.
+<a href=#35 id=35 data-nosnippet>35</a></span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>verify(ssa: <span class="kw-2">&amp;</span>Ssa) -&gt; RtResult&lt;()&gt; {
+<a href=#36 id=36 data-nosnippet>36</a>    <span class="kw">let </span>may_mutate = compute_may_mutate_args(ssa);
+<a href=#37 id=37 data-nosnippet>37</a>    <span class="kw">let </span>returns_arg_alias = compute_returns_arg_alias(ssa);
+<a href=#38 id=38 data-nosnippet>38</a>
+<a href=#39 id=39 data-nosnippet>39</a>    <span class="comment">// A user-function call must have its array arguments checked if the callee
+<a href=#40 id=40 data-nosnippet>40</a>    // may mutate one in place, *or* may hand back an alias of one that the
+<a href=#41 id=41 data-nosnippet>41</a>    // caller then mutates (e.g. an identity function — see [#1443]). Either way,
+<a href=#42 id=42 data-nosnippet>42</a>    // reusing the argument without a protecting `inc_rc` is a hazard. Both
+<a href=#43 id=43 data-nosnippet>43</a>    // summaries cover every function, so indexing them is safe (and asserts we
+<a href=#44 id=44 data-nosnippet>44</a>    // computed a value for every callee).
+<a href=#45 id=45 data-nosnippet>45</a>    //
+<a href=#46 id=46 data-nosnippet>46</a>    // [#1443]: https://github.com/noir-lang/noir-claude/issues/1443
+<a href=#47 id=47 data-nosnippet>47</a>    </span><span class="kw">let </span>needs_check = |callee: FunctionId| may_mutate[<span class="kw-2">&amp;</span>callee] || returns_arg_alias[<span class="kw-2">&amp;</span>callee];
+<a href=#48 id=48 data-nosnippet>48</a>
+<a href=#49 id=49 data-nosnippet>49</a>    <span class="kw">for </span>function <span class="kw">in </span>ssa.functions.values() {
+<a href=#50 id=50 data-nosnippet>50</a>        verify_function(function, <span class="kw-2">&amp;</span>needs_check)<span class="question-mark">?</span>;
+<a href=#51 id=51 data-nosnippet>51</a>    }
+<a href=#52 id=52 data-nosnippet>52</a>    <span class="prelude-val">Ok</span>(())
+<a href=#53 id=53 data-nosnippet>53</a>}
+<a href=#54 id=54 data-nosnippet>54</a>
+<a href=#55 id=55 data-nosnippet>55</a><span class="doccomment">/// Per-function check. Skips ACIR functions (the invariant only applies to
+<a href=#56 id=56 data-nosnippet>56</a>/// Brillig, where a callee may mutate an argument in place). For every `call`
+<a href=#57 id=57 data-nosnippet>57</a>/// whose callee may mutate an argument or return an alias of one (`needs_check`),
+<a href=#58 id=58 data-nosnippet>58</a>/// treats each array-typed argument as an all-index in-place mutation and runs
+<a href=#59 id=59 data-nosnippet>59</a>/// the shared coverage + forward walk: a forward-reachable aliased read with no
+<a href=#60 id=60 data-nosnippet>60</a>/// protecting `inc_rc` is a hazard.
+<a href=#61 id=61 data-nosnippet>61</a></span><span class="kw">fn </span>verify_function(function: <span class="kw-2">&amp;</span>Function, needs_check: <span class="kw-2">&amp;</span><span class="kw">impl </span>Fn(FunctionId) -&gt; bool) -&gt; RtResult&lt;()&gt; {
+<a href=#62 id=62 data-nosnippet>62</a>    <span class="kw">if </span>!function.runtime().is_brillig() {
+<a href=#63 id=63 data-nosnippet>63</a>        <span class="kw">return </span><span class="prelude-val">Ok</span>(());
+<a href=#64 id=64 data-nosnippet>64</a>    }
+<a href=#65 id=65 data-nosnippet>65</a>
+<a href=#66 id=66 data-nosnippet>66</a>    <span class="kw">let </span>ctx = Context::new(function);
+<a href=#67 id=67 data-nosnippet>67</a>
+<a href=#68 id=68 data-nosnippet>68</a>    <span class="kw">for </span>block_id <span class="kw">in </span>function.reachable_blocks() {
+<a href=#69 id=69 data-nosnippet>69</a>        <span class="kw">for </span>(idx, instruction_id) <span class="kw">in </span>function.dfg[block_id].instructions().iter().enumerate() {
+<a href=#70 id=70 data-nosnippet>70</a>            <span class="kw">let </span>instruction_id = <span class="kw-2">*</span>instruction_id;
+<a href=#71 id=71 data-nosnippet>71</a>            <span class="kw">let </span>Instruction::Call { func, arguments } = <span class="kw-2">&amp;</span>function.dfg[instruction_id] <span class="kw">else </span>{
+<a href=#72 id=72 data-nosnippet>72</a>                <span class="kw">continue</span>;
+<a href=#73 id=73 data-nosnippet>73</a>            };
+<a href=#74 id=74 data-nosnippet>74</a>
+<a href=#75 id=75 data-nosnippet>75</a>            <span class="comment">// Mirror `ssa_gen`'s `can_modify_args`: a callee that provably
+<a href=#76 id=76 data-nosnippet>76</a>            // cannot mutate an argument *or* hand back an alias of one (a
+<a href=#77 id=77 data-nosnippet>77</a>            // foreign call, a pure builtin, or a function that neither mutates
+<a href=#78 id=78 data-nosnippet>78</a>            // an argument nor returns an alias of one) has its argument clones
+<a href=#79 id=79 data-nosnippet>79</a>            // elided by the ownership pass, so a reused argument legitimately
+<a href=#80 id=80 data-nosnippet>80</a>            // carries no `inc_rc`. Skipping such calls is what keeps this check
+<a href=#81 id=81 data-nosnippet>81</a>            // from flagging well-formed SSA.
+<a href=#82 id=82 data-nosnippet>82</a>            </span><span class="kw">if </span>!callee_needs_arg_check(function, <span class="kw-2">*</span>func, needs_check) {
+<a href=#83 id=83 data-nosnippet>83</a>                <span class="kw">continue</span>;
+<a href=#84 id=84 data-nosnippet>84</a>            }
+<a href=#85 id=85 data-nosnippet>85</a>
+<a href=#86 id=86 data-nosnippet>86</a>            <span class="comment">// Treat the call as an all-index mutation of each array-*value*
+<a href=#87 id=87 data-nosnippet>87</a>            // argument: `derived` is empty (the callee has no in-place result
+<a href=#88 id=88 data-nosnippet>88</a>            // to chain from here) and the write index is unknown (it may touch
+<a href=#89 id=89 data-nosnippet>89</a>            // any position). `is_array` matches a top-level array/vector value
+<a href=#90 id=90 data-nosnippet>90</a>            // and so excludes a reference argument (`&amp;mut [T; N]`): mutation
+<a href=#91 id=91 data-nosnippet>91</a>            // through a reference is the explicit, caller-visible pattern the
+<a href=#92 id=92 data-nosnippet>92</a>            // frontend passes a `&amp;mut` for, not the value-array copy-on-write
+<a href=#93 id=93 data-nosnippet>93</a>            // hazard this check is about (and a reference param already makes
+<a href=#94 id=94 data-nosnippet>94</a>            // the callee impure). A top-level array of references (`[&amp;mut T;
+<a href=#95 id=95 data-nosnippet>95</a>            // N]`) is still a value and is checked.
+<a href=#96 id=96 data-nosnippet>96</a>            </span><span class="kw">let </span>array_args: Vec&lt;ValueId&gt; = arguments
+<a href=#97 id=97 data-nosnippet>97</a>                .iter()
+<a href=#98 id=98 data-nosnippet>98</a>                .copied()
+<a href=#99 id=99 data-nosnippet>99</a>                .filter(|<span class="kw-2">&amp;</span>arg| function.dfg.type_of_value(arg).is_array())
+<a href=#100 id=100 data-nosnippet>100</a>                .collect();
+<a href=#101 id=101 data-nosnippet>101</a>            <span class="kw">for </span>arg <span class="kw">in </span>array_args {
+<a href=#102 id=102 data-nosnippet>102</a>                <span class="kw">let </span><span class="prelude-val">Some</span>(hit) = ctx.aliased_use_for_source(
+<a href=#103 id=103 data-nosnippet>103</a>                    arg,
+<a href=#104 id=104 data-nosnippet>104</a>                    block_id,
+<a href=#105 id=105 data-nosnippet>105</a>                    idx,
+<a href=#106 id=106 data-nosnippet>106</a>                    instruction_id,
+<a href=#107 id=107 data-nosnippet>107</a>                    <span class="prelude-val">None</span>,
+<a href=#108 id=108 data-nosnippet>108</a>                    im::HashSet::new(),
+<a href=#109 id=109 data-nosnippet>109</a>                ) <span class="kw">else </span>{
+<a href=#110 id=110 data-nosnippet>110</a>                    <span class="kw">continue</span>;
+<a href=#111 id=111 data-nosnippet>111</a>                };
+<a href=#112 id=112 data-nosnippet>112</a>
+<a href=#113 id=113 data-nosnippet>113</a>                <span class="kw">let </span>message = <span class="macro">format!</span>(
+<a href=#114 id=114 data-nosnippet>114</a>                    <span class="string">"call in function {} passes array {arg} that is read again as {} on a \
+<a href=#115 id=115 data-nosnippet>115</a>                     forward path with no preceding `inc_rc`; if the callee mutates the argument \
+<a href=#116 id=116 data-nosnippet>116</a>                     in place, or returns an alias of it that is then mutated, the mutation would \
+<a href=#117 id=117 data-nosnippet>117</a>                     be observable through that alias"</span>,
+<a href=#118 id=118 data-nosnippet>118</a>                    function.name(),
+<a href=#119 id=119 data-nosnippet>119</a>                    hit.value,
+<a href=#120 id=120 data-nosnippet>120</a>                );
+<a href=#121 id=121 data-nosnippet>121</a>                <span class="kw">return </span><span class="prelude-val">Err</span>(RuntimeError::CallArgAliasViolation {
+<a href=#122 id=122 data-nosnippet>122</a>                    message,
+<a href=#123 id=123 data-nosnippet>123</a>                    call_stack: function.dfg.get_instruction_call_stack(instruction_id),
+<a href=#124 id=124 data-nosnippet>124</a>                    aliased_use_call_stack: function
+<a href=#125 id=125 data-nosnippet>125</a>                        .dfg
+<a href=#126 id=126 data-nosnippet>126</a>                        .get_instruction_call_stack(hit.instruction),
+<a href=#127 id=127 data-nosnippet>127</a>                });
+<a href=#128 id=128 data-nosnippet>128</a>            }
+<a href=#129 id=129 data-nosnippet>129</a>        }
+<a href=#130 id=130 data-nosnippet>130</a>    }
+<a href=#131 id=131 data-nosnippet>131</a>    <span class="prelude-val">Ok</span>(())
+<a href=#132 id=132 data-nosnippet>132</a>}
+<a href=#133 id=133 data-nosnippet>133</a>
+<a href=#134 id=134 data-nosnippet>134</a><span class="doccomment">/// Whether a call to the callee referenced by `func` needs its array arguments
+<a href=#135 id=135 data-nosnippet>135</a>/// checked — i.e. the callee may mutate an argument in place or return an alias
+<a href=#136 id=136 data-nosnippet>136</a>/// of one. Mirrors `ssa_gen`'s `can_modify_args`: foreign calls only read their
+<a href=#137 id=137 data-nosnippet>137</a>/// inputs and return fresh results; pure builtins that are safe for clone
+<a href=#138 id=138 data-nosnippet>138</a>/// elision do neither; an unresolved/dynamic callee is assumed to need
+<a href=#139 id=139 data-nosnippet>139</a>/// checking; and a known function is decided by `needs_check`, which combines
+<a href=#140 id=140 data-nosnippet>140</a>/// the two call-graph summaries (`may_mutate || returns_arg_alias`).
+<a href=#141 id=141 data-nosnippet>141</a></span><span class="kw">fn </span>callee_needs_arg_check(
+<a href=#142 id=142 data-nosnippet>142</a>    function: <span class="kw-2">&amp;</span>Function,
+<a href=#143 id=143 data-nosnippet>143</a>    func: ValueId,
+<a href=#144 id=144 data-nosnippet>144</a>    needs_check: <span class="kw-2">&amp;</span><span class="kw">impl </span>Fn(FunctionId) -&gt; bool,
+<a href=#145 id=145 data-nosnippet>145</a>) -&gt; bool {
+<a href=#146 id=146 data-nosnippet>146</a>    <span class="kw">match </span><span class="kw-2">&amp;</span>function.dfg[func] {
+<a href=#147 id=147 data-nosnippet>147</a>        Value::Function(callee) =&gt; needs_check(<span class="kw-2">*</span>callee),
+<a href=#148 id=148 data-nosnippet>148</a>        Value::Intrinsic(intrinsic) =&gt; intrinsic_may_mutate_args(<span class="kw-2">*</span>intrinsic),
+<a href=#149 id=149 data-nosnippet>149</a>        Value::ForeignFunction { .. } =&gt; <span class="bool-val">false</span>,
+<a href=#150 id=150 data-nosnippet>150</a>        <span class="kw">_ </span>=&gt; <span class="bool-val">true</span>,
+<a href=#151 id=151 data-nosnippet>151</a>    }
+<a href=#152 id=152 data-nosnippet>152</a>}
+<a href=#153 id=153 data-nosnippet>153</a>
+<a href=#154 id=154 data-nosnippet>154</a><span class="doccomment">/// Whether a call to `intrinsic` may mutate an array argument in place,
+<a href=#155 id=155 data-nosnippet>155</a>/// mirroring `is_pure_builtin_func` in `ssa_gen`: a pure intrinsic that is safe
+<a href=#156 id=156 data-nosnippet>156</a>/// for clone elision in Brillig cannot, everything else conservatively can.
+<a href=#157 id=157 data-nosnippet>157</a></span><span class="kw">fn </span>intrinsic_may_mutate_args(intrinsic: Intrinsic) -&gt; bool {
+<a href=#158 id=158 data-nosnippet>158</a>    intrinsic.unsafe_for_clone_elision_in_brillig()
+<a href=#159 id=159 data-nosnippet>159</a>        || !<span class="macro">matches!</span>(intrinsic.purity(), Purity::Pure | Purity::PureWithPredicate)
+<a href=#160 id=160 data-nosnippet>160</a>}
+<a href=#161 id=161 data-nosnippet>161</a>
+<a href=#162 id=162 data-nosnippet>162</a><span class="doccomment">/// Populate per-function state with `init`, then run `update` over every
+<a href=#163 id=163 data-nosnippet>163</a>/// function until a full round makes no change, and return the final state.
+<a href=#164 id=164 data-nosnippet>164</a>///
+<a href=#165 id=165 data-nosnippet>165</a>/// `init` receives each function and a mutable reference to the
+<a href=#166 id=166 data-nosnippet>166</a>/// default-initialized state to fill in that function's entry. `update`
+<a href=#167 id=167 data-nosnippet>167</a>/// likewise receives each function and the state, mutates it in place, and
+<a href=#168 id=168 data-nosnippet>168</a>/// returns whether it changed anything; returning `false` short-circuits a
+<a href=#169 id=169 data-nosnippet>169</a>/// function whose contribution is already settled. The caller keeps whichever
+<a href=#170 id=170 data-nosnippet>170</a>/// part of the final state it needs.
+<a href=#171 id=171 data-nosnippet>171</a></span><span class="kw">fn </span>fixpoint&lt;S: Default&gt;(
+<a href=#172 id=172 data-nosnippet>172</a>    ssa: <span class="kw-2">&amp;</span>Ssa,
+<a href=#173 id=173 data-nosnippet>173</a>    <span class="kw-2">mut </span>init: <span class="kw">impl </span>FnMut(<span class="kw-2">&amp;</span>Function, <span class="kw-2">&amp;mut </span>S),
+<a href=#174 id=174 data-nosnippet>174</a>    <span class="kw-2">mut </span>update: <span class="kw">impl </span>FnMut(<span class="kw-2">&amp;</span>Function, <span class="kw-2">&amp;mut </span>S) -&gt; bool,
+<a href=#175 id=175 data-nosnippet>175</a>) -&gt; S {
+<a href=#176 id=176 data-nosnippet>176</a>    <span class="kw">let </span><span class="kw-2">mut </span>state = S::default();
+<a href=#177 id=177 data-nosnippet>177</a>    <span class="kw">for </span>function <span class="kw">in </span>ssa.functions.values() {
+<a href=#178 id=178 data-nosnippet>178</a>        init(function, <span class="kw-2">&amp;mut </span>state);
+<a href=#179 id=179 data-nosnippet>179</a>    }
+<a href=#180 id=180 data-nosnippet>180</a>    <span class="kw">let </span><span class="kw-2">mut </span>changed = <span class="bool-val">true</span>;
+<a href=#181 id=181 data-nosnippet>181</a>    <span class="kw">while </span>changed {
+<a href=#182 id=182 data-nosnippet>182</a>        changed = <span class="bool-val">false</span>;
+<a href=#183 id=183 data-nosnippet>183</a>        <span class="kw">for </span>function <span class="kw">in </span>ssa.functions.values() {
+<a href=#184 id=184 data-nosnippet>184</a>            changed |= update(function, <span class="kw-2">&amp;mut </span>state);
+<a href=#185 id=185 data-nosnippet>185</a>        }
+<a href=#186 id=186 data-nosnippet>186</a>    }
+<a href=#187 id=187 data-nosnippet>187</a>    state
+<a href=#188 id=188 data-nosnippet>188</a>}
+<a href=#189 id=189 data-nosnippet>189</a>
+<a href=#190 id=190 data-nosnippet>190</a><span class="doccomment">/// Compute, for every function, whether a call to it may mutate the storage of
+<a href=#191 id=191 data-nosnippet>191</a>/// one of its array arguments observably to the caller.
+<a href=#192 id=192 data-nosnippet>192</a>///
+<a href=#193 id=193 data-nosnippet>193</a>/// A function may-mutate if it contains an in-place mutation (`array_set` or
+<a href=#194 id=194 data-nosnippet>194</a>/// `store`), calls a may-mutate function, calls a mutating intrinsic, or calls
+<a href=#195 id=195 data-nosnippet>195</a>/// an unresolved/dynamic target (assume the worst). Foreign calls contribute
+<a href=#196 id=196 data-nosnippet>196</a>/// nothing — oracles only read their inputs. This is an over-approximation:
+<a href=#197 id=197 data-nosnippet>197</a>/// the only callees marked *not* may-mutate are exactly those whose argument
+<a href=#198 id=198 data-nosnippet>198</a>/// clones the ownership pass elides, so a reused argument with no `inc_rc`
+<a href=#199 id=199 data-nosnippet>199</a>/// never trips the check on well-formed SSA. Propagated to a fixed point over
+<a href=#200 id=200 data-nosnippet>200</a>/// the call graph.
+<a href=#201 id=201 data-nosnippet>201</a></span><span class="kw">fn </span>compute_may_mutate_args(ssa: <span class="kw-2">&amp;</span>Ssa) -&gt; HashMap&lt;FunctionId, bool&gt; {
+<a href=#202 id=202 data-nosnippet>202</a>    <span class="kw">let </span>(may_mutate, _callees) = fixpoint(
+<a href=#203 id=203 data-nosnippet>203</a>        ssa,
+<a href=#204 id=204 data-nosnippet>204</a>        <span class="comment">// Initialize the state to each function's own (non-propagated) may-mutate flag,
+<a href=#205 id=205 data-nosnippet>205</a>        // plus its callee list. The callee list, built once by `init`, lets the propagation
+<a href=#206 id=206 data-nosnippet>206</a>        // rounds avoid re-scanning instruction bodies.
+<a href=#207 id=207 data-nosnippet>207</a>        </span>|function,
+<a href=#208 id=208 data-nosnippet>208</a>         (may_mutate, callees): <span class="kw-2">&amp;mut </span>(
+<a href=#209 id=209 data-nosnippet>209</a>            HashMap&lt;FunctionId, bool&gt;,
+<a href=#210 id=210 data-nosnippet>210</a>            HashMap&lt;FunctionId, Vec&lt;FunctionId&gt;&gt;,
+<a href=#211 id=211 data-nosnippet>211</a>        )| {
+<a href=#212 id=212 data-nosnippet>212</a>            <span class="kw">let </span><span class="kw-2">mut </span>base = <span class="bool-val">false</span>;
+<a href=#213 id=213 data-nosnippet>213</a>            <span class="kw">let </span><span class="kw-2">mut </span>calls = Vec::new();
+<a href=#214 id=214 data-nosnippet>214</a>            <span class="kw">for </span>block_id <span class="kw">in </span>function.reachable_blocks() {
+<a href=#215 id=215 data-nosnippet>215</a>                <span class="kw">for </span>instruction_id <span class="kw">in </span>function.dfg[block_id].instructions() {
+<a href=#216 id=216 data-nosnippet>216</a>                    <span class="kw">match </span><span class="kw-2">&amp;</span>function.dfg[<span class="kw-2">*</span>instruction_id] {
+<a href=#217 id=217 data-nosnippet>217</a>                        Instruction::ArraySet { .. } | Instruction::Store { .. } =&gt; base = <span class="bool-val">true</span>,
+<a href=#218 id=218 data-nosnippet>218</a>                        Instruction::Call { func, .. } =&gt; <span class="kw">match </span><span class="kw-2">&amp;</span>function.dfg[<span class="kw-2">*</span>func] {
+<a href=#219 id=219 data-nosnippet>219</a>                            Value::Function(callee) =&gt; calls.push(<span class="kw-2">*</span>callee),
+<a href=#220 id=220 data-nosnippet>220</a>                            Value::Intrinsic(intrinsic) =&gt; {
+<a href=#221 id=221 data-nosnippet>221</a>                                base |= intrinsic_may_mutate_args(<span class="kw-2">*</span>intrinsic);
+<a href=#222 id=222 data-nosnippet>222</a>                            }
+<a href=#223 id=223 data-nosnippet>223</a>                            <span class="comment">// Foreign calls only read their inputs.
+<a href=#224 id=224 data-nosnippet>224</a>                            </span>Value::ForeignFunction { .. } =&gt; {}
+<a href=#225 id=225 data-nosnippet>225</a>                            <span class="comment">// An unresolved or dynamic callee: assume the worst.
+<a href=#226 id=226 data-nosnippet>226</a>                            </span><span class="kw">_ </span>=&gt; base = <span class="bool-val">true</span>,
+<a href=#227 id=227 data-nosnippet>227</a>                        },
+<a href=#228 id=228 data-nosnippet>228</a>                        <span class="kw">_ </span>=&gt; {}
+<a href=#229 id=229 data-nosnippet>229</a>                    }
+<a href=#230 id=230 data-nosnippet>230</a>                }
+<a href=#231 id=231 data-nosnippet>231</a>            }
+<a href=#232 id=232 data-nosnippet>232</a>            may_mutate.insert(function.id(), base);
+<a href=#233 id=233 data-nosnippet>233</a>            callees.insert(function.id(), calls);
+<a href=#234 id=234 data-nosnippet>234</a>        },
+<a href=#235 id=235 data-nosnippet>235</a>        <span class="comment">// Propagate: a function may-mutate if any callee may-mutate.
+<a href=#236 id=236 data-nosnippet>236</a>        </span>|function, (may_mutate, callees)| {
+<a href=#237 id=237 data-nosnippet>237</a>            <span class="kw">let </span>id = function.id();
+<a href=#238 id=238 data-nosnippet>238</a>            <span class="kw">if </span>may_mutate[<span class="kw-2">&amp;</span>id] {
+<a href=#239 id=239 data-nosnippet>239</a>                <span class="kw">return </span><span class="bool-val">false</span>;
+<a href=#240 id=240 data-nosnippet>240</a>            }
+<a href=#241 id=241 data-nosnippet>241</a>            <span class="kw">let </span>now = callees[<span class="kw-2">&amp;</span>id].iter().any(|c| may_mutate[c]);
+<a href=#242 id=242 data-nosnippet>242</a>            <span class="kw">if </span>now {
+<a href=#243 id=243 data-nosnippet>243</a>                may_mutate.insert(id, <span class="bool-val">true</span>);
+<a href=#244 id=244 data-nosnippet>244</a>            }
+<a href=#245 id=245 data-nosnippet>245</a>            now
+<a href=#246 id=246 data-nosnippet>246</a>        },
+<a href=#247 id=247 data-nosnippet>247</a>    );
+<a href=#248 id=248 data-nosnippet>248</a>    may_mutate
+<a href=#249 id=249 data-nosnippet>249</a>}
+<a href=#250 id=250 data-nosnippet>250</a>
+<a href=#251 id=251 data-nosnippet>251</a><span class="doccomment">/// Compute, for every function, whether it may return an array value that
+<a href=#252 id=252 data-nosnippet>252</a>/// aliases one of its array parameters — e.g. an identity function that returns
+<a href=#253 id=253 data-nosnippet>253</a>/// its input unchanged. Such a call hands the caller an alias of the argument,
+<a href=#254 id=254 data-nosnippet>254</a>/// so an in-place mutation of the *result* mutates the *argument's* storage; the
+<a href=#255 id=255 data-nosnippet>255</a>/// call must be checked even when the callee does not itself mutate.
+<a href=#256 id=256 data-nosnippet>256</a>///
+<a href=#257 id=257 data-nosnippet>257</a>/// Distinct from "returns any array": a callee that returns a *fresh* array (a
+<a href=#258 id=258 data-nosnippet>258</a>/// `make_array`, or a foreign-call result — the shape of an oracle wrapper that
+<a href=#259 id=259 data-nosnippet>259</a>/// returns an array) is not flagged, so its caller's clone-elided arguments stay
+<a href=#260 id=260 data-nosnippet>260</a>/// accepted. Propagated to a fixed point over the call graph because the alias
+<a href=#261 id=261 data-nosnippet>261</a>/// property flows through `Value::Function` call results. (Alias-returning
+<a href=#262 id=262 data-nosnippet>262</a>/// intrinsics such as the vector mutators are left to `may_mutate` — see
+<a href=#263 id=263 data-nosnippet>263</a>/// [`function_returns_arg_alias`].)
+<a href=#264 id=264 data-nosnippet>264</a></span><span class="kw">fn </span>compute_returns_arg_alias(ssa: <span class="kw-2">&amp;</span>Ssa) -&gt; HashMap&lt;FunctionId, bool&gt; {
+<a href=#265 id=265 data-nosnippet>265</a>    <span class="comment">// Monotonic fixed point: every function starts `false`; one only ever flips
+<a href=#266 id=266 data-nosnippet>266</a>    // to true, and `function_returns_arg_alias` reads the current map to resolve
+<a href=#267 id=267 data-nosnippet>267</a>    // callee results.
+<a href=#268 id=268 data-nosnippet>268</a>    </span>fixpoint(
+<a href=#269 id=269 data-nosnippet>269</a>        ssa,
+<a href=#270 id=270 data-nosnippet>270</a>        |function, returns_arg_alias: <span class="kw-2">&amp;mut </span>HashMap&lt;FunctionId, bool&gt;| {
+<a href=#271 id=271 data-nosnippet>271</a>            returns_arg_alias.insert(function.id(), <span class="bool-val">false</span>);
+<a href=#272 id=272 data-nosnippet>272</a>        },
+<a href=#273 id=273 data-nosnippet>273</a>        |function, returns_arg_alias| {
+<a href=#274 id=274 data-nosnippet>274</a>            <span class="kw">let </span>id = function.id();
+<a href=#275 id=275 data-nosnippet>275</a>            <span class="kw">if </span>returns_arg_alias[<span class="kw-2">&amp;</span>id] {
+<a href=#276 id=276 data-nosnippet>276</a>                <span class="kw">return </span><span class="bool-val">false</span>;
+<a href=#277 id=277 data-nosnippet>277</a>            }
+<a href=#278 id=278 data-nosnippet>278</a>            <span class="kw">let </span>now = function_returns_arg_alias(function, returns_arg_alias);
+<a href=#279 id=279 data-nosnippet>279</a>            <span class="kw">if </span>now {
+<a href=#280 id=280 data-nosnippet>280</a>                returns_arg_alias.insert(id, <span class="bool-val">true</span>);
+<a href=#281 id=281 data-nosnippet>281</a>            }
+<a href=#282 id=282 data-nosnippet>282</a>            now
+<a href=#283 id=283 data-nosnippet>283</a>        },
+<a href=#284 id=284 data-nosnippet>284</a>    )
+<a href=#285 id=285 data-nosnippet>285</a>}
+<a href=#286 id=286 data-nosnippet>286</a>
+<a href=#287 id=287 data-nosnippet>287</a><span class="doccomment">/// Whether `function` returns an array value that may alias one of its array
+<a href=#288 id=288 data-nosnippet>288</a>/// parameters, given the current `returns_arg_alias` summary for resolving
+<a href=#289 id=289 data-nosnippet>289</a>/// callee results.
+<a href=#290 id=290 data-nosnippet>290</a>///
+<a href=#291 id=291 data-nosnippet>291</a>/// Computes the set of *parameter-derived* values to a fixed point: an array
+<a href=#292 id=292 data-nosnippet>292</a>/// parameter, a block parameter threaded from one, an `array_set` or nested
+<a href=#293 id=293 data-nosnippet>293</a>/// `array_get` of one, or a `Value::Function` call result whose callee
+<a href=#294 id=294 data-nosnippet>294</a>/// `returns_arg_alias` and is fed a parameter-derived argument. `make_array` and
+<a href=#295 id=295 data-nosnippet>295</a>/// foreign-call results stop the trace (genuinely fresh). Intrinsic results also
+<a href=#296 id=296 data-nosnippet>296</a>/// stop the trace here — the alias-returning ones
+<a href=#297 id=297 data-nosnippet>297</a>/// (`unsafe_for_clone_elision_in_brillig`) are instead covered by `may_mutate`,
+<a href=#298 id=298 data-nosnippet>298</a>/// since calling one sets that flag. The function returns an arg alias iff any
+<a href=#299 id=299 data-nosnippet>299</a>/// returned value is parameter-derived.
+<a href=#300 id=300 data-nosnippet>300</a></span><span class="kw">fn </span>function_returns_arg_alias(
+<a href=#301 id=301 data-nosnippet>301</a>    function: <span class="kw-2">&amp;</span>Function,
+<a href=#302 id=302 data-nosnippet>302</a>    returns_arg_alias: <span class="kw-2">&amp;</span>HashMap&lt;FunctionId, bool&gt;,
+<a href=#303 id=303 data-nosnippet>303</a>) -&gt; bool {
+<a href=#304 id=304 data-nosnippet>304</a>    <span class="kw">let </span>dfg = <span class="kw-2">&amp;</span>function.dfg;
+<a href=#305 id=305 data-nosnippet>305</a>
+<a href=#306 id=306 data-nosnippet>306</a>    <span class="comment">// Incoming block-parameter arguments per destination block, to thread
+<a href=#307 id=307 data-nosnippet>307</a>    // parameter-derived-ness across edges.
+<a href=#308 id=308 data-nosnippet>308</a>    </span><span class="kw">let </span><span class="kw-2">mut </span>incoming: HashMap&lt;BasicBlockId, Vec&lt;Vec&lt;ValueId&gt;&gt;&gt; = HashMap::default();
+<a href=#309 id=309 data-nosnippet>309</a>    <span class="kw">for </span>block_id <span class="kw">in </span>function.reachable_blocks() {
+<a href=#310 id=310 data-nosnippet>310</a>        <span class="kw">match </span>dfg[block_id].terminator() {
+<a href=#311 id=311 data-nosnippet>311</a>            <span class="prelude-val">Some</span>(TerminatorInstruction::Jmp { destination, arguments, .. }) =&gt; {
+<a href=#312 id=312 data-nosnippet>312</a>                incoming.entry(<span class="kw-2">*</span>destination).or_default().push(arguments.clone());
 <a href=#313 id=313 data-nosnippet>313</a>            }
-<a href=#314 id=314 data-nosnippet>314</a>            brillig(inline) fn sort_in_place f1 {
-<a href=#315 id=315 data-nosnippet>315</a>              b0(v0: &amp;mut [u8; 3]):
-<a href=#316 id=316 data-nosnippet>316</a>                v1 = load v0 -&gt; [u8; 3]
-<a href=#317 id=317 data-nosnippet>317</a>                v3 = array_set v1, index u32 0, value u8 9
-<a href=#318 id=318 data-nosnippet>318</a>                store v3 at v0
-<a href=#319 id=319 data-nosnippet>319</a>                return
-<a href=#320 id=320 data-nosnippet>320</a>            }"#</span>;
-<a href=#321 id=321 data-nosnippet>321</a>        assert_verifier_accepts_because(
-<a href=#322 id=322 data-nosnippet>322</a>            src,
-<a href=#323 id=323 data-nosnippet>323</a>            <span class="string">"the call argument is a &amp;mut reference, not an array value, so it is not a COW hazard"</span>,
-<a href=#324 id=324 data-nosnippet>324</a>        );
-<a href=#325 id=325 data-nosnippet>325</a>    }
-<a href=#326 id=326 data-nosnippet>326</a>}</code></pre></div></section></main></body></html>
+<a href=#314 id=314 data-nosnippet>314</a>            <span class="prelude-val">Some</span>(TerminatorInstruction::JmpIf {
+<a href=#315 id=315 data-nosnippet>315</a>                then_destination,
+<a href=#316 id=316 data-nosnippet>316</a>                then_arguments,
+<a href=#317 id=317 data-nosnippet>317</a>                else_destination,
+<a href=#318 id=318 data-nosnippet>318</a>                else_arguments,
+<a href=#319 id=319 data-nosnippet>319</a>                ..
+<a href=#320 id=320 data-nosnippet>320</a>            }) =&gt; {
+<a href=#321 id=321 data-nosnippet>321</a>                incoming.entry(<span class="kw-2">*</span>then_destination).or_default().push(then_arguments.clone());
+<a href=#322 id=322 data-nosnippet>322</a>                incoming.entry(<span class="kw-2">*</span>else_destination).or_default().push(else_arguments.clone());
+<a href=#323 id=323 data-nosnippet>323</a>            }
+<a href=#324 id=324 data-nosnippet>324</a>            <span class="kw">_ </span>=&gt; {}
+<a href=#325 id=325 data-nosnippet>325</a>        }
+<a href=#326 id=326 data-nosnippet>326</a>    }
+<a href=#327 id=327 data-nosnippet>327</a>
+<a href=#328 id=328 data-nosnippet>328</a>    <span class="comment">// Seed with the function's array-value parameters (entry block parameters).
+<a href=#329 id=329 data-nosnippet>329</a>    </span><span class="kw">let </span>entry = function.entry_block();
+<a href=#330 id=330 data-nosnippet>330</a>    <span class="kw">let </span><span class="kw-2">mut </span>param_derived: HashSet&lt;ValueId&gt; = dfg
+<a href=#331 id=331 data-nosnippet>331</a>        .block_parameters(entry)
+<a href=#332 id=332 data-nosnippet>332</a>        .iter()
+<a href=#333 id=333 data-nosnippet>333</a>        .copied()
+<a href=#334 id=334 data-nosnippet>334</a>        .filter(|<span class="kw-2">&amp;</span>p| dfg.type_of_value(p).is_array())
+<a href=#335 id=335 data-nosnippet>335</a>        .collect();
+<a href=#336 id=336 data-nosnippet>336</a>
+<a href=#337 id=337 data-nosnippet>337</a>    <span class="kw">let </span><span class="kw-2">mut </span>changed = <span class="bool-val">true</span>;
+<a href=#338 id=338 data-nosnippet>338</a>    <span class="kw">while </span>changed {
+<a href=#339 id=339 data-nosnippet>339</a>        changed = <span class="bool-val">false</span>;
+<a href=#340 id=340 data-nosnippet>340</a>
+<a href=#341 id=341 data-nosnippet>341</a>        <span class="kw">for </span>block_id <span class="kw">in </span>function.reachable_blocks() {
+<a href=#342 id=342 data-nosnippet>342</a>            <span class="comment">// Block parameters fed a parameter-derived argument on some edge.
+<a href=#343 id=343 data-nosnippet>343</a>            </span><span class="kw">if let </span><span class="prelude-val">Some</span>(edges) = incoming.get(<span class="kw-2">&amp;</span>block_id) {
+<a href=#344 id=344 data-nosnippet>344</a>                <span class="kw">let </span>params = dfg.block_parameters(block_id);
+<a href=#345 id=345 data-nosnippet>345</a>                <span class="kw">for </span>(i, <span class="kw-2">&amp;</span>param) <span class="kw">in </span>params.iter().enumerate() {
+<a href=#346 id=346 data-nosnippet>346</a>                    <span class="kw">if </span>param_derived.contains(<span class="kw-2">&amp;</span>param) {
+<a href=#347 id=347 data-nosnippet>347</a>                        <span class="kw">continue</span>;
+<a href=#348 id=348 data-nosnippet>348</a>                    }
+<a href=#349 id=349 data-nosnippet>349</a>                    <span class="comment">// Check any of the incoming edges for arguments which are derived from function inputs.
+<a href=#350 id=350 data-nosnippet>350</a>                    </span><span class="kw">let </span>fed = edges
+<a href=#351 id=351 data-nosnippet>351</a>                        .iter()
+<a href=#352 id=352 data-nosnippet>352</a>                        .any(|args| args.get(i).is_some_and(|a| param_derived.contains(a)));
+<a href=#353 id=353 data-nosnippet>353</a>                    <span class="kw">if </span>fed {
+<a href=#354 id=354 data-nosnippet>354</a>                        param_derived.insert(param);
+<a href=#355 id=355 data-nosnippet>355</a>                        changed = <span class="bool-val">true</span>;
+<a href=#356 id=356 data-nosnippet>356</a>                    }
+<a href=#357 id=357 data-nosnippet>357</a>                }
+<a href=#358 id=358 data-nosnippet>358</a>            }
+<a href=#359 id=359 data-nosnippet>359</a>
+<a href=#360 id=360 data-nosnippet>360</a>            <span class="kw">for </span>instruction_id <span class="kw">in </span>dfg[block_id].instructions() {
+<a href=#361 id=361 data-nosnippet>361</a>                <span class="kw">let </span>propagate = <span class="kw">match </span><span class="kw-2">&amp;</span>dfg[<span class="kw-2">*</span>instruction_id] {
+<a href=#362 id=362 data-nosnippet>362</a>                    <span class="comment">// An array_set result shares the operand's storage.
+<a href=#363 id=363 data-nosnippet>363</a>                    </span>Instruction::ArraySet { array, .. } =&gt; param_derived.contains(array),
+<a href=#364 id=364 data-nosnippet>364</a>                    <span class="comment">// A *nested* array_get returns a sub-array that shares the
+<a href=#365 id=365 data-nosnippet>365</a>                    // source's storage (a brillig array_get on a nested array
+<a href=#366 id=366 data-nosnippet>366</a>                    // aliases rather than copies). The `is_array` gate on the
+<a href=#367 id=367 data-nosnippet>367</a>                    // result below restricts this to the nested case — a
+<a href=#368 id=368 data-nosnippet>368</a>                    // non-nested get yields a scalar and propagates nothing.
+<a href=#369 id=369 data-nosnippet>369</a>                    </span>Instruction::ArrayGet { array, .. } =&gt; param_derived.contains(array),
+<a href=#370 id=370 data-nosnippet>370</a>                    <span class="comment">// A user-function call result aliases an argument only if
+<a href=#371 id=371 data-nosnippet>371</a>                    // the callee returns an arg alias and is fed a
+<a href=#372 id=372 data-nosnippet>372</a>                    // parameter-derived argument.
+<a href=#373 id=373 data-nosnippet>373</a>                    //
+<a href=#374 id=374 data-nosnippet>374</a>                    // Foreign-call results are genuinely fresh (oracles copy
+<a href=#375 id=375 data-nosnippet>375</a>                    // across the boundary). Intrinsic results are *not* always
+<a href=#376 id=376 data-nosnippet>376</a>                    // fresh — the `unsafe_for_clone_elision_in_brillig`
+<a href=#377 id=377 data-nosnippet>377</a>                    // intrinsics (vector mutators, `str_as_bytes`,
+<a href=#378 id=378 data-nosnippet>378</a>                    // `array_as_str_unchecked`) return an alias of their input —
+<a href=#379 id=379 data-nosnippet>379</a>                    // but we deliberately don't trace through them here: calling
+<a href=#380 id=380 data-nosnippet>380</a>                    // one already makes the function `may_mutate`
+<a href=#381 id=381 data-nosnippet>381</a>                    // (`intrinsic_may_mutate_args`), so `needs_check` flags it
+<a href=#382 id=382 data-nosnippet>382</a>                    // via that summary. This pass only has to cover the gap
+<a href=#383 id=383 data-nosnippet>383</a>                    // `may_mutate` misses: a non-mutating function that passes an
+<a href=#384 id=384 data-nosnippet>384</a>                    // input straight back.
+<a href=#385 id=385 data-nosnippet>385</a>                    </span>Instruction::Call { func, arguments } =&gt; <span class="kw">match </span><span class="kw-2">&amp;</span>dfg[<span class="kw-2">*</span>func] {
+<a href=#386 id=386 data-nosnippet>386</a>                        Value::Function(callee) =&gt; {
+<a href=#387 id=387 data-nosnippet>387</a>                            returns_arg_alias[callee]
+<a href=#388 id=388 data-nosnippet>388</a>                                &amp;&amp; arguments.iter().any(|a| param_derived.contains(a))
+<a href=#389 id=389 data-nosnippet>389</a>                        }
+<a href=#390 id=390 data-nosnippet>390</a>                        <span class="kw">_ </span>=&gt; <span class="bool-val">false</span>,
+<a href=#391 id=391 data-nosnippet>391</a>                    },
+<a href=#392 id=392 data-nosnippet>392</a>                    <span class="kw">_ </span>=&gt; <span class="bool-val">false</span>,
+<a href=#393 id=393 data-nosnippet>393</a>                };
+<a href=#394 id=394 data-nosnippet>394</a>                <span class="kw">if </span>propagate {
+<a href=#395 id=395 data-nosnippet>395</a>                    <span class="kw">for </span><span class="kw-2">&amp;</span>result <span class="kw">in </span>dfg.instruction_results(<span class="kw-2">*</span>instruction_id) {
+<a href=#396 id=396 data-nosnippet>396</a>                        <span class="kw">if </span>dfg.type_of_value(result).is_array() &amp;&amp; param_derived.insert(result) {
+<a href=#397 id=397 data-nosnippet>397</a>                            changed = <span class="bool-val">true</span>;
+<a href=#398 id=398 data-nosnippet>398</a>                        }
+<a href=#399 id=399 data-nosnippet>399</a>                    }
+<a href=#400 id=400 data-nosnippet>400</a>                }
+<a href=#401 id=401 data-nosnippet>401</a>            }
+<a href=#402 id=402 data-nosnippet>402</a>        }
+<a href=#403 id=403 data-nosnippet>403</a>    }
+<a href=#404 id=404 data-nosnippet>404</a>
+<a href=#405 id=405 data-nosnippet>405</a>    <span class="comment">// Check if the return block contains a value that was derived from the inputs.
+<a href=#406 id=406 data-nosnippet>406</a>    </span>function.reachable_blocks().iter().any(|<span class="kw-2">&amp;</span>block_id| {
+<a href=#407 id=407 data-nosnippet>407</a>        <span class="macro">matches!</span>(
+<a href=#408 id=408 data-nosnippet>408</a>            dfg[block_id].terminator(),
+<a href=#409 id=409 data-nosnippet>409</a>            <span class="prelude-val">Some</span>(TerminatorInstruction::Return { return_values, .. })
+<a href=#410 id=410 data-nosnippet>410</a>                <span class="kw">if </span>return_values.iter().any(|v| param_derived.contains(v))
+<a href=#411 id=411 data-nosnippet>411</a>        )
+<a href=#412 id=412 data-nosnippet>412</a>    })
+<a href=#413 id=413 data-nosnippet>413</a>}
+<a href=#414 id=414 data-nosnippet>414</a>
+<a href=#415 id=415 data-nosnippet>415</a><span class="attr">#[cfg(test)]
+<a href=#416 id=416 data-nosnippet>416</a></span><span class="kw">mod </span>tests {
+<a href=#417 id=417 data-nosnippet>417</a>    <span class="kw">use </span><span class="kw">super</span>::<span class="kw">super</span>::tests::assert_verifier_accepts_because;
+<a href=#418 id=418 data-nosnippet>418</a>    <span class="kw">use </span><span class="kw">crate</span>::ssa::ssa_gen::Ssa;
+<a href=#419 id=419 data-nosnippet>419</a>
+<a href=#420 id=420 data-nosnippet>420</a>    <span class="doccomment">/// Parse `src`, run the `call` verifier, and require it to reject the SSA
+<a href=#421 id=421 data-nosnippet>421</a>    /// with a [`crate::errors::RuntimeError::CallArgAliasViolation`]. Panics on
+<a href=#422 id=422 data-nosnippet>422</a>    /// any other outcome. Runs `call::verify` directly (not the combined check)
+<a href=#423 id=423 data-nosnippet>423</a>    /// so the assertion proves the *call* verifier is the one that caught the
+<a href=#424 id=424 data-nosnippet>424</a>    /// hazard.
+<a href=#425 id=425 data-nosnippet>425</a>    </span><span class="kw">fn </span>assert_verifier_rejects(src: <span class="kw-2">&amp;</span>str) {
+<a href=#426 id=426 data-nosnippet>426</a>        <span class="kw">let </span>ssa = Ssa::from_str(src).expect(<span class="string">"SSA parses"</span>);
+<a href=#427 id=427 data-nosnippet>427</a>        <span class="kw">let </span>err = <span class="kw">super</span>::verify(<span class="kw-2">&amp;</span>ssa).expect_err(<span class="string">"expected the verifier to reject"</span>);
+<a href=#428 id=428 data-nosnippet>428</a>        <span class="macro">assert!</span>(
+<a href=#429 id=429 data-nosnippet>429</a>            <span class="macro">matches!</span>(err, <span class="kw">crate</span>::errors::RuntimeError::CallArgAliasViolation { .. }),
+<a href=#430 id=430 data-nosnippet>430</a>            <span class="string">"expected CallArgAliasViolation, got {err:?}"</span>,
+<a href=#431 id=431 data-nosnippet>431</a>        );
+<a href=#432 id=432 data-nosnippet>432</a>    }
+<a href=#433 id=433 data-nosnippet>433</a>
+<a href=#434 id=434 data-nosnippet>434</a>    <span class="doccomment">/// Regression for noir-lang/noir-claude#1426. The ownership pass clones
+<a href=#435 id=435 data-nosnippet>435</a>    /// (`inc_rc`s) every non-last use of an array, so a well-formed program
+<a href=#436 id=436 data-nosnippet>436</a>    /// that reuses an array across a call always RC-protects it. This
+<a href=#437 id=437 data-nosnippet>437</a>    /// hand-written SSA omits those bumps: a pure identity callee (`f2`)
+<a href=#438 id=438 data-nosnippet>438</a>    /// returns the array input unchanged, `f1` then `array_set`s the returned
+<a href=#439 id=439 data-nosnippet>439</a>    /// alias — mutating its caller's array in place at RC 1 — and `main`
+<a href=#440 id=440 data-nosnippet>440</a>    /// reuses the same array across two calls to `f1`. The in-place mutation
+<a href=#441 id=441 data-nosnippet>441</a>    /// is therefore observable to `main` (the first call's mutation is seen by
+<a href=#442 id=442 data-nosnippet>442</a>    /// the second), which is exactly the precondition `purity_analysis`
+<a href=#443 id=443 data-nosnippet>443</a>    /// relies on being absent. The verifier must reject: both the reused arg
+<a href=#444 id=444 data-nosnippet>444</a>    /// in `main` and the reused-then-read arg in `f1` lack a preceding
+<a href=#445 id=445 data-nosnippet>445</a>    /// `inc_rc`.
+<a href=#446 id=446 data-nosnippet>446</a>    </span><span class="attr">#[test]
+<a href=#447 id=447 data-nosnippet>447</a>    </span><span class="kw">fn </span>end_to_end_array_reused_across_call_without_inc_rc_is_rejected() {
+<a href=#448 id=448 data-nosnippet>448</a>        <span class="kw">let </span>src = <span class="string">r#"
+<a href=#449 id=449 data-nosnippet>449</a>            brillig(inline) fn main f0 {
+<a href=#450 id=450 data-nosnippet>450</a>              b0():
+<a href=#451 id=451 data-nosnippet>451</a>                v0 = make_array [Field 1, Field 2] : [Field; 2]
+<a href=#452 id=452 data-nosnippet>452</a>                v1 = call f1(v0) -&gt; Field
+<a href=#453 id=453 data-nosnippet>453</a>                v2 = call f1(v0) -&gt; Field
+<a href=#454 id=454 data-nosnippet>454</a>                return v1, v2
+<a href=#455 id=455 data-nosnippet>455</a>            }
+<a href=#456 id=456 data-nosnippet>456</a>            brillig(inline) fn bump_via_identity f1 {
+<a href=#457 id=457 data-nosnippet>457</a>              b0(v0: [Field; 2]):
+<a href=#458 id=458 data-nosnippet>458</a>                v1 = call f2(v0) -&gt; [Field; 2]
+<a href=#459 id=459 data-nosnippet>459</a>                v2 = array_get v0, index u32 0 -&gt; Field
+<a href=#460 id=460 data-nosnippet>460</a>                v3 = add v2, Field 1
+<a href=#461 id=461 data-nosnippet>461</a>                v4 = array_set v1, index u32 0, value v3
+<a href=#462 id=462 data-nosnippet>462</a>                return v3
+<a href=#463 id=463 data-nosnippet>463</a>            }
+<a href=#464 id=464 data-nosnippet>464</a>            brillig(inline) fn identity f2 {
+<a href=#465 id=465 data-nosnippet>465</a>              b0(v0: [Field; 2]):
+<a href=#466 id=466 data-nosnippet>466</a>                return v0
+<a href=#467 id=467 data-nosnippet>467</a>            }"#</span>;
+<a href=#468 id=468 data-nosnippet>468</a>        assert_verifier_rejects(src);
+<a href=#469 id=469 data-nosnippet>469</a>    }
+<a href=#470 id=470 data-nosnippet>470</a>
+<a href=#471 id=471 data-nosnippet>471</a>    <span class="doccomment">/// The well-formed counterpart of
+<a href=#472 id=472 data-nosnippet>472</a>    /// [`end_to_end_array_reused_across_call_without_inc_rc_is_rejected`]: the
+<a href=#473 id=473 data-nosnippet>473</a>    /// `inc_rc`s the ownership pass emits are present — in `main` before the
+<a href=#474 id=474 data-nosnippet>474</a>    /// reused call arg, and in `f1` before the array escapes to `identity` and
+<a href=#475 id=475 data-nosnippet>475</a>    /// is read again. Every reused array call-arg is now RC-protected, so the
+<a href=#476 id=476 data-nosnippet>476</a>    /// in-place mutation cannot be observed through an alias and the verifier
+<a href=#477 id=477 data-nosnippet>477</a>    /// accepts. This pins down that the call-arg check credits a preceding
+<a href=#478 id=478 data-nosnippet>478</a>    /// `inc_rc` rather than flagging every reused call arg unconditionally.
+<a href=#479 id=479 data-nosnippet>479</a>    </span><span class="attr">#[test]
+<a href=#480 id=480 data-nosnippet>480</a>    </span><span class="kw">fn </span>end_to_end_array_reused_across_call_with_inc_rc_is_accepted() {
+<a href=#481 id=481 data-nosnippet>481</a>        <span class="kw">let </span>src = <span class="string">r#"
+<a href=#482 id=482 data-nosnippet>482</a>            brillig(inline) fn main f0 {
+<a href=#483 id=483 data-nosnippet>483</a>              b0():
+<a href=#484 id=484 data-nosnippet>484</a>                v0 = make_array [Field 1, Field 2] : [Field; 2]
+<a href=#485 id=485 data-nosnippet>485</a>                inc_rc v0
+<a href=#486 id=486 data-nosnippet>486</a>                v1 = call f1(v0) -&gt; Field
+<a href=#487 id=487 data-nosnippet>487</a>                v2 = call f1(v0) -&gt; Field
+<a href=#488 id=488 data-nosnippet>488</a>                return v1, v2
+<a href=#489 id=489 data-nosnippet>489</a>            }
+<a href=#490 id=490 data-nosnippet>490</a>            brillig(inline) fn bump_via_identity f1 {
+<a href=#491 id=491 data-nosnippet>491</a>              b0(v0: [Field; 2]):
+<a href=#492 id=492 data-nosnippet>492</a>                inc_rc v0
+<a href=#493 id=493 data-nosnippet>493</a>                v1 = call f2(v0) -&gt; [Field; 2]
+<a href=#494 id=494 data-nosnippet>494</a>                v2 = array_get v0, index u32 0 -&gt; Field
+<a href=#495 id=495 data-nosnippet>495</a>                v3 = add v2, Field 1
+<a href=#496 id=496 data-nosnippet>496</a>                v4 = array_set v1, index u32 0, value v3
+<a href=#497 id=497 data-nosnippet>497</a>                return v3
+<a href=#498 id=498 data-nosnippet>498</a>            }
+<a href=#499 id=499 data-nosnippet>499</a>            brillig(inline) fn identity f2 {
+<a href=#500 id=500 data-nosnippet>500</a>              b0(v0: [Field; 2]):
+<a href=#501 id=501 data-nosnippet>501</a>                return v0
+<a href=#502 id=502 data-nosnippet>502</a>            }"#</span>;
+<a href=#503 id=503 data-nosnippet>503</a>        assert_verifier_accepts_because(
+<a href=#504 id=504 data-nosnippet>504</a>            src,
+<a href=#505 id=505 data-nosnippet>505</a>            <span class="string">"every reused array call-arg is protected by a preceding inc_rc"</span>,
+<a href=#506 id=506 data-nosnippet>506</a>        );
+<a href=#507 id=507 data-nosnippet>507</a>    }
+<a href=#508 id=508 data-nosnippet>508</a>
+<a href=#509 id=509 data-nosnippet>509</a>    <span class="doccomment">/// Reduced from the `array_sort` execution test (`quicksort`): a `&amp;mut`
+<a href=#510 id=510 data-nosnippet>510</a>    /// **reference** to an array is passed to a callee that sorts it in place
+<a href=#511 id=511 data-nosnippet>511</a>    /// and then loaded back. The argument is a reference, not an array value,
+<a href=#512 id=512 data-nosnippet>512</a>    /// so it is *not* a copy-on-write hazard — mutation through a `&amp;mut` is the
+<a href=#513 id=513 data-nosnippet>513</a>    /// explicit, caller-visible pattern the frontend passes a reference for
+<a href=#514 id=514 data-nosnippet>514</a>    /// (and a reference parameter already makes the callee impure). The call
+<a href=#515 id=515 data-nosnippet>515</a>    /// verifier must skip reference arguments and accept; flagging this was a
+<a href=#516 id=516 data-nosnippet>516</a>    /// false positive fixed by the `contains_reference` filter.
+<a href=#517 id=517 data-nosnippet>517</a>    </span><span class="attr">#[test]
+<a href=#518 id=518 data-nosnippet>518</a>    </span><span class="kw">fn </span>end_to_end_reference_argument_read_back_after_call_is_accepted() {
+<a href=#519 id=519 data-nosnippet>519</a>        <span class="kw">let </span>src = <span class="string">r#"
+<a href=#520 id=520 data-nosnippet>520</a>            brillig(inline) fn main f0 {
+<a href=#521 id=521 data-nosnippet>521</a>              b0(v0: [u8; 3]):
+<a href=#522 id=522 data-nosnippet>522</a>                v1 = allocate -&gt; &amp;mut [u8; 3]
+<a href=#523 id=523 data-nosnippet>523</a>                store v0 at v1
+<a href=#524 id=524 data-nosnippet>524</a>                call f1(v1)
+<a href=#525 id=525 data-nosnippet>525</a>                v2 = load v1 -&gt; [u8; 3]
+<a href=#526 id=526 data-nosnippet>526</a>                return v2
+<a href=#527 id=527 data-nosnippet>527</a>            }
+<a href=#528 id=528 data-nosnippet>528</a>            brillig(inline) fn sort_in_place f1 {
+<a href=#529 id=529 data-nosnippet>529</a>              b0(v0: &amp;mut [u8; 3]):
+<a href=#530 id=530 data-nosnippet>530</a>                v1 = load v0 -&gt; [u8; 3]
+<a href=#531 id=531 data-nosnippet>531</a>                v3 = array_set v1, index u32 0, value u8 9
+<a href=#532 id=532 data-nosnippet>532</a>                store v3 at v0
+<a href=#533 id=533 data-nosnippet>533</a>                return
+<a href=#534 id=534 data-nosnippet>534</a>            }"#</span>;
+<a href=#535 id=535 data-nosnippet>535</a>        assert_verifier_accepts_because(
+<a href=#536 id=536 data-nosnippet>536</a>            src,
+<a href=#537 id=537 data-nosnippet>537</a>            <span class="string">"the call argument is a &amp;mut reference, not an array value, so it is not a COW hazard"</span>,
+<a href=#538 id=538 data-nosnippet>538</a>        );
+<a href=#539 id=539 data-nosnippet>539</a>    }
+<a href=#540 id=540 data-nosnippet>540</a>
+<a href=#541 id=541 data-nosnippet>541</a>    <span class="doccomment">/// Regression for noir-lang/noir-claude#1443. `identity` (`f1`) does not
+<a href=#542 id=542 data-nosnippet>542</a>    /// mutate its argument, so `callee_may_mutate_args` is `false`; but by
+<a href=#543 id=543 data-nosnippet>543</a>    /// returning `v0` unchanged it makes the call result `v1` an **alias** of
+<a href=#544 id=544 data-nosnippet>544</a>    /// `v0`. The caller then `array_set v1` (mutating `v0`'s storage in place at
+<a href=#545 id=545 data-nosnippet>545</a>    /// RC 1) and reads `v0` afterwards, observing the mutation. The frontend
+<a href=#546 id=546 data-nosnippet>546</a>    /// would emit an `inc_rc v0` before the call (`v0` is reused), so this SSA
+<a href=#547 id=547 data-nosnippet>547</a>    /// is malformed. The call verifier must not skip a callee that may return an
+<a href=#548 id=548 data-nosnippet>548</a>    /// alias of an array input — `returns_arg_alias` — and so flags the reused
+<a href=#549 id=549 data-nosnippet>549</a>    /// `v0`.
+<a href=#550 id=550 data-nosnippet>550</a>    </span><span class="attr">#[test]
+<a href=#551 id=551 data-nosnippet>551</a>    </span><span class="kw">fn </span>end_to_end_callee_returns_input_alias_mutated_by_caller_is_rejected() {
+<a href=#552 id=552 data-nosnippet>552</a>        <span class="kw">let </span>src = <span class="string">r#"
+<a href=#553 id=553 data-nosnippet>553</a>            brillig(inline) fn main f0 {
+<a href=#554 id=554 data-nosnippet>554</a>              b0():
+<a href=#555 id=555 data-nosnippet>555</a>                v0 = make_array [Field 1, Field 2] : [Field; 2]
+<a href=#556 id=556 data-nosnippet>556</a>                v1 = call f1(v0) -&gt; [Field; 2]
+<a href=#557 id=557 data-nosnippet>557</a>                v2 = array_set v1, index u32 0, value Field 9
+<a href=#558 id=558 data-nosnippet>558</a>                v3 = array_get v0, index u32 0 -&gt; Field
+<a href=#559 id=559 data-nosnippet>559</a>                return v3
+<a href=#560 id=560 data-nosnippet>560</a>            }
+<a href=#561 id=561 data-nosnippet>561</a>            brillig(inline) fn identity f1 {
+<a href=#562 id=562 data-nosnippet>562</a>              b0(v0: [Field; 2]):
+<a href=#563 id=563 data-nosnippet>563</a>                return v0
+<a href=#564 id=564 data-nosnippet>564</a>            }"#</span>;
+<a href=#565 id=565 data-nosnippet>565</a>        assert_verifier_rejects(src);
+<a href=#566 id=566 data-nosnippet>566</a>    }
+<a href=#567 id=567 data-nosnippet>567</a>
+<a href=#568 id=568 data-nosnippet>568</a>    <span class="doccomment">/// The well-formed counterpart of
+<a href=#569 id=569 data-nosnippet>569</a>    /// [`end_to_end_callee_returns_input_alias_mutated_by_caller_is_rejected`]:
+<a href=#570 id=570 data-nosnippet>570</a>    /// the `inc_rc v0` the ownership pass emits before the reused call argument
+<a href=#571 id=571 data-nosnippet>571</a>    /// is present, so the later `array_set` copies rather than mutating `v0` in
+<a href=#572 id=572 data-nosnippet>572</a>    /// place and the read of `v0` is sound. Accepted.
+<a href=#573 id=573 data-nosnippet>573</a>    </span><span class="attr">#[test]
+<a href=#574 id=574 data-nosnippet>574</a>    </span><span class="kw">fn </span>end_to_end_callee_returns_input_alias_with_inc_rc_is_accepted() {
+<a href=#575 id=575 data-nosnippet>575</a>        <span class="kw">let </span>src = <span class="string">r#"
+<a href=#576 id=576 data-nosnippet>576</a>            brillig(inline) fn main f0 {
+<a href=#577 id=577 data-nosnippet>577</a>              b0():
+<a href=#578 id=578 data-nosnippet>578</a>                v0 = make_array [Field 1, Field 2] : [Field; 2]
+<a href=#579 id=579 data-nosnippet>579</a>                inc_rc v0
+<a href=#580 id=580 data-nosnippet>580</a>                v1 = call f1(v0) -&gt; [Field; 2]
+<a href=#581 id=581 data-nosnippet>581</a>                v2 = array_set v1, index u32 0, value Field 9
+<a href=#582 id=582 data-nosnippet>582</a>                v3 = array_get v0, index u32 0 -&gt; Field
+<a href=#583 id=583 data-nosnippet>583</a>                return v3
+<a href=#584 id=584 data-nosnippet>584</a>            }
+<a href=#585 id=585 data-nosnippet>585</a>            brillig(inline) fn identity f1 {
+<a href=#586 id=586 data-nosnippet>586</a>              b0(v0: [Field; 2]):
+<a href=#587 id=587 data-nosnippet>587</a>                return v0
+<a href=#588 id=588 data-nosnippet>588</a>            }"#</span>;
+<a href=#589 id=589 data-nosnippet>589</a>        assert_verifier_accepts_because(
+<a href=#590 id=590 data-nosnippet>590</a>            src,
+<a href=#591 id=591 data-nosnippet>591</a>            <span class="string">"the reused argument is protected by a preceding inc_rc"</span>,
+<a href=#592 id=592 data-nosnippet>592</a>        );
+<a href=#593 id=593 data-nosnippet>593</a>    }
+<a href=#594 id=594 data-nosnippet>594</a>
+<a href=#595 id=595 data-nosnippet>595</a>    <span class="doccomment">/// Soundness guard for `returns_arg_alias`: a callee that returns a *fresh*
+<a href=#596 id=596 data-nosnippet>596</a>    /// array (here a foreign-call result, the shape of an oracle wrapper that
+<a href=#597 id=597 data-nosnippet>597</a>    /// returns an array) does **not** alias its input. Even though the caller
+<a href=#598 id=598 data-nosnippet>598</a>    /// reuses the argument with no `inc_rc` — which the frontend legitimately
+<a href=#599 id=599 data-nosnippet>599</a>    /// elides for oracle wrappers — there is no aliasing hazard, so the call
+<a href=#600 id=600 data-nosnippet>600</a>    /// verifier must skip it and accept. A coarser "returns any array" rule
+<a href=#601 id=601 data-nosnippet>601</a>    /// would have falsely flagged this.
+<a href=#602 id=602 data-nosnippet>602</a>    </span><span class="attr">#[test]
+<a href=#603 id=603 data-nosnippet>603</a>    </span><span class="kw">fn </span>end_to_end_callee_returns_fresh_array_reused_arg_is_accepted() {
+<a href=#604 id=604 data-nosnippet>604</a>        <span class="kw">let </span>src = <span class="string">r#"
+<a href=#605 id=605 data-nosnippet>605</a>            brillig(inline) fn main f0 {
+<a href=#606 id=606 data-nosnippet>606</a>              b0():
+<a href=#607 id=607 data-nosnippet>607</a>                v0 = make_array [Field 1, Field 2] : [Field; 2]
+<a href=#608 id=608 data-nosnippet>608</a>                v1 = call f1(v0) -&gt; [Field; 2]
+<a href=#609 id=609 data-nosnippet>609</a>                v2 = array_set v1, index u32 0, value Field 9
+<a href=#610 id=610 data-nosnippet>610</a>                v3 = array_get v0, index u32 0 -&gt; Field
+<a href=#611 id=611 data-nosnippet>611</a>                return v3
+<a href=#612 id=612 data-nosnippet>612</a>            }
+<a href=#613 id=613 data-nosnippet>613</a>            brillig(inline) fn wrapper f1 {
+<a href=#614 id=614 data-nosnippet>614</a>              b0(v0: [Field; 2]):
+<a href=#615 id=615 data-nosnippet>615</a>                v1 = call my_oracle(v0) -&gt; [Field; 2]
+<a href=#616 id=616 data-nosnippet>616</a>                return v1
+<a href=#617 id=617 data-nosnippet>617</a>            }"#</span>;
+<a href=#618 id=618 data-nosnippet>618</a>        assert_verifier_accepts_because(
+<a href=#619 id=619 data-nosnippet>619</a>            src,
+<a href=#620 id=620 data-nosnippet>620</a>            <span class="string">"the callee returns a fresh foreign-call result, not an alias of its input"</span>,
+<a href=#621 id=621 data-nosnippet>621</a>        );
+<a href=#622 id=622 data-nosnippet>622</a>    }
+<a href=#623 id=623 data-nosnippet>623</a>
+<a href=#624 id=624 data-nosnippet>624</a>    <span class="doccomment">/// `returns_arg_alias` must trace through a **nested** `array_get`: a brillig
+<a href=#625 id=625 data-nosnippet>625</a>    /// `array_get` on a nested array returns a sub-array that *aliases* the
+<a href=#626 id=626 data-nosnippet>626</a>    /// source's storage (the same "the input was moved" case `pure.rs` models).
+<a href=#627 id=627 data-nosnippet>627</a>    /// Here `f1` returns `v0[0]`, an alias of its nested-array input; the caller
+<a href=#628 id=628 data-nosnippet>628</a>    /// `array_set`s that result (mutating the input's storage in place) and then
+<a href=#629 id=629 data-nosnippet>629</a>    /// reads the input. With no `inc_rc` on the reused argument the verifier must
+<a href=#630 id=630 data-nosnippet>630</a>    /// reject.
+<a href=#631 id=631 data-nosnippet>631</a>    </span><span class="attr">#[test]
+<a href=#632 id=632 data-nosnippet>632</a>    </span><span class="kw">fn </span>end_to_end_callee_returns_nested_array_get_alias_is_rejected() {
+<a href=#633 id=633 data-nosnippet>633</a>        <span class="kw">let </span>src = <span class="string">r#"
+<a href=#634 id=634 data-nosnippet>634</a>            brillig(inline) fn main f0 {
+<a href=#635 id=635 data-nosnippet>635</a>              b0(v0: [[u8; 3]; 2]):
+<a href=#636 id=636 data-nosnippet>636</a>                v1 = call f1(v0) -&gt; [u8; 3]
+<a href=#637 id=637 data-nosnippet>637</a>                v2 = array_set v1, index u32 0, value u8 9
+<a href=#638 id=638 data-nosnippet>638</a>                v3 = array_get v0, index u32 0 -&gt; [u8; 3]
+<a href=#639 id=639 data-nosnippet>639</a>                return v3
+<a href=#640 id=640 data-nosnippet>640</a>            }
+<a href=#641 id=641 data-nosnippet>641</a>            brillig(inline) fn nested_identity f1 {
+<a href=#642 id=642 data-nosnippet>642</a>              b0(v0: [[u8; 3]; 2]):
+<a href=#643 id=643 data-nosnippet>643</a>                v1 = array_get v0, index u32 0 -&gt; [u8; 3]
+<a href=#644 id=644 data-nosnippet>644</a>                return v1
+<a href=#645 id=645 data-nosnippet>645</a>            }"#</span>;
+<a href=#646 id=646 data-nosnippet>646</a>        assert_verifier_rejects(src);
+<a href=#647 id=647 data-nosnippet>647</a>    }
+<a href=#648 id=648 data-nosnippet>648</a>}</code></pre></div></section></main></body></html>
