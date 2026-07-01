@@ -17,19 +17,30 @@
 use crate::default_ssa_options;
 use arbitrary::Unstructured;
 use color_eyre::eyre;
-use noir_ast_fuzzer::{Config, arb_program};
+use noir_ast_fuzzer::{Config, DisplayAstAsNoir, arb_program};
 use noirc_evaluator::ssa::primary_passes;
 use noirc_evaluator::ssa::ssa_gen;
+use noirc_frontend::monomorphization::ast::Program;
 
 pub fn fuzz(u: &mut Unstructured) -> eyre::Result<()> {
     let config = Config { avoid_overflow: u.arbitrary()?, ..Config::default() };
     let program = arb_program(u, config)?;
 
+    let result = validate_each_pass(&program);
+    if result.is_err() {
+        // Show the AST as Noir so the failure can be replicated with other `nargo` tools.
+        eprintln!("---\nAST:\n{}", DisplayAstAsNoir(&program));
+    }
+    result
+}
+
+fn validate_each_pass(program: &Program) -> eyre::Result<()> {
     let ssa_options = default_ssa_options();
     let passes = primary_passes(&ssa_options);
 
     // `generate_ssa` already validates the initial SSA, so we only check each pass's output.
-    let mut ssa = ssa_gen::generate_ssa(program).expect("failed to generate initial SSA");
+    // Clone so `program` survives for the AST printout on failure.
+    let mut ssa = ssa_gen::generate_ssa(program.clone()).expect("failed to generate initial SSA");
 
     for pass in &passes {
         ssa = pass.run(ssa).map_err(|e| eyre::eyre!("pass '{}' failed to run: {e}", pass.msg()))?;
