@@ -171,12 +171,8 @@ fn input_value_to_comptime_value(input: &InputValue, typ: &Type, location: Locat
             // `from_constant` guarantees the value is in range, so its stored field is the
             // type's bit pattern and fits in `u128`. Reinterpret it as the native (signed/
             // unsigned) integer.
-            let bits = || {
-                numeric_value
-                    .to_field()
-                    .try_into_u128()
-                    .expect("in-range value fits in u128")
-            };
+            let bits =
+                || numeric_value.to_field().try_into_u128().expect("in-range value fits in u128");
             match numeric_type {
                 NumericType::NativeField => panic!("Field should not happen here"),
                 NumericType::Unsigned { bit_size: 1 } => Value::Bool(bits() == 1),
