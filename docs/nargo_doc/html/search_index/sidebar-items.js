@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["compute_search_index","description","gather_search_entries_in_item","push_entry","push_member_entry","push_methods","push_trait_impl_methods","render_search_index_js"],"struct":["SearchEntry","TypeContext"]};
+window.SIDEBAR_ITEMS = {"fn":["compute_search_index","decode_anchor","description","gather_search_entries_in_item","push_entry","push_member_entry","push_methods","push_trait_impl_methods","render_search_index_js"],"struct":["SearchEntry","TypeContext"]};
