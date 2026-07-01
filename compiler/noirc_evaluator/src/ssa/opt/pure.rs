@@ -91,7 +91,7 @@ pub(crate) fn compute_function_purities(ssa: &Ssa) -> FunctionPurities {
     FunctionPurities { purities, brillig_functions }
 }
 
-/// Returns `true` if the function contains a loop with no provable constant upper bound, and `false` otherwise.
+/// Returns `true` if the function contains a loop whose termination cannot be proven.
 fn function_contains_unbounded_loop(function: &Function) -> bool {
     // ACIR functions are assumed to terminate because the language does not allow unbounded loops in ACIR
     if function.runtime().is_acir() {
@@ -100,12 +100,15 @@ fn function_contains_unbounded_loop(function: &Function) -> bool {
 
     let loops = Loops::find_all(function, LoopOrder::InsideOut);
 
-    // `true` if the upper bound of the loop is constant.
-    let has_const_upper_bound =
-        |loop_: &Loop| loop_.get_const_upper_bound(&function.dfg, |v| v).is_some();
-    // We assume that a loop terminates if it has a constant upper bound.
-    // This is not always the case (e.g negative step). TODO: Use a sound criteria once #13118 is landed.
-    loops.yet_to_unroll.iter().any(|loop_| !has_const_upper_bound(loop_))
+    // A loop's termination is unproven if it has no constant upper bound (`loop`, `while`,
+    // or a runtime bound), or if its induction step may step past the bound.
+    let termination_unproven = |loop_: &Loop| {
+        loop_.get_const_upper_bound(&function.dfg, |v| v).is_none()
+            || loop_
+                .get_pre_header(function, &loops.cfg)
+                .is_ok_and(|pre_header| loop_.induction_step_may_miss_bound(function, pre_header))
+    };
+    loops.yet_to_unroll.iter().any(termination_unproven)
 }
 
 /// Post-check condition for [`Ssa::purity_analysis`].
@@ -1404,5 +1407,59 @@ mod tests {
 
         let purities = &ssa.main().dfg.function_purities;
         assert_eq!(purities.purities[&FunctionId::test_new(1)], Purity::PureWithPredicate);
+    }
+
+    /// A Brillig `for i in 0..4` loop provably terminates (constant upper bound, unit step that
+    /// reaches it), so the enclosing function stays eligible for `Pure`. This guards against a
+    /// regression to capping every looping function.
+    #[test]
+    fn brillig_function_with_bounded_loop_is_pure() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0():
+            jmp b1(u32 0)
+          b1(v0: u32):
+            v1 = lt v0, u32 4
+            jmpif v1 then: b2(), else: b3()
+          b2():
+            v2 = unchecked_add v0, u32 1
+            jmp b1(v2)
+          b3():
+            return
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.purity_analysis();
+
+        let purities = &ssa.main().dfg.function_purities;
+        assert_eq!(purities.purities[&FunctionId::test_new(0)], Purity::Pure);
+    }
+
+    /// A Brillig loop with a `!=` guard whose induction step can overshoot the bound
+    /// (`i != 5` stepping by `2` from `0` visits `0, 2, 4, 6, …`) may never terminate, so the
+    /// function must be kept out of `Pure` even though the bound is a constant.
+    #[test]
+    fn brillig_function_with_overshooting_loop_is_not_pure() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0():
+            jmp b1(u32 0)
+          b1(v0: u32):
+            v1 = eq v0, u32 5
+            jmpif v1 then: b3(), else: b2()
+          b2():
+            v2 = unchecked_add v0, u32 2
+            jmp b1(v2)
+          b3():
+            return
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.purity_analysis();
+
+        let purities = &ssa.main().dfg.function_purities;
+        assert_eq!(purities.purities[&FunctionId::test_new(0)], Purity::PureWithPredicate);
     }
 }

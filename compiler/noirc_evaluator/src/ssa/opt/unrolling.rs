@@ -859,7 +859,11 @@ impl Loop {
     ///   is delegated to `unroll`.
     ///
     /// `pre_header` is the loop's pre-header.
-    fn induction_step_may_miss_bound(&self, function: &Function, pre_header: BasicBlockId) -> bool {
+    pub(super) fn induction_step_may_miss_bound(
+        &self,
+        function: &Function,
+        pre_header: BasicBlockId,
+    ) -> bool {
         // We cannot determine the induction variable:
         // we conservatively say that it may miss.
         if self.induction_variable(&function.dfg).is_none() {
