@@ -707,27 +707,7 @@ impl Loop {
         back_edge_start: BasicBlockId,
         cfg: &ControlFlowGraph,
     ) -> Self {
-        let mut blocks = BTreeSet::default();
-        // Insert the header so we don't go past it when traversing backwards from the back-edge.
-        blocks.insert(header);
-
-        let mut insert = |block, stack: &mut Vec<BasicBlockId>| {
-            if !blocks.contains(&block) {
-                blocks.insert(block);
-                stack.push(block);
-            }
-        };
-
-        // Starting from the back edge of the loop, enqueue each predecessor of this block until we reach the header.
-        let mut stack = vec![];
-        insert(back_edge_start, &mut stack);
-
-        while let Some(block) = stack.pop() {
-            for predecessor in cfg.predecessors(block) {
-                insert(predecessor, &mut stack);
-            }
-        }
-
+        let blocks = cfg.find_blocks_in_loop(header, back_edge_start);
         Self { header, back_edge_start, blocks }
     }
 
@@ -4560,30 +4540,30 @@ mod tests {
           b3():
             return u1 1
           b4(v1: u32):
-            v12 = eq v1, u32 1
-            jmpif v12 then: b5(), else: b6()
+            v11 = eq v1, u32 1
+            jmpif v11 then: b5(), else: b6()
           b5():
-            v16 = unchecked_add v0, u32 1
-            jmp b1(v16)
+            v15 = unchecked_add v0, u32 1
+            jmp b1(v15)
           b6():
-            v13 = unchecked_add v1, u32 1
-            jmp b7(u32 0, v13)
+            v12 = unchecked_add v1, u32 1
+            jmp b7(u32 0, v12)
           b7(v2: u32, v3: u32):
-            v14 = eq v3, u32 1
-            jmpif v14 then: b8(), else: b9()
+            v13 = eq v3, u32 1
+            jmpif v13 then: b8(), else: b9()
           b8():
             jmp b4(v2)
           b9():
-            v15 = add v3, u32 1
-            jmp b7(v2, v15)
+            v14 = add v3, u32 1
+            jmp b7(v2, v14)
           b10(v4: u32, v5: u32):
-            v10 = eq v5, u32 1
-            jmpif v10 then: b11(), else: b12()
+            v9 = eq v5, u32 1
+            jmpif v9 then: b11(), else: b12()
           b11():
             jmp b4(v4)
           b12():
-            v11 = add v5, u32 1
-            jmp b10(v4, v11)
+            v10 = add v5, u32 1
+            jmp b10(v4, v10)
         }
         ");
     }

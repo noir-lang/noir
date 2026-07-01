@@ -874,17 +874,17 @@ mod tests {
 
         // Non-converging jmpifs remain because the flattening pass expects to merge them.
         // Converging jmpifs (where both branches reach the same block) are folded.
-        assert_ssa_snapshot!(ssa, @"
+        assert_ssa_snapshot!(ssa, @r"
         acir(inline) pure fn main f0 {
           b0(v0: [(u1, u1, [u8; 1], [u8; 1]); 3]):
             v3 = array_get v0, index u32 8 -> u1
             jmpif v3 then: b1(), else: b2()
           b1():
-            v6 = array_get v0, index u32 4 -> u1
-            jmpif v6 then: b3(), else: b4()
-          b2():
             v5 = array_get v0, index u32 4 -> u1
-            jmp b5(v5)
+            jmpif v5 then: b3(), else: b4()
+          b2():
+            v6 = array_get v0, index u32 4 -> u1
+            jmp b5(v6)
           b3():
             v8 = array_get v0, index u32 5 -> u1
             jmpif v8 then: b6(), else: b7()

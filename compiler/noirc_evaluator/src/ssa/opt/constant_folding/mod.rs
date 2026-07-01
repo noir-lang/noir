@@ -1644,23 +1644,23 @@ mod test {
         // v7 has been replaced by a v5, and its reference count is increased
         // v6 is not yet replaced but will be in a subsequent constant folding run
         assert_ssa_snapshot!(ssa, @r"
-            brillig(inline) fn main f0 {
-              b0(v0: u32):
-                v3 = lt u32 1000, v0
-                v5 = make_array [u1 0] : [u1; 1]
-                jmpif v3 then: b1(), else: b2()
-              b1():
-                inc_rc v5
-                jmp b3(u1 0)
-              b2():
-                v6 = make_array [u1 0] : [u1; 1]
-                jmp b3(u1 0)
-              b3(v1: u1):
-                constrain v1 == u1 0
-                jmp b4()
-              b4():
-                return
-            }
+        brillig(inline) fn main f0 {
+          b0(v0: u32):
+            v3 = lt u32 1000, v0
+            v5 = make_array [u1 0] : [u1; 1]
+            jmpif v3 then: b1(), else: b2()
+          b1():
+            v6 = make_array [u1 0] : [u1; 1]
+            jmp b3(u1 0)
+          b2():
+            inc_rc v5
+            jmp b3(u1 0)
+          b3(v1: u1):
+            constrain v1 == u1 0
+            jmp b4()
+          b4():
+            return
+        }
         ");
     }
 
@@ -3299,41 +3299,41 @@ mod test {
             inc_rc v7
             jmpif v9 then: b2(), else: b3()
           b2():
-            v19 = make_array [v7] : [[u8; 1]; 1]
-            v20 = allocate -> &mut [[u8; 1]; 1]
-            store v19 at v20
-            v21 = load v6 -> [u8; 1]
-            v22 = array_get v21, index u32 0 -> u8
+            v10 = make_array [v7] : [[u8; 1]; 1]
+            v11 = allocate -> &mut [[u8; 1]; 1]
+            store v10 at v11
+            v12 = load v6 -> [u8; 1]
+            v13 = array_get v12, index u32 0 -> u8
             jmp b8(u32 0)
           b3():
-            v10 = allocate -> &mut [u8; 1]
-            store v7 at v10
+            v19 = allocate -> &mut [u8; 1]
+            store v7 at v19
             jmp b4(u32 0)
           b4(v1: u32):
-            v11 = make_array [u8 0] : [u8; 1]
-            v12 = load v10 -> [u8; 1]
+            v20 = make_array [u8 0] : [u8; 1]
+            v21 = load v19 -> [u8; 1]
             jmp b5(u32 0)
           b5(v2: u32):
-            v13 = eq v2, u32 0
-            jmpif v13 then: b6(), else: b7()
+            v22 = eq v2, u32 0
+            jmpif v22 then: b6(), else: b7()
           b6():
-            v17 = array_get v12, index u32 0 -> u8
-            v18 = unchecked_add v2, u32 1
-            jmp b5(v18)
+            v23 = array_get v21, index u32 0 -> u8
+            v24 = unchecked_add v2, u32 1
+            jmp b5(v24)
           b7():
-            v14 = array_get v12, index u32 0 -> u8
-            v16 = unchecked_add v1, u32 1
-            jmp b4(v16)
+            v25 = array_get v21, index u32 0 -> u8
+            v26 = unchecked_add v1, u32 1
+            jmp b4(v26)
           b8(v3: u32):
-            v23 = eq v3, u32 0
-            jmpif v23 then: b9(), else: b10()
+            v14 = eq v3, u32 0
+            jmpif v14 then: b9(), else: b10()
           b9():
-            v26 = unchecked_add v3, u32 1
-            jmp b8(v26)
+            v16 = unchecked_add v3, u32 1
+            jmp b8(v16)
           b10():
-            v24 = make_array [u8 0] : [u8; 1]
-            v25 = unchecked_add v0, u32 1
-            jmp b1(v25)
+            v17 = make_array [u8 0] : [u8; 1]
+            v18 = unchecked_add v0, u32 1
+            jmp b1(v18)
         }
         ");
     }
@@ -3397,11 +3397,11 @@ mod test {
           b5():
             inc_rc v25
             call print(u1 1, v2, v25, u1 0)
-            v31 = unchecked_add v2, u8 1
-            jmp b4(v31)
+            v30 = unchecked_add v2, u8 1
+            jmp b4(v30)
           b6():
-            v28 = load v5 -> u1
-            jmpif v28 then: b7(), else: b8()
+            v31 = load v5 -> u1
+            jmpif v31 then: b7(), else: b8()
           b7():
             inc_rc v25
             call print(u1 1, v4, v25, u1 0)
@@ -3444,7 +3444,7 @@ mod test {
         let ssa = ssa.fold_constants(DEFAULT_MAX_ITER);
 
         // `not v3` stays in b2 and b3 — not hoisted into the header.
-        assert_ssa_snapshot!(ssa, @"
+        assert_ssa_snapshot!(ssa, @r"
         brillig(inline) predicate_pure fn main f0 {
           b0(v0: u1):
             v2 = allocate -> &mut u1
@@ -3454,11 +3454,11 @@ mod test {
             v3 = load v2 -> u1
             jmpif v3 then: b2(), else: b3()
           b2():
-            v5 = not v3
-            jmp b4(v5)
-          b3():
             v4 = not v3
             jmp b4(v4)
+          b3():
+            v5 = not v3
+            jmp b4(v5)
           b4(v1: u1):
             store v1 at v2
             jmp b1()
@@ -3518,23 +3518,23 @@ mod test {
           b1(v1: [Field; 2], v2: u1):
             jmpif v2 then: b2(), else: b3()
           b2():
-            v18 = array_get v1, index u32 0 -> Field
-            v19 = add Field 3, v18
-            v20 = array_set v1, index u32 0, value v19
-            jmp b1(v20, u1 0)
+            v12 = array_get v1, index u32 0 -> Field
+            v13 = add Field 3, v12
+            v14 = array_set v1, index u32 0, value v13
+            jmp b1(v14, u1 0)
           b3():
-            v11 = array_set v0, index u32 1, value v8
-            jmp b4(v11, u1 1)
+            v16 = array_set v0, index u32 1, value v8
+            jmp b4(v16, u1 1)
           b4(v3: [Field; 2], v4: u1):
             jmpif v4 then: b5(), else: b6()
           b5():
-            v14 = array_get v3, index u32 0 -> Field
-            v15 = add Field 3, v14
-            v16 = array_set v3, index u32 0, value v15
-            jmp b4(v16, u1 0)
+            v17 = array_get v3, index u32 0 -> Field
+            v18 = add Field 3, v17
+            v19 = array_set v3, index u32 0, value v18
+            jmp b4(v19, u1 0)
           b6():
-            v13 = array_get v3, index u32 0 -> Field
-            return v13
+            v20 = array_get v3, index u32 0 -> Field
+            return v20
         }
         ");
     }
