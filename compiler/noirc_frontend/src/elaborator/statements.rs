@@ -94,7 +94,12 @@ impl Elaborator<'_> {
         let ((id, typ), has_errors) =
             self.with_error_guard(|this| this.elaborate_statement_inner(statement, target_type));
 
-        if has_errors {
+        // `HirStatement::Error` is only produced from `StatementKind::Error`, which the parser
+        // emits in place of a statement it has already reported an error for. The interpreter
+        // raises an ICE if it ever evaluates one, so flag the node here so it is skipped
+        // even though no elaborator-level error was pushed.
+        let is_error_stmt = matches!(self.interner.statement(&id), HirStatement::Error);
+        if has_errors || is_error_stmt {
             self.interner.stmts_with_errors.insert(id);
         }
 
