@@ -782,7 +782,7 @@ mod tests {
     #[test]
     fn do_not_remove_non_converging_jmpif() {
         let src = r"
-        brillig(inline) pure fn main f0 {
+        brillig(inline) predicate_pure fn main f0 {
           b0(v0: i16):
             v1 = lt i16 1, v0
             jmpif v1 then: b1(), else: b2()
@@ -811,7 +811,7 @@ mod tests {
         // We expect the jmpif in b0 to remain in place as the jump chains for b1 and b2
         // resolved to b7 and b8 respectively which are not the same block.
         assert_ssa_snapshot!(ssa, @r"
-        brillig(inline) pure fn main f0 {
+        brillig(inline) predicate_pure fn main f0 {
           b0(v0: i16):
             v2 = lt i16 1, v0
             jmpif v2 then: b1(), else: b2()

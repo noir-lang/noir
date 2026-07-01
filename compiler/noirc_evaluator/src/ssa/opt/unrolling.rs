@@ -734,7 +734,7 @@ impl Loop {
     /// ```
     ///
     /// TODO(<https://github.com/noir-lang/noir/issues/11900>): Handle induction variable at any block parameter position
-    fn get_const_upper_bound(
+    pub(super) fn get_const_upper_bound(
         &self,
         dfg: &DataFlowGraph,
         pre_header: BasicBlockId,
@@ -3424,7 +3424,7 @@ mod tests {
         //     while run { }
         // }
         let src = r#"
-        brillig(inline) pure fn main f0 {
+        brillig(inline) predicate_pure fn main f0 {
           b0():
             v0 = allocate -> &mut u1
             store u1 1 at v0
@@ -3497,7 +3497,7 @@ mod tests {
             call f1(u1 1)
             return
         }
-        brillig(inline) pure fn func f1 {
+        brillig(inline) predicate_pure fn func f1 {
           b0(v0: u1):
             v2 = not v0
             v3 = allocate -> &mut u1

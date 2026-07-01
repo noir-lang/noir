@@ -773,9 +773,9 @@ fn create_dummy_function(
         // As the dummy function is just meant to be a placeholder for any calls to
         // higher-order functions without variants, we want the function to be marked pure
         // so that dead instruction elimination can remove any calls to it.
-        purities.purities.insert(id, Purity::Pure);
+        purities.insert_purity(id, Purity::Pure);
         if runtime.is_brillig() {
-            purities.brillig_functions.insert(id);
+            purities.insert_brillig_function(id);
         }
 
         let results =

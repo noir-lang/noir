@@ -3160,7 +3160,7 @@ mod test {
     #[test]
     fn hoist_into_loop_header_does_not_self_deduplicate() {
         let src = r#"
-        brillig(inline) pure fn main f0 {
+        brillig(inline) predicate_pure fn main f0 {
           b0(v0: Field):
             v1 = allocate -> &mut u1
             store u1 1 at v1
@@ -3421,7 +3421,7 @@ mod test {
         // We must not hoist into the header either — loop unrolling only maps
         // header parameters, not instruction results.
         let src = r#"
-        brillig(inline) pure fn main f0 {
+        brillig(inline) predicate_pure fn main f0 {
           b0(v1: u1):
             v2 = allocate -> &mut u1
             store v1 at v2
@@ -3445,7 +3445,7 @@ mod test {
 
         // `not v3` stays in b2 and b3 — not hoisted into the header.
         assert_ssa_snapshot!(ssa, @"
-        brillig(inline) pure fn main f0 {
+        brillig(inline) predicate_pure fn main f0 {
           b0(v0: u1):
             v2 = allocate -> &mut u1
             store v0 at v2

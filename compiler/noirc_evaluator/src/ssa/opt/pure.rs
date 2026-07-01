@@ -16,9 +16,10 @@ use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
 use crate::ssa::ir::call_graph::CallGraph;
 use crate::ssa::ir::types::Type;
+use crate::ssa::opt::unrolling::{Loop, LoopOrder, Loops};
 use crate::ssa::{
     ir::{
-        function::{Function, FunctionId},
+        function::{Function, FunctionId, RuntimeType},
         instruction::{Instruction, TerminatorInstruction},
         value::{Value, ValueId},
     },
@@ -61,14 +62,54 @@ pub(crate) fn compute_function_purities(ssa: &Ssa) -> FunctionPurities {
         .map(|function| function.id())
         .collect();
 
+    // Functions that may not terminate cannot be `Pure`, because die could remove
+    // one of them and transform a hanging program into a terminating one.
+    // Similarly, loop-invariant code motion could hoist one and introduce a hang.
+    //  Non-termination can be due to:
+    //   - recursion (a call-graph cycle), or
+    //   - an infinite loop.
+    let mut may_not_terminate: HashSet<FunctionId> = ssa
+        .functions
+        .values()
+        // The `recursive_functions` check gates the (dominator-tree-building) loop analysis: a
+        // recursive function is already added below, so skip the expensive scan for it.
+        .filter(|function| {
+            !recursive_functions.contains(&function.id())
+                && function_contains_unbounded_loop(function)
+        })
+        .map(|function| function.id())
+        .collect();
+    may_not_terminate.extend(recursive_functions);
+
     let purities: HashMap<_, _> = ssa
         .functions
         .values()
         .map(|function| (function.id(), function.is_pure(&brillig_functions)))
         .collect();
 
-    let purities = analyze_call_graph(call_graph, purities, &sccs, &recursive_functions);
+    let purities = analyze_call_graph(call_graph, purities, &sccs, &may_not_terminate);
     FunctionPurities { purities, brillig_functions }
+}
+
+/// Returns `true` if the function contains a loop with no provable constant upper bound, and `false` otherwise.
+fn function_contains_unbounded_loop(function: &Function) -> bool {
+    // ACIR functions are assumed to terminate because the language does not allow unbounded loops in ACIR
+    if function.runtime().is_acir() {
+        return false;
+    }
+
+    let loops = Loops::find_all(function, LoopOrder::InsideOut);
+
+    // `true` if the upper bound of the loop is constant.
+    let has_const_upper_bound = |loop_: &Loop| {
+        let Ok(pre_header) = loop_.get_pre_header(function, &loops.cfg) else {
+            return false;
+        };
+        loop_.get_const_upper_bound(&function.dfg, pre_header, |v| v).is_some()
+    };
+    // We assume that a loop terminates if it has a constant upper bound.
+    // This is not always the case (e.g negative step). TODO: Use a sound criteria once #13118 is landed.
+    loops.yet_to_unroll.iter().any(|loop_| !has_const_upper_bound(loop_))
 }
 
 /// Post-check condition for [`Ssa::purity_analysis`].
@@ -96,21 +137,59 @@ fn purity_analysis_post_check(ssa: &Ssa) {
 /// See [crate::ssa::ir::dfg::DataFlowGraph::purity_of].
 #[derive(Debug, Default, Clone)]
 pub(crate) struct FunctionPurities {
-    pub(crate) purities: HashMap<FunctionId, Purity>,
-    pub(crate) brillig_functions: HashSet<FunctionId>,
+    purities: HashMap<FunctionId, Purity>,
+    brillig_functions: HashSet<FunctionId>,
 }
 
 impl FunctionPurities {
-    pub(crate) fn get(&self, id: &FunctionId) -> Option<&Purity> {
-        self.purities.get(id)
+    /// Record the intrinsic purity computed for `function`.
+    pub(crate) fn insert_purity(&mut self, function: FunctionId, purity: Purity) {
+        self.purities.insert(function, purity);
     }
-}
 
-impl std::ops::Index<&FunctionId> for FunctionPurities {
-    type Output = Purity;
+    /// Record that `function` has a Brillig runtime.
+    pub(crate) fn insert_brillig_function(&mut self, function: FunctionId) {
+        self.brillig_functions.insert(function);
+    }
 
-    fn index(&self, id: &FunctionId) -> &Purity {
-        &self.purities[id]
+    /// The purity of `callee` as observed from a caller whose runtime is `caller_runtime`.
+    ///
+    /// Purity analysis does not propagate side-effects due to predicate in ACIR calls to Brillig.
+    /// So in case of a ACIR caller calling a Brillig function, `Pure` functions are poisoned
+    /// into `PureWithPredicate`.
+    pub(crate) fn purity_of(
+        &self,
+        callee: FunctionId,
+        caller_runtime: RuntimeType,
+    ) -> Option<Purity> {
+        let purity = self.purities.get(&callee).copied()?;
+        if purity == Purity::Pure
+            && caller_runtime.is_acir()
+            && self.brillig_functions.contains(&callee)
+        {
+            return Some(Purity::PureWithPredicate);
+        }
+        Some(purity)
+    }
+
+    /// Whether no purities have been recorded.
+    pub(crate) fn is_empty(&self) -> bool {
+        self.purities.is_empty()
+    }
+
+    /// Iterate over the intrinsic (un-projected) purities.
+    ///
+    /// Used only for id-remapping ([crate::ssa::opt::normalize_value_ids]) and for validating
+    /// hand-written purity annotations in the SSA parser — never for optimization decisions, which
+    /// must observe the call-site purity via [Self::purity_of] (or
+    /// [crate::ssa::ir::dfg::DataFlowGraph::purity_of]).
+    pub(crate) fn intrinsic_purities(&self) -> impl Iterator<Item = (&FunctionId, &Purity)> {
+        self.purities.iter()
+    }
+
+    /// Iterate over the ids of all Brillig functions. Used for id-remapping.
+    pub(crate) fn brillig_function_ids(&self) -> impl Iterator<Item = &FunctionId> {
+        self.brillig_functions.iter()
     }
 }
 
@@ -371,7 +450,7 @@ fn analyze_call_graph(
     call_graph: CallGraph,
     starting_purities: HashMap<FunctionId, Purity>,
     sccs: &[Vec<FunctionId>],
-    recursive_functions: &HashSet<FunctionId>,
+    may_not_terminate: &HashSet<FunctionId>,
 ) -> HashMap<FunctionId, Purity> {
     let mut finished = HashMap::default();
 
@@ -412,10 +491,11 @@ fn analyze_call_graph(
                     }
                 }
 
-                // Recursive functions cannot be fully pure (may recurse indefinitely),
-                // but we still treat them as PureWithPredicate for deduplication purposes.
-                // If we were to mark recursive functions pure we may entirely eliminate an infinite loop.
-                if recursive_functions.contains(&func) {
+                // A function that may not terminate (through recursion or an unbounded Brillig
+                // loop) cannot be fully pure, but we still treat it as PureWithPredicate for
+                // deduplication purposes. If we were to mark it pure we may entirely eliminate an
+                // infinite loop.
+                if may_not_terminate.contains(&func) {
                     combined_purity = combined_purity.unify(Purity::PureWithPredicate);
                 }
             }
@@ -520,14 +600,14 @@ mod tests {
         let ssa = ssa.purity_analysis();
 
         let purities = &ssa.main().dfg.function_purities;
-        assert_eq!(purities[&FunctionId::test_new(0)], Purity::Impure);
-        assert_eq!(purities[&FunctionId::test_new(1)], Purity::Impure);
-        assert_eq!(purities[&FunctionId::test_new(2)], Purity::Impure);
-        assert_eq!(purities[&FunctionId::test_new(3)], Purity::PureWithPredicate);
-        assert_eq!(purities[&FunctionId::test_new(4)], Purity::PureWithPredicate);
-        assert_eq!(purities[&FunctionId::test_new(5)], Purity::PureWithPredicate);
-        assert_eq!(purities[&FunctionId::test_new(6)], Purity::Pure);
-        assert_eq!(purities[&FunctionId::test_new(7)], Purity::PureWithPredicate);
+        assert_eq!(purities.purities[&FunctionId::test_new(0)], Purity::Impure);
+        assert_eq!(purities.purities[&FunctionId::test_new(1)], Purity::Impure);
+        assert_eq!(purities.purities[&FunctionId::test_new(2)], Purity::Impure);
+        assert_eq!(purities.purities[&FunctionId::test_new(3)], Purity::PureWithPredicate);
+        assert_eq!(purities.purities[&FunctionId::test_new(4)], Purity::PureWithPredicate);
+        assert_eq!(purities.purities[&FunctionId::test_new(5)], Purity::PureWithPredicate);
+        assert_eq!(purities.purities[&FunctionId::test_new(6)], Purity::Pure);
+        assert_eq!(purities.purities[&FunctionId::test_new(7)], Purity::PureWithPredicate);
 
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) impure fn main f0 {
@@ -625,11 +705,11 @@ mod tests {
         let ssa = ssa.purity_analysis();
 
         let purities = &ssa.main().dfg.function_purities;
-        assert_eq!(purities[&FunctionId::test_new(0)], Purity::Impure);
-        assert_eq!(purities[&FunctionId::test_new(1)], Purity::Impure);
-        assert_eq!(purities[&FunctionId::test_new(2)], Purity::Impure);
+        assert_eq!(purities.purities[&FunctionId::test_new(0)], Purity::Impure);
+        assert_eq!(purities.purities[&FunctionId::test_new(1)], Purity::Impure);
+        assert_eq!(purities.purities[&FunctionId::test_new(2)], Purity::Impure);
         // A genuinely pure Brillig function is reported as `Pure`.
-        assert_eq!(purities[&FunctionId::test_new(3)], Purity::Pure);
+        assert_eq!(purities.purities[&FunctionId::test_new(3)], Purity::Pure);
     }
 
     #[test]
@@ -650,8 +730,8 @@ mod tests {
 
         let purities = &ssa.main().dfg.function_purities;
         // Empty Brillig functions are genuinely pure.
-        assert_eq!(purities[&FunctionId::test_new(0)], Purity::Pure);
-        assert_eq!(purities[&FunctionId::test_new(1)], Purity::Pure);
+        assert_eq!(purities.purities[&FunctionId::test_new(0)], Purity::Pure);
+        assert_eq!(purities.purities[&FunctionId::test_new(1)], Purity::Pure);
     }
 
     /// Functions using `inc_rc` or `dec_rc` are always impure - see `constant_folding::do_not_deduplicate_call_with_inc_rc`
@@ -679,8 +759,8 @@ mod tests {
         let ssa = ssa.purity_analysis();
 
         let purities = &ssa.main().dfg.function_purities;
-        assert_eq!(purities[&FunctionId::test_new(0)], Purity::Impure);
-        assert_eq!(purities[&FunctionId::test_new(1)], Purity::Impure);
+        assert_eq!(purities.purities[&FunctionId::test_new(0)], Purity::Impure);
+        assert_eq!(purities.purities[&FunctionId::test_new(1)], Purity::Impure);
     }
 
     #[test]
@@ -704,8 +784,8 @@ mod tests {
         let ssa = ssa.purity_analysis();
 
         let purities = &ssa.main().dfg.function_purities;
-        assert_eq!(purities[&FunctionId::test_new(0)], Purity::Impure);
-        assert_eq!(purities[&FunctionId::test_new(1)], Purity::Impure);
+        assert_eq!(purities.purities[&FunctionId::test_new(0)], Purity::Impure);
+        assert_eq!(purities.purities[&FunctionId::test_new(1)], Purity::Impure);
     }
 
     #[test]
@@ -728,9 +808,9 @@ mod tests {
         let ssa = ssa.purity_analysis();
 
         let purities = &ssa.main().dfg.function_purities;
-        assert_eq!(purities[&FunctionId::test_new(0)], Purity::Impure);
+        assert_eq!(purities.purities[&FunctionId::test_new(0)], Purity::Impure);
         // Brillig functions have a starting purity of PureWithPredicate
-        assert_eq!(purities[&FunctionId::test_new(1)], Purity::PureWithPredicate);
+        assert_eq!(purities.purities[&FunctionId::test_new(1)], Purity::PureWithPredicate);
     }
 
     #[test]
@@ -752,8 +832,8 @@ mod tests {
         let ssa = ssa.purity_analysis();
 
         let purities = &ssa.main().dfg.function_purities;
-        assert_eq!(purities[&FunctionId::test_new(0)], Purity::PureWithPredicate);
-        assert_eq!(purities[&FunctionId::test_new(1)], Purity::PureWithPredicate);
+        assert_eq!(purities.purities[&FunctionId::test_new(0)], Purity::PureWithPredicate);
+        assert_eq!(purities.purities[&FunctionId::test_new(1)], Purity::PureWithPredicate);
     }
 
     #[test]
@@ -798,9 +878,9 @@ mod tests {
         let ssa = ssa.purity_analysis();
 
         let purities = &ssa.main().dfg.function_purities;
-        assert_eq!(purities[&FunctionId::test_new(0)], Purity::PureWithPredicate);
-        assert_eq!(purities[&FunctionId::test_new(1)], Purity::PureWithPredicate);
-        assert_eq!(purities[&FunctionId::test_new(2)], Purity::PureWithPredicate);
+        assert_eq!(purities.purities[&FunctionId::test_new(0)], Purity::PureWithPredicate);
+        assert_eq!(purities.purities[&FunctionId::test_new(1)], Purity::PureWithPredicate);
+        assert_eq!(purities.purities[&FunctionId::test_new(2)], Purity::PureWithPredicate);
     }
 
     /// This test matches [`mutual_recursion_marks_functions_pure`] except all functions have a Brillig runtime
@@ -844,9 +924,9 @@ mod tests {
         let ssa = ssa.purity_analysis();
 
         let purities = &ssa.main().dfg.function_purities;
-        assert_eq!(purities[&FunctionId::test_new(0)], Purity::PureWithPredicate);
-        assert_eq!(purities[&FunctionId::test_new(1)], Purity::PureWithPredicate);
-        assert_eq!(purities[&FunctionId::test_new(2)], Purity::PureWithPredicate);
+        assert_eq!(purities.purities[&FunctionId::test_new(0)], Purity::PureWithPredicate);
+        assert_eq!(purities.purities[&FunctionId::test_new(1)], Purity::PureWithPredicate);
+        assert_eq!(purities.purities[&FunctionId::test_new(2)], Purity::PureWithPredicate);
     }
 
     #[test]
@@ -891,9 +971,9 @@ mod tests {
 
         let purities = &ssa.main().dfg.function_purities;
         // All must be impure due to the cycle involved f3 when returns a reference.
-        assert_eq!(purities[&FunctionId::test_new(1)], Purity::Impure);
-        assert_eq!(purities[&FunctionId::test_new(2)], Purity::Impure);
-        assert_eq!(purities[&FunctionId::test_new(3)], Purity::Impure);
+        assert_eq!(purities.purities[&FunctionId::test_new(1)], Purity::Impure);
+        assert_eq!(purities.purities[&FunctionId::test_new(2)], Purity::Impure);
+        assert_eq!(purities.purities[&FunctionId::test_new(3)], Purity::Impure);
     }
 
     /// This test matches [`mutual_recursion_marks_functions_impure`] except all functions have a Brillig runtime
@@ -929,9 +1009,9 @@ mod tests {
 
         let purities = &ssa.main().dfg.function_purities;
         // All must be impure due to the cycle involved f3 when returns a reference.
-        assert_eq!(purities[&FunctionId::test_new(1)], Purity::Impure);
-        assert_eq!(purities[&FunctionId::test_new(2)], Purity::Impure);
-        assert_eq!(purities[&FunctionId::test_new(3)], Purity::Impure);
+        assert_eq!(purities.purities[&FunctionId::test_new(1)], Purity::Impure);
+        assert_eq!(purities.purities[&FunctionId::test_new(2)], Purity::Impure);
+        assert_eq!(purities.purities[&FunctionId::test_new(3)], Purity::Impure);
     }
 
     #[test]
@@ -958,9 +1038,9 @@ mod tests {
 
         let purities = &ssa.main().dfg.function_purities;
         // The ACIR `main` calls a Brillig function, so its own result is predicate-dependent.
-        assert_eq!(purities[&FunctionId::test_new(0)], Purity::PureWithPredicate);
+        assert_eq!(purities.purities[&FunctionId::test_new(0)], Purity::PureWithPredicate);
         // The Brillig function itself is genuinely pure.
-        assert_eq!(purities[&FunctionId::test_new(1)], Purity::Pure);
+        assert_eq!(purities.purities[&FunctionId::test_new(1)], Purity::Pure);
 
         // Observed from the ACIR caller, however, the predicated `BrilligCall` opcode means the
         // pure Brillig callee behaves as `PureWithPredicate`.
@@ -993,8 +1073,8 @@ mod tests {
         let ssa = ssa.purity_analysis();
 
         let purities = &ssa.main().dfg.function_purities;
-        assert_eq!(purities[&FunctionId::test_new(0)], Purity::Pure);
-        assert_eq!(purities[&FunctionId::test_new(1)], Purity::Pure);
+        assert_eq!(purities.purities[&FunctionId::test_new(0)], Purity::Pure);
+        assert_eq!(purities.purities[&FunctionId::test_new(1)], Purity::Pure);
 
         // A Brillig caller observes the callee's true purity, since its calls are not predicated.
         assert_eq!(ssa.main().dfg.purity_of(FunctionId::test_new(1)), Some(Purity::Pure));
@@ -1027,9 +1107,9 @@ mod tests {
         let purities = &ssa.main().dfg.function_purities;
         // Even though the functions referenced by the function values are pure
         // we assume the worse case for functions containing calls to function values.
-        assert_eq!(purities[&FunctionId::test_new(0)], Purity::Impure);
-        assert_eq!(purities[&FunctionId::test_new(1)], Purity::Pure);
-        assert_eq!(purities[&FunctionId::test_new(1)], Purity::Pure);
+        assert_eq!(purities.purities[&FunctionId::test_new(0)], Purity::Impure);
+        assert_eq!(purities.purities[&FunctionId::test_new(1)], Purity::Pure);
+        assert_eq!(purities.purities[&FunctionId::test_new(1)], Purity::Pure);
     }
 
     #[test_case("ecdsa_secp256k1")]
@@ -1048,7 +1128,7 @@ mod tests {
         let ssa = ssa.purity_analysis();
 
         let purities = &ssa.main().dfg.function_purities;
-        assert_eq!(purities[&FunctionId::test_new(0)], Purity::PureWithPredicate);
+        assert_eq!(purities.purities[&FunctionId::test_new(0)], Purity::PureWithPredicate);
     }
 
     #[test]
@@ -1237,7 +1317,7 @@ mod tests {
         let ssa = ssa.purity_analysis();
 
         let purities = &ssa.main().dfg.function_purities;
-        assert_eq!(purities[&FunctionId::test_new(0)], Purity::PureWithPredicate);
+        assert_eq!(purities.purities[&FunctionId::test_new(0)], Purity::PureWithPredicate);
     }
 
     /// An oracle without the `#[pure]` marker still poisons the caller as `Impure`.
@@ -1256,7 +1336,7 @@ mod tests {
         let ssa = ssa.purity_analysis();
 
         let purities = &ssa.main().dfg.function_purities;
-        assert_eq!(purities[&FunctionId::test_new(0)], Purity::Impure);
+        assert_eq!(purities.purities[&FunctionId::test_new(0)], Purity::Impure);
     }
 
     /// A `#[pure]` oracle composes correctly with predicate-pure SSA operations: a caller
@@ -1278,7 +1358,7 @@ mod tests {
         let ssa = ssa.purity_analysis();
 
         let purities = &ssa.main().dfg.function_purities;
-        assert_eq!(purities[&FunctionId::test_new(0)], Purity::PureWithPredicate);
+        assert_eq!(purities.purities[&FunctionId::test_new(0)], Purity::PureWithPredicate);
     }
 
     /// If the caller itself receives a reference parameter, the existing rule at
@@ -1299,6 +1379,34 @@ mod tests {
         let ssa = ssa.purity_analysis();
 
         let purities = &ssa.main().dfg.function_purities;
-        assert_eq!(purities[&FunctionId::test_new(0)], Purity::Impure);
+        assert_eq!(purities.purities[&FunctionId::test_new(0)], Purity::Impure);
+    }
+
+    /// A Brillig function whose only non-termination is an intra-function loop (the `b1 -> b1`
+    /// back-edge) is not recursive, so the call-graph recursion guard does not catch it. It must
+    /// still be kept out of `Pure`: otherwise dead-instruction-elimination could delete an unused
+    /// call to it (eliminating a hang) and loop-invariant code motion could hoist it out of a
+    /// zero-iteration loop (introducing one). Both change observable behavior.
+    #[test]
+    fn brillig_function_with_a_loop_is_not_pure() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0():
+            call f1()
+            return
+        }
+        brillig(inline) fn spin f1 {
+          b0():
+            jmp b1()
+          b1():
+            jmp b1()
+        }
+        ";
+
+        let ssa = Ssa::from_str_no_validation(src).unwrap();
+        let ssa = ssa.purity_analysis();
+
+        let purities = &ssa.main().dfg.function_purities;
+        assert_eq!(purities.purities[&FunctionId::test_new(1)], Purity::PureWithPredicate);
     }
 }

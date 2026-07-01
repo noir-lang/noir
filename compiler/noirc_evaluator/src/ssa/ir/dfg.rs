@@ -918,14 +918,7 @@ impl DataFlowGraph {
     /// so the result is predicate-dependent from an ACIR caller's perspective. From a Brillig
     /// caller (whose calls are not predicated) the function's true purity is observed.
     pub(crate) fn purity_of(&self, function: FunctionId) -> Option<Purity> {
-        let purity = self.function_purities.get(&function).copied()?;
-        if purity == Purity::Pure
-            && self.runtime().is_acir()
-            && self.function_purities.brillig_functions.contains(&function)
-        {
-            return Some(Purity::PureWithPredicate);
-        }
-        Some(purity)
+        self.function_purities.purity_of(function, self.runtime())
     }
 
     /// Determine the appropriate [`ArrayOffset`] to use for indexing an array or vector.

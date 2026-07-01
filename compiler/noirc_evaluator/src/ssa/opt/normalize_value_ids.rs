@@ -16,7 +16,7 @@ use crate::ssa::{
         post_order::PostOrder,
         value::{Value, ValueId},
     },
-    opt::pure::FunctionPurities,
+    opt::pure::{FunctionPurities, Purity},
     ssa_gen::Ssa,
 };
 use iter_extended::vecmap;
@@ -67,13 +67,15 @@ impl Context {
             return;
         };
         let mut new_purities = FunctionPurities::default();
+        let old_intrinsic: HashMap<FunctionId, Purity> =
+            old_purities.intrinsic_purities().map(|(id, purity)| (*id, *purity)).collect();
 
         for (id, function) in functions {
             self.functions.insert_with_id(|new_id| {
                 self.new_ids.function_ids.insert(*id, new_id);
 
-                if let Some(purity) = old_purities.get(id) {
-                    new_purities.purities.insert(new_id, *purity);
+                if let Some(purity) = old_intrinsic.get(id) {
+                    new_purities.insert_purity(new_id, *purity);
                 }
 
                 Function::clone_signature(new_id, function)
@@ -81,9 +83,9 @@ impl Context {
         }
 
         // Remap the set of Brillig functions onto the new ids.
-        for old_id in &old_purities.brillig_functions {
+        for old_id in old_purities.brillig_function_ids() {
             if let Some(new_id) = self.new_ids.function_ids.get(old_id) {
-                new_purities.brillig_functions.insert(*new_id);
+                new_purities.insert_brillig_function(*new_id);
             }
         }
 

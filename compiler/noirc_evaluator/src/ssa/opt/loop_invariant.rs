@@ -4379,7 +4379,7 @@ mod control_dependence {
     #[test]
     fn infinite_loop_is_not_fully_executed() {
         let src = r"
-        brillig(inline) pure fn main f0 {
+        brillig(inline) predicate_pure fn main f0 {
           b0():
             v0 = allocate -> &mut Field
             store Field 0 at v0
