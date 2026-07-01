@@ -1,10 +1,6 @@
-//! Integration tests for the `--count-array-copies` debugging flag.
-//!
-//! The flag instruments the compiled Brillig with copy-counting code, which changes the
-//! output artifact. Because the compilation cache is keyed on the AST it cannot tell an
-//! instrumented build apart from a normal one, so persisting an instrumented artifact would
-//! poison the cache for later, un-instrumented runs. The flag must therefore execute without
-//! reading or writing any compilation artifact.
+//! Integration tests for the `--count-array-copies` debugging flag, which is exposed only on
+//! `execute` and must compile and run in memory without persisting an artifact (its Brillig
+//! instrumentation would otherwise poison the artifact cache).
 
 use assert_cmd::prelude::*;
 use predicates::prelude::*;
@@ -62,6 +58,19 @@ fn execute_with_count_array_copies_does_not_generate_artifact() {
         .child("target")
         .child(format!("{project_name}.json"))
         .assert(predicate::path::missing());
+}
+
+#[test]
+fn compile_rejects_count_array_copies() {
+    let test_dir = TempDir::new().unwrap();
+    let project_dir = new_project(&test_dir, "count_copies_compile");
+
+    // The flag is exposed only on `execute` (its Brillig instrumentation must never be persisted
+    // to an artifact), so `compile` must reject it as an unknown argument.
+    #[allow(deprecated)]
+    let mut cmd = Command::cargo_bin("nargo").unwrap();
+    cmd.current_dir(&project_dir).arg("compile").arg("--count-array-copies");
+    cmd.assert().failure().stderr(predicate::str::contains("unexpected argument"));
 }
 
 #[test]

@@ -136,7 +136,7 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
         // If we want to print the array copy count at the end, we reserve global slots:
         // slot 0 = total copies counter, slots 1..=MAX_TRACK_SITES = per-site counters.
         if self.brillig_context.count_array_copies() {
-            use crate::brillig::MAX_TRACK_SITES;
+            use crate::brillig::brillig_ir::count_array_copies::MAX_TRACK_SITES;
             for _ in 0..(1 + MAX_TRACK_SITES) {
                 // Detach from the register so it's never deallocated.
                 let new_variable =

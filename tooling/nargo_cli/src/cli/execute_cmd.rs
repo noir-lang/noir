@@ -4,10 +4,11 @@ use clap::Args;
 
 use nargo::constants::PROVER_INPUT_FILE;
 use nargo::foreign_calls::OracleResolverUrl;
-use nargo::ops::{compile_program, optimize_program, report_errors};
+use nargo::ops::report_errors;
+use nargo::prepare_package;
 use nargo::workspace::Workspace;
 use nargo_toml::PackageSelection;
-use noirc_driver::CompileOptions;
+use noirc_driver::{CompileOptions, compile_main, link_to_debug_crate};
 
 use super::compile_cmd::{compile_workspace_full, parse_workspace};
 use super::{LockType, PackageOptions, WorkspaceCommand};
@@ -50,6 +51,11 @@ pub(crate) struct ExecuteCommand {
     /// Force comptime execution
     #[arg(long, hide = true)]
     force_comptime: bool,
+
+    /// Count the number of arrays that are copied in an unconstrained context for performance
+    /// debugging.
+    #[arg(long)]
+    count_array_copies: bool,
 }
 
 impl WorkspaceCommand for ExecuteCommand {
@@ -68,12 +74,7 @@ pub(crate) fn run(args: ExecuteCommand, workspace: Workspace) -> Result<(), CliE
         return run_comptime(args, workspace);
     }
 
-    // `--count-array-copies` instruments the compiled Brillig with copy-counting code, which
-    // changes the output artifact. The compilation cache is keyed on the AST and cannot tell an
-    // instrumented build apart from a normal one, so persisting an instrumented artifact would
-    // poison the cache for later, un-instrumented runs. Compile and execute entirely in memory
-    // so the flag neither reads a cached artifact nor writes one to disk.
-    if args.compile_options.count_array_copies {
+    if args.count_array_copies {
         return execute_without_artifacts(args, workspace);
     }
 
@@ -113,15 +114,13 @@ fn execute_without_artifacts(args: ExecuteCommand, workspace: Workspace) -> Resu
     let (file_manager, parsed_files) = parse_workspace(&workspace, None);
 
     for package in workspace.into_iter().filter(|package| package.is_binary()) {
-        // Pass no cached program so a previously persisted, un-instrumented artifact is ignored.
-        let compilation_result = compile_program(
-            &file_manager,
-            &parsed_files,
-            &workspace,
-            package,
-            &args.compile_options,
-            None,
-        );
+        let (mut context, crate_id) = prepare_package(&file_manager, &parsed_files, package);
+        link_to_debug_crate(&mut context, crate_id);
+        context.package_build_path = workspace.package_build_path(package);
+        context.count_array_copies = true;
+
+        // Passing no cached program ignores any previously persisted, un-instrumented artifact.
+        let compilation_result = compile_main(&mut context, crate_id, &args.compile_options, None);
         let program = report_errors(
             compilation_result,
             &file_manager,
@@ -129,7 +128,6 @@ fn execute_without_artifacts(args: ExecuteCommand, workspace: Workspace) -> Resu
             args.compile_options.deny_warnings,
             args.compile_options.silence_warnings,
         )?;
-        let program = optimize_program(program);
 
         let prover_file = package.root_dir.join(&args.prover_name).with_extension("toml");
         let circuit_name = package.name.to_string();

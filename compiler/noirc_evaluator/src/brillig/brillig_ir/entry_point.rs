@@ -375,7 +375,7 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
         // Emit the debug copy-count print only after the return values have been flushed to the
         // return-data region. Earlier, the print's register allocations would reuse the stack
         // registers still holding the return values and corrupt them.
-        if self.count_arrays_copied {
+        if self.count_array_copies() {
             self.emit_println_of_array_copy_counter();
         }
 
@@ -513,7 +513,6 @@ mod tests {
     fn count_array_copies_preserves_return_value() {
         // Body of `unconstrained fn main() -> Field { 5 }`.
         let options = BrilligOptions {
-            enable_array_copy_counter: true,
             copy_site_registry: Some(CopySiteRegistry::default()),
             ..Default::default()
         };
@@ -527,7 +526,7 @@ mod tests {
 
         let arguments = vec![];
         let returns = vec![BrilligParameter::SingleAddr(FieldElement::max_num_bits())];
-        let bytecode = create_entry_point_bytecode(context, arguments, returns).byte_code;
+        let bytecode = create_entry_point_bytecode(context, &arguments, &returns).byte_code;
 
         // The entry point emits `print` foreign calls for the copy counts. They have no return
         // values, so resolve each with an empty result to let the VM run to completion.

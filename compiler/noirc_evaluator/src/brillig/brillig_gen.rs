@@ -67,8 +67,9 @@ pub(crate) fn gen_brillig_for(
         .copied()
         .expect("Should have the globals memory size specified for an entry point");
 
-    // Prefer the registry stored in `brillig` (populated during `to_brillig`) over the one
-    // in `options`, which may be None if the caller didn't initialise it before compilation.
+    // The entry-point wrapper reads the copy-site registry to emit per-site summaries. Prefer the
+    // one stored in `brillig` (which accumulated the sites during `to_brillig`), falling back to
+    // `options` if a caller compiled the entry point without going through `to_brillig`.
     let registry =
         brillig.copy_site_registry.clone().or_else(|| options.copy_site_registry.clone());
     let options =

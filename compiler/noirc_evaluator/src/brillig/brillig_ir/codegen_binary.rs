@@ -34,68 +34,6 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         }
     }
 
-    pub(crate) fn codegen_increment_array_copy_counter(&mut self) {
-        let array_copy_counter = self.array_copy_counter_address();
-        self.codegen_usize_op(array_copy_counter, array_copy_counter, BrilligBinaryOp::Add, 1);
-    }
-
-    /// Registers the current location as a per-site copy site and returns the global memory
-    /// address of its counter, or `None` when copy-counting is disabled, no registry is attached,
-    /// or the site is beyond [`MAX_TRACK_SITES`](crate::brillig::MAX_TRACK_SITES).
-    ///
-    /// Sites are deduplicated by `CallStackId`, so the same call site compiled more than once
-    /// shares a single counter.
-    fn register_per_site_counter(&self) -> Option<MemoryAddress> {
-        use crate::brillig::MAX_TRACK_SITES;
-
-        if !self.count_arrays_copied {
-            return None;
-        }
-        let registry = self.copy_site_registry.clone()?;
-        let site_index = registry.register_site(self.current_call_stack_id());
-        (site_index < MAX_TRACK_SITES).then(|| self.per_site_counter_address(site_index))
-    }
-
-    /// If the `count_array_copies` flag is set, registers this as a per-site copy location and
-    /// emits runtime code that increments the per-site counter whenever a copy actually occurred
-    /// (i.e. `source_pointer != dest_pointer` after a copy procedure call).
-    pub(crate) fn codegen_count_if_copy_occurred(
-        &mut self,
-        source_pointer: MemoryAddress,
-        dest_pointer: MemoryAddress,
-    ) {
-        let Some(counter_addr) = self.register_per_site_counter() else {
-            return;
-        };
-
-        // Emit: if source_pointer != dest_pointer { counter_addr += 1 }
-        // We use: did_not_copy = (source == dest); if did_not_copy => skip increment
-        let did_not_copy = self.allocate_single_addr_bool();
-        self.memory_op_instruction(
-            source_pointer,
-            dest_pointer,
-            did_not_copy.address,
-            BrilligBinaryOp::Equals,
-        );
-        self.codegen_if_not(did_not_copy.address, |ctx| {
-            ctx.codegen_usize_op(counter_addr, counter_addr, BrilligBinaryOp::Add, 1);
-        });
-    }
-
-    /// Like `codegen_count_if_copy_occurred` but driven by an explicit boolean flag register
-    /// rather than a pointer comparison. Registers this as a per-site copy location and emits
-    /// runtime code that increments the per-site counter when `flag != 0`.
-    pub(crate) fn codegen_count_if_nonzero(&mut self, flag: MemoryAddress) {
-        let Some(counter_addr) = self.register_per_site_counter() else {
-            return;
-        };
-
-        // if flag != 0 { counter_addr += 1 }
-        self.codegen_if(flag, |ctx| {
-            ctx.codegen_usize_op(counter_addr, counter_addr, BrilligBinaryOp::Add, 1);
-        });
-    }
-
     /// Utility method to check if the value at a memory address equals one.
     pub(crate) fn codegen_usize_equals_one(
         &mut self,

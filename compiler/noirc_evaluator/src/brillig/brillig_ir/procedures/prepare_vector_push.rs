@@ -213,7 +213,7 @@ pub(crate) fn reallocate_vector_for_insertion<
                         brillig_context.codegen_update_vector_size(target_vector, target_size);
                     } else {
                         // Increase our array copy counter if that flag is set
-                        if brillig_context.count_arrays_copied {
+                        if brillig_context.count_array_copies() {
                             brillig_context.codegen_increment_array_copy_counter();
                         }
                         // Signal to the call site that an RC copy occurred (not a mere reallocation).

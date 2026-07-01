@@ -231,7 +231,6 @@ mod tests {
         let options = BrilligOptions {
             enable_debug_trace: true,
             enable_debug_assertions: true,
-            enable_array_copy_counter: false,
             show_opcode_advisories: false,
             layout: LayoutConfig::default(),
             copy_site_registry: None,

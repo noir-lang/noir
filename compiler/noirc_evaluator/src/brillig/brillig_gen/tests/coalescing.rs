@@ -237,8 +237,7 @@ fn coalescing_arg_to_deallocated_parameter_panics() {
     let param = func.dfg[*destination].parameters()[0]; // v1
 
     let options = BrilligOptions::default();
-    let mut function_context =
-        FunctionContext::new(func, options.layout.max_stack_frame_size());
+    let mut function_context = FunctionContext::new(func, options.layout.max_stack_frame_size());
 
     assert_eq!(
         function_context.coalescing.get_coalesced(&arg),
