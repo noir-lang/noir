@@ -48,13 +48,28 @@ impl Ssa {
 /// which uses it to validate hand-written purity annotations against the actual
 /// instruction-level behavior.
 pub(crate) fn compute_function_purities(ssa: &Ssa) -> FunctionPurities {
+    compute_propagated_purities(ssa, Function::is_pure)
+}
+/// Same as [`compute_function_purities`], but without the PureWithPredicate corruption
+/// due to ACIR calling Brillig functions under a predicate.
+/// So this is a standard purity analysis based only on side-effect instructions
+pub(crate) fn compute_function_body_purities(ssa: &Ssa) -> FunctionPurities {
+    compute_propagated_purities(ssa, Function::body_purity)
+}
+
+/// Compute a per-function purity by seeding each function with `local_purity` and then
+/// propagating impurity along the call graph until convergence.
+fn compute_propagated_purities(
+    ssa: &Ssa,
+    local_purity: impl Fn(&Function) -> Purity,
+) -> FunctionPurities {
     // Purity falls back to `Impure` for any call whose callee cannot be statically
     // resolved, so an incomplete call graph is fine — use the partial constructor
     // to allow running on pre-defunctionalize SSA in unit tests.
     let call_graph = CallGraph::from_ssa_partial(ssa);
     let (sccs, recursive_functions) = call_graph.sccs();
     let purities: HashMap<_, _> =
-        ssa.functions.values().map(|function| (function.id(), function.is_pure())).collect();
+        ssa.functions.values().map(|function| (function.id(), local_purity(function))).collect();
     analyze_call_graph(call_graph, purities, &sccs, &recursive_functions)
 }
 
@@ -120,6 +135,28 @@ impl std::fmt::Display for Purity {
 
 impl Function {
     pub(crate) fn is_pure(&self) -> Purity {
+        let body_purity = self.body_purity();
+
+        // A brillig function's outputs are zeroed when it is called from ACIR under a disabled
+        // predicate, so its result depends on the predicate and it can never be fully `Pure`.
+        // We conservatively mark all brillig functions as `PureWithPredicate`
+        if self.runtime().is_brillig() {
+            body_purity.unify(Purity::PureWithPredicate)
+        } else {
+            body_purity
+        }
+    }
+
+    /// Computes the purity of this function from its instructions alone, independent of the
+    /// runtime it will be called in.
+    ///
+    /// This is [`Function::is_pure`] without the brillig-specific caveat that a brillig
+    /// function's outputs are zeroed when it is called from ACIR under a disabled predicate.
+    /// A [`Purity::Pure`] result therefore means the body has no observable side effects (no
+    /// `constrain`, no trapping operation, no impure call) regardless of runtime, while
+    /// `is_pure` additionally downgrades brillig functions to account for that call-boundary
+    /// behavior.
+    pub(crate) fn body_purity(&self) -> Purity {
         let contains_reference = |value_id: &ValueId| {
             let typ = self.dfg.type_of_value(*value_id);
             typ.contains_reference()
@@ -153,13 +190,7 @@ impl Function {
         // that have nested arrays.
         let mut brillig_array_input_was_moved = false;
 
-        let mut result = if self.runtime().is_acir() {
-            Purity::Pure
-        } else {
-            // Because we return bogus values when a brillig function is called from acir
-            // in a disabled predicate, brillig functions can never be truly pure unfortunately.
-            Purity::PureWithPredicate
-        };
+        let mut result = Purity::Pure;
 
         for block in self.reachable_blocks() {
             for instruction in self.dfg[block].instructions() {
