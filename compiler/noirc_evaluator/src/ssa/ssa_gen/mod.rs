@@ -140,7 +140,9 @@ pub fn generate_ssa(program: Program) -> Result<Ssa, RuntimeError> {
 }
 
 /// Run the panicky validation, and try to turn it into a [`RuntimeError`] if it fails.
-fn validate_ssa_or_err(ssa: Ssa) -> Result<Ssa, RuntimeError> {
+///
+/// On failure the SSA is printed when the `NOIR_SHOW_INVALID_SSA` env var is set.
+pub fn validate_ssa_or_err(ssa: Ssa) -> Result<Ssa, RuntimeError> {
     // Temporarily take the hook, so we don't get the panic printout.
     let old_hook = std::panic::take_hook();
     std::panic::set_hook(Box::new(|_info| {}));
