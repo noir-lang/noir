@@ -734,8 +734,9 @@ impl Context<'_> {
     /// Reads the scalar at the flattened position `var_index` of an array.
     ///
     /// Returns the inline value directly when `flattened_source` is `Some` and `var_index` is a
-    /// constant within its bounds; otherwise emits a `MemoryOp::Read` of `block_id`.
-    pub(super) fn read_array_scalar(
+    /// constant within its bounds; otherwise emits a `MemoryOp::Read` of `block_id`. This is the
+    /// leaf of [`Self::array_get_value`], which is the single entrypoint for reads.
+    fn read_array_scalar(
         &mut self,
         flattened_source: Option<&[AcirVar]>,
         block_id: BlockId,

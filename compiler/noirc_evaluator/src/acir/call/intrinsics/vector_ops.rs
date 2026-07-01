@@ -665,7 +665,14 @@ impl Context<'_> {
                 // and `not_pred` will be 0, so it doesn't matter what value we use here.
                 one
             } else {
-                self.read_array_scalar(flattened_source.as_deref(), block_id, &shifted_index)?
+                let mut index = shifted_index;
+                self.array_get_value(
+                    flattened_source.as_deref(),
+                    &Type::Numeric(NumericType::NativeField),
+                    block_id,
+                    &mut index,
+                )?
+                .into_var()?
             };
 
             // Final predicate to determine whether we are within the insertion bounds
@@ -878,8 +885,15 @@ impl Context<'_> {
             let shifted_index = self.acir_context.add_constant(i + popped_elements_size.to_usize());
 
             // Fetch the value from the initial vector
-            let value_shifted_index =
-                self.read_array_scalar(flattened_source.as_deref(), block_id, &shifted_index)?;
+            let mut index = shifted_index;
+            let value_shifted_index = self
+                .array_get_value(
+                    flattened_source.as_deref(),
+                    &Type::Numeric(NumericType::NativeField),
+                    block_id,
+                    &mut index,
+                )?
+                .into_var()?;
 
             let use_shifted_value =
                 self.acir_context.more_than_eq_var(current_index, flat_user_index, 64)?;
