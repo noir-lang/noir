@@ -477,8 +477,7 @@ impl Context<'_> {
         let store_value = self.convert_value(store, dfg);
         let store_type = dfg.type_of_value(store);
         // We must setup the dummy value to match the type of the value we wish to store
-        let dummy =
-            self.array_get_value(None, &store_type, block_id, &mut dummy_predicate_index)?;
+        let dummy = self.array_get_value(&store_type, block_id, &mut dummy_predicate_index)?;
         self.convert_array_set_store_value(&store_value, &dummy)
     }
 
@@ -556,7 +555,7 @@ impl Context<'_> {
         typ: &Type,
     ) -> Result<AcirValue, RuntimeError> {
         match typ {
-            Type::Numeric(_) => self.array_get_value(None, typ, call_data_block, offset),
+            Type::Numeric(_) => self.array_get_value(typ, call_data_block, offset),
             Type::Array(arc, len) => {
                 let mut result = im::Vector::new();
                 for _i in 0..len.0 {
@@ -637,7 +636,7 @@ impl Context<'_> {
             let mut current_index = self.acir_context.add_var(bus_index, var_index)?;
             self.get_from_call_data(&mut current_index, call_data_block, res_typ)
         } else {
-            self.array_get_value(None, res_typ, block_id, &mut var_index)
+            self.array_get_value(res_typ, block_id, &mut var_index)
         }
     }
 
@@ -686,16 +685,10 @@ impl Context<'_> {
         Ok(value)
     }
 
-    /// Reads the value of type `ssa_type` at the flattened position `var_index` of an array.
-    ///
-    /// When the array's contents are still known inline — `flattened_source` is `Some` (the source
-    /// was an [`AcirValue::Array`]) — and the index is a compile-time constant, the value is
-    /// assembled directly from those inline values with no `MemoryOp::Read`. Any read that cannot be
-    /// resolved this way (dynamic index, or a source backed by a memory block, i.e.
-    /// `flattened_source` is `None`) falls back to reading `block_id`.
+    /// Reads the value of type `ssa_type` at the flattened position `var_index` of the array backed
+    /// by `block_id`, emitting a `MemoryOp::Read` per scalar and advancing `var_index` past it.
     pub(super) fn array_get_value(
         &mut self,
-        flattened_source: Option<&[AcirVar]>,
         ssa_type: &Type,
         block_id: BlockId,
         var_index: &mut AcirVar,
@@ -703,7 +696,8 @@ impl Context<'_> {
         let one = self.acir_context.add_constant(FieldElement::one());
         match ssa_type {
             Type::Numeric(numeric_type) => {
-                let read = self.read_array_scalar(flattened_source, block_id, var_index)?;
+                // Read the value from the array at the specified index
+                let read = self.acir_context.read_from_memory(block_id, var_index)?;
 
                 // Increment the var_index in case of a nested array
                 *var_index = self.acir_context.add_var(*var_index, one)?;
@@ -714,45 +708,16 @@ impl Context<'_> {
                 let mut values = im::Vector::new();
                 for _ in 0..len.0 {
                     for typ in element_types.as_ref() {
-                        values.push_back(self.array_get_value(
-                            flattened_source,
-                            typ,
-                            block_id,
-                            var_index,
-                        )?);
+                        values.push_back(self.array_get_value(typ, block_id, var_index)?);
                     }
                 }
                 Ok(AcirValue::Array(values))
             }
             Type::Reference(reference_type, _) => {
-                self.array_get_value(flattened_source, reference_type.as_ref(), block_id, var_index)
+                self.array_get_value(reference_type.as_ref(), block_id, var_index)
             }
             _ => unreachable!("ICE: Expected an array or numeric but got {ssa_type:?}"),
         }
-    }
-
-    /// Reads the scalar at the flattened position `var_index` of an array.
-    ///
-    /// Returns the inline value directly when `flattened_source` is `Some` and `var_index` is a
-    /// constant within its bounds; otherwise emits a `MemoryOp::Read` of `block_id`. This is the
-    /// leaf of [`Self::array_get_value`], which is the single entrypoint for reads.
-    fn read_array_scalar(
-        &mut self,
-        flattened_source: Option<&[AcirVar]>,
-        block_id: BlockId,
-        var_index: &AcirVar,
-    ) -> Result<AcirVar, RuntimeError> {
-        if let Some(values) = flattened_source
-            && let Some(index) = self
-                .acir_context
-                .var_to_expression(*var_index)?
-                .to_const()
-                .and_then(|constant| constant.try_to_u32())
-            && let Some(element) = values.get(index as usize)
-        {
-            return Ok(*element);
-        }
-        Ok(self.acir_context.read_from_memory(block_id, var_index)?)
     }
 
     /// Construct a value with all zero values, which we can use to provide a default value
@@ -1073,7 +1038,7 @@ impl Context<'_> {
                 for _ in 0..num_elements.0 {
                     for element_typ in element_types {
                         let element =
-                            self.array_get_value(None, element_typ, block_id, &mut var_index)?;
+                            self.array_get_value(element_typ, block_id, &mut var_index)?;
                         result.push_back(element);
                     }
                 }
@@ -1400,20 +1365,6 @@ pub(super) fn flattened_value_size(value: &AcirValue) -> FlattenedLength {
             }
             size
         }
-    }
-}
-
-/// Flattens an array value to its scalar vars when its contents are known inline.
-///
-/// Returns `Some` for an [`AcirValue::Array`] (whose elements are held directly) and `None` for an
-/// [`AcirValue::DynamicArray`], which is backed by a memory block and must be read from it. The
-/// result indexes positionally into the array's flattened memory layout.
-pub(super) fn flattened_inline_source(value: &AcirValue) -> Option<Vec<AcirVar>> {
-    match value {
-        AcirValue::Array(_) => {
-            Some(value.clone().flatten().into_iter().map(|(var, _typ)| var).collect())
-        }
-        AcirValue::Var(_, _) | AcirValue::DynamicArray(_) => None,
     }
 }
 
