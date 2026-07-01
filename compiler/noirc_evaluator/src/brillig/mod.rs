@@ -76,9 +76,6 @@ pub struct Brillig {
     globals: HashMap<FunctionId, BrilligArtifact<FieldElement>>,
     /// The size of the global space for each Brillig entry point.
     globals_memory_size: HashMap<FunctionId, usize>,
-    /// Shared per-site copy-count registry, accumulated as functions are compiled.
-    /// `None` unless `--count-array-copies` is set.
-    pub(crate) copy_site_registry: Option<CopySiteRegistry>,
 }
 
 impl Brillig {
@@ -226,10 +223,6 @@ impl Ssa {
         if brillig_reachable_function_ids.is_empty() {
             return brillig;
         }
-
-        // Keep the copy-site registry on `brillig` so it outlives this function and is available
-        // when `gen_brillig_for` builds the entry-point wrapper during ACIR generation.
-        brillig.copy_site_registry = options.copy_site_registry.clone();
 
         let call_graph = CallGraph::from_ssa(self);
         let max_call_depths = call_graph.max_call_depths(&brillig_reachable_function_ids);

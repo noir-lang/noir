@@ -480,7 +480,7 @@ pub fn optimize_ssa_builder_into_acir(
     });
 
     // Resolve copy-site labels now that both the CallStackHelper and FileManager are available.
-    if let Some(registry) = &brillig.copy_site_registry {
+    if let Some(registry) = &options.brillig_options.copy_site_registry {
         registry.resolve_labels(brillig.call_stacks(), files);
     }
 

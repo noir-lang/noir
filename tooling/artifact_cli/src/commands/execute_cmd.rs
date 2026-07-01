@@ -91,13 +91,32 @@ pub fn run(args: ExecuteCommand) -> Result<(), CliError> {
     execute_program(
         &circuit,
         &circuit_name,
-        &args.prover_file,
-        args.output_dir.as_deref(),
-        args.witness_name.as_deref(),
-        args.overwrite_return,
-        args.oracle_file.as_deref(),
-        args.oracle_resolver.as_ref(),
+        &ExecuteProgramArgs {
+            prover_file: &args.prover_file,
+            output_dir: args.output_dir.as_deref(),
+            witness_name: args.witness_name.as_deref(),
+            overwrite_return: args.overwrite_return,
+            oracle_file: args.oracle_file.as_deref(),
+            oracle_resolver: args.oracle_resolver.as_ref(),
+        },
     )
+}
+
+/// Inputs and output options for [`execute_program`], borrowed from the caller's own
+/// arguments (whether those come from an `ExecuteCommand` or from an in-memory compilation).
+pub struct ExecuteProgramArgs<'a> {
+    /// Prover inputs (and optional expected return value) in ABI format.
+    pub prover_file: &'a Path,
+    /// Directory to save the output witness in; results are discarded if `None`.
+    pub output_dir: Option<&'a Path>,
+    /// Name for the saved witness file; defaults to the circuit name if `None`.
+    pub witness_name: Option<&'a str>,
+    /// Overwrite the `return` entry in `prover_file` with the executed return value.
+    pub overwrite_return: bool,
+    /// Oracle transcript to replay in response to foreign calls.
+    pub oracle_file: Option<&'a Path>,
+    /// JSON RPC url to solve oracle calls.
+    pub oracle_resolver: Option<&'a OracleResolverUrl>,
 }
 
 /// Execute an already-loaded compiled program: run it, save and show the witness, and
@@ -105,30 +124,24 @@ pub fn run(args: ExecuteCommand) -> Result<(), CliError> {
 ///
 /// This is the shared entry point used both by `run` (after reading an artifact from disk) and
 /// by callers that hold a `CompiledProgram` in memory.
-#[allow(clippy::too_many_arguments)]
 pub fn execute_program(
     circuit: &CompiledProgram,
     circuit_name: &str,
-    prover_file: &Path,
-    output_dir: Option<&Path>,
-    witness_name: Option<&str>,
-    overwrite_return: bool,
-    oracle_file: Option<&Path>,
-    oracle_resolver: Option<&OracleResolverUrl>,
+    args: &ExecuteProgramArgs,
 ) -> Result<(), CliError> {
-    match execute(circuit, prover_file, oracle_file, oracle_resolver) {
+    match execute(circuit, args) {
         Ok(results) => {
             execution::save_and_show_witness(
                 circuit,
                 &results,
                 circuit_name,
-                output_dir,
-                witness_name,
+                args.output_dir,
+                args.witness_name,
             )?;
             execution::check_return(
                 circuit,
                 results.return_values,
-                overwrite_return.then_some(prover_file),
+                args.overwrite_return.then_some(args.prover_file),
             )?;
             Ok(())
         }
@@ -145,15 +158,13 @@ pub fn execute_program(
 /// Execute a circuit and return the output witnesses.
 fn execute(
     circuit: &CompiledProgram,
-    prover_file: &Path,
-    oracle_file: Option<&Path>,
-    oracle_resolver: Option<&OracleResolverUrl>,
+    args: &ExecuteProgramArgs,
 ) -> Result<ExecutionResults, CliError> {
     // Build a custom foreign call executor that replays the Oracle transcript,
     // and use it as a base for the default executor. Using it as the innermost rather
     // than top layer so that any extra `print` added for debugging is handled by the
     // default, rather than trying to match it to the transcript.
-    let transcript_executor = match oracle_file {
+    let transcript_executor = match args.oracle_file {
         Some(path) => layers::Either::Left(ReplayForeignCallExecutor::from_file(path)?),
         None => layers::Either::Right(layers::Unhandled),
     };
@@ -161,7 +172,7 @@ fn execute(
     let mut foreign_call_executor = DefaultForeignCallBuilder {
         output: std::io::stdout(),
         enable_mocks: false,
-        resolver_url: oracle_resolver.map(|url| url.to_string()),
+        resolver_url: args.oracle_resolver.map(|url| url.to_string()),
         root_path: None,
         package_name: None,
     }
@@ -169,5 +180,5 @@ fn execute(
 
     let blackbox_solver = Bn254BlackBoxSolver;
 
-    execution::execute(circuit, &blackbox_solver, &mut foreign_call_executor, prover_file)
+    execution::execute(circuit, &blackbox_solver, &mut foreign_call_executor, args.prover_file)
 }

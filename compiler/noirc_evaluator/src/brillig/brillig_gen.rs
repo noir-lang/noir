@@ -67,13 +67,11 @@ pub(crate) fn gen_brillig_for(
         .copied()
         .expect("Should have the globals memory size specified for an entry point");
 
-    // The entry-point wrapper reads the copy-site registry to emit per-site summaries. Prefer the
-    // one stored in `brillig` (which accumulated the sites during `to_brillig`), falling back to
-    // `options` if a caller compiled the entry point without going through `to_brillig`.
-    let registry =
-        brillig.copy_site_registry.clone().or_else(|| options.copy_site_registry.clone());
-    let options =
-        BrilligOptions { enable_debug_trace: false, copy_site_registry: registry, ..*options };
+    let options = BrilligOptions {
+        enable_debug_trace: false,
+        copy_site_registry: options.copy_site_registry.clone(),
+        ..*options
+    };
 
     let (mut entry_point, stack_start) = BrilligContext::new_entry_point_artifact(
         arguments,

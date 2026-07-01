@@ -151,9 +151,14 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         (site_index < MAX_TRACK_SITES).then(|| self.per_site_counter_address(site_index))
     }
 
+    /// Emit `*counter += 1` for a usize copy counter stored at `counter`.
+    fn codegen_increment_counter(&mut self, counter: MemoryAddress) {
+        self.codegen_usize_op(counter, counter, BrilligBinaryOp::Add, 1);
+    }
+
     pub(crate) fn codegen_increment_array_copy_counter(&mut self) {
         let array_copy_counter = self.array_copy_counter_address();
-        self.codegen_usize_op(array_copy_counter, array_copy_counter, BrilligBinaryOp::Add, 1);
+        self.codegen_increment_counter(array_copy_counter);
     }
 
     /// If copy-counting is enabled, registers this as a per-site copy location and
@@ -178,7 +183,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
             BrilligBinaryOp::Equals,
         );
         self.codegen_if_not(did_not_copy.address, |ctx| {
-            ctx.codegen_usize_op(counter_addr, counter_addr, BrilligBinaryOp::Add, 1);
+            ctx.codegen_increment_counter(counter_addr);
         });
     }
 
@@ -192,7 +197,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
 
         // if flag != 0 { counter_addr += 1 }
         self.codegen_if(flag, |ctx| {
-            ctx.codegen_usize_op(counter_addr, counter_addr, BrilligBinaryOp::Add, 1);
+            ctx.codegen_increment_counter(counter_addr);
         });
     }
 

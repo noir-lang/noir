@@ -136,12 +136,14 @@ fn execute_without_artifacts(args: ExecuteCommand, workspace: Workspace) -> Resu
         noir_artifact_cli::commands::execute_cmd::execute_program(
             &program,
             &circuit_name,
-            &prover_file,
-            Some(&workspace.target_directory_path()),
-            Some(&witness_name),
-            args.overwrite_return,
-            args.oracle_file.as_deref(),
-            args.oracle_resolver.as_ref(),
+            &noir_artifact_cli::commands::execute_cmd::ExecuteProgramArgs {
+                prover_file: &prover_file,
+                output_dir: Some(&workspace.target_directory_path()),
+                witness_name: Some(&witness_name),
+                overwrite_return: args.overwrite_return,
+                oracle_file: args.oracle_file.as_deref(),
+                oracle_resolver: args.oracle_resolver.as_ref(),
+            },
         )?;
     }
     Ok(())
