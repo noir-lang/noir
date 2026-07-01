@@ -323,8 +323,8 @@ fn lock_workspace(
 
 #[cfg(test)]
 mod tests {
-    use super::NargoCli;
-    use clap::Parser;
+    use super::{NargoCli, NargoCommand};
+    use clap::{CommandFactory, Parser};
 
     fn parse_cli(cmd: &str) -> Result<NargoCli, clap::Error> {
         NargoCli::try_parse_from(cmd.split_ascii_whitespace())
@@ -377,5 +377,27 @@ mod tests {
             "nargo add my_alias --git https://example.com/repo --tag v1 --directory crates/lib --override",
         )
         .expect("a git dependency with all options should parse");
+    }
+
+    #[test]
+    fn compile_help_hides_print_acir() {
+        let mut command = NargoCli::command();
+        let compile = command.find_subcommand_mut("compile").expect("compile command exists");
+        let help = compile.render_help().to_string();
+
+        assert!(
+            !help.contains("--print-acir"),
+            "`--print-acir` is a compiler debugging flag and should stay hidden from help output"
+        );
+    }
+
+    #[test]
+    fn hidden_print_acir_flag_still_parses() {
+        let cli = parse_cli("nargo compile --print-acir").expect("hidden debug flag should parse");
+
+        let NargoCommand::Compile(command) = cli.command else {
+            panic!("expected compile command");
+        };
+        assert!(command.compile_options.print_acir);
     }
 }
