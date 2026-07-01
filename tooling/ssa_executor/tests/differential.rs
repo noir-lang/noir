@@ -323,6 +323,14 @@ fn interpreter_vs_backends_on_overflow_corners() {
 
     for case in &cases {
         for (variant, checked) in [("direct", false), ("checked", true)] {
+            // The SSA validator rejects a checked signed arithmetic op that consumes an unchecked
+            // signed `Sub` result (its expansion would truncate the underflowed value). The `checked`
+            // variant feeds the unchecked result into a checked `add`, so for a signed `sub` producer
+            // that SSA is invalid — skip it rather than asserting on a program that cannot be built.
+            if checked && case.op == "sub" && matches!(case.nt, NumericType::Signed { .. }) {
+                continue;
+            }
+
             let inputs = [(field(case.a), case.nt), (field(case.b), case.nt)];
 
             let acir_src = build_src("acir", case, checked);

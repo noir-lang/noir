@@ -477,7 +477,7 @@ pub(super) fn expand_signed_checks_post_check(func: &Function) {
 mod tests {
     use crate::{
         assert_ssa_snapshot,
-        ssa::{interpreter::value::Value, opt::assert_ssa_does_not_change, ssa_gen::Ssa},
+        ssa::{opt::assert_ssa_does_not_change, ssa_gen::Ssa},
     };
 
     #[test]
@@ -634,42 +634,5 @@ mod tests {
         }
         ";
         assert_ssa_does_not_change(src, Ssa::expand_signed_checks);
-    }
-
-    #[test]
-    fn signed_sub_upward_overflow_reduces_operand_consistently() {
-        // `unchecked_sub i8 127, -2` overflows i8 upward (= 129), escaping in ACIR as the field-negative
-        // `p - 127`. A checked op consuming it must reduce that operand to the wrapped -127, matching
-        // Brillig and the `expand_signed_checks` lowering — not the low-bit-truncation garbage -126.
-        let acir_src = "
-            acir(inline) fn main f0 {
-            b0():
-                v0 = unchecked_sub i8 127, i8 254
-                v1 = add v0, i8 0
-                return v1
-            }
-        ";
-        let brillig_src = "
-            brillig(inline) fn main f0 {
-            b0():
-                v0 = unchecked_sub i8 127, i8 254
-                v1 = add v0, i8 0
-                return v1
-            }
-        ";
-
-        assert_eq!(
-            Ssa::from_str(brillig_src).unwrap().interpret(Vec::new()),
-            Ok(vec![Value::i8(-127)]),
-        );
-        assert_eq!(
-            Ssa::from_str(acir_src).unwrap().expand_signed_checks().interpret(Vec::new()),
-            Ok(vec![Value::i8(-127)]),
-        );
-        // Previously -126; now consistent with the backends and the expanded SSA.
-        assert_eq!(
-            Ssa::from_str(acir_src).unwrap().interpret(Vec::new()),
-            Ok(vec![Value::i8(-127)]),
-        );
     }
 }

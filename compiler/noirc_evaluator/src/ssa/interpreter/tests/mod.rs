@@ -160,8 +160,6 @@ fn test_shl() {
                 NumericValue::i8(rhs),
                 true,
                 false,
-                false,
-                false,
                 display
             ),
             expected_result.map(NumericValue::i8),
