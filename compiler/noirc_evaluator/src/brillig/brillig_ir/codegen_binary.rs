@@ -161,7 +161,7 @@ mod tests {
         context.codegen_checked_add(lhs.address, rhs.address, lhs.address);
 
         context.codegen_return(&[]);
-        let bytecode = create_entry_point_bytecode(context, vec![], vec![]).byte_code;
+        let bytecode = create_entry_point_bytecode(context, &[], &[]).byte_code;
         create_and_run_vm(vec![], &bytecode);
     }
 
@@ -175,7 +175,7 @@ mod tests {
         context.codegen_checked_mul(lhs.address, rhs.address, rhs.address);
 
         context.codegen_return(&[]);
-        let bytecode = create_entry_point_bytecode(context, vec![], vec![]).byte_code;
+        let bytecode = create_entry_point_bytecode(context, &[], &[]).byte_code;
         create_and_run_vm(vec![], &bytecode);
     }
 }

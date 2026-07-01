@@ -94,11 +94,7 @@ use crate::ssa::{
         dom::DominatorTree,
         function::Function,
         function_inserter::FunctionInserter,
-        instruction::{
-            Binary, BinaryOp, Instruction, InstructionId, TerminatorInstruction,
-            binary::{BinaryEvaluationResult, eval_constant_binary_op},
-        },
-        integer::IntegerConstant,
+        instruction::{Instruction, InstructionId},
         post_order::PostOrder,
         types::{NumericType, Type},
         value::{Value, ValueId},
@@ -108,7 +104,7 @@ use crate::ssa::{
 use acvm::{FieldElement, acir::AcirField};
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
-use super::unrolling::{Loop, LoopBounds, LoopOrder, Loops};
+use super::unrolling::{Loop, LoopBounds, LoopOrder, Loops, Step};
 
 mod simplify;
 
@@ -150,29 +146,6 @@ impl Loops {
 }
 
 impl Loop {
-    /// Find the value that controls whether to perform a loop iteration.
-    /// This is going to be the block parameter of the loop header.
-    ///
-    /// Consider the following example of a `for i in 0..4` loop:
-    /// ```text
-    /// brillig(inline) fn main f0 {
-    ///   b0(v0: u32):
-    ///     ...
-    ///     jmp b1(u32 0)
-    ///   b1(v1: u32):                  // Loop header
-    ///     v5 = lt v1, u32 4           // Upper bound
-    ///     jmpif v5 then: b3(), else: b2()
-    /// ```
-    /// In the example above, `v1` is the induction variable.
-    ///
-    /// There is an example in the tests where a loop does not have an induction variable,
-    /// but rather loads a reference in the header, in which case this will return `None`.
-    ///
-    /// TODO(<https://github.com/noir-lang/noir/issues/11900>): Handle induction variable at any block parameter position
-    pub(super) fn get_induction_variable(&self, function: &Function) -> Option<ValueId> {
-        function.dfg.block_parameters(self.header).iter().next().copied()
-    }
-
     /// Check if the loop will be fully executed, that is, there is no early `break` in it.
     ///
     /// If the loop header doesn't lead to an exit block, then it must be a `loop` or `while`,
@@ -239,7 +212,7 @@ struct LoopContext {
     pre_header: BasicBlockId,
     /// Maps current loop induction variable with its bounds and step.
     /// If the loop doesn't have constant bounds with then it's `None`.
-    induction_variable: Option<(ValueId, LoopBounds, IntegerConstant)>,
+    induction_variable: Option<(ValueId, LoopBounds, Step)>,
 
     /// Indicate whether this loop has fixed bounds that are guaranteed to execute at least once.
     does_loop_execute: bool,
@@ -318,7 +291,7 @@ impl LoopContext {
         // Otherwise using them as a value range (e.g. to fold a comparison or prove an add cannot
         // overflow) would be unsound.
         let induction_variable =
-            induction.filter(|(_, bounds, step)| bounds.visited_values_stay_within_bounds(*step));
+            induction.filter(|(_, bounds, step)| bounds.iterator_in_bounds(*step));
 
         Self {
             // There is only ever one current induction variable for a loop.
@@ -350,7 +323,7 @@ impl LoopContext {
     }
 
     /// Get the induction variable's per-iteration step if the current variable matches `id`.
-    fn get_current_induction_step(&self, id: ValueId) -> Option<IntegerConstant> {
+    fn get_current_induction_step(&self, id: ValueId) -> Option<Step> {
         self.induction_variable.filter(|(val, _, _)| *val == id).map(|(_, _, step)| step)
     }
 
@@ -507,7 +480,7 @@ impl<'f> LoopInvariantContext<'f> {
         // using them as a value range would be unsound.
         if let Some((induction_variable, bounds, step)) =
             get_induction_var_bounds(&self.inserter, loop_, pre_header)
-            && bounds.visited_values_stay_within_bounds(step)
+            && bounds.iterator_in_bounds(step)
         {
             self.outer_induction_variables.insert(induction_variable, bounds);
         }
@@ -815,9 +788,9 @@ impl<'f> LoopInvariantContext<'f> {
     }
 }
 
-/// Get and resolve the induction variable of a loop.
+/// Get the loop's induction variable, resolved through the inserter's substitutions.
 fn get_induction_variable(inserter: &FunctionInserter, loop_: &Loop) -> Option<ValueId> {
-    loop_.get_induction_variable(inserter.function).map(|v| inserter.resolve(v))
+    loop_.induction_variable(&inserter.function.dfg).map(|v| inserter.resolve(v))
 }
 
 /// Check that a loop has fixed bounds indicating that its body is guaranteed to execute at
@@ -831,90 +804,18 @@ fn does_loop_execute(bounds: Option<LoopBounds>) -> bool {
 
 /// Keep track of a loop induction variable, its [`LoopBounds`], and the constant step by which
 /// it advances each iteration. Only returns `Some` when the loop's back-edge proves the bounds
-/// are real iteration invariants (see [`monotonic_back_edge_step`]).
+/// are real iteration invariants (see [`Loop::monotonic_back_edge_step`]).
 fn get_induction_var_bounds(
     inserter: &FunctionInserter,
     loop_: &Loop,
     pre_header: BasicBlockId,
-) -> Option<(ValueId, LoopBounds, IntegerConstant)> {
+) -> Option<(ValueId, LoopBounds, Step)> {
     let bounds =
         loop_.get_const_bounds(&inserter.function.dfg, pre_header, |v| inserter.resolve(v))?;
     let induction_variable = get_induction_variable(inserter, loop_)?;
     let step =
-        monotonic_back_edge_step(&inserter.function.dfg, loop_, induction_variable, bounds.upper)?;
+        loop_.monotonic_back_edge_step(&inserter.function.dfg, induction_variable, bounds.upper)?;
     Some((induction_variable, bounds, step))
-}
-
-/// If the loop's back-edge preserves the inferred `[lower, upper)` interval, return the
-/// constant amount by which the induction variable advances each iteration (its *step*);
-/// otherwise return `None`. Two shapes qualify:
-///
-/// 1. The back-edge passes the induction variable through unchanged
-///    (`jmp header(v_induction, ..)`). This is the canonical form a zero-step
-///    loop is reduced to once `x + 0` has been folded; the variable is constant
-///    at `lower`, which is a subset of `[lower, upper)`. The step is `0`.
-/// 2. The back-edge passes back `induction_variable + positive_constant`. For
-///    an unchecked Add we additionally verify that the largest reachable
-///    induction value (`upper - 1`) plus the step does not wrap the underlying
-///    numeric type — otherwise wrapping could deposit an out-of-range value
-///    back into the header. A checked Add cannot violate the invariant: any
-///    wrap would trap before the back-edge fires. The step is the constant added.
-///
-/// The returned step lets callers distinguish a unit-step loop (which visits every
-/// integer in `[lower, upper)`) from one that visits only `lower + k * step`.
-fn monotonic_back_edge_step(
-    dfg: &DataFlowGraph,
-    loop_: &Loop,
-    induction_variable: ValueId,
-    upper: IntegerConstant,
-) -> Option<IntegerConstant> {
-    let Some(TerminatorInstruction::Jmp { destination, arguments, .. }) =
-        dfg[loop_.back_edge_start].terminator()
-    else {
-        return None;
-    };
-    if *destination != loop_.header || arguments.is_empty() {
-        return None;
-    }
-    let operand_type = dfg.type_of_value(induction_variable).unwrap_numeric();
-    if arguments[0] == induction_variable {
-        // The induction variable is constant at `lower`: a zero step.
-        return IntegerConstant::from_numeric_constant(FieldElement::zero(), operand_type);
-    }
-    let instruction = dfg.get_local_or_global_instruction(arguments[0])?;
-    let Instruction::Binary(Binary { lhs, operator: BinaryOp::Add { unchecked }, rhs }) =
-        instruction
-    else {
-        return None;
-    };
-    let step_value = if *lhs == induction_variable {
-        *rhs
-    } else if *rhs == induction_variable {
-        *lhs
-    } else {
-        return None;
-    };
-    let step = dfg.get_integer_constant(step_value)?;
-    if step.is_negative() {
-        return None;
-    }
-    if *unchecked {
-        let max_induction_value = upper.dec()?;
-        let (max_field, _) = max_induction_value.into_numeric_constant();
-        let (step_field, _) = step.into_numeric_constant();
-        match eval_constant_binary_op(
-            max_field,
-            step_field,
-            BinaryOp::Add { unchecked: false },
-            operand_type,
-        ) {
-            BinaryEvaluationResult::Success(..) => {}
-            BinaryEvaluationResult::CouldNotEvaluate | BinaryEvaluationResult::Failure(..) => {
-                return None;
-            }
-        }
-    }
-    Some(step)
 }
 
 /// Indicate whether an instruction can be hoisted.
@@ -3115,7 +3016,7 @@ mod tests {
           b5():
             jmp b7()
           b6():
-            v40 = add v4, u32 1
+            v40 = unchecked_add v4, u32 1
             v42 = array_set v3, index u32 0, value u64 30
             jmp b8()
           b7():

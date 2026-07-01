@@ -49,7 +49,7 @@ use crate::{
 /// - If the global memory size for the function has not been precomputed.
 pub(crate) fn gen_brillig_for(
     func: &Function,
-    arguments: Vec<BrilligParameter>,
+    arguments: &[BrilligParameter],
     brillig: &Brillig,
     options: &BrilligOptions,
 ) -> Result<GeneratedBrillig<FieldElement>, RuntimeError> {
@@ -71,7 +71,7 @@ pub(crate) fn gen_brillig_for(
 
     let (mut entry_point, stack_start) = BrilligContext::new_entry_point_artifact(
         arguments,
-        return_parameters,
+        &return_parameters,
         func.id(),
         globals_memory_size > 0,
         globals_memory_size,
@@ -130,7 +130,7 @@ mod entry_point {
         let brillig = ssa.to_brillig(&options);
 
         let args = vec![BrilligParameter::SingleAddr(32), BrilligParameter::SingleAddr(32)];
-        let entry = gen_brillig_for(ssa.main(), args, &brillig, &options).unwrap();
+        let entry = gen_brillig_for(ssa.main(), &args, &brillig, &options).unwrap();
 
         // A simple function returning the addition of its inputs (line 16).
         // The rest is entry point overhead for handling inputs, outputs, and stack checks.
@@ -212,7 +212,7 @@ mod entry_point {
         let brillig = ssa.to_brillig(&options);
 
         let args = vec![BrilligParameter::SingleAddr(32), BrilligParameter::SingleAddr(32)];
-        let entry = gen_brillig_for(ssa.main(), args, &brillig, &options).unwrap();
+        let entry = gen_brillig_for(ssa.main(), &args, &brillig, &options).unwrap();
 
         // Snapshot verifies:
         // - Parameters at sp[2],sp[3] (start_offset=2, uniform across all functions)

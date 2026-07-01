@@ -266,9 +266,9 @@ pub enum IntegerBitSize {
     U128,
 }
 
-impl From<IntegerBitSize> for u32 {
-    fn from(bit_size: IntegerBitSize) -> u32 {
-        match bit_size {
+impl IntegerBitSize {
+    pub const fn to_u32(self) -> u32 {
+        match self {
             IntegerBitSize::U1 => 1,
             IntegerBitSize::U8 => 8,
             IntegerBitSize::U16 => 16,
@@ -276,6 +276,12 @@ impl From<IntegerBitSize> for u32 {
             IntegerBitSize::U64 => 64,
             IntegerBitSize::U128 => 128,
         }
+    }
+}
+
+impl From<IntegerBitSize> for u32 {
+    fn from(bit_size: IntegerBitSize) -> u32 {
+        bit_size.to_u32()
     }
 }
 

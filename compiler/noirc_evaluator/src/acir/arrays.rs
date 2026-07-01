@@ -145,7 +145,7 @@ use super::{
 impl Context<'_> {
     /// Allocate a fresh, unique [`BlockId`] for a memory block.
     fn next_block_id(&mut self) -> BlockId {
-        let block_id = BlockId(self.max_block_id);
+        let block_id = BlockId::new(self.max_block_id);
         self.max_block_id += 1;
         block_id
     }
@@ -154,7 +154,7 @@ impl Context<'_> {
     /// If there is no matching `BlockId`, we create a new one.
     pub(super) fn block_id(&mut self, value: ValueId) -> BlockId {
         *self.memory_blocks.entry(value).or_insert_with(|| {
-            let block_id = BlockId(self.max_block_id);
+            let block_id = BlockId::new(self.max_block_id);
             self.max_block_id += 1;
             block_id
         })
@@ -174,7 +174,7 @@ impl Context<'_> {
     /// of non-homogenous arrays.
     fn type_sizes_block_id(&mut self, value: ValueId) -> BlockId {
         *self.element_type_sizes_blocks.entry(value).or_insert_with(|| {
-            let block_id = BlockId(self.max_block_id);
+            let block_id = BlockId::new(self.max_block_id);
             self.max_block_id += 1;
             block_id
         })

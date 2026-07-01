@@ -461,7 +461,7 @@ fn make_dynamic_array_value_types() {
 
     // Now repeat the step that generates the ACIR for the result of an array set.
     let array_id = ValueId::new(5);
-    let array = context.make_array_set_result_value(array_id, BlockId(0), &main.dfg).unwrap();
+    let array = context.make_array_set_result_value(array_id, BlockId::new(0), &main.dfg).unwrap();
     let AcirValue::DynamicArray(AcirDynamicArray { len, value_types, .. }) = array else {
         panic!("expected DynamicArray, got {array:?}");
     };
