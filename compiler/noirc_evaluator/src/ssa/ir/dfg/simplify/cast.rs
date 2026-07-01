@@ -126,7 +126,7 @@ mod tests {
     #[test]
     fn unsigned_u8_to_i8_safe() {
         let src = "
-        brillig(inline) predicate_pure fn main f0 {
+        brillig(inline) pure fn main f0 {
           b0():
             v2 = cast u8 135 as i8
             v3 = truncate v2 to 8 bits, max_bit_size: 9
@@ -139,7 +139,7 @@ mod tests {
         let ssa = Ssa::from_str_simplifying(src).unwrap();
 
         assert_ssa_snapshot!(ssa, @r"
-        brillig(inline) predicate_pure fn main f0 {
+        brillig(inline) pure fn main f0 {
           b0():
             return i8 -121
         }

@@ -2594,12 +2594,8 @@ mod tests {
     }
 
     /// Test that calls to functions is hoisted into the pre-header based on their purity.
-    ///
-    /// A brillig function can never compute as `Pure` (it defaults to `PureWithPredicate`, see
-    /// `Function::is_pure`), so a `pure` annotation on the `dummy` callee is not valid SSA and
-    /// those cases are expected to panic during parsing.
-    #[test_case(1, TestCall::Function(Some(Purity::Pure)), true => panics "declared as `pure`"; "non-empty loop, pure function")]
-    #[test_case(0, TestCall::Function(Some(Purity::Pure)), true => panics "declared as `pure`"; "empty loop, pure function")]
+    #[test_case(1, TestCall::Function(Some(Purity::Pure)), true; "non-empty loop, pure function")]
+    #[test_case(0, TestCall::Function(Some(Purity::Pure)), true; "empty loop, pure function")]
     #[test_case(1, TestCall::Function(Some(Purity::PureWithPredicate)), true; "non-empty loop, predicate pure function")]
     #[test_case(0, TestCall::Function(Some(Purity::PureWithPredicate)), false; "empty loop, predicate pure function")]
     #[test_case(1, TestCall::Function(Some(Purity::Impure)), false; "impure function")]
@@ -2612,12 +2608,13 @@ mod tests {
     fn hoist_from_loop_call_with_purity(upper: u32, test_call: TestCall, should_hoist: bool) {
         let dummy_purity = if let TestCall::Function(purity) = &test_call { *purity } else { None };
 
-        // `array_set` mutates the brillig array input `v0`, making `dummy` compute as `Impure`
-        // (see `Function::is_pure`) so its `impure` annotation is valid SSA.
-        let impure_op = if dummy_purity == Some(Purity::Impure) {
-            "v1 = array_set v0, index u32 0, value u64 0"
-        } else {
-            ""
+        // The op in the `dummy` body is chosen so that `Function::is_pure` actually computes the
+        // purity stated by the `dummy_purity` annotation: `array_set` on the input array makes it
+        // `Impure`, a `constrain` makes it `PureWithPredicate`, and no extra op leaves it `Pure`.
+        let impure_op = match dummy_purity {
+            Some(Purity::Impure) => "v1 = array_set v0, index u32 0, value u64 0",
+            Some(Purity::PureWithPredicate) => "constrain u1 1 == u1 1",
+            _ => "",
         };
 
         let dummy_purity = dummy_purity.map_or("".to_string(), |p| format!("{p}"));
@@ -2753,7 +2750,7 @@ mod tests {
         let (lhs, rhs) = if induction_is_left { (i, c) } else { (c, i) };
         let src = format!(
             r#"
-            brillig(inline) predicate_pure fn main f0 {{
+            brillig(inline) pure fn main f0 {{
               b0():
                 jmp b1(u32 {lower})
               b1(v0: u32):
@@ -3391,7 +3388,7 @@ mod control_dependence {
         let ssa = ssa.purity_analysis();
         let ssa = ssa.loop_invariant_code_motion();
 
-        assert_ssa_snapshot!(ssa, @r"
+        assert_ssa_snapshot!(ssa, @"
         brillig(inline) predicate_pure fn main f0 {
           b0(v0: u32, v1: u32):
             v3 = unchecked_mul v0, v1
@@ -3446,7 +3443,7 @@ mod control_dependence {
         let ssa = ssa.purity_analysis();
         let ssa = ssa.loop_invariant_code_motion();
 
-        assert_ssa_snapshot!(ssa, @r"
+        assert_ssa_snapshot!(ssa, @"
         brillig(inline) predicate_pure fn main f0 {
           b0(v0: u32, v1: u32):
             v3 = mul v0, v1
@@ -4400,7 +4397,7 @@ mod control_dependence {
             v9 = call black_box(v7) -> [u8; 4]
             return
         }
-        brillig(inline) predicate_pure fn ret_arr f1 {
+        brillig(inline) pure fn ret_arr f1 {
           b0():
             v4 = make_array [u8 0, u8 1, u8 2, u8 3] : [u8; 4]
             return u8 7, v4

@@ -739,7 +739,7 @@ impl Loop {
     ///
     /// For example:
     /// ```text
-    /// brillig(inline) predicate_pure fn main f0 {
+    /// brillig(inline) pure fn main f0 {
     ///   b0():
     ///     jmp b1(u32 1)                // Pre-header
     ///   b1(v0: u32):                   // Header
@@ -859,7 +859,11 @@ impl Loop {
     ///   is delegated to `unroll`.
     ///
     /// `pre_header` is the loop's pre-header.
-    fn induction_step_may_miss_bound(&self, function: &Function, pre_header: BasicBlockId) -> bool {
+    pub(super) fn induction_step_may_miss_bound(
+        &self,
+        function: &Function,
+        pre_header: BasicBlockId,
+    ) -> bool {
         // We cannot determine the induction variable:
         // we conservatively say that it may miss.
         if self.induction_variable(&function.dfg).is_none() {
@@ -919,7 +923,7 @@ impl Loop {
     ///
     /// For example:
     /// ```text
-    /// brillig(inline) predicate_pure fn main f0 {
+    /// brillig(inline) pure fn main f0 {
     ///   b0():
     ///     jmp b1(u32 10)               // Pre-header
     ///   b1(v0: u32):                   // Header
@@ -1052,7 +1056,7 @@ impl Loop {
     ///     v5 = lt v1, u32 4           // Upper bound
     ///     jmpif v5 then: b3, else: b2
     /// ```
-    fn get_const_upper_bound(
+    pub(super) fn get_const_upper_bound(
         &self,
         dfg: &DataFlowGraph,
         resolve_value: impl Fn(ValueId) -> ValueId,
@@ -3805,7 +3809,7 @@ mod tests {
         // This logic is how we identify a loop with a break expression.
         // We do not support unrolling these types of loops.
         let src = r#"
-        brillig(inline) predicate_pure fn main f0 {
+        brillig(inline) pure fn main f0 {
           b0():
             jmp b1(u32 0)
           b1(v0: u32):
@@ -3842,7 +3846,7 @@ mod tests {
         //     println(i);
         // }
         let src = r#"
-        brillig(inline) predicate_pure fn main f0 {
+        brillig(inline) pure fn main f0 {
           b0():
             jmp b1(u32 0)
           b1(v0: u32):

@@ -656,7 +656,7 @@ pub(crate) mod tests {
     fn initialize_constant_array_protected_by_allocation_check() {
         // SSA with array of 11 identical tuples - triggers initialize_constant_array_runtime
         let src = r#"
-            brillig(inline) predicate_pure fn main f0 {
+            brillig(inline) pure fn main f0 {
               b0(v0: u32):
                 v1 = make_array [
                     u32 42, u32 42, u32 42,
@@ -870,7 +870,7 @@ pub(crate) mod tests {
     fn empty_array_allocation_near_heap_limit_triggers_oom() {
         // SSA with an empty array - triggers array allocation with just ARRAY_META_COUNT (1) slot
         let src = r#"
-            brillig(inline) predicate_pure fn main f0 {
+            brillig(inline) pure fn main f0 {
               b0():
                 v0 = make_array [] : [Field; 0]
                 return
@@ -889,7 +889,7 @@ pub(crate) mod tests {
     fn empty_vector_allocation_near_heap_limit_triggers_oom() {
         // SSA with an empty vector - triggers vector allocation with VECTOR_META_COUNT (3) slots
         let src = r#"
-            brillig(inline) predicate_pure fn main f0 {
+            brillig(inline) pure fn main f0 {
               b0():
                 v0 = make_array [] : [Field]
                 return
