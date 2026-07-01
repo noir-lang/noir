@@ -324,10 +324,10 @@ impl Context<'_> {
         let flattened_source = flattened_inline_source(&vector_contents_value);
         let mut popped_elements = Vec::new();
         for res in &result_ids[2..] {
-            let elem = self.read_array_value(
+            let elem = self.array_get_value(
                 flattened_source.as_deref(),
-                block_id,
                 &dfg.type_of_value(*res),
+                block_id,
                 &mut var_index,
             )?;
             popped_elements.push(elem);
@@ -479,10 +479,10 @@ impl Context<'_> {
         // In the case of non-nested vector the logic is simple as we do not
         // need to account for the internal vector sizes or flattening the index.
         for res in &result_ids[..element_size.to_usize()] {
-            let element = self.read_array_value(
+            let element = self.array_get_value(
                 flattened_source.as_deref(),
-                block_id,
                 &dfg.type_of_value(*res),
+                block_id,
                 &mut var_index,
             )?;
             popped_elements.push(element);
@@ -848,10 +848,10 @@ impl Context<'_> {
         let mut temp_index = flat_user_index;
         let element_size = vector_typ.element_size().to_usize();
         for res in &result_ids[2..(2 + element_size)] {
-            let element = self.read_array_value(
+            let element = self.array_get_value(
                 flattened_source.as_deref(),
-                block_id,
                 &dfg.type_of_value(*res),
+                block_id,
                 &mut temp_index,
             )?;
             let elem_size = super::arrays::flattened_value_size(&element);
