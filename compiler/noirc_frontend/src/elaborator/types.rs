@@ -558,7 +558,7 @@ impl Elaborator<'_> {
         wildcard_allowed: WildcardAllowed,
     ) -> Type {
         // Check generics and associated types first.
-        if let Some(typ) = self.lookup_generic_or_associated_type(&path) {
+        if let Some(typ) = self.lookup_generic_or_associated_type(&path, &args) {
             return typ;
         }
 
@@ -756,6 +756,12 @@ impl Elaborator<'_> {
                 Some(self_type)
             }
             WILDCARD_TYPE => {
+                if !args.is_empty() {
+                    self.push_err(ResolverError::GenericsOnWildcardType {
+                        location: path.location,
+                    });
+                }
+
                 match wildcard_allowed {
                     WildcardAllowed::Yes => {}
                     WildcardAllowed::No(reason) => {
@@ -943,11 +949,28 @@ impl Elaborator<'_> {
     /// Look up a path as a generic type parameter or an associated type
     /// Returns `None` if the path doesn't match any of these.
     #[tracing::instrument(level = "trace", skip_all)]
-    fn lookup_generic_or_associated_type(&mut self, path: &TypedPath) -> Option<Type> {
+    fn lookup_generic_or_associated_type(
+        &mut self,
+        path: &TypedPath,
+        args: &GenericTypeArgs,
+    ) -> Option<Type> {
         if path.segments.len() == 1 {
             let name = path.last_name();
             if let Some(generic) = self.find_generic(name) {
                 let generic = generic.clone();
+                // A generic type parameter cannot take generic arguments since we don't support
+                // higher-kinded types, so reject any that were given (in either `T<..>` or the
+                // `T::<..>` turbofish form).
+                let last_segment = path.segments.last();
+                let turbofish = last_segment.is_some_and(|segment| segment.generics.is_some());
+                if !args.is_empty() || turbofish {
+                    let location = if turbofish {
+                        last_segment.map_or(path.location, |segment| segment.turbofish_location())
+                    } else {
+                        path.location
+                    };
+                    self.push_err(ResolverError::GenericsOnGeneric { location });
+                }
                 return Some(generic.into_named_generic(None));
             }
         } else if let Some(typ) = self.lookup_associated_type_on_self(path) {
@@ -3254,7 +3277,9 @@ impl Elaborator<'_> {
         }
 
         if traits_in_scope.len() > 1 {
-            let traits = vecmap(traits, |trait_id| self.fully_qualified_trait_path_by_id(trait_id));
+            let traits = vecmap(&traits_in_scope, |(trait_id, _)| {
+                self.fully_qualified_trait_path_by_id(*trait_id)
+            });
             let method_not_found = None;
             let error = PathResolutionError::MultipleTraitsInScope {
                 ident: Ident::new(method_name.into(), location),
