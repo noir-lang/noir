@@ -874,17 +874,17 @@
 <a href=#874 id=874 data-nosnippet>874</a>
 <a href=#875 id=875 data-nosnippet>875</a>        <span class="comment">// Non-converging jmpifs remain because the flattening pass expects to merge them.
 <a href=#876 id=876 data-nosnippet>876</a>        // Converging jmpifs (where both branches reach the same block) are folded.
-<a href=#877 id=877 data-nosnippet>877</a>        </span><span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">"
+<a href=#877 id=877 data-nosnippet>877</a>        </span><span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
 <a href=#878 id=878 data-nosnippet>878</a>        acir(inline) pure fn main f0 {
 <a href=#879 id=879 data-nosnippet>879</a>          b0(v0: [(u1, u1, [u8; 1], [u8; 1]); 3]):
 <a href=#880 id=880 data-nosnippet>880</a>            v3 = array_get v0, index u32 8 -&gt; u1
 <a href=#881 id=881 data-nosnippet>881</a>            jmpif v3 then: b1(), else: b2()
 <a href=#882 id=882 data-nosnippet>882</a>          b1():
-<a href=#883 id=883 data-nosnippet>883</a>            v6 = array_get v0, index u32 4 -&gt; u1
-<a href=#884 id=884 data-nosnippet>884</a>            jmpif v6 then: b3(), else: b4()
+<a href=#883 id=883 data-nosnippet>883</a>            v5 = array_get v0, index u32 4 -&gt; u1
+<a href=#884 id=884 data-nosnippet>884</a>            jmpif v5 then: b3(), else: b4()
 <a href=#885 id=885 data-nosnippet>885</a>          b2():
-<a href=#886 id=886 data-nosnippet>886</a>            v5 = array_get v0, index u32 4 -&gt; u1
-<a href=#887 id=887 data-nosnippet>887</a>            jmp b5(v5)
+<a href=#886 id=886 data-nosnippet>886</a>            v6 = array_get v0, index u32 4 -&gt; u1
+<a href=#887 id=887 data-nosnippet>887</a>            jmp b5(v6)
 <a href=#888 id=888 data-nosnippet>888</a>          b3():
 <a href=#889 id=889 data-nosnippet>889</a>            v8 = array_get v0, index u32 5 -&gt; u1
 <a href=#890 id=890 data-nosnippet>890</a>            jmpif v8 then: b6(), else: b7()

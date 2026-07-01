@@ -802,7 +802,7 @@
 <a href=#802 id=802 data-nosnippet>802</a>        <span class="comment">// We want no shared callees between entry points.
 <a href=#803 id=803 data-nosnippet>803</a>        // Each Brillig entry point (f1 and f2 called from f0) should have its own
 <a href=#804 id=804 data-nosnippet>804</a>        // specialized function call graph.
-<a href=#805 id=805 data-nosnippet>805</a>        </span><span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">"
+<a href=#805 id=805 data-nosnippet>805</a>        </span><span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
 <a href=#806 id=806 data-nosnippet>806</a>        acir(inline) predicate_pure fn main f0 {
 <a href=#807 id=807 data-nosnippet>807</a>          b0():
 <a href=#808 id=808 data-nosnippet>808</a>            v3 = call f1(u1 1, u32 5) -&gt; u1
@@ -818,10 +818,10 @@
 <a href=#818 id=818 data-nosnippet>818</a>          b1():
 <a href=#819 id=819 data-nosnippet>819</a>            jmp b3(u1 0)
 <a href=#820 id=820 data-nosnippet>820</a>          b2():
-<a href=#821 id=821 data-nosnippet>821</a>            v6 = sub v1, u32 1
-<a href=#822 id=822 data-nosnippet>822</a>            v8 = call f5(v0, v6) -&gt; u1
-<a href=#823 id=823 data-nosnippet>823</a>            v10 = call f6(v8, v6) -&gt; u1
-<a href=#824 id=824 data-nosnippet>824</a>            jmp b3(v10)
+<a href=#821 id=821 data-nosnippet>821</a>            v7 = sub v1, u32 1
+<a href=#822 id=822 data-nosnippet>822</a>            v9 = call f5(v0, v7) -&gt; u1
+<a href=#823 id=823 data-nosnippet>823</a>            v11 = call f6(v9, v7) -&gt; u1
+<a href=#824 id=824 data-nosnippet>824</a>            jmp b3(v11)
 <a href=#825 id=825 data-nosnippet>825</a>          b3(v2: u1):
 <a href=#826 id=826 data-nosnippet>826</a>            return v2
 <a href=#827 id=827 data-nosnippet>827</a>        }
@@ -832,10 +832,10 @@
 <a href=#832 id=832 data-nosnippet>832</a>          b1():
 <a href=#833 id=833 data-nosnippet>833</a>            jmp b3(u1 0)
 <a href=#834 id=834 data-nosnippet>834</a>          b2():
-<a href=#835 id=835 data-nosnippet>835</a>            v6 = sub v1, u32 1
-<a href=#836 id=836 data-nosnippet>836</a>            v8 = call f3(v0, v6) -&gt; u1
-<a href=#837 id=837 data-nosnippet>837</a>            v10 = call f4(v8, v6) -&gt; u1
-<a href=#838 id=838 data-nosnippet>838</a>            jmp b3(v10)
+<a href=#835 id=835 data-nosnippet>835</a>            v7 = sub v1, u32 1
+<a href=#836 id=836 data-nosnippet>836</a>            v9 = call f3(v0, v7) -&gt; u1
+<a href=#837 id=837 data-nosnippet>837</a>            v11 = call f4(v9, v7) -&gt; u1
+<a href=#838 id=838 data-nosnippet>838</a>            jmp b3(v11)
 <a href=#839 id=839 data-nosnippet>839</a>          b3(v2: u1):
 <a href=#840 id=840 data-nosnippet>840</a>            return v2
 <a href=#841 id=841 data-nosnippet>841</a>        }
@@ -846,10 +846,10 @@
 <a href=#846 id=846 data-nosnippet>846</a>          b1():
 <a href=#847 id=847 data-nosnippet>847</a>            jmp b3(u1 0)
 <a href=#848 id=848 data-nosnippet>848</a>          b2():
-<a href=#849 id=849 data-nosnippet>849</a>            v6 = sub v1, u32 1
-<a href=#850 id=850 data-nosnippet>850</a>            v8 = call f3(v0, v6) -&gt; u1
-<a href=#851 id=851 data-nosnippet>851</a>            v10 = call f4(v8, v6) -&gt; u1
-<a href=#852 id=852 data-nosnippet>852</a>            jmp b3(v10)
+<a href=#849 id=849 data-nosnippet>849</a>            v7 = sub v1, u32 1
+<a href=#850 id=850 data-nosnippet>850</a>            v9 = call f3(v0, v7) -&gt; u1
+<a href=#851 id=851 data-nosnippet>851</a>            v11 = call f4(v9, v7) -&gt; u1
+<a href=#852 id=852 data-nosnippet>852</a>            jmp b3(v11)
 <a href=#853 id=853 data-nosnippet>853</a>          b3(v2: u1):
 <a href=#854 id=854 data-nosnippet>854</a>            return v2
 <a href=#855 id=855 data-nosnippet>855</a>        }
@@ -860,10 +860,10 @@
 <a href=#860 id=860 data-nosnippet>860</a>          b1():
 <a href=#861 id=861 data-nosnippet>861</a>            jmp b3(u1 0)
 <a href=#862 id=862 data-nosnippet>862</a>          b2():
-<a href=#863 id=863 data-nosnippet>863</a>            v6 = sub v1, u32 1
-<a href=#864 id=864 data-nosnippet>864</a>            v8 = call f3(v0, v6) -&gt; u1
-<a href=#865 id=865 data-nosnippet>865</a>            v10 = call f4(v8, v6) -&gt; u1
-<a href=#866 id=866 data-nosnippet>866</a>            jmp b3(v10)
+<a href=#863 id=863 data-nosnippet>863</a>            v7 = sub v1, u32 1
+<a href=#864 id=864 data-nosnippet>864</a>            v9 = call f3(v0, v7) -&gt; u1
+<a href=#865 id=865 data-nosnippet>865</a>            v11 = call f4(v9, v7) -&gt; u1
+<a href=#866 id=866 data-nosnippet>866</a>            jmp b3(v11)
 <a href=#867 id=867 data-nosnippet>867</a>          b3(v2: u1):
 <a href=#868 id=868 data-nosnippet>868</a>            return v2
 <a href=#869 id=869 data-nosnippet>869</a>        }
@@ -874,10 +874,10 @@
 <a href=#874 id=874 data-nosnippet>874</a>          b1():
 <a href=#875 id=875 data-nosnippet>875</a>            jmp b3(u1 0)
 <a href=#876 id=876 data-nosnippet>876</a>          b2():
-<a href=#877 id=877 data-nosnippet>877</a>            v6 = sub v1, u32 1
-<a href=#878 id=878 data-nosnippet>878</a>            v8 = call f5(v0, v6) -&gt; u1
-<a href=#879 id=879 data-nosnippet>879</a>            v10 = call f6(v8, v6) -&gt; u1
-<a href=#880 id=880 data-nosnippet>880</a>            jmp b3(v10)
+<a href=#877 id=877 data-nosnippet>877</a>            v7 = sub v1, u32 1
+<a href=#878 id=878 data-nosnippet>878</a>            v9 = call f5(v0, v7) -&gt; u1
+<a href=#879 id=879 data-nosnippet>879</a>            v11 = call f6(v9, v7) -&gt; u1
+<a href=#880 id=880 data-nosnippet>880</a>            jmp b3(v11)
 <a href=#881 id=881 data-nosnippet>881</a>          b3(v2: u1):
 <a href=#882 id=882 data-nosnippet>882</a>            return v2
 <a href=#883 id=883 data-nosnippet>883</a>        }
@@ -888,10 +888,10 @@
 <a href=#888 id=888 data-nosnippet>888</a>          b1():
 <a href=#889 id=889 data-nosnippet>889</a>            jmp b3(u1 0)
 <a href=#890 id=890 data-nosnippet>890</a>          b2():
-<a href=#891 id=891 data-nosnippet>891</a>            v6 = sub v1, u32 1
-<a href=#892 id=892 data-nosnippet>892</a>            v8 = call f5(v0, v6) -&gt; u1
-<a href=#893 id=893 data-nosnippet>893</a>            v10 = call f6(v8, v6) -&gt; u1
-<a href=#894 id=894 data-nosnippet>894</a>            jmp b3(v10)
+<a href=#891 id=891 data-nosnippet>891</a>            v7 = sub v1, u32 1
+<a href=#892 id=892 data-nosnippet>892</a>            v9 = call f5(v0, v7) -&gt; u1
+<a href=#893 id=893 data-nosnippet>893</a>            v11 = call f6(v9, v7) -&gt; u1
+<a href=#894 id=894 data-nosnippet>894</a>            jmp b3(v11)
 <a href=#895 id=895 data-nosnippet>895</a>          b3(v2: u1):
 <a href=#896 id=896 data-nosnippet>896</a>            return v2
 <a href=#897 id=897 data-nosnippet>897</a>        }

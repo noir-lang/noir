@@ -2165,14 +2165,14 @@
 <a href=#2165 id=2165 data-nosnippet>2165</a>          b5():
 <a href=#2166 id=2166 data-nosnippet>2166</a>            jmpif v4 then: b7(), else: b8()
 <a href=#2167 id=2167 data-nosnippet>2167</a>          b6():
-<a href=#2168 id=2168 data-nosnippet>2168</a>            v12 = unchecked_add v1, u32 1
-<a href=#2169 id=2169 data-nosnippet>2169</a>            jmp b1(v12)
+<a href=#2168 id=2168 data-nosnippet>2168</a>            v14 = unchecked_add v1, u32 1
+<a href=#2169 id=2169 data-nosnippet>2169</a>            jmp b1(v14)
 <a href=#2170 id=2170 data-nosnippet>2170</a>          b7():
 <a href=#2171 id=2171 data-nosnippet>2171</a>            constrain v9 == u32 6
 <a href=#2172 id=2172 data-nosnippet>2172</a>            jmp b8()
 <a href=#2173 id=2173 data-nosnippet>2173</a>          b8():
-<a href=#2174 id=2174 data-nosnippet>2174</a>            v14 = unchecked_add v2, u32 1
-<a href=#2175 id=2175 data-nosnippet>2175</a>            jmp b4(v14)
+<a href=#2174 id=2174 data-nosnippet>2174</a>            v13 = unchecked_add v2, u32 1
+<a href=#2175 id=2175 data-nosnippet>2175</a>            jmp b4(v13)
 <a href=#2176 id=2176 data-nosnippet>2176</a>        }
 <a href=#2177 id=2177 data-nosnippet>2177</a>        "</span>);
 <a href=#2178 id=2178 data-nosnippet>2178</a>    }
@@ -3517,20 +3517,20 @@
 <a href=#3517 id=3517 data-nosnippet>3517</a>          b2():
 <a href=#3518 id=3518 data-nosnippet>3518</a>            jmpif u1 1 then: b4(), else: b5()
 <a href=#3519 id=3519 data-nosnippet>3519</a>          b3():
-<a href=#3520 id=3520 data-nosnippet>3520</a>            v8 = load v4 -&gt; u32
-<a href=#3521 id=3521 data-nosnippet>3521</a>            v9 = lt v1, v8
-<a href=#3522 id=3522 data-nosnippet>3522</a>            constrain v9 == u1 1
+<a href=#3520 id=3520 data-nosnippet>3520</a>            v15 = load v4 -&gt; u32
+<a href=#3521 id=3521 data-nosnippet>3521</a>            v16 = lt v1, v15
+<a href=#3522 id=3522 data-nosnippet>3522</a>            constrain v16 == u1 1
 <a href=#3523 id=3523 data-nosnippet>3523</a>            return
 <a href=#3524 id=3524 data-nosnippet>3524</a>          b4():
-<a href=#3525 id=3525 data-nosnippet>3525</a>            v11 = load v4 -&gt; u32
-<a href=#3526 id=3526 data-nosnippet>3526</a>            v13 = add v11, u32 1
-<a href=#3527 id=3527 data-nosnippet>3527</a>            store v13 at v4
+<a href=#3525 id=3525 data-nosnippet>3525</a>            v9 = load v4 -&gt; u32
+<a href=#3526 id=3526 data-nosnippet>3526</a>            v11 = add v9, u32 1
+<a href=#3527 id=3527 data-nosnippet>3527</a>            store v11 at v4
 <a href=#3528 id=3528 data-nosnippet>3528</a>            jmp b5()
 <a href=#3529 id=3529 data-nosnippet>3529</a>          b5():
-<a href=#3530 id=3530 data-nosnippet>3530</a>            v15 = lt v3, u32 4
-<a href=#3531 id=3531 data-nosnippet>3531</a>            constrain v15 == u1 1
-<a href=#3532 id=3532 data-nosnippet>3532</a>            v16 = unchecked_add v3, u32 1
-<a href=#3533 id=3533 data-nosnippet>3533</a>            jmp b1(v16)
+<a href=#3530 id=3530 data-nosnippet>3530</a>            v13 = lt v3, u32 4
+<a href=#3531 id=3531 data-nosnippet>3531</a>            constrain v13 == u1 1
+<a href=#3532 id=3532 data-nosnippet>3532</a>            v14 = unchecked_add v3, u32 1
+<a href=#3533 id=3533 data-nosnippet>3533</a>            jmp b1(v14)
 <a href=#3534 id=3534 data-nosnippet>3534</a>        }
 <a href=#3535 id=3535 data-nosnippet>3535</a>        "</span>);
 <a href=#3536 id=3536 data-nosnippet>3536</a>    }
@@ -3832,18 +3832,18 @@
 <a href=#3832 id=3832 data-nosnippet>3832</a>          b2():
 <a href=#3833 id=3833 data-nosnippet>3833</a>            jmpif u1 1 then: b4(), else: b5()
 <a href=#3834 id=3834 data-nosnippet>3834</a>          b3():
-<a href=#3835 id=3835 data-nosnippet>3835</a>            v8 = load v4 -&gt; u32
-<a href=#3836 id=3836 data-nosnippet>3836</a>            v9 = lt v1, v8
-<a href=#3837 id=3837 data-nosnippet>3837</a>            constrain v9 == u1 1
+<a href=#3835 id=3835 data-nosnippet>3835</a>            v13 = load v4 -&gt; u32
+<a href=#3836 id=3836 data-nosnippet>3836</a>            v14 = lt v1, v13
+<a href=#3837 id=3837 data-nosnippet>3837</a>            constrain v14 == u1 1
 <a href=#3838 id=3838 data-nosnippet>3838</a>            return
 <a href=#3839 id=3839 data-nosnippet>3839</a>          b4():
-<a href=#3840 id=3840 data-nosnippet>3840</a>            v11 = load v4 -&gt; u32
-<a href=#3841 id=3841 data-nosnippet>3841</a>            v13 = add v11, u32 1
-<a href=#3842 id=3842 data-nosnippet>3842</a>            store v13 at v4
+<a href=#3840 id=3840 data-nosnippet>3840</a>            v9 = load v4 -&gt; u32
+<a href=#3841 id=3841 data-nosnippet>3841</a>            v11 = add v9, u32 1
+<a href=#3842 id=3842 data-nosnippet>3842</a>            store v11 at v4
 <a href=#3843 id=3843 data-nosnippet>3843</a>            jmp b5()
 <a href=#3844 id=3844 data-nosnippet>3844</a>          b5():
-<a href=#3845 id=3845 data-nosnippet>3845</a>            v14 = unchecked_add v3, u32 1
-<a href=#3846 id=3846 data-nosnippet>3846</a>            jmp b1(v14)
+<a href=#3845 id=3845 data-nosnippet>3845</a>            v12 = unchecked_add v3, u32 1
+<a href=#3846 id=3846 data-nosnippet>3846</a>            jmp b1(v12)
 <a href=#3847 id=3847 data-nosnippet>3847</a>        }
 <a href=#3848 id=3848 data-nosnippet>3848</a>        "</span>);
 <a href=#3849 id=3849 data-nosnippet>3849</a>    }
@@ -3980,14 +3980,14 @@
 <a href=#3980 id=3980 data-nosnippet>3980</a>            v7 = div Field 1, v3
 <a href=#3981 id=3981 data-nosnippet>3981</a>            jmp b6(u32 0)
 <a href=#3982 id=3982 data-nosnippet>3982</a>          b5():
-<a href=#3983 id=3983 data-nosnippet>3983</a>            v10 = unchecked_add v1, u32 1
-<a href=#3984 id=3984 data-nosnippet>3984</a>            jmp b1(v10)
+<a href=#3983 id=3983 data-nosnippet>3983</a>            v11 = unchecked_add v1, u32 1
+<a href=#3984 id=3984 data-nosnippet>3984</a>            jmp b1(v11)
 <a href=#3985 id=3985 data-nosnippet>3985</a>          b6(v2: u32):
 <a href=#3986 id=3986 data-nosnippet>3986</a>            v8 = eq v2, u32 0
 <a href=#3987 id=3987 data-nosnippet>3987</a>            jmpif v8 then: b7(), else: b8()
 <a href=#3988 id=3988 data-nosnippet>3988</a>          b7():
-<a href=#3989 id=3989 data-nosnippet>3989</a>            v11 = unchecked_add v2, u32 1
-<a href=#3990 id=3990 data-nosnippet>3990</a>            jmp b6(v11)
+<a href=#3989 id=3989 data-nosnippet>3989</a>            v10 = unchecked_add v2, u32 1
+<a href=#3990 id=3990 data-nosnippet>3990</a>            jmp b6(v10)
 <a href=#3991 id=3991 data-nosnippet>3991</a>          b8():
 <a href=#3992 id=3992 data-nosnippet>3992</a>            jmp b5()
 <a href=#3993 id=3993 data-nosnippet>3993</a>        }
@@ -4215,13 +4215,13 @@
 <a href=#4215 id=4215 data-nosnippet>4215</a>            return i16 3
 <a href=#4216 id=4216 data-nosnippet>4216</a>          b4():
 <a href=#4217 id=4217 data-nosnippet>4217</a>            range_check v16 to 8 bits, "attempt to multiply with overflow"
-<a href=#4218 id=4218 data-nosnippet>4218</a>            v24 = cast v17 as u8
-<a href=#4219 id=4219 data-nosnippet>4219</a>            v25 = lt v24, v20
-<a href=#4220 id=4220 data-nosnippet>4220</a>            constrain v25 == u1 1, "attempt to multiply with overflow"
+<a href=#4218 id=4218 data-nosnippet>4218</a>            v23 = cast v17 as u8
+<a href=#4219 id=4219 data-nosnippet>4219</a>            v24 = lt v23, v20
+<a href=#4220 id=4220 data-nosnippet>4220</a>            constrain v24 == u1 1, "attempt to multiply with overflow"
 <a href=#4221 id=4221 data-nosnippet>4221</a>            jmp b5()
 <a href=#4222 id=4222 data-nosnippet>4222</a>          b5():
-<a href=#4223 id=4223 data-nosnippet>4223</a>            v28 = unchecked_add v2, u32 1
-<a href=#4224 id=4224 data-nosnippet>4224</a>            jmp b1(v28)
+<a href=#4223 id=4223 data-nosnippet>4223</a>            v27 = unchecked_add v2, u32 1
+<a href=#4224 id=4224 data-nosnippet>4224</a>            jmp b1(v27)
 <a href=#4225 id=4225 data-nosnippet>4225</a>        }
 <a href=#4226 id=4226 data-nosnippet>4226</a>        "#</span>);
 <a href=#4227 id=4227 data-nosnippet>4227</a>    }

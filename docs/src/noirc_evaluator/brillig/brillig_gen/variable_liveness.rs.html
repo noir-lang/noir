@@ -1026,16 +1026,16 @@
 <a href=#1026 id=1026 data-nosnippet>1026</a>         2: sp[3] = sp[4]
 <a href=#1027 id=1027 data-nosnippet>1027</a>         3: jump to 0 // -&gt; 4: f0/b1
 <a href=#1028 id=1028 data-nosnippet>1028</a>         4: sp[4] = u32 lt sp[3], sp[2] // f0/b1
-<a href=#1029 id=1029 data-nosnippet>1029</a>         5: jump if sp[4] to 0 // -&gt; 9: f0/b2
-<a href=#1030 id=1030 data-nosnippet>1030</a>         6: jump to 0 // -&gt; 7: f0/b3
-<a href=#1031 id=1031 data-nosnippet>1031</a>         7: sp[2] = sp[3] // f0/b3
-<a href=#1032 id=1032 data-nosnippet>1032</a>         8: return
-<a href=#1033 id=1033 data-nosnippet>1033</a>         9: sp[4] = u32 add sp[3], sp[5] // f0/b2
-<a href=#1034 id=1034 data-nosnippet>1034</a>        10: sp[6] = u32 lt_eq sp[3], sp[4]
-<a href=#1035 id=1035 data-nosnippet>1035</a>        11: jump if sp[6] to 0 // -&gt; 13: f0/b2/1
-<a href=#1036 id=1036 data-nosnippet>1036</a>        12: call 0 // -&gt; ErrorWithString
-<a href=#1037 id=1037 data-nosnippet>1037</a>        13: sp[3] = sp[4] // f0/b2/1
-<a href=#1038 id=1038 data-nosnippet>1038</a>        14: jump to 0 // -&gt; 4: f0/b1
+<a href=#1029 id=1029 data-nosnippet>1029</a>         5: jump if sp[4] to 0 // -&gt; 7: f0/b2
+<a href=#1030 id=1030 data-nosnippet>1030</a>         6: jump to 0 // -&gt; 13: f0/b3
+<a href=#1031 id=1031 data-nosnippet>1031</a>         7: sp[4] = u32 add sp[3], sp[5] // f0/b2
+<a href=#1032 id=1032 data-nosnippet>1032</a>         8: sp[6] = u32 lt_eq sp[3], sp[4]
+<a href=#1033 id=1033 data-nosnippet>1033</a>         9: jump if sp[6] to 0 // -&gt; 11: f0/b2/1
+<a href=#1034 id=1034 data-nosnippet>1034</a>        10: call 0 // -&gt; ErrorWithString
+<a href=#1035 id=1035 data-nosnippet>1035</a>        11: sp[3] = sp[4] // f0/b2/1
+<a href=#1036 id=1036 data-nosnippet>1036</a>        12: jump to 0 // -&gt; 4: f0/b1
+<a href=#1037 id=1037 data-nosnippet>1037</a>        13: sp[2] = sp[3] // f0/b3
+<a href=#1038 id=1038 data-nosnippet>1038</a>        14: return
 <a href=#1039 id=1039 data-nosnippet>1039</a>        "</span>);
 <a href=#1040 id=1040 data-nosnippet>1040</a>    }
 <a href=#1041 id=1041 data-nosnippet>1041</a>
@@ -1071,12 +1071,12 @@
 <a href=#1071 id=1071 data-nosnippet>1071</a>        <span class="macro">assert_artifact_snapshot!</span>(main, @<span class="string">r"
 <a href=#1072 id=1072 data-nosnippet>1072</a>        fn main
 <a href=#1073 id=1073 data-nosnippet>1073</a>         0: sp[4] = const field 42
-<a href=#1074 id=1074 data-nosnippet>1074</a>         1: jump if sp[2] to 0 // -&gt; 5: f0/b1
-<a href=#1075 id=1075 data-nosnippet>1075</a>         2: jump to 0 // -&gt; 3: f0/b2
-<a href=#1076 id=1076 data-nosnippet>1076</a>         3: sp[3] = sp[4] // f0/b2
-<a href=#1077 id=1077 data-nosnippet>1077</a>         4: jump to 0 // -&gt; 8: f0/b3
-<a href=#1078 id=1078 data-nosnippet>1078</a>         5: sp[2] = const field 27 // f0/b1
-<a href=#1079 id=1079 data-nosnippet>1079</a>         6: sp[3] = field add sp[2], sp[4]
+<a href=#1074 id=1074 data-nosnippet>1074</a>         1: jump if sp[2] to 0 // -&gt; 3: f0/b1
+<a href=#1075 id=1075 data-nosnippet>1075</a>         2: jump to 0 // -&gt; 6: f0/b2
+<a href=#1076 id=1076 data-nosnippet>1076</a>         3: sp[2] = const field 27 // f0/b1
+<a href=#1077 id=1077 data-nosnippet>1077</a>         4: sp[3] = field add sp[2], sp[4]
+<a href=#1078 id=1078 data-nosnippet>1078</a>         5: jump to 0 // -&gt; 8: f0/b3
+<a href=#1079 id=1079 data-nosnippet>1079</a>         6: sp[3] = sp[4] // f0/b2
 <a href=#1080 id=1080 data-nosnippet>1080</a>         7: jump to 0 // -&gt; 8: f0/b3
 <a href=#1081 id=1081 data-nosnippet>1081</a>         8: sp[2] = sp[3] // f0/b3
 <a href=#1082 id=1082 data-nosnippet>1082</a>         9: return
@@ -1558,21 +1558,21 @@
 <a href=#1558 id=1558 data-nosnippet>1558</a>         2: sp[4] = sp[5]
 <a href=#1559 id=1559 data-nosnippet>1559</a>         3: jump to 0 // -&gt; 4: f0/b1
 <a href=#1560 id=1560 data-nosnippet>1560</a>         4: sp[7] = u32 lt sp[4], sp[2] // f0/b1
-<a href=#1561 id=1561 data-nosnippet>1561</a>         5: jump if sp[7] to 0 // -&gt; 9: f0/b2
-<a href=#1562 id=1562 data-nosnippet>1562</a>         6: jump to 0 // -&gt; 7: f0/b5
-<a href=#1563 id=1563 data-nosnippet>1563</a>         7: sp[2] = sp[4] // f0/b5
-<a href=#1564 id=1564 data-nosnippet>1564</a>         8: return
-<a href=#1565 id=1565 data-nosnippet>1565</a>         9: sp[7] = sp[5] // f0/b2
-<a href=#1566 id=1566 data-nosnippet>1566</a>        10: jump to 0 // -&gt; 11: f0/b3
-<a href=#1567 id=1567 data-nosnippet>1567</a>        11: sp[8] = u32 lt sp[7], sp[3] // f0/b3
-<a href=#1568 id=1568 data-nosnippet>1568</a>        12: jump if sp[8] to 0 // -&gt; 17: f0/b4
-<a href=#1569 id=1569 data-nosnippet>1569</a>        13: jump to 0 // -&gt; 14: f0/b6
-<a href=#1570 id=1570 data-nosnippet>1570</a>        14: sp[7] = u32 add sp[4], sp[6] // f0/b6
-<a href=#1571 id=1571 data-nosnippet>1571</a>        15: sp[4] = sp[7]
-<a href=#1572 id=1572 data-nosnippet>1572</a>        16: jump to 0 // -&gt; 4: f0/b1
-<a href=#1573 id=1573 data-nosnippet>1573</a>        17: sp[8] = u32 add sp[7], sp[6] // f0/b4
-<a href=#1574 id=1574 data-nosnippet>1574</a>        18: sp[7] = sp[8]
-<a href=#1575 id=1575 data-nosnippet>1575</a>        19: jump to 0 // -&gt; 11: f0/b3
+<a href=#1561 id=1561 data-nosnippet>1561</a>         5: jump if sp[7] to 0 // -&gt; 7: f0/b2
+<a href=#1562 id=1562 data-nosnippet>1562</a>         6: jump to 0 // -&gt; 18: f0/b5
+<a href=#1563 id=1563 data-nosnippet>1563</a>         7: sp[7] = sp[5] // f0/b2
+<a href=#1564 id=1564 data-nosnippet>1564</a>         8: jump to 0 // -&gt; 9: f0/b3
+<a href=#1565 id=1565 data-nosnippet>1565</a>         9: sp[8] = u32 lt sp[7], sp[3] // f0/b3
+<a href=#1566 id=1566 data-nosnippet>1566</a>        10: jump if sp[8] to 0 // -&gt; 12: f0/b4
+<a href=#1567 id=1567 data-nosnippet>1567</a>        11: jump to 0 // -&gt; 15: f0/b6
+<a href=#1568 id=1568 data-nosnippet>1568</a>        12: sp[8] = u32 add sp[7], sp[6] // f0/b4
+<a href=#1569 id=1569 data-nosnippet>1569</a>        13: sp[7] = sp[8]
+<a href=#1570 id=1570 data-nosnippet>1570</a>        14: jump to 0 // -&gt; 9: f0/b3
+<a href=#1571 id=1571 data-nosnippet>1571</a>        15: sp[7] = u32 add sp[4], sp[6] // f0/b6
+<a href=#1572 id=1572 data-nosnippet>1572</a>        16: sp[4] = sp[7]
+<a href=#1573 id=1573 data-nosnippet>1573</a>        17: jump to 0 // -&gt; 4: f0/b1
+<a href=#1574 id=1574 data-nosnippet>1574</a>        18: sp[2] = sp[4] // f0/b5
+<a href=#1575 id=1575 data-nosnippet>1575</a>        19: return
 <a href=#1576 id=1576 data-nosnippet>1576</a>        "</span>);
 <a href=#1577 id=1577 data-nosnippet>1577</a>    }
 <a href=#1578 id=1578 data-nosnippet>1578</a>
@@ -1602,13 +1602,13 @@
 <a href=#1602 id=1602 data-nosnippet>1602</a>        fn main
 <a href=#1603 id=1603 data-nosnippet>1603</a>         0: sp[5] = const field 1
 <a href=#1604 id=1604 data-nosnippet>1604</a>         1: sp[6] = field add sp[2], sp[5]
-<a href=#1605 id=1605 data-nosnippet>1605</a>         2: jump if sp[3] to 0 // -&gt; 7: f0/b1
-<a href=#1606 id=1606 data-nosnippet>1606</a>         3: jump to 0 // -&gt; 4: f0/b2
-<a href=#1607 id=1607 data-nosnippet>1607</a>         4: sp[2] = const field 3 // f0/b2
-<a href=#1608 id=1608 data-nosnippet>1608</a>         5: sp[4] = field mul sp[6], sp[2]
+<a href=#1605 id=1605 data-nosnippet>1605</a>         2: jump if sp[3] to 0 // -&gt; 4: f0/b1
+<a href=#1606 id=1606 data-nosnippet>1606</a>         3: jump to 0 // -&gt; 7: f0/b2
+<a href=#1607 id=1607 data-nosnippet>1607</a>         4: sp[2] = const field 2 // f0/b1
+<a href=#1608 id=1608 data-nosnippet>1608</a>         5: sp[4] = field add sp[6], sp[2]
 <a href=#1609 id=1609 data-nosnippet>1609</a>         6: jump to 0 // -&gt; 10: f0/b3
-<a href=#1610 id=1610 data-nosnippet>1610</a>         7: sp[2] = const field 2 // f0/b1
-<a href=#1611 id=1611 data-nosnippet>1611</a>         8: sp[4] = field add sp[6], sp[2]
+<a href=#1610 id=1610 data-nosnippet>1610</a>         7: sp[2] = const field 3 // f0/b2
+<a href=#1611 id=1611 data-nosnippet>1611</a>         8: sp[4] = field mul sp[6], sp[2]
 <a href=#1612 id=1612 data-nosnippet>1612</a>         9: jump to 0 // -&gt; 10: f0/b3
 <a href=#1613 id=1613 data-nosnippet>1613</a>        10: sp[2] = sp[4] // f0/b3
 <a href=#1614 id=1614 data-nosnippet>1614</a>        11: return
@@ -1639,11 +1639,11 @@
 <a href=#1639 id=1639 data-nosnippet>1639</a>        <span class="macro">assert_artifact_snapshot!</span>(main, @<span class="string">r"
 <a href=#1640 id=1640 data-nosnippet>1640</a>        fn main
 <a href=#1641 id=1641 data-nosnippet>1641</a>        0: sp[5] = const field 10
-<a href=#1642 id=1642 data-nosnippet>1642</a>        1: jump if sp[2] to 0 // -&gt; 5: f0/b1
-<a href=#1643 id=1643 data-nosnippet>1643</a>        2: jump to 0 // -&gt; 3: f0/b2
-<a href=#1644 id=1644 data-nosnippet>1644</a>        3: sp[4] = field mul sp[3], sp[5] // f0/b2
+<a href=#1642 id=1642 data-nosnippet>1642</a>        1: jump if sp[2] to 0 // -&gt; 3: f0/b1
+<a href=#1643 id=1643 data-nosnippet>1643</a>        2: jump to 0 // -&gt; 5: f0/b2
+<a href=#1644 id=1644 data-nosnippet>1644</a>        3: sp[4] = field add sp[3], sp[5] // f0/b1
 <a href=#1645 id=1645 data-nosnippet>1645</a>        4: jump to 0 // -&gt; 7: f0/b3
-<a href=#1646 id=1646 data-nosnippet>1646</a>        5: sp[4] = field add sp[3], sp[5] // f0/b1
+<a href=#1646 id=1646 data-nosnippet>1646</a>        5: sp[4] = field mul sp[3], sp[5] // f0/b2
 <a href=#1647 id=1647 data-nosnippet>1647</a>        6: jump to 0 // -&gt; 7: f0/b3
 <a href=#1648 id=1648 data-nosnippet>1648</a>        7: sp[2] = sp[4] // f0/b3
 <a href=#1649 id=1649 data-nosnippet>1649</a>        8: return

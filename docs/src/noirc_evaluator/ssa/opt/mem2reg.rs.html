@@ -1123,122 +1123,122 @@
 <a href=#1123 id=1123 data-nosnippet>1123</a>            v28 = lt v4, u32 5
 <a href=#1124 id=1124 data-nosnippet>1124</a>            jmpif v28 then: b2(), else: b3()
 <a href=#1125 id=1125 data-nosnippet>1125</a>          b2():
-<a href=#1126 id=1126 data-nosnippet>1126</a>            v98 = mul v5, v5
-<a href=#1127 id=1127 data-nosnippet>1127</a>            v99 = array_get v1, index v4 -&gt; u32
-<a href=#1128 id=1128 data-nosnippet>1128</a>            v100 = mul v98, v99
-<a href=#1129 id=1129 data-nosnippet>1129</a>            v101 = sub v5, v100
-<a href=#1130 id=1130 data-nosnippet>1130</a>            v102 = unchecked_add v4, u32 1
-<a href=#1131 id=1131 data-nosnippet>1131</a>            jmp b1(v102, v101, v100)
+<a href=#1126 id=1126 data-nosnippet>1126</a>            v29 = mul v5, v5
+<a href=#1127 id=1127 data-nosnippet>1127</a>            v30 = array_get v1, index v4 -&gt; u32
+<a href=#1128 id=1128 data-nosnippet>1128</a>            v31 = mul v29, v30
+<a href=#1129 id=1129 data-nosnippet>1129</a>            v32 = sub v5, v31
+<a href=#1130 id=1130 data-nosnippet>1130</a>            v34 = unchecked_add v4, u32 1
+<a href=#1131 id=1131 data-nosnippet>1131</a>            jmp b1(v34, v32, v31)
 <a href=#1132 id=1132 data-nosnippet>1132</a>          b3():
-<a href=#1133 id=1133 data-nosnippet>1133</a>            v29 = eq v5, u32 0
+<a href=#1133 id=1133 data-nosnippet>1133</a>            v35 = eq v5, u32 0
 <a href=#1134 id=1134 data-nosnippet>1134</a>            constrain v5 == u32 0
 <a href=#1135 id=1135 data-nosnippet>1135</a>            jmp b4(u32 0, v5, u32 2301)
 <a href=#1136 id=1136 data-nosnippet>1136</a>          b4(v7: u32, v8: u32, v9: u32):
-<a href=#1137 id=1137 data-nosnippet>1137</a>            v30 = lt v7, u32 5
-<a href=#1138 id=1138 data-nosnippet>1138</a>            jmpif v30 then: b5(), else: b6()
+<a href=#1137 id=1137 data-nosnippet>1137</a>            v36 = lt v7, u32 5
+<a href=#1138 id=1138 data-nosnippet>1138</a>            jmpif v36 then: b5(), else: b6()
 <a href=#1139 id=1139 data-nosnippet>1139</a>          b5():
-<a href=#1140 id=1140 data-nosnippet>1140</a>            v92 = add v3, u32 2
-<a href=#1141 id=1141 data-nosnippet>1141</a>            v93 = array_get v0, index v7 -&gt; u32
-<a href=#1142 id=1142 data-nosnippet>1142</a>            v94 = array_get v0, index v7 -&gt; u32
-<a href=#1143 id=1143 data-nosnippet>1143</a>            v95 = array_get v1, index v7 -&gt; u32
-<a href=#1144 id=1144 data-nosnippet>1144</a>            v96 = mul v94, v95
-<a href=#1145 id=1145 data-nosnippet>1145</a>            v97 = unchecked_add v7, u32 1
-<a href=#1146 id=1146 data-nosnippet>1146</a>            jmp b4(v97, u32 1, u32 0)
+<a href=#1140 id=1140 data-nosnippet>1140</a>            v38 = add v3, u32 2
+<a href=#1141 id=1141 data-nosnippet>1141</a>            v39 = array_get v0, index v7 -&gt; u32
+<a href=#1142 id=1142 data-nosnippet>1142</a>            v40 = array_get v0, index v7 -&gt; u32
+<a href=#1143 id=1143 data-nosnippet>1143</a>            v41 = array_get v1, index v7 -&gt; u32
+<a href=#1144 id=1144 data-nosnippet>1144</a>            v42 = mul v40, v41
+<a href=#1145 id=1145 data-nosnippet>1145</a>            v43 = unchecked_add v7, u32 1
+<a href=#1146 id=1146 data-nosnippet>1146</a>            jmp b4(v43, u32 1, u32 0)
 <a href=#1147 id=1147 data-nosnippet>1147</a>          b6():
-<a href=#1148 id=1148 data-nosnippet>1148</a>            v32 = eq v8, u32 3814912846
+<a href=#1148 id=1148 data-nosnippet>1148</a>            v45 = eq v8, u32 3814912846
 <a href=#1149 id=1149 data-nosnippet>1149</a>            constrain v8 == u32 3814912846
-<a href=#1150 id=1150 data-nosnippet>1150</a>            v33 = array_get v1, index u32 4 -&gt; u32
-<a href=#1151 id=1151 data-nosnippet>1151</a>            jmp b7(u32 0, v33, u32 2300001)
+<a href=#1150 id=1150 data-nosnippet>1150</a>            v46 = array_get v1, index u32 4 -&gt; u32
+<a href=#1151 id=1151 data-nosnippet>1151</a>            jmp b7(u32 0, v46, u32 2300001)
 <a href=#1152 id=1152 data-nosnippet>1152</a>          b7(v10: u32, v11: u32, v12: u32):
-<a href=#1153 id=1153 data-nosnippet>1153</a>            v35 = lt v10, u32 5
-<a href=#1154 id=1154 data-nosnippet>1154</a>            jmpif v35 then: b8(), else: b9()
+<a href=#1153 id=1153 data-nosnippet>1153</a>            v48 = lt v10, u32 5
+<a href=#1154 id=1154 data-nosnippet>1154</a>            jmpif v48 then: b8(), else: b9()
 <a href=#1155 id=1155 data-nosnippet>1155</a>          b8():
-<a href=#1156 id=1156 data-nosnippet>1156</a>            v85 = array_get v0, index v10 -&gt; u32
-<a href=#1157 id=1157 data-nosnippet>1157</a>            v86 = array_get v1, index v10 -&gt; u32
-<a href=#1158 id=1158 data-nosnippet>1158</a>            v87 = mul v85, v86
-<a href=#1159 id=1159 data-nosnippet>1159</a>            v88 = add v11, v87
-<a href=#1160 id=1160 data-nosnippet>1160</a>            jmp b10(u32 0, v88, v12)
+<a href=#1156 id=1156 data-nosnippet>1156</a>            v49 = array_get v0, index v10 -&gt; u32
+<a href=#1157 id=1157 data-nosnippet>1157</a>            v50 = array_get v1, index v10 -&gt; u32
+<a href=#1158 id=1158 data-nosnippet>1158</a>            v51 = mul v49, v50
+<a href=#1159 id=1159 data-nosnippet>1159</a>            v52 = add v11, v51
+<a href=#1160 id=1160 data-nosnippet>1160</a>            jmp b10(u32 0, v52, v12)
 <a href=#1161 id=1161 data-nosnippet>1161</a>          b9():
-<a href=#1162 id=1162 data-nosnippet>1162</a>            v37 = eq v11, u32 41472
+<a href=#1162 id=1162 data-nosnippet>1162</a>            v58 = eq v11, u32 41472
 <a href=#1163 id=1163 data-nosnippet>1163</a>            constrain v11 == u32 41472
-<a href=#1164 id=1164 data-nosnippet>1164</a>            v38 = array_get v1, index u32 4 -&gt; u32
-<a href=#1165 id=1165 data-nosnippet>1165</a>            jmp b13(u32 0, v38)
+<a href=#1164 id=1164 data-nosnippet>1164</a>            v59 = array_get v1, index u32 4 -&gt; u32
+<a href=#1165 id=1165 data-nosnippet>1165</a>            jmp b13(u32 0, v59)
 <a href=#1166 id=1166 data-nosnippet>1166</a>          b10(v13: u32, v14: u32, v15: u32):
-<a href=#1167 id=1167 data-nosnippet>1167</a>            v89 = lt v13, u32 3
-<a href=#1168 id=1168 data-nosnippet>1168</a>            jmpif v89 then: b11(), else: b12()
+<a href=#1167 id=1167 data-nosnippet>1167</a>            v54 = lt v13, u32 3
+<a href=#1168 id=1168 data-nosnippet>1168</a>            jmpif v54 then: b11(), else: b12()
 <a href=#1169 id=1169 data-nosnippet>1169</a>          b11():
-<a href=#1170 id=1170 data-nosnippet>1170</a>            v91 = unchecked_add v13, u32 1
-<a href=#1171 id=1171 data-nosnippet>1171</a>            jmp b10(v91, u32 4, u32 3)
+<a href=#1170 id=1170 data-nosnippet>1170</a>            v55 = unchecked_add v13, u32 1
+<a href=#1171 id=1171 data-nosnippet>1171</a>            jmp b10(v55, u32 4, u32 3)
 <a href=#1172 id=1172 data-nosnippet>1172</a>          b12():
-<a href=#1173 id=1173 data-nosnippet>1173</a>            v90 = unchecked_add v10, u32 1
-<a href=#1174 id=1174 data-nosnippet>1174</a>            jmp b7(v90, v14, v15)
+<a href=#1173 id=1173 data-nosnippet>1173</a>            v56 = unchecked_add v10, u32 1
+<a href=#1174 id=1174 data-nosnippet>1174</a>            jmp b7(v56, v14, v15)
 <a href=#1175 id=1175 data-nosnippet>1175</a>          b13(v16: u32, v17: u32):
-<a href=#1176 id=1176 data-nosnippet>1176</a>            v40 = lt v16, u32 3
-<a href=#1177 id=1177 data-nosnippet>1177</a>            jmpif v40 then: b14(), else: b15()
+<a href=#1176 id=1176 data-nosnippet>1176</a>            v60 = lt v16, u32 3
+<a href=#1177 id=1177 data-nosnippet>1177</a>            jmpif v60 then: b14(), else: b15()
 <a href=#1178 id=1178 data-nosnippet>1178</a>          b14():
-<a href=#1179 id=1179 data-nosnippet>1179</a>            v72 = array_get v0, index v16 -&gt; u32
-<a href=#1180 id=1180 data-nosnippet>1180</a>            v73 = array_get v1, index v16 -&gt; u32
-<a href=#1181 id=1181 data-nosnippet>1181</a>            v74 = mul v72, v73
-<a href=#1182 id=1182 data-nosnippet>1182</a>            v75 = add v17, v74
-<a href=#1183 id=1183 data-nosnippet>1183</a>            jmp b16(u32 0, v75)
+<a href=#1179 id=1179 data-nosnippet>1179</a>            v61 = array_get v0, index v16 -&gt; u32
+<a href=#1180 id=1180 data-nosnippet>1180</a>            v62 = array_get v1, index v16 -&gt; u32
+<a href=#1181 id=1181 data-nosnippet>1181</a>            v63 = mul v61, v62
+<a href=#1182 id=1182 data-nosnippet>1182</a>            v64 = add v17, v63
+<a href=#1183 id=1183 data-nosnippet>1183</a>            jmp b16(u32 0, v64)
 <a href=#1184 id=1184 data-nosnippet>1184</a>          b15():
-<a href=#1185 id=1185 data-nosnippet>1185</a>            v42 = eq v17, u32 11539
+<a href=#1185 id=1185 data-nosnippet>1185</a>            v75 = eq v17, u32 11539
 <a href=#1186 id=1186 data-nosnippet>1186</a>            constrain v17 == u32 11539
-<a href=#1187 id=1187 data-nosnippet>1187</a>            v43 = eq v17, u32 0
-<a href=#1188 id=1188 data-nosnippet>1188</a>            jmpif v43 then: b19(), else: b20()
+<a href=#1187 id=1187 data-nosnippet>1187</a>            v76 = eq v17, u32 0
+<a href=#1188 id=1188 data-nosnippet>1188</a>            jmpif v76 then: b19(), else: b20()
 <a href=#1189 id=1189 data-nosnippet>1189</a>          b16(v18: u32, v19: u32):
-<a href=#1190 id=1190 data-nosnippet>1190</a>            v76 = lt v18, u32 2
-<a href=#1191 id=1191 data-nosnippet>1191</a>            jmpif v76 then: b17(), else: b18()
+<a href=#1190 id=1190 data-nosnippet>1190</a>            v65 = lt v18, u32 2
+<a href=#1191 id=1191 data-nosnippet>1191</a>            jmpif v65 then: b17(), else: b18()
 <a href=#1192 id=1192 data-nosnippet>1192</a>          b17():
-<a href=#1193 id=1193 data-nosnippet>1193</a>            v78 = add v16, v18
-<a href=#1194 id=1194 data-nosnippet>1194</a>            v79 = array_get v0, index v78 -&gt; u32
-<a href=#1195 id=1195 data-nosnippet>1195</a>            v80 = add v16, v18
-<a href=#1196 id=1196 data-nosnippet>1196</a>            v81 = array_get v1, index v80 -&gt; u32
-<a href=#1197 id=1197 data-nosnippet>1197</a>            v82 = sub v79, v81
-<a href=#1198 id=1198 data-nosnippet>1198</a>            v83 = add v19, v82
-<a href=#1199 id=1199 data-nosnippet>1199</a>            v84 = unchecked_add v18, u32 1
-<a href=#1200 id=1200 data-nosnippet>1200</a>            jmp b16(v84, v83)
+<a href=#1193 id=1193 data-nosnippet>1193</a>            v66 = add v16, v18
+<a href=#1194 id=1194 data-nosnippet>1194</a>            v67 = array_get v0, index v66 -&gt; u32
+<a href=#1195 id=1195 data-nosnippet>1195</a>            v68 = add v16, v18
+<a href=#1196 id=1196 data-nosnippet>1196</a>            v69 = array_get v1, index v68 -&gt; u32
+<a href=#1197 id=1197 data-nosnippet>1197</a>            v70 = sub v67, v69
+<a href=#1198 id=1198 data-nosnippet>1198</a>            v71 = add v19, v70
+<a href=#1199 id=1199 data-nosnippet>1199</a>            v72 = unchecked_add v18, u32 1
+<a href=#1200 id=1200 data-nosnippet>1200</a>            jmp b16(v72, v71)
 <a href=#1201 id=1201 data-nosnippet>1201</a>          b18():
-<a href=#1202 id=1202 data-nosnippet>1202</a>            v77 = unchecked_add v16, u32 1
-<a href=#1203 id=1203 data-nosnippet>1203</a>            jmp b13(v77, v19)
+<a href=#1202 id=1202 data-nosnippet>1202</a>            v73 = unchecked_add v16, u32 1
+<a href=#1203 id=1203 data-nosnippet>1203</a>            jmp b13(v73, v19)
 <a href=#1204 id=1204 data-nosnippet>1204</a>          b19():
 <a href=#1205 id=1205 data-nosnippet>1205</a>            jmp b21(v0)
 <a href=#1206 id=1206 data-nosnippet>1206</a>          b20():
 <a href=#1207 id=1207 data-nosnippet>1207</a>            jmp b21(v1)
 <a href=#1208 id=1208 data-nosnippet>1208</a>          b21(v20: [u32; 5]):
-<a href=#1209 id=1209 data-nosnippet>1209</a>            v44 = array_get v20, index u32 0 -&gt; u32
-<a href=#1210 id=1210 data-nosnippet>1210</a>            v45 = array_get v1, index u32 0 -&gt; u32
-<a href=#1211 id=1211 data-nosnippet>1211</a>            v46 = eq v44, v45
-<a href=#1212 id=1212 data-nosnippet>1212</a>            constrain v44 == v45
+<a href=#1209 id=1209 data-nosnippet>1209</a>            v77 = array_get v20, index u32 0 -&gt; u32
+<a href=#1210 id=1210 data-nosnippet>1210</a>            v78 = array_get v1, index u32 0 -&gt; u32
+<a href=#1211 id=1211 data-nosnippet>1211</a>            v79 = eq v77, v78
+<a href=#1212 id=1212 data-nosnippet>1212</a>            constrain v77 == v78
 <a href=#1213 id=1213 data-nosnippet>1213</a>            jmp b22(u32 0)
 <a href=#1214 id=1214 data-nosnippet>1214</a>          b22(v21: u32):
-<a href=#1215 id=1215 data-nosnippet>1215</a>            v47 = lt v21, u32 5
-<a href=#1216 id=1216 data-nosnippet>1216</a>            jmpif v47 then: b23(), else: b24()
+<a href=#1215 id=1215 data-nosnippet>1215</a>            v80 = lt v21, u32 5
+<a href=#1216 id=1216 data-nosnippet>1216</a>            jmpif v80 then: b23(), else: b24()
 <a href=#1217 id=1217 data-nosnippet>1217</a>          b23():
-<a href=#1218 id=1218 data-nosnippet>1218</a>            v63 = array_get v1, index v21 -&gt; u32
+<a href=#1218 id=1218 data-nosnippet>1218</a>            v81 = array_get v1, index v21 -&gt; u32
 <a href=#1219 id=1219 data-nosnippet>1219</a>            jmp b25(u32 0)
 <a href=#1220 id=1220 data-nosnippet>1220</a>          b24():
-<a href=#1221 id=1221 data-nosnippet>1221</a>            v54 = make_array [Field 1, Field 2, Field 3, Field 4, Field 5, Field 6] : [(Field, Field); 3]
-<a href=#1222 id=1222 data-nosnippet>1222</a>            v57 = array_set v54, index u32 2, value Field 7
-<a href=#1223 id=1223 data-nosnippet>1223</a>            v59 = array_set v57, index u32 3, value Field 8
-<a href=#1224 id=1224 data-nosnippet>1224</a>            v60 = array_get v59, index u32 2 -&gt; Field
-<a href=#1225 id=1225 data-nosnippet>1225</a>            v61 = array_get v59, index u32 3 -&gt; Field
-<a href=#1226 id=1226 data-nosnippet>1226</a>            v62 = eq v61, Field 8
-<a href=#1227 id=1227 data-nosnippet>1227</a>            constrain v61 == Field 8
+<a href=#1221 id=1221 data-nosnippet>1221</a>            v95 = make_array [Field 1, Field 2, Field 3, Field 4, Field 5, Field 6] : [(Field, Field); 3]
+<a href=#1222 id=1222 data-nosnippet>1222</a>            v97 = array_set v95, index u32 2, value Field 7
+<a href=#1223 id=1223 data-nosnippet>1223</a>            v99 = array_set v97, index u32 3, value Field 8
+<a href=#1224 id=1224 data-nosnippet>1224</a>            v100 = array_get v99, index u32 2 -&gt; Field
+<a href=#1225 id=1225 data-nosnippet>1225</a>            v101 = array_get v99, index u32 3 -&gt; Field
+<a href=#1226 id=1226 data-nosnippet>1226</a>            v102 = eq v101, Field 8
+<a href=#1227 id=1227 data-nosnippet>1227</a>            constrain v101 == Field 8
 <a href=#1228 id=1228 data-nosnippet>1228</a>            return
 <a href=#1229 id=1229 data-nosnippet>1229</a>          b25(v22: u32):
-<a href=#1230 id=1230 data-nosnippet>1230</a>            v64 = lt v22, u32 5
-<a href=#1231 id=1231 data-nosnippet>1231</a>            jmpif v64 then: b26(), else: b27()
+<a href=#1230 id=1230 data-nosnippet>1230</a>            v82 = lt v22, u32 5
+<a href=#1231 id=1231 data-nosnippet>1231</a>            jmpif v82 then: b26(), else: b27()
 <a href=#1232 id=1232 data-nosnippet>1232</a>          b26():
-<a href=#1233 id=1233 data-nosnippet>1233</a>            v67 = array_get v0, index v22 -&gt; u32
-<a href=#1234 id=1234 data-nosnippet>1234</a>            v68 = eq v67, v63
-<a href=#1235 id=1235 data-nosnippet>1235</a>            v69 = not v68
-<a href=#1236 id=1236 data-nosnippet>1236</a>            constrain v68 == u1 0
-<a href=#1237 id=1237 data-nosnippet>1237</a>            v71 = unchecked_add v22, u32 1
-<a href=#1238 id=1238 data-nosnippet>1238</a>            jmp b25(v71)
+<a href=#1233 id=1233 data-nosnippet>1233</a>            v83 = array_get v0, index v22 -&gt; u32
+<a href=#1234 id=1234 data-nosnippet>1234</a>            v84 = eq v83, v81
+<a href=#1235 id=1235 data-nosnippet>1235</a>            v85 = not v84
+<a href=#1236 id=1236 data-nosnippet>1236</a>            constrain v84 == u1 0
+<a href=#1237 id=1237 data-nosnippet>1237</a>            v87 = unchecked_add v22, u32 1
+<a href=#1238 id=1238 data-nosnippet>1238</a>            jmp b25(v87)
 <a href=#1239 id=1239 data-nosnippet>1239</a>          b27():
-<a href=#1240 id=1240 data-nosnippet>1240</a>            v66 = unchecked_add v21, u32 1
-<a href=#1241 id=1241 data-nosnippet>1241</a>            jmp b22(v66)
+<a href=#1240 id=1240 data-nosnippet>1240</a>            v88 = unchecked_add v21, u32 1
+<a href=#1241 id=1241 data-nosnippet>1241</a>            jmp b22(v88)
 <a href=#1242 id=1242 data-nosnippet>1242</a>        }
 <a href=#1243 id=1243 data-nosnippet>1243</a>        "</span>);
 <a href=#1244 id=1244 data-nosnippet>1244</a>    }
