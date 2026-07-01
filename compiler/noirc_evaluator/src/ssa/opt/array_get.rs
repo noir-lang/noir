@@ -155,7 +155,7 @@ impl Function {
         // front catches a future pipeline change that breaks the invariant rather than letting it
         // silently emit an unsound fold.
         debug_assert!(
-            !has_cross_block_side_effects(self),
+            !mixes_control_flow_with_predicates(self),
             "a multi-block function contains an enable_side_effects instruction; \
              the cross-block array_get cache would be unsound"
         );
@@ -235,9 +235,12 @@ fn constant_index(dfg: &DataFlowGraph, index: ValueId) -> Option<u32> {
 }
 
 /// Whether `func` has more than one block yet still contains an `enable_side_effects` instruction.
+///
+/// This is invalid SSA and should never exist: `enable_side_effects` only appears after flattening,
+/// which collapses the function to a single block, so a multi-block function must not contain one.
 /// Such a function would break the assumption that a non-trivial predicate is confined to a single
 /// block, which the cross-block `array_get` cache relies on.
-fn has_cross_block_side_effects(func: &Function) -> bool {
+fn mixes_control_flow_with_predicates(func: &Function) -> bool {
     let blocks = func.reachable_blocks();
     blocks.len() > 1
         && blocks.iter().any(|block| {
