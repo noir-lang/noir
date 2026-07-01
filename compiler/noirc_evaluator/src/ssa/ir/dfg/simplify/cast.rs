@@ -26,9 +26,15 @@ pub(super) fn simplify_cast(
     }
 
     if let Value::Instruction { instruction, .. } = &dfg[value]
-        && let Instruction::Cast(original_value, _) = &dfg[*instruction]
+        && let Instruction::Cast(original_value, intermediate_typ) = &dfg[*instruction]
     {
         let original_value = *original_value;
+        let original_typ = dfg.type_of_value(original_value).unwrap_numeric();
+        // Constant folding can later observe truncation or extension at the intermediate type.
+        // Collapse the chain only when folding the two casts is equivalent to folding one.
+        if !cast_chain_is_equivalent(original_typ, *intermediate_typ, dst_typ) {
+            return None;
+        }
         return match simplify_cast(original_value, dst_typ, dfg) {
             None => SimplifiedToInstruction(Instruction::Cast(original_value, dst_typ)),
             simpler => simpler,
@@ -119,9 +125,53 @@ pub(super) fn simplify_cast(
     }
 }
 
+fn cast_chain_is_equivalent(
+    original_typ: NumericType,
+    intermediate_typ: NumericType,
+    dst_typ: NumericType,
+) -> bool {
+    let integer = |typ| match typ {
+        NumericType::Signed { bit_size } => (bit_size, true),
+        NumericType::Unsigned { bit_size } => (bit_size, false),
+        NumericType::NativeField => (FieldElement::max_num_bits(), false),
+    };
+    let (original_bit_size, original_is_signed) = integer(original_typ);
+    let (intermediate_bit_size, intermediate_is_signed) = integer(intermediate_typ);
+    let (dst_bit_size, dst_is_signed) = integer(dst_typ);
+
+    if dst_bit_size <= intermediate_bit_size {
+        if dst_bit_size <= original_bit_size {
+            // Both paths keep the same low destination bits.
+            return true;
+        }
+
+        // The intermediate and direct casts both widen the original value. Their extension bits
+        // agree unless a signed original crosses exactly one signed destination boundary.
+        return !original_is_signed || intermediate_is_signed == dst_is_signed;
+    }
+
+    if intermediate_bit_size < original_bit_size {
+        // The intermediate cast discards bits which the wider destination would otherwise retain.
+        return false;
+    }
+
+    if intermediate_bit_size == original_bit_size {
+        // Retyping equal-width bits only matters when the destination sign-extends them.
+        return !dst_is_signed || intermediate_is_signed == original_is_signed;
+    }
+
+    // Both casts widen. An unsigned original always zero-extends. For a signed original, the
+    // intermediate and destination signedness must agree so that extension happens at both
+    // boundaries or neither one.
+    !original_is_signed || intermediate_is_signed == dst_is_signed
+}
+
 #[cfg(test)]
 mod tests {
-    use crate::{assert_ssa_snapshot, ssa::ssa_gen::Ssa};
+    use crate::{
+        assert_ssa_snapshot,
+        ssa::{interpreter::value::Value, opt::CONSTANT_FOLDING_MAX_ITER, ssa_gen::Ssa},
+    };
 
     #[test]
     fn unsigned_u8_to_i8_safe() {
@@ -296,6 +346,40 @@ mod tests {
             return i8 -128
         }
         ");
+    }
+
+    #[test]
+    fn preserves_observable_cast_boundaries() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: i8, v1: u8, v2: i16):
+            constrain v0 == i8 -1
+            constrain v1 == u8 255
+            constrain v2 == i16 256
+            v3 = cast v0 as u8
+            v4 = cast v3 as i16
+            v5 = cast v1 as i8
+            v6 = cast v5 as i16
+            v7 = truncate v2 to 8 bits, max_bit_size: 16
+            v8 = cast v7 as u8
+            v9 = cast v8 as u16
+            v10 = truncate v2 to 8 bits, max_bit_size: 16
+            v11 = cast v10 as i8
+            v12 = cast v11 as i16
+            v13 = cast v0 as u16
+            v14 = cast v13 as i16
+            return v4, v6, v9, v12, v14
+        }
+        ";
+
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+        let ssa = ssa.fold_constants_using_constraints(CONSTANT_FOLDING_MAX_ITER);
+        let result = ssa.interpret(vec![Value::i8(-1), Value::u8(255), Value::i16(256)]).unwrap();
+
+        assert_eq!(
+            result,
+            vec![Value::i16(255), Value::i16(-1), Value::u16(0), Value::i16(0), Value::i16(255),]
+        );
     }
 
     #[test]
