@@ -369,7 +369,7 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
         // Ask the spill_manager for the LRU variable, and then spill it.
         let victim_id = {
             let sm = self.function_context.spill_manager.as_ref().unwrap();
-            sm.lru_victim().expect("No values available to spill")
+            sm.lru_victim(&self.variables).expect("No values available to spill")
         };
         self.spill_value(victim_id, false, true);
     }
@@ -381,7 +381,7 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
     fn spill_lru_values(&mut self, k: usize) {
         let victims = {
             let sm = self.function_context.spill_manager.as_ref().unwrap();
-            sm.lru_victims(k)
+            sm.lru_victims(k, &self.variables)
         };
         if victims.is_empty() {
             return;

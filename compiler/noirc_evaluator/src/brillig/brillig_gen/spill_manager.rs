@@ -154,10 +154,13 @@ pub(crate) struct SpillRecord {
 /// Values are ordered by the time they were last touched: the least-recently-used value is
 /// the first element of `order`, the most-recently-used the last.
 ///
-/// Invariant: when `SpillManager::lru_victim` consults the LRU, no tracked value is spilled.
-/// The methods that record a spill (`record_spill`, `record_permanent_spill`,
-/// `ensure_permanent_spill`) drop the value from the LRU, so the order only ever yields values
-/// that are in a register. `lru_victim` asserts it.
+/// Invariant: the LRU only ever holds register-resident values, so `SpillManager::lru_victim`
+/// never hands back a spilled one. It is guarded at both ends: `SpillManager::touch` (the only
+/// way a value enters) asserts the value is in a register, and every method that moves a value
+/// out of a register — the slot-recording methods (`record_spill`, `record_permanent_spill`,
+/// `ensure_permanent_spill`) and `remove_spill` — drops it from the LRU. `lru_victim` re-checks
+/// this as a backstop, so a future spill path that forgets to remove trips immediately rather
+/// than silently dishing out a spilled value.
 #[derive(Default)]
 struct Lru {
     /// Logical clock, incremented once per `touch`. Strictly increasing, so no two entries
@@ -345,16 +348,25 @@ impl SpillManager {
 
     /// Return the least recently used value tracked in the LRU, or `None` if it is empty.
     ///
-    /// Every tracked value is in a register — [`Self::touch`] only admits register-resident
-    /// values and spills/deaths drop them — so the oldest entry is always a valid eviction
-    /// candidate, with no spill check needed here.
-    pub(crate) fn lru_victim(&self) -> Option<ValueId> {
-        self.lru.iter().next()
+    /// A single-victim [`Self::lru_victims`], so the same spilled-value backstop applies.
+    pub(crate) fn lru_victim(&self, registers: &impl RegisterState) -> Option<ValueId> {
+        self.lru_victims(1, registers).first().copied()
     }
 
-    /// Batched version of [`Self::lru_victim`]: the `k` least-recently-used values, oldest first.
-    pub(crate) fn lru_victims(&self, k: usize) -> Vec<ValueId> {
-        self.lru.iter().take(k).collect()
+    /// Return the `k` least-recently-used values, oldest first.
+    ///
+    /// The LRU only holds register-resident values (see the [`Lru`] invariant), so these are all
+    /// valid eviction candidates. The `assert!` is a backstop: it re-checks that we never hand
+    /// back a spilled value, catching any future spill path that fails to drop it from the LRU.
+    pub(crate) fn lru_victims(&self, k: usize, registers: &impl RegisterState) -> Vec<ValueId> {
+        let victims: Vec<ValueId> = self.lru.iter().take(k).collect();
+        for victim in &victims {
+            assert!(
+                !self.is_spilled(victim, registers),
+                "lru_victim returned a spilled value: {victim:?}"
+            );
+        }
+        victims
     }
 
     /// Record that a value has been spilled to a transient slot, dropping it from the LRU since
@@ -595,13 +607,13 @@ mod tests {
         }
 
         // Victim should be v0 (least recently used)
-        assert_eq!(sm.lru_victim(), Some(v0));
+        assert_eq!(sm.lru_victim(&regs), Some(v0));
 
         // Touch v0 again, making it most recent. LRU order: [v1, v2, v0]
         sm.touch(v0, &regs);
 
         // Victim should now be v1
-        assert_eq!(sm.lru_victim(), Some(v1));
+        assert_eq!(sm.lru_victim(&regs), Some(v1));
     }
 
     #[test]
@@ -619,9 +631,9 @@ mod tests {
         }
 
         // The `k` least-recently-used, oldest first.
-        assert_eq!(sm.lru_victims(2), vec![v0, v1]);
+        assert_eq!(sm.lru_victims(2, &regs), vec![v0, v1]);
         // `k` larger than the tracked set returns everything.
-        assert_eq!(sm.lru_victims(10), vec![v0, v1, v2, v3]);
+        assert_eq!(sm.lru_victims(10, &regs), vec![v0, v1, v2, v3]);
     }
 
     #[test]
@@ -651,7 +663,7 @@ mod tests {
         assert!(!sm.has_permanent_slot(&v0)); // it is a transient slot
 
         // v0 is no longer tracked, so the next-oldest live value is the victim.
-        assert_eq!(sm.lru_victim(), Some(v1));
+        assert_eq!(sm.lru_victim(&regs), Some(v1));
     }
 
     #[test]
@@ -669,6 +681,25 @@ mod tests {
         regs.free(v0); // v0 is now spilled (out of a register)
 
         sm.touch(v0, &regs); // touching a value that is not in a register panics
+    }
+
+    #[test]
+    #[should_panic(expected = "returned a spilled value")]
+    fn lru_victim_rejects_a_spilled_value() {
+        // Backstop for the invariant "the LRU never holds a spilled value". If a value ends up
+        // spilled while still tracked (forced here by re-touching it and then freeing its
+        // register), `lru_victim` must trip rather than hand it out.
+        let mut sm = SpillManager::new();
+        let mut regs = MockRegisters::default();
+        let v0 = Id::test_new(0);
+
+        regs.allocate(v0);
+        let off = sm.allocate_spill_offset();
+        sm.record_spill(v0, off, test_var(0), &regs); // transient slot; dropped from the LRU
+        sm.touch(v0, &regs); // still in a register, so this re-tracks it in the LRU
+        regs.free(v0); // now spilled (has a slot, not in a register) yet still in the LRU
+
+        let _ = sm.lru_victim(&regs);
     }
 
     #[test]
@@ -718,13 +749,13 @@ mod tests {
         sm.remove_from_lru(&v1);
 
         // Victim should be v0 (v1 is absent)
-        assert_eq!(sm.lru_victim(), Some(v0));
+        assert_eq!(sm.lru_victim(&regs), Some(v0));
 
         // Touch v0, making it most recent. LRU order: [v2, v0]
         sm.touch(v0, &regs);
 
         // Victim should be v2 (v1 is absent, v0 was touched)
-        assert_eq!(sm.lru_victim(), Some(v2));
+        assert_eq!(sm.lru_victim(&regs), Some(v2));
     }
 
     #[test]
@@ -751,7 +782,7 @@ mod tests {
 
         // While reloaded (in a register) the value is a normal eviction candidate.
         sm.touch(v0, &regs);
-        assert_eq!(sm.lru_victim(), Some(v0));
+        assert_eq!(sm.lru_victim(&regs), Some(v0));
 
         // Block entry resets the register state (was `restore_permanent_spills`): no longer resident.
         regs.free(v0);
@@ -765,7 +796,7 @@ mod tests {
         // Slot is NOT freed (no slot in free list)
         assert!(sm.free_spill_slots.is_empty());
         // The dead value was dropped from the LRU, so it is no longer an eviction candidate.
-        assert_eq!(sm.lru_victim(), None);
+        assert_eq!(sm.lru_victim(&regs), None);
     }
 
     #[test]
@@ -793,7 +824,7 @@ mod tests {
         assert!(sm.is_spilled(&v0, &regs));
         assert!(sm.free_spill_slots.is_empty());
         // Although still `is_spilled`, the dead value must not be returned by the LRU.
-        assert_eq!(sm.lru_victim(), None);
+        assert_eq!(sm.lru_victim(&regs), None);
     }
 
     #[test]
@@ -915,10 +946,10 @@ mod tests {
         sm.record_permanent_spill(v0, off, test_var(0));
         sm.touch(v0, &regs);
         assert!(!sm.is_transient_reloaded(&v0, &regs)); // it is permanent, not transient
-        assert_eq!(sm.lru_victim(), Some(v0));
+        assert_eq!(sm.lru_victim(&regs), Some(v0));
 
         // ensure_permanent_spill drops it from the LRU, so it is no longer a victim.
         assert!(sm.ensure_permanent_spill(&v0));
-        assert_eq!(sm.lru_victim(), None);
+        assert_eq!(sm.lru_victim(&regs), None);
     }
 }
