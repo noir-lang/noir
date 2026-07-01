@@ -184,46 +184,57 @@ impl Value {
         Ok(Self::array(values, vec![Type::Numeric(typ)]))
     }
 
+    // Field is 0 or 1.
     pub fn bool(value: bool) -> Self {
         Self::int(FieldElement::from(u128::from(value)), NumericType::unsigned(1))
     }
 
+    // Any field value.
     pub fn field(value: FieldElement) -> Self {
         Self::int(value, NumericType::NativeField)
     }
 
+    // Field in [0, 2^8).
     pub fn u8(value: u8) -> Self {
         Self::int(FieldElement::from(u128::from(value)), NumericType::unsigned(8))
     }
 
+    // Field in [0, 2^16).
     pub fn u16(value: u16) -> Self {
         Self::int(FieldElement::from(u128::from(value)), NumericType::unsigned(16))
     }
 
+    // Field in [0, 2^32).
     pub fn u32(value: u32) -> Self {
         Self::int(FieldElement::from(u128::from(value)), NumericType::unsigned(32))
     }
 
+    // Field in [0, 2^128).
     pub fn u128(value: u128) -> Self {
         Self::int(FieldElement::from(value), NumericType::unsigned(128))
     }
 
+    // Field in [0, 2^64).
     pub fn u64(value: u64) -> Self {
         Self::int(FieldElement::from(u128::from(value)), NumericType::unsigned(64))
     }
 
+    // Two's-complement bits in [0, 2^8).
     pub fn i8(value: i8) -> Self {
         Self::int(FieldElement::from(i128::from(value as u8)), NumericType::signed(8))
     }
 
+    // Two's-complement bits in [0, 2^16).
     pub fn i16(value: i16) -> Self {
         Self::int(FieldElement::from(i128::from(value as u16)), NumericType::signed(16))
     }
 
+    // Two's-complement bits in [0, 2^32).
     pub fn i32(value: i32) -> Self {
         Self::int(FieldElement::from(i128::from(value as u32)), NumericType::signed(32))
     }
 
+    // Two's-complement bits in [0, 2^64).
     pub fn i64(value: i64) -> Self {
         Self::int(FieldElement::from(i128::from(value as u64)), NumericType::signed(64))
     }
