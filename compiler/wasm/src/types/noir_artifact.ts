@@ -99,6 +99,8 @@ export interface ProgramArtifact {
   noir_version: string;
   /** The hash of the circuit. */
   hash?: string;
+  /** Hash of compile options that affect validation of the generated program. */
+  validation_options_hash?: string;
   /** * The ABI of the function. */
   abi: Abi;
   /** The bytecode of the circuit in base64. */

@@ -228,6 +228,7 @@ mod tests {
         let artifact = ProgramArtifact {
             noir_version: "0.0.0".to_string(),
             hash: 27,
+            validation_options_hash: 0,
             abi: noirc_abi::Abi::default(),
             bytecode: Program {
                 functions: vec![Circuit {
