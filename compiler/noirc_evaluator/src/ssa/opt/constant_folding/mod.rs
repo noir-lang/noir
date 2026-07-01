@@ -1223,7 +1223,7 @@ mod test {
             v10 = array_get v9, index u32 0 -> u32
             return v10
         }
-        brillig(inline_never) predicate_pure fn get_slice f1 {
+        brillig(inline_never) predicate_pure fn get_vector f1 {
           b0():
             v1 = make_array [u32 100] : [u32]
             return u32 1, v1

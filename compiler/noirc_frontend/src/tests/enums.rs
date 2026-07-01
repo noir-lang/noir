@@ -1060,3 +1060,27 @@ fn fieldless_enum_variant_type_turbofish_on_non_generic_enum() {
     let features = vec![UnstableFeature::Enums];
     check_errors_using_features(src, &features);
 }
+
+#[test]
+fn errors_on_segment_after_enum_variant() {
+    let src = r#"
+    pub enum E { A, B }
+    pub fn f(_x: E::A::Bar) {}
+                    ^ enum variant `A` has no associated items
+    fn main() {}
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn errors_on_segment_after_associated_constant() {
+    let src = r#"
+    pub trait T { let C: u32; }
+    pub struct Foo {}
+    impl T for Foo { let C: u32 = 1; }
+    pub fn f(_x: Foo::C::Bar) {}
+                      ^ associated constant `C` has no associated items
+    fn main() {}
+    "#;
+    check_errors(src);
+}

@@ -208,7 +208,7 @@ fn is_conditional(
 ///
 /// For `SingleAddr` types (numerics and references), the merge is a single
 /// `ConditionalMov` = 1 opcode.
-/// For array/slice parameters, the `IfElse` generates a conditional memory copy
+/// For array/vector parameters, the `IfElse` generates a conditional memory copy
 /// which is much more expensive (~20 opcodes).
 fn differing_merge_cost(
     then_block: BasicBlockId,
@@ -232,7 +232,7 @@ fn differing_merge_cost(
             if typ.is_numeric() || matches!(*typ, Type::Reference(..)) {
                 cost += 1; // SingleAddr: one ConditionalMov in Brillig
             } else {
-                // Array/slice: conditional memory copy (~20 opcodes)
+                // Array/vector: conditional memory copy (~20 opcodes)
                 cost += 20;
             }
         }

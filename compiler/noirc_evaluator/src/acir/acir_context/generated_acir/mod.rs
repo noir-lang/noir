@@ -143,7 +143,7 @@ impl<F: AcirField> GeneratedAcir<F> {
         } else {
             self.current_witness_index = Some(0);
         }
-        Witness(self.current_witness_index.expect("ICE: current_witness_index should exist"))
+        Witness::new(self.current_witness_index.expect("ICE: current_witness_index should exist"))
     }
 
     /// Converts [`Expression`] `expr` into a [`Witness`].
@@ -678,7 +678,7 @@ impl<F: AcirField> GeneratedAcir<F> {
         // entry, even when it emits no per-opcode locations.
         let brillig_locations = self.brillig_locations.entry(brillig_function_index).or_default();
         for (brillig_index, call_stack) in &generated_brillig.locations {
-            brillig_locations.insert(BrilligOpcodeLocation(*brillig_index), *call_stack);
+            brillig_locations.insert(BrilligOpcodeLocation::new(*brillig_index), *call_stack);
         }
     }
 

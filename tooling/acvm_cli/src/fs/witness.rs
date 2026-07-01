@@ -54,7 +54,7 @@ pub(crate) fn create_output_witness_string(
 ) -> Result<String, CliError> {
     let mut witness_map: BTreeMap<String, String> = BTreeMap::new();
     for (key, value) in witnesses.clone() {
-        witness_map.insert(key.0.to_string(), format!("0x{}", value.to_hex()));
+        witness_map.insert(key.witness_index().to_string(), format!("0x{}", value.to_hex()));
     }
     toml::to_string(&witness_map).map_err(CliError::OutputWitnessSerializationFailed)
 }
