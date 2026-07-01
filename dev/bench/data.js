@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1782850793893,
+  "lastUpdate": 1782900353779,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23166,48 +23166,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "jfecher11@gmail.com",
-            "name": "jfecher",
-            "username": "jfecher"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "6937d33d4fa21a7dc298f3bbbaae8c4670d3ea4b",
-          "message": "chore: Reuse find_associated_type method (#13121)\n\nCo-authored-by: AztecBot <tech@aztec-labs.com>",
-          "timestamp": "2026-06-24T12:55:44Z",
-          "tree_id": "8792c16349856d3d461c95d92c71bcd3c494192a",
-          "url": "https://github.com/noir-lang/noir/commit/6937d33d4fa21a7dc298f3bbbaae8c4670d3ea4b"
-        },
-        "date": 1782306946568,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 170334,
-            "range": "± 515",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 138930,
-            "range": "± 4278",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2652478,
-            "range": "± 2365",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -25259,6 +25217,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 3045516,
             "range": "± 4748",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "b77fb027a725035ab8fc13bb80f78843c8f7beab",
+          "message": "chore(ssa): Reject `call` if callee can return alias to array arg and no `inc_rc` exists on input (#13228)",
+          "timestamp": "2026-07-01T09:44:00Z",
+          "tree_id": "b96711e37061b3a028f1e1fce224240bbe802cfe",
+          "url": "https://github.com/noir-lang/noir/commit/b77fb027a725035ab8fc13bb80f78843c8f7beab"
+        },
+        "date": 1782900269893,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 176298,
+            "range": "± 831",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 145431,
+            "range": "± 432",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2658413,
+            "range": "± 23650",
             "unit": "ns/iter"
           }
         ]
