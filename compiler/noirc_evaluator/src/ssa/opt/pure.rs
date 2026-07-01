@@ -101,12 +101,8 @@ fn function_contains_unbounded_loop(function: &Function) -> bool {
     let loops = Loops::find_all(function, LoopOrder::InsideOut);
 
     // `true` if the upper bound of the loop is constant.
-    let has_const_upper_bound = |loop_: &Loop| {
-        let Ok(pre_header) = loop_.get_pre_header(function, &loops.cfg) else {
-            return false;
-        };
-        loop_.get_const_upper_bound(&function.dfg, pre_header, |v| v).is_some()
-    };
+    let has_const_upper_bound =
+        |loop_: &Loop| loop_.get_const_upper_bound(&function.dfg, |v| v).is_some();
     // We assume that a loop terminates if it has a constant upper bound.
     // This is not always the case (e.g negative step). TODO: Use a sound criteria once #13118 is landed.
     loops.yet_to_unroll.iter().any(|loop_| !has_const_upper_bound(loop_))

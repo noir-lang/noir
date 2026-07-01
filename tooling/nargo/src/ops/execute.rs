@@ -211,7 +211,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>, E: ForeignCallExecutor<F>>
                         }
                     }
                     acvm.resolve_pending_acir_call(call_resolved_outputs);
-                    self.witness_stack.push(call_info.id.0, call_solved_witness);
+                    self.witness_stack.push(call_info.id.as_u32(), call_solved_witness);
                 }
             }
         }
@@ -397,7 +397,7 @@ mod test {
         let function = [Circuit {
             function_name: "main".to_string(),
             opcodes: vec![Opcode::BrilligCall {
-                id: BrilligFunctionId(0),
+                id: BrilligFunctionId::new(0),
                 inputs: Vec::new(),
                 outputs: Vec::new(),
                 predicate: Expression::<FieldElement>::one(),

@@ -53,6 +53,8 @@ pub enum PathResolutionError {
     TurbofishNotAllowedOnItem { item: String, location: Location },
     #[error("{ident} is a {kind}, not a module")]
     NotAModule { ident: Ident, kind: &'static str },
+    #[error("{kind} `{name}` has no associated items")]
+    NoAssociatedItems { name: Ident, kind: &'static str },
     #[error(
         "trait `{trait_name}` which provides `{ident}` is implemented but not in scope, please import it"
     )]
@@ -86,6 +88,7 @@ impl PathResolutionError {
             PathResolutionError::Unresolved(ident)
             | PathResolutionError::Private(ident)
             | PathResolutionError::NotAModule { ident, .. }
+            | PathResolutionError::NoAssociatedItems { name: ident, .. }
             | PathResolutionError::TraitMethodNotInScope { ident, .. }
             | PathResolutionError::MultipleTraitsInScope { ident, .. }
             | PathResolutionError::MultipleApplicableImpls { ident, .. }
@@ -136,6 +139,9 @@ impl<'a> From<&'a PathResolutionError> for CustomDiagnostic {
             }
             PathResolutionError::NotAModule { ident, kind: _ } => {
                 CustomDiagnostic::simple_error(error.to_string(), String::new(), ident.location())
+            }
+            PathResolutionError::NoAssociatedItems { name, kind: _ } => {
+                CustomDiagnostic::simple_error(error.to_string(), String::new(), name.location())
             }
             PathResolutionError::TraitMethodNotInScope { ident, .. } => {
                 CustomDiagnostic::simple_error(error.to_string(), String::new(), ident.location())
@@ -246,7 +252,7 @@ pub fn resolve_import(
         resolve_path_kind(path, importing_module, def_maps, references_tracker)?;
     let mut solver =
         ImportSolver::new(importing_module, def_maps, usage_tracker, references_tracker);
-    solver.resolve_name_in_module(path, module_id)
+    solver.resolve_name_in_module(&path, module_id)
 }
 
 fn path_to_typed_path(path: Path) -> TypedPath {
@@ -431,7 +437,7 @@ impl<'def_maps, 'usage_tracker, 'references_tracker>
     /// This is very similar to `Elaborator::resolve_name_in_module`.
     fn resolve_name_in_module(
         &mut self,
-        path: TypedPath,
+        path: &TypedPath,
         starting_module: ModuleId,
     ) -> ImportResolutionResult {
         // There is a possibility that the import path is empty. In that case, early return.
@@ -444,7 +450,7 @@ impl<'def_maps, 'usage_tracker, 'references_tracker>
         }
 
         let first_segment_is_always_visible =
-            first_segment_is_always_visible(&path, self.importing_module, starting_module);
+            first_segment_is_always_visible(path, self.importing_module, starting_module);
 
         // The current module and module ID as we resolve path segments
         let mut current_module_id = starting_module;

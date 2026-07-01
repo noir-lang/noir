@@ -73,7 +73,7 @@ pub(crate) fn solve<F: AcirField>(
         let unassigned_witness = first_missing_assignment(initial_witness, &inputs)
             .expect("Some assignments must be missing because it does not contains all inputs");
         return Err(OpcodeResolutionError::OpcodeNotSolvable(
-            OpcodeNotSolvable::MissingAssignment(unassigned_witness.0),
+            OpcodeNotSolvable::MissingAssignment(unassigned_witness.witness_index()),
         ));
     }
 

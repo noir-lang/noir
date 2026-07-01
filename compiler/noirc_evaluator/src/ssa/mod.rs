@@ -657,7 +657,7 @@ fn brillig_side_effects(
         .iter()
         .enumerate()
         .map(|(idx, function)| {
-            let id = BrilligFunctionId(idx as u32);
+            let id = BrilligFunctionId::new(idx as u32);
             let has_side_effect = function
                 .bytecode
                 .iter()
@@ -855,7 +855,7 @@ mod brillig_side_effects_tests {
         let side_effects = brillig_side_effects(&brillig);
 
         // A foreign call is the only thing that lets a Brillig function affect the outside world.
-        assert!(!side_effects[&BrilligFunctionId(0)]);
-        assert!(side_effects[&BrilligFunctionId(1)]);
+        assert!(!side_effects[&BrilligFunctionId::new(0)]);
+        assert!(side_effects[&BrilligFunctionId::new(1)]);
     }
 }

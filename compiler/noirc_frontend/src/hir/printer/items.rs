@@ -623,7 +623,7 @@ impl<'context> ItemBuilder<'context> {
         }
 
         let trait_impls = self.build_primitive_type_trait_impls(&typ);
-        let primitive_type = PrimitiveType { typ: typ.clone(), impls, trait_impls };
+        let primitive_type = PrimitiveType { typ, impls, trait_impls };
         items.push((ItemVisibility::Public, Item::PrimitiveType(primitive_type)));
     }
 

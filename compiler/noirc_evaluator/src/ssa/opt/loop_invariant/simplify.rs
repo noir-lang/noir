@@ -8,7 +8,7 @@ use crate::ssa::{
         integer::IntegerConstant,
         value::ValueId,
     },
-    opt::{LoopBounds, loop_invariant::BlockContext},
+    opt::{LoopBounds, Step, loop_invariant::BlockContext},
 };
 use noirc_errors::call_stack::CallStackId;
 
@@ -129,11 +129,6 @@ impl LoopInvariantContext<'_> {
                 Some((false, min, max, step)) => (lhs, min, max, step),
                 _ => return SimplifyResult::None,
             };
-        // We assume that step is positive, which is already ensured, but it's better to explicitly check it,
-        // in case this assumption (step is positive) is changed in the future.
-        if step.is_negative() {
-            return SimplifyResult::None;
-        }
 
         // Everything below is loop invariant and control independent, so it can be safely
         // hoisted to the pre-header.
@@ -193,7 +188,7 @@ impl LoopInvariantContext<'_> {
         loop_context: &LoopContext,
         lhs: &ValueId,
         rhs: &ValueId,
-    ) -> Option<(bool, ValueId, ValueId, IntegerConstant)> {
+    ) -> Option<(bool, ValueId, ValueId, Step)> {
         let (is_left, bounds) = match (
             loop_context.get_current_induction_variable_bounds(*lhs),
             loop_context.get_current_induction_variable_bounds(*rhs),
@@ -303,14 +298,6 @@ impl LoopInvariantContext<'_> {
         else {
             return SimplifyResult::None;
         };
-
-        // A monotone-ascending back-edge is already enforced when bounds are recorded
-        // (see `back_edge_advances_monotonically`), so `i` truly counts upward through
-        // `[lower_bound, upper_bound)`. If the constants are still inverted the loop
-        // body never executes; bail out instead of simplifying dead code.
-        if bounds.lower > bounds.upper {
-            return SimplifyResult::None;
-        }
 
         // Handle arithmetic operations:
         // Check if we can simplify into an unchecked version of the operation.

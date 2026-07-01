@@ -18,7 +18,7 @@ pub(crate) fn extract_indices(
     for witness in indices {
         let witness_value = witness_map.get(&witness).ok_or(format!(
             "Failed to extract witness {} from witness map. Witness not found.",
-            witness.0
+            witness.witness_index()
         ))?;
         extracted_witness_map.insert(witness, *witness_value);
     }
