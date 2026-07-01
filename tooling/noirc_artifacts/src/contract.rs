@@ -101,6 +101,7 @@ impl ContractFunctionArtifact {
         CompiledProgram {
             noir_version,
             hash: self.hash,
+            validation_options_hash: 0,
             program: self.bytecode,
             abi: self.abi,
             debug: self.debug_symbols.debug_infos,

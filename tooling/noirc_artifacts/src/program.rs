@@ -23,6 +23,12 @@ pub struct ProgramArtifact {
     #[serde(serialize_with = "serialize_hash", deserialize_with = "deserialize_hash")]
     pub hash: u64,
 
+    /// Hash of compile options that affect validation of the generated program.
+    ///
+    /// Used together with [`Self::hash`] to decide whether an artifact can be reused.
+    #[serde(default, serialize_with = "serialize_hash", deserialize_with = "deserialize_hash")]
+    pub validation_options_hash: u64,
+
     pub abi: Abi,
 
     #[serde(
@@ -45,6 +51,7 @@ impl From<CompiledProgram> for ProgramArtifact {
     fn from(compiled_program: CompiledProgram) -> Self {
         ProgramArtifact {
             hash: compiled_program.hash,
+            validation_options_hash: compiled_program.validation_options_hash,
             abi: compiled_program.abi,
             noir_version: compiled_program.noir_version,
             bytecode: compiled_program.program,
@@ -58,6 +65,7 @@ impl From<ProgramArtifact> for CompiledProgram {
     fn from(program: ProgramArtifact) -> Self {
         CompiledProgram {
             hash: program.hash,
+            validation_options_hash: program.validation_options_hash,
             abi: program.abi,
             noir_version: program.noir_version,
             program: program.bytecode,
@@ -76,6 +84,10 @@ pub struct CompiledProgram {
     ///
     /// Used to short-circuit compilation in the case of the source code not changing since the last compilation.
     pub hash: u64,
+
+    /// Hash of compile options that affect validation of the generated program.
+    #[serde(default)]
+    pub validation_options_hash: u64,
 
     #[serde(
         serialize_with = "Program::serialize_program_base64",

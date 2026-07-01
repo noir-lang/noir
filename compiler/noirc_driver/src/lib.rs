@@ -349,6 +349,28 @@ impl Default for CompileOptions {
 }
 
 impl CompileOptions {
+    pub fn validation_options_hash(&self) -> u64 {
+        let mut hash = 0xcbf2_9ce4_8422_2325;
+        fn write_hash(hash: &mut u64, bytes: &[u8]) {
+            for byte in bytes {
+                *hash ^= u64::from(*byte);
+                *hash = hash.wrapping_mul(0x0000_0100_0000_01b3);
+            }
+        }
+
+        write_hash(&mut hash, &[self.skip_underconstrained_check as u8]);
+        write_hash(&mut hash, &[self.skip_brillig_constraints_check as u8]);
+        write_hash(
+            &mut hash,
+            &u64::from(self.brillig_constraints_check_max_array_output_length).to_le_bytes(),
+        );
+        write_hash(
+            &mut hash,
+            &u64::from(self.brillig_constraints_check_max_ancestor_distance).to_le_bytes(),
+        );
+        hash
+    }
+
     pub fn as_ssa_options(&self, package_build_path: PathBuf) -> SsaEvaluatorOptions {
         SsaEvaluatorOptions {
             ssa_logging: if !self.show_ssa_pass.is_empty() {
@@ -999,10 +1021,10 @@ pub fn compile_no_check(
 
     // Hash the AST program, which is going to be used to fingerprint the compilation artifact.
     let hash = rustc_hash::FxBuildHasher.hash_one(&program);
+    let validation_options_hash = options.validation_options_hash();
 
     if let Some(cached_program) = cached_program
-        && !force_compile
-        && cached_program.hash == hash
+        && can_reuse_cached_program(&cached_program, hash, validation_options_hash, force_compile)
     {
         info!("Program matches existing artifact, returning early");
         return Ok(cached_program);
@@ -1026,6 +1048,7 @@ pub fn compile_no_check(
 
     Ok(CompiledProgram {
         hash,
+        validation_options_hash,
         program,
         debug,
         abi,
@@ -1033,6 +1056,17 @@ pub fn compile_no_check(
         noir_version: NOIR_ARTIFACT_VERSION_STRING.to_string(),
         warnings,
     })
+}
+
+fn can_reuse_cached_program(
+    cached_program: &CompiledProgram,
+    hash: u64,
+    validation_options_hash: u64,
+    force_compile: bool,
+) -> bool {
+    !force_compile
+        && cached_program.hash == hash
+        && cached_program.validation_options_hash == validation_options_hash
 }
 
 /// Specifies a contract function and extra metadata that
@@ -1142,5 +1176,85 @@ impl<F: AcirField> std::fmt::Display for ProgramDisplay<'_, F> {
             })
             .collect::<HashMap<_, _>>();
         display_program(self.program, Some(&error_types), f)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{CompileOptions, can_reuse_cached_program};
+    use noirc_artifacts::program::CompiledProgram;
+    use std::collections::BTreeMap;
+
+    fn assert_validation_hash_changes(mut mutate: impl FnMut(&mut CompileOptions)) {
+        let strict_options = CompileOptions::default();
+        let mut changed_options = strict_options.clone();
+        mutate(&mut changed_options);
+
+        assert_ne!(
+            strict_options.validation_options_hash(),
+            changed_options.validation_options_hash()
+        );
+    }
+
+    #[test]
+    fn validation_options_hash_tracks_validation_options() {
+        assert_validation_hash_changes(|options| options.skip_underconstrained_check = true);
+        assert_validation_hash_changes(|options| options.skip_brillig_constraints_check = true);
+        assert_validation_hash_changes(|options| {
+            options.brillig_constraints_check_max_array_output_length += 1;
+        });
+        assert_validation_hash_changes(|options| {
+            options.brillig_constraints_check_max_ancestor_distance += 1;
+        });
+    }
+
+    #[test]
+    fn validation_options_hash_has_stable_encoding() {
+        let mut options = CompileOptions::default();
+        options.skip_underconstrained_check = true;
+        options.brillig_constraints_check_max_array_output_length = 7;
+        options.brillig_constraints_check_max_ancestor_distance = 9;
+
+        assert_eq!(options.validation_options_hash(), 0x31c6_df08_0dc8_0c6a);
+    }
+
+    #[test]
+    fn cached_program_reuse_requires_matching_validation_options_hash() {
+        let cached_program = CompiledProgram {
+            noir_version: String::new(),
+            hash: 1,
+            validation_options_hash: 2,
+            program: Default::default(),
+            abi: Default::default(),
+            debug: Vec::new(),
+            file_map: BTreeMap::new(),
+            warnings: Vec::new(),
+        };
+
+        assert!(can_reuse_cached_program(&cached_program, 1, 2, false));
+        assert!(!can_reuse_cached_program(&cached_program, 1, 3, false));
+        assert!(!can_reuse_cached_program(&cached_program, 2, 2, false));
+        assert!(!can_reuse_cached_program(&cached_program, 1, 2, true));
+    }
+
+    #[test]
+    fn legacy_zero_validation_hash_does_not_match_current_defaults() {
+        let cached_program = CompiledProgram {
+            noir_version: String::new(),
+            hash: 1,
+            validation_options_hash: 0,
+            program: Default::default(),
+            abi: Default::default(),
+            debug: Vec::new(),
+            file_map: BTreeMap::new(),
+            warnings: Vec::new(),
+        };
+
+        assert!(!can_reuse_cached_program(
+            &cached_program,
+            1,
+            CompileOptions::default().validation_options_hash(),
+            false
+        ));
     }
 }

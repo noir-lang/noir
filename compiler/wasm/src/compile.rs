@@ -39,6 +39,7 @@ export type ContractArtifact = {
 export type ProgramArtifact = {
     noir_version: string;
     hash: number;
+    validation_options_hash: string;
     abi: any;
     bytecode: string;
     debug_symbols: any;

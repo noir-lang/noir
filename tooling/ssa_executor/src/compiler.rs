@@ -86,6 +86,7 @@ pub fn compile_from_artifacts(artifacts: ArtifactsAndWarnings) -> CompiledProgra
     let file_map = BTreeMap::new();
     CompiledProgram {
         hash: 1, // const hash, doesn't matter in this case
+        validation_options_hash: 0,
         program,
         debug,
         abi: Abi { parameters: vec![], return_type: None, error_types: BTreeMap::new() },
