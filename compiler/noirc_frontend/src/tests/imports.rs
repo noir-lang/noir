@@ -8,6 +8,7 @@ fn use_super() {
     mod foo {
         use super::some_func;
 
+        #[allow(dead_code)]
         pub fn bar() {
             some_func();
         }
@@ -33,6 +34,7 @@ fn use_super_in_path() {
     fn some_func() {}
 
     mod foo {
+        #[allow(dead_code)]
         pub fn func() {
             super::some_func();
         }
@@ -52,6 +54,7 @@ fn use_super_super() {
         mod bar {
             use super::super::some_func;
 
+            #[allow(dead_code)]
             pub fn baz() {
                 some_func();
             }
@@ -70,6 +73,7 @@ fn use_super_super_in_path() {
 
     mod foo {
         mod bar {
+            #[allow(dead_code)]
             pub fn func() {
                 super::super::some_func();
             }
@@ -184,7 +188,9 @@ fn private_use_reexports_that_comes_later() {
         pub use retrieved_history::Note;
     }
 
-    fn main() {}
+    fn main() {
+        history::foo();
+    }
     "#;
     assert_no_errors(src);
 }
@@ -202,7 +208,9 @@ fn pub_use_reexports_that_comes_later() {
         pub use retrieved_history::Note;
     }
 
-    fn main() {}
+    fn main() {
+        let _ = history::Note {};
+    }
     "#;
     assert_no_errors(src);
 }
