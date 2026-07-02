@@ -97,6 +97,12 @@ impl ArrayView {
         if let Some(element) = self.elements.get(&index) {
             // A known element can only be used if it was written unconditionally or under the same
             // predicate as the `array_get`; otherwise the write might not have happened.
+            //
+            // Once the index is known to have been written under *any* predicate the write may have
+            // happened, so we must not fall through to `base`: `base` is fixed to the original array
+            // when the view is seeded and never updated as writes accumulate, so it no longer
+            // describes this index. Return here even on a predicate mismatch, leaving the
+            // `array_get` in place, rather than reading a stale value from `base`.
             return (dfg.is_constant_true(element.predicate) || element.predicate == predicate)
                 .then_some(Resolution::Value(element.value));
         }

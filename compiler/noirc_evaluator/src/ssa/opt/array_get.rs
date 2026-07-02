@@ -607,6 +607,29 @@ mod tests {
     }
 
     #[test]
+    fn does_not_fall_through_to_base_when_known_element_predicate_differs() {
+        // The view for `v5` has index 0 written under `v4` (over a `make_array` base). The read is
+        // under a different predicate `v6`, so the known element cannot be used. Because index 0 has
+        // been written under some predicate the write may have happened, so the read must not fall
+        // through to `base` and fold to the original `make_array`'s `Field 1`; the `array_get` is
+        // left in place instead.
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v4: u1, v6: u1):
+            v1 = make_array [Field 1, Field 2] : [Field; 2]
+            v2 = array_set v1, index u32 0, value Field 10
+            v3 = array_set v2, index u32 1, value Field 20
+            enable_side_effects v4
+            v5 = array_set v3, index u32 0, value Field 30
+            enable_side_effects v6
+            v7 = array_get v5, index u32 0 -> Field
+            return v7
+        }
+        ";
+        assert_ssa_does_not_change(src, Ssa::array_get_optimization);
+    }
+
+    #[test]
     fn does_not_resolve_array_get_beyond_param_length() {
         // The read index is outside the parameter's length, so the `ReadFrom` base cannot vouch for
         // it and the read is left in place rather than rewritten to read the parameter out of
