@@ -572,6 +572,26 @@ impl LoopBounds {
             }
         }
     }
+
+    /// Whether the loop is guaranteed to terminate given a constant, non-negative, non-overflowing
+    /// `step`.
+    ///
+    /// If the loop does not execute, then it terminates right away, else
+    /// if the step is zero, the loop will never advance, else
+    /// a LessThan or Equal guard will fail at some point, else
+    /// a NotEqual guard terminates only if the induction variable lands on the bound.
+    pub(super) fn terminates_with_step(self, step: Step) -> bool {
+        if !self.loop_executes() {
+            return true;
+        }
+        if step.is_zero() {
+            return false;
+        }
+        match self.kind {
+            LoopBoundKind::LessThan | LoopBoundKind::Equal => true,
+            LoopBoundKind::NotEqual => self.iterator_in_bounds(step),
+        }
+    }
 }
 
 /// Iteration step in a loop, constructed by [`Loop::monotonic_back_edge_step`].
@@ -824,17 +844,19 @@ impl Loop {
         }
     }
 
-    /// Whether this loop may fail to terminate by stepping *past* a `NotEqual` bound — its
-    /// `i != upper` guard folds every iteration, yet we cannot show the induction variable ever
-    /// lands on `upper` (e.g. `i != 5` stepping by `2` from `0` visits `0, 2, 4, 6, …`). Such a
-    /// loop must be unrolled under the runaway cap.
+    /// Whether this loop may fail to terminate, based on its constant bounds and induction step.
+    /// Two shapes of non-termination are caught:
+    /// a zero step that never advances the induction variable
+    /// a `NotEqual` guard whose step overshoots `upper` (e.g. `i != 5` stepping by `2` from `0` visits
+    /// `0, 2, 4, 6, …`).
+    /// Such a loop must be unrolled under the runaway cap.
     ///
-    /// - `true`: the bound is `NotEqual` and the induction variable may escape `[lower, upper)`.
-    ///   Based on the step, we either know for sure (unsigned constant bounds) or conservatively
-    ///   assume it may escape (e.g no induction variable).
+    /// - `true`: the loop may not terminate. Based on the step, we either know for sure (a zero
+    ///   step, or unsigned constant bounds for `NotEqual`) or conservatively assume it may (e.g. no
+    ///   induction variable, or the step could not be determined).
     ///
-    /// - `false`: the loop stays within its bound - `LessThan`/`Equal` guard, or a `NotEqual`
-    ///   with a step landing exactly on `upper`.
+    /// - `false`: the loop is proven to terminate — a `LessThan`/`Equal` guard with a nonzero step,
+    ///   or a `NotEqual` with a step landing exactly on `upper`.
     ///   The subtlety is that a non constant bound also returns false, because then the bound check
     ///   is delegated to `unroll`.
     ///
@@ -859,8 +881,8 @@ impl Loop {
             // we conservatively say that it may miss.
             return true;
         };
-        // Use the step to see if the bounds are reached.
-        !bounds.iterator_in_bounds(step)
+        // Use the step to see if the loop is guaranteed to terminate.
+        !bounds.terminates_with_step(step)
     }
 
     /// Similar to `induction_step_may_miss_bound`, but returns `false` when:
@@ -875,21 +897,18 @@ impl Loop {
         let Some((bounds, Some(step))) = self.bounds_and_step(function, pre_header) else {
             return false;
         };
-        !bounds.iterator_in_bounds(step)
+        !bounds.terminates_with_step(step)
     }
 
     /// Helper function which returns the loop bounds and induction step:
-    /// The loop bounds: if the bounds are constants and the guard is NotEqual
-    /// The induction step: if it could find an induction variable and a positive constant step
+    /// The loop bounds: if the bounds are constants.
+    /// The induction step: if it could find an induction variable and a positive constant step.
     fn bounds_and_step(
         &self,
         function: &Function,
         pre_header: BasicBlockId,
     ) -> Option<(LoopBounds, Option<Step>)> {
         let bounds = self.get_const_bounds(&function.dfg, pre_header, |v| v)?;
-        if bounds.kind != LoopBoundKind::NotEqual {
-            return None;
-        }
         let Some(induction_variable) = self.induction_variable(&function.dfg) else {
             return Some((bounds, None));
         };
@@ -2479,6 +2498,47 @@ mod tests {
         let (_ssa, errors) = try_unroll_loops(ssa);
         assert_eq!(errors.len(), 1, "should bail on the unbounded loop, not unroll it");
         assert!(matches!(errors[0], RuntimeError::UnknownLoopBound { .. }));
+    }
+
+    /// A `LessThan` guard with a constant upper bound but a zero induction step: the back-edge
+    /// passes the induction variable through *unchanged* (`jmp b1(v0)`), so `v0 < 4` holds forever.
+    /// Unlike [`ACIR_CONST_BACK_EDGE_WITH_EXTRA_HEADER_INSTRUCTION`] the back-edge value is not a
+    /// numeric constant, so `has_const_back_edge_induction_value` does not catch it; the zero step
+    /// is recognized by `monotonic_back_edge_step` instead.
+    const ZERO_STEP_LESS_THAN_GUARD: &str = "
+        acir(inline) fn main f0 {
+          b0():
+            jmp b1(u32 0)
+          b1(v0: u32):
+            v1 = lt v0, u32 4
+            jmpif v1 then: b2(), else: b3()
+          b2():
+            jmp b1(v0)
+          b3():
+            return
+        }
+    ";
+
+    #[test]
+    fn acir_zero_step_less_than_guard_bails_instead_of_unrolling_forever() {
+        // A constant upper bound does not prove termination: the zero step never advances `v0`, so
+        // `lt v0, u32 4` never folds to false. ACIR detects this up front and bails with
+        // `UnknownLoopBound` rather than peeling forever.
+        let ssa = Ssa::from_str(ZERO_STEP_LESS_THAN_GUARD).unwrap();
+        let (_ssa, errors) = try_unroll_loops(ssa);
+        assert_eq!(errors.len(), 1, "should bail on the zero-step loop, not unroll it");
+        assert!(matches!(errors[0], RuntimeError::UnknownLoopBound { .. }));
+    }
+
+    #[test]
+    fn brillig_zero_step_less_than_guard_is_left_as_runtime_loop() {
+        // The Brillig counterpart: rather than hang the unroller, the zero-step loop is skipped and
+        // left as a runtime loop (where it correctly runs forever). The SSA is unchanged.
+        let src = ZERO_STEP_LESS_THAN_GUARD.replace("acir(inline)", "brillig(inline)");
+        let ssa = Ssa::from_str(&src).unwrap();
+        let (ssa, errors) = try_unroll_loops(ssa);
+        assert!(errors.is_empty(), "a runtime loop should be skipped, not error: {errors:?}");
+        assert_normalized_ssa_equals(ssa, &src);
     }
 
     /// The residual non-termination gap: an `or` guard (`v3 = or v1, v0`) that is not one of the
