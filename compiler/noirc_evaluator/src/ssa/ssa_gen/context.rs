@@ -122,11 +122,17 @@ type FunctionQueue = Vec<(FuncId, IrFunctionId)>;
 /// store has zero cells to write — so the implicit check is missing and an
 /// explicit one must be emitted. Brillig has no implicit check at all and
 /// always needs the explicit one. `array_type` must be a `Type::Array`.
+///
+/// When the element flattens to more than one ACIR cell (a composite type such
+/// as a tuple or struct), the implicit memory op check reports the *flattened*
+/// index and size (e.g. `index * element_size`), which are detached from the
+/// logical index and length the user wrote. An explicit check is emitted so the
+/// error can report the logical values instead.
 pub(super) fn array_index_needs_explicit_oob_check(
     runtime: RuntimeType,
     array_type: &Type,
 ) -> bool {
-    runtime.is_brillig() || array_type.element_size().0 == 0
+    runtime.is_brillig() || array_type.element_size().0 != 1
 }
 
 impl<'a> FunctionContext<'a> {
@@ -884,11 +890,22 @@ impl<'a> FunctionContext<'a> {
                 match array_type {
                     Type::Array(_, len) => {
                         if array_index_needs_explicit_oob_check(runtime, array_type) {
-                            let len = self
-                                .builder
-                                .numeric_constant(u128::from(len.0), NumericType::length_type());
+                            let logical_len = len.0;
+                            // A composite element type flattens the memory op index, so attach a
+                            // dynamic error reporting the logical index and length (see the read
+                            // path in `codegen_array_index`).
+                            let dynamic_error =
+                                if runtime.is_acir() && array_type.element_size().0 > 1 {
+                                    Some(self.out_of_bounds_error(index, logical_len))
+                                } else {
+                                    None
+                                };
+                            let len = self.builder.numeric_constant(
+                                u128::from(logical_len),
+                                NumericType::length_type(),
+                            );
                             self.builder.set_location(location);
-                            self.codegen_access_check(index, len);
+                            self.codegen_access_check(index, len, dynamic_error);
                         }
                     }
                     _ => unreachable!("must have array or vector but got {array_type}"),
@@ -905,7 +922,7 @@ impl<'a> FunctionContext<'a> {
                 // Checks for index Out-of-bounds
                 match array_type {
                     Type::Vector(_) => {
-                        self.codegen_access_check(index, vector_values[0]);
+                        self.codegen_access_check(index, vector_values[0], None);
                     }
                     _ => unreachable!("must have array or vector but got {array_type}"),
                 }

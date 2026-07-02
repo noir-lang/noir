@@ -8,7 +8,7 @@ use noirc_frontend::monomorphization::ast::Program;
 
 use crate::errors::{RtResult, RuntimeError};
 
-use super::ssa_gen::generate_ssa;
+use super::ssa_gen::{generate_ssa, validate_ssa_or_err};
 use super::{SHOW_INVALID_SSA_ENV_KEY, Ssa, SsaLogging, should_show_invalid_ssa};
 
 type SsaPassResult = RtResult<Ssa>;
@@ -142,6 +142,10 @@ pub struct SsaBuilder<'local> {
     /// List of SSA pass message fragments that we want to skip, for testing purposes.
     skip_passes: Vec<String>,
 
+    /// Whether to run the full SSA validator after each pass, to catch a pass that turns
+    /// well-formed SSA into malformed SSA.
+    validate_between_passes: bool,
+
     /// Providing a file manager is optional - if provided it can be used to print source
     /// locations along with each ssa instructions when debugging.
     files: Option<&'local fm::FileManager>,
@@ -192,6 +196,7 @@ impl<'local> SsaBuilder<'local> {
             files,
             passed: Default::default(),
             skip_passes: Default::default(),
+            validate_between_passes: false,
         }
     }
 
@@ -206,6 +211,11 @@ impl<'local> SsaBuilder<'local> {
 
     pub fn with_skip_passes(mut self, skip_passes: Vec<String>) -> Self {
         self.skip_passes = skip_passes;
+        self
+    }
+
+    pub fn with_validate_between_passes(mut self, validate: bool) -> Self {
+        self.validate_between_passes = validate;
         self
     }
 
@@ -248,6 +258,17 @@ impl<'local> SsaBuilder<'local> {
 
         if !skip {
             self.ssa = time(&msg, self.print_codegen_timings, || pass(self.ssa))?;
+            if self.validate_between_passes {
+                self.ssa = validate_ssa_or_err(self.ssa, false).map_err(|e| match e {
+                    RuntimeError::SsaValidationError { message, call_stack } => {
+                        RuntimeError::SsaValidationError {
+                            message: format!("after '{msg}': {message}"),
+                            call_stack,
+                        }
+                    }
+                    other => other,
+                })?;
+            }
             Ok(self.print(&msg))
         } else {
             Ok(self)

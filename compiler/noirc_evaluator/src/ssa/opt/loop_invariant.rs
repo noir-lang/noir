@@ -2165,14 +2165,14 @@ mod tests {
           b5():
             jmpif v4 then: b7(), else: b8()
           b6():
-            v12 = unchecked_add v1, u32 1
-            jmp b1(v12)
+            v14 = unchecked_add v1, u32 1
+            jmp b1(v14)
           b7():
             constrain v9 == u32 6
             jmp b8()
           b8():
-            v14 = unchecked_add v2, u32 1
-            jmp b4(v14)
+            v13 = unchecked_add v2, u32 1
+            jmp b4(v13)
         }
         ");
     }
@@ -2594,12 +2594,8 @@ mod tests {
     }
 
     /// Test that calls to functions is hoisted into the pre-header based on their purity.
-    ///
-    /// A brillig function can never compute as `Pure` (it defaults to `PureWithPredicate`, see
-    /// `Function::is_pure`), so a `pure` annotation on the `dummy` callee is not valid SSA and
-    /// those cases are expected to panic during parsing.
-    #[test_case(1, TestCall::Function(Some(Purity::Pure)), true => panics "declared as `pure`"; "non-empty loop, pure function")]
-    #[test_case(0, TestCall::Function(Some(Purity::Pure)), true => panics "declared as `pure`"; "empty loop, pure function")]
+    #[test_case(1, TestCall::Function(Some(Purity::Pure)), true; "non-empty loop, pure function")]
+    #[test_case(0, TestCall::Function(Some(Purity::Pure)), true; "empty loop, pure function")]
     #[test_case(1, TestCall::Function(Some(Purity::PureWithPredicate)), true; "non-empty loop, predicate pure function")]
     #[test_case(0, TestCall::Function(Some(Purity::PureWithPredicate)), false; "empty loop, predicate pure function")]
     #[test_case(1, TestCall::Function(Some(Purity::Impure)), false; "impure function")]
@@ -2612,12 +2608,13 @@ mod tests {
     fn hoist_from_loop_call_with_purity(upper: u32, test_call: TestCall, should_hoist: bool) {
         let dummy_purity = if let TestCall::Function(purity) = &test_call { *purity } else { None };
 
-        // `array_set` mutates the brillig array input `v0`, making `dummy` compute as `Impure`
-        // (see `Function::is_pure`) so its `impure` annotation is valid SSA.
-        let impure_op = if dummy_purity == Some(Purity::Impure) {
-            "v1 = array_set v0, index u32 0, value u64 0"
-        } else {
-            ""
+        // The op in the `dummy` body is chosen so that `Function::is_pure` actually computes the
+        // purity stated by the `dummy_purity` annotation: `array_set` on the input array makes it
+        // `Impure`, a `constrain` makes it `PureWithPredicate`, and no extra op leaves it `Pure`.
+        let impure_op = match dummy_purity {
+            Some(Purity::Impure) => "v1 = array_set v0, index u32 0, value u64 0",
+            Some(Purity::PureWithPredicate) => "constrain u1 1 == u1 1",
+            _ => "",
         };
 
         let dummy_purity = dummy_purity.map_or("".to_string(), |p| format!("{p}"));
@@ -2753,7 +2750,7 @@ mod tests {
         let (lhs, rhs) = if induction_is_left { (i, c) } else { (c, i) };
         let src = format!(
             r#"
-            brillig(inline) predicate_pure fn main f0 {{
+            brillig(inline) pure fn main f0 {{
               b0():
                 jmp b1(u32 {lower})
               b1(v0: u32):
@@ -3391,7 +3388,7 @@ mod control_dependence {
         let ssa = ssa.purity_analysis();
         let ssa = ssa.loop_invariant_code_motion();
 
-        assert_ssa_snapshot!(ssa, @r"
+        assert_ssa_snapshot!(ssa, @"
         brillig(inline) predicate_pure fn main f0 {
           b0(v0: u32, v1: u32):
             v3 = unchecked_mul v0, v1
@@ -3446,7 +3443,7 @@ mod control_dependence {
         let ssa = ssa.purity_analysis();
         let ssa = ssa.loop_invariant_code_motion();
 
-        assert_ssa_snapshot!(ssa, @r"
+        assert_ssa_snapshot!(ssa, @"
         brillig(inline) predicate_pure fn main f0 {
           b0(v0: u32, v1: u32):
             v3 = mul v0, v1
@@ -3520,20 +3517,20 @@ mod control_dependence {
           b2():
             jmpif u1 1 then: b4(), else: b5()
           b3():
-            v8 = load v4 -> u32
-            v9 = lt v1, v8
-            constrain v9 == u1 1
+            v15 = load v4 -> u32
+            v16 = lt v1, v15
+            constrain v16 == u1 1
             return
           b4():
-            v11 = load v4 -> u32
-            v13 = add v11, u32 1
-            store v13 at v4
+            v9 = load v4 -> u32
+            v11 = add v9, u32 1
+            store v11 at v4
             jmp b5()
           b5():
-            v15 = lt v3, u32 4
-            constrain v15 == u1 1
-            v16 = unchecked_add v3, u32 1
-            jmp b1(v16)
+            v13 = lt v3, u32 4
+            constrain v13 == u1 1
+            v14 = unchecked_add v3, u32 1
+            jmp b1(v14)
         }
         ");
     }
@@ -3835,18 +3832,18 @@ mod control_dependence {
           b2():
             jmpif u1 1 then: b4(), else: b5()
           b3():
-            v8 = load v4 -> u32
-            v9 = lt v1, v8
-            constrain v9 == u1 1
+            v13 = load v4 -> u32
+            v14 = lt v1, v13
+            constrain v14 == u1 1
             return
           b4():
-            v11 = load v4 -> u32
-            v13 = add v11, u32 1
-            store v13 at v4
+            v9 = load v4 -> u32
+            v11 = add v9, u32 1
+            store v11 at v4
             jmp b5()
           b5():
-            v14 = unchecked_add v3, u32 1
-            jmp b1(v14)
+            v12 = unchecked_add v3, u32 1
+            jmp b1(v12)
         }
         ");
     }
@@ -3983,14 +3980,14 @@ mod control_dependence {
             v7 = div Field 1, v3
             jmp b6(u32 0)
           b5():
-            v10 = unchecked_add v1, u32 1
-            jmp b1(v10)
+            v11 = unchecked_add v1, u32 1
+            jmp b1(v11)
           b6(v2: u32):
             v8 = eq v2, u32 0
             jmpif v8 then: b7(), else: b8()
           b7():
-            v11 = unchecked_add v2, u32 1
-            jmp b6(v11)
+            v10 = unchecked_add v2, u32 1
+            jmp b6(v10)
           b8():
             jmp b5()
         }
@@ -4218,13 +4215,13 @@ mod control_dependence {
             return i16 3
           b4():
             range_check v16 to 8 bits, "attempt to multiply with overflow"
-            v24 = cast v17 as u8
-            v25 = lt v24, v20
-            constrain v25 == u1 1, "attempt to multiply with overflow"
+            v23 = cast v17 as u8
+            v24 = lt v23, v20
+            constrain v24 == u1 1, "attempt to multiply with overflow"
             jmp b5()
           b5():
-            v28 = unchecked_add v2, u32 1
-            jmp b1(v28)
+            v27 = unchecked_add v2, u32 1
+            jmp b1(v27)
         }
         "#);
     }
@@ -4400,7 +4397,7 @@ mod control_dependence {
             v9 = call black_box(v7) -> [u8; 4]
             return
         }
-        brillig(inline) predicate_pure fn ret_arr f1 {
+        brillig(inline) pure fn ret_arr f1 {
           b0():
             v4 = make_array [u8 0, u8 1, u8 2, u8 3] : [u8; 4]
             return u8 7, v4

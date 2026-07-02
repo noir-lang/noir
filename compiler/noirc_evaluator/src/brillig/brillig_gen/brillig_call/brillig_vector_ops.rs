@@ -215,7 +215,7 @@ mod tests {
         let mut brillig_context = create_context(ssa.main_id);
         brillig_context.enter_context(Label::block(ssa.main_id, Id::test_new(0)));
 
-        let function_context = FunctionContext::new(ssa.main(), true, MAX_STACK_FRAME_SIZE);
+        let function_context = FunctionContext::new(ssa.main(), MAX_STACK_FRAME_SIZE);
         (ssa, function_context, brillig_context)
     }
 
