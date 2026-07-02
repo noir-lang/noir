@@ -2541,6 +2541,48 @@ mod tests {
         assert_normalized_ssa_equals(ssa, &src);
     }
 
+    /// The `NotEqual` counterpart of [`ZERO_STEP_LESS_THAN_GUARD`]: the guard `eq v0, 5` has the
+    /// body on its *else* branch, so it is modeled as `i != 5` (`LoopBoundKind::NotEqual`, upper 5).
+    /// The back-edge passes `v0` through unchanged, so the step is `0`: `v0` stays `0` and `0 != 5`
+    /// holds forever. `iterator_in_bounds` reports this as a sound value range (`v0` is pinned at
+    /// `0 ∈ [0, 5)`), which is why termination must be judged by `terminates_with_step` — a zero step
+    /// in an entered loop never terminates — rather than by containment.
+    const ZERO_STEP_NOT_EQUAL_GUARD: &str = "
+        acir(inline) fn main f0 {
+          b0():
+            jmp b1(u32 0)
+          b1(v0: u32):
+            v1 = eq v0, u32 5
+            jmpif v1 then: b3(), else: b2()
+          b2():
+            jmp b1(v0)
+          b3():
+            return
+        }
+    ";
+
+    #[test]
+    fn acir_zero_step_not_equal_guard_bails_instead_of_unrolling_forever() {
+        // `eq v0, 5` never folds to true because the zero step keeps `v0` at `0`, so the `!= 5`
+        // loop never exits. ACIR detects this up front and bails with `UnknownLoopBound` rather than
+        // peeling forever.
+        let ssa = Ssa::from_str(ZERO_STEP_NOT_EQUAL_GUARD).unwrap();
+        let (_ssa, errors) = try_unroll_loops(ssa);
+        assert_eq!(errors.len(), 1, "should bail on the zero-step loop, not unroll it");
+        assert!(matches!(errors[0], RuntimeError::UnknownLoopBound { .. }));
+    }
+
+    #[test]
+    fn brillig_zero_step_not_equal_guard_is_left_as_runtime_loop() {
+        // The Brillig counterpart: the zero-step loop is skipped and left as a runtime loop (where
+        // it correctly runs forever) rather than hanging the unroller. The SSA is unchanged.
+        let src = ZERO_STEP_NOT_EQUAL_GUARD.replace("acir(inline)", "brillig(inline)");
+        let ssa = Ssa::from_str(&src).unwrap();
+        let (ssa, errors) = try_unroll_loops(ssa);
+        assert!(errors.is_empty(), "a runtime loop should be skipped, not error: {errors:?}");
+        assert_normalized_ssa_equals(ssa, &src);
+    }
+
     /// The residual non-termination gap: an `or` guard (`v3 = or v1, v0`) that is not one of the
     /// modeled comparisons (`lt`/`eq`/`not`), so following the `jmpif` condition finds no induction
     /// variable. Models `while a || b { assert(a); }`: once `assert(a)` lets the optimizer pin
