@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1783005318907,
+  "lastUpdate": 1783006084553,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23171,48 +23171,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "df368ec7663d099a07ade06189ca86ebc08cf2e0",
-          "message": "fix(frontend): Clean error when `break` in `while` condition w/o outer loop (#13171)",
-          "timestamp": "2026-06-26T10:12:46Z",
-          "tree_id": "f81f95f0ee8c239e2fc99a9ab522720e73bae44b",
-          "url": "https://github.com/noir-lang/noir/commit/df368ec7663d099a07ade06189ca86ebc08cf2e0"
-        },
-        "date": 1782469974486,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 126419,
-            "range": "± 330",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 112426,
-            "range": "± 1175",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 3041534,
-            "range": "± 12169",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "47281315+guipublic@users.noreply.github.com",
             "name": "guipublic",
             "username": "guipublic"
@@ -25264,6 +25222,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2364273,
             "range": "± 8638",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jfecher11@gmail.com",
+            "name": "jfecher",
+            "username": "jfecher"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "d3d1686078810e94d5176f0fda4e8ef796de312e",
+          "message": "feat(debug): Add source locations to `--count-array-copies` flag (#12067)",
+          "timestamp": "2026-07-02T15:07:17Z",
+          "tree_id": "2edb88ccbdd5bbfb028a1437c4653c14f607aa74",
+          "url": "https://github.com/noir-lang/noir/commit/d3d1686078810e94d5176f0fda4e8ef796de312e"
+        },
+        "date": 1783005998262,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 128912,
+            "range": "± 552",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 114511,
+            "range": "± 1144",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 3046107,
+            "range": "± 1226",
             "unit": "ns/iter"
           }
         ]
