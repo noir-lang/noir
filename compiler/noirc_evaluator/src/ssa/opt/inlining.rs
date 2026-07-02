@@ -1134,13 +1134,13 @@ mod tests {
           b0(v0: u32, v1: u1):
             jmpif v1 then: b1(), else: b2()
           b1():
-            v5 = add v0, u32 1
-            v7 = add v5, u32 2
-            v9 = add v7, u32 3
-            v11 = add v9, u32 4
-            v13 = add v11, u32 5
-            v15 = add v13, u32 6
-            jmp b3(v15)
+            v4 = add v0, u32 1
+            v6 = add v4, u32 2
+            v8 = add v6, u32 3
+            v10 = add v8, u32 4
+            v12 = add v10, u32 5
+            v14 = add v12, u32 6
+            jmp b3(v14)
           b2():
             jmp b3(u32 0)
           b3(v2: u32):

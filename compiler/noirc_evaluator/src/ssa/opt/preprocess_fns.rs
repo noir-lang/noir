@@ -136,10 +136,10 @@ mod tests {
             v2 = eq v0, u32 1
             jmpif v2 then: b1(), else: b2()
           b1():
-            v4 = add v0, u32 1
+            v3 = add v0, u32 1
             jmp b3()
           b2():
-            v3 = sub v0, u32 1
+            v4 = sub v0, u32 1
             jmp b3()
           b3():
             return

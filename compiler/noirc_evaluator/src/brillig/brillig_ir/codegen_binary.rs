@@ -34,11 +34,6 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         }
     }
 
-    pub(crate) fn codegen_increment_array_copy_counter(&mut self) {
-        let array_copy_counter = self.array_copy_counter_address();
-        self.codegen_usize_op(array_copy_counter, array_copy_counter, BrilligBinaryOp::Add, 1);
-    }
-
     /// Utility method to check if the value at a memory address equals one.
     pub(crate) fn codegen_usize_equals_one(
         &mut self,
@@ -161,7 +156,7 @@ mod tests {
         context.codegen_checked_add(lhs.address, rhs.address, lhs.address);
 
         context.codegen_return(&[]);
-        let bytecode = create_entry_point_bytecode(context, vec![], vec![]).byte_code;
+        let bytecode = create_entry_point_bytecode(context, &[], &[]).byte_code;
         create_and_run_vm(vec![], &bytecode);
     }
 
@@ -175,7 +170,7 @@ mod tests {
         context.codegen_checked_mul(lhs.address, rhs.address, rhs.address);
 
         context.codegen_return(&[]);
-        let bytecode = create_entry_point_bytecode(context, vec![], vec![]).byte_code;
+        let bytecode = create_entry_point_bytecode(context, &[], &[]).byte_code;
         create_and_run_vm(vec![], &bytecode);
     }
 }

@@ -36,8 +36,9 @@
 //!     used as loop bounds, into a form which loop unrolling may better identify.
 //!
 //! Conditions:
-//!   - Pre-condition: The first block parameter of each loop header is the induction variable.
-//!     Loop headers may have additional parameters for promoted mutable variables (e.g. from mem2reg).
+//!   - Pre-condition: Each loop header has an induction variable among its block parameters.
+//!     It is the first parameter for a simple loop, but may be a later one when the header
+//!     also carries forwarded outer-loop values or promoted mutable variables (e.g. from mem2reg).
 //!   - Pre-condition: No loop header has a `JmpIf` with a constant condition (run `simplify_cfg` first).
 //!   - Pre-condition: The SSA must be optimized to a point at which loop bounds are known.
 //!     Some passes such as inlining and mem2reg are de-facto required before running this pass on arbitrary noir code.
@@ -61,7 +62,10 @@ use crate::{
             dom::DominatorTree,
             function::{Function, FunctionId, RuntimeType},
             function_inserter::FunctionInserter,
-            instruction::{Binary, BinaryOp, Instruction, TerminatorInstruction},
+            instruction::{
+                Binary, BinaryOp, Instruction, TerminatorInstruction,
+                binary::{BinaryEvaluationResult, eval_constant_binary_op},
+            },
             integer::IntegerConstant,
             post_order::PostOrder,
             value::{Value, ValueId, ValueMapping},
@@ -80,6 +84,14 @@ pub const FORCE_UNROLL_THRESHOLD: usize = 128;
 /// Maximum number of iterations for Brillig loops to be unrolled.
 /// Prevents code explosion from very large loops even if they pass the cost model.
 pub const MAX_UNROLL_ITERATIONS: usize = 1000;
+
+/// Runaway backstop for unrolling a loop whose termination we cannot prove statically: a header
+/// with no identifiable induction variable (e.g. an `a | b` guard that constant-folding can pin to
+/// `true`), or a `NotEqual` guard whose step can overshoot its bound. Since ACIR unrolls every
+/// loop, a non-terminating one would otherwise unroll without end; a terminating one finishes far
+/// below this limit. A loop we *can* prove terminates (a `LessThan`/`Equal` guard, or a `NotEqual`
+/// guard reached by a unit step) is not subject to this cap and may have any constant trip count.
+const RUNAWAY_UNROLL_LIMIT: usize = 100_000;
 
 impl Ssa {
     /// Loop unrolling can return errors, since ACIR functions need to be fully unrolled.
@@ -246,7 +258,7 @@ impl Function {
         // which the next iteration discovers and unrolls.
         loop {
             let mut loops = Loops::find_all(self, order);
-            loops.callee_costs = callee_costs.clone();
+            loops.callee_costs.clone_from(callee_costs);
 
             let (unrolled, refresh, errors) = self.try_unroll_loops_with_order(
                 loops,
@@ -369,6 +381,20 @@ impl Function {
         max_unroll_iterations: usize,
         force_unroll_threshold: usize,
     ) -> LoopUnrollResult {
+        // A loop whose induction step is known to miss the bound (`NotEqual` guard)
+        // cannot terminate, so we do not unroll in that case.
+        if let Ok(pre_header) = loop_.get_pre_header(self, &loops.cfg)
+            && loop_.induction_step_must_miss_bound(self, pre_header)
+        {
+            if self.runtime().is_acir() {
+                return LoopUnrollResult::Failed(
+                    loop_.header,
+                    RuntimeError::UnknownLoopBound { call_stack: CallStack::empty() },
+                );
+            }
+            return LoopUnrollResult::Skipped;
+        }
+
         // Only unroll small loops in Brillig.
         if self.runtime().is_brillig()
             && !loop_.should_unroll_in_brillig(
@@ -382,7 +408,9 @@ impl Function {
         }
 
         // Check if we will be able to unroll this loop, before starting to modify the blocks.
-        if loop_.has_const_back_edge_induction_value(&self.dfg) {
+        if let Some(index) = loop_.induction_variable_index(&self.dfg)
+            && loop_.has_const_back_edge_induction_value(&self.dfg, index)
+        {
             // Don't try to unroll this.
             // If this is Brillig, we can still evaluate this loop at runtime.
             if self.runtime().is_acir() {
@@ -393,9 +421,10 @@ impl Function {
             }
             return LoopUnrollResult::Skipped;
         }
-
-        // Try to unroll.
-        match loop_.unroll(self, &loops.cfg, &loops.dom) {
+        // If we could not find the induction variable, the unroll will stop
+        // after MAX_UNROLL_ITERATIONS_WITHOUT_INDUCTION_VARIABLE iterations
+        // to cover for infinite loops.
+        match loop_.unroll(self, &loops.cfg, &loops.dom, RUNAWAY_UNROLL_LIMIT) {
             Ok(mapping) => LoopUnrollResult::Unrolled(loop_.blocks, mapping),
             Err(call_stack) => LoopUnrollResult::Failed(
                 loop_.header,
@@ -450,8 +479,37 @@ pub(crate) enum LoopBoundKind {
     NotEqual,
 }
 
-/// The constant `[lower, upper)` bounds of a loop together with the [`LoopBoundKind`] describing
-/// how its guard decides, from the lower bound, whether the body executes.
+/// The comparison in a `for`-loop header that decides whether to run another iteration.
+///
+/// A `for`-loop header consists of a single comparison whose result feeds the header `jmpif`.
+/// In each variant the `operand` is the induction variable; `bound` is the value it is compared
+/// against. This is the single point where a header's guard is recognized: both
+/// [`Loop::induction_variable_index`] (which reads the operand) and [`Loop::get_const_upper_bound`]
+/// (which also reads the operator and bound) parse it through [`Loop::parse_header_guard`].
+enum HeaderGuard {
+    /// `operand < bound`
+    LessThan { operand: ValueId, bound: ValueId },
+    /// `operand == bound`
+    Equal { operand: ValueId, bound: ValueId },
+    /// `!operand`: a `u1` induction variable, equivalent to `operand == 0` (see
+    /// [`Loop::get_const_upper_bound`]).
+    Not { operand: ValueId },
+}
+
+impl HeaderGuard {
+    /// The induction variable the guard tests.
+    fn operand(&self) -> ValueId {
+        match self {
+            HeaderGuard::LessThan { operand, .. }
+            | HeaderGuard::Equal { operand, .. }
+            | HeaderGuard::Not { operand } => *operand,
+        }
+    }
+}
+
+/// The `lower` (pre-header) and `upper` (header guard) constants of a loop, together with the
+/// [`LoopBoundKind`] describing how the guard decides, from `lower`, whether the body executes.
+/// Not necessarily ordered: `upper < lower` is possible for any kind.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) struct LoopBounds {
     pub(crate) lower: IntegerConstant,
@@ -473,20 +531,69 @@ impl LoopBounds {
         }
     }
 
-    /// Whether every value the induction variable takes on stays inside `[lower, upper)`, given
-    /// its per-iteration `step`. When this holds we can safely use the bounds as the variable's
-    /// value range (e.g. to fold a comparison or prove an arithmetic operation cannot overflow).
+    /// Whether `[lower, upper)` is a sound value range for the induction variable: every value it
+    /// holds in the body is guaranteed to satisfy `lower <= i < upper`. Callers use this before
+    /// trusting the bounds as a range (folding a comparison on `i`, proving `i + c` can't overflow,
+    /// bounding an array index, or deciding a `NotEqual` guard must fold). Conservative: returns
+    /// `false` when containment can't be proven, never a false `true`. `step` is constant,
+    /// non-negative and non-overflowing (see [`Step`]).
     ///
-    /// `LessThan` and `Equal` keep the variable inside the bounds for any step: their guards stop
-    /// the loop at or before `upper`. A `NotEqual` guard only stops the loop when the variable
-    /// lands exactly on `upper`, so a step larger than `1` can jump past `upper` and keep going,
-    /// taking on values outside `[lower, upper)`. So `NotEqual` only stays within the bounds when
-    /// the step is `0` (the variable never moves) or `1` (it can't skip over `upper`).
-    pub(super) fn visited_values_stay_within_bounds(self, step: IntegerConstant) -> bool {
+    /// - `LessThan` / `Equal`: the guard re-tests the variable each iteration (`i < upper`, or
+    ///   `i == upper - 1`), so the body never sees a value `>= upper`, for any `step`. Returns
+    ///   `lower <= upper`; a reversed `upper < lower` is an *empty* loop (not an escape), reported
+    ///   `false` rather than passed on as a malformed interval.
+    ///
+    /// - `NotEqual`: `i != upper` doesn't cap the variable, so a non-unit `step` can step *past*
+    ///   `upper` and escape (and, with wrapping, loop forever). Returns `true` only when the step is
+    ///   proven to land on `upper`: a zero/unit step, or unsigned constant bounds with `upper >= lower`
+    ///   and `(upper - lower)` divisible by `step`.
+    pub(super) fn iterator_in_bounds(self, step: Step) -> bool {
         match self.kind {
-            LoopBoundKind::LessThan | LoopBoundKind::Equal => true,
-            LoopBoundKind::NotEqual => step.is_zero() || step.is_one(),
+            LoopBoundKind::LessThan | LoopBoundKind::Equal => self.lower <= self.upper,
+            LoopBoundKind::NotEqual => {
+                if self.upper < self.lower {
+                    return false;
+                }
+                if step.is_zero() || step.is_one() {
+                    return true;
+                }
+                if let (
+                    IntegerConstant::Unsigned { value: lower, .. },
+                    IntegerConstant::Unsigned { value: upper, .. },
+                ) = (self.lower, self.upper)
+                {
+                    let step = step.value();
+                    // The check `upper >= lower` both ensures that:
+                    // - `upper - lower` does not underflow, and
+                    // - induction variable does not overflow and reaches the bound after.
+                    return upper >= lower && (upper - lower) % step == 0;
+                }
+                false
+            }
         }
+    }
+}
+
+/// Iteration step in a loop, constructed by [`Loop::monotonic_back_edge_step`].
+///
+///The step is constant and non-negative, and the induction variable is ensured not to overflow.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) struct Step(u128);
+
+impl Step {
+    /// The induction variable is constant at `lower`: it never advances.
+    pub(crate) fn is_zero(self) -> bool {
+        self.0 == 0
+    }
+
+    /// A unit step visits every integer in `[lower, upper)`.
+    pub(crate) fn is_one(self) -> bool {
+        self.0 == 1
+    }
+
+    /// The step magnitude.
+    fn value(self) -> u128 {
+        self.0
     }
 }
 
@@ -600,27 +707,7 @@ impl Loop {
         back_edge_start: BasicBlockId,
         cfg: &ControlFlowGraph,
     ) -> Self {
-        let mut blocks = BTreeSet::default();
-        // Insert the header so we don't go past it when traversing backwards from the back-edge.
-        blocks.insert(header);
-
-        let mut insert = |block, stack: &mut Vec<BasicBlockId>| {
-            if !blocks.contains(&block) {
-                blocks.insert(block);
-                stack.push(block);
-            }
-        };
-
-        // Starting from the back edge of the loop, enqueue each predecessor of this block until we reach the header.
-        let mut stack = vec![];
-        insert(back_edge_start, &mut stack);
-
-        while let Some(block) = stack.pop() {
-            for predecessor in cfg.predecessors(block) {
-                insert(predecessor, &mut stack);
-            }
-        }
-
+        let blocks = cfg.find_blocks_in_loop(header, back_edge_start);
         Self { header, back_edge_start, blocks }
     }
 
@@ -632,7 +719,7 @@ impl Loop {
     ///
     /// For example:
     /// ```text
-    /// brillig(inline) predicate_pure fn main f0 {
+    /// brillig(inline) pure fn main f0 {
     ///   b0():
     ///     jmp b1(u32 1)                // Pre-header
     ///   b1(v0: u32):                   // Header
@@ -645,7 +732,9 @@ impl Loop {
     ///     return
     /// }
     /// ```
-    fn has_const_back_edge_induction_value(&self, dfg: &DataFlowGraph) -> bool {
+    /// `index` is the induction variable's position among the header parameters
+    /// (see [`Loop::induction_variable_index`]).
+    fn has_const_back_edge_induction_value(&self, dfg: &DataFlowGraph, index: usize) -> bool {
         let back_edge = &dfg[self.back_edge_start];
         let Some(TerminatorInstruction::Jmp { destination, arguments, .. }) =
             back_edge.terminator()
@@ -653,8 +742,159 @@ impl Loop {
             unreachable!("the back edge is expected to end in a `Jmp`");
         };
         assert_eq!(*destination, self.header, "back edge goes to the header");
-        assert!(!arguments.is_empty(), "back edge should have at least 1 argument");
-        dfg.get_numeric_constant(arguments[0]).is_some()
+        dfg.get_numeric_constant(arguments[index]).is_some()
+    }
+
+    /// If the loop's back-edge preserves the inferred `[lower, upper)` interval, return the
+    /// constant amount by which the induction variable advances each iteration (its *step*);
+    /// otherwise return `None`. Two shapes qualify:
+    ///
+    /// 1. The back-edge passes the induction variable through unchanged
+    ///    (`jmp header(v_induction, ..)`). This is the canonical form a zero-step
+    ///    loop is reduced to once `x + 0` has been folded; the variable is constant
+    ///    at `lower`, which is a subset of `[lower, upper)`. The step is `0`.
+    /// 2. The back-edge passes back `induction_variable + positive_constant`. For
+    ///    an unchecked Add we additionally verify that the largest reachable
+    ///    induction value (`upper - 1`) plus the step does not wrap the underlying
+    ///    numeric type — otherwise wrapping could deposit an out-of-range value
+    ///    back into the header. A checked Add cannot violate the invariant: any
+    ///    wrap would trap before the back-edge fires. The step is the constant added.
+    ///
+    /// The returned step lets callers distinguish a unit-step loop (which visits every
+    /// integer in `[lower, upper)`) from one that visits only `lower + k * step`.
+    pub(super) fn monotonic_back_edge_step(
+        &self,
+        dfg: &DataFlowGraph,
+        induction_variable: ValueId,
+        upper: IntegerConstant,
+    ) -> Option<Step> {
+        let Some(TerminatorInstruction::Jmp { destination, arguments, .. }) =
+            dfg[self.back_edge_start].terminator()
+        else {
+            return None;
+        };
+        if *destination != self.header {
+            return None;
+        }
+        // The back-edge argument advancing the induction variable sits at its parameter position,
+        // which may not be the first one for an inner loop header forwarding outer-loop values.
+        let index = self.induction_variable_index(dfg)?;
+        let back_edge_value = *arguments.get(index)?;
+        let operand_type = dfg.type_of_value(induction_variable).unwrap_numeric();
+        if back_edge_value == induction_variable {
+            // The induction variable is constant at `lower`: a zero step.
+            return Some(Step(0));
+        }
+        let instruction = dfg.get_local_or_global_instruction(back_edge_value)?;
+        let Instruction::Binary(Binary { lhs, operator: BinaryOp::Add { unchecked }, rhs }) =
+            instruction
+        else {
+            return None;
+        };
+        let step_value = if *lhs == induction_variable {
+            *rhs
+        } else if *rhs == induction_variable {
+            *lhs
+        } else {
+            return None;
+        };
+        let step = dfg.get_integer_constant(step_value)?;
+        if step.is_negative() {
+            return None;
+        }
+        if *unchecked {
+            let max_induction_value = upper.dec()?;
+            let (max_field, _) = max_induction_value.into_numeric_constant();
+            let (step_field, _) = step.into_numeric_constant();
+            match eval_constant_binary_op(
+                max_field,
+                step_field,
+                BinaryOp::Add { unchecked: false },
+                operand_type,
+            ) {
+                BinaryEvaluationResult::Success(..) => {}
+                BinaryEvaluationResult::CouldNotEvaluate | BinaryEvaluationResult::Failure(..) => {
+                    return None;
+                }
+            }
+        }
+        match step {
+            IntegerConstant::Signed { value, .. } => u128::try_from(value).ok().map(Step),
+            IntegerConstant::Unsigned { value, .. } => Some(Step(value)),
+        }
+    }
+
+    /// Whether this loop may fail to terminate by stepping *past* a `NotEqual` bound — its
+    /// `i != upper` guard folds every iteration, yet we cannot show the induction variable ever
+    /// lands on `upper` (e.g. `i != 5` stepping by `2` from `0` visits `0, 2, 4, 6, …`). Such a
+    /// loop must be unrolled under the runaway cap.
+    ///
+    /// - `true`: the bound is `NotEqual` and the induction variable may escape `[lower, upper)`.
+    ///   Based on the step, we either know for sure (unsigned constant bounds) or conservatively
+    ///   assume it may escape (e.g no induction variable).
+    ///
+    /// - `false`: the loop stays within its bound - `LessThan`/`Equal` guard, or a `NotEqual`
+    ///   with a step landing exactly on `upper`.
+    ///   The subtlety is that a non constant bound also returns false, because then the bound check
+    ///   is delegated to `unroll`.
+    ///
+    /// `pre_header` is the loop's pre-header.
+    pub(super) fn induction_step_may_miss_bound(
+        &self,
+        function: &Function,
+        pre_header: BasicBlockId,
+    ) -> bool {
+        // We cannot determine the induction variable:
+        // we conservatively say that it may miss.
+        if self.induction_variable(&function.dfg).is_none() {
+            return true;
+        }
+        let Some((bounds, step)) = self.bounds_and_step(function, pre_header) else {
+            // Non-constant bound:
+            // optimistically says that it won't miss and leave the real check to `unroll`.
+            return false;
+        };
+        let Some(step) = step else {
+            // The guard folds each iteration but we cannot determine the step:
+            // we conservatively say that it may miss.
+            return true;
+        };
+        // Use the step to see if the bounds are reached.
+        !bounds.iterator_in_bounds(step)
+    }
+
+    /// Similar to `induction_step_may_miss_bound`, but returns `false` when:
+    /// The bounds are not constant.
+    /// The step is unknown, rather than assuming it may miss.
+    /// The induction variable cannot be determined.
+    fn induction_step_must_miss_bound(
+        &self,
+        function: &Function,
+        pre_header: BasicBlockId,
+    ) -> bool {
+        let Some((bounds, Some(step))) = self.bounds_and_step(function, pre_header) else {
+            return false;
+        };
+        !bounds.iterator_in_bounds(step)
+    }
+
+    /// Helper function which returns the loop bounds and induction step:
+    /// The loop bounds: if the bounds are constants and the guard is NotEqual
+    /// The induction step: if it could find an induction variable and a positive constant step
+    fn bounds_and_step(
+        &self,
+        function: &Function,
+        pre_header: BasicBlockId,
+    ) -> Option<(LoopBounds, Option<Step>)> {
+        let bounds = self.get_const_bounds(&function.dfg, pre_header, |v| v)?;
+        if bounds.kind != LoopBoundKind::NotEqual {
+            return None;
+        }
+        let Some(induction_variable) = self.induction_variable(&function.dfg) else {
+            return Some((bounds, None));
+        };
+        let step = self.monotonic_back_edge_step(&function.dfg, induction_variable, bounds.upper);
+        Some((bounds, step))
     }
 
     /// Check if the loop header has a constant zero jump condition, which indicates an empty loop.
@@ -663,7 +903,7 @@ impl Loop {
     ///
     /// For example:
     /// ```text
-    /// brillig(inline) predicate_pure fn main f0 {
+    /// brillig(inline) pure fn main f0 {
     ///   b0():
     ///     jmp b1(u32 10)               // Pre-header
     ///   b1(v0: u32):                   // Header
@@ -687,6 +927,72 @@ impl Loop {
         condition.is_zero()
     }
 
+    /// Parse the loop header's guard, i.e the single comparison instruction in the header's `jmpif`.
+    /// Returns `None` when the header is not in that shape.
+    fn parse_header_guard(
+        &self,
+        dfg: &DataFlowGraph,
+        resolve_value: impl Fn(ValueId) -> ValueId,
+    ) -> Option<HeaderGuard> {
+        let Some(TerminatorInstruction::JmpIf { condition, .. }) = dfg[self.header].terminator()
+        else {
+            return None;
+        };
+        match dfg.get_local_or_global_instruction(resolve_value(*condition))? {
+            Instruction::Binary(Binary { lhs, operator: BinaryOp::Lt, rhs }) => {
+                Some(HeaderGuard::LessThan { operand: *lhs, bound: *rhs })
+            }
+            Instruction::Binary(Binary { lhs, operator: BinaryOp::Eq, rhs }) => {
+                Some(HeaderGuard::Equal { operand: *lhs, bound: *rhs })
+            }
+            Instruction::Not(operand) => Some(HeaderGuard::Not { operand: *operand }),
+            _ => None,
+        }
+    }
+
+    /// The loop header's condition, but only when its operand is actually a header parameter — i.e. the
+    /// comparison tests the induction variable rather than some unrelated value. Returns `None`
+    /// otherwise. See [`Loop::parse_header_guard`] for `resolve_value`.
+    fn induction_variable_guard(
+        &self,
+        dfg: &DataFlowGraph,
+        resolve_value: impl Fn(ValueId) -> ValueId,
+    ) -> Option<HeaderGuard> {
+        let guard = self.parse_header_guard(dfg, resolve_value)?;
+        dfg.block_parameters(self.header).contains(&guard.operand()).then_some(guard)
+    }
+
+    /// The induction variable: the header parameter the loop guard tests. Returns `None` when the
+    /// header has no recognizable guard (e.g. a `while` whose header loads a reference instead of
+    /// comparing a parameter), or the compared value is not a header parameter.
+    ///
+    /// Consider the following example of a `for i in 0..4` loop:
+    /// ```text
+    /// brillig(inline) fn main f0 {
+    ///   b0(v0: u32):
+    ///     ...
+    ///     jmp b1(u32 0)
+    ///   b1(v1: u32):                  // Loop header
+    ///     v5 = lt v1, u32 4           // Upper bound
+    ///     jmpif v5 then: b3(), else: b2()
+    /// ```
+    /// Here `v1` is the induction variable.
+    pub(super) fn induction_variable(&self, dfg: &DataFlowGraph) -> Option<ValueId> {
+        self.induction_variable_guard(dfg, |v| v).map(|guard| guard.operand())
+    }
+
+    /// Position of the [induction variable](Loop::induction_variable) among the loop header's
+    /// parameters. Loop entry (pre-header) and back-edge `jmp`s pass their arguments in header-
+    /// parameter order, so this index selects the induction variable's argument in those jumps.
+    ///
+    /// For the common single-loop shape the induction variable is the first parameter, so this
+    /// returns `0`; for inner loops whose header forwards outer-loop values as earlier parameters
+    /// it can be a later position.
+    pub(super) fn induction_variable_index(&self, dfg: &DataFlowGraph) -> Option<usize> {
+        let operand = self.induction_variable(dfg)?;
+        dfg.block_parameters(self.header).iter().position(|param| *param == operand)
+    }
+
     /// Find the lower bound of the loop in the pre-header and return it
     /// if it's a numeric constant, which it will be if the previous SSA
     /// steps managed to inline it.
@@ -706,7 +1012,8 @@ impl Loop {
         dfg: &DataFlowGraph,
         pre_header: BasicBlockId,
     ) -> Option<IntegerConstant> {
-        let jump_value = get_induction_variable(dfg, pre_header).ok()?;
+        let index = self.induction_variable_index(dfg)?;
+        let jump_value = induction_variable_from_jmp(dfg, pre_header, index).ok()?;
         dfg.get_integer_constant(jump_value)
     }
 
@@ -715,12 +1022,9 @@ impl Loop {
     /// steps managed to inline it.
     ///
     /// `resolve_value` maps `ValueIds` through an external substitution
-    /// (e.g. `FunctionInserter::resolve`).
-    /// If `get_const_upper_bound` is called within a pass that modifies instructions
-    /// e.g through a `FunctionInserter`, the terminator check below might reference
-    /// an old id that needs to be resolved.
-    /// If not within a pass (e.g in a test), or if the caller does not use an inserter,
-    /// we can safely use the identity `|v| v` instead.
+    /// (e.g. `FunctionInserter::resolve`) when called mid-pass, where the header's `jmpif`
+    /// condition may still reference a pre-substitution id. Pass the identity `|v| v` otherwise
+    /// (e.g. in a test, or when the caller does not use an inserter).
     ///
     /// Consider the following example of a `for i in 0..4` loop:
     /// ```text
@@ -732,84 +1036,31 @@ impl Loop {
     ///     v5 = lt v1, u32 4           // Upper bound
     ///     jmpif v5 then: b3, else: b2
     /// ```
-    ///
-    /// TODO(<https://github.com/noir-lang/noir/issues/11900>): Handle induction variable at any block parameter position
-    fn get_const_upper_bound(
+    pub(super) fn get_const_upper_bound(
         &self,
         dfg: &DataFlowGraph,
-        pre_header: BasicBlockId,
         resolve_value: impl Fn(ValueId) -> ValueId,
     ) -> Option<(IntegerConstant, LoopBoundKind)> {
-        let header = &dfg[self.header];
-
-        // If the header has no parameters then this must be a `loop` or `while`.
-        if header.parameters().is_empty() {
-            return None;
-        }
-
-        let instructions = header.instructions();
-        if instructions.is_empty() {
-            // If the loop condition is constant, the loop header will be
-            // simplified to a simple jump.
-            if self.has_const_zero_jump_condition(dfg) {
-                // There are cases where the upper bound jmpif degenerates into a constant `false`;
-                // in that case we can just return the `lower` to emulate a known empty loop.
-                // `LessThan` makes `lower == upper` read as zero iterations, which is correct here.
-                return Some((
-                    self.get_const_lower_bound(dfg, pre_header)?,
-                    LoopBoundKind::LessThan,
-                ));
-            } else {
-                return None;
-            };
-        }
-
-        if instructions.len() != 1 {
-            // The header should just compare the induction variable and jump.
-            // If that's not the case, this might be a `loop` and not a `for` loop.
-            return None;
-        }
-
-        // Verify that the jmpif condition actually uses the result of this instruction.
-        // Without this check we could return a bogus upper bound from an unrelated instruction
-        // that happens to be in the header.
-        let Some(TerminatorInstruction::JmpIf { then_destination, condition, .. }) =
-            header.terminator()
+        let Some(TerminatorInstruction::JmpIf { then_destination, .. }) =
+            dfg[self.header].terminator()
         else {
             return None;
         };
-        // Resolve the condition through the provided mapping — during mid-pass
-        // the terminator may still reference a pre-substitution ValueId.
-        let condition = resolve_value(*condition);
-        let results = dfg.instruction_results(instructions[0]);
-        if results.first() != Some(&condition) {
-            return None;
-        }
         let then_branch_is_body = self.blocks.contains(then_destination);
 
-        // The header's instruction must reference the induction variable (first block param).
-        // Without this check, an unrelated instruction (e.g. `not` of a function parameter)
-        // could be misinterpreted as a loop bound comparison.
-        let induction_var = *dfg.block_parameters(self.header).first()?;
-
-        match &dfg[instructions[0]] {
+        let guard = self.induction_variable_guard(dfg, resolve_value)?;
+        match guard {
             // Most loops will expect the `then` block to be the body. In unconstrained code it is
             // possible to write `loop`s that use the else branch as a body. We return `None`
             // conservatively in this case.
-            Instruction::Binary(Binary { lhs, operator: BinaryOp::Lt, rhs }) => {
-                if *lhs != induction_var {
-                    return None;
-                }
+            HeaderGuard::LessThan { bound, .. } => {
                 if then_branch_is_body {
-                    Some((dfg.get_integer_constant(*rhs)?, LoopBoundKind::LessThan))
+                    Some((dfg.get_integer_constant(bound)?, LoopBoundKind::LessThan))
                 } else {
                     None
                 }
             }
-            Instruction::Binary(Binary { lhs, operator: BinaryOp::Eq, rhs }) => {
-                if *lhs != induction_var {
-                    return None;
-                }
+            HeaderGuard::Equal { bound, .. } => {
                 // `for i in 0..1` is turned into:
                 // b1(v0: u32):
                 //   v12 = eq v0, u32 0
@@ -821,17 +1072,14 @@ impl Loop {
                 // bound is `NotEqual`. For a unit step this matches `v < rhs`, but a non-unit step
                 // can skip over `rhs` and run the body on larger values, which `NotEqual` records
                 // so later value-range reasoning does not assume `v < rhs`.
-                let const_rhs = dfg.get_integer_constant(*rhs)?;
+                let const_rhs = dfg.get_integer_constant(bound)?;
                 if then_branch_is_body {
                     Some((const_rhs.inc()?, LoopBoundKind::Equal))
                 } else {
                     Some((const_rhs, LoopBoundKind::NotEqual))
                 }
             }
-            Instruction::Not(operand) => {
-                if *operand != induction_var {
-                    return None;
-                }
+            HeaderGuard::Not { .. } => {
                 // We simplify equality operations with booleans like `(boolean == false)` into `!boolean`.
                 // Thus, using a u1 in a loop bound can possibly lead to a Not instruction
                 // as a loop header's jump condition.
@@ -857,15 +1105,6 @@ impl Loop {
                     None
                 }
             }
-            // A cast of a constant would already be simplified
-            Instruction::Cast(_, _) => None,
-            _ => {
-                // Certain patterns can cause other instructions to be hoisted into the loop
-                // header, or at least what looks to be the loop header.
-                // `func_1` in `regression_mem2regunknown_array_aliases` is one such example
-                // if `mem2reg` is performed on it before unrolling.
-                None
-            }
         }
     }
 
@@ -877,8 +1116,20 @@ impl Loop {
         pre_header: BasicBlockId,
         resolve_value: impl Fn(ValueId) -> ValueId,
     ) -> Option<LoopBounds> {
+        // A header with parameters but no instructions whose guard folded to a constant `false`
+        // (just `jmpif u1 0`) is an empty loop: it never executes, and there is no induction
+        // variable to read a bound from. Report a degenerate `[c, c)` interval directly.
+        let header = &dfg[self.header];
+        if !header.parameters().is_empty()
+            && header.instructions().is_empty()
+            && self.has_const_zero_jump_condition(dfg)
+        {
+            let zero = IntegerConstant::Unsigned { value: 0, bit_size: 1 };
+            return Some(LoopBounds { lower: zero, upper: zero, kind: LoopBoundKind::LessThan });
+        }
+
         let lower = self.get_const_lower_bound(dfg, pre_header)?;
-        let (upper, kind) = self.get_const_upper_bound(dfg, pre_header, resolve_value)?;
+        let (upper, kind) = self.get_const_upper_bound(dfg, resolve_value)?;
         Some(LoopBounds { lower, upper, kind })
     }
 
@@ -945,6 +1196,7 @@ impl Loop {
         function: &mut Function,
         cfg: &ControlFlowGraph,
         dom: &DominatorTree,
+        unroll_limit: usize,
     ) -> Result<ValueMapping, CallStack> {
         let mut unroll_into = self.get_pre_header(function, cfg)?;
         let mut header_args = get_header_arguments(&function.dfg, unroll_into)?;
@@ -955,10 +1207,33 @@ impl Loop {
         // replace those references with the final iteration's values.
         let header_params: Vec<ValueId> = function.dfg[self.header].parameters().to_vec();
 
+        let induction_index = self.induction_variable_index(&function.dfg);
+
+        // If we have the induction variable, it must be initialized with a constant value,
+        // and if not, we do not try to unroll.
+        if let Some(index) = induction_index
+            && function.dfg.get_numeric_constant(header_args[index]).is_none()
+        {
+            let call_stack = function.dfg[unroll_into]
+                .terminator()
+                .map_or_else(CallStack::empty, |t| function.dfg.get_call_stack(t.call_stack()));
+            return Err(call_stack);
+        }
+
+        // The termination is proven when we are sure that the induction variable
+        // does not miss its bounds.
+        let termination_unproven = self.induction_step_may_miss_bound(function, unroll_into);
+
+        let mut iterations = 0;
         while let Some((context, loop_header_id)) =
             self.unroll_header(function, unroll_into, &header_args, dom)?
         {
             (unroll_into, header_args) = context.unroll_loop_iteration(loop_header_id);
+
+            iterations += 1;
+            if termination_unproven && iterations >= unroll_limit {
+                return Err(CallStack::empty());
+            }
         }
 
         // Build a mapping from header params to their final values.
@@ -1375,7 +1650,7 @@ impl Loop {
         constant_initial_refs: &HashSet<ValueId>,
     ) -> usize {
         let mut useless_cost = 0;
-        let Some(induction_var) = self.get_induction_variable(function) else {
+        let Some(induction_var) = self.induction_variable(&function.dfg) else {
             return 0;
         };
 
@@ -1721,10 +1996,11 @@ impl BoilerplateStats {
     }
 }
 
-/// Return the induction value of the current iteration of the loop, from the given block's jmp arguments.
+/// Return the induction value of the current iteration of the loop.
+/// `index` is the induction variable's position among the loop header parameters.
 ///
-/// Expects the current block to terminate in `jmp h(N)` where h is the loop header and N is
-/// a Field value. Returns an `Err` if this isn't the case.
+/// Expects the current block to terminate in `jmp h(.., N, ..)` where h is the loop header and N
+/// is a numeric constant at `index`. Returns an `Err` if this isn't the case.
 ///
 /// Consider the following example:
 /// ```text
@@ -1736,28 +2012,21 @@ impl BoilerplateStats {
 ///   ...
 /// ```
 /// We're looking for the terminating jump of the `main` predecessor of `loop_entry`.
-///
-/// TODO(<https://github.com/noir-lang/noir/issues/11900>): Handle induction variable at any block parameter position
-fn get_induction_variable(dfg: &DataFlowGraph, block: BasicBlockId) -> Result<ValueId, CallStack> {
+fn induction_variable_from_jmp(
+    dfg: &DataFlowGraph,
+    block: BasicBlockId,
+    index: usize,
+) -> Result<ValueId, CallStack> {
     match dfg[block].terminator() {
         Some(TerminatorInstruction::Jmp { arguments, call_stack: location, .. }) => {
-            // This assumption will no longer be valid if e.g. mutable variables are represented as
-            // block parameters. If that becomes the case we'll need to figure out which variable
-            // is generally constant and increasing to guess which parameter is the induction
-            // variable.
-            if arguments.is_empty() {
-                // It is expected that a loop's induction variable is the first block parameter of the loop header.
-                // If there's no variable this might be a `loop`.
-                let call_stack = dfg.get_call_stack(*location);
-                return Err(call_stack);
-            }
-
-            let value = arguments[0];
+            // This `jmp` targets the loop header and passes one argument per header parameter, so
+            // `index` (the induction variable's position among those parameters) always selects a
+            // valid argument here.
+            let value = arguments[index];
             if dfg.get_numeric_constant(value).is_some() {
                 Ok(value)
             } else {
-                let call_stack = dfg.get_call_stack(*location);
-                Err(call_stack)
+                Err(dfg.get_call_stack(*location))
             }
         }
         Some(terminator) => Err(dfg.get_call_stack(terminator.call_stack())),
@@ -1767,25 +2036,13 @@ fn get_induction_variable(dfg: &DataFlowGraph, block: BasicBlockId) -> Result<Va
 
 /// Get all arguments of the jump into the loop header from the pre-header block.
 ///
-/// The first argument is the induction variable (must be a numeric constant).
-/// Additional arguments are promoted mutable variables (e.g. from mem2reg).
-/// Returns `Err` if the block does not end with a `Jmp`, has no arguments, or the
-/// first argument is not a numeric constant.
+/// Returns `Err` if the block does not end with a `Jmp`.
 fn get_header_arguments(
     dfg: &DataFlowGraph,
     block: BasicBlockId,
 ) -> Result<Vec<ValueId>, CallStack> {
     match dfg[block].terminator() {
-        Some(TerminatorInstruction::Jmp { arguments, call_stack: location, .. }) => {
-            if arguments.is_empty() {
-                return Err(dfg.get_call_stack(*location));
-            }
-            let induction = arguments[0];
-            if dfg.get_numeric_constant(induction).is_none() {
-                return Err(dfg.get_call_stack(*location));
-            }
-            Ok(arguments.clone())
-        }
+        Some(TerminatorInstruction::Jmp { arguments, .. }) => Ok(arguments.clone()),
         Some(terminator) => Err(dfg.get_call_stack(terminator.call_stack())),
         None => Err(CallStack::empty()),
     }
@@ -2139,7 +2396,6 @@ mod tests {
     use crate::assert_ssa_snapshot;
     use crate::errors::RuntimeError;
     use crate::ssa::interpreter::value::Value;
-    use crate::ssa::ir::cfg::ControlFlowGraph;
     use crate::ssa::ir::integer::IntegerConstant;
     use crate::ssa::{
         Ssa,
@@ -2176,6 +2432,213 @@ mod tests {
             );
         }
         (ssa, errors)
+    }
+
+    /// An ACIR loop whose guard would fold to constant `true` forever (the back-edge pins the
+    /// induction variable to `0`, so `lt v0, u32 10` is always true), with an extra instruction
+    /// (`v3 = add v0, u32 1`) sitting in the header alongside the guard.
+    ///
+    /// The guard is still found by following the `jmpif` condition to its defining instruction
+    /// (`v2`), so the induction variable `v0` is identified despite the extra instruction. That
+    /// lets `has_const_back_edge_induction_value` detect the constant back-edge and bail, instead
+    /// of unrolling forever.
+    const ACIR_CONST_BACK_EDGE_WITH_EXTRA_HEADER_INSTRUCTION: &str = "
+        acir(inline) fn main f0 {
+          b0():
+            jmp b1(u32 0)
+          b1(v0: u32):
+            v2 = lt v0, u32 10
+            v3 = add v0, u32 1
+            jmpif v2 then: b2(), else: b3()
+          b2():
+            jmp b1(u32 0)
+          b3():
+            return
+        }
+    ";
+
+    #[test]
+    fn guard_found_despite_extra_header_instruction() {
+        // Following the jmpif condition finds the guard even though the header has a second
+        // instruction, so the induction variable is identified at its parameter position.
+        let ssa = Ssa::from_str(ACIR_CONST_BACK_EDGE_WITH_EXTRA_HEADER_INSTRUCTION).unwrap();
+        let function = ssa.main();
+        let loops = Loops::find_all(function, LoopOrder::OutsideIn);
+        assert_eq!(loops.yet_to_unroll.len(), 1, "should find exactly one loop");
+
+        let loop_ = &loops.yet_to_unroll[0];
+        assert_eq!(loop_.induction_variable_index(&function.dfg), Some(0));
+    }
+
+    #[test]
+    fn acir_const_back_edge_bails_instead_of_unrolling_forever() {
+        // The constant back-edge makes the guard constant-`true` forever. Because the induction
+        // variable is identified (see above), the unroller detects the constant back-edge and
+        // bails with `UnknownLoopBound` rather than looping forever.
+        let ssa = Ssa::from_str(ACIR_CONST_BACK_EDGE_WITH_EXTRA_HEADER_INSTRUCTION).unwrap();
+        let (_ssa, errors) = try_unroll_loops(ssa);
+        assert_eq!(errors.len(), 1, "should bail on the unbounded loop, not unroll it");
+        assert!(matches!(errors[0], RuntimeError::UnknownLoopBound { .. }));
+    }
+
+    /// The residual non-termination gap: an `or` guard (`v3 = or v1, v0`) that is not one of the
+    /// modeled comparisons (`lt`/`eq`/`not`), so following the `jmpif` condition finds no induction
+    /// variable. Models `while a || b { assert(a); }`: once `assert(a)` lets the optimizer pin
+    /// `a = true`, the back-edge feeds the constant `true` into `v1`, so `or true, v0` folds to
+    /// `true` on every iteration and the loop never exits.
+    ///
+    /// With no induction variable, no induction-variable-based safeguard applies, and `unroll`'s
+    /// loop has no iteration cap — so ACIR unrolling does not terminate.
+    const ACIR_OR_GUARD_PINNED_TRUE: &str = "
+        acir(inline) fn main f0 {
+          b0(v0: u1):
+            jmp b1(u1 1)
+          b1(v1: u1):
+            v3 = or v1, v0
+            jmpif v3 then: b2(), else: b3()
+          b2():
+            constrain v1 == u1 1
+            jmp b1(u1 1)
+          b3():
+            return
+        }
+    ";
+
+    #[test]
+    fn acir_or_guard_pinned_true_has_no_induction_variable() {
+        // An `or` guard is not a modeled comparison, so there is no induction variable and every
+        // induction-variable-based safeguard is skipped.
+        let ssa = Ssa::from_str(ACIR_OR_GUARD_PINNED_TRUE).unwrap();
+        let function = ssa.main();
+        let loops = Loops::find_all(function, LoopOrder::OutsideIn);
+        assert_eq!(loops.yet_to_unroll.len(), 1, "should find exactly one loop");
+
+        let loop_ = &loops.yet_to_unroll[0];
+        assert_eq!(loop_.induction_variable_index(&function.dfg), None);
+    }
+
+    /// A `NotEqual` guard (`eq` with the body on the `else` branch) whose induction step is `2`
+    /// steps past its bound `5` (`0, 2, 4, 6, …`) without ever landing on it, so the guard is never
+    /// hit. The induction variable *is* identified (so the no-induction-variable cap does not apply
+    /// and the back-edge value is not a constant), but the step overshoots the bound.
+    const ACIR_NOT_EQUAL_GUARD_STEP_OVERSHOOTS_BOUND: &str = "
+        acir(inline) fn main f0 {
+          b0():
+            jmp b1(u32 0)
+          b1(v0: u32):
+            v1 = eq v0, u32 5
+            jmpif v1 then: b3(), else: b2()
+          b2():
+            v2 = add v0, u32 2
+            jmp b1(v2)
+          b3():
+            return
+        }
+    ";
+
+    /// Same `NotEqual` shape, but stepping by `2` toward an *even* bound `10` (`0, 2, 4, 6, 8, 10`):
+    /// the step lands exactly on the bound, so the loop terminates after 5 iterations.
+    const ACIR_NOT_EQUAL_GUARD_STEP_REACHES_BOUND: &str = "
+        acir(inline) fn main f0 {
+          b0():
+            jmp b1(u32 0)
+          b1(v0: u32):
+            v1 = eq v0, u32 10
+            jmpif v1 then: b3(), else: b2()
+          b2():
+            v2 = add v0, u32 2
+            jmp b1(v2)
+          b3():
+            return
+        }
+    ";
+
+    #[test]
+    fn acir_not_equal_guard_overshooting_bound_bails() {
+        // The step (2) overshoots the `!= 5` bound (visits 0,2,4,6,… never landing on 5), so the
+        // loop can only exit via wraparound, which the unroller cannot fold. ACIR detects this up
+        // front and bails with `UnknownLoopBound` rather than peeling toward the runaway cap.
+        let ssa = Ssa::from_str(ACIR_NOT_EQUAL_GUARD_STEP_OVERSHOOTS_BOUND).unwrap();
+        let (_ssa, errors) = try_unroll_loops(ssa);
+        assert_eq!(errors.len(), 1, "should bail on the overshooting loop, not unroll it");
+        assert!(matches!(errors[0], RuntimeError::UnknownLoopBound { .. }));
+    }
+
+    #[test]
+    fn acir_not_equal_guard_reaching_bound_unrolls() {
+        // The step (2) lands exactly on the `!= 10` bound, so the loop terminates. Capping (rather
+        // than bailing) "cannot prove termination" loops lets this divisible-step loop unroll: it
+        // finishes in 5 iterations, far below the cap, with no error.
+        let ssa = Ssa::from_str(ACIR_NOT_EQUAL_GUARD_STEP_REACHES_BOUND).unwrap();
+        let (_ssa, errors) = try_unroll_loops(ssa);
+        assert!(errors.is_empty(), "a terminating divisible-step loop should unroll: {errors:?}");
+    }
+
+    #[test]
+    fn brillig_not_equal_does_not_partial_unroll() {
+        // The Brillig counterpart of `partial_unroll_with_error`:
+        // `should_unroll_in_brillig` must not partial unroll, because it does not reduce
+        // the code size.
+        let src =
+            ACIR_NOT_EQUAL_GUARD_STEP_OVERSHOOTS_BOUND.replace("acir(inline)", "brillig(inline)");
+        let ssa = Ssa::from_str(&src).unwrap();
+        let (ssa, errors) = try_unroll_loops(ssa);
+        assert!(errors.is_empty(), "a runtime loop should be skipped, not error: {errors:?}");
+
+        // The loop is left as a runtime loop: re-entered at `u32 0`, not peeled to a large value.
+        // The SSA is unchanged from the input.
+        assert_normalized_ssa_equals(ssa, &src);
+    }
+
+    #[test]
+    fn acir_or_guard_pinned_true_bails_at_iteration_cap() {
+        // With no induction variable and a guard that folds to a constant `true` forever, the
+        // runaway backstop (`RUNAWAY_UNROLL_LIMIT`) makes unrolling bail with `UnknownLoopBound`
+        // instead of looping forever.
+        let ssa = Ssa::from_str(ACIR_OR_GUARD_PINNED_TRUE).unwrap();
+        let (_ssa, errors) = try_unroll_loops(ssa);
+        assert_eq!(errors.len(), 1, "should bail at the cap, not unroll forever");
+        assert!(matches!(errors[0], RuntimeError::UnknownLoopBound { .. }));
+    }
+
+    #[test]
+    fn partial_unroll_with_error() {
+        // When `unroll` hits the limit, it returns an error *after* having peeled,
+        // leaving the function partially unrolled. This must still be a valid program.
+        // For this test, we use a small limit of 5 (instead of `RUNAWAY_UNROLL_LIMIT`).
+        let mut ssa = Ssa::from_str(ACIR_NOT_EQUAL_GUARD_STEP_OVERSHOOTS_BOUND).unwrap();
+
+        let result = {
+            let function = ssa.main_mut();
+            let loops = Loops::find_all(function, LoopOrder::OutsideIn);
+            let loop_ = &loops.yet_to_unroll[0];
+            loop_.unroll(function, &loops.cfg, &loops.dom, 5)
+        };
+
+        // The cap fired: unrolling could not prove termination and bailed instead of looping.
+        assert!(result.is_err(), "expected the runaway cap to bail");
+
+        // The partially-unrolled function is well-formed: it round-trips through the SSA parser.
+        Ssa::from_str(&ssa.to_string()).expect("partially-unrolled SSA must be well-formed");
+
+        // The five peeled iterations (induction values 0, 2, 4, 6, 8) have no side effects, so the
+        // inserter constant-folds them away as it copies them, leaving no dead blocks behind. The
+        // original loop is re-entered at the next induction value: `u32 10` (`0 + 5 * 2`) witnesses
+        // that exactly five iterations were peeled before the cap bailed.
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0():
+            jmp b1(u32 10)
+          b1(v0: u32):
+            v3 = eq v0, u32 5
+            jmpif v3 then: b3(), else: b2()
+          b2():
+            v5 = add v0, u32 2
+            jmp b1(v5)
+          b3():
+            return
+        }
+        ");
     }
 
     #[test]
@@ -2389,13 +2852,15 @@ mod tests {
         let loop_ = &loops.yet_to_unroll[0];
         let pre_header =
             loop_.get_pre_header(function, &loops.cfg).expect("Should have a pre_header");
-        let LoopBounds { lower, upper, kind } = loop_
+        let bounds = loop_
             .get_const_bounds(&function.dfg, pre_header, |v| v)
-            .expect("should use the lower for upper");
+            .expect("empty loop should have known (zero-iteration) bounds");
 
-        assert_eq!(lower, IntegerConstant::Unsigned { value: 0, bit_size: 32 });
-        assert_eq!(upper, lower);
-        assert_eq!(kind, LoopBoundKind::LessThan);
+        // The guard folded to a constant `false`, so the loop never executes: the bounds describe
+        // a zero-iteration loop (`lower == upper` under `LessThan`), regardless of the constant.
+        assert_eq!(bounds.lower, bounds.upper);
+        assert_eq!(bounds.kind, LoopBoundKind::LessThan);
+        assert!(!bounds.loop_executes());
     }
 
     #[test]
@@ -3324,7 +3789,7 @@ mod tests {
         // This logic is how we identify a loop with a break expression.
         // We do not support unrolling these types of loops.
         let src = r#"
-        brillig(inline) predicate_pure fn main f0 {
+        brillig(inline) pure fn main f0 {
           b0():
             jmp b1(u32 0)
           b1(v0: u32):
@@ -3361,7 +3826,7 @@ mod tests {
         //     println(i);
         // }
         let src = r#"
-        brillig(inline) predicate_pure fn main f0 {
+        brillig(inline) pure fn main f0 {
           b0():
             jmp b1(u32 0)
           b1(v0: u32):
@@ -3445,7 +3910,7 @@ mod tests {
         let loop0 = loops.yet_to_unroll.pop().expect("there should be a loop");
         let pre_header = loop0.get_pre_header(function, &loops.cfg).unwrap();
         assert!(loop0.get_const_lower_bound(&function.dfg, pre_header).is_none());
-        assert!(loop0.get_const_upper_bound(&function.dfg, pre_header, |v| v).is_none());
+        assert!(loop0.get_const_upper_bound(&function.dfg, |v| v).is_none());
     }
 
     #[test]
@@ -3604,13 +4069,11 @@ mod tests {
         assert_eq!(loops.yet_to_unroll.len(), 1);
 
         let loop_ = &loops.yet_to_unroll[0];
-        let pre_header =
-            loop_.get_pre_header(function, &loops.cfg).expect("Should have a pre_header");
 
         // The upper bound should be None because the lt instruction in the header
         // is not connected to the jmpif condition. If this returns Some(100),
         // the function is incorrectly assuming the header instruction feeds the jmpif.
-        let upper = loop_.get_const_upper_bound(&function.dfg, pre_header, |v| v);
+        let upper = loop_.get_const_upper_bound(&function.dfg, |v| v);
         assert!(
             upper.is_none(),
             "get_const_upper_bound should return None when the header's Lt instruction \
@@ -3886,34 +4349,79 @@ mod tests {
         let ssa = Ssa::from_str(src).unwrap();
         let (ssa, _errors) = try_unroll_loops(ssa);
 
-        // TODO(https://github.com/noir-lang/noir/issues/11900): The inner loop is not unrolled
-        // because `get_const_upper_bound` and `get_induction_variable` assume the induction
-        // variable is always the first block parameter. For multi-param inner loop headers
-        // (where outer loop variables are forwarded as earlier params), the actual induction
-        // variable can be at a later position. A follow-up should identify the induction
-        // variable by its increment pattern rather than by position.
+        // The inner loop's induction variable (`v8`) is the fourth header parameter, because the
+        // header forwards the three outer-loop values as earlier parameters. It is identified by
+        // the guard comparison (`lt v8, ..`), so the inner loop unrolls; with it gone, the outer
+        // loop also has constant bounds and unrolls. Both loop bodies are pure induction
+        // arithmetic, so the fully unrolled program collapses to nothing.
         assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) fn main f0 {
+          b0():
+            jmp b1()
+          b1():
+            return
+        }
+        ");
+    }
+
+    /// `induction_variable_index` finds the induction variable by the value the header guard
+    /// tests, which can be at any parameter position — not only the first.
+    #[test]
+    fn induction_variable_index_locates_guard_operand() {
+        // Inner header `b3(v5, v6, v7, v8)` tests `v8` (index 3); outer header `b1(v0, v1, v2)`
+        // tests `v2` (index 2), as the headers forward outer-loop values as earlier parameters.
+        let nested = "
         brillig(inline) fn main f0 {
           b0():
             jmp b1(u32 0, u32 0, u32 0)
           b1(v0: u32, v1: u32, v2: u32):
-            v9 = lt v2, u32 3
-            jmpif v9 then: b2(), else: b5()
+            v3 = lt v2, u32 3
+            jmpif v3 then: b2(), else: b5()
           b2():
-            v11 = unchecked_add v2, u32 1
-            jmp b3(v0, v1, v11, u32 0)
-          b3(v3: u32, v4: u32, v5: u32, v6: u32):
-            v12 = lt v6, u32 1
-            jmpif v12 then: b6(), else: b4()
+            v4 = unchecked_add v2, u32 1
+            jmp b3(v0, v1, v4, u32 0)
+          b3(v5: u32, v6: u32, v7: u32, v8: u32):
+            v9 = lt v8, u32 1
+            jmpif v9 then: b6(), else: b4()
           b4():
-            jmp b1(v3, v4, v5)
+            jmp b1(v5, v6, v7)
           b5():
             return
           b6():
-            v13 = unchecked_add v6, u32 1
-            jmp b3(v3, v4, v5, v13)
+            v10 = unchecked_add v8, u32 1
+            jmp b3(v5, v6, v7, v10)
         }
-        ");
+        ";
+        let ssa = Ssa::from_str(nested).unwrap();
+        let function = ssa.main();
+        let mut loops = Loops::find_all(function, LoopOrder::OutsideIn);
+        assert_eq!(loops.yet_to_unroll.len(), 2);
+        // OutsideIn puts the innermost loop first.
+        let inner = loops.yet_to_unroll.remove(0);
+        let outer = loops.yet_to_unroll.remove(0);
+        assert_eq!(inner.induction_variable_index(&function.dfg), Some(3));
+        assert_eq!(outer.induction_variable_index(&function.dfg), Some(2));
+
+        // A simple single-parameter loop has its induction variable at index 0.
+        let simple = "
+        brillig(inline) fn main f0 {
+          b0():
+            jmp b1(u32 0)
+          b1(v0: u32):
+            v2 = lt v0, u32 4
+            jmpif v2 then: b2(), else: b3()
+          b2():
+            v3 = unchecked_add v0, u32 1
+            jmp b1(v3)
+          b3():
+            return
+        }
+        ";
+        let ssa = Ssa::from_str(simple).unwrap();
+        let function = ssa.main();
+        let loops = Loops::find_all(function, LoopOrder::OutsideIn);
+        assert_eq!(loops.yet_to_unroll.len(), 1);
+        assert_eq!(loops.yet_to_unroll[0].induction_variable_index(&function.dfg), Some(0));
     }
 
     /// Regression test: a loop with a single header parameter (the induction variable)
@@ -3956,15 +4464,9 @@ mod tests {
           b0():
             jmp b1()
           b1():
-            jmp b2(u32 0, u32 0)
-          b2(v0: u32, v1: u32):
-            v4 = eq v1, u32 2
-            jmpif v4 then: b3(), else: b4()
-          b3():
+            jmp b2()
+          b2():
             return
-          b4():
-            v6 = unchecked_add v1, u32 1
-            jmp b2(v0, v6)
         }
         ");
     }
@@ -3980,6 +4482,11 @@ mod tests {
         //
         // Without checking skipped or failed blocks, the middle loop would proceed
         // to unroll, fail to traverse the inner loop's cycle, and corrupt SSA.
+        //
+        // The inner loop's induction variable is its *second* header parameter `v9` (the value
+        // its guard `eq v9, ..` tests); `v9`'s pre-header value `v7` is non-constant, so the loop
+        // is correctly skipped. This exercises the skip path for an induction variable that is
+        // not the first parameter.
         //
         // Reduced from:
         //   for idx_a in 0..1 {
@@ -4006,7 +4513,7 @@ mod tests {
             jmp b1(v10)
           b6():
             v7 = unchecked_add v3, u32 1
-            jmp b8(v7, u32 0)
+            jmp b8(u32 0, v7)
           b8(v8: u32, v9: u32):
             v11 = eq v9, u32 1
             jmpif v11 then: b9(), else: b10()
@@ -4029,34 +4536,34 @@ mod tests {
             v7 = eq v0, u32 0
             jmpif v7 then: b2(), else: b3()
           b2():
-            jmp b10(u32 1, u32 0)
+            jmp b10(u32 0, u32 1)
           b3():
             return u1 1
           b4(v1: u32):
-            v12 = eq v1, u32 1
-            jmpif v12 then: b5(), else: b6()
+            v11 = eq v1, u32 1
+            jmpif v11 then: b5(), else: b6()
           b5():
-            v16 = unchecked_add v0, u32 1
-            jmp b1(v16)
+            v15 = unchecked_add v0, u32 1
+            jmp b1(v15)
           b6():
-            v13 = unchecked_add v1, u32 1
-            jmp b7(v13, u32 0)
+            v12 = unchecked_add v1, u32 1
+            jmp b7(u32 0, v12)
           b7(v2: u32, v3: u32):
-            v14 = eq v3, u32 1
-            jmpif v14 then: b8(), else: b9()
+            v13 = eq v3, u32 1
+            jmpif v13 then: b8(), else: b9()
           b8():
             jmp b4(v2)
           b9():
-            v15 = add v3, u32 1
-            jmp b7(v2, v15)
+            v14 = add v3, u32 1
+            jmp b7(v2, v14)
           b10(v4: u32, v5: u32):
-            v10 = eq v5, u32 1
-            jmpif v10 then: b11(), else: b12()
+            v9 = eq v5, u32 1
+            jmpif v9 then: b11(), else: b12()
           b11():
             jmp b4(v4)
           b12():
-            v11 = add v5, u32 1
-            jmp b10(v4, v11)
+            v10 = add v5, u32 1
+            jmp b10(v4, v10)
         }
         ");
     }
@@ -4096,12 +4603,10 @@ mod tests {
         // The loop header's `not v0` does NOT reference the induction variable v1,
         // so get_const_upper_bound must return None (no known bounds).
         let function = ssa.main();
-        let cfg = ControlFlowGraph::with_function(function);
         let loops = Loops::find_all(function, LoopOrder::InsideOut);
         assert_eq!(loops.yet_to_unroll.len(), 1, "should find exactly one loop");
         let the_loop = &loops.yet_to_unroll[0];
-        let pre_header = the_loop.get_pre_header(function, &cfg).unwrap();
-        let upper = the_loop.get_const_upper_bound(&function.dfg, pre_header, |v| v);
+        let upper = the_loop.get_const_upper_bound(&function.dfg, |v| v);
         assert!(
             upper.is_none(),
             "upper bound should be None when header instruction doesn't reference the induction variable, got {upper:?}"

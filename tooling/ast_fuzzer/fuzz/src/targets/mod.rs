@@ -7,6 +7,7 @@ pub mod comptime_vs_brillig_nargo;
 pub mod min_vs_full;
 pub mod orig_vs_morph;
 pub mod pass_vs_prev;
+pub mod valid_after_pass;
 
 /// Create a default configuration instance, with some common flags randomized.
 fn default_config(u: &mut Unstructured) -> arbitrary::Result<Config> {

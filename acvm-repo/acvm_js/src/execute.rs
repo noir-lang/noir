@@ -191,7 +191,7 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> ProgramExecutor<'a, B> {
 
         let mut witness_stack = WitnessStack::default();
         let main_witness = self
-            .execute_circuit(main, AcirFunctionId(0), initial_witness, &mut witness_stack)
+            .execute_circuit(main, AcirFunctionId::new(0), initial_witness, &mut witness_stack)
             .await?;
         witness_stack.push(0, main_witness);
         Ok(witness_stack)
@@ -308,7 +308,7 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> ProgramExecutor<'a, B> {
                             }
                         }
                         acvm.resolve_pending_acir_call(call_resolved_outputs);
-                        witness_stack.push(call_info.id.0, call_solved_witness.clone());
+                        witness_stack.push(call_info.id.as_u32(), call_solved_witness.clone());
                     }
                 }
             }

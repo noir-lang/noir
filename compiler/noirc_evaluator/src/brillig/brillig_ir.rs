@@ -21,11 +21,13 @@ pub(crate) mod codegen_control_flow;
 mod codegen_intrinsic;
 mod codegen_memory;
 mod codegen_stack;
+pub(crate) mod count_array_copies;
 mod entry_point;
 mod instructions;
 
 use std::{cell::RefCell, rc::Rc};
 
+use acvm::brillig_vm::MEMORY_ADDRESSING_BIT_SIZE;
 use artifact::Label;
 use brillig_variable::SingleAddrVariable;
 pub(crate) use instructions::BrilligBinaryOp;
@@ -47,12 +49,12 @@ use acvm::{
 };
 use debug_show::DebugShow;
 
-use super::{BrilligOptions, FunctionId, GlobalSpace, ProcedureId};
+use super::{BrilligOptions, CopySiteRegistry, FunctionId, GlobalSpace, ProcedureId};
 
 /// The Brillig VM does not apply a limit to the memory address space,
 /// As a convention, we take use 32 bits. This means that we assume that
 /// memory has 2^32 memory slots.
-pub(crate) const BRILLIG_MEMORY_ADDRESSING_BIT_SIZE: u32 = 32;
+pub(crate) const BRILLIG_MEMORY_ADDRESSING_BIT_SIZE: u32 = MEMORY_ADDRESSING_BIT_SIZE.to_u32();
 
 /// Registers reserved in runtime for special purposes.
 pub(crate) struct ReservedRegisters;
@@ -128,8 +130,10 @@ pub(crate) struct BrilligContext<F, Registers> {
     can_call_procedures: bool,
     /// Insert extra assertions that we expect to be true, at the cost of larger bytecode size.
     enable_debug_assertions: bool,
-    /// Count the number of arrays that are copied, and output this to stdout
-    count_arrays_copied: bool,
+    /// When set, per-site array copy tracking is enabled; see [`count_array_copies`].
+    ///
+    /// [`count_array_copies`]: crate::brillig::brillig_ir::count_array_copies
+    copy_site_registry: Option<CopySiteRegistry>,
 
     globals_memory_size: Option<usize>,
 }
@@ -143,23 +147,6 @@ impl<F, R: RegisterAllocator> BrilligContext<F, R> {
     /// Enable the insertion of bytecode with extra assertions during testing.
     pub(crate) fn enable_debug_assertions(&self) -> bool {
         self.enable_debug_assertions
-    }
-
-    /// Returns the address of the implicit debug variable containing the count of
-    /// implicitly copied arrays as a result of RC's copy on write semantics.
-    pub(crate) fn array_copy_counter_address(&self) -> MemoryAddress {
-        assert!(
-            self.count_arrays_copied,
-            "`count_arrays_copied` is not set, so the array copy counter does not exist"
-        );
-
-        // The copy counter is always put in the first global slot
-        MemoryAddress::direct(assert_u32(GlobalSpace::start_with_layout(&self.layout())))
-    }
-
-    /// If this flag is set, compile the array copy counter as a global.
-    pub(crate) fn count_array_copies(&self) -> bool {
-        self.count_arrays_copied
     }
 
     /// Set the globals memory size if it is not already set.
@@ -202,7 +189,7 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
             next_section: 1,
             debug_show: DebugShow::new(options.enable_debug_trace),
             enable_debug_assertions: options.enable_debug_assertions,
-            count_arrays_copied: options.enable_array_copy_counter,
+            copy_site_registry: options.copy_site_registry.clone(),
             can_call_procedures: true,
             globals_memory_size: None,
         }
@@ -378,7 +365,7 @@ impl<F: AcirField + DebugToString> BrilligContext<F, ScratchSpace> {
             next_section: 1,
             debug_show: DebugShow::new(options.enable_debug_trace),
             enable_debug_assertions: options.enable_debug_assertions,
-            count_arrays_copied: options.enable_array_copy_counter,
+            copy_site_registry: options.copy_site_registry.clone(),
             can_call_procedures: false,
             globals_memory_size: None,
         }
@@ -400,7 +387,7 @@ impl<F: AcirField + DebugToString> BrilligContext<F, GlobalSpace> {
             next_section: 1,
             debug_show: DebugShow::new(options.enable_debug_trace),
             enable_debug_assertions: options.enable_debug_assertions,
-            count_arrays_copied: options.enable_array_copy_counter,
+            copy_site_registry: options.copy_site_registry.clone(),
             can_call_procedures: false,
             globals_memory_size: None,
         }
@@ -422,6 +409,11 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
     /// Sets a current call stack that the next pushed opcodes will be associated with.
     pub(crate) fn set_call_stack(&mut self, call_stack: CallStackId) {
         self.obj.set_call_stack(call_stack);
+    }
+
+    /// Returns the `CallStackId` that is currently active in this context.
+    pub(crate) fn current_call_stack_id(&self) -> CallStackId {
+        self.obj.current_call_stack_id()
     }
 }
 
@@ -485,7 +477,6 @@ pub(crate) mod tests {
         let options = BrilligOptions {
             enable_debug_trace: true,
             enable_debug_assertions: true,
-            enable_array_copy_counter: false,
             ..Default::default()
         };
         let mut context = BrilligContext::new("test", &options);
@@ -495,13 +486,13 @@ pub(crate) mod tests {
 
     pub(crate) fn create_entry_point_bytecode(
         context: BrilligContext<FieldElement, Stack>,
-        arguments: Vec<BrilligParameter>,
-        returns: Vec<BrilligParameter>,
+        arguments: &[BrilligParameter],
+        returns: &[BrilligParameter],
     ) -> GeneratedBrillig<FieldElement> {
         let options = BrilligOptions {
             enable_debug_trace: false,
             enable_debug_assertions: context.enable_debug_assertions,
-            enable_array_copy_counter: context.count_arrays_copied,
+            copy_site_registry: context.copy_site_registry.clone(),
             ..Default::default()
         };
         let artifact = context.into_artifact();
@@ -559,9 +550,9 @@ pub(crate) mod tests {
         let options = BrilligOptions {
             enable_debug_trace: true,
             enable_debug_assertions: true,
-            enable_array_copy_counter: false,
             show_opcode_advisories: false,
             layout: Default::default(),
+            copy_site_registry: None,
         };
         let mut context = BrilligContext::new("test", &options);
 
@@ -655,7 +646,7 @@ pub(crate) mod tests {
     fn initialize_constant_array_protected_by_allocation_check() {
         // SSA with array of 11 identical tuples - triggers initialize_constant_array_runtime
         let src = r#"
-            brillig(inline) predicate_pure fn main f0 {
+            brillig(inline) pure fn main f0 {
               b0(v0: u32):
                 v1 = make_array [
                     u32 42, u32 42, u32 42,
@@ -679,7 +670,7 @@ pub(crate) mod tests {
         let options = BrilligOptions::default();
         let brillig = ssa.to_brillig(&options);
         let args = vec![BrilligParameter::SingleAddr(32)];
-        let mut generated = gen_brillig_for(main, args, &brillig, &options).unwrap();
+        let mut generated = gen_brillig_for(main, &args, &brillig, &options).unwrap();
 
         // Find the first BinaryIntOp::Add that writes to the free_memory_pointer (FMP)
         // and insert a patch just before it.
@@ -739,9 +730,9 @@ pub(crate) mod tests {
         let options = BrilligOptions {
             enable_debug_trace: false,
             enable_debug_assertions: true,
-            enable_array_copy_counter: false,
             show_opcode_advisories: false,
             layout: Default::default(),
+            copy_site_registry: None,
         };
         let mut context = BrilligContext::new("test", &options);
 
@@ -869,7 +860,7 @@ pub(crate) mod tests {
     fn empty_array_allocation_near_heap_limit_triggers_oom() {
         // SSA with an empty array - triggers array allocation with just ARRAY_META_COUNT (1) slot
         let src = r#"
-            brillig(inline) predicate_pure fn main f0 {
+            brillig(inline) pure fn main f0 {
               b0():
                 v0 = make_array [] : [Field; 0]
                 return
@@ -886,9 +877,9 @@ pub(crate) mod tests {
     /// before we ever compute the items pointer.
     #[test]
     fn empty_vector_allocation_near_heap_limit_triggers_oom() {
-        // SSA with an empty slice (vector) - triggers vector allocation with VECTOR_META_COUNT (3) slots
+        // SSA with an empty vector - triggers vector allocation with VECTOR_META_COUNT (3) slots
         let src = r#"
-            brillig(inline) predicate_pure fn main f0 {
+            brillig(inline) pure fn main f0 {
               b0():
                 v0 = make_array [] : [Field]
                 return
@@ -908,7 +899,7 @@ pub(crate) mod tests {
         let main = ssa.main();
         let options = BrilligOptions::default();
         let brillig = ssa.to_brillig(&options);
-        let mut generated = gen_brillig_for(main, vec![], &brillig, &options).unwrap();
+        let mut generated = gen_brillig_for(main, &[], &brillig, &options).unwrap();
 
         // Find the first BinaryIntOp::Add that writes to the free_memory_pointer (FMP)
         // and insert a patch just before it.
@@ -966,9 +957,9 @@ pub(crate) mod tests {
         let options = BrilligOptions {
             enable_debug_trace: false,
             enable_debug_assertions: true,
-            enable_array_copy_counter: false,
             show_opcode_advisories: false,
             layout: small_layout,
+            copy_site_registry: None,
         };
 
         let mut context: BrilligContext<FieldElement, Stack> =
@@ -1069,7 +1060,7 @@ pub(crate) mod tests {
         let main = ssa.main();
         let options = BrilligOptions::default();
         let brillig = ssa.to_brillig(&options);
-        let generated = gen_brillig_for(main, vec![], &brillig, &options).unwrap();
+        let generated = gen_brillig_for(main, &[], &brillig, &options).unwrap();
 
         let mut vm = VM::new(vec![], &generated.byte_code, &DummyBlackBoxSolver, false, None);
         let status = vm.process_opcodes();
@@ -1109,7 +1100,7 @@ pub(crate) mod tests {
         let main = ssa.main();
         let options = BrilligOptions::default();
         let brillig = ssa.to_brillig(&options);
-        let generated = gen_brillig_for(main, vec![], &brillig, &options).unwrap();
+        let generated = gen_brillig_for(main, &[], &brillig, &options).unwrap();
 
         let mut vm = VM::new(vec![], &generated.byte_code, &DummyBlackBoxSolver, false, None);
         let status = vm.process_opcodes();

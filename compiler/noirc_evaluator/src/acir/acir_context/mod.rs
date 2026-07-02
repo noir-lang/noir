@@ -87,7 +87,9 @@ impl<F: AcirField> AcirContext<F> {
     pub(crate) fn extract_witnesses(&self, inputs: &[AcirValue]) -> Vec<Witness> {
         inputs
             .iter()
-            .flat_map(|value| value.clone().flatten())
+            .flat_map(|value| {
+                value.clone().flatten().expect("ICE: cannot extract witnesses from a dynamic array")
+            })
             .map(|value| {
                 self.vars
                     .get(&value.0)
@@ -304,7 +306,7 @@ impl<F: AcirField> AcirContext<F> {
                 vec![AcirValue::Var(var, NumericType::NativeField)],
                 vec![AcirType::NumericType(NumericType::NativeField)],
             )?;
-            Self::expect_one_var(results)
+            Self::expect_one_var(&results)
         };
 
         // Check that the inverted var is valid.
@@ -321,7 +323,7 @@ impl<F: AcirField> AcirContext<F> {
     }
 
     // Returns the variable from the results, assuming it is the only result
-    fn expect_one_var(results: Vec<AcirValue>) -> AcirVar {
+    fn expect_one_var(results: &[AcirValue]) -> AcirVar {
         assert_eq!(results.len(), 1);
         match results[0] {
             AcirValue::Var(var, _) => var,
@@ -1608,7 +1610,7 @@ mod tests {
 
         // Claim a flattened length of 2 but provide only a single value.
         let result = context.initialize_array(
-            BlockId(0),
+            BlockId::new(0),
             FlattenedLength(2),
             Some(value),
             BlockType::Memory,

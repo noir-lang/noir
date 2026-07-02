@@ -216,11 +216,20 @@ fn push_trait_impl_methods(
     trait_impls: &[TraitImpl],
 ) {
     for trait_impl in trait_impls {
-        let anchor = super::trait_impl_anchor(trait_impl);
+        // `trait_impl_anchor` doubles as display text, so it is HTML-escaped (e.g. `&lt;bool&gt;`).
+        // In the page's `id`/`href` attributes the browser decodes that back, but a search URL is
+        // a plain JS string that is never decoded, so decode it here to match the element id.
+        let anchor = decode_anchor(&super::trait_impl_anchor(trait_impl));
         for method in &trait_impl.methods {
             push_member_entry(entries, context, &method.name, "method", &anchor, &method.comments);
         }
     }
+}
+
+/// Reverses the HTML escaping `trait_impl_anchor` applies, recovering the fragment the browser
+/// matches against element ids. Only `<` and `>` are escaped when building anchors.
+fn decode_anchor(anchor: &str) -> String {
+    anchor.replace("&lt;", "<").replace("&gt;", ">")
 }
 
 /// Adds an entry for a member (a field or method) of a type. Its qualified path includes the
@@ -278,8 +287,8 @@ mod tests {
     use noirc_frontend::hir::def_map::{LocalModuleId, ModuleId};
 
     use crate::items::{
-        Comments, Crate, Function, Impl, Item, ItemId, ItemKind, Module, Struct, StructField,
-        Trait, Type, Workspace,
+        Comments, Crate, Function, Impl, Item, ItemId, ItemKind, Module, PrimitiveTypeKind, Struct,
+        StructField, Trait, TraitImpl, Type, Workspace,
     };
 
     use super::*;
@@ -405,6 +414,39 @@ mod tests {
 
         let names: Vec<_> = entries.iter().map(|entry| entry.name.as_str()).collect();
         assert_eq!(names, ["alpha", "mango", "zebra"]);
+    }
+
+    #[test]
+    fn trait_impl_method_url_uses_decoded_anchor() {
+        let trait_impl = TraitImpl {
+            generics: Vec::new(),
+            trait_id: dummy_item_id("AsPrimitive", ItemKind::Trait),
+            trait_name: "AsPrimitive".to_string(),
+            trait_generics: vec![Type::Primitive(PrimitiveTypeKind::Bool)],
+            r#type: Type::Primitive(PrimitiveTypeKind::Field),
+            where_clause: Vec::new(),
+            methods: vec![function("as_")],
+        };
+        let foo = Struct {
+            id: dummy_item_id("Foo", ItemKind::Struct),
+            name: "Foo".to_string(),
+            generics: Vec::new(),
+            fields: Vec::new(),
+            has_private_fields: false,
+            comptime: false,
+            impls: Vec::new(),
+            trait_impls: vec![trait_impl],
+            comments: None,
+        };
+        let root = vec![(ItemVisibility::Public, Item::Struct(foo))];
+
+        let entries = compute_search_index(&workspace(vec![krate("mylib", root)]));
+
+        let method = entries.iter().find(|e| e.name == "as_").expect("method should be indexed");
+        // The fragment must match the browser-decoded element id, not the HTML-escaped anchor.
+        assert_eq!(method.kind, "method");
+        assert_eq!(method.url, "mylib/struct.Foo.html#impl-AsPrimitive<bool>-for-Field");
+        assert!(!method.url.contains("&lt;"));
     }
 
     #[test]

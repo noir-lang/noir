@@ -113,7 +113,7 @@ fn check_witness_file(
         let witness_map = stack_item.witness;
 
         let acir_circuit = &program.program.functions[function_index];
-        validate_witness(&backend, witness_map, acir_circuit)
+        validate_witness(&backend, &witness_map, acir_circuit)
             .map_err(|e| eyre::eyre!("Witness validation failed: {e}"))?;
     }
 
