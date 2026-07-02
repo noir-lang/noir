@@ -1293,3 +1293,21 @@ fn vector_remove_with_wrong_result_count_is_an_error() {
         "unexpected error message: {message}"
     );
 }
+
+#[test]
+fn vector_pop_back_nested_dynamic_inner_array_regression() {
+    let src = "
+    acir(inline) fn main f0 {
+      b0(v0: u32, v1: Field, v2: Field, v3: Field, v4: Field):
+        v5 = make_array [v1, v2] : [Field; 2]
+        v6 = array_set v5, index v0, value v3
+        v7 = make_array [v3, v4] : [Field; 2]
+        v8 = make_array [v6, v7] : [[Field; 2]]
+        v10, v11, v12 = call vector_pop_back(u32 2, v8) -> (u32, [[Field; 2]], [Field; 2])
+        return v12
+    }
+    ";
+
+    try_ssa_to_acir(src)
+        .expect("nested dynamic arrays inside an inline outer vector should compile");
+}
