@@ -482,6 +482,22 @@ pub fn optimize_ssa_builder_into_acir(
         "Brillig Array Get and Set Optimizations",
     )])?;
 
+    // Enforce the return-value element limit on Brillig functions before code generation.
+    // Brillig arrays are allocated using `u32` addressing, so a function returning an array
+    // whose flattened size approaches `u32::MAX` overflows while reserving its memory. Reject
+    // such programs with a proper error here instead of panicking during Brillig generation.
+    //
+    // Functions returning a vector are skipped: a vector's length is only known at runtime, so
+    // its flattened size cannot be derived from the type, and it is not subject to this limit.
+    for func in builder.ssa().functions.values().filter(|func| func.runtime().is_brillig()) {
+        let returns_vector = func.returns().is_some_and(|returns| {
+            returns.iter().any(|value| func.dfg.type_of_value(*value).contains_vector_element())
+        });
+        if !returns_vector {
+            func.dfg.get_num_return_witnesses(func)?;
+        }
+    }
+
     let brillig = time("SSA to Brillig", options.print_codegen_timings, || {
         builder.ssa().to_brillig(&options.brillig_options)
     });
