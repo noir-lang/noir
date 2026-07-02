@@ -281,6 +281,7 @@
         "rangemap",
         "rawstr",
         "refcount",
+        "regs",
         "replacen",
         "repr",
         "reqwest",

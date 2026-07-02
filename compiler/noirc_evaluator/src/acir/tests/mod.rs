@@ -581,7 +581,7 @@ fn test_operators(
             // Both executions succeeded and output the same value
             (Ok(ssa_inner_result), (ACVMStatus::Solved, acvm_result)) => {
                 let ssa_result = if let Some(result) = ssa_inner_result.first() {
-                    result.as_numeric().map(|v| v.convert_to_field())
+                    result.as_numeric().map(|v| v.to_field())
                 } else {
                     None
                 };

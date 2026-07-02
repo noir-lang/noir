@@ -9,6 +9,8 @@
 //!   followed by a corresponding truncate instruction with the expected bit sizes.
 //! - That every narrowing cast is preceded by an instruction proving the value
 //!   being cast fits into the destination type.
+//! - That neither a `Truncate` nor a checked signed add/sub/mul consumes the result of an
+//!   unchecked signed `Sub` (which may have underflowed to a field-negative value).
 //!
 //! Type checking
 //! - Check that the input values of certain instructions matches that instruction's constraint
@@ -261,6 +263,26 @@ impl<'f> Validator<'f> {
                 {
                     panic!("Cannot use `{operator}` with field elements");
                 }
+
+                // `expand_signed_checks` lowers a checked signed add/sub/mul by truncating its
+                // operands. Truncating the result of an unchecked signed Sub is forbidden (see the
+                // `Truncate` rule below): the Sub may have underflowed to a field-negative value. So
+                // a checked signed add/sub/mul must not consume an unchecked signed Sub result.
+                if matches!(
+                    operator,
+                    BinaryOp::Add { unchecked: false }
+                        | BinaryOp::Sub { unchecked: false }
+                        | BinaryOp::Mul { unchecked: false }
+                ) && (defined_by_unchecked_signed_sub(dfg, *lhs)
+                    || defined_by_unchecked_signed_sub(dfg, *rhs))
+                {
+                    panic!(
+                        "Checked signed `{operator}` consumes the result of an unchecked signed Sub, \
+                         which may have underflowed. Prevent the underflow before the Sub (Field \
+                         arithmetic with an explicit 2^bit_size addition), or its expansion would \
+                         produce a forbidden Truncate of the unchecked Sub."
+                    );
+                }
             }
             Instruction::ArrayGet { array, index, .. }
             | Instruction::ArraySet { array, index, .. } => {
@@ -369,14 +391,7 @@ impl<'f> Validator<'f> {
                 // Truncating an unchecked signed sub is not allowed, because the truncate
                 // is not compatible with a potential underflow due to the unchecked subtraction.
                 // Unsigned unchecked subs must have already proven that the underflow is impossible.
-                if let Value::Instruction { instruction, .. } = &dfg[*value]
-                    && let Instruction::Binary(Binary {
-                        lhs,
-                        operator: BinaryOp::Sub { unchecked: true },
-                        ..
-                    }) = &dfg[*instruction]
-                    && matches!(*dfg.type_of_value(*lhs), Type::Numeric(NumericType::Signed { .. }))
-                {
+                if defined_by_unchecked_signed_sub(dfg, *value) {
                     panic!(
                         "Truncate follows a signed integer-typed unchecked Sub, which may underflow. \
                          Use Field arithmetic with an explicit 2^bit_size addition before the \
@@ -1187,6 +1202,21 @@ impl<'f> Validator<'f> {
     }
 }
 
+/// Whether `value` is the result of an `unchecked` signed `Sub` — an operation whose result may be
+/// a field-negative (underflowed) value that has escaped the type's range. Such a value is unsafe to
+/// truncate, so it must not reach an instruction whose lowering would truncate it.
+fn defined_by_unchecked_signed_sub(dfg: &DataFlowGraph, value: ValueId) -> bool {
+    if let Value::Instruction { instruction, .. } = &dfg[value]
+        && let Instruction::Binary(Binary {
+            lhs, operator: BinaryOp::Sub { unchecked: true }, ..
+        }) = &dfg[*instruction]
+    {
+        matches!(*dfg.type_of_value(*lhs), Type::Numeric(NumericType::Signed { .. }))
+    } else {
+        false
+    }
+}
+
 /// Validates that the [Function] is well formed.
 ///
 /// Panics on malformed functions.
@@ -1497,6 +1527,39 @@ mod tests {
         acir(inline) pure fn main f0 {
           b0(v0: i16):
             v1 = truncate v0 to 8 bits, max_bit_size: 8
+            return v1
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    #[should_panic(
+        expected = "Checked signed `add` consumes the result of an unchecked signed Sub"
+    )]
+    fn disallows_checked_signed_op_consuming_unchecked_signed_sub() {
+        // `unchecked_sub i8 127, -2` overflows i8 upward and, in ACIR, escapes as a field-negative
+        // value. A checked signed `add` consuming it would expand into a forbidden truncate of the
+        // unchecked sub, so the pre-expansion SSA is itself rejected.
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = unchecked_sub i8 127, i8 254
+            v1 = add v0, i8 0
+            return v1
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    fn allows_unchecked_op_consuming_unchecked_signed_sub() {
+        // An unchecked consumer is not expanded into a truncate, so it may carry the escaped value.
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = unchecked_sub i8 127, i8 254
+            v1 = unchecked_add v0, i8 0
             return v1
         }
         ";

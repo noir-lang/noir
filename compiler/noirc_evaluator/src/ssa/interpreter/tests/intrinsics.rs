@@ -1,7 +1,7 @@
 use crate::ssa::interpreter::{
     errors::InterpreterError,
     tests::{expect_error, expect_printed_output, expect_value},
-    value::{NumericValue, Value},
+    value::Value,
 };
 
 #[test]
@@ -50,7 +50,7 @@ fn as_witness() {
         }
     ",
     );
-    assert_eq!(value, Value::Numeric(NumericValue::Field(1_u128.into())));
+    assert_eq!(value, Value::field(1_u128.into()));
 }
 
 #[test]

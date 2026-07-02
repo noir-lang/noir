@@ -223,7 +223,6 @@ fn predicated_constant_index_set_folds_without_memory_block() {
     BLACKBOX::RANGE input: w3, bits: 1
     ASSERT w4 = w0 + w3
     ");
->>>>>>> master
 }
 
 #[test]

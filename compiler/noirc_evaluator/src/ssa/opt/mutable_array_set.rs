@@ -262,7 +262,7 @@ mod tests {
         assert_ssa_snapshot,
         ssa::{
             Ssa,
-            interpreter::value::{NumericValue, Value},
+            interpreter::value::Value,
             opt::{assert_pass_does_not_affect_execution, assert_ssa_does_not_change},
         },
     };
@@ -537,7 +537,7 @@ mod tests {
 
         let (ssa, value) =
             assert_pass_does_not_affect_execution(ssa, vec![], Ssa::mutable_array_set_optimization);
-        assert_eq!(value.unwrap()[0], Value::Numeric(NumericValue::Field(0_u32.into())));
+        assert_eq!(value.unwrap()[0], Value::field(0_u32.into()));
 
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
