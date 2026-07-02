@@ -81,390 +81,732 @@
 <a href=#81 id=81 data-nosnippet>81</a>//! instead of from `v2`, because `v2` is the same as `v1` except for what's in index 1, but
 <a href=#82 id=82 data-nosnippet>82</a>//! `v3` is getting from index 0.
 <a href=#83 id=83 data-nosnippet>83</a>//!
-<a href=#84 id=84 data-nosnippet>84</a>//! This module also provides a [`try_optimize_array_get_from_previous_instructions`] function
-<a href=#85 id=85 data-nosnippet>85</a>//! that is used in other SSA-related optimizations. For example, whenever an `array_get` is inserted
-<a href=#86 id=86 data-nosnippet>86</a>//! into a [`DFG`][crate::ssa::ir::dfg::DataFlowGraph]: in this case a previous `array_set` with the
-<a href=#87 id=87 data-nosnippet>87</a>//! same index as the `array_get` cannot be used because we don't know under which side effects var it
-<a href=#88 id=88 data-nosnippet>88</a>//! happens. However, `array_set` with a different known index can be skipped through to eventually
-<a href=#89 id=89 data-nosnippet>89</a>//! reach a `make_array` or param.
-<a href=#90 id=90 data-nosnippet>90</a></span><span class="kw">use </span>std::collections::HashMap;
-<a href=#91 id=91 data-nosnippet>91</a>
-<a href=#92 id=92 data-nosnippet>92</a><span class="kw">use </span>acvm::{AcirField, FieldElement};
-<a href=#93 id=93 data-nosnippet>93</a>
-<a href=#94 id=94 data-nosnippet>94</a><span class="kw">use </span><span class="kw">crate</span>::ssa::{
-<a href=#95 id=95 data-nosnippet>95</a>    ir::{
-<a href=#96 id=96 data-nosnippet>96</a>        dfg::DataFlowGraph,
-<a href=#97 id=97 data-nosnippet>97</a>        function::Function,
-<a href=#98 id=98 data-nosnippet>98</a>        instruction::{ArrayOffset, Instruction, InstructionId},
-<a href=#99 id=99 data-nosnippet>99</a>        types::Type,
-<a href=#100 id=100 data-nosnippet>100</a>        value::{Value, ValueId},
-<a href=#101 id=101 data-nosnippet>101</a>    },
-<a href=#102 id=102 data-nosnippet>102</a>    ssa_gen::Ssa,
-<a href=#103 id=103 data-nosnippet>103</a>};
-<a href=#104 id=104 data-nosnippet>104</a>
-<a href=#105 id=105 data-nosnippet>105</a><span class="kw">impl </span>Ssa {
-<a href=#106 id=106 data-nosnippet>106</a>    <span class="doccomment">/// Replaces `array_get` instructions with known indices with known values from
-<a href=#107 id=107 data-nosnippet>107</a>    /// previous instructions. See the [`array_get`][self] module for more information.
-<a href=#108 id=108 data-nosnippet>108</a>    </span><span class="attr">#[tracing::instrument(level = <span class="string">"trace"</span>, skip(<span class="self">self</span>))]
-<a href=#109 id=109 data-nosnippet>109</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>array_get_optimization(<span class="kw-2">mut </span><span class="self">self</span>) -&gt; <span class="self">Self </span>{
-<a href=#110 id=110 data-nosnippet>110</a>        <span class="kw">for </span>func <span class="kw">in </span><span class="self">self</span>.functions.values_mut() {
-<a href=#111 id=111 data-nosnippet>111</a>            func.array_get_optimization();
-<a href=#112 id=112 data-nosnippet>112</a>        }
-<a href=#113 id=113 data-nosnippet>113</a>        <span class="self">self
-<a href=#114 id=114 data-nosnippet>114</a>    </span>}
-<a href=#115 id=115 data-nosnippet>115</a>}
+<a href=#84 id=84 data-nosnippet>84</a>//! The [pass][Function::array_get_optimization] applies all of the above by scanning the function
+<a href=#85 id=85 data-nosnippet>85</a>//! and caching the known contents of the array values it writes (an [`ArrayView`]). Resolving an
+<a href=#86 id=86 data-nosnippet>86</a>//! `array_get` at a constant index is then a lookup into that view rather than a walk back over
+<a href=#87 id=87 data-nosnippet>87</a>//! previous instructions, so a long chain of `array_set`s no longer makes each read more expensive.
+<a href=#88 id=88 data-nosnippet>88</a>//! Each cached element records the side-effects predicate it was written under, and a read only uses
+<a href=#89 id=89 data-nosnippet>89</a>//! it when that predicate is unconditional or equal to the read's own predicate. The defining
+<a href=#90 id=90 data-nosnippet>90</a>//! `array_set` dominates the read (the array reaches it by data flow) and a false predicate leaves
+<a href=#91 id=91 data-nosnippet>91</a>//! the element unchanged, so that comparison is sound whether the write and the read are in the same
+<a href=#92 id=92 data-nosnippet>92</a>//! block or not; the cache is therefore kept for the whole function. See
+<a href=#93 id=93 data-nosnippet>93</a>//! [the pass][Function::array_get_optimization] for the full argument.
+<a href=#94 id=94 data-nosnippet>94</a>//!
+<a href=#95 id=95 data-nosnippet>95</a>//! This module also provides a [`try_optimize_array_get_from_previous_instructions`] function
+<a href=#96 id=96 data-nosnippet>96</a>//! that is used in other SSA-related optimizations. For example, whenever an `array_get` is inserted
+<a href=#97 id=97 data-nosnippet>97</a>//! into a [`DFG`][crate::ssa::ir::dfg::DataFlowGraph]: in this case a previous `array_set` with the
+<a href=#98 id=98 data-nosnippet>98</a>//! same index as the `array_get` cannot be used because we don't know under which side effects var it
+<a href=#99 id=99 data-nosnippet>99</a>//! happens. However, `array_set` with a different known index can be skipped through to eventually
+<a href=#100 id=100 data-nosnippet>100</a>//! reach a `make_array` or param. That helper has no cache to consult, so it does a small bounded
+<a href=#101 id=101 data-nosnippet>101</a>//! walk instead.
+<a href=#102 id=102 data-nosnippet>102</a></span><span class="kw">use </span>std::collections::HashMap;
+<a href=#103 id=103 data-nosnippet>103</a>
+<a href=#104 id=104 data-nosnippet>104</a><span class="kw">use </span>acvm::{AcirField, FieldElement};
+<a href=#105 id=105 data-nosnippet>105</a>
+<a href=#106 id=106 data-nosnippet>106</a><span class="kw">use </span><span class="kw">crate</span>::ssa::{
+<a href=#107 id=107 data-nosnippet>107</a>    ir::{
+<a href=#108 id=108 data-nosnippet>108</a>        dfg::DataFlowGraph,
+<a href=#109 id=109 data-nosnippet>109</a>        function::Function,
+<a href=#110 id=110 data-nosnippet>110</a>        instruction::{ArrayOffset, Instruction, InstructionId},
+<a href=#111 id=111 data-nosnippet>111</a>        types::Type,
+<a href=#112 id=112 data-nosnippet>112</a>        value::{Value, ValueId},
+<a href=#113 id=113 data-nosnippet>113</a>    },
+<a href=#114 id=114 data-nosnippet>114</a>    ssa_gen::Ssa,
+<a href=#115 id=115 data-nosnippet>115</a>};
 <a href=#116 id=116 data-nosnippet>116</a>
-<a href=#117 id=117 data-nosnippet>117</a><span class="kw">impl </span>Function {
-<a href=#118 id=118 data-nosnippet>118</a>    <span class="kw">fn </span>array_get_optimization(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
-<a href=#119 id=119 data-nosnippet>119</a>        <span class="comment">// Keeps track of side effect vars associated to each `array_set` instruction.
-<a href=#120 id=120 data-nosnippet>120</a>        </span><span class="kw">let </span><span class="kw-2">mut </span>array_set_predicates = HashMap::new();
-<a href=#121 id=121 data-nosnippet>121</a>
-<a href=#122 id=122 data-nosnippet>122</a>        <span class="self">self</span>.simple_optimization(|context| {
-<a href=#123 id=123 data-nosnippet>123</a>            <span class="kw">let </span>instruction_id = context.instruction_id;
-<a href=#124 id=124 data-nosnippet>124</a>
-<a href=#125 id=125 data-nosnippet>125</a>            <span class="kw">match </span>context.instruction() {
-<a href=#126 id=126 data-nosnippet>126</a>                Instruction::ArraySet { .. } =&gt; {
-<a href=#127 id=127 data-nosnippet>127</a>                    array_set_predicates.insert(instruction_id, context.enable_side_effects);
-<a href=#128 id=128 data-nosnippet>128</a>                }
-<a href=#129 id=129 data-nosnippet>129</a>                Instruction::ArrayGet { array, index } =&gt; {
-<a href=#130 id=130 data-nosnippet>130</a>                    <span class="kw">let </span><span class="prelude-val">Some</span>(index_field) = context.dfg.get_numeric_constant(<span class="kw-2">*</span>index) <span class="kw">else </span>{
-<a href=#131 id=131 data-nosnippet>131</a>                        <span class="kw">return</span>;
-<a href=#132 id=132 data-nosnippet>132</a>                    };
-<a href=#133 id=133 data-nosnippet>133</a>                    <span class="kw">let </span>array = <span class="kw-2">*</span>array;
-<a href=#134 id=134 data-nosnippet>134</a>                    <span class="kw">let </span>index = <span class="kw-2">*</span>index;
-<a href=#135 id=135 data-nosnippet>135</a>                    <span class="kw">let </span>side_effects = <span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span>ArrayGetOptimizationSideEffects {
-<a href=#136 id=136 data-nosnippet>136</a>                        side_effects_var: context.enable_side_effects,
-<a href=#137 id=137 data-nosnippet>137</a>                        array_set_predicates: <span class="kw-2">&amp;</span>array_set_predicates,
-<a href=#138 id=138 data-nosnippet>138</a>                    });
-<a href=#139 id=139 data-nosnippet>139</a>                    <span class="kw">let </span><span class="prelude-val">Some</span>(result) = try_optimize_array_get_from_previous_instructions(
-<a href=#140 id=140 data-nosnippet>140</a>                        array,
-<a href=#141 id=141 data-nosnippet>141</a>                        index_field,
-<a href=#142 id=142 data-nosnippet>142</a>                        context.dfg,
-<a href=#143 id=143 data-nosnippet>143</a>                        side_effects,
-<a href=#144 id=144 data-nosnippet>144</a>                    ) <span class="kw">else </span>{
-<a href=#145 id=145 data-nosnippet>145</a>                        <span class="kw">return</span>;
-<a href=#146 id=146 data-nosnippet>146</a>                    };
-<a href=#147 id=147 data-nosnippet>147</a>
-<a href=#148 id=148 data-nosnippet>148</a>                    context.remove_current_instruction();
-<a href=#149 id=149 data-nosnippet>149</a>
-<a href=#150 id=150 data-nosnippet>150</a>                    <span class="kw">match </span>result {
-<a href=#151 id=151 data-nosnippet>151</a>                        ArrayGetOptimizationResult::Value(new_value) =&gt; {
-<a href=#152 id=152 data-nosnippet>152</a>                            <span class="kw">let </span>[result] = context.dfg.instruction_result(instruction_id);
-<a href=#153 id=153 data-nosnippet>153</a>                            context.replace_value(result, new_value);
-<a href=#154 id=154 data-nosnippet>154</a>                        }
-<a href=#155 id=155 data-nosnippet>155</a>                        ArrayGetOptimizationResult::ArrayGet(new_array) =&gt; {
-<a href=#156 id=156 data-nosnippet>156</a>                            <span class="macro">assert_ne!</span>(
-<a href=#157 id=157 data-nosnippet>157</a>                                new_array, array,
-<a href=#158 id=158 data-nosnippet>158</a>                                <span class="string">"ArrayGetOptimizationResult::ArrayGet returned the same array_id"
-<a href=#159 id=159 data-nosnippet>159</a>                            </span>);
-<a href=#160 id=160 data-nosnippet>160</a>
-<a href=#161 id=161 data-nosnippet>161</a>                            <span class="kw">let </span>array_get = Instruction::ArrayGet { array: new_array, index };
-<a href=#162 id=162 data-nosnippet>162</a>                            <span class="kw">let </span>[result] = context.dfg.instruction_result(instruction_id);
-<a href=#163 id=163 data-nosnippet>163</a>                            <span class="kw">let </span>result_typ = context.dfg.type_of_value(result).into_owned();
-<a href=#164 id=164 data-nosnippet>164</a>                            <span class="kw">let </span>ctrl_typevars = <span class="prelude-val">Some</span>(<span class="macro">vec!</span>[result_typ]);
-<a href=#165 id=165 data-nosnippet>165</a>                            <span class="kw">let </span>new_result = context.insert_instruction(array_get, ctrl_typevars);
-<a href=#166 id=166 data-nosnippet>166</a>                            <span class="kw">let </span>new_result = new_result.first();
-<a href=#167 id=167 data-nosnippet>167</a>                            context.replace_value(result, new_result);
-<a href=#168 id=168 data-nosnippet>168</a>                        }
-<a href=#169 id=169 data-nosnippet>169</a>                    }
-<a href=#170 id=170 data-nosnippet>170</a>                }
-<a href=#171 id=171 data-nosnippet>171</a>                <span class="kw">_ </span>=&gt; {}
-<a href=#172 id=172 data-nosnippet>172</a>            }
-<a href=#173 id=173 data-nosnippet>173</a>        });
-<a href=#174 id=174 data-nosnippet>174</a>    }
-<a href=#175 id=175 data-nosnippet>175</a>}
-<a href=#176 id=176 data-nosnippet>176</a>
-<a href=#177 id=177 data-nosnippet>177</a><span class="doccomment">/// The result of the `array_get` optimization.
-<a href=#178 id=178 data-nosnippet>178</a></span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">enum </span>ArrayGetOptimizationResult {
-<a href=#179 id=179 data-nosnippet>179</a>    <span class="doccomment">/// The `array_get` can be replaced with the given value.
-<a href=#180 id=180 data-nosnippet>180</a>    </span>Value(ValueId),
-<a href=#181 id=181 data-nosnippet>181</a>    <span class="doccomment">/// The `array_get` can be replaced by fetching from the given array at the same index as
-<a href=#182 id=182 data-nosnippet>182</a>    /// the `array_get`'s index.
-<a href=#183 id=183 data-nosnippet>183</a>    </span>ArrayGet(ValueId),
-<a href=#184 id=184 data-nosnippet>184</a>}
-<a href=#185 id=185 data-nosnippet>185</a>
-<a href=#186 id=186 data-nosnippet>186</a><span class="doccomment">/// Side effects information to be able to optimize `array_get` more efficiently.
-<a href=#187 id=187 data-nosnippet>187</a></span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>ArrayGetOptimizationSideEffects&lt;<span class="lifetime">'a</span>&gt; {
-<a href=#188 id=188 data-nosnippet>188</a>    <span class="doccomment">/// The current value of the side effects var.
-<a href=#189 id=189 data-nosnippet>189</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) side_effects_var: ValueId,
-<a href=#190 id=190 data-nosnippet>190</a>    <span class="doccomment">/// The side effects var applied to each known `array_set` instruction.
-<a href=#191 id=191 data-nosnippet>191</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) array_set_predicates: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>HashMap&lt;InstructionId, ValueId&gt;,
-<a href=#192 id=192 data-nosnippet>192</a>}
-<a href=#193 id=193 data-nosnippet>193</a>
-<a href=#194 id=194 data-nosnippet>194</a><span class="doccomment">/// Tries to replace an `array_get` instructions with values from previous instructions.
-<a href=#195 id=195 data-nosnippet>195</a>/// See the [`array_get`][self] module for more information.
-<a href=#196 id=196 data-nosnippet>196</a></span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>try_optimize_array_get_from_previous_instructions(
-<a href=#197 id=197 data-nosnippet>197</a>    <span class="kw-2">mut </span>array_id: ValueId,
-<a href=#198 id=198 data-nosnippet>198</a>    target_index: FieldElement,
-<a href=#199 id=199 data-nosnippet>199</a>    dfg: <span class="kw-2">&amp;</span>DataFlowGraph,
-<a href=#200 id=200 data-nosnippet>200</a>    side_effects: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>ArrayGetOptimizationSideEffects&gt;,
-<a href=#201 id=201 data-nosnippet>201</a>) -&gt; <span class="prelude-ty">Option</span>&lt;ArrayGetOptimizationResult&gt; {
-<a href=#202 id=202 data-nosnippet>202</a>    <span class="kw">let </span>original_array_id = array_id;
-<a href=#203 id=203 data-nosnippet>203</a>    <span class="kw">let </span>target_index_u32 = target_index.try_to_u32()<span class="question-mark">?</span>;
-<a href=#204 id=204 data-nosnippet>204</a>
-<a href=#205 id=205 data-nosnippet>205</a>    <span class="comment">// Arbitrary number of maximum tries just to prevent this optimization from taking too long.
-<a href=#206 id=206 data-nosnippet>206</a>    </span><span class="kw">let </span>max_tries = <span class="number">5</span>;
-<a href=#207 id=207 data-nosnippet>207</a>    <span class="kw">for _ in </span><span class="number">0</span>..max_tries {
-<a href=#208 id=208 data-nosnippet>208</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>((instruction, other_instruction_id)) =
-<a href=#209 id=209 data-nosnippet>209</a>            dfg.get_local_or_global_instruction_with_id(array_id)
-<a href=#210 id=210 data-nosnippet>210</a>        {
-<a href=#211 id=211 data-nosnippet>211</a>            <span class="kw">match </span>instruction {
-<a href=#212 id=212 data-nosnippet>212</a>                Instruction::ArraySet { array, index, value, .. } =&gt; {
-<a href=#213 id=213 data-nosnippet>213</a>                    <span class="kw">if let </span><span class="prelude-val">Some</span>(constant) = dfg.get_numeric_constant(<span class="kw-2">*</span>index) {
-<a href=#214 id=214 data-nosnippet>214</a>                        <span class="kw">if </span>constant == target_index {
-<a href=#215 id=215 data-nosnippet>215</a>                            <span class="kw">match </span>side_effects {
-<a href=#216 id=216 data-nosnippet>216</a>                                <span class="prelude-val">None </span>=&gt; {
-<a href=#217 id=217 data-nosnippet>217</a>                                    <span class="comment">// If it's an array_set with the same index as the array_get, we don't
-<a href=#218 id=218 data-nosnippet>218</a>                                    // use the value at that index. The reason is that the array_set might
-<a href=#219 id=219 data-nosnippet>219</a>                                    // be under a different predicate than the array_get, so the set value
-<a href=#220 id=220 data-nosnippet>220</a>                                    // might not be the correct one in the end.
-<a href=#221 id=221 data-nosnippet>221</a>                                    </span><span class="kw">return </span><span class="prelude-val">None</span>;
-<a href=#222 id=222 data-nosnippet>222</a>                                }
-<a href=#223 id=223 data-nosnippet>223</a>                                <span class="prelude-val">Some</span>(ArrayGetOptimizationSideEffects {
-<a href=#224 id=224 data-nosnippet>224</a>                                    side_effects_var,
-<a href=#225 id=225 data-nosnippet>225</a>                                    array_set_predicates,
-<a href=#226 id=226 data-nosnippet>226</a>                                }) =&gt; {
-<a href=#227 id=227 data-nosnippet>227</a>                                    <span class="comment">// If there's an array_set with the same index as the array_get, we
-<a href=#228 id=228 data-nosnippet>228</a>                                    // can only apply this optimization if they are under the same predicate.
-<a href=#229 id=229 data-nosnippet>229</a>                                    </span><span class="kw">let </span>array_set_predicate = array_set_predicates
-<a href=#230 id=230 data-nosnippet>230</a>                                        .get(<span class="kw-2">&amp;</span>other_instruction_id)
-<a href=#231 id=231 data-nosnippet>231</a>                                        .expect(<span class="string">"Expected to know the predicate of every array_set preceding this array_get"</span>);
-<a href=#232 id=232 data-nosnippet>232</a>
-<a href=#233 id=233 data-nosnippet>233</a>                                    <span class="kw">let </span>array_set_predicate_is_one = dfg
-<a href=#234 id=234 data-nosnippet>234</a>                                        .get_numeric_constant(<span class="kw-2">*</span>array_set_predicate)
-<a href=#235 id=235 data-nosnippet>235</a>                                        .is_some_and(|var| var.is_one());
-<a href=#236 id=236 data-nosnippet>236</a>                                    <span class="kw">let </span>can_optimize = array_set_predicate_is_one
-<a href=#237 id=237 data-nosnippet>237</a>                                        || array_set_predicate == side_effects_var;
-<a href=#238 id=238 data-nosnippet>238</a>                                    <span class="kw">if </span>!can_optimize {
-<a href=#239 id=239 data-nosnippet>239</a>                                        <span class="kw">return </span><span class="prelude-val">None</span>;
-<a href=#240 id=240 data-nosnippet>240</a>                                    }
-<a href=#241 id=241 data-nosnippet>241</a>                                }
-<a href=#242 id=242 data-nosnippet>242</a>                            }
-<a href=#243 id=243 data-nosnippet>243</a>
-<a href=#244 id=244 data-nosnippet>244</a>                            <span class="kw">return </span><span class="prelude-val">Some</span>(ArrayGetOptimizationResult::Value(<span class="kw-2">*</span>value));
-<a href=#245 id=245 data-nosnippet>245</a>                        }
-<a href=#246 id=246 data-nosnippet>246</a>
-<a href=#247 id=247 data-nosnippet>247</a>                        <span class="comment">// If it's for a different known index, we can safely recur, because
-<a href=#248 id=248 data-nosnippet>248</a>                        // regardless of whether the array_set ends up being executed or not, it
-<a href=#249 id=249 data-nosnippet>249</a>                        // won't modify the value at the array_get index.
-<a href=#250 id=250 data-nosnippet>250</a>                        </span>array_id = <span class="kw-2">*</span>array;
-<a href=#251 id=251 data-nosnippet>251</a>                        <span class="kw">continue</span>;
-<a href=#252 id=252 data-nosnippet>252</a>                    }
-<a href=#253 id=253 data-nosnippet>253</a>                }
-<a href=#254 id=254 data-nosnippet>254</a>                Instruction::MakeArray { elements: array, typ: <span class="kw">_ </span>} =&gt; {
-<a href=#255 id=255 data-nosnippet>255</a>                    <span class="comment">// `make_array` stores its elements in logical order, but after
-<a href=#256 id=256 data-nosnippet>256</a>                    // `brillig_array_get_and_set` a constant index is shifted past the
-<a href=#257 id=257 data-nosnippet>257</a>                    // in-memory header (RC for arrays, RC/Size/Capacity for vectors).
-<a href=#258 id=258 data-nosnippet>258</a>                    // Map the index back to logical space before reading an element.
-<a href=#259 id=259 data-nosnippet>259</a>                    </span><span class="kw">let </span>offset = make_array_index_offset(dfg, array_id);
-<a href=#260 id=260 data-nosnippet>260</a>                    <span class="kw">if let </span><span class="prelude-val">Some</span>(index) = target_index_u32.checked_sub(offset) {
-<a href=#261 id=261 data-nosnippet>261</a>                        <span class="kw">let </span>index = index <span class="kw">as </span>usize;
-<a href=#262 id=262 data-nosnippet>262</a>                        <span class="kw">if </span>index &lt; array.len() {
-<a href=#263 id=263 data-nosnippet>263</a>                            <span class="kw">return </span><span class="prelude-val">Some</span>(ArrayGetOptimizationResult::Value(array[index]));
-<a href=#264 id=264 data-nosnippet>264</a>                        }
-<a href=#265 id=265 data-nosnippet>265</a>                    }
-<a href=#266 id=266 data-nosnippet>266</a>                }
-<a href=#267 id=267 data-nosnippet>267</a>                <span class="kw">_ </span>=&gt; (),
-<a href=#268 id=268 data-nosnippet>268</a>            }
-<a href=#269 id=269 data-nosnippet>269</a>        } <span class="kw">else if let </span>Value::Param { typ: Type::Array(<span class="kw">_</span>, length), .. } = <span class="kw-2">&amp;</span>dfg[array_id]
-<a href=#270 id=270 data-nosnippet>270</a>            &amp;&amp; target_index_u32 &lt; length.<span class="number">0
-<a href=#271 id=271 data-nosnippet>271</a>        </span>{
-<a href=#272 id=272 data-nosnippet>272</a>            <span class="comment">// There's no optimization if we end up getting from the original array
-<a href=#273 id=273 data-nosnippet>273</a>            </span><span class="kw">if </span>array_id == original_array_id {
-<a href=#274 id=274 data-nosnippet>274</a>                <span class="kw">return </span><span class="prelude-val">None</span>;
-<a href=#275 id=275 data-nosnippet>275</a>            }
-<a href=#276 id=276 data-nosnippet>276</a>
-<a href=#277 id=277 data-nosnippet>277</a>            <span class="kw">return </span><span class="prelude-val">Some</span>(ArrayGetOptimizationResult::ArrayGet(array_id));
-<a href=#278 id=278 data-nosnippet>278</a>        }
-<a href=#279 id=279 data-nosnippet>279</a>
-<a href=#280 id=280 data-nosnippet>280</a>        <span class="kw">break</span>;
-<a href=#281 id=281 data-nosnippet>281</a>    }
-<a href=#282 id=282 data-nosnippet>282</a>
-<a href=#283 id=283 data-nosnippet>283</a>    <span class="prelude-val">None
-<a href=#284 id=284 data-nosnippet>284</a></span>}
-<a href=#285 id=285 data-nosnippet>285</a>
-<a href=#286 id=286 data-nosnippet>286</a><span class="doccomment">/// The Brillig in-memory header offset baked into a constant `array_get`/`array_set` index by
-<a href=#287 id=287 data-nosnippet>287</a>/// [`brillig_array_get_and_set`][crate::ssa::opt::brillig_array_get_and_set], or `0` when indices
-<a href=#288 id=288 data-nosnippet>288</a>/// have not been shifted (ACIR, or before that pass has run).
-<a href=#289 id=289 data-nosnippet>289</a></span><span class="kw">fn </span>make_array_index_offset(dfg: <span class="kw-2">&amp;</span>DataFlowGraph, array: ValueId) -&gt; u32 {
-<a href=#290 id=290 data-nosnippet>290</a>    <span class="kw">if </span>!dfg.brillig_arrays_offset {
-<a href=#291 id=291 data-nosnippet>291</a>        <span class="kw">return </span><span class="number">0</span>;
-<a href=#292 id=292 data-nosnippet>292</a>    }
-<a href=#293 id=293 data-nosnippet>293</a>    <span class="kw">match </span><span class="kw-2">*</span>dfg.type_of_value(array) {
-<a href=#294 id=294 data-nosnippet>294</a>        Type::Array(..) =&gt; ArrayOffset::Array.to_u32(),
-<a href=#295 id=295 data-nosnippet>295</a>        Type::Vector(..) =&gt; ArrayOffset::Vector.to_u32(),
-<a href=#296 id=296 data-nosnippet>296</a>        <span class="kw">_ </span>=&gt; <span class="number">0</span>,
-<a href=#297 id=297 data-nosnippet>297</a>    }
-<a href=#298 id=298 data-nosnippet>298</a>}
-<a href=#299 id=299 data-nosnippet>299</a>
-<a href=#300 id=300 data-nosnippet>300</a><span class="attr">#[cfg(test)]
-<a href=#301 id=301 data-nosnippet>301</a></span><span class="kw">mod </span>tests {
-<a href=#302 id=302 data-nosnippet>302</a>    <span class="kw">use crate</span>::{assert_ssa_snapshot, ssa::opt::assert_ssa_does_not_change};
-<a href=#303 id=303 data-nosnippet>303</a>
-<a href=#304 id=304 data-nosnippet>304</a>    <span class="kw">use </span><span class="kw">super</span>::Ssa;
+<a href=#117 id=117 data-nosnippet>117</a><span class="kw">mod </span>array_view;
+<a href=#118 id=118 data-nosnippet>118</a>
+<a href=#119 id=119 data-nosnippet>119</a><span class="kw">use </span>array_view::{ArrayView, Resolution};
+<a href=#120 id=120 data-nosnippet>120</a>
+<a href=#121 id=121 data-nosnippet>121</a><span class="kw">impl </span>Ssa {
+<a href=#122 id=122 data-nosnippet>122</a>    <span class="doccomment">/// Replaces `array_get` instructions with known indices with known values from
+<a href=#123 id=123 data-nosnippet>123</a>    /// previous instructions. See the [`array_get`][self] module for more information.
+<a href=#124 id=124 data-nosnippet>124</a>    </span><span class="attr">#[tracing::instrument(level = <span class="string">"trace"</span>, skip(<span class="self">self</span>))]
+<a href=#125 id=125 data-nosnippet>125</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>array_get_optimization(<span class="kw-2">mut </span><span class="self">self</span>) -&gt; <span class="self">Self </span>{
+<a href=#126 id=126 data-nosnippet>126</a>        <span class="kw">for </span>func <span class="kw">in </span><span class="self">self</span>.functions.values_mut() {
+<a href=#127 id=127 data-nosnippet>127</a>            func.array_get_optimization();
+<a href=#128 id=128 data-nosnippet>128</a>        }
+<a href=#129 id=129 data-nosnippet>129</a>        <span class="self">self
+<a href=#130 id=130 data-nosnippet>130</a>    </span>}
+<a href=#131 id=131 data-nosnippet>131</a>}
+<a href=#132 id=132 data-nosnippet>132</a>
+<a href=#133 id=133 data-nosnippet>133</a><span class="kw">impl </span>Function {
+<a href=#134 id=134 data-nosnippet>134</a>    <span class="kw">fn </span>array_get_optimization(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
+<a href=#135 id=135 data-nosnippet>135</a>        <span class="attr">#[cfg(debug_assertions)]
+<a href=#136 id=136 data-nosnippet>136</a>        </span>array_get_optimization_pre_check(<span class="self">self</span>);
+<a href=#137 id=137 data-nosnippet>137</a>
+<a href=#138 id=138 data-nosnippet>138</a>        <span class="comment">// Caches the known contents of each array value as the function is scanned, so resolving an
+<a href=#139 id=139 data-nosnippet>139</a>        // `array_get` at a constant index is a lookup rather than a walk back through previous
+<a href=#140 id=140 data-nosnippet>140</a>        // instructions.
+<a href=#141 id=141 data-nosnippet>141</a>        //
+<a href=#142 id=142 data-nosnippet>142</a>        // Each cached element records the side-effects predicate of the `array_set` that wrote it,
+<a href=#143 id=143 data-nosnippet>143</a>        // and `resolve` only uses it when the write was unconditional or carried the same predicate
+<a href=#144 id=144 data-nosnippet>144</a>        // value the read sees. That condition is sound on its own: the array value is reached by
+<a href=#145 id=145 data-nosnippet>145</a>        // data flow, so its defining `array_set` dominates the read, and an `array_set` whose
+<a href=#146 id=146 data-nosnippet>146</a>        // predicate is false leaves the element unchanged — so a matching (or unconditional)
+<a href=#147 id=147 data-nosnippet>147</a>        // predicate means the written value is really there. `simple_optimization` resets the
+<a href=#148 id=148 data-nosnippet>148</a>        // predicate to `1` at the start of every block, so a non-trivial predicate is only ever
+<a href=#149 id=149 data-nosnippet>149</a>        // seen within a single block; a read in a later block sees predicate `1` and folds only
+<a href=#150 id=150 data-nosnippet>150</a>        // unconditional writes. Either way the comparison holds across blocks, so the cache is kept
+<a href=#151 id=151 data-nosnippet>151</a>        // for the whole function rather than reset per block.
+<a href=#152 id=152 data-nosnippet>152</a>        </span><span class="kw">let </span><span class="kw-2">mut </span>views: HashMap&lt;ValueId, ArrayView&gt; = HashMap::new();
+<a href=#153 id=153 data-nosnippet>153</a>
+<a href=#154 id=154 data-nosnippet>154</a>        <span class="self">self</span>.simple_optimization(|context| {
+<a href=#155 id=155 data-nosnippet>155</a>            <span class="kw">let </span>instruction_id = context.instruction_id;
+<a href=#156 id=156 data-nosnippet>156</a>
+<a href=#157 id=157 data-nosnippet>157</a>            <span class="kw">match </span>context.instruction() {
+<a href=#158 id=158 data-nosnippet>158</a>                Instruction::ArraySet { array, index, value, .. } =&gt; {
+<a href=#159 id=159 data-nosnippet>159</a>                    <span class="kw">let </span>array = <span class="kw-2">*</span>array;
+<a href=#160 id=160 data-nosnippet>160</a>                    <span class="kw">let </span>value = <span class="kw-2">*</span>value;
+<a href=#161 id=161 data-nosnippet>161</a>                    <span class="kw">let </span><span class="prelude-val">Some</span>(index) = constant_index(context.dfg, <span class="kw-2">*</span>index) <span class="kw">else </span>{
+<a href=#162 id=162 data-nosnippet>162</a>                        <span class="comment">// A dynamic index may write to any element, so nothing is known about the
+<a href=#163 id=163 data-nosnippet>163</a>                        // result. Leaving it uncached means reads of it resolve as `Unknown`.
+<a href=#164 id=164 data-nosnippet>164</a>                        </span><span class="kw">return</span>;
+<a href=#165 id=165 data-nosnippet>165</a>                    };
+<a href=#166 id=166 data-nosnippet>166</a>                    <span class="kw">let </span>predicate = context.enable_side_effects;
+<a href=#167 id=167 data-nosnippet>167</a>                    <span class="kw">let </span>[result] = context.dfg.instruction_result(instruction_id);
+<a href=#168 id=168 data-nosnippet>168</a>
+<a href=#169 id=169 data-nosnippet>169</a>                    <span class="kw">let </span>view = array_view(<span class="kw-2">&amp;</span>views, context.dfg, array)
+<a href=#170 id=170 data-nosnippet>170</a>                        .with_element(index, value, predicate);
+<a href=#171 id=171 data-nosnippet>171</a>                    views.insert(result, view);
+<a href=#172 id=172 data-nosnippet>172</a>                }
+<a href=#173 id=173 data-nosnippet>173</a>                Instruction::ArrayGet { array, index } =&gt; {
+<a href=#174 id=174 data-nosnippet>174</a>                    <span class="kw">let </span>array = <span class="kw-2">*</span>array;
+<a href=#175 id=175 data-nosnippet>175</a>                    <span class="kw">let </span>index = <span class="kw-2">*</span>index;
+<a href=#176 id=176 data-nosnippet>176</a>                    <span class="kw">let </span><span class="prelude-val">Some</span>(target_index) = constant_index(context.dfg, index) <span class="kw">else </span>{
+<a href=#177 id=177 data-nosnippet>177</a>                        <span class="kw">return</span>;
+<a href=#178 id=178 data-nosnippet>178</a>                    };
+<a href=#179 id=179 data-nosnippet>179</a>                    <span class="kw">let </span>predicate = context.enable_side_effects;
+<a href=#180 id=180 data-nosnippet>180</a>
+<a href=#181 id=181 data-nosnippet>181</a>                    <span class="kw">let </span>view = array_view(<span class="kw-2">&amp;</span>views, context.dfg, array);
+<a href=#182 id=182 data-nosnippet>182</a>                    <span class="kw">let </span><span class="prelude-val">Some</span>(resolution) =
+<a href=#183 id=183 data-nosnippet>183</a>                        view.resolve(array, target_index, predicate, context.dfg)
+<a href=#184 id=184 data-nosnippet>184</a>                    <span class="kw">else </span>{
+<a href=#185 id=185 data-nosnippet>185</a>                        <span class="kw">return</span>;
+<a href=#186 id=186 data-nosnippet>186</a>                    };
+<a href=#187 id=187 data-nosnippet>187</a>
+<a href=#188 id=188 data-nosnippet>188</a>                    context.remove_current_instruction();
+<a href=#189 id=189 data-nosnippet>189</a>                    <span class="kw">let </span>[result] = context.dfg.instruction_result(instruction_id);
+<a href=#190 id=190 data-nosnippet>190</a>                    <span class="kw">match </span>resolution {
+<a href=#191 id=191 data-nosnippet>191</a>                        Resolution::Value(value) =&gt; {
+<a href=#192 id=192 data-nosnippet>192</a>                            context.replace_value(result, value);
+<a href=#193 id=193 data-nosnippet>193</a>                        }
+<a href=#194 id=194 data-nosnippet>194</a>                        Resolution::ReadFrom(source) =&gt; {
+<a href=#195 id=195 data-nosnippet>195</a>                            <span class="macro">debug_assert_ne!</span>(
+<a href=#196 id=196 data-nosnippet>196</a>                                source, array,
+<a href=#197 id=197 data-nosnippet>197</a>                                <span class="string">"a read rewritten to the same array would re-trigger forever"
+<a href=#198 id=198 data-nosnippet>198</a>                            </span>);
+<a href=#199 id=199 data-nosnippet>199</a>                            <span class="kw">let </span>array_get = Instruction::ArrayGet { array: source, index };
+<a href=#200 id=200 data-nosnippet>200</a>                            <span class="kw">let </span>result_typ = context.dfg.type_of_value(result).into_owned();
+<a href=#201 id=201 data-nosnippet>201</a>                            <span class="kw">let </span>new_result = context
+<a href=#202 id=202 data-nosnippet>202</a>                                .insert_instruction(array_get, <span class="prelude-val">Some</span>(<span class="macro">vec!</span>[result_typ]))
+<a href=#203 id=203 data-nosnippet>203</a>                                .first();
+<a href=#204 id=204 data-nosnippet>204</a>                            context.replace_value(result, new_result);
+<a href=#205 id=205 data-nosnippet>205</a>                        }
+<a href=#206 id=206 data-nosnippet>206</a>                    }
+<a href=#207 id=207 data-nosnippet>207</a>                }
+<a href=#208 id=208 data-nosnippet>208</a>                <span class="kw">_ </span>=&gt; {}
+<a href=#209 id=209 data-nosnippet>209</a>            }
+<a href=#210 id=210 data-nosnippet>210</a>        });
+<a href=#211 id=211 data-nosnippet>211</a>    }
+<a href=#212 id=212 data-nosnippet>212</a>}
+<a href=#213 id=213 data-nosnippet>213</a>
+<a href=#214 id=214 data-nosnippet>214</a><span class="doccomment">/// Returns the cached view of `array`, seeding a fresh one with [`ArrayView::for_value`] for arrays
+<a href=#215 id=215 data-nosnippet>215</a>/// not written by an `array_set` earlier in the current block.
+<a href=#216 id=216 data-nosnippet>216</a></span><span class="kw">fn </span>array_view(
+<a href=#217 id=217 data-nosnippet>217</a>    views: <span class="kw-2">&amp;</span>HashMap&lt;ValueId, ArrayView&gt;,
+<a href=#218 id=218 data-nosnippet>218</a>    dfg: <span class="kw-2">&amp;</span>DataFlowGraph,
+<a href=#219 id=219 data-nosnippet>219</a>    array: ValueId,
+<a href=#220 id=220 data-nosnippet>220</a>) -&gt; ArrayView {
+<a href=#221 id=221 data-nosnippet>221</a>    views.get(<span class="kw-2">&amp;</span>array).cloned().unwrap_or_else(|| ArrayView::for_value(dfg, array))
+<a href=#222 id=222 data-nosnippet>222</a>}
+<a href=#223 id=223 data-nosnippet>223</a>
+<a href=#224 id=224 data-nosnippet>224</a><span class="kw">fn </span>constant_index(dfg: <span class="kw-2">&amp;</span>DataFlowGraph, index: ValueId) -&gt; <span class="prelude-ty">Option</span>&lt;u32&gt; {
+<a href=#225 id=225 data-nosnippet>225</a>    dfg.get_numeric_constant(index)<span class="question-mark">?</span>.try_to_u32()
+<a href=#226 id=226 data-nosnippet>226</a>}
+<a href=#227 id=227 data-nosnippet>227</a>
+<a href=#228 id=228 data-nosnippet>228</a><span class="doccomment">/// Asserts the invariant the cross-block `array_get` cache relies on: a non-trivial side-effects
+<a href=#229 id=229 data-nosnippet>229</a>/// predicate is confined to a single block.
+<a href=#230 id=230 data-nosnippet>230</a>///
+<a href=#231 id=231 data-nosnippet>231</a>/// This holds exactly when a multi-block function contains no `enable_side_effects` instruction
+<a href=#232 id=232 data-nosnippet>232</a>/// (those appear only after flattening, which collapses the function to a single block). SSA
+<a href=#233 id=233 data-nosnippet>233</a>/// validation enforces this at construction but not between passes, so guard it here too: a breach
+<a href=#234 id=234 data-nosnippet>234</a>/// means the cross-block cache can no longer be trusted, and asserting it once up front catches a
+<a href=#235 id=235 data-nosnippet>235</a>/// future pipeline change that breaks the invariant rather than letting it silently emit an unsound
+<a href=#236 id=236 data-nosnippet>236</a>/// fold.
+<a href=#237 id=237 data-nosnippet>237</a></span><span class="attr">#[cfg(debug_assertions)]
+<a href=#238 id=238 data-nosnippet>238</a></span><span class="kw">fn </span>array_get_optimization_pre_check(func: <span class="kw-2">&amp;</span>Function) {
+<a href=#239 id=239 data-nosnippet>239</a>    <span class="comment">// The pass runs both before flattening (several blocks, but no `enable_side_effects` yet) and
+<a href=#240 id=240 data-nosnippet>240</a>    // after it (a single block that may carry `enable_side_effects`). A single-block function
+<a href=#241 id=241 data-nosnippet>241</a>    // trivially confines any predicate to that block, so only a multi-block function can break the
+<a href=#242 id=242 data-nosnippet>242</a>    // invariant — and a well-formed one predates flattening and has no `enable_side_effects` at all.
+<a href=#243 id=243 data-nosnippet>243</a>    </span><span class="kw">if </span>func.reachable_blocks().len() &gt; <span class="number">1 </span>{
+<a href=#244 id=244 data-nosnippet>244</a>        <span class="kw">super</span>::checks::for_each_instruction(func, |instruction, <span class="kw">_</span>| {
+<a href=#245 id=245 data-nosnippet>245</a>            <span class="kw">super</span>::checks::assert_not_enable_side_effects(instruction);
+<a href=#246 id=246 data-nosnippet>246</a>        });
+<a href=#247 id=247 data-nosnippet>247</a>    }
+<a href=#248 id=248 data-nosnippet>248</a>}
+<a href=#249 id=249 data-nosnippet>249</a>
+<a href=#250 id=250 data-nosnippet>250</a><span class="doccomment">/// The result of the `array_get` optimization.
+<a href=#251 id=251 data-nosnippet>251</a></span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">enum </span>ArrayGetOptimizationResult {
+<a href=#252 id=252 data-nosnippet>252</a>    <span class="doccomment">/// The `array_get` can be replaced with the given value.
+<a href=#253 id=253 data-nosnippet>253</a>    </span>Value(ValueId),
+<a href=#254 id=254 data-nosnippet>254</a>    <span class="doccomment">/// The `array_get` can be replaced by fetching from the given array at the same index as
+<a href=#255 id=255 data-nosnippet>255</a>    /// the `array_get`'s index.
+<a href=#256 id=256 data-nosnippet>256</a>    </span>ArrayGet(ValueId),
+<a href=#257 id=257 data-nosnippet>257</a>}
+<a href=#258 id=258 data-nosnippet>258</a>
+<a href=#259 id=259 data-nosnippet>259</a><span class="doccomment">/// Side effects information to be able to optimize `array_get` more efficiently.
+<a href=#260 id=260 data-nosnippet>260</a></span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>ArrayGetOptimizationSideEffects&lt;<span class="lifetime">'a</span>&gt; {
+<a href=#261 id=261 data-nosnippet>261</a>    <span class="doccomment">/// The current value of the side effects var.
+<a href=#262 id=262 data-nosnippet>262</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) side_effects_var: ValueId,
+<a href=#263 id=263 data-nosnippet>263</a>    <span class="doccomment">/// The side effects var applied to each known `array_set` instruction.
+<a href=#264 id=264 data-nosnippet>264</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) array_set_predicates: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>HashMap&lt;InstructionId, ValueId&gt;,
+<a href=#265 id=265 data-nosnippet>265</a>}
+<a href=#266 id=266 data-nosnippet>266</a>
+<a href=#267 id=267 data-nosnippet>267</a><span class="doccomment">/// Tries to replace an `array_get` instructions with values from previous instructions.
+<a href=#268 id=268 data-nosnippet>268</a>/// See the [`array_get`][self] module for more information.
+<a href=#269 id=269 data-nosnippet>269</a></span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>try_optimize_array_get_from_previous_instructions(
+<a href=#270 id=270 data-nosnippet>270</a>    <span class="kw-2">mut </span>array_id: ValueId,
+<a href=#271 id=271 data-nosnippet>271</a>    target_index: FieldElement,
+<a href=#272 id=272 data-nosnippet>272</a>    dfg: <span class="kw-2">&amp;</span>DataFlowGraph,
+<a href=#273 id=273 data-nosnippet>273</a>    side_effects: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>ArrayGetOptimizationSideEffects&gt;,
+<a href=#274 id=274 data-nosnippet>274</a>) -&gt; <span class="prelude-ty">Option</span>&lt;ArrayGetOptimizationResult&gt; {
+<a href=#275 id=275 data-nosnippet>275</a>    <span class="kw">let </span>original_array_id = array_id;
+<a href=#276 id=276 data-nosnippet>276</a>    <span class="kw">let </span>target_index_u32 = target_index.try_to_u32()<span class="question-mark">?</span>;
+<a href=#277 id=277 data-nosnippet>277</a>
+<a href=#278 id=278 data-nosnippet>278</a>    <span class="comment">// Arbitrary number of maximum tries just to prevent this optimization from taking too long.
+<a href=#279 id=279 data-nosnippet>279</a>    </span><span class="kw">let </span>max_tries = <span class="number">5</span>;
+<a href=#280 id=280 data-nosnippet>280</a>    <span class="kw">for _ in </span><span class="number">0</span>..max_tries {
+<a href=#281 id=281 data-nosnippet>281</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>((instruction, other_instruction_id)) =
+<a href=#282 id=282 data-nosnippet>282</a>            dfg.get_local_or_global_instruction_with_id(array_id)
+<a href=#283 id=283 data-nosnippet>283</a>        {
+<a href=#284 id=284 data-nosnippet>284</a>            <span class="kw">match </span>instruction {
+<a href=#285 id=285 data-nosnippet>285</a>                Instruction::ArraySet { array, index, value, .. } =&gt; {
+<a href=#286 id=286 data-nosnippet>286</a>                    <span class="kw">if let </span><span class="prelude-val">Some</span>(constant) = dfg.get_numeric_constant(<span class="kw-2">*</span>index) {
+<a href=#287 id=287 data-nosnippet>287</a>                        <span class="kw">if </span>constant == target_index {
+<a href=#288 id=288 data-nosnippet>288</a>                            <span class="kw">match </span>side_effects {
+<a href=#289 id=289 data-nosnippet>289</a>                                <span class="prelude-val">None </span>=&gt; {
+<a href=#290 id=290 data-nosnippet>290</a>                                    <span class="comment">// If it's an array_set with the same index as the array_get, we don't
+<a href=#291 id=291 data-nosnippet>291</a>                                    // use the value at that index. The reason is that the array_set might
+<a href=#292 id=292 data-nosnippet>292</a>                                    // be under a different predicate than the array_get, so the set value
+<a href=#293 id=293 data-nosnippet>293</a>                                    // might not be the correct one in the end.
+<a href=#294 id=294 data-nosnippet>294</a>                                    </span><span class="kw">return </span><span class="prelude-val">None</span>;
+<a href=#295 id=295 data-nosnippet>295</a>                                }
+<a href=#296 id=296 data-nosnippet>296</a>                                <span class="prelude-val">Some</span>(ArrayGetOptimizationSideEffects {
+<a href=#297 id=297 data-nosnippet>297</a>                                    side_effects_var,
+<a href=#298 id=298 data-nosnippet>298</a>                                    array_set_predicates,
+<a href=#299 id=299 data-nosnippet>299</a>                                }) =&gt; {
+<a href=#300 id=300 data-nosnippet>300</a>                                    <span class="comment">// If there's an array_set with the same index as the array_get, we
+<a href=#301 id=301 data-nosnippet>301</a>                                    // can only apply this optimization if they are under the same predicate.
+<a href=#302 id=302 data-nosnippet>302</a>                                    </span><span class="kw">let </span>array_set_predicate = array_set_predicates
+<a href=#303 id=303 data-nosnippet>303</a>                                        .get(<span class="kw-2">&amp;</span>other_instruction_id)
+<a href=#304 id=304 data-nosnippet>304</a>                                        .expect(<span class="string">"Expected to know the predicate of every array_set preceding this array_get"</span>);
 <a href=#305 id=305 data-nosnippet>305</a>
-<a href=#306 id=306 data-nosnippet>306</a>    <span class="attr">#[test]
-<a href=#307 id=307 data-nosnippet>307</a>    </span><span class="kw">fn </span>folds_offset_constant_array_get_to_logical_element() {
-<a href=#308 id=308 data-nosnippet>308</a>        <span class="comment">// In a Brillig function `brillig_array_get_and_set` shifts constant indices past the
-<a href=#309 id=309 data-nosnippet>309</a>        // array's in-memory header (the `minus 1` here). Folding a `make_array` read must map the
-<a href=#310 id=310 data-nosnippet>310</a>        // shifted index back to logical space; otherwise it returns the element one slot too far,
-<a href=#311 id=311 data-nosnippet>311</a>        // which for an array of tuples is also the wrong *type* and crashes Brillig codegen.
-<a href=#312 id=312 data-nosnippet>312</a>        </span><span class="kw">let </span>src = <span class="string">"
-<a href=#313 id=313 data-nosnippet>313</a>        brillig(inline) fn main f0 {
-<a href=#314 id=314 data-nosnippet>314</a>          b0():
-<a href=#315 id=315 data-nosnippet>315</a>            v0 = make_array [u32 10, u1 1, u32 20, u1 0] : [(u32, u1); 2]
-<a href=#316 id=316 data-nosnippet>316</a>            v1 = array_get v0, index u32 2 minus 1 -&gt; u1
-<a href=#317 id=317 data-nosnippet>317</a>            return v1
-<a href=#318 id=318 data-nosnippet>318</a>        }
-<a href=#319 id=319 data-nosnippet>319</a>        "</span>;
-<a href=#320 id=320 data-nosnippet>320</a>        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
-<a href=#321 id=321 data-nosnippet>321</a>
-<a href=#322 id=322 data-nosnippet>322</a>        <span class="kw">let </span>ssa = ssa.array_get_optimization();
-<a href=#323 id=323 data-nosnippet>323</a>        <span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
-<a href=#324 id=324 data-nosnippet>324</a>        brillig(inline) fn main f0 {
-<a href=#325 id=325 data-nosnippet>325</a>          b0():
-<a href=#326 id=326 data-nosnippet>326</a>            v4 = make_array [u32 10, u1 1, u32 20, u1 0] : [(u32, u1); 2]
-<a href=#327 id=327 data-nosnippet>327</a>            return u1 1
-<a href=#328 id=328 data-nosnippet>328</a>        }
-<a href=#329 id=329 data-nosnippet>329</a>        "</span>);
-<a href=#330 id=330 data-nosnippet>330</a>    }
-<a href=#331 id=331 data-nosnippet>331</a>
-<a href=#332 id=332 data-nosnippet>332</a>    <span class="attr">#[test]
-<a href=#333 id=333 data-nosnippet>333</a>    </span><span class="kw">fn </span>optimizes_array_get_from_array_set_to_set_value_under_default_predicate() {
-<a href=#334 id=334 data-nosnippet>334</a>        <span class="kw">let </span>src = <span class="string">"
-<a href=#335 id=335 data-nosnippet>335</a>        acir(inline) fn main f0 {
-<a href=#336 id=336 data-nosnippet>336</a>          b0(v0: [Field; 3]):
-<a href=#337 id=337 data-nosnippet>337</a>            v1 = array_set v0, index u32 0, value Field 1
-<a href=#338 id=338 data-nosnippet>338</a>            v2 = array_get v1, index u32 0 -&gt; Field
-<a href=#339 id=339 data-nosnippet>339</a>            return v2
-<a href=#340 id=340 data-nosnippet>340</a>        }
-<a href=#341 id=341 data-nosnippet>341</a>        "</span>;
-<a href=#342 id=342 data-nosnippet>342</a>        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
-<a href=#343 id=343 data-nosnippet>343</a>
-<a href=#344 id=344 data-nosnippet>344</a>        <span class="kw">let </span>ssa = ssa.array_get_optimization();
-<a href=#345 id=345 data-nosnippet>345</a>        <span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
-<a href=#346 id=346 data-nosnippet>346</a>        acir(inline) fn main f0 {
-<a href=#347 id=347 data-nosnippet>347</a>          b0(v0: [Field; 3]):
-<a href=#348 id=348 data-nosnippet>348</a>            v3 = array_set v0, index u32 0, value Field 1
-<a href=#349 id=349 data-nosnippet>349</a>            return Field 1
-<a href=#350 id=350 data-nosnippet>350</a>        }
-<a href=#351 id=351 data-nosnippet>351</a>        "</span>);
-<a href=#352 id=352 data-nosnippet>352</a>    }
-<a href=#353 id=353 data-nosnippet>353</a>
-<a href=#354 id=354 data-nosnippet>354</a>    <span class="attr">#[test]
-<a href=#355 id=355 data-nosnippet>355</a>    </span><span class="kw">fn </span>optimizes_array_get_from_array_set_to_array_get_from_param() {
-<a href=#356 id=356 data-nosnippet>356</a>        <span class="kw">let </span>src = <span class="string">"
-<a href=#357 id=357 data-nosnippet>357</a>        acir(inline) fn main f0 {
-<a href=#358 id=358 data-nosnippet>358</a>          b0(v0: [Field; 3]):
-<a href=#359 id=359 data-nosnippet>359</a>            v1 = array_set v0, index u32 1, value Field 1
-<a href=#360 id=360 data-nosnippet>360</a>            v2 = array_get v1, index u32 0 -&gt; Field
-<a href=#361 id=361 data-nosnippet>361</a>            return v2
-<a href=#362 id=362 data-nosnippet>362</a>        }
-<a href=#363 id=363 data-nosnippet>363</a>        "</span>;
-<a href=#364 id=364 data-nosnippet>364</a>        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
-<a href=#365 id=365 data-nosnippet>365</a>
-<a href=#366 id=366 data-nosnippet>366</a>        <span class="kw">let </span>ssa = ssa.array_get_optimization();
-<a href=#367 id=367 data-nosnippet>367</a>        <span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
-<a href=#368 id=368 data-nosnippet>368</a>        acir(inline) fn main f0 {
-<a href=#369 id=369 data-nosnippet>369</a>          b0(v0: [Field; 3]):
-<a href=#370 id=370 data-nosnippet>370</a>            v3 = array_set v0, index u32 1, value Field 1
-<a href=#371 id=371 data-nosnippet>371</a>            v5 = array_get v0, index u32 0 -&gt; Field
-<a href=#372 id=372 data-nosnippet>372</a>            return v5
-<a href=#373 id=373 data-nosnippet>373</a>        }
-<a href=#374 id=374 data-nosnippet>374</a>        "</span>);
-<a href=#375 id=375 data-nosnippet>375</a>    }
+<a href=#306 id=306 data-nosnippet>306</a>                                    <span class="kw">let </span>array_set_predicate_is_one = dfg
+<a href=#307 id=307 data-nosnippet>307</a>                                        .get_numeric_constant(<span class="kw-2">*</span>array_set_predicate)
+<a href=#308 id=308 data-nosnippet>308</a>                                        .is_some_and(|var| var.is_one());
+<a href=#309 id=309 data-nosnippet>309</a>                                    <span class="kw">let </span>can_optimize = array_set_predicate_is_one
+<a href=#310 id=310 data-nosnippet>310</a>                                        || array_set_predicate == side_effects_var;
+<a href=#311 id=311 data-nosnippet>311</a>                                    <span class="kw">if </span>!can_optimize {
+<a href=#312 id=312 data-nosnippet>312</a>                                        <span class="kw">return </span><span class="prelude-val">None</span>;
+<a href=#313 id=313 data-nosnippet>313</a>                                    }
+<a href=#314 id=314 data-nosnippet>314</a>                                }
+<a href=#315 id=315 data-nosnippet>315</a>                            }
+<a href=#316 id=316 data-nosnippet>316</a>
+<a href=#317 id=317 data-nosnippet>317</a>                            <span class="kw">return </span><span class="prelude-val">Some</span>(ArrayGetOptimizationResult::Value(<span class="kw-2">*</span>value));
+<a href=#318 id=318 data-nosnippet>318</a>                        }
+<a href=#319 id=319 data-nosnippet>319</a>
+<a href=#320 id=320 data-nosnippet>320</a>                        <span class="comment">// If it's for a different known index, we can safely recur, because
+<a href=#321 id=321 data-nosnippet>321</a>                        // regardless of whether the array_set ends up being executed or not, it
+<a href=#322 id=322 data-nosnippet>322</a>                        // won't modify the value at the array_get index.
+<a href=#323 id=323 data-nosnippet>323</a>                        </span>array_id = <span class="kw-2">*</span>array;
+<a href=#324 id=324 data-nosnippet>324</a>                        <span class="kw">continue</span>;
+<a href=#325 id=325 data-nosnippet>325</a>                    }
+<a href=#326 id=326 data-nosnippet>326</a>                }
+<a href=#327 id=327 data-nosnippet>327</a>                Instruction::MakeArray { elements: array, typ: <span class="kw">_ </span>} =&gt; {
+<a href=#328 id=328 data-nosnippet>328</a>                    <span class="comment">// `make_array` stores its elements in logical order, but after
+<a href=#329 id=329 data-nosnippet>329</a>                    // `brillig_array_get_and_set` a constant index is shifted past the
+<a href=#330 id=330 data-nosnippet>330</a>                    // in-memory header (RC for arrays, RC/Size/Capacity for vectors).
+<a href=#331 id=331 data-nosnippet>331</a>                    // Map the index back to logical space before reading an element.
+<a href=#332 id=332 data-nosnippet>332</a>                    </span><span class="kw">let </span>offset = make_array_index_offset(dfg, array_id);
+<a href=#333 id=333 data-nosnippet>333</a>                    <span class="kw">if let </span><span class="prelude-val">Some</span>(index) = target_index_u32.checked_sub(offset) {
+<a href=#334 id=334 data-nosnippet>334</a>                        <span class="kw">let </span>index = index <span class="kw">as </span>usize;
+<a href=#335 id=335 data-nosnippet>335</a>                        <span class="kw">if </span>index &lt; array.len() {
+<a href=#336 id=336 data-nosnippet>336</a>                            <span class="kw">return </span><span class="prelude-val">Some</span>(ArrayGetOptimizationResult::Value(array[index]));
+<a href=#337 id=337 data-nosnippet>337</a>                        }
+<a href=#338 id=338 data-nosnippet>338</a>                    }
+<a href=#339 id=339 data-nosnippet>339</a>                }
+<a href=#340 id=340 data-nosnippet>340</a>                <span class="kw">_ </span>=&gt; (),
+<a href=#341 id=341 data-nosnippet>341</a>            }
+<a href=#342 id=342 data-nosnippet>342</a>        } <span class="kw">else if let </span>Value::Param { typ: Type::Array(<span class="kw">_</span>, length), .. } = <span class="kw-2">&amp;</span>dfg[array_id]
+<a href=#343 id=343 data-nosnippet>343</a>            &amp;&amp; target_index_u32 &lt; length.<span class="number">0
+<a href=#344 id=344 data-nosnippet>344</a>        </span>{
+<a href=#345 id=345 data-nosnippet>345</a>            <span class="comment">// There's no optimization if we end up getting from the original array
+<a href=#346 id=346 data-nosnippet>346</a>            </span><span class="kw">if </span>array_id == original_array_id {
+<a href=#347 id=347 data-nosnippet>347</a>                <span class="kw">return </span><span class="prelude-val">None</span>;
+<a href=#348 id=348 data-nosnippet>348</a>            }
+<a href=#349 id=349 data-nosnippet>349</a>
+<a href=#350 id=350 data-nosnippet>350</a>            <span class="kw">return </span><span class="prelude-val">Some</span>(ArrayGetOptimizationResult::ArrayGet(array_id));
+<a href=#351 id=351 data-nosnippet>351</a>        }
+<a href=#352 id=352 data-nosnippet>352</a>
+<a href=#353 id=353 data-nosnippet>353</a>        <span class="kw">break</span>;
+<a href=#354 id=354 data-nosnippet>354</a>    }
+<a href=#355 id=355 data-nosnippet>355</a>
+<a href=#356 id=356 data-nosnippet>356</a>    <span class="prelude-val">None
+<a href=#357 id=357 data-nosnippet>357</a></span>}
+<a href=#358 id=358 data-nosnippet>358</a>
+<a href=#359 id=359 data-nosnippet>359</a><span class="doccomment">/// The Brillig in-memory header offset baked into a constant `array_get`/`array_set` index by
+<a href=#360 id=360 data-nosnippet>360</a>/// [`brillig_array_get_and_set`][crate::ssa::opt::brillig_array_get_and_set], or `0` when indices
+<a href=#361 id=361 data-nosnippet>361</a>/// have not been shifted (ACIR, or before that pass has run).
+<a href=#362 id=362 data-nosnippet>362</a></span><span class="kw">fn </span>make_array_index_offset(dfg: <span class="kw-2">&amp;</span>DataFlowGraph, array: ValueId) -&gt; u32 {
+<a href=#363 id=363 data-nosnippet>363</a>    <span class="kw">if </span>!dfg.brillig_arrays_offset {
+<a href=#364 id=364 data-nosnippet>364</a>        <span class="kw">return </span><span class="number">0</span>;
+<a href=#365 id=365 data-nosnippet>365</a>    }
+<a href=#366 id=366 data-nosnippet>366</a>    <span class="kw">match </span><span class="kw-2">*</span>dfg.type_of_value(array) {
+<a href=#367 id=367 data-nosnippet>367</a>        Type::Array(..) =&gt; ArrayOffset::Array.to_u32(),
+<a href=#368 id=368 data-nosnippet>368</a>        Type::Vector(..) =&gt; ArrayOffset::Vector.to_u32(),
+<a href=#369 id=369 data-nosnippet>369</a>        <span class="kw">_ </span>=&gt; <span class="number">0</span>,
+<a href=#370 id=370 data-nosnippet>370</a>    }
+<a href=#371 id=371 data-nosnippet>371</a>}
+<a href=#372 id=372 data-nosnippet>372</a>
+<a href=#373 id=373 data-nosnippet>373</a><span class="attr">#[cfg(test)]
+<a href=#374 id=374 data-nosnippet>374</a></span><span class="kw">mod </span>tests {
+<a href=#375 id=375 data-nosnippet>375</a>    <span class="kw">use crate</span>::{assert_ssa_snapshot, ssa::opt::assert_ssa_does_not_change};
 <a href=#376 id=376 data-nosnippet>376</a>
-<a href=#377 id=377 data-nosnippet>377</a>    <span class="attr">#[test]
-<a href=#378 id=378 data-nosnippet>378</a>    </span><span class="kw">fn </span>optimizes_array_get_from_array_set_to_make_array_value() {
-<a href=#379 id=379 data-nosnippet>379</a>        <span class="kw">let </span>src = <span class="string">"
-<a href=#380 id=380 data-nosnippet>380</a>        acir(inline) fn main f0 {
-<a href=#381 id=381 data-nosnippet>381</a>          b0():
-<a href=#382 id=382 data-nosnippet>382</a>            v0 = make_array [Field 2, Field 4, Field 8] : [Field; 3]
-<a href=#383 id=383 data-nosnippet>383</a>            v2 = array_get v0, index u32 1 -&gt; Field
-<a href=#384 id=384 data-nosnippet>384</a>            return v2
-<a href=#385 id=385 data-nosnippet>385</a>        }
-<a href=#386 id=386 data-nosnippet>386</a>        "</span>;
-<a href=#387 id=387 data-nosnippet>387</a>        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
-<a href=#388 id=388 data-nosnippet>388</a>
-<a href=#389 id=389 data-nosnippet>389</a>        <span class="kw">let </span>ssa = ssa.array_get_optimization();
-<a href=#390 id=390 data-nosnippet>390</a>        <span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
-<a href=#391 id=391 data-nosnippet>391</a>        acir(inline) fn main f0 {
-<a href=#392 id=392 data-nosnippet>392</a>          b0():
-<a href=#393 id=393 data-nosnippet>393</a>            v3 = make_array [Field 2, Field 4, Field 8] : [Field; 3]
-<a href=#394 id=394 data-nosnippet>394</a>            return Field 4
-<a href=#395 id=395 data-nosnippet>395</a>        }
-<a href=#396 id=396 data-nosnippet>396</a>        "</span>);
-<a href=#397 id=397 data-nosnippet>397</a>    }
-<a href=#398 id=398 data-nosnippet>398</a>
-<a href=#399 id=399 data-nosnippet>399</a>    <span class="attr">#[test]
-<a href=#400 id=400 data-nosnippet>400</a>    </span><span class="kw">fn </span>does_not_optimize_array_get_from_array_set_with_different_predicate() {
-<a href=#401 id=401 data-nosnippet>401</a>        <span class="kw">let </span>src = <span class="string">"
-<a href=#402 id=402 data-nosnippet>402</a>        acir(inline) fn main f0 {
-<a href=#403 id=403 data-nosnippet>403</a>          b0(v0: [Field; 3], v10: u1, v11: u1):
-<a href=#404 id=404 data-nosnippet>404</a>            enable_side_effects v10
-<a href=#405 id=405 data-nosnippet>405</a>            v1 = array_set v0, index u32 0, value Field 1
-<a href=#406 id=406 data-nosnippet>406</a>            enable_side_effects v11
-<a href=#407 id=407 data-nosnippet>407</a>            v2 = array_get v1, index u32 0 -&gt; Field
-<a href=#408 id=408 data-nosnippet>408</a>            return v2
-<a href=#409 id=409 data-nosnippet>409</a>        }
-<a href=#410 id=410 data-nosnippet>410</a>        "</span>;
-<a href=#411 id=411 data-nosnippet>411</a>        assert_ssa_does_not_change(src, Ssa::array_get_optimization);
-<a href=#412 id=412 data-nosnippet>412</a>    }
-<a href=#413 id=413 data-nosnippet>413</a>
-<a href=#414 id=414 data-nosnippet>414</a>    <span class="attr">#[test]
-<a href=#415 id=415 data-nosnippet>415</a>    </span><span class="kw">fn </span>optimizes_array_get_from_array_set_to_set_value_under_predicate() {
-<a href=#416 id=416 data-nosnippet>416</a>        <span class="kw">let </span>src = <span class="string">"
-<a href=#417 id=417 data-nosnippet>417</a>        acir(inline) fn main f0 {
-<a href=#418 id=418 data-nosnippet>418</a>          b0(v0: [Field; 3], v10: u1, v11: u1):
-<a href=#419 id=419 data-nosnippet>419</a>            enable_side_effects v10
-<a href=#420 id=420 data-nosnippet>420</a>            v1 = array_set v0, index u32 0, value Field 1
-<a href=#421 id=421 data-nosnippet>421</a>            enable_side_effects v11
-<a href=#422 id=422 data-nosnippet>422</a>            v12 = not v10
-<a href=#423 id=423 data-nosnippet>423</a>            enable_side_effects v10
-<a href=#424 id=424 data-nosnippet>424</a>            v3 = array_get v1, index u32 0 -&gt; Field
-<a href=#425 id=425 data-nosnippet>425</a>            return v3
-<a href=#426 id=426 data-nosnippet>426</a>        }
-<a href=#427 id=427 data-nosnippet>427</a>        "</span>;
-<a href=#428 id=428 data-nosnippet>428</a>        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
-<a href=#429 id=429 data-nosnippet>429</a>
-<a href=#430 id=430 data-nosnippet>430</a>        <span class="kw">let </span>ssa = ssa.array_get_optimization();
-<a href=#431 id=431 data-nosnippet>431</a>        <span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
-<a href=#432 id=432 data-nosnippet>432</a>        acir(inline) fn main f0 {
-<a href=#433 id=433 data-nosnippet>433</a>          b0(v0: [Field; 3], v1: u1, v2: u1):
-<a href=#434 id=434 data-nosnippet>434</a>            enable_side_effects v1
-<a href=#435 id=435 data-nosnippet>435</a>            v5 = array_set v0, index u32 0, value Field 1
-<a href=#436 id=436 data-nosnippet>436</a>            enable_side_effects v2
-<a href=#437 id=437 data-nosnippet>437</a>            v6 = not v1
-<a href=#438 id=438 data-nosnippet>438</a>            enable_side_effects v1
-<a href=#439 id=439 data-nosnippet>439</a>            return Field 1
-<a href=#440 id=440 data-nosnippet>440</a>        }
-<a href=#441 id=441 data-nosnippet>441</a>        "</span>);
-<a href=#442 id=442 data-nosnippet>442</a>    }
-<a href=#443 id=443 data-nosnippet>443</a>
-<a href=#444 id=444 data-nosnippet>444</a>    <span class="attr">#[test]
-<a href=#445 id=445 data-nosnippet>445</a>    </span><span class="kw">fn </span>optimized_array_get_from_unconditional_array_set() {
-<a href=#446 id=446 data-nosnippet>446</a>        <span class="kw">let </span>src = <span class="string">"
-<a href=#447 id=447 data-nosnippet>447</a>        acir(inline) fn main f0 {
-<a href=#448 id=448 data-nosnippet>448</a>          b0(v0: [Field; 3], v10: u1, v11: u1):
-<a href=#449 id=449 data-nosnippet>449</a>            enable_side_effects u1 1
-<a href=#450 id=450 data-nosnippet>450</a>            v1 = array_set v0, index u32 0, value Field 1
-<a href=#451 id=451 data-nosnippet>451</a>            enable_side_effects v11
-<a href=#452 id=452 data-nosnippet>452</a>            v2 = array_get v1, index u32 0 -&gt; Field
-<a href=#453 id=453 data-nosnippet>453</a>            return v2
-<a href=#454 id=454 data-nosnippet>454</a>        }
-<a href=#455 id=455 data-nosnippet>455</a>        "</span>;
-<a href=#456 id=456 data-nosnippet>456</a>
-<a href=#457 id=457 data-nosnippet>457</a>        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
-<a href=#458 id=458 data-nosnippet>458</a>
-<a href=#459 id=459 data-nosnippet>459</a>        <span class="kw">let </span>ssa = ssa.array_get_optimization();
-<a href=#460 id=460 data-nosnippet>460</a>        <span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
-<a href=#461 id=461 data-nosnippet>461</a>        acir(inline) fn main f0 {
-<a href=#462 id=462 data-nosnippet>462</a>          b0(v0: [Field; 3], v1: u1, v2: u1):
-<a href=#463 id=463 data-nosnippet>463</a>            enable_side_effects u1 1
-<a href=#464 id=464 data-nosnippet>464</a>            v6 = array_set v0, index u32 0, value Field 1
-<a href=#465 id=465 data-nosnippet>465</a>            enable_side_effects v2
-<a href=#466 id=466 data-nosnippet>466</a>            return Field 1
-<a href=#467 id=467 data-nosnippet>467</a>        }
-<a href=#468 id=468 data-nosnippet>468</a>        "</span>);
-<a href=#469 id=469 data-nosnippet>469</a>    }
-<a href=#470 id=470 data-nosnippet>470</a>}</code></pre></div></section></main></body></html>
+<a href=#377 id=377 data-nosnippet>377</a>    <span class="kw">use </span><span class="kw">super</span>::Ssa;
+<a href=#378 id=378 data-nosnippet>378</a>
+<a href=#379 id=379 data-nosnippet>379</a>    <span class="attr">#[test]
+<a href=#380 id=380 data-nosnippet>380</a>    </span><span class="kw">fn </span>resolves_array_get_per_branch_against_its_own_array() {
+<a href=#381 id=381 data-nosnippet>381</a>        <span class="comment">// `v0` selects between two branches. `b1` writes index 0 and reads its own result; `b2`
+<a href=#382 id=382 data-nosnippet>382</a>        // reads the original `make_array` at index 0. Each read resolves against the array value it
+<a href=#383 id=383 data-nosnippet>383</a>        // actually names — the conditional write in `b1` is a distinct value, so it does not leak
+<a href=#384 id=384 data-nosnippet>384</a>        // into `b2`'s read. The branch where the write happened folds to `Field 99`; the branch
+<a href=#385 id=385 data-nosnippet>385</a>        // where it did not folds to the original `Field 10`.
+<a href=#386 id=386 data-nosnippet>386</a>        </span><span class="kw">let </span>src = <span class="string">"
+<a href=#387 id=387 data-nosnippet>387</a>        acir(inline) fn main f0 {
+<a href=#388 id=388 data-nosnippet>388</a>          b0(v0: u1):
+<a href=#389 id=389 data-nosnippet>389</a>            v1 = make_array [Field 10, Field 20] : [Field; 2]
+<a href=#390 id=390 data-nosnippet>390</a>            jmpif v0 then: b1(), else: b2()
+<a href=#391 id=391 data-nosnippet>391</a>          b1():
+<a href=#392 id=392 data-nosnippet>392</a>            v2 = array_set v1, index u32 0, value Field 99
+<a href=#393 id=393 data-nosnippet>393</a>            v3 = array_get v2, index u32 0 -&gt; Field
+<a href=#394 id=394 data-nosnippet>394</a>            jmp b3(v3)
+<a href=#395 id=395 data-nosnippet>395</a>          b2():
+<a href=#396 id=396 data-nosnippet>396</a>            v4 = array_get v1, index u32 0 -&gt; Field
+<a href=#397 id=397 data-nosnippet>397</a>            jmp b3(v4)
+<a href=#398 id=398 data-nosnippet>398</a>          b3(v5: Field):
+<a href=#399 id=399 data-nosnippet>399</a>            return v5
+<a href=#400 id=400 data-nosnippet>400</a>        }
+<a href=#401 id=401 data-nosnippet>401</a>        "</span>;
+<a href=#402 id=402 data-nosnippet>402</a>        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
+<a href=#403 id=403 data-nosnippet>403</a>
+<a href=#404 id=404 data-nosnippet>404</a>        <span class="kw">let </span>ssa = ssa.array_get_optimization();
+<a href=#405 id=405 data-nosnippet>405</a>        <span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
+<a href=#406 id=406 data-nosnippet>406</a>        acir(inline) fn main f0 {
+<a href=#407 id=407 data-nosnippet>407</a>          b0(v0: u1):
+<a href=#408 id=408 data-nosnippet>408</a>            v4 = make_array [Field 10, Field 20] : [Field; 2]
+<a href=#409 id=409 data-nosnippet>409</a>            jmpif v0 then: b1(), else: b2()
+<a href=#410 id=410 data-nosnippet>410</a>          b1():
+<a href=#411 id=411 data-nosnippet>411</a>            v7 = array_set v4, index u32 0, value Field 99
+<a href=#412 id=412 data-nosnippet>412</a>            jmp b3(Field 99)
+<a href=#413 id=413 data-nosnippet>413</a>          b2():
+<a href=#414 id=414 data-nosnippet>414</a>            jmp b3(Field 10)
+<a href=#415 id=415 data-nosnippet>415</a>          b3(v1: Field):
+<a href=#416 id=416 data-nosnippet>416</a>            return v1
+<a href=#417 id=417 data-nosnippet>417</a>        }
+<a href=#418 id=418 data-nosnippet>418</a>        "</span>);
+<a href=#419 id=419 data-nosnippet>419</a>    }
+<a href=#420 id=420 data-nosnippet>420</a>
+<a href=#421 id=421 data-nosnippet>421</a>    <span class="attr">#[test]
+<a href=#422 id=422 data-nosnippet>422</a>    </span><span class="kw">fn </span>does_not_resolve_array_get_of_conditional_write_merged_by_block_parameter() {
+<a href=#423 id=423 data-nosnippet>423</a>        <span class="comment">// A write that is conditional through control flow (the `array_set` only happens on the
+<a href=#424 id=424 data-nosnippet>424</a>        // `b1` path) reaches the read in `b3` through a block parameter `v3` that merges the written
+<a href=#425 id=425 data-nosnippet>425</a>        // array with the original. `v3` has no cached view, so the read is left in place: it cannot
+<a href=#426 id=426 data-nosnippet>426</a>        // be folded to either branch's value. This is the control-flow analogue of a conditional
+<a href=#427 id=427 data-nosnippet>427</a>        // write — the merge point is a block parameter, which the cache never resolves through.
+<a href=#428 id=428 data-nosnippet>428</a>        </span><span class="kw">let </span>src = <span class="string">"
+<a href=#429 id=429 data-nosnippet>429</a>        acir(inline) fn main f0 {
+<a href=#430 id=430 data-nosnippet>430</a>          b0(v0: u1):
+<a href=#431 id=431 data-nosnippet>431</a>            v1 = make_array [Field 10, Field 20] : [Field; 2]
+<a href=#432 id=432 data-nosnippet>432</a>            jmpif v0 then: b1(), else: b2()
+<a href=#433 id=433 data-nosnippet>433</a>          b1():
+<a href=#434 id=434 data-nosnippet>434</a>            v2 = array_set v1, index u32 0, value Field 99
+<a href=#435 id=435 data-nosnippet>435</a>            jmp b3(v2)
+<a href=#436 id=436 data-nosnippet>436</a>          b2():
+<a href=#437 id=437 data-nosnippet>437</a>            jmp b3(v1)
+<a href=#438 id=438 data-nosnippet>438</a>          b3(v3: [Field; 2]):
+<a href=#439 id=439 data-nosnippet>439</a>            v4 = array_get v3, index u32 0 -&gt; Field
+<a href=#440 id=440 data-nosnippet>440</a>            return v4
+<a href=#441 id=441 data-nosnippet>441</a>        }
+<a href=#442 id=442 data-nosnippet>442</a>        "</span>;
+<a href=#443 id=443 data-nosnippet>443</a>        assert_ssa_does_not_change(src, Ssa::array_get_optimization);
+<a href=#444 id=444 data-nosnippet>444</a>    }
+<a href=#445 id=445 data-nosnippet>445</a>
+<a href=#446 id=446 data-nosnippet>446</a>    <span class="attr">#[test]
+<a href=#447 id=447 data-nosnippet>447</a>    </span><span class="kw">fn </span>resolves_array_get_across_blocks() {
+<a href=#448 id=448 data-nosnippet>448</a>        <span class="comment">// `v1` is built in `b0` and read in `b1`. The `array_set` is unconditional, so the read of
+<a href=#449 id=449 data-nosnippet>449</a>        // the same index is folded to the set value even though it is in a different block: the
+<a href=#450 id=450 data-nosnippet>450</a>        // cache is kept across blocks and the predicate comparison stays sound (see the module
+<a href=#451 id=451 data-nosnippet>451</a>        // docs).
+<a href=#452 id=452 data-nosnippet>452</a>        </span><span class="kw">let </span>src = <span class="string">"
+<a href=#453 id=453 data-nosnippet>453</a>        acir(inline) fn main f0 {
+<a href=#454 id=454 data-nosnippet>454</a>          b0(v0: [Field; 3]):
+<a href=#455 id=455 data-nosnippet>455</a>            v1 = array_set v0, index u32 0, value Field 1
+<a href=#456 id=456 data-nosnippet>456</a>            jmp b1()
+<a href=#457 id=457 data-nosnippet>457</a>          b1():
+<a href=#458 id=458 data-nosnippet>458</a>            v2 = array_get v1, index u32 0 -&gt; Field
+<a href=#459 id=459 data-nosnippet>459</a>            return v2
+<a href=#460 id=460 data-nosnippet>460</a>        }
+<a href=#461 id=461 data-nosnippet>461</a>        "</span>;
+<a href=#462 id=462 data-nosnippet>462</a>        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
+<a href=#463 id=463 data-nosnippet>463</a>
+<a href=#464 id=464 data-nosnippet>464</a>        <span class="kw">let </span>ssa = ssa.array_get_optimization();
+<a href=#465 id=465 data-nosnippet>465</a>        <span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
+<a href=#466 id=466 data-nosnippet>466</a>        acir(inline) fn main f0 {
+<a href=#467 id=467 data-nosnippet>467</a>          b0(v0: [Field; 3]):
+<a href=#468 id=468 data-nosnippet>468</a>            v3 = array_set v0, index u32 0, value Field 1
+<a href=#469 id=469 data-nosnippet>469</a>            jmp b1()
+<a href=#470 id=470 data-nosnippet>470</a>          b1():
+<a href=#471 id=471 data-nosnippet>471</a>            return Field 1
+<a href=#472 id=472 data-nosnippet>472</a>        }
+<a href=#473 id=473 data-nosnippet>473</a>        "</span>);
+<a href=#474 id=474 data-nosnippet>474</a>    }
+<a href=#475 id=475 data-nosnippet>475</a>
+<a href=#476 id=476 data-nosnippet>476</a>    <span class="attr">#[test]
+<a href=#477 id=477 data-nosnippet>477</a>    </span><span class="kw">fn </span>resolves_array_get_at_other_index_across_blocks() {
+<a href=#478 id=478 data-nosnippet>478</a>        <span class="comment">// The `array_set` in `b0` writes a different index than the `b1` read, so the read skips
+<a href=#479 id=479 data-nosnippet>479</a>        // through it to the underlying parameter and reads from `v0` directly.
+<a href=#480 id=480 data-nosnippet>480</a>        </span><span class="kw">let </span>src = <span class="string">"
+<a href=#481 id=481 data-nosnippet>481</a>        acir(inline) fn main f0 {
+<a href=#482 id=482 data-nosnippet>482</a>          b0(v0: [Field; 3]):
+<a href=#483 id=483 data-nosnippet>483</a>            v1 = array_set v0, index u32 1, value Field 9
+<a href=#484 id=484 data-nosnippet>484</a>            jmp b1()
+<a href=#485 id=485 data-nosnippet>485</a>          b1():
+<a href=#486 id=486 data-nosnippet>486</a>            v2 = array_get v1, index u32 0 -&gt; Field
+<a href=#487 id=487 data-nosnippet>487</a>            return v2
+<a href=#488 id=488 data-nosnippet>488</a>        }
+<a href=#489 id=489 data-nosnippet>489</a>        "</span>;
+<a href=#490 id=490 data-nosnippet>490</a>        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
+<a href=#491 id=491 data-nosnippet>491</a>
+<a href=#492 id=492 data-nosnippet>492</a>        <span class="kw">let </span>ssa = ssa.array_get_optimization();
+<a href=#493 id=493 data-nosnippet>493</a>        <span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
+<a href=#494 id=494 data-nosnippet>494</a>        acir(inline) fn main f0 {
+<a href=#495 id=495 data-nosnippet>495</a>          b0(v0: [Field; 3]):
+<a href=#496 id=496 data-nosnippet>496</a>            v3 = array_set v0, index u32 1, value Field 9
+<a href=#497 id=497 data-nosnippet>497</a>            jmp b1()
+<a href=#498 id=498 data-nosnippet>498</a>          b1():
+<a href=#499 id=499 data-nosnippet>499</a>            v5 = array_get v0, index u32 0 -&gt; Field
+<a href=#500 id=500 data-nosnippet>500</a>            return v5
+<a href=#501 id=501 data-nosnippet>501</a>        }
+<a href=#502 id=502 data-nosnippet>502</a>        "</span>);
+<a href=#503 id=503 data-nosnippet>503</a>    }
+<a href=#504 id=504 data-nosnippet>504</a>
+<a href=#505 id=505 data-nosnippet>505</a>    <span class="attr">#[test]
+<a href=#506 id=506 data-nosnippet>506</a>    </span><span class="kw">fn </span>resolves_array_get_from_make_array_across_blocks() {
+<a href=#507 id=507 data-nosnippet>507</a>        <span class="comment">// A `make_array` in `b0` is read in `b1`; the element resolves to the literal.
+<a href=#508 id=508 data-nosnippet>508</a>        </span><span class="kw">let </span>src = <span class="string">"
+<a href=#509 id=509 data-nosnippet>509</a>        acir(inline) fn main f0 {
+<a href=#510 id=510 data-nosnippet>510</a>          b0():
+<a href=#511 id=511 data-nosnippet>511</a>            v0 = make_array [Field 2, Field 4] : [Field; 2]
+<a href=#512 id=512 data-nosnippet>512</a>            jmp b1()
+<a href=#513 id=513 data-nosnippet>513</a>          b1():
+<a href=#514 id=514 data-nosnippet>514</a>            v1 = array_get v0, index u32 0 -&gt; Field
+<a href=#515 id=515 data-nosnippet>515</a>            return v1
+<a href=#516 id=516 data-nosnippet>516</a>        }
+<a href=#517 id=517 data-nosnippet>517</a>        "</span>;
+<a href=#518 id=518 data-nosnippet>518</a>        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
+<a href=#519 id=519 data-nosnippet>519</a>
+<a href=#520 id=520 data-nosnippet>520</a>        <span class="kw">let </span>ssa = ssa.array_get_optimization();
+<a href=#521 id=521 data-nosnippet>521</a>        <span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
+<a href=#522 id=522 data-nosnippet>522</a>        acir(inline) fn main f0 {
+<a href=#523 id=523 data-nosnippet>523</a>          b0():
+<a href=#524 id=524 data-nosnippet>524</a>            v2 = make_array [Field 2, Field 4] : [Field; 2]
+<a href=#525 id=525 data-nosnippet>525</a>            jmp b1()
+<a href=#526 id=526 data-nosnippet>526</a>          b1():
+<a href=#527 id=527 data-nosnippet>527</a>            return Field 2
+<a href=#528 id=528 data-nosnippet>528</a>        }
+<a href=#529 id=529 data-nosnippet>529</a>        "</span>);
+<a href=#530 id=530 data-nosnippet>530</a>    }
+<a href=#531 id=531 data-nosnippet>531</a>
+<a href=#532 id=532 data-nosnippet>532</a>    <span class="attr">#[test]
+<a href=#533 id=533 data-nosnippet>533</a>    </span><span class="kw">fn </span>resolves_array_get_across_blocks_beyond_walk_limit() {
+<a href=#534 id=534 data-nosnippet>534</a>        <span class="comment">// A chain of seven `array_set`s spanning two blocks: the read of index 0 is eight hops back
+<a href=#535 id=535 data-nosnippet>535</a>        // from the read, beyond the bounded walk's old `max_tries = 5`. The cache resolves it
+<a href=#536 id=536 data-nosnippet>536</a>        // regardless of depth, so the chain folds fully.
+<a href=#537 id=537 data-nosnippet>537</a>        </span><span class="kw">let </span>src = <span class="string">"
+<a href=#538 id=538 data-nosnippet>538</a>        acir(inline) fn main f0 {
+<a href=#539 id=539 data-nosnippet>539</a>          b0(v0: [Field; 8]):
+<a href=#540 id=540 data-nosnippet>540</a>            v1 = array_set v0, index u32 7, value Field 7
+<a href=#541 id=541 data-nosnippet>541</a>            v2 = array_set v1, index u32 6, value Field 6
+<a href=#542 id=542 data-nosnippet>542</a>            v3 = array_set v2, index u32 5, value Field 5
+<a href=#543 id=543 data-nosnippet>543</a>            v4 = array_set v3, index u32 4, value Field 4
+<a href=#544 id=544 data-nosnippet>544</a>            jmp b1()
+<a href=#545 id=545 data-nosnippet>545</a>          b1():
+<a href=#546 id=546 data-nosnippet>546</a>            v5 = array_set v4, index u32 3, value Field 3
+<a href=#547 id=547 data-nosnippet>547</a>            v6 = array_set v5, index u32 2, value Field 2
+<a href=#548 id=548 data-nosnippet>548</a>            v7 = array_set v6, index u32 0, value Field 1
+<a href=#549 id=549 data-nosnippet>549</a>            v8 = array_get v7, index u32 0 -&gt; Field
+<a href=#550 id=550 data-nosnippet>550</a>            return v8
+<a href=#551 id=551 data-nosnippet>551</a>        }
+<a href=#552 id=552 data-nosnippet>552</a>        "</span>;
+<a href=#553 id=553 data-nosnippet>553</a>        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
+<a href=#554 id=554 data-nosnippet>554</a>
+<a href=#555 id=555 data-nosnippet>555</a>        <span class="kw">let </span>ssa = ssa.array_get_optimization();
+<a href=#556 id=556 data-nosnippet>556</a>        <span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
+<a href=#557 id=557 data-nosnippet>557</a>        acir(inline) fn main f0 {
+<a href=#558 id=558 data-nosnippet>558</a>          b0(v0: [Field; 8]):
+<a href=#559 id=559 data-nosnippet>559</a>            v3 = array_set v0, index u32 7, value Field 7
+<a href=#560 id=560 data-nosnippet>560</a>            v6 = array_set v3, index u32 6, value Field 6
+<a href=#561 id=561 data-nosnippet>561</a>            v9 = array_set v6, index u32 5, value Field 5
+<a href=#562 id=562 data-nosnippet>562</a>            v12 = array_set v9, index u32 4, value Field 4
+<a href=#563 id=563 data-nosnippet>563</a>            jmp b1()
+<a href=#564 id=564 data-nosnippet>564</a>          b1():
+<a href=#565 id=565 data-nosnippet>565</a>            v15 = array_set v12, index u32 3, value Field 3
+<a href=#566 id=566 data-nosnippet>566</a>            v18 = array_set v15, index u32 2, value Field 2
+<a href=#567 id=567 data-nosnippet>567</a>            v21 = array_set v18, index u32 0, value Field 1
+<a href=#568 id=568 data-nosnippet>568</a>            return Field 1
+<a href=#569 id=569 data-nosnippet>569</a>        }
+<a href=#570 id=570 data-nosnippet>570</a>        "</span>);
+<a href=#571 id=571 data-nosnippet>571</a>    }
+<a href=#572 id=572 data-nosnippet>572</a>
+<a href=#573 id=573 data-nosnippet>573</a>    <span class="attr">#[test]
+<a href=#574 id=574 data-nosnippet>574</a>    </span><span class="kw">fn </span>does_not_resolve_array_get_through_block_parameter() {
+<a href=#575 id=575 data-nosnippet>575</a>        <span class="comment">// The array reaches `b1` as a block parameter, not as the `array_set` result, so the read
+<a href=#576 id=576 data-nosnippet>576</a>        // has no cached view to resolve against and is left untouched. Values that flow across a
+<a href=#577 id=577 data-nosnippet>577</a>        // block parameter (a phi) get a fresh id, so the cache never resolves a read against a
+<a href=#578 id=578 data-nosnippet>578</a>        // write from a different control-flow path.
+<a href=#579 id=579 data-nosnippet>579</a>        </span><span class="kw">let </span>src = <span class="string">"
+<a href=#580 id=580 data-nosnippet>580</a>        acir(inline) fn main f0 {
+<a href=#581 id=581 data-nosnippet>581</a>          b0(v0: [Field; 3]):
+<a href=#582 id=582 data-nosnippet>582</a>            v1 = array_set v0, index u32 0, value Field 1
+<a href=#583 id=583 data-nosnippet>583</a>            jmp b1(v1)
+<a href=#584 id=584 data-nosnippet>584</a>          b1(v2: [Field; 3]):
+<a href=#585 id=585 data-nosnippet>585</a>            v3 = array_get v2, index u32 0 -&gt; Field
+<a href=#586 id=586 data-nosnippet>586</a>            return v3
+<a href=#587 id=587 data-nosnippet>587</a>        }
+<a href=#588 id=588 data-nosnippet>588</a>        "</span>;
+<a href=#589 id=589 data-nosnippet>589</a>        assert_ssa_does_not_change(src, Ssa::array_get_optimization);
+<a href=#590 id=590 data-nosnippet>590</a>    }
+<a href=#591 id=591 data-nosnippet>591</a>
+<a href=#592 id=592 data-nosnippet>592</a>    <span class="attr">#[test]
+<a href=#593 id=593 data-nosnippet>593</a>    </span><span class="kw">fn </span>does_not_resolve_array_get_after_dynamic_array_set() {
+<a href=#594 id=594 data-nosnippet>594</a>        <span class="comment">// A dynamic-index `array_set` may write any element, so its result is left uncached and
+<a href=#595 id=595 data-nosnippet>595</a>        // resolves as `Unknown`. The read of index 0 must not fold to the `Field 1` written further
+<a href=#596 id=596 data-nosnippet>596</a>        // up the chain — the dynamic write could have clobbered index 0.
+<a href=#597 id=597 data-nosnippet>597</a>        </span><span class="kw">let </span>src = <span class="string">"
+<a href=#598 id=598 data-nosnippet>598</a>        acir(inline) fn main f0 {
+<a href=#599 id=599 data-nosnippet>599</a>          b0(v0: [Field; 3], v1: u32):
+<a href=#600 id=600 data-nosnippet>600</a>            v2 = array_set v0, index u32 0, value Field 1
+<a href=#601 id=601 data-nosnippet>601</a>            v3 = array_set v2, index v1, value Field 2
+<a href=#602 id=602 data-nosnippet>602</a>            v4 = array_get v3, index u32 0 -&gt; Field
+<a href=#603 id=603 data-nosnippet>603</a>            return v4
+<a href=#604 id=604 data-nosnippet>604</a>        }
+<a href=#605 id=605 data-nosnippet>605</a>        "</span>;
+<a href=#606 id=606 data-nosnippet>606</a>        assert_ssa_does_not_change(src, Ssa::array_get_optimization);
+<a href=#607 id=607 data-nosnippet>607</a>    }
+<a href=#608 id=608 data-nosnippet>608</a>
+<a href=#609 id=609 data-nosnippet>609</a>    <span class="attr">#[test]
+<a href=#610 id=610 data-nosnippet>610</a>    </span><span class="kw">fn </span>does_not_fall_through_to_base_when_known_element_predicate_differs() {
+<a href=#611 id=611 data-nosnippet>611</a>        <span class="comment">// The view for `v5` has index 0 written under `v4` (over a `make_array` base). The read is
+<a href=#612 id=612 data-nosnippet>612</a>        // under a different predicate `v6`, so the known element cannot be used. Because index 0 has
+<a href=#613 id=613 data-nosnippet>613</a>        // been written under some predicate the write may have happened, so the read must not fall
+<a href=#614 id=614 data-nosnippet>614</a>        // through to `base` and fold to the original `make_array`'s `Field 1`; the `array_get` is
+<a href=#615 id=615 data-nosnippet>615</a>        // left in place instead.
+<a href=#616 id=616 data-nosnippet>616</a>        </span><span class="kw">let </span>src = <span class="string">"
+<a href=#617 id=617 data-nosnippet>617</a>        acir(inline) fn main f0 {
+<a href=#618 id=618 data-nosnippet>618</a>          b0(v4: u1, v6: u1):
+<a href=#619 id=619 data-nosnippet>619</a>            v1 = make_array [Field 1, Field 2] : [Field; 2]
+<a href=#620 id=620 data-nosnippet>620</a>            v2 = array_set v1, index u32 0, value Field 10
+<a href=#621 id=621 data-nosnippet>621</a>            v3 = array_set v2, index u32 1, value Field 20
+<a href=#622 id=622 data-nosnippet>622</a>            enable_side_effects v4
+<a href=#623 id=623 data-nosnippet>623</a>            v5 = array_set v3, index u32 0, value Field 30
+<a href=#624 id=624 data-nosnippet>624</a>            enable_side_effects v6
+<a href=#625 id=625 data-nosnippet>625</a>            v7 = array_get v5, index u32 0 -&gt; Field
+<a href=#626 id=626 data-nosnippet>626</a>            return v7
+<a href=#627 id=627 data-nosnippet>627</a>        }
+<a href=#628 id=628 data-nosnippet>628</a>        "</span>;
+<a href=#629 id=629 data-nosnippet>629</a>        assert_ssa_does_not_change(src, Ssa::array_get_optimization);
+<a href=#630 id=630 data-nosnippet>630</a>    }
+<a href=#631 id=631 data-nosnippet>631</a>
+<a href=#632 id=632 data-nosnippet>632</a>    <span class="attr">#[test]
+<a href=#633 id=633 data-nosnippet>633</a>    </span><span class="kw">fn </span>does_not_resolve_array_get_beyond_param_length() {
+<a href=#634 id=634 data-nosnippet>634</a>        <span class="comment">// The read index is outside the parameter's length, so the `ReadFrom` base cannot vouch for
+<a href=#635 id=635 data-nosnippet>635</a>        // it and the read is left in place rather than rewritten to read the parameter out of
+<a href=#636 id=636 data-nosnippet>636</a>        // bounds.
+<a href=#637 id=637 data-nosnippet>637</a>        </span><span class="kw">let </span>src = <span class="string">"
+<a href=#638 id=638 data-nosnippet>638</a>        acir(inline) fn main f0 {
+<a href=#639 id=639 data-nosnippet>639</a>          b0(v0: [Field; 2]):
+<a href=#640 id=640 data-nosnippet>640</a>            v1 = array_set v0, index u32 0, value Field 1
+<a href=#641 id=641 data-nosnippet>641</a>            v2 = array_get v1, index u32 2 -&gt; Field
+<a href=#642 id=642 data-nosnippet>642</a>            return v2
+<a href=#643 id=643 data-nosnippet>643</a>        }
+<a href=#644 id=644 data-nosnippet>644</a>        "</span>;
+<a href=#645 id=645 data-nosnippet>645</a>        assert_ssa_does_not_change(src, Ssa::array_get_optimization);
+<a href=#646 id=646 data-nosnippet>646</a>    }
+<a href=#647 id=647 data-nosnippet>647</a>
+<a href=#648 id=648 data-nosnippet>648</a>    <span class="attr">#[test]
+<a href=#649 id=649 data-nosnippet>649</a>    #[cfg(debug_assertions)]
+<a href=#650 id=650 data-nosnippet>650</a>    #[should_panic(expected = <span class="string">"enable_side_effects instruction"</span>)]
+<a href=#651 id=651 data-nosnippet>651</a>    </span><span class="kw">fn </span>rejects_enable_side_effects_in_multi_block_function() {
+<a href=#652 id=652 data-nosnippet>652</a>        <span class="comment">// The cross-block cache assumes a non-trivial side-effects predicate is confined to a
+<a href=#653 id=653 data-nosnippet>653</a>        // single block, which holds exactly when a multi-block function contains no
+<a href=#654 id=654 data-nosnippet>654</a>        // `enable_side_effects` instruction (those appear only after flattening, which yields a
+<a href=#655 id=655 data-nosnippet>655</a>        // single block). A multi-block function carrying one breaks that invariant, so the pass
+<a href=#656 id=656 data-nosnippet>656</a>        // must reject it.
+<a href=#657 id=657 data-nosnippet>657</a>        //
+<a href=#658 id=658 data-nosnippet>658</a>        // This malformed shape is normally rejected by SSA validation, which does not run between
+<a href=#659 id=659 data-nosnippet>659</a>        // every pass, so parse it without validation to exercise the pass's own guard directly.
+<a href=#660 id=660 data-nosnippet>660</a>        </span><span class="kw">let </span>src = <span class="string">"
+<a href=#661 id=661 data-nosnippet>661</a>        acir(inline) fn main f0 {
+<a href=#662 id=662 data-nosnippet>662</a>          b0(v0: u1, v1: [Field; 3]):
+<a href=#663 id=663 data-nosnippet>663</a>            enable_side_effects v0
+<a href=#664 id=664 data-nosnippet>664</a>            v2 = array_set v1, index u32 0, value Field 1
+<a href=#665 id=665 data-nosnippet>665</a>            jmp b1()
+<a href=#666 id=666 data-nosnippet>666</a>          b1():
+<a href=#667 id=667 data-nosnippet>667</a>            return
+<a href=#668 id=668 data-nosnippet>668</a>        }
+<a href=#669 id=669 data-nosnippet>669</a>        "</span>;
+<a href=#670 id=670 data-nosnippet>670</a>        <span class="kw">let </span>ssa = Ssa::from_str_no_validation(src).unwrap();
+<a href=#671 id=671 data-nosnippet>671</a>        <span class="kw">let _ </span>= ssa.array_get_optimization();
+<a href=#672 id=672 data-nosnippet>672</a>    }
+<a href=#673 id=673 data-nosnippet>673</a>
+<a href=#674 id=674 data-nosnippet>674</a>    <span class="attr">#[test]
+<a href=#675 id=675 data-nosnippet>675</a>    </span><span class="kw">fn </span>optimizes_array_get_from_array_set_to_set_value_under_default_predicate() {
+<a href=#676 id=676 data-nosnippet>676</a>        <span class="kw">let </span>src = <span class="string">"
+<a href=#677 id=677 data-nosnippet>677</a>        acir(inline) fn main f0 {
+<a href=#678 id=678 data-nosnippet>678</a>          b0(v0: [Field; 3]):
+<a href=#679 id=679 data-nosnippet>679</a>            v1 = array_set v0, index u32 0, value Field 1
+<a href=#680 id=680 data-nosnippet>680</a>            v2 = array_get v1, index u32 0 -&gt; Field
+<a href=#681 id=681 data-nosnippet>681</a>            return v2
+<a href=#682 id=682 data-nosnippet>682</a>        }
+<a href=#683 id=683 data-nosnippet>683</a>        "</span>;
+<a href=#684 id=684 data-nosnippet>684</a>        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
+<a href=#685 id=685 data-nosnippet>685</a>
+<a href=#686 id=686 data-nosnippet>686</a>        <span class="kw">let </span>ssa = ssa.array_get_optimization();
+<a href=#687 id=687 data-nosnippet>687</a>        <span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
+<a href=#688 id=688 data-nosnippet>688</a>        acir(inline) fn main f0 {
+<a href=#689 id=689 data-nosnippet>689</a>          b0(v0: [Field; 3]):
+<a href=#690 id=690 data-nosnippet>690</a>            v3 = array_set v0, index u32 0, value Field 1
+<a href=#691 id=691 data-nosnippet>691</a>            return Field 1
+<a href=#692 id=692 data-nosnippet>692</a>        }
+<a href=#693 id=693 data-nosnippet>693</a>        "</span>);
+<a href=#694 id=694 data-nosnippet>694</a>    }
+<a href=#695 id=695 data-nosnippet>695</a>
+<a href=#696 id=696 data-nosnippet>696</a>    <span class="attr">#[test]
+<a href=#697 id=697 data-nosnippet>697</a>    </span><span class="kw">fn </span>optimizes_array_get_from_array_set_to_array_get_from_param() {
+<a href=#698 id=698 data-nosnippet>698</a>        <span class="kw">let </span>src = <span class="string">"
+<a href=#699 id=699 data-nosnippet>699</a>        acir(inline) fn main f0 {
+<a href=#700 id=700 data-nosnippet>700</a>          b0(v0: [Field; 3]):
+<a href=#701 id=701 data-nosnippet>701</a>            v1 = array_set v0, index u32 1, value Field 1
+<a href=#702 id=702 data-nosnippet>702</a>            v2 = array_get v1, index u32 0 -&gt; Field
+<a href=#703 id=703 data-nosnippet>703</a>            return v2
+<a href=#704 id=704 data-nosnippet>704</a>        }
+<a href=#705 id=705 data-nosnippet>705</a>        "</span>;
+<a href=#706 id=706 data-nosnippet>706</a>        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
+<a href=#707 id=707 data-nosnippet>707</a>
+<a href=#708 id=708 data-nosnippet>708</a>        <span class="kw">let </span>ssa = ssa.array_get_optimization();
+<a href=#709 id=709 data-nosnippet>709</a>        <span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
+<a href=#710 id=710 data-nosnippet>710</a>        acir(inline) fn main f0 {
+<a href=#711 id=711 data-nosnippet>711</a>          b0(v0: [Field; 3]):
+<a href=#712 id=712 data-nosnippet>712</a>            v3 = array_set v0, index u32 1, value Field 1
+<a href=#713 id=713 data-nosnippet>713</a>            v5 = array_get v0, index u32 0 -&gt; Field
+<a href=#714 id=714 data-nosnippet>714</a>            return v5
+<a href=#715 id=715 data-nosnippet>715</a>        }
+<a href=#716 id=716 data-nosnippet>716</a>        "</span>);
+<a href=#717 id=717 data-nosnippet>717</a>    }
+<a href=#718 id=718 data-nosnippet>718</a>
+<a href=#719 id=719 data-nosnippet>719</a>    <span class="attr">#[test]
+<a href=#720 id=720 data-nosnippet>720</a>    </span><span class="kw">fn </span>optimizes_array_get_from_array_set_to_make_array_value() {
+<a href=#721 id=721 data-nosnippet>721</a>        <span class="kw">let </span>src = <span class="string">"
+<a href=#722 id=722 data-nosnippet>722</a>        acir(inline) fn main f0 {
+<a href=#723 id=723 data-nosnippet>723</a>          b0():
+<a href=#724 id=724 data-nosnippet>724</a>            v0 = make_array [Field 2, Field 4, Field 8] : [Field; 3]
+<a href=#725 id=725 data-nosnippet>725</a>            v2 = array_get v0, index u32 1 -&gt; Field
+<a href=#726 id=726 data-nosnippet>726</a>            return v2
+<a href=#727 id=727 data-nosnippet>727</a>        }
+<a href=#728 id=728 data-nosnippet>728</a>        "</span>;
+<a href=#729 id=729 data-nosnippet>729</a>        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
+<a href=#730 id=730 data-nosnippet>730</a>
+<a href=#731 id=731 data-nosnippet>731</a>        <span class="kw">let </span>ssa = ssa.array_get_optimization();
+<a href=#732 id=732 data-nosnippet>732</a>        <span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
+<a href=#733 id=733 data-nosnippet>733</a>        acir(inline) fn main f0 {
+<a href=#734 id=734 data-nosnippet>734</a>          b0():
+<a href=#735 id=735 data-nosnippet>735</a>            v3 = make_array [Field 2, Field 4, Field 8] : [Field; 3]
+<a href=#736 id=736 data-nosnippet>736</a>            return Field 4
+<a href=#737 id=737 data-nosnippet>737</a>        }
+<a href=#738 id=738 data-nosnippet>738</a>        "</span>);
+<a href=#739 id=739 data-nosnippet>739</a>    }
+<a href=#740 id=740 data-nosnippet>740</a>
+<a href=#741 id=741 data-nosnippet>741</a>    <span class="attr">#[test]
+<a href=#742 id=742 data-nosnippet>742</a>    </span><span class="kw">fn </span>does_not_optimize_array_get_from_array_set_with_different_predicate() {
+<a href=#743 id=743 data-nosnippet>743</a>        <span class="kw">let </span>src = <span class="string">"
+<a href=#744 id=744 data-nosnippet>744</a>        acir(inline) fn main f0 {
+<a href=#745 id=745 data-nosnippet>745</a>          b0(v0: [Field; 3], v10: u1, v11: u1):
+<a href=#746 id=746 data-nosnippet>746</a>            enable_side_effects v10
+<a href=#747 id=747 data-nosnippet>747</a>            v1 = array_set v0, index u32 0, value Field 1
+<a href=#748 id=748 data-nosnippet>748</a>            enable_side_effects v11
+<a href=#749 id=749 data-nosnippet>749</a>            v2 = array_get v1, index u32 0 -&gt; Field
+<a href=#750 id=750 data-nosnippet>750</a>            return v2
+<a href=#751 id=751 data-nosnippet>751</a>        }
+<a href=#752 id=752 data-nosnippet>752</a>        "</span>;
+<a href=#753 id=753 data-nosnippet>753</a>        assert_ssa_does_not_change(src, Ssa::array_get_optimization);
+<a href=#754 id=754 data-nosnippet>754</a>    }
+<a href=#755 id=755 data-nosnippet>755</a>
+<a href=#756 id=756 data-nosnippet>756</a>    <span class="attr">#[test]
+<a href=#757 id=757 data-nosnippet>757</a>    </span><span class="kw">fn </span>optimizes_array_get_from_array_set_to_set_value_under_predicate() {
+<a href=#758 id=758 data-nosnippet>758</a>        <span class="kw">let </span>src = <span class="string">"
+<a href=#759 id=759 data-nosnippet>759</a>        acir(inline) fn main f0 {
+<a href=#760 id=760 data-nosnippet>760</a>          b0(v0: [Field; 3], v10: u1, v11: u1):
+<a href=#761 id=761 data-nosnippet>761</a>            enable_side_effects v10
+<a href=#762 id=762 data-nosnippet>762</a>            v1 = array_set v0, index u32 0, value Field 1
+<a href=#763 id=763 data-nosnippet>763</a>            enable_side_effects v11
+<a href=#764 id=764 data-nosnippet>764</a>            v12 = not v10
+<a href=#765 id=765 data-nosnippet>765</a>            enable_side_effects v10
+<a href=#766 id=766 data-nosnippet>766</a>            v3 = array_get v1, index u32 0 -&gt; Field
+<a href=#767 id=767 data-nosnippet>767</a>            return v3
+<a href=#768 id=768 data-nosnippet>768</a>        }
+<a href=#769 id=769 data-nosnippet>769</a>        "</span>;
+<a href=#770 id=770 data-nosnippet>770</a>        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
+<a href=#771 id=771 data-nosnippet>771</a>
+<a href=#772 id=772 data-nosnippet>772</a>        <span class="kw">let </span>ssa = ssa.array_get_optimization();
+<a href=#773 id=773 data-nosnippet>773</a>        <span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
+<a href=#774 id=774 data-nosnippet>774</a>        acir(inline) fn main f0 {
+<a href=#775 id=775 data-nosnippet>775</a>          b0(v0: [Field; 3], v1: u1, v2: u1):
+<a href=#776 id=776 data-nosnippet>776</a>            enable_side_effects v1
+<a href=#777 id=777 data-nosnippet>777</a>            v5 = array_set v0, index u32 0, value Field 1
+<a href=#778 id=778 data-nosnippet>778</a>            enable_side_effects v2
+<a href=#779 id=779 data-nosnippet>779</a>            v6 = not v1
+<a href=#780 id=780 data-nosnippet>780</a>            enable_side_effects v1
+<a href=#781 id=781 data-nosnippet>781</a>            return Field 1
+<a href=#782 id=782 data-nosnippet>782</a>        }
+<a href=#783 id=783 data-nosnippet>783</a>        "</span>);
+<a href=#784 id=784 data-nosnippet>784</a>    }
+<a href=#785 id=785 data-nosnippet>785</a>
+<a href=#786 id=786 data-nosnippet>786</a>    <span class="attr">#[test]
+<a href=#787 id=787 data-nosnippet>787</a>    </span><span class="kw">fn </span>optimized_array_get_from_unconditional_array_set() {
+<a href=#788 id=788 data-nosnippet>788</a>        <span class="kw">let </span>src = <span class="string">"
+<a href=#789 id=789 data-nosnippet>789</a>        acir(inline) fn main f0 {
+<a href=#790 id=790 data-nosnippet>790</a>          b0(v0: [Field; 3], v10: u1, v11: u1):
+<a href=#791 id=791 data-nosnippet>791</a>            enable_side_effects u1 1
+<a href=#792 id=792 data-nosnippet>792</a>            v1 = array_set v0, index u32 0, value Field 1
+<a href=#793 id=793 data-nosnippet>793</a>            enable_side_effects v11
+<a href=#794 id=794 data-nosnippet>794</a>            v2 = array_get v1, index u32 0 -&gt; Field
+<a href=#795 id=795 data-nosnippet>795</a>            return v2
+<a href=#796 id=796 data-nosnippet>796</a>        }
+<a href=#797 id=797 data-nosnippet>797</a>        "</span>;
+<a href=#798 id=798 data-nosnippet>798</a>
+<a href=#799 id=799 data-nosnippet>799</a>        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
+<a href=#800 id=800 data-nosnippet>800</a>
+<a href=#801 id=801 data-nosnippet>801</a>        <span class="kw">let </span>ssa = ssa.array_get_optimization();
+<a href=#802 id=802 data-nosnippet>802</a>        <span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
+<a href=#803 id=803 data-nosnippet>803</a>        acir(inline) fn main f0 {
+<a href=#804 id=804 data-nosnippet>804</a>          b0(v0: [Field; 3], v1: u1, v2: u1):
+<a href=#805 id=805 data-nosnippet>805</a>            enable_side_effects u1 1
+<a href=#806 id=806 data-nosnippet>806</a>            v6 = array_set v0, index u32 0, value Field 1
+<a href=#807 id=807 data-nosnippet>807</a>            enable_side_effects v2
+<a href=#808 id=808 data-nosnippet>808</a>            return Field 1
+<a href=#809 id=809 data-nosnippet>809</a>        }
+<a href=#810 id=810 data-nosnippet>810</a>        "</span>);
+<a href=#811 id=811 data-nosnippet>811</a>    }
+<a href=#812 id=812 data-nosnippet>812</a>}</code></pre></div></section></main></body></html>

@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":["ArrayGetOptimizationResult"],"fn":["make_array_index_offset","try_optimize_array_get_from_previous_instructions"],"struct":["ArrayGetOptimizationSideEffects"]};
+window.SIDEBAR_ITEMS = {"enum":["ArrayGetOptimizationResult"],"fn":["array_get_optimization_pre_check","array_view","constant_index","make_array_index_offset","try_optimize_array_get_from_previous_instructions"],"mod":["array_view"],"struct":["ArrayGetOptimizationSideEffects"]};
