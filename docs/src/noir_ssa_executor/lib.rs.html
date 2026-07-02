@@ -20,7 +20,7 @@
 <a href=#20 id=20 data-nosnippet>20</a>    <span class="kw">let </span>ssa = Ssa::from_str(<span class="kw-2">&amp;</span>ssa);
 <a href=#21 id=21 data-nosnippet>21</a>    <span class="kw">match </span>ssa {
 <a href=#22 id=22 data-nosnippet>22</a>        <span class="prelude-val">Ok</span>(ssa) =&gt; {
-<a href=#23 id=23 data-nosnippet>23</a>            validate_ssa(<span class="kw-2">&amp;</span>ssa);
+<a href=#23 id=23 data-nosnippet>23</a>            validate_ssa(<span class="kw-2">&amp;</span>ssa, <span class="bool-val">true</span>);
 <a href=#24 id=24 data-nosnippet>24</a>
 <a href=#25 id=25 data-nosnippet>25</a>            <span class="kw">let </span>compiled_program = compile_from_ssa(ssa, <span class="kw-2">&amp;</span>compile_options);
 <a href=#26 id=26 data-nosnippet>26</a>            <span class="kw">match </span>compiled_program {

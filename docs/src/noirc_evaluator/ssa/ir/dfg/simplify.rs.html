@@ -691,7 +691,7 @@
 <a href=#691 id=691 data-nosnippet>691</a>        "</span>;
 <a href=#692 id=692 data-nosnippet>692</a>        <span class="kw">let </span>ssa = Ssa::from_str_simplifying(src).unwrap();
 <a href=#693 id=693 data-nosnippet>693</a>        <span class="kw">let </span>ssa = ssa.array_get_optimization();
-<a href=#694 id=694 data-nosnippet>694</a>        <span class="kw">crate</span>::ssa::ssa_gen::validate_ssa(<span class="kw-2">&amp;</span>ssa);
+<a href=#694 id=694 data-nosnippet>694</a>        <span class="kw">crate</span>::ssa::ssa_gen::validate_ssa(<span class="kw-2">&amp;</span>ssa, <span class="bool-val">true</span>);
 <a href=#695 id=695 data-nosnippet>695</a>    }
 <a href=#696 id=696 data-nosnippet>696</a>
 <a href=#697 id=697 data-nosnippet>697</a>    <span class="attr">#[test]

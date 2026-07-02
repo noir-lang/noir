@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"constant":["PKG_VERSION"],"enum":["SsaCommand"],"fn":["parse_ssa","read_source","ssa_passes","start_cli","write_output"],"mod":["interpret_cmd","transform_cmd","visualize_cmd"],"static":["VERSION_STRING"],"struct":["SsaArgs","SsaCli"]};
+window.SIDEBAR_ITEMS = {"constant":["PKG_VERSION"],"enum":["SsaCommand","ValidationMode"],"fn":["parse_ssa","read_source","ssa_passes","start_cli","write_output"],"mod":["interpret_cmd","transform_cmd","visualize_cmd"],"static":["VERSION_STRING"],"struct":["SsaArgs","SsaCli"]};
