@@ -915,7 +915,7 @@ impl<'a> Context<'a> {
 /// * No memory opcodes should be laid down that write to the internal type sizes array.
 ///   See [arrays] for more information on the type sizes array.
 /// * Every non-databus, non-empty memory block that is initialized is also referenced by at least
-///   one memory operation or Brillig memory-array input. A [`MemoryInit`][Opcode::MemoryInit] with
+///   one memory operation or Brillig memory-array input. A `MemoryInit` with
 ///   no linked read/write is dead weight that ACIR gen should never emit: arrays are only promoted
 ///   to a memory block on their first memory operation. Databus blocks (calldata/return data) are
 ///   exempt as they are part of the circuit's ABI and are intentionally initialized even when
