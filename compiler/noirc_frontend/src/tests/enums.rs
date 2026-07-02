@@ -1084,3 +1084,118 @@ fn errors_on_segment_after_associated_constant() {
     "#;
     check_errors(src);
 }
+
+#[test]
+fn turbofish_on_match_pattern_variant_binds_payload_type() {
+    // Regression test for https://github.com/noir-lang/noir/issues/7430.
+    // The scrutinee's generic is left undetermined so only the turbofish can pin
+    // the payload's type.
+    let src = r#"
+    enum Foo<T> {
+        Bar(T),
+        Baz,
+    }
+
+    fn main() {
+        let f = Foo::Baz;
+        match f {
+            Foo::Bar::<i32>(x) => {
+                let _: i32 = x;
+            }
+            Foo::Baz => {}
+        }
+    }
+    "#;
+    let features = vec![UnstableFeature::Enums];
+    assert_no_errors_using_features(src, &features);
+}
+
+#[test]
+fn turbofish_on_match_pattern_variant_conflicting_type() {
+    let src = r#"
+    enum Foo<T> {
+        Bar(T),
+        Baz,
+    }
+
+    fn main() {
+        let f = Foo::Baz;
+        match f {
+            Foo::Bar::<i32>(x) => {
+                let _: bool = x;
+                              ^ Expected type bool, found type i32
+            }
+            Foo::Baz => {}
+        }
+    }
+    "#;
+    let features = vec![UnstableFeature::Enums];
+    check_errors_using_features(src, &features);
+}
+
+#[test]
+fn turbofish_on_fieldless_match_pattern_variant_conflicting_type() {
+    let src = r#"
+    enum Foo<T> {
+        Bar(T),
+        Baz,
+    }
+
+    fn main() {
+        let f: Foo<Field> = Foo::Baz;
+        match f {
+            Foo::Baz::<i32> => {}
+            ^^^^^^^^^^^^^^^ Expected type Foo<Field>, found type Foo<i32>
+            Foo::Bar(_) => {}
+        }
+    }
+    "#;
+    let features = vec![UnstableFeature::Enums];
+    check_errors_using_features(src, &features);
+}
+
+#[test]
+fn turbofish_on_match_pattern_variant_type_segment() {
+    let src = r#"
+    enum Foo<T> {
+        Bar(T),
+        Baz,
+    }
+
+    fn main() {
+        let f = Foo::Baz;
+        match f {
+            Foo::<i32>::Bar(x) => {
+                let _: bool = x;
+                              ^ Expected type bool, found type i32
+            }
+            Foo::Baz => {}
+        }
+    }
+    "#;
+    let features = vec![UnstableFeature::Enums];
+    check_errors_using_features(src, &features);
+}
+
+#[test]
+fn turbofish_on_match_pattern_variant_count_mismatch() {
+    let src = r#"
+    enum Foo<T> {
+        Bar(T),
+        Baz,
+    }
+
+    fn main() {
+        let f: Foo<i32> = Foo::Baz;
+        match f {
+            Foo::Bar::<i32, bool>(x) => {
+            ^^^^^^^^^^^^^^^^^^^^^ Expected 1 generic from this function, but 2 were provided
+                let _ = x;
+            }
+            Foo::Baz => {}
+        }
+    }
+    "#;
+    let features = vec![UnstableFeature::Enums];
+    check_errors_using_features(src, &features);
+}
