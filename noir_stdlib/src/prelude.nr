@@ -6,3 +6,4 @@ pub use crate::default::Default;
 pub use crate::meta::{derive, derive_via};
 pub use crate::option::Option;
 pub use crate::panic::panic;
+pub use crate::validate::Validate;

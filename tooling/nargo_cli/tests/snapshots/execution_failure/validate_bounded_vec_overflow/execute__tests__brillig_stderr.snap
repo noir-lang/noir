@@ -1,0 +1,17 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+error: Assertion failed: BoundedVec length exceeds its capacity
+    ┌─ std/collections/bounded_vec.nr:678:9
+    │
+678 │         assert(self.len() <= MaxLen, "BoundedVec length exceeds its capacity");
+    │         ----------------------------------------------------------------------
+    │
+    = Call stack:
+      1: main
+              at src/main.nr:6:7
+      2: <impl Validate for BoundedVec<T, MaxLen>>::validate
+              at std/collections/bounded_vec.nr:678:9
+
+Failed assertion

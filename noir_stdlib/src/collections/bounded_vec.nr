@@ -1,4 +1,5 @@
 use crate::{cmp::Eq, convert::From, runtime::is_unconstrained, static_assert};
+use crate::validate::Validate;
 
 /// A `BoundedVec<T, MaxLen>` is a growable storage similar to a built-in vector except that it
 /// is bounded with a maximum possible length. `BoundedVec` is also not
@@ -665,7 +666,80 @@ impl<T, let MaxLen: u32, let Len: u32> From<[T; Len]> for BoundedVec<T, MaxLen> 
     }
 }
 
+impl<T, let MaxLen: u32> Validate for BoundedVec<T, MaxLen>
+where
+    T: Validate,
+{
+    /// Asserts that the length is within capacity and that every *live* element (the first `len`,
+    /// not the unused backing storage past it) upholds its own invariant. The backing slots beyond
+    /// `len` are deliberately skipped: they hold arbitrary leftover values and are unreachable
+    /// through the safe API, so validating them would reject vectors that are in fact well-formed.
+    fn validate(&self) {
+        assert(self.len() <= MaxLen, "BoundedVec length exceeds its capacity");
+        self.for_each(|element| element.validate());
+    }
+}
+
 mod bounded_vec_tests {
+
+    mod validate {
+        use crate::collections::bounded_vec::BoundedVec;
+        use crate::hint::black_box;
+        use crate::validate::Validate;
+
+        struct Capped {
+            value: u32,
+        }
+
+        impl Validate for Capped {
+            fn validate(&self) {
+                assert(self.value <= 100, "Capped value exceeds 100");
+            }
+        }
+
+        #[test]
+        fn validates_live_elements() {
+            let mut vec: BoundedVec<Capped, 4> = BoundedVec::new();
+            vec.push(Capped { value: black_box(10) });
+            vec.push(Capped { value: black_box(20) });
+            vec.validate();
+        }
+
+        #[test]
+        fn skips_elements_past_len() {
+            let mut vec: BoundedVec<Capped, 4> = BoundedVec::new();
+            vec.push(Capped { value: black_box(10) });
+            vec.push(Capped { value: black_box(20) });
+            // Park an invariant-violating element in the backing storage past `len`.
+            vec.set_unchecked(2, Capped { value: black_box(200) });
+            // Only the first `len` (2) elements are validated, so the parked element is not surfaced.
+            vec.validate();
+        }
+
+        #[test(should_fail_with = "Capped value exceeds 100")]
+        fn set_len_surfaces_previously_skipped_element() {
+            let mut vec: BoundedVec<Capped, 4> = BoundedVec::new();
+            vec.push(Capped { value: black_box(10) });
+            vec.push(Capped { value: black_box(20) });
+            vec.set_unchecked(2, Capped { value: black_box(200) });
+            vec.validate();
+            // Extending the length to include the parked element surfaces it on re-validation.
+            vec.set_len(3);
+            vec.validate();
+        }
+
+        #[test]
+        fn push_does_not_validate() {
+            let mut vec: BoundedVec<Capped, 4> = BoundedVec::new();
+            vec.push(Capped { value: black_box(10) });
+            // `push` does not run `validate`, so an invariant-violating element is stored without
+            // complaint: `validate` is an explicit, point-in-time check, not something the type
+            // enforces on every mutation. The bad value sits in the vec until a `validate` call
+            // (e.g. `set_len_surfaces_previously_skipped_element`) surfaces it.
+            vec.push(Capped { value: black_box(200) });
+            assert_eq(vec.get(1).value, 200);
+        }
+    }
 
     mod get {
         use crate::collections::bounded_vec::BoundedVec;

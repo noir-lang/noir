@@ -3321,6 +3321,29 @@ fn meta_attribute_coerces_function_path_to_function_definition() {
 }
 
 #[test]
+fn meta_attribute_coerces_inherent_method_path_to_function_definition() {
+    // https://github.com/noir-lang/noir/issues/13186
+    // An inherent method path (`Type::method`) is not resolvable as a plain value path the way a
+    // free function is, but it must still coerce to a `FunctionDefinition` argument — mirroring how
+    // the expression `Type::method` resolves to that method.
+    let src = r#"
+    pub struct Foo {}
+
+    impl Foo {
+        pub fn check(_self: &Self) {}
+    }
+
+    #[validate(Foo::check)]
+    pub fn target() {}
+
+    comptime fn validate(_f: FunctionDefinition, _method: FunctionDefinition) {}
+
+    fn main() {}
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
 fn meta_attribute_function_definition_argument_can_be_inspected() {
     // The coerced `FunctionDefinition` is a real definition whose signature can be inspected,
     // which is the point of accepting it as `FunctionDefinition` rather than `Quoted`.

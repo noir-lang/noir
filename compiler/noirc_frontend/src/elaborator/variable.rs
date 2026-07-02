@@ -551,7 +551,7 @@ impl Elaborator<'_> {
     /// current scope (a local variable, or a value item — global, function, enum-variant global,
     /// numeric type alias) via [`Self::resolve_unprefixed_variable`].
     #[tracing::instrument(level = "trace", skip_all)]
-    fn resolve_variable(&mut self, path: TypedPath) -> Option<VariableResolution> {
+    pub(super) fn resolve_variable(&mut self, path: TypedPath) -> Option<VariableResolution> {
         if path.segments.len() > 1 {
             self.resolve_prefixed_variable(path)
         } else {
