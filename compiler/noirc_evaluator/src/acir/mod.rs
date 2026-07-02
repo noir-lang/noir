@@ -915,6 +915,8 @@ impl<'a> Context<'a> {
 
 /// Check post ACIR generation properties:
 /// * No empty `AssertZero` opcodes (asserting `0 == 0`) should be emitted.
+/// * No zero-length memory block should be initialized. An empty block has no slots to read or
+///   write, so a `MemoryInit` for it is dead weight that ACIR gen must never emit.
 /// * No memory opcodes should be laid down that write to the internal type sizes array.
 ///   See [arrays] for more information on the type sizes array.
 #[cfg(debug_assertions)]
@@ -927,6 +929,12 @@ fn acir_post_check(context: &Context<'_>, acir: &GeneratedAcir<FieldElement>) {
                 assert!(
                     !expr.is_zero(),
                     "ICE: Empty AssertZero opcodes (0 == 0) should not be emitted"
+                );
+            }
+            Opcode::MemoryInit { init, .. } => {
+                assert!(
+                    !init.is_empty(),
+                    "ICE: Zero-length memory blocks should not be initialized"
                 );
             }
             Opcode::MemoryOp { block_id, op } if op.operation == MemOpKind::Write => {
