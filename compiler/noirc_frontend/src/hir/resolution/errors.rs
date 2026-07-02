@@ -69,6 +69,8 @@ pub enum ResolverError {
     GenericsOnGeneric { location: Location },
     #[error("Cannot apply generics on a wildcard type")]
     GenericsOnWildcardType { location: Location },
+    #[error("Generic arguments for the enum were specified more than once")]
+    DuplicateEnumGenerics { location: Location },
     #[error("{0}")]
     ParserError(Box<ParserError>),
     #[error("Closure environment must be a tuple or unit type")]
@@ -286,6 +288,7 @@ impl ResolverError {
             | ResolverError::GenericsOnAssociatedType { location }
             | ResolverError::GenericsOnGeneric { location }
             | ResolverError::GenericsOnWildcardType { location }
+            | ResolverError::DuplicateEnumGenerics { location }
             | ResolverError::InvalidClosureEnvironment { location, .. }
             | ResolverError::NestedVectors { location }
             | ResolverError::AbiAttributeOutsideContract { location, .. }
@@ -558,6 +561,11 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
             ResolverError::GenericsOnWildcardType { location } => Diagnostic::simple_error(
                 "Cannot apply generics to a wildcard type".into(),
                 "The wildcard type `_` cannot take generic arguments".into(),
+                *location,
+            ),
+            ResolverError::DuplicateEnumGenerics { location } => Diagnostic::simple_error(
+                "Generic arguments for the enum were specified more than once".into(),
+                "Specify the enum's generic arguments in only one place".into(),
                 *location,
             ),
             ResolverError::ParserError(error) => error.as_ref().into(),
