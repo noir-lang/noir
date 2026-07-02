@@ -537,7 +537,10 @@ impl Context<'_> {
             ) => {
                 let dummy_values = dummy_values
                     .into_iter()
-                    .flat_map(|val| val.clone().flatten())
+                    .map(|val| val.clone().flatten())
+                    .collect::<Result<Vec<_>, _>>()?
+                    .into_iter()
+                    .flatten()
                     .map(|(var, typ)| AcirValue::Var(var, typ))
                     .collect::<Vec<_>>();
 
