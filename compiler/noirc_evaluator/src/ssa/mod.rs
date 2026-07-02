@@ -457,6 +457,7 @@ pub fn optimize_ssa_builder_into_acir(
     builder: SsaBuilder,
     options: &SsaEvaluatorOptions,
     passes: &[SsaPass],
+    files: Option<&fm::FileManager>,
 ) -> Result<ArtifactsAndWarnings, RuntimeError> {
     let ssa_gen_span = span!(Level::TRACE, "ssa_generation");
     let ssa_gen_span_guard = ssa_gen_span.enter();
@@ -484,6 +485,11 @@ pub fn optimize_ssa_builder_into_acir(
     let brillig = time("SSA to Brillig", options.print_codegen_timings, || {
         builder.ssa().to_brillig(&options.brillig_options)
     });
+
+    // Resolve copy-site labels now that both the CallStackHelper and FileManager are available.
+    if let Some(registry) = &options.brillig_options.copy_site_registry {
+        registry.resolve_labels(brillig.call_stacks(), files);
+    }
 
     let ssa_gen_span_guard = ssa_gen_span.enter();
 
@@ -538,7 +544,7 @@ pub fn optimize_into_acir(
         files,
     )?;
 
-    optimize_ssa_builder_into_acir(builder, options, passes)
+    optimize_ssa_builder_into_acir(builder, options, passes, files)
 }
 
 /// Compiles the [`Program`] into [`ACIR`][acvm::acir::circuit::Program].
