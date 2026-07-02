@@ -27,8 +27,8 @@ use crate::hir_def::expr::{
 use crate::hir_def::traits::TraitConstraint;
 use crate::node_interner::pusher::{HasLocation, PushedExpr};
 use crate::node_interner::{
-    DefinitionId, DefinitionInfo, DefinitionKind, ExprId, TraitId, TraitImplId, TraitImplKind,
-    TypeAliasId,
+    DefinitionId, DefinitionInfo, DefinitionKind, ExprId, FuncId, TraitId, TraitImplId,
+    TraitImplKind, TypeAliasId,
 };
 use crate::{Kind, Type, TypeBindings, TypeVariable, TypeVariableId};
 use iter_extended::{btree_map, vecmap};
@@ -48,6 +48,29 @@ pub(crate) enum VariableResolution {
     Ident(HirIdent, Option<PathResolutionItem>),
     /// The path resolved to a type alias that is numeric, infinitely recursive or one that errored.
     TypeAlias(TypeAliasId),
+}
+
+/// Describes how the type-level generics of a path item (everything before the final method)
+/// should be bound when the item resolves to a function.
+enum ItemTypeBinding {
+    /// Nothing to bind.
+    None,
+    /// A concrete self type to unify against the impl's declared self type, binding the impl's
+    /// generics. Used whenever a method is reached through a concrete type — a (possibly
+    /// partially concrete) data type `S::<u32, bool>::foo`, a primitive `str::<3>::foo`, a type
+    /// alias `type Pair = (u8, u32); Pair::foo`, or `Self::foo` inside an impl.
+    ConcreteSelfType(Type),
+    /// A concrete type to bind to the function's `Self` generic, leaving impl selection to
+    /// trait constraint solving. Used for `<Type as Trait>::foo`.
+    SelfGeneric(Type),
+    /// The trait's declared generic arguments to bind, in order. Used for a static method reached
+    /// through a trait, e.g. `Trait::<u32>::foo`, where the turbofish provides the trait's
+    /// generics rather than a self type.
+    TraitGenerics(Vec<Type>),
+    /// An enum whose variant constructor is being called (e.g. `Foo::<u32>::Eggs`), carrying the
+    /// enum's generic arguments. A constructor has no impl and no self type, so the enum's
+    /// generics are bound directly rather than by unifying a self type against an impl.
+    EnumVariantConstructor(Vec<Type>),
 }
 
 /// A path's prefix resolved into [its kind](PathPrefixKind) plus the "rest" — the last segment
@@ -243,10 +266,10 @@ impl Elaborator<'_> {
 
         let definition_id = hir_ident.as_ref().map(|ident| ident.id);
 
-        let (type_generics, self_generic) = if let Some(item) = item {
-            self.resolve_item_turbofish_and_self_type(item)
+        let item_type_binding = if let Some(item) = item {
+            self.resolve_item_type_binding(item)
         } else {
-            (Vec::new(), None)
+            ItemTypeBinding::None
         };
 
         let definition = definition_id.map(|id| self.interner.definition(id));
@@ -258,94 +281,43 @@ impl Elaborator<'_> {
         let generics = if let Some(DefinitionKind::Function(func_id)) = &definition_kind {
             self.usage_tracker.mark_impl_function_as_used(func_id);
 
-            // If there's a self type, bind it to the self type generic
-            if let Some(self_generic) = self_generic {
-                let func_generics = &self.function_meta(*func_id).all_generics;
-                let self_resolved_generic =
-                    func_generics.iter().find(|generic| generic.name.as_str() == SELF_TYPE_NAME);
-                if let Some(self_resolved_generic) = self_resolved_generic {
-                    let type_var = &self_resolved_generic.type_var;
-                    bindings
-                        .insert(type_var.id(), (type_var.clone(), type_var.kind(), self_generic));
-                }
-            }
-
-            // If this is a function call on a type that has generics, we need to bind those generic types.
-            if !type_generics.is_empty() {
-                // We must only bind the type-level portion here; method generics are handled
-                // separately by the method turbofish.
-                let func_meta = self.function_meta(*func_id);
-                let impl_generics = vecmap(func_meta.impl_generics(), |g| g.type_var.clone());
-                let self_type =
-                    func_meta.self_type.as_ref().map(|t| t.follow_bindings_shallow().into_owned());
-
-                // An enum variant constructor (e.g. `Foo::<u32>::Eggs`) has no `impl_generics`
-                // and no `self_type`; the enum's generics are its `direct_generics`. The
-                // type-segment turbofish provides types for exactly those generics, so bind
-                // them directly. `type_generics` was resolved against the enum's generics, so
-                // its length matches `direct_generics`.
-                if func_meta.enum_variant_index.is_some() {
-                    let direct_generics =
-                        vecmap(&func_meta.direct_generics, |g| g.type_var.clone());
-                    for (type_generic, type_var) in
-                        type_generics.into_iter().zip_eq(direct_generics)
-                    {
-                        bindings.insert(
-                            type_var.id(),
-                            (type_var.clone(), type_var.kind(), type_generic),
-                        );
-                    }
-                }
-                // For partially concrete impls (e.g. `impl<B> S<u32, B>`), the number of
-                // impl generics differs from the number of struct generics. The turbofish
-                // `S::<u32, bool>` provides type_generics aligned with the struct's params
-                // [A, B], not the impl's generics [B]. Replace each impl generic in
-                // `self_type`'s args with a fresh type variable and unify those with the
-                // turbofish-provided type generics. The fresh type variables get bound by
-                // unification, and we record those bindings for the impl generics.
-                else if let Some(Type::DataType(_, self_type_args)) = self_type {
-                    assert_eq!(
-                        type_generics.len(),
-                        self_type_args.len(),
-                        "ICE: turbofish type_generics count ({}) should match self_type_args count ({})",
-                        type_generics.len(),
-                        self_type_args.len(),
-                    );
-                    let impl_replacements: TypeBindings = impl_generics
+            match item_type_binding {
+                ItemTypeBinding::None => {}
+                ItemTypeBinding::SelfGeneric(self_generic) => {
+                    // Bind the concrete self type to the function's `Self` generic, leaving impl
+                    // selection to trait constraint solving.
+                    let func_generics = &self.function_meta(*func_id).all_generics;
+                    let self_resolved_generic = func_generics
                         .iter()
-                        .map(|type_var| {
-                            let kind = type_var.kind();
-                            let fresh = self.interner.next_type_variable_with_kind(kind.clone());
-                            (type_var.id(), (type_var.clone(), kind, fresh))
-                        })
-                        .collect();
-                    for (type_generic, self_type_arg) in
-                        type_generics.into_iter().zip_eq(self_type_args)
-                    {
-                        let substituted = self_type_arg.substitute(&impl_replacements);
-                        self.unify_or_type_mismatch(&type_generic, &substituted, location);
-                    }
-                    bindings.extend(impl_replacements);
-                } else if type_generics.len() <= impl_generics.len() {
-                    // For trait function paths, impl_generics may include Self and associated
-                    // type generics after the trait's declared generics. The turbofish only
-                    // provides types for the declared generics, which are always the first
-                    // elements. Slice to match.
-                    let impl_generics = &impl_generics[..type_generics.len()];
-                    for (type_generic, type_var) in type_generics.into_iter().zip_eq(impl_generics)
-                    {
+                        .find(|generic| generic.name.as_str() == SELF_TYPE_NAME);
+                    if let Some(self_resolved_generic) = self_resolved_generic {
+                        let type_var = &self_resolved_generic.type_var;
                         bindings.insert(
                             type_var.id(),
-                            (type_var.clone(), type_var.kind(), type_generic),
+                            (type_var.clone(), type_var.kind(), self_generic),
                         );
                     }
-                } else {
-                    unreachable!(
-                        "type_generics.len() ({}) > impl_generics.len() ({}): \
-                        turbofish resolution should normalize the count",
-                        type_generics.len(),
-                        impl_generics.len()
+                }
+                ItemTypeBinding::ConcreteSelfType(self_type) => {
+                    // The method was reached through a concrete type. Unify that type against the
+                    // impl's self type to bind the impl's generics, regardless of which type former
+                    // it is (data type, array, slice, tuple, primitive, function type, ...).
+                    self.bind_impl_generics_from_self_type(
+                        *func_id,
+                        &self_type,
+                        &mut bindings,
+                        location,
                     );
+                }
+                ItemTypeBinding::EnumVariantConstructor(type_generics) => {
+                    self.bind_enum_variant_constructor_generics(
+                        *func_id,
+                        type_generics,
+                        &mut bindings,
+                    );
+                }
+                ItemTypeBinding::TraitGenerics(trait_generics) => {
+                    self.bind_trait_function_generics(*func_id, trait_generics, &mut bindings);
                 }
             }
 
@@ -822,35 +794,122 @@ impl Elaborator<'_> {
         }
     }
 
-    /// Solve any generics that are part of the path before the function, for example:
+    /// Bind an impl's generics by unifying a concrete `self_type` against the impl's declared
+    /// self type (with the impl's own generics first replaced by fresh type variables). The
+    /// resulting bindings are recorded in `bindings`.
     ///
-    /// ```noir
-    /// foo::Bar::<i32>::baz
-    /// ```
-    /// Solve `<i32>` above
-    #[tracing::instrument(level = "trace", skip_all)]
-    fn resolve_item_turbofish_and_self_type(
+    /// This works for any built-in type former the self type can be (data type, array, slice,
+    /// tuple, string, ...): unifying `(u8, u32)` against `(A, B)`, or `[u8; 4]` against
+    /// `[T; N]`, recovers the impl generics structurally, and is correct regardless of the order
+    /// the impl declares them in, e.g. `impl<let N: u32, T> Trait for [T; N]`.
+    fn bind_impl_generics_from_self_type(
         &mut self,
-        item: PathResolutionItem,
-    ) -> (Vec<Type>, Option<Type>) {
+        func_id: FuncId,
+        self_type: &Type,
+        bindings: &mut TypeBindings,
+        location: Location,
+    ) {
+        let func_meta = self.function_meta(func_id);
+        let impl_generics = vecmap(func_meta.impl_generics(), |g| g.type_var.clone());
+        let Some(impl_self_type) =
+            func_meta.self_type.as_ref().map(|t| t.follow_bindings_shallow().into_owned())
+        else {
+            return;
+        };
+
+        let impl_replacements: TypeBindings = impl_generics
+            .iter()
+            .map(|type_var| {
+                let kind = type_var.kind();
+                let fresh = self.interner.next_type_variable_with_kind(kind.clone());
+                (type_var.id(), (type_var.clone(), kind, fresh))
+            })
+            .collect();
+        let substituted = impl_self_type.substitute(&impl_replacements);
+        self.unify_or_type_mismatch(self_type, &substituted, location);
+        bindings.extend(impl_replacements);
+    }
+
+    /// Bind a trait's declared generics from the turbofish solved for the trait before the method,
+    /// e.g. the `<u32>` in `Trait::<u32>::foo`. We only bind the trait-level portion here; method
+    /// generics are handled separately by the method turbofish.
+    fn bind_trait_function_generics(
+        &mut self,
+        func_id: FuncId,
+        trait_generics: Vec<Type>,
+        bindings: &mut TypeBindings,
+    ) {
+        if trait_generics.is_empty() {
+            return;
+        }
+
+        let func_meta = self.function_meta(func_id);
+        let impl_generics = vecmap(func_meta.impl_generics(), |g| g.type_var.clone());
+
+        // `impl_generics` may include `Self` and associated type generics after the trait's
+        // declared generics. The turbofish only provides types for the declared generics, which
+        // are always the first elements, so slice to match.
+        if trait_generics.len() <= impl_generics.len() {
+            let impl_generics = &impl_generics[..trait_generics.len()];
+            for (trait_generic, type_var) in trait_generics.into_iter().zip_eq(impl_generics) {
+                bindings.insert(type_var.id(), (type_var.clone(), type_var.kind(), trait_generic));
+            }
+        } else {
+            unreachable!(
+                "trait_generics.len() ({}) > impl_generics.len() ({}): \
+                turbofish resolution should normalize the count",
+                trait_generics.len(),
+                impl_generics.len()
+            );
+        }
+    }
+
+    /// Bind an enum's generics for a call to one of its variant constructors, e.g. the `<u32>` in
+    /// `Foo::<u32>::Eggs`. A constructor has no impl and no self type; the enum's generics are its
+    /// `direct_generics`, bound directly from `type_generics` (which was resolved against the
+    /// enum's generics, so its length matches).
+    fn bind_enum_variant_constructor_generics(
+        &mut self,
+        func_id: FuncId,
+        type_generics: Vec<Type>,
+        bindings: &mut TypeBindings,
+    ) {
+        let func_meta = self.function_meta(func_id);
+        let direct_generics = vecmap(&func_meta.direct_generics, |g| g.type_var.clone());
+        for (type_generic, type_var) in type_generics.into_iter().zip_eq(direct_generics) {
+            bindings.insert(type_var.id(), (type_var.clone(), type_var.kind(), type_generic));
+        }
+    }
+
+    /// Determine how the type-level generics of a resolved path item — everything in the path
+    /// before the final method — should be bound. For example, given `foo::Bar::<i32>::baz`, this
+    /// resolves the `Bar::<i32>` portion into the generics (`i32`) that the `baz` call must bind.
+    ///
+    /// The returned [`ItemTypeBinding`] describes which binding strategy applies; see its variants.
+    #[tracing::instrument(level = "trace", skip_all)]
+    fn resolve_item_type_binding(&mut self, item: PathResolutionItem) -> ItemTypeBinding {
         let mut errors = Vec::new();
         let result = match item {
-            PathResolutionItem::Method(struct_id, Some(generics), _func_id) => {
+            PathResolutionItem::Method(struct_id, Some(generics), func_id) => {
                 let generics = self.resolve_struct_id_turbofish_generics(
                     struct_id,
                     Some(generics),
                     &mut errors,
                 );
-                (generics, None)
-            }
-            PathResolutionItem::SelfMethod(_) => {
-                let generics = if let Some(Type::DataType(_, generics)) = &self.self_type {
-                    generics.clone()
+                // An enum variant constructor (e.g. `Foo::<u32>::Eggs`) has no impl and no self
+                // type; its enum generics are bound directly rather than by unifying a self type.
+                if self.function_meta(func_id).enum_variant_index.is_some() {
+                    ItemTypeBinding::EnumVariantConstructor(generics)
                 } else {
-                    Vec::new()
-                };
-                (generics, None)
+                    // Reconstruct the concrete self type `S<generics>` to unify against the impl.
+                    let data_type = self.interner.get_type(struct_id);
+                    ItemTypeBinding::ConcreteSelfType(Type::DataType(data_type, generics))
+                }
             }
+            PathResolutionItem::SelfMethod(_) => match &self.self_type {
+                Some(self_type) => ItemTypeBinding::ConcreteSelfType(self_type.clone()),
+                None => ItemTypeBinding::None,
+            },
             PathResolutionItem::TypeAliasFunction(type_alias_id, generics, _func_id) => {
                 let type_alias = self.interner.get_type_alias(type_alias_id);
                 let type_alias = type_alias.borrow();
@@ -860,12 +919,10 @@ impl Elaborator<'_> {
                     &mut errors,
                 );
 
-                // Now instantiate the underlying struct or alias with those generics, the struct might
-                // have more generics than those in the alias, like in this example:
-                //
-                // type Alias<T> = Struct<T, i32>;
-                let generics = get_type_alias_generics(&type_alias, &generics);
-                (generics, None)
+                // Expand the alias (recursively, through aliases-of-aliases) to its concrete
+                // underlying type, e.g. `type Pair = (u8, u32)` becomes `(u8, u32)`. We later
+                // unify this against the impl's self type to bind the impl's generics.
+                ItemTypeBinding::ConcreteSelfType(alias_concrete_type(&type_alias, &generics))
             }
             PathResolutionItem::TraitFunction(trait_id, Some(generics), _func_id) => {
                 let trait_ = self.interner.get_trait(trait_id);
@@ -881,29 +938,20 @@ impl Elaborator<'_> {
                     generics.location,
                     &mut errors,
                 );
-                (generics, None)
+                ItemTypeBinding::TraitGenerics(generics)
             }
             PathResolutionItem::TypeTraitFunction(self_type, _trait_id, _func_id) => {
-                (Vec::new(), Some(self_type))
+                ItemTypeBinding::SelfGeneric(self_type)
             }
             PathResolutionItem::PrimitiveFunction(primitive_type, turbofish, _func_id) => {
-                let (typ, has_generics) = self.instantiate_primitive_type_with_turbofish(
+                // Build the concrete primitive self type (e.g. `str<3>`) and unify it against the
+                // impl, just like any other concrete type.
+                let (typ, _has_generics) = self.instantiate_primitive_type_with_turbofish(
                     primitive_type,
                     turbofish,
                     &mut errors,
                 );
-                let generics = if has_generics {
-                    match typ {
-                        Type::String(length) => vec![*length],
-                        Type::FmtString(length, element) => vec![*length, *element],
-                        _ => {
-                            unreachable!("ICE: Primitive type has been specified to have generics")
-                        }
-                    }
-                } else {
-                    Vec::new()
-                };
-                (generics, None)
+                ItemTypeBinding::ConcreteSelfType(typ)
             }
             PathResolutionItem::Method(_, None, _)
             | PathResolutionItem::TraitFunction(_, None, _)
@@ -916,7 +964,7 @@ impl Elaborator<'_> {
             | PathResolutionItem::Global(..)
             | PathResolutionItem::EnumVariant(..)
             | PathResolutionItem::ModuleFunction(..)
-            | PathResolutionItem::TraitConstant(..) => (Vec::new(), None),
+            | PathResolutionItem::TraitConstant(..) => ItemTypeBinding::None,
         };
         self.push_errors(errors);
         result
@@ -1381,28 +1429,20 @@ impl Elaborator<'_> {
     }
 }
 
+/// Instantiate the [Type] aliased by the [TypeAlias] with the given generic arguments,
+/// recursively expanding aliases-of-aliases, returning the concrete innermost type.
+fn alias_concrete_type(type_alias: &TypeAlias, generics: &[Type]) -> Type {
+    match type_alias.get_type(generics) {
+        Type::Alias(type_alias, generics) => alias_concrete_type(&type_alias.borrow(), &generics),
+        typ => typ,
+    }
+}
+
 /// Returns the name of the data type a [Type] resolves to, looking through a `Forall` quantifier.
 fn data_type_name(typ: &Type) -> Option<String> {
     match typ {
         Type::Forall(_, body) => data_type_name(body),
         Type::DataType(datatype, _) => Some(datatype.borrow().name.to_string()),
         _ => None,
-    }
-}
-
-/// Bind the generics of the [Type] aliased by the [`TypeAlias`] to a list of generic arguments,
-/// recursively expanding the generics aliased aliases, finally returning the generics of the
-/// innermost aliased struct.
-///
-/// Panics if it encounters a type other than alias or struct.
-fn get_type_alias_generics(type_alias: &TypeAlias, generics: &[Type]) -> Vec<Type> {
-    let typ = type_alias.get_type(generics);
-    match typ {
-        Type::DataType(_, generics) => generics,
-        Type::Alias(type_alias, generics) => {
-            get_type_alias_generics(&type_alias.borrow(), &generics)
-        }
-        // Primitive types have no generics
-        _ => Vec::new(),
     }
 }
