@@ -31,17 +31,15 @@ fn spill_region_size(bytecode: &str) -> u32 {
 /// takes 5 parameters, so codegen spills from the first instruction. As the chain
 /// is evaluated, several values are transiently spilled, reloaded into a register
 /// for a single use, and then die — all within `b0`. At the moment such a value
-/// dies it is in the `TransientReloaded` state: the live value is in a register
-/// and its spill slot is still allocated.
+/// dies it has a transient slot but is back in a register, so it is not currently
+/// spilled.
 ///
-/// `convert_ssa_instruction`'s dead-variable cleanup decides what to do via
-/// `is_spilled`, which is `true` only for `Transient`/`Permanent`. A
-/// `TransientReloaded` value matches neither, so cleanup takes the
-/// register-freeing branch and never calls `remove_spill`: the `SpillRecord`
-/// lingers in `records` and its offset is never pushed back onto
-/// `free_spill_slots`. The next `allocate_spill_offset` bumps `next_spill_offset`
-/// instead of reusing the dead slot, so `max_spill_offset` — and the spill region
-/// the prologue reserves on every call — grows by one for each such pattern.
+/// `convert_ssa_instruction`'s dead-variable cleanup must still call `remove_spill`
+/// for it; otherwise the `SpillRecord` lingers in `records` and its offset is never
+/// pushed back onto `free_spill_slots`. The next `allocate_spill_offset` then bumps
+/// `next_spill_offset` instead of reusing the dead slot, so `max_spill_offset` — and
+/// the spill region the prologue reserves on every call — grows by one for each such
+/// pattern.
 ///
 /// The leak has no soundness impact — the skipped offset is never reused
 /// incorrectly — so it is purely a memory-footprint regression. Here the true

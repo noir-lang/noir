@@ -1,14 +1,31 @@
 use std::io::{IsTerminal, Read};
 use std::path::PathBuf;
 
-use clap::{Args, Parser, Subcommand};
+use clap::{Args, Parser, Subcommand, ValueEnum};
 use color_eyre::eyre::{self, Context, bail};
 use const_format::formatcp;
 use noir_artifact_cli::commands::parse_and_normalize_path;
 use noir_artifact_cli::fs::artifact::write_to_file;
 use noirc_driver::CompileOptions;
 use noirc_errors::{println_to_stderr, println_to_stdout};
-use noirc_evaluator::ssa::{SsaEvaluatorOptions, SsaPass, primary_passes, ssa_gen::Ssa};
+use noirc_evaluator::ssa::{
+    SsaEvaluatorOptions, SsaPass, primary_passes,
+    ssa_gen::{Ssa, validate_ssa_or_err},
+};
+
+/// Which validation ruleset to run on the source SSA.
+#[derive(ValueEnum, Clone, Copy, Debug, Default, PartialEq, Eq)]
+enum ValidationMode {
+    /// Skip validation entirely. Use to test how invalid input behaves.
+    Off,
+    /// Run every rule. Appropriate for hand-written input SSA or fully optimized SSA.
+    #[default]
+    Full,
+    /// Run only the rules that must hold at every point in the pipeline, assuming the SSA is the
+    /// result of applying a pass to already-valid SSA. Use this to validate the output of
+    /// `transform`, so a pass's provably-safe-but-syntactically-unguarded output isn't rejected.
+    AfterPass,
+}
 
 mod interpret_cmd;
 mod transform_cmd;
@@ -36,11 +53,13 @@ struct SsaArgs {
     #[clap(long, short, global = true, value_parser = parse_and_normalize_path)]
     source_path: Option<PathBuf>,
 
-    /// Turn off validation of the source SSA.
+    /// Which validation ruleset to run on the source SSA.
     ///
-    /// This can be used to test how invalid input behaves.
-    #[clap(long, global = true, default_value_t = false)]
-    no_validate: bool,
+    /// `off` skips validation (to test how invalid input behaves); `full` runs every rule;
+    /// `after-pass` runs only the rules that hold between passes, which is
+    /// what you want when validating the output of `transform`.
+    #[clap(long, global = true, value_enum, default_value_t = ValidationMode::Full)]
+    validation_mode: ValidationMode,
 }
 
 #[derive(Subcommand, Clone, Debug)]
@@ -60,7 +79,7 @@ pub(crate) fn start_cli() -> eyre::Result<()> {
 
     let ssa = || {
         let src = read_source(args.source_path)?;
-        parse_ssa(&src, !args.no_validate)
+        parse_ssa(&src, args.validation_mode)
     };
 
     match command {
@@ -120,16 +139,30 @@ fn write_output(output: &str, path: Option<PathBuf>) -> eyre::Result<()> {
 ///
 /// If parsing fails, print errors to `stderr` and return a failure.
 ///
-/// If validation is enabled, any semantic error causes a panic.
-fn parse_ssa(src: &str, validate: bool) -> eyre::Result<Ssa> {
-    let result = if validate { Ssa::from_str(src) } else { Ssa::from_str_no_validation(src) };
-    match result {
-        Ok(ssa) => Ok(ssa),
+/// A semantic error under `Full` or `AfterPass` causes a panic. `mode` selects whether to skip
+/// validation, run the full ruleset, or run only the between-passes subset (see [`ValidationMode`]).
+fn parse_ssa(src: &str, mode: ValidationMode) -> eyre::Result<Ssa> {
+    // Running the full ruleset while parsing gives source-annotated error spans; otherwise parse
+    // without validation and run the chosen ruleset explicitly.
+    let result = if mode == ValidationMode::Full {
+        Ssa::from_str(src)
+    } else {
+        Ssa::from_str_no_validation(src)
+    };
+    let ssa = match result {
+        Ok(ssa) => ssa,
         Err(source_with_errors) => {
             println_to_stderr!("{source_with_errors:?}");
             bail!("Failed to parse the SSA.")
         }
+    };
+
+    if mode == ValidationMode::AfterPass {
+        return validate_ssa_or_err(ssa, false)
+            .wrap_err("SSA failed the between-passes validation");
     }
+
+    Ok(ssa)
 }
 
 /// List of the SSA passes in the primary pipeline, enriched with their "step"

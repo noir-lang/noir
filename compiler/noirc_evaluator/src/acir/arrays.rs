@@ -14,7 +14,8 @@
 //! ACIR generation use two different array types for representing arrays:
 //!
 //! [Constant arrays][AcirValue::Array]
-//!   - Known at compile time.
+//!   - A known sequence of element [`AcirValue`]s. The individual values may be witnesses (e.g. a
+//!     function parameter array), but the array's length and structure are known at compile time.
 //!   - Reads and writes may be folded into an [`AcirValue`] where possible.
 //!   - Useful for optimization (e.g., constant element lookups do not require laying down opcodes)
 //!
@@ -22,7 +23,10 @@
 //!   - Referenced by a [unique identifier][BlockId]
 //!   - Must be explicitly initialized using an [opcode][acvm::acir::circuit::opcodes::Opcode::MemoryInit]
 //!   - Reads and writes must lower to at least an explicit [memory opcode][acvm::acir::circuit::opcodes::Opcode::MemoryOp].
-//!   - Required for arrays accessed by dynamic indices (witness inputs) or function parameters (the array is itself a witness)
+//!   - Required once an array is accessed at a dynamic index, or written under a predicate. A
+//!     function parameter array starts as a constant array and is only promoted to a dynamic
+//!     array (lazily, by [`Context::ensure_array_is_initialized`]) when such an access occurs;
+//!     a parameter only read at constant indices never needs a memory block.
 //!
 //! ### Array Flattening
 //!
@@ -533,7 +537,10 @@ impl Context<'_> {
             ) => {
                 let dummy_values = dummy_values
                     .into_iter()
-                    .flat_map(|val| val.clone().flatten())
+                    .map(|val| val.clone().flatten())
+                    .collect::<Result<Vec<_>, _>>()?
+                    .into_iter()
+                    .flatten()
                     .map(|(var, typ)| AcirValue::Var(var, typ))
                     .collect::<Vec<_>>();
 
@@ -700,6 +707,8 @@ impl Context<'_> {
         Ok(value)
     }
 
+    /// Reads the value of type `ssa_type` at the flattened position `var_index` of the array backed
+    /// by `block_id`, emitting a `MemoryOp::Read` per scalar and advancing `var_index` past it.
     pub(super) fn array_get_value(
         &mut self,
         ssa_type: &Type,
@@ -707,7 +716,7 @@ impl Context<'_> {
         var_index: &mut AcirVar,
     ) -> Result<AcirValue, RuntimeError> {
         let one = self.acir_context.add_constant(FieldElement::one());
-        match ssa_type.clone() {
+        match ssa_type {
             Type::Numeric(numeric_type) => {
                 // Read the value from the array at the specified index
                 let read = self.acir_context.read_from_memory(block_id, var_index)?;
@@ -715,7 +724,7 @@ impl Context<'_> {
                 // Increment the var_index in case of a nested array
                 *var_index = self.acir_context.add_var(*var_index, one)?;
 
-                Ok(AcirValue::Var(read, numeric_type))
+                Ok(AcirValue::Var(read, *numeric_type))
             }
             Type::Array(element_types, len) => {
                 let mut values = im::Vector::new();
@@ -1131,6 +1140,34 @@ impl Context<'_> {
         is_safe_index: bool,
         shift: ElementTypeSizesArrayShift,
     ) -> Result<AcirVar, RuntimeError> {
+        // For a non-homogenous layout a statically-known, in-bounds index resolves to a fixed
+        // flattened offset held in the element-type-sizes table. That offset is independent of the
+        // side-effects predicate, so emit it as a constant rather than gating the index and reading
+        // the (never-written) table from memory. We use the original index here rather than the
+        // predicated one below, since gating can turn a constant into a witness and hide its value.
+        // An out-of-bounds constant index (no table entry) falls through to the runtime path, which
+        // defers the bounds failure to execution.
+        if array_has_constant_element_size(array_typ).is_none()
+            && let Some(index) = self
+                .acir_context
+                .var_to_expression(var_index)?
+                .to_const()
+                .and_then(|c| c.try_to_u32())
+        {
+            let element_type_sizes =
+                self.init_element_type_sizes_array(array_typ, array_id, None, dfg, shift)?;
+            // The table backing the block is its (constant) initialization values, recovered from
+            // the table-to-block cache rather than re-deriving the array's size.
+            let offset = self
+                .type_sizes_to_blocks
+                .iter()
+                .find_map(|(table, block)| (*block == element_type_sizes).then_some(table))
+                .and_then(|table| table.get(index as usize).copied());
+            if let Some(offset) = offset {
+                return Ok(self.acir_context.add_constant(offset));
+            }
+        }
+
         // Gate the input by the side-effects predicate when the index isn't statically
         // known to be in range. Without this, callers that consume the returned index
         // (memory reads/writes, comparisons, etc.) would fail the ACVM bounds check on
@@ -1225,7 +1262,7 @@ impl Context<'_> {
         if !already_initialized {
             let value = &dfg[array];
             match value {
-                Value::Instruction { .. } => {
+                Value::Instruction { .. } | Value::Param { .. } => {
                     let value = self.convert_value(array, dfg);
                     let len = self.flattened_size(array, dfg);
                     self.initialize_array(block_id, len, Some(value))?;

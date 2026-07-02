@@ -250,7 +250,10 @@ const TESTS_WITHOUT_STDOUT_CHECK: [&str; 0] = [];
 /// These tests are ignored because of existing bugs in `nargo expand`.
 /// As the bugs are fixed these tests should be removed from this list.
 /// (some are ignored on purpose for the same reason as `IGNORED_NARGO_EXPAND_EXECUTION_TESTS`)
-const IGNORED_NARGO_EXPAND_COMPILE_SUCCESS_EMPTY_TESTS: [&str; 10] = [
+const IGNORED_NARGO_EXPAND_COMPILE_SUCCESS_EMPTY_TESTS: [&str; 11] = [
+    // A generated associated constant resolves to `<[T; N] as Ser>::N`, which `nargo expand`
+    // prints as `<(resolved type) as Ser>::N` — not valid syntax to recompile.
+    "regression_10747_associated_constant",
     // There's no "src/main.nr" here so it's trickier to make this work
     "overlapping_dep_and_mod",
     // this one works, but copying its `Nargo.toml` file to somewhere else doesn't work
@@ -969,7 +972,10 @@ fn generate_interpret_execution_success_tests(test_file: &mut File, test_data_di
             &test_name,
             &test_dir,
             "interpret",
-            "interpret_execution_success(nargo);",
+            r#"
+            nargo.arg("--validate-between-passes");
+            interpret_execution_success(nargo);
+            "#,
             &MatrixConfig {
                 vary_brillig: !IGNORED_BRILLIG_TESTS.contains(&test_name.as_str()),
                 vary_inliner: true,
@@ -1000,7 +1006,10 @@ fn generate_interpret_execution_failure_tests(test_file: &mut File, test_data_di
             &test_name,
             &test_dir,
             "interpret",
-            "interpret_execution_failure(nargo);",
+            r#"
+            nargo.arg("--validate-between-passes");
+            interpret_execution_failure(nargo);
+            "#,
             &MatrixConfig {
                 vary_brillig: !IGNORED_BRILLIG_TESTS.contains(&test_name.as_str()),
                 ..Default::default()
