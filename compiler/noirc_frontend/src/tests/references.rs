@@ -450,6 +450,68 @@ fn mutable_reference_auto_borrow_rejected() {
     check_errors(src);
 }
 
+// Calling a `&mut self` method on a struct field reached through an immutable `&`
+// reference must be rejected, just like a direct assignment through the same path
+// (`outer_ref.inner.value = 99;`) is.
+#[test]
+fn disallows_mut_self_receiver_through_immutable_reference_field() {
+    let src = r#"
+    struct Inner {
+        value: Field,
+    }
+
+    impl Inner {
+        fn bump_and_read(&mut self) -> Field {
+            self.value = 99;
+            self.value
+        }
+    }
+
+    struct Outer {
+        inner: Inner,
+    }
+
+    fn main() {
+        let outer = Outer { inner: Inner { value: 1 } };
+        let outer_ref = &outer;
+        let _ = outer_ref.inner.bump_and_read();
+                ^^^^^^^^^ `outer_ref` is a `&` reference, so it cannot be written to
+    }
+    "#;
+    check_errors(src);
+}
+
+// The same call through a `&mut` reference is legal: the `&mut self` write reaches the
+// referenced field, so it must be accepted.
+#[test]
+fn allows_mut_self_receiver_through_mutable_reference_field() {
+    let src = r#"
+    struct Inner {
+        value: Field,
+    }
+
+    impl Inner {
+        fn bump_and_read(&mut self) -> Field {
+            self.value = 99;
+            self.value
+        }
+    }
+
+    struct Outer {
+        inner: Inner,
+    }
+
+    fn main() {
+        let mut outer = Outer { inner: Inner { value: 1 } };
+        let outer_ref = &mut outer;
+        let returned = outer_ref.inner.bump_and_read();
+        assert(returned == 99);
+        assert(outer.inner.value == 99);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
 #[test]
 fn generic_inference_through_immutable_reference() {
     let src = r#"
