@@ -57,6 +57,17 @@ struct Validator<'f> {
     function: &'f Function,
     ssa: &'f Ssa,
 
+    /// Whether to run the full ruleset (`true`), as for freshly parsed input SSA and fully
+    /// codegen'd SSA, or only the rules that must hold at every point in the pipeline (`false`),
+    /// assuming we started from valid SSA and applied a single pass.
+    ///
+    /// The `false` (between-passes) mode skips rules that generated (and simplified) SSA satisfies
+    /// syntactically but that an optimization pass may legitimately break while staying semantically
+    /// valid — e.g. the narrowing-cast guard: a pass can prove a cast is in range by construction
+    /// without emitting a preceding `truncate`/`range_check` (which in ACIR would cost gates, since
+    /// a `Cast` is free).
+    full: bool,
+
     // State for validating narrowing casts.
     // Range checks are laid down in isolation and can make for safe casts
     // if they occurred before the value being cast to a smaller type.
@@ -69,10 +80,11 @@ struct Validator<'f> {
 }
 
 impl<'f> Validator<'f> {
-    fn new(function: &'f Function, ssa: &'f Ssa) -> Self {
+    fn new(function: &'f Function, ssa: &'f Ssa, full: bool) -> Self {
         Self {
             function,
             ssa,
+            full,
             range_checks: HashMap::default(),
             allocate_element_types: HashMap::default(),
         }
@@ -1151,7 +1163,12 @@ impl<'f> Validator<'f> {
         for block in PostOrder::with_function_from_entry(self.function).into_vec_reverse() {
             for instruction in self.function.dfg[block].instructions() {
                 self.track_allocate_and_check_load_store(*instruction);
-                self.validate_narrowing_cast_invariant(*instruction);
+                // The narrowing-cast guard is a property of generated/simplified SSA; a pass can
+                // produce a cast that's safe by construction without the syntactic guard, so it's
+                // only checked in the full ruleset (see the `full` field).
+                if self.full {
+                    self.validate_narrowing_cast_invariant(*instruction);
+                }
                 self.type_check_instruction(*instruction);
                 self.check_calls_in_unconstrained(*instruction);
                 self.check_calls_in_constrained(*instruction);
@@ -1220,8 +1237,8 @@ fn defined_by_unchecked_signed_sub(dfg: &DataFlowGraph, value: ValueId) -> bool 
 /// Validates that the [Function] is well formed.
 ///
 /// Panics on malformed functions.
-pub(crate) fn validate_function(function: &Function, ssa: &Ssa) {
-    let mut validator = Validator::new(function, ssa);
+pub(crate) fn validate_function(function: &Function, ssa: &Ssa, full: bool) {
+    let mut validator = Validator::new(function, ssa, full);
     validator.run();
 }
 
@@ -2862,7 +2879,7 @@ mod tests {
 
         let ssa = builder.finish();
 
-        Validator::new(&ssa.functions[&main_id], &ssa).run();
+        Validator::new(&ssa.functions[&main_id], &ssa, true).run();
     }
 
     #[test]
