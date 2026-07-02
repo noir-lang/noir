@@ -9,6 +9,7 @@ use color_eyre::eyre::{self, WrapErr};
 use nargo::{NargoError, errors::ExecutionError, foreign_calls::DefaultForeignCallBuilder};
 use noirc_abi::{Abi, InputMap, input_parser::InputValue};
 use noirc_evaluator::{ErrorType, ssa::SsaProgramArtifact};
+use noirc_frontend::hir_def::types::Type as HirType;
 use noirc_frontend::monomorphization::ast::Program;
 
 use crate::{Config, arb_inputs, arb_program, compare::logging, program_abi};
@@ -52,15 +53,28 @@ impl NargoErrorWithTypes {
                     if let Some(ssa_type) = self.1.get(&raw.selector) {
                         match ssa_type {
                             ErrorType::String(message) => Some(message.clone()),
-                            ErrorType::Dynamic(_hir_type) => {
+                            ErrorType::Dynamic(hir_type) => {
                                 // A non-literal assert message — for example an `if`-expression that
                                 // produces a string, as the metamorphic rewriter can introduce — is
                                 // recorded by `codegen_constrain_error` as `ErrorType::Dynamic`, even
                                 // when its type is a plain string. Recover the message from the raw
                                 // payload bytes when they encode a string, matching the encoding of
-                                // `ConstrainError::Dynamic { is_string_type: true, .. }`. Genuine
-                                // format strings need the raw payload decoded as an ABI type, which the
-                                // mapper in `crate::abi` doesn't handle yet, so they fall back to `None`.
+                                // `ConstrainError::Dynamic { is_string_type: true, .. }`.
+                                //
+                                // A format string (as synthesized for the composite-array
+                                // out-of-bounds error) encodes its template text in the leading
+                                // `length` fields, followed by the field count and the formatted
+                                // values. Decode just the template — it is enough to match the error
+                                // textually and avoids needing full ABI formatting of the values.
+                                if let HirType::FmtString(length, _) = hir_type
+                                    && let HirType::Constant(int) = length.as_ref()
+                                    && let Some(len) = int.as_field().try_to_u64()
+                                {
+                                    return raw
+                                        .data
+                                        .get(..len as usize)
+                                        .and_then(decode_raw_string_payload);
+                                }
                                 decode_raw_string_payload(&raw.data)
                             }
                         }
@@ -593,5 +607,59 @@ mod tests {
         );
 
         assert!(NargoErrorWithTypes::equivalent(&dynamic_error, &static_string_error));
+    }
+
+    #[test]
+    fn matches_acir_dynamic_fmtstr_oob_with_brillig_string() {
+        // Regression test for the `acir_vs_brillig` failure with seed 0x6c3ad1760003227e.
+        //
+        // A dynamic read of a composite array (element size > 1) out of bounds is reported in
+        // ACIR by a synthesized format-string assertion carrying the logical index and length
+        // (`ConstrainError::Dynamic` with an `ErrorType::Dynamic(fmtstr<_, (u32,)>)`). Its raw
+        // payload is the template bytes, followed by the field count and the formatted index
+        // value. In Brillig the same access surfaces as a plain `"Index out of bounds"` string.
+        // Extracting the template message from the fmtstr payload is what lets the comparator
+        // treat the two as equivalent.
+        let template = "Index out of bounds, array has size 4, but index was {}";
+        let mut data: Vec<FieldElement> =
+            template.bytes().map(|b| FieldElement::from(u32::from(b))).collect();
+        // Format string layout: template bytes, then the field count, then the formatted values.
+        data.push(FieldElement::from(1u32));
+        data.push(FieldElement::from(869191887u32));
+
+        let fmtstr_type = HirType::FmtString(
+            Box::new(HirType::Constant(Integer::U32(template.len() as u32))),
+            Box::new(HirType::Tuple(vec![HirType::u32()])),
+        );
+        let acir_selector = ErrorSelector::new(9034042597070725729);
+        let acir_error = NargoErrorWithTypes(
+            nargo::NargoError::ExecutionError(ExecutionError::AssertionFailed(
+                ResolvedAssertionPayload::Raw(RawAssertionPayload {
+                    selector: acir_selector,
+                    data,
+                }),
+                Vec::new(),
+                None,
+            )),
+            BTreeMap::from_iter([(acir_selector, ErrorType::Dynamic(fmtstr_type))]),
+        );
+
+        let brillig_selector = ErrorSelector::new(16431471497789672479);
+        let brillig_error = NargoErrorWithTypes(
+            nargo::NargoError::ExecutionError(ExecutionError::AssertionFailed(
+                ResolvedAssertionPayload::Raw(RawAssertionPayload {
+                    selector: brillig_selector,
+                    data: vec![],
+                }),
+                Vec::new(),
+                Some(BrilligFunctionId::new(0)),
+            )),
+            BTreeMap::from_iter([(
+                brillig_selector,
+                ErrorType::String("Index out of bounds".to_string()),
+            )]),
+        );
+
+        assert!(NargoErrorWithTypes::equivalent(&acir_error, &brillig_error));
     }
 }
