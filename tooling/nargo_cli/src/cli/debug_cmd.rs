@@ -13,7 +13,7 @@ use nargo::ops::debug::{
     prepare_package_for_debug,
 };
 use nargo::ops::{
-    TestStatus, check_crate_and_report_errors, test_status_program_compile_fail,
+    TestStatus, check_crate_and_report_errors, test_status_program_compile_diagnostics_fail,
     test_status_program_compile_pass,
 };
 use nargo::package::{CrateName, Package};
@@ -175,7 +175,7 @@ fn debug_test_fn(
                 },
             }
         }
-        Err(err) => test_status_program_compile_fail(err, &test.function),
+        Err(err) => test_status_program_compile_diagnostics_fail(err, &test.function),
     };
 
     TestResult::new(

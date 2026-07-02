@@ -252,12 +252,12 @@ impl Function {
         FunctionView(self)
     }
 
-    /// Re-insert all instructions through the DFG simplification path.                                                                                                                                                              
-    ///                                                                                                                                                                                                                              
-    /// This creates a [`FunctionInserter`][crate::ssa::ir::function_inserter::FunctionInserter], iterates every reachable block in RPO,                                                                                                                                                    
-    /// takes each instruction and re-inserts it via `push_instruction` (which                                                                                                                                                       
-    /// resolves value mappings and triggers DFG simplification such as constant                                                                                                                                                     
-    /// folding of binary ops), then remaps terminators and the data bus.                                                                                                                                                            
+    /// Re-insert all instructions through the DFG simplification path.
+    ///
+    /// This creates a [`FunctionInserter`][crate::ssa::ir::function_inserter::FunctionInserter], iterates every reachable block in RPO,
+    /// takes each instruction and re-inserts it via `push_instruction` (which
+    /// resolves value mappings and triggers DFG simplification such as constant
+    /// folding of binary ops), then remaps terminators and the data bus.
     pub(crate) fn simplify_instructions(&mut self) {
         use crate::ssa::ir::function_inserter::FunctionInserter;
 

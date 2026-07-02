@@ -89,7 +89,11 @@ pub fn report_errors<T>(
         report_all(file_manager, parsed_files, &errors, deny_warnings, silence_warnings)
     })?;
 
-    report_all(file_manager, parsed_files, &warnings, deny_warnings, silence_warnings);
+    let reported_errors =
+        report_all(file_manager, parsed_files, &warnings, deny_warnings, silence_warnings);
+    if reported_errors.error_count > 0 {
+        return Err(reported_errors.into());
+    }
 
     Ok(t)
 }
