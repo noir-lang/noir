@@ -377,7 +377,7 @@ impl Elaborator<'_> {
     /// to the variant global's `Forall` generics (the enum's generics), validating the count the
     /// same way [`Self::resolve_item_turbofish_generics`] does. A non-generic enum has no `Forall`,
     /// so a turbofish on it produces a count-mismatch error.
-    fn bind_enum_variant_global_turbofish(
+    pub(super) fn bind_enum_variant_global_turbofish(
         &mut self,
         definition_id: DefinitionId,
         turbofish: &[Located<Type>],
