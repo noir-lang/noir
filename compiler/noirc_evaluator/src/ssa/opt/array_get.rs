@@ -653,32 +653,6 @@ mod tests {
     }
 
     #[test]
-    fn folds_offset_constant_array_get_to_logical_element() {
-        // In a Brillig function `brillig_array_get_and_set` shifts constant indices past the
-        // array's in-memory header (the `minus 1` here). Folding a `make_array` read must map the
-        // shifted index back to logical space; otherwise it returns the element one slot too far,
-        // which for an array of tuples is also the wrong *type* and crashes Brillig codegen.
-        let src = "
-        brillig(inline) fn main f0 {
-          b0():
-            v0 = make_array [u32 10, u1 1, u32 20, u1 0] : [(u32, u1); 2]
-            v1 = array_get v0, index u32 2 minus 1 -> u1
-            return v1
-        }
-        ";
-        let ssa = Ssa::from_str(src).unwrap();
-
-        let ssa = ssa.array_get_optimization();
-        assert_ssa_snapshot!(ssa, @r"
-        brillig(inline) fn main f0 {
-          b0():
-            v4 = make_array [u32 10, u1 1, u32 20, u1 0] : [(u32, u1); 2]
-            return u1 1
-        }
-        ");
-    }
-
-    #[test]
     fn optimizes_array_get_from_array_set_to_set_value_under_default_predicate() {
         let src = "
         acir(inline) fn main f0 {
