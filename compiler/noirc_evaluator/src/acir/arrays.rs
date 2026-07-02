@@ -14,7 +14,8 @@
 //! ACIR generation use two different array types for representing arrays:
 //!
 //! [Constant arrays][AcirValue::Array]
-//!   - Known at compile time.
+//!   - A known sequence of element [`AcirValue`]s. The individual values may be witnesses (e.g. a
+//!     function parameter array), but the array's length and structure are known at compile time.
 //!   - Reads and writes may be folded into an [`AcirValue`] where possible.
 //!   - Useful for optimization (e.g., constant element lookups do not require laying down opcodes)
 //!
@@ -22,7 +23,10 @@
 //!   - Referenced by a [unique identifier][BlockId]
 //!   - Must be explicitly initialized using an [opcode][acvm::acir::circuit::opcodes::Opcode::MemoryInit]
 //!   - Reads and writes must lower to at least an explicit [memory opcode][acvm::acir::circuit::opcodes::Opcode::MemoryOp].
-//!   - Required for arrays accessed by dynamic indices (witness inputs) or function parameters (the array is itself a witness)
+//!   - Required once an array is accessed at a dynamic index, or written under a predicate. A
+//!     function parameter array starts as a constant array and is only promoted to a dynamic
+//!     array (lazily, by [`Context::ensure_array_is_initialized`]) when such an access occurs;
+//!     a parameter only read at constant indices never needs a memory block.
 //!
 //! ### Array Flattening
 //!
@@ -1255,7 +1259,7 @@ impl Context<'_> {
         if !already_initialized {
             let value = &dfg[array];
             match value {
-                Value::Instruction { .. } => {
+                Value::Instruction { .. } | Value::Param { .. } => {
                     let value = self.convert_value(array, dfg);
                     let len = self.flattened_size(array, dfg);
                     self.initialize_array(block_id, len, Some(value))?;
