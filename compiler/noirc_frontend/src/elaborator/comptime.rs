@@ -21,7 +21,7 @@ use noirc_errors::Location;
 use crate::{
     Type, TypeBindings,
     ast::{
-        Documented, Expression, ExpressionKind, TypeImpl, UnresolvedGenerics,
+        Documented, Expression, ExpressionKind, TraitItem, TypeImpl, UnresolvedGenerics,
         UnresolvedTraitConstraint, UnresolvedType,
     },
     hir::{
@@ -282,6 +282,8 @@ impl<'context> Elaborator<'context> {
                 None,
                 &mut attributes_to_run,
             );
+
+            self.collect_attributes_on_trait_methods(trait_, &mut attributes_to_run);
         }
 
         for (struct_id, struct_def) in types {
@@ -387,6 +389,53 @@ impl<'context> Elaborator<'context> {
                     impl_target,
                     attributes_to_run,
                 );
+            }
+        }
+    }
+
+    /// Collect comptime attributes on a trait's default methods, and reject them on bodyless
+    /// method declarations.
+    ///
+    /// Only default-bodied methods have a body for the attribute to run against; the item passed to
+    /// the attribute is the method's [`Value::FunctionDefinition`], matching how impl and top-level
+    /// function attributes are run. A comptime attribute on a bodyless declaration has nothing to run
+    /// against, so it is reported as an error rather than silently skipped.
+    ///
+    /// Methods are walked in source order (their order in the trait body) so that collected
+    /// attributes tie-break deterministically, as required by the ordering invariant documented in
+    /// `design/comptime.md`.
+    #[tracing::instrument(level = "trace", skip_all)]
+    fn collect_attributes_on_trait_methods(
+        &mut self,
+        trait_: &UnresolvedTrait,
+        attributes_to_run: &mut CollectedAttributes,
+    ) {
+        let context = AttributeContext::new(trait_.module_id);
+        for trait_item in &trait_.trait_def.items {
+            let TraitItem::Function { name, body, attributes, .. } = &trait_item.item else {
+                continue;
+            };
+            let Some(func_id) = trait_.method_ids.get(name.as_str()) else {
+                continue;
+            };
+
+            if body.is_some() {
+                let item = Value::FunctionDefinition(*func_id);
+                self.collect_comptime_attributes_on_item(
+                    &attributes.secondary,
+                    item,
+                    context,
+                    None,
+                    attributes_to_run,
+                );
+            } else {
+                for attribute in &attributes.secondary {
+                    if matches!(attribute.kind, SecondaryAttributeKind::Meta(_)) {
+                        self.push_err(ResolverError::ComptimeAttributeOnTraitMethodWithoutBody {
+                            location: attribute.location,
+                        });
+                    }
+                }
             }
         }
     }
