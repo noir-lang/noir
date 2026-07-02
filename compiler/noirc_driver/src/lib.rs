@@ -131,6 +131,11 @@ pub struct CompileOptions {
     #[arg(long, hide = true)]
     pub emit_ssa: bool,
 
+    /// Run the SSA validator after every optimization pass, to catch a pass that produces
+    /// malformed SSA. Intended for debugging and minimizing fuzzing failures.
+    #[arg(long, hide = true)]
+    pub validate_between_passes: bool,
+
     /// Only perform the minimum number of SSA passes.
     ///
     /// The purpose of this is to be able to debug fuzzing failures.
@@ -310,6 +315,7 @@ impl Default for CompileOptions {
             show_contract_fn: None,
             skip_ssa_pass: Vec::new(),
             emit_ssa: false,
+            validate_between_passes: false,
             minimal_ssa: false,
             show_brillig: false,
             show_brillig_opcode_advisories: false,
@@ -387,6 +393,7 @@ impl CompileOptions {
             max_specializations_per_fn: self.max_specializations_per_fn,
             skip_passes: self.skip_ssa_pass.clone(),
             ssa_logging_hide_unchanged: self.hide_unchanged_ssa,
+            validate_between_passes: self.validate_between_passes,
         }
     }
 }

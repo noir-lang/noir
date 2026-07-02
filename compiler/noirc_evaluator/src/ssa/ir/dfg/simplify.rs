@@ -691,7 +691,7 @@ mod tests {
         ";
         let ssa = Ssa::from_str_simplifying(src).unwrap();
         let ssa = ssa.array_get_optimization();
-        crate::ssa::ssa_gen::validate_ssa(&ssa);
+        crate::ssa::ssa_gen::validate_ssa(&ssa, true);
     }
 
     #[test]

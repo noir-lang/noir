@@ -167,6 +167,9 @@ pub struct SsaEvaluatorOptions {
 
     /// A list of SSA pass messages to skip, for testing purposes.
     pub skip_passes: Vec<String>,
+
+    /// Run the full SSA validator after each pass, to catch a pass that produces malformed SSA.
+    pub validate_between_passes: bool,
 }
 
 /// Defaults used in tests.
@@ -191,6 +194,7 @@ impl Default for SsaEvaluatorOptions {
             specialization_threshold: DEFAULT_SPECIALIZATION_THRESHOLD,
             max_specializations_per_fn: DEFAULT_MAX_SPECIALIZATIONS_PER_FN,
             skip_passes: Vec::new(),
+            validate_between_passes: false,
         }
     }
 }
@@ -456,7 +460,10 @@ pub fn optimize_ssa_builder_into_acir(
 ) -> Result<ArtifactsAndWarnings, RuntimeError> {
     let ssa_gen_span = span!(Level::TRACE, "ssa_generation");
     let ssa_gen_span_guard = ssa_gen_span.enter();
-    let builder = builder.with_skip_passes(options.skip_passes.clone()).run_passes(passes)?;
+    let builder = builder
+        .with_skip_passes(options.skip_passes.clone())
+        .with_validate_between_passes(options.validate_between_passes)
+        .run_passes(passes)?;
 
     drop(ssa_gen_span_guard);
 

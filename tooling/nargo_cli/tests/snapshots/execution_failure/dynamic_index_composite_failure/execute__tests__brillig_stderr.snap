@@ -2,11 +2,11 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: stderr
 ---
-error: Assertion failed: Index out of bounds, array has size 2, but index was 2147483648
+error: Assertion failed: Index out of bounds
   ┌─ src/main.nr:3:5
   │
-3 │     v7[index]
-  │     ---------
+3 │     a[i].1
+  │     ----
   │
   = Call stack:
     1: main
