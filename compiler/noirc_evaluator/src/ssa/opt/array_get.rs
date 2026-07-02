@@ -132,6 +132,9 @@ impl Ssa {
 
 impl Function {
     fn array_get_optimization(&mut self) {
+        #[cfg(debug_assertions)]
+        array_get_optimization_pre_check(self);
+
         // Caches the known contents of each array value as the function is scanned, so resolving an
         // `array_get` at a constant index is a lookup rather than a walk back through previous
         // instructions.
@@ -147,18 +150,6 @@ impl Function {
         // unconditional writes. Either way the comparison holds across blocks, so the cache is kept
         // for the whole function rather than reset per block.
         let mut views: HashMap<ValueId, ArrayView> = HashMap::new();
-
-        // A non-trivial predicate is only ever seen within a single block (see above), which holds
-        // exactly when a multi-block function contains no `enable_side_effects` instruction. SSA
-        // validation enforces this at construction but not between passes, so guard it here too: a
-        // breach means the cross-block cache can no longer be trusted, and asserting it once up
-        // front catches a future pipeline change that breaks the invariant rather than letting it
-        // silently emit an unsound fold.
-        debug_assert!(
-            !mixes_control_flow_with_predicates(self),
-            "a multi-block function contains an enable_side_effects instruction; \
-             the cross-block array_get cache would be unsound"
-        );
 
         self.simple_optimization(|context| {
             let instruction_id = context.instruction_id;
@@ -234,21 +225,26 @@ fn constant_index(dfg: &DataFlowGraph, index: ValueId) -> Option<u32> {
     dfg.get_numeric_constant(index)?.try_to_u32()
 }
 
-/// Whether `func` has more than one block yet still contains an `enable_side_effects` instruction.
+/// Asserts the invariant the cross-block `array_get` cache relies on: a non-trivial side-effects
+/// predicate is confined to a single block.
 ///
-/// This is invalid SSA and should never exist: `enable_side_effects` only appears after flattening,
-/// which collapses the function to a single block, so a multi-block function must not contain one.
-/// Such a function would break the assumption that a non-trivial predicate is confined to a single
-/// block, which the cross-block `array_get` cache relies on.
-fn mixes_control_flow_with_predicates(func: &Function) -> bool {
-    let blocks = func.reachable_blocks();
-    blocks.len() > 1
-        && blocks.iter().any(|block| {
-            func.dfg[*block]
-                .instructions()
-                .iter()
-                .any(|instr| matches!(func.dfg[*instr], Instruction::EnableSideEffectsIf { .. }))
-        })
+/// This holds exactly when a multi-block function contains no `enable_side_effects` instruction
+/// (those appear only after flattening, which collapses the function to a single block). SSA
+/// validation enforces this at construction but not between passes, so guard it here too: a breach
+/// means the cross-block cache can no longer be trusted, and asserting it once up front catches a
+/// future pipeline change that breaks the invariant rather than letting it silently emit an unsound
+/// fold.
+#[cfg(debug_assertions)]
+fn array_get_optimization_pre_check(func: &Function) {
+    // The pass runs both before flattening (several blocks, but no `enable_side_effects` yet) and
+    // after it (a single block that may carry `enable_side_effects`). A single-block function
+    // trivially confines any predicate to that block, so only a multi-block function can break the
+    // invariant — and a well-formed one predates flattening and has no `enable_side_effects` at all.
+    if func.reachable_blocks().len() > 1 {
+        super::checks::for_each_instruction(func, |instruction, _| {
+            super::checks::assert_not_enable_side_effects(instruction);
+        });
+    }
 }
 
 /// The result of the `array_get` optimization.
