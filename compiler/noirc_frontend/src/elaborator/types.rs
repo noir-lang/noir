@@ -176,10 +176,17 @@ impl Elaborator<'_> {
     /// `impl<Context> ..`), a textually-written `Context` resolves by name to the new scope's
     /// generic, so the spliced type's `Context` must too; otherwise two identically-named generics
     /// with different type variables fail to unify.
+    ///
+    /// Only ordinary named generics are rebound. Associated-type and associated-constant
+    /// projections are also modeled as `NamedGeneric`s, but their name is the projection itself
+    /// (e.g. `<T as Deserialize>::N`); rebinding one to a same-named projection in scope would
+    /// conflate distinct projections (e.g. a field's `<[T; N] as Deserialize>::N` with the
+    /// enclosing impl's own `Self::N`, yielding a cyclic associated constant).
     fn rebind_resolved_type_generics(&self, typ: Type) -> Type {
         let mut bindings = TypeBindings::default();
         typ.visit(&mut |typ| {
             if let Type::NamedGeneric(named) = typ
+                && !named.is_associated()
                 && let TypeBinding::Unbound(id, kind) = &*named.type_var.borrow()
                 && let Some(generic) = self.find_generic(named.name.as_str())
                 && generic.type_var.id() != *id

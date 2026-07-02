@@ -54,6 +54,12 @@ identifier in a quote already resolves):
   name-capture for the matching case.
 - Capture is by name only and `Type`'s `Display` shows only names, so which generic a spliced
   `Context` resolves to is not visible in printed types.
+- Only ordinary named generics are rebound. Associated-type and associated-constant projections
+  are also modeled as `NamedGeneric`s, but their name *is* the projection (e.g.
+  `<T as Deserialize>::N`), so they are excluded (`NamedGeneric::is_associated`). Rebinding one
+  would capture it onto a same-named projection at the splice site — e.g. a `#[derive]`-generated
+  `let N: u32 = <$field as Deserialize>::N` would tie the field's `<[T; N] as Deserialize>::N` to
+  the impl's own `Self::N`, yielding the cyclic associated constant `Self::N = N * Self::N`.
 
 # Hashing of comptime items
 
