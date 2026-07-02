@@ -914,12 +914,14 @@ impl<'a> Context<'a> {
 /// * No empty `AssertZero` opcodes (asserting `0 == 0`) should be emitted.
 /// * No memory opcodes should be laid down that write to the internal type sizes array.
 ///   See [arrays] for more information on the type sizes array.
-/// * Every non-databus memory block that is initialized is also referenced by at least one
-///   memory operation or Brillig memory-array input. A [`MemoryInit`][Opcode::MemoryInit] with no
-///   linked read/write is dead weight that ACIR gen should never emit: arrays are only promoted to
-///   a memory block on their first memory operation. Databus blocks (calldata/return data) are
+/// * Every non-databus, non-empty memory block that is initialized is also referenced by at least
+///   one memory operation or Brillig memory-array input. A [`MemoryInit`][Opcode::MemoryInit] with
+///   no linked read/write is dead weight that ACIR gen should never emit: arrays are only promoted
+///   to a memory block on their first memory operation. Databus blocks (calldata/return data) are
 ///   exempt as they are part of the circuit's ABI and are intentionally initialized even when
-///   unused.
+///   unused. Zero-length blocks are also exempt: an empty block has no slots to read or write, so
+///   it can never be referenced by a memory operation, and the ACVM unused-memory optimizer strips
+///   these inert initializations regardless.
 #[cfg(debug_assertions)]
 fn acir_post_check(context: &Context<'_>, acir: &GeneratedAcir<FieldElement>) {
     use acvm::acir::circuit::Opcode;
@@ -937,8 +939,8 @@ fn acir_post_check(context: &Context<'_>, acir: &GeneratedAcir<FieldElement>) {
                     "ICE: Empty AssertZero opcodes (0 == 0) should not be emitted"
                 );
             }
-            Opcode::MemoryInit { block_id, block_type, .. } => {
-                if !block_type.is_databus() {
+            Opcode::MemoryInit { block_id, block_type, init } => {
+                if !block_type.is_databus() && !init.is_empty() {
                     initialized_non_databus_blocks.insert(*block_id);
                 }
             }
