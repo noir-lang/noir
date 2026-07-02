@@ -9,7 +9,6 @@
 //! The fields are private to this module: outside code seeds a view with [`ArrayView::for_value`],
 //! extends it with [`ArrayView::with_element`], and reads it with [`ArrayView::resolve`], so the
 //! predicate rule that makes a cached element safe to use lives in one place.
-use acvm::AcirField;
 use im::OrdMap;
 
 use crate::ssa::ir::{
@@ -98,7 +97,7 @@ impl ArrayView {
         if let Some(element) = self.elements.get(&index) {
             // A known element can only be used if it was written unconditionally or under the same
             // predicate as the `array_get`; otherwise the write might not have happened.
-            return (is_unconditional(dfg, element.predicate) || element.predicate == predicate)
+            return (dfg.is_constant_true(element.predicate) || element.predicate == predicate)
                 .then_some(Resolution::Value(element.value));
         }
 
@@ -122,10 +121,4 @@ impl ArrayView {
     fn unknown() -> Self {
         ArrayView { elements: OrdMap::new(), base: ArrayBase::Unknown }
     }
-}
-
-/// Whether `predicate` is the constant side-effects predicate `1`, i.e. the value is written or
-/// read unconditionally.
-fn is_unconditional(dfg: &DataFlowGraph, predicate: ValueId) -> bool {
-    dfg.get_numeric_constant(predicate).is_some_and(|var| var.is_one())
 }
