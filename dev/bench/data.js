@@ -1,107 +1,8 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1782992178208,
+  "lastUpdate": 1782992411428,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
-      {
-        "commit": {
-          "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "40fe6c9784d680ad8b0c9c2e76315ae06634f367",
-          "message": "feat: search in nargo doc (#13175)\n\nCo-authored-by: Claude Opus 4.8 (1M context) <noreply@anthropic.com>",
-          "timestamp": "2026-06-25T14:23:54Z",
-          "tree_id": "d23554abab16881af4d243ef517ed0941ff9a096",
-          "url": "https://github.com/noir-lang/noir/commit/40fe6c9784d680ad8b0c9c2e76315ae06634f367"
-        },
-        "date": 1782399710703,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 300.26,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 524.32,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 281.12,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root-first-empty-tx",
-            "value": 361.6,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 361.6,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 362.52,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-checkpoint-merge",
-            "value": 361.6,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-checkpoint-root-single-block",
-            "value": 6070,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-checkpoint-root",
-            "value": 6070,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 361.76,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-tx-base-private",
-            "value": 871.38,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-tx-base-public",
-            "value": 2830,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-tx-merge",
-            "value": 361.6,
-            "unit": "MB"
-          },
-          {
-            "name": "semaphore_depth_10",
-            "value": 104.48,
-            "unit": "MB"
-          },
-          {
-            "name": "sha512_100_bytes",
-            "value": 150.01,
-            "unit": "MB"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -4919,6 +4820,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-checkpoint-root",
             "value": 6060,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 353.13,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-base-private",
+            "value": 862.76,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-base-public",
+            "value": 2820,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-merge",
+            "value": 353.01,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 103.63,
+            "unit": "MB"
+          },
+          {
+            "name": "sha512_100_bytes",
+            "value": 149.24,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49558828+AztecBot@users.noreply.github.com",
+            "name": "Aztec Bot",
+            "username": "AztecBot"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "f807e4b801ffc66c03ed33d0b44f70f5734d0e8b",
+          "message": "chore: resolve array_get through a cached array view (#12745)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>\nCo-authored-by: Claude Opus 4.8 <noreply@anthropic.com>\nCo-authored-by: Akosh Farkash <aakoshh@gmail.com>",
+          "timestamp": "2026-07-02T11:00:40Z",
+          "tree_id": "d3eaba52017871b1819b898624f6bcc19bedd7a8",
+          "url": "https://github.com/noir-lang/noir/commit/f807e4b801ffc66c03ed33d0b44f70f5734d0e8b"
+        },
+        "date": 1782992330336,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 294.26,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 518.31,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 275.12,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root-first-empty-tx",
+            "value": 353.01,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 353.01,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 353.9,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-merge",
+            "value": 353.01,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-root-single-block",
+            "value": 6040,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-root",
+            "value": 6040,
             "unit": "MB"
           },
           {
