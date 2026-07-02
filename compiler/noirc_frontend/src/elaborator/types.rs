@@ -167,6 +167,39 @@ impl Elaborator<'_> {
         resolved_type
     }
 
+    /// Rebind the free named generics of a type spliced in from a `quote { $typ }` to the
+    /// same-named generics in scope at the splice site.
+    ///
+    /// A `Type` interpolated into a quote (e.g. one obtained from `TypeDefinition::fields_as_written`)
+    /// is already resolved: its named generics carry the type variables of the definition it came
+    /// from. When such a type is spliced into a new generic scope (e.g. a generated
+    /// `impl<Context> ..`), a textually-written `Context` resolves by name to the new scope's
+    /// generic, so the spliced type's `Context` must too; otherwise two identically-named generics
+    /// with different type variables fail to unify.
+    ///
+    /// Only ordinary named generics are rebound. Associated-type and associated-constant
+    /// projections are also modeled as `NamedGeneric`s, but their name is the projection itself
+    /// (e.g. `<T as Deserialize>::N`); rebinding one to a same-named projection in scope would
+    /// conflate distinct projections (e.g. a field's `<[T; N] as Deserialize>::N` with the
+    /// enclosing impl's own `Self::N`, yielding a cyclic associated constant).
+    fn rebind_resolved_type_generics(&self, typ: Type) -> Type {
+        let mut bindings = TypeBindings::default();
+        typ.visit(&mut |typ| {
+            if let Type::NamedGeneric(named) = typ
+                && !named.is_associated()
+                && let TypeBinding::Unbound(id, kind) = &*named.type_var.borrow()
+                && let Some(generic) = self.find_generic(named.name.as_str())
+                && generic.type_var.id() != *id
+            {
+                let replacement = generic.clone().into_named_generic(None);
+                bindings.insert(*id, (named.type_var.clone(), kind.clone(), replacement));
+            }
+            true
+        });
+
+        if bindings.is_empty() { typ } else { typ.substitute(&bindings) }
+    }
+
     /// Resolves an [`UnresolvedType`] to a [Type] with a given [Kind] and marks it, and any generic types it contains, as _referenced_.
     #[tracing::instrument(level = "trace", skip_all)]
     pub(crate) fn resolve_type_with_kind(
@@ -278,7 +311,10 @@ impl Elaborator<'_> {
             Parenthesized(typ) => {
                 self.resolve_type_with_kind_inner(*typ, kind, mode, wildcard_allowed)
             }
-            Resolved(id) => self.interner.get_quoted_type(id).clone(),
+            Resolved(id) => {
+                let typ = self.interner.get_quoted_type(id).clone();
+                self.rebind_resolved_type_generics(typ)
+            }
             AsTraitPath(path) => self.resolve_as_trait_path(*path, mode, wildcard_allowed),
             Interned(id) => {
                 let typ = self.interner.get_unresolved_type_data(id).clone();
