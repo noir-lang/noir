@@ -1084,3 +1084,18 @@ fn errors_on_segment_after_associated_constant() {
     "#;
     check_errors(src);
 }
+
+#[test]
+fn errors_on_enum_generics_specified_on_both_type_and_variant() {
+    // In `<E<u32>>::A::<bool>` the enum's generics are given both on the type (`<u32>`)
+    // and on the variant turbofish (`<bool>`); specifying them twice is an error.
+    let src = r#"
+    pub enum E<T> { A, B(T) }
+    fn main() {
+        let _ = <E<u32>>::A::<bool>;
+                              ^^^^ Generic arguments for the enum were specified more than once
+                              ~~~~ Specify the enum's generic arguments in only one place
+    }
+    "#;
+    check_errors_using_features(src, &[UnstableFeature::Enums]);
+}

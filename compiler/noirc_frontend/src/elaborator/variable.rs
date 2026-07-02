@@ -946,6 +946,16 @@ impl Elaborator<'_> {
 
         self.interner.push_type_ref_location(&typ, typ_location);
 
+        // A type member may be an enum-variant constructor or a trait associated constant (e.g.
+        // `<Foo>::N`, `<E>::A`), which live in the value namespace rather than among the type's
+        // methods; resolve those exactly as a plain `Foo::N` / `E::A` path does. Methods and
+        // associated functions aren't found here, so they fall through to method lookup below.
+        let segment = TypedPathSegment::without_generics(ident.clone(), ident_location);
+        if let Ok(path_value) = self.lookup_path_as_value_in_type(&segment, &typ, None) {
+            let resolution = self.variable_resolution_from_path_value(path_value, ident_location);
+            return self.type_path_value_expr(resolution, &typ, turbofish.as_ref(), ident_location);
+        }
+
         let Some(method) = self.lookup_method(
             &typ,
             ident.as_str(),
@@ -965,6 +975,52 @@ impl Elaborator<'_> {
             turbofish.map(|turbofish| self.use_type_args(turbofish, func_id, ident_location).0);
 
         self.elaborate_type_path_impl_inner(&typ, typ_location, ident_location, method, generics)
+    }
+
+    /// Build the expression for a type-path member (`<Type>::member`) that resolved to a value — an
+    /// enum-variant constructor or an associated constant. An enum-variant constructor is generic
+    /// over its enum's generics, so those are bound from the receiver type `typ` (`<E<bool>>::A` has
+    /// type `E<bool>`, not an unbound `E<_>`), exactly as the segment turbofish binds them for a
+    /// plain `E::<bool>::A` path. `item_turbofish` is the turbofish on the member itself
+    /// (`<Type>::member::<..>`); since the enum's generics already come from `typ`, one on a variant
+    /// specifies them a second time and is reported as an error.
+    fn type_path_value_expr(
+        &mut self,
+        resolution: VariableResolution,
+        typ: &Type,
+        item_turbofish: Option<&GenericTypeArgs>,
+        location: Location,
+    ) -> (ExprId, Type) {
+        // A value member of a type is always an enum-variant constructor or an associated
+        // constant, both of which resolve to an ident (never a local variable or a numeric type
+        // alias).
+        let VariableResolution::Ident(hir_ident, item) = resolution else {
+            unreachable!("a type's value member always resolves to an ident");
+        };
+
+        let mut bindings = TypeBindings::default();
+        if matches!(item, Some(PathResolutionItem::EnumVariant(_)))
+            && let Type::DataType(_, generics) = typ
+        {
+            if let Some(item_turbofish) = item_turbofish.filter(|_| !generics.is_empty()) {
+                let turbofish_location =
+                    item_turbofish.ordered_args.first().map_or(location, |arg| arg.location);
+                self.push_err(ResolverError::DuplicateEnumGenerics {
+                    location: turbofish_location,
+                });
+            }
+            let turbofish = vecmap(generics, |generic| Located::from(location, generic.clone()));
+            self.bind_enum_variant_global_turbofish(
+                hir_ident.id,
+                &turbofish,
+                location,
+                &mut bindings,
+            );
+        }
+        let id = self.intern_expr(HirExpression::Ident(hir_ident.clone(), None), location);
+        let typ = self.type_check_variable_with_bindings(hir_ident, &id, None, bindings);
+        let id = self.intern_expr_type(id, typ.clone());
+        (id, typ)
     }
 
     /// Variant of [`Self::elaborate_type_path_impl_inner`] that accepts already resolved generics.
