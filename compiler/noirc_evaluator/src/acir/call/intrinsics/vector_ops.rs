@@ -15,14 +15,19 @@ use super::Context;
 
 /// Flattens a vector's contents to its scalar vars when they are still known inline.
 ///
-/// Returns `Some` for an [`AcirValue::Array`] (whose elements are held directly) and `None` for an
-/// [`AcirValue::DynamicArray`], which is backed by a memory block and must be read from it. The
-/// result indexes positionally into the vector's flattened memory layout.
+/// Returns `Some` for an [`AcirValue::Array`] whose elements are all held directly, and `None` for
+/// an [`AcirValue::DynamicArray`], which is backed by a memory block and must be read from it. A
+/// `None` is also returned when the outer array holds a nested [`AcirValue::DynamicArray`] element
+/// (which makes [`AcirValue::flatten`] fail), since that element's scalars only exist in the
+/// backing memory block; in that case the whole read falls back to the memory block. The result
+/// indexes positionally into the vector's flattened memory layout.
 fn flattened_inline_source(value: &AcirValue) -> Option<Vec<AcirVar>> {
     match value {
-        AcirValue::Array(_) => {
-            Some(value.clone().flatten().into_iter().map(|(var, _typ)| var).collect())
-        }
+        AcirValue::Array(_) => value
+            .clone()
+            .flatten()
+            .ok()
+            .map(|flat| flat.into_iter().map(|(var, _typ)| var).collect()),
         AcirValue::Var(_, _) | AcirValue::DynamicArray(_) => None,
     }
 }
