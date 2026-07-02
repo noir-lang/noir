@@ -405,6 +405,59 @@ fn vector_pop_back_unknown_length() {
 }
 
 #[test]
+fn vector_pop_back_inline_contents_resolves_without_memory_ops() {
+    // The vector's contents are still held inline as an `AcirValue::Array`, so popping resolves the
+    // last element (`v1`) at compile time. No backing memory block, `INIT` or `READ` is emitted —
+    // the popped value is returned directly.
+    let src = "
+    acir(inline) fn main f0 {
+      b0(v0: Field, v1: Field):
+        v3 = make_array [v0, v1] : [Field]
+        v5, v6, v7 = call vector_pop_back(u32 2, v3) -> (u32, [Field], Field)
+        return v7
+    }
+    ";
+    let program = ssa_to_acir_program(src);
+
+    assert_circuit_snapshot!(program, @r"
+    func 0
+    private parameters: [w0, w1]
+    public parameters: []
+    return values: [w2]
+    ASSERT w2 = w1
+    ");
+}
+
+#[test]
+fn vector_pop_back_nested_inline_contents_resolves_without_memory_ops() {
+    // The vector holds `[Field; 2]` elements inline as a *nested* `AcirValue::Array`, so its
+    // flattened scalars only line up with the read offsets after flattening the nesting. Popping
+    // resolves the last element (`[v2, v3]`) at compile time with no `INIT`/`READ`. This guards the
+    // nested inline-source path: indexing the nested `AcirValue::Array` positionally rather than by
+    // its flattened layout would read the wrong scalars here.
+    let src = "
+    acir(inline) fn main f0 {
+      b0(v0: Field, v1: Field, v2: Field, v3: Field):
+        v4 = make_array [v0, v1] : [Field; 2]
+        v5 = make_array [v2, v3] : [Field; 2]
+        v6 = make_array [v4, v5] : [[Field; 2]]
+        v8, v9, v10 = call vector_pop_back(u32 2, v6) -> (u32, [[Field; 2]], [Field; 2])
+        return v10
+    }
+    ";
+    let program = ssa_to_acir_program(src);
+
+    assert_circuit_snapshot!(program, @r"
+    func 0
+    private parameters: [w0, w1, w2, w3]
+    public parameters: []
+    return values: [w4, w5]
+    ASSERT w4 = w2
+    ASSERT w5 = w3
+    ");
+}
+
+#[test]
 fn vector_pop_back_nested_arrays() {
     let src = "
   acir(inline) predicate_pure fn main f0 {
@@ -419,10 +472,12 @@ fn vector_pop_back_nested_arrays() {
   ";
     let program = ssa_to_acir_program(src);
 
-    // After b3 you can see where we do our final push_back where (v2, v1) are attached to the vector
-    // rather than (v0, v1)
-    // We then read w18 from b3 at index `8` (the flattened starting index of the vector).
-    assert_circuit_snapshot!(program, @r"
+    // Both push_backs have a compile-time-known length (the second's length folds to a constant even
+    // though it is not an SSA constant), so the vector is built entirely inline as an
+    // `AcirValue::Array` and never backed by a memory block. The pop then resolves its element inline
+    // too, so no `INIT`/`WRITE`/`READ` is emitted — the whole program collapses to the final
+    // `constrain v14 == v3`, i.e. asserting the popped element (`w4`) equals `v3` (`w5`).
+    assert_circuit_snapshot!(program, @"
     func 0
     private parameters: [w0, w1, w2, w3, w4, w5]
     public parameters: []
@@ -433,45 +488,7 @@ fn vector_pop_back_nested_arrays() {
     BLACKBOX::RANGE input: w3, bits: 32
     BLACKBOX::RANGE input: w4, bits: 32
     BLACKBOX::RANGE input: w5, bits: 32
-    ASSERT w6 = 0
-    ASSERT w7 = 1
-    ASSERT w8 = 4
-    ASSERT w9 = 5
-    ASSERT w10 = 8
-    ASSERT w11 = 9
-    INIT b2 = [w6, w7, w8, w9, w10, w11]
-    INIT b3 = [w0, w1, w2, w3, w0, w1, w2, w3, w6, w6, w6, w6]
-    READ w12 = b2[w8]
-    WRITE b3[w12] = w4
-    ASSERT w13 = w12 + 1
-    WRITE b3[w13] = w1
-    ASSERT w14 = w13 + 1
-    WRITE b3[w14] = w2
-    ASSERT w15 = w14 + 1
-    WRITE b3[w15] = w3
-    READ w16 = b3[w10]
-    READ w17 = b3[w11]
-    ASSERT w18 = 10
-    READ w19 = b3[w18]
-    ASSERT w20 = 11
-    READ w21 = b3[w20]
-    READ w22 = b3[w6]
-    READ w23 = b3[w7]
-    ASSERT w24 = 2
-    READ w25 = b3[w24]
-    ASSERT w26 = 3
-    READ w27 = b3[w26]
-    READ w28 = b3[w8]
-    READ w29 = b3[w9]
-    ASSERT w30 = 6
-    READ w31 = b3[w30]
-    ASSERT w32 = 7
-    READ w33 = b3[w32]
-    READ w34 = b3[w10]
-    READ w35 = b3[w11]
-    READ w36 = b3[w18]
-    READ w37 = b3[w20]
-    ASSERT w16 = w5
+    ASSERT w5 = w4
     ");
 }
 
@@ -853,7 +870,7 @@ fn vector_pop_back_empty_vector_with_unknown_length_from_previous_pop() {
     // However, by the second pop back we are working with an empty vector, thus
     // we simply assert that the side effects predicate is equal to zero.
     // w1 is being checked whether it is equal to `3`.
-    assert_circuit_snapshot!(program, @r"
+    assert_circuit_snapshot!(program, @"
     func 0
     private parameters: [w0, w1, w2]
     public parameters: []
@@ -861,12 +878,9 @@ fn vector_pop_back_empty_vector_with_unknown_length_from_previous_pop() {
     BLACKBOX::RANGE input: w0, bits: 32
     BLACKBOX::RANGE input: w1, bits: 32
     BLACKBOX::RANGE input: w2, bits: 32
-    INIT b1 = [w0]
     BRILLIG CALL func: 0, predicate: 1, inputs: [w1 - 3], outputs: [w3]
     ASSERT w4 = -w1*w3 + 3*w3 + 1
     ASSERT 0 = w1*w4 - 3*w4
-    ASSERT w5 = 0
-    READ w6 = b1[w5]
     ASSERT w4 = 1
 
     unconstrained func 0: directive_invert
@@ -913,6 +927,9 @@ fn vector_pop_front_not_affected_by_predicate() {
 
 #[test]
 fn vector_insert_affected_by_predicate() {
+    // The insert index `v0` is dynamic, so its flattened offset must be gated by the side-effects
+    // predicate to stay in bounds on a disabled branch. A constant in-bounds index, by contrast,
+    // resolves to a fixed offset and is predicate-independent.
     let src_side_effects = "
     acir(inline) predicate_pure fn main f0 {
       b0(v0: u32, v1: u1):
@@ -920,7 +937,7 @@ fn vector_insert_affected_by_predicate() {
         v5 = make_array [Field 1, v4] : [(Field, [Field; 2])]
         v7 = array_set v5, index v0, value Field 4
         enable_side_effects v1
-        v9, v10 = call vector_insert(u32 1, v7, u32 1, Field 1, v4) -> (u32, [(Field, [Field; 2])])
+        v9, v10 = call vector_insert(u32 1, v7, v0, Field 1, v4) -> (u32, [(Field, [Field; 2])])
         return
     }
     ";
@@ -930,7 +947,7 @@ fn vector_insert_affected_by_predicate() {
         v4 = make_array [Field 2, Field 3] : [Field; 2]
         v5 = make_array [Field 1, v4] : [(Field, [Field; 2])]
         v7 = array_set v5, index v0, value Field 4
-        v9, v10 = call vector_insert(u32 1, v7, u32 1, Field 1, v4) -> (u32, [(Field, [Field; 2])])
+        v9, v10 = call vector_insert(u32 1, v7, v0, Field 1, v4) -> (u32, [(Field, [Field; 2])])
         return
     }
     ";
