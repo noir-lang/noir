@@ -51,17 +51,6 @@ use super::{
 
 const WILDCARD_PATTERN: &str = "_";
 
-/// Extract the turbofish generics from an enum-variant constructor path, accepting either
-/// the variant segment (`Foo::Bar::<T>`) or the type segment (`Foo::<T>::Bar`); both denote
-/// the same enum generics.
-fn constructor_path_turbofish(path: &TypedPath) -> Option<Vec<Located<Type>>> {
-    let variant_segment_turbofish = path.segments.last().unwrap().generics.clone();
-    let type_segment_turbofish = (path.segments.len() >= 2)
-        .then(|| path.segments[path.segments.len() - 2].generics.clone())
-        .flatten();
-    variant_segment_turbofish.or(type_segment_turbofish)
-}
-
 /// Everything needed to resolve an enum's variants later, captured at
 /// registration time. Mirrors [`super::structs::UnresolvedStructFields`] for
 /// struct fields.
@@ -537,6 +526,27 @@ impl Elaborator<'_> {
         (rows, result_type)
     }
 
+    /// Extract the turbofish generics from an enum-variant constructor path, accepting either
+    /// the variant segment (`Foo::Bar::<T>`) or the type segment (`Foo::<T>::Bar`); both denote
+    /// the same enum generics. Specifying them on both segments at once is an error, since the
+    /// enum's generics would then be given twice.
+    fn constructor_path_turbofish(&mut self, path: &TypedPath) -> Option<Vec<Located<Type>>> {
+        let variant_segment_turbofish = path.segments.last().unwrap().generics.clone();
+        let type_segment_turbofish = (path.segments.len() >= 2)
+            .then(|| path.segments[path.segments.len() - 2].generics.clone())
+            .flatten();
+
+        if let (Some(variant_generics), Some(_)) =
+            (&variant_segment_turbofish, &type_segment_turbofish)
+        {
+            let location =
+                variant_generics.first().map_or(path.location, |generic| generic.location());
+            self.push_err(ResolverError::DuplicateEnumGenerics { location });
+        }
+
+        variant_segment_turbofish.or(type_segment_turbofish)
+    }
+
     /// Convert an expression into a Pattern, defining any variables within.
     #[tracing::instrument(level = "trace", skip_all)]
     fn expression_to_pattern(
@@ -594,7 +604,7 @@ impl Elaborator<'_> {
                 // user is trying to resolve to a non-local item.
 
                 let shadow_existing = path.as_single_segment().cloned();
-                let turbofish = constructor_path_turbofish(&path);
+                let turbofish = self.constructor_path_turbofish(&path);
 
                 match self.resolve_path_or_error(path, PathResolutionTarget::Value) {
                     Ok(resolution) => self.path_resolution_to_constructor(
@@ -843,7 +853,7 @@ impl Elaborator<'_> {
             ExpressionKind::Variable(path) => {
                 let location = path.location;
                 let path = self.validate_path(path);
-                let turbofish = constructor_path_turbofish(&path);
+                let turbofish = self.constructor_path_turbofish(&path);
 
                 match self.resolve_path_or_error(path, PathResolutionTarget::Value) {
                     // Use None for `name` here - we don't want to define a variable if this

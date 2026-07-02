@@ -1199,3 +1199,29 @@ fn turbofish_on_match_pattern_variant_count_mismatch() {
     let features = vec![UnstableFeature::Enums];
     check_errors_using_features(src, &features);
 }
+
+#[test]
+fn errors_on_turbofish_on_both_type_and_variant_in_match_pattern() {
+    // The enum's generics can be given on the type segment (`Foo::<i32>`) or on the variant
+    // segment (`Bar::<i32>`), but giving them in both places specifies them twice.
+    let src = r#"
+    enum Foo<T> {
+        Bar(T),
+        Baz,
+    }
+
+    fn main() {
+        let f: Foo<i32> = Foo::Baz;
+        match f {
+            Foo::<i32>::Bar::<i32>(x) => {
+                              ^^^ Generic arguments for the enum were specified more than once
+                              ~~~ Specify the enum's generic arguments in only one place
+                let _ = x;
+            }
+            Foo::Baz => {}
+        }
+    }
+    "#;
+    let features = vec![UnstableFeature::Enums];
+    check_errors_using_features(src, &features);
+}
