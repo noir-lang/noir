@@ -664,6 +664,7 @@ impl<'context> Elaborator<'context> {
             &items.structs,
             &items.functions,
             &items.impls,
+            &items.trait_impls,
             &items.module_attributes,
         );
 

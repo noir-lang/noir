@@ -267,6 +267,7 @@ impl<'context> Elaborator<'context> {
         types: &BTreeMap<TypeId, UnresolvedStruct>,
         functions: &[UnresolvedFunctions],
         impls: &ImplMap,
+        trait_impls: &[UnresolvedTraitImpl],
         module_attributes: &[ModuleAttribute],
     ) -> CollectedAttributes {
         let mut attributes_to_run = Vec::new();
@@ -301,6 +302,7 @@ impl<'context> Elaborator<'context> {
 
         self.collect_attributes_on_functions(functions, None, &mut attributes_to_run);
         self.collect_attributes_on_impls(impls, &mut attributes_to_run);
+        self.collect_attributes_on_trait_impls(trait_impls, &mut attributes_to_run);
         self.collect_attributes_on_modules(module_attributes, &mut attributes_to_run);
 
         self.sort_attributes_by_run_order(&mut attributes_to_run);
@@ -361,6 +363,50 @@ impl<'context> Elaborator<'context> {
                 };
                 self.collect_attributes_on_functions(
                     std::slice::from_ref(&unresolved_impl.methods),
+                    Some(&impl_target),
+                    attributes_to_run,
+                );
+            }
+        }
+    }
+
+    /// Collect comptime attributes on the methods of each trait `impl`.
+    ///
+    /// Attributes are routed back onto the impl's object type (via [`AttributeImplTarget`]) so a
+    /// macro-generated function becomes a method of that type, mirroring
+    /// [`Self::collect_attributes_on_impls`] for inherent impls.
+    ///
+    /// Methods inherited from a trait's default implementation are skipped: they reuse the trait's
+    /// own `FuncId`, so their attributes are already collected once at the trait definition by
+    /// [`Self::collect_attributes_on_trait_methods`]. Collecting them again here would run the
+    /// attribute a second time per impl.
+    #[tracing::instrument(level = "trace", skip_all)]
+    fn collect_attributes_on_trait_impls(
+        &mut self,
+        trait_impls: &[UnresolvedTraitImpl],
+        attributes_to_run: &mut CollectedAttributes,
+    ) {
+        for trait_impl in trait_impls {
+            let impl_target = AttributeImplTarget {
+                object_type: trait_impl.object_type.clone(),
+                generics: trait_impl.generics.clone(),
+                where_clause: trait_impl.where_clause.clone(),
+                type_location: trait_impl.object_type.location,
+            };
+
+            self.self_type = trait_impl.methods.self_type.clone();
+
+            for (local_module, function_id, function) in &trait_impl.methods.functions {
+                if trait_impl.inherited_default_method_func_ids.contains(function_id) {
+                    continue;
+                }
+                let context = AttributeContext::new(*local_module);
+                let attributes = function.secondary_attributes();
+                let item = Value::FunctionDefinition(*function_id);
+                self.collect_comptime_attributes_on_item(
+                    attributes,
+                    item,
+                    context,
                     Some(&impl_target),
                     attributes_to_run,
                 );
@@ -978,10 +1024,17 @@ impl<'context> Elaborator<'context> {
         types: &BTreeMap<TypeId, UnresolvedStruct>,
         functions: &[UnresolvedFunctions],
         impls: &ImplMap,
+        trait_impls: &[UnresolvedTraitImpl],
         module_attributes: &[ModuleAttribute],
     ) {
-        let attributes_to_run =
-            self.collect_all_attributes_to_run(traits, types, functions, impls, module_attributes);
+        let attributes_to_run = self.collect_all_attributes_to_run(
+            traits,
+            types,
+            functions,
+            impls,
+            trait_impls,
+            module_attributes,
+        );
 
         // Execute each collected attribute
         for attr in attributes_to_run {

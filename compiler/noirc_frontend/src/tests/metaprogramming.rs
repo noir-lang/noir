@@ -3522,15 +3522,13 @@ fn is_failing_constraint(error: &CompilationError) -> bool {
 fn comptime_attribute_on_top_level_function_runs() {
     let src = r#"
     #[must_abort]
-    fn touched() {}
+    pub fn touched() {}
 
     comptime fn must_abort(_: FunctionDefinition) {
         assert(false);
     }
 
-    fn main() {
-        touched();
-    }
+    fn main() {}
     "#;
     let errors = get_program_errors(src);
     assert!(
@@ -3546,22 +3544,16 @@ fn comptime_attribute_on_top_level_function_runs() {
 #[test]
 fn comptime_attribute_on_trait_default_method_runs() {
     let src = r#"
-    trait T {
+    pub trait T {
         #[must_abort]
         fn default_method(self) {}
     }
-
-    struct S {}
-    impl T for S {}
 
     comptime fn must_abort(_: FunctionDefinition) {
         assert(false);
     }
 
-    fn main() {
-        let s = S {};
-        s.default_method();
-    }
+    fn main() {}
     "#;
     let errors = get_program_errors(src);
     assert!(
@@ -3580,7 +3572,7 @@ fn comptime_attribute_on_trait_method_declaration_errors() {
     trait T {
         #[must_abort]
         ^^^^^^^^^^^^^ Comptime attributes are not supported on trait method declarations without a default implementation
-        ~~~~~~~~~~~~~ Give this method a default implementation for the attribute to run on
+        ~~~~~~~~~~~~~ Give this method a default implementation, or move the attribute onto the method in each impl, for it to run
         fn required(self);
     }
 
@@ -3635,7 +3627,33 @@ fn non_comptime_attribute_on_trait_method_declaration_is_allowed() {
 #[test]
 fn comptime_attribute_on_trait_method_can_generate_items() {
     let src = r#"
-    trait T {
+    pub trait T {
+        #[make_generated]
+        fn method(self) -> Self { self }
+    }
+
+    comptime fn make_generated(_: FunctionDefinition) -> Quoted {
+        quote { fn generated() -> Field { 1 } }
+    }
+
+    fn main() {
+        assert(generated() == 1);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+/// Regression for https://github.com/noir-lang/noir-claude/issues/1439.
+///
+/// An impl that inherits a trait's default method does not re-run a
+/// code-generating attribute on that default method. The default method reuses
+/// the trait's own `FuncId`, so its attribute is collected once at the trait
+/// definition; collecting it again per inheriting impl would generate a
+/// duplicate `generated` function.
+#[test]
+fn comptime_attribute_on_inherited_default_method_runs_once() {
+    let src = r#"
+    pub trait T {
         #[make_generated]
         fn method(self) -> Self { self }
     }
@@ -3648,10 +3666,42 @@ fn comptime_attribute_on_trait_method_can_generate_items() {
     }
 
     fn main() {
-        let s = S {};
-        let _ = s.method();
+        let _ = S {};
         assert(generated() == 1);
     }
     "#;
     assert_no_errors(src);
+}
+
+/// Regression for https://github.com/noir-lang/noir-claude/issues/1439.
+///
+/// A comptime attribute on a trait-impl method runs, matching attributes on
+/// inherent-impl methods and top-level functions. This is the path a user
+/// reaches for when a trait method has no default implementation to attach the
+/// attribute to, so it must attach the attribute to each impl instead.
+#[test]
+fn comptime_attribute_on_trait_impl_method_runs() {
+    let src = r#"
+    pub trait T {
+        fn required(self);
+    }
+
+    struct S {}
+
+    impl T for S {
+        #[must_abort]
+        fn required(self) {}
+    }
+
+    comptime fn must_abort(_: FunctionDefinition) {
+        assert(false);
+    }
+
+    fn main() {}
+    "#;
+    let errors = get_program_errors(src);
+    assert!(
+        errors.iter().any(is_failing_constraint),
+        "Expected the attribute's `assert(false)` to abort compilation, but got: {errors:#?}"
+    );
 }

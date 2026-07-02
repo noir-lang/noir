@@ -819,7 +819,7 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
             ResolverError::ComptimeAttributeOnTraitMethodWithoutBody { location } => {
                 Diagnostic::simple_error(
                     "Comptime attributes are not supported on trait method declarations without a default implementation".into(),
-                    "Give this method a default implementation for the attribute to run on".into(),
+                    "Give this method a default implementation, or move the attribute onto the method in each impl, for it to run".into(),
                     *location,
                 )
             },

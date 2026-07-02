@@ -17,6 +17,11 @@ Comptime attributes on a trait's default methods run just like attributes on
 top-level or impl methods. A comptime attribute on a bodyless trait method declaration has no body
 to run against, so it is rejected with an error rather than silently ignored or run.
 
+Attributes on a trait `impl`'s methods run as well, matching inherent `impl` methods, so a bodyless
+trait method declaration can instead be given the attribute on each impl. A method inherited from a
+trait's default implementation reuses the trait's own `FuncId`, so its attribute is run once at the
+trait definition rather than again per inheriting impl.
+
 # Repeat diagnostics
 
 The comptime interpreter can be run on functions which created errors during elaboration.
