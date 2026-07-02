@@ -339,6 +339,23 @@ fn disallows_writing_through_immutable_reborrow_of_mutable_reference() {
 }
 
 #[test]
+fn disallows_mut_reborrow_through_immutable_reference() {
+    // Reborrowing `&mut *p` from an immutable `&T` reference must be rejected: it would
+    // hand out write access to data reachable only through a `&` reference.
+    let src = r#"
+    fn main() {
+        let f: u64 = 10;
+        let p = &f;
+        let p1 = &mut *p;
+                       ^ `p` is a `&` reference, so it cannot be written to
+        *p1 = 15;
+        assert(f == 15);
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
 fn disallows_mutating_non_mutable_nested_reference_in_tuple_1() {
     let src = r#"
     fn main() {
