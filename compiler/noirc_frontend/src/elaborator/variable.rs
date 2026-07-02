@@ -953,7 +953,7 @@ impl Elaborator<'_> {
         let segment = TypedPathSegment::without_generics(ident.clone(), ident_location);
         if let Ok(path_value) = self.lookup_path_as_value_in_type(&segment, &typ, None) {
             let resolution = self.variable_resolution_from_path_value(path_value, ident_location);
-            return self.type_path_value_expr(resolution, &typ, ident_location);
+            return self.type_path_value_expr(resolution, &typ, turbofish.as_ref(), ident_location);
         }
 
         let Some(method) = self.lookup_method(
@@ -981,11 +981,14 @@ impl Elaborator<'_> {
     /// enum-variant constructor or an associated constant. An enum-variant constructor is generic
     /// over its enum's generics, so those are bound from the receiver type `typ` (`<E<bool>>::A` has
     /// type `E<bool>`, not an unbound `E<_>`), exactly as the segment turbofish binds them for a
-    /// plain `E::<bool>::A` path.
+    /// plain `E::<bool>::A` path. `item_turbofish` is the turbofish on the member itself
+    /// (`<Type>::member::<..>`); since the enum's generics already come from `typ`, one on a variant
+    /// specifies them a second time and is reported as an error.
     fn type_path_value_expr(
         &mut self,
         resolution: VariableResolution,
         typ: &Type,
+        item_turbofish: Option<&GenericTypeArgs>,
         location: Location,
     ) -> (ExprId, Type) {
         // A value member of a type is always an enum-variant constructor or an associated
@@ -999,6 +1002,13 @@ impl Elaborator<'_> {
         if matches!(item, Some(PathResolutionItem::EnumVariant(_)))
             && let Type::DataType(_, generics) = typ
         {
+            if let Some(item_turbofish) = item_turbofish.filter(|_| !generics.is_empty()) {
+                let turbofish_location =
+                    item_turbofish.ordered_args.first().map_or(location, |arg| arg.location);
+                self.push_err(ResolverError::DuplicateEnumGenerics {
+                    location: turbofish_location,
+                });
+            }
             let turbofish = vecmap(generics, |generic| Located::from(location, generic.clone()));
             self.bind_enum_variant_global_turbofish(
                 hir_ident.id,
