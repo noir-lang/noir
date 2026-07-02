@@ -1,0 +1,423 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `compiler/noirc_evaluator/src/brillig/brillig_ir/count_array_copies.rs`."><title>count_array_copies.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../../static.files/rustdoc-84e720fa.css"><meta name="rustdoc-vars" data-root-path="../../../../" data-static-root-path="../../../../static.files/" data-current-crate="noirc_evaluator" data-themes="" data-resource-suffix="" data-rustdoc-version="1.89.0 (29483883e 2025-08-04)" data-channel="1.89.0" data-search-js="search-92309212.js" data-settings-js="settings-5514c975.js" ><script src="../../../../static.files/storage-4e99c027.js"></script><script defer src="../../../../static.files/src-script-813739b1.js"></script><script defer src="../../../../src-files.js"></script><script defer src="../../../../static.files/main-fd3af306.js"></script><noscript><link rel="stylesheet" href="../../../../static.files/noscript-32bb7600.css"></noscript><link rel="alternate icon" type="image/png" href="../../../../static.files/favicon-32x32-6580c154.png"><link rel="icon" type="image/svg+xml" href="../../../../static.files/favicon-044be391.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="main-heading"><h1><div class="sub-heading">noirc_evaluator/brillig/brillig_ir/</div>count_array_copies.rs</h1><rustdoc-toolbar></rustdoc-toolbar></div><div class="example-wrap digits-3"><pre class="rust"><code><a href=#1 id=1 data-nosnippet>1</a><span class="doccomment">//! Per-site array and vector copy counting for the `--count-array-copies` debugging flag.
+<a href=#2 id=2 data-nosnippet>2</a>//!
+<a href=#3 id=3 data-nosnippet>3</a>//! When a [`CopySiteRegistry`] is attached to the [`BrilligContext`], the copy procedures emit
+<a href=#4 id=4 data-nosnippet>4</a>//! extra bytecode that tallies how many times each source location actually copies an
+<a href=#5 id=5 data-nosnippet>5</a>//! array/vector (as opposed to reusing it in place). The entry-point wrapper then prints a
+<a href=#6 id=6 data-nosnippet>6</a>//! summary of the totals once execution finishes. With no registry attached none of this
+<a href=#7 id=7 data-nosnippet>7</a>//! bytecode is emitted, so ordinary compilation is unaffected.
+<a href=#8 id=8 data-nosnippet>8</a>
+<a href=#9 id=9 data-nosnippet>9</a></span><span class="kw">use </span>std::sync::{Arc, Mutex};
+<a href=#10 id=10 data-nosnippet>10</a>
+<a href=#11 id=11 data-nosnippet>11</a><span class="kw">use </span>acvm::{
+<a href=#12 id=12 data-nosnippet>12</a>    AcirField,
+<a href=#13 id=13 data-nosnippet>13</a>    acir::brillig::{
+<a href=#14 id=14 data-nosnippet>14</a>        BitSize, HeapArray, HeapValueType, IntegerBitSize, MemoryAddress, ValueOrArray,
+<a href=#15 id=15 data-nosnippet>15</a>        lengths::{SemanticLength, SemiFlattenedLength},
+<a href=#16 id=16 data-nosnippet>16</a>    },
+<a href=#17 id=17 data-nosnippet>17</a>};
+<a href=#18 id=18 data-nosnippet>18</a><span class="kw">use </span>noirc_errors::call_stack::{CallStackHelper, CallStackId};
+<a href=#19 id=19 data-nosnippet>19</a><span class="kw">use </span>rustc_hash::FxHashMap;
+<a href=#20 id=20 data-nosnippet>20</a>
+<a href=#21 id=21 data-nosnippet>21</a><span class="kw">use super</span>::{
+<a href=#22 id=22 data-nosnippet>22</a>    BrilligBinaryOp, BrilligContext, ReservedRegisters,
+<a href=#23 id=23 data-nosnippet>23</a>    brillig_variable::SingleAddrVariable,
+<a href=#24 id=24 data-nosnippet>24</a>    debug_show::DebugToString,
+<a href=#25 id=25 data-nosnippet>25</a>    registers::{Allocated, GlobalSpace, RegisterAllocator},
+<a href=#26 id=26 data-nosnippet>26</a>};
+<a href=#27 id=27 data-nosnippet>27</a><span class="kw">use </span><span class="kw">crate</span>::brillig::assert_u32;
+<a href=#28 id=28 data-nosnippet>28</a>
+<a href=#29 id=29 data-nosnippet>29</a><span class="doccomment">/// Maximum number of distinct copy sites that are tracked per-site.
+<a href=#30 id=30 data-nosnippet>30</a>/// Sites beyond this limit are not tracked per-site (they still count toward the total).
+<a href=#31 id=31 data-nosnippet>31</a></span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">const </span>MAX_TRACK_SITES: usize = <span class="number">256</span>;
+<a href=#32 id=32 data-nosnippet>32</a>
+<a href=#33 id=33 data-nosnippet>33</a><span class="doccomment">/// Number of per-site copy locations displayed at end of execution (top N by count).
+<a href=#34 id=34 data-nosnippet>34</a></span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">const </span>MAX_DISPLAY_SITES: usize = <span class="number">25</span>;
+<a href=#35 id=35 data-nosnippet>35</a>
+<a href=#36 id=36 data-nosnippet>36</a><span class="doccomment">/// Inner state for [CopySiteRegistry], kept behind an `Arc&lt;Mutex&lt;…&gt;&gt;` so it can be
+<a href=#37 id=37 data-nosnippet>37</a>/// shared across all `BrilligContext` instances that are alive during one compilation.
+<a href=#38 id=38 data-nosnippet>38</a></span><span class="attr">#[derive(Debug, Default)]
+<a href=#39 id=39 data-nosnippet>39</a></span><span class="kw">struct </span>CopySiteRegistryInner {
+<a href=#40 id=40 data-nosnippet>40</a>    <span class="doccomment">/// Ordered list of call stack IDs (index = per-site counter slot).
+<a href=#41 id=41 data-nosnippet>41</a>    </span>sites: Vec&lt;CallStackId&gt;,
+<a href=#42 id=42 data-nosnippet>42</a>    <span class="doccomment">/// Map from `CallStackId` → slot index, used to deduplicate identical call sites.
+<a href=#43 id=43 data-nosnippet>43</a>    </span>site_to_index: FxHashMap&lt;CallStackId, usize&gt;,
+<a href=#44 id=44 data-nosnippet>44</a>    <span class="doccomment">/// Source-location labels resolved after compilation (set by `resolve_labels`).
+<a href=#45 id=45 data-nosnippet>45</a>    </span>resolved_labels: <span class="prelude-ty">Option</span>&lt;Vec&lt;String&gt;&gt;,
+<a href=#46 id=46 data-nosnippet>46</a>}
+<a href=#47 id=47 data-nosnippet>47</a>
+<a href=#48 id=48 data-nosnippet>48</a><span class="doccomment">/// Shared registry of array/vector copy sites, accumulated during Brillig compilation.
+<a href=#49 id=49 data-nosnippet>49</a>/// Each *unique* call site (identified by `CallStackId`) is assigned a sequential index
+<a href=#50 id=50 data-nosnippet>50</a>/// used to address its per-site counter in global memory.
+<a href=#51 id=51 data-nosnippet>51</a>/// Registering the same call site twice returns the same index.
+<a href=#52 id=52 data-nosnippet>52</a>/// After compilation, call `resolve_labels` to convert `CallStackId`s to readable strings.
+<a href=#53 id=53 data-nosnippet>53</a></span><span class="attr">#[derive(Clone, Debug, Default)]
+<a href=#54 id=54 data-nosnippet>54</a></span><span class="kw">pub struct </span>CopySiteRegistry(Arc&lt;Mutex&lt;CopySiteRegistryInner&gt;&gt;);
+<a href=#55 id=55 data-nosnippet>55</a>
+<a href=#56 id=56 data-nosnippet>56</a><span class="kw">impl </span>CopySiteRegistry {
+<a href=#57 id=57 data-nosnippet>57</a>    <span class="doccomment">/// Register a copy site for the given call stack location.
+<a href=#58 id=58 data-nosnippet>58</a>    /// Returns the site index (0-based).  Identical call sites share an index.
+<a href=#59 id=59 data-nosnippet>59</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>register_site(<span class="kw-2">&amp;</span><span class="self">self</span>, id: CallStackId) -&gt; usize {
+<a href=#60 id=60 data-nosnippet>60</a>        <span class="kw">let </span><span class="kw-2">mut </span>inner = <span class="self">self</span>.<span class="number">0</span>.lock().unwrap();
+<a href=#61 id=61 data-nosnippet>61</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span>idx) = inner.site_to_index.get(<span class="kw-2">&amp;</span>id) {
+<a href=#62 id=62 data-nosnippet>62</a>            <span class="kw">return </span>idx;
+<a href=#63 id=63 data-nosnippet>63</a>        }
+<a href=#64 id=64 data-nosnippet>64</a>        <span class="kw">let </span>index = inner.sites.len();
+<a href=#65 id=65 data-nosnippet>65</a>        inner.site_to_index.insert(id, index);
+<a href=#66 id=66 data-nosnippet>66</a>        inner.sites.push(id);
+<a href=#67 id=67 data-nosnippet>67</a>        index
+<a href=#68 id=68 data-nosnippet>68</a>    }
+<a href=#69 id=69 data-nosnippet>69</a>
+<a href=#70 id=70 data-nosnippet>70</a>    <span class="doccomment">/// Resolve all registered `CallStackId`s to human-readable `"filename.nr:line"` strings.
+<a href=#71 id=71 data-nosnippet>71</a>    /// Must be called after Brillig compilation (once the `CallStackHelper` is fully populated)
+<a href=#72 id=72 data-nosnippet>72</a>    /// but before `get_resolved_labels` is used.
+<a href=#73 id=73 data-nosnippet>73</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>resolve_labels(
+<a href=#74 id=74 data-nosnippet>74</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
+<a href=#75 id=75 data-nosnippet>75</a>        call_stacks: <span class="kw-2">&amp;</span>CallStackHelper,
+<a href=#76 id=76 data-nosnippet>76</a>        files: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>fm::FileManager&gt;,
+<a href=#77 id=77 data-nosnippet>77</a>    ) {
+<a href=#78 id=78 data-nosnippet>78</a>        <span class="kw">use </span>fm::codespan_files::Files;
+<a href=#79 id=79 data-nosnippet>79</a>        <span class="kw">let </span>sites = <span class="self">self</span>.<span class="number">0</span>.lock().unwrap().sites.clone();
+<a href=#80 id=80 data-nosnippet>80</a>        <span class="kw">let </span>labels: Vec&lt;String&gt; = sites
+<a href=#81 id=81 data-nosnippet>81</a>            .iter()
+<a href=#82 id=82 data-nosnippet>82</a>            .map(|<span class="kw-2">&amp;</span>id| {
+<a href=#83 id=83 data-nosnippet>83</a>                <span class="kw">let </span>stack = call_stacks.get_call_stack(id);
+<a href=#84 id=84 data-nosnippet>84</a>                <span class="kw">let </span><span class="prelude-val">Some</span>(location) = stack.last() <span class="kw">else </span>{
+<a href=#85 id=85 data-nosnippet>85</a>                    <span class="kw">return </span><span class="string">"&lt;unknown&gt;"</span>.to_string();
+<a href=#86 id=86 data-nosnippet>86</a>                };
+<a href=#87 id=87 data-nosnippet>87</a>                <span class="kw">let </span><span class="prelude-val">Some</span>(fm) = files <span class="kw">else </span>{
+<a href=#88 id=88 data-nosnippet>88</a>                    <span class="kw">return </span><span class="macro">format!</span>(<span class="string">"&lt;unknown&gt;:{}"</span>, location.span.start());
+<a href=#89 id=89 data-nosnippet>89</a>                };
+<a href=#90 id=90 data-nosnippet>90</a>                <span class="kw">let </span>file_name = fm
+<a href=#91 id=91 data-nosnippet>91</a>                    .path(location.file)
+<a href=#92 id=92 data-nosnippet>92</a>                    .and_then(|p| p.file_name())
+<a href=#93 id=93 data-nosnippet>93</a>                    .and_then(|n| n.to_str())
+<a href=#94 id=94 data-nosnippet>94</a>                    .unwrap_or(<span class="string">"&lt;unknown&gt;"</span>);
+<a href=#95 id=95 data-nosnippet>95</a>                <span class="kw">let </span>start_index = location.span.start() <span class="kw">as </span>usize;
+<a href=#96 id=96 data-nosnippet>96</a>                <span class="kw">match </span>fm.as_file_map().line_index(location.file, start_index) {
+<a href=#97 id=97 data-nosnippet>97</a>                    <span class="prelude-val">Ok</span>(line_idx) =&gt; <span class="macro">format!</span>(<span class="string">"{file_name}:{}"</span>, line_idx + <span class="number">1</span>),
+<a href=#98 id=98 data-nosnippet>98</a>                    <span class="prelude-val">Err</span>(<span class="kw">_</span>) =&gt; file_name.to_string(),
+<a href=#99 id=99 data-nosnippet>99</a>                }
+<a href=#100 id=100 data-nosnippet>100</a>            })
+<a href=#101 id=101 data-nosnippet>101</a>            .collect();
+<a href=#102 id=102 data-nosnippet>102</a>        <span class="self">self</span>.<span class="number">0</span>.lock().unwrap().resolved_labels = <span class="prelude-val">Some</span>(labels);
+<a href=#103 id=103 data-nosnippet>103</a>    }
+<a href=#104 id=104 data-nosnippet>104</a>
+<a href=#105 id=105 data-nosnippet>105</a>    <span class="doccomment">/// Return a snapshot of all resolved site labels in registration order.
+<a href=#106 id=106 data-nosnippet>106</a>    /// Returns an empty `Vec` if `resolve_labels` has not been called yet.
+<a href=#107 id=107 data-nosnippet>107</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>get_resolved_labels(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Vec&lt;String&gt; {
+<a href=#108 id=108 data-nosnippet>108</a>        <span class="self">self</span>.<span class="number">0</span>.lock().unwrap().resolved_labels.clone().unwrap_or_default()
+<a href=#109 id=109 data-nosnippet>109</a>    }
+<a href=#110 id=110 data-nosnippet>110</a>}
+<a href=#111 id=111 data-nosnippet>111</a>
+<a href=#112 id=112 data-nosnippet>112</a><span class="kw">impl</span>&lt;F: AcirField + DebugToString, Registers: RegisterAllocator&gt; BrilligContext&lt;F, Registers&gt; {
+<a href=#113 id=113 data-nosnippet>113</a>    <span class="doccomment">/// True when per-site array copy counting is enabled, i.e. a [`CopySiteRegistry`] is attached.
+<a href=#114 id=114 data-nosnippet>114</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>count_array_copies(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
+<a href=#115 id=115 data-nosnippet>115</a>        <span class="self">self</span>.copy_site_registry.is_some()
+<a href=#116 id=116 data-nosnippet>116</a>    }
+<a href=#117 id=117 data-nosnippet>117</a>
+<a href=#118 id=118 data-nosnippet>118</a>    <span class="doccomment">/// Returns the address of the implicit debug variable containing the count of
+<a href=#119 id=119 data-nosnippet>119</a>    /// implicitly copied arrays as a result of RC's copy on write semantics.
+<a href=#120 id=120 data-nosnippet>120</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>array_copy_counter_address(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; MemoryAddress {
+<a href=#121 id=121 data-nosnippet>121</a>        <span class="macro">assert!</span>(
+<a href=#122 id=122 data-nosnippet>122</a>            <span class="self">self</span>.count_array_copies(),
+<a href=#123 id=123 data-nosnippet>123</a>            <span class="string">"the array copy counter is only allocated when `--count-array-copies` is set"
+<a href=#124 id=124 data-nosnippet>124</a>        </span>);
+<a href=#125 id=125 data-nosnippet>125</a>
+<a href=#126 id=126 data-nosnippet>126</a>        <span class="comment">// The copy counter is always put in the first global slot
+<a href=#127 id=127 data-nosnippet>127</a>        </span>MemoryAddress::direct(assert_u32(GlobalSpace::start_with_layout(<span class="kw-2">&amp;</span><span class="self">self</span>.layout())))
+<a href=#128 id=128 data-nosnippet>128</a>    }
+<a href=#129 id=129 data-nosnippet>129</a>
+<a href=#130 id=130 data-nosnippet>130</a>    <span class="doccomment">/// Returns the global memory address of the per-site copy counter for `site_index`.
+<a href=#131 id=131 data-nosnippet>131</a>    /// Per-site counters occupy slots 1..=MAX_TRACK_SITES right after the total counter (slot 0).
+<a href=#132 id=132 data-nosnippet>132</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>per_site_counter_address(<span class="kw-2">&amp;</span><span class="self">self</span>, site_index: usize) -&gt; MemoryAddress {
+<a href=#133 id=133 data-nosnippet>133</a>        <span class="macro">assert!</span>(
+<a href=#134 id=134 data-nosnippet>134</a>            site_index &lt; MAX_TRACK_SITES,
+<a href=#135 id=135 data-nosnippet>135</a>            <span class="string">"site_index {site_index} exceeds MAX_TRACK_SITES {MAX_TRACK_SITES}"
+<a href=#136 id=136 data-nosnippet>136</a>        </span>);
+<a href=#137 id=137 data-nosnippet>137</a>        MemoryAddress::direct(assert_u32(
+<a href=#138 id=138 data-nosnippet>138</a>            GlobalSpace::start_with_layout(<span class="kw-2">&amp;</span><span class="self">self</span>.layout()) + <span class="number">1 </span>+ site_index,
+<a href=#139 id=139 data-nosnippet>139</a>        ))
+<a href=#140 id=140 data-nosnippet>140</a>    }
+<a href=#141 id=141 data-nosnippet>141</a>
+<a href=#142 id=142 data-nosnippet>142</a>    <span class="doccomment">/// Registers the current location as a per-site copy site and returns the global memory
+<a href=#143 id=143 data-nosnippet>143</a>    /// address of its counter, or `None` when copy-counting is disabled, no registry is attached,
+<a href=#144 id=144 data-nosnippet>144</a>    /// or the site is beyond [`MAX_TRACK_SITES`].
+<a href=#145 id=145 data-nosnippet>145</a>    ///
+<a href=#146 id=146 data-nosnippet>146</a>    /// Sites are deduplicated by `CallStackId`, so the same call site compiled more than once
+<a href=#147 id=147 data-nosnippet>147</a>    /// shares a single counter.
+<a href=#148 id=148 data-nosnippet>148</a>    </span><span class="kw">fn </span>register_per_site_counter(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;MemoryAddress&gt; {
+<a href=#149 id=149 data-nosnippet>149</a>        <span class="kw">let </span>registry = <span class="self">self</span>.copy_site_registry.clone()<span class="question-mark">?</span>;
+<a href=#150 id=150 data-nosnippet>150</a>        <span class="kw">let </span>site_index = registry.register_site(<span class="self">self</span>.current_call_stack_id());
+<a href=#151 id=151 data-nosnippet>151</a>        (site_index &lt; MAX_TRACK_SITES).then(|| <span class="self">self</span>.per_site_counter_address(site_index))
+<a href=#152 id=152 data-nosnippet>152</a>    }
+<a href=#153 id=153 data-nosnippet>153</a>
+<a href=#154 id=154 data-nosnippet>154</a>    <span class="doccomment">/// Emit `*counter += 1` for a usize copy counter stored at `counter`.
+<a href=#155 id=155 data-nosnippet>155</a>    </span><span class="kw">fn </span>codegen_increment_counter(<span class="kw-2">&amp;mut </span><span class="self">self</span>, counter: MemoryAddress) {
+<a href=#156 id=156 data-nosnippet>156</a>        <span class="self">self</span>.codegen_usize_op(counter, counter, BrilligBinaryOp::Add, <span class="number">1</span>);
+<a href=#157 id=157 data-nosnippet>157</a>    }
+<a href=#158 id=158 data-nosnippet>158</a>
+<a href=#159 id=159 data-nosnippet>159</a>    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>codegen_increment_array_copy_counter(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
+<a href=#160 id=160 data-nosnippet>160</a>        <span class="kw">let </span>array_copy_counter = <span class="self">self</span>.array_copy_counter_address();
+<a href=#161 id=161 data-nosnippet>161</a>        <span class="self">self</span>.codegen_increment_counter(array_copy_counter);
+<a href=#162 id=162 data-nosnippet>162</a>    }
+<a href=#163 id=163 data-nosnippet>163</a>
+<a href=#164 id=164 data-nosnippet>164</a>    <span class="doccomment">/// If copy-counting is enabled, registers this as a per-site copy location and
+<a href=#165 id=165 data-nosnippet>165</a>    /// emits runtime code that increments the per-site counter whenever a copy actually occurred
+<a href=#166 id=166 data-nosnippet>166</a>    /// (i.e. `source_pointer != dest_pointer` after a copy procedure call).
+<a href=#167 id=167 data-nosnippet>167</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>codegen_count_if_copy_occurred(
+<a href=#168 id=168 data-nosnippet>168</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+<a href=#169 id=169 data-nosnippet>169</a>        source_pointer: MemoryAddress,
+<a href=#170 id=170 data-nosnippet>170</a>        dest_pointer: MemoryAddress,
+<a href=#171 id=171 data-nosnippet>171</a>    ) {
+<a href=#172 id=172 data-nosnippet>172</a>        <span class="kw">let </span><span class="prelude-val">Some</span>(counter_addr) = <span class="self">self</span>.register_per_site_counter() <span class="kw">else </span>{
+<a href=#173 id=173 data-nosnippet>173</a>            <span class="kw">return</span>;
+<a href=#174 id=174 data-nosnippet>174</a>        };
+<a href=#175 id=175 data-nosnippet>175</a>
+<a href=#176 id=176 data-nosnippet>176</a>        <span class="comment">// Emit: if source_pointer != dest_pointer { counter_addr += 1 }
+<a href=#177 id=177 data-nosnippet>177</a>        // We use: did_not_copy = (source == dest); if did_not_copy =&gt; skip increment
+<a href=#178 id=178 data-nosnippet>178</a>        </span><span class="kw">let </span>did_not_copy = <span class="self">self</span>.allocate_single_addr_bool();
+<a href=#179 id=179 data-nosnippet>179</a>        <span class="self">self</span>.memory_op_instruction(
+<a href=#180 id=180 data-nosnippet>180</a>            source_pointer,
+<a href=#181 id=181 data-nosnippet>181</a>            dest_pointer,
+<a href=#182 id=182 data-nosnippet>182</a>            did_not_copy.address,
+<a href=#183 id=183 data-nosnippet>183</a>            BrilligBinaryOp::Equals,
+<a href=#184 id=184 data-nosnippet>184</a>        );
+<a href=#185 id=185 data-nosnippet>185</a>        <span class="self">self</span>.codegen_if_not(did_not_copy.address, |ctx| {
+<a href=#186 id=186 data-nosnippet>186</a>            ctx.codegen_increment_counter(counter_addr);
+<a href=#187 id=187 data-nosnippet>187</a>        });
+<a href=#188 id=188 data-nosnippet>188</a>    }
+<a href=#189 id=189 data-nosnippet>189</a>
+<a href=#190 id=190 data-nosnippet>190</a>    <span class="doccomment">/// Like `codegen_count_if_copy_occurred` but driven by an explicit boolean flag register
+<a href=#191 id=191 data-nosnippet>191</a>    /// rather than a pointer comparison. Registers this as a per-site copy location and emits
+<a href=#192 id=192 data-nosnippet>192</a>    /// runtime code that increments the per-site counter when `flag != 0`.
+<a href=#193 id=193 data-nosnippet>193</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>codegen_count_if_nonzero(<span class="kw-2">&amp;mut </span><span class="self">self</span>, flag: MemoryAddress) {
+<a href=#194 id=194 data-nosnippet>194</a>        <span class="kw">let </span><span class="prelude-val">Some</span>(counter_addr) = <span class="self">self</span>.register_per_site_counter() <span class="kw">else </span>{
+<a href=#195 id=195 data-nosnippet>195</a>            <span class="kw">return</span>;
+<a href=#196 id=196 data-nosnippet>196</a>        };
+<a href=#197 id=197 data-nosnippet>197</a>
+<a href=#198 id=198 data-nosnippet>198</a>        <span class="comment">// if flag != 0 { counter_addr += 1 }
+<a href=#199 id=199 data-nosnippet>199</a>        </span><span class="self">self</span>.codegen_if(flag, |ctx| {
+<a href=#200 id=200 data-nosnippet>200</a>            ctx.codegen_increment_counter(counter_addr);
+<a href=#201 id=201 data-nosnippet>201</a>        });
+<a href=#202 id=202 data-nosnippet>202</a>    }
+<a href=#203 id=203 data-nosnippet>203</a>
+<a href=#204 id=204 data-nosnippet>204</a>    <span class="doccomment">/// Emit print statements for the total array copy count, then for the top
+<a href=#205 id=205 data-nosnippet>205</a>    /// [`MAX_DISPLAY_SITES`] most-copied locations sorted descending by count.
+<a href=#206 id=206 data-nosnippet>206</a>    ///
+<a href=#207 id=207 data-nosnippet>207</a>    /// Uses a compile-time-unrolled selection sort: [`MAX_DISPLAY_SITES`] outer iterations, each
+<a href=#208 id=208 data-nosnippet>208</a>    /// running a runtime inner loop to find the maximum remaining counter, printing its label
+<a href=#209 id=209 data-nosnippet>209</a>    /// via a compile-time if-else chain, then zeroing that slot in a working heap buffer.
+<a href=#210 id=210 data-nosnippet>210</a>    ///
+<a href=#211 id=211 data-nosnippet>211</a>    /// Multiple internal tracking slots that resolve to the same source label are merged
+<a href=#212 id=212 data-nosnippet>212</a>    /// (their counts are summed) before sorting, so each unique source line appears once.
+<a href=#213 id=213 data-nosnippet>213</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>emit_println_of_array_copy_counter(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
+<a href=#214 id=214 data-nosnippet>214</a>        <span class="comment">// Print total.
+<a href=#215 id=215 data-nosnippet>215</a>        </span><span class="kw">let </span>total_addr = <span class="self">self</span>.array_copy_counter_address();
+<a href=#216 id=216 data-nosnippet>216</a>        <span class="kw">let </span>total_msg = <span class="macro">format!</span>(<span class="string">"Total arrays copied in {}: {{}}"</span>, <span class="self">self</span>.name());
+<a href=#217 id=217 data-nosnippet>217</a>        <span class="self">self</span>.emit_println_u32(<span class="kw-2">&amp;</span>total_msg, total_addr);
+<a href=#218 id=218 data-nosnippet>218</a>
+<a href=#219 id=219 data-nosnippet>219</a>        <span class="comment">// Retrieve resolved labels; nothing more to do if there are none.
+<a href=#220 id=220 data-nosnippet>220</a>        </span><span class="kw">let </span><span class="prelude-val">Some</span>(registry) = <span class="self">self</span>.copy_site_registry.clone() <span class="kw">else </span>{
+<a href=#221 id=221 data-nosnippet>221</a>            <span class="kw">return</span>;
+<a href=#222 id=222 data-nosnippet>222</a>        };
+<a href=#223 id=223 data-nosnippet>223</a>        <span class="kw">let </span>labels = registry.get_resolved_labels();
+<a href=#224 id=224 data-nosnippet>224</a>        <span class="kw">if </span>labels.is_empty() {
+<a href=#225 id=225 data-nosnippet>225</a>            <span class="kw">return</span>;
+<a href=#226 id=226 data-nosnippet>226</a>        }
+<a href=#227 id=227 data-nosnippet>227</a>        <span class="kw">let </span>n = labels.len().min(MAX_TRACK_SITES);
+<a href=#228 id=228 data-nosnippet>228</a>
+<a href=#229 id=229 data-nosnippet>229</a>        <span class="comment">// Merge tracking slots that share the same resolved label.
+<a href=#230 id=230 data-nosnippet>230</a>        // `dedup_labels[j]` is the unique label for slot j in the work buffer.
+<a href=#231 id=231 data-nosnippet>231</a>        // `dedup_groups[j]` lists the original per-site counter indices that contribute to slot j.
+<a href=#232 id=232 data-nosnippet>232</a>        </span><span class="kw">let </span><span class="kw-2">mut </span>dedup_labels: Vec&lt;<span class="kw-2">&amp;</span>str&gt; = Vec::new();
+<a href=#233 id=233 data-nosnippet>233</a>        <span class="kw">let </span><span class="kw-2">mut </span>dedup_groups: Vec&lt;Vec&lt;usize&gt;&gt; = Vec::new();
+<a href=#234 id=234 data-nosnippet>234</a>        <span class="kw">for </span>(i, label) <span class="kw">in </span>labels[..n].iter().enumerate() {
+<a href=#235 id=235 data-nosnippet>235</a>            <span class="kw">if let </span><span class="prelude-val">Some</span>(pos) = dedup_labels.iter().position(|<span class="kw-2">&amp;</span>l| l == label.as_str()) {
+<a href=#236 id=236 data-nosnippet>236</a>                dedup_groups[pos].push(i);
+<a href=#237 id=237 data-nosnippet>237</a>            } <span class="kw">else </span>{
+<a href=#238 id=238 data-nosnippet>238</a>                dedup_labels.push(label.as_str());
+<a href=#239 id=239 data-nosnippet>239</a>                dedup_groups.push(<span class="macro">vec!</span>[i]);
+<a href=#240 id=240 data-nosnippet>240</a>            }
+<a href=#241 id=241 data-nosnippet>241</a>        }
+<a href=#242 id=242 data-nosnippet>242</a>        <span class="kw">let </span>m = dedup_labels.len(); <span class="comment">// number of unique locations
+<a href=#243 id=243 data-nosnippet>243</a>
+<a href=#244 id=244 data-nosnippet>244</a>        // Allocate a working heap buffer of M slots.
+<a href=#245 id=245 data-nosnippet>245</a>        // Each slot holds the merged (summed) count for one unique source location.
+<a href=#246 id=246 data-nosnippet>246</a>        </span><span class="kw">let </span>m_reg = <span class="self">self</span>.make_usize_constant_instruction(F::from(m));
+<a href=#247 id=247 data-nosnippet>247</a>        <span class="kw">let </span>work_ptr = <span class="self">self</span>.allocate_single_addr_usize();
+<a href=#248 id=248 data-nosnippet>248</a>        <span class="self">self</span>.codegen_allocate_mem(work_ptr.address, m_reg.address);
+<a href=#249 id=249 data-nosnippet>249</a>
+<a href=#250 id=250 data-nosnippet>250</a>        <span class="kw">for </span>(j, group) <span class="kw">in </span>dedup_groups.iter().enumerate() {
+<a href=#251 id=251 data-nosnippet>251</a>            <span class="comment">// Sum all per-site counter values for this group into a temporary register.
+<a href=#252 id=252 data-nosnippet>252</a>            </span><span class="kw">let </span>sum = <span class="self">self</span>.allocate_single_addr_usize();
+<a href=#253 id=253 data-nosnippet>253</a>            <span class="self">self</span>.usize_const_instruction(sum.address, F::from(<span class="number">0_usize</span>));
+<a href=#254 id=254 data-nosnippet>254</a>            <span class="kw">for </span><span class="kw-2">&amp;</span>idx <span class="kw">in </span>group {
+<a href=#255 id=255 data-nosnippet>255</a>                <span class="comment">// counter_addr is a direct global address; mov copies the value directly.
+<a href=#256 id=256 data-nosnippet>256</a>                </span><span class="kw">let </span>counter_addr = <span class="self">self</span>.per_site_counter_address(idx);
+<a href=#257 id=257 data-nosnippet>257</a>                <span class="kw">let </span>cur = <span class="self">self</span>.allocate_single_addr_usize();
+<a href=#258 id=258 data-nosnippet>258</a>                <span class="self">self</span>.mov_instruction(cur.address, counter_addr);
+<a href=#259 id=259 data-nosnippet>259</a>                <span class="self">self</span>.memory_op_instruction(
+<a href=#260 id=260 data-nosnippet>260</a>                    sum.address,
+<a href=#261 id=261 data-nosnippet>261</a>                    cur.address,
+<a href=#262 id=262 data-nosnippet>262</a>                    sum.address,
+<a href=#263 id=263 data-nosnippet>263</a>                    BrilligBinaryOp::Add,
+<a href=#264 id=264 data-nosnippet>264</a>                );
+<a href=#265 id=265 data-nosnippet>265</a>            }
+<a href=#266 id=266 data-nosnippet>266</a>            <span class="kw">let </span>j_reg = <span class="self">self</span>.make_usize_constant_instruction(F::from(j));
+<a href=#267 id=267 data-nosnippet>267</a>            <span class="self">self</span>.codegen_store_with_offset(work_ptr.address, <span class="kw-2">*</span>j_reg, sum.address);
+<a href=#268 id=268 data-nosnippet>268</a>        }
+<a href=#269 id=269 data-nosnippet>269</a>
+<a href=#270 id=270 data-nosnippet>270</a>        <span class="comment">// Registers that persist across all MAX_DISPLAY_SITES outer iterations.
+<a href=#271 id=271 data-nosnippet>271</a>        </span><span class="kw">let </span>max_val = <span class="self">self</span>.allocate_single_addr_usize();
+<a href=#272 id=272 data-nosnippet>272</a>        <span class="kw">let </span>max_idx = <span class="self">self</span>.allocate_single_addr_usize();
+<a href=#273 id=273 data-nosnippet>273</a>        <span class="kw">let </span>bound_reg = <span class="self">self</span>.make_usize_constant_instruction(F::from(m));
+<a href=#274 id=274 data-nosnippet>274</a>        <span class="kw">let </span>one_addr = ReservedRegisters::usize_one();
+<a href=#275 id=275 data-nosnippet>275</a>
+<a href=#276 id=276 data-nosnippet>276</a>        <span class="kw">for _ in </span><span class="number">0</span>..MAX_DISPLAY_SITES {
+<a href=#277 id=277 data-nosnippet>277</a>            <span class="comment">// Initialise: max = working[0], max_idx = 0.
+<a href=#278 id=278 data-nosnippet>278</a>            </span><span class="self">self</span>.load_instruction(max_val.address, work_ptr.address);
+<a href=#279 id=279 data-nosnippet>279</a>            <span class="self">self</span>.usize_const_instruction(max_idx.address, F::from(<span class="number">0_usize</span>));
+<a href=#280 id=280 data-nosnippet>280</a>
+<a href=#281 id=281 data-nosnippet>281</a>            <span class="comment">// Inner runtime loop: scan working[1..m] and track the maximum.
+<a href=#282 id=282 data-nosnippet>282</a>            </span><span class="kw">let </span>max_val_addr = max_val.address;
+<a href=#283 id=283 data-nosnippet>283</a>            <span class="kw">let </span>max_idx_addr = max_idx.address;
+<a href=#284 id=284 data-nosnippet>284</a>            <span class="kw">let </span>work_ptr_addr = work_ptr.address;
+<a href=#285 id=285 data-nosnippet>285</a>            <span class="self">self</span>.codegen_for_loop(<span class="prelude-val">Some</span>(one_addr), bound_reg.address, <span class="prelude-val">None</span>, |ctx, i_var| {
+<a href=#286 id=286 data-nosnippet>286</a>                <span class="kw">let </span>cur_val = ctx.allocate_single_addr_usize();
+<a href=#287 id=287 data-nosnippet>287</a>                ctx.codegen_load_with_offset(work_ptr_addr, i_var, cur_val.address);
+<a href=#288 id=288 data-nosnippet>288</a>                <span class="kw">let </span>is_greater = ctx.allocate_single_addr_bool();
+<a href=#289 id=289 data-nosnippet>289</a>                <span class="comment">// is_greater = (max_val &lt; cur_val)
+<a href=#290 id=290 data-nosnippet>290</a>                </span>ctx.memory_op_instruction(
+<a href=#291 id=291 data-nosnippet>291</a>                    max_val_addr,
+<a href=#292 id=292 data-nosnippet>292</a>                    cur_val.address,
+<a href=#293 id=293 data-nosnippet>293</a>                    is_greater.address,
+<a href=#294 id=294 data-nosnippet>294</a>                    BrilligBinaryOp::LessThan,
+<a href=#295 id=295 data-nosnippet>295</a>                );
+<a href=#296 id=296 data-nosnippet>296</a>                ctx.codegen_if(is_greater.address, |ctx| {
+<a href=#297 id=297 data-nosnippet>297</a>                    ctx.mov_instruction(max_val_addr, cur_val.address);
+<a href=#298 id=298 data-nosnippet>298</a>                    ctx.mov_instruction(max_idx_addr, i_var.address);
+<a href=#299 id=299 data-nosnippet>299</a>                });
+<a href=#300 id=300 data-nosnippet>300</a>            });
+<a href=#301 id=301 data-nosnippet>301</a>
+<a href=#302 id=302 data-nosnippet>302</a>            <span class="comment">// Skip if the maximum counter is zero (no more nonzero sites to display).
+<a href=#303 id=303 data-nosnippet>303</a>            </span><span class="kw">let </span>max_is_zero = <span class="self">self</span>.allocate_single_addr_bool();
+<a href=#304 id=304 data-nosnippet>304</a>            <span class="self">self</span>.codegen_usize_op(max_val.address, max_is_zero.address, BrilligBinaryOp::Equals, <span class="number">0</span>);
+<a href=#305 id=305 data-nosnippet>305</a>            <span class="kw">let </span>work_ptr_addr = work_ptr.address;
+<a href=#306 id=306 data-nosnippet>306</a>            <span class="self">self</span>.codegen_if_not(max_is_zero.address, |ctx| {
+<a href=#307 id=307 data-nosnippet>307</a>                <span class="comment">// Compile-time if-else chain: print the label for whichever slot holds the max.
+<a href=#308 id=308 data-nosnippet>308</a>                </span><span class="kw">for </span>(j, label) <span class="kw">in </span>dedup_labels.iter().enumerate() {
+<a href=#309 id=309 data-nosnippet>309</a>                    <span class="kw">let </span>is_match = ctx.allocate_single_addr_bool();
+<a href=#310 id=310 data-nosnippet>310</a>                    ctx.codegen_usize_op(
+<a href=#311 id=311 data-nosnippet>311</a>                        max_idx_addr,
+<a href=#312 id=312 data-nosnippet>312</a>                        is_match.address,
+<a href=#313 id=313 data-nosnippet>313</a>                        BrilligBinaryOp::Equals,
+<a href=#314 id=314 data-nosnippet>314</a>                        j,
+<a href=#315 id=315 data-nosnippet>315</a>                    );
+<a href=#316 id=316 data-nosnippet>316</a>                    ctx.codegen_if(is_match.address, |ctx| {
+<a href=#317 id=317 data-nosnippet>317</a>                        <span class="kw">let </span>msg = <span class="macro">format!</span>(<span class="string">"  {label}: {{}}"</span>);
+<a href=#318 id=318 data-nosnippet>318</a>                        ctx.emit_println_u32(<span class="kw-2">&amp;</span>msg, max_val_addr);
+<a href=#319 id=319 data-nosnippet>319</a>                    });
+<a href=#320 id=320 data-nosnippet>320</a>                }
+<a href=#321 id=321 data-nosnippet>321</a>                <span class="comment">// Zero out the selected slot so it is not picked in subsequent iterations.
+<a href=#322 id=322 data-nosnippet>322</a>                </span><span class="kw">let </span>zero = ctx.make_usize_constant_instruction(F::from(<span class="number">0_usize</span>));
+<a href=#323 id=323 data-nosnippet>323</a>                ctx.codegen_store_with_offset(
+<a href=#324 id=324 data-nosnippet>324</a>                    work_ptr_addr,
+<a href=#325 id=325 data-nosnippet>325</a>                    SingleAddrVariable::new_usize(max_idx_addr),
+<a href=#326 id=326 data-nosnippet>326</a>                    zero.address,
+<a href=#327 id=327 data-nosnippet>327</a>                );
+<a href=#328 id=328 data-nosnippet>328</a>            });
+<a href=#329 id=329 data-nosnippet>329</a>        }
+<a href=#330 id=330 data-nosnippet>330</a>    }
+<a href=#331 id=331 data-nosnippet>331</a>
+<a href=#332 id=332 data-nosnippet>332</a>    <span class="doccomment">/// Emit a `print` foreign call that prints `message` as a format string with one u32 substitution.
+<a href=#333 id=333 data-nosnippet>333</a>    </span><span class="kw">fn </span>emit_println_u32(<span class="kw-2">&amp;mut </span><span class="self">self</span>, message: <span class="kw-2">&amp;</span>str, value_addr: MemoryAddress) {
+<a href=#334 id=334 data-nosnippet>334</a>        <span class="kw">let </span>newline = ValueOrArray::MemoryAddress(ReservedRegisters::usize_one());
+<a href=#335 id=335 data-nosnippet>335</a>        <span class="kw">let </span>message_len = message.len();
+<a href=#336 id=336 data-nosnippet>336</a>        <span class="kw">let </span>message_value = literal_string_to_value(message, <span class="self">self</span>);
+<a href=#337 id=337 data-nosnippet>337</a>        <span class="kw">let </span>item_count = ValueOrArray::MemoryAddress(ReservedRegisters::usize_one());
+<a href=#338 id=338 data-nosnippet>338</a>        <span class="kw">let </span>value_to_print = ValueOrArray::MemoryAddress(value_addr);
+<a href=#339 id=339 data-nosnippet>339</a>        <span class="kw">let </span>type_string_metadata = literal_string_to_value(PRINT_U32_TYPE_STRING, <span class="self">self</span>);
+<a href=#340 id=340 data-nosnippet>340</a>        <span class="kw">let </span>is_fmt_string = ValueOrArray::MemoryAddress(ReservedRegisters::usize_one());
+<a href=#341 id=341 data-nosnippet>341</a>
+<a href=#342 id=342 data-nosnippet>342</a>        <span class="kw">let </span>inputs = [
+<a href=#343 id=343 data-nosnippet>343</a>            newline, <span class="comment">// true
+<a href=#344 id=344 data-nosnippet>344</a>            </span><span class="kw-2">*</span>message_value,
+<a href=#345 id=345 data-nosnippet>345</a>            item_count,     <span class="comment">// 1
+<a href=#346 id=346 data-nosnippet>346</a>            </span>value_to_print, <span class="comment">// the u32 counter value
+<a href=#347 id=347 data-nosnippet>347</a>            </span><span class="kw-2">*</span>type_string_metadata,
+<a href=#348 id=348 data-nosnippet>348</a>            is_fmt_string, <span class="comment">// true
+<a href=#349 id=349 data-nosnippet>349</a>        </span>];
+<a href=#350 id=350 data-nosnippet>350</a>
+<a href=#351 id=351 data-nosnippet>351</a>        <span class="kw">let </span>u1_type = HeapValueType::Simple(BitSize::Integer(IntegerBitSize::U1));
+<a href=#352 id=352 data-nosnippet>352</a>        <span class="kw">let </span>u8_type = HeapValueType::Simple(BitSize::Integer(IntegerBitSize::U8));
+<a href=#353 id=353 data-nosnippet>353</a>        <span class="kw">let </span>u32_type = HeapValueType::Simple(BitSize::Integer(IntegerBitSize::U32));
+<a href=#354 id=354 data-nosnippet>354</a>
+<a href=#355 id=355 data-nosnippet>355</a>        <span class="kw">let </span>newline_type = u1_type.clone();
+<a href=#356 id=356 data-nosnippet>356</a>        <span class="kw">let </span>size = SemanticLength(assert_u32(message_len));
+<a href=#357 id=357 data-nosnippet>357</a>        <span class="kw">let </span>msg_type = HeapValueType::Array { value_types: <span class="macro">vec!</span>[u8_type.clone()], size };
+<a href=#358 id=358 data-nosnippet>358</a>        <span class="kw">let </span>item_count_type = HeapValueType::field();
+<a href=#359 id=359 data-nosnippet>359</a>        <span class="kw">let </span>value_to_print_type = u32_type;
+<a href=#360 id=360 data-nosnippet>360</a>        <span class="kw">let </span>size = SemanticLength(assert_u32(PRINT_U32_TYPE_STRING.len()));
+<a href=#361 id=361 data-nosnippet>361</a>        <span class="kw">let </span>metadata_type = HeapValueType::Array { value_types: <span class="macro">vec!</span>[u8_type], size };
+<a href=#362 id=362 data-nosnippet>362</a>        <span class="kw">let </span>is_fmt_string_type = u1_type;
+<a href=#363 id=363 data-nosnippet>363</a>
+<a href=#364 id=364 data-nosnippet>364</a>        <span class="kw">let </span>input_types = [
+<a href=#365 id=365 data-nosnippet>365</a>            newline_type,
+<a href=#366 id=366 data-nosnippet>366</a>            msg_type,
+<a href=#367 id=367 data-nosnippet>367</a>            item_count_type,
+<a href=#368 id=368 data-nosnippet>368</a>            value_to_print_type,
+<a href=#369 id=369 data-nosnippet>369</a>            metadata_type,
+<a href=#370 id=370 data-nosnippet>370</a>            is_fmt_string_type,
+<a href=#371 id=371 data-nosnippet>371</a>        ];
+<a href=#372 id=372 data-nosnippet>372</a>
+<a href=#373 id=373 data-nosnippet>373</a>        <span class="self">self</span>.foreign_call_instruction(<span class="string">"print"</span>.to_string(), <span class="kw-2">&amp;</span>inputs, <span class="kw-2">&amp;</span>input_types, <span class="kw-2">&amp;</span>[], <span class="kw-2">&amp;</span>[]);
+<a href=#374 id=374 data-nosnippet>374</a>    }
+<a href=#375 id=375 data-nosnippet>375</a>}
+<a href=#376 id=376 data-nosnippet>376</a>
+<a href=#377 id=377 data-nosnippet>377</a><span class="doccomment">/// The metadata string needed to tell `print` to print out a u32
+<a href=#378 id=378 data-nosnippet>378</a></span><span class="kw">const </span>PRINT_U32_TYPE_STRING: <span class="kw-2">&amp;</span>str = <span class="string">"{\"kind\":\"unsignedinteger\",\"width\":32}"</span>;
+<a href=#379 id=379 data-nosnippet>379</a>
+<a href=#380 id=380 data-nosnippet>380</a><span class="doccomment">/// Allocate the string `data` as a Brillig array on the heap and return it wrapped as a
+<a href=#381 id=381 data-nosnippet>381</a>/// `HeapArray` value suitable for passing to a `print` foreign call.
+<a href=#382 id=382 data-nosnippet>382</a></span><span class="kw">fn </span>literal_string_to_value&lt;F: AcirField + DebugToString, Registers: RegisterAllocator&gt;(
+<a href=#383 id=383 data-nosnippet>383</a>    data: <span class="kw-2">&amp;</span>str,
+<a href=#384 id=384 data-nosnippet>384</a>    brillig_context: <span class="kw-2">&amp;mut </span>BrilligContext&lt;F, Registers&gt;,
+<a href=#385 id=385 data-nosnippet>385</a>) -&gt; Allocated&lt;ValueOrArray, Registers&gt; {
+<a href=#386 id=386 data-nosnippet>386</a>    <span class="kw">let </span>brillig_array =
+<a href=#387 id=387 data-nosnippet>387</a>        brillig_context.allocate_brillig_array(SemiFlattenedLength(assert_u32(data.len())));
+<a href=#388 id=388 data-nosnippet>388</a>
+<a href=#389 id=389 data-nosnippet>389</a>    <span class="comment">// Allocate space on the heap.
+<a href=#390 id=390 data-nosnippet>390</a>    </span>brillig_context.codegen_initialize_array(<span class="kw-2">*</span>brillig_array);
+<a href=#391 id=391 data-nosnippet>391</a>
+<a href=#392 id=392 data-nosnippet>392</a>    <span class="comment">// Get a pointer to where the items start on the heap.
+<a href=#393 id=393 data-nosnippet>393</a>    </span><span class="kw">let </span>items_pointer = brillig_context.codegen_make_array_items_pointer(<span class="kw-2">*</span>brillig_array);
+<a href=#394 id=394 data-nosnippet>394</a>
+<a href=#395 id=395 data-nosnippet>395</a>    <span class="comment">// Copy the data into the array.
+<a href=#396 id=396 data-nosnippet>396</a>    </span>initialize_constant_string(brillig_context, data, <span class="kw-2">*</span>items_pointer);
+<a href=#397 id=397 data-nosnippet>397</a>
+<a href=#398 id=398 data-nosnippet>398</a>    <span class="comment">// Wrap the pointer into a `HeapArray`. The `BrilligArray` is no longer needed.
+<a href=#399 id=399 data-nosnippet>399</a>    </span><span class="kw">let </span>size = SemiFlattenedLength(assert_u32(data.len()));
+<a href=#400 id=400 data-nosnippet>400</a>    items_pointer.map(|pointer| ValueOrArray::HeapArray(HeapArray { pointer, size }))
+<a href=#401 id=401 data-nosnippet>401</a>}
+<a href=#402 id=402 data-nosnippet>402</a>
+<a href=#403 id=403 data-nosnippet>403</a><span class="doccomment">/// Generate opcodes to initialize the memory at `pointer` to the bytes in the `data` string.
+<a href=#404 id=404 data-nosnippet>404</a></span><span class="kw">fn </span>initialize_constant_string&lt;F: AcirField + DebugToString, Registers: RegisterAllocator&gt;(
+<a href=#405 id=405 data-nosnippet>405</a>    brillig_context: <span class="kw-2">&amp;mut </span>BrilligContext&lt;F, Registers&gt;,
+<a href=#406 id=406 data-nosnippet>406</a>    data: <span class="kw-2">&amp;</span>str,
+<a href=#407 id=407 data-nosnippet>407</a>    pointer: MemoryAddress,
+<a href=#408 id=408 data-nosnippet>408</a>) {
+<a href=#409 id=409 data-nosnippet>409</a>    <span class="comment">// Allocate a register for the iterator
+<a href=#410 id=410 data-nosnippet>410</a>    </span><span class="kw">let </span>write_pointer_register = brillig_context.allocate_register();
+<a href=#411 id=411 data-nosnippet>411</a>    brillig_context.mov_instruction(<span class="kw-2">*</span>write_pointer_register, pointer);
+<a href=#412 id=412 data-nosnippet>412</a>
+<a href=#413 id=413 data-nosnippet>413</a>    <span class="kw">for </span>(element_idx, byte) <span class="kw">in </span>data.bytes().enumerate() {
+<a href=#414 id=414 data-nosnippet>414</a>        <span class="kw">let </span>byte_field = AcirField::from_le_bytes_reduce(<span class="kw-2">&amp;</span>[byte]);
+<a href=#415 id=415 data-nosnippet>415</a>        <span class="comment">// Store the item in memory
+<a href=#416 id=416 data-nosnippet>416</a>        </span>brillig_context.indirect_const_instruction(<span class="kw-2">*</span>write_pointer_register, <span class="number">32</span>, byte_field);
+<a href=#417 id=417 data-nosnippet>417</a>
+<a href=#418 id=418 data-nosnippet>418</a>        <span class="kw">if </span>element_idx != data.len() - <span class="number">1 </span>{
+<a href=#419 id=419 data-nosnippet>419</a>            <span class="comment">// Increment the write_pointer_register
+<a href=#420 id=420 data-nosnippet>420</a>            </span>brillig_context.memory_op_inc_by_usize_one(<span class="kw-2">*</span>write_pointer_register);
+<a href=#421 id=421 data-nosnippet>421</a>        }
+<a href=#422 id=422 data-nosnippet>422</a>    }
+<a href=#423 id=423 data-nosnippet>423</a>}</code></pre></div></section></main></body></html>

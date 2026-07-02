@@ -231,9 +231,9 @@
 <a href=#231 id=231 data-nosnippet>231</a>        </span><span class="kw">let </span>options = BrilligOptions {
 <a href=#232 id=232 data-nosnippet>232</a>            enable_debug_trace: <span class="bool-val">true</span>,
 <a href=#233 id=233 data-nosnippet>233</a>            enable_debug_assertions: <span class="bool-val">true</span>,
-<a href=#234 id=234 data-nosnippet>234</a>            enable_array_copy_counter: <span class="bool-val">false</span>,
-<a href=#235 id=235 data-nosnippet>235</a>            show_opcode_advisories: <span class="bool-val">false</span>,
-<a href=#236 id=236 data-nosnippet>236</a>            layout: LayoutConfig::default(),
+<a href=#234 id=234 data-nosnippet>234</a>            show_opcode_advisories: <span class="bool-val">false</span>,
+<a href=#235 id=235 data-nosnippet>235</a>            layout: LayoutConfig::default(),
+<a href=#236 id=236 data-nosnippet>236</a>            copy_site_registry: <span class="prelude-val">None</span>,
 <a href=#237 id=237 data-nosnippet>237</a>        };
 <a href=#238 id=238 data-nosnippet>238</a>        <span class="kw">let </span><span class="kw-2">mut </span>context = BrilligContext::new(<span class="string">"test"</span>, <span class="kw-2">&amp;</span>options);
 <a href=#239 id=239 data-nosnippet>239</a>        context.enter_context(Label::function(FunctionId::test_new(<span class="number">0</span>)));

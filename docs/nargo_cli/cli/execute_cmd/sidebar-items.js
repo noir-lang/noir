@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["run"],"mod":["interpret"],"struct":["ExecuteCommand"]};
+window.SIDEBAR_ITEMS = {"fn":["execute_without_artifacts","run"],"mod":["interpret"],"struct":["ExecuteCommand"]};
