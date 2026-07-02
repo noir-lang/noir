@@ -377,7 +377,7 @@
 <a href=#377 id=377 data-nosnippet>377</a>    /// to the variant global's `Forall` generics (the enum's generics), validating the count the
 <a href=#378 id=378 data-nosnippet>378</a>    /// same way [`Self::resolve_item_turbofish_generics`] does. A non-generic enum has no `Forall`,
 <a href=#379 id=379 data-nosnippet>379</a>    /// so a turbofish on it produces a count-mismatch error.
-<a href=#380 id=380 data-nosnippet>380</a>    </span><span class="kw">fn </span>bind_enum_variant_global_turbofish(
+<a href=#380 id=380 data-nosnippet>380</a>    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>bind_enum_variant_global_turbofish(
 <a href=#381 id=381 data-nosnippet>381</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
 <a href=#382 id=382 data-nosnippet>382</a>        definition_id: DefinitionId,
 <a href=#383 id=383 data-nosnippet>383</a>        turbofish: <span class="kw-2">&amp;</span>[Located&lt;Type&gt;],
