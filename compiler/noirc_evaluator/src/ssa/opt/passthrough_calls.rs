@@ -23,12 +23,12 @@
 //!
 //! This pass should be run after flattening but it is still sound otherwise.
 
-use acvm::AcirField;
-use rustc_hash::FxHashMap as HashMap;
+use itertools::Itertools;
+use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
 use crate::ssa::{
     ir::{function::FunctionId, instruction::Instruction, value::Value},
-    opt::pure::{Purity, compute_function_body_purities},
+    opt::pure::{Purity, compute_function_purities},
     ssa_gen::Ssa,
 };
 
@@ -43,7 +43,12 @@ struct PassThrough {
 impl Ssa {
     /// See the [`passthrough_calls`][self] module for more information.
     pub(crate) fn simplify_passthrough_calls(mut self) -> Ssa {
-        let body_purities = compute_function_body_purities(&self);
+        // Run the purity analysis, and keep only the `Pure` functions
+        let pure_functions: HashSet<FunctionId> = compute_function_purities(&self)
+            .intrinsic_purities()
+            .filter(|(_, purity)| **purity == Purity::Pure)
+            .map(|(id, _)| *id)
+            .collect();
 
         let pass_through: HashMap<FunctionId, PassThrough> = self
             .functions
@@ -51,7 +56,7 @@ impl Ssa {
             .filter_map(|(id, function)| {
                 // The body (and everything it transitively calls) must be free of observable
                 // side effects, otherwise dropping the call would drop those effects.
-                if body_purities.get(id) != Some(&Purity::Pure) {
+                if !pure_functions.contains(id) {
                     return None;
                 }
                 let forwarding = function.pass_through_indices()?;
@@ -85,11 +90,8 @@ impl Ssa {
                 // A zero predicate can zero brillig outputs, but enable_side_effects is only
                 // meaning full on a flatten CFG. If the pass is called pre-flattening, it
                 // will still be valid.
-                let predicate_is_one = single_block
-                    && context
-                        .dfg
-                        .get_numeric_constant(context.enable_side_effects)
-                        .is_some_and(|predicate| predicate.is_one());
+                let predicate_is_one =
+                    single_block && context.dfg.is_constant_true(context.enable_side_effects);
                 let may_forward =
                     caller_is_brillig || passthrough.callee_is_acir || predicate_is_one;
                 if !may_forward {
@@ -102,7 +104,7 @@ impl Ssa {
                     return;
                 }
 
-                for (result, &parameter_index) in results.iter().zip(&passthrough.forwarding) {
+                for (result, &parameter_index) in results.iter().zip_eq(&passthrough.forwarding) {
                     context.replace_value(*result, arguments[parameter_index]);
                 }
                 context.remove_current_instruction();
@@ -115,15 +117,15 @@ impl Ssa {
 
 #[cfg(test)]
 mod tests {
-    use crate::{assert_ssa_snapshot, ssa::opt::assert_normalized_ssa_equals, ssa::ssa_gen::Ssa};
-
-    fn assert_unchanged(src: &str) {
-        let ssa = Ssa::from_str(src).unwrap().simplify_passthrough_calls();
-        assert_normalized_ssa_equals(ssa, src);
-    }
+    use crate::{
+        assert_ssa_snapshot,
+        ssa::{opt::assert_ssa_does_not_change, ssa_gen::Ssa},
+    };
 
     #[test]
     fn forwards_acir_passthrough_and_removes_call() {
+        // Asserts the un-pruned output: the pass removes the call but leaves the now-dead callee
+        // in place (pruning it is a separate pass). The other tests chain `simplify_and_prune`.
         let src = "
         acir(inline) fn main f0 {
           b0(v0: u32, v1: u32):
@@ -135,6 +137,8 @@ mod tests {
             return v1
         }
         ";
+        // Only `simplify_passthrough_calls` (no `remove_unreachable_functions()` for visibility) to show
+        // the precise effect of the pass.
         let ssa = Ssa::from_str(src).unwrap().simplify_passthrough_calls();
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
@@ -162,6 +166,7 @@ mod tests {
             return v1, v0
         }
         ";
+        // `f1` is `acir(fold)` so it is an entry point, `remove_unreachable_functions()` won't work for it.
         let ssa = Ssa::from_str(src).unwrap().simplify_passthrough_calls();
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
@@ -189,13 +194,10 @@ mod tests {
             return v0
         }
         ";
-        let ssa = Ssa::from_str(src).unwrap().simplify_passthrough_calls();
+        let ssa =
+            Ssa::from_str(src).unwrap().simplify_passthrough_calls().remove_unreachable_functions();
         assert_ssa_snapshot!(ssa, @r"
         brillig(inline) fn main f0 {
-          b0(v0: u32):
-            return v0
-        }
-        brillig(inline_never) fn id f1 {
           b0(v0: u32):
             return v0
         }
@@ -218,7 +220,7 @@ mod tests {
             return v0
         }
         ";
-        assert_unchanged(src);
+        assert_ssa_does_not_change(src, Ssa::simplify_passthrough_calls);
     }
 
     #[test]
@@ -236,7 +238,7 @@ mod tests {
             return v1
         }
         ";
-        assert_unchanged(src);
+        assert_ssa_does_not_change(src, Ssa::simplify_passthrough_calls);
     }
 
     #[test]
@@ -254,13 +256,10 @@ mod tests {
             return v0
         }
         ";
-        let ssa = Ssa::from_str(src).unwrap().simplify_passthrough_calls();
+        let ssa =
+            Ssa::from_str(src).unwrap().simplify_passthrough_calls().remove_unreachable_functions();
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
-          b0(v0: u32):
-            return v0
-        }
-        brillig(inline_never) fn id f1 {
           b0(v0: u32):
             return v0
         }
@@ -287,7 +286,7 @@ mod tests {
             return v0
         }
         ";
-        assert_unchanged(src);
+        assert_ssa_does_not_change(src, Ssa::simplify_passthrough_calls);
     }
 
     #[test]
@@ -312,7 +311,7 @@ mod tests {
             return v0
         }
         ";
-        assert_unchanged(src);
+        assert_ssa_does_not_change(src, Ssa::simplify_passthrough_calls);
     }
 
     #[test]
@@ -329,6 +328,8 @@ mod tests {
             return
         }
         ";
+        // The callee is `acir(fold)`, i.e. its own ACIR entry point, so it survives
+        // `remove_unreachable_functions` and there is nothing to prune.
         let ssa = Ssa::from_str(src).unwrap().simplify_passthrough_calls();
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
