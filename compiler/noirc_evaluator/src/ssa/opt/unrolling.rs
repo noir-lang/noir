@@ -4825,20 +4825,20 @@ mod tests {
             return v4
         }
         ";
-        let ssa = Ssa::from_str(src).unwrap();
-
         // Semantics: iteration 0 has v2 = 3 (v3 = 0 < 1 true) so we loop with v2 = 3*3 + 1 = 10;
         // iteration 1 has v2 = 10 (v3 = 1 < 1 false) so we exit returning v4 = 10*10 = 100.
-        let before = ssa.interpret(vec![Value::field(3u128.into())]).unwrap();
-
-        let (ssa, errors) = try_unroll_loops(ssa);
-        assert!(errors.is_empty(), "Loop should unroll successfully");
-
         // The exit block's use of the header instruction result `v4` is remapped to its
-        // final-iteration value instead of dangling, so interpretation succeeds and matches.
-        let after = ssa.interpret(vec![Value::field(3u128.into())]).unwrap();
-        assert_eq!(before, after, "Unrolling should preserve semantics");
-        assert_eq!(after, vec![Value::field(100u128.into())]);
+        // final-iteration value instead of dangling, so unrolling preserves the execution result.
+        let (_, result) = assert_pass_does_not_affect_execution(
+            Ssa::from_str(src).unwrap(),
+            vec![Value::field(3u128.into())],
+            |ssa| {
+                let (ssa, errors) = try_unroll_loops(ssa);
+                assert!(errors.is_empty(), "Loop should unroll successfully");
+                ssa
+            },
+        );
+        assert_eq!(result, Ok(vec![Value::field(100u128.into())]));
     }
 }
 
