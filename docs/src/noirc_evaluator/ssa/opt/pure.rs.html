@@ -1462,4 +1462,59 @@
 <a href=#1462 id=1462 data-nosnippet>1462</a>        <span class="kw">let </span>purities = <span class="kw-2">&amp;</span>ssa.main().dfg.function_purities;
 <a href=#1463 id=1463 data-nosnippet>1463</a>        <span class="macro">assert_eq!</span>(purities.purities[<span class="kw-2">&amp;</span>FunctionId::test_new(<span class="number">0</span>)], Purity::PureWithPredicate);
 <a href=#1464 id=1464 data-nosnippet>1464</a>    }
-<a href=#1465 id=1465 data-nosnippet>1465</a>}</code></pre></div></section></main></body></html>
+<a href=#1465 id=1465 data-nosnippet>1465</a>
+<a href=#1466 id=1466 data-nosnippet>1466</a>    <span class="doccomment">/// A zero induction step does not by itself imply non-termination: an `Equal`-guard loop
+<a href=#1467 id=1467 data-nosnippet>1467</a>    /// (`eq v0, 0` with the body on the `then` branch) entered with `v0 = 5` fails its guard on the
+<a href=#1468 id=1468 data-nosnippet>1468</a>    /// first test and runs zero iterations, so it terminates and stays eligible for `Pure`. This
+<a href=#1469 id=1469 data-nosnippet>1469</a>    /// guards the ordering in `terminates_with_step`, which must check "does the body run at all"
+<a href=#1470 id=1470 data-nosnippet>1470</a>    /// before "is the step zero" — reversing them would wrongly cap this loop to `PureWithPredicate`.
+<a href=#1471 id=1471 data-nosnippet>1471</a>    </span><span class="attr">#[test]
+<a href=#1472 id=1472 data-nosnippet>1472</a>    </span><span class="kw">fn </span>brillig_function_with_zero_step_but_non_executing_loop_is_pure() {
+<a href=#1473 id=1473 data-nosnippet>1473</a>        <span class="kw">let </span>src = <span class="string">"
+<a href=#1474 id=1474 data-nosnippet>1474</a>        brillig(inline) fn main f0 {
+<a href=#1475 id=1475 data-nosnippet>1475</a>          b0():
+<a href=#1476 id=1476 data-nosnippet>1476</a>            jmp b1(u32 5)
+<a href=#1477 id=1477 data-nosnippet>1477</a>          b1(v0: u32):
+<a href=#1478 id=1478 data-nosnippet>1478</a>            v1 = eq v0, u32 0
+<a href=#1479 id=1479 data-nosnippet>1479</a>            jmpif v1 then: b2(), else: b3()
+<a href=#1480 id=1480 data-nosnippet>1480</a>          b2():
+<a href=#1481 id=1481 data-nosnippet>1481</a>            jmp b1(v0)
+<a href=#1482 id=1482 data-nosnippet>1482</a>          b3():
+<a href=#1483 id=1483 data-nosnippet>1483</a>            return
+<a href=#1484 id=1484 data-nosnippet>1484</a>        }
+<a href=#1485 id=1485 data-nosnippet>1485</a>        "</span>;
+<a href=#1486 id=1486 data-nosnippet>1486</a>
+<a href=#1487 id=1487 data-nosnippet>1487</a>        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
+<a href=#1488 id=1488 data-nosnippet>1488</a>        <span class="kw">let </span>ssa = ssa.purity_analysis();
+<a href=#1489 id=1489 data-nosnippet>1489</a>
+<a href=#1490 id=1490 data-nosnippet>1490</a>        <span class="kw">let </span>purities = <span class="kw-2">&amp;</span>ssa.main().dfg.function_purities;
+<a href=#1491 id=1491 data-nosnippet>1491</a>        <span class="macro">assert_eq!</span>(purities.purities[<span class="kw-2">&amp;</span>FunctionId::test_new(<span class="number">0</span>)], Purity::Pure);
+<a href=#1492 id=1492 data-nosnippet>1492</a>    }
+<a href=#1493 id=1493 data-nosnippet>1493</a>
+<a href=#1494 id=1494 data-nosnippet>1494</a>    <span class="doccomment">/// A Brillig loop with a `&lt;` guard, a constant upper bound, but a zero induction step
+<a href=#1495 id=1495 data-nosnippet>1495</a>    /// (`jmp b1(v0)` re-enters with the same value, so `v0 &lt; 4` holds forever) never terminates.
+<a href=#1496 id=1496 data-nosnippet>1496</a>    /// A constant upper bound alone does not prove termination — the step must make progress — so
+<a href=#1497 id=1497 data-nosnippet>1497</a>    /// the function must be kept out of `Pure`.
+<a href=#1498 id=1498 data-nosnippet>1498</a>    </span><span class="attr">#[test]
+<a href=#1499 id=1499 data-nosnippet>1499</a>    </span><span class="kw">fn </span>brillig_function_with_zero_step_loop_is_not_pure() {
+<a href=#1500 id=1500 data-nosnippet>1500</a>        <span class="kw">let </span>src = <span class="string">"
+<a href=#1501 id=1501 data-nosnippet>1501</a>        brillig(inline) fn main f0 {
+<a href=#1502 id=1502 data-nosnippet>1502</a>          b0():
+<a href=#1503 id=1503 data-nosnippet>1503</a>            jmp b1(u32 0)
+<a href=#1504 id=1504 data-nosnippet>1504</a>          b1(v0: u32):
+<a href=#1505 id=1505 data-nosnippet>1505</a>            v1 = lt v0, u32 4
+<a href=#1506 id=1506 data-nosnippet>1506</a>            jmpif v1 then: b2(), else: b3()
+<a href=#1507 id=1507 data-nosnippet>1507</a>          b2():
+<a href=#1508 id=1508 data-nosnippet>1508</a>            jmp b1(v0)
+<a href=#1509 id=1509 data-nosnippet>1509</a>          b3():
+<a href=#1510 id=1510 data-nosnippet>1510</a>            return
+<a href=#1511 id=1511 data-nosnippet>1511</a>        }
+<a href=#1512 id=1512 data-nosnippet>1512</a>        "</span>;
+<a href=#1513 id=1513 data-nosnippet>1513</a>
+<a href=#1514 id=1514 data-nosnippet>1514</a>        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
+<a href=#1515 id=1515 data-nosnippet>1515</a>        <span class="kw">let </span>ssa = ssa.purity_analysis();
+<a href=#1516 id=1516 data-nosnippet>1516</a>
+<a href=#1517 id=1517 data-nosnippet>1517</a>        <span class="kw">let </span>purities = <span class="kw-2">&amp;</span>ssa.main().dfg.function_purities;
+<a href=#1518 id=1518 data-nosnippet>1518</a>        <span class="macro">assert_eq!</span>(purities.purities[<span class="kw-2">&amp;</span>FunctionId::test_new(<span class="number">0</span>)], Purity::PureWithPredicate);
+<a href=#1519 id=1519 data-nosnippet>1519</a>    }
+<a href=#1520 id=1520 data-nosnippet>1520</a>}</code></pre></div></section></main></body></html>
