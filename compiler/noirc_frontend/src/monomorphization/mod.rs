@@ -194,6 +194,38 @@ type CanonicalBindings = Vec<(TypeVariableId, HirType)>;
 
 const MAX_TYPE_COMPLEXITY: usize = 100_000;
 
+/// Maximum number of field elements an entry point parameter may flatten into.
+///
+/// This mirrors the return-value limit (`MAX_ELEMENTS`) enforced in `noirc_evaluator`: inputs
+/// whose flattened size approaches `u32::MAX` cannot be represented, since Brillig arrays are
+/// heap-allocated using `u32` addressing and data-bus/ACIR construction reserves one slot per
+/// flattened element. Rejecting them here produces a clean error before those later stages.
+const MAX_ENTRY_POINT_FIELD_COUNT: u64 = 1 << 24;
+
+/// Number of field elements needed to represent `typ` as a flattened entry point parameter.
+///
+/// Computed with saturating `u64` arithmetic so that sizes beyond `u32::MAX` are reported as a
+/// clean limit error rather than overflowing: [`ast::Type::entry_point_field_count`] panics on
+/// `u32` overflow. Types that cannot appear as entry point parameters contribute nothing; they
+/// are rejected separately by the entry point validity checks.
+fn entry_point_field_count_saturating(typ: &ast::Type) -> u64 {
+    match typ {
+        ast::Type::Field | ast::Type::Integer(..) | ast::Type::Bool => 1,
+        ast::Type::Array(length, element) => {
+            u64::from(*length).saturating_mul(entry_point_field_count_saturating(element))
+        }
+        ast::Type::String(length) => u64::from(*length),
+        ast::Type::Tuple(fields) => {
+            fields.iter().map(entry_point_field_count_saturating).fold(0, u64::saturating_add)
+        }
+        ast::Type::FmtString(..)
+        | ast::Type::Unit
+        | ast::Type::Vector(_)
+        | ast::Type::Reference(..)
+        | ast::Type::Function(..) => 0,
+    }
+}
+
 /// Starting from the given `main` function, monomorphize the entire program,
 /// replacing all references to type variables and `NamedGenerics` with concrete
 /// types, duplicating definitions as necessary to do so.
@@ -658,6 +690,27 @@ impl<'interner> Monomorphizer<'interner> {
                     invalid_type,
                     location,
                 });
+            }
+        }
+
+        // Reject entry point parameters whose flattened size exceeds the limit. Enforcing it here
+        // fails fast before data-bus construction and Brillig array allocation, which assume the
+        // flattened size is `u32`-representable. `is_entry_point` is only finalized in
+        // `into_program`, so recompute the same condition here.
+        let is_entry_point =
+            (!self.force_unconstrained && inline_type.is_entry_point()) || id == Program::main_id();
+        if is_entry_point {
+            for (pattern, typ, _visibility) in &func_parameters.0 {
+                let location = pattern.location();
+                let num_elements =
+                    entry_point_field_count_saturating(&Self::convert_type(typ, location)?);
+                if num_elements > MAX_ENTRY_POINT_FIELD_COUNT {
+                    return Err(MonomorphizationError::InputLimitExceeded {
+                        num_elements,
+                        max_elements: MAX_ENTRY_POINT_FIELD_COUNT,
+                        location,
+                    });
+                }
             }
         }
 

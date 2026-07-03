@@ -34,6 +34,7 @@ pub enum MonomorphizationError {
     ReferenceParameterToOracle { typ: String, location: Location },
     VectorWithNestedArrayReturnedFromOracle { typ: String, location: Location },
     InvalidTypeForEntryPoint { invalid_type: InvalidType, location: Location },
+    InputLimitExceeded { num_elements: u64, max_elements: u64, location: Location },
     ComplexType { complexity: usize, max_complexity: usize, location: Location },
     CannotUseFunctionAsValue { name: String, location: Location },
     GlobalContainsFunctionPointer { typ: String, location: Location },
@@ -74,6 +75,7 @@ impl MonomorphizationError {
             | MonomorphizationError::ReferenceParameterToOracle { location, .. }
             | MonomorphizationError::VectorWithNestedArrayReturnedFromOracle { location, .. }
             | MonomorphizationError::InvalidTypeForEntryPoint { location, .. }
+            | MonomorphizationError::InputLimitExceeded { location, .. }
             | MonomorphizationError::ComplexType { location, .. }
             | MonomorphizationError::CannotUseFunctionAsValue { location, .. }
             | MonomorphizationError::GlobalContainsFunctionPointer { location, .. }
@@ -229,6 +231,11 @@ impl From<MonomorphizationError> for CustomDiagnostic {
                 diagnostic.add_note("Note: vectors, references, empty arrays, empty strings, or any type containing them may not be used in main, contract functions, test functions, fuzz functions or foldable functions.".to_string());
                 invalid_type.add_to_diagnostic(*location, &mut diagnostic);
                 return diagnostic;
+            }
+            MonomorphizationError::InputLimitExceeded { num_elements, max_elements, .. } => {
+                format!(
+                    "An input parameter has {num_elements} elements which exceeds the limit of {max_elements}"
+                )
             }
             MonomorphizationError::ComplexType { complexity, max_complexity, location } => {
                 let message = format!(
