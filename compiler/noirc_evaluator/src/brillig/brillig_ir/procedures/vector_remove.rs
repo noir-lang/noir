@@ -63,9 +63,8 @@ pub(super) fn compile_vector_remove_procedure<F: AcirField + DebugToString>(
         BrilligBinaryOp::Sub,
     );
 
+    // The reference-count slot is a "unique / shared" boolean, so we branch on it directly.
     let rc = brillig_context.codegen_read_vector_rc(source_vector);
-
-    let is_rc_one = brillig_context.codegen_usize_equals_one(*rc);
 
     let source_vector_items_pointer =
         brillig_context.codegen_make_vector_items_pointer(source_vector);
@@ -74,8 +73,8 @@ pub(super) fn compile_vector_remove_procedure<F: AcirField + DebugToString>(
     let target_vector_items_pointer = brillig_context.allocate_register();
 
     // Set up the target vector up to the index.
-    brillig_context.codegen_branch(is_rc_one.address, |brillig_context, is_rc_one| {
-        if is_rc_one {
+    brillig_context.codegen_branch(rc.address, |brillig_context, is_unique| {
+        if is_unique {
             // We can reuse the source vector: update its length and set the items pointer to be the source.
             brillig_context.mov_instruction(target_vector.pointer, source_vector.pointer);
             brillig_context.codegen_update_vector_size(target_vector, *target_size);
