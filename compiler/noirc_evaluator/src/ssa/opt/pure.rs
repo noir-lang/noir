@@ -1462,4 +1462,59 @@ mod tests {
         let purities = &ssa.main().dfg.function_purities;
         assert_eq!(purities.purities[&FunctionId::test_new(0)], Purity::PureWithPredicate);
     }
+
+    /// A zero induction step does not by itself imply non-termination: an `Equal`-guard loop
+    /// (`eq v0, 0` with the body on the `then` branch) entered with `v0 = 5` fails its guard on the
+    /// first test and runs zero iterations, so it terminates and stays eligible for `Pure`. This
+    /// guards the ordering in `terminates_with_step`, which must check "does the body run at all"
+    /// before "is the step zero" — reversing them would wrongly cap this loop to `PureWithPredicate`.
+    #[test]
+    fn brillig_function_with_zero_step_but_non_executing_loop_is_pure() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0():
+            jmp b1(u32 5)
+          b1(v0: u32):
+            v1 = eq v0, u32 0
+            jmpif v1 then: b2(), else: b3()
+          b2():
+            jmp b1(v0)
+          b3():
+            return
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.purity_analysis();
+
+        let purities = &ssa.main().dfg.function_purities;
+        assert_eq!(purities.purities[&FunctionId::test_new(0)], Purity::Pure);
+    }
+
+    /// A Brillig loop with a `<` guard, a constant upper bound, but a zero induction step
+    /// (`jmp b1(v0)` re-enters with the same value, so `v0 < 4` holds forever) never terminates.
+    /// A constant upper bound alone does not prove termination — the step must make progress — so
+    /// the function must be kept out of `Pure`.
+    #[test]
+    fn brillig_function_with_zero_step_loop_is_not_pure() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0():
+            jmp b1(u32 0)
+          b1(v0: u32):
+            v1 = lt v0, u32 4
+            jmpif v1 then: b2(), else: b3()
+          b2():
+            jmp b1(v0)
+          b3():
+            return
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.purity_analysis();
+
+        let purities = &ssa.main().dfg.function_purities;
+        assert_eq!(purities.purities[&FunctionId::test_new(0)], Purity::PureWithPredicate);
+    }
 }
