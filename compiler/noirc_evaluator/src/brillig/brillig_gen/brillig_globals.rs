@@ -237,10 +237,6 @@ impl BrilligGlobals {
         BrilligGlobalsInit::new(ssa, main_id)
     }
 
-    /// Check whether a function is a Brillig entry point.
-    pub(crate) fn is_entry_point(&self, func_id: &FunctionId) -> bool {
-        self.call_map.entry_point_to_inner_calls.contains_key(func_id)
-    }
     /// Fetch the global allocations that can possibly be accessed
     /// by any given Brillig function (non-entry point or entry point).
     ///

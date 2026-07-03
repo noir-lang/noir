@@ -87,7 +87,9 @@ impl<F: AcirField> AcirContext<F> {
     pub(crate) fn extract_witnesses(&self, inputs: &[AcirValue]) -> Vec<Witness> {
         inputs
             .iter()
-            .flat_map(|value| value.clone().flatten())
+            .flat_map(|value| {
+                value.clone().flatten().expect("ICE: cannot extract witnesses from a dynamic array")
+            })
             .map(|value| {
                 self.vars
                     .get(&value.0)

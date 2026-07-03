@@ -1238,6 +1238,45 @@ fn array_set_with_offset() {
 }
 
 #[test]
+fn array_set_nested_array_value_is_not_shared() {
+    // Regression test: an array-valued `value` stored by `array_set` must not keep
+    // sharing its nested `Shared` handle with the source array. Otherwise a later
+    // `array_set mut` on that source array would also mutate the earlier stored value,
+    // diverging from ACIR (which copies array-set values).
+    let values = expect_values_with_args(
+        "
+        acir(inline) fn main f0 {
+          b0(v0: u32, v1: Field):
+            v3 = make_array [Field 0] : [Field; 1]
+            v5 = make_array [Field 9] : [Field; 1]
+            v6 = make_array [v5] : [[Field; 1]; 1]
+            v7 = array_set v6, index v0, value v3
+            v8 = array_set mut v3, index v0, value v1
+            return v7, v8
+        }
+    ",
+        vec![
+            from_constant(0u128.into(), NumericType::unsigned(32)),
+            from_constant(7u128.into(), NumericType::NativeField),
+        ],
+    );
+
+    let v7 = values[0].as_array_or_vector().unwrap();
+    let v8 = values[1].as_array_or_vector().unwrap();
+
+    let zero = from_constant(0u32.into(), NumericType::NativeField);
+    let seven = from_constant(7u32.into(), NumericType::NativeField);
+
+    // v7's nested array must still hold the original value: the `array_set mut` on v3
+    // should not reach through into the copy stored in v7.
+    let v7_inner = v7.elements.borrow()[0].as_array_or_vector().unwrap();
+    assert_eq!(*v7_inner.elements.borrow(), vec![zero]);
+
+    // v8 is v3 mutated in place.
+    assert_eq!(*v8.elements.borrow(), vec![seven]);
+}
+
+#[test]
 fn increment_rc() {
     let value = expect_value(
         "

@@ -871,7 +871,6 @@ mod tests {
             &options,
             &globals,
             &hoisted_global_constants,
-            /* is_entry_point */ true,
             /* check_max_stack_depth */ false,
         );
 

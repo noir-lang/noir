@@ -390,20 +390,20 @@ fn generates_memory_op_for_dynamic_write() {
     let program = ssa_to_acir_program(src);
 
     // All logic after the write is expected as we generate new witnesses for return values
-    assert_circuit_snapshot!(program, @r"
+    assert_circuit_snapshot!(program, @"
     func 0
     private parameters: [w0, w1, w2, w3]
     public parameters: []
     return values: [w4, w5, w6]
-    INIT b1 = [w0, w1, w2]
+    INIT b0 = [w0, w1, w2]
     ASSERT w7 = 10
-    WRITE b1[w3] = w7
+    WRITE b0[w3] = w7
     ASSERT w8 = 0
-    READ w9 = b1[w8]
+    READ w9 = b0[w8]
     ASSERT w10 = 1
-    READ w11 = b1[w10]
+    READ w11 = b0[w10]
     ASSERT w12 = 2
-    READ w13 = b1[w12]
+    READ w13 = b0[w12]
     ASSERT w4 = w9
     ASSERT w5 = w11
     ASSERT w6 = w13
@@ -542,6 +542,36 @@ fn zero_length_array_dynamic_set() {
 }
 
 #[test]
+fn zero_length_array_is_not_initialized() {
+    // A dynamic operation on an array whose flattened size is zero (`[[u8; 0]; 4]`, whose elements
+    // are zero-width) must not emit a `MemoryInit` for the empty backing block. An empty block has
+    // no slots to read or write, so any such `MemoryInit` describes an orphan block that the ACVM
+    // unused-memory optimizer strips anyway.
+    //
+    // We inspect the raw `GeneratedAcir` rather than the optimized program because that optimizer
+    // would remove the empty `MemoryInit`, hiding whether ACIR gen emitted it in the first place.
+    let src = "
+    acir(inline) fn main f0 {
+      b0(v0: u32):
+        v1 = make_array b\"\"
+        v2 = make_array [v1, v1, v1, v1] : [[u8; 0]; 4]
+        v3 = array_set v2, index v0, value v1
+        return v3
+    }
+    ";
+    let generated_acir = ssa_to_generated_acir(src);
+
+    assert!(
+        !generated_acir
+            .opcodes()
+            .iter()
+            .any(|opcode| { matches!(opcode, Opcode::MemoryInit { init, .. } if init.is_empty()) }),
+        "ACIR gen must not initialize a zero-length memory block, got opcodes:\n{:#?}",
+        generated_acir.opcodes()
+    );
+}
+
+#[test]
 fn zero_length_array_dynamic_predicate() {
     let src = "
     acir(inline) fn main f0 {
@@ -596,12 +626,11 @@ fn non_homogenous_array_dynamic_access() {
     // b0 is our actual array input while b1 is our element type sizes array.
     // You can see that in `w44 = b1[w28]` we use the supplied witness index to read the flattened index from b1.
     // `w44` is then used to read from the b0 array.
-    assert_circuit_snapshot!(program, @r"
+    assert_circuit_snapshot!(program, @"
     func 0
     private parameters: [w0, w1, w2, w3, w4, w5, w6, w7, w8, w9, w10, w11, w12, w13, w14, w15, w16, w17, w18, w19, w20, w21, w22, w23, w24, w25, w26, w27, w28]
     public parameters: []
     return values: [w29, w30, w31]
-    INIT b0 = [w0, w1, w2, w3, w4, w5, w6, w7, w8, w9, w10, w11, w12, w13, w14, w15, w16, w17, w18, w19, w20, w21, w22, w23, w24, w25, w26, w27]
     ASSERT w32 = 0
     ASSERT w33 = 1
     ASSERT w34 = 4
@@ -614,13 +643,14 @@ fn non_homogenous_array_dynamic_access() {
     ASSERT w41 = 21
     ASSERT w42 = 22
     ASSERT w43 = 25
-    INIT b1 = [w32, w33, w34, w35, w36, w37, w38, w39, w40, w41, w42, w43]
-    READ w44 = b1[w28]
-    READ w45 = b0[w44]
+    INIT b0 = [w32, w33, w34, w35, w36, w37, w38, w39, w40, w41, w42, w43]
+    READ w44 = b0[w28]
+    INIT b1 = [w0, w1, w2, w3, w4, w5, w6, w7, w8, w9, w10, w11, w12, w13, w14, w15, w16, w17, w18, w19, w20, w21, w22, w23, w24, w25, w26, w27]
+    READ w45 = b1[w44]
     ASSERT w46 = w44 + 1
-    READ w47 = b0[w46]
+    READ w47 = b1[w46]
     ASSERT w48 = w46 + 1
-    READ w49 = b0[w48]
+    READ w49 = b1[w48]
     ASSERT w29 = w45
     ASSERT w30 = w47
     ASSERT w31 = w49

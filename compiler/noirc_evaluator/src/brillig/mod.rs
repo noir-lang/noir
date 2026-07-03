@@ -40,6 +40,7 @@ use crate::ssa::{
 use rustc_hash::FxHashMap as HashMap;
 use std::{borrow::Cow, collections::BTreeSet};
 
+pub use self::brillig_ir::count_array_copies::CopySiteRegistry;
 pub use self::brillig_ir::procedures::ProcedureId;
 
 /// Converts a u32 value to usize, panicking if the conversion fails.
@@ -57,9 +58,11 @@ pub(crate) fn assert_u32(value: usize) -> u32 {
 pub struct BrilligOptions {
     pub enable_debug_trace: bool,
     pub enable_debug_assertions: bool,
-    pub enable_array_copy_counter: bool,
     pub show_opcode_advisories: bool,
     pub layout: LayoutConfig,
+    /// Shared registry for per-site array copy tracking. Populated (via `--count-array-copies`)
+    /// to enable the copy-counting instrumentation; `None` leaves ordinary compilation untouched.
+    pub copy_site_registry: Option<CopySiteRegistry>,
 }
 
 /// Context structure for the Brillig pass.
@@ -83,7 +86,6 @@ impl Brillig {
         options: &BrilligOptions,
         globals: &HashMap<ValueId, BrilligVariable>,
         hoisted_global_constants: &HashMap<(FieldElement, NumericType), BrilligVariable>,
-        is_entry_point: bool,
         check_max_stack_depth: bool,
     ) {
         let obj = self.convert_ssa_function(
@@ -91,7 +93,6 @@ impl Brillig {
             options,
             globals,
             hoisted_global_constants,
-            is_entry_point,
             check_max_stack_depth,
         );
         self.ssa_function_to_brillig.insert(func.id(), obj);
@@ -124,7 +125,6 @@ impl Brillig {
         options: &BrilligOptions,
         globals: &HashMap<ValueId, BrilligVariable>,
         hoisted_global_constants: &HashMap<(FieldElement, NumericType), BrilligVariable>,
-        is_entry_point: bool,
         check_max_stack_depth: bool,
     ) -> BrilligArtifact<FieldElement> {
         let (function_context, brillig_context) = self.build_function_contexts(
@@ -132,7 +132,6 @@ impl Brillig {
             options,
             globals,
             hoisted_global_constants,
-            is_entry_point,
             check_max_stack_depth,
         );
 
@@ -156,11 +155,10 @@ impl Brillig {
         options: &BrilligOptions,
         globals: &HashMap<ValueId, BrilligVariable>,
         hoisted_global_constants: &HashMap<(FieldElement, NumericType), BrilligVariable>,
-        is_entry_point: bool,
         check_max_stack_depth: bool,
     ) -> (FunctionContext, BrilligContext<FieldElement, Stack>) {
         let mut function_context =
-            FunctionContext::new(func, is_entry_point, options.layout.max_stack_frame_size());
+            FunctionContext::new(func, options.layout.max_stack_frame_size());
 
         let mut brillig_context = BrilligContext::new(func.name(), options);
 
@@ -247,7 +245,6 @@ impl Ssa {
                 brillig_globals.get_brillig_globals(brillig_function_id);
 
             let func = &self.functions[&brillig_function_id];
-            let is_entry_point = brillig_globals.is_entry_point(&brillig_function_id);
             let check_max_stack_depth = max_call_depths[&brillig_function_id]
                 .is_none_or(|max_depth| max_depth >= options.layout.num_stack_frames());
 
@@ -256,7 +253,6 @@ impl Ssa {
                 options,
                 globals_allocations,
                 hoisted_constant_allocations,
-                is_entry_point,
                 check_max_stack_depth,
             );
         }

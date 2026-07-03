@@ -34,11 +34,6 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         }
     }
 
-    pub(crate) fn codegen_increment_array_copy_counter(&mut self) {
-        let array_copy_counter = self.array_copy_counter_address();
-        self.codegen_usize_op(array_copy_counter, array_copy_counter, BrilligBinaryOp::Add, 1);
-    }
-
     /// Utility method to check if the value at a memory address equals one.
     pub(crate) fn codegen_usize_equals_one(
         &mut self,

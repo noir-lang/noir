@@ -490,7 +490,6 @@ impl Context<'_> {
         offset: usize,
     ) -> Result<(AcirVar, Option<AcirValue>), RuntimeError> {
         let array_typ = dfg.type_of_value(array_id);
-        let block_id = self.ensure_array_is_initialized(array_id, dfg)?;
 
         let shift = ElementTypeSizesArrayShift::None;
         let index_var = self.convert_numeric_value(index, dfg)?;
@@ -517,7 +516,7 @@ impl Context<'_> {
         }
 
         let new_value = store_value
-            .map(|store| self.predicated_store_value(store, dfg, block_id, index_var))
+            .map(|store| self.predicated_store_value(store, dfg, array_id, index_var))
             .transpose()?;
 
         Ok((index_var, new_value))
@@ -529,11 +528,14 @@ impl Context<'_> {
         &mut self,
         store: ValueId,
         dfg: &DataFlowGraph,
-        block_id: BlockId,
+        array_id: ValueId,
         mut dummy_predicate_index: AcirVar,
     ) -> Result<AcirValue, RuntimeError> {
         let store_value = self.convert_value(store, dfg);
         let store_type = dfg.type_of_value(store);
+        // Reading the dummy value is the first memory access to the array under a predicate, so the
+        // backing block is initialized lazily here.
+        let block_id = self.ensure_array_is_initialized(array_id, dfg)?;
         // We must setup the dummy value to match the type of the value we wish to store
         let dummy = self.array_get_value(&store_type, block_id, &mut dummy_predicate_index)?;
         self.convert_array_set_store_value(&store_value, &dummy)
@@ -576,7 +578,10 @@ impl Context<'_> {
             ) => {
                 let dummy_values = dummy_values
                     .into_iter()
-                    .flat_map(|val| val.clone().flatten())
+                    .map(|val| val.clone().flatten())
+                    .collect::<Result<Vec<_>, _>>()?
+                    .into_iter()
+                    .flatten()
                     .map(|(var, typ)| AcirValue::Var(var, typ))
                     .collect::<Vec<_>>();
 
@@ -639,10 +644,9 @@ impl Context<'_> {
         dfg: &DataFlowGraph,
         index_side_effect: bool,
     ) -> Result<(), RuntimeError> {
-        let block_id = self.ensure_array_is_initialized(array, dfg)?;
         let [result] = dfg.instruction_result(instruction);
         let res_typ = dfg.type_of_value(result);
-        let value = self.load_array_value(array, block_id, var_index, &res_typ, dfg)?;
+        let value = self.load_array_value(array, var_index, &res_typ, dfg)?;
         let value = self.apply_index_side_effects(array, value, index_side_effect, dfg)?;
         self.define_result(dfg, instruction, value);
         Ok(())
@@ -652,7 +656,6 @@ impl Context<'_> {
     fn load_array_value(
         &mut self,
         array: ValueId,
-        block_id: BlockId,
         mut var_index: AcirVar,
         res_typ: &Type,
         dfg: &DataFlowGraph,
@@ -694,6 +697,10 @@ impl Context<'_> {
             let mut current_index = self.acir_context.add_var(bus_index, var_index)?;
             self.get_from_call_data(&mut current_index, call_data_block, res_typ)
         } else {
+            // A non-call-data read is the first access to the array's own memory block, so it is
+            // initialized lazily here rather than for every `ArrayGet` (call-data reads are served
+            // from the databus block and never touch this one).
+            let block_id = self.ensure_array_is_initialized(array, dfg)?;
             self.array_get_value(res_typ, block_id, &mut var_index)
         }
     }
@@ -849,11 +856,15 @@ impl Context<'_> {
         dfg: &DataFlowGraph,
         mutate_array: bool,
     ) -> Result<BlockId, RuntimeError> {
-        let block_id = self.ensure_array_is_initialized(array, dfg)?;
         if mutate_array {
+            let block_id = self.ensure_array_is_initialized(array, dfg)?;
             self.memory_blocks.insert(result, block_id);
             Ok(block_id)
         } else {
+            // The copy reads the source through its `AcirValue` (inline contents, or the already
+            // initialized block of a `DynamicArray`), so we do not force the source into a memory
+            // block here: a constant-only source that is copied and then discarded must not leave
+            // an orphaned `MemoryInit` behind.
             let new_block = self.block_id(result);
             self.copy_array(array, new_block, dfg)?;
             Ok(new_block)
@@ -1324,6 +1335,20 @@ impl Context<'_> {
         len: FlattenedLength,
         value: Option<AcirValue>,
     ) -> Result<(), InternalError> {
+        // Record the block as initialized even for a zero-length array so that downstream
+        // bookkeeping stays consistent, but emit no `MemoryInit` opcode for it: an empty block has
+        // no slots to read or write, so any access to it is out of bounds and the opcode would only
+        // ever describe an orphan block.
+        if !self.initialized_arrays.insert(array) {
+            return Err(InternalError::General {
+                message: "Attempted to initialize memory block twice".to_owned(),
+                call_stack: self.acir_context.get_call_stack(),
+            });
+        }
+        if len.to_usize() == 0 {
+            return Ok(());
+        }
+
         let mut databus = BlockType::Memory;
         for (call_data_id, array_id) in self.data_bus.call_data_array() {
             if self.block_id(array_id) == array {
@@ -1333,14 +1358,7 @@ impl Context<'_> {
         }
 
         self.acir_context.initialize_array(array, len, value, databus)?;
-        if self.initialized_arrays.insert(array) {
-            Ok(())
-        } else {
-            Err(InternalError::General {
-                message: "Attempted to initialize memory block twice".to_owned(),
-                call_stack: self.acir_context.get_call_stack(),
-            })
-        }
+        Ok(())
     }
 }
 
