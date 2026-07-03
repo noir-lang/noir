@@ -71,3 +71,10 @@ path = "fuzz_targets/pass_vs_prev.rs"
 test = false
 doc = false
 bench = false
+
+[[bin]]
+name = "valid_after_pass"
+path = "fuzz_targets/valid_after_pass.rs"
+test = false
+doc = false
+bench = false

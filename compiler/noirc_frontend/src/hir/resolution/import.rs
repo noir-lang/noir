@@ -53,6 +53,8 @@ pub enum PathResolutionError {
     TurbofishNotAllowedOnItem { item: String, location: Location },
     #[error("{ident} is a {kind}, not a module")]
     NotAModule { ident: Ident, kind: &'static str },
+    #[error("{kind} `{name}` has no associated items")]
+    NoAssociatedItems { name: Ident, kind: &'static str },
     #[error(
         "trait `{trait_name}` which provides `{ident}` is implemented but not in scope, please import it"
     )]
@@ -72,6 +74,10 @@ pub enum PathResolutionError {
     UnresolvedMethodForType { typ: String, ident: Ident, available_impls: Vec<String> },
     #[error("Multiple applicable methods named `{ident}` in scope")]
     MultipleApplicableMethods { ident: Ident, impl_types: Vec<String> },
+    #[error("associated item `{ident}` not found for `{type_name}`")]
+    AssociatedItemNotImplemented { ident: Ident, type_name: String, traits: Vec<String> },
+    #[error("associated type `{ident}` cannot be accessed directly")]
+    AssociatedTypeNotAccessibleDirectly { ident: Ident, type_name: String, traits: Vec<String> },
 }
 
 impl PathResolutionError {
@@ -82,11 +88,14 @@ impl PathResolutionError {
             PathResolutionError::Unresolved(ident)
             | PathResolutionError::Private(ident)
             | PathResolutionError::NotAModule { ident, .. }
+            | PathResolutionError::NoAssociatedItems { name: ident, .. }
             | PathResolutionError::TraitMethodNotInScope { ident, .. }
             | PathResolutionError::MultipleTraitsInScope { ident, .. }
             | PathResolutionError::MultipleApplicableImpls { ident, .. }
             | PathResolutionError::UnresolvedWithPossibleTraitsToImport { ident, .. }
             | PathResolutionError::MultipleApplicableMethods { ident, .. }
+            | PathResolutionError::AssociatedItemNotImplemented { ident, .. }
+            | PathResolutionError::AssociatedTypeNotAccessibleDirectly { ident, .. }
             | PathResolutionError::UnresolvedMethodForType { ident, .. } => ident.location(),
         }
     }
@@ -130,6 +139,9 @@ impl<'a> From<&'a PathResolutionError> for CustomDiagnostic {
             }
             PathResolutionError::NotAModule { ident, kind: _ } => {
                 CustomDiagnostic::simple_error(error.to_string(), String::new(), ident.location())
+            }
+            PathResolutionError::NoAssociatedItems { name, kind: _ } => {
+                CustomDiagnostic::simple_error(error.to_string(), String::new(), name.location())
             }
             PathResolutionError::TraitMethodNotInScope { ident, .. } => {
                 CustomDiagnostic::simple_error(error.to_string(), String::new(), ident.location())
@@ -180,6 +192,36 @@ impl<'a> From<&'a PathResolutionError> for CustomDiagnostic {
                     ident.location(),
                 )
             }
+            PathResolutionError::AssociatedItemNotImplemented { ident, type_name, traits } => {
+                let mut traits = vecmap(traits, |trait_name| format!("`{trait_name}`"));
+                traits.sort();
+                let (noun, verb) =
+                    if traits.len() == 1 { ("trait", "is") } else { ("traits", "are") };
+                CustomDiagnostic::simple_error(
+                    error.to_string(),
+                    format!(
+                        "associated item `{ident}` is defined by {noun} {}, which {verb} not implemented for `{type_name}`",
+                        traits.join(", ")
+                    ),
+                    ident.location(),
+                )
+            }
+            PathResolutionError::AssociatedTypeNotAccessibleDirectly {
+                ident,
+                type_name,
+                traits,
+            } => {
+                let mut suggestions = vecmap(traits, |trait_name| {
+                    format!("`<{type_name} as {trait_name}>::{ident}`")
+                });
+                suggestions.sort();
+                let secondary = if suggestions.len() == 1 {
+                    format!("use the fully-qualified syntax {} instead", suggestions[0])
+                } else {
+                    format!("use a fully-qualified syntax such as {}", suggestions.join(" or "))
+                };
+                CustomDiagnostic::simple_error(error.to_string(), secondary, ident.location())
+            }
             PathResolutionError::UnresolvedMethodForType { typ: _, ident, available_impls } => {
                 let secondary = if available_impls.is_empty() {
                     String::new()
@@ -210,7 +252,7 @@ pub fn resolve_import(
         resolve_path_kind(path, importing_module, def_maps, references_tracker)?;
     let mut solver =
         ImportSolver::new(importing_module, def_maps, usage_tracker, references_tracker);
-    solver.resolve_name_in_module(path, module_id)
+    solver.resolve_name_in_module(&path, module_id)
 }
 
 fn path_to_typed_path(path: Path) -> TypedPath {
@@ -395,7 +437,7 @@ impl<'def_maps, 'usage_tracker, 'references_tracker>
     /// This is very similar to `Elaborator::resolve_name_in_module`.
     fn resolve_name_in_module(
         &mut self,
-        path: TypedPath,
+        path: &TypedPath,
         starting_module: ModuleId,
     ) -> ImportResolutionResult {
         // There is a possibility that the import path is empty. In that case, early return.
@@ -408,7 +450,7 @@ impl<'def_maps, 'usage_tracker, 'references_tracker>
         }
 
         let first_segment_is_always_visible =
-            first_segment_is_always_visible(&path, self.importing_module, starting_module);
+            first_segment_is_always_visible(path, self.importing_module, starting_module);
 
         // The current module and module ID as we resolve path segments
         let mut current_module_id = starting_module;
@@ -448,6 +490,10 @@ impl<'def_maps, 'usage_tracker, 'references_tracker>
 
             self.add_reference(typ, last_segment.location, last_segment.ident.is_self_type_name());
 
+            // The module `last_segment` is declared in (its visibility is checked against this),
+            // captured before stepping `current_module_id` into the module it refers to.
+            let last_segment_module_id = current_module_id;
+
             // In the type namespace, only a module can be navigated through in a path. A type's
             // associated items (methods, and for enums their variants) can't be imported through
             // it, matching Rust: `use Type::method` is rejected. Such items remain reachable via a
@@ -483,7 +529,7 @@ impl<'def_maps, 'usage_tracker, 'references_tracker>
             };
 
             if !((first_segment_is_always_visible && index == 0)
-                || self.item_in_module_is_visible(current_module_id, visibility))
+                || self.item_in_module_is_visible(last_segment_module_id, visibility))
             {
                 errors.push(PathResolutionError::Private(last_ident.clone()));
             }

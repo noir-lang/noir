@@ -112,7 +112,7 @@ fn run_with_generator<Generator: FlamegraphGenerator>(
                     brillig_index,
                 }],
                 count: 1,
-                brillig_function_id: Some(BrilligFunctionId(brillig_fn_index as u32)),
+                brillig_function_id: Some(BrilligFunctionId::new(brillig_fn_index as u32)),
             })
             .collect();
 
@@ -231,19 +231,19 @@ mod tests {
 
         let acir: Vec<Opcode<FieldElement>> = vec![
             Opcode::BrilligCall {
-                id: BrilligFunctionId(0),
+                id: BrilligFunctionId::new(0),
                 inputs: vec![],
                 outputs: vec![],
                 predicate: Expression::one(),
             },
             Opcode::BrilligCall {
-                id: BrilligFunctionId(1),
+                id: BrilligFunctionId::new(1),
                 inputs: vec![],
                 outputs: vec![],
                 predicate: Expression::one(),
             },
             Opcode::BrilligCall {
-                id: BrilligFunctionId(2),
+                id: BrilligFunctionId::new(2),
                 inputs: vec![],
                 outputs: vec![],
                 predicate: Expression::one(),

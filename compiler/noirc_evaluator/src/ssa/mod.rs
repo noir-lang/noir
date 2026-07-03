@@ -167,6 +167,9 @@ pub struct SsaEvaluatorOptions {
 
     /// A list of SSA pass messages to skip, for testing purposes.
     pub skip_passes: Vec<String>,
+
+    /// Run the full SSA validator after each pass, to catch a pass that produces malformed SSA.
+    pub validate_between_passes: bool,
 }
 
 /// Defaults used in tests.
@@ -191,6 +194,7 @@ impl Default for SsaEvaluatorOptions {
             specialization_threshold: DEFAULT_SPECIALIZATION_THRESHOLD,
             max_specializations_per_fn: DEFAULT_MAX_SPECIALIZATIONS_PER_FN,
             skip_passes: Vec::new(),
+            validate_between_passes: false,
         }
     }
 }
@@ -455,10 +459,14 @@ pub fn optimize_ssa_builder_into_acir(
     builder: SsaBuilder,
     options: &SsaEvaluatorOptions,
     passes: &[SsaPass],
+    files: Option<&fm::FileManager>,
 ) -> Result<ArtifactsAndWarnings, RuntimeError> {
     let ssa_gen_span = span!(Level::TRACE, "ssa_generation");
     let ssa_gen_span_guard = ssa_gen_span.enter();
-    let builder = builder.with_skip_passes(options.skip_passes.clone()).run_passes(passes)?;
+    let builder = builder
+        .with_skip_passes(options.skip_passes.clone())
+        .with_validate_between_passes(options.validate_between_passes)
+        .run_passes(passes)?;
 
     drop(ssa_gen_span_guard);
 
@@ -479,6 +487,11 @@ pub fn optimize_ssa_builder_into_acir(
     let brillig = time("SSA to Brillig", options.print_codegen_timings, || {
         builder.ssa().to_brillig(&options.brillig_options)
     });
+
+    // Resolve copy-site labels now that both the CallStackHelper and FileManager are available.
+    if let Some(registry) = &options.brillig_options.copy_site_registry {
+        registry.resolve_labels(brillig.call_stacks(), files);
+    }
 
     let ssa_gen_span_guard = ssa_gen_span.enter();
 
@@ -533,7 +546,7 @@ pub fn optimize_into_acir(
         files,
     )?;
 
-    optimize_ssa_builder_into_acir(builder, options, passes)
+    optimize_ssa_builder_into_acir(builder, options, passes, files)
 }
 
 /// Compiles the [`Program`] into [`ACIR`][acvm::acir::circuit::Program].
@@ -659,7 +672,7 @@ fn brillig_side_effects(
         .iter()
         .enumerate()
         .map(|(idx, function)| {
-            let id = BrilligFunctionId(idx as u32);
+            let id = BrilligFunctionId::new(idx as u32);
             let has_side_effect = function
                 .bytecode
                 .iter()
@@ -857,7 +870,7 @@ mod brillig_side_effects_tests {
         let side_effects = brillig_side_effects(&brillig);
 
         // A foreign call is the only thing that lets a Brillig function affect the outside world.
-        assert!(!side_effects[&BrilligFunctionId(0)]);
-        assert!(side_effects[&BrilligFunctionId(1)]);
+        assert!(!side_effects[&BrilligFunctionId::new(0)]);
+        assert!(side_effects[&BrilligFunctionId::new(1)]);
     }
 }

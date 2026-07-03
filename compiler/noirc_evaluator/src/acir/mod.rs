@@ -9,6 +9,7 @@
 use noirc_artifacts::ssa::{InternalWarning, SsaReport};
 use noirc_errors::call_stack::CallStack;
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
+use std::collections::BTreeMap;
 use types::{AcirDynamicArray, AcirValue};
 
 use acvm::acir::{
@@ -101,7 +102,7 @@ struct Context<'a> {
 
     /// Maps type sizes to `BlockId`. This is used to reuse the same `BlockId` if different
     /// non-homogenous arrays end up having the same type sizes layout.
-    type_sizes_to_blocks: HashMap<Vec<u32>, BlockId>,
+    type_sizes_to_blocks: BTreeMap<Vec<u32>, BlockId>,
 
     /// Number of the next `BlockId`, it is used to construct
     /// a new `BlockId`
@@ -136,7 +137,7 @@ impl<'a> Context<'a> {
             memory_blocks: HashMap::default(),
             return_data_block_id: None,
             element_type_sizes_blocks: HashMap::default(),
-            type_sizes_to_blocks: HashMap::default(),
+            type_sizes_to_blocks: BTreeMap::default(),
             max_block_id: 0,
             data_bus: DataBus::default(),
             shared_context,
@@ -313,8 +314,7 @@ impl<'a> Context<'a> {
         let outputs: Vec<AcirType> =
             vecmap(returns, |result_id| dfg.type_of_value(*result_id).as_ref().into());
 
-        let code =
-            gen_brillig_for(main_func, arguments.clone(), self.brillig, self.brillig_options)?;
+        let code = gen_brillig_for(main_func, &arguments, self.brillig, self.brillig_options)?;
 
         // We specifically do not attempt execution of the brillig code being generated as this can result in it being
         // replaced with constraints on witnesses to the program outputs.
@@ -326,19 +326,22 @@ impl<'a> Context<'a> {
             outputs,
             skip_output_range_checks,
             // We are guaranteed to have a Brillig function pointer of `0` as main itself is marked as unconstrained
-            BrilligFunctionId(0),
+            BrilligFunctionId::new(0),
             None,
         )?;
         self.shared_context.insert_generated_brillig(
             main_func.id(),
             arguments,
-            BrilligFunctionId(0),
+            BrilligFunctionId::new(0),
             code,
         );
 
         let return_witnesses: Vec<Witness> = output_values
             .iter()
-            .flat_map(|value| value.clone().flatten())
+            .map(|value| value.clone().flatten())
+            .collect::<Result<Vec<_>, _>>()?
+            .into_iter()
+            .flatten()
             .map(|(value, _)| self.acir_context.var_to_witness(value))
             .collect::<Result<_, _>>()?;
 
@@ -370,18 +373,19 @@ impl<'a> Context<'a> {
             match &value {
                 AcirValue::Var(_, _) => (),
                 AcirValue::Array(_) => {
-                    let block_id = self.block_id(param_id);
-                    let len = if matches!(*typ, Type::Array(_, _)) {
-                        typ.flattened_size()
-                    } else {
+                    // The backing memory block for an array parameter is initialized lazily by
+                    // `ensure_array_is_initialized` the first time the parameter is used in a
+                    // memory operation (a dynamic access, or a write under a predicate). A
+                    // parameter that is only read at constant indices is resolved directly
+                    // against this `AcirValue::Array` and never needs a memory block at all.
+                    if !matches!(*typ, Type::Array(_, _)) {
                         return Err(InternalError::Unexpected {
                             expected: "Block params should be an array".to_owned(),
                             found: format!("Instead got {:?}", *typ),
                             call_stack: self.acir_context.get_call_stack(),
                         }
                         .into());
-                    };
-                    self.initialize_array(block_id, len, Some(value.clone()))?;
+                    }
                 }
                 AcirValue::DynamicArray(_) => unreachable!(
                     "The dynamic array type is created in Acir gen and therefore cannot be a block parameter"
@@ -394,7 +398,9 @@ impl<'a> Context<'a> {
             return Ok(Vec::new());
         };
         // Range is inclusive, because the for example if there was only one witness, the start and end are both 0.
-        let witnesses = (start_witness.0..=end_witness.0).map(Witness::from).collect();
+        let witnesses = (start_witness.witness_index()..=end_witness.witness_index())
+            .map(Witness::from)
+            .collect();
         Ok(witnesses)
     }
 

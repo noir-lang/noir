@@ -846,12 +846,15 @@ fn can_be_deduplicated(instruction: &Instruction, dfg: &DataFlowGraph) -> CanBeD
                 Purity::PureWithPredicate => CanBeDeduplicated::UnderSamePredicate,
                 Purity::Impure => CanBeDeduplicated::Never,
             },
-            // Calls to user-defined functions may lower to predicated `Opcode::Call` or
-            // `Opcode::BrilligCall` in ACIR. Even when the callee is pure, the predicated
-            // opcode skips the callee's constraints when the predicate is false, leaving
-            // outputs unconstrained. We must therefore include the predicate in the cache
-            // key to prevent deduplication across different `enable_side_effects` contexts.
+            // A call to a user-defined function from an ACIR caller lowers to a predicated
+            // `Opcode::Call` or `Opcode::BrilligCall`, which leaves the callee's outputs
+            // unconstrained when the predicate is disabled. `DataFlowGraph::purity_of` already
+            // reflects this: from an ACIR caller a pure Brillig callee is observed as
+            // `PureWithPredicate`, so a callee seen here as `Pure` is one that genuinely does not
+            // depend on the predicate (e.g. any callee from a Brillig caller, whose calls are not
+            // predicated) and can be deduplicated freely.
             Value::Function(id) => match dfg.purity_of(id) {
+                Some(Purity::Pure) if dfg.runtime().is_brillig() => CanBeDeduplicated::Always,
                 Some(Purity::Pure | Purity::PureWithPredicate) => {
                     CanBeDeduplicated::UnderSamePredicate
                 }
@@ -1223,7 +1226,7 @@ mod test {
             v10 = array_get v9, index u32 0 -> u32
             return v10
         }
-        brillig(inline_never) predicate_pure fn get_slice f1 {
+        brillig(inline_never) pure fn get_vector f1 {
           b0():
             v1 = make_array [u32 100] : [u32]
             return u32 1, v1
@@ -1455,7 +1458,7 @@ mod test {
         let ssa = Ssa::from_str(src).unwrap();
         let ssa = ssa.purity_analysis().fold_constants_using_constraints(MIN_ITER);
         // The two `call f1` instructions remain because they sit under different predicates.
-        assert_ssa_snapshot!(ssa, @r"
+        assert_ssa_snapshot!(ssa, @"
         acir(inline) predicate_pure fn main f0 {
           b0(v0: u1, v1: Field):
             enable_side_effects v0
@@ -1641,23 +1644,23 @@ mod test {
         // v7 has been replaced by a v5, and its reference count is increased
         // v6 is not yet replaced but will be in a subsequent constant folding run
         assert_ssa_snapshot!(ssa, @r"
-            brillig(inline) fn main f0 {
-              b0(v0: u32):
-                v3 = lt u32 1000, v0
-                v5 = make_array [u1 0] : [u1; 1]
-                jmpif v3 then: b1(), else: b2()
-              b1():
-                inc_rc v5
-                jmp b3(u1 0)
-              b2():
-                v6 = make_array [u1 0] : [u1; 1]
-                jmp b3(u1 0)
-              b3(v1: u1):
-                constrain v1 == u1 0
-                jmp b4()
-              b4():
-                return
-            }
+        brillig(inline) fn main f0 {
+          b0(v0: u32):
+            v3 = lt u32 1000, v0
+            v5 = make_array [u1 0] : [u1; 1]
+            jmpif v3 then: b1(), else: b2()
+          b1():
+            v6 = make_array [u1 0] : [u1; 1]
+            jmp b3(u1 0)
+          b2():
+            inc_rc v5
+            jmp b3(u1 0)
+          b3(v1: u1):
+            constrain v1 == u1 0
+            jmp b4()
+          b4():
+            return
+        }
         ");
     }
 
@@ -1665,7 +1668,7 @@ mod test {
     fn repeatedly_hoist_and_deduplicate() {
         // Repeating the same block 3x times.
         let src = "
-        brillig(inline) predicate_pure fn main f0 {
+        brillig(inline) pure fn main f0 {
           b0(v0: u1, v1: i8):
             v2 = allocate -> &mut i8
             store i8 0 at v2
@@ -1716,7 +1719,7 @@ mod test {
         // 2. v13 is a duplicate of v9 -> immediately deduplicated because it's now in b0
         // 3. v14 is a duplicate of v10 -> hoisted to b2
         assert_ssa_snapshot!(ssa, @r"
-        brillig(inline) predicate_pure fn main f0 {
+        brillig(inline) pure fn main f0 {
           b0(v0: u1, v1: i8):
             v2 = allocate -> &mut i8
             store i8 0 at v2
@@ -1757,7 +1760,7 @@ mod test {
 
         // All duplicates hoisted into b0.
         assert_ssa_snapshot!(ssa, @r"
-        brillig(inline) predicate_pure fn main f0 {
+        brillig(inline) pure fn main f0 {
           b0(v0: u1, v1: i8):
             v2 = allocate -> &mut i8
             store i8 0 at v2
@@ -2097,7 +2100,7 @@ mod test {
         //     is not updated to point at b0, and leads to the error during normalization.
 
         let src = r#"
-        brillig(inline) predicate_pure fn main f0 {
+        brillig(inline) pure fn main f0 {
           b0(v0: u1, v1: u1):
             jmpif v0 then: b1(), else: b10()
           b1():
@@ -2161,7 +2164,7 @@ mod test {
         let ssa = ssa.fold_constants(2);
 
         assert_ssa_snapshot!(ssa, @r"
-        brillig(inline) predicate_pure fn main f0 {
+        brillig(inline) pure fn main f0 {
           b0(v0: u1, v1: u1):
             v3 = make_array [u8 0] : [u8; 1]
             jmpif v0 then: b1(), else: b10()
@@ -2867,7 +2870,7 @@ mod test {
             call f4(v8, v35, u32 0)
             return v35
         }
-        brillig(inline) predicate_pure fn new f1 {
+        brillig(inline) pure fn new f1 {
           b0():
             v7 = make_array [Field 0, Field 0, Field 0, Field 55340232221128654848] : [Field; 4]
             return v7
@@ -3198,15 +3201,8 @@ mod test {
     // (predicated by v0), then when v0=0 the callee's constraints would be skipped, its
     // output witness would become unconstrained, and the `constrain` under the complementary
     // predicate (`not v0`) would reference an unconstrained value — a soundness hole.
-    // The `brillig` case panics on purpose: a brillig callee can never compute as `Pure`
-    // (it defaults to `PureWithPredicate`, see `Function::is_pure`), so a `pure` annotation on
-    // it is not valid SSA. The optimizer input is parsed with validation disabled to set up the
-    // scenario, but `assert_normalized_ssa_equals` re-parses `src` as the expected output under
-    // strict validation and rejects it. The case is kept (rather than deleted) to document that
-    // the deduplication guarantee is meant to hold for brillig too; it should be re-enabled once
-    // a `pure` brillig callee can be expressed as valid SSA.
     #[test_case("acir(fold)"; "acir_fold")]
-    #[test_case("brillig(inline)" => panics "is not valid SSA"; "brillig")]
+    #[test_case("brillig(inline)"; "brillig")]
     fn does_not_deduplicate_pure_calls_under_different_predicates(callee_runtime: &str) {
         let src = format!(
             "
@@ -3228,9 +3224,7 @@ mod test {
         }}
         "
         );
-        let ssa = Ssa::from_str_no_validation(&src).unwrap();
-        let ssa = ssa.fold_constants_using_constraints(MIN_ITER);
-        assert_normalized_ssa_equals(ssa, &src);
+        assert_ssa_does_not_change(&src, |ssa| ssa.fold_constants_using_constraints(MIN_ITER));
     }
 
     /// Regression test: constant folding on this SSA requires avoiding inserting cache entries for values in unvisited
@@ -3305,41 +3299,41 @@ mod test {
             inc_rc v7
             jmpif v9 then: b2(), else: b3()
           b2():
-            v19 = make_array [v7] : [[u8; 1]; 1]
-            v20 = allocate -> &mut [[u8; 1]; 1]
-            store v19 at v20
-            v21 = load v6 -> [u8; 1]
-            v22 = array_get v21, index u32 0 -> u8
+            v10 = make_array [v7] : [[u8; 1]; 1]
+            v11 = allocate -> &mut [[u8; 1]; 1]
+            store v10 at v11
+            v12 = load v6 -> [u8; 1]
+            v13 = array_get v12, index u32 0 -> u8
             jmp b8(u32 0)
           b3():
-            v10 = allocate -> &mut [u8; 1]
-            store v7 at v10
+            v19 = allocate -> &mut [u8; 1]
+            store v7 at v19
             jmp b4(u32 0)
           b4(v1: u32):
-            v11 = make_array [u8 0] : [u8; 1]
-            v12 = load v10 -> [u8; 1]
+            v20 = make_array [u8 0] : [u8; 1]
+            v21 = load v19 -> [u8; 1]
             jmp b5(u32 0)
           b5(v2: u32):
-            v13 = eq v2, u32 0
-            jmpif v13 then: b6(), else: b7()
+            v22 = eq v2, u32 0
+            jmpif v22 then: b6(), else: b7()
           b6():
-            v17 = array_get v12, index u32 0 -> u8
-            v18 = unchecked_add v2, u32 1
-            jmp b5(v18)
+            v23 = array_get v21, index u32 0 -> u8
+            v24 = unchecked_add v2, u32 1
+            jmp b5(v24)
           b7():
-            v14 = array_get v12, index u32 0 -> u8
-            v16 = unchecked_add v1, u32 1
-            jmp b4(v16)
+            v25 = array_get v21, index u32 0 -> u8
+            v26 = unchecked_add v1, u32 1
+            jmp b4(v26)
           b8(v3: u32):
-            v23 = eq v3, u32 0
-            jmpif v23 then: b9(), else: b10()
+            v14 = eq v3, u32 0
+            jmpif v14 then: b9(), else: b10()
           b9():
-            v26 = unchecked_add v3, u32 1
-            jmp b8(v26)
+            v16 = unchecked_add v3, u32 1
+            jmp b8(v16)
           b10():
-            v24 = make_array [u8 0] : [u8; 1]
-            v25 = unchecked_add v0, u32 1
-            jmp b1(v25)
+            v17 = make_array [u8 0] : [u8; 1]
+            v18 = unchecked_add v0, u32 1
+            jmp b1(v18)
         }
         ");
     }
@@ -3403,11 +3397,11 @@ mod test {
           b5():
             inc_rc v25
             call print(u1 1, v2, v25, u1 0)
-            v31 = unchecked_add v2, u8 1
-            jmp b4(v31)
+            v30 = unchecked_add v2, u8 1
+            jmp b4(v30)
           b6():
-            v28 = load v5 -> u1
-            jmpif v28 then: b7(), else: b8()
+            v31 = load v5 -> u1
+            jmpif v31 then: b7(), else: b8()
           b7():
             inc_rc v25
             call print(u1 1, v4, v25, u1 0)
@@ -3450,7 +3444,7 @@ mod test {
         let ssa = ssa.fold_constants(DEFAULT_MAX_ITER);
 
         // `not v3` stays in b2 and b3 — not hoisted into the header.
-        assert_ssa_snapshot!(ssa, @"
+        assert_ssa_snapshot!(ssa, @r"
         brillig(inline) predicate_pure fn main f0 {
           b0(v0: u1):
             v2 = allocate -> &mut u1
@@ -3460,11 +3454,11 @@ mod test {
             v3 = load v2 -> u1
             jmpif v3 then: b2(), else: b3()
           b2():
-            v5 = not v3
-            jmp b4(v5)
-          b3():
             v4 = not v3
             jmp b4(v4)
+          b3():
+            v5 = not v3
+            jmp b4(v5)
           b4(v1: u1):
             store v1 at v2
             jmp b1()
@@ -3524,23 +3518,23 @@ mod test {
           b1(v1: [Field; 2], v2: u1):
             jmpif v2 then: b2(), else: b3()
           b2():
-            v18 = array_get v1, index u32 0 -> Field
-            v19 = add Field 3, v18
-            v20 = array_set v1, index u32 0, value v19
-            jmp b1(v20, u1 0)
+            v12 = array_get v1, index u32 0 -> Field
+            v13 = add Field 3, v12
+            v14 = array_set v1, index u32 0, value v13
+            jmp b1(v14, u1 0)
           b3():
-            v11 = array_set v0, index u32 1, value v8
-            jmp b4(v11, u1 1)
+            v16 = array_set v0, index u32 1, value v8
+            jmp b4(v16, u1 1)
           b4(v3: [Field; 2], v4: u1):
             jmpif v4 then: b5(), else: b6()
           b5():
-            v14 = array_get v3, index u32 0 -> Field
-            v15 = add Field 3, v14
-            v16 = array_set v3, index u32 0, value v15
-            jmp b4(v16, u1 0)
+            v17 = array_get v3, index u32 0 -> Field
+            v18 = add Field 3, v17
+            v19 = array_set v3, index u32 0, value v18
+            jmp b4(v19, u1 0)
           b6():
-            v13 = array_get v3, index u32 0 -> Field
-            return v13
+            v20 = array_get v3, index u32 0 -> Field
+            return v20
         }
         ");
     }
@@ -3635,12 +3629,227 @@ mod test {
             v9 = array_set v0, index u32 0, value u1 0
             jmp b1(v9, v7)
         }
-        brillig(inline_never) predicate_pure fn g f1 {
+        brillig(inline_never) pure fn g f1 {
           b0():
             v1 = make_array [u1 1] : [u1; 1]
             return v1
         }
         ";
         assert_ssa_does_not_change(src, |ssa| ssa.fold_constants_using_constraints(3));
+    }
+
+    /// Counts how many `call f<callee>` instructions remain in `main` across all reachable blocks.
+    /// Used to pin down exactly when identical calls to a pure function are deduplicated.
+    fn count_calls_to_callee_in_main(ssa: &Ssa, callee: u32) -> usize {
+        use crate::ssa::ir::{function::FunctionId, instruction::Instruction, value::Value};
+
+        let callee = FunctionId::test_new(callee);
+        let main = ssa.main();
+        let mut count = 0;
+        for block in main.reachable_blocks() {
+            for instruction in main.dfg[block].instructions() {
+                if let Instruction::Call { func, .. } = &main.dfg[*instruction]
+                    && let Value::Function(id) = &main.dfg[*func]
+                    && *id == callee
+                {
+                    count += 1;
+                }
+            }
+        }
+        count
+    }
+
+    // === Spec: an ACIR function calling a pure Brillig function ===
+    //
+    // When an ACIR function calls a Brillig function the call lowers to a predicated
+    // `Opcode::BrilligCall`: if the side effects predicate is disabled the call is skipped and
+    // its outputs are left unconstrained ("bogus"). Two identical calls therefore observe the
+    // *same* value only when they run under the *same* predicate. Deduplication across differing
+    // predicates would be unsound, so the pure Brillig callee behaves as `PureWithPredicate` from
+    // the perspective of an ACIR caller.
+
+    /// Identical calls to a pure Brillig function under the *same* predicate may be merged.
+    #[test]
+    fn acir_caller_deduplicates_pure_brillig_call_under_same_predicate() {
+        let src = "
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u1, v1: Field):
+            enable_side_effects v0
+            v2 = call f1(v1) -> Field
+            v3 = call f1(v1) -> Field
+            v4 = add v2, v3
+            return v4
+        }
+        brillig(inline) pure fn pure_callee f1 {
+          b0(v0: Field):
+            v1 = add v0, Field 1
+            return v1
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap().fold_constants_using_constraints(MIN_ITER);
+        assert_eq!(
+            count_calls_to_callee_in_main(&ssa, 1),
+            1,
+            "calls under the same predicate should be deduplicated"
+        );
+    }
+
+    /// Identical calls to a pure Brillig function under *different* predicates must NOT be merged.
+    #[test]
+    fn acir_caller_does_not_deduplicate_pure_brillig_call_under_different_predicates() {
+        let src = "
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u1, v1: Field):
+            enable_side_effects v0
+            v2 = call f1(v1) -> Field
+            v3 = not v0
+            enable_side_effects v3
+            v4 = call f1(v1) -> Field
+            enable_side_effects u1 1
+            v5 = add v2, v4
+            return v5
+        }
+        brillig(inline) pure fn pure_callee f1 {
+          b0(v0: Field):
+            v1 = add v0, Field 1
+            return v1
+        }
+        ";
+        assert_ssa_does_not_change(src, |ssa| ssa.fold_constants_using_constraints(MIN_ITER));
+    }
+
+    // === Spec: a Brillig function calling a pure Brillig function ===
+    //
+    // A Brillig caller's call opcode is NOT predicated: Brillig has no `enable_side_effects`
+    // concept and executes unconditionally. Identical calls to a pure Brillig function from a
+    // Brillig caller therefore always observe the same value and can be deduplicated freely,
+    // without needing the constraint/predicate information an ACIR caller relies on.
+
+    /// Identical calls to a pure Brillig function from a Brillig caller are deduplicated even by
+    /// the plain constant folding pass (which does not propagate predicate/constraint info).
+    #[test]
+    fn brillig_caller_deduplicates_repeated_pure_brillig_call() {
+        let src = "
+        brillig(inline) pure fn main f0 {
+          b0(v1: Field):
+            v2 = call f1(v1) -> Field
+            v4 = call f1(v1) -> Field
+            v5 = add v2, v4
+            return v5
+        }
+        brillig(inline) pure fn pure_callee f1 {
+          b0(v0: Field):
+            v1 = add v0, Field 1
+            return v1
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap().fold_constants(MIN_ITER);
+        assert_eq!(
+            count_calls_to_callee_in_main(&ssa, 1),
+            1,
+            "a Brillig caller's repeated calls to a pure Brillig function should be deduplicated"
+        );
+    }
+
+    /// Deduplicating a Brillig caller's repeated pure calls must not change execution.
+    #[test]
+    fn brillig_caller_pure_call_dedup_preserves_execution() {
+        let src = "
+        brillig(inline) pure fn main f0 {
+          b0(v1: Field):
+            v2 = call f1(v1) -> Field
+            v4 = call f1(v1) -> Field
+            v5 = add v2, v4
+            return v5
+        }
+        brillig(inline) pure fn pure_callee f1 {
+          b0(v0: Field):
+            v1 = add v0, Field 1
+            return v1
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let input = Value::from_constant(7_u128.into(), NumericType::NativeField).unwrap();
+        let (_, _) = assert_pass_does_not_affect_execution(ssa, vec![input], |ssa| {
+            ssa.fold_constants(MIN_ITER)
+        });
+    }
+
+    /// Soundness boundary: a Brillig callee that can *trap* (here via `constrain`, classified
+    /// `PureWithPredicate`) must never be deduplicated onto a path that originally avoided it.
+    /// The two calls sit in sibling branches (`b2`, `b4`) whose only common dominator (`b1`) is
+    /// also reachable via a path (`b1 -> b3 -> b5`) that executes neither call. Hoisting the call
+    /// there would make its `constrain` fire unconditionally. This is prevented because such a
+    /// call reports `has_side_effects`, which blocks hoisting to a non-dominating common block;
+    /// deduplication is still only allowed against a strictly dominating instance.
+    #[test]
+    fn brillig_caller_trapping_call_is_not_deduplicated_onto_new_path() {
+        let src = "
+        brillig(inline) predicate_pure fn main f0 {
+          b0(v0: u1, v1: u1, v2: u1, v3: u32):
+            jmpif v0 then: b1(), else: b7()
+          b1():
+            jmpif v1 then: b2(), else: b3()
+          b2():
+            v4 = call f1(v3) -> u32
+            jmp b8(v4)
+          b3():
+            jmpif v2 then: b4(), else: b5()
+          b4():
+            v5 = call f1(v3) -> u32
+            jmp b8(v5)
+          b5():
+            jmp b8(u32 77)
+          b7():
+            jmp b8(u32 88)
+          b8(v9: u32):
+            return v9
+        }
+        brillig(inline) predicate_pure fn checker f1 {
+          b0(v0: u32):
+            v1 = eq v0, u32 0
+            constrain v1 == u1 0
+            return v0
+        }
+        ";
+        // Inputs steer execution to b1 -> b3 -> b5 (v0=1, v1=0, v2=0), which calls neither
+        // instance of f1; v3 = 0 would trap inside f1 if it were ever called on this path.
+        let inputs = vec![
+            Value::from_constant(1_u128.into(), NumericType::bool()).unwrap(),
+            Value::from_constant(0_u128.into(), NumericType::bool()).unwrap(),
+            Value::from_constant(0_u128.into(), NumericType::bool()).unwrap(),
+            Value::from_constant(0_u128.into(), NumericType::unsigned(32)).unwrap(),
+        ];
+        let (_, _) = assert_pass_does_not_affect_execution(
+            Ssa::from_str(src).unwrap(),
+            inputs.clone(),
+            |ssa| ssa.fold_constants(DEFAULT_MAX_ITER),
+        );
+        let (_, _) =
+            assert_pass_does_not_affect_execution(Ssa::from_str(src).unwrap(), inputs, |ssa| {
+                ssa.fold_constants_using_constraints(DEFAULT_MAX_ITER)
+            });
+    }
+
+    /// Guard: the Brillig-caller relaxation must not leak to ACIR callers. The plain constant
+    /// folding pass must not deduplicate an ACIR caller's repeated calls to a pure Brillig
+    /// function, since that would drop the predicate sensitivity of the call opcode.
+    #[test]
+    fn acir_caller_does_not_deduplicate_pure_brillig_call_without_constraint_info() {
+        let src = "
+        acir(inline) predicate_pure fn main f0 {
+          b0(v1: Field):
+            v2 = call f1(v1) -> Field
+            v4 = call f1(v1) -> Field
+            v5 = add v2, v4
+            return v5
+        }
+        brillig(inline) pure fn pure_callee f1 {
+          b0(v0: Field):
+            v1 = add v0, Field 1
+            return v1
+        }
+        ";
+        assert_ssa_does_not_change(src, |ssa| ssa.fold_constants(MIN_ITER));
     }
 }

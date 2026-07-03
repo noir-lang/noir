@@ -395,7 +395,7 @@ fn disallows_test_attribute_on_impl_method() {
 
         impl Foo {
             #[test]
-            ^^^^^^^ The `#[test]` attribute is disallowed on `impl` methods
+            ^^^^^^^ The `#[test]` attribute is disallowed on associated functions
             fn foo() { }
         }
     ";
@@ -413,7 +413,7 @@ fn disallows_test_attribute_on_trait_impl_method() {
 
         impl Trait for Foo {
             #[test]
-            ^^^^^^^ The `#[test]` attribute is disallowed on `impl` methods
+            ^^^^^^^ The `#[test]` attribute is disallowed on associated functions
             fn foo() { }
         }
     ";
@@ -427,7 +427,7 @@ fn disallows_fuzz_attribute_on_impl_method() {
 
         impl Foo {
             #[fuzz]
-            ^^^^^^^ The `#[fuzz]` attribute is disallowed on `impl` methods
+            ^^^^^^^ The `#[fuzz]` attribute is disallowed on associated functions
             fn foo(x: u32) { let _ = x; }
         }
     ";
@@ -445,7 +445,55 @@ fn disallows_fuzz_attribute_on_trait_impl_method() {
 
         impl Trait for Foo {
             #[fuzz]
-            ^^^^^^^ The `#[fuzz]` attribute is disallowed on `impl` methods
+            ^^^^^^^ The `#[fuzz]` attribute is disallowed on associated functions
+            fn foo(x: u32) { let _ = x; }
+        }
+    ";
+    check_errors(src);
+}
+
+#[test]
+fn disallows_test_attribute_on_trait_definition_method() {
+    let src = "
+        pub trait Trait {
+            #[test]
+            ^^^^^^^ The `#[test]` attribute is disallowed on associated functions
+            fn foo();
+        }
+    ";
+    check_errors(src);
+}
+
+#[test]
+fn disallows_test_attribute_on_trait_definition_default_method() {
+    let src = "
+        pub trait Trait {
+            #[test]
+            ^^^^^^^ The `#[test]` attribute is disallowed on associated functions
+            fn foo() { }
+        }
+    ";
+    check_errors(src);
+}
+
+#[test]
+fn disallows_fuzz_attribute_on_trait_definition_method() {
+    let src = "
+        pub trait Trait {
+            #[fuzz]
+            ^^^^^^^ The `#[fuzz]` attribute is disallowed on associated functions
+            fn foo(x: u32);
+        }
+    ";
+    check_errors(src);
+}
+
+#[test]
+fn disallows_fuzz_attribute_on_trait_definition_default_method() {
+    let src = "
+        pub trait Trait {
+            #[fuzz]
+            ^^^^^^^ The `#[fuzz]` attribute is disallowed on associated functions
             fn foo(x: u32) { let _ = x; }
         }
     ";

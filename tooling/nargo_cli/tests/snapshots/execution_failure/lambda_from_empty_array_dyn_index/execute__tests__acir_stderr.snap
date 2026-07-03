@@ -2,7 +2,7 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: stderr
 ---
-bug: Assertion is always false: Index out of bounds
+bug: Assertion is always false
   ┌─ src/main.nr:5:5
   │
 5 │     lambdas[x - 1](());
@@ -12,7 +12,7 @@ bug: Assertion is always false: Index out of bounds
     1: main
             at src/main.nr:5:5
 
-error: Assertion failed: Index out of bounds
+error: Assertion failed: Index out of bounds, array has size 0, but index was 0
   ┌─ src/main.nr:5:5
   │
 5 │     lambdas[x - 1](());

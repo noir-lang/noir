@@ -299,6 +299,56 @@ fn errors_if_multiple_trait_methods_are_in_scope_for_function_call() {
 }
 
 #[test]
+fn multiple_traits_in_scope_diagnostic_lists_only_in_scope_traits() {
+    let src = r#"
+    use private_mod::Foo;
+    use private_mod::Foo2;
+
+    fn main() {
+        let _ = Bar::foo();
+                     ^^^ Multiple applicable items in scope
+                     ~~~ Multiple traits which provide `foo` are implemented and in scope: `private_mod::Foo2`, `private_mod::Foo`
+    }
+
+    pub struct Bar {
+    }
+
+    mod private_mod {
+        pub trait Foo {
+            fn foo() -> i32;
+        }
+
+        impl Foo for super::Bar {
+            fn foo() -> i32 {
+                42
+            }
+        }
+
+        pub trait Foo2 {
+            fn foo() -> i32;
+        }
+
+        impl Foo2 for super::Bar {
+            fn foo() -> i32 {
+                42
+            }
+        }
+
+        pub trait Foo3 {
+            fn foo() -> i32;
+        }
+
+        impl Foo3 for super::Bar {
+            fn foo() -> i32 {
+                42
+            }
+        }
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
 fn warns_if_trait_is_not_in_scope_for_method_call_and_there_is_only_one_trait_method() {
     let src = r#"
     fn main() {

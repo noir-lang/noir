@@ -132,7 +132,7 @@ pub(crate) fn simplify(
     instruction: &Instruction,
     dfg: &mut DataFlowGraph,
     block: BasicBlockId,
-    ctrl_typevars: Option<Vec<Type>>,
+    ctrl_typevars: Option<&[Type]>,
     call_stack: CallStackId,
 ) -> SimplifyResult {
     use SimplifyResult::*;
@@ -691,7 +691,7 @@ mod tests {
         ";
         let ssa = Ssa::from_str_simplifying(src).unwrap();
         let ssa = ssa.array_get_optimization();
-        crate::ssa::ssa_gen::validate_ssa(&ssa);
+        crate::ssa::ssa_gen::validate_ssa(&ssa, true);
     }
 
     #[test]

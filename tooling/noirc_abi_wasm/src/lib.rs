@@ -20,7 +20,7 @@ use serde::Serialize;
 use std::collections::BTreeMap;
 
 use gloo_utils::format::JsValueSerdeExt;
-use wasm_bindgen::{JsCast, JsValue, prelude::wasm_bindgen};
+use wasm_bindgen::{JsValue, prelude::wasm_bindgen};
 
 mod errors;
 mod js_witness_map;
@@ -62,23 +62,23 @@ pub fn abi_encode(
     console_error_panic_hook::set_once();
     let abi: Abi =
         JsValueSerdeExt::into_serde(&JsValue::from(abi)).map_err(|err| err.to_string())?;
-    let inputs_js = JsValue::from(inputs);
-    reject_unsafe_integers(&inputs_js)?;
     let inputs: BTreeMap<String, JsonTypes> =
-        JsValueSerdeExt::into_serde(&inputs_js).map_err(|err| err.to_string())?;
-    let return_value_js = return_value.map(JsValue::from);
-    if let Some(return_value_js) = &return_value_js {
-        reject_unsafe_integers(return_value_js)?;
+        JsValueSerdeExt::into_serde(&JsValue::from(inputs)).map_err(|err| err.to_string())?;
+    for value in inputs.values() {
+        reject_unsafe_integers(value)?;
     }
-    let return_value: Option<InputValue> = return_value_js
-        .map(|return_value_js| {
-            let toml_return_value = JsValueSerdeExt::into_serde(&return_value_js)
-                .expect("could not decode return value");
+    let return_value: Option<InputValue> = return_value
+        .map(|return_value| {
+            let toml_return_value: JsonTypes =
+                JsValueSerdeExt::into_serde(&JsValue::from(return_value))
+                    .expect("could not decode return value");
+            reject_unsafe_integers(&toml_return_value)?;
             InputValue::try_from_json(
                 toml_return_value,
                 &abi.return_type.as_ref().unwrap().abi_type,
                 MAIN_RETURN_NAME,
             )
+            .map_err(JsAbiError::from)
         })
         .transpose()?;
 
@@ -98,36 +98,37 @@ pub fn abi_encode(
     Ok(witness_map.into())
 }
 
-/// Rejects any JavaScript `number` that is not a safe integer (i.e. fails `Number.isSafeInteger`).
+/// The largest integer JavaScript can represent exactly, i.e. `Number.MAX_SAFE_INTEGER` (`2^53 - 1`).
+const MAX_SAFE_INTEGER: i64 = (1 << 53) - 1;
+
+/// Rejects any numeric input whose magnitude exceeds [`MAX_SAFE_INTEGER`].
 ///
-/// JavaScript represents `number` as a 64-bit float, so an integer literal above `2^53 - 1` is
-/// silently rounded before it ever reaches wasm. Accepting such a value would encode a witness for
-/// a different field element than the one written at the call site. Callers must pass large values
-/// as strings, which preserve their exact decimal representation.
-fn reject_unsafe_integers(value: &JsValue) -> Result<(), JsAbiError> {
-    if let Some(number) = value.as_f64() {
-        if number.is_finite() && !js_sys::Number::is_safe_integer(value) {
-            return Err(JsAbiError::new(format!(
-                "Numeric input `{number}` is not a safe integer (its magnitude exceeds 2^53 - 1, \
-                 so JavaScript may have already rounded it); pass it as a string instead"
-            )));
+/// JavaScript represents `number` as a 64-bit float, so an integer above `2^53 - 1` is silently
+/// rounded before it ever reaches wasm. Accepting such a value would encode a witness for a
+/// different field element than the one written at the call site. Callers must pass large values as
+/// strings, which preserve their exact decimal representation.
+fn reject_unsafe_integers(value: &JsonTypes) -> Result<(), JsAbiError> {
+    match value {
+        JsonTypes::Integer(integer) => {
+            if integer.unsigned_abs() > MAX_SAFE_INTEGER as u64 {
+                return Err(JsAbiError::new(format!(
+                    "Numeric input `{integer}` is not a safe integer (its magnitude exceeds \
+                     2^53 - 1, so JavaScript may have already rounded it); pass it as a string \
+                     instead"
+                )));
+            }
         }
-        return Ok(());
-    }
-
-    if js_sys::Array::is_array(value) {
-        let array = js_sys::Array::from(value);
-        for element in array.iter() {
-            reject_unsafe_integers(&element)?;
+        JsonTypes::Array(items) => {
+            for item in items {
+                reject_unsafe_integers(item)?;
+            }
         }
-        return Ok(());
-    }
-
-    if value.is_object() {
-        let object: &js_sys::Object = value.unchecked_ref();
-        for element in js_sys::Object::values(object).iter() {
-            reject_unsafe_integers(&element)?;
+        JsonTypes::Table(map) => {
+            for item in map.values() {
+                reject_unsafe_integers(item)?;
+            }
         }
+        JsonTypes::String(_) | JsonTypes::Bool(_) => {}
     }
 
     Ok(())

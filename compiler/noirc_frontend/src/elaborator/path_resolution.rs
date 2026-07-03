@@ -5,7 +5,7 @@ use itertools::Itertools;
 use noirc_errors::{Located, Location, Span};
 
 use crate::ast::{Ident, PathKind};
-use crate::hir::def_map::{ModuleData, ModuleDefId, ModuleId, Namespace, PerNs};
+use crate::hir::def_map::{ModuleData, ModuleDefId, ModuleId, Namespace, NamespaceItem, PerNs};
 use crate::hir::resolution::import::{
     PathResolutionError, first_segment_is_always_visible, resolve_path_kind,
 };
@@ -15,12 +15,13 @@ use crate::hir::resolution::visibility::{
     item_in_module_is_visible, trait_visibility_for_method_is_satisfied,
 };
 
+use crate::hir_def::traits::NamedType;
 use crate::locations::ReferencesTracker;
 use crate::node_interner::{
-    DefinitionId, FuncId, GlobalId, NodeInterner, TraitAssociatedTypeId, TraitId, TypeAliasId,
-    TypeId,
+    DefinitionId, FuncId, GlobalId, NodeInterner, TraitAssociatedTypeId, TraitId, TraitLookupMode,
+    TypeAliasId, TypeId,
 };
-use crate::{Shared, Type, TypeAlias};
+use crate::{Kind, Shared, Type, TypeAlias};
 
 use super::Elaborator;
 use super::primitive_types::PrimitiveType;
@@ -439,8 +440,7 @@ impl Elaborator<'_> {
         target: PathResolutionTarget,
         mode: PathResolutionMode,
     ) -> PathResolutionResult {
-        let importing_module = self.module_id();
-        let mut starting_module = importing_module;
+        let mut starting_module = self.module_id();
         let mut intermediate_item = IntermediatePathResolutionItem::Module;
 
         if path.kind == PathKind::Plain
@@ -460,61 +460,118 @@ impl Elaborator<'_> {
             intermediate_item = IntermediatePathResolutionItem::SelfType;
         }
 
-        let last_segment_turbofish_location = path
-            .segments
-            .last()
-            .and_then(|segment| segment.generics.is_some().then(|| segment.turbofish_location()));
+        let turbofished_leaf =
+            path.segments.last().filter(|segment| segment.generics.is_some()).cloned();
+        let result =
+            self.resolve_path_in_module(path, starting_module, intermediate_item, target, mode);
+        Self::check_leaf_turbofish(result, turbofished_leaf.as_ref())
+    }
 
-        let result = self.resolve_path_in_module(
-            path,
-            starting_module,
-            importing_module,
-            intermediate_item,
-            target,
-            mode,
-        );
-        let Some(last_segment_turbofish_location) = last_segment_turbofish_location else {
+    /// If `turbofished_leaf` (a resolved path's last segment, present only when it carries a
+    /// turbofish) is set, reject the turbofish unless the item it resolved to is one a turbofish is
+    /// allowed on. A fieldless enum variant may carry the enum's generics, so a turbofish is allowed
+    /// there (e.g. `Foo::Spam::<u32>`); it is bound when the variable is elaborated. Any other
+    /// errors, and the `Err` case, pass through untouched.
+    fn check_leaf_turbofish(
+        mut result: PathResolutionResult,
+        turbofished_leaf: Option<&TypedPathSegment>,
+    ) -> PathResolutionResult {
+        let Some(leaf) = turbofished_leaf else {
+            return result;
+        };
+        let Ok(resolution) = &mut result else {
             return result;
         };
 
-        result.map(|mut resolution| {
-            match resolution.item {
-                // A fieldless enum variant may carry the enum's generics, so a turbofish is
-                // allowed (e.g. `Foo::Spam::<u32>`); it is bound when the variable is elaborated.
-                PathResolutionItem::EnumVariant(..) => {}
-                PathResolutionItem::Global(..) => {
-                    resolution.errors.push(PathResolutionError::TurbofishNotAllowedOnItem {
-                        item: "globals".to_string(),
-                        location: last_segment_turbofish_location,
-                    });
-                }
-                PathResolutionItem::Module(..) => {
-                    resolution.errors.push(PathResolutionError::TurbofishNotAllowedOnItem {
-                        item: "modules".to_string(),
-                        location: last_segment_turbofish_location,
-                    });
-                }
-                PathResolutionItem::Type(..)
-                | PathResolutionItem::TypeAlias(..)
-                | PathResolutionItem::PrimitiveType(..)
-                | PathResolutionItem::Trait(..)
-                | PathResolutionItem::TraitAssociatedType(..)
-                | PathResolutionItem::ModuleFunction(..)
-                | PathResolutionItem::Method(..)
-                | PathResolutionItem::SelfMethod(..)
-                | PathResolutionItem::TypeAliasFunction(..)
-                | PathResolutionItem::TraitFunction(..)
-                | PathResolutionItem::TypeTraitFunction(..)
-                | PathResolutionItem::PrimitiveFunction(..)
-                | PathResolutionItem::TraitConstant(..) => (),
+        let location = leaf.turbofish_location();
+        match resolution.item {
+            PathResolutionItem::EnumVariant(..) => {}
+            PathResolutionItem::Global(..) => {
+                resolution.errors.push(PathResolutionError::TurbofishNotAllowedOnItem {
+                    item: "globals".to_string(),
+                    location,
+                });
             }
-            resolution
-        })
+            PathResolutionItem::Module(..) => {
+                resolution.errors.push(PathResolutionError::TurbofishNotAllowedOnItem {
+                    item: format!("module `{}`", leaf.ident),
+                    location,
+                });
+            }
+            PathResolutionItem::Type(..)
+            | PathResolutionItem::TypeAlias(..)
+            | PathResolutionItem::PrimitiveType(..)
+            | PathResolutionItem::Trait(..)
+            | PathResolutionItem::TraitAssociatedType(..)
+            | PathResolutionItem::ModuleFunction(..)
+            | PathResolutionItem::Method(..)
+            | PathResolutionItem::SelfMethod(..)
+            | PathResolutionItem::TypeAliasFunction(..)
+            | PathResolutionItem::TraitFunction(..)
+            | PathResolutionItem::TypeTraitFunction(..)
+            | PathResolutionItem::PrimitiveFunction(..)
+            | PathResolutionItem::TraitConstant(..) => (),
+        }
+        result
+    }
+
+    /// Resolve `path` as a value, looking it up directly in the already-resolved `module_id`
+    /// instead of from the current module. The current module stays the importing module, so
+    /// visibility is still checked from where the lookup originates. The [`Self::use_path_or_error`]
+    /// counterpart for when a path's prefix module is already known.
+    pub(super) fn use_value_in_module(
+        &mut self,
+        path: TypedPath,
+        module_id: ModuleId,
+    ) -> Result<PathResolutionItem, ResolverError> {
+        let turbofished_leaf =
+            path.segments.last().filter(|segment| segment.generics.is_some()).cloned();
+        let result = self.resolve_name_in_module(
+            path,
+            module_id,
+            IntermediatePathResolutionItem::Module,
+            PathResolutionTarget::Value,
+            PathResolutionMode::MarkAsUsed,
+        );
+
+        let resolution = Self::check_leaf_turbofish(result, turbofished_leaf.as_ref())?;
+        self.push_errors(resolution.errors);
+        Ok(resolution.item)
+    }
+
+    /// Resolve `last_segment` as a value member of the already-resolved type `typ`, instead of
+    /// re-resolving the whole path. This is the type-prefix counterpart of [`Self::use_value_in_module`]:
+    /// the member is either an enum-variant constructor (kept in the type's module value scope) or a
+    /// trait associated constant (`Type::CONST`). `turbofish` carries the prefix's generics, used to
+    /// finalize an enum variant. Only a concrete data type has value members; anything else (e.g. a
+    /// primitive type) resolves nothing here.
+    pub(super) fn use_value_in_type(
+        &mut self,
+        last_segment: &TypedPathSegment,
+        typ: &Type,
+        turbofish: Option<Turbofish>,
+    ) -> Result<PathResolutionItem, ResolverError> {
+        let Type::DataType(datatype, _) = typ else {
+            return Err(PathResolutionError::Unresolved(last_segment.ident.clone()).into());
+        };
+        let type_id = datatype.borrow().id;
+
+        // The associated constant is looked up on the resolved `typ` (so an alias's generics are
+        // applied correctly).
+        let mut errors = Vec::new();
+        let item = self.resolve_value_member_of_type(
+            last_segment,
+            type_id.module_id(),
+            IntermediatePathResolutionItem::Type(type_id, turbofish),
+            Some((type_id, typ)),
+            PathResolutionMode::MarkAsUsed,
+            &mut errors,
+        )?;
+        self.push_errors(errors);
+        Ok(item)
     }
 
     /// Resolves a [`TypedPath`] assuming it is inside `starting_module`.
-    ///
-    /// `importing_module` is the module where the lookup originally started.
     ///
     /// This method first checks the path's kind and resolves it accordingly.
     #[tracing::instrument(level = "trace", skip_all)]
@@ -522,7 +579,6 @@ impl Elaborator<'_> {
         &mut self,
         path: TypedPath,
         starting_module: ModuleId,
-        importing_module: ModuleId,
         intermediate_item: IntermediatePathResolutionItem,
         target: PathResolutionTarget,
         mode: PathResolutionMode,
@@ -534,18 +590,11 @@ impl Elaborator<'_> {
             resolve_path_kind(path.clone(), starting_module, self.def_maps, references_tracker);
 
         match res {
-            Ok((path, module_id, _)) => self.resolve_name_in_module(
-                path,
-                module_id,
-                importing_module,
-                intermediate_item,
-                target,
-                mode,
-            ),
+            Ok((path, module_id, _)) => {
+                self.resolve_name_in_module(path, module_id, intermediate_item, target, mode)
+            }
             Err(error @ PathResolutionError::Unresolved(_)) => {
-                if let Some(result) =
-                    self.resolve_primitive_type_or_function(path, importing_module)
-                {
+                if let Some(result) = self.resolve_primitive_type_or_function(path) {
                     return result;
                 }
                 Err(error)
@@ -574,8 +623,6 @@ impl Elaborator<'_> {
 
     /// Resolves a [`TypedPath`] assuming it is inside `starting_module`.
     ///
-    /// `importing_module` is the module where the lookup originally started.
-    ///
     /// This method does not check the path kind, it just checks its segments.
     ///
     /// Marks the segments in the path as used or referenced, depending on the [`PathResolutionMode`].
@@ -585,7 +632,6 @@ impl Elaborator<'_> {
         &mut self,
         path: TypedPath,
         starting_module: ModuleId,
-        importing_module: ModuleId,
         mut intermediate_item: IntermediatePathResolutionItem,
         target: PathResolutionTarget,
         mode: PathResolutionMode,
@@ -599,11 +645,11 @@ impl Elaborator<'_> {
         }
 
         // The module to use for visibility check.
-        // Use the caller's module if set, else use the resolution scope.
-        let visibility_module = self.caller_module.unwrap_or(importing_module);
+        // Use the caller's module if set, else the module the lookup started in.
+        let visibility_module = self.caller_module.unwrap_or(self.module_id());
 
         let first_segment_is_always_visible =
-            first_segment_is_always_visible(&path, importing_module, starting_module);
+            first_segment_is_always_visible(&path, self.module_id(), starting_module);
 
         // The current module and module ID as we resolve path segments
         let mut current_module_id = starting_module;
@@ -653,6 +699,10 @@ impl Elaborator<'_> {
 
             let current_module_id_is_type;
 
+            // The module `prev_segment` is declared in (its visibility is checked against this),
+            // captured before stepping `current_module_id` into the module/type it refers to.
+            let prev_segment_module_id = current_module_id;
+
             (current_module_id, current_module_id_is_type, intermediate_item) = match typ {
                 ModuleDefId::ModuleId(id) => {
                     if prev_segment_generics.is_some() {
@@ -686,7 +736,6 @@ impl Elaborator<'_> {
                                 id,
                                 prev_segment.turbofish(),
                                 current_ident,
-                                importing_module,
                                 &mut errors,
                             );
                         }
@@ -713,7 +762,7 @@ impl Elaborator<'_> {
                 || item_in_module_is_visible(
                     self.def_maps,
                     visibility_module,
-                    current_module_id,
+                    prev_segment_module_id,
                     visibility,
                 ))
             {
@@ -723,34 +772,53 @@ impl Elaborator<'_> {
             // Switch to the module the current segment is defined in.
             current_module = self.get_module(current_module_id);
 
-            // Check if namespace
-            let found_ns = if current_module_id_is_type {
-                match self.resolve_method(current_module, current_ident) {
-                    Some(per_ns) => per_ns,
-                    None => {
-                        // Before returning an error, try to look up as an associated constant
-                        if let Some(result) = self.try_resolve_trait_constant(
-                            &intermediate_item,
-                            current_ident,
-                            importing_module,
-                        ) {
-                            return result.map(|item| PathResolution { item, errors });
-                        }
+            let is_last_segment = index == path.segments.len() - 2;
 
-                        return Err(PathResolutionError::Unresolved(current_ident.clone()));
-                    }
+            // A type's path members (an enum-variant constructor or a trait associated constant) are
+            // terminal — they have no members of their own — so resolve and finalize the member here
+            // and reject any trailing segment.
+            if current_module_id_is_type {
+                // Associated constants apply to a concrete type, not a type-alias intermediate.
+                let self_type;
+                let associated_constant =
+                    if let IntermediatePathResolutionItem::Type(type_id, turbofish) =
+                        &intermediate_item
+                    {
+                        self_type = self.data_type_as_self_type(*type_id, turbofish.as_ref());
+                        Some((*type_id, &self_type))
+                    } else {
+                        None
+                    };
+
+                let item = self.resolve_value_member_of_type(
+                    current_segment,
+                    current_module_id,
+                    intermediate_item,
+                    associated_constant,
+                    mode,
+                    &mut errors,
+                )?;
+
+                if !is_last_segment {
+                    let kind = match &item {
+                        PathResolutionItem::EnumVariant(..) => "enum variant",
+                        _ => "associated constant",
+                    };
+                    return Err(PathResolutionError::NoAssociatedItems {
+                        name: current_ident.clone(),
+                        kind,
+                    });
                 }
-            } else {
-                current_module.find_name(current_ident)
-            };
+                return Ok(PathResolution { item, errors });
+            }
 
+            let found_ns = current_module.find_name(current_ident);
             if found_ns.is_none() {
                 return Err(PathResolutionError::Unresolved(current_ident.clone()));
             }
 
             // Every segment but the last is traversed as a module or type. The last segment is
             // the leaf, marked after the loop with the namespace it actually resolved to.
-            let is_last_segment = index == path.segments.len() - 2;
             if !is_last_segment {
                 self.mark_segment(mode, current_module_id, current_ident, Namespace::Type);
             }
@@ -764,23 +832,44 @@ impl Elaborator<'_> {
         };
 
         let scope = target_ns.or(fallback_ns).expect("A namespace should never be empty");
-        let (module_def_id, visibility) = (scope.id, scope.visibility);
 
-        // Mark the leaf segment as used/referenced in the namespace it resolved to, so that a
-        // same-named sibling in the other namespace stays tracked.
-        self.mark_segment(mode, current_module_id, &path.last_ident(), module_def_id.namespace());
+        let item = self.finalize_resolved_leaf(
+            path,
+            intermediate_item,
+            current_module_id,
+            scope,
+            mode,
+            &mut errors,
+        );
 
-        let item = self.per_ns_item_to_path_resolution_item(
+        Ok(PathResolution { item, errors })
+    }
+
+    /// Finalize a path's leaf: mark its segment as used/referenced in the namespace it resolved to
+    /// (so a same-named sibling in the other namespace stays tracked), then turn the namespace item
+    /// into a [`PathResolutionItem`], pushing any visibility errors onto `errors`. Shared by the
+    /// segment loop's tail and [`Self::use_value_in_type`].
+    fn finalize_resolved_leaf(
+        &mut self,
+        path: TypedPath,
+        intermediate_item: IntermediatePathResolutionItem,
+        current_module_id: ModuleId,
+        scope: NamespaceItem,
+        mode: PathResolutionMode,
+        errors: &mut Vec<PathResolutionError>,
+    ) -> PathResolutionItem {
+        // Use the caller's module if set, else the module the lookup started in.
+        let visibility_module = self.caller_module.unwrap_or(self.module_id());
+        self.mark_segment(mode, current_module_id, &path.last_ident(), scope.id.namespace());
+        self.per_ns_item_to_path_resolution_item(
             path,
             visibility_module,
             intermediate_item,
             current_module_id,
-            &mut errors,
-            module_def_id,
-            visibility,
-        );
-
-        Ok(PathResolution { item, errors })
+            errors,
+            scope.id,
+            scope.visibility,
+        )
     }
 
     /// Transform a result from [`PerNs`] into a [`PathResolutionItem`],
@@ -790,7 +879,7 @@ impl Elaborator<'_> {
     fn per_ns_item_to_path_resolution_item(
         &mut self,
         path: TypedPath,
-        importing_module: ModuleId,
+        visibility_module: ModuleId,
         intermediate_item: IntermediatePathResolutionItem,
         current_module_id: ModuleId,
         errors: &mut Vec<PathResolutionError>,
@@ -828,7 +917,7 @@ impl Elaborator<'_> {
                 ModuleId { krate: func_meta.source_crate, local_id: func_meta.source_module };
             if !item_in_module_is_visible(
                 self.def_maps,
-                importing_module,
+                visibility_module,
                 source_module,
                 visibility,
             ) {
@@ -836,7 +925,7 @@ impl Elaborator<'_> {
             }
         } else if !item_in_module_is_visible(
             self.def_maps,
-            importing_module,
+            visibility_module,
             current_module_id,
             visibility,
         ) {
@@ -855,7 +944,7 @@ impl Elaborator<'_> {
         if let ModuleDefId::FunctionId(func_id) = module_def_id
             && !trait_visibility_for_method_is_satisfied(
                 func_id,
-                importing_module,
+                visibility_module,
                 self.interner,
                 self.def_maps,
             )
@@ -870,8 +959,7 @@ impl Elaborator<'_> {
     /// `ident` as one of that type's enum variant constructors.
     ///
     /// These are the only function-like items kept in a type's module scope: inherent and trait
-    /// methods are not declared there and resolve through the interner's type-directed lookup (see
-    /// [Elaborator::resolve_type_method_or_trait_method]).
+    /// methods are not declared there and resolve through the interner's type-directed lookup.
     fn resolve_method(&self, current_module: &ModuleData, ident: &Ident) -> Option<PerNs> {
         current_module
             .scope()
@@ -880,41 +968,96 @@ impl Elaborator<'_> {
             .map(|item| PerNs { types: None, values: Some(*item) })
     }
 
-    /// Try to resolve an identifier as a trait associated constant (e.g., `Foo::N`).
+    /// Build the `self` type for a data type accessed in a path: its generics come from the path's
+    /// turbofish if present, otherwise from the type's own (fresh) generics.
+    fn data_type_as_self_type(&self, type_id: TypeId, turbofish: Option<&Turbofish>) -> Type {
+        let datatype = self.interner.get_type(type_id);
+        let generics = if let Some(turbofish) = turbofish {
+            turbofish.generics.iter().map(|t| t.contents.clone()).collect()
+        } else {
+            datatype.borrow().generic_types()
+        };
+        Type::DataType(datatype, generics)
+    }
+
+    /// Resolve `member` as a value member of a data type whose own module is `module`: an
+    /// enum-variant constructor kept in that module's value scope, or — for a concrete type, with
+    /// `associated_constant` set to its `(TypeId, self type)` — a trait associated constant
+    /// (`Type::CONST`). Returns the finalized item, or an error if it names neither. Shared by the
+    /// segment loop and [`Self::use_value_in_type`].
+    fn resolve_value_member_of_type(
+        &mut self,
+        member: &TypedPathSegment,
+        module: ModuleId,
+        intermediate_item: IntermediatePathResolutionItem,
+        associated_constant: Option<(TypeId, &Type)>,
+        mode: PathResolutionMode,
+        errors: &mut Vec<PathResolutionError>,
+    ) -> Result<PathResolutionItem, PathResolutionError> {
+        if let Some(per_ns) = self.resolve_method(self.get_module(module), &member.ident) {
+            let scope = per_ns.values.expect("resolve_method only returns a value namespace");
+            let path = TypedPath::plain(vec![member.clone()], member.ident.location());
+            return Ok(self.finalize_resolved_leaf(
+                path,
+                intermediate_item,
+                module,
+                scope,
+                mode,
+                errors,
+            ));
+        }
+
+        match associated_constant {
+            Some((type_id, self_type)) => {
+                self.resolve_associated_constant_or_unresolved(type_id, self_type, &member.ident)
+            }
+            None => Err(PathResolutionError::Unresolved(member.ident.clone())),
+        }
+    }
+
+    /// A segment that named the data type `self_type` but is not an enum-variant constructor in its
+    /// module scope may still be a trait associated constant (`Type::CONST`) on it; otherwise it is
+    /// unresolved. `type_id` is the data type, carried into the resulting
+    /// [`PathResolutionItem::TraitConstant`]. Shared by the segment loop and [`Self::use_value_in_type`].
+    fn resolve_associated_constant_or_unresolved(
+        &self,
+        type_id: TypeId,
+        self_type: &Type,
+        ident: &Ident,
+    ) -> Result<PathResolutionItem, PathResolutionError> {
+        if let Some(result) = self.try_resolve_trait_constant(type_id, self_type, ident) {
+            return result;
+        }
+        // Not an associated constant. If a trait defines an associated item with this name, point
+        // the user at it rather than reporting a bare "could not resolve".
+        if let Some(error) = self.resolve_associated_item_diagnostic(self_type, ident) {
+            return Err(error);
+        }
+        Err(PathResolutionError::Unresolved(ident.clone()))
+    }
+
+    /// Try to resolve an identifier as a trait associated constant (e.g., `Foo::N`) on `self_type`
+    /// (`type_id` is its data type, carried into the resulting [`PathResolutionItem::TraitConstant`]).
     ///
     /// Returns `Some(Ok(PathResolutionItem))` if the constant was found,
     /// `Some(Err(PathResolutionError))` if there's an ambiguity error,
     /// or `None` if no matching constant was found.
     fn try_resolve_trait_constant(
         &self,
-        intermediate_item: &IntermediatePathResolutionItem,
+        type_id: TypeId,
+        self_type: &Type,
         ident: &Ident,
-        importing_module: ModuleId,
     ) -> Option<Result<PathResolutionItem, PathResolutionError>> {
-        // Extract type info
-        let (type_id, turbofish) = match intermediate_item {
-            IntermediatePathResolutionItem::Type(id, turbofish) => (*id, turbofish),
-            _ => return None,
-        };
-        let datatype = self.interner.get_type(type_id);
-        // Use concrete types from turbofish if present, otherwise fresh type variables
-        let generics = if let Some(turbofish) = turbofish {
-            turbofish.generics.iter().map(|t| t.contents.clone()).collect()
-        } else {
-            datatype.borrow().generic_types()
-        };
-        let self_type = Type::DataType(datatype, generics);
-
         // Look up constants matching the identifier
         let constants =
-            self.interner.lookup_trait_impl_constants_for_type(&self_type, ident.as_str());
+            self.interner.lookup_trait_impl_constants_for_type(self_type, ident.as_str());
 
         if constants.is_empty() {
             return None;
         }
 
         // Filter to traits that are in scope
-        let starting_module = self.get_module(importing_module);
+        let starting_module = self.get_module(self.module_id());
         let in_scope: Vec<_> = constants
             .iter()
             .filter(|(_, trait_id, _)| starting_module.find_trait_in_scope(*trait_id).is_some())
@@ -975,6 +1118,82 @@ impl Elaborator<'_> {
         }
     }
 
+    /// Build a helpful diagnostic for a `Type::item` path whose `item` is neither a method nor a
+    /// resolvable associated constant of `Type`, but does name an associated item of some trait.
+    ///
+    /// - If `item` is an associated type of a trait that `Type` implements, direct access isn't
+    ///   supported: suggest the fully-qualified `<Type as Trait>::item` form.
+    /// - Otherwise, if a trait defines an associated item with this name, `Type` simply doesn't
+    ///   implement it: report that and name the trait(s).
+    ///
+    /// Returns `None` when no trait defines an associated item with this name, leaving the caller
+    /// to fall back to its generic "could not resolve" handling.
+    fn resolve_associated_item_diagnostic(
+        &self,
+        self_type: &Type,
+        ident: &Ident,
+    ) -> Option<PathResolutionError> {
+        let name = ident.as_str();
+        // Traits that define an associated type named `name` and which `self_type` implements.
+        let mut accessible_type_traits = Vec::new();
+        // Every trait that defines an associated item (type or constant) named `name`.
+        let mut defining_traits = Vec::new();
+
+        for trait_id in self.interner.trait_ids() {
+            let the_trait = self.interner.get_trait(trait_id);
+            let defines_type = the_trait.get_associated_type(name).is_some();
+            let defines_constant = the_trait.associated_constant_ids.contains_key(name);
+            if !defines_type && !defines_constant {
+                continue;
+            }
+
+            let trait_name = self.fully_qualified_trait_path_by_id(trait_id);
+            defining_traits.push(trait_name.clone());
+            if defines_type && self.type_implements_trait(self_type, trait_id) {
+                accessible_type_traits.push(trait_name);
+            }
+        }
+
+        if defining_traits.is_empty() {
+            return None;
+        }
+
+        let type_name = self_type.to_string();
+        if !accessible_type_traits.is_empty() {
+            return Some(PathResolutionError::AssociatedTypeNotAccessibleDirectly {
+                ident: ident.clone(),
+                type_name,
+                traits: accessible_type_traits,
+            });
+        }
+
+        Some(PathResolutionError::AssociatedItemNotImplemented {
+            ident: ident.clone(),
+            type_name,
+            traits: defining_traits,
+        })
+    }
+
+    /// Returns whether `typ` implements `trait_id` for some instantiation of the trait's generics.
+    fn type_implements_trait(&self, typ: &Type, trait_id: TraitId) -> bool {
+        let the_trait = self.interner.get_trait(trait_id);
+        let ordered =
+            vecmap(&the_trait.generics, |_| self.interner.next_type_variable_with_kind(Kind::Any));
+        let named = vecmap(&the_trait.associated_types, |generic| NamedType {
+            name: Ident::new(generic.name.to_string(), Location::dummy()),
+            typ: self.interner.next_type_variable_with_kind(Kind::Any),
+        });
+        self.interner
+            .try_lookup_trait_implementation(
+                typ,
+                trait_id,
+                &ordered,
+                &named,
+                TraitLookupMode::Default,
+            )
+            .is_ok()
+    }
+
     /// Resolve a method on a type alias that points to a primitive type.
     ///
     /// This handles paths like `MyAlias::method()` where `MyAlias` aliases
@@ -987,15 +1206,12 @@ impl Elaborator<'_> {
         alias_id: TypeAliasId,
         turbofish: Option<Turbofish>,
         method_name_ident: &Ident,
-        importing_module_id: ModuleId,
         errors: &mut Vec<PathResolutionError>,
     ) -> PathResolutionResult {
-        self.resolve_primitive_type_method(typ, method_name_ident, importing_module_id, errors).map(
-            |func_id| {
-                let item = PathResolutionItem::TypeAliasFunction(alias_id, turbofish, func_id);
-                PathResolution { item, errors: std::mem::take(errors) }
-            },
-        )
+        self.resolve_primitive_type_method(typ, method_name_ident, errors).map(|func_id| {
+            let item = PathResolutionItem::TypeAliasFunction(alias_id, turbofish, func_id);
+            PathResolution { item, errors: std::mem::take(errors) }
+        })
     }
 
     /// Try to resolve a path with 1 or 2 segments as a [`PathResolutionItem::PrimitiveType`] or [`PathResolutionItem::PrimitiveFunction`].
@@ -1006,7 +1222,6 @@ impl Elaborator<'_> {
     fn resolve_primitive_type_or_function(
         &mut self,
         path: TypedPath,
-        importing_module_id: ModuleId,
     ) -> Option<PathResolutionResult> {
         if path.segments.len() != 1 && path.segments.len() != 2 {
             return None;
@@ -1024,12 +1239,7 @@ impl Elaborator<'_> {
         }
 
         let method_name_ident = &path.segments[1].ident;
-        let method = self.resolve_primitive_type_method(
-            typ,
-            method_name_ident,
-            importing_module_id,
-            &mut errors,
-        );
+        let method = self.resolve_primitive_type_method(typ, method_name_ident, &mut errors);
         Some(method.map(|func_id| PathResolution {
             item: PathResolutionItem::PrimitiveFunction(primitive_type, turbofish, func_id),
             errors,
@@ -1040,7 +1250,6 @@ impl Elaborator<'_> {
         &mut self,
         typ: Type,
         method_name_ident: &Ident,
-        importing_module_id: ModuleId,
         errors: &mut Vec<PathResolutionError>,
     ) -> Result<FuncId, PathResolutionError> {
         let method_name = method_name_ident.as_str();
@@ -1051,9 +1260,10 @@ impl Elaborator<'_> {
         }
 
         // Split the matching trait methods by whether their trait is currently in scope.
+        let current_module_id = self.module_id();
         let trait_methods = self.lookup_trait_methods(&typ, method_name, false);
         let total = trait_methods.len();
-        let starting_module = self.get_module(importing_module_id);
+        let starting_module = self.get_module(current_module_id);
         let mut in_scope = Vec::new();
         let mut out_of_scope = Vec::new();
         for (func_id, trait_id, _) in trait_methods {
@@ -1093,7 +1303,7 @@ impl Elaborator<'_> {
             _ => {
                 let traits = vecmap(in_scope, |(trait_id, name, _)| {
                     let trait_ = self.interner.get_trait(trait_id);
-                    self.usage_tracker.mark_as_used(importing_module_id, &name, Namespace::Type);
+                    self.usage_tracker.mark_as_used(current_module_id, &name, Namespace::Type);
                     self.fully_qualified_trait_path(trait_)
                 });
                 Err(PathResolutionError::MultipleTraitsInScope {

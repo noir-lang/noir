@@ -1026,16 +1026,16 @@ mod tests {
          2: sp[3] = sp[4]
          3: jump to 0 // -> 4: f0/b1
          4: sp[4] = u32 lt sp[3], sp[2] // f0/b1
-         5: jump if sp[4] to 0 // -> 9: f0/b2
-         6: jump to 0 // -> 7: f0/b3
-         7: sp[2] = sp[3] // f0/b3
-         8: return
-         9: sp[4] = u32 add sp[3], sp[5] // f0/b2
-        10: sp[6] = u32 lt_eq sp[3], sp[4]
-        11: jump if sp[6] to 0 // -> 13: f0/b2/1
-        12: call 0 // -> ErrorWithString
-        13: sp[3] = sp[4] // f0/b2/1
-        14: jump to 0 // -> 4: f0/b1
+         5: jump if sp[4] to 0 // -> 7: f0/b2
+         6: jump to 0 // -> 13: f0/b3
+         7: sp[4] = u32 add sp[3], sp[5] // f0/b2
+         8: sp[6] = u32 lt_eq sp[3], sp[4]
+         9: jump if sp[6] to 0 // -> 11: f0/b2/1
+        10: call 0 // -> ErrorWithString
+        11: sp[3] = sp[4] // f0/b2/1
+        12: jump to 0 // -> 4: f0/b1
+        13: sp[2] = sp[3] // f0/b3
+        14: return
         ");
     }
 
@@ -1071,12 +1071,12 @@ mod tests {
         assert_artifact_snapshot!(main, @r"
         fn main
          0: sp[4] = const field 42
-         1: jump if sp[2] to 0 // -> 5: f0/b1
-         2: jump to 0 // -> 3: f0/b2
-         3: sp[3] = sp[4] // f0/b2
-         4: jump to 0 // -> 8: f0/b3
-         5: sp[2] = const field 27 // f0/b1
-         6: sp[3] = field add sp[2], sp[4]
+         1: jump if sp[2] to 0 // -> 3: f0/b1
+         2: jump to 0 // -> 6: f0/b2
+         3: sp[2] = const field 27 // f0/b1
+         4: sp[3] = field add sp[2], sp[4]
+         5: jump to 0 // -> 8: f0/b3
+         6: sp[3] = sp[4] // f0/b2
          7: jump to 0 // -> 8: f0/b3
          8: sp[2] = sp[3] // f0/b3
          9: return
@@ -1558,21 +1558,21 @@ mod tests {
          2: sp[4] = sp[5]
          3: jump to 0 // -> 4: f0/b1
          4: sp[7] = u32 lt sp[4], sp[2] // f0/b1
-         5: jump if sp[7] to 0 // -> 9: f0/b2
-         6: jump to 0 // -> 7: f0/b5
-         7: sp[2] = sp[4] // f0/b5
-         8: return
-         9: sp[7] = sp[5] // f0/b2
-        10: jump to 0 // -> 11: f0/b3
-        11: sp[8] = u32 lt sp[7], sp[3] // f0/b3
-        12: jump if sp[8] to 0 // -> 17: f0/b4
-        13: jump to 0 // -> 14: f0/b6
-        14: sp[7] = u32 add sp[4], sp[6] // f0/b6
-        15: sp[4] = sp[7]
-        16: jump to 0 // -> 4: f0/b1
-        17: sp[8] = u32 add sp[7], sp[6] // f0/b4
-        18: sp[7] = sp[8]
-        19: jump to 0 // -> 11: f0/b3
+         5: jump if sp[7] to 0 // -> 7: f0/b2
+         6: jump to 0 // -> 18: f0/b5
+         7: sp[7] = sp[5] // f0/b2
+         8: jump to 0 // -> 9: f0/b3
+         9: sp[8] = u32 lt sp[7], sp[3] // f0/b3
+        10: jump if sp[8] to 0 // -> 12: f0/b4
+        11: jump to 0 // -> 15: f0/b6
+        12: sp[8] = u32 add sp[7], sp[6] // f0/b4
+        13: sp[7] = sp[8]
+        14: jump to 0 // -> 9: f0/b3
+        15: sp[7] = u32 add sp[4], sp[6] // f0/b6
+        16: sp[4] = sp[7]
+        17: jump to 0 // -> 4: f0/b1
+        18: sp[2] = sp[4] // f0/b5
+        19: return
         ");
     }
 
@@ -1602,13 +1602,13 @@ mod tests {
         fn main
          0: sp[5] = const field 1
          1: sp[6] = field add sp[2], sp[5]
-         2: jump if sp[3] to 0 // -> 7: f0/b1
-         3: jump to 0 // -> 4: f0/b2
-         4: sp[2] = const field 3 // f0/b2
-         5: sp[4] = field mul sp[6], sp[2]
+         2: jump if sp[3] to 0 // -> 4: f0/b1
+         3: jump to 0 // -> 7: f0/b2
+         4: sp[2] = const field 2 // f0/b1
+         5: sp[4] = field add sp[6], sp[2]
          6: jump to 0 // -> 10: f0/b3
-         7: sp[2] = const field 2 // f0/b1
-         8: sp[4] = field add sp[6], sp[2]
+         7: sp[2] = const field 3 // f0/b2
+         8: sp[4] = field mul sp[6], sp[2]
          9: jump to 0 // -> 10: f0/b3
         10: sp[2] = sp[4] // f0/b3
         11: return
@@ -1639,11 +1639,11 @@ mod tests {
         assert_artifact_snapshot!(main, @r"
         fn main
         0: sp[5] = const field 10
-        1: jump if sp[2] to 0 // -> 5: f0/b1
-        2: jump to 0 // -> 3: f0/b2
-        3: sp[4] = field mul sp[3], sp[5] // f0/b2
+        1: jump if sp[2] to 0 // -> 3: f0/b1
+        2: jump to 0 // -> 5: f0/b2
+        3: sp[4] = field add sp[3], sp[5] // f0/b1
         4: jump to 0 // -> 7: f0/b3
-        5: sp[4] = field add sp[3], sp[5] // f0/b1
+        5: sp[4] = field mul sp[3], sp[5] // f0/b2
         6: jump to 0 // -> 7: f0/b3
         7: sp[2] = sp[4] // f0/b3
         8: return

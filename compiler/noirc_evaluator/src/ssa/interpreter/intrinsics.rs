@@ -838,7 +838,7 @@ fn values_to_fields(values: &[Value]) -> Vec<FieldElement> {
         let mut vector_length: Option<usize> = None;
         for value in values {
             match value {
-                Value::Numeric(numeric_value) => fields.push(numeric_value.convert_to_field()),
+                Value::Numeric(numeric_value) => fields.push(numeric_value.to_field()),
                 Value::Reference(reference_value) => {
                     if let Some(value) = reference_value.element.borrow().as_ref() {
                         go(std::iter::once(value), fields);

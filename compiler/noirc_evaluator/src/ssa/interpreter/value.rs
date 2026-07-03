@@ -31,89 +31,32 @@ pub enum Value {
     ForeignFunction(String),
 }
 
-/// Represents a numeric type that either fits in the expected bit size,
-/// or would have to be represented as a `Field` to match the semantics of ACIR.
+/// A numeric runtime value in the SSA interpreter.
 ///
-/// The reason this exists is the difference in behavior of unchecked operations in Brillig and ACIR:
-/// * In Brillig unchecked operations wrap around, but we have other opcodes surrounding it that
-///   either prevent such operations from being carried out, or check for any overflows later.
-/// * In ACIR, everything is represented as a `Field`, and overflows are not checked, so e.g. an unchecked
-///   multiplication of `u32` values can result in something that only fits in a `u64`.
+/// Each integer variant stores a [`FieldElement`] holding the value's two's-complement *bit
+/// pattern*; the variant itself is the type tag (bit width + signedness). This mirrors how the
+/// backends actually represent integers:
 ///
-/// When we interpret an operation that would wrap around, if we are in an ACIR context we can use
-/// the `Unfit` variant to indicate that the value went beyond what fits into the base type.
+/// * ACIR represents every integer as a `FieldElement`. Arithmetic is field arithmetic, so a value
+///   may temporarily exceed its type's range (e.g. an unchecked `u8` multiplication can produce a
+///   field that only fits in a `u16`) until a range-check or truncation brings it back. Signed
+///   values are stored as their two's-complement bit pattern (`i32 -2` is the field `4294967294`);
+///   signedness lives in the operations, not the value.
+/// * Brillig stores native fixed-width unsigned registers (`u8..u128`), always in range, wrapping
+///   on overflow. Signed integers are the unsigned bit pattern plus signed operations.
 ///
-/// Since we normally require that ACIR and Brillig return the same result, once an operation
-/// overflows its type, we have reason to believe that ACIR and Brillig would not return the same
-/// value, since Brillig wraps, and ACIR does not.
-///
-/// However, some operations that we ported back from ACIR to SSA are implemented in such a
-/// way that transient values "escape" the boundaries of their type, only to be restored later,
-/// so keeping the `Field` serves more than informational purposes. We expect that under normal
-/// circumstances this effect is temporary, and by the time we would have to apply operations
-/// on the values that aren't implemented for `Field` (e.g. `lt` and bitwise ops), the values will
-/// be back on track.
+/// "In range" is therefore a computed predicate: the stored field is
+/// less than `2^bit_size`. An in-range field is the ordinary value; an out-of-range field only
+/// arises in ACIR mode, where unchecked arithmetic does not reduce.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub enum Fitted<T> {
-    Fit(T),
-    Unfit(FieldElement),
-}
-
-impl<A> Fitted<A> {
-    pub fn map<B>(
-        self,
-        f: impl FnOnce(A) -> B,
-        g: impl FnOnce(FieldElement) -> FieldElement,
-    ) -> Fitted<B> {
-        match self {
-            Self::Fit(value) => Fitted::Fit(f(value)),
-            Self::Unfit(value) => Fitted::Unfit(g(value)),
-        }
-    }
-
-    pub fn apply<B>(self, f: impl FnOnce(A) -> B, g: impl FnOnce(FieldElement) -> B) -> B {
-        match self {
-            Self::Fit(value) => f(value),
-            Self::Unfit(value) => g(value),
-        }
-    }
-}
-
-macro_rules! impl_fitted {
-    ($($t:ty),*) => {
-        $(
-        impl From<$t> for Fitted<$t> {
-            fn from(value: $t) -> Self {
-                Self::Fit(value)
-            }
-        }
-
-        impl From<FieldElement> for Fitted<$t> {
-            fn from(value: FieldElement) -> Self {
-                Self::Unfit(value)
-            }
-        }
-        )*
-    };
-}
-
-impl_fitted! { u8, u16, u32, u64, u128, i8, i16, i32, i64 }
-
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub enum NumericValue {
-    Field(FieldElement),
-
-    U1(bool),
-    U8(Fitted<u8>),
-    U16(Fitted<u16>),
-    U32(Fitted<u32>),
-    U64(Fitted<u64>),
-    U128(Fitted<u128>),
-
-    I8(Fitted<i8>),
-    I16(Fitted<i16>),
-    I32(Fitted<i32>),
-    I64(Fitted<i64>),
+pub struct NumericValue {
+    /// The value's two's-complement bit pattern (for in-range values), stored as a field. It may be
+    /// an out-of-range field in ACIR mode, where unchecked arithmetic does not reduce. For a `u1`
+    /// this is `0` or `1`; for `NativeField` it is the field itself.
+    value: FieldElement,
+    /// The value's numeric type (width + signedness, `u1`, or `NativeField`). Signedness lives here
+    /// and in the operations, not in a separate representation.
+    typ: NumericType,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -182,31 +125,30 @@ impl Value {
     }
 
     pub(crate) fn as_bool(&self) -> Option<bool> {
-        match self {
-            Value::Numeric(NumericValue::U1(value)) => Some(*value),
-            _ => None,
-        }
+        self.as_numeric()?.as_bool()
     }
 
     pub(crate) fn as_u8(&self) -> Option<u8> {
-        match self {
-            Value::Numeric(NumericValue::U8(Fitted::Fit(value))) => Some(*value),
-            _ => None,
-        }
+        let x = self.as_unsigned(8)?;
+        u8::try_from(x).ok()
     }
 
     pub(crate) fn as_u32(&self) -> Option<u32> {
-        match self {
-            Value::Numeric(NumericValue::U32(Fitted::Fit(value))) => Some(*value),
-            _ => None,
-        }
+        let x = self.as_unsigned(32)?;
+        u32::try_from(x).ok()
     }
 
     pub(crate) fn as_u64(&self) -> Option<u64> {
-        match self {
-            Value::Numeric(NumericValue::U64(Fitted::Fit(value))) => Some(*value),
-            _ => None,
-        }
+        let x = self.as_unsigned(64)?;
+        u64::try_from(x).ok()
+    }
+
+    /// If this is an in-range unsigned value of the given bit size, returns its `u128` value.
+    fn as_unsigned(&self, bit_size: u32) -> Option<u128> {
+        let value = self.as_numeric()?;
+        (value.get_type() == NumericType::Unsigned { bit_size } && value.is_in_range())
+            .then(|| value.to_field().try_into_u128())
+            .flatten()
     }
 
     pub(crate) fn as_numeric(&self) -> Option<NumericValue> {
@@ -243,47 +185,47 @@ impl Value {
     }
 
     pub fn bool(value: bool) -> Self {
-        Self::Numeric(NumericValue::U1(value))
+        Self::Numeric(NumericValue::bool(value))
     }
 
     pub fn field(value: FieldElement) -> Self {
-        Self::Numeric(NumericValue::Field(value))
+        Self::Numeric(NumericValue::field(value))
     }
 
     pub fn u8(value: u8) -> Self {
-        Self::Numeric(NumericValue::U8(value.into()))
+        Self::Numeric(NumericValue::u8(value))
     }
 
     pub fn u16(value: u16) -> Self {
-        Self::Numeric(NumericValue::U16(value.into()))
+        Self::Numeric(NumericValue::u16(value))
     }
 
     pub fn u32(value: u32) -> Self {
-        Self::Numeric(NumericValue::U32(value.into()))
+        Self::Numeric(NumericValue::u32(value))
     }
 
     pub fn u128(value: u128) -> Self {
-        Self::Numeric(NumericValue::U128(value.into()))
+        Self::Numeric(NumericValue::u128(value))
     }
 
     pub fn u64(value: u64) -> Self {
-        Self::Numeric(NumericValue::U64(value.into()))
+        Self::Numeric(NumericValue::u64(value))
     }
 
     pub fn i8(value: i8) -> Self {
-        Self::Numeric(NumericValue::I8(value.into()))
+        Self::Numeric(NumericValue::i8(value))
     }
 
     pub fn i16(value: i16) -> Self {
-        Self::Numeric(NumericValue::I16(value.into()))
+        Self::Numeric(NumericValue::i16(value))
     }
 
     pub fn i32(value: i32) -> Self {
-        Self::Numeric(NumericValue::I32(value.into()))
+        Self::Numeric(NumericValue::i32(value))
     }
 
     pub fn i64(value: i64) -> Self {
-        Self::Numeric(NumericValue::I64(value.into()))
+        Self::Numeric(NumericValue::i64(value))
     }
 
     pub fn array(elements: Vec<Value>, element_types: Vec<Type>) -> Self {
@@ -411,178 +353,160 @@ impl Value {
         args.iter().map(|arg| arg.snapshot()).collect()
     }
 
-    /// Wrap a `Field` into an `Unfit`, with a type that we were _supposed_ to get,
-    /// had some operation not overflown.
-    ///
-    /// This is used only in tests to construct expected values.
-    #[cfg(test)]
-    pub(crate) fn unfit(field: FieldElement, typ: NumericType) -> IResult<Self> {
-        NumericValue::unfit(field, typ).map(Self::Numeric)
+    /// Build an integer value directly from a raw bit-pattern field and a numeric type, without
+    /// checking that the field is in range. Used to relabel a value's type (as `cast` does) and in
+    /// tests to construct expected values that may be out of range (as ACIR's unchecked field
+    /// arithmetic can produce).
+    pub(crate) fn int_from_field(field: FieldElement, typ: NumericType) -> IResult<Self> {
+        NumericValue::int_from_field(field, typ).map(Self::Numeric)
     }
 }
 
 impl NumericValue {
-    pub(crate) fn get_type(&self) -> NumericType {
-        match self {
-            NumericValue::Field(_) => NumericType::NativeField,
-            NumericValue::U1(_) => NumericType::unsigned(1),
-            NumericValue::U8(_) => NumericType::unsigned(8),
-            NumericValue::U16(_) => NumericType::unsigned(16),
-            NumericValue::U32(_) => NumericType::unsigned(32),
-            NumericValue::U64(_) => NumericType::unsigned(64),
-            NumericValue::U128(_) => NumericType::unsigned(128),
-            NumericValue::I8(_) => NumericType::signed(8),
-            NumericValue::I16(_) => NumericType::signed(16),
-            NumericValue::I32(_) => NumericType::signed(32),
-            NumericValue::I64(_) => NumericType::signed(64),
+    /// Build a value from a raw bit-pattern field and a numeric type, without checking the field is
+    /// in range. The field is the value's two's-complement bit pattern for in-range values and may
+    /// be an extended/out-of-range field in ACIR mode. Errors only for numeric types the interpreter
+    /// does not model. Use [`NumericValue::from_constant`] when the value must be in range.
+    pub(crate) fn int_from_field(field: FieldElement, typ: NumericType) -> IResult<NumericValue> {
+        use super::InternalError::UnsupportedNumericType;
+        use super::InterpreterError::Internal;
+
+        match typ {
+            NumericType::NativeField
+            | NumericType::Unsigned { bit_size: 1 | 8 | 16 | 32 | 64 | 128 }
+            | NumericType::Signed { bit_size: 8 | 16 | 32 | 64 } => Ok(Self { value: field, typ }),
+            typ => Err(Internal(UnsupportedNumericType { typ })),
         }
+    }
+
+    /// Create a `NumericValue` from a `Field` constant, erroring if the value does not fit the type.
+    pub fn from_constant(constant: FieldElement, typ: NumericType) -> IResult<NumericValue> {
+        use super::InternalError::ConstantDoesNotFitInType;
+        use super::InterpreterError::Internal;
+
+        let value = Self::int_from_field(constant, typ)?;
+        let representable = match typ {
+            // A `Field` is always representable; a `u1` must be exactly 0 or 1.
+            NumericType::NativeField => true,
+            NumericType::Unsigned { bit_size: 1 } => constant.is_zero() || constant.is_one(),
+            _ => value.is_in_range(),
+        };
+        if representable {
+            Ok(value)
+        } else {
+            Err(Internal(ConstantDoesNotFitInType { constant, typ }))
+        }
+    }
+
+    pub(crate) fn get_type(&self) -> NumericType {
+        self.typ
     }
 
     pub(crate) fn zero(typ: NumericType) -> Self {
         Self::from_constant(FieldElement::zero(), typ).expect("zero should fit in every type")
     }
 
+    // Field is 0 or 1.
+    pub(crate) fn bool(value: bool) -> Self {
+        Self::int(FieldElement::from(u128::from(value)), NumericType::unsigned(1))
+    }
+
+    // Any field value.
+    pub(crate) fn field(value: FieldElement) -> Self {
+        Self::int(value, NumericType::NativeField)
+    }
+
+    // Field in [0, 2^8).
+    pub(crate) fn u8(value: u8) -> Self {
+        Self::int(FieldElement::from(u128::from(value)), NumericType::unsigned(8))
+    }
+
+    // Field in [0, 2^16).
+    pub(crate) fn u16(value: u16) -> Self {
+        Self::int(FieldElement::from(u128::from(value)), NumericType::unsigned(16))
+    }
+
+    // Field in [0, 2^32).
+    pub(crate) fn u32(value: u32) -> Self {
+        Self::int(FieldElement::from(u128::from(value)), NumericType::unsigned(32))
+    }
+
+    // Field in [0, 2^128).
+    pub(crate) fn u128(value: u128) -> Self {
+        Self::int(FieldElement::from(value), NumericType::unsigned(128))
+    }
+
+    // Field in [0, 2^64).
+    pub(crate) fn u64(value: u64) -> Self {
+        Self::int(FieldElement::from(u128::from(value)), NumericType::unsigned(64))
+    }
+
+    // Two's-complement bits in [0, 2^8).
+    pub(crate) fn i8(value: i8) -> Self {
+        Self::int(FieldElement::from(i128::from(value as u8)), NumericType::signed(8))
+    }
+
+    // Two's-complement bits in [0, 2^16).
+    pub(crate) fn i16(value: i16) -> Self {
+        Self::int(FieldElement::from(i128::from(value as u16)), NumericType::signed(16))
+    }
+
+    // Two's-complement bits in [0, 2^32).
+    pub(crate) fn i32(value: i32) -> Self {
+        Self::int(FieldElement::from(i128::from(value as u32)), NumericType::signed(32))
+    }
+
+    // Two's-complement bits in [0, 2^64).
+    pub(crate) fn i64(value: i64) -> Self {
+        Self::int(FieldElement::from(i128::from(value as u64)), NumericType::signed(64))
+    }
+
+    /// Construct a value from a bit-pattern field and type, in-module helper for the typed
+    /// constructors above (the type is statically known to be supported).
+    fn int(value: FieldElement, typ: NumericType) -> Self {
+        Self { value, typ }
+    }
+
     pub(crate) fn as_field(&self) -> Option<FieldElement> {
-        match self {
-            NumericValue::Field(value) => Some(*value),
-            _ => None,
-        }
+        matches!(self.typ, NumericType::NativeField).then_some(self.value)
     }
 
     pub(crate) fn as_bool(&self) -> Option<bool> {
-        match self {
-            NumericValue::U1(value) => Some(*value),
-            _ => None,
+        if self.typ != NumericType::unsigned(1) {
+            return None;
         }
+        assert!(
+            self.value.is_zero() || self.value.is_one(),
+            "a u1 value must be 0 or 1, got {}",
+            self.value
+        );
+        Some(self.value.is_one())
     }
 
-    /// Create a `NumericValue` from a `Field` constant.
+    pub fn to_field(&self) -> FieldElement {
+        self.value
+    }
+
+    /// The bit width of this value's type. `Field` reports the full field bit size.
+    pub(crate) fn bit_size(&self) -> u32 {
+        self.typ.bit_size::<FieldElement>()
+    }
+
+    /// Whether this value's type is a signed integer.
+    pub(crate) fn is_signed(&self) -> bool {
+        matches!(self.typ, NumericType::Signed { .. })
+    }
+
+    /// Whether the stored field is within the value's type range, i.e. `field < 2^bit_size`.
     ///
-    /// Returns an error if the value does not fit into the number of bits indicated by the `NumericType`.
-    ///
-    /// Never creates `Fitted::Unfit` values.
-    pub fn from_constant(constant: FieldElement, typ: NumericType) -> IResult<NumericValue> {
-        use super::InternalError::{ConstantDoesNotFitInType, UnsupportedNumericType};
-        use super::InterpreterError::Internal;
-
-        let does_not_fit = Internal(ConstantDoesNotFitInType { constant, typ });
-
-        match typ {
-            NumericType::NativeField => Ok(Self::Field(constant)),
-            NumericType::Unsigned { bit_size: 1 } => {
-                if constant.is_zero() || constant.is_one() {
-                    Ok(Self::U1(constant.is_one()))
-                } else {
-                    Err(does_not_fit)
-                }
-            }
-            NumericType::Unsigned { bit_size: 8 } => constant
-                .try_into_u128()
-                .and_then(|x| x.try_into().ok())
-                .map(Fitted::Fit)
-                .map(Self::U8)
-                .ok_or(does_not_fit),
-            NumericType::Unsigned { bit_size: 16 } => constant
-                .try_into_u128()
-                .and_then(|x| x.try_into().ok())
-                .map(Fitted::Fit)
-                .map(Self::U16)
-                .ok_or(does_not_fit),
-            NumericType::Unsigned { bit_size: 32 } => constant
-                .try_into_u128()
-                .and_then(|x| x.try_into().ok())
-                .map(Fitted::Fit)
-                .map(Self::U32)
-                .ok_or(does_not_fit),
-            NumericType::Unsigned { bit_size: 64 } => constant
-                .try_into_u128()
-                .and_then(|x| x.try_into().ok())
-                .map(Fitted::Fit)
-                .map(Self::U64)
-                .ok_or(does_not_fit),
-            NumericType::Unsigned { bit_size: 128 } => {
-                constant.try_into_u128().map(Fitted::Fit).map(Self::U128).ok_or(does_not_fit)
-            }
-            // Signed cases are a bit weird. We want to allow all values in the corresponding
-            // unsigned range so we have to cast to the unsigned type first to see if it fits.
-            // If it does, any values `>= 2^N / 2` for `iN` are interpreted as negative.
-            NumericType::Signed { bit_size: 8 } => constant
-                .try_into_u128()
-                .and_then(|x| u8::try_from(x).ok())
-                .map(|x| Fitted::Fit(x as i8))
-                .map(Self::I8)
-                .ok_or(does_not_fit),
-            NumericType::Signed { bit_size: 16 } => constant
-                .try_into_u128()
-                .and_then(|x| u16::try_from(x).ok())
-                .map(|x| Fitted::Fit(x as i16))
-                .map(Self::I16)
-                .ok_or(does_not_fit),
-            NumericType::Signed { bit_size: 32 } => constant
-                .try_into_u128()
-                .and_then(|x| u32::try_from(x).ok())
-                .map(|x| Fitted::Fit(x as i32))
-                .map(Self::I32)
-                .ok_or(does_not_fit),
-            NumericType::Signed { bit_size: 64 } => constant
-                .try_into_u128()
-                .and_then(|x| u64::try_from(x).ok())
-                .map(|x| Fitted::Fit(x as i64))
-                .map(Self::I64)
-                .ok_or(does_not_fit),
-            typ => Err(Internal(UnsupportedNumericType { typ })),
-        }
-    }
-
-    pub fn convert_to_field(&self) -> FieldElement {
-        match self {
-            NumericValue::Field(field) => *field,
-            NumericValue::U1(boolean) if *boolean => FieldElement::one(),
-            NumericValue::U1(_) => FieldElement::zero(),
-            NumericValue::U8(Fitted::Fit(value)) => FieldElement::from(u32::from(*value)),
-            NumericValue::U16(Fitted::Fit(value)) => FieldElement::from(u32::from(*value)),
-            NumericValue::U32(Fitted::Fit(value)) => FieldElement::from(*value),
-            NumericValue::U64(Fitted::Fit(value)) => FieldElement::from(*value),
-            NumericValue::U128(Fitted::Fit(value)) => FieldElement::from(*value),
-            // Need to cast possibly negative values to the unsigned variants
-            // first to ensure they are zero-extended rather than sign-extended
-            NumericValue::I8(Fitted::Fit(value)) => FieldElement::from(i128::from(*value as u8)),
-            NumericValue::I16(Fitted::Fit(value)) => FieldElement::from(i128::from(*value as u16)),
-            NumericValue::I32(Fitted::Fit(value)) => FieldElement::from(i128::from(*value as u32)),
-            NumericValue::I64(Fitted::Fit(value)) => FieldElement::from(i128::from(*value as u64)),
-
-            NumericValue::U8(Fitted::Unfit(value))
-            | NumericValue::U16(Fitted::Unfit(value))
-            | NumericValue::U32(Fitted::Unfit(value))
-            | NumericValue::U64(Fitted::Unfit(value))
-            | NumericValue::U128(Fitted::Unfit(value))
-            | NumericValue::I8(Fitted::Unfit(value))
-            | NumericValue::I16(Fitted::Unfit(value))
-            | NumericValue::I32(Fitted::Unfit(value))
-            | NumericValue::I64(Fitted::Unfit(value)) => *value,
-        }
-    }
-
-    /// Creates a `NumericValue` of a specific bit size with a `Fitted::Unfit` value.
-    #[cfg(test)]
-    pub fn unfit(field: FieldElement, typ: NumericType) -> IResult<NumericValue> {
-        use super::InternalError::UnsupportedNumericType;
-        use super::InterpreterError::Internal;
-
-        match typ {
-            NumericType::NativeField | NumericType::Unsigned { bit_size: 1 } => {
-                unreachable!("{typ} cannot be unfit")
-            }
-            NumericType::Unsigned { bit_size: 8 } => Ok(Self::U8(Fitted::Unfit(field))),
-            NumericType::Unsigned { bit_size: 16 } => Ok(Self::U16(Fitted::Unfit(field))),
-            NumericType::Unsigned { bit_size: 32 } => Ok(Self::U32(Fitted::Unfit(field))),
-            NumericType::Unsigned { bit_size: 64 } => Ok(Self::U64(Fitted::Unfit(field))),
-            NumericType::Unsigned { bit_size: 128 } => Ok(Self::U128(Fitted::Unfit(field))),
-            NumericType::Signed { bit_size: 8 } => Ok(Self::I8(Fitted::Unfit(field))),
-            NumericType::Signed { bit_size: 16 } => Ok(Self::I16(Fitted::Unfit(field))),
-            NumericType::Signed { bit_size: 32 } => Ok(Self::I32(Fitted::Unfit(field))),
-            NumericType::Signed { bit_size: 64 } => Ok(Self::I64(Fitted::Unfit(field))),
-            typ => Err(Internal(UnsupportedNumericType { typ })),
+    /// `Field` is always in range.
+    /// Every other type is in range when its bit pattern fits in `bit_size` bits.
+    /// An out-of-range field only arises from unreduced ACIR arithmetic or `int_from_field`,
+    /// which does not check; a properly constructed value is always in range.
+    pub(crate) fn is_in_range(&self) -> bool {
+        match self.typ {
+            NumericType::NativeField => true,
+            _ => self.value.num_bits() <= self.bit_size(),
         }
     }
 }
@@ -600,31 +524,36 @@ impl std::fmt::Display for Value {
     }
 }
 
-impl<T: std::fmt::Display> std::fmt::Display for Fitted<T> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Fitted::Fit(v) => v.fmt(f),
-            // Distinguish an overflowed value from the type it's supposed to be.
-            Fitted::Unfit(v) => write!(f, "({v})"),
-        }
-    }
-}
-
 impl std::fmt::Display for NumericValue {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            NumericValue::Field(value) => write!(f, "Field {value}"),
-            NumericValue::U1(value) => write!(f, "u1 {}", if *value { "1" } else { "0" }),
-            NumericValue::U8(value) => write!(f, "u8 {value}"),
-            NumericValue::U16(value) => write!(f, "u16 {value}"),
-            NumericValue::U32(value) => write!(f, "u32 {value}"),
-            NumericValue::U64(value) => write!(f, "u64 {value}"),
-            NumericValue::U128(value) => write!(f, "u128 {value}"),
-            NumericValue::I8(value) => write!(f, "i8 {value}"),
-            NumericValue::I16(value) => write!(f, "i16 {value}"),
-            NumericValue::I32(value) => write!(f, "i32 {value}"),
-            NumericValue::I64(value) => write!(f, "i64 {value}"),
+        let bit_size = self.bit_size();
+        match self.typ {
+            NumericType::NativeField => return write!(f, "Field {}", self.value),
+            NumericType::Unsigned { bit_size: 1 } => {
+                return write!(f, "u1 {}", if self.value.is_one() { "1" } else { "0" });
+            }
+            _ => {}
         }
+
+        let prefix = if self.is_signed() { format!("i{bit_size}") } else { format!("u{bit_size}") };
+
+        // The stored field is the value's bit pattern. In-range values print as the plain
+        // (signed-aware) number; an out-of-range field — which only arises from unreduced ACIR
+        // arithmetic — is shown parenthesized to distinguish it.
+        if !self.is_in_range() {
+            return write!(f, "{prefix} ({})", self.value);
+        }
+        if self.is_signed() {
+            // Reinterpret the in-range bit pattern as a signed value for display.
+            let unsigned = self.value.try_into_u128().expect("in-range value fits in u128");
+            let half = 1u128 << (bit_size - 1);
+            if unsigned >= half {
+                let magnitude = (1u128 << bit_size) - unsigned;
+                return write!(f, "{prefix} -{magnitude}");
+            }
+            return write!(f, "{prefix} {unsigned}");
+        }
+        write!(f, "{prefix} {}", self.value)
     }
 }
 

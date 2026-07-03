@@ -241,26 +241,13 @@ impl Elaborator<'_> {
         let Some(info) = self.unresolved_function_metas.remove(&func_id) else {
             return;
         };
-        // Removing the function from `unresolved_function_metas` is permanent: it will never be
-        // re-resolved. The usage its signature records (e.g. an import used only in a parameter
-        // type) is therefore a committed fact, so it must survive even when this runs inside a
-        // failing speculative probe — which rolls back usage-marks but cannot undo the structural
-        // removal above. Suspend the probe's undo log so those marks are kept.
-        let suspended = self.usage_tracker.suspend_speculative();
         self.resolve_unresolved_function_meta(func_id, info);
-        self.usage_tracker.resume_speculative(suspended);
     }
 
     /// Lazily resolves a function's [`FuncMeta`] if needed, then returns it.
     pub(crate) fn function_meta(&mut self, func_id: FuncId) -> &FuncMeta {
         self.define_function_meta_if_undefined(func_id);
         self.interner.function_meta(&func_id)
-    }
-
-    /// Lazily resolves a function's [FuncMeta] if needed, then returns it if it exists .
-    pub(crate) fn try_function_meta(&mut self, func_id: FuncId) -> Option<&FuncMeta> {
-        self.define_function_meta_if_undefined(func_id);
-        self.interner.try_function_meta(&func_id)
     }
 
     /// Mutable counterpart of [`Self::function_meta`].
@@ -630,7 +617,7 @@ impl Elaborator<'_> {
 
             let pattern = self.elaborate_pattern_and_store_ids(
                 pattern,
-                typ.clone(),
+                &typ,
                 DefinitionKind::Local(None),
                 &mut parameter_idents,
                 true, // warn_if_unused
