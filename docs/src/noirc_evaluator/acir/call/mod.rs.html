@@ -25,7 +25,7 @@
 <a href=#25 id=25 data-nosnippet>25</a><span class="kw">use </span><span class="kw">crate</span>::ssa::ssa_gen::Ssa;
 <a href=#26 id=26 data-nosnippet>26</a>
 <a href=#27 id=27 data-nosnippet>27</a><span class="kw">use super</span>::{
-<a href=#28 id=28 data-nosnippet>28</a>    Context, arrays,
+<a href=#28 id=28 data-nosnippet>28</a>    Context,
 <a href=#29 id=29 data-nosnippet>29</a>    types::{AcirDynamicArray, AcirType, AcirValue},
 <a href=#30 id=30 data-nosnippet>30</a>};
 <a href=#31 id=31 data-nosnippet>31</a>
@@ -76,7 +76,7 @@
 <a href=#76 id=76 data-nosnippet>76</a>                            outputs.len(),
 <a href=#77 id=77 data-nosnippet>77</a>                            <span class="string">"ICE: intrinsic call produced a different number of outputs than result ids"
 <a href=#78 id=78 data-nosnippet>78</a>                        </span>);
-<a href=#79 id=79 data-nosnippet>79</a>                        <span class="self">self</span>.handle_ssa_call_outputs(result_ids, outputs, dfg)<span class="question-mark">?</span>;
+<a href=#79 id=79 data-nosnippet>79</a>                        <span class="self">self</span>.handle_ssa_call_outputs(result_ids, outputs)<span class="question-mark">?</span>;
 <a href=#80 id=80 data-nosnippet>80</a>                    }
 <a href=#81 id=81 data-nosnippet>81</a>                    Value::ForeignFunction { .. } =&gt; <span class="macro">unreachable!</span>(
 <a href=#82 id=82 data-nosnippet>82</a>                        <span class="string">"Frontend should remove any oracle calls from constrained functions"
@@ -126,7 +126,7 @@
 <a href=#126 id=126 data-nosnippet>126</a>        )<span class="question-mark">?</span>;
 <a href=#127 id=127 data-nosnippet>127</a>
 <a href=#128 id=128 data-nosnippet>128</a>        <span class="kw">let </span>output_values = <span class="self">self</span>.convert_vars_to_values(output_vars, dfg, result_ids);
-<a href=#129 id=129 data-nosnippet>129</a>        <span class="self">self</span>.handle_ssa_call_outputs(result_ids, output_values, dfg)
+<a href=#129 id=129 data-nosnippet>129</a>        <span class="self">self</span>.handle_ssa_call_outputs(result_ids, output_values)
 <a href=#130 id=130 data-nosnippet>130</a>    }
 <a href=#131 id=131 data-nosnippet>131</a>
 <a href=#132 id=132 data-nosnippet>132</a>    <span class="kw">fn </span>handle_brillig_function_call(
@@ -180,7 +180,7 @@
 <a href=#180 id=180 data-nosnippet>180</a>        };
 <a href=#181 id=181 data-nosnippet>181</a>
 <a href=#182 id=182 data-nosnippet>182</a>        <span class="macro">assert_eq!</span>(result_ids.len(), output_values.len(), <span class="string">"Brillig output length mismatch"</span>);
-<a href=#183 id=183 data-nosnippet>183</a>        <span class="self">self</span>.handle_ssa_call_outputs(result_ids, output_values, dfg)
+<a href=#183 id=183 data-nosnippet>183</a>        <span class="self">self</span>.handle_ssa_call_outputs(result_ids, output_values)
 <a href=#184 id=184 data-nosnippet>184</a>    }
 <a href=#185 id=185 data-nosnippet>185</a>
 <a href=#186 id=186 data-nosnippet>186</a>    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>gen_brillig_parameters(
@@ -238,113 +238,106 @@
 <a href=#238 id=238 data-nosnippet>238</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
 <a href=#239 id=239 data-nosnippet>239</a>        result_ids: <span class="kw-2">&amp;</span>[ValueId],
 <a href=#240 id=240 data-nosnippet>240</a>        output_values: Vec&lt;AcirValue&gt;,
-<a href=#241 id=241 data-nosnippet>241</a>        dfg: <span class="kw-2">&amp;</span>DataFlowGraph,
-<a href=#242 id=242 data-nosnippet>242</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;(), RuntimeError&gt; {
-<a href=#243 id=243 data-nosnippet>243</a>        <span class="kw">for </span>(result_id, output) <span class="kw">in </span>result_ids.iter().zip_eq(output_values) {
-<a href=#244 id=244 data-nosnippet>244</a>            <span class="kw">if let </span>AcirValue::Array(<span class="kw">_</span>) = <span class="kw-2">&amp;</span>output {
-<a href=#245 id=245 data-nosnippet>245</a>                <span class="kw">let </span>array_id = <span class="kw-2">*</span>result_id;
-<a href=#246 id=246 data-nosnippet>246</a>                <span class="kw">let </span>block_id = <span class="self">self</span>.block_id(array_id);
-<a href=#247 id=247 data-nosnippet>247</a>                <span class="kw">let </span>array_typ = dfg.type_of_value(array_id);
-<a href=#248 id=248 data-nosnippet>248</a>                <span class="kw">let </span>len = <span class="kw">if </span><span class="macro">matches!</span>(<span class="kw-2">*</span>array_typ, Type::Array(<span class="kw">_</span>, <span class="kw">_</span>)) {
-<a href=#249 id=249 data-nosnippet>249</a>                    array_typ.flattened_size()
-<a href=#250 id=250 data-nosnippet>250</a>                } <span class="kw">else </span>{
-<a href=#251 id=251 data-nosnippet>251</a>                    arrays::flattened_value_size(<span class="kw-2">&amp;</span>output)
-<a href=#252 id=252 data-nosnippet>252</a>                };
-<a href=#253 id=253 data-nosnippet>253</a>                <span class="self">self</span>.initialize_array(block_id, len, <span class="prelude-val">Some</span>(output.clone()))<span class="question-mark">?</span>;
-<a href=#254 id=254 data-nosnippet>254</a>            }
-<a href=#255 id=255 data-nosnippet>255</a>            <span class="comment">// Do nothing for AcirValue::DynamicArray and AcirValue::Var
-<a href=#256 id=256 data-nosnippet>256</a>            // A dynamic array returned from a function call should already be initialized
-<a href=#257 id=257 data-nosnippet>257</a>            // and a single variable does not require any extra initialization.
-<a href=#258 id=258 data-nosnippet>258</a>            </span><span class="self">self</span>.ssa_values.insert(<span class="kw-2">*</span>result_id, output);
-<a href=#259 id=259 data-nosnippet>259</a>        }
-<a href=#260 id=260 data-nosnippet>260</a>        <span class="prelude-val">Ok</span>(())
-<a href=#261 id=261 data-nosnippet>261</a>    }
-<a href=#262 id=262 data-nosnippet>262</a>
-<a href=#263 id=263 data-nosnippet>263</a>    <span class="doccomment">/// Convert a `Vec&lt;[AcirVar]&gt;` into a `Vec&lt;[AcirValue]&gt;` using the given result ids.
-<a href=#264 id=264 data-nosnippet>264</a>    /// If the type of a result id is an array, several acir vars are collected into
-<a href=#265 id=265 data-nosnippet>265</a>    /// a single [`AcirValue::Array`] of the same length.
-<a href=#266 id=266 data-nosnippet>266</a>    /// If the type of a result id is a vector, the vector length must precede it and we can
-<a href=#267 id=267 data-nosnippet>267</a>    /// convert to an [`AcirValue::Array`] when the length is known (constant).
-<a href=#268 id=268 data-nosnippet>268</a>    </span><span class="kw">fn </span>convert_vars_to_values(
-<a href=#269 id=269 data-nosnippet>269</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
-<a href=#270 id=270 data-nosnippet>270</a>        vars: Vec&lt;AcirVar&gt;,
-<a href=#271 id=271 data-nosnippet>271</a>        dfg: <span class="kw-2">&amp;</span>DataFlowGraph,
-<a href=#272 id=272 data-nosnippet>272</a>        result_ids: <span class="kw-2">&amp;</span>[ValueId],
-<a href=#273 id=273 data-nosnippet>273</a>    ) -&gt; Vec&lt;AcirValue&gt; {
-<a href=#274 id=274 data-nosnippet>274</a>        <span class="kw">let </span><span class="kw-2">mut </span>vars = vars.into_iter();
-<a href=#275 id=275 data-nosnippet>275</a>        <span class="kw">let </span><span class="kw-2">mut </span>values: Vec&lt;AcirValue&gt; = Vec::new();
-<a href=#276 id=276 data-nosnippet>276</a>        <span class="kw">for </span>result <span class="kw">in </span>result_ids {
-<a href=#277 id=277 data-nosnippet>277</a>            <span class="kw">let </span>result_type = dfg.type_of_value(<span class="kw-2">*</span>result);
-<a href=#278 id=278 data-nosnippet>278</a>            <span class="kw">if let </span>Type::Vector(elements_type) = <span class="kw-2">&amp;*</span>result_type {
-<a href=#279 id=279 data-nosnippet>279</a>                <span class="kw">let </span>error = <span class="string">"ICE - cannot get vector length when converting vector to AcirValue"</span>;
-<a href=#280 id=280 data-nosnippet>280</a>                <span class="kw">let </span>len = values.last().expect(error).borrow_var().expect(error);
-<a href=#281 id=281 data-nosnippet>281</a>                <span class="kw">let </span>len = <span class="self">self
-<a href=#282 id=282 data-nosnippet>282</a>                    </span>.acir_context
-<a href=#283 id=283 data-nosnippet>283</a>                    .constant(<span class="kw-2">&amp;</span>len, <span class="string">"len"</span>.to_string())
-<a href=#284 id=284 data-nosnippet>284</a>                    .expect(<span class="string">"ICE - expected the variable to be a constant value"</span>)
-<a href=#285 id=285 data-nosnippet>285</a>                    .to_u128();
-<a href=#286 id=286 data-nosnippet>286</a>                <span class="kw">let </span><span class="kw-2">mut </span>element_values = im::Vector::new();
-<a href=#287 id=287 data-nosnippet>287</a>                <span class="kw">for _ in </span><span class="number">0</span>..len {
-<a href=#288 id=288 data-nosnippet>288</a>                    <span class="kw">for </span>element_type <span class="kw">in </span>elements_type.iter() {
-<a href=#289 id=289 data-nosnippet>289</a>                        <span class="kw">let </span>element = <span class="self">Self</span>::convert_var_type_to_values(element_type, <span class="kw-2">&amp;mut </span>vars);
-<a href=#290 id=290 data-nosnippet>290</a>                        element_values.push_back(element);
-<a href=#291 id=291 data-nosnippet>291</a>                    }
-<a href=#292 id=292 data-nosnippet>292</a>                }
-<a href=#293 id=293 data-nosnippet>293</a>                values.push(AcirValue::Array(element_values));
-<a href=#294 id=294 data-nosnippet>294</a>            } <span class="kw">else </span>{
-<a href=#295 id=295 data-nosnippet>295</a>                values.push(<span class="self">Self</span>::convert_var_type_to_values(<span class="kw-2">&amp;</span>result_type, <span class="kw-2">&amp;mut </span>vars));
-<a href=#296 id=296 data-nosnippet>296</a>            }
-<a href=#297 id=297 data-nosnippet>297</a>        }
-<a href=#298 id=298 data-nosnippet>298</a>        <span class="macro">assert!</span>(
-<a href=#299 id=299 data-nosnippet>299</a>            vars.next().is_none(),
-<a href=#300 id=300 data-nosnippet>300</a>            <span class="string">"ICE: not all ACIR vars from a function call were consumed when converting to values"
-<a href=#301 id=301 data-nosnippet>301</a>        </span>);
-<a href=#302 id=302 data-nosnippet>302</a>        values
-<a href=#303 id=303 data-nosnippet>303</a>    }
-<a href=#304 id=304 data-nosnippet>304</a>
-<a href=#305 id=305 data-nosnippet>305</a>    <span class="doccomment">/// Recursive helper for [`Self::convert_vars_to_values`].
-<a href=#306 id=306 data-nosnippet>306</a>    /// If the given `result_type` is an array of length N, this will create an [`AcirValue::Array`] with
-<a href=#307 id=307 data-nosnippet>307</a>    /// the first N elements of the given iterator. Otherwise, the result is a single
-<a href=#308 id=308 data-nosnippet>308</a>    /// [`AcirValue::Var`] wrapping the first element of the iterator.
-<a href=#309 id=309 data-nosnippet>309</a>    </span><span class="kw">fn </span>convert_var_type_to_values(
-<a href=#310 id=310 data-nosnippet>310</a>        result_type: <span class="kw-2">&amp;</span>Type,
-<a href=#311 id=311 data-nosnippet>311</a>        vars: <span class="kw-2">&amp;mut </span><span class="kw">impl </span>Iterator&lt;Item = AcirVar&gt;,
-<a href=#312 id=312 data-nosnippet>312</a>    ) -&gt; AcirValue {
-<a href=#313 id=313 data-nosnippet>313</a>        <span class="kw">match </span>result_type {
-<a href=#314 id=314 data-nosnippet>314</a>            Type::Array(elements, size) =&gt; {
-<a href=#315 id=315 data-nosnippet>315</a>                <span class="kw">let </span><span class="kw-2">mut </span>element_values = im::Vector::new();
-<a href=#316 id=316 data-nosnippet>316</a>                <span class="kw">for _ in </span><span class="number">0</span>..size.<span class="number">0 </span>{
-<a href=#317 id=317 data-nosnippet>317</a>                    <span class="kw">for </span>element_type <span class="kw">in </span>elements.iter() {
-<a href=#318 id=318 data-nosnippet>318</a>                        <span class="kw">let </span>element = <span class="self">Self</span>::convert_var_type_to_values(element_type, vars);
-<a href=#319 id=319 data-nosnippet>319</a>                        element_values.push_back(element);
-<a href=#320 id=320 data-nosnippet>320</a>                    }
-<a href=#321 id=321 data-nosnippet>321</a>                }
-<a href=#322 id=322 data-nosnippet>322</a>                AcirValue::Array(element_values)
-<a href=#323 id=323 data-nosnippet>323</a>            }
-<a href=#324 id=324 data-nosnippet>324</a>            Type::Numeric(numeric_type) =&gt; {
-<a href=#325 id=325 data-nosnippet>325</a>                <span class="kw">let </span>var = vars
-<a href=#326 id=326 data-nosnippet>326</a>                    .next()
-<a href=#327 id=327 data-nosnippet>327</a>                    .expect(<span class="string">"ICE: ran out of ACIR vars while converting call outputs to values"</span>);
-<a href=#328 id=328 data-nosnippet>328</a>                AcirValue::Var(var, <span class="kw-2">*</span>numeric_type)
-<a href=#329 id=329 data-nosnippet>329</a>            }
-<a href=#330 id=330 data-nosnippet>330</a>            typ =&gt; {
-<a href=#331 id=331 data-nosnippet>331</a>                <span class="macro">panic!</span>(<span class="string">"Unexpected type {typ} in convert_var_type_to_values"</span>);
-<a href=#332 id=332 data-nosnippet>332</a>            }
-<a href=#333 id=333 data-nosnippet>333</a>        }
-<a href=#334 id=334 data-nosnippet>334</a>    }
-<a href=#335 id=335 data-nosnippet>335</a>}
-<a href=#336 id=336 data-nosnippet>336</a>
-<a href=#337 id=337 data-nosnippet>337</a><span class="attr">#[cfg(test)]
-<a href=#338 id=338 data-nosnippet>338</a></span><span class="kw">mod </span>tests {
-<a href=#339 id=339 data-nosnippet>339</a>    <span class="kw">use </span><span class="kw">super</span>::Context;
-<a href=#340 id=340 data-nosnippet>340</a>    <span class="kw">use </span><span class="kw">crate</span>::acir::AcirVar;
-<a href=#341 id=341 data-nosnippet>341</a>    <span class="kw">use </span><span class="kw">crate</span>::ssa::ir::types::{NumericType, Type};
-<a href=#342 id=342 data-nosnippet>342</a>
-<a href=#343 id=343 data-nosnippet>343</a>    <span class="attr">#[test]
-<a href=#344 id=344 data-nosnippet>344</a>    #[should_panic(expected = <span class="string">"ICE: ran out of ACIR vars"</span>)]
-<a href=#345 id=345 data-nosnippet>345</a>    </span><span class="kw">fn </span>convert_var_type_to_values_panics_on_exhausted_vars() {
-<a href=#346 id=346 data-nosnippet>346</a>        <span class="kw">let </span>typ = Type::Numeric(NumericType::NativeField);
-<a href=#347 id=347 data-nosnippet>347</a>        <span class="kw">let </span><span class="kw-2">mut </span>vars = Vec::&lt;AcirVar&gt;::new().into_iter();
-<a href=#348 id=348 data-nosnippet>348</a>        <span class="kw">let _ </span>= Context::convert_var_type_to_values(<span class="kw-2">&amp;</span>typ, <span class="kw-2">&amp;mut </span>vars);
-<a href=#349 id=349 data-nosnippet>349</a>    }
-<a href=#350 id=350 data-nosnippet>350</a>}</code></pre></div></section></main></body></html>
+<a href=#241 id=241 data-nosnippet>241</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;(), RuntimeError&gt; {
+<a href=#242 id=242 data-nosnippet>242</a>        <span class="kw">for </span>(result_id, output) <span class="kw">in </span>result_ids.iter().zip_eq(output_values) {
+<a href=#243 id=243 data-nosnippet>243</a>            <span class="comment">// An `AcirValue::Array` result is held inline, exactly as `make_array` does: its
+<a href=#244 id=244 data-nosnippet>244</a>            // backing memory block is created lazily by `ensure_array_is_initialized` on the first
+<a href=#245 id=245 data-nosnippet>245</a>            // memory operation that needs it. Initializing it eagerly here would emit a
+<a href=#246 id=246 data-nosnippet>246</a>            // `MemoryInit` for a block that is never read/written when the result is only accessed
+<a href=#247 id=247 data-nosnippet>247</a>            // at constant indices or is entirely unused.
+<a href=#248 id=248 data-nosnippet>248</a>            //
+<a href=#249 id=249 data-nosnippet>249</a>            // A returned `AcirValue::DynamicArray` is already backed by an initialized block, and an
+<a href=#250 id=250 data-nosnippet>250</a>            // `AcirValue::Var` requires no initialization.
+<a href=#251 id=251 data-nosnippet>251</a>            </span><span class="self">self</span>.ssa_values.insert(<span class="kw-2">*</span>result_id, output);
+<a href=#252 id=252 data-nosnippet>252</a>        }
+<a href=#253 id=253 data-nosnippet>253</a>        <span class="prelude-val">Ok</span>(())
+<a href=#254 id=254 data-nosnippet>254</a>    }
+<a href=#255 id=255 data-nosnippet>255</a>
+<a href=#256 id=256 data-nosnippet>256</a>    <span class="doccomment">/// Convert a `Vec&lt;[AcirVar]&gt;` into a `Vec&lt;[AcirValue]&gt;` using the given result ids.
+<a href=#257 id=257 data-nosnippet>257</a>    /// If the type of a result id is an array, several acir vars are collected into
+<a href=#258 id=258 data-nosnippet>258</a>    /// a single [`AcirValue::Array`] of the same length.
+<a href=#259 id=259 data-nosnippet>259</a>    /// If the type of a result id is a vector, the vector length must precede it and we can
+<a href=#260 id=260 data-nosnippet>260</a>    /// convert to an [`AcirValue::Array`] when the length is known (constant).
+<a href=#261 id=261 data-nosnippet>261</a>    </span><span class="kw">fn </span>convert_vars_to_values(
+<a href=#262 id=262 data-nosnippet>262</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
+<a href=#263 id=263 data-nosnippet>263</a>        vars: Vec&lt;AcirVar&gt;,
+<a href=#264 id=264 data-nosnippet>264</a>        dfg: <span class="kw-2">&amp;</span>DataFlowGraph,
+<a href=#265 id=265 data-nosnippet>265</a>        result_ids: <span class="kw-2">&amp;</span>[ValueId],
+<a href=#266 id=266 data-nosnippet>266</a>    ) -&gt; Vec&lt;AcirValue&gt; {
+<a href=#267 id=267 data-nosnippet>267</a>        <span class="kw">let </span><span class="kw-2">mut </span>vars = vars.into_iter();
+<a href=#268 id=268 data-nosnippet>268</a>        <span class="kw">let </span><span class="kw-2">mut </span>values: Vec&lt;AcirValue&gt; = Vec::new();
+<a href=#269 id=269 data-nosnippet>269</a>        <span class="kw">for </span>result <span class="kw">in </span>result_ids {
+<a href=#270 id=270 data-nosnippet>270</a>            <span class="kw">let </span>result_type = dfg.type_of_value(<span class="kw-2">*</span>result);
+<a href=#271 id=271 data-nosnippet>271</a>            <span class="kw">if let </span>Type::Vector(elements_type) = <span class="kw-2">&amp;*</span>result_type {
+<a href=#272 id=272 data-nosnippet>272</a>                <span class="kw">let </span>error = <span class="string">"ICE - cannot get vector length when converting vector to AcirValue"</span>;
+<a href=#273 id=273 data-nosnippet>273</a>                <span class="kw">let </span>len = values.last().expect(error).borrow_var().expect(error);
+<a href=#274 id=274 data-nosnippet>274</a>                <span class="kw">let </span>len = <span class="self">self
+<a href=#275 id=275 data-nosnippet>275</a>                    </span>.acir_context
+<a href=#276 id=276 data-nosnippet>276</a>                    .constant(<span class="kw-2">&amp;</span>len, <span class="string">"len"</span>.to_string())
+<a href=#277 id=277 data-nosnippet>277</a>                    .expect(<span class="string">"ICE - expected the variable to be a constant value"</span>)
+<a href=#278 id=278 data-nosnippet>278</a>                    .to_u128();
+<a href=#279 id=279 data-nosnippet>279</a>                <span class="kw">let </span><span class="kw-2">mut </span>element_values = im::Vector::new();
+<a href=#280 id=280 data-nosnippet>280</a>                <span class="kw">for _ in </span><span class="number">0</span>..len {
+<a href=#281 id=281 data-nosnippet>281</a>                    <span class="kw">for </span>element_type <span class="kw">in </span>elements_type.iter() {
+<a href=#282 id=282 data-nosnippet>282</a>                        <span class="kw">let </span>element = <span class="self">Self</span>::convert_var_type_to_values(element_type, <span class="kw-2">&amp;mut </span>vars);
+<a href=#283 id=283 data-nosnippet>283</a>                        element_values.push_back(element);
+<a href=#284 id=284 data-nosnippet>284</a>                    }
+<a href=#285 id=285 data-nosnippet>285</a>                }
+<a href=#286 id=286 data-nosnippet>286</a>                values.push(AcirValue::Array(element_values));
+<a href=#287 id=287 data-nosnippet>287</a>            } <span class="kw">else </span>{
+<a href=#288 id=288 data-nosnippet>288</a>                values.push(<span class="self">Self</span>::convert_var_type_to_values(<span class="kw-2">&amp;</span>result_type, <span class="kw-2">&amp;mut </span>vars));
+<a href=#289 id=289 data-nosnippet>289</a>            }
+<a href=#290 id=290 data-nosnippet>290</a>        }
+<a href=#291 id=291 data-nosnippet>291</a>        <span class="macro">assert!</span>(
+<a href=#292 id=292 data-nosnippet>292</a>            vars.next().is_none(),
+<a href=#293 id=293 data-nosnippet>293</a>            <span class="string">"ICE: not all ACIR vars from a function call were consumed when converting to values"
+<a href=#294 id=294 data-nosnippet>294</a>        </span>);
+<a href=#295 id=295 data-nosnippet>295</a>        values
+<a href=#296 id=296 data-nosnippet>296</a>    }
+<a href=#297 id=297 data-nosnippet>297</a>
+<a href=#298 id=298 data-nosnippet>298</a>    <span class="doccomment">/// Recursive helper for [`Self::convert_vars_to_values`].
+<a href=#299 id=299 data-nosnippet>299</a>    /// If the given `result_type` is an array of length N, this will create an [`AcirValue::Array`] with
+<a href=#300 id=300 data-nosnippet>300</a>    /// the first N elements of the given iterator. Otherwise, the result is a single
+<a href=#301 id=301 data-nosnippet>301</a>    /// [`AcirValue::Var`] wrapping the first element of the iterator.
+<a href=#302 id=302 data-nosnippet>302</a>    </span><span class="kw">fn </span>convert_var_type_to_values(
+<a href=#303 id=303 data-nosnippet>303</a>        result_type: <span class="kw-2">&amp;</span>Type,
+<a href=#304 id=304 data-nosnippet>304</a>        vars: <span class="kw-2">&amp;mut </span><span class="kw">impl </span>Iterator&lt;Item = AcirVar&gt;,
+<a href=#305 id=305 data-nosnippet>305</a>    ) -&gt; AcirValue {
+<a href=#306 id=306 data-nosnippet>306</a>        <span class="kw">match </span>result_type {
+<a href=#307 id=307 data-nosnippet>307</a>            Type::Array(elements, size) =&gt; {
+<a href=#308 id=308 data-nosnippet>308</a>                <span class="kw">let </span><span class="kw-2">mut </span>element_values = im::Vector::new();
+<a href=#309 id=309 data-nosnippet>309</a>                <span class="kw">for _ in </span><span class="number">0</span>..size.<span class="number">0 </span>{
+<a href=#310 id=310 data-nosnippet>310</a>                    <span class="kw">for </span>element_type <span class="kw">in </span>elements.iter() {
+<a href=#311 id=311 data-nosnippet>311</a>                        <span class="kw">let </span>element = <span class="self">Self</span>::convert_var_type_to_values(element_type, vars);
+<a href=#312 id=312 data-nosnippet>312</a>                        element_values.push_back(element);
+<a href=#313 id=313 data-nosnippet>313</a>                    }
+<a href=#314 id=314 data-nosnippet>314</a>                }
+<a href=#315 id=315 data-nosnippet>315</a>                AcirValue::Array(element_values)
+<a href=#316 id=316 data-nosnippet>316</a>            }
+<a href=#317 id=317 data-nosnippet>317</a>            Type::Numeric(numeric_type) =&gt; {
+<a href=#318 id=318 data-nosnippet>318</a>                <span class="kw">let </span>var = vars
+<a href=#319 id=319 data-nosnippet>319</a>                    .next()
+<a href=#320 id=320 data-nosnippet>320</a>                    .expect(<span class="string">"ICE: ran out of ACIR vars while converting call outputs to values"</span>);
+<a href=#321 id=321 data-nosnippet>321</a>                AcirValue::Var(var, <span class="kw-2">*</span>numeric_type)
+<a href=#322 id=322 data-nosnippet>322</a>            }
+<a href=#323 id=323 data-nosnippet>323</a>            typ =&gt; {
+<a href=#324 id=324 data-nosnippet>324</a>                <span class="macro">panic!</span>(<span class="string">"Unexpected type {typ} in convert_var_type_to_values"</span>);
+<a href=#325 id=325 data-nosnippet>325</a>            }
+<a href=#326 id=326 data-nosnippet>326</a>        }
+<a href=#327 id=327 data-nosnippet>327</a>    }
+<a href=#328 id=328 data-nosnippet>328</a>}
+<a href=#329 id=329 data-nosnippet>329</a>
+<a href=#330 id=330 data-nosnippet>330</a><span class="attr">#[cfg(test)]
+<a href=#331 id=331 data-nosnippet>331</a></span><span class="kw">mod </span>tests {
+<a href=#332 id=332 data-nosnippet>332</a>    <span class="kw">use </span><span class="kw">super</span>::Context;
+<a href=#333 id=333 data-nosnippet>333</a>    <span class="kw">use </span><span class="kw">crate</span>::acir::AcirVar;
+<a href=#334 id=334 data-nosnippet>334</a>    <span class="kw">use </span><span class="kw">crate</span>::ssa::ir::types::{NumericType, Type};
+<a href=#335 id=335 data-nosnippet>335</a>
+<a href=#336 id=336 data-nosnippet>336</a>    <span class="attr">#[test]
+<a href=#337 id=337 data-nosnippet>337</a>    #[should_panic(expected = <span class="string">"ICE: ran out of ACIR vars"</span>)]
+<a href=#338 id=338 data-nosnippet>338</a>    </span><span class="kw">fn </span>convert_var_type_to_values_panics_on_exhausted_vars() {
+<a href=#339 id=339 data-nosnippet>339</a>        <span class="kw">let </span>typ = Type::Numeric(NumericType::NativeField);
+<a href=#340 id=340 data-nosnippet>340</a>        <span class="kw">let </span><span class="kw-2">mut </span>vars = Vec::&lt;AcirVar&gt;::new().into_iter();
+<a href=#341 id=341 data-nosnippet>341</a>        <span class="kw">let _ </span>= Context::convert_var_type_to_values(<span class="kw-2">&amp;</span>typ, <span class="kw-2">&amp;mut </span>vars);
+<a href=#342 id=342 data-nosnippet>342</a>    }
+<a href=#343 id=343 data-nosnippet>343</a>}</code></pre></div></section></main></body></html>
