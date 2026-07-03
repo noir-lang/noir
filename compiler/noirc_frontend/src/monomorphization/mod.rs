@@ -705,6 +705,18 @@ impl<'interner> Monomorphizer<'interner> {
                     });
                 }
             }
+
+            let num_elements = entry_point_field_count_saturating(&Self::convert_type(
+                return_target_type,
+                return_type_location,
+            )?);
+            if num_elements > max_elements {
+                return Err(MonomorphizationError::ReturnLimitExceeded {
+                    num_elements,
+                    max_elements,
+                    location: return_type_location,
+                });
+            }
         }
 
         // If `convert_type` fails here it is most likely because of generics at the

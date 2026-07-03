@@ -64,3 +64,37 @@ fn rejects_array_input_just_over_the_limit() {
     "#;
     check_monomorphization_error(src);
 }
+
+/// The same limit applies to the circuit's output (return value), independent of whether the
+/// program is ACIR or Brillig.
+#[test]
+fn rejects_large_array_return_from_main() {
+    let src = r#"
+    fn main() -> pub [Field; 4294967295] {
+                     ^^^^^^^^^^^^^^^^^^^ The return value has 4294967295 elements which exceeds the limit of 16777216
+        [0; 4294967295]
+    }
+    "#;
+    check_monomorphization_error(src);
+}
+
+#[test]
+fn rejects_large_array_return_from_unconstrained_main() {
+    let src = r#"
+    unconstrained fn main() -> pub [Field; 4294967295] {
+                                   ^^^^^^^^^^^^^^^^^^^ The return value has 4294967295 elements which exceeds the limit of 16777216
+        [0; 4294967295]
+    }
+    "#;
+    check_monomorphization_error(src);
+}
+
+#[test]
+fn accepts_array_return_at_the_limit() {
+    let src = r#"
+    unconstrained fn main() -> pub [Field; 16777216] {
+        [0; 16777216]
+    }
+    "#;
+    assert!(get_monomorphized(src).is_ok(), "a return of exactly the limit should be accepted");
+}

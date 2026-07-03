@@ -35,6 +35,7 @@ pub enum MonomorphizationError {
     VectorWithNestedArrayReturnedFromOracle { typ: String, location: Location },
     InvalidTypeForEntryPoint { invalid_type: InvalidType, location: Location },
     InputLimitExceeded { num_elements: u64, max_elements: u64, location: Location },
+    ReturnLimitExceeded { num_elements: u64, max_elements: u64, location: Location },
     ComplexType { complexity: usize, max_complexity: usize, location: Location },
     CannotUseFunctionAsValue { name: String, location: Location },
     GlobalContainsFunctionPointer { typ: String, location: Location },
@@ -76,6 +77,7 @@ impl MonomorphizationError {
             | MonomorphizationError::VectorWithNestedArrayReturnedFromOracle { location, .. }
             | MonomorphizationError::InvalidTypeForEntryPoint { location, .. }
             | MonomorphizationError::InputLimitExceeded { location, .. }
+            | MonomorphizationError::ReturnLimitExceeded { location, .. }
             | MonomorphizationError::ComplexType { location, .. }
             | MonomorphizationError::CannotUseFunctionAsValue { location, .. }
             | MonomorphizationError::GlobalContainsFunctionPointer { location, .. }
@@ -235,6 +237,11 @@ impl From<MonomorphizationError> for CustomDiagnostic {
             MonomorphizationError::InputLimitExceeded { num_elements, max_elements, .. } => {
                 format!(
                     "An input parameter has {num_elements} elements which exceeds the limit of {max_elements}"
+                )
+            }
+            MonomorphizationError::ReturnLimitExceeded { num_elements, max_elements, .. } => {
+                format!(
+                    "The return value has {num_elements} elements which exceeds the limit of {max_elements}"
                 )
             }
             MonomorphizationError::ComplexType { complexity, max_complexity, location } => {
