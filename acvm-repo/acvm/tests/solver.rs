@@ -15,7 +15,7 @@ use acir::{
 use acir::{InvalidInputBitSize, parse_opcodes};
 
 use acvm::pwg::{ACVM, ACVMStatus, ErrorLocation, ForeignCallWaitInfo, OpcodeResolutionError};
-use acvm_blackbox_solver::StubbedBlackBoxSolver;
+use acvm_blackbox_solver::{StubbedBlackBoxSolver, keccakf1600};
 use bn254_blackbox_solver::Bn254BlackBoxSolver;
 use brillig_vm::brillig::HeapValueType;
 
@@ -1119,6 +1119,107 @@ fn keccakf1600_zeros() {
     .collect();
 
     assert_eq!(results, Ok(expected_results));
+}
+
+/// Runs a single Keccakf1600 opcode over the given 25 input lanes (as witnesses) and
+/// returns the ACVM status plus the finalized witness map so tests can inspect outputs.
+#[cfg(test)]
+fn run_keccakf1600(
+    input_lanes: [FieldElement; 25],
+) -> (ACVMStatus<FieldElement>, WitnessMap<FieldElement>) {
+    let solver = Bn254BlackBoxSolver;
+
+    let inputs: Box<[FunctionInput<FieldElement>; 25]> =
+        Box::new(std::array::from_fn(|i| FunctionInput::Witness(Witness(i as u32))));
+    let outputs: Box<[Witness; 25]> = Box::new(std::array::from_fn(|i| Witness((25 + i) as u32)));
+
+    let mut witness = BTreeMap::new();
+    for (i, lane) in input_lanes.iter().enumerate() {
+        witness.insert(Witness(i as u32), *lane);
+    }
+    let initial_witness = WitnessMap::from(witness);
+
+    let opcodes = [Opcode::BlackBoxFuncCall(BlackBoxFuncCall::Keccakf1600 { inputs, outputs })];
+    let mut acvm = ACVM::new(&solver, &opcodes, initial_witness, &[], &[]);
+    let status = acvm.solve();
+    // `finalize` panics unless the ACVM solved; only harvest outputs in that case.
+    let witness_map =
+        if status == ACVMStatus::Solved { acvm.finalize() } else { WitnessMap::new() };
+    (status, witness_map)
+}
+
+#[test]
+fn keccakf1600_accepts_max_u64_lane_and_computes_real_output() {
+    // Boundary: u64::MAX is the largest valid lane. The permutation must run and produce
+    // exactly the reference `keccakf1600` output — proving the range gate does not corrupt
+    // or stub out valid computation.
+    let mut input_state = [0u64; 25];
+    input_state[0] = u64::MAX;
+    input_state[12] = 0xdead_beef_dead_beef;
+    input_state[24] = 1;
+    let input_lanes = input_state.map(|lane| FieldElement::from(u128::from(lane)));
+
+    let (status, witness_map) = run_keccakf1600(input_lanes);
+    assert_eq!(status, ACVMStatus::Solved);
+
+    let expected = keccakf1600(input_state).unwrap();
+    for (i, expected_lane) in expected.iter().enumerate() {
+        let got = witness_map.get(&Witness((25 + i) as u32)).expect("output lane set");
+        assert_eq!(*got, FieldElement::from(u128::from(*expected_lane)), "lane {i} mismatch");
+    }
+}
+
+#[test]
+fn keccakf1600_rejects_lane_equal_to_two_pow_64() {
+    // 2^64 is the smallest out-of-range lane (65 bits): must fail gracefully, not panic.
+    let mut input_lanes = [FieldElement::zero(); 25];
+    input_lanes[0] = FieldElement::from(1u128 << 64);
+    let (status, _) = run_keccakf1600(input_lanes);
+    assert!(matches!(status, ACVMStatus::Failure(_)), "expected graceful failure, got {status:?}");
+}
+
+#[test]
+fn keccakf1600_rejects_out_of_range_lane_in_last_position() {
+    // The check must cover every lane, not just the first: put the bad value at index 24.
+    let mut input_lanes = [FieldElement::zero(); 25];
+    input_lanes[24] = FieldElement::from(1u128 << 64);
+    let (status, _) = run_keccakf1600(input_lanes);
+    assert!(matches!(status, ACVMStatus::Failure(_)), "expected graceful failure, got {status:?}");
+}
+
+#[test]
+fn keccakf1600_rejects_near_modulus_lane() {
+    // A huge field value (much larger than 2^64) must also fail gracefully.
+    let huge = -FieldElement::one(); // p - 1, ~254 bits
+    let mut input_lanes = [FieldElement::zero(); 25];
+    input_lanes[5] = huge;
+    let (status, _) = run_keccakf1600(input_lanes);
+    assert!(matches!(status, ACVMStatus::Failure(_)), "expected graceful failure, got {status:?}");
+}
+
+#[test]
+fn keccakf1600_rejects_out_of_range_constant_lane() {
+    // The constant-input path (not just witnesses) must also be guarded.
+    let solver = Bn254BlackBoxSolver;
+
+    let mut function_inputs: Vec<FunctionInput<FieldElement>> =
+        (0..25).map(|i| FunctionInput::Witness(Witness(i as u32))).collect();
+    // Overwrite lane 3 with an out-of-range constant.
+    function_inputs[3] = FunctionInput::Constant(FieldElement::from(1u128 << 64));
+    let inputs: Box<[FunctionInput<FieldElement>; 25]> =
+        Box::new(function_inputs.try_into().unwrap());
+    let outputs: Box<[Witness; 25]> = Box::new(std::array::from_fn(|i| Witness((25 + i) as u32)));
+
+    let mut witness = BTreeMap::new();
+    for i in 0..25u32 {
+        witness.insert(Witness(i), FieldElement::zero());
+    }
+    let initial_witness = WitnessMap::from(witness);
+
+    let opcodes = [Opcode::BlackBoxFuncCall(BlackBoxFuncCall::Keccakf1600 { inputs, outputs })];
+    let mut acvm = ACVM::new(&solver, &opcodes, initial_witness, &[], &[]);
+    let status = acvm.solve();
+    assert!(matches!(status, ACVMStatus::Failure(_)), "expected graceful failure, got {status:?}");
 }
 
 // NOTE: an "average" bigint is large, so consider increasing the number of proptest shrinking
