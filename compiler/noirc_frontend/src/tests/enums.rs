@@ -1239,5 +1239,4 @@ fn errors_on_turbofish_on_both_type_and_variant_in_match_pattern() {
     "#;
     let features = vec![UnstableFeature::Enums];
     check_errors_using_features(src, &features);
->>>>>>> master
 }
