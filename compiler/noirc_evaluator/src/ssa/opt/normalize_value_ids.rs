@@ -109,7 +109,10 @@ impl Context {
         let reachable_blocks = old_function.reachable_blocks();
         self.new_ids.populate_blocks(reachable_blocks, old_function, new_function);
 
-        let reverse_post_order = PostOrder::with_function(old_function).into_vec_reverse();
+        // Root at the entry block, not the CFG's source blocks: an entry that is itself a
+        // back-edge target has a predecessor, so source-rooting finds no roots (#9431).
+        let reverse_post_order =
+            PostOrder::with_function_from_entry(old_function).into_vec_reverse();
 
         // Map each parameter, instruction, and terminator
         for old_block_id in reverse_post_order {
@@ -237,5 +240,47 @@ impl IdMaps {
                 unreachable!("Should have handled the global case already");
             },
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::{assert_ssa_snapshot, ssa::ssa_gen::Ssa};
+
+    /// Regression test for <https://github.com/noir-lang/noir/issues/9431>: normalizing a
+    /// function whose entry block is a back-edge target must preserve its structure rather
+    /// than collapse it to a terminator-less entry block.
+    #[test]
+    fn preserves_blocks_when_entry_is_a_jump_target() {
+        // An entry block used as a jump target is not valid SSA, so skip validation on parse.
+        let src = "
+        brillig(inline) predicate_pure fn main f0 {
+          b0(v0: u32):
+            v1 = eq v0, u32 5
+            jmpif v1 then: b1(), else: b3()
+          b1():
+            jmp b2()
+          b2():
+            v2 = add v0, u32 1
+            jmp b0(v2)
+          b3():
+            return
+        }
+        ";
+        let ssa = Ssa::from_str_no_validation(src).unwrap();
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) predicate_pure fn main f0 {
+          b0(v0: u32):
+            v2 = eq v0, u32 5
+            jmpif v2 then: b1(), else: b3()
+          b1():
+            jmp b2()
+          b2():
+            v4 = add v0, u32 1
+            jmp b0(v4)
+          b3():
+            return
+        }
+        ");
     }
 }
