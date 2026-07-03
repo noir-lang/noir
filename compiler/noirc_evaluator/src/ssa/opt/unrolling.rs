@@ -1201,12 +1201,6 @@ impl Loop {
         let mut unroll_into = self.get_pre_header(function, cfg)?;
         let mut header_args = get_header_arguments(&function.dfg, unroll_into)?;
 
-        // Collect the original header parameters before unrolling.
-        // The header may have extra parameters beyond the induction variable (promoted mutable variables).
-        // Blocks outside the loop can reference these params directly, so after unrolling we need to
-        // replace those references with the final iteration's values.
-        let header_params: Vec<ValueId> = function.dfg[self.header].parameters().to_vec();
-
         let induction_index = self.induction_variable_index(&function.dfg);
 
         // If we have the induction variable, it must be initialized with a constant value,
@@ -1224,47 +1218,21 @@ impl Loop {
         // does not miss its bounds.
         let termination_unproven = self.induction_step_may_miss_bound(function, unroll_into);
 
-        // Instructions in the header block (e.g. the loop guard's `cast`) may compute values that
-        // blocks outside the loop reference directly. Unlike header parameters, these results are
-        // not carried through `header_args`, so we must map them to their final-iteration values as
-        // well; otherwise the exit blocks would reference header instruction results that no longer
-        // exist once the header is unrolled away, leaving a dangling value.
-        let header_instruction_results: Vec<ValueId> = function.dfg[self.header]
-            .instructions()
-            .iter()
-            .flat_map(|instruction| function.dfg.instruction_results(*instruction))
-            .copied()
-            .collect();
-
         let mut iterations = 0;
-        // The final-iteration resolved values of the header instruction results, captured on the
-        // exit iteration of `unroll_header` (where the header is inlined for the last time).
-        let mut header_instruction_values = ValueMapping::default();
-        while let Some((context, loop_header_id)) = self.unroll_header(
-            function,
-            unroll_into,
-            &header_args,
-            dom,
-            &header_instruction_results,
-            &mut header_instruction_values,
-        )? {
-            (unroll_into, header_args) = context.unroll_loop_iteration(loop_header_id);
+        // Keep the context across the steps, and forward the mapping of the last unrolling step.
+        let mapping = loop {
+            match self.unroll_header(function, unroll_into, &header_args, dom)? {
+                UnrollStep::Iterate(context, loop_header_id) => {
+                    (unroll_into, header_args) = context.unroll_loop_iteration(loop_header_id);
 
-            iterations += 1;
-            if termination_unproven && iterations >= unroll_limit {
-                return Err(CallStack::empty());
+                    iterations += 1;
+                    if termination_unproven && iterations >= unroll_limit {
+                        return Err(CallStack::empty());
+                    }
+                }
+                UnrollStep::Done(context) => break context.inserter.into_value_mapping(),
             }
-        }
-
-        // Build a mapping from header params to their final values.
-        // The caller is responsible for applying this mapping to blocks outside the loop.
-        let mut mapping = ValueMapping::default();
-        if !header_params.is_empty() {
-            mapping.batch_insert(&header_params, &header_args);
-        }
-        // Header instruction results resolved on the final iteration are folded into the same
-        // mapping so the caller rewrites their uses in blocks outside the loop too.
-        mapping.extend(header_instruction_values);
+        };
 
         Ok(mapping)
     }
@@ -1295,16 +1263,15 @@ impl Loop {
 
     /// Unrolls the header block of the loop. This is the block that dominates all other blocks in the
     /// loop and contains the jmpif instruction that lets us know if we should continue looping.
-    /// Returns Some((iteration context, `loop_header_id`)) if we should perform another iteration.
+    /// Returns [`UnrollStep::Iterate`] with the iteration context if we should perform another
+    /// iteration, or [`UnrollStep::Done`] with the exit iteration context otherwise.
     fn unroll_header<'a>(
         &'a self,
         function: &'a mut Function,
         unroll_into: BasicBlockId,
         header_args: &[ValueId],
         dom: &'a DominatorTree,
-        header_instruction_results: &[ValueId],
-        header_instruction_values: &mut ValueMapping,
-    ) -> Result<Option<(LoopIteration<'a>, BasicBlockId)>, CallStack> {
+    ) -> Result<UnrollStep<'a>, CallStack> {
         // We insert into a fresh block first and move instructions into the unroll_into block later
         // only once we verify the jmpif instruction has a constant condition. If it does not, we can
         // just discard this fresh block and leave the loop unmodified.
@@ -1368,20 +1335,11 @@ impl Loop {
                     // in `source_block` and can unroll that into the destination.
                     let is_in_loop = self.blocks.contains(&context.source_block);
 
-                    // This was the exit iteration: the header block was inlined into `unroll_into`
-                    // for the last time, so the inserter now holds the final-iteration value for
-                    // each header instruction result. Record those so their uses outside the loop
-                    // can be rewritten instead of dangling.
-                    if !is_in_loop {
-                        for &result in header_instruction_results {
-                            header_instruction_values
-                                .insert(result, context.inserter.resolve(result));
-                        }
-                    }
-
-                    Ok(is_in_loop
-                        .then_some(context)
-                        .map(|iteration_context| (iteration_context, loop_header_id)))
+                    Ok(if is_in_loop {
+                        UnrollStep::Iterate(context, loop_header_id)
+                    } else {
+                        UnrollStep::Done(context)
+                    })
                 } else {
                     // If this case is reached the loop either uses non-constant indices or we need
                     // another pass, such as mem2reg to resolve them to constants.
@@ -2082,6 +2040,16 @@ fn get_header_arguments(
         Some(terminator) => Err(dfg.get_call_stack(terminator.call_stack())),
         None => Err(CallStack::empty()),
     }
+}
+
+/// The outcome of unrolling one loop header, returned by [`Loop::unroll_header`].
+enum UnrollStep<'a> {
+    /// The header guard was constant-true: another iteration must be unrolled. Carries the
+    /// iteration context (to unroll the body from) and the original loop header id.
+    Iterate(LoopIteration<'a>, BasicBlockId),
+    /// The header guard was constant-false: this was the exit iteration and unrolling is complete.
+    /// Carries the exit context, whose inserter holds the final-iteration value of each header value.
+    Done(LoopIteration<'a>),
 }
 
 /// The context object for each loop iteration.
@@ -4685,7 +4653,7 @@ mod tests {
           b0(v0: u32):
             jmp b1(u32 50)
           b1(v1: u32):
-            return v1
+            return u32 50
         }
         ");
     }
