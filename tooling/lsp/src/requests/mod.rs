@@ -411,15 +411,12 @@ pub(crate) fn semantic_token_types_map() -> HashMap<SemanticTokenType, usize> {
     semantic_token_types().iter().enumerate().map(|(i, typ)| (typ.clone(), i)).collect()
 }
 
+/// Unlike the other handlers, formatting takes the open documents' current texts instead of
+/// `LspState`: it needs no compiler state, so the main loop answers it directly from its own
+/// text mirror rather than queueing it behind type-checking (with format-on-save enabled,
+/// the editor's save waits on this request).
 pub(crate) fn on_formatting(
-    state: &mut LspState,
-    params: lsp_types::DocumentFormattingParams,
-) -> Result<Option<Vec<lsp_types::TextEdit>>, ResponseError> {
-    on_formatting_inner(state, params)
-}
-
-fn on_formatting_inner(
-    state: &LspState,
+    input_files: &HashMap<String, String>,
     params: lsp_types::DocumentFormattingParams,
 ) -> Result<Option<Vec<lsp_types::TextEdit>>, ResponseError> {
     // The file_path might be Err/None if the action runs against an unsaved file
@@ -428,7 +425,7 @@ fn on_formatting_inner(
 
     let path = params.text_document.uri.to_string();
 
-    if let Some(source) = state.input_files.get(&path) {
+    if let Some(source) = input_files.get(&path) {
         let (module, errors) = noirc_frontend::parse_program_with_dummy_file(source);
         let is_all_warnings = errors.iter().all(ParserError::is_warning);
         if !is_all_warnings {

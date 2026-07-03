@@ -13,10 +13,14 @@ use std::{
 };
 
 use acvm::{BlackBoxFunctionSolver, FieldElement};
+use async_lsp::lsp_types;
 use async_lsp::lsp_types::request::{
     CodeActionRequest, Completion, DocumentSymbolRequest, FoldingRangeRequest, HoverRequest,
     InlayHintRequest, PrepareRenameRequest, References, Rename, SemanticTokensFullRequest,
     SignatureHelpRequest, WorkspaceSymbolRequest,
+};
+use async_lsp::lsp_types::{
+    DidChangeTextDocumentParams, DidCloseTextDocumentParams, DidOpenTextDocumentParams,
 };
 use async_lsp::{
     AnyEvent, AnyNotification, AnyRequest, ClientSocket, Error, LspService, ResponseError,
@@ -66,6 +70,7 @@ mod actor;
 mod doc_comments;
 mod notifications;
 mod requests;
+mod server_state_tests;
 mod solver;
 mod tests;
 mod trait_impl_method_stub_generator;
@@ -158,11 +163,48 @@ pub struct NargoLspService {
     router: Router<ServerState>,
 }
 
-/// State for the LSP main loop. All requests and notifications are forwarded as messages to
+/// State for the LSP main loop. Requests and notifications are forwarded as messages to
 /// the compiler actor, which owns the [`LspState`], so handling a message here is always fast
 /// no matter how much compiler work it triggers.
+///
+/// The main loop additionally mirrors the current text of every open document: it is the
+/// entry point for all document changes, so its mirror is always up to date, even while the
+/// actor is still busy type-checking older text. Requests that need only source text (like
+/// formatting, which sits on the save path when format-on-save is enabled) are answered here
+/// directly from the mirror instead of queueing behind compiler work.
 struct ServerState {
     actor: CompilerActor,
+    /// Latest text of every open document, keyed by its URI.
+    input_files: HashMap<String, String>,
+}
+
+impl ServerState {
+    fn open_document(&mut self, params: DidOpenTextDocumentParams) {
+        self.input_files
+            .insert(params.text_document.uri.to_string(), params.text_document.text.clone());
+        notify_actor(&self.actor, on_did_open_text_document, params);
+    }
+
+    fn change_document(&mut self, params: DidChangeTextDocumentParams) {
+        if let Some(change) = params.content_changes.first() {
+            self.input_files.insert(params.text_document.uri.to_string(), change.text.clone());
+        }
+        // Document changes get a dedicated message so the actor can coalesce consecutive
+        // changes to the same document into the latest one.
+        self.actor.send(ActorMessage::FileChanged(params));
+    }
+
+    fn close_document(&mut self, params: DidCloseTextDocumentParams) {
+        self.input_files.remove(&params.text_document.uri.to_string());
+        notify_actor(&self.actor, on_did_close_text_document, params);
+    }
+
+    fn format_document(
+        &self,
+        params: lsp_types::DocumentFormattingParams,
+    ) -> impl Future<Output = Result<Option<Vec<lsp_types::TextEdit>>, ResponseError>> + use<> {
+        std::future::ready(on_formatting(&self.input_files, params))
+    }
 }
 
 /// Adapts a request handler over `&mut LspState` into a main-loop handler that forwards the
@@ -189,13 +231,25 @@ where
     P: Send + 'static,
 {
     move |state, params| {
-        state.actor.notify(move |lsp_state| {
-            if let ControlFlow::Break(Err(error)) = handler(lsp_state, params) {
-                eprintln!("error processing notification: {error}");
-            }
-        });
+        notify_actor(&state.actor, handler, params);
         ControlFlow::Continue(())
     }
+}
+
+/// Enqueues a notification handler on the actor, reporting (instead of propagating) a
+/// `ControlFlow::Break` error since the main loop has already moved on.
+fn notify_actor<P>(
+    actor: &CompilerActor,
+    handler: fn(&mut LspState, P) -> ControlFlow<Result<(), Error>>,
+    params: P,
+) where
+    P: Send + 'static,
+{
+    actor.notify(move |lsp_state| {
+        if let ControlFlow::Break(Err(error)) = handler(lsp_state, params) {
+            eprintln!("error processing notification: {error}");
+        }
+    });
 }
 
 impl NargoLspService {
@@ -204,10 +258,12 @@ impl NargoLspService {
         solver: impl BlackBoxFunctionSolver<FieldElement> + Send + 'static,
     ) -> Self {
         let actor = CompilerActor::spawn(client.clone(), solver);
-        let mut router = Router::new(ServerState { actor });
+        let mut router = Router::new(ServerState { actor, input_files: HashMap::new() });
         router
             .request::<request::Initialize, _>(forward_request(on_initialize))
-            .request::<request::Formatting, _>(forward_request(on_formatting))
+            .request::<request::Formatting, _>(|state: &mut ServerState, params| {
+                state.format_document(params)
+            })
             .request::<request::Shutdown, _>(forward_request(on_shutdown))
             .request::<request::CodeLens, _>(forward_request(on_code_lens_request))
             .request::<request::NargoTests, _>(forward_request(on_tests_request))
@@ -237,20 +293,22 @@ impl NargoLspService {
             .notification::<notification::DidChangeConfiguration>(forward_notification(
                 on_did_change_configuration,
             ))
-            .notification::<notification::DidOpenTextDocument>(forward_notification(
-                on_did_open_text_document,
-            ))
+            .notification::<notification::DidOpenTextDocument>(|state: &mut ServerState, params| {
+                state.open_document(params);
+                ControlFlow::Continue(())
+            })
             .notification::<notification::DidChangeTextDocument>(
                 |state: &mut ServerState, params| {
-                    // Document changes get a dedicated message so the actor can coalesce
-                    // consecutive changes to the same document into the latest one.
-                    state.actor.send(ActorMessage::FileChanged(params));
+                    state.change_document(params);
                     ControlFlow::Continue(())
                 },
             )
-            .notification::<notification::DidCloseTextDocument>(forward_notification(
-                on_did_close_text_document,
-            ))
+            .notification::<notification::DidCloseTextDocument>(
+                |state: &mut ServerState, params| {
+                    state.close_document(params);
+                    ControlFlow::Continue(())
+                },
+            )
             .notification::<notification::DidSaveTextDocument>(forward_notification(
                 on_did_save_text_document,
             ))
