@@ -1021,6 +1021,25 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
         Ok(())
     }
 
+    /// In the ACIR runtime a nested array must be a fresh copy rather than a shared handle:
+    /// `array_get` returns a fresh nested array and `array_set` stores a fresh copy of an
+    /// array-valued element. Otherwise a later mutable array set on the source array would
+    /// also mutate the value produced here, since both would share the same `Shared` handle.
+    /// In the Brillig runtime this aliasing is expected, so the value is cloned as-is.
+    fn copy_nested_array_in_acir(&self, value: &Value) -> Value {
+        if !self.in_unconstrained_context()
+            && let Some(array) = value.as_array_or_vector()
+        {
+            return Value::ArrayOrVector(ArrayValue {
+                elements: Shared::new(array.elements.borrow().to_vec()),
+                rc: array.rc,
+                element_types: array.element_types,
+                length: array.length,
+            });
+        }
+        value.clone()
+    }
+
     fn interpret_array_get(
         &mut self,
         array: ValueId,
@@ -1090,24 +1109,7 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
                 .get(index as usize)
                 .ok_or(InterpreterError::IndexOutOfBounds { index: index.into(), length })?;
 
-            // Either return a fresh nested array (in constrained context) or just clone the element.
-            if !self.in_unconstrained_context() {
-                if let Some(array) = element.as_array_or_vector() {
-                    // In the ACIR runtime we expect fresh arrays when accessing a nested array.
-                    // If we do not clone the elements here a mutable array set afterwards could mutate
-                    // not just this returned array but the array we are fetching from in this array get.
-                    Value::ArrayOrVector(ArrayValue {
-                        elements: Shared::new(array.elements.borrow().to_vec()),
-                        rc: array.rc,
-                        element_types: array.element_types,
-                        length: array.length,
-                    })
-                } else {
-                    element.clone()
-                }
-            } else {
-                element.clone()
-            }
+            self.copy_nested_array_in_acir(element)
         };
         self.define(result, element)?;
         Ok(())
@@ -1130,7 +1132,7 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
             let length = array.elements.borrow().len() as u32;
             let index = self.lookup_array_index(index, "array set index", length)?;
             let index = index - offset.to_u32();
-            let value = self.lookup(value)?;
+            let value = self.copy_nested_array_in_acir(&self.lookup(value)?);
 
             let is_rc_one = *array.rc.borrow() == 1;
             let should_mutate = if self.in_unconstrained_context() { is_rc_one } else { mutable };
