@@ -9,12 +9,11 @@
 //! ## Purity
 //!
 //! The function must be pure, but Brillig functions are not pure (they are `WithPredicate`)
-//! due to side-effect when called from ACIR under a false predicate.
+//! due to side-effect if called from ACIR under a false predicate.
 //! However, this pass is only useful for Brillig functions because ACIR functions are
-//! always inlined. So we improve the precision of the purity analysis by doing a dedicated
-//! context-sensitive purity analysis.
-//! This pass performs a custom purity analysis which discards the `WithPredicate` due to ACIR
-//! callers, and re-compute it based on the calling context. In any of these cases,
+//! always inlined.
+//! This pass performs the purity analysis and computes the `WithPredicate` due to ACIR
+//! callers, based on the calling context. In any of these cases,
 //! we can trust the purity from the custom purity analysis:
 //!
 //! - the caller is Brillig — Brillig calls are never predicate-masked;
@@ -24,7 +23,7 @@
 //! This pass should be run after flattening but it is still sound otherwise.
 
 use itertools::Itertools;
-use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
+use rustc_hash::FxHashMap as HashMap;
 
 use crate::ssa::{
     ir::{function::FunctionId, instruction::Instruction, value::Value},
@@ -43,22 +42,12 @@ struct PassThrough {
 impl Ssa {
     /// See the [`passthrough_calls`][self] module for more information.
     pub(crate) fn simplify_passthrough_calls(mut self) -> Ssa {
-        // Run the purity analysis, and keep only the `Pure` functions
-        let pure_functions: HashSet<FunctionId> = compute_function_purities(&self)
+        // Run the purity analysis and keep only the `Pure` pass-through functions.
+        let pass_through: HashMap<FunctionId, PassThrough> = compute_function_purities(&self)
             .intrinsic_purities()
             .filter(|(_, purity)| **purity == Purity::Pure)
-            .map(|(id, _)| *id)
-            .collect();
-
-        let pass_through: HashMap<FunctionId, PassThrough> = self
-            .functions
-            .iter()
-            .filter_map(|(id, function)| {
-                // The body (and everything it transitively calls) must be free of observable
-                // side effects, otherwise dropping the call would drop those effects.
-                if !pure_functions.contains(id) {
-                    return None;
-                }
+            .filter_map(|(id, _)| {
+                let function = &self.functions[id];
                 let forwarding = function.pass_through_indices()?;
                 let callee_is_acir = function.runtime().is_acir();
                 Some((*id, PassThrough { forwarding, callee_is_acir }))
