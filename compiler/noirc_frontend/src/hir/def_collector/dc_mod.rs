@@ -1413,6 +1413,14 @@ pub fn collect_enum(
 
     let parent_module_id = ModuleId { krate, local_id: module_id };
 
+    // `#[abi(transparent)]` only applies to a single-field struct, not to an enum.
+    for attr in &unresolved.enum_def.attributes {
+        if attr.kind.is_abi_transparent() {
+            definition_errors
+                .push(ResolverError::AbiTransparentOnlyOnStruct { location: attr.location });
+        }
+    }
+
     let has_allow_dead_code =
         unresolved.enum_def.attributes.iter().any(|attr| attr.kind.is_allow("dead_code"));
 
@@ -1695,6 +1703,14 @@ pub(crate) fn collect_global(
             DefCollectorErrorKind::Duplicate { typ: DuplicateType::Global, first_def, second_def };
         err.into()
     });
+
+    // `#[abi(transparent)]` only applies to a single-field struct, not to a global.
+    let error = global
+        .attributes
+        .iter()
+        .find(|attr| attr.kind.is_abi_transparent())
+        .map(|attr| ResolverError::AbiTransparentOnlyOnStruct { location: attr.location }.into())
+        .or(error);
 
     interner.set_doc_comments(ReferenceId::Global(global_id), doc_comments);
 

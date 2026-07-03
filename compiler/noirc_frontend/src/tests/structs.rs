@@ -427,6 +427,39 @@ fn deny_abi_transparent_on_empty_struct() {
 }
 
 #[test]
+fn deny_abi_transparent_on_enum() {
+    let src = r#"
+        #[abi(transparent)]
+        ^^^^^^^^^^^^^^^^^^^ `#[abi(transparent)]` can only be applied to a struct
+        ~~~~~~~~~~~~~~~~~~~ not a struct
+        pub enum Wrapper {
+            A,
+            B,
+        }
+
+        pub fn foo(_: Wrapper) {}
+
+        fn main() {}
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn deny_abi_transparent_on_global() {
+    let src = r#"
+        #[abi(transparent)]
+        ^^^^^^^^^^^^^^^^^^^ `#[abi(transparent)]` can only be applied to a struct
+        ~~~~~~~~~~~~~~~~~~~ not a struct
+        pub global X: Field = 1;
+
+        fn main() {
+            let _ = X;
+        }
+    "#;
+    check_errors(src);
+}
+
+#[test]
 fn overlapping_inherent_impls() {
     let src = r#"
         struct Foo<T> { _x: T }
