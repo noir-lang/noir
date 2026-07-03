@@ -134,7 +134,7 @@ struct PackageCacheData {
 }
 
 impl LspState {
-    fn new(
+    pub(crate) fn new(
         client: &ClientSocket,
         solver: impl BlackBoxFunctionSolver<FieldElement> + 'static,
     ) -> Self {
@@ -203,8 +203,12 @@ impl NargoLspService {
         client: &ClientSocket,
         solver: impl BlackBoxFunctionSolver<FieldElement> + Send + 'static,
     ) -> Self {
-        let state = LspState::new(client, solver);
-        let mut router = Router::new(ServerState { actor: CompilerActor::inline(state) });
+        #[cfg(not(target_arch = "wasm32"))]
+        let actor = CompilerActor::spawn(client.clone(), solver);
+        #[cfg(target_arch = "wasm32")]
+        let actor = CompilerActor::inline(LspState::new(client, solver));
+
+        let mut router = Router::new(ServerState { actor });
         router
             .request::<request::Initialize, _>(forward_request(on_initialize))
             .request::<request::Formatting, _>(forward_request(on_formatting))
