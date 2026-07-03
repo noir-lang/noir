@@ -21,6 +21,7 @@
 //! - the caller is ACIR, the callee is Brillig, and the call site's predicate is the constant `1`.
 //!
 //! This pass should be run after flattening but it is still sound otherwise.
+//! The pass does not look at the `InlineNever` attribute, so it can remove calls to `InlineNever` functions.
 
 use itertools::Itertools;
 use rustc_hash::FxHashMap as HashMap;
