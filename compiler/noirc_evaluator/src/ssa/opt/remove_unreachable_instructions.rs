@@ -202,10 +202,6 @@ impl Function {
         // In some cases a side effect variable can become effective again.
         let mut unreachable_predicates = HashSet::new();
 
-        // Predicates a `constrain x == 0` has pinned to zero. An array operation guarded by such a
-        // predicate is disabled and is resolved to default values rather than left as a memory op.
-        let mut predicates_pinned_to_zero = HashSet::new();
-
         self.simple_optimization(|context| {
             let block_id = context.block_id;
 
@@ -213,7 +209,6 @@ impl Function {
                 current_block_id = Some(block_id);
                 current_block_reachability = Reachability::Reachable;
                 unreachable_predicates.clear();
-                predicates_pinned_to_zero.clear();
             }
 
             if current_block_reachability == Reachability::Unreachable {
@@ -268,39 +263,21 @@ impl Function {
 
             match instruction {
                 Instruction::Constrain(lhs, rhs, _) => {
-                    let lhs_constant = context.dfg.get_numeric_constant(*lhs);
-                    let rhs_constant = context.dfg.get_numeric_constant(*rhs);
-
-                    // A `constrain x == 0` (or `constrain 0 == x`) against a non-constant `x` pins the
-                    // side-effects predicate `x` to zero. Any array operation later guarded by `x` is
-                    // then disabled: ACIR gen would gate its index down to `0`, which on a
-                    // never-written block leaves a constant, in-bounds read whose value is already
-                    // fixed by the block's `MemoryInit` and so must not become a memory opcode (see
-                    // the post-generation check in `acir::acir_post_check`). We record the pinned
-                    // predicate so the `ArrayGet`/`ArraySet` handling below can resolve those accesses
-                    // to default values instead of leaving a memory operation for ACIR gen.
-                    //
-                    // Only array operations are resolved this way — not arbitrary predicated
-                    // instructions — because a disabled memory access already returns a don't-care
-                    // value (its result is masked by the merge that selects the taken branch),
-                    // whereas e.g. an `add` whose result escapes unmasked must keep its real value.
-                    if lhs_constant.is_some_and(|c| c.is_zero()) && rhs_constant.is_none() {
-                        predicates_pinned_to_zero.insert(*rhs);
-                    } else if rhs_constant.is_some_and(|c| c.is_zero()) && lhs_constant.is_none() {
-                        predicates_pinned_to_zero.insert(*lhs);
-                    }
-
+                    let Some(lhs_constant) = context.dfg.get_numeric_constant(*lhs) else {
+                        return;
+                    };
+                    let Some(rhs_constant) = context.dfg.get_numeric_constant(*rhs) else {
+                        return;
+                    };
                     // An equality `constrain` ignores the side-effects predicate: ACIR gen lowers
                     // it to an unconditional `assert_eq_var` (no predicate applied) and Brillig
                     // aborts on a failed assert. A predicated assert never reaches here as a
                     // comparison of two constants, because `flatten_cfg` folds the active predicate
                     // into the operands (`constrain lhs == rhs` becomes
                     // `constrain cond * lhs == cond * rhs`), leaving a non-constant operand
-                    // (e.g. `constrain 0 == v0`, handled above). So two unequal constant operands
-                    // always fail, making the rest of the block unreachable.
-                    if let (Some(lhs_constant), Some(rhs_constant)) = (lhs_constant, rhs_constant)
-                        && lhs_constant != rhs_constant
-                    {
+                    // (e.g. `constrain 0 == v0`) which the early returns above skip. So two unequal
+                    // constant operands always fail, making the rest of the block unreachable.
+                    if lhs_constant != rhs_constant {
                         current_block_reachability = Reachability::Unreachable;
                     }
                 }
@@ -351,27 +328,6 @@ impl Function {
                 | Instruction::ArraySet { array, index, .. }
                     if context.dfg.runtime().is_acir() =>
                 {
-                    // If the side-effects predicate has been pinned to zero by a preceding
-                    // `constrain`, this access is disabled. On the memory-op path ACIR gen gates its
-                    // index down to `0`, so the value it produces is a don't-care the program cannot
-                    // depend on. Resolve it here so no memory operation is emitted: a disabled read
-                    // becomes a zeroed value, and a disabled write forwards the source array
-                    // unchanged (the write is a no-op under a false predicate).
-                    if predicates_pinned_to_zero.contains(&context.enable_side_effects) {
-                        let is_array_set = matches!(instruction, Instruction::ArraySet { .. });
-                        let source_array = *array;
-                        let [result] = context.dfg.instruction_result(context.instruction_id);
-                        context.remove_current_instruction();
-                        let replacement = if is_array_set {
-                            source_array
-                        } else {
-                            let typ = context.dfg.type_of_value(result).into_owned();
-                            zeroed_value(context.dfg, func_id, block_id, &typ)
-                        };
-                        context.replace_value(result, replacement);
-                        return;
-                    }
-
                     let array_type = context.dfg.type_of_value(*array);
                     // We can only know a guaranteed out-of-bounds access for arrays,
                     // and vectors which have been declared as a literal.
@@ -1628,117 +1584,6 @@ mod tests {
             v6 = make_array [Field 0, Field 0, Field 0, Field 0] : [Field]
             enable_side_effects u1 1
             return
-        }
-        ");
-    }
-
-    #[test]
-    fn resolves_disabled_array_read_pinned_by_constrain() {
-        // `constrain v3 == 0` pins the side-effects predicate `v3` to zero, so the following
-        // `array_get` (under that predicate) is disabled. Even though its index is dynamic — so it
-        // is not a guaranteed out-of-bounds access — it must be resolved to a default value so that
-        // ACIR gen does not lay down a (predicate-gated, index-zero) memory read on a never-written
-        // block. The read's result is masked downstream by the zero predicate, so zeroing it is safe.
-        let src = "
-        acir(inline) fn main f0 {
-          b0(v0: u32):
-            v2 = make_array [u32 1, u32 2, u32 3, u32 4] : [u32; 4]
-            v4 = eq v0, u32 5
-            enable_side_effects v4
-            constrain v4 == u1 0
-            v6 = array_get v2, index v0 -> u32
-            enable_side_effects u1 1
-            v7 = cast v4 as u32
-            v8 = unchecked_mul v7, v6
-            return v8
-        }
-        ";
-        let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.remove_unreachable_instructions();
-
-        assert_ssa_snapshot!(ssa, @r"
-        acir(inline) fn main f0 {
-          b0(v0: u32):
-            v5 = make_array [u32 1, u32 2, u32 3, u32 4] : [u32; 4]
-            v7 = eq v0, u32 5
-            enable_side_effects v7
-            constrain v7 == u1 0
-            enable_side_effects u1 1
-            v10 = cast v7 as u32
-            return u32 0
-        }
-        ");
-    }
-
-    #[test]
-    fn forwards_source_array_for_disabled_array_write_pinned_by_constrain() {
-        // `constrain v4 == 0` pins the predicate `v4` to zero, so the `array_set` under it is a
-        // disabled no-op: its result must forward the source array unchanged (not a zeroed array),
-        // so the subsequent read sees the original contents.
-        let src = "
-        acir(inline) fn main f0 {
-          b0(v0: u32, v1: u32):
-            v3 = make_array [u32 1, u32 2, u32 3, u32 4] : [u32; 4]
-            v5 = eq v0, u32 5
-            enable_side_effects v5
-            constrain v5 == u1 0
-            v7 = array_set v3, index v0, value v1
-            enable_side_effects u1 1
-            v9 = array_get v7, index u32 3 -> u32
-            return v9
-        }
-        ";
-        let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.remove_unreachable_instructions();
-
-        assert_ssa_snapshot!(ssa, @r"
-        acir(inline) fn main f0 {
-          b0(v0: u32, v1: u32):
-            v6 = make_array [u32 1, u32 2, u32 3, u32 4] : [u32; 4]
-            v8 = eq v0, u32 5
-            enable_side_effects v8
-            constrain v8 == u1 0
-            enable_side_effects u1 1
-            return u32 4
-        }
-        ");
-    }
-
-    #[test]
-    fn does_not_resolve_non_array_instruction_pinned_by_constrain() {
-        // A predicate pinned to zero only disables *array* operations. A pure `add` whose result
-        // escapes unmasked keeps its real value — zeroing it would be a miscompile — so only the
-        // `array_get` is resolved here while the `add` is left untouched.
-        let src = "
-        acir(inline) fn main f0 {
-          b0(v0: u32):
-            v2 = make_array [u32 1, u32 2, u32 3, u32 4] : [u32; 4]
-            v4 = eq v0, u32 5
-            enable_side_effects v4
-            constrain v4 == u1 0
-            v6 = array_get v2, index v0 -> u32
-            v8 = add u32 1, u32 2
-            enable_side_effects u1 1
-            v9 = cast v4 as u32
-            v10 = unchecked_mul v9, v6
-            v11 = unchecked_add v10, v8
-            return v11
-        }
-        ";
-        let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.remove_unreachable_instructions();
-
-        assert_ssa_snapshot!(ssa, @r"
-        acir(inline) fn main f0 {
-          b0(v0: u32):
-            v5 = make_array [u32 1, u32 2, u32 3, u32 4] : [u32; 4]
-            v7 = eq v0, u32 5
-            enable_side_effects v7
-            constrain v7 == u1 0
-            v9 = add u32 1, u32 2
-            enable_side_effects u1 1
-            v11 = cast v7 as u32
-            return v9
         }
         ");
     }
