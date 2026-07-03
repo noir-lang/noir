@@ -35,9 +35,14 @@ Details that matter:
   (e.g. an ICE during type-checking) drops its reply channel — the request resolves with an
   error instead of hanging — and the actor keeps serving. Caches a panic left incomplete are
   rebuilt from sources the next time they are found missing.
-- **wasm.** On `wasm32` there are no threads; the actor falls back to processing messages
-  inline on the caller's thread (the pre-actor behavior). Unit tests construct `LspState`
-  directly and call handlers synchronously, bypassing the actor.
+- **No wasm support.** The actor unconditionally spawns a thread, so the crate does not
+  build for `wasm32`. That target was already unbuildable (a `getrandom` dependency error)
+  and has no consumer: the vestigial `wasm-bindgen` target-dependency (moved here from `fm`
+  in 2023, PR #2916, when browser builds were a thing) was removed together with an inline,
+  threadless actor mode that existed only to serve it. If a browser LSP ever becomes real,
+  an inline mode (process each message on the caller's thread at `send` time) is the seam
+  to reintroduce. Unit tests construct `LspState` directly and call handlers synchronously,
+  bypassing the actor.
 - **Blocking notification handlers no longer kill the server.** Before the actor, a
   notification handler returning `ControlFlow::Break(Err)` terminated the main loop. Errors
   from forwarded notifications are reported to stderr instead.

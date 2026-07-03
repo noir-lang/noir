@@ -36,29 +36,11 @@ pub(crate) enum ActorMessage {
 }
 
 pub(crate) struct CompilerActor {
-    implementation: Implementation,
-}
-
-enum Implementation {
-    /// Messages run immediately on the caller's thread.
-    #[cfg_attr(not(target_arch = "wasm32"), allow(dead_code))]
-    Inline(Box<LspState>),
-    /// Messages are processed in order by a dedicated thread that owns the compiler state.
-    Threaded(mpsc::Sender<ActorMessage>),
+    sender: mpsc::Sender<ActorMessage>,
 }
 
 impl CompilerActor {
-    /// Creates an actor that processes messages immediately on the caller's thread.
-    ///
-    /// This is the fallback for targets without threads (wasm); it keeps the LSP correct
-    /// there at the cost of blocking the main loop during compiler work.
-    #[cfg_attr(not(target_arch = "wasm32"), allow(dead_code))]
-    pub(crate) fn inline(state: LspState) -> Self {
-        Self { implementation: Implementation::Inline(Box::new(state)) }
-    }
-
     /// Spawns a dedicated thread owning the compiler state and processing messages in order.
-    #[cfg(not(target_arch = "wasm32"))]
     pub(crate) fn spawn(
         client: ClientSocket,
         solver: impl BlackBoxFunctionSolver<FieldElement> + Send + 'static,
@@ -71,11 +53,11 @@ impl CompilerActor {
                 run_actor_loop(&mut state, receiver);
             })
             .expect("failed to spawn the compiler actor thread");
-        Self { implementation: Implementation::Threaded(sender) }
+        Self { sender }
     }
 
     /// Runs a job against the compiler state, resolving with its result once it's processed.
-    pub(crate) fn request<T, F>(&mut self, job: F) -> ActorResponse<T>
+    pub(crate) fn request<T, F>(&self, job: F) -> ActorResponse<T>
     where
         T: Send + 'static,
         F: FnOnce(&mut LspState) -> Result<T, ResponseError> + Send + 'static,
@@ -88,29 +70,22 @@ impl CompilerActor {
     }
 
     /// Enqueues a job that produces no reply.
-    pub(crate) fn notify<F>(&mut self, job: F)
+    pub(crate) fn notify<F>(&self, job: F)
     where
         F: FnOnce(&mut LspState) + Send + 'static,
     {
         self.send(ActorMessage::Job(Box::new(job)));
     }
 
-    pub(crate) fn send(&mut self, message: ActorMessage) {
-        match &mut self.implementation {
-            Implementation::Inline(state) => process_message(state, message),
-            Implementation::Threaded(sender) => {
-                // If the actor thread is gone the message's reply channel (if any) is
-                // dropped with the message, so the corresponding request resolves with an
-                // error instead of hanging.
-                if sender.send(message).is_err() {
-                    eprintln!("the compiler actor thread is gone; dropping message");
-                }
-            }
+    pub(crate) fn send(&self, message: ActorMessage) {
+        // If the actor thread is gone the message's reply channel (if any) is dropped with
+        // the message, so the corresponding request resolves with an error instead of hanging.
+        if self.sender.send(message).is_err() {
+            eprintln!("the compiler actor thread is gone; dropping message");
         }
     }
 }
 
-#[cfg(not(target_arch = "wasm32"))]
 fn run_actor_loop(state: &mut LspState, receiver: mpsc::Receiver<ActorMessage>) {
     while let Ok(message) = receiver.recv() {
         // Drain whatever queued up while the previous message was being processed, so
@@ -202,7 +177,7 @@ mod tests {
 
     #[tokio::test]
     async fn processes_messages_in_order() {
-        let mut actor = spawn_actor();
+        let actor = spawn_actor();
 
         // A slow fire-and-forget job followed by a request: the request must observe the
         // job's effect even though the job is still running when the request is enqueued.
@@ -216,7 +191,7 @@ mod tests {
 
     #[tokio::test]
     async fn survives_a_panicking_job() {
-        let mut actor = spawn_actor();
+        let actor = spawn_actor();
 
         let result =
             actor.request(|_state| -> Result<i32, ResponseError> { panic!("job panicked") }).await;
