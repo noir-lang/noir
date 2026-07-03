@@ -36,10 +36,11 @@ iter-extended.workspace = true
 convert_case = "0.11"
 num-bigint.workspace = true
 fuzzy-matcher = "0.3.7"
+tokio = { version = "1.52", features = ["sync"] }
 
 [target.'cfg(all(target_arch = "wasm32", not(target_os = "wasi")))'.dependencies]
 wasm-bindgen.workspace = true
 
 [dev-dependencies]
-tokio = { version = "1.52", features = ["macros", "rt"] }
+tokio = { version = "1.52", features = ["sync", "macros", "rt"] }
 insta.workspace = true

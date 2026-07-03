@@ -47,9 +47,8 @@ use rayon::prelude::*;
 use rustc_hash::FxHashSet;
 
 use notifications::{
-    on_did_change_configuration, on_did_change_text_document, on_did_change_watched_files,
-    on_did_close_text_document, on_did_open_text_document, on_did_save_text_document, on_exit,
-    on_initialized,
+    on_did_change_configuration, on_did_change_watched_files, on_did_close_text_document,
+    on_did_open_text_document, on_did_save_text_document, on_exit, on_initialized,
 };
 use requests::{
     LspInitializationOptions, WorkspaceSymbolCache, on_code_action_request, on_code_lens_request,
@@ -63,6 +62,7 @@ use serde_json::Value as JsonValue;
 use thiserror::Error;
 use tower::Service;
 
+mod actor;
 mod doc_comments;
 mod notifications;
 mod requests;
@@ -83,6 +83,7 @@ use types::{NargoTest, NargoTestId, Position, Range, Url, notification, request}
 use with_file::parsed_module_with_file;
 
 use crate::{
+    actor::{ActorMessage, ActorResponse, CompilerActor},
     requests::{
         on_expand_request, on_folding_range_request, on_semantic_tokens_full_request,
         on_std_source_code_request,
@@ -154,57 +155,109 @@ impl LspState {
 }
 
 pub struct NargoLspService {
-    router: Router<LspState>,
+    router: Router<ServerState>,
 }
 
-/// Adapts a synchronous request handler to the `Future`-returning signature the router expects.
-fn sync_request<P, T>(
+/// State for the LSP main loop. All requests and notifications are forwarded as messages to
+/// the compiler actor, which owns the [`LspState`], so handling a message here is always fast
+/// no matter how much compiler work it triggers.
+struct ServerState {
+    actor: CompilerActor,
+}
+
+/// Adapts a request handler over `&mut LspState` into a main-loop handler that forwards the
+/// request to the compiler actor and resolves with its reply.
+fn forward_request<P, T>(
     handler: fn(&mut LspState, P) -> Result<T, ResponseError>,
-) -> impl Fn(&mut LspState, P) -> std::future::Ready<Result<T, ResponseError>> {
-    move |state, params| std::future::ready(handler(state, params))
+) -> impl Fn(&mut ServerState, P) -> ActorResponse<T>
+where
+    P: Send + 'static,
+    T: Send + 'static,
+{
+    move |state, params| state.actor.request(move |lsp_state| handler(lsp_state, params))
+}
+
+/// Adapts a notification handler over `&mut LspState` into a main-loop handler that forwards
+/// the notification to the compiler actor.
+///
+/// A `ControlFlow::Break` returned by the handler no longer stops the main loop (the handler
+/// runs after the main-loop handler already returned); its error is reported instead.
+fn forward_notification<P>(
+    handler: fn(&mut LspState, P) -> ControlFlow<Result<(), Error>>,
+) -> impl Fn(&mut ServerState, P) -> ControlFlow<Result<(), Error>>
+where
+    P: Send + 'static,
+{
+    move |state, params| {
+        state.actor.notify(move |lsp_state| {
+            if let ControlFlow::Break(Err(error)) = handler(lsp_state, params) {
+                eprintln!("error processing notification: {error}");
+            }
+        });
+        ControlFlow::Continue(())
+    }
 }
 
 impl NargoLspService {
     pub fn new(
         client: &ClientSocket,
-        solver: impl BlackBoxFunctionSolver<FieldElement> + 'static,
+        solver: impl BlackBoxFunctionSolver<FieldElement> + Send + 'static,
     ) -> Self {
         let state = LspState::new(client, solver);
-        let mut router = Router::new(state);
+        let mut router = Router::new(ServerState { actor: CompilerActor::inline(state) });
         router
-            .request::<request::Initialize, _>(sync_request(on_initialize))
-            .request::<request::Formatting, _>(sync_request(on_formatting))
-            .request::<request::Shutdown, _>(sync_request(on_shutdown))
-            .request::<request::CodeLens, _>(sync_request(on_code_lens_request))
-            .request::<request::NargoTests, _>(sync_request(on_tests_request))
-            .request::<request::NargoTestRun, _>(sync_request(on_test_run_request))
-            .request::<request::GotoDefinition, _>(sync_request(on_goto_definition_request))
-            .request::<request::GotoDeclaration, _>(sync_request(on_goto_declaration_request))
-            .request::<request::GotoTypeDefinition, _>(sync_request(
+            .request::<request::Initialize, _>(forward_request(on_initialize))
+            .request::<request::Formatting, _>(forward_request(on_formatting))
+            .request::<request::Shutdown, _>(forward_request(on_shutdown))
+            .request::<request::CodeLens, _>(forward_request(on_code_lens_request))
+            .request::<request::NargoTests, _>(forward_request(on_tests_request))
+            .request::<request::NargoTestRun, _>(forward_request(on_test_run_request))
+            .request::<request::GotoDefinition, _>(forward_request(on_goto_definition_request))
+            .request::<request::GotoDeclaration, _>(forward_request(on_goto_declaration_request))
+            .request::<request::GotoTypeDefinition, _>(forward_request(
                 on_goto_type_definition_request,
             ))
-            .request::<SemanticTokensFullRequest, _>(sync_request(on_semantic_tokens_full_request))
-            .request::<DocumentSymbolRequest, _>(sync_request(on_document_symbol_request))
-            .request::<References, _>(sync_request(on_references_request))
-            .request::<PrepareRenameRequest, _>(sync_request(on_prepare_rename_request))
-            .request::<Rename, _>(sync_request(on_rename_request))
-            .request::<HoverRequest, _>(sync_request(on_hover_request))
-            .request::<InlayHintRequest, _>(sync_request(on_inlay_hint_request))
-            .request::<Completion, _>(sync_request(on_completion_request))
-            .request::<SignatureHelpRequest, _>(sync_request(on_signature_help_request))
-            .request::<CodeActionRequest, _>(sync_request(on_code_action_request))
-            .request::<WorkspaceSymbolRequest, _>(sync_request(on_workspace_symbol_request))
-            .request::<FoldingRangeRequest, _>(sync_request(on_folding_range_request))
-            .request::<NargoExpand, _>(sync_request(on_expand_request))
-            .request::<NargoStdSourceCode, _>(sync_request(on_std_source_code_request))
-            .notification::<notification::Initialized>(on_initialized)
-            .notification::<notification::DidChangeConfiguration>(on_did_change_configuration)
-            .notification::<notification::DidOpenTextDocument>(on_did_open_text_document)
-            .notification::<notification::DidChangeTextDocument>(on_did_change_text_document)
-            .notification::<notification::DidCloseTextDocument>(on_did_close_text_document)
-            .notification::<notification::DidSaveTextDocument>(on_did_save_text_document)
-            .notification::<notification::DidChangeWatchedFiles>(on_did_change_watched_files)
-            .notification::<notification::Exit>(on_exit);
+            .request::<SemanticTokensFullRequest, _>(forward_request(
+                on_semantic_tokens_full_request,
+            ))
+            .request::<DocumentSymbolRequest, _>(forward_request(on_document_symbol_request))
+            .request::<References, _>(forward_request(on_references_request))
+            .request::<PrepareRenameRequest, _>(forward_request(on_prepare_rename_request))
+            .request::<Rename, _>(forward_request(on_rename_request))
+            .request::<HoverRequest, _>(forward_request(on_hover_request))
+            .request::<InlayHintRequest, _>(forward_request(on_inlay_hint_request))
+            .request::<Completion, _>(forward_request(on_completion_request))
+            .request::<SignatureHelpRequest, _>(forward_request(on_signature_help_request))
+            .request::<CodeActionRequest, _>(forward_request(on_code_action_request))
+            .request::<WorkspaceSymbolRequest, _>(forward_request(on_workspace_symbol_request))
+            .request::<FoldingRangeRequest, _>(forward_request(on_folding_range_request))
+            .request::<NargoExpand, _>(forward_request(on_expand_request))
+            .request::<NargoStdSourceCode, _>(forward_request(on_std_source_code_request))
+            .notification::<notification::Initialized>(forward_notification(on_initialized))
+            .notification::<notification::DidChangeConfiguration>(forward_notification(
+                on_did_change_configuration,
+            ))
+            .notification::<notification::DidOpenTextDocument>(forward_notification(
+                on_did_open_text_document,
+            ))
+            .notification::<notification::DidChangeTextDocument>(
+                |state: &mut ServerState, params| {
+                    // Document changes get a dedicated message so the actor can coalesce
+                    // consecutive changes to the same document into the latest one.
+                    state.actor.send(ActorMessage::FileChanged(params));
+                    ControlFlow::Continue(())
+                },
+            )
+            .notification::<notification::DidCloseTextDocument>(forward_notification(
+                on_did_close_text_document,
+            ))
+            .notification::<notification::DidSaveTextDocument>(forward_notification(
+                on_did_save_text_document,
+            ))
+            .notification::<notification::DidChangeWatchedFiles>(forward_notification(
+                on_did_change_watched_files,
+            ))
+            .notification::<notification::Exit>(forward_notification(on_exit));
         Self { router }
     }
 }

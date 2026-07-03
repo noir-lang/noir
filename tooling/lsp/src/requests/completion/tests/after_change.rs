@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod tests {
     use crate::{
-        on_did_change_text_document, requests::on_completion_request, test_utils,
+        notifications::on_did_change_text_document, requests::on_completion_request, test_utils,
         utils::get_cursor_line_and_column,
     };
 
