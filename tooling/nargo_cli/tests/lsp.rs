@@ -35,9 +35,6 @@ impl Drop for LspServer {
 
 impl LspServer {
     fn start() -> Self {
-        // Resolved at runtime (relative to the running test executable) rather than via
-        // `env!("CARGO_BIN_EXE_nargo")`: CI runs these tests from a nextest archive
-        // extracted on a different machine, where compile-time paths don't exist.
         let nargo = assert_cmd::cargo::cargo_bin("nargo");
         let mut child = Command::new(nargo)
             .arg("lsp")
