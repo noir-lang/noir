@@ -1,5 +1,3 @@
-use std::future::{self, Future};
-
 use async_lsp::ResponseError;
 use async_lsp::lsp_types::{
     DocumentSymbol, DocumentSymbolParams, DocumentSymbolResponse, Location, Position, SymbolKind,
@@ -23,7 +21,7 @@ use crate::requests::process_request;
 pub(crate) fn on_document_symbol_request(
     state: &mut LspState,
     params: DocumentSymbolParams,
-) -> impl Future<Output = Result<Option<DocumentSymbolResponse>, ResponseError>> + use<> {
+) -> Result<Option<DocumentSymbolResponse>, ResponseError> {
     let text_document_position_params = TextDocumentPositionParams {
         text_document: params.text_document,
         position: Position { line: 0, character: 0 },
@@ -40,7 +38,7 @@ pub(crate) fn on_document_symbol_request(
         Some(DocumentSymbolResponse::Nested(symbols))
     });
 
-    future::ready(result)
+    result
 }
 
 struct DocumentSymbolCollector<'a> {
@@ -520,12 +518,10 @@ mod document_symbol_tests {
     use async_lsp::lsp_types::{
         PartialResultParams, SymbolKind, TextDocumentIdentifier, WorkDoneProgressParams,
     };
-    use tokio::test;
 
-    async fn get_document_symbols(src: &str) -> Vec<DocumentSymbol> {
+    fn get_document_symbols(src: &str) -> Vec<DocumentSymbol> {
         let (mut state, noir_text_document) =
-            test_utils::init_lsp_server_with_inline_source("document_symbol", "src/main.nr", src)
-                .await;
+            test_utils::init_lsp_server_with_inline_source("document_symbol", "src/main.nr", src);
 
         let response = on_document_symbol_request(
             &mut state,
@@ -535,7 +531,6 @@ mod document_symbol_tests {
                 partial_result_params: PartialResultParams { partial_result_token: None },
             },
         )
-        .await
         .expect("Could not execute on_document_symbol_request")
         .unwrap();
 
@@ -547,12 +542,12 @@ mod document_symbol_tests {
     }
 
     #[test]
-    async fn test_document_symbol_for_function() {
+    fn test_document_symbol_for_function() {
         let src = r#"fn foo(_x: i32) {
     let _ = 1;
 }
 "#;
-        let symbols = get_document_symbols(src).await;
+        let symbols = get_document_symbols(src);
 
         assert_eq!(symbols.len(), 1);
         let symbol = &symbols[0];
@@ -567,12 +562,12 @@ mod document_symbol_tests {
     }
 
     #[test]
-    async fn test_document_symbol_for_struct_with_field() {
+    fn test_document_symbol_for_struct_with_field() {
         let src = r#"struct SomeStruct {
     field: i32,
 }
 "#;
-        let symbols = get_document_symbols(src).await;
+        let symbols = get_document_symbols(src);
 
         assert_eq!(symbols.len(), 1);
         let symbol = &symbols[0];
@@ -594,7 +589,7 @@ mod document_symbol_tests {
     }
 
     #[test]
-    async fn test_document_symbol_for_inherent_impl() {
+    fn test_document_symbol_for_inherent_impl() {
         let src = r#"struct SomeStruct {}
 
 impl SomeStruct {
@@ -603,7 +598,7 @@ impl SomeStruct {
     }
 }
 "#;
-        let symbols = get_document_symbols(src).await;
+        let symbols = get_document_symbols(src);
 
         let impl_symbol = &symbols[1];
         assert_eq!(impl_symbol.name, "SomeStruct");
@@ -628,12 +623,12 @@ impl SomeStruct {
     }
 
     #[test]
-    async fn test_document_symbol_for_trait() {
+    fn test_document_symbol_for_trait() {
         let src = r#"trait SomeTrait<U> {
     fn some_method(x: U);
 }
 "#;
-        let symbols = get_document_symbols(src).await;
+        let symbols = get_document_symbols(src);
 
         assert_eq!(symbols.len(), 1);
         let trait_symbol = &symbols[0];
@@ -656,7 +651,7 @@ impl SomeStruct {
     }
 
     #[test]
-    async fn test_document_symbol_for_trait_impl() {
+    fn test_document_symbol_for_trait_impl() {
         let src = r#"struct SomeStruct {}
 
 trait SomeTrait<U> {
@@ -668,7 +663,7 @@ impl SomeTrait<i32> for SomeStruct {
     }
 }
 "#;
-        let symbols = get_document_symbols(src).await;
+        let symbols = get_document_symbols(src);
 
         // [struct SomeStruct, trait SomeTrait, impl SomeTrait<i32> for SomeStruct]
         assert_eq!(symbols.len(), 3);
@@ -691,12 +686,12 @@ impl SomeTrait<i32> for SomeStruct {
     }
 
     #[test]
-    async fn test_document_symbol_for_module_with_global() {
+    fn test_document_symbol_for_module_with_global() {
         let src = r#"mod submodule {
     global SOME_GLOBAL = 1;
 }
 "#;
-        let symbols = get_document_symbols(src).await;
+        let symbols = get_document_symbols(src);
 
         assert_eq!(symbols.len(), 1);
         let module = &symbols[0];
@@ -718,9 +713,9 @@ impl SomeTrait<i32> for SomeStruct {
     }
 
     #[test]
-    async fn test_document_symbol_for_primitive_impl() {
+    fn test_document_symbol_for_primitive_impl() {
         let src = "impl i32 {}\n";
-        let symbols = get_document_symbols(src).await;
+        let symbols = get_document_symbols(src);
 
         assert_eq!(symbols.len(), 1);
         let symbol = &symbols[0];
@@ -732,9 +727,9 @@ impl SomeTrait<i32> for SomeStruct {
     }
 
     #[test]
-    async fn test_function_with_just_open_parentheses() {
+    fn test_function_with_just_open_parentheses() {
         let src = "fn main(\n";
-        let mut symbols = get_document_symbols(src).await;
+        let mut symbols = get_document_symbols(src);
         assert_eq!(symbols.len(), 1);
         let symbol = symbols.remove(0);
         // Parse-recovery: the symbol's range extends from `fn` to the end of the only line

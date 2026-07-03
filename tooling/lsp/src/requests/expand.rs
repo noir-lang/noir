@@ -1,5 +1,3 @@
-use std::future;
-
 use async_lsp::{ResponseError, lsp_types::TextDocumentPositionParams};
 use nargo_expand::get_expanded_crate;
 
@@ -12,7 +10,7 @@ use crate::{
 pub(crate) fn on_expand_request(
     state: &mut LspState,
     params: NargoExpandParams,
-) -> impl Future<Output = Result<NargoExpandResult, ResponseError>> + use<> {
+) -> Result<NargoExpandResult, ResponseError> {
     let is_stdlib = params.text_document.uri.scheme() == "noir-std";
 
     let text_document_position_params = TextDocumentPositionParams {
@@ -25,5 +23,5 @@ pub(crate) fn on_expand_request(
         get_expanded_crate(crate_id, args.crate_graph, args.def_maps, args.interner, args.files)
     });
 
-    future::ready(result)
+    result
 }

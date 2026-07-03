@@ -1,5 +1,3 @@
-use std::future::{self, Future};
-
 use async_lsp::ResponseError;
 use async_lsp::lsp_types::{
     ParameterInformation, ParameterLabel, SignatureHelp, SignatureHelpParams, SignatureInformation,
@@ -29,7 +27,7 @@ mod tests;
 pub(crate) fn on_signature_help_request(
     state: &mut LspState,
     params: SignatureHelpParams,
-) -> impl Future<Output = Result<Option<SignatureHelp>, ResponseError>> + use<> {
+) -> Result<Option<SignatureHelp>, ResponseError> {
     let result = process_request(state, params.text_document_position_params.clone(), |args| {
         let file_id = args.location.file;
         let byte_index = utils::position_to_byte_index(
@@ -44,7 +42,7 @@ pub(crate) fn on_signature_help_request(
         let mut finder = SignatureFinder::new(file_id, byte_index, args.interner);
         finder.find(&parsed_module)
     });
-    future::ready(result)
+    result
 }
 
 struct SignatureFinder<'a> {

@@ -157,6 +157,13 @@ pub struct NargoLspService {
     router: Router<LspState>,
 }
 
+/// Adapts a synchronous request handler to the `Future`-returning signature the router expects.
+fn sync_request<P, T>(
+    handler: fn(&mut LspState, P) -> Result<T, ResponseError>,
+) -> impl Fn(&mut LspState, P) -> std::future::Ready<Result<T, ResponseError>> {
+    move |state, params| std::future::ready(handler(state, params))
+}
+
 impl NargoLspService {
     pub fn new(
         client: &ClientSocket,
@@ -165,29 +172,31 @@ impl NargoLspService {
         let state = LspState::new(client, solver);
         let mut router = Router::new(state);
         router
-            .request::<request::Initialize, _>(on_initialize)
-            .request::<request::Formatting, _>(on_formatting)
-            .request::<request::Shutdown, _>(on_shutdown)
-            .request::<request::CodeLens, _>(on_code_lens_request)
-            .request::<request::NargoTests, _>(on_tests_request)
-            .request::<request::NargoTestRun, _>(on_test_run_request)
-            .request::<request::GotoDefinition, _>(on_goto_definition_request)
-            .request::<request::GotoDeclaration, _>(on_goto_declaration_request)
-            .request::<request::GotoTypeDefinition, _>(on_goto_type_definition_request)
-            .request::<SemanticTokensFullRequest, _>(on_semantic_tokens_full_request)
-            .request::<DocumentSymbolRequest, _>(on_document_symbol_request)
-            .request::<References, _>(on_references_request)
-            .request::<PrepareRenameRequest, _>(on_prepare_rename_request)
-            .request::<Rename, _>(on_rename_request)
-            .request::<HoverRequest, _>(on_hover_request)
-            .request::<InlayHintRequest, _>(on_inlay_hint_request)
-            .request::<Completion, _>(on_completion_request)
-            .request::<SignatureHelpRequest, _>(on_signature_help_request)
-            .request::<CodeActionRequest, _>(on_code_action_request)
-            .request::<WorkspaceSymbolRequest, _>(on_workspace_symbol_request)
-            .request::<FoldingRangeRequest, _>(on_folding_range_request)
-            .request::<NargoExpand, _>(on_expand_request)
-            .request::<NargoStdSourceCode, _>(on_std_source_code_request)
+            .request::<request::Initialize, _>(sync_request(on_initialize))
+            .request::<request::Formatting, _>(sync_request(on_formatting))
+            .request::<request::Shutdown, _>(sync_request(on_shutdown))
+            .request::<request::CodeLens, _>(sync_request(on_code_lens_request))
+            .request::<request::NargoTests, _>(sync_request(on_tests_request))
+            .request::<request::NargoTestRun, _>(sync_request(on_test_run_request))
+            .request::<request::GotoDefinition, _>(sync_request(on_goto_definition_request))
+            .request::<request::GotoDeclaration, _>(sync_request(on_goto_declaration_request))
+            .request::<request::GotoTypeDefinition, _>(sync_request(
+                on_goto_type_definition_request,
+            ))
+            .request::<SemanticTokensFullRequest, _>(sync_request(on_semantic_tokens_full_request))
+            .request::<DocumentSymbolRequest, _>(sync_request(on_document_symbol_request))
+            .request::<References, _>(sync_request(on_references_request))
+            .request::<PrepareRenameRequest, _>(sync_request(on_prepare_rename_request))
+            .request::<Rename, _>(sync_request(on_rename_request))
+            .request::<HoverRequest, _>(sync_request(on_hover_request))
+            .request::<InlayHintRequest, _>(sync_request(on_inlay_hint_request))
+            .request::<Completion, _>(sync_request(on_completion_request))
+            .request::<SignatureHelpRequest, _>(sync_request(on_signature_help_request))
+            .request::<CodeActionRequest, _>(sync_request(on_code_action_request))
+            .request::<WorkspaceSymbolRequest, _>(sync_request(on_workspace_symbol_request))
+            .request::<FoldingRangeRequest, _>(sync_request(on_folding_range_request))
+            .request::<NargoExpand, _>(sync_request(on_expand_request))
+            .request::<NargoStdSourceCode, _>(sync_request(on_std_source_code_request))
             .notification::<notification::Initialized>(on_initialized)
             .notification::<notification::DidChangeConfiguration>(on_did_change_configuration)
             .notification::<notification::DidOpenTextDocument>(on_did_open_text_document)

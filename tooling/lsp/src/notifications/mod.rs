@@ -669,13 +669,12 @@ mod notification_tests {
         InlayHintLabel, InlayHintParams, Position, Range, TextDocumentContentChangeEvent,
         TextDocumentIdentifier, VersionedTextDocumentIdentifier, WorkDoneProgressParams,
     };
-    use tokio::test;
 
     #[test]
-    async fn test_caches_open_files() {
+    fn test_caches_open_files() {
         // Open the document with empty text.
         let (mut state, noir_text_document) =
-            test_utils::init_lsp_server_with_inline_source("inlay_hints", "src/main.nr", "").await;
+            test_utils::init_lsp_server_with_inline_source("inlay_hints", "src/main.nr", "");
 
         // Then change the in-memory text to "global a = true;" and verify subsequent requests
         // see the new content, not what's on disk.
@@ -708,7 +707,6 @@ mod notification_tests {
                 },
             },
         )
-        .await
         .expect("Could not execute on_inlay_hint_request")
         .unwrap();
 

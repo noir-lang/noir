@@ -1,6 +1,5 @@
 use std::{
     collections::{BTreeMap, HashMap},
-    future::{self, Future},
     ops::Range,
 };
 
@@ -42,7 +41,7 @@ mod tests;
 pub(crate) fn on_code_action_request(
     state: &mut LspState,
     params: CodeActionParams,
-) -> impl Future<Output = Result<Option<CodeActionResponse>, ResponseError>> + use<> {
+) -> Result<Option<CodeActionResponse>, ResponseError> {
     let uri = params.text_document.clone().uri;
     let position = params.range.start;
     let text_document_position_params =
@@ -69,7 +68,7 @@ pub(crate) fn on_code_action_request(
         );
         finder.find(&parsed_module)
     });
-    future::ready(result)
+    result
 }
 
 struct CodeActionFinder<'a> {

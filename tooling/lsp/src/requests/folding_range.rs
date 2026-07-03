@@ -1,5 +1,3 @@
-use std::future;
-
 use async_lsp::{
     ResponseError,
     lsp_types::{FoldingRange, FoldingRangeParams, Position, TextDocumentPositionParams},
@@ -21,7 +19,7 @@ mod tests;
 pub(crate) fn on_folding_range_request(
     state: &mut LspState,
     params: FoldingRangeParams,
-) -> impl Future<Output = Result<Option<Vec<FoldingRange>>, ResponseError>> + use<> {
+) -> Result<Option<Vec<FoldingRange>>, ResponseError> {
     let text_document_position_params = TextDocumentPositionParams {
         text_document: params.text_document,
         position: Position { line: 0, character: 0 },
@@ -43,5 +41,5 @@ pub(crate) fn on_folding_range_request(
         Some(ranges)
     });
 
-    future::ready(result)
+    result
 }

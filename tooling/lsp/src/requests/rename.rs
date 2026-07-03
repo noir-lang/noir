@@ -1,7 +1,4 @@
-use std::{
-    collections::HashMap,
-    future::{self, Future},
-};
+use std::collections::HashMap;
 
 use async_lsp::ResponseError;
 use async_lsp::lsp_types;
@@ -17,7 +14,7 @@ use super::{find_all_references_in_workspace, process_request};
 pub(crate) fn on_prepare_rename_request(
     state: &mut LspState,
     params: TextDocumentPositionParams,
-) -> impl Future<Output = Result<Option<PrepareRenameResponse>, ResponseError>> + use<> {
+) -> Result<Option<PrepareRenameResponse>, ResponseError> {
     let result = process_request(state, params, |args| {
         let reference_id = args.interner.reference_at_location(args.location);
         let rename_possible = match reference_id {
@@ -28,13 +25,13 @@ pub(crate) fn on_prepare_rename_request(
         };
         Some(PrepareRenameResponse::DefaultBehavior { default_behavior: rename_possible })
     });
-    future::ready(result)
+    result
 }
 
 pub(crate) fn on_rename_request(
     state: &mut LspState,
     params: RenameParams,
-) -> impl Future<Output = Result<Option<WorkspaceEdit>, ResponseError>> + use<> {
+) -> Result<Option<WorkspaceEdit>, ResponseError> {
     let result = process_request(state, params.text_document_position, |args| {
         let rename_changes = find_all_references_in_workspace(
             args.location,
@@ -64,7 +61,7 @@ pub(crate) fn on_rename_request(
 
         Some(response)
     });
-    future::ready(result)
+    result
 }
 
 #[cfg(test)]
@@ -72,16 +69,14 @@ mod rename_tests {
     use super::*;
     use crate::test_utils::{self, search_in_text};
     use async_lsp::lsp_types::{Range, WorkDoneProgressParams};
-    use tokio::test;
 
     /// Rename every occurrence of `name` in `src` and assert the LSP returns rename edits at
     /// the exact same set of ranges — once per occurrence, since the rename should be
     /// triggerable from any of them.
-    async fn check_rename_succeeds(src: &str, name: &str) {
+    fn check_rename_succeeds(src: &str, name: &str) {
         let ranges = search_in_text(src, name);
         let (mut state, noir_text_document) =
-            test_utils::init_lsp_server_with_inline_source("document_symbol", "src/main.nr", src)
-                .await;
+            test_utils::init_lsp_server_with_inline_source("document_symbol", "src/main.nr", src);
 
         // Test renaming works on any instance of the symbol.
         for target_range in &ranges {
@@ -99,7 +94,6 @@ mod rename_tests {
             };
 
             let response = on_rename_request(&mut state, params)
-                .await
                 .expect("Could not execute on_prepare_rename_request")
                 .unwrap();
 
@@ -120,14 +114,13 @@ mod rename_tests {
         }
     }
 
-    async fn check_prepare_rename_is_not_applicable(src: &str) {
+    fn check_prepare_rename_is_not_applicable(src: &str) {
         let (mut state, noir_text_document, position, _src) =
             test_utils::init_lsp_server_with_inline_source_and_cursor(
                 "document_symbol",
                 "src/main.nr",
                 src,
-            )
-            .await;
+            );
 
         let params = TextDocumentPositionParams {
             text_document: lsp_types::TextDocumentIdentifier { uri: noir_text_document },
@@ -135,7 +128,6 @@ mod rename_tests {
         };
 
         let response = on_prepare_rename_request(&mut state, params)
-            .await
             .expect("Could not execute on_prepare_rename_request");
 
         assert_eq!(
@@ -145,12 +137,12 @@ mod rename_tests {
     }
 
     #[test]
-    async fn test_on_prepare_rename_request_cannot_be_applied_if_there_are_no_matches() {
-        check_prepare_rename_is_not_applicable(">|<\nfn another_function() {}\n").await;
+    fn test_on_prepare_rename_request_cannot_be_applied_if_there_are_no_matches() {
+        check_prepare_rename_is_not_applicable(">|<\nfn another_function() {}\n");
     }
 
     #[test]
-    async fn test_on_prepare_rename_request_cannot_be_applied_on_self_type_name() {
+    fn test_on_prepare_rename_request_cannot_be_applied_on_self_type_name() {
         check_prepare_rename_is_not_applicable(
             r#"struct Foo {}
 
@@ -160,12 +152,11 @@ impl Foo {
     }
 }
 "#,
-        )
-        .await;
+        );
     }
 
     #[test]
-    async fn test_rename_function() {
+    fn test_rename_function() {
         check_rename_succeeds(
             r#"fn another_function() -> Field {
     1
@@ -177,12 +168,11 @@ fn main() {
 }
 "#,
             "another_function",
-        )
-        .await;
+        );
     }
 
     #[test]
-    async fn test_rename_qualified_function() {
+    fn test_rename_qualified_function() {
         check_rename_succeeds(
             r#"mod foo {
     pub fn bar() {}
@@ -194,12 +184,11 @@ fn main() {
 }
 "#,
             "bar",
-        )
-        .await;
+        );
     }
 
     #[test]
-    async fn test_rename_function_in_use_statement() {
+    fn test_rename_function_in_use_statement() {
         check_rename_succeeds(
             r#"mod foo {
     pub fn some_function() {}
@@ -212,12 +201,11 @@ fn main() {
 }
 "#,
             "some_function",
-        )
-        .await;
+        );
     }
 
     #[test]
-    async fn test_rename_method() {
+    fn test_rename_method() {
         check_rename_succeeds(
             r#"struct Foo {}
 
@@ -232,12 +220,11 @@ fn main() {
 }
 "#,
             "some_method",
-        )
-        .await;
+        );
     }
 
     #[test]
-    async fn test_rename_struct() {
+    fn test_rename_struct() {
         check_rename_succeeds(
             r#"struct Foo {}
 
@@ -252,12 +239,11 @@ fn make_foo() -> Foo {
 }
 "#,
             "Foo",
-        )
-        .await;
+        );
     }
 
     #[test]
-    async fn test_rename_trait() {
+    fn test_rename_trait() {
         check_rename_succeeds(
             r#"trait Foo {
     fn foo(self);
@@ -268,12 +254,11 @@ impl Foo for Field {
 }
 "#,
             "Foo",
-        )
-        .await;
+        );
     }
 
     #[test]
-    async fn test_rename_type_alias() {
+    fn test_rename_type_alias() {
         check_rename_succeeds(
             r#"type Bar = Field;
 
@@ -282,12 +267,11 @@ fn make() -> Bar {
 }
 "#,
             "Bar",
-        )
-        .await;
+        );
     }
 
     #[test]
-    async fn test_rename_global() {
+    fn test_rename_global() {
         check_rename_succeeds(
             r#"global FOO: Field = 1;
 
@@ -296,12 +280,11 @@ fn main() -> Field {
 }
 "#,
             "FOO",
-        )
-        .await;
+        );
     }
 
     #[test]
-    async fn test_rename_local_variable() {
+    fn test_rename_local_variable() {
         check_rename_succeeds(
             r#"fn main() {
     let some_var = 1;
@@ -309,12 +292,11 @@ fn main() -> Field {
 }
 "#,
             "some_var",
-        )
-        .await;
+        );
     }
 
     #[test]
-    async fn test_rename_struct_member() {
+    fn test_rename_struct_member() {
         check_rename_succeeds(
             r#"struct Foo {
     some_member: Field,
@@ -326,7 +308,6 @@ fn main() {
 }
 "#,
             "some_member",
-        )
-        .await;
+        );
     }
 }
