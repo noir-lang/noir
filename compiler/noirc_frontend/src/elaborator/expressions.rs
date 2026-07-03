@@ -19,7 +19,7 @@ use crate::{
     },
     elaborator::{
         ScopeForest,
-        patterns::IdentFromPath,
+        patterns::PathValue,
         types::{WildcardAllowed, WildcardDisallowedContext},
     },
     hir::{
@@ -77,7 +77,13 @@ impl Elaborator<'_> {
 
         self.dec_recursion_depth();
 
-        if has_errors {
+        // `HirExpression::Error` is the elaborator's signal that this expression has already
+        // failed (parser error, recursion limit, or a path that intentionally produced
+        // `(HirExpression::Error, Type::Error)` after pushing its own diagnostic). Flag it so
+        // the comptime interpreter halts here instead of evaluating the node and raising an
+        // ICE on top of the existing diagnostic.
+        let is_error_expr = matches!(self.interner.expression(&id), HirExpression::Error);
+        if has_errors || is_error_expr {
             self.interner.exprs_with_errors.insert(id);
         }
 
@@ -513,18 +519,18 @@ impl Elaborator<'_> {
         for fragment in &fragments {
             if let FmtStrFragment::Interpolation(ident_name, location) = fragment {
                 let (typ, expr_id) = match self
-                    .get_ident_from_path(TypedPath::from_single(ident_name.clone(), *location))
+                    .resolve_path_as_value(TypedPath::from_single(ident_name.clone(), *location))
                 {
-                    Some(IdentFromPath::Variable(variable)) => {
+                    Some(PathValue::Variable(variable)) => {
                         self.handle_local_variable(&variable);
                         self.elaborate_fmt_string_ident(variable.ident, *location)
                     }
-                    Some(IdentFromPath::Definition { id, item: _ }) => {
+                    Some(PathValue::Definition { id, item: _ }) => {
                         self.handle_definition_id(id, *location);
                         let hir_ident = HirIdent::non_trait_method(id, *location);
                         self.elaborate_fmt_string_ident(hir_ident, *location)
                     }
-                    Some(IdentFromPath::TypeAlias(_)) | None => {
+                    Some(PathValue::TypeAlias(_)) | None => {
                         let hir_expr = HirExpression::Error;
                         let expr_id = self.intern_expr(hir_expr, *location);
                         let typ = Type::Error;

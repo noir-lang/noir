@@ -125,7 +125,7 @@ fn interpreter_value_to_ir_value(
     let typ = value.get_type();
     match typ {
         Type::Numeric(numeric_type) => {
-            let constant = value.as_numeric().expect("Should be numeric").convert_to_field();
+            let constant = value.as_numeric().expect("Should be numeric").to_field();
             dfg.make_constant(constant, numeric_type)
         }
         Type::Array(element_types, length) => {

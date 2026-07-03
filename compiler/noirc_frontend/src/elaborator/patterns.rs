@@ -5,7 +5,6 @@ use noirc_errors::{Located, Location};
 use rustc_hash::FxHashMap as HashMap;
 use rustc_hash::FxHashSet as HashSet;
 
-use crate::elaborator::scope::ItemAsValue;
 use crate::hir::def_collector::dc_crate::CompilationError;
 use crate::node_interner::DefinitionId;
 use crate::{
@@ -33,8 +32,8 @@ pub(crate) struct Variable {
     pub(crate) scope: usize,
 }
 
-/// The result of [`Elaborator::get_ident_from_path`] and [`Elaborator::get_ident_from_path_or_error`].
-pub(crate) enum IdentFromPath {
+/// The result of [`Elaborator::resolve_path_as_value`] and [`Elaborator::resolve_path_as_value_or_error`].
+pub(crate) enum PathValue {
     /// A variable was found.
     Variable(Variable),
     /// A definition was found.
@@ -518,7 +517,7 @@ impl Elaborator<'_> {
     /// This will increment its use counter by one and return the variable if found.
     /// If the variable is not found, an error is returned.
     ///
-    /// This method is private and is expected to be called through [`Self::get_ident_from_path_or_error`].
+    /// This method is private and is expected to be called through [`Self::resolve_path_as_value_or_error`].
     #[tracing::instrument(level = "trace", skip_all)]
     fn use_variable(&mut self, name: &Ident) -> Result<Variable, ResolverError> {
         // Find the definition for this Ident
@@ -808,8 +807,8 @@ impl Elaborator<'_> {
     ///
     /// If it cannot be found, then it pushes the error and returns [None].
     #[tracing::instrument(level = "trace", skip_all)]
-    pub(crate) fn get_ident_from_path(&mut self, path: TypedPath) -> Option<IdentFromPath> {
-        match self.get_ident_from_path_or_error(path) {
+    pub(crate) fn resolve_path_as_value(&mut self, path: TypedPath) -> Option<PathValue> {
+        match self.resolve_path_as_value_or_error(path) {
             Ok(value) => Some(value),
             Err(error) => {
                 self.push_err(error);
@@ -820,10 +819,10 @@ impl Elaborator<'_> {
 
     /// Resolve a [`TypedPath`] into a local or global [`HirIdent`], or return `Err` if it could not be found.
     #[tracing::instrument(level = "trace", skip_all)]
-    pub(crate) fn get_ident_from_path_or_error(
+    pub(crate) fn resolve_path_as_value_or_error(
         &mut self,
         path: TypedPath,
-    ) -> Result<IdentFromPath, ResolverError> {
+    ) -> Result<PathValue, ResolverError> {
         // If the path is a single segment, try to resolve it as a local variable first
         let use_variable_error = match path.as_single_segment() {
             Some(segment) => match self.use_variable(&segment.ident) {
@@ -836,14 +835,14 @@ impl Elaborator<'_> {
                             PathResolutionError::TurbofishNotAllowedOnItem { item, location };
                         self.push_err(error);
                     }
-                    return Ok(IdentFromPath::Variable(variable));
+                    return Ok(PathValue::Variable(variable));
                 }
                 Err(error) => Some(error),
             },
             None => None,
         };
 
-        match self.ident_from_value_item(path) {
+        match self.lookup_path_as_value(path) {
             Ok(ident) => Ok(ident),
             Err(ResolverError::PathResolutionError(PathResolutionError::Unresolved(ident))) => {
                 // If we can't resolve a path, but we have an error from trying to resolve a variable
@@ -869,20 +868,5 @@ impl Elaborator<'_> {
                 }
             }
         }
-    }
-
-    /// Resolve a [`TypedPath`] to the value item it names — a global, function, enum-variant
-    /// global, trait associated constant, or numeric type alias — as an [`IdentFromPath`]. Unlike
-    /// [`Self::get_ident_from_path_or_error`] this never tries a local variable, so it is what a
-    /// multi-segment path (which can never name a local variable) needs.
-    #[tracing::instrument(level = "trace", skip_all)]
-    pub(crate) fn ident_from_value_item(
-        &mut self,
-        path: TypedPath,
-    ) -> Result<IdentFromPath, ResolverError> {
-        self.lookup_item_as_value(path).map(|item| match item {
-            ItemAsValue::Definition { id, item } => IdentFromPath::Definition { id, item },
-            ItemAsValue::TypeAlias(type_alias_id) => IdentFromPath::TypeAlias(type_alias_id),
-        })
     }
 }

@@ -9,7 +9,7 @@ use crate::{
         LoopStatement, Statement, StatementKind, UnaryOp, WhileStatement,
     },
     elaborator::{
-        PathResolutionTarget, WildcardDisallowedContext, patterns::IdentFromPath,
+        PathResolutionTarget, WildcardDisallowedContext, patterns::PathValue,
         types::WildcardAllowed,
     },
     hir::{
@@ -94,7 +94,12 @@ impl Elaborator<'_> {
         let ((id, typ), has_errors) =
             self.with_error_guard(|this| this.elaborate_statement_inner(statement, target_type));
 
-        if has_errors {
+        // `HirStatement::Error` is only produced from `StatementKind::Error`, which the parser
+        // emits in place of a statement it has already reported an error for. The interpreter
+        // raises an ICE if it ever evaluates one, so flag the node here so it is skipped
+        // even though no elaborator-level error was pushed.
+        let is_error_stmt = matches!(self.interner.statement(&id), HirStatement::Error);
+        if has_errors || is_error_stmt {
             self.interner.stmts_with_errors.insert(id);
         }
 
@@ -638,16 +643,16 @@ impl Elaborator<'_> {
             LValue::Path(path) => {
                 let location = path.location;
                 let path = self.validate_path(path);
-                match self.get_ident_from_path_or_error(path.clone()) {
-                    Ok(IdentFromPath::Variable(variable)) => {
+                match self.resolve_path_as_value_or_error(path.clone()) {
+                    Ok(PathValue::Variable(variable)) => {
                         self.check_if_variable_is_captured_by_closure(&variable);
                         self.elaborate_lvalue_ident(variable.ident, location)
                     }
-                    Ok(IdentFromPath::Definition { id, item: _ }) => {
+                    Ok(PathValue::Definition { id, item: _ }) => {
                         let ident = HirIdent::non_trait_method(id, location);
                         self.elaborate_lvalue_ident(ident, location)
                     }
-                    Ok(IdentFromPath::TypeAlias(type_alias_id)) => {
+                    Ok(PathValue::TypeAlias(type_alias_id)) => {
                         let type_alias = self.interner.get_type_alias(type_alias_id);
                         self.push_err(ResolverError::Expected {
                             location,

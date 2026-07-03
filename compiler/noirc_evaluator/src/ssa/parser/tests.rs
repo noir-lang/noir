@@ -21,6 +21,20 @@ fn assert_ssa_roundtrip(src: &str) {
 }
 
 #[test]
+fn functionless_input_errors_instead_of_panicking() {
+    // Regression: `into_ssa` used to `remove(0)` the (assumed) `main` function and panic with
+    // "removal index (is 0) should be < len (is 0)" when the parsed SSA had no functions at all,
+    // e.g. when an empty string is piped in from a failed upstream command.
+    for src in ["", "   ", "\n", "// just a comment\n"] {
+        let error = Ssa::from_str(src).err().expect("expected an error, not a panic");
+        assert!(
+            format!("{error:?}").contains("no functions"),
+            "expected a 'no functions' error for {src:?}, got: {error:?}"
+        );
+    }
+}
+
+#[test]
 fn test_empty_acir_function() {
     let src = "
         acir(inline) fn main f0 {

@@ -5,7 +5,7 @@ use std::collections::{BTreeMap, BTreeSet, HashSet};
 use acvm::{AcirField, FieldElement};
 use iter_extended::{btree_map, try_vecmap, vecmap};
 use itertools::Itertools;
-use noirc_errors::Location;
+use noirc_errors::{Located, Location};
 use rustc_hash::FxHashMap as HashMap;
 
 use crate::{
@@ -34,6 +34,7 @@ use crate::{
         },
         function::{FuncMeta, FunctionBody, HirFunction, Parameters},
         stmt::{HirLetStatement, HirPattern, HirStatement},
+        types::TypeBindings,
     },
     node_interner::{
         DefinitionId, DefinitionKind, DependencyId, ExprId, FunctionModifiers, GlobalValue,
@@ -43,7 +44,10 @@ use crate::{
     token::Attributes,
 };
 
-use super::{Elaborator, TypedPathSegment, path_resolution::PathResolutionTarget};
+use super::{
+    Elaborator, TypedPathSegment,
+    path_resolution::{PathResolutionTarget, TypedPath},
+};
 
 const WILDCARD_PATTERN: &str = "_";
 
@@ -522,6 +526,27 @@ impl Elaborator<'_> {
         (rows, result_type)
     }
 
+    /// Extract the turbofish generics from an enum-variant constructor path, accepting either
+    /// the variant segment (`Foo::Bar::<T>`) or the type segment (`Foo::<T>::Bar`); both denote
+    /// the same enum generics. Specifying them on both segments at once is an error, since the
+    /// enum's generics would then be given twice.
+    fn constructor_path_turbofish(&mut self, path: &TypedPath) -> Option<Vec<Located<Type>>> {
+        let variant_segment_turbofish = path.segments.last().unwrap().generics.clone();
+        let type_segment_turbofish = (path.segments.len() >= 2)
+            .then(|| path.segments[path.segments.len() - 2].generics.clone())
+            .flatten();
+
+        if let (Some(variant_generics), Some(_)) =
+            (&variant_segment_turbofish, &type_segment_turbofish)
+        {
+            let location =
+                variant_generics.first().map_or(path.location, |generic| generic.location());
+            self.push_err(ResolverError::DuplicateEnumGenerics { location });
+        }
+
+        variant_segment_turbofish.or(type_segment_turbofish)
+    }
+
     /// Convert an expression into a Pattern, defining any variables within.
     #[tracing::instrument(level = "trace", skip_all)]
     fn expression_to_pattern(
@@ -579,11 +604,13 @@ impl Elaborator<'_> {
                 // user is trying to resolve to a non-local item.
 
                 let shadow_existing = path.as_single_segment().cloned();
+                let turbofish = self.constructor_path_turbofish(&path);
 
                 match self.resolve_path_or_error(path, PathResolutionTarget::Value) {
                     Ok(resolution) => self.path_resolution_to_constructor(
                         resolution,
                         shadow_existing,
+                        turbofish,
                         Vec::new(),
                         expected_type,
                         location,
@@ -826,6 +853,7 @@ impl Elaborator<'_> {
             ExpressionKind::Variable(path) => {
                 let location = path.location;
                 let path = self.validate_path(path);
+                let turbofish = self.constructor_path_turbofish(&path);
 
                 match self.resolve_path_or_error(path, PathResolutionTarget::Value) {
                     // Use None for `name` here - we don't want to define a variable if this
@@ -833,6 +861,7 @@ impl Elaborator<'_> {
                     Ok(resolution) => self.path_resolution_to_constructor(
                         resolution,
                         None,
+                        turbofish,
                         args,
                         expected_type,
                         location,
@@ -875,10 +904,12 @@ impl Elaborator<'_> {
     /// a path with multiple components such as `foo::bar` which should always be treated as
     /// a path to an existing item.
     #[tracing::instrument(level = "trace", skip_all)]
+    #[allow(clippy::too_many_arguments)]
     fn path_resolution_to_constructor(
         &mut self,
         resolution: PathResolutionItem,
         name: Option<TypedPathSegment>,
+        turbofish: Option<Vec<Located<Type>>>,
         args: Vec<Expression>,
         expected_type: &Type,
         location: Location,
@@ -889,6 +920,7 @@ impl Elaborator<'_> {
                 // variant constant
                 self.elaborate_global_if_unresolved(id);
                 let global = self.interner.get_global(*id);
+                let definition_id = global.definition_id;
                 let variant_index = match &global.value {
                     GlobalValue::Resolved(Value::Enum(tag, ..)) => *tag,
                     // This may be a global constant. Treat it like a normal constant
@@ -905,12 +937,22 @@ impl Elaborator<'_> {
                     _ => return Pattern::Error,
                 };
 
-                let global_type = self.interner.definition_type(global.definition_id);
-                let actual_type = global_type.instantiate(self.interner).0;
+                // A turbofish on a fieldless variant (e.g. `Foo::Baz::<i32>`) binds the
+                // enum's generics, which the variant global does not carry on its own.
+                let mut bindings = TypeBindings::default();
+                if let Some(turbofish) = turbofish {
+                    self.bind_enum_variant_global_turbofish(
+                        definition_id,
+                        &turbofish,
+                        location,
+                        &mut bindings,
+                    );
+                }
+                let global_type = self.interner.definition_type(definition_id);
+                let actual_type = global_type.instantiate_with_bindings(bindings, self.interner).0;
                 (actual_type, Vec::new(), variant_index)
             }
             PathResolutionItem::Method(_, _, func_id) | PathResolutionItem::SelfMethod(func_id) => {
-                // TODO(#7430): Take type_turbofish into account when instantiating the function's type
                 let (variant_index, meta_typ) = self.with_function_meta(*func_id, |meta| {
                     (meta.enum_variant_index, meta.typ.clone())
                 });
@@ -920,8 +962,28 @@ impl Elaborator<'_> {
                     return Pattern::Error;
                 };
 
-                let (actual_type, expected_arg_types) = match meta_typ.instantiate(self.interner).0
-                {
+                // A turbofish on the variant (e.g. `Foo::Bar::<i32>(x)`) binds the enum's
+                // generics, which are the constructor function's direct generics.
+                let resolved_turbofish =
+                    self.resolve_function_turbofish_generics(func_id, turbofish, location);
+                let instantiated = if let Some(turbofish_generics) = resolved_turbofish {
+                    let direct_generic_ids =
+                        vecmap(&self.function_meta(*func_id).direct_generics, |generic| {
+                            generic.type_var.id()
+                        });
+                    meta_typ
+                        .instantiate_with_bindings_and_turbofish(
+                            TypeBindings::default(),
+                            turbofish_generics,
+                            self.interner,
+                            &direct_generic_ids,
+                        )
+                        .0
+                } else {
+                    meta_typ.instantiate(self.interner).0
+                };
+
+                let (actual_type, expected_arg_types) = match instantiated {
                     Type::Function(args, ret, _env, _) => (*ret, args),
                     other => unreachable!("Not a function! Found {other}"),
                 };

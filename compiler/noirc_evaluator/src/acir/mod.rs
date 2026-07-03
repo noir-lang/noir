@@ -338,7 +338,10 @@ impl<'a> Context<'a> {
 
         let return_witnesses: Vec<Witness> = output_values
             .iter()
-            .flat_map(|value| value.clone().flatten())
+            .map(|value| value.clone().flatten())
+            .collect::<Result<Vec<_>, _>>()?
+            .into_iter()
+            .flatten()
             .map(|(value, _)| self.acir_context.var_to_witness(value))
             .collect::<Result<_, _>>()?;
 
@@ -370,18 +373,19 @@ impl<'a> Context<'a> {
             match &value {
                 AcirValue::Var(_, _) => (),
                 AcirValue::Array(_) => {
-                    let block_id = self.block_id(param_id);
-                    let len = if matches!(*typ, Type::Array(_, _)) {
-                        typ.flattened_size()
-                    } else {
+                    // The backing memory block for an array parameter is initialized lazily by
+                    // `ensure_array_is_initialized` the first time the parameter is used in a
+                    // memory operation (a dynamic access, or a write under a predicate). A
+                    // parameter that is only read at constant indices is resolved directly
+                    // against this `AcirValue::Array` and never needs a memory block at all.
+                    if !matches!(*typ, Type::Array(_, _)) {
                         return Err(InternalError::Unexpected {
                             expected: "Block params should be an array".to_owned(),
                             found: format!("Instead got {:?}", *typ),
                             call_stack: self.acir_context.get_call_stack(),
                         }
                         .into());
-                    };
-                    self.initialize_array(block_id, len, Some(value.clone()))?;
+                    }
                 }
                 AcirValue::DynamicArray(_) => unreachable!(
                     "The dynamic array type is created in Acir gen and therefore cannot be a block parameter"

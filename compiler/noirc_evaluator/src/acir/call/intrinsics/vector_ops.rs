@@ -8,11 +8,102 @@ use crate::errors::{InternalError, RuntimeError};
 use crate::ssa::ir::types::{NumericType, Type};
 use crate::ssa::ir::{dfg::DataFlowGraph, value::ValueId};
 use acvm::acir::brillig::lengths::FlattenedLength;
+use acvm::acir::circuit::opcodes::BlockId;
 use acvm::{AcirField, FieldElement};
 
 use super::Context;
 
+/// Flattens a vector's contents to its scalar vars when they are still known inline.
+///
+/// Returns `Some` for an [`AcirValue::Array`] whose elements are all held directly, and `None` for
+/// an [`AcirValue::DynamicArray`], which is backed by a memory block and must be read from it. A
+/// `None` is also returned when the outer array holds a nested [`AcirValue::DynamicArray`] element
+/// (which makes [`AcirValue::flatten`] fail), since that element's scalars only exist in the
+/// backing memory block; in that case the whole read falls back to the memory block. The result
+/// indexes positionally into the vector's flattened memory layout.
+fn flattened_inline_source(value: &AcirValue) -> Option<Vec<AcirVar>> {
+    match value {
+        AcirValue::Array(_) => value
+            .clone()
+            .flatten()
+            .ok()
+            .map(|flat| flat.into_iter().map(|(var, _typ)| var).collect()),
+        AcirValue::Var(_, _) | AcirValue::DynamicArray(_) => None,
+    }
+}
+
 impl Context<'_> {
+    /// Reads the value of type `ssa_type` at the flattened position `var_index` of a vector,
+    /// advancing `var_index` past it.
+    ///
+    /// When the vector's contents are still known inline — `flattened_source` is `Some` (the source
+    /// was an [`AcirValue::Array`]) — and the index is a compile-time constant, the value is taken
+    /// directly from those inline values with no `MemoryOp::Read`. Any read that cannot be resolved
+    /// this way (dynamic index, or a source backed by a memory block, i.e. `flattened_source` is
+    /// `None`) falls back to reading `block_id` via [`Self::array_get_value`].
+    fn read_vector_value(
+        &mut self,
+        flattened_source: Option<&[AcirVar]>,
+        ssa_type: &Type,
+        block_id: BlockId,
+        var_index: &mut AcirVar,
+    ) -> Result<AcirValue, RuntimeError> {
+        let Some(values) = flattened_source else {
+            // No inline contents: every scalar is read from the backing memory block.
+            return self.array_get_value(ssa_type, block_id, var_index);
+        };
+
+        let one = self.acir_context.add_constant(FieldElement::one());
+        match ssa_type {
+            Type::Numeric(numeric_type) => {
+                let read = self.read_vector_scalar(values, block_id, var_index)?;
+                // Increment the var_index in case of a nested vector element
+                *var_index = self.acir_context.add_var(*var_index, one)?;
+                Ok(AcirValue::Var(read, *numeric_type))
+            }
+            Type::Array(element_types, len) => {
+                let mut result = im::Vector::new();
+                for _ in 0..len.0 {
+                    for typ in element_types.as_ref() {
+                        result.push_back(self.read_vector_value(
+                            Some(values),
+                            typ,
+                            block_id,
+                            var_index,
+                        )?);
+                    }
+                }
+                Ok(AcirValue::Array(result))
+            }
+            Type::Reference(reference_type, _) => {
+                self.read_vector_value(Some(values), reference_type.as_ref(), block_id, var_index)
+            }
+            _ => unreachable!("ICE: Expected an array or numeric but got {ssa_type:?}"),
+        }
+    }
+
+    /// Reads the scalar at the flattened position `var_index` of a vector.
+    ///
+    /// Returns the inline value directly when `var_index` is a constant within `values`' bounds;
+    /// otherwise emits a `MemoryOp::Read` of `block_id`.
+    fn read_vector_scalar(
+        &mut self,
+        values: &[AcirVar],
+        block_id: BlockId,
+        var_index: &AcirVar,
+    ) -> Result<AcirVar, RuntimeError> {
+        if let Some(index) = self
+            .acir_context
+            .var_to_expression(*var_index)?
+            .to_const()
+            .and_then(|constant| constant.try_to_u32())
+            && let Some(element) = values.get(index as usize)
+        {
+            return Ok(*element);
+        }
+        Ok(self.acir_context.read_from_memory(block_id, var_index)?)
+    }
+
     /// Checks that an intrinsic vector operation received one element value per type in the
     /// vector's logical element (composite elements are passed as separate flattened values).
     fn check_vector_element_count(
@@ -89,7 +180,16 @@ impl Context<'_> {
         let vector_typ = dfg.type_of_value(vector_contents);
         self.check_vector_element_count("vector_push_back", elements_to_push, &vector_typ)?;
 
-        let new_vector_val = if let Some(len_const) = dfg.get_numeric_constant(arguments[0]) {
+        // The length is known at compile time when it is either an SSA numeric constant or when its
+        // ACIR representation has folded to a constant (e.g. the length of a previous constant-length
+        // push). In that case we know exactly where the pushed elements land, so we can place them
+        // inline and let the block initialize with the final values — no `MemoryOp::Write` at a
+        // constant index into a freshly-initialized block.
+        let len_const = dfg.get_numeric_constant(arguments[0]).or_else(|| {
+            let expr = self.acir_context.var_to_expression(vector_length).ok()?;
+            expr.to_const().copied()
+        });
+        let new_vector_val = if let Some(len_const) = len_const {
             // Length is known at compile time - we can precisely determine where to write
             let mut new_vector = self.read_array_with_type(vector, &vector_typ)?;
             // length of Acir Values vector
@@ -321,9 +421,15 @@ impl Context<'_> {
         let item_size = self.acir_context.add_constant(flat_item_size.0);
         var_index = self.acir_context.mul_var(var_index, item_size)?;
 
+        let flattened_source = flattened_inline_source(&vector_contents_value);
         let mut popped_elements = Vec::new();
         for res in &result_ids[2..] {
-            let elem = self.array_get_value(&dfg.type_of_value(*res), block_id, &mut var_index)?;
+            let elem = self.read_vector_value(
+                flattened_source.as_deref(),
+                &dfg.type_of_value(*res),
+                block_id,
+                &mut var_index,
+            )?;
             popped_elements.push(elem);
         }
 
@@ -464,6 +570,7 @@ impl Context<'_> {
         let new_vector_length_var =
             self.vector_pop_new_length(dfg, vector_length_id, vector_length_value)?;
 
+        let flattened_source = flattened_inline_source(&vector_contents_value);
         let mut new_vector = self.read_array_with_type(vector_contents_value, &vector_type)?;
 
         let mut popped_elements: Vec<AcirValue> = Vec::new();
@@ -472,8 +579,12 @@ impl Context<'_> {
         // In the case of non-nested vector the logic is simple as we do not
         // need to account for the internal vector sizes or flattening the index.
         for res in &result_ids[..element_size.to_usize()] {
-            let element =
-                self.array_get_value(&dfg.type_of_value(*res), block_id, &mut var_index)?;
+            let element = self.read_vector_value(
+                flattened_source.as_deref(),
+                &dfg.type_of_value(*res),
+                block_id,
+                &mut var_index,
+            )?;
             popped_elements.push(element);
         }
 
@@ -534,6 +645,7 @@ impl Context<'_> {
         let has_zero_length = self.has_zero_length(vector_contents, dfg);
 
         let vector = self.convert_value(vector_contents, dfg);
+        let flattened_source = flattened_inline_source(&vector);
         let insert_index = self.convert_value(arguments[2], dfg).into_var()?;
 
         let one = self.acir_context.add_constant(FieldElement::one());
@@ -549,7 +661,7 @@ impl Context<'_> {
         let is_safe_index = Self::is_index_safe(arguments[2], dfg, &vector_typ, vector_size);
         let insert_index = self.acir_context.mul_var(insert_index, item_size)?;
 
-        // Because the insert index might be at the end of the slice, the element type sizes we
+        // Because the insert index might be at the end of the vector, the element type sizes we
         // index here need to have room for this extra element.
         let shift = ElementTypeSizesArrayShift::Increase;
         let flat_user_index = self.get_flattened_index(
@@ -653,7 +765,14 @@ impl Context<'_> {
                 // and `not_pred` will be 0, so it doesn't matter what value we use here.
                 one
             } else {
-                self.acir_context.read_from_memory(block_id, &shifted_index)?
+                let mut index = shifted_index;
+                self.read_vector_value(
+                    flattened_source.as_deref(),
+                    &Type::Numeric(NumericType::NativeField),
+                    block_id,
+                    &mut index,
+                )?
+                .into_var()?
             };
 
             // Final predicate to determine whether we are within the insertion bounds
@@ -795,6 +914,7 @@ impl Context<'_> {
         }
 
         let vector = self.convert_value(vector_contents, dfg);
+        let flattened_source = flattened_inline_source(&vector);
         let remove_index = self.convert_value(arguments[2], dfg).into_var()?;
 
         let one = self.acir_context.add_constant(FieldElement::one());
@@ -835,8 +955,12 @@ impl Context<'_> {
         let mut temp_index = flat_user_index;
         let element_size = vector_typ.element_size().to_usize();
         for res in &result_ids[2..(2 + element_size)] {
-            let element =
-                self.array_get_value(&dfg.type_of_value(*res), block_id, &mut temp_index)?;
+            let element = self.read_vector_value(
+                flattened_source.as_deref(),
+                &dfg.type_of_value(*res),
+                block_id,
+                &mut temp_index,
+            )?;
             let elem_size = super::arrays::flattened_value_size(&element);
             popped_elements_size += elem_size;
             popped_elements.push(element);
@@ -861,8 +985,15 @@ impl Context<'_> {
             let shifted_index = self.acir_context.add_constant(i + popped_elements_size.to_usize());
 
             // Fetch the value from the initial vector
-            let value_shifted_index =
-                self.acir_context.read_from_memory(block_id, &shifted_index)?;
+            let mut index = shifted_index;
+            let value_shifted_index = self
+                .read_vector_value(
+                    flattened_source.as_deref(),
+                    &Type::Numeric(NumericType::NativeField),
+                    block_id,
+                    &mut index,
+                )?
+                .into_var()?;
 
             let use_shifted_value =
                 self.acir_context.more_than_eq_var(current_index, flat_user_index, 64)?;

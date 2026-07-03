@@ -662,8 +662,8 @@ fn collect_meta_attribute_args(
         .collect()
 }
 
-/// Build the `[[Quoted]]` value returned by `named_attribute_args`: an outer slice with one
-/// entry per attribute occurrence, an inner slice of that occurrence's arguments, each argument
+/// Build the `[[Quoted]]` value returned by `named_attribute_args`: an outer vector with one
+/// entry per attribute occurrence, an inner vector of that occurrence's arguments, each argument
 /// a token stream that can be spliced into generated code.
 fn named_attribute_args_value(
     occurrences: Vec<Vec<Expression>>,

@@ -23,7 +23,7 @@ use crate::ssa::{
         instruction::{ArrayOffset, ConstrainError, Instruction},
         value::ValueId,
     },
-    opt::pure::{FunctionPurities, compute_function_purities},
+    opt::pure::{FunctionPurities, Purity, compute_function_purities},
     parser::ast::ParsedDataBus,
     ssa_gen::validate_ssa,
 };
@@ -107,7 +107,7 @@ impl Translator {
 
         if validate {
             validate_stated_purities(&ssa, &stated_purities, &stated_purity_spans)?;
-            validate_ssa(&ssa);
+            validate_ssa(&ssa, true);
         }
 
         Ok(ssa)
@@ -120,8 +120,12 @@ impl Translator {
     ) -> Result<Self, SsaError> {
         let mut purities = FunctionPurities::default();
 
-        // A FunctionBuilder must be created with a main Function, so here wer remove it
-        // from the parsed SSA to avoid adding it twice later on.
+        // A FunctionBuilder must be created with a main Function, so here we remove it
+        // from the parsed SSA to avoid adding it twice later on. There must be at least one
+        // function; otherwise the input was empty or contained only globals/comments.
+        if parsed_ssa.functions.is_empty() {
+            return Err(SsaError::NoFunctions);
+        }
         let main_function = parsed_ssa.functions.remove(0);
         let main_id = FunctionId::new(0);
         let mut builder = FunctionBuilder::new(main_function.external_name.clone(), main_id);
@@ -130,7 +134,10 @@ impl Translator {
         builder.set_allow_malformed_simplify(allow_malformed);
 
         if let Some(purity) = main_function.purity {
-            purities.insert(main_id, purity);
+            purities.insert_purity(main_id, purity);
+        }
+        if main_function.runtime_type.is_brillig() {
+            purities.insert_brillig_function(main_id);
         }
 
         // Map function names to their IDs so calls can be resolved
@@ -145,7 +152,10 @@ impl Translator {
             functions.insert(function.internal_name.clone(), function_id);
 
             if let Some(purity) = function.purity {
-                purities.insert(function_id, purity);
+                purities.insert_purity(function_id, purity);
+            }
+            if function.runtime_type.is_brillig() {
+                purities.insert_brillig_function(function_id);
             }
         }
 
@@ -723,8 +733,10 @@ fn validate_stated_purities(
     }
 
     let computed_purities = compute_function_purities(ssa);
+    let computed_purities: HashMap<FunctionId, Purity> =
+        computed_purities.intrinsic_purities().map(|(id, purity)| (*id, *purity)).collect();
 
-    for (function_id, stated) in stated_purities {
+    for (function_id, stated) in stated_purities.intrinsic_purities() {
         let computed = computed_purities[function_id];
         if *stated != computed {
             let function_name = ssa.functions[function_id].name().to_string();
