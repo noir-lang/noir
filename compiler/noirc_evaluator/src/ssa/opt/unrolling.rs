@@ -1244,16 +1244,19 @@ impl Loop {
         let termination_unproven = self.induction_step_may_miss_bound(function, unroll_into);
 
         let mut iterations = 0;
-        while let Some((context, loop_header_id)) =
-            self.unroll_header(function, unroll_into, &header_args, dom)?
-        {
-            (unroll_into, header_args) = context.unroll_loop_iteration(loop_header_id);
+        let exit_mapping = loop {
+            match self.unroll_header(function, unroll_into, &header_args, dom)? {
+                HeaderUnroll::Iterate(context, loop_header_id) => {
+                    (unroll_into, header_args) = context.unroll_loop_iteration(loop_header_id);
 
-            iterations += 1;
-            if termination_unproven && iterations >= unroll_limit {
-                return Err(CallStack::empty());
+                    iterations += 1;
+                    if termination_unproven && iterations >= unroll_limit {
+                        return Err(CallStack::empty());
+                    }
+                }
+                HeaderUnroll::Exit(mapping) => break mapping,
             }
-        }
+        };
 
         // Build a mapping from header params to their final values.
         // The caller is responsible for applying this mapping to blocks outside the loop.
@@ -1261,6 +1264,13 @@ impl Loop {
         if !header_params.is_empty() {
             mapping.batch_insert(&header_params, &header_args);
         }
+
+        // Header *instruction* results (not just parameters) can be referenced by blocks
+        // outside the loop, e.g. when constant folding's CSE points an exit block at an
+        // identical instruction that happens to live in the header. Redirect those references
+        // to their copies in the final unrolled header, otherwise they dangle once the
+        // original header block becomes unreachable.
+        mapping.extend(exit_mapping);
 
         Ok(mapping)
     }
@@ -1291,14 +1301,15 @@ impl Loop {
 
     /// Unrolls the header block of the loop. This is the block that dominates all other blocks in the
     /// loop and contains the jmpif instruction that lets us know if we should continue looping.
-    /// Returns Some((iteration context, `loop_header_id`)) if we should perform another iteration.
+    /// Returns [`HeaderUnroll::Iterate`] if we should perform another iteration, or
+    /// [`HeaderUnroll::Exit`] once the guard resolves to a block outside the loop.
     fn unroll_header<'a>(
         &'a self,
         function: &'a mut Function,
         unroll_into: BasicBlockId,
         header_args: &[ValueId],
         dom: &'a DominatorTree,
-    ) -> Result<Option<(LoopIteration<'a>, BasicBlockId)>, CallStack> {
+    ) -> Result<HeaderUnroll<'a>, CallStack> {
         // We insert into a fresh block first and move instructions into the unroll_into block later
         // only once we verify the jmpif instruction has a constant condition. If it does not, we can
         // just discard this fresh block and leave the loop unmodified.
@@ -1362,9 +1373,22 @@ impl Loop {
                     // in `source_block` and can unroll that into the destination.
                     let is_in_loop = self.blocks.contains(&context.source_block);
 
-                    Ok(is_in_loop
-                        .then_some(context)
-                        .map(|iteration_context| (iteration_context, loop_header_id)))
+                    if is_in_loop {
+                        Ok(HeaderUnroll::Iterate(context, loop_header_id))
+                    } else {
+                        // This final header evaluation flows to a block outside the loop. Map each
+                        // header instruction result to its copy in this last unrolled header so that
+                        // exit blocks referencing those results stay valid once the original header
+                        // block is dropped.
+                        let mut exit_mapping = ValueMapping::default();
+                        for instruction in context.dfg()[loop_header_id].instructions().to_vec() {
+                            for result in context.dfg().instruction_results(instruction).to_vec() {
+                                let resolved = context.inserter.resolve(result);
+                                exit_mapping.insert(result, resolved);
+                            }
+                        }
+                        Ok(HeaderUnroll::Exit(exit_mapping))
+                    }
                 } else {
                     // If this case is reached the loop either uses non-constant indices or we need
                     // another pass, such as mem2reg to resolve them to constants.
@@ -2065,6 +2089,16 @@ fn get_header_arguments(
         Some(terminator) => Err(dfg.get_call_stack(terminator.call_stack())),
         None => Err(CallStack::empty()),
     }
+}
+
+/// Outcome of unrolling a single evaluation of the loop header.
+enum HeaderUnroll<'a> {
+    /// The guard resolved to a block inside the loop: unroll another iteration with this context.
+    Iterate(LoopIteration<'a>, BasicBlockId),
+    /// The guard resolved to a block outside the loop, so unrolling is finished. Carries the
+    /// mapping from the header's instruction results to their values in the final unrolled copy
+    /// of the header, for redirecting references from blocks outside the loop.
+    Exit(ValueMapping),
 }
 
 /// The context object for each loop iteration.
@@ -4891,22 +4925,14 @@ mod tests {
         ");
     }
 
-    /// Documents that loop unrolling does NOT propagate instruction results defined
-    /// in the loop header (only block parameters) to exit blocks.
-    ///
-    /// If an instruction is hoisted into a loop header (e.g. by constant folding's CSE),
-    /// and the exit block references that instruction's result, unrolling will leave a
-    /// dangling reference because `Loop::unroll` only maps header parameters, not
-    /// instruction results.
-    ///
-    /// To fix this in the unrolling pass (if we ever want to allow hoisting into headers):
-    /// in `unroll_header`, on the final iteration (when `is_in_loop` is false), iterate
-    /// over header instruction results and add their resolved values from the inserter
-    /// to the `ValueMapping` returned by `unroll`.
+    /// A loop header can hold instruction results (not just block parameters) that are
+    /// referenced by exit blocks, e.g. when constant folding's CSE points an exit block at
+    /// an identical instruction already living in the header. Unrolling must redirect those
+    /// references to the final unrolled copy of the header instruction, otherwise the value
+    /// dangles once the original header block is dropped.
     #[test]
-    #[should_panic(expected = "should already be in scope")]
-    fn unroll_panics_on_header_instruction_results_referenced_by_exit_block() {
-        // Models the SSA after CSE hoists `mul v2, v2` into the loop header:
+    fn unroll_maps_header_instruction_results_referenced_by_exit_block() {
+        // Models the SSA after CSE points an exit block at `mul v2, v2` in the loop header:
         //   b1 header has v4 = mul v2, v2 (an instruction result, not a parameter)
         //   b2 loop body uses v4
         //   b3 exit block uses v4
@@ -4931,9 +4957,10 @@ mod tests {
         let (ssa, errors) = try_unroll_loops(ssa);
         assert!(errors.is_empty(), "Loop should unroll successfully");
 
-        // This panics because v4 (a header instruction result) was not mapped
-        // to its final-iteration value, leaving a dangling reference.
-        let _result = ssa.interpret(vec![Value::field(3u128.into())]);
+        // The exit block's `return v4` now reads the second iteration's squared value.
+        // With v0 = 3: iteration 1 squares to 9 (v5 = 10), iteration 2 squares 10 to 100.
+        let result = ssa.interpret(vec![Value::field(3u128.into())]);
+        assert_eq!(result, Ok(vec![Value::field(100u128.into())]));
     }
 }
 
