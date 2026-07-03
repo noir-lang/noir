@@ -778,6 +778,14 @@ impl NodeInterner {
         &self.type_attributes[struct_id]
     }
 
+    /// Whether the type is a `#[abi(transparent)]` single-field struct, which serializes to the ABI
+    /// as its inner field rather than as a wrapping struct.
+    pub fn is_abi_transparent(&self, type_id: TypeId) -> bool {
+        self.type_attributes
+            .get(&type_id)
+            .is_some_and(|attributes| attributes.iter().any(|attr| attr.kind.is_abi_transparent()))
+    }
+
     pub fn add_module_attributes(&mut self, module_id: ModuleId, attributes: ModuleAttributes) {
         self.module_attributes.insert(module_id, attributes);
     }

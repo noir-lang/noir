@@ -199,7 +199,11 @@ impl Parser<'_> {
         let location = self.location_since(start_location);
         match ident.as_str() {
             "abi" => self.parse_single_name_attribute(ident, arguments, start_location, |name| {
-                let kind = SecondaryAttributeKind::Abi(name);
+                let kind = if name == "transparent" {
+                    SecondaryAttributeKind::AbiTransparent
+                } else {
+                    SecondaryAttributeKind::Abi(name)
+                };
                 let attr = SecondaryAttribute { kind, location };
                 Attribute::Secondary(attr)
             }),

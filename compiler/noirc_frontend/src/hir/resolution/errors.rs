@@ -79,6 +79,8 @@ pub enum ResolverError {
     NestedVectors { location: Location },
     #[error("#[abi(tag)] attribute is only allowed in contracts")]
     AbiAttributeOutsideContract { location: Location },
+    #[error("`#[abi(transparent)]` can only be applied to a struct with a single field")]
+    AbiTransparentRequiresSingleField { location: Location },
     #[error("Globals marked with `#[abi(tag)]` must have an ABI-compatible type")]
     NonAbiTypeInAbiGlobal { invalid_type: InvalidType, location: Location },
     #[error(
@@ -292,6 +294,7 @@ impl ResolverError {
             | ResolverError::InvalidClosureEnvironment { location, .. }
             | ResolverError::NestedVectors { location }
             | ResolverError::AbiAttributeOutsideContract { location, .. }
+            | ResolverError::AbiTransparentRequiresSingleField { location, .. }
             | ResolverError::NonAbiTypeInAbiGlobal { location, .. }
             | ResolverError::DependencyCycle { location, .. }
             | ResolverError::JumpInConstrainedFn { location, .. }
@@ -582,6 +585,14 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                 Diagnostic::simple_error(
                     "#[abi(tag)] attributes can only be used in contracts".to_string(),
                     "misplaced #[abi(tag)] attribute".to_string(),
+                    *location,
+                )
+            }
+            ResolverError::AbiTransparentRequiresSingleField { location } => {
+                Diagnostic::simple_error(
+                    "`#[abi(transparent)]` can only be applied to a struct with a single field"
+                        .to_string(),
+                    "not a single-field struct".to_string(),
                     *location,
                 )
             }

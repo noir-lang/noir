@@ -376,6 +376,57 @@ fn deny_abi_attribute_on_struct_outside_contract() {
 }
 
 #[test]
+fn allow_abi_transparent_on_single_field_struct_outside_contract() {
+    // `#[abi(transparent)]` is not contract-specific: it marks a single-field newtype wrapper as
+    // ABI-transparent so it serializes as its inner field. This lets a user wrap a foreign type to
+    // implement some trait on it without the wrapper appearing in `Prover.toml`.
+    let src = r#"
+        #[abi(transparent)]
+        pub struct Wrapper {
+            inner: Field,
+        }
+
+        pub fn foo(_: Wrapper) {}
+
+        fn main() {}
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn deny_abi_transparent_on_multi_field_struct() {
+    let src = r#"
+        #[abi(transparent)]
+        ^^^^^^^^^^^^^^^^^^^ `#[abi(transparent)]` can only be applied to a struct with a single field
+        ~~~~~~~~~~~~~~~~~~~ not a single-field struct
+        pub struct Wrapper {
+            a: Field,
+            b: Field,
+        }
+
+        pub fn foo(_: Wrapper) {}
+
+        fn main() {}
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn deny_abi_transparent_on_empty_struct() {
+    let src = r#"
+        #[abi(transparent)]
+        ^^^^^^^^^^^^^^^^^^^ `#[abi(transparent)]` can only be applied to a struct with a single field
+        ~~~~~~~~~~~~~~~~~~~ not a single-field struct
+        pub struct Wrapper {}
+
+        pub fn foo(_: Wrapper) {}
+
+        fn main() {}
+    "#;
+    check_errors(src);
+}
+
+#[test]
 fn overlapping_inherent_impls() {
     let src = r#"
         struct Foo<T> { _x: T }

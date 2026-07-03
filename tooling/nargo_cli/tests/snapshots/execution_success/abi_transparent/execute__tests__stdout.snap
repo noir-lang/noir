@@ -1,0 +1,6 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stdout
+---
+Wrapper { inner: Point { x: 0x01, y: 0x02 } }
+[abi_transparent] Circuit output: Point { x: 0x01, y: 0x02 }

@@ -1,0 +1,6 @@
+[package]
+name = "abi_transparent"
+type = "bin"
+authors = [""]
+
+[dependencies]

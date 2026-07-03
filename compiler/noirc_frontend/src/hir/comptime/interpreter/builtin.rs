@@ -506,10 +506,13 @@ fn type_def_add_abi(
     let attribute = get_ctstring(attribute)?;
     let attribute = String::from_utf8_lossy(&attribute);
 
-    let attribute = SecondaryAttribute {
-        kind: SecondaryAttributeKind::Abi(attribute.into_owned()),
-        location: attribute_location,
+    // Mirror the parser: `abi(transparent)` is a distinct kind, not an ABI tag.
+    let kind = if attribute == "transparent" {
+        SecondaryAttributeKind::AbiTransparent
+    } else {
+        SecondaryAttributeKind::Abi(attribute.into_owned())
     };
+    let attribute = SecondaryAttribute { kind, location: attribute_location };
 
     let self_arg = self_argument.0.clone();
     let type_id = get_type_id(self_argument)?;

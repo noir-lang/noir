@@ -96,6 +96,7 @@ impl Formatter<'_> {
             }
             SecondaryAttributeKind::Field(_)
             | SecondaryAttributeKind::Abi(_)
+            | SecondaryAttributeKind::AbiTransparent
             | SecondaryAttributeKind::Allow(_) => {
                 self.format_one_arg_attribute();
             }

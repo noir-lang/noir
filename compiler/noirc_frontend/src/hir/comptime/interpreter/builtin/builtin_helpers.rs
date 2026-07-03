@@ -734,7 +734,7 @@ fn builtin_secondary_attribute_name(attribute: &SecondaryAttribute) -> Option<&'
         SecondaryAttributeKind::ContractLibraryMethod => Some("contract_library_method"),
         SecondaryAttributeKind::Export => Some("export"),
         SecondaryAttributeKind::Field(_) => Some("field"),
-        SecondaryAttributeKind::Abi(_) => Some("abi"),
+        SecondaryAttributeKind::Abi(_) | SecondaryAttributeKind::AbiTransparent => Some("abi"),
         SecondaryAttributeKind::Varargs => Some("varargs"),
         SecondaryAttributeKind::UseCallersScope => Some("use_callers_scope"),
         SecondaryAttributeKind::Allow(_) => Some("allow"),

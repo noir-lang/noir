@@ -1287,13 +1287,21 @@ pub fn collect_struct(
 
     let parent_module_id = ModuleId { krate, local_id: module_id };
 
-    // ABI attributes are only meaningful within contracts, so error if used elsewhere.
-    if !def_map[module_id].is_contract {
-        for attr in &unresolved.struct_def.attributes {
-            if matches!(attr.kind, SecondaryAttributeKind::Abi(_)) {
+    for attr in &unresolved.struct_def.attributes {
+        match &attr.kind {
+            // `#[abi(tag)]` tags are only meaningful within contracts, so error if used elsewhere.
+            SecondaryAttributeKind::Abi(_) if !def_map[module_id].is_contract => {
                 definition_errors
                     .push(ResolverError::AbiAttributeOutsideContract { location: attr.location });
             }
+            // `#[abi(transparent)]` is allowed anywhere, but only makes sense on a newtype wrapper:
+            // it serializes the struct as its single inner field.
+            SecondaryAttributeKind::AbiTransparent if unresolved.struct_def.fields.len() != 1 => {
+                definition_errors.push(ResolverError::AbiTransparentRequiresSingleField {
+                    location: attr.location,
+                });
+            }
+            _ => {}
         }
     }
 
