@@ -23,13 +23,13 @@ fn main(x: Field) {
 }
 
 unconstrained fn identity(x: Field) -> Field {
-    x
+    std::hint::black_box(x)
 }
 
 unconstrained fn identity_array(arr: [Field; 2]) -> [Field; 2] {
-    arr
+    std::hint::black_box(arr)
 }
 
 unconstrained fn identity_struct(s: myStruct) -> myStruct {
-    s
+    std::hint::black_box(s)
 }
