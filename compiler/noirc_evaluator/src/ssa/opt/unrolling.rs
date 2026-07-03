@@ -1374,7 +1374,8 @@ impl Loop {
                     // can be rewritten instead of dangling.
                     if !is_in_loop {
                         for &result in header_instruction_results {
-                            header_instruction_values.insert(result, context.inserter.resolve(result));
+                            header_instruction_values
+                                .insert(result, context.inserter.resolve(result));
                         }
                     }
 
