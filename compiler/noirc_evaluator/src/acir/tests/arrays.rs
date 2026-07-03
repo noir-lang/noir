@@ -413,6 +413,36 @@ fn zero_length_array_dynamic_set() {
 }
 
 #[test]
+fn zero_length_array_is_not_initialized() {
+    // A dynamic operation on an array whose flattened size is zero (`[[u8; 0]; 4]`, whose elements
+    // are zero-width) must not emit a `MemoryInit` for the empty backing block. An empty block has
+    // no slots to read or write, so any such `MemoryInit` describes an orphan block that the ACVM
+    // unused-memory optimizer strips anyway.
+    //
+    // We inspect the raw `GeneratedAcir` rather than the optimized program because that optimizer
+    // would remove the empty `MemoryInit`, hiding whether ACIR gen emitted it in the first place.
+    let src = "
+    acir(inline) fn main f0 {
+      b0(v0: u32):
+        v1 = make_array b\"\"
+        v2 = make_array [v1, v1, v1, v1] : [[u8; 0]; 4]
+        v3 = array_set v2, index v0, value v1
+        return v3
+    }
+    ";
+    let generated_acir = ssa_to_generated_acir(src);
+
+    assert!(
+        !generated_acir
+            .opcodes()
+            .iter()
+            .any(|opcode| { matches!(opcode, Opcode::MemoryInit { init, .. } if init.is_empty()) }),
+        "ACIR gen must not initialize a zero-length memory block, got opcodes:\n{:#?}",
+        generated_acir.opcodes()
+    );
+}
+
+#[test]
 fn zero_length_array_dynamic_predicate() {
     let src = "
     acir(inline) fn main f0 {

@@ -1296,6 +1296,20 @@ impl Context<'_> {
         len: FlattenedLength,
         value: Option<AcirValue>,
     ) -> Result<(), InternalError> {
+        // Record the block as initialized even for a zero-length array so that downstream
+        // bookkeeping stays consistent, but emit no `MemoryInit` opcode for it: an empty block has
+        // no slots to read or write, so any access to it is out of bounds and the opcode would only
+        // ever describe an orphan block.
+        if !self.initialized_arrays.insert(array) {
+            return Err(InternalError::General {
+                message: "Attempted to initialize memory block twice".to_owned(),
+                call_stack: self.acir_context.get_call_stack(),
+            });
+        }
+        if len.to_usize() == 0 {
+            return Ok(());
+        }
+
         let mut databus = BlockType::Memory;
         for (call_data_id, array_id) in self.data_bus.call_data_array() {
             if self.block_id(array_id) == array {
@@ -1305,14 +1319,7 @@ impl Context<'_> {
         }
 
         self.acir_context.initialize_array(array, len, value, databus)?;
-        if self.initialized_arrays.insert(array) {
-            Ok(())
-        } else {
-            Err(InternalError::General {
-                message: "Attempted to initialize memory block twice".to_owned(),
-                call_stack: self.acir_context.get_call_stack(),
-            })
-        }
+        Ok(())
     }
 }
 

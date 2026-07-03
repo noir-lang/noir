@@ -915,6 +915,8 @@ impl<'a> Context<'a> {
 
 /// Check post ACIR generation properties:
 /// * No empty `AssertZero` opcodes (asserting `0 == 0`) should be emitted.
+/// * No zero-length memory block should be initialized. An empty block has no slots to read or
+///   write, so a `MemoryInit` for it is dead weight that ACIR gen must never emit.
 /// * No memory opcodes should be laid down that write to the internal type sizes array.
 ///   See [arrays] for more information on the type sizes array.
 /// * Every non-databus, non-empty memory block that is initialized is also referenced by at least
@@ -943,6 +945,10 @@ fn acir_post_check(context: &Context<'_>, acir: &GeneratedAcir<FieldElement>) {
                 );
             }
             Opcode::MemoryInit { block_id, block_type, init } => {
+                assert!(
+                    !init.is_empty(),
+                    "ICE: Zero-length memory blocks should not be initialized"
+                );
                 if !block_type.is_databus() && !init.is_empty() {
                     initialized_non_databus_blocks.insert(*block_id);
                 }
