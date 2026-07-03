@@ -3,7 +3,7 @@
 //! here so that later stages (data-bus construction, Brillig array allocation) don't have
 //! to cope with sizes that approach `u32::MAX`.
 
-use crate::test_utils::get_monomorphized;
+use crate::test_utils::{get_monomorphized, get_monomorphized_with_stdlib, stdlib_src};
 use crate::tests::check_monomorphization_error;
 
 #[test]
@@ -97,4 +97,45 @@ fn accepts_array_return_at_the_limit() {
     }
     "#;
     assert!(get_monomorphized(src).is_ok(), "a return of exactly the limit should be accepted");
+}
+
+/// The check only fires for the entry points that monomorphization marks as such: `main` and
+/// fold functions. A generic `unconstrained` function called from ACIR becomes a Brillig entry
+/// point per instantiation (here `mk_array::<10>` and `mk_array::<4294967295>`), with `N` only
+/// known at monomorphization — yet it is a plain `brillig(inline)` function, not flagged as an
+/// entry point, so its oversized return is NOT rejected here. It would fail later during codegen.
+///
+/// `zeroed()` produces the array without materializing a literal, so the test isolates the
+/// return-type boundary from the separate interior-allocation gap.
+#[test]
+fn generic_unconstrained_entry_point_return_is_not_checked() {
+    let src = r#"
+    unconstrained fn mk_array<let N: u32>() -> [u64; N] {
+        zeroed()
+    }
+    fn main() {
+        // Safety: test
+        let _a = unsafe { mk_array::<10>() };
+        // Safety: test
+        let _b = unsafe { mk_array::<4294967295>() };
+    }
+    "#;
+    let result = get_monomorphized_with_stdlib(src, &[stdlib_src::ZEROED]);
+    assert!(result.is_ok(), "generic Brillig entry point return is not rejected: {result:?}");
+}
+
+/// A non-entry Brillig function returning a huge array is an interior allocation, not a circuit
+/// boundary, so it is NOT rejected by this check (it would fail later during Brillig codegen).
+#[test]
+fn non_entry_brillig_return_is_not_checked() {
+    let src = r#"
+    unconstrained fn helper() -> [u64; 4294967295] {
+        zeroed()
+    }
+    unconstrained fn main() {
+        let _ = helper();
+    }
+    "#;
+    let result = get_monomorphized_with_stdlib(src, &[stdlib_src::ZEROED]);
+    assert!(result.is_ok(), "non-entry Brillig return is not rejected: {result:?}");
 }
