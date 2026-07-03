@@ -194,14 +194,6 @@ type CanonicalBindings = Vec<(TypeVariableId, HirType)>;
 
 const MAX_TYPE_COMPLEXITY: usize = 100_000;
 
-/// Maximum number of field elements an entry point parameter may flatten into.
-///
-/// This mirrors the return-value limit (`MAX_ELEMENTS`) enforced in `noirc_evaluator`: inputs
-/// whose flattened size approaches `u32::MAX` cannot be represented, since Brillig arrays are
-/// heap-allocated using `u32` addressing and data-bus/ACIR construction reserves one slot per
-/// flattened element. Rejecting them here produces a clean error before those later stages.
-const MAX_ENTRY_POINT_FIELD_COUNT: u64 = 1 << 24;
-
 /// Number of field elements needed to represent `typ` as a flattened entry point parameter.
 ///
 /// Computed with saturating `u64` arithmetic so that sizes beyond `u32::MAX` are reported as a
@@ -700,14 +692,15 @@ impl<'interner> Monomorphizer<'interner> {
         let is_entry_point =
             (!self.force_unconstrained && inline_type.is_entry_point()) || id == Program::main_id();
         if is_entry_point {
+            let max_elements = ast::MAX_ELEMENTS as u64;
             for (pattern, typ, _visibility) in &func_parameters.0 {
                 let location = pattern.location();
                 let num_elements =
                     entry_point_field_count_saturating(&Self::convert_type(typ, location)?);
-                if num_elements > MAX_ENTRY_POINT_FIELD_COUNT {
+                if num_elements > max_elements {
                     return Err(MonomorphizationError::InputLimitExceeded {
                         num_elements,
-                        max_elements: MAX_ENTRY_POINT_FIELD_COUNT,
+                        max_elements,
                         location,
                     });
                 }

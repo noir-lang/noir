@@ -177,11 +177,10 @@ impl From<GlobalsGraph> for DataFlowGraph {
 }
 
 /// Maximum number of elements allowed for return values, or for some arrays.
-/// This limit prevents hangings or out-of-memory issues when dealing with very large arrays.
-/// 2^24 = 16,777,216 witnesses.
-/// In practice, the number of witnesses is limited by the CRS size, which is usually around 2^20.
-/// So this limit should not interfere with real use cases.
-pub(crate) const MAX_ELEMENTS: usize = 1 << 24;
+///
+/// Defined in `noirc_frontend` alongside the entry point input-size check that shares it;
+/// see [`MAX_ELEMENTS`] for the full rationale.
+pub(crate) use noirc_frontend::monomorphization::ast::MAX_ELEMENTS;
 
 impl DataFlowGraph {
     /// Runtime type of the function.
