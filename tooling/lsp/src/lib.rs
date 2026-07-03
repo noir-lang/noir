@@ -205,6 +205,22 @@ impl ServerState {
     ) -> impl Future<Output = Result<Option<Vec<lsp_types::TextEdit>>, ResponseError>> + use<> {
         std::future::ready(on_formatting(&self.input_files, params))
     }
+
+    fn document_symbol(
+        &self,
+        params: lsp_types::DocumentSymbolParams,
+    ) -> impl Future<Output = Result<Option<lsp_types::DocumentSymbolResponse>, ResponseError>> + use<>
+    {
+        std::future::ready(on_document_symbol_request(&self.input_files, params))
+    }
+
+    fn folding_range(
+        &self,
+        params: lsp_types::FoldingRangeParams,
+    ) -> impl Future<Output = Result<Option<Vec<lsp_types::FoldingRange>>, ResponseError>> + use<>
+    {
+        std::future::ready(on_folding_range_request(&self.input_files, params))
+    }
 }
 
 /// Adapts a request handler over `&mut LspState` into a main-loop handler that forwards the
@@ -276,7 +292,9 @@ impl NargoLspService {
             .request::<SemanticTokensFullRequest, _>(forward_request(
                 on_semantic_tokens_full_request,
             ))
-            .request::<DocumentSymbolRequest, _>(forward_request(on_document_symbol_request))
+            .request::<DocumentSymbolRequest, _>(|state: &mut ServerState, params| {
+                state.document_symbol(params)
+            })
             .request::<References, _>(forward_request(on_references_request))
             .request::<PrepareRenameRequest, _>(forward_request(on_prepare_rename_request))
             .request::<Rename, _>(forward_request(on_rename_request))
@@ -286,7 +304,9 @@ impl NargoLspService {
             .request::<SignatureHelpRequest, _>(forward_request(on_signature_help_request))
             .request::<CodeActionRequest, _>(forward_request(on_code_action_request))
             .request::<WorkspaceSymbolRequest, _>(forward_request(on_workspace_symbol_request))
-            .request::<FoldingRangeRequest, _>(forward_request(on_folding_range_request))
+            .request::<FoldingRangeRequest, _>(|state: &mut ServerState, params| {
+                state.folding_range(params)
+            })
             .request::<NargoExpand, _>(forward_request(on_expand_request))
             .request::<NargoStdSourceCode, _>(forward_request(on_std_source_code_request))
             .notification::<notification::Initialized>(forward_notification(on_initialized))

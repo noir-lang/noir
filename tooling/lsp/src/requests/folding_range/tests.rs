@@ -1,18 +1,16 @@
-use crate::test_utils;
-
 use super::*;
 use async_lsp::lsp_types::{
-    FoldingRangeKind, PartialResultParams, TextDocumentIdentifier, WorkDoneProgressParams,
+    FoldingRangeKind, PartialResultParams, TextDocumentIdentifier, Url, WorkDoneProgressParams,
 };
 
 fn get_folding_ranges(src: &str) -> Vec<FoldingRange> {
-    let (mut state, noir_text_document) =
-        test_utils::init_lsp_server_with_inline_source("document_symbol", "src/main.nr", src);
+    let uri = Url::parse("file:///main.nr").unwrap();
+    let input_files = HashMap::from([(uri.to_string(), src.to_string())]);
 
     on_folding_range_request(
-        &mut state,
+        &input_files,
         FoldingRangeParams {
-            text_document: TextDocumentIdentifier { uri: noir_text_document },
+            text_document: TextDocumentIdentifier { uri },
             work_done_progress_params: WorkDoneProgressParams { work_done_token: None },
             partial_result_params: PartialResultParams { partial_result_token: None },
         },

@@ -7,8 +7,9 @@ use acvm::blackbox_solver::StubbedBlackBoxSolver;
 use async_lsp::ClientSocket;
 use async_lsp::lsp_types::{
     DidChangeTextDocumentParams, DidOpenTextDocumentParams, DocumentFormattingParams,
-    FormattingOptions, TextDocumentContentChangeEvent, TextDocumentIdentifier, TextDocumentItem,
-    Url, VersionedTextDocumentIdentifier, WorkDoneProgressParams,
+    DocumentSymbolParams, DocumentSymbolResponse, FoldingRangeParams, FormattingOptions,
+    TextDocumentContentChangeEvent, TextDocumentIdentifier, TextDocumentItem, Url,
+    VersionedTextDocumentIdentifier, WorkDoneProgressParams,
 };
 
 use crate::{CompilerActor, ServerState};
@@ -92,4 +93,50 @@ async fn formatting_uses_the_latest_document_text() {
 
     let formatted = format_document(&state, &uri).await;
     assert_eq!(formatted, "fn other() {}\n");
+}
+
+#[tokio::test]
+async fn document_symbol_is_not_blocked_by_compiler_work() {
+    let mut state = new_server_state();
+    let _gate = block_actor(&state);
+
+    let uri = Url::parse("file:///main.nr").unwrap();
+    open_document(&mut state, &uri, "fn main() {}");
+    change_document(&mut state, &uri, "fn changed() {}");
+
+    let params = DocumentSymbolParams {
+        text_document: TextDocumentIdentifier { uri: uri.clone() },
+        work_done_progress_params: WorkDoneProgressParams::default(),
+        partial_result_params: Default::default(),
+    };
+    let future = state.document_symbol(params);
+    let result = tokio::time::timeout(Duration::from_millis(500), future)
+        .await
+        .expect("documentSymbol must not wait for the compiler actor");
+    let Some(DocumentSymbolResponse::Nested(symbols)) = result.unwrap() else {
+        panic!("expected nested document symbols");
+    };
+    let names: Vec<&str> = symbols.iter().map(|symbol| symbol.name.as_str()).collect();
+    assert_eq!(names, vec!["changed"], "symbols should reflect the latest document text");
+}
+
+#[tokio::test]
+async fn folding_range_is_not_blocked_by_compiler_work() {
+    let mut state = new_server_state();
+    let _gate = block_actor(&state);
+
+    let uri = Url::parse("file:///main.nr").unwrap();
+    open_document(&mut state, &uri, "/* This is a\n   block\n   comment */\nfn main() {}");
+
+    let params = FoldingRangeParams {
+        text_document: TextDocumentIdentifier { uri: uri.clone() },
+        work_done_progress_params: WorkDoneProgressParams::default(),
+        partial_result_params: Default::default(),
+    };
+    let future = state.folding_range(params);
+    let result = tokio::time::timeout(Duration::from_millis(500), future)
+        .await
+        .expect("foldingRange must not wait for the compiler actor");
+    let ranges = result.unwrap().expect("expected folding ranges");
+    assert!(!ranges.is_empty(), "the block comment should produce a folding range");
 }

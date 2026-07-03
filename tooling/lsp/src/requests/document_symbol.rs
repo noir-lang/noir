@@ -1,9 +1,11 @@
 use async_lsp::ResponseError;
 use async_lsp::lsp_types::{
-    DocumentSymbol, DocumentSymbolParams, DocumentSymbolResponse, Location, Position, SymbolKind,
-    TextDocumentPositionParams,
+    DocumentSymbol, DocumentSymbolParams, DocumentSymbolResponse, Location, SymbolKind,
 };
-use fm::{FileId, FileMap};
+use std::collections::HashMap;
+use std::path::PathBuf;
+
+use fm::{FileId, FileMap, PathString};
 use noirc_errors::Span;
 use noirc_frontend::ast::TraitBound;
 use noirc_frontend::{
@@ -15,28 +17,25 @@ use noirc_frontend::{
     parser::ParsedSubModule,
 };
 
-use crate::LspState;
-use crate::requests::process_request;
-
+/// Like formatting, this request is parse-only: it takes the open documents' current texts
+/// instead of `LspState`, so the main loop answers it directly from its text mirror instead
+/// of queueing it behind type-checking.
 pub(crate) fn on_document_symbol_request(
-    state: &mut LspState,
+    input_files: &HashMap<String, String>,
     params: DocumentSymbolParams,
 ) -> Result<Option<DocumentSymbolResponse>, ResponseError> {
-    let text_document_position_params = TextDocumentPositionParams {
-        text_document: params.text_document,
-        position: Position { line: 0, character: 0 },
+    let uri = params.text_document.uri;
+    let Some(source) = input_files.get(&uri.to_string()) else {
+        return Ok(None);
     };
 
-    process_request(state, text_document_position_params, |args| {
-        let file_id = args.location.file;
-        let file = args.files.get_file(file_id).unwrap();
-        let source = file.source();
-        let (parsed_module, _errors) = noirc_frontend::parse_program(source, file_id);
+    let mut files = FileMap::default();
+    let file_id = files.add_file(PathString::from_path(PathBuf::from(uri.path())), source.clone());
+    let (parsed_module, _errors) = noirc_frontend::parse_program(source, file_id);
 
-        let mut collector = DocumentSymbolCollector::new(file_id, args.files);
-        let symbols = collector.collect(&parsed_module);
-        Some(DocumentSymbolResponse::Nested(symbols))
-    })
+    let mut collector = DocumentSymbolCollector::new(file_id, &files);
+    let symbols = collector.collect(&parsed_module);
+    Ok(Some(DocumentSymbolResponse::Nested(symbols)))
 }
 
 struct DocumentSymbolCollector<'a> {
@@ -514,17 +513,17 @@ mod document_symbol_tests {
 
     use super::*;
     use async_lsp::lsp_types::{
-        PartialResultParams, SymbolKind, TextDocumentIdentifier, WorkDoneProgressParams,
+        PartialResultParams, SymbolKind, TextDocumentIdentifier, Url, WorkDoneProgressParams,
     };
 
     fn get_document_symbols(src: &str) -> Vec<DocumentSymbol> {
-        let (mut state, noir_text_document) =
-            test_utils::init_lsp_server_with_inline_source("document_symbol", "src/main.nr", src);
+        let uri = Url::parse("file:///main.nr").unwrap();
+        let input_files = HashMap::from([(uri.to_string(), src.to_string())]);
 
         let response = on_document_symbol_request(
-            &mut state,
+            &input_files,
             DocumentSymbolParams {
-                text_document: TextDocumentIdentifier { uri: noir_text_document },
+                text_document: TextDocumentIdentifier { uri },
                 work_done_progress_params: WorkDoneProgressParams { work_done_token: None },
                 partial_result_params: PartialResultParams { partial_result_token: None },
             },
