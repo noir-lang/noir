@@ -1296,140 +1296,147 @@
 <a href=#1296 id=1296 data-nosnippet>1296</a>        len: FlattenedLength,
 <a href=#1297 id=1297 data-nosnippet>1297</a>        value: <span class="prelude-ty">Option</span>&lt;AcirValue&gt;,
 <a href=#1298 id=1298 data-nosnippet>1298</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;(), InternalError&gt; {
-<a href=#1299 id=1299 data-nosnippet>1299</a>        <span class="kw">let </span><span class="kw-2">mut </span>databus = BlockType::Memory;
-<a href=#1300 id=1300 data-nosnippet>1300</a>        <span class="kw">for </span>(call_data_id, array_id) <span class="kw">in </span><span class="self">self</span>.data_bus.call_data_array() {
-<a href=#1301 id=1301 data-nosnippet>1301</a>            <span class="kw">if </span><span class="self">self</span>.block_id(array_id) == array {
-<a href=#1302 id=1302 data-nosnippet>1302</a>                databus = BlockType::CallData(call_data_id);
-<a href=#1303 id=1303 data-nosnippet>1303</a>                <span class="kw">break</span>;
-<a href=#1304 id=1304 data-nosnippet>1304</a>            }
-<a href=#1305 id=1305 data-nosnippet>1305</a>        }
-<a href=#1306 id=1306 data-nosnippet>1306</a>
-<a href=#1307 id=1307 data-nosnippet>1307</a>        <span class="self">self</span>.acir_context.initialize_array(array, len, value, databus)<span class="question-mark">?</span>;
-<a href=#1308 id=1308 data-nosnippet>1308</a>        <span class="kw">if </span><span class="self">self</span>.initialized_arrays.insert(array) {
-<a href=#1309 id=1309 data-nosnippet>1309</a>            <span class="prelude-val">Ok</span>(())
-<a href=#1310 id=1310 data-nosnippet>1310</a>        } <span class="kw">else </span>{
-<a href=#1311 id=1311 data-nosnippet>1311</a>            <span class="prelude-val">Err</span>(InternalError::General {
-<a href=#1312 id=1312 data-nosnippet>1312</a>                message: <span class="string">"Attempted to initialize memory block twice"</span>.to_owned(),
-<a href=#1313 id=1313 data-nosnippet>1313</a>                call_stack: <span class="self">self</span>.acir_context.get_call_stack(),
-<a href=#1314 id=1314 data-nosnippet>1314</a>            })
-<a href=#1315 id=1315 data-nosnippet>1315</a>        }
-<a href=#1316 id=1316 data-nosnippet>1316</a>    }
-<a href=#1317 id=1317 data-nosnippet>1317</a>}
-<a href=#1318 id=1318 data-nosnippet>1318</a>
-<a href=#1319 id=1319 data-nosnippet>1319</a><span class="doccomment">/// Represents a shift in the size of the element type sizes array.
-<a href=#1320 id=1320 data-nosnippet>1320</a></span><span class="attr">#[derive(Debug, Clone, Copy)]
-<a href=#1321 id=1321 data-nosnippet>1321</a></span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">enum </span>ElementTypeSizesArrayShift {
-<a href=#1322 id=1322 data-nosnippet>1322</a>    <span class="doccomment">/// No shift is needed.
-<a href=#1323 id=1323 data-nosnippet>1323</a>    </span><span class="prelude-val">None</span>,
-<a href=#1324 id=1324 data-nosnippet>1324</a>    <span class="doccomment">/// The element type sizes array needs to grow by one (semantic length).
-<a href=#1325 id=1325 data-nosnippet>1325</a>    /// This is used for vector insert operations.
-<a href=#1326 id=1326 data-nosnippet>1326</a>    </span>Increase,
-<a href=#1327 id=1327 data-nosnippet>1327</a>    Decrease,
-<a href=#1328 id=1328 data-nosnippet>1328</a>}
-<a href=#1329 id=1329 data-nosnippet>1329</a>
-<a href=#1330 id=1330 data-nosnippet>1330</a><span class="doccomment">/// Calculates the element type sizes lookup array for heterogeneous arrays/vectors.
-<a href=#1331 id=1331 data-nosnippet>1331</a>///
-<a href=#1332 id=1332 data-nosnippet>1332</a>/// # Parameters
-<a href=#1333 id=1333 data-nosnippet>1333</a>///
-<a href=#1334 id=1334 data-nosnippet>1334</a>/// * `array_typ` - Type of the array/vector for which we are generating an element types sizes array
-<a href=#1335 id=1335 data-nosnippet>1335</a>/// * `flattened_length` - The total flattened size of the array data. For [`AcirValue::Array`],
-<a href=#1336 id=1336 data-nosnippet>1336</a>///   this is computed via [`flattened_value_size`]. For [`AcirValue::DynamicArray`], this is
-<a href=#1337 id=1337 data-nosnippet>1337</a>///   stored in the `len` field.
-<a href=#1338 id=1338 data-nosnippet>1338</a>/// * `shift` - Extra logical elements to allocate space for (e.g., for growth operations such as vector insert)
-<a href=#1339 id=1339 data-nosnippet>1339</a>///
-<a href=#1340 id=1340 data-nosnippet>1340</a>/// # Returns
-<a href=#1341 id=1341 data-nosnippet>1341</a>///
-<a href=#1342 id=1342 data-nosnippet>1342</a>/// A vector where each entry represents the flattened offset for a field in the composite type.
-<a href=#1343 id=1343 data-nosnippet>1343</a></span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>calculate_element_type_sizes_array(
-<a href=#1344 id=1344 data-nosnippet>1344</a>    array_typ: <span class="kw-2">&amp;</span>Type,
-<a href=#1345 id=1345 data-nosnippet>1345</a>    flattened_length: FlattenedLength,
-<a href=#1346 id=1346 data-nosnippet>1346</a>    shift: ElementTypeSizesArrayShift,
-<a href=#1347 id=1347 data-nosnippet>1347</a>) -&gt; Vec&lt;u32&gt; {
-<a href=#1348 id=1348 data-nosnippet>1348</a>    <span class="kw">let </span>(Type::Array(element_types, <span class="kw">_</span>) | Type::Vector(element_types)) = array_typ <span class="kw">else </span>{
-<a href=#1349 id=1349 data-nosnippet>1349</a>        <span class="macro">panic!</span>(<span class="string">"ICE: expected array or vector type"</span>);
-<a href=#1350 id=1350 data-nosnippet>1350</a>    };
-<a href=#1351 id=1351 data-nosnippet>1351</a>    <span class="kw">if </span>element_types.is_empty() {
-<a href=#1352 id=1352 data-nosnippet>1352</a>        <span class="kw">return </span><span class="macro">vec!</span>[];
-<a href=#1353 id=1353 data-nosnippet>1353</a>    }
-<a href=#1354 id=1354 data-nosnippet>1354</a>
-<a href=#1355 id=1355 data-nosnippet>1355</a>    <span class="kw">let </span>element_type_sizes = vecmap(element_types.iter(), |typ| typ.flattened_size());
-<a href=#1356 id=1356 data-nosnippet>1356</a>    <span class="kw">let </span>element_flattened_size: FlattenedLength = element_type_sizes.iter().copied().sum();
-<a href=#1357 id=1357 data-nosnippet>1357</a>    <span class="kw">let </span><span class="kw-2">mut </span>non_flattened_elements =
-<a href=#1358 id=1358 data-nosnippet>1358</a>        flattened_length / ElementsFlattenedLength::from(element_flattened_size);
-<a href=#1359 id=1359 data-nosnippet>1359</a>
-<a href=#1360 id=1360 data-nosnippet>1360</a>    <span class="comment">// Capacity is the number of entries in element_type_sizes array
-<a href=#1361 id=1361 data-nosnippet>1361</a>    // One entry per field per logical element.
-<a href=#1362 id=1362 data-nosnippet>1362</a>    </span><span class="kw">match </span>shift {
-<a href=#1363 id=1363 data-nosnippet>1363</a>        ElementTypeSizesArrayShift::None =&gt; {}
-<a href=#1364 id=1364 data-nosnippet>1364</a>        ElementTypeSizesArrayShift::Increase =&gt; {
-<a href=#1365 id=1365 data-nosnippet>1365</a>            non_flattened_elements += SemanticLength(<span class="number">1</span>);
-<a href=#1366 id=1366 data-nosnippet>1366</a>        }
-<a href=#1367 id=1367 data-nosnippet>1367</a>        ElementTypeSizesArrayShift::Decrease =&gt; {
-<a href=#1368 id=1368 data-nosnippet>1368</a>            non_flattened_elements = SemanticLength(non_flattened_elements.<span class="number">0</span>.saturating_sub(<span class="number">1</span>));
-<a href=#1369 id=1369 data-nosnippet>1369</a>        }
-<a href=#1370 id=1370 data-nosnippet>1370</a>    }
-<a href=#1371 id=1371 data-nosnippet>1371</a>
-<a href=#1372 id=1372 data-nosnippet>1372</a>    <span class="kw">let </span>capacity = non_flattened_elements * ElementTypesLength(assert_u32(element_types.len()));
-<a href=#1373 id=1373 data-nosnippet>1373</a>    <span class="kw">let </span>capacity = capacity.to_usize();
-<a href=#1374 id=1374 data-nosnippet>1374</a>
-<a href=#1375 id=1375 data-nosnippet>1375</a>    <span class="kw">let </span><span class="kw-2">mut </span>flat_elem_type_sizes = Vec::with_capacity(capacity);
-<a href=#1376 id=1376 data-nosnippet>1376</a>    <span class="kw">let </span><span class="kw-2">mut </span>total_size = <span class="number">0</span>;
-<a href=#1377 id=1377 data-nosnippet>1377</a>    <span class="kw">for </span>index <span class="kw">in </span><span class="number">0</span>..capacity {
-<a href=#1378 id=1378 data-nosnippet>1378</a>        flat_elem_type_sizes.push(total_size);
-<a href=#1379 id=1379 data-nosnippet>1379</a>        total_size += element_type_sizes[index % element_types.len()].<span class="number">0</span>;
-<a href=#1380 id=1380 data-nosnippet>1380</a>    }
-<a href=#1381 id=1381 data-nosnippet>1381</a>    flat_elem_type_sizes
-<a href=#1382 id=1382 data-nosnippet>1382</a>}
-<a href=#1383 id=1383 data-nosnippet>1383</a>
-<a href=#1384 id=1384 data-nosnippet>1384</a><span class="doccomment">/// Returns whether `value` contains an [`AcirValue::DynamicArray`] anywhere within it.
-<a href=#1385 id=1385 data-nosnippet>1385</a>///
-<a href=#1386 id=1386 data-nosnippet>1386</a>/// Such values are backed by a memory block rather than being held inline, so they cannot be
-<a href=#1387 id=1387 data-nosnippet>1387</a>/// folded into another [`AcirValue::Array`] without reading them back out of that block.
-<a href=#1388 id=1388 data-nosnippet>1388</a></span><span class="kw">fn </span>contains_dynamic_array(value: <span class="kw-2">&amp;</span>AcirValue) -&gt; bool {
-<a href=#1389 id=1389 data-nosnippet>1389</a>    <span class="kw">match </span>value {
-<a href=#1390 id=1390 data-nosnippet>1390</a>        AcirValue::Var(<span class="kw">_</span>, <span class="kw">_</span>) =&gt; <span class="bool-val">false</span>,
-<a href=#1391 id=1391 data-nosnippet>1391</a>        AcirValue::Array(values) =&gt; values.iter().any(contains_dynamic_array),
-<a href=#1392 id=1392 data-nosnippet>1392</a>        AcirValue::DynamicArray(<span class="kw">_</span>) =&gt; <span class="bool-val">true</span>,
-<a href=#1393 id=1393 data-nosnippet>1393</a>    }
-<a href=#1394 id=1394 data-nosnippet>1394</a>}
-<a href=#1395 id=1395 data-nosnippet>1395</a>
-<a href=#1396 id=1396 data-nosnippet>1396</a><span class="doccomment">/// Calculates the total flattened size of an [`AcirValue`].
-<a href=#1397 id=1397 data-nosnippet>1397</a>///
-<a href=#1398 id=1398 data-nosnippet>1398</a>/// Unlike [`Type::flattened_size`], this handles vectors, represented by [`AcirDynamicArray`], returning their capacity.
-<a href=#1399 id=1399 data-nosnippet>1399</a></span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>flattened_value_size(value: <span class="kw-2">&amp;</span>AcirValue) -&gt; FlattenedLength {
-<a href=#1400 id=1400 data-nosnippet>1400</a>    <span class="kw">match </span>value {
-<a href=#1401 id=1401 data-nosnippet>1401</a>        AcirValue::DynamicArray(AcirDynamicArray { len, .. }) =&gt; <span class="kw-2">*</span>len,
-<a href=#1402 id=1402 data-nosnippet>1402</a>        AcirValue::Var(<span class="kw">_</span>, <span class="kw">_</span>) =&gt; FlattenedLength(<span class="number">1</span>),
-<a href=#1403 id=1403 data-nosnippet>1403</a>        AcirValue::Array(values) =&gt; {
-<a href=#1404 id=1404 data-nosnippet>1404</a>            <span class="kw">let </span><span class="kw-2">mut </span>size = FlattenedLength(<span class="number">0</span>);
-<a href=#1405 id=1405 data-nosnippet>1405</a>            <span class="kw">for </span>value <span class="kw">in </span>values {
-<a href=#1406 id=1406 data-nosnippet>1406</a>                size += flattened_value_size(value);
-<a href=#1407 id=1407 data-nosnippet>1407</a>            }
-<a href=#1408 id=1408 data-nosnippet>1408</a>            size
-<a href=#1409 id=1409 data-nosnippet>1409</a>        }
-<a href=#1410 id=1410 data-nosnippet>1410</a>    }
-<a href=#1411 id=1411 data-nosnippet>1411</a>}
-<a href=#1412 id=1412 data-nosnippet>1412</a>
-<a href=#1413 id=1413 data-nosnippet>1413</a><span class="doccomment">/// Returns whether the array's elements have a constant size.
-<a href=#1414 id=1414 data-nosnippet>1414</a>///
-<a href=#1415 id=1415 data-nosnippet>1415</a>/// This is useful as it then allows us to calculate the flattened index by multiplying by this constant
-<a href=#1416 id=1416 data-nosnippet>1416</a>/// size.
-<a href=#1417 id=1417 data-nosnippet>1417</a>///
-<a href=#1418 id=1418 data-nosnippet>1418</a>/// # Returns
-<a href=#1419 id=1419 data-nosnippet>1419</a>///
-<a href=#1420 id=1420 data-nosnippet>1420</a>/// If the array's element types are all the same size then `array_has_constant_element_size` will return
-<a href=#1421 id=1421 data-nosnippet>1421</a>/// `Some(element_size)` where `element_size` is the size of `array`'s elements. Otherwise returns `None`.
-<a href=#1422 id=1422 data-nosnippet>1422</a></span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>array_has_constant_element_size(array_typ: <span class="kw-2">&amp;</span>Type) -&gt; <span class="prelude-ty">Option</span>&lt;u32&gt; {
-<a href=#1423 id=1423 data-nosnippet>1423</a>    <span class="kw">let </span>(Type::Array(types, <span class="kw">_</span>) | Type::Vector(types)) = array_typ <span class="kw">else </span>{
-<a href=#1424 id=1424 data-nosnippet>1424</a>        <span class="macro">panic!</span>(<span class="string">"ICE: expected array or vector type"</span>);
-<a href=#1425 id=1425 data-nosnippet>1425</a>    };
-<a href=#1426 id=1426 data-nosnippet>1426</a>
-<a href=#1427 id=1427 data-nosnippet>1427</a>    <span class="kw">let </span><span class="kw-2">mut </span>element_sizes = types.iter().map(|typ| typ.flattened_size());
-<a href=#1428 id=1428 data-nosnippet>1428</a>    <span class="kw">if let </span><span class="prelude-val">Some</span>(element_size) = element_sizes.next() {
-<a href=#1429 id=1429 data-nosnippet>1429</a>        <span class="kw">if </span>element_sizes.all(|size| size == element_size) { <span class="prelude-val">Some</span>(element_size.<span class="number">0</span>) } <span class="kw">else </span>{ <span class="prelude-val">None </span>}
-<a href=#1430 id=1430 data-nosnippet>1430</a>    } <span class="kw">else </span>{
-<a href=#1431 id=1431 data-nosnippet>1431</a>        <span class="comment">// If the array has no types in it it can be because it's something like `[(); 3]` where `()` is represented
-<a href=#1432 id=1432 data-nosnippet>1432</a>        // as "no types". And in this case the array has constant element size because it's zero.
-<a href=#1433 id=1433 data-nosnippet>1433</a>        </span><span class="prelude-val">Some</span>(<span class="number">0</span>)
-<a href=#1434 id=1434 data-nosnippet>1434</a>    }
-<a href=#1435 id=1435 data-nosnippet>1435</a>}</code></pre></div></section></main></body></html>
+<a href=#1299 id=1299 data-nosnippet>1299</a>        <span class="comment">// Record the block as initialized even for a zero-length array so that downstream
+<a href=#1300 id=1300 data-nosnippet>1300</a>        // bookkeeping stays consistent, but emit no `MemoryInit` opcode for it: an empty block has
+<a href=#1301 id=1301 data-nosnippet>1301</a>        // no slots to read or write, so any access to it is out of bounds and the opcode would only
+<a href=#1302 id=1302 data-nosnippet>1302</a>        // ever describe an orphan block.
+<a href=#1303 id=1303 data-nosnippet>1303</a>        </span><span class="kw">if </span>!<span class="self">self</span>.initialized_arrays.insert(array) {
+<a href=#1304 id=1304 data-nosnippet>1304</a>            <span class="kw">return </span><span class="prelude-val">Err</span>(InternalError::General {
+<a href=#1305 id=1305 data-nosnippet>1305</a>                message: <span class="string">"Attempted to initialize memory block twice"</span>.to_owned(),
+<a href=#1306 id=1306 data-nosnippet>1306</a>                call_stack: <span class="self">self</span>.acir_context.get_call_stack(),
+<a href=#1307 id=1307 data-nosnippet>1307</a>            });
+<a href=#1308 id=1308 data-nosnippet>1308</a>        }
+<a href=#1309 id=1309 data-nosnippet>1309</a>        <span class="kw">if </span>len.to_usize() == <span class="number">0 </span>{
+<a href=#1310 id=1310 data-nosnippet>1310</a>            <span class="kw">return </span><span class="prelude-val">Ok</span>(());
+<a href=#1311 id=1311 data-nosnippet>1311</a>        }
+<a href=#1312 id=1312 data-nosnippet>1312</a>
+<a href=#1313 id=1313 data-nosnippet>1313</a>        <span class="kw">let </span><span class="kw-2">mut </span>databus = BlockType::Memory;
+<a href=#1314 id=1314 data-nosnippet>1314</a>        <span class="kw">for </span>(call_data_id, array_id) <span class="kw">in </span><span class="self">self</span>.data_bus.call_data_array() {
+<a href=#1315 id=1315 data-nosnippet>1315</a>            <span class="kw">if </span><span class="self">self</span>.block_id(array_id) == array {
+<a href=#1316 id=1316 data-nosnippet>1316</a>                databus = BlockType::CallData(call_data_id);
+<a href=#1317 id=1317 data-nosnippet>1317</a>                <span class="kw">break</span>;
+<a href=#1318 id=1318 data-nosnippet>1318</a>            }
+<a href=#1319 id=1319 data-nosnippet>1319</a>        }
+<a href=#1320 id=1320 data-nosnippet>1320</a>
+<a href=#1321 id=1321 data-nosnippet>1321</a>        <span class="self">self</span>.acir_context.initialize_array(array, len, value, databus)<span class="question-mark">?</span>;
+<a href=#1322 id=1322 data-nosnippet>1322</a>        <span class="prelude-val">Ok</span>(())
+<a href=#1323 id=1323 data-nosnippet>1323</a>    }
+<a href=#1324 id=1324 data-nosnippet>1324</a>}
+<a href=#1325 id=1325 data-nosnippet>1325</a>
+<a href=#1326 id=1326 data-nosnippet>1326</a><span class="doccomment">/// Represents a shift in the size of the element type sizes array.
+<a href=#1327 id=1327 data-nosnippet>1327</a></span><span class="attr">#[derive(Debug, Clone, Copy)]
+<a href=#1328 id=1328 data-nosnippet>1328</a></span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">enum </span>ElementTypeSizesArrayShift {
+<a href=#1329 id=1329 data-nosnippet>1329</a>    <span class="doccomment">/// No shift is needed.
+<a href=#1330 id=1330 data-nosnippet>1330</a>    </span><span class="prelude-val">None</span>,
+<a href=#1331 id=1331 data-nosnippet>1331</a>    <span class="doccomment">/// The element type sizes array needs to grow by one (semantic length).
+<a href=#1332 id=1332 data-nosnippet>1332</a>    /// This is used for vector insert operations.
+<a href=#1333 id=1333 data-nosnippet>1333</a>    </span>Increase,
+<a href=#1334 id=1334 data-nosnippet>1334</a>    Decrease,
+<a href=#1335 id=1335 data-nosnippet>1335</a>}
+<a href=#1336 id=1336 data-nosnippet>1336</a>
+<a href=#1337 id=1337 data-nosnippet>1337</a><span class="doccomment">/// Calculates the element type sizes lookup array for heterogeneous arrays/vectors.
+<a href=#1338 id=1338 data-nosnippet>1338</a>///
+<a href=#1339 id=1339 data-nosnippet>1339</a>/// # Parameters
+<a href=#1340 id=1340 data-nosnippet>1340</a>///
+<a href=#1341 id=1341 data-nosnippet>1341</a>/// * `array_typ` - Type of the array/vector for which we are generating an element types sizes array
+<a href=#1342 id=1342 data-nosnippet>1342</a>/// * `flattened_length` - The total flattened size of the array data. For [`AcirValue::Array`],
+<a href=#1343 id=1343 data-nosnippet>1343</a>///   this is computed via [`flattened_value_size`]. For [`AcirValue::DynamicArray`], this is
+<a href=#1344 id=1344 data-nosnippet>1344</a>///   stored in the `len` field.
+<a href=#1345 id=1345 data-nosnippet>1345</a>/// * `shift` - Extra logical elements to allocate space for (e.g., for growth operations such as vector insert)
+<a href=#1346 id=1346 data-nosnippet>1346</a>///
+<a href=#1347 id=1347 data-nosnippet>1347</a>/// # Returns
+<a href=#1348 id=1348 data-nosnippet>1348</a>///
+<a href=#1349 id=1349 data-nosnippet>1349</a>/// A vector where each entry represents the flattened offset for a field in the composite type.
+<a href=#1350 id=1350 data-nosnippet>1350</a></span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>calculate_element_type_sizes_array(
+<a href=#1351 id=1351 data-nosnippet>1351</a>    array_typ: <span class="kw-2">&amp;</span>Type,
+<a href=#1352 id=1352 data-nosnippet>1352</a>    flattened_length: FlattenedLength,
+<a href=#1353 id=1353 data-nosnippet>1353</a>    shift: ElementTypeSizesArrayShift,
+<a href=#1354 id=1354 data-nosnippet>1354</a>) -&gt; Vec&lt;u32&gt; {
+<a href=#1355 id=1355 data-nosnippet>1355</a>    <span class="kw">let </span>(Type::Array(element_types, <span class="kw">_</span>) | Type::Vector(element_types)) = array_typ <span class="kw">else </span>{
+<a href=#1356 id=1356 data-nosnippet>1356</a>        <span class="macro">panic!</span>(<span class="string">"ICE: expected array or vector type"</span>);
+<a href=#1357 id=1357 data-nosnippet>1357</a>    };
+<a href=#1358 id=1358 data-nosnippet>1358</a>    <span class="kw">if </span>element_types.is_empty() {
+<a href=#1359 id=1359 data-nosnippet>1359</a>        <span class="kw">return </span><span class="macro">vec!</span>[];
+<a href=#1360 id=1360 data-nosnippet>1360</a>    }
+<a href=#1361 id=1361 data-nosnippet>1361</a>
+<a href=#1362 id=1362 data-nosnippet>1362</a>    <span class="kw">let </span>element_type_sizes = vecmap(element_types.iter(), |typ| typ.flattened_size());
+<a href=#1363 id=1363 data-nosnippet>1363</a>    <span class="kw">let </span>element_flattened_size: FlattenedLength = element_type_sizes.iter().copied().sum();
+<a href=#1364 id=1364 data-nosnippet>1364</a>    <span class="kw">let </span><span class="kw-2">mut </span>non_flattened_elements =
+<a href=#1365 id=1365 data-nosnippet>1365</a>        flattened_length / ElementsFlattenedLength::from(element_flattened_size);
+<a href=#1366 id=1366 data-nosnippet>1366</a>
+<a href=#1367 id=1367 data-nosnippet>1367</a>    <span class="comment">// Capacity is the number of entries in element_type_sizes array
+<a href=#1368 id=1368 data-nosnippet>1368</a>    // One entry per field per logical element.
+<a href=#1369 id=1369 data-nosnippet>1369</a>    </span><span class="kw">match </span>shift {
+<a href=#1370 id=1370 data-nosnippet>1370</a>        ElementTypeSizesArrayShift::None =&gt; {}
+<a href=#1371 id=1371 data-nosnippet>1371</a>        ElementTypeSizesArrayShift::Increase =&gt; {
+<a href=#1372 id=1372 data-nosnippet>1372</a>            non_flattened_elements += SemanticLength(<span class="number">1</span>);
+<a href=#1373 id=1373 data-nosnippet>1373</a>        }
+<a href=#1374 id=1374 data-nosnippet>1374</a>        ElementTypeSizesArrayShift::Decrease =&gt; {
+<a href=#1375 id=1375 data-nosnippet>1375</a>            non_flattened_elements = SemanticLength(non_flattened_elements.<span class="number">0</span>.saturating_sub(<span class="number">1</span>));
+<a href=#1376 id=1376 data-nosnippet>1376</a>        }
+<a href=#1377 id=1377 data-nosnippet>1377</a>    }
+<a href=#1378 id=1378 data-nosnippet>1378</a>
+<a href=#1379 id=1379 data-nosnippet>1379</a>    <span class="kw">let </span>capacity = non_flattened_elements * ElementTypesLength(assert_u32(element_types.len()));
+<a href=#1380 id=1380 data-nosnippet>1380</a>    <span class="kw">let </span>capacity = capacity.to_usize();
+<a href=#1381 id=1381 data-nosnippet>1381</a>
+<a href=#1382 id=1382 data-nosnippet>1382</a>    <span class="kw">let </span><span class="kw-2">mut </span>flat_elem_type_sizes = Vec::with_capacity(capacity);
+<a href=#1383 id=1383 data-nosnippet>1383</a>    <span class="kw">let </span><span class="kw-2">mut </span>total_size = <span class="number">0</span>;
+<a href=#1384 id=1384 data-nosnippet>1384</a>    <span class="kw">for </span>index <span class="kw">in </span><span class="number">0</span>..capacity {
+<a href=#1385 id=1385 data-nosnippet>1385</a>        flat_elem_type_sizes.push(total_size);
+<a href=#1386 id=1386 data-nosnippet>1386</a>        total_size += element_type_sizes[index % element_types.len()].<span class="number">0</span>;
+<a href=#1387 id=1387 data-nosnippet>1387</a>    }
+<a href=#1388 id=1388 data-nosnippet>1388</a>    flat_elem_type_sizes
+<a href=#1389 id=1389 data-nosnippet>1389</a>}
+<a href=#1390 id=1390 data-nosnippet>1390</a>
+<a href=#1391 id=1391 data-nosnippet>1391</a><span class="doccomment">/// Returns whether `value` contains an [`AcirValue::DynamicArray`] anywhere within it.
+<a href=#1392 id=1392 data-nosnippet>1392</a>///
+<a href=#1393 id=1393 data-nosnippet>1393</a>/// Such values are backed by a memory block rather than being held inline, so they cannot be
+<a href=#1394 id=1394 data-nosnippet>1394</a>/// folded into another [`AcirValue::Array`] without reading them back out of that block.
+<a href=#1395 id=1395 data-nosnippet>1395</a></span><span class="kw">fn </span>contains_dynamic_array(value: <span class="kw-2">&amp;</span>AcirValue) -&gt; bool {
+<a href=#1396 id=1396 data-nosnippet>1396</a>    <span class="kw">match </span>value {
+<a href=#1397 id=1397 data-nosnippet>1397</a>        AcirValue::Var(<span class="kw">_</span>, <span class="kw">_</span>) =&gt; <span class="bool-val">false</span>,
+<a href=#1398 id=1398 data-nosnippet>1398</a>        AcirValue::Array(values) =&gt; values.iter().any(contains_dynamic_array),
+<a href=#1399 id=1399 data-nosnippet>1399</a>        AcirValue::DynamicArray(<span class="kw">_</span>) =&gt; <span class="bool-val">true</span>,
+<a href=#1400 id=1400 data-nosnippet>1400</a>    }
+<a href=#1401 id=1401 data-nosnippet>1401</a>}
+<a href=#1402 id=1402 data-nosnippet>1402</a>
+<a href=#1403 id=1403 data-nosnippet>1403</a><span class="doccomment">/// Calculates the total flattened size of an [`AcirValue`].
+<a href=#1404 id=1404 data-nosnippet>1404</a>///
+<a href=#1405 id=1405 data-nosnippet>1405</a>/// Unlike [`Type::flattened_size`], this handles vectors, represented by [`AcirDynamicArray`], returning their capacity.
+<a href=#1406 id=1406 data-nosnippet>1406</a></span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>flattened_value_size(value: <span class="kw-2">&amp;</span>AcirValue) -&gt; FlattenedLength {
+<a href=#1407 id=1407 data-nosnippet>1407</a>    <span class="kw">match </span>value {
+<a href=#1408 id=1408 data-nosnippet>1408</a>        AcirValue::DynamicArray(AcirDynamicArray { len, .. }) =&gt; <span class="kw-2">*</span>len,
+<a href=#1409 id=1409 data-nosnippet>1409</a>        AcirValue::Var(<span class="kw">_</span>, <span class="kw">_</span>) =&gt; FlattenedLength(<span class="number">1</span>),
+<a href=#1410 id=1410 data-nosnippet>1410</a>        AcirValue::Array(values) =&gt; {
+<a href=#1411 id=1411 data-nosnippet>1411</a>            <span class="kw">let </span><span class="kw-2">mut </span>size = FlattenedLength(<span class="number">0</span>);
+<a href=#1412 id=1412 data-nosnippet>1412</a>            <span class="kw">for </span>value <span class="kw">in </span>values {
+<a href=#1413 id=1413 data-nosnippet>1413</a>                size += flattened_value_size(value);
+<a href=#1414 id=1414 data-nosnippet>1414</a>            }
+<a href=#1415 id=1415 data-nosnippet>1415</a>            size
+<a href=#1416 id=1416 data-nosnippet>1416</a>        }
+<a href=#1417 id=1417 data-nosnippet>1417</a>    }
+<a href=#1418 id=1418 data-nosnippet>1418</a>}
+<a href=#1419 id=1419 data-nosnippet>1419</a>
+<a href=#1420 id=1420 data-nosnippet>1420</a><span class="doccomment">/// Returns whether the array's elements have a constant size.
+<a href=#1421 id=1421 data-nosnippet>1421</a>///
+<a href=#1422 id=1422 data-nosnippet>1422</a>/// This is useful as it then allows us to calculate the flattened index by multiplying by this constant
+<a href=#1423 id=1423 data-nosnippet>1423</a>/// size.
+<a href=#1424 id=1424 data-nosnippet>1424</a>///
+<a href=#1425 id=1425 data-nosnippet>1425</a>/// # Returns
+<a href=#1426 id=1426 data-nosnippet>1426</a>///
+<a href=#1427 id=1427 data-nosnippet>1427</a>/// If the array's element types are all the same size then `array_has_constant_element_size` will return
+<a href=#1428 id=1428 data-nosnippet>1428</a>/// `Some(element_size)` where `element_size` is the size of `array`'s elements. Otherwise returns `None`.
+<a href=#1429 id=1429 data-nosnippet>1429</a></span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>array_has_constant_element_size(array_typ: <span class="kw-2">&amp;</span>Type) -&gt; <span class="prelude-ty">Option</span>&lt;u32&gt; {
+<a href=#1430 id=1430 data-nosnippet>1430</a>    <span class="kw">let </span>(Type::Array(types, <span class="kw">_</span>) | Type::Vector(types)) = array_typ <span class="kw">else </span>{
+<a href=#1431 id=1431 data-nosnippet>1431</a>        <span class="macro">panic!</span>(<span class="string">"ICE: expected array or vector type"</span>);
+<a href=#1432 id=1432 data-nosnippet>1432</a>    };
+<a href=#1433 id=1433 data-nosnippet>1433</a>
+<a href=#1434 id=1434 data-nosnippet>1434</a>    <span class="kw">let </span><span class="kw-2">mut </span>element_sizes = types.iter().map(|typ| typ.flattened_size());
+<a href=#1435 id=1435 data-nosnippet>1435</a>    <span class="kw">if let </span><span class="prelude-val">Some</span>(element_size) = element_sizes.next() {
+<a href=#1436 id=1436 data-nosnippet>1436</a>        <span class="kw">if </span>element_sizes.all(|size| size == element_size) { <span class="prelude-val">Some</span>(element_size.<span class="number">0</span>) } <span class="kw">else </span>{ <span class="prelude-val">None </span>}
+<a href=#1437 id=1437 data-nosnippet>1437</a>    } <span class="kw">else </span>{
+<a href=#1438 id=1438 data-nosnippet>1438</a>        <span class="comment">// If the array has no types in it it can be because it's something like `[(); 3]` where `()` is represented
+<a href=#1439 id=1439 data-nosnippet>1439</a>        // as "no types". And in this case the array has constant element size because it's zero.
+<a href=#1440 id=1440 data-nosnippet>1440</a>        </span><span class="prelude-val">Some</span>(<span class="number">0</span>)
+<a href=#1441 id=1441 data-nosnippet>1441</a>    }
+<a href=#1442 id=1442 data-nosnippet>1442</a>}</code></pre></div></section></main></body></html>
