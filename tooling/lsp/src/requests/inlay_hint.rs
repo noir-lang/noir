@@ -32,7 +32,7 @@ pub(crate) fn on_inlay_hint_request(
 
     let options = state.options.inlay_hints;
 
-    let result = process_request(state, text_document_position_params, |args| {
+    process_request(state, text_document_position_params, |args| {
         let file_id = args.location.file;
         let file = args.files.get_file(file_id).unwrap();
         let source = file.source();
@@ -45,8 +45,7 @@ pub(crate) fn on_inlay_hint_request(
             InlayHintCollector::new(args.files, file_id, args.interner, span, options);
         parsed_module.accept(&mut collector);
         Some(collector.inlay_hints)
-    });
-    result
+    })
 }
 
 pub(crate) struct InlayHintCollector<'a> {

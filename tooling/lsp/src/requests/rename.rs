@@ -15,7 +15,7 @@ pub(crate) fn on_prepare_rename_request(
     state: &mut LspState,
     params: TextDocumentPositionParams,
 ) -> Result<Option<PrepareRenameResponse>, ResponseError> {
-    let result = process_request(state, params, |args| {
+    process_request(state, params, |args| {
         let reference_id = args.interner.reference_at_location(args.location);
         let rename_possible = match reference_id {
             // Rename shouldn't be possible when triggered on top of "Self"
@@ -24,15 +24,14 @@ pub(crate) fn on_prepare_rename_request(
             None => false,
         };
         Some(PrepareRenameResponse::DefaultBehavior { default_behavior: rename_possible })
-    });
-    result
+    })
 }
 
 pub(crate) fn on_rename_request(
     state: &mut LspState,
     params: RenameParams,
 ) -> Result<Option<WorkspaceEdit>, ResponseError> {
-    let result = process_request(state, params.text_document_position, |args| {
+    process_request(state, params.text_document_position, |args| {
         let rename_changes = find_all_references_in_workspace(
             args.location,
             args.interner,
@@ -60,8 +59,7 @@ pub(crate) fn on_rename_request(
         };
 
         Some(response)
-    });
-    result
+    })
 }
 
 #[cfg(test)]

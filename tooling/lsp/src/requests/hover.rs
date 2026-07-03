@@ -15,13 +15,12 @@ pub(crate) fn on_hover_request(
     params: HoverParams,
 ) -> Result<Option<Hover>, ResponseError> {
     let position = params.text_document_position_params.position;
-    let result = process_request(state, params.text_document_position_params, |args| {
+
+    process_request(state, params.text_document_position_params, |args| {
         let file_id = args.location.file;
         hover_from_reference(file_id, position, &args)
             .or_else(|| hover_from_visitor(file_id, position, &args))
-    });
-
-    result
+    })
 }
 
 #[cfg(test)]

@@ -28,7 +28,7 @@ pub(crate) fn on_signature_help_request(
     state: &mut LspState,
     params: SignatureHelpParams,
 ) -> Result<Option<SignatureHelp>, ResponseError> {
-    let result = process_request(state, params.text_document_position_params.clone(), |args| {
+    process_request(state, params.text_document_position_params.clone(), |args| {
         let file_id = args.location.file;
         let byte_index = utils::position_to_byte_index(
             args.files,
@@ -41,8 +41,7 @@ pub(crate) fn on_signature_help_request(
 
         let mut finder = SignatureFinder::new(file_id, byte_index, args.interner);
         finder.find(&parsed_module)
-    });
-    result
+    })
 }
 
 struct SignatureFinder<'a> {

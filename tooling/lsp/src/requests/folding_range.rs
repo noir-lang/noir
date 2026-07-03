@@ -25,7 +25,7 @@ pub(crate) fn on_folding_range_request(
         position: Position { line: 0, character: 0 },
     };
 
-    let result = process_request(state, text_document_position_params, |args| {
+    process_request(state, text_document_position_params, |args| {
         let file_id = args.location.file;
         let file = args.files.get_file(file_id).unwrap();
         let source = file.source();
@@ -39,7 +39,5 @@ pub(crate) fn on_folding_range_request(
         ranges.extend(node_ranges);
 
         Some(ranges)
-    });
-
-    result
+    })
 }

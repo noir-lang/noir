@@ -13,16 +13,14 @@ pub(crate) fn on_goto_definition_request(
     state: &mut LspState,
     params: GotoDefinitionParams,
 ) -> Result<GotoDefinitionResult, ResponseError> {
-    let result = on_goto_definition_inner(state, params, false);
-    result
+    on_goto_definition_inner(state, params, false)
 }
 
 pub(crate) fn on_goto_type_definition_request(
     state: &mut LspState,
     params: GotoTypeDefinitionParams,
 ) -> Result<GotoDefinitionResult, ResponseError> {
-    let result = on_goto_definition_inner(state, params, true);
-    result
+    on_goto_definition_inner(state, params, true)
 }
 
 fn on_goto_definition_inner(
@@ -170,9 +168,7 @@ mod goto_definition_tests {
 
         let params = GotoDefinitionParams {
             text_document_position_params: lsp_types::TextDocumentPositionParams {
-                text_document: lsp_types::TextDocumentIdentifier {
-                    uri: noir_text_document.clone(),
-                },
+                text_document: lsp_types::TextDocumentIdentifier { uri: noir_text_document },
                 position,
             },
             work_done_progress_params: Default::default(),

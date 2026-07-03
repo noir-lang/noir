@@ -27,7 +27,7 @@ pub(crate) fn on_document_symbol_request(
         position: Position { line: 0, character: 0 },
     };
 
-    let result = process_request(state, text_document_position_params, |args| {
+    process_request(state, text_document_position_params, |args| {
         let file_id = args.location.file;
         let file = args.files.get_file(file_id).unwrap();
         let source = file.source();
@@ -36,9 +36,7 @@ pub(crate) fn on_document_symbol_request(
         let mut collector = DocumentSymbolCollector::new(file_id, args.files);
         let symbols = collector.collect(&parsed_module);
         Some(DocumentSymbolResponse::Nested(symbols))
-    });
-
-    result
+    })
 }
 
 struct DocumentSymbolCollector<'a> {

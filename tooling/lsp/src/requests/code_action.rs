@@ -47,7 +47,7 @@ pub(crate) fn on_code_action_request(
     let text_document_position_params =
         TextDocumentPositionParams { text_document: params.text_document, position };
 
-    let result = process_request(state, text_document_position_params, |args| {
+    process_request(state, text_document_position_params, |args| {
         let file_id = args.location.file;
         let byte_range = utils::range_to_byte_span(args.files, file_id, &params.range)?;
         let file = args.files.get_file(file_id).unwrap();
@@ -67,8 +67,7 @@ pub(crate) fn on_code_action_request(
             args.usage_tracker,
         );
         finder.find(&parsed_module)
-    });
-    result
+    })
 }
 
 struct CodeActionFinder<'a> {

@@ -65,7 +65,7 @@ pub(crate) fn on_completion_request(
     state: &mut LspState,
     params: CompletionParams,
 ) -> Result<Option<CompletionResponse>, ResponseError> {
-    let result = process_request(state, params.text_document_position.clone(), |args| {
+    process_request(state, params.text_document_position.clone(), |args| {
         let file_id = args.location.file;
         let byte_index = utils::position_to_byte_index(
             args.files,
@@ -89,8 +89,7 @@ pub(crate) fn on_completion_request(
             args.interner,
         );
         finder.find(&parsed_module)
-    });
-    result
+    })
 }
 
 struct NodeFinder<'a> {

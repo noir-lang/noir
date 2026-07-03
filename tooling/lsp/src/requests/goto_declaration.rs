@@ -10,8 +10,7 @@ pub(crate) fn on_goto_declaration_request(
     state: &mut LspState,
     params: GotoDeclarationParams,
 ) -> Result<GotoDeclarationResult, ResponseError> {
-    let result = on_goto_definition_inner(state, params);
-    result
+    on_goto_definition_inner(state, params)
 }
 
 fn on_goto_definition_inner(
