@@ -915,12 +915,27 @@ impl<'a> Context<'a> {
 
 /// Check post ACIR generation properties:
 /// * No empty `AssertZero` opcodes (asserting `0 == 0`) should be emitted.
+/// * No zero-length memory block should be initialized. An empty block has no slots to read or
+///   write, so a `MemoryInit` for it is dead weight that ACIR gen must never emit.
 /// * No memory opcodes should be laid down that write to the internal type sizes array.
 ///   See [arrays] for more information on the type sizes array.
+/// * Every non-databus, non-empty memory block that is initialized is also referenced by at least
+///   one memory operation or Brillig memory-array input. A `MemoryInit` with
+///   no linked read/write is dead weight that ACIR gen should never emit: arrays are only promoted
+///   to a memory block on their first memory operation. Databus blocks (calldata/return data) are
+///   exempt as they are part of the circuit's ABI and are intentionally initialized even when
+///   unused. Zero-length blocks are also exempt: an empty block has no slots to read or write, so
+///   it can never be referenced by a memory operation, and the ACVM unused-memory optimizer strips
+///   these inert initializations regardless.
 #[cfg(debug_assertions)]
 fn acir_post_check(context: &Context<'_>, acir: &GeneratedAcir<FieldElement>) {
     use acvm::acir::circuit::Opcode;
+    use acvm::acir::circuit::brillig::BrilligInputs;
     use acvm::acir::circuit::opcodes::MemOpKind;
+
+    let mut initialized_non_databus_blocks: HashSet<BlockId> = HashSet::default();
+    let mut used_blocks: HashSet<BlockId> = HashSet::default();
+
     for opcode in acir.opcodes() {
         match opcode {
             Opcode::AssertZero(expr) => {
@@ -929,16 +944,41 @@ fn acir_post_check(context: &Context<'_>, acir: &GeneratedAcir<FieldElement>) {
                     "ICE: Empty AssertZero opcodes (0 == 0) should not be emitted"
                 );
             }
-            Opcode::MemoryOp { block_id, op } if op.operation == MemOpKind::Write => {
-                // Check that we have no writes to the type size arrays
-                let is_type_sizes_array =
-                    context.element_type_sizes_blocks.values().any(|id| id == block_id);
+            Opcode::MemoryInit { block_id, block_type, init } => {
                 assert!(
-                    !is_type_sizes_array,
-                    "ICE: Writes to the internal type sizes array are forbidden"
+                    !init.is_empty(),
+                    "ICE: Zero-length memory blocks should not be initialized"
                 );
+                if !block_type.is_databus() && !init.is_empty() {
+                    initialized_non_databus_blocks.insert(*block_id);
+                }
+            }
+            Opcode::MemoryOp { block_id, op } => {
+                used_blocks.insert(*block_id);
+                if op.operation == MemOpKind::Write {
+                    // Check that we have no writes to the type size arrays
+                    let is_type_sizes_array =
+                        context.element_type_sizes_blocks.values().any(|id| id == block_id);
+                    assert!(
+                        !is_type_sizes_array,
+                        "ICE: Writes to the internal type sizes array are forbidden"
+                    );
+                }
+            }
+            Opcode::BrilligCall { inputs, .. } => {
+                for input in inputs {
+                    if let BrilligInputs::MemoryArray(block_id) = input {
+                        used_blocks.insert(*block_id);
+                    }
+                }
             }
             _ => {}
         }
     }
+
+    let unused: Vec<_> = initialized_non_databus_blocks.difference(&used_blocks).collect();
+    assert!(
+        unused.is_empty(),
+        "ICE: memory blocks initialized without any linked read/write/Brillig use: {unused:?}"
+    );
 }
