@@ -156,9 +156,9 @@ pub(super) fn simplify_binary(
                     operator: BinaryOp::Mul { unchecked: false },
                 }));
             }
-            // An unsigned division by a constant strictly greater than the maximum possible
-            // value of `lhs` always produces zero. A zero divisor is never greater than the
-            // (non-negative) maximum, so division-by-zero semantics are preserved.
+            // An unsigned division by a constant greater than the maximum possible value of
+            // `lhs` is always zero. A zero divisor never exceeds the maximum, so
+            // division-by-zero semantics are preserved.
             if lhs_type.is_unsigned()
                 && let Some(rhs_value) = rhs_value
                 && constant_exceeds_max_value(dfg, lhs, rhs_value)
@@ -173,11 +173,10 @@ pub(super) fn simplify_binary(
                 return SimplifyResult::SimplifiedTo(zero);
             }
             if lhs_type.is_unsigned() {
-                // An unsigned modulo by a constant strictly greater than the maximum possible
-                // value of `lhs` leaves `lhs` unchanged. A zero modulus is never greater than
-                // the (non-negative) maximum, so division-by-zero semantics are preserved.
-                // This is checked before the power-of-two rewrite below so that an oversized
-                // power-of-two modulus simplifies to `lhs` instead of a redundant truncation.
+                // An unsigned modulo by a constant greater than the maximum possible value of
+                // `lhs` leaves `lhs` unchanged (a zero modulus never exceeds the maximum, so
+                // division-by-zero semantics are preserved). Checked before the power-of-two
+                // rewrite below to avoid simplifying to a redundant truncation instead.
                 if let Some(rhs_value) = rhs_value
                     && constant_exceeds_max_value(dfg, lhs, rhs_value)
                 {
@@ -379,13 +378,10 @@ fn can_simplify_arithmetic_identity(
 }
 
 /// Whether `constant` is strictly greater than the maximum value that the unsigned `value`
-/// can possibly take.
+/// can possibly take, per [`DataFlowGraph::get_value_max_num_bits`].
 ///
-/// The maximum is derived from [`DataFlowGraph::get_value_max_num_bits`], which refines the
-/// type's bit width using the value's definition (e.g. an upcast keeps its source width and a
-/// truncation bounds the result to the truncated width). A value of `max_bits` bits is at most
-/// `2^max_bits - 1`, so the comparison is strict: a constant equal to the maximum never counts
-/// as exceeding it.
+/// A value of `max_bits` bits can reach `2^max_bits - 1`, so the comparison is strict:
+/// a constant equal to the maximum does not count as exceeding it.
 fn constant_exceeds_max_value(dfg: &DataFlowGraph, value: ValueId, constant: FieldElement) -> bool {
     let max_bits = dfg.get_value_max_num_bits(value);
     let max_value = if max_bits >= 128 { u128::MAX } else { (1u128 << max_bits) - 1 };
