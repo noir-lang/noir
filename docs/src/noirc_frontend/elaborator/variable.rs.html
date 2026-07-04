@@ -523,7 +523,7 @@
 <a href=#523 id=523 data-nosnippet>523</a>    /// current scope (a local variable, or a value item — global, function, enum-variant global,
 <a href=#524 id=524 data-nosnippet>524</a>    /// numeric type alias) via [`Self::resolve_unprefixed_variable`].
 <a href=#525 id=525 data-nosnippet>525</a>    </span><span class="attr">#[tracing::instrument(level = <span class="string">"trace"</span>, skip_all)]
-<a href=#526 id=526 data-nosnippet>526</a>    </span><span class="kw">fn </span>resolve_variable(<span class="kw-2">&amp;mut </span><span class="self">self</span>, path: TypedPath) -&gt; <span class="prelude-ty">Option</span>&lt;VariableResolution&gt; {
+<a href=#526 id=526 data-nosnippet>526</a>    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>resolve_variable(<span class="kw-2">&amp;mut </span><span class="self">self</span>, path: TypedPath) -&gt; <span class="prelude-ty">Option</span>&lt;VariableResolution&gt; {
 <a href=#527 id=527 data-nosnippet>527</a>        <span class="kw">if </span>path.segments.len() &gt; <span class="number">1 </span>{
 <a href=#528 id=528 data-nosnippet>528</a>            <span class="self">self</span>.resolve_prefixed_variable(path)
 <a href=#529 id=529 data-nosnippet>529</a>        } <span class="kw">else </span>{
