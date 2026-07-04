@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1783100513105,
+  "lastUpdate": 1783159505978,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23191,48 +23191,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "jfecher11@gmail.com",
-            "name": "jfecher",
-            "username": "jfecher"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "536fe15e2148ecfdf8ded577f2d752d04bf7f885",
-          "message": "fix: ts codegen for Unit/void functions (#13183)",
-          "timestamp": "2026-06-29T12:07:12Z",
-          "tree_id": "85a5a0328b19192363e71e7717c24ba7ce00c0a7",
-          "url": "https://github.com/noir-lang/noir/commit/536fe15e2148ecfdf8ded577f2d752d04bf7f885"
-        },
-        "date": 1782736024413,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 175806,
-            "range": "± 518",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 143303,
-            "range": "± 855",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2656066,
-            "range": "± 8917",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -25284,6 +25242,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2656266,
             "range": "± 1937",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "0df14918157edb923458f9a77ba27f994b6fc11d",
+          "message": "fix: Make `FunctionDefinition` coercion in meta-attributes work with inherent methods (#13259)",
+          "timestamp": "2026-07-04T09:44:14Z",
+          "tree_id": "8e6da5f3fa15b9a633df7390ff331848e2a84aa6",
+          "url": "https://github.com/noir-lang/noir/commit/0df14918157edb923458f9a77ba27f994b6fc11d"
+        },
+        "date": 1783159431736,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 175796,
+            "range": "± 659",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 145674,
+            "range": "± 778",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2657755,
+            "range": "± 1840",
             "unit": "ns/iter"
           }
         ]
