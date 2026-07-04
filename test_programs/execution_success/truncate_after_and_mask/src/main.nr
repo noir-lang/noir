@@ -1,13 +1,7 @@
-// A bitwise AND with a constant mask bounds the result to the mask's bit
-// length, so a subsequent truncation to at least that many bits is redundant
-// and can be removed (issue #8628): `x & 123` fits in 7 bits, so the truncate
-// emitted for the `as u8` cast cannot change the value.
-//
-// Masks of the form `2^n - 1` (like `0xff`) are canonicalized to `truncate`
-// earlier in SSA and never reach the pass as `and`, so the masks here are
-// deliberately not of that form. The `& 0x1ab` case is bounded by 9 bits, so
-// its 8-bit truncation is semantically active and must be kept (for the input
-// in Prover.toml, `x & 0x1ab` is 417 and the cast must reduce it to 161).
+// An AND with a constant mask bounds the result to the mask's bit length, so a
+// truncation to at least that many bits is redundant and removable (issue #8628).
+// Masks of the form `2^n - 1` are canonicalized to `truncate` before the pass runs,
+// so the masks here are deliberately not of that form.
 fn main(x: u64, y: u32, expected_a: u8, expected_b: u8, expected_c: u16, expected_kept: u8) {
     // 123 = 0b111_1011 fits in 7 bits: the 8-bit truncate is removable.
     let a = (x & 123) as u8;

@@ -4,8 +4,7 @@
 //! underlying value).
 //!
 //! The same bound is also learned from a bitwise `and` with a constant mask:
-//! every bit set in the result must also be set in the mask, so the result fits
-//! in the mask's bit length (`x & 123` fits in 7 bits, since `123 < 2^7`).
+//! the result fits in the mask's bit length (`x & 123` fits in 7 bits, since `123 < 2^7`).
 
 use acvm::AcirField;
 use rustc_hash::FxHashMap as HashMap;
@@ -69,13 +68,9 @@ impl Function {
                         })
                         .or_insert(*max_bit_size);
                 }
-                // A bitwise `and` with a constant mask bounds the result to the mask's
-                // bit length: every bit set in the result must also be set in the mask,
-                // so `result < 2^bits(mask)`. This holds for non-contiguous masks too
-                // (`x & 0b101` is bounded by 3 bits, the mask's highest set bit).
-                // Masks of the form `2^n - 1` are usually canonicalized to `truncate`
-                // by `simplify_binary` before this pass runs, but other constant masks
-                // (e.g. `x & 123`) reach here as `and` instructions (see issue #8628).
+                // An `and` with a constant mask bounds the result to the mask's bit length
+                // (its highest set bit, so non-contiguous masks work too): every bit set
+                // in the result must also be set in the mask, hence `result < 2^bits(mask)`.
                 Instruction::Binary(Binary { lhs, rhs, operator: BinaryOp::And }) => {
                     let lhs_constant = context.dfg.get_numeric_constant(*lhs);
                     let rhs_constant = context.dfg.get_numeric_constant(*rhs);
@@ -301,11 +296,8 @@ mod tests {
 
     #[test]
     fn does_not_remove_truncate_in_block_not_dominated_by_the_previous_block() {
-        // The pass's known-bounds map is cleared when the traversal moves to a
-        // block that is not dominated by the previously visited one (b1 does
-        // not dominate b2 here), so the bound learned for v3 in b0 is
-        // conservatively dropped and the truncate in b2 is kept, mirroring the
-        // pass's existing dominance discipline for range checks.
+        // b1 does not dominate b2, so the known-bounds map is cleared and the bound
+        // learned for v3 in b0 is conservatively dropped, keeping the truncate in b2.
         let src = "
         acir(inline) pure fn main f0 {
           b0(v0: u64, v1: u1):
