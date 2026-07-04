@@ -104,9 +104,8 @@ pub(super) fn simplify_call(
             } else if let (Some(return_type), Some(radix)) =
                 (return_type, dfg.get_numeric_constant(arguments[1]))
             {
-                // The value is not constant here (`constant_args` requires every argument
-                // to be constant, and the radix is): a single-limb decomposition of it is
-                // just a range constraint on the value.
+                // The value is not constant (`constant_args` requires every argument to be
+                // constant) but the radix is: the single-limb rewrite still applies.
                 simplify_single_limb_decomposition(
                     dfg,
                     arguments[0],
@@ -671,33 +670,20 @@ fn simplify_constant_to_radix(
     }
 }
 
-/// Simplify a `to_bits`/`to_radix` call that decomposes into a single limb to a range
-/// constraint.
+/// Simplify a `to_bits`/`to_radix` call that decomposes into a single limb: with one limb
+/// the decomposition constrains exactly `value < radix` and returns `[value]`, so it is
+/// replaced by the equivalent `range_check value to log2(radix) bits` (same failure
+/// message) plus a cast to the limb type. Endianness is irrelevant for a single limb.
 ///
-/// A radix decomposition into `N` limbs constrains each limb to `[0, radix)` and constrains
-/// the weighted limb sum to reconstruct the input exactly (failing with "Field failed to
-/// decompose into specified `N` limbs" otherwise). With `N == 1` the weighted sum is the
-/// limb itself, so the decomposition constrains exactly `value < radix` and returns
-/// `[value]`. This emits the equivalent `range_check value to log2(radix) bits` followed by
-/// a cast of the value to the limb type, avoiding the decomposition's fresh limb witness,
-/// its Brillig limb hint and the recomposition constraint. Endianness is irrelevant for a
-/// single limb, so both endian variants take this path.
+/// Only fires for a constant power-of-two radix in `2..=256`: any other bound (reachable
+/// in Brillig, where the radix is a runtime value in `2..=256`) is not expressible as a
+/// bit-size range check. Constant values are constant-folded before reaching this.
 ///
-/// The rewrite only fires for a constant power-of-two radix in `2..=256`: a
-/// non-power-of-two bound (reachable in Brillig, where any radix in `2..=256` is accepted
-/// at runtime) is not expressible as a bit-size range check. Constant values never reach
-/// this function; they are constant-folded (or, when they do not fit, left to fail with
-/// the decomposition's own semantics).
-///
-/// The range check is inserted *before* the cast on purpose:
-/// - the narrowing-cast invariant (see `validation::Validator`) accepts a cast whose input
-///   was previously range-checked to fit the destination type, and
-/// - when the call executes under a predicate, `flatten_cfg` replaces a range-checked
-///   value with its predicated form (`predicate * value`) for the rest of the branch
-///   (issue #8617), which remaps the cast input too. The returned limb therefore stays
-///   zero — in range for its type — when the predicate is off, exactly like the
-///   decomposition's limb (whose input argument would have been multiplied by the
-///   predicate, while its limb range checks are emitted unconditionally).
+/// The range check is inserted *before* the cast on purpose: it justifies the narrowing
+/// cast (see `validation::Validator`), and under a predicate `flatten_cfg` remaps the
+/// range-checked value — and thus the cast input — to `predicate * value` (issue #8617),
+/// so the returned limb stays zero (in range) when the predicate is off, exactly like the
+/// decomposition's limb.
 fn simplify_single_limb_decomposition(
     dfg: &mut DataFlowGraph,
     value: ValueId,
