@@ -1,0 +1,23 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn main(
+    x: u8,
+    y: u32,
+    expected_q: u32,
+    expected_r: u32,
+    expected_masked_q: u32,
+    expected_masked_r: u32,
+    expected_small_q: u32,
+    expected_small_r: u32,
+) {
+    let wide: u32 = x as u32;
+    assert((wide / 1000_u32) == expected_q);
+    assert((wide % 1000_u32) == expected_r);
+    let masked: u32 = y & 255_u32;
+    assert((masked / 300_u32) == expected_masked_q);
+    assert((masked % 300_u32) == expected_masked_r);
+    assert((wide / 100_u32) == expected_small_q);
+    assert((wide % 100_u32) == expected_small_r);
+}

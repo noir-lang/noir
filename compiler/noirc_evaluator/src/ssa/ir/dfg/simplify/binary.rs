@@ -156,6 +156,16 @@ pub(super) fn simplify_binary(
                     operator: BinaryOp::Mul { unchecked: false },
                 }));
             }
+            // An unsigned division by a constant strictly greater than the maximum possible
+            // value of `lhs` always produces zero. A zero divisor is never greater than the
+            // (non-negative) maximum, so division-by-zero semantics are preserved.
+            if lhs_type.is_unsigned()
+                && let Some(rhs_value) = rhs_value
+                && constant_exceeds_max_value(dfg, lhs, rhs_value)
+            {
+                let zero = dfg.make_constant(FieldElement::zero(), lhs_type);
+                return SimplifyResult::SimplifiedTo(zero);
+            }
         }
         BinaryOp::Mod => {
             if rhs_is_one {
@@ -163,6 +173,16 @@ pub(super) fn simplify_binary(
                 return SimplifyResult::SimplifiedTo(zero);
             }
             if lhs_type.is_unsigned() {
+                // An unsigned modulo by a constant strictly greater than the maximum possible
+                // value of `lhs` leaves `lhs` unchanged. A zero modulus is never greater than
+                // the (non-negative) maximum, so division-by-zero semantics are preserved.
+                // This is checked before the power-of-two rewrite below so that an oversized
+                // power-of-two modulus simplifies to `lhs` instead of a redundant truncation.
+                if let Some(rhs_value) = rhs_value
+                    && constant_exceeds_max_value(dfg, lhs, rhs_value)
+                {
+                    return SimplifyResult::SimplifiedTo(lhs);
+                }
                 // lhs % 2**bit_size is equivalent to truncating `lhs` to `bit_size` bits.
                 // We then convert to a truncation for consistency, allowing more optimizations.
                 if let Some(modulus) = rhs_value {
@@ -358,6 +378,20 @@ fn can_simplify_arithmetic_identity(
     }
 }
 
+/// Whether `constant` is strictly greater than the maximum value that the unsigned `value`
+/// can possibly take.
+///
+/// The maximum is derived from [`DataFlowGraph::get_value_max_num_bits`], which refines the
+/// type's bit width using the value's definition (e.g. an upcast keeps its source width and a
+/// truncation bounds the result to the truncated width). A value of `max_bits` bits is at most
+/// `2^max_bits - 1`, so the comparison is strict: a constant equal to the maximum never counts
+/// as exceeding it.
+fn constant_exceeds_max_value(dfg: &DataFlowGraph, value: ValueId, constant: FieldElement) -> bool {
+    let max_bits = dfg.get_value_max_num_bits(value);
+    let max_value = if max_bits >= 128 { u128::MAX } else { (1u128 << max_bits) - 1 };
+    constant.to_u128() > max_value
+}
+
 #[cfg(test)]
 mod tests {
     use crate::{
@@ -506,6 +540,182 @@ mod tests {
             return v0
         }
         ");
+    }
+
+    #[test]
+    fn simplifies_unsigned_div_by_constant_exceeding_upcast_max_to_zero() {
+        // `v1` comes from a `u8` so it is at most 255; dividing by 256 always yields 0.
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u8):
+            v1 = cast v0 as u32
+            v2 = div v1, u32 256
+            return v2
+        }
+        ";
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: u8):
+            v1 = cast v0 as u32
+            return u32 0
+        }
+        ");
+    }
+
+    #[test]
+    fn simplifies_unsigned_mod_by_constant_exceeding_upcast_max_to_lhs() {
+        // `v1` comes from a `u8` so it is at most 255; taking it modulo 300 is a no-op.
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u8):
+            v1 = cast v0 as u32
+            v2 = mod v1, u32 300
+            return v2
+        }
+        ";
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: u8):
+            v1 = cast v0 as u32
+            return v1
+        }
+        ");
+    }
+
+    #[test]
+    fn simplifies_unsigned_mod_by_oversized_power_of_two_to_lhs_not_truncation() {
+        // An oversized modulus that happens to be a power of two simplifies to `lhs`
+        // directly rather than to a redundant truncation.
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u8):
+            v1 = cast v0 as u32
+            v2 = mod v1, u32 256
+            return v2
+        }
+        ";
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: u8):
+            v1 = cast v0 as u32
+            return v1
+        }
+        ");
+    }
+
+    #[test]
+    fn simplifies_unsigned_div_by_constant_exceeding_truncated_max_to_zero() {
+        // `v1` is truncated to 8 bits so it is at most 255; dividing by 300 always yields 0.
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u32):
+            v1 = truncate v0 to 8 bits, max_bit_size: 32
+            v2 = div v1, u32 300
+            return v2
+        }
+        ";
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: u32):
+            v1 = truncate v0 to 8 bits, max_bit_size: 32
+            return u32 0
+        }
+        ");
+    }
+
+    #[test]
+    fn does_not_simplify_unsigned_div_by_constant_equal_to_max() {
+        // Strict boundary: `v1` can reach 255, so `255 / 255 == 1` and the rule must not fire.
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u8):
+            v1 = cast v0 as u32
+            v2 = div v1, u32 255
+            return v2
+        }
+        ";
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+        assert_normalized_ssa_equals(ssa, src);
+    }
+
+    #[test]
+    fn does_not_simplify_unsigned_mod_by_constant_equal_to_max() {
+        // Strict boundary: `v1` can reach 255, so `255 % 255 == 0` and the rule must not fire.
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u8):
+            v1 = cast v0 as u32
+            v2 = mod v1, u32 255
+            return v2
+        }
+        ";
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+        assert_normalized_ssa_equals(ssa, src);
+    }
+
+    #[test]
+    fn does_not_simplify_unsigned_div_by_type_width_constant() {
+        // Without a refined bound, `v0` can be as large as any `u8` constant, so the
+        // rule can never fire at the type's own width.
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u8):
+            v1 = div v0, u8 255
+            return v1
+        }
+        ";
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+        assert_normalized_ssa_equals(ssa, src);
+    }
+
+    #[test]
+    fn does_not_simplify_unsigned_div_by_zero() {
+        // Division by zero must keep its failure semantics even though `v1` is bounded.
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u8):
+            v1 = cast v0 as u32
+            v2 = div v1, u32 0
+            return v2
+        }
+        ";
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+        assert_normalized_ssa_equals(ssa, src);
+    }
+
+    #[test]
+    fn does_not_simplify_unsigned_mod_by_zero() {
+        // Modulo by zero must keep its failure semantics even though `v1` is bounded.
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u8):
+            v1 = cast v0 as u32
+            v2 = mod v1, u32 0
+            return v2
+        }
+        ";
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+        assert_normalized_ssa_equals(ssa, src);
+    }
+
+    #[test]
+    fn does_not_simplify_signed_div_by_constant_exceeding_upcast_width() {
+        // The rule is unsigned-only: a sign-extended `i8` can be negative, so its
+        // magnitude is not bounded by its source bit width.
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: i8):
+            v1 = cast v0 as i16
+            v2 = div v1, i16 300
+            return v2
+        }
+        ";
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+        assert_normalized_ssa_equals(ssa, src);
     }
 
     #[test]
