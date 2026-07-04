@@ -1,0 +1,6 @@
+[package]
+name = "truncate_after_and_mask"
+type = "bin"
+authors = [""]
+
+[dependencies]
