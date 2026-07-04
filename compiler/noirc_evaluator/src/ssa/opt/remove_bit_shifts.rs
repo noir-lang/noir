@@ -695,18 +695,17 @@ mod tests {
                 v6 = lt v4, u64 64
                 constrain v6 == u1 1, "attempt to bit-shift with overflow"
                 v8 = cast v1 as Field
-                v10 = call to_le_bits(v8) -> [u1; 1]
-                v12 = array_get v10, index u32 0 -> u1
-                v13 = not v12
-                v14 = cast v12 as Field
-                v15 = cast v13 as Field
-                v17 = mul Field 2, v14
-                v18 = add v15, v17
-                v19 = cast v0 as Field
-                v20 = mul v19, v18
-                v21 = truncate v20 to 64 bits, max_bit_size: 65
-                v22 = cast v21 as u64
-                return v22
+                v9 = make_array [v1] : [u1; 1]
+                v10 = not v1
+                v11 = cast v1 as Field
+                v12 = cast v10 as Field
+                v14 = mul Field 2, v11
+                v15 = add v12, v14
+                v16 = cast v0 as Field
+                v17 = mul v16, v15
+                v18 = truncate v17 to 64 bits, max_bit_size: 65
+                v19 = cast v18 as u64
+                return v19
             }
             "#);
         }

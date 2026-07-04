@@ -56,8 +56,7 @@ pub(super) fn simplify_call(
 
     let simplified_result = match intrinsic {
         Intrinsic::ToBits(endian) => {
-            // TODO: simplify to a range constraint if `limb_count == 1`
-            if let (Some(constant_args), Some(return_type)) = (constant_args, return_type) {
+            if let (Some(constant_args), Some(return_type)) = (&constant_args, return_type) {
                 let field = constant_args[0];
                 let Type::Array(_, limb_count) = return_type else {
                     unreachable!("ICE: Intrinsic::ToRadix return type must be array")
@@ -71,13 +70,23 @@ pub(super) fn simplify_call(
                         call_stack,
                     )
                 })
+            } else if let Some(return_type) = return_type {
+                // The value is not constant: a single-limb decomposition is just a range
+                // constraint on the value.
+                simplify_single_limb_decomposition(
+                    dfg,
+                    arguments[0],
+                    2,
+                    return_type,
+                    block,
+                    call_stack,
+                )
             } else {
                 SimplifyResult::None
             }
         }
         Intrinsic::ToRadix(endian) => {
-            // TODO: simplify to a range constraint if `limb_count == 1`
-            if let (Some(constant_args), Some(return_type)) = (constant_args, return_type) {
+            if let (Some(constant_args), Some(return_type)) = (&constant_args, return_type) {
                 let field = constant_args[0];
                 let radix = constant_args[1].to_u128() as u32;
                 let Type::Array(_, limb_count) = return_type else {
@@ -92,6 +101,20 @@ pub(super) fn simplify_call(
                         call_stack,
                     )
                 })
+            } else if let (Some(return_type), Some(radix)) =
+                (return_type, dfg.get_numeric_constant(arguments[1]))
+            {
+                // The value is not constant here (`constant_args` requires every argument
+                // to be constant, and the radix is): a single-limb decomposition of it is
+                // just a range constraint on the value.
+                simplify_single_limb_decomposition(
+                    dfg,
+                    arguments[0],
+                    radix.to_u128(),
+                    return_type,
+                    block,
+                    call_stack,
+                )
             } else {
                 SimplifyResult::None
             }
@@ -648,6 +671,67 @@ fn simplify_constant_to_radix(
     }
 }
 
+/// Simplify a `to_bits`/`to_radix` call that decomposes into a single limb to a range
+/// constraint.
+///
+/// A radix decomposition into `N` limbs constrains each limb to `[0, radix)` and constrains
+/// the weighted limb sum to reconstruct the input exactly (failing with "Field failed to
+/// decompose into specified `N` limbs" otherwise). With `N == 1` the weighted sum is the
+/// limb itself, so the decomposition constrains exactly `value < radix` and returns
+/// `[value]`. This emits the equivalent `range_check value to log2(radix) bits` followed by
+/// a cast of the value to the limb type, avoiding the decomposition's fresh limb witness,
+/// its Brillig limb hint and the recomposition constraint. Endianness is irrelevant for a
+/// single limb, so both endian variants take this path.
+///
+/// The rewrite only fires for a constant power-of-two radix in `2..=256`: a
+/// non-power-of-two bound (reachable in Brillig, where any radix in `2..=256` is accepted
+/// at runtime) is not expressible as a bit-size range check. Constant values never reach
+/// this function; they are constant-folded (or, when they do not fit, left to fail with
+/// the decomposition's own semantics).
+///
+/// The range check is inserted *before* the cast on purpose:
+/// - the narrowing-cast invariant (see `validation::Validator`) accepts a cast whose input
+///   was previously range-checked to fit the destination type, and
+/// - when the call executes under a predicate, `flatten_cfg` replaces a range-checked
+///   value with its predicated form (`predicate * value`) for the rest of the branch
+///   (issue #8617), which remaps the cast input too. The returned limb therefore stays
+///   zero — in range for its type — when the predicate is off, exactly like the
+///   decomposition's limb (whose input argument would have been multiplied by the
+///   predicate, while its limb range checks are emitted unconditionally).
+fn simplify_single_limb_decomposition(
+    dfg: &mut DataFlowGraph,
+    value: ValueId,
+    radix: u128,
+    return_type: &Type,
+    block: BasicBlockId,
+    call_stack: CallStackId,
+) -> SimplifyResult {
+    let Type::Array(element_types, limb_count) = return_type else {
+        unreachable!("ICE: Intrinsic::ToRadix return type must be array")
+    };
+    if limb_count.0 != 1 {
+        return SimplifyResult::None;
+    }
+    if !(2..=256).contains(&radix) || !radix.is_power_of_two() {
+        return SimplifyResult::None;
+    }
+    let [Type::Numeric(limb_type)] = element_types.as_slice() else {
+        return SimplifyResult::None;
+    };
+
+    let max_bit_size = radix.ilog2();
+    // Keep the decomposition's failure message for the equivalent range constraint.
+    let assert_message = Some("Field failed to decompose into specified 1 limbs".to_string());
+    let range_check = Instruction::RangeCheck { value, max_bit_size, assert_message };
+    dfg.insert_instruction_and_results(range_check, block, None, call_stack);
+
+    let cast = Instruction::Cast(value, *limb_type);
+    let limb = dfg.insert_instruction_and_results(cast, block, None, call_stack).first();
+
+    let array = make_array(dfg, im::Vector::unit(limb), return_type.clone(), block, call_stack);
+    SimplifyResult::SimplifiedTo(array)
+}
+
 pub(crate) fn constant_to_radix(
     endian: Endian,
     field: FieldElement,
@@ -1070,6 +1154,176 @@ mod tests {
     fn constant_to_radix_rejects_non_zero_value_with_zero_limbs() {
         let limbs = constant_to_radix(Endian::Little, FieldElement::from(5u128), 256, 0);
         assert_eq!(limbs, None);
+    }
+
+    #[test]
+    fn single_limb_to_le_radix_simplifies_to_range_check() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: Field):
+            v1 = call to_le_radix(v0, u32 256) -> [u8; 1]
+            return v1
+        }
+        ";
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+        assert_ssa_snapshot!(ssa, @r#"
+        acir(inline) fn main f0 {
+          b0(v0: Field):
+            range_check v0 to 8 bits, "Field failed to decompose into specified 1 limbs"
+            v1 = cast v0 as u8
+            v2 = make_array [v1] : [u8; 1]
+            return v2
+        }
+        "#);
+    }
+
+    #[test]
+    fn single_limb_to_be_radix_simplifies_to_range_check() {
+        // Endianness is irrelevant for a single limb: identical to the little-endian case.
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: Field):
+            v1 = call to_be_radix(v0, u32 256) -> [u8; 1]
+            return v1
+        }
+        ";
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+        assert_ssa_snapshot!(ssa, @r#"
+        acir(inline) fn main f0 {
+          b0(v0: Field):
+            range_check v0 to 8 bits, "Field failed to decompose into specified 1 limbs"
+            v1 = cast v0 as u8
+            v2 = make_array [v1] : [u8; 1]
+            return v2
+        }
+        "#);
+    }
+
+    #[test]
+    fn single_limb_to_le_bits_simplifies_to_range_check() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: Field):
+            v1 = call to_le_bits(v0) -> [u1; 1]
+            return v1
+        }
+        ";
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+        assert_ssa_snapshot!(ssa, @r#"
+        acir(inline) fn main f0 {
+          b0(v0: Field):
+            range_check v0 to 1 bits, "Field failed to decompose into specified 1 limbs"
+            v1 = cast v0 as u1
+            v2 = make_array [v1] : [u1; 1]
+            return v2
+        }
+        "#);
+    }
+
+    #[test]
+    fn single_limb_to_be_bits_simplifies_to_range_check() {
+        // Endianness is irrelevant for a single limb: identical to the little-endian case.
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: Field):
+            v1 = call to_be_bits(v0) -> [u1; 1]
+            return v1
+        }
+        ";
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+        assert_ssa_snapshot!(ssa, @r#"
+        acir(inline) fn main f0 {
+          b0(v0: Field):
+            range_check v0 to 1 bits, "Field failed to decompose into specified 1 limbs"
+            v1 = cast v0 as u1
+            v2 = make_array [v1] : [u1; 1]
+            return v2
+        }
+        "#);
+    }
+
+    #[test]
+    fn single_limb_to_radix_with_radix_two_range_checks_one_bit() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: Field):
+            v1 = call to_le_radix(v0, u32 2) -> [u8; 1]
+            return v1
+        }
+        ";
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+        assert_ssa_snapshot!(ssa, @r#"
+        acir(inline) fn main f0 {
+          b0(v0: Field):
+            range_check v0 to 1 bits, "Field failed to decompose into specified 1 limbs"
+            v1 = cast v0 as u8
+            v2 = make_array [v1] : [u8; 1]
+            return v2
+        }
+        "#);
+    }
+
+    #[test]
+    fn constant_single_limb_to_radix_still_constant_folds() {
+        // A constant value takes the constant-folding path, not the range-constraint one.
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            v1 = call to_le_radix(Field 3, u32 256) -> [u8; 1]
+            return v1
+        }
+        ";
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+        assert_ssa_snapshot!(ssa, @"
+        acir(inline) fn main f0 {
+          b0():
+            v1 = make_array [u8 3] : [u8; 1]
+            return v1
+        }
+        ");
+    }
+
+    #[test]
+    fn multi_limb_to_radix_is_not_simplified() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: Field):
+            v3 = call to_le_radix(v0, u32 256) -> [u8; 2]
+            return v3
+        }
+        ";
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+        assert_normalized_ssa_equals(ssa, src);
+    }
+
+    #[test]
+    fn single_limb_to_radix_with_non_power_of_two_radix_is_not_simplified() {
+        // A non-power-of-two radix (reachable in Brillig, where any radix in 2..=256 is
+        // accepted at runtime) is not expressible as a bit-size range check.
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: Field):
+            v3 = call to_le_radix(v0, u32 10) -> [u8; 1]
+            return v3
+        }
+        ";
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+        assert_normalized_ssa_equals(ssa, src);
+    }
+
+    #[test]
+    fn single_limb_to_radix_with_non_constant_radix_is_not_simplified() {
+        // The radix must be constant to know the range check's bit size (a non-constant
+        // radix is only reachable in Brillig).
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: Field, v1: u32):
+            v3 = call to_le_radix(v0, v1) -> [u8; 1]
+            return v3
+        }
+        ";
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+        assert_normalized_ssa_equals(ssa, src);
     }
 
     #[test]
