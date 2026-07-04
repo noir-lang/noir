@@ -2,57 +2,37 @@
 //! a constant that are provably implied by an earlier, dominating fact about the same value,
 //! as requested in [issue #9463](https://github.com/noir-lang/noir/issues/9463).
 //!
-//! The pass keeps a map from each value to the smallest *exclusive* upper bound proven so far
-//! (`value < bound`, as an integer). Bounds are learned from three sources:
+//! The pass keeps a map from each value to the smallest *exclusive* upper bound proven so
+//! far. Bounds are learned from `range_check value to N bits` (`value < 2^N`), from
+//! `constrain (lt value, c) == u1 1` (`value < c`) and from `result = mod value, c`
+//! (`result < c`). The first two are enforced unconditionally at ACIR generation
+//! (flattening bakes the predicate into their operands), so their bounds hold regardless
+//! of the side-effects condition; `mod` is predicated during ACIR generation — under a
+//! false predicate the remainder is unconstrained — so its bound is only recorded while
+//! the side-effects condition is the constant `true`.
 //!
-//! - `range_check value to N bits` proves `value < 2^N`.
-//! - `constrain (lt value, c) == u1 1` (for an unsigned `value` and constant `c`)
-//!   proves `value < c`.
-//! - `result = mod value, c` (for an unsigned result and constant `c != 0`)
-//!   proves `result < c`.
+//! Facts are consumed in two ways:
 //!
-//! and consumed in two ways:
+//! - a `range_check` implied by a dominating `range_check` of the same value to at most as
+//!   many bits is removed. Only `range_check`-derived facts may elide a `range_check`: the
+//!   narrowing-cast validation rule justifies casts by the range checks that *remain* in
+//!   the SSA, so the removed check's justification must stay visible as a `range_check`;
+//! - an unsigned `v = lt value, c` with `known <= c` (any fact source) is replaced by
+//!   `u1 1`; a `constrain v == u1 1` consuming it then simplifies away in the same traversal.
 //!
-//! - a `range_check value to N bits` that is implied by a dominating `range_check` of the
-//!   same value to at most `N` bits is removed. Only `range_check`-derived facts may elide
-//!   a `range_check`: the narrowing-cast validation rule (see `validate_narrowing_cast_invariant`)
-//!   justifies a narrowing cast by the range checks that remain in the SSA, so the removed
-//!   check's justification must itself stay visible as a `range_check` on the same value;
-//! - an unsigned `v = lt value, c` with `known <= c` (from any of the three fact sources)
-//!   is replaced by `u1 1`. If `v` only feeds a `constrain v == u1 1`, that constrain
-//!   becomes trivial and is removed when it is re-simplified during the same traversal.
+//! Soundness notes:
 //!
-//! ## Soundness
-//!
-//! - **Dominance**: a fact may only justify eliding an instruction it dominates. This pass
-//!   uses the same discipline as [`remove_truncate_after_range_check`][super::remove_truncate_after_range_check]:
-//!   blocks are traversed in reverse post-order and the bound map is cleared whenever the
-//!   traversal moves to a block that is not dominated by the previously visited one, so every
-//!   fact in the map dominates the instruction currently being visited.
-//! - **Direction**: a bound only implies *weaker* (larger-or-equal) bounds: `x < 16` implies
-//!   `x < 17`, never the reverse. Strictly tighter checks are kept (and tighten the map).
-//! - **Predication**: `constrain` and `range_check` are enforced unconditionally regardless of
-//!   the current `enable_side_effects` condition (flattening bakes the predicate into their
-//!   operands, and ACIR generation emits them with a constant-true predicate), so bounds
-//!   learned from them are unconditional facts at their program point. `mod` however is
-//!   predicated during ACIR generation — under a false predicate the remainder witness is not
-//!   constrained to be below the divisor — so a `mod`-derived bound is only recorded while the
-//!   side-effects condition is the constant `true`.
-//! - **No type-derived facts**: the pass never derives a bound from a value's type. A
-//!   `range_check` can itself be the instruction that *establishes* a value's type invariant,
-//!   so assuming the invariant could remove the very check that enforces it. (Checks that are
-//!   implied by a value's statically-known bit width are already removed when instructions are
-//!   simplified on insertion, via `get_value_max_num_bits`.) For the same reason there is no
-//!   circularity here: a fact is learned only when its *enforcing* instruction is visited, so
-//!   it can only elide strictly later instructions, never the instruction that enforces it.
-//! - **Failure ordering**: eliding an implied check never changes which assertion fails first.
-//!   The implying instruction is enforced earlier on every path (dominance): if a witness
-//!   violates the elided (weaker) check it also violates the dominating (stronger) fact, which
-//!   fails first — exactly as it did before the elision. If the dominating fact holds, the
-//!   elided check could never have failed. Executions that don't fail are unchanged.
-//! - **Signedness**: `lt` on signed operands orders by signed value, not by the underlying
-//!   representation the bound map tracks, so signed comparisons are neither learned from nor
-//!   elided.
+//! - a fact only elides an instruction it dominates: same reverse-post-order map-clearing
+//!   discipline as [`remove_truncate_after_range_check`][super::remove_truncate_after_range_check];
+//! - a bound only implies *weaker* (larger-or-equal) bounds; strictly tighter checks are
+//!   kept and tighten the map;
+//! - no bound is derived from a value's *type*: a `range_check` can be the very instruction
+//!   that establishes the type's invariant. A fact is learned only when its enforcing
+//!   instruction is visited, so it can never elide that instruction itself;
+//! - eliding never changes which assertion fails first: the dominating fact is enforced
+//!   earlier on every path and already fails any witness the elided (weaker) check would have;
+//! - signed `lt` orders by signed value, not the representation the map tracks, so it is
+//!   neither learned from nor elided.
 
 use acvm::AcirField;
 use num_bigint::BigUint;
@@ -94,11 +74,9 @@ impl Function {
         // Keeps the smallest exclusive upper bound proven for each value by a
         // dominating instruction: `value < bound`.
         let mut bounds: HashMap<ValueId, BigUint> = HashMap::default();
-        // Keeps the smallest bit size each value was `range_check`ed against by a
-        // dominating `range_check` specifically. Only these facts may elide another
-        // `range_check`: the narrowing-cast validation rule justifies casts by the
-        // range checks that remain in the SSA, so a removed check's justification
-        // must itself remain visible as a (tighter) `range_check` on the same value.
+        // The smallest bit size each value was `range_check`ed against by a dominating
+        // `range_check` specifically: only these facts may elide another `range_check`
+        // (the narrowing-cast validation rule needs the justification to stay visible).
         let mut range_checked_bits: HashMap<ValueId, u32> = HashMap::default();
         let mut previous_block = None;
         self.simple_optimization(|context| {
@@ -206,8 +184,7 @@ fn lt_true_bound(
     let Value::Instruction { instruction, .. } = &dfg[comparison] else {
         return None;
     };
-    let Instruction::Binary(Binary { lhs: value, rhs, operator: BinaryOp::Lt }) =
-        dfg[*instruction]
+    let Instruction::Binary(Binary { lhs: value, rhs, operator: BinaryOp::Lt }) = dfg[*instruction]
     else {
         return None;
     };
