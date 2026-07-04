@@ -13,11 +13,14 @@
 //!
 //! and consumed in two ways:
 //!
-//! - a `range_check value to N bits` whose bound is already implied (`known <= 2^N`)
-//!   is removed;
-//! - an unsigned `v = lt value, c` with `known <= c` is replaced by `u1 1`. If `v` only
-//!   feeds a `constrain v == u1 1`, that constrain becomes trivial and is removed when it
-//!   is re-simplified during the same traversal.
+//! - a `range_check value to N bits` that is implied by a dominating `range_check` of the
+//!   same value to at most `N` bits is removed. Only `range_check`-derived facts may elide
+//!   a `range_check`: the narrowing-cast validation rule (see `validate_narrowing_cast_invariant`)
+//!   justifies a narrowing cast by the range checks that remain in the SSA, so the removed
+//!   check's justification must itself stay visible as a `range_check` on the same value;
+//! - an unsigned `v = lt value, c` with `known <= c` (from any of the three fact sources)
+//!   is replaced by `u1 1`. If `v` only feeds a `constrain v == u1 1`, that constrain
+//!   becomes trivial and is removed when it is re-simplified during the same traversal.
 //!
 //! ## Soundness
 //!
@@ -91,6 +94,12 @@ impl Function {
         // Keeps the smallest exclusive upper bound proven for each value by a
         // dominating instruction: `value < bound`.
         let mut bounds: HashMap<ValueId, BigUint> = HashMap::default();
+        // Keeps the smallest bit size each value was `range_check`ed against by a
+        // dominating `range_check` specifically. Only these facts may elide another
+        // `range_check`: the narrowing-cast validation rule justifies casts by the
+        // range checks that remain in the SSA, so a removed check's justification
+        // must itself remain visible as a (tighter) `range_check` on the same value.
+        let mut range_checked_bits: HashMap<ValueId, u32> = HashMap::default();
         let mut previous_block = None;
         self.simple_optimization(|context| {
             if previous_block != Some(context.block_id) {
@@ -99,18 +108,23 @@ impl Function {
                     && !dom_tree.dominates(prev, context.block_id)
                 {
                     bounds.clear();
+                    range_checked_bits.clear();
                 }
                 previous_block = Some(context.block_id);
             }
             match context.instruction() {
                 Instruction::RangeCheck { value, max_bit_size, .. } => {
-                    let value = *value;
-                    let check_bound = BigUint::from(1u8) << *max_bit_size;
-                    if bounds.get(&value).is_some_and(|known| *known <= check_bound) {
-                        // A dominating fact already guarantees this check passes.
+                    let (value, max_bit_size) = (*value, *max_bit_size);
+                    if range_checked_bits.get(&value).is_some_and(|known| *known <= max_bit_size) {
+                        // A dominating, still-present range check already guarantees this
+                        // check passes (and keeps justifying any later narrowing cast).
                         context.remove_current_instruction();
                     } else {
-                        insert_bound(&mut bounds, value, check_bound);
+                        range_checked_bits
+                            .entry(value)
+                            .and_modify(|current| *current = max_bit_size.min(*current))
+                            .or_insert(max_bit_size);
+                        insert_bound(&mut bounds, value, BigUint::from(1u8) << max_bit_size);
                     }
                 }
                 Instruction::Constrain(lhs, rhs, _) => {
@@ -390,6 +404,24 @@ mod tests {
             return
         }
         ");
+    }
+
+    #[test]
+    fn does_not_remove_range_check_implied_by_lt_constraint() {
+        // `v0 < 256` implies the 8-bit range check, but a `range_check` may only be
+        // elided by another `range_check`: the narrowing-cast validation rule justifies
+        // casts by the range checks remaining in the SSA (here, the cast to u8).
+        let src = "
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u32):
+            v2 = lt v0, u32 256
+            constrain v2 == u1 1
+            range_check v0 to 8 bits
+            v3 = cast v0 as u8
+            return v3
+        }
+        ";
+        assert_ssa_does_not_change(src, Ssa::remove_redundant_range_checks);
     }
 
     #[test]
