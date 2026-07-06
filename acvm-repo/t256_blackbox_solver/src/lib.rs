@@ -8,7 +8,7 @@ use acvm_blackbox_solver::{BlackBoxFunctionSolver, BlackBoxResolutionError};
 use ark_ec::{AffineRepr, CurveGroup, VariableBaseMSM};
 use ark_ff::{BigInt, MontConfig, PrimeField, Zero};
 
-type FieldElement = acir::acir_field::GenericFieldElement<ark_tom256::Fq>;
+type FieldElement = acir::acir_field::GenericFieldElement<ark_tom256::Fr>;
 
 #[derive(Default)]
 pub struct T256BlackboxSolver;
@@ -101,8 +101,8 @@ impl BlackBoxFunctionSolver<FieldElement> for T256BlackboxSolver {
 
         if let Some((out_x, out_y)) = msm_result.xy() {
             Ok((
-                FieldElement::from_repr(ark_tom256::Fq::from_bigint(out_x.into_bigint()).unwrap()),
-                FieldElement::from_repr(ark_tom256::Fq::from_bigint(out_y.into_bigint()).unwrap()),
+                FieldElement::from_repr(ark_tom256::Fr::from_bigint(out_x.into_bigint()).unwrap()),
+                FieldElement::from_repr(ark_tom256::Fr::from_bigint(out_y.into_bigint()).unwrap()),
             ))
         } else {
             Ok((FieldElement::zero(), FieldElement::zero()))
@@ -127,8 +127,8 @@ impl BlackBoxFunctionSolver<FieldElement> for T256BlackboxSolver {
         let sum = ark_secp256r1::Affine::from(p1 + p2);
         if let Some((x, y)) = sum.xy() {
             Ok((
-                FieldElement::from_repr(ark_tom256::Fq::from_bigint(x.into_bigint()).unwrap()),
-                FieldElement::from_repr(ark_tom256::Fq::from_bigint(y.into_bigint()).unwrap()),
+                FieldElement::from_repr(ark_tom256::Fr::from_bigint(x.into_bigint()).unwrap()),
+                FieldElement::from_repr(ark_tom256::Fr::from_bigint(y.into_bigint()).unwrap()),
             ))
         } else {
             Ok((FieldElement::zero(), FieldElement::zero()))
