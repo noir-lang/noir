@@ -7,7 +7,7 @@
 <a href=#7 id=7 data-nosnippet>7</a>    dfg::InsertInstructionResult,
 <a href=#8 id=8 data-nosnippet>8</a>    function::Function,
 <a href=#9 id=9 data-nosnippet>9</a>    instruction::{Instruction, InstructionId},
-<a href=#10 id=10 data-nosnippet>10</a>    value::ValueId,
+<a href=#10 id=10 data-nosnippet>10</a>    value::{ValueId, ValueMapping},
 <a href=#11 id=11 data-nosnippet>11</a>};
 <a href=#12 id=12 data-nosnippet>12</a><span class="kw">use </span>rustc_hash::FxHashMap <span class="kw">as </span>HashMap;
 <a href=#13 id=13 data-nosnippet>13</a>
@@ -208,4 +208,14 @@
 <a href=#208 id=208 data-nosnippet>208</a>    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>set_mapping(<span class="kw-2">&amp;mut </span><span class="self">self</span>, mapping: HashMap&lt;ValueId, ValueId&gt;) {
 <a href=#209 id=209 data-nosnippet>209</a>        <span class="self">self</span>.values = mapping;
 <a href=#210 id=210 data-nosnippet>210</a>    }
-<a href=#211 id=211 data-nosnippet>211</a>}</code></pre></div></section></main></body></html>
+<a href=#211 id=211 data-nosnippet>211</a>
+<a href=#212 id=212 data-nosnippet>212</a>    <span class="doccomment">/// Consume the inserter, returning its accumulated old-value to new-value substitution as a
+<a href=#213 id=213 data-nosnippet>213</a>    /// [`ValueMapping`].
+<a href=#214 id=214 data-nosnippet>214</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>into_value_mapping(<span class="self">self</span>) -&gt; ValueMapping {
+<a href=#215 id=215 data-nosnippet>215</a>        <span class="kw">let </span><span class="kw-2">mut </span>mapping = ValueMapping::default();
+<a href=#216 id=216 data-nosnippet>216</a>        <span class="kw">for </span>(from, to) <span class="kw">in </span><span class="self">self</span>.values {
+<a href=#217 id=217 data-nosnippet>217</a>            mapping.insert(from, to);
+<a href=#218 id=218 data-nosnippet>218</a>        }
+<a href=#219 id=219 data-nosnippet>219</a>        mapping
+<a href=#220 id=220 data-nosnippet>220</a>    }
+<a href=#221 id=221 data-nosnippet>221</a>}</code></pre></div></section></main></body></html>
