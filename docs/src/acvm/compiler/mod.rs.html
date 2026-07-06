@@ -4,121 +4,120 @@
 <a href=#4 id=4 data-nosnippet>4</a>//!
 <a href=#5 id=5 data-nosnippet>5</a>//! # Optimizers
 <a href=#6 id=6 data-nosnippet>6</a>//! - `GeneralOptimizer`: simple pass which simplifies `AssertZero` opcodes when possible (e.g remove terms with null coefficient)
-<a href=#7 id=7 data-nosnippet>7</a>//! - `UnusedMemoryOptimizer`: simple pass which removes `MemoryInit` opcodes when they are not used (e.g no corresponding `MemoryOp` opcode)
-<a href=#8 id=8 data-nosnippet>8</a>//! - `RangeOptimizer`: forward pass to collect range check information, and backward pass to remove the ones that are redundant.
-<a href=#9 id=9 data-nosnippet>9</a>//! - `CommonSubexpressionOptimizer`: Assigns common subexpressions to witnesses to simplify expressions and reduce the number of opcodes.
-<a href=#10 id=10 data-nosnippet>10</a>//!
-<a href=#11 id=11 data-nosnippet>11</a>//! ACIR generation is performed by calling the `Ssa::into_acir` method, providing any necessary brillig bytecode.
-<a href=#12 id=12 data-nosnippet>12</a>//! The compiled program will be returned as an `Artifacts` type.
-<a href=#13 id=13 data-nosnippet>13</a>//!
-<a href=#14 id=14 data-nosnippet>14</a>
-<a href=#15 id=15 data-nosnippet>15</a></span><span class="kw">use </span>std::collections::HashMap;
-<a href=#16 id=16 data-nosnippet>16</a>
-<a href=#17 id=17 data-nosnippet>17</a><span class="kw">use </span>acir::circuit::{AcirOpcodeLocation, AssertionPayload, OpcodeLocation};
-<a href=#18 id=18 data-nosnippet>18</a>
-<a href=#19 id=19 data-nosnippet>19</a><span class="comment">// The various passes that we can use over ACIR
-<a href=#20 id=20 data-nosnippet>20</a></span><span class="kw">pub use </span>optimizers::optimize;
-<a href=#21 id=21 data-nosnippet>21</a><span class="kw">mod </span>optimizers;
-<a href=#22 id=22 data-nosnippet>22</a><span class="kw">mod </span>simulator;
-<a href=#23 id=23 data-nosnippet>23</a><span class="kw">pub mod </span>validator;
-<a href=#24 id=24 data-nosnippet>24</a>
-<a href=#25 id=25 data-nosnippet>25</a><span class="kw">pub use </span>simulator::{CircuitSimulator, SimulationFailure};
-<a href=#26 id=26 data-nosnippet>26</a>
-<a href=#27 id=27 data-nosnippet>27</a><span class="doccomment">/// This module can move and decompose acir opcodes into multiple opcodes. The transformation map allows consumers of this module to map
-<a href=#28 id=28 data-nosnippet>28</a>/// metadata they had about the opcodes to the new opcode structure generated after the transformation.
-<a href=#29 id=29 data-nosnippet>29</a>/// ACIR opcodes are stored inside a vector of opcodes. A transformation pass will generate a new vector of opcodes,
-<a href=#30 id=30 data-nosnippet>30</a>/// but each opcode is the result of the transformation of an opcode in the original vector.
-<a href=#31 id=31 data-nosnippet>31</a>/// So we simply keep track of the relation:  index of the original opcode -&gt; index of the new opcode in the new vector
-<a href=#32 id=32 data-nosnippet>32</a>/// However we need a vector of new indexes for the map values in the case the old opcode is decomposed into multiple opcodes.
-<a href=#33 id=33 data-nosnippet>33</a></span><span class="attr">#[derive(Debug)]
-<a href=#34 id=34 data-nosnippet>34</a></span><span class="kw">pub struct </span>AcirTransformationMap {
-<a href=#35 id=35 data-nosnippet>35</a>    <span class="doccomment">/// Maps the old acir indices to the new acir indices
-<a href=#36 id=36 data-nosnippet>36</a>    </span>old_indices_to_new_indices: HashMap&lt;usize, Vec&lt;usize&gt;&gt;,
-<a href=#37 id=37 data-nosnippet>37</a>}
-<a href=#38 id=38 data-nosnippet>38</a>
-<a href=#39 id=39 data-nosnippet>39</a><span class="kw">impl </span>AcirTransformationMap {
-<a href=#40 id=40 data-nosnippet>40</a>    <span class="doccomment">/// Builds a map from a vector of pointers to the old acir opcodes.
-<a href=#41 id=41 data-nosnippet>41</a>    /// The index in the vector is the new opcode index.
-<a href=#42 id=42 data-nosnippet>42</a>    /// The value of the vector is where the old opcode index was pointed.
-<a href=#43 id=43 data-nosnippet>43</a>    /// E.g: If `acir_opcode_positions` = 0,1,2,4,5,5,6
-<a href=#44 id=44 data-nosnippet>44</a>    /// that means that old indices 0,1,2,4,5,5,6 are mapped to the new indexes: 0,1,2,3,4,5,6
-<a href=#45 id=45 data-nosnippet>45</a>    /// This gives the following map:
-<a href=#46 id=46 data-nosnippet>46</a>    /// 0 -&gt; 0
-<a href=#47 id=47 data-nosnippet>47</a>    /// 1 -&gt; 1
-<a href=#48 id=48 data-nosnippet>48</a>    /// 2 -&gt; 2
-<a href=#49 id=49 data-nosnippet>49</a>    /// 4 -&gt; 3
-<a href=#50 id=50 data-nosnippet>50</a>    /// 5 -&gt; [4, 5]
-<a href=#51 id=51 data-nosnippet>51</a>    /// 6 -&gt; 6
-<a href=#52 id=52 data-nosnippet>52</a>    </span><span class="kw">fn </span>new(acir_opcode_positions: <span class="kw-2">&amp;</span>[usize]) -&gt; <span class="self">Self </span>{
-<a href=#53 id=53 data-nosnippet>53</a>        <span class="kw">let </span><span class="kw-2">mut </span>old_indices_to_new_indices = HashMap::with_capacity(acir_opcode_positions.len());
-<a href=#54 id=54 data-nosnippet>54</a>        <span class="kw">for </span>(new_index, old_index) <span class="kw">in </span>acir_opcode_positions.iter().copied().enumerate() {
-<a href=#55 id=55 data-nosnippet>55</a>            old_indices_to_new_indices.entry(old_index).or_insert_with(Vec::new).push(new_index);
-<a href=#56 id=56 data-nosnippet>56</a>        }
-<a href=#57 id=57 data-nosnippet>57</a>        AcirTransformationMap { old_indices_to_new_indices }
-<a href=#58 id=58 data-nosnippet>58</a>    }
-<a href=#59 id=59 data-nosnippet>59</a>
-<a href=#60 id=60 data-nosnippet>60</a>    <span class="doccomment">/// Returns the new opcode location(s) corresponding to the old opcode.
-<a href=#61 id=61 data-nosnippet>61</a>    /// An `OpcodeLocation` contains the index of the opcode in the vector of opcodes
-<a href=#62 id=62 data-nosnippet>62</a>    /// This function returns the new `OpcodeLocation` by 'updating' the index within the given `OpcodeLocation`
-<a href=#63 id=63 data-nosnippet>63</a>    /// using the `AcirTransformationMap`. In fact, it does not update the given `OpcodeLocation` 'in-memory' but rather
-<a href=#64 id=64 data-nosnippet>64</a>    /// returns a new one, and even a vector of `OpcodeLocation`'s in case there are multiple new indexes corresponding
-<a href=#65 id=65 data-nosnippet>65</a>    /// to the old opcode index.
-<a href=#66 id=66 data-nosnippet>66</a>    </span><span class="kw">pub fn </span>new_locations(
-<a href=#67 id=67 data-nosnippet>67</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
-<a href=#68 id=68 data-nosnippet>68</a>        old_location: OpcodeLocation,
-<a href=#69 id=69 data-nosnippet>69</a>    ) -&gt; <span class="kw">impl </span>Iterator&lt;Item = OpcodeLocation&gt; + <span class="lifetime">'_ </span>{
-<a href=#70 id=70 data-nosnippet>70</a>        <span class="kw">let </span>old_acir_index = <span class="kw">match </span>old_location {
-<a href=#71 id=71 data-nosnippet>71</a>            OpcodeLocation::Acir(index) =&gt; index,
-<a href=#72 id=72 data-nosnippet>72</a>            OpcodeLocation::Brillig { acir_index, .. } =&gt; acir_index,
-<a href=#73 id=73 data-nosnippet>73</a>        };
-<a href=#74 id=74 data-nosnippet>74</a>
-<a href=#75 id=75 data-nosnippet>75</a>        <span class="self">self</span>.old_indices_to_new_indices.get(<span class="kw-2">&amp;</span>old_acir_index).into_iter().flat_map(
-<a href=#76 id=76 data-nosnippet>76</a>            <span class="kw">move </span>|new_indices| {
-<a href=#77 id=77 data-nosnippet>77</a>                new_indices.iter().map(<span class="kw">move </span>|new_index| <span class="kw">match </span>old_location {
-<a href=#78 id=78 data-nosnippet>78</a>                    OpcodeLocation::Acir(<span class="kw">_</span>) =&gt; OpcodeLocation::Acir(<span class="kw-2">*</span>new_index),
-<a href=#79 id=79 data-nosnippet>79</a>                    OpcodeLocation::Brillig { brillig_index, .. } =&gt; {
-<a href=#80 id=80 data-nosnippet>80</a>                        OpcodeLocation::Brillig { acir_index: <span class="kw-2">*</span>new_index, brillig_index }
-<a href=#81 id=81 data-nosnippet>81</a>                    }
-<a href=#82 id=82 data-nosnippet>82</a>                })
-<a href=#83 id=83 data-nosnippet>83</a>            },
-<a href=#84 id=84 data-nosnippet>84</a>        )
-<a href=#85 id=85 data-nosnippet>85</a>    }
-<a href=#86 id=86 data-nosnippet>86</a>
-<a href=#87 id=87 data-nosnippet>87</a>    <span class="doccomment">/// This function is similar to `new_locations()`, but only deals with
-<a href=#88 id=88 data-nosnippet>88</a>    /// the `AcirOpcodeLocation` variant
-<a href=#89 id=89 data-nosnippet>89</a>    </span><span class="kw">pub fn </span>new_acir_locations(
-<a href=#90 id=90 data-nosnippet>90</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
-<a href=#91 id=91 data-nosnippet>91</a>        old_location: AcirOpcodeLocation,
-<a href=#92 id=92 data-nosnippet>92</a>    ) -&gt; <span class="kw">impl </span>Iterator&lt;Item = AcirOpcodeLocation&gt; + <span class="lifetime">'_ </span>{
-<a href=#93 id=93 data-nosnippet>93</a>        <span class="kw">let </span>old_acir_index = old_location.index();
-<a href=#94 id=94 data-nosnippet>94</a>
-<a href=#95 id=95 data-nosnippet>95</a>        <span class="self">self</span>.old_indices_to_new_indices.get(<span class="kw-2">&amp;</span>old_acir_index).into_iter().flat_map(
-<a href=#96 id=96 data-nosnippet>96</a>            <span class="kw">move </span>|new_indices| {
-<a href=#97 id=97 data-nosnippet>97</a>                new_indices.iter().map(<span class="kw">move </span>|new_index| AcirOpcodeLocation::new(<span class="kw-2">*</span>new_index))
-<a href=#98 id=98 data-nosnippet>98</a>            },
-<a href=#99 id=99 data-nosnippet>99</a>        )
-<a href=#100 id=100 data-nosnippet>100</a>    }
-<a href=#101 id=101 data-nosnippet>101</a>}
-<a href=#102 id=102 data-nosnippet>102</a>
-<a href=#103 id=103 data-nosnippet>103</a><span class="doccomment">/// Update the assert messages to point to the new opcode locations.
-<a href=#104 id=104 data-nosnippet>104</a></span><span class="kw">fn </span>transform_assert_messages&lt;F: Clone&gt;(
-<a href=#105 id=105 data-nosnippet>105</a>    assert_messages: Vec&lt;(OpcodeLocation, AssertionPayload&lt;F&gt;)&gt;,
-<a href=#106 id=106 data-nosnippet>106</a>    map: <span class="kw-2">&amp;</span>AcirTransformationMap,
-<a href=#107 id=107 data-nosnippet>107</a>) -&gt; Vec&lt;(OpcodeLocation, AssertionPayload&lt;F&gt;)&gt; {
-<a href=#108 id=108 data-nosnippet>108</a>    assert_messages
-<a href=#109 id=109 data-nosnippet>109</a>        .into_iter()
-<a href=#110 id=110 data-nosnippet>110</a>        .flat_map(|(location, message)| {
-<a href=#111 id=111 data-nosnippet>111</a>            <span class="kw">let </span>new_locations = map.new_locations(location);
-<a href=#112 id=112 data-nosnippet>112</a>            new_locations.map(<span class="kw">move </span>|new_location| (new_location, message.clone()))
-<a href=#113 id=113 data-nosnippet>113</a>        })
-<a href=#114 id=114 data-nosnippet>114</a>        .collect()
-<a href=#115 id=115 data-nosnippet>115</a>}
-<a href=#116 id=116 data-nosnippet>116</a>
-<a href=#117 id=117 data-nosnippet>117</a><span class="attr">#[macro_export]
-<a href=#118 id=118 data-nosnippet>118</a></span><span class="macro">macro_rules!</span> assert_circuit_snapshot {
-<a href=#119 id=119 data-nosnippet>119</a>    (<span class="macro-nonterminal">$acir</span>:expr, $(<span class="macro-nonterminal">$arg</span>:tt)<span class="kw-2">*</span>) =&gt; {
-<a href=#120 id=120 data-nosnippet>120</a>        <span class="attr">#[allow(unused_mut)]
-<a href=#121 id=121 data-nosnippet>121</a>        </span><span class="kw">let </span>acir_string = <span class="macro-nonterminal">$acir</span>.to_string();
-<a href=#122 id=122 data-nosnippet>122</a>        <span class="macro">insta::assert_snapshot!</span>(acir_string, $(<span class="macro-nonterminal">$arg</span>)<span class="kw-2">*</span>)
-<a href=#123 id=123 data-nosnippet>123</a>    };
-<a href=#124 id=124 data-nosnippet>124</a>}</code></pre></div></section></main></body></html>
+<a href=#7 id=7 data-nosnippet>7</a>//! - `RangeOptimizer`: forward pass to collect range check information, and backward pass to remove the ones that are redundant.
+<a href=#8 id=8 data-nosnippet>8</a>//! - `CommonSubexpressionOptimizer`: Assigns common subexpressions to witnesses to simplify expressions and reduce the number of opcodes.
+<a href=#9 id=9 data-nosnippet>9</a>//!
+<a href=#10 id=10 data-nosnippet>10</a>//! ACIR generation is performed by calling the `Ssa::into_acir` method, providing any necessary brillig bytecode.
+<a href=#11 id=11 data-nosnippet>11</a>//! The compiled program will be returned as an `Artifacts` type.
+<a href=#12 id=12 data-nosnippet>12</a>//!
+<a href=#13 id=13 data-nosnippet>13</a>
+<a href=#14 id=14 data-nosnippet>14</a></span><span class="kw">use </span>std::collections::HashMap;
+<a href=#15 id=15 data-nosnippet>15</a>
+<a href=#16 id=16 data-nosnippet>16</a><span class="kw">use </span>acir::circuit::{AcirOpcodeLocation, AssertionPayload, OpcodeLocation};
+<a href=#17 id=17 data-nosnippet>17</a>
+<a href=#18 id=18 data-nosnippet>18</a><span class="comment">// The various passes that we can use over ACIR
+<a href=#19 id=19 data-nosnippet>19</a></span><span class="kw">pub use </span>optimizers::optimize;
+<a href=#20 id=20 data-nosnippet>20</a><span class="kw">mod </span>optimizers;
+<a href=#21 id=21 data-nosnippet>21</a><span class="kw">mod </span>simulator;
+<a href=#22 id=22 data-nosnippet>22</a><span class="kw">pub mod </span>validator;
+<a href=#23 id=23 data-nosnippet>23</a>
+<a href=#24 id=24 data-nosnippet>24</a><span class="kw">pub use </span>simulator::{CircuitSimulator, SimulationFailure};
+<a href=#25 id=25 data-nosnippet>25</a>
+<a href=#26 id=26 data-nosnippet>26</a><span class="doccomment">/// This module can move and decompose acir opcodes into multiple opcodes. The transformation map allows consumers of this module to map
+<a href=#27 id=27 data-nosnippet>27</a>/// metadata they had about the opcodes to the new opcode structure generated after the transformation.
+<a href=#28 id=28 data-nosnippet>28</a>/// ACIR opcodes are stored inside a vector of opcodes. A transformation pass will generate a new vector of opcodes,
+<a href=#29 id=29 data-nosnippet>29</a>/// but each opcode is the result of the transformation of an opcode in the original vector.
+<a href=#30 id=30 data-nosnippet>30</a>/// So we simply keep track of the relation:  index of the original opcode -&gt; index of the new opcode in the new vector
+<a href=#31 id=31 data-nosnippet>31</a>/// However we need a vector of new indexes for the map values in the case the old opcode is decomposed into multiple opcodes.
+<a href=#32 id=32 data-nosnippet>32</a></span><span class="attr">#[derive(Debug)]
+<a href=#33 id=33 data-nosnippet>33</a></span><span class="kw">pub struct </span>AcirTransformationMap {
+<a href=#34 id=34 data-nosnippet>34</a>    <span class="doccomment">/// Maps the old acir indices to the new acir indices
+<a href=#35 id=35 data-nosnippet>35</a>    </span>old_indices_to_new_indices: HashMap&lt;usize, Vec&lt;usize&gt;&gt;,
+<a href=#36 id=36 data-nosnippet>36</a>}
+<a href=#37 id=37 data-nosnippet>37</a>
+<a href=#38 id=38 data-nosnippet>38</a><span class="kw">impl </span>AcirTransformationMap {
+<a href=#39 id=39 data-nosnippet>39</a>    <span class="doccomment">/// Builds a map from a vector of pointers to the old acir opcodes.
+<a href=#40 id=40 data-nosnippet>40</a>    /// The index in the vector is the new opcode index.
+<a href=#41 id=41 data-nosnippet>41</a>    /// The value of the vector is where the old opcode index was pointed.
+<a href=#42 id=42 data-nosnippet>42</a>    /// E.g: If `acir_opcode_positions` = 0,1,2,4,5,5,6
+<a href=#43 id=43 data-nosnippet>43</a>    /// that means that old indices 0,1,2,4,5,5,6 are mapped to the new indexes: 0,1,2,3,4,5,6
+<a href=#44 id=44 data-nosnippet>44</a>    /// This gives the following map:
+<a href=#45 id=45 data-nosnippet>45</a>    /// 0 -&gt; 0
+<a href=#46 id=46 data-nosnippet>46</a>    /// 1 -&gt; 1
+<a href=#47 id=47 data-nosnippet>47</a>    /// 2 -&gt; 2
+<a href=#48 id=48 data-nosnippet>48</a>    /// 4 -&gt; 3
+<a href=#49 id=49 data-nosnippet>49</a>    /// 5 -&gt; [4, 5]
+<a href=#50 id=50 data-nosnippet>50</a>    /// 6 -&gt; 6
+<a href=#51 id=51 data-nosnippet>51</a>    </span><span class="kw">fn </span>new(acir_opcode_positions: <span class="kw-2">&amp;</span>[usize]) -&gt; <span class="self">Self </span>{
+<a href=#52 id=52 data-nosnippet>52</a>        <span class="kw">let </span><span class="kw-2">mut </span>old_indices_to_new_indices = HashMap::with_capacity(acir_opcode_positions.len());
+<a href=#53 id=53 data-nosnippet>53</a>        <span class="kw">for </span>(new_index, old_index) <span class="kw">in </span>acir_opcode_positions.iter().copied().enumerate() {
+<a href=#54 id=54 data-nosnippet>54</a>            old_indices_to_new_indices.entry(old_index).or_insert_with(Vec::new).push(new_index);
+<a href=#55 id=55 data-nosnippet>55</a>        }
+<a href=#56 id=56 data-nosnippet>56</a>        AcirTransformationMap { old_indices_to_new_indices }
+<a href=#57 id=57 data-nosnippet>57</a>    }
+<a href=#58 id=58 data-nosnippet>58</a>
+<a href=#59 id=59 data-nosnippet>59</a>    <span class="doccomment">/// Returns the new opcode location(s) corresponding to the old opcode.
+<a href=#60 id=60 data-nosnippet>60</a>    /// An `OpcodeLocation` contains the index of the opcode in the vector of opcodes
+<a href=#61 id=61 data-nosnippet>61</a>    /// This function returns the new `OpcodeLocation` by 'updating' the index within the given `OpcodeLocation`
+<a href=#62 id=62 data-nosnippet>62</a>    /// using the `AcirTransformationMap`. In fact, it does not update the given `OpcodeLocation` 'in-memory' but rather
+<a href=#63 id=63 data-nosnippet>63</a>    /// returns a new one, and even a vector of `OpcodeLocation`'s in case there are multiple new indexes corresponding
+<a href=#64 id=64 data-nosnippet>64</a>    /// to the old opcode index.
+<a href=#65 id=65 data-nosnippet>65</a>    </span><span class="kw">pub fn </span>new_locations(
+<a href=#66 id=66 data-nosnippet>66</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
+<a href=#67 id=67 data-nosnippet>67</a>        old_location: OpcodeLocation,
+<a href=#68 id=68 data-nosnippet>68</a>    ) -&gt; <span class="kw">impl </span>Iterator&lt;Item = OpcodeLocation&gt; + <span class="lifetime">'_ </span>{
+<a href=#69 id=69 data-nosnippet>69</a>        <span class="kw">let </span>old_acir_index = <span class="kw">match </span>old_location {
+<a href=#70 id=70 data-nosnippet>70</a>            OpcodeLocation::Acir(index) =&gt; index,
+<a href=#71 id=71 data-nosnippet>71</a>            OpcodeLocation::Brillig { acir_index, .. } =&gt; acir_index,
+<a href=#72 id=72 data-nosnippet>72</a>        };
+<a href=#73 id=73 data-nosnippet>73</a>
+<a href=#74 id=74 data-nosnippet>74</a>        <span class="self">self</span>.old_indices_to_new_indices.get(<span class="kw-2">&amp;</span>old_acir_index).into_iter().flat_map(
+<a href=#75 id=75 data-nosnippet>75</a>            <span class="kw">move </span>|new_indices| {
+<a href=#76 id=76 data-nosnippet>76</a>                new_indices.iter().map(<span class="kw">move </span>|new_index| <span class="kw">match </span>old_location {
+<a href=#77 id=77 data-nosnippet>77</a>                    OpcodeLocation::Acir(<span class="kw">_</span>) =&gt; OpcodeLocation::Acir(<span class="kw-2">*</span>new_index),
+<a href=#78 id=78 data-nosnippet>78</a>                    OpcodeLocation::Brillig { brillig_index, .. } =&gt; {
+<a href=#79 id=79 data-nosnippet>79</a>                        OpcodeLocation::Brillig { acir_index: <span class="kw-2">*</span>new_index, brillig_index }
+<a href=#80 id=80 data-nosnippet>80</a>                    }
+<a href=#81 id=81 data-nosnippet>81</a>                })
+<a href=#82 id=82 data-nosnippet>82</a>            },
+<a href=#83 id=83 data-nosnippet>83</a>        )
+<a href=#84 id=84 data-nosnippet>84</a>    }
+<a href=#85 id=85 data-nosnippet>85</a>
+<a href=#86 id=86 data-nosnippet>86</a>    <span class="doccomment">/// This function is similar to `new_locations()`, but only deals with
+<a href=#87 id=87 data-nosnippet>87</a>    /// the `AcirOpcodeLocation` variant
+<a href=#88 id=88 data-nosnippet>88</a>    </span><span class="kw">pub fn </span>new_acir_locations(
+<a href=#89 id=89 data-nosnippet>89</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
+<a href=#90 id=90 data-nosnippet>90</a>        old_location: AcirOpcodeLocation,
+<a href=#91 id=91 data-nosnippet>91</a>    ) -&gt; <span class="kw">impl </span>Iterator&lt;Item = AcirOpcodeLocation&gt; + <span class="lifetime">'_ </span>{
+<a href=#92 id=92 data-nosnippet>92</a>        <span class="kw">let </span>old_acir_index = old_location.index();
+<a href=#93 id=93 data-nosnippet>93</a>
+<a href=#94 id=94 data-nosnippet>94</a>        <span class="self">self</span>.old_indices_to_new_indices.get(<span class="kw-2">&amp;</span>old_acir_index).into_iter().flat_map(
+<a href=#95 id=95 data-nosnippet>95</a>            <span class="kw">move </span>|new_indices| {
+<a href=#96 id=96 data-nosnippet>96</a>                new_indices.iter().map(<span class="kw">move </span>|new_index| AcirOpcodeLocation::new(<span class="kw-2">*</span>new_index))
+<a href=#97 id=97 data-nosnippet>97</a>            },
+<a href=#98 id=98 data-nosnippet>98</a>        )
+<a href=#99 id=99 data-nosnippet>99</a>    }
+<a href=#100 id=100 data-nosnippet>100</a>}
+<a href=#101 id=101 data-nosnippet>101</a>
+<a href=#102 id=102 data-nosnippet>102</a><span class="doccomment">/// Update the assert messages to point to the new opcode locations.
+<a href=#103 id=103 data-nosnippet>103</a></span><span class="kw">fn </span>transform_assert_messages&lt;F: Clone&gt;(
+<a href=#104 id=104 data-nosnippet>104</a>    assert_messages: Vec&lt;(OpcodeLocation, AssertionPayload&lt;F&gt;)&gt;,
+<a href=#105 id=105 data-nosnippet>105</a>    map: <span class="kw-2">&amp;</span>AcirTransformationMap,
+<a href=#106 id=106 data-nosnippet>106</a>) -&gt; Vec&lt;(OpcodeLocation, AssertionPayload&lt;F&gt;)&gt; {
+<a href=#107 id=107 data-nosnippet>107</a>    assert_messages
+<a href=#108 id=108 data-nosnippet>108</a>        .into_iter()
+<a href=#109 id=109 data-nosnippet>109</a>        .flat_map(|(location, message)| {
+<a href=#110 id=110 data-nosnippet>110</a>            <span class="kw">let </span>new_locations = map.new_locations(location);
+<a href=#111 id=111 data-nosnippet>111</a>            new_locations.map(<span class="kw">move </span>|new_location| (new_location, message.clone()))
+<a href=#112 id=112 data-nosnippet>112</a>        })
+<a href=#113 id=113 data-nosnippet>113</a>        .collect()
+<a href=#114 id=114 data-nosnippet>114</a>}
+<a href=#115 id=115 data-nosnippet>115</a>
+<a href=#116 id=116 data-nosnippet>116</a><span class="attr">#[macro_export]
+<a href=#117 id=117 data-nosnippet>117</a></span><span class="macro">macro_rules!</span> assert_circuit_snapshot {
+<a href=#118 id=118 data-nosnippet>118</a>    (<span class="macro-nonterminal">$acir</span>:expr, $(<span class="macro-nonterminal">$arg</span>:tt)<span class="kw-2">*</span>) =&gt; {
+<a href=#119 id=119 data-nosnippet>119</a>        <span class="attr">#[allow(unused_mut)]
+<a href=#120 id=120 data-nosnippet>120</a>        </span><span class="kw">let </span>acir_string = <span class="macro-nonterminal">$acir</span>.to_string();
+<a href=#121 id=121 data-nosnippet>121</a>        <span class="macro">insta::assert_snapshot!</span>(acir_string, $(<span class="macro-nonterminal">$arg</span>)<span class="kw-2">*</span>)
+<a href=#122 id=122 data-nosnippet>122</a>    };
+<a href=#123 id=123 data-nosnippet>123</a>}</code></pre></div></section></main></body></html>
