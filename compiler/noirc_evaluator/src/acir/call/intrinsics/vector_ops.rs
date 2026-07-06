@@ -249,26 +249,10 @@ impl Context<'_> {
             let len = super::arrays::flattened_value_size(&new_vector_array);
 
             // 2. Copy the vector into an AcirDynamicArray
-            // Generates the element_type_sizes array
-            let element_type_sizes =
-                if super::arrays::array_has_constant_element_size(&vector_typ).is_none() {
-                    Some(self.init_element_type_sizes_array(
-                        &vector_typ,
-                        result_ids[1],
-                        Some(new_vector_array.clone()),
-                        dfg,
-                        // We do not need extra capacity here as `new_vector_array` has already pushed back new elements
-                        ElementTypeSizesArrayShift::None,
-                    )?)
-                } else {
-                    None
-                };
-
             // The block ID for the new vector is the one for the resulting vector
             let block_id = self.block_id(result_ids[1]);
             self.initialize_array(block_id, len, Some(new_vector_array))?;
-            let flattened_dynamic_array =
-                AcirDynamicArray { block_id, len, value_types, element_type_sizes };
+            let flattened_dynamic_array = AcirDynamicArray { block_id, len, value_types };
 
             // 3. Write to the dynamic array
 
@@ -801,21 +785,6 @@ impl Context<'_> {
             }
         }
 
-        let element_type_sizes =
-            if super::arrays::array_has_constant_element_size(&vector_typ).is_none() {
-                // Note that here we pass `Some(vector)` as the supplied acir value. This is
-                // the input vector before insertion, so we still need an increase shift here.
-                Some(self.init_element_type_sizes_array(
-                    &vector_typ,
-                    result_ids[1],
-                    Some(vector),
-                    dfg,
-                    shift,
-                )?)
-            } else {
-                None
-            };
-
         let value_types = flat_element_types(&vector_typ);
 
         // For types like `[(); 3]` we always end up with no elements and a zero-sized type
@@ -828,7 +797,6 @@ impl Context<'_> {
             block_id: result_block_id,
             len: vector_size,
             value_types,
-            element_type_sizes,
         });
 
         Ok(vec![AcirValue::Var(new_vector_length, NumericType::length_type()), result])
@@ -1015,21 +983,6 @@ impl Context<'_> {
             self.acir_context.write_to_memory(result_block_id, &current_index, &new_value)?;
         }
 
-        let element_type_sizes =
-            if super::arrays::array_has_constant_element_size(&vector_typ).is_none() {
-                // The resulting vector has one less element than before
-                let shift = ElementTypeSizesArrayShift::Decrease;
-                Some(self.init_element_type_sizes_array(
-                    &vector_typ,
-                    result_ids[1],
-                    Some(vector),
-                    dfg,
-                    shift,
-                )?)
-            } else {
-                None
-            };
-
         let value_types = flat_element_types(&vector_typ);
 
         // For types like `[(); 3]` we always end up with no elements and a zero-sized type
@@ -1042,7 +995,6 @@ impl Context<'_> {
             block_id: result_block_id,
             len: result_size,
             value_types,
-            element_type_sizes,
         });
 
         let mut result =
