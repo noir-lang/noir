@@ -8,7 +8,6 @@ use crate::errors::{InternalError, RuntimeError};
 use crate::ssa::ir::types::{NumericType, Type};
 use crate::ssa::ir::{dfg::DataFlowGraph, value::ValueId};
 use acvm::acir::brillig::lengths::FlattenedLength;
-use acvm::acir::circuit::opcodes::BlockId;
 use acvm::{AcirField, FieldElement};
 
 use super::Context;
@@ -45,18 +44,21 @@ impl Context<'_> {
         &mut self,
         flattened_source: Option<&[AcirVar]>,
         ssa_type: &Type,
-        block_id: BlockId,
+        array: ValueId,
+        dfg: &DataFlowGraph,
         var_index: &mut AcirVar,
     ) -> Result<AcirValue, RuntimeError> {
         let Some(values) = flattened_source else {
-            // No inline contents: every scalar is read from the backing memory block.
+            // No inline contents: every scalar is read from the backing memory block, which is
+            // initialized lazily on this first access.
+            let block_id = self.ensure_array_is_initialized(array, dfg)?;
             return self.array_get_value(ssa_type, block_id, var_index);
         };
 
         let one = self.acir_context.add_constant(FieldElement::one());
         match ssa_type {
             Type::Numeric(numeric_type) => {
-                let read = self.read_vector_scalar(values, block_id, var_index)?;
+                let read = self.read_vector_scalar(values, array, dfg, var_index)?;
                 // Increment the var_index in case of a nested vector element
                 *var_index = self.acir_context.add_var(*var_index, one)?;
                 Ok(AcirValue::Var(read, *numeric_type))
@@ -68,7 +70,8 @@ impl Context<'_> {
                         result.push_back(self.read_vector_value(
                             Some(values),
                             typ,
-                            block_id,
+                            array,
+                            dfg,
                             var_index,
                         )?);
                     }
@@ -76,7 +79,7 @@ impl Context<'_> {
                 Ok(AcirValue::Array(result))
             }
             Type::Reference(reference_type, _) => {
-                self.read_vector_value(Some(values), reference_type.as_ref(), block_id, var_index)
+                self.read_vector_value(Some(values), reference_type.as_ref(), array, dfg, var_index)
             }
             _ => unreachable!("ICE: Expected an array or numeric but got {ssa_type:?}"),
         }
@@ -85,11 +88,13 @@ impl Context<'_> {
     /// Reads the scalar at the flattened position `var_index` of a vector.
     ///
     /// Returns the inline value directly when `var_index` is a constant within `values`' bounds;
-    /// otherwise emits a `MemoryOp::Read` of `block_id`.
+    /// otherwise emits a `MemoryOp::Read` of the vector's backing block, which is initialized
+    /// lazily on that first read.
     fn read_vector_scalar(
         &mut self,
         values: &[AcirVar],
-        block_id: BlockId,
+        array: ValueId,
+        dfg: &DataFlowGraph,
         var_index: &AcirVar,
     ) -> Result<AcirVar, RuntimeError> {
         if let Some(index) = self
@@ -101,6 +106,7 @@ impl Context<'_> {
         {
             return Ok(*element);
         }
+        let block_id = self.ensure_array_is_initialized(array, dfg)?;
         Ok(self.acir_context.read_from_memory(block_id, var_index)?)
     }
 
@@ -379,7 +385,6 @@ impl Context<'_> {
         let vector_length_id = arguments[0];
         let vector_contents_id = arguments[1];
         let vector_length_value = self.convert_value(vector_length_id, dfg);
-        let block_id = self.ensure_array_is_initialized(vector_contents_id, dfg)?;
         let vector_contents_value = self.convert_value(vector_contents_id, dfg);
         let vector_type = dfg.type_of_value(vector_contents_id);
         self.check_vector_result_count("vector_pop_back", result_ids, &vector_type)?;
@@ -427,7 +432,8 @@ impl Context<'_> {
             let elem = self.read_vector_value(
                 flattened_source.as_deref(),
                 &dfg.type_of_value(*res),
-                block_id,
+                vector_contents_id,
+                dfg,
                 &mut var_index,
             )?;
             popped_elements.push(elem);
@@ -539,7 +545,6 @@ impl Context<'_> {
         let vector_length_id = arguments[0];
         let vector_contents_id = arguments[1];
         let vector_length_value = self.convert_value(vector_length_id, dfg);
-        let block_id = self.ensure_array_is_initialized(vector_contents_id, dfg)?;
         let vector_contents_value = self.convert_value(vector_contents_id, dfg);
         let vector_type = dfg.type_of_value(vector_contents_id);
         self.check_vector_result_count("vector_pop_front", result_ids, &vector_type)?;
@@ -582,7 +587,8 @@ impl Context<'_> {
             let element = self.read_vector_value(
                 flattened_source.as_deref(),
                 &dfg.type_of_value(*res),
-                block_id,
+                vector_contents_id,
+                dfg,
                 &mut var_index,
             )?;
             popped_elements.push(element);
@@ -638,7 +644,6 @@ impl Context<'_> {
         let vector_contents = arguments[1];
 
         let vector_typ = dfg.type_of_value(vector_contents);
-        let block_id = self.ensure_array_is_initialized(vector_contents, dfg)?;
 
         // Check if we're trying to insert into an empty vector.
         // If so, we must avoid trying to read from the original vector.
@@ -769,7 +774,8 @@ impl Context<'_> {
                 self.read_vector_value(
                     flattened_source.as_deref(),
                     &Type::Numeric(NumericType::NativeField),
-                    block_id,
+                    vector_contents,
+                    dfg,
                     &mut index,
                 )?
                 .into_var()?
@@ -885,7 +891,6 @@ impl Context<'_> {
 
         let vector_typ = dfg.type_of_value(vector_contents);
         self.check_vector_result_count("vector_remove", result_ids, &vector_typ)?;
-        let block_id = self.ensure_array_is_initialized(vector_contents, dfg)?;
 
         // Check if we're trying to remove from an empty vector
         if self.has_zero_length(vector_contents, dfg) {
@@ -958,7 +963,8 @@ impl Context<'_> {
             let element = self.read_vector_value(
                 flattened_source.as_deref(),
                 &dfg.type_of_value(*res),
-                block_id,
+                vector_contents,
+                dfg,
                 &mut temp_index,
             )?;
             let elem_size = super::arrays::flattened_value_size(&element);
@@ -990,7 +996,8 @@ impl Context<'_> {
                 .read_vector_value(
                     flattened_source.as_deref(),
                     &Type::Numeric(NumericType::NativeField),
-                    block_id,
+                    vector_contents,
+                    dfg,
                     &mut index,
                 )?
                 .into_var()?;
