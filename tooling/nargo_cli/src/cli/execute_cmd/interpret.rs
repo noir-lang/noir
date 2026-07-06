@@ -243,12 +243,12 @@ fn input_value_to_comptime_value(
                 .borrow()
                 .get_fields(generics)
                 .expect("Enums as inputs are not yet supported");
-            // A `#[abi(transparent)]` wrapper is serialized as its inner field, so `input` holds the
+            // A `#[transparent]` wrapper is serialized as its inner field, so `input` holds the
             // inner value directly (not a struct map). Decode it against the field's type and wrap it
             // back up, mirroring how the ABI erases the wrapper (see `abi_type_from_hir_type`).
-            if interner.is_abi_transparent(data_type.borrow().id) {
+            if interner.is_transparent(data_type.borrow().id) {
                 let (name, field_typ, _) =
-                    fields.into_iter().next().expect("`#[abi(transparent)]` struct has one field");
+                    fields.into_iter().next().expect("`#[transparent]` struct has one field");
                 let value = input_value_to_comptime_value(input, &field_typ, location, interner);
                 let fields = [(Rc::new(name), Shared::new(value))].into_iter().collect();
                 return Value::Struct(fields, typ.clone());
@@ -324,12 +324,11 @@ fn output_value_to_string(value: &Value, context: &Context) -> String {
             };
             let data_type = data_type.borrow();
 
-            // A `#[abi(transparent)]` wrapper is invisible at the ABI boundary, so render its single
+            // A `#[transparent]` wrapper is invisible at the ABI boundary, so render its single
             // field directly — matching the non-comptime path, which displays the output decoded
             // through the (transparent) ABI rather than the Noir value.
-            if context.def_interner.is_abi_transparent(data_type.id) {
-                let value =
-                    fields.values().next().expect("`#[abi(transparent)]` struct has one field");
+            if context.def_interner.is_transparent(data_type.id) {
+                let value = fields.values().next().expect("`#[transparent]` struct has one field");
                 return output_value_to_string(&value.borrow(), context);
             }
 

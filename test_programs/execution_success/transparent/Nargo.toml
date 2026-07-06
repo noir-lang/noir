@@ -1,5 +1,5 @@
 [package]
-name = "abi_transparent"
+name = "transparent"
 type = "bin"
 authors = [""]
 

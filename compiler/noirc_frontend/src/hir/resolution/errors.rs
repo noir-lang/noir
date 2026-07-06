@@ -79,10 +79,10 @@ pub enum ResolverError {
     NestedVectors { location: Location },
     #[error("#[abi(tag)] attribute is only allowed in contracts")]
     AbiAttributeOutsideContract { location: Location },
-    #[error("`#[abi(transparent)]` can only be applied to a struct with a single field")]
-    AbiTransparentRequiresSingleField { location: Location },
-    #[error("`#[abi(transparent)]` can only be applied to a struct")]
-    AbiTransparentOnlyOnStruct { location: Location },
+    #[error("`#[transparent]` can only be applied to a struct with a single field")]
+    TransparentRequiresSingleField { location: Location },
+    #[error("`#[transparent]` can only be applied to a struct")]
+    TransparentOnlyOnStruct { location: Location },
     #[error("Globals marked with `#[abi(tag)]` must have an ABI-compatible type")]
     NonAbiTypeInAbiGlobal { invalid_type: InvalidType, location: Location },
     #[error(
@@ -296,8 +296,8 @@ impl ResolverError {
             | ResolverError::InvalidClosureEnvironment { location, .. }
             | ResolverError::NestedVectors { location }
             | ResolverError::AbiAttributeOutsideContract { location, .. }
-            | ResolverError::AbiTransparentRequiresSingleField { location, .. }
-            | ResolverError::AbiTransparentOnlyOnStruct { location, .. }
+            | ResolverError::TransparentRequiresSingleField { location, .. }
+            | ResolverError::TransparentOnlyOnStruct { location, .. }
             | ResolverError::NonAbiTypeInAbiGlobal { location, .. }
             | ResolverError::DependencyCycle { location, .. }
             | ResolverError::JumpInConstrainedFn { location, .. }
@@ -591,17 +591,17 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                     *location,
                 )
             }
-            ResolverError::AbiTransparentRequiresSingleField { location } => {
+            ResolverError::TransparentRequiresSingleField { location } => {
                 Diagnostic::simple_error(
-                    "`#[abi(transparent)]` can only be applied to a struct with a single field"
+                    "`#[transparent]` can only be applied to a struct with a single field"
                         .to_string(),
                     "not a single-field struct".to_string(),
                     *location,
                 )
             }
-            ResolverError::AbiTransparentOnlyOnStruct { location } => {
+            ResolverError::TransparentOnlyOnStruct { location } => {
                 Diagnostic::simple_error(
-                    "`#[abi(transparent)]` can only be applied to a struct".to_string(),
+                    "`#[transparent]` can only be applied to a struct".to_string(),
                     "not a struct".to_string(),
                     *location,
                 )

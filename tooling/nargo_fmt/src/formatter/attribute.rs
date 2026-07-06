@@ -91,12 +91,12 @@ impl Formatter<'_> {
             | SecondaryAttributeKind::Export
             | SecondaryAttributeKind::Varargs
             | SecondaryAttributeKind::UseCallersScope
+            | SecondaryAttributeKind::Transparent
             | SecondaryAttributeKind::Pure => {
                 self.format_no_args_attribute();
             }
             SecondaryAttributeKind::Field(_)
             | SecondaryAttributeKind::Abi(_)
-            | SecondaryAttributeKind::AbiTransparent
             | SecondaryAttributeKind::Allow(_) => {
                 self.format_one_arg_attribute();
             }

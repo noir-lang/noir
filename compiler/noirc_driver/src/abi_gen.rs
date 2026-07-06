@@ -111,14 +111,12 @@ pub(super) fn abi_type_from_hir_type(context: &Context, typ: &Type) -> AbiType {
         Type::DataType(def, args) => {
             let struct_type = def.borrow();
             let fields = struct_type.get_fields(args).unwrap_or_default();
-            // A `#[abi(transparent)]` wrapper serializes as its inner field, so emit the field's
+            // A `#[transparent]` wrapper serializes as its inner field, so emit the field's
             // type directly. The frontend guarantees exactly one field; recursing (rather than
             // matching one level) means a wrapper around another transparent wrapper also collapses.
-            if context.def_interner.is_abi_transparent(struct_type.id) {
-                let (_, inner, _) = fields
-                    .into_iter()
-                    .next()
-                    .expect("`#[abi(transparent)]` struct has a single field");
+            if context.def_interner.is_transparent(struct_type.id) {
+                let (_, inner, _) =
+                    fields.into_iter().next().expect("`#[transparent]` struct has a single field");
                 return abi_type_from_hir_type(context, &inner);
             }
             let fields =

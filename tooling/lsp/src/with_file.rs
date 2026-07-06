@@ -612,7 +612,7 @@ fn secondary_attribute_with_file(
         | SecondaryAttributeKind::Field(_)
         | SecondaryAttributeKind::Tag(..)
         | SecondaryAttributeKind::Abi(_)
-        | SecondaryAttributeKind::AbiTransparent
+        | SecondaryAttributeKind::Transparent
         | SecondaryAttributeKind::Varargs
         | SecondaryAttributeKind::UseCallersScope
         | SecondaryAttributeKind::MustUse(_)

@@ -7,7 +7,7 @@ struct Point {
     y: Field,
 }
 
-#[abi(transparent)]
+#[transparent]
 struct Wrapper {
     inner: Point,
 }

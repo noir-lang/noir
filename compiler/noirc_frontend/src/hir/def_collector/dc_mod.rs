@@ -1294,10 +1294,10 @@ pub fn collect_struct(
                 definition_errors
                     .push(ResolverError::AbiAttributeOutsideContract { location: attr.location });
             }
-            // `#[abi(transparent)]` is allowed anywhere, but only makes sense on a newtype wrapper:
+            // `#[transparent]` is allowed anywhere, but only makes sense on a newtype wrapper:
             // it serializes the struct as its single inner field.
-            SecondaryAttributeKind::AbiTransparent if unresolved.struct_def.fields.len() != 1 => {
-                definition_errors.push(ResolverError::AbiTransparentRequiresSingleField {
+            SecondaryAttributeKind::Transparent if unresolved.struct_def.fields.len() != 1 => {
+                definition_errors.push(ResolverError::TransparentRequiresSingleField {
                     location: attr.location,
                 });
             }
@@ -1413,11 +1413,11 @@ pub fn collect_enum(
 
     let parent_module_id = ModuleId { krate, local_id: module_id };
 
-    // `#[abi(transparent)]` only applies to a single-field struct, not to an enum.
+    // `#[transparent]` only applies to a single-field struct, not to an enum.
     for attr in &unresolved.enum_def.attributes {
-        if attr.kind.is_abi_transparent() {
+        if attr.kind.is_transparent() {
             definition_errors
-                .push(ResolverError::AbiTransparentOnlyOnStruct { location: attr.location });
+                .push(ResolverError::TransparentOnlyOnStruct { location: attr.location });
         }
     }
 
@@ -1704,12 +1704,12 @@ pub(crate) fn collect_global(
         err.into()
     });
 
-    // `#[abi(transparent)]` only applies to a single-field struct, not to a global.
+    // `#[transparent]` only applies to a single-field struct, not to a global.
     let error = global
         .attributes
         .iter()
-        .find(|attr| attr.kind.is_abi_transparent())
-        .map(|attr| ResolverError::AbiTransparentOnlyOnStruct { location: attr.location }.into())
+        .find(|attr| attr.kind.is_transparent())
+        .map(|attr| ResolverError::TransparentOnlyOnStruct { location: attr.location }.into())
         .or(error);
 
     interner.set_doc_comments(ReferenceId::Global(global_id), doc_comments);
