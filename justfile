@@ -106,6 +106,36 @@ fuzz-nightly: install-rust-tools
     # In the nightly tests we want to explore uncharted territory.
     NOIR_AST_FUZZER_FORCE_NON_DETERMINISTIC=1 cargo nextest run -p noir_ast_fuzzer_fuzz --no-fail-fast
 
+# AST fuzzer targets, tried in turn by `fuzz-repro` when no target is given.
+ast-fuzzer-targets := "acir_vs_brillig comptime_vs_brillig_direct comptime_vs_brillig_nargo min_vs_full orig_vs_morph pass_vs_prev valid_after_pass"
+
+# Reproduce an AST fuzzer failure from a SEED, e.g. `just fuzz-repro 0x6819c61400001000`
+fuzz-repro seed target="" out="":
+    #!/usr/bin/env bash
+    # Prints the failing AST and, on a comparison failure, the ABI inputs. Pass a TARGET to run a
+    # single fuzz target, or leave it empty to try each target until one reproduces. Set OUT to a
+    # directory to also emit a runnable `nargo` project (src/main.nr + Prover.toml) per failing AST.
+    set -uo pipefail
+    export NOIR_AST_FUZZER_SEED="{{ seed }}"
+    export RUST_LOG="${RUST_LOG:-debug}"
+    if [ -n "{{ out }}" ]; then export NOIR_AST_FUZZER_EMIT_PROJECT="{{ out }}"; fi
+    targets="{{ target }}"
+    if [ -z "$targets" ]; then targets="{{ ast-fuzzer-targets }}"; fi
+    # Build once so a compile error is distinguishable from a reproduced failure below.
+    if ! cargo build -p noir_ast_fuzzer_fuzz --tests; then
+      echo "=== build failed ===" >&2
+      exit 2
+    fi
+    for t in $targets; do
+      echo "=== reproducing seed {{ seed }} on target $t ===" >&2
+      if ! cargo test -p noir_ast_fuzzer_fuzz "$t" -- --nocapture; then
+        echo "=== seed {{ seed }} reproduced on $t ===" >&2
+        exit 0
+      fi
+    done
+    echo "=== seed {{ seed }} did not reproduce on any target ===" >&2
+    exit 1
+
 cargo-mutants-args := if ci == "1" { "--in-place -vV" } else { "-j2" }
 
 mutation-test base="master": install-rust-tools
