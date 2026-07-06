@@ -1035,6 +1035,7 @@ fn assert_initialized_blocks_are_used(acir: &GeneratedAcir<FieldElement>) {
 
     for opcode in acir.opcodes() {
         match opcode {
+            Opcode::AssertZero(_) => {}
             Opcode::MemoryInit { block_id, block_type, init } => {
                 if !block_type.is_databus() && !init.is_empty() {
                     initialized_non_databus_blocks.insert(*block_id);
@@ -1043,14 +1044,24 @@ fn assert_initialized_blocks_are_used(acir: &GeneratedAcir<FieldElement>) {
             Opcode::MemoryOp { block_id, .. } => {
                 used_blocks.insert(*block_id);
             }
-            Opcode::BrilligCall { inputs, .. } => {
+            Opcode::BrilligCall { inputs, predicate, .. } => {
+                assert!(
+                    !predicate.is_zero(),
+                    "ICE: Brillig calls with a compile-time zero predicate should be resolved during ACIR gen, not emitted"
+                );
                 for input in inputs {
                     if let BrilligInputs::MemoryArray(block_id) = input {
                         used_blocks.insert(*block_id);
                     }
                 }
             }
-            _ => {}
+            Opcode::Call { predicate, .. } => {
+                assert!(
+                    !predicate.is_zero(),
+                    "ICE: ACIR calls with a compile-time zero predicate should be resolved during ACIR gen, not emitted"
+                );
+            }
+            Opcode::BlackBoxFuncCall(_) => {}
         }
     }
 

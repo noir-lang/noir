@@ -1490,6 +1490,14 @@ impl<F: AcirField> AcirContext<F> {
     ) -> Result<Vec<AcirVar>, RuntimeError> {
         let output_count = output_count.to_usize();
 
+        // A call whose predicate folds to a compile-time zero is on a statically-dead branch and is
+        // never executed. We resolve it up front to don't-care zeroed outputs and emit no `Call`
+        // opcode, mirroring the equivalent handling for Brillig calls. This keeps the
+        // `acir_post_check` invariant that no emitted call carries a compile-time zero predicate.
+        if self.var_to_expression(predicate)?.is_zero() {
+            return Ok(vecmap(0..output_count, |_| self.add_constant(F::zero())));
+        }
+
         let inputs = self.prepare_inputs_for_black_box_func_call(inputs, false)?;
         let inputs = inputs
             .iter()
