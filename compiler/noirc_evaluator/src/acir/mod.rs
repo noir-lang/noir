@@ -924,9 +924,8 @@ impl<'a> Context<'a> {
 ///   no linked read/write is dead weight that ACIR gen should never emit: arrays are only promoted
 ///   to a memory block on their first memory operation. Databus blocks (calldata/return data) are
 ///   exempt as they are part of the circuit's ABI and are intentionally initialized even when
-///   unused. Zero-length blocks are also exempt: an empty block has no slots to read or write, so
-///   it can never be referenced by a memory operation, and the ACVM unused-memory optimizer strips
-///   these inert initializations regardless.
+///   unused. Zero-length blocks never reach this check (they are asserted against above and are
+///   never emitted), so the non-empty guard here is a belt-and-braces filter.
 #[cfg(debug_assertions)]
 fn acir_post_check(context: &Context<'_>, acir: &GeneratedAcir<FieldElement>) {
     use acvm::acir::circuit::Opcode;
