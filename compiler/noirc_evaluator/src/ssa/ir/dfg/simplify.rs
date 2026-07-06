@@ -1066,4 +1066,117 @@ mod tests {
         let ssa = Ssa::from_str_simplifying(src).unwrap();
         assert_normalized_ssa_equals(ssa, src);
     }
+
+    /// In ACIR, unchecked arithmetic is non-reducing field arithmetic, so an `unchecked_add`
+    /// of two `u8`s can yield a field wider than 8 bits (e.g. `200 + 100 = 300`). The following
+    /// `range_check ... to 8 bits` is what rejects such an out-of-range result, so the simplifier
+    /// must not delete it on the basis of the static `u8` type width.
+    #[test]
+    fn range_check_after_unchecked_add_is_preserved_in_acir() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u8, v1: u8):
+            v2 = unchecked_add v0, v1
+            range_check v2 to 8 bits
+            return v2
+        }
+        ";
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: u8, v1: u8):
+            v2 = unchecked_add v0, v1
+            return v2
+        }
+        ");
+    }
+
+    /// `unchecked_mul` of two `u8`s can yield a field up to 16 bits wide in ACIR, so a
+    /// `range_check ... to 8 bits` on its result is meaningful and must survive.
+    #[test]
+    fn range_check_after_unchecked_mul_is_preserved_in_acir() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u8, v1: u8):
+            v2 = unchecked_mul v0, v1
+            range_check v2 to 8 bits
+            return v2
+        }
+        ";
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: u8, v1: u8):
+            v2 = unchecked_mul v0, v1
+            return v2
+        }
+        ");
+    }
+
+    /// `unchecked_sub` of `u8`s can underflow to a field-negative (near-modulus) value in ACIR, so
+    /// a `range_check ... to 8 bits` on its result must not be removed.
+    #[test]
+    fn range_check_after_unchecked_sub_is_preserved_in_acir() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u8, v1: u8):
+            v2 = unchecked_sub v0, v1
+            range_check v2 to 8 bits
+            return v2
+        }
+        ";
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: u8, v1: u8):
+            v2 = unchecked_sub v0, v1
+            return v2
+        }
+        ");
+    }
+
+    /// In Brillig, unchecked arithmetic wraps to the type's bit width, so an `unchecked_add u8`
+    /// result is always in range and the following `range_check ... to 8 bits` is genuinely
+    /// redundant. The simplifier should still remove it (the ACIR fix must not over-generalize).
+    #[test]
+    fn range_check_after_unchecked_add_is_removed_in_brillig() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: u8, v1: u8):
+            v2 = unchecked_add v0, v1
+            range_check v2 to 8 bits
+            return v2
+        }
+        ";
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) fn main f0 {
+          b0(v0: u8, v1: u8):
+            v2 = unchecked_add v0, v1
+            return v2
+        }
+        ");
+    }
+
+    /// The retained-check bound stays tight: two `u8`s can sum to at most 9 bits, so a
+    /// `range_check ... to 9 bits` after an `unchecked_add u8` is redundant and must be removed.
+    #[test]
+    fn sufficiently_wide_range_check_after_unchecked_add_is_removed_in_acir() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u8, v1: u8):
+            v2 = unchecked_add v0, v1
+            range_check v2 to 9 bits
+            return v2
+        }
+        ";
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: u8, v1: u8):
+            v2 = unchecked_add v0, v1
+            return v2
+        }
+        ");
+    }
 }
