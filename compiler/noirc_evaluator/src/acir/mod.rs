@@ -927,6 +927,9 @@ impl<'a> Context<'a> {
 ///   unused. Zero-length blocks are also exempt: an empty block has no slots to read or write, so
 ///   it can never be referenced by a memory operation, and the ACVM unused-memory optimizer strips
 ///   these inert initializations regardless.
+/// * No `Call` or `BrilligCall` opcode is emitted with a compile-time zero predicate. Such a call is
+///   on a statically-dead branch and is never executed, so ACIR gen must resolve it to don't-care
+///   outputs rather than lay down an opcode whose predicate is known to be zero.
 #[cfg(debug_assertions)]
 fn acir_post_check(context: &Context<'_>, acir: &GeneratedAcir<FieldElement>) {
     use acvm::acir::circuit::Opcode;
@@ -965,14 +968,24 @@ fn acir_post_check(context: &Context<'_>, acir: &GeneratedAcir<FieldElement>) {
                     );
                 }
             }
-            Opcode::BrilligCall { inputs, .. } => {
+            Opcode::BrilligCall { inputs, predicate, .. } => {
+                assert!(
+                    !predicate.is_zero(),
+                    "ICE: Brillig calls with a compile-time zero predicate should be resolved during ACIR gen, not emitted"
+                );
                 for input in inputs {
                     if let BrilligInputs::MemoryArray(block_id) = input {
                         used_blocks.insert(*block_id);
                     }
                 }
             }
-            _ => {}
+            Opcode::Call { predicate, .. } => {
+                assert!(
+                    !predicate.is_zero(),
+                    "ICE: ACIR calls with a compile-time zero predicate should be resolved during ACIR gen, not emitted"
+                );
+            }
+            Opcode::BlackBoxFuncCall(_) => {}
         }
     }
 

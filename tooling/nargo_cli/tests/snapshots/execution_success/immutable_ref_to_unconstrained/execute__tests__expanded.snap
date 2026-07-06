@@ -3,7 +3,7 @@ source: tooling/nargo_cli/tests/execute.rs
 expression: expanded_code
 ---
 unconstrained fn read_ref(r: &Field) -> Field {
-    *r
+    std::hint::black_box(*r)
 }
 
 unconstrained fn read_ref_struct(r: &Foo) -> u32 {
@@ -19,8 +19,8 @@ fn main(x: pub Field, y: pub u32) {
     // Safety: comment added by `nargo expand`
     let result: Field = unsafe { read_ref(&x) };
     assert(result == x);
-    let foo: Foo = Foo { x: 1_u32, y: [2_u32, 3_u32, 4_u32] };
+    let foo: Foo = Foo { x: y, y: [y, y, y] };
     // Safety: comment added by `nargo expand`
     let result: u32 = unsafe { read_ref_struct(&foo) };
-    assert(result == y);
+    assert(result == (y * 4_u32));
 }
