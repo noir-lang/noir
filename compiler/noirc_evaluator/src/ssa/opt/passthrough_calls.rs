@@ -89,11 +89,6 @@ impl Ssa {
                 }
 
                 let results = context.dfg.instruction_results(context.instruction_id).to_vec();
-                // sanity check, the function must return the same number of forwarded values
-                if results.len() != passthrough.forwarding.len() {
-                    return;
-                }
-
                 for (result, &parameter_index) in results.iter().zip_eq(&passthrough.forwarding) {
                     context.replace_value(*result, arguments[parameter_index]);
                 }
@@ -112,6 +107,12 @@ mod tests {
         ssa::{opt::assert_ssa_does_not_change, ssa_gen::Ssa},
     };
 
+    /// Helper function to run the pass for the tests:
+    /// We do a `simplify_passthrough_calls` followed by a `remove_unreachable_functions` to remove the simplified callees.
+    fn pass_through_and_die(ssa: Ssa) -> Ssa {
+        ssa.simplify_passthrough_calls().remove_unreachable_functions()
+    }
+
     #[test]
     fn forwards_acir_passthrough_and_removes_call() {
         // Asserts the un-pruned output: the pass removes the call but leaves the now-dead callee
@@ -127,9 +128,7 @@ mod tests {
             return v1
         }
         ";
-        // Only `simplify_passthrough_calls` (no `remove_unreachable_functions()` for visibility) to show
-        // the precise effect of the pass.
-        let ssa = Ssa::from_str(src).unwrap().simplify_passthrough_calls();
+        let ssa = pass_through_and_die(Ssa::from_str(src).unwrap());
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
           b0(v0: u32, v1: u32):
@@ -157,7 +156,7 @@ mod tests {
         }
         ";
         // `f1` is `acir(fold)` so it is an entry point, `remove_unreachable_functions()` won't work for it.
-        let ssa = Ssa::from_str(src).unwrap().simplify_passthrough_calls();
+        let ssa = pass_through_and_die(Ssa::from_str(src).unwrap());
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
           b0(v0: u32, v1: u32):
@@ -184,8 +183,7 @@ mod tests {
             return v0
         }
         ";
-        let ssa =
-            Ssa::from_str(src).unwrap().simplify_passthrough_calls().remove_unreachable_functions();
+        let ssa = pass_through_and_die(Ssa::from_str(src).unwrap());
         assert_ssa_snapshot!(ssa, @r"
         brillig(inline) fn main f0 {
           b0(v0: u32):
@@ -222,7 +220,7 @@ mod tests {
             v3 = call f1(v0, v1) -> u32
             return v3
         }
-        acir(fold) fn checked f1 {
+        acir(inline) fn checked f1 {
           b0(v0: u32, v1: u32):
             constrain v0 == u32 0
             return v1
@@ -246,8 +244,7 @@ mod tests {
             return v0
         }
         ";
-        let ssa =
-            Ssa::from_str(src).unwrap().simplify_passthrough_calls().remove_unreachable_functions();
+        let ssa = pass_through_and_die(Ssa::from_str(src).unwrap());
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
           b0(v0: u32):
@@ -276,7 +273,7 @@ mod tests {
             return v0
         }
         ";
-        assert_ssa_does_not_change(src, Ssa::simplify_passthrough_calls);
+        assert_ssa_does_not_change(src, |ssa| pass_through_and_die(ssa));
     }
 
     #[test]
@@ -301,7 +298,7 @@ mod tests {
             return v0
         }
         ";
-        assert_ssa_does_not_change(src, Ssa::simplify_passthrough_calls);
+        assert_ssa_does_not_change(src, |ssa| pass_through_and_die(ssa));
     }
 
     #[test]
@@ -320,7 +317,7 @@ mod tests {
         ";
         // The callee is `acir(fold)`, i.e. its own ACIR entry point, so it survives
         // `remove_unreachable_functions` and there is nothing to prune.
-        let ssa = Ssa::from_str(src).unwrap().simplify_passthrough_calls();
+        let ssa = pass_through_and_die(Ssa::from_str(src).unwrap());
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
           b0(v0: u32):
