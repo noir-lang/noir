@@ -1086,6 +1086,7 @@ mod tests {
         acir(inline) fn main f0 {
           b0(v0: u8, v1: u8):
             v2 = unchecked_add v0, v1
+            range_check v2 to 8 bits
             return v2
         }
         ");
@@ -1108,6 +1109,7 @@ mod tests {
         acir(inline) fn main f0 {
           b0(v0: u8, v1: u8):
             v2 = unchecked_mul v0, v1
+            range_check v2 to 8 bits
             return v2
         }
         ");
@@ -1130,6 +1132,7 @@ mod tests {
         acir(inline) fn main f0 {
           b0(v0: u8, v1: u8):
             v2 = unchecked_sub v0, v1
+            range_check v2 to 8 bits
             return v2
         }
         ");

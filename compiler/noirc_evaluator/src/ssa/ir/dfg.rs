@@ -15,7 +15,8 @@ use super::{
     basic_block::{BasicBlock, BasicBlockId},
     function::{FunctionId, RuntimeType},
     instruction::{
-        Instruction, InstructionId, InstructionResultType, Intrinsic, TerminatorInstruction,
+        BinaryOp, Instruction, InstructionId, InstructionResultType, Intrinsic,
+        TerminatorInstruction,
     },
     integer::IntegerConstant,
     map::DenseMap,
@@ -570,14 +571,46 @@ impl DataFlowGraph {
         match self[value] {
             Value::Instruction { instruction, .. } => {
                 let value_bit_size = self.type_of_value(value).bit_size();
-                if let Instruction::Cast(original_value, _) = self[instruction] {
-                    let original_bit_size = self.get_value_max_num_bits(original_value);
-                    // We might have cast e.g. `u1` to `u8` to be able to do arithmetic,
-                    // in which case we want to recover the original smaller bit size;
-                    // OTOH if we cast down, then we don't need the higher original size.
-                    value_bit_size.min(original_bit_size)
-                } else {
-                    value_bit_size
+                match &self[instruction] {
+                    Instruction::Cast(original_value, _) => {
+                        let original_bit_size = self.get_value_max_num_bits(*original_value);
+                        // We might have cast e.g. `u1` to `u8` to be able to do arithmetic,
+                        // in which case we want to recover the original smaller bit size;
+                        // OTOH if we cast down, then we don't need the higher original size.
+                        value_bit_size.min(original_bit_size)
+                    }
+                    // In ACIR, unchecked arithmetic is non-reducing field arithmetic, so its result
+                    // may exceed the operands' type width until a later range check or truncation
+                    // brings it back. Report a conservative upper bound rather than the static type
+                    // width, so callers never mistake that width for a range proof. (In Brillig the
+                    // result wraps to the type width, and a `u1` result of add/mul stays a single
+                    // bit, so those keep the static width.)
+                    Instruction::Binary(binary)
+                        if self.runtime().is_acir()
+                            && value_bit_size > 1
+                            && matches!(
+                                binary.operator,
+                                BinaryOp::Add { unchecked: true }
+                                    | BinaryOp::Sub { unchecked: true }
+                                    | BinaryOp::Mul { unchecked: true }
+                            ) =>
+                    {
+                        let field_max = FieldElement::max_num_bits();
+                        let bound = match binary.operator {
+                            BinaryOp::Add { .. } => self
+                                .get_value_max_num_bits(binary.lhs)
+                                .max(self.get_value_max_num_bits(binary.rhs))
+                                .saturating_add(1),
+                            BinaryOp::Mul { .. } => self
+                                .get_value_max_num_bits(binary.lhs)
+                                .saturating_add(self.get_value_max_num_bits(binary.rhs)),
+                            // An unchecked Sub can underflow to a field-negative (near-modulus)
+                            // value, which no width narrower than the field bounds.
+                            _ => field_max,
+                        };
+                        bound.min(field_max)
+                    }
+                    _ => value_bit_size,
                 }
             }
 
