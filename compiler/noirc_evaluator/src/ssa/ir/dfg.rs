@@ -568,12 +568,31 @@ impl DataFlowGraph {
     /// Should `value` be a numeric constant then this function will return the exact number of bits required,
     /// otherwise it will return the minimum number of bits based on type information.
     pub(crate) fn get_value_max_num_bits(&self, value: ValueId) -> u32 {
-        match self[value] {
+        // The unchecked-arithmetic arm below recurses into both operands, so on a DAG of chained
+        // unchecked arithmetic (e.g. `v = unchecked_add w, w`) the fan-out would be exponential.
+        // A cache keyed on the value being evaluated makes each `ValueId` visited at most once per
+        // top-level call. An empty map does not allocate until the first insert, so the common
+        // non-recursive calls stay cheap.
+        let mut cache = HashMap::default();
+        self.get_value_max_num_bits_with_cache(value, &mut cache)
+    }
+
+    fn get_value_max_num_bits_with_cache(
+        &self,
+        value: ValueId,
+        cache: &mut HashMap<ValueId, u32>,
+    ) -> u32 {
+        if let Some(bits) = cache.get(&value) {
+            return *bits;
+        }
+
+        let result = match self[value] {
             Value::Instruction { instruction, .. } => {
                 let value_bit_size = self.type_of_value(value).bit_size();
                 match &self[instruction] {
                     Instruction::Cast(original_value, _) => {
-                        let original_bit_size = self.get_value_max_num_bits(*original_value);
+                        let original_bit_size =
+                            self.get_value_max_num_bits_with_cache(*original_value, cache);
                         // We might have cast e.g. `u1` to `u8` to be able to do arithmetic,
                         // in which case we want to recover the original smaller bit size;
                         // OTOH if we cast down, then we don't need the higher original size.
@@ -598,12 +617,14 @@ impl DataFlowGraph {
                         let field_max = FieldElement::max_num_bits();
                         let bound = match binary.operator {
                             BinaryOp::Add { .. } => self
-                                .get_value_max_num_bits(binary.lhs)
-                                .max(self.get_value_max_num_bits(binary.rhs))
+                                .get_value_max_num_bits_with_cache(binary.lhs, cache)
+                                .max(self.get_value_max_num_bits_with_cache(binary.rhs, cache))
                                 .saturating_add(1),
                             BinaryOp::Mul { .. } => self
-                                .get_value_max_num_bits(binary.lhs)
-                                .saturating_add(self.get_value_max_num_bits(binary.rhs)),
+                                .get_value_max_num_bits_with_cache(binary.lhs, cache)
+                                .saturating_add(
+                                    self.get_value_max_num_bits_with_cache(binary.rhs, cache),
+                                ),
                             // An unchecked Sub can underflow to a field-negative (near-modulus)
                             // value, which no width narrower than the field bounds.
                             _ => field_max,
@@ -616,7 +637,10 @@ impl DataFlowGraph {
 
             Value::NumericConstant { constant, .. } => constant.num_bits(),
             _ => self.type_of_value(value).bit_size(),
-        }
+        };
+
+        cache.insert(value, result);
+        result
     }
 
     /// True if the type of this value is `Type::Reference`.
@@ -1156,8 +1180,12 @@ impl std::ops::Index<usize> for InsertInstructionResult<'_> {
 
 #[cfg(test)]
 mod tests {
-    use super::DataFlowGraph;
-    use crate::ssa::ir::{instruction::Instruction, types::Type};
+    use super::{DataFlowGraph, FieldElement};
+    use crate::ssa::{
+        ir::{instruction::Instruction, types::Type},
+        ssa_gen::Ssa,
+    };
+    use acvm::AcirField;
 
     #[test]
     fn make_instruction() {
@@ -1167,5 +1195,30 @@ mod tests {
 
         let results = dfg.instruction_results(ins_id);
         assert_eq!(results.len(), 1);
+    }
+
+    // Each unchecked ACIR add recurses into both of its operands, so on a graph where operands
+    // overlap the fan-out is exponential in the chain depth. Here each `v_i` reuses the two
+    // previous results (a Fibonacci-shaped dependency), which is enough to make an unmemoized
+    // `get_value_max_num_bits` take on the order of `Fib(depth)` steps and never terminate.
+    // The memoized implementation visits each value once, so this returns immediately.
+    #[test]
+    fn get_value_max_num_bits_terminates_on_deep_unchecked_acir_chain() {
+        let depth = 128;
+
+        let mut src = String::from("acir(inline) fn main f0 {\n  b0(v0: u8, v1: u8):\n");
+        for i in 2..=depth {
+            src.push_str(&format!("    v{i} = unchecked_add v{}, v{}\n", i - 1, i - 2));
+        }
+        src.push_str(&format!("    return v{depth}\n}}\n"));
+
+        let ssa = Ssa::from_str(&src).unwrap();
+        let main = ssa.main();
+        let returned = main.returns().expect("expected a Return terminator")[0];
+
+        // The bound saturates at the field width; the exact value does not matter, only that the
+        // call terminates.
+        let bits = main.dfg.get_value_max_num_bits(returned);
+        assert!(bits <= FieldElement::max_num_bits());
     }
 }
