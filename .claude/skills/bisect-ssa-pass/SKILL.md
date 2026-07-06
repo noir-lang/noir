@@ -16,7 +16,7 @@ Helper scripts are in the `scripts/` directory of this skill.
 
 ## Prerequisites
 
-You need a Noir project with a `Prover.toml` containing inputs that trigger the suspected issue. The program should produce incorrect results or exhibit unexpected behavior when executed.
+You need a Noir project with a `Prover.toml` containing inputs that trigger the suspected issue. The program should produce incorrect results or exhibit unexpected behavior when executed. For a fuzzer failure, the `extract-fuzzer-repro` skill produces this project directly with `just fuzz-repro <seed> <target> <out-dir>`.
 
 ## 1. Compiling and Splitting SSA Passes
 
