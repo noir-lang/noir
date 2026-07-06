@@ -208,7 +208,7 @@ mod tests {
             return v0
         }
         ";
-        assert_ssa_does_not_change(src, Ssa::simplify_passthrough_calls);
+        assert_ssa_does_not_change(src, pass_through_and_die);
     }
 
     #[test]
@@ -226,7 +226,7 @@ mod tests {
             return v1
         }
         ";
-        assert_ssa_does_not_change(src, Ssa::simplify_passthrough_calls);
+        assert_ssa_does_not_change(src, pass_through_and_die);
     }
 
     #[test]
@@ -273,7 +273,7 @@ mod tests {
             return v0
         }
         ";
-        assert_ssa_does_not_change(src, |ssa| pass_through_and_die(ssa));
+        assert_ssa_does_not_change(src, pass_through_and_die);
     }
 
     #[test]
@@ -298,7 +298,7 @@ mod tests {
             return v0
         }
         ";
-        assert_ssa_does_not_change(src, |ssa| pass_through_and_die(ssa));
+        assert_ssa_does_not_change(src, pass_through_and_die);
     }
 
     #[test]
