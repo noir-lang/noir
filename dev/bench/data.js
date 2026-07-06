@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1783160500948,
+  "lastUpdate": 1783334583037,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23191,48 +23191,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "b9e47b221b009cee0814d32d34cd25bcc985ba21",
-          "message": "fix: check intermediate path segment visibility against its declaring module (#13204)\n\nCo-authored-by: Claude Opus 4.8 <noreply@anthropic.com>",
-          "timestamp": "2026-06-29T14:53:19Z",
-          "tree_id": "db971743e4aec0dc13d19b2a22100254f39692f9",
-          "url": "https://github.com/noir-lang/noir/commit/b9e47b221b009cee0814d32d34cd25bcc985ba21"
-        },
-        "date": 1782746030183,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 126367,
-            "range": "± 611",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 112836,
-            "range": "± 1562",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 3039907,
-            "range": "± 19395",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "49558828+AztecBot@users.noreply.github.com",
             "name": "Aztec Bot",
             "username": "AztecBot"
@@ -25284,6 +25242,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2657755,
             "range": "± 1840",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "138d0f21a27a321b0ba13910c77337a5d6832834",
+          "message": "chore: ignore quick-xml RUSTSEC-2026-0194/0195 advisories (#13257)\n\nCo-authored-by: Claude Fable 5 <noreply@anthropic.com>",
+          "timestamp": "2026-07-06T10:21:12Z",
+          "tree_id": "293047b7797a936fdc977a69e20871d0fa0b6e75",
+          "url": "https://github.com/noir-lang/noir/commit/138d0f21a27a321b0ba13910c77337a5d6832834"
+        },
+        "date": 1783334506660,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 175444,
+            "range": "± 1218",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 145731,
+            "range": "± 382",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2661974,
+            "range": "± 34760",
             "unit": "ns/iter"
           }
         ]
