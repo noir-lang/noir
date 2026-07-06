@@ -3,8 +3,8 @@
 use crate::{
     elaborator::UnstableFeature,
     tests::{
-        assert_no_errors, check_errors, check_errors_using_features, check_monomorphization_error,
-        get_program_using_features,
+        assert_no_errors, check_errors, check_errors_using_features, check_errors_with_stdlib,
+        check_monomorphization_error, get_program_using_features,
     },
 };
 
@@ -457,6 +457,48 @@ fn deny_abi_transparent_on_global() {
         }
     "#;
     check_errors(src);
+}
+
+#[test]
+fn deny_abi_transparent_via_comptime_add_abi_on_multi_field_struct() {
+    // The single-field guard lives only in def-collection, so attaching `#[abi(transparent)]`
+    // through the comptime `TypeDefinition::add_abi` API bypasses it: this multi-field struct is
+    // marked transparent with no error, later yielding a silently-wrong ABI (trailing fields
+    // dropped). The same `AbiTransparentRequiresSingleField` error the source-level path raises
+    // should fire here too.
+    let stdlib = r#"
+        pub trait AsCtString {
+            comptime fn as_ctstring(self) -> CtString;
+        }
+
+        impl<let N: u32> AsCtString for str<N> {
+            #[builtin(str_as_ctstring)]
+            comptime fn as_ctstring(self) -> CtString {}
+        }
+
+        impl TypeDefinition {
+            #[builtin(type_def_add_abi)]
+            pub comptime fn add_abi(self, abi_argument: CtString) {}
+        }
+    "#;
+    let src = r#"
+        #[make_transparent]
+        pub struct Wrapper {
+            a: Field,
+            b: Field,
+        }
+
+        comptime fn make_transparent(s: TypeDefinition) {
+            s.add_abi("transparent".as_ctstring());
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `#[abi(transparent)]` can only be applied to a struct with a single field
+            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ not a single-field struct
+        }
+
+        pub fn foo(_: Wrapper) {}
+
+        fn main() {}
+    "#;
+    check_errors_with_stdlib(src, [stdlib]);
 }
 
 #[test]

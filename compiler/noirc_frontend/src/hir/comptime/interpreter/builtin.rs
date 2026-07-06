@@ -47,7 +47,7 @@ use crate::{
             value::{ExprValue, FormatStringFragment, TypedExpr},
         },
         def_map::{ModuleDefId, ModuleId, fully_qualified_module_path},
-        resolution::visibility::item_in_module_is_visible,
+        resolution::{errors::ResolverError, visibility::item_in_module_is_visible},
     },
     hir_def::{
         expr::{HirExpression, HirIdent, HirLiteral, ImplKind, TraitItem},
@@ -517,6 +517,23 @@ fn type_def_add_abi(
     let self_arg = self_argument.0.clone();
     let type_id = get_type_id(self_argument)?;
     check_item_crate_matches_current_crate(interpreter, &self_arg, type_id.module_id(), location)?;
+
+    // The def-collection guards on `#[abi(transparent)]` never see attributes attached this late,
+    // so re-check them here: `add_abi` must not silently mark a non-single-field struct (or an
+    // enum) as transparent, which would later yield a wrong ABI.
+    if attribute.kind.is_abi_transparent() {
+        let data_type = interpreter.elaborator.interner.get_type(type_id);
+        // `fields_raw` is `Some` only for structs, so this distinguishes the single-field struct
+        // (allowed) from a multi-field/empty struct and from an enum.
+        let error = match data_type.borrow().fields_raw() {
+            Some([_]) => None,
+            Some(_) => Some(ResolverError::AbiTransparentRequiresSingleField { location }),
+            None => Some(ResolverError::AbiTransparentOnlyOnStruct { location }),
+        };
+        if let Some(error) = error {
+            interpreter.elaborator.push_err(error);
+        }
+    }
 
     interpreter.elaborator.interner.update_type_attributes(type_id, |attributes| {
         attributes.push(attribute);
