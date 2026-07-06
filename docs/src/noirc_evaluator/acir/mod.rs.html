@@ -927,58 +927,71 @@
 <a href=#927 id=927 data-nosnippet>927</a>///   unused. Zero-length blocks are also exempt: an empty block has no slots to read or write, so
 <a href=#928 id=928 data-nosnippet>928</a>///   it can never be referenced by a memory operation, and the ACVM unused-memory optimizer strips
 <a href=#929 id=929 data-nosnippet>929</a>///   these inert initializations regardless.
-<a href=#930 id=930 data-nosnippet>930</a></span><span class="attr">#[cfg(debug_assertions)]
-<a href=#931 id=931 data-nosnippet>931</a></span><span class="kw">fn </span>acir_post_check(context: <span class="kw-2">&amp;</span>Context&lt;<span class="lifetime">'_</span>&gt;, acir: <span class="kw-2">&amp;</span>GeneratedAcir&lt;FieldElement&gt;) {
-<a href=#932 id=932 data-nosnippet>932</a>    <span class="kw">use </span>acvm::acir::circuit::Opcode;
-<a href=#933 id=933 data-nosnippet>933</a>    <span class="kw">use </span>acvm::acir::circuit::brillig::BrilligInputs;
-<a href=#934 id=934 data-nosnippet>934</a>    <span class="kw">use </span>acvm::acir::circuit::opcodes::MemOpKind;
-<a href=#935 id=935 data-nosnippet>935</a>
-<a href=#936 id=936 data-nosnippet>936</a>    <span class="kw">let </span><span class="kw-2">mut </span>initialized_non_databus_blocks: HashSet&lt;BlockId&gt; = HashSet::default();
-<a href=#937 id=937 data-nosnippet>937</a>    <span class="kw">let </span><span class="kw-2">mut </span>used_blocks: HashSet&lt;BlockId&gt; = HashSet::default();
+<a href=#930 id=930 data-nosnippet>930</a>/// * No `Call` or `BrilligCall` opcode is emitted with a compile-time zero predicate. Such a call is
+<a href=#931 id=931 data-nosnippet>931</a>///   on a statically-dead branch and is never executed, so ACIR gen must resolve it to don't-care
+<a href=#932 id=932 data-nosnippet>932</a>///   outputs rather than lay down an opcode whose predicate is known to be zero.
+<a href=#933 id=933 data-nosnippet>933</a></span><span class="attr">#[cfg(debug_assertions)]
+<a href=#934 id=934 data-nosnippet>934</a></span><span class="kw">fn </span>acir_post_check(context: <span class="kw-2">&amp;</span>Context&lt;<span class="lifetime">'_</span>&gt;, acir: <span class="kw-2">&amp;</span>GeneratedAcir&lt;FieldElement&gt;) {
+<a href=#935 id=935 data-nosnippet>935</a>    <span class="kw">use </span>acvm::acir::circuit::Opcode;
+<a href=#936 id=936 data-nosnippet>936</a>    <span class="kw">use </span>acvm::acir::circuit::brillig::BrilligInputs;
+<a href=#937 id=937 data-nosnippet>937</a>    <span class="kw">use </span>acvm::acir::circuit::opcodes::MemOpKind;
 <a href=#938 id=938 data-nosnippet>938</a>
-<a href=#939 id=939 data-nosnippet>939</a>    <span class="kw">for </span>opcode <span class="kw">in </span>acir.opcodes() {
-<a href=#940 id=940 data-nosnippet>940</a>        <span class="kw">match </span>opcode {
-<a href=#941 id=941 data-nosnippet>941</a>            Opcode::AssertZero(expr) =&gt; {
-<a href=#942 id=942 data-nosnippet>942</a>                <span class="macro">assert!</span>(
-<a href=#943 id=943 data-nosnippet>943</a>                    !expr.is_zero(),
-<a href=#944 id=944 data-nosnippet>944</a>                    <span class="string">"ICE: Empty AssertZero opcodes (0 == 0) should not be emitted"
-<a href=#945 id=945 data-nosnippet>945</a>                </span>);
-<a href=#946 id=946 data-nosnippet>946</a>            }
-<a href=#947 id=947 data-nosnippet>947</a>            Opcode::MemoryInit { block_id, block_type, init } =&gt; {
-<a href=#948 id=948 data-nosnippet>948</a>                <span class="macro">assert!</span>(
-<a href=#949 id=949 data-nosnippet>949</a>                    !init.is_empty(),
-<a href=#950 id=950 data-nosnippet>950</a>                    <span class="string">"ICE: Zero-length memory blocks should not be initialized"
-<a href=#951 id=951 data-nosnippet>951</a>                </span>);
-<a href=#952 id=952 data-nosnippet>952</a>                <span class="kw">if </span>!block_type.is_databus() &amp;&amp; !init.is_empty() {
-<a href=#953 id=953 data-nosnippet>953</a>                    initialized_non_databus_blocks.insert(<span class="kw-2">*</span>block_id);
-<a href=#954 id=954 data-nosnippet>954</a>                }
-<a href=#955 id=955 data-nosnippet>955</a>            }
-<a href=#956 id=956 data-nosnippet>956</a>            Opcode::MemoryOp { block_id, op } =&gt; {
-<a href=#957 id=957 data-nosnippet>957</a>                used_blocks.insert(<span class="kw-2">*</span>block_id);
-<a href=#958 id=958 data-nosnippet>958</a>                <span class="kw">if </span>op.operation == MemOpKind::Write {
-<a href=#959 id=959 data-nosnippet>959</a>                    <span class="comment">// Check that we have no writes to the type size arrays
-<a href=#960 id=960 data-nosnippet>960</a>                    </span><span class="kw">let </span>is_type_sizes_array =
-<a href=#961 id=961 data-nosnippet>961</a>                        context.element_type_sizes_blocks.values().any(|id| id == block_id);
-<a href=#962 id=962 data-nosnippet>962</a>                    <span class="macro">assert!</span>(
-<a href=#963 id=963 data-nosnippet>963</a>                        !is_type_sizes_array,
-<a href=#964 id=964 data-nosnippet>964</a>                        <span class="string">"ICE: Writes to the internal type sizes array are forbidden"
-<a href=#965 id=965 data-nosnippet>965</a>                    </span>);
-<a href=#966 id=966 data-nosnippet>966</a>                }
-<a href=#967 id=967 data-nosnippet>967</a>            }
-<a href=#968 id=968 data-nosnippet>968</a>            Opcode::BrilligCall { inputs, .. } =&gt; {
-<a href=#969 id=969 data-nosnippet>969</a>                <span class="kw">for </span>input <span class="kw">in </span>inputs {
-<a href=#970 id=970 data-nosnippet>970</a>                    <span class="kw">if let </span>BrilligInputs::MemoryArray(block_id) = input {
-<a href=#971 id=971 data-nosnippet>971</a>                        used_blocks.insert(<span class="kw-2">*</span>block_id);
-<a href=#972 id=972 data-nosnippet>972</a>                    }
-<a href=#973 id=973 data-nosnippet>973</a>                }
-<a href=#974 id=974 data-nosnippet>974</a>            }
-<a href=#975 id=975 data-nosnippet>975</a>            <span class="kw">_ </span>=&gt; {}
-<a href=#976 id=976 data-nosnippet>976</a>        }
-<a href=#977 id=977 data-nosnippet>977</a>    }
-<a href=#978 id=978 data-nosnippet>978</a>
-<a href=#979 id=979 data-nosnippet>979</a>    <span class="kw">let </span>unused: Vec&lt;<span class="kw">_</span>&gt; = initialized_non_databus_blocks.difference(<span class="kw-2">&amp;</span>used_blocks).collect();
-<a href=#980 id=980 data-nosnippet>980</a>    <span class="macro">assert!</span>(
-<a href=#981 id=981 data-nosnippet>981</a>        unused.is_empty(),
-<a href=#982 id=982 data-nosnippet>982</a>        <span class="string">"ICE: memory blocks initialized without any linked read/write/Brillig use: {unused:?}"
-<a href=#983 id=983 data-nosnippet>983</a>    </span>);
-<a href=#984 id=984 data-nosnippet>984</a>}</code></pre></div></section></main></body></html>
+<a href=#939 id=939 data-nosnippet>939</a>    <span class="kw">let </span><span class="kw-2">mut </span>initialized_non_databus_blocks: HashSet&lt;BlockId&gt; = HashSet::default();
+<a href=#940 id=940 data-nosnippet>940</a>    <span class="kw">let </span><span class="kw-2">mut </span>used_blocks: HashSet&lt;BlockId&gt; = HashSet::default();
+<a href=#941 id=941 data-nosnippet>941</a>
+<a href=#942 id=942 data-nosnippet>942</a>    <span class="kw">for </span>opcode <span class="kw">in </span>acir.opcodes() {
+<a href=#943 id=943 data-nosnippet>943</a>        <span class="kw">match </span>opcode {
+<a href=#944 id=944 data-nosnippet>944</a>            Opcode::AssertZero(expr) =&gt; {
+<a href=#945 id=945 data-nosnippet>945</a>                <span class="macro">assert!</span>(
+<a href=#946 id=946 data-nosnippet>946</a>                    !expr.is_zero(),
+<a href=#947 id=947 data-nosnippet>947</a>                    <span class="string">"ICE: Empty AssertZero opcodes (0 == 0) should not be emitted"
+<a href=#948 id=948 data-nosnippet>948</a>                </span>);
+<a href=#949 id=949 data-nosnippet>949</a>            }
+<a href=#950 id=950 data-nosnippet>950</a>            Opcode::MemoryInit { block_id, block_type, init } =&gt; {
+<a href=#951 id=951 data-nosnippet>951</a>                <span class="macro">assert!</span>(
+<a href=#952 id=952 data-nosnippet>952</a>                    !init.is_empty(),
+<a href=#953 id=953 data-nosnippet>953</a>                    <span class="string">"ICE: Zero-length memory blocks should not be initialized"
+<a href=#954 id=954 data-nosnippet>954</a>                </span>);
+<a href=#955 id=955 data-nosnippet>955</a>                <span class="kw">if </span>!block_type.is_databus() &amp;&amp; !init.is_empty() {
+<a href=#956 id=956 data-nosnippet>956</a>                    initialized_non_databus_blocks.insert(<span class="kw-2">*</span>block_id);
+<a href=#957 id=957 data-nosnippet>957</a>                }
+<a href=#958 id=958 data-nosnippet>958</a>            }
+<a href=#959 id=959 data-nosnippet>959</a>            Opcode::MemoryOp { block_id, op } =&gt; {
+<a href=#960 id=960 data-nosnippet>960</a>                used_blocks.insert(<span class="kw-2">*</span>block_id);
+<a href=#961 id=961 data-nosnippet>961</a>                <span class="kw">if </span>op.operation == MemOpKind::Write {
+<a href=#962 id=962 data-nosnippet>962</a>                    <span class="comment">// Check that we have no writes to the type size arrays
+<a href=#963 id=963 data-nosnippet>963</a>                    </span><span class="kw">let </span>is_type_sizes_array =
+<a href=#964 id=964 data-nosnippet>964</a>                        context.element_type_sizes_blocks.values().any(|id| id == block_id);
+<a href=#965 id=965 data-nosnippet>965</a>                    <span class="macro">assert!</span>(
+<a href=#966 id=966 data-nosnippet>966</a>                        !is_type_sizes_array,
+<a href=#967 id=967 data-nosnippet>967</a>                        <span class="string">"ICE: Writes to the internal type sizes array are forbidden"
+<a href=#968 id=968 data-nosnippet>968</a>                    </span>);
+<a href=#969 id=969 data-nosnippet>969</a>                }
+<a href=#970 id=970 data-nosnippet>970</a>            }
+<a href=#971 id=971 data-nosnippet>971</a>            Opcode::BrilligCall { inputs, predicate, .. } =&gt; {
+<a href=#972 id=972 data-nosnippet>972</a>                <span class="macro">assert!</span>(
+<a href=#973 id=973 data-nosnippet>973</a>                    !predicate.is_zero(),
+<a href=#974 id=974 data-nosnippet>974</a>                    <span class="string">"ICE: Brillig calls with a compile-time zero predicate should be resolved during ACIR gen, not emitted"
+<a href=#975 id=975 data-nosnippet>975</a>                </span>);
+<a href=#976 id=976 data-nosnippet>976</a>                <span class="kw">for </span>input <span class="kw">in </span>inputs {
+<a href=#977 id=977 data-nosnippet>977</a>                    <span class="kw">if let </span>BrilligInputs::MemoryArray(block_id) = input {
+<a href=#978 id=978 data-nosnippet>978</a>                        used_blocks.insert(<span class="kw-2">*</span>block_id);
+<a href=#979 id=979 data-nosnippet>979</a>                    }
+<a href=#980 id=980 data-nosnippet>980</a>                }
+<a href=#981 id=981 data-nosnippet>981</a>            }
+<a href=#982 id=982 data-nosnippet>982</a>            Opcode::Call { predicate, .. } =&gt; {
+<a href=#983 id=983 data-nosnippet>983</a>                <span class="macro">assert!</span>(
+<a href=#984 id=984 data-nosnippet>984</a>                    !predicate.is_zero(),
+<a href=#985 id=985 data-nosnippet>985</a>                    <span class="string">"ICE: ACIR calls with a compile-time zero predicate should be resolved during ACIR gen, not emitted"
+<a href=#986 id=986 data-nosnippet>986</a>                </span>);
+<a href=#987 id=987 data-nosnippet>987</a>            }
+<a href=#988 id=988 data-nosnippet>988</a>            Opcode::BlackBoxFuncCall(<span class="kw">_</span>) =&gt; {}
+<a href=#989 id=989 data-nosnippet>989</a>        }
+<a href=#990 id=990 data-nosnippet>990</a>    }
+<a href=#991 id=991 data-nosnippet>991</a>
+<a href=#992 id=992 data-nosnippet>992</a>    <span class="kw">let </span>unused: Vec&lt;<span class="kw">_</span>&gt; = initialized_non_databus_blocks.difference(<span class="kw-2">&amp;</span>used_blocks).collect();
+<a href=#993 id=993 data-nosnippet>993</a>    <span class="macro">assert!</span>(
+<a href=#994 id=994 data-nosnippet>994</a>        unused.is_empty(),
+<a href=#995 id=995 data-nosnippet>995</a>        <span class="string">"ICE: memory blocks initialized without any linked read/write/Brillig use: {unused:?}"
+<a href=#996 id=996 data-nosnippet>996</a>    </span>);
+<a href=#997 id=997 data-nosnippet>997</a>}</code></pre></div></section></main></body></html>
