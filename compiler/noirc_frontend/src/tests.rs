@@ -8,6 +8,7 @@ mod bound_checks;
 mod cast;
 mod control_flow;
 mod deeply_nested;
+mod entry_point_size;
 mod enums;
 mod expand;
 mod expressions;

@@ -1,0 +1,18 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+unconstrained fn main() {
+    let a: [u8; 3] = [1_u8, 2_u8, 3_u8];
+    let mut i: u32 = 0_u32;
+    while cond(a) {
+        if i == 0_u32 { break; };
+        i = i + 1_u32;
+    }
+    println(a);
+}
+
+unconstrained fn cond(a: [u8; 3]) -> bool {
+    println(a);
+    true
+}
