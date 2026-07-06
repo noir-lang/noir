@@ -1,0 +1,15 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+error: The return value has 4294967295 elements which exceeds the limit of 16777216
+   ┌─ src/main.nr:11:5
+   │
+11 │     void_to_array()
+   │     ---------------
+   │
+   = Call stack:
+     1: main
+             at src/main.nr:11:5
+
+Aborting due to 1 previous error
