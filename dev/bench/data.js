@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1783360185401,
+  "lastUpdate": 1783360293755,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23161,48 +23161,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": false,
-          "id": "f0ca376b1ca6060bdce99bdabe83bf2d3c627bbc",
-          "message": "chore(deps): bump smol-toml from 1.6.1 to 1.7.0 (#13216)\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
-          "timestamp": "2026-06-30T10:00:59Z",
-          "tree_id": "5ecbc06de381de6de667a4c99827802cc3e03d70",
-          "url": "https://github.com/noir-lang/noir/commit/f0ca376b1ca6060bdce99bdabe83bf2d3c627bbc"
-        },
-        "date": 1782816419194,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 175284,
-            "range": "± 777",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 145791,
-            "range": "± 348",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2656870,
-            "range": "± 10474",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "49699333+dependabot[bot]@users.noreply.github.com",
-            "name": "dependabot[bot]",
-            "username": "dependabot[bot]"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
           "id": "4bcf98ee9a495870f633dcba81f59fc646b544d6",
           "message": "chore(deps-dev): bump @types/node from 22.19.19 to 22.20.0 (#13219)\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
           "timestamp": "2026-06-30T10:01:06Z",
@@ -25244,6 +25202,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2656671,
             "range": "± 6610",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49558828+AztecBot@users.noreply.github.com",
+            "name": "Aztec Bot",
+            "username": "AztecBot"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "ba4772e628b148e34843054ea593010124b7350b",
+          "message": "chore(ast_fuzzer): make smoke/parser/mono tests deterministic on CI (#13274)",
+          "timestamp": "2026-07-06T17:31:21Z",
+          "tree_id": "d2a3c8c37d77f67363e93b24bdaf273acd99f5b6",
+          "url": "https://github.com/noir-lang/noir/commit/ba4772e628b148e34843054ea593010124b7350b"
+        },
+        "date": 1783360216788,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 179472,
+            "range": "± 690",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 148245,
+            "range": "± 622",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2658207,
+            "range": "± 5689",
             "unit": "ns/iter"
           }
         ]
