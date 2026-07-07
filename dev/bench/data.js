@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1783437269357,
+  "lastUpdate": 1783439432857,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23091,48 +23091,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "8ece77df6a35d5ac2d647aba71cfc5dc4bef01b3",
-          "message": "feat(acir_gen): fold predicated constant-index array_set into AcirValue::Array (#13223)",
-          "timestamp": "2026-07-01T16:53:58Z",
-          "tree_id": "2fee5cdc913f6e462618e1d1cc2e19d6ec05d511",
-          "url": "https://github.com/noir-lang/noir/commit/8ece77df6a35d5ac2d647aba71cfc5dc4bef01b3"
-        },
-        "date": 1782925941820,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 127311,
-            "range": "± 215",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 113927,
-            "range": "± 1160",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 3045362,
-            "range": "± 4826",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "jfecher11@gmail.com",
             "name": "jfecher",
             "username": "jfecher"
@@ -25184,6 +25142,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2647320,
             "range": "± 2380",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49558828+AztecBot@users.noreply.github.com",
+            "name": "Aztec Bot",
+            "username": "AztecBot"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "5ad1b36ace2de7817e119b7ce9cb0cdf40a43f89",
+          "message": "chore(stdlib): add signed-overflow should_fail tests for arith trait impls (#12453)",
+          "timestamp": "2026-07-07T15:29:38Z",
+          "tree_id": "f370830bf5fcf2f6a37e934909324707cdffe87f",
+          "url": "https://github.com/noir-lang/noir/commit/5ad1b36ace2de7817e119b7ce9cb0cdf40a43f89"
+        },
+        "date": 1783439354494,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 172739,
+            "range": "± 337",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 139431,
+            "range": "± 5710",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2651030,
+            "range": "± 2471",
             "unit": "ns/iter"
           }
         ]
