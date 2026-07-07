@@ -190,7 +190,7 @@ where
 
         eprintln!("---\nOptions 2:\n{:?}", inputs.ssa2.options);
         eprintln!("---\nProgram 2:");
-        display_program(&inputs.ssa1.artifact);
+        display_program(&inputs.ssa2.artifact);
 
         // Returning it as-is, so we can see the error message at the bottom as well.
         Err(report)
