@@ -2516,6 +2516,9 @@ const META_API_STDLIB: &str = r#"
         #[builtin(module_functions)]
         pub comptime fn functions(self) -> [FunctionDefinition] {}
 
+        #[builtin(module_child_modules)]
+        pub comptime fn child_modules(self) -> [Module] {}
+
         #[builtin(module_named_attribute_args)]
         pub comptime fn named_attribute_args<let N: u32>(self, _name: str<N>) -> [[Quoted]] {}
     }
@@ -2596,6 +2599,116 @@ fn comptime_as_typed_expr_visibility() {
         };
 
         assert(victim::read(hijacked_vault) == 31337);
+    }
+    "#;
+    check_errors_with_stdlib(src, [META_API_STDLIB]);
+}
+
+/// A `pub fn` inside a private module is not reachable from outside that module through a
+/// normal path (the enclosing module is private), so it must not be reachable through
+/// `as_typed_expr` either. Checking only the function's own visibility misses the private
+/// enclosing module.
+#[test]
+fn comptime_as_typed_expr_visibility_through_private_module() {
+    let src = r#"
+    mod victim {
+        pub struct Vault {
+            secret: Field,
+        }
+
+        pub fn new() -> Vault {
+            Vault { secret: 1 }
+        }
+
+        pub fn read(v: Vault) -> Field {
+            v.secret
+        }
+
+        mod priv_mod {
+            use super::Vault;
+
+            pub fn set_secret(mut v: Vault, new_secret: Field) -> Vault {
+                v.secret = new_secret;
+                v
+            }
+        }
+    }
+
+    fn main() {
+        let original_vault = victim::new();
+            ^^^^^^^^^^^^^^ unused variable original_vault
+            ~~~~~~~~~~~~~~ unused variable
+
+        let hijacked_vault = comptime {
+            let victim_module = quote { victim }.as_module().unwrap();
+            let mut found = Option::none();
+            for m in victim_module.child_modules() {
+                for f in m.functions() {
+                    if quoted_eq(f.name(), quote { set_secret }) {
+                        found = Option::some(f);
+                    }
+                }
+            }
+            let set_secret = found.unwrap();
+            let set_secret_expr = set_secret.as_typed_expr();
+                                  ^^^^^^^^^^^^^^^^^^^^^^^^^^ Function `set_secret` is private
+                                  ~~~~~~~~~~~~~~~~~~~~~~~~~~ `set_secret` is declared in `victim::priv_mod`
+            quote { $set_secret_expr(original_vault, 31337) }
+        };
+
+        assert(victim::read(hijacked_vault) == 31337);
+    }
+    "#;
+    check_errors_with_stdlib(src, [META_API_STDLIB]);
+}
+
+/// The private-module check must not over-restrict: a `pub fn` inside a `pub mod` is reachable
+/// through a normal path, so it must remain reachable through `as_typed_expr` as well.
+#[test]
+fn comptime_as_typed_expr_visibility_through_public_module() {
+    let src = r#"
+    mod victim {
+        pub struct Vault {
+            secret: Field,
+        }
+
+        pub fn new() -> Vault {
+            Vault { secret: 1 }
+        }
+
+        pub fn read(v: Vault) -> Field {
+            v.secret
+        }
+
+        pub mod pub_mod {
+            use super::Vault;
+
+            pub fn set_secret(mut v: Vault, new_secret: Field) -> Vault {
+                v.secret = new_secret;
+                v
+            }
+        }
+    }
+
+    fn main() {
+        let original_vault = victim::new();
+
+        let updated_vault = comptime {
+            let victim_module = quote { victim }.as_module().unwrap();
+            let mut found = Option::none();
+            for m in victim_module.child_modules() {
+                for f in m.functions() {
+                    if quoted_eq(f.name(), quote { set_secret }) {
+                        found = Option::some(f);
+                    }
+                }
+            }
+            let set_secret = found.unwrap();
+            let set_secret_expr = set_secret.as_typed_expr();
+            quote { $set_secret_expr(original_vault, 31337) }
+        };
+
+        assert(victim::read(updated_vault) == 31337);
     }
     "#;
     check_errors_with_stdlib(src, [META_API_STDLIB]);
