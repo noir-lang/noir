@@ -43,7 +43,8 @@ fn all_publishable_acvm_crates_are_tracked_by_release_please() {
     // exact form release-please expects in `extra-files`.
     let mut expected: Vec<String> = Vec::new();
     for pkg in metadata["packages"].as_array().expect("packages missing from cargo metadata") {
-        let manifest_path = Path::new(pkg["manifest_path"].as_str().expect("manifest_path missing"));
+        let manifest_path =
+            Path::new(pkg["manifest_path"].as_str().expect("manifest_path missing"));
         let Ok(relative) = manifest_path.strip_prefix(&workspace_root) else {
             continue;
         };
