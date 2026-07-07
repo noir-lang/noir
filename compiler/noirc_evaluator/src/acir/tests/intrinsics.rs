@@ -137,6 +137,63 @@ fn vector_push_back_unknown_length() {
 }
 
 #[test]
+fn vector_push_back_non_homogenous_unknown_length() {
+    // A non-homogenous vector (its element `(u32, [u32; 2])` has non-uniform flattened member
+    // sizes, so `array_has_constant_element_size` is `None`) pushed with a run-time length takes
+    // the dynamic-array branch of `convert_vector_push_back`. That branch computes the flattened
+    // write offset for the result vector (`v7` below) via `get_flattened_index`, which for a
+    // non-homogenous layout reads the element-type-sizes table from a memory block; that block is
+    // initialized here from the pushed-to value. The homogenous unknown-length case is covered by
+    // `vector_push_back_unknown_length`, which never needs that table.
+    let src = "
+    acir(inline) predicate_pure fn main f0 {
+      b0(v0: u32, v1: u32):
+        v2 = make_array [u32 22, u32 33] : [u32; 2]
+        v3 = make_array [u32 11, v2] : [(u32, [u32; 2])]
+        v4 = make_array [u32 44, u32 55] : [u32; 2]
+        v6, v7 = call vector_push_back(v0, v3, u32 99, v4) -> (u32, [(u32, [u32; 2])])
+        // Read the result back at a run-time index so the result vector is observable.
+        v8 = array_get v7, index v1 -> u32
+        return v8
+    }
+    ";
+    let program = ssa_to_acir_program(src);
+
+    // `b1` is the element-type-sizes table for `(u32, [u32; 2])` (prefix offsets `[0, 1, 3, 4]`),
+    // read at the run-time write offset (`READ w11 = b1[w10]`) and again to resolve the trailing
+    // `array_get`; `b0` is the flattened vector data.
+    assert_circuit_snapshot!(program, @"
+    func 0
+    private parameters: [w0, w1]
+    public parameters: []
+    return values: [w2]
+    BLACKBOX::RANGE input: w0, bits: 32
+    ASSERT w3 = 0
+    ASSERT w4 = 1
+    ASSERT w5 = 3
+    ASSERT w6 = 4
+    INIT b1 = [w3, w4, w5, w6]
+    ASSERT w7 = 11
+    ASSERT w8 = 22
+    ASSERT w9 = 33
+    INIT b0 = [w7, w8, w9, w3, w3, w3]
+    ASSERT w10 = 2*w0
+    READ w11 = b1[w10]
+    ASSERT w12 = 99
+    WRITE b0[w11] = w12
+    ASSERT w13 = w11 + 1
+    ASSERT w14 = 44
+    WRITE b0[w13] = w14
+    ASSERT w15 = w13 + 1
+    ASSERT w16 = 55
+    WRITE b0[w15] = w16
+    READ w17 = b1[w1]
+    READ w18 = b0[w17]
+    ASSERT w2 = w18
+    ");
+}
+
+#[test]
 fn vector_push_back_known_length_dynamic_array_element() {
     let src = "
     acir(inline) predicate_pure fn main f0 {
