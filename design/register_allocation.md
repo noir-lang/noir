@@ -404,10 +404,13 @@ Notes on the interface:
 - **`begin_block` buys emission-order independence.** Without it the register shadow would have to be
   function-global, forcing a dominance-respecting emission order (a value's `define_variable` must
   run before any block reading it). `begin_block` hands each block its register-resident live-ins
-  directly, so the per-block shadow is self-contained and blocks may be emitted in any order. In the
-  base fixed-home design it returns each value's constant register; with **interval splitting** the
-  entry register can differ from the def register (path-reconciled by `resolve_edge`), and
-  `begin_block` returns that — the plan-based analogue of today's `set_allocated_registers` reseed.
+  directly, so the per-block shadow is self-contained. Whether blocks may then be emitted in *any*
+  order depends on the allocator: the stateless linear-scan impl answers `begin_block` for any block,
+  so yes; the stateful greedy impl must still be driven in dominance order (see "Stateful greedy vs
+  stateless linear scan" below). In the base fixed-home design `begin_block` returns each value's
+  constant register; with **interval splitting** the entry register can differ from the def register
+  (path-reconciled by `resolve_edge`), and `begin_block` returns that — the plan-based analogue of
+  today's `set_allocated_registers` reseed.
 - **`InstructionId` is not the position.** Methods key on `InstructionId` — a stable DFG id, meaningful
   to codegen, occurring at most once — and the allocator maps it internally to a `ProgramPoint`
   (`LiveIntervals` assigns points to block entries, instructions, *and* terminators). The id says
@@ -432,6 +435,38 @@ actions carry both ends, the allocator supplies each slot, so the whole `SpillMa
 *and* decision state (LRU, slot allocation, spill activation) — moves into the allocator. The
 friction points are where the greedy allocator reacts to something the linear-scan plan decides up
 front (notably scratch demand); those are the parts to prototype before the interface is fixed.
+
+**Retirement is internal too.** Freeing a value's register at its last use (today `remove_variable`)
+emits no opcode — it only returns a register to the free list for the next `define_variable` — so it
+is neither a trait method nor an `Action`. The greedy allocator owns the liveness (`last_uses`,
+moved out of `BrilligBlock`) and retires as it advances through the instructions it is called on;
+the plan-based allocator has no free list, so reuse is baked into the static assignment and
+retirement is a non-concept.
+
+The one death with no in-block advance to trigger it — a terminator's `return`/`jmp` argument
+registers, dead only *after* the terminator — is reclaimed by the next `begin_block`, which for the
+greedy allocator also *resets* its occupied set to the new block's live-ins (the
+`set_allocated_registers` reseed), dropping whatever the previous block left behind. That is
+sufficient because nothing runs between a terminator and the next `begin_block` that needs those
+registers: `jmp`/`jmpif` arguments are consumed by `resolve_edge` (so they cannot be freed earlier
+anyway), and a `return` has nothing after it. So `begin_block` doubles as the greedy allocator's
+implicit end-of-block; no separate signal is needed. (This is also why greedy `begin_block` is
+`&mut` — it resets state — whereas for the plan-based allocator it is a pure query.)
+
+**Stateful greedy vs stateless linear scan.** This statefulness split is the crux of the two impls,
+and it shows at the interface. The **linear-scan** allocator is effectively *stateless to query* —
+every method is a pure lookup into the precomputed plan — so it can be called for any block, at any
+point, in any order; that is what lets codegen emit blocks in any order. The **greedy** allocator is
+*stateful and online*: its answers depend on the register/spill free lists, the `value -> register`
+cache that `define_variable` builds up, and the LRU — all of which evolve as it runs. It must be
+driven in a **dominance-respecting order** (today's reversed post-order: a value defined before any
+block that reads it) and should **assert** it is not called out of order. For example, greedy
+`begin_block(block)` must return the register-resident live-ins' *addresses*: it knows *which* values
+are live-in from liveness, but their addresses exist only once those values were defined in
+earlier-processed blocks (today `set_allocated_registers` reads them from the `ssa_value_allocations`
+cache). A live-in with no cached address means the driver called it out of order — panic rather than
+guess. So the seam is order-agnostic *only* with the stateless impl; the greedy impl carries the
+current design's ordering requirement, now made explicit and asserted.
 
 ### Phase 1a: swap the victim heuristic (LRU to next-use)
 
