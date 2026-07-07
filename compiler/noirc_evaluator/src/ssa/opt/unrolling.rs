@@ -572,6 +572,26 @@ impl LoopBounds {
             }
         }
     }
+
+    /// Whether the loop is guaranteed to terminate given a constant, non-negative, non-overflowing
+    /// `step`.
+    ///
+    /// If the loop does not execute, then it terminates right away, else
+    /// if the step is zero, the loop will never advance, else
+    /// a LessThan or Equal guard will fail at some point, else
+    /// a NotEqual guard terminates only if the induction variable lands on the bound.
+    pub(super) fn terminates_with_step(self, step: Step) -> bool {
+        if !self.loop_executes() {
+            return true;
+        }
+        if step.is_zero() {
+            return false;
+        }
+        match self.kind {
+            LoopBoundKind::LessThan | LoopBoundKind::Equal => true,
+            LoopBoundKind::NotEqual => self.iterator_in_bounds(step),
+        }
+    }
 }
 
 /// Iteration step in a loop, constructed by [`Loop::monotonic_back_edge_step`].
@@ -824,17 +844,19 @@ impl Loop {
         }
     }
 
-    /// Whether this loop may fail to terminate by stepping *past* a `NotEqual` bound — its
-    /// `i != upper` guard folds every iteration, yet we cannot show the induction variable ever
-    /// lands on `upper` (e.g. `i != 5` stepping by `2` from `0` visits `0, 2, 4, 6, …`). Such a
-    /// loop must be unrolled under the runaway cap.
+    /// Whether this loop may fail to terminate, based on its constant bounds and induction step.
+    /// Two shapes of non-termination are caught:
+    /// a zero step that never advances the induction variable
+    /// a `NotEqual` guard whose step overshoots `upper` (e.g. `i != 5` stepping by `2` from `0` visits
+    /// `0, 2, 4, 6, …`).
+    /// Such a loop must be unrolled under the runaway cap.
     ///
-    /// - `true`: the bound is `NotEqual` and the induction variable may escape `[lower, upper)`.
-    ///   Based on the step, we either know for sure (unsigned constant bounds) or conservatively
-    ///   assume it may escape (e.g no induction variable).
+    /// - `true`: the loop may not terminate. Based on the step, we either know for sure (a zero
+    ///   step, or unsigned constant bounds for `NotEqual`) or conservatively assume it may (e.g. no
+    ///   induction variable, or the step could not be determined).
     ///
-    /// - `false`: the loop stays within its bound - `LessThan`/`Equal` guard, or a `NotEqual`
-    ///   with a step landing exactly on `upper`.
+    /// - `false`: the loop is proven to terminate — a `LessThan`/`Equal` guard with a nonzero step,
+    ///   or a `NotEqual` with a step landing exactly on `upper`.
     ///   The subtlety is that a non constant bound also returns false, because then the bound check
     ///   is delegated to `unroll`.
     ///
@@ -859,8 +881,8 @@ impl Loop {
             // we conservatively say that it may miss.
             return true;
         };
-        // Use the step to see if the bounds are reached.
-        !bounds.iterator_in_bounds(step)
+        // Use the step to see if the loop is guaranteed to terminate.
+        !bounds.terminates_with_step(step)
     }
 
     /// Similar to `induction_step_may_miss_bound`, but returns `false` when:
@@ -875,21 +897,18 @@ impl Loop {
         let Some((bounds, Some(step))) = self.bounds_and_step(function, pre_header) else {
             return false;
         };
-        !bounds.iterator_in_bounds(step)
+        !bounds.terminates_with_step(step)
     }
 
     /// Helper function which returns the loop bounds and induction step:
-    /// The loop bounds: if the bounds are constants and the guard is NotEqual
-    /// The induction step: if it could find an induction variable and a positive constant step
+    /// The loop bounds: if the bounds are constants.
+    /// The induction step: if it could find an induction variable and a positive constant step.
     fn bounds_and_step(
         &self,
         function: &Function,
         pre_header: BasicBlockId,
     ) -> Option<(LoopBounds, Option<Step>)> {
         let bounds = self.get_const_bounds(&function.dfg, pre_header, |v| v)?;
-        if bounds.kind != LoopBoundKind::NotEqual {
-            return None;
-        }
         let Some(induction_variable) = self.induction_variable(&function.dfg) else {
             return Some((bounds, None));
         };
@@ -1201,12 +1220,6 @@ impl Loop {
         let mut unroll_into = self.get_pre_header(function, cfg)?;
         let mut header_args = get_header_arguments(&function.dfg, unroll_into)?;
 
-        // Collect the original header parameters before unrolling.
-        // The header may have extra parameters beyond the induction variable (promoted mutable variables).
-        // Blocks outside the loop can reference these params directly, so after unrolling we need to
-        // replace those references with the final iteration's values.
-        let header_params: Vec<ValueId> = function.dfg[self.header].parameters().to_vec();
-
         let induction_index = self.induction_variable_index(&function.dfg);
 
         // If we have the induction variable, it must be initialized with a constant value,
@@ -1225,23 +1238,20 @@ impl Loop {
         let termination_unproven = self.induction_step_may_miss_bound(function, unroll_into);
 
         let mut iterations = 0;
-        while let Some((context, loop_header_id)) =
-            self.unroll_header(function, unroll_into, &header_args, dom)?
-        {
-            (unroll_into, header_args) = context.unroll_loop_iteration(loop_header_id);
+        // Keep the context across the steps, and forward the mapping of the last unrolling step.
+        let mapping = loop {
+            match self.unroll_header(function, unroll_into, &header_args, dom)? {
+                UnrollStep::Iterate(context, loop_header_id) => {
+                    (unroll_into, header_args) = context.unroll_loop_iteration(loop_header_id);
 
-            iterations += 1;
-            if termination_unproven && iterations >= unroll_limit {
-                return Err(CallStack::empty());
+                    iterations += 1;
+                    if termination_unproven && iterations >= unroll_limit {
+                        return Err(CallStack::empty());
+                    }
+                }
+                UnrollStep::Done(context) => break context.inserter.into_value_mapping(),
             }
-        }
-
-        // Build a mapping from header params to their final values.
-        // The caller is responsible for applying this mapping to blocks outside the loop.
-        let mut mapping = ValueMapping::default();
-        if !header_params.is_empty() {
-            mapping.batch_insert(&header_params, &header_args);
-        }
+        };
 
         Ok(mapping)
     }
@@ -1272,14 +1282,15 @@ impl Loop {
 
     /// Unrolls the header block of the loop. This is the block that dominates all other blocks in the
     /// loop and contains the jmpif instruction that lets us know if we should continue looping.
-    /// Returns Some((iteration context, `loop_header_id`)) if we should perform another iteration.
+    /// Returns [`UnrollStep::Iterate`] with the iteration context if we should perform another
+    /// iteration, or [`UnrollStep::Done`] with the exit iteration context otherwise.
     fn unroll_header<'a>(
         &'a self,
         function: &'a mut Function,
         unroll_into: BasicBlockId,
         header_args: &[ValueId],
         dom: &'a DominatorTree,
-    ) -> Result<Option<(LoopIteration<'a>, BasicBlockId)>, CallStack> {
+    ) -> Result<UnrollStep<'a>, CallStack> {
         // We insert into a fresh block first and move instructions into the unroll_into block later
         // only once we verify the jmpif instruction has a constant condition. If it does not, we can
         // just discard this fresh block and leave the loop unmodified.
@@ -1343,9 +1354,11 @@ impl Loop {
                     // in `source_block` and can unroll that into the destination.
                     let is_in_loop = self.blocks.contains(&context.source_block);
 
-                    Ok(is_in_loop
-                        .then_some(context)
-                        .map(|iteration_context| (iteration_context, loop_header_id)))
+                    Ok(if is_in_loop {
+                        UnrollStep::Iterate(context, loop_header_id)
+                    } else {
+                        UnrollStep::Done(context)
+                    })
                 } else {
                     // If this case is reached the loop either uses non-constant indices or we need
                     // another pass, such as mem2reg to resolve them to constants.
@@ -2048,6 +2061,16 @@ fn get_header_arguments(
     }
 }
 
+/// The outcome of unrolling one loop header, returned by [`Loop::unroll_header`].
+enum UnrollStep<'a> {
+    /// The header guard was constant-true: another iteration must be unrolled. Carries the
+    /// iteration context (to unroll the body from) and the original loop header id.
+    Iterate(LoopIteration<'a>, BasicBlockId),
+    /// The header guard was constant-false: this was the exit iteration and unrolling is complete.
+    /// Carries the exit context, whose inserter holds the final-iteration value of each header value.
+    Done(LoopIteration<'a>),
+}
+
 /// The context object for each loop iteration.
 /// Notably each loop iteration maps each loop block to a fresh, unrolled block.
 struct LoopIteration<'f> {
@@ -2479,6 +2502,89 @@ mod tests {
         let (_ssa, errors) = try_unroll_loops(ssa);
         assert_eq!(errors.len(), 1, "should bail on the unbounded loop, not unroll it");
         assert!(matches!(errors[0], RuntimeError::UnknownLoopBound { .. }));
+    }
+
+    /// A `LessThan` guard with a constant upper bound but a zero induction step: the back-edge
+    /// passes the induction variable through *unchanged* (`jmp b1(v0)`), so `v0 < 4` holds forever.
+    /// Unlike [`ACIR_CONST_BACK_EDGE_WITH_EXTRA_HEADER_INSTRUCTION`] the back-edge value is not a
+    /// numeric constant, so `has_const_back_edge_induction_value` does not catch it; the zero step
+    /// is recognized by `monotonic_back_edge_step` instead.
+    const ZERO_STEP_LESS_THAN_GUARD: &str = "
+        acir(inline) fn main f0 {
+          b0():
+            jmp b1(u32 0)
+          b1(v0: u32):
+            v1 = lt v0, u32 4
+            jmpif v1 then: b2(), else: b3()
+          b2():
+            jmp b1(v0)
+          b3():
+            return
+        }
+    ";
+
+    #[test]
+    fn acir_zero_step_less_than_guard_bails_instead_of_unrolling_forever() {
+        // A constant upper bound does not prove termination: the zero step never advances `v0`, so
+        // `lt v0, u32 4` never folds to false. ACIR detects this up front and bails with
+        // `UnknownLoopBound` rather than peeling forever.
+        let ssa = Ssa::from_str(ZERO_STEP_LESS_THAN_GUARD).unwrap();
+        let (_ssa, errors) = try_unroll_loops(ssa);
+        assert_eq!(errors.len(), 1, "should bail on the zero-step loop, not unroll it");
+        assert!(matches!(errors[0], RuntimeError::UnknownLoopBound { .. }));
+    }
+
+    #[test]
+    fn brillig_zero_step_less_than_guard_is_left_as_runtime_loop() {
+        // The Brillig counterpart: rather than hang the unroller, the zero-step loop is skipped and
+        // left as a runtime loop (where it correctly runs forever). The SSA is unchanged.
+        let src = ZERO_STEP_LESS_THAN_GUARD.replace("acir(inline)", "brillig(inline)");
+        let ssa = Ssa::from_str(&src).unwrap();
+        let (ssa, errors) = try_unroll_loops(ssa);
+        assert!(errors.is_empty(), "a runtime loop should be skipped, not error: {errors:?}");
+        assert_normalized_ssa_equals(ssa, &src);
+    }
+
+    /// The `NotEqual` counterpart of [`ZERO_STEP_LESS_THAN_GUARD`]: the guard `eq v0, 5` has the
+    /// body on its *else* branch, so it is modeled as `i != 5` (`LoopBoundKind::NotEqual`, upper 5).
+    /// The back-edge passes `v0` through unchanged, so the step is `0`: `v0` stays `0` and `0 != 5`
+    /// holds forever. `iterator_in_bounds` reports this as a sound value range (`v0` is pinned at
+    /// `0 ∈ [0, 5)`), which is why termination must be judged by `terminates_with_step` — a zero step
+    /// in an entered loop never terminates — rather than by containment.
+    const ZERO_STEP_NOT_EQUAL_GUARD: &str = "
+        acir(inline) fn main f0 {
+          b0():
+            jmp b1(u32 0)
+          b1(v0: u32):
+            v1 = eq v0, u32 5
+            jmpif v1 then: b3(), else: b2()
+          b2():
+            jmp b1(v0)
+          b3():
+            return
+        }
+    ";
+
+    #[test]
+    fn acir_zero_step_not_equal_guard_bails_instead_of_unrolling_forever() {
+        // `eq v0, 5` never folds to true because the zero step keeps `v0` at `0`, so the `!= 5`
+        // loop never exits. ACIR detects this up front and bails with `UnknownLoopBound` rather than
+        // peeling forever.
+        let ssa = Ssa::from_str(ZERO_STEP_NOT_EQUAL_GUARD).unwrap();
+        let (_ssa, errors) = try_unroll_loops(ssa);
+        assert_eq!(errors.len(), 1, "should bail on the zero-step loop, not unroll it");
+        assert!(matches!(errors[0], RuntimeError::UnknownLoopBound { .. }));
+    }
+
+    #[test]
+    fn brillig_zero_step_not_equal_guard_is_left_as_runtime_loop() {
+        // The Brillig counterpart: the zero-step loop is skipped and left as a runtime loop (where
+        // it correctly runs forever) rather than hanging the unroller. The SSA is unchanged.
+        let src = ZERO_STEP_NOT_EQUAL_GUARD.replace("acir(inline)", "brillig(inline)");
+        let ssa = Ssa::from_str(&src).unwrap();
+        let (ssa, errors) = try_unroll_loops(ssa);
+        assert!(errors.is_empty(), "a runtime loop should be skipped, not error: {errors:?}");
+        assert_normalized_ssa_equals(ssa, &src);
     }
 
     /// The residual non-termination gap: an `or` guard (`v3 = or v1, v0`) that is not one of the
@@ -4649,7 +4755,7 @@ mod tests {
           b0(v0: u32):
             jmp b1(u32 50)
           b1(v1: u32):
-            return v1
+            return u32 50
         }
         ");
     }
@@ -4789,21 +4895,18 @@ mod tests {
         ");
     }
 
-    /// Documents that loop unrolling does NOT propagate instruction results defined
-    /// in the loop header (only block parameters) to exit blocks.
+    /// Loop unrolling must propagate instruction results defined in the loop header
+    /// (not just block parameters) to blocks outside the loop.
     ///
-    /// If an instruction is hoisted into a loop header (e.g. by constant folding's CSE),
-    /// and the exit block references that instruction's result, unrolling will leave a
-    /// dangling reference because `Loop::unroll` only maps header parameters, not
-    /// instruction results.
-    ///
-    /// To fix this in the unrolling pass (if we ever want to allow hoisting into headers):
-    /// in `unroll_header`, on the final iteration (when `is_in_loop` is false), iterate
-    /// over header instruction results and add their resolved values from the inserter
-    /// to the `ValueMapping` returned by `unroll`.
+    /// When an instruction lives in a loop header (e.g. the loop guard's `cast`, or a value
+    /// hoisted there by constant folding's CSE) and an exit block references that
+    /// instruction's result, `Loop::unroll` must map it to its final-iteration value.
+    /// Previously only header parameters were mapped, so the exit block's reference to the
+    /// header instruction result was left dangling once the header was unrolled away — later
+    /// crashing the inliner (`should already be known during inlining`), the interpreter
+    /// (`should already be in scope`), or Brillig codegen (`Value not found in cache`).
     #[test]
-    #[should_panic(expected = "should already be in scope")]
-    fn unroll_panics_on_header_instruction_results_referenced_by_exit_block() {
+    fn unroll_maps_header_instruction_results_referenced_by_exit_block() {
         // Models the SSA after CSE hoists `mul v2, v2` into the loop header:
         //   b1 header has v4 = mul v2, v2 (an instruction result, not a parameter)
         //   b2 loop body uses v4
@@ -4824,14 +4927,20 @@ mod tests {
             return v4
         }
         ";
-        let ssa = Ssa::from_str(src).unwrap();
-
-        let (ssa, errors) = try_unroll_loops(ssa);
-        assert!(errors.is_empty(), "Loop should unroll successfully");
-
-        // This panics because v4 (a header instruction result) was not mapped
-        // to its final-iteration value, leaving a dangling reference.
-        let _result = ssa.interpret(vec![Value::field(3u128.into())]);
+        // Semantics: iteration 0 has v2 = 3 (v3 = 0 < 1 true) so we loop with v2 = 3*3 + 1 = 10;
+        // iteration 1 has v2 = 10 (v3 = 1 < 1 false) so we exit returning v4 = 10*10 = 100.
+        // The exit block's use of the header instruction result `v4` is remapped to its
+        // final-iteration value instead of dangling, so unrolling preserves the execution result.
+        let (_, result) = assert_pass_does_not_affect_execution(
+            Ssa::from_str(src).unwrap(),
+            vec![Value::field(3u128.into())],
+            |ssa| {
+                let (ssa, errors) = try_unroll_loops(ssa);
+                assert!(errors.is_empty(), "Loop should unroll successfully");
+                ssa
+            },
+        );
+        assert_eq!(result, Ok(vec![Value::field(100u128.into())]));
     }
 }
 

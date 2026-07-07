@@ -188,7 +188,7 @@ jobs:
 
     steps:
       - name: Add warning to sticky comment
-        uses: marocchino/sticky-pull-request-comment@0ea0beb66eb9baf113663a64ec522f60e49231c0 # v3
+        uses: marocchino/sticky-pull-request-comment@5770ad5eb8f42dd2c4f34da00c94c5381e49af88 # v3
         with:
           # We need to specify the PR on which to make the comment as workflow is triggered by push.
           number: ${{ fromJSON(needs.release-please.outputs.release-pr).number }}
