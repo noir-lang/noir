@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1783417066972,
+  "lastUpdate": 1783417070187,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -40118,105 +40118,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": false,
-          "id": "1e00f5be973e83d9e79fe4ad88bbd52ac92511ef",
-          "message": "fix(ssa): allocate a fresh element-type-sizes block for grown helper tables (#13123)\n\nCo-authored-by: Claude Opus 4.8 (1M context) <noreply@anthropic.com>",
-          "timestamp": "2026-06-30T12:25:27Z",
-          "tree_id": "181da66ce7c5f90a78498b8881424e50db64ffc3",
-          "url": "https://github.com/noir-lang/noir/commit/1e00f5be973e83d9e79fe4ad88bbd52ac92511ef"
-        },
-        "date": 1782824284996,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 812.5,
-            "unit": "KB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 773.6,
-            "unit": "KB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 370.7,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-block-root-first-empty-tx",
-            "value": 319.8,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 323.7,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 385.1,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-checkpoint-merge",
-            "value": 295.4,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-checkpoint-root-single-block",
-            "value": 588.1,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-checkpoint-root",
-            "value": 630.2,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 457.8,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-tx-base-private",
-            "value": 686.4,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-tx-base-public",
-            "value": 859.6,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-tx-merge",
-            "value": 240.8,
-            "unit": "KB"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 2074.2,
-            "unit": "KB"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 151.2,
-            "unit": "KB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": true,
           "id": "7e0734312173017c7a33053ffb77a08330ad770a",
           "message": "fix(ssa): bail out of Brillig array offset when shifted index overflows addressing bits (#13122)\n\nCo-authored-by: Claude Opus 4.8 (1M context) <noreply@anthropic.com>",
@@ -44977,6 +44878,105 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/64e8d78b45d1346a6a909b99418d478b2c7205e6"
         },
         "date": 1783364115301,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 812.4,
+            "unit": "KB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 775.3,
+            "unit": "KB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 370.5,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root-first-empty-tx",
+            "value": 319.9,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 323.7,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 384.9,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-checkpoint-merge",
+            "value": 295.4,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-checkpoint-root-single-block",
+            "value": 587.7,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-checkpoint-root",
+            "value": 628.5,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 457.8,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-tx-base-private",
+            "value": 685.6,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-tx-base-public",
+            "value": 859.2,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-tx-merge",
+            "value": 240.8,
+            "unit": "KB"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 2073.7,
+            "unit": "KB"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 151.4,
+            "unit": "KB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49558828+AztecBot@users.noreply.github.com",
+            "name": "Aztec Bot",
+            "username": "AztecBot"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "e61761a2ff3c730ae046770e657b5e12c5ff1c0f",
+          "message": "chore: bump private-kernel-reset compilation timeout to 30s (#13294)",
+          "timestamp": "2026-07-07T10:20:49+01:00",
+          "tree_id": "637a66bd6374d5884185aeb02d038fc2d23c5684",
+          "url": "https://github.com/noir-lang/noir/commit/e61761a2ff3c730ae046770e657b5e12c5ff1c0f"
+        },
+        "date": 1783416994296,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
