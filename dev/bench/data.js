@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1783417683687,
+  "lastUpdate": 1783417767435,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23121,48 +23121,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "47281315+guipublic@users.noreply.github.com",
-            "name": "guipublic",
-            "username": "guipublic"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "fbeb2132949b2af689ad3d3436e64e1821ee29f8",
-          "message": "chore: privatise some fields (#13225)",
-          "timestamp": "2026-06-30T16:20:58Z",
-          "tree_id": "2f03291c1acf2c37aaaf3d61e5f177b0de8212f3",
-          "url": "https://github.com/noir-lang/noir/commit/fbeb2132949b2af689ad3d3436e64e1821ee29f8"
-        },
-        "date": 1782837557419,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 175831,
-            "range": "± 883",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 145469,
-            "range": "± 861",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2656577,
-            "range": "± 3532",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "49558828+AztecBot@users.noreply.github.com",
             "name": "Aztec Bot",
             "username": "AztecBot"
@@ -25214,6 +25172,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2651307,
             "range": "± 2975",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "bbd5a4b43ca1f334a23fb97275f24982054770f3",
+          "message": "chore(deps-dev): bump ts-loader from 9.6.0 to 9.6.2 (#13293)\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2026-07-07T09:27:55Z",
+          "tree_id": "ddeeed73d979387fea187c07cb6a147f3c93c567",
+          "url": "https://github.com/noir-lang/noir/commit/bbd5a4b43ca1f334a23fb97275f24982054770f3"
+        },
+        "date": 1783417705256,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 98260,
+            "range": "± 1510",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 87039,
+            "range": "± 1472",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2358415,
+            "range": "± 4687",
             "unit": "ns/iter"
           }
         ]
