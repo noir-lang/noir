@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1783423266319,
+  "lastUpdate": 1783424206187,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23126,48 +23126,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "jfecher11@gmail.com",
-            "name": "jfecher",
-            "username": "jfecher"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "fd5f5413550f5133e127c2a02ea56396fde9e265",
-          "message": "fix: Limit killed optimization in ownership pass (#13099)",
-          "timestamp": "2026-06-30T17:13:26Z",
-          "tree_id": "495e5b88740e93cb910ba3aa042be6f1cf5f292a",
-          "url": "https://github.com/noir-lang/noir/commit/fd5f5413550f5133e127c2a02ea56396fde9e265"
-        },
-        "date": 1782840815395,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 175789,
-            "range": "± 1517",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 145486,
-            "range": "± 1535",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2658230,
-            "range": "± 2982",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "49558828+AztecBot@users.noreply.github.com",
             "name": "Aztec Bot",
             "username": "AztecBot"
@@ -25219,6 +25177,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2369739,
             "range": "± 8542",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "7f089673d0a8cb4964d33184052788ad6e1ad1da",
+          "message": "fix: publish msgpack_tagged crates before acir_field (#13273)",
+          "timestamp": "2026-07-07T12:32:54+01:00",
+          "tree_id": "3ca234b995af7ee44a8b8d0c963dc1d109ccc917",
+          "url": "https://github.com/noir-lang/noir/commit/7f089673d0a8cb4964d33184052788ad6e1ad1da"
+        },
+        "date": 1783424128595,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 172588,
+            "range": "± 557",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 140351,
+            "range": "± 1328",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2653483,
+            "range": "± 2639",
             "unit": "ns/iter"
           }
         ]
