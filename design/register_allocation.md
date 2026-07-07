@@ -522,6 +522,30 @@ and spilled from another, and the entry home is the spill slot, the in-register 
 the already-spilled edge needs nothing — decided from the plan, with no cross-predecessor inspection
 during codegen (which a greedy allocator would require).
 
+**Resolution actions are destination-valued.** At an edge the value that ends up in a register is the
+*destination param*, sourced from the *argument*'s current location — the phi makes them the same
+runtime value. So each action names the param as its `value`: a resident argument becomes a `Move`
+into the param's register, and a *spilled* argument becomes a `Reload` that loads the argument's slot
+**straight into the param's register** (no intermediate). Because `value` is the param, the shadow
+would read the param at its own home, never "the argument now lives in the param's register" — and it
+is moot regardless, since `begin_block(succ)` reseeds the shadow on entry.
+
+For example, at `jmp b3(v1, v2)` with target params `b3(p1, p2)`, where the plan puts `p1` in `R2`
+and `p2` in `R5`, `v1` is resident in `R1`, and `v2` is spilled at slot `S`, `resolve_edge` returns:
+
+```
+Move   { value: p1, from: R1, to: R2 }    # resident arg v1 -> param p1's register
+Reload { value: p2, from: S,  into: R5 }  # spilled arg v2 loaded directly into param p2's register
+```
+
+Both name the *param*, so the resulting shadow is `p1 @ R2`, `p2 @ R5` — the params at their homes.
+If the param registers instead overlapped the argument registers in a rotation (a swap), the
+allocator sequences the `Move`s with a scratch register it reserves — the parallel-copy job the
+revived Phase 0 solver performs. This is why `Move` stays an action rather than being synthesized by
+codegen: the allocator owns the cycle-break scratch (a register decision), and interval splitting
+produces single-value register-to-register `Move`s of its own. The allocator therefore *uses* the
+Phase 0 solver to produce the ordered `Move`/`Reload` sequence; codegen still only emits it.
+
 The non-spilling path *already* does edge resolution for block parameters (via
 `codegen_mov_registers_to_registers`); Phase 1 generalizes it to all cross-block values. Framed
 this way the change is "make the spilling path behave like the non-spilling path, plus eviction only
