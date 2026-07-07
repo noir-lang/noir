@@ -3,7 +3,7 @@ use acvm::acir::brillig::lengths::SemanticLength;
 use acvm::acir::circuit::ErrorSelector;
 use iter_extended::vecmap;
 use noirc_errors::call_stack::CallStackId;
-use std::collections::{BTreeMap, HashMap, HashSet};
+use std::collections::{BTreeMap, HashMap, HashSet, hash_map::Entry};
 
 use super::procedures::ProcedureId;
 use crate::ErrorType;
@@ -376,11 +376,18 @@ impl<F: Clone + std::fmt::Debug> BrilligArtifact<F> {
     /// Adds a label in the bytecode to specify where this block's
     /// opcodes will start.
     pub(crate) fn add_label_at_position(&mut self, label: Label, position: OpcodeLocation) {
-        let old_value = self.labels.insert(label.clone(), position);
-        assert!(
-            old_value.is_none(),
-            "overwriting label {label}. old_value = {old_value:?}, new_value = {position}"
-        );
+        match self.labels.entry(label) {
+            Entry::Occupied(entry) => {
+                panic!(
+                    "overwriting label {}. old_value = {:?}, new_value = {position}",
+                    entry.key(),
+                    entry.get()
+                );
+            }
+            Entry::Vacant(entry) => {
+                entry.insert(position);
+            }
+        }
     }
 
     /// Returns the index of the next opcode.
@@ -437,6 +444,10 @@ impl<F: Clone + std::fmt::Debug> BrilligArtifact<F> {
 
     pub(crate) fn set_call_stack(&mut self, call_stack: CallStackId) {
         self.call_stack_id = call_stack;
+    }
+
+    pub(crate) fn current_call_stack_id(&self) -> CallStackId {
+        self.call_stack_id
     }
 
     /// Record the positions of 3 placeholder no-op opcodes for the spill prologue.

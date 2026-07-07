@@ -1,9 +1,8 @@
 use std::fmt::Display;
 
-use acvm::FieldElement;
-use acvm::acir::AcirField;
 use iter_extended::vecmap;
 use noirc_errors::{Located, Location, Span};
+use num_bigint::BigInt;
 
 use super::{
     BlockExpression, ConstructorExpression, Expression, ExpressionKind, GenericTypeArgs,
@@ -25,7 +24,7 @@ use crate::token::{LocatedToken, SecondaryAttribute, Token};
 /// for an identifier that already failed to parse.
 pub const ERROR_IDENT: &str = "$error";
 
-/// This is used to represent an UnresolvedTypeData::Unspecified in a Path
+/// This is used to represent an `UnresolvedTypeData::Unspecified` in a Path
 pub const WILDCARD_TYPE: &str = "_";
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -42,7 +41,7 @@ impl Display for Statement {
 
 /// Ast node for statements in noir. Statements are always within a block { }
 /// of some kind and are terminated via a Semicolon, except if the statement
-/// ends in a block, such as a Statement::Expression containing an if expression.
+/// ends in a block, such as a `Statement::Expression` containing an if expression.
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum StatementKind {
     Let(LetStatement),
@@ -58,8 +57,8 @@ pub enum StatementKind {
     Comptime(Box<Statement>),
     /// This is an expression with a trailing semi-colon
     Semi(Expression),
-    /// This is an interned StatementKind during comptime code.
-    /// The actual StatementKind can be retrieved with a NodeInterner.
+    /// This is an interned `StatementKind` during comptime code.
+    /// The actual `StatementKind` can be retrieved with a `NodeInterner`.
     Interned(InternedStatementKind),
     /// This statement is the result of a recovered parse error.
     /// To avoid issuing multiple errors in later steps, it should
@@ -473,13 +472,13 @@ impl Path {
         self
     }
 
-    /// Construct a [PathKind::Plain] from a single identifier name.
+    /// Construct a [`PathKind::Plain`] from a single identifier name.
     pub fn from_single(name: String, location: Location) -> Path {
         let segment = Ident::from(Located::from(location, name));
         Path::from_ident(segment)
     }
 
-    /// Construct a [PathKind::Plain] from a single [Ident].
+    /// Construct a [`PathKind::Plain`] from a single [Ident].
     pub fn from_ident(name: Ident) -> Path {
         let location = name.location();
         Path::plain(vec![PathSegment::from(name)], location)
@@ -654,7 +653,7 @@ pub enum LValue {
     /// A dereference `*expression`. Its target can be any expression.
     /// However, during elaboration we check that its type is a mutable reference.
     Dereference(Box<Expression>, Location),
-    /// An LValue wrapping an interned expression.
+    /// An `LValue` wrapping an interned expression.
     Interned(InternedExpressionKind, Location),
 }
 
@@ -848,7 +847,7 @@ impl ForRange {
             }
             ForRange::Array(array) => {
                 let array_location = array.location;
-                let start_range = ExpressionKind::integer(FieldElement::zero(), None);
+                let start_range = ExpressionKind::integer(BigInt::ZERO, None);
                 let start_range = Expression::new(start_range, array_location);
 
                 let next_unique_id = unique_name_counter;

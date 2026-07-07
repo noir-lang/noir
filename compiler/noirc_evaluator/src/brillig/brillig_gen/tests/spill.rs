@@ -31,17 +31,15 @@ fn spill_region_size(bytecode: &str) -> u32 {
 /// takes 5 parameters, so codegen spills from the first instruction. As the chain
 /// is evaluated, several values are transiently spilled, reloaded into a register
 /// for a single use, and then die — all within `b0`. At the moment such a value
-/// dies it is in the `TransientReloaded` state: the live value is in a register
-/// and its spill slot is still allocated.
+/// dies it has a transient slot but is back in a register, so it is not currently
+/// spilled.
 ///
-/// `convert_ssa_instruction`'s dead-variable cleanup decides what to do via
-/// `is_spilled`, which is `true` only for `Transient`/`Permanent`. A
-/// `TransientReloaded` value matches neither, so cleanup takes the
-/// register-freeing branch and never calls `remove_spill`: the `SpillRecord`
-/// lingers in `records` and its offset is never pushed back onto
-/// `free_spill_slots`. The next `allocate_spill_offset` bumps `next_spill_offset`
-/// instead of reusing the dead slot, so `max_spill_offset` — and the spill region
-/// the prologue reserves on every call — grows by one for each such pattern.
+/// `convert_ssa_instruction`'s dead-variable cleanup must still call `remove_spill`
+/// for it; otherwise the `SpillRecord` lingers in `records` and its offset is never
+/// pushed back onto `free_spill_slots`. The next `allocate_spill_offset` then bumps
+/// `next_spill_offset` instead of reusing the dead slot, so `max_spill_offset` — and
+/// the spill region the prologue reserves on every call — grows by one for each such
+/// pattern.
 ///
 /// The leak has no soundness impact — the skipped offset is never reused
 /// incorrectly — so it is purely a memory-footprint regression. Here the true
@@ -206,7 +204,7 @@ fn brillig_spill_successor_params() {
 /// Verify that permanently spilled non-param live-ins that die without being
 /// reloaded by instruction codegen don't cause an ICE.
 ///
-/// The IfElse instruction's `else_condition` is included in `for_each_value`
+/// The `IfElse` instruction's `else_condition` is included in `for_each_value`
 /// (and therefore in liveness / `last_uses`) but is NOT accessed by
 /// `codegen_if_else`. When this value is a non-param live-in that was
 /// permanently spilled at block entry, it remains in the `spilled` map
@@ -215,9 +213,9 @@ fn brillig_spill_successor_params() {
 ///
 /// Uses `max_stack_frame_size = 6` (4 usable slots after `start_offset = 2`).
 /// Block b0 has 4 params filling all slots, so computing v4 and v5 forces
-/// spills. At the JmpIf, `spill_non_param_live_ins(b1)` permanently spills
-/// v1–v5. In b1, the IfElse codegen reloads v4, v1, v2 but NOT v5
-/// (else_condition). When v5 appears in `last_uses`, the cleanup sees it
+/// spills. At the `JmpIf`, `spill_non_param_live_ins(b1)` permanently spills
+/// v1–v5. In b1, the `IfElse` codegen reloads v4, v1, v2 but NOT v5
+/// (`else_condition`). When v5 appears in `last_uses`, the cleanup sees it
 /// as spilled but not available — this previously caused an ICE.
 #[test]
 fn brillig_spill_jmpif_diamond_dead_else_condition() {
@@ -380,13 +378,53 @@ fn brillig_spill_does_not_leak_reloaded_permanent_values_bytecode() {
     ");
 }
 
+/// Quantify the opcode saving from batching consecutive spill-slot stores.
+///
+/// `codegen_make_array` calls `ensure_register_capacity(4)`. With all three
+/// parameters live across the array construction and only 4 usable registers,
+/// that one call must spill four values at once into freshly allocated,
+/// consecutive spill slots (0–3).
+/// Each consecutive slot after the first in a run is emitted as the increment
+/// `@3 = u32 add @3, @2` followed by a `store` — 2 opcodes — in place of the
+/// `const` + `add` + `store` (3 opcodes) the per-slot path would emit.
+#[test]
+fn brillig_spill_batch_reduces_consecutive_spill_opcodes() {
+    let src = "
+    brillig(inline) fn main f0 {
+      b0(v0: u32, v1: u32, v2: u32):
+        v4 = make_array [u32 0] : [u32; 1]
+        v5 = array_get v4, index u32 0 -> u32
+        v6 = unchecked_add v5, v0
+        v7 = unchecked_add v6, v1
+        v8 = unchecked_add v7, v2
+        return v8
+    }
+    ";
+
+    let layout = LayoutConfig::new(6, 16, MAX_SCRATCH_SPACE);
+    let options = BrilligOptions { layout, ..Default::default() };
+    let brillig = ssa_to_brillig_artifacts_with_options(src, &options);
+    let bytecode = brillig.ssa_function_to_brillig[&Id::test_new(0)].to_string();
+
+    // An increment-based spill advances the held scratch address to the next
+    // consecutive slot with `@3 = u32 add @3, @2` instead of recomputing the
+    // address with `const` + `add`.
+    let incremental_spills =
+        bytecode.lines().filter(|line| line.contains("@3 = u32 add @3, @2")).count();
+    assert!(
+        incremental_spills >= 2,
+        "expected the make_array batch to emit at least two increment-based spills, \
+         got {incremental_spills}"
+    );
+}
+
 /// Regression for issue #12266.
 ///
 /// On the previously buggy path, `spill_non_param_live_ins` marked reloaded values as
 /// spilled without releasing their registers. With this 4-parameter shape and a
 /// 2-register Brillig layout, that stale state reaches the next block as an
 /// active transient spill and ICEs with "Transient spill leaked across block boundary"
-/// at [begin_block][crate::brillig::brillig_gen::spill_manager::SpillManager::begin_block].
+/// at [`begin_block`][crate::brillig::brillig_gen::spill_manager::SpillManager::begin_block].
 #[test]
 fn brillig_spill_does_not_cause_transient_spill_leak() {
     let src = "
@@ -413,16 +451,16 @@ fn brillig_spill_does_not_cause_transient_spill_leak() {
 /// `spill_non_param_live_ins` call inside `jmp_setup`, then reused for a u32 arg.
 ///
 /// Both the condition `v3` and the then-arg `v2` are non-param live-ins to `b1`
-/// (`v2` appears as the IfElse else-value). The first `spill_non_param_live_ins`
+/// (`v2` appears as the `IfElse` else-value). The first `spill_non_param_live_ins`
 /// permanently spills both. `convert_ssa_single_addr_value` reloads `v3` into
-/// R_cond. Inside `jmp_setup`, `spill_non_param_live_ins` fires a second time.
+/// `R_cond`. Inside `jmp_setup`, `spill_non_param_live_ins` fires a second time.
 /// The buggy code detected that `v3` had a spill record and was not currently
-/// marked spilled (`was_reloaded`), and freed R_cond. `convert_ssa_value(v2)` then
-/// reloaded `v2` (u32) into the freed R_cond slot. `JumpIf R_cond` failed at
+/// marked spilled (`was_reloaded`), and freed `R_cond`. `convert_ssa_value(v2)` then
+/// reloaded `v2` (u32) into the freed `R_cond` slot. `JumpIf R_cond` failed at
 /// runtime with "condition value is not a boolean: Bit size for value 32".
 ///
 /// The fix checks `was_transient_reloaded` instead, which excludes already-permanent
-/// records, so R_cond is kept alive through the `JumpIf`.
+/// records, so `R_cond` is kept alive through the `JumpIf`.
 #[test]
 fn brillig_spill_jmpif_condition_register_reuse() {
     let src = "
@@ -465,7 +503,7 @@ fn brillig_spill_jmpif_condition_register_reuse() {
 /// for the then-destination param was already overwritten with the then-arg,
 /// and any later reload from that slot returned the wrong value.
 ///
-/// Here `b1` loops back to itself via a JmpIf whose then-arg is `v4 = v2 + 1`
+/// Here `b1` loops back to itself via a `JmpIf` whose then-arg is `v4 = v2 + 1`
 /// and whose else-edge falls through to `b2`. After the loop exits with v2 = 5,
 /// `b2` reloads `v2` from its spill slot. The buggy code wrote v4 = 6 into
 /// v2's spill slot before testing the condition, so the final reload produced

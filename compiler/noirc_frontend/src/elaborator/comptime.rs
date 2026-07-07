@@ -104,13 +104,32 @@ impl<'context> Elaborator<'context> {
     ) -> T {
         self.elaborate_item_from_comptime(reason, f, |elaborator| {
             if let Some(function) = current_function {
-                let (source_crate, source_module, all_generics) = elaborator
-                    .with_function_meta(function, |meta| {
-                        (meta.source_crate, meta.source_module, meta.all_generics.clone())
-                    });
+                let (
+                    source_crate,
+                    source_module,
+                    all_generics,
+                    self_type,
+                    trait_impl,
+                    trait_id,
+                    trait_bounds,
+                ) = elaborator.with_function_meta(function, |meta| {
+                    (
+                        meta.source_crate,
+                        meta.source_module,
+                        meta.all_generics.clone(),
+                        meta.self_type.clone(),
+                        meta.trait_impl,
+                        meta.trait_id,
+                        meta.all_trait_constraints().cloned().collect(),
+                    )
+                });
                 elaborator.current_item = Some(DependencyId::Function(function));
                 elaborator.crate_id = source_crate;
                 elaborator.local_module = Some(source_module);
+                elaborator.self_type = self_type;
+                elaborator.current_trait_impl = trait_impl;
+                elaborator.current_trait = trait_id;
+                elaborator.trait_bounds = trait_bounds;
                 elaborator.introduce_generics_into_scope(all_generics);
             }
         })
@@ -118,7 +137,7 @@ impl<'context> Elaborator<'context> {
 
     /// Elaborate an expression from the middle of a comptime scope within a module.
     ///
-    /// Similar to [Self::elaborate_item_from_comptime_in_function], but for module-level comptime code.
+    /// Similar to [`Self::elaborate_item_from_comptime_in_function`], but for module-level comptime code.
     pub fn elaborate_item_from_comptime_in_module<'a, T>(
         &'a mut self,
         module: ModuleId,
@@ -197,22 +216,28 @@ impl<'context> Elaborator<'context> {
         result
     }
 
-    /// Populate the elaborator's scope with all comptime variables.
+    /// Populate the elaborator's scope with the comptime variables visible to the current function.
     ///
-    /// When elaborating code generated at comptime, we need to make all comptime
-    /// variables available in the runtime scope. We iterate from global to local
-    /// scope so that more local definitions naturally shadow outer ones.
+    /// When elaborating code generated at comptime, we need to make the comptime variables in scope
+    /// available in the runtime scope. The visible scopes are the global scope together with those
+    /// at or above the comptime scope floor; scopes belonging to enclosing callers are skipped, just
+    /// as the interpreter skips them. We iterate from global to local scope so that more local
+    /// definitions naturally shadow outer ones.
     ///
     /// Within a single scope, bindings are registered in ascending
-    /// [crate::node_interner::DefinitionId] order. `DefinitionId`s are minted monotonically
+    /// [`crate::node_interner::DefinitionId`] order. `DefinitionId`s are minted monotonically
     /// as definitions are collected, so this matches source order: when a name is shadowed
     /// within a comptime block (`let x = ...; let x = ...;`) the last `let` is registered
     /// last and wins, just as it does at runtime. Iterating the scope's `FxHashMap`
     /// directly would instead pick a binding by hash-bucket order.
     #[tracing::instrument(level = "trace", skip_all)]
     fn populate_scope_from_comptime_scopes(&mut self) {
-        for scope in &self.interner.comptime_scopes {
-            let mut definition_ids: Vec<_> = scope.keys().copied().collect();
+        let floor = self.interner.comptime_scope_floor;
+        let len = self.interner.comptime_scopes.len();
+
+        for index in std::iter::once(0).chain(floor..len) {
+            let mut definition_ids: Vec<_> =
+                self.interner.comptime_scopes[index].keys().copied().collect();
             definition_ids.sort();
             for definition_id in &definition_ids {
                 let definition = self.interner.definition(*definition_id);
@@ -325,15 +350,15 @@ impl<'context> Elaborator<'context> {
         attributes_to_run: &mut CollectedAttributes,
     ) {
         for ((object_type, _impl_module), impls_in_module) in impls {
-            for (generics, where_clause, type_location, methods) in impls_in_module {
+            for unresolved_impl in impls_in_module {
                 let impl_target = AttributeImplTarget {
                     object_type: object_type.clone(),
-                    generics: generics.clone(),
-                    where_clause: where_clause.clone(),
-                    type_location: *type_location,
+                    generics: unresolved_impl.generics.clone(),
+                    where_clause: unresolved_impl.where_clause.clone(),
+                    type_location: unresolved_impl.object_type_location,
                 };
                 self.collect_attributes_on_functions(
-                    std::slice::from_ref(methods),
+                    std::slice::from_ref(&unresolved_impl.methods),
                     Some(&impl_target),
                     attributes_to_run,
                 );
@@ -527,14 +552,16 @@ impl<'context> Elaborator<'context> {
     /// Elaborate and type-check arguments passed to an attribute function.
     ///
     /// Attribute functions have a special calling convention:
-    /// - First parameter must match the type of the attributed item (e.g., FunctionDefinition)
+    /// - First parameter must match the type of the attributed item (e.g., `FunctionDefinition`)
     /// - Remaining parameters are provided explicitly in the attribute syntax
     /// - If the function has `#[varargs]`, extra arguments are collected into a vector
     ///
     /// This function:
     /// 1. Validates the first parameter matches the item type
     /// 2. Elaborates and type-checks each argument expression
-    /// 3. Handles special cases like [TraitDefinition][crate::QuotedType::TraitDefinition] arguments
+    /// 3. Handles special cases where a path argument is resolved to its definition rather than
+    ///    evaluated as a value: [`TraitDefinition`][crate::QuotedType::TraitDefinition] and
+    ///    [`FunctionDefinition`][crate::QuotedType::FunctionDefinition] arguments
     /// 4. Collects varargs into a vector if applicable
     fn handle_attribute_arguments(
         interpreter: &mut Interpreter,
@@ -612,6 +639,18 @@ impl<'context> Elaborator<'context> {
                     _ => Err(InterpreterError::TraitDefinitionMustBeAPath { location }),
                 }?;
                 push_arg(Value::TraitDefinition(trait_id));
+            } else if *param_type == Type::Quoted(crate::QuotedType::FunctionDefinition) {
+                let func_id = match arg.kind {
+                    ExpressionKind::Variable(path) => {
+                        let path = interpreter.elaborator.validate_path(path);
+                        interpreter
+                            .elaborator
+                            .resolve_function_by_path(path)
+                            .ok_or(InterpreterError::FailedToResolveFunctionDefinition { location })
+                    }
+                    _ => Err(InterpreterError::FunctionDefinitionMustBeAPath { location }),
+                }?;
+                push_arg(Value::FunctionDefinition(func_id));
             } else {
                 let (expr_id, expr_type) = interpreter.elaborator.elaborate_expression(arg);
                 let mut errors = Vec::new();
@@ -664,7 +703,7 @@ impl<'context> Elaborator<'context> {
     /// Add a generated item to the collected items (unquoting) for further elaboration.
     ///
     /// Supported item kinds:
-    /// - [Functions][ItemKind::Function], [TraitImpls][ItemKind::TraitImpl],
+    /// - [Functions][ItemKind::Function], [`TraitImpls`][ItemKind::TraitImpl],
     ///   [Globals][ItemKind::Global], [Structs][ItemKind::Struct],
     ///   [Enums][ItemKind::Enum], [Impls][ItemKind::Impl]
     ///
@@ -695,6 +734,7 @@ impl<'context> Elaborator<'context> {
                     generics: target.generics.clone(),
                     where_clause: target.where_clause.clone(),
                     methods: vec![(Documented::new(function, item.doc_comments), location)],
+                    doc_comments: Vec::new(),
                 };
                 let module = self.module_id();
                 dc_mod::collect_impl(

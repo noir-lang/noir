@@ -6,9 +6,8 @@
 //! cargo test -p noir_ast_fuzzer --test mono
 //! ```
 
-use std::{path::Path, time::Duration};
+use std::path::Path;
 
-use arbtest::arbtest;
 use nargo::parse_all;
 use noir_ast_fuzzer::{Config, DisplayAstAsNoir, arb_program};
 use noirc_driver::{CompileOptions, file_manager_with_stdlib, prepare_crate};
@@ -19,58 +18,51 @@ use noirc_frontend::{
     monomorphization::{ast::Program, monomorphize},
 };
 
-fn seed_from_env() -> Option<u64> {
-    let Ok(seed) = std::env::var("NOIR_AST_FUZZER_SEED") else { return None };
-    let seed = u64::from_str_radix(seed.trim_start_matches("0x"), 16)
-        .unwrap_or_else(|e| panic!("failed to parse seed '{seed}': {e}"));
-    Some(seed)
-}
+mod common;
+
+/// How many programs to generate on CI, where we use a deterministic RNG.
+///
+/// Kept low because each case runs the full frontend (parse + elaborate +
+/// monomorphize) and so is far more expensive than the other fuzz tests.
+const CI_CASES: u32 = 50;
 
 #[test]
 fn arb_ast_roundtrip() {
-    let maybe_seed = seed_from_env();
-
-    let mut prop = arbtest(|u| {
-        let config = Config {
-            // The monomorphizer creates proxy functions, which the AST generator skips.
-            // Rather than try to match it, let's ignore prints in this test.
-            avoid_print: true,
-            // Negative literals can cause problems: --128_i8 is a compile error; --100_i32 is printed back as 100_i32.
-            avoid_negative_int_literals: true,
-            // Large ints are rejected in for loops, unless we use suffixes.
-            avoid_large_int_literals: true,
-            // The compiler introduces "internal variable" even if it's not needed,
-            // and also rationalizes removes branches that can never be matched,
-            // (like repeated patterns, superfluous defaults). For now ignore these.
-            avoid_match: true,
-            // Since #9484 the monomorphizer represents function values as a pair of
-            // `(constrained, unconstrained)` where each element is a different runtime of the same
-            // function. The fuzzer has not yet been updated to mimic this so first-class functions
-            // are avoided for now.
-            avoid_lambdas: true,
-            // The formatting of `unsafe { ` becomes `{ unsafe {` with extra line breaks.
-            // Let's stick to just Brillig so there is no need for `unsafe` at all.
-            force_brillig: true,
-            ..Default::default()
-        };
-        let program1 = arb_program(u, config)?;
-        let src1 = format!("{}", DisplayAstAsNoir(&program1));
-        let program2 = monomorphize_snippet(src1.clone()).unwrap_or_else(|errors| {
-            panic!("the program did not compile:\n{src1}\n\n{errors:?}");
-        });
-        let src2 = format!("{}", DisplayAstAsNoir(&program2));
-        compare_sources(&src1, &src2);
-        Ok(())
-    })
-    .budget(Duration::from_secs(10))
-    .size_min(1 << 12)
-    .size_max(1 << 20);
-
-    if let Some(seed) = maybe_seed {
-        prop = prop.seed(seed);
-    }
-
-    prop.run();
+    common::run_fuzz(
+        |u| {
+            let config = Config {
+                // The monomorphizer creates proxy functions, which the AST generator skips.
+                // Rather than try to match it, let's ignore prints in this test.
+                avoid_print: true,
+                // Negative literals can cause problems: --128_i8 is a compile error; --100_i32 is printed back as 100_i32.
+                avoid_negative_int_literals: true,
+                // Large ints are rejected in for loops, unless we use suffixes.
+                avoid_large_int_literals: true,
+                // The compiler introduces "internal variable" even if it's not needed,
+                // and also rationalizes removes branches that can never be matched,
+                // (like repeated patterns, superfluous defaults). For now ignore these.
+                avoid_match: true,
+                // Since #9484 the monomorphizer represents function values as a pair of
+                // `(constrained, unconstrained)` where each element is a different runtime of the same
+                // function. The fuzzer has not yet been updated to mimic this so first-class functions
+                // are avoided for now.
+                avoid_lambdas: true,
+                // The formatting of `unsafe { ` becomes `{ unsafe {` with extra line breaks.
+                // Let's stick to just Brillig so there is no need for `unsafe` at all.
+                force_brillig: true,
+                ..Default::default()
+            };
+            let program1 = arb_program(u, config)?;
+            let src1 = format!("{}", DisplayAstAsNoir(&program1));
+            let program2 = monomorphize_snippet(src1.clone()).unwrap_or_else(|errors| {
+                panic!("the program did not compile:\n{src1}\n\n{errors:?}");
+            });
+            let src2 = format!("{}", DisplayAstAsNoir(&program2));
+            compare_sources(&src1, &src2);
+            Ok(())
+        },
+        CI_CASES,
+    );
 }
 
 fn monomorphize_snippet(source: String) -> Result<Program, Vec<CustomDiagnostic>> {

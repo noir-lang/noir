@@ -11,8 +11,8 @@ use crate::{
         def_collector::dc_crate::CompilationError,
         type_check::{TypeCheckError, generics::TraitGenerics},
     },
-    hir_def::traits::{NamedType, ResolvedTraitBound, TraitConstraint, TraitImpl},
-    node_interner::{ImplSearchErrorKind, TraitId, TraitImplId, TraitImplKind},
+    hir_def::traits::{Impl, NamedType, ResolvedTraitBound, TraitConstraint, TraitImpl},
+    node_interner::{ImplId, ImplSearchErrorKind, TraitId, TraitImplId, TraitImplKind},
 };
 
 use super::NodeInterner;
@@ -21,14 +21,15 @@ use super::NodeInterner;
 /// This is needed to stop recursing for cases such as `impl<T> Foo for T where T: Eq`
 const IMPL_SEARCH_RECURSION_LIMIT: u32 = 10;
 
-/// Modes that affect the behavior of [NodeInterner::try_lookup_trait_implementation].
+/// Modes that affect the behavior of [`NodeInterner::try_lookup_trait_implementation`].
+#[derive(Clone, Copy)]
 pub(crate) enum TraitLookupMode {
-    /// Does not look up implementations for bindable object types, but matches any [TraitImplKind].
+    /// Does not look up implementations for bindable object types, but matches any [`TraitImplKind`].
     Default,
-    /// Looks up implementation for bindable object types, and matches only [TraitImplKind::Assumed].
+    /// Looks up implementation for bindable object types, and matches only [`TraitImplKind::Assumed`].
     /// The returned bindings are not expected to be applied.
     SelfAssumedOnly,
-    /// Like [Default](TraitLookupMode::Default), but skips every [TraitImplKind::Assumed] impl.
+    /// Like [Default](TraitLookupMode::Default), but skips every [`TraitImplKind::Assumed`] impl.
     /// Used to normalize an associated-type projection over a rigid object type: the real impl
     /// is the single ground truth, and any `where` clause hypothesis for the same type is
     /// discharged by it rather than competing with it.
@@ -68,6 +69,29 @@ impl NodeInterner {
             if trait_impl.borrow().crate_id == crate_id { Some(*id) } else { None }
         });
         trait_impls.collect()
+    }
+
+    /// Reserves the next [ImplId] for an inherent (non-trait) `impl` block.
+    pub fn next_impl_id(&mut self) -> ImplId {
+        let next_id = self.next_impl_id;
+        self.next_impl_id += 1;
+        ImplId(next_id)
+    }
+
+    /// Records a resolved inherent `impl` block under its previously-reserved [ImplId].
+    pub fn add_impl(&mut self, id: ImplId, impl_: Impl) {
+        self.impls.insert(id, impl_);
+    }
+
+    pub fn get_impl(&self, id: ImplId) -> &Impl {
+        &self.impls[&id]
+    }
+
+    pub fn get_impls_in_crate(&self, crate_id: CrateId) -> HashSet<ImplId> {
+        self.impls
+            .iter()
+            .filter_map(|(id, impl_)| (impl_.crate_id == crate_id).then_some(*id))
+            .collect()
     }
 
     /// Adds an "assumed" trait implementation to the currently known trait implementations.
@@ -408,7 +432,7 @@ impl NodeInterner {
         Ok((impl_kind, instantiation_bindings))
     }
 
-    /// Like [Self::lookup_trait_implementation] but ignores [TraitImplKind::Assumed] impls.
+    /// Like [`Self::lookup_trait_implementation`] but ignores [`TraitImplKind::Assumed`] impls.
     /// Intended for normalizing an associated-type projection whose object type is rigid,
     /// where a `where` clause hypothesis must not compete with the real impl that discharges it.
     pub(crate) fn lookup_trait_implementation_ignoring_assumed(
@@ -456,7 +480,7 @@ impl NodeInterner {
         Ok((impl_kind, bindings, instantiation_bindings))
     }
 
-    /// Remove the [TraitImplKind::Prepared] entry for the given impl, if one exists.
+    /// Remove the [`TraitImplKind::Prepared`] entry for the given impl, if one exists.
     pub(crate) fn remove_prepared_trait_implementation(
         &mut self,
         trait_id: TraitId,
@@ -468,7 +492,7 @@ impl NodeInterner {
     }
 
     /// Returns the trait implementation if found along with the instantiation bindings for
-    /// instantiating that trait impl. Note that this is separate from the passed-in TypeBindings
+    /// instantiating that trait impl. Note that this is separate from the passed-in `TypeBindings`
     /// which can be bound via `Type::apply_type_bindings` if needed. Instantiation bindings should
     /// be stored as such but not bound, lest the original named generics in trait impls get bound
     /// over.
@@ -750,7 +774,7 @@ impl NodeInterner {
         format!("{object_type:?}: {name}{generics}")
     }
 
-    /// Removes all TraitImplKind::Assumed from the list of known impls for the given trait
+    /// Removes all `TraitImplKind::Assumed` from the list of known impls for the given trait
     pub fn remove_assumed_trait_implementations_for_trait(&mut self, trait_id: TraitId) {
         self.remove_assumed_trait_implementations_for_trait_and_parents(
             trait_id,

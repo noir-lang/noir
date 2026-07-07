@@ -1,0 +1,6 @@
+[package]
+name = "type_def_fields_numeric_generic"
+type = "bin"
+authors = [""]
+
+[dependencies]

@@ -26,7 +26,7 @@ use std::collections::BTreeSet;
 use self::{brillig::BrilligBytecode, opcodes::BlockId};
 
 /// A program represented by multiple ACIR [circuit][Circuit]'s. The execution trace of these
-/// circuits is dictated by construction of the [crate::native_types::WitnessStack].
+/// circuits is dictated by construction of the [`crate::native_types::WitnessStack`].
 #[derive(Clone, PartialEq, Eq, Serialize, Deserialize, Default, Hash, MsgpackTagged)]
 #[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
 #[tagged(allow_unknown_tags)]
@@ -38,7 +38,7 @@ pub struct Program<F: AcirField> {
 }
 
 /// Representation of a single ACIR circuit. The execution trace of this structure
-/// is dictated by the construction of a [crate::native_types::WitnessMap]
+/// is dictated by the construction of a [`crate::native_types::WitnessMap`]
 #[derive(Clone, PartialEq, Eq, Default, Hash, Serialize, Deserialize, MsgpackTagged)]
 #[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
 #[tagged(allow_unknown_tags)]
@@ -106,7 +106,7 @@ pub struct AssertionPayload<F> {
     pub payload: Vec<ExpressionOrMemory<F>>,
 }
 
-/// Value for differentiating error types. Used internally by an [AssertionPayload].
+/// Value for differentiating error types. Used internally by an [`AssertionPayload`].
 #[derive(Debug, Copy, PartialEq, Eq, Hash, Clone, PartialOrd, Ord)]
 pub struct ErrorSelector(u64);
 
@@ -180,7 +180,16 @@ impl AcirOpcodeLocation {
 /// Index of Brillig opcode within a list of Brillig opcodes.
 /// To be used by callers for resolving debug information.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
-pub struct BrilligOpcodeLocation(pub usize);
+pub struct BrilligOpcodeLocation(usize);
+
+impl BrilligOpcodeLocation {
+    pub fn new(index: usize) -> Self {
+        BrilligOpcodeLocation(index)
+    }
+    pub fn index(&self) -> usize {
+        self.0
+    }
+}
 
 impl OpcodeLocation {
     // Utility method to allow easily comparing a resolved Brillig location and a debug Brillig location.
@@ -189,7 +198,7 @@ impl OpcodeLocation {
     pub fn to_brillig_location(self) -> Option<BrilligOpcodeLocation> {
         match self {
             OpcodeLocation::Brillig { brillig_index, .. } => {
-                Some(BrilligOpcodeLocation(brillig_index))
+                Some(BrilligOpcodeLocation::new(brillig_index))
             }
             OpcodeLocation::Acir(_) => None,
         }
@@ -213,7 +222,7 @@ pub enum OpcodeLocationFromStrError {
     InvalidOpcodeLocationString(String),
 }
 
-/// The implementation of display and FromStr allows serializing and deserializing a OpcodeLocation to a string.
+/// The implementation of display and `FromStr` allows serializing and deserializing a `OpcodeLocation` to a string.
 /// This is useful when used as key in a map that has to be serialized to JSON/TOML, for example when mapping an opcode to its metadata.
 impl FromStr for OpcodeLocation {
     type Err = OpcodeLocationFromStrError;
@@ -224,7 +233,7 @@ impl FromStr for OpcodeLocation {
             return Err(OpcodeLocationFromStrError::InvalidOpcodeLocationString(s.to_string()));
         }
 
-        fn parse_components(parts: Vec<&str>) -> Result<OpcodeLocation, ParseIntError> {
+        fn parse_components(parts: &[&str]) -> Result<OpcodeLocation, ParseIntError> {
             match parts.len() {
                 1 => {
                     let index = parts[0].parse()?;
@@ -239,7 +248,7 @@ impl FromStr for OpcodeLocation {
             }
         }
 
-        parse_components(parts)
+        parse_components(&parts)
             .map_err(|_| OpcodeLocationFromStrError::InvalidOpcodeLocationString(s.to_string()))
     }
 }
@@ -268,11 +277,11 @@ impl<F: AcirField> Circuit<F> {
 
 impl<F: Serialize + AcirField + MsgpackTagged> Program<F> {
     /// Compress a serialized [Program].
-    fn compress(buf: Vec<u8>) -> std::io::Result<Vec<u8>> {
+    fn compress(buf: &[u8]) -> std::io::Result<Vec<u8>> {
         let mut compressed: Vec<u8> = Vec::new();
         // Compress the data, which should help with formats that uses field names.
         let mut encoder = flate2::write::GzEncoder::new(&mut compressed, Compression::default());
-        encoder.write_all(&buf)?;
+        encoder.write_all(buf)?;
         encoder.finish()?;
         Ok(compressed)
     }
@@ -281,7 +290,7 @@ impl<F: Serialize + AcirField + MsgpackTagged> Program<F> {
     pub fn serialize_program_with_format(program: &Self, format: serialization::Format) -> Vec<u8> {
         let program_bytes =
             serialize_with_format(program, format).expect("expected circuit to be serializable");
-        Self::compress(program_bytes).expect("expected circuit to compress")
+        Self::compress(&program_bytes).expect("expected circuit to compress")
     }
 
     /// Serialize and compress a [Program] into bytes, using the format from the environment, or the default format.
@@ -447,7 +456,7 @@ impl PublicInputs {
     }
 
     pub fn contains(&self, index: usize) -> bool {
-        self.0.contains(&Witness(index as u32))
+        self.0.contains(&Witness::new(index as u32))
     }
 }
 

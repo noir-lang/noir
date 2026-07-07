@@ -12,7 +12,7 @@ use nargo::ops::execute_program;
 use thiserror::Error;
 
 /// Errors that can occur during execution of the program
-/// It can be NargoError or rust panic
+/// It can be `NargoError` or rust panic
 #[derive(Debug, Error)]
 pub enum SsaExecutionError {
     #[error("Execution failed: {0}")]
@@ -26,7 +26,7 @@ pub enum SsaExecutionError {
 }
 
 /// Low level function to execute the given program with the given initial witness
-/// It uses nargo execute_program to run the program
+/// It uses nargo `execute_program` to run the program
 fn execute<B: BlackBoxFunctionSolver<FieldElement> + Default>(
     program: &Program<FieldElement>,
     initial_witness: WitnessMap<FieldElement>,

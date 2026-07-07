@@ -5,7 +5,7 @@ use std::collections::{BTreeMap, BTreeSet, HashSet};
 use acvm::{AcirField, FieldElement};
 use iter_extended::{btree_map, try_vecmap, vecmap};
 use itertools::Itertools;
-use noirc_errors::Location;
+use noirc_errors::{Located, Location};
 use rustc_hash::FxHashMap as HashMap;
 
 use crate::{
@@ -21,7 +21,7 @@ use crate::{
         types::{WildcardAllowed, WildcardDisallowedContext},
     },
     hir::{
-        comptime::Value,
+        comptime::{Value, bigint_to_field},
         def_collector::dc_crate::UnresolvedEnum,
         def_map::LocalModuleId,
         resolution::{errors::ResolverError, import::PathResolutionError},
@@ -34,6 +34,7 @@ use crate::{
         },
         function::{FuncMeta, FunctionBody, HirFunction, Parameters},
         stmt::{HirLetStatement, HirPattern, HirStatement},
+        types::TypeBindings,
     },
     node_interner::{
         DefinitionId, DefinitionKind, DependencyId, ExprId, FunctionModifiers, GlobalValue,
@@ -43,12 +44,15 @@ use crate::{
     token::Attributes,
 };
 
-use super::{Elaborator, TypedPathSegment, path_resolution::PathResolutionTarget};
+use super::{
+    Elaborator, TypedPathSegment,
+    path_resolution::{PathResolutionTarget, TypedPath},
+};
 
 const WILDCARD_PATTERN: &str = "_";
 
 /// Everything needed to resolve an enum's variants later, captured at
-/// registration time. Mirrors [super::structs::UnresolvedStructFields] for
+/// registration time. Mirrors [`super::structs::UnresolvedStructFields`] for
 /// struct fields.
 pub(super) struct UnresolvedEnumVariants {
     pub(super) enum_def: NoirEnumeration,
@@ -332,8 +336,9 @@ impl Elaborator<'_> {
         let statement_id = self.interner.get_global(global_id).let_statement;
         self.interner.replace_statement(statement_id, let_statement);
 
-        self.interner.get_global_mut(global_id).value =
-            GlobalValue::Resolved(Value::Enum(variant_index, Vec::new(), typ));
+        let global = self.interner.get_global_mut(global_id);
+        global.value = GlobalValue::Resolved(Value::Enum(variant_index, Vec::new(), typ));
+        global.is_enum_variant = true;
 
         Self::get_module_mut(self.def_maps, type_id.module_id())
             .declare_global(name.clone(), enum_.visibility, global_id)
@@ -402,6 +407,7 @@ impl Elaborator<'_> {
             type_id: Some(type_id),
             trait_id: None,
             trait_impl: None,
+            impl_id: None,
             enum_variant_index: Some(variant_index),
             is_entry_point: false,
             has_inline_attribute: false,
@@ -520,6 +526,27 @@ impl Elaborator<'_> {
         (rows, result_type)
     }
 
+    /// Extract the turbofish generics from an enum-variant constructor path, accepting either
+    /// the variant segment (`Foo::Bar::<T>`) or the type segment (`Foo::<T>::Bar`); both denote
+    /// the same enum generics. Specifying them on both segments at once is an error, since the
+    /// enum's generics would then be given twice.
+    fn constructor_path_turbofish(&mut self, path: &TypedPath) -> Option<Vec<Located<Type>>> {
+        let variant_segment_turbofish = path.segments.last().unwrap().generics.clone();
+        let type_segment_turbofish = (path.segments.len() >= 2)
+            .then(|| path.segments[path.segments.len() - 2].generics.clone())
+            .flatten();
+
+        if let (Some(variant_generics), Some(_)) =
+            (&variant_segment_turbofish, &type_segment_turbofish)
+        {
+            let location =
+                variant_generics.first().map_or(path.location, |generic| generic.location());
+            self.push_err(ResolverError::DuplicateEnumGenerics { location });
+        }
+
+        variant_segment_turbofish.or(type_segment_turbofish)
+    }
+
     /// Convert an expression into a Pattern, defining any variables within.
     #[tracing::instrument(level = "trace", skip_all)]
     fn expression_to_pattern(
@@ -548,12 +575,13 @@ impl Elaborator<'_> {
                 };
                 unify_with_expected_type(self, &actual);
 
+                let field_value = bigint_to_field(&value);
                 let expr = HirExpression::Literal(HirLiteral::Integer(value));
                 let location = expr_location;
                 let expr_id = self.interner.push_expr_full(expr, location, actual);
                 self.push_integer_literal_expr_id(expr_id);
 
-                Pattern::Int(value)
+                Pattern::Int(field_value)
             }
             ExpressionKind::Literal(Literal::Bool(value)) => {
                 unify_with_expected_type(self, &Type::Bool);
@@ -576,11 +604,13 @@ impl Elaborator<'_> {
                 // user is trying to resolve to a non-local item.
 
                 let shadow_existing = path.as_single_segment().cloned();
+                let turbofish = self.constructor_path_turbofish(&path);
 
                 match self.resolve_path_or_error(path, PathResolutionTarget::Value) {
                     Ok(resolution) => self.path_resolution_to_constructor(
                         resolution,
                         shadow_existing,
+                        turbofish,
                         Vec::new(),
                         expected_type,
                         location,
@@ -786,7 +816,7 @@ impl Elaborator<'_> {
         if let Ok(resolution) = self.resolve_path_or_error(typed_path, PathResolutionTarget::Value)
         {
             return match &resolution {
-                PathResolutionItem::Global(id) => {
+                PathResolutionItem::Global(id) | PathResolutionItem::EnumVariant(id) => {
                     let global = self.interner.get_global(*id);
                     let typ = self.interner.definition_type(global.definition_id);
                     let inner = match &typ {
@@ -823,6 +853,7 @@ impl Elaborator<'_> {
             ExpressionKind::Variable(path) => {
                 let location = path.location;
                 let path = self.validate_path(path);
+                let turbofish = self.constructor_path_turbofish(&path);
 
                 match self.resolve_path_or_error(path, PathResolutionTarget::Value) {
                     // Use None for `name` here - we don't want to define a variable if this
@@ -830,6 +861,7 @@ impl Elaborator<'_> {
                     Ok(resolution) => self.path_resolution_to_constructor(
                         resolution,
                         None,
+                        turbofish,
                         args,
                         expected_type,
                         location,
@@ -865,27 +897,30 @@ impl Elaborator<'_> {
         }
     }
 
-    /// Convert a PathResolutionItem - usually an enum variant or global - to a Constructor.
-    /// If `name` is `Some`, we'll define a Pattern::Binding instead of erroring if the
+    /// Convert a `PathResolutionItem` - usually an enum variant or global - to a Constructor.
+    /// If `name` is `Some`, we'll define a `Pattern::Binding` instead of erroring if the
     /// item doesn't resolve to a variant or global. This would shadow an existing
     /// value such as a free function. Generally this is desired unless the variable was
     /// a path with multiple components such as `foo::bar` which should always be treated as
     /// a path to an existing item.
     #[tracing::instrument(level = "trace", skip_all)]
+    #[allow(clippy::too_many_arguments)]
     fn path_resolution_to_constructor(
         &mut self,
         resolution: PathResolutionItem,
         name: Option<TypedPathSegment>,
+        turbofish: Option<Vec<Located<Type>>>,
         args: Vec<Expression>,
         expected_type: &Type,
         location: Location,
         variables_defined: &mut Vec<Ident>,
     ) -> Pattern {
         let (actual_type, expected_arg_types, variant_index) = match &resolution {
-            PathResolutionItem::Global(id) => {
+            PathResolutionItem::Global(id) | PathResolutionItem::EnumVariant(id) => {
                 // variant constant
                 self.elaborate_global_if_unresolved(id);
                 let global = self.interner.get_global(*id);
+                let definition_id = global.definition_id;
                 let variant_index = match &global.value {
                     GlobalValue::Resolved(Value::Enum(tag, ..)) => *tag,
                     // This may be a global constant. Treat it like a normal constant
@@ -902,12 +937,22 @@ impl Elaborator<'_> {
                     _ => return Pattern::Error,
                 };
 
-                let global_type = self.interner.definition_type(global.definition_id);
-                let actual_type = global_type.instantiate(self.interner).0;
+                // A turbofish on a fieldless variant (e.g. `Foo::Baz::<i32>`) binds the
+                // enum's generics, which the variant global does not carry on its own.
+                let mut bindings = TypeBindings::default();
+                if let Some(turbofish) = turbofish {
+                    self.bind_enum_variant_global_turbofish(
+                        definition_id,
+                        &turbofish,
+                        location,
+                        &mut bindings,
+                    );
+                }
+                let global_type = self.interner.definition_type(definition_id);
+                let actual_type = global_type.instantiate_with_bindings(bindings, self.interner).0;
                 (actual_type, Vec::new(), variant_index)
             }
             PathResolutionItem::Method(_, _, func_id) | PathResolutionItem::SelfMethod(func_id) => {
-                // TODO(#7430): Take type_turbofish into account when instantiating the function's type
                 let (variant_index, meta_typ) = self.with_function_meta(*func_id, |meta| {
                     (meta.enum_variant_index, meta.typ.clone())
                 });
@@ -917,8 +962,28 @@ impl Elaborator<'_> {
                     return Pattern::Error;
                 };
 
-                let (actual_type, expected_arg_types) = match meta_typ.instantiate(self.interner).0
-                {
+                // A turbofish on the variant (e.g. `Foo::Bar::<i32>(x)`) binds the enum's
+                // generics, which are the constructor function's direct generics.
+                let resolved_turbofish =
+                    self.resolve_function_turbofish_generics(func_id, turbofish, location);
+                let instantiated = if let Some(turbofish_generics) = resolved_turbofish {
+                    let direct_generic_ids =
+                        vecmap(&self.function_meta(*func_id).direct_generics, |generic| {
+                            generic.type_var.id()
+                        });
+                    meta_typ
+                        .instantiate_with_bindings_and_turbofish(
+                            TypeBindings::default(),
+                            turbofish_generics,
+                            self.interner,
+                            &direct_generic_ids,
+                        )
+                        .0
+                } else {
+                    meta_typ.instantiate(self.interner).0
+                };
+
+                let (actual_type, expected_arg_types) = match instantiated {
                     Type::Function(args, ret, _env, _) => (*ret, args),
                     other => unreachable!("Not a function! Found {other}"),
                 };
@@ -1311,13 +1376,12 @@ impl<'elab, 'ctx> MatchCompiler<'elab, 'ctx> {
             if let Some(col) = row.remove_column(branch_var) {
                 if let Pattern::Constructor(cons, args) = col.pattern {
                     let idx = cons.variant_index();
-                    let mut cols = row.columns;
 
                     for (var, pat) in cases[idx].1.iter().zip_eq(args.into_iter()) {
-                        cols.push(Column::new(*var, pat));
+                        row.columns.push(Column::new(*var, pat));
                     }
 
-                    cases[idx].2.push(Row::new(cols, row.guard, row.body, row.location));
+                    cases[idx].2.push(row);
                 }
             } else {
                 for (_, _, rows) in &mut cases {
@@ -1464,7 +1528,7 @@ impl<'elab, 'ctx> MatchCompiler<'elab, 'ctx> {
         }
     }
 
-    /// Traverse the resulting HirMatch to build counter-examples of values which would
+    /// Traverse the resulting `HirMatch` to build counter-examples of values which would
     /// not be covered by the match.
     #[tracing::instrument(level = "trace", skip_all)]
     fn issue_missing_cases_error(

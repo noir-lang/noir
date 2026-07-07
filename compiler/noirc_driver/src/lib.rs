@@ -18,11 +18,11 @@ use noirc_artifacts::debug::{DebugFile, DebugInfo, FunctionLocation};
 use noirc_artifacts::program::CompiledProgram;
 use noirc_artifacts::ssa::{InternalBug, InternalWarning, SsaReport};
 use noirc_errors::CustomDiagnostic;
-use noirc_evaluator::brillig::BrilligOptions;
 use noirc_evaluator::brillig::brillig_ir::{
     LayoutConfig, MAX_SCRATCH_SPACE, MAX_STACK_FRAME_SIZE, MIN_SCRATCH_SPACE, MIN_STACK_FRAME_SIZE,
     NUM_STACK_FRAMES,
 };
+use noirc_evaluator::brillig::{BrilligOptions, CopySiteRegistry};
 use noirc_evaluator::create_program;
 use noirc_evaluator::errors::RuntimeError;
 use noirc_evaluator::ssa::checks;
@@ -131,6 +131,11 @@ pub struct CompileOptions {
     #[arg(long, hide = true)]
     pub emit_ssa: bool,
 
+    /// Run the SSA validator after every optimization pass, to catch a pass that produces
+    /// malformed SSA. Intended for debugging and minimizing fuzzing failures.
+    #[arg(long, hide = true)]
+    pub validate_between_passes: bool,
+
     /// Only perform the minimum number of SSA passes.
     ///
     /// The purpose of this is to be able to debug fuzzing failures.
@@ -175,7 +180,7 @@ pub struct CompileOptions {
     pub force_brillig: bool,
 
     /// Enable printing results of comptime evaluation: provide a path suffix
-    /// for the module to debug, e.g. "package_name/src/main.nr"
+    /// for the module to debug, e.g. "`package_name/src/main.nr`"
     #[arg(long)]
     pub debug_comptime_in_file: Option<String>,
 
@@ -207,10 +212,6 @@ pub struct CompileOptions {
     /// Flag to turn on extra Brillig bytecode to be generated to guard against invalid states in testing.
     #[arg(long, hide = true)]
     pub enable_brillig_debug_assertions: bool,
-
-    /// Count the number of arrays that are copied in an unconstrained context for performance debugging
-    #[arg(long)]
-    pub count_array_copies: bool,
 
     /// Setting to decide on an inlining strategy for Brillig functions.
     /// A more aggressive inliner should generate larger programs but more optimized
@@ -310,6 +311,7 @@ impl Default for CompileOptions {
             show_contract_fn: None,
             skip_ssa_pass: Vec::new(),
             emit_ssa: false,
+            validate_between_passes: false,
             minimal_ssa: false,
             show_brillig: false,
             show_brillig_opcode_advisories: false,
@@ -328,7 +330,6 @@ impl Default for CompileOptions {
                 checks::DEFAULT_MAX_ARRAY_OUTPUT_LENGTH,
             brillig_constraints_check_max_ancestor_distance: checks::DEFAULT_MAX_ANCESTOR_DISTANCE,
             enable_brillig_debug_assertions: false,
-            count_array_copies: false,
             inliner_aggressiveness: i64::MAX,
             constant_folding_max_iter: CONSTANT_FOLDING_MAX_ITER,
             small_function_max_instructions: INLINING_MAX_INSTRUCTIONS,
@@ -361,13 +362,13 @@ impl CompileOptions {
             brillig_options: BrilligOptions {
                 enable_debug_trace: self.show_brillig,
                 enable_debug_assertions: self.enable_brillig_debug_assertions,
-                enable_array_copy_counter: self.count_array_copies,
                 show_opcode_advisories: self.show_brillig_opcode_advisories,
                 layout: LayoutConfig::new(
                     self.max_stack_frame_size,
                     self.num_stack_frames,
                     self.max_scratch_space,
                 ),
+                copy_site_registry: None,
             },
             print_codegen_timings: self.benchmark_codegen,
             emit_ssa: if self.emit_ssa { Some(package_build_path) } else { None },
@@ -387,6 +388,7 @@ impl CompileOptions {
             max_specializations_per_fn: self.max_specializations_per_fn,
             skip_passes: self.skip_ssa_pass.clone(),
             ssa_logging_hide_unchanged: self.hide_unchanged_ssa,
+            validate_between_passes: self.validate_between_passes,
         }
     }
 }
@@ -583,7 +585,7 @@ pub fn compute_function_abi(
 /// On success this returns the compiled program alongside any warnings that were found.
 /// On error this returns the non-empty list of warnings and errors.
 ///
-/// See [compile_no_check] for further information about the use of `cached_program`.
+/// See [`compile_no_check`] for further information about the use of `cached_program`.
 #[tracing::instrument(level = "trace", skip_all)]
 pub fn compile_main(
     context: &mut Context,
@@ -943,14 +945,15 @@ pub fn filter_relevant_files(
 ///
 /// This function assumes [`check_crate`] is called beforehand.
 ///
-/// If the program is not returned from cache, it is backend-agnostic and must go through a transformation
-/// pass before usage in proof generation; if it's returned from cache these transformations might have
-/// already been applied.
+/// Whether returned from cache or freshly compiled, the program has already been fully optimized and
+/// transformed for the proving backend (the width-bounding CSAT pass and intermediate-variable
+/// elimination, using the assembled program's Brillig side-effect information) as part of
+/// SSA-to-ACIR generation, so it is ready for proof generation with no further optimization pass.
 ///
-/// The transformations are _not_ covered by the check that decides whether we can use the cached artifact.
-/// That comparison is based on on [CompiledProgram::hash] which is a persisted version of the hash of the input
-/// [`ast::Program`][noirc_frontend::monomorphization::ast::Program], whereas the output [`circuit::Program`][acvm::acir::circuit::Program]
-/// contains the final optimized ACIR opcodes, including the transformation done after this compilation.
+/// Note that the optimized ACIR is _not_ covered by the check that decides whether we can use the cached
+/// artifact. That comparison is based on [`CompiledProgram::hash`] which is a persisted version of the hash
+/// of the input [`ast::Program`][noirc_frontend::monomorphization::ast::Program], whereas the output
+/// [`circuit::Program`][acvm::acir::circuit::Program] contains the final optimized ACIR opcodes.
 #[tracing::instrument(level = "trace", skip_all, fields(function_name = context.function_name(&main_function)))]
 #[allow(clippy::result_large_err)]
 pub fn compile_no_check(
@@ -990,7 +993,7 @@ pub fn compile_no_check(
         || options.print_acir
         || options.show_brillig
         || options.force_brillig
-        || options.count_array_copies
+        || context.count_array_copies
         || options.show_ssa
         || !options.show_ssa_pass.is_empty()
         || options.emit_ssa
@@ -1008,7 +1011,14 @@ pub fn compile_no_check(
     }
 
     let return_visibility = program.return_visibility();
-    let ssa_evaluator_options = options.as_ssa_options(context.package_build_path.clone());
+    let mut ssa_evaluator_options = options.as_ssa_options(context.package_build_path.clone());
+
+    // The copy-site registry is what turns on the `--count-array-copies` instrumentation. It is
+    // enabled per-compilation via the context rather than through the shared `CompileOptions`.
+    if context.count_array_copies {
+        ssa_evaluator_options.brillig_options.copy_site_registry =
+            Some(CopySiteRegistry::default());
+    }
 
     let SsaProgramArtifact { program, debug, warnings, error_types, .. } = if options.minimal_ssa {
         create_program_with_minimal_passes(program, &ssa_evaluator_options, &context.file_manager)?
@@ -1016,7 +1026,12 @@ pub fn compile_no_check(
         create_program(
             program,
             &ssa_evaluator_options,
-            if options.with_ssa_locations { Some(&context.file_manager) } else { None },
+            // The registry resolves copy sites to source locations, which needs the file manager.
+            if options.with_ssa_locations || context.count_array_copies {
+                Some(&context.file_manager)
+            } else {
+                None
+            },
         )?
     };
 
@@ -1052,9 +1067,9 @@ struct ContractOutputs {
 }
 
 /// A 'contract' in Noir source code with a given name, functions and events.
-/// This is not an AST node, it is just a convenient form to return for CrateDefMap::get_all_contracts.
+/// This is not an AST node, it is just a convenient form to return for `CrateDefMap::get_all_contracts`.
 struct Contract {
-    /// To keep `name` semi-unique, it is prefixed with the names of parent modules via CrateDefMap::get_module_path
+    /// To keep `name` semi-unique, it is prefixed with the names of parent modules via `CrateDefMap::get_module_path`
     name: String,
     functions: Vec<ContractFunctionMeta>,
     outputs: ContractOutputs,

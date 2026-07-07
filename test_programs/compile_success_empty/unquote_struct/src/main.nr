@@ -6,7 +6,7 @@ fn main() {
 }
 
 #[output_struct]
-fn foo(x: Field, y: u32) -> u32 {
+pub fn foo(x: Field, y: u32) -> u32 {
     x as u32 + y
 }
 

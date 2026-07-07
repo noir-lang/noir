@@ -88,7 +88,7 @@ impl<'b, B: BlackBoxFunctionSolver<F>, F: AcirField> BrilligSolver<'b, F, B> {
         Ok(Self { vm, acir_index, function_id: brillig_function_id })
     }
 
-    /// Get a BrilligVM for executing the provided bytecode
+    /// Get a `BrilligVM` for executing the provided bytecode
     /// 1. Reduce the input expressions into a known value, or error if they do not reduce to a value.
     /// 2. Instantiate the Brillig VM with the bytecode and the reduced inputs.
     fn setup_brillig_vm(
@@ -132,7 +132,7 @@ impl<'b, B: BlackBoxFunctionSolver<F>, F: AcirField> BrilligSolver<'b, F, B> {
                 BrilligInputs::MemoryArray(block_id) => {
                     let memory_block = memory
                         .get(block_id)
-                        .ok_or(OpcodeNotSolvable::MissingMemoryBlock(block_id.0))?;
+                        .ok_or(OpcodeNotSolvable::MissingMemoryBlock(block_id.as_u32()))?;
                     calldata.extend(&memory_block.block_value);
                 }
             }
@@ -180,7 +180,7 @@ impl<'b, B: BlackBoxFunctionSolver<F>, F: AcirField> BrilligSolver<'b, F, B> {
         self.vm.program_counter()
     }
 
-    /// Returns the status of the Brillig VM as a 'BrilligSolverStatus' resolution.
+    /// Returns the status of the Brillig VM as a '`BrilligSolverStatus`' resolution.
     /// It may be finished, in-progress, failed, or may be waiting for results of a foreign call.
     /// Return the "resolution" to the caller who may choose to make subsequent calls
     /// (when it gets foreign call results for example).

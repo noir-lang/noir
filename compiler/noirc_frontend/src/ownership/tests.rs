@@ -1,8 +1,8 @@
 #![cfg(test)]
 //! The easiest way to test this pass is a bit indirect. We have to run
 //! ownership in its entirety and look at where the clones are inserted.
-//! Testing e.g. the last_use pass directly is difficult since it returns
-//! sets of IdentIds which can't be matched to the source code easily.
+//! Testing e.g. the `last_use` pass directly is difficult since it returns
+//! sets of `IdentIds` which can't be matched to the source code easily.
 
 use crate::elaborator::FrontendOptions;
 use crate::test_utils::{
@@ -655,7 +655,7 @@ fn overwrite_conditional() {
 }
 
 /// Regression: reassigning inside a while loop then using in a for loop.
-/// The while loop must restore the variable's loop_index so the for loop
+/// The while loop must restore the variable's `loop_index` so the for loop
 /// correctly sees the variable as defined outside and clones it.
 #[test]
 fn while_reassign_then_for_loop() {
@@ -696,7 +696,7 @@ fn while_reassign_then_for_loop() {
     ");
 }
 
-/// Regression test for https://github.com/noir-lang/noir/issues/11574
+/// Regression test for <https://github.com/noir-lang/noir/issues/11574>
 /// When the reassignment is in the else branch, uses in the then branch
 /// should still get cloned if the variable is used after the if/else.
 #[test]
@@ -1628,6 +1628,152 @@ fn confirmed_move_for_variable_reassigned_in_the_loop() {
     ");
 }
 
+/// Regression: `a = c` reassigns `a` from the bare variable `c`, which holds the
+/// buffer just moved out of `a` via `c = { ...; a }`. Reassignment alone would mark
+/// `a` killed and let its loop-carried last use be moved, but `c` may alias the moved
+/// buffer, so the use of `a` in the block tail must be CLONED. Otherwise `a` and `c`
+/// share one refcount-1 buffer and `c[0] = 99` corrupts `a` in place.
+#[test]
+fn clone_for_loop_buffer_rotation_via_aliasing_reassignment() {
+    let src = "
+    unconstrained fn main() -> pub [Field; 2] {
+        let mut a = [1, 2];
+        let mut c = [10, 20];
+        let mut j: u32 = 0;
+        while j < 2 {
+            j += 1;
+            c = {
+                let mut i: u32 = 0;
+                while i < 1 { i += 1; c[0] = 99; };
+                a
+            };
+            a = c;
+        }
+        a
+    }
+    ";
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    unconstrained fn main$f0() -> pub [Field; 2] {
+        let mut a$l0 = [1, 2];
+        let mut c$l1 = [10, 20];
+        let mut j$l2 = 0;
+        while (j$l2 < 2) {
+            j$l2 = (j$l2 + 1);
+            c$l1 = {
+                let mut i$l3 = 0;
+                while (i$l3 < 1) {
+                    i$l3 = (i$l3 + 1);
+                    c$l1[0] = 99
+                };
+                a$l0.clone()
+            };
+            a$l0 = c$l1.clone()
+        };
+        a$l0
+    }
+    ");
+}
+
+/// `c = [ { ...; c[0] = 99; a[0] }, 20 ]` reassigns `c` to a fresh array, but constructing it
+/// writes `c[0]` in place. Because `c` occurs in its own right-hand side it must not be killed,
+/// so the loop-carried `a = c` is cloned rather than sharing one refcount-1 buffer. The mention
+/// of `c` is nested in an inner `while`, so only the `local_occurs_in` scan catches it.
+#[test]
+fn clone_for_loop_buffer_rotation_via_aliasing_array_literal() {
+    let src = "
+    unconstrained fn main() -> pub [Field; 2] {
+        let mut a = [1, 2];
+        let mut c = [10, 20];
+        let mut j: u32 = 0;
+        while j < 2 {
+            j += 1;
+            c = [
+                {
+                    let mut i: u32 = 0;
+                    while i < 1 { i += 1; c[0] = 99; };
+                    a[0]
+                },
+                20,
+            ];
+            a = c;
+        }
+        a
+    }
+    ";
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    unconstrained fn main$f0() -> pub [Field; 2] {
+        let mut a$l0 = [1, 2];
+        let mut c$l1 = [10, 20];
+        let mut j$l2 = 0;
+        while (j$l2 < 2) {
+            j$l2 = (j$l2 + 1);
+            c$l1 = [{
+                let mut i$l3 = 0;
+                while (i$l3 < 1) {
+                    i$l3 = (i$l3 + 1);
+                    c$l1[0] = 99
+                };
+                a$l0[0]
+            }, 20];
+            a$l0 = c$l1.clone()
+        };
+        a$l0
+    }
+    ");
+}
+
+/// Same shape as the test above, but the in-place write targets a fresh local `k`, so `c` does
+/// not occur in its own right-hand side. `c` is then killed and the loop-carried `a = c` moved
+/// without a clone, confirming a non-literal element alone does not force a clone.
+#[test]
+fn move_for_loop_buffer_rotation_when_variable_absent_from_rhs() {
+    let src = "
+    unconstrained fn main() -> pub [Field; 2] {
+        let mut a = [1, 2];
+        let mut c = [10, 20];
+        let mut j: u32 = 0;
+        while j < 2 {
+            j += 1;
+            c = [
+                {
+                    let mut k = [0, 0];
+                    let mut i: u32 = 0;
+                    while i < 1 { i += 1; k[0] = 99; };
+                    a[0]
+                },
+                20,
+            ];
+            a = c;
+        }
+        a
+    }
+    ";
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    unconstrained fn main$f0() -> pub [Field; 2] {
+        let mut a$l0 = [1, 2];
+        let mut c$l1 = [10, 20];
+        let mut j$l2 = 0;
+        while (j$l2 < 2) {
+            j$l2 = (j$l2 + 1);
+            c$l1 = [{
+                let mut k$l3 = [0, 0];
+                let mut i$l4 = 0;
+                while (i$l4 < 1) {
+                    i$l4 = (i$l4 + 1);
+                    k$l3[0] = 99
+                };
+                a$l0[0]
+            }, 20];
+            a$l0 = c$l1
+        };
+        a$l0
+    }
+    ");
+}
+
 /// Regression: when a nested array is passed alongside one of its inner arrays
 /// (`foo(a, a[1])`), `a[1]` is the textually-last use of `a`, but moving `a`
 /// only transfers the outer array's reference count. The inner array at
@@ -1737,6 +1883,354 @@ fn no_confirmed_move_for_variable_reassigned_in_loop_in_disabled_if() {
         use_var$f1(x$l1);
     }
     unconstrained fn use_var$f1(_x$l4: [Field; 3]) -> () {
+    }
+    ");
+}
+
+// Regression for issue https://github.com/noir-lang/noir-claude/issues/1436
+#[test]
+fn no_confirmed_move_for_assignment_rhs_that_can_break() {
+    // `x = if cond { let mut y = x; ...; break; ... } else { x }` inside a loop.
+    // The RHS reads `x` into `y` and then mutates `y`. On the `break` path the
+    // assignment to `x` never commits, so the old value of `x` is still live after
+    // the loop. If `let mut y = x` were treated as a move (no clone), the mutation
+    // of `y` would corrupt the still-live `x`. The RHS use must therefore be cloned.
+    let src = "
+    unconstrained fn main(cond: bool, should_break: bool) {
+        let mut x = [1];
+        loop {
+            x = if cond {
+                let mut y = x;
+                y[0] = 9;
+                if should_break {
+                    break;
+                }
+                [0]
+            } else {
+                x
+            };
+        }
+        use_var(x);
+    }
+
+    fn use_var<T>(_x: T) {}
+    ";
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    unconstrained fn main$f0(cond$l0: bool, should_break$l1: bool) -> () {
+        let mut x$l2 = [1];
+        loop {
+            x$l2 = if cond$l0 {
+                let mut y$l3 = x$l2.clone();
+                y$l3[0] = 9;
+                if should_break$l1 {
+                    break
+                };
+                [0]
+            } else {
+                x$l2
+            }
+        };
+        use_var$f1(x$l2);
+    }
+    unconstrained fn use_var$f1(_x$l4: [Field; 1]) -> () {
+    }
+    ");
+}
+
+// Companion to `no_confirmed_move_for_assignment_rhs_that_can_break`: the breaking branch
+// is the `else` here. Only the use on the breaking path must clone; the non-breaking `then`
+// use can still be moved. This confirms the per-branch break tracking is not order-dependent.
+#[test]
+fn confirmed_move_only_on_non_breaking_branch_of_assignment_rhs() {
+    let src = "
+    unconstrained fn main(cond: bool, should_break: bool) {
+        let mut x = [1];
+        loop {
+            x = if cond {
+                x
+            } else {
+                let mut y = x;
+                y[0] = 9;
+                if should_break {
+                    break;
+                }
+                [0]
+            };
+        }
+        use_var(x);
+    }
+
+    fn use_var<T>(_x: T) {}
+    ";
+    let program = get_monomorphized(src).unwrap();
+    // The `then` use of `x` is moved; only the `else` use (which can `break`) is cloned.
+    insta::assert_snapshot!(program, @r"
+    unconstrained fn main$f0(cond$l0: bool, should_break$l1: bool) -> () {
+        let mut x$l2 = [1];
+        loop {
+            x$l2 = if cond$l0 {
+                x$l2
+            } else {
+                let mut y$l3 = x$l2.clone();
+                y$l3[0] = 9;
+                if should_break$l1 {
+                    break
+                };
+                [0]
+            }
+        };
+        use_var$f1(x$l2);
+    }
+    unconstrained fn use_var$f1(_x$l4: [Field; 1]) -> () {
+    }
+    ");
+}
+
+// A loop-local variable reassigned with a breaking RHS keeps the move (no clone): its old
+// value cannot be observed after the loop, so the break doesn't make the move unsafe. This
+// is the loop-local counterpart to `no_confirmed_move_for_assignment_rhs_that_can_break`,
+// and confirms the break-dependent use stays a move candidate rather than being cloned.
+#[test]
+fn loop_local_assignment_rhs_with_break_keeps_move() {
+    let src = "
+    unconstrained fn main(cond: bool, should_break: bool) {
+        loop {
+            let mut x = [1];
+            x = if cond {
+                let mut y = x;
+                y[0] = 9;
+                if should_break {
+                    break;
+                }
+                [0]
+            } else {
+                x
+            };
+            use_var(x);
+        }
+    }
+
+    fn use_var<T>(_x: T) {}
+    ";
+    let program = get_monomorphized(src).unwrap();
+    // `x` is declared inside the loop, so `let mut y = x` is moved (no `.clone()`) even though
+    // the RHS can `break`.
+    insta::assert_snapshot!(program, @r"
+    unconstrained fn main$f0(cond$l0: bool, should_break$l1: bool) -> () {
+        loop {
+            let mut x$l2 = [1];
+            x$l2 = if cond$l0 {
+                let mut y$l3 = x$l2;
+                y$l3[0] = 9;
+                if should_break$l1 {
+                    break
+                };
+                [0]
+            } else {
+                x$l2
+            };
+            use_var$f1(x$l2);
+        }
+    }
+    unconstrained fn use_var$f1(_x$l4: [Field; 1]) -> () {
+    }
+    ");
+}
+
+// A `break` reachable *after* a nested assignment must still taint uses that precede the
+// nested assignment. The nested assignment (`w = [3]`, whose own RHS does not break) resets
+// the break flag while its RHS is analyzed; that flag must be restored afterwards so the
+// earlier `let mut y = x` is recognized as break-dependent and cloned. Otherwise the break
+// would leave `x` mutated through `y`.
+#[test]
+fn break_after_nested_assignment_taints_preceding_use() {
+    let src = "
+    unconstrained fn main(cond: bool) {
+        let mut x = [1];
+        loop {
+            x = {
+                let mut y = x;
+                y[0] = 9;
+                let mut w = [0];
+                w = [3];
+                if cond {
+                    break;
+                }
+                w
+            };
+        }
+        use_var(x);
+    }
+
+    fn use_var<T>(_x: T) {}
+    ";
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    unconstrained fn main$f0(cond$l0: bool) -> () {
+        let mut x$l1 = [1];
+        loop {
+            x$l1 = {
+                let mut y$l2 = x$l1.clone();
+                y$l2[0] = 9;
+                let mut w$l3 = [0];
+                w$l3 = [3];
+                if cond$l0 {
+                    break
+                };
+                w$l3
+            }
+        };
+        use_var$f1(x$l1);
+    }
+    unconstrained fn use_var$f1(_x$l4: [Field; 1]) -> () {
+    }
+    ");
+}
+
+// A `break` that follows the assignment (in source order) does not prevent the RHS use from
+// being a confirmed move: the assignment has already committed before the break is reached, so
+// the old value is not live on the break path. This is the counterpart to
+// `break_after_nested_assignment_taints_preceding_use` and shows that the assignment resets the
+// break flag to `false` while analyzing its RHS, ignoring breaks reachable only afterwards.
+#[test]
+fn break_after_assignment_does_not_prevent_confirmed_move() {
+    let src = "
+    unconstrained fn main(cond: bool) {
+        let mut x = @[1, 2, 3];
+        loop {
+            x = identity(x);
+            if cond {
+                break;
+            }
+        }
+        use_var(x);
+    }
+
+    fn use_var<T>(_x: T) {}
+    fn identity<T>(x: T) -> T { x }
+    ";
+    let program = get_monomorphized(src).unwrap();
+    // `x` in `x = identity(x)` is moved (no clone): the later `break` cannot observe the old value.
+    insta::assert_snapshot!(program, @r"
+    unconstrained fn main$f0(cond$l0: bool) -> () {
+        let mut x$l1 = @[1, 2, 3];
+        loop {
+            x$l1 = identity$f1(x$l1);
+            if cond$l0 {
+                break
+            }
+        };
+        use_var$f2(x$l1);
+    }
+    unconstrained fn identity$f1(x$l2: [Field]) -> [Field] {
+        x$l2
+    }
+    unconstrained fn use_var$f2(_x$l3: [Field]) -> () {
+    }
+    ");
+}
+
+// A `while` evaluates its condition before the body, so a variable read in both has its last
+// use in the body. The condition's earlier read must therefore clone, while the body's read
+// (the last use before the loop-carried reassignment) can move. Listing the condition after the
+// body in `find_last_uses_in_loop_body` would wrongly treat the condition read as the last use
+// and skip the clone, which is unsound when the condition aliases and mutates the variable.
+#[test]
+fn while_condition_read_is_cloned_when_reused_in_body() {
+    let src = "
+    unconstrained fn main() {
+        let mut x = [1, 2, 3];
+        while peek(x) {
+            use_var(x);
+            x = [4, 5, 6];
+        }
+    }
+
+    fn use_var<T>(_x: T) {}
+    fn peek(_x: [Field; 3]) -> bool { true }
+    ";
+    let program = get_monomorphized(src).unwrap();
+    // The condition read of `x` is cloned; the body read (last use before the reassignment) is moved.
+    insta::assert_snapshot!(program, @r"
+    unconstrained fn main$f0() -> () {
+        let mut x$l0 = [1, 2, 3];
+        while peek$f1(x$l0.clone()) {
+            use_var$f2(x$l0);;
+            x$l0 = [4, 5, 6]
+        }
+    }
+    unconstrained fn peek$f1(_x$l1: [Field; 3]) -> bool {
+        true
+    }
+    unconstrained fn use_var$f2(_x$l2: [Field; 3]) -> () {
+    }
+    ");
+}
+
+// A `break` in a `while` condition targets the *enclosing* loop, not the `while`. Here the inner
+// `while`'s condition can `break` out of the outer loop before the assignment `x = if ...` commits,
+// so the old value of `x` outlives the loop. `let mut y = x` must therefore clone: otherwise `y`
+// would alias `x` and `y[0] = ...` would corrupt the value observed after the loop.
+#[test]
+fn break_in_inner_while_condition_clones_outer_assignment_rhs() {
+    let src = "
+    unconstrained fn main(cond: bool, exit: bool) {
+        let mut x = [1, 2];
+        let mut i = 0;
+        while i < 3 {
+            x = if cond {
+                let mut y = x;
+                y[0] = 10;
+                let mut j = 0;
+                while ({
+                    if exit {
+                        break;
+                    }
+                    j < 3
+                }) {
+                    j = j + 1;
+                }
+                [4, 5]
+            } else {
+                x
+            };
+            i = i + 1;
+        }
+        use_var(x);
+    }
+
+    fn use_var<T>(_x: T) {}
+    ";
+    let program = get_monomorphized(src).unwrap();
+    // `let mut y = x` is cloned because the inner `while` condition can `break` out of the outer
+    // loop before the assignment to `x` commits.
+    insta::assert_snapshot!(program, @r"
+    unconstrained fn main$f0(cond$l0: bool, exit$l1: bool) -> () {
+        let mut x$l2 = [1, 2];
+        let mut i$l3 = 0;
+        while (i$l3 < 3) {
+            x$l2 = if cond$l0 {
+                let mut y$l4 = x$l2.clone();
+                y$l4[0] = 10;
+                let mut j$l5 = 0;
+                while {
+                    if exit$l1 {
+                        break
+                    };
+                    (j$l5 < 3)
+                } {
+                    j$l5 = (j$l5 + 1)
+                };
+                [4, 5]
+            } else {
+                x$l2
+            };
+            i$l3 = (i$l3 + 1)
+        };
+        use_var$f1(x$l2);
+    }
+    unconstrained fn use_var$f1(_x$l6: [Field; 2]) -> () {
     }
     ");
 }

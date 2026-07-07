@@ -21,11 +21,13 @@ pub(crate) mod codegen_control_flow;
 mod codegen_intrinsic;
 mod codegen_memory;
 mod codegen_stack;
+pub(crate) mod count_array_copies;
 mod entry_point;
 mod instructions;
 
 use std::{cell::RefCell, rc::Rc};
 
+use acvm::brillig_vm::MEMORY_ADDRESSING_BIT_SIZE;
 use artifact::Label;
 use brillig_variable::SingleAddrVariable;
 pub(crate) use instructions::BrilligBinaryOp;
@@ -47,12 +49,12 @@ use acvm::{
 };
 use debug_show::DebugShow;
 
-use super::{BrilligOptions, FunctionId, GlobalSpace, ProcedureId};
+use super::{BrilligOptions, CopySiteRegistry, FunctionId, GlobalSpace, ProcedureId};
 
 /// The Brillig VM does not apply a limit to the memory address space,
 /// As a convention, we take use 32 bits. This means that we assume that
 /// memory has 2^32 memory slots.
-pub(crate) const BRILLIG_MEMORY_ADDRESSING_BIT_SIZE: u32 = 32;
+pub(crate) const BRILLIG_MEMORY_ADDRESSING_BIT_SIZE: u32 = MEMORY_ADDRESSING_BIT_SIZE.to_u32();
 
 /// Registers reserved in runtime for special purposes.
 pub(crate) struct ReservedRegisters;
@@ -80,7 +82,7 @@ impl ReservedRegisters {
         FREE_MEMORY_POINTER_ADDRESS
     }
 
-    /// This register stores a 1_usize constant.
+    /// This register stores a `1_usize` constant.
     pub(crate) fn usize_one() -> MemoryAddress {
         MemoryAddress::direct(2)
     }
@@ -100,9 +102,9 @@ impl ReservedRegisters {
         (MemoryAddress::direct(assert_u32(start)), MemoryAddress::direct(assert_u32(start + 1)))
     }
 
-    /// A third scratch address (`@5`) used by [crate::brillig::brillig_gen::brillig_block::BrilligBlock::codegen_conditional_spill_store]
+    /// A third scratch address (`@5`) used by [`crate::brillig::brillig_gen::brillig_block::BrilligBlock::codegen_conditional_spill_store`]
     /// to hold a value across the load → cmov → store sequence. Disjoint from
-    /// [Self::spill_scratch] so the address-materialization scratch registers
+    /// [`Self::spill_scratch`] so the address-materialization scratch registers
     /// can be reused by the inner load/store without clobbering the value.
     pub(crate) fn spill_conditional_value() -> MemoryAddress {
         MemoryAddress::direct(assert_u32(ScratchSpace::start() + 2))
@@ -128,14 +130,16 @@ pub(crate) struct BrilligContext<F, Registers> {
     can_call_procedures: bool,
     /// Insert extra assertions that we expect to be true, at the cost of larger bytecode size.
     enable_debug_assertions: bool,
-    /// Count the number of arrays that are copied, and output this to stdout
-    count_arrays_copied: bool,
+    /// When set, per-site array copy tracking is enabled; see [`count_array_copies`].
+    ///
+    /// [`count_array_copies`]: crate::brillig::brillig_ir::count_array_copies
+    copy_site_registry: Option<CopySiteRegistry>,
 
     globals_memory_size: Option<usize>,
 }
 
 impl<F, R: RegisterAllocator> BrilligContext<F, R> {
-    /// Memory layout information. See [self::registers] for more information about the memory layout.
+    /// Memory layout information. See [`self::registers`] for more information about the memory layout.
     pub(crate) fn layout(&self) -> LayoutConfig {
         self.registers().layout()
     }
@@ -143,23 +147,6 @@ impl<F, R: RegisterAllocator> BrilligContext<F, R> {
     /// Enable the insertion of bytecode with extra assertions during testing.
     pub(crate) fn enable_debug_assertions(&self) -> bool {
         self.enable_debug_assertions
-    }
-
-    /// Returns the address of the implicit debug variable containing the count of
-    /// implicitly copied arrays as a result of RC's copy on write semantics.
-    pub(crate) fn array_copy_counter_address(&self) -> MemoryAddress {
-        assert!(
-            self.count_arrays_copied,
-            "`count_arrays_copied` is not set, so the array copy counter does not exist"
-        );
-
-        // The copy counter is always put in the first global slot
-        MemoryAddress::direct(assert_u32(GlobalSpace::start_with_layout(&self.layout())))
-    }
-
-    /// If this flag is set, compile the array copy counter as a global.
-    pub(crate) fn count_array_copies(&self) -> bool {
-        self.count_arrays_copied
     }
 
     /// Set the globals memory size if it is not already set.
@@ -202,7 +189,7 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
             next_section: 1,
             debug_show: DebugShow::new(options.enable_debug_trace),
             enable_debug_assertions: options.enable_debug_assertions,
-            count_arrays_copied: options.enable_array_copy_counter,
+            copy_site_registry: options.copy_site_registry.clone(),
             can_call_procedures: true,
             globals_memory_size: None,
         }
@@ -265,7 +252,7 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
 
 impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<F, Registers> {
     /// Splits a two's complement signed integer in the sign bit and the absolute value.
-    /// For example, -6 i8 (11111010) is split to 00000110 (6, absolute value) and 1 (is_negative).
+    /// For example, -6 i8 (11111010) is split to 00000110 (6, absolute value) and 1 (`is_negative`).
     pub(crate) fn absolute_value(
         &mut self,
         num: SingleAddrVariable,
@@ -362,7 +349,7 @@ pub(crate) enum SignedDivisionOperator {
 
 /// Special brillig context to codegen compiler intrinsic shared procedures
 impl<F: AcirField + DebugToString> BrilligContext<F, ScratchSpace> {
-    /// Create a [BrilligContext] with a [ScratchSpace] for passing procedure arguments.
+    /// Create a [`BrilligContext`] with a [`ScratchSpace`] for passing procedure arguments.
     pub(crate) fn new_for_procedure(
         procedure_id: ProcedureId,
         options: &BrilligOptions,
@@ -378,7 +365,7 @@ impl<F: AcirField + DebugToString> BrilligContext<F, ScratchSpace> {
             next_section: 1,
             debug_show: DebugShow::new(options.enable_debug_trace),
             enable_debug_assertions: options.enable_debug_assertions,
-            count_arrays_copied: options.enable_array_copy_counter,
+            copy_site_registry: options.copy_site_registry.clone(),
             can_call_procedures: false,
             globals_memory_size: None,
         }
@@ -387,7 +374,7 @@ impl<F: AcirField + DebugToString> BrilligContext<F, ScratchSpace> {
 
 /// Special brillig context to codegen global values initialization
 impl<F: AcirField + DebugToString> BrilligContext<F, GlobalSpace> {
-    /// Create a [BrilligContext] with a [GlobalSpace] for memory allocations.
+    /// Create a [`BrilligContext`] with a [`GlobalSpace`] for memory allocations.
     pub(crate) fn new_for_global_init(
         options: &BrilligOptions,
         entry_point: FunctionId,
@@ -400,14 +387,14 @@ impl<F: AcirField + DebugToString> BrilligContext<F, GlobalSpace> {
             next_section: 1,
             debug_show: DebugShow::new(options.enable_debug_trace),
             enable_debug_assertions: options.enable_debug_assertions,
-            count_arrays_copied: options.enable_array_copy_counter,
+            copy_site_registry: options.copy_site_registry.clone(),
             can_call_procedures: false,
             globals_memory_size: None,
         }
     }
 
     /// Total size of the global memory space.
-    /// Returns 0 when nothing has been allocated (max_memory_address < start).
+    /// Returns 0 when nothing has been allocated (`max_memory_address` < start).
     pub(crate) fn global_space_size(&self) -> usize {
         (self.registers().max_memory_address() + 1).saturating_sub(self.registers().start())
     }
@@ -422,6 +409,11 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
     /// Sets a current call stack that the next pushed opcodes will be associated with.
     pub(crate) fn set_call_stack(&mut self, call_stack: CallStackId) {
         self.obj.set_call_stack(call_stack);
+    }
+
+    /// Returns the `CallStackId` that is currently active in this context.
+    pub(crate) fn current_call_stack_id(&self) -> CallStackId {
+        self.obj.current_call_stack_id()
     }
 }
 
@@ -485,7 +477,6 @@ pub(crate) mod tests {
         let options = BrilligOptions {
             enable_debug_trace: true,
             enable_debug_assertions: true,
-            enable_array_copy_counter: false,
             ..Default::default()
         };
         let mut context = BrilligContext::new("test", &options);
@@ -495,13 +486,13 @@ pub(crate) mod tests {
 
     pub(crate) fn create_entry_point_bytecode(
         context: BrilligContext<FieldElement, Stack>,
-        arguments: Vec<BrilligParameter>,
-        returns: Vec<BrilligParameter>,
+        arguments: &[BrilligParameter],
+        returns: &[BrilligParameter],
     ) -> GeneratedBrillig<FieldElement> {
         let options = BrilligOptions {
             enable_debug_trace: false,
             enable_debug_assertions: context.enable_debug_assertions,
-            enable_array_copy_counter: context.count_arrays_copied,
+            copy_site_registry: context.copy_site_registry.clone(),
             ..Default::default()
         };
         let artifact = context.into_artifact();
@@ -559,9 +550,9 @@ pub(crate) mod tests {
         let options = BrilligOptions {
             enable_debug_trace: true,
             enable_debug_assertions: true,
-            enable_array_copy_counter: false,
             show_opcode_advisories: false,
             layout: Default::default(),
+            copy_site_registry: None,
         };
         let mut context = BrilligContext::new("test", &options);
 
@@ -650,12 +641,12 @@ pub(crate) mod tests {
     /// 3. If allocation would overflow, VM fails with "Out of memory" before the loop runs
     ///
     /// This test compiles SSA with a large constant array, then patches `free_memory_pointer`
-    /// to near u32::MAX to demonstrate that allocation triggers "Out of memory".
+    /// to near `u32::MAX` to demonstrate that allocation triggers "Out of memory".
     #[test]
     fn initialize_constant_array_protected_by_allocation_check() {
         // SSA with array of 11 identical tuples - triggers initialize_constant_array_runtime
         let src = r#"
-            brillig(inline) predicate_pure fn main f0 {
+            brillig(inline) pure fn main f0 {
               b0(v0: u32):
                 v1 = make_array [
                     u32 42, u32 42, u32 42,
@@ -679,7 +670,7 @@ pub(crate) mod tests {
         let options = BrilligOptions::default();
         let brillig = ssa.to_brillig(&options);
         let args = vec![BrilligParameter::SingleAddr(32)];
-        let mut generated = gen_brillig_for(main, args, &brillig, &options).unwrap();
+        let mut generated = gen_brillig_for(main, &args, &brillig, &options).unwrap();
 
         // Find the first BinaryIntOp::Add that writes to the free_memory_pointer (FMP)
         // and insert a patch just before it.
@@ -730,7 +721,7 @@ pub(crate) mod tests {
         assert!(message.contains("Out of memory"), "Expected 'Out of memory', got: {message}");
     }
 
-    /// Test proving [BrilligContext::codegen_mem_copy_from_the_end] handles `num_elements=0`.
+    /// Test proving [`BrilligContext::codegen_mem_copy_from_the_end`] handles `num_elements=0`.
     ///
     /// See the function's `# Safety` documentation for why the underflow is safe.
     /// This test directly verifies the loop continue condition is immediately `false`.
@@ -739,9 +730,9 @@ pub(crate) mod tests {
         let options = BrilligOptions {
             enable_debug_trace: false,
             enable_debug_assertions: true,
-            enable_array_copy_counter: false,
             show_opcode_advisories: false,
             layout: Default::default(),
+            copy_site_registry: None,
         };
         let mut context = BrilligContext::new("test", &options);
 
@@ -861,15 +852,15 @@ pub(crate) mod tests {
 
     /// Test proving that empty array allocation near heap limit triggers OOM.
     ///
-    /// This demonstrates that [BrilligContext::codegen_make_array_items_pointer] is transitively protected
-    /// from overflow. Even an empty array allocates [offsets::ARRAY_META_COUNT] slot for metadata,
-    /// so if the free memory pointer (FMP) is near u32::MAX, the allocation fails with "Out of memory"
+    /// This demonstrates that [`BrilligContext::codegen_make_array_items_pointer`] is transitively protected
+    /// from overflow. Even an empty array allocates [`offsets::ARRAY_META_COUNT`] slot for metadata,
+    /// so if the free memory pointer (FMP) is near `u32::MAX`, the allocation fails with "Out of memory"
     /// before we ever compute the items pointer.
     #[test]
     fn empty_array_allocation_near_heap_limit_triggers_oom() {
         // SSA with an empty array - triggers array allocation with just ARRAY_META_COUNT (1) slot
         let src = r#"
-            brillig(inline) predicate_pure fn main f0 {
+            brillig(inline) pure fn main f0 {
               b0():
                 v0 = make_array [] : [Field; 0]
                 return
@@ -880,15 +871,15 @@ pub(crate) mod tests {
 
     /// Test proving that empty vector allocation near heap limit triggers OOM.
     ///
-    /// This demonstrates that [BrilligContext::codegen_vector_items_pointer] is transitively protected
-    /// from overflow. Even an empty vector allocates [offsets::VECTOR_META_COUNT] slots for metadata,
-    /// so if the free memory pointer (FMP) is near u32::MAX, the allocation fails with "Out of memory"
+    /// This demonstrates that [`BrilligContext::codegen_vector_items_pointer`] is transitively protected
+    /// from overflow. Even an empty vector allocates [`offsets::VECTOR_META_COUNT`] slots for metadata,
+    /// so if the free memory pointer (FMP) is near `u32::MAX`, the allocation fails with "Out of memory"
     /// before we ever compute the items pointer.
     #[test]
     fn empty_vector_allocation_near_heap_limit_triggers_oom() {
-        // SSA with an empty slice (vector) - triggers vector allocation with VECTOR_META_COUNT (3) slots
+        // SSA with an empty vector - triggers vector allocation with VECTOR_META_COUNT (3) slots
         let src = r#"
-            brillig(inline) predicate_pure fn main f0 {
+            brillig(inline) pure fn main f0 {
               b0():
                 v0 = make_array [] : [Field]
                 return
@@ -899,7 +890,7 @@ pub(crate) mod tests {
 
     /// Helper to test that allocation near heap limit triggers OOM.
     ///
-    /// Generates Brillig from the given SSA, patches the free memory pointer (FMP) to u32::MAX
+    /// Generates Brillig from the given SSA, patches the free memory pointer (FMP) to `u32::MAX`
     /// just before the first allocation, and asserts the VM fails with "Out of memory".
     fn assert_allocation_near_heap_limit_triggers_oom(ssa_src: &str) {
         use acvm::acir::brillig::BinaryIntOp;
@@ -908,7 +899,7 @@ pub(crate) mod tests {
         let main = ssa.main();
         let options = BrilligOptions::default();
         let brillig = ssa.to_brillig(&options);
-        let mut generated = gen_brillig_for(main, vec![], &brillig, &options).unwrap();
+        let mut generated = gen_brillig_for(main, &[], &brillig, &options).unwrap();
 
         // Find the first BinaryIntOp::Add that writes to the free_memory_pointer (FMP)
         // and insert a patch just before it.
@@ -966,9 +957,9 @@ pub(crate) mod tests {
         let options = BrilligOptions {
             enable_debug_trace: false,
             enable_debug_assertions: true,
-            enable_array_copy_counter: false,
             show_opcode_advisories: false,
             layout: small_layout,
+            copy_site_registry: None,
         };
 
         let mut context: BrilligContext<FieldElement, Stack> =
@@ -1012,7 +1003,7 @@ pub(crate) mod tests {
     ///
     /// This test demonstrates the defensive check that prevents heap corruption.
     /// Without this check, call arguments could be written beyond the stack frame boundary
-    /// before CheckMaxStackDepth runs in the called function.
+    /// before `CheckMaxStackDepth` runs in the called function.
     #[test_case(7, 0; "arguments alone exceed bounds")]
     #[test_case(3, 0; "arguments together with reserved slots exceed bounds")]
     #[test_case(1, 5; "arguments are okay but returns exceed bounds")]
@@ -1069,7 +1060,7 @@ pub(crate) mod tests {
         let main = ssa.main();
         let options = BrilligOptions::default();
         let brillig = ssa.to_brillig(&options);
-        let generated = gen_brillig_for(main, vec![], &brillig, &options).unwrap();
+        let generated = gen_brillig_for(main, &[], &brillig, &options).unwrap();
 
         let mut vm = VM::new(vec![], &generated.byte_code, &DummyBlackBoxSolver, false, None);
         let status = vm.process_opcodes();
@@ -1109,7 +1100,7 @@ pub(crate) mod tests {
         let main = ssa.main();
         let options = BrilligOptions::default();
         let brillig = ssa.to_brillig(&options);
-        let generated = gen_brillig_for(main, vec![], &brillig, &options).unwrap();
+        let generated = gen_brillig_for(main, &[], &brillig, &options).unwrap();
 
         let mut vm = VM::new(vec![], &generated.byte_code, &DummyBlackBoxSolver, false, None);
         let status = vm.process_opcodes();

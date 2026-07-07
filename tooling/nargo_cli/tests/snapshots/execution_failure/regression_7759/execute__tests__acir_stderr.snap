@@ -2,7 +2,7 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: stderr
 ---
-error: Index out of bounds, array has size 4, but index was 4294967296
+error: Assertion failed: Index out of bounds, array has size 2, but index was 2147483648
   ┌─ src/main.nr:3:5
   │
 3 │     v7[index]
@@ -12,4 +12,4 @@ error: Index out of bounds, array has size 4, but index was 4294967296
     1: main
             at src/main.nr:3:5
 
-Failed to solve program: 'Index out of bounds, array has size 4, but index was 4294967296'
+Failed assertion

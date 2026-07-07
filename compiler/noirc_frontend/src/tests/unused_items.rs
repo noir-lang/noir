@@ -76,23 +76,286 @@ fn unused_global_clashing_with_function_is_reported_as_global() {
 }
 
 #[test]
-#[should_panic(expected = "Expected some errors but got none")]
-fn cross_namespace_name_clash_misses_unused_warning_but_is_not_an_error() {
+fn cross_namespace_name_clash_still_warns_on_unused_value() {
     // A type-namespace item (`struct N`) and a value-namespace item (`fn N`) may legally
     // share a name within a module, so this is *not* a duplicate-definition error and the
-    // program compiles. The usage tracker keys unused items by name only, so the struct and
-    // the function share one slot: constructing the struct clears it, and the genuinely
-    // unused `fn N` produces no "unused function" warning.
-    //
-    // The absence below is a missing *warning*, not a missing *error*, so there is no miscompilation.
-    // TODO(#11927): The test is here to highlight this gap, until it's fixed in
+    // program compiles. The usage tracker keys unused items by `(namespace, name)`, so the
+    // struct and the function occupy separate slots: constructing the struct clears only the
+    // type-namespace entry, leaving the genuinely unused `fn N` to warn.
     let src = r#"
     struct N {}
     fn N() {}
        ^ unused function N
+       ~ unused function
     fn main() {
         let _ = N {};
     }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn unused_item_warns_at_definition_not_at_shadowing_use_site() {
+    // A value-namespace generic (`let N`) shadows an unused value-namespace global of the same
+    // name. Resolving the generic in `0..N` runs a speculative path-resolution probe that touches
+    // the global's unused entry and then rolls back. The rollback must restore that entry under its
+    // *original* key (the global's definition location), not the probe's use-site ident, so the
+    // surviving warning still points at the `global N` definition rather than the `0..N` use.
+    let src = r#"
+    global N: u32 = 10;
+           ^ unused global N
+           ~ unused global
+    fn count<let N: u32>() -> u32 {
+        let mut sum = 0;
+        for _ in 0..N {
+            sum += 1;
+        }
+        sum
+    }
+    fn main() {
+        let _ = count::<3>();
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn cross_namespace_name_clash_still_warns_on_unconstructed_type() {
+    // Mirror of the case above: calling `N()` clears only the value-namespace entry, leaving the
+    // never-constructed `struct N` to warn. Elaborating the call speculatively resolves `N` as a
+    // `Type::method` receiver, but that probe only *references* the type (it doesn't mark it
+    // used), so the struct is still reported as never constructed.
+    let src = r#"
+    struct N {}
+           ^ struct `N` is never constructed
+           ~ struct is never constructed
+    fn N() {}
+    fn main() {
+        N();
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn unused_dual_namespace_import_warns_once() {
+    // `use foo::N` brings both the type-namespace `struct N` and the value-namespace `fn N` into
+    // scope, but a `use` is a single syntactic unit, so an unused import warns exactly once (not
+    // once per namespace).
+    let src = r#"
+    mod foo {
+        pub struct N {}
+        pub fn N() {}
+    }
+
+    use foo::N;
+             ^ unused import N
+             ~ unused import
+
+    fn main() {}
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn unused_value_namespace_import_not_cleared_by_type_namespace_use() {
+    // `use foo::N` only imports the value-namespace `fn N`. Constructing the local type-namespace
+    // `struct N` uses that struct, not the import, so the import is still unused and must warn.
+    // TODO(#13008) TODO(#13009): Arguably the `pub fn N` itself is unused, but at the moment
+    // a) `pub` items are not tracked at all and b) the import marks functions as used.
+    let src = r#"
+    mod foo {
+        pub fn N() {}
+    }
+
+    use foo::N;
+             ^ unused import N
+             ~ unused import
+
+    struct N {}
+
+    fn main() {
+        let _ = N {};
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn unused_separate_namespace_imports_warn_independently() {
+    // `use foo::N` and `use bar::N` are two distinct `use` statements that happen to import the
+    // same name into different namespaces (the type-namespace `struct N` and the value-namespace
+    // `fn N`). Each is its own syntactic unit, so using `N` only as a type uses `foo::N`; the
+    // unused `bar::N` must still warn, even though both share the name `N`.
+    let src = r#"
+    mod foo { pub struct N {} }
+    mod bar { pub fn N() {} }
+
+    use foo::N;
+    use bar::N;
+             ^ unused import N
+             ~ unused import
+
+    fn main() {
+        let _: N = N {};
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn unused_type_import_not_masked_by_value_call() {
+    // `use foo::N` imports the type-namespace `struct N`; `use bar::N` imports the value-namespace
+    // `fn N`. Calling `N()` uses only the value import. Resolving the call speculatively probes `N`
+    // as a type (checking for `Type::method` syntax), but that probe is rolled back when it turns
+    // out `N` isn't a trait static method, so it doesn't mark the type import used — the
+    // never-referenced `use foo::N` still warns.
+    let src = r#"
+    mod foo { pub struct N {} }
+    mod bar { pub fn N() {} }
+
+    use foo::N;
+             ^ unused import N
+             ~ unused import
+    use bar::N;
+
+    fn main() {
+        N();
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn trait_static_method_call_marks_trait_import_used() {
+    // A genuine `T::make(..)` trait static method call (with `Self` inferable here from the `let`
+    // type) is resolved *only* by the speculative trait-static-method probe. When the probe
+    // succeeds its usage marks are committed, so the trait import `T` must not be reported unused.
+    let src = r#"
+    mod foo {
+        pub trait T { fn make() -> Self; }
+        pub struct S {}
+        impl T for S { fn make() -> Self { S {} } }
+    }
+
+    use foo::T;
+    use foo::S;
+
+    fn main() {
+        let _: S = T::make();
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn import_used_only_in_signature_not_dropped_by_speculative_probe() {
+    // `Bar` is imported into `mod m` and used *only* in `mk`'s parameter type. Calling `crate::m::mk`
+    // via a multi-segment path from a global initializer (where `mk`'s meta is still unresolved)
+    // routes through the speculative trait-static-method probe. The probe resolves `mk`'s meta —
+    // marking `Bar` used — then fails (mk is not a trait method). Resolving a function's meta is a
+    // committed structural change, so its usage marks must survive the probe's rollback; otherwise
+    // `mk` is never re-resolved and `Bar` is wrongly reported unused.
+    let src = r#"
+    mod other { pub struct Bar {} }
+    mod m {
+        use crate::other::Bar;
+        pub fn mk(_x: Bar) -> u32 { 0 }
+    }
+    global X: u32 = crate::m::mk(crate::other::Bar {});
+    fn main() { let _ = X; }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn inherent_assoc_fn_return_import_used_from_global() {
+    // `Bar` is imported into `mod m` and used only in the return type of the inherent associated
+    // function `Foo::new`, invoked from the global initializer `X`. Resolving `Foo::new` from the
+    // global routes through the speculative trait-static-method probe; its import must not be
+    // dropped by the probe's rollback.
+    let src = r#"
+    mod other {
+        pub struct Bar {}
+        pub fn mk() -> Bar { Bar {} }
+    }
+    mod m {
+        use crate::other::Bar;
+        use crate::other::mk;
+        pub struct Foo {}
+        impl Foo {
+            pub fn new() -> Bar { mk() }
+        }
+    }
+    global X: crate::other::Bar = crate::m::Foo::new();
+    fn main() { let _ = X; }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn same_namespace_imports_with_same_name_clash() {
+    // Contrast with the cross-namespace case above: when two `use`s bring the same name into the
+    // *same* namespace (here both `foo::N` and `bar::N` are type-namespace `struct`s), they are no
+    // longer distinct slots — the second import collides with the first, which is a duplicate-import
+    // error rather than a pair of independently-tracked unused imports.
+    let src = r#"
+    mod foo { pub struct N {} }
+    mod bar { pub struct N {} }
+
+    use foo::N;
+             ~ First definition found here
+    use bar::N;
+             ^ Duplicate definitions of import with name N found
+             ~ Second definition found here
+
+    fn main() {
+        let _: N = N {};
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn repeated_import_of_same_name_does_not_warn_when_used() {
+    // Two identical `use`s are a duplicate-import error, but each is still tracked as its own entry
+    // (keyed by location). Using `N` must clear *every* same-name entry in that namespace, so no
+    // spurious unused-import warning survives alongside the duplicate-definition error.
+    let src = r#"
+    mod foo { pub struct N {} }
+
+    use foo::N;
+             ~ First definition found here
+    use foo::N;
+             ^ Duplicate definitions of import with name N found
+             ~ Second definition found here
+
+    fn main() {
+        let _: N = N {};
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn repeated_unused_import_warns_on_each_use() {
+    // Mirror of the case above when the name is never used: the duplicate-definition error still
+    // fires, and because each `use` is its own location-keyed entry, each unused line warns
+    // independently (two warnings, not one).
+    let src = r#"
+    mod foo { pub struct N {} }
+
+    use foo::N;
+             ^ unused import N
+             ~ unused import
+             ~ First definition found here
+    use foo::N;
+             ^ unused import N
+             ^ Duplicate definitions of import with name N found
+             ~ unused import
+             ~ Second definition found here
+
+    fn main() {}
     "#;
     check_errors(src);
 }

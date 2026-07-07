@@ -13,7 +13,7 @@ use super::Parser;
 use super::parse_many::without_separator;
 
 impl Parser<'_> {
-    /// InnerAttribute = '#![' SecondaryAttribute ']'
+    /// `InnerAttribute` = '#![' `SecondaryAttribute` ']'
     pub(super) fn parse_inner_attribute(&mut self) -> Option<SecondaryAttribute> {
         let start_location = self.current_token_location;
         let is_tag = self.eat_inner_attribute_start()?;
@@ -43,41 +43,41 @@ impl Parser<'_> {
         self.parse_many("attributes", without_separator(), Self::parse_attribute)
     }
 
-    /// Attribute = '#[' (FunctionAttribute | SecondaryAttribute) ']'
+    /// Attribute = '#[' (`FunctionAttribute` | `SecondaryAttribute`) ']'
     ///
-    /// FunctionAttribute
-    ///     = 'builtin' '(' AttributeValue ')'
+    /// `FunctionAttribute`
+    ///     = 'builtin' '(' `AttributeValue` ')'
     ///     | 'fold'
-    ///     | 'foreign' '(' AttributeValue ')'
-    ///     | 'inline_always'
-    ///     | 'inline_never'
-    ///     | 'no_predicates'
-    ///     | 'oracle' '(' AttributeValue ')'
+    ///     | 'foreign' '(' `AttributeValue` ')'
+    ///     | '`inline_always`'
+    ///     | '`inline_never`'
+    ///     | '`no_predicates`'
+    ///     | 'oracle' '(' `AttributeValue` ')'
     ///     | 'recursive'
     ///     | 'test'
-    ///     | 'test' '(' 'should_fail' ')'
-    ///     | 'test' '(' 'should_fail_with' '=' string ')'
+    ///     | 'test' '(' '`should_fail`' ')'
+    ///     | 'test' '(' '`should_fail_with`' '=' string ')'
     ///     | 'fuzz'
-    ///     | 'fuzz' '(' 'only_fail_with' '=' string ')'
-    ///     | 'fuzz' '(' 'should_fail' ')'
-    ///     | 'fuzz' '(' 'should_fail_with' '=' string ')'
+    ///     | 'fuzz' '(' '`only_fail_with`' '=' string ')'
+    ///     | 'fuzz' '(' '`should_fail`' ')'
+    ///     | 'fuzz' '(' '`should_fail_with`' '=' string ')'
     ///
-    /// SecondaryAttribute
-    ///     = 'abi' '(' AttributeValue ')'
-    ///     | 'allow' '(' AttributeValue ')'
+    /// `SecondaryAttribute`
+    ///     = 'abi' '(' `AttributeValue` ')'
+    ///     | 'allow' '(' `AttributeValue` ')'
     ///     | 'deprecated'
     ///     | 'deprecated' '(' string ')'
-    ///     | 'contract_library_method'
+    ///     | '`contract_library_method`'
     ///     | 'export'
-    ///     | 'field' '(' AttributeValue ')'
-    ///     | 'use_callers_scope'
+    ///     | 'field' '(' `AttributeValue` ')'
+    ///     | '`use_callers_scope`'
     ///     | 'varargs'
-    ///     | MetaAttribute
+    ///     | `MetaAttribute`
     ///
-    /// MetaAttribute
+    /// `MetaAttribute`
     ///     = Path Arguments?
     ///
-    /// AttributeValue
+    /// `AttributeValue`
     ///     = Path
     ///     | integer
     pub(crate) fn parse_attribute(&mut self) -> Option<(Attribute, Location)> {
@@ -118,9 +118,9 @@ impl Parser<'_> {
         self.set_lexer_skip_whitespaces_flag(false);
 
         while !self.at_eof() {
-            if self.at(Token::LeftBracket) {
+            if self.at(&Token::LeftBracket) {
                 brackets_count += 1;
-            } else if self.at(Token::RightBracket) {
+            } else if self.at(&Token::RightBracket) {
                 brackets_count -= 1;
                 if brackets_count == 0 {
                     self.bump();
@@ -224,13 +224,13 @@ impl Parser<'_> {
                 let kind = SecondaryAttributeKind::ContractLibraryMethod;
                 let attr = SecondaryAttribute { kind, location };
                 let attr = Attribute::Secondary(attr);
-                self.parse_no_args_attribute(ident, arguments, attr)
+                self.parse_no_args_attribute(ident, &arguments, attr)
             }
             "export" => {
                 let kind = SecondaryAttributeKind::Export;
                 let attr = SecondaryAttribute { kind, location };
                 let attr = Attribute::Secondary(attr);
-                self.parse_no_args_attribute(ident, arguments, attr)
+                self.parse_no_args_attribute(ident, &arguments, attr)
             }
             "field" => self.parse_single_name_attribute(ident, arguments, start_location, |name| {
                 let kind = SecondaryAttributeKind::Field(name);
@@ -241,7 +241,7 @@ impl Parser<'_> {
                 let kind = FunctionAttributeKind::Fold;
                 let attr = FunctionAttribute { kind, location };
                 let attr = Attribute::Function(attr);
-                self.parse_no_args_attribute(ident, arguments, attr)
+                self.parse_no_args_attribute(ident, &arguments, attr)
             }
             "foreign" => {
                 self.parse_single_name_attribute(ident, arguments, start_location, |name| {
@@ -254,19 +254,19 @@ impl Parser<'_> {
                 let kind = FunctionAttributeKind::InlineAlways;
                 let attr = FunctionAttribute { kind, location };
                 let attr = Attribute::Function(attr);
-                self.parse_no_args_attribute(ident, arguments, attr)
+                self.parse_no_args_attribute(ident, &arguments, attr)
             }
             "inline_never" => {
                 let kind = FunctionAttributeKind::InlineNever;
                 let attr = FunctionAttribute { kind, location };
                 let attr = Attribute::Function(attr);
-                self.parse_no_args_attribute(ident, arguments, attr)
+                self.parse_no_args_attribute(ident, &arguments, attr)
             }
             "no_predicates" => {
                 let kind = FunctionAttributeKind::NoPredicates;
                 let attr = FunctionAttribute { kind, location };
                 let attr = Attribute::Function(attr);
-                self.parse_no_args_attribute(ident, arguments, attr)
+                self.parse_no_args_attribute(ident, &arguments, attr)
             }
             "oracle" => {
                 self.parse_single_name_attribute(ident, arguments, start_location, |name| {
@@ -279,19 +279,19 @@ impl Parser<'_> {
                 let kind = SecondaryAttributeKind::Pure;
                 let attr = SecondaryAttribute { kind, location };
                 let attr = Attribute::Secondary(attr);
-                self.parse_no_args_attribute(ident, arguments, attr)
+                self.parse_no_args_attribute(ident, &arguments, attr)
             }
             "use_callers_scope" => {
                 let kind = SecondaryAttributeKind::UseCallersScope;
                 let attr = SecondaryAttribute { kind, location };
                 let attr = Attribute::Secondary(attr);
-                self.parse_no_args_attribute(ident, arguments, attr)
+                self.parse_no_args_attribute(ident, &arguments, attr)
             }
             "varargs" => {
                 let kind = SecondaryAttributeKind::Varargs;
                 let attr = SecondaryAttribute { kind, location };
                 let attr = Attribute::Secondary(attr);
-                self.parse_no_args_attribute(ident, arguments, attr)
+                self.parse_no_args_attribute(ident, &arguments, attr)
             }
             _ => {
                 let kind = SecondaryAttributeKind::Meta(MetaAttribute {
@@ -473,7 +473,7 @@ impl Parser<'_> {
             self.skip_until_right_bracket(false);
             message
         } else {
-            if self.at(Token::RightBracket) {
+            if self.at(&Token::RightBracket) {
                 self.skip_until_right_bracket(false);
             } else {
                 let location = self.location_since(location_after_name);
@@ -533,7 +533,7 @@ impl Parser<'_> {
     fn parse_no_args_attribute(
         &mut self,
         ident: &Ident,
-        arguments: Vec<Expression>,
+        arguments: &[Expression],
         attribute: Attribute,
     ) -> Attribute {
         if !arguments.is_empty() {
@@ -555,9 +555,9 @@ impl Parser<'_> {
         let mut brackets_count = 1; // 1 because of the starting `#[`
 
         while !self.at_eof() {
-            if self.at(Token::LeftBracket) {
+            if self.at(&Token::LeftBracket) {
                 brackets_count += 1;
-            } else if self.at(Token::RightBracket) {
+            } else if self.at(&Token::RightBracket) {
                 brackets_count -= 1;
                 if brackets_count == 0 {
                     self.bump();

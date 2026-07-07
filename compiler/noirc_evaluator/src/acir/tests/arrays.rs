@@ -160,6 +160,67 @@ fn constant_array_access_in_bounds() {
 }
 
 #[test]
+fn constant_reads_on_parameter_array_avoid_memory_blocks() {
+    // A parameter array that is only ever read at constant indices should be resolved
+    // entirely against its `AcirValue::Array`. ACIR generation must not initialize a memory
+    // block for it, nor emit any `READ`/`WRITE` memory operations: each read folds directly to
+    // the corresponding input witness.
+    let src = "
+    acir(inline) fn main f0 {
+      b0(v0: [Field; 3]):
+        v2 = array_get v0, index u32 0 -> Field
+        v4 = array_get v0, index u32 2 -> Field
+        v5 = add v2, v4
+        return v5
+    }
+    ";
+    let program = ssa_to_acir_program(src);
+
+    assert_eq!(program.functions.len(), 1);
+    assert!(
+        !program.functions[0]
+            .opcodes
+            .iter()
+            .any(|opcode| matches!(opcode, Opcode::MemoryInit { .. } | Opcode::MemoryOp { .. })),
+        "constant reads on a parameter array should not generate a memory block, got opcodes:\n{:#?}",
+        program.functions[0].opcodes
+    );
+}
+
+#[test]
+fn predicated_constant_index_set_folds_without_memory_block() {
+    // An `array_set` at a known in-bounds constant index under a predicate can be resolved at
+    // compile time: the stored element becomes `predicate * value + (1 - predicate) * old`, and a
+    // later constant-index read of the result folds to that element. Neither the set nor the read
+    // should require a memory block, so no `INIT`/`READ`/`WRITE` is emitted — the whole thing
+    // collapses to arithmetic on the input witnesses.
+    let src = "
+    acir(inline) fn main f0 {
+      b0(v0: [Field; 3], v1: u1):
+        v3 = array_get v0, index u32 0 -> Field
+        v5 = add v3, Field 1
+        enable_side_effects v1
+        v6 = array_set v0, index u32 0, value v5
+        enable_side_effects u1 1
+        v7 = array_get v6, index u32 0 -> Field
+        return v7
+    }
+    ";
+    let program = ssa_to_acir_program(src);
+
+    // `w0` is the original `v0[0]`, `w3` the predicate. The folded result is `v1 * (v0[0] + 1) +
+    // (1 - v1) * v0[0]` which simplifies to `v0[0] + v1`, returned directly with no memory ops.
+    assert_circuit_snapshot!(program, @r"
+    func 0
+    private parameters: [w0, w1, w2, w3]
+    public parameters: []
+    return values: [w4]
+    BLACKBOX::RANGE input: w3, bits: 1
+    ASSERT w4 = w0 + w3
+    ");
+}
+
+#[test]
 fn generates_memory_op_for_dynamic_read() {
     let src = "
     acir(inline) fn main f0 {
@@ -195,20 +256,20 @@ fn generates_memory_op_for_dynamic_write() {
     let program = ssa_to_acir_program(src);
 
     // All logic after the write is expected as we generate new witnesses for return values
-    assert_circuit_snapshot!(program, @r"
+    assert_circuit_snapshot!(program, @"
     func 0
     private parameters: [w0, w1, w2, w3]
     public parameters: []
     return values: [w4, w5, w6]
-    INIT b1 = [w0, w1, w2]
+    INIT b0 = [w0, w1, w2]
     ASSERT w7 = 10
-    WRITE b1[w3] = w7
+    WRITE b0[w3] = w7
     ASSERT w8 = 0
-    READ w9 = b1[w8]
+    READ w9 = b0[w8]
     ASSERT w10 = 1
-    READ w11 = b1[w10]
+    READ w11 = b0[w10]
     ASSERT w12 = 2
-    READ w13 = b1[w12]
+    READ w13 = b0[w12]
     ASSERT w4 = w9
     ASSERT w5 = w11
     ASSERT w6 = w13
@@ -234,14 +295,14 @@ fn generates_predicated_index_for_dynamic_read() {
     // the read to fall back to a safe in-bounds slot when the predicate is `0`. Since
     // `compute_offset` returns `Some(0)` for `[Field; 3]`, no offset-fallback bias is
     // applied and we read directly at `w5`.
-    assert_circuit_snapshot!(program, @"
+    assert_circuit_snapshot!(program, @r"
     func 0
     private parameters: [w0, w1, w2, w3, w4]
     public parameters: []
     return values: []
-    INIT b0 = [w0, w1, w2]
     BLACKBOX::RANGE input: w3, bits: 32
     BLACKBOX::RANGE input: w4, bits: 1
+    INIT b0 = [w0, w1, w2]
     ASSERT w5 = w3*w4
     READ w6 = b0[w5]
     ASSERT w6 = 10
@@ -272,14 +333,14 @@ fn generates_predicated_index_and_dummy_value_for_dynamic_write() {
     // `-w4*w9` -> (-predicate * dummy)
     // `w9` -> dummy
     // As expected, we then store `w10` at the predicated index `w8`.
-    assert_circuit_snapshot!(program, @"
+    assert_circuit_snapshot!(program, @r"
     func 0
     private parameters: [w0, w1, w2, w3, w4]
     public parameters: []
     return values: [w5, w6, w7]
-    INIT b0 = [w0, w1, w2]
     BLACKBOX::RANGE input: w3, bits: 32
     BLACKBOX::RANGE input: w4, bits: 1
+    INIT b0 = [w0, w1, w2]
     ASSERT w8 = w3*w4
     READ w9 = b0[w8]
     INIT b1 = [w0, w1, w2]
@@ -319,6 +380,58 @@ fn zero_length_array_constant() {
     return values: []
     ASSERT 0 = 1
     ");
+}
+
+#[test]
+fn zero_length_array_dynamic_set() {
+    // An array of zero-width elements (here `[u8; 0]`, the lowering of `str<0>`)
+    // has a flattened size of zero, so each element flattens to zero numeric types.
+    // A dynamic `array_set` must not divide by that empty `value_types` length.
+    let src = "
+    acir(inline) fn main f0 {
+      b0(v0: u32):
+        v1 = make_array b\"\"
+        v2 = make_array [v1, v1, v1, v1] : [[u8; 0]; 4]
+        v3 = array_set v2, index v0, value v1
+        return v3
+    }
+    ";
+    let program = ssa_to_acir_program(src);
+
+    assert_circuit_snapshot!(program, @r"
+    func 0
+    private parameters: [w0]
+    public parameters: []
+    return values: []
+    BLACKBOX::RANGE input: w0, bits: 32
+    ");
+}
+
+#[test]
+fn zero_length_array_is_not_initialized() {
+    // A dynamic operation on an array whose flattened size is zero (`[[u8; 0]; 4]`, whose elements
+    // are zero-width) must not emit a `MemoryInit` for the empty backing block. An empty block has
+    // no slots to read or write, so any such `MemoryInit` describes an orphan block.
+    let src = "
+    acir(inline) fn main f0 {
+      b0(v0: u32):
+        v1 = make_array b\"\"
+        v2 = make_array [v1, v1, v1, v1] : [[u8; 0]; 4]
+        v3 = array_set v2, index v0, value v1
+        return v3
+    }
+    ";
+    let program = ssa_to_acir_program(src);
+
+    assert_eq!(program.functions.len(), 1);
+    assert!(
+        !program.functions[0]
+            .opcodes
+            .iter()
+            .any(|opcode| { matches!(opcode, Opcode::MemoryInit { init, .. } if init.is_empty()) }),
+        "ACIR gen must not initialize a zero-length memory block, got opcodes:\n{:#?}",
+        program.functions[0].opcodes
+    );
 }
 
 #[test]
@@ -376,12 +489,11 @@ fn non_homogenous_array_dynamic_access() {
     // b0 is our actual array input while b1 is our element type sizes array.
     // You can see that in `w44 = b1[w28]` we use the supplied witness index to read the flattened index from b1.
     // `w44` is then used to read from the b0 array.
-    assert_circuit_snapshot!(program, @r"
+    assert_circuit_snapshot!(program, @"
     func 0
     private parameters: [w0, w1, w2, w3, w4, w5, w6, w7, w8, w9, w10, w11, w12, w13, w14, w15, w16, w17, w18, w19, w20, w21, w22, w23, w24, w25, w26, w27, w28]
     public parameters: []
     return values: [w29, w30, w31]
-    INIT b0 = [w0, w1, w2, w3, w4, w5, w6, w7, w8, w9, w10, w11, w12, w13, w14, w15, w16, w17, w18, w19, w20, w21, w22, w23, w24, w25, w26, w27]
     ASSERT w32 = 0
     ASSERT w33 = 1
     ASSERT w34 = 4
@@ -394,13 +506,14 @@ fn non_homogenous_array_dynamic_access() {
     ASSERT w41 = 21
     ASSERT w42 = 22
     ASSERT w43 = 25
-    INIT b1 = [w32, w33, w34, w35, w36, w37, w38, w39, w40, w41, w42, w43]
-    READ w44 = b1[w28]
-    READ w45 = b0[w44]
+    INIT b0 = [w32, w33, w34, w35, w36, w37, w38, w39, w40, w41, w42, w43]
+    READ w44 = b0[w28]
+    INIT b1 = [w0, w1, w2, w3, w4, w5, w6, w7, w8, w9, w10, w11, w12, w13, w14, w15, w16, w17, w18, w19, w20, w21, w22, w23, w24, w25, w26, w27]
+    READ w45 = b1[w44]
     ASSERT w46 = w44 + 1
-    READ w47 = b0[w46]
+    READ w47 = b1[w46]
     ASSERT w48 = w46 + 1
-    READ w49 = b0[w48]
+    READ w49 = b1[w48]
     ASSERT w29 = w45
     ASSERT w30 = w47
     ASSERT w31 = w49
@@ -436,7 +549,7 @@ fn make_dynamic_array_value_types() {
 
     // Now repeat the step that generates the ACIR for the result of an array set.
     let array_id = ValueId::new(5);
-    let array = context.make_array_set_result_value(array_id, BlockId(0), &main.dfg).unwrap();
+    let array = context.make_array_set_result_value(array_id, BlockId::new(0), &main.dfg).unwrap();
     let AcirValue::DynamicArray(AcirDynamicArray { len, value_types, .. }) = array else {
         panic!("expected DynamicArray, got {array:?}");
     };

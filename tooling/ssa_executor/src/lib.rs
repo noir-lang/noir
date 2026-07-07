@@ -20,7 +20,7 @@ pub fn execute_ssa(
     let ssa = Ssa::from_str(&ssa);
     match ssa {
         Ok(ssa) => {
-            validate_ssa(&ssa);
+            validate_ssa(&ssa, true);
 
             let compiled_program = compile_from_ssa(ssa, &compile_options);
             match compiled_program {

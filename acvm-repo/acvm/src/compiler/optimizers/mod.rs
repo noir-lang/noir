@@ -9,13 +9,10 @@ use itertools::Itertools;
 mod common_subexpression;
 mod general;
 mod redundant_range;
-mod unused_memory;
 
 pub(crate) use general::GeneralOptimizer;
 pub(crate) use redundant_range::RangeOptimizer;
 use tracing::info;
-
-use self::unused_memory::UnusedMemoryOptimizer;
 
 use super::{AcirTransformationMap, transform_assert_messages};
 
@@ -49,7 +46,6 @@ pub fn optimize<F: AcirField>(
 /// Accepts an injected `acir_opcode_positions` to allow optimizations to be applied in a loop.
 /// It run the following passes:
 /// - General optimizer
-/// - Unused Memory optimization
 /// - Redundant Ranges optimization
 #[tracing::instrument(level = "trace", name = "optimize_acir" skip(acir, acir_opcode_positions))]
 pub(super) fn optimize_internal<F: AcirField>(
@@ -65,28 +61,25 @@ pub(super) fn optimize_internal<F: AcirField>(
     info!("Number of opcodes before: {}", acir.opcodes.len());
 
     // General optimizer pass: simplify expressions and remove trivially-satisfied constraints.
-    let (opcodes, acir_opcode_positions): (Vec<_>, Vec<_>) = acir
-        .opcodes
-        .into_iter()
-        .zip_eq(acir_opcode_positions)
-        .filter_map(|(opcode, position)| {
-            if let Opcode::AssertZero(arith_expr) = opcode {
-                let optimized = GeneralOptimizer::optimize(arith_expr);
-                if optimized.is_zero() {
-                    return None;
-                }
-                Some((Opcode::AssertZero(optimized), position))
-            } else {
-                Some((opcode, position))
-            }
-        })
-        .unzip();
+    let (opcodes, acir_opcode_positions): (Vec<_>, Vec<_>) =
+        tracing::trace_span!("general_optimizer").in_scope(|| {
+            acir.opcodes
+                .into_iter()
+                .zip_eq(acir_opcode_positions)
+                .filter_map(|(opcode, position)| {
+                    if let Opcode::AssertZero(arith_expr) = opcode {
+                        let optimized = GeneralOptimizer::optimize(arith_expr);
+                        if optimized.is_zero() {
+                            return None;
+                        }
+                        Some((Opcode::AssertZero(optimized), position))
+                    } else {
+                        Some((opcode, position))
+                    }
+                })
+                .unzip()
+        });
     let acir = Circuit { opcodes, ..acir };
-
-    // Unused memory optimization pass
-    let memory_optimizer = UnusedMemoryOptimizer::new(acir);
-    let (acir, acir_opcode_positions) =
-        memory_optimizer.remove_unused_memory_initializations(acir_opcode_positions);
 
     // Range optimization pass
     let range_optimizer = RangeOptimizer::new(acir, brillig_side_effects);
@@ -94,7 +87,7 @@ pub(super) fn optimize_internal<F: AcirField>(
         range_optimizer.replace_redundant_ranges(acir_opcode_positions);
 
     let max_transformer_passes_or_default = None;
-    let (acir, acir_opcode_positions, _opcode_count_stabilized) =
+    let (acir, acir_opcode_positions, opcode_count_stabilized) =
         common_subexpression::transform_internal(
             acir,
             acir_opcode_positions,
@@ -103,6 +96,7 @@ pub(super) fn optimize_internal<F: AcirField>(
         );
 
     info!("Number of opcodes after: {}", acir.opcodes.len());
+    info!("Opcode count stabilized: {}", opcode_count_stabilized);
 
     (acir, acir_opcode_positions)
 }

@@ -85,7 +85,7 @@ impl BrilligGlobalsInit {
     /// * which globals are used by an entry point and its callees,
     /// * how many times each constant is used by an entry point and its callees.
     ///
-    /// The population of allocation related information is deferred to [Self::declare_globals].
+    /// The population of allocation related information is deferred to [`Self::declare_globals`].
     pub(crate) fn new(ssa: &Ssa, main_id: FunctionId) -> Self {
         let mut used_globals = ssa.used_globals_in_functions();
         let call_graph = CallGraph::from_ssa(ssa);
@@ -237,10 +237,6 @@ impl BrilligGlobals {
         BrilligGlobalsInit::new(ssa, main_id)
     }
 
-    /// Check whether a function is a Brillig entry point.
-    pub(crate) fn is_entry_point(&self, func_id: &FunctionId) -> bool {
-        self.call_map.entry_point_to_inner_calls.contains_key(func_id)
-    }
     /// Fetch the global allocations that can possibly be accessed
     /// by any given Brillig function (non-entry point or entry point).
     ///

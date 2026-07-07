@@ -35,7 +35,7 @@ pub type ParsedFiles = HashMap<FileId, (ParsedModule, Vec<ParserError>)>;
 
 /// Helper object which groups together several useful context objects used
 /// during name resolution. Once name resolution is finished, only the
-/// def_interner is required for type inference and monomorphization.
+/// `def_interner` is required for type inference and monomorphization.
 pub struct Context<'file_manager, 'parsed_files> {
     pub def_interner: NodeInterner,
     pub crate_graph: CrateGraph,
@@ -48,7 +48,7 @@ pub struct Context<'file_manager, 'parsed_files> {
 
     pub debug_instrumenter: DebugInstrumenter,
 
-    /// The CrateId of the `__debug` crate, if it has been linked.
+    /// The `CrateId` of the `__debug` crate, if it has been linked.
     /// Used to identify debug functions during monomorphization.
     pub debug_crate_id: Option<CrateId>,
 
@@ -62,6 +62,11 @@ pub struct Context<'file_manager, 'parsed_files> {
     pub parsed_files: Cow<'parsed_files, ParsedFiles>,
 
     pub package_build_path: PathBuf,
+
+    /// Instrument the compiled Brillig to count array/vector copies per source location.
+    /// Set only by `nargo execute --count-array-copies`, which compiles in memory so the
+    /// instrumented artifact is never persisted.
+    pub count_array_copies: bool,
 
     /// Writer for comptime prints.
     pub interpreter_output: Option<Rc<RefCell<dyn std::io::Write>>>,
@@ -104,6 +109,7 @@ impl Context<'_, '_> {
             debug_crate_id: None,
             parsed_files: Cow::Owned(parsed_files),
             package_build_path: PathBuf::default(),
+            count_array_copies: false,
             interpreter_output: Some(Rc::new(RefCell::new(std::io::stdout()))),
             required_unstable_features: BTreeMap::new(),
             unresolved_globals: BTreeMap::new(),
@@ -126,6 +132,7 @@ impl Context<'_, '_> {
             debug_crate_id: None,
             parsed_files: Cow::Borrowed(parsed_files),
             package_build_path: PathBuf::default(),
+            count_array_copies: false,
             interpreter_output: Some(Rc::new(RefCell::new(std::io::stdout()))),
             required_unstable_features: BTreeMap::new(),
             unresolved_globals: BTreeMap::new(),
@@ -153,6 +160,7 @@ impl Context<'_, '_> {
             debug_crate_id: None,
             parsed_files: Cow::Borrowed(parsed_files),
             package_build_path: PathBuf::default(),
+            count_array_copies: false,
             interpreter_output: Some(Rc::new(RefCell::new(std::io::stdout()))),
             required_unstable_features: BTreeMap::new(),
             unresolved_globals: BTreeMap::new(),
@@ -164,9 +172,9 @@ impl Context<'_, '_> {
         self.parsed_files.get(&file_id).expect("noir file wasn't parsed").clone()
     }
 
-    /// Returns the CrateDefMap for a given CrateId.
+    /// Returns the `CrateDefMap` for a given `CrateId`.
     /// It is perfectly valid for the compiler to look
-    /// up a CrateDefMap and it is not available.
+    /// up a `CrateDefMap` and it is not available.
     /// This is how the compiler knows to compile a Crate.
     pub fn def_map(&self, crate_id: &CrateId) -> Option<&CrateDefMap> {
         self.def_maps.get(crate_id)
@@ -176,7 +184,7 @@ impl Context<'_, '_> {
         self.def_maps.get_mut(crate_id)
     }
 
-    /// Return the CrateId for each crate that has been compiled
+    /// Return the `CrateId` for each crate that has been compiled
     /// successfully
     pub fn crates(&self) -> impl Iterator<Item = CrateId> + '_ {
         self.crate_graph.iter_keys()
@@ -199,7 +207,7 @@ impl Context<'_, '_> {
         fully_qualified_function_name(*crate_id, *id, &self.def_interner, &self.def_maps)
     }
 
-    /// Returns a fully-qualified path to the given [TypeId] from the given [CrateId]. This function also
+    /// Returns a fully-qualified path to the given [`TypeId`] from the given [`CrateId`]. This function also
     /// account for the crate names of dependencies.
     ///
     /// For example, if you project contains a `main.nr` and `foo.nr` and you provide the `main_crate_id` and the
@@ -212,8 +220,8 @@ impl Context<'_, '_> {
         self.def_interner.function_meta(func_id)
     }
 
-    /// Returns the FuncId of the 'main' function in a crate.
-    /// - Expects check_crate to be called beforehand
+    /// Returns the `FuncId` of the 'main' function in a crate.
+    /// - Expects `check_crate` to be called beforehand
     /// - Panics if no main function is found
     pub fn get_main_function(&self, crate_id: &CrateId) -> Option<FuncId> {
         // Find the local crate, one should always be present

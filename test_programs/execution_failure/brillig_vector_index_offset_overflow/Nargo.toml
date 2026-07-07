@@ -1,0 +1,6 @@
+[package]
+name = "brillig_vector_index_offset_overflow"
+type = "bin"
+authors = [""]
+
+[dependencies]

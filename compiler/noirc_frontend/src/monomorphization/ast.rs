@@ -381,7 +381,7 @@ pub struct Index {
 }
 
 /// Rather than a Pattern containing possibly several variables, Let now
-/// defines a single variable with the given LocalId. By the time this
+/// defines a single variable with the given `LocalId`. By the time this
 /// is produced in monomorphization, let-statements with tuple and struct patterns:
 /// ```nr
 /// let MyStruct { field1, field2 } = get_struct();
@@ -431,7 +431,7 @@ pub enum LValue {
         reference: Box<LValue>,
         element_type: Type,
     },
-    /// Analogous to Expression::Clone. Clone the resulting lvalue after evaluating it.
+    /// Analogous to `Expression::Clone`. Clone the resulting lvalue after evaluating it.
     Clone(Box<LValue>),
 }
 
@@ -544,10 +544,10 @@ pub struct Function {
     pub is_entry_point: bool,
 }
 
-/// Compared to hir_def::types::Type, this monomorphized Type has:
+/// Compared to `hir_def::types::Type`, this monomorphized Type has:
 /// - All type variables and generics removed
 /// - Concrete lengths for each array and string
-/// - Several other variants removed (such as Type::Constant)
+/// - Several other variants removed (such as `Type::Constant`)
 /// - All structs replaced with tuples
 #[derive(Debug, PartialEq, Eq, Clone, Hash, PartialOrd, Ord)]
 pub enum Type {
@@ -569,6 +569,18 @@ pub enum Type {
         /*unconstrained:*/ bool,
     ),
 }
+
+/// Maximum number of flattened field elements allowed at an entry point boundary,
+/// i.e. for a parameter or a return value.
+///
+/// This limit prevents hangs or out-of-memory issues when dealing with very large arrays:
+/// flattened sizes approaching `u32::MAX` cannot be represented, since Brillig arrays are
+/// heap-allocated using `u32` addressing and ACIR/data-bus construction reserves one witness
+/// per flattened element.
+///
+/// 2^24 = 16,777,216 witnesses. In practice the number of witnesses is limited by the CRS size,
+/// which is usually around 2^20, so this limit should not interfere with real use cases.
+pub const MAX_ELEMENTS: usize = 1 << 24;
 
 impl Type {
     pub fn flatten(&self) -> Vec<Type> {

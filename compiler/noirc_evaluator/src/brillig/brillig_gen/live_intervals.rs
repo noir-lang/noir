@@ -2,7 +2,7 @@
 //! Liveness intervals for Brillig code generation.
 //!
 //! This module provides a global per-value interval representation complementing
-//! the per-block set-based view in [VariableLiveness]. Each SSA value is assigned
+//! the per-block set-based view in [`VariableLiveness`]. Each SSA value is assigned
 //! a conservative `[def, last_use]` range over a total program-point ordering.
 //!
 //! Single-interval representation: we use one contiguous interval per value, which
@@ -25,7 +25,7 @@
 //! Rather than re-deriving loop liveness via Wimmer's loop-header clause, we follow
 //! the practical adaptation described at <https://bernsteinbear.com/blog/linear-scan/>
 //! and reuse the pre-existing loop-aware liveness sets already computed by
-//! [VariableLiveness]. This simplifies the implementation while preserving the
+//! [`VariableLiveness`]. This simplifies the implementation while preserving the
 //! same interval semantics.
 //!
 //! Long-term, these intervals are intended to feed a full linear-scan register
@@ -80,8 +80,8 @@ impl LiveInterval {
 
 /// Global liveness intervals for all values in a function.
 ///
-/// Built from [VariableLiveness] (which provides loop-aware `live_in`/`live_out`)
-/// and [ConstantAllocation] (which provides constant allocation points).
+/// Built from [`VariableLiveness`] (which provides loop-aware `live_in`/`live_out`)
+/// and [`ConstantAllocation`] (which provides constant allocation points).
 #[derive(Default)]
 pub(crate) struct LiveIntervals {
     /// Map from block to the program point at its entry.
@@ -100,7 +100,7 @@ pub(crate) struct LiveIntervals {
 impl LiveIntervals {
     /// Build liveness intervals for a function.
     ///
-    /// See the module-level docs for algorithm references and [Self::build_intervals]
+    /// See the module-level docs for algorithm references and [`Self::build_intervals`]
     /// for the annotated pseudocode mapping.
     pub(crate) fn from_function(
         func: &Function,
@@ -195,14 +195,14 @@ impl LiveIntervals {
     ///
     /// Key differences from the paper:
     /// - `live_out` vs `union of successor.liveIn`: These are equivalent —
-    ///   [VariableLiveness::get_live_out()] is literally `∪ live_in(s) for each successor s`.
+    ///   [`VariableLiveness::get_live_out()`] is literally `∪ live_in(s) for each successor s`.
     /// - Phi inputs -> terminator operands: Wimmer adds phi inputs explicitly;
     ///   we add all terminator operands (jmp args are the phi inputs in Noir's
     ///   block-parameter SSA form).
-    /// - Loop header clause skipped: [VariableLiveness] already handles loop
+    /// - Loop header clause skipped: [`VariableLiveness`] already handles loop
     ///   liveness propagation, so `live_out` includes loop-carried values.
     /// - `b.liveIn` not stored: Wimmer builds liveIn bottom-up; we already
-    ///   have it from [VariableLiveness].
+    ///   have it from [`VariableLiveness`].
     fn build_intervals(
         &mut self,
         func: &Function,
@@ -402,7 +402,7 @@ mod tests {
         std::array::from_fn(|i| BasicBlockId::new(i as u32))
     }
 
-    /// Build LiveIntervals from SSA source string.
+    /// Build `LiveIntervals` from SSA source string.
     pub(super) fn build_intervals(src: &str) -> (LiveIntervals, Ssa) {
         let ssa = Ssa::from_str(src).unwrap();
         let func = ssa.main();
@@ -500,7 +500,7 @@ mod tests {
         let rpo = PostOrder::with_function(func).into_vec_reverse();
 
         let [b0, b1, b2, b3] = block_ids();
-        assert_eq!(rpo, vec![b0, b2, b1, b3]);
+        assert_eq!(rpo, vec![b0, b1, b2, b3]);
 
         let v0 = func.dfg[b0].parameters()[0];
         let v1 = func.dfg[b0].parameters()[1];
@@ -530,7 +530,8 @@ mod tests {
         assert_eq!(iv0.last_use, b0_term, "v0 last_use");
         assert_eq!(iv1.def, b0_entry, "v1 def");
         // v1 is used in both branches; RPO ordering determines which point is later.
-        assert_eq!(iv1.last_use, b1_inst_pt, "v1 last_use");
+        // RPO is [b0, b1, b2, b3], so b2 comes after b1 -> inst(b2) > inst(b1).
+        assert_eq!(iv1.last_use, b2_inst_pt, "v1 last_use");
         assert_eq!(iv2.def, b1_inst_pt, "v2 def");
         assert_eq!(iv2.last_use, b1_term, "v2 last_use");
         assert_eq!(iv3.def, b2_inst_pt, "v3 def");
@@ -566,7 +567,7 @@ mod tests {
         let rpo = PostOrder::with_function(func).into_vec_reverse();
 
         let [b0, b1, b2, b3] = block_ids();
-        assert_eq!(rpo, vec![b0, b1, b3, b2]);
+        assert_eq!(rpo, vec![b0, b1, b2, b3]);
 
         let v0 = func.dfg[b0].parameters()[0];
         let v1 = func.dfg[b1].parameters()[0];
@@ -581,6 +582,7 @@ mod tests {
         let b1_term = intervals.terminator_point(b1).unwrap();
         let b2_inst_pt = intervals.instruction_point(b2_inst).unwrap();
         let b2_term = intervals.terminator_point(b2).unwrap();
+        let b3_term = intervals.terminator_point(b3).unwrap();
 
         let iv0 = intervals.get(v0).expect("v0 should have an interval");
         let iv1 = intervals.get(v1).expect("v1 should have an interval");
@@ -594,8 +596,8 @@ mod tests {
 
         assert_eq!(iv1.def, b0_entry, "v1 def (idom adjusted to b0)");
         // v1 (loop header param) is live through b2 (back-edge) and b3 (return).
-        // RPO is [b0, b1, b3, b2], so b2 comes after b3 -> term(b2) > term(b3).
-        assert_eq!(iv1.last_use, b2_term, "v1 last_use");
+        // RPO is [b0, b1, b2, b3], so b3 comes after b2 -> term(b3) > term(b2).
+        assert_eq!(iv1.last_use, b3_term, "v1 last_use");
 
         assert_eq!(iv2.def, b1_inst_pt, "v2 def");
         assert_eq!(iv2.last_use, b1_term, "v2 last_use");
@@ -638,7 +640,7 @@ mod tests {
         let rpo = PostOrder::with_function(func).into_vec_reverse();
 
         let [b0, b1, b2, b3, b4, b5, b6] = block_ids();
-        assert_eq!(rpo, vec![b0, b1, b5, b2, b3, b6, b4]);
+        assert_eq!(rpo, vec![b0, b1, b2, b3, b4, b6, b5]);
 
         let v0 = func.dfg[b0].parameters()[0]; // outer bound
         let v1 = func.dfg[b0].parameters()[1]; // inner bound
@@ -664,6 +666,7 @@ mod tests {
         let b4_term = intervals.terminator_point(b4).unwrap();
         let b6_inst_pt = intervals.instruction_point(b6_inst).unwrap();
         let b6_term = intervals.terminator_point(b6).unwrap();
+        let b5_term = intervals.terminator_point(b5).unwrap();
 
         let iv0 = intervals.get(v0).expect("v0 should have an interval");
         let iv1 = intervals.get(v1).expect("v1 should have an interval");
@@ -677,16 +680,19 @@ mod tests {
         // Exact interval assertions.
         assert_eq!(iv0.def, b0_entry, "v0 def");
         // v0 is live throughout both loops.
-        // RPO is [b0, b1, b5, b2, b3, b6, b4], so b4 comes after b6 -> term(b4) > term(b6).
-        assert_eq!(iv0.last_use, b4_term, "v0 last_use");
+        // RPO is [b0, b1, b2, b3, b4, b6, b5], so b6 comes after b4 -> term(b6) > term(b4).
+        // v0 is the outer bound, used only in b1, so its last use is the outer back-edge in b6
+        // rather than the loop exit b5 (which does not use v0).
+        assert_eq!(iv0.last_use, b6_term, "v0 last_use");
 
         assert_eq!(iv1.def, b0_entry, "v1 def");
-        assert_eq!(iv1.last_use, b4_term, "v1 last_use");
+        assert_eq!(iv1.last_use, b6_term, "v1 last_use");
 
         assert_eq!(iv2.def, b0_entry, "v2 def (idom adjusted to b0)");
-        // v2 (outer loop header param) is live through b4 (inner loop) and
-        // b6 (outer back-edge).
-        assert_eq!(iv2.last_use, b4_term, "v2 last_use");
+        // v2 (outer loop header param) is live through b4 (inner loop) and b6 (outer back-edge),
+        // and is also returned in the loop exit b5. Since b5 is ordered last, its `return v2` is
+        // v2's last use.
+        assert_eq!(iv2.last_use, b5_term, "v2 last_use");
 
         assert_eq!(iv3.def, b1_inst_pt, "v3 def");
         assert_eq!(iv3.last_use, b1_term, "v3 last_use");
@@ -744,7 +750,7 @@ mod tests {
         let rpo = PostOrder::with_function(func).into_vec_reverse();
 
         let [b0, b1, b2, b3] = block_ids();
-        assert_eq!(rpo, vec![b0, b2, b1, b3]);
+        assert_eq!(rpo, vec![b0, b1, b2, b3]);
 
         let v1 = func.dfg[b3].parameters()[0];
         let v2 = func.dfg[b3].parameters()[1];
@@ -784,7 +790,7 @@ mod tests {
         let rpo = PostOrder::with_function(func).into_vec_reverse();
 
         let [b0, b1, b2, b3] = block_ids();
-        assert_eq!(rpo, vec![b0, b2, b1, b3]);
+        assert_eq!(rpo, vec![b0, b1, b2, b3]);
 
         let b0_entry = intervals.block_entry_point(b0).unwrap();
 
@@ -804,12 +810,12 @@ mod tests {
         let iv = intervals.get(constant_id).expect("constant should have an interval");
         assert_eq!(iv.def, b0_entry, "Field 42 def should be at b0 entry (common dominator)");
 
-        // RPO is [b0, b2, b1, b3], so b1 comes after b2.
-        // Field 42's last_use should be at b1's instruction (the later use in RPO).
-        let b1_inst_pt = intervals.instruction_point(inst_id(func, b1, 0)).unwrap();
+        // RPO is [b0, b1, b2, b3], so b2 comes after b1.
+        // Field 42's last_use should be at b2's instruction (the later use in RPO).
+        let b2_inst_pt = intervals.instruction_point(inst_id(func, b2, 0)).unwrap();
         assert_eq!(
-            iv.last_use, b1_inst_pt,
-            "Field 42 last_use should be at b1's instruction (later in RPO)"
+            iv.last_use, b2_inst_pt,
+            "Field 42 last_use should be at b2's instruction (later in RPO)"
         );
     }
 
@@ -835,7 +841,7 @@ mod tests {
         let rpo = PostOrder::with_function(func).into_vec_reverse();
 
         let [b0, b1, b2, b3] = block_ids();
-        assert_eq!(rpo, vec![b0, b1, b3, b2]);
+        assert_eq!(rpo, vec![b0, b1, b2, b3]);
 
         let b0_entry = intervals.block_entry_point(b0).unwrap();
 

@@ -36,6 +36,9 @@ impl Ssa {
     pub(crate) fn mem2reg(mut self) -> Ssa {
         for function in self.functions.values_mut() {
             function.mem2reg();
+
+            #[cfg(debug_assertions)]
+            mem2reg_post_check(function);
         }
         self
     }
@@ -46,10 +49,23 @@ impl Ssa {
         for function in self.functions.values_mut() {
             if function.runtime().is_brillig() {
                 function.mem2reg();
+
+                #[cfg(debug_assertions)]
+                mem2reg_post_check(function);
             }
         }
         self
     }
+}
+
+/// Post-check condition for [`Function::mem2reg`].
+///
+/// Panics if promoting memory to block parameters left any `Jmp`/`JmpIf` terminator
+/// passing a different number of arguments (or differently typed arguments) than its
+/// destination block declares as parameters.
+#[cfg(debug_assertions)]
+fn mem2reg_post_check(function: &Function) {
+    crate::ssa::validation::validate_terminators(function);
 }
 
 impl Function {
@@ -208,18 +224,18 @@ fn compute_visible_vars(
     blocks: &[BasicBlockId],
     variables: &BTreeMap<ValueId, BasicBlockId>,
     dom_tree: &DominatorTree,
-) -> HashMap<BasicBlockId, BTreeMap<ValueId, BasicBlockId>> {
+) -> HashMap<BasicBlockId, im::OrdMap<ValueId, BasicBlockId>> {
     // Group variables by their declaration block
     let mut vars_by_decl_block: HashMap<BasicBlockId, Vec<ValueId>> = HashMap::default();
     for (var, decl_block) in variables {
         vars_by_decl_block.entry(*decl_block).or_default().push(*var);
     }
 
-    let mut visible: HashMap<BasicBlockId, BTreeMap<ValueId, BasicBlockId>> = HashMap::default();
+    let mut visible: HashMap<BasicBlockId, im::OrdMap<ValueId, BasicBlockId>> = HashMap::default();
     for &block in blocks {
         let mut vars = match dom_tree.immediate_dominator(block) {
             Some(idom) => visible[&idom].clone(),
-            None => BTreeMap::new(),
+            None => im::OrdMap::new(),
         };
         if let Some(declared_here) = vars_by_decl_block.get(&block) {
             for var in declared_here {
@@ -233,11 +249,11 @@ fn compute_visible_vars(
 
 /// Find the starting & ending states of each variable in each block.
 ///
-/// Block parameters are only added at blocks in the variable's IDF (param_locations).
+/// Block parameters are only added at blocks in the variable's IDF (`param_locations`).
 /// For all other blocks, the entry value is inherited from the predecessor's exit state.
 fn add_block_params_and_find_exit_states(
     blocks: &[BasicBlockId],
-    visible_vars: &HashMap<BasicBlockId, BTreeMap<ValueId, BasicBlockId>>,
+    visible_vars: &HashMap<BasicBlockId, im::OrdMap<ValueId, BasicBlockId>>,
     param_locations: &ParamLocations,
     inserter: &mut FunctionInserter,
     block_states: &mut BlockStates,
@@ -267,7 +283,7 @@ fn add_block_params_and_find_exit_states(
 /// - If this block is in the variable's IDF: add a fresh block parameter
 /// - Otherwise: inherit the value from a visited predecessor's exit state
 fn compute_entry_state(
-    visible_vars: &BTreeMap<ValueId, BasicBlockId>,
+    visible_vars: &im::OrdMap<ValueId, BasicBlockId>,
     param_locations: &ParamLocations,
     block: BasicBlockId,
     dfg: &mut DataFlowGraph,
@@ -375,7 +391,7 @@ impl BlockState {
 ///
 /// A `JmpIf` may have both `then_destination` and `else_destination` pointing at the
 /// same successor, in which case `f` is called once per matching edge so the caller
-/// can wire each one. Panics if the given block does not terminate in a Jmp or JmpIf.
+/// can wire each one. Panics if the given block does not terminate in a Jmp or `JmpIf`.
 fn for_each_terminator_edge_mut(
     dfg: &mut DataFlowGraph,
     block: BasicBlockId,
@@ -399,7 +415,7 @@ fn for_each_terminator_edge_mut(
             }
         }
         TerminatorInstruction::Return { .. } | TerminatorInstruction::Unreachable { .. } => panic!(
-            "for_each_terminator_edge_mut called on block edge {block} -> {jmp_target} but {block} does not have any arguments"
+            "for_each_terminator_edge_mut called on edge: {block} -> {jmp_target}, but {block} terminates with Return or Unreachable, and has no outgoing edge"
         ),
     }
 }
@@ -462,8 +478,12 @@ fn collect_eligible_variables_and_def_sites(
     // Whether there's any allocate that can't be optimized out
     let mut has_ineligible_variables = false;
 
-    // Workaround for https://github.com/noir-lang/noir/issues/11482
+    // Workaround for https://github.com/noir-lang/noir/issues/11482:
     // If the declaration block of an allocate has no starting store then it isn't eligible for mem2reg.
+    // This is because the current implementation expects a value for forwarding the loads.
+    // A use before initialization (load before store) is an invalid program, but still,
+    // a valid program may have an allocate without a store in the same allocate block.
+    // This case is currently skipped and would panic if not.
     let mut variables_with_stores_in_decl_block = HashSet::default();
 
     for block_id in blocks.iter().copied() {
@@ -1103,122 +1123,122 @@ brillig(inline) fn main f0 {
             v28 = lt v4, u32 5
             jmpif v28 then: b2(), else: b3()
           b2():
-            v98 = mul v5, v5
-            v99 = array_get v1, index v4 -> u32
-            v100 = mul v98, v99
-            v101 = sub v5, v100
-            v102 = unchecked_add v4, u32 1
-            jmp b1(v102, v101, v100)
+            v29 = mul v5, v5
+            v30 = array_get v1, index v4 -> u32
+            v31 = mul v29, v30
+            v32 = sub v5, v31
+            v34 = unchecked_add v4, u32 1
+            jmp b1(v34, v32, v31)
           b3():
-            v29 = eq v5, u32 0
+            v35 = eq v5, u32 0
             constrain v5 == u32 0
             jmp b4(u32 0, v5, u32 2301)
           b4(v7: u32, v8: u32, v9: u32):
-            v30 = lt v7, u32 5
-            jmpif v30 then: b5(), else: b6()
+            v36 = lt v7, u32 5
+            jmpif v36 then: b5(), else: b6()
           b5():
-            v92 = add v3, u32 2
-            v93 = array_get v0, index v7 -> u32
-            v94 = array_get v0, index v7 -> u32
-            v95 = array_get v1, index v7 -> u32
-            v96 = mul v94, v95
-            v97 = unchecked_add v7, u32 1
-            jmp b4(v97, u32 1, u32 0)
+            v38 = add v3, u32 2
+            v39 = array_get v0, index v7 -> u32
+            v40 = array_get v0, index v7 -> u32
+            v41 = array_get v1, index v7 -> u32
+            v42 = mul v40, v41
+            v43 = unchecked_add v7, u32 1
+            jmp b4(v43, u32 1, u32 0)
           b6():
-            v32 = eq v8, u32 3814912846
+            v45 = eq v8, u32 3814912846
             constrain v8 == u32 3814912846
-            v33 = array_get v1, index u32 4 -> u32
-            jmp b7(u32 0, v33, u32 2300001)
+            v46 = array_get v1, index u32 4 -> u32
+            jmp b7(u32 0, v46, u32 2300001)
           b7(v10: u32, v11: u32, v12: u32):
-            v35 = lt v10, u32 5
-            jmpif v35 then: b8(), else: b9()
+            v48 = lt v10, u32 5
+            jmpif v48 then: b8(), else: b9()
           b8():
-            v85 = array_get v0, index v10 -> u32
-            v86 = array_get v1, index v10 -> u32
-            v87 = mul v85, v86
-            v88 = add v11, v87
-            jmp b10(u32 0, v88, v12)
+            v49 = array_get v0, index v10 -> u32
+            v50 = array_get v1, index v10 -> u32
+            v51 = mul v49, v50
+            v52 = add v11, v51
+            jmp b10(u32 0, v52, v12)
           b9():
-            v37 = eq v11, u32 41472
+            v58 = eq v11, u32 41472
             constrain v11 == u32 41472
-            v38 = array_get v1, index u32 4 -> u32
-            jmp b13(u32 0, v38)
+            v59 = array_get v1, index u32 4 -> u32
+            jmp b13(u32 0, v59)
           b10(v13: u32, v14: u32, v15: u32):
-            v89 = lt v13, u32 3
-            jmpif v89 then: b11(), else: b12()
+            v54 = lt v13, u32 3
+            jmpif v54 then: b11(), else: b12()
           b11():
-            v91 = unchecked_add v13, u32 1
-            jmp b10(v91, u32 4, u32 3)
+            v55 = unchecked_add v13, u32 1
+            jmp b10(v55, u32 4, u32 3)
           b12():
-            v90 = unchecked_add v10, u32 1
-            jmp b7(v90, v14, v15)
+            v56 = unchecked_add v10, u32 1
+            jmp b7(v56, v14, v15)
           b13(v16: u32, v17: u32):
-            v40 = lt v16, u32 3
-            jmpif v40 then: b14(), else: b15()
+            v60 = lt v16, u32 3
+            jmpif v60 then: b14(), else: b15()
           b14():
-            v72 = array_get v0, index v16 -> u32
-            v73 = array_get v1, index v16 -> u32
-            v74 = mul v72, v73
-            v75 = add v17, v74
-            jmp b16(u32 0, v75)
+            v61 = array_get v0, index v16 -> u32
+            v62 = array_get v1, index v16 -> u32
+            v63 = mul v61, v62
+            v64 = add v17, v63
+            jmp b16(u32 0, v64)
           b15():
-            v42 = eq v17, u32 11539
+            v75 = eq v17, u32 11539
             constrain v17 == u32 11539
-            v43 = eq v17, u32 0
-            jmpif v43 then: b19(), else: b20()
+            v76 = eq v17, u32 0
+            jmpif v76 then: b19(), else: b20()
           b16(v18: u32, v19: u32):
-            v76 = lt v18, u32 2
-            jmpif v76 then: b17(), else: b18()
+            v65 = lt v18, u32 2
+            jmpif v65 then: b17(), else: b18()
           b17():
-            v78 = add v16, v18
-            v79 = array_get v0, index v78 -> u32
-            v80 = add v16, v18
-            v81 = array_get v1, index v80 -> u32
-            v82 = sub v79, v81
-            v83 = add v19, v82
-            v84 = unchecked_add v18, u32 1
-            jmp b16(v84, v83)
+            v66 = add v16, v18
+            v67 = array_get v0, index v66 -> u32
+            v68 = add v16, v18
+            v69 = array_get v1, index v68 -> u32
+            v70 = sub v67, v69
+            v71 = add v19, v70
+            v72 = unchecked_add v18, u32 1
+            jmp b16(v72, v71)
           b18():
-            v77 = unchecked_add v16, u32 1
-            jmp b13(v77, v19)
+            v73 = unchecked_add v16, u32 1
+            jmp b13(v73, v19)
           b19():
             jmp b21(v0)
           b20():
             jmp b21(v1)
           b21(v20: [u32; 5]):
-            v44 = array_get v20, index u32 0 -> u32
-            v45 = array_get v1, index u32 0 -> u32
-            v46 = eq v44, v45
-            constrain v44 == v45
+            v77 = array_get v20, index u32 0 -> u32
+            v78 = array_get v1, index u32 0 -> u32
+            v79 = eq v77, v78
+            constrain v77 == v78
             jmp b22(u32 0)
           b22(v21: u32):
-            v47 = lt v21, u32 5
-            jmpif v47 then: b23(), else: b24()
+            v80 = lt v21, u32 5
+            jmpif v80 then: b23(), else: b24()
           b23():
-            v63 = array_get v1, index v21 -> u32
+            v81 = array_get v1, index v21 -> u32
             jmp b25(u32 0)
           b24():
-            v54 = make_array [Field 1, Field 2, Field 3, Field 4, Field 5, Field 6] : [(Field, Field); 3]
-            v57 = array_set v54, index u32 2, value Field 7
-            v59 = array_set v57, index u32 3, value Field 8
-            v60 = array_get v59, index u32 2 -> Field
-            v61 = array_get v59, index u32 3 -> Field
-            v62 = eq v61, Field 8
-            constrain v61 == Field 8
+            v95 = make_array [Field 1, Field 2, Field 3, Field 4, Field 5, Field 6] : [(Field, Field); 3]
+            v97 = array_set v95, index u32 2, value Field 7
+            v99 = array_set v97, index u32 3, value Field 8
+            v100 = array_get v99, index u32 2 -> Field
+            v101 = array_get v99, index u32 3 -> Field
+            v102 = eq v101, Field 8
+            constrain v101 == Field 8
             return
           b25(v22: u32):
-            v64 = lt v22, u32 5
-            jmpif v64 then: b26(), else: b27()
+            v82 = lt v22, u32 5
+            jmpif v82 then: b26(), else: b27()
           b26():
-            v67 = array_get v0, index v22 -> u32
-            v68 = eq v67, v63
-            v69 = not v68
-            constrain v68 == u1 0
-            v71 = unchecked_add v22, u32 1
-            jmp b25(v71)
+            v83 = array_get v0, index v22 -> u32
+            v84 = eq v83, v81
+            v85 = not v84
+            constrain v84 == u1 0
+            v87 = unchecked_add v22, u32 1
+            jmp b25(v87)
           b27():
-            v66 = unchecked_add v21, u32 1
-            jmp b22(v66)
+            v88 = unchecked_add v21, u32 1
+            jmp b22(v88)
         }
         ");
     }
@@ -1535,5 +1555,193 @@ brillig(inline) fn main f0 {
             unreachable
         }
         ");
+    }
+
+    #[test]
+    fn regression_11482() {
+        // An allocate with no stores (an orphan, as earlier passes can leave behind) must be
+        // left untouched and not promoted: there is no stored value to forward, and treating it
+        // as eligible would break the "every eligible variable has a def site" invariant.
+        let src = "
+        brillig(inline) fn foo f0 {
+          b0():
+            v0 = allocate -> &mut u1
+            return
+        }
+        ";
+        assert_ssa_does_not_change(src, Ssa::mem2reg);
+    }
+
+    /// Passing a tracked reference as a block terminator argument is a first-class use of
+    /// the address: the successor block receives the reference as a parameter and may mutate
+    /// it, so the reference and its surrounding load/store cannot be optimized away. This
+    /// exercises the terminator scan in `collect_eligible_variables_and_def_sites`, distinct
+    /// from instruction-operand uses like `call` or `make_array`.
+    #[test]
+    fn reference_passed_as_terminator_argument_prevents_optimization() {
+        let src = "
+        brillig(inline) fn func f0 {
+          b0():
+            v0 = allocate -> &mut Field
+            store Field 1 at v0
+            jmp b1(v0)
+          b1(v1: &mut Field):
+            v3 = load v1 -> Field
+            return v3
+        }
+        ";
+        assert_ssa_does_not_change(src, Ssa::mem2reg);
+    }
+
+    /// mem2reg runs on ACIR functions too, not just Brillig. This exercises the full
+    /// load/store removal and block-parameter insertion path on an `acir` function with a
+    /// control-flow merge (the IDF of {b0, b1} is {b3}).
+    #[test]
+    fn acir_function_is_optimized() {
+        let src = "
+        acir(inline) fn func f0 {
+          b0(v0: u1):
+            v1 = allocate -> &mut Field
+            store Field 0 at v1
+            jmpif v0 then: b1(), else: b2()
+          b1():
+            store Field 1 at v1
+            jmp b3()
+          b2():
+            store Field 2 at v1
+            jmp b3()
+          b3():
+            v4 = load v1 -> Field
+            return v4
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.mem2reg();
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn func f0 {
+          b0(v0: u1):
+            jmpif v0 then: b1(), else: b2()
+          b1():
+            jmp b3(Field 1)
+          b2():
+            jmp b3(Field 2)
+          b3(v1: Field):
+            return v1
+        }
+        ");
+    }
+
+    /// Storing a tracked reference *as a value* into another reference aliases it: the
+    /// reference could now be mutated through the holder, so it is no longer eligible for
+    /// mem2reg. Here `v1` is stored into the `&mut &mut Field` parameter `v0`, so neither
+    /// `v1` nor its load may be optimized away.
+    #[test]
+    fn store_of_tracked_reference_prevents_optimization() {
+        let src = "
+        brillig(inline) fn func f0 {
+          b0(v0: &mut &mut Field):
+            v1 = allocate -> &mut Field
+            store Field 1 at v1
+            store v1 at v0
+            v2 = load v1 -> Field
+            return v2
+        }
+        ";
+        assert_ssa_does_not_change(src, Ssa::mem2reg);
+    }
+
+    /// Passing a tracked reference to a function call is a first-class use of the address:
+    /// the callee may mutate it, so the reference and its surrounding load/store cannot be
+    /// optimized away.
+    #[test]
+    fn reference_passed_to_call_prevents_optimization() {
+        let src = "
+        brillig(inline) fn func f0 {
+          b0():
+            v1 = allocate -> &mut Field
+            store Field 1 at v1
+            call f1(v1)
+            v3 = load v1 -> Field
+            return v3
+        }
+        brillig(inline) fn callee f1 {
+          b0(v0: &mut Field):
+            return
+        }
+        ";
+        assert_ssa_does_not_change(src, Ssa::mem2reg);
+    }
+
+    /// A store inside a loop body forces a block parameter at the loop header via the
+    /// *iterated* dominance frontier: the store in b2 has b1 (the header) in its dominance
+    /// frontier through the back edge, and the worklist in `iterated_dominance_frontier`
+    /// then re-examines b1's own frontier before converging. The header therefore receives
+    /// the merged value as a parameter.
+    #[test]
+    fn iterated_dominance_frontier_through_loop() {
+        let src = "
+        brillig(inline) fn func f0 {
+          b0(v0: u1):
+            v1 = allocate -> &mut Field
+            store Field 0 at v1
+            jmp b1()
+          b1():
+            v2 = load v1 -> Field
+            jmpif v0 then: b2(), else: b3()
+          b2():
+            v3 = add v2, Field 1
+            store v3 at v1
+            jmp b1()
+          b3():
+            return v2
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.mem2reg();
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) fn func f0 {
+          b0(v0: u1):
+            jmp b1(Field 0)
+          b1(v1: Field):
+            jmpif v0 then: b2(), else: b3()
+          b2():
+            v4 = add v1, Field 1
+            jmp b1(v4)
+          b3():
+            return v1
+        }
+        ");
+    }
+
+    /// `get_value_from_visited_predecessor` returns `None` when none of a block's
+    /// predecessors have a recorded `BlockState` yet. `compute_entry_state` relies on this
+    /// to drop a variable whose value cannot be inherited (e.g. for a block that is not
+    /// reached through any already-visited predecessor). Exercised directly because the
+    /// reverse-post-order traversal always visits a forward predecessor first for reachable
+    /// blocks, so the branch is otherwise defensive.
+    #[test]
+    fn get_value_from_visited_predecessor_returns_none_without_visited_predecessor() {
+        use crate::ssa::ir::{cfg::ControlFlowGraph, map::Id};
+
+        let src = "
+        brillig(inline) fn func f0 {
+          b0():
+            jmp b1()
+          b1():
+            return
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let function = ssa.main();
+        let cfg = ControlFlowGraph::with_function(function);
+
+        // b1 is reached from b0, but with an empty `block_states` no predecessor is "visited".
+        let b1 = cfg.successors(function.entry_block()).next().expect("b0 has a successor");
+        let block_states = super::BlockStates::default();
+        let dummy_var = Id::test_new(0);
+
+        assert!(
+            super::get_value_from_visited_predecessor(dummy_var, b1, &cfg, &block_states).is_none()
+        );
     }
 }

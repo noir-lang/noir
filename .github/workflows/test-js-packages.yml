@@ -14,6 +14,14 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.ref || github.run_id }}
   cancel-in-progress: true
 
+# Authenticate cargo-binstall's GitHub API requests (run by `just build-package`
+# via install-js-tools). Unauthenticated they hit GitHub's 60 req/hour limit, get
+# 403, and binstall falls back to compiling the wasm toolchain from source —
+# turning a ~30s step into minutes. A valid token raises the limit to 5000/hour;
+# it needs no permission scopes for this (only public release metadata is read).
+env:
+  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
 jobs:
   critical-library-list:
     name: Load critical library list
@@ -25,7 +33,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
 
       - name: Build list of libraries
         id: get_critical_libraries
@@ -55,7 +63,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
 
       # Errors if installation would result in modifications to yarn.lock
       - name: Install
@@ -83,7 +91,7 @@ jobs:
     name: Build ${{ matrix.name }}
     steps:
       - name: Checkout Noir repo
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
 
       - name: Setup toolchain
         uses: dtolnay/rust-toolchain@1.89.0
@@ -114,7 +122,7 @@ jobs:
 
     steps:
       - name: Checkout Noir repo
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
 
       - name: Setup toolchain
         uses: dtolnay/rust-toolchain@1.89.0
@@ -150,7 +158,7 @@ jobs:
 
     steps:
       - name: Checkout sources
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
 
       - name: Setup toolchain
         uses: dtolnay/rust-toolchain@1.89.0
@@ -189,7 +197,7 @@ jobs:
 
     steps:
       - name: Checkout sources
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
 
       - name: Setup toolchain
         uses: dtolnay/rust-toolchain@1.89.0
@@ -229,7 +237,7 @@ jobs:
 
     steps:
       - name: Checkout sources
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
 
       - name: Download artifact
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
@@ -253,7 +261,7 @@ jobs:
 
     steps:
       - name: Checkout sources
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
 
       - name: Download artifact
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
@@ -270,7 +278,9 @@ jobs:
           browsers: "chromium webkit"
 
       - name: Run browser tests
-        run: yarn workspace @noir-lang/acvm_js test:browser
+        uses: ./.github/actions/retry
+        with:
+          run: yarn workspace @noir-lang/acvm_js test:browser
 
   test-noirc-abi:
     needs: [build-noirc-abi]
@@ -282,7 +292,7 @@ jobs:
 
     steps:
       - name: Checkout sources
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
 
       - name: Download wasm package artifact
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
@@ -300,7 +310,9 @@ jobs:
         uses: ./.github/actions/install-playwright
 
       - name: Run browser tests
-        run: yarn workspace @noir-lang/noirc_abi test:browser
+        uses: ./.github/actions/retry
+        with:
+          run: yarn workspace @noir-lang/noirc_abi test:browser
 
   test-noir-js:
     needs: [build-binaries, build-acvm-js, build-noirc-abi]
@@ -312,7 +324,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
 
       - name: Download nargo binary
         uses: ./.github/actions/download-binary
@@ -354,7 +366,7 @@ jobs:
 
     steps:
       - name: Checkout sources
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
 
       - name: Download wasm package artifact
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
@@ -380,7 +392,9 @@ jobs:
         run: yarn workspace @noir-lang/noir_wasm test:node
 
       - name: Run browser tests
-        run: yarn workspace @noir-lang/noir_wasm test:browser
+        uses: ./.github/actions/retry
+        with:
+          run: yarn workspace @noir-lang/noir_wasm test:browser
 
   test-noir-codegen:
     needs: [build-acvm-js, build-noirc-abi, build-binaries]
@@ -392,7 +406,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
 
       - name: Download nargo binary
         uses: ./.github/actions/download-binary
@@ -435,7 +449,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
 
       - name: Install `bb`
         run: |
@@ -492,7 +506,7 @@ jobs:
 
   #   steps:
   #     - name: Checkout
-  #       uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+  #       uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
 
   #     - name: Download acvm_js package artifact
   #       uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
@@ -541,10 +555,10 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
 
       - name: Install Foundry
-        uses: foundry-rs/foundry-toolchain@c7450ba673e133f5ee30098b3b54f444d3a2ca2d # v1.8.0
+        uses: foundry-rs/foundry-toolchain@b00af27efadbc7b4ca8b82abbd903b17cc874d2a # v1.9.0
         with:
           version: v1.3.3
 
@@ -595,9 +609,13 @@ jobs:
           path: ./tooling/noirc_abi_wasm
 
       - name: Build noir_js
+        # @noir-lang/types and @noir-lang/noir_js are pure TypeScript (tsc) and
+        # don't need the wasm toolchain that `just build-package` installs via
+        # install-js-tools; the wasm packages they depend on are downloaded as
+        # prebuilt artifacts above. Build them directly to skip that install.
         run: |
-          just build-package @noir-lang/types
-          just build-package @noir-lang/noir_js
+          yarn workspace @noir-lang/types build
+          yarn workspace @noir-lang/noir_js build
 
       - name: Run examples
         run: just run-examples
@@ -626,10 +644,10 @@ jobs:
           echo "timeout: ${{ matrix.timeout }}"
 
       - name: Checkout
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
 
       - name: Checkout
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           repository: ${{ matrix.repo }}
           path: test-repo
@@ -696,13 +714,13 @@ jobs:
       contents: read
     steps:
       - name: Checkout
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           # Note that we are checking out into a sub-directory, which affects action paths.
           path: noir-repo
 
       - name: Checkout
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           repository: AztecProtocol/aztec-packages
           path: test-repo
@@ -737,7 +755,7 @@ jobs:
       contents: write
 
     steps:
-      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
 
       - name: Download matrix test reports
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
@@ -779,7 +797,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
 
       - name: Download nargo binary
         uses: ./.github/actions/download-binary

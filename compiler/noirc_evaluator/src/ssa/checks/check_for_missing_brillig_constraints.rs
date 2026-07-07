@@ -1,4 +1,4 @@
-//! This module defines the [Ssa::check_for_missing_brillig_constraints] method.
+//! This module defines the [`Ssa::check_for_missing_brillig_constraints`] method.
 //!
 //! It verifies that the output of Brillig calls is connected to the inputs of the calls
 //! by assertions; in other words, that the circuit has constraints that the output is
@@ -700,10 +700,37 @@ impl Context {
         func: &Function,
         all_functions: &BTreeMap<FunctionId, Function>,
     ) -> Self {
+        // Persists across passes: an output shown to be constrained anywhere in the
+        // function stays constrained, so a later constraint can rely on it regardless
+        // of the source order of the two assertions. This is what makes the check
+        // order-independent and requires iterating to a fixed point below.
+        let mut all_constrained = ValueSet::new(&func.dfg);
+
+        loop {
+            let before = self.tainted.len();
+            self.constrain_tainted_pass(func, all_functions, &mut all_constrained);
+
+            // Re-walk only while we are still making progress and work remains. Fully
+            // constrained functions empty `tainted` in the first pass (no extra walk),
+            // and genuinely under-constrained ones make no progress and stop here too.
+            if self.tainted.is_empty() || self.tainted.len() == before {
+                break;
+            }
+        }
+
+        self
+    }
+
+    /// A single Reverse Post Order walk attempting to constrain Brillig outputs,
+    /// accumulating cleared outputs into `all_constrained`. See [`Self::constrain_tainted`].
+    fn constrain_tainted_pass(
+        &mut self,
+        func: &Function,
+        all_functions: &BTreeMap<FunctionId, Function>,
+        all_constrained: &mut ValueSet,
+    ) {
         // Constraints on tainted output cannot be used to connect output to input.
         let mut all_tainted = ValueSet::new(&func.dfg);
-        // Unless such output has already been shown to be constrained.
-        let mut all_constrained = ValueSet::new(&func.dfg);
         // Skip checks until we encounter the tainted instruction.
         let mut active_tainted = HashSet::new();
 
@@ -747,7 +774,7 @@ impl Context {
                             parents,
                             equivalences,
                             &all_tainted,
-                            &mut all_constrained,
+                            &mut *all_constrained,
                             self.max_ancestor_distance,
                         );
 
@@ -760,8 +787,6 @@ impl Context {
                 }
             }
         }
-
-        self
     }
 
     /// Every Brillig call not properly constrained should remain in the tainted set
@@ -1202,7 +1227,7 @@ mod tests {
     #[traced_test]
     /// Test where Brillig calls' root result values are constrained against
     /// each other (covers a false negative edge case)
-    /// (https://github.com/noir-lang/noir/pull/6658#pullrequestreview-2482170066)
+    /// (<https://github.com/noir-lang/noir/pull/6658#pullrequestreview-2482170066>)
     fn test_root_result_intersection_false_negative() {
         let program = r#"
         acir(inline) fn main f0 {
@@ -1228,7 +1253,7 @@ mod tests {
 
     #[test]
     #[traced_test]
-    /// Test EnableSideEffectsIf conditions affecting the dependency graph
+    /// Test `EnableSideEffectsIf` conditions affecting the dependency graph
     /// (SSA a bit convoluted to work around simplification breaking the flow
     /// of the parsed test code). Note that the side effect variable is a
     /// descendant of the output of the call, and the constraint is on a
@@ -1544,7 +1569,7 @@ mod tests {
             constrain v4 == v5
             return
         }
-        brillig(inline) predicate_pure fn identity f1 {
+        brillig(inline) pure fn identity f1 {
             b0(v0: u64):
             return v0
         }
@@ -1565,7 +1590,7 @@ mod tests {
             constrain v2 == v0
             return
         }
-        brillig(inline) predicate_pure fn identity32 f1 {
+        brillig(inline) pure fn identity32 f1 {
             b0(v0: Field):
             return v0
         }
@@ -1587,7 +1612,7 @@ mod tests {
             constrain v4 == u1 1     // Since we asserted that v3 equals v1, this should indirectly clear v3.
             return
         }
-        brillig(inline) predicate_pure fn f f1 {
+        brillig(inline) pure fn f f1 {
           b0(v0: u32):
             return v0
         }
@@ -1609,7 +1634,7 @@ mod tests {
             constrain v3 == v0
             return v3
         }
-        brillig(inline) predicate_pure fn helper_func f1 {
+        brillig(inline) pure fn helper_func f1 {
           b0(v0: [Field; 1]):
             v2 = array_get v0, index u32 0 -> Field
             return v2
@@ -1633,7 +1658,7 @@ mod tests {
             constrain v4 == v0
             return v4
         }
-        brillig(inline) predicate_pure fn helper_func f1 {
+        brillig(inline) pure fn helper_func f1 {
           b0(v0: [[Field; 1]; 1]):
             v2 = array_get v0, index u32 0 -> [Field; 1]
             v3 = array_get v2, index u32 0 -> Field
@@ -1659,7 +1684,7 @@ mod tests {
             constrain v4 == v0
             return v4
         }
-        brillig(inline) predicate_pure fn helper_func f1 {
+        brillig(inline) pure fn helper_func f1 {
           b0(v0: [Field; 2]):
             v2 = array_get v0, index u32 0 -> Field
             return v2
@@ -1689,7 +1714,7 @@ mod tests {
             constrain v5 == v0
             return v5
         }
-        brillig(inline) predicate_pure fn helper_func f1 {
+        brillig(inline) pure fn helper_func f1 {
           b0(v0: [Field; 2]):
             v2 = array_get v0, index u32 0 -> Field
             return v2
@@ -1722,7 +1747,7 @@ mod tests {
             constrain v7 == v1
             return
         }
-        brillig(inline) predicate_pure fn helper_func f1 {
+        brillig(inline) pure fn helper_func f1 {
           b0(v0: [Field; 2]):
             return v0
         }
@@ -1746,7 +1771,7 @@ mod tests {
             constrain v1 == v2
             return
         }
-        brillig(inline) predicate_pure fn f f1 {
+        brillig(inline) pure fn f f1 {
           b0(v0: u32):
             return v0, v0
         }
@@ -1794,7 +1819,7 @@ mod tests {
             constrain v5 == u1 1
             return
         }
-        brillig(inline) predicate_pure fn f f1 {
+        brillig(inline) pure fn f f1 {
           b0(v0: u32):
             v1 = make_array [v0, v0] : [u32; 2]
             return v1
@@ -1805,7 +1830,7 @@ mod tests {
         assert_eq!(ssa_level_warnings.len(), 0);
     }
 
-    /// The array returned is longer than MAX_ARRAY_OUTPUT_LENGTH so we don't track it item-by-item,
+    /// The array returned is longer than `MAX_ARRAY_OUTPUT_LENGTH` so we don't track it item-by-item,
     /// but the constraint placed on a few items should clear the whole array.
     #[test]
     #[traced_test]
@@ -1821,7 +1846,7 @@ mod tests {
             constrain v5 == u1 1
             return
         }
-        brillig(inline) predicate_pure fn f f1 {
+        brillig(inline) pure fn f f1 {
           b0(v0: u32):
             v1 = make_array [
               v0, v0, v0, v0, v0, v0, v0, v0, v0, v0,
@@ -1896,5 +1921,60 @@ mod tests {
             1,
             "arr[idx] == x with dynamic idx does not constrain arr[0] = brillig(x)"
         );
+    }
+
+    #[test]
+    #[traced_test]
+    /// Regression test for <https://github.com/noir-lang/noir/issues/12506>:
+    /// an equivalence between two Brillig outputs must clear the second call
+    /// even when it appears *before* the constraint that pins the first output.
+    /// The result must not depend on the source order of the two assertions.
+    fn equivalence_before_pin_is_order_independent() {
+        let program = r#"
+        acir(inline) fn main f0 {
+          b0(v0: Field):
+            v1 = add v0, Field 3
+            v2 = call f1(v1) -> Field
+            v3 = call f1(v1) -> Field
+            constrain v2 == v3   // (A) equivalence of the two outputs, seen first
+            constrain v2 == v1   // (B) pins the first output to an input-derived value
+            return
+        }
+
+        brillig(inline) fn read_imm f1 {
+          b0(v0: Field):
+            return v0
+        }
+        "#;
+
+        let ssa_level_warnings = check_for_missing_brillig_constraints_in_ssa(program);
+        assert_eq!(ssa_level_warnings.len(), 0);
+    }
+
+    #[test]
+    #[traced_test]
+    /// Mirror of [`equivalence_before_pin_is_order_independent`] with the
+    /// assertions in the opposite order, which already compiled cleanly before
+    /// the fix. Both orders must now agree (no warning).
+    fn pin_before_equivalence_is_order_independent() {
+        let program = r#"
+        acir(inline) fn main f0 {
+          b0(v0: Field):
+            v1 = add v0, Field 3
+            v2 = call f1(v1) -> Field
+            v3 = call f1(v1) -> Field
+            constrain v2 == v1   // (B) pins the first output to an input-derived value
+            constrain v2 == v3   // (A) equivalence of the two outputs
+            return
+        }
+
+        brillig(inline) fn read_imm f1 {
+          b0(v0: Field):
+            return v0
+        }
+        "#;
+
+        let ssa_level_warnings = check_for_missing_brillig_constraints_in_ssa(program);
+        assert_eq!(ssa_level_warnings.len(), 0);
     }
 }
