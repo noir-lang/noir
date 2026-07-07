@@ -40,6 +40,8 @@ use noirc_errors::call_stack::CallStack;
 use rustc_hash::FxHashMap as HashMap;
 
 use crate::errors::{RtResult, RuntimeError};
+use crate::ssa::ir::dfg::DataFlowGraph;
+use crate::ssa::ir::value::Value;
 use crate::ssa::{
     ir::{
         function::Function,
@@ -164,7 +166,7 @@ fn verify_function(function: &Function) -> RtResult<()> {
 /// each branch by its own condition (`then_condition * then_value +
 /// else_condition * else_value`), so both branches are checked.
 fn is_predicate_guard(
-    dfg: &crate::ssa::ir::dfg::DataFlowGraph,
+    dfg: &DataFlowGraph,
     instruction: &Instruction,
     operand: ValueId,
     p: ValueId,
@@ -183,22 +185,16 @@ fn is_predicate_guard(
 }
 
 /// Whether `value` is the predicate `p`, possibly through `cast`s.
-fn is_predicate(dfg: &crate::ssa::ir::dfg::DataFlowGraph, mut value: ValueId, p: ValueId) -> bool {
-    loop {
-        if value == p {
-            return true;
-        }
-        match &dfg[value] {
-            crate::ssa::ir::value::Value::Instruction { instruction, .. } => {
-                if let Instruction::Cast(src, _) = &dfg[*instruction] {
-                    value = *src;
-                    continue;
-                }
-                return false;
-            }
-            _ => return false,
-        }
+fn is_predicate(dfg: &DataFlowGraph, value: ValueId, p: ValueId) -> bool {
+    fold_casts(dfg, value) == fold_casts(dfg, p)
+}
+
+fn fold_casts(dfg: &DataFlowGraph, mut value: ValueId) -> ValueId {
+    while let Value::Instruction { instruction, .. } = &dfg[value] {
+        let Instruction::Cast(src, _) = &dfg[*instruction] else { break };
+        value = *src;
     }
+    value
 }
 
 fn is_one(function: &Function, value: ValueId) -> bool {
