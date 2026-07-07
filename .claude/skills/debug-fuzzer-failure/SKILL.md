@@ -1,13 +1,13 @@
 ---
 name: debug-fuzzer-failure
-description: End-to-end workflow for debugging SSA fuzzer failures from CI. Extracts a reproduction case from GitHub Actions logs, then bisects SSA passes to identify the bug. Use when a `pass_vs_prev` or similar fuzzer test fails in CI.
+description: End-to-end workflow for debugging SSA fuzzer failures from CI. Regenerates a reproduction from the CI seed with `just fuzz-repro`, then bisects SSA passes to identify the bug. Use when a `pass_vs_prev` or similar fuzzer test fails in CI.
 ---
 
 # Debugging SSA Fuzzer Failures
 
 This skill provides the complete workflow for debugging SSA optimization bugs discovered by CI fuzzers. It combines two sub-skills:
 
-1. **`extract-fuzzer-repro`** — Extract a Noir project from CI failure logs
+1. **`extract-fuzzer-repro`** — Regenerate a Noir project from the CI seed with `just fuzz-repro`
 2. **`bisect-ssa-pass`** — Bisect SSA passes to find the one that breaks semantics
 
 ## When to Use This Skill
@@ -21,13 +21,13 @@ Use this when:
 
 ## Workflow Overview
 
-1. [ ] Extract reproduction case from CI logs (`extract-fuzzer-repro`)
+1. [ ] Regenerate the reproduction case from the CI seed (`extract-fuzzer-repro`)
 2. [ ] Verify the failure reproduces locally
 3. [ ] Bisect, analyze, and fix (`bisect-ssa-pass`)
 
-## Step 1: Extract the Reproduction Case
+## Step 1: Reproduce from the Seed
 
-Use the `extract-fuzzer-repro` skill to get a local Noir project from the CI logs.
+Use the `extract-fuzzer-repro` skill to get a local Noir project. The AST fuzzers are seeded, so the reliable path is to pull the **seed** (and the failing target) out of the CI log and regenerate the program with `just fuzz-repro`, rather than copying the printed AST by hand.
 
 **Input**: GitHub Actions job URL (e.g., `https://github.com/noir-lang/noir/actions/runs/12345/job/67890`)
 
@@ -37,19 +37,18 @@ Use the `extract-fuzzer-repro` skill to get a local Noir project from the CI log
 
 Quick reference:
 ```bash
-# Download logs from GitHub Actions
-gh run view <run-id> --job <job-id> --log > fuzzer_log.txt
-
-# Extract the Noir project (the skill has detailed instructions)
-# Look for "Program:" and "Inputs:" sections in the log
+# Pull the seed (Seed: 0x... / NOIR_AST_FUZZER_SEED=0x...) and target
+# (targets::<target>::tests::fuzz_with_arbtest) from the CI log, then:
+just fuzz-repro 0x<seed> <target> ./repro
 ```
+Reproduce on the same commit CI ran on, since the seed→program mapping can drift as the generator changes. The `extract-fuzzer-repro` skill has the full details and a log-scraping fallback for when the seed no longer reproduces.
 
 ## Step 2: Verify the Failure Reproduces Locally
 
 Before bisecting, confirm the issue reproduces:
 
 ```bash
-cd <extracted_project>
+cd repro
 nargo execute
 ```
 
@@ -74,5 +73,5 @@ Use the `bisect-ssa-pass` skill to:
 
 ## Related Skills
 
-- `extract-fuzzer-repro` — Detailed instructions for extracting from CI logs
+- `extract-fuzzer-repro` — Detailed instructions for reproducing from the CI seed with `just fuzz-repro`
 - `bisect-ssa-pass` — Detailed instructions for SSA bisection and regression tests

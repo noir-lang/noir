@@ -5,10 +5,8 @@ use acvm::{
 
 use crate::{
     acir::{
-        AcirDynamicArray, Context, SharedContext,
-        acir_context::BrilligStdLib,
-        tests::{ssa_to_acir_program, ssa_to_generated_acir},
-        types::AcirValue,
+        AcirDynamicArray, Context, SharedContext, acir_context::BrilligStdLib,
+        tests::ssa_to_acir_program, types::AcirValue,
     },
     brillig::{Brillig, BrilligOptions},
     ssa::{ir::value::ValueId, ssa_gen::Ssa},
@@ -167,10 +165,6 @@ fn constant_reads_on_parameter_array_avoid_memory_blocks() {
     // entirely against its `AcirValue::Array`. ACIR generation must not initialize a memory
     // block for it, nor emit any `READ`/`WRITE` memory operations: each read folds directly to
     // the corresponding input witness.
-    //
-    // We inspect the raw `GeneratedAcir` rather than the optimized program because the ACVM
-    // unused-memory optimizer would otherwise prune an eagerly-emitted `MemoryInit`, hiding
-    // whether ACIR gen created the block in the first place.
     let src = "
     acir(inline) fn main f0 {
       b0(v0: [Field; 3]):
@@ -180,15 +174,16 @@ fn constant_reads_on_parameter_array_avoid_memory_blocks() {
         return v5
     }
     ";
-    let generated_acir = ssa_to_generated_acir(src);
+    let program = ssa_to_acir_program(src);
 
+    assert_eq!(program.functions.len(), 1);
     assert!(
-        !generated_acir
-            .opcodes()
+        !program.functions[0]
+            .opcodes
             .iter()
             .any(|opcode| matches!(opcode, Opcode::MemoryInit { .. } | Opcode::MemoryOp { .. })),
         "constant reads on a parameter array should not generate a memory block, got opcodes:\n{:#?}",
-        generated_acir.opcodes()
+        program.functions[0].opcodes
     );
 }
 
@@ -545,11 +540,7 @@ fn zero_length_array_dynamic_set() {
 fn zero_length_array_is_not_initialized() {
     // A dynamic operation on an array whose flattened size is zero (`[[u8; 0]; 4]`, whose elements
     // are zero-width) must not emit a `MemoryInit` for the empty backing block. An empty block has
-    // no slots to read or write, so any such `MemoryInit` describes an orphan block that the ACVM
-    // unused-memory optimizer strips anyway.
-    //
-    // We inspect the raw `GeneratedAcir` rather than the optimized program because that optimizer
-    // would remove the empty `MemoryInit`, hiding whether ACIR gen emitted it in the first place.
+    // no slots to read or write, so any such `MemoryInit` describes an orphan block.
     let src = "
     acir(inline) fn main f0 {
       b0(v0: u32):
@@ -559,15 +550,16 @@ fn zero_length_array_is_not_initialized() {
         return v3
     }
     ";
-    let generated_acir = ssa_to_generated_acir(src);
+    let program = ssa_to_acir_program(src);
 
+    assert_eq!(program.functions.len(), 1);
     assert!(
-        !generated_acir
-            .opcodes()
+        !program.functions[0]
+            .opcodes
             .iter()
             .any(|opcode| { matches!(opcode, Opcode::MemoryInit { init, .. } if init.is_empty()) }),
         "ACIR gen must not initialize a zero-length memory block, got opcodes:\n{:#?}",
-        generated_acir.opcodes()
+        program.functions[0].opcodes
     );
 }
 
