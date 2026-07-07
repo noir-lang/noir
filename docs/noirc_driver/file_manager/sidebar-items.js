@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["DEBUG_CRATE_NAME"],"fn":["add_debug_source_to_file_manager","add_stdlib_source_to_file_manager","file_manager_with_stdlib"],"mod":["stdlib"]};

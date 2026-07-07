@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["STD_CRATE_NAME"],"fn":["add_dep","link_to_debug_crate","prepare_crate","prepare_dependency"]};
