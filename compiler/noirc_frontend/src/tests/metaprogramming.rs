@@ -3717,3 +3717,32 @@ fn spliced_bare_generic_field_type_rebinds_in_generated_impl() {
     "#;
     check_errors_with_stdlib(src, [META_API_STDLIB]);
 }
+
+/// `Expr::resolve` with a foreign function scope must judge visibility from the caller's module,
+/// including the first path segment. A `pub` item inside a private module of the foreign scope is
+/// reachable there as a plain first segment, but it must not become reachable from the caller.
+#[test]
+fn comptime_resolve_first_segment_visibility() {
+    let src = r#"
+    mod victim {
+        pub fn foreign_scope() {}
+
+        mod secret_mod {
+            pub struct Leaked { pub x: Field }
+        }
+    }
+
+    fn main() {
+        let leaked = comptime {
+            let victim_module = quote { victim }.as_module().unwrap();
+            let expr = quote { secret_mod::Leaked { x: 5 } }.as_expr().unwrap().resolve(Option::some(victim_module.functions()[0]));
+                       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ While evaluating `Expr::resolve`
+                               ^^^^^^^^^^ secret_mod is private and not visible from the current module
+                               ~~~~~~~~~~ secret_mod is private
+            quote { $expr.x }
+        };
+        assert(leaked == 5);
+    }
+    "#;
+    check_errors_with_stdlib(src, [META_API_STDLIB]);
+}
