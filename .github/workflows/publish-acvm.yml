@@ -26,6 +26,18 @@ jobs:
         uses: dtolnay/rust-toolchain@1.89.0
 
       # These steps are in a specific order so crate dependencies are updated first
+      - name: Publish msgpack_tagged_derive
+        run: |
+          cargo publish --package msgpack_tagged_derive
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.ACVM_CRATES_IO_TOKEN }}
+
+      - name: Publish msgpack_tagged
+        run: |
+          cargo publish --package msgpack_tagged
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.ACVM_CRATES_IO_TOKEN }}
+
       - name: Publish acir_field
         run: |
           cargo publish --package acir_field

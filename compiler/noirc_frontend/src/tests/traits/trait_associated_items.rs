@@ -2869,3 +2869,33 @@ fn cyclic_associated_type() {
     "#;
     check_errors(src);
 }
+
+#[test]
+fn associated_type_bound_is_assumed_in_trait_default_method() {
+    // Regression test for https://github.com/noir-lang/noir/issues/8601
+    // The bound on `Foo::E` (`type E: Bar`) should be assumed for `<T as Foo>::E`
+    // inside `Baz`'s default method body, so `bar_method` resolves.
+    let src = "
+    pub trait Foo {
+        type E: Bar;
+        fn bar(self) -> Self::E;
+    }
+
+    pub trait Bar {
+        fn bar_method(self);
+    }
+
+    pub trait Baz<T>
+    where
+        T: Foo,
+    {
+        fn baz(t: T) {
+            let bar = t.bar();
+            bar.bar_method();
+        }
+    }
+
+    fn main() {}
+    ";
+    assert_no_errors(src);
+}
