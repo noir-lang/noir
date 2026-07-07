@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1783430152717,
+  "lastUpdate": 1783430155037,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -30145,105 +30145,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "47281315+guipublic@users.noreply.github.com",
-            "name": "guipublic",
-            "username": "guipublic"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "bd612e88d93367b7d46ec79ec78903a1795607c2",
-          "message": "fix: loop induction uses the correct block parameter (#13118)",
-          "timestamp": "2026-07-01T12:15:12Z",
-          "tree_id": "40705af792463bba3de6d5c20c62d9768ad9431d",
-          "url": "https://github.com/noir-lang/noir/commit/bd612e88d93367b7d46ec79ec78903a1795607c2"
-        },
-        "date": 1782910029901,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 17660,
-            "unit": "opcodes"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 84400,
-            "unit": "opcodes"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 8680,
-            "unit": "opcodes"
-          },
-          {
-            "name": "rollup-block-root-first-empty-tx",
-            "value": 1038,
-            "unit": "opcodes"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 922,
-            "unit": "opcodes"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 2116,
-            "unit": "opcodes"
-          },
-          {
-            "name": "rollup-checkpoint-merge",
-            "value": 1271,
-            "unit": "opcodes"
-          },
-          {
-            "name": "rollup-checkpoint-root-single-block",
-            "value": 1387601,
-            "unit": "opcodes"
-          },
-          {
-            "name": "rollup-checkpoint-root",
-            "value": 1388791,
-            "unit": "opcodes"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1526,
-            "unit": "opcodes"
-          },
-          {
-            "name": "rollup-tx-base-private",
-            "value": 244853,
-            "unit": "opcodes"
-          },
-          {
-            "name": "rollup-tx-base-public",
-            "value": 280147,
-            "unit": "opcodes"
-          },
-          {
-            "name": "rollup-tx-merge",
-            "value": 1303,
-            "unit": "opcodes"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 5699,
-            "unit": "opcodes"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 13173,
-            "unit": "opcodes"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -35013,6 +34914,105 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/27e7af99098013ab13937f9cf04831f462194593"
         },
         "date": 1783428458991,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 18937,
+            "unit": "opcodes"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 91291,
+            "unit": "opcodes"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 9039,
+            "unit": "opcodes"
+          },
+          {
+            "name": "rollup-block-root-first-empty-tx",
+            "value": 1038,
+            "unit": "opcodes"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 922,
+            "unit": "opcodes"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 2105,
+            "unit": "opcodes"
+          },
+          {
+            "name": "rollup-checkpoint-merge",
+            "value": 1431,
+            "unit": "opcodes"
+          },
+          {
+            "name": "rollup-checkpoint-root-single-block",
+            "value": 1387601,
+            "unit": "opcodes"
+          },
+          {
+            "name": "rollup-checkpoint-root",
+            "value": 1388780,
+            "unit": "opcodes"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1686,
+            "unit": "opcodes"
+          },
+          {
+            "name": "rollup-tx-base-private",
+            "value": 245173,
+            "unit": "opcodes"
+          },
+          {
+            "name": "rollup-tx-base-public",
+            "value": 280508,
+            "unit": "opcodes"
+          },
+          {
+            "name": "rollup-tx-merge",
+            "value": 1303,
+            "unit": "opcodes"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 5699,
+            "unit": "opcodes"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 13173,
+            "unit": "opcodes"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "bc69ef1c264a4b12b7533da31094bbea93e4c90a",
+          "message": "chore(deps): bump redis from 1.2.4 to 1.3.0 (#13290)\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
+          "timestamp": "2026-07-07T12:41:20Z",
+          "tree_id": "b7b91499552b49e7a72ebdd035132b6eb5fb1b70",
+          "url": "https://github.com/noir-lang/noir/commit/bc69ef1c264a4b12b7533da31094bbea93e4c90a"
+        },
+        "date": 1783430071198,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
