@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1783442440414,
+  "lastUpdate": 1783442442119,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -35097,105 +35097,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "jfecher11@gmail.com",
-            "name": "jfecher",
-            "username": "jfecher"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "2519cea6760e07a51eb644c7786c0ea06b9b0057",
-          "message": "fix: Update forward order to max cost ordering (#13170)",
-          "timestamp": "2026-07-01T17:05:33Z",
-          "tree_id": "7ae35ee46cf0401543dfff8aa4443b806f5d25c0",
-          "url": "https://github.com/noir-lang/noir/commit/2519cea6760e07a51eb644c7786c0ea06b9b0057"
-        },
-        "date": 1782927506331,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 1.932,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 1.962,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 1.328,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-first-empty-tx",
-            "value": 2.104,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 2.03,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 2.04,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-checkpoint-merge",
-            "value": 2.144,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-checkpoint-root-single-block",
-            "value": 2.74,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-checkpoint-root",
-            "value": 2.7,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 2.09,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-tx-base-private",
-            "value": 2.276,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-tx-base-public",
-            "value": 2.344,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-tx-merge",
-            "value": 2.22,
-            "unit": "s"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 0.398,
-            "unit": "s"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 0.299,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -40040,6 +39941,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "sha512-100-bytes",
             "value": 0.359,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49558828+AztecBot@users.noreply.github.com",
+            "name": "Aztec Bot",
+            "username": "AztecBot"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "79cc04fc209209e92d0c6abfa3313b87a149c78f",
+          "message": "fix(ssa): gate squared-zero constraint decomposition on Field or checked Mul (#12544)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
+          "timestamp": "2026-07-07T16:08:27Z",
+          "tree_id": "56b74fd117010b41a15a80883b0f5c6e70720773",
+          "url": "https://github.com/noir-lang/noir/commit/79cc04fc209209e92d0c6abfa3313b87a149c78f"
+        },
+        "date": 1783442362146,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 1.504,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 2.002,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.612,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-first-empty-tx",
+            "value": 2.096,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 2.04,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 2.27,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-checkpoint-merge",
+            "value": 2.036,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-checkpoint-root-single-block",
+            "value": 2.73,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-checkpoint-root",
+            "value": 2.79,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.972,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-tx-base-private",
+            "value": 2.26,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-tx-base-public",
+            "value": 2.396,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-tx-merge",
+            "value": 2.084,
+            "unit": "s"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.399,
+            "unit": "s"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 0.382,
             "unit": "s"
           }
         ]
