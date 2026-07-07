@@ -251,6 +251,17 @@ impl Context<'_> {
             // 2. Copy the vector into an AcirDynamicArray
             // The block ID for the new vector is the one for the resulting vector
             let block_id = self.block_id(result_ids[1]);
+            // Non-homogenous vector requires to read the offset from the element-type-sizes table
+            // for computing the index.
+            if super::arrays::array_has_constant_element_size(&vector_typ).is_none() {
+                self.init_element_type_sizes_array(
+                    &vector_typ,
+                    result_ids[1],
+                    Some(new_vector_array.clone()),
+                    dfg,
+                    ElementTypeSizesArrayShift::None,
+                )?;
+            }
             self.initialize_array(block_id, len, Some(new_vector_array))?;
             let flattened_dynamic_array = AcirDynamicArray { block_id, len, value_types };
 

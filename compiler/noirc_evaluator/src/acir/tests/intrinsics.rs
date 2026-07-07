@@ -981,6 +981,73 @@ fn vector_insert_after_dynamic_read_of_non_homogenous_vector() {
 }
 
 #[test]
+fn dynamic_read_of_non_homogenous_vector_insert_result() {
+    // The result of a `vector_insert` on a non-homogenous vector which is later indexed at a *dynamic*
+    // index. ACIR gen does not attach a precomputed element-type-sizes table anymore to the result; it
+    // derives that helper table on demand at the read site. The snapshot shows that the table is
+    // properly computed for the dynamic index lookup:  `INIT b1 = [w2, w4, w8, w9]`
+    // And used for the array_get: `READ w12 = b0[w11]` where `w11` is from the helper table.
+
+    let src = "
+    acir(inline) predicate_pure fn main f0 {
+      b0(v0: u32):
+        v4 = make_array [Field 2, Field 3] : [Field; 2]
+        v5 = make_array [Field 1, v4] : [(Field, [Field; 2])]
+        v8 = make_array [Field 11, Field 12] : [Field; 2]
+        v11, v12 = call vector_insert(u32 1, v5, u32 0, Field 10, v8) -> (u32, [(Field, [Field; 2])])
+        v13 = array_get v12, index v0 -> Field
+        return v13
+    }
+    ";
+    let program = ssa_to_acir_program(src);
+
+    assert_circuit_snapshot!(program, @r"
+    func 0
+    private parameters: [w0]
+    public parameters: []
+    return values: [w1]
+    ASSERT w2 = 0
+    INIT b0 = [w2, w2, w2, w2, w2, w2]
+    ASSERT w3 = 10
+    WRITE b0[w2] = w3
+    ASSERT w4 = 1
+    ASSERT w5 = 11
+    WRITE b0[w4] = w5
+    ASSERT w6 = 2
+    ASSERT w7 = 12
+    WRITE b0[w6] = w7
+    ASSERT w8 = 3
+    WRITE b0[w8] = w4
+    ASSERT w9 = 4
+    WRITE b0[w9] = w6
+    ASSERT w10 = 5
+    WRITE b0[w10] = w8
+    INIT b1 = [w2, w4, w8, w9]
+    READ w11 = b1[w0]
+    READ w12 = b0[w11]
+    ASSERT w1 = w12
+    ");
+}
+
+#[test]
+fn vector_insert_non_homogenous_constant_index() {
+    // A `vector_insert` at a compile-time-constant index into a non-homogenous vector.
+    // ACIR gen does not emit a `MemoryInit` for a helper block it never reads, else
+    // it would panic with: "ICE: memory blocks initialized without any linked read/write/Brillig use"
+    let src = "
+    acir(inline) predicate_pure fn main f0 {
+      b0():
+        v4 = make_array [Field 2, Field 3] : [Field; 2]
+        v5 = make_array [Field 1, v4] : [(Field, [Field; 2])]
+        v8 = make_array [Field 11, Field 12] : [Field; 2]
+        v11, v12 = call vector_insert(u32 1, v5, u32 0, Field 10, v8) -> (u32, [(Field, [Field; 2])])
+        return
+    }
+    ";
+    try_ssa_to_acir(src).expect("constant-index insert should compile to ACIR");
+}
+
+#[test]
 fn vector_remove_affected_by_predicate() {
     let src_side_effects = "
     acir(inline) predicate_pure fn main f0 {

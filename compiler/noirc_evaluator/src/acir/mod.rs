@@ -112,8 +112,8 @@ struct Context<'a> {
     element_type_sizes_interner: HashSet<Rc<Vec<u32>>>,
 
     /// Maps each `(value, shift)` to its (interned) element-type-sizes table.
-    /// Caching it keeps repeated constant-index accesses into the same non-homogenous array 
-    /// (e.g. an unrolled loop) from rebuilding it. 
+    /// Caching it keeps repeated constant-index accesses into the same non-homogenous array
+    /// (e.g. an unrolled loop) from rebuilding it.
     element_type_sizes_tables:
         HashMap<(Id<Value>, arrays::ElementTypeSizesArrayShift), Rc<Vec<u32>>>,
 
