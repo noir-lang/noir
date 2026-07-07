@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1783425882344,
+  "lastUpdate": 1783425986843,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23121,48 +23121,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "9831014980d94370de9c7b57888ee7ddb4ada998",
-          "message": "fix: never lookup a path as a value from scracth, in the prefix case (#13210)\n\nCo-authored-by: Claude Opus 4.8 <noreply@anthropic.com>",
-          "timestamp": "2026-06-30T19:25:29Z",
-          "tree_id": "737b8a581cd8a7a783c87204f2594dbd1feb0a23",
-          "url": "https://github.com/noir-lang/noir/commit/9831014980d94370de9c7b57888ee7ddb4ada998"
-        },
-        "date": 1782848698591,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 175536,
-            "range": "± 228",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 145458,
-            "range": "± 1435",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2658588,
-            "range": "± 19787",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "49558828+AztecBot@users.noreply.github.com",
             "name": "Aztec Bot",
             "username": "AztecBot"
@@ -25214,6 +25172,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2647291,
             "range": "± 3473",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "4a587d98d170026f817a737a65641214ea4f65cf",
+          "message": "fix(comptime): array incorrectly displayed as vector (#13248)",
+          "timestamp": "2026-07-07T11:44:42Z",
+          "tree_id": "c1f9022cf962f43a54f1e92aa0362c1bb8566040",
+          "url": "https://github.com/noir-lang/noir/commit/4a587d98d170026f817a737a65641214ea4f65cf"
+        },
+        "date": 1783425921065,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 98536,
+            "range": "± 1206",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 87865,
+            "range": "± 2580",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2359833,
+            "range": "± 7930",
             "unit": "ns/iter"
           }
         ]
