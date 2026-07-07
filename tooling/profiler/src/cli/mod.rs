@@ -5,6 +5,7 @@ use const_format::formatcp;
 mod execution_flamegraph_cmd;
 mod gates_flamegraph_cmd;
 mod opcodes_flamegraph_cmd;
+mod spans_flamegraph_cmd;
 
 const PROFILER_VERSION: &str = env!("CARGO_PKG_VERSION");
 
@@ -23,6 +24,7 @@ enum ProfilerCommand {
     Gates(gates_flamegraph_cmd::GatesFlamegraphCommand),
     Opcodes(opcodes_flamegraph_cmd::OpcodesFlamegraphCommand),
     ExecutionOpcodes(execution_flamegraph_cmd::ExecutionFlamegraphCommand),
+    Spans(spans_flamegraph_cmd::SpansFlamegraphCommand),
 }
 
 pub(crate) fn start_cli() -> eyre::Result<()> {
@@ -32,6 +34,7 @@ pub(crate) fn start_cli() -> eyre::Result<()> {
         ProfilerCommand::Gates(args) => gates_flamegraph_cmd::run(args),
         ProfilerCommand::Opcodes(args) => opcodes_flamegraph_cmd::run(args),
         ProfilerCommand::ExecutionOpcodes(args) => execution_flamegraph_cmd::run(args),
+        ProfilerCommand::Spans(args) => spans_flamegraph_cmd::run(args),
     }?;
 
     Ok(())

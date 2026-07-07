@@ -27,6 +27,7 @@ noirc_artifacts.workspace = true
 const_format.workspace = true
 serde.workspace = true
 serde_json.workspace = true
+chrono = "0.4.37"
 fm.workspace = true
 inferno = "0.12"
 im.workspace = true

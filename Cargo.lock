@@ -3770,6 +3770,7 @@ version = "1.0.0-beta.22"
 dependencies = [
  "acir",
  "bn254_blackbox_solver",
+ "chrono",
  "clap",
  "color-eyre",
  "const_format",
