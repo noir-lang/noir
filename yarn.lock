@@ -2069,10 +2069,10 @@ __metadata:
     "@web/test-runner": "npm:^0.20.2"
     "@web/test-runner-playwright": "npm:^0.11.1"
     chai: "npm:^6.2.2"
-    eslint: "npm:^10.5.0"
+    eslint: "npm:^10.6.0"
     eslint-plugin-prettier: "npm:^5.5.6"
     mocha: "npm:^11.7.6"
-    prettier: "npm:3.8.4"
+    prettier: "npm:3.9.4"
     tsx: "npm:^4.22.4"
     typescript: "npm:^6.0.3"
   languageName: unknown
@@ -2089,11 +2089,11 @@ __metadata:
     "@types/node": "npm:^22.20.0"
     "@types/prettier": "npm:^3.0.0"
     chai: "npm:^6.2.2"
-    eslint: "npm:^10.5.0"
+    eslint: "npm:^10.6.0"
     eslint-plugin-prettier: "npm:^5.5.6"
     glob: "npm:^13.0.6"
     mocha: "npm:^11.7.6"
-    prettier: "npm:3.8.4"
+    prettier: "npm:3.9.4"
     ts-command-line-args: "npm:^2.5.1"
     tsx: "npm:^4.22.4"
     typescript: "npm:^6.0.3"
@@ -2115,11 +2115,11 @@ __metadata:
     "@types/pako": "npm:^2"
     "@types/prettier": "npm:^3.0.0"
     chai: "npm:^6.2.2"
-    eslint: "npm:^10.5.0"
+    eslint: "npm:^10.6.0"
     eslint-plugin-prettier: "npm:^5.5.6"
     mocha: "npm:^11.7.6"
     pako: "npm:^2.1.0"
-    prettier: "npm:3.8.4"
+    prettier: "npm:3.9.4"
     tsc-multi: "npm:^1.1.0"
     tsx: "npm:^4.22.4"
     typescript: "npm:^6.0.3"
@@ -2152,7 +2152,7 @@ __metadata:
     chai: "npm:^6.2.2"
     copy-webpack-plugin: "npm:^14.0.0"
     esbuild-register: "npm:^3.6.0"
-    eslint: "npm:^10.5.0"
+    eslint: "npm:^10.6.0"
     eslint-plugin-prettier: "npm:^5.5.6"
     html-webpack-plugin: "npm:^5.6.7"
     memfs: "npm:^4.57.2"
@@ -2160,7 +2160,7 @@ __metadata:
     mocha-each: "npm:^2.0.1"
     pako: "npm:^2.1.0"
     path-browserify: "npm:^1.0.1"
-    prettier: "npm:3.8.4"
+    prettier: "npm:3.9.4"
     process: "npm:^0.11.10"
     readable-stream: "npm:^4.7.0"
     sinon: "npm:^22.0.0"
@@ -2184,7 +2184,7 @@ __metadata:
     "@web/dev-server-esbuild": "npm:^1.0.5"
     "@web/test-runner": "npm:^0.20.2"
     "@web/test-runner-playwright": "npm:^0.11.1"
-    eslint: "npm:^10.5.0"
+    eslint: "npm:^10.6.0"
     mocha: "npm:^11.7.6"
     tsx: "npm:^4.22.4"
   languageName: unknown
@@ -2199,11 +2199,11 @@ __metadata:
     "@typescript-eslint/parser": "npm:^8.58.0"
     chai: "npm:^6.2.2"
     cspell: "npm:^10.0.1"
-    eslint: "npm:^10.5.0"
+    eslint: "npm:^10.6.0"
     eslint-plugin-prettier: "npm:^5.5.6"
     globals: "npm:^17.7.0"
     mocha: "npm:^11.7.6"
-    prettier: "npm:3.8.4"
+    prettier: "npm:3.9.4"
     tsx: "npm:^4.22.4"
     typescript: "npm:^6.0.3"
   languageName: unknown
@@ -2214,9 +2214,9 @@ __metadata:
   resolution: "@noir-lang/types@workspace:tooling/noir_js_types"
   dependencies:
     "@types/prettier": "npm:^3.0.0"
-    eslint: "npm:^10.5.0"
+    eslint: "npm:^10.6.0"
     eslint-plugin-prettier: "npm:^5.5.6"
-    prettier: "npm:3.8.4"
+    prettier: "npm:3.9.4"
     typescript: "npm:^6.0.3"
   languageName: unknown
   linkType: soft
@@ -6844,9 +6844,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"eslint@npm:^10.5.0":
-  version: 10.5.0
-  resolution: "eslint@npm:10.5.0"
+"eslint@npm:^10.6.0":
+  version: 10.6.0
+  resolution: "eslint@npm:10.6.0"
   dependencies:
     "@eslint-community/eslint-utils": "npm:^4.8.0"
     "@eslint-community/regexpp": "npm:^4.12.2"
@@ -6885,7 +6885,7 @@ __metadata:
       optional: true
   bin:
     eslint: bin/eslint.js
-  checksum: 10/28882f9b00803fca938015894d6e1ac2c80e00c1349385764f54ac4c0707c33fd0e32b678845c54ea0bc8ae04d59d7aa93d68dbd835e5e4833c65bf9b15ea91f
+  checksum: 10/36d02cdbe37668e601f255917c605d10a5d06d278648dc72cec21fe23b7b60a53453241b32c382ba8107533cacba70aeec97581cc4f4bb591544b1ada2516335
   languageName: node
   linkType: hard
 
@@ -8162,11 +8162,11 @@ __metadata:
     "@web/test-runner": "npm:^0.20.2"
     "@web/test-runner-playwright": "npm:^0.11.1"
     buffer-esm: "npm:^1.2.0"
-    eslint: "npm:^10.5.0"
+    eslint: "npm:^10.6.0"
     eslint-plugin-prettier: "npm:^5.5.6"
     ethers: "npm:^6.17.0"
     hardhat: "npm:^3.9.0"
-    prettier: "npm:3.8.4"
+    prettier: "npm:3.9.4"
     smol-toml: "npm:^1.7.0"
     toml: "npm:^4.1.1"
     tslog: "npm:^4.10.2"
@@ -10411,12 +10411,12 @@ __metadata:
   languageName: node
   linkType: hard
 
-"prettier@npm:3.8.4":
-  version: 3.8.4
-  resolution: "prettier@npm:3.8.4"
+"prettier@npm:3.9.4":
+  version: 3.9.4
+  resolution: "prettier@npm:3.9.4"
   bin:
     prettier: bin/prettier.cjs
-  checksum: 10/54684a3cc6689238692b29fab541c01934af7677be94c02293ba49981a1ac121c8bebe2a865f0c3b963e99d208f847c53aed354cc0ce8750e2d45791d64506c5
+  checksum: 10/4a0dc4389d442f5aca0beb12778c90b6ceb9831940b01a1df5eba9150b5ce96fa52eda9074a10a370e732adc03e2f645597dfd8b7e3f1e94dee28df01004a0fd
   languageName: node
   linkType: hard
 
