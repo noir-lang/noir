@@ -1,0 +1,6 @@
+[package]
+name = "large_nested_array_multi_field_merge"
+type = "bin"
+authors = [""]
+
+[dependencies]

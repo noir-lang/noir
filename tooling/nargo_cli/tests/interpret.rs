@@ -5,6 +5,7 @@ use predicates::prelude::*;
 use std::process::Command;
 
 use assert_fs::prelude::{FileWriteStr, PathChild, PathCreateDir};
+use nargo::constants::PKG_FILE;
 
 /// A `Prover.toml` whose array length disagrees with the declared parameter type
 /// should surface a clean error, the same way `nargo execute` does, instead of
@@ -14,7 +15,7 @@ fn interpret_with_array_length_mismatch_reports_clean_error() {
     let project_dir = assert_fs::TempDir::new().unwrap();
     project_dir.child("src").create_dir_all().unwrap();
     project_dir
-        .child("Nargo.toml")
+        .child(PKG_FILE)
         .write_str(
             r#"[package]
 name = "interpret_length_mismatch"

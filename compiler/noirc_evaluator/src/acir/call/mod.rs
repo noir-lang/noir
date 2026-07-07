@@ -25,7 +25,7 @@ use crate::ssa::ir::{
 use crate::ssa::ssa_gen::Ssa;
 
 use super::{
-    Context, arrays,
+    Context,
     types::{AcirDynamicArray, AcirType, AcirValue},
 };
 
@@ -76,7 +76,7 @@ impl Context<'_> {
                             outputs.len(),
                             "ICE: intrinsic call produced a different number of outputs than result ids"
                         );
-                        self.handle_ssa_call_outputs(result_ids, outputs, dfg)?;
+                        self.handle_ssa_call_outputs(result_ids, outputs)?;
                     }
                     Value::ForeignFunction { .. } => unreachable!(
                         "Frontend should remove any oracle calls from constrained functions"
@@ -119,14 +119,14 @@ impl Context<'_> {
         };
 
         let output_vars = self.acir_context.call_acir_function(
-            AcirFunctionId(acir_function_id),
+            AcirFunctionId::new(acir_function_id),
             inputs,
             output_count,
             self.current_side_effects_enabled_var,
         )?;
 
         let output_values = self.convert_vars_to_values(output_vars, dfg, result_ids);
-        self.handle_ssa_call_outputs(result_ids, output_values, dfg)
+        self.handle_ssa_call_outputs(result_ids, output_values)
     }
 
     fn handle_brillig_function_call(
@@ -158,8 +158,7 @@ impl Context<'_> {
                 None,
             )?
         } else {
-            let code =
-                gen_brillig_for(func, arguments.clone(), self.brillig, self.brillig_options)?;
+            let code = gen_brillig_for(func, &arguments, self.brillig, self.brillig_options)?;
             let generated_pointer = self.shared_context.new_generated_pointer();
             let skip_output_range_checks = false;
             let output_values = self.acir_context.brillig_call(
@@ -181,7 +180,7 @@ impl Context<'_> {
         };
 
         assert_eq!(result_ids.len(), output_values.len(), "Brillig output length mismatch");
-        self.handle_ssa_call_outputs(result_ids, output_values, dfg)
+        self.handle_ssa_call_outputs(result_ids, output_values)
     }
 
     pub(super) fn gen_brillig_parameters(
@@ -239,23 +238,16 @@ impl Context<'_> {
         &mut self,
         result_ids: &[ValueId],
         output_values: Vec<AcirValue>,
-        dfg: &DataFlowGraph,
     ) -> Result<(), RuntimeError> {
         for (result_id, output) in result_ids.iter().zip_eq(output_values) {
-            if let AcirValue::Array(_) = &output {
-                let array_id = *result_id;
-                let block_id = self.block_id(array_id);
-                let array_typ = dfg.type_of_value(array_id);
-                let len = if matches!(*array_typ, Type::Array(_, _)) {
-                    array_typ.flattened_size()
-                } else {
-                    arrays::flattened_value_size(&output)
-                };
-                self.initialize_array(block_id, len, Some(output.clone()))?;
-            }
-            // Do nothing for AcirValue::DynamicArray and AcirValue::Var
-            // A dynamic array returned from a function call should already be initialized
-            // and a single variable does not require any extra initialization.
+            // An `AcirValue::Array` result is held inline, exactly as `make_array` does: its
+            // backing memory block is created lazily by `ensure_array_is_initialized` on the first
+            // memory operation that needs it. Initializing it eagerly here would emit a
+            // `MemoryInit` for a block that is never read/written when the result is only accessed
+            // at constant indices or is entirely unused.
+            //
+            // A returned `AcirValue::DynamicArray` is already backed by an initialized block, and an
+            // `AcirValue::Var` requires no initialization.
             self.ssa_values.insert(*result_id, output);
         }
         Ok(())
@@ -279,7 +271,11 @@ impl Context<'_> {
             if let Type::Vector(elements_type) = &*result_type {
                 let error = "ICE - cannot get vector length when converting vector to AcirValue";
                 let len = values.last().expect(error).borrow_var().expect(error);
-                let len = self.acir_context.constant(len).to_u128();
+                let len = self
+                    .acir_context
+                    .constant(&len, "len".to_string())
+                    .expect("ICE - expected the variable to be a constant value")
+                    .to_u128();
                 let mut element_values = im::Vector::new();
                 for _ in 0..len {
                     for element_type in elements_type.iter() {

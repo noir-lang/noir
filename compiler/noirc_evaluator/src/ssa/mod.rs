@@ -167,6 +167,9 @@ pub struct SsaEvaluatorOptions {
 
     /// A list of SSA pass messages to skip, for testing purposes.
     pub skip_passes: Vec<String>,
+
+    /// Run the full SSA validator after each pass, to catch a pass that produces malformed SSA.
+    pub validate_between_passes: bool,
 }
 
 /// Defaults used in tests.
@@ -191,6 +194,7 @@ impl Default for SsaEvaluatorOptions {
             specialization_threshold: DEFAULT_SPECIALIZATION_THRESHOLD,
             max_specializations_per_fn: DEFAULT_MAX_SPECIALIZATIONS_PER_FN,
             skip_passes: Vec::new(),
+            validate_between_passes: false,
         }
     }
 }
@@ -214,7 +218,7 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
             .and_then(Ssa::remove_redundant_params)
             .and_then_validate(|#[allow(unused)] ssa| {
                 #[cfg(debug_assertions)]
-                validation::array_set_rc_invariant::verify_array_set_rc_invariant(ssa)?;
+                validation::rc_invariant::verify_all(ssa)?;
                 Ok(())
             }),
         SsaPass::new_try(Ssa::defunctionalize, "Defunctionalization"),
@@ -308,7 +312,11 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
         SsaPass::new(Ssa::remove_redundant_params, "Remove Redundant Parameters"),
         // Removing redundant block parameters can reveal new CFG structures that can be simplified further.
         SsaPass::new(Ssa::simplify_cfg, "Simplifying"),
-        SsaPass::new(Ssa::flatten_cfg, "Flattening"),
+        SsaPass::new(Ssa::flatten_cfg, "Flattening").and_then_validate(|#[allow(unused)] ssa| {
+            #[cfg(debug_assertions)]
+            validation::flatten_post_check::verify_side_effect_predicates(ssa)?;
+            Ok(())
+        }),
         SsaPass::new(Ssa::array_set_window_optimization, "ArraySet Window optimization"),
         // Run mem2reg on all functions after flattening to handle cross-block promotion
         // (Brillig still multi-block; ACIR is single-block so this is trivial for ACIR).
@@ -396,6 +404,10 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
         ),
         SsaPass::new(Ssa::remove_unreachable_instructions, "Remove Unreachable Instructions")
             .and_then(Ssa::remove_unreachable_functions),
+        // Remove any side effect enabling instructions if all instructions which require
+        // predicates have been removed from under them by the previous DIE or made redundant
+        // by constant folding. The next DIE can remove the side effect variable as well.
+        SsaPass::new(Ssa::remove_enable_side_effects, "EnableSideEffectsIf removal"),
         SsaPass::new(Ssa::dead_instruction_elimination, "Dead Instruction Elimination")
             // A function can be potentially unreachable post-DIE if all calls to that function were removed.
             .and_then(Ssa::remove_unreachable_functions)
@@ -445,10 +457,14 @@ pub fn optimize_ssa_builder_into_acir(
     builder: SsaBuilder,
     options: &SsaEvaluatorOptions,
     passes: &[SsaPass],
+    files: Option<&fm::FileManager>,
 ) -> Result<ArtifactsAndWarnings, RuntimeError> {
     let ssa_gen_span = span!(Level::TRACE, "ssa_generation");
     let ssa_gen_span_guard = ssa_gen_span.enter();
-    let builder = builder.with_skip_passes(options.skip_passes.clone()).run_passes(passes)?;
+    let builder = builder
+        .with_skip_passes(options.skip_passes.clone())
+        .with_validate_between_passes(options.validate_between_passes)
+        .run_passes(passes)?;
 
     drop(ssa_gen_span_guard);
 
@@ -469,6 +485,11 @@ pub fn optimize_ssa_builder_into_acir(
     let brillig = time("SSA to Brillig", options.print_codegen_timings, || {
         builder.ssa().to_brillig(&options.brillig_options)
     });
+
+    // Resolve copy-site labels now that both the CallStackHelper and FileManager are available.
+    if let Some(registry) = &options.brillig_options.copy_site_registry {
+        registry.resolve_labels(brillig.call_stacks(), files);
+    }
 
     let ssa_gen_span_guard = ssa_gen_span.enter();
 
@@ -523,7 +544,7 @@ pub fn optimize_into_acir(
         files,
     )?;
 
-    optimize_ssa_builder_into_acir(builder, options, passes)
+    optimize_ssa_builder_into_acir(builder, options, passes, files)
 }
 
 /// Compiles the [`Program`] into [`ACIR`][acvm::acir::circuit::Program].
@@ -649,7 +670,7 @@ fn brillig_side_effects(
         .iter()
         .enumerate()
         .map(|(idx, function)| {
-            let id = BrilligFunctionId(idx as u32);
+            let id = BrilligFunctionId::new(idx as u32);
             let has_side_effect = function
                 .bytecode
                 .iter()
@@ -847,7 +868,7 @@ mod brillig_side_effects_tests {
         let side_effects = brillig_side_effects(&brillig);
 
         // A foreign call is the only thing that lets a Brillig function affect the outside world.
-        assert!(!side_effects[&BrilligFunctionId(0)]);
-        assert!(side_effects[&BrilligFunctionId(1)]);
+        assert!(!side_effects[&BrilligFunctionId::new(0)]);
+        assert!(side_effects[&BrilligFunctionId::new(1)]);
     }
 }

@@ -6,6 +6,7 @@ use std::{
     rc::Rc,
 };
 
+use crate::hir::comptime::bigint_to_field;
 use acvm::{AcirField, FieldElement};
 use builtin_helpers::{
     block_expression_to_value, byte_array_type, check_argument_count,
@@ -40,7 +41,7 @@ use crate::{
             display::tokens_to_string,
             errors::IResult,
             interpreter::{
-                builtin::builtin_helpers::fragments_to_string,
+                builtin::builtin_helpers::{fragments_to_bytes, fragments_to_string},
                 builtin_helpers::{check_item_crate_matches_current_crate, get_option},
             },
             value::{ExprValue, FormatStringFragment, TypedExpr},
@@ -87,8 +88,9 @@ impl Interpreter<'_, '_> {
             "as_witness" => as_witness(arguments, location),
             "black_box" => black_box(arguments, location),
             "checked_transmute" => checked_transmute(arguments, return_type, location),
-            "ctstring_eq" => ctstring_eq(arguments, location),
-            "ctstring_hash" => ctstring_hash(arguments, location),
+            "ctstring_append" => ctstring_append(arguments, location),
+            "ctstring_eq" => eq_item(arguments, location, get_ctstring),
+            "ctstring_hash" => hash_item(arguments, location, get_ctstring),
             "derive_pedersen_generators" => derive_generators(arguments, return_type, location),
             "expr_as_array" => expr_as_array(interner, arguments, return_type, location),
             "expr_as_assert" => expr_as_assert(interner, arguments, return_type, location),
@@ -146,8 +148,8 @@ impl Interpreter<'_, '_> {
             "field_less_than" => field_less_than(arguments, location),
             "issue_error" => issue_diagnostic(self, arguments, location, false),
             "issue_warning" => issue_diagnostic(self, arguments, location, true),
-            "location_eq" => location_eq(arguments, location),
-            "location_hash" => location_hash(arguments, location),
+            "location_eq" => eq_item(arguments, location, get_location),
+            "location_hash" => hash_item(arguments, location, get_location),
             "fmtstr_as_ctstring" => {
                 fmtstr_as_ctstring(interner, self.elaborator.files, arguments, location)
             }
@@ -158,14 +160,17 @@ impl Interpreter<'_, '_> {
             "function_def_as_typed_expr" => function_def_as_typed_expr(self, arguments, location),
             "function_def_body" => function_def_body(self, arguments, location),
             "function_def_disable" => function_def_disable(self, arguments, location),
-            "function_def_eq" => function_def_eq(arguments, location),
+            "function_def_eq" => eq_item(arguments, location, get_function_def),
             "function_def_has_builtin_attribute" => {
                 function_def_has_attribute(interner, arguments, location, true)
             }
             "function_def_has_named_attribute" => {
                 function_def_has_attribute(interner, arguments, location, false)
             }
-            "function_def_hash" => function_def_hash(arguments, location),
+            "function_def_named_attribute_args" => {
+                function_def_named_attribute_args(interner, arguments, location)
+            }
+            "function_def_hash" => hash_item(arguments, location, get_function_def),
             "function_def_is_unconstrained" => {
                 function_def_is_unconstrained(self, arguments, location)
             }
@@ -176,21 +181,22 @@ impl Interpreter<'_, '_> {
             "function_def_return_type" => function_def_return_type(self, arguments, location),
             "function_def_visibility" => function_def_visibility(interner, arguments, location),
             "module_child_modules" => module_child_modules(self, arguments, location),
-            "module_eq" => module_eq(arguments, location),
+            "module_eq" => eq_item(arguments, location, get_module),
             "module_functions" => module_functions(self, arguments, location),
             "module_has_builtin_attribute" => module_has_attribute(self, arguments, location, true),
             "module_has_named_attribute" => module_has_attribute(self, arguments, location, false),
-            "module_hash" => module_hash(arguments, location),
+            "module_named_attribute_args" => module_named_attribute_args(self, arguments, location),
+            "module_hash" => hash_item(arguments, location, get_module),
             "module_is_contract" => module_is_contract(self, arguments, location),
             "module_location" => module_location(interner, arguments, location),
             "module_name" => module_name(interner, arguments, location),
             "module_parent" => module_parent(self, arguments, return_type, location),
             "module_structs" => module_structs(self, arguments, location),
-            "modulus_be_bits" => modulus_be_bits(arguments, location),
-            "modulus_be_bytes" => modulus_be_bytes(arguments, location),
-            "modulus_le_bits" => modulus_le_bits(arguments, location),
-            "modulus_le_bytes" => modulus_le_bytes(arguments, location),
-            "modulus_num_bits" => modulus_num_bits(arguments, location),
+            "modulus_be_bits" => modulus_be_bits(&arguments, location),
+            "modulus_be_bytes" => modulus_be_bytes(&arguments, location),
+            "modulus_le_bits" => modulus_le_bits(&arguments, location),
+            "modulus_le_bytes" => modulus_le_bytes(&arguments, location),
+            "modulus_num_bits" => modulus_num_bits(&arguments, location),
             "quoted_as_expr" => quoted_as_expr(self.elaborator, arguments, return_type, location),
             "quoted_as_module" => quoted_as_module(self, arguments, return_type, location),
             "quoted_as_trait_constraint" => quoted_as_trait_constraint(self, arguments, location),
@@ -219,13 +225,13 @@ impl Interpreter<'_, '_> {
             "to_le_radix" => to_le_radix(arguments, return_type, location, call_stack),
             "to_be_bits" => to_be_bits(arguments, return_type, location, call_stack),
             "to_le_bits" => to_le_bits(arguments, return_type, location, call_stack),
-            "trait_constraint_eq" => trait_constraint_eq(arguments, location),
-            "trait_constraint_hash" => trait_constraint_hash(arguments, location),
+            "trait_constraint_eq" => eq_item(arguments, location, get_trait_constraint),
+            "trait_constraint_hash" => hash_item(arguments, location, get_trait_constraint),
             "trait_def_as_trait_constraint" => {
                 trait_def_as_trait_constraint(interner, arguments, location)
             }
-            "trait_def_eq" => trait_def_eq(arguments, location),
-            "trait_def_hash" => trait_def_hash(arguments, location),
+            "trait_def_eq" => eq_item(arguments, location, get_trait_def),
+            "trait_def_hash" => hash_item(arguments, location, get_trait_def),
             "trait_def_location" => trait_def_location(interner, arguments, location),
             "trait_impl_methods" => trait_impl_methods(interner, arguments, location),
             "trait_impl_trait_generic_args" => {
@@ -246,7 +252,7 @@ impl Interpreter<'_, '_> {
             "type_def_as_type_with_generics" => {
                 type_def_as_type_with_generics(interner, arguments, return_type, location)
             }
-            "type_def_eq" => type_def_eq(arguments, location),
+            "type_def_eq" => eq_item(arguments, location, get_type_id),
             "type_def_fields" => type_def_fields(self, arguments, location, call_stack),
             "type_def_fields_as_written" => type_def_fields_as_written(self, arguments, location),
             "type_def_generics" => type_def_generics(interner, arguments, return_type, location),
@@ -256,15 +262,18 @@ impl Interpreter<'_, '_> {
             "type_def_has_named_attribute" => {
                 type_def_has_attribute(interner, arguments, location, false)
             }
-            "type_def_hash" => type_def_hash(arguments, location),
+            "type_def_named_attribute_args" => {
+                type_def_named_attribute_args(interner, arguments, location)
+            }
+            "type_def_hash" => hash_item(arguments, location, get_type_id),
             "type_def_location" => type_def_location(interner, arguments, location),
             "type_def_module" => type_def_module(self, arguments, location),
             "type_def_name" => type_def_name(interner, arguments, location),
-            "type_eq" => type_eq(arguments, location),
+            "type_eq" => eq_item(arguments, location, get_type),
             "type_get_trait_impl" => {
                 type_get_trait_impl(interner, arguments, return_type, location)
             }
-            "type_hash" => type_hash(arguments, location),
+            "type_hash" => hash_item(arguments, location, get_type),
             "type_implements" => type_implements(interner, arguments, location),
             "type_is_bool" => type_is_bool(arguments, location),
             "type_is_field" => type_is_field(arguments, location),
@@ -392,7 +401,7 @@ fn checked_transmute(
 ) -> IResult<Value> {
     let (value, location) = check_one_argument(arguments, location)?;
 
-    if value.get_type().as_ref() != &return_type {
+    if value.get_type().try_unify_with_default_bindings(&return_type).is_err() {
         return Err(InterpreterError::CheckedTransmuteFailed {
             actual: value.get_type().into_owned(),
             expected: return_type,
@@ -608,14 +617,6 @@ fn type_def_generics(
     Ok(Value::Vector(generics, Type::Vector(Box::new(vector_item_type))))
 }
 
-fn type_def_hash(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
-    hash_item(arguments, location, get_type_id)
-}
-
-fn type_def_eq(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
-    eq_item(arguments, location, get_type_id)
-}
-
 // fn has_named_attribute<let N: u32>(self, name: str<N>) -> bool {}
 // fn has_builtin_attribute<let N: u32>(self, name: str<N>) -> bool {}
 fn type_def_has_attribute(
@@ -637,6 +638,105 @@ fn type_def_has_attribute(
         has_named_attribute(&name, attrs, interner)
     };
     Ok(Value::Bool(matched))
+}
+
+/// Collect the argument expressions of each `#[name(..)]` occurrence among `attributes`.
+/// Only `Meta` attributes (`#[name(args)]`) carry argument expressions; tags and built-in
+/// attributes have none and are skipped. The arguments are cloned so the interner can be
+/// mutated afterwards while building the result.
+fn collect_meta_attribute_args(
+    name: &str,
+    attributes: &[SecondaryAttribute],
+    interner: &NodeInterner,
+) -> Vec<Vec<Expression>> {
+    attributes
+        .iter()
+        .filter_map(|attribute| match &attribute.kind {
+            SecondaryAttributeKind::Meta(meta)
+                if interner.get_meta_attribute_name(meta).as_deref() == Some(name) =>
+            {
+                Some(meta.arguments.clone())
+            }
+            _ => None,
+        })
+        .collect()
+}
+
+/// Build the `[[Quoted]]` value returned by `named_attribute_args`: an outer vector with one
+/// entry per attribute occurrence, an inner vector of that occurrence's arguments, each argument
+/// a token stream that can be spliced into generated code.
+fn named_attribute_args_value(
+    occurrences: Vec<Vec<Expression>>,
+    interner: &mut NodeInterner,
+) -> Value {
+    let quoted_vec_type = Type::Vector(Box::new(Type::Quoted(QuotedType::Quoted)));
+    let occurrences = occurrences
+        .into_iter()
+        .map(|args| {
+            let args = args
+                .into_iter()
+                .map(|arg| {
+                    let arg_location = arg.location;
+                    let token = Token::InternedExpr(interner.push_expression_kind(arg.kind));
+                    Value::Quoted(Rc::new(vec![LocatedToken::new(token, arg_location)]))
+                })
+                .collect();
+            Value::Vector(args, quoted_vec_type.clone())
+        })
+        .collect();
+    Value::Vector(occurrences, Type::Vector(Box::new(quoted_vec_type)))
+}
+
+// fn named_attribute_args<let N: u32>(self, name: str<N>) -> [[Quoted]]
+fn type_def_named_attribute_args(
+    interner: &mut NodeInterner,
+    arguments: Vec<(Value, Location)>,
+    location: Location,
+) -> IResult<Value> {
+    let (self_argument, name) = check_two_arguments(arguments, location)?;
+    let type_id = get_type_id(self_argument)?;
+    let name = get_str(name)?;
+    let name = String::from_utf8_lossy(&name).to_string();
+
+    let occurrences =
+        collect_meta_attribute_args(&name, interner.type_attributes(&type_id), interner);
+    Ok(named_attribute_args_value(occurrences, interner))
+}
+
+// fn named_attribute_args<let N: u32>(self, name: str<N>) -> [[Quoted]]
+fn function_def_named_attribute_args(
+    interner: &mut NodeInterner,
+    arguments: Vec<(Value, Location)>,
+    location: Location,
+) -> IResult<Value> {
+    let (self_argument, name) = check_two_arguments(arguments, location)?;
+    let func_id = get_function_def(self_argument)?;
+    let name = get_str(name)?;
+    let name = String::from_utf8_lossy(&name).to_string();
+
+    let occurrences = {
+        let secondary = &interner.function_modifiers(&func_id).attributes.secondary;
+        collect_meta_attribute_args(&name, secondary, interner)
+    };
+    Ok(named_attribute_args_value(occurrences, interner))
+}
+
+// fn named_attribute_args<let N: u32>(self, name: str<N>) -> [[Quoted]]
+fn module_named_attribute_args(
+    interpreter: &mut Interpreter,
+    arguments: Vec<(Value, Location)>,
+    location: Location,
+) -> IResult<Value> {
+    let (self_argument, name) = check_two_arguments(arguments, location)?;
+    let module_id = get_module(self_argument)?;
+    let name = get_str(name)?;
+    let name = String::from_utf8_lossy(&name).to_string();
+
+    let occurrences = {
+        let attrs = &interpreter.elaborator.get_module(module_id).attributes;
+        collect_meta_attribute_args(&name, attrs, interpreter.elaborator.interner)
+    };
+    Ok(named_attribute_args_value(occurrences, interpreter.elaborator.interner))
 }
 
 /// fn fields(self, `generic_args`: [Type]) -> [(Quoted, Type, Quoted)]
@@ -1299,15 +1399,6 @@ where
 }
 
 // fn type_eq(_first: Type, _second: Type) -> bool
-fn type_eq(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
-    eq_item(arguments, location, get_type)
-}
-
-// fn type_hash(_t: Type) -> Field
-fn type_hash(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
-    hash_item(arguments, location, get_type)
-}
-
 // fn get_trait_impl(self, constraint: TraitConstraint) -> Option<TraitImpl>
 fn type_get_trait_impl(
     interner: &NodeInterner,
@@ -1379,26 +1470,6 @@ fn type_of(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Val
     let (value, _) = check_one_argument(arguments, location)?;
     let typ = value.get_type().into_owned();
     Ok(Value::Type(typ))
-}
-
-// fn constraint_hash(constraint: TraitConstraint) -> Field
-fn trait_constraint_hash(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
-    hash_item(arguments, location, get_trait_constraint)
-}
-
-// fn constraint_eq(constraint_a: TraitConstraint, constraint_b: TraitConstraint) -> bool
-fn trait_constraint_eq(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
-    eq_item(arguments, location, get_trait_constraint)
-}
-
-// fn trait_def_hash(def: TraitDefinition) -> Field
-fn trait_def_hash(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
-    hash_item(arguments, location, get_trait_def)
-}
-
-// fn trait_def_eq(def_a: TraitDefinition, def_b: TraitDefinition) -> bool
-fn trait_def_eq(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
-    eq_item(arguments, location, get_trait_def)
 }
 
 // fn methods(self) -> [FunctionDefinition]
@@ -1839,7 +1910,7 @@ fn expr_as_binary_op(
 
             tuple_types.pop().unwrap();
             let binary_op_type = tuple_types.pop().unwrap();
-            let binary_op = Shared::new(new_binary_op(infix_expr.operator, binary_op_type));
+            let binary_op = Shared::new(new_binary_op(&infix_expr.operator, binary_op_type));
             let lhs = Shared::new(Value::expression(infix_expr.lhs.kind));
             let rhs = Shared::new(Value::expression(infix_expr.rhs.kind));
             Some(Value::Tuple(vec![lhs, binary_op, rhs]))
@@ -2051,7 +2122,7 @@ fn expr_as_if(
     expr_as(interner, arguments, return_type.clone(), location, |expr| {
         if let ExprValue::Expression(ExpressionKind::If(if_expr)) = expr {
             // Get the type of `Option<Expr>`
-            let option_type = extract_option_generic_type(return_type.clone());
+            let option_type = extract_option_generic_type(return_type);
             let Type::Tuple(option_types) = option_type else {
                 panic!("Expected the return type option generic arg to be a tuple");
             };
@@ -2102,12 +2173,12 @@ fn expr_as_integer(
     location: Location,
 ) -> IResult<Value> {
     expr_as(interner, arguments, return_type, location, |expr| match expr {
-        ExprValue::Expression(ExpressionKind::Literal(Literal::Integer(field, _suffix))) => {
-            Some(Value::field(field))
+        ExprValue::Expression(ExpressionKind::Literal(Literal::Integer(value, _suffix))) => {
+            Some(Value::field(bigint_to_field(&value)))
         }
         ExprValue::Expression(ExpressionKind::Resolved(id)) => {
-            if let HirExpression::Literal(HirLiteral::Integer(field)) = interner.expression(&id) {
-                Some(Value::field(field))
+            if let HirExpression::Literal(HirLiteral::Integer(value)) = interner.expression(&id) {
+                Some(Value::field(bigint_to_field(&value)))
             } else {
                 None
             }
@@ -2570,8 +2641,7 @@ fn fmtstr_as_ctstring(
 ) -> IResult<Value> {
     let self_argument = check_one_argument(arguments, location)?;
     let (fragments, _, _) = get_format_string(self_argument)?;
-    let string = fragments_to_string(&fragments, interner, files);
-    let bytes = string.bytes().collect();
+    let bytes = fragments_to_bytes(&fragments, interner, files);
     Ok(Value::CtString(Rc::new(bytes)))
 }
 
@@ -2733,9 +2803,12 @@ fn function_def_disable(
 
     let func_meta = interpreter.elaborator.function_meta_mut(func_id);
 
-    // Lie and say that the body of this function is resolved in order to avoid any
-    // errors from resolving it since it is now disabled. The addition of `deprecated(deny, _)`
-    // above should ensure it is never called.
+    // Mark the body resolved so it is never elaborated: macro authors disable functions whose
+    // bodies are placeholders or are no longer valid, and type-checking those would raise spurious
+    // errors. The `deprecated(deny, _)` attribute added above makes calls error during elaboration.
+    // A disabled function therefore has no interned `HirFunction`; monomorphization rejects any that
+    // it still manages to reach via `MonomorphizationError::CalledDisabledFunction` rather than
+    // reading the missing body and panicking.
     func_meta.function_body = FunctionBody::Resolved;
     Ok(Value::Unit)
 }
@@ -2768,14 +2841,6 @@ fn function_def_has_attribute(
         has_named_attribute(&name, secondary, interner)
     };
     Ok(Value::Bool(matched))
-}
-
-fn function_def_hash(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
-    hash_item(arguments, location, get_function_def)
-}
-
-fn function_def_eq(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
-    eq_item(arguments, location, get_function_def)
 }
 
 // fn is_unconstrained(self) -> bool
@@ -2909,14 +2974,6 @@ fn module_child_modules(
     Ok(Value::Vector(children, vector_type))
 }
 
-fn module_hash(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
-    hash_item(arguments, location, get_module)
-}
-
-fn module_eq(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
-    eq_item(arguments, location, get_module)
-}
-
 // fn functions(self) -> [FunctionDefinition]
 fn module_functions(
     interpreter: &Interpreter,
@@ -3037,8 +3094,8 @@ fn module_name(
     Ok(Value::Quoted(tokens))
 }
 
-fn modulus_be_bits(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
-    check_argument_count(0, &arguments, location)?;
+fn modulus_be_bits(arguments: &[(Value, Location)], location: Location) -> IResult<Value> {
+    check_argument_count(0, arguments, location)?;
 
     let bits = FieldElement::modulus().to_radix_be(2);
     let bits_vector = bits.into_iter().map(|bit| Value::Bool(bit != 0)).collect();
@@ -3047,8 +3104,8 @@ fn modulus_be_bits(arguments: Vec<(Value, Location)>, location: Location) -> IRe
     Ok(Value::Vector(bits_vector, typ))
 }
 
-fn modulus_be_bytes(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
-    check_argument_count(0, &arguments, location)?;
+fn modulus_be_bytes(arguments: &[(Value, Location)], location: Location) -> IResult<Value> {
+    check_argument_count(0, arguments, location)?;
 
     let bytes = FieldElement::modulus().to_bytes_be();
     let bytes_vector = bytes.into_iter().map(Value::u8).collect();
@@ -3058,7 +3115,7 @@ fn modulus_be_bytes(arguments: Vec<(Value, Location)>, location: Location) -> IR
     Ok(Value::Vector(bytes_vector, typ))
 }
 
-fn modulus_le_bits(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
+fn modulus_le_bits(arguments: &[(Value, Location)], location: Location) -> IResult<Value> {
     let Value::Vector(bits, typ) = modulus_be_bits(arguments, location)? else {
         unreachable!("modulus_be_bits must return vector")
     };
@@ -3066,7 +3123,7 @@ fn modulus_le_bits(arguments: Vec<(Value, Location)>, location: Location) -> IRe
     Ok(Value::Vector(reversed_bits, typ))
 }
 
-fn modulus_le_bytes(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
+fn modulus_le_bytes(arguments: &[(Value, Location)], location: Location) -> IResult<Value> {
     let Value::Vector(bytes, typ) = modulus_be_bytes(arguments, location)? else {
         unreachable!("modulus_be_bytes must return vector")
     };
@@ -3074,8 +3131,8 @@ fn modulus_le_bytes(arguments: Vec<(Value, Location)>, location: Location) -> IR
     Ok(Value::Vector(reversed_bytes, typ))
 }
 
-fn modulus_num_bits(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
-    check_argument_count(0, &arguments, location)?;
+fn modulus_num_bits(arguments: &[(Value, Location)], location: Location) -> IResult<Value> {
+    check_argument_count(0, arguments, location)?;
     let bits = FieldElement::max_num_bits().into();
     Ok(Value::u64(bits))
 }
@@ -3168,16 +3225,6 @@ fn typed_expr_location(
     Ok(Value::Location(loc))
 }
 
-// fn location_eq(a: Location, b: Location) -> bool
-fn location_eq(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
-    eq_item(arguments, location, get_location)
-}
-
-// fn location_hash(loc: Location) -> Field
-fn location_hash(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
-    hash_item(arguments, location, get_location)
-}
-
 /// Creates a value that holds an `Option`.
 /// `option_type` must be a Type referencing the `Option` type.
 pub(crate) fn option(option_type: Type, value: Option<Value>, location: Location) -> Value {
@@ -3206,12 +3253,15 @@ pub(crate) fn extract_option_generic_type(typ: Type) -> Type {
     generics.pop().expect("Expected Option to have a T generic type")
 }
 
-fn ctstring_eq(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
-    eq_item(arguments, location, get_ctstring)
-}
+// fn append(self, other: CtString) -> CtString
+fn ctstring_append(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
+    let (self_argument, other_argument) = check_two_arguments(arguments, location)?;
+    let self_bytes = get_ctstring(self_argument)?;
+    let other_bytes = get_ctstring(other_argument)?;
 
-fn ctstring_hash(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
-    hash_item(arguments, location, get_ctstring)
+    let mut bytes = self_bytes.as_ref().clone();
+    bytes.extend_from_slice(&other_bytes);
+    Ok(Value::CtString(Rc::new(bytes)))
 }
 
 fn derive_generators(

@@ -108,10 +108,10 @@ impl Debug for AcirDynamicArray {
         write!(
             f,
             "id: {}, len: {}, value_types: {:?}, element_type_sizes: {:?}",
-            self.block_id.0,
+            self.block_id.as_u32(),
             self.len,
             self.value_types,
-            self.element_type_sizes.map(|block_id| block_id.0)
+            self.element_type_sizes.map(|block_id| block_id.as_u32())
         )
     }
 }
@@ -182,16 +182,25 @@ impl AcirValue {
 
     /// Fetch a flat list of ([`AcirVar`], [`AcirType`]).
     ///
-    /// # Panics
-    /// If [`AcirValue::DynamicArray`] is supplied or an inner element of an [`AcirValue::Array`].
-    /// This is because an [`AcirValue::DynamicArray`] is simply a pointer to an array
-    /// and fetching its internal [`AcirValue::Var`] would require laying down opcodes to read its content.
-    /// This method should only be used where dynamic arrays are not a possible type.
-    pub(super) fn flatten(self) -> Vec<(AcirVar, NumericType)> {
+    /// Returns an error if [`AcirValue::DynamicArray`] is supplied or is an inner element of an
+    /// [`AcirValue::Array`]. This is because an [`AcirValue::DynamicArray`] is simply a pointer to
+    /// an array and fetching its internal [`AcirValue::Var`] would require laying down opcodes to
+    /// read its content. This method should only be used where dynamic arrays are not a possible
+    /// type, or where a dynamic array can be handled by falling back to reading its memory block.
+    pub(super) fn flatten(self) -> Result<Vec<(AcirVar, NumericType)>, InternalError> {
         match self {
-            AcirValue::Var(var, typ) => vec![(var, typ)],
-            AcirValue::Array(array) => array.into_iter().flat_map(AcirValue::flatten).collect(),
-            AcirValue::DynamicArray(_) => unimplemented!("Cannot flatten a dynamic array"),
+            AcirValue::Var(var, typ) => Ok(vec![(var, typ)]),
+            AcirValue::Array(array) => {
+                let mut flattened = Vec::new();
+                for value in array {
+                    flattened.extend(value.flatten()?);
+                }
+                Ok(flattened)
+            }
+            AcirValue::DynamicArray(_) => Err(InternalError::General {
+                message: "Cannot flatten a dynamic array".to_string(),
+                call_stack: CallStack::empty(),
+            }),
         }
     }
 }

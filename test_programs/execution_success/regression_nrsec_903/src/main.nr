@@ -1,9 +1,9 @@
 #[inline_never]
-unconstrained fn get_slice() -> [u32] {
+unconstrained fn get_vector() -> [u32] {
     @[100]
 }
 
 unconstrained fn main() -> pub u32 {
-    let _ = get_slice().pop_front();
-    get_slice()[0]
+    let _ = get_vector().pop_front();
+    get_vector()[0]
 }

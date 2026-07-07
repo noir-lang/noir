@@ -425,10 +425,10 @@ fn databus_deduplicate_call_and_return_data() {
 }
 
 #[test]
-fn blake3_slice_regression() {
+fn blake3_blackbox_brillig_regression() {
     // Sanity check for blake3 black box call brillig codegen.
     let src = "
-    brillig(inline) predicate_pure fn main f0 {
+    brillig(inline) pure fn main f0 {
       b0(v0: [u8; 1]):
         v3 = call blake3(v0) -> [u8; 32]
         return
@@ -564,7 +564,7 @@ fn test_operators(
             // Both executions succeeded and output the same value
             (Ok(ssa_inner_result), (ACVMStatus::Solved, acvm_result)) => {
                 let ssa_result = if let Some(result) = ssa_inner_result.first() {
-                    result.as_numeric().map(|v| v.convert_to_field())
+                    result.as_numeric().map(|v| v.to_field())
                 } else {
                     None
                 };

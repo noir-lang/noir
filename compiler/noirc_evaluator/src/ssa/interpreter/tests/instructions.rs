@@ -23,7 +23,7 @@ use crate::ssa::{
 use super::{Ssa, executes_with_no_errors, expect_error};
 
 fn make_unfit(value: impl Into<FieldElement>, typ: NumericType) -> Value {
-    Value::unfit(value.into(), typ).unwrap()
+    Value::int_from_field(value.into(), typ).unwrap()
 }
 
 #[test]
@@ -112,6 +112,81 @@ fn add_unchecked_signed() {
     assert_eq!(value, make_unfit(129u32, NumericType::signed(8)));
 }
 
+// Regression test for noir-lang/noir-claude#1430.
+//
+// A checked arithmetic op whose operand escaped its type via an earlier overflowing unchecked op
+// (an out-of-range value) must evaluate against the operand's wrapped, in-range value — the value
+// ACIR (which truncates when lowering the checked op) and Brillig (fixed-width registers) carry
+// forward — instead of erroring. Otherwise the interpreter reports an overflow where the backends,
+// and the expanded SSA after `expand_signed_checks`, return the wrapped result.
+#[test]
+fn checked_signed_op_over_unfit_operand_wraps() {
+    // `unchecked_mul i32 i32::MAX, 2` yields the field 4294967294, whose i32 bit pattern is -2.
+    let value = expect_value(
+        "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = unchecked_mul i32 2147483647, i32 2
+            v1 = add v0, i32 0
+            return v1
+        }
+    ",
+    );
+    assert_eq!(value, Value::i32(-2));
+
+    // The second operand is irrelevant; the divergence was about the unfit operand: -2 + 5 = 3.
+    let value = expect_value(
+        "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = unchecked_mul i32 2147483647, i32 2
+            v1 = add v0, i32 5
+            return v1
+        }
+    ",
+    );
+    assert_eq!(value, Value::i32(3));
+}
+
+// Companion to [`checked_signed_op_over_unfit_operand_wraps`] for *unsigned* checked ops, and a
+// regression test for noir-lang/noir-claude#1441.
+//
+// Unlike the signed case, ACIR does not truncate the operand of an unsigned checked op: it keeps it
+// as a field and range-constrains the *result*, so an operand that overflowed/underflowed an
+// earlier unchecked op makes the range check fail and ACIR rejects the program. The interpreter must
+// therefore report the overflow rather than wrap the operand. Wrapping would diverge from ACIR and,
+// for underflow, would not even match Brillig: `0 - 10` carries the field `p - 10`, whose low 8 bits
+// are `247`, not the wrapped `246`.
+#[test]
+fn checked_unsigned_op_over_unfit_operand_errors() {
+    // `unchecked_add u8 200, u8 100` yields 300 (> u8::MAX); the checked add must not wrap to 44.
+    let error = expect_error(
+        "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = unchecked_add u8 200, u8 100
+            v1 = add v0, u8 0
+            return v1
+        }
+    ",
+    );
+    assert!(matches!(error, InterpreterError::Overflow { .. }));
+
+    // `unchecked_sub u8 0, u8 10` underflows; the checked add must not wrap (and in particular must
+    // not return `247` from truncating the field `p - 10`).
+    let error = expect_error(
+        "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = unchecked_sub u8 0, u8 10
+            v1 = add v0, u8 0
+            return v1
+        }
+    ",
+    );
+    assert!(matches!(error, InterpreterError::Overflow { .. }));
+}
+
 #[test]
 fn sub_unsigned() {
     let value = expect_value(
@@ -185,7 +260,7 @@ fn sub_unchecked_unsigned() {
 }
 
 #[test]
-fn sub_unchecked_signed() {
+fn sub_unchecked_signed_acir() {
     let value = expect_value(
         "
         acir(inline) fn main f0 {
@@ -195,7 +270,30 @@ fn sub_unchecked_signed() {
         }
     ",
     );
-    assert_eq!(value, Value::i8(-7));
+    // 3 - 10 = -7. On an ACIR function the unchecked subtraction is field arithmetic, which extends
+    // to the field-negative `-7` (i.e. `p - 7`) rather than the wrapped 8-bit pattern Brillig keeps.
+    // Here we can't compare against `Value::i8(-7)` because that constructor will produce a Field value
+    // that's `256 - 7 = 249`, but in this case we end up with `p - 7`, so a different value.
+    assert_eq!(
+        value.as_numeric().unwrap().to_field(),
+        FieldElement::from(3u32) - FieldElement::from(10u32)
+    );
+}
+
+#[test]
+fn sub_unchecked_signed_brillig() {
+    let value = expect_value(
+        "
+        brillig(inline) fn main f0 {
+          b0():
+            v0 = unchecked_sub i8 3, i8 10
+            return v0
+        }
+    ",
+    );
+    // On a Brillig function we restrict the value to the 8-bit pattern, which
+    // is why we can compare with `Value::i8` (it always produces values in the range `[0, 256)`).
+    assert_eq!(value, Value::i8(-7),);
 }
 
 #[test]
@@ -283,8 +381,9 @@ fn mul_unchecked_signed() {
         }
     ",
     );
-    assert_ne!(value, Value::i8(-2), "no wrapping");
-    assert_eq!(value, make_unfit(254u32, NumericType::signed(8)));
+    // 127 * 2 = 254, whose i8 bit pattern is -2 — an in-range value that both backends agree on.
+    // (Value::i8 always produces values in the `[0, 256)` range)
+    assert_eq!(value, Value::i8(-2));
 }
 
 #[test]
@@ -631,6 +730,97 @@ fn truncate() {
     );
     let constant = u128::from(257_u16 as u8);
     assert_eq!(value, from_constant(constant.into(), NumericType::unsigned(32)));
+}
+
+/// Truncating a *negative* signed value performs no sign-specific logic: it reduces the
+/// value's two's-complement field representation modulo `2^bit_size`, i.e. it keeps the
+/// low `bit_size` bits. The result keeps the original signed type, so it is the masked
+/// low bits reinterpreted in that wider type (and is therefore non-negative).
+///
+/// `-1_i32` has representation `0xFFFF_FFFF`; truncating to 16 bits yields `0xFFFF = 65535`,
+/// which as an `i32` is `65535`.
+#[test]
+fn truncate_negative_signed_keeps_low_bits() {
+    let value = expect_value(
+        "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = truncate i32 -1 to 16 bits, max_bit_size: 32
+            return v0
+        }
+    ",
+    );
+    assert_eq!(value, from_constant(65535_u32.into(), NumericType::signed(32)));
+}
+
+/// The narrowing cast `i32 as i16` is lowered to a `truncate` followed by a `cast`. The
+/// truncate keeps the low 16 bits (`65535` for `-1_i32`); the subsequent cast reinterprets
+/// those bits in the narrower signed type, recovering `-1_i16`. This is exactly the wrapping
+/// `as` semantics, and confirms negatives round-trip correctly.
+#[test]
+fn truncate_then_cast_recovers_negative() {
+    let value = expect_value(
+        "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = truncate i32 -1 to 16 bits, max_bit_size: 32
+            v1 = cast v0 as i16
+            return v1
+        }
+    ",
+    );
+    // `-1_i16` has representation `0xFFFF = 65535`.
+    assert_eq!(value, from_constant(65535_u32.into(), NumericType::signed(16)));
+}
+
+/// A negative value whose low bits are all zero wraps to `0`: `-65536_i32 as i16 == 0`.
+#[test]
+fn truncate_then_cast_negative_wraps_to_zero() {
+    let value = expect_value(
+        "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = truncate i32 -65536 to 16 bits, max_bit_size: 32
+            v1 = cast v0 as i16
+            return v1
+        }
+    ",
+    );
+    assert_eq!(value, from_constant(0_u32.into(), NumericType::signed(16)));
+}
+
+/// A non-trivial negative that stays in range round-trips exactly: `-100_i32 as i16 == -100`.
+#[test]
+fn truncate_then_cast_preserves_in_range_negative() {
+    let value = expect_value(
+        "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = truncate i32 -100 to 16 bits, max_bit_size: 32
+            v1 = cast v0 as i16
+            return v1
+        }
+    ",
+    );
+    // `-100_i16` has representation `65536 - 100 = 65436`.
+    assert_eq!(value, from_constant(65436_u32.into(), NumericType::signed(16)));
+}
+
+/// The same behaviour holds for the smaller widths used by `i16 as i8`: `-1_i16 as i8 == -1`.
+#[test]
+fn truncate_then_cast_recovers_negative_i16_to_i8() {
+    let value = expect_value(
+        "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = truncate i16 -1 to 8 bits, max_bit_size: 16
+            v1 = cast v0 as i8
+            return v1
+        }
+    ",
+    );
+    // `-1_i8` has representation `0xFF = 255`.
+    assert_eq!(value, from_constant(255_u32.into(), NumericType::signed(8)));
 }
 
 #[test]
@@ -1045,6 +1235,45 @@ fn array_set_with_offset() {
 
     assert_eq!(*v0.elements.borrow(), vec![one.clone(), two], "v0 should not be mutated");
     assert_eq!(*v1.elements.borrow(), vec![one, five], "v1 should be mutated");
+}
+
+#[test]
+fn array_set_nested_array_value_is_not_shared() {
+    // Regression test: an array-valued `value` stored by `array_set` must not keep
+    // sharing its nested `Shared` handle with the source array. Otherwise a later
+    // `array_set mut` on that source array would also mutate the earlier stored value,
+    // diverging from ACIR (which copies array-set values).
+    let values = expect_values_with_args(
+        "
+        acir(inline) fn main f0 {
+          b0(v0: u32, v1: Field):
+            v3 = make_array [Field 0] : [Field; 1]
+            v5 = make_array [Field 9] : [Field; 1]
+            v6 = make_array [v5] : [[Field; 1]; 1]
+            v7 = array_set v6, index v0, value v3
+            v8 = array_set mut v3, index v0, value v1
+            return v7, v8
+        }
+    ",
+        vec![
+            from_constant(0u128.into(), NumericType::unsigned(32)),
+            from_constant(7u128.into(), NumericType::NativeField),
+        ],
+    );
+
+    let v7 = values[0].as_array_or_vector().unwrap();
+    let v8 = values[1].as_array_or_vector().unwrap();
+
+    let zero = from_constant(0u32.into(), NumericType::NativeField);
+    let seven = from_constant(7u32.into(), NumericType::NativeField);
+
+    // v7's nested array must still hold the original value: the `array_set mut` on v3
+    // should not reach through into the copy stored in v7.
+    let v7_inner = v7.elements.borrow()[0].as_array_or_vector().unwrap();
+    assert_eq!(*v7_inner.elements.borrow(), vec![zero]);
+
+    // v8 is v3 mutated in place.
+    assert_eq!(*v8.elements.borrow(), vec![seven]);
 }
 
 #[test]

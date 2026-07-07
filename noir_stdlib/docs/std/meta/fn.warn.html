@@ -3,7 +3,10 @@
 <head>
 <meta charset="UTF-8">
 <link rel="stylesheet" href="../../styles.css">
+<script>window.docRoot = "../../";</script>
+<script defer src="../../search-index.js"></script>
 <script defer src="../../nargo_doc.js"></script>
+<script defer src="../../search.js"></script>
 <title>Function warn documentation</title>
 </head>
 <body>
@@ -38,7 +41,13 @@
 </nav>
 <main>
 <div><a href="../../index.html">noir_stdlib</a> - <a href="../index.html">std</a>::<a href="index.html">meta</a></div>
-<h1>Function <span class="fn">warn</span></h1>
+<div class="heading-row">
+<h1 class="heading-content">Function <span class="fn">warn</span></h1>
+<button id="search-toggle" type="button">Search</button>
+</div>
+<input id="search-input" type="search" placeholder="Type 's' or '/' to search" autocomplete="off" spellcheck="false" aria-label="Search" hidden>
+<div id="search-results" hidden></div>
+<div id="page-content">
 <pre><code>pub comptime fn warn&lt;let N: <a href="../../std/primitive.u32.html" class="primitive">u32</a>, T, let N2: <a href="../../std/primitive.u32.html" class="primitive">u32</a>, T2&gt;(
     _msg: <a href="../../std/primitive.fmtstr.html" class="primitive">fmtstr</a>&lt;N, T&gt;,
     _secondary: <a href="../../std/option/struct.Option.html" class="struct">Option</a>&lt;<a href="../../std/primitive.fmtstr.html" class="primitive">fmtstr</a>&lt;N2, T2&gt;&gt;,
@@ -49,6 +58,7 @@
 <p>Issues a warning diagnostic at the given location  with the given primary
 message and an optional secondary message. Execution continues after this
 function is called.</p>
+</div>
 </div>
 </main>
 </span>

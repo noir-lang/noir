@@ -3,7 +3,10 @@
 <head>
 <meta charset="UTF-8">
 <link rel="stylesheet" href="../styles.css">
+<script>window.docRoot = "../";</script>
+<script defer src="../search-index.js"></script>
 <script defer src="../nargo_doc.js"></script>
+<script defer src="../search.js"></script>
 <title>Primitive type u32 documentation</title>
 </head>
 <body>
@@ -124,24 +127,30 @@
 </nav>
 <main>
 <div><a href="../index.html">noir_stdlib</a> - <a href="index.html">std</a></div>
-<h1>Primitive type <span id="primitive" class="primitive">u32</span></h1>
+<div class="heading-row">
+<h1 class="heading-content">Primitive type <span id="primitive" class="primitive">u32</span></h1>
+<button id="search-toggle" type="button">Search</button>
+</div>
+<input id="search-input" type="search" placeholder="Type 's' or '/' to search" autocomplete="off" spellcheck="false" aria-label="Search" hidden>
+<div id="search-results" hidden></div>
+<div id="page-content">
 <div class="comments">
 <p>The 32-bit unsigned integer type.</p>
 </div>
 <h2>Implementations</h2>
 <h3><code class="code-header">impl <a href="../std/primitive.u32.html" class="primitive">u32</a></code></h3>
 
-<div class="padded-methods"><code id="max_value" class="code-header">pub fn <a href="#max_value"><span class="fn">max_value</span></a>() -> Self</code>
+<div class="padded-methods"><code id="max_value" class="code-header">pub fn <a href="#max_value" class="fn">max_value</a>() -> Self</code>
 
 <div class="padded-description"><div class="comments">
 <p>Returns the maximum value representable by <code>u32</code>: 4294967295.</p>
 </div>
-</div><code id="min_value" class="code-header">pub fn <a href="#min_value"><span class="fn">min_value</span></a>() -> Self</code>
+</div><code id="min_value" class="code-header">pub fn <a href="#min_value" class="fn">min_value</a>() -> Self</code>
 
 <div class="padded-description"><div class="comments">
 <p>Returns the minimum value representable by <code>u32</code>: 0.</p>
 </div>
-</div><code id="bits" class="code-header">pub fn <a href="#bits"><span class="fn">bits</span></a>() -> Self</code>
+</div><code id="bits" class="code-header">pub fn <a href="#bits" class="fn">bits</a>() -> Self</code>
 
 <div class="padded-description"><div class="comments">
 <p>Returns the number of bits in <code>u32</code>: 32.</p>
@@ -277,7 +286,8 @@
 
 <div class="padded-methods"><code class="code-header">pub fn <span class="fn">wrapping_sub</span>(self, y: Self) -> Self</code>
 
-</div></main>
+</div></div>
+</main>
 </span>
 </body>
 </html>

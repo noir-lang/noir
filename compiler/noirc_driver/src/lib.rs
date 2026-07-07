@@ -18,11 +18,11 @@ use noirc_artifacts::debug::{DebugFile, DebugInfo, FunctionLocation};
 use noirc_artifacts::program::CompiledProgram;
 use noirc_artifacts::ssa::{InternalBug, InternalWarning, SsaReport};
 use noirc_errors::CustomDiagnostic;
-use noirc_evaluator::brillig::BrilligOptions;
 use noirc_evaluator::brillig::brillig_ir::{
     LayoutConfig, MAX_SCRATCH_SPACE, MAX_STACK_FRAME_SIZE, MIN_SCRATCH_SPACE, MIN_STACK_FRAME_SIZE,
     NUM_STACK_FRAMES,
 };
+use noirc_evaluator::brillig::{BrilligOptions, CopySiteRegistry};
 use noirc_evaluator::create_program;
 use noirc_evaluator::errors::RuntimeError;
 use noirc_evaluator::ssa::checks;
@@ -131,6 +131,11 @@ pub struct CompileOptions {
     #[arg(long, hide = true)]
     pub emit_ssa: bool,
 
+    /// Run the SSA validator after every optimization pass, to catch a pass that produces
+    /// malformed SSA. Intended for debugging and minimizing fuzzing failures.
+    #[arg(long, hide = true)]
+    pub validate_between_passes: bool,
+
     /// Only perform the minimum number of SSA passes.
     ///
     /// The purpose of this is to be able to debug fuzzing failures.
@@ -207,10 +212,6 @@ pub struct CompileOptions {
     /// Flag to turn on extra Brillig bytecode to be generated to guard against invalid states in testing.
     #[arg(long, hide = true)]
     pub enable_brillig_debug_assertions: bool,
-
-    /// Count the number of arrays that are copied in an unconstrained context for performance debugging
-    #[arg(long)]
-    pub count_array_copies: bool,
 
     /// Setting to decide on an inlining strategy for Brillig functions.
     /// A more aggressive inliner should generate larger programs but more optimized
@@ -310,6 +311,7 @@ impl Default for CompileOptions {
             show_contract_fn: None,
             skip_ssa_pass: Vec::new(),
             emit_ssa: false,
+            validate_between_passes: false,
             minimal_ssa: false,
             show_brillig: false,
             show_brillig_opcode_advisories: false,
@@ -328,7 +330,6 @@ impl Default for CompileOptions {
                 checks::DEFAULT_MAX_ARRAY_OUTPUT_LENGTH,
             brillig_constraints_check_max_ancestor_distance: checks::DEFAULT_MAX_ANCESTOR_DISTANCE,
             enable_brillig_debug_assertions: false,
-            count_array_copies: false,
             inliner_aggressiveness: i64::MAX,
             constant_folding_max_iter: CONSTANT_FOLDING_MAX_ITER,
             small_function_max_instructions: INLINING_MAX_INSTRUCTIONS,
@@ -361,13 +362,13 @@ impl CompileOptions {
             brillig_options: BrilligOptions {
                 enable_debug_trace: self.show_brillig,
                 enable_debug_assertions: self.enable_brillig_debug_assertions,
-                enable_array_copy_counter: self.count_array_copies,
                 show_opcode_advisories: self.show_brillig_opcode_advisories,
                 layout: LayoutConfig::new(
                     self.max_stack_frame_size,
                     self.num_stack_frames,
                     self.max_scratch_space,
                 ),
+                copy_site_registry: None,
             },
             print_codegen_timings: self.benchmark_codegen,
             emit_ssa: if self.emit_ssa { Some(package_build_path) } else { None },
@@ -387,6 +388,7 @@ impl CompileOptions {
             max_specializations_per_fn: self.max_specializations_per_fn,
             skip_passes: self.skip_ssa_pass.clone(),
             ssa_logging_hide_unchanged: self.hide_unchanged_ssa,
+            validate_between_passes: self.validate_between_passes,
         }
     }
 }
@@ -991,7 +993,7 @@ pub fn compile_no_check(
         || options.print_acir
         || options.show_brillig
         || options.force_brillig
-        || options.count_array_copies
+        || context.count_array_copies
         || options.show_ssa
         || !options.show_ssa_pass.is_empty()
         || options.emit_ssa
@@ -1009,7 +1011,14 @@ pub fn compile_no_check(
     }
 
     let return_visibility = program.return_visibility();
-    let ssa_evaluator_options = options.as_ssa_options(context.package_build_path.clone());
+    let mut ssa_evaluator_options = options.as_ssa_options(context.package_build_path.clone());
+
+    // The copy-site registry is what turns on the `--count-array-copies` instrumentation. It is
+    // enabled per-compilation via the context rather than through the shared `CompileOptions`.
+    if context.count_array_copies {
+        ssa_evaluator_options.brillig_options.copy_site_registry =
+            Some(CopySiteRegistry::default());
+    }
 
     let SsaProgramArtifact { program, debug, warnings, error_types, .. } = if options.minimal_ssa {
         create_program_with_minimal_passes(program, &ssa_evaluator_options, &context.file_manager)?
@@ -1017,7 +1026,12 @@ pub fn compile_no_check(
         create_program(
             program,
             &ssa_evaluator_options,
-            if options.with_ssa_locations { Some(&context.file_manager) } else { None },
+            // The registry resolves copy sites to source locations, which needs the file manager.
+            if options.with_ssa_locations || context.count_array_copies {
+                Some(&context.file_manager)
+            } else {
+                None
+            },
         )?
     };
 

@@ -51,7 +51,7 @@ use crate::ssa::{
         types::{NumericType, Type},
         value::{Value, ValueId},
     },
-    opt::pure::Purity,
+    opt::pure::{FunctionPurities, Purity},
     ssa_gen::Ssa,
 };
 use rustc_hash::FxHashMap as HashMap;
@@ -451,15 +451,15 @@ fn find_dynamic_dispatches(func: &Function) -> BTreeSet<Signature> {
 /// - [`ApplyFunctions`] keyed by each function's signature _before_ functions are changed
 ///   into field types. The inner apply function itself will have its defunctionalized type,
 ///   with function values represented as field values.
-/// - `HashMap<FunctionId, Purity>` with purities that must be set to all functions in the SSA,
+/// - [FunctionPurities] with purities that must be set to all functions in the SSA,
 ///   as this function might have created dummy pure functions.
 fn create_apply_functions(
     ssa: &mut Ssa,
     variants_map: Variants,
-) -> Result<(ApplyFunctions, HashMap<FunctionId, Purity>), RuntimeError> {
+) -> Result<(ApplyFunctions, FunctionPurities), RuntimeError> {
     let mut apply_functions = HashMap::default();
     let mut purities = if ssa.functions.is_empty() {
-        HashMap::default()
+        FunctionPurities::default()
     } else {
         (*ssa.functions.iter().next().unwrap().1.dfg.function_purities).clone()
     };
@@ -751,7 +751,7 @@ fn create_dummy_function(
     ssa: &mut Ssa,
     signature: Signature,
     caller_runtime: RuntimeType,
-    purities: &mut HashMap<FunctionId, Purity>,
+    purities: &mut FunctionPurities,
 ) -> FunctionId {
     ssa.add_fn(|id| {
         let mut function_builder = FunctionBuilder::new("apply_dummy".to_string(), id);
@@ -773,7 +773,10 @@ fn create_dummy_function(
         // As the dummy function is just meant to be a placeholder for any calls to
         // higher-order functions without variants, we want the function to be marked pure
         // so that dead instruction elimination can remove any calls to it.
-        purities.insert(id, Purity::Pure);
+        purities.insert_purity(id, Purity::Pure);
+        if runtime.is_brillig() {
+            purities.insert_brillig_function(id);
+        }
 
         let results =
             vecmap(signature.returns, |typ| make_dummy_return_data(&mut function_builder, &typ));
@@ -920,11 +923,7 @@ mod tests {
     use crate::{
         assert_ssa_snapshot,
         ssa::{
-            interpreter::{
-                IResults,
-                tests::expect_value_with_args,
-                value::{NumericValue, Value},
-            },
+            interpreter::{IResults, tests::expect_value_with_args, value::Value},
             ir::function::FunctionId,
             opt::{
                 assert_pass_does_not_affect_execution,
@@ -1022,18 +1021,18 @@ mod tests {
             v5 = eq v0, Field 2
             jmpif v5 then: b2(), else: b1()
           b1():
-            v9 = eq v0, Field 3
-            jmpif v9 then: b4(), else: b3()
+            v7 = eq v0, Field 3
+            jmpif v7 then: b4(), else: b3()
           b2():
-            v7 = call f2(v1) -> u32
-            jmp b6(v7)
+            v9 = call f2(v1) -> u32
+            jmp b6(v9)
           b3():
             constrain v0 == Field 4
-            v14 = call f4(v1) -> u32
-            jmp b5(v14)
+            v12 = call f4(v1) -> u32
+            jmp b5(v12)
           b4():
-            v11 = call f3(v1) -> u32
-            jmp b5(v11)
+            v14 = call f3(v1) -> u32
+            jmp b5(v14)
           b5(v2: u32):
             jmp b6(v2)
           b6(v3: u32):
@@ -1172,11 +1171,11 @@ mod tests {
             jmpif v3 then: b2(), else: b1()
           b1():
             constrain v0 == Field 2
-            v8 = call f2() -> u32
-            jmp b3(v8)
+            v6 = call f2() -> u32
+            jmp b3(v6)
           b2():
-            v5 = call f1() -> u32
-            jmp b3(v5)
+            v8 = call f1() -> u32
+            jmp b3(v8)
           b3(v1: u32):
             return v1
         }
@@ -1211,8 +1210,7 @@ mod tests {
         let interpreter_return_values = expect_value_with_args(src, vec![]);
 
         let expected_interpreter_return_values = Value::Function(FunctionId::test_new(1));
-        let expected_defunctionalize_results: IResults =
-            Ok(vec![Value::Numeric(NumericValue::Field(1u128.into()))]);
+        let expected_defunctionalize_results: IResults = Ok(vec![Value::field(1u128.into())]);
 
         assert_eq!(defunctionalize_results, expected_defunctionalize_results);
         assert_eq!(interpreter_return_values, expected_interpreter_return_values);
@@ -1402,8 +1400,8 @@ mod tests {
           b1():
             jmp b3(Field 2)
           b2():
-            v6 = eq v0, u32 1
-            jmpif v6 then: b4(), else: b5()
+            v7 = eq v0, u32 1
+            jmpif v7 then: b4(), else: b5()
           b3(v1: Field):
             v11 = call f5(v1, v0) -> u32
             return v11
@@ -1433,18 +1431,18 @@ mod tests {
             v5 = eq v0, Field 2
             jmpif v5 then: b2(), else: b1()
           b1():
-            v9 = eq v0, Field 3
-            jmpif v9 then: b4(), else: b3()
+            v7 = eq v0, Field 3
+            jmpif v7 then: b4(), else: b3()
           b2():
-            v7 = call f2(v1) -> u32
-            jmp b6(v7)
+            v9 = call f2(v1) -> u32
+            jmp b6(v9)
           b3():
             constrain v0 == Field 4
-            v14 = call f4(v1) -> u32
-            jmp b5(v14)
+            v12 = call f4(v1) -> u32
+            jmp b5(v12)
           b4():
-            v11 = call f3(v1) -> u32
-            jmp b5(v11)
+            v14 = call f3(v1) -> u32
+            jmp b5(v14)
           b5(v2: u32):
             jmp b6(v2)
           b6(v3: u32):
@@ -1517,14 +1515,14 @@ mod tests {
             v2 = eq v0, Field 1
             jmpif v2 then: b2(), else: b1()
           b1():
-            v5 = eq v0, Field 2
-            jmpif v5 then: b4(), else: b3()
+            v4 = eq v0, Field 2
+            jmpif v4 then: b4(), else: b3()
           b2():
             call f1()
             jmp b9()
           b3():
-            v8 = eq v0, Field 3
-            jmpif v8 then: b6(), else: b5()
+            v7 = eq v0, Field 3
+            jmpif v7 then: b6(), else: b5()
           b4():
             call f2()
             jmp b8()
@@ -1847,11 +1845,11 @@ mod tests {
             jmpif v4 then: b2(), else: b1()
           b1():
             constrain v0 == Field 5
-            v9 = call f5(v1) -> Field
-            jmp b3(v9)
+            v7 = call f5(v1) -> Field
+            jmp b3(v7)
           b2():
-            v6 = call f4(v1) -> Field
-            jmp b3(v6)
+            v9 = call f4(v1) -> Field
+            jmp b3(v9)
           b3(v2: Field):
             return v2
         }
@@ -1861,11 +1859,11 @@ mod tests {
             jmpif v4 then: b2(), else: b1()
           b1():
             constrain v0 == Field 3
-            v9 = call f3(v1) -> Field
-            jmp b3(v9)
+            v7 = call f3(v1) -> Field
+            jmp b3(v7)
           b2():
-            v6 = call f2(v1) -> Field
-            jmp b3(v6)
+            v9 = call f2(v1) -> Field
+            jmp b3(v9)
           b3(v2: Field):
             return v2
         }
@@ -2140,11 +2138,11 @@ mod tests {
             jmpif v4 then: b2(), else: b1()
           b1():
             constrain v0 == Field 2
-            v9 = call f2(v1) -> Field
-            jmp b3(v9)
+            v7 = call f2(v1) -> Field
+            jmp b3(v7)
           b2():
-            v6 = call f1(v1) -> Field
-            jmp b3(v6)
+            v9 = call f1(v1) -> Field
+            jmp b3(v9)
           b3(v2: Field):
             return v2
         }
@@ -2201,8 +2199,8 @@ mod tests {
           b1():
             jmp b3(Field 1, Field 2)
           b2():
-            v6, v7 = call f3() -> (Field, Field)
-            jmp b3(v6, v7)
+            v8, v9 = call f3() -> (Field, Field)
+            jmp b3(v8, v9)
           b3(v1: Field, v2: Field):
             call f6(v2)
             return
@@ -2232,8 +2230,8 @@ mod tests {
             v2 = eq v0, Field 1
             jmpif v2 then: b2(), else: b1()
           b1():
-            v5 = eq v0, Field 2
-            jmpif v5 then: b4(), else: b3()
+            v4 = eq v0, Field 2
+            jmpif v4 then: b4(), else: b3()
           b2():
             call f1()
             jmp b5()
@@ -2301,8 +2299,8 @@ mod tests {
           b1():
             jmp b3(Field 1, Field 2)
           b2():
-            v6, v7 = call f3() -> (Field, Field)
-            jmp b3(v6, v7)
+            v8, v9 = call f3() -> (Field, Field)
+            jmp b3(v8, v9)
           b3(v1: Field, v2: Field):
             call f6(v2)
             return
@@ -2332,14 +2330,14 @@ mod tests {
             v2 = eq v0, Field 1
             jmpif v2 then: b2(), else: b1()
           b1():
-            v5 = eq v0, Field 2
-            jmpif v5 then: b4(), else: b3()
+            v4 = eq v0, Field 2
+            jmpif v4 then: b4(), else: b3()
           b2():
             call f1()
             jmp b9()
           b3():
-            v8 = eq v0, Field 4
-            jmpif v8 then: b6(), else: b5()
+            v7 = eq v0, Field 4
+            jmpif v7 then: b6(), else: b5()
           b4():
             call f2()
             jmp b8()
@@ -2445,11 +2443,11 @@ mod tests {
             jmpif v3 then: b2(), else: b1()
           b1():
             constrain v0 == Field 2
-            v8 = call f2() -> Field
-            jmp b3(v8)
+            v6 = call f2() -> Field
+            jmp b3(v6)
           b2():
-            v5 = call f1() -> Field
-            jmp b3(v5)
+            v8 = call f1() -> Field
+            jmp b3(v8)
           b3(v1: Field):
             return v1
         }
@@ -2542,11 +2540,11 @@ mod tests {
             jmpif v4 then: b2(), else: b1()
           b1():
             constrain v0 == Field 3
-            v10, v11 = call f3() -> (u32, [Field])
-            jmp b3(v10, v11)
+            v7, v8 = call f3() -> (u32, [Field])
+            jmp b3(v7, v8)
           b2():
-            v6, v7 = call f1() -> (u32, [Field])
-            jmp b3(v6, v7)
+            v10, v11 = call f1() -> (u32, [Field])
+            jmp b3(v10, v11)
           b3(v1: u32, v2: [Field]):
             return v1, v2
         }
@@ -2631,7 +2629,7 @@ mod tests {
         let (_, result) =
             assert_pass_does_not_affect_execution(ssa, args, |ssa| ssa.defunctionalize().unwrap());
 
-        let expected: IResults = Ok(vec![Value::Numeric(NumericValue::Field(5u128.into()))]);
+        let expected: IResults = Ok(vec![Value::field(5u128.into())]);
         assert_eq!(result, expected);
     }
 

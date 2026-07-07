@@ -38,12 +38,12 @@ mod tests {
     use super::Append;
 
     #[test]
-    fn slice_empty() {
+    fn vector_empty() {
         assert_eq(<[Field]>::empty(), @[]);
     }
 
     #[test]
-    fn slice_append() {
+    fn vector_append() {
         assert_eq(Append::append(@[1, 2], [3, 4, 5]), @[1, 2, 3, 4, 5]);
     }
 

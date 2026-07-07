@@ -1,7 +1,7 @@
 //! Tests for associated types and associated constants in traits.
 //! Validates accessing, computing with, and constraining associated items.
 
-use crate::tests::{assert_no_errors, check_errors};
+use crate::tests::{assert_no_errors, check_errors, check_monomorphization_error};
 
 #[test]
 fn passes_trait_with_associated_number_to_generic_function() {
@@ -88,7 +88,6 @@ fn accesses_associated_constant_inside_trait_impl_using_self() {
 /// "Type annotations needed".
 #[test]
 fn shared_default_method_resolves_self_associated_constant() {
-    use crate::test_utils::get_monomorphized;
     let src = r#"
     trait Foo {
         let N: i32;
@@ -106,8 +105,7 @@ fn shared_default_method_resolves_self_associated_constant() {
         let _ = i32::n();
     }
     "#;
-    let result = get_monomorphized(src);
-    assert!(result.is_ok(), "monomorphization failed: {result:?}");
+    check_monomorphization_error(src);
 }
 
 /// Regression test for #9020: when one impl inherits a trait's default method and
@@ -115,7 +113,6 @@ fn shared_default_method_resolves_self_associated_constant() {
 /// other through the trait's shared `Self` type variable.
 #[test]
 fn shared_and_overridden_default_method_coexist() {
-    use crate::test_utils::get_monomorphized;
     let src = r#"
     pub trait H {
         fn finish(self) -> Field;
@@ -163,8 +160,99 @@ fn shared_and_overridden_default_method_coexist() {
         let _ = use_hasher(BB {});
     }
     "#;
-    let result = get_monomorphized(src);
-    assert!(result.is_ok(), "monomorphization failed: {result:?}");
+    check_monomorphization_error(src);
+}
+
+/// Regression test: two impls that both inherit a trait's default method must each
+/// resolve `Self::N` to their own associated constant. The default method body is
+/// shared (one `FuncId`), and its `Self: Trait` constraint must use a fresh
+/// associated-type variable per dispatch. Otherwise the trait definition's shared
+/// `N` cell gets bound to the first impl's value (`10`) and leaks into the second,
+/// failing with "No matching impl found for `B: Score<N = 10>`".
+#[test]
+fn shared_default_method_associated_constant_does_not_leak_across_impls() {
+    let src = r#"
+    struct A {}
+    struct B {}
+
+    trait Score {
+        let N: u32;
+
+        fn base(self) -> Field;
+
+        fn value(self) -> Field {
+            self.base() + (Self::N as Field)
+        }
+    }
+
+    impl Score for A {
+        let N: u32 = 10;
+
+        fn base(self) -> Field {
+            1
+        }
+    }
+
+    impl Score for B {
+        let N: u32 = 20;
+
+        fn base(self) -> Field {
+            2
+        }
+    }
+
+    fn main() {
+        assert(A {}.value() == 11);
+        assert(B {}.value() == 22);
+    }
+    "#;
+    check_monomorphization_error(src);
+}
+
+/// Same leak as above, reached through a generic function rather than direct calls on
+/// concrete types, and with the impls resolved in the opposite source order.
+#[test]
+fn shared_default_method_associated_constant_does_not_leak_through_generic_dispatch() {
+    let src = r#"
+    struct A {}
+    struct B {}
+
+    trait Score {
+        let N: u32;
+
+        fn base(self) -> Field;
+
+        fn value(self) -> Field {
+            self.base() + (Self::N as Field)
+        }
+    }
+
+    impl Score for A {
+        let N: u32 = 10;
+
+        fn base(self) -> Field {
+            1
+        }
+    }
+
+    impl Score for B {
+        let N: u32 = 20;
+
+        fn base(self) -> Field {
+            2
+        }
+    }
+
+    fn use_score<T>(x: T) -> Field where T: Score {
+        x.value()
+    }
+
+    fn main() {
+        assert(use_score(B {}) == 22);
+        assert(use_score(A {}) == 11);
+    }
+    "#;
+    check_monomorphization_error(src);
 }
 
 #[test]
@@ -797,7 +885,6 @@ fn associated_constant_direct_access() {
     assert_no_errors(src);
 }
 
-/// TODO(https://github.com/noir-lang/noir/issues/11362): Improve error message for missing associated constants
 #[test]
 fn associated_constant_direct_access_no_impl() {
     let src = r#"
@@ -812,7 +899,8 @@ fn associated_constant_direct_access_no_impl() {
     fn main() {
         let _ = Bar {};
         let _: u32 = Foo::N;
-                          ^ Could not resolve 'N' in path
+                          ^ associated item `N` not found for `Foo`
+                          ~ associated item `N` is defined by trait `MyTrait`, which is not implemented for `Foo`
     }
     "#;
     check_errors(src);
@@ -873,7 +961,8 @@ fn associated_constant_direct_access_generic_impl_wrong_struct() {
         let _ = Wrapper::<Field> { inner: 1 };
         let _ = Other::<Field> { inner: 1 };
         let _: u32 = Other::<Field>::N;
-                                     ^ Could not resolve 'N' in path
+                                     ^ associated item `N` not found for `Other<Field>`
+                                     ~ associated item `N` is defined by trait `MyTrait`, which is not implemented for `Other<Field>`
     }
     "#;
     check_errors(src);
@@ -897,7 +986,8 @@ fn associated_constant_direct_access_generic_impl_wrong_type_arg() {
         let _ = Wrapper::<Field> { inner: 1 };
         let _ = Wrapper::<u32> { inner: 1 };
         let _: u32 = Wrapper::<u32>::N;
-                                     ^ Could not resolve 'N' in path
+                                     ^ associated item `N` not found for `Wrapper<u32>`
+                                     ~ associated item `N` is defined by trait `MyTrait`, which is not implemented for `Wrapper<u32>`
     }
     "#;
     check_errors(src);
@@ -952,7 +1042,6 @@ fn associated_constant_direct_access_ambiguous_resolved_with_fully_qualified_pat
     assert_no_errors(src);
 }
 
-// TODO(https://github.com/noir-lang/noir/issues/10770): Improve error message for Foo::MyType syntax for associated types
 #[test]
 fn associated_type_direct_access() {
     let src = r#"
@@ -966,12 +1055,78 @@ fn associated_type_direct_access() {
         type MyType = CustomType;
     }
     fn main() {
-        // Succeeds
-        // let _: <Foo as MyTrait>::MyType = CustomType { };
-        // Fails
+        // `<Foo as MyTrait>::MyType` would succeed; the unqualified form below does not.
         let _: Foo::MyType = CustomType { };
-                    ^^^^^^ Could not resolve 'MyType' in path
+                    ^^^^^^ associated type `MyType` cannot be accessed directly
+                    ~~~~~~ use the fully-qualified syntax `<Foo as MyTrait>::MyType` instead
     }"#;
+    check_errors(src);
+}
+
+#[test]
+fn associated_type_direct_access_no_impl() {
+    let src = r#"
+    pub struct CustomType {}
+
+    trait MyTrait {
+        type MyType;
+    }
+    struct Foo {}
+    struct Bar {}
+    impl MyTrait for Bar {
+        type MyType = CustomType;
+    }
+    fn main() {
+        let _ = Bar {};
+        let _: Foo::MyType = CustomType { };
+                    ^^^^^^ associated item `MyType` not found for `Foo`
+                    ~~~~~~ associated item `MyType` is defined by trait `MyTrait`, which is not implemented for `Foo`
+    }"#;
+    check_errors(src);
+}
+
+#[test]
+fn associated_constant_direct_access_no_impl_multiple_traits() {
+    let src = r#"
+    trait Trait1 {
+        let N: u32;
+    }
+    trait Trait2 {
+        let N: u32;
+    }
+    struct Foo {}
+    struct Bar {}
+    impl Trait1 for Bar {
+        let N: u32 = 1;
+    }
+    impl Trait2 for Bar {
+        let N: u32 = 2;
+    }
+    fn main() {
+        let _ = Bar {};
+        let _: u32 = Foo::N;
+                          ^ associated item `N` not found for `Foo`
+                          ~ associated item `N` is defined by traits `Trait1`, `Trait2`, which are not implemented for `Foo`
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn nonexistent_associated_item_still_unresolved() {
+    let src = r#"
+    trait MyTrait {
+        let N: u32;
+    }
+    struct Foo {}
+    impl MyTrait for Foo {
+        let N: u32 = 5;
+    }
+    fn main() {
+        let _: u32 = Foo::DoesNotExist;
+                          ^^^^^^^^^^^^ Could not resolve 'DoesNotExist' in path
+    }
+    "#;
     check_errors(src);
 }
 

@@ -130,7 +130,7 @@ fn run_with_generator(
             let brillig_function_id = std::mem::take(&mut sample.brillig_function_id);
             let last_entry = call_stack.last();
             let opcode = brillig_function_id
-                .and_then(|id| program.bytecode.unconstrained_functions.get(id.0 as usize))
+                .and_then(|id| program.bytecode.unconstrained_functions.get(id.as_usize()))
                 .and_then(|func| {
                     if let Some(OpcodeLocation::Brillig { brillig_index, .. }) = last_entry {
                         func.bytecode.get(*brillig_index)

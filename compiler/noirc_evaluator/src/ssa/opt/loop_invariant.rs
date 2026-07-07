@@ -94,11 +94,7 @@ use crate::ssa::{
         dom::DominatorTree,
         function::Function,
         function_inserter::FunctionInserter,
-        instruction::{
-            Binary, BinaryOp, Instruction, InstructionId, TerminatorInstruction,
-            binary::{BinaryEvaluationResult, eval_constant_binary_op},
-        },
-        integer::IntegerConstant,
+        instruction::{Instruction, InstructionId},
         post_order::PostOrder,
         types::{NumericType, Type},
         value::{Value, ValueId},
@@ -108,7 +104,7 @@ use crate::ssa::{
 use acvm::{FieldElement, acir::AcirField};
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
-use super::unrolling::{Loop, LoopBounds, LoopOrder, Loops};
+use super::unrolling::{Loop, LoopBounds, LoopOrder, Loops, Step};
 
 mod simplify;
 
@@ -150,29 +146,6 @@ impl Loops {
 }
 
 impl Loop {
-    /// Find the value that controls whether to perform a loop iteration.
-    /// This is going to be the block parameter of the loop header.
-    ///
-    /// Consider the following example of a `for i in 0..4` loop:
-    /// ```text
-    /// brillig(inline) fn main f0 {
-    ///   b0(v0: u32):
-    ///     ...
-    ///     jmp b1(u32 0)
-    ///   b1(v1: u32):                  // Loop header
-    ///     v5 = lt v1, u32 4           // Upper bound
-    ///     jmpif v5 then: b3(), else: b2()
-    /// ```
-    /// In the example above, `v1` is the induction variable.
-    ///
-    /// There is an example in the tests where a loop does not have an induction variable,
-    /// but rather loads a reference in the header, in which case this will return `None`.
-    ///
-    /// TODO(<https://github.com/noir-lang/noir/issues/11900>): Handle induction variable at any block parameter position
-    pub(super) fn get_induction_variable(&self, function: &Function) -> Option<ValueId> {
-        function.dfg.block_parameters(self.header).iter().next().copied()
-    }
-
     /// Check if the loop will be fully executed, that is, there is no early `break` in it.
     ///
     /// If the loop header doesn't lead to an exit block, then it must be a `loop` or `while`,
@@ -239,7 +212,7 @@ struct LoopContext {
     pre_header: BasicBlockId,
     /// Maps current loop induction variable with its bounds and step.
     /// If the loop doesn't have constant bounds with then it's `None`.
-    induction_variable: Option<(ValueId, LoopBounds, IntegerConstant)>,
+    induction_variable: Option<(ValueId, LoopBounds, Step)>,
 
     /// Indicate whether this loop has fixed bounds that are guaranteed to execute at least once.
     does_loop_execute: bool,
@@ -318,7 +291,7 @@ impl LoopContext {
         // Otherwise using them as a value range (e.g. to fold a comparison or prove an add cannot
         // overflow) would be unsound.
         let induction_variable =
-            induction.filter(|(_, bounds, step)| bounds.visited_values_stay_within_bounds(*step));
+            induction.filter(|(_, bounds, step)| bounds.iterator_in_bounds(*step));
 
         Self {
             // There is only ever one current induction variable for a loop.
@@ -350,7 +323,7 @@ impl LoopContext {
     }
 
     /// Get the induction variable's per-iteration step if the current variable matches `id`.
-    fn get_current_induction_step(&self, id: ValueId) -> Option<IntegerConstant> {
+    fn get_current_induction_step(&self, id: ValueId) -> Option<Step> {
         self.induction_variable.filter(|(val, _, _)| *val == id).map(|(_, _, step)| step)
     }
 
@@ -507,7 +480,7 @@ impl<'f> LoopInvariantContext<'f> {
         // using them as a value range would be unsound.
         if let Some((induction_variable, bounds, step)) =
             get_induction_var_bounds(&self.inserter, loop_, pre_header)
-            && bounds.visited_values_stay_within_bounds(step)
+            && bounds.iterator_in_bounds(step)
         {
             self.outer_induction_variables.insert(induction_variable, bounds);
         }
@@ -735,7 +708,7 @@ impl<'f> LoopInvariantContext<'f> {
                 // for multi dimensional arrays, `let aij = a[i][j];` would make sure
                 // it only inserts clones at the last get; we shouldn't need more
                 // increments here. The presence of clones are checked by the
-                // `verify_array_set_rc_invariant` pass.
+                // `rc_invariant::array_set::verify` pass.
                 _ => false,
             }
         } else {
@@ -815,9 +788,9 @@ impl<'f> LoopInvariantContext<'f> {
     }
 }
 
-/// Get and resolve the induction variable of a loop.
+/// Get the loop's induction variable, resolved through the inserter's substitutions.
 fn get_induction_variable(inserter: &FunctionInserter, loop_: &Loop) -> Option<ValueId> {
-    loop_.get_induction_variable(inserter.function).map(|v| inserter.resolve(v))
+    loop_.induction_variable(&inserter.function.dfg).map(|v| inserter.resolve(v))
 }
 
 /// Check that a loop has fixed bounds indicating that its body is guaranteed to execute at
@@ -831,90 +804,18 @@ fn does_loop_execute(bounds: Option<LoopBounds>) -> bool {
 
 /// Keep track of a loop induction variable, its [`LoopBounds`], and the constant step by which
 /// it advances each iteration. Only returns `Some` when the loop's back-edge proves the bounds
-/// are real iteration invariants (see [`monotonic_back_edge_step`]).
+/// are real iteration invariants (see [`Loop::monotonic_back_edge_step`]).
 fn get_induction_var_bounds(
     inserter: &FunctionInserter,
     loop_: &Loop,
     pre_header: BasicBlockId,
-) -> Option<(ValueId, LoopBounds, IntegerConstant)> {
+) -> Option<(ValueId, LoopBounds, Step)> {
     let bounds =
         loop_.get_const_bounds(&inserter.function.dfg, pre_header, |v| inserter.resolve(v))?;
     let induction_variable = get_induction_variable(inserter, loop_)?;
     let step =
-        monotonic_back_edge_step(&inserter.function.dfg, loop_, induction_variable, bounds.upper)?;
+        loop_.monotonic_back_edge_step(&inserter.function.dfg, induction_variable, bounds.upper)?;
     Some((induction_variable, bounds, step))
-}
-
-/// If the loop's back-edge preserves the inferred `[lower, upper)` interval, return the
-/// constant amount by which the induction variable advances each iteration (its *step*);
-/// otherwise return `None`. Two shapes qualify:
-///
-/// 1. The back-edge passes the induction variable through unchanged
-///    (`jmp header(v_induction, ..)`). This is the canonical form a zero-step
-///    loop is reduced to once `x + 0` has been folded; the variable is constant
-///    at `lower`, which is a subset of `[lower, upper)`. The step is `0`.
-/// 2. The back-edge passes back `induction_variable + positive_constant`. For
-///    an unchecked Add we additionally verify that the largest reachable
-///    induction value (`upper - 1`) plus the step does not wrap the underlying
-///    numeric type — otherwise wrapping could deposit an out-of-range value
-///    back into the header. A checked Add cannot violate the invariant: any
-///    wrap would trap before the back-edge fires. The step is the constant added.
-///
-/// The returned step lets callers distinguish a unit-step loop (which visits every
-/// integer in `[lower, upper)`) from one that visits only `lower + k * step`.
-fn monotonic_back_edge_step(
-    dfg: &DataFlowGraph,
-    loop_: &Loop,
-    induction_variable: ValueId,
-    upper: IntegerConstant,
-) -> Option<IntegerConstant> {
-    let Some(TerminatorInstruction::Jmp { destination, arguments, .. }) =
-        dfg[loop_.back_edge_start].terminator()
-    else {
-        return None;
-    };
-    if *destination != loop_.header || arguments.is_empty() {
-        return None;
-    }
-    let operand_type = dfg.type_of_value(induction_variable).unwrap_numeric();
-    if arguments[0] == induction_variable {
-        // The induction variable is constant at `lower`: a zero step.
-        return IntegerConstant::from_numeric_constant(FieldElement::zero(), operand_type);
-    }
-    let instruction = dfg.get_local_or_global_instruction(arguments[0])?;
-    let Instruction::Binary(Binary { lhs, operator: BinaryOp::Add { unchecked }, rhs }) =
-        instruction
-    else {
-        return None;
-    };
-    let step_value = if *lhs == induction_variable {
-        *rhs
-    } else if *rhs == induction_variable {
-        *lhs
-    } else {
-        return None;
-    };
-    let step = dfg.get_integer_constant(step_value)?;
-    if step.is_negative() {
-        return None;
-    }
-    if *unchecked {
-        let max_induction_value = upper.dec()?;
-        let (max_field, _) = max_induction_value.into_numeric_constant();
-        let (step_field, _) = step.into_numeric_constant();
-        match eval_constant_binary_op(
-            max_field,
-            step_field,
-            BinaryOp::Add { unchecked: false },
-            operand_type,
-        ) {
-            BinaryEvaluationResult::Success(..) => {}
-            BinaryEvaluationResult::CouldNotEvaluate | BinaryEvaluationResult::Failure(..) => {
-                return None;
-            }
-        }
-    }
-    Some(step)
 }
 
 /// Indicate whether an instruction can be hoisted.
@@ -2264,14 +2165,14 @@ mod tests {
           b5():
             jmpif v4 then: b7(), else: b8()
           b6():
-            v12 = unchecked_add v1, u32 1
-            jmp b1(v12)
+            v14 = unchecked_add v1, u32 1
+            jmp b1(v14)
           b7():
             constrain v9 == u32 6
             jmp b8()
           b8():
-            v14 = unchecked_add v2, u32 1
-            jmp b4(v14)
+            v13 = unchecked_add v2, u32 1
+            jmp b4(v13)
         }
         ");
     }
@@ -2693,12 +2594,8 @@ mod tests {
     }
 
     /// Test that calls to functions is hoisted into the pre-header based on their purity.
-    ///
-    /// A brillig function can never compute as `Pure` (it defaults to `PureWithPredicate`, see
-    /// `Function::is_pure`), so a `pure` annotation on the `dummy` callee is not valid SSA and
-    /// those cases are expected to panic during parsing.
-    #[test_case(1, TestCall::Function(Some(Purity::Pure)), true => panics "declared as `pure`"; "non-empty loop, pure function")]
-    #[test_case(0, TestCall::Function(Some(Purity::Pure)), true => panics "declared as `pure`"; "empty loop, pure function")]
+    #[test_case(1, TestCall::Function(Some(Purity::Pure)), true; "non-empty loop, pure function")]
+    #[test_case(0, TestCall::Function(Some(Purity::Pure)), true; "empty loop, pure function")]
     #[test_case(1, TestCall::Function(Some(Purity::PureWithPredicate)), true; "non-empty loop, predicate pure function")]
     #[test_case(0, TestCall::Function(Some(Purity::PureWithPredicate)), false; "empty loop, predicate pure function")]
     #[test_case(1, TestCall::Function(Some(Purity::Impure)), false; "impure function")]
@@ -2711,12 +2608,13 @@ mod tests {
     fn hoist_from_loop_call_with_purity(upper: u32, test_call: TestCall, should_hoist: bool) {
         let dummy_purity = if let TestCall::Function(purity) = &test_call { *purity } else { None };
 
-        // `array_set` mutates the brillig array input `v0`, making `dummy` compute as `Impure`
-        // (see `Function::is_pure`) so its `impure` annotation is valid SSA.
-        let impure_op = if dummy_purity == Some(Purity::Impure) {
-            "v1 = array_set v0, index u32 0, value u64 0"
-        } else {
-            ""
+        // The op in the `dummy` body is chosen so that `Function::is_pure` actually computes the
+        // purity stated by the `dummy_purity` annotation: `array_set` on the input array makes it
+        // `Impure`, a `constrain` makes it `PureWithPredicate`, and no extra op leaves it `Pure`.
+        let impure_op = match dummy_purity {
+            Some(Purity::Impure) => "v1 = array_set v0, index u32 0, value u64 0",
+            Some(Purity::PureWithPredicate) => "constrain u1 1 == u1 1",
+            _ => "",
         };
 
         let dummy_purity = dummy_purity.map_or("".to_string(), |p| format!("{p}"));
@@ -2852,7 +2750,7 @@ mod tests {
         let (lhs, rhs) = if induction_is_left { (i, c) } else { (c, i) };
         let src = format!(
             r#"
-            brillig(inline) predicate_pure fn main f0 {{
+            brillig(inline) pure fn main f0 {{
               b0():
                 jmp b1(u32 {lower})
               b1(v0: u32):
@@ -3115,7 +3013,7 @@ mod tests {
           b5():
             jmp b7()
           b6():
-            v40 = add v4, u32 1
+            v40 = unchecked_add v4, u32 1
             v42 = array_set v3, index u32 0, value u64 30
             jmp b8()
           b7():
@@ -3490,7 +3388,7 @@ mod control_dependence {
         let ssa = ssa.purity_analysis();
         let ssa = ssa.loop_invariant_code_motion();
 
-        assert_ssa_snapshot!(ssa, @r"
+        assert_ssa_snapshot!(ssa, @"
         brillig(inline) predicate_pure fn main f0 {
           b0(v0: u32, v1: u32):
             v3 = unchecked_mul v0, v1
@@ -3545,7 +3443,7 @@ mod control_dependence {
         let ssa = ssa.purity_analysis();
         let ssa = ssa.loop_invariant_code_motion();
 
-        assert_ssa_snapshot!(ssa, @r"
+        assert_ssa_snapshot!(ssa, @"
         brillig(inline) predicate_pure fn main f0 {
           b0(v0: u32, v1: u32):
             v3 = mul v0, v1
@@ -3619,20 +3517,20 @@ mod control_dependence {
           b2():
             jmpif u1 1 then: b4(), else: b5()
           b3():
-            v8 = load v4 -> u32
-            v9 = lt v1, v8
-            constrain v9 == u1 1
+            v15 = load v4 -> u32
+            v16 = lt v1, v15
+            constrain v16 == u1 1
             return
           b4():
-            v11 = load v4 -> u32
-            v13 = add v11, u32 1
-            store v13 at v4
+            v9 = load v4 -> u32
+            v11 = add v9, u32 1
+            store v11 at v4
             jmp b5()
           b5():
-            v15 = lt v3, u32 4
-            constrain v15 == u1 1
-            v16 = unchecked_add v3, u32 1
-            jmp b1(v16)
+            v13 = lt v3, u32 4
+            constrain v13 == u1 1
+            v14 = unchecked_add v3, u32 1
+            jmp b1(v14)
         }
         ");
     }
@@ -3934,18 +3832,18 @@ mod control_dependence {
           b2():
             jmpif u1 1 then: b4(), else: b5()
           b3():
-            v8 = load v4 -> u32
-            v9 = lt v1, v8
-            constrain v9 == u1 1
+            v13 = load v4 -> u32
+            v14 = lt v1, v13
+            constrain v14 == u1 1
             return
           b4():
-            v11 = load v4 -> u32
-            v13 = add v11, u32 1
-            store v13 at v4
+            v9 = load v4 -> u32
+            v11 = add v9, u32 1
+            store v11 at v4
             jmp b5()
           b5():
-            v14 = unchecked_add v3, u32 1
-            jmp b1(v14)
+            v12 = unchecked_add v3, u32 1
+            jmp b1(v12)
         }
         ");
     }
@@ -4082,14 +3980,14 @@ mod control_dependence {
             v7 = div Field 1, v3
             jmp b6(u32 0)
           b5():
-            v10 = unchecked_add v1, u32 1
-            jmp b1(v10)
+            v11 = unchecked_add v1, u32 1
+            jmp b1(v11)
           b6(v2: u32):
             v8 = eq v2, u32 0
             jmpif v8 then: b7(), else: b8()
           b7():
-            v11 = unchecked_add v2, u32 1
-            jmp b6(v11)
+            v10 = unchecked_add v2, u32 1
+            jmp b6(v10)
           b8():
             jmp b5()
         }
@@ -4317,13 +4215,13 @@ mod control_dependence {
             return i16 3
           b4():
             range_check v16 to 8 bits, "attempt to multiply with overflow"
-            v24 = cast v17 as u8
-            v25 = lt v24, v20
-            constrain v25 == u1 1, "attempt to multiply with overflow"
+            v23 = cast v17 as u8
+            v24 = lt v23, v20
+            constrain v24 == u1 1, "attempt to multiply with overflow"
             jmp b5()
           b5():
-            v28 = unchecked_add v2, u32 1
-            jmp b1(v28)
+            v27 = unchecked_add v2, u32 1
+            jmp b1(v27)
         }
         "#);
     }
@@ -4499,7 +4397,7 @@ mod control_dependence {
             v9 = call black_box(v7) -> [u8; 4]
             return
         }
-        brillig(inline) predicate_pure fn ret_arr f1 {
+        brillig(inline) pure fn ret_arr f1 {
           b0():
             v4 = make_array [u8 0, u8 1, u8 2, u8 3] : [u8; 4]
             return u8 7, v4

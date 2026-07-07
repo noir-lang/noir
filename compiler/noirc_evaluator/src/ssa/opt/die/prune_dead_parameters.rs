@@ -584,7 +584,7 @@ mod tests {
         // }
         // ```
         let src = r#"
-        brillig(inline) predicate_pure fn main f0 {
+        brillig(inline) pure fn main f0 {
           b0(v0: i16):
             v5 = lt i16 3, v0
             jmpif v5 then: b1(), else: b2()
@@ -650,7 +650,7 @@ mod tests {
         }
 
         assert_ssa_snapshot!(ssa, @r#"
-        brillig(inline) predicate_pure fn main f0 {
+        brillig(inline) pure fn main f0 {
           b0(v0: i16):
             v2 = lt i16 3, v0
             jmpif v2 then: b1(), else: b2()
@@ -681,7 +681,7 @@ mod tests {
         let ssa = Ssa::from_str(src).unwrap();
         let ssa = ssa.dead_instruction_elimination();
         assert_ssa_snapshot!(ssa, @r#"
-        brillig(inline) predicate_pure fn main f0 {
+        brillig(inline) pure fn main f0 {
           b0(v0: i16):
             v2 = lt i16 3, v0
             jmpif v2 then: b1(), else: b2()

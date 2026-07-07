@@ -38,6 +38,7 @@ use crate::{
 };
 
 use super::brillig_fn::FunctionContext;
+use super::spill_manager::RegisterState;
 
 /// Tracks SSA variables that have a register currently allocated and usable during
 /// Brillig compilation of a block.
@@ -56,6 +57,14 @@ use super::brillig_fn::FunctionContext;
 #[derive(Debug, Default)]
 pub(crate) struct BlockVariables {
     available_variables: HashSet<ValueId>,
+}
+
+/// The spill manager consults the set of register-resident values through this trait;
+/// "available" (has a register allocated right now) is exactly "in a register".
+impl RegisterState for BlockVariables {
+    fn is_in_register(&self, value_id: &ValueId) -> bool {
+        self.is_allocated(value_id)
+    }
 }
 
 impl BlockVariables {

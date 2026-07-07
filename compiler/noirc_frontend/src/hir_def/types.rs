@@ -195,6 +195,17 @@ impl NamedGeneric {
         };
         Self { type_var, name, implicit, original_type_var_id }
     }
+
+    /// Whether this generic represents an associated-type or associated-constant projection
+    /// rather than an ordinary user-written generic.
+    ///
+    /// Associated items are modeled as `NamedGeneric`s whose name is the projection that
+    /// disambiguates them, formatted as `<{object} as {trait}>::{name}` or `Self::{name}` (see
+    /// [`NamedGeneric::new`]). An ordinary generic's name is always a plain identifier, so the
+    /// `::` in a projection name is a reliable marker.
+    pub fn is_associated(&self) -> bool {
+        self.name.contains("::")
+    }
 }
 
 /// A Kind is the type of a Type. These are used since only certain kinds of types are allowed in
@@ -2446,21 +2457,21 @@ impl Type {
         &self,
         var: &TypeVariable,
         bindings: &mut TypeBindings,
-        kind: Kind,
+        kind: &Kind,
     ) -> Result<(), UnificationError> {
         let target_id = match &*var.borrow() {
             TypeBinding::Bound(_) => unreachable!(),
             TypeBinding::Unbound(id, _) => *id,
         };
 
-        if !self.kind().unifies(&kind) {
+        if !self.kind().unifies(kind) {
             return Err(UnificationError);
         }
 
         let this = self.substitute(bindings).follow_bindings();
         if let Some((binding, kind)) = this.get_inner_type_variable() {
             match &*binding.borrow() {
-                TypeBinding::Bound(typ) => return typ.try_bind_to(var, bindings, kind),
+                TypeBinding::Bound(typ) => return typ.try_bind_to(var, bindings, &kind),
                 // Don't recursively bind the same id to itself
                 TypeBinding::Unbound(id, _) if *id == target_id => return Ok(()),
                 TypeBinding::Unbound(..) => (),
@@ -2491,8 +2502,8 @@ impl Type {
     /// Apply the given type bindings, making them permanently visible for each
     /// clone of each type variable bound.
     pub fn apply_type_bindings(bindings: TypeBindings) {
-        for (type_variable, _kind, binding) in bindings.values() {
-            type_variable.bind(binding.clone());
+        for (type_variable, _kind, binding) in bindings.into_values() {
+            type_variable.bind(binding);
         }
     }
 

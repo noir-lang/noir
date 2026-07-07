@@ -225,6 +225,81 @@ fn nested_struct_pattern_non_alphabetical_field_order() {
 }
 
 #[test]
+fn nested_enum_variant_with_payload_is_not_unreachable() {
+    // Regression test for https://github.com/noir-lang/noir/issues/7637.
+    // Matching a payload-carrying variant at more than one nesting level (here
+    // both elements of the tuple) let-binds the payload, rewriting the arm's
+    // body. Reconstructing the row used to reset `original_body` to the rewritten
+    // body, so the arm was never pruned from `unreachable_cases` and was falsely
+    // reported as redundant.
+    let features = vec![UnstableFeature::Enums];
+    assert_no_errors_using_features(
+        r#"
+        pub enum Foo { Bar, Baz(()) }
+
+        pub fn foo(x: Foo, y: Foo) {
+            match (x, y) {
+                (Foo::Bar, Foo::Bar) => (),
+                (Foo::Baz(_x), Foo::Baz(_y)) => (),
+                _ => (),
+            }
+        }
+
+        fn main() {}
+        "#,
+        &features,
+    );
+}
+
+#[test]
+fn nested_enum_variant_with_non_unit_payload_is_not_unreachable() {
+    // The same bug is not specific to unit payloads: any variant with arguments
+    // matched across nesting levels must remain reachable.
+    let features = vec![UnstableFeature::Enums];
+    assert_no_errors_using_features(
+        r#"
+        pub enum Foo { Bar, Baz(u32) }
+
+        pub fn foo(x: Foo, y: Foo) -> u32 {
+            match (x, y) {
+                (Foo::Bar, Foo::Bar) => 1,
+                (Foo::Baz(_x), Foo::Baz(_y)) => 2,
+                _ => 3,
+            }
+        }
+
+        fn main() {}
+        "#,
+        &features,
+    );
+}
+
+#[test]
+fn redundant_nested_enum_variant_with_payload_is_still_unreachable() {
+    // The fix must not suppress genuine unreachability: a second, identical
+    // payload-carrying arm in a nested match is still redundant and must warn.
+    let features = vec![UnstableFeature::Enums];
+    check_errors_using_features(
+        r#"
+        pub enum Foo { Bar, Baz(u32) }
+
+        pub fn foo(x: Foo, y: Foo) -> u32 {
+            match (x, y) {
+                (Foo::Baz(_x), Foo::Baz(_y)) => 1,
+                (Foo::Baz(_a), Foo::Baz(_b)) => 2,
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ Unreachable match case
+                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~ This pattern is redundant with one or more prior patterns
+                _ => 3,
+            }
+        }
+
+        fn main() {}
+        "#,
+        &features,
+    );
+}
+
+#[test]
 fn missing_field_in_non_alphabetical_match_struct_pattern() {
     // The missing-field diagnostic must name the field that is actually absent
     // even when the struct is not declared in alphabetical order.
@@ -835,4 +910,318 @@ fn comptime_generic_enum_variant() {
     fn foo(_f: Foo<str<5>>) {}
     "#;
     assert_no_errors(src);
+}
+
+#[test]
+fn enum_variant_with_fields_type_turbofish() {
+    let src = r#"
+    enum Foo<T> {
+        Spam,
+        Eggs(T),
+    }
+
+    fn main() {
+        let _ = Foo::<u32>::Eggs(0);
+    }
+    "#;
+    let features = vec![UnstableFeature::Enums];
+    assert_no_errors_using_features(src, &features);
+}
+
+#[test]
+fn enum_variant_with_fields_type_turbofish_binds_type() {
+    let src = r#"
+    enum Foo<T> {
+        Eggs(T),
+    }
+
+    fn main() {
+        let _ = Foo::<u32>::Eggs(true);
+                                 ^^^^ Expected type u32, found type bool
+    }
+    "#;
+    let features = vec![UnstableFeature::Enums];
+    check_errors_using_features(src, &features);
+}
+
+#[test]
+fn enum_variant_with_fields_multiple_type_turbofish() {
+    let src = r#"
+    enum Foo<A, B> {
+        Spam(A),
+        Eggs(B),
+    }
+
+    fn main() {
+        let _ = Foo::<bool, u32>::Eggs(0);
+    }
+    "#;
+    let features = vec![UnstableFeature::Enums];
+    assert_no_errors_using_features(src, &features);
+}
+
+#[test]
+fn enum_variant_segment_turbofish_still_works() {
+    let src = r#"
+    enum Foo<A, B> {
+        Spam(A),
+        Eggs(B),
+    }
+
+    fn main() {
+        let _ = Foo::Eggs::<bool, u32>(0);
+    }
+    "#;
+    let features = vec![UnstableFeature::Enums];
+    assert_no_errors_using_features(src, &features);
+}
+
+#[test]
+fn fieldless_enum_variant_type_turbofish_binds_type() {
+    let src = r#"
+    enum Foo<T> {
+        Spam,
+        Eggs(T),
+    }
+
+    fn main() {
+        let _ = Foo::<u32>::Spam;
+    }
+    "#;
+    let features = vec![UnstableFeature::Enums];
+    assert_no_errors_using_features(src, &features);
+}
+
+#[test]
+fn fieldless_enum_variant_segment_turbofish_binds_type() {
+    let src = r#"
+    enum Foo<T> {
+        Spam,
+        Eggs(T),
+    }
+
+    fn main() {
+        let _ = Foo::Spam::<u32>;
+    }
+    "#;
+    let features = vec![UnstableFeature::Enums];
+    assert_no_errors_using_features(src, &features);
+}
+
+#[test]
+fn fieldless_enum_variant_segment_turbofish_count_mismatch() {
+    let src = r#"
+    enum Foo<T> {
+        Spam,
+        Eggs(T),
+    }
+
+    fn main() {
+        let _ = Foo::Spam::<u32, bool>;
+                ^^^^^^^^^^^^^^^^^^^^^^ enum `Foo` expects 1 generic but 2 were given
+    }
+    "#;
+    let features = vec![UnstableFeature::Enums];
+    check_errors_using_features(src, &features);
+}
+
+#[test]
+fn turbofish_not_allowed_on_global_holding_enum_value() {
+    let src = r#"
+    enum Foo<T> {
+        Spam,
+        Eggs(T),
+    }
+
+    global Bar: Foo<u32> = Foo::Spam;
+
+    fn main() {
+        let _ = Bar::<bool>;
+                   ^^^^^^^^ turbofish (`::<_>`) not allowed on globals
+    }
+    "#;
+    let features = vec![UnstableFeature::Enums];
+    check_errors_using_features(src, &features);
+}
+
+#[test]
+fn fieldless_enum_variant_type_turbofish_on_non_generic_enum() {
+    let src = r#"
+    enum Foo {
+        Spam,
+        Eggs(bool),
+    }
+
+    fn main() {
+        let _ = Foo::<u32>::Spam;
+                ^^^^^^^^^^^^^^^^ enum `Foo` expects 0 generics but 1 was given
+    }
+    "#;
+    let features = vec![UnstableFeature::Enums];
+    check_errors_using_features(src, &features);
+}
+
+#[test]
+fn errors_on_segment_after_enum_variant() {
+    let src = r#"
+    pub enum E { A, B }
+    pub fn f(_x: E::A::Bar) {}
+                    ^ enum variant `A` has no associated items
+    fn main() {}
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn errors_on_segment_after_associated_constant() {
+    let src = r#"
+    pub trait T { let C: u32; }
+    pub struct Foo {}
+    impl T for Foo { let C: u32 = 1; }
+    pub fn f(_x: Foo::C::Bar) {}
+                      ^ associated constant `C` has no associated items
+    fn main() {}
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn turbofish_on_match_pattern_variant_binds_payload_type() {
+    // Regression test for https://github.com/noir-lang/noir/issues/7430.
+    // The scrutinee's generic is left undetermined so only the turbofish can pin
+    // the payload's type.
+    let src = r#"
+    enum Foo<T> {
+        Bar(T),
+        Baz,
+    }
+
+    fn main() {
+        let f = Foo::Baz;
+        match f {
+            Foo::Bar::<i32>(x) => {
+                let _: i32 = x;
+            }
+            Foo::Baz => {}
+        }
+    }
+    "#;
+    let features = vec![UnstableFeature::Enums];
+    assert_no_errors_using_features(src, &features);
+}
+
+#[test]
+fn turbofish_on_match_pattern_variant_conflicting_type() {
+    let src = r#"
+    enum Foo<T> {
+        Bar(T),
+        Baz,
+    }
+
+    fn main() {
+        let f = Foo::Baz;
+        match f {
+            Foo::Bar::<i32>(x) => {
+                let _: bool = x;
+                              ^ Expected type bool, found type i32
+            }
+            Foo::Baz => {}
+        }
+    }
+    "#;
+    let features = vec![UnstableFeature::Enums];
+    check_errors_using_features(src, &features);
+}
+
+#[test]
+fn turbofish_on_fieldless_match_pattern_variant_conflicting_type() {
+    let src = r#"
+    enum Foo<T> {
+        Bar(T),
+        Baz,
+    }
+
+    fn main() {
+        let f: Foo<Field> = Foo::Baz;
+        match f {
+            Foo::Baz::<i32> => {}
+            ^^^^^^^^^^^^^^^ Expected type Foo<Field>, found type Foo<i32>
+            Foo::Bar(_) => {}
+        }
+    }
+    "#;
+    let features = vec![UnstableFeature::Enums];
+    check_errors_using_features(src, &features);
+}
+
+#[test]
+fn turbofish_on_match_pattern_variant_type_segment() {
+    let src = r#"
+    enum Foo<T> {
+        Bar(T),
+        Baz,
+    }
+
+    fn main() {
+        let f = Foo::Baz;
+        match f {
+            Foo::<i32>::Bar(x) => {
+                let _: bool = x;
+                              ^ Expected type bool, found type i32
+            }
+            Foo::Baz => {}
+        }
+    }
+    "#;
+    let features = vec![UnstableFeature::Enums];
+    check_errors_using_features(src, &features);
+}
+
+#[test]
+fn turbofish_on_match_pattern_variant_count_mismatch() {
+    let src = r#"
+    enum Foo<T> {
+        Bar(T),
+        Baz,
+    }
+
+    fn main() {
+        let f: Foo<i32> = Foo::Baz;
+        match f {
+            Foo::Bar::<i32, bool>(x) => {
+            ^^^^^^^^^^^^^^^^^^^^^ Expected 1 generic from this function, but 2 were provided
+                let _ = x;
+            }
+            Foo::Baz => {}
+        }
+    }
+    "#;
+    let features = vec![UnstableFeature::Enums];
+    check_errors_using_features(src, &features);
+}
+
+#[test]
+fn errors_on_turbofish_on_both_type_and_variant_in_match_pattern() {
+    // The enum's generics can be given on the type segment (`Foo::<i32>`) or on the variant
+    // segment (`Bar::<i32>`), but giving them in both places specifies them twice.
+    let src = r#"
+    enum Foo<T> {
+        Bar(T),
+        Baz,
+    }
+
+    fn main() {
+        let f: Foo<i32> = Foo::Baz;
+        match f {
+            Foo::<i32>::Bar::<i32>(x) => {
+                              ^^^ Generic arguments for the enum were specified more than once
+                              ~~~ Specify the enum's generic arguments in only one place
+                let _ = x;
+            }
+            Foo::Baz => {}
+        }
+    }
+    "#;
+    let features = vec![UnstableFeature::Enums];
+    check_errors_using_features(src, &features);
 }

@@ -1473,3 +1473,191 @@ fn errors_at_import_when_both_colliding_items_are_private() {
     "#;
     check_errors(src);
 }
+
+#[test]
+fn calls_public_trait_method_when_inherent_method_is_private() {
+    // `Foo` has both an inherent `bar` (private to `impls`) and a trait `Bar::bar` (public and
+    // in scope). The inherent method is not accessible from the root, so the call must resolve
+    // to the public trait method instead of erroring that the inherent method is private.
+    // The inherent method is still callable from within `impls`, where it is visible.
+    let src = r#"
+    pub struct Foo {}
+
+    trait Bar {
+        fn bar(self) -> u32;
+    }
+
+    mod impls {
+        use super::{Bar, Foo};
+
+        impl Foo {
+            fn bar(self) -> u32 {
+                let _ = self;
+                1
+            }
+        }
+
+        impl Bar for Foo {
+            fn bar(self) -> u32 {
+                let _ = self;
+                2
+            }
+        }
+
+        pub fn calls_inherent_bar(foo: Foo) -> u32 {
+            foo.bar()
+        }
+    }
+
+    fn main() {
+        let _ = (Foo {}).bar();
+        let _ = impls::calls_inherent_bar(Foo {});
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn calls_in_scope_trait_method_when_clashing_trait_is_out_of_scope() {
+    // Two traits define `bar` for `Foo`, but only `A` is in scope at the call site (the trait
+    // `B` is declared inside `hidden` and never imported). The call resolves to `A::bar`
+    // without a "multiple applicable items" error.
+    let src = r#"
+    struct Foo {}
+
+    trait A { fn bar(self) -> u32; }
+
+    impl A for Foo { fn bar(self) -> u32 { 1 } }
+
+    mod hidden {
+        use super::Foo;
+        pub trait B { fn bar(self) -> u32; }
+        impl B for Foo { fn bar(self) -> u32 { 2 } }
+    }
+
+    fn main() {
+        let _ = (Foo {}).bar();
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn private_inherent_method_falls_back_to_out_of_scope_trait_error() {
+    // The inherent `bar` is private to `impls` and the only trait providing `bar` is not in
+    // scope. Because the inaccessible inherent method is not a resolution candidate here, the
+    // call is treated as if only the trait method existed: the user is told to import the
+    // trait rather than getting a misleading "method is private" error.
+    let src = r#"
+    pub struct Foo {}
+
+    mod hidden {
+        use super::Foo;
+        pub trait B { fn bar(self) -> u32; }
+        impl B for Foo { fn bar(self) -> u32 { let _ = self; 2 } }
+    }
+
+    mod impls {
+        use super::Foo;
+        impl Foo {
+            fn bar(self) -> u32 { let _ = self; 1 }
+        }
+
+        pub fn calls_inherent_bar(foo: Foo) -> u32 {
+            foo.bar()
+        }
+    }
+
+    fn main() {
+        let _ = impls::calls_inherent_bar(Foo {});
+        let _ = (Foo {}).bar();
+                ^^^^^^^^^^^^^^ trait `hidden::B` which provides `bar` is implemented but not in scope, please import it
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn errors_when_two_inherent_methods_with_same_name_exist_in_different_modules() {
+    // Two inherent `impl Foo` blocks in different modules both defining `bar` is an overlapping
+    // impl error, regardless of where they live; there is no single inherent method to call.
+    let src = r#"
+    struct Foo {}
+
+    mod a {
+        impl super::Foo {
+            pub fn bar(self) -> u32 {
+                   ~~~ Previous impl defined here
+                let _ = self;
+                1
+            }
+        }
+    }
+
+    mod b {
+        impl super::Foo {
+            pub fn bar(self) -> u32 {
+                   ^^^ Impl for type `Foo` overlaps with existing impl
+                   ~~~ Overlapping impl
+                let _ = self;
+                2
+            }
+        }
+    }
+
+    fn main() {
+        let _ = (Foo {}).bar();
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn private_module_is_accessible_from_within_its_parent() {
+    // A private module's public items are reachable from the module it is declared in (and that
+    // module's descendants), exactly like any other private item. Here `inner` is private to
+    // `outer`, and `outer::bar` (inside `outer`) accesses `inner::foo` through a fully-qualified
+    // path. This is allowed in Rust, but is currently rejected with "inner is private".
+    let src = r#"
+    mod outer {
+        mod inner {
+            pub fn foo() {}
+        }
+
+        pub fn bar() {
+            crate::outer::inner::foo();
+        }
+    }
+
+    fn main() {
+        outer::bar();
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn use_path_can_access_private_intermediate_module_from_within_its_parent() {
+    // The `use` resolver must apply the same intermediate-segment visibility rule as qualified
+    // paths: a private module is reachable from the module it is declared in. Here `inner` is
+    // private to `outer`, so `use crate::outer::inner::foo;` inside `outer` is valid (the direct
+    // path `crate::outer::inner::foo()` already compiles). This was rejected as "inner is private".
+    let src = r#"
+    mod outer {
+        mod inner {
+            pub fn foo() {}
+        }
+
+        use crate::outer::inner::foo;
+
+        pub fn bar() {
+            foo();
+        }
+    }
+
+    fn main() {
+        outer::bar();
+    }
+    "#;
+    assert_no_errors(src);
+}

@@ -23,7 +23,7 @@ fn witness_map_to_ts(map: &WitnessMap<FieldElement>) -> String {
     let entries: Vec<String> = map
         .clone()
         .into_iter()
-        .map(|(w, f)| format!("  [{}, {}]", w.0, field_to_hex(&f)))
+        .map(|(w, f)| format!("  [{}, {}]", w.witness_index(), field_to_hex(&f)))
         .collect();
     format!("new Map([\n{}\n])", entries.join(",\n"))
 }
@@ -169,7 +169,7 @@ export const expectedResult = {er};
 ",
             bytecode = bytes_to_ts(&bytecode),
             initial_map = witness_map_to_ts(&initial),
-            rw = result_witness.0,
+            rw = result_witness.witness_index(),
             er = field_to_hex(expected_result),
         );
         write(&output_path("addition.ts"), &content);
@@ -391,7 +391,7 @@ export const expectedWitnessMap = {expected_map};
                     .witness
                     .clone()
                     .into_iter()
-                    .map(|(w, f)| format!("    [{}, {}]", w.0, field_to_hex(&f)))
+                    .map(|(w, f)| format!("    [{}, {}]", w.witness_index(), field_to_hex(&f)))
                     .collect();
                 format!(
                     "  {{ index: {}, witness: new Map([\n{}\n  ]) }}",

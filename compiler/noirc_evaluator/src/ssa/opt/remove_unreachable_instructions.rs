@@ -347,9 +347,7 @@ impl Function {
                     };
 
                     let array_op_always_fails = len.0 == 0
-                        || context.dfg.get_numeric_constant(*index).is_some_and(|index| {
-                            (index.try_to_u32().unwrap()) >= (array_type.element_size() * len).0
-                        });
+                        || context.dfg.constant_index_is_out_of_bounds(*array, *index, len);
                     if !array_op_always_fails {
                         return;
                     }
@@ -1155,8 +1153,8 @@ mod tests {
             constrain u1 0 == u1 1, "Index out of bounds"
             unreachable
           b4():
-            v5 = add Field 1, Field 2
-            return v5
+            v6 = add Field 1, Field 2
+            return v6
         }
         "#);
     }
@@ -1191,8 +1189,8 @@ mod tests {
             constrain u1 0 == u1 1, "Index out of bounds"
             unreachable
           b3():
-            v3 = add Field 1, Field 2
-            return v3
+            v4 = add Field 1, Field 2
+            return v4
         }
         "#);
     }
@@ -1231,8 +1229,8 @@ mod tests {
           b3():
             jmp b4()
           b4():
-            v3 = add Field 1, Field 2
-            return v3
+            v4 = add Field 1, Field 2
+            return v4
         }
         "#);
     }
@@ -1276,8 +1274,8 @@ mod tests {
           b4():
             jmp b5()
           b5():
-            v3 = add Field 1, Field 2
-            return v3
+            v4 = add Field 1, Field 2
+            return v4
         }
         "#);
     }

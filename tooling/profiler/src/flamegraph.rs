@@ -188,7 +188,9 @@ fn find_callsite_labels<'files>(
                 let procedure_locs = debug_symbols.brillig_procedure_locs.get(&brillig_function_id);
                 if let Some(procedure_locs) = procedure_locs {
                     for (procedure, range) in procedure_locs {
-                        if brillig_location.0 >= range.0 && brillig_location.0 <= range.1 {
+                        if brillig_location.index() >= range.0
+                            && brillig_location.index() <= range.1
+                        {
                             procedure_id = Some(*procedure);
                             break;
                         }
@@ -426,7 +428,7 @@ mod tests {
             },
             CompilationSample {
                 opcode: Some(format_acir_opcode(&AcirOpcode::MemoryInit::<FieldElement> {
-                    block_id: BlockId(0),
+                    block_id: BlockId::new(0),
                     init: vec![],
                     block_type: acir::circuit::opcodes::BlockType::Memory,
                 })),

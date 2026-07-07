@@ -228,17 +228,6 @@ impl Elaborator<'_> {
         }
     }
 
-    /// Returns whether `func_id` is a method on a trait impl, looking through both
-    /// resolved and yet-to-be-resolved metas. Useful when callers only need to
-    /// distinguish trait-impl methods without forcing full meta resolution (which
-    /// may not be possible if other borrows are live).
-    pub(crate) fn function_is_trait_impl_method(&self, func_id: FuncId) -> bool {
-        if let Some(info) = self.unresolved_function_metas.get(&func_id) {
-            return info.current_trait_impl.is_some();
-        }
-        self.interner.try_function_meta(&func_id).is_some_and(|meta| meta.trait_impl.is_some())
-    }
-
     /// If `func_id` was registered but its meta hasn't been resolved yet, resolve
     /// it now under the registered context. This is the lazy entry point used by
     /// callers that need a function's meta before the end-of-elaboration drain.
@@ -259,12 +248,6 @@ impl Elaborator<'_> {
     pub(crate) fn function_meta(&mut self, func_id: FuncId) -> &FuncMeta {
         self.define_function_meta_if_undefined(func_id);
         self.interner.function_meta(&func_id)
-    }
-
-    /// Lazily resolves a function's [FuncMeta] if needed, then returns it if it exists .
-    pub(crate) fn try_function_meta(&mut self, func_id: FuncId) -> Option<&FuncMeta> {
-        self.define_function_meta_if_undefined(func_id);
-        self.interner.try_function_meta(&func_id)
     }
 
     /// Mutable counterpart of [`Self::function_meta`].
@@ -634,7 +617,7 @@ impl Elaborator<'_> {
 
             let pattern = self.elaborate_pattern_and_store_ids(
                 pattern,
-                typ.clone(),
+                &typ,
                 DefinitionKind::Local(None),
                 &mut parameter_idents,
                 true, // warn_if_unused
@@ -688,6 +671,7 @@ impl Elaborator<'_> {
             lints::unnecessary_pub_return(func, modifiers, func.is_entry_point).map(Into::into)
         });
         self.run_lint(|_| lints::oracle_not_marked_unconstrained(func, modifiers).map(Into::into));
+        self.run_lint(|_| lints::oracle_must_be_a_free_function(func, modifiers).map(Into::into));
         self.run_lint(|_| lints::oracle_marked_as_comptime(modifiers, func).map(Into::into));
         self.run_lint(|_| lints::oracle_returns_multiple_vectors(func, modifiers).map(Into::into));
         self.run_lint(|_| lints::oracle_returns_reference(func, modifiers).map(Into::into));

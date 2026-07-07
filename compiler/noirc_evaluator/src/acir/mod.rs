@@ -9,6 +9,7 @@
 use noirc_artifacts::ssa::{InternalWarning, SsaReport};
 use noirc_errors::call_stack::CallStack;
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
+use std::collections::BTreeMap;
 use types::{AcirDynamicArray, AcirValue};
 
 use acvm::acir::{
@@ -101,7 +102,7 @@ struct Context<'a> {
 
     /// Maps type sizes to `BlockId`. This is used to reuse the same `BlockId` if different
     /// non-homogenous arrays end up having the same type sizes layout.
-    type_sizes_to_blocks: HashMap<Vec<u32>, BlockId>,
+    type_sizes_to_blocks: BTreeMap<Vec<u32>, BlockId>,
 
     /// Number of the next `BlockId`, it is used to construct
     /// a new `BlockId`
@@ -136,7 +137,7 @@ impl<'a> Context<'a> {
             memory_blocks: HashMap::default(),
             return_data_block_id: None,
             element_type_sizes_blocks: HashMap::default(),
-            type_sizes_to_blocks: HashMap::default(),
+            type_sizes_to_blocks: BTreeMap::default(),
             max_block_id: 0,
             data_bus: DataBus::default(),
             shared_context,
@@ -313,8 +314,7 @@ impl<'a> Context<'a> {
         let outputs: Vec<AcirType> =
             vecmap(returns, |result_id| dfg.type_of_value(*result_id).as_ref().into());
 
-        let code =
-            gen_brillig_for(main_func, arguments.clone(), self.brillig, self.brillig_options)?;
+        let code = gen_brillig_for(main_func, &arguments, self.brillig, self.brillig_options)?;
 
         // We specifically do not attempt execution of the brillig code being generated as this can result in it being
         // replaced with constraints on witnesses to the program outputs.
@@ -326,19 +326,22 @@ impl<'a> Context<'a> {
             outputs,
             skip_output_range_checks,
             // We are guaranteed to have a Brillig function pointer of `0` as main itself is marked as unconstrained
-            BrilligFunctionId(0),
+            BrilligFunctionId::new(0),
             None,
         )?;
         self.shared_context.insert_generated_brillig(
             main_func.id(),
             arguments,
-            BrilligFunctionId(0),
+            BrilligFunctionId::new(0),
             code,
         );
 
         let return_witnesses: Vec<Witness> = output_values
             .iter()
-            .flat_map(|value| value.clone().flatten())
+            .map(|value| value.clone().flatten())
+            .collect::<Result<Vec<_>, _>>()?
+            .into_iter()
+            .flatten()
             .map(|(value, _)| self.acir_context.var_to_witness(value))
             .collect::<Result<_, _>>()?;
 
@@ -370,18 +373,19 @@ impl<'a> Context<'a> {
             match &value {
                 AcirValue::Var(_, _) => (),
                 AcirValue::Array(_) => {
-                    let block_id = self.block_id(param_id);
-                    let len = if matches!(*typ, Type::Array(_, _)) {
-                        typ.flattened_size()
-                    } else {
+                    // The backing memory block for an array parameter is initialized lazily by
+                    // `ensure_array_is_initialized` the first time the parameter is used in a
+                    // memory operation (a dynamic access, or a write under a predicate). A
+                    // parameter that is only read at constant indices is resolved directly
+                    // against this `AcirValue::Array` and never needs a memory block at all.
+                    if !matches!(*typ, Type::Array(_, _)) {
                         return Err(InternalError::Unexpected {
                             expected: "Block params should be an array".to_owned(),
                             found: format!("Instead got {:?}", *typ),
                             call_stack: self.acir_context.get_call_stack(),
                         }
                         .into());
-                    };
-                    self.initialize_array(block_id, len, Some(value.clone()))?;
+                    }
                 }
                 AcirValue::DynamicArray(_) => unreachable!(
                     "The dynamic array type is created in Acir gen and therefore cannot be a block parameter"
@@ -394,7 +398,9 @@ impl<'a> Context<'a> {
             return Ok(Vec::new());
         };
         // Range is inclusive, because the for example if there was only one witness, the start and end are both 0.
-        let witnesses = (start_witness.0..=end_witness.0).map(Witness::from).collect();
+        let witnesses = (start_witness.witness_index()..=end_witness.witness_index())
+            .map(Witness::from)
+            .collect();
         Ok(witnesses)
     }
 
@@ -909,12 +915,29 @@ impl<'a> Context<'a> {
 
 /// Check post ACIR generation properties:
 /// * No empty `AssertZero` opcodes (asserting `0 == 0`) should be emitted.
+/// * No zero-length memory block should be initialized. An empty block has no slots to read or
+///   write, so a `MemoryInit` for it is dead weight that ACIR gen must never emit.
 /// * No memory opcodes should be laid down that write to the internal type sizes array.
 ///   See [arrays] for more information on the type sizes array.
+/// * Every non-databus, non-empty memory block that is initialized is also referenced by at least
+///   one memory operation or Brillig memory-array input. A `MemoryInit` with
+///   no linked read/write is dead weight that ACIR gen should never emit: arrays are only promoted
+///   to a memory block on their first memory operation. Databus blocks (calldata/return data) are
+///   exempt as they are part of the circuit's ABI and are intentionally initialized even when
+///   unused. Zero-length blocks never reach this check (they are asserted against above and are
+///   never emitted), so the non-empty guard here is a belt-and-braces filter.
+/// * No `Call` or `BrilligCall` opcode is emitted with a compile-time zero predicate. Such a call is
+///   on a statically-dead branch and is never executed, so ACIR gen must resolve it to don't-care
+///   outputs rather than lay down an opcode whose predicate is known to be zero.
 #[cfg(debug_assertions)]
 fn acir_post_check(context: &Context<'_>, acir: &GeneratedAcir<FieldElement>) {
     use acvm::acir::circuit::Opcode;
+    use acvm::acir::circuit::brillig::BrilligInputs;
     use acvm::acir::circuit::opcodes::MemOpKind;
+
+    let mut initialized_non_databus_blocks: HashSet<BlockId> = HashSet::default();
+    let mut used_blocks: HashSet<BlockId> = HashSet::default();
+
     for opcode in acir.opcodes() {
         match opcode {
             Opcode::AssertZero(expr) => {
@@ -923,7 +946,17 @@ fn acir_post_check(context: &Context<'_>, acir: &GeneratedAcir<FieldElement>) {
                     "ICE: Empty AssertZero opcodes (0 == 0) should not be emitted"
                 );
             }
+            Opcode::MemoryInit { block_id, block_type, init } => {
+                assert!(
+                    !init.is_empty(),
+                    "ICE: Zero-length memory blocks should not be initialized"
+                );
+                if !block_type.is_databus() && !init.is_empty() {
+                    initialized_non_databus_blocks.insert(*block_id);
+                }
+            }
             Opcode::MemoryOp { block_id, op } => {
+                used_blocks.insert(*block_id);
                 if op.operation == MemOpKind::Write {
                     // Check that we have no writes to the type size arrays
                     let is_type_sizes_array =
@@ -934,7 +967,30 @@ fn acir_post_check(context: &Context<'_>, acir: &GeneratedAcir<FieldElement>) {
                     );
                 }
             }
-            _ => {}
+            Opcode::BrilligCall { inputs, predicate, .. } => {
+                assert!(
+                    !predicate.is_zero(),
+                    "ICE: Brillig calls with a compile-time zero predicate should be resolved during ACIR gen, not emitted"
+                );
+                for input in inputs {
+                    if let BrilligInputs::MemoryArray(block_id) = input {
+                        used_blocks.insert(*block_id);
+                    }
+                }
+            }
+            Opcode::Call { predicate, .. } => {
+                assert!(
+                    !predicate.is_zero(),
+                    "ICE: ACIR calls with a compile-time zero predicate should be resolved during ACIR gen, not emitted"
+                );
+            }
+            Opcode::BlackBoxFuncCall(_) => {}
         }
     }
+
+    let unused: Vec<_> = initialized_non_databus_blocks.difference(&used_blocks).collect();
+    assert!(
+        unused.is_empty(),
+        "ICE: memory blocks initialized without any linked read/write/Brillig use: {unused:?}"
+    );
 }

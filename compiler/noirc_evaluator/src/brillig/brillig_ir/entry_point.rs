@@ -24,8 +24,8 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
     /// Creates an entry point artifact that will jump to the function label provided.
     #[allow(clippy::too_many_arguments)]
     pub(crate) fn new_entry_point_artifact(
-        arguments: Vec<BrilligParameter>,
-        return_parameters: Vec<BrilligParameter>,
+        arguments: &[BrilligParameter],
+        return_parameters: &[BrilligParameter],
         target_function: FunctionId,
         globals_init: bool,
         globals_memory_size: usize,
@@ -37,15 +37,15 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
         context.set_globals_memory_size(Some(globals_memory_size));
 
         let stack_start = context.codegen_entry_point(
-            &arguments,
-            &return_parameters,
+            arguments,
+            return_parameters,
             target_function,
             globals_init,
         );
 
         context.add_external_call_instruction(target_function);
 
-        context.codegen_exit_point(&arguments, &return_parameters);
+        context.codegen_exit_point(arguments, return_parameters);
         (context.into_artifact(), stack_start)
     }
 
@@ -372,6 +372,13 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
             return_data_index += return_param.flattened_size();
         }
 
+        // Emit the debug copy-count print only after the return values have been flushed to the
+        // return-data region. Earlier, the print's register allocations would reuse the stack
+        // registers still holding the return values and corrupt them.
+        if self.count_array_copies() {
+            self.emit_println_of_array_copy_counter();
+        }
+
         let return_pointer = self.make_usize_constant_instruction(return_data_offset.into());
         let return_size = self.make_usize_constant_instruction(return_data_size.into());
         let return_data = HeapVector { pointer: return_pointer.address, size: return_size.address };
@@ -384,15 +391,27 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
 mod tests {
 
     use acvm::{
-        FieldElement,
-        acir::brillig::lengths::{SemanticLength, SemiFlattenedLength},
+        AcirField, FieldElement,
+        acir::brillig::{
+            ForeignCallResult,
+            lengths::{SemanticLength, SemiFlattenedLength},
+        },
+        brillig_vm::{VM, VMStatus},
     };
 
     use crate::{
-        brillig::brillig_ir::{
-            brillig_variable::{BrilligArray, BrilligVariable, SingleAddrVariable},
-            entry_point::BrilligParameter,
-            tests::{create_and_run_vm, create_context, create_entry_point_bytecode},
+        brillig::{
+            BrilligOptions, CopySiteRegistry, assert_usize,
+            brillig_ir::{
+                BrilligContext,
+                artifact::Label,
+                brillig_variable::{BrilligArray, BrilligVariable, SingleAddrVariable},
+                entry_point::BrilligParameter,
+                tests::{
+                    DummyBlackBoxSolver, create_and_run_vm, create_context,
+                    create_entry_point_bytecode,
+                },
+            },
         },
         ssa::ir::function::FunctionId,
     };
@@ -439,7 +458,7 @@ mod tests {
         let return_value = BrilligVariable::from(SingleAddrVariable::new_usize(*array_value));
         context.codegen_return(&[return_value]);
 
-        let bytecode = create_entry_point_bytecode(context, arguments, returns).byte_code;
+        let bytecode = create_entry_point_bytecode(context, &arguments, &returns).byte_code;
         let (vm, return_data_offset, return_data_size) = create_and_run_vm(calldata, &bytecode);
         assert_eq!(return_data_size, 1, "Return data size is incorrect");
         assert_eq!(vm.get_memory()[return_data_offset].to_field(), FieldElement::from(1_usize));
@@ -472,7 +491,7 @@ mod tests {
 
         context.codegen_return(&[return_register.to_var()]);
 
-        let bytecode = create_entry_point_bytecode(context, arguments, returns).byte_code;
+        let bytecode = create_entry_point_bytecode(context, &arguments, &returns).byte_code;
         let (vm, return_data_pointer, return_data_size) =
             create_and_run_vm(flattened_array.clone(), &bytecode);
         let memory = vm.get_memory();
@@ -485,5 +504,46 @@ mod tests {
             flattened_array
         );
         assert_eq!(return_data_size, flattened_array.len());
+    }
+
+    /// Enabling the array-copy-count debug flag must not change the value the circuit returns.
+    /// The debug-print code emitted at the end of an entry point must not reuse the registers
+    /// holding the return value.
+    #[test]
+    fn count_array_copies_preserves_return_value() {
+        // Body of `unconstrained fn main() -> Field { 5 }`.
+        let options = BrilligOptions {
+            copy_site_registry: Some(CopySiteRegistry::default()),
+            ..Default::default()
+        };
+        let mut context = BrilligContext::new("test", &options);
+        context.enter_context(Label::function(FunctionId::test_new(0)));
+
+        let return_register = context.allocate_register();
+        let return_var = SingleAddrVariable::new(*return_register, FieldElement::max_num_bits());
+        context.const_instruction(return_var, FieldElement::from(5_usize));
+        context.codegen_return(&[BrilligVariable::from(return_var)]);
+
+        let arguments = vec![];
+        let returns = vec![BrilligParameter::SingleAddr(FieldElement::max_num_bits())];
+        let bytecode = create_entry_point_bytecode(context, &arguments, &returns).byte_code;
+
+        // The entry point emits `print` foreign calls for the copy counts. They have no return
+        // values, so resolve each with an empty result to let the VM run to completion.
+        let mut vm = VM::new(vec![], &bytecode, &DummyBlackBoxSolver, false, None);
+        let (return_data_offset, return_data_size) = loop {
+            match vm.process_opcodes() {
+                VMStatus::Finished { return_data_offset, return_data_size } => {
+                    break (assert_usize(return_data_offset), assert_usize(return_data_size));
+                }
+                VMStatus::ForeignCallWait { .. } => {
+                    vm.resolve_foreign_call(ForeignCallResult { values: vec![] });
+                }
+                other => panic!("VM did not finish: {other:?}"),
+            }
+        };
+
+        assert_eq!(return_data_size, 1);
+        assert_eq!(vm.get_memory()[return_data_offset].to_field(), FieldElement::from(5_usize));
     }
 }

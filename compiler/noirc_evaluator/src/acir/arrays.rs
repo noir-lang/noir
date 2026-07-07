@@ -14,7 +14,8 @@
 //! ACIR generation use two different array types for representing arrays:
 //!
 //! [Constant arrays][AcirValue::Array]
-//!   - Known at compile time.
+//!   - A known sequence of element [`AcirValue`]s. The individual values may be witnesses (e.g. a
+//!     function parameter array), but the array's length and structure are known at compile time.
 //!   - Reads and writes may be folded into an [`AcirValue`] where possible.
 //!   - Useful for optimization (e.g., constant element lookups do not require laying down opcodes)
 //!
@@ -22,7 +23,10 @@
 //!   - Referenced by a [unique identifier][BlockId]
 //!   - Must be explicitly initialized using an [opcode][acvm::acir::circuit::opcodes::Opcode::MemoryInit]
 //!   - Reads and writes must lower to at least an explicit [memory opcode][acvm::acir::circuit::opcodes::Opcode::MemoryOp].
-//!   - Required for arrays accessed by dynamic indices (witness inputs) or function parameters (the array is itself a witness)
+//!   - Required once an array is accessed at a dynamic index, or written under a predicate. A
+//!     function parameter array starts as a constant array and is only promoted to a dynamic
+//!     array (lazily, by [`Context::ensure_array_is_initialized`]) when such an access occurs;
+//!     a parameter only read at constant indices never needs a memory block.
 //!
 //! ### Array Flattening
 //!
@@ -143,11 +147,18 @@ use super::{
 };
 
 impl Context<'_> {
+    /// Allocate a fresh, unique [`BlockId`] for a memory block.
+    fn next_block_id(&mut self) -> BlockId {
+        let block_id = BlockId::new(self.max_block_id);
+        self.max_block_id += 1;
+        block_id
+    }
+
     /// Get the `BlockId` corresponding to the `ValueId`
     /// If there is no matching `BlockId`, we create a new one.
     pub(super) fn block_id(&mut self, value: ValueId) -> BlockId {
         *self.memory_blocks.entry(value).or_insert_with(|| {
-            let block_id = BlockId(self.max_block_id);
+            let block_id = BlockId::new(self.max_block_id);
             self.max_block_id += 1;
             block_id
         })
@@ -155,8 +166,7 @@ impl Context<'_> {
 
     pub(crate) fn return_data_block_id(&mut self) -> BlockId {
         self.return_data_block_id.unwrap_or_else(|| {
-            let block_id = BlockId(self.max_block_id);
-            self.max_block_id += 1;
+            let block_id = self.next_block_id();
             self.return_data_block_id = Some(block_id);
             block_id
         })
@@ -168,7 +178,7 @@ impl Context<'_> {
     /// of non-homogenous arrays.
     fn type_sizes_block_id(&mut self, value: ValueId) -> BlockId {
         *self.element_type_sizes_blocks.entry(value).or_insert_with(|| {
-            let block_id = BlockId(self.max_block_id);
+            let block_id = BlockId::new(self.max_block_id);
             self.max_block_id += 1;
             block_id
         })
@@ -362,9 +372,24 @@ impl Context<'_> {
                 let value = AcirValue::Array(array.update(index, store_value));
                 self.define_result(dfg, instruction, value);
                 Ok(true)
-            } else {
-                // If a predicate is applied however we must wait until runtime.
+            } else if contains_dynamic_array(&store_value) || contains_dynamic_array(&array[index])
+            {
+                // The predicated value mixes the store value with the existing element as a dummy
+                // (see below). We can only do this in-place while both are plain values; if either
+                // side holds a nested dynamic array we'd have to read it back out of a memory block,
+                // so we defer the whole operation to the runtime memory-op path instead.
                 Ok(false)
+            } else {
+                // A predicate is active, but the index is a known in-bounds constant, so we can still
+                // resolve the write at compile time. The existing element acts as the dummy value and
+                // the stored element becomes `predicate * value + (1 - predicate) * dummy`: unchanged
+                // when the predicate is false. Folding it into the `AcirValue::Array` this way avoids
+                // initializing a memory block purely to read that dummy back out.
+                let predicated_value =
+                    self.convert_array_set_store_value(&store_value, &array[index])?;
+                let value = AcirValue::Array(array.update(index, predicated_value));
+                self.define_result(dfg, instruction, value);
+                Ok(true)
             }
         } else {
             // If the index is not out of range, we can optimistically perform the read at compile time
@@ -426,7 +451,6 @@ impl Context<'_> {
         offset: usize,
     ) -> Result<(AcirVar, Option<AcirValue>), RuntimeError> {
         let array_typ = dfg.type_of_value(array_id);
-        let block_id = self.ensure_array_is_initialized(array_id, dfg)?;
 
         let shift = ElementTypeSizesArrayShift::None;
         let index_var = self.convert_numeric_value(index, dfg)?;
@@ -453,7 +477,7 @@ impl Context<'_> {
         }
 
         let new_value = store_value
-            .map(|store| self.predicated_store_value(store, dfg, block_id, index_var))
+            .map(|store| self.predicated_store_value(store, dfg, array_id, index_var))
             .transpose()?;
 
         Ok((index_var, new_value))
@@ -465,11 +489,14 @@ impl Context<'_> {
         &mut self,
         store: ValueId,
         dfg: &DataFlowGraph,
-        block_id: BlockId,
+        array_id: ValueId,
         mut dummy_predicate_index: AcirVar,
     ) -> Result<AcirValue, RuntimeError> {
         let store_value = self.convert_value(store, dfg);
         let store_type = dfg.type_of_value(store);
+        // Reading the dummy value is the first memory access to the array under a predicate, so the
+        // backing block is initialized lazily here.
+        let block_id = self.ensure_array_is_initialized(array_id, dfg)?;
         // We must setup the dummy value to match the type of the value we wish to store
         let dummy = self.array_get_value(&store_type, block_id, &mut dummy_predicate_index)?;
         self.convert_array_set_store_value(&store_value, &dummy)
@@ -512,7 +539,10 @@ impl Context<'_> {
             ) => {
                 let dummy_values = dummy_values
                     .into_iter()
-                    .flat_map(|val| val.clone().flatten())
+                    .map(|val| val.clone().flatten())
+                    .collect::<Result<Vec<_>, _>>()?
+                    .into_iter()
+                    .flatten()
                     .map(|(var, typ)| AcirValue::Var(var, typ))
                     .collect::<Vec<_>>();
 
@@ -575,10 +605,9 @@ impl Context<'_> {
         dfg: &DataFlowGraph,
         index_side_effect: bool,
     ) -> Result<(), RuntimeError> {
-        let block_id = self.ensure_array_is_initialized(array, dfg)?;
         let [result] = dfg.instruction_result(instruction);
         let res_typ = dfg.type_of_value(result);
-        let value = self.load_array_value(array, block_id, var_index, &res_typ, dfg)?;
+        let value = self.load_array_value(array, var_index, &res_typ, dfg)?;
         let value = self.apply_index_side_effects(array, value, index_side_effect, dfg)?;
         self.define_result(dfg, instruction, value);
         Ok(())
@@ -588,7 +617,6 @@ impl Context<'_> {
     fn load_array_value(
         &mut self,
         array: ValueId,
-        block_id: BlockId,
         mut var_index: AcirVar,
         res_typ: &Type,
         dfg: &DataFlowGraph,
@@ -630,6 +658,10 @@ impl Context<'_> {
             let mut current_index = self.acir_context.add_var(bus_index, var_index)?;
             self.get_from_call_data(&mut current_index, call_data_block, res_typ)
         } else {
+            // A non-call-data read is the first access to the array's own memory block, so it is
+            // initialized lazily here rather than for every `ArrayGet` (call-data reads are served
+            // from the databus block and never touch this one).
+            let block_id = self.ensure_array_is_initialized(array, dfg)?;
             self.array_get_value(res_typ, block_id, &mut var_index)
         }
     }
@@ -679,6 +711,8 @@ impl Context<'_> {
         Ok(value)
     }
 
+    /// Reads the value of type `ssa_type` at the flattened position `var_index` of the array backed
+    /// by `block_id`, emitting a `MemoryOp::Read` per scalar and advancing `var_index` past it.
     pub(super) fn array_get_value(
         &mut self,
         ssa_type: &Type,
@@ -686,7 +720,7 @@ impl Context<'_> {
         var_index: &mut AcirVar,
     ) -> Result<AcirValue, RuntimeError> {
         let one = self.acir_context.add_constant(FieldElement::one());
-        match ssa_type.clone() {
+        match ssa_type {
             Type::Numeric(numeric_type) => {
                 // Read the value from the array at the specified index
                 let read = self.acir_context.read_from_memory(block_id, var_index)?;
@@ -694,7 +728,7 @@ impl Context<'_> {
                 // Increment the var_index in case of a nested array
                 *var_index = self.acir_context.add_var(*var_index, one)?;
 
-                Ok(AcirValue::Var(read, numeric_type))
+                Ok(AcirValue::Var(read, *numeric_type))
             }
             Type::Array(element_types, len) => {
                 let mut values = im::Vector::new();
@@ -783,11 +817,15 @@ impl Context<'_> {
         dfg: &DataFlowGraph,
         mutate_array: bool,
     ) -> Result<BlockId, RuntimeError> {
-        let block_id = self.ensure_array_is_initialized(array, dfg)?;
         if mutate_array {
+            let block_id = self.ensure_array_is_initialized(array, dfg)?;
             self.memory_blocks.insert(result, block_id);
             Ok(block_id)
         } else {
+            // The copy reads the source through its `AcirValue` (inline contents, or the already
+            // initialized block of a `DynamicArray`), so we do not force the source into a memory
+            // block here: a constant-only source that is copied and then discarded must not leave
+            // an orphaned `MemoryInit` behind.
             let new_block = self.block_id(result);
             self.copy_array(array, new_block, dfg)?;
             Ok(new_block)
@@ -910,18 +948,13 @@ impl Context<'_> {
         dfg: &DataFlowGraph,
         shift: ElementTypeSizesArrayShift,
     ) -> Result<BlockId, RuntimeError> {
-        let element_type_sizes = self.type_sizes_block_id(array_id);
-        // Check whether an internal type sizes array has already been initialized.
-        // Need to look into how to optimize for vectors as this could lead to different element type sizes
-        // for different vectors that do not have consistent sizes.
-        // If we are initializing an element type sizes array for a growth operation (e.g., vector insert),
-        // we do not want to use a pre-initialized type sizes array as it will be for a smaller size.
-        // By definition the `additional_capacity` being over zero indicates that we desire a type sizes array
-        // that is bigger than what is needed for the supplied type/value.
-        if self.initialized_arrays.contains(&element_type_sizes)
+        let base_block = self.type_sizes_block_id(array_id);
+
+        // A non-shifted request can reuse a table already initialized for this value as-is.
+        if self.initialized_arrays.contains(&base_block)
             && matches!(shift, ElementTypeSizesArrayShift::None)
         {
-            return Ok(element_type_sizes);
+            return Ok(base_block);
         }
 
         if !matches!(array_typ, Type::Array(_, _) | Type::Vector(_)) {
@@ -942,91 +975,66 @@ impl Context<'_> {
             .into());
         }
 
-        // An instruction representing the vector means it has been processed previously during ACIR gen.
-        // Use the previously defined result of an array operation to fetch the internal type information.
+        // An instruction/param representing the array means it has been processed previously during
+        // ACIR gen. Use that result to recover its flattened length, then apply the requested shift
+        // (e.g. one extra element for a vector insert) to size the table.
         let array_acir_value =
             supplied_acir_value.unwrap_or_else(|| self.convert_value(array_id, dfg));
-        let flattened_len = flattened_value_size(&array_acir_value);
-        let result = match array_acir_value {
-            AcirValue::Array(_) => {
-                self.init_type_sizes_helper(array_typ, flattened_len, shift, element_type_sizes)
-            }
-            AcirValue::DynamicArray(inner) if matches!(shift, ElementTypeSizesArrayShift::None) => {
-                let inner_elem_type_sizes = inner.element_type_sizes;
-                let Some(inner_elem_type_sizes) = &inner_elem_type_sizes else {
-                    return Err(InternalError::General {
-                        message: format!("Array {array_id}'s inner element type sizes array should be initialized"),
-                        call_stack: self.acir_context.get_call_stack(),
-                    }
-                    .into());
-                };
-
-                if !self.initialized_arrays.contains(inner_elem_type_sizes) {
-                    // We're copying the element type sizes array from another array so we expect it to be initialized.
-                    unreachable!("ICE: element type size arrays are expected to be initialized");
-                }
-
-                // We can safely overwrite the memory block from the initial call to `self.internal_block_id(&array_id)` here.
-                // The type sizes array is never mutated so we can re-use it.
-                self.element_type_sizes_blocks.insert(array_id, *inner_elem_type_sizes);
-                Ok(*inner_elem_type_sizes)
-            }
-            AcirValue::DynamicArray(inner)
-                if !matches!(shift, ElementTypeSizesArrayShift::None) =>
-            {
-                // Recalculate with additional capacity for growth operations
-                self.init_type_sizes_helper(array_typ, inner.len, shift, element_type_sizes)
-            }
-            _ => Err(InternalError::Unexpected {
+        if !matches!(array_acir_value, AcirValue::Array(_) | AcirValue::DynamicArray(_)) {
+            return Err(InternalError::Unexpected {
                 expected: "AcirValue::DynamicArray or AcirValue::Array".to_owned(),
                 found: format!("{array_acir_value:?}"),
                 call_stack: self.acir_context.get_call_stack(),
             }
-            .into()),
-        }?;
-
-        // Remap this array_id to point at the reused block. This ensures subsequent lookups via
-        // type_sizes_block_id(array_id) find the initialized block.
-        // But not for growth operations (Increase/Decrease) which do not match with the base mapping.
-        if result != element_type_sizes && matches!(shift, ElementTypeSizesArrayShift::None) {
-            self.element_type_sizes_blocks.insert(array_id, result);
+            .into());
         }
+        let flattened_len = flattened_value_size(&array_acir_value);
+        let table = calculate_element_type_sizes_array(array_typ, flattened_len, shift);
 
-        Ok(result)
+        let block = self.reuse_or_init_element_type_sizes(table, base_block)?;
+
+        // Record which block backs this value's helper table. This also keeps the post-ACIR check's
+        // set of element-type-sizes blocks complete (it scans these values to forbid writes to them).
+        self.element_type_sizes_blocks.insert(array_id, block);
+        Ok(block)
     }
 
-    /// Helper to calculate and initialize `element_type_sizes` array from a flattened length.
-    fn init_type_sizes_helper(
+    /// Returns a memory block holding the given element-type-sizes `table`, reusing an existing one
+    /// when possible.
+    ///
+    /// Reuses the smallest already-initialized table that is at least as large and shares `table`'s
+    /// prefix (the table is never mutated and is a cumulative prefix-offset array, so reading only
+    /// the first entries of a larger table yields the same offsets). Otherwise initializes a new
+    /// table into `preferred_block`, or a fresh block when `preferred_block` is already in use (it
+    /// may hold this value's smaller, non-shifted table).
+    fn reuse_or_init_element_type_sizes(
         &mut self,
-        array_typ: &Type,
-        flattened_length: FlattenedLength,
-        shift: ElementTypeSizesArrayShift,
-        element_type_sizes_block: BlockId,
+        table: Vec<u32>,
+        preferred_block: BlockId,
     ) -> Result<BlockId, RuntimeError> {
-        let flat_elem_type_sizes =
-            calculate_element_type_sizes_array(array_typ, flattened_length, shift);
-
-        // If there's already a block with these same sizes, reuse it. It's fine to do so
-        // because the element type sizes array is never mutated.
-        if let Some(block_id) = self.type_sizes_to_blocks.get(&flat_elem_type_sizes) {
-            return Ok(*block_id);
+        if !table.is_empty()
+            && let Some((existing, block)) = self.type_sizes_to_blocks.range(table.clone()..).next()
+            && existing.starts_with(&table)
+        {
+            return Ok(*block);
         }
 
-        // The final array contains the flattened index at each outer array index
-        let init_values = vecmap(flat_elem_type_sizes.clone(), |type_size| {
+        let block = if self.initialized_arrays.contains(&preferred_block) {
+            self.next_block_id()
+        } else {
+            preferred_block
+        };
+
+        // The final array contains the flattened index at each outer array index.
+        let init_values = vecmap(table.clone(), |type_size| {
             let var = self.acir_context.add_constant(type_size);
             AcirValue::Var(var, NumericType::NativeField)
         });
-        let element_type_sizes_len = FlattenedLength(assert_u32(init_values.len()));
-        self.initialize_array(
-            element_type_sizes_block,
-            element_type_sizes_len,
-            Some(AcirValue::Array(init_values.into())),
-        )?;
+        let len = FlattenedLength(assert_u32(init_values.len()));
+        self.initialize_array(block, len, Some(AcirValue::Array(init_values.into())))?;
 
-        self.type_sizes_to_blocks.insert(flat_elem_type_sizes, element_type_sizes_block);
-
-        Ok(element_type_sizes_block)
+        self.type_sizes_to_blocks.insert(table, block);
+        Ok(block)
     }
 
     /// Read an array and reconstruct its structure based on the SSA type.
@@ -1140,6 +1148,34 @@ impl Context<'_> {
         is_safe_index: bool,
         shift: ElementTypeSizesArrayShift,
     ) -> Result<AcirVar, RuntimeError> {
+        // For a non-homogenous layout a statically-known, in-bounds index resolves to a fixed
+        // flattened offset held in the element-type-sizes table. That offset is independent of the
+        // side-effects predicate, so emit it as a constant rather than gating the index and reading
+        // the (never-written) table from memory. We use the original index here rather than the
+        // predicated one below, since gating can turn a constant into a witness and hide its value.
+        // An out-of-bounds constant index (no table entry) falls through to the runtime path, which
+        // defers the bounds failure to execution.
+        if array_has_constant_element_size(array_typ).is_none()
+            && let Some(index) = self
+                .acir_context
+                .var_to_expression(var_index)?
+                .to_const()
+                .and_then(|c| c.try_to_u32())
+        {
+            let element_type_sizes =
+                self.init_element_type_sizes_array(array_typ, array_id, None, dfg, shift)?;
+            // The table backing the block is its (constant) initialization values, recovered from
+            // the table-to-block cache rather than re-deriving the array's size.
+            let offset = self
+                .type_sizes_to_blocks
+                .iter()
+                .find_map(|(table, block)| (*block == element_type_sizes).then_some(table))
+                .and_then(|table| table.get(index as usize).copied());
+            if let Some(offset) = offset {
+                return Ok(self.acir_context.add_constant(offset));
+            }
+        }
+
         // Gate the input by the side-effects predicate when the index isn't statically
         // known to be in range. Without this, callers that consume the returned index
         // (memory reads/writes, comparisons, etc.) would fail the ACVM bounds check on
@@ -1234,7 +1270,7 @@ impl Context<'_> {
         if !already_initialized {
             let value = &dfg[array];
             match value {
-                Value::Instruction { .. } => {
+                Value::Instruction { .. } | Value::Param { .. } => {
                     let value = self.convert_value(array, dfg);
                     let len = self.flattened_size(array, dfg);
                     self.initialize_array(block_id, len, Some(value))?;
@@ -1260,6 +1296,20 @@ impl Context<'_> {
         len: FlattenedLength,
         value: Option<AcirValue>,
     ) -> Result<(), InternalError> {
+        // Record the block as initialized even for a zero-length array so that downstream
+        // bookkeeping stays consistent, but emit no `MemoryInit` opcode for it: an empty block has
+        // no slots to read or write, so any access to it is out of bounds and the opcode would only
+        // ever describe an orphan block.
+        if !self.initialized_arrays.insert(array) {
+            return Err(InternalError::General {
+                message: "Attempted to initialize memory block twice".to_owned(),
+                call_stack: self.acir_context.get_call_stack(),
+            });
+        }
+        if len.to_usize() == 0 {
+            return Ok(());
+        }
+
         let mut databus = BlockType::Memory;
         for (call_data_id, array_id) in self.data_bus.call_data_array() {
             if self.block_id(array_id) == array {
@@ -1269,14 +1319,7 @@ impl Context<'_> {
         }
 
         self.acir_context.initialize_array(array, len, value, databus)?;
-        if self.initialized_arrays.insert(array) {
-            Ok(())
-        } else {
-            Err(InternalError::General {
-                message: "Attempted to initialize memory block twice".to_owned(),
-                call_stack: self.acir_context.get_call_stack(),
-            })
-        }
+        Ok(())
     }
 }
 
@@ -1343,6 +1386,18 @@ pub(super) fn calculate_element_type_sizes_array(
         total_size += element_type_sizes[index % element_types.len()].0;
     }
     flat_elem_type_sizes
+}
+
+/// Returns whether `value` contains an [`AcirValue::DynamicArray`] anywhere within it.
+///
+/// Such values are backed by a memory block rather than being held inline, so they cannot be
+/// folded into another [`AcirValue::Array`] without reading them back out of that block.
+fn contains_dynamic_array(value: &AcirValue) -> bool {
+    match value {
+        AcirValue::Var(_, _) => false,
+        AcirValue::Array(values) => values.iter().any(contains_dynamic_array),
+        AcirValue::DynamicArray(_) => true,
+    }
 }
 
 /// Calculates the total flattened size of an [`AcirValue`].
