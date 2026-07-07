@@ -1,0 +1,35 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+comptime fn unquote(code: Quoted) -> Quoted {
+    code
+}
+
+comptime fn render_expr_to_code(code: Quoted) -> Quoted {
+    let expr: Expr = code.as_expr().unwrap();
+    f"{expr}".quoted_contents()
+}
+
+trait Kind {
+    fn kind(self) -> Field;
+}
+
+impl Kind for [Field] {
+    fn kind(self) -> Field {
+        1_Field
+    }
+}
+
+impl<let N: u32> Kind for [Field; N] {
+    fn kind(self) -> Field {
+        2_Field
+    }
+}
+
+fn main() {
+    let direct: Field = { @[1_Field, 2_Field, 3_Field] }.kind();
+    assert(direct == 1_Field);
+    let via_generated_source: Field = { @[1_Field, 2_Field, 3_Field] }.kind();
+    assert(via_generated_source == 1_Field);
+}

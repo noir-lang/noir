@@ -61,33 +61,39 @@ fn checked_casts_do_not_prevent_canonicalization() {
     assert_no_errors(source);
 }
 
-#[test]
-fn arithmetic_generics_intermediate_underflow_simplified_out_of_to() {
-    // The type expression `(N - 1) + 1` creates a CheckedCast where:
-    //   from = (N - 1) + 1   (unsimplified, preserves intermediate steps)
-    //   to   = N             (simplified via (X - M) + M -> X)
-    //
-    // With N = 0, the `(0 - 1)` subexpression of `from` underflows u32 even though
-    // the simplified `to` side evaluates to 0 without error. The underflow in the
-    // unsimplified expression must still be reported.
-    let source = r#"
-        fn intermediate_underflow<let N: u32>() -> [Field; (N - 1) + 1] {
-            let result: [Field; N] = [0; N];
+// A return-type expression that simplifies to `simplified` (the value the
+// function body must produce) but whose unsimplified `from` obligation contains
+// the cancelling core `(N - 1) + 1`. With N = 0 the `(0 - 1)` subexpression
+// underflows u32 even though every layer simplifies away, so canonicalizing the
+// CheckedCast must not drop the inner `from`: the underflow has to be reported
+// at monomorphization regardless of how the cancelling core is wrapped.
+//
+// Parametrised over the return type so it stays concise and extensible to other
+// arithmetic we want to reject.
+#[test_case("(N - 1) + 1", "N" ; "cancelling core simplified out of to")]
+#[test_case("((N - 1) + 1) + 0", "N" ; "wrapped in outer add zero")]
+#[test_case("((N - 1) + 1) + 1", "N + 1" ; "wrapped in outer add one")]
+fn arithmetic_generics_intermediate_underflow_reported(return_length: &str, simplified: &str) {
+    let source = format!(
+        r#"
+        fn intermediate_underflow<let N: u32>() -> [Field; {return_length}] {{
+            let result: [Field; {simplified}] = [0; {simplified}];
             result
-        }
+        }}
 
-        fn main() {
+        fn main() {{
             let _x = intermediate_underflow::<0>();
                      ^^^^^^^^^^^^^^^^^^^^^^ Invalid array length
                      ~~~~~~~~~~~~~~~~~~~~~~ `0 - 1` in the arithmetic generics here would overflow the bounds of a(n) `u32`
-        }
-    "#;
-    check_monomorphization_error(source);
+        }}
+    "#,
+    );
+    check_monomorphization_error(&source);
 }
 
 #[test]
 fn arithmetic_generics_intermediate_expression_with_no_underflow() {
-    // Companion to `arithmetic_generics_intermediate_underflow_simplified_out_of_to`:
+    // Companion to `arithmetic_generics_intermediate_underflow_reported`:
     // with N = 5 no intermediate step of `(N - 1) + 1` over/underflows, so the
     // program must compile.
     let source = r#"
