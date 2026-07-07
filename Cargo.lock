@@ -110,7 +110,7 @@ dependencies = [
  "nargo",
  "noir_artifact_cli",
  "proptest",
- "rand 0.10.1",
+ "rand 0.10.2",
  "toml 0.8.23",
  "tracing-appender",
  "tracing-subscriber",
@@ -1385,9 +1385,9 @@ dependencies = [
 
 [[package]]
 name = "crossbeam-epoch"
-version = "0.9.18"
+version = "0.9.20"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5b82ac4a3c2ca9c3460964f020e1402edd5753411d7737aa39c3714ad1b5420e"
+checksum = "2d6914041f254d6e9176c01941b21115dcfb7089e55135a35411081bd106ef3f"
 dependencies = [
  "crossbeam-utils",
 ]
@@ -3395,7 +3395,7 @@ dependencies = [
  "num-bigint",
  "proptest",
  "proptest-derive",
- "rand 0.10.1",
+ "rand 0.10.2",
  "rayon",
  "serde",
  "serde_json",
@@ -3645,7 +3645,7 @@ dependencies = [
  "noirc_evaluator",
  "noirc_frontend",
  "proptest",
- "rand 0.10.1",
+ "rand 0.10.2",
  "regex",
  "serde_json",
  "similar-asserts",
@@ -3705,7 +3705,7 @@ dependencies = [
  "num-bigint",
  "num-traits",
  "proptest",
- "rand 0.10.1",
+ "rand 0.10.2",
  "rand_xorshift 0.5.0",
  "rayon",
  "sha256",
@@ -3843,7 +3843,7 @@ dependencies = [
  "noirc_driver",
  "noirc_evaluator",
  "noirc_frontend",
- "rand 0.10.1",
+ "rand 0.10.2",
  "serde",
  "strum",
  "strum_macros",
@@ -4791,9 +4791,9 @@ dependencies = [
 
 [[package]]
 name = "rand"
-version = "0.10.1"
+version = "0.10.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d2e8e8bcc7961af1fdac401278c6a831614941f6164ee3bf4ce61b7edb162207"
+checksum = "c7f5fa3a058cd35567ef9bfa5e75732bee0f9e4c55fa90477bef2dfcdbc4be80"
 dependencies = [
  "chacha20",
  "getrandom 0.4.2",
@@ -4899,9 +4899,9 @@ dependencies = [
 
 [[package]]
 name = "redis"
-version = "1.2.4"
+version = "1.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bae41a63fd0b8a5372f82b21e810e09a316f5dd7efd96bf08e678fb240fc1918"
+checksum = "2fa6f8e4b491d7a8ef3a9550a4d71969bd0064f46e32b8dbbcc7fc60dad94fed"
 dependencies = [
  "arcstr",
  "combine",
@@ -5876,7 +5876,7 @@ dependencies = [
  "noirc_evaluator",
  "noirc_frontend",
  "p256",
- "rand 0.10.1",
+ "rand 0.10.2",
  "redis",
  "rmp-serde",
  "sancov",
@@ -6041,7 +6041,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "32497e9a4c7b38532efcdebeef879707aa9f794296a4f0244f6f69e9bc8574bd"
 dependencies = [
  "fastrand",
- "getrandom 0.4.2",
+ "getrandom 0.3.4",
  "once_cell",
  "rustix 1.1.4",
  "windows-sys 0.61.2",
