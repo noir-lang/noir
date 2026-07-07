@@ -140,11 +140,11 @@ fn vector_push_back_unknown_length() {
 fn vector_push_back_non_homogenous_unknown_length() {
     // A non-homogenous vector (its element `(u32, [u32; 2])` has non-uniform flattened member
     // sizes, so `array_has_constant_element_size` is `None`) pushed with a run-time length takes
-    // the dynamic-array branch of `convert_vector_push_back`. That branch computes the flattened
-    // write offset for the result vector (`v7` below) via `get_flattened_index`, which for a
-    // non-homogenous layout reads the element-type-sizes table from a memory block; that block is
-    // initialized here from the pushed-to value. The homogenous unknown-length case is covered by
-    // `vector_push_back_unknown_length`, which never needs that table.
+    // the dynamic-array branch of `convert_vector_push_back`. The element is appended at a
+    // whole-element boundary, so its flattened write offset is `length * 3` (`ASSERT w7 = 3*w0`)
+    // and needs no element-type-sizes table. Only the trailing `array_get` at a run-time index
+    // needs that table, so it is built on demand at the read site (`INIT b1`). The homogenous
+    // unknown-length case is covered by `vector_push_back_unknown_length`.
     let src = "
     acir(inline) predicate_pure fn main f0 {
       b0(v0: u32, v1: u32):
@@ -159,37 +159,81 @@ fn vector_push_back_non_homogenous_unknown_length() {
     ";
     let program = ssa_to_acir_program(src);
 
-    // `b1` is the element-type-sizes table for `(u32, [u32; 2])` (prefix offsets `[0, 1, 3, 4]`),
-    // read at the run-time write offset (`READ w11 = b1[w10]`) and again to resolve the trailing
-    // `array_get`; `b0` is the flattened vector data.
+    // The push appends at offset `3*w0` (length times the flattened element size), so no
+    // element-type-sizes table backs the write. `b1` is that table (prefix offsets `[0, 1, 3, 4]`),
+    // built on demand only for the run-time `array_get`; `b0` is the flattened vector data.
     assert_circuit_snapshot!(program, @"
     func 0
     private parameters: [w0, w1]
     public parameters: []
     return values: [w2]
     BLACKBOX::RANGE input: w0, bits: 32
-    ASSERT w3 = 0
-    ASSERT w4 = 1
-    ASSERT w5 = 3
-    ASSERT w6 = 4
-    INIT b1 = [w3, w4, w5, w6]
-    ASSERT w7 = 11
-    ASSERT w8 = 22
-    ASSERT w9 = 33
-    INIT b0 = [w7, w8, w9, w3, w3, w3]
-    ASSERT w10 = 2*w0
-    READ w11 = b1[w10]
-    ASSERT w12 = 99
+    ASSERT w3 = 11
+    ASSERT w4 = 22
+    ASSERT w5 = 33
+    ASSERT w6 = 0
+    INIT b0 = [w3, w4, w5, w6, w6, w6]
+    ASSERT w7 = 3*w0
+    ASSERT w8 = 99
+    WRITE b0[w7] = w8
+    ASSERT w9 = w7 + 1
+    ASSERT w10 = 44
+    WRITE b0[w9] = w10
+    ASSERT w11 = w9 + 1
+    ASSERT w12 = 55
     WRITE b0[w11] = w12
-    ASSERT w13 = w11 + 1
-    ASSERT w14 = 44
-    WRITE b0[w13] = w14
-    ASSERT w15 = w13 + 1
-    ASSERT w16 = 55
-    WRITE b0[w15] = w16
-    READ w17 = b1[w1]
-    READ w18 = b0[w17]
-    ASSERT w2 = w18
+    ASSERT w13 = 1
+    ASSERT w14 = 3
+    ASSERT w15 = 4
+    INIT b1 = [w6, w13, w14, w15]
+    READ w16 = b1[w1]
+    READ w17 = b0[w16]
+    ASSERT w2 = w17
+    ");
+}
+
+#[test]
+fn vector_push_back_non_homogenous_unknown_length_no_element_type_sizes_block() {
+    // Appending to a non-homogenous vector at a run-time length lands at a whole-element boundary,
+    // so the write offset is `length * 3` and needs no element-type-sizes table. When the result is
+    // not indexed at a run-time index either, no such table is materialized at all: the only memory
+    // block is the vector data `b0`, and the constant-index read resolves to a fixed offset.
+    let src = "
+    acir(inline) predicate_pure fn main f0 {
+      b0(v0: u32):
+        v2 = make_array [u32 22, u32 33] : [u32; 2]
+        v3 = make_array [u32 11, v2] : [(u32, [u32; 2])]
+        v4 = make_array [u32 44, u32 55] : [u32; 2]
+        v6, v7 = call vector_push_back(v0, v3, u32 99, v4) -> (u32, [(u32, [u32; 2])])
+        // Read the result at a constant index so it is observable without a run-time table.
+        v8 = array_get v7, index u32 0 -> u32
+        return v8
+    }
+    ";
+    let program = ssa_to_acir_program(src);
+
+    assert_circuit_snapshot!(program, @"
+    func 0
+    private parameters: [w0]
+    public parameters: []
+    return values: [w1]
+    BLACKBOX::RANGE input: w0, bits: 32
+    ASSERT w2 = 11
+    ASSERT w3 = 22
+    ASSERT w4 = 33
+    ASSERT w5 = 0
+    INIT b0 = [w2, w3, w4, w5, w5, w5]
+    ASSERT w6 = 3*w0
+    ASSERT w7 = 99
+    WRITE b0[w6] = w7
+    ASSERT w8 = w6 + 1
+    ASSERT w9 = 44
+    WRITE b0[w8] = w9
+    ASSERT w10 = w8 + 1
+    ASSERT w11 = 55
+    WRITE b0[w10] = w11
+    READ w12 = b0[w5]
+    ASSERT w1 = w12
     ");
 }
 
