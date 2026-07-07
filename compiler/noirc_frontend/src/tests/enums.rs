@@ -1229,8 +1229,8 @@ fn errors_on_turbofish_on_both_type_and_variant_in_match_pattern() {
         let f: Foo<i32> = Foo::Baz;
         match f {
             Foo::<i32>::Bar::<i32>(x) => {
-                              ^^^ Generic arguments for the enum were specified more than once
-                              ~~~ Specify the enum's generic arguments in only one place
+                              ^^^ generic arguments are not allowed on both an enum and its variant's path segments simultaneously; they are only valid in one place or the other
+                              ~~~ remove the generics arguments from one of the path segments
                 let _ = x;
             }
             Foo::Baz => {}
