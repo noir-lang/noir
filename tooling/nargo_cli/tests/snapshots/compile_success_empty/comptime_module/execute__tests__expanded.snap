@@ -38,9 +38,7 @@ comptime fn outer_attribute_func(m: Module) -> Quoted {
     assert(m.name() == quote { yet_another_module });
     increment_counter();
     quote {
-        pub fn generated_outer_function() {
-            
-        }
+        pub fn generated_outer_function() {}
     }
 }
 
@@ -48,9 +46,7 @@ comptime fn inner_attribute_func(m: Module) -> Quoted {
     assert(m.name() == quote { yet_another_module });
     increment_counter();
     quote {
-        pub fn generated_inner_function() {
-            
-        }
+        pub fn generated_inner_function() {}
     }
 }
 

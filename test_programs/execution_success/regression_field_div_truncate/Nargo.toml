@@ -1,0 +1,6 @@
+[package]
+name = "regression_field_div_truncate"
+type = "bin"
+authors = [""]
+
+[dependencies]

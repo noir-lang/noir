@@ -170,7 +170,7 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
         }
     }
 
-    /// Convert output [BrilligVariable]s to [ValueOrArray] destinations on the heap.
+    /// Convert output [`BrilligVariable`]s to [`ValueOrArray`] destinations on the heap.
     fn output_variables_to_destinations(
         &mut self,
         output_variables: &[BrilligVariable],
@@ -204,7 +204,7 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
     /// Converts a black box function call into Brillig bytecode.
     ///
     /// Black box functions are native cryptographic operations or other optimized primitives.
-    /// Some black box functions (ECDSA, MultiScalarMul, EmbeddedCurveAdd) have a predicate
+    /// Some black box functions (ECDSA, `MultiScalarMul`, `EmbeddedCurveAdd`) have a predicate
     /// argument in SSA that is removed for Brillig as CFG flattening is not needed.
     fn convert_ssa_black_box_call(
         &mut self,
@@ -232,10 +232,11 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
             let predicate = arguments
                 .pop()
                 .expect("ICE: ECDSA black box function must have a predicate argument");
+            let predicate_constant = dfg.get_numeric_constant_with_type(predicate);
             assert_eq!(
-                dfg.get_numeric_constant_with_type(predicate),
+                predicate_constant,
                 Some((FieldElement::one(), NumericType::bool())),
-                "ICE: ECDSA black box function must have a predicate argument with value 1"
+                "ICE: black box predicate argument must be the boolean constant `true`, but found {predicate_constant:?}"
             );
         }
 
@@ -307,8 +308,8 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
         dfg: &DataFlowGraph,
     ) {
         match &dfg[func] {
-            Value::ForeignFunction(func_name) => {
-                self.convert_ssa_foreign_call(func_name, arguments, instruction_id, dfg);
+            Value::ForeignFunction { name, .. } => {
+                self.convert_ssa_foreign_call(name, arguments, instruction_id, dfg);
             }
             Value::Function(func_id) => {
                 let result_ids = dfg.instruction_results(instruction_id);

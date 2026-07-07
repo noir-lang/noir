@@ -1,0 +1,5 @@
+error: expected `reserved(...)`, `allow_unknown_tags`, `on_reserved`, or `on_unknown` inside `#[tagged(...)]` on an enum variant — `via(...)` is a type-level modifier, not variant-level
+  --> tests/compile_fail/variant_level_via.rs:16:14
+   |
+16 |     #[tagged(via(WireDto))]
+   |              ^^^^^^^^^^^^

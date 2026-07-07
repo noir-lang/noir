@@ -899,4 +899,132 @@ mod tests {
             assert_eq(hi5, 0xffffffffffffffffu64);
         }
     }
+
+    mod traits {
+        use crate::ops::arith::{
+            Add, Div, Mul, Neg, Rem, Sub, WrappingAdd, WrappingMul, WrappingSub,
+        };
+
+        #[test]
+        fn add() {
+            assert_eq(1_u8.add(2), 3);
+            assert_eq(1_u16.add(2), 3);
+            assert_eq(1_u32.add(2), 3);
+            assert_eq(1_u64.add(2), 3);
+            assert_eq(1_u128.add(2), 3);
+            assert_eq(1_i8.add(2), 3);
+            assert_eq(1_i16.add(2), 3);
+            assert_eq(1_i32.add(2), 3);
+            assert_eq(1_i64.add(2), 3);
+            assert_eq(1_Field.add(2), 3);
+        }
+
+        #[test]
+        fn sub() {
+            assert_eq(3_u8.sub(2), 1);
+            assert_eq(3_u16.sub(2), 1);
+            assert_eq(3_u32.sub(2), 1);
+            assert_eq(3_u64.sub(2), 1);
+            assert_eq(3_u128.sub(2), 1);
+            assert_eq(3_i8.sub(2), 1);
+            assert_eq(3_i16.sub(2), 1);
+            assert_eq(3_i32.sub(2), 1);
+            assert_eq(3_i64.sub(2), 1);
+            assert_eq(3_Field.sub(2), 1);
+        }
+
+        #[test]
+        fn mul() {
+            assert_eq(3_u8.mul(2), 6);
+            assert_eq(3_u16.mul(2), 6);
+            assert_eq(3_u32.mul(2), 6);
+            assert_eq(3_u64.mul(2), 6);
+            assert_eq(3_u128.mul(2), 6);
+            assert_eq(3_i8.mul(2), 6);
+            assert_eq(3_i16.mul(2), 6);
+            assert_eq(3_i32.mul(2), 6);
+            assert_eq(3_i64.mul(2), 6);
+            assert_eq(3_Field.mul(2), 6);
+        }
+
+        #[test]
+        fn div() {
+            assert_eq(6_u8.div(2), 3);
+            assert_eq(6_u16.div(2), 3);
+            assert_eq(6_u32.div(2), 3);
+            assert_eq(6_u64.div(2), 3);
+            assert_eq(6_u128.div(2), 3);
+            assert_eq(6_i8.div(2), 3);
+            assert_eq(6_i16.div(2), 3);
+            assert_eq(6_i32.div(2), 3);
+            assert_eq(6_i64.div(2), 3);
+            assert_eq(6_Field.div(2), 3);
+        }
+
+        #[test]
+        fn rem() {
+            assert_eq(3_u8.rem(2), 1);
+            assert_eq(3_u16.rem(2), 1);
+            assert_eq(3_u32.rem(2), 1);
+            assert_eq(3_u64.rem(2), 1);
+            assert_eq(3_u128.rem(2), 1);
+            assert_eq(3_i8.rem(2), 1);
+            assert_eq(3_i16.rem(2), 1);
+            assert_eq(3_i32.rem(2), 1);
+            assert_eq(3_i64.rem(2), 1);
+        }
+
+        #[test]
+        fn neg() {
+            assert_eq(3_i8.neg(), -3);
+            assert_eq(3_i16.neg(), -3);
+            assert_eq(3_i32.neg(), -3);
+            assert_eq(3_i64.neg(), -3);
+        }
+
+        #[test]
+        fn wrapping_add() {
+            assert_eq(255_u8.wrapping_add(2), 1);
+            assert_eq(65535_u16.wrapping_add(2), 1);
+            assert_eq(4294967295_u32.wrapping_add(2), 1);
+            assert_eq(18446744073709551615_u64.wrapping_add(2), 1);
+            assert_eq(340282366920938463463374607431768211455_u128.wrapping_add(2), 1);
+            assert_eq(127_i8.wrapping_add(2), -127);
+            assert_eq(32767_i16.wrapping_add(2), -32767);
+            assert_eq(2147483647_i32.wrapping_add(2), -2147483647);
+            assert_eq(9223372036854775807_i64.wrapping_add(2), -9223372036854775807);
+            assert_eq(1_Field.wrapping_add(2), 3);
+        }
+
+        #[test]
+        fn wrapping_sub() {
+            assert_eq(0_u8.wrapping_sub(1), 255);
+            assert_eq(0_u16.wrapping_sub(1), 65535);
+            assert_eq(0_u32.wrapping_sub(1), 4294967295);
+            assert_eq(0_u64.wrapping_sub(1), 18446744073709551615);
+            assert_eq(0_u128.wrapping_sub(1), 340282366920938463463374607431768211455);
+            assert_eq((-128_i8).wrapping_sub(1), 127);
+            assert_eq((-32768_i16).wrapping_sub(1), 32767);
+            assert_eq((-2147483648_i32).wrapping_sub(1), 2147483647);
+            assert_eq((-9223372036854775808_i64).wrapping_sub(1), 9223372036854775807);
+            assert_eq(3_Field.wrapping_sub(1), 2);
+        }
+
+        #[test]
+        fn wrapping_mul() {
+            assert_eq(255_u8.wrapping_mul(2), 254);
+            assert_eq(65535_u16.wrapping_mul(2), 65534);
+            assert_eq(4294967295_u32.wrapping_mul(2), 4294967294);
+            assert_eq(18446744073709551615_u64.wrapping_mul(2), 18446744073709551614);
+            assert_eq(
+                340282366920938463463374607431768211455_u128.wrapping_mul(2),
+                340282366920938463463374607431768211454,
+            );
+            assert_eq(127_i8.wrapping_mul(2), -2);
+            assert_eq(32767_i16.wrapping_mul(2), -2);
+            assert_eq(2147483647_i32.wrapping_mul(2), -2);
+            assert_eq(9223372036854775807_i64.wrapping_mul(2), -2);
+            assert_eq(2_Field.wrapping_mul(3), 6);
+        }
+    }
 }

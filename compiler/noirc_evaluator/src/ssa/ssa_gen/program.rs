@@ -30,8 +30,12 @@ pub struct Ssa {
     /// as the final program artifact will be a list of only entry point functions.
     #[serde(skip)]
     entry_point_to_generated_index: BTreeMap<FunctionId, u32>,
-    // We can skip serializing this field as the error selector types end up as part of the
-    // ABI not the actual SSA IR.
+    /// Types of dynamic assertion messages, keyed by their error selector. Only dynamic messages
+    /// are recorded here; static string messages are handled inline (see
+    /// `FunctionContext::codegen_constrain_error`).
+    ///
+    /// We can skip serializing this field as the error selector types end up as part of the
+    /// ABI not the actual SSA IR.
     #[serde(skip)]
     pub error_selector_to_type: BTreeMap<ErrorSelector, HirType>,
 }

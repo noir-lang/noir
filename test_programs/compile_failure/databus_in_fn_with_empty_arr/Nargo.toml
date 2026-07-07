@@ -1,6 +1,0 @@
-[package]
-name = "databus_in_fn_with_empty_arr"
-type = "bin"
-authors = [""]
-
-[dependencies]

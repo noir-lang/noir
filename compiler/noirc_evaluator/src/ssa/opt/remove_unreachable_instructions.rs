@@ -69,7 +69,7 @@
 //! return u8 0
 //! ```
 //!
-//! ## Handling of array_get and array_set
+//! ## Handling of `array_get` and `array_set`
 //!
 //! If an array operation in ACIR is guaranteed to produce an index-out-of-bounds:
 //!
@@ -121,8 +121,24 @@
 //! return v1, u32 0
 //! ```
 //!
+//! ## Reachability and predicates
+//!
+//! A block is only declared fully unreachable — dropping every following instruction and
+//! replacing the terminator with `unreachable` (the `Reachability::Unreachable` state) — when
+//! an instruction fails *unconditionally*. A failure that only happens under a runtime
+//! predicate instead takes the `Reachability::UnreachableUnderPredicate` path, which replaces
+//! results with default values and keeps the rest of the block. Whether each handled
+//! instruction can be treated as an unconditional failure depends on how it interacts with the
+//! `enable_side_effects` predicate; the reasoning lives next to each case in
+//! [`Function::remove_unreachable_instructions`].
+//!
 //! ## Preconditions:
-//! - the [inlining][`super::inlining`] and [flatten_cfg][`super::flatten_cfg`] must
+//! - this pass must run *after* [`flatten_cfg`][`super::flatten_cfg`] and
+//!   [`make_constrain_not_equal`][`super::make_constrain_not_equal`]; see the `Constrain` and
+//!   `ConstrainNotEqual` handling in [`Function::remove_unreachable_instructions`] for why.
+//!   Nothing may re-introduce branches or predicated constraints between those passes and this
+//!   one.
+//! - the [inlining][`super::inlining`] and [`flatten_cfg`][`super::flatten_cfg`] must
 //!   not run after this pass as they can't handle the `unreachable` terminator.
 use std::sync::Arc;
 
@@ -253,6 +269,14 @@ impl Function {
                     let Some(rhs_constant) = context.dfg.get_numeric_constant(*rhs) else {
                         return;
                     };
+                    // An equality `constrain` ignores the side-effects predicate: ACIR gen lowers
+                    // it to an unconditional `assert_eq_var` (no predicate applied) and Brillig
+                    // aborts on a failed assert. A predicated assert never reaches here as a
+                    // comparison of two constants, because `flatten_cfg` folds the active predicate
+                    // into the operands (`constrain lhs == rhs` becomes
+                    // `constrain cond * lhs == cond * rhs`), leaving a non-constant operand
+                    // (e.g. `constrain 0 == v0`) which the early returns above skip. So two unequal
+                    // constant operands always fail, making the rest of the block unreachable.
                     if lhs_constant != rhs_constant {
                         current_block_reachability = Reachability::Unreachable;
                     }
@@ -264,6 +288,13 @@ impl Function {
                     let Some(rhs_constant) = context.dfg.get_numeric_constant(*rhs) else {
                         return;
                     };
+                    // Unlike equality, `ConstrainNotEqual` *does* respect the side-effects predicate
+                    // (ACIR gen lowers it with `enable_side_effects` as the predicate), so treating
+                    // a failing one as unconditional would be unsound under a non-constant predicate.
+                    // That cannot happen here: `make_constrain_not_equal` only ever creates this
+                    // instruction when the active predicate is the constant one (it refuses
+                    // otherwise, as the two constrain kinds differ in exactly this respect). So two
+                    // equal constant operands always fail, making the rest of the block unreachable.
                     if lhs_constant == rhs_constant {
                         current_block_reachability = Reachability::Unreachable;
                     }
@@ -316,9 +347,7 @@ impl Function {
                     };
 
                     let array_op_always_fails = len.0 == 0
-                        || context.dfg.get_numeric_constant(*index).is_some_and(|index| {
-                            (index.try_to_u32().unwrap()) >= (array_type.element_size() * len).0
-                        });
+                        || context.dfg.constant_index_is_out_of_bounds(*array, *index, len);
                     if !array_op_always_fails {
                         return;
                     }
@@ -730,6 +759,26 @@ mod tests {
     }
 
     #[test]
+    fn does_not_treat_predicated_failing_constraint_as_unreachable() {
+        // A `constrain` whose operands are not both constant is conditional: after flattening,
+        // a guarded assert has its predicate folded into the operands (e.g. `constrain 0 == v0`),
+        // so it only fails when the predicate is active. Such a constraint must NOT make the
+        // block unreachable, otherwise instructions that execute when the predicate is off would
+        // be dropped. The pass returns early on the non-constant operand and leaves it (and
+        // everything after it) untouched.
+        let src = r#"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u1):
+            enable_side_effects v0
+            constrain u1 0 == v0
+            v1 = add u32 1, u32 2
+            return v1
+        }
+        "#;
+        assert_ssa_does_not_change(src, Ssa::remove_unreachable_instructions);
+    }
+
+    #[test]
     fn does_not_replace_unchecked_sub_that_overflows() {
         let src = r#"
         acir(inline) predicate_pure fn main f0 {
@@ -1104,8 +1153,8 @@ mod tests {
             constrain u1 0 == u1 1, "Index out of bounds"
             unreachable
           b4():
-            v5 = add Field 1, Field 2
-            return v5
+            v6 = add Field 1, Field 2
+            return v6
         }
         "#);
     }
@@ -1140,8 +1189,8 @@ mod tests {
             constrain u1 0 == u1 1, "Index out of bounds"
             unreachable
           b3():
-            v3 = add Field 1, Field 2
-            return v3
+            v4 = add Field 1, Field 2
+            return v4
         }
         "#);
     }
@@ -1180,8 +1229,8 @@ mod tests {
           b3():
             jmp b4()
           b4():
-            v3 = add Field 1, Field 2
-            return v3
+            v4 = add Field 1, Field 2
+            return v4
         }
         "#);
     }
@@ -1225,8 +1274,8 @@ mod tests {
           b4():
             jmp b5()
           b5():
-            v3 = add Field 1, Field 2
-            return v3
+            v4 = add Field 1, Field 2
+            return v4
         }
         "#);
     }

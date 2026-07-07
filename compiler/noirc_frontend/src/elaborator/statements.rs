@@ -9,7 +9,7 @@ use crate::{
         LoopStatement, Statement, StatementKind, UnaryOp, WhileStatement,
     },
     elaborator::{
-        PathResolutionTarget, WildcardDisallowedContext, patterns::IdentFromPath,
+        PathResolutionTarget, WildcardDisallowedContext, patterns::PathValue,
         types::WildcardAllowed,
     },
     hir::{
@@ -94,7 +94,12 @@ impl Elaborator<'_> {
         let ((id, typ), has_errors) =
             self.with_error_guard(|this| this.elaborate_statement_inner(statement, target_type));
 
-        if has_errors {
+        // `HirStatement::Error` is only produced from `StatementKind::Error`, which the parser
+        // emits in place of a statement it has already reported an error for. The interpreter
+        // raises an ICE if it ever evaluates one, so flag the node here so it is skipped
+        // even though no elaborator-level error was pushed.
+        let is_error_stmt = matches!(self.interner.statement(&id), HirStatement::Error);
+        if has_errors || is_error_stmt {
             self.interner.stmts_with_errors.insert(id);
         }
 
@@ -121,8 +126,8 @@ impl Elaborator<'_> {
     }
 
     /// Elaborate a local or global let statement.
-    /// If this is a global let, the DefinitionId of the global is specified so that
-    /// elaborate_pattern can create a Global definition kind with the correct ID
+    /// If this is a global let, the `DefinitionId` of the global is specified so that
+    /// `elaborate_pattern` can create a Global definition kind with the correct ID
     /// instead of a local one with a fresh ID.
     #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn elaborate_let(
@@ -223,7 +228,7 @@ impl Elaborator<'_> {
         let mut parameter_names_in_list = rustc_hash::FxHashMap::default();
         let pattern = self.elaborate_pattern(
             let_stmt.pattern,
-            r#type.clone(),
+            &r#type,
             definition,
             warn_if_unused,
             warn_if_not_mutated,
@@ -276,27 +281,42 @@ impl Elaborator<'_> {
         // let bindings (new_statements) and replaces them with simple ident references, so the
         // HIR lvalue we get back is safe to convert into a read expression without re-evaluating
         // any side effects.
+        //
+        // We also extract a side-effectful right-hand side into a fresh let-binding emitted before
+        // the lvalue is evaluated. This ensures the RHS is evaluated before the lvalue is read or written.
+        // For example, in `arr[i] += { i = 1; 5 }` we want `i = 1` to be observed by the lvalue, so the final
+        // lowering reads/writes `arr[1]`. For a plain-variable lvalue the place doesn't depend
+        // on any sub-expression the RHS could change, so we leave the RHS inline.
         let expression_location = assign_op.expression.location;
 
-        let (hir_lvalue, lvalue_type, mutable, new_statements) =
+        // Elaborate the right-hand side of the operator first.
+        let (mut rhs_expr, rhs_type) = self.elaborate_expression(assign_op.expression);
+
+        let (hir_lvalue, lvalue_type, mutable, mut new_statements) =
             self.elaborate_lvalue(assign_op.lvalue, true);
+
+        if let Some((rhs_let, rhs_ident)) = self.fresh_definition_for_side_effect_extraction(
+            rhs_expr,
+            rhs_type.clone(),
+            expression_location,
+            "op_rhs",
+        ) {
+            new_statements.insert(0, rhs_let);
+            rhs_expr = rhs_ident;
+        }
 
         // Convert the HIR lvalue into a read expression, reusing the same ident ExprIds
         // that were already bound by the index let-statements in new_statements.
         let lhs_expr = self.hir_lvalue_as_expr(&hir_lvalue);
-        let lhs_type = lvalue_type.clone();
-
-        // Elaborate the right-hand side of the operator.
-        let (rhs_expr, rhs_type) = self.elaborate_expression(assign_op.expression);
 
         let op_kind = assign_op.op.contents.to_binary_op_kind();
         let operator = HirBinaryOp { kind: op_kind, location: assign_op.op.location() };
         let (expression, expression_type) = self.finish_infix(
             lhs_expr,
-            lhs_type,
+            &lvalue_type,
             operator,
             rhs_expr,
-            rhs_type,
+            &rhs_type,
             expression_location,
         );
 
@@ -359,7 +379,7 @@ impl Elaborator<'_> {
         }
     }
 
-    /// Convert a HIR lvalue into a read expression, reusing the same ident ExprIds.
+    /// Convert a HIR lvalue into a read expression, reusing the same ident `ExprIds`.
     /// This is used to build the read side of a desugared op-assign without re-evaluating
     /// any index sub-expressions.
     fn hir_lvalue_as_expr(&mut self, lvalue: &HirLValue) -> ExprId {
@@ -546,14 +566,15 @@ impl Elaborator<'_> {
             });
         }
 
+        // The condition is evaluated once per loop, however any `break` or `continue` in it
+        // targets the enclosing loop, so we have to elaborate it outside the scope of this loop.
+        let location = while_.condition.type_location();
+        let (condition, cond_type) = self.elaborate_expression(while_.condition);
+        self.unify_or_type_mismatch(&cond_type, &Type::Bool, location);
+
         let old_loop = std::mem::take(&mut self.current_loop);
         self.current_loop = Some(Loop { is_for: false, has_break: false });
         self.push_scope();
-
-        let location = while_.condition.type_location();
-        let (condition, cond_type) = self.elaborate_expression(while_.condition);
-
-        self.unify_or_type_mismatch(&cond_type, &Type::Bool, location);
 
         let block_location = while_.body.type_location();
         let (block, block_type) = self.elaborate_expression(while_.body);
@@ -607,7 +628,7 @@ impl Elaborator<'_> {
     }
 
     /// Elaborates an lvalue returning:
-    /// - The HirLValue equivalent of the given `lvalue`
+    /// - The `HirLValue` equivalent of the given `lvalue`
     /// - The type being assigned to
     /// - Whether the underlying variable is mutable
     /// - A vector of new statements which need to prefix the resulting assign statement.
@@ -622,16 +643,16 @@ impl Elaborator<'_> {
             LValue::Path(path) => {
                 let location = path.location;
                 let path = self.validate_path(path);
-                match self.get_ident_from_path_or_error(path.clone()) {
-                    Ok(IdentFromPath::Variable(variable)) => {
+                match self.resolve_path_as_value_or_error(path.clone()) {
+                    Ok(PathValue::Variable(variable)) => {
                         self.check_if_variable_is_captured_by_closure(&variable);
                         self.elaborate_lvalue_ident(variable.ident, location)
                     }
-                    Ok(IdentFromPath::Definition { id, item: _ }) => {
+                    Ok(PathValue::Definition { id, item: _ }) => {
                         let ident = HirIdent::non_trait_method(id, location);
                         self.elaborate_lvalue_ident(ident, location)
                     }
-                    Ok(IdentFromPath::TypeAlias(type_alias_id)) => {
+                    Ok(PathValue::TypeAlias(type_alias_id)) => {
                         let type_alias = self.interner.get_type_alias(type_alias_id);
                         self.push_err(ResolverError::Expected {
                             location,
@@ -724,8 +745,13 @@ impl Elaborator<'_> {
                 // afterward with a let binding. Note that since we recur first then push to the
                 // end of the list we're evaluating side-effects such that in `a[i][j]`, `i` will
                 // be evaluated first, followed by `j`.
-                if let Some((index_definition, new_index)) =
-                    self.fresh_definition_for_lvalue_index(index, index_type, expr_location)
+                if let Some((index_definition, new_index)) = self
+                    .fresh_definition_for_side_effect_extraction(
+                        index,
+                        index_type,
+                        expr_location,
+                        "i",
+                    )
                 {
                     index = new_index;
                     statements.push(index_definition);
@@ -779,38 +805,70 @@ impl Elaborator<'_> {
                 let array_type = typ.clone();
                 (HirLValue::Index { array, index, typ, location }, array_type, mutable, statements)
             }
-            LValue::Dereference(lvalue, location) => {
-                let (lvalue, reference_type, mut mutable, statements) =
-                    self.elaborate_lvalue(*lvalue, false);
-                let lvalue = Box::new(lvalue);
-
+            LValue::Dereference(operand, location) => {
                 let element_type = Type::type_variable(self.interner.next_type_variable_id());
 
-                if is_assignment_target {
-                    // The final dereference must be a mutable reference since we're storing to it
-                    let expected_type = Type::Reference(Box::new(element_type.clone()), true);
-                    self.unify_or_type_mismatch(&reference_type, &expected_type, location);
+                // If the operand is itself a place (e.g. `*x`, `**x`, `*arr[i]`) we elaborate it
+                // as an lvalue, preserving the existing lowering. Otherwise it is an arbitrary
+                // value expression that evaluates to a reference (e.g. `*(&mut x)`); we evaluate it
+                // and bind it to a fresh local so the inner lvalue is a simple identifier.
+                if let Some(place) = LValue::from_expression((*operand).clone()) {
+                    let (lvalue, reference_type, mut mutable, statements) =
+                        self.elaborate_lvalue(place, false);
+
+                    self.unify_dereference_reference(
+                        &reference_type,
+                        &element_type,
+                        is_assignment_target,
+                        location,
+                    );
+
+                    // Check mutability after unification so that type variables are resolved first
+                    if let Type::Reference(_, is_mutable) =
+                        reference_type.follow_bindings_shallow().as_ref()
+                    {
+                        mutable = *is_mutable;
+                    }
+
+                    let lvalue = HirLValue::Dereference {
+                        lvalue: Box::new(lvalue),
+                        element_type: element_type.clone(),
+                        location,
+                        implicitly_added: false,
+                    };
+                    (lvalue, element_type, mutable, statements)
                 } else {
-                    // Intermediate dereferences can be immutable
-                    let expected_type = Type::Reference(Box::new(element_type.clone()), false);
-                    self.unify_with_reference_coercion(&reference_type, &expected_type, location);
-                }
+                    let (reference, reference_type) = self.elaborate_expression(*operand);
 
-                // Check mutability after unification so that type variables are resolved first
-                if let Type::Reference(_, is_mutable) =
-                    reference_type.follow_bindings_shallow().as_ref()
-                {
-                    mutable = *is_mutable;
-                }
+                    self.unify_dereference_reference(
+                        &reference_type,
+                        &element_type,
+                        is_assignment_target,
+                        location,
+                    );
 
-                let typ = element_type.clone();
-                let lvalue = HirLValue::Dereference {
-                    lvalue,
-                    element_type,
-                    location,
-                    implicitly_added: false,
-                };
-                (lvalue, typ, mutable, statements)
+                    let mutable = matches!(
+                        reference_type.follow_bindings_shallow().as_ref(),
+                        Type::Reference(_, true)
+                    );
+
+                    if is_assignment_target && !mutable {
+                        // The operand isn't a mutable reference; the unification above already
+                        // reported the mismatch. Returning an error lvalue avoids emitting a
+                        // second diagnostic that would mention the synthesized binding below.
+                        return (HirLValue::Error { location }, Type::Error, false, Vec::new());
+                    }
+
+                    let (binding, ident_lvalue) =
+                        self.fresh_reference_binding(reference, reference_type, location);
+                    let lvalue = HirLValue::Dereference {
+                        lvalue: Box::new(ident_lvalue),
+                        element_type: element_type.clone(),
+                        location,
+                        implicitly_added: false,
+                    };
+                    (lvalue, element_type, mutable, vec![binding])
+                }
             }
             LValue::Interned(id, location) => {
                 let lvalue = self.interner.get_lvalue(id, location);
@@ -825,7 +883,16 @@ impl Elaborator<'_> {
         ident: HirIdent,
         location: Location,
     ) -> (HirLValue, Type, bool, Vec<StmtId>) {
-        let definition = self.interner.definition(ident.id);
+        // Mirror the rvalue path: if this identifier refers to a global whose
+        // initializer hasn't been elaborated yet, lazy-resolve it now so its
+        // recorded type is the real annotated type rather than `Type::Error`.
+        let mut definition = self.interner.definition(ident.id);
+        if let DefinitionKind::Global(global_id) = definition.kind {
+            let _ = definition;
+            self.elaborate_global_if_unresolved(&global_id);
+            definition = self.interner.definition(ident.id);
+        }
+
         let mutable = definition.mutable;
 
         if definition.comptime && !self.in_comptime_context() {
@@ -844,22 +911,66 @@ impl Elaborator<'_> {
     }
 
     #[tracing::instrument(level = "trace", skip_all)]
-    fn fresh_definition_for_lvalue_index(
+    /// Unifies the type of a dereference's operand against the expected reference type. A
+    /// dereference used as the final assignment target must be a mutable reference; intermediate
+    /// dereferences may be immutable.
+    fn unify_dereference_reference(
+        &mut self,
+        reference_type: &Type,
+        element_type: &Type,
+        is_assignment_target: bool,
+        location: Location,
+    ) {
+        if is_assignment_target {
+            let expected_type = Type::Reference(Box::new(element_type.clone()), true);
+            self.unify_or_type_mismatch(reference_type, &expected_type, location);
+        } else {
+            let expected_type = Type::Reference(Box::new(element_type.clone()), false);
+            self.unify_with_reference_coercion(reference_type, &expected_type, location);
+        }
+    }
+
+    /// Binds `reference` (a value of reference type) to a fresh local and returns the binding
+    /// statement together with an [`HirLValue`] referring to it. This lets a dereference whose
+    /// operand is an arbitrary reference-producing expression reuse the same lowering as `*ident`.
+    fn fresh_reference_binding(
+        &mut self,
+        reference: ExprId,
+        typ: Type,
+        location: Location,
+    ) -> (StmtId, HirLValue) {
+        let counter = self.next_lvalue_index_counter();
+        let id = self.interner.push_definition(
+            format!("deref_{counter}"),
+            false,
+            false,
+            DefinitionKind::Local(None),
+            location,
+        );
+        let ident = HirIdent::non_trait_method(id, location);
+        let pattern = HirPattern::Identifier(ident.clone());
+        let let_ = HirStatement::Let(HirLetStatement::basic(pattern, typ.clone(), reference));
+        let let_ = self.interner.push_stmt_full(let_, location);
+        (let_, HirLValue::Ident(ident, typ))
+    }
+
+    fn fresh_definition_for_side_effect_extraction(
         &mut self,
         expr: ExprId,
         typ: Type,
         location: Location,
+        name_prefix: &str,
     ) -> Option<(StmtId, ExprId)> {
         // If the original expression trivially cannot have side-effects, don't bother cluttering
         // the output with a let binding. Note that array literals can have side-effects but these
         // would produce type errors anyway.
-        if !self.index_could_have_side_effects(expr) {
+        if !self.expression_could_have_side_effects(expr) {
             return None;
         }
 
-        let lvalue_index_counter = self.next_lvalue_index_counter();
+        let counter = self.next_lvalue_index_counter();
         let id = self.interner.push_definition(
-            format!("i_{lvalue_index_counter}"),
+            format!("{name_prefix}_{counter}"),
             false,
             false,
             DefinitionKind::Local(None),
@@ -876,9 +987,9 @@ impl Elaborator<'_> {
         Some((let_, ident_id))
     }
 
-    /// Returns `true` if the given index expression could potentially have side-effects.
+    /// Returns `true` if the given expression could potentially have side-effects.
     /// Returns `false` if the expression is guaranteed to not have side-effects.
-    fn index_could_have_side_effects(&self, expr: ExprId) -> bool {
+    fn expression_could_have_side_effects(&self, expr: ExprId) -> bool {
         match self.interner.expression_ref(&expr) {
             HirExpression::Ident(..) => false,
             HirExpression::Literal(hir_literal) => match hir_literal {
@@ -889,17 +1000,27 @@ impl Elaborator<'_> {
                 HirLiteral::Array(..) | HirLiteral::Vector(..) | HirLiteral::FmtStr(..) => true,
             },
             HirExpression::Prefix(hir_prefix_expression) => {
-                hir_prefix_expression.trait_method_id.is_some()
-                    || self.index_could_have_side_effects(hir_prefix_expression.rhs)
+                // Something like `-x` can't have side effects if `x` is numeric
+                if hir_prefix_expression.trait_method_id.is_some()
+                    && !self.interner.id_type(hir_prefix_expression.rhs).is_numeric_value()
+                {
+                    return true;
+                }
+                self.expression_could_have_side_effects(hir_prefix_expression.rhs)
             }
             HirExpression::Infix(hir_infix_expression) => {
-                hir_infix_expression.trait_method_id.is_some()
-                    || self.index_could_have_side_effects(hir_infix_expression.lhs)
-                    || self.index_could_have_side_effects(hir_infix_expression.rhs)
+                // Something like `x + y` can't have side effects if `x` is numeric
+                if hir_infix_expression.trait_method_id.is_some()
+                    && !self.interner.id_type(hir_infix_expression.lhs).is_numeric_value()
+                {
+                    return true;
+                }
+                self.expression_could_have_side_effects(hir_infix_expression.lhs)
+                    || self.expression_could_have_side_effects(hir_infix_expression.rhs)
             }
             HirExpression::Index(hir_index_expression) => {
-                self.index_could_have_side_effects(hir_index_expression.collection)
-                    || self.index_could_have_side_effects(hir_index_expression.index)
+                self.expression_could_have_side_effects(hir_index_expression.collection)
+                    || self.expression_could_have_side_effects(hir_index_expression.index)
             }
             HirExpression::Constructor(hir_constructor_expression) => {
                 !hir_constructor_expression.fields.is_empty()
@@ -908,12 +1029,12 @@ impl Elaborator<'_> {
                 !hir_enum_constructor_expression.arguments.is_empty()
             }
             HirExpression::MemberAccess(hir_member_access) => {
-                self.index_could_have_side_effects(hir_member_access.lhs)
+                self.expression_could_have_side_effects(hir_member_access.lhs)
             }
             HirExpression::Call(..) => true,
             HirExpression::Constrain(..) => true,
             HirExpression::Cast(hir_cast_expression) => {
-                self.index_could_have_side_effects(hir_cast_expression.lhs)
+                self.expression_could_have_side_effects(hir_cast_expression.lhs)
             }
             HirExpression::If(..)
             | HirExpression::Match(..)
@@ -963,7 +1084,7 @@ impl Elaborator<'_> {
         let (expr, typ) = self.inline_comptime_value(value, location, from_macro_call);
 
         let location = self.interner.id_location(hir_statement);
-        self.debug_comptime(location, |interner| expr.to_display_ast(interner).kind);
+        self.debug_comptime(location, |interner, _| expr.to_display_ast(interner).kind);
 
         (HirStatement::Expression(expr), typ)
     }

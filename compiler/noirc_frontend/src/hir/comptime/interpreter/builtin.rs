@@ -6,17 +6,21 @@ use std::{
     rc::Rc,
 };
 
+use crate::hir::comptime::bigint_to_field;
 use acvm::{AcirField, FieldElement};
 use builtin_helpers::{
     block_expression_to_value, byte_array_type, check_argument_count,
-    check_function_not_yet_resolved, check_one_argument, check_three_arguments,
-    check_two_arguments, get_bool, get_expr, get_field, get_format_string, get_function_def,
-    get_module, get_quoted, get_trait_constraint, get_trait_def, get_trait_impl, get_type,
-    get_type_id, get_typed_expr, get_u32, get_unresolved_type, get_vector, has_named_attribute,
-    hir_pattern_to_tokens, new_binary_op, new_unary_op, parse, quote_ident, visibility_to_quoted,
+    check_function_not_yet_resolved, check_one_argument, check_return_type_shape,
+    check_three_arguments, check_two_arguments, get_bool, get_expr, get_field, get_format_string,
+    get_function_def, get_location, get_module, get_quoted, get_trait_constraint, get_trait_def,
+    get_trait_impl, get_type, get_type_id, get_typed_expr, get_u32, get_unresolved_type,
+    get_vector, has_builtin_attribute, has_named_attribute, hir_pattern_to_tokens, new_binary_op,
+    new_unary_op, parse, quote_ident, type_shape, visibility_to_quoted,
 };
+use fm::FileMap;
 use im::Vector;
 use iter_extended::{try_vecmap, vecmap};
+use itertools::Itertools;
 use noirc_errors::Location;
 use num_bigint::BigUint;
 use rustc_hash::FxHashMap as HashMap;
@@ -37,12 +41,13 @@ use crate::{
             display::tokens_to_string,
             errors::IResult,
             interpreter::{
-                builtin::builtin_helpers::fragments_to_string,
-                builtin_helpers::check_item_crate_matches_current_crate,
+                builtin::builtin_helpers::{fragments_to_bytes, fragments_to_string},
+                builtin_helpers::{check_item_crate_matches_current_crate, get_option},
             },
             value::{ExprValue, FormatStringFragment, TypedExpr},
         },
-        def_map::{ModuleDefId, ModuleId},
+        def_map::{ModuleDefId, ModuleId, fully_qualified_module_path},
+        resolution::visibility::item_in_module_is_visible,
     },
     hir_def::{
         expr::{HirExpression, HirIdent, HirLiteral, ImplKind, TraitItem},
@@ -55,7 +60,9 @@ use crate::{
     token::{LocatedToken, SecondaryAttribute, SecondaryAttributeKind, Token},
 };
 
-use self::builtin_helpers::{eq_item, get_array, get_ctstring, get_str, get_u8, hash_item, lex};
+use self::builtin_helpers::{
+    DeterministicHasher, eq_item, get_array, get_ctstring, get_str, get_u8, hash_item, lex,
+};
 use super::Interpreter;
 
 pub(crate) mod builtin_helpers;
@@ -69,8 +76,9 @@ impl Interpreter<'_, '_> {
         location: Location,
     ) -> IResult<Value> {
         let call_stack = &self.elaborator.interpreter_call_stack().clone();
+        let expected_return_shape = type_shape(&return_type);
         let interner = &mut self.elaborator.interner;
-        match name {
+        let result = match name {
             "apply_range_constraint" => apply_range_constraint(arguments, location, call_stack),
             "array_as_str_unchecked" => array_as_str_unchecked(arguments, location),
             "array_len" => array_len(arguments, location),
@@ -80,8 +88,9 @@ impl Interpreter<'_, '_> {
             "as_witness" => as_witness(arguments, location),
             "black_box" => black_box(arguments, location),
             "checked_transmute" => checked_transmute(arguments, return_type, location),
-            "ctstring_eq" => ctstring_eq(arguments, location),
-            "ctstring_hash" => ctstring_hash(arguments, location),
+            "ctstring_append" => ctstring_append(arguments, location),
+            "ctstring_eq" => eq_item(arguments, location, get_ctstring),
+            "ctstring_hash" => hash_item(arguments, location, get_ctstring),
             "derive_pedersen_generators" => derive_generators(arguments, return_type, location),
             "expr_as_array" => expr_as_array(interner, arguments, return_type, location),
             "expr_as_assert" => expr_as_assert(interner, arguments, return_type, location),
@@ -125,47 +134,80 @@ impl Interpreter<'_, '_> {
             "expr_is_break" => expr_is_break(interner, arguments, location),
             "expr_is_continue" => expr_is_continue(interner, arguments, location),
             "expr_resolve" => expr_resolve(self, arguments, location),
-            "is_unconstrained" => Ok(Value::Bool(true)),
+            "is_unconstrained" => {
+                // When in coverage mode, have the comptime interpreter treat `is_unconstrained` the same
+                // way it's treated in ACIR and Brillig. Usually unconstrained code is faster and that's why
+                // in non-coverage mode we want to go through the fastest path, but in coverage mode it's fine
+                // if it's slower so more code is covered by tests.
+                if self.elaborator.evaluation_tracker.is_some() {
+                    Ok(Value::Bool(self.in_unconstrained))
+                } else {
+                    Ok(Value::Bool(true))
+                }
+            }
             "field_less_than" => field_less_than(arguments, location),
-            "fmtstr_as_ctstring" => fmtstr_as_ctstring(interner, arguments, location),
-            "fmtstr_quoted_contents" => fmtstr_quoted_contents(interner, arguments, location),
+            "issue_error" => issue_diagnostic(self, arguments, location, false),
+            "issue_warning" => issue_diagnostic(self, arguments, location, true),
+            "location_eq" => eq_item(arguments, location, get_location),
+            "location_hash" => hash_item(arguments, location, get_location),
+            "fmtstr_as_ctstring" => {
+                fmtstr_as_ctstring(interner, self.elaborator.files, arguments, location)
+            }
+            "fmtstr_quoted_contents" => {
+                fmtstr_quoted_contents(interner, self.elaborator.files, arguments, location)
+            }
             "fresh_type_variable" => fresh_type_variable(interner),
             "function_def_as_typed_expr" => function_def_as_typed_expr(self, arguments, location),
-            "function_def_body" => function_def_body(interner, arguments, location),
+            "function_def_body" => function_def_body(self, arguments, location),
             "function_def_disable" => function_def_disable(self, arguments, location),
-            "function_def_eq" => function_def_eq(arguments, location),
+            "function_def_eq" => eq_item(arguments, location, get_function_def),
+            "function_def_has_builtin_attribute" => {
+                function_def_has_attribute(interner, arguments, location, true)
+            }
             "function_def_has_named_attribute" => {
-                function_def_has_named_attribute(interner, arguments, location)
+                function_def_has_attribute(interner, arguments, location, false)
             }
-            "function_def_hash" => function_def_hash(arguments, location),
+            "function_def_named_attribute_args" => {
+                function_def_named_attribute_args(interner, arguments, location)
+            }
+            "function_def_hash" => hash_item(arguments, location, get_function_def),
             "function_def_is_unconstrained" => {
-                function_def_is_unconstrained(interner, arguments, location)
+                function_def_is_unconstrained(self, arguments, location)
             }
+            "function_def_location" => function_def_location(self.elaborator, arguments, location),
             "function_def_module" => function_def_module(interner, arguments, location),
             "function_def_name" => function_def_name(interner, arguments, location),
-            "function_def_parameters" => function_def_parameters(interner, arguments, location),
-            "function_def_return_type" => function_def_return_type(interner, arguments, location),
+            "function_def_parameters" => function_def_parameters(self, arguments, location),
+            "function_def_return_type" => function_def_return_type(self, arguments, location),
             "function_def_visibility" => function_def_visibility(interner, arguments, location),
             "module_child_modules" => module_child_modules(self, arguments, location),
-            "module_eq" => module_eq(arguments, location),
+            "module_eq" => eq_item(arguments, location, get_module),
             "module_functions" => module_functions(self, arguments, location),
-            "module_has_named_attribute" => module_has_named_attribute(self, arguments, location),
-            "module_hash" => module_hash(arguments, location),
+            "module_has_builtin_attribute" => module_has_attribute(self, arguments, location, true),
+            "module_has_named_attribute" => module_has_attribute(self, arguments, location, false),
+            "module_named_attribute_args" => module_named_attribute_args(self, arguments, location),
+            "module_hash" => hash_item(arguments, location, get_module),
             "module_is_contract" => module_is_contract(self, arguments, location),
+            "module_location" => module_location(interner, arguments, location),
             "module_name" => module_name(interner, arguments, location),
             "module_parent" => module_parent(self, arguments, return_type, location),
             "module_structs" => module_structs(self, arguments, location),
-            "modulus_be_bits" => modulus_be_bits(arguments, location),
-            "modulus_be_bytes" => modulus_be_bytes(arguments, location),
-            "modulus_le_bits" => modulus_le_bits(arguments, location),
-            "modulus_le_bytes" => modulus_le_bytes(arguments, location),
-            "modulus_num_bits" => modulus_num_bits(arguments, location),
+            "modulus_be_bits" => modulus_be_bits(&arguments, location),
+            "modulus_be_bytes" => modulus_be_bytes(&arguments, location),
+            "modulus_le_bits" => modulus_le_bits(&arguments, location),
+            "modulus_le_bytes" => modulus_le_bytes(&arguments, location),
+            "modulus_num_bits" => modulus_num_bits(&arguments, location),
             "quoted_as_expr" => quoted_as_expr(self.elaborator, arguments, return_type, location),
             "quoted_as_module" => quoted_as_module(self, arguments, return_type, location),
             "quoted_as_trait_constraint" => quoted_as_trait_constraint(self, arguments, location),
             "quoted_as_type" => quoted_as_type(self, arguments, location),
-            "quoted_eq" => quoted_eq(self.elaborator.interner, arguments, location),
-            "quoted_hash" => quoted_hash(self.elaborator.interner, arguments, location),
+            "quoted_eq" => {
+                quoted_eq(self.elaborator.interner, self.elaborator.files, arguments, location)
+            }
+            "quoted_hash" => {
+                quoted_hash(self.elaborator.interner, self.elaborator.files, arguments, location)
+            }
+            "quoted_location" => quoted_location(arguments, return_type, location),
             "quoted_tokens" => quoted_tokens(arguments, location),
             "vector_insert" => vector_insert(arguments, location, call_stack),
             "vector_pop_back" => vector_pop_back(arguments, location, call_stack),
@@ -174,20 +216,23 @@ impl Interpreter<'_, '_> {
             "vector_push_front" => vector_push_front(arguments, location),
             "vector_refcount" => Ok(Value::u32(0)),
             "vector_remove" => vector_remove(arguments, location, call_stack),
-            "static_assert" => static_assert(interner, arguments, location, call_stack),
+            "static_assert" => {
+                static_assert(interner, self.elaborator.files, arguments, location, call_stack)
+            }
             "str_as_bytes" => str_as_bytes(arguments, location),
             "str_as_ctstring" => str_as_ctstring(arguments, location),
             "to_be_radix" => to_be_radix(arguments, return_type, location, call_stack),
             "to_le_radix" => to_le_radix(arguments, return_type, location, call_stack),
             "to_be_bits" => to_be_bits(arguments, return_type, location, call_stack),
             "to_le_bits" => to_le_bits(arguments, return_type, location, call_stack),
-            "trait_constraint_eq" => trait_constraint_eq(arguments, location),
-            "trait_constraint_hash" => trait_constraint_hash(arguments, location),
+            "trait_constraint_eq" => eq_item(arguments, location, get_trait_constraint),
+            "trait_constraint_hash" => hash_item(arguments, location, get_trait_constraint),
             "trait_def_as_trait_constraint" => {
                 trait_def_as_trait_constraint(interner, arguments, location)
             }
-            "trait_def_eq" => trait_def_eq(arguments, location),
-            "trait_def_hash" => trait_def_hash(arguments, location),
+            "trait_def_eq" => eq_item(arguments, location, get_trait_def),
+            "trait_def_hash" => hash_item(arguments, location, get_trait_def),
+            "trait_def_location" => trait_def_location(interner, arguments, location),
             "trait_impl_methods" => trait_impl_methods(interner, arguments, location),
             "trait_impl_trait_generic_args" => {
                 trait_impl_trait_generic_args(interner, arguments, location)
@@ -207,23 +252,28 @@ impl Interpreter<'_, '_> {
             "type_def_as_type_with_generics" => {
                 type_def_as_type_with_generics(interner, arguments, return_type, location)
             }
-            "type_def_eq" => type_def_eq(arguments, location),
-            "type_def_fields" => type_def_fields(interner, arguments, location, call_stack),
-            "type_def_fields_as_written" => {
-                type_def_fields_as_written(interner, arguments, location)
-            }
+            "type_def_eq" => eq_item(arguments, location, get_type_id),
+            "type_def_fields" => type_def_fields(self, arguments, location, call_stack),
+            "type_def_fields_as_written" => type_def_fields_as_written(self, arguments, location),
             "type_def_generics" => type_def_generics(interner, arguments, return_type, location),
-            "type_def_has_named_attribute" => {
-                type_def_has_named_attribute(interner, arguments, location)
+            "type_def_has_builtin_attribute" => {
+                type_def_has_attribute(interner, arguments, location, true)
             }
-            "type_def_hash" => type_def_hash(arguments, location),
+            "type_def_has_named_attribute" => {
+                type_def_has_attribute(interner, arguments, location, false)
+            }
+            "type_def_named_attribute_args" => {
+                type_def_named_attribute_args(interner, arguments, location)
+            }
+            "type_def_hash" => hash_item(arguments, location, get_type_id),
+            "type_def_location" => type_def_location(interner, arguments, location),
             "type_def_module" => type_def_module(self, arguments, location),
             "type_def_name" => type_def_name(interner, arguments, location),
-            "type_eq" => type_eq(arguments, location),
+            "type_eq" => eq_item(arguments, location, get_type),
             "type_get_trait_impl" => {
                 type_get_trait_impl(interner, arguments, return_type, location)
             }
-            "type_hash" => type_hash(arguments, location),
+            "type_hash" => hash_item(arguments, location, get_type),
             "type_implements" => type_implements(interner, arguments, location),
             "type_is_bool" => type_is_bool(arguments, location),
             "type_is_field" => type_is_field(arguments, location),
@@ -235,6 +285,7 @@ impl Interpreter<'_, '_> {
             "typed_expr_get_type" => {
                 typed_expr_get_type(interner, arguments, return_type, location)
             }
+            "typed_expr_location" => typed_expr_location(interner, arguments, location),
             "unresolved_type_as_mutable_reference" => {
                 unresolved_type_as_mutable_reference(interner, arguments, return_type, location)
             }
@@ -244,12 +295,22 @@ impl Interpreter<'_, '_> {
             "unresolved_type_is_bool" => unresolved_type_is_bool(interner, arguments, location),
             "unresolved_type_is_field" => unresolved_type_is_field(interner, arguments, location),
             "unresolved_type_is_unit" => unresolved_type_is_unit(interner, arguments, location),
-            "zeroed" => Ok(zeroed(return_type, location)),
+            "zeroed" => {
+                // Resolve any deferred struct fields or enum variants in the
+                // return type so `zeroed` returns a real `Value::Struct`/`Enum`
+                // instead of an opaque `Value::Zeroed` placeholder when called
+                // before the post-attribute drain.
+                self.elaborator.define_deferred_data_types_in(&return_type);
+                Ok(zeroed(return_type, location))
+            }
             _ => {
                 let item = format!("Comptime evaluation for builtin function '{name}'");
                 Err(InterpreterError::Unimplemented { item, location })
             }
-        }
+        }?;
+
+        check_return_type_shape(&result, expected_return_shape, location)?;
+        Ok(result)
     }
 }
 
@@ -325,7 +386,8 @@ fn as_vector(arguments: Vec<(Value, Location)>, location: Location) -> IResult<V
 }
 
 fn as_witness(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
-    Ok(check_one_argument(arguments, location)?.0)
+    check_one_argument(arguments, location)?;
+    Ok(Value::Unit)
 }
 
 fn black_box(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
@@ -339,7 +401,7 @@ fn checked_transmute(
 ) -> IResult<Value> {
     let (value, location) = check_one_argument(arguments, location)?;
 
-    if value.get_type().as_ref() != &return_type {
+    if value.get_type().try_unify_with_default_bindings(&return_type).is_err() {
         return Err(InterpreterError::CheckedTransmuteFailed {
             actual: value.get_type().into_owned(),
             expected: return_type,
@@ -361,19 +423,61 @@ fn vector_push_back(arguments: Vec<(Value, Location)>, location: Location) -> IR
 // static_assert<let N: u32>(predicate: bool, message: T)
 fn static_assert(
     interner: &NodeInterner,
+    files: &FileMap,
     arguments: Vec<(Value, Location)>,
     location: Location,
     call_stack: &Vector<Location>,
 ) -> IResult<Value> {
     let (predicate, message) = check_two_arguments(arguments, location)?;
     let predicate = get_bool(predicate)?;
-    let message = message.0.display(interner).to_string();
+    let message = message.0.display(interner, files).to_string();
 
     if predicate {
         Ok(Value::Unit)
     } else {
         failing_constraint(format!("static_assert failed: {message}"), location, call_stack)
     }
+}
+
+// fn error<let N: u32, T, let N2: u32, T2>(
+//     msg: fmtstr<N, T>,
+//     secondary: Option<fmtstr<N2, T2>>,
+//     location: Location,
+// )
+// fn warn<let N: u32, T, let N2: u32, T2>(
+//     msg: fmtstr<N, T>,
+//     secondary: Option<fmtstr<N2, T2>>,
+//     location: Location,
+// )
+fn issue_diagnostic(
+    interpreter: &mut Interpreter,
+    arguments: Vec<(Value, Location)>,
+    location: Location,
+    is_warning: bool,
+) -> IResult<Value> {
+    let (msg_argument, (secondary, secondary_location), location_argument) =
+        check_three_arguments(arguments, location)?;
+    let (fragments, _, _) = get_format_string(msg_argument)?;
+
+    // Unwrap the `Option<fmtstr<N, T>>`
+    let secondary = get_option((secondary, secondary_location))?
+        .map(|value| get_format_string((value, secondary_location)))
+        .transpose()?;
+
+    let target_location = get_location(location_argument)?;
+    let interner = &interpreter.elaborator.interner;
+    let message = fragments_to_string(&fragments, interner, interpreter.elaborator.files);
+    let secondary = secondary.map(|(fragments, _, _)| {
+        fragments_to_string(&fragments, interner, interpreter.elaborator.files)
+    });
+
+    let error = if is_warning {
+        InterpreterError::UserDefinedWarning { message, secondary, location: target_location }
+    } else {
+        InterpreterError::UserDefinedError { message, secondary, location: target_location }
+    };
+    interpreter.elaborator.push_err(error);
+    Ok(Value::Unit)
 }
 
 fn str_as_bytes(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
@@ -418,7 +522,7 @@ fn type_def_add_abi(
     Ok(Value::Unit)
 }
 
-/// fn as_type(self) -> Type
+/// fn `as_type(self)` -> Type
 fn type_def_as_type(
     interner: &NodeInterner,
     arguments: Vec<(Value, Location)>,
@@ -451,11 +555,15 @@ fn type_def_as_type_with_generics(
     let (generics, _) = get_vector(generics)?;
     let generics = try_vecmap(generics, |generic| get_type((generic, generics_location)))?;
 
-    let correct_generic_count = type_def.generics.len() == generics.len();
+    let valid = type_def.generics.len() == generics.len()
+        && type_def
+            .generics
+            .iter()
+            .zip_eq(&generics)
+            .all(|(decl, arg)| decl.kind().unifies(&arg.kind()));
     drop(type_def);
 
-    let type_result =
-        correct_generic_count.then(|| Value::Type(Type::DataType(type_def_rc, generics)));
+    let type_result = valid.then(|| Value::Type(Type::DataType(type_def_rc, generics)));
 
     Ok(option(return_type, type_result, location))
 }
@@ -509,19 +617,13 @@ fn type_def_generics(
     Ok(Value::Vector(generics, Type::Vector(Box::new(vector_item_type))))
 }
 
-fn type_def_hash(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
-    hash_item(arguments, location, get_type_id)
-}
-
-fn type_def_eq(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
-    eq_item(arguments, location, get_type_id)
-}
-
 // fn has_named_attribute<let N: u32>(self, name: str<N>) -> bool {}
-fn type_def_has_named_attribute(
+// fn has_builtin_attribute<let N: u32>(self, name: str<N>) -> bool {}
+fn type_def_has_attribute(
     interner: &NodeInterner,
     arguments: Vec<(Value, Location)>,
     location: Location,
+    builtin_only: bool,
 ) -> IResult<Value> {
     let (self_argument, name) = check_two_arguments(arguments, location)?;
     let type_id = get_type_id(self_argument)?;
@@ -529,21 +631,129 @@ fn type_def_has_named_attribute(
     let name = get_str(name)?;
     let name = String::from_utf8_lossy(&name);
 
-    Ok(Value::Bool(has_named_attribute(&name, interner.type_attributes(&type_id), interner)))
+    let attrs = interner.type_attributes(&type_id);
+    let matched = if builtin_only {
+        has_builtin_attribute(&name, attrs)
+    } else {
+        has_named_attribute(&name, attrs, interner)
+    };
+    Ok(Value::Bool(matched))
 }
 
-/// fn fields(self, generic_args: [Type]) -> [(Quoted, Type, Quoted)]
-/// Returns (name, type, visibility) tuples of each field of this TypeDefinition.
+/// Collect the argument expressions of each `#[name(..)]` occurrence among `attributes`.
+/// Only `Meta` attributes (`#[name(args)]`) carry argument expressions; tags and built-in
+/// attributes have none and are skipped. The arguments are cloned so the interner can be
+/// mutated afterwards while building the result.
+fn collect_meta_attribute_args(
+    name: &str,
+    attributes: &[SecondaryAttribute],
+    interner: &NodeInterner,
+) -> Vec<Vec<Expression>> {
+    attributes
+        .iter()
+        .filter_map(|attribute| match &attribute.kind {
+            SecondaryAttributeKind::Meta(meta)
+                if interner.get_meta_attribute_name(meta).as_deref() == Some(name) =>
+            {
+                Some(meta.arguments.clone())
+            }
+            _ => None,
+        })
+        .collect()
+}
+
+/// Build the `[[Quoted]]` value returned by `named_attribute_args`: an outer vector with one
+/// entry per attribute occurrence, an inner vector of that occurrence's arguments, each argument
+/// a token stream that can be spliced into generated code.
+fn named_attribute_args_value(
+    occurrences: Vec<Vec<Expression>>,
+    interner: &mut NodeInterner,
+) -> Value {
+    let quoted_vec_type = Type::Vector(Box::new(Type::Quoted(QuotedType::Quoted)));
+    let occurrences = occurrences
+        .into_iter()
+        .map(|args| {
+            let args = args
+                .into_iter()
+                .map(|arg| {
+                    let arg_location = arg.location;
+                    let token = Token::InternedExpr(interner.push_expression_kind(arg.kind));
+                    Value::Quoted(Rc::new(vec![LocatedToken::new(token, arg_location)]))
+                })
+                .collect();
+            Value::Vector(args, quoted_vec_type.clone())
+        })
+        .collect();
+    Value::Vector(occurrences, Type::Vector(Box::new(quoted_vec_type)))
+}
+
+// fn named_attribute_args<let N: u32>(self, name: str<N>) -> [[Quoted]]
+fn type_def_named_attribute_args(
+    interner: &mut NodeInterner,
+    arguments: Vec<(Value, Location)>,
+    location: Location,
+) -> IResult<Value> {
+    let (self_argument, name) = check_two_arguments(arguments, location)?;
+    let type_id = get_type_id(self_argument)?;
+    let name = get_str(name)?;
+    let name = String::from_utf8_lossy(&name).to_string();
+
+    let occurrences =
+        collect_meta_attribute_args(&name, interner.type_attributes(&type_id), interner);
+    Ok(named_attribute_args_value(occurrences, interner))
+}
+
+// fn named_attribute_args<let N: u32>(self, name: str<N>) -> [[Quoted]]
+fn function_def_named_attribute_args(
+    interner: &mut NodeInterner,
+    arguments: Vec<(Value, Location)>,
+    location: Location,
+) -> IResult<Value> {
+    let (self_argument, name) = check_two_arguments(arguments, location)?;
+    let func_id = get_function_def(self_argument)?;
+    let name = get_str(name)?;
+    let name = String::from_utf8_lossy(&name).to_string();
+
+    let occurrences = {
+        let secondary = &interner.function_modifiers(&func_id).attributes.secondary;
+        collect_meta_attribute_args(&name, secondary, interner)
+    };
+    Ok(named_attribute_args_value(occurrences, interner))
+}
+
+// fn named_attribute_args<let N: u32>(self, name: str<N>) -> [[Quoted]]
+fn module_named_attribute_args(
+    interpreter: &mut Interpreter,
+    arguments: Vec<(Value, Location)>,
+    location: Location,
+) -> IResult<Value> {
+    let (self_argument, name) = check_two_arguments(arguments, location)?;
+    let module_id = get_module(self_argument)?;
+    let name = get_str(name)?;
+    let name = String::from_utf8_lossy(&name).to_string();
+
+    let occurrences = {
+        let attrs = &interpreter.elaborator.get_module(module_id).attributes;
+        collect_meta_attribute_args(&name, attrs, interpreter.elaborator.interner)
+    };
+    Ok(named_attribute_args_value(occurrences, interpreter.elaborator.interner))
+}
+
+/// fn fields(self, `generic_args`: [Type]) -> [(Quoted, Type, Quoted)]
+/// Returns (name, type, visibility) tuples of each field of this `TypeDefinition`.
 /// Applies the given generic arguments to each field.
 fn type_def_fields(
-    interner: &NodeInterner,
+    interpreter: &mut Interpreter,
     arguments: Vec<(Value, Location)>,
     location: Location,
     call_stack: &Vector<Location>,
 ) -> IResult<Value> {
     let (typ, generic_args) = check_two_arguments(arguments, location)?;
     let struct_id = get_type_id(typ)?;
-    let struct_def = interner.get_type(struct_id);
+
+    interpreter.elaborator.define_struct_fields_if_undefined(struct_id);
+
+    let struct_def = interpreter.elaborator.interner.get_type(struct_id);
     let struct_def = struct_def.borrow();
 
     let args_location = generic_args.1;
@@ -562,6 +772,20 @@ fn type_def_fields(
         let location = args_location;
         let call_stack = call_stack.clone();
         return Err(InterpreterError::FailingConstraint { message, location, call_stack });
+    }
+
+    for (index, (decl, arg)) in struct_def.generics.iter().zip_eq(&generic_args).enumerate() {
+        let decl_kind = decl.kind();
+        let arg_kind = arg.kind();
+        if !decl_kind.unifies(&arg_kind) {
+            let message = Some(format!(
+                "`TypeDefinition::fields` expected generic argument {index} of `{}` to have kind `{decl_kind}` but found kind `{arg_kind}`",
+                struct_def.name
+            ));
+            let location = args_location;
+            let call_stack = call_stack.clone();
+            return Err(InterpreterError::FailingConstraint { message, location, call_stack });
+        }
     }
 
     let mut fields = Vector::new();
@@ -584,18 +808,21 @@ fn type_def_fields(
     Ok(Value::Vector(fields, typ))
 }
 
-/// fn fields_as_written(self) -> [(Quoted, Type, Quoted)]
-/// Returns (name, type) pairs of each field of this TypeDefinition.
+/// fn `fields_as_written(self)` -> [(Quoted, Type, Quoted)]
+/// Returns (name, type) pairs of each field of this `TypeDefinition`.
 ///
 /// Note that any generic arguments won't be applied: if you need them to be, use `fields`.
 fn type_def_fields_as_written(
-    interner: &NodeInterner,
+    interpreter: &mut Interpreter,
     arguments: Vec<(Value, Location)>,
     location: Location,
 ) -> IResult<Value> {
     let argument = check_one_argument(arguments, location)?;
     let struct_id = get_type_id(argument)?;
-    let struct_def = interner.get_type(struct_id);
+
+    interpreter.elaborator.define_struct_fields_if_undefined(struct_id);
+
+    let struct_def = interpreter.elaborator.interner.get_type(struct_id);
     let struct_def = struct_def.borrow();
 
     let mut fields = Vector::new();
@@ -629,6 +856,17 @@ fn type_def_module(
     let struct_id = get_type_id(self_argument)?;
     let parent = struct_id.parent_module_id(interpreter.elaborator.def_maps);
     Ok(Value::ModuleDefinition(parent))
+}
+
+// fn location(self) -> Location
+fn type_def_location(
+    interner: &NodeInterner,
+    arguments: Vec<(Value, Location)>,
+    location: Location,
+) -> IResult<Value> {
+    let self_argument = check_one_argument(arguments, location)?;
+    let type_id = get_type_id(self_argument)?;
+    Ok(Value::Location(interner.get_type(type_id).borrow().location))
 }
 
 // fn name(self) -> Quoted
@@ -672,7 +910,10 @@ fn vector_remove(
         return failing_constraint(message, location, call_stack);
     }
 
-    let element = Shared::new(values.remove(index));
+    // The removed element is returned by value, so it must not keep sharing interior
+    // `Shared<Value>` cells with the source vector (otherwise a `&mut` into the temporary
+    // would write back through to the original vector).
+    let element = Shared::new(values.remove(index).move_struct());
     Ok(Value::Tuple(vec![Shared::new(Value::Vector(values, typ)), element]))
 }
 
@@ -694,6 +935,10 @@ fn vector_pop_front(
     let (mut values, typ) = get_vector(argument)?;
     match values.pop_front() {
         Some(element) => {
+            // The popped element is returned by value, so it must not keep sharing interior
+            // `Shared<Value>` cells with the source vector (otherwise a `&mut` into the
+            // temporary would write back through to the original vector).
+            let element = element.move_struct();
             Ok(Value::Tuple(vec![Shared::new(element), Shared::new(Value::Vector(values, typ))]))
         }
         None => failing_constraint(
@@ -714,6 +959,10 @@ fn vector_pop_back(
     let (mut values, typ) = get_vector(argument)?;
     match values.pop_back() {
         Some(element) => {
+            // The popped element is returned by value, so it must not keep sharing interior
+            // `Shared<Value>` cells with the source vector (otherwise a `&mut` into the
+            // temporary would write back through to the original vector).
+            let element = element.move_struct();
             Ok(Value::Tuple(vec![Shared::new(Value::Vector(values, typ)), Shared::new(element)]))
         }
         None => failing_constraint(
@@ -833,12 +1082,19 @@ fn quoted_as_type(
     location: Location,
 ) -> IResult<Value> {
     let argument = check_one_argument(arguments, location)?;
-    let typ = parse(interpreter.elaborator, argument, Parser::parse_type_or_error, "a type")?;
+    let typ = parse(
+        interpreter.elaborator,
+        argument,
+        Parser::parse_type_or_type_expression_or_error,
+        "a type",
+    )?;
     let reason = Some(ElaborateReason::EvaluatingComptimeCall("Quoted::as_type", location));
     let wildcard_allowed = WildcardAllowed::No(WildcardDisallowedContext::QuotedAsType);
     let typ =
         interpreter.elaborate_in_function(interpreter.current_function, reason, |elaborator| {
-            elaborator.use_type(typ, wildcard_allowed)
+            // `Kind::Any` so a numeric type expression (e.g. `quote { 4 }`) resolves to a
+            // `Type::Constant` rather than being rejected as a non-`Normal` kind.
+            elaborator.use_type_with_kind(typ, &Kind::Any, wildcard_allowed)
         });
     Ok(Value::Type(typ))
 }
@@ -852,6 +1108,23 @@ fn quoted_tokens(arguments: Vec<(Value, Location)>, location: Location) -> IResu
         value.iter().map(|token| Value::Quoted(Rc::new(vec![token.clone()]))).collect(),
         Type::Vector(Box::new(Type::Quoted(QuotedType::Quoted))),
     ))
+}
+
+// fn location(self) -> Option<Location>
+fn quoted_location(
+    arguments: Vec<(Value, Location)>,
+    return_type: Type,
+    location: Location,
+) -> IResult<Value> {
+    let argument = check_one_argument(arguments, location)?;
+    let tokens = get_quoted(argument)?;
+
+    let merged = match (tokens.first(), tokens.last()) {
+        (Some(first), Some(last)) => Some(first.location().merge(last.location())),
+        _ => None,
+    };
+
+    Ok(option(return_type, merged.map(Value::Location), location))
 }
 
 fn to_be_bits(
@@ -943,7 +1216,18 @@ fn to_le_radix(
 }
 
 fn compute_to_radix_le(field: FieldElement, radix: u32) -> Vec<u8> {
-    assert_ne!(radix, 0, "ICE: Radix must be greater than 0");
+    // `BigUint::to_radix_le` requires the radix to be in `2..=256` and only checks this in debug
+    // builds. The stdlib `static_assert`s the same bound for user code, so reaching here with an
+    // out-of-range radix is an internal precondition violation.
+    assert!((2..=256).contains(&radix), "ICE: radix must be in the range 2..=256, found {radix}");
+
+    // `BigUint::to_radix_le` represents zero as a single zero limb (`[0]`), which would make
+    // a zero value appear to require one limb. Decomposing zero requires no significant limbs,
+    // matching the runtime black box solvers, so report an empty decomposition instead.
+    if field.is_zero() {
+        return Vec::new();
+    }
+
     let big_integer = BigUint::from_bytes_be(&field.to_be_bytes());
 
     // Decompose the integer into its radix digits in little endian form.
@@ -1115,15 +1399,6 @@ where
 }
 
 // fn type_eq(_first: Type, _second: Type) -> bool
-fn type_eq(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
-    eq_item(arguments, location, get_type)
-}
-
-// fn type_hash(_t: Type) -> Field
-fn type_hash(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
-    hash_item(arguments, location, get_type)
-}
-
 // fn get_trait_impl(self, constraint: TraitConstraint) -> Option<TraitImpl>
 fn type_get_trait_impl(
     interner: &NodeInterner,
@@ -1195,26 +1470,6 @@ fn type_of(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Val
     let (value, _) = check_one_argument(arguments, location)?;
     let typ = value.get_type().into_owned();
     Ok(Value::Type(typ))
-}
-
-// fn constraint_hash(constraint: TraitConstraint) -> Field
-fn trait_constraint_hash(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
-    hash_item(arguments, location, get_trait_constraint)
-}
-
-// fn constraint_eq(constraint_a: TraitConstraint, constraint_b: TraitConstraint) -> bool
-fn trait_constraint_eq(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
-    eq_item(arguments, location, get_trait_constraint)
-}
-
-// fn trait_def_hash(def: TraitDefinition) -> Field
-fn trait_def_hash(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
-    hash_item(arguments, location, get_trait_def)
-}
-
-// fn trait_def_eq(def_a: TraitDefinition, def_b: TraitDefinition) -> bool
-fn trait_def_eq(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
-    eq_item(arguments, location, get_trait_def)
 }
 
 // fn methods(self) -> [FunctionDefinition]
@@ -1406,8 +1661,15 @@ fn zeroed(return_type: Type, location: Location) -> Value {
         Type::FieldElement => Value::field(FieldElement::zero()),
         Type::Array(elem, length_type) => {
             if let Ok(length) = length_type.evaluate_to_u32(location) {
-                let element = zeroed(elem.as_ref().clone(), location);
-                let array = std::iter::repeat_n(element, length as usize).collect();
+                let array = if elem.contains_reference() {
+                    // A reference becomes a fresh `Value::Pointer`. Cloning one shares its
+                    // underlying cell, so build an independent zeroed value per slot instead
+                    // of repeating a single element, matching the `Tuple` arm below.
+                    (0..length).map(|_| zeroed(elem.as_ref().clone(), location)).collect()
+                } else {
+                    let element = zeroed(elem.as_ref().clone(), location);
+                    std::iter::repeat_n(element, length as usize).collect()
+                };
                 Value::Array(array, Type::Array(elem, length_type))
             } else {
                 // Assume we can resolve the length later
@@ -1648,7 +1910,7 @@ fn expr_as_binary_op(
 
             tuple_types.pop().unwrap();
             let binary_op_type = tuple_types.pop().unwrap();
-            let binary_op = Shared::new(new_binary_op(infix_expr.operator, binary_op_type));
+            let binary_op = Shared::new(new_binary_op(&infix_expr.operator, binary_op_type));
             let lhs = Shared::new(Value::expression(infix_expr.lhs.kind));
             let rhs = Shared::new(Value::expression(infix_expr.rhs.kind));
             Some(Value::Tuple(vec![lhs, binary_op, rhs]))
@@ -1860,7 +2122,7 @@ fn expr_as_if(
     expr_as(interner, arguments, return_type.clone(), location, |expr| {
         if let ExprValue::Expression(ExpressionKind::If(if_expr)) = expr {
             // Get the type of `Option<Expr>`
-            let option_type = extract_option_generic_type(return_type.clone());
+            let option_type = extract_option_generic_type(return_type);
             let Type::Tuple(option_types) = option_type else {
                 panic!("Expected the return type option generic arg to be a tuple");
             };
@@ -1911,12 +2173,12 @@ fn expr_as_integer(
     location: Location,
 ) -> IResult<Value> {
     expr_as(interner, arguments, return_type, location, |expr| match expr {
-        ExprValue::Expression(ExpressionKind::Literal(Literal::Integer(field, _suffix))) => {
-            Some(Value::field(field))
+        ExprValue::Expression(ExpressionKind::Literal(Literal::Integer(value, _suffix))) => {
+            Some(Value::field(bigint_to_field(&value)))
         }
         ExprValue::Expression(ExpressionKind::Resolved(id)) => {
-            if let HirExpression::Literal(HirLiteral::Integer(field)) = interner.expression(&id) {
-                Some(Value::field(field))
+            if let HirExpression::Literal(HirLiteral::Integer(value)) = interner.expression(&id) {
+                Some(Value::field(bigint_to_field(&value)))
             } else {
                 None
             }
@@ -1961,7 +2223,7 @@ fn expr_as_lambda(
                 parameters,
                 Type::Vector(Box::new(Type::Tuple(vec![
                     Type::Quoted(QuotedType::Expr),
-                    Type::Quoted(QuotedType::UnresolvedType),
+                    option_unresolved_type.clone(),
                 ]))),
             ));
 
@@ -2278,32 +2540,44 @@ fn expr_resolve(
         interpreter.current_function
     };
 
+    // When the user provides a foreign function scope, enforce visibility from the caller's
+    // module so that private items in the foreign scope cannot be accessed.
+    let caller_module = is_some.then(|| interpreter.elaborator.module_id());
+
     let reason = Some(ElaborateReason::EvaluatingComptimeCall("Expr::resolve", location));
-    interpreter.elaborate_in_function(function_to_resolve_in, reason, |elaborator| match expr_value
-    {
-        ExprValue::Expression(expression_kind) => {
-            let expr = Expression { kind: expression_kind, location: self_argument_location };
-            let (expr_id, _) = elaborator.elaborate_expression(expr);
-            Ok(Value::TypedExpr(TypedExpr::ExprId(expr_id)))
+    interpreter.elaborate_in_function(function_to_resolve_in, reason, |elaborator| {
+        if is_some {
+            elaborator.caller_module = caller_module;
         }
-        ExprValue::Statement(statement_kind) => {
-            let statement = Statement { kind: statement_kind, location: self_argument_location };
-            let (stmt_id, _) = elaborator.elaborate_statement(statement);
-            Ok(Value::TypedExpr(TypedExpr::StmtId(stmt_id)))
-        }
-        ExprValue::LValue(lvalue) => {
-            let expr = lvalue.as_expression();
-            let (expr_id, _) = elaborator.elaborate_expression(expr);
-            Ok(Value::TypedExpr(TypedExpr::ExprId(expr_id)))
-        }
-        ExprValue::Pattern(pattern) => {
-            if let Some(expression) = pattern.try_as_expression(elaborator.interner) {
-                let (expr_id, _) = elaborator.elaborate_expression(expression);
+
+        match expr_value {
+            ExprValue::Expression(expression_kind) => {
+                let expr = Expression { kind: expression_kind, location: self_argument_location };
+                let (expr_id, _) = elaborator.elaborate_expression(expr);
                 Ok(Value::TypedExpr(TypedExpr::ExprId(expr_id)))
-            } else {
-                let expression = Value::pattern(pattern).display(elaborator.interner).to_string();
-                let location = self_argument_location;
-                Err(InterpreterError::CannotResolveExpression { location, expression })
+            }
+            ExprValue::Statement(statement_kind) => {
+                let statement =
+                    Statement { kind: statement_kind, location: self_argument_location };
+                let (stmt_id, _) = elaborator.elaborate_statement(statement);
+                Ok(Value::TypedExpr(TypedExpr::StmtId(stmt_id)))
+            }
+            ExprValue::LValue(lvalue) => {
+                let expr = lvalue.as_expression();
+                let (expr_id, _) = elaborator.elaborate_expression(expr);
+                Ok(Value::TypedExpr(TypedExpr::ExprId(expr_id)))
+            }
+            ExprValue::Pattern(pattern) => {
+                if let Some(expression) = pattern.try_as_expression(elaborator.interner) {
+                    let (expr_id, _) = elaborator.elaborate_expression(expression);
+                    Ok(Value::TypedExpr(TypedExpr::ExprId(expr_id)))
+                } else {
+                    let expression = Value::pattern(pattern)
+                        .display(elaborator.interner, elaborator.files)
+                        .to_string();
+                    let location = self_argument_location;
+                    Err(InterpreterError::CannotResolveExpression { location, expression })
+                }
             }
         }
     })
@@ -2361,25 +2635,26 @@ fn unwrap_expr_value_helper(
 // fn fmtstr_as_ctstring(self) -> CtString
 fn fmtstr_as_ctstring(
     interner: &NodeInterner,
+    files: &FileMap,
     arguments: Vec<(Value, Location)>,
     location: Location,
 ) -> IResult<Value> {
     let self_argument = check_one_argument(arguments, location)?;
     let (fragments, _, _) = get_format_string(self_argument)?;
-    let string = fragments_to_string(&fragments, interner);
-    let bytes = string.bytes().collect();
+    let bytes = fragments_to_bytes(&fragments, interner, files);
     Ok(Value::CtString(Rc::new(bytes)))
 }
 
 // fn quoted_contents(self) -> Quoted
 fn fmtstr_quoted_contents(
     interner: &NodeInterner,
+    files: &FileMap,
     arguments: Vec<(Value, Location)>,
     location: Location,
 ) -> IResult<Value> {
     let self_argument = check_one_argument(arguments, location)?;
     let (fragments, _, _) = get_format_string(self_argument)?;
-    let string = fragments_to_string(&fragments, interner);
+    let string = fragments_to_string(&fragments, interner, files);
     let tokens = lex(&string, location);
     Ok(Value::Quoted(Rc::new(tokens)))
 }
@@ -2397,11 +2672,67 @@ fn function_def_as_typed_expr(
 ) -> IResult<Value> {
     let self_argument = check_one_argument(arguments, location)?;
     let func_id = get_function_def(self_argument)?;
-    let trait_impl_id = interpreter.elaborator.interner.function_meta(&func_id).trait_impl;
+    let trait_impl_id = interpreter.elaborator.function_meta(func_id).trait_impl;
+
+    // Check visibility for non-trait functions
+    if trait_impl_id.is_none() {
+        let defining_module = interpreter.elaborator.interner.function_module(func_id);
+        let visibility = interpreter.elaborator.interner.function_visibility(func_id);
+        let caller_module = interpreter.elaborator.module_id();
+        if !item_in_module_is_visible(
+            interpreter.elaborator.def_maps,
+            caller_module,
+            defining_module,
+            visibility,
+        ) {
+            let name = interpreter.elaborator.interner.function_name(&func_id).to_string();
+            let defining_module = fully_qualified_module_path(
+                interpreter.elaborator.def_maps,
+                interpreter.elaborator.crate_graph,
+                &caller_module.krate,
+                defining_module,
+            );
+            return Err(InterpreterError::FunctionNotVisible { name, defining_module, location });
+        }
+    }
+
     let definition_id = interpreter.elaborator.interner.function_definition_id(func_id);
     let hir_ident = if let Some(trait_impl_id) = trait_impl_id {
         let trait_impl = interpreter.elaborator.interner.get_trait_implementation(trait_impl_id);
         let trait_impl = trait_impl.borrow();
+
+        // A trait method is reachable through `as_typed_expr` only if the type the trait is
+        // implemented for is visible from the caller's module. Otherwise a private type's trait
+        // methods could be called from another crate by recovering the type via metaprogramming.
+        if let Type::DataType(data_type, _) = trait_impl.typ.follow_bindings() {
+            let (type_id, visibility) = {
+                let data_type = data_type.borrow();
+                (data_type.id, data_type.visibility)
+            };
+            let caller_module = interpreter.elaborator.module_id();
+            let type_module = type_id.parent_module_id(interpreter.elaborator.def_maps);
+            if !item_in_module_is_visible(
+                interpreter.elaborator.def_maps,
+                caller_module,
+                type_module,
+                visibility,
+            ) {
+                let name = interpreter.elaborator.interner.function_name(&func_id).to_string();
+                let defining_module = interpreter.elaborator.interner.function_module(func_id);
+                let defining_module = fully_qualified_module_path(
+                    interpreter.elaborator.def_maps,
+                    interpreter.elaborator.crate_graph,
+                    &caller_module.krate,
+                    defining_module,
+                );
+                return Err(InterpreterError::FunctionNotVisible {
+                    name,
+                    defining_module,
+                    location,
+                });
+            }
+        }
+
         let trait_generics =
             interpreter.elaborator.interner.get_trait_generics_for_impl(trait_impl_id).clone();
         let trait_bound =
@@ -2423,14 +2754,7 @@ fn function_def_as_typed_expr(
     let typ =
         interpreter.elaborate_in_function(interpreter.current_function, reason, |elaborator| {
             let bindings = TypeBindings::default();
-            let push_required_type_variables = false;
-            elaborator.type_check_variable_with_bindings(
-                hir_ident,
-                &expr_id,
-                generics,
-                bindings,
-                push_required_type_variables,
-            )
+            elaborator.type_check_variable_with_bindings(hir_ident, &expr_id, generics, bindings)
         });
     let expr_id = interpreter.elaborator.intern_expr_type(expr_id, typ);
     Ok(Value::TypedExpr(TypedExpr::ExprId(expr_id)))
@@ -2438,13 +2762,13 @@ fn function_def_as_typed_expr(
 
 // fn body(self) -> Expr
 fn function_def_body(
-    interner: &NodeInterner,
+    interpreter: &mut Interpreter,
     arguments: Vec<(Value, Location)>,
     location: Location,
 ) -> IResult<Value> {
     let self_argument = check_one_argument(arguments, location)?;
     let func_id = get_function_def(self_argument)?;
-    let func_meta = interner.function_meta(&func_id);
+    let func_meta = interpreter.elaborator.function_meta(func_id);
     if let FunctionBody::Unresolved(_, block_expr, _) = &func_meta.function_body {
         Ok(Value::expression(ExpressionKind::Block(block_expr.clone())))
     } else {
@@ -2477,20 +2801,25 @@ fn function_def_disable(
         .secondary
         .push(SecondaryAttribute { kind: SecondaryAttributeKind::ContractLibraryMethod, location });
 
-    let func_meta = interpreter.elaborator.interner.function_meta_mut(&func_id);
+    let func_meta = interpreter.elaborator.function_meta_mut(func_id);
 
-    // Lie and say that the body of this function is resolved in order to avoid any
-    // errors from resolving it since it is now disabled. The addition of `deprecated(deny, _)`
-    // above should ensure it is never called.
+    // Mark the body resolved so it is never elaborated: macro authors disable functions whose
+    // bodies are placeholders or are no longer valid, and type-checking those would raise spurious
+    // errors. The `deprecated(deny, _)` attribute added above makes calls error during elaboration.
+    // A disabled function therefore has no interned `HirFunction`; monomorphization rejects any that
+    // it still manages to reach via `MonomorphizationError::CalledDisabledFunction` rather than
+    // reading the missing body and panicking.
     func_meta.function_body = FunctionBody::Resolved;
     Ok(Value::Unit)
 }
 
 // fn has_named_attribute<let N: u32>(self, name: str<N>) -> bool {}
-fn function_def_has_named_attribute(
+// fn has_builtin_attribute<let N: u32>(self, name: str<N>) -> bool {}
+fn function_def_has_attribute(
     interner: &NodeInterner,
     arguments: Vec<(Value, Location)>,
     location: Location,
+    builtin_only: bool,
 ) -> IResult<Value> {
     let (self_argument, name) = check_two_arguments(arguments, location)?;
     let func_id = get_function_def(self_argument)?;
@@ -2505,26 +2834,24 @@ fn function_def_has_named_attribute(
         return Ok(Value::Bool(true));
     }
 
-    Ok(Value::Bool(has_named_attribute(&name, &modifiers.attributes.secondary, interner)))
-}
-
-fn function_def_hash(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
-    hash_item(arguments, location, get_function_def)
-}
-
-fn function_def_eq(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
-    eq_item(arguments, location, get_function_def)
+    let secondary = &modifiers.attributes.secondary;
+    let matched = if builtin_only {
+        has_builtin_attribute(&name, secondary)
+    } else {
+        has_named_attribute(&name, secondary, interner)
+    };
+    Ok(Value::Bool(matched))
 }
 
 // fn is_unconstrained(self) -> bool
 fn function_def_is_unconstrained(
-    interner: &NodeInterner,
+    interpreter: &mut Interpreter,
     arguments: Vec<(Value, Location)>,
     location: Location,
 ) -> IResult<Value> {
     let self_argument = check_one_argument(arguments, location)?;
     let func_id = get_function_def(self_argument)?;
-    let is_unconstrained = interner.function_meta(&func_id).is_unconstrained();
+    let is_unconstrained = interpreter.elaborator.function_meta(func_id).is_unconstrained();
     Ok(Value::Bool(is_unconstrained))
 }
 
@@ -2538,6 +2865,17 @@ fn function_def_module(
     let func_id = get_function_def(self_argument)?;
     let module = interner.function_module(func_id);
     Ok(Value::ModuleDefinition(module))
+}
+
+// fn location(self) -> Location
+fn function_def_location(
+    elaborator: &mut Elaborator,
+    arguments: Vec<(Value, Location)>,
+    location: Location,
+) -> IResult<Value> {
+    let self_argument = check_one_argument(arguments, location)?;
+    let func_id = get_function_def(self_argument)?;
+    Ok(Value::Location(elaborator.function_meta(func_id).location))
 }
 
 // fn name(self) -> Quoted
@@ -2557,22 +2895,27 @@ fn function_def_name(
 
 // fn parameters(self) -> [(Quoted, Type)]
 fn function_def_parameters(
-    interner: &NodeInterner,
+    interpreter: &mut Interpreter,
     arguments: Vec<(Value, Location)>,
     location: Location,
 ) -> IResult<Value> {
     let self_argument = check_one_argument(arguments, location)?;
     let func_id = get_function_def(self_argument)?;
-    let func_meta = interner.function_meta(&func_id);
-
-    let parameters = func_meta
+    let parameters_meta: Vec<_> = interpreter
+        .elaborator
+        .function_meta(func_id)
         .parameters
         .iter()
-        .map(|(hir_pattern, typ, _visibility)| {
-            let tokens = hir_pattern_to_tokens(interner, hir_pattern);
+        .map(|(hir_pattern, typ, _visibility)| (hir_pattern.clone(), typ.clone()))
+        .collect();
+
+    let parameters = parameters_meta
+        .into_iter()
+        .map(|(hir_pattern, typ)| {
+            let tokens = hir_pattern_to_tokens(interpreter.elaborator.interner, &hir_pattern);
             let tokens = vecmap(tokens, |token| LocatedToken::new(token, location));
             let name = Shared::new(Value::Quoted(Rc::new(tokens)));
-            let typ = Shared::new(Value::Type(typ.clone()));
+            let typ = Shared::new(Value::Type(typ));
             Value::Tuple(vec![name, typ])
         })
         .collect();
@@ -2587,13 +2930,13 @@ fn function_def_parameters(
 
 // fn return_type(self) -> Type
 fn function_def_return_type(
-    interner: &NodeInterner,
+    interpreter: &mut Interpreter,
     arguments: Vec<(Value, Location)>,
     location: Location,
 ) -> IResult<Value> {
     let self_argument = check_one_argument(arguments, location)?;
     let func_id = get_function_def(self_argument)?;
-    let func_meta = interner.function_meta(&func_id);
+    let func_meta = interpreter.elaborator.function_meta(func_id);
 
     Ok(Value::Type(func_meta.return_type().follow_bindings()))
 }
@@ -2629,14 +2972,6 @@ fn module_child_modules(
 
     let vector_type = Type::Vector(Box::new(Type::Quoted(QuotedType::Module)));
     Ok(Value::Vector(children, vector_type))
-}
-
-fn module_hash(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
-    hash_item(arguments, location, get_module)
-}
-
-fn module_eq(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
-    eq_item(arguments, location, get_module)
 }
 
 // fn functions(self) -> [FunctionDefinition]
@@ -2710,10 +3045,12 @@ fn module_structs(
 }
 
 // fn has_named_attribute<let N: u32>(self, name: str<N>) -> bool {}
-fn module_has_named_attribute(
+// fn has_builtin_attribute<let N: u32>(self, name: str<N>) -> bool {}
+fn module_has_attribute(
     interpreter: &Interpreter,
     arguments: Vec<(Value, Location)>,
     location: Location,
+    builtin_only: bool,
 ) -> IResult<Value> {
     let (self_argument, name) = check_two_arguments(arguments, location)?;
     let module_id = get_module(self_argument)?;
@@ -2722,11 +3059,13 @@ fn module_has_named_attribute(
     let name = get_str(name)?;
     let name = String::from_utf8_lossy(&name);
 
-    Ok(Value::Bool(has_named_attribute(
-        &name,
-        &module_data.attributes,
-        interpreter.elaborator.interner,
-    )))
+    let attrs = &module_data.attributes;
+    let matched = if builtin_only {
+        has_builtin_attribute(&name, attrs)
+    } else {
+        has_named_attribute(&name, attrs, interpreter.elaborator.interner)
+    };
+    Ok(Value::Bool(matched))
 }
 
 // fn is_contract(self) -> bool
@@ -2755,8 +3094,8 @@ fn module_name(
     Ok(Value::Quoted(tokens))
 }
 
-fn modulus_be_bits(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
-    check_argument_count(0, &arguments, location)?;
+fn modulus_be_bits(arguments: &[(Value, Location)], location: Location) -> IResult<Value> {
+    check_argument_count(0, arguments, location)?;
 
     let bits = FieldElement::modulus().to_radix_be(2);
     let bits_vector = bits.into_iter().map(|bit| Value::Bool(bit != 0)).collect();
@@ -2765,8 +3104,8 @@ fn modulus_be_bits(arguments: Vec<(Value, Location)>, location: Location) -> IRe
     Ok(Value::Vector(bits_vector, typ))
 }
 
-fn modulus_be_bytes(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
-    check_argument_count(0, &arguments, location)?;
+fn modulus_be_bytes(arguments: &[(Value, Location)], location: Location) -> IResult<Value> {
+    check_argument_count(0, arguments, location)?;
 
     let bytes = FieldElement::modulus().to_bytes_be();
     let bytes_vector = bytes.into_iter().map(Value::u8).collect();
@@ -2776,7 +3115,7 @@ fn modulus_be_bytes(arguments: Vec<(Value, Location)>, location: Location) -> IR
     Ok(Value::Vector(bytes_vector, typ))
 }
 
-fn modulus_le_bits(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
+fn modulus_le_bits(arguments: &[(Value, Location)], location: Location) -> IResult<Value> {
     let Value::Vector(bits, typ) = modulus_be_bits(arguments, location)? else {
         unreachable!("modulus_be_bits must return vector")
     };
@@ -2784,7 +3123,7 @@ fn modulus_le_bits(arguments: Vec<(Value, Location)>, location: Location) -> IRe
     Ok(Value::Vector(reversed_bits, typ))
 }
 
-fn modulus_le_bytes(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
+fn modulus_le_bytes(arguments: &[(Value, Location)], location: Location) -> IResult<Value> {
     let Value::Vector(bytes, typ) = modulus_be_bytes(arguments, location)? else {
         unreachable!("modulus_be_bytes must return vector")
     };
@@ -2792,8 +3131,8 @@ fn modulus_le_bytes(arguments: Vec<(Value, Location)>, location: Location) -> IR
     Ok(Value::Vector(reversed_bytes, typ))
 }
 
-fn modulus_num_bits(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
-    check_argument_count(0, &arguments, location)?;
+fn modulus_num_bits(arguments: &[(Value, Location)], location: Location) -> IResult<Value> {
+    check_argument_count(0, arguments, location)?;
     let bits = FieldElement::max_num_bits().into();
     Ok(Value::u64(bits))
 }
@@ -2801,6 +3140,7 @@ fn modulus_num_bits(arguments: Vec<(Value, Location)>, location: Location) -> IR
 // fn quoted_eq(_first: Quoted, _second: Quoted) -> bool
 fn quoted_eq(
     interner: &NodeInterner,
+    files: &FileMap,
     arguments: Vec<(Value, Location)>,
     location: Location,
 ) -> IResult<Value> {
@@ -2812,14 +3152,15 @@ fn quoted_eq(
     // might be refer to interned expressions/statements/etc. We'd need to convert those nodes
     // to tokens and compare the final result, but comparing their string representation works
     // equally well and, for simplicity, that's what we do here.
-    let self_string = tokens_to_string(&self_arg, interner);
-    let other_string = tokens_to_string(&other_arg, interner);
+    let self_string = tokens_to_string(&self_arg, interner, files);
+    let other_string = tokens_to_string(&other_arg, interner, files);
 
     Ok(Value::Bool(self_string == other_string))
 }
 
 fn quoted_hash(
     interner: &NodeInterner,
+    files: &FileMap,
     arguments: Vec<(Value, Location)>,
     location: Location,
 ) -> IResult<Value> {
@@ -2827,9 +3168,9 @@ fn quoted_hash(
     let tokens = get_quoted(argument)?;
 
     // For consistency with quoted_eq, we compute the hash of the Quoted string representation.
-    let tokens_string = tokens_to_string(&tokens, interner);
+    let tokens_string = tokens_to_string(&tokens, interner, files);
 
-    let mut hasher = std::collections::hash_map::DefaultHasher::new();
+    let mut hasher = DeterministicHasher::new();
     tokens_string.hash(&mut hasher);
     Ok(Value::field(hasher.finish().into()))
 }
@@ -2845,6 +3186,43 @@ fn trait_def_as_trait_constraint(
     let constraint = interner.get_trait(trait_id).as_constraint(location);
 
     Ok(Value::TraitConstraint(trait_id, constraint.trait_bound.trait_generics))
+}
+
+// fn location(self) -> Location
+fn trait_def_location(
+    interner: &NodeInterner,
+    arguments: Vec<(Value, Location)>,
+    location: Location,
+) -> IResult<Value> {
+    let self_argument = check_one_argument(arguments, location)?;
+    let trait_id = get_trait_def(self_argument)?;
+    Ok(Value::Location(interner.get_trait(trait_id).location))
+}
+
+// fn location(self) -> Location
+fn module_location(
+    interner: &NodeInterner,
+    arguments: Vec<(Value, Location)>,
+    location: Location,
+) -> IResult<Value> {
+    let self_argument = check_one_argument(arguments, location)?;
+    let module_id = get_module(self_argument)?;
+    Ok(Value::Location(interner.module_attributes(module_id).location))
+}
+
+// fn location(self) -> Location
+fn typed_expr_location(
+    interner: &NodeInterner,
+    arguments: Vec<(Value, Location)>,
+    location: Location,
+) -> IResult<Value> {
+    let self_argument = check_one_argument(arguments, location)?;
+    let typed_expr = get_typed_expr(self_argument)?;
+    let loc = match typed_expr {
+        TypedExpr::ExprId(expr_id) => interner.expr_location(&expr_id),
+        TypedExpr::StmtId(stmt_id) => interner.statement_location(stmt_id),
+    };
+    Ok(Value::Location(loc))
 }
 
 /// Creates a value that holds an `Option`.
@@ -2875,12 +3253,15 @@ pub(crate) fn extract_option_generic_type(typ: Type) -> Type {
     generics.pop().expect("Expected Option to have a T generic type")
 }
 
-fn ctstring_eq(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
-    eq_item(arguments, location, get_ctstring)
-}
+// fn append(self, other: CtString) -> CtString
+fn ctstring_append(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
+    let (self_argument, other_argument) = check_two_arguments(arguments, location)?;
+    let self_bytes = get_ctstring(self_argument)?;
+    let other_bytes = get_ctstring(other_argument)?;
 
-fn ctstring_hash(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
-    hash_item(arguments, location, get_ctstring)
+    let mut bytes = self_bytes.as_ref().clone();
+    bytes.extend_from_slice(&other_bytes);
+    Ok(Value::CtString(Rc::new(bytes)))
 }
 
 fn derive_generators(
@@ -2942,10 +3323,32 @@ fn field_less_than(arguments: Vec<(Value, Location)>, location: Location) -> IRe
 
 #[cfg(test)]
 mod tests {
-    use super::field_less_than;
+    use super::{compute_to_radix_le, field_less_than};
     use crate::hir::comptime::value::Value;
     use acvm::FieldElement;
     use noirc_errors::Location;
+
+    #[test]
+    fn compute_to_radix_le_decomposes_in_range() {
+        // 6 in base 2 (little endian) is 0,1,1.
+        assert_eq!(compute_to_radix_le(FieldElement::from(6u128), 2), vec![0, 1, 1]);
+        // Zero decomposes into no significant limbs.
+        assert_eq!(compute_to_radix_le(FieldElement::from(0u128), 2), Vec::<u8>::new());
+        // Largest supported radix is accepted.
+        assert_eq!(compute_to_radix_le(FieldElement::from(255u128), 256), vec![255]);
+    }
+
+    #[test]
+    #[should_panic(expected = "radix must be in the range 2..=256")]
+    fn compute_to_radix_le_rejects_radix_below_two() {
+        compute_to_radix_le(FieldElement::from(6u128), 1);
+    }
+
+    #[test]
+    #[should_panic(expected = "radix must be in the range 2..=256")]
+    fn compute_to_radix_le_rejects_radix_above_256() {
+        compute_to_radix_le(FieldElement::from(6u128), 300);
+    }
 
     fn args(a: Value, b: Value) -> Vec<(Value, Location)> {
         vec![(a, Location::dummy()), (b, Location::dummy())]

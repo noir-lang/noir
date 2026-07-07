@@ -6,12 +6,12 @@ use std::{collections::HashMap, path::PathBuf};
 use noirc_errors::println_to_stdout;
 use noirc_frontend::monomorphization::ast::Program;
 
-use crate::errors::RuntimeError;
+use crate::errors::{RtResult, RuntimeError};
 
-use super::ssa_gen::generate_ssa;
-use super::{Ssa, SsaLogging};
+use super::ssa_gen::{generate_ssa, validate_ssa_or_err};
+use super::{SHOW_INVALID_SSA_ENV_KEY, Ssa, SsaLogging, should_show_invalid_ssa};
 
-type SsaPassResult = Result<Ssa, RuntimeError>;
+type SsaPassResult = RtResult<Ssa>;
 
 /// An SSA pass reified as a construct we can put into a list,
 /// which facilitates equivalence testing between different
@@ -22,6 +22,7 @@ pub struct SsaPass<'a> {
 }
 
 impl<'a> SsaPass<'a> {
+    /// Execute a pass which cannot fail.
     pub fn new<F>(f: F, msg: &'static str) -> Self
     where
         F: Fn(Ssa) -> Ssa + 'a,
@@ -29,11 +30,28 @@ impl<'a> SsaPass<'a> {
         Self::new_try(move |ssa| Ok(f(ssa)), msg)
     }
 
+    /// Execute a pass which might fail with a [`RuntimeError`].
     pub fn new_try<F>(f: F, msg: &'static str) -> Self
     where
         F: Fn(Ssa) -> SsaPassResult + 'a,
     {
         Self { msg, run: Box::new(f) }
+    }
+
+    /// Execute a read-only validation step which might fail with a [`RuntimeError`].
+    ///
+    /// If the validation fails, it prints the SSA if [`SHOW_INVALID_SSA_ENV_KEY`] is set.
+    pub fn new_validate<F>(f: F, msg: &'static str) -> Self
+    where
+        F: Fn(&Ssa) -> RtResult<()> + 'a,
+    {
+        Self::new_try(
+            move |ssa| {
+                Self::print_on_err(&ssa, &f, msg)?;
+                Ok(ssa)
+            },
+            msg,
+        )
     }
 
     pub fn msg(&self) -> &str {
@@ -69,6 +87,40 @@ impl<'a> SsaPass<'a> {
             }),
         }
     }
+
+    /// Similar to `new_validate` but meant to quietly follow up a "real" pass.
+    ///
+    /// If the validation fails, it prints the SSA if [`SHOW_INVALID_SSA_ENV_KEY`] is set.
+    pub fn and_then_validate<F>(self, f: F) -> Self
+    where
+        F: Fn(&Ssa) -> RtResult<()> + 'a,
+    {
+        let msg = self.msg;
+        self.and_then_try(move |ssa| {
+            Self::print_on_err(&ssa, &f, msg)?;
+            Ok(ssa)
+        })
+    }
+
+    /// Run some SSA validation function; if it returns an error then either
+    /// show the SSA, if the [`SHOW_INVALID_SSA_ENV_KEY`] key is on, or hint
+    /// at the existence of turning on this option.
+    fn print_on_err<F>(ssa: &Ssa, f: &F, msg: &str) -> RtResult<()>
+    where
+        F: Fn(&Ssa) -> RtResult<()> + 'a,
+    {
+        let result = f(ssa);
+        if result.is_err() {
+            if should_show_invalid_ssa() {
+                eprintln!("--- The SSA failed to validate after '{msg}':\n{ssa}\n");
+            } else {
+                eprintln!(
+                    "--- The SSA failed to validate after '{msg}': Set the {SHOW_INVALID_SSA_ENV_KEY} env var to see the SSA."
+                );
+            }
+        }
+        result
+    }
 }
 
 // This is just a convenience object to bundle the ssa with `print_ssa_passes` for debug printing.
@@ -89,6 +141,10 @@ pub struct SsaBuilder<'local> {
     passed: HashMap<String, usize>,
     /// List of SSA pass message fragments that we want to skip, for testing purposes.
     skip_passes: Vec<String>,
+
+    /// Whether to run the full SSA validator after each pass, to catch a pass that turns
+    /// well-formed SSA into malformed SSA.
+    validate_between_passes: bool,
 
     /// Providing a file manager is optional - if provided it can be used to print source
     /// locations along with each ssa instructions when debugging.
@@ -140,6 +196,7 @@ impl<'local> SsaBuilder<'local> {
             files,
             passed: Default::default(),
             skip_passes: Default::default(),
+            validate_between_passes: false,
         }
     }
 
@@ -154,6 +211,11 @@ impl<'local> SsaBuilder<'local> {
 
     pub fn with_skip_passes(mut self, skip_passes: Vec<String>) -> Self {
         self.skip_passes = skip_passes;
+        self
+    }
+
+    pub fn with_validate_between_passes(mut self, validate: bool) -> Self {
+        self.validate_between_passes = validate;
         self
     }
 
@@ -196,6 +258,17 @@ impl<'local> SsaBuilder<'local> {
 
         if !skip {
             self.ssa = time(&msg, self.print_codegen_timings, || pass(self.ssa))?;
+            if self.validate_between_passes {
+                self.ssa = validate_ssa_or_err(self.ssa, false).map_err(|e| match e {
+                    RuntimeError::SsaValidationError { message, call_stack } => {
+                        RuntimeError::SsaValidationError {
+                            message: format!("after '{msg}': {message}"),
+                            call_stack,
+                        }
+                    }
+                    other => other,
+                })?;
+            }
             Ok(self.print(&msg))
         } else {
             Ok(self)

@@ -370,7 +370,7 @@ fn embedded_curve_add() {
     private parameters: []
     public parameters: []
     return values: []
-    BLACKBOX::EMBEDDED_CURVE_ADD input1: [w0, w1, w2], input2: [w3, w4, w5], predicate: w6, outputs: [w7, w8, w9]
+    BLACKBOX::EMBEDDED_CURVE_ADD input1: [w0, w1], input2: [w2, w3], predicate: w4, outputs: [w5, w6]
     ";
     assert_circuit_roundtrip(src);
 }
@@ -382,7 +382,7 @@ fn embedded_curve_add_wrong_output_count() {
         private parameters: []
         public parameters: []
         return values: []
-        BLACKBOX::EMBEDDED_CURVE_ADD input1: [w0, w1, w2], input2: [w3, w4, w5], predicate: w6, outputs: [w7, w8]
+        BLACKBOX::EMBEDDED_CURVE_ADD input1: [w0, w1], input2: [w2, w3], predicate: w4, outputs: [w5]
     ";
     let _ = Circuit::from_str(src).unwrap();
 }
@@ -449,7 +449,7 @@ fn multi_scalar_mul() {
     private parameters: []
     public parameters: []
     return values: []
-    BLACKBOX::MULTI_SCALAR_MUL points: [w0, w1], scalars: [w2, w3], predicate: 1, outputs: [w4, w5, w6]
+    BLACKBOX::MULTI_SCALAR_MUL points: [w0, w1], scalars: [w2, w3], predicate: 1, outputs: [w4, w5]
     ";
     assert_circuit_roundtrip(src);
 }

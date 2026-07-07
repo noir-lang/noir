@@ -61,9 +61,9 @@ impl ConstantAllocation {
 
     /// Collect all constants allocated in a given block.
     pub(crate) fn allocated_in_block(&self, block_id: BasicBlockId) -> Vec<ValueId> {
-        self.allocation_points.get(&block_id).map_or(Vec::default(), |allocations| {
-            allocations.iter().flat_map(|(_, constants)| constants).copied().collect()
-        })
+        self.allocation_points
+            .get(&block_id)
+            .map_or(Vec::default(), |allocations| allocations.values().flatten().copied().collect())
     }
 
     /// Collect all constants allocated in a given block at a specific location.
@@ -112,7 +112,7 @@ impl ConstantAllocation {
         }
     }
 
-    /// Based on the [Self::constant_usage] collected, find the common dominator of all the block where a constant is used
+    /// Based on the [`Self::constant_usage`] collected, find the common dominator of all the block where a constant is used
     /// and mark it as the allocation point for the constant.
     fn decide_allocation_points(&mut self, func: &Function) {
         for (constant_id, usage_in_blocks) in &self.constant_usage {
@@ -155,13 +155,9 @@ impl ConstantAllocation {
             .reduce(|a, b| self.dominator_tree.common_dominator(a, b))
             .expect("At least one block must use the constant");
 
-        // If the value only contains constants, it's safe to hoist outside of any loop.
-        // Technically we know this is going to be true, because we only collected values which are `Value::NumericConstant`.
-        if func.dfg.is_constant(constant_id) {
-            self.exit_loops(common_dominator)
-        } else {
-            common_dominator
-        }
+        // A `Value::NumericConstant` is safe to hoist outside of any loop.
+        assert!(func.dfg.is_constant(constant_id));
+        self.exit_loops(common_dominator)
     }
 
     /// Returns the nearest dominator that is outside of any loop.
@@ -176,7 +172,7 @@ impl ConstantAllocation {
         current_block
     }
 
-    /// Return the SSA [ValueId] of all constants (the same numeric constant might appear with multiple IDs).
+    /// Return the SSA [`ValueId`] of all constants (the same numeric constant might appear with multiple IDs).
     pub(crate) fn get_constants(&self) -> BTreeSet<ValueId> {
         self.constant_usage.keys().copied().collect()
     }

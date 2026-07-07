@@ -12,7 +12,6 @@ use crate::{
     },
     parser::ParserErrorReason,
 };
-use acvm::AcirField;
 
 use noirc_errors::{Location, Span};
 
@@ -33,7 +32,7 @@ pub(crate) struct FunctionDefinitionWithOptionalBody {
 }
 
 impl Parser<'_> {
-    /// Function = 'fn' identifier Generics FunctionParameters ( '->' Visibility Type )? WhereClause ( Block | ';' )
+    /// Function = 'fn' identifier Generics `FunctionParameters` ( '->' Visibility Type )? `WhereClause` ( Block | ';' )
     pub(crate) fn parse_function(
         &mut self,
         attributes: Vec<(Attribute, Location)>,
@@ -91,7 +90,7 @@ impl Parser<'_> {
     ) -> FunctionDefinitionWithOptionalBody {
         let name = if let Some(name) = self.eat_non_underscore_ident() {
             name
-        } else if self.at(Token::LeftParen) || self.at(Token::Less) {
+        } else if self.at(&Token::LeftParen) || self.at(&Token::Less) {
             // If it's `fn (...` or `fn <...` we assume the user missed the function name but a function
             // definition follows. This can happen if the user is currently renaming a function by first
             // erasing the name.
@@ -116,34 +115,34 @@ impl Parser<'_> {
             }
         };
 
-        let (return_type, return_visibility, return_visibility_location) = if self.eat(Token::Arrow)
-        {
-            let (visibility, location) = self.parse_visibility();
-            (FunctionReturnType::Ty(self.parse_type_or_error()), visibility, location)
-        } else {
-            // This will return the span between `)` and `{`
-            //
-            // fn foo() { }
-            //        ^^^
-            let mut location = self.previous_token_location.merge(self.current_token_location);
+        let (return_type, return_visibility, return_visibility_location) =
+            if self.eat(&Token::Arrow) {
+                let (visibility, location) = self.parse_visibility();
+                (FunctionReturnType::Ty(self.parse_type_or_error()), visibility, location)
+            } else {
+                // This will return the span between `)` and `{`
+                //
+                // fn foo() { }
+                //        ^^^
+                let mut location = self.previous_token_location.merge(self.current_token_location);
 
-            // Here we change it to this (if there's space)
-            //
-            // fn foo() { }
-            //         ^
-            if location.span.end() - location.span.start() >= 3 {
-                location = Location::new(
-                    Span::from(location.span.start() + 1..location.span.end() - 1),
-                    location.file,
-                );
-            }
+                // Here we change it to this (if there's space)
+                //
+                // fn foo() { }
+                //         ^
+                if location.span.end() - location.span.start() >= 3 {
+                    location = Location::new(
+                        Span::from(location.span.start() + 1..location.span.end() - 1),
+                        location.file,
+                    );
+                }
 
-            (
-                FunctionReturnType::Default(location),
-                Visibility::Private,
-                self.location_at_previous_token_end(),
-            )
-        };
+                (
+                    FunctionReturnType::Default(location),
+                    Visibility::Private,
+                    self.location_at_previous_token_end(),
+                )
+            };
 
         let where_clause = self.parse_where_clause();
 
@@ -185,11 +184,11 @@ impl Parser<'_> {
         }
     }
 
-    /// FunctionParameters = '(' FunctionParametersList? ')'
+    /// `FunctionParameters` = '(' `FunctionParametersList`? ')'
     ///
-    /// FunctionParametersList = FunctionParameter ( ',' FunctionParameter )* ','?
+    /// `FunctionParametersList` = `FunctionParameter` ( ',' `FunctionParameter` )* ','?
     ///
-    /// FunctionParameter = Visibility PatternOrSelf ':' Type
+    /// `FunctionParameter` = Visibility `PatternOrSelf` ':' Type
     fn parse_function_parameters(&mut self, allow_self: bool) -> Option<Vec<Param>> {
         if !self.eat_left_paren() {
             return None;
@@ -233,15 +232,23 @@ impl Parser<'_> {
 
     fn pattern_param(&mut self, pattern: Pattern, start_location: Location) -> Param {
         let (visibility, visibility_location, typ) = if !self.eat_colon() {
-            self.push_error(
-                ParserErrorReason::MissingTypeForFunctionParameter,
-                pattern.location().merge(self.current_token_location),
-            );
+            if let Some(typ) = self.parse_type_allowing_generics(true) {
+                self.push_error(
+                    ParserErrorReason::MissingColonInFunctionParameter,
+                    pattern.location().merge(typ.location),
+                );
+                (Visibility::Private, typ.location, typ)
+            } else {
+                self.push_error(
+                    ParserErrorReason::MissingTypeForFunctionParameter,
+                    pattern.location().merge(self.current_token_location),
+                );
 
-            let visibility = Visibility::Private;
-            let location = self.location_at_previous_token_end();
-            let typ = UnresolvedType { typ: UnresolvedTypeData::Error, location };
-            (visibility, location, typ)
+                let visibility = Visibility::Private;
+                let location = self.location_at_previous_token_end();
+                let typ = UnresolvedType { typ: UnresolvedTypeData::Error, location };
+                (visibility, location, typ)
+            }
         } else {
             let (visibility, location) = self.parse_visibility();
             (
@@ -287,8 +294,8 @@ impl Parser<'_> {
 
     /// Visibility
     ///     = 'pub'
-    ///     | 'return_data'
-    ///     | 'call_data' '(' int ')'
+    ///     | '`return_data`'
+    ///     | '`call_data`' '(' int ')'
     ///     | nothing
     fn parse_visibility(&mut self) -> (Visibility, Location) {
         let start_location = self.current_token_location;
@@ -304,9 +311,13 @@ impl Parser<'_> {
         if self.eat_keyword(Keyword::CallData) {
             if self.eat_left_paren() {
                 if let Some((int, None)) = self.eat_int() {
+                    let int_location = self.previous_token_location;
                     self.eat_or_error(Token::RightParen);
                     let location = self.location_since(start_location);
-                    let id = int.to_u128() as u32;
+                    let id = u32::try_from(&int).unwrap_or_else(|_| {
+                        self.push_error(ParserErrorReason::CallDataIdMustFitInU32, int_location);
+                        0
+                    });
                     return (Visibility::CallData(id), location);
                 } else {
                     self.expected_label(ParsingRuleLabel::Integer);
@@ -324,7 +335,10 @@ impl Parser<'_> {
         (Visibility::Private, self.location_at_previous_token_end())
     }
 
-    fn validate_attributes(&mut self, attributes: Vec<(Attribute, Location)>) -> Attributes {
+    pub(super) fn validate_attributes(
+        &mut self,
+        attributes: Vec<(Attribute, Location)>,
+    ) -> Attributes {
         let mut function = None;
         let mut secondary = Vec::new();
 
@@ -368,17 +382,12 @@ fn empty_body() -> BlockExpression {
 
 #[cfg(test)]
 mod tests {
-    use insta::assert_snapshot;
-
     use crate::{
         ast::{ExpressionKind, ItemVisibility, NoirFunction, StatementKind},
         parse_program_with_dummy_file,
         parser::{
-            ItemKind, Parser, ParserErrorReason,
-            parser::tests::{
-                expect_no_errors, get_single_error, get_single_error_reason,
-                get_source_with_error_span,
-            },
+            ItemKind,
+            parser::tests::{check_errors, expect_no_errors},
         },
         shared::Visibility,
     };
@@ -460,6 +469,15 @@ mod tests {
     }
 
     #[test]
+    fn parse_function_with_argument_call_data_visibility_id_above_u32_max() {
+        let src = "
+        fn foo(x: call_data(4294967296) Field) {}
+                            ^^^^^^^^^^ `call_data` id must fit in a `u32`
+        ";
+        check_errors(src, |parser| parser.parse_program());
+    }
+
+    #[test]
     fn parse_function_return_type() {
         let src = "fn foo() -> Field {}";
         let noir_function = parse_function_no_error(src);
@@ -492,78 +510,77 @@ mod tests {
     fn parse_error_multiple_function_attributes_found() {
         let src = "
         #[foreign(foo)] #[oracle(bar)] fn foo() {}
-                        ^^^^^^^^^^^^^^
+                        ^^^^^^^^^^^^^^ Multiple primary attributes found. Only one function attribute is allowed per function
         ";
-        let (src, span) = get_source_with_error_span(src);
-        let (_, errors) = parse_program_with_dummy_file(&src);
-        let reason = get_single_error_reason(&errors, span);
-        assert!(matches!(reason, ParserErrorReason::MultipleFunctionAttributesFound));
+        check_errors(src, |parser| parser.parse_program());
     }
 
     #[test]
     fn parse_function_found_semicolon_instead_of_braces() {
         let src = "
         fn foo();
-                ^
+                ^ Expected a function body (`{ ... }`), not `;`
         ";
-        let (src, span) = get_source_with_error_span(src);
-        let (_, errors) = parse_program_with_dummy_file(&src);
-        let reason = get_single_error_reason(&errors, span);
-        assert!(matches!(reason, ParserErrorReason::ExpectedFunctionBody));
+        check_errors(src, |parser| parser.parse_program());
     }
 
     #[test]
     fn recovers_on_wrong_parameter_name() {
         let src = "
         fn foo(1 x: i32) {}
-               ^
+               ^ Expected a pattern but found '1'
         ";
-        let (src, span) = get_source_with_error_span(src);
-        let (module, errors) = parse_program_with_dummy_file(&src);
+        let module = check_errors(src, |parser| parser.parse_program());
         assert_eq!(module.items.len(), 1);
         let ItemKind::Function(noir_function) = &module.items[0].kind else {
             panic!("Expected function");
         };
         assert_eq!(noir_function.parameters().len(), 1);
-
-        let error = get_single_error(&errors, span);
-        assert_snapshot!(error.to_string(), @"Expected a pattern but found '1'");
     }
 
     #[test]
     fn recovers_on_missing_colon_after_parameter_name() {
         let src = "
         fn foo(x, y: i32) {}
-               ^^
+               ^^ Missing type for function parameter
         ";
-        let (src, span) = get_source_with_error_span(src);
-        let (module, errors) = parse_program_with_dummy_file(&src);
+        let module = check_errors(src, |parser| parser.parse_program());
         assert_eq!(module.items.len(), 1);
         let ItemKind::Function(noir_function) = &module.items[0].kind else {
             panic!("Expected function");
         };
         assert_eq!(noir_function.parameters().len(), 2);
+    }
 
-        let error = get_single_error(&errors, span);
-        assert!(error.to_string().contains("Missing type for function parameter"));
+    #[test]
+    fn recovers_on_missing_colon_before_parameter_type() {
+        let src = "
+        fn foo(x u64, y: i32) {}
+               ^^^^^ Expected a `:` between the parameter name and its type
+        ";
+        let mut module = check_errors(src, |parser| parser.parse_program());
+        assert_eq!(module.items.len(), 1);
+        let ItemKind::Function(noir_function) = module.items.remove(0).kind else {
+            panic!("Expected function");
+        };
+        let params = noir_function.parameters();
+        assert_eq!(params.len(), 2);
+        assert_eq!(params[0].typ.typ.to_string(), "u64");
+        assert_eq!(params[1].typ.typ.to_string(), "i32");
     }
 
     #[test]
     fn recovers_on_missing_type_after_parameter_colon() {
         let src = "
         fn foo(x: , y: i32) {}
-                  ^
+                  ^ Expected a type but found ','
         ";
-        let (src, span) = get_source_with_error_span(src);
-        let (module, errors) = parse_program_with_dummy_file(&src);
+        let module = check_errors(src, |parser| parser.parse_program());
         assert_eq!(module.items.len(), 1);
         let ItemKind::Function(noir_function) = &module.items[0].kind else {
             panic!("Expected function");
         };
         assert_eq!(noir_function.parameters().len(), 2);
-
-        let error = get_single_error(&errors, span);
-        assert_snapshot!(error.to_string(), @"Expected a type but found ','");
     }
 
     #[test]
@@ -579,24 +596,18 @@ mod tests {
     fn parse_function_without_parentheses() {
         let src = "
         fn foo {}
-           ^^^
+           ^^^ Missing parameters for function definition
         ";
-        let (src, span) = get_source_with_error_span(src);
-        let (_, errors) = parse_program_with_dummy_file(&src);
-        let reason = get_single_error_reason(&errors, span);
-        assert!(matches!(reason, ParserErrorReason::MissingParametersForFunctionDefinition));
+        check_errors(src, |parser| parser.parse_program());
     }
 
     #[test]
     fn parse_function_with_keyword_before_type() {
         let src = "
         fn foo(x: mut i32, y: i64) {}
-                  ^^^
+                  ^^^ Expected a type but found 'mut'
         ";
-        let (src, span) = get_source_with_error_span(src);
-        let (mut module, errors) = parse_program_with_dummy_file(&src);
-        let error = get_single_error(&errors, span);
-        assert_snapshot!(error.to_string(), @"Expected a type but found 'mut'");
+        let mut module = check_errors(src, |parser| parser.parse_program());
 
         assert_eq!(module.items.len(), 1);
         let item = module.items.remove(0);
@@ -654,69 +665,46 @@ mod tests {
         let src = "
         fn foo(
             /// Doc comment
+            ^^^^^^^^^^^^^^^ Documentation comments cannot be applied to function parameters
             x: Field,
         ) {}
         ";
-        let (_module, errors) = parse_program_with_dummy_file(src);
-        assert_eq!(errors.len(), 1);
-
-        let reason = errors[0].reason().unwrap();
-        assert_eq!(reason, &ParserErrorReason::DocCommentCannotBeAppliedToFunctionParameters);
+        check_errors(src, |parser| parser.parse_program());
     }
 
     #[test]
     fn errors_on_missing_function_braces_1() {
         let src = "
           fn foo() struct Foo {}
-                   ^^^^^^
+                   ^^^^^^ Unexpected 'struct', expected one of 'where', '{', '->'
           ";
-        let (src, span) = get_source_with_error_span(src);
-        let mut parser = Parser::for_str_with_dummy_file(&src);
-        let _ = parser.parse_program();
-
-        let error = get_single_error(&parser.errors, span);
-        assert_snapshot!(error.to_string(), @"Unexpected 'struct', expected one of 'where', '{', '->'");
+        check_errors(src, |parser| parser.parse_program());
     }
 
     #[test]
     fn errors_on_missing_function_braces_2() {
         let src = "
           fn foo() -> Field struct Foo {}
-                            ^^^^^^
+                            ^^^^^^ Unexpected 'struct', expected one of 'where', '{'
           ";
-        let (src, span) = get_source_with_error_span(src);
-        let mut parser = Parser::for_str_with_dummy_file(&src);
-        let _ = parser.parse_program();
-
-        let error = get_single_error(&parser.errors, span);
-        assert_snapshot!(error.to_string(), @"Unexpected 'struct', expected one of 'where', '{'");
+        check_errors(src, |parser| parser.parse_program());
     }
 
     #[test]
     fn errors_on_missing_function_braces_3() {
         let src = "
           fn foo<T>() -> Field where T: Trait struct Foo {}
-                                              ^^^^^^
+                                              ^^^^^^ Expected a '{' but found 'struct'
           ";
-        let (src, span) = get_source_with_error_span(src);
-        let mut parser = Parser::for_str_with_dummy_file(&src);
-        let _ = parser.parse_program();
-
-        let error = get_single_error(&parser.errors, span);
-        assert_snapshot!(error.to_string(), @"Expected a '{' but found 'struct'");
+        check_errors(src, |parser| parser.parse_program());
     }
 
     #[test]
     fn errors_on_missing_function_name() {
         let src = "
           fn () {}
-             ^
+             ^ Expected an identifier but found '('
           ";
-        let (src, span) = get_source_with_error_span(src);
-        let mut parser = Parser::for_str_with_dummy_file(&src);
-        let _ = parser.parse_program();
-
-        let error = get_single_error(&parser.errors, span);
-        assert_snapshot!(error.to_string(), @"Expected an identifier but found '('");
+        check_errors(src, |parser| parser.parse_program());
     }
 }

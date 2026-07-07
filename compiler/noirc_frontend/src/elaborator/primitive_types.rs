@@ -34,6 +34,7 @@ pub enum PrimitiveType {
     U32,
     U64,
     U128,
+    Location,
     Module,
     Quoted,
     Str,
@@ -55,6 +56,7 @@ impl PrimitiveType {
             "fmtstr" => Some(Self::Fmtstr),
             "Field" => Some(Self::Field),
             "FunctionDefinition" => Some(Self::FunctionDefinition),
+            "Location" => Some(Self::Location),
             "i8" => Some(Self::I8),
             "i16" => Some(Self::I16),
             "i32" => Some(Self::I32),
@@ -95,6 +97,7 @@ impl PrimitiveType {
             Self::U32 => Type::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo),
             Self::U64 => Type::Integer(Signedness::Unsigned, IntegerBitSize::SixtyFour),
             Self::U128 => Type::Integer(Signedness::Unsigned, IntegerBitSize::HundredTwentyEight),
+            Self::Location => Type::Quoted(QuotedType::Location),
             Self::Module => Type::Quoted(QuotedType::Module),
             Self::Quoted => Type::Quoted(QuotedType::Quoted),
             Self::Str => Type::String(Box::new(Type::Error)),
@@ -129,6 +132,7 @@ impl PrimitiveType {
             Type::Quoted(QuotedType::CtString) => Some(Self::CtString),
             Type::Quoted(QuotedType::Expr) => Some(Self::Expr),
             Type::Quoted(QuotedType::FunctionDefinition) => Some(Self::FunctionDefinition),
+            Type::Quoted(QuotedType::Location) => Some(Self::Location),
             Type::Quoted(QuotedType::Module) => Some(Self::Module),
             Type::Quoted(QuotedType::Quoted) => Some(Self::Quoted),
             Type::Quoted(QuotedType::TraitConstraint) => Some(Self::TraitConstraint),
@@ -161,6 +165,7 @@ impl PrimitiveType {
             | Self::Expr
             | Self::Fmtstr
             | Self::FunctionDefinition
+            | Self::Location
             | Self::Module
             | Self::Quoted
             | Self::Str
@@ -191,6 +196,7 @@ impl PrimitiveType {
             Self::U32 => "u32",
             Self::U64 => "u64",
             Self::U128 => "u128",
+            Self::Location => "Location",
             Self::Module => "Module",
             Self::Quoted => "Quoted",
             Self::Str => "str",
@@ -229,6 +235,7 @@ impl Elaborator<'_> {
             | PrimitiveType::U32
             | PrimitiveType::U64
             | PrimitiveType::U128
+            | PrimitiveType::Location
             | PrimitiveType::Module
             | PrimitiveType::Quoted
             | PrimitiveType::TraitConstraint
@@ -310,6 +317,7 @@ impl Elaborator<'_> {
             | PrimitiveType::U32
             | PrimitiveType::U64
             | PrimitiveType::U128
+            | PrimitiveType::Location
             | PrimitiveType::Module
             | PrimitiveType::Quoted
             | PrimitiveType::TraitConstraint

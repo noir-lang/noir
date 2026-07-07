@@ -27,6 +27,9 @@ pub struct GlobalInfo {
     pub location: Location,
     pub let_statement: StmtId,
     pub value: GlobalValue,
+    /// `true` if this global is the synthetic global a fieldless enum variant
+    /// (e.g. `Foo::Spam`) is lowered to, rather than a user-declared global.
+    pub is_enum_variant: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -71,6 +74,7 @@ impl NodeInterner {
             location,
             visibility,
             value: GlobalValue::Unresolved,
+            is_enum_variant: false,
         });
         self.global_attributes.insert(id, attributes);
         id
@@ -100,6 +104,12 @@ impl NodeInterner {
         &self.globals[global_id.0]
     }
 
+    /// Returns `true` if `global_id` is the synthetic global a fieldless enum variant
+    /// (e.g. `Foo::Spam`) is lowered to, as opposed to a user-declared global.
+    pub fn is_enum_variant_global(&self, global_id: GlobalId) -> bool {
+        self.get_global(global_id).is_enum_variant
+    }
+
     pub fn get_global_mut(&mut self, global_id: GlobalId) -> &mut GlobalInfo {
         &mut self.globals[global_id.0]
     }
@@ -126,7 +136,7 @@ impl NodeInterner {
         match def {
             Node::Statement(hir_stmt) => match hir_stmt {
                 HirStatement::Let(let_stmt) => Some(let_stmt.clone()),
-                HirStatement::Error => None,
+                HirStatement::Error | HirStatement::TraitAssociatedConstant => None,
                 _other => None,
             },
             _ => panic!("ice: all globals should correspond to a statement in the interner"),

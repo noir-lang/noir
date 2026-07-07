@@ -3,6 +3,7 @@
 use std::{borrow::Cow, rc::Rc, vec};
 
 use acvm::FieldElement;
+use fm::FileMap;
 use im::Vector;
 use iter_extended::{try_vecmap, vecmap};
 use noirc_errors::Location;
@@ -77,6 +78,7 @@ pub enum Value {
     Expr(Box<ExprValue>),
     TypedExpr(TypedExpr),
     UnresolvedType(UnresolvedTypeData),
+    Location(Location),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -199,6 +201,7 @@ impl Value {
             Value::TypedExpr(_) => Type::Quoted(QuotedType::TypedExpr),
             Value::UnresolvedType(_) => Type::Quoted(QuotedType::UnresolvedType),
             Value::CtString(_) => Type::Quoted(QuotedType::CtString),
+            Value::Location(_) => Type::Quoted(QuotedType::Location),
         })
     }
 
@@ -264,7 +267,6 @@ impl Value {
                 // block expression.
                 let mut statements = Vec::new();
                 let mut new_fragments = Vec::with_capacity(fragments.len());
-                let mut has_values = false;
                 let mut seen_names: HashSet<String> = HashSet::default();
                 for fragment in fragments.iter() {
                     let new_fragment = match fragment {
@@ -273,32 +275,34 @@ impl Value {
                         }
                         FormatStringFragment::Value { name, value } => {
                             // A name might be interpolated multiple times. In that case it will always
-                            // have the same value: we just need one `let` for it.
-                            if !seen_names.insert(name.clone()) {
-                                continue;
+                            // have the same value: we just need one `let` for it. We must still emit an
+                            // interpolation fragment per occurrence so the lowered format string keeps
+                            // the same number of captures as the source template.
+                            if seen_names.insert(name.clone()) {
+                                let expression =
+                                    value.clone().into_expression(elaborator, location)?;
+                                let let_statement = LetStatement {
+                                    pattern: Pattern::Identifier(Ident::new(
+                                        name.clone(),
+                                        location,
+                                    )),
+                                    r#type: None,
+                                    expression,
+                                    attributes: Vec::new(),
+                                    comptime: false,
+                                    is_global_let: false,
+                                };
+                                let statement =
+                                    Statement { kind: StatementKind::Let(let_statement), location };
+                                statements.push(statement);
                             }
-
-                            has_values = true;
-
-                            let expression = value.clone().into_expression(elaborator, location)?;
-                            let let_statement = LetStatement {
-                                pattern: Pattern::Identifier(Ident::new(name.clone(), location)),
-                                r#type: None,
-                                expression,
-                                attributes: Vec::new(),
-                                comptime: false,
-                                is_global_let: false,
-                            };
-                            let statement =
-                                Statement { kind: StatementKind::Let(let_statement), location };
-                            statements.push(statement);
                             FmtStrFragment::Interpolation(name.clone(), location)
                         }
                     };
                     new_fragments.push(new_fragment);
                 }
                 let fmtstr = Literal(FmtStr(new_fragments, length));
-                if has_values {
+                if !statements.is_empty() {
                     statements.push(Statement {
                         kind: StatementKind::Expression(Expression { kind: fmtstr, location }),
                         location,
@@ -356,7 +360,11 @@ impl Value {
                 }))
             }
             value @ Value::Enum(..) => {
-                let hir = value.into_runtime_hir_expression(elaborator.interner, location)?;
+                let hir = value.into_runtime_hir_expression(
+                    elaborator.interner,
+                    elaborator.files,
+                    location,
+                )?;
                 ExpressionKind::Resolved(hir)
             }
             Value::Array(elements, _) => {
@@ -394,7 +402,8 @@ impl Value {
                             .expect("there is at least one error");
                         let error = Box::new(error);
                         let rule = "an expression";
-                        let tokens = tokens_to_string(&tokens, elaborator.interner);
+                        let tokens =
+                            tokens_to_string(&tokens, elaborator.interner, elaborator.files);
                         Err(InterpreterError::FailedToParseMacro { error, tokens, rule, location })
                     }
                 };
@@ -405,7 +414,7 @@ impl Value {
                 // We first do whatever needs a reference to `expr` to avoid partially moving `self`.
                 if matches!(expr.as_ref(), ExprValue::Pattern(_)) {
                     let typ = Type::Quoted(QuotedType::Expr);
-                    let value = self.display(elaborator.interner).to_string();
+                    let value = self.display(elaborator.interner, elaborator.files).to_string();
                     return Err(InterpreterError::CannotInlineMacro { typ, value, location });
                 }
 
@@ -434,9 +443,10 @@ impl Value {
             | Value::Type(_)
             | Value::UnresolvedType(_)
             | Value::Closure(..)
-            | Value::ModuleDefinition(_) => {
+            | Value::ModuleDefinition(_)
+            | Value::Location(_) => {
                 let typ = self.get_type().into_owned();
-                let value = self.display(elaborator.interner).to_string();
+                let value = self.display(elaborator.interner, elaborator.files).to_string();
                 return Err(InterpreterError::CannotInlineMacro { typ, value, location });
             }
         };
@@ -471,11 +481,12 @@ impl Value {
 
     /// Lowers this compile-time value into a HIR expression to be used at runtime.
     /// This means that comptime-only types will panic.
-    /// This is similar to [Self::into_expression] but is used in some cases in the monomorphizer
+    /// This is similar to [`Self::into_expression`] but is used in some cases in the monomorphizer
     /// where code must already be in HIR.
     pub(crate) fn into_runtime_hir_expression(
         self,
         interner: &mut NodeInterner,
+        files: &FileMap,
         location: Location,
     ) -> IResult<ExprId> {
         let typ = self.get_type().into_owned();
@@ -495,8 +506,9 @@ impl Value {
                             new_fragments.push(FmtStrFragment::String(string.clone()));
                         }
                         FormatStringFragment::Value { name, value } => {
-                            let expr_id =
-                                value.clone().into_runtime_hir_expression(interner, location)?;
+                            let expr_id = value
+                                .clone()
+                                .into_runtime_hir_expression(interner, files, location)?;
                             captures.push(expr_id);
                             new_fragments
                                 .push(FmtStrFragment::Interpolation(name.clone(), location));
@@ -516,7 +528,7 @@ impl Value {
             }
             Value::Tuple(fields) => {
                 let fields = try_vecmap(fields, |field| {
-                    field.unwrap_or_clone().into_runtime_hir_expression(interner, location)
+                    field.unwrap_or_clone().into_runtime_hir_expression(interner, files, location)
                 })?;
                 HirExpression::Tuple(fields)
             }
@@ -534,8 +546,9 @@ impl Value {
                             "Expected struct value to have all fields set, missing field `{name}`"
                         );
                     };
-                    let field =
-                        field.unwrap_or_clone().into_runtime_hir_expression(interner, location)?;
+                    let field = field
+                        .unwrap_or_clone()
+                        .into_runtime_hir_expression(interner, files, location)?;
                     ordered_fields.push((Ident::new(name.clone(), location), field));
                 }
 
@@ -552,8 +565,9 @@ impl Value {
                     return Err(InterpreterError::NonEnumInConstructor { typ, location });
                 };
 
-                let arguments =
-                    try_vecmap(args, |arg| arg.into_runtime_hir_expression(interner, location))?;
+                let arguments = try_vecmap(args, |arg| {
+                    arg.into_runtime_hir_expression(interner, files, location)
+                })?;
 
                 HirExpression::EnumConstructor(HirEnumConstructorExpression {
                     r#type,
@@ -563,21 +577,34 @@ impl Value {
             }
             Value::Array(elements, _) => {
                 let elements = try_vecmap(elements, |element| {
-                    element.into_runtime_hir_expression(interner, location)
+                    element.into_runtime_hir_expression(interner, files, location)
                 })?;
                 HirExpression::Literal(HirLiteral::Array(HirArrayLiteral::Standard(elements)))
             }
             Value::Vector(elements, _) => {
                 let elements = try_vecmap(elements, |element| {
-                    element.into_runtime_hir_expression(interner, location)
+                    element.into_runtime_hir_expression(interner, files, location)
                 })?;
                 HirExpression::Literal(HirLiteral::Vector(HirArrayLiteral::Standard(elements)))
             }
-            Value::Closure(closure) => HirExpression::Lambda(closure.lambda.clone()),
-            // Only convert pointers with auto_deref = true. These are mutable variables
-            // and we don't need to wrap them in `&mut`.
+            Value::Closure(closure) => {
+                // Captures would point at interpreter-only locals that don't exist at runtime.
+                if closure.lambda.captures.is_empty() {
+                    HirExpression::Lambda(closure.lambda.clone())
+                } else {
+                    let value = Value::Closure(closure).display(interner, files).to_string();
+                    return Err(InterpreterError::CannotInlineMacro { value, typ, location });
+                }
+            }
+            // An auto-deref pointer (the second flag) stands in for a variable that is
+            // transparently dereferenced on use, so we convert the pointed-to value directly
+            // rather than wrapping it in `&mut`. The mutability flag is irrelevant here:
+            // auto-deref pointers are produced for both mutable and immutable bindings
+            // (e.g. indexing an immutable array yields an immutable auto-deref pointer).
             Value::Pointer(element, true, _) => {
-                return element.unwrap_or_clone().into_runtime_hir_expression(interner, location);
+                return element
+                    .unwrap_or_clone()
+                    .into_runtime_hir_expression(interner, files, location);
             }
             Value::CtString(..)
             | Value::Quoted(..)
@@ -592,9 +619,10 @@ impl Value {
             | Value::Zeroed(_)
             | Value::Type(_)
             | Value::UnresolvedType(_)
-            | Value::ModuleDefinition(_) => {
+            | Value::ModuleDefinition(_)
+            | Value::Location(_) => {
                 let typ = self.get_type().into_owned();
-                let value = self.display(interner).to_string();
+                let value = self.display(interner, files).to_string();
                 return Err(InterpreterError::CannotInlineMacro { value, typ, location });
             }
         };
@@ -610,6 +638,7 @@ impl Value {
     pub(crate) fn into_tokens(
         self,
         interner: &mut NodeInterner,
+        files: &FileMap,
         location: Location,
     ) -> IResult<Vec<LocatedToken>> {
         let tokens: Vec<Token> = match self {
@@ -674,11 +703,13 @@ impl Value {
             }
             Value::FormatString(fragments, _, _) => {
                 // When a fmtstr is unquoted, we turn it into a normal string by evaluating the interpolations
-                let string = fragments_to_string(&fragments, interner);
+                let string = fragments_to_string(&fragments, interner, files);
                 vec![Token::Str(string)]
             }
             other => {
-                vec![Token::UnquoteMarker(other.into_runtime_hir_expression(interner, location)?)]
+                vec![Token::UnquoteMarker(
+                    other.into_runtime_hir_expression(interner, files, location)?,
+                )]
             }
         };
         let tokens = vecmap(tokens, |token| LocatedToken::new(token, location));
@@ -722,7 +753,8 @@ impl Value {
             | Value::Zeroed(_)
             | Value::Expr(_)
             | Value::TypedExpr(_)
-            | Value::UnresolvedType(_) => false,
+            | Value::UnresolvedType(_)
+            | Value::Location(_) => false,
         }
     }
 
@@ -733,7 +765,7 @@ impl Value {
         }
     }
 
-    /// Similar to [Self::into_expression] or [Self::into_runtime_hir_expression] but for converting
+    /// Similar to [`Self::into_expression`] or [`Self::into_runtime_hir_expression`] but for converting
     /// into top-level item(s). Unlike those other methods, most expressions are invalid
     /// as top-level items (e.g. a lone `3` is not a valid top-level statement). As a result,
     /// this method is significantly simpler because we only have to parse `Quoted` values
@@ -746,11 +778,11 @@ impl Value {
         let parser = Parser::parse_top_level_items;
         match self {
             Value::Quoted(tokens) => {
-                parse_tokens(tokens, elaborator, parser, location, "top-level item")
+                parse_tokens(&tokens, elaborator, parser, location, "top-level item")
             }
             _ => {
                 let typ = self.get_type().into_owned();
-                let value = self.display(elaborator.interner).to_string();
+                let value = self.display(elaborator.interner, elaborator.files).to_string();
                 Err(InterpreterError::CannotInlineMacro { value, typ, location })
             }
         }
@@ -785,9 +817,9 @@ pub(crate) fn unwrap_rc<T: Clone>(rc: Rc<T>) -> T {
 
 /// Helper to parse the given tokens using the given parse function.
 ///
-/// If they fail to parse, [InterpreterError::FailedToParseMacro] is returned.
+/// If they fail to parse, [`InterpreterError::FailedToParseMacro`] is returned.
 fn parse_tokens<'a, T, F>(
-    tokens: Rc<Vec<LocatedToken>>,
+    tokens: &Rc<Vec<LocatedToken>>,
     elaborator: &mut Elaborator,
     parsing_function: F,
     location: Location,
@@ -808,7 +840,7 @@ where
         Err(errors) => {
             let error = errors.into_iter().find(|error| !error.is_warning()).unwrap();
             let error = Box::new(error);
-            let tokens = tokens_to_string(&tokens, elaborator.interner);
+            let tokens = tokens_to_string(tokens, elaborator.interner, elaborator.files);
             Err(InterpreterError::FailedToParseMacro { error, tokens, rule, location })
         }
     }

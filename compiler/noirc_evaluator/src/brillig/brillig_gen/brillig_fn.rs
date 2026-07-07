@@ -29,7 +29,7 @@ use super::{
 #[derive(Default)]
 pub(crate) struct FunctionContext {
     /// A `FunctionContext` is necessary for using a Brillig block's code gen, but sometimes
-    /// such as with globals, we are not within a function and do not have a [FunctionId].
+    /// such as with globals, we are not within a function and do not have a [`FunctionId`].
     function_id: Option<FunctionId>,
     /// Map from SSA values its allocation. Since values can be only defined once in SSA form,
     /// we insert them here on when we allocate them at their definition.
@@ -50,8 +50,6 @@ pub(crate) struct FunctionContext {
     pub(crate) liveness: VariableLiveness,
     /// Information on where to allocate constants
     pub(crate) constant_allocation: ConstantAllocation,
-    /// True if this function is a brillig entry point
-    pub(crate) is_entry_point: bool,
     /// Manages spilling of register values to the heap spill region when register pressure
     /// exceeds the stack frame limit. Persists across blocks so spill state is not lost.
     /// Present only when the function may need spilling (based on liveness analysis).
@@ -65,23 +63,20 @@ impl FunctionContext {
     /// Safety margin added to `max_live_count` when deciding whether a function needs
     /// spill infrastructure.
     ///
-    /// `max_live_count` is an SSA-level lower bound on actual Brillig register pressure.
-    /// Codegen inflates pressure beyond the SSA estimate in several ways:
-    /// - Temporary/scratch registers for address computation and intermediates
-    /// - Constant materialization into registers at use sites
-    /// - Call setup shuffling arguments/returns into contiguous register windows
-    /// - Instruction-specific expansions (e.g. MakeArray element loads)
-    ///
-    /// This margin is a conservative buffer so that functions close to the frame limit
-    /// still get spill support. It can be tuned if it proves too aggressive or too
-    /// conservative in practice.
+    /// Margin that account for temporary registers added by the code-gen on top
+    /// of the registers corresponding to SSA values.
+    /// This allows use to estimate conservatively the maximum number of live registers,
+    /// by using `max_live_count` with a margin.
+    /// `max_live_count` account for the SSA values, but also the additional ones
+    /// required by various instructions.
+    /// However some registers are not taken into account, such as parallel-move at block boundaries
+    /// or on-demand constants. So `max_live_count` is a lower bound on actual Brillig register pressure.
+    /// These registers are typically a few, so the margin is conservative and comfortable, so that
+    /// functions close to the frame limit still get spill support.
+    /// It can be tuned if it proves too aggressive or too conservative in practice.
     const SPILL_MARGIN: usize = 32;
 
-    pub(crate) fn new(
-        function: &Function,
-        is_entry_point: bool,
-        max_stack_frame_size: usize,
-    ) -> Self {
+    pub(crate) fn new(function: &Function, max_stack_frame_size: usize) -> Self {
         let id = function.id();
 
         let post_order = PostOrder::with_function(function).into_vec();
@@ -105,7 +100,6 @@ impl FunctionContext {
             ssa_value_allocations: HashMap::default(),
             blocks: post_order,
             liveness,
-            is_entry_point,
             constant_allocation: constants,
             spill_manager,
             coalescing,
@@ -147,7 +141,7 @@ impl FunctionContext {
             .collect()
     }
 
-    /// Converts an SSA [Type] into a corresponding [BrilligParameter].
+    /// Converts an SSA [Type] into a corresponding [`BrilligParameter`].
     ///
     /// This conversion defines the calling convention for Brillig functions,
     /// ensuring that SSA values are correctly mapped to memory layouts understood by the VM.

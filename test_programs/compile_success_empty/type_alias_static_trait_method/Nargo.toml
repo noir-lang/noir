@@ -1,0 +1,6 @@
+[package]
+name = "type_alias_static_trait_method"
+type = "bin"
+authors = [""]
+
+[dependencies]

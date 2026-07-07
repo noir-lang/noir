@@ -177,10 +177,10 @@ pub unconstrained fn find_index_hint<T, let N: u32, Env>(
     index
 }
 
-pub unconstrained fn array_to_bounded_vec<T, let N: u32>(array: [T; N]) -> BoundedVec<T, N>
+pub unconstrained fn array_to_bounded_vec<T, let N: u32>(mut array: [T; N]) -> BoundedVec<T, N>
 where
     T: Empty + Eq,
 {
     let len = array_length(array);
-    BoundedVec::from_parts_unchecked(array, len)
+    BoundedVec::from_parts(array, len)
 }

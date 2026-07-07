@@ -18,8 +18,6 @@ use noirc_frontend::hir_def::types::Type as HirType;
 use noirc_frontend::monomorphization::ast::{self, Expression, MatchCase, Program, While};
 use noirc_frontend::shared::Visibility;
 
-use acvm::acir::BlackBoxFunc;
-
 use crate::ssa::opt::pure::Purity;
 use crate::{
     errors::RuntimeError,
@@ -35,6 +33,7 @@ use super::ir::basic_block::BasicBlockId;
 use super::ir::dfg::GlobalsGraph;
 use super::ir::instruction::ErrorType;
 use super::ir::types::NumericType;
+use super::should_show_invalid_ssa;
 use super::validation::validate_function;
 use super::{
     function_builder::data_bus::DataBus,
@@ -45,8 +44,6 @@ use super::{
         value::ValueId,
     },
 };
-
-pub(crate) const SHOW_INVALID_SSA_ENV_KEY: &str = "NOIR_SHOW_INVALID_SSA";
 
 pub(crate) const SSA_WORD_SIZE: u32 = 32;
 
@@ -139,21 +136,24 @@ pub fn generate_ssa(program: Program) -> Result<Ssa, RuntimeError> {
 
     let ssa = function_context.builder.finish();
 
-    validate_ssa_or_err(ssa)
+    validate_ssa_or_err(ssa, true)
 }
 
-/// Run the panicky validation, and try to turn it into a [RuntimeError] if it fails.
-fn validate_ssa_or_err(ssa: Ssa) -> Result<Ssa, RuntimeError> {
+/// Run the panicky validation, and try to turn it into a [`RuntimeError`] if it fails.
+///
+/// On failure the SSA is printed when the `NOIR_SHOW_INVALID_SSA` env var is set.
+pub fn validate_ssa_or_err(ssa: Ssa, full: bool) -> Result<Ssa, RuntimeError> {
     // Temporarily take the hook, so we don't get the panic printout.
     let old_hook = std::panic::take_hook();
     std::panic::set_hook(Box::new(|_info| {}));
-    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| validate_ssa(&ssa)));
+    let result =
+        std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| validate_ssa(&ssa, full)));
     std::panic::set_hook(old_hook);
 
     if let Err(payload) = result {
         // Print the SSA, but it's potentially massive, and if we resume the unwind it might be displayed
         // under the panic message, which makes it difficult to see what went wrong.
-        if std::env::var(SHOW_INVALID_SSA_ENV_KEY).is_ok() {
+        if should_show_invalid_ssa() {
             eprintln!("--- The SSA failed to validate:\n{ssa}\n");
         }
 
@@ -172,9 +172,9 @@ fn validate_ssa_or_err(ssa: Ssa) -> Result<Ssa, RuntimeError> {
     }
 }
 
-pub fn validate_ssa(ssa: &Ssa) {
+pub fn validate_ssa(ssa: &Ssa, full: bool) {
     for function in ssa.functions.values() {
-        validate_function(function, ssa);
+        validate_function(function, ssa, full);
     }
 }
 
@@ -228,7 +228,7 @@ impl FunctionContext<'_> {
     }
 
     /// Codegen a reference to an ident.
-    /// The only difference between this and codegen_ident is that if the variable is mutable
+    /// The only difference between this and `codegen_ident` is that if the variable is mutable
     /// as in `let mut var = ...;` the `Value::Mutable` will be returned directly instead of
     /// being automatically loaded from. This is needed when taking the reference of a variable
     /// to reassign to it. Note that mutable references `let x = &mut ...;` do not require this
@@ -238,7 +238,9 @@ impl FunctionContext<'_> {
             ast::Definition::Local(id) => self.lookup(*id),
             ast::Definition::Global(id) => self.lookup_global(*id),
             ast::Definition::Function(id) => self.get_or_queue_function(*id),
-            ast::Definition::Oracle(name) => self.builder.import_foreign_function(name).into(),
+            ast::Definition::Oracle { name, pure } => {
+                self.builder.import_foreign_function(name, *pure).into()
+            }
             ast::Definition::Builtin(name) | ast::Definition::LowLevel(name) => {
                 match self.builder.import_intrinsic(name) {
                     Some(builtin) => builtin.into(),
@@ -478,6 +480,19 @@ impl FunctionContext<'_> {
                 let tuple = self.codegen_reference(tuple)?;
                 Ok(Self::get_field(tuple, *index))
             }
+            // `&mut (*x)` is just `x`. Wrapping as `Value::Mutable` signals to
+            // the surrounding `UnaryOp::Reference` handler that these are already addresses,
+            // so it returns them directly instead of allocating a fresh temporary copy.
+            Expression::Unary(unary)
+                if matches!(unary.operator, UnaryOp::Dereference { .. }) && !unary.skip =>
+            {
+                let references = self.codegen_expression(&unary.rhs)?;
+                let element_types = Self::convert_type(&unary.result_type);
+                Ok(references.map_both(element_types, |value, element_type| {
+                    let reference = value.eval_reference();
+                    Tree::Leaf(value::Value::Mutable(reference, element_type))
+                }))
+            }
             other => self.codegen_expression(other),
         }
     }
@@ -510,10 +525,10 @@ impl FunctionContext<'_> {
         )
     }
 
-    /// This is broken off from codegen_index so that it can also be
-    /// used to codegen a LValue::Index.
+    /// This is broken off from `codegen_index` so that it can also be
+    /// used to codegen a `LValue::Index`.
     ///
-    /// Set load_result to true to load from each relevant index of the array
+    /// Set `load_result` to true to load from each relevant index of the array
     /// (it may be multiple in the case of tuples). Set it to false to instead
     /// return a reference to each element, for use with the store instruction.
     fn codegen_array_index(
@@ -538,14 +553,20 @@ impl FunctionContext<'_> {
         // Checks for index Out-of-bounds
         match array_type {
             Type::Array(_, len) => {
-                // Out of bounds array accesses are guaranteed to fail in ACIR so this check is performed implicitly,
-                // except when the inner elements have no size, because the array access can be optimized out in that case.
-                // We then only need to inject it for brillig functions or for 'unit' elements.
-                if runtime.is_brillig() || type_size_usize == 0 {
+                if context::array_index_needs_explicit_oob_check(runtime, array_type) {
+                    let logical_len = len.0;
+                    // For a composite element type, ACIR's implicit memory op check reports the
+                    // flattened index and size. Attach a dynamic error carrying the logical index
+                    // and length so the reported message matches what the user wrote.
+                    let dynamic_error = if runtime.is_acir() && array_type.element_size().0 > 1 {
+                        Some(self.out_of_bounds_error(index, logical_len))
+                    } else {
+                        None
+                    };
                     let len = self
                         .builder
-                        .numeric_constant(u128::from(len.0), NumericType::length_type());
-                    self.codegen_access_check(index, len);
+                        .numeric_constant(u128::from(logical_len), NumericType::length_type());
+                    self.codegen_access_check(index, len, dynamic_error);
                 }
             }
             Type::Vector(_) => {
@@ -554,6 +575,7 @@ impl FunctionContext<'_> {
                 self.codegen_access_check(
                     index,
                     length.expect("ICE: a length must be supplied for checking index"),
+                    None,
                 );
             }
 
@@ -586,11 +608,19 @@ impl FunctionContext<'_> {
     /// Prepare an array or vector access.
     /// Check that the index being used to access an array/vector element
     /// is less than the (potentially dynamic) array/vector length.
-    fn codegen_access_check(&mut self, index: ValueId, length: ValueId) {
+    ///
+    /// When `dynamic_error` is `Some`, that error is used as the failure message and the
+    /// range-check optimization is skipped (a range-check opcode can only carry a static
+    /// message). Otherwise a static `"Index out of bounds"` message is used.
+    fn codegen_access_check(
+        &mut self,
+        index: ValueId,
+        length: ValueId,
+        dynamic_error: Option<ConstrainError>,
+    ) {
         let index = self.make_array_index(index);
         // We convert the length as an array index type for comparison
         let array_len = self.make_array_index(length);
-        let assert_message = Some("Index out of bounds".to_owned());
 
         let array_len_constant = self
             .builder
@@ -601,7 +631,10 @@ impl FunctionContext<'_> {
 
         // This optimization seems to cause regressions in brillig so we restrict it to ACIR.
         let runtime = self.builder.current_function.runtime();
-        if runtime.is_acir() && array_len_constant.is_some_and(u32::is_power_of_two) {
+        if dynamic_error.is_none()
+            && runtime.is_acir()
+            && array_len_constant.is_some_and(u32::is_power_of_two)
+        {
             // If the array length is a power of two then we can make use of the range check opcode
             // to assert that the index fits in the relevant number of bits.
             let array_len_constant = array_len_constant.expect("array checked to be constant");
@@ -610,19 +643,53 @@ impl FunctionContext<'_> {
             // TODO(https://github.com/noir-lang/noir/issues/9191): this cast results in better circuit generation.
             // There's an optimization here that we should find automatically.
             let index_as_field = self.builder.insert_cast(index, NumericType::NativeField);
-            self.builder.insert_range_check(index_as_field, array_len_bits, assert_message);
+            self.builder.insert_range_check(
+                index_as_field,
+                array_len_bits,
+                Some("Index out of bounds".to_owned()),
+            );
         } else {
             // If it's not a power of two then we need to do an explicit inequality and constraint.
             let is_offset_out_of_bounds =
                 self.builder.insert_binary(index, BinaryOp::Lt, array_len);
             let true_const = self.builder.numeric_constant(true, NumericType::bool());
+            let error = dynamic_error
+                .unwrap_or_else(|| ConstrainError::from("Index out of bounds".to_owned()));
 
-            self.builder.insert_constrain(
-                is_offset_out_of_bounds,
-                true_const,
-                assert_message.map(ConstrainError::from),
-            );
+            self.builder.insert_constrain(is_offset_out_of_bounds, true_const, Some(error));
         }
+    }
+
+    /// Build a dynamic (format-string) assertion error that renders as
+    /// `Index out of bounds, array has size <array_len>, but index was <index>`, where `index`
+    /// is a runtime value and `array_len` is the logical array length (a compile-time constant).
+    ///
+    /// This matches the message ACVM produces for simple (non-composite) arrays, but reports the
+    /// logical index and length rather than the flattened memory coordinates.
+    fn out_of_bounds_error(&mut self, index: ValueId, array_len: u32) -> ConstrainError {
+        // The template holds a single `{}` interpolation for the runtime index; the logical length
+        // is a compile-time constant so it is baked directly into the static text.
+        let template =
+            format!("Index out of bounds, array has size {array_len}, but index was {{}}");
+        let template_len = template.len() as u32;
+
+        // A format string is represented by the message string, the number of fields to be
+        // formatted, and then the fields themselves.
+        let string = self.codegen_string(template.as_bytes());
+        let field_count = self.builder.numeric_constant(1_u128, NumericType::NativeField);
+        // Render the index as the array-index type (u32) to match the `HirType::u32()` field below.
+        let index = self.make_array_index(index);
+        let values =
+            Tree::Branch(vec![string, field_count.into(), index.into()]).into_value_list(self);
+
+        let hir_type = HirType::FmtString(
+            Box::new(HirType::constant_u32(template_len)),
+            Box::new(HirType::Tuple(vec![HirType::u32()])),
+        );
+        let selector = ErrorType::Dynamic(hir_type.clone()).selector();
+        self.builder.record_error_type(selector, hir_type);
+
+        ConstrainError::Dynamic(selector, false, values)
     }
 
     fn codegen_cast(&mut self, cast: &ast::Cast) -> Result<Values, RuntimeError> {
@@ -701,7 +768,13 @@ impl FunctionContext<'_> {
             };
             let max_value = if bit_size == 128 { u128::MAX } else { (1u128 << bit_size) - 1 };
 
-            if end_constant.into_numeric_constant().0.to_u128() < max_value {
+            // Compare against the type's maximum using the *signed-aware* value: a negative
+            // signed `end` round-tripped through `to_u128` would look huge and wrongly fail
+            // this check, forcing an unnecessary final-iteration peel. `max_value` is the
+            // type's max (`2^(bit_size-1) - 1` for signed), which always fits in `i128`.
+            let end_below_max = end_constant
+                .apply(|signed| signed < max_value as i128, |unsigned| unsigned < max_value);
+            if end_below_max {
                 let end_constant_plus_one = end_constant.inc().expect(
                     "Expected to be able to increment end_constant as it's less than max_value",
                 );
@@ -1190,11 +1263,11 @@ impl FunctionContext<'_> {
     /// representation of an enum is:
     ///
     /// (
-    ///   tag_value,
-    ///   (field0_0, .. field0_N), // fields of variant 0,
-    ///   (field1_0, .. field1_N), // fields of variant 1,
+    ///   `tag_value`,
+    ///   (`field0_0`, .. `field0_N`), // fields of variant 0,
+    ///   (`field1_0`, .. `field1_N`), // fields of variant 1,
     ///   ..,
-    ///   (fieldM_0, .. fieldM_N), // fields of variant N,
+    ///   (`fieldM_0`, .. `fieldM_N`), // fields of variant N,
     /// )
     fn bind_case_arguments(&mut self, enum_value: Values, case: &MatchCase) {
         if !case.arguments.is_empty() {
@@ -1277,8 +1350,13 @@ impl FunctionContext<'_> {
         let function = self.codegen_non_tuple_expression(&call.func)?;
         let mut arguments = Vec::with_capacity(call.arguments.len());
 
-        // Do we know that the callee won't modify its arguments? Foreign calls only read their inputs.
-        let can_modify_args = !is_pure_builtin_func(&call.func) && !is_oracle_func(&call.func);
+        // Do we know that the callee won't modify its arguments? Foreign calls only read their
+        // inputs, and the same property propagates through thin wrappers that only forward to
+        // a foreign call (e.g. `println` -> `print_unconstrained` -> `print` oracle).
+        let program = &self.shared_context.program;
+        let can_modify_args = !is_pure_builtin_func(&call.func)
+            && !is_oracle_func(&call.func)
+            && !is_oracle_wrapper(&call.func, program);
 
         for argument in &call.arguments {
             // The ownership pass inserts `Clone` around call arguments, however if we know that
@@ -1298,146 +1376,54 @@ impl FunctionContext<'_> {
 
         self.codegen_intrinsic_call_checks(function, &arguments, call.location);
 
-        // EC blackbox functions expect 3-field points (x, y, is_infinite) but the Noir types
-        // only have 2 fields (x, y). Expand the arguments and strip the result here so the
-        // rest of the SSA pipeline sees the 3-field representation.
-        if let Some(Intrinsic::BlackBox(bb_func)) = self.builder.get_intrinsic_from_value(function)
-        {
-            match bb_func {
-                BlackBoxFunc::MultiScalarMul => {
-                    return Ok(self.codegen_msm_call(function, arguments, call.location));
+        let result = self.insert_call(function, arguments, &call.return_type, call.location);
+        self.codegen_intrinsic_inc_rc_results(function, &call.return_type, &result);
+        Ok(result)
+    }
+
+    /// For vector intrinsics that hand back an element extracted from the source vector
+    /// (`pop_front`, `pop_back`, `remove`), bump the reference count of any array- or
+    /// vector-typed element value. The intrinsic's returned tuple component for the new
+    /// (post-pop) vector is skipped: it is a distinct result, not an alias of the source.
+    ///
+    /// Without this bump the popped element shares its underlying memory with the source
+    /// vector, so a mutation through it would also mutate the source — breaking the
+    /// copy-on-write invariant the rest of the pipeline relies on. The `ownership` pass
+    /// enforces the same invariant for plain `array[i]` accesses (see `handle_index`),
+    /// but it does not see through these intrinsic calls.
+    fn codegen_intrinsic_inc_rc_results(
+        &mut self,
+        function: ValueId,
+        return_type: &ast::Type,
+        result: &Values,
+    ) {
+        if self.builder.current_function.runtime().is_acir() {
+            return;
+        }
+        let Some(intrinsic) = self.builder.get_intrinsic_from_value(function) else {
+            return;
+        };
+        if !matches!(
+            intrinsic,
+            Intrinsic::VectorPopFront | Intrinsic::VectorPopBack | Intrinsic::VectorRemove
+        ) {
+            return;
+        }
+        // All of these vector operations return either ([T], T) or (T, [T])
+        let (ast::Type::Tuple(types), Tree::Branch(value_trees)) = (return_type, result) else {
+            return;
+        };
+        // We are looking for the T in the tuple, ignoring the [T].
+        for (ty, subtree) in types.iter().zip_eq(value_trees.iter()) {
+            if matches!(ty, ast::Type::Vector(_)) {
+                continue;
+            }
+            for value in subtree.clone().into_value_list(self) {
+                if self.builder.type_of_value(value).is_array() {
+                    self.builder.insert_inc_rc(value);
                 }
-                BlackBoxFunc::EmbeddedCurveAdd => {
-                    return Ok(self.codegen_ec_add_call(function, arguments, call.location));
-                }
-                _ => {}
             }
         }
-
-        Ok(self.insert_call(function, arguments, &call.return_type, call.location))
-    }
-
-    /// Generate SSA for a `multi_scalar_mul` blackbox call.
-    ///
-    /// Expands the 2-field points array `[(Field, Field); N]` to 3-field
-    /// `[(Field, Field, u1); N]` by computing `is_infinite = (x == 0) & (y == 0)`,
-    /// then strips `is_infinite` from the 3-field result.
-    fn codegen_msm_call(
-        &mut self,
-        function: ValueId,
-        arguments: Vec<ValueId>,
-        location: Location,
-    ) -> Values {
-        // arguments: [points_array, scalars_array, predicate]
-        // points_array is [(Field, Field); N] — we need [(Field, Field, u1); N]
-        let points_array = arguments[0];
-        let points_type = self.builder.current_function.dfg.type_of_value(points_array);
-
-        let n = match &*points_type {
-            Type::Array(_, len) => len.0,
-            _ => unreachable!("ICE: MSM points argument must be an array"),
-        };
-
-        let zero = self.builder.field_constant(0u128);
-
-        // Build expanded points array with is_infinite for each point
-        let mut expanded_elements = im::Vector::new();
-        for i in 0..n {
-            let idx_x = self.builder.length_constant(u128::from(i) * 2);
-            let idx_y = self.builder.length_constant(u128::from(i) * 2 + 1);
-            let x = self.builder.insert_array_get(points_array, idx_x, Type::field());
-            let y = self.builder.insert_array_get(points_array, idx_y, Type::field());
-
-            let x_is_zero = self.builder.insert_binary(x, BinaryOp::Eq, zero);
-            let y_is_zero = self.builder.insert_binary(y, BinaryOp::Eq, zero);
-            let is_infinite =
-                self.builder.insert_binary(x_is_zero, BinaryOp::Mul { unchecked: true }, y_is_zero);
-
-            expanded_elements.push_back(x);
-            expanded_elements.push_back(y);
-            expanded_elements.push_back(is_infinite);
-        }
-
-        let expanded_type = Type::Array(
-            std::sync::Arc::new(vec![Type::field(), Type::field(), Type::bool()]),
-            acvm::acir::brillig::lengths::SemanticLength(n),
-        );
-        let expanded_points = self.builder.insert_make_array(expanded_elements, expanded_type);
-
-        // Call with expanded points; result type is [(Field, Field, u1); 1]
-        let result_types = vec![Type::Array(
-            std::sync::Arc::new(vec![Type::field(), Type::field(), Type::bool()]),
-            acvm::acir::brillig::lengths::SemanticLength(1),
-        )];
-        let call_args = vec![expanded_points, arguments[1], arguments[2]];
-        let results =
-            self.builder.set_location(location).insert_call(function, call_args, result_types);
-        let result_with_inf = results[0];
-
-        // Extract x, y from the 3-field result and build a 2-field result
-        let idx_0 = self.builder.length_constant(0u128);
-        let idx_1 = self.builder.length_constant(1u128);
-        let result_x = self.builder.insert_array_get(result_with_inf, idx_0, Type::field());
-        let result_y = self.builder.insert_array_get(result_with_inf, idx_1, Type::field());
-
-        let result_type = Type::Array(
-            std::sync::Arc::new(vec![Type::field(), Type::field()]),
-            acvm::acir::brillig::lengths::SemanticLength(1),
-        );
-        let result = self.builder.insert_make_array(im::vector![result_x, result_y], result_type);
-        result.into()
-    }
-
-    /// Generate SSA for an `embedded_curve_add` blackbox call.
-    ///
-    /// Expands from 5 arguments `(x1, y1, x2, y2, predicate)` to 7 arguments
-    /// `(x1, y1, is_inf1, x2, y2, is_inf2, predicate)` by computing `is_infinite`,
-    /// then strips `is_infinite` from the 3-field result.
-    fn codegen_ec_add_call(
-        &mut self,
-        function: ValueId,
-        arguments: Vec<ValueId>,
-        location: Location,
-    ) -> Values {
-        // arguments: [x1, y1, x2, y2, predicate]
-        let (x1, y1, x2, y2, predicate) =
-            (arguments[0], arguments[1], arguments[2], arguments[3], arguments[4]);
-
-        let zero = self.builder.field_constant(0u128);
-
-        // Compute is_infinite for each point
-        let x1_is_zero = self.builder.insert_binary(x1, BinaryOp::Eq, zero);
-        let y1_is_zero = self.builder.insert_binary(y1, BinaryOp::Eq, zero);
-        let is_inf1 =
-            self.builder.insert_binary(x1_is_zero, BinaryOp::Mul { unchecked: true }, y1_is_zero);
-
-        let x2_is_zero = self.builder.insert_binary(x2, BinaryOp::Eq, zero);
-        let y2_is_zero = self.builder.insert_binary(y2, BinaryOp::Eq, zero);
-        let is_inf2 =
-            self.builder.insert_binary(x2_is_zero, BinaryOp::Mul { unchecked: true }, y2_is_zero);
-
-        // Call with expanded arguments; result type is [(Field, Field, u1); 1]
-        let result_types = vec![Type::Array(
-            std::sync::Arc::new(vec![Type::field(), Type::field(), Type::bool()]),
-            acvm::acir::brillig::lengths::SemanticLength(1),
-        )];
-        let call_args = vec![x1, y1, is_inf1, x2, y2, is_inf2, predicate];
-        let results =
-            self.builder.set_location(location).insert_call(function, call_args, result_types);
-        let result_with_inf = results[0];
-
-        // Extract x, y from the 3-field result and build a 2-field result
-        let idx_0 = self.builder.length_constant(0u128);
-        let idx_1 = self.builder.length_constant(1u128);
-        let result_x = self.builder.insert_array_get(result_with_inf, idx_0, Type::field());
-        let result_y = self.builder.insert_array_get(result_with_inf, idx_1, Type::field());
-
-        let result_type = Type::Array(
-            std::sync::Arc::new(vec![Type::field(), Type::field()]),
-            acvm::acir::brillig::lengths::SemanticLength(1),
-        );
-        let result = self.builder.insert_make_array(im::vector![result_x, result_y], result_type);
-        result.into()
     }
 
     fn codegen_intrinsic_call_checks(
@@ -1462,10 +1448,10 @@ impl FunctionContext<'_> {
                         one,
                     );
 
-                    self.codegen_access_check(arguments[2], len_plus_one);
+                    self.codegen_access_check(arguments[2], len_plus_one, None);
                 }
                 Intrinsic::VectorRemove => {
-                    self.codegen_access_check(arguments[2], arguments[0]);
+                    self.codegen_access_check(arguments[2], arguments[0], None);
                 }
                 Intrinsic::VectorPopFront | Intrinsic::VectorPopBack
                     if self.builder.current_function.runtime().is_brillig() =>
@@ -1479,7 +1465,7 @@ impl FunctionContext<'_> {
                     // By doing this in the SSA we might be able to optimize this away later.
                     let zero =
                         self.builder.numeric_constant(0u32, NumericType::Unsigned { bit_size: 32 });
-                    self.codegen_access_check(zero, arguments[0]);
+                    self.codegen_access_check(zero, arguments[0], None);
                 }
                 _ => {
                     // Do nothing as the other intrinsics do not require checks
@@ -1490,7 +1476,7 @@ impl FunctionContext<'_> {
 
     /// Generate SSA for the given variable.
     /// If the variable is immutable, no special handling is necessary and we can return the given
-    /// ValueId directly. If it is mutable, we'll need to allocate space for the value and store
+    /// `ValueId` directly. If it is mutable, we'll need to allocate space for the value and store
     /// the initial value before returning the allocate instruction.
     fn codegen_let(&mut self, let_expr: &ast::Let) -> Result<Values, RuntimeError> {
         let mut values = self.codegen_expression(&let_expr.expression)?;
@@ -1547,12 +1533,7 @@ impl FunctionContext<'_> {
             let selector = error_type.selector();
             let values = self.codegen_expression(assert_message_expression)?.into_value_list(self);
             let is_string_type = matches!(assert_message_typ, HirType::String(_));
-            // Record custom types in the builder, outside of SSA instructions
-            // This is made to avoid having Hir types in the SSA code.
-            if !is_string_type {
-                self.builder.record_error_type(selector, assert_message_typ.clone());
-            }
-
+            self.builder.record_error_type(selector, assert_message_typ.clone());
             Ok(Some(ConstrainError::Dynamic(selector, is_string_type, values)))
         }
     }
@@ -1644,12 +1625,10 @@ impl FunctionContext<'_> {
     }
 }
 
-/// Return whether the expression refers to a pure builtin or low level function
-/// that does not modify its array inputs.
-///
-/// Note: Vector operations like push_front/push_back are "pure" (no side effects)
-/// but they CAN modify their input array in Brillig due to copy-on-write optimization
-/// when the reference count is 1. We must NOT skip clones for these operations.
+/// Return whether the expression refers to a builtin or low level function for
+/// which the ownership pass's `Clone` around an array argument can be safely
+/// elided: the callee must neither modify the input nor return an alias of it
+/// that a later Brillig mutation could observe.
 fn is_pure_builtin_func(expr: &Expression) -> bool {
     let Expression::Ident(ident) = expr else {
         return false;
@@ -1662,9 +1641,11 @@ fn is_pure_builtin_func(expr: &Expression) -> bool {
         return false;
     };
 
-    // Vector operations can modify their input array in Brillig when RC=1,
-    // so we must clone them to ensure that they are "pure".
-    if intrinsic.modifies_input_array_in_brillig() {
+    // Some intrinsics are technically pure but unsafe to elide clones around in
+    // Brillig: vector mutators mutate through the input pointer when RC=1, and
+    // no-op conversions (`str_as_bytes`, `array_as_str_unchecked`) return an
+    // alias of their input that a later mutation could corrupt.
+    if intrinsic.unsafe_for_clone_elision_in_brillig() {
         return false;
     }
 
@@ -1673,5 +1654,87 @@ fn is_pure_builtin_func(expr: &Expression) -> bool {
 
 /// Return whether the expression refers to a foreign function.
 fn is_oracle_func(expr: &Expression) -> bool {
-    matches!(expr, Expression::Ident(ast::Ident { definition: ast::Definition::Oracle(_), .. }))
+    matches!(expr, Expression::Ident(ast::Ident { definition: ast::Definition::Oracle { .. }, .. }))
+}
+
+/// Return whether the expression refers to a function whose body, after peeling block/semi
+/// wrapping, is exactly one [`Call`](ast::Call) whose target is either an oracle directly
+/// or another oracle wrapper, and whose arguments are structurally side-effect-free.
+///
+/// Such "thin wrappers" inherit the input-preserving property of oracles: foreign calls
+/// only read their inputs (values are copied across the runtime boundary), so a wrapper
+/// that forwards to one cannot modify its array arguments either. This lets us drop the
+/// `Clone` that the ownership pass conservatively inserts around array arguments.
+fn is_oracle_wrapper(expr: &Expression, program: &Program) -> bool {
+    /// Maximum recursion depth for [`is_oracle_wrapper`]. Real wrapper chains are 2–3 deep
+    /// (e.g. `println` -> `print_unconstrained` -> `print` oracle); the bound only exists to
+    /// keep pathological inputs from blowing the stack.
+    const ORACLE_WRAPPER_MAX_DEPTH: u32 = 5;
+
+    /// `depth` is the maximum remaining recursion depth; reaching zero bails out conservatively.
+    fn go(expr: &Expression, program: &Program, depth: u32) -> bool {
+        if depth == 0 {
+            return false;
+        }
+        let Expression::Ident(ident) = expr else {
+            return false;
+        };
+        let ast::Definition::Function(func_id) = &ident.definition else {
+            return false;
+        };
+        let Some(inner) = peel_to_single_call(&program[*func_id].body) else {
+            return false;
+        };
+        if !inner.arguments.iter().all(is_side_effect_free_arg) {
+            return false;
+        }
+        is_oracle_func(&inner.func) || go(&inner.func, program, depth - 1)
+    }
+
+    go(expr, program, ORACLE_WRAPPER_MAX_DEPTH)
+}
+
+/// If `expr` is a block or `Semi` wrapping that ultimately reduces to a single
+/// [`Call`](ast::Call), return that call. Otherwise return `None`.
+fn peel_to_single_call(expr: &Expression) -> Option<&ast::Call> {
+    match expr {
+        Expression::Call(call) => Some(call),
+        Expression::Semi(inner) => peel_to_single_call(inner),
+        Expression::Block(stmts) if stmts.len() == 1 => peel_to_single_call(&stmts[0]),
+        _ => None,
+    }
+}
+
+/// Conservatively check whether evaluating `expr` cannot mutate any caller-visible state.
+///
+/// Used by [`is_oracle_wrapper`] to confirm that the inner call's arguments do not run
+/// any side-effectful computation (such as an `Assign` against the wrapper's parameter)
+/// before the forwarded oracle call. Anything not on this whitelist — `Block`, `Semi`,
+/// `Assign`, `Let`, nested `Call`, control flow, etc. — is treated as potentially
+/// side-effectful and rejects the wrapper classification.
+fn is_side_effect_free_arg(expr: &Expression) -> bool {
+    match expr {
+        Expression::Ident(_) => true,
+        Expression::Literal(lit) => match lit {
+            ast::Literal::Array(arr) | ast::Literal::Vector(arr) => {
+                arr.contents.iter().all(is_side_effect_free_arg)
+            }
+            ast::Literal::Repeated { element, .. } => is_side_effect_free_arg(element),
+            ast::Literal::Integer(..)
+            | ast::Literal::Bool(_)
+            | ast::Literal::Unit
+            | ast::Literal::Str(_) => true,
+            ast::Literal::FmtStr(_, _, inner) => is_side_effect_free_arg(inner),
+        },
+        Expression::ExtractTupleField(inner, _) => is_side_effect_free_arg(inner),
+        Expression::Tuple(items) => items.iter().all(is_side_effect_free_arg),
+        Expression::Index(idx) => {
+            is_side_effect_free_arg(&idx.collection) && is_side_effect_free_arg(&idx.index)
+        }
+        Expression::Cast(cast) => is_side_effect_free_arg(&cast.lhs),
+        Expression::Unary(u) => is_side_effect_free_arg(&u.rhs),
+        Expression::Binary(b) => is_side_effect_free_arg(&b.lhs) && is_side_effect_free_arg(&b.rhs),
+        Expression::Clone(inner) => is_side_effect_free_arg(inner),
+        _ => false,
+    }
 }

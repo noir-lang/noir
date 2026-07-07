@@ -29,7 +29,7 @@ use crate::ssa::{
         post_order::PostOrder,
         value::ValueId,
     },
-    opt::alias_analysis::AliasAnalysis,
+    opt::alias_analysis::{AliasAnalysis, GlobalValueId},
     ssa_gen::Ssa,
 };
 
@@ -37,15 +37,34 @@ impl Ssa {
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn load_store_forwarding(mut self) -> Ssa {
         let mut analysis = AliasAnalysis::analyze(&self);
+        // Phase 1: forward loads/stores in place, driven by the frozen
+        // analysis. This only removes instructions and remaps operands, so it
+        // never mints values the analysis does not already know about.
         for function in self.functions.values_mut() {
-            function.load_store_forwarding(&mut analysis);
+            function.forward_loads_and_stores(&mut analysis);
+        }
+        // Phase 2: simplify. Re-inserting through the DFG simplify path can mint
+        // new values (e.g. a collapsed `IfElse`), but the alias analysis is no
+        // longer consulted, so the freshly minted values are harmless.
+        for function in self.functions.values_mut() {
+            function.simplify_instructions();
         }
         self
     }
 }
 
 impl Function {
-    pub(crate) fn load_store_forwarding(&mut self, analysis: &mut AliasAnalysis) {
+    /// Forward loads/stores within each block using the whole-program alias
+    /// analysis, applying the results in place: redundant loads and dead stores
+    /// are removed and the remaining operands are remapped to the forwarded
+    /// values. Crucially this never re-inserts instructions, so every
+    /// instruction keeps its id and results and no new values are created — the
+    /// frozen `analysis` stays valid for the whole pass.
+    ///
+    /// Simplification of the forwarded instructions (constant folding, IfElse
+    /// collapse, …) is left to a subsequent [`Function::simplify_instructions`]
+    /// run, which may mint new values but no longer consults the analysis.
+    fn forward_loads_and_stores(&mut self, analysis: &mut AliasAnalysis) {
         let mut inserter = FunctionInserter::new(self);
         let blocks = PostOrder::with_function(inserter.function).into_vec_reverse();
 
@@ -59,12 +78,9 @@ impl Function {
                     .retain(|id| !instructions_to_remove.contains(id));
             }
 
-            // Re-insert instructions through the DFG simplify path. This resolves
-            // value mappings from load forwarding AND triggers simplification
-            // (e.g. `lt v2, u32 3` folds to a constant when v2 was forwarded).
-            let instructions = inserter.function.dfg[block].take_instructions();
+            let instructions = inserter.function.dfg[block].instructions().to_vec();
             for instruction_id in &instructions {
-                inserter.push_instruction(*instruction_id, block, true);
+                inserter.map_instruction_in_place(*instruction_id);
             }
             inserter.map_terminator_in_place(block);
         }
@@ -82,8 +98,9 @@ fn forward_loads_and_stores_in_block(
     block: BasicBlockId,
     analysis: &mut AliasAnalysis,
 ) -> HashSet<InstructionId> {
-    let mut known_values: HashMap<ValueId, ValueId> = HashMap::default();
-    let mut last_stores: HashMap<ValueId, InstructionId> = HashMap::default();
+    let mut known_values: HashMap<GlobalValueId, (GlobalValueId, ValueId)> = HashMap::default();
+    let mut last_stores: HashMap<GlobalValueId, (GlobalValueId, InstructionId)> =
+        HashMap::default();
     let mut instructions_to_remove: HashSet<InstructionId> = HashSet::default();
 
     let instructions = inserter.function.dfg[block].instructions().to_vec();
@@ -93,35 +110,42 @@ fn forward_loads_and_stores_in_block(
         match instruction {
             Instruction::Store { address, value } => {
                 let address = inserter.resolve(*address);
+                let address = GlobalValueId::new(inserter.function, address);
                 let value = inserter.resolve(*value);
+                let key = analysis.get_trusted_allocation_site(address).unwrap_or(address);
 
-                // Dead store elimination: exact address match only.
-                if let Some(prev_store) = last_stores.get(&address) {
+                // Dead store elimination: a prior store under the same canonical key must-aliases this address
+                // Kill any prior store at an address that must-alias the new one.
+                if let Some((_, prev_store)) = last_stores.get(&key) {
                     instructions_to_remove.insert(*prev_store);
                 }
 
                 // Clear entries that may-alias the address.
+                // We use the original address `a` (the first field of the map values) because of a potential
+                // precision loss if the key `_k` happens to be on another function (see the comment inside `may_alias`)
                 let function: &Function = inserter.function;
-                known_values.retain(|k, _| !analysis.may_alias(function, address, *k));
-                last_stores.retain(|k, _| !analysis.may_alias(function, address, *k));
+                known_values.retain(|_k, (a, _)| !analysis.may_alias(function, address, *a));
+                last_stores.retain(|_k, (a, _)| !analysis.may_alias(function, address, *a));
 
-                known_values.insert(address, value);
-                last_stores.insert(address, instruction_id);
+                known_values.insert(key, (address, value));
+                last_stores.insert(key, (address, instruction_id));
             }
             Instruction::Load { address } => {
                 let address = inserter.resolve(*address);
-
+                let address = GlobalValueId::new(inserter.function, address);
+                let key = analysis.get_trusted_allocation_site(address).unwrap_or(address);
                 let result = inserter.function.dfg.instruction_results(instruction_id)[0];
-                if let Some(value) = known_values.get(&address) {
-                    inserter.map_value(result, *value);
+                let forward = known_values.get(&key).copied();
+
+                if let Some((_, value)) = forward {
+                    inserter.map_value(result, value);
                     instructions_to_remove.insert(instruction_id);
                 } else {
-                    known_values.insert(address, result);
+                    known_values.insert(key, (address, result));
+                    // Mark aliased stores as used (not dead), when the load is not forwarded.
+                    let function: &Function = inserter.function;
+                    last_stores.retain(|_k, (a, _)| !analysis.may_alias(function, address, *a));
                 }
-
-                // Mark aliased stores as used (not dead).
-                let function: &Function = inserter.function;
-                last_stores.retain(|k, _| !analysis.may_alias(function, address, *k));
             }
             Instruction::Call { .. } => {
                 // If the call arguments can reference a known value, we invalidate it.
@@ -129,12 +153,23 @@ fn forward_loads_and_stores_in_block(
                 instruction.for_each_value(|v| call_values.push(v));
                 for value in call_values {
                     let value = inserter.resolve(value);
-                    if !inserter.function.dfg.type_of_value(value).contains_reference() {
+                    let typ = inserter.function.dfg.type_of_value(value);
+                    if !typ.contains_reference() {
                         continue;
                     }
-                    let function: &Function = inserter.function;
-                    known_values.retain(|k, _| !analysis.may_reference(function, value, *k));
-                    last_stores.retain(|k, _| !analysis.may_reference(function, value, *k));
+                    let value = GlobalValueId::new(inserter.function, value);
+                    // We check against the original address `a` for consistency with the other
+                    // handlers, but here it does not matter.
+
+                    // A call can only *write* through an argument that exposes a mutable
+                    // reference, so cached loaded values are only invalidated by those.
+                    if typ.contains_mutable_reference() {
+                        known_values.retain(|_k, (a, _)| !analysis.may_reference(value, *a));
+                    }
+                    // Any reference argument, mutable or not, can be *read* by the callee,
+                    // so a prior store to an aliasing address is observable and must be kept
+                    // live rather than eliminated as a dead store.
+                    last_stores.retain(|_k, (a, _)| !analysis.may_reference(value, *a));
                 }
             }
             _ => {}
@@ -226,7 +261,6 @@ mod tests {
         acir(inline) fn main f0 {
           b0():
             v0 = allocate -> &mut Field
-            store Field 1 at v0
             store Field 2 at v0
             return Field 3
         }
@@ -413,18 +447,19 @@ mod tests {
         let ssa = Ssa::from_str(src).unwrap();
         let ssa = ssa.load_store_forwarding();
 
-        // The store to v2 (alias of v0) clears v0's known value during forwarding,
-        // so the load is NOT forwarded to stale Field 1. The array_get simplifies
-        // to v0 during re-insertion, but the load correctly remains.
+        // The store to v2 (alias of v0) does not let stale `Field 1` be
+        // forwarded. Pass-2 site propagation sets v2's allocation site to v0
+        // (the array's pointee class has the singleton site `v0`), so
+        // `must_alias(v0, v2)` fires: the first store is dead, the second
+        // store updates the must-aliased entry, and the load forwards the
+        // current value `Field 2`.
         assert_ssa_snapshot!(ssa, @r"
         brillig(inline) fn main f0 {
           b0():
             v0 = allocate -> &mut Field
-            store Field 1 at v0
-            v2 = make_array [v0] : [&mut Field; 1]
+            v1 = make_array [v0] : [&mut Field; 1]
             store Field 2 at v0
-            v4 = load v0 -> Field
-            return v4
+            return Field 2
         }
         ");
     }
@@ -583,11 +618,10 @@ mod tests {
 
     #[test]
     fn call_returning_alias_of_local_allocation_prevents_forwarding() {
-        // Bug: When a local allocation is passed to a call, it is removed from
-        // known_values/last_stores but NOT from local_allocations. If the callee
-        // returns an alias to the same memory, stores through the original address
-        // skip the conservative clear (because it's still in local_allocations),
-        // leaving stale entries for the alias.
+        // A call returns an alias of an address that is also stored to directly.
+        // v1 (the returned reference) and v0 (the call argument) point to the
+        // same memory, so a store through v0 must invalidate the cached value
+        // for v1 — otherwise a later load of v1 forwards a stale value.
         let src = "
         brillig(inline) fn main f0 {
           b0():
@@ -640,6 +674,34 @@ mod tests {
         // must NOT be eliminated as a dead store, because `load v5` (where v5
         // is loaded from v2, which aliases v3 after `store v3 at v2`) reads
         // through the alias in the next iteration.
+        assert_ssa_does_not_change(src, Ssa::load_store_forwarding);
+    }
+
+    #[test]
+    fn loop_carried_alias_via_block_parameter() {
+        // Form 2 of loop-carried aliases: mem2reg_simple has promoted the
+        // `store ref at ref` / `load ref` into a reference-typed block parameter.
+        //
+        // This is the promoted version of `loop_carried_alias_prevents_incorrect_dead_store`:
+        // instead of `store v3 at v2` + `v5 = load v2`, the reference is passed
+        // as a block parameter via jmp.
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: &mut Field):
+            v1 = allocate -> &mut Field
+            store Field 0 at v1
+            jmp b1(v0)
+          b1(v2: &mut Field):
+            store Field 1 at v1
+            v3 = load v2 -> Field
+            store v3 at v1
+            jmp b1(v1)
+        }
+        ";
+        // v2 is a reference-typed loop header parameter. In the first iteration
+        // v2 == v0, but from the second iteration onward v2 == v1 (passed via jmp).
+        // When v2 == v1, `store Field 1 at v1` writes the value that `load v2` reads.
+        // That store must NOT be eliminated as dead (overwritten by `store v3 at v1`).
         assert_ssa_does_not_change(src, Ssa::load_store_forwarding);
     }
 
@@ -704,7 +766,6 @@ mod tests {
             constrain v6 == u1 1
             v8 = array_set v3, index v4, value v2
             v10 = unchecked_add v4, u32 1
-            store v8 at v0
             v11 = add v4, u32 1
             store v8 at v0
             store v11 at v1
@@ -744,11 +805,14 @@ mod tests {
     }
 
     // --- Regression tests for issues #12217-#12232 ---
-    // Multi-block tests: the pass skips these entirely (single-block restriction).
+    // Multi-block loop-aliasing cases. The pass processes every block with
+    // state reset at block entry, so a loop-carried alias established across
+    // the back-edge is never forwarded — the relevant load/store pairs sit in
+    // different iterations (i.e. across the block boundary).
 
     #[test]
     fn regression_12217_loop_alias_via_call_input() {
-        // Loop-carried alias established via function call input. Multi-block -> skipped.
+        // Loop-carried alias established via function call input. Cross-iteration alias, not forwarded (state resets at block entry).
         let src = "
         brillig(inline) fn bar f0 {
           b0(v0: &mut Field, v1: Field):
@@ -776,7 +840,7 @@ mod tests {
 
     #[test]
     fn regression_12219_loop_alias_via_call_return() {
-        // Loop-carried alias via returned reference from call. Multi-block -> skipped.
+        // Loop-carried alias via returned reference from call. Cross-iteration alias, not forwarded (state resets at block entry).
         let src = "
         brillig(inline) fn bar f0 {
           b0(v0: &mut Field, v1: Field):
@@ -804,7 +868,7 @@ mod tests {
 
     #[test]
     fn regression_12220_loop_alias_via_array_get() {
-        // Loop-carried alias via array_get with variable index. Multi-block -> skipped.
+        // Loop-carried alias via array_get with variable index. Cross-iteration alias, not forwarded (state resets at block entry).
         let src = "
         brillig(inline) fn bar f0 {
           b0(v0: &mut Field, v1: Field, v_idx: u32):
@@ -829,7 +893,7 @@ mod tests {
 
     #[test]
     fn regression_12221_loop_alias_via_jmpif() {
-        // Loop-carried alias via jmpif passing ref to non-header block. Multi-block -> skipped.
+        // Loop-carried alias via jmpif passing ref to non-header block. Cross-iteration alias, not forwarded (state resets at block entry).
         let src = "
         brillig(inline) fn bar f0 {
           b0(v0: &mut Field, v1: Field, v_cond: u1):
@@ -856,7 +920,7 @@ mod tests {
 
     #[test]
     fn regression_12222_loop_nested_refs_form1() {
-        // Array containing references stored in loop (Form 1 misses nested refs). Multi-block -> skipped.
+        // Array containing references stored in loop (Form 1 misses nested refs). Cross-iteration alias, not forwarded (state resets at block entry).
         let src = "
         brillig(inline) fn bar f0 {
           b0(v0: &mut Field, v1: Field):
@@ -882,7 +946,7 @@ mod tests {
 
     #[test]
     fn regression_12223_loop_nested_refs_form2() {
-        // Loop header block param of array-of-refs type (Form 2 misses nested refs). Multi-block -> skipped.
+        // Loop header block param of array-of-refs type (Form 2 misses nested refs). Cross-iteration alias, not forwarded (state resets at block entry).
         let src = "
         brillig(inline) fn bar f0 {
           b0(v0: &mut Field, v1: Field):
@@ -1003,6 +1067,57 @@ mod tests {
         // v3 may alias v1. After `store 1 at v1`, `load v3` must NOT forward
         // the stale Field 0.
         assert_ssa_does_not_change(src, Ssa::load_store_forwarding);
+    }
+
+    #[test]
+    fn load_through_array_get_alias_keeps_aliased_store_live() {
+        // `v0` is extracted through make_array + array_get as a fresh ValueId `v2`, which
+        // therefore aliases `v0`. `v2` is passed to a call, so the callee may read `v0`
+        // through it: the analysis must keep `store Field 1 at v0` live and must not let the
+        // later `store Field 2 at v0` eliminate it as a redundant prior write. The call also
+        // invalidates the cached value, so the following `load` reads `v0` from memory rather
+        // than forwarding — it observes the first store directly.
+        //
+        // Regression test for noir-lang/noir-claude#798: array_get gives `v2` the allocation
+        // site of `v0`, so `may_reference(v2, v0)` holds. If that aliasing were dropped, the
+        // store would be DSE'd and the load would read uninitialized memory (the program would
+        // error with "loaded before it was first stored") instead of returning `Field 1`.
+        let src = "
+        brillig(inline) fn main f0 {
+          b0():
+            v0 = allocate -> &mut Field
+            store Field 1 at v0
+            v1 = make_array [v0] : [&mut Field; 1]
+            v2 = array_get v1, index u32 0 -> &mut Field
+            call f1(v2)
+            v3 = load v2 -> Field
+            store Field 2 at v0
+            return v3
+        }
+        brillig(inline) fn f1 f1 {
+          b0(v0: &mut Field):
+            return
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.load_store_forwarding();
+        // `store Field 1 at v0` survives, and the load reads it from memory (`Field 1`).
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) fn main f0 {
+          b0():
+            v0 = allocate -> &mut Field
+            store Field 1 at v0
+            v2 = make_array [v0] : [&mut Field; 1]
+            call f1(v0)
+            v4 = load v0 -> Field
+            store Field 2 at v0
+            return v4
+        }
+        brillig(inline) fn f1 f1 {
+          b0(v0: &mut Field):
+            return
+        }
+        ");
     }
 
     #[test]
@@ -1193,5 +1308,404 @@ mod tests {
             return
         }
     ");
+    }
+
+    #[test]
+    fn dead_store_via_must_alias_block_param() {
+        // The block parameter v1 inherits v0's allocation site (single-pred join
+        // in track_allocations_from_predecessors). v0 and v1 are distinct SSA
+        // values but must-alias. The store at v1 is then killed by the store at
+        // v0 even though they are not the same SSA value.
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = allocate -> &mut Field
+            jmp b1(v0)
+          b1(v1: &mut Field):
+            store Field 1 at v1
+            store Field 2 at v0
+            v2 = load v0 -> Field
+            return v2
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.load_store_forwarding();
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0():
+            v1 = allocate -> &mut Field
+            jmp b1(v1)
+          b1(v0: &mut Field):
+            store Field 2 at v1
+            return Field 2
+        }
+        ");
+    }
+
+    #[test]
+    fn load_forward_via_must_alias_block_param() {
+        // Symmetric to the dead-store case: a store at v0 is forwarded through
+        // a load at v1, which is must-aliased to v0 via the block-param join.
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = allocate -> &mut Field
+            jmp b1(v0)
+          b1(v1: &mut Field):
+            store Field 42 at v0
+            v2 = load v1 -> Field
+            return v2
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.load_store_forwarding();
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0():
+            v1 = allocate -> &mut Field
+            jmp b1(v1)
+          b1(v0: &mut Field):
+            store Field 42 at v1
+            return Field 42
+        }
+        ");
+    }
+
+    /// `load_store_forwarding` incorrectly forwards a store across two call
+    /// sites of a non-recursive callee. Each call to `f1` allocates a
+    /// fresh `inner` cell; the store at `v1` writes to the first call's
+    /// `inner`, and the load at `v4` reads through the second call's
+    /// `inner`. Because pass 2 of `alias_analysis` assigns
+    /// `Known(f1::inner)` to both `v1` and `v3` — and `is_trusted` does
+    /// not account for multi-call-site amplification of a non-recursive
+    /// callee — the forwarding pass keys both under the same trusted
+    /// site and replaces `v4` with `Field 1`.
+    ///
+    /// Sound output: `v4 = load v3 -> Field` must remain (or fold to
+    /// `Field 0`, the value `f1` stores into `inner` on every entry).
+    /// It must NOT fold to `Field 1`.
+    #[test]
+    fn load_forward_unsound_across_multi_call_site_non_recursive_callee() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0():
+            v0 = call f1() -> &mut &mut Field
+            v1 = load v0 -> &mut Field
+            store Field 1 at v1
+            v2 = call f1() -> &mut &mut Field
+            v3 = load v2 -> &mut Field
+            v4 = load v3 -> Field
+            return v4
+        }
+        brillig(inline) fn f1 f1 {
+          b0():
+            v0 = allocate -> &mut Field
+            store Field 0 at v0
+            v1 = allocate -> &mut &mut Field
+            store v0 at v1
+            return v1
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.load_store_forwarding();
+        // The load at `v4` reads from the *second* call's `inner` cell —
+        // not the first's. The pass must not replace `v4` with a numeric
+        // constant. (We accept either a remaining Load, or a fold to
+        // `Field 0` — the value `f1` stores into `inner` on every entry —
+        // but never `Field 1`.)
+        let main = ssa.main();
+        let returned = match main.dfg[main.entry_block()].terminator() {
+            Some(crate::ssa::ir::instruction::TerminatorInstruction::Return {
+                return_values,
+                ..
+            }) => return_values[0],
+            _ => panic!("expected a Return terminator with one value"),
+        };
+        if let crate::ssa::ir::value::Value::NumericConstant { constant, .. } = &main.dfg[returned]
+        {
+            assert_ne!(
+                format!("{constant:?}"),
+                "1",
+                "load through the second call's result was wrongly \
+                 forwarded to `Field 1` (the value stored into the \
+                 *first* call's `inner` cell). The two `inner` cells \
+                 are distinct: must_alias is unsound across multiple \
+                 call sites of a non-recursive callee."
+            );
+        }
+    }
+
+    #[test]
+    fn dead_store_and_forward_via_must_alias_ifelse() {
+        // v1 has site Some(v1); v2 (block-param) inherits Some(v1); IfElse
+        // joining v1 and v2 produces v4 with site Some(v1). v4 must-aliases
+        // v1 even though they are distinct SSA values, so the store at v1 is
+        // dead and the load at v1 forwards from the store at v4.
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u1):
+            v1 = allocate -> &mut Field
+            jmp b1(v1)
+          b1(v2: &mut Field):
+            v3 = not v0
+            v4 = if v0 then v1 else (if v3) v2
+            store Field 1 at v1
+            store Field 2 at v4
+            v5 = load v1 -> Field
+            return v5
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.load_store_forwarding();
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: u1):
+            v2 = allocate -> &mut Field
+            jmp b1(v2)
+          b1(v1: &mut Field):
+            v3 = not v0
+            v4 = if v0 then v2 else (if v3) v1
+            store Field 2 at v4
+            return Field 2
+        }
+        ");
+    }
+
+    #[test]
+    fn store_through_nested_ifelse_reference_alias_blocks_forwarding() {
+        // Regression test for noir-lang/noir-claude#1005.
+        //
+        // `v6` selects — through a nested `IfElse` over references — between
+        // `v0` (reachable via `v3`) and a fresh allocation `v5`. When `v_cond`
+        // is true `v6` *is* `v0` at runtime, so `store Field 99 at v6` may write
+        // `v0`. Forwarding must treat `v6` as a possible alias of `v0`: the
+        // trailing `load v0` must NOT be forwarded to the stale `Field 5` stored
+        // just before it — it has to remain a real load.
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v_cond: u1):
+            v_not = not v_cond
+            v0 = allocate -> &mut Field
+            v1 = allocate -> &mut Field
+            v2 = if v_cond then v0 else (if v_not) v1
+            v3 = allocate -> &mut &mut Field
+            store v2 at v3
+            v4 = load v3 -> &mut Field
+            v5 = allocate -> &mut Field
+            v6 = if v_cond then v4 else (if v_not) v5
+            jmp b1()
+          b1():
+            store Field 5 at v0
+            store Field 99 at v6
+            v7 = load v0 -> Field
+            return v7
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.load_store_forwarding();
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) fn main f0 {
+          b0(v0: u1):
+            v1 = not v0
+            v2 = allocate -> &mut Field
+            v3 = allocate -> &mut Field
+            v4 = if v0 then v2 else (if v1) v3
+            v5 = allocate -> &mut &mut Field
+            store v4 at v5
+            v6 = allocate -> &mut Field
+            v7 = if v0 then v2 else (if v1) v6
+            jmp b1()
+          b1():
+            store Field 5 at v2
+            store Field 99 at v7
+            v10 = load v2 -> Field
+            return v10
+        }
+        ");
+    }
+
+    #[test]
+    fn call_with_immutable_reference_does_not_invalidate_cache() {
+        // A call that only receives an immutable reference cannot write through
+        // it, so cached values for that address must remain valid after the call
+        // and the second load can be forwarded to v1.
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: &Field):
+            v1 = load v0 -> Field
+            call f1(v0)
+            v2 = load v0 -> Field
+            return v2
+        }
+        brillig(inline) fn f1 f1 {
+          b0(v0: &Field):
+            return
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.load_store_forwarding();
+
+        // The call only holds an immutable reference; it cannot modify v0's
+        // memory. The second load is forwarded to v1.
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) fn main f0 {
+          b0(v0: &Field):
+            v1 = load v0 -> Field
+            call f1(v0)
+            return v1
+        }
+        brillig(inline) fn f1 f1 {
+          b0(v0: &Field):
+            return
+        }
+        ");
+    }
+
+    #[test]
+    fn call_with_immutable_reference_keeps_observed_store_live() {
+        // A call that receives an immutable reference can still *read* through it.
+        // A store before such a call is therefore observable and must not be
+        // eliminated as dead when a later store overwrites the same address.
+        // Regression test for https://github.com/noir-lang/noir-claude/issues/1378.
+        let src = "
+        acir(inline) fn foo f0 {
+          b0(v0: &mut Field, v1: &Field):
+            store Field 1 at v0
+            call f1(v1)
+            store Field 2 at v0
+            return
+        }
+        acir(inline) fn reader f1 {
+          b0(v0: &Field):
+            v1 = load v0 -> Field
+            return
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.load_store_forwarding();
+
+        // The `store Field 1 at v0` is read by the call through the immutable
+        // alias v1, so it must survive.
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn foo f0 {
+          b0(v0: &mut Field, v1: &Field):
+            store Field 1 at v0
+            call f1(v1)
+            store Field 2 at v0
+            return
+        }
+        acir(inline) fn reader f1 {
+          b0(v0: &Field):
+            v1 = load v0 -> Field
+            return
+        }
+        ");
+    }
+
+    #[test]
+    fn call_with_nested_reference() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = allocate -> &mut Field
+            store Field 1 at v0
+            v1 = make_array [] : [&mut u32; 0]
+            call f1(v1)
+            v2 = load v0 -> Field
+            return v2
+        }
+        acir(inline) fn f1 f1 {
+          b0(v0: [&mut u32; 0]):
+            return
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.load_store_forwarding();
+        // The call `call f1(v1)` has a reference but it cannot impact v0.
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0():
+            v0 = allocate -> &mut Field
+            store Field 1 at v0
+            v2 = make_array [] : [&mut u32; 0]
+            call f1(v2)
+            return Field 1
+        }
+        acir(inline) fn f1 f1 {
+          b0(v0: [&mut u32; 0]):
+            return
+        }
+        ");
+    }
+
+    #[test]
+    fn array_set_writing_element_back_folds_to_source() {
+        // Reduced from an ast-fuzzer counterexample (a Brillig loop carrying an
+        // array of references). `main` owns the reference and passes it into
+        // `f1`, since an entry point cannot take reference parameters directly.
+        //
+        // In `f1`, `array_set(v0, i, array_get(v0, i))` writes an element
+        // straight back — a no-op that folds to the source array `v0`. The pass
+        // must handle this reference array soundly: the `array_set` is removed
+        // and nothing is forwarded incorrectly.
+        let src = "
+        brillig(inline) fn main f0 {
+          b0():
+            v0 = allocate -> &mut Field
+            store Field 0 at v0
+            v2 = make_array [v0] : [&mut Field; 1]
+            call f1(v2)
+            return
+        }
+        brillig(inline) fn f1 f1 {
+          b0(v0: [&mut Field; 1]):
+            v1 = array_get v0, index u32 0 -> &mut Field
+            v2 = array_set v0, index u32 0, value v1
+            return
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.load_store_forwarding();
+        // The no-op `array_set` in `f1` folds away; the load of the element remains.
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) fn main f0 {
+          b0():
+            v0 = allocate -> &mut Field
+            store Field 0 at v0
+            v2 = make_array [v0] : [&mut Field; 1]
+            call f1(v2)
+            return
+        }
+        brillig(inline) fn f1 f1 {
+          b0(v0: [&mut Field; 1]):
+            v2 = array_get v0, index u32 0 -> &mut Field
+            return
+        }
+        ");
+    }
+
+    #[test]
+    fn regression_12313_store_loaded_and_returned_is_not_dead() {
+        // A store whose value is forwarded to a later load is still observed
+        // whenever that load's result escapes the block (here, via return).
+        // Without an intervening same-address store, the store must survive.
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: &mut Field):
+            store Field 1 at v0
+            v1 = load v0 -> Field
+            return v1
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.load_store_forwarding();
+
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: &mut Field):
+            store Field 1 at v0
+            return Field 1
+        }
+        ");
     }
 }

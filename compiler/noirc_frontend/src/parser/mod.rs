@@ -22,8 +22,9 @@ pub use errors::ParserError;
 pub use errors::ParserErrorReason;
 use noirc_errors::Location;
 pub use parser::{
-    Parser, StatementOrExpressionOrLValue, block_comment_has_all_leading_stars, parse_program,
-    parse_program_with_dummy_file,
+    Parser, StatementOrExpressionOrLValue, block_comment_has_all_leading_stars,
+    parse_expression_in_quote_body, parse_program, parse_program_in_quote_body,
+    parse_program_with_dummy_file, parse_statement_in_quote_body,
 };
 
 #[derive(Clone, Default)]
@@ -105,7 +106,7 @@ impl std::fmt::Display for SortedModule {
     }
 }
 
-/// A ParsedModule contains an entire Ast for one file.
+/// A `ParsedModule` contains an entire Ast for one file.
 #[derive(Clone, Debug, Default)]
 pub struct ParsedModule {
     pub items: Vec<Item>,
@@ -124,7 +125,7 @@ impl ParsedModule {
                 ItemKind::Enum(typ) => module.push_enum(typ, item.doc_comments),
                 ItemKind::Trait(noir_trait) => module.push_trait(noir_trait, item.doc_comments),
                 ItemKind::TraitImpl(trait_impl) => module.push_trait_impl(trait_impl),
-                ItemKind::Impl(r#impl) => module.push_impl(r#impl),
+                ItemKind::Impl(r#impl) => module.push_impl(r#impl, item.doc_comments),
                 ItemKind::TypeAlias(type_alias) => {
                     module.push_type_alias(type_alias, item.doc_comments);
                 }
@@ -201,7 +202,7 @@ impl std::fmt::Display for ItemKind {
 }
 
 /// A submodule defined via `mod name { contents }` in some larger file.
-/// These submodules always share the same file as some larger ParsedModule
+/// These submodules always share the same file as some larger `ParsedModule`
 #[derive(Clone, Debug)]
 pub struct ParsedSubModule {
     pub visibility: ItemVisibility,
@@ -265,7 +266,8 @@ impl SortedModule {
         self.trait_impls.push(trait_impl);
     }
 
-    fn push_impl(&mut self, r#impl: TypeImpl) {
+    fn push_impl(&mut self, mut r#impl: TypeImpl, doc_comments: Vec<DocComment>) {
+        r#impl.doc_comments = doc_comments;
         self.impls.push(r#impl);
     }
 

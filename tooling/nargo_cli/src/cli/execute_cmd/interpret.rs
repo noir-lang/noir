@@ -12,7 +12,7 @@ use noirc_abi::InputMap;
 use noirc_abi::input_parser::InputValue;
 use noirc_driver::gen_abi;
 use noirc_errors::{CustomDiagnostic, Location};
-use noirc_evaluator::ssa::interpreter::value::{Fitted, NumericValue};
+use noirc_evaluator::ssa::interpreter::value::NumericValue;
 use noirc_evaluator::ssa::ir::types::NumericType;
 use noirc_frontend::hir::comptime::Value;
 use noirc_frontend::hir::def_collector::dc_crate::CompilationError;
@@ -95,8 +95,9 @@ fn run_package_comptime(
             if let Some(return_value) = return_value
                 && result != return_value
             {
-                let return_value_as_string =
-                    return_value.display(&context.def_interner).to_string();
+                let return_value_as_string = return_value
+                    .display(&context.def_interner, context.file_manager.as_file_map())
+                    .to_string();
                 return Err(CliError::Generic(format!(
                     "Unexpected return value.\nExpected: {return_value_as_string}\nGot:      {result_as_string}"
                 )));
@@ -167,45 +168,24 @@ fn input_value_to_comptime_value(input: &InputValue, typ: &Type, location: Locat
             };
             let numeric_value = NumericValue::from_constant(*value, numeric_type)
                 .expect("Could not convert field value to integer");
-            match numeric_value {
-                NumericValue::Field(_) => panic!("Field should not happen here"),
-                NumericValue::U1(value) => Value::Bool(value),
-                NumericValue::U8(fitted) => match fitted {
-                    Fitted::Fit(value) => Value::u8(value),
-                    Fitted::Unfit(..) => panic!("input value does not fit in u8"),
-                },
-                NumericValue::U16(fitted) => match fitted {
-                    Fitted::Fit(value) => Value::u16(value),
-                    Fitted::Unfit(..) => panic!("input value does not fit in u16"),
-                },
-                NumericValue::U32(fitted) => match fitted {
-                    Fitted::Fit(value) => Value::u32(value),
-                    Fitted::Unfit(..) => panic!("input value does not fit in u32"),
-                },
-                NumericValue::U64(fitted) => match fitted {
-                    Fitted::Fit(value) => Value::u64(value),
-                    Fitted::Unfit(..) => panic!("input value does not fit in u64"),
-                },
-                NumericValue::U128(fitted) => match fitted {
-                    Fitted::Fit(value) => Value::u128(value),
-                    Fitted::Unfit(..) => panic!("input value does not fit in u128"),
-                },
-                NumericValue::I8(fitted) => match fitted {
-                    Fitted::Fit(value) => Value::i8(value),
-                    Fitted::Unfit(..) => panic!("input value does not fit in i8"),
-                },
-                NumericValue::I16(fitted) => match fitted {
-                    Fitted::Fit(value) => Value::i16(value),
-                    Fitted::Unfit(..) => panic!("input value does not fit in i16"),
-                },
-                NumericValue::I32(fitted) => match fitted {
-                    Fitted::Fit(value) => Value::i32(value),
-                    Fitted::Unfit(..) => panic!("input value does not fit in i32"),
-                },
-                NumericValue::I64(fitted) => match fitted {
-                    Fitted::Fit(value) => Value::i64(value),
-                    Fitted::Unfit(..) => panic!("input value does not fit in i64"),
-                },
+            // `from_constant` guarantees the value is in range, so its stored field is the
+            // type's bit pattern and fits in `u128`. Reinterpret it as the native (signed/
+            // unsigned) integer.
+            let bits =
+                || numeric_value.to_field().try_into_u128().expect("in-range value fits in u128");
+            match numeric_type {
+                NumericType::NativeField => panic!("Field should not happen here"),
+                NumericType::Unsigned { bit_size: 1 } => Value::Bool(bits() == 1),
+                NumericType::Unsigned { bit_size: 8 } => Value::u8(bits() as u8),
+                NumericType::Unsigned { bit_size: 16 } => Value::u16(bits() as u16),
+                NumericType::Unsigned { bit_size: 32 } => Value::u32(bits() as u32),
+                NumericType::Unsigned { bit_size: 64 } => Value::u64(bits() as u64),
+                NumericType::Unsigned { bit_size: 128 } => Value::u128(bits()),
+                NumericType::Signed { bit_size: 8 } => Value::i8(bits() as u8 as i8),
+                NumericType::Signed { bit_size: 16 } => Value::i16(bits() as u16 as i16),
+                NumericType::Signed { bit_size: 32 } => Value::i32(bits() as u32 as i32),
+                NumericType::Signed { bit_size: 64 } => Value::i64(bits() as u64 as i64),
+                typ => panic!("unsupported numeric type {typ}"),
             }
         }
         Type::FieldElement => {
@@ -374,8 +354,12 @@ fn output_value_to_string(value: &Value, context: &Context) -> String {
         | Value::TypedExpr(..)
         | Value::UnresolvedType(..)
         | Value::FormatString(..)
-        | Value::CtString(..) => {
-            panic!("Unexpected output value: {}", value.display(&context.def_interner))
+        | Value::CtString(..)
+        | Value::Location(..) => {
+            panic!(
+                "Unexpected output value: {}",
+                value.display(&context.def_interner, context.file_manager.as_file_map())
+            )
         }
     }
 }

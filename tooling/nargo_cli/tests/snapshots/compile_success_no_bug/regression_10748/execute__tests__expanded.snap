@@ -24,9 +24,7 @@ pub comptime fn storage(s: TypeDefinition) -> Quoted {
         f"Type {typ} was placed in Storage struct but does not implement the StateVariable trait",
     );
     quote {
-        impl Storage < $context >  {
-            
-        }
+        impl Storage<$context> {}
     }
 }
 

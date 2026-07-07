@@ -7,10 +7,10 @@ use crate::ast::{
     BlockExpression, Expression, FunctionReturnType, Ident, NoirFunction, Path, UnresolvedGenerics,
     UnresolvedType,
 };
-use crate::token::SecondaryAttribute;
+use crate::token::{Attributes, SecondaryAttribute};
 
 use super::{
-    Documented, GenericTypeArgs, IdentOrQuotedType, ItemVisibility, UnresolvedGeneric,
+    DocComment, Documented, GenericTypeArgs, IdentOrQuotedType, ItemVisibility, UnresolvedGeneric,
     UnresolvedTypeData,
 };
 
@@ -43,6 +43,7 @@ pub enum TraitItem {
         return_type: FunctionReturnType,
         where_clause: Vec<UnresolvedTraitConstraint>,
         body: Option<BlockExpression>,
+        attributes: Attributes,
     },
     Constant {
         name: Ident,
@@ -63,6 +64,7 @@ pub struct TypeImpl {
     pub generics: UnresolvedGenerics,
     pub where_clause: Vec<UnresolvedTraitConstraint>,
     pub methods: Vec<(Documented<NoirFunction>, Location)>,
+    pub doc_comments: Vec<DocComment>,
 }
 
 /// Ast node for an implementation of a trait for a particular type
@@ -184,7 +186,15 @@ impl Display for TraitItem {
                 is_unconstrained,
                 visibility,
                 is_comptime,
+                attributes,
             } => {
+                if let Some(attribute) = attributes.function() {
+                    writeln!(f, "{attribute}")?;
+                }
+                for attribute in &attributes.secondary {
+                    writeln!(f, "{attribute}")?;
+                }
+
                 let generics = vecmap(generics, |generic| generic.to_string());
                 let parameters = vecmap(parameters, |(name, typ)| format!("{name}: {typ}"));
                 let where_clause = vecmap(where_clause, ToString::to_string);
@@ -329,21 +339,29 @@ fn desugar_generic_trait_bounds(
     where_clause: &mut Vec<UnresolvedTraitConstraint>,
 ) {
     for generic in generics {
-        let UnresolvedGeneric::Variable(IdentOrQuotedType::Ident(ident), trait_bounds) = generic
-        else {
-            continue;
-        };
+        match generic {
+            UnresolvedGeneric::Variable(ident_or_quoted_type, trait_bounds) => {
+                if trait_bounds.is_empty() {
+                    continue;
+                }
 
-        if trait_bounds.is_empty() {
-            continue;
-        }
+                let mut make_type = || match ident_or_quoted_type {
+                    IdentOrQuotedType::Ident(ident) => {
+                        let path = Path::from_ident(ident.clone());
+                        let typ = UnresolvedTypeData::Named(path, GenericTypeArgs::default(), true);
+                        UnresolvedType { typ, location: ident.location() }
+                    }
+                    IdentOrQuotedType::Quoted(quoted_type_id, location) => UnresolvedType {
+                        typ: UnresolvedTypeData::Resolved(*quoted_type_id),
+                        location: *location,
+                    },
+                };
 
-        for trait_bound in std::mem::take(trait_bounds) {
-            let path = Path::from_ident(ident.clone());
-            let typ = UnresolvedTypeData::Named(path, GenericTypeArgs::default(), true);
-            let typ = UnresolvedType { typ, location: ident.location() };
-            let trait_constraint = UnresolvedTraitConstraint { typ, trait_bound };
-            where_clause.push(trait_constraint);
+                for trait_bound in std::mem::take(trait_bounds) {
+                    where_clause.push(UnresolvedTraitConstraint { typ: make_type(), trait_bound });
+                }
+            }
+            UnresolvedGeneric::Numeric { .. } => (),
         }
     }
 }

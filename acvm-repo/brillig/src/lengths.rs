@@ -3,11 +3,13 @@ use std::{
     ops::{Add, AddAssign, Div, Mul},
 };
 
+use msgpack_tagged::MsgpackTagged;
 use serde::{Deserialize, Serialize};
 
 /// Represents the length of an array or vector as seen from a user's perspective.
 /// For example in the array `[(u8, u16, [u32; 4]); 8]`, the semantic length is 8.
-#[derive(Debug, Copy, Clone, Eq, PartialEq, PartialOrd, Ord, Serialize, Deserialize, Hash)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq, PartialOrd, Ord, Hash)]
+#[derive(Serialize, Deserialize, MsgpackTagged)]
 pub struct SemanticLength(pub u32);
 
 impl SemanticLength {
@@ -103,7 +105,8 @@ impl std::fmt::Display for ElementTypesLength {
 /// array is different than the semantic length
 ///
 /// Note that this is different from the fully flattened length, which would be 8 * (1 + 1 + 4) = 48.
-#[derive(Debug, Copy, Clone, Eq, PartialEq, PartialOrd, Ord, Serialize, Deserialize, Hash)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq, PartialOrd, Ord, Hash)]
+#[derive(Serialize, Deserialize, MsgpackTagged)]
 #[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
 pub struct SemiFlattenedLength(pub u32);
 
@@ -225,4 +228,35 @@ impl Div<ElementsFlattenedLength> for FlattenedLength {
 /// Converts a u32 value to usize, panicking if the conversion fails.
 fn assert_usize(value: u32) -> usize {
     value.try_into().expect("Failed conversion from u32 to usize")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn flattened_length_divides_evenly_by_elements_flattened_length() {
+        assert_eq!(FlattenedLength(6) / ElementsFlattenedLength(2), SemanticLength(3));
+    }
+
+    #[test]
+    #[should_panic(
+        expected = "Division of FlattenedLength 5 by ElementsFlattenedLength 2 has remainder"
+    )]
+    fn flattened_length_division_with_remainder_panics() {
+        let _ = FlattenedLength(5) / ElementsFlattenedLength(2);
+    }
+
+    #[test]
+    fn semi_flattened_length_divides_evenly_by_element_types_length() {
+        assert_eq!(SemiFlattenedLength(6) / ElementTypesLength(3), SemanticLength(2));
+    }
+
+    #[test]
+    #[should_panic(
+        expected = "Division of SemiFlattenedLength 7 by ElementTypesLength 3 has remainder"
+    )]
+    fn semi_flattened_length_division_with_remainder_panics() {
+        let _ = SemiFlattenedLength(7) / ElementTypesLength(3);
+    }
 }

@@ -1022,3 +1022,142 @@ fn struct_turbofish_mixed_generics_visibility_error() {
     "#;
     check_errors(src);
 }
+
+#[test]
+fn struct_turbofish_matching_identity_type_alias() {
+    let src = r#"
+    type Id<T> = T;
+
+    struct S<A> {
+        x: A,
+    }
+
+    impl<T> S<Id<T>> {
+        fn foo(x: T) -> T {
+            x
+        }
+    }
+
+    fn main() {
+        let x = 10u64;
+        let _y: u64 = S::<Id<u64>>::foo(x);
+        let _y: u64 = S::<u64>::foo(x);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn struct_turbofish_matching_struct_type_alias() {
+    let src = r#"
+    struct Foo<T> {}
+
+    type Id<T> = Foo<T>;
+
+    struct S<A> {
+        x: A,
+    }
+
+    impl<T> S<Id<T>> {
+        fn foo(x: T) -> T {
+            x
+        }
+    }
+
+    fn main() {
+        let x = 10u64;
+        let _y: u64 = S::<Id<u64>>::foo(x);
+        let _y: u64 = S::<Foo<u64>>::foo(x);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn no_turbofish_matching_on_type_alias_without_generics_with_underlaying_struct_with_generics() {
+    let src = r#"
+    struct S<A> {}
+
+    type Alias = S<u32>;
+
+    impl Alias {
+        fn foo() {}
+    }
+
+    fn main() {
+        Alias::foo();
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn errors_on_generics_applied_to_generic_type_parameter() {
+    let src = r#"
+    pub fn foo<T>(x: T) {
+        let _y: T<u32> = x;
+                ^ Cannot apply generics to a generic type
+                ~ A generic type parameter cannot itself take generic arguments
+    }
+
+    fn main() {}
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn turbofish_not_allowed_on_globals() {
+    let src = r#"
+    global x: Field = 1;
+
+    fn main() {
+        let _ = x::<hello, world>;
+                    ^^^^^ Could not resolve 'hello' in path
+                           ^^^^^ Could not resolve 'world' in path
+                 ^^^^^^^^^^^^^^^^ turbofish (`::<_>`) not allowed on globals
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn errors_on_generics_applied_to_wildcard_type() {
+    let src = r#"
+    fn main() {
+        let _x: _<u32, u64, Field> = 1;
+                ^ Cannot apply generics to a wildcard type
+                ~ The wildcard type `_` cannot take generic arguments
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn turbofish_not_allowed_on_local_variables() {
+    let src = r#"
+    fn main() {
+        let foobar = 1;
+        let _ = foobar::<hello, world>;
+                         ^^^^^ Could not resolve 'hello' in path
+                                ^^^^^ Could not resolve 'world' in path
+                      ^^^^^^^^^^^^^^^^ turbofish (`::<_>`) not allowed on local variables
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn turbofish_not_allowed_on_self_type() {
+    let src = r#"
+    struct Foo {}
+
+    impl Foo {
+        pub fn new() -> Self {
+            Self::<hello> {}
+                   ^^^^^ Could not resolve 'hello' in path
+                ^^^^^^^^^ turbofish (`::<_>`) not allowed on self type
+        }
+    }
+    "#;
+    check_errors(src);
+}

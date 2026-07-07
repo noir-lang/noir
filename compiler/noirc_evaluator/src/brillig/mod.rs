@@ -3,7 +3,7 @@
 //!
 //! # Usage
 //!
-//! Brillig generation is performed by calling the [Ssa::to_brillig] method.
+//! Brillig generation is performed by calling the [`Ssa::to_brillig`] method.
 //! All compiled Brillig artifacts will be returned as the [Brillig] context structure.
 mod brillig_check;
 pub(crate) mod brillig_gen;
@@ -14,7 +14,11 @@ use brillig_gen::brillig_block::BrilligBlock;
 use brillig_gen::constant_allocation::ConstantAllocation;
 use brillig_gen::{brillig_fn::FunctionContext, brillig_globals::BrilligGlobals};
 use brillig_ir::BrilligContext;
-use brillig_ir::{artifact::LabelType, brillig_variable::BrilligVariable, registers::GlobalSpace};
+use brillig_ir::{
+    artifact::LabelType,
+    brillig_variable::BrilligVariable,
+    registers::{GlobalSpace, Stack},
+};
 use noirc_errors::call_stack::CallStackHelper;
 
 use self::brillig_ir::{
@@ -36,6 +40,7 @@ use crate::ssa::{
 use rustc_hash::FxHashMap as HashMap;
 use std::{borrow::Cow, collections::BTreeSet};
 
+pub use self::brillig_ir::count_array_copies::CopySiteRegistry;
 pub use self::brillig_ir::procedures::ProcedureId;
 
 /// Converts a u32 value to usize, panicking if the conversion fails.
@@ -53,9 +58,11 @@ pub(crate) fn assert_u32(value: usize) -> u32 {
 pub struct BrilligOptions {
     pub enable_debug_trace: bool,
     pub enable_debug_assertions: bool,
-    pub enable_array_copy_counter: bool,
     pub show_opcode_advisories: bool,
     pub layout: LayoutConfig,
+    /// Shared registry for per-site array copy tracking. Populated (via `--count-array-copies`)
+    /// to enable the copy-counting instrumentation; `None` leaves ordinary compilation untouched.
+    pub copy_site_registry: Option<CopySiteRegistry>,
 }
 
 /// Context structure for the Brillig pass.
@@ -79,7 +86,6 @@ impl Brillig {
         options: &BrilligOptions,
         globals: &HashMap<ValueId, BrilligVariable>,
         hoisted_global_constants: &HashMap<(FieldElement, NumericType), BrilligVariable>,
-        is_entry_point: bool,
         check_max_stack_depth: bool,
     ) {
         let obj = self.convert_ssa_function(
@@ -87,7 +93,6 @@ impl Brillig {
             options,
             globals,
             hoisted_global_constants,
-            is_entry_point,
             check_max_stack_depth,
         );
         self.ssa_function_to_brillig.insert(func.id(), obj);
@@ -120,11 +125,40 @@ impl Brillig {
         options: &BrilligOptions,
         globals: &HashMap<ValueId, BrilligVariable>,
         hoisted_global_constants: &HashMap<(FieldElement, NumericType), BrilligVariable>,
-        is_entry_point: bool,
         check_max_stack_depth: bool,
     ) -> BrilligArtifact<FieldElement> {
+        let (function_context, brillig_context) = self.build_function_contexts(
+            func,
+            options,
+            globals,
+            hoisted_global_constants,
+            check_max_stack_depth,
+        );
+
+        if options.show_opcode_advisories {
+            let opcode_advisories =
+                brillig_check::opcode_advisories(func, &function_context, &brillig_context);
+
+            brillig_check::show_opcode_advisories(&opcode_advisories, brillig_context.artifact());
+        }
+
+        brillig_context.into_artifact()
+    }
+
+    /// Run brillig generation for a single function up to the point where the
+    /// `BrilligContext` would be consumed into a [`BrilligArtifact`]. The two
+    /// returned contexts together carry everything the post-codegen checks in
+    /// [`brillig_check`] need.
+    pub(crate) fn build_function_contexts(
+        &mut self,
+        func: &Function,
+        options: &BrilligOptions,
+        globals: &HashMap<ValueId, BrilligVariable>,
+        hoisted_global_constants: &HashMap<(FieldElement, NumericType), BrilligVariable>,
+        check_max_stack_depth: bool,
+    ) -> (FunctionContext, BrilligContext<FieldElement, Stack>) {
         let mut function_context =
-            FunctionContext::new(func, is_entry_point, options.layout.max_stack_frame_size());
+            FunctionContext::new(func, options.layout.max_stack_frame_size());
 
         let mut brillig_context = BrilligContext::new(func.name(), options);
 
@@ -156,14 +190,7 @@ impl Brillig {
             brillig_context.resolve_spill_prologue(function_context.max_spill_offset());
         }
 
-        if options.show_opcode_advisories {
-            let opcode_advisories =
-                brillig_check::opcode_advisories(func, &function_context, &brillig_context);
-
-            brillig_check::show_opcode_advisories(&opcode_advisories, brillig_context.artifact());
-        }
-
-        brillig_context.into_artifact()
+        (function_context, brillig_context)
     }
 
     pub fn call_stacks(&self) -> &CallStackHelper {
@@ -218,7 +245,6 @@ impl Ssa {
                 brillig_globals.get_brillig_globals(brillig_function_id);
 
             let func = &self.functions[&brillig_function_id];
-            let is_entry_point = brillig_globals.is_entry_point(&brillig_function_id);
             let check_max_stack_depth = max_call_depths[&brillig_function_id]
                 .is_none_or(|max_depth| max_depth >= options.layout.num_stack_frames());
 
@@ -227,7 +253,6 @@ impl Ssa {
                 options,
                 globals_allocations,
                 hoisted_constant_allocations,
-                is_entry_point,
                 check_max_stack_depth,
             );
         }
@@ -323,8 +348,8 @@ mod memory_layout {
 
         // Entry point level comparison
         let args = vec![BrilligParameter::SingleAddr(32)];
-        let entry1 = gen_brillig_for(main, args.clone(), &brillig1, &options1).unwrap();
-        let entry2 = gen_brillig_for(main, args, &brillig2, &options2).unwrap();
+        let entry1 = gen_brillig_for(main, &args, &brillig1, &options1).unwrap();
+        let entry2 = gen_brillig_for(main, &args, &brillig2, &options2).unwrap();
 
         assert_equivalent_bytecode(&entry1.byte_code, &entry2.byte_code, &options1, &options2);
     }
@@ -448,7 +473,7 @@ mod spill_runtime {
         let options = BrilligOptions { layout, ..Default::default() };
         let brillig = ssa.to_brillig(&options);
         let main = ssa.main();
-        let generated = gen_brillig_for(main, args, &brillig, &options).unwrap();
+        let generated = gen_brillig_for(main, &args, &brillig, &options).unwrap();
 
         let (vm, return_data_offset, return_data_size) =
             create_and_run_vm(calldata, &generated.byte_code);
@@ -458,7 +483,7 @@ mod spill_runtime {
             .collect()
     }
 
-    /// Minimal arithmetic spill test. Frame=6 gives 4 usable slots (start_offset=2).
+    /// Minimal arithmetic spill test. Frame=6 gives 4 usable slots (`start_offset=2`).
     /// Two params (v0, v1) use 2 slots, leaving 2 free. Computing v2, v3 fills the
     /// frame. Computing v4 requires a constant temp that pushes past 4, forcing a spill.
     ///

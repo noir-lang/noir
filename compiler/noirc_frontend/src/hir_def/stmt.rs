@@ -5,10 +5,10 @@ use crate::node_interner::{ExprId, NodeInterner, StmtId};
 use crate::token::SecondaryAttribute;
 use noirc_errors::{Location, Span};
 
-/// A HirStatement is the result of performing name resolution on
+/// A `HirStatement` is the result of performing name resolution on
 /// the Statement AST node. Unlike the AST node, any nested nodes
-/// are referred to indirectly via ExprId or StmtId, which can be
-/// used to retrieve the relevant node via the NodeInterner.
+/// are referred to indirectly via `ExprId` or `StmtId`, which can be
+/// used to retrieve the relevant node via the `NodeInterner`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum HirStatement {
     Let(HirLetStatement),
@@ -21,6 +21,12 @@ pub enum HirStatement {
     Expression(ExprId),
     Semi(ExprId),
     Comptime(StmtId),
+    /// Placeholder for a trait-level associated constant declaration like `let N: u32;`
+    /// inside a `trait` body. These declarations have no value (only impls do), so the
+    /// `GlobalInfo::let_statement` field for such globals points at this variant rather
+    /// than at a real `HirStatement::Let`. Distinct from `Error` so consumers walking
+    /// module globals can tell trait associated constants apart from broken globals.
+    TraitAssociatedConstant,
     Error,
 }
 
@@ -154,8 +160,8 @@ pub enum HirLValue {
     Index {
         array: Box<HirLValue>,
         /// `index` is required to be an identifier to simplify sequencing of side-effects.
-        /// However we also store types and locations on ExprIds which makes these necessary
-        /// for evaluating/compiling HirIdents so we don't directly require a HirIdent type here.
+        /// However we also store types and locations on `ExprIds` which makes these necessary
+        /// for evaluating/compiling `HirIdents` so we don't directly require a `HirIdent` type here.
         index: ExprId,
         typ: Type,
         location: Location,

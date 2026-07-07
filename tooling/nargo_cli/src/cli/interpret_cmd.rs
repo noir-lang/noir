@@ -17,9 +17,9 @@ use noirc_driver::{CompilationResult, CompileOptions, gen_abi};
 use clap::Args;
 use noirc_errors::CustomDiagnostic;
 use noirc_evaluator::ssa::interpreter::InterpreterOptions;
-use noirc_evaluator::ssa::interpreter::value::{NumericValue, Value};
+use noirc_evaluator::ssa::interpreter::value::Value;
 use noirc_evaluator::ssa::ir::types::{NumericType, Type};
-use noirc_evaluator::ssa::ssa_gen::{Ssa, generate_ssa};
+use noirc_evaluator::ssa::ssa_gen::{Ssa, generate_ssa, validate_ssa_or_err};
 use noirc_evaluator::ssa::{SsaEvaluatorOptions, SsaLogging, primary_passes};
 use noirc_frontend::debug::DebugInstrumenter;
 use noirc_frontend::hir::ParsedFiles;
@@ -106,15 +106,8 @@ pub(crate) fn run(args: InterpretCommand, workspace: Workspace) -> Result<(), Cl
         let (prover_input, return_value) =
             noir_artifact_cli::fs::inputs::read_inputs_from_file(&prover_file, &abi)?;
 
-        // We need to give a fresh copy of arrays each time, because the shared structures are modified.
-        let ssa_args = noir_ast_fuzzer::input_values_to_ssa(&abi, &prover_input);
-
-        let ssa_return =
-            if let (Some(return_type), Some(return_value)) = (&abi.return_type, return_value) {
-                Some(noir_ast_fuzzer::input_value_to_ssa(&return_type.abi_type, &return_value))
-            } else {
-                None
-            };
+        let (ssa_args, ssa_return) =
+            noir_ast_fuzzer::encode_to_ssa(&abi, &prover_input, return_value)?;
 
         // Generate the initial SSA.
         let mut ssa = generate_ssa(program)
@@ -171,6 +164,11 @@ pub(crate) fn run(args: InterpretCommand, workspace: Workspace) -> Result<(), Cl
             ssa = ssa_pass
                 .run(ssa)
                 .map_err(|e| CliError::Generic(format!("failed to run SSA pass {msg}: {e}")))?;
+
+            if ssa_options.validate_between_passes {
+                ssa = validate_ssa_or_err(ssa, false)
+                    .map_err(|e| CliError::Generic(format!("SSA invalid after {msg}: {e}")))?;
+            }
 
             is_ok &= print_and_interpret_ssa(
                 ssa_options,
@@ -272,12 +270,18 @@ fn compile_into_program(
         monomorphize_debug(
             main_id,
             &mut context.def_interner,
+            context.file_manager.as_file_map(),
             &context.debug_instrumenter,
             context.debug_crate_id,
             force_unconstrained,
         )
     } else {
-        monomorphize(main_id, &mut context.def_interner, force_unconstrained)
+        monomorphize(
+            main_id,
+            &mut context.def_interner,
+            context.file_manager.as_file_map(),
+            force_unconstrained,
+        )
     };
 
     let program = monomorphize_result.map_err(|error| vec![CustomDiagnostic::from(error)])?;
@@ -493,7 +497,7 @@ fn flatten_databus_value(value: Value, flattened_values: &mut Vec<Value>) {
             }
         }
         Value::Numeric(value) => {
-            flattened_values.push(Value::Numeric(NumericValue::Field(value.convert_to_field())));
+            flattened_values.push(Value::field(value.to_field()));
         }
         Value::Reference(..)
         | Value::Function(..)

@@ -3,7 +3,10 @@
 <head>
 <meta charset="UTF-8">
 <link rel="stylesheet" href="../styles.css">
+<script>window.docRoot = "../";</script>
+<script defer src="../search-index.js"></script>
 <script defer src="../nargo_doc.js"></script>
+<script defer src="../search.js"></script>
 <title>Primitive type str documentation</title>
 </head>
 <body>
@@ -16,7 +19,7 @@
 <h1><a href="../index.html">noir_stdlib</a></h1>
 <div><a href="../all.html">All items</a></div>
 <h2 id="crate-name"><a href="index.html">std</a></h2>
-<div id="crate-version">1.0.0-beta.20</div>
+<div id="crate-version">1.0.0-beta.22</div>
 <h2><a href="#primitive">Primitive type str</a></h2>
 <h3>Methods</h3>
 <ul class="sidebar-list">
@@ -59,6 +62,7 @@
 <li><a href="primitive.i32.html">i32</a></div></li>
 <li><a href="primitive.i64.html">i64</a></div></li>
 <li><a href="primitive.i8.html">i8</a></div></li>
+<li><a href="primitive.Location.html">Location</a></div></li>
 <li><a href="primitive.Module.html">Module</a></div></li>
 <li><a href="primitive.Quoted.html">Quoted</a></div></li>
 <li><a href="primitive.str.html">str</a></div></li>
@@ -87,7 +91,13 @@
 </nav>
 <main>
 <div><a href="../index.html">noir_stdlib</a> - <a href="index.html">std</a></div>
-<h1>Primitive type <span id="primitive" class="primitive">str</span></h1>
+<div class="heading-row">
+<h1 class="heading-content">Primitive type <span id="primitive" class="primitive">str</span></h1>
+<button id="search-toggle" type="button">Search</button>
+</div>
+<input id="search-input" type="search" placeholder="Type 's' or '/' to search" autocomplete="off" spellcheck="false" aria-label="Search" hidden>
+<div id="search-results" hidden></div>
+<div id="page-content">
 <div class="comments">
 <p>The string type.</p>
 <p>Denoted <code>str&lt;N&gt;</code>, its length <code>N</code> must be known at compile-time.</p>
@@ -95,17 +105,18 @@
 <h2>Implementations</h2>
 <h3><code class="code-header">impl&lt;let N: <a href="../std/primitive.u32.html" class="primitive">u32</a>&gt; <a href="../std/primitive.str.html" class="primitive">str</a>&lt;N&gt;</code></h3>
 
-<div class="padded-methods"><code id="as_bytes" class="code-header">pub fn <a href="#as_bytes"><span class="fn">as_bytes</span></a>(self) -> [<a href="../std/primitive.u8.html" class="primitive">u8</a>; N]</code>
+<div class="padded-methods"><code id="as_bytes" class="code-header">pub fn <a href="#as_bytes" class="fn">as_bytes</a>(self) -> [<a href="../std/primitive.u8.html" class="primitive">u8</a>; N]</code>
 
 <div class="padded-description"><div class="comments">
 <p>Converts the given string into a byte array</p>
 </div>
-</div><code id="as_bytes_vec" class="code-header">pub fn <a href="#as_bytes_vec"><span class="fn">as_bytes_vec</span></a>(self) -> [<a href="../std/primitive.u8.html" class="primitive">u8</a>]</code>
+</div><code id="as_bytes_vec" class="code-header">pub fn <a href="#as_bytes_vec" class="fn">as_bytes_vec</a>(self) -> [<a href="../std/primitive.u8.html" class="primitive">u8</a>]</code>
 
 <div class="padded-description"><div class="comments">
 <p>return a byte vector of the str content</p>
 </div>
-</div></div></main>
+</div></div></div>
+</main>
 </span>
 </body>
 </html>

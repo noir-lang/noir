@@ -38,23 +38,23 @@ fn brillig_check_max_stack_depth() {
     fn main
      0: call 0 // -> CheckMaxStackDepth
      1: sp[3] = u32 lt sp[2], @68
-     2: jump if sp[3] to 0 // -> 10: f0/b1
-     3: jump to 0 // -> 4: f0/b2
-     4: sp[2] = const u32 3 // f0/b2
-     5: sp[3] = @0
-     6: @0 = u32 add @0, sp[2]
-     7: call 0 // -> f1
-     8: @0 = sp[0]
-     9: jump to 0 // -> 21: f0/b3
-    10: sp[3] = u32 add sp[2], @67 // f0/b1
-    11: sp[4] = u32 lt_eq sp[2], sp[3]
-    12: jump if sp[4] to 0 // -> 14: f0/b1/1
-    13: call 0 // -> ErrorWithString
-    14: sp[2] = const u32 4 // f0/b1/1
-    15: sp[4] = @0
-    16: sp[6] = sp[3]
+     2: jump if sp[3] to 0 // -> 4: f0/b1
+     3: jump to 0 // -> 15: f0/b2
+     4: sp[3] = u32 add sp[2], @67 // f0/b1
+     5: sp[4] = u32 lt_eq sp[2], sp[3]
+     6: jump if sp[4] to 0 // -> 8: f0/b1/1
+     7: call 0 // -> ErrorWithString
+     8: sp[2] = const u32 4 // f0/b1/1
+     9: sp[4] = @0
+    10: sp[6] = sp[3]
+    11: @0 = u32 add @0, sp[2]
+    12: call 0 // -> 0: f0
+    13: @0 = sp[0]
+    14: jump to 0 // -> 21: f0/b3
+    15: sp[2] = const u32 3 // f0/b2
+    16: sp[3] = @0
     17: @0 = u32 add @0, sp[2]
-    18: call 0 // -> 0: f0
+    18: call 0 // -> f1
     19: @0 = sp[0]
     20: jump to 0 // -> 21: f0/b3
     21: return // f0/b3
@@ -150,6 +150,21 @@ fn brillig_to_bits() {
     12: sp[2] = sp[3]
     13: return
     ");
+}
+
+// `to_le_bits::<N>` requesting more limbs than the field is rejected at compile time.
+#[test]
+#[should_panic(expected = "ToRadix num_limbs")]
+fn brillig_to_bits_rejects_more_limbs_than_field_bits() {
+    let src = "
+    brillig(inline) fn foo f0 {
+      b0(v0: Field):
+        v1 = call to_le_bits(v0) -> [u1; 255]
+        return v1
+    }
+    ";
+
+    let _ = ssa_to_brillig_artifacts(src);
 }
 
 // Tests ToRadix intrinsic code-gen for Brillig.

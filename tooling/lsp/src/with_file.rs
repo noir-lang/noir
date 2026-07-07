@@ -23,7 +23,7 @@ use noirc_frontend::{
     },
 };
 
-/// Returns a copy of the given ParsedModule with all FileIds present in its locations changed to the given FileId.
+/// Returns a copy of the given `ParsedModule` with all `FileIds` present in its locations changed to the given `FileId`.
 pub(super) fn parsed_module_with_file(parsed_module: ParsedModule, file: FileId) -> ParsedModule {
     ParsedModule {
         items: parsed_module.items.into_iter().map(|item| item_with_file(item, file)).collect(),
@@ -158,6 +158,7 @@ fn type_impl_with_file(type_impl: TypeImpl, file: FileId) -> TypeImpl {
         generics: unresolved_generics_with_file(type_impl.generics, file),
         where_clause: unresolved_trait_constraints_with_file(type_impl.where_clause, file),
         methods: documented_noir_functions_with_file(type_impl.methods, file),
+        doc_comments: type_impl.doc_comments,
     }
 }
 
@@ -269,6 +270,7 @@ fn trait_item_with_file(item: TraitItem, file: FileId) -> TraitItem {
             return_type,
             where_clause,
             body,
+            attributes,
         } => TraitItem::Function {
             is_unconstrained,
             visibility,
@@ -281,6 +283,7 @@ fn trait_item_with_file(item: TraitItem, file: FileId) -> TraitItem {
             return_type: function_return_type_with_file(return_type, file),
             where_clause: unresolved_trait_constraints_with_file(where_clause, file),
             body: body.map(|body| block_expression_with_file(body, file)),
+            attributes: attributes_with_file(attributes, file),
         },
         TraitItem::Constant { name, typ } => TraitItem::Constant {
             name: ident_with_file(name, file),
@@ -612,7 +615,8 @@ fn secondary_attribute_with_file(
         | SecondaryAttributeKind::Varargs
         | SecondaryAttributeKind::UseCallersScope
         | SecondaryAttributeKind::MustUse(_)
-        | SecondaryAttributeKind::Allow(_) => secondary_attribute.kind,
+        | SecondaryAttributeKind::Allow(_)
+        | SecondaryAttributeKind::Pure => secondary_attribute.kind,
     };
     SecondaryAttribute { kind, location: location_with_file(secondary_attribute.location, file) }
 }
@@ -992,8 +996,8 @@ fn lvalue_with_file(lvalue: LValue, file: FileId) -> LValue {
             index: expression_with_file(index, file),
             location: location_with_file(location, file),
         },
-        LValue::Dereference(lvalue, location) => LValue::Dereference(
-            Box::new(lvalue_with_file(*lvalue, file)),
+        LValue::Dereference(expr, location) => LValue::Dereference(
+            Box::new(expression_with_file(*expr, file)),
             location_with_file(location, file),
         ),
         LValue::Interned(interned_expression_kind, location) => {

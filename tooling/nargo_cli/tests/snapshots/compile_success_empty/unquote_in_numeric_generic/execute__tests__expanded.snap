@@ -28,7 +28,7 @@ comptime fn foo_impl(t: TypeDefinition) -> Quoted {
         })
         .join(quote { ,  });
     quote {
-        impl < $g_intros > Foo < $g_names >  {
+        impl<$g_intros> Foo<$g_names> {
             fn foo(self) {
                 let _ = self;
             }

@@ -1,6 +1,22 @@
 use crate::tests::{UnstableFeature, assert_no_errors, check_errors, check_errors_using_features};
 
 #[test]
+fn duplicate_type_aliases_report_type_definition() {
+    let src = r#"
+    type Foo = u32;
+         ~~~ First definition found here
+    type Foo = u8;
+         ^^^ Duplicate definitions of type definition with name Foo found
+         ~~~ Second definition found here
+
+    fn main() {
+        let _: Foo = 0;
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
 fn allows_usage_of_type_alias_as_argument_type() {
     let src = r#"
     type Foo = Field;
@@ -110,7 +126,7 @@ fn cyclic_type_alias_usage_does_not_stack_overflow() {
              ~ 'B' recursively depends on itself: B -> A -> B
         fn main() {
             let _ = A::foo();
-                    ^ Could not resolve 'A' in path
+                       ^^^ Could not resolve 'foo' in path
         }
     "#;
     check_errors(src);
@@ -184,6 +200,27 @@ fn type_alias_to_numeric_generic() {
             a[i] = i;
         }
         a
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn numeric_type_alias_body_resolves_in_defining_module() {
+    let src = r#"
+    pub mod lib {
+        pub global N: u32 = 2;
+
+        // This N must refer to the N above, not the global N one.
+        // There was a bug around this.
+        pub type Size: u32 = N;
+    }
+
+    pub global N: u32 = 5;
+
+    fn main() {
+        comptime { assert_eq(lib::Size, 2); }
+        let _: [u32; lib::Size] = [0; lib::Size];
     }
     "#;
     assert_no_errors(src);
@@ -501,7 +538,7 @@ fn regression_10352_array() {
 }
 
 #[test]
-fn regression_10352_slice() {
+fn regression_10352_vector() {
     let src = r#"
     type Alias = [Alias];
 
@@ -762,7 +799,6 @@ fn regression_10971() {
     // Regression test for https://github.com/noir-lang/noir/issues/10971
     let src = r#"
     pub type X: u8 = 257u8;
-    ^^^^^^^^^^^^^^^^^^^^^^ The value `257` cannot fit into `u8` which has range `0..=255`
                      ^^^^^ The value `257` cannot fit into `u8` which has range `0..=255`
 
     fn main() {
@@ -1118,8 +1154,13 @@ fn errors_if_using_comptime_type_in_non_comptime_type_alias() {
 /// Regression test: a type alias and a global with the same name
 #[test]
 fn type_alias_takes_priority_over_global_with_same_name() {
+    // The type alias (type namespace) and the global (value namespace) coexist under the same
+    // name. `Foo` in type position resolves to the alias, so the global is never referenced and
+    // is correctly reported as unused — the two namespaces are tracked independently.
     let src = r#"
         global Foo: u32 = 10;
+               ^^^ unused global Foo
+               ~~~ unused global
 
         type Foo = u32;
 
@@ -1128,7 +1169,7 @@ fn type_alias_takes_priority_over_global_with_same_name() {
             assert(x == 20);
         }
     "#;
-    assert_no_errors(src);
+    check_errors(src);
 }
 
 #[test]
@@ -1143,7 +1184,7 @@ fn type_alias_as_closure_environment() {
     assert_no_errors(src);
 }
 
-/// Regression test: define_type_alias did not reset `current_item` after finishing,
+/// Regression test: `define_type_alias` did not reset `current_item` after finishing,
 /// which can leak into subsequent elaboration phases.
 #[test]
 fn no_false_cycle_from_stale_current_item_after_type_alias() {
@@ -1161,4 +1202,63 @@ fn no_false_cycle_from_stale_current_item_after_type_alias() {
         fn main(_x: A) where A: Foo {}
     "#;
     assert_no_errors(src);
+}
+
+/// Regression test: a pair of mutually-referencing type aliases used to overflow the stack.
+#[test]
+fn cyclic_type_aliases_referenced_from_comptime_global_do_not_stack_overflow() {
+    let src = r#"
+        type A = B;
+        type B = A;
+             ^ Dependency cycle found
+             ~ 'B' recursively depends on itself: B -> A -> B
+
+        global G: u32 = f();
+
+        fn f() -> u32 {
+            let _ = A::foo();
+                       ^^^ Could not resolve 'foo' in path
+            1
+        }
+
+        fn main() {
+            let _ = G;
+        }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn resolves_trait_associated_constant_through_type_alias() {
+    let src = r#"
+    pub trait Trait {
+        let N: u32;
+    }
+
+    struct Foo {}
+
+    impl Trait for Foo {
+        let N: u32 = 42;
+    }
+
+    type Alias = Foo;
+
+    fn main() {
+        let _ = Alias::N;
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn unused_expression_result_correct_span() {
+    let src = r#"
+    pub type Double<let N: u32>: u32 = N * 2;
+
+    fn main() {
+        Double::<1>;
+        ^^^^^^^^^^^ Unused expression result of type u32
+    }
+    "#;
+    check_errors(src);
 }

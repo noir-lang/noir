@@ -1,6 +1,0 @@
-[package]
-name = "rename_struct"
-type = "bin"
-authors = [""]
-
-[dependencies]

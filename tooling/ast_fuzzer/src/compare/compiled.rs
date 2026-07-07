@@ -1,7 +1,7 @@
 //! Compare an arbitrary AST compiled into bytecode and executed with the VM.
 use std::collections::BTreeMap;
 
-use acir::{FieldElement, native_types::WitnessStack};
+use acir::{AcirField, FieldElement, native_types::WitnessStack};
 use acvm::pwg::{OpcodeResolutionError, ResolvedAssertionPayload};
 use arbitrary::Unstructured;
 use bn254_blackbox_solver::Bn254BlackBoxSolver;
@@ -9,6 +9,7 @@ use color_eyre::eyre::{self, WrapErr};
 use nargo::{NargoError, errors::ExecutionError, foreign_calls::DefaultForeignCallBuilder};
 use noirc_abi::{Abi, InputMap, input_parser::InputValue};
 use noirc_evaluator::{ErrorType, ssa::SsaProgramArtifact};
+use noirc_frontend::hir_def::types::Type as HirType;
 use noirc_frontend::monomorphization::ast::Program;
 
 use crate::{Config, arb_inputs, arb_program, compare::logging, program_abi};
@@ -49,15 +50,42 @@ impl NargoErrorWithTypes {
             match payload {
                 ResolvedAssertionPayload::String(message) => Some(message.clone()),
                 ResolvedAssertionPayload::Raw(raw) => {
-                    let ssa_type = self.1.get(&raw.selector)?;
-                    match ssa_type {
-                        ErrorType::String(message) => Some(message.clone()),
-                        ErrorType::Dynamic(_hir_type) => {
-                            // This would be the case if we have a format string that needs to be filled with the raw payload
-                            // decoded as ABI type. The code generator shouldn't produce this kind. It shouldn't be too difficult
-                            // to map the type, but the mapper in `crate::abi` doesn't handle format strings at the moment.
-                            panic!("didn't expect dynamic error types")
+                    if let Some(ssa_type) = self.1.get(&raw.selector) {
+                        match ssa_type {
+                            ErrorType::String(message) => Some(message.clone()),
+                            ErrorType::Dynamic(hir_type) => {
+                                // A non-literal assert message — for example an `if`-expression that
+                                // produces a string, as the metamorphic rewriter can introduce — is
+                                // recorded by `codegen_constrain_error` as `ErrorType::Dynamic`, even
+                                // when its type is a plain string. Recover the message from the raw
+                                // payload bytes when they encode a string, matching the encoding of
+                                // `ConstrainError::Dynamic { is_string_type: true, .. }`.
+                                //
+                                // A format string (as synthesized for the composite-array
+                                // out-of-bounds error) encodes its template text in the leading
+                                // `length` fields, followed by the field count and the formatted
+                                // values. Decode just the template — it is enough to match the error
+                                // textually and avoids needing full ABI formatting of the values.
+                                if let HirType::FmtString(length, _) = hir_type
+                                    && let HirType::Constant(int) = length.as_ref()
+                                    && let Some(len) = int.as_field().try_to_u64()
+                                {
+                                    return raw
+                                        .data
+                                        .get(..len as usize)
+                                        .and_then(decode_raw_string_payload);
+                                }
+                                decode_raw_string_payload(&raw.data)
+                            }
                         }
+                    } else {
+                        // `codegen_constrain_error` only records the SSA `ErrorType` when the
+                        // assert message type is *not* a string (see `is_string_type` branch in
+                        // `compiler/noirc_evaluator/src/ssa/ssa_gen/mod.rs`). When a non-literal
+                        // string expression is used as an assert message, the runtime payload
+                        // therefore carries the bytes of the string with a selector that has no
+                        // entry in the SSA error type table. Recover the message from the bytes.
+                        decode_raw_string_payload(&raw.data)
                     }
                 }
             }
@@ -73,6 +101,15 @@ impl NargoErrorWithTypes {
                     OpcodeResolutionError::BrilligFunctionFailed {
                         payload: Some(payload), ..
                     } => unwrap_payload(payload),
+                    // An out-of-bounds array read surfaces as a solving error in ACIR rather than a
+                    // user assert. The equivalence check intentionally treats it as comparable to a
+                    // Brillig "attempt to add/multiply with overflow" (the explicit overflow range
+                    // check on an index can be elided by the redundant-range optimizer because the
+                    // array access bounds-check subsumes it). Surfacing a message here is what lets
+                    // that equivalence fire instead of being reported as a spurious divergence.
+                    OpcodeResolutionError::IndexOutOfBounds { .. } => {
+                        Some("Index out of bounds".to_string())
+                    }
                     _ => None,
                 },
             },
@@ -80,6 +117,26 @@ impl NargoErrorWithTypes {
             NargoError::CompilationError => None,
         }
     }
+}
+
+/// Try to interpret the raw bytes of an assertion payload as a UTF-8 string,
+/// matching the encoding produced by `ConstrainError::Dynamic { is_string_type: true, .. }`.
+///
+/// Returns `None` if the data is empty, contains a field element wider than a byte,
+/// or the bytes are not valid UTF-8.
+fn decode_raw_string_payload(data: &[FieldElement]) -> Option<String> {
+    if data.is_empty() {
+        return None;
+    }
+    let bytes: Vec<u8> = data
+        .iter()
+        .map(|field| {
+            let be = field.to_be_bytes();
+            let (low, high) = be.split_last().expect("FieldElement::to_be_bytes is non-empty");
+            high.iter().all(|b| *b == 0).then_some(*low)
+        })
+        .collect::<Option<Vec<_>>>()?;
+    String::from_utf8(bytes).ok()
 }
 
 /// The result of the execution of compiled programs, decoded by their ABI.
@@ -379,9 +436,16 @@ impl HasPrograms for CompareMorph {
 mod tests {
     use std::collections::BTreeMap;
 
-    use acir::circuit::{ErrorSelector, brillig::BrilligFunctionId};
-    use acvm::pwg::{RawAssertionPayload, ResolvedAssertionPayload};
+    use acir::{
+        FieldElement,
+        circuit::{ErrorSelector, brillig::BrilligFunctionId},
+    };
+    use acvm::pwg::{
+        ErrorLocation, OpcodeResolutionError, RawAssertionPayload, ResolvedAssertionPayload,
+    };
     use nargo::errors::ExecutionError;
+    use noirc_frontend::hir::comptime::Integer;
+    use noirc_frontend::hir_def::types::Type as HirType;
 
     use super::{ErrorType, NargoErrorWithTypes};
     use crate::compare::Comparable;
@@ -395,7 +459,7 @@ mod tests {
                     data: vec![],
                 }),
                 Vec::new(),
-                Some(BrilligFunctionId(0)),
+                Some(BrilligFunctionId::new(0)),
             )),
             BTreeMap::from_iter([(
                 ErrorSelector::new(14514982005979867414),
@@ -408,7 +472,7 @@ mod tests {
                     "Attempted to shift by 4294958994 bits on a type of bit size 8".to_string(),
                 ),
                 Vec::new(),
-                Some(BrilligFunctionId(0)),
+                Some(BrilligFunctionId::new(0)),
             )),
             BTreeMap::from_iter([(
                 ErrorSelector::new(14514982005979867414),
@@ -417,5 +481,185 @@ mod tests {
         );
 
         assert!(NargoErrorWithTypes::equivalent(&error, &brillig_error));
+    }
+
+    #[test]
+    fn matches_static_string_with_inline_string_payload() {
+        // Regression test for the `orig_vs_morph` failure with seed 0xbd897d3000100000.
+        //
+        // The metamorphic rule `any_inevitable` wraps a string literal `"KJQ"` used as
+        // an `assert(_, "KJQ")` message into `if a { "KJQ" } else { "KJQ" }`. The original
+        // program lowers the literal to `ConstrainError::StaticString` (selector mapped to
+        // `ErrorType::String("KJQ")` in the SSA error type table, runtime payload has empty
+        // data). The morphed program lowers the `if`-expression to
+        // `ConstrainError::Dynamic(_, is_string_type=true, _)` whose runtime payload carries
+        // the bytes of the string directly and whose selector is *not* recorded in the SSA
+        // error type table (the `is_string_type` branch in `codegen_constrain_error` skips
+        // `record_error_type`). Both encodings represent the same user-visible message, so
+        // the comparator must treat them as equivalent.
+        let static_string_error = NargoErrorWithTypes(
+            nargo::NargoError::ExecutionError(ExecutionError::AssertionFailed(
+                ResolvedAssertionPayload::Raw(RawAssertionPayload {
+                    selector: ErrorSelector::new(17370598246489328139),
+                    data: vec![],
+                }),
+                Vec::new(),
+                Some(BrilligFunctionId::new(0)),
+            )),
+            BTreeMap::from_iter([(
+                ErrorSelector::new(17370598246489328139),
+                ErrorType::String("KJQ".to_string()),
+            )]),
+        );
+        let inline_string_error = NargoErrorWithTypes(
+            nargo::NargoError::ExecutionError(ExecutionError::AssertionFailed(
+                ResolvedAssertionPayload::Raw(RawAssertionPayload {
+                    selector: ErrorSelector::new(9230725515038505495),
+                    data: vec![
+                        FieldElement::from(u32::from(b'K')),
+                        FieldElement::from(u32::from(b'J')),
+                        FieldElement::from(u32::from(b'Q')),
+                    ],
+                }),
+                Vec::new(),
+                Some(BrilligFunctionId::new(0)),
+            )),
+            BTreeMap::new(),
+        );
+
+        assert!(NargoErrorWithTypes::equivalent(&static_string_error, &inline_string_error));
+    }
+
+    #[test]
+    fn matches_acir_index_out_of_bounds_with_brillig_overflow() {
+        // Regression test for the `acir_vs_brillig` failure with seed 0xb536391000100000.
+        //
+        // The program reads `arr[(134_u8 + c) as u32]` where `c == 134`. The `u8` addition
+        // overflows. In Brillig the addition itself traps with "attempt to add with overflow".
+        // In ACIR the explicit overflow range check on the index is removed by the
+        // redundant-range optimizer (the array access bounds-check is a tighter implicit
+        // range constraint), so the over-large index instead surfaces as a solving-time
+        // `IndexOutOfBounds`. The comparator already intends to treat these as equivalent,
+        // but only if a message can be extracted from the ACIR `IndexOutOfBounds` error.
+        let acir_error = NargoErrorWithTypes(
+            nargo::NargoError::ExecutionError(ExecutionError::SolvingError(
+                OpcodeResolutionError::IndexOutOfBounds {
+                    opcode_location: ErrorLocation::Unresolved,
+                    index: FieldElement::from(268u32),
+                    array_size: 4,
+                },
+                None,
+            )),
+            BTreeMap::new(),
+        );
+        let brillig_error = NargoErrorWithTypes(
+            nargo::NargoError::ExecutionError(ExecutionError::AssertionFailed(
+                ResolvedAssertionPayload::Raw(RawAssertionPayload {
+                    selector: ErrorSelector::new(14990209321349310352),
+                    data: vec![],
+                }),
+                Vec::new(),
+                Some(BrilligFunctionId::new(0)),
+            )),
+            BTreeMap::from_iter([(
+                ErrorSelector::new(14990209321349310352),
+                ErrorType::String("attempt to add with overflow".to_string()),
+            )]),
+        );
+
+        assert!(NargoErrorWithTypes::equivalent(&acir_error, &brillig_error));
+    }
+
+    #[test]
+    fn decodes_dynamic_string_error_type_without_panicking() {
+        // Regression test for the `orig_vs_morph` failure with seed 0xee0040bf00100000.
+        //
+        // The metamorphic rewriter turns a literal `assert(_, "PLH")` message into
+        // `if b { "PLH" } else { "PLH" }`. Being non-literal, `codegen_constrain_error`
+        // records it as `ErrorType::Dynamic` (whose inner type is nonetheless a plain
+        // `str<3>`) in the SSA error type table, with the runtime payload carrying the
+        // string bytes. Extracting the message used to `panic!("didn't expect dynamic error
+        // types")`; instead the bytes must be decoded back into the original string so the
+        // morphed program compares equal to the original.
+        let str_type = HirType::String(Box::new(HirType::Constant(Integer::U32(3))));
+        let selector = ErrorSelector::new(9230725515038505495);
+        let plh_payload = vec![
+            FieldElement::from(u32::from(b'P')),
+            FieldElement::from(u32::from(b'L')),
+            FieldElement::from(u32::from(b'H')),
+        ];
+
+        let dynamic_error = NargoErrorWithTypes(
+            nargo::NargoError::ExecutionError(ExecutionError::AssertionFailed(
+                ResolvedAssertionPayload::Raw(RawAssertionPayload { selector, data: plh_payload }),
+                Vec::new(),
+                Some(BrilligFunctionId::new(0)),
+            )),
+            BTreeMap::from_iter([(selector, ErrorType::Dynamic(str_type))]),
+        );
+        let static_string_error = NargoErrorWithTypes(
+            nargo::NargoError::ExecutionError(ExecutionError::AssertionFailed(
+                ResolvedAssertionPayload::String("PLH".to_string()),
+                Vec::new(),
+                Some(BrilligFunctionId::new(0)),
+            )),
+            BTreeMap::new(),
+        );
+
+        assert!(NargoErrorWithTypes::equivalent(&dynamic_error, &static_string_error));
+    }
+
+    #[test]
+    fn matches_acir_dynamic_fmtstr_oob_with_brillig_string() {
+        // Regression test for the `acir_vs_brillig` failure with seed 0x6c3ad1760003227e.
+        //
+        // A dynamic read of a composite array (element size > 1) out of bounds is reported in
+        // ACIR by a synthesized format-string assertion carrying the logical index and length
+        // (`ConstrainError::Dynamic` with an `ErrorType::Dynamic(fmtstr<_, (u32,)>)`). Its raw
+        // payload is the template bytes, followed by the field count and the formatted index
+        // value. In Brillig the same access surfaces as a plain `"Index out of bounds"` string.
+        // Extracting the template message from the fmtstr payload is what lets the comparator
+        // treat the two as equivalent.
+        let template = "Index out of bounds, array has size 4, but index was {}";
+        let mut data: Vec<FieldElement> =
+            template.bytes().map(|b| FieldElement::from(u32::from(b))).collect();
+        // Format string layout: template bytes, then the field count, then the formatted values.
+        data.push(FieldElement::from(1u32));
+        data.push(FieldElement::from(869191887u32));
+
+        let fmtstr_type = HirType::FmtString(
+            Box::new(HirType::Constant(Integer::U32(template.len() as u32))),
+            Box::new(HirType::Tuple(vec![HirType::u32()])),
+        );
+        let acir_selector = ErrorSelector::new(9034042597070725729);
+        let acir_error = NargoErrorWithTypes(
+            nargo::NargoError::ExecutionError(ExecutionError::AssertionFailed(
+                ResolvedAssertionPayload::Raw(RawAssertionPayload {
+                    selector: acir_selector,
+                    data,
+                }),
+                Vec::new(),
+                None,
+            )),
+            BTreeMap::from_iter([(acir_selector, ErrorType::Dynamic(fmtstr_type))]),
+        );
+
+        let brillig_selector = ErrorSelector::new(16431471497789672479);
+        let brillig_error = NargoErrorWithTypes(
+            nargo::NargoError::ExecutionError(ExecutionError::AssertionFailed(
+                ResolvedAssertionPayload::Raw(RawAssertionPayload {
+                    selector: brillig_selector,
+                    data: vec![],
+                }),
+                Vec::new(),
+                Some(BrilligFunctionId::new(0)),
+            )),
+            BTreeMap::from_iter([(
+                brillig_selector,
+                ErrorType::String("Index out of bounds".to_string()),
+            )]),
+        );
+
+        assert!(NargoErrorWithTypes::equivalent(&acir_error, &brillig_error));
     }
 }

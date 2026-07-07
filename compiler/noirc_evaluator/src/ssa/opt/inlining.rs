@@ -2,10 +2,10 @@
 //! The purpose of this pass is to inline the instructions of each function call
 //! within the function caller. If all function calls are known, only the inline
 //! targets — `main`, any Brillig or folded ACIR entry point, and any recursive
-//! ACIR function (see [InlineInfo::is_inline_target]) — will remain when the pass finishes.
+//! ACIR function (see [`InlineInfo::is_inline_target`]) — will remain when the pass finishes.
 //!
 //! Global [values][Value::Global] live in the shared SSA global DFG.
-//! Inlining preserves their [ValueId]s in place rather than cloning them into each inline target.
+//! Inlining preserves their [`ValueId`]s in place rather than cloning them into each inline target.
 
 use std::collections::HashSet;
 
@@ -45,7 +45,7 @@ impl Ssa {
     /// Inline all functions within the IR.
     ///
     /// In the case of recursive Acir functions, this will attempt
-    /// to recursively inline until the RECURSION_LIMIT is reached.
+    /// to recursively inline until the `RECURSION_LIMIT` is reached.
     ///
     /// Functions are recursively inlined into each [inline target][InlineInfo::is_inline_target] until either we
     /// finish inlining all functions or we encounter a function whose function id is not known.
@@ -88,7 +88,9 @@ impl Ssa {
         loop {
             let num_functions_before = self.functions.len();
 
-            let call_graph = CallGraph::from_ssa_weighted(&self);
+            // The inliner works on direct call sites and is robust to indirect calls
+            // (which it cannot inline anyway).
+            let call_graph = CallGraph::from_ssa_weighted_partial(&self);
 
             let inline_infos = compute_inline_infos(
                 &self,
@@ -163,7 +165,7 @@ impl Function {
 
 /// The context for the function inlining pass.
 ///
-/// This works using an internal FunctionBuilder to build a new inline-target function
+/// This works using an internal `FunctionBuilder` to build a new inline-target function
 /// from scratch. Doing it this way properly handles importing instructions between
 /// functions and lets us reuse the existing API at the cost of essentially cloning
 /// each of the inline target's instructions.
@@ -178,9 +180,9 @@ struct InlineContext {
 }
 
 /// The per-function inlining context contains information that is only valid for one function.
-/// For example, each function has its own DataFlowGraph, and thus each function needs a translation
-/// layer to translate between BlockId to BlockId for the current function and the function to
-/// inline into. The same goes for ValueIds, InstructionIds, and for storing other data like
+/// For example, each function has its own `DataFlowGraph`, and thus each function needs a translation
+/// layer to translate between `BlockId` to `BlockId` for the current function and the function to
+/// inline into. The same goes for `ValueIds`, `InstructionIds`, and for storing other data like
 /// parameter to argument mappings.
 struct PerFunctionContext<'function> {
     /// The function that we are inlining calls into.
@@ -189,11 +191,11 @@ struct PerFunctionContext<'function> {
     /// The source function is the function we're currently inlining into the function being built.
     source_function: &'function Function,
 
-    /// The shared inlining context for all functions. This notably contains the FunctionBuilder used
+    /// The shared inlining context for all functions. This notably contains the `FunctionBuilder` used
     /// to build the function we're inlining into.
     context: &'function mut InlineContext,
 
-    /// Maps ValueIds in the function being inlined to the new ValueIds to use in the function
+    /// Maps `ValueIds` in the function being inlined to the new `ValueIds` to use in the function
     /// being inlined into. This mapping also contains the mapping from parameter values to
     /// argument values.
     values: HashMap<ValueId, ValueId>,
@@ -288,9 +290,9 @@ impl InlineContext {
 }
 
 impl<'function> PerFunctionContext<'function> {
-    /// Create a new PerFunctionContext from the source function.
+    /// Create a new `PerFunctionContext` from the source function.
     /// The value and block mappings for this context are initially empty except
-    /// for containing the mapping between parameters in the source_function and
+    /// for containing the mapping between parameters in the `source_function` and
     /// the arguments of the destination function.
     fn new(
         context: &'function mut InlineContext,
@@ -307,9 +309,9 @@ impl<'function> PerFunctionContext<'function> {
         }
     }
 
-    /// Translates a ValueId from the function being inlined to a ValueId of the function
-    /// being inlined into. Note that this expects value ids for all Value::Instruction and
-    /// Value::Param values are already handled as a result of previous inlining of instructions
+    /// Translates a `ValueId` from the function being inlined to a `ValueId` of the function
+    /// being inlined into. Note that this expects value ids for all `Value::Instruction` and
+    /// `Value::Param` values are already handled as a result of previous inlining of instructions
     /// and blocks respectively. If these assertions trigger it means a value is being used before
     /// the instruction or block that defines the value is inserted.
     fn translate_value(&mut self, id: ValueId) -> ValueId {
@@ -342,8 +344,8 @@ impl<'function> PerFunctionContext<'function> {
             }
             Value::Function(function) => self.context.builder.import_function(*function),
             Value::Intrinsic(intrinsic) => self.context.builder.import_intrinsic_id(*intrinsic),
-            Value::ForeignFunction(function) => {
-                self.context.builder.import_foreign_function(function)
+            Value::ForeignFunction { name, pure } => {
+                self.context.builder.import_foreign_function(name, *pure)
             }
             Value::Global(_) => {
                 panic!("Expected a global to be resolved to its inner value");
@@ -395,7 +397,7 @@ impl<'function> PerFunctionContext<'function> {
     }
 
     /// Try to retrieve the function referred to by the given Id.
-    /// Expects that the given ValueId belongs to the source_function.
+    /// Expects that the given `ValueId` belongs to the `source_function`.
     ///
     /// Returns None if the id is not known to refer to a function.
     fn get_function(&mut self, mut id: ValueId) -> Option<FunctionId> {
@@ -410,7 +412,7 @@ impl<'function> PerFunctionContext<'function> {
         }
     }
 
-    /// Inline all reachable blocks within the source_function into the destination function.
+    /// Inline all reachable blocks within the `source_function` into the destination function.
     fn inline_blocks(
         &mut self,
         ssa: &Ssa,
@@ -600,7 +602,7 @@ impl<'function> PerFunctionContext<'function> {
         Ok(())
     }
 
-    /// Push the given instruction from the source_function into the current block of the
+    /// Push the given instruction from the `source_function` into the current block of the
     /// function being inlined into.
     fn push_instruction(&mut self, id: InstructionId) {
         let instruction = self.source_function.dfg[id].map_values(|id| self.translate_value(id));
@@ -626,8 +628,8 @@ impl<'function> PerFunctionContext<'function> {
         Self::insert_new_instruction_results(&mut self.values, &results, new_results);
     }
 
-    /// Modify the values HashMap to remember the mapping between an instruction result's previous
-    /// ValueId (from the source_function) and its new ValueId in the destination function.
+    /// Modify the values `HashMap` to remember the mapping between an instruction result's previous
+    /// `ValueId` (from the `source_function`) and its new `ValueId` in the destination function.
     fn insert_new_instruction_results(
         values: &mut HashMap<ValueId, ValueId>,
         old_results: &[ValueId],
@@ -900,7 +902,7 @@ mod tests {
         ");
     }
 
-    /// This test is the same as [recursive_functions] we just want to test that inlining
+    /// This test is the same as [`recursive_functions`] we just want to test that inlining
     /// does not fail when triggered from the self recursive non-entry point function instead
     /// of the program entry point.
     #[test]
@@ -1132,13 +1134,13 @@ mod tests {
           b0(v0: u32, v1: u1):
             jmpif v1 then: b1(), else: b2()
           b1():
-            v5 = add v0, u32 1
-            v7 = add v5, u32 2
-            v9 = add v7, u32 3
-            v11 = add v9, u32 4
-            v13 = add v11, u32 5
-            v15 = add v13, u32 6
-            jmp b3(v15)
+            v4 = add v0, u32 1
+            v6 = add v4, u32 2
+            v8 = add v6, u32 3
+            v10 = add v8, u32 4
+            v12 = add v10, u32 5
+            v14 = add v12, u32 6
+            jmp b3(v14)
           b2():
             jmp b3(u32 0)
           b3(v2: u32):
@@ -1550,7 +1552,7 @@ mod tests {
         ");
     }
 
-    /// Same as [inline_diverging_function] but the loop header has block parameters.
+    /// Same as [`inline_diverging_function`] but the loop header has block parameters.
     #[test]
     fn inline_diverging_function_with_block_parameters() {
         let src = "

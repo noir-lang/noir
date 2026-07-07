@@ -6,14 +6,16 @@ use std::hash::Hash;
 use std::{hash::Hasher, rc::Rc};
 
 use acvm::FieldElement;
+use fm::FileMap;
 use iter_extended::{try_vecmap, vecmap};
 use noirc_errors::Location;
+use siphasher::sip::SipHasher13;
 
 use crate::Shared;
 use crate::ast::{BinaryOp, ItemVisibility, UnaryOp};
 use crate::elaborator::Elaborator;
 use crate::hir::comptime::Integer;
-use crate::hir::comptime::display::tokens_to_string;
+use crate::hir::comptime::display::{tokens_to_string, value_to_bytes};
 use crate::hir::comptime::value::unwrap_rc;
 use crate::hir::comptime::value::{FormatStringFragment, StructFields};
 use crate::hir::def_collector::dc_crate::CompilationError;
@@ -42,6 +44,95 @@ use crate::{
     token::{SecondaryAttribute, Token, Tokens},
 };
 use rustc_hash::FxHashMap as HashMap;
+
+/// The top-level "shape" of a [Type], used to catch builtins whose produced value is grossly
+/// inconsistent with their declared return type.
+///
+/// Types whose shape cannot be judged cheaply and reliably (type variables, generics, aliases,
+/// references, functions, ...) have no shape and are therefore never flagged. Arrays and vectors
+/// share a shape because some builtins legitimately return one where the other is declared.
+#[derive(PartialEq, Clone, Copy)]
+pub(crate) enum TypeShape {
+    Field,
+    Integer(Signedness, IntegerBitSize),
+    Bool,
+    Unit,
+    Sequence,
+    String,
+    FmtString,
+    Tuple(usize),
+    DataType,
+    Quoted,
+}
+
+impl std::fmt::Display for TypeShape {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            TypeShape::Field => write!(f, "Field"),
+            TypeShape::Integer(sign, size) => write!(f, "{}", Type::Integer(*sign, *size)),
+            TypeShape::Bool => write!(f, "bool"),
+            TypeShape::Unit => write!(f, "()"),
+            TypeShape::Sequence => write!(f, "an array or vector"),
+            TypeShape::String => write!(f, "a string"),
+            TypeShape::FmtString => write!(f, "a format string"),
+            TypeShape::Tuple(arity) => write!(f, "a {arity}-element tuple"),
+            TypeShape::DataType => write!(f, "a struct or enum"),
+            TypeShape::Quoted => write!(f, "a quoted value"),
+        }
+    }
+}
+
+pub(crate) fn type_shape(typ: &Type) -> Option<TypeShape> {
+    match typ {
+        Type::FieldElement => Some(TypeShape::Field),
+        Type::Integer(sign, size) => Some(TypeShape::Integer(*sign, *size)),
+        Type::Bool => Some(TypeShape::Bool),
+        Type::Unit => Some(TypeShape::Unit),
+        Type::Array(..) | Type::Vector(_) => Some(TypeShape::Sequence),
+        Type::String(_) => Some(TypeShape::String),
+        Type::FmtString(..) => Some(TypeShape::FmtString),
+        Type::Tuple(types) => Some(TypeShape::Tuple(types.len())),
+        Type::DataType(..) => Some(TypeShape::DataType),
+        Type::Quoted(_) => Some(TypeShape::Quoted),
+        Type::Alias(..)
+        | Type::TypeVariable(_)
+        | Type::TraitAsType(..)
+        | Type::NamedGeneric(_)
+        | Type::CheckedCast { .. }
+        | Type::Function(..)
+        | Type::Reference(..)
+        | Type::Forall(..)
+        | Type::Constant(..)
+        | Type::InfixExpr(..)
+        | Type::Error => None,
+    }
+}
+
+/// A defensive check guarding the `return_type` contract of `call_builtin`/`call_foreign`.
+///
+/// Type checking already validates that a builtin's produced value matches its declared return
+/// type, so this only catches a builtin implementation that contradicts its declaration. The
+/// expected shape is computed once by the caller (a cheap top-level inspection that borrows the
+/// return type, avoiding a clone); this only materializes owned types and error strings on the
+/// cold mismatch path. A mismatch is flagged only when both the produced and expected types have
+/// known, conflicting shapes; anything that cannot be judged for certain is treated as compatible
+/// to avoid false positives on generic returns.
+pub(crate) fn check_return_type_shape(
+    result: &Value,
+    expected_shape: Option<TypeShape>,
+    location: Location,
+) -> IResult<()> {
+    let Some(expected) = expected_shape else { return Ok(()) };
+    let produced_type = result.get_type();
+    if type_shape(&produced_type).is_some_and(|produced| produced != expected) {
+        return Err(InterpreterError::TypeMismatch {
+            expected: expected.to_string(),
+            actual: produced_type.into_owned(),
+            location,
+        });
+    }
+    Ok(())
+}
 
 pub(crate) fn check_argument_count(
     expected: usize,
@@ -177,15 +268,19 @@ pub(crate) fn get_fixed_array_map<T, const N: usize>(
 ) -> IResult<([T; N], Type)> {
     let (values, typ) = get_array_map((value, location), f)?;
 
+    let len = values.len();
     values.try_into().map(|v| (v, typ.clone())).map_err(|_| {
-        // Assuming that `values.len()` corresponds to `typ`.
         let Type::Array(ref elem, _) = typ else {
             unreachable!("get_array_map checked it was an array")
         };
-        let len: u32 =
+        let expected_len: u32 =
             N.try_into().expect("ICE: get_fixed_array_map: N is expected to fit into a u32");
-        let expected = Type::Array(elem.clone(), Box::new(Type::constant_u32(len))).to_string();
-        InterpreterError::TypeMismatch { expected, actual: typ, location }
+        let expected =
+            Type::Array(elem.clone(), Box::new(Type::constant_u32(expected_len))).to_string();
+        let actual_len: u32 =
+            len.try_into().expect("ICE: get_fixed_array_map: array length should fit into a u32");
+        let actual = Type::Array(elem.clone(), Box::new(Type::constant_u32(actual_len)));
+        InterpreterError::TypeMismatch { expected, actual, location }
     })
 }
 
@@ -290,6 +385,13 @@ pub(crate) fn get_module((value, location): (Value, Location)) -> IResult<Module
     }
 }
 
+pub(crate) fn get_location((value, location): (Value, Location)) -> IResult<Location> {
+    match value {
+        Value::Location(loc) => Ok(loc),
+        value => type_mismatch(value, Type::Quoted(QuotedType::Location), location),
+    }
+}
+
 pub(crate) fn get_type_id((value, location): (Value, Location)) -> IResult<TypeId> {
     match value {
         Value::TypeDefinition(id) => Ok(id),
@@ -381,13 +483,13 @@ impl From<Type> for TypeOrString {
     }
 }
 
-/// Helper function to report an [InterpreterError::TypeMismatch] where a [Value] could not be unwrapped
+/// Helper function to report an [`InterpreterError::TypeMismatch`] where a [Value] could not be unwrapped
 /// into an expected type, which can either be a concrete [Type] or a textual description, e.g. "tuple".
 ///
-/// It has special handling for [Value::Zeroed], which wraps a [Type] that might actually be the
+/// It has special handling for [`Value::Zeroed`], which wraps a [Type] that might actually be the
 /// one we expected, but we expected a concrete _value_ with that type, not a zeroed placeholder,
 /// which we optimistically created expecting that it will never be used. In such cases
-/// [InterpreterError::UnexpectedZeroedValue] is returned.
+/// [`InterpreterError::UnexpectedZeroedValue`] is returned.
 fn type_mismatch<T>(
     value: Value,
     expected: impl Into<TypeOrString>,
@@ -437,6 +539,11 @@ fn gather_hir_pattern_tokens(
                     tokens.push(Token::Comma);
                 }
                 gather_hir_pattern_tokens(interner, pattern, tokens);
+            }
+            // A singleton tuple `(x,)` requires a trailing comma to distinguish it from a
+            // parenthesized pattern `(x)`.
+            if patterns.len() == 1 {
+                tokens.push(Token::Comma);
             }
             tokens.push(Token::RightParen);
         }
@@ -493,7 +600,8 @@ pub(super) fn check_item_crate_matches_current_crate(
             &current_crate,
             item_module,
         );
-        let item = item.display(interpreter.elaborator.interner).to_string();
+        let item =
+            item.display(interpreter.elaborator.interner, interpreter.elaborator.files).to_string();
         Err(InterpreterError::CannotModifyExternalItem { item, module, location })
     } else {
         Ok(())
@@ -501,11 +609,11 @@ pub(super) fn check_item_crate_matches_current_crate(
 }
 
 pub(super) fn check_function_not_yet_resolved(
-    interpreter: &Interpreter,
+    interpreter: &mut Interpreter,
     func_id: FuncId,
     location: Location,
 ) -> IResult<()> {
-    let func_meta = interpreter.elaborator.interner.function_meta(&func_id);
+    let func_meta = interpreter.elaborator.function_meta(func_id);
     match func_meta.function_body {
         FunctionBody::Unresolved(_, _, _) => Ok(()),
         FunctionBody::Resolving | FunctionBody::Resolved => {
@@ -535,8 +643,15 @@ where
 {
     let tokens = get_quoted((value, location))?;
     let quoted = Tokens(unwrap_rc(tokens.clone()));
-    let (result, warnings) =
-        parse_tokens(tokens, quoted, elaborator.interner, location, parser, rule)?;
+    let (result, warnings) = parse_tokens(
+        &tokens,
+        quoted,
+        elaborator.interner,
+        elaborator.files,
+        location,
+        parser,
+        rule,
+    )?;
     for warning in warnings {
         let warning: CompilationError = warning.into();
         elaborator.push_err(warning);
@@ -545,9 +660,10 @@ where
 }
 
 pub(super) fn parse_tokens<'a, T, F>(
-    tokens: Rc<Vec<LocatedToken>>,
+    tokens: &[LocatedToken],
     quoted: Tokens,
     interner: &NodeInterner,
+    files: &FileMap,
     location: Location,
     parsing_function: F,
     rule: &'static str,
@@ -561,7 +677,7 @@ where
             .find(|error| !error.is_warning())
             .expect("there is at least 1 error");
         let error = Box::new(error);
-        let tokens = tokens_to_string(&tokens, interner);
+        let tokens = tokens_to_string(tokens, interner, files);
         InterpreterError::FailedToParseMacro { error, tokens, rule, location }
     })
 }
@@ -590,28 +706,41 @@ pub(super) fn has_named_attribute(
     false
 }
 
+pub(super) fn has_builtin_attribute(name: &str, attributes: &[SecondaryAttribute]) -> bool {
+    attributes.iter().any(|attr| builtin_secondary_attribute_name(attr) == Some(name))
+}
+
 fn secondary_attribute_name(
     attribute: &SecondaryAttribute,
     interner: &NodeInterner,
 ) -> Option<String> {
+    if let Some(name) = builtin_secondary_attribute_name(attribute) {
+        return Some(name.to_string());
+    }
     match &attribute.kind {
-        SecondaryAttributeKind::Deprecated(_, _) => Some("deprecated".to_string()),
-        SecondaryAttributeKind::ContractLibraryMethod => {
-            Some("contract_library_method".to_string())
-        }
-        SecondaryAttributeKind::Export => Some("export".to_string()),
-        SecondaryAttributeKind::Field(_) => Some("field".to_string()),
         SecondaryAttributeKind::Tag(contents) => {
             let mut lexer = Lexer::new_with_dummy_file(contents);
             let token = lexer.next()?.ok()?;
             if let Token::Ident(ident) = token.into_token() { Some(ident) } else { None }
         }
         SecondaryAttributeKind::Meta(meta) => interner.get_meta_attribute_name(meta),
-        SecondaryAttributeKind::Abi(_) => Some("abi".to_string()),
-        SecondaryAttributeKind::Varargs => Some("varargs".to_string()),
-        SecondaryAttributeKind::UseCallersScope => Some("use_callers_scope".to_string()),
-        SecondaryAttributeKind::Allow(_) => Some("allow".to_string()),
-        SecondaryAttributeKind::MustUse(_) => Some("must_use".to_string()),
+        _ => None,
+    }
+}
+
+fn builtin_secondary_attribute_name(attribute: &SecondaryAttribute) -> Option<&'static str> {
+    match &attribute.kind {
+        SecondaryAttributeKind::Deprecated(_, _) => Some("deprecated"),
+        SecondaryAttributeKind::ContractLibraryMethod => Some("contract_library_method"),
+        SecondaryAttributeKind::Export => Some("export"),
+        SecondaryAttributeKind::Field(_) => Some("field"),
+        SecondaryAttributeKind::Abi(_) => Some("abi"),
+        SecondaryAttributeKind::Varargs => Some("varargs"),
+        SecondaryAttributeKind::UseCallersScope => Some("use_callers_scope"),
+        SecondaryAttributeKind::Allow(_) => Some("allow"),
+        SecondaryAttributeKind::MustUse(_) => Some("must_use"),
+        SecondaryAttributeKind::Tag(_) | SecondaryAttributeKind::Meta(_) => None,
+        SecondaryAttributeKind::Pure => Some("pure"),
     }
 }
 
@@ -625,6 +754,75 @@ fn ident_to_tokens(ident: &Ident, location: Location) -> Rc<Vec<LocatedToken>> {
     Rc::new(vec![token])
 }
 
+/// A deterministic hasher used for the comptime `hash` builtins.
+///
+/// Unlike `std::collections::hash_map::DefaultHasher`, whose algorithm is an
+/// unspecified implementation detail that may change between Rust releases, this
+/// wraps a fixed-keyed SipHash-1-3 (`siphasher`) so a given Noir compiler version
+/// produces identical hashes regardless of the Rust toolchain it was built with.
+/// `SipHash` also keeps a keyed mixing structure, so collisions cannot be crafted by
+/// trivial arithmetic the way they can for a plain multiplicative hash.
+///
+/// `siphasher` already encodes byte streams little-endian, but its `write_usize`
+/// consumes the native pointer width (4 bytes on wasm32, 8 on 64-bit targets) and
+/// it does not override `write_u128`. The pointer-width-sensitive and missing
+/// methods are overridden here so the result is also stable across targets of
+/// differing pointer width, e.g. native 64-bit vs the wasm32 build.
+pub(super) struct DeterministicHasher {
+    inner: SipHasher13,
+}
+
+impl DeterministicHasher {
+    /// The canonical `SipHash` reference key (bytes `0x00..=0x0f`), used as a fixed,
+    /// publicly specified key rather than a per-process random seed.
+    const KEY0: u64 = 0x0706_0504_0302_0100;
+    const KEY1: u64 = 0x0f0e_0d0c_0b0a_0908;
+
+    pub(super) fn new() -> Self {
+        Self { inner: SipHasher13::new_with_keys(Self::KEY0, Self::KEY1) }
+    }
+}
+
+impl Hasher for DeterministicHasher {
+    fn write(&mut self, bytes: &[u8]) {
+        self.inner.write(bytes);
+    }
+
+    fn finish(&self) -> u64 {
+        self.inner.finish()
+    }
+
+    fn write_u8(&mut self, i: u8) {
+        self.inner.write_u8(i);
+    }
+
+    fn write_u16(&mut self, i: u16) {
+        self.inner.write_u16(i);
+    }
+
+    fn write_u32(&mut self, i: u32) {
+        self.inner.write_u32(i);
+    }
+
+    fn write_u64(&mut self, i: u64) {
+        self.inner.write_u64(i);
+    }
+
+    fn write_u128(&mut self, i: u128) {
+        self.inner.write(&i.to_le_bytes());
+    }
+
+    fn write_usize(&mut self, i: usize) {
+        let i = u64::try_from(i).expect("usize must fit in u64 for a stable hash");
+        self.inner.write_u64(i);
+    }
+
+    fn write_isize(&mut self, i: isize) {
+        let i = i64::try_from(i).expect("isize must fit in i64 for a stable hash");
+        self.inner.write_u64(i as u64);
+    }
+}
+
 pub(super) fn hash_item<T: Hash>(
     arguments: Vec<(Value, Location)>,
     location: Location,
@@ -633,7 +831,7 @@ pub(super) fn hash_item<T: Hash>(
     let argument = check_one_argument(arguments, location)?;
     let item = get_item(argument)?;
 
-    let mut hasher = std::collections::hash_map::DefaultHasher::new();
+    let mut hasher = DeterministicHasher::new();
     item.hash(&mut hasher);
     let hash = hasher.finish();
     Ok(Value::field(u128::from(hash).into()))
@@ -693,7 +891,7 @@ pub(crate) fn new_unary_op(operator: UnaryOp, typ: Type) -> Option<Value> {
     Some(Value::Struct(fields, typ))
 }
 
-pub(crate) fn new_binary_op(operator: BinaryOp, typ: Type) -> Value {
+pub(crate) fn new_binary_op(operator: &BinaryOp, typ: Type) -> Value {
     // For the op value we use the enum member index, which should match noir_stdlib/src/meta/op.nr
     let binary_op_value = operator.contents as u128;
 
@@ -718,15 +916,17 @@ pub(crate) fn visibility_to_quoted(visibility: ItemVisibility, location: Locatio
     Value::Quoted(Rc::new(tokens))
 }
 
-pub(crate) fn fragments_to_string(
+/// Renders format string fragments to bytes.
+pub(crate) fn fragments_to_bytes(
     fragments: &[FormatStringFragment],
     interner: &NodeInterner,
-) -> String {
-    let mut result = String::new();
+    files: &FileMap,
+) -> Vec<u8> {
+    let mut result = Vec::new();
     for fragment in fragments {
         match fragment {
             FormatStringFragment::String(string) => {
-                result.push_str(string);
+                result.extend_from_slice(string.as_bytes());
             }
             FormatStringFragment::Value { name: _, value } => {
                 match value {
@@ -735,23 +935,148 @@ pub(crate) fn fragments_to_string(
                         // surrounding `quote {` ... `}` as if we are unquoting the quoted value inside the string.
                         for (index, token) in tokens.iter().enumerate() {
                             if index > 0 {
-                                result.push(' ');
+                                result.push(b' ');
                             }
-                            result.push_str(&token.token().display(interner).to_string());
+                            let token = token.token().display(interner, files).to_string();
+                            result.extend_from_slice(token.as_bytes());
                         }
                     }
-                    Value::FormatString(fragments, _, _) => {
-                        // Nested format strings might have quoted values inside them,
-                        // so we need to recurse here instead of calling `value.display`.
-                        let inner_string = fragments_to_string(fragments, interner);
-                        result.push_str(&inner_string);
-                    }
                     _ => {
-                        result.push_str(&value.display(interner).to_string());
+                        result.extend_from_slice(&value_to_bytes(value, interner, files));
                     }
                 }
             }
         }
     }
     result
+}
+
+pub(crate) fn fragments_to_string(
+    fragments: &[FormatStringFragment],
+    interner: &NodeInterner,
+    files: &FileMap,
+) -> String {
+    String::from_utf8_lossy(&fragments_to_bytes(fragments, interner, files)).into_owned()
+}
+
+/// Converts a `Value` of noir type `Option<T>`, to a `Option<Value>` where the noir type is `T`
+pub(crate) fn get_option((value, value_location): (Value, Location)) -> IResult<Option<Value>> {
+    let Value::Struct(fields, _) = value else {
+        return Err(InterpreterError::TypeMismatch {
+            expected: "Option<_>".to_string(),
+            actual: Type::Error,
+            location: value_location,
+        });
+    };
+    let is_some = fields.iter().find(|(name, _)| name.as_str() == "_is_some").unwrap().1;
+    let Value::Bool(is_some) = is_some.borrow().clone() else {
+        panic!("Expected `_is_some` field of Option to be a boolean");
+    };
+    if !is_some {
+        return Ok(None);
+    }
+    let value = fields.iter().find(|(name, _)| name.as_str() == "_value").unwrap().1;
+    let value = value.borrow().clone();
+    Ok(Some(value))
+}
+
+#[cfg(test)]
+mod tests {
+    use std::hash::Hasher;
+
+    use siphasher::sip::SipHasher13;
+
+    use im::Vector;
+    use noirc_errors::Location;
+
+    use super::DeterministicHasher;
+    use super::{check_return_type_shape, type_shape};
+    use crate::Shared;
+    use crate::Type;
+    use crate::ast::IntegerBitSize;
+    use crate::hir::comptime::Integer;
+    use crate::hir::comptime::value::Value;
+    use crate::shared::Signedness;
+
+    #[test]
+    fn matching_shapes_pass() {
+        let loc = Location::dummy();
+        check_return_type_shape(&Value::Bool(true), type_shape(&Type::Bool), loc).unwrap();
+
+        let u32 = Type::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo);
+        check_return_type_shape(&Value::u32(0), type_shape(&u32), loc).unwrap();
+
+        // Arrays and vectors share a shape, so an array value satisfies a vector-declared return.
+        let array = Value::Array(
+            Vector::new(),
+            Type::Array(Box::new(Type::Bool), Box::new(Type::constant_u32(0))),
+        );
+        let vector = Type::Vector(Box::new(Type::Bool));
+        check_return_type_shape(&array, type_shape(&vector), loc).unwrap();
+    }
+
+    #[test]
+    fn unjudgeable_expected_shape_passes() {
+        // A return type without a known shape (e.g. `Type::Error`) must never be flagged.
+        let loc = Location::dummy();
+        check_return_type_shape(&Value::Bool(true), type_shape(&Type::Error), loc).unwrap();
+    }
+
+    #[test]
+    fn conflicting_shapes_fail() {
+        let loc = Location::dummy();
+        assert!(
+            check_return_type_shape(&Value::Bool(true), type_shape(&Type::FieldElement), loc)
+                .is_err()
+        );
+
+        let u32 = Type::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo);
+        let u8_value = Value::Integer(Integer::U8(0));
+        assert!(check_return_type_shape(&u8_value, type_shape(&u32), loc).is_err());
+
+        let pair =
+            Value::Tuple(vec![Shared::new(Value::Bool(true)), Shared::new(Value::Bool(true))]);
+        let triple = Type::Tuple(vec![Type::Bool, Type::Bool, Type::Bool]);
+        assert!(check_return_type_shape(&pair, type_shape(&triple), loc).is_err());
+    }
+
+    fn hash_bytes(bytes: &[u8]) -> u64 {
+        let mut hasher = DeterministicHasher::new();
+        hasher.write(bytes);
+        hasher.finish()
+    }
+
+    /// The hasher must be exactly SipHash-1-3 keyed with the fixed reference key, so the
+    /// value a given compiler version produces can never silently drift across builds or
+    /// refactors. Cross-checking against `siphasher` directly pins both the algorithm and
+    /// the key without depending on a hand-copied magic constant.
+    #[test]
+    fn matches_fixed_keyed_siphash13() {
+        for input in [b"".as_slice(), b"a", b"foobar"] {
+            let mut reference =
+                SipHasher13::new_with_keys(DeterministicHasher::KEY0, DeterministicHasher::KEY1);
+            reference.write(input);
+            assert_eq!(hash_bytes(input), reference.finish());
+        }
+    }
+
+    /// Integers must hash at a fixed width and endianness so the result is identical on
+    /// targets of differing pointer width (e.g. native 64-bit vs the wasm32 build).
+    #[test]
+    fn integer_writes_are_width_and_endianness_stable() {
+        let via_usize = {
+            let mut hasher = DeterministicHasher::new();
+            hasher.write_usize(0x0102_0304);
+            hasher.finish()
+        };
+        let via_u64 = {
+            let mut hasher = DeterministicHasher::new();
+            hasher.write_u64(0x0102_0304);
+            hasher.finish()
+        };
+        let via_le_bytes = hash_bytes(&0x0102_0304_u64.to_le_bytes());
+
+        assert_eq!(via_usize, via_u64);
+        assert_eq!(via_usize, via_le_bytes);
+    }
 }

@@ -14,7 +14,7 @@ use std::sync::Arc;
 use crate::{brillig::assert_u32, ssa::ssa_gen::SSA_WORD_SIZE};
 
 /// A numeric type in the Intermediate representation
-/// Note: we class NativeField as a numeric type
+/// Note: we class `NativeField` as a numeric type
 /// though we also apply limitations to it, such as not
 /// being able to compare two native fields, whereas this is
 /// something that you can do with a signed/unsigned integer.
@@ -37,12 +37,12 @@ impl NumericType {
         }
     }
 
-    /// Creates a NumericType::Signed type
+    /// Creates a `NumericType::Signed` type
     pub(crate) fn signed(bit_size: u32) -> NumericType {
         NumericType::Signed { bit_size }
     }
 
-    /// Creates a NumericType::Unsigned type
+    /// Creates a `NumericType::Unsigned` type
     pub(crate) fn unsigned(bit_size: u32) -> NumericType {
         NumericType::Unsigned { bit_size }
     }
@@ -63,7 +63,7 @@ impl NumericType {
     }
 
     /// Returns None if the given Field value is within the numeric limits
-    /// for the current NumericType. Otherwise returns a string describing
+    /// for the current `NumericType`. Otherwise returns a string describing
     /// the limits, as a range.
     pub(crate) fn value_is_outside_limits(self, value: FieldElement) -> Option<String> {
         match self {
@@ -214,7 +214,7 @@ impl Type {
         matches!(self, Type::Numeric(_))
     }
 
-    /// Returns the inner NumericType if this is one, or panics otherwise
+    /// Returns the inner `NumericType` if this is one, or panics otherwise
     pub(crate) fn unwrap_numeric(&self) -> NumericType {
         match self {
             Type::Numeric(numeric) => *numeric,
@@ -279,7 +279,7 @@ impl Type {
     /// as opposed to SSA, where only tuples get flattened into the array they are in,
     /// but nested arrays appear as a value ID.
     ///
-    /// Panics if called on a [Type::Vector], since its value cannot be known based on its type.
+    /// Panics if called on a [`Type::Vector`], since its value cannot be known based on its type.
     pub(crate) fn flattened_size(&self) -> FlattenedLength {
         match self {
             Type::Array(elements, len) => {
@@ -335,6 +335,18 @@ impl Type {
         }
     }
 
+    /// True if this is a mutable reference type or
+    /// if it is a composite type which contains a mutable reference.
+    pub(crate) fn contains_mutable_reference(&self) -> bool {
+        match self {
+            Type::Reference(element, mutable) => *mutable || element.contains_mutable_reference(),
+            Type::Numeric(_) | Type::Function => false,
+            Type::Array(elements, _) | Type::Vector(elements) => {
+                elements.iter().any(|elem| elem.contains_mutable_reference())
+            }
+        }
+    }
+
     /// True if this is a function type or if it is a composite type which contains a function.
     pub(crate) fn contains_function(&self) -> bool {
         match self {
@@ -352,6 +364,65 @@ impl Type {
         match self {
             Type::Reference(element_type, _) => Some(element_type.as_ref()),
             _ => None,
+        }
+    }
+
+    /// Recursively rewrite every [`Type::Reference`] inside `self` to be immutable.
+    ///
+    /// The SSA validator ([`Type::canonical_eq`]) and the Noir frontend both
+    /// accept passing `&mut T` where `&T` is expected. To make types in those
+    /// positions compare equal under that same leniency, callers that need a
+    /// canonical form (e.g., map keys in defunctionalize) can collapse
+    /// reference mutability here.
+    pub(crate) fn canonicalize(&mut self) {
+        match self {
+            Type::Reference(element, mutable) => {
+                *mutable = false;
+                let mut new_element = (**element).clone();
+                new_element.canonicalize();
+                *element = Arc::new(new_element);
+            }
+            Type::Array(elements, _) | Type::Vector(elements) => {
+                let mut new_elements = (**elements).clone();
+                for inner in &mut new_elements {
+                    inner.canonicalize();
+                }
+                *elements = Arc::new(new_elements);
+            }
+            Type::Numeric(_) | Type::Function => (),
+        }
+    }
+
+    /// Owned counterpart to [`Type::canonicalize`] — returns a clone with all
+    /// reference mutability stripped.
+    pub(crate) fn canonicalized(&self) -> Self {
+        let mut clone = self.clone();
+        clone.canonicalize();
+        clone
+    }
+
+    /// Compares two types, treating mutable and immutable references as equivalent.
+    ///
+    /// Equivalent to `self.canonicalized() == other.canonicalized()` but walks
+    /// both types in lockstep instead of allocating cloned trees — the SSA
+    /// validator calls this for every block-terminator argument and every call
+    /// site, so the no-alloc path matters in debug builds.
+    ///
+    /// This is a validation aid, not a soundness check: the frontend rejects
+    /// trying to use `&T` where `&mut T` is expected, but once compiled to
+    /// SSA, we can treat them as equivalents.
+    pub(crate) fn canonical_eq(&self, other: &Type) -> bool {
+        let all_eq = |a: &[Type], b: &[Type]| {
+            a.len() == b.len() && a.iter().zip(b).all(|(a, b)| a.canonical_eq(b))
+        };
+
+        match (self, other) {
+            (Type::Reference(a_elem, _), Type::Reference(b_elem, _)) => a_elem.canonical_eq(b_elem),
+            (Type::Array(a_elems, a_len), Type::Array(b_elems, b_len)) => {
+                a_len == b_len && all_eq(a_elems, b_elems)
+            }
+            (Type::Vector(a_elems), Type::Vector(b_elems)) => all_eq(a_elems, b_elems),
+            _ => self == other,
         }
     }
 }

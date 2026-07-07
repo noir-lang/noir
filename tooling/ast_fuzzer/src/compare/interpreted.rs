@@ -8,7 +8,7 @@ use arbitrary::Unstructured;
 use color_eyre::eyre;
 use iter_extended::vecmap;
 use itertools::Itertools;
-use noirc_abi::{Abi, AbiType, InputMap, Sign, input_parser::InputValue};
+use noirc_abi::{Abi, AbiType, InputMap, Sign, errors::AbiError, input_parser::InputValue};
 use noirc_evaluator::ssa::{
     self,
     interpreter::{InterpreterOptions, value::Value},
@@ -182,6 +182,12 @@ impl Comparable for ssa::interpreter::errors::InterpreterError {
                         || msg == "attempt to shift right with overflow"
                         || msg == "attempt to shift left with overflow"
                 }
+                // Signed division of `i_N::MIN / -1` overflows. The `expand_signed_math` pass and
+                // the constant-folding of binary ops produce the message with different casing.
+                BinaryOp::Div => msg.to_lowercase() == "attempt to divide with overflow",
+                BinaryOp::Mod => {
+                    msg.to_lowercase() == "attempt to calculate the remainder with overflow"
+                }
                 _ => false,
             },
             (
@@ -252,8 +258,24 @@ impl Comparable for Value {
     }
 }
 
+pub fn encode_to_ssa(
+    abi: &Abi,
+    input_map: &InputMap,
+    return_value: Option<InputValue>,
+) -> Result<(Vec<Value>, Option<Vec<Value>>), AbiError> {
+    abi.encode(input_map, return_value.clone())?;
+    let ssa_args = input_values_to_ssa(abi, input_map);
+    let ssa_return =
+        if let (Some(return_value), Some(return_type)) = (return_value, abi.return_type.as_ref()) {
+            Some(input_value_to_ssa(&return_type.abi_type, &return_value))
+        } else {
+            None
+        };
+    Ok((ssa_args, ssa_return))
+}
+
 /// Convert the ABI encoded inputs to what the SSA interpreter expects.
-pub fn input_values_to_ssa(abi: &Abi, input_map: &InputMap) -> Vec<Value> {
+fn input_values_to_ssa(abi: &Abi, input_map: &InputMap) -> Vec<Value> {
     let mut inputs = Vec::new();
     for param in &abi.parameters {
         let input = &input_map
@@ -268,7 +290,7 @@ pub fn input_values_to_ssa(abi: &Abi, input_map: &InputMap) -> Vec<Value> {
 /// Convert one ABI encoded input to what the SSA interpreter expects.
 ///
 /// Tuple types and structs are flattened.
-pub fn input_value_to_ssa(typ: &AbiType, input: &InputValue) -> Vec<Value> {
+fn input_value_to_ssa(typ: &AbiType, input: &InputValue) -> Vec<Value> {
     let mut values = Vec::new();
     append_input_value_to_ssa(typ, input, &mut values);
     values
@@ -391,7 +413,64 @@ fn sanitize_ssa(ssa: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::sanitize_ssa;
+    use noirc_evaluator::ssa::{
+        interpreter::errors::InterpreterError, ir::instruction::BinaryOp, ir::map::Id,
+    };
+
+    use super::{Comparable, sanitize_ssa};
+
+    /// Build an `Overflow` error for the given binary operator, as produced by
+    /// the interpreter before the `expand_signed_math` pass.
+    fn overflow(operator: BinaryOp) -> InterpreterError {
+        InterpreterError::Overflow { operator, instruction: String::new() }
+    }
+
+    /// Build a `ConstrainEqFailed` error carrying `msg`, as produced by the
+    /// interpreter after `expand_signed_math` expands the checked operation.
+    fn constrain_eq_failed(msg: &str) -> InterpreterError {
+        InterpreterError::ConstrainEqFailed {
+            lhs: String::new(),
+            lhs_id: Id::new(0),
+            rhs: String::new(),
+            rhs_id: Id::new(1),
+            msg: Some(msg.to_string()),
+        }
+    }
+
+    /// A signed `i_N::MIN / -1` overflow turns from an `Overflow` into a
+    /// `ConstrainEqFailed` across `expand_signed_math`; the two must compare equal.
+    #[test]
+    fn div_overflow_matches_constrain_eq() {
+        assert!(Comparable::equivalent(
+            &overflow(BinaryOp::Div),
+            &constrain_eq_failed("attempt to divide with overflow"),
+        ));
+    }
+
+    /// Same as above for signed `i_N::MIN % -1`, which the interpreter reports
+    /// as a `Mod` overflow before the pass and a constraint failure after it.
+    #[test]
+    fn mod_overflow_matches_constrain_eq() {
+        // `expand_signed_math` produces a capitalized message, while constant
+        // folding produces a lowercase one; both must be accepted.
+        assert!(Comparable::equivalent(
+            &overflow(BinaryOp::Mod),
+            &constrain_eq_failed("attempt to calculate the remainder with overflow"),
+        ));
+        assert!(Comparable::equivalent(
+            &overflow(BinaryOp::Mod),
+            &constrain_eq_failed("Attempt to calculate the remainder with overflow"),
+        ));
+    }
+
+    /// A mismatched message must not be treated as equivalent.
+    #[test]
+    fn mod_overflow_rejects_unrelated_message() {
+        assert!(!Comparable::equivalent(
+            &overflow(BinaryOp::Mod),
+            &constrain_eq_failed("attempt to divide with overflow"),
+        ));
+    }
 
     #[test]
     fn test_sanitize_ssa() {

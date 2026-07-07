@@ -1,0 +1,6 @@
+[package]
+name = "mod_by_zero_witness"
+type = "bin"
+authors = [""]
+
+[dependencies]

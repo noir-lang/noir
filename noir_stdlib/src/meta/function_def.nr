@@ -19,10 +19,25 @@ impl FunctionDefinition {
     pub comptime fn has_named_attribute<let N: u32>(self, name: str<N>) -> bool {}
     // docs:end:has_named_attribute
 
+    #[builtin(function_def_named_attribute_args)]
+    // docs:start:named_attribute_args
+    pub comptime fn named_attribute_args<let N: u32>(self, name: str<N>) -> [[Quoted]] {}
+    // docs:end:named_attribute_args
+
+    #[builtin(function_def_has_builtin_attribute)]
+    // docs:start:has_builtin_attribute
+    pub comptime fn has_builtin_attribute<let N: u32>(self, name: str<N>) -> bool {}
+    // docs:end:has_builtin_attribute
+
     #[builtin(function_def_is_unconstrained)]
     // docs:start:is_unconstrained
     pub comptime fn is_unconstrained(self) -> bool {}
     // docs:end:is_unconstrained
+
+    #[builtin(function_def_location)]
+    // docs:start:location
+    pub comptime fn location(self) -> Location {}
+    // docs:end:location
 
     #[builtin(function_def_module)]
     // docs:start:module
@@ -60,13 +75,9 @@ impl crate::hash::Hash for FunctionDefinition {
 }
 
 impl crate::cmp::Eq for FunctionDefinition {
-    comptime fn eq(self, other: Self) -> bool {
-        function_def_eq(self, other)
-    }
+    #[builtin(function_def_eq)]
+    comptime fn eq(self, other: Self) -> bool {}
 }
-
-#[builtin(function_def_eq)]
-comptime fn function_def_eq(_first: FunctionDefinition, _second: FunctionDefinition) -> bool {}
 
 #[builtin(function_def_hash)]
 comptime fn function_def_hash(_function: FunctionDefinition) -> Field {}

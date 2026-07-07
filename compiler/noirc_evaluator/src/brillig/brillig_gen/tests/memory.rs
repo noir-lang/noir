@@ -129,12 +129,14 @@ fn brillig_array_with_rc_ops() {
     20: @4 = const u32 4
     21: call 0 // -> ArrayCopy
     22: sp[4] = @5
-    23: sp[6] = u32 add sp[4], sp[2]
-    24: store sp[3] at sp[6]
-    25: sp[3] = u32 add sp[4], sp[2]
-    26: sp[3] = load sp[3]
-    27: sp[2] = sp[3]
-    28: return
+    23: sp[6] = u32 add sp[4], @2
+    24: sp[7] = u32 add sp[6], sp[2]
+    25: store sp[3] at sp[7]
+    26: sp[5] = u32 add sp[4], @2
+    27: sp[3] = u32 add sp[5], sp[2]
+    28: sp[3] = load sp[3]
+    29: sp[2] = sp[3]
+    30: return
     ");
 }
 
@@ -198,15 +200,15 @@ fn brillig_global_array_not_coalesced_with_block_param() {
      7: call 0 // -> f1
      8: @0 = sp[0]
      9: sp[4] = sp[8]
-    10: jump if sp[4] to 0 // -> 15: f0/b1
-    11: jump to 0 // -> 12: f0/b2
-    12: sp[2] = @68 // f0/b2
-    13: jump to 0 // -> 14: f0/b3
-    14: return // f0/b3
-    15: sp[2] = const bool 1 // f0/b1
-    16: sp[3] = bool eq @69, sp[2]
-    17: jump if sp[3] to 0 // -> 20: f0/b1/1
-    18: sp[4] = const u32 0
-    19: trap @[@1; sp[4]]
+    10: jump if sp[4] to 0 // -> 12: f0/b1
+    11: jump to 0 // -> 17: f0/b2
+    12: sp[2] = const bool 1 // f0/b1
+    13: sp[3] = bool eq @69, sp[2]
+    14: jump if sp[3] to 0 // -> 17: f0/b1/1
+    15: sp[4] = const u32 0
+    16: trap @[@1; sp[4]]
+    17: sp[2] = @68 // f0/b1/1, f0/b2
+    18: jump to 0 // -> 19: f0/b3
+    19: return // f0/b3
     ");
 }

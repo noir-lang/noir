@@ -13,7 +13,7 @@ use crate::ssa::ssa_gen::Ssa;
 /// Regression test from fuzzer: arg-side coalesced value (v1) outlives the block
 /// param (v4) it shares a register with. When v4 dies in b1, the register was
 /// incorrectly deallocated even though v1 is still used in b3. The register then
-/// gets reassigned with a different bit_size, producing "Bit size for lhs N does
+/// gets reassigned with a different `bit_size`, producing "Bit size for lhs N does
 /// not match op bit size M" in the VM.
 ///
 /// Key pattern: v1 (u32) is arg-coalesced to v4 (u32 block param of b1). In b1,
@@ -237,8 +237,7 @@ fn coalescing_arg_to_deallocated_parameter_panics() {
     let param = func.dfg[*destination].parameters()[0]; // v1
 
     let options = BrilligOptions::default();
-    let mut function_context =
-        FunctionContext::new(func, true, options.layout.max_stack_frame_size());
+    let mut function_context = FunctionContext::new(func, options.layout.max_stack_frame_size());
 
     assert_eq!(
         function_context.coalescing.get_coalesced(&arg),

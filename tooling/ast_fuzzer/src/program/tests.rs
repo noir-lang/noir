@@ -323,7 +323,7 @@ fn test_wrap_oracle_prints_in_functions() {
     let oracle_call = Expression::Call(Call {
         func: Box::new(Expression::Ident(Ident {
             location: None,
-            definition: Definition::Oracle("print".to_string()),
+            definition: Definition::Oracle { name: "print".to_string(), pure: false },
             mutable: false,
             name: "print_oracle".to_string(),
             typ: Rc::new(Type::Function(
