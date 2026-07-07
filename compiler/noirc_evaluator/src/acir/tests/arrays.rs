@@ -249,15 +249,16 @@ fn disabled_out_of_bounds_read_resolves_without_memory_block() {
         return v11
     }
     ";
-    let generated_acir = ssa_to_generated_acir(src);
+    let program = ssa_to_acir_program(src);
 
+    assert_eq!(program.functions.len(), 1);
     assert!(
-        !generated_acir
-            .opcodes()
+        !program.functions[0]
+            .opcodes
             .iter()
             .any(|opcode| matches!(opcode, Opcode::MemoryInit { .. } | Opcode::MemoryOp { .. })),
         "a disabled out-of-bounds read should not generate a memory block, got opcodes:\n{:#?}",
-        generated_acir.opcodes()
+        program.functions[0].opcodes
     );
 }
 
@@ -295,15 +296,16 @@ fn disabled_out_of_bounds_read_from_global_resolves_without_memory_block() {
         return v15
     }
     ";
-    let generated_acir = ssa_to_generated_acir(src);
+    let program = ssa_to_acir_program(src);
 
+    assert_eq!(program.functions.len(), 1);
     assert!(
-        !generated_acir
-            .opcodes()
+        !program.functions[0]
+            .opcodes
             .iter()
             .any(|opcode| matches!(opcode, Opcode::MemoryInit { .. } | Opcode::MemoryOp { .. })),
         "a disabled out-of-bounds read should not generate a memory block, got opcodes:\n{:#?}",
-        generated_acir.opcodes()
+        program.functions[0].opcodes
     );
 }
 
@@ -338,14 +340,15 @@ fn disabled_out_of_bounds_read_with_predicate_restored_resolves_without_memory_b
         return v11
     }
     ";
-    let generated_acir = ssa_to_generated_acir(src);
+    let program = ssa_to_acir_program(src);
+    assert_eq!(program.functions.len(), 1);
     assert!(
-        !generated_acir
-            .opcodes()
+        !program.functions[0]
+            .opcodes
             .iter()
             .any(|opcode| matches!(opcode, Opcode::MemoryInit { .. } | Opcode::MemoryOp { .. })),
         "a disabled out-of-bounds read should not generate a memory block, got opcodes:\n{:#?}",
-        generated_acir.opcodes()
+        program.functions[0].opcodes
     );
 }
 
