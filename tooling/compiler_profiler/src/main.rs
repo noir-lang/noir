@@ -1,7 +1,16 @@
+#![forbid(unsafe_code)]
+#![cfg_attr(not(test), warn(unused_crate_dependencies, unused_extern_crates))]
+
+//! Turns the JSON span logs written by a `NARGO_LOG_DIR=<dir> NOIR_LOG=trace
+//! nargo` invocation into a compiler-phase flamegraph and a chrome-trace
+//! timeline. See README.md for usage and how to read the output.
+
+mod span_log;
+
 use std::io::{BufRead, BufReader, BufWriter, Write};
 use std::path::PathBuf;
 
-use clap::Args;
+use clap::Parser;
 use color_eyre::eyre::{self, Context, eyre};
 use inferno::flamegraph::{Options, from_lines};
 use serde_json::json;
@@ -11,8 +20,9 @@ use crate::span_log::{SpanLogProcessor, SpanLogReport};
 /// Generates a compiler-phase flamegraph and a chrome-trace timeline from the
 /// JSON span logs written by a `NARGO_LOG_DIR=<dir> NOIR_LOG=trace nargo`
 /// invocation.
-#[derive(Debug, Clone, Args)]
-pub(crate) struct SpansFlamegraphCommand {
+#[derive(Debug, Parser)]
+#[command(name = "noir-compiler-profiler", author, version, about)]
+struct CompilerProfilerCli {
     /// The directory containing the JSON span logs (the `NARGO_LOG_DIR` of
     /// the profiled run). Every file in it is treated as part of one run, so
     /// use a fresh directory per run.
@@ -33,7 +43,15 @@ pub(crate) struct SpansFlamegraphCommand {
     title: String,
 }
 
-pub(crate) fn run(args: SpansFlamegraphCommand) -> eyre::Result<()> {
+fn main() {
+    color_eyre::install().expect("color_eyre installs only once");
+    if let Err(report) = run(CompilerProfilerCli::parse()) {
+        eprintln!("{report:#}");
+        std::process::exit(1);
+    }
+}
+
+fn run(args: CompilerProfilerCli) -> eyre::Result<()> {
     let mut log_files: Vec<PathBuf> = std::fs::read_dir(&args.log_dir)
         .with_context(|| format!("Error reading log directory {}", args.log_dir.display()))?
         .map(|entry| Ok(entry?.path()))

@@ -381,8 +381,8 @@ mod tests {
 
     /// Build an `enter` event line. `spans` is the full chain including the
     /// entered span itself, as tracing emits it.
-    fn enter_line(ts: &str, spans: &[Value]) -> String {
-        let span = spans.last().unwrap().clone();
+    fn enter_line(ts: &str, spans: &[&Value]) -> String {
+        let span = *spans.last().unwrap();
         json!({
             "timestamp": ts,
             "level": "TRACE",
@@ -396,7 +396,7 @@ mod tests {
 
     /// Build a `close` event line. `ancestors` excludes the closed span
     /// itself, as tracing emits it.
-    fn close_line(ts: &str, busy: &str, idle: &str, ancestors: &[Value], span: Value) -> String {
+    fn close_line(ts: &str, busy: &str, idle: &str, ancestors: &[&Value], span: &Value) -> String {
         json!({
             "timestamp": ts,
             "level": "TRACE",
@@ -456,10 +456,10 @@ mod tests {
         let root = json!({"name": "root"});
         let child = json!({"name": "child"});
         let lines = vec![
-            enter_line(&ts(0), &[root.clone()]),
-            enter_line(&ts(10), &[root.clone(), child.clone()]),
-            close_line(&ts(110), "100µs", "0ns", &[root.clone()], child),
-            close_line(&ts(200), "200µs", "0ns", &[], root),
+            enter_line(&ts(0), &[&root]),
+            enter_line(&ts(10), &[&root, &child]),
+            close_line(&ts(110), "100µs", "0ns", &[&root], &child),
+            close_line(&ts(200), "200µs", "0ns", &[], &root),
         ];
         let report = process(&lines);
         assert_eq!(
@@ -477,12 +477,12 @@ mod tests {
         let a = json!({"name": "a"});
         let b = json!({"name": "b"});
         let lines = vec![
-            enter_line(&ts(0), &[a.clone()]),
-            enter_line(&ts(10), &[a.clone(), b.clone()]),
-            enter_line(&ts(20), &[a.clone(), b.clone(), b.clone()]),
-            close_line(&ts(50), "30.0µs", "0ns", &[a.clone(), b.clone()], b.clone()),
-            close_line(&ts(70), "60.0µs", "0ns", &[a.clone()], b),
-            close_line(&ts(100), "100µs", "0ns", &[], a),
+            enter_line(&ts(0), &[&a]),
+            enter_line(&ts(10), &[&a, &b]),
+            enter_line(&ts(20), &[&a, &b, &b]),
+            close_line(&ts(50), "30.0µs", "0ns", &[&a, &b], &b),
+            close_line(&ts(70), "60.0µs", "0ns", &[&a], &b),
+            close_line(&ts(100), "100µs", "0ns", &[], &a),
         ];
         let report = process(&lines);
         assert_eq!(
@@ -496,12 +496,12 @@ mod tests {
         let root = json!({"name": "root"});
         let child = json!({"name": "child"});
         let lines = vec![
-            enter_line(&ts(0), &[root.clone()]),
-            enter_line(&ts(10), &[root.clone(), child.clone()]),
-            close_line(&ts(40), "30.0µs", "0ns", &[root.clone()], child.clone()),
-            enter_line(&ts(50), &[root.clone(), child.clone()]),
-            close_line(&ts(70), "20.0µs", "0ns", &[root.clone()], child),
-            close_line(&ts(100), "100µs", "0ns", &[], root),
+            enter_line(&ts(0), &[&root]),
+            enter_line(&ts(10), &[&root, &child]),
+            close_line(&ts(40), "30.0µs", "0ns", &[&root], &child),
+            enter_line(&ts(50), &[&root, &child]),
+            close_line(&ts(70), "20.0µs", "0ns", &[&root], &child),
+            close_line(&ts(100), "100µs", "0ns", &[], &root),
         ];
         let report = process(&lines);
         assert_eq!(
@@ -520,12 +520,12 @@ mod tests {
         let inner = json!({"name": "inner"});
         let leaf = json!({"name": "leaf"});
         let lines = vec![
-            enter_line(&ts(0), &[outer.clone()]),
-            enter_line(&ts(100), &[inner.clone()]),
-            enter_line(&ts(110), &[inner.clone(), leaf.clone()]),
-            close_line(&ts(160), "50.0µs", "0ns", &[inner.clone()], leaf),
-            close_line(&ts(300), "200µs", "0ns", &[], inner),
-            close_line(&ts(1000), "1.00ms", "0ns", &[], outer),
+            enter_line(&ts(0), &[&outer]),
+            enter_line(&ts(100), &[&inner]),
+            enter_line(&ts(110), &[&inner, &leaf]),
+            close_line(&ts(160), "50.0µs", "0ns", &[&inner], &leaf),
+            close_line(&ts(300), "200µs", "0ns", &[], &inner),
+            close_line(&ts(1000), "1.00ms", "0ns", &[], &outer),
         ];
         let report = process(&lines);
         assert_eq!(
@@ -544,10 +544,10 @@ mod tests {
         let a = json!({"name": "a"});
         let b = json!({"name": "b"});
         let lines = vec![
-            enter_line(&ts(0), &[a.clone()]),
-            close_line(&ts(50), "50.0µs", "0ns", &[], a),
-            enter_line(&ts(100), &[b.clone()]),
-            close_line(&ts(200), "100µs", "0ns", &[], b),
+            enter_line(&ts(0), &[&a]),
+            close_line(&ts(50), "50.0µs", "0ns", &[], &a),
+            enter_line(&ts(100), &[&b]),
+            close_line(&ts(200), "100µs", "0ns", &[], &b),
         ];
         let report = process(&lines);
         assert_eq!(
@@ -563,10 +563,10 @@ mod tests {
         let root = json!({"name": "root"});
         let child = json!({"name": "tiny"});
         let lines = vec![
-            enter_line(&ts(0), &[root.clone()]),
-            enter_line(&ts(10), &[root.clone(), child.clone()]),
-            close_line(&ts(15), "5.00µs", "0ns", &[root.clone()], child),
-            close_line(&ts(500), "500µs", "0ns", &[], root),
+            enter_line(&ts(0), &[&root]),
+            enter_line(&ts(10), &[&root, &child]),
+            close_line(&ts(15), "5.00µs", "0ns", &[&root], &child),
+            close_line(&ts(500), "500µs", "0ns", &[], &root),
         ];
         let mut processor = SpanLogProcessor::new(10);
         for line in &lines {
@@ -586,8 +586,8 @@ mod tests {
         let lines = vec![
             "not json at all".to_string(),
             json!({"timestamp": ts(1), "fields": {"message": "some log"}}).to_string(),
-            enter_line(&ts(0), &[a.clone()]),
-            close_line(&ts(50), "50.0µs", "0ns", &[], a),
+            enter_line(&ts(0), &[&a]),
+            close_line(&ts(50), "50.0µs", "0ns", &[], &a),
         ];
         let report = process(&lines);
         assert_eq!(report.skipped_lines, 2);
@@ -597,7 +597,7 @@ mod tests {
     #[test]
     fn unclosed_span_is_reported() {
         let a = json!({"name": "a"});
-        let lines = vec![enter_line(&ts(0), &[a.clone()])];
+        let lines = vec![enter_line(&ts(0), &[&a])];
         let report = process(&lines);
         assert!(
             report.warnings.iter().any(|w| w.contains("never closed")),

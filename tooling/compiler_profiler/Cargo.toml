@@ -1,0 +1,23 @@
+[package]
+name = "noir_compiler_profiler"
+description = "Internal tool that turns nargo's tracing span logs into compiler-phase flamegraphs"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[[bin]]
+name = "noir-compiler-profiler"
+path = "src/main.rs"
+
+[lints]
+workspace = true
+
+[dependencies]
+chrono = "0.4.37"
+clap.workspace = true
+color-eyre.workspace = true
+inferno = "0.12"
+serde_json.workspace = true

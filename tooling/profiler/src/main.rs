@@ -6,7 +6,6 @@ mod errors;
 mod flamegraph;
 mod gates_provider;
 mod opcode_formatter;
-mod span_log;
 
 use std::env;
 

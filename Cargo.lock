@@ -3671,6 +3671,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "noir_compiler_profiler"
+version = "1.0.0-beta.22"
+dependencies = [
+ "chrono",
+ "clap",
+ "color-eyre",
+ "inferno 0.12.6",
+ "serde_json",
+]
+
+[[package]]
 name = "noir_debugger"
 version = "1.0.0-beta.22"
 dependencies = [
@@ -3770,7 +3781,6 @@ version = "1.0.0-beta.22"
 dependencies = [
  "acir",
  "bn254_blackbox_solver",
- "chrono",
  "clap",
  "color-eyre",
  "const_format",

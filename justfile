@@ -200,15 +200,15 @@ visualize-ssa-cfg PASS:
 # FILTER controls span granularity: the default keeps compiler phases and SSA
 # passes but drops the elaborator's very hot per-expression spans; use
 # FILTER="trace" for full detail (much slower, multi-GB logs).
-# See tooling/profiler/README.md for how to read the output.
+# See tooling/compiler_profiler/README.md for how to read the output.
 profile-compiler DIR OUT="target/compiler-profile" FILTER="trace,noirc_frontend::elaborator=info":
     #!/usr/bin/env bash
     set -euo pipefail
     log_dir=$(mktemp -d)
     trap 'rm -rf "$log_dir"' EXIT
-    cargo build --release -p nargo_cli -p noir_profiler
+    cargo build --release -p nargo_cli -p noir_compiler_profiler
     (cd "{{ DIR }}" && NARGO_LOG_DIR="$log_dir" NOIR_LOG="{{ FILTER }}" "{{ justfile_dir() }}/target/release/nargo" compile --force)
-    "{{ justfile_dir() }}/target/release/noir-profiler" spans \
+    "{{ justfile_dir() }}/target/release/noir-compiler-profiler" \
         --log-dir "$log_dir" \
         --output "{{ OUT }}" \
         --title "nargo compile $(basename "{{ DIR }}")"

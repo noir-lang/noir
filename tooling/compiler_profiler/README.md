@@ -1,16 +1,10 @@
-# Noir Profiler
+# Noir Compiler Profiler
 
-`noir-profiler` visualizes where the costs of a Noir program are. Most subcommands profile the
-*program* (see the [user documentation](../../docs/docs/tooling/profiler.md)):
+`noir-compiler-profiler` shows where `nargo compile` itself spends its time. It is an internal
+development tool for working on the compiler — to profile Noir *programs* (gates, ACIR opcodes,
+Brillig execution) use [`noir-profiler`](../profiler) instead.
 
-- `gates` — flamegraph of proving-backend gates per source location.
-- `opcodes` — flamegraph of ACIR opcodes per source location.
-- `execution-opcodes` — flamegraph of Brillig opcodes executed for a given input.
-
-The `spans` subcommand instead profiles the *compiler*: it shows where `nargo compile` itself
-spends its time.
-
-## Profiling compilation time (`spans`)
+## Usage
 
 The easiest entry point is the `just` recipe, run from the repository root:
 
@@ -26,24 +20,24 @@ This compiles the package with span logging enabled and writes two artifacts to
 - `compiler-trace.json` — a per-invocation timeline. Open it in
   [Perfetto](https://ui.perfetto.dev) or `chrome://tracing`.
 
-### How it works
+## How it works
 
 The compiler is instrumented with `tracing` spans (compilation phases, one span per SSA pass,
 parsing, ACIR generation, ...). When `nargo` runs with `NARGO_LOG_DIR=<dir> NOIR_LOG=<filter>`
-it writes those spans as JSON events to `<dir>`. `noir-profiler spans --log-dir <dir> --output
-<out>` post-processes the log into the two artifacts:
+it writes those spans as JSON events to `<dir>`. `noir-compiler-profiler --log-dir <dir>
+--output <out>` post-processes the log into the two artifacts:
 
 ```bash
 log_dir=$(mktemp -d)
 NARGO_LOG_DIR="$log_dir" NOIR_LOG="trace,noirc_frontend::elaborator=info" \
     nargo compile --force
-noir-profiler spans --log-dir "$log_dir" --output profile
+noir-compiler-profiler --log-dir "$log_dir" --output profile
 ```
 
 Use a fresh, empty log directory per run: the log writer appends, so events from a previous run
 in the same directory would be merged into the same profile.
 
-### Choosing a span filter
+## Choosing a span filter
 
 `NOIR_LOG` takes a [`tracing_subscriber::EnvFilter`](https://docs.rs/tracing-subscriber) filter.
 All compiler spans are emitted at `trace` level, and two settings are useful:
@@ -58,7 +52,7 @@ All compiler spans are emitted at `trace` level, and two settings are useful:
   slower: with millions of sub-microsecond spans, the logging overhead itself dominates, so
   treat the absolute numbers (and the frontend/backend proportions) as distorted.
 
-### Reading the output
+## Reading the output
 
 - Frame widths are **busy time** (time the span was entered), aggregated over all instances of
   the same span path. The value unit is microseconds.
