@@ -322,10 +322,13 @@ fn run_fuzzing_harness<S: BlackBoxFunctionSolver<FieldElement> + Default>(
         context.get_all_fuzzing_harnesses_in_crate_matching(&crate_id, &pattern);
     let (_, fuzzing_harness) = fuzzing_harnesses.first().expect("Fuzzing harness should exist");
 
+    let output_sink: Box<dyn Write> =
+        if show_output { Box::new(std::io::stdout()) } else { Box::new(std::io::empty()) };
     nargo::ops::run_fuzzing_harness::<S, _, _>(
         &mut context,
         fuzzing_harness,
         show_output,
+        output_sink,
         package_name.clone(),
         compile_options,
         fuzz_folder_config,
