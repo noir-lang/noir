@@ -137,6 +137,107 @@ fn vector_push_back_unknown_length() {
 }
 
 #[test]
+fn vector_push_back_non_homogenous_unknown_length() {
+    // A non-homogenous vector (its element `(u32, [u32; 2])` has non-uniform flattened member
+    // sizes, so `array_has_constant_element_size` is `None`) pushed with a run-time length takes
+    // the dynamic-array branch of `convert_vector_push_back`. The element is appended at a
+    // whole-element boundary, so its flattened write offset is `length * 3` (`ASSERT w7 = 3*w0`)
+    // and needs no element-type-sizes table. Only the trailing `array_get` at a run-time index
+    // needs that table, so it is built on demand at the read site (`INIT b1`). The homogenous
+    // unknown-length case is covered by `vector_push_back_unknown_length`.
+    let src = "
+    acir(inline) predicate_pure fn main f0 {
+      b0(v0: u32, v1: u32):
+        v2 = make_array [u32 22, u32 33] : [u32; 2]
+        v3 = make_array [u32 11, v2] : [(u32, [u32; 2])]
+        v4 = make_array [u32 44, u32 55] : [u32; 2]
+        v6, v7 = call vector_push_back(v0, v3, u32 99, v4) -> (u32, [(u32, [u32; 2])])
+        // Read the result back at a run-time index so the result vector is observable.
+        v8 = array_get v7, index v1 -> u32
+        return v8
+    }
+    ";
+    let program = ssa_to_acir_program(src);
+
+    // The push appends at offset `3*w0` (length times the flattened element size), so no
+    // element-type-sizes table backs the write. `b1` is that table (prefix offsets `[0, 1, 3, 4]`),
+    // built on demand only for the run-time `array_get`; `b0` is the flattened vector data.
+    assert_circuit_snapshot!(program, @"
+    func 0
+    private parameters: [w0, w1]
+    public parameters: []
+    return values: [w2]
+    BLACKBOX::RANGE input: w0, bits: 32
+    ASSERT w3 = 11
+    ASSERT w4 = 22
+    ASSERT w5 = 33
+    ASSERT w6 = 0
+    INIT b0 = [w3, w4, w5, w6, w6, w6]
+    ASSERT w7 = 3*w0
+    ASSERT w8 = 99
+    WRITE b0[w7] = w8
+    ASSERT w9 = w7 + 1
+    ASSERT w10 = 44
+    WRITE b0[w9] = w10
+    ASSERT w11 = w9 + 1
+    ASSERT w12 = 55
+    WRITE b0[w11] = w12
+    ASSERT w13 = 1
+    ASSERT w14 = 3
+    ASSERT w15 = 4
+    INIT b1 = [w6, w13, w14, w15]
+    READ w16 = b1[w1]
+    READ w17 = b0[w16]
+    ASSERT w2 = w17
+    ");
+}
+
+#[test]
+fn vector_push_back_non_homogenous_unknown_length_no_element_type_sizes_block() {
+    // Appending to a non-homogenous vector at a run-time length lands at a whole-element boundary,
+    // so the write offset is `length * 3` and needs no element-type-sizes table. When the result is
+    // not indexed at a run-time index either, no such table is materialized at all: the only memory
+    // block is the vector data `b0`, and the constant-index read resolves to a fixed offset.
+    let src = "
+    acir(inline) predicate_pure fn main f0 {
+      b0(v0: u32):
+        v2 = make_array [u32 22, u32 33] : [u32; 2]
+        v3 = make_array [u32 11, v2] : [(u32, [u32; 2])]
+        v4 = make_array [u32 44, u32 55] : [u32; 2]
+        v6, v7 = call vector_push_back(v0, v3, u32 99, v4) -> (u32, [(u32, [u32; 2])])
+        // Read the result at a constant index so it is observable without a run-time table.
+        v8 = array_get v7, index u32 0 -> u32
+        return v8
+    }
+    ";
+    let program = ssa_to_acir_program(src);
+
+    assert_circuit_snapshot!(program, @"
+    func 0
+    private parameters: [w0]
+    public parameters: []
+    return values: [w1]
+    BLACKBOX::RANGE input: w0, bits: 32
+    ASSERT w2 = 11
+    ASSERT w3 = 22
+    ASSERT w4 = 33
+    ASSERT w5 = 0
+    INIT b0 = [w2, w3, w4, w5, w5, w5]
+    ASSERT w6 = 3*w0
+    ASSERT w7 = 99
+    WRITE b0[w6] = w7
+    ASSERT w8 = w6 + 1
+    ASSERT w9 = 44
+    WRITE b0[w8] = w9
+    ASSERT w10 = w8 + 1
+    ASSERT w11 = 55
+    WRITE b0[w10] = w11
+    READ w12 = b0[w5]
+    ASSERT w1 = w12
+    ");
+}
+
+#[test]
 fn vector_push_back_known_length_dynamic_array_element() {
     let src = "
     acir(inline) predicate_pure fn main f0 {
@@ -978,6 +1079,73 @@ fn vector_insert_after_dynamic_read_of_non_homogenous_vector() {
     }
     ";
     try_ssa_to_acir(src).expect("vector_insert after a dynamic read should compile to ACIR");
+}
+
+#[test]
+fn dynamic_read_of_non_homogenous_vector_insert_result() {
+    // The result of a `vector_insert` on a non-homogenous vector which is later indexed at a *dynamic*
+    // index. ACIR gen does not attach a precomputed element-type-sizes table anymore to the result; it
+    // derives that helper table on demand at the read site. The snapshot shows that the table is
+    // properly computed for the dynamic index lookup:  `INIT b1 = [w2, w4, w8, w9]`
+    // And used for the array_get: `READ w12 = b0[w11]` where `w11` is from the helper table.
+
+    let src = "
+    acir(inline) predicate_pure fn main f0 {
+      b0(v0: u32):
+        v4 = make_array [Field 2, Field 3] : [Field; 2]
+        v5 = make_array [Field 1, v4] : [(Field, [Field; 2])]
+        v8 = make_array [Field 11, Field 12] : [Field; 2]
+        v11, v12 = call vector_insert(u32 1, v5, u32 0, Field 10, v8) -> (u32, [(Field, [Field; 2])])
+        v13 = array_get v12, index v0 -> Field
+        return v13
+    }
+    ";
+    let program = ssa_to_acir_program(src);
+
+    assert_circuit_snapshot!(program, @r"
+    func 0
+    private parameters: [w0]
+    public parameters: []
+    return values: [w1]
+    ASSERT w2 = 0
+    INIT b0 = [w2, w2, w2, w2, w2, w2]
+    ASSERT w3 = 10
+    WRITE b0[w2] = w3
+    ASSERT w4 = 1
+    ASSERT w5 = 11
+    WRITE b0[w4] = w5
+    ASSERT w6 = 2
+    ASSERT w7 = 12
+    WRITE b0[w6] = w7
+    ASSERT w8 = 3
+    WRITE b0[w8] = w4
+    ASSERT w9 = 4
+    WRITE b0[w9] = w6
+    ASSERT w10 = 5
+    WRITE b0[w10] = w8
+    INIT b1 = [w2, w4, w8, w9]
+    READ w11 = b1[w0]
+    READ w12 = b0[w11]
+    ASSERT w1 = w12
+    ");
+}
+
+#[test]
+fn vector_insert_non_homogenous_constant_index() {
+    // A `vector_insert` at a compile-time-constant index into a non-homogenous vector.
+    // ACIR gen does not emit a `MemoryInit` for a helper block it never reads, else
+    // it would panic with: "ICE: memory blocks initialized without any linked read/write/Brillig use"
+    let src = "
+    acir(inline) predicate_pure fn main f0 {
+      b0():
+        v4 = make_array [Field 2, Field 3] : [Field; 2]
+        v5 = make_array [Field 1, v4] : [(Field, [Field; 2])]
+        v8 = make_array [Field 11, Field 12] : [Field; 2]
+        v11, v12 = call vector_insert(u32 1, v5, u32 0, Field 10, v8) -> (u32, [(Field, [Field; 2])])
+        return
+    }
+    ";
+    try_ssa_to_acir(src).expect("constant-index insert should compile to ACIR");
 }
 
 #[test]
