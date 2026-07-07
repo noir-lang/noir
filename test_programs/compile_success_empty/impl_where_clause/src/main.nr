@@ -32,6 +32,6 @@ fn main() {
     let my_struct = MyStruct { a: 5, b: inner };
     assert(my_struct.my_eq(my_struct));
 
-    let mut my_struct_new = MyStruct { a: 5, b: InnerStruct { a: 10, b: 15 } };
+    let my_struct_new = MyStruct { a: 5, b: InnerStruct { a: 10, b: 15 } };
     assert(my_struct_new.my_eq(my_struct_new));
 }

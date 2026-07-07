@@ -1,34 +1,38 @@
 //! Pre-process functions before inlining them into others.
 
 use crate::ssa::{
-    Ssa,
-    ir::function::{Function, RuntimeType},
+    RuntimeError, Ssa,
+    ir::{call_graph::CallGraph, function::Function},
 };
 
+use super::FORCE_UNROLL_THRESHOLD;
 use super::inlining::{self, InlineInfo};
+use super::unrolling::MAX_UNROLL_ITERATIONS;
 
 impl Ssa {
     /// Run pre-processing steps on functions in isolation.
-    pub(crate) fn preprocess_functions(mut self, aggressiveness: i64) -> Ssa {
+    pub(crate) fn preprocess_functions(
+        mut self,
+        aggressiveness: i64,
+        small_function_max_instructions: usize,
+    ) -> Result<Ssa, RuntimeError> {
+        let call_graph = CallGraph::from_ssa_weighted(&self);
         // Bottom-up order, starting with the "leaf" functions, so we inline already optimized code into the ones that call them.
-        let bottom_up = inlining::inline_info::compute_bottom_up_order(&self);
+        let bottom_up = inlining::inline_info::compute_bottom_up_order(&self, &call_graph);
 
         // Preliminary inlining decisions.
-        let inline_infos =
-            inlining::inline_info::compute_inline_infos(&self, false, aggressiveness);
+        let inline_infos = inlining::inline_info::compute_inline_infos(
+            &self,
+            &call_graph,
+            false,
+            small_function_max_instructions,
+            aggressiveness,
+        );
 
-        let should_inline_call = |callee: &Function| -> bool {
-            match callee.runtime() {
-                RuntimeType::Acir(_) => {
-                    // Functions marked to not have predicates should be preserved.
-                    !callee.is_no_predicates()
-                }
-                RuntimeType::Brillig(_) => {
-                    // We inline inline if the function called wasn't ruled out as too costly or recursive.
-                    InlineInfo::should_inline(&inline_infos, callee.id())
-                }
-            }
-        };
+        let callee_costs = inlining::inline_info::inlineable_callee_costs(&inline_infos);
+
+        let should_inline_call =
+            |callee: &Function| -> bool { InlineInfo::should_inline(&inline_infos, callee.id()) };
 
         for (id, (own_weight, transitive_weight)) in bottom_up {
             let function = &self.functions[&id];
@@ -40,32 +44,106 @@ impl Ssa {
             // Functions which are inline targets will be processed in later passes.
             // Here we want to treat the functions which will be inlined into them.
             let is_target =
-                inline_infos.get(&id).map(|info| info.is_inline_target()).unwrap_or_default();
+                inline_infos.get(&id).is_some_and(|info| info.is_inline_target(&function.dfg));
 
             if is_heavy || is_target {
                 continue;
             }
 
             // Start with an inline pass.
-            let mut function = function.inlined(&self, &should_inline_call);
+            let mut function = function.inlined(&self, &should_inline_call)?;
             // Help unrolling determine bounds.
-            function.as_slice_optimization();
+            function.as_vector_optimization();
             // Prepare for unrolling
             function.loop_invariant_code_motion();
+            // Clear out constant jmpifs to ensure that loops are properly unrolled.
+            function.simplify_function();
             // We might not be able to unroll all loops without fully inlining them, so ignore errors.
-            let _ = function.unroll_loops_iteratively();
-            // Reduce the number of redundant stores/loads after unrolling
+            // Use default threshold for force-unrolling.
+            let _ = function.unroll_loops_iteratively(
+                MAX_UNROLL_ITERATIONS,
+                FORCE_UNROLL_THRESHOLD,
+                &callee_costs,
+            );
+            // Reduce the number of redundant stores/loads after unrolling.
+            // n.b: load/store forwarding requires a whole-SSA alias analysis
+            // so it can't run on an isolated function here.
             function.mem2reg();
+            function.remove_redundant_params();
+
             // Try to reduce the number of blocks.
             function.simplify_function();
-            // Remove leftover instructions.
-            function.dead_instruction_elimination(true, false, false);
 
             // Put it back into the SSA, so the next functions can pick it up.
             self.functions.insert(id, function);
         }
 
         // Remove any functions that have been inlined into others already.
-        self.remove_unreachable_functions()
+        let ssa = self.remove_unreachable_functions();
+        // Remove leftover instructions.
+        Ok(ssa.dead_instruction_elimination())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::{
+        assert_ssa_snapshot,
+        ssa::{opt::inlining::inline_info::MAX_INSTRUCTIONS, ssa_gen::Ssa},
+    };
+
+    #[test]
+    fn dead_block_params() {
+        // This test makes sure that we are appropriately triggering DIE+parameter pruning.
+        //
+        // DIE must be run over the full SSA to correctly identify unused block parameters.
+        // If it's run in isolation on a single function (e.g., during preprocessing),
+        // it may leave dangling block parameters.
+        //
+        // We need to call f0 from an entry point as inline targets are not preprocessed.
+        let src = r#"
+        acir(inline) fn main f0 {
+          b0():
+            call f0(u32 1, Field 2)
+            return
+        }
+        acir(inline) fn foo f0 {
+          b0(v0: u32, v1: Field):
+            v2 = eq v0, u32 1
+            jmpif v2 then: b1(), else: b2()
+          b1():
+            v6 = add v0, u32 1
+            jmp b3(v6, v1)
+          b2():
+            v5 = sub v0, u32 1
+            jmp b3(v5, v1)
+          b3(v3: u32, v4: Field):
+            return
+        }
+        "#;
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.preprocess_functions(i64::MAX, MAX_INSTRUCTIONS).unwrap();
+
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0():
+            call f1(u32 1)
+            return
+        }
+        acir(inline) fn foo f1 {
+          b0(v0: u32):
+            v2 = eq v0, u32 1
+            jmpif v2 then: b1(), else: b2()
+          b1():
+            v3 = add v0, u32 1
+            jmp b3()
+          b2():
+            v4 = sub v0, u32 1
+            jmp b3()
+          b3():
+            return
+        }
+        ");
     }
 }

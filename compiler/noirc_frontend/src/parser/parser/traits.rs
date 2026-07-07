@@ -16,8 +16,8 @@ use super::Parser;
 use super::parse_many::without_separator;
 
 impl Parser<'_> {
-    /// Trait = 'trait' identifier Generics ( ':' TraitBounds )? WhereClause TraitBody
-    ///       | 'trait' identifier Generics '=' TraitBounds WhereClause ';'
+    /// Trait = 'trait' identifier Generics ( ':' `TraitBounds` )? `WhereClause` `TraitBody`
+    ///       | 'trait' identifier Generics '=' `TraitBounds` `WhereClause` ';'
     pub(crate) fn parse_trait(
         &mut self,
         attributes: Vec<(Attribute, Location)>,
@@ -26,7 +26,7 @@ impl Parser<'_> {
     ) -> (NoirTrait, Option<NoirTraitImpl>) {
         let attributes = self.validate_secondary_attributes(attributes);
 
-        let Some(name) = self.eat_ident() else {
+        let Some(name) = self.eat_non_underscore_ident() else {
             self.expected_identifier();
             let noir_trait =
                 empty_trait(attributes, visibility, self.location_since(start_location));
@@ -47,9 +47,7 @@ impl Parser<'_> {
 
             let where_clause = self.parse_where_clause();
             let items = Vec::new();
-            if !self.eat_semicolon() {
-                self.expected_token(Token::Semicolon);
-            }
+            self.eat_semicolon_or_error();
 
             let is_alias = true;
             (bounds, where_clause, items, is_alias)
@@ -66,7 +64,7 @@ impl Parser<'_> {
         let noir_impl = is_alias.then(|| {
             let object_type_ident = Ident::from(Located::from(location, "#T".to_string()));
             let object_type_path = Path::from_ident(object_type_ident.clone());
-            let object_type_generic = UnresolvedGeneric::Variable(object_type_ident, Vec::new());
+            let object_type_generic = UnresolvedGeneric::from(object_type_ident);
 
             let is_synthesized = true;
             let object_type = UnresolvedType {
@@ -80,14 +78,17 @@ impl Parser<'_> {
             let trait_name = Path::from_ident(name.clone());
             let trait_generics: GenericTypeArgs = vecmap(generics.clone(), |generic| {
                 let is_synthesized = true;
-                let generic_type = UnresolvedType {
-                    typ: UnresolvedTypeData::Named(
-                        Path::from_ident(generic.ident().clone()),
+
+                let typ = match generic.ident().ident() {
+                    Some(ident) => UnresolvedTypeData::Named(
+                        Path::from_ident(ident.clone()),
                         vec![].into(),
                         is_synthesized,
                     ),
-                    location,
+                    None => UnresolvedTypeData::Error,
                 };
+
+                let generic_type = UnresolvedType { typ, location };
 
                 GenericTypeArg::Ordered(generic_type)
             })
@@ -128,7 +129,7 @@ impl Parser<'_> {
         (noir_trait, noir_impl)
     }
 
-    /// TraitBody = '{' ( OuterDocComments TraitItem )* '}'
+    /// `TraitBody` = '{' ( `OuterDocComments` `TraitItem` )* '}'
     fn parse_trait_body(&mut self) -> Vec<Documented<TraitItem>> {
         if !self.eat_left_brace() {
             self.expected_token(Token::LeftBrace);
@@ -143,16 +144,16 @@ impl Parser<'_> {
     }
 
     fn parse_trait_item_in_list(&mut self) -> Option<Documented<TraitItem>> {
-        self.parse_item_in_list(ParsingRuleLabel::TraitItem, |parser| {
+        self.parse_item_in_list(&ParsingRuleLabel::TraitItem, |parser| {
             let doc_comments = parser.parse_outer_doc_comments();
             parser.parse_trait_item().map(|item| Documented::new(item, doc_comments))
         })
     }
 
-    /// TraitItem
-    ///     = TraitType
-    ///     | TraitConstant
-    ///     | TraitFunction
+    /// `TraitItem`
+    ///     = `TraitType`
+    ///     | `TraitConstant`
+    ///     | `TraitFunction`
     fn parse_trait_item(&mut self) -> Option<TraitItem> {
         if let Some(item) = self.parse_trait_type() {
             return Some(item);
@@ -169,56 +170,70 @@ impl Parser<'_> {
         None
     }
 
-    /// TraitType = 'type' identifier ';'
+    /// `TraitType` = 'type' identifier ( ':' `TraitBounds` ) ';'
     fn parse_trait_type(&mut self) -> Option<TraitItem> {
         if !self.eat_keyword(Keyword::Type) {
             return None;
         }
 
-        let name = match self.eat_ident() {
+        let name = match self.eat_non_underscore_ident() {
             Some(name) => name,
             None => {
                 self.expected_identifier();
-                Ident::default()
+                self.empty_ident_at_previous_token_end()
             }
         };
 
-        self.eat_semicolons();
+        let bounds = if self.eat_colon() { self.parse_trait_bounds() } else { Vec::new() };
 
-        Some(TraitItem::Type { name })
+        self.eat_semicolon_or_error();
+
+        Some(TraitItem::Type { name, bounds })
     }
 
-    /// TraitConstant = 'let' identifier ':' Type ( '=' Expression ) ';'
+    /// `TraitConstant` = 'let' identifier ':' Type ( '=' Expression )? ';'
     fn parse_trait_constant(&mut self) -> Option<TraitItem> {
         if !self.eat_keyword(Keyword::Let) {
             return None;
         }
 
-        let name = match self.eat_ident() {
+        let name = match self.eat_non_underscore_ident() {
             Some(name) => name,
             None => {
                 self.expected_identifier();
-                Ident::default()
+                self.empty_ident_at_previous_token_end()
             }
         };
 
         let typ = if self.eat_colon() {
-            self.parse_type_or_error()
+            Some(self.parse_type_or_error())
         } else {
-            self.expected_token(Token::Colon);
-            UnresolvedType { typ: UnresolvedTypeData::Unspecified, location: Location::dummy() }
+            self.push_error(
+                ParserErrorReason::MissingTypeForAssociatedConstant,
+                self.previous_token_location,
+            );
+            None
         };
 
-        let default_value =
-            if self.eat_assign() { Some(self.parse_expression_or_error()) } else { None };
+        if self.eat_assign() {
+            let expr_start_location = self.current_token_location;
+            let _ = self.parse_expression_or_error();
+            self.push_error(
+                ParserErrorReason::AssociatedTraitConstantDefaultValuesAreNotSupported,
+                self.location_since(expr_start_location),
+            );
+        }
 
-        self.eat_semicolons();
+        self.eat_semicolon_or_error();
 
-        Some(TraitItem::Constant { name, typ, default_value })
+        Some(TraitItem::Constant { name, typ })
     }
 
-    /// TraitFunction = Modifiers Function
+    /// `TraitFunction` = Attributes Modifiers Function
     fn parse_trait_function(&mut self) -> Option<TraitItem> {
+        let attributes = self.parse_attributes();
+        let attributes = self.validate_attributes(attributes);
+
         let modifiers = self.parse_modifiers(
             false, // allow mut
         );
@@ -263,6 +278,7 @@ impl Parser<'_> {
             return_type: function.return_type,
             where_clause: function.where_clause,
             body: function.body,
+            attributes,
         })
     }
 }
@@ -273,7 +289,7 @@ fn empty_trait(
     location: Location,
 ) -> NoirTrait {
     NoirTrait {
-        name: Ident::default(),
+        name: Ident::new(String::new(), location),
         generics: Vec::new(),
         bounds: Vec::new(),
         where_clause: Vec::new(),
@@ -292,10 +308,7 @@ mod tests {
         parse_program_with_dummy_file,
         parser::{
             ItemKind,
-            parser::{
-                ParserErrorReason,
-                tests::{expect_no_errors, get_single_error, get_source_with_error_span},
-            },
+            parser::tests::{check_errors, expect_no_errors},
         },
     };
 
@@ -345,10 +358,12 @@ mod tests {
 
     #[test]
     fn parse_empty_trait_alias() {
-        let src = "trait Foo = ;";
-        let (_module, errors) = parse_program_with_dummy_file(src);
-        assert_eq!(errors.len(), 2);
-        assert_eq!(errors[1].reason(), Some(ParserErrorReason::EmptyTraitAlias).as_ref());
+        let src = "
+        trait Foo = ;
+                  ^ Empty trait alias
+                    ^ Expected a trait bound but found ';'
+        ";
+        check_errors(src, |parser| parser.parse_program());
     }
 
     #[test]
@@ -404,10 +419,12 @@ mod tests {
 
     #[test]
     fn parse_empty_trait_alias_with_generics() {
-        let src = "trait Foo<A, B> = ;";
-        let (_module, errors) = parse_program_with_dummy_file(src);
-        assert_eq!(errors.len(), 2);
-        assert_eq!(errors[1].reason(), Some(ParserErrorReason::EmptyTraitAlias).as_ref());
+        let src = "
+        trait Foo<A, B> = ;
+                        ^ Empty trait alias
+                          ^ Expected a trait bound but found ';'
+        ";
+        check_errors(src, |parser| parser.parse_program());
     }
 
     #[test]
@@ -467,10 +484,12 @@ mod tests {
 
     #[test]
     fn parse_empty_trait_alias_with_where_clause() {
-        let src = "trait Foo<A, B> = where A: Z;";
-        let (_module, errors) = parse_program_with_dummy_file(src);
-        assert_eq!(errors.len(), 2);
-        assert_eq!(errors[1].reason(), Some(ParserErrorReason::EmptyTraitAlias).as_ref());
+        let src = "
+        trait Foo<A, B> = where A: Z;
+                        ^ Empty trait alias
+                          ^^^^^ Expected a trait bound but found 'where'
+        ";
+        check_errors(src, |parser| parser.parse_program());
     }
 
     #[test]
@@ -480,27 +499,52 @@ mod tests {
         assert_eq!(noir_trait.items.len(), 1);
 
         let item = noir_trait.items.remove(0).item;
-        let TraitItem::Type { name } = item else {
+        let TraitItem::Type { name, bounds } = item else {
             panic!("Expected type");
         };
         assert_eq!(name.to_string(), "Elem");
         assert!(!noir_trait.is_alias);
+        assert!(bounds.is_empty());
     }
 
     #[test]
-    fn parse_trait_with_constant() {
-        let src = "trait Foo { let x: Field = 1; }";
+    fn parse_trait_with_type_and_bounds() {
+        let src = "trait Foo { type Elem: Bound; }";
         let mut noir_trait = parse_trait_no_errors(src);
         assert_eq!(noir_trait.items.len(), 1);
 
         let item = noir_trait.items.remove(0).item;
-        let TraitItem::Constant { name, typ, default_value } = item else {
+        let TraitItem::Type { name, bounds } = item else {
+            panic!("Expected type");
+        };
+        assert_eq!(name.to_string(), "Elem");
+        assert!(!noir_trait.is_alias);
+        assert!(bounds.len() == 1);
+        assert_eq!(bounds[0].to_string(), "Bound");
+    }
+
+    #[test]
+    fn parse_trait_with_constant() {
+        let src = "trait Foo { let x: Field; }";
+        let mut noir_trait = parse_trait_no_errors(src);
+        assert_eq!(noir_trait.items.len(), 1);
+
+        let item = noir_trait.items.remove(0).item;
+        let TraitItem::Constant { name, typ } = item else {
             panic!("Expected constant");
         };
         assert_eq!(name.to_string(), "x");
-        assert_eq!(typ.to_string(), "Field");
-        assert_eq!(default_value.unwrap().to_string(), "1");
+        assert_eq!(typ.unwrap().to_string(), "Field");
         assert!(!noir_trait.is_alias);
+    }
+
+    #[test]
+    fn parse_trait_with_constant_default_value() {
+        let src = "
+        trait Foo { let x: Field = 1 + 2; }
+                                   ^^^^^ Associated trait constant default values are not supported
+        ";
+        check_errors(src, |parser| parser.parse_program());
     }
 
     #[test]
@@ -515,6 +559,37 @@ mod tests {
         };
         assert!(body.is_none());
         assert!(!noir_trait.is_alias);
+    }
+
+    #[test]
+    fn parse_trait_with_function_with_function_attribute() {
+        let src = "trait Foo { #[no_predicates] fn foo(x: Field) -> Field { x } }";
+        let mut noir_trait = parse_trait_no_errors(src);
+        assert_eq!(noir_trait.items.len(), 1);
+
+        let item = noir_trait.items.remove(0).item;
+        let TraitItem::Function { attributes, .. } = item else {
+            panic!("Expected function");
+        };
+        assert!(matches!(
+            attributes.function.map(|(attr, _)| attr.kind),
+            Some(crate::token::FunctionAttributeKind::NoPredicates)
+        ));
+        assert!(attributes.secondary.is_empty());
+    }
+
+    #[test]
+    fn parse_trait_with_function_with_secondary_attribute() {
+        let src = "trait Foo { #[my_tag] fn foo(); }";
+        let mut noir_trait = parse_trait_no_errors(src);
+        assert_eq!(noir_trait.items.len(), 1);
+
+        let item = noir_trait.items.remove(0).item;
+        let TraitItem::Function { attributes, .. } = item else {
+            panic!("Expected function");
+        };
+        assert!(attributes.function.is_none());
+        assert_eq!(attributes.secondary.len(), 1);
     }
 
     #[test]
@@ -535,12 +610,9 @@ mod tests {
     fn parse_trait_function_with_visibility() {
         let src = "
         trait Foo { pub fn foo(); }
-                    ^^^
+                    ^^^ Visibility is ignored on a trait method
         ";
-        let (src, span) = get_source_with_error_span(src);
-        let (_module, errors) = parse_program_with_dummy_file(&src);
-        let error = get_single_error(&errors, span);
-        assert!(error.to_string().contains("Visibility is ignored on a trait method"));
+        check_errors(src, |parser| parser.parse_program());
     }
 
     #[test]
@@ -592,5 +664,26 @@ mod tests {
         assert_eq!(noir_trait.where_clause.is_empty(), noir_trait_alias.where_clause.is_empty());
         assert_eq!(noir_trait.items.is_empty(), noir_trait_alias.items.is_empty());
         assert!(!noir_trait.is_alias);
+    }
+
+    #[test]
+    fn parse_trait_with_constant_missing_semicolon() {
+        let src = "trait Foo { let x: Field = 1 }";
+        let (_, errors) = parse_program_with_dummy_file(src);
+        assert!(!errors.is_empty());
+    }
+
+    #[test]
+    fn parse_trait_with_constant_missing_type() {
+        let src = "trait Foo { let x = 1; }";
+        let (_, errors) = parse_program_with_dummy_file(src);
+        assert!(!errors.is_empty());
+    }
+
+    #[test]
+    fn parse_trait_with_type_missing_semicolon() {
+        let src = "trait Foo { type X }";
+        let (_, errors) = parse_program_with_dummy_file(src);
+        assert!(!errors.is_empty());
     }
 }

@@ -6,21 +6,25 @@ on:
     # Trigger at 8am on Mondays
     - cron: '0 8 * * 1'
 
+permissions: {}
 
 jobs:
   bump-commit:
     name: Update external repo pinned commits
     runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+      pull-requests: write
     steps:
       - name: Checkout repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           ref: master
 
       - name: Check for existing PR
         id: pr-check
         run: |
-          set -xue # print commands         
+          set -xue # print commands
           PR_URL=$(gh pr list --repo noir-lang/noir --head bump-aztec-packages --json url --jq ".[0].url")
           echo "pr_url=$PR_URL" >> $GITHUB_OUTPUT
         env:
@@ -29,8 +33,8 @@ jobs:
       - name: Configure git
         run: |
           git config user.name noirwhal
-          git config user.email tomfrench@aztecprotocol.com    
-        
+          git config user.email tomfrench@aztecprotocol.com
+
       - name: Update commit
         run: |
           git checkout bump-aztec-packages || git checkout -b bump-aztec-packages

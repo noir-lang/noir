@@ -1,0 +1,11 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+global BROKEN_BYTES: [u8; 4] = [102, 111, 128, 111];
+
+global S: str<4> = "fo�o";
+
+fn main() {
+    println(S);
+}

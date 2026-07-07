@@ -1,0 +1,376 @@
+use crate::ssa::{
+    ir::{
+        dfg::simplify::SimplifyResult,
+        instruction::{
+            Binary, BinaryOp, ConstrainError, Instruction, InstructionId,
+            binary::{BinaryEvaluationResult, eval_constant_binary_op},
+        },
+        integer::IntegerConstant,
+        value::ValueId,
+    },
+    opt::{LoopBounds, Step, loop_invariant::BlockContext},
+};
+use noirc_errors::call_stack::CallStackId;
+
+use super::{LoopContext, LoopInvariantContext};
+
+impl LoopInvariantContext<'_> {
+    /// Checks whether a binary operation can be evaluated using the bounds of a given loop induction variables.
+    ///
+    /// If it cannot be evaluated, it means that we either have a dynamic loop bound or
+    /// that the operation can potentially overflow during a given loop iteration.
+    pub(super) fn can_evaluate_binary_op(
+        &self,
+        loop_context: &LoopContext,
+        binary: &Binary,
+    ) -> bool {
+        match binary.operator {
+            BinaryOp::Div | BinaryOp::Mod => {
+                // Division can be evaluated if we ensure that the divisor cannot be zero
+                let Some((left, value, bounds)) =
+                    self.match_induction_and_constant(loop_context, &binary.lhs, &binary.rhs, true)
+                else {
+                    // Not a constant vs non-constant case, we cannot evaluate it.
+                    return false;
+                };
+
+                // An inverted range means the variable is not a proper ascending induction
+                // variable, so these bounds are bogus and cannot prove the divisor is non-zero.
+                // Mirrors the guard in `simplify_induction_variable_in_binary`.
+                if bounds.lower > bounds.upper {
+                    return false;
+                }
+
+                if left {
+                    // If the induction variable is on the LHS, we're dividing with a constant.
+                    if !value.is_zero() && !value.is_minus_one() {
+                        return true;
+                    }
+                } else {
+                    // Otherwise we are dividing a constant with the induction variable, and we have to check whether
+                    // at any point in the loop the induction variable can be zero.
+                    let can_be_zero = bounds.lower.is_negative() && !bounds.upper.is_negative()
+                        || bounds.lower.is_zero()
+                        || bounds.upper.is_zero();
+
+                    if !can_be_zero {
+                        return true;
+                    }
+                }
+
+                false
+            }
+            // An unchecked operation cannot overflow, so it can be safely evaluated.
+            // Some checked operations can be safely evaluated, depending on the loop bounds, but in that case,
+            // they would have been already converted to unchecked operation in `simplify_induction_variable_in_binary()`.
+            // These are all handled by `requires_acir_gen_predicate`, and are redundant with `can_be_hoisted`.
+            _ => !binary.requires_acir_gen_predicate(&self.inserter.function.dfg),
+        }
+    }
+
+    /// Some instructions can take advantage of that our induction variable has a fixed minimum/maximum,
+    /// For instance operations can be transformed from a checked operation to an unchecked operation.
+    ///
+    /// Checked operations require more bytecode and thus we aim to minimize their usage wherever possible.
+    ///
+    /// For example, if one side of an add/mul operation is a constant and the other is an induction variable
+    /// with a known upper bound, we know whether that binary operation will ever overflow.
+    /// If we determine that an overflow is not possible we can convert the checked operation to unchecked.
+    ///
+    /// The function returns `false` if the instruction must be added to the block, which involves further simplification.
+    pub(super) fn simplify_from_loop_bounds(
+        &mut self,
+        loop_context: &LoopContext,
+        block_context: &BlockContext,
+        instruction_id: InstructionId,
+    ) -> bool {
+        // Simplify the instruction and update it in the DFG.
+        match self.simplify_induction_variable(loop_context, block_context, instruction_id) {
+            SimplifyResult::SimplifiedTo(id) => {
+                let [result] = self.inserter.function.dfg.instruction_result(instruction_id);
+                self.inserter.map_value(result, id);
+                true
+            }
+            SimplifyResult::SimplifiedToInstruction(instruction) => {
+                self.inserter.function.dfg[instruction_id] = instruction;
+                false
+            }
+            SimplifyResult::None => false,
+            _ => unreachable!(
+                "ICE - loop bounds simplification should only simplify to a value or an instruction"
+            ),
+        }
+    }
+
+    /// Rewrite `assert(invariant != induction)` into a check, hoisted to the pre-header, that
+    /// `invariant` is not one of the values the induction variable visits. The induction
+    /// variable runs over `lower, lower + step, ...` while below `upper`, so the shape of the
+    /// check depends on the step:
+    ///
+    /// - step 0: the variable is constant at `lower`, so the check is `invariant != lower`.
+    /// - step 1: it visits every integer in `[lower, max]`, so the check is
+    ///   `invariant < lower || invariant > max`.
+    /// - step > 1: not simplified (see below); the constraint is left in the loop body.
+    ///
+    /// In the simplified cases the assert must execute at each loop iteration and the loop must process
+    /// its whole iteration space. This is ensured via control dependence and the check for
+    /// break patterns, before calling this function.
+    fn simplify_not_equal_constraint(
+        &mut self,
+        loop_context: &LoopContext,
+        lhs: &ValueId,
+        rhs: &ValueId,
+        err: &Option<ConstrainError>,
+        call_stack: CallStackId,
+    ) -> SimplifyResult {
+        let (invariant, min, max, step) =
+            match self.match_induction_and_invariant(loop_context, lhs, rhs) {
+                Some((true, min, max, step)) => (rhs, min, max, step),
+                Some((false, min, max, step)) => (lhs, min, max, step),
+                _ => return SimplifyResult::None,
+            };
+
+        // Everything below is loop invariant and control independent, so it can be safely
+        // hoisted to the pre-header.
+        let mut insert = |instruction| {
+            let results = self
+                .inserter
+                .function
+                .dfg
+                .insert_instruction_and_results(
+                    instruction,
+                    loop_context.pre_header(),
+                    None,
+                    call_stack,
+                )
+                .results();
+            assert!(results.len() == 1);
+            results[0]
+        };
+        let binary = |lhs, rhs, operator| Instruction::Binary(Binary { lhs, rhs, operator });
+
+        let check = if step.is_zero() {
+            let equals_lower = insert(binary(*invariant, min, BinaryOp::Eq));
+            insert(Instruction::Not(equals_lower))
+        } else if step.is_one() {
+            let check_min = insert(binary(*invariant, min, BinaryOp::Lt));
+            let check_max = insert(binary(max, *invariant, BinaryOp::Lt));
+            insert(binary(check_min, check_max, BinaryOp::Or))
+        } else {
+            // Non-unit step does not arise in practice:
+            // - NotEqual constraints are code-gen with Eq instructions
+            // - They are transformed into NotEqual only after flattening, and only for ACIR
+            // - Non-unit steps are only possible in Brillig.
+            // However, there is no fundamental reason for not supporting them, in case
+            // these assumptions change in the future.
+            // In order to support non-unit steps, we need to check if the step divides invariant - min
+            // This can be implemented with: `((invariant % step) + step) % step == ((min % step) + step) % step`
+            // This formulation avoids subtraction and its potential underflow, and works for negative lower bounds
+            // (a single modulo (min % step) is not enough if min is negative))
+            return SimplifyResult::None;
+        };
+
+        SimplifyResult::SimplifiedToInstruction(Instruction::Constrain(
+            check,
+            self.true_value,
+            err.clone(),
+        ))
+    }
+
+    /// If the inputs are an induction and loop invariant variables, it returns:
+    /// - a boolean indicating if the induction variable is on the lhs or rhs (true for lhs),
+    /// - the minimum and maximum values of the induction variable, based on the loop bounds,
+    ///   as freshly-made constant `ValueId`s,
+    /// - the per-iteration step of the induction variable, so callers can reason about which
+    ///   values in `[min, max]` are actually visited.
+    fn match_induction_and_invariant(
+        &mut self,
+        loop_context: &LoopContext,
+        lhs: &ValueId,
+        rhs: &ValueId,
+    ) -> Option<(bool, ValueId, ValueId, Step)> {
+        let (is_left, bounds) = match (
+            loop_context.get_current_induction_variable_bounds(*lhs),
+            loop_context.get_current_induction_variable_bounds(*rhs),
+        ) {
+            (_, Some(bounds)) => Some((false, bounds)),
+            (Some(bounds), _) => Some((true, bounds)),
+            _ => None,
+        }?;
+
+        let induction_variable = if is_left { *lhs } else { *rhs };
+        let step = loop_context.get_current_induction_step(induction_variable)?;
+
+        let (upper_field, upper_type) = bounds.upper.dec()?.into_numeric_constant();
+        let (lower_field, lower_type) = bounds.lower.into_numeric_constant();
+
+        let min_iter = self.inserter.function.dfg.make_constant(lower_field, lower_type);
+        let max_iter = self.inserter.function.dfg.make_constant(upper_field, upper_type);
+        if (is_left && loop_context.is_loop_invariant(rhs))
+            || (!is_left && loop_context.is_loop_invariant(lhs))
+        {
+            return Some((is_left, min_iter, max_iter, step));
+        }
+        None
+    }
+
+    /// Simplify certain instructions using the lower/upper bounds of induction variables
+    fn simplify_induction_variable(
+        &mut self,
+        loop_context: &LoopContext,
+        block_context: &BlockContext,
+        instruction_id: InstructionId,
+    ) -> SimplifyResult {
+        let (instruction, call_stack) = self.inserter.map_instruction(instruction_id);
+        match &instruction {
+            Instruction::Binary(binary) => self.simplify_induction_variable_in_binary(
+                loop_context,
+                binary,
+                block_context.is_header,
+            ),
+            Instruction::ConstrainNotEqual(x, y, err) => {
+                // Ensure the loop is fully executed
+                if loop_context.no_break
+                    && block_context.can_simplify_control_dependent_instruction()
+                {
+                    assert!(block_context.does_execute, "executing a non executable loop");
+                    self.simplify_not_equal_constraint(loop_context, x, y, err, call_stack)
+                } else {
+                    SimplifyResult::None
+                }
+            }
+            _ => SimplifyResult::None,
+        }
+    }
+
+    /// If the inputs are an induction variable and a constant, it returns
+    /// the constant value, the maximum and minimum values of the induction variable, based on the loop bounds,
+    /// and a boolean indicating if the induction variable is on the lhs or rhs (true for lhs)
+    /// if `only_outer_induction`, we only consider outer induction variables, else we also consider the induction variables from the current loop.
+    fn match_induction_and_constant(
+        &self,
+        loop_context: &LoopContext,
+        lhs: &ValueId,
+        rhs: &ValueId,
+        only_outer_induction: bool,
+    ) -> Option<(bool, IntegerConstant, LoopBounds)> {
+        let lhs_const = self.inserter.function.dfg.get_integer_constant(*lhs);
+        let rhs_const = self.inserter.function.dfg.get_integer_constant(*rhs);
+        match (
+            lhs_const,
+            rhs_const,
+            loop_context
+                .get_current_induction_variable_bounds(*lhs)
+                .filter(|_| !only_outer_induction)
+                .or(self.outer_induction_variables.get(lhs).copied()),
+            loop_context
+                .get_current_induction_variable_bounds(*rhs)
+                .filter(|_| !only_outer_induction)
+                .or(self.outer_induction_variables.get(rhs).copied()),
+        ) {
+            // LHS is a constant, RHS is the induction variable with a known lower and upper bound.
+            (Some(lhs), None, None, Some(bounds)) => Some((false, lhs, bounds)),
+            // RHS is a constant, LHS is the induction variable with a known lower an upper bound
+            (None, Some(rhs), Some(bounds), None) => Some((true, rhs, bounds)),
+            _ => None,
+        }
+    }
+
+    /// Given a constant `c` and an induction variable `i`:
+    /// - Replace comparisons `i < c` by true if `max(i) < c`, and false if `min(i) >= c`
+    /// - Replace comparisons `c < i` by true if `min(i) > c`, and false if `max(i) <= c`
+    /// - Replace equalities `i == c` by false if `min(i) > c or max(i) < c`
+    /// - Replace checked operations with unchecked version if the induction variable bounds prove that the operation will not overflow
+    ///
+    /// `header` indicates if we are in the loop header where loop bounds do not apply yet
+    fn simplify_induction_variable_in_binary(
+        &self,
+        loop_context: &LoopContext,
+        binary: &Binary,
+        is_header: bool,
+    ) -> SimplifyResult {
+        // Checks the operands are an induction variable and a constant
+        // Note that here we allow all_induction_variables
+        let operand_type = self.inserter.function.dfg.type_of_value(binary.lhs).unwrap_numeric();
+
+        let Some((is_induction_var_lhs, constant, bounds)) =
+            self.match_induction_and_constant(loop_context, &binary.lhs, &binary.rhs, is_header)
+        else {
+            return SimplifyResult::None;
+        };
+
+        // Handle arithmetic operations:
+        // Check if we can simplify into an unchecked version of the operation.
+        // For signed types, overflow can happen in both directions (underflow and overflow),
+        // so we evaluate the operation at both extremes of the induction variable range.
+        if let Some(checks) = match binary.operator {
+            BinaryOp::Add { unchecked }
+            | BinaryOp::Sub { unchecked }
+            | BinaryOp::Mul { unchecked }
+                if unchecked =>
+            {
+                // Already unchecked, no need to simplify.
+                return SimplifyResult::None;
+            }
+            BinaryOp::Sub { .. } => {
+                if is_induction_var_lhs {
+                    // `i - const` can overflow at either extreme of `i`.
+                    Some([(bounds.lower, constant), (bounds.upper, constant)])
+                } else {
+                    // `const - i` can overflow at either extreme of `i`.
+                    Some([(constant, bounds.lower), (constant, bounds.upper)])
+                }
+            }
+            BinaryOp::Add { .. } | BinaryOp::Mul { .. } => {
+                // `i + const` / `i * const` can overflow at either extreme of `i`.
+                Some([(constant, bounds.lower), (constant, bounds.upper)])
+            }
+            BinaryOp::Div | BinaryOp::Mod => return SimplifyResult::None,
+            _ => None,
+        } {
+            // Evaluate the operation at both bound extremes to check whether it will ever overflow.
+            for (lhs, rhs) in checks {
+                let lhs = lhs.into_numeric_constant().0;
+                let rhs = rhs.into_numeric_constant().0;
+                match eval_constant_binary_op(lhs, rhs, binary.operator, operand_type) {
+                    BinaryEvaluationResult::Success(..) => {}
+                    BinaryEvaluationResult::CouldNotEvaluate
+                    | BinaryEvaluationResult::Failure(..) => {
+                        return SimplifyResult::None;
+                    }
+                }
+            }
+            let unchecked = Instruction::Binary(Binary {
+                operator: binary.operator.into_unchecked(),
+                lhs: binary.lhs,
+                rhs: binary.rhs,
+            });
+            return SimplifyResult::SimplifiedToInstruction(unchecked);
+        }
+
+        // Handle comparisons. (The upper_bound is exclusive).
+        match binary.operator {
+            BinaryOp::Eq => {
+                if constant >= bounds.upper || constant < bounds.lower {
+                    // `i == const` cannot be true if the constant is out of range.
+                    SimplifyResult::SimplifiedTo(self.false_value)
+                } else {
+                    SimplifyResult::None
+                }
+            }
+            BinaryOp::Lt => match is_induction_var_lhs {
+                // `i < const`
+                true if bounds.upper <= constant => SimplifyResult::SimplifiedTo(self.true_value),
+                true if bounds.lower >= constant => SimplifyResult::SimplifiedTo(self.false_value),
+                // `const < i`
+                false if bounds.lower > constant => SimplifyResult::SimplifiedTo(self.true_value),
+                false if constant.inc().is_some_and(|constant| bounds.upper <= constant) => {
+                    // If `const >= upper_bound - 1` then it will never be less than `i`.
+                    SimplifyResult::SimplifiedTo(self.false_value)
+                }
+                _ => SimplifyResult::None,
+            },
+            _ => SimplifyResult::None,
+        }
+    }
+}

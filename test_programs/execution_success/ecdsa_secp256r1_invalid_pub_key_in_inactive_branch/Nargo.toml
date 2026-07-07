@@ -1,0 +1,6 @@
+[package]
+name = "ecdsa_secp256r1_invalid_pub_key_in_inactive_branch"
+type = "bin"
+authors = [""]
+
+[dependencies]

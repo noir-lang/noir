@@ -1,7 +1,0 @@
-
-            [package]
-            name = "noirc_frontend_tests_infers_lambda_argument_from_function_return_type_when_inside_if"
-            type = "bin"
-            authors = [""]
-            
-            [dependencies]

@@ -1,35 +1,42 @@
-use acvm::FieldElement;
-use acvm::acir::circuit::ExpressionWidth;
-use acvm::acir::native_types::WitnessMap;
-use bn254_blackbox_solver::Bn254BlackBoxSolver;
 use clap::Args;
-use nargo::constants::PROVER_INPUT_FILE;
-use nargo::workspace::Workspace;
-use nargo_toml::{PackageSelection, get_package_manifest, resolve_workspace_from_toml};
-use noir_artifact_cli::fs::inputs::read_inputs_from_file;
-use noirc_driver::{CompileOptions, CompiledProgram, NOIR_ARTIFACT_VERSION_STRING};
-use noirc_frontend::graph::CrateName;
-
-use std::io::{BufReader, BufWriter, Read, Write};
-use std::path::Path;
-
+use dap::errors::ServerError;
+use dap::events::OutputEventBody;
 use dap::requests::Command;
 use dap::responses::ResponseBody;
 use dap::server::Server;
-use dap::types::Capabilities;
+use dap::types::{Capabilities, OutputEventCategory};
+use nargo::constants::PROVER_INPUT_FILE;
+use nargo::ops::debug::{
+    TestDefinition, compile_bin_package_for_debugging, compile_options_for_debugging,
+    compile_test_fn_for_debugging, get_test_function_for_debug, load_workspace_files,
+    prepare_package_for_debug,
+};
+use nargo::ops::{TestStatus, check_crate_and_report_errors, test_status_program_compile_pass};
+use nargo::package::Package;
+use nargo::workspace::Workspace;
+use nargo_toml::{PackageSelection, get_package_manifest, resolve_workspace_from_toml};
+use noir_artifact_cli::fs::inputs::read_inputs_from_file;
+use noir_debugger::{DebugExecutionResult, DebugProject, RunParams};
+use noirc_abi::Abi;
+use noirc_artifacts::debug::DebugInfo;
+use noirc_artifacts::program::CompiledProgram;
+use noirc_driver::{CompileOptions, NOIR_ARTIFACT_VERSION_STRING};
+use noirc_frontend::graph::CrateName;
+use std::io::{BufRead, BufReader, BufWriter, Read, Write};
+use std::path::Path;
+
 use serde_json::Value;
 
-use super::debug_cmd::compile_bin_package_for_debugging;
 use crate::errors::CliError;
+
+/// Command variants (with camelCase renaming) that are unit types and take no arguments.
+/// Some DAP clients send `"arguments": {}` for these, which serde rejects.
+const UNIT_COMMANDS: &[&str] = &["configurationDone", "loadedSources", "threads"];
 
 use noir_debugger::errors::{DapError, LoadError};
 
 #[derive(Debug, Clone, Args)]
 pub(crate) struct DapCommand {
-    /// Override the expression width requested by the backend.
-    #[arg(long, value_parser = parse_expression_width, default_value = "4")]
-    expression_width: ExpressionWidth,
-
     #[clap(long)]
     preflight_check: bool,
 
@@ -48,24 +55,8 @@ pub(crate) struct DapCommand {
     #[clap(long)]
     preflight_skip_instrumentation: bool,
 
-    /// Use pedantic ACVM solving, i.e. double-check some black-box function
-    /// assumptions when solving.
-    /// This is disabled by default.
-    #[arg(long, default_value = "false")]
-    pedantic_solving: bool,
-}
-
-fn parse_expression_width(input: &str) -> Result<ExpressionWidth, std::io::Error> {
-    use std::io::{Error, ErrorKind};
-
-    let width = input
-        .parse::<usize>()
-        .map_err(|err| Error::new(ErrorKind::InvalidInput, err.to_string()))?;
-
-    match width {
-        0 => Ok(ExpressionWidth::Unbounded),
-        _ => Ok(ExpressionWidth::Bounded { width }),
-    }
+    #[clap(long)]
+    preflight_test_name: Option<String>,
 }
 
 fn find_workspace(project_folder: &str, package: Option<&str>) -> Option<Workspace> {
@@ -90,39 +81,69 @@ fn find_workspace(project_folder: &str, package: Option<&str>) -> Option<Workspa
 
 fn workspace_not_found_error_msg(project_folder: &str, package: Option<&str>) -> String {
     match package {
-        Some(pkg) => format!(
-            r#"Noir Debugger could not load program from {}, package {}"#,
-            project_folder, pkg
-        ),
-        None => format!(r#"Noir Debugger could not load program from {}"#, project_folder),
+        Some(pkg) => {
+            format!(r#"Noir Debugger could not load program from {project_folder}, package {pkg}"#)
+        }
+        None => format!(r#"Noir Debugger could not load program from {project_folder}"#),
     }
+}
+
+fn compile_main(
+    workspace: &Workspace,
+    package: &Package,
+    compile_options: &CompileOptions,
+) -> Result<CompiledProgram, LoadError> {
+    compile_bin_package_for_debugging(workspace, package, compile_options)
+        .map_err(|_| LoadError::Generic("Failed to compile project".into()))
+}
+
+fn compile_test(
+    workspace: &Workspace,
+    package: &Package,
+    compile_options: CompileOptions,
+    test_name: String,
+) -> Result<(CompiledProgram, TestDefinition), LoadError> {
+    let (file_manager, mut parsed_files) = load_workspace_files(workspace);
+
+    let (mut context, crate_id) =
+        prepare_package_for_debug(&file_manager, &mut parsed_files, package, workspace);
+
+    check_crate_and_report_errors(&mut context, crate_id, &compile_options)
+        .map_err(|_| LoadError::Generic("Failed to compile project".into()))?;
+
+    let test = get_test_function_for_debug(crate_id, &context, &test_name)
+        .map_err(|_| LoadError::Generic("Failed to compile project".into()))?;
+
+    let program = compile_test_fn_for_debugging(&test, &mut context, compile_options)
+        .map_err(|_| LoadError::Generic("Failed to compile project".into()))?;
+    Ok((program, test))
 }
 
 fn load_and_compile_project(
     project_folder: &str,
     package: Option<&str>,
     prover_name: &str,
-    expression_width: ExpressionWidth,
-    acir_mode: bool,
-    skip_instrumentation: bool,
-) -> Result<(CompiledProgram, WitnessMap<FieldElement>), LoadError> {
+    compile_options: CompileOptions,
+    test_name: Option<String>,
+) -> Result<(DebugProject, Option<TestDefinition>), LoadError> {
     let workspace = find_workspace(project_folder, package)
         .ok_or(LoadError::Generic(workspace_not_found_error_msg(project_folder, package)))?;
     let package = workspace
         .into_iter()
-        .find(|p| p.is_binary())
-        .ok_or(LoadError::Generic("No matching binary packages found in workspace".into()))?;
+        .find(|p| p.is_binary() || p.is_contract())
+        .ok_or(LoadError::Generic("No matching binary or contract packages found in workspace. Only these packages can be debugged.".into()))?;
 
-    let compiled_program = compile_bin_package_for_debugging(
-        &workspace,
-        package,
-        acir_mode,
-        skip_instrumentation,
-        CompileOptions::default(),
-    )
-    .map_err(|_| LoadError::Generic("Failed to compile project".into()))?;
-
-    let compiled_program = nargo::ops::transform_program(compiled_program, expression_width);
+    let (compiled_program, test_def) = match test_name {
+        None => {
+            let program = compile_main(&workspace, package, &compile_options)?;
+            Ok((program, None))
+        }
+        Some(test_name) => {
+            let (program, test_def) =
+                compile_test(&workspace, package, compile_options, test_name)?;
+            Ok((program, Some(test_def)))
+        }
+    }?;
 
     let (inputs_map, _) = read_inputs_from_file(
         &package.root_dir.join(prover_name).with_extension("toml"),
@@ -136,14 +157,16 @@ fn load_and_compile_project(
         .encode(&inputs_map, None)
         .map_err(|_| LoadError::Generic("Failed to encode inputs".into()))?;
 
-    Ok((compiled_program, initial_witness))
+    let project = DebugProject {
+        compiled_program,
+        initial_witness,
+        root_dir: workspace.root_dir.clone(),
+        package_name: package.name.to_string(),
+    };
+    Ok((project, test_def))
 }
 
-fn loop_uninitialized_dap<R: Read, W: Write>(
-    mut server: Server<R, W>,
-    expression_width: ExpressionWidth,
-    pedantic_solving: bool,
-) -> Result<(), DapError> {
+fn loop_uninitialized_dap<R: Read, W: Write>(mut server: Server<R, W>) -> Result<(), DapError> {
     while let Some(req) = server.poll_request()? {
         match req.command {
             Command::Initialize(_) => {
@@ -180,28 +203,44 @@ fn loop_uninitialized_dap<R: Read, W: Write>(
                     .get("skipInstrumentation")
                     .and_then(|v| v.as_bool())
                     .unwrap_or(generate_acir);
+                let test_name =
+                    additional_data.get("testName").and_then(|v| v.as_str()).map(String::from);
+                let oracle_resolver_url = additional_data
+                    .get("oracleResolver")
+                    .and_then(|v| v.as_str())
+                    .map(String::from);
 
-                eprintln!("Project folder: {}", project_folder);
+                eprintln!("Project folder: {project_folder}");
                 eprintln!("Package: {}", package.unwrap_or("(default)"));
-                eprintln!("Prover name: {}", prover_name);
+                eprintln!("Prover name: {prover_name}");
+
+                let compile_options = compile_options_for_debugging(
+                    generate_acir,
+                    skip_instrumentation,
+                    CompileOptions::default(),
+                );
 
                 match load_and_compile_project(
                     project_folder,
                     package,
                     prover_name,
-                    expression_width,
-                    generate_acir,
-                    skip_instrumentation,
+                    compile_options,
+                    test_name,
                 ) {
-                    Ok((compiled_program, initial_witness)) => {
+                    Ok((project, test)) => {
                         server.respond(req.ack()?)?;
+                        let abi = project.compiled_program.abi.clone();
+                        let debug = project.compiled_program.debug.clone();
 
-                        noir_debugger::run_dap_loop(
-                            server,
-                            &Bn254BlackBoxSolver(pedantic_solving),
-                            compiled_program,
-                            initial_witness,
+                        let result = noir_debugger::run_dap_loop(
+                            &mut server,
+                            project,
+                            RunParams { oracle_resolver_url, raw_source_printing: None },
                         )?;
+
+                        if let Some(test) = test {
+                            analyze_test_result(&mut server, result, test, abi, debug)?;
+                        }
                         break;
                     }
                     Err(LoadError::Generic(message)) => {
@@ -224,26 +263,68 @@ fn loop_uninitialized_dap<R: Read, W: Write>(
     Ok(())
 }
 
-fn run_preflight_check(
-    expression_width: ExpressionWidth,
-    args: DapCommand,
-) -> Result<(), DapError> {
-    let project_folder = if let Some(project_folder) = args.preflight_project_folder {
-        project_folder
-    } else {
+fn analyze_test_result<R: Read, W: Write>(
+    server: &mut Server<R, W>,
+    result: DebugExecutionResult,
+    test: TestDefinition,
+    abi: Abi,
+    debug: Vec<DebugInfo>,
+) -> Result<(), ServerError> {
+    let test_status = match result {
+        DebugExecutionResult::Solved(result) => {
+            test_status_program_compile_pass(&test.function, &abi, &debug, &Ok(result))
+        }
+        // Test execution failed
+        DebugExecutionResult::Error(error) => {
+            test_status_program_compile_pass(&test.function, &abi, &debug, &Err(error))
+        }
+        // Execution didn't complete
+        DebugExecutionResult::Incomplete => {
+            TestStatus::Fail { message: "Execution halted".into(), error_diagnostic: None }
+        }
+    };
+
+    let test_result_message = match test_status {
+        TestStatus::Pass => "✓ Test passed".into(),
+        TestStatus::Fail { message, error_diagnostic } => {
+            let basic_message = format!("x Test failed: {message}");
+            match error_diagnostic {
+                Some(diagnostic) => format!("{basic_message}.\n{diagnostic:#?}"),
+                None => basic_message,
+            }
+        }
+        TestStatus::CompileError(diagnostic) => format!("x Test failed.\n{diagnostic:#?}"),
+        TestStatus::Skipped => "* Test skipped".into(),
+    };
+
+    server.send_event(dap::events::Event::Output(OutputEventBody {
+        category: Some(OutputEventCategory::Console),
+        output: test_result_message,
+        ..OutputEventBody::default()
+    }))
+}
+
+fn run_preflight_check(args: DapCommand) -> Result<(), DapError> {
+    let Some(project_folder) = args.preflight_project_folder else {
         return Err(DapError::PreFlightGenericError("Noir Debugger could not initialize because the IDE (for example, VS Code) did not specify a project folder to debug.".into()));
     };
 
     let package = args.preflight_package.as_deref();
+    let test_name = args.preflight_test_name;
     let prover_name = args.preflight_prover_name.as_deref().unwrap_or(PROVER_INPUT_FILE);
+
+    let compile_options: CompileOptions = compile_options_for_debugging(
+        args.preflight_generate_acir,
+        args.preflight_skip_instrumentation,
+        CompileOptions::default(),
+    );
 
     let _ = load_and_compile_project(
         project_folder.as_str(),
         package,
         prover_name,
-        expression_width,
-        args.preflight_generate_acir,
-        args.preflight_skip_instrumentation,
+        compile_options,
+        test_name,
     )?;
 
     Ok(())
@@ -263,13 +344,235 @@ pub(crate) fn run(args: DapCommand) -> Result<(), CliError> {
     // the DAP loop is established, which otherwise are considered "out of band" by the maintainers of the DAP spec.
     // More details here: https://github.com/microsoft/vscode/issues/108138
     if args.preflight_check {
-        return run_preflight_check(args.expression_width, args).map_err(CliError::DapError);
+        return run_preflight_check(args).map_err(CliError::DapError);
     }
 
     let output = BufWriter::new(std::io::stdout());
-    let input = BufReader::new(std::io::stdin());
+    let input = BufReader::new(DapFixingReader::new(BufReader::new(std::io::stdin())));
     let server = Server::new(input, output);
 
-    loop_uninitialized_dap(server, args.expression_width, args.pedantic_solving)
-        .map_err(CliError::DapError)
+    loop_uninitialized_dap(server).map_err(CliError::DapError)
+}
+
+/// Wraps a buffered reader over the DAP input stream and transparently fixes malformed messages
+/// before they reach the [`Server`].
+///
+/// Specifically, some clients send `"arguments": {}` for unit-variant commands like
+/// `configurationDone`. The `dap` crate's serde deserialization rejects non-null `arguments`
+/// for unit variants. This reader strips empty `arguments` objects from those commands.
+///
+/// On any parsing failure the original bytes are passed through unchanged so that [`Server`]
+/// can produce its own error.
+struct DapFixingReader<R: BufRead> {
+    inner: R,
+    /// Pre-processed bytes of the next DAP message ready to be returned by `read`.
+    pending: Vec<u8>,
+    /// The number of bytes we have already copied to the destination in `read`.
+    pos: usize,
+}
+
+impl<R: BufRead> DapFixingReader<R> {
+    fn new(inner: R) -> Self {
+        Self { inner, pending: Vec::new(), pos: 0 }
+    }
+
+    /// Read one DAP message from `inner`, fix it, and store it in `pending`.
+    /// Returns `false` on EOF, `true` if a message was buffered.
+    fn fill_pending(&mut self) -> std::io::Result<bool> {
+        // Read the Content-Length header line.
+        let mut line = String::new();
+        if self.inner.read_line(&mut line)? == 0 {
+            return Ok(false); // EOF
+        }
+
+        // Try to parse the content length.
+        let content_length = line
+            .trim_end()
+            .strip_prefix("Content-Length:")
+            .and_then(|rest| rest.trim().parse::<usize>().ok());
+
+        let Some(content_length) = content_length else {
+            // Not a valid Content-Length header; pass through and let the Server error.
+            self.pending = line.into_bytes();
+            self.pos = 0;
+            return Ok(true);
+        };
+
+        // Read the blank separator line.
+        // (In `Server::poll_request` this happens as part of the `loop`).
+        let mut sep = String::new();
+        if self.inner.read_line(&mut sep)? == 0 {
+            return Ok(false); // EOF
+        }
+
+        // Read exactly content_length bytes.
+        let mut content = vec![0u8; content_length];
+        self.inner.read_exact(&mut content)?;
+
+        // Fix the content, falling back to the original on any error.
+        let fixed = fix_dap_content(&content);
+
+        // Reconstruct the DAP framing with the (possibly updated) length.
+        let header = format!("Content-Length: {}\r\n\r\n", fixed.len());
+        self.pending = header.into_bytes();
+        self.pending.extend_from_slice(&fixed);
+        self.pos = 0;
+        Ok(true)
+    }
+}
+
+impl<R: BufRead> Read for DapFixingReader<R> {
+    /// Read data from `pending` into `buf`
+    fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+        // Refill if we've consumed everything in `pending`.
+        while self.pos >= self.pending.len() {
+            if !self.fill_pending()? {
+                return Ok(0); // EOF
+            }
+        }
+        let available = &self.pending[self.pos..];
+        // How much data can we read depends on the size of `buf` and `available`.
+        let n = buf.len().min(available.len());
+        buf[..n].copy_from_slice(&available[..n]);
+        self.pos += n;
+        Ok(n)
+    }
+}
+
+/// Remove an empty `arguments` object from JSON for unit-variant DAP commands.
+///
+/// Some clients send `{"command": "configurationDone", "arguments": {}}`, but the `dap` crate
+/// expects no `arguments` key at all for unit variants.  Returns the original bytes unchanged if
+/// parsing fails or no fix is needed.
+fn fix_dap_content(content: &[u8]) -> Vec<u8> {
+    let Ok(mut value) = serde_json::from_slice::<Value>(content) else {
+        return content.to_vec();
+    };
+
+    let Some(obj) = value.as_object_mut() else {
+        return content.to_vec();
+    };
+
+    let is_unit_command =
+        obj.get("command").and_then(|v| v.as_str()).is_some_and(|cmd| UNIT_COMMANDS.contains(&cmd));
+
+    if is_unit_command
+        && let Some(Value::Object(args)) = obj.get("arguments")
+        && args.is_empty()
+    {
+        obj.remove("arguments");
+    }
+
+    serde_json::to_vec(&value).unwrap_or_else(|_| content.to_vec())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use dap::requests::Request;
+
+    fn make_dap_message(body: &str) -> String {
+        format!("Content-Length: {}\r\n\r\n{}", body.len(), body)
+    }
+
+    fn read_all<R: BufRead>(reader: &mut DapFixingReader<R>) -> Vec<u8> {
+        let mut out = Vec::new();
+        Read::read_to_end(reader, &mut out).unwrap();
+        out
+    }
+
+    /// Find the body after the separator line.
+    fn find_body(output: &str) -> &str {
+        let body_start = output.find("\r\n\r\n").unwrap() + 4;
+        &output[body_start..]
+    }
+
+    #[test]
+    fn test_empty_args() {
+        let input = r#"{"seq":1,"command":"configurationDone","arguments":{}}"#;
+        let _ = serde_json::from_str::<Request>(input).expect_err("empty args do not parse");
+    }
+
+    #[test]
+    fn test_strips_empty_arguments_for_unit_commands() {
+        let input = make_dap_message(r#"{"seq":1,"command":"configurationDone","arguments":{}}"#);
+        let mut reader = DapFixingReader::new(BufReader::new(input.as_bytes()));
+        let output = String::from_utf8(read_all(&mut reader)).unwrap();
+
+        // The fixed body should not contain "arguments".
+        let body: Value = serde_json::from_str(find_body(&output)).unwrap();
+        assert!(body.get("arguments").is_none(), "arguments should be stripped");
+        assert_eq!(body["command"], "configurationDone");
+
+        let _ = serde_json::from_value::<Request>(body).expect("should parse request");
+    }
+
+    #[test]
+    fn test_preserves_non_empty_arguments() {
+        let input =
+            make_dap_message(r#"{"seq":1,"command":"configurationDone","arguments":{"extra":1}}"#);
+        let mut reader = DapFixingReader::new(BufReader::new(input.as_bytes()));
+        let output = String::from_utf8(read_all(&mut reader)).unwrap();
+
+        let body: Value = serde_json::from_str(find_body(&output)).unwrap();
+        assert!(body.get("arguments").is_some(), "non-empty arguments should be preserved");
+
+        let _ = serde_json::from_value::<Request>(body).expect_err("extra args do not parse");
+    }
+
+    #[test]
+    fn test_passes_through_non_unit_commands_unchanged() {
+        let json = r#"{"seq":1,"command":"initialize","arguments":{"adapterID":"test"}}"#;
+        let input = make_dap_message(json);
+        let mut reader = DapFixingReader::new(BufReader::new(input.as_bytes()));
+        let output = String::from_utf8(read_all(&mut reader)).unwrap();
+
+        let body: Value = serde_json::from_str(find_body(&output)).unwrap();
+        assert!(body.get("arguments").is_some());
+
+        let _ = serde_json::from_value::<Request>(body).expect("non unit request parses");
+    }
+
+    #[test]
+    fn test_passes_through_invalid_json_unchanged() {
+        let bad_json = "not json at all";
+        let input = make_dap_message(bad_json);
+        let mut reader = DapFixingReader::new(BufReader::new(input.as_bytes()));
+        let output = String::from_utf8(read_all(&mut reader)).unwrap();
+
+        assert_eq!(find_body(&output), bad_json);
+    }
+
+    #[test]
+    fn test_passes_through_invalid_header_unchanged() {
+        let input = "Content-Type: application/json\r\n\r\n[]";
+        let mut reader = DapFixingReader::new(BufReader::new(input.as_bytes()));
+        let output = String::from_utf8(read_all(&mut reader)).unwrap();
+        assert_eq!(output, input);
+    }
+
+    #[test]
+    fn test_read_header_then_eof() {
+        let input = "Content-Length: 10\r\n";
+        let mut reader = DapFixingReader::new(BufReader::new(input.as_bytes()));
+        let output = String::from_utf8(read_all(&mut reader)).unwrap();
+        assert_eq!(output, "");
+    }
+
+    #[test]
+    fn test_multiple_messages_in_sequence() {
+        let msg1 = make_dap_message(r#"{"seq":1,"command":"configurationDone","arguments":{}}"#);
+        let msg2 = make_dap_message(r#"{"seq":2,"command":"threads","arguments":{}}"#);
+        let input = format!("{msg1}{msg2}");
+        let mut reader = DapFixingReader::new(BufReader::new(input.as_bytes()));
+
+        let mut buf = Vec::new();
+        Read::read_to_end(&mut reader, &mut buf).unwrap();
+        let output = String::from_utf8(buf).unwrap();
+
+        // Both messages should have arguments stripped.
+        assert_eq!(output.matches("\"arguments\"").count(), 0);
+        assert_eq!(output.matches("configurationDone").count(), 1);
+        assert_eq!(output.matches("threads").count(), 1);
+    }
 }

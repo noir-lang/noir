@@ -1,0 +1,10 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+use aztec::macros::{aztec, Something};
+
+pub fn main() {
+    let _: () = aztec::aztec();
+    let _: Something = Something {};
+}

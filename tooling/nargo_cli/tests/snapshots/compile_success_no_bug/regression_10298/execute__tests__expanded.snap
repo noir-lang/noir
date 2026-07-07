@@ -1,0 +1,23 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn main() {
+    let mut foo: unconstrained fn() = foo_wrapper;
+    foo = foo_oracle;
+    let foo_tuple: (unconstrained fn(), unconstrained fn()) = (foo_oracle, foo_oracle);
+    let foo_immutable: unconstrained fn() = foo_oracle;
+    // Safety: comment added by `nargo expand`
+    unsafe {
+        foo();
+        (foo_tuple.0)();
+        foo_immutable();
+    }
+}
+
+#[oracle(foo)]
+unconstrained fn foo_oracle() {}
+
+unconstrained fn foo_wrapper() {
+    foo_oracle();
+}

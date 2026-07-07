@@ -8,49 +8,37 @@ use strum_macros::EnumIter;
 
 /// Representation of available black box function names.
 /// This enum should be used to represent a black box before we have set up the
-/// appropriate inputs and outputs. At which point it should be converted to a [crate::circuit::opcodes::BlackBoxFuncCall]
+/// appropriate inputs and outputs. At which point it should be converted to a [`crate::circuit::opcodes::BlackBoxFuncCall`]
 #[allow(clippy::upper_case_acronyms)]
 #[derive(Clone, Debug, Hash, Copy, PartialEq, Eq, Serialize, Deserialize, EnumIter)]
 pub enum BlackBoxFunc {
-    /// More details can be found at [crate::circuit::opcodes::BlackBoxFuncCall::AES128Encrypt]
+    /// More details can be found at [`crate::circuit::opcodes::BlackBoxFuncCall::AES128Encrypt`]
     AES128Encrypt,
-    /// More details can be found at [crate::circuit::opcodes::BlackBoxFuncCall::AND]
+    /// More details can be found at [`crate::circuit::opcodes::BlackBoxFuncCall::AND`]
     AND,
-    /// More details can be found at [crate::circuit::opcodes::BlackBoxFuncCall::XOR]
+    /// More details can be found at [`crate::circuit::opcodes::BlackBoxFuncCall::XOR`]
     XOR,
-    /// More details can be found at [crate::circuit::opcodes::BlackBoxFuncCall::RANGE]
+    /// More details can be found at [`crate::circuit::opcodes::BlackBoxFuncCall::RANGE`]
     RANGE,
-    /// More details can be found at [crate::circuit::opcodes::BlackBoxFuncCall::Blake2s]
+    /// More details can be found at [`crate::circuit::opcodes::BlackBoxFuncCall::Blake2s`]
     Blake2s,
-    /// More details can be found at [crate::circuit::opcodes::BlackBoxFuncCall::Blake3]
+    /// More details can be found at [`crate::circuit::opcodes::BlackBoxFuncCall::Blake3`]
     Blake3,
-    /// More details can be found at [crate::circuit::opcodes::BlackBoxFuncCall::EcdsaSecp256k1]
+    /// More details can be found at [`crate::circuit::opcodes::BlackBoxFuncCall::EcdsaSecp256k1`]
     EcdsaSecp256k1,
-    /// More details can be found at [crate::circuit::opcodes::BlackBoxFuncCall::EcdsaSecp256r1]
+    /// More details can be found at [`crate::circuit::opcodes::BlackBoxFuncCall::EcdsaSecp256r1`]
     EcdsaSecp256r1,
-    /// More details can be found at [crate::circuit::opcodes::BlackBoxFuncCall::MultiScalarMul]
+    /// More details can be found at [`crate::circuit::opcodes::BlackBoxFuncCall::MultiScalarMul`]
     MultiScalarMul,
-    /// More details can be found at [crate::circuit::opcodes::BlackBoxFuncCall::Keccakf1600]
+    /// More details can be found at [`crate::circuit::opcodes::BlackBoxFuncCall::Keccakf1600`]
     Keccakf1600,
-    /// More details can be found at [crate::circuit::opcodes::BlackBoxFuncCall::RecursiveAggregation]
+    /// More details can be found at [`crate::circuit::opcodes::BlackBoxFuncCall::RecursiveAggregation`]
     RecursiveAggregation,
-    /// More details can be found at [crate::circuit::opcodes::BlackBoxFuncCall::EmbeddedCurveAdd]
+    /// More details can be found at [`crate::circuit::opcodes::BlackBoxFuncCall::EmbeddedCurveAdd`]
     EmbeddedCurveAdd,
-    /// More details can be found at [crate::circuit::opcodes::BlackBoxFuncCall::BigIntAdd]
-    BigIntAdd,
-    /// More details can be found at [crate::circuit::opcodes::BlackBoxFuncCall::BigIntSub]
-    BigIntSub,
-    /// More details can be found at [crate::circuit::opcodes::BlackBoxFuncCall::BigIntMul]
-    BigIntMul,
-    /// More details can be found at [crate::circuit::opcodes::BlackBoxFuncCall::BigIntDiv]
-    BigIntDiv,
-    /// More details can be found at [crate::circuit::opcodes::BlackBoxFuncCall::BigIntFromLeBytes]
-    BigIntFromLeBytes,
-    /// More details can be found at [crate::circuit::opcodes::BlackBoxFuncCall::BigIntToLeBytes]
-    BigIntToLeBytes,
-    /// More details can be found at [crate::circuit::opcodes::BlackBoxFuncCall::Poseidon2Permutation]
+    /// More details can be found at [`crate::circuit::opcodes::BlackBoxFuncCall::Poseidon2Permutation`]
     Poseidon2Permutation,
-    /// More details can be found at [crate::circuit::opcodes::BlackBoxFuncCall::Sha256Compression]
+    /// More details can be found at [`crate::circuit::opcodes::BlackBoxFuncCall::Sha256Compression`]
     Sha256Compression,
 }
 
@@ -75,12 +63,6 @@ impl BlackBoxFunc {
             BlackBoxFunc::Keccakf1600 => "keccakf1600",
             BlackBoxFunc::RecursiveAggregation => "recursive_aggregation",
             BlackBoxFunc::EcdsaSecp256r1 => "ecdsa_secp256r1",
-            BlackBoxFunc::BigIntAdd => "bigint_add",
-            BlackBoxFunc::BigIntSub => "bigint_sub",
-            BlackBoxFunc::BigIntMul => "bigint_mul",
-            BlackBoxFunc::BigIntDiv => "bigint_div",
-            BlackBoxFunc::BigIntFromLeBytes => "bigint_from_le_bytes",
-            BlackBoxFunc::BigIntToLeBytes => "bigint_to_le_bytes",
             BlackBoxFunc::Poseidon2Permutation => "poseidon2_permutation",
             BlackBoxFunc::Sha256Compression => "sha256_compression",
         }
@@ -100,12 +82,6 @@ impl BlackBoxFunc {
             "range" => Some(BlackBoxFunc::RANGE),
             "keccakf1600" => Some(BlackBoxFunc::Keccakf1600),
             "recursive_aggregation" => Some(BlackBoxFunc::RecursiveAggregation),
-            "bigint_add" => Some(BlackBoxFunc::BigIntAdd),
-            "bigint_sub" => Some(BlackBoxFunc::BigIntSub),
-            "bigint_mul" => Some(BlackBoxFunc::BigIntMul),
-            "bigint_div" => Some(BlackBoxFunc::BigIntDiv),
-            "bigint_from_le_bytes" => Some(BlackBoxFunc::BigIntFromLeBytes),
-            "bigint_to_le_bytes" => Some(BlackBoxFunc::BigIntToLeBytes),
             "poseidon2_permutation" => Some(BlackBoxFunc::Poseidon2Permutation),
             "sha256_compression" => Some(BlackBoxFunc::Sha256Compression),
             _ => None,
@@ -116,24 +92,90 @@ impl BlackBoxFunc {
         match self {
             BlackBoxFunc::RecursiveAggregation
             | BlackBoxFunc::MultiScalarMul
-            | BlackBoxFunc::EmbeddedCurveAdd => true,
+            | BlackBoxFunc::EmbeddedCurveAdd
+            | BlackBoxFunc::EcdsaSecp256k1
+            | BlackBoxFunc::EcdsaSecp256r1
+            | BlackBoxFunc::RANGE => true,
+
             BlackBoxFunc::AES128Encrypt
             | BlackBoxFunc::AND
             | BlackBoxFunc::XOR
-            | BlackBoxFunc::RANGE
             | BlackBoxFunc::Blake2s
             | BlackBoxFunc::Blake3
-            | BlackBoxFunc::EcdsaSecp256k1
-            | BlackBoxFunc::EcdsaSecp256r1
             | BlackBoxFunc::Keccakf1600
-            | BlackBoxFunc::BigIntAdd
-            | BlackBoxFunc::BigIntSub
-            | BlackBoxFunc::BigIntMul
-            | BlackBoxFunc::BigIntDiv
-            | BlackBoxFunc::BigIntFromLeBytes
-            | BlackBoxFunc::BigIntToLeBytes
             | BlackBoxFunc::Poseidon2Permutation
             | BlackBoxFunc::Sha256Compression => false,
+        }
+    }
+
+    /// This function will return the number of inputs that a blackbox function
+    /// expects. Returning `None` if there is no expectation.
+    pub fn expected_input_size(&self) -> Option<usize> {
+        match self {
+            // Bitwise opcodes will take in 2 parameters
+            BlackBoxFunc::AND | BlackBoxFunc::XOR => Some(2),
+
+            // All of the hash/cipher methods will take in a
+            // variable number of inputs.
+            BlackBoxFunc::AES128Encrypt | BlackBoxFunc::Blake2s | BlackBoxFunc::Blake3 => None,
+
+            BlackBoxFunc::Keccakf1600 => Some(25),
+            // The permutation takes a fixed number of inputs, but the inputs length depends on the proving system implementation.
+            BlackBoxFunc::Poseidon2Permutation => None,
+
+            // SHA256 compression requires 16 u32s as input message and 8 u32s for the hash state.
+            BlackBoxFunc::Sha256Compression => Some(24),
+            // Can only apply a range constraint to one
+            // witness at a time.
+            BlackBoxFunc::RANGE => Some(1),
+
+            // 64 bytes for the signature, 32 bytes for the hashed message,
+            // and 32 bytes each for the x and y coordinates of the public key, plus a predicate.
+            BlackBoxFunc::EcdsaSecp256k1 | BlackBoxFunc::EcdsaSecp256r1 => Some(161),
+
+            // Inputs for multi scalar multiplication is an arbitrary number of [point, scalar] pairs.
+            BlackBoxFunc::MultiScalarMul => None,
+
+            // Recursive aggregation has a variable number of inputs
+            BlackBoxFunc::RecursiveAggregation => None,
+
+            // Addition over the embedded curve: inputs are coordinates (x1,y1) and (x2,y2) of the Grumpkin points
+            // to add, plus a predicate to conditionally perform the addition.
+            BlackBoxFunc::EmbeddedCurveAdd => Some(5),
+        }
+    }
+
+    /// This function will return the number of outputs that a blackbox function
+    /// expects. Returning `None` if there is no expectation.
+    pub fn expected_output_size(&self) -> Option<usize> {
+        match self {
+            // Bitwise opcodes will return 1 parameter which is the output
+            // or the operation.
+            BlackBoxFunc::AND | BlackBoxFunc::XOR => Some(1),
+
+            // 32 byte hash algorithms
+            BlackBoxFunc::Blake2s | BlackBoxFunc::Blake3 => Some(32),
+
+            BlackBoxFunc::Keccakf1600 => Some(25),
+            // The permutation returns a fixed number of outputs, equals to the inputs length which depends on the proving system implementation.
+            BlackBoxFunc::Poseidon2Permutation => None,
+
+            BlackBoxFunc::Sha256Compression => Some(8),
+
+            BlackBoxFunc::RANGE => Some(0),
+
+            // Signature verification algorithms will return a boolean
+            BlackBoxFunc::EcdsaSecp256k1 | BlackBoxFunc::EcdsaSecp256r1 => Some(1),
+
+            // Output of operations over the embedded curve
+            // will be 2 field elements representing the point, i.e. (x,y)
+            BlackBoxFunc::MultiScalarMul | BlackBoxFunc::EmbeddedCurveAdd => Some(2),
+
+            // Recursive aggregation has no output
+            BlackBoxFunc::RecursiveAggregation => Some(0),
+
+            // AES encryption returns a variable number of outputs
+            BlackBoxFunc::AES128Encrypt => None,
         }
     }
 }

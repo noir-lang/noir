@@ -5,7 +5,7 @@ use crate::token::{Keyword, Token};
 
 use noirc_errors::Location;
 
-use crate::{parser::labels::ParsingRuleLabel, token::TokenKind};
+use crate::parser::labels::ParsingRuleLabel;
 
 use super::Parser;
 
@@ -24,9 +24,9 @@ impl Parser<'_> {
     /// Tries to parse a Path.
     /// Note that `crate::`, `super::`, etc., are not valid paths on their own.
     ///
-    /// Path = PathKind identifier Turbofish? ( '::' identifier Turbofish? )*
+    /// Path = `PathKind` identifier Turbofish? ( '::' identifier Turbofish? )*
     ///
-    /// Turbofish = '::' PathGenerics
+    /// Turbofish = '::' `PathGenerics`
     pub(crate) fn parse_path(&mut self) -> Option<Path> {
         self.parse_path_impl(
             true, // allow turbofish
@@ -44,12 +44,18 @@ impl Parser<'_> {
         }
     }
 
-    /// PathNoTurbofish = PathKind identifier ( '::' identifier )*
+    /// `PathNoTurbofish` = `PathKind` identifier ( '::' identifier )*
     pub fn parse_path_no_turbofish(&mut self) -> Option<Path> {
         self.parse_path_impl(
             false, // allow turbofish
             true,  // allow trailing double colon
         )
+    }
+
+    pub(super) fn parse_path_for_named_type(&mut self) -> Option<Path> {
+        let allow_turbofish = false;
+        let allow_trailing_double_colon = false;
+        self.parse_path_impl(allow_turbofish, allow_trailing_double_colon)
     }
 
     pub(super) fn parse_path_impl(
@@ -106,17 +112,21 @@ impl Parser<'_> {
     ) -> Path {
         let mut segments = Vec::new();
 
-        if self.token.kind() == TokenKind::Ident {
-            loop {
-                let ident = self.eat_ident().unwrap();
+        if self.at_ident_token() {
+            // In `parsing_quote_body` mode we may enter this iteration after
+            // optimistically committing to a `::` whose follow token is `$` (we
+            // only have one token of lookahead). If it turns out to be `$(...)`
+            // instead of `$ident`, `eat_ident` returns None and we bail out
+            // here rather than panicking.
+            while let Some(ident) = self.eat_ident() {
                 let location = ident.location();
 
                 let generics = if allow_turbofish
-                    && self.at(Token::DoubleColon)
-                    && self.next_is(Token::Less)
+                    && self.at(&Token::DoubleColon)
+                    && self.next_is(&Token::Less)
                 {
                     self.bump();
-                    self.parse_path_generics(ParserErrorReason::AssociatedTypesNotAllowedInPaths)
+                    self.parse_path_generics(&ParserErrorReason::AssociatedTypesNotAllowedInPaths)
                 } else {
                     None
                 };
@@ -127,9 +137,7 @@ impl Parser<'_> {
                     location: self.location_since(location),
                 });
 
-                if self.at(Token::DoubleColon)
-                    && matches!(self.next_token.token(), Token::Ident(..))
-                {
+                if self.at(&Token::DoubleColon) && self.next_starts_path_segment() {
                     // Skip the double colons
                     self.bump();
                 } else {
@@ -147,14 +155,14 @@ impl Parser<'_> {
         Path { segments, kind, kind_location: start_location, location }
     }
 
-    /// PathGenerics = GenericTypeArgs
+    /// `PathGenerics` = `GenericTypeArgs`
     pub(super) fn parse_path_generics(
         &mut self,
-        on_named_arg_error: ParserErrorReason,
+        on_named_arg_error: &ParserErrorReason,
     ) -> Option<Vec<UnresolvedType>> {
         if self.token.token() != &Token::Less {
             return None;
-        };
+        }
 
         let generics = self.parse_generic_type_args();
         for (name, _typ) in &generics.named_args {
@@ -164,28 +172,59 @@ impl Parser<'_> {
         Some(generics.ordered_args)
     }
 
-    /// PathKind
-    ///     | 'crate' '::'
+    /// `PathKind`
+    ///     = '::'
     ///     | 'dep' '::'
+    ///     | 'crate' '::'
     ///     | 'super' '::'
     ///     | nothing
     pub(super) fn parse_path_kind(&mut self) -> PathKind {
-        let kind = if self.eat_keyword(Keyword::Crate) {
-            PathKind::Crate
+        let start_location = self.current_token_location;
+        let mut deprecated_dep_found = false;
+
+        let mut kind = if self.at(&Token::DoubleColon) {
+            PathKind::Absolute
         } else if self.eat_keyword(Keyword::Dep) {
-            PathKind::Dep
+            deprecated_dep_found = true;
+            PathKind::Absolute
+        } else if self.eat_keyword(Keyword::Crate) {
+            PathKind::Crate
         } else if self.eat_keyword(Keyword::Super) {
-            PathKind::Super
+            PathKind::Super(0)
+        } else if let Token::InternedCrate(crate_id) = self.token.token() {
+            let crate_id = *crate_id;
+            self.bump();
+            PathKind::Resolved(crate_id)
         } else {
             PathKind::Plain
         };
         if kind != PathKind::Plain {
             self.eat_or_error(Token::DoubleColon);
         }
+
+        // Accept stacked `super` qualifiers such as `super::super::foo`, counting each one
+        // beyond the first as an "extra".
+        if let PathKind::Super(extras) = &mut kind {
+            while self.eat_keyword(Keyword::Super) {
+                self.eat_or_error(Token::DoubleColon);
+                *extras += 1;
+            }
+        }
+
+        if deprecated_dep_found {
+            // In the error message, try to include the actual dependency being imported
+            let dependency_name = if let Token::Ident(name) = self.token.token() {
+                name.clone()
+            } else {
+                "dependency".to_string()
+            };
+            self.push_error(ParserErrorReason::DeprecatedDep(dependency_name), start_location);
+        }
+
         kind
     }
 
-    /// AsTraitPath = '<' Type 'as' PathNoTurbofish GenericTypeArgs '>' '::' identifier
+    /// `AsTraitPath` = '<' Type 'as' `PathNoTurbofish` `GenericTypeArgs` '>' '::' identifier ( '::' `GenericTypeArgs` )?
     pub(super) fn parse_as_trait_path(&mut self) -> Option<AsTraitPath> {
         if !self.eat_less() {
             return None;
@@ -205,14 +244,22 @@ impl Parser<'_> {
         let trait_generics = self.parse_generic_type_args();
         self.eat_or_error(Token::Greater);
         self.eat_or_error(Token::DoubleColon);
-        let impl_item = if let Some(ident) = self.eat_ident() {
+        let impl_item = if let Some(ident) = self.eat_non_underscore_ident() {
             ident
         } else {
             self.expected_identifier();
             Ident::new(String::new(), self.location_at_previous_token_end())
         };
 
-        AsTraitPath { typ, trait_path, trait_generics, impl_item }
+        let turbofish = self.eat_double_colon().then(|| {
+            let generics = self.parse_generic_type_args();
+            if generics.is_empty() {
+                self.expected_token(Token::Less);
+            }
+            generics
+        });
+
+        AsTraitPath { typ, trait_path, trait_generics, impl_item, turbofish }
     }
 }
 
@@ -223,7 +270,7 @@ mod tests {
         ast::{Path, PathKind},
         parser::{
             Parser,
-            parser::tests::{expect_no_errors, get_single_error, get_source_with_error_span},
+            parser::tests::{check_errors, expect_no_errors},
         },
     };
 
@@ -272,7 +319,7 @@ mod tests {
     fn parses_super_two_segments() {
         let src = "super::foo::bar";
         let path = parse_path_no_errors(src);
-        assert_eq!(path.kind, PathKind::Super);
+        assert_eq!(path.kind, PathKind::Super(0));
         assert_eq!(path.segments.len(), 2);
         assert_eq!(path.segments[0].ident.to_string(), "foo");
         assert!(path.segments[0].generics.is_none());
@@ -281,10 +328,20 @@ mod tests {
     }
 
     #[test]
-    fn parses_dep_two_segments() {
-        let src = "dep::foo::bar";
+    fn parses_stacked_super_two_segments() {
+        let src = "super::super::foo::bar";
         let path = parse_path_no_errors(src);
-        assert_eq!(path.kind, PathKind::Dep);
+        assert_eq!(path.kind, PathKind::Super(1));
+        assert_eq!(path.segments.len(), 2);
+        assert_eq!(path.segments[0].ident.to_string(), "foo");
+        assert_eq!(path.segments[1].ident.to_string(), "bar");
+    }
+
+    #[test]
+    fn parses_absolute_two_segments() {
+        let src = "::foo::bar";
+        let path = parse_path_no_errors(src);
+        assert_eq!(path.kind, PathKind::Absolute);
         assert_eq!(path.segments.len(), 2);
         assert_eq!(path.segments[0].ident.to_string(), "foo");
         assert!(path.segments[0].generics.is_none());
@@ -343,15 +400,10 @@ mod tests {
     #[test]
     fn errors_on_crate_double_colons() {
         let src = "
-        crate:: 
-               ^
+        crate::
+              ^ Expected an identifier but found end of input
         ";
-        let (src, span) = get_source_with_error_span(src);
-        let mut parser = Parser::for_str_with_dummy_file(&src);
-        let path = parser.parse_path();
+        let path = check_errors(src, |parser| parser.parse_path());
         assert!(path.is_none());
-
-        let error = get_single_error(&parser.errors, span);
-        assert_eq!(error.to_string(), "Expected an identifier but found end of input");
     }
 }

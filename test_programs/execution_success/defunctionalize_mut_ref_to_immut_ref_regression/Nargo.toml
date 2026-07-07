@@ -1,0 +1,6 @@
+[package]
+name = "defunctionalize_mut_ref_to_immut_ref_regression"
+type = "bin"
+authors = [""]
+
+[dependencies]

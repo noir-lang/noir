@@ -1,7 +1,0 @@
-
-            [package]
-            name = "noirc_frontend_tests_enums_match_reachability_errors_ignored_when_there_is_a_type_error"
-            type = "bin"
-            authors = [""]
-            
-            [dependencies]

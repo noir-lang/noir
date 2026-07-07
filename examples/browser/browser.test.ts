@@ -1,0 +1,152 @@
+import { test, expect } from '@playwright/test';
+import { fileURLToPath } from 'url';
+import { dirname, resolve } from 'path';
+import * as http from 'http';
+import * as fs from 'fs';
+import * as path from 'path';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+let server: http.Server;
+const SERVER_PORT = 8080;
+
+// Simple static file server for pre-built files
+function createStaticServer(rootDir: string): http.Server {
+  return http.createServer((req, res) => {
+    // Normalize and resolve the requested path to prevent directory traversal
+    const requestedPath = req.url === '/' ? 'index.html' : req.url!.slice(1); // Remove leading slash
+    const candidatePath = path.resolve(rootDir, requestedPath);
+
+    let filePath: string;
+    try {
+      filePath = fs.realpathSync(candidatePath);
+    } catch (_e) {
+      res.writeHead(404);
+      res.end('Not found');
+      return;
+    }
+    // Ensure the resolved path is within the rootDir
+    const rootRealPath = fs.realpathSync(rootDir);
+    if (!filePath.startsWith(rootRealPath)) {
+      res.writeHead(403);
+      res.end('Forbidden');
+      return;
+    }
+
+    fs.readFile(filePath, (err, data) => {
+      if (err) {
+        res.writeHead(404);
+        res.end('Not found');
+        return;
+      }
+
+      // Set appropriate content type
+      const ext = path.extname(filePath);
+      const contentType =
+        {
+          '.html': 'text/html',
+          '.js': 'application/javascript',
+          '.wasm': 'application/wasm',
+        }[ext] || 'application/octet-stream';
+
+      // Serve every response cross-origin isolated. This makes SharedArrayBuffer
+      // available in the page, which Barretenberg requires to run proving across
+      // multiple Web Worker threads. Any host serving a Noir app should send the
+      // same two headers to get multithreaded proving.
+      res.writeHead(200, {
+        'Content-Type': contentType,
+        'Cross-Origin-Opener-Policy': 'same-origin',
+        'Cross-Origin-Embedder-Policy': 'require-corp',
+      });
+      res.end(data);
+    });
+  });
+}
+
+test.describe('Noir Web App', () => {
+  test.beforeAll(async () => {
+    // Serve the pre-built files from the dist directory
+    const distDir = resolve(__dirname, 'dist');
+    // Start static file server for the already built files
+    server = createStaticServer(distDir);
+    await new Promise<void>((resolve) => {
+      server.listen(SERVER_PORT, () => {
+        console.log(`Static server running at http://localhost:${SERVER_PORT}`);
+        resolve();
+      });
+    });
+  });
+
+  test.afterAll(async () => {
+    // Close the server
+    if (server) {
+      await new Promise<void>((resolve) => {
+        server.close(() => resolve());
+      });
+    }
+  });
+
+  test('page is cross-origin isolated so proving can use multiple threads', async ({ page }) => {
+    await page.goto(`http://localhost:${SERVER_PORT}`);
+
+    // SharedArrayBuffer is only exposed to cross-origin isolated pages, and
+    // Barretenberg needs it to spawn proving threads. If this regresses, proving
+    // silently falls back to a single thread.
+    expect(await page.evaluate(() => self.crossOriginIsolated)).toBe(true);
+    expect(await page.evaluate(() => typeof SharedArrayBuffer)).toBe('function');
+  });
+
+  test('should generate and verify proof for valid age', async ({ page }) => {
+    // Increase test timeout as proof generation can take time
+    test.setTimeout(60000);
+
+    await page.goto(`http://localhost:${SERVER_PORT}`);
+    await page.waitForLoadState('networkidle');
+
+    // Wait for the page to load with increased timeout
+    await expect(page.locator('h1')).toHaveText('Noir app', { timeout: 10000 });
+
+    // Enter a valid age (greater than 18)
+    await page.fill('#age', '25');
+    await page.click('#submit');
+
+    // Wait for backend creation (this can take some time)
+    await expect(page.locator('#logs')).toContainText('Creating Barretenberg... ⏳');
+    await expect(page.locator('#logs')).toContainText('Created Barretenberg... ✅', {timeout: 40000});
+
+    // Wait for witness generation
+    await expect(page.locator('#logs')).toContainText('Generating witness... ⏳', {timeout: 10000});
+    await expect(page.locator('#logs')).toContainText('Generated witness... ✅');
+
+    // Wait for proof generation (this can take longer)
+    await expect(page.locator('#logs')).toContainText('Generating proof... ⏳');
+    await expect(page.locator('#logs')).toContainText('Generated proof... ✅', { timeout: 20000 });
+
+    // Wait for proof verification
+    await expect(page.locator('#logs')).toContainText('Verifying proof... ⌛');
+    await expect(page.locator('#logs')).toContainText('Proof is valid... ✅');
+
+    // Check that proof is displayed
+    const proofText = await page.locator('#results').textContent();
+    expect(proofText).toContain('Proof');
+    expect(proofText?.length).toBeGreaterThan(50); // Proof should be non-trivial
+  });
+
+  test('should fail for invalid age', async ({ page }) => {
+    test.setTimeout(60000);
+
+    await page.goto(`http://localhost:${SERVER_PORT}`);
+    await page.waitForLoadState('networkidle');
+
+    // Wait for the page to load with increased timeout
+    await expect(page.locator('h1')).toHaveText('Noir app', { timeout: 10000 });
+
+    // Enter an invalid age (less than or equal to 18)
+    await page.fill('#age', '15');
+    await page.click('#submit');
+
+    // Should show error
+    await expect(page.locator('#logs')).toContainText('Something went wrong', { timeout: 30000 });
+  });
+});

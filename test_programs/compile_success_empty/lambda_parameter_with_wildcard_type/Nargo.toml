@@ -1,0 +1,6 @@
+[package]
+name = "lambda_parameter_with_wildcard_type"
+type = "bin"
+authors = [""]
+
+[dependencies]

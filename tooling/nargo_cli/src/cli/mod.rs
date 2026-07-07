@@ -2,29 +2,38 @@ use clap::{Args, Parser, Subcommand};
 use const_format::formatcp;
 use nargo::workspace::Workspace;
 use nargo_toml::{
-    ManifestError, PackageSelection, get_package_manifest, resolve_workspace_from_toml,
+    ManifestError, NargoToml, PackageConfig, PackageMetadata, PackageSelection,
+    get_package_manifest, resolve_workspace_from_fixed_toml, resolve_workspace_from_toml,
 };
+use noir_artifact_cli::commands::parse_and_normalize_path;
 use noirc_driver::{CrateName, NOIR_ARTIFACT_VERSION_STRING};
 use std::{
+    collections::BTreeMap,
     fs::File,
     path::{Path, PathBuf},
+    str::FromStr,
 };
 
 use color_eyre::eyre;
 
 use crate::errors::CliError;
 
+mod add_cmd;
 mod check_cmd;
-mod compile_cmd;
+pub mod compile_cmd;
 mod dap_cmd;
 mod debug_cmd;
+mod doc_cmd;
 mod execute_cmd;
+mod expand_cmd;
 mod export_cmd;
+mod fetch_cmd;
 mod fmt_cmd;
 mod fuzz_cmd;
 mod generate_completion_script_cmd;
 mod info_cmd;
 mod init_cmd;
+mod interpret_cmd;
 mod lsp_cmd;
 mod new_cmd;
 mod test_cmd;
@@ -53,13 +62,13 @@ struct NargoCli {
 
 #[non_exhaustive]
 #[derive(Args, Clone, Debug)]
-pub(crate) struct NargoConfig {
+pub struct NargoConfig {
     // REMINDER: Also change this flag in the LSP test lens if renamed
-    #[arg(long, hide = true, global = true, default_value = "./", value_parser = parse_path)]
+    #[arg(long, hide = true, global = true, default_value = "./", value_parser = parse_and_normalize_path)]
     program_dir: PathBuf,
 
     /// Override the default target directory.
-    #[arg(long, hide = true, global = true, value_parser = parse_path)]
+    #[arg(long, hide = true, global = true, value_parser = parse_and_normalize_path)]
     target_dir: Option<PathBuf>,
 }
 
@@ -96,8 +105,12 @@ enum NargoCommand {
     Fmt(fmt_cmd::FormatCommand),
     #[command(alias = "build")]
     Compile(compile_cmd::CompileCommand),
+    #[command(hide = true)]
+    Interpret(interpret_cmd::InterpretCommand),
     New(new_cmd::NewCommand),
     Init(init_cmd::InitCommand),
+    Add(add_cmd::AddCommand),
+    Fetch(fetch_cmd::FetchCommand),
     Execute(execute_cmd::ExecuteCommand),
     Export(export_cmd::ExportCommand),
     Debug(debug_cmd::DebugCommand),
@@ -107,6 +120,8 @@ enum NargoCommand {
     Lsp(lsp_cmd::LspCommand),
     #[command(hide = true)]
     Dap(dap_cmd::DapCommand),
+    Expand(expand_cmd::ExpandCommand),
+    Doc(doc_cmd::DocCommand),
     GenerateCompletionScript(generate_completion_script_cmd::GenerateCompletionScriptCommand),
 }
 
@@ -138,8 +153,16 @@ pub(crate) fn start_cli() -> eyre::Result<()> {
     match command {
         NargoCommand::New(args) => new_cmd::run(args, config),
         NargoCommand::Init(args) => init_cmd::run(args, config),
+        NargoCommand::Add(args) => with_workspace(args, config, add_cmd::run),
+        NargoCommand::Fetch(args) => {
+            // Snapshot the dependency cache before resolution downloads anything, so the command
+            // can report exactly what was fetched during this run.
+            let fetched_before = nargo_toml::list_cached_git_dependencies();
+            with_workspace(args, config, move |_args, _workspace| fetch_cmd::run(fetched_before))
+        }
         NargoCommand::Check(args) => with_workspace(args, config, check_cmd::run),
-        NargoCommand::Compile(args) => with_workspace(args, config, compile_cmd::run),
+        NargoCommand::Compile(args) => compile_with_maybe_dummy_workspace(args, config),
+        NargoCommand::Interpret(args) => with_workspace(args, config, interpret_cmd::run),
         NargoCommand::Debug(args) => with_workspace(args, config, debug_cmd::run),
         NargoCommand::Execute(args) => with_workspace(args, config, execute_cmd::run),
         NargoCommand::Export(args) => with_workspace(args, config, export_cmd::run),
@@ -149,6 +172,8 @@ pub(crate) fn start_cli() -> eyre::Result<()> {
         NargoCommand::Lsp(_) => lsp_cmd::run(),
         NargoCommand::Dap(args) => dap_cmd::run(args),
         NargoCommand::Fmt(args) => with_workspace(args, config, fmt_cmd::run),
+        NargoCommand::Expand(args) => with_workspace(args, config, expand_cmd::run),
+        NargoCommand::Doc(args) => with_workspace(args, config, doc_cmd::run),
         NargoCommand::GenerateCompletionScript(args) => generate_completion_script_cmd::run(args),
     }?;
 
@@ -178,12 +203,56 @@ fn read_workspace(
     Ok(workspace)
 }
 
+/// "`with_workspace`", but use a dummy workspace when '`debug_compile_stdin`' is enabled
+#[allow(clippy::field_reassign_with_default)]
+fn compile_with_maybe_dummy_workspace(
+    cmd: compile_cmd::CompileCommand,
+    config: NargoConfig,
+) -> Result<(), CliError> {
+    if cmd.compile_options.debug_compile_stdin {
+        let package_name = "debug_compile_stdin".to_string();
+
+        // dummy root dir
+        let root_dir = PathBuf::new();
+        // This `PackageMetadata::default()` is leading to a clippy error but the suggested solution
+        // is invalid because the fields are private
+        let mut package = PackageMetadata::default();
+        package.name = package_name.clone();
+        package.package_type = Some("bin".into());
+        let dependencies = BTreeMap::new();
+        let package_config = PackageConfig { package, dependencies };
+        let config = nargo_toml::Config::Package { package_config };
+        let nargo_toml = NargoToml { root_dir, config };
+        let package_name =
+            CrateName::from_str(&package_name).expect("package_name to be a valid CrateName");
+        let selection = PackageSelection::Selected(package_name);
+
+        let assume_default_entry = true;
+        let workspace = resolve_workspace_from_fixed_toml(
+            nargo_toml,
+            selection,
+            Some(NOIR_ARTIFACT_VERSION_STRING.to_owned()),
+            assume_default_entry,
+        )?;
+        compile_cmd::run(cmd, workspace)
+    } else {
+        with_workspace(cmd, config, compile_cmd::run)
+    }
+}
+
 /// Find the root directory, parse the workspace, lock the packages, then execute the command.
 fn with_workspace<C, R>(cmd: C, config: NargoConfig, run: R) -> Result<(), CliError>
 where
     C: WorkspaceCommand,
     R: FnOnce(C, Workspace) -> Result<(), CliError>,
 {
+    if !config.program_dir.exists() {
+        return Err(CliError::ProgramDirDoesNotExist(config.program_dir));
+    }
+    if !config.program_dir.is_dir() {
+        return Err(CliError::ProgramDirIsNotADirectory(config.program_dir));
+    }
+
     // All commands need to run on the workspace level, because that's where the `target` directory is.
     let workspace_dir = nargo_toml::find_root(&config.program_dir, true)?;
     let package_dir = nargo_toml::find_root(&config.program_dir, false)?;
@@ -201,7 +270,7 @@ where
     let mut workspace = read_workspace(&workspace_dir, selection)?;
     // Optionally override the target directory. It's only done here because most commands like the LSP and DAP
     // don't read or write artifacts, so they don't use the target directory.
-    workspace.target_dir = config.target_dir.clone();
+    workspace.target_dir = config.target_dir;
     // Lock manifests if the command needs it.
     let _locks = match cmd.lock_type() {
         LockType::None => None,
@@ -226,7 +295,7 @@ fn lock_workspace(
     }
 
     let mut locks = Vec::new();
-    for pkg in workspace.into_iter() {
+    for pkg in workspace {
         let toml_path = get_package_manifest(&pkg.root_dir)?;
         let path_display = toml_path.display();
 
@@ -252,44 +321,61 @@ fn lock_workspace(
     Ok(locks)
 }
 
-/// Parses a path and turns it into an absolute one by joining to the current directory.
-fn parse_path(path: &str) -> Result<PathBuf, String> {
-    use fm::NormalizePath;
-    let mut path: PathBuf = path.parse().map_err(|e| format!("failed to parse path: {e}"))?;
-    if !path.is_absolute() {
-        path = std::env::current_dir().unwrap().join(path).normalize();
-    }
-    Ok(path)
-}
-
 #[cfg(test)]
 mod tests {
     use super::NargoCli;
     use clap::Parser;
 
-    #[test]
-    fn test_parse_invalid_expression_width() {
-        let cmd = "nargo --program-dir . compile --expression-width 1";
-        let res = NargoCli::try_parse_from(cmd.split_ascii_whitespace());
-
-        let err = res.expect_err("should fail because of invalid width");
-        assert!(err.to_string().contains("expression-width"));
-        assert!(
-            err.to_string().contains(acvm::compiler::MIN_EXPRESSION_WIDTH.to_string().as_str())
-        );
+    fn parse_cli(cmd: &str) -> Result<NargoCli, clap::Error> {
+        NargoCli::try_parse_from(cmd.split_ascii_whitespace())
     }
 
     #[test]
     fn test_parse_target_dir() {
         let cmd = "nargo --program-dir . --target-dir ../foo/bar execute";
-        let cli = NargoCli::try_parse_from(cmd.split_ascii_whitespace()).expect("should parse");
+        let cli = parse_cli(cmd).expect("should parse");
 
         let target_dir = cli.config.target_dir.expect("should parse target dir");
         assert!(target_dir.is_absolute(), "should be made absolute");
         assert!(target_dir.ends_with("foo/bar"));
 
         let cmd = "nargo --program-dir . execute";
-        let cli = NargoCli::try_parse_from(cmd.split_ascii_whitespace()).expect("should parse");
+        let cli = parse_cli(cmd).expect("should parse");
         assert!(cli.config.target_dir.is_none());
+    }
+
+    #[test]
+    fn add_requires_a_source() {
+        parse_cli("nargo add my_lib").expect_err("either --path or --git is required");
+    }
+
+    #[test]
+    fn add_path_and_git_conflict() {
+        parse_cli("nargo add --path ../lib --git https://example.com/repo --tag v1")
+            .expect_err("--path and --git are mutually exclusive");
+    }
+
+    #[test]
+    fn add_git_requires_tag() {
+        parse_cli("nargo add --git https://example.com/repo").expect_err("--git requires --tag");
+    }
+
+    #[test]
+    fn add_rejects_scp_style_git_url() {
+        parse_cli("nargo add --git git@github.com:noir-lang/sha256.git --tag v0.3.0")
+            .expect_err("scp-style SSH URLs are not valid URLs and should be rejected");
+    }
+
+    #[test]
+    fn add_accepts_path() {
+        parse_cli("nargo add --path ../lib").expect("a path dependency should parse");
+    }
+
+    #[test]
+    fn add_accepts_git_with_tag_directory_and_override() {
+        parse_cli(
+            "nargo add my_alias --git https://example.com/repo --tag v1 --directory crates/lib --override",
+        )
+        .expect("a git dependency with all options should parse");
     }
 }

@@ -1,18 +1,31 @@
-use std::{collections::HashMap, sync::Arc};
+use rustc_hash::FxHashMap;
+use std::{
+    collections::{HashMap, HashSet, VecDeque},
+    sync::Arc,
+};
 
 use acvm::acir::circuit::ErrorSelector;
+use itertools::Itertools;
+use noirc_errors::{
+    Location, Span,
+    call_stack::{CallStack, CallStackId},
+};
 
 use crate::ssa::{
-    function_builder::FunctionBuilder,
+    function_builder::{
+        FunctionBuilder,
+        data_bus::{CallData, DataBus},
+    },
     ir::{
         basic_block::BasicBlockId,
-        call_stack::CallStackId,
         dfg::GlobalsGraph,
         function::{Function, FunctionId},
-        instruction::{ConstrainError, Instruction},
+        instruction::{ArrayOffset, ConstrainError, Instruction},
         value::ValueId,
     },
-    opt::pure::FunctionPurities,
+    opt::pure::{FunctionPurities, Purity, compute_function_purities},
+    parser::ast::ParsedDataBus,
+    ssa_gen::validate_ssa,
 };
 
 use super::{
@@ -21,8 +34,13 @@ use super::{
 };
 
 impl ParsedSsa {
-    pub(crate) fn into_ssa(self, simplify: bool) -> Result<Ssa, SsaError> {
-        Translator::translate(self, simplify)
+    pub(crate) fn into_ssa(
+        self,
+        simplify: bool,
+        validate: bool,
+        allow_malformed: bool,
+    ) -> Result<Ssa, SsaError> {
+        Translator::translate(self, simplify, validate, allow_malformed)
     }
 }
 
@@ -58,8 +76,25 @@ struct Translator {
 }
 
 impl Translator {
-    fn translate(mut parsed_ssa: ParsedSsa, simplify: bool) -> Result<Ssa, SsaError> {
-        let mut translator = Self::new(&mut parsed_ssa, simplify)?;
+    fn translate(
+        mut parsed_ssa: ParsedSsa,
+        simplify: bool,
+        validate: bool,
+        allow_malformed: bool,
+    ) -> Result<Ssa, SsaError> {
+        // Function IDs are assigned by position (`main` is 0, the rest follow in source
+        // order), so the stated purity spans are collected here, before `Self::new`
+        // consumes the parsed functions, and keyed to match those IDs.
+        let stated_purity_spans: HashMap<FunctionId, Span> = parsed_ssa
+            .functions
+            .iter()
+            .enumerate()
+            .filter_map(|(index, function)| {
+                Some((FunctionId::new(index as u32), function.purity_span?))
+            })
+            .collect();
+
+        let mut translator = Self::new(&mut parsed_ssa, simplify, allow_malformed)?;
 
         // Note that the `new` call above removed the main function,
         // so all we are left with are non-main functions.
@@ -67,35 +102,60 @@ impl Translator {
             translator.translate_non_main_function(function)?;
         }
 
-        Ok(translator.finish())
+        let stated_purities = translator.purities.clone();
+        let ssa = translator.finish();
+
+        if validate {
+            validate_stated_purities(&ssa, &stated_purities, &stated_purity_spans)?;
+            validate_ssa(&ssa, true);
+        }
+
+        Ok(ssa)
     }
 
-    fn new(parsed_ssa: &mut ParsedSsa, simplify: bool) -> Result<Self, SsaError> {
+    fn new(
+        parsed_ssa: &mut ParsedSsa,
+        simplify: bool,
+        allow_malformed: bool,
+    ) -> Result<Self, SsaError> {
         let mut purities = FunctionPurities::default();
 
-        // A FunctionBuilder must be created with a main Function, so here wer remove it
-        // from the parsed SSA to avoid adding it twice later on.
+        // A FunctionBuilder must be created with a main Function, so here we remove it
+        // from the parsed SSA to avoid adding it twice later on. There must be at least one
+        // function; otherwise the input was empty or contained only globals/comments.
+        if parsed_ssa.functions.is_empty() {
+            return Err(SsaError::NoFunctions);
+        }
         let main_function = parsed_ssa.functions.remove(0);
-        let main_id = FunctionId::test_new(0);
+        let main_id = FunctionId::new(0);
         let mut builder = FunctionBuilder::new(main_function.external_name.clone(), main_id);
         builder.set_runtime(main_function.runtime_type);
         builder.simplify = simplify;
+        builder.set_allow_malformed_simplify(allow_malformed);
 
         if let Some(purity) = main_function.purity {
-            purities.insert(main_id, purity);
+            purities.insert_purity(main_id, purity);
+        }
+        if main_function.runtime_type.is_brillig() {
+            purities.insert_brillig_function(main_id);
         }
 
         // Map function names to their IDs so calls can be resolved
-        let mut function_id_counter = 1;
         let mut functions = HashMap::new();
-        for function in &parsed_ssa.functions {
-            let function_id = FunctionId::test_new(function_id_counter);
-            function_id_counter += 1;
+
+        functions.insert(main_function.internal_name.clone(), main_id);
+
+        for (index, function) in parsed_ssa.functions.iter().enumerate() {
+            // Function ID 0 is reserved for `main`, which is inserted above.
+            let function_id = FunctionId::new(index as u32 + 1);
 
             functions.insert(function.internal_name.clone(), function_id);
 
             if let Some(purity) = function.purity {
-                purities.insert(function_id, purity);
+                purities.insert_purity(function_id, purity);
+            }
+            if function.runtime_type.is_brillig() {
+                purities.insert_brillig_function(function_id);
             }
         }
 
@@ -139,10 +199,18 @@ impl Translator {
             RuntimeType::Brillig(inline_type) => {
                 self.builder.new_brillig_function(external_name, function_id, inline_type);
                 self.builder.set_globals(self.globals_graph.clone());
+
+                // In our ACIR generation tests we want to make sure that `brillig_locations` in the `GeneratedAcir` was accurately set.
+                // Thus, we set a dummy location here so that translated instructions have a location associated with them.
+                let stack = CallStack::new(vec![Location::dummy()]);
+                let call_stack_data = &mut self.builder.current_function.dfg.call_stack_data;
+                let call_stack = call_stack_data.get_or_insert_locations(&stack);
+                self.builder.set_call_stack(call_stack);
             }
         }
 
         self.builder.set_purities(self.purities.clone());
+
         self.translate_function_body(function)
     }
 
@@ -157,15 +225,93 @@ impl Translator {
             } else {
                 self.builder.insert_block()
             };
-            let entry = self.blocks.entry(self.current_function_id()).or_default();
-            entry.insert(block.name.clone(), block_id);
+            let blocks = self.blocks.entry(self.current_function_id()).or_default();
+            blocks.insert(block.name.clone(), block_id);
         }
 
-        for block in function.blocks {
-            self.translate_block(block)?;
+        let entry_block_id = self.blocks[&self.current_function_id()][&function.blocks[0].name];
+
+        let mut parsed_blocks_by_id = function
+            .blocks
+            .into_iter()
+            .map(|block| {
+                let block_id = self.blocks[&self.current_function_id()][&block.name];
+                (block_id, block)
+            })
+            .collect::<HashMap<_, _>>();
+
+        let blocks_order = self.compute_blocks_order(entry_block_id, &parsed_blocks_by_id)?;
+        for block_id in blocks_order {
+            let parsed_block = parsed_blocks_by_id.remove(&block_id).unwrap();
+            self.translate_block(parsed_block)?;
         }
 
+        self.translate_function_data_bus(function.data_bus)
+    }
+
+    fn translate_function_data_bus(
+        &mut self,
+        parsed_data_bus: ParsedDataBus,
+    ) -> Result<(), SsaError> {
+        let mut call_data_vec = Vec::new();
+        for parsed_call_data in parsed_data_bus.call_data {
+            let call_data_id = parsed_call_data.call_data_id;
+            let array_id = self.translate_value(parsed_call_data.array)?;
+            let mut index_map = FxHashMap::default();
+            for (value, index) in parsed_call_data.index_map {
+                let value_id = self.translate_value(value)?;
+                index_map.insert(value_id, index);
+            }
+            let call_data = CallData { call_data_id, array_id, index_map };
+            call_data_vec.push(call_data);
+        }
+
+        let return_data = if let Some(return_data) = parsed_data_bus.return_data {
+            Some(self.translate_value(return_data)?)
+        } else {
+            None
+        };
+        let data_bus = DataBus { call_data: call_data_vec, return_data };
+        self.builder.set_data_bus(data_bus);
         Ok(())
+    }
+
+    /// Computes the order in which blocks should be translated. The order will be according
+    /// to the block terminators, starting from the entry block. This is needed because a variable
+    /// in a block might refer to a variable that syntactically happens afterwards, but logically
+    /// happens before.
+    fn compute_blocks_order(
+        &self,
+        entry_block_id: BasicBlockId,
+        parsed_blocks_by_id: &HashMap<BasicBlockId, ParsedBlock>,
+    ) -> Result<Vec<BasicBlockId>, SsaError> {
+        let mut seen = HashSet::new();
+        let mut ordered = Vec::new();
+        let mut queue = VecDeque::new();
+
+        queue.push_back(entry_block_id);
+
+        while let Some(block_id) = queue.pop_front() {
+            if seen.contains(&block_id) {
+                continue;
+            }
+            seen.insert(block_id);
+            ordered.push(block_id);
+
+            let parsed_block = &parsed_blocks_by_id[&block_id];
+            match &parsed_block.terminator {
+                ParsedTerminator::Jmp { destination, .. } => {
+                    queue.push_back(self.lookup_block(destination)?);
+                }
+                ParsedTerminator::Jmpif { then_block, else_block, .. } => {
+                    queue.push_back(self.lookup_block(then_block)?);
+                    queue.push_back(self.lookup_block(else_block)?);
+                }
+                ParsedTerminator::Return(..) | ParsedTerminator::Unreachable => (),
+            }
+        }
+
+        Ok(ordered)
     }
 
     fn translate_block(&mut self, block: ParsedBlock) -> Result<(), SsaError> {
@@ -187,15 +333,32 @@ impl Translator {
                 let arguments = self.translate_values(arguments)?;
                 self.builder.terminate_with_jmp(block_id, arguments);
             }
-            ParsedTerminator::Jmpif { condition, then_block, else_block } => {
+            ParsedTerminator::Jmpif {
+                condition,
+                then_block,
+                then_arguments,
+                else_block,
+                else_arguments,
+            } => {
                 let condition = self.translate_value(condition)?;
                 let then_destination = self.lookup_block(&then_block)?;
+                let then_arguments = self.translate_values(then_arguments)?;
                 let else_destination = self.lookup_block(&else_block)?;
-                self.builder.terminate_with_jmpif(condition, then_destination, else_destination);
+                let else_arguments = self.translate_values(else_arguments)?;
+                self.builder.terminate_with_jmpif(
+                    condition,
+                    then_destination,
+                    then_arguments,
+                    else_destination,
+                    else_arguments,
+                );
             }
             ParsedTerminator::Return(values) => {
                 let return_values = self.translate_values(values)?;
                 self.builder.terminate_with_return(return_values);
+            }
+            ParsedTerminator::Unreachable => {
+                self.builder.terminate_with_unreachable();
             }
         }
 
@@ -205,24 +368,28 @@ impl Translator {
     fn translate_instruction(&mut self, instruction: ParsedInstruction) -> Result<(), SsaError> {
         match instruction {
             ParsedInstruction::Allocate { target, typ } => {
-                let value_id = self.builder.insert_allocate(typ);
+                // The parsed type is the full reference type (e.g. &mut u32).
+                // insert_allocate_with_mutability expects the element type and mutability separately.
+                let value_id = if let Type::Reference(element, mutable) = typ {
+                    self.builder.insert_allocate_with_mutability(element.as_ref().clone(), mutable)
+                } else {
+                    self.builder.insert_allocate(typ)
+                };
                 self.define_variable(target, value_id)?;
             }
-            ParsedInstruction::ArrayGet { target, element_type, array, index } => {
+            ParsedInstruction::ArrayGet { target, element_type, array, index, offset } => {
+                self.set_offset(&target, offset)?;
                 let array = self.translate_value(array)?;
                 let index = self.translate_value(index)?;
                 let value_id = self.builder.insert_array_get(array, index, element_type);
                 self.define_variable(target, value_id)?;
             }
-            ParsedInstruction::ArraySet { target, array, index, value, mutable } => {
+            ParsedInstruction::ArraySet { target, array, index, value, mutable, offset } => {
+                self.set_offset(&target, offset)?;
                 let array = self.translate_value(array)?;
                 let index = self.translate_value(index)?;
                 let value = self.translate_value(value)?;
-                let value_id = if mutable {
-                    self.builder.insert_mutable_array_set(array, index, value)
-                } else {
-                    self.builder.insert_array_set(array, index, value)
-                };
+                let value_id = self.builder.insert_array_set(array, index, value, mutable);
                 self.define_variable(target, value_id)?;
             }
             ParsedInstruction::BinaryOp { target, lhs, op, rhs } => {
@@ -231,23 +398,11 @@ impl Translator {
                 let value_id = self.builder.insert_binary(lhs, op, rhs);
                 self.define_variable(target, value_id)?;
             }
-            ParsedInstruction::Call { targets, function, arguments, types } => {
-                let function_id = if let Some(id) = self.builder.import_intrinsic(&function.name) {
-                    id
-                } else {
-                    let maybe_func =
-                        self.lookup_function(&function).map(|f| self.builder.import_function(f));
-
-                    maybe_func.or_else(|e| {
-                        // e.g. `v2 = call v0(v1) -> u32`, a lambda passed as a parameter
-                        self.lookup_variable(&function).map_err(|_| e)
-                    })?
-                };
-
+            ParsedInstruction::Call { targets, function, arguments, types, pure } => {
+                let function_id = self.lookup_call_function(function, pure)?;
                 let arguments = self.translate_values(arguments)?;
 
                 let value_ids = self.builder.insert_call(function_id, arguments, types).to_vec();
-
                 if value_ids.len() != targets.len() {
                     return Err(SsaError::MismatchedReturnValues {
                         returns: targets,
@@ -255,7 +410,7 @@ impl Translator {
                     });
                 }
 
-                for (target, value_id) in targets.into_iter().zip(value_ids.into_iter()) {
+                for (target, value_id) in targets.into_iter().zip_eq(value_ids) {
                     self.define_variable(target, value_id)?;
                 }
             }
@@ -297,6 +452,22 @@ impl Translator {
                 let condition = self.translate_value(condition)?;
                 self.builder.insert_enable_side_effects_if(condition);
             }
+            ParsedInstruction::IfElse {
+                target,
+                then_condition,
+                then_value,
+                else_condition,
+                else_value,
+            } => {
+                let then_condition = self.translate_value(then_condition)?;
+                let then_value = self.translate_value(then_value)?;
+                let else_condition = self.translate_value(else_condition)?;
+                let else_value = self.translate_value(else_value)?;
+                let instruction =
+                    Instruction::IfElse { then_condition, then_value, else_condition, else_value };
+                let value_id = self.builder.insert_instruction(instruction, None).first();
+                self.define_variable(target, value_id)?;
+            }
             ParsedInstruction::IncrementRc { value } => {
                 let value = self.translate_value(value)?;
                 self.builder.increment_array_reference_count(value);
@@ -314,14 +485,17 @@ impl Translator {
                 let value_id = self.builder.insert_load(value, typ);
                 self.define_variable(target, value_id)?;
             }
+            ParsedInstruction::Nop => {
+                self.builder.insert_instruction(Instruction::Noop, None);
+            }
             ParsedInstruction::Not { target, value } => {
                 let value = self.translate_value(value)?;
                 let value_id = self.builder.insert_not(value);
                 self.define_variable(target, value_id)?;
             }
-            ParsedInstruction::RangeCheck { value, max_bit_size } => {
+            ParsedInstruction::RangeCheck { value, max_bit_size, assert_message } => {
                 let value = self.translate_value(value)?;
-                self.builder.insert_range_check(value, max_bit_size, None);
+                self.builder.insert_range_check(value, max_bit_size, assert_message);
             }
             ParsedInstruction::Store { value, address } => {
                 let value = self.translate_value(value)?;
@@ -383,12 +557,19 @@ impl Translator {
                             .globals_function
                             .dfg
                             .make_constant(constant.value, constant.typ.unwrap_numeric()),
-                        ParsedValue::Variable(identifier) => self.lookup_global(identifier)?,
+                        ParsedValue::Variable(identifier) => {
+                            match self.lookup_global(identifier.clone()) {
+                                Ok(global) => global,
+                                Err(lookup_global_err) => self
+                                    .lookup_call_function(identifier, false)
+                                    .map_err(|_| lookup_global_err)?,
+                            }
+                        }
                     };
                     elements.push_back(element_id);
                 }
 
-                let instruction = Instruction::MakeArray { elements, typ: make_array.typ.clone() };
+                let instruction = Instruction::MakeArray { elements, typ: make_array.typ };
                 let block = self.globals_function.entry_block();
                 let call_stack = CallStackId::root();
                 self.globals_function
@@ -406,10 +587,10 @@ impl Translator {
         identifier: Identifier,
         value_id: ValueId,
     ) -> Result<(), SsaError> {
-        if let Some(vars) = self.variables.get(&self.current_function_id()) {
-            if vars.contains_key(&identifier.name) {
-                return Err(SsaError::VariableAlreadyDefined(identifier));
-            }
+        if let Some(vars) = self.variables.get(&self.current_function_id())
+            && vars.contains_key(&identifier.name)
+        {
+            return Err(SsaError::VariableAlreadyDefined(identifier));
         }
 
         let entry = self.variables.entry(self.current_function_id()).or_default();
@@ -418,7 +599,7 @@ impl Translator {
         Ok(())
     }
 
-    fn lookup_variable(&mut self, identifier: &Identifier) -> Result<ValueId, SsaError> {
+    fn lookup_variable(&self, identifier: &Identifier) -> Result<ValueId, SsaError> {
         if let Some(value_id) = self
             .variables
             .get(&self.current_function_id())
@@ -439,13 +620,13 @@ impl Translator {
 
         self.global_values.insert(identifier.name, value_id);
 
-        let typ = self.globals_function.dfg.type_of_value(value_id);
+        let typ = self.globals_function.dfg.type_of_value(value_id).into_owned();
         self.global_types.push(typ);
 
         Ok(())
     }
 
-    fn lookup_global(&mut self, identifier: Identifier) -> Result<ValueId, SsaError> {
+    fn lookup_global(&self, identifier: Identifier) -> Result<ValueId, SsaError> {
         if let Some(value_id) = self.global_values.get(&identifier.name) {
             Ok(*value_id)
         } else {
@@ -453,7 +634,7 @@ impl Translator {
         }
     }
 
-    fn lookup_block(&mut self, identifier: &Identifier) -> Result<BasicBlockId, SsaError> {
+    fn lookup_block(&self, identifier: &Identifier) -> Result<BasicBlockId, SsaError> {
         if let Some(block_id) = self.blocks[&self.current_function_id()].get(&identifier.name) {
             Ok(*block_id)
         } else {
@@ -461,7 +642,7 @@ impl Translator {
         }
     }
 
-    fn lookup_function(&mut self, identifier: &Identifier) -> Result<FunctionId, SsaError> {
+    fn lookup_function(&self, identifier: &Identifier) -> Result<FunctionId, SsaError> {
         if let Some(function_id) = self.functions.get(&identifier.name) {
             Ok(*function_id)
         } else {
@@ -469,8 +650,46 @@ impl Translator {
         }
     }
 
+    fn lookup_call_function(
+        &mut self,
+        function: Identifier,
+        pure: bool,
+    ) -> Result<ValueId, SsaError> {
+        if let Some(id) = self.builder.import_intrinsic(&function.name) {
+            if pure {
+                return Err(SsaError::PureModifierOnNonForeignFunction(function));
+            }
+            return Ok(id);
+        }
+
+        if let Ok(func_id) = self.lookup_function(&function) {
+            if pure {
+                return Err(SsaError::PureModifierOnNonForeignFunction(function));
+            }
+            return Ok(self.builder.import_function(func_id));
+        }
+
+        // e.g. `v2 = call v0(v1) -> u32`, a lambda passed as a parameter
+        if let Ok(var_id) = self.lookup_variable(&function) {
+            if pure {
+                return Err(SsaError::PureModifierOnNonForeignFunction(function));
+            }
+            return Ok(var_id);
+        }
+
+        // We allow calls to the built-in print function, or a function that is named as some kind of "oracle",
+        // which is a common pattern in the codebase and allows us to write tests with foreign functions in the SSA.
+        // The optional `pure` modifier on the call (e.g. `call pure my_oracle(...)`) indicates the oracle
+        // was declared with `#[pure]`, and is recorded on the resulting `Value::ForeignFunction`.
+        if &function.name == "print" || function.name.contains("oracle") {
+            return Ok(self.builder.import_foreign_function(&function.name, pure));
+        }
+
+        Err(SsaError::UnknownFunction(function))
+    }
+
     fn finish(self) -> Ssa {
-        let mut ssa = self.builder.finish();
+        let mut ssa = self.builder.finish().generate_entry_point_index();
 
         // Normalize the IDs so we have a better chance of matching the SSA we parsed
         // after the step-by-step reconstruction done during translation. This assumes
@@ -484,4 +703,52 @@ impl Translator {
     fn current_function_id(&self) -> FunctionId {
         self.builder.current_function.id()
     }
+
+    /// If any array instruction has an offset, mark the DFG as using offsets in general.
+    fn set_offset(&mut self, target: &Identifier, offset: ArrayOffset) -> Result<(), SsaError> {
+        if offset == ArrayOffset::None {
+            return Ok(());
+        }
+        if !self.builder.current_function.dfg.runtime().is_brillig() {
+            return Err(SsaError::IllegalOffset(target.clone(), offset));
+        }
+        self.builder.current_function.dfg.brillig_arrays_offset = true;
+        Ok(())
+    }
+}
+
+/// Check that every explicit purity annotation in the parsed source agrees with the
+/// purity that would be computed from the function's instructions (after call-graph
+/// propagation). A disagreement means the SSA file is lying about its functions and
+/// any subsequent pass that trusts the stated purity will work off a false premise.
+/// Functions whose purity was not explicitly stated in the source are skipped — the
+/// parser must remain a no-op for those.
+fn validate_stated_purities(
+    ssa: &Ssa,
+    stated_purities: &FunctionPurities,
+    stated_purity_spans: &HashMap<FunctionId, Span>,
+) -> Result<(), SsaError> {
+    if stated_purities.is_empty() {
+        return Ok(());
+    }
+
+    let computed_purities = compute_function_purities(ssa);
+    let computed_purities: HashMap<FunctionId, Purity> =
+        computed_purities.intrinsic_purities().map(|(id, purity)| (*id, *purity)).collect();
+
+    for (function_id, stated) in stated_purities.intrinsic_purities() {
+        let computed = computed_purities[function_id];
+        if *stated != computed {
+            let function_name = ssa.functions[function_id].name().to_string();
+            let span = stated_purity_spans.get(function_id).copied().unwrap_or_default();
+            return Err(SsaError::PurityMismatch {
+                function_name,
+                stated: *stated,
+                computed,
+                span,
+            });
+        }
+    }
+
+    Ok(())
 }

@@ -1,0 +1,5 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stdout
+---
+[[(0x01, 0x02)], [(0x03, 0x04)]]

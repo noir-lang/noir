@@ -1,0 +1,23 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+assertion_line: 381
+expression: expanded_code
+---
+use std::{
+    embedded_curve_ops::{EmbeddedCurvePoint, EmbeddedCurveScalar, fixed_base_scalar_mul},
+    ops::Add,
+};
+
+fn main() -> pub Field {
+    let pre_address: Field =
+        16215005577652802630133446360800746821800024031854490445241664420099146410003_Field;
+    let (a, b): (Field, Field) = std::field::bn254::decompose(pre_address);
+    let curve: EmbeddedCurveScalar = EmbeddedCurveScalar { lo: a, hi: b };
+    let key: EmbeddedCurvePoint = fixed_base_scalar_mul(curve);
+    let point: EmbeddedCurvePoint = EmbeddedCurvePoint {
+        x: 7721365207469689951757300880340056666751408554323047984441392991478714371870_Field,
+        y: 17745770136893994051336701019546547656729938650013330927134876808471118069397_Field,
+    };
+    let address_point: EmbeddedCurvePoint = key.add(point);
+    address_point.x
+}

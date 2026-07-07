@@ -1,52 +1,157 @@
 //! This module implements printing of the monomorphized AST, for debugging purposes.
 
-use crate::ast::UnaryOp;
+use crate::{
+    ast::UnaryOp,
+    monomorphization::ast::{Ident, Literal},
+};
 
-use super::ast::{Definition, Expression, Function, GlobalId, LValue, While};
+use super::ast::{
+    Definition, Expression, FuncId, Function, GlobalId, InlineType, LValue, LocalId, Program, Type,
+    While,
+};
 use iter_extended::vecmap;
 use std::fmt::{Display, Formatter};
 
 #[derive(Default)]
+pub struct FunctionPrintOptions {
+    /// Wraps function body in a `comptime` block. Used to make
+    /// comptime function callers in fuzzing.
+    pub comptime_wrap_body: bool,
+    /// Marks function as comptime. Used in fuzzing.
+    pub comptime: bool,
+}
+
+/// Some calls can be printed with the intention of parsing the code.
+#[derive(Debug, PartialEq)]
+enum SpecialCall {
+    Print,
+    Object(String),
+}
+
+#[derive(Debug)]
 pub struct AstPrinter {
     indent_level: u32,
+    in_unconstrained: bool,
+    pub show_id: bool,
+    pub show_clone_and_drop: bool,
+    pub show_specials_as_std: bool,
+    pub show_type_in_let: bool,
+    pub show_type_of_int_literal: bool,
+}
+
+impl Default for AstPrinter {
+    fn default() -> Self {
+        Self {
+            indent_level: 0,
+            in_unconstrained: false,
+            show_id: true,
+            show_clone_and_drop: true,
+            show_specials_as_std: false,
+            show_type_in_let: false,
+            show_type_of_int_literal: false,
+        }
+    }
 }
 
 impl AstPrinter {
+    fn fmt_ident(&self, name: &str, definition: &Definition) -> String {
+        if self.show_id { format!("{name}${definition}") } else { name.to_string() }
+    }
+
+    fn fmt_local(&self, name: &str, id: LocalId) -> String {
+        self.fmt_ident(name, &Definition::Local(id))
+    }
+
+    fn fmt_global(&self, name: &str, id: GlobalId) -> String {
+        self.fmt_ident(name, &Definition::Global(id))
+    }
+
+    fn fmt_func(&self, name: &str, id: FuncId) -> String {
+        self.fmt_ident(name, &Definition::Function(id))
+    }
+
+    fn fmt_match(&self, name: &str, id: LocalId) -> String {
+        if self.show_id { format!("${}", id.0) } else { self.fmt_local(name, id) }
+    }
+
+    pub fn print_program(&mut self, program: &Program, f: &mut Formatter) -> std::fmt::Result {
+        for (id, global) in &program.globals {
+            self.print_global(id, global, f)?;
+        }
+        for function in &program.functions {
+            let fpo = FunctionPrintOptions::default();
+            self.print_function(function, f, fpo)?;
+        }
+        Ok(())
+    }
+
     pub fn print_global(
         &mut self,
         id: &GlobalId,
-        expr: &Expression,
+        (name, typ, expr): &(String, Type, Expression),
         f: &mut Formatter,
     ) -> std::fmt::Result {
-        // At the moment globals don't carry their name, nor a type.
-        write!(f, "global $g{} = ", id.0)?;
+        write!(f, "global {}: {} = ", self.fmt_global(name, *id), typ)?;
         self.print_expr(expr, f)?;
         write!(f, ";")?;
         self.next_line(f)
     }
 
-    pub fn print_function(&mut self, function: &Function, f: &mut Formatter) -> std::fmt::Result {
-        let params = vecmap(&function.parameters, |(id, mutable, name, typ)| {
-            format!("{}{}$l{}: {}", if *mutable { "mut " } else { "" }, name, id.0, typ)
+    pub fn print_function(
+        &mut self,
+        function: &Function,
+        f: &mut Formatter,
+        options: FunctionPrintOptions,
+    ) -> std::fmt::Result {
+        let params = vecmap(&function.parameters, |(id, mutable, name, typ, visibility)| {
+            let vis = visibility.to_string();
+            let vis = if vis.is_empty() { vis } else { format!("{vis} ") };
+            format!(
+                "{}{}: {}{}",
+                if *mutable { "mut " } else { "" },
+                self.fmt_local(name, *id),
+                vis,
+                typ
+            )
         })
         .join(", ");
 
-        write!(
-            f,
-            "fn {}$f{}({}) -> {} {{",
-            function.name, function.id, params, function.return_type
-        )?;
+        let vis = function.return_visibility.to_string();
+        let vis = if vis.is_empty() { vis } else { format!("{vis} ") };
+
+        let unconstrained = if function.unconstrained { "unconstrained " } else { "" };
+        let comptime = if options.comptime { "comptime " } else { "" };
+        let name = self.fmt_func(&function.name, function.id);
+        let return_type = &function.return_type;
+
+        if function.inline_type != InlineType::Inline {
+            writeln!(f, "#[{}]", function.inline_type)?;
+        }
+        write!(f, "{comptime}{unconstrained}fn {name}({params}) -> {vis}{return_type} {{",)?;
+        self.in_unconstrained = function.unconstrained;
+        if options.comptime_wrap_body {
+            self.indent_level += 1;
+            self.next_line(f)?;
+            write!(f, "comptime {{")?;
+        }
         self.indent_level += 1;
         self.print_expr_expect_block(&function.body, f)?;
         self.indent_level -= 1;
+        if options.comptime_wrap_body {
+            self.next_line(f)?;
+            self.indent_level -= 1;
+            write!(f, "}}")?;
+        }
+        self.in_unconstrained = false;
         self.next_line(f)?;
-        writeln!(f, "}}")
+        writeln!(f, "}}")?;
+        Ok(())
     }
 
     pub fn print_expr(&mut self, expr: &Expression, f: &mut Formatter) -> std::fmt::Result {
         match expr {
             Expression::Ident(ident) => {
-                write!(f, "{}${}", ident.name, ident.definition)
+                write!(f, "{}", self.fmt_ident(&ident.name, &ident.definition))
             }
             Expression::Literal(literal) => self.print_literal(literal, f),
             Expression::Block(exprs) => self.print_block(exprs, f),
@@ -75,12 +180,35 @@ impl AstPrinter {
             }
             Expression::Call(call) => self.print_call(call, f),
             Expression::Let(let_expr) => {
-                write!(f, "let {}${} = ", let_expr.name, let_expr.id.0)?;
+                let typ = if self.show_type_in_let
+                    && let_expr.expression.needs_type_inference_from_literal()
+                {
+                    &let_expr
+                        .expression
+                        .return_type()
+                        .map(|typ| format!(": {typ}"))
+                        .unwrap_or_default()
+                } else {
+                    ""
+                };
+                write!(
+                    f,
+                    "let {}{}{} = ",
+                    if let_expr.mutable { "mut " } else { "" },
+                    self.fmt_local(&let_expr.name, let_expr.id),
+                    typ
+                )?;
                 self.print_expr(&let_expr.expression, f)
             }
-            Expression::Constrain(expr, ..) => {
-                write!(f, "constrain ")?;
-                self.print_expr(expr, f)
+            Expression::Constrain(expr, _, payload) => {
+                write!(f, "assert(")?;
+                self.print_expr(expr, f)?;
+                if let Some(payload) = payload {
+                    write!(f, ", ")?;
+                    self.print_expr(&payload.as_ref().0, f)?;
+                }
+                write!(f, ")")?;
+                Ok(())
             }
             Expression::Assign(assign) => {
                 self.print_lvalue(&assign.lvalue, f)?;
@@ -95,16 +223,22 @@ impl AstPrinter {
             Expression::Continue => write!(f, "continue"),
             Expression::Clone(expr) => {
                 self.print_expr(expr, f)?;
-                write!(f, ".clone()")
+                if self.show_clone_and_drop {
+                    write!(f, ".clone()")?;
+                }
+                Ok(())
             }
             Expression::Drop(expr) => {
                 self.print_expr(expr, f)?;
-                write!(f, ".drop()")
+                if self.show_clone_and_drop {
+                    write!(f, ".drop()")?;
+                }
+                Ok(())
             }
         }
     }
 
-    fn next_line(&mut self, f: &mut Formatter) -> std::fmt::Result {
+    fn next_line(&self, f: &mut Formatter) -> std::fmt::Result {
         writeln!(f)?;
         for _ in 0..self.indent_level {
             write!(f, "    ")?;
@@ -114,31 +248,47 @@ impl AstPrinter {
 
     pub fn print_literal(
         &mut self,
-        literal: &super::ast::Literal,
+        literal: &Literal,
         f: &mut Formatter,
     ) -> Result<(), std::fmt::Error> {
         match literal {
-            super::ast::Literal::Array(array) => {
+            Literal::Array(array) => {
                 write!(f, "[")?;
                 self.print_comma_separated(&array.contents, f)?;
                 write!(f, "]")
             }
-            super::ast::Literal::Slice(array) => {
-                write!(f, "&[")?;
+            Literal::Vector(array) => {
+                write!(f, "@[")?;
                 self.print_comma_separated(&array.contents, f)?;
                 write!(f, "]")
             }
-            super::ast::Literal::Integer(x, _, _) => x.fmt(f),
-            super::ast::Literal::Bool(x) => x.fmt(f),
-            super::ast::Literal::Str(s) => write!(f, "\"{s}\""),
-            super::ast::Literal::FmtStr(fragments, _, _) => {
+            Literal::Repeated { element, length, is_vector, .. } => {
+                let prefix = if *is_vector { "@" } else { "" };
+                write!(f, "{prefix}[")?;
+                self.print_expr(element, f)?;
+                write!(f, "; {length}]")
+            }
+            Literal::Integer(x, typ, _) => {
+                if self.show_type_of_int_literal && *typ != Type::Field {
+                    write!(f, "{x}_{typ}")
+                } else {
+                    x.fmt(f)
+                }
+            }
+            Literal::Bool(x) => x.fmt(f),
+            Literal::Str(s) => {
+                // This is just for display purposes so a lossy conversion is okay
+                let s = String::from_utf8_lossy(s);
+                if s.contains("\"") { write!(f, "r#\"{s}\"#") } else { write!(f, "\"{s}\"") }
+            }
+            Literal::FmtStr(fragments, _, _) => {
                 write!(f, "f\"")?;
                 for fragment in fragments {
                     fragment.fmt(f)?;
                 }
                 write!(f, "\"")
             }
-            super::ast::Literal::Unit => {
+            Literal::Unit => {
                 write!(f, "()")
             }
         }
@@ -200,12 +350,20 @@ impl AstPrinter {
         unary: &super::ast::Unary,
         f: &mut Formatter,
     ) -> Result<(), std::fmt::Error> {
-        write!(f, "({}", unary.operator)?;
+        // "(-1)" parses back as the literal -1, so if we are printing with the intention of parsing, omit the (), to avoid ambiguity.
+        let print_parens = self.show_id || !matches!(unary.operator, UnaryOp::Minus);
+        if print_parens {
+            write!(f, "(")?;
+        }
+        write!(f, "{}", unary.operator)?;
         if matches!(&unary.operator, UnaryOp::Reference { mutable: true }) {
             write!(f, " ")?;
         }
         self.print_expr(&unary.rhs, f)?;
-        write!(f, ")")
+        if print_parens {
+            write!(f, ")")?;
+        }
+        Ok(())
     }
 
     fn print_binary(
@@ -225,9 +383,13 @@ impl AstPrinter {
         for_expr: &super::ast::For,
         f: &mut Formatter,
     ) -> Result<(), std::fmt::Error> {
-        write!(f, "for {}${} in ", for_expr.index_name, for_expr.index_variable.0)?;
+        write!(f, "for {} in ", self.fmt_local(&for_expr.index_name, for_expr.index_variable))?;
         self.print_expr(&for_expr.start_range, f)?;
-        write!(f, " .. ")?;
+        if for_expr.inclusive {
+            write!(f, " ..= ")?;
+        } else {
+            write!(f, " .. ")?;
+        }
         self.print_expr(&for_expr.end_range, f)?;
         write!(f, " {{")?;
 
@@ -287,13 +449,14 @@ impl AstPrinter {
         match_expr: &super::ast::Match,
         f: &mut Formatter,
     ) -> Result<(), std::fmt::Error> {
-        write!(f, "match ${} {{", match_expr.variable_to_match.0)?;
+        let (var_id, var_name) = &match_expr.variable_to_match;
+        write!(f, "match {} {{", self.fmt_match(var_name, *var_id))?;
         self.indent_level += 1;
         self.next_line(f)?;
 
         for (i, case) in match_expr.cases.iter().enumerate() {
             write!(f, "{}", case.constructor)?;
-            let args = vecmap(&case.arguments, |arg| format!("${}", arg.0)).join(", ");
+            let args = vecmap(&case.arguments, |(id, name)| self.fmt_match(name, *id)).join(", ");
             if !args.is_empty() {
                 write!(f, "({args})")?;
             }
@@ -339,9 +502,71 @@ impl AstPrinter {
         tuple: &[Expression],
         f: &mut Formatter,
     ) -> Result<(), std::fmt::Error> {
+        if self.print_function_tuple(tuple, f)? {
+            return Ok(());
+        }
         write!(f, "(")?;
         self.print_comma_separated(tuple, f)?;
         write!(f, ")")
+    }
+
+    /// Check if we have a tuple of (constrained, unconstrained) functions and if we want to print specials as std calls,
+    /// then assume that we would rather see `println(foo)` than `println((foo, foo))`, so we can render the AST as Noir
+    /// without duplicating into `println(((foo, foo), (foo, foo)))` if we print the AST and re-parse it, for example for comptime tests.
+    ///
+    /// Returns a flag to indicate if the items were handled.
+    fn print_function_tuple(
+        &mut self,
+        tuple: &[Expression],
+        f: &mut Formatter,
+    ) -> Result<bool, std::fmt::Error> {
+        if !self.show_specials_as_std || tuple.len() != 2 {
+            return Ok(false);
+        }
+
+        fn maybe_func(expr: &Expression) -> Option<&str> {
+            // The AST fuzzer generates Type::Function; the Monomorphizer would be Type::Tuple([Type::Function, Type::Function])
+            if let Expression::Ident(Ident { typ, name, .. }) = expr
+                && let Type::Function(_, _, _, _) = typ.as_ref()
+            {
+                Some(name.as_str())
+            } else {
+                None
+            }
+        }
+
+        match (maybe_func(&tuple[0]), maybe_func(&tuple[1])) {
+            (Some(c), Some(u)) if c == u => {
+                // Only print the first element.
+                self.print_expr(&tuple[0], f)?;
+                Ok(true)
+            }
+            _ => Ok(false),
+        }
+    }
+
+    fn get_called_function(expr: &Expression) -> Option<(bool, &Definition, &String)> {
+        let is_unconstrained = |typ: &Type| match typ {
+            Type::Function(_, _, _, unconstrained) => *unconstrained,
+            Type::Tuple(elements) => match elements.first() {
+                Some(Type::Function(_, _, _, unconstrained)) => *unconstrained,
+                _ => false,
+            },
+            _ => false,
+        };
+
+        match expr {
+            Expression::Ident(Ident { typ, definition, name, .. }) => {
+                Some((is_unconstrained(typ), definition, name))
+            }
+            Expression::Tuple(elements) => match elements.first() {
+                Some(Expression::Ident(Ident { typ, definition, name, .. })) => {
+                    Some((is_unconstrained(typ), definition, name))
+                }
+                _ => None,
+            },
+            _ => None,
+        }
     }
 
     fn print_call(
@@ -349,28 +574,162 @@ impl AstPrinter {
         call: &super::ast::Call,
         f: &mut Formatter,
     ) -> Result<(), std::fmt::Error> {
+        let (print_unsafe, special) = if let Some((unconstrained, definition, name)) =
+            Self::get_called_function(&call.func)
+        {
+            let is_unsafe = unconstrained && !self.in_unconstrained;
+            let special = match definition {
+                Definition::Oracle { name: s, .. } if s == "print" => Some(SpecialCall::Print),
+                Definition::Builtin(s) if s.starts_with("array") || s.starts_with("vector") => {
+                    Some(SpecialCall::Object(name.clone()))
+                }
+                _ => None,
+            };
+            (is_unsafe, special)
+        } else {
+            (false, None)
+        };
+
+        if let Some(special) = special
+            && self.print_special_call(special, &call.arguments, f)?
+        {
+            return Ok(());
+        }
+
+        if print_unsafe {
+            write!(f, "unsafe {{ ")?;
+        }
         self.print_expr(&call.func, f)?;
         write!(f, "(")?;
         self.print_comma_separated(&call.arguments, f)?;
-        write!(f, ")")
+        write!(f, ")")?;
+        if print_unsafe {
+            write!(f, " }}")?;
+        }
+        Ok(())
+    }
+
+    /// Try to display a special call as Noir.
+    fn print_special_call(
+        &mut self,
+        special: SpecialCall,
+        args: &[Expression],
+        f: &mut Formatter,
+    ) -> Result<bool, std::fmt::Error> {
+        if !self.show_specials_as_std {
+            return Ok(false);
+        }
+        match special {
+            SpecialCall::Print => self.print_println(args, f),
+            SpecialCall::Object(method) => {
+                self.print_object_method(&method, args, f)?;
+                Ok(true)
+            }
+        }
+    }
+
+    /// Instead of printing a call to the print oracle as a regular function,
+    /// print it in a way that makes it look like Noir: without the type
+    /// information and bool flags.
+    ///
+    /// This will only work if the AST bypassed the proxy functions created by
+    /// the monomorphizer. The returned flag indicates whether it managed to
+    /// do so, or false if the arguments were not as expected.
+    fn print_println(
+        &mut self,
+        args: &[Expression],
+        f: &mut Formatter,
+    ) -> Result<bool, std::fmt::Error> {
+        assert_eq!(args.len(), 4, "print has 4 arguments");
+        let Expression::Literal(Literal::Bool(with_newline)) = args[0] else {
+            return Ok(false);
+        };
+        if with_newline {
+            write!(f, "println")?;
+        } else {
+            write!(f, "print")?;
+        }
+        write!(f, "(")?;
+        // The 2nd parameter is the printed value. The 3rd and 4th parameter don't appear in Noir;
+        // they are inserted automatically by the monomorphizer in the AST. Here we ignore them.
+        self.print_expr(&args[1], f)?;
+        write!(f, ")")?;
+        Ok(true)
+    }
+
+    /// Special method for printing builtin array method calls, turning e.g. `len$array_len(x)` into `x.len()`.
+    fn print_object_method(
+        &mut self,
+        method: &str,
+        args: &[Expression],
+        f: &mut Formatter,
+    ) -> Result<bool, std::fmt::Error> {
+        assert!(!args.is_empty(), "methods need at least a self argument");
+        let (arr, args) = args.split_at(1);
+        self.print_expr(&arr[0], f)?;
+        write!(f, ".{method}(")?;
+        self.print_comma_separated(args, f)?;
+        write!(f, ")")?;
+        Ok(true)
+    }
+
+    /// Whether an lvalue's printed form starts with a `*` and therefore needs to be
+    /// parenthesized when it appears as the array of an `Index` or object of a `MemberAccess`.
+    ///
+    /// The ownership pass can wrap an lvalue in `LValue::Clone`. When `show_clone_and_drop`
+    /// is false, that wrapper is invisible in the output, so we have to peek through it.
+    fn prints_as_dereference(&self, lvalue: &LValue) -> bool {
+        match lvalue {
+            LValue::Dereference { .. } => true,
+            LValue::Clone(inner) if !self.show_clone_and_drop => self.prints_as_dereference(inner),
+            _ => false,
+        }
     }
 
     fn print_lvalue(&mut self, lvalue: &LValue, f: &mut Formatter) -> std::fmt::Result {
         match lvalue {
-            LValue::Ident(ident) => write!(f, "{}${}", ident.name, ident.definition),
+            LValue::Ident(ident) => write!(f, "{}", self.fmt_ident(&ident.name, &ident.definition)),
             LValue::Index { array, index, .. } => {
+                let array_is_dereference = self.prints_as_dereference(array);
+                if array_is_dereference {
+                    write!(f, "(")?;
+                }
                 self.print_lvalue(array, f)?;
+                if array_is_dereference {
+                    write!(f, ")")?;
+                }
                 write!(f, "[")?;
                 self.print_expr(index, f)?;
                 write!(f, "]")
             }
             LValue::MemberAccess { object, field_index } => {
+                let object_is_dereference = self.prints_as_dereference(object);
+                if object_is_dereference {
+                    write!(f, "(")?;
+                }
                 self.print_lvalue(object, f)?;
+                if object_is_dereference {
+                    write!(f, ")")?;
+                }
                 write!(f, ".{field_index}")
             }
             LValue::Dereference { reference, .. } => {
                 write!(f, "*")?;
                 self.print_lvalue(reference, f)
+            }
+            LValue::Clone(lvalue) => {
+                let lvalue_is_dereference = matches!(lvalue.as_ref(), LValue::Dereference { .. });
+                if self.show_clone_and_drop && lvalue_is_dereference {
+                    write!(f, "(")?;
+                }
+                self.print_lvalue(lvalue, f)?;
+                if self.show_clone_and_drop && lvalue_is_dereference {
+                    write!(f, ")")?;
+                }
+                if self.show_clone_and_drop {
+                    write!(f, ".clone()")?;
+                }
+                Ok(())
             }
         }
     }
@@ -381,10 +740,110 @@ impl Display for Definition {
         match self {
             Definition::Local(id) => write!(f, "l{}", id.0),
             Definition::Global(id) => write!(f, "g{}", id.0),
-            Definition::Function(id) => write!(f, "f{}", id),
+            Definition::Function(id) => write!(f, "f{id}"),
             Definition::Builtin(name) => write!(f, "{name}"),
             Definition::LowLevel(name) => write!(f, "{name}"),
-            Definition::Oracle(name) => write!(f, "{name}"),
+            Definition::Oracle { name, .. } => write!(f, "{name}"),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::rc::Rc;
+
+    use super::super::ast::{Assign, Expression, IdentId, Literal, LocalId};
+    use super::*;
+    use crate::ast::IntegerBitSize;
+    use crate::shared::Signedness;
+    use noirc_errors::Location;
+
+    fn local_ident(name: &str, id: u32, typ: Type) -> Ident {
+        Ident {
+            location: None,
+            definition: Definition::Local(LocalId(id)),
+            mutable: true,
+            name: name.to_string(),
+            typ: Rc::new(typ),
+            id: IdentId(id),
+        }
+    }
+
+    fn u32_literal(v: u32) -> Expression {
+        Expression::Literal(Literal::Integer(
+            v.into(),
+            Type::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo),
+            Location::dummy(),
+        ))
+    }
+
+    struct PrintAssign(LValue);
+
+    impl Display for PrintAssign {
+        fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
+            let mut printer =
+                AstPrinter { show_id: false, show_clone_and_drop: false, ..Default::default() };
+            let assign = Expression::Assign(Assign {
+                lvalue: self.0.clone(),
+                expression: Box::new(Expression::Literal(Literal::Bool(true))),
+            });
+            printer.print_expr(&assign, f)
+        }
+    }
+
+    fn print(lvalue: LValue) -> String {
+        format!("{}", PrintAssign(lvalue))
+    }
+
+    /// Regression: the ownership pass wraps a `Dereference` in `LValue::Clone` when
+    /// `contains_index(array)` is true. With `show_clone_and_drop = false` the `Clone`
+    /// becomes invisible in the output, so the outer `Index` must still treat its array
+    /// as a dereference for parenthesis purposes.
+    #[test]
+    fn index_of_clone_wrapping_dereference_is_parenthesized() {
+        let bool_t = Type::Bool;
+        let array_bool = Type::Array(3, Rc::new(bool_t.clone()));
+        let ref_array_bool = Type::Reference(Rc::new(array_bool.clone()), true);
+        let outer_array = Type::Array(3, Rc::new(ref_array_bool.clone()));
+
+        // `Index(Clone(Dereference(Index(Ident(d), idx_e))), idx_f)`
+        let inner_index = LValue::Index {
+            array: Box::new(LValue::Ident(local_ident("d", 0, outer_array))),
+            index: Box::new(u32_literal(0)),
+            element_type: ref_array_bool,
+            location: Location::dummy(),
+        };
+        let deref =
+            LValue::Dereference { reference: Box::new(inner_index), element_type: array_bool };
+        let clone = LValue::Clone(Box::new(deref));
+        let outer_index = LValue::Index {
+            array: Box::new(clone),
+            index: Box::new(u32_literal(1)),
+            element_type: bool_t,
+            location: Location::dummy(),
+        };
+
+        assert_eq!(print(outer_index), "(*d[0])[1] = true");
+    }
+
+    /// Without the `Clone` wrapper the same parens are still produced.
+    #[test]
+    fn index_of_dereference_is_parenthesized() {
+        let bool_t = Type::Bool;
+        let array_bool = Type::Array(3, Rc::new(bool_t.clone()));
+        let ref_array_bool = Type::Reference(Rc::new(array_bool.clone()), true);
+
+        let deref = LValue::Dereference {
+            reference: Box::new(LValue::Ident(local_ident("d", 0, ref_array_bool))),
+            element_type: array_bool,
+        };
+        let outer_index = LValue::Index {
+            array: Box::new(deref),
+            index: Box::new(u32_literal(1)),
+            element_type: bool_t,
+            location: Location::dummy(),
+        };
+
+        assert_eq!(print(outer_index), "(*d)[1] = true");
     }
 }

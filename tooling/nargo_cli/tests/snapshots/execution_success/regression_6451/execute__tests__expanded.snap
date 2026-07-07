@@ -1,0 +1,26 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn main(x: Field) {
+    // Safety: comment added by `nargo expand`
+    let y: Field = unsafe { empty(x) };
+    let mut value: Field = 0_Field;
+    let term1: Field = (x * x) - (x * y);
+    std::as_witness(term1);
+    value = value + term1;
+    let term2: Field = (x * x) - (y * x);
+    value = value + term2;
+    value.assert_max_bit_size::<1>();
+    // Safety: comment added by `nargo expand`
+    let y: Field = unsafe { empty(x + 1_Field) };
+    let z: Field = (y + x) + 1_Field;
+    let z1: Field = z + y;
+    assert((z + z1) != 3_Field);
+    let w: Field = (y + (2_Field * x)) + 3_Field;
+    assert((w + z1) != z);
+}
+
+unconstrained fn empty(_: Field) -> Field {
+    0_Field
+}

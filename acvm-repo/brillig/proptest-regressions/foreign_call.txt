@@ -1,0 +1,8 @@
+# Seeds for failure cases proptest has generated in the past. It is
+# automatically read and these particular cases re-run before any
+# novel cases are generated.
+#
+# It is recommended to check this file in to source control so that
+# everyone who runs the test benefits from these saved cases.
+cc 30f7fee85ae9843e288940a61dbb5cbeb2ffc179562158edac5e18712c355d7e # shrinks to param = Array([])
+cc 30071c0f928fd334440c27bcc3913f9db59f66380296c29698bd19d0f031a1d3 # shrinks to param = ForeignCallResult { values: [Array([])] }

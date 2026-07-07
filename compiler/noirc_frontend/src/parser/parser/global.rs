@@ -1,18 +1,15 @@
 use noirc_errors::Location;
 
 use crate::{
-    ast::{
-        Expression, ExpressionKind, Ident, LetStatement, Pattern, UnresolvedType,
-        UnresolvedTypeData,
-    },
+    ast::{Expression, ExpressionKind, Ident, LetStatement, Pattern},
     parser::ParserErrorReason,
-    token::{Attribute, Token},
+    token::Attribute,
 };
 
 use super::Parser;
 
 impl Parser<'_> {
-    /// Global = 'global' identifier OptionalTypeAnnotation '=' Expression ';'
+    /// Global = 'global' identifier `OptionalTypeAnnotation` '=' Expression ';'
     pub(crate) fn parse_global(
         &mut self,
         attributes: Vec<(Attribute, Location)>,
@@ -25,15 +22,16 @@ impl Parser<'_> {
         let attributes = self.validate_secondary_attributes(attributes);
         let is_global_let = true;
 
-        let Some(ident) = self.eat_ident() else {
-            self.eat_semicolons();
+        let Some(ident) = self.eat_non_underscore_ident() else {
+            self.expected_identifier();
+            self.skip_to_recovery_point();
+            self.eat_semicolon();
+            let location = self.location_at_previous_token_end();
+            let ident = self.empty_ident_at_previous_token_end();
             return LetStatement {
-                pattern: ident_to_pattern(Ident::default(), mutable),
-                r#type: UnresolvedType {
-                    typ: UnresolvedTypeData::Unspecified,
-                    location: Location::dummy(),
-                },
-                expression: Expression { kind: ExpressionKind::Error, location: Location::dummy() },
+                pattern: ident_to_pattern(ident, mutable),
+                r#type: None,
+                expression: Expression { kind: ExpressionKind::Error, location },
                 attributes,
                 comptime,
                 is_global_let,
@@ -48,12 +46,12 @@ impl Parser<'_> {
             self.parse_expression_or_error()
         } else {
             self.push_error(ParserErrorReason::GlobalWithoutValue, pattern.location());
-            Expression { kind: ExpressionKind::Error, location: Location::dummy() }
+            self.skip_to_recovery_point();
+            let location = self.location_at_previous_token_end();
+            Expression { kind: ExpressionKind::Error, location }
         };
 
-        if !self.eat_semicolons() {
-            self.expected_token(Token::Semicolon);
-        }
+        self.eat_semicolon_or_error();
 
         LetStatement { pattern, r#type: typ, expression, attributes, comptime, is_global_let }
     }
@@ -70,22 +68,14 @@ fn ident_to_pattern(ident: Ident, mutable: bool) -> Pattern {
 
 #[cfg(test)]
 mod tests {
-    use acvm::FieldElement;
 
     use crate::{
-        ast::{
-            ExpressionKind, IntegerBitSize, ItemVisibility, LetStatement, Literal, Pattern,
-            UnresolvedTypeData,
-        },
+        ast::{ExpressionKind, ItemVisibility, LetStatement, Literal, Pattern},
         parse_program_with_dummy_file,
         parser::{
-            ItemKind, ParserErrorReason,
-            parser::tests::{
-                expect_no_errors, get_single_error, get_single_error_reason,
-                get_source_with_error_span,
-            },
+            ItemKind,
+            parser::tests::{check_errors, expect_no_errors},
         },
-        shared::Signedness,
     };
 
     fn parse_global_no_errors(src: &str) -> (LetStatement, ItemVisibility) {
@@ -107,7 +97,7 @@ mod tests {
             panic!("Expected identifier pattern");
         };
         assert_eq!("foo", name.to_string());
-        assert!(matches!(let_statement.r#type.typ, UnresolvedTypeData::Unspecified));
+        assert!(let_statement.r#type.is_none());
         assert!(!let_statement.comptime);
         assert!(let_statement.is_global_let);
         assert_eq!(visibility, ItemVisibility::Private);
@@ -121,10 +111,7 @@ mod tests {
             panic!("Expected identifier pattern");
         };
         assert_eq!("foo", name.to_string());
-        assert!(matches!(
-            let_statement.r#type.typ,
-            UnresolvedTypeData::Integer(Signedness::Signed, IntegerBitSize::ThirtyTwo)
-        ));
+        assert_eq!(let_statement.r#type.unwrap().to_string(), "i32");
     }
 
     #[test]
@@ -154,24 +141,36 @@ mod tests {
     fn parse_global_no_value() {
         let src = "
         global foo;
-               ^^^
+               ^^^ Expected the global to have a value
         ";
-        let (src, span) = get_source_with_error_span(src);
-        let (_, errors) = parse_program_with_dummy_file(&src);
-        let reason = get_single_error_reason(&errors, span);
-        assert!(matches!(reason, ParserErrorReason::GlobalWithoutValue));
+        check_errors(src, |parser| parser.parse_program());
     }
 
     #[test]
     fn parse_global_no_semicolon() {
         let src = "
-        global foo = 1 
-                      ^ 
+        global foo = 1
+                     ^ Expected a ';' but found end of input
         ";
-        let (src, span) = get_source_with_error_span(src);
-        let (_, errors) = parse_program_with_dummy_file(&src);
-        let error = get_single_error(&errors, span);
-        assert_eq!(error.to_string(), "Expected a ';' but found end of input");
+        check_errors(src, |parser| parser.parse_program());
+    }
+
+    #[test]
+    fn parse_global_missing_identifier() {
+        let src = "
+        global : u32 = 100;
+               ^ Expected an identifier but found ':'
+        ";
+        check_errors(src, |parser| parser.parse_program());
+    }
+
+    #[test]
+    fn parse_global_invalid_syntax_after_ident() {
+        let src = "
+        global N<let X: u32>: u32 = 100;
+               ^ Expected the global to have a value
+        ";
+        check_errors(src, |parser| parser.parse_program());
     }
 
     #[test]
@@ -187,11 +186,11 @@ mod tests {
         assert_eq!(let_statement.pattern.span().start(), 16);
         assert_eq!(let_statement.pattern.span().end(), 19);
 
-        let ExpressionKind::Literal(Literal::Integer(value)) = let_statement.expression.kind else {
+        let ExpressionKind::Literal(Literal::Integer(value, _)) = let_statement.expression.kind
+        else {
             panic!("Expected integer literal expression, got {:?}", let_statement.expression.kind);
         };
 
-        assert!(value.is_negative);
-        assert_eq!(value.field, FieldElement::from(17u128));
+        assert_eq!(value, num_bigint::BigInt::from(-17));
     }
 }

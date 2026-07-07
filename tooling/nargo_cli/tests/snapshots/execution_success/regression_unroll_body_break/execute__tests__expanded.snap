@@ -1,0 +1,16 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+unconstrained fn main() {
+    let mut sum: u32 = 0_u32;
+    for i in 0_u32..3_u32 {
+        if should_break(i) { break; };
+        sum = sum + i;
+    }
+    assert(sum == 1_u32);
+}
+
+unconstrained fn should_break(i: u32) -> bool {
+    i == 2_u32
+}

@@ -1,0 +1,12 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+error: Nested vectors, i.e. vectors within an array or vector, are not supported
+   ┌─ src/main.nr:19:22
+   │
+19 │     let mut vector = [create_foo(a, b), create_foo(b, a)].as_vector();
+   │                      ----------------------------------------------
+   │
+
+Aborting due to 1 previous error

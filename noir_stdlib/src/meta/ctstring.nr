@@ -12,13 +12,13 @@ impl CtString {
     // docs:start:append_str
     pub comptime fn append_str<let N: u32>(self, s: str<N>) -> Self {
         // docs:end:append_str
-        f"{self}{s}".as_ctstring()
+        self.append(s.as_ctstring())
     }
 
     // docs:start:append_fmtstr
     pub comptime fn append_fmtstr<let N: u32, T>(self, s: fmtstr<N, T>) -> Self {
         // docs:end:append_fmtstr
-        f"{self}{s}".as_ctstring()
+        self.append(s.as_ctstring())
     }
 
     /// CtString cannot directly return a str since the size would not be known.
@@ -32,13 +32,12 @@ impl CtString {
 }
 
 impl Append for CtString {
-    fn empty() -> Self {
+    comptime fn empty() -> Self {
         "".as_ctstring()
     }
 
-    fn append(self, other: Self) -> Self {
-        f"{self}{other}".as_ctstring()
-    }
+    #[builtin(ctstring_append)]
+    comptime fn append(self, other: Self) -> Self {}
 }
 
 // docs:start:as-ctstring
@@ -48,21 +47,18 @@ pub trait AsCtString {
 // docs:end:as-ctstring
 
 impl<let N: u32> AsCtString for str<N> {
-    comptime fn as_ctstring(self) -> CtString {
-        str_as_ctstring(self)
-    }
+    #[builtin(str_as_ctstring)]
+    comptime fn as_ctstring(self) -> CtString {}
 }
 
 impl<let N: u32, T> AsCtString for fmtstr<N, T> {
-    comptime fn as_ctstring(self) -> CtString {
-        fmtstr_as_ctstring(self)
-    }
+    #[builtin(fmtstr_as_ctstring)]
+    comptime fn as_ctstring(self) -> CtString {}
 }
 
 impl crate::cmp::Eq for CtString {
-    comptime fn eq(self, other: Self) -> bool {
-        ctstring_eq(self, other)
-    }
+    #[builtin(ctstring_eq)]
+    comptime fn eq(self, other: Self) -> bool {}
 }
 
 impl crate::hash::Hash for CtString {
@@ -74,19 +70,11 @@ impl crate::hash::Hash for CtString {
     }
 }
 
-#[builtin(str_as_ctstring)]
-comptime fn str_as_ctstring<let N: u32>(_s: str<N>) -> CtString {}
-
-#[builtin(fmtstr_as_ctstring)]
-comptime fn fmtstr_as_ctstring<let N: u32, T>(_s: fmtstr<N, T>) -> CtString {}
-
-#[builtin(ctstring_eq)]
-comptime fn ctstring_eq(_first: CtString, _second: CtString) -> bool {}
-
 #[builtin(ctstring_hash)]
 comptime fn ctstring_hash(_string: CtString) -> Field {}
 
 mod test {
+    use super::Append as _;
     use super::AsCtString;
 
     #[test]
@@ -94,10 +82,27 @@ mod test {
         comptime {
             // docs:start:as_quoted_str_example
             let my_ctstring = "foo bar".as_ctstring();
-            let my_str = my_ctstring.as_quoted_str!();
+            let my_str: str<7> = my_ctstring.as_quoted_str!();
 
             assert_eq(crate::meta::type_of(my_str), quote { str<7> }.as_type());
             // docs:end:as_quoted_str_example
         }
     }
+
+    #[test]
+    fn empty() {
+        comptime {
+            assert_eq(CtString::empty(), CtString::new());
+        }
+    }
+
+    #[test]
+    fn append() {
+        comptime {
+            let hello = "hello ".as_ctstring();
+            let world = "world".as_ctstring();
+            assert_eq(hello.append(world), "hello world".as_ctstring());
+        }
+    }
+
 }

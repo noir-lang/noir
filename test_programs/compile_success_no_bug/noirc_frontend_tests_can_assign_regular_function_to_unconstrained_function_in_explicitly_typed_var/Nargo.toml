@@ -1,7 +1,0 @@
-
-            [package]
-            name = "noirc_frontend_tests_can_assign_regular_function_to_unconstrained_function_in_explicitly_typed_var"
-            type = "bin"
-            authors = [""]
-            
-            [dependencies]

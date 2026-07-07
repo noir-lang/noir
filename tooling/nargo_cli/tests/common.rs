@@ -1,9 +1,14 @@
+// This module is treated as an entrypoint as so any functions are considered dead code,
+// despite being used in other integration tests.
+#![allow(dead_code)]
+
 use std::path::Path;
 
 use nargo::parse_all;
+use noirc_artifacts::program::CompiledProgram;
 use noirc_driver::{
-    CompilationResult, CompileOptions, CompiledProgram, CrateId, compile_main,
-    file_manager_with_stdlib, prepare_crate,
+    CompilationResult, CompileOptions, CrateId, compile_main, file_manager_with_stdlib,
+    prepare_crate,
 };
 use noirc_frontend::hir::Context;
 
@@ -27,12 +32,11 @@ fn prepare_snippet(source: String) -> (Context<'static, 'static>, CrateId) {
 ///
 /// Use `force_brillig` to test it as an unconstrained function without having to change the code.
 /// This is useful for methods that use the `runtime::is_unconstrained()` method to change their behavior.
-pub fn prepare_and_compile_snippet(
+pub(crate) fn prepare_and_compile_snippet(
     source: String,
     force_brillig: bool,
 ) -> CompilationResult<CompiledProgram> {
     let (mut context, root_crate_id) = prepare_snippet(source);
     let options = CompileOptions { force_brillig, ..Default::default() };
-    // TODO: Run nargo::ops::transform_program?
     compile_main(&mut context, root_crate_id, &options, None)
 }

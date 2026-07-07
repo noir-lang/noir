@@ -56,14 +56,14 @@ impl<'a> TestCase<'a> {
         self.id
     }
 
-    /// Creates a new TestCase with a specified ID and input values
+    /// Creates a new `TestCase` with a specified ID and input values
     pub fn with_id(id: TestCaseId, value: &'a InputMap) -> Self {
         Self { id, value }
     }
 }
 
 impl<'a> From<&'a InputMap> for TestCase<'a> {
-    /// Converts an InputMap into a TestCase by generating a new unique ID
+    /// Converts an `InputMap` into a `TestCase` by generating a new unique ID
     fn from(value: &'a InputMap) -> Self {
         Self { value, id: generate_testcase_id() }
     }
@@ -82,7 +82,7 @@ pub struct CorpusFileManager {
 }
 
 impl CorpusFileManager {
-    /// Creates a new CorpusFileManager for a specific package and test harness
+    /// Creates a new `CorpusFileManager` for a specific package and test harness
     pub fn new(root: &Path, package_name: &str, harness_name: &str, abi: Abi) -> Self {
         let corpus_path = root.join(package_name).join(harness_name);
 
@@ -98,8 +98,8 @@ impl CorpusFileManager {
             Ok(_) => (),
             Err(_) => {
                 return Err(format!(
-                    "Couldn't create directory {:?}",
-                    self.corpus_path.as_os_str()
+                    "Couldn't create directory {}",
+                    self.corpus_path.as_os_str().display()
                 ));
             }
         }
@@ -113,17 +113,22 @@ impl CorpusFileManager {
             }
             if entry.path().extension().is_none_or(|ext| ext != CORPUS_FILE_EXTENSION) {
                 continue;
-            };
+            }
             let path = entry.into_path();
             // Skip files that are already loaded
             if self.file_manager.has_file(&path) {
                 continue;
             }
-            let source = std::fs::read_to_string(path.as_path())
-                .unwrap_or_else(|_| panic!("could not read file {:?} into string", path));
+            let source = std::fs::read_to_string(path.as_path()).unwrap_or_else(|_| {
+                panic!("could not read file {} into string", path.as_os_str().display())
+            });
 
             let parsed_source = parse_json(&source, &self.abi).map_err(|parsing_error| {
-                format!("Error while parsing file {:?}: {:?}", path.as_os_str(), parsing_error)
+                format!(
+                    "Error while parsing file {}: {:?}",
+                    path.as_os_str().display(),
+                    parsing_error
+                )
             })?;
 
             // Add the file and its parsed contents to our tracking maps
@@ -153,18 +158,20 @@ impl CorpusFileManager {
             Ok(_) => (),
             Err(_) => {
                 return Err(format!(
-                    "Couldn't create directory {:?}",
-                    self.corpus_path.as_os_str()
+                    "Couldn't create directory {}",
+                    self.corpus_path.as_os_str().display()
                 ));
             }
         }
         let file_name = Path::new(&digest(contents)).with_extension(CORPUS_FILE_EXTENSION);
         let full_file_path = self.corpus_path.join(file_name);
-        let mut file = File::create(&full_file_path)
-            .map_err(|_x| format!("Couldn't create file {:?}", &full_file_path))?;
+        let mut file = File::create(&full_file_path).map_err(|_x| {
+            format!("Couldn't create file {}", full_file_path.as_os_str().display())
+        })?;
 
-        file.write_all(contents.as_bytes())
-            .map_err(|_x| format!("Couldn't write to file {:?}", &full_file_path))?;
+        file.write_all(contents.as_bytes()).map_err(|_x| {
+            format!("Couldn't write to file {}", full_file_path.as_os_str().display())
+        })?;
         self.file_manager.add_file_with_source(&full_file_path, String::from(contents));
         Ok(())
     }
@@ -193,12 +200,12 @@ impl Sequence {
 
     /// Resets the sequence by setting remaining executions to 0
     pub fn clear(&mut self) {
-        self.executions_left = 0
+        self.executions_left = 0;
     }
 
     /// Decrements the number of remaining executions by 1
     pub fn decrement(&mut self) {
-        self.executions_left -= 1
+        self.executions_left -= 1;
     }
 }
 
@@ -220,7 +227,7 @@ pub struct TestCaseOrchestrator {
 type NextSelection = (TestCaseId, Option<TestCaseId>);
 
 impl TestCaseOrchestrator {
-    /// Creates a new empty TestCaseOrchestrator
+    /// Creates a new empty `TestCaseOrchestrator`
     pub fn new() -> Self {
         Self {
             executions_per_testcase: HashMap::new(),
@@ -346,7 +353,7 @@ impl Corpus {
             self.corpus_file_manager.get_full_corpus().into_iter().map(TestCase::from).collect();
         let id_testcase_pair: Vec<_> =
             stored_corpus.iter().map(|x| (x.id(), x.value().clone())).collect();
-        for (id, input_map) in id_testcase_pair.iter() {
+        for (id, input_map) in &id_testcase_pair {
             self.insert_into_cache(*id, input_map.clone());
         }
         id_testcase_pair
@@ -377,11 +384,11 @@ impl Corpus {
             self.corpus_file_manager.save_testcase_to_disk(
                 &serialize_to_json(&new_testcase_value, &self.corpus_file_manager.abi)
                     .expect("Shouldn't be any issues with serializing input map"),
-            )?
+            )?;
         }
         self.brillig_orchestrator.new_testcase(testcase_id);
         self.acir_orchestrator.new_testcase(testcase_id);
-        self.discovered_testcases.insert(testcase_id, new_testcase_value.clone());
+        self.discovered_testcases.insert(testcase_id, new_testcase_value);
         Ok(testcase_id)
     }
 

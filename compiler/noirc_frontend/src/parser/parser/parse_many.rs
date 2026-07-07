@@ -18,7 +18,7 @@ impl<'a> Parser<'a> {
         self.parse_many_return_trailing_separator_if_any(items, separated_by, f).0
     }
 
-    /// parse_many, where the given function `f` may return multiple results
+    /// `parse_many`, where the given function `f` may return multiple results
     pub(super) fn parse_many_to_many<T, F>(
         &mut self,
         items: &'static str,
@@ -31,7 +31,7 @@ impl<'a> Parser<'a> {
         self.parse_many_to_many_return_trailing_separator_if_any(items, separated_by, f).0
     }
 
-    /// Same as parse_many, but returns a bool indicating whether a trailing separator was found.
+    /// Same as `parse_many`, but returns a bool indicating whether a trailing separator was found.
     pub(super) fn parse_many_return_trailing_separator_if_any<T, F>(
         &mut self,
         items: &'static str,
@@ -47,7 +47,7 @@ impl<'a> Parser<'a> {
         self.parse_many_to_many_return_trailing_separator_if_any(items, separated_by, f)
     }
 
-    /// Same as parse_many, but returns a bool indicating whether a trailing separator was found.
+    /// Same as `parse_many`, but returns a bool indicating whether a trailing separator was found.
     fn parse_many_to_many_return_trailing_separator_if_any<T, F>(
         &mut self,
         items: &'static str,
@@ -57,41 +57,40 @@ impl<'a> Parser<'a> {
     where
         F: FnMut(&mut Parser<'a>) -> Vec<T>,
     {
+        let SeparatedBy { token, until, continue_if_separator_is_missing } = separated_by;
         let mut elements: Vec<T> = Vec::new();
         let mut trailing_separator = false;
         loop {
-            if let Some(end) = &separated_by.until {
-                if self.eat(end.clone()) {
-                    break;
-                }
+            if let Some(end) = &until
+                && self.eat(end)
+            {
+                break;
             }
 
             let start_location = self.current_token_location;
             let mut new_elements = f(self);
             if new_elements.is_empty() {
-                if let Some(end) = &separated_by.until {
-                    self.eat(end.clone());
+                if let Some(end) = &until {
+                    self.eat(end);
                 }
                 break;
             }
 
-            if let Some(separator) = &separated_by.token {
-                if !trailing_separator && !elements.is_empty() {
-                    self.expected_token_separating_items(separator.clone(), items, start_location);
-                }
+            if let Some(separator) = &token
+                && !trailing_separator
+                && !elements.is_empty()
+            {
+                self.expected_token_separating_items(separator.clone(), items, start_location);
             }
 
             elements.append(&mut new_elements);
 
-            trailing_separator = if let Some(separator) = &separated_by.token {
-                self.eat(separator.clone())
-            } else {
-                true
-            };
+            trailing_separator =
+                if let Some(separator) = &token { self.eat(separator) } else { true };
 
-            if !trailing_separator && !separated_by.continue_if_separator_is_missing {
-                if let Some(end) = &separated_by.until {
-                    self.eat(end.clone());
+            if !trailing_separator && !continue_if_separator_is_missing {
+                if let Some(end) = &until {
+                    self.eat(end);
                 }
                 break;
             }

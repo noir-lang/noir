@@ -4,7 +4,7 @@ The AST Fuzzer generates arbitrary _monomorphized_ AST `Program` instances and
 executes them with various compilation strategies. For example we can:
 
 * compare the execution of and AST with minimal SSA passes versus the normal SSA flow, to test that all SSA transformations preserve behavior
-* perform random mutations on the AST that should preserve behavior, and check that the execution result with the full SSA flow is the same
+* perform metamorphic transformations on the AST that should preserve behavior, and check that the execution result with the full SSA flow is the same
 * compare ACIR and Brillig executions of the same AST
 
 The following command can be used to print some random AST to the console:
@@ -19,22 +19,70 @@ To run the fuzzer, pick one of the available targets:
 $ cd tooling/ast_fuzzer
 $ cargo fuzz list
 acir_vs_brillig
-init_vs_final
-orig_vs_mutant
+comptime_vs_brillig
+min_vs_full
+orig_vs_morph
 ```
 
 and execute it with some time or execution limits:
 
 ```shell
-cargo +nightly fuzz run init_vs_final -- -runs=1000 -max_total_time=60 -max_len=1048576
+cargo +nightly fuzz run acir_vs_brillig -- -runs=1000 -max_total_time=60 -max_len=1048576
 ```
 
 If there is an error, `cargo fuzz` will capture the artifacts required for a repeated run under the `artifacts` directory, and will print the command to run it again, which can be done with something like this:
 
 ```shell
-NOIR_AST_FUZZER_DEBUG=1 cargo +nightly fuzz run -O init_vs_final fuzz/artifacts/init_vs_final/crash-fa077fcded882761fcf273eda7f429a833a80a7d
+cargo +nightly fuzz run acir_vs_brillig fuzz/artifacts/acir_vs_brillig/crash-9270e36f612ed9022ede3496c97c24cebb6e2301
 ```
 
 Note that `cargo fuzz` requires `nightly` build, which can be either turned on with the `cargo +nightly` flag, or by running `rustup default nightly`. Also note that `cargo fuzz run` automatically creates a `--release` build, there is no need for an explicit flag to be passed.
 
-The `NOIR_AST_FUZZER_DEBUG` env var can be used to print the AST before compilation.
+If the execution fails, the output will include the AST, the inputs, and the ACIR/Brillig opcodes.
+
+## `arbtest`
+
+To get quick feedback about whether there are any easy-to-discover bugs, we can run the following test:
+
+```shell
+cargo test -p noir_ast_fuzzer_fuzz arbtest
+```
+
+Unlike `cargo fuzz`, these don't "ramp up" the complexity of the code, but go full tilt from the beginning, and only run for a limited amount of time (e.g. 10 seconds).
+
+Upon failure they print a hexadecimal `seed`, which can be used with the `NOIR_AST_FUZZER_SEED` env var to replicate the error.
+
+If the compiler crashes during the generation of the SSA artifacts, the problematic program will be printed during attempts to reproduce the issue using a seed. The printing of all inputs can be turned on by setting `RUST_LOG=debug`.
+
+## Reproducing a seed
+
+Given a hexadecimal `seed`, the quickest way to reproduce it is the `just` recipe from the repo root:
+
+```shell
+just fuzz-repro 0x6819c61400001000
+```
+
+It sets the env vars, runs each fuzz target in turn until one reproduces, and prints the failing AST (and, on a comparison failure, the ABI inputs). If you already know which target the seed came from, pass it to skip the search; set `OUT` to also write a runnable `nargo` project:
+
+```shell
+just fuzz-repro 0x6819c61400001000 acir_vs_brillig ./repro
+```
+
+Under the hood it drives `cargo test -p noir_ast_fuzzer_fuzz <target>` with these env vars, which can also be set by hand:
+
+| Env var | Effect |
+| --- | --- |
+| `NOIR_AST_FUZZER_SEED` | Hex seed to reproduce (lower 32 bits encode the input size). |
+| `NOIR_AST_FUZZER_EMIT_PROJECT` | Directory to write a `nargo` package into on failure (one per AST, under `ast_1`, `ast_2`, … when a target compares multiple programs). |
+| `NOIR_AST_FUZZER_SHOW_SSA` | Show every SSA pass during compilation. |
+| `NOIR_AST_FUZZER_BUDGET_SECS` | How long a non-deterministic (seedless) run lasts. |
+| `RUST_LOG=debug` | Print all inputs. |
+
+The emitted `src/main.nr` is the fuzzer's best-effort Noir rendering of the AST. For the `comptime_vs_brillig_*` targets it is the exact comptime source; for the other targets it is not guaranteed to parse back unchanged, but it is a starting point (the `Prover.toml` inputs are exact) rather than something reconstructed by hand.
+
+## Minimizing Noir
+
+At the moment test failures end up with one or two Noir-like AST printed on the console, with the corresponding ABI formatted inputs.
+We can turn these into `nargo` projects to replicate the problem that causes the error.
+
+Especially with the `arbtest` mentioned above, the Noir AST can be big, certainly much larger than what we would want to put in a bug ticket. If that is the case, we can try minimizing the example with the [Noir Minimizer](./minimizer/README.md) tool.

@@ -7,7 +7,8 @@ use crate::{
     ast::{FunctionDefinition, ItemVisibility},
     hir::def_map::{ModuleDefId, ModuleId},
     node_interner::{
-        DefinitionId, FuncId, GlobalId, NodeInterner, ReferenceId, TraitId, TypeAliasId, TypeId,
+        DefinitionId, FuncId, GlobalId, NodeInterner, ReferenceId, TraitAssociatedTypeId, TraitId,
+        TypeAliasId, TypeId,
     },
 };
 use petgraph::prelude::NodeIndex as PetGraphIndex;
@@ -20,7 +21,7 @@ pub(crate) struct LocationIndices {
 impl LocationIndices {
     pub(crate) fn add_location(&mut self, location: Location, node_index: PetGraphIndex) {
         // Some location spans are empty: maybe they are from fictitious nodes?
-        if location.span.start() == location.span.end() {
+        if location.span.is_empty() {
             return;
         }
 
@@ -60,6 +61,8 @@ impl<'a> ReferencesTracker<'a> {
 pub struct AutoImportEntry {
     /// The item to import.
     pub module_def_id: ModuleDefId,
+    /// The file where the item is defined.
+    pub file: FileId,
     /// The item's visibility.
     pub visibility: ItemVisibility,
     /// If the item is available via a re-export, this contains the module where it's defined.
@@ -70,7 +73,7 @@ pub struct AutoImportEntry {
     ///     mod bar {
     ///         pub struct Baz {} // This is the item
     ///     }
-    ///     
+    ///
     ///     pub use bar::Baz; // Here's the visibility
     /// }
     /// ```
@@ -80,7 +83,7 @@ pub struct AutoImportEntry {
 impl NodeInterner {
     pub fn reference_location(&self, reference: ReferenceId) -> Location {
         match reference {
-            ReferenceId::Module(id) => self.module_attributes(&id).location,
+            ReferenceId::Module(id) => self.module_attributes(id).location,
             ReferenceId::Function(id) => self.function_modifiers(&id).name_location,
             ReferenceId::Type(id) => {
                 let typ = self.get_type(id);
@@ -103,6 +106,10 @@ impl NodeInterner {
                 let trait_type = self.get_trait(id);
                 Location::new(trait_type.name.span(), trait_type.location.file)
             }
+            ReferenceId::TraitAssociatedType(id) => {
+                let associated_type = self.get_trait_associated_type(id);
+                associated_type.name.location()
+            }
             ReferenceId::Global(id) => self.get_global(id).location,
             ReferenceId::Alias(id) => {
                 let alias_type = self.get_type_alias(id);
@@ -112,10 +119,6 @@ impl NodeInterner {
             ReferenceId::Local(id) => self.definition(id).location,
             ReferenceId::Reference(location, _) => location,
         }
-    }
-
-    pub fn reference_module(&self, reference: ReferenceId) -> Option<&ModuleId> {
-        self.reference_modules.get(&reference)
     }
 
     pub(crate) fn add_module_def_id_reference(
@@ -137,19 +140,24 @@ impl NodeInterner {
             ModuleDefId::TraitId(trait_id) => {
                 self.add_trait_reference(trait_id, location, is_self_type);
             }
+            ModuleDefId::TraitAssociatedTypeId(trait_associated_type_id) => {
+                self.add_trait_associated_type_reference(trait_associated_type_id, location);
+            }
             ModuleDefId::TypeAliasId(type_alias_id) => {
                 self.add_alias_reference(type_alias_id, location);
             }
             ModuleDefId::GlobalId(global_id) => {
                 self.add_global_reference(global_id, location);
             }
-        };
+        }
     }
 
+    /// In LSP mode, take note that a [`ModuleId`] was referenced at a [Location].
     pub(crate) fn add_module_reference(&mut self, id: ModuleId, location: Location) {
         self.add_reference(ReferenceId::Module(id), location, false);
     }
 
+    /// In LSP mode, take note that a [`TypeId`] was referenced at a [Location].
     pub(crate) fn add_type_reference(
         &mut self,
         id: TypeId,
@@ -159,6 +167,7 @@ impl NodeInterner {
         self.add_reference(ReferenceId::Type(id), location, is_self_type);
     }
 
+    /// In LSP mode, take note that a specific field of a struct was referenced at a [Location].
     pub(crate) fn add_struct_member_reference(
         &mut self,
         id: TypeId,
@@ -168,6 +177,7 @@ impl NodeInterner {
         self.add_reference(ReferenceId::StructMember(id, member_index), location, false);
     }
 
+    /// In LSP mode, take note that a [`TraitId`] was referenced at a [Location].
     pub(crate) fn add_trait_reference(
         &mut self,
         id: TraitId,
@@ -177,29 +187,43 @@ impl NodeInterner {
         self.add_reference(ReferenceId::Trait(id), location, is_self_type);
     }
 
+    /// In LSP mode, take note that a [`TraitAssociatedTypeId`] was referenced at a [Location].
+    pub(crate) fn add_trait_associated_type_reference(
+        &mut self,
+        id: TraitAssociatedTypeId,
+        location: Location,
+    ) {
+        self.add_reference(ReferenceId::TraitAssociatedType(id), location, false);
+    }
+
+    /// In LSP mode, take note that a [`TypeAliasId`] was referenced at a [Location].
     pub(crate) fn add_alias_reference(&mut self, id: TypeAliasId, location: Location) {
         self.add_reference(ReferenceId::Alias(id), location, false);
     }
 
+    /// In LSP mode, take note that a [`FuncId`] was referenced at a [Location].
     pub(crate) fn add_function_reference(&mut self, id: FuncId, location: Location) {
         self.add_reference(ReferenceId::Function(id), location, false);
     }
 
+    /// In LSP mode, take note that a [`GlobalId`] was referenced at a [Location].
     pub(crate) fn add_global_reference(&mut self, id: GlobalId, location: Location) {
         self.add_reference(ReferenceId::Global(id), location, false);
     }
 
+    /// In LSP mode, take note that a [`DefinitionId`] was referenced at a [Location].
     pub(crate) fn add_local_reference(&mut self, id: DefinitionId, location: Location) {
         self.add_reference(ReferenceId::Local(id), location, false);
     }
 
+    /// In LSP mode, take note that a [`ReferenceId`] was referenced at a [Location].
     pub(crate) fn add_reference(
         &mut self,
         referenced: ReferenceId,
         location: Location,
         is_self_type: bool,
     ) {
-        if !self.lsp_mode {
+        if self.lsp_mode.is_none() {
             return;
         }
 
@@ -217,17 +241,13 @@ impl NodeInterner {
         &mut self,
         referenced: ReferenceId,
         referenced_location: Location,
-        module_id: Option<ModuleId>,
     ) {
-        if !self.lsp_mode {
+        if self.lsp_mode.is_none() {
             return;
         }
 
         let referenced_index = self.get_or_insert_reference(referenced);
         self.location_indices.add_location(referenced_location, referenced_index);
-        if let Some(module_id) = module_id {
-            self.reference_modules.insert(referenced, module_id);
-        }
     }
 
     #[tracing::instrument(skip(self), ret)]
@@ -334,10 +354,10 @@ impl NodeInterner {
         location: Location,
         visibility: ItemVisibility,
         name: String,
-        parent_module_id: ModuleId,
     ) {
-        self.add_definition_location(ReferenceId::Module(id), location, Some(parent_module_id));
-        self.register_name_for_auto_import(name, ModuleDefId::ModuleId(id), visibility, None);
+        self.add_definition_location(ReferenceId::Module(id), location);
+        let id = ModuleDefId::ModuleId(id);
+        self.register_name_for_auto_import(name, id, location.file, visibility, None);
     }
 
     pub(crate) fn register_global(
@@ -346,10 +366,10 @@ impl NodeInterner {
         name: String,
         location: Location,
         visibility: ItemVisibility,
-        parent_module_id: ModuleId,
     ) {
-        self.add_definition_location(ReferenceId::Global(id), location, Some(parent_module_id));
-        self.register_name_for_auto_import(name, ModuleDefId::GlobalId(id), visibility, None);
+        self.add_definition_location(ReferenceId::Global(id), location);
+        let id = ModuleDefId::GlobalId(id);
+        self.register_name_for_auto_import(name, id, location.file, visibility, None);
     }
 
     pub(crate) fn register_type(
@@ -358,10 +378,10 @@ impl NodeInterner {
         name: String,
         location: Location,
         visibility: ItemVisibility,
-        parent_module_id: ModuleId,
     ) {
-        self.add_definition_location(ReferenceId::Type(id), location, Some(parent_module_id));
-        self.register_name_for_auto_import(name, ModuleDefId::TypeId(id), visibility, None);
+        self.add_definition_location(ReferenceId::Type(id), location);
+        let id = ModuleDefId::TypeId(id);
+        self.register_name_for_auto_import(name, id, location.file, visibility, None);
     }
 
     pub(crate) fn register_trait(
@@ -370,10 +390,10 @@ impl NodeInterner {
         name: String,
         location: Location,
         visibility: ItemVisibility,
-        parent_module_id: ModuleId,
     ) {
-        self.add_definition_location(ReferenceId::Trait(id), location, Some(parent_module_id));
-        self.register_name_for_auto_import(name, ModuleDefId::TraitId(id), visibility, None);
+        self.add_definition_location(ReferenceId::Trait(id), location);
+        let id = ModuleDefId::TraitId(id);
+        self.register_name_for_auto_import(name, id, location.file, visibility, None);
     }
 
     pub(crate) fn register_type_alias(
@@ -382,35 +402,49 @@ impl NodeInterner {
         name: String,
         location: Location,
         visibility: ItemVisibility,
-        parent_module_id: ModuleId,
     ) {
-        self.add_definition_location(ReferenceId::Alias(id), location, Some(parent_module_id));
-        self.register_name_for_auto_import(name, ModuleDefId::TypeAliasId(id), visibility, None);
+        self.add_definition_location(ReferenceId::Alias(id), location);
+        let id = ModuleDefId::TypeAliasId(id);
+        self.register_name_for_auto_import(name, id, location.file, visibility, None);
     }
 
     pub(crate) fn register_function(&mut self, id: FuncId, func_def: &FunctionDefinition) {
         let name = func_def.name.to_string();
         let id = ModuleDefId::FunctionId(id);
-        self.register_name_for_auto_import(name, id, func_def.visibility, None);
+        let file = func_def.location.file;
+        self.register_name_for_auto_import(name, id, file, func_def.visibility, None);
     }
 
     pub fn register_name_for_auto_import(
         &mut self,
         name: String,
         module_def_id: ModuleDefId,
+        file: FileId,
         visibility: ItemVisibility,
         defining_module: Option<ModuleId>,
     ) {
-        if !self.lsp_mode {
+        if self.lsp_mode.is_none() {
             return;
         }
 
         let entry = self.auto_import_names.entry(name).or_default();
-        entry.push(AutoImportEntry { module_def_id, visibility, defining_module });
+        entry.push(AutoImportEntry { module_def_id, file, visibility, defining_module });
     }
 
     #[allow(clippy::type_complexity)]
     pub fn get_auto_import_names(&self) -> &HashMap<String, Vec<AutoImportEntry>> {
         &self.auto_import_names
+    }
+
+    /// Clears all location data associated with a given file.
+    /// Note that this only clears locations in `location_indices`.
+    /// This doesn't delete from `id_to_location` because IDs cannot be deleted from the interner,
+    /// so existing IDs should be able to be resolved to their location.
+    /// For example, items that exist in the given `file` will still be present after
+    /// this call.
+    /// This is only used by LSP when a single file is changed, when just that file
+    /// is type-checked again.
+    pub(crate) fn clear_file_locations(&mut self, file: FileId) {
+        self.location_indices.map_file_to_range.remove(&file);
     }
 }

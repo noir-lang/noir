@@ -1,0 +1,22 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn main() {
+    let field: Field = 1000_Field;
+    let be_bits: [bool; 16] = field.to_be_bits();
+    let le_bits: [bool; 16] = field.to_le_bits();
+    for i in 0_u32..16_u32 {
+        let x: bool = be_bits[i];
+        let y: bool = le_bits[15_u32 - i];
+        assert(x == y);
+    }
+    let x: Field = 3_Field;
+    let be_bits_x: [bool; 4] = x.to_be_bits();
+    let le_bits_x: [bool; 4] = x.to_le_bits();
+    for i in 0_u32..4_u32 {
+        let be_bit: bool = be_bits_x[i];
+        let le_bit: bool = le_bits_x[3_u32 - i];
+        assert(be_bit == le_bit);
+    }
+}

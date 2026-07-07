@@ -1,5 +1,5 @@
 fn main(value: Field, index: u32) {
-    let mut args = &[0, 1];
+    let mut args = [0, 1].as_vector();
     args[index] = value;
     // Safety: n/a
     unsafe { store(args) };

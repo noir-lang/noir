@@ -1,0 +1,7 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stdout
+---
+[(true, , )]
+[(true, , )]
+[empty_strings_in_composite_arrays] Circuit output: false

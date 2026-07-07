@@ -1,0 +1,16 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn main(x: u128) {
+    let const: u128 = 340282366920938463463374607431768211455_u128;
+    for y in 0_u128..127_u128 {
+        let dynamic: u128 = x << y;
+        let static: u128 = const << y;
+        assert(dynamic == static, f"shift: {y}, static: {static}, dynamic: {dynamic}");
+        let dynamic: u128 = x >> y;
+        let static: u128 = const >> y;
+        assert(dynamic == static, f"shift: {y}, static: {static}, dynamic: {dynamic}");
+    }
+    ()
+}

@@ -1,4 +1,4 @@
-use crate::ast::{Expression, IntegerBitSize, ItemVisibility, UnresolvedType};
+use crate::ast::{Expression, ItemVisibility, UnresolvedType};
 use crate::lexer::errors::LexerErrorKind;
 use crate::lexer::token::Token;
 use crate::token::TokenKind;
@@ -16,8 +16,6 @@ use super::labels::ParsingRuleLabel;
 pub enum ParserErrorReason {
     #[error("Unexpected `;`")]
     UnexpectedSemicolon,
-    #[error("Unexpected `,`")]
-    UnexpectedComma,
     #[error("Expected a `{token}` separating these two {items}")]
     ExpectedTokenSeparatingTwoItems { token: Token, items: &'static str },
     #[error("Expected `mut` after `&`, found `{found}`")]
@@ -30,6 +28,8 @@ pub enum ParserErrorReason {
     UnconstrainedNotFollowedByAnItem,
     #[error("`comptime` is not followed by an item")]
     ComptimeNotFollowedByAnItem,
+    #[error("`mut` is not followed by an item")]
+    MutableNotFollowedByAnItem,
     #[error("`mut` cannot be applied to this item")]
     MutableNotApplicable,
     #[error("`comptime` cannot be applied to this item")]
@@ -38,7 +38,9 @@ pub enum ParserErrorReason {
     UnconstrainedNotApplicable,
     #[error("Expected an identifier or `(expression) after `$` for unquoting")]
     ExpectedIdentifierOrLeftParenAfterDollar,
-    #[error("`&mut` can only be used with `self")]
+    #[error(
+        "`&` and `&mut` can only be used with `self` as a name. Try putting it on the parameter's type instead"
+    )]
     RefMutCanOnlyBeUsedWithSelf,
     #[error("Invalid pattern")]
     InvalidPattern,
@@ -49,6 +51,10 @@ pub enum ParserErrorReason {
 
     #[error("Missing type for function parameter")]
     MissingTypeForFunctionParameter,
+    #[error("Expected a `:` between the parameter name and its type")]
+    MissingColonInFunctionParameter,
+    #[error("Expected a `:` between the variable name and its type")]
+    MissingColonInLetStatement,
     #[error("Missing type for numeric generic")]
     MissingTypeForNumericGeneric,
     #[error("Expected a function body (`{{ ... }}`), not `;`")]
@@ -58,8 +64,6 @@ pub enum ParserErrorReason {
 
     #[error("Unexpected '{0}', expected a field name or number")]
     ExpectedFieldName(Token),
-    #[error("Expected a pattern but found a type - {0}")]
-    ExpectedPatternButFoundType(Token),
     #[error("Expected a ; separating these two statements")]
     MissingSeparatingSemi,
     #[error("Expected a ; after `let` statement")]
@@ -72,10 +76,6 @@ pub enum ParserErrorReason {
     InvalidTypeExpression(Expression),
     #[error("Early 'return' is unsupported")]
     EarlyReturn,
-    #[error("Patterns aren't allowed in a trait's function declarations")]
-    PatternInTraitFunctionParameter,
-    #[error("Patterns aren't allowed in a trait impl's associated constants")]
-    PatternInAssociatedConstant,
     #[error("Visibility is ignored on a trait method")]
     TraitVisibilityIgnored,
     #[error("Visibility is ignored on a trait impl method")]
@@ -88,16 +88,8 @@ pub enum ParserErrorReason {
     MultipleFunctionAttributesFound,
     #[error("A function attribute cannot be placed on a struct or enum")]
     NoFunctionAttributesAllowedOnType,
-    #[error("Assert statements can only accept string literals")]
-    AssertMessageNotString,
-    #[error("Integer bit size {0} isn't supported")]
-    InvalidBitSize(u32),
     #[error("{0}")]
     Lexer(LexerErrorKind),
-    #[error("The only supported numeric generic types are `u1`, `u8`, `u16`, and `u32`")]
-    ForbiddenNumericGenericType,
-    #[error("Invalid call data identifier, must be a number. E.g `call_data(0)`")]
-    InvalidCallDataIdentifier,
     #[error("Associated types are not allowed in paths")]
     AssociatedTypesNotAllowedInPaths,
     #[error("Associated types are not allowed on a method call")]
@@ -107,18 +99,18 @@ pub enum ParserErrorReason {
     #[error(
         "Wrong number of arguments for attribute `{}`. Expected {}, found {}",
         name,
-        if min == max { min.to_string() } else { format!("between {} and {}", min, max) },
+        if min == max { min.to_string() } else { format!("between {min} and {max}") },
         found
     )]
     WrongNumberOfAttributeArguments { name: String, min: usize, max: usize, found: usize },
-    #[error("The `deprecated` attribute expects a string argument")]
-    DeprecatedAttributeExpectsAStringArgument,
+    #[error(
+        "The `deprecated` attribute expects two optional arguments: `deny` and/or a string literal message"
+    )]
+    DeprecatedAttributeInvalidArgument,
     #[error("Unsafe block must have a safety comment above it")]
     MissingSafetyComment,
     #[error("Missing parameters for function definition")]
     MissingParametersForFunctionDefinition,
-    #[error("`StructDefinition` is deprecated. It has been renamed to `TypeDefinition`")]
-    StructDefinitionDeprecated,
     #[error("Missing angle brackets surrounding type in associated item path")]
     MissingAngleBrackets,
     #[error("Expected value, found built-in type `{typ}`")]
@@ -127,6 +119,28 @@ pub enum ParserErrorReason {
     LogicalAnd,
     #[error("Trait bounds are not allowed here")]
     TraitBoundsNotAllowedHere,
+    #[error("Missing type for associated constant")]
+    MissingTypeForAssociatedConstant,
+    #[error("Associated trait constant default values are not supported")]
+    AssociatedTraitConstantDefaultValuesAreNotSupported,
+    #[error("`mut` on a binding cannot be repeated")]
+    MutOnABindingCannotBeRepeated,
+    #[error("Maximum recursion depth exceeded while parsing expression")]
+    MaximumRecursionDepthExceeded,
+    #[error("missing condition for `if` expression")]
+    MissingIfCondition,
+    #[error("Struct literals are not allowed in `if` conditions")]
+    StructLiteralInIfCondition,
+    #[error("expected an identifier, found reserved identifier `_`")]
+    ExpectedIdentifierGotUnderscore,
+    #[error(
+        "type expression is not allowed for type aliases (Is this a numeric type alias? If so, the numeric type must be specified with `: <type>`"
+    )]
+    UnexpectedTypeExpressionInTypeAlias,
+    #[error("`dep::{0}` path is deprecated, please use `::{0}` instead")]
+    DeprecatedDep(String),
+    #[error("`call_data` id must fit in a `u32`")]
+    CallDataIdMustFitInU32,
 }
 
 /// Represents a parsing error, or a parsing error in the making.
@@ -221,7 +235,7 @@ impl std::fmt::Display for ParserError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let token_to_string = |token: &Token| match token {
             Token::EOF => token.to_string(),
-            _ => format!("'{}'", token),
+            _ => format!("'{token}'"),
         };
 
         let reason_str: String = if self.reason.is_none() {
@@ -248,7 +262,7 @@ impl std::fmt::Display for ParserError {
         } else {
             let expected = expected.iter().map(ToString::to_string).collect::<Vec<_>>().join(", ");
 
-            write!(f, "Unexpected {:?}, expected one of {}{}", self.found, expected, reason_str)
+            write!(f, "Unexpected '{}', expected one of {}{}", self.found, expected, reason_str)
         }
     }
 }
@@ -266,23 +280,21 @@ impl<'a> From<&'a ParserError> for Diagnostic {
                     diagnostic.deprecated = true;
                     diagnostic
                 }
-                ParserErrorReason::InvalidBitSize(bit_size) => Diagnostic::simple_error(
-                    format!("Use of invalid bit size {}", bit_size),
-                    format!(
-                        "Allowed bit sizes for integers are {}",
-                        IntegerBitSize::allowed_sizes()
-                            .iter()
-                            .map(|n| n.to_string())
-                            .collect::<Vec<_>>()
-                            .join(", ")
-                    ),
-                    error.location(),
-                ),
                 ParserErrorReason::ExperimentalFeature(feature) => {
                     let secondary = format!(
                         "Pass -Z{feature} to nargo to enable this feature at your own risk."
                     );
-                    Diagnostic::simple_error(reason.to_string(), secondary, error.location())
+                    match feature {
+                        UnstableFeature::TraitAsType => {
+                            let primary = "`impl Trait` as a type is experimental".to_string();
+                            Diagnostic::simple_warning(primary, secondary, error.location())
+                        }
+                        UnstableFeature::Enums => Diagnostic::simple_error(
+                            reason.to_string(),
+                            secondary,
+                            error.location(),
+                        ),
+                    }
                 }
                 ParserErrorReason::TraitVisibilityIgnored => {
                     Diagnostic::simple_warning(reason.to_string(), "".into(), error.location())
@@ -290,11 +302,6 @@ impl<'a> From<&'a ParserError> for Diagnostic {
                 ParserErrorReason::TraitImplVisibilityIgnored => {
                     Diagnostic::simple_warning(reason.to_string(), "".into(), error.location())
                 }
-                ParserErrorReason::ExpectedPatternButFoundType(ty) => Diagnostic::simple_error(
-                    format!("Expected a pattern but found a type - {ty}"),
-                    format!("{ty} is a type and cannot be used as a variable name"),
-                    error.location(),
-                ),
                 ParserErrorReason::Lexer(error) => error.into(),
                 ParserErrorReason::ExpectedMutAfterAmpersand { found } => Diagnostic::simple_error(
                     format!("Expected `mut` after `&`, found `{found}`"),
@@ -318,9 +325,6 @@ impl<'a> From<&'a ParserError> for Diagnostic {
                     let secondary = "Consider changing it to a regular `//` comment".to_string();
                     Diagnostic::simple_warning(primary, secondary, error.location())
                 }
-                ParserErrorReason::StructDefinitionDeprecated => {
-                    Diagnostic::simple_warning(format!("{reason}"), String::new(), error.location())
-                }
                 ParserErrorReason::MissingAngleBrackets => {
                     let secondary = "Types that don't start with an identifier need to be surrounded with angle brackets: `<`, `>`".to_string();
                     Diagnostic::simple_error(format!("{reason}"), secondary, error.location())
@@ -332,6 +336,21 @@ impl<'a> From<&'a ParserError> for Diagnostic {
                             .to_string();
                     Diagnostic::simple_error(primary, secondary, error.location)
                 }
+                ParserErrorReason::MissingTypeForAssociatedConstant => Diagnostic::simple_error(
+                    "Missing type for associated constant".to_string(),
+                    "Provide a type for the associated constant: `: u32`".to_string(),
+                    error.location,
+                ),
+                ParserErrorReason::DeprecatedDep(name) => {
+                    let primary = format!("`dep::{name}` path is deprecated");
+                    let secondary = format!("Please use `::{name}` instead");
+                    Diagnostic::simple_warning(primary, secondary, error.location())
+                }
+                ParserErrorReason::StructLiteralInIfCondition => Diagnostic::simple_error(
+                    "Struct literals are not allowed in `if` conditions".to_string(),
+                    "Surround the struct literal with parentheses, for example: `if (MyStruct { field: true }).field { ... }`".to_string(),
+                    error.location(),
+                ),
                 other => {
                     Diagnostic::simple_error(format!("{other}"), String::new(), error.location())
                 }

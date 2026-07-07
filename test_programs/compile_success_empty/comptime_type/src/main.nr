@@ -28,6 +28,10 @@ where
 {}
 // docs:end:serialize-setup
 
+type FieldAlias = Field;
+type BoolAlias = bool;
+type UnitAlias = ();
+
 fn main() {
     comptime {
         // Check type_of works correctly (relies on Eq for Type)
@@ -43,6 +47,8 @@ fn main() {
         // Check Type::is_field
         assert(field_type_1.is_field());
         assert(!i32_type.is_field());
+
+        assert(quote { FieldAlias }.as_type().is_field());
 
         // Check Type::as_integer
         assert(field_type_1.as_integer().is_none());
@@ -67,13 +73,13 @@ fn main() {
         assert_eq(tuple_types[0], i32_type);
         assert_eq(tuple_types[1], u8_type);
 
-        // Check Type::as_slice
-        assert(u8_type.as_slice().is_none());
+        // Check Type::as_vector
+        assert(u8_type.as_vector().is_none());
 
-        let slice = &[1];
-        let slice_type = type_of(slice);
-        let slice_type_element_type = slice_type.as_slice().unwrap();
-        assert_eq(slice_type_element_type, field_type_1);
+        let vector = [1].as_vector();
+        let vector_type = type_of(vector);
+        let vector_type_element_type = vector_type.as_vector().unwrap();
+        assert_eq(vector_type_element_type, field_type_1);
 
         // Check Type::as_array
         assert(u8_type.as_array().is_none());
@@ -93,6 +99,8 @@ fn main() {
         let yes = true;
         let bool_type = type_of(yes);
         assert(bool_type.is_bool());
+
+        assert(quote { BoolAlias }.as_type().is_bool());
 
         // Check Type::as_data_type
         assert(u8_type.as_data_type().is_none());
@@ -150,6 +158,8 @@ fn main() {
         // Check Type::is_unit
         let unit = quote { () }.as_type();
         assert(unit.is_unit());
+
+        assert(quote { UnitAlias }.as_type().is_unit());
 
         // Check Type::as_mutable_reference
         let typ = quote { &mut Field }.as_type();

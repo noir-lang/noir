@@ -1,7 +1,8 @@
+mod after_change;
+
 #[cfg(test)]
 mod completion_tests {
     use crate::{
-        notifications::on_did_open_text_document,
         requests::{
             completion::{
                 completion_items::{
@@ -11,47 +12,38 @@ mod completion_tests {
                     trait_impl_method_completion_item,
                 },
                 sort_text::{auto_import_sort_text, self_mismatch_sort_text},
+                variable_completion_item,
             },
             on_completion_request,
         },
         test_utils,
         tests::apply_text_edits,
-        utils::get_cursor_line_and_column,
     };
 
-    use lsp_types::{
+    use async_lsp::lsp_types::{
         CompletionItem, CompletionItemKind, CompletionItemLabelDetails, CompletionParams,
-        CompletionResponse, DidOpenTextDocumentParams, Documentation, PartialResultParams,
-        Position, TextDocumentIdentifier, TextDocumentItem, TextDocumentPositionParams,
-        WorkDoneProgressParams,
+        CompletionResponse, Documentation, PartialResultParams, TextDocumentIdentifier,
+        TextDocumentPositionParams, WorkDoneProgressParams,
     };
     use tokio::test;
 
     /// Given a string with ">|<" (cursor) in it, returns all completions that are available
     /// at that position together with the string with ">|<" removed.
     async fn get_completions(src: &str) -> (Vec<CompletionItem>, String) {
-        let (mut state, noir_text_document) = test_utils::init_lsp_server("document_symbol").await;
-
-        let (line, column, src) = get_cursor_line_and_column(src);
-
-        on_did_open_text_document(
-            &mut state,
-            DidOpenTextDocumentParams {
-                text_document: TextDocumentItem {
-                    uri: noir_text_document.clone(),
-                    language_id: "noir".to_string(),
-                    version: 0,
-                    text: src.to_string(),
-                },
-            },
-        );
+        let (mut state, noir_text_document, position, src) =
+            test_utils::init_lsp_server_with_inline_source_and_cursor(
+                "document_symbol",
+                "src/main.nr",
+                src,
+            )
+            .await;
 
         let response = on_completion_request(
             &mut state,
             CompletionParams {
                 text_document_position: TextDocumentPositionParams {
                     text_document: TextDocumentIdentifier { uri: noir_text_document },
-                    position: Position { line: line as u32, character: column as u32 },
+                    position,
                 },
                 work_done_progress_params: WorkDoneProgressParams { work_done_token: None },
                 partial_result_params: PartialResultParams { partial_result_token: None },
@@ -125,15 +117,17 @@ mod completion_tests {
 
     #[test]
     async fn test_use_first_segment() {
+        // cSpell: disable
         let src = r#"
             mod foobaz {}
             mod foobar {}
             use foob>|<
         "#;
+        // cSpell: enable
 
         assert_completion(
             src,
-            vec![module_completion_item("foobaz"), module_completion_item("foobar")],
+            vec![module_completion_item("foobaz"), module_completion_item("foobar")], // cSpell:disable-line
         )
         .await;
     }
@@ -290,6 +284,7 @@ mod completion_tests {
 
     #[test]
     async fn test_use_after_super() {
+        // cSpell: disable
         let src = r#"
             mod foobar {}
 
@@ -299,6 +294,7 @@ mod completion_tests {
                 use super::foob>|<
             }
         "#;
+        // cSpell: enable
 
         assert_completion(src, vec![module_completion_item("foobar")]).await;
     }
@@ -371,17 +367,13 @@ mod completion_tests {
     async fn test_complete_path_with_local_variable() {
         let src = r#"
           fn main() {
-            let local = 1;
-            l>|<
+            let some_local = 1;
+            some_l>|<
           }
         "#;
         assert_completion_excluding_auto_import(
             src,
-            vec![simple_completion_item(
-                "local",
-                CompletionItemKind::VARIABLE,
-                Some("Field".to_string()),
-            )],
+            vec![variable_completion_item("some_local", Some("Field".to_string()))],
         )
         .await;
     }
@@ -390,18 +382,14 @@ mod completion_tests {
     async fn test_complete_path_with_shadowed_local_variable() {
         let src = r#"
           fn main() {
-            let local = 1;
-            let local = true;
-            l>|<
+            let some_local = 1;
+            let some_local = true;
+            some_l>|<
           }
         "#;
         assert_completion_excluding_auto_import(
             src,
-            vec![simple_completion_item(
-                "local",
-                CompletionItemKind::VARIABLE,
-                Some("bool".to_string()),
-            )],
+            vec![variable_completion_item("some_local", Some("bool".to_string()))],
         )
         .await;
     }
@@ -409,17 +397,13 @@ mod completion_tests {
     #[test]
     async fn test_complete_path_with_function_argument() {
         let src = r#"
-          fn main(local: Field) {
-            l>|<
+          fn main(some_local: Field) {
+            some_l>|<
           }
         "#;
         assert_completion_excluding_auto_import(
             src,
-            vec![simple_completion_item(
-                "local",
-                CompletionItemKind::VARIABLE,
-                Some("Field".to_string()),
-            )],
+            vec![variable_completion_item("some_local", Some("Field".to_string()))],
         )
         .await;
     }
@@ -521,7 +505,14 @@ mod completion_tests {
                     "assert(${1:predicate})",
                     Some("fn(T)".to_string()),
                 )),
-                function_completion_item("assert_constant(…)", "assert_constant(${1:x})", "fn(T)"),
+                {
+                    let mut item = function_completion_item("assert_constant(…)", "assert_constant(${1:x})", "fn(T)");
+                    item.documentation = Some(Documentation::MarkupContent(async_lsp::lsp_types::MarkupContent {
+                        kind: async_lsp::lsp_types::MarkupKind::Markdown,
+                        value: "Asserts that the given value is known at compile-time.\nUseful for debugging for-loop bounds.".to_string(),
+                    }));
+                    item
+                },
                 completion_item_with_trigger_parameter_hints_command(snippet_completion_item(
                     "assert_eq(…)",
                     CompletionItemKind::FUNCTION,
@@ -589,11 +580,7 @@ mod completion_tests {
         "#;
         assert_completion_excluding_auto_import(
             src,
-            vec![simple_completion_item(
-                "index",
-                CompletionItemKind::VARIABLE,
-                Some("u32".to_string()),
-            )],
+            vec![variable_completion_item("index", Some("u32".to_string()))],
         )
         .await;
     }
@@ -609,11 +596,7 @@ mod completion_tests {
         "#;
         assert_completion_excluding_auto_import(
             src,
-            vec![simple_completion_item(
-                "lambda_var",
-                CompletionItemKind::VARIABLE,
-                Some("i32".to_string()),
-            )],
+            vec![variable_completion_item("lambda_var", Some("i32".to_string()))],
         )
         .await;
     }
@@ -838,16 +821,8 @@ mod completion_tests {
         assert_completion_excluding_auto_import(
             src,
             vec![
-                simple_completion_item(
-                    "good",
-                    CompletionItemKind::VARIABLE,
-                    Some("Field".to_string()),
-                ),
-                simple_completion_item(
-                    "great",
-                    CompletionItemKind::VARIABLE,
-                    Some("Field".to_string()),
-                ),
+                variable_completion_item("good", Some("Field".to_string())),
+                variable_completion_item("great", Some("Field".to_string())),
             ],
         )
         .await;
@@ -866,16 +841,8 @@ mod completion_tests {
         assert_completion_excluding_auto_import(
             src,
             vec![
-                simple_completion_item(
-                    "good",
-                    CompletionItemKind::VARIABLE,
-                    Some("Field".to_string()),
-                ),
-                simple_completion_item(
-                    "greater",
-                    CompletionItemKind::VARIABLE,
-                    Some("Field".to_string()),
-                ),
+                variable_completion_item("good", Some("Field".to_string())),
+                variable_completion_item("greater", Some("Field".to_string())),
             ],
         )
         .await;
@@ -893,11 +860,7 @@ mod completion_tests {
         "#;
         assert_completion_excluding_auto_import(
             src,
-            vec![simple_completion_item(
-                "good",
-                CompletionItemKind::VARIABLE,
-                Some("Field".to_string()),
-            )],
+            vec![variable_completion_item("good", Some("Field".to_string()))],
         )
         .await;
     }
@@ -916,16 +879,8 @@ mod completion_tests {
         assert_completion_excluding_auto_import(
             src,
             vec![
-                simple_completion_item(
-                    "good",
-                    CompletionItemKind::VARIABLE,
-                    Some("Field".to_string()),
-                ),
-                simple_completion_item(
-                    "great",
-                    CompletionItemKind::VARIABLE,
-                    Some("Field".to_string()),
-                ),
+                variable_completion_item("good", Some("Field".to_string())),
+                variable_completion_item("great", Some("Field".to_string())),
             ],
         )
         .await;
@@ -941,11 +896,7 @@ mod completion_tests {
         "#;
         assert_completion_excluding_auto_import(
             src,
-            vec![simple_completion_item(
-                "good",
-                CompletionItemKind::VARIABLE,
-                Some("Field".to_string()),
-            )],
+            vec![variable_completion_item("good", Some("Field".to_string()))],
         )
         .await;
     }
@@ -1197,6 +1148,91 @@ mod completion_tests {
 
             fn foo() {
                 Some::>|<
+            }
+        "#;
+        assert_completion(
+            src,
+            vec![
+                completion_item_with_sort_text(
+                    function_completion_item(
+                        "foobar(…)",
+                        "foobar(${1:self}, ${2:x})",
+                        "fn(self, i32)",
+                    ),
+                    self_mismatch_sort_text(),
+                ),
+                completion_item_with_sort_text(
+                    function_completion_item(
+                        "foobar2(…)",
+                        "foobar2(${1:self}, ${2:x})",
+                        "fn(&mut self, i32)",
+                    ),
+                    self_mismatch_sort_text(),
+                ),
+                function_completion_item("foobar3(…)", "foobar3(${1:y})", "fn(i32)"),
+            ],
+        )
+        .await;
+    }
+
+    #[test]
+    async fn test_suggests_generic_struct_methods_after_colons() {
+        let src = r#"
+            struct Some<T> {
+            }
+
+            impl<T> Some<T> {
+                fn foobar(self, x: i32) {}
+                fn foobar2(&mut self, x: i32) {}
+                fn foobar3(y: i32) {}
+            }
+
+            fn foo() {
+                Some::>|<
+            }
+        "#;
+        assert_completion(
+            src,
+            vec![
+                completion_item_with_sort_text(
+                    function_completion_item(
+                        "foobar(…)",
+                        "foobar(${1:self}, ${2:x})",
+                        "fn(self, i32)",
+                    ),
+                    self_mismatch_sort_text(),
+                ),
+                completion_item_with_sort_text(
+                    function_completion_item(
+                        "foobar2(…)",
+                        "foobar2(${1:self}, ${2:x})",
+                        "fn(&mut self, i32)",
+                    ),
+                    self_mismatch_sort_text(),
+                ),
+                function_completion_item("foobar3(…)", "foobar3(${1:y})", "fn(i32)"),
+            ],
+        )
+        .await;
+    }
+
+    #[test]
+    async fn test_suggests_generic_struct_with_turbofish_methods_after_colons() {
+        let src = r#"
+            struct Some<T> {
+            }
+
+            impl Some<i32> {
+                fn foobar(self, x: i32) {}
+                fn foobar2(&mut self, x: i32) {}
+            }
+
+            impl Some<i64> {
+                fn foobar3(y: i32) {}
+            }
+
+            fn foo() {
+                Some::<i32>::>|<
             }
         "#;
         assert_completion(
@@ -1728,6 +1764,7 @@ mod other {
 
     #[test]
     async fn test_auto_import_suggests_modules_too() {
+        // cSpell: disable
         let src = r#"mod foo {
         pub mod barbaz {
             fn hello_world() {}
@@ -1738,7 +1775,9 @@ mod other {
         barb>|<
     }
 }"#;
+        // cSpell: enable
 
+        // cSpell: disable
         let expected = r#"use foo::barbaz;
 
 mod foo {
@@ -1751,17 +1790,18 @@ mod foo {
         barb
     }
 }"#;
+        // cSpell: enable
 
         let (mut items, src) = get_completions(src).await;
         assert_eq!(items.len(), 1);
 
         let item = items.remove(0);
-        assert_eq!(item.label, "barbaz");
+        assert_eq!(item.label, "barbaz"); // cSpell::disable-line
 
         assert_eq!(
             item.label_details,
             Some(CompletionItemLabelDetails {
-                detail: Some("(use foo::barbaz)".to_string()),
+                detail: Some("(use foo::barbaz)".to_string()), // cSpell::disable-line
                 description: None
             })
         );
@@ -2120,11 +2160,13 @@ fn main() {
 
     #[test]
     async fn test_auto_import_from_std() {
+        // cSpell:disable
         let src = r#"
             fn main() {
                 zeroe>|<
             }
         "#;
+        // cSpell:enable
         let (items, _) = get_completions(src).await;
         assert_eq!(items.len(), 1);
 
@@ -2138,6 +2180,7 @@ fn main() {
 
     #[test]
     async fn test_completes_after_first_letter_of_path() {
+        // cSpell:disable
         let src = r#"
             fn main() {
                 h>|<ello();
@@ -2145,6 +2188,8 @@ fn main() {
 
             fn hello_world() {}
         "#;
+        // cSpell:enable
+
         assert_completion_excluding_auto_import(
             src,
             vec![function_completion_item("hello_world", "hello_world()", "fn()")],
@@ -2297,6 +2342,7 @@ fn main() {
 
     #[test]
     async fn test_auto_import_suggests_pub_use_for_module() {
+        // cSpell:disable
         let src = r#"
             mod bar {
                 pub mod baz {
@@ -2310,6 +2356,7 @@ fn main() {
                 foob>|<
             }
         "#;
+        // cSpell:enable
 
         let (items, _) = get_completions(src).await;
         assert_eq!(items.len(), 1);
@@ -2324,6 +2371,7 @@ fn main() {
 
     #[test]
     async fn test_auto_import_suggests_pub_use_for_function() {
+        // cSpell:disable
         let src = r#"
             mod bar {
                 pub mod baz {
@@ -2337,6 +2385,7 @@ fn main() {
                 foob>|<
             }
         "#;
+        // cSpell:enable
 
         let (items, _) = get_completions(src).await;
         assert_eq!(items.len(), 1);
@@ -2351,6 +2400,7 @@ fn main() {
 
     #[test]
     async fn test_auto_import_suggests_private_function_if_visible() {
+        // cSpell:disable
         let src = r#"
             mod foo {
                 fn qux() {
@@ -2362,20 +2412,22 @@ fn main() {
 
             fn main() {}
         "#;
+        // cSpell:enable
 
         let (items, _) = get_completions(src).await;
         assert_eq!(items.len(), 1);
 
         let item = &items[0];
-        assert_eq!(item.label, "barbaz()");
+        assert_eq!(item.label, "barbaz()"); // cSpell:disable-line
         assert_eq!(
             item.label_details.as_ref().unwrap().detail,
-            Some("(use super::barbaz)".to_string()),
+            Some("(use super::barbaz)".to_string()), // cSpell:disable-line
         );
     }
 
     #[test]
     async fn test_suggests_self_fields_and_methods() {
+        // cSpell:disable
         let src = r#"
             struct Foo {
                 foobar: Field,
@@ -2389,6 +2441,7 @@ fn main() {
                 }
             }
         "#;
+        // cSpell:enable
 
         assert_completion_excluding_auto_import(
             src,
@@ -2415,21 +2468,36 @@ fn main() {
     }
 
     #[test]
+    async fn test_suggests_built_in_allow_function_attribute() {
+        let src = r#"
+            #[dead_c>|<]
+            fn foo() {}
+        "#;
+
+        assert_completion_excluding_auto_import(
+            src,
+            vec![simple_completion_item("allow(dead_code)", CompletionItemKind::METHOD, None)],
+        )
+        .await;
+    }
+
+    #[test]
     async fn test_suggests_built_in_let_attribute() {
+        // cSpell:disable
         let src = r#"
             fn foo() {
                 #[allo>|<]
                 let x = 1;
             }
         "#;
+        // cSpell:enable
 
         assert_completion_excluding_auto_import(
             src,
-            vec![simple_completion_item(
-                "allow(unused_variables)",
-                CompletionItemKind::METHOD,
-                None,
-            )],
+            vec![
+                simple_completion_item("allow(unused_variables)", CompletionItemKind::METHOD, None),
+                simple_completion_item("allow(unused_mut)", CompletionItemKind::METHOD, None),
+            ],
         )
         .await;
     }
@@ -2526,6 +2594,29 @@ fn main() {
         impl Trait for Foo {
             fn f>|<
         }"#;
+
+        assert_completion(
+            src,
+            vec![trait_impl_method_completion_item(
+                "fn foo(..)",
+                "foo(x: i32) -> i32 {\n    ${1}\n}",
+            )],
+        )
+        .await;
+    }
+
+    #[test]
+    async fn suggests_trait_impl_function_when_impl_does_not_have_closing_curly() {
+        let src = r#"
+        trait Trait {
+            fn foo(x: i32) -> i32;
+        }
+
+        struct Foo {}
+
+        impl Trait for Foo {
+            fn f>|<
+        "#;
 
         assert_completion(
             src,
@@ -2643,6 +2734,7 @@ fn main() {
 
     #[test]
     async fn test_suggests_macro_call_if_comptime_function_returns_quoted() {
+        // cSpell:disable
         let src = r#"
         comptime fn foobar() -> Quoted {}
 
@@ -2652,6 +2744,7 @@ fn main() {
             }
         }
         "#;
+        // cSpell:enable
 
         assert_completion_excluding_auto_import(
             src,
@@ -2666,6 +2759,7 @@ fn main() {
     #[test]
     async fn test_suggests_only_macro_call_if_comptime_function_returns_quoted_and_outside_comptime()
      {
+        // cSpell:disable
         let src = r#"
         comptime fn foobar() -> Quoted {}
 
@@ -2673,6 +2767,7 @@ fn main() {
             fooba>|<
         }
         "#;
+        // cSpell:enable
 
         assert_completion_excluding_auto_import(
             src,
@@ -2683,6 +2778,7 @@ fn main() {
 
     #[test]
     async fn test_only_suggests_macro_call_for_unquote() {
+        // cSpell:disable
         let src = r#"
         use std::meta::unquote;
 
@@ -2690,6 +2786,7 @@ fn main() {
             unquot>|<
         }
         "#;
+        // cSpell:enable
 
         let (items, _) = get_completions(src).await;
         assert_eq!(items.len(), 1);
@@ -2711,11 +2808,7 @@ fn main() {
 
         assert_completion(
             src,
-            vec![simple_completion_item(
-                "some_var",
-                CompletionItemKind::VARIABLE,
-                Some("Field".to_string()),
-            )],
+            vec![variable_completion_item("some_var", Some("Field".to_string()))],
         )
         .await;
     }
@@ -2735,17 +2828,14 @@ fn main() {
 
         assert_completion(
             src,
-            vec![simple_completion_item(
-                "some_var",
-                CompletionItemKind::VARIABLE,
-                Some("Field".to_string()),
-            )],
+            vec![variable_completion_item("some_var", Some("Field".to_string()))],
         )
         .await;
     }
 
     #[test]
     async fn test_does_not_auto_import_private_global() {
+        // cSpell:disable
         let src = r#"mod moo {
             global foobar = 1;
         }
@@ -2753,12 +2843,14 @@ fn main() {
         fn main() {
             fooba>|<
         }"#;
+        // cSpell:enable
 
         assert_completion(src, Vec::new()).await;
     }
 
     #[test]
     async fn test_does_not_auto_import_private_type_alias() {
+        // cSpell:disable
         let src = r#"mod moo {
             type foobar = i32;
         }
@@ -2766,12 +2858,14 @@ fn main() {
         fn main() {
             fooba>|<
         }"#;
+        // cSpell:enable
 
         assert_completion(src, Vec::new()).await;
     }
 
     #[test]
     async fn test_does_not_auto_import_private_trait() {
+        // cSpell:disable
         let src = r#"mod moo {
             trait Foobar {}
         }
@@ -2779,12 +2873,14 @@ fn main() {
         fn main() {
             Fooba>|<
         }"#;
+        // cSpell:enable
 
         assert_completion(src, Vec::new()).await;
     }
 
     #[test]
     async fn test_does_not_auto_import_private_module() {
+        // cSpell:disable
         let src = r#"mod moo {
             mod foobar {}
         }
@@ -2792,18 +2888,21 @@ fn main() {
         fn main() {
             fooba>|<
         }"#;
+        // cSpell:enable
 
         assert_completion(src, Vec::new()).await;
     }
 
     #[test]
     async fn test_suggests_trait_in_trait_parent_bounds() {
+        // cSpell:disable
         let src = r#"
         trait Foobar {}
         struct Foobarbaz {}
 
         trait Bar: Foob>|< {}
         "#;
+        // cSpell:enable
         assert_completion(
             src,
             vec![simple_completion_item(
@@ -2817,12 +2916,14 @@ fn main() {
 
     #[test]
     async fn test_suggests_trait_in_function_where_clause() {
+        // cSpell:disable
         let src = r#"
         trait Foobar {}
         struct Foobarbaz {}
 
         fn foo<T>() where T: Foob>|< {}
         "#;
+        // cSpell:enable
         assert_completion(
             src,
             vec![simple_completion_item(
@@ -2887,6 +2988,7 @@ fn main() {
 
     #[test]
     async fn test_does_not_suggest_trait_function_not_visible() {
+        // cSpell:disable
         let src = r#"
         mod moo {
             trait Foo {
@@ -2903,11 +3005,13 @@ fn main() {
         }
 
         "#;
+        // cSpell:enable
         assert_completion(src, vec![]).await;
     }
 
     #[test]
     async fn test_suggests_multiple_trait_methods() {
+        // cSpell:disable
         let src = r#"
         mod moo {
             pub trait Foo {
@@ -2932,12 +3036,14 @@ fn main() {
         }
 
         "#;
+        // cSpell:enable
         let (items, _) = get_completions(src).await;
         assert_eq!(items.len(), 2);
     }
 
     #[test]
     async fn test_suggests_and_imports_trait_method_without_self() {
+        // cSpell:disable
         let src = r#"
 mod moo {
     pub trait Foo {
@@ -2953,6 +3059,7 @@ fn main() {
     Field::fooba>|<
 }
         "#;
+        // cSpell:enable
         let (mut items, src) = get_completions(src).await;
         assert_eq!(items.len(), 1);
 
@@ -2961,6 +3068,7 @@ fn main() {
 
         let new_code = apply_text_edits(&src, &item.additional_text_edits.unwrap());
 
+        // cSpell:disable
         let expected = r#"use moo::Foo;
 
 mod moo {
@@ -2977,11 +3085,13 @@ fn main() {
     Field::fooba
 }
         "#;
+        // cSpell:enable
         assert_eq!(new_code, expected);
     }
 
     #[test]
     async fn test_suggests_and_imports_trait_method_with_self() {
+        // cSpell:disable
         let src = r#"
 mod moo {
     pub trait Foo {
@@ -2998,6 +3108,7 @@ fn main() {
     x.fooba>|<
 }
         "#;
+        // cSpell:enable
         let (mut items, src) = get_completions(src).await;
         assert_eq!(items.len(), 1);
 
@@ -3006,6 +3117,7 @@ fn main() {
 
         let new_code = apply_text_edits(&src, &item.additional_text_edits.unwrap());
 
+        // cSpell:disable
         let expected = r#"use moo::Foo;
 
 mod moo {
@@ -3023,11 +3135,13 @@ fn main() {
     x.fooba
 }
         "#;
+        // cSpell:enable
         assert_eq!(new_code, expected);
     }
 
     #[test]
     async fn test_suggests_and_imports_trait_method_with_self_using_public_export() {
+        // cSpell:disable
         let src = r#"
 mod moo {
     mod nested {
@@ -3048,6 +3162,7 @@ fn main() {
     x.fooba>|<
 }
         "#;
+        // cSpell:enable
         let (mut items, src) = get_completions(src).await;
         assert_eq!(items.len(), 1);
 
@@ -3056,6 +3171,7 @@ fn main() {
 
         let new_code = apply_text_edits(&src, &item.additional_text_edits.unwrap());
 
+        // cSpell:disable
         let expected = r#"use moo::Bar;
 
 mod moo {
@@ -3077,6 +3193,7 @@ fn main() {
     x.fooba
 }
         "#;
+        // cSpell:enable
         assert_eq!(new_code, expected);
     }
 
@@ -3162,6 +3279,7 @@ fn main() {
 
     #[test]
     async fn autocompletes_via_parent_module_reexport() {
+        // cSpell:disable
         let src = r#"mod aztec {
     mod deps {
         pub mod protocol_types {
@@ -3175,6 +3293,7 @@ fn main() {
 fn main() {
     SomeStru>|<
 }"#;
+        // cSpell:enable
 
         let (mut items, src) = get_completions(src).await;
         assert_eq!(items.len(), 1);
@@ -3188,6 +3307,7 @@ fn main() {
             })
         );
 
+        // cSpell:disable
         let expected = r#"use aztec::protocol_types::SomeStruct;
 
 mod aztec {
@@ -3203,6 +3323,7 @@ mod aztec {
 fn main() {
     SomeStru
 }"#;
+        // cSpell:enable
 
         let changed = apply_text_edits(&src, &item.additional_text_edits.unwrap());
         assert_eq!(changed, expected);
@@ -3210,6 +3331,7 @@ fn main() {
 
     #[test]
     async fn autocompletes_via_renamed_parent_module_reexport() {
+        // cSpell:disable
         let src = r#"mod aztec {
     mod deps {
         pub mod protocol_types {
@@ -3223,6 +3345,7 @@ fn main() {
 fn main() {
     SomeStru>|<
 }"#;
+        // cSpell:enable
 
         let (mut items, src) = get_completions(src).await;
         assert_eq!(items.len(), 1);
@@ -3236,6 +3359,7 @@ fn main() {
             })
         );
 
+        // cSpell:disable
         let expected = r#"use aztec::export::SomeStruct;
 
 mod aztec {
@@ -3251,6 +3375,7 @@ mod aztec {
 fn main() {
     SomeStru
 }"#;
+        // cSpell:enable
 
         let changed = apply_text_edits(&src, &item.additional_text_edits.unwrap());
         assert_eq!(changed, expected);
@@ -3258,6 +3383,7 @@ fn main() {
 
     #[test]
     async fn autocompletes_nested_type_via_parent_module_reexport() {
+        // cSpell:disable
         let src = r#"mod aztec {
     mod deps {
         pub mod protocol_types {
@@ -3273,6 +3399,7 @@ fn main() {
 fn main() {
     SomeStru>|<
 }"#;
+        // cSpell:enable
 
         let (mut items, src) = get_completions(src).await;
         assert_eq!(items.len(), 1);
@@ -3286,6 +3413,7 @@ fn main() {
             })
         );
 
+        // cSpell:disable
         let expected = r#"use aztec::protocol_types::nested::SomeStruct;
 
 mod aztec {
@@ -3303,6 +3431,7 @@ mod aztec {
 fn main() {
     SomeStru
 }"#;
+        // cSpell:enable
 
         let changed = apply_text_edits(&src, &item.additional_text_edits.unwrap());
         assert_eq!(changed, expected);
@@ -3310,6 +3439,7 @@ fn main() {
 
     #[test]
     async fn does_not_autocomplete_nested_type_via_parent_module_reexport_if_it_is_not_visible() {
+        // cSpell:disable
         let src = r#"mod aztec {
     mod deps {
         pub mod protocol_types {
@@ -3325,6 +3455,7 @@ fn main() {
 fn main() {
     SomeStru>|<
 }"#;
+        // cSpell:enable
 
         let (items, _) = get_completions(src).await;
         assert_eq!(items.len(), 0);
@@ -3332,6 +3463,7 @@ fn main() {
 
     #[test]
     async fn autocompletes_deeply_nested_type_via_parent_module_reexport() {
+        // cSpell:disable
         let src = r#"mod aztec {
     mod deps {
         pub mod protocol_types {
@@ -3349,6 +3481,7 @@ fn main() {
 fn main() {
     SomeStru>|<
 }"#;
+        // cSpell:enable
 
         let (mut items, src) = get_completions(src).await;
         assert_eq!(items.len(), 1);
@@ -3362,6 +3495,7 @@ fn main() {
             })
         );
 
+        // cSpell:disable
         let expected = r#"use aztec::protocol_types::deeply::nested::SomeStruct;
 
 mod aztec {
@@ -3381,8 +3515,209 @@ mod aztec {
 fn main() {
     SomeStru
 }"#;
+        // cSpell:enable
 
         let changed = apply_text_edits(&src, &item.additional_text_edits.unwrap());
         assert_eq!(changed, expected);
+    }
+
+    #[test]
+    async fn autoimports_correct_trait_for_ctstring_append() {
+        let src = r#"
+        fn main() {
+            let s = CtString::new();
+            s.appen>|<
+        }
+        "#;
+        let (items, _) = get_completions(src).await;
+        assert_eq!(items.len(), 3);
+        let item = items
+            .iter()
+            .find(|item| item.label == "append(…)")
+            .expect("Expected to find a completion for 'append'");
+        let addition_text_edit = &item.additional_text_edits.as_ref().unwrap()[0];
+        // This used to suggest `use std::meta::ctstring::Append`, which is wrong
+        assert_eq!(addition_text_edit.new_text, "use std::append::Append;\n");
+    }
+
+    #[test]
+    async fn autocompletes_function_parameter_in_top_level_module() {
+        let src = r#"
+        fn one(he>|<)
+
+        fn two(hello: HelloWorld) {}
+        fn three(hello: HelloWorld) {}
+
+        mod moo {
+            fn four(help: Help) {}
+        }
+        "#;
+
+        assert_completion(src, vec![variable_completion_item("hello: HelloWorld", None)]).await;
+    }
+
+    #[test]
+    async fn does_not_suggest_parameter_that_exists_in_current_function() {
+        let src = r#"
+        fn one(hello: HelloWorld, he>|<)
+        "#;
+
+        assert_completion(src, vec![]).await;
+    }
+
+    #[test]
+    async fn autocompletes_function_parameter_in_submodule() {
+        let src = r#"
+        mod moo {
+            fn one(he>|<)
+
+            fn two(hello: HelloWorld) {}
+            fn three(hello: HelloWorld) {}
+        }
+
+        fn four(help: Help) {}
+        "#;
+
+        assert_completion(src, vec![variable_completion_item("hello: HelloWorld", None)]).await;
+    }
+
+    #[test]
+    async fn autocompletes_function_parameter_in_impl() {
+        let src = r#"
+        struct Foo {}
+
+        impl Foo {
+            fn one(he>|<)
+
+            fn two(hello: HelloWorld) {}
+            fn three(hello: HelloWorld) {}
+        }
+
+        fn four(help: Help) {}
+        "#;
+
+        assert_completion(src, vec![variable_completion_item("hello: HelloWorld", None)]).await;
+    }
+
+    #[test]
+    async fn autocompletes_function_parameter_in_trait() {
+        let src = r#"
+        trait Foo {
+            fn one(he>|<)
+
+            fn two(hello: HelloWorld) {}
+            fn three(hello: HelloWorld) {}
+        }
+
+        fn four(help: Help) {}
+        "#;
+
+        assert_completion(src, vec![variable_completion_item("hello: HelloWorld", None)]).await;
+    }
+
+    #[test]
+    async fn autocompletes_use_super() {
+        let src = r#"
+        pub fn hello() {}
+
+        mod moo {
+            pub use super::>|<
+        }
+        "#;
+
+        assert_completion(
+            src,
+            vec![function_completion_item("hello", "hello", "fn()"), module_completion_item("moo")],
+        )
+        .await;
+    }
+
+    #[test]
+    async fn autocompletes_type_in_generic_call() {
+        let src = r#"
+        pub struct FooBar {}
+
+        pub struct Generic<T> {}
+
+        fn main() {
+            Generic::<FooB>|<>::new()
+        }
+        "#;
+
+        assert_completion(
+            src,
+            vec![simple_completion_item(
+                "FooBar",
+                CompletionItemKind::STRUCT,
+                Some("FooBar".to_string()),
+            )],
+        )
+        .await;
+    }
+
+    #[test]
+    async fn autocompletes_type_in_generic_constructor() {
+        let src = r#"
+        pub struct FooBar {}
+
+        pub struct Generic<T> {}
+
+        fn main() {
+            Generic::< FooB>|< > {}
+        }
+        "#;
+
+        assert_completion(
+            src,
+            vec![simple_completion_item(
+                "FooBar",
+                CompletionItemKind::STRUCT,
+                Some("FooBar".to_string()),
+            )],
+        )
+        .await;
+    }
+
+    #[test]
+    async fn test_auto_imports_does_not_add_to_existing_use_in_a_different_module() {
+        let src = r#"mod moo {
+    pub struct StructOne {}
+    pub struct StructTwo {}
+}
+
+use crate::moo::StructOne;
+
+mod one {
+    mod two {
+        fn foo() {
+            StructT>|<
+        }
+    }
+}"#;
+
+        let expected = r#"mod moo {
+    pub struct StructOne {}
+    pub struct StructTwo {}
+}
+
+use crate::moo::StructOne;
+
+mod one {
+    mod two {
+        use crate::moo::StructTwo;
+
+        fn foo() {
+            StructT
+        }
+    }
+}"#;
+
+        let (mut items, src) = get_completions(src).await;
+        assert_eq!(items.len(), 1);
+
+        let item = items.remove(0);
+        let changed = apply_text_edits(&src, &item.additional_text_edits.unwrap());
+        assert_eq!(changed, expected);
+        assert_eq!(item.sort_text, Some(auto_import_sort_text()));
     }
 }

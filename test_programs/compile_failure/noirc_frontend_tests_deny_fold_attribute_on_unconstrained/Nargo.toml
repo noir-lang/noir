@@ -1,7 +1,0 @@
-
-            [package]
-            name = "noirc_frontend_tests_deny_fold_attribute_on_unconstrained"
-            type = "bin"
-            authors = [""]
-            
-            [dependencies]

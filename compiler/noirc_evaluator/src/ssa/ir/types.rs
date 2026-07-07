@@ -1,13 +1,20 @@
-use acvm::{FieldElement, acir::AcirField};
+use acvm::{
+    FieldElement,
+    acir::{
+        AcirField,
+        brillig::lengths::{
+            ElementTypesLength, ElementsFlattenedLength, FlattenedLength, SemanticLength,
+        },
+    },
+};
 use iter_extended::vecmap;
-use noirc_frontend::signed_field::SignedField;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
-use crate::ssa::ssa_gen::SSA_WORD_SIZE;
+use crate::{brillig::assert_u32, ssa::ssa_gen::SSA_WORD_SIZE};
 
 /// A numeric type in the Intermediate representation
-/// Note: we class NativeField as a numeric type
+/// Note: we class `NativeField` as a numeric type
 /// though we also apply limitations to it, such as not
 /// being able to compare two native fields, whereas this is
 /// something that you can do with a signed/unsigned integer.
@@ -15,7 +22,6 @@ use crate::ssa::ssa_gen::SSA_WORD_SIZE;
 /// Fields do not have a notion of ordering, so this distinction
 /// is reasonable.
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, Ord, PartialOrd, Serialize, Deserialize)]
-#[cfg_attr(test, derive(proptest_derive::Arbitrary))]
 pub enum NumericType {
     Signed { bit_size: u32 },
     Unsigned { bit_size: u32 },
@@ -24,19 +30,19 @@ pub enum NumericType {
 
 impl NumericType {
     /// Returns the bit size of the provided numeric type.
-    pub(crate) fn bit_size(self: &NumericType) -> u32 {
+    pub(crate) fn bit_size<F: AcirField>(self: &NumericType) -> u32 {
         match self {
-            NumericType::NativeField => FieldElement::max_num_bits(),
+            NumericType::NativeField => F::max_num_bits(),
             NumericType::Unsigned { bit_size } | NumericType::Signed { bit_size } => *bit_size,
         }
     }
 
-    /// Creates a NumericType::Signed type
+    /// Creates a `NumericType::Signed` type
     pub(crate) fn signed(bit_size: u32) -> NumericType {
         NumericType::Signed { bit_size }
     }
 
-    /// Creates a NumericType::Unsigned type
+    /// Creates a `NumericType::Unsigned` type
     pub(crate) fn unsigned(bit_size: u32) -> NumericType {
         NumericType::Unsigned { bit_size }
     }
@@ -57,33 +63,37 @@ impl NumericType {
     }
 
     /// Returns None if the given Field value is within the numeric limits
-    /// for the current NumericType. Otherwise returns a string describing
+    /// for the current `NumericType`. Otherwise returns a string describing
     /// the limits, as a range.
-    pub(crate) fn value_is_outside_limits(self, value: SignedField) -> Option<String> {
+    pub(crate) fn value_is_outside_limits(self, value: FieldElement) -> Option<String> {
         match self {
             NumericType::Unsigned { bit_size } => {
                 let max = if bit_size == 128 { u128::MAX } else { 2u128.pow(bit_size) - 1 };
-                if value.is_negative {
-                    return Some(format!("0..={}", max));
-                }
-                if value.field <= max.into() { None } else { Some(format!("0..={}", max)) }
+                if value > max.into() { Some(format!("0..={max}")) } else { None }
             }
             NumericType::Signed { bit_size } => {
                 let min = 2u128.pow(bit_size - 1);
                 let max = 2u128.pow(bit_size - 1) - 1;
-                let target_max = if value.is_negative { min } else { max };
-                if value.field <= target_max.into() {
-                    None
+                if value > max.into() && value < -FieldElement::from(min) {
+                    Some(format!("-{min}..={max}"))
                 } else {
-                    Some(format!("-{}..={}", min, max))
+                    None
                 }
             }
             NumericType::NativeField => None,
         }
     }
 
+    pub(crate) fn is_field(&self) -> bool {
+        matches!(self, NumericType::NativeField)
+    }
+
     pub(crate) fn is_unsigned(&self) -> bool {
         matches!(self, NumericType::Unsigned { .. })
+    }
+
+    pub(crate) fn is_signed(&self) -> bool {
+        matches!(self, NumericType::Signed { .. })
     }
 
     pub(crate) fn max_value(&self) -> Result<FieldElement, String> {
@@ -96,25 +106,58 @@ impl NumericType {
                 128 => Ok(FieldElement::from(u128::MAX)),
                 _ => Ok(FieldElement::from(2u128.pow(*bit_size) - 1)),
             },
-            other => Err(format!("Cannot get max value for type: {other}")),
+            NumericType::Signed { bit_size } => {
+                assert!(*bit_size <= 128);
+                Ok(FieldElement::from(2u128.pow(*bit_size - 1) - 1))
+            }
+            NumericType::NativeField => {
+                Err("Cannot get max value for type: NativeField".to_string())
+            }
+        }
+    }
+}
+
+#[cfg(test)]
+mod props {
+    use proptest::{
+        prelude::{Arbitrary, BoxedStrategy, Just, Strategy as _},
+        prop_oneof,
+    };
+
+    use super::NumericType;
+
+    impl Arbitrary for NumericType {
+        type Parameters = ();
+        type Strategy = BoxedStrategy<Self>;
+
+        fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
+            let signed = prop_oneof!(Just(8), Just(16), Just(32), Just(64));
+            let unsigned = prop_oneof!(Just(1), Just(8), Just(16), Just(32), Just(64), Just(128));
+            prop_oneof![
+                signed.prop_map(|bit_size| NumericType::Signed { bit_size }),
+                unsigned.prop_map(|bit_size| NumericType::Unsigned { bit_size }),
+                Just(NumericType::NativeField),
+            ]
+            .boxed()
         }
     }
 }
 
 /// All types representable in the IR.
 #[derive(Clone, Debug, PartialEq, Eq, Hash, Ord, PartialOrd, Serialize, Deserialize)]
-pub(crate) enum Type {
+pub enum Type {
     /// Represents numeric types in the IR, including field elements
     Numeric(NumericType),
 
-    /// A reference to some value, such as an array
-    Reference(Arc<Type>),
+    /// A reference to some value, such as an array.
+    /// The bool indicates whether this is a mutable reference (`true` = `&mut`, `false` = `&`).
+    Reference(Arc<Type>, /* mutable */ bool),
 
     /// An immutable array value with the given element type and length
-    Array(Arc<CompositeType>, u32),
+    Array(Arc<CompositeType>, SemanticLength),
 
-    /// An immutable slice value with a given element type
-    Slice(Arc<CompositeType>),
+    /// An immutable vector value with a given element type
+    Vector(Arc<CompositeType>),
 
     /// A function that may be called directly
     Function,
@@ -122,46 +165,56 @@ pub(crate) enum Type {
 
 impl Type {
     /// Returns whether the `Type` represents an unsigned numeric type.
-    pub(crate) fn is_unsigned(&self) -> bool {
+    pub fn is_unsigned(&self) -> bool {
         matches!(self, Type::Numeric(NumericType::Unsigned { .. }))
     }
 
+    /// Returns whether the `Type` represents an signed numeric type.
+    pub fn is_signed(&self) -> bool {
+        matches!(self, Type::Numeric(NumericType::Signed { .. }))
+    }
+
     /// Create a new signed integer type with the given amount of bits.
-    pub(crate) fn signed(bit_size: u32) -> Type {
+    pub fn signed(bit_size: u32) -> Type {
         Type::Numeric(NumericType::Signed { bit_size })
     }
 
     /// Create a new unsigned integer type with the given amount of bits.
-    pub(crate) fn unsigned(bit_size: u32) -> Type {
+    pub fn unsigned(bit_size: u32) -> Type {
         Type::Numeric(NumericType::Unsigned { bit_size })
     }
 
     /// Creates the boolean type, represented as u1.
-    pub(crate) fn bool() -> Type {
+    pub fn bool() -> Type {
         Type::unsigned(1)
     }
 
     /// Creates the char type, represented as u8.
-    pub(crate) fn char() -> Type {
+    pub fn char() -> Type {
         Type::unsigned(8)
     }
 
     /// Creates the `str<N>` type, of the given length N
-    pub(crate) fn str(length: u32) -> Type {
-        Type::Array(Arc::new(vec![Type::char()]), length)
+    pub fn str(length: u32) -> Type {
+        Type::Array(Arc::new(vec![Type::char()]), SemanticLength(length))
     }
 
     /// Creates the native field type.
-    pub(crate) fn field() -> Type {
+    pub fn field() -> Type {
         Type::Numeric(NumericType::NativeField)
     }
 
     /// Creates the type of an array's length.
-    pub(crate) fn length_type() -> Type {
+    pub fn length_type() -> Type {
         Type::unsigned(SSA_WORD_SIZE)
     }
 
-    /// Returns the inner NumericType if this is one, or panics otherwise
+    /// True if this type is a numeric primitive type.
+    pub(crate) fn is_numeric(&self) -> bool {
+        matches!(self, Type::Numeric(_))
+    }
+
+    /// Returns the inner `NumericType` if this is one, or panics otherwise
     pub(crate) fn unwrap_numeric(&self) -> NumericType {
         match self {
             Type::Numeric(numeric) => *numeric,
@@ -176,96 +229,200 @@ impl Type {
     /// Panics if `self` is not a [`Type::Numeric`]
     pub(crate) fn bit_size(&self) -> u32 {
         match self {
-            Type::Numeric(numeric_type) => numeric_type.bit_size(),
+            Type::Numeric(numeric_type) => numeric_type.bit_size::<FieldElement>(),
             other => panic!("bit_size: Expected numeric type, found {other}"),
         }
     }
 
-    /// Returns the size of the element type for this array/slice.
+    /// Returns the size of the element type for this array/vector.
     /// The size of a type is defined as representing how many Fields are needed
     /// to represent the type. This is 1 for every primitive type, and is the number of fields
     /// for any flattened tuple type.
-    pub(crate) fn element_size(&self) -> usize {
+    ///
+    /// Equivalent to `self.element_types().len()`.
+    ///
+    /// Panics if `self` is not a [`Type::Array`] or [`Type::Vector`].
+    pub(crate) fn element_size(&self) -> ElementTypesLength {
         match self {
-            Type::Array(elements, _) | Type::Slice(elements) => elements.len(),
-            other => panic!("element_size: Expected array or slice, found {other}"),
+            Type::Array(elements, _) | Type::Vector(elements) => {
+                ElementTypesLength(assert_u32(elements.len()))
+            }
+            other => panic!("element_size: Expected array or vector, found {other}"),
         }
     }
 
-    pub(crate) fn contains_slice_element(&self) -> bool {
+    /// Return the types of items in this array/vector.
+    ///
+    /// Panics if `self` is not a [`Type::Array`] or [`Type::Vector`].
+    pub(crate) fn element_types(&self) -> Arc<Vec<Type>> {
+        match self {
+            Type::Array(element_types, _) | Type::Vector(element_types) => element_types.clone(),
+            other => panic!("element_types: Expected array or vector, found {other}"),
+        }
+    }
+
+    pub(crate) fn contains_vector_element(&self) -> bool {
         match self {
             Type::Array(elements, _) => {
-                elements.iter().any(|element| element.contains_slice_element())
+                elements.iter().any(|element| element.contains_vector_element())
             }
-            Type::Slice(_) => true,
+            Type::Vector(_) => true,
             Type::Numeric(_) => false,
-            Type::Reference(element) => element.contains_slice_element(),
+            Type::Reference(element, _) => element.contains_vector_element(),
             Type::Function => false,
         }
     }
 
-    /// Returns the flattened size of a Type
-    pub(crate) fn flattened_size(&self) -> u32 {
+    /// Returns the flattened size of a [Type].
+    ///
+    /// The flattened size is mostly useful in ACIR, where nested arrays are also flattened,
+    /// as opposed to SSA, where only tuples get flattened into the array they are in,
+    /// but nested arrays appear as a value ID.
+    ///
+    /// Panics if called on a [`Type::Vector`], since its value cannot be known based on its type.
+    pub(crate) fn flattened_size(&self) -> FlattenedLength {
         match self {
             Type::Array(elements, len) => {
-                elements.iter().fold(0, |sum, elem| sum + (elem.flattened_size() * len))
+                let elements_flattened_length: FlattenedLength =
+                    elements.iter().map(|elem| elem.flattened_size()).sum();
+                ElementsFlattenedLength::from(elements_flattened_length) * *len
             }
-            Type::Slice(_) => {
-                unimplemented!("ICE: cannot fetch flattened slice size");
+            Type::Vector(_) => {
+                unimplemented!("ICE: cannot fetch flattened vector size");
             }
-            _ => 1,
+            _ => FlattenedLength(1),
         }
     }
 
-    pub(crate) fn is_nested_slice(&self) -> bool {
-        if let Type::Slice(element_types) | Type::Array(element_types, _) = self {
-            element_types.as_ref().iter().any(|typ| typ.contains_slice_element())
+    /// True if this type is an array (or vector)
+    pub(crate) fn is_array(&self) -> bool {
+        matches!(self, Type::Array(_, _) | Type::Vector(_))
+    }
+
+    pub(crate) fn is_nested_vector(&self) -> bool {
+        if let Type::Vector(element_types) | Type::Array(element_types, _) = self {
+            element_types.as_ref().iter().any(|typ| typ.contains_vector_element())
         } else {
             false
         }
     }
 
-    /// True if this type is an array (or slice) or internally contains an array (or slice)
+    /// True if this type is an array (or vector) or internally contains an array (or vector)
     pub(crate) fn contains_an_array(&self) -> bool {
         match self {
             Type::Numeric(_) | Type::Function => false,
-            Type::Array(_, _) | Type::Slice(_) => true,
-            Type::Reference(element) => element.contains_an_array(),
-        }
-    }
-
-    /// Retrieves the array or slice type within this type, or panics if there is none.
-    pub(crate) fn get_contained_array(&self) -> &Type {
-        match self {
-            Type::Numeric(_) | Type::Function => panic!("Expected an array type"),
-            Type::Array(_, _) | Type::Slice(_) => self,
-            Type::Reference(element) => element.get_contained_array(),
-        }
-    }
-
-    pub(crate) fn element_types(self) -> Arc<Vec<Type>> {
-        match self {
-            Type::Array(element_types, _) | Type::Slice(element_types) => element_types,
-            other => panic!("element_types: Expected array or slice, found {other}"),
+            Type::Array(_, _) | Type::Vector(_) => true,
+            Type::Reference(element, _) => element.contains_an_array(),
         }
     }
 
     pub(crate) fn first(&self) -> Type {
         match self {
             Type::Numeric(_) | Type::Function => self.clone(),
-            Type::Reference(typ) => typ.first(),
-            Type::Slice(element_types) | Type::Array(element_types, _) => element_types[0].first(),
+            Type::Reference(typ, _) => typ.first(),
+            Type::Vector(element_types) | Type::Array(element_types, _) => element_types[0].first(),
         }
     }
 
     /// True if this is a reference type or if it is a composite type which contains a reference.
     pub(crate) fn contains_reference(&self) -> bool {
         match self {
-            Type::Reference(_) => true,
+            Type::Reference(..) => true,
             Type::Numeric(_) | Type::Function => false,
-            Type::Array(elements, _) | Type::Slice(elements) => {
+            Type::Array(elements, _) | Type::Vector(elements) => {
                 elements.iter().any(|elem| elem.contains_reference())
             }
+        }
+    }
+
+    /// True if this is a mutable reference type or
+    /// if it is a composite type which contains a mutable reference.
+    pub(crate) fn contains_mutable_reference(&self) -> bool {
+        match self {
+            Type::Reference(element, mutable) => *mutable || element.contains_mutable_reference(),
+            Type::Numeric(_) | Type::Function => false,
+            Type::Array(elements, _) | Type::Vector(elements) => {
+                elements.iter().any(|elem| elem.contains_mutable_reference())
+            }
+        }
+    }
+
+    /// True if this is a function type or if it is a composite type which contains a function.
+    pub(crate) fn contains_function(&self) -> bool {
+        match self {
+            Type::Reference(element_type, _) => element_type.contains_function(),
+            Type::Function => true,
+            Type::Numeric(_) => false,
+            Type::Array(elements, _) | Type::Vector(elements) => {
+                elements.iter().any(|elem| elem.contains_function())
+            }
+        }
+    }
+
+    /// If this is a reference type, return the type it references.
+    pub(crate) fn reference_element_type(&self) -> Option<&Type> {
+        match self {
+            Type::Reference(element_type, _) => Some(element_type.as_ref()),
+            _ => None,
+        }
+    }
+
+    /// Recursively rewrite every [`Type::Reference`] inside `self` to be immutable.
+    ///
+    /// The SSA validator ([`Type::canonical_eq`]) and the Noir frontend both
+    /// accept passing `&mut T` where `&T` is expected. To make types in those
+    /// positions compare equal under that same leniency, callers that need a
+    /// canonical form (e.g., map keys in defunctionalize) can collapse
+    /// reference mutability here.
+    pub(crate) fn canonicalize(&mut self) {
+        match self {
+            Type::Reference(element, mutable) => {
+                *mutable = false;
+                let mut new_element = (**element).clone();
+                new_element.canonicalize();
+                *element = Arc::new(new_element);
+            }
+            Type::Array(elements, _) | Type::Vector(elements) => {
+                let mut new_elements = (**elements).clone();
+                for inner in &mut new_elements {
+                    inner.canonicalize();
+                }
+                *elements = Arc::new(new_elements);
+            }
+            Type::Numeric(_) | Type::Function => (),
+        }
+    }
+
+    /// Owned counterpart to [`Type::canonicalize`] — returns a clone with all
+    /// reference mutability stripped.
+    pub(crate) fn canonicalized(&self) -> Self {
+        let mut clone = self.clone();
+        clone.canonicalize();
+        clone
+    }
+
+    /// Compares two types, treating mutable and immutable references as equivalent.
+    ///
+    /// Equivalent to `self.canonicalized() == other.canonicalized()` but walks
+    /// both types in lockstep instead of allocating cloned trees — the SSA
+    /// validator calls this for every block-terminator argument and every call
+    /// site, so the no-alloc path matters in debug builds.
+    ///
+    /// This is a validation aid, not a soundness check: the frontend rejects
+    /// trying to use `&T` where `&mut T` is expected, but once compiled to
+    /// SSA, we can treat them as equivalents.
+    pub(crate) fn canonical_eq(&self, other: &Type) -> bool {
+        let all_eq = |a: &[Type], b: &[Type]| {
+            a.len() == b.len() && a.iter().zip(b).all(|(a, b)| a.canonical_eq(b))
+        };
+
+        match (self, other) {
+            (Type::Reference(a_elem, _), Type::Reference(b_elem, _)) => a_elem.canonical_eq(b_elem),
+            (Type::Array(a_elems, a_len), Type::Array(b_elems, b_len)) => {
+                a_len == b_len && all_eq(a_elems, b_elems)
+            }
+            (Type::Vector(a_elems), Type::Vector(b_elems)) => all_eq(a_elems, b_elems),
+            _ => self == other,
         }
     }
 }
@@ -279,7 +436,8 @@ impl std::fmt::Display for Type {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Type::Numeric(numeric) => numeric.fmt(f),
-            Type::Reference(element) => write!(f, "&mut {element}"),
+            Type::Reference(element, true) => write!(f, "&mut {element}"),
+            Type::Reference(element, false) => write!(f, "&{element}"),
             Type::Array(element, length) => {
                 let elements = vecmap(element.iter(), |element| element.to_string());
                 if elements.len() == 1 {
@@ -288,9 +446,13 @@ impl std::fmt::Display for Type {
                     write!(f, "[({}); {length}]", elements.join(", "))
                 }
             }
-            Type::Slice(element) => {
+            Type::Vector(element) => {
                 let elements = vecmap(element.iter(), |element| element.to_string());
-                write!(f, "[{}]", elements.join(", "))
+                if elements.len() == 1 {
+                    write!(f, "[{}]", elements.join(", "))
+                } else {
+                    write!(f, "[({})]", elements.join(", "))
+                }
             }
             Type::Function => write!(f, "function"),
         }
@@ -315,20 +477,20 @@ mod tests {
     #[test]
     fn test_u8_value_is_outside_limits() {
         let u8 = NumericType::Unsigned { bit_size: 8 };
-        assert!(u8.value_is_outside_limits(SignedField::negative(1_i128)).is_some());
-        assert!(u8.value_is_outside_limits(SignedField::positive(0_i128)).is_none());
-        assert!(u8.value_is_outside_limits(SignedField::positive(255_i128)).is_none());
-        assert!(u8.value_is_outside_limits(SignedField::positive(256_i128)).is_some());
+        assert!(u8.value_is_outside_limits(-FieldElement::from(1_i128)).is_some());
+        assert!(u8.value_is_outside_limits(0_i128.into()).is_none());
+        assert!(u8.value_is_outside_limits(255_i128.into()).is_none());
+        assert!(u8.value_is_outside_limits(256_i128.into()).is_some());
     }
 
     #[test]
     fn test_i8_value_is_outside_limits() {
         let i8 = NumericType::Signed { bit_size: 8 };
-        assert!(i8.value_is_outside_limits(SignedField::negative(129_i128)).is_some());
-        assert!(i8.value_is_outside_limits(SignedField::negative(128_i128)).is_none());
-        assert!(i8.value_is_outside_limits(SignedField::positive(0_i128)).is_none());
-        assert!(i8.value_is_outside_limits(SignedField::positive(127_i128)).is_none());
-        assert!(i8.value_is_outside_limits(SignedField::positive(128_i128)).is_some());
+        assert!(i8.value_is_outside_limits(-FieldElement::from(129_i128)).is_some());
+        assert!(i8.value_is_outside_limits(-FieldElement::from(128_i128)).is_none());
+        assert!(i8.value_is_outside_limits(0_i128.into()).is_none());
+        assert!(i8.value_is_outside_limits(127_i128.into()).is_none());
+        assert!(i8.value_is_outside_limits(128_i128.into()).is_some());
     }
 
     proptest! {
@@ -336,7 +498,7 @@ mod tests {
         fn test_max_value_is_in_limits(input: NumericType) {
             let max_value = input.max_value();
             if let Ok(max_value) = max_value {
-                prop_assert!(input.value_is_outside_limits(SignedField::from(max_value)).is_none());
+                prop_assert!(input.value_is_outside_limits(max_value).is_none());
             }
         }
     }

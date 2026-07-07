@@ -1,0 +1,6 @@
+[package]
+name = "clone_index_field_dereference"
+type = "bin"
+authors = [""]
+
+[dependencies]

@@ -1,5 +1,6 @@
 {
   "compilerOptions": {
+    "ignoreDeprecations": "6.0",
     "declaration": true,
     "declarationDir": "dist/types",
     "strict": true,
@@ -12,10 +13,11 @@
     "importHelpers": true,
     "allowSyntheticDefaultImports": true,
     "esModuleInterop": true,
-    "target": "ESNext",
+    "target": "esnext",
     "module": "CommonJS",
     "moduleResolution": "Node",
     "allowJs": true,
+    "skipLibCheck": true,
   },
   "exclude": ["node_modules"]
 }

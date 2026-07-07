@@ -1,0 +1,579 @@
+use crate::tests::{assert_no_errors, check_errors};
+
+#[test]
+fn resolve_unused_var() {
+    let src = r#"
+        fn main(x : Field) {
+            let y = x + x;
+                ^ unused variable y
+                ~ unused variable
+            assert(x == x);
+        }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn resolve_unresolved_var() {
+    let src = r#"
+        fn main(x : Field) {
+            let y = x + x;
+            assert(y == z);
+                        ^ cannot find `z` in this scope
+                        ~ not found in this scope
+        }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn unresolved_path() {
+    let src = "
+        fn main(x : Field) {
+            let _z = some::path::to::a::func(x);
+                     ^^^^ Could not resolve 'some' in path
+        }
+    ";
+    check_errors(src);
+}
+
+#[test]
+fn resolve_literal_expr() {
+    let src = r#"
+        fn main(x : Field) {
+            let y = 5;
+            assert(y == x);
+        }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn resolve_fmt_strings() {
+    let src = r#"
+        fn main() {
+            let j = 5;
+            let string = f"this is i: {i}, this is j: {j}";
+                                       ^ cannot find `i` in this scope
+                                       ~ not found in this scope
+            println(string);
+            ^^^^^^^^^^^^^^^ Unused expression result of type fmtstr<30, (error, Field)>
+
+            let new_val = 10;
+            println(f"random_string{new_val}{new_val}");
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ Unused expression result of type fmtstr<31, (Field, Field)>
+        }
+        fn println<T>(x : T) -> T {
+            x
+        }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn comptime_fmt_string_with_duplicate_name_keeps_all_captures() {
+    let src = r#"
+    fn main() {
+        let s = comptime {
+            let n: u8 = 7;
+            f"a{n}b{n}c"
+        };
+        let _: fmtstr<9, (u8, u8)> = s;
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn resolve_fmt_string_with_global() {
+    let src = r#"
+    global VALUE: u32 = 42;
+
+    fn main() {
+        let _result = f"Value: {VALUE}";
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn multiple_resolution_errors() {
+    let src = r#"
+        fn main(x : Field) {
+           let y = foo::bar(x);
+                   ^^^ Could not resolve 'foo' in path
+           let z = y + a;
+                       ^ cannot find `a` in this scope
+                       ~ not found in this scope
+               ^ unused variable z
+               ~ unused variable
+
+        }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn bit_not_on_untyped_integer() {
+    let src = r#"
+    fn main() {
+        let _: u32 = 3 & !1;
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn resolve_prefix_expr() {
+    let src = r#"
+        fn main(x : Field) {
+            let _y = -x;
+        }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn cannot_use_prefix_minus_on_u32() {
+    let src = r#"
+    fn main() {
+        let x: u32 = 1;
+        let _ = -x;
+                ^^ Cannot apply unary operator `-` to type `u32`
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn cannot_assign_to_module() {
+    let src = r#"
+    mod foo {}
+
+    fn main() {
+        foo = 1;
+        ^^^ expected value, found module `foo`
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn cannot_assign_to_nested_struct() {
+    let src = r#"
+    mod foo {
+        pub struct bar {}
+    }
+
+    fn main() {
+        foo::bar = 1;
+        ^^^^^^^^ expected value, found struct `bar`
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn disallows_underscore_on_right_hand_side() {
+    let src = r#"
+        fn main() {
+            let _ = 1;
+            let _x = _;
+                     ^ in expressions, `_` can only be used on the left-hand side of an assignment
+                     ~ `_` not allowed here
+        }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn does_not_error_on_return_values_after_block_expression() {
+    // Regression test for https://github.com/noir-lang/noir/issues/4372
+    let src = r#"
+    fn case1() -> [Field] {
+        if true {
+        }
+        @[1]
+    }
+
+    fn case2() -> [u8] {
+        let mut var: u8 = 1;
+        {
+            var += 1;
+        }
+        @[var]
+    }
+
+    fn main() {
+        let _ = case1();
+        let _ = case2();
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn must_use() {
+    let src = r#"
+        #[must_use = "This thingy must be used!"]
+        struct PleaseUseMe {}
+
+        #[must_use]
+        struct PleaseUseMe2 {}
+
+        fn main() {
+            PleaseUseMe {};
+            ^^^^^^^^^^^^^^ This thingy must be used!
+            ~~~~~~~~~~~~~~ Unused expression result of type PleaseUseMe which must be used
+            PleaseUseMe2 {};
+            ^^^^^^^^^^^^^^^ Unused expression result of type PleaseUseMe2 which must be used
+            ~~~~~~~~~~~~~~~ `PleaseUseMe2` was declared with `#[must_use]`
+            foo();
+            ^^^^^ This thingy must be used!
+            ~~~~~ Unused expression result of type PleaseUseMe which must be used
+            let _ = foo();
+        }
+
+        fn foo() -> PleaseUseMe {
+            PleaseUseMe {}
+        }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn abi_incompatible_assert_message() {
+    let src = r#"
+        fn main() {
+            let xs = @[0_u32];
+            assert(xs[0] > 0, f"bad vector: {xs}");
+                              ^^^^^^^^^^^^^^^^^^^ The type [u32] cannot be used in a message
+
+            assert(false, ());
+                          ^^ The type () cannot be used in a message
+
+            assert(false, xs);
+                          ^^ The type [u32] cannot be used in a message
+        }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn abi_incompatible_generic_assert_message() {
+    // The message cannot appear in the ABI, but we can't tell
+    // what T is going to be before monomorphization, so we can't reject.
+    let src = r#"
+        fn main() {
+            let a = @[1, 2, 3];
+            foo(f"A: {a} is not 1!");
+        }
+
+        fn foo<T>(x: T) {
+            assert(false, x);
+        }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn use_struct_as_value() {
+    let src = r#"
+    struct Foo {}
+
+    fn main() {
+        let _ = Foo;
+                ^^^ expected value, found struct `Foo`
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn comptime_block_quote_semicolon() {
+    let src = r#"
+        fn main() {
+            comptime { quote[foo] };
+                             ^^^ cannot find `foo` in this scope
+                             ~~~ not found in this scope
+        }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn let_comptime_block_quote_semicolon() {
+    let src = r#"
+        fn main() {
+            let _ = comptime { quote[foo] };
+                                     ^^^ cannot find `foo` in this scope
+                                     ~~~ not found in this scope
+        }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn comptime_block_inner_semicolon() {
+    let src = r#"
+        fn main() {
+            comptime { foo; }
+                       ^^^ cannot find `foo` in this scope
+                       ~~~ not found in this scope
+        }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn let_comptime_block_inner_semicolon() {
+    let src = r#"
+        fn main() {
+            let _ = comptime { foo; };
+                               ^^^ cannot find `foo` in this scope
+                               ~~~ not found in this scope
+        }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn comptime_block_quote_semicolon_unused_warning() {
+    let src = r#"
+        fn main() {
+            comptime { quote[foo]; };
+                       ^^^^^^^^^^ Unused expression result of type Quoted
+        }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn let_comptime_block_quote_semicolon_unused_warning() {
+    let src = r#"
+        fn main() {
+            let _ = comptime { quote[foo]; };
+                               ^^^^^^^^^^ Unused expression result of type Quoted
+        }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn comptime_block_semicolon_unused_warning() {
+    let src = r#"
+        fn main() {
+            comptime { 1 + 2 };
+                              ^ Unused expression result of type Field
+        }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn comptime_block_inner_semicolon_unused_warning() {
+    let src = r#"
+        fn main() {
+            comptime { 1 + 2; }
+                       ^^^^^ Unused expression result of type Field
+        }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn let_comptime_block_inner_semicolon_unused_warning() {
+    let src = r#"
+        fn main() {
+            let _ = comptime { 1 + 2; };
+                               ^^^^^ Unused expression result of type Field
+        }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn comptime_var_not_defined() {
+    let src = r#"
+        fn main() {
+            comptime {
+                foo();
+                ^^^ cannot find `foo` in this scope
+                ~~~ not found in this scope
+            }
+        }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn let_comptime_block_semicolon_no_warning() {
+    let src = r#"
+        fn main() {
+            let _ = comptime { 1 + 2 };
+        }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn unnecessary_mut_on_variable() {
+    let src = r#"
+    fn main() {
+        let mut x = 1;
+                ^ variable does not need to be mutable
+        foo(x);
+    }
+
+    fn foo(_: Field) {}
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn unnecessary_mut_on_mut_ref_variable() {
+    let src = r#"
+    struct S {
+        x: Field,
+    }
+
+    fn main() {
+        let mut s = &mut S { x: 1 };
+                ^ variable does not need to be mutable
+        s.x = 2;
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn does_not_trigger_unnecessary_mut_on_variable_if_annotated_with_allow_unused_mut() {
+    let src = r#"
+    fn main() {
+        #[allow(unused_mut)]
+        let mut x = 1;
+        let _ = x;
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn does_not_trigger_unnecessary_mut_if_variable_name_starts_with_underscore() {
+    let src = r#"
+    fn main() {
+        let mut _x = 1;
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn does_not_trigger_unnecessary_mut_if_variable_is_directly_mutated() {
+    let src = r#"
+    fn main() {
+        let mut x = 1;
+        x = 1;
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn does_not_trigger_unnecessary_mut_if_variable_is_mutated_via_member_access() {
+    let src = r#"
+    struct S {
+        x: Field,
+    }
+
+    fn main() {
+        let mut s = S { x: 1 };
+        s.x = 1;
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn does_not_trigger_unnecessary_mut_if_variable_is_mutated_via_index() {
+    let src = r#"
+    fn main() {
+        let mut x = [1];
+        x[0] = 1;
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn does_not_trigger_unnecessary_mut_if_variable_is_used_in_mut_ref() {
+    let src = r#"
+    fn main() {
+        let mut x = 1;
+        let _ = &mut x;
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn does_not_trigger_unnecessary_mut_if_variable_is_used_in_member_access_mut_ref() {
+    let src = r#"
+    struct S {
+        x: Field,
+    }
+
+    fn main() {
+        let mut s = S { x: 1 };
+        let _ = &mut s.x;
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn does_not_trigger_unnecessary_mut_if_mut_self_method_is_called() {
+    let src = r#"
+    struct S {
+        x: Field,
+    }
+
+    impl S {
+        fn mutate_self(&mut self) {
+            self.x = 1;
+        }
+    }
+
+    fn main() {
+        let mut s = S { x: 1 };
+        s.mutate_self();
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn unresolved_path_prefix_reports_missing_segment() {
+    let src = r#"
+    fn main() {
+        let _ = nonexistent::foo();
+                ^^^^^^^^^^^ Could not resolve 'nonexistent' in path
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn value_used_as_path_prefix_reports_that_segment() {
+    // The prefix resolves (to a function) but a value can't carry an associated item, so the path
+    // names nothing; the error points at that segment.
+    let src = r#"
+    fn helper() {}
+
+    fn main() {
+        let _ = helper::foo();
+                ^^^^^^ Could not resolve 'helper' in path
+    }
+    "#;
+    check_errors(src);
+}

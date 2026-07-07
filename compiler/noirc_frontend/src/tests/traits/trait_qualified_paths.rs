@@ -1,0 +1,734 @@
+//! Tests for qualified path syntax (`<T as Trait>`) and `Self` type usage.
+//! Validates disambiguation of trait methods, associated item access, and trait renaming during imports.
+
+use crate::test_utils::GetProgramOptions;
+use crate::test_utils::get_program_with_options;
+use crate::tests::{assert_no_errors, check_errors, check_monomorphization_error};
+
+#[test]
+fn as_trait_path_in_expression() {
+    let src = r#"
+        fn main() {
+            cursed::<S>();
+        }
+
+        fn cursed<T>()
+            where T: Foo + Foo2
+        {
+            <T as Foo>::bar(1);
+            <T as Foo2>::bar(());
+
+            // Use each function with different generic arguments
+            <T as Foo>::bar(());
+        }
+
+        trait Foo  { fn bar<U>(x: U); }
+        trait Foo2 { fn bar<U>(x: U); }
+
+        pub struct S {}
+
+        impl Foo for S {
+            fn bar<Z>(_x: Z) {}
+        }
+
+        impl Foo2 for S {
+            fn bar<Z>(_x: Z) {}
+        }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn as_trait_path_called_multiple_times_for_different_t_1() {
+    let src = r#"
+    pub trait Trait {
+        let N: u32;
+    }
+    impl Trait for Field {
+        let N: u32 = 1;
+    }
+    impl Trait for i32 {
+        let N: u32 = 999;
+    }
+    pub fn load<T>()
+    where
+        T: Trait,
+    {
+        let _ = <T as Trait>::N;
+    }
+    fn main() {
+        let _ = load::<Field>();
+        let _ = load::<i32>();
+    }
+    "#;
+    check_monomorphization_error(src);
+}
+
+#[test]
+fn as_trait_path_called_multiple_times_for_different_t_2() {
+    let src = r#"
+    pub trait Trait {
+        let N: u32;
+    }
+    impl Trait for Field {
+        let N: u32 = 1;
+    }
+    impl Trait for i32 {
+        let N: u32 = 999;
+    }
+    pub fn load<T>()
+    where
+        T: Trait,
+    {
+        let _ = T::N;
+    }
+    fn main() {
+        let _ = load::<Field>();
+        let _ = load::<i32>();
+    }
+    "#;
+    check_monomorphization_error(src);
+}
+
+#[test]
+fn as_trait_path_syntax_resolves_outside_impl() {
+    let src = r#"
+    trait Foo {
+        type Assoc;
+    }
+
+    struct Bar {}
+
+    impl Foo for Bar {
+        type Assoc = i32;
+    }
+
+    fn main() {
+        // AsTraitPath syntax is a bit silly when associated types
+        // are explicitly specified
+        let _: i64 = 1 as <Bar as Foo<Assoc = i32>>::Assoc;
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ Expected type i64, found type i32
+
+        let _ = Bar {}; // silence Bar never constructed warning
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn as_trait_path_syntax_no_impl() {
+    let src = r#"
+    trait Foo {
+        type Assoc;
+    }
+
+    struct Bar {}
+
+    impl Foo for Bar {
+        type Assoc = i32;
+    }
+
+    fn main() {
+        let _: i64 = 1 as <Bar as Foo<Assoc = i8>>::Assoc;
+                                  ^^^ No matching impl found for `Bar: Foo<Assoc = i8>`
+                                  ~~~ No impl for `Bar: Foo<Assoc = i8>`
+
+        let _ = Bar {}; // silence Bar never constructed warning
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn does_not_crash_on_as_trait_path_with_empty_path() {
+    let src = r#"
+        struct Foo {
+            x: <N>,
+        }
+    "#;
+
+    let options = GetProgramOptions { allow_parser_errors: true, ..Default::default() };
+    let (_, _, errors) = get_program_with_options(src, options);
+    assert!(!errors.is_empty());
+}
+
+#[test]
+fn uses_self_type_inside_trait() {
+    let src = r#"
+    trait Foo {
+        fn foo() -> Self {
+            Self::bar()
+        }
+
+        fn bar() -> Self;
+    }
+
+    impl Foo for Field {
+        fn bar() -> Self {
+            1
+        }
+    }
+
+    fn main() {
+        let _: Field = Foo::foo();
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn uses_self_type_in_trait_where_clause() {
+    let src = r#"
+    pub trait Trait {
+        fn trait_func(self) -> bool;
+    }
+
+    pub trait Foo where Self: Trait {
+                              ~~~~~ required by this bound in `Foo`
+        fn foo(self) -> bool {
+            self.trait_func()
+        }
+    }
+
+    struct Bar {}
+
+    impl Foo for Bar {
+                 ^^^ The trait bound `Bar: Trait` is not satisfied
+                 ~~~ The trait `Trait` is not implemented for `Bar`
+
+    }
+
+    fn main() {
+        let _ = Bar {}; // silence Bar never constructed warning
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn allows_renaming_trait_during_import() {
+    // Regression test for https://github.com/noir-lang/noir/issues/7632
+    let src = r#"
+    mod trait_mod {
+        pub trait Foo {
+            fn foo(_: Self) {}
+        }
+
+        impl Foo for Field {}
+    }
+
+    use trait_mod::Foo as FooTrait;
+
+    fn main(x: Field) {
+        x.foo();
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn renaming_trait_avoids_name_collisions() {
+    // Regression test for https://github.com/noir-lang/noir/issues/7632
+    let src = r#"
+    mod trait_mod {
+        pub trait Foo {
+            fn foo(_: Self) {}
+        }
+
+        impl Foo for Field {}
+    }
+
+    use trait_mod::Foo as FooTrait;
+
+    pub struct Foo {}
+
+    fn main(x: Field) {
+        x.foo();
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn as_trait_path_self_type() {
+    let src = r#"
+    pub trait BigCurve<B> {
+        fn one() -> Self;
+    }
+
+    struct Bn254 {}
+
+    impl<B> BigCurve<B> for Bn254 {
+        fn one() -> Self { Bn254 {} }
+    }
+
+    fn main() {
+        let _ = <Bn254 as BigCurve<()>>::one();
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+/// Regression test for <https://github.com/noir-lang/noir/issues/9562>
+#[test]
+fn as_trait_path_with_method_turbofish() {
+    let src = r#"
+    trait Foo {
+        fn bar<U>(x: U) -> U;
+    }
+
+    impl Foo for u32 {
+        fn bar<U>(x: U) -> U { x }
+    }
+
+    fn main() {
+        let _x: i32 = <u32 as Foo>::bar(42);
+        // Explicitly specify U instead of relying on inference
+        let _x: i32 = <u32 as Foo>::bar::<i32>(42);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+/// Regression test for <https://github.com/noir-lang/noir/issues/12395>
+#[test]
+fn as_trait_path_with_turbofish_no_args() {
+    let src = r#"
+    fn main() {
+        <MyStruct as MyTrait>::foo::<Field>();
+    }
+
+    pub struct MyStruct {}
+
+    pub trait MyTrait {
+        fn foo<T>();
+    }
+
+    impl MyTrait for MyStruct {
+        fn foo<T>() {}
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+/// Regression test for <https://github.com/noir-lang/noir/issues/12395>
+#[test]
+fn as_trait_path_with_numeric_generic_turbofish() {
+    let src = r#"
+    pub trait Trait {
+        fn foo<let M: u32>() -> u32;
+    }
+
+    impl Trait for Field {
+        fn foo<let M: u32>() -> u32 { M }
+    }
+
+    fn main() {
+        assert(<Field as Trait>::foo::<7>() == 7);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+/// Regression test for <https://github.com/noir-lang/noir/issues/12395>
+#[test]
+fn as_trait_path_with_mixed_type_and_numeric_generic_turbofish() {
+    let src = r#"
+    pub trait Trait {
+        fn foo<T, let M: u32>(x: T) -> (T, u32);
+    }
+
+    impl Trait for Field {
+        fn foo<T, let M: u32>(x: T) -> (T, u32) { (x, M) }
+    }
+
+    fn main() {
+        let (_, n) = <Field as Trait>::foo::<bool, 7>(true);
+        assert(n == 7);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+/// Turbofish on an associated constant is a user error, not a parse error.
+#[test]
+fn as_trait_path_turbofish_on_associated_constant_errors() {
+    let src = r#"
+    pub trait Trait {
+        let N: u32;
+    }
+
+    impl Trait for Field {
+        let N: u32 = 1;
+    }
+
+    fn main() {
+        let _ = <Field as Trait>::N::<u32>;
+                                  ^ turbofish (`::<_>`) not allowed on associated item `N`
+    }
+    "#;
+    check_errors(src);
+}
+
+/// Regression test for <https://github.com/noir-lang/noir/issues/10436>
+#[test]
+fn self_with_associated_type_method_call_on_non_primitives() {
+    // Self::AssocType::method() should work for non-primitives
+    let src = r#"
+    trait Default {
+        fn default() -> Self;
+    }
+
+    impl Default for Field {
+        fn default() -> Field { 0 }
+    }
+
+    trait MyTrait {
+        type AssocType;
+        fn method() -> Field;
+    }
+
+    struct MyStruct { }
+
+    impl MyTrait for MyStruct {
+        type AssocType = Field;
+
+        fn method() -> Field {
+            Self::AssocType::default()
+        }
+    }
+
+    fn main() {
+        let _ = MyStruct { };
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+/// Regression test for <https://github.com/noir-lang/noir/issues/10434>
+#[test]
+fn self_with_associated_type_method_call_on_primitive() {
+    // Self::AssocType::method() should work for primitives
+    let src = r#"
+    trait Default {
+        fn default() -> Self;
+    }
+
+    impl Default for Field {
+        fn default() -> Field { 0 }
+    }
+
+    trait MyTrait {
+        type AssocType;
+        fn method() -> Field;
+    }
+
+    impl MyTrait for u32 {
+        type AssocType = Field;
+
+        fn method() -> Field {
+            Self::AssocType::default()
+        }
+    }
+
+    fn main() {}
+    "#;
+    assert_no_errors(src);
+}
+
+/// Test that `Self::AssocType::method()` with generic methods works when generics are inferable.
+#[test]
+fn self_with_associated_type_method_call_with_inferable_generics() {
+    // This tests a case where the method has generics but they can be inferred from return type.
+    let src = r#"
+    trait Identity {
+        fn identity<T>(x: T) -> T;
+    }
+
+    impl Identity for Field {
+        fn identity<T>(x: T) -> T {
+            x
+        }
+    }
+
+    trait MyTrait {
+        type AssocType;
+        fn method() -> u32;
+    }
+
+    struct MyStruct { }
+
+    impl MyTrait for MyStruct {
+        type AssocType = Field;
+
+        fn method() -> u32 {
+            // T is inferred as u32 from the return type
+            Self::AssocType::identity(42)
+        }
+    }
+
+    fn main() {
+        let _ = MyStruct {};
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+/// Turbofish on `Self::AssocType::method::<T>()` is correctly handled.
+/// When turbofish is explicitly provided, it takes precedence over inference.
+#[test]
+fn self_with_associated_type_method_call_turbofish_type_mismatch() {
+    let src = r#"
+    trait Identity {
+        fn identity<T>(x: T) -> T;
+    }
+
+    impl Identity for u64 {
+        fn identity<T>(x: T) -> T {
+            x
+        }
+    }
+
+    trait MyTrait {
+        type AssocType;
+        fn method() -> u32;
+    }
+
+    struct MyStruct { }
+
+    impl MyTrait for MyStruct {
+        type AssocType = u64;
+
+        fn method() -> u32 {
+                       ^^^ expected type u32, found type u64
+                       ~~~ expected u32 because of return type
+            // The turbofish ::<u64> is respected, causing a type mismatch
+            Self::AssocType::identity::<u64>(42)
+            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ u64 returned here
+        }
+    }
+
+    fn main() {
+        let _ = MyStruct {};
+    }
+    "#;
+    check_errors(src);
+}
+
+/// TODO(https://github.com/noir-lang/noir/issues/10435): Improve error message
+#[test]
+fn self_with_non_associated_item_access() {
+    let src = r#"
+    struct Outer {
+        inner: Inner
+    }
+
+    struct Inner {}
+
+    impl Inner {
+        pub fn method() -> u32 { 42 }
+    }
+
+    trait MyTrait {
+        fn test() -> u32;
+    }
+
+    impl MyTrait for Outer {
+        fn test() -> u32 {
+            Self::inner::method()
+                  ^^^^^ Could not resolve 'inner' in path
+        }
+    }
+
+    fn main() {
+        let inner = Inner {};
+        let _ = Outer { inner };
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn self_recursive_call_primitive_in_trait_impl() {
+    // Self:: works correctly in recursive calls on primitive types
+    let src = r#"
+    trait Factorial {
+        fn factorial(n: u32) -> u32;
+    }
+
+    impl Factorial for u32 {
+        fn factorial(n: u32) -> u32 {
+            if n <= 1 {
+                1
+            } else {
+                n * Self::factorial(n - 1)
+            }
+        }
+    }
+
+    fn main() {
+        assert(u32::factorial(5) == 120);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn self_resolves_correctly_when_multiple_trait_impls_exist() {
+    // When a type has multiple trait impls with the same method name,
+    // Self:: should resolve to the method in the current impl context
+    let src = r#"
+    trait MyTrait<T> {
+        fn foo(self) -> T;
+    }
+
+    impl MyTrait<Field> for u32 {
+        fn foo(self) -> Field {
+            self as Field
+        }
+    }
+
+    impl MyTrait<i32> for u32 {
+        fn foo(self) -> i32 {
+            // Self::foo here should refer to this impl's `foo` method
+            if self == 0 {
+                0
+            } else {
+                Self::foo(self - 1) + 1
+            }
+        }
+    }
+
+    fn main() {
+        let x: u32 = 5;
+        let _: Field = MyTrait::<Field>::foo(x);
+        let _: i32 = MyTrait::<i32>::foo(x);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+/// Regression test for <https://github.com/noir-lang/noir/issues/11539>
+#[test]
+fn generic_substitution_with_turbofish_trait_method() {
+    let src = r#"
+    pub struct Foo<let Y: u32> {}
+
+    pub trait Bar {
+        comptime fn bar();
+    }
+
+    impl<let X: u32> Bar for Foo<X> {
+        comptime fn bar() {}
+    }
+
+    pub fn f<let X: u32>() {
+        Foo::<X>::bar();
+    }
+
+    fn main() {}
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn unresolved_self_item_in_trait_definition_points_at_item() {
+    // In a trait definition `Self` is the trait itself, so `Self::nope` can only be a trait static
+    // method or associated constant. When it is neither, the error points at the item, not `Self`.
+    let src = r#"
+    trait MyTrait {
+        fn f() -> Field {
+            Self::nope()
+                  ^^^^ Could not resolve 'nope' in path
+        }
+    }
+
+    struct S {}
+
+    impl MyTrait for S {}
+
+    fn main() {
+        let _ = S::f();
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn unresolved_bounded_generic_item_points_at_item() {
+    // `T::nope` on a bounded generic must be a method or associated constant reached through a
+    // bound; when it is neither, the error points at the item, not the generic `T`.
+    let src = r#"
+    trait MyTrait {}
+
+    struct S {}
+
+    impl MyTrait for S {}
+
+    fn foo<T>() -> Field where T: MyTrait {
+        T::nope()
+           ^^^^ Could not resolve 'nope' in path
+    }
+
+    fn main() {
+        let _ = foo::<S>();
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn unresolved_trait_item_points_at_item() {
+    let src = r#"
+    trait MyTrait {}
+
+    struct S {}
+
+    impl MyTrait for S {}
+
+    fn main() {
+        let _ = S {};
+        MyTrait::nope()
+                 ^^^^ Could not resolve 'nope' in path
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn resolves_associated_constant_via_type_path() {
+    // `<Foo>::N` should resolve the associated constant, just like `Foo::N` does (and as Rust allows).
+    let src = r#"
+    pub trait T { let N: u32; }
+    pub struct Foo {}
+    impl T for Foo { let N: u32 = 3; }
+    fn main() {
+        let _ = <Foo>::N;
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn resolves_enum_variant_via_type_path() {
+    // `<E>::A` should resolve the enum variant, just like `E::A` does (and as Rust allows).
+    let src = r#"
+    pub enum E { A, B }
+    fn main() {
+        let _ = <E>::A;
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn resolves_generic_enum_variant_via_type_path_binding_receiver_generics() {
+    // `<E<bool>>::A` must bind the receiver type's generics (type `E<bool>`), like `E::<bool>::A`.
+    let src = r#"
+    pub enum E<T> { A, B(T) }
+    fn main() {
+        let _: E<bool> = <E<bool>>::A;
+    }
+    "#;
+    assert_no_errors(src);
+}

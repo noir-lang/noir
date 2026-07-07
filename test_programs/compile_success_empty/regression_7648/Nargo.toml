@@ -1,0 +1,8 @@
+[package]
+name = "regression_7648"
+type = "bin"
+authors = [""]
+compiler_version = ">=0.33.0"
+compiler_unstable_features = ["trait_as_type"]
+
+[dependencies]

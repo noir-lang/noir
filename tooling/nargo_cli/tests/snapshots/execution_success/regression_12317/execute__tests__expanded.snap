@@ -1,0 +1,21 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+unconstrained fn main(idx: u32) -> pub Field {
+    let v0: &mut Field = &mut 0_Field;
+    let v1: [&mut Field; 2] = [&mut 0_Field, &mut 0_Field];
+    foo(v0, idx, v1)
+}
+
+unconstrained fn foo(v0: &mut Field, v1: u32, mut v2: [&mut Field; 2]) -> Field {
+    *v0 = 3_Field;
+    v2[v1] = v0;
+    let v4: &mut Field = v2[v1];
+    bar(v4);
+    *v0
+}
+
+unconstrained fn bar(v0: &mut Field) {
+    *v0 = 1_Field;
+}

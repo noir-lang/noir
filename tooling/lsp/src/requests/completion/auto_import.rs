@@ -1,10 +1,12 @@
-use noirc_frontend::{ast::ItemVisibility, hir::def_map::ModuleDefId, node_interner::Reexport};
-
-use crate::{
+use noirc_frontend::{
+    ast::ItemVisibility,
+    hir::def_map::ModuleDefId,
     modules::{get_ancestor_module_reexport, module_def_id_relative_path},
-    use_segment_positions::{
-        UseCompletionItemAdditionTextEditsRequest, use_completion_item_additional_text_edits,
-    },
+    node_interner::Reexport,
+};
+
+use crate::use_segment_positions::{
+    UseCompletionItemAdditionTextEditsRequest, use_completion_item_additional_text_edits,
 };
 
 use super::{
@@ -35,7 +37,7 @@ impl NodeFinder<'_> {
                 }
 
                 let visibility = entry.visibility;
-                let mut defining_module = entry.defining_module.as_ref().cloned();
+                let mut defining_module = entry.defining_module.as_ref().copied();
 
                 // If the item is offered via a re-export of it's parent module, this holds the name of the reexport.
                 let mut intermediate_name = None;
@@ -63,7 +65,7 @@ impl NodeFinder<'_> {
 
                 if completion_items.is_empty() {
                     continue;
-                };
+                }
 
                 self.suggested_module_def_ids.insert(module_def_id);
 
@@ -76,12 +78,13 @@ impl NodeFinder<'_> {
                         defining_module,
                         &intermediate_name,
                         self.interner,
+                        self.def_maps,
                     ) else {
                         continue;
                     };
 
                     let mut label_details = completion_item.label_details.unwrap();
-                    label_details.detail = Some(format!("(use {})", full_path));
+                    label_details.detail = Some(format!("(use {full_path})"));
                     completion_item.label_details = Some(label_details);
                     completion_item.additional_text_edits =
                         Some(use_completion_item_additional_text_edits(

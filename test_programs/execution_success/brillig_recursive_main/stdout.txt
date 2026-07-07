@@ -1,0 +1,1 @@
+[brillig_recursive_main] Circuit output: Field(1)

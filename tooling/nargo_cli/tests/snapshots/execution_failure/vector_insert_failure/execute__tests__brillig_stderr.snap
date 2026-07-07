@@ -1,0 +1,15 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+error: Assertion failed: Index out of bounds
+   ┌─ src/main.nr:10:14
+   │
+10 │     vector = vector.insert(10, 100);
+   │              -------------
+   │
+   = Call stack:
+     1: main
+             at src/main.nr:10:14
+
+Failed assertion

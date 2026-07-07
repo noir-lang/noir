@@ -1,0 +1,6 @@
+[package]
+name = "regression_bitshift_normalization"
+type = "bin"
+authors = [""]
+
+[dependencies]

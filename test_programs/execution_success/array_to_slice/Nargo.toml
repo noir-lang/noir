@@ -1,7 +1,0 @@
-[package]
-name = "array_to_slice"
-type = "bin"
-authors = [""]
-compiler_version = ">=0.24.0"
-
-[dependencies]

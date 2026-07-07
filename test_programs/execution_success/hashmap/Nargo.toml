@@ -1,6 +1,0 @@
-[package]
-name = "hashmap"
-type = "bin"
-authors = [""]
-
-[dependencies]

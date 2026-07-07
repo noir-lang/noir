@@ -24,11 +24,22 @@ impl GatesProvider for BackendGatesProvider {
             backend_gates_cmd.arg(arg);
         }
 
+        // Barretenberg won't produce the `gates_per_opcode` field unless we pass an extra argument.
+        // This is a chore we can do on the user's behalf, so they don't have to spend time figuring
+        // out that they have to pass this extra to the noir-profiler as trailing args.
+        if self.extra_args.is_empty()
+            && self.backend_path.ends_with("bb")
+            && self.gates_command == "gates"
+        {
+            backend_gates_cmd.arg("--include_gates_per_opcode");
+        }
+
         let backend_gates_response = backend_gates_cmd.output()?;
 
         // Parse the backend gates command stdout as json
         let backend_gates_response: BackendGatesResponse =
             serde_json::from_slice(&backend_gates_response.stdout)?;
+
         Ok(backend_gates_response)
     }
 }

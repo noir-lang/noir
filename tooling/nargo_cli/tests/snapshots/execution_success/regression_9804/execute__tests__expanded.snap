@@ -1,0 +1,16 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn main(a: u32, b: bool) -> pub Field {
+    let mut s: Field = 0_Field;
+    let c: [[Field; 2]; 1] = [[1_Field, 2_Field]];
+    for _ in 0_u32..2_u32 {
+        if b {
+            let d: [Field; 2] = c[a];
+            let e: Field = d[0_u32];
+            s = s + e;
+        }
+    }
+    s
+}

@@ -1,5 +1,5 @@
 // Regression that a global of the same name does not trigger a duplicate definition error
-global N: u32 = 1000;
+pub global N: u32 = 1000;
 
 fn main() {
     let a = id([1, 2]);
@@ -39,7 +39,7 @@ struct MyStruct<let S: u32> {
 
 // Used in an impl
 impl<let S: u32> MyStruct<S> {
-    fn insert(mut self: Self, index: Field, elem: Field) -> Self {
+    pub fn insert(mut self: Self, index: Field, elem: Field) -> Self {
         // Regression test for numeric generics on impls
         assert(index as u32 < S);
 

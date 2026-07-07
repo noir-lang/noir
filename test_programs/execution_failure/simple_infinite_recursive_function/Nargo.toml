@@ -1,0 +1,6 @@
+[package]
+name = "simple_infinite_recursive_function"
+type = "bin"
+authors = [""]
+
+[dependencies]

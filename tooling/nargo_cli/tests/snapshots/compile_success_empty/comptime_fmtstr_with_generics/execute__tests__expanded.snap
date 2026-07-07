@@ -1,0 +1,28 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+use std::meta::type_of;
+
+trait Marker {}
+
+impl Marker for Field {}
+
+comptime fn check_fmt_type<T>(x: T)
+where
+    T: Marker,
+{
+    let from_generic: fmtstr<3, (T,)> = f"{x}";
+    let y: Field = 0_Field;
+    let from_concrete: fmtstr<3, (Field,)> = f"{y}";
+    let generic_ty: Type = type_of(from_generic);
+    let concrete_ty: Type = type_of(from_concrete);
+    let generic_ty_str: str<28> = f"generic: {generic_ty}".as_quoted_str!();
+    assert(generic_ty_str == "generic: fmtstr<3, (Field,)>");
+    let concrete_ty_str: str<29> = f"concrete: {concrete_ty}".as_quoted_str!();
+    assert(concrete_ty_str == "concrete: fmtstr<3, (Field,)>");
+}
+
+fn main() {
+    ()
+}

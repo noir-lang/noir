@@ -1,0 +1,10 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn main() {
+    let lower: i32 = -1_i32;
+    for i in lower..0_i32 {
+        assert(i >= (i + 0_i32));
+    }
+}

@@ -1,0 +1,6 @@
+[package]
+name = "lambda_taking_lambda_regression_8543"
+type = "bin"
+authors = [""]
+
+[dependencies]

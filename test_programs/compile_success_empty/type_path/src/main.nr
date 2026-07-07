@@ -19,7 +19,7 @@ fn main() {
 pub struct Foo {}
 
 impl Foo {
-    fn static() {}
+    pub fn static() {}
 }
 
 trait Trait {

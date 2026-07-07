@@ -1,0 +1,15 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+error: Failed constraint
+  ┌─ src/main.nr:3:20
+  │
+3 │     let a: Field = x / y;
+  │                    -----
+  │
+  = Call stack:
+    1: main
+            at src/main.nr:3:20
+
+Failed to solve program: 'Cannot satisfy constraint'

@@ -1,0 +1,5 @@
+error: number too large to fit in target type
+ --> tests/compile_fail/tag_out_of_range.rs:9:11
+  |
+9 |     #[tag(300)]
+  |           ^^^

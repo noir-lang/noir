@@ -120,14 +120,14 @@ fn format_merged_import(segment: Segment, import_tree: ImportTree) -> ChunkGroup
 #[derive(Debug, PartialEq, Eq)]
 enum Segment {
     /// Represents the end of a path.
-    /// This is needed because we have want to merge "foo" and "foo::bar",
-    /// we need to know that "foo" is the end of a path, and "foo::bar" is another one.
-    /// If we don't, merging "foo" and "foo::bar" will result in just "foo::bar", loosing "foo",
-    /// when we actually want "foo::{self, bar}".
+    /// This is needed because we have want to merge "foo" and "`foo::bar`",
+    /// we need to know that "foo" is the end of a path, and "`foo::bar`" is another one.
+    /// If we don't, merging "foo" and "`foo::bar`" will result in just "`foo::bar`", losing "foo",
+    /// when we actually want "`foo::{self`, bar}".
     SelfReference,
     Crate,
     Super,
-    Dep,
+    Absolute,
     Plain(String),
 }
 
@@ -137,7 +137,7 @@ impl Segment {
         if other == Segment::SelfReference {
             self
         } else {
-            Segment::Plain(format!("{}::{}", self, other))
+            Segment::Plain(format!("{self}::{other}"))
         }
     }
 
@@ -146,7 +146,7 @@ impl Segment {
             Segment::SelfReference => 0,
             Segment::Crate => 1,
             Segment::Super => 2,
-            Segment::Dep => 3,
+            Segment::Absolute => 3,
             Segment::Plain(_) => 4,
         }
     }
@@ -157,8 +157,8 @@ impl Display for Segment {
         match self {
             Segment::Crate => write!(f, "crate"),
             Segment::Super => write!(f, "super"),
-            Segment::Dep => write!(f, "dep"),
-            Segment::Plain(s) => write!(f, "{}", s),
+            Segment::Absolute => write!(f, ""),
+            Segment::Plain(s) => write!(f, "{s}"),
             Segment::SelfReference => write!(f, "self"),
         }
     }
@@ -190,10 +190,10 @@ impl Ord for Segment {
 /// An import tree to represent merged imports.
 /// For example for the given imports:
 ///
-/// use foo::bar::{baz, qux};
-/// use foo::another;
+/// use `foo::bar::{baz`, qux};
+/// use `foo::another`;
 ///
-/// an ImportTree that represents the merged imports would be:
+/// an `ImportTree` that represents the merged imports would be:
 ///
 /// {
 ///     "foo" => {
@@ -236,11 +236,11 @@ impl ImportTree {
     /// will be simplified to:
     ///
     /// {
-    ///     "foo::bar" => {"baz", "qux"}
+    ///     "`foo::bar`" => {"baz", "qux"}
     /// }
     fn simplify(self) -> ImportTree {
         let mut new_tree = ImportTree::new();
-        for (segment, tree) in self.tree.into_iter() {
+        for (segment, tree) in self.tree {
             let mut tree = tree.simplify();
             if tree.tree.len() == 1 {
                 let (first_segment, first_tree) = tree.tree.pop_first().unwrap();
@@ -254,7 +254,7 @@ impl ImportTree {
     }
 }
 
-/// Combines all use trees to form a single ImportTree.
+/// Combines all use trees to form a single `ImportTree`.
 fn merge_imports(imports: Vec<UseTree>) -> ImportTree {
     let mut tree = ImportTree::new();
     merge_imports_in_tree(imports, &mut tree);
@@ -265,9 +265,16 @@ fn merge_imports_in_tree(imports: Vec<UseTree>, mut tree: &mut ImportTree) {
     for import in imports {
         let mut tree = match import.prefix.kind {
             PathKind::Crate => tree.insert(Segment::Crate),
-            PathKind::Super => tree.insert(Segment::Super),
-            PathKind::Dep => tree.insert(Segment::Dep),
+            PathKind::Super(extras) => {
+                let mut subtree = tree.insert(Segment::Super);
+                for _ in 0..extras {
+                    subtree = subtree.insert(Segment::Super);
+                }
+                subtree
+            }
+            PathKind::Absolute => tree.insert(Segment::Absolute),
             PathKind::Plain => &mut tree,
+            PathKind::Resolved(_) => unreachable!("$crate shouldn't be possible here"),
         };
 
         for segment in import.prefix.segments {
@@ -277,7 +284,7 @@ fn merge_imports_in_tree(imports: Vec<UseTree>, mut tree: &mut ImportTree) {
         match import.kind {
             UseTreeKind::Path(ident, alias) => {
                 if let Some(alias) = alias {
-                    tree = tree.insert(Segment::Plain(format!("{} as {}", ident, alias)));
+                    tree = tree.insert(Segment::Plain(format!("{ident} as {alias}")));
                     tree.insert(Segment::SelfReference);
                 } else if ident.as_str() == "self" {
                     tree.insert(Segment::SelfReference);
@@ -349,6 +356,13 @@ mod tests {
     fn format_simple_use_with_path_kind() {
         let src = "use  super :: foo ;";
         let expected = "use super::foo;\n";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_merged_use_with_stacked_super() {
+        let src = "use super::super::foo; use super::super::bar;";
+        let expected = "use super::super::{bar, foo};\n";
         assert_format(src, expected);
     }
 
@@ -626,5 +640,12 @@ use std::merkle::compute_merkle_root;
     fn does_not_merge_same_identifiers_if_equal_case_insensitive() {
         let src = "use bigint::{BigNum, bignum::BigNumTrait};\n";
         assert_format(src, src);
+    }
+
+    #[test]
+    fn format_use_dep() {
+        let src = " use dep :: foo :: bar;  ";
+        let expected = "use ::foo::bar;\n";
+        assert_format(src, expected);
     }
 }

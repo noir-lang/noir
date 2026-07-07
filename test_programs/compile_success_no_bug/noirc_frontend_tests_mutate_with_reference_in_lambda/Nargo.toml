@@ -1,7 +1,0 @@
-
-            [package]
-            name = "noirc_frontend_tests_mutate_with_reference_in_lambda"
-            type = "bin"
-            authors = [""]
-            
-            [dependencies]

@@ -18,14 +18,14 @@ export type WitnessStack = Array<StackItem>;
 #[wasm_bindgen]
 extern "C" {
     #[wasm_bindgen(extends = Array, js_name = "WitnessStack", typescript_type = "WitnessStack")]
-    #[derive(Clone, Debug, PartialEq, Eq)]
+    #[derive(Clone, Debug, PartialEq)]
     pub type JsWitnessStack;
 
     #[wasm_bindgen(constructor, js_class = "Array")]
     pub fn new() -> JsWitnessStack;
 
     #[wasm_bindgen(extends = Object, js_name = "StackItem", typescript_type = "StackItem")]
-    #[derive(Clone, Debug, PartialEq, Eq)]
+    #[derive(Clone, Debug, PartialEq)]
     pub type JsStackItem;
 
     #[wasm_bindgen(constructor, js_class = "Object")]

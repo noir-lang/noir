@@ -7,18 +7,22 @@ use super::Formatter;
 
 impl Formatter<'_> {
     pub(super) fn format_type(&mut self, typ: UnresolvedType) {
+        let in_expression = false;
+        self.format_type_impl(typ, in_expression);
+    }
+
+    pub(super) fn format_type_in_expression(&mut self, typ: UnresolvedType) {
+        let in_expression = true;
+        self.format_type_impl(typ, in_expression);
+    }
+
+    fn format_type_impl(&mut self, typ: UnresolvedType, in_expression: bool) {
         self.skip_comments_and_whitespace();
 
         match typ.typ {
             UnresolvedTypeData::Unit => {
                 self.write_left_paren();
                 self.write_right_paren();
-            }
-            UnresolvedTypeData::Bool => {
-                self.write_keyword(Keyword::Bool);
-            }
-            UnresolvedTypeData::Integer(..) | UnresolvedTypeData::FieldElement => {
-                self.write_current_token_and_bump();
             }
             UnresolvedTypeData::Array(type_expr, typ) => {
                 self.write_left_bracket();
@@ -28,28 +32,13 @@ impl Formatter<'_> {
                 self.format_type_expression(type_expr);
                 self.write_right_bracket();
             }
-            UnresolvedTypeData::Slice(typ) => {
+            UnresolvedTypeData::Vector(typ) => {
                 self.write_left_bracket();
                 self.format_type(*typ);
                 self.write_right_bracket();
             }
             UnresolvedTypeData::Expression(type_expr) => {
                 self.format_type_expression(type_expr);
-            }
-            UnresolvedTypeData::String(type_expr) => {
-                self.write_keyword(Keyword::String);
-                self.write_token(Token::Less);
-                self.format_type_expression(type_expr);
-                self.write_token(Token::Greater);
-            }
-            UnresolvedTypeData::FormatString(type_expr, typ) => {
-                self.write_keyword(Keyword::FormatString);
-                self.write_token(Token::Less);
-                self.format_type_expression(type_expr);
-                self.write_comma();
-                self.write_space();
-                self.format_type(*typ);
-                self.write_token(Token::Greater);
             }
             UnresolvedTypeData::Parenthesized(typ) => {
                 self.write_left_paren();
@@ -61,11 +50,15 @@ impl Formatter<'_> {
                 if !generic_type_args.is_empty() {
                     self.skip_comments_and_whitespace();
 
-                    // Apparently some Named types with generics have `::` before the generics
-                    // while others don't, so we have to account for both cases.
                     if self.is_at(Token::DoubleColon) {
-                        self.write_token(Token::DoubleColon);
+                        // Inside expressions, specifying a type's generics requires a double colon.
+                        if in_expression {
+                            self.write_token(Token::DoubleColon);
+                        } else {
+                            self.bump();
+                        }
                     }
+
                     self.format_generic_type_args(generic_type_args);
                 }
             }
@@ -76,19 +69,7 @@ impl Formatter<'_> {
                 self.format_generic_type_args(generic_type_args);
             }
             UnresolvedTypeData::Reference(typ, mutable) => {
-                // `&` can be represented with Ampersando or SliceStart in the lexer depending
-                // on whether it's right next to a `[` or not.
-                match &self.token {
-                    Token::Ampersand => {
-                        self.write_token(Token::Ampersand);
-                    }
-                    Token::SliceStart => {
-                        self.write_token(Token::SliceStart);
-                    }
-                    _ => {
-                        panic!("Expected Ampersand or SliceStart, found {:?}", self.token);
-                    }
-                }
+                self.write_token(Token::Ampersand);
                 if mutable {
                     self.write_keyword(Keyword::Mut);
                     self.write_space();
@@ -157,16 +138,12 @@ impl Formatter<'_> {
                     self.format_type(*return_type);
                 }
             }
-            UnresolvedTypeData::Quoted(..) => {
-                self.write_current_token_and_bump();
-            }
             UnresolvedTypeData::AsTraitPath(as_trait_path) => {
                 self.format_as_trait_path(*as_trait_path);
             }
             UnresolvedTypeData::Resolved(..)
             | UnresolvedTypeData::Interned(..)
             | UnresolvedTypeData::Error => unreachable!("Should not be present in the AST"),
-            UnresolvedTypeData::Unspecified => panic!("Unspecified type should have been handled"),
         }
     }
 
@@ -181,6 +158,10 @@ impl Formatter<'_> {
         self.write_token(Token::Greater);
         self.write_token(Token::DoubleColon);
         self.write_identifier(as_trait_path.impl_item);
+        if let Some(turbofish) = as_trait_path.turbofish {
+            self.write_token(Token::DoubleColon);
+            self.format_generic_type_args(turbofish);
+        }
     }
 }
 
@@ -191,10 +172,10 @@ mod tests {
     use crate::Config;
 
     fn assert_format_type(src: &str, expected: &str) {
-        let module_src = format!("type X = {};", src);
+        let module_src = format!("type X = {src};");
         let (parsed_module, errors) = parser::parse_program_with_dummy_file(&module_src);
         if !errors.is_empty() {
-            panic!("Expected no errors, got: {:?}", errors);
+            panic!("Expected no errors, got: {errors:?}");
         }
         let result = crate::format(&module_src, parsed_module, &Config::default());
         let type_result = &result["type X = ".len()..];
@@ -203,7 +184,7 @@ mod tests {
 
         let (parsed_module, errors) = parser::parse_program_with_dummy_file(&result);
         if !errors.is_empty() {
-            panic!("Expected no errors in idempotent check, got: {:?}", errors);
+            panic!("Expected no errors in idempotent check, got: {errors:?}");
         }
         let result = crate::format(&result, parsed_module, &Config::default());
         let type_result = &result["type X = ".len()..];
@@ -240,8 +221,15 @@ mod tests {
     }
 
     #[test]
-    fn format_named_type_with_generics() {
+    fn format_named_type_with_generics_without_double_colon() {
         let src = " foo :: bar < A,  B  =  Field , C = i32 , D , >";
+        let expected = "foo::bar<A, B = Field, C = i32, D>";
+        assert_format_type(src, expected);
+    }
+
+    #[test]
+    fn format_named_type_with_generics_with_double_colon() {
+        let src = " foo :: bar :: < A,  B  =  Field , C = i32 , D , >";
         let expected = "foo::bar<A, B = Field, C = i32, D>";
         assert_format_type(src, expected);
     }
@@ -275,7 +263,7 @@ mod tests {
     }
 
     #[test]
-    fn format_slice_type() {
+    fn format_vector_type() {
         let src = " [ Field  ] ";
         let expected = "[Field]";
         assert_format_type(src, expected);
@@ -376,6 +364,13 @@ mod tests {
     fn format_as_trait_path_type() {
         let src = " < Field as foo :: Bar> :: baz ";
         let expected = "<Field as foo::Bar>::baz";
+        assert_format_type(src, expected);
+    }
+
+    #[test]
+    fn format_as_trait_path_type_expression() {
+        let src = "[ Field ; < Field as foo :: Bar> :: baz ]";
+        let expected = "[Field; <Field as foo::Bar>::baz]";
         assert_format_type(src, expected);
     }
 }

@@ -1,0 +1,874 @@
+//! SSA stands for Single Static Assignment
+//! The IR presented in this module will already
+//! be in SSA form and will be used to apply
+//! conventional optimizations like Common Subexpression
+//! elimination and constant folding.
+//!
+//! This module heavily borrows from Cranelift
+
+use std::{
+    collections::{BTreeMap, BTreeSet},
+    path::PathBuf,
+};
+
+use crate::{
+    acir::ssa::Artifacts,
+    brillig::BrilligOptions,
+    errors::RuntimeError,
+    ssa::{
+        checks::{DEFAULT_MAX_ANCESTOR_DISTANCE, DEFAULT_MAX_ARRAY_OUTPUT_LENGTH},
+        opt::{
+            CONSTANT_FOLDING_MAX_ITER, DEFAULT_MAX_SPECIALIZATIONS_PER_FN,
+            DEFAULT_SPECIALIZATION_THRESHOLD, FORCE_UNROLL_THRESHOLD, INLINING_MAX_INSTRUCTIONS,
+            MAX_UNROLL_ITERATIONS,
+        },
+    },
+};
+use acvm::{
+    FieldElement,
+    acir::{
+        brillig::Opcode as BrilligOpcode,
+        circuit::{
+            AcirOpcodeLocation, Circuit, OpcodeLocation, PublicInputs,
+            brillig::{BrilligBytecode, BrilligFunctionId},
+        },
+        native_types::Witness,
+    },
+};
+
+use ir::instruction::ErrorType;
+use iter_extended::vecmap;
+use itertools::Itertools;
+use noirc_artifacts::{
+    debug::{DebugFunctions, DebugInfo, DebugTypes, DebugVariables, LocationTree},
+    ssa::SsaReport,
+};
+use noirc_errors::call_stack::CallStackId;
+
+use noirc_frontend::monomorphization::ast::Program;
+use noirc_frontend::{monomorphization::ast, shared::Visibility};
+use ssa_gen::Ssa;
+use tracing::{Level, span};
+
+use crate::acir::GeneratedAcir;
+
+pub use artifact::{SsaCircuitArtifact, SsaProgramArtifact};
+use builder::time;
+pub use builder::{SsaBuilder, SsaPass};
+
+/// Environment variable that, when set to a truthy value (`1`/`true`/`yes`),
+/// causes the SSA to be printed to stderr when a validation pass rejects it.
+/// See [`SsaPass::new_validate`] and [`SsaPass::and_then_validate`].
+pub const SHOW_INVALID_SSA_ENV_KEY: &str = "NOIR_SHOW_INVALID_SSA";
+
+/// Whether [`SHOW_INVALID_SSA_ENV_KEY`] is currently set to a truthy value.
+///
+/// `1`/`true`/`yes` count as on; `0`/`false`/`no` and anything else
+/// (including unset) count as off — so users can disable it explicitly
+/// with e.g. `NOIR_SHOW_INVALID_SSA=0` rather than having to `unset` it.
+pub fn should_show_invalid_ssa() -> bool {
+    matches!(std::env::var(SHOW_INVALID_SSA_ENV_KEY).as_deref(), Ok("1" | "true" | "yes"))
+}
+
+mod artifact;
+mod builder;
+pub mod checks;
+pub mod function_builder;
+pub mod interpreter;
+pub mod ir;
+pub mod opt;
+pub mod parser;
+pub mod ssa_gen;
+pub(crate) mod validation;
+mod visit_once_deque;
+mod visit_once_priority_queue;
+
+#[derive(Debug, Clone)]
+pub enum SsaLogging {
+    None,
+    All,
+    Contains(Vec<String>),
+}
+
+impl SsaLogging {
+    /// Check if an SSA pass should be printed.
+    pub fn matches(&self, msg: &str) -> bool {
+        match self {
+            SsaLogging::None => false,
+            SsaLogging::All => true,
+            SsaLogging::Contains(strings) => strings.iter().any(|string| {
+                let string = string.to_lowercase();
+                let string = string.strip_prefix("after ").unwrap_or(&string);
+                let string = string.strip_suffix(':').unwrap_or(string);
+                msg.to_lowercase().contains(string)
+            }),
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct SsaEvaluatorOptions {
+    /// Emit debug information for the intermediate SSA IR
+    pub ssa_logging: SsaLogging,
+
+    /// Whether to skip printing an SSA pass if it didn't produce any changes.
+    pub ssa_logging_hide_unchanged: bool,
+
+    /// Options affecting Brillig code generation.
+    pub brillig_options: BrilligOptions,
+
+    /// Pretty print benchmark times of each code generation pass
+    pub print_codegen_timings: bool,
+
+    /// Dump the unoptimized SSA to the supplied path if it exists
+    pub emit_ssa: Option<PathBuf>,
+
+    /// Skip the check for under constrained values
+    pub skip_underconstrained_check: bool,
+
+    /// Skip the missing Brillig call constraints check
+    pub skip_brillig_constraints_check: bool,
+    /// Maximum size of arrays in Brillig call outputs to try to constrain on a per-item basis.
+    pub brillig_constraints_check_max_array_output_length: u32,
+    /// Maximum distance to travel looking for an intersect in the ancestors
+    /// of constrained values with the inputs/outputs of Brillig calls.
+    pub brillig_constraints_check_max_ancestor_distance: u32,
+
+    /// The higher the value, the more inlined Brillig functions will be.
+    pub inliner_aggressiveness: i64,
+
+    /// Maximum number iterations to do in constant folding, as long as new values are hoisted.
+    pub constant_folding_max_iter: usize,
+
+    /// The higher the value, the more Brillig functions will be set to always be inlined.
+    pub small_function_max_instruction: usize,
+
+    /// Maximum accepted percentage increase in the Brillig bytecode size after unrolling loops.
+    /// When `None` the size increase check is skipped altogether and any decrease in the SSA
+    /// instruction count is accepted.
+    pub max_bytecode_increase_percent: Option<i32>,
+
+    /// Maximum iterations for Brillig loop unrolling.
+    /// Loops exceeding this limit will not be unrolled even if they pass the instruction threshold.
+    pub max_unroll_iterations: usize,
+
+    /// Override the threshold for force-unrolling small loops.
+    /// Loops with constant bounds and no breaks whose unrolled
+    /// instruction count is at or below this threshold will always be unrolled.
+    /// Set to 0 to disable force-unrolling.
+    pub force_unroll_threshold: usize,
+
+    /// Minimum percentage cost reduction required to keep a specialized Brillig function clone.
+    /// Setting to 0 disables the pass entirely.
+    pub specialization_threshold: usize,
+
+    /// Maximum number of specialized clones per original Brillig function.
+    pub max_specializations_per_fn: usize,
+
+    /// A list of SSA pass messages to skip, for testing purposes.
+    pub skip_passes: Vec<String>,
+
+    /// Run the full SSA validator after each pass, to catch a pass that produces malformed SSA.
+    pub validate_between_passes: bool,
+}
+
+/// Defaults used in tests.
+impl Default for SsaEvaluatorOptions {
+    fn default() -> Self {
+        Self {
+            ssa_logging: SsaLogging::None,
+            ssa_logging_hide_unchanged: false,
+            brillig_options: BrilligOptions::default(),
+            print_codegen_timings: false,
+            emit_ssa: None,
+            skip_underconstrained_check: true,
+            skip_brillig_constraints_check: true,
+            brillig_constraints_check_max_array_output_length: DEFAULT_MAX_ARRAY_OUTPUT_LENGTH,
+            brillig_constraints_check_max_ancestor_distance: DEFAULT_MAX_ANCESTOR_DISTANCE,
+            inliner_aggressiveness: 0,
+            constant_folding_max_iter: CONSTANT_FOLDING_MAX_ITER,
+            small_function_max_instruction: INLINING_MAX_INSTRUCTIONS,
+            max_bytecode_increase_percent: None,
+            max_unroll_iterations: MAX_UNROLL_ITERATIONS,
+            force_unroll_threshold: FORCE_UNROLL_THRESHOLD,
+            specialization_threshold: DEFAULT_SPECIALIZATION_THRESHOLD,
+            max_specializations_per_fn: DEFAULT_MAX_SPECIALIZATIONS_PER_FN,
+            skip_passes: Vec::new(),
+            validate_between_passes: false,
+        }
+    }
+}
+
+pub struct ArtifactsAndWarnings(pub Artifacts, pub Vec<SsaReport>);
+
+/// The default SSA optimization pipeline.
+pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
+    vec![
+        SsaPass::new(Ssa::black_box_bypass, "black_box bypass"),
+        SsaPass::new(Ssa::array_set_optimization, "ArraySet optimization"),
+        SsaPass::new(Ssa::array_get_optimization, "ArrayGet optimization"),
+        SsaPass::new(Ssa::expand_signed_checks, "expand signed checks"),
+        SsaPass::new(Ssa::remove_unreachable_functions, "Removing Unreachable Functions"),
+        // Use brillig-only mem2reg before inlining.
+        // Running ACIR mem2reg this early creates block parameters that cascade through
+        // inlining and unrolling, causing regressions in unrolled-loop-heavy programs.
+        SsaPass::new(Ssa::mem2reg_brillig, "Mem2Reg")
+            .and_then(Ssa::load_store_forwarding)
+            .and_then(Ssa::remove_unused_instructions)
+            .and_then(Ssa::remove_redundant_params)
+            .and_then_validate(|#[allow(unused)] ssa| {
+                #[cfg(debug_assertions)]
+                validation::rc_invariant::verify_all(ssa)?;
+                Ok(())
+            }),
+        SsaPass::new_try(Ssa::defunctionalize, "Defunctionalization"),
+        SsaPass::new(
+            Ssa::lower_refs_at_acir_brillig_boundary,
+            "Lower refs at ACIR/Brillig boundary",
+        ),
+        SsaPass::new_try(Ssa::inline_simple_functions, "Inlining simple functions")
+            .and_then(Ssa::remove_unreachable_functions),
+        SsaPass::new(Ssa::mem2reg_brillig, "Mem2Reg")
+            .and_then(Ssa::load_store_forwarding)
+            .and_then(Ssa::remove_unused_instructions)
+            .and_then(Ssa::remove_redundant_params),
+        SsaPass::new(Ssa::array_set_optimization, "ArraySet optimization"),
+        SsaPass::new(Ssa::array_get_optimization, "ArrayGet optimization"),
+        SsaPass::new(Ssa::purity_analysis, "Purity Analysis"),
+        SsaPass::new_try(
+            move |ssa| {
+                ssa.preprocess_functions(
+                    options.inliner_aggressiveness,
+                    options.small_function_max_instruction,
+                )
+            },
+            "Preprocessing Functions",
+        ),
+        SsaPass::new(Ssa::array_get_optimization, "ArrayGet optimization"),
+        SsaPass::new_try(
+            move |ssa| {
+                ssa.inline_functions(
+                    options.inliner_aggressiveness,
+                    options.small_function_max_instruction,
+                )
+            },
+            "Inlining",
+        ),
+        SsaPass::new(Ssa::mem2reg, "Mem2Reg")
+            .and_then(Ssa::load_store_forwarding)
+            .and_then(Ssa::remove_unused_instructions)
+            .and_then(Ssa::remove_redundant_params),
+        SsaPass::new(Ssa::array_set_optimization, "ArraySet optimization"),
+        SsaPass::new(Ssa::array_get_optimization, "ArrayGet optimization"),
+        // Running DIE here might remove some unused instructions mem2reg could not eliminate.
+        SsaPass::new(Ssa::dead_instruction_elimination, "Dead Instruction Elimination"),
+        SsaPass::new(Ssa::simplify_cfg, "Simplifying"),
+        SsaPass::new(
+            move |ssa| {
+                ssa.brillig_function_specialization(
+                    options.specialization_threshold,
+                    options.max_specializations_per_fn,
+                    options.constant_folding_max_iter,
+                )
+            },
+            "Brillig Function Specialization",
+        )
+        .and_then(Ssa::remove_unreachable_functions),
+        SsaPass::new(Ssa::as_vector_optimization, "`as_vector` optimization")
+            .and_then(Ssa::remove_unreachable_functions),
+        SsaPass::new_try(
+            Ssa::try_evaluate_static_assert_and_assert_constant,
+            "`static_assert` and `assert_constant`",
+        ),
+        SsaPass::new(Ssa::purity_analysis, "Purity Analysis"),
+        SsaPass::new(Ssa::loop_invariant_code_motion, "Loop Invariant Code Motion"),
+        SsaPass::new(
+            |ssa| ssa.fold_constants(options.constant_folding_max_iter),
+            "Constant Folding",
+        ),
+        SsaPass::new(Ssa::simplify_cfg, "Simplifying"),
+        SsaPass::new_try(
+            move |ssa| {
+                ssa.unroll_loops_iteratively(
+                    options.max_bytecode_increase_percent,
+                    options.max_unroll_iterations,
+                    options.force_unroll_threshold,
+                )
+            },
+            "Unrolling",
+        ),
+        SsaPass::new(Ssa::simplify_cfg, "Simplifying"),
+        SsaPass::new(Ssa::mem2reg, "Mem2Reg")
+            .and_then(Ssa::load_store_forwarding)
+            .and_then(Ssa::remove_unused_instructions)
+            .and_then(Ssa::remove_redundant_params),
+        SsaPass::new(Ssa::remove_bit_shifts, "Removing Bit Shifts"),
+        SsaPass::new(Ssa::array_set_optimization, "ArraySet optimization"),
+        SsaPass::new(Ssa::array_get_optimization, "ArrayGet optimization"),
+        // Expand signed lt/div/mod after "Removing Bit Shifts" because that pass might
+        // introduce signed divisions.
+        SsaPass::new(Ssa::expand_signed_math, "Expand signed math"),
+        SsaPass::new(Ssa::simplify_cfg, "Simplifying"),
+        SsaPass::new(Ssa::remove_redundant_params, "Remove Redundant Parameters"),
+        // Removing redundant block parameters can reveal new CFG structures that can be simplified further.
+        SsaPass::new(Ssa::simplify_cfg, "Simplifying"),
+        SsaPass::new(Ssa::flatten_cfg, "Flattening").and_then_validate(|#[allow(unused)] ssa| {
+            #[cfg(debug_assertions)]
+            validation::flatten_post_check::verify_side_effect_predicates(ssa)?;
+            Ok(())
+        }),
+        SsaPass::new(Ssa::array_set_window_optimization, "ArraySet Window optimization"),
+        // Run mem2reg on all functions after flattening to handle cross-block promotion
+        // (Brillig still multi-block; ACIR is single-block so this is trivial for ACIR).
+        // Then run load_store_forwarding to handle aliased references within blocks
+        // (which mem2reg doesn't handle). Finally free memory before inlining.
+        SsaPass::new(Ssa::mem2reg, "Mem2Reg")
+            .and_then(Ssa::load_store_forwarding)
+            .and_then(Ssa::remove_unused_instructions)
+            .and_then(Ssa::remove_redundant_params),
+        // Run the inlining pass again to handle functions with `InlineType::NoPredicates`.
+        // Before flattening is run, we treat functions marked with the `InlineType::NoPredicates` as an entry point.
+        // This pass must come immediately following load/store forwarding as the succeeding passes
+        // may create an SSA which inlining fails to handle.
+        SsaPass::new_try(
+            move |ssa| {
+                ssa.inline_functions_with_no_predicates(
+                    options.inliner_aggressiveness,
+                    options.small_function_max_instruction,
+                )
+            },
+            "Inlining",
+        ),
+        // Run LSF once when we are guaranteed for every function to be inlined (including no_predicates).
+        SsaPass::new(Ssa::load_store_forwarding, "Load-Store Forwarding"),
+        SsaPass::new(Ssa::array_set_optimization, "ArraySet optimization"),
+        SsaPass::new(Ssa::array_get_optimization, "ArrayGet optimization"),
+        SsaPass::new_try(Ssa::remove_if_else, "Remove IfElse"),
+        SsaPass::new(Ssa::purity_analysis, "Purity Analysis"),
+        SsaPass::new(
+            |ssa| ssa.fold_constants(options.constant_folding_max_iter),
+            "Constant Folding",
+        ),
+        SsaPass::new(Ssa::flatten_basic_conditionals, "Simplify conditionals for unconstrained"),
+        SsaPass::new(Ssa::remove_enable_side_effects, "EnableSideEffectsIf removal"),
+        SsaPass::new(
+            |ssa| ssa.fold_constants_using_constraints(options.constant_folding_max_iter),
+            "Constant Folding using constraints",
+        ),
+        SsaPass::new(Ssa::simplify_cfg, "Simplifying"),
+        SsaPass::new_try(
+            move |ssa| {
+                ssa.unroll_loops_iteratively(
+                    options.max_bytecode_increase_percent,
+                    options.max_unroll_iterations,
+                    options.force_unroll_threshold,
+                )
+            },
+            "Unrolling",
+        ),
+        SsaPass::new_try(
+            Ssa::evaluate_static_assert_and_assert_constant,
+            "`static_assert` and `assert_constant`",
+        ),
+        SsaPass::new(Ssa::make_constrain_not_equal, "Adding constrain not equal"),
+        SsaPass::new(Ssa::check_u128_mul_overflow, "Check u128 mul overflow"),
+        // Simplifying the CFG can have a positive effect on mem2reg: every time we unify with a
+        // yet-to-be-visited predecessor we forget known values; less blocks mean less unification.
+        SsaPass::new(Ssa::simplify_cfg, "Simplifying"),
+        // Removing unreachable instructions before mem2reg, which may result in some default Store
+        // instructions being added, which it can pair up with Loads. If we ran it after it,
+        // then DIE would just remove the Stores, leaving the Loads dangling.
+        // This has to be done after flattening, as it destroys the CFG by removing terminators.
+        SsaPass::new(Ssa::remove_unreachable_instructions, "Remove Unreachable Instructions")
+            .and_then(Ssa::remove_unreachable_functions),
+        // We cannot run load/store forwarding after DIE, because it removes Store instructions.
+        // We have to run it before, to give it a chance to turn Store+Load into known values.
+        SsaPass::new(Ssa::load_store_forwarding, "Load Store Forwarding"),
+        SsaPass::new(Ssa::array_set_optimization, "ArraySet optimization"),
+        SsaPass::new(Ssa::array_get_optimization, "ArrayGet optimization"),
+        SsaPass::new(Ssa::load_store_forwarding, "Load Store Forwarding"),
+        SsaPass::new(Ssa::dead_instruction_elimination, "Dead Instruction Elimination"),
+        SsaPass::new(Ssa::mem2reg, "Mem2Reg"),
+        SsaPass::new(Ssa::brillig_entry_point_analysis, "Brillig Entry Point Analysis")
+            // Remove any potentially unnecessary duplication from the Brillig entry point analysis.
+            .and_then(Ssa::remove_unreachable_functions),
+        SsaPass::new(Ssa::remove_truncate_after_range_check, "Removing Truncate after RangeCheck"),
+        SsaPass::new(Ssa::checked_to_unchecked, "Checked to unchecked"),
+        SsaPass::new(
+            |ssa| ssa.fold_constants_using_constraints(options.constant_folding_max_iter),
+            "Constant Folding using constraints",
+        ),
+        SsaPass::new(
+            |ssa| ssa.fold_constants(options.constant_folding_max_iter),
+            "Constant Folding",
+        ),
+        SsaPass::new(Ssa::remove_unreachable_instructions, "Remove Unreachable Instructions")
+            .and_then(Ssa::remove_unreachable_functions),
+        // Remove any side effect enabling instructions if all instructions which require
+        // predicates have been removed from under them by the previous DIE or made redundant
+        // by constant folding. The next DIE can remove the side effect variable as well.
+        SsaPass::new(Ssa::remove_enable_side_effects, "EnableSideEffectsIf removal"),
+        SsaPass::new(Ssa::dead_instruction_elimination, "Dead Instruction Elimination")
+            // A function can be potentially unreachable post-DIE if all calls to that function were removed.
+            .and_then(Ssa::remove_unreachable_functions)
+            .and_then_validate(
+                validation::dynamic_array_indices::verify_no_dynamic_indices_to_references,
+            ),
+        SsaPass::new(Ssa::mutable_array_set_optimization, "Mutable Array Set Optimizations")
+            .and_then_validate(|#[allow(unused)] ssa| {
+                #[cfg(debug_assertions)]
+                validation::validate_no_acir_memory_ops(ssa)?;
+                Ok(())
+            }),
+    ]
+}
+
+/// For testing purposes we want a list of the minimum number of SSA passes that should
+/// return the same result as the full pipeline.
+///
+/// Due to it being minimal, it can only be executed with the Brillig VM; the ACIR runtime
+/// would for example require unrolling loops, which we want to avoid to keep the SSA as
+/// close to the initial state as possible.
+///
+/// In the future, we can potentially execute the actual initial version using the SSA interpreter.
+pub fn minimal_passes() -> Vec<SsaPass<'static>> {
+    vec![
+        // Signed integer operations need to be expanded in order to have the appropriate overflow checks applied.
+        SsaPass::new(Ssa::expand_signed_checks, "expand signed checks"),
+        // We need to get rid of function pointer parameters, otherwise they cause panic in Brillig generation.
+        SsaPass::new_try(Ssa::defunctionalize, "Defunctionalization"),
+        // Even the initial SSA generation can result in optimizations that leave a function
+        // which was called in the AST not being called in the SSA. Such functions would cause
+        // panics later, when we are looking for global allocations.
+        SsaPass::new(Ssa::remove_unreachable_functions, "Removing Unreachable Functions"),
+        SsaPass::new_try(
+            Ssa::evaluate_static_assert_and_assert_constant,
+            "`static_assert` and `assert_constant`",
+        ),
+    ]
+}
+
+/// Optimize the given `SsaBuilder` by converting it into SSA
+/// form and performing optimizations there. When finished,
+/// convert the final SSA into an ACIR program and return it.
+/// An ACIR program is made up of both ACIR functions
+/// and Brillig functions for unconstrained execution.
+pub fn optimize_ssa_builder_into_acir(
+    builder: SsaBuilder,
+    options: &SsaEvaluatorOptions,
+    passes: &[SsaPass],
+    files: Option<&fm::FileManager>,
+) -> Result<ArtifactsAndWarnings, RuntimeError> {
+    let ssa_gen_span = span!(Level::TRACE, "ssa_generation");
+    let ssa_gen_span_guard = ssa_gen_span.enter();
+    let builder = builder
+        .with_skip_passes(options.skip_passes.clone())
+        .with_validate_between_passes(options.validate_between_passes)
+        .run_passes(passes)?;
+
+    drop(ssa_gen_span_guard);
+
+    // Shift the array offsets in Brillig functions to benefit from the constant allocation logic,
+    // but do this outside the normal SSA passes, so we don't need to make the SSA interpreter and
+    // every other pass aware of the possibility that indexes are shifted, which could result in
+    // them conceptually not aligning with the positions of complex item types for example.
+    // This can change which globals are used, because constant creation might result
+    // in the (re)use of otherwise unused global values.
+    // It must be the last pass to either alter or add new instructions before Brillig generation,
+    // as other semantics in the compiler can potentially break (e.g. inserting instructions).
+    // Running it through the builder so it can be printed, for transparency.
+    let builder = builder.run_passes(&[SsaPass::new(
+        Ssa::brillig_array_get_and_set,
+        "Brillig Array Get and Set Optimizations",
+    )])?;
+
+    let brillig = time("SSA to Brillig", options.print_codegen_timings, || {
+        builder.ssa().to_brillig(&options.brillig_options)
+    });
+
+    // Resolve copy-site labels now that both the CallStackHelper and FileManager are available.
+    if let Some(registry) = &options.brillig_options.copy_site_registry {
+        registry.resolve_labels(brillig.call_stacks(), files);
+    }
+
+    let ssa_gen_span_guard = ssa_gen_span.enter();
+
+    let mut ssa = builder.finish();
+    let mut ssa_level_warnings = vec![];
+    if !options.skip_underconstrained_check {
+        ssa_level_warnings.extend(time(
+            "After Check for Underconstrained Values",
+            options.print_codegen_timings,
+            || ssa.check_for_underconstrained_values(),
+        ));
+    }
+
+    if !options.skip_brillig_constraints_check {
+        ssa_level_warnings.extend(time(
+            "After Check for Missing Brillig Call Constraints",
+            options.print_codegen_timings,
+            || {
+                ssa.check_for_missing_brillig_constraints(
+                    options.brillig_constraints_check_max_array_output_length,
+                    options.brillig_constraints_check_max_ancestor_distance,
+                )
+            },
+        ));
+    }
+
+    drop(ssa_gen_span_guard);
+    let artifacts = time("SSA to ACIR", options.print_codegen_timings, || {
+        ssa.into_acir(&brillig, &options.brillig_options)
+    })?;
+
+    Ok(ArtifactsAndWarnings(artifacts, ssa_level_warnings))
+}
+
+/// Optimize the given program by converting it into SSA
+/// form and performing optimizations there. When finished,
+/// convert the final SSA into an ACIR program and return it.
+/// An ACIR program is made up of both ACIR functions
+/// and Brillig functions for unconstrained execution.
+pub fn optimize_into_acir(
+    program: Program,
+    options: &SsaEvaluatorOptions,
+    passes: &[SsaPass],
+    files: Option<&fm::FileManager>,
+) -> Result<ArtifactsAndWarnings, RuntimeError> {
+    let builder = SsaBuilder::from_program(
+        program,
+        options.ssa_logging.clone(),
+        options.ssa_logging_hide_unchanged,
+        options.print_codegen_timings,
+        &options.emit_ssa,
+        files,
+    )?;
+
+    optimize_ssa_builder_into_acir(builder, options, passes, files)
+}
+
+/// Compiles the [`Program`] into [`ACIR`][acvm::acir::circuit::Program].
+///
+/// The output ACIR has already been optimized and transformed for the proving backend (the
+/// width-bounding CSAT pass and intermediate-variable elimination, via [`acvm::compiler::optimize`]
+/// during artifact combination, using the assembled program's Brillig side-effect information), so it
+/// is ready for proof generation with no further optimization pass required.
+#[tracing::instrument(level = "trace", skip_all)]
+pub fn create_program(
+    program: Program,
+    options: &SsaEvaluatorOptions,
+    files: Option<&fm::FileManager>,
+) -> Result<SsaProgramArtifact, RuntimeError> {
+    create_program_with_passes(program, options, &primary_passes(options), files)
+}
+
+/// Compiles the [`Program`] into [`ACIR`][acvm::acir::circuit::Program] using the minimum amount of SSA passes.
+///
+/// This is intended for testing purposes, and currently requires the program to be compiled for Brillig.
+/// It is not added to the `SsaEvaluatorOptions` to avoid ambiguity when calling `create_program_with_passes` directly.
+#[tracing::instrument(level = "trace", skip_all)]
+pub fn create_program_with_minimal_passes(
+    program: Program,
+    options: &SsaEvaluatorOptions,
+    files: &fm::FileManager,
+) -> Result<SsaProgramArtifact, RuntimeError> {
+    for func in &program.functions {
+        assert!(
+            func.unconstrained,
+            "The minimal SSA pipeline only works with Brillig: '{}' needs to be unconstrained",
+            func.name
+        );
+    }
+    create_program_with_passes(program, options, &minimal_passes(), Some(files))
+}
+
+/// Compiles the [`Program`] into [`ACIR`][acvm::acir::circuit::Program] by running it through SSA `passes`.
+#[tracing::instrument(level = "trace", skip_all)]
+pub fn create_program_with_passes(
+    program: Program,
+    options: &SsaEvaluatorOptions,
+    passes: &[SsaPass],
+    files: Option<&fm::FileManager>,
+) -> Result<SsaProgramArtifact, RuntimeError> {
+    let debug_variables = program.debug_variables.clone();
+    let debug_types = program.debug_types.clone();
+    let debug_functions = program.debug_functions.clone();
+
+    let entry_points = program.functions.iter().filter(|function| function.is_entry_point);
+    let arg_size_and_visibilities = vecmap(entry_points, resolve_function_signature);
+
+    let artifacts = optimize_into_acir(program, options, passes, files)?;
+
+    let combined = time("Combine artifacts", options.print_codegen_timings, || {
+        combine_artifacts(
+            artifacts,
+            &arg_size_and_visibilities,
+            debug_variables,
+            debug_functions,
+            debug_types,
+        )
+    });
+
+    Ok(combined)
+}
+
+pub fn combine_artifacts(
+    artifacts: ArtifactsAndWarnings,
+    arg_size_and_visibilities: &[Vec<(u32, Visibility)>],
+    debug_variables: DebugVariables,
+    debug_functions: DebugFunctions,
+    debug_types: DebugTypes,
+) -> SsaProgramArtifact {
+    let ArtifactsAndWarnings((generated_acirs, generated_brillig, error_types), ssa_level_warnings) =
+        artifacts;
+
+    assert_eq!(
+        generated_acirs.len(),
+        arg_size_and_visibilities.len(),
+        "The generated ACIRs should match the supplied function signatures"
+    );
+    // The whole program, including all Brillig functions, is available here, so we can tell which
+    // unconstrained calls have side effects and pass that to the ACIR optimizer. This makes the
+    // optimization done during code generation final: there is no need for a second pass over the
+    // assembled artifact to take advantage of Brillig side-effect information.
+    let brillig_side_effects = brillig_side_effects(&generated_brillig);
+
+    let functions: Vec<SsaCircuitArtifact> = generated_acirs
+        .into_iter()
+        .zip_eq(arg_size_and_visibilities)
+        .map(|(acir, arg_size_and_visibility)| {
+            convert_generated_acir_into_circuit(
+                acir,
+                arg_size_and_visibility,
+                &brillig_side_effects,
+                // TODO: get rid of these clones
+                debug_variables.clone(),
+                debug_functions.clone(),
+                debug_types.clone(),
+            )
+        })
+        .collect();
+
+    let error_types = error_types
+        .into_iter()
+        .map(|(selector, hir_type)| (selector, ErrorType::Dynamic(hir_type)))
+        .collect();
+
+    SsaProgramArtifact::new(functions, generated_brillig, error_types, ssa_level_warnings)
+}
+
+/// Determine, for each Brillig function, whether it might have side effects.
+///
+/// A Brillig function has a side effect if it makes a foreign call, which can interact with the
+/// outside world. The `RangeOptimizer` uses this to decide whether a range check guarding a Brillig
+/// call can be removed: removing it is only safe if failing the check could not have skipped a
+/// side-effecting call that an unrelated, later constraint would have caught.
+fn brillig_side_effects(
+    brillig: &[BrilligBytecode<FieldElement>],
+) -> BTreeMap<BrilligFunctionId, bool> {
+    brillig
+        .iter()
+        .enumerate()
+        .map(|(idx, function)| {
+            let id = BrilligFunctionId::new(idx as u32);
+            let has_side_effect = function
+                .bytecode
+                .iter()
+                .any(|opcode| matches!(opcode, BrilligOpcode::ForeignCall { .. }));
+            (id, has_side_effect)
+        })
+        .collect()
+}
+
+/// Given a function, return each parameter's field count and visibility
+fn resolve_function_signature(function: &ast::Function) -> Vec<(u32, Visibility)> {
+    function
+        .parameters
+        .iter()
+        .map(|(_, _, _, typ, visibility)| (typ.entry_point_field_count(), *visibility))
+        .collect()
+}
+
+pub fn convert_generated_acir_into_circuit(
+    mut generated_acir: GeneratedAcir<FieldElement>,
+    arg_size_and_visibility: &[(u32, Visibility)],
+    brillig_side_effects: &BTreeMap<BrilligFunctionId, bool>,
+    debug_variables: DebugVariables,
+    debug_functions: DebugFunctions,
+    debug_types: DebugTypes,
+) -> SsaCircuitArtifact {
+    let opcodes = generated_acir.take_opcodes();
+
+    let GeneratedAcir {
+        return_witnesses,
+        location_map,
+        brillig_locations,
+        input_witnesses,
+        assertion_payloads: assert_messages,
+        warnings,
+        name,
+        brillig_procedure_locs,
+        ..
+    } = generated_acir;
+
+    let (public_parameter_witnesses, private_parameters) =
+        split_public_and_private_inputs(arg_size_and_visibility, &input_witnesses);
+
+    let public_parameters = PublicInputs(public_parameter_witnesses);
+    let return_values = PublicInputs(return_witnesses.iter().copied().collect());
+
+    let circuit = Circuit {
+        function_name: name.clone(),
+        opcodes,
+        private_parameters,
+        public_parameters,
+        return_values,
+        assert_messages: assert_messages.into_iter().collect(),
+    };
+    let acir_location_map: BTreeMap<AcirOpcodeLocation, CallStackId> = location_map
+        .iter()
+        .map(|(k, v)| match k {
+            OpcodeLocation::Acir(index) => (AcirOpcodeLocation::new(*index), *v),
+            OpcodeLocation::Brillig { .. } => unreachable!("Expected ACIR opcode"),
+        })
+        .collect();
+    let location_tree = LocationTree::from(&generated_acir.call_stacks);
+    let mut debug_info = DebugInfo::new(
+        brillig_locations,
+        acir_location_map,
+        location_tree,
+        debug_variables,
+        debug_functions,
+        debug_types,
+        brillig_procedure_locs,
+    );
+
+    // Perform any ACIR-level optimizations
+    let (optimized_circuit, transformation_map) =
+        acvm::compiler::optimize(circuit, brillig_side_effects);
+    debug_info.update_acir(transformation_map);
+
+    SsaCircuitArtifact {
+        name,
+        circuit: optimized_circuit,
+        debug_info,
+        warnings,
+        error_types: generated_acir.error_types,
+    }
+}
+
+// Takes each function argument and partitions the circuit's inputs witnesses according to its visibility.
+fn split_public_and_private_inputs(
+    argument_sizes: &[(u32, Visibility)],
+    input_witnesses: &[Witness],
+) -> (BTreeSet<Witness>, BTreeSet<Witness>) {
+    let mut idx = 0_usize;
+    if input_witnesses.is_empty() {
+        return (BTreeSet::new(), BTreeSet::new());
+    }
+
+    argument_sizes
+        .iter()
+        .map(|(arg_size, visibility)| {
+            let arg_size = *arg_size as usize;
+            let witnesses = input_witnesses[idx..idx + arg_size].to_vec();
+            idx += arg_size;
+            (visibility, witnesses)
+        })
+        .fold((BTreeSet::new(), BTreeSet::new()), |mut acc, (vis, witnesses)| {
+            // Split witnesses into sets based on their visibility.
+            if matches!(vis, Visibility::Public) {
+                for witness in witnesses {
+                    acc.0.insert(witness);
+                }
+            } else {
+                for witness in witnesses {
+                    acc.1.insert(witness);
+                }
+            }
+            (acc.0, acc.1)
+        })
+}
+
+#[cfg(test)]
+mod minimal_passes_tests {
+    use super::{Ssa, minimal_passes};
+    use crate::errors::RuntimeError;
+
+    fn run_minimal(ssa: Ssa) -> Result<Ssa, RuntimeError> {
+        let mut ssa = ssa;
+        for pass in minimal_passes() {
+            ssa = pass.run(ssa)?;
+        }
+        Ok(ssa)
+    }
+
+    #[test]
+    fn minimal_passes_reject_non_constant_assert_constant() {
+        let src = r"
+        brillig(inline) fn main f0 {
+          b0(v0: Field):
+            call assert_constant(v0)
+            return
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        assert!(matches!(run_minimal(ssa), Err(RuntimeError::AssertConstantFailed { .. })));
+    }
+
+    #[test]
+    fn minimal_passes_reject_non_constant_static_assert() {
+        let src = r#"
+        brillig(inline) fn main f0 {
+          b0(v0: u1):
+            v1 = make_array b"Assertion failed"
+            v2 = make_array b"{\"kind\":\"string\",\"length\":16}"
+            call static_assert(v0, v1, v2, u1 0)
+            return
+        }
+        "#;
+        let ssa = Ssa::from_str(src).unwrap();
+        assert!(matches!(run_minimal(ssa), Err(RuntimeError::StaticAssertDynamicPredicate { .. })));
+    }
+}
+
+#[cfg(test)]
+mod brillig_side_effects_tests {
+    use acvm::{
+        FieldElement,
+        acir::{
+            brillig::Opcode as BrilligOpcode,
+            circuit::brillig::{BrilligBytecode, BrilligFunctionId},
+        },
+    };
+
+    use super::brillig_side_effects;
+
+    fn function(bytecode: Vec<BrilligOpcode<FieldElement>>) -> BrilligBytecode<FieldElement> {
+        BrilligBytecode { function_name: String::new(), bytecode }
+    }
+
+    fn foreign_call() -> BrilligOpcode<FieldElement> {
+        BrilligOpcode::ForeignCall {
+            function: "noop".to_string(),
+            destinations: vec![],
+            destination_value_types: vec![],
+            inputs: vec![],
+            input_value_types: vec![],
+        }
+    }
+
+    #[test]
+    fn flags_only_functions_that_make_foreign_calls() {
+        let brillig = vec![
+            function(vec![BrilligOpcode::Return]),
+            function(vec![BrilligOpcode::Return, foreign_call()]),
+        ];
+
+        let side_effects = brillig_side_effects(&brillig);
+
+        // A foreign call is the only thing that lets a Brillig function affect the outside world.
+        assert!(!side_effects[&BrilligFunctionId::new(0)]);
+        assert!(side_effects[&BrilligFunctionId::new(1)]);
+    }
+}

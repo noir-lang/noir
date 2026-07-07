@@ -1,0 +1,27 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+use std::{collections::umap::UHashMap, hash::{BuildHasherDefault, Hasher}};
+
+struct DummyHasher {}
+
+impl Hasher for DummyHasher {
+    fn finish(self) -> Field {
+        0_Field
+    }
+
+    fn write(&mut self, _input: Field) {}
+}
+
+impl Default for DummyHasher {
+    fn default() -> Self {
+        Self {}
+    }
+}
+
+unconstrained fn main() {
+    let map: UHashMap<u64, u64, BuildHasherDefault<DummyHasher>> =
+        UHashMap::<u64, u64, BuildHasherDefault<DummyHasher>>::default();
+    println(map == map);
+}

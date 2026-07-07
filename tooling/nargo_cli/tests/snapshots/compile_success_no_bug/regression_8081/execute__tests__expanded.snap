@@ -1,0 +1,20 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn main() {
+    // Safety: comment added by `nargo expand`
+    unsafe {
+        foo(bar, true);
+    }
+}
+
+unconstrained fn foo<Env>(f: fn[Env](bool), recur: bool) {
+    f(recur);
+}
+
+fn bar(recur: bool) {
+    if recur {
+        bar(recur);
+    }
+}

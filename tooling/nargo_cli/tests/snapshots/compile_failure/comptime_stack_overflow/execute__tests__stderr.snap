@@ -1,0 +1,25 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+warning: function `foo` cannot return without recursing
+  ┌─ src/main.nr:7:18
+  │
+7 │ unconstrained fn foo() {
+  │                  --- function cannot return without recursing
+  │
+
+error: Comptime Stack Overflow
+  ┌─ src/main.nr:8:5
+  │
+8 │     foo();
+  │     ----- Exceeded the recursion limit
+  │
+  = Call stack:
+       1: main
+               at src/main.nr:3:9
+    ┌─ 2: foo
+    │          at src/main.nr:8:5
+    └─ (repeated 99 times)
+
+Aborting due to 1 previous error

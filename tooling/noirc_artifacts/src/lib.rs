@@ -1,7 +1,5 @@
 #![forbid(unsafe_code)]
 #![warn(unused_crate_dependencies, unused_extern_crates)]
-#![warn(unreachable_pub)]
-#![warn(clippy::semicolon_if_nothing_returned)]
 
 //! This module defines the structure of Nargo's different compilation artifacts.
 //!
@@ -15,6 +13,7 @@ pub mod contract;
 pub mod debug;
 mod debug_vars;
 pub mod program;
+pub mod ssa;
 
 /// Serialize `hash` as `String`, so that it doesn't get truncated in Javascript.
 fn serialize_hash<S>(hash: &u64, s: S) -> Result<S::Ok, S::Error>

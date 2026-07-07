@@ -1,5 +1,5 @@
 fn main() {
-    let _ = foo::bar() + dep::foo::baz();
+    let _ = foo::bar() + ::foo::baz();
 }
 
 mod foo {

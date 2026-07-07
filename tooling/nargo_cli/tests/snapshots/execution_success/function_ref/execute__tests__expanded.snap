@@ -1,0 +1,17 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn main(c: bool) -> pub str<3> {
+    let mut f: fn() -> str<3> = foo;
+    if c { f = bar; };
+    f()
+}
+
+fn foo() -> str<3> {
+    "foo"
+}
+
+fn bar() -> str<3> {
+    "bar"
+}

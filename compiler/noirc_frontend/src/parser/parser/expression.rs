@@ -30,11 +30,12 @@ enum ArrayLiteralOrError {
 }
 
 impl Parser<'_> {
+    #[inline(always)]
     pub(crate) fn parse_expression_or_error(&mut self) -> Expression {
         self.parse_expression_or_error_impl(true) // allow constructors
     }
 
-    /// Expression = EqualOrNotEqualExpression
+    /// Expression = `EqualOrNotEqualExpression`
     pub(crate) fn parse_expression(&mut self) -> Option<Expression> {
         self.parse_expression_impl(true) // allow constructors
     }
@@ -43,11 +44,12 @@ impl Parser<'_> {
     /// For example `if foo { 1 }` shouldn't have `foo { 1 }` as the condition, but `foo` instead.
     /// The same goes with `for`: `for x in foo { 1 }` should have `foo` as the collection, not `foo { 1 }`.
     ///
-    /// ExpressionExceptConstructor = "Expression except ConstructorException"
+    /// `ExpressionExceptConstructor` = "Expression except `ConstructorException`"
     pub(crate) fn parse_expression_except_constructor_or_error(&mut self) -> Expression {
         self.parse_expression_or_error_impl(false) // allow constructors
     }
 
+    #[inline(always)]
     pub(crate) fn parse_expression_or_error_impl(
         &mut self,
         allow_constructors: bool,
@@ -64,17 +66,53 @@ impl Parser<'_> {
     }
 
     fn parse_expression_impl(&mut self, allow_constructors: bool) -> Option<Expression> {
-        self.parse_equal_or_not_equal(allow_constructors)
+        self.with_max_recursion_depth_guard(|this| {
+            this.parse_equal_or_not_equal(allow_constructors)
+        })
     }
 
     /// Term
-    ///    = UnaryOp Term
-    ///    | AtomOrUnaryRightExpression
+    ///    = `UnaryExpression`
+    ///    | `CastExpression`
     pub(super) fn parse_term(&mut self, allow_constructors: bool) -> Option<Expression> {
         let start_location = self.current_token_location;
 
+        let mut term = self.parse_unary(allow_constructors)?;
+        let mut parsed;
+
+        loop {
+            (term, parsed) = self.parse_cast(term, start_location);
+            if !parsed {
+                break;
+            }
+        }
+
+        Some(term)
+    }
+
+    /// `UnaryExpression`
+    ///    = `UnaryOp`* Atom
+    fn parse_unary(&mut self, allow_constructors: bool) -> Option<Expression> {
+        let start_location = self.current_token_location;
+
+        // `&&` (LogicalAnd) in unary context is two nested references: `&&x` is `&(&x)`,
+        // `&&mut x` is `&(&mut x)`. Same approach as `parse_reference_type` for `&&Type`.
+        if self.eat(&Token::LogicalAnd) {
+            let mutable = self.eat_keyword(Keyword::Mut);
+            let Some(rhs) = self.parse_unary(allow_constructors) else {
+                self.expected_label(ParsingRuleLabel::Expression);
+                return None;
+            };
+            let inner_kind = ExpressionKind::prefix(UnaryOp::Reference { mutable }, rhs);
+            let inner_location = self.location_since(start_location);
+            let inner = Expression { kind: inner_kind, location: inner_location };
+            let kind = ExpressionKind::prefix(UnaryOp::Reference { mutable: false }, inner);
+            let location = self.location_since(start_location);
+            return Some(Expression { kind, location });
+        }
+
         if let Some(operator) = self.parse_unary_op() {
-            let Some(rhs) = self.parse_term(allow_constructors) else {
+            let Some(rhs) = self.parse_unary(allow_constructors) else {
                 self.expected_label(ParsingRuleLabel::Expression);
                 return None;
             };
@@ -83,39 +121,39 @@ impl Parser<'_> {
             return Some(Expression { kind, location });
         }
 
-        self.parse_atom_or_unary_right(allow_constructors)
+        self.parse_atom(allow_constructors)
     }
 
-    /// UnaryOp = '&' 'mut' | '-' | '!' | '*'
+    /// `UnaryOp` = '&' 'mut' | '-' | '!' | '*'
     fn parse_unary_op(&mut self) -> Option<UnaryOp> {
-        if self.at(Token::Ampersand) {
+        if self.at(&Token::Ampersand) {
             let mut mutable = false;
-            if self.next_is(Token::Keyword(Keyword::Mut)) {
+            if self.next_is(&Token::Keyword(Keyword::Mut)) {
                 mutable = true;
                 self.bump();
             }
             self.bump();
             Some(UnaryOp::Reference { mutable })
-        } else if self.eat(Token::Minus) {
+        } else if self.eat(&Token::Minus) {
             Some(UnaryOp::Minus)
-        } else if self.eat(Token::Bang) {
+        } else if self.eat(&Token::Bang) {
             Some(UnaryOp::Not)
-        } else if self.eat(Token::Star) {
+        } else if self.eat(&Token::Star) {
             Some(UnaryOp::Dereference { implicitly_added: false })
         } else {
             None
         }
     }
 
-    /// AtomOrUnaryRightExpression
-    ///     = Atom UnaryRightExpression*
-    fn parse_atom_or_unary_right(&mut self, allow_constructors: bool) -> Option<Expression> {
+    /// Atom
+    ///     = Quark `AtomRhs`*
+    fn parse_atom(&mut self, allow_constructors: bool) -> Option<Expression> {
         let start_location = self.current_token_location;
-        let mut atom = self.parse_atom(allow_constructors)?;
+        let mut atom = self.parse_quark(allow_constructors)?;
         let mut parsed;
 
         loop {
-            (atom, parsed) = self.parse_unary_right(atom, start_location);
+            (atom, parsed) = self.parse_atom_rhs(atom, start_location);
             if parsed {
                 continue;
             } else {
@@ -126,12 +164,11 @@ impl Parser<'_> {
         Some(atom)
     }
 
-    /// UnaryRightExpression
-    ///     = CallExpression
-    ///     | MemberAccessOrMethodCallExpression
-    ///     | CastExpression
-    ///     | IndexExpression
-    fn parse_unary_right(
+    /// `AtomRhs`
+    ///     = `CallExpression`
+    ///     | `MemberAccessOrMethodCallExpression`
+    ///     | `IndexExpression`
+    fn parse_atom_rhs(
         &mut self,
         mut atom: Expression,
         start_location: Location,
@@ -148,12 +185,29 @@ impl Parser<'_> {
             return (atom, parsed);
         }
 
-        (atom, parsed) = self.parse_cast(atom, start_location);
-        if parsed {
-            return (atom, parsed);
+        self.parse_index(atom, start_location)
+    }
+
+    /// Parses any postfix tail after an already-parsed atom: calls, member accesses,
+    /// method calls and indexing (`AtomRhs*`). This is the same loop `parse_atom` runs
+    /// after its leading quark, exposed for callers that build the leading atom themselves.
+    pub(super) fn parse_atom_rhs_after_expression(
+        &mut self,
+        mut atom: Expression,
+        start_location: Location,
+    ) -> Expression {
+        let mut parsed;
+
+        loop {
+            (atom, parsed) = self.parse_atom_rhs(atom, start_location);
+            if parsed {
+                continue;
+            } else {
+                break;
+            }
         }
 
-        self.parse_index(atom, start_location)
+        atom
     }
 
     pub(super) fn parse_member_accesses_or_method_calls_after_expression(
@@ -175,7 +229,7 @@ impl Parser<'_> {
         atom
     }
 
-    /// CallExpression = Atom CallArguments
+    /// `CallExpression` = Quark `CallArguments`
     fn parse_call(&mut self, atom: Expression, start_location: Location) -> (Expression, bool) {
         if let Some(call_arguments) = self.parse_call_arguments() {
             let kind = ExpressionKind::Call(Box::new(CallExpression {
@@ -191,13 +245,13 @@ impl Parser<'_> {
         }
     }
 
-    /// MemberAccessOrMethodCallExpression
-    ///     = MemberAccessExpression
-    ///     | MethodCallExpression
+    /// `MemberAccessOrMethodCallExpression`
+    ///     = `MemberAccessExpression`
+    ///     | `MethodCallExpression`
     ///
-    /// MemberAccessExpression = Atom '.' identifier
+    /// `MemberAccessExpression` = Quark '.' identifier
     ///
-    /// MethodCallExpression = Atom '.' identifier CallArguments
+    /// `MethodCallExpression` = Quark '.' identifier `CallArguments`
     fn parse_member_access_or_method_call(
         &mut self,
         atom: Expression,
@@ -207,23 +261,32 @@ impl Parser<'_> {
             return (atom, false);
         }
 
-        let Some(field_name) = self.parse_member_access_field_name() else { return (atom, true) };
+        let Some((field_name, is_integer)) = self.parse_member_access_field_name() else {
+            return (atom, true);
+        };
 
-        let generics = self.parse_generics_after_member_access_field_name();
-
-        let kind = if let Some(call_arguments) = self.parse_call_arguments() {
-            ExpressionKind::MethodCall(Box::new(MethodCallExpression {
-                object: atom,
-                method_name: field_name,
-                generics,
-                arguments: call_arguments.arguments,
-                is_macro_call: call_arguments.is_macro_call,
-            }))
-        } else {
+        let kind = if is_integer {
             ExpressionKind::MemberAccess(Box::new(MemberAccessExpression {
                 lhs: atom,
                 rhs: field_name,
             }))
+        } else {
+            let generics = self.parse_generics_after_member_access_field_name();
+
+            if let Some(call_arguments) = self.parse_call_arguments() {
+                ExpressionKind::MethodCall(Box::new(MethodCallExpression {
+                    object: atom,
+                    method_name: field_name,
+                    generics,
+                    arguments: call_arguments.arguments,
+                    is_macro_call: call_arguments.is_macro_call,
+                }))
+            } else {
+                ExpressionKind::MemberAccess(Box::new(MemberAccessExpression {
+                    lhs: atom,
+                    rhs: field_name,
+                }))
+            }
         };
 
         let location = self.location_since(start_location);
@@ -231,11 +294,16 @@ impl Parser<'_> {
         (atom, true)
     }
 
-    fn parse_member_access_field_name(&mut self) -> Option<Ident> {
-        if let Some(ident) = self.eat_ident() {
-            Some(ident)
-        } else if let Some(int) = self.eat_int() {
-            Some(Ident::new(int.to_string(), self.previous_token_location))
+    /// Parses either an identifier or an integer.
+    /// The `bool` in the returned tuple is true if an integer was found.
+    fn parse_member_access_field_name(&mut self) -> Option<(Ident, bool)> {
+        if let Some(ident) = self.eat_non_underscore_ident() {
+            Some((ident, false))
+        // We allow integer type suffixes on tuple field names since this lets
+        // users unquote typed integers in macros to use as a tuple access expression.
+        // See https://github.com/noir-lang/noir/pull/10330#issuecomment-3499399843
+        } else if let Some((int, _)) = self.eat_int() {
+            Some((Ident::new(int.to_string(), self.previous_token_location), true))
         } else {
             self.push_error(
                 ParserErrorReason::ExpectedFieldName(self.token.token().clone()),
@@ -245,20 +313,24 @@ impl Parser<'_> {
         }
     }
 
-    /// CastExpression = Atom 'as' Type
+    /// `CastExpression` = `UnaryExpression` 'as' Type
     fn parse_cast(&mut self, atom: Expression, start_location: Location) -> (Expression, bool) {
         if !self.eat_keyword(Keyword::As) {
             return (atom, false);
         }
 
-        let typ = self.parse_type_or_error();
+        // Here we don't allow generics on a type so that `x as u8 < 3` parses without error.
+        // In Rust the above is a syntax error as `u8<` would denote a generic type.
+        // In Noir it's unlikely we'd want generic types in casts and, to avoid a breaking change,
+        // we disallow generics in that position.
+        let typ = self.parse_type_or_error_without_generics();
         let kind = ExpressionKind::Cast(Box::new(CastExpression { lhs: atom, r#type: typ }));
         let location = self.location_since(start_location);
         let atom = Expression { kind, location };
         (atom, true)
     }
 
-    /// IndexExpression = Atom '[' Expression ']'
+    /// `IndexExpression` = Quark '[' Expression ']'
     fn parse_index(&mut self, atom: Expression, start_location: Location) -> (Expression, bool) {
         if !self.eat_left_bracket() {
             return (atom, false);
@@ -274,8 +346,8 @@ impl Parser<'_> {
 
     fn parse_generics_after_member_access_field_name(&mut self) -> Option<Vec<UnresolvedType>> {
         if self.eat_double_colon() {
-            let generics =
-                self.parse_path_generics(ParserErrorReason::AssociatedTypesNotAllowedInMethodCalls);
+            let generics = self
+                .parse_path_generics(&ParserErrorReason::AssociatedTypesNotAllowedInMethodCalls);
             if generics.is_none() {
                 self.expected_token(Token::Less);
             }
@@ -285,28 +357,28 @@ impl Parser<'_> {
         }
     }
 
-    /// Atom
+    /// Quark
     ///     = Literal
-    ///     | ParenthesesExpression
-    ///     | UnsafeExpression
-    ///     | PathExpression
-    ///     | IfExpression
+    ///     | `ParenthesesExpression`
+    ///     | `UnsafeExpression`
+    ///     | `PathExpression`
+    ///     | `IfExpression`
     ///     | Lambda
-    ///     | ComptimeExpression
-    ///     | UnquoteExpression
-    ///     | TypePathExpression
-    ///     | NamelessTypePathExpression
-    ///     | AsTraitPath
-    ///     | ResolvedExpression
-    ///     | InternedExpression
-    ///     | InternedStatementExpression
-    fn parse_atom(&mut self, allow_constructors: bool) -> Option<Expression> {
+    ///     | `ComptimeExpression`
+    ///     | `UnquoteExpression`
+    ///     | `TypePathExpression`
+    ///     | `NamelessTypePathExpression`
+    ///     | `AsTraitPath`
+    ///     | `ResolvedExpression`
+    ///     | `InternedExpression`
+    ///     | `InternedStatementExpression`
+    fn parse_quark(&mut self, allow_constructors: bool) -> Option<Expression> {
         let start_location = self.current_token_location;
-        let kind = self.parse_atom_kind(allow_constructors)?;
+        let kind = self.parse_quark_kind(allow_constructors)?;
         Some(Expression { kind, location: self.location_since(start_location) })
     }
 
-    fn parse_atom_kind(&mut self, allow_constructors: bool) -> Option<ExpressionKind> {
+    fn parse_quark_kind(&mut self, allow_constructors: bool) -> Option<ExpressionKind> {
         // Like in Rust, we allow parsing doc comments on top of an expression but they always produce a warning.
         self.warn_on_outer_doc_comments();
 
@@ -330,7 +402,7 @@ impl Parser<'_> {
         if matches!(
             self.token.token(),
             Token::InternedUnresolvedTypeData(..) | Token::QuotedType(..)
-        ) && self.next_is(Token::LeftBrace)
+        ) && self.next_is(&Token::LeftBrace)
         {
             let location = self.current_token_location;
             let typ = self.parse_interned_type().or_else(|| self.parse_resolved_type()).unwrap();
@@ -382,7 +454,7 @@ impl Parser<'_> {
         None
     }
 
-    /// NamelessTypePathExpression = '<' Type '>' '::' identifier ( '::' GenericTypeArgs )?
+    /// `NamelessTypePathExpression` = '<' Type '>' '::' identifier ( '::' `GenericTypeArgs` )?
     fn parse_nameless_type_path_or_as_trait_path_type_expression(
         &mut self,
     ) -> Option<ExpressionKind> {
@@ -393,29 +465,22 @@ impl Parser<'_> {
         let typ = self.parse_type_or_error();
         if self.eat_keyword(Keyword::As) {
             let as_trait_path = self.parse_as_trait_path_for_type_after_as_keyword(typ);
-            Some(ExpressionKind::AsTraitPath(as_trait_path))
+            Some(ExpressionKind::AsTraitPath(Box::new(as_trait_path)))
         } else {
             self.eat_or_error(Token::Greater);
             let type_path = self.parse_type_path_expr_for_type(typ);
-            Some(ExpressionKind::TypePath(type_path))
+            Some(ExpressionKind::TypePath(Box::new(type_path)))
         }
     }
 
-    /// ResolvedExpression = unquote_marker
+    /// `ResolvedExpression` = `unquote_marker`
     fn parse_resolved_expr(&mut self) -> Option<ExpressionKind> {
-        if let Some(token) = self.eat_kind(TokenKind::UnquoteMarker) {
-            match token.into_token() {
-                Token::UnquoteMarker(expr_id) => return Some(ExpressionKind::Resolved(expr_id)),
-                _ => unreachable!(""),
-            }
-        }
-
-        None
+        Some(ExpressionKind::Resolved(self.eat_unquote_marker()?))
     }
 
-    /// InternedExpression = interned_expr
+    /// `InternedExpression` = `interned_expr`
     fn parse_interned_expr(&mut self) -> Option<ExpressionKind> {
-        if let Some(token) = self.eat_kind(TokenKind::InternedExpr) {
+        if let Some(token) = self.eat_kind(&TokenKind::InternedExpr) {
             match token.into_token() {
                 Token::InternedExpr(id) => return Some(ExpressionKind::Interned(id)),
                 _ => unreachable!(""),
@@ -425,9 +490,9 @@ impl Parser<'_> {
         None
     }
 
-    /// InternedStatementExpression = interned_statement
+    /// `InternedStatementExpression` = `interned_statement`
     fn parse_interned_statement_expr(&mut self) -> Option<ExpressionKind> {
-        if let Some(token) = self.eat_kind(TokenKind::InternedStatement) {
+        if let Some(token) = self.eat_kind(&TokenKind::InternedStatement) {
             match token.into_token() {
                 Token::InternedStatement(id) => return Some(ExpressionKind::InternedStatement(id)),
                 _ => unreachable!(""),
@@ -437,7 +502,7 @@ impl Parser<'_> {
         None
     }
 
-    /// UnsafeExpression = 'unsafe' Block
+    /// `UnsafeExpression` = 'unsafe' Block
     fn parse_unsafe_expr(&mut self) -> Option<ExpressionKind> {
         let start_location = self.current_token_location;
         let comments_before_unsafe = self.current_token_comments.clone();
@@ -470,11 +535,11 @@ impl Parser<'_> {
         }
     }
 
-    /// PathExpression
-    ///     = VariableExpression
-    ///     | ConstructorExpression
+    /// `PathExpression`
+    ///     = `VariableExpression`
+    ///     | `ConstructorExpression`
     ///
-    /// VariableExpression = Path
+    /// `VariableExpression` = Path
     fn parse_path_expr(&mut self, allow_constructors: bool) -> Option<ExpressionKind> {
         let path = self.parse_path()?;
 
@@ -486,11 +551,11 @@ impl Parser<'_> {
         Some(ExpressionKind::Variable(path))
     }
 
-    /// ConstructorExpression = Type '{' ConstructorFields? '}'
+    /// `ConstructorExpression` = Type '{' `ConstructorFields`? '}'
     ///
-    /// ConstructorFields = ConstructorField ( ',' ConstructorField )* ','?
+    /// `ConstructorFields` = `ConstructorField` ( ',' `ConstructorField` )* ','?
     ///
-    /// ConstructorField = identifier ( ':' Expression )?
+    /// `ConstructorField` = identifier ( ':' Expression )?
     fn parse_constructor(&mut self, typ: UnresolvedType) -> ExpressionKind {
         let fields = self.parse_many(
             "constructor fields",
@@ -505,7 +570,7 @@ impl Parser<'_> {
         // Loop to do some error recovery
         loop {
             // Make sure not to loop forever
-            if self.at_eof() || self.at(Token::RightBrace) {
+            if self.at_eof() || self.at(&Token::RightBrace) {
                 return None;
             }
 
@@ -514,18 +579,18 @@ impl Parser<'_> {
                 self.expected_identifier();
                 self.bump();
                 // Don't error again if a comma comes next
-                if self.at(Token::Comma) {
+                if self.at(&Token::Comma) {
                     self.bump();
                 }
                 continue;
             }
 
-            let ident = self.eat_ident()?;
+            let ident = self.eat_non_underscore_ident()?;
 
             return Some(if self.eat_colon() {
                 let expression = self.parse_expression_or_error();
                 (ident, expression)
-            } else if self.at(Token::DoubleColon) || self.at(Token::Assign) {
+            } else if self.at(&Token::DoubleColon) || self.at(&Token::Assign) {
                 // If we find '='  or '::' instead of ':', assume the user meant ':`, error and continue
                 self.expected_token(Token::Colon);
                 self.bump();
@@ -537,16 +602,84 @@ impl Parser<'_> {
         }
     }
 
-    /// IfExpression = 'if' ExpressionExceptConstructor Block ( 'else' ( Block | IfExpression ) )?
+    /// `IfExpression` = 'if' `ExpressionExceptConstructor` Block ( 'else' ( Block | `IfExpression` ) )?
     pub(super) fn parse_if_expr(&mut self) -> Option<ExpressionKind> {
+        let if_keyword_location = self.current_token_location;
+
         if !self.eat_keyword(Keyword::If) {
             return None;
         }
 
-        let condition = self.parse_expression_except_constructor_or_error();
+        let mut condition = self.parse_expression_except_constructor_or_error();
 
         let start_location = self.current_token_location;
-        let Some(consequence) = self.parse_block() else {
+        let consequence = if self.eat_left_brace() {
+            let errors_before_consequence = self.errors.len();
+            let looks_like_struct_literal = matches!(condition.kind, ExpressionKind::Variable(_))
+                && matches!(self.token.token(), Token::Ident(..))
+                && self.next_is(&Token::Colon);
+
+            let mut consequence = self.parse_block_after_left_brace();
+
+            if looks_like_struct_literal {
+                self.errors.truncate(errors_before_consequence);
+                let location = self.location_since(condition.location);
+                self.push_error(ParserErrorReason::StructLiteralInIfCondition, location);
+                condition = Expression { kind: ExpressionKind::Error, location };
+
+                // Skip the condition tail and stop only at a top-level consequence `{`.
+                let mut closing_delimiters = Vec::new();
+                while !self.at_eof() {
+                    let token = self.token.token().clone();
+
+                    if closing_delimiters.is_empty() {
+                        if token == Token::LeftBrace {
+                            break;
+                        }
+
+                        if token == Token::Semicolon || token == Token::RightBrace {
+                            break;
+                        }
+                    }
+
+                    match token {
+                        Token::LeftParen => closing_delimiters.push(Token::RightParen),
+                        Token::LeftBracket => closing_delimiters.push(Token::RightBracket),
+                        Token::LeftBrace => closing_delimiters.push(Token::RightBrace),
+                        Token::RightParen | Token::RightBracket | Token::RightBrace
+                            if closing_delimiters.last() == Some(&token) =>
+                        {
+                            closing_delimiters.pop();
+                        }
+                        _ => {}
+                    }
+
+                    self.bump();
+                }
+
+                if self.eat_left_brace() {
+                    consequence = self.parse_block_after_left_brace();
+                } else {
+                    self.expected_token(Token::LeftBrace);
+                }
+            }
+
+            consequence
+        } else {
+            // If it's `if { ... }` and a block doesn't come next, the user likely forgot
+            // to include a condition.
+            if matches!(condition.kind, ExpressionKind::Block(..)) {
+                self.push_error(ParserErrorReason::MissingIfCondition, if_keyword_location);
+                return Some(ExpressionKind::If(Box::new(IfExpression {
+                    condition: Expression {
+                        kind: ExpressionKind::Error,
+                        location: if_keyword_location,
+                    },
+                    consequence: condition,
+                    alternative: None,
+                })));
+            }
+
             self.expected_token(Token::LeftBrace);
             let location = self.location_at_previous_token_end();
             return Some(ExpressionKind::If(Box::new(IfExpression {
@@ -576,7 +709,7 @@ impl Parser<'_> {
         Some(ExpressionKind::If(Box::new(IfExpression { condition, consequence, alternative })))
     }
 
-    /// MatchExpression = 'match' ExpressionExceptConstructor '{' MatchRule* '}'
+    /// `MatchExpression` = 'match' `ExpressionExceptConstructor` '{' `MatchRule`* '}'
     pub(super) fn parse_match_expr(&mut self) -> Option<ExpressionKind> {
         if !self.eat_keyword(Keyword::Match) {
             return None;
@@ -584,7 +717,10 @@ impl Parser<'_> {
 
         let expression = self.parse_expression_except_constructor_or_error();
 
-        self.eat_left_brace();
+        if !self.eat_left_brace() {
+            self.expected_token(Token::LeftBrace);
+            return Some(ExpressionKind::Error);
+        }
 
         let rules = self.parse_many(
             "match cases",
@@ -595,7 +731,7 @@ impl Parser<'_> {
         Some(ExpressionKind::Match(Box::new(MatchExpression { expression, rules })))
     }
 
-    /// MatchRule = Expression '->' (Block ','?) | (Expression ',')
+    /// `MatchRule` = Expression '=>' (Block ','?) | (Expression ',')
     fn parse_match_rule(&mut self) -> Option<(Expression, Expression)> {
         let pattern = self.parse_expression()?;
         self.eat_or_error(Token::FatArrow);
@@ -617,7 +753,7 @@ impl Parser<'_> {
         Some((pattern, branch))
     }
 
-    /// ComptimeExpression = 'comptime' Block
+    /// `ComptimeExpression` = 'comptime' Block
     fn parse_comptime_expr(&mut self) -> Option<ExpressionKind> {
         if !self.eat_keyword(Keyword::Comptime) {
             return None;
@@ -633,13 +769,13 @@ impl Parser<'_> {
         Some(ExpressionKind::Comptime(block, self.location_since(start_location)))
     }
 
-    /// UnquoteExpression
+    /// `UnquoteExpression`
     ///     = '$' identifier
     ///     | '$' '(' Expression ')'
     fn parse_unquote_expr(&mut self) -> Option<ExpressionKind> {
         let start_location = self.current_token_location;
 
-        if !self.eat(Token::DollarSign) {
+        if !self.eat(&Token::DollarSign) {
             return None;
         }
 
@@ -670,15 +806,15 @@ impl Parser<'_> {
         None
     }
 
-    /// TypePathExpression = PrimitiveType '::' identifier ( '::' GenericTypeArgs )?
+    /// `TypePathExpression` = `PrimitiveType` '::' identifier ( '::' `GenericTypeArgs` )?
     fn parse_type_path_expr(&mut self) -> Option<ExpressionKind> {
         let start_location = self.current_token_location;
         let typ = self.parse_primitive_type()?;
         let location = self.location_since(start_location);
         let typ = UnresolvedType { typ, location };
 
-        if self.at(Token::DoubleColon) {
-            Some(ExpressionKind::TypePath(self.parse_type_path_expr_for_type(typ)))
+        if self.at(&Token::DoubleColon) {
+            Some(ExpressionKind::TypePath(Box::new(self.parse_type_path_expr_for_type(typ))))
         } else {
             // This is the case when we find `Field` or `i32` but `::` doesn't follow it.
             self.push_error(ParserErrorReason::ExpectedValueFoundBuiltInType { typ }, location);
@@ -689,7 +825,7 @@ impl Parser<'_> {
     fn parse_type_path_expr_for_type(&mut self, typ: UnresolvedType) -> TypePath {
         self.eat_or_error(Token::DoubleColon);
 
-        let item = if let Some(ident) = self.eat_ident() {
+        let item = if let Some(ident) = self.eat_non_underscore_ident() {
             ident
         } else {
             self.expected_identifier();
@@ -713,24 +849,24 @@ impl Parser<'_> {
     ///     | str
     ///     | rawstr
     ///     | fmtstr
-    ///     | QuoteExpression
-    ///     | ArrayExpression
-    ///     | SliceExpression
-    ///     | BlockExpression
-    ///     | ConstrainExpression
+    ///     | `QuoteExpression`
+    ///     | `ArrayExpression`
+    ///     | `VectorExpression`
+    ///     | `BlockExpression`
+    ///     | `ConstrainExpression`
     ///
-    /// QuoteExpression = 'quote' '{' token* '}'
+    /// `QuoteExpression` = 'quote' '{' token* '}'
     ///
-    /// ArrayExpression = ArrayLiteral
+    /// `ArrayExpression` = `ArrayLiteral`
     ///
-    /// BlockExpression = Block
+    /// `BlockExpression` = Block
     fn parse_literal(&mut self) -> Option<ExpressionKind> {
         if let Some(bool) = self.eat_bool() {
             return Some(ExpressionKind::boolean(bool));
         }
 
-        if let Some(int) = self.eat_int() {
-            return Some(ExpressionKind::integer(int));
+        if let Some((int, suffix)) = self.eat_int() {
+            return Some(ExpressionKind::integer(int, suffix));
         }
 
         if let Some(string) = self.eat_str() {
@@ -758,10 +894,10 @@ impl Parser<'_> {
             };
         }
 
-        if let Some(literal_or_error) = self.parse_slice_literal() {
+        if let Some(literal_or_error) = self.parse_vector_literal() {
             return match literal_or_error {
                 ArrayLiteralOrError::ArrayLiteral(literal) => {
-                    Some(ExpressionKind::Literal(Literal::Slice(literal)))
+                    Some(ExpressionKind::Literal(Literal::Vector(literal)))
                 }
                 ArrayLiteralOrError::Error => Some(ExpressionKind::Error),
             };
@@ -778,15 +914,15 @@ impl Parser<'_> {
         None
     }
 
-    /// ArrayLiteral
-    ///     = StandardArrayLiteral
-    ///     | RepeatedArrayLiteral
+    /// `ArrayLiteral`
+    ///     = `StandardArrayLiteral`
+    ///     | `RepeatedArrayLiteral`
     ///
-    /// StandardArrayLiteral = '[' ArrayElements? ']'
+    /// `StandardArrayLiteral` = '[' `ArrayElements`? ']'
     ///
-    /// ArrayElements = Expression ( ',' Expression )? ','?
+    /// `ArrayElements` = Expression ( ',' Expression )? ','?
     ///
-    /// RepeatedArrayLiteral = '[' Expression ';' TypeExpression ']'
+    /// `RepeatedArrayLiteral` = '[' Expression ';' `TypeExpression` ']'
     fn parse_array_literal(&mut self) -> Option<ArrayLiteralOrError> {
         let start_location = self.current_token_location;
         let errors_before_array = self.errors.len();
@@ -806,7 +942,7 @@ impl Parser<'_> {
             self.eat_or_error(Token::RightBracket);
 
             // If it's `[expr; length]::ident`, give an error that it's missing `<...>`
-            if self.at(Token::DoubleColon) && matches!(self.next_token.token(), Token::Ident(..)) {
+            if self.at(&Token::DoubleColon) && matches!(self.next_token.token(), Token::Ident(..)) {
                 // Remove any errors that happened during `[...]` as it's likely they happened
                 // because of the missing angle brackets.
                 self.errors.truncate(errors_before_array);
@@ -845,9 +981,9 @@ impl Parser<'_> {
         Some(ArrayLiteralOrError::ArrayLiteral(ArrayLiteral::Standard(exprs)))
     }
 
-    /// SliceExpression = '&' ArrayLiteral
-    fn parse_slice_literal(&mut self) -> Option<ArrayLiteralOrError> {
-        if !(self.at(Token::SliceStart) && self.next_is(Token::LeftBracket)) {
+    /// `VectorExpression` = '@' `ArrayLiteral`
+    fn parse_vector_literal(&mut self) -> Option<ArrayLiteralOrError> {
+        if !(self.at(&Token::At) && self.next_is(&Token::LeftBracket)) {
             return None;
         }
 
@@ -855,16 +991,16 @@ impl Parser<'_> {
         self.parse_array_literal()
     }
 
-    /// ParenthesesExpression
-    ///     = UnitLiteral
-    ///     | ParenthesizedExpression
-    ///     | TupleExpression
+    /// `ParenthesesExpression`
+    ///     = `UnitLiteral`
+    ///     | `ParenthesizedExpression`
+    ///     | `TupleExpression`
     ///
-    /// UnitLiteral = '(' ')'
+    /// `UnitLiteral` = '(' ')'
     ///
-    /// ParenthesizedExpression = '(' Expression ')'
+    /// `ParenthesizedExpression` = '(' Expression ')'
     ///
-    /// TupleExpression = '(' Expression ( ',' Expression )+ ','? ')'
+    /// `TupleExpression` = '(' Expression ( ',' Expression )+ ','? ')'
     fn parse_parentheses_expression(&mut self) -> Option<ExpressionKind> {
         let start_location = self.current_token_location;
         let errors_before_parentheses = self.errors.len();
@@ -875,7 +1011,7 @@ impl Parser<'_> {
 
         if self.eat_right_paren() {
             // If it's `()::ident`, parse it as a type path but produce an error saying it should be `<()>::ident`.
-            if self.at(Token::DoubleColon) && matches!(self.next_token.token(), Token::Ident(..)) {
+            if self.at(&Token::DoubleColon) && matches!(self.next_token.token(), Token::Ident(..)) {
                 let location = self.location_since(start_location);
                 let typ = UnresolvedTypeData::Unit;
                 let typ = UnresolvedType { typ, location };
@@ -883,7 +1019,7 @@ impl Parser<'_> {
 
                 self.push_error(ParserErrorReason::MissingAngleBrackets, location);
 
-                return Some(ExpressionKind::TypePath(type_path));
+                return Some(ExpressionKind::TypePath(Box::new(type_path)));
             }
 
             return Some(ExpressionKind::Literal(Literal::Unit));
@@ -896,7 +1032,7 @@ impl Parser<'_> {
         );
 
         // If it's `(..)::ident`, give an error that it's missing `<...>`
-        if self.at(Token::DoubleColon) && matches!(self.next_token.token(), Token::Ident(..)) {
+        if self.at(&Token::DoubleColon) && matches!(self.next_token.token(), Token::Ident(..)) {
             // Remove any errors that happened during `(...)` as it's likely they happened
             // because of the missing angle brackets.
             self.errors.truncate(errors_before_parentheses);
@@ -922,15 +1058,18 @@ impl Parser<'_> {
         if let Some(expr) = self.parse_expression() {
             Some(expr)
         } else {
-            self.expected_label(ParsingRuleLabel::Expression);
+            // Don't generate cascading errors when recovering from depth overflow
+            if !self.recovering_from_depth_overflow {
+                self.expected_label(ParsingRuleLabel::Expression);
+            }
             None
         }
     }
 
-    /// ConstrainExpression
+    /// `ConstrainExpression`
     ///     = 'constrain' Expression
     ///     | 'assert' Arguments
-    ///     | 'assert_eq' Arguments
+    ///     | '`assert_eq`' Arguments
     pub(super) fn parse_constrain_expression(&mut self) -> Option<ConstrainExpression> {
         let start_location = self.current_token_location;
         let kind = self.parse_constrain_kind()?;
@@ -983,6 +1122,13 @@ impl Parser<'_> {
             return None;
         }
 
+        // Guard against deeply nested blocks overflowing the stack. On overflow this
+        // emits a recursion-depth error and skips to a recovery point, so `None` here
+        // means the block was abandoned rather than absent.
+        self.with_max_recursion_depth_guard(|this| Some(this.parse_block_after_left_brace()))
+    }
+
+    fn parse_block_after_left_brace(&mut self) -> BlockExpression {
         let statements = self.parse_many(
             "statements",
             without_separator().until(Token::RightBrace),
@@ -991,7 +1137,7 @@ impl Parser<'_> {
 
         let statements = self.check_statements_require_semicolon(statements);
 
-        Some(BlockExpression { statements })
+        BlockExpression { statements }
     }
 
     fn parse_statement_in_block(&mut self) -> Option<(Statement, (Option<Token>, Location))> {
@@ -1027,18 +1173,15 @@ mod tests {
     use crate::{
         ast::{
             ArrayLiteral, BinaryOpKind, ConstrainKind, Expression, ExpressionKind, Literal,
-            StatementKind, UnaryOp, UnresolvedTypeData,
+            StatementKind, UnaryOp,
         },
+        parse_program_with_dummy_file,
         parser::{
-            Parser, ParserErrorReason,
-            parser::tests::{
-                expect_no_errors, get_single_error, get_single_error_reason,
-                get_source_with_error_span,
-            },
+            Parser,
+            parser::tests::{check_errors, expect_no_errors},
         },
-        signed_field::SignedField,
-        token::Token,
     };
+    use num_bigint::BigInt;
 
     fn parse_expression_no_errors(src: &str) -> Expression {
         let mut parser = Parser::for_str_with_dummy_file(src);
@@ -1061,22 +1204,31 @@ mod tests {
 
     #[test]
     fn parses_integer_literal() {
-        let src = "42";
+        let src = "42u32";
         let expr = parse_expression_no_errors(src);
-        let ExpressionKind::Literal(Literal::Integer(value)) = expr.kind else {
+        use crate::token::IntegerTypeSuffix::U32;
+        let ExpressionKind::Literal(Literal::Integer(value, Some(U32))) = expr.kind else {
             panic!("Expected integer literal");
         };
-        assert_eq!(value, SignedField::positive(42_u128));
+        assert_eq!(value, 42_u128.into());
     }
 
     #[test]
     fn parses_negative_integer_literal() {
         let src = "-42";
         let expr = parse_expression_no_errors(src);
-        let ExpressionKind::Literal(Literal::Integer(value)) = expr.kind else {
+        let ExpressionKind::Literal(Literal::Integer(value, None)) = expr.kind else {
             panic!("Expected integer literal");
         };
-        assert_eq!(value, SignedField::negative(42_u128));
+        assert_eq!(value, BigInt::from(-42));
+    }
+
+    #[test]
+    fn parses_double_negative_integer_literal() {
+        let src = "--42";
+        let expr = parse_expression_no_errors(src);
+        // In the past we used to parse this as the literal 42 instead of a double negation
+        assert!(matches!(expr.kind, ExpressionKind::Prefix(..)));
     }
 
     #[test]
@@ -1086,10 +1238,10 @@ mod tests {
         let ExpressionKind::Parenthesized(expr) = expr.kind else {
             panic!("Expected parenthesized expression");
         };
-        let ExpressionKind::Literal(Literal::Integer(value)) = expr.kind else {
+        let ExpressionKind::Literal(Literal::Integer(value, None)) = expr.kind else {
             panic!("Expected integer literal");
         };
-        assert_eq!(value, SignedField::positive(42_u128));
+        assert_eq!(value, 42_u128.into());
     }
 
     #[test]
@@ -1141,16 +1293,16 @@ mod tests {
         assert_eq!(exprs.len(), 2);
 
         let expr = exprs.remove(0);
-        let ExpressionKind::Literal(Literal::Integer(value)) = expr.kind else {
+        let ExpressionKind::Literal(Literal::Integer(value, None)) = expr.kind else {
             panic!("Expected integer literal");
         };
-        assert_eq!(value, SignedField::positive(1_u128));
+        assert_eq!(value, 1_u128.into());
 
         let expr = exprs.remove(0);
-        let ExpressionKind::Literal(Literal::Integer(value)) = expr.kind else {
+        let ExpressionKind::Literal(Literal::Integer(value, None)) = expr.kind else {
             panic!("Expected integer literal");
         };
-        assert_eq!(value, SignedField::positive(2_u128));
+        assert_eq!(value, 2_u128.into());
     }
 
     #[test]
@@ -1167,10 +1319,10 @@ mod tests {
             panic!("Expected expression statement");
         };
 
-        let ExpressionKind::Literal(Literal::Integer(value)) = expr.kind else {
+        let ExpressionKind::Literal(Literal::Integer(value, None)) = expr.kind else {
             panic!("Expected integer literal");
         };
-        assert_eq!(value, SignedField::positive(1_u128));
+        assert_eq!(value, 1_u128.into());
     }
 
     #[test]
@@ -1196,21 +1348,12 @@ mod tests {
         let src = "
         {
             1
+            ^ Expected a ; separating these two statements
             2
+            ^ Expected a ; separating these two statements
             3
         }";
-        let mut parser = Parser::for_str_with_dummy_file(src);
-        let expr = parser.parse_expression_or_error();
-        assert_eq!(expr.location.span.end() as usize, src.len());
-        assert_eq!(parser.errors.len(), 2);
-        assert!(matches!(
-            parser.errors[0].reason(),
-            Some(ParserErrorReason::MissingSeparatingSemi)
-        ));
-        assert!(matches!(
-            parser.errors[1].reason(),
-            Some(ParserErrorReason::MissingSeparatingSemi)
-        ));
+        let expr = check_errors(src, |parser| parser.parse_expression_or_error());
         let ExpressionKind::Block(block) = expr.kind else {
             panic!("Expected block expression");
         };
@@ -1239,15 +1382,9 @@ mod tests {
     fn parses_block_expression_with_a_single_let() {
         let src = "
         { let x = 1 }
-                  ^
+                  ^ Expected a ; after `let` statement
         ";
-        let (src, span) = get_source_with_error_span(src);
-        let mut parser = Parser::for_str_with_dummy_file(&src);
-        parser.parse_expression();
-        let reason = get_single_error_reason(&parser.errors, span);
-        let ParserErrorReason::MissingSemicolonAfterLet = reason else {
-            panic!("Expected a different error");
-        };
+        check_errors(src, |parser| parser.parse_expression());
     }
 
     #[test]
@@ -1282,30 +1419,18 @@ mod tests {
     fn parses_unclosed_parentheses() {
         let src = "
         (
-        ^
+        ^ Expected an expression but found end of input
         ";
-        let (src, span) = get_source_with_error_span(src);
-        let mut parser = Parser::for_str_with_dummy_file(&src);
-        parser.parse_expression();
-        let error = get_single_error(&parser.errors, span);
-        assert_eq!(error.to_string(), "Expected an expression but found end of input");
+        check_errors(src, |parser| parser.parse_expression());
     }
 
     #[test]
     fn parses_missing_comma_in_tuple() {
         let src = "
         (1 2)
-           ^
+           ^ Expected a `,` separating these two expressions
         ";
-        let (src, span) = get_source_with_error_span(src);
-        let mut parser = Parser::for_str_with_dummy_file(&src);
-        parser.parse_expression();
-        let reason = get_single_error_reason(&parser.errors, span);
-        let ParserErrorReason::ExpectedTokenSeparatingTwoItems { token, items } = reason else {
-            panic!("Expected a different error");
-        };
-        assert_eq!(token, &Token::Comma);
-        assert_eq!(*items, "expressions");
+        check_errors(src, |parser| parser.parse_expression());
     }
 
     #[test]
@@ -1348,19 +1473,9 @@ mod tests {
     fn parses_array_expression_with_two_elements_missing_comma() {
         let src = "
         [1 3]
-           ^
+           ^ Expected a `,` separating these two expressions
         ";
-        let (src, span) = get_source_with_error_span(src);
-        let mut parser = Parser::for_str_with_dummy_file(&src);
-        let expr = parser.parse_expression_or_error();
-        assert_eq!(expr.location.span.end() as usize, src.len());
-
-        let reason = get_single_error_reason(&parser.errors, span);
-        let ParserErrorReason::ExpectedTokenSeparatingTwoItems { token, items } = reason else {
-            panic!("Expected a different error");
-        };
-        assert_eq!(token, &Token::Comma);
-        assert_eq!(*items, "expressions");
+        let expr = check_errors(src, |parser| parser.parse_expression_or_error());
 
         let ExpressionKind::Literal(Literal::Array(ArrayLiteral::Standard(exprs))) = expr.kind
         else {
@@ -1387,12 +1502,12 @@ mod tests {
     }
 
     #[test]
-    fn parses_empty_slice_expression() {
-        let src = "&[]";
+    fn parses_empty_vector_expression() {
+        let src = "@[]";
         let expr = parse_expression_no_errors(src);
-        let ExpressionKind::Literal(Literal::Slice(ArrayLiteral::Standard(exprs))) = expr.kind
+        let ExpressionKind::Literal(Literal::Vector(ArrayLiteral::Standard(exprs))) = expr.kind
         else {
-            panic!("Expected slice literal");
+            panic!("Expected vector literal");
         };
         assert!(exprs.is_empty());
     }
@@ -1439,6 +1554,81 @@ mod tests {
     }
 
     #[test]
+    fn parses_double_ref() {
+        let src = "&&foo";
+        let expr = parse_expression_no_errors(src);
+        let ExpressionKind::Prefix(outer) = expr.kind else {
+            panic!("Expected prefix expression");
+        };
+        assert!(matches!(outer.operator, UnaryOp::Reference { mutable: false }));
+
+        let ExpressionKind::Prefix(inner) = outer.rhs.kind else {
+            panic!("Expected inner prefix expression");
+        };
+        assert!(matches!(inner.operator, UnaryOp::Reference { mutable: false }));
+
+        let ExpressionKind::Variable(path) = inner.rhs.kind else {
+            panic!("Expected variable");
+        };
+        assert_eq!(path.to_string(), "foo");
+    }
+
+    #[test]
+    fn parses_double_ref_mut() {
+        let src = "&&mut foo";
+        let expr = parse_expression_no_errors(src);
+        let ExpressionKind::Prefix(outer) = expr.kind else {
+            panic!("Expected prefix expression");
+        };
+        assert!(matches!(outer.operator, UnaryOp::Reference { mutable: false }));
+
+        let ExpressionKind::Prefix(inner) = outer.rhs.kind else {
+            panic!("Expected inner prefix expression");
+        };
+        assert!(matches!(inner.operator, UnaryOp::Reference { mutable: true }));
+
+        let ExpressionKind::Variable(path) = inner.rhs.kind else {
+            panic!("Expected variable");
+        };
+        assert_eq!(path.to_string(), "foo");
+    }
+
+    #[test]
+    fn parses_triple_ref() {
+        // `&&&foo` is lexed as `& && foo` (Ampersand, LogicalAnd, Ident)
+        let src = "&&&foo";
+        let expr = parse_expression_no_errors(src);
+        let ExpressionKind::Prefix(a) = expr.kind else { panic!("Expected prefix") };
+        assert!(matches!(a.operator, UnaryOp::Reference { mutable: false }));
+        let ExpressionKind::Prefix(b) = a.rhs.kind else { panic!("Expected prefix") };
+        assert!(matches!(b.operator, UnaryOp::Reference { mutable: false }));
+        let ExpressionKind::Prefix(c) = b.rhs.kind else { panic!("Expected prefix") };
+        assert!(matches!(c.operator, UnaryOp::Reference { mutable: false }));
+        assert!(matches!(c.rhs.kind, ExpressionKind::Variable(..)));
+    }
+
+    #[test]
+    fn parses_ref_and_ref() {
+        // `&x & &y` must parse as `(&x) & (&y)`, not as `(&x) && y`
+        let src = "&x & &y";
+        let expr = parse_expression_no_errors(src);
+        let ExpressionKind::Infix(infix) = expr.kind else {
+            panic!("Expected infix expression");
+        };
+        assert!(matches!(infix.operator.contents, BinaryOpKind::And));
+
+        let ExpressionKind::Prefix(lhs) = infix.lhs.kind else {
+            panic!("Expected prefix on lhs");
+        };
+        assert!(matches!(lhs.operator, UnaryOp::Reference { mutable: false }));
+
+        let ExpressionKind::Prefix(rhs) = infix.rhs.kind else {
+            panic!("Expected prefix on rhs");
+        };
+        assert!(matches!(rhs.operator, UnaryOp::Reference { mutable: false }));
+    }
+
+    #[test]
     fn parses_minus() {
         let src = "-foo";
         let expr = parse_expression_no_errors(src);
@@ -1466,6 +1656,20 @@ mod tests {
             panic!("Expected variable");
         };
         assert_eq!(path.to_string(), "foo");
+    }
+
+    #[test]
+    fn parses_not_call() {
+        let src = "!foo()";
+        let expr = parse_expression_no_errors(src);
+        let ExpressionKind::Prefix(prefix) = expr.kind else {
+            panic!("Expected prefix expression");
+        };
+        assert!(matches!(prefix.operator, UnaryOp::Not));
+
+        let ExpressionKind::Call(_) = prefix.rhs.kind else {
+            panic!("Expected call");
+        };
     }
 
     #[test]
@@ -1509,18 +1713,9 @@ mod tests {
     fn parses_call_missing_comma() {
         let src = "
         foo(1 2)
-              ^
+              ^ Expected a `,` separating these two arguments
         ";
-        let (src, span) = get_source_with_error_span(src);
-        let mut parser = Parser::for_str_with_dummy_file(&src);
-        let expr = parser.parse_expression_or_error();
-        assert_eq!(expr.location.span.end() as usize, src.len());
-        let reason = get_single_error_reason(&parser.errors, span);
-        let ParserErrorReason::ExpectedTokenSeparatingTwoItems { token, items } = reason else {
-            panic!("Expected a different error");
-        };
-        assert_eq!(token, &Token::Comma);
-        assert_eq!(*items, "arguments");
+        let expr = check_errors(src, |parser| parser.parse_expression_or_error());
 
         let ExpressionKind::Call(call) = expr.kind else {
             panic!("Expected call expression");
@@ -1653,14 +1848,9 @@ mod tests {
     fn parses_constructor_with_fields_recovers_if_assign_instead_of_colon() {
         let src = "
         Foo { x = 1, y }
-                ^
+                ^ Expected a ':' but found '='
         ";
-        let (src, span) = get_source_with_error_span(src);
-        let mut parser = Parser::for_str_with_dummy_file(&src);
-        let expr = parser.parse_expression_or_error();
-
-        let error = get_single_error(&parser.errors, span);
-        assert_eq!(error.to_string(), "Expected a ':' but found '='");
+        let expr = check_errors(src, |parser| parser.parse_expression_or_error());
 
         let ExpressionKind::Constructor(mut constructor) = expr.kind else {
             panic!("Expected constructor");
@@ -1681,14 +1871,9 @@ mod tests {
     fn parses_constructor_recovers_if_double_colon_instead_of_colon() {
         let src = "
         Foo { x: 1, y:: z }
-                     ^^
+                     ^^ Expected a ':' but found '::'
         ";
-        let (src, span) = get_source_with_error_span(src);
-        let mut parser = Parser::for_str_with_dummy_file(&src);
-        let expr = parser.parse_expression_or_error();
-
-        let error = get_single_error(&parser.errors, span);
-        assert_eq!(error.to_string(), "Expected a ':' but found '::'");
+        let expr = check_errors(src, |parser| parser.parse_expression_or_error());
 
         let ExpressionKind::Constructor(mut constructor) = expr.kind else {
             panic!("Expected constructor");
@@ -1709,11 +1894,9 @@ mod tests {
     fn parses_constructor_with_fields_recovers_if_not_an_identifier_1() {
         let src = "
         Foo { x: 1, 2 }
-                    ^
+                    ^ Expected an identifier but found '2'
         ";
-        let (src, span) = get_source_with_error_span(src);
-        let mut parser = Parser::for_str_with_dummy_file(&src);
-        let expr = parser.parse_expression_or_error();
+        let expr = check_errors(src, |parser| parser.parse_expression_or_error());
 
         let ExpressionKind::Constructor(mut constructor) = expr.kind else {
             panic!("Expected constructor");
@@ -1724,20 +1907,15 @@ mod tests {
         let (name, expr) = constructor.fields.remove(0);
         assert_eq!(name.to_string(), "x");
         assert_eq!(expr.to_string(), "1");
-
-        let error = get_single_error(&parser.errors, span);
-        assert_eq!(error.to_string(), "Expected an identifier but found '2'");
     }
 
     #[test]
     fn parses_constructor_with_fields_recovers_if_not_an_identifier_2() {
         let src = "
         Foo { x: 1, 2, y: 2 }
-                    ^
+                    ^ Expected an identifier but found '2'
         ";
-        let (src, span) = get_source_with_error_span(src);
-        let mut parser = Parser::for_str_with_dummy_file(&src);
-        let expr = parser.parse_expression_or_error();
+        let expr = check_errors(src, |parser| parser.parse_expression_or_error());
 
         let ExpressionKind::Constructor(mut constructor) = expr.kind else {
             panic!("Expected constructor");
@@ -1752,9 +1930,6 @@ mod tests {
         let (name, expr) = constructor.fields.remove(0);
         assert_eq!(name.to_string(), "y");
         assert_eq!(expr.to_string(), "2");
-
-        let error = get_single_error(&parser.errors, span);
-        assert_eq!(error.to_string(), "Expected an identifier but found '2'");
     }
 
     #[test]
@@ -1819,16 +1994,70 @@ mod tests {
     }
 
     #[test]
+    fn parses_cast_of_negated_literal_once() {
+        let src = "-1 as u8";
+        let expr = parse_expression_no_errors(src);
+        let ExpressionKind::Cast(cast_expr) = expr.kind else {
+            panic!("Expected cast");
+        };
+        assert_eq!(cast_expr.lhs.to_string(), "-1");
+        assert_eq!(cast_expr.r#type.to_string(), "u8");
+    }
+
+    #[test]
+    fn parses_cast_of_negated_var_twice() {
+        let src = "--x as u8";
+        let expr = parse_expression_no_errors(src);
+        let ExpressionKind::Cast(cast_expr) = expr.kind else {
+            panic!("Expected cast");
+        };
+        let ExpressionKind::Prefix(prefix1) = cast_expr.lhs.kind else {
+            panic!("Expected prefix expression");
+        };
+        assert_eq!(prefix1.operator, UnaryOp::Minus);
+        let ExpressionKind::Prefix(prefix2) = prefix1.rhs.kind else {
+            panic!("Expected prefix expression");
+        };
+        assert_eq!(prefix2.operator, UnaryOp::Minus);
+        assert_eq!(prefix2.rhs.to_string(), "x");
+        assert_eq!(cast_expr.r#type.to_string(), "u8");
+    }
+
+    #[test]
+    fn parses_sum_then_cast() {
+        let src = "1 + 2 as u8";
+        let expr = parse_expression_no_errors(src);
+        let ExpressionKind::Infix(_) = expr.kind else {
+            panic!("Expected infix");
+        };
+    }
+
+    #[test]
     fn parses_cast_missing_type() {
         let src = "
         1 as
-           ^
+           ^ Expected a type but found end of input
         ";
-        let (src, span) = get_source_with_error_span(src);
-        let mut parser = Parser::for_str_with_dummy_file(&src);
-        parser.parse_expression();
-        let error = get_single_error(&parser.errors, span);
-        assert_eq!(error.to_string(), "Expected a type but found end of input");
+        check_errors(src, |parser| parser.parse_expression());
+    }
+
+    #[test]
+    fn parses_cast_comparison() {
+        // Note: in Rust this is a syntax error because `u8 <` is parsed as a generic type reference.
+        // In Noir we allow this syntax, for now, mainly to avoid a breaking change and because
+        // it's unlikely we'd want generic types in this context.
+        let src = "1 as u8 < 3";
+        let expr = parse_expression_no_errors(src);
+        let ExpressionKind::Infix(infix_expr) = expr.kind else {
+            panic!("Expected infix");
+        };
+        let ExpressionKind::Cast(cast_expr) = infix_expr.lhs.kind else {
+            panic!("Expected cast");
+        };
+        assert_eq!(cast_expr.lhs.to_string(), "1");
+        assert_eq!(cast_expr.r#type.to_string(), "u8");
+
+        assert_eq!(infix_expr.rhs.to_string(), "3");
     }
 
     #[test]
@@ -1911,15 +2140,10 @@ mod tests {
     fn errors_on_logical_and() {
         let src = "
         1 && 2
-          ^^
+          ^^ Noir has no logical-and (&&) operator since short-circuiting is much less efficient when compiling to circuits
         ";
-        let (src, span) = get_source_with_error_span(src);
-        let mut parser = Parser::for_str_with_dummy_file(&src);
-        let expression = parser.parse_expression_or_error();
+        let expression = check_errors(src, |parser| parser.parse_expression_or_error());
         assert_eq!(expression.to_string(), "(1 & 2)");
-
-        let reason = get_single_error_reason(&parser.errors, span);
-        assert!(matches!(reason, ParserErrorReason::LogicalAnd));
     }
 
     #[test]
@@ -1931,7 +2155,7 @@ mod tests {
         };
         assert!(lambda.parameters.is_empty());
         assert_eq!(lambda.body.to_string(), "1");
-        assert!(matches!(lambda.return_type.typ, UnresolvedTypeData::Unspecified));
+        assert!(lambda.return_type.is_none());
     }
 
     #[test]
@@ -1945,11 +2169,11 @@ mod tests {
 
         let (pattern, typ) = lambda.parameters.remove(0);
         assert_eq!(pattern.to_string(), "x");
-        assert!(matches!(typ.typ, UnresolvedTypeData::Unspecified));
+        assert!(typ.is_none());
 
         let (pattern, typ) = lambda.parameters.remove(0);
         assert_eq!(pattern.to_string(), "y");
-        assert!(matches!(typ.typ, UnresolvedTypeData::FieldElement));
+        assert_eq!(typ.unwrap().to_string(), "Field");
     }
 
     #[test]
@@ -1961,7 +2185,7 @@ mod tests {
         };
         assert!(lambda.parameters.is_empty());
         assert_eq!(lambda.body.to_string(), "1");
-        assert!(matches!(lambda.return_type.typ, UnresolvedTypeData::FieldElement));
+        assert_eq!(lambda.return_type.unwrap().to_string(), "Field");
     }
 
     #[test]
@@ -1985,30 +2209,6 @@ mod tests {
             panic!("Expected comptime block");
         };
         assert_eq!(block.statements.len(), 1);
-    }
-
-    #[test]
-    fn parses_type_path() {
-        let src = "Field::foo";
-        let expr = parse_expression_no_errors(src);
-        let ExpressionKind::TypePath(type_path) = expr.kind else {
-            panic!("Expected type_path");
-        };
-        assert_eq!(type_path.typ.to_string(), "Field");
-        assert_eq!(type_path.item.to_string(), "foo");
-        assert!(type_path.turbofish.is_none());
-    }
-
-    #[test]
-    fn parses_type_path_with_generics() {
-        let src = "Field::foo::<T>";
-        let expr = parse_expression_no_errors(src);
-        let ExpressionKind::TypePath(type_path) = expr.kind else {
-            panic!("Expected type_path");
-        };
-        assert_eq!(type_path.typ.to_string(), "Field");
-        assert_eq!(type_path.item.to_string(), "foo");
-        assert!(type_path.turbofish.is_some());
     }
 
     #[test]
@@ -2039,11 +2239,9 @@ mod tests {
     fn parses_type_path_with_empty_tuple_missing_angle_brackets() {
         let src = "
           ()::foo
-          ^^
+          ^^ Missing angle brackets surrounding type in associated item path
           ";
-        let (src, span) = get_source_with_error_span(src);
-        let mut parser = Parser::for_str_with_dummy_file(&src);
-        let expr = parser.parse_expression_or_error();
+        let expr = check_errors(src, |parser| parser.parse_expression_or_error());
 
         let ExpressionKind::TypePath(type_path) = expr.kind else {
             panic!("Expected type_path");
@@ -2051,57 +2249,26 @@ mod tests {
         assert_eq!(type_path.typ.to_string(), "()");
         assert_eq!(type_path.item.to_string(), "foo");
         assert!(type_path.turbofish.is_none());
-
-        let reason = get_single_error_reason(&parser.errors, span);
-        assert!(matches!(reason, ParserErrorReason::MissingAngleBrackets));
     }
 
     #[test]
     fn parses_type_path_with_non_empty_tuple_missing_angle_brackets() {
         let src = "
           (Field, i32)::foo
-          ^^^^^^^^^^^^
+          ^^^^^^^^^^^^ Missing angle brackets surrounding type in associated item path
           ";
-        let (src, span) = get_source_with_error_span(src);
-        let mut parser = Parser::for_str_with_dummy_file(&src);
-        let expr = parser.parse_expression_or_error();
-
+        let expr = check_errors(src, |parser| parser.parse_expression_or_error());
         assert!(matches!(expr.kind, ExpressionKind::Error));
-
-        let reason = get_single_error_reason(&parser.errors, span);
-        assert!(matches!(reason, ParserErrorReason::MissingAngleBrackets));
     }
 
     #[test]
     fn parses_type_path_with_array_missing_angle_brackets() {
         let src = "
           [Field; 3]::foo
-          ^^^^^^^^^^
+          ^^^^^^^^^^ Missing angle brackets surrounding type in associated item path
           ";
-        let (src, span) = get_source_with_error_span(src);
-        let mut parser = Parser::for_str_with_dummy_file(&src);
-        let expr = parser.parse_expression_or_error();
-
+        let expr = check_errors(src, |parser| parser.parse_expression_or_error());
         assert!(matches!(expr.kind, ExpressionKind::Error));
-
-        let reason = get_single_error_reason(&parser.errors, span);
-        assert!(matches!(reason, ParserErrorReason::MissingAngleBrackets));
-    }
-
-    #[test]
-    fn parses_primitive_type_errors() {
-        let src = "
-        Field
-        ^^^^^
-        ";
-        let (src, span) = get_source_with_error_span(src);
-        let mut parser = Parser::for_str_with_dummy_file(&src);
-        let expr = parser.parse_expression_or_error();
-        let ExpressionKind::Error = expr.kind else {
-            panic!("Expected error");
-        };
-        let reason = get_single_error_reason(&parser.errors, span);
-        assert_eq!(reason.to_string(), "Expected value, found built-in type `Field`");
     }
 
     #[test]
@@ -2153,18 +2320,84 @@ mod tests {
     fn parses_constrain() {
         let src = "
         constrain 1
-        ^^^^^^^^^
+        ^^^^^^^^^ Use of deprecated keyword 'constrain'
         ";
-        let (src, span) = get_source_with_error_span(src);
-        let mut parser = Parser::for_str_with_dummy_file(&src);
-        let expression = parser.parse_expression_or_error();
+        let expression = check_errors(src, |parser| parser.parse_expression_or_error());
         let ExpressionKind::Constrain(constrain) = expression.kind else {
             panic!("Expected constrain expression");
         };
         assert_eq!(constrain.kind, ConstrainKind::Constrain);
         assert_eq!(constrain.arguments.len(), 1);
+    }
 
-        let reason = get_single_error_reason(&parser.errors, span);
-        assert!(matches!(reason, ParserErrorReason::ConstrainDeprecated));
+    #[test]
+    fn errors_on_match_without_left_brace_after_expression() {
+        let src = "
+        fn main()  {
+            if true {
+                match c _ => {
+                    match d _ => 0,
+                }
+            }
+        } } }
+        ";
+        let (_, errors) = parse_program_with_dummy_file(src);
+        assert!(!errors.is_empty());
+    }
+
+    #[test]
+    fn parses_if_missing_condition() {
+        let src = "
+        if { 1 }
+        ^^ missing condition for `if` expression
+        ";
+        let expression = check_errors(src, |parser| parser.parse_expression_or_error());
+        assert!(matches!(expression.kind, ExpressionKind::If(..)));
+    }
+
+    #[test]
+    fn errors_on_struct_literal_used_in_if_condition() {
+        let src = "
+        if MyStruct { field: true }.field {}
+           ^^^^^^^^^^^^^^^^^^^^^^^^ Struct literals are not allowed in `if` conditions
+        ";
+        check_errors(src, |parser| parser.parse_expression_or_error());
+    }
+
+    #[test]
+    fn errors_on_struct_literal_used_in_if_condition_with_block_argument() {
+        let src = "
+        if MyStruct { field: true }.foo({ 1 }) {}
+           ^^^^^^^^^^^^^^^^^^^^^^^^ Struct literals are not allowed in `if` conditions
+        ";
+        check_errors(src, |parser| parser.parse_expression_or_error());
+    }
+
+    /// When an integer is too large, the lexer will issue an error instead of an integer token.
+    /// The parser in this case recovers by filling in extra integers in place of these errors.
+    #[test]
+    fn only_one_error_on_array_with_too_large_integers() {
+        // The fifth integer here should overflow bn254
+        let src = "
+            @[0, 1, 23, 3444, 21888242871839275222246405745257275088548364400416034343698204186575808495617, 43, 2, 32, 4]
+                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ Integer literal is too large
+        ";
+        let expression = check_errors(src, |parser| parser.parse_expression_or_error());
+        assert!(matches!(expression.kind, ExpressionKind::Literal(Literal::Vector(_))));
+    }
+
+    #[test]
+    fn tuple_member_access_is_not_a_call() {
+        // Usually `foo.bar()` is parsed as a method call, but this is not true if the member access name is an integer.
+        let src = "tuple.0()";
+        let expr = parse_expression_no_errors(src);
+        let ExpressionKind::Call(call) = expr.kind else {
+            panic!("Expected call expression");
+        };
+        let ExpressionKind::MemberAccess(member_access) = call.func.kind else {
+            panic!("Expected member access expression");
+        };
+        assert_eq!(member_access.lhs.to_string(), "tuple");
+        assert_eq!(member_access.rhs.to_string(), "0");
     }
 }

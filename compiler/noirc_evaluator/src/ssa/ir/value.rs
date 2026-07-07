@@ -1,3 +1,5 @@
+use itertools::Itertools;
+use rustc_hash::FxHashMap as HashMap;
 use std::borrow::Cow;
 
 use acvm::FieldElement;
@@ -12,12 +14,12 @@ use super::{
     types::{NumericType, Type},
 };
 
-pub(crate) type ValueId = Id<Value>;
+pub type ValueId = Id<Value>;
 
 /// Value is the most basic type allowed in the IR.
 /// Transition Note: A `Id<Value>` is similar to `NodeId` in our previous IR.
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Serialize, Deserialize)]
-pub(crate) enum Value {
+pub enum Value {
     /// This value was created due to an instruction
     ///
     /// * `instruction`: This is the instruction which defined it
@@ -39,7 +41,7 @@ pub(crate) enum Value {
     NumericConstant { constant: FieldElement, typ: NumericType },
 
     /// This Value refers to a function in the IR.
-    /// Functions always have the type Type::Function.
+    /// Functions always have the type `Type::Function`.
     /// If the argument or return types are needed, users should retrieve
     /// their types via the Call instruction's arguments or the Call instruction's
     /// result types respectively.
@@ -50,9 +52,11 @@ pub(crate) enum Value {
     Intrinsic(Intrinsic),
 
     /// This Value refers to an external function in the IR.
-    /// ForeignFunction's always have the type Type::Function and have similar semantics to Function,
+    /// `ForeignFunction`'s always have the type `Type::Function` and have similar semantics to Function,
     /// other than generating different backend operations and being only accessible through Brillig.
-    ForeignFunction(String),
+    ///
+    /// `pure` is `true` when the user marked the oracle declaration with `#[pure]`.
+    ForeignFunction { name: String, pure: bool },
 
     /// This Value indicates we have a reserved slot that needs to be accessed in a separate global context
     Global(Type),
@@ -69,5 +73,60 @@ impl Value {
             }
             Value::Global(typ) => Cow::Borrowed(typ),
         }
+    }
+}
+
+/// Like `HashMap<ValueId, ValueId>` but handles:
+/// 1. recursion (if v0 -> v1 and v1 -> v2, then v0 -> v2)
+/// 2. self-mapping values (a value mapped to itself won't be inserted into the `HashMap`)
+#[derive(Default, Debug)]
+pub(crate) struct ValueMapping {
+    map: HashMap<ValueId, ValueId>,
+}
+
+impl ValueMapping {
+    pub(crate) fn insert(&mut self, from: ValueId, to: ValueId) {
+        if from == to {
+            return;
+        }
+
+        // If `to` is mapped to something, directly map `from` to that value
+        let to = self.get(to);
+        self.map.insert(from, to);
+    }
+
+    pub(crate) fn batch_insert(&mut self, from: &[ValueId], to: &[ValueId]) {
+        for (from_value, to_value) in from.iter().zip_eq(to) {
+            self.insert(*from_value, *to_value);
+        }
+    }
+
+    pub(crate) fn get(&self, mut value: ValueId) -> ValueId {
+        // Follow the replacement chain iteratively. A recursive walk would use one stack
+        // frame per link, and on large programs the chain can be thousands deep — enough
+        // to overflow the (smaller) wasm stack.
+        while let Some(replacement) = self.map.get(&value) {
+            value = *replacement;
+        }
+        value
+    }
+
+    pub(crate) fn is_empty(&self) -> bool {
+        self.map.is_empty()
+    }
+
+    pub(crate) fn extend(&mut self, other: ValueMapping) {
+        for (from, to) in other.map {
+            self.insert(from, to);
+        }
+    }
+
+    /// Returns true if all [`ValueId`]s are mapped to a [`ValueId`] of the same type.
+    ///
+    /// Mapping a [`ValueId`] to one of a different type implies a compilation error.
+    #[must_use]
+    #[cfg(debug_assertions)]
+    pub(crate) fn value_types_are_consistent(&self, dfg: &super::dfg::DataFlowGraph) -> bool {
+        self.map.iter().all(|(from, to)| dfg.type_of_value(*from) == dfg.type_of_value(*to))
     }
 }

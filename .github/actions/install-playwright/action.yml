@@ -1,26 +1,54 @@
 name: Install Playwright
-description: Installs Playwright and its dependencies and caches them.
+description: Install Playwright browsers with caching for faster CI runs
+
+inputs:
+  browsers:
+    description: 'Space-separated list of browsers to install (e.g. "chromium" or "chromium webkit")'
+    required: false
+    default: 'chromium'
+  playwright-version:
+    description: 'Playwright version to install'
+    required: false
+    default: '1.58.2'
 
 runs:
   using: composite
   steps:
-    # - name: Query playwright version
-    #   shell: bash
-    #   run: echo "PLAYWRIGHT_VERSION=$(yarn workspace @noir-lang/noirc_abi info @web/test-runner-playwright --json | jq .children.Version | tr -d '"')" >> $GITHUB_ENV
+    - name: Cache Playwright browsers
+      id: playwright-cache
+      uses: actions/cache@v4
+      with:
+        path: ~/.cache/ms-playwright
+        key: playwright-${{ inputs.playwright-version }}-${{ inputs.browsers }}-${{ runner.os }}
 
-    # - name: Cache playwright binaries
-    #   uses: actions/cache@v4
-    #   id: playwright-cache
-    #   with:
-    #     path: |
-    #       ~/.cache/ms-playwright
-    #     key: ${{ runner.os }}-playwright-${{ env.PLAYWRIGHT_VERSION }}
+    # Composite-action steps do not support `timeout-minutes`, so each `npx` call
+    # is bounded with coreutils `timeout`: a stalled download or apt mirror fails
+    # fast (exit 124) and the retry wrapper takes a fresh, near-independent draw
+    # rather than hanging until the job-level limit.
+    - name: Install Playwright browsers
+      if: steps.playwright-cache.outputs.cache-hit != 'true'
+      uses: ./.github/actions/retry
+      with:
+        run: timeout 240 npx -y playwright@${{ inputs.playwright-version }} install ${{ inputs.browsers }}
 
-    - name: Install playwright deps
+    # GitHub-hosted Ubuntu runner images already ship Chromium's system
+    # libraries, so `install-deps` is only needed for engines like WebKit.
+    # Running it otherwise is a pure apt round-trip against the Azure-hosted
+    # Ubuntu mirrors — the slowest and flakiest part of this action — so skip it
+    # for chromium-only installs.
+    #
+    # Failures here are best-effort rather than fatal: this is `apt-get` under
+    # the hood, and mirror congestion is a persistent (not transient) condition,
+    # so the retry wrapper's "near-independent draw" assumption does not hold —
+    # all attempts in the same window hit the same slow mirror. A genuinely
+    # missing library surfaces loudly at browser-launch time anyway, whereas a
+    # congested mirror should not red the whole build, so we run once and warn.
+    - name: Install Playwright system dependencies
+      if: contains(inputs.browsers, 'webkit') || contains(inputs.browsers, 'firefox')
       shell: bash
-      # if: steps.playwright-cache.outputs.cache-hit != 'true'
+      env:
+        PLAYWRIGHT_VERSION: ${{ inputs.playwright-version }}
+        BROWSERS: ${{ inputs.browsers }}
       run: |
-        # Workaround: https://github.com/microsoft/playwright/issues/30503#issuecomment-2074783821
-        sudo rm /etc/apt/sources.list.d/microsoft-prod.list
-        ./.github/scripts/playwright-install.sh
-
+        timeout 120 npx -y "playwright@${PLAYWRIGHT_VERSION}" install-deps ${BROWSERS} \
+          || echo "::warning::playwright install-deps failed; continuing (browser launch will fail later if a library is genuinely missing)"

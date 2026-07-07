@@ -1,7 +1,0 @@
-
-            [package]
-            name = "noirc_frontend_tests_metaprogramming_errors_if_macros_inject_functions_with_name_collisions"
-            type = "bin"
-            authors = [""]
-            
-            [dependencies]

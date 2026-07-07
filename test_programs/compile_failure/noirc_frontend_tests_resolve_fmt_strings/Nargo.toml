@@ -1,7 +1,0 @@
-
-            [package]
-            name = "noirc_frontend_tests_resolve_fmt_strings"
-            type = "bin"
-            authors = [""]
-            
-            [dependencies]

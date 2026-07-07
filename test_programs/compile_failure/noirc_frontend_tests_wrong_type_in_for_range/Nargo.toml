@@ -1,7 +1,0 @@
-
-            [package]
-            name = "noirc_frontend_tests_wrong_type_in_for_range"
-            type = "bin"
-            authors = [""]
-            
-            [dependencies]

@@ -1,0 +1,25 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+warning: Return variable contains a constant value
+   ┌─ src/main.nr:13:5
+   │
+13 │     ret
+   │     --- This variable contains a value which is constrained to be a constant. Consider removing this value as additional return values increase proving/verification time
+   │
+   = Call stack:
+     1: main
+             at src/main.nr:13:5
+
+error: Assertion failed: Attempt to pop from an empty vector
+   ┌─ src/main.nr:11:20
+   │
+11 │     let (ret, _) = s.pop_front();
+   │                    -----------
+   │
+   = Call stack:
+     1: main
+             at src/main.nr:11:20
+
+Failed assertion

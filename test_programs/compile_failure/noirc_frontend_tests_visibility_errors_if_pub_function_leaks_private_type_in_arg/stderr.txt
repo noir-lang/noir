@@ -1,8 +1,0 @@
-error: Type `Bar` is more private than item `bar`
-  ┌─ src/main.nr:4:16
-  │
-4 │         pub fn bar(_bar: Bar) {}
-  │                ---
-  │
-
-Aborting due to 1 previous error

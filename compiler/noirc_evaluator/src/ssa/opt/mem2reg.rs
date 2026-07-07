@@ -1,1233 +1,1747 @@
-//! The goal of the mem2reg SSA optimization pass is to replace any `Load` instructions to known
-//! addresses with the value stored at that address, if it is also known. This pass will also remove
-//! any `Store` instructions within a block that are no longer needed because no more loads occur in
-//! between the Store in question and the next Store.
+//! Mem2reg algorithm adapted from the paper: <https://dl.acm.org/doi/pdf/10.1145/115372.115320>
 //!
-//! The pass works as follows:
-//! - Each block in each function is iterated in forward-order.
-//! - The starting value of each reference in the block is the unification of the same references
-//!   at the end of each direct predecessor block to the current block.
-//! - At each step, the value of each reference is either Known(ValueId) or Unknown.
-//! - Two reference values unify to each other if they are exactly equal, or to Unknown otherwise.
-//! - If a block has no predecessors, the starting value of each reference is Unknown.
-//! - Throughout this pass, aliases of each reference are also tracked.
-//!   - References typically have 1 alias - themselves.
-//!   - A reference with multiple aliases means we will not be able to optimize out loads if the
-//!     reference is stored to. Note that this means we can still optimize out loads if these
-//!     aliased references are never stored to, or the store occurs after a load.
-//!   - A reference with 0 aliases means we were unable to find which reference this reference
-//!     refers to. If such a reference is stored to, we must conservatively invalidate every
-//!     reference in the current block.
-//! - We also track the last load instruction to each address per block.
+//! ## Block parameter placement
 //!
-//! From there, to figure out the value of each reference at the end of block, iterate each instruction:
-//! - On `Instruction::Allocate`:
-//!   - Register a new reference was made with itself as its only alias
-//! - On `Instruction::Load { address }`:
-//!   - If `address` is known to only have a single alias (including itself) and if the value of
-//!     that alias is known, replace the value of the load with the known value.
-//!   - Furthermore, if the result of the load is a reference, mark the result as an alias
-//!     of the reference it dereferences to (if known).
-//!     - If which reference it dereferences to is not known, this load result has no aliases.
-//!   - We also track the last instance of a load instruction to each address in a block.
-//!     If we see that the last load instruction was from the same address as the current load instruction,
-//!     we move to replace the result of the current load with the result of the previous load.
-//!     
-//!     This removal requires a couple conditions:
-//!       - No store occurs to that address before the next load,
-//!       - The address is not used as an argument to a call
+//! When a variable is stored in multiple blocks, this pass places block parameters only at the
+//! iterated dominance frontier (IDF) of those definition sites. This is the minimal set of
+//! blocks where values from different control-flow paths could merge, following the standard
+//! algorithm from Cytron et al. (1991). For variables stored in a single block, the dominance
+//! frontier is often empty, meaning no block parameters are needed at all — the value simply
+//! propagates to all loads.
 //!
-//!     This optimization helps us remove repeated loads for which there are not known values.
-//! - On `Instruction::Store { address, value }`:
-//!   - If the address of the store is known:
-//!     - If the address has exactly 1 alias:
-//!       - Set the value of the address to `Known(value)`.
-//!     - If the address has more than 1 alias:
-//!       - Set the value of every possible alias to `Unknown`.
-//!     - If the address has 0 aliases:
-//!       - Conservatively mark every alias in the block to `Unknown`.
-//!   - If the address of the store is not known:
-//!     - Conservatively mark every alias in the block to `Unknown`.
-//!   - Additionally, if there were no Loads to any alias of the address between this Store and
-//!     the previous Store to the same address, the previous store can be removed.
-//!   - Remove the instance of the last load instruction to the address and its aliases
-//! - On `Instruction::Call { arguments }`:
-//!   - If any argument of the call is a reference, set the value of each alias of that
-//!     reference to `Unknown`
-//!   - Any builtin functions that may return aliases if their input also contains a
-//!     reference should be tracked. Examples: `slice_push_back`, `slice_insert`, `slice_remove`, etc.
-//!   - Remove the instance of the last load instruction for any reference arguments and their aliases
-//!
-//! On a terminator instruction:
-//! - If the terminator is a `Jmp`:
-//!   - For each reference argument of the jmp, mark the corresponding block parameter it is passed
-//!     to as an alias for the jmp argument.
-//!
-//! Finally, if this is the only block in the function, we can remove any Stores that were not
-//! referenced by the terminator instruction.
-//!
-//! Repeating this algorithm for each block in the function in program order should result in
-//! optimizing out most known loads. However, identifying all aliases correctly has been proven
-//! undecidable in general (Landi, 1992). So this pass will not always optimize out all loads
-//! that could theoretically be optimized out. This pass can be performed at any time in the
-//! SSA optimization pipeline, although it will be more successful the simpler the program's CFG is.
-//! This pass is currently performed several times to enable other passes - most notably being
-//! performed before loop unrolling to try to allow for mutable variables used for loop indices.
-mod alias_set;
-mod block;
-
-use std::collections::{BTreeMap, BTreeSet};
-
-use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
-use vec_collections::VecSet;
+//! For blocks not in the IDF (the common case in unrolled code with single-predecessor chains),
+//! the variable's value is inherited directly from the predecessor's exit state. This avoids
+//! the O(variables × blocks) cost of adding block parameters everywhere.
+use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
+use std::collections::BTreeMap;
 
 use crate::ssa::{
     ir::{
         basic_block::BasicBlockId,
         cfg::ControlFlowGraph,
+        dfg::DataFlowGraph,
+        dom::DominatorTree,
         function::Function,
         function_inserter::FunctionInserter,
-        instruction::{Instruction, InstructionId, TerminatorInstruction},
+        instruction::{Instruction, TerminatorInstruction},
         post_order::PostOrder,
-        types::Type,
         value::ValueId,
     },
     ssa_gen::Ssa,
 };
 
-use self::alias_set::AliasSet;
-use self::block::{Block, Expression};
-
 impl Ssa {
-    /// Attempts to remove any load instructions that recover values that are already available in
-    /// scope, and attempts to remove stores that are subsequently redundant.
-    #[tracing::instrument(level = "trace", skip(self))]
+    /// Run mem2reg on all functions (both ACIR and Brillig).
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(crate) fn mem2reg(mut self) -> Ssa {
         for function in self.functions.values_mut() {
             function.mem2reg();
+
+            #[cfg(debug_assertions)]
+            mem2reg_post_check(function);
+        }
+        self
+    }
+
+    /// Run mem2reg only on Brillig functions.
+    #[tracing::instrument(level = "trace", skip_all)]
+    pub(crate) fn mem2reg_brillig(mut self) -> Ssa {
+        for function in self.functions.values_mut() {
+            if function.runtime().is_brillig() {
+                function.mem2reg();
+
+                #[cfg(debug_assertions)]
+                mem2reg_post_check(function);
+            }
         }
         self
     }
 }
 
+/// Post-check condition for [`Function::mem2reg`].
+///
+/// Panics if promoting memory to block parameters left any `Jmp`/`JmpIf` terminator
+/// passing a different number of arguments (or differently typed arguments) than its
+/// destination block declares as parameters.
+#[cfg(debug_assertions)]
+fn mem2reg_post_check(function: &Function) {
+    crate::ssa::validation::validate_terminators(function);
+}
+
 impl Function {
     pub(crate) fn mem2reg(&mut self) {
-        let mut context = PerFunctionContext::new(self);
-        context.mem2reg();
-        context.remove_instructions();
-        context.update_data_bus();
+        let cfg = ControlFlowGraph::with_function(self);
+        let post_order = PostOrder::with_cfg(&cfg);
+        let dom_tree = DominatorTree::with_cfg_and_post_order(&cfg, &post_order);
+        let mut dom_frontiers = None;
+        let blocks = post_order.into_vec_reverse();
+
+        // Run mem2reg while we successfully removed at least one allocate instruction and there
+        // are at least one more that couldn't be removed. In an SSA like this one:
+        //
+        // ```
+        // v0 = allocate -> &mut u16
+        // store u16 1 at v0
+        // v2 = allocate -> &mut &mut u16
+        // store v0 at v2
+        // ```
+        //
+        // - v0 can't be optimized out because it's stored in v2
+        // - v2 can and will be optimized out
+        // - now running it again will lead to optimizing out v0, etc.
+        loop {
+            let mut inserter = FunctionInserter::new(self);
+
+            // `variables` and `def_sites` are both keyed by the original ValueId of the `allocate`
+            // instruction result. These are iterated on in key order when adding block
+            // parameters and terminator arguments, so the maps must have a deterministic ordering
+            // for arguments to line up with parameters.
+            let (variables, def_sites, has_ineligible_variables) =
+                collect_eligible_variables_and_def_sites(inserter.function, &blocks);
+
+            if variables.is_empty() {
+                break;
+            }
+
+            // Compute where block parameters are needed using iterated dominance frontiers.
+            // A variable only needs a block parameter at blocks where values from different
+            // control-flow paths could merge (its IDF). For variables stored in a single block,
+            // this is typically empty — no block parameters needed at all.
+            if dom_frontiers.is_none() {
+                dom_frontiers = Some(dom_tree.compute_dominance_frontiers_with_back_edges(&cfg));
+            }
+
+            let param_locations =
+                compute_param_locations(&variables, &def_sites, dom_frontiers.as_ref().unwrap());
+
+            // Precompute which variables are visible at each block by walking the dominator tree.
+            // A variable declared in block D is visible at block B iff D dominates B.
+            // Instead of checking dominates() for each (variable, block) pair — O(blocks × variables) —
+            // we inherit the visible set from the immediate dominator: O(blocks) tree walk.
+            // This completes the Cytron-style SSA construction (the IDF placement above is phase 1;
+            // this visibility propagation replaces the per-variable dominance checks in phase 2).
+            let visible_vars = compute_visible_vars(&blocks, &variables, &dom_tree);
+
+            let mut block_states = BlockStates::default();
+            add_block_params_and_find_exit_states(
+                &blocks,
+                &visible_vars,
+                &param_locations,
+                &mut inserter,
+                &mut block_states,
+                &cfg,
+            );
+            add_terminator_arguments(
+                &blocks,
+                &variables,
+                &param_locations,
+                &mut inserter,
+                &block_states,
+                &cfg,
+            );
+            commit(&mut inserter, &variables, &blocks);
+
+            if !has_ineligible_variables {
+                // mem2reg can no longer simplify the program.
+                break;
+            }
+        }
     }
 }
 
-struct PerFunctionContext<'f> {
-    cfg: ControlFlowGraph,
-    post_order: PostOrder,
+/// Contains the starting & ending values of each variable in each block
+type BlockStates = BTreeMap<BasicBlockId, BlockState>;
 
-    blocks: BTreeMap<BasicBlockId, Block>,
-
-    inserter: FunctionInserter<'f>,
-
-    /// Load and Store instructions that should be removed at the end of the pass.
+/// Contains the starting & ending values of each variable in one block
+#[derive(Default)]
+struct BlockState {
+    /// Maps each variable visible in this block to its starting value in the block. This is
+    /// normally a block parameter or a value forwarded from a previous block.
     ///
-    /// We avoid removing individual instructions as we go since removing elements
-    /// from the middle of Vecs many times will be slower than a single call to `retain`.
-    instructions_to_remove: HashSet<InstructionId>,
+    /// In the block where a variable is declared the variable is not yet defined at block entry,
+    /// so it is mapped to its own allocate result as a placeholder. `abstract_interpret_block`
+    /// overwrites this with the real value once it processes the variable's initial `Store`.
+    entry_state: BTreeMap<ValueId, ValueId>,
 
-    /// Track a value's last load across all blocks.
-    /// If a value is not used in anymore loads we can remove the last store to that value.
-    last_loads: HashMap<ValueId, (InstructionId, BasicBlockId)>,
-
-    /// Track whether a reference was passed into another entry point
-    /// This is needed to determine whether we can remove a store.
-    calls_reference_input: HashSet<ValueId>,
-
-    /// Track whether a reference has been aliased, and store the respective
-    /// instruction that aliased that reference.
-    /// If that store has been set for removal, we can also remove this instruction.
-    aliased_references: HashMap<ValueId, HashSet<InstructionId>>,
+    /// Maps each variable modified within this block to the value it is set to at the end of
+    /// the block. Note that to save on memory, we do not store variables which were not modified
+    /// within the block. Their values will be the same as the value in `entry_states`.
+    exit_state: BTreeMap<ValueId, ValueId>,
 }
 
-impl<'f> PerFunctionContext<'f> {
-    fn new(function: &'f mut Function) -> Self {
-        let cfg = ControlFlowGraph::with_function(function);
-        let post_order = PostOrder::with_function(function);
+/// For each eligible variable, the set of blocks where a block parameter must be inserted.
+/// Computed as the iterated dominance frontier of the variable's definition sites.
+type ParamLocations = BTreeMap<ValueId, HashSet<BasicBlockId>>;
 
-        PerFunctionContext {
+/// Compute where block parameters are needed for each variable.
+///
+/// A variable needs a block parameter at block B if B is in the iterated dominance frontier
+/// of the blocks where the variable is stored to. This is the minimal set of blocks where
+/// values from different control-flow paths could merge.
+fn compute_param_locations(
+    variables: &BTreeMap<ValueId, BasicBlockId>,
+    def_sites: &HashMap<ValueId, HashSet<BasicBlockId>>,
+    dom_frontiers: &HashMap<BasicBlockId, HashSet<BasicBlockId>>,
+) -> ParamLocations {
+    let mut result = BTreeMap::new();
+    for var in variables.keys() {
+        let sites = def_sites.get(var).expect("def_sites has an entry for every eligible variable");
+        result.insert(*var, iterated_dominance_frontier(sites, dom_frontiers));
+    }
+    result
+}
+
+/// Compute the iterated dominance frontier of a set of blocks.
+///
+/// Starting from the given definition sites, this computes the closure of the dominance
+/// frontier: DF+(S) = DF(S) ∪ DF(DF(S)) ∪ ... This is the standard worklist algorithm.
+fn iterated_dominance_frontier(
+    def_sites: &HashSet<BasicBlockId>,
+    dom_frontiers: &HashMap<BasicBlockId, HashSet<BasicBlockId>>,
+) -> HashSet<BasicBlockId> {
+    let mut result = HashSet::default();
+    let mut worklist: Vec<BasicBlockId> = def_sites.iter().copied().collect();
+
+    while let Some(block) = worklist.pop() {
+        if let Some(frontier) = dom_frontiers.get(&block) {
+            for &df_block in frontier {
+                if result.insert(df_block) {
+                    worklist.push(df_block);
+                }
+            }
+        }
+    }
+    result
+}
+
+/// Precompute which variables are visible at each block by walking the dominator tree.
+///
+/// A variable declared in block D is visible at block B iff D dominates B. Instead of
+/// checking `dominates(D, B)` for every (variable, block) pair — O(variables × blocks) —
+/// we walk blocks in RPO and inherit the visible set from the immediate dominator.
+/// Each block's visible set is its idom's visible set plus any variables declared locally.
+fn compute_visible_vars(
+    blocks: &[BasicBlockId],
+    variables: &BTreeMap<ValueId, BasicBlockId>,
+    dom_tree: &DominatorTree,
+) -> HashMap<BasicBlockId, im::OrdMap<ValueId, BasicBlockId>> {
+    // Group variables by their declaration block
+    let mut vars_by_decl_block: HashMap<BasicBlockId, Vec<ValueId>> = HashMap::default();
+    for (var, decl_block) in variables {
+        vars_by_decl_block.entry(*decl_block).or_default().push(*var);
+    }
+
+    let mut visible: HashMap<BasicBlockId, im::OrdMap<ValueId, BasicBlockId>> = HashMap::default();
+    for &block in blocks {
+        let mut vars = match dom_tree.immediate_dominator(block) {
+            Some(idom) => visible[&idom].clone(),
+            None => im::OrdMap::new(),
+        };
+        if let Some(declared_here) = vars_by_decl_block.get(&block) {
+            for var in declared_here {
+                vars.insert(*var, block);
+            }
+        }
+        visible.insert(block, vars);
+    }
+    visible
+}
+
+/// Find the starting & ending states of each variable in each block.
+///
+/// Block parameters are only added at blocks in the variable's IDF (`param_locations`).
+/// For all other blocks, the entry value is inherited from the predecessor's exit state.
+fn add_block_params_and_find_exit_states(
+    blocks: &[BasicBlockId],
+    visible_vars: &HashMap<BasicBlockId, im::OrdMap<ValueId, BasicBlockId>>,
+    param_locations: &ParamLocations,
+    inserter: &mut FunctionInserter,
+    block_states: &mut BlockStates,
+    cfg: &ControlFlowGraph,
+) {
+    for block in blocks.iter().copied() {
+        let entry_state = compute_entry_state(
+            &visible_vars[&block],
+            param_locations,
+            block,
+            &mut inserter.function.dfg,
+            block_states,
             cfg,
-            post_order,
-            inserter: FunctionInserter::new(function),
-            blocks: BTreeMap::new(),
-            instructions_to_remove: HashSet::default(),
-            last_loads: HashMap::default(),
-            calls_reference_input: HashSet::default(),
-            aliased_references: HashMap::default(),
+        );
+        let exit_state = abstract_interpret_block(inserter, block, &entry_state);
+        block_states.insert(block, BlockState { entry_state, exit_state });
+    }
+}
+
+/// Compute the entry state for a block.
+///
+/// `visible_vars` contains only the variables whose declaration dominates this block
+/// (precomputed via dominator tree walk in `compute_visible_vars`).
+///
+/// For each visible variable:
+/// - If this is the declaration block: use the original allocate result
+/// - If this block is in the variable's IDF: add a fresh block parameter
+/// - Otherwise: inherit the value from a visited predecessor's exit state
+fn compute_entry_state(
+    visible_vars: &im::OrdMap<ValueId, BasicBlockId>,
+    param_locations: &ParamLocations,
+    block: BasicBlockId,
+    dfg: &mut DataFlowGraph,
+    block_states: &BlockStates,
+    cfg: &ControlFlowGraph,
+) -> StateVec {
+    visible_vars
+        .iter()
+        .filter_map(|(var, decl_block)| {
+            let value = if block == *decl_block {
+                // Declaration block: the variable is not yet defined at block entry, so map it to
+                // its own allocate result as a placeholder. `abstract_interpret_block` replaces it
+                // with the real value when it processes the variable's initial `Store`.
+                *var
+            } else if param_locations[var].contains(&block) {
+                // IDF block: add a block parameter for this variable
+                let typ = dfg
+                    .type_of_value(*var)
+                    .reference_element_type()
+                    .expect("All variables should be references")
+                    .clone();
+                dfg.add_block_parameter(block, typ)
+            } else {
+                // Non-IDF block: inherit from a visited predecessor.
+                // Since we process in RPO, at least one non-back-edge predecessor
+                // has been visited. All visited predecessors must agree on this
+                // variable's value (otherwise this block would be in the IDF).
+                get_value_from_visited_predecessor(*var, block, cfg, block_states)?
+            };
+
+            Some((*var, value))
+        })
+        .collect()
+}
+
+/// Get a variable's exit value from a visited predecessor.
+///
+/// Returns None if no predecessor has been visited yet (can happen for unreachable blocks).
+fn get_value_from_visited_predecessor(
+    var: ValueId,
+    block: BasicBlockId,
+    cfg: &ControlFlowGraph,
+    block_states: &BlockStates,
+) -> Option<ValueId> {
+    for predecessor in cfg.predecessors(block) {
+        if let Some(pred_state) = block_states.get(&predecessor) {
+            return Some(pred_state.get_exit_value(var));
         }
     }
+    None
+}
 
-    /// Apply the mem2reg pass to the given function.
-    ///
-    /// This function is expected to be the same one that the internal cfg, post_order, and
-    /// dom_tree were created from.
-    fn mem2reg(&mut self) {
-        // Iterate each block in reverse post order = forward order
-        let mut block_order = PostOrder::with_function(self.inserter.function).into_vec();
-        block_order.reverse();
+/// Link entry & exit states by adding terminator arguments for variables at IDF blocks.
+///
+/// Only blocks in a variable's IDF have block parameters that need arguments wired.
+/// The decl block is skipped even when it is in its own IDF (loop-header pattern):
+/// `compute_entry_state` does not add a block parameter there, and predecessors of the
+/// decl block don't have the variable in their state.
+fn add_terminator_arguments(
+    blocks: &[BasicBlockId],
+    variables: &BTreeMap<ValueId, BasicBlockId>,
+    param_locations: &ParamLocations,
+    inserter: &mut FunctionInserter,
+    block_states: &BlockStates,
+    cfg: &ControlFlowGraph,
+) {
+    for block in blocks.iter().copied() {
+        let block_state = &block_states[&block];
 
-        for block in block_order {
-            let references = self.find_starting_references(block);
-            self.analyze_block(block, references);
-        }
-
-        let mut all_terminator_values = HashSet::default();
-        let mut per_func_block_params: HashSet<ValueId> = HashSet::default();
-        for (block_id, _) in self.blocks.iter() {
-            let block_params = self.inserter.function.dfg.block_parameters(*block_id);
-            per_func_block_params.extend(block_params.iter());
-            let terminator = self.inserter.function.dfg[*block_id].unwrap_terminator();
-            terminator.for_each_value(|value| all_terminator_values.insert(value));
-        }
-
-        // If we never load from an address within a function we can remove all stores to that address.
-        // This rule does not apply to reference parameters, which we must also check for before removing these stores.
-        for (_, block) in self.blocks.iter() {
-            for (store_address, store_instruction) in block.last_stores.iter() {
-                let store_alias_used = self.is_store_alias_used(
-                    store_address,
+        for address in block_state.entry_state.keys() {
+            if block == variables[address] || !param_locations[address].contains(&block) {
+                continue;
+            }
+            for predecessor in cfg.predecessors(block) {
+                let value = block_states[&predecessor].get_exit_value(*address);
+                for_each_terminator_edge_mut(
+                    &mut inserter.function.dfg,
+                    predecessor,
                     block,
-                    &all_terminator_values,
-                    &per_func_block_params,
+                    |args| args.push(value),
                 );
-
-                let is_dereference = block
-                    .expressions
-                    .get(store_address)
-                    .is_some_and(|expression| matches!(expression, Expression::Dereference(_)));
-
-                if !self.last_loads.contains_key(store_address)
-                    && !store_alias_used
-                    && !is_dereference
-                {
-                    self.instructions_to_remove.insert(*store_instruction);
-                }
             }
         }
     }
+}
 
-    // Extra checks on where a reference can be used aside a load instruction.
-    // Even if all loads to a reference have been removed we need to make sure that
-    // an allocation did not come from an entry point or was passed to an entry point.
-    fn is_store_alias_used(
-        &self,
-        store_address: &ValueId,
-        block: &Block,
-        all_terminator_values: &HashSet<ValueId>,
-        per_func_block_params: &HashSet<ValueId>,
-    ) -> bool {
-        let reference_parameters = self.reference_parameters();
+/// Mapping from a variable to its value at a point in time.
+type StateVec = BTreeMap<ValueId, ValueId>;
 
-        if let Some(expression) = block.expressions.get(store_address) {
-            if let Some(aliases) = block.aliases.get(expression) {
-                let allocation_aliases_parameter =
-                    aliases.any(|alias| reference_parameters.contains(&alias));
-                if allocation_aliases_parameter == Some(true) {
-                    return true;
-                }
-
-                let allocation_aliases_parameter =
-                    aliases.any(|alias| per_func_block_params.contains(&alias));
-                if allocation_aliases_parameter == Some(true) {
-                    return true;
-                }
-
-                let allocation_aliases_parameter =
-                    aliases.any(|alias| self.calls_reference_input.contains(&alias));
-                if allocation_aliases_parameter == Some(true) {
-                    return true;
-                }
-
-                let allocation_aliases_parameter =
-                    aliases.any(|alias| all_terminator_values.contains(&alias));
-                if allocation_aliases_parameter == Some(true) {
-                    return true;
-                }
-
-                let allocation_aliases_parameter = aliases.any(|alias| {
-                    if let Some(alias_instructions) = self.aliased_references.get(&alias) {
-                        self.instructions_to_remove.is_disjoint(alias_instructions)
-                    } else {
-                        false
-                    }
-                });
-                if allocation_aliases_parameter == Some(true) {
-                    return true;
-                }
-            }
-        }
-
-        false
-    }
-
-    /// Collect the input parameters of the function which are of reference type.
-    /// All references are mutable, so these inputs are shared with the function caller
-    /// and thus stores should not be eliminated, even if the blocks in this function
-    /// don't use them anywhere.
-    fn reference_parameters(&self) -> BTreeSet<ValueId> {
-        let parameters = self.inserter.function.parameters().iter();
-        parameters
-            .filter(|param| self.inserter.function.dfg.value_is_reference(**param))
-            .copied()
-            .collect()
-    }
-
-    /// The value of each reference at the start of the given block is the unification
-    /// of the value of the same reference at the end of its predecessor blocks.
-    fn find_starting_references(&mut self, block: BasicBlockId) -> Block {
-        let mut predecessors = self.cfg.predecessors(block);
-
-        if let Some(first_predecessor) = predecessors.next() {
-            let mut first = self.blocks.get(&first_predecessor).cloned().unwrap_or_default();
-            first.last_stores.clear();
-            // Last loads are tracked per block. During unification we are creating a new block from the current one,
-            // so we must clear the last loads of the current block before we return the new block.
-            first.last_loads.clear();
-
-            // Note that we have to start folding with the first block as the accumulator.
-            // If we started with an empty block, an empty block union'd with any other block
-            // is always also empty so we'd never be able to track any references across blocks.
-            predecessors.fold(first, |block, predecessor| {
-                let predecessor = self.blocks.entry(predecessor).or_default();
-                block.unify(predecessor)
-            })
-        } else {
-            Block::default()
-        }
-    }
-
-    /// Analyze a block with the given starting reference values.
+impl BlockState {
+    /// Gets the "exit value" of a variable, which is its value at the end of the given block.
     ///
-    /// This will remove any known loads in the block and track the value of references
-    /// as they are stored to. When this function is finished, the value of each reference
-    /// at the end of this block will be remembered in `self.blocks`.
-    fn analyze_block(&mut self, block: BasicBlockId, mut references: Block) {
-        let instructions = self.inserter.function.dfg[block].take_instructions();
-
-        // If this is the entry block, take all the block parameters and assume they may
-        // be aliased to each other
-        if block == self.inserter.function.entry_block() {
-            self.add_aliases_for_reference_parameters(block, &mut references);
-        }
-
-        for instruction in instructions {
-            self.analyze_instruction(block, &mut references, instruction);
-        }
-
-        self.handle_terminator(block, &mut references);
-
-        // If there's only 1 block in the function total, we can remove any remaining last stores
-        // as well. We can't do this if there are multiple blocks since subsequent blocks may
-        // reference these stores.
-        if self.post_order.as_slice().len() == 1 {
-            self.remove_stores_that_do_not_alias_parameters(&references);
-        }
-
-        self.blocks.insert(block, references);
+    /// `variable` should always be a reference.
+    fn get_exit_value(&self, variable: ValueId) -> ValueId {
+        *self
+            .exit_state
+            .get(&variable)
+            // To save memory, `exit_states` only contains the value if it changed within the block.
+            // So we have to check `entry_states` for the value if it went unchanged.
+            .unwrap_or_else(|| &self.entry_state[&variable])
     }
+}
 
-    /// Go through each parameter and register that all reference parameters of the same type are
-    /// possibly aliased to each other. If there are parameters with nested references (arrays of
-    /// references or references containing other references) we give up and assume all parameter
-    /// references are `AliasSet::unknown()`.
-    fn add_aliases_for_reference_parameters(&self, block: BasicBlockId, references: &mut Block) {
-        let dfg = &self.inserter.function.dfg;
-        let params = dfg.block_parameters(block);
-
-        let mut aliases: HashMap<Type, AliasSet> = HashMap::default();
-
-        for param in params {
-            match dfg.type_of_value(*param) {
-                // If the type indirectly contains a reference we have to assume all references
-                // are unknown since we don't have any ValueIds to use.
-                Type::Reference(element) if element.contains_reference() => return,
-                Type::Reference(element) => {
-                    let empty_aliases = AliasSet::known_empty();
-                    let alias_set =
-                        aliases.entry(element.as_ref().clone()).or_insert(empty_aliases);
-                    alias_set.insert(*param);
-                }
-                typ if typ.contains_reference() => return,
-                _ => continue,
+/// Invoke `f` on the terminator arguments of every edge from `block` to `jmp_target`.
+///
+/// A `JmpIf` may have both `then_destination` and `else_destination` pointing at the
+/// same successor, in which case `f` is called once per matching edge so the caller
+/// can wire each one. Panics if the given block does not terminate in a Jmp or `JmpIf`.
+fn for_each_terminator_edge_mut(
+    dfg: &mut DataFlowGraph,
+    block: BasicBlockId,
+    jmp_target: BasicBlockId,
+    mut f: impl FnMut(&mut Vec<ValueId>),
+) {
+    match dfg[block].unwrap_terminator_mut() {
+        TerminatorInstruction::Jmp { arguments, .. } => f(arguments),
+        TerminatorInstruction::JmpIf {
+            then_destination,
+            then_arguments,
+            else_destination,
+            else_arguments,
+            ..
+        } => {
+            if jmp_target == *then_destination {
+                f(then_arguments);
+            }
+            if jmp_target == *else_destination {
+                f(else_arguments);
             }
         }
-
-        for aliases in aliases.into_values() {
-            let first = aliases.first();
-            let first = first.expect("All parameters alias at least themselves or we early return");
-
-            let expression = Expression::Other(first);
-            let previous = references.aliases.insert(expression.clone(), aliases.clone());
-            assert!(previous.is_none());
-
-            aliases.for_each(|alias| {
-                let previous = references.expressions.insert(alias, expression.clone());
-                assert!(previous.is_none());
-            });
-        }
+        TerminatorInstruction::Return { .. } | TerminatorInstruction::Unreachable { .. } => panic!(
+            "for_each_terminator_edge_mut called on edge: {block} -> {jmp_target}, but {block} terminates with Return or Unreachable, and has no outgoing edge"
+        ),
     }
+}
 
-    /// Add all instructions in `last_stores` to `self.instructions_to_remove` which do not
-    /// possibly alias any parameters of the given function.
-    fn remove_stores_that_do_not_alias_parameters(&mut self, references: &Block) {
-        let reference_parameters = self.reference_parameters();
+/// Abstractly interpret a block, collecting the value of each reference at the end of a block.
+/// Any references not included in the result are assumed to be unchanged.
+///
+/// This function is very simple and will produce incorrect results for first-class references
+/// that are aliased, passed to functions, or stored in arrays, etc.
+///
+/// Note that this function will also replace any instances of the reference being stored to
+/// with its current value in the block. Most of the time, this locally renames the reference
+/// in the block so that we can map its value in the block independent of other blocks.
+fn abstract_interpret_block(
+    inserter: &mut FunctionInserter,
+    block: BasicBlockId,
+    entry_state: &StateVec,
+) -> StateVec {
+    // Any variables not in the exit_state by function end are assumed to be unchanged from the entry_state
+    let mut exit_state = StateVec::new();
+    let instructions = inserter.function.dfg[block].take_instructions();
 
-        for (allocation, instruction) in &references.last_stores {
-            if let Some(expression) = references.expressions.get(allocation) {
-                if let Some(aliases) = references.aliases.get(expression) {
-                    let allocation_aliases_parameter =
-                        aliases.any(|alias| reference_parameters.contains(&alias));
-
-                    // If `allocation_aliases_parameter` is known to be false
-                    if allocation_aliases_parameter == Some(false) {
-                        self.instructions_to_remove.insert(*instruction);
-                    }
-                }
-            }
-        }
-    }
-
-    fn analyze_instruction(
-        &mut self,
-        block_id: BasicBlockId,
-        references: &mut Block,
-        mut instruction: InstructionId,
-    ) {
-        // If the instruction was simplified and optimized out of the program we shouldn't analyze
-        // it. Analyzing it could make tracking aliases less accurate if it is e.g. an ArrayGet
-        // call that used to hold references but has since been optimized out to a known result.
-        if let Some(new_id) = self.inserter.push_instruction(instruction, block_id) {
-            instruction = new_id;
-        } else {
-            return;
-        }
-
-        match &self.inserter.function.dfg[instruction] {
-            Instruction::Load { address } => {
-                let address = self.inserter.function.dfg.resolve(*address);
-
-                let result = self.inserter.function.dfg.instruction_results(instruction)[0];
-                references.remember_dereference(self.inserter.function, address, result);
-
-                // If the load is known, replace it with the known value and remove the load
-                if let Some(value) = references.get_known_value(address) {
-                    let result = self.inserter.function.dfg.instruction_results(instruction)[0];
-                    self.inserter.map_value(result, value);
-                    self.instructions_to_remove.insert(instruction);
-                } else {
-                    references.mark_value_used(address, self.inserter.function);
-
-                    self.last_loads.insert(address, (instruction, block_id));
-                }
-
-                // Check whether the block has a repeat load from the same address (w/ no calls or stores in between the loads).
-                // If we do have a repeat load, we can remove the current load and map its result to the previous load's result.
-                if let Some(last_load) = references.last_loads.get(&address) {
-                    let Instruction::Load { address: previous_address } =
-                        &self.inserter.function.dfg[*last_load]
-                    else {
-                        panic!("Expected a Load instruction here");
-                    };
-                    let result = self.inserter.function.dfg.instruction_results(instruction)[0];
-                    let previous_result =
-                        self.inserter.function.dfg.instruction_results(*last_load)[0];
-                    if *previous_address == address {
-                        self.inserter.map_value(result, previous_result);
-                        self.instructions_to_remove.insert(instruction);
-                    }
-                }
-                // We want to set the load for every load even if the address has a known value
-                // and the previous load instruction was removed.
-                // We are safe to still remove a repeat load in this case as we are mapping from the current load's
-                // result to the previous load, which if it was removed should already have a mapping to the known value.
-                references.set_last_load(address, instruction);
-            }
+    for instruction_id in &instructions {
+        match &inserter.function.dfg[*instruction_id] {
             Instruction::Store { address, value } => {
-                let address = self.inserter.function.dfg.resolve(*address);
-                let value = self.inserter.function.dfg.resolve(*value);
-
-                // If there was another store to this instruction without any (unremoved) loads or
-                // function calls in-between, we can remove the previous store.
-                if let Some(last_store) = references.last_stores.get(&address) {
-                    self.instructions_to_remove.insert(*last_store);
-                }
-
-                if self.inserter.function.dfg.value_is_reference(value) {
-                    if let Some(expression) = references.expressions.get(&value) {
-                        if let Some(aliases) = references.aliases.get(expression) {
-                            aliases.for_each(|alias| {
-                                self.aliased_references
-                                    .entry(alias)
-                                    .or_default()
-                                    .insert(instruction);
-                            });
-                        }
-                    }
-                }
-
-                references.set_known_value(address, value);
-                // If we see a store to an address, the last load to that address needs to remain.
-                references.keep_last_load_for(address, self.inserter.function);
-                references.last_stores.insert(address, instruction);
-            }
-            Instruction::Allocate => {
-                // Register the new reference
-                let result = self.inserter.function.dfg.instruction_results(instruction)[0];
-                references.expressions.insert(result, Expression::Other(result));
-                references.aliases.insert(Expression::Other(result), AliasSet::known(result));
-            }
-            Instruction::ArrayGet { array, .. } => {
-                let result = self.inserter.function.dfg.instruction_results(instruction)[0];
-                references.mark_value_used(*array, self.inserter.function);
-
-                if self.inserter.function.dfg.value_is_reference(result) {
-                    let array = self.inserter.function.dfg.resolve(*array);
-                    let expression = Expression::ArrayElement(Box::new(Expression::Other(array)));
-
-                    if let Some(aliases) = references.aliases.get_mut(&expression) {
-                        aliases.insert(result);
-                    }
+                // Only update the value if the address is already in the entry state, since only
+                // those addresses are eligible for mem2reg optimization. If the address is
+                // in the state, we remove it.
+                if entry_state.contains_key(address) {
+                    exit_state.insert(*address, *value);
                 }
             }
-            Instruction::ArraySet { array, value, .. } => {
-                references.mark_value_used(*array, self.inserter.function);
-                let element_type = self.inserter.function.dfg.type_of_value(*value);
-
-                if Self::contains_references(&element_type) {
-                    let result = self.inserter.function.dfg.instruction_results(instruction)[0];
-                    let array = self.inserter.function.dfg.resolve(*array);
-
-                    let expression = Expression::ArrayElement(Box::new(Expression::Other(array)));
-
-                    let mut aliases = if let Some(aliases) = references.aliases.get_mut(&expression)
-                    {
-                        aliases.clone()
-                    } else if let Some((elements, _)) =
-                        self.inserter.function.dfg.get_array_constant(array)
-                    {
-                        let aliases = references.collect_all_aliases(elements);
-                        self.set_aliases(references, array, aliases.clone());
-                        aliases
-                    } else {
-                        AliasSet::unknown()
-                    };
-
-                    aliases.unify(&references.get_aliases_for_value(*value));
-
-                    references.expressions.insert(result, expression.clone());
-                    references.aliases.insert(expression, aliases);
-                }
-            }
-            Instruction::Call { arguments, .. } => {
-                for arg in arguments {
-                    if self.inserter.function.dfg.value_is_reference(*arg) {
-                        if let Some(expression) = references.expressions.get(arg) {
-                            if let Some(aliases) = references.aliases.get(expression) {
-                                aliases.for_each(|alias| {
-                                    self.calls_reference_input.insert(alias);
-                                });
-                            }
-                        }
-                    }
-                }
-                self.mark_all_unknown(arguments, references);
-            }
-            Instruction::MakeArray { elements, typ } => {
-                // If `array` is an array constant that contains reference types, then insert each element
-                // as a potential alias to the array itself.
-                if Self::contains_references(typ) {
-                    let array = self.inserter.function.dfg.instruction_results(instruction)[0];
-
-                    let expr = Expression::ArrayElement(Box::new(Expression::Other(array)));
-                    references.expressions.insert(array, expr.clone());
-                    let aliases = references.aliases.entry(expr).or_default();
-
-                    for element in elements {
-                        aliases.insert(*element);
-                    }
+            Instruction::Load { address } => {
+                if let Some(value) = exit_state.get(address).or_else(|| entry_state.get(address)) {
+                    let result = inserter.function.dfg.instruction_results(*instruction_id)[0];
+                    inserter.map_value(result, *value);
                 }
             }
             _ => (),
         }
     }
 
-    fn contains_references(typ: &Type) -> bool {
-        match typ {
-            Type::Numeric(_) => false,
-            Type::Function => false,
-            Type::Reference(_) => true,
-            Type::Array(elements, _) | Type::Slice(elements) => {
-                elements.iter().any(Self::contains_references)
-            }
-        }
-    }
+    *inserter.function.dfg[block].instructions_mut() = instructions;
+    exit_state
+}
 
-    fn set_aliases(&self, references: &mut Block, address: ValueId, new_aliases: AliasSet) {
-        let expression =
-            references.expressions.entry(address).or_insert(Expression::Other(address));
-        let aliases = references.aliases.entry(expression.clone()).or_default();
-        *aliases = new_aliases;
-    }
+/// Return a map from each eligible variable to the block it was declared in,
+/// along with the set of blocks where each variable is stored to (definition sites).
+///
+/// Only includes variables that are eligible for mem2reg optimization,
+/// i.e. those that are allocated but never used in a first-class manner.
+fn collect_eligible_variables_and_def_sites(
+    function: &Function,
+    blocks: &[BasicBlockId],
+) -> (BTreeMap<ValueId, BasicBlockId>, HashMap<ValueId, HashSet<BasicBlockId>>, bool) {
+    // Map each variable to the block it was declared in
+    let mut variables = BTreeMap::default();
+    // Map each variable to the set of blocks that contain stores to it
+    let mut def_sites: HashMap<ValueId, HashSet<BasicBlockId>> = HashMap::default();
+    // Whether there's any allocate that can't be optimized out
+    let mut has_ineligible_variables = false;
 
-    fn mark_all_unknown(&self, values: &[ValueId], references: &mut Block) {
-        for value in values {
-            if self.inserter.function.dfg.value_is_reference(*value) {
-                let value = self.inserter.function.dfg.resolve(*value);
-                references.set_unknown(value);
-                references.mark_value_used(value, self.inserter.function);
+    // Workaround for https://github.com/noir-lang/noir/issues/11482:
+    // If the declaration block of an allocate has no starting store then it isn't eligible for mem2reg.
+    // This is because the current implementation expects a value for forwarding the loads.
+    // A use before initialization (load before store) is an invalid program, but still,
+    // a valid program may have an allocate without a store in the same allocate block.
+    // This case is currently skipped and would panic if not.
+    let mut variables_with_stores_in_decl_block = HashSet::default();
 
-                // If a reference is an argument to a call, the last load to that address and its aliases needs to remain.
-                references.keep_last_load_for(value, self.inserter.function);
-            }
-        }
-    }
+    for block_id in blocks.iter().copied() {
+        let block = &function.dfg[block_id];
+        for instruction_id in block.instructions() {
+            let instruction = &function.dfg[*instruction_id];
+            match instruction {
+                Instruction::Allocate => {
+                    let address = function.dfg.instruction_results(*instruction_id)[0];
+                    variables.insert(address, block_id);
+                }
+                Instruction::Load { .. } => (),
+                // Storing to an address is fine, but storing an address prevents optimizing it out.
+                Instruction::Store { address, value } => {
+                    if variables.remove(value).is_some() {
+                        has_ineligible_variables = true;
+                    }
 
-    /// Remove any instructions in `self.instructions_to_remove` from the current function.
-    /// This is expected to contain any loads which were replaced and any stores which are
-    /// no longer needed.
-    fn remove_instructions(&mut self) {
-        // The order we iterate blocks in is not important
-        for block in self.post_order.as_slice() {
-            self.inserter.function.dfg[*block]
-                .instructions_mut()
-                .retain(|instruction| !self.instructions_to_remove.contains(instruction));
-        }
-    }
-
-    fn update_data_bus(&mut self) {
-        let mut databus = self.inserter.function.dfg.data_bus.clone();
-        databus.map_values_mut(|t| self.inserter.resolve(t));
-        self.inserter.function.dfg.data_bus = databus;
-    }
-
-    fn handle_terminator(&mut self, block: BasicBlockId, references: &mut Block) {
-        self.inserter.map_terminator_in_place(block);
-
-        match self.inserter.function.dfg[block].unwrap_terminator() {
-            TerminatorInstruction::JmpIf { .. } => (), // Nothing to do
-            TerminatorInstruction::Jmp { destination, arguments, .. } => {
-                let destination_parameters = self.inserter.function.dfg[*destination].parameters();
-                assert_eq!(destination_parameters.len(), arguments.len());
-
-                // If we have multiple parameters that alias that same argument value,
-                // then those parameters also alias each other.
-                // We save parameters with repeat arguments to later mark those
-                // parameters as aliasing one another.
-                let mut arg_set = HashMap::default();
-
-                // Add an alias for each reference parameter
-                for (parameter, argument) in destination_parameters.iter().zip(arguments) {
-                    if self.inserter.function.dfg.value_is_reference(*parameter) {
-                        let argument = self.inserter.function.dfg.resolve(*argument);
-
-                        if let Some(expression) = references.expressions.get(&argument) {
-                            if let Some(aliases) = references.aliases.get_mut(expression) {
-                                // The argument reference is possibly aliased by this block parameter
-                                aliases.insert(*parameter);
-
-                                // Check if we have seen the same argument
-                                let seen_parameters =
-                                    arg_set.entry(argument).or_insert_with(VecSet::empty);
-                                // Add the current parameter to the parameters we have seen for this argument.
-                                // The previous parameters and the current one alias one another.
-                                seen_parameters.insert(*parameter);
-                            }
+                    if let Some(decl_block) = variables.get(address) {
+                        let is_decl_block = *decl_block == block_id;
+                        def_sites.entry(*address).or_default().insert(block_id);
+                        if is_decl_block {
+                            variables_with_stores_in_decl_block.insert(*address);
                         }
                     }
                 }
-
-                // Set the aliases of the parameters
-                for (_, aliased_params) in arg_set {
-                    for param in aliased_params.iter() {
-                        self.set_aliases(
-                            references,
-                            *param,
-                            AliasSet::known_multiple(aliased_params.clone()),
-                        );
+                // Any other use of an address (in arrays, functions, etc) is also first-class and prevents optimization.
+                _ => instruction.for_each_value(|value| {
+                    if variables.remove(&value).is_some() {
+                        has_ineligible_variables = true;
                     }
-                }
-            }
-            TerminatorInstruction::Return { return_values, .. } => {
-                // Removing all `last_stores` for each returned reference is more important here
-                // than setting them all to ReferenceValue::Unknown since no other block should
-                // have a block with a Return terminator as a predecessor anyway.
-                self.mark_all_unknown(return_values, references);
+                }),
             }
         }
+
+        block.unwrap_terminator().for_each_value(|value| {
+            if variables.remove(&value).is_some() {
+                has_ineligible_variables = true;
+            }
+        });
+    }
+
+    // `def_sites` accumulates entries only when we see a store to an address still tracked in
+    // `variables`, so `variables` is the authoritative set of eligible addresses. Both retains
+    // below prune any stale entries left by first-class uses that removed an address from
+    // `variables` without clearing `def_sites`.
+    variables.retain(|address, _| {
+        if variables_with_stores_in_decl_block.contains(address) {
+            true
+        } else {
+            has_ineligible_variables = true;
+            false
+        }
+    });
+    def_sites.retain(|address, _| variables.contains_key(address));
+    (variables, def_sites, has_ineligible_variables)
+}
+
+/// Commit to all changes made by the pass:
+/// - Map any values mapped from the inserter to their new values in the function
+/// - Remove all Allocate, Load, and Store instructions from the eligible variables
+fn commit(
+    inserter: &mut FunctionInserter,
+    variables: &BTreeMap<ValueId, BasicBlockId>,
+    blocks: &[BasicBlockId],
+) {
+    for &block in blocks {
+        let mut instructions = inserter.function.dfg[block].take_instructions();
+
+        // Remove any allocate, load, or store instructions for variables which were optimized out
+        instructions.retain(|instruction_id| {
+            let instruction = &inserter.function.dfg[*instruction_id];
+            let keep = match instruction {
+                Instruction::Allocate => {
+                    let address = inserter.function.dfg.instruction_results(*instruction_id)[0];
+                    !variables.contains_key(&address)
+                }
+                Instruction::Load { address } | Instruction::Store { address, value: _ } => {
+                    !variables.contains_key(address)
+                }
+                _ => true,
+            };
+
+            if keep {
+                inserter.map_instruction_in_place(*instruction_id);
+            }
+            keep
+        });
+
+        *inserter.function.dfg[block].instructions_mut() = instructions;
+
+        inserter.map_terminator_in_place(block);
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use std::sync::Arc;
-
-    use acvm::{FieldElement, acir::AcirField};
-    use im::vector;
-
-    use crate::ssa::{
-        Ssa,
-        function_builder::FunctionBuilder,
-        ir::{
-            basic_block::BasicBlockId,
-            dfg::DataFlowGraph,
-            instruction::{BinaryOp, Instruction, Intrinsic, TerminatorInstruction},
-            map::Id,
-            types::Type,
-        },
-        opt::assert_normalized_ssa_equals,
+    use crate::{
+        assert_ssa_snapshot,
+        ssa::{opt::assert_ssa_does_not_change, ssa_gen::Ssa},
     };
 
     #[test]
+    fn decl_block_in_own_idf_regression() {
+        // The allocate is in a loop header (b1), so the decl block is in its own IDF via the
+        // back-edge predecessor. `compute_entry_state` does not add a block parameter at the
+        // decl block (the `block == decl_block` branch wins over the IDF branch), so
+        // `add_terminator_arguments` must skip pushing args from b1's predecessors — they
+        // don't have the variable in their state.
+        let src = "
+        brillig(inline) fn func f0 {
+          b0(v0: u1):
+            jmp b1()
+          b1():
+            v1 = allocate -> &mut Field
+            store Field 5 at v1
+            v2 = load v1 -> Field
+            jmpif v0 then: b2(), else: b1()
+          b2():
+            return Field 0
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.mem2reg();
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) fn func f0 {
+          b0(v0: u1):
+            jmp b1()
+          b1():
+            jmpif v0 then: b2(), else: b1()
+          b2():
+            return Field 0
+        }
+        ");
+    }
+
+    #[test]
     fn test_simple() {
-        // fn func() {
-        //   b0():
-        //     v0 = allocate
-        //     v1 = make_array [Field 1, Field 2]
-        //     store v1 in v0
-        //     v2 = load v0
-        //     v3 = array_get v2, index 1
-        //     return v3
-        // }
-
-        let func_id = Id::test_new(0);
-        let mut builder = FunctionBuilder::new("func".into(), func_id);
-        let v0 = builder.insert_allocate(Type::Array(Arc::new(vec![Type::field()]), 2));
-        let one = builder.field_constant(FieldElement::one());
-        let two = builder.field_constant(FieldElement::one());
-
-        let element_type = Arc::new(vec![Type::field()]);
-        let array_type = Type::Array(element_type, 2);
-        let v1 = builder.insert_make_array(vector![one, two], array_type.clone());
-
-        builder.insert_store(v0, v1);
-        let v2 = builder.insert_load(v0, array_type);
-        let v3 = builder.insert_array_get(v2, one, Type::field());
-        builder.terminate_with_return(vec![v3]);
-
-        let ssa = builder.finish().mem2reg().fold_constants();
-
-        let func = ssa.main();
-        let block_id = func.entry_block();
-
-        assert_eq!(count_loads(block_id, &func.dfg), 0);
-        assert_eq!(count_stores(block_id, &func.dfg), 0);
-
-        let ret_val_id = match func.dfg[block_id].terminator().unwrap() {
-            TerminatorInstruction::Return { return_values, .. } => return_values.first().unwrap(),
-            _ => unreachable!(),
-        };
-        assert_eq!(func.dfg[*ret_val_id], func.dfg[two]);
-    }
-
-    #[test]
-    fn test_simple_with_call() {
-        // fn func {
-        //   b0():
-        //     v0 = allocate
-        //     store v0, Field 1
-        //     v1 = load v0
-        //     call f0(v0)
-        //     return v1
-        // }
-
-        let func_id = Id::test_new(0);
-        let mut builder = FunctionBuilder::new("func".into(), func_id);
-        let v0 = builder.insert_allocate(Type::field());
-        let one = builder.field_constant(FieldElement::one());
-        builder.insert_store(v0, one);
-        let v1 = builder.insert_load(v0, Type::field());
-        let f0 = builder.import_intrinsic_id(Intrinsic::AssertConstant);
-        builder.insert_call(f0, vec![v0], vec![]);
-        builder.terminate_with_return(vec![v1]);
-
-        let ssa = builder.finish().mem2reg();
-
-        let func = ssa.main();
-        let block_id = func.entry_block();
-
-        assert_eq!(count_loads(block_id, &func.dfg), 0);
-        assert_eq!(count_stores(block_id, &func.dfg), 1);
-
-        let ret_val_id = match func.dfg[block_id].terminator().unwrap() {
-            TerminatorInstruction::Return { return_values, .. } => return_values.first().unwrap(),
-            _ => unreachable!(),
-        };
-        assert_eq!(func.dfg[*ret_val_id], func.dfg[one]);
-    }
-
-    #[test]
-    fn test_simple_with_return() {
-        // fn func {
-        //   b0():
-        //     v0 = allocate
-        //     store v0, Field 1
-        //     return v0
-        // }
-
-        let func_id = Id::test_new(0);
-        let mut builder = FunctionBuilder::new("func".into(), func_id);
-        let v0 = builder.insert_allocate(Type::field());
-        let const_one = builder.field_constant(FieldElement::one());
-        builder.insert_store(v0, const_one);
-        builder.terminate_with_return(vec![v0]);
-
-        let ssa = builder.finish().mem2reg();
-
-        let func = ssa.main();
-        let block_id = func.entry_block();
-
-        // Store is needed by the return value, and can't be removed
-        assert_eq!(count_stores(block_id, &func.dfg), 1);
-        let instructions = func.dfg[block_id].instructions();
-        assert_eq!(instructions.len(), 2);
-
-        let ret_val_id = match func.dfg[block_id].terminator().unwrap() {
-            TerminatorInstruction::Return { return_values, .. } => *return_values.first().unwrap(),
-            _ => unreachable!(),
-        };
-
-        // Since the mem2reg pass simplifies as it goes, the id of the allocate instruction result
-        // is most likely no longer v0. We have to retrieve the new id here.
-        let allocate_id = func.dfg.instruction_results(instructions[0])[0];
-        assert_eq!(ret_val_id, allocate_id);
-    }
-
-    fn count_stores(block: BasicBlockId, dfg: &DataFlowGraph) -> usize {
-        dfg[block]
-            .instructions()
-            .iter()
-            .filter(|instruction_id| matches!(dfg[**instruction_id], Instruction::Store { .. }))
-            .count()
-    }
-
-    fn count_loads(block: BasicBlockId, dfg: &DataFlowGraph) -> usize {
-        dfg[block]
-            .instructions()
-            .iter()
-            .filter(|instruction_id| matches!(dfg[**instruction_id], Instruction::Load { .. }))
-            .count()
-    }
-
-    // Test that loads across multiple blocks are removed
-    #[test]
-    fn multiple_blocks() {
-        // fn main {
-        //   b0():
-        //     v0 = allocate
-        //     store Field 5 in v0
-        //     v1 = load v0
-        //     jmp b1(v1):
-        //   b1(v2: Field):
-        //     v3 = load v0
-        //     store Field 6 in v0
-        //     v4 = load v0
-        //     return v2, v3, v4
-        // }
-        let main_id = Id::test_new(0);
-        let mut builder = FunctionBuilder::new("main".into(), main_id);
-
-        let v0 = builder.insert_allocate(Type::field());
-
-        let five = builder.field_constant(5u128);
-        builder.insert_store(v0, five);
-
-        let v1 = builder.insert_load(v0, Type::field());
-        let b1 = builder.insert_block();
-        builder.terminate_with_jmp(b1, vec![v1]);
-
-        builder.switch_to_block(b1);
-        let v2 = builder.add_block_parameter(b1, Type::field());
-        let v3 = builder.insert_load(v0, Type::field());
-
-        let six = builder.field_constant(6u128);
-        builder.insert_store(v0, six);
-        let v4 = builder.insert_load(v0, Type::field());
-
-        builder.terminate_with_return(vec![v2, v3, v4]);
-
-        let ssa = builder.finish();
-        assert_eq!(ssa.main().reachable_blocks().len(), 2);
-
-        // Expected result:
-        // acir fn main f0 {
-        //   b0():
-        //     v7 = allocate
-        //     jmp b1(Field 5)
-        //   b1(v3: Field):
-        //     return v3, Field 5, Field 6
-        // }
+        let src = "
+        brillig(inline) fn func f0 {
+          b0():
+            v0 = allocate -> &mut [Field; 2]
+            v3 = make_array [Field 1, Field 1] : [Field; 2]
+            store v3 at v0
+            v4 = load v0 -> [Field; 2]
+            v5 = array_get v4, index u32 1 -> Field
+            return v5
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
         let ssa = ssa.mem2reg();
 
-        let main = ssa.main();
-        assert_eq!(main.reachable_blocks().len(), 2);
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) fn func f0 {
+          b0():
+            v1 = make_array [Field 1, Field 1] : [Field; 2]
+            v3 = array_get v1, index u32 1 -> Field
+            return v3
+        }
+        ");
+    }
 
-        // The loads should be removed
-        assert_eq!(count_loads(main.entry_block(), &main.dfg), 0);
-        assert_eq!(count_loads(b1, &main.dfg), 0);
+    #[test]
+    fn test_multi_block() {
+        let src = "
+        brillig(inline) fn func f0 {
+          b0(v0: u1):
+            v1 = allocate -> &mut Field
+            store Field 0 at v1
+            jmpif v0 then: b1(), else: b2()
+          b1():
+            store Field 1 at v1
+            jmp b3()
+          b2():
+            store Field 2 at v1
+            jmp b3()
+          b3():
+            v4 = load v1 -> Field
+            return v4
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.mem2reg();
 
-        // All stores are removed as there are no loads to the values being stored anywhere in the function.
-        assert_eq!(count_stores(main.entry_block(), &main.dfg), 0);
-        assert_eq!(count_stores(b1, &main.dfg), 0);
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) fn func f0 {
+          b0(v0: u1):
+            jmpif v0 then: b1(), else: b2()
+          b1():
+            jmp b3(Field 1)
+          b2():
+            jmp b3(Field 2)
+          b3(v1: Field):
+            return v1
+        }
+        ");
+    }
 
-        // The jmp to b1 should also be a constant 5 now
-        match main.dfg[main.entry_block()].terminator() {
-            Some(TerminatorInstruction::Jmp { arguments, .. }) => {
-                assert_eq!(arguments.len(), 1);
-                let argument =
-                    main.dfg.get_numeric_constant(arguments[0]).expect("Expected constant value");
-                assert_eq!(argument.to_u128(), 5);
+    #[test]
+    fn test_single_predecessor_elimination() {
+        let src = "
+            brillig(inline) fn func f0 {
+              b0():
+                v1 = allocate -> &mut Field
+                store Field 7 at v1
+                jmp b1()
+              b1():
+                v2 = load v1 -> Field
+                return v2
             }
-            _ => unreachable!(),
-        };
-    }
-
-    // Test that a load in a predecessor block has been removed if the value
-    // is later stored in a successor block
-    #[test]
-    fn load_aliases_in_predecessor_block() {
-        let src = "
-        acir(inline) fn main f0 {
+            ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.mem2reg();
+        // Expect the allocate/load/store to be removed and the constant propagated to the return.
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) fn func f0 {
           b0():
-            v0 = allocate -> &mut Field
-            store Field 0 at v0
-            v2 = allocate -> &mut &mut Field
-            store v0 at v2
-            v3 = load v2 -> &mut Field
-            v4 = load v2 -> &mut Field
             jmp b1()
           b1():
-            store Field 1 at v3
-            store Field 2 at v4
-            v7 = load v3 -> Field
-            v8 = eq v7, Field 2
+            return Field 7
+        }
+        ");
+    }
+
+    #[test]
+    fn test_identical_branch_arguments_removed() {
+        let src = "
+            brillig(inline) fn func f0 {
+              b0(v0: u1):
+                v1 = allocate -> &mut Field
+                store Field 0 at v1
+                jmpif v0 then: b1(), else: b2()
+              b1():
+                store Field 1 at v1
+                jmp b3()
+              b2():
+                store Field 1 at v1
+                jmp b3()
+              b3():
+                v4 = load v1 -> Field
+                return v4
+            }
+            ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.mem2reg();
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) fn func f0 {
+          b0(v0: u1):
+            jmpif v0 then: b1(), else: b2()
+          b1():
+            jmp b3(Field 1)
+          b2():
+            jmp b3(Field 1)
+          b3(v1: Field):
+            return v1
+        }
+        ");
+    }
+
+    #[test]
+    fn test_multiple_stores_same_block() {
+        let src = "
+            brillig(inline) fn func f0 {
+              b0():
+                v0 = allocate -> &mut Field
+                store Field 5 at v0
+                v1 = load v0 -> Field
+                store Field 10 at v0
+                v2 = load v0 -> Field
+                v3 = add v1, v2
+                return v3
+            }
+            ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.mem2reg();
+        assert_ssa_snapshot!(ssa, @r"
+            brillig(inline) fn func f0 {
+              b0():
+                v2 = add Field 5, Field 10
+                return v2
+            }
+            ");
+    }
+
+    #[test]
+    fn test_three_way_merge() {
+        let src = "
+            brillig(inline) fn func f0 {
+              b0(v0: u1, v1: u1):
+                v2 = allocate -> &mut Field
+                store Field 1 at v2
+                jmpif v0 then: b1(), else: b2()
+              b1():
+                store Field 2 at v2
+                jmp b5()
+              b2():
+                jmpif v1 then: b3(), else: b4()
+              b3():
+                store Field 3 at v2
+                jmp b5()
+              b4():
+                jmp b5()
+              b5():
+                v3 = load v2 -> Field
+                return v3
+            }
+            ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.mem2reg();
+        // Should handle merging from three different paths
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) fn func f0 {
+          b0(v0: u1, v1: u1):
+            jmpif v0 then: b1(), else: b2()
+          b1():
+            jmp b5(Field 2)
+          b2():
+            jmpif v1 then: b3(), else: b4()
+          b3():
+            jmp b5(Field 3)
+          b4():
+            jmp b5(Field 1)
+          b5(v2: Field):
+            return v2
+        }
+        ");
+    }
+
+    #[test]
+    fn test_no_optimization_with_aliasing() {
+        // This test ensures we don't try to optimize allocations that might be aliased
+        let src = "
+            brillig(inline) fn func f0 {
+              b0():
+                v0 = allocate -> &mut Field
+                store Field 10 at v0
+                v1 = make_array [v0] : [&mut Field; 1]
+                v2 = load v0 -> Field
+                v3 = array_get v1, index u32 0 -> &mut Field
+                store Field 20 at v3
+                v4 = load v0 -> Field
+                v5 = add v2, v4
+                return v5
+            }
+            ";
+        assert_ssa_does_not_change(src, Ssa::mem2reg);
+    }
+
+    #[test]
+    fn test_variable_only_stored_in_one_branch() {
+        // Variable is stored in one branch but not the other
+        let src = "
+            brillig(inline) fn func f0 {
+              b0(v0: u1):
+                v1 = allocate -> &mut Field
+                store Field 5 at v1
+                jmpif v0 then: b1(), else: b2()
+              b1():
+                store Field 10 at v1
+                jmp b3()
+              b2():
+                jmp b3()
+              b3():
+                v2 = load v1 -> Field
+                return v2
+            }
+            ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.mem2reg();
+        // b2 path should pass the initial value (Field 5), b1 passes (Field 10)
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) fn func f0 {
+          b0(v0: u1):
+            jmpif v0 then: b1(), else: b2()
+          b1():
+            jmp b3(Field 10)
+          b2():
+            jmp b3(Field 5)
+          b3(v1: Field):
+            return v1
+        }
+        ");
+    }
+
+    #[test]
+    fn test_consecutive_stores_load() {
+        // Multiple consecutive stores followed by a single load
+        let src = "
+            brillig(inline) fn func f0 {
+              b0():
+                v0 = allocate -> &mut Field
+                store Field 1 at v0
+                store Field 2 at v0
+                store Field 3 at v0
+                v1 = load v0 -> Field
+                return v1
+            }
+            ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.mem2reg();
+        // Only the last store should matter
+        assert_ssa_snapshot!(ssa, @r"
+            brillig(inline) fn func f0 {
+              b0():
+                return Field 3
+            }
+            ");
+    }
+
+    #[test]
+    fn test_deep_nesting_diamond() {
+        // Deeply nested diamond patterns
+        let src = "
+            brillig(inline) fn func f0 {
+              b0(v0: u1, v1: u1):
+                v2 = allocate -> &mut Field
+                store Field 1 at v2
+                jmpif v0 then: b1(), else: b2()
+              b1():
+                jmpif v1 then: b3(), else: b4()
+              b2():
+                store Field 2 at v2
+                jmp b5()
+              b3():
+                store Field 3 at v2
+                jmp b5()
+              b4():
+                store Field 4 at v2
+                jmp b5()
+              b5():
+                v3 = load v2 -> Field
+                return v3
+            }
+            ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.mem2reg();
+        // Should properly merge all three stores: from b2, b3, b4
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) fn func f0 {
+          b0(v0: u1, v1: u1):
+            jmpif v0 then: b1(), else: b2()
+          b1():
+            jmpif v1 then: b3(), else: b4()
+          b2():
+            jmp b5(Field 2)
+          b3():
+            jmp b5(Field 3)
+          b4():
+            jmp b5(Field 4)
+          b5(v2: Field):
+            return v2
+        }
+        ");
+    }
+
+    #[test]
+    fn reference_not_found_regression() {
+        // Regression test with complex control flow
+        let src = "
+brillig(inline) fn main f0 {
+  b0(v0: [u32; 5], v1: [u32; 5], v2: u32, v4: u32):
+    v3 = allocate -> &mut u32
+    store v2 at v3
+    v6 = allocate -> &mut u32
+    store u32 2301 at v6
+    v9 = array_get v1, index u32 4 -> u32
+    store v9 at v3
+    jmp b1(u32 0)
+  b1(v12: u32):
+    v13 = lt v12, u32 5
+    jmpif v13 then: b2(), else: b3()
+  b2():
+    v14 = load v3 -> u32
+    v15 = load v3 -> u32
+    v16 = mul v14, v15
+    v17 = array_get v1, index v12 -> u32
+    v18 = mul v16, v17
+    store v18 at v6
+    v19 = load v3 -> u32
+    v20 = load v6 -> u32
+    v21 = sub v19, v20
+    store v21 at v3
+    v22 = unchecked_add v12, u32 1
+    jmp b1(v22)
+  b3():
+    v23 = load v3 -> u32
+    v24 = eq v23, u32 0
+    constrain v23 == u32 0
+    store u32 2301 at v6
+    jmp b4(u32 0)
+  b4(v27: u32):
+    v28 = lt v27, u32 5
+    jmpif v28 then: b5(), else: b6()
+  b5():
+    v31 = add v4, u32 2
+    store v31 at v6
+    v33 = load v3 -> u32
+    v34 = load v3 -> u32
+    v36 = array_get v0, index v27 -> u32
+    store u32 0 at v6
+    v39 = load v3 -> u32
+    v41 = array_get v0, index v27 -> u32
+    v42 = array_get v1, index v27 -> u32
+    v43 = mul v41, v42
+    v44 = load v6 -> u32
+    store u32 1 at v3
+    v47 = unchecked_add v27, u32 1
+    jmp b4(v47)
+  b6():
+    v48 = load v3 -> u32
+    v50 = eq v48, u32 3814912846
+    constrain v48 == u32 3814912846
+    store u32 2300001 at v6
+    v53 = array_get v1, index u32 4 -> u32
+    store v53 at v3
+    jmp b7(u32 0)
+  b7(v54: u32):
+    v55 = lt v54, u32 5
+    jmpif v55 then: b8(), else: b9()
+  b8():
+    v56 = load v3 -> u32
+    v57 = array_get v0, index v54 -> u32
+    v58 = array_get v1, index v54 -> u32
+    v59 = mul v57, v58
+    v60 = add v56, v59
+    store v60 at v3
+    jmp b10(u32 0)
+  b9():
+    v70 = load v3 -> u32
+    v72 = eq v70, u32 41472
+    constrain v70 == u32 41472
+    v73 = array_get v1, index u32 4 -> u32
+    store v73 at v3
+    jmp b13(u32 0)
+  b10(v62: u32):
+    v63 = lt v62, u32 3
+    jmpif v63 then: b11(), else: b12()
+  b11():
+    store u32 3 at v6
+    v65 = load v3 -> u32
+    v66 = load v6 -> u32
+    store u32 4 at v3
+    v68 = unchecked_add v62, u32 1
+    jmp b10(v68)
+  b12():
+    v69 = unchecked_add v54, u32 1
+    jmp b7(v69)
+  b13(v74: u32):
+    v75 = lt v74, u32 3
+    jmpif v75 then: b14(), else: b15()
+  b14():
+    v76 = load v3 -> u32
+    v77 = array_get v0, index v74 -> u32
+    v78 = array_get v1, index v74 -> u32
+    v79 = mul v77, v78
+    v80 = add v76, v79
+    store v80 at v3
+    jmp b16(u32 0)
+  b15():
+    v92 = load v3 -> u32
+    v94 = eq v92, u32 11539
+    constrain v92 == u32 11539
+    v95 = load v3 -> u32
+    v96 = eq v95, u32 0
+    jmpif v96 then: b19(), else: b20()
+  b16(v81: u32):
+    v82 = lt v81, u32 2
+    jmpif v82 then: b17(), else: b18()
+  b17():
+    v83 = load v3 -> u32
+    v84 = add v74, v81
+    v85 = array_get v0, index v84 -> u32
+    v86 = add v74, v81
+    v87 = array_get v1, index v86 -> u32
+    v88 = sub v85, v87
+    v89 = add v83, v88
+    store v89 at v3
+    v90 = unchecked_add v81, u32 1
+    jmp b16(v90)
+  b18():
+    v91 = unchecked_add v74, u32 1
+    jmp b13(v91)
+  b19():
+    jmp b21(v0)
+  b20():
+    jmp b21(v1)
+  b21(v97: [u32; 5]):
+    v98 = array_get v97, index u32 0 -> u32
+    v99 = array_get v1, index u32 0 -> u32
+    v100 = eq v98, v99
+    constrain v98 == v99
+    jmp b22(u32 0)
+  b22(v102: u32):
+    v103 = lt v102, u32 5
+    jmpif v103 then: b23(), else: b24()
+  b23():
+    v104 = array_get v1, index v102 -> u32
+    jmp b25(u32 0)
+  b24():
+    v118 = make_array [Field 1, Field 2, Field 3, Field 4, Field 5, Field 6] : [(Field, Field); 3]
+    v119 = allocate -> &mut [(Field, Field); 3]
+    store v118 at v119
+    v122 = load v119 -> [(Field, Field); 3]
+    v123 = array_set v122, index u32 2, value Field 7
+    v124 = array_set v123, index u32 3, value Field 8
+    store v124 at v119
+    v125 = load v119 -> [(Field, Field); 3]
+    v126 = array_get v125, index u32 2 -> Field
+    v127 = array_get v125, index u32 3 -> Field
+    v128 = eq v127, Field 8
+    constrain v127 == Field 8
+    return
+  b25(v105: u32):
+    v106 = lt v105, u32 5
+    jmpif v106 then: b26(), else: b27()
+  b26():
+    v107 = array_get v0, index v105 -> u32
+    v108 = eq v107, v104
+    v109 = not v108
+    constrain v108 == u1 0
+    v111 = unchecked_add v105, u32 1
+    jmp b25(v111)
+  b27():
+    v112 = unchecked_add v102, u32 1
+    jmp b22(v112)
+}
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.mem2reg();
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) fn main f0 {
+          b0(v0: [u32; 5], v1: [u32; 5], v2: u32, v3: u32):
+            v24 = array_get v1, index u32 4 -> u32
+            jmp b1(u32 0, v24, u32 2301)
+          b1(v4: u32, v5: u32, v6: u32):
+            v28 = lt v4, u32 5
+            jmpif v28 then: b2(), else: b3()
+          b2():
+            v29 = mul v5, v5
+            v30 = array_get v1, index v4 -> u32
+            v31 = mul v29, v30
+            v32 = sub v5, v31
+            v34 = unchecked_add v4, u32 1
+            jmp b1(v34, v32, v31)
+          b3():
+            v35 = eq v5, u32 0
+            constrain v5 == u32 0
+            jmp b4(u32 0, v5, u32 2301)
+          b4(v7: u32, v8: u32, v9: u32):
+            v36 = lt v7, u32 5
+            jmpif v36 then: b5(), else: b6()
+          b5():
+            v38 = add v3, u32 2
+            v39 = array_get v0, index v7 -> u32
+            v40 = array_get v0, index v7 -> u32
+            v41 = array_get v1, index v7 -> u32
+            v42 = mul v40, v41
+            v43 = unchecked_add v7, u32 1
+            jmp b4(v43, u32 1, u32 0)
+          b6():
+            v45 = eq v8, u32 3814912846
+            constrain v8 == u32 3814912846
+            v46 = array_get v1, index u32 4 -> u32
+            jmp b7(u32 0, v46, u32 2300001)
+          b7(v10: u32, v11: u32, v12: u32):
+            v48 = lt v10, u32 5
+            jmpif v48 then: b8(), else: b9()
+          b8():
+            v49 = array_get v0, index v10 -> u32
+            v50 = array_get v1, index v10 -> u32
+            v51 = mul v49, v50
+            v52 = add v11, v51
+            jmp b10(u32 0, v52, v12)
+          b9():
+            v58 = eq v11, u32 41472
+            constrain v11 == u32 41472
+            v59 = array_get v1, index u32 4 -> u32
+            jmp b13(u32 0, v59)
+          b10(v13: u32, v14: u32, v15: u32):
+            v54 = lt v13, u32 3
+            jmpif v54 then: b11(), else: b12()
+          b11():
+            v55 = unchecked_add v13, u32 1
+            jmp b10(v55, u32 4, u32 3)
+          b12():
+            v56 = unchecked_add v10, u32 1
+            jmp b7(v56, v14, v15)
+          b13(v16: u32, v17: u32):
+            v60 = lt v16, u32 3
+            jmpif v60 then: b14(), else: b15()
+          b14():
+            v61 = array_get v0, index v16 -> u32
+            v62 = array_get v1, index v16 -> u32
+            v63 = mul v61, v62
+            v64 = add v17, v63
+            jmp b16(u32 0, v64)
+          b15():
+            v75 = eq v17, u32 11539
+            constrain v17 == u32 11539
+            v76 = eq v17, u32 0
+            jmpif v76 then: b19(), else: b20()
+          b16(v18: u32, v19: u32):
+            v65 = lt v18, u32 2
+            jmpif v65 then: b17(), else: b18()
+          b17():
+            v66 = add v16, v18
+            v67 = array_get v0, index v66 -> u32
+            v68 = add v16, v18
+            v69 = array_get v1, index v68 -> u32
+            v70 = sub v67, v69
+            v71 = add v19, v70
+            v72 = unchecked_add v18, u32 1
+            jmp b16(v72, v71)
+          b18():
+            v73 = unchecked_add v16, u32 1
+            jmp b13(v73, v19)
+          b19():
+            jmp b21(v0)
+          b20():
+            jmp b21(v1)
+          b21(v20: [u32; 5]):
+            v77 = array_get v20, index u32 0 -> u32
+            v78 = array_get v1, index u32 0 -> u32
+            v79 = eq v77, v78
+            constrain v77 == v78
+            jmp b22(u32 0)
+          b22(v21: u32):
+            v80 = lt v21, u32 5
+            jmpif v80 then: b23(), else: b24()
+          b23():
+            v81 = array_get v1, index v21 -> u32
+            jmp b25(u32 0)
+          b24():
+            v95 = make_array [Field 1, Field 2, Field 3, Field 4, Field 5, Field 6] : [(Field, Field); 3]
+            v97 = array_set v95, index u32 2, value Field 7
+            v99 = array_set v97, index u32 3, value Field 8
+            v100 = array_get v99, index u32 2 -> Field
+            v101 = array_get v99, index u32 3 -> Field
+            v102 = eq v101, Field 8
+            constrain v101 == Field 8
             return
+          b25(v22: u32):
+            v82 = lt v22, u32 5
+            jmpif v82 then: b26(), else: b27()
+          b26():
+            v83 = array_get v0, index v22 -> u32
+            v84 = eq v83, v81
+            v85 = not v84
+            constrain v84 == u1 0
+            v87 = unchecked_add v22, u32 1
+            jmp b25(v87)
+          b27():
+            v88 = unchecked_add v21, u32 1
+            jmp b22(v88)
+        }
+        ");
+    }
+
+    #[test]
+    fn add_arg_to_jmpif_block_regression() {
+        let src = "
+            brillig(inline) fn to_le_bits f19 {
+              b0(v0: Field):
+                v2 = call to_le_bits(v0) -> [u1; 32]
+                v7 = make_array [u1 1, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 1, u1 1, u1 1, u1 1, u1 1, u1 1, u1 0, u1 0, u1 1, u1 0, u1 0, u1 1, u1 1, u1 0, u1 1, u1 0, u1 1, u1 1, u1 1, u1 1, u1 1, u1 0, u1 0, u1 0, u1 0, u1 1, u1 1, u1 1, u1 1, u1 1, u1 0, u1 0, u1 0, u1 0, u1 1, u1 0, u1 1, u1 0, u1 0, u1 0, u1 1, u1 0, u1 0, u1 1, u1 0, u1 0, u1 0, u1 0, u1 1, u1 1, u1 1, u1 0, u1 1, u1 0, u1 0, u1 1, u1 1, u1 1, u1 0, u1 1, u1 1, u1 0, u1 0, u1 1, u1 1, u1 1, u1 1, u1 0, u1 0, u1 0, u1 0, u1 1, u1 0, u1 0, u1 1, u1 0, u1 0, u1 0, u1 0, u1 1, u1 0, u1 1, u1 1, u1 1, u1 1, u1 1, u1 0, u1 0, u1 1, u1 1, u1 0, u1 0, u1 0, u1 0, u1 0, u1 1, u1 0, u1 1, u1 0, u1 0, u1 1, u1 0, u1 1, u1 1, u1 1, u1 0, u1 1, u1 0, u1 0, u1 0, u1 0, u1 1, u1 1, u1 0, u1 1, u1 0, u1 1, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 1, u1 1, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 1, u1 0, u1 1, u1 1, u1 0, u1 1, u1 1, u1 0, u1 1, u1 1, u1 0, u1 1, u1 0, u1 0, u1 0, u1 1, u1 0, u1 0, u1 0, u1 0, u1 0, u1 1, u1 0, u1 1, u1 0, u1 0, u1 0, u1 0, u1 1, u1 1, u1 1, u1 0, u1 1, u1 1, u1 0, u1 0, u1 1, u1 0, u1 1, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 1, u1 0, u1 1, u1 1, u1 0, u1 0, u1 0, u1 1, u1 1, u1 0, u1 0, u1 1, u1 0, u1 0, u1 0, u1 0, u1 1, u1 1, u1 1, u1 0, u1 1, u1 0, u1 0, u1 1, u1 1, u1 1, u1 0, u1 0, u1 1, u1 1, u1 1, u1 0, u1 0, u1 1, u1 0, u1 0, u1 0, u1 1, u1 0, u1 0, u1 1, u1 1, u1 0, u1 0, u1 0, u1 0, u1 0, u1 1, u1 1] : [u1]
+                v10 = allocate -> &mut u1
+                store u1 1 at v10
+                jmp b1(u32 0)
+              b1(v12: u32):
+                v13 = lt v12, u32 32
+                jmpif v13 then: b2(), else: b3()
+              b2():
+                v14 = load v10 -> u1
+                v15 = not v14
+                jmpif v15 then: b4(), else: b5()
+              b3():
+                v29 = load v10 -> u1
+                constrain v29 == u1 1
+                return v2
+              b4():
+                v18 = sub u32 31, v12
+                v19 = array_get v2, index v18 -> u1
+                v20 = sub u32 31, v12
+                v21 = lt v20, u32 254
+                constrain v21 == u1 1
+                v22 = array_get v7, index v20 -> u1
+                v23 = eq v19, v22
+                v24 = not v23
+                jmpif v24 then: b6(), else: b7()
+              b5():
+                v28 = unchecked_add v12, u32 1
+                jmp b1(v28)
+              b6():
+                v25 = sub u32 31, v12
+                v26 = lt v25, u32 254
+                constrain v26 == u1 1
+                v27 = array_get v7, index v25 -> u1
+                constrain v27 == u1 1
+                store u1 1 at v10
+                jmp b7()
+              b7():
+                jmp b5()
+            }";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.mem2reg();
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) fn to_le_bits f0 {
+          b0(v0: Field):
+            v6 = call to_le_bits(v0) -> [u1; 32]
+            v9 = make_array [u1 1, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 1, u1 1, u1 1, u1 1, u1 1, u1 1, u1 0, u1 0, u1 1, u1 0, u1 0, u1 1, u1 1, u1 0, u1 1, u1 0, u1 1, u1 1, u1 1, u1 1, u1 1, u1 0, u1 0, u1 0, u1 0, u1 1, u1 1, u1 1, u1 1, u1 1, u1 0, u1 0, u1 0, u1 0, u1 1, u1 0, u1 1, u1 0, u1 0, u1 0, u1 1, u1 0, u1 0, u1 1, u1 0, u1 0, u1 0, u1 0, u1 1, u1 1, u1 1, u1 0, u1 1, u1 0, u1 0, u1 1, u1 1, u1 1, u1 0, u1 1, u1 1, u1 0, u1 0, u1 1, u1 1, u1 1, u1 1, u1 0, u1 0, u1 0, u1 0, u1 1, u1 0, u1 0, u1 1, u1 0, u1 0, u1 0, u1 0, u1 1, u1 0, u1 1, u1 1, u1 1, u1 1, u1 1, u1 0, u1 0, u1 1, u1 1, u1 0, u1 0, u1 0, u1 0, u1 0, u1 1, u1 0, u1 1, u1 0, u1 0, u1 1, u1 0, u1 1, u1 1, u1 1, u1 0, u1 1, u1 0, u1 0, u1 0, u1 0, u1 1, u1 1, u1 0, u1 1, u1 0, u1 1, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 1, u1 1, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 1, u1 0, u1 1, u1 1, u1 0, u1 1, u1 1, u1 0, u1 1, u1 1, u1 0, u1 1, u1 0, u1 0, u1 0, u1 1, u1 0, u1 0, u1 0, u1 0, u1 0, u1 1, u1 0, u1 1, u1 0, u1 0, u1 0, u1 0, u1 1, u1 1, u1 1, u1 0, u1 1, u1 1, u1 0, u1 0, u1 1, u1 0, u1 1, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 0, u1 1, u1 0, u1 1, u1 1, u1 0, u1 0, u1 0, u1 1, u1 1, u1 0, u1 0, u1 1, u1 0, u1 0, u1 0, u1 0, u1 1, u1 1, u1 1, u1 0, u1 1, u1 0, u1 0, u1 1, u1 1, u1 1, u1 0, u1 0, u1 1, u1 1, u1 1, u1 0, u1 0, u1 1, u1 0, u1 0, u1 0, u1 1, u1 0, u1 0, u1 1, u1 1, u1 0, u1 0, u1 0, u1 0, u1 0, u1 1, u1 1] : [u1]
+            jmp b1(u32 0, u1 1)
+          b1(v1: u32, v2: u1):
+            v12 = lt v1, u32 32
+            jmpif v12 then: b2(), else: b3()
+          b2():
+            v13 = not v2
+            jmpif v13 then: b4(), else: b5(v2)
+          b3():
+            constrain v2 == u1 1
+            return v6
+          b4():
+            v15 = sub u32 31, v1
+            v16 = array_get v6, index v15 -> u1
+            v17 = sub u32 31, v1
+            v19 = lt v17, u32 254
+            constrain v19 == u1 1
+            v20 = array_get v9, index v17 -> u1
+            v21 = eq v16, v20
+            v22 = not v21
+            jmpif v22 then: b6(), else: b7(v2)
+          b5(v3: u1):
+            v27 = unchecked_add v1, u32 1
+            jmp b1(v27, v3)
+          b6():
+            v23 = sub u32 31, v1
+            v24 = lt v23, u32 254
+            constrain v24 == u1 1
+            v25 = array_get v9, index v23 -> u1
+            constrain v25 == u1 1
+            jmp b7(u1 1)
+          b7(v4: u1):
+            jmp b5(v4)
+        }
+        ");
+    }
+
+    #[test]
+    fn read_only_loop() {
+        let src = "
+            brillig(inline) fn main f0 {
+              b0(v0: u1):
+                v1 = allocate -> &mut Field
+                store Field 0 at v1
+                jmp b1()
+              b1():
+                jmpif v0 then: b2(), else: b3()
+              b2():
+                jmp b1()
+              b3():
+                v2 = load v1 -> Field
+                return v2
+            }";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.mem2reg();
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) fn main f0 {
+          b0(v0: u1):
+            jmp b1()
+          b1():
+            jmpif v0 then: b2(), else: b3()
+          b2():
+            jmp b1()
+          b3():
+            return Field 0
+        }
+        ");
+    }
+
+    #[test]
+    fn nested_loops() {
+        let src = "
+            brillig(inline) predicate_pure fn main f0 {
+              b0():
+                v0 = allocate -> &mut Field
+                store Field 0 at v0
+                jmp b1()
+              b1():
+                v2 = load v0 -> Field
+                v4 = eq v2, Field 6
+                jmpif v4 then: b2(), else: b3()
+              b2():
+                return
+              b3():
+                v6 = add v2, Field 1
+                store v6 at v0
+                v7 = allocate -> &mut Field
+                store Field 0 at v7
+                jmp b4()
+              b4():
+                v8 = load v7 -> Field
+                v10 = eq v8, Field 7
+                jmpif v10 then: b5(), else: b6()
+              b5():
+                jmp b1()
+              b6():
+                v11 = add v8, Field 1
+                store v11 at v7
+                jmp b4()
+            }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.mem2reg();
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) predicate_pure fn main f0 {
+          b0():
+            jmp b1(Field 0)
+          b1(v0: Field):
+            v4 = eq v0, Field 6
+            jmpif v4 then: b2(), else: b3()
+          b2():
+            return
+          b3():
+            v6 = add v0, Field 1
+            jmp b4(Field 0)
+          b4(v1: Field):
+            v8 = eq v1, Field 7
+            jmpif v8 then: b5(), else: b6()
+          b5():
+            jmp b1(v6)
+          b6():
+            v9 = add v1, Field 1
+            jmp b4(v9)
+        }
+        ");
+    }
+
+    /// Verify that IDF-based placement avoids unnecessary block parameters.
+    ///
+    /// The variable v1 is stored in b0 and b1. The IDF of {b0, b1} is {b3} (the merge point).
+    /// Blocks b2, b4, and b5 are single-predecessor blocks that should NOT get block parameters.
+    ///
+    /// If IDF optimization were removed (adding params everywhere), b2/b4/b5 would have
+    /// unnecessary params — losing the O(V×B) performance benefit.
+    #[test]
+    fn idf_avoids_unnecessary_block_params() {
+        let src = "
+            brillig(inline) fn func f0 {
+              b0(v0: u1):
+                v1 = allocate -> &mut Field
+                store Field 0 at v1
+                jmpif v0 then: b1(), else: b2()
+              b1():
+                store Field 10 at v1
+                jmp b3()
+              b2():
+                jmp b3()
+              b3():
+                jmp b4()
+              b4():
+                jmp b5()
+              b5():
+                v2 = load v1 -> Field
+                return v2
+            }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+
+        // b3 is the only IDF block (merge of b1 and b2); b2, b4, b5 should have no extra params.
+        let ssa = ssa.mem2reg();
+
+        // Without IDF optimization, b2/b4/b5 would each get an unnecessary block parameter
+        // for v1 that the cleanup pass would later remove:
+        //
+        //   b2(v_unnecessary_1: Field):      ← param added then cleaned up
+        //     jmp b3(Field 0)
+        //   b3(v3: Field):
+        //     jmp b4(v3)
+        //   b4(v_unnecessary_2: Field):      ← param added then cleaned up
+        //     jmp b5(v_unnecessary_2)
+        //   b5(v_unnecessary_3: Field):      ← param added then cleaned up
+        //     return v_unnecessary_3
+        //
+        // With IDF, only b3 gets a parameter — the minimal correct placement:
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) fn func f0 {
+          b0(v0: u1):
+            jmpif v0 then: b1(), else: b2()
+          b1():
+            jmp b3(Field 10)
+          b2():
+            jmp b3(Field 0)
+          b3(v1: Field):
+            jmp b4()
+          b4():
+            jmp b5()
+          b5():
+            return v1
+        }
+        ");
+    }
+
+    /// Regression for a `JmpIf` whose `then_destination` and `else_destination` point
+    /// at the same successor block. When `mem2reg` introduces a new block parameter at
+    /// that successor, it must wire the promoted value onto both edges of the `JmpIf`.
+    /// The input uses differing existing arguments on the same-target `JmpIf`
+    /// (`b3(Field 200)` vs `b3(Field 300)`) so that the condition is semantically
+    /// meaningful and the shape appears in valid SSA.
+    #[test]
+    fn jmpif_same_target_wires_both_edges() {
+        let src = "
+            brillig(inline) fn main f0 {
+              b0(v0: u1):
+                v1 = allocate -> &mut Field
+                store Field 1 at v1
+                jmpif v0 then: b1(), else: b2()
+              b1():
+                store Field 10 at v1
+                jmp b3(Field 100)
+              b2():
+                store Field 20 at v1
+                jmpif v0 then: b3(Field 200), else: b3(Field 300)
+              b3(v2: Field):
+                v3 = load v1 -> Field
+                v4 = add v2, v3
+                return v4
+            }";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.mem2reg();
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) fn main f0 {
+          b0(v0: u1):
+            jmpif v0 then: b1(), else: b2()
+          b1():
+            jmp b3(Field 100, Field 10)
+          b2():
+            jmpif v0 then: b3(Field 200, Field 20), else: b3(Field 300, Field 20)
+          b3(v1: Field, v2: Field):
+            v8 = add v1, v2
+            return v8
+        }
+        ");
+    }
+
+    #[test]
+    fn keeps_running_while_allocations_are_removed() {
+        let src = "
+        acir(inline) predicate_pure fn main f0 {
+          b0():
+            v0 = allocate -> &mut u16
+            store u16 1 at v0
+            v2 = allocate -> &mut &mut u16
+            store v0 at v2
+            constrain u1 0 == u1 1
+            unreachable
         }
         ";
 
         let ssa = Ssa::from_str(src).unwrap();
-        let main = ssa.main();
+        let ssa = ssa.mem2reg();
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) predicate_pure fn main f0 {
+          b0():
+            constrain u1 0 == u1 1
+            unreachable
+        }
+        ");
+    }
 
-        let instructions = main.dfg[main.entry_block()].instructions();
-        assert_eq!(instructions.len(), 6); // The final return is not counted
+    #[test]
+    fn regression_11482() {
+        // An allocate with no stores (an orphan, as earlier passes can leave behind) must be
+        // left untouched and not promoted: there is no stored value to forward, and treating it
+        // as eligible would break the "every eligible variable has a def site" invariant.
+        let src = "
+        brillig(inline) fn foo f0 {
+          b0():
+            v0 = allocate -> &mut u1
+            return
+        }
+        ";
+        assert_ssa_does_not_change(src, Ssa::mem2reg);
+    }
 
-        // All loads should be removed
-        // The first store is not removed as it is used as a nested reference in another store.
-        // We would need to track whether the store where `v0` is the store value gets removed to know whether
-        // to remove it.
-        // The first store in b1 is removed since there is another store to the same reference
-        // in the same block, and the store is not needed before the later store.
-        // The rest of the stores are also removed as no loads are done within any blocks
-        // to the stored values.
-        let expected = "
-        acir(inline) fn main f0 {
+    /// Passing a tracked reference as a block terminator argument is a first-class use of
+    /// the address: the successor block receives the reference as a parameter and may mutate
+    /// it, so the reference and its surrounding load/store cannot be optimized away. This
+    /// exercises the terminator scan in `collect_eligible_variables_and_def_sites`, distinct
+    /// from instruction-operand uses like `call` or `make_array`.
+    #[test]
+    fn reference_passed_as_terminator_argument_prevents_optimization() {
+        let src = "
+        brillig(inline) fn func f0 {
           b0():
             v0 = allocate -> &mut Field
-            store Field 0 at v0
-            v2 = allocate -> &mut &mut Field
-            jmp b1()
+            store Field 1 at v0
+            jmp b1(v0)
+          b1(v1: &mut Field):
+            v3 = load v1 -> Field
+            return v3
+        }
+        ";
+        assert_ssa_does_not_change(src, Ssa::mem2reg);
+    }
+
+    /// mem2reg runs on ACIR functions too, not just Brillig. This exercises the full
+    /// load/store removal and block-parameter insertion path on an `acir` function with a
+    /// control-flow merge (the IDF of {b0, b1} is {b3}).
+    #[test]
+    fn acir_function_is_optimized() {
+        let src = "
+        acir(inline) fn func f0 {
+          b0(v0: u1):
+            v1 = allocate -> &mut Field
+            store Field 0 at v1
+            jmpif v0 then: b1(), else: b2()
           b1():
-            return
-        }
-        ";
-
-        let ssa = ssa.mem2reg();
-        assert_normalized_ssa_equals(ssa, expected);
-    }
-
-    #[test]
-    fn keep_store_to_alias_in_loop_block() {
-        // This test makes sure the instruction `store Field 2 at v5` in b2 remains after mem2reg.
-        // Although the only instruction on v5 is a lone store without any loads,
-        // v5 is an alias of the reference v0 which is stored in v2.
-        // This test makes sure that we are not inadvertently removing stores to aliases across blocks.
-        //
-        // acir(inline) fn main f0 {
-        //     b0():
-        //       v0 = allocate
-        //       store Field 0 at v0
-        //       v2 = allocate
-        //       store v0 at v2
-        //       jmp b1(Field 0)
-        //     b1(v3: Field):
-        //       v4 = eq v3, Field 0
-        //       jmpif v4 then: b2, else: b3
-        //     b2():
-        //       v5 = load v2
-        //       store Field 2 at v5
-        //       v8 = add v3, Field 1
-        //       jmp b1(v8)
-        //     b3():
-        //       v9 = load v0
-        //       v10 = eq v9, Field 2
-        //       constrain v9 == Field 2
-        //       v11 = load v2
-        //       v12 = load v11
-        //       v13 = eq v12, Field 2
-        //       constrain v11 == Field 2
-        //       return
-        //   }
-        let main_id = Id::test_new(0);
-        let mut builder = FunctionBuilder::new("main".into(), main_id);
-
-        let v0 = builder.insert_allocate(Type::field());
-        let zero = builder.field_constant(0u128);
-        builder.insert_store(v0, zero);
-
-        let v2 = builder.insert_allocate(Type::field());
-        // Construct alias
-        builder.insert_store(v2, v0);
-        let v2_type = builder.current_function.dfg.type_of_value(v2);
-        assert!(builder.current_function.dfg.value_is_reference(v2));
-
-        let b1 = builder.insert_block();
-        builder.terminate_with_jmp(b1, vec![zero]);
-
-        // Loop header
-        builder.switch_to_block(b1);
-        let v3 = builder.add_block_parameter(b1, Type::field());
-        let is_zero = builder.insert_binary(v3, BinaryOp::Eq, zero);
-
-        let b2 = builder.insert_block();
-        let b3 = builder.insert_block();
-        builder.terminate_with_jmpif(is_zero, b2, b3);
-
-        // Loop body
-        builder.switch_to_block(b2);
-        let v5 = builder.insert_load(v2, v2_type.clone());
-        let two = builder.field_constant(2u128);
-        builder.insert_store(v5, two);
-        let one = builder.field_constant(1u128);
-        let v3_plus_one = builder.insert_binary(v3, BinaryOp::Add { unchecked: false }, one);
-        builder.terminate_with_jmp(b1, vec![v3_plus_one]);
-
-        builder.switch_to_block(b3);
-        let v9 = builder.insert_load(v0, Type::field());
-        let _ = builder.insert_binary(v9, BinaryOp::Eq, two);
-
-        builder.insert_constrain(v9, two, None);
-        let v11 = builder.insert_load(v2, v2_type);
-        let v12 = builder.insert_load(v11, Type::field());
-        let _ = builder.insert_binary(v12, BinaryOp::Eq, two);
-
-        builder.insert_constrain(v11, two, None);
-        builder.terminate_with_return(vec![]);
-
-        let ssa = builder.finish();
-
-        // We expect the same result as above.
-        let ssa = ssa.mem2reg();
-
-        let main = ssa.main();
-        assert_eq!(main.reachable_blocks().len(), 4);
-
-        // The stores from the original SSA should remain
-        assert_eq!(count_stores(main.entry_block(), &main.dfg), 2);
-        assert_eq!(count_stores(b2, &main.dfg), 1);
-
-        assert_eq!(count_loads(b2, &main.dfg), 1);
-        assert_eq!(count_loads(b3, &main.dfg), 3);
-    }
-
-    #[test]
-    fn parameter_alias() {
-        // Do not assume parameters are not aliased to each other.
-        // The load below shouldn't be removed since `v0` could
-        // be aliased to `v1`.
-        //
-        // fn main f0 {
-        //   b0(v0: &mut Field, v1: &mut Field):
-        //     store Field 0 at v0
-        //     store Field 1 at v1
-        //     v4 = load v0
-        //     constrain v4 == Field 1
-        //     return
-        // }
-        let main_id = Id::test_new(0);
-        let mut builder = FunctionBuilder::new("main".into(), main_id);
-
-        let field_ref = Type::Reference(Arc::new(Type::field()));
-        let v0 = builder.add_parameter(field_ref.clone());
-        let v1 = builder.add_parameter(field_ref.clone());
-
-        let zero = builder.field_constant(0u128);
-        let one = builder.field_constant(0u128);
-        builder.insert_store(v0, zero);
-        builder.insert_store(v1, one);
-
-        let v4 = builder.insert_load(v0, Type::field());
-        builder.insert_constrain(v4, one, None);
-        builder.terminate_with_return(Vec::new());
-
-        let ssa = builder.finish();
-        let main = ssa.main();
-        assert_eq!(count_loads(main.entry_block(), &main.dfg), 1);
-
-        // No change expected
-        let ssa = ssa.mem2reg();
-        let main = ssa.main();
-        assert_eq!(count_loads(main.entry_block(), &main.dfg), 1);
-    }
-
-    #[test]
-    fn remove_repeat_loads() {
-        // This tests starts with two loads from the same unknown load.
-        // Specifically you should look for `load v2` in `b3`.
-        // We should be able to remove the second repeated load.
-        let src = "
-        acir(inline) fn main f0 {
-          b0():
-            v0 = allocate -> &mut Field
-            store Field 0 at v0
-            v2 = allocate -> &mut &mut Field
-            store v0 at v2
-            jmp b1(Field 0)
-          b1(v3: Field):
-            v4 = eq v3, Field 0
-            jmpif v4 then: b2, else: b3
+            store Field 1 at v1
+            jmp b3()
           b2():
-            v5 = load v2 -> &mut Field
-            store Field 2 at v5
-            v8 = add v3, Field 1
-            jmp b1(v8)
+            store Field 2 at v1
+            jmp b3()
           b3():
-            v9 = load v0 -> Field
-            v10 = eq v9, Field 2
-            constrain v9 == Field 2
-            v11 = load v2 -> &mut Field
-            v12 = load v2 -> &mut Field
-            v13 = load v12 -> Field
-            v14 = eq v13, Field 2
-            constrain v13 == Field 2
-            return
+            v4 = load v1 -> Field
+            return v4
         }
         ";
-
         let ssa = Ssa::from_str(src).unwrap();
-
-        // The repeated load from v3 should be removed
-        // b3 should only have three loads now rather than four previously
-        //
-        // All stores are expected to remain.
-        let expected = "
-        acir(inline) fn main f0 {
-          b0():
-            v1 = allocate -> &mut Field
-            store Field 0 at v1
-            v3 = allocate -> &mut &mut Field
-            store v1 at v3
-            jmp b1(Field 0)
-          b1(v0: Field):
-            v4 = eq v0, Field 0
-            jmpif v4 then: b2, else: b3
-          b2():
-            v11 = load v3 -> &mut Field
-            store Field 2 at v11
-            v13 = add v0, Field 1
-            jmp b1(v13)
-          b3():
-            v5 = load v1 -> Field
-            v7 = eq v5, Field 2
-            constrain v5 == Field 2
-            v8 = load v3 -> &mut Field
-            v9 = load v8 -> Field
-            v10 = eq v9, Field 2
-            constrain v9 == Field 2
-            return
-        }
-        ";
-
         let ssa = ssa.mem2reg();
-        assert_normalized_ssa_equals(ssa, expected);
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn func f0 {
+          b0(v0: u1):
+            jmpif v0 then: b1(), else: b2()
+          b1():
+            jmp b3(Field 1)
+          b2():
+            jmp b3(Field 2)
+          b3(v1: Field):
+            return v1
+        }
+        ");
     }
 
+    /// Storing a tracked reference *as a value* into another reference aliases it: the
+    /// reference could now be mutated through the holder, so it is no longer eligible for
+    /// mem2reg. Here `v1` is stored into the `&mut &mut Field` parameter `v0`, so neither
+    /// `v1` nor its load may be optimized away.
     #[test]
-    fn keep_repeat_loads_passed_to_a_call() {
-        // The test is the exact same as `remove_repeat_loads` above except with the call
-        // to `f1` between the repeated loads.
+    fn store_of_tracked_reference_prevents_optimization() {
         let src = "
-        acir(inline) fn main f0 {
+        brillig(inline) fn func f0 {
+          b0(v0: &mut &mut Field):
+            v1 = allocate -> &mut Field
+            store Field 1 at v1
+            store v1 at v0
+            v2 = load v1 -> Field
+            return v2
+        }
+        ";
+        assert_ssa_does_not_change(src, Ssa::mem2reg);
+    }
+
+    /// Passing a tracked reference to a function call is a first-class use of the address:
+    /// the callee may mutate it, so the reference and its surrounding load/store cannot be
+    /// optimized away.
+    #[test]
+    fn reference_passed_to_call_prevents_optimization() {
+        let src = "
+        brillig(inline) fn func f0 {
           b0():
             v1 = allocate -> &mut Field
-            store Field 0 at v1
-            v3 = allocate -> &mut &mut Field
-            store v1 at v3
-            jmp b1(Field 0)
-          b1(v0: Field):
-            v4 = eq v0, Field 0
-            jmpif v4 then: b3, else: b2
-          b2():
-            v9 = load v1 -> Field
-            v10 = eq v9, Field 2
-            constrain v9 == Field 2
-            v11 = load v3 -> &mut Field
-            call f1(v3)
-            v13 = load v3 -> &mut Field
-            v14 = load v13 -> Field
-            v15 = eq v14, Field 2
-            constrain v14 == Field 2
-            return
-          b3():
-            v5 = load v3 -> &mut Field
-            store Field 2 at v5
-            v8 = add v0, Field 1
-            jmp b1(v8)
+            store Field 1 at v1
+            call f1(v1)
+            v3 = load v1 -> Field
+            return v3
         }
-        acir(inline) fn foo f1 {
+        brillig(inline) fn callee f1 {
           b0(v0: &mut Field):
             return
-        }  
+        }
         ";
-
-        let ssa = Ssa::from_str(src).unwrap();
-
-        let ssa = ssa.mem2reg();
-        // We expect the program to be unchanged
-        assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_does_not_change(src, Ssa::mem2reg);
     }
 
+    /// A store inside a loop body forces a block parameter at the loop header via the
+    /// *iterated* dominance frontier: the store in b2 has b1 (the header) in its dominance
+    /// frontier through the back edge, and the worklist in `iterated_dominance_frontier`
+    /// then re-examines b1's own frontier before converging. The header therefore receives
+    /// the merged value as a parameter.
     #[test]
-    fn keep_repeat_loads_with_alias_store() {
-        // v7, v8, and v9 alias one another. We want to make sure that a repeat load to v7 with a store
-        // to its aliases in between the repeat loads does not remove those loads.
+    fn iterated_dominance_frontier_through_loop() {
         let src = "
-        acir(inline) fn main f0 {
+        brillig(inline) fn func f0 {
           b0(v0: u1):
-            jmpif v0 then: b2, else: b1
+            v1 = allocate -> &mut Field
+            store Field 0 at v1
+            jmp b1()
           b1():
-            v6 = allocate -> &mut Field
-            store Field 1 at v6
-            jmp b3(v6, v6, v6)
+            v2 = load v1 -> Field
+            jmpif v0 then: b2(), else: b3()
           b2():
-            v4 = allocate -> &mut Field
-            store Field 0 at v4
-            jmp b3(v4, v4, v4)
-          b3(v1: &mut Field, v2: &mut Field, v3: &mut Field):
-            v8 = load v1 -> Field
-            store Field 2 at v2
-            v10 = load v1 -> Field
-            store Field 1 at v3
-            v11 = load v1 -> Field
-            store Field 3 at v3
-            v13 = load v1 -> Field
-            constrain v8 == Field 0
-            constrain v10 == Field 2
-            constrain v11 == Field 1
-            constrain v13 == Field 3
+            v3 = add v2, Field 1
+            store v3 at v1
+            jmp b1()
+          b3():
+            return v2
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.mem2reg();
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) fn func f0 {
+          b0(v0: u1):
+            jmp b1(Field 0)
+          b1(v1: Field):
+            jmpif v0 then: b2(), else: b3()
+          b2():
+            v4 = add v1, Field 1
+            jmp b1(v4)
+          b3():
+            return v1
+        }
+        ");
+    }
+
+    /// `get_value_from_visited_predecessor` returns `None` when none of a block's
+    /// predecessors have a recorded `BlockState` yet. `compute_entry_state` relies on this
+    /// to drop a variable whose value cannot be inherited (e.g. for a block that is not
+    /// reached through any already-visited predecessor). Exercised directly because the
+    /// reverse-post-order traversal always visits a forward predecessor first for reachable
+    /// blocks, so the branch is otherwise defensive.
+    #[test]
+    fn get_value_from_visited_predecessor_returns_none_without_visited_predecessor() {
+        use crate::ssa::ir::{cfg::ControlFlowGraph, map::Id};
+
+        let src = "
+        brillig(inline) fn func f0 {
+          b0():
+            jmp b1()
+          b1():
             return
         }
         ";
-
         let ssa = Ssa::from_str(src).unwrap();
+        let function = ssa.main();
+        let cfg = ControlFlowGraph::with_function(function);
 
-        let ssa = ssa.mem2reg();
-        // We expect the program to be unchanged
-        assert_normalized_ssa_equals(ssa, src);
+        // b1 is reached from b0, but with an empty `block_states` no predecessor is "visited".
+        let b1 = cfg.successors(function.entry_block()).next().expect("b0 has a successor");
+        let block_states = super::BlockStates::default();
+        let dummy_var = Id::test_new(0);
+
+        assert!(
+            super::get_value_from_visited_predecessor(dummy_var, b1, &cfg, &block_states).is_none()
+        );
     }
 }

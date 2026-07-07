@@ -1,15 +1,16 @@
 //! Execute unit tests in the Noir standard library.
-#![allow(clippy::items_after_test_module)]
+
 use clap::Parser;
 use fm::FileManager;
 use nargo::foreign_calls::DefaultForeignCallBuilder;
 use noirc_driver::{CompileOptions, check_crate, file_manager_with_stdlib};
-use noirc_frontend::hir::FunctionNameMatch;
+use noirc_frontend::error_reporting::report_one;
+use noirc_frontend::hir::{FunctionNameMatch, ParsedFiles};
 use std::io::Write;
 use std::{collections::BTreeMap, path::PathBuf};
 
 use nargo::{
-    ops::{TestStatus, report_errors, run_test},
+    ops::{TestStatus, report_errors, run_test, test_status_comptime_interpret_result},
     package::{Package, PackageType},
     parse_all, prepare_package,
 };
@@ -38,16 +39,28 @@ impl Options {
     }
 }
 
+/// Controls which execution mode is forced during stdlib testing.
+#[derive(Clone, Copy)]
+enum Force {
+    /// Standard ACIR compilation with no overrides.
+    Nothing,
+    /// Force all functions to compile as Brillig (unconstrained).
+    Brillig,
+    /// Execute tests directly in the comptime interpreter, bypassing SSA compilation.
+    Comptime,
+}
+
 /// Inliner aggressiveness results in different SSA.
 /// Inlining happens if `inline_cost - retain_cost < aggressiveness` (see `inlining.rs`).
 /// NB the CLI uses maximum aggressiveness.
 ///
-/// Even with the same inlining aggressiveness, forcing Brillig can trigger different behaviour.
+/// Even with the same inlining aggressiveness, forcing Brillig or using the comptime
+/// interpreter can trigger different behavior.
 #[test_matrix(
-    [false, true],
+    [Force::Nothing, Force::Brillig, Force::Comptime],
     [i64::MIN, 0, i64::MAX]
 )]
-fn run_stdlib_tests(force_brillig: bool, inliner_aggressiveness: i64) {
+fn run_stdlib_tests(force: Force, inliner_aggressiveness: i64) {
     let opts = Options::parse();
 
     let mut file_manager = file_manager_with_stdlib(&PathBuf::from("."));
@@ -58,19 +71,19 @@ fn run_stdlib_tests(force_brillig: bool, inliner_aggressiveness: i64) {
     let dummy_package = Package {
         version: None,
         compiler_required_version: None,
+        compiler_required_unstable_features: Vec::new(),
         root_dir: PathBuf::from("."),
         package_type: PackageType::Binary,
         entry_path: PathBuf::from("main.nr"),
         name: "stdlib".parse().unwrap(),
         dependencies: BTreeMap::new(),
-        expression_width: None,
     };
 
     let (mut context, dummy_crate_id) =
         prepare_package(&file_manager, &parsed_files, &dummy_package);
 
     let result = check_crate(&mut context, dummy_crate_id, &Default::default());
-    report_errors(result, &context.file_manager, true, false)
+    report_errors(result, &context.file_manager, &context.parsed_files, true, false)
         .expect("Error encountered while compiling standard library");
 
     // We can now search within the stdlib for any test functions to compile.
@@ -85,38 +98,65 @@ fn run_stdlib_tests(force_brillig: bool, inliner_aggressiveness: i64) {
     let test_report: Vec<(String, TestStatus)> = test_functions
         .into_iter()
         .map(|(test_name, test_function)| {
-            let pedantic_solving = true;
             let mut context = match context.lock() {
                 Ok(guard) => guard,
                 Err(poisoned) => poisoned.into_inner(), // Ignore, it happened during execution.
             };
-            let status = std::panic::catch_unwind(move || {
-                run_test(
-                    &bn254_blackbox_solver::Bn254BlackBoxSolver(pedantic_solving),
-                    &mut context,
-                    &test_function,
-                    std::io::stdout(),
-                    &CompileOptions { force_brillig, inliner_aggressiveness, ..Default::default() },
-                    |output, base| {
-                        DefaultForeignCallBuilder::default()
-                            .with_output(output)
-                            .build_with_base(base)
-                    },
-                )
-            });
-            let status = match status {
-                Ok(status) => status,
-                Err(_panic_cause) => TestStatus::Fail {
-                    message: "panicked; see details in the end summary".to_string(),
-                    error_diagnostic: None,
-                },
+            let status = match force {
+                Force::Nothing | Force::Brillig => {
+                    let force_brillig = matches!(force, Force::Brillig);
+                    let result = std::panic::catch_unwind(move || {
+                        run_test(
+                            &bn254_blackbox_solver::Bn254BlackBoxSolver,
+                            &mut context,
+                            &test_function,
+                            std::io::stdout(),
+                            &CompileOptions {
+                                force_brillig,
+                                inliner_aggressiveness,
+                                ..Default::default()
+                            },
+                            |output, base| {
+                                DefaultForeignCallBuilder::default()
+                                    .with_output(output)
+                                    .build_with_base(base)
+                            },
+                        )
+                    });
+                    match result {
+                        Ok(status) => status,
+                        Err(_panic_cause) => TestStatus::Fail {
+                            message: "panicked; see details in the end summary".to_string(),
+                            error_diagnostic: None,
+                        },
+                    }
+                }
+                Force::Comptime => {
+                    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                        let result = context.interpret_function(test_function.id, Vec::new());
+                        test_status_comptime_interpret_result(result, &test_function)
+                    }));
+                    match result {
+                        Ok(status) => status,
+                        Err(_panic_cause) => TestStatus::Fail {
+                            message: "panicked; see details in the end summary".to_string(),
+                            error_diagnostic: None,
+                        },
+                    }
+                }
             };
             (test_name, status)
         })
         .collect();
 
     assert!(!test_report.is_empty(), "Could not find any tests within the stdlib");
-    display_test_report(&file_manager, &dummy_package, &CompileOptions::default(), &test_report);
+    display_test_report(
+        &file_manager,
+        &parsed_files,
+        &dummy_package,
+        &CompileOptions::default(),
+        &test_report,
+    );
     assert!(test_report.iter().all(|(_, status)| !status.failed()));
 }
 
@@ -124,6 +164,7 @@ fn run_stdlib_tests(force_brillig: bool, inliner_aggressiveness: i64) {
 // This should be abstracted into a proper test runner at some point.
 fn display_test_report(
     file_manager: &FileManager,
+    parsed_files: &ParsedFiles,
     package: &Package,
     compile_options: &CompileOptions,
     test_report: &[(String, TestStatus)],
@@ -137,7 +178,7 @@ fn display_test_report(
         writer.flush().expect("Failed to flush writer");
 
         match &test_status {
-            TestStatus::Pass { .. } => {
+            TestStatus::Pass => {
                 writer
                     .set_color(ColorSpec::new().set_fg(Some(Color::Green)))
                     .expect("Failed to set color");
@@ -149,24 +190,26 @@ fn display_test_report(
                     .expect("Failed to set color");
                 writeln!(writer, "FAIL\n{message}\n").expect("Failed to write to stderr");
                 if let Some(diag) = error_diagnostic {
-                    noirc_errors::reporter::report_all(
-                        file_manager.as_file_map(),
-                        &[diag.clone()],
+                    report_one(
+                        diag,
+                        file_manager,
+                        parsed_files,
                         compile_options.deny_warnings,
                         compile_options.silence_warnings,
                     );
                 }
             }
-            TestStatus::Skipped { .. } => {
+            TestStatus::Skipped => {
                 writer
                     .set_color(ColorSpec::new().set_fg(Some(Color::Yellow)))
                     .expect("Failed to set color");
                 writeln!(writer, "skipped").expect("Failed to write to stderr");
             }
             TestStatus::CompileError(err) => {
-                noirc_errors::reporter::report_all(
-                    file_manager.as_file_map(),
-                    &[err.clone()],
+                report_one(
+                    err,
+                    file_manager,
+                    parsed_files,
                     compile_options.deny_warnings,
                     compile_options.silence_warnings,
                 );

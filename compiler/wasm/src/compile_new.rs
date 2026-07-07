@@ -3,7 +3,6 @@ use crate::compile::{
     file_manager_with_source_map,
 };
 use crate::errors::{CompileError, JsCompileError};
-use acvm::acir::circuit::ExpressionWidth;
 use nargo::parse_all;
 use noirc_driver::{
     CompileOptions, add_dep, compile_contract, compile_main, prepare_crate, prepare_dependency,
@@ -16,7 +15,7 @@ use std::path::Path;
 use wasm_bindgen::prelude::wasm_bindgen;
 
 /// This is a wrapper class that is wasm-bindgen compatible
-/// We do not use js_name and rename it like CrateId because
+/// We do not use `js_name` and rename it like `CrateId` because
 /// then the impl block is not picked up in javascript.
 #[wasm_bindgen]
 pub struct CompilerContext {
@@ -93,17 +92,9 @@ impl CompilerContext {
 
     pub fn compile_program(
         mut self,
-        program_width: usize,
+        _program_width: usize,
     ) -> Result<JsCompileProgramResult, JsCompileError> {
-        let expression_width = if program_width == 0 {
-            ExpressionWidth::Unbounded
-        } else {
-            ExpressionWidth::Bounded { width: 4 }
-        };
-        let compile_options = CompileOptions {
-            expression_width: Some(expression_width),
-            ..CompileOptions::default()
-        };
+        let compile_options = CompileOptions::default();
 
         let root_crate_id = *self.context.root_crate_id();
         let compiled_program =
@@ -117,32 +108,23 @@ impl CompilerContext {
                 })?
                 .0;
 
-        let optimized_program = nargo::ops::transform_program(compiled_program, expression_width);
-        nargo::ops::check_program(&optimized_program).map_err(|errs| {
+        nargo::ops::check_program(&compiled_program).map_err(|errs| {
             CompileError::with_custom_diagnostics(
                 "Compiled program is not solvable",
                 errs,
                 &self.context.file_manager,
             )
         })?;
-        let warnings = optimized_program.warnings.clone();
+        let warnings = compiled_program.warnings.clone();
 
-        Ok(JsCompileProgramResult::new(optimized_program.into(), warnings))
+        Ok(JsCompileProgramResult::new(compiled_program.into(), warnings))
     }
 
     pub fn compile_contract(
         mut self,
-        program_width: usize,
+        _program_width: usize,
     ) -> Result<JsCompileContractResult, JsCompileError> {
-        let expression_width = if program_width == 0 {
-            ExpressionWidth::Unbounded
-        } else {
-            ExpressionWidth::Bounded { width: 4 }
-        };
-        let compile_options = CompileOptions {
-            expression_width: Some(expression_width),
-            ..CompileOptions::default()
-        };
+        let compile_options = CompileOptions::default();
 
         let root_crate_id = *self.context.root_crate_id();
         let compiled_contract =
@@ -156,16 +138,14 @@ impl CompilerContext {
                 })?
                 .0;
 
-        let optimized_contract =
-            nargo::ops::transform_contract(compiled_contract, expression_width);
-        let warnings = optimized_contract.warnings.clone();
+        let warnings = compiled_contract.warnings.clone();
 
-        Ok(JsCompileContractResult::new(optimized_contract.into(), warnings))
+        Ok(JsCompileContractResult::new(compiled_contract.into(), warnings))
     }
 }
 
 /// This is a method that exposes the same API as `compile`
-/// But uses the Context based APi internally
+/// But uses the Context based `APi` internally
 #[wasm_bindgen]
 pub fn compile_program_(
     entry_point: String,
@@ -182,7 +162,7 @@ pub fn compile_program_(
 }
 
 /// This is a method that exposes the same API as `compile`
-/// But uses the Context based APi internally
+/// But uses the Context based `APi` internally
 #[wasm_bindgen]
 pub fn compile_contract_(
     entry_point: String,
@@ -220,7 +200,7 @@ fn prepare_compiler_context(
     let mut compiler_context = CompilerContext::new(file_source_map);
 
     // Set the root crate
-    let root_id = compiler_context.process_root_crate(entry_point.clone());
+    let root_id = compiler_context.process_root_crate(entry_point);
 
     let add_noir_lib = |context: &mut CompilerContext, lib_name: &CrateName| -> CrateIDWrapper {
         let lib_name_string = lib_name.to_string();
@@ -275,7 +255,7 @@ fn prepare_compiler_context(
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use nargo::parse_all;
     use noirc_driver::prepare_crate;
     use noirc_frontend::hir::Context;

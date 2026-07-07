@@ -1,0 +1,33 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+pub struct Context {
+    pub get_field: fn() -> Field,
+}
+
+pub struct ContextWrapper {
+    context: &mut Context,
+}
+
+pub struct ContextGetter<V> {
+    context: &mut Context,
+    getter: fn(&mut Context) -> V,
+}
+
+impl<V> ContextGetter<V> {
+    pub fn get(self) -> V {
+        (self.getter)(self.context)
+    }
+}
+
+unconstrained fn main() {
+    {
+        let mut context: Context = Context { get_field: || -> Field { 0_Field } };
+        let wrapper_getter: ContextGetter<ContextWrapper> = ContextGetter::<ContextWrapper> {
+            context: &mut context,
+            getter: |context: &mut Context| -> ContextWrapper ContextWrapper { context: context },
+        };
+        let _wrapper: ContextWrapper = wrapper_getter.get();
+    }
+}

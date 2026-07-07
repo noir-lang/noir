@@ -1,14 +1,8 @@
-use crate::ast::PathSegment;
-use crate::parse_program;
-use crate::parser::ParsedModule;
-use crate::signed_field::SignedField;
-use crate::{
-    ast,
-    ast::Path,
-    parser::{Item, ItemKind},
-};
-use fm::FileId;
-use noirc_errors::debug_info::{DebugFnId, DebugFunction};
+use crate::ast::{PathKind, PathSegment};
+use crate::parser::{ParsedModule, ParsedSubModule};
+use crate::token::FunctionAttributeKind;
+use crate::{ast, ast::Path, parser::ItemKind};
+use noirc_artifacts::debug::{DebugFnId, DebugFunction};
 use noirc_errors::{Location, Span};
 use std::collections::HashMap;
 use std::collections::VecDeque;
@@ -58,15 +52,22 @@ impl Default for DebugInstrumenter {
 }
 
 impl DebugInstrumenter {
-    pub fn instrument_module(&mut self, module: &mut ParsedModule, file: FileId) {
+    pub fn instrument_module(&mut self, module: &mut ParsedModule) {
         module.items.iter_mut().for_each(|item| {
-            if let Item { kind: ItemKind::Function(f), .. } = item {
-                self.walk_fn(&mut f.def);
+            match &mut item.kind {
+                // Instrument top-level functions of a module
+                ItemKind::Function(f) => self.walk_fn(&mut f.def),
+                // Instrument contract module
+                ItemKind::Submodules(ParsedSubModule {
+                    is_contract: true,
+                    contents: contract_module,
+                    ..
+                }) => {
+                    self.instrument_module(contract_module);
+                }
+                _ => (),
             }
         });
-        // this part absolutely must happen after ast traversal above
-        // so that oracle functions don't get wrapped, resulting in infinite recursion:
-        self.insert_state_set_oracle(module, 8, file);
     }
 
     fn insert_var(&mut self, var_name: &str) -> Option<SourceVarId> {
@@ -100,6 +101,21 @@ impl DebugInstrumenter {
     }
 
     fn walk_fn(&mut self, func: &mut ast::FunctionDefinition) {
+        // Don't instrument functions that are not supposed to have a body
+        if let Some((func, _)) = &func.attributes.function {
+            match func.kind {
+                FunctionAttributeKind::Foreign(_)
+                | FunctionAttributeKind::Builtin(_)
+                | FunctionAttributeKind::Oracle(_) => return,
+                FunctionAttributeKind::Test(..)
+                | FunctionAttributeKind::Fold
+                | FunctionAttributeKind::NoPredicates
+                | FunctionAttributeKind::InlineAlways
+                | FunctionAttributeKind::InlineNever
+                | FunctionAttributeKind::FuzzingHarness(..) => (),
+            }
+        }
+
         let func_name = func.name.to_string();
         let func_args =
             func.parameters.iter().map(|param| pattern_to_string(&param.pattern)).collect();
@@ -151,7 +167,7 @@ impl DebugInstrumenter {
                 let save_ret_expr = ast::Statement {
                     kind: ast::StatementKind::new_let(
                         ast::Pattern::Identifier(ident("__debug_expr", ret_expr.location)),
-                        ast::UnresolvedTypeData::Unspecified.with_dummy_location(),
+                        None,
                         ret_expr.clone(),
                         vec![],
                     ),
@@ -180,7 +196,7 @@ impl DebugInstrumenter {
         let last_stmt = if has_ret_expr {
             ast::Statement {
                 kind: ast::StatementKind::Expression(ast::Expression {
-                    kind: ast::ExpressionKind::Variable(ast::Path::plain(
+                    kind: ast::ExpressionKind::Variable(Path::plain(
                         vec![PathSegment::from(ident("__debug_expr", location))],
                         location,
                     )),
@@ -270,7 +286,7 @@ impl DebugInstrumenter {
         ast::Statement {
             kind: ast::StatementKind::new_let(
                 ast::Pattern::Tuple(vars_pattern, let_stmt.pattern.location()),
-                ast::UnresolvedTypeData::Unspecified.with_dummy_location(),
+                None,
                 ast::Expression {
                     kind: ast::ExpressionKind::Block(ast::BlockExpression {
                         statements: block_stmts,
@@ -301,21 +317,24 @@ impl DebugInstrumenter {
 
         let let_kind = ast::StatementKind::new_let(
             ast::Pattern::Identifier(ident("__debug_expr", assign_stmt.expression.location)),
-            ast::UnresolvedTypeData::Unspecified.with_dummy_location(),
+            None,
             assign_stmt.expression.clone(),
             vec![],
         );
         let expression_location = assign_stmt.expression.location;
         let new_assign_stmt = match &assign_stmt.lvalue {
-            ast::LValue::Ident(id) => {
+            ast::LValue::Path(id) => {
+                let Some(id) = id.as_ident() else {
+                    panic!("var lookup failed for var_name={id}");
+                };
                 let var_id = self
                     .lookup_var(id.as_str())
-                    .unwrap_or_else(|| panic!("var lookup failed for var_name={}", id.as_str()));
+                    .unwrap_or_else(|| panic!("var lookup failed for var_name={id}"));
                 build_assign_var_stmt(var_id, id_expr(&ident("__debug_expr", id.location())))
             }
             ast::LValue::Dereference(_lv, location) => {
                 // TODO: this is a dummy statement for now, but we should
-                // somehow track the derefence and update the pointed to
+                // somehow track the dereference and update the pointed to
                 // variable
                 ast::Statement {
                     kind: ast::StatementKind::Expression(uint_expr(0, *location)),
@@ -328,16 +347,20 @@ impl DebugInstrumenter {
                 let var_id;
                 loop {
                     match cursor {
-                        ast::LValue::Ident(id) => {
-                            var_id = self.lookup_var(id.as_str()).unwrap_or_else(|| {
-                                panic!("var lookup failed for var_name={}", id.as_str())
-                            });
+                        ast::LValue::Path(id) => {
+                            let Some(id) = id.as_ident() else {
+                                panic!("var lookup failed for var_name={id}");
+                            };
+
+                            var_id = self
+                                .lookup_var(id.as_str())
+                                .unwrap_or_else(|| panic!("var lookup failed for var_name={id}"));
                             break;
                         }
                         ast::LValue::MemberAccess { object, field_name, location } => {
                             cursor = object;
                             let field_name_id = self.insert_field_name(field_name.as_str());
-                            indexes.push(sint_expr(-(field_name_id.0 as i128), *location));
+                            indexes.push(sint_expr(-i128::from(field_name_id.0), *location));
                         }
                         ast::LValue::Index { index, array, location: _ } => {
                             cursor = array;
@@ -498,31 +521,6 @@ impl DebugInstrumenter {
             _ => {} // Constrain, Error
         }
     }
-
-    fn insert_state_set_oracle(&self, module: &mut ParsedModule, n: u32, file: FileId) {
-        let member_assigns = (1..=n)
-            .map(|i| format!["__debug_member_assign_{i}"])
-            .collect::<Vec<String>>()
-            .join(",\n");
-        let (program, errors) = parse_program(
-            &format!(
-                r#"
-            use __debug::{{
-                __debug_var_assign,
-                __debug_var_drop,
-                __debug_fn_enter,
-                __debug_fn_exit,
-                __debug_dereference_assign,
-                {member_assigns},
-            }};"#
-            ),
-            file,
-        );
-        if !errors.is_empty() {
-            panic!("errors parsing internal oracle definitions: {errors:?}")
-        }
-        module.items.extend(program.items);
-    }
 }
 
 pub fn build_debug_crate_file() -> String {
@@ -599,21 +597,23 @@ pub fn build_debug_crate_file() -> String {
                 // The variable signature has to be generic as Noir supports using any polymorphic integer as an index.
                 // If we were to set a specific type for index signatures here, such as `Field`, we will error in
                 // type checking if we attempt to index with a different type such as `u8`.
+                let indices =
+                    (0..n).map(|i| format!["Index{i}"]).collect::<Vec<String>>().join(", ");
                 let var_sig =
-                    (0..n).map(|i| format!["_v{i}: Index"]).collect::<Vec<String>>().join(", ");
+                    (0..n).map(|i| format!["_v{i}: Index{i}"]).collect::<Vec<String>>().join(", ");
                 let vars = (0..n).map(|i| format!["_v{i}"]).collect::<Vec<String>>().join(", ");
                 format!(
                     r#"
                 #[oracle(__debug_member_assign_{n})]
-                unconstrained fn __debug_oracle_member_assign_{n}<T, Index>(
+                unconstrained fn __debug_oracle_member_assign_{n}<T, {indices}>(
                     _var_id: u32, _value: T, {var_sig}
                 ) {{}}
-                unconstrained fn __debug_inner_member_assign_{n}<T, Index>(
+                unconstrained fn __debug_inner_member_assign_{n}<T, {indices}>(
                     var_id: u32, value: T, {var_sig}
                 ) {{
                     __debug_oracle_member_assign_{n}(var_id, value, {vars});
                 }}
-                pub fn __debug_member_assign_{n}<T, Index>(var_id: u32, value: T, {var_sig}) {{
+                pub fn __debug_member_assign_{n}<T, {indices}>(var_id: u32, value: T, {var_sig}) {{
                     /// Safety: debug context
                     unsafe {{
                         __debug_inner_member_assign_{n}(var_id, value, {vars});
@@ -629,18 +629,29 @@ pub fn build_debug_crate_file() -> String {
     .join("\n")
 }
 
+/// Build a fully-qualified path `::__debug::{name}` so that debug function calls
+/// bypass any user-defined modules or functions with conflicting names.
+fn debug_fn_path(name: &str, location: Location) -> Path {
+    Path {
+        segments: vec![
+            PathSegment::from(ident("__debug", location)),
+            PathSegment::from(ident(name, location)),
+        ],
+        kind: PathKind::Absolute,
+        location,
+        kind_location: location,
+    }
+}
+
 fn build_assign_var_stmt(var_id: SourceVarId, expr: ast::Expression) -> ast::Statement {
     let location = expr.location;
     let kind = ast::ExpressionKind::Call(Box::new(ast::CallExpression {
         func: Box::new(ast::Expression {
-            kind: ast::ExpressionKind::Variable(ast::Path::plain(
-                vec![PathSegment::from(ident("__debug_var_assign", location))],
-                location,
-            )),
+            kind: ast::ExpressionKind::Variable(debug_fn_path("__debug_var_assign", location)),
             location,
         }),
         is_macro_call: false,
-        arguments: vec![uint_expr(var_id.0 as u128, location), expr],
+        arguments: vec![uint_expr(u128::from(var_id.0), location), expr],
     }));
     ast::Statement { kind: ast::StatementKind::Semi(ast::Expression { kind, location }), location }
 }
@@ -648,14 +659,11 @@ fn build_assign_var_stmt(var_id: SourceVarId, expr: ast::Expression) -> ast::Sta
 fn build_drop_var_stmt(var_id: SourceVarId, location: Location) -> ast::Statement {
     let kind = ast::ExpressionKind::Call(Box::new(ast::CallExpression {
         func: Box::new(ast::Expression {
-            kind: ast::ExpressionKind::Variable(ast::Path::plain(
-                vec![PathSegment::from(ident("__debug_var_drop", location))],
-                location,
-            )),
+            kind: ast::ExpressionKind::Variable(debug_fn_path("__debug_var_drop", location)),
             location,
         }),
         is_macro_call: false,
-        arguments: vec![uint_expr(var_id.0 as u128, location)],
+        arguments: vec![uint_expr(u128::from(var_id.0), location)],
     }));
     ast::Statement { kind: ast::StatementKind::Semi(ast::Expression { kind, location }), location }
 }
@@ -672,15 +680,15 @@ fn build_assign_member_stmt(
     let location = expr.location;
     let kind = ast::ExpressionKind::Call(Box::new(ast::CallExpression {
         func: Box::new(ast::Expression {
-            kind: ast::ExpressionKind::Variable(ast::Path::plain(
-                vec![PathSegment::from(ident(&format!["__debug_member_assign_{arity}"], location))],
+            kind: ast::ExpressionKind::Variable(debug_fn_path(
+                &format!["__debug_member_assign_{arity}"],
                 location,
             )),
             location,
         }),
         is_macro_call: false,
         arguments: [
-            vec![uint_expr(var_id.0 as u128, location)],
+            vec![uint_expr(u128::from(var_id.0), location)],
             vec![expr.clone()],
             indexes.iter().rev().cloned().collect(),
         ]
@@ -692,14 +700,14 @@ fn build_assign_member_stmt(
 fn build_debug_call_stmt(fname: &str, fn_id: DebugFnId, location: Location) -> ast::Statement {
     let kind = ast::ExpressionKind::Call(Box::new(ast::CallExpression {
         func: Box::new(ast::Expression {
-            kind: ast::ExpressionKind::Variable(ast::Path::plain(
-                vec![PathSegment::from(ident(&format!["__debug_fn_{fname}"], location))],
+            kind: ast::ExpressionKind::Variable(debug_fn_path(
+                &format!["__debug_fn_{fname}"],
                 location,
             )),
             location,
         }),
         is_macro_call: false,
-        arguments: vec![uint_expr(fn_id.0 as u128, location)],
+        arguments: vec![uint_expr(u128::from(fn_id.0), location)],
     }));
     ast::Statement { kind: ast::StatementKind::Semi(ast::Expression { kind, location }), location }
 }
@@ -711,17 +719,21 @@ fn pattern_vars(pattern: &ast::Pattern) -> Vec<(ast::Ident, bool)> {
         let (pattern, is_mut) = stack.pop_front().unwrap();
         match pattern {
             ast::Pattern::Identifier(id) => {
-                vars.push((id.clone(), is_mut));
+                if id.as_str() != "_" {
+                    vars.push((id.clone(), is_mut));
+                }
             }
             ast::Pattern::Mutable(pattern, _, _) => {
                 stack.push_back((pattern, true));
             }
             ast::Pattern::Tuple(patterns, _) => {
-                stack.extend(patterns.iter().map(|pattern| (pattern, false)));
+                stack.extend(patterns.iter().map(|pattern| (pattern, is_mut)));
             }
-            ast::Pattern::Struct(_, pids, _) => {
-                stack.extend(pids.iter().map(|(_, pattern)| (pattern, is_mut)));
-                vars.extend(pids.iter().map(|(id, _)| (id.clone(), false)));
+            ast::Pattern::Struct(_, fields, _) => {
+                stack.extend(fields.iter().map(|(_, pattern)| (pattern, is_mut)));
+            }
+            ast::Pattern::Parenthesized(pattern, _) => {
+                stack.push_back((pattern, is_mut));
             }
             ast::Pattern::Interned(_, _) => (),
         }
@@ -732,7 +744,9 @@ fn pattern_vars(pattern: &ast::Pattern) -> Vec<(ast::Ident, bool)> {
 fn pattern_to_string(pattern: &ast::Pattern) -> String {
     match pattern {
         ast::Pattern::Identifier(id) => id.to_string(),
-        ast::Pattern::Mutable(mpat, _, _) => format!("mut {}", pattern_to_string(mpat.as_ref())),
+        ast::Pattern::Mutable(pattern, _, _) => {
+            format!("mut {}", pattern_to_string(pattern.as_ref()))
+        }
         ast::Pattern::Tuple(elements, _) => format!(
             "({})",
             elements.iter().map(pattern_to_string).collect::<Vec<String>>().join(", ")
@@ -749,6 +763,9 @@ fn pattern_to_string(pattern: &ast::Pattern) -> String {
                     .collect::<Vec<_>>()
                     .join(", "),
             )
+        }
+        ast::Pattern::Parenthesized(pattern, _) => {
+            format!("({})", pattern_to_string(pattern.as_ref()))
         }
         ast::Pattern::Interned(_, _) => "?Interned".to_string(),
     }
@@ -769,13 +786,11 @@ fn id_expr(id: &ast::Ident) -> ast::Expression {
 }
 
 fn uint_expr(x: u128, location: Location) -> ast::Expression {
-    let value = SignedField::positive(x);
-    let kind = ast::ExpressionKind::Literal(ast::Literal::Integer(value));
+    let kind = ast::ExpressionKind::Literal(ast::Literal::Integer(x.into(), None));
     ast::Expression { kind, location }
 }
 
 fn sint_expr(x: i128, location: Location) -> ast::Expression {
-    let value = SignedField::from_signed(x);
-    let kind = ast::ExpressionKind::Literal(ast::Literal::Integer(value));
+    let kind = ast::ExpressionKind::Literal(ast::Literal::Integer(x.into(), None));
     ast::Expression { kind, location }
 }

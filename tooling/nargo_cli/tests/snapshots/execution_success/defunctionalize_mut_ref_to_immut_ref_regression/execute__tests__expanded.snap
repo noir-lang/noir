@@ -1,0 +1,17 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn read_first(r: &[Field; 3]) -> Field {
+    r[0_u32]
+}
+
+fn dispatch(f: fn(&[Field; 3]) -> Field, x: &mut [Field; 3]) -> Field {
+    f(x)
+}
+
+fn main(cond: bool) -> pub Field {
+    let mut arr: [Field; 3] = [5_Field, 6_Field, 7_Field];
+    let r: fn(&[Field; 3]) -> Field = if cond { read_first } else { read_first };
+    dispatch(r, &mut arr)
+}

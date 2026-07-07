@@ -2,12 +2,16 @@ use iter_extended::vecmap;
 use rustc_hash::FxHashMap as HashMap;
 
 use crate::ResolvedGeneric;
-use crate::ast::{Ident, ItemVisibility, NoirFunction};
+use crate::ast::{DocComment, Ident, ItemVisibility, NoirFunction};
+use crate::elaborator::types::SELF_TYPE_NAME;
 use crate::hir::type_check::generics::TraitGenerics;
+use crate::node_interner::{
+    DefinitionId, ImplSearchErrorKind, NodeInterner, TraitImplKind, TraitLookupMode,
+};
 use crate::{
-    Generics, Type, TypeBindings, TypeVariable,
+    NamedGeneric, ResolvedGenerics, Type, TypeBindings, TypeVariable,
     graph::CrateId,
-    node_interner::{FuncId, TraitId, TraitMethodId},
+    node_interner::{FuncId, TraitId},
 };
 use fm::FileId;
 use noirc_errors::{Location, Span};
@@ -20,7 +24,7 @@ pub struct TraitFunction {
     pub default_impl: Option<Box<NoirFunction>>,
     pub default_impl_module_id: crate::hir::def_map::LocalModuleId,
     pub trait_constraints: Vec<TraitConstraint>,
-    pub direct_generics: Generics,
+    pub direct_generics: ResolvedGenerics,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -43,7 +47,7 @@ impl std::fmt::Display for NamedType {
 }
 
 /// Represents a trait in the type system. Each instance of this struct
-/// will be shared across all Type::Trait variants that represent
+/// will be shared across all `Type::Trait` variants that represent
 /// the same trait.
 #[derive(Debug, Eq)]
 pub struct Trait {
@@ -55,46 +59,61 @@ pub struct Trait {
 
     pub methods: Vec<TraitFunction>,
 
-    /// Maps method_name -> method id.
-    /// This map is separate from methods since TraitFunction ids
+    /// Maps `method_name` -> method id.
+    /// This map is separate from methods since `TraitFunction` ids
     /// are created during collection where we don't yet have all
-    /// the information needed to create the full TraitFunction.
+    /// the information needed to create the full `TraitFunction`.
     pub method_ids: HashMap<String, FuncId>,
 
-    pub associated_types: Generics,
+    /// Named generics of the trait.
+    pub associated_types: ResolvedGenerics,
+    pub associated_type_bounds: HashMap<String, Vec<ResolvedTraitBound>>,
 
     pub name: Ident,
-    pub generics: Generics,
+    /// Ordered generics of the trait.
+    pub generics: ResolvedGenerics,
     pub location: Location,
     pub visibility: ItemVisibility,
 
     /// When resolving the types of Trait elements, all references to `Self` resolve
-    /// to this TypeVariable. Then when we check if the types of trait impl elements
-    /// match the definition in the trait, we bind this TypeVariable to whatever
+    /// to this `TypeVariable`. Then when we check if the types of trait impl elements
+    /// match the definition in the trait, we bind this `TypeVariable` to whatever
     /// the correct Self type is for that particular impl block.
     pub self_type_typevar: TypeVariable,
 
-    /// The resolved trait bounds (for example in `trait Foo: Bar + Baz`, this would be `Bar + Baz`)
-    pub trait_bounds: Vec<ResolvedTraitBound>,
-
+    /// The trait's where clause. Super-trait bounds (`trait Foo: Bar`) are lowered into
+    /// this list as `TraitConstraint { typ: Self, trait_bound: Bar }` so that parent
+    /// bounds and where-clause constraints share a single representation. Use
+    /// [`Trait::parent_bounds`] to extract just the parent-trait bounds.
     pub where_clause: Vec<TraitConstraint>,
+
+    /// Bounds implied on associated types reached through this trait's own where clause.
+    /// E.g. for `trait Baz<T> where T: Foo` with `trait Foo { type E: Bar; }`, this holds
+    /// the constraint `<T as Foo>::E: Bar`. These are assumed when elaborating the trait's
+    /// default method bodies, but are deliberately kept out of `where_clause` so they do not
+    /// participate in trait-impl where-clause matching or trait-method signature matching.
+    pub implicit_associated_type_constraints: Vec<(TraitConstraint, Location)>,
+
+    pub all_generics: ResolvedGenerics,
+
+    /// Map from each associated constant's name to a unique `DefinitionId` for that constant.
+    pub associated_constant_ids: HashMap<String, DefinitionId>,
 }
 
+/// A completed trait implementation.
+///
+/// Note that ordered generics and named arguments (associated types) are stored separately
+/// in the `NodeInterner`. This is because they're required to resolve types before the impl
+/// as a whole is finished resolving.
 #[derive(Debug)]
 pub struct TraitImpl {
     pub ident: Ident,
+    pub location: Location,
     pub typ: Type,
     pub trait_id: TraitId,
 
-    /// Any ordered type arguments on the trait this impl is for.
-    /// E.g. `A, B` in `impl Foo<A, B, C = D> for Bar`
-    ///
-    /// Note that named arguments (associated types) are stored separately
-    /// in the NodeInterner. This is because they're required to resolve types
-    /// before the impl as a whole is finished resolving.
-    pub trait_generics: Vec<Type>,
-
     pub file: FileId,
+    pub crate_id: CrateId,
     pub methods: Vec<FuncId>, // methods[i] is the implementation of trait.methods[i] for Type typ
 
     /// The where clause, if present, contains each trait requirement which must
@@ -104,6 +123,30 @@ pub struct TraitImpl {
     pub where_clause: Vec<TraitConstraint>,
 }
 
+/// A completed inherent `impl` block, i.e. one that does not implement a trait,
+/// such as `impl<T> Foo<T> where T: Bar { ... }`.
+#[derive(Debug)]
+pub struct Impl {
+    pub location: Location,
+    pub typ: Type,
+
+    pub file: FileId,
+    pub crate_id: CrateId,
+    pub module_id: crate::hir::def_map::ModuleId,
+
+    /// The generics introduced by the impl block, in declaration order
+    /// (e.g. `T` in `impl<T> Foo<T>`).
+    pub generics: ResolvedGenerics,
+
+    pub methods: Vec<FuncId>,
+
+    /// The impl's where clause. Empty if there is no where clause.
+    pub where_clause: Vec<TraitConstraint>,
+
+    /// The doc comments written on top of the impl block. Empty if there are none.
+    pub doc_comments: Vec<DocComment>,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TraitConstraint {
     pub typ: Type,
@@ -111,13 +154,96 @@ pub struct TraitConstraint {
 }
 
 impl TraitConstraint {
+    /// Update the type in the constraint by substituting the bindings onto it,
+    /// then apply the bindings onto the trait bounds as well.
     pub fn apply_bindings(&mut self, type_bindings: &TypeBindings) {
         self.typ = self.typ.substitute(type_bindings);
         self.trait_bound.apply_bindings(type_bindings);
     }
+
+    pub fn to_string(&self, interner: &NodeInterner) -> String {
+        interner.trait_constraint_string(
+            &self.typ,
+            self.trait_bound.trait_id,
+            &self.trait_bound.trait_generics.ordered,
+            &self.trait_bound.trait_generics.named,
+        )
+    }
+
+    /// Whether `self` and `other` denote the same bound, treating an unspecified associated
+    /// type as matching any other unspecified one.
+    ///
+    /// This is weaker than equality, for comparing a constraint against a copy of it that was
+    /// resolved independently — e.g. an inherent impl's where clause copied onto a method, or a
+    /// trait's supertrait bound propagated onto a method. Each resolution fills in any
+    /// associated type the bound leaves unspecified with a *fresh* type variable, so the copies
+    /// aren't `==` even though they're the same bound. Associated types the user bound to a
+    /// concrete type (`Foo<Bar = u32>`) are still compared, so those bounds aren't conflated.
+    pub fn matches_ignoring_unspecified_associated_types(&self, other: &TraitConstraint) -> bool {
+        if self.typ != other.typ
+            || self.trait_bound.trait_id != other.trait_bound.trait_id
+            || self.trait_bound.trait_generics.ordered != other.trait_bound.trait_generics.ordered
+        {
+            return false;
+        }
+
+        let self_named = &self.trait_bound.trait_generics.named;
+        let other_named = &other.trait_bound.trait_generics.named;
+        if self_named.len() != other_named.len() {
+            return false;
+        }
+
+        // An associated type the bound leaves unspecified is filled in with a fresh type
+        // variable each time the bound is resolved, so two copies of the same bound carry
+        // different ones there. Depending on the resolution path that filler is a bare type
+        // variable or a named generic, so accept either (when unbound) as matching, while still
+        // comparing associated types the user bound to a concrete type (e.g. `Foo<Bar = u32>`).
+        let is_unbound = |typ: &Type| match typ {
+            Type::TypeVariable(var) | Type::NamedGeneric(NamedGeneric { type_var: var, .. }) => {
+                var.borrow().is_unbound()
+            }
+            _ => false,
+        };
+        self_named.iter().zip(other_named).all(|(a, b)| {
+            a.name == b.name && (a.typ == b.typ || (is_unbound(&a.typ) && is_unbound(&b.typ)))
+        })
+    }
+
+    /// Looks up a trait implementation which satisfies this constraint and returns it.
+    ///
+    /// Note that if successful, any type bindings from the impl search will be automatically
+    /// applied, unless `current_trait_self` is `Some` type variable matching the constraint,
+    /// representing a trait definition, in which case we don't bind it, but also don't reject
+    /// it as a missing type.
+    pub fn find_impl(
+        &self,
+        interner: &NodeInterner,
+        current_trait_self: Option<&Type>,
+    ) -> Result<(TraitImplKind, TypeBindings), ImplSearchErrorKind> {
+        match current_trait_self {
+            Some(typ) if *typ == self.typ && typ.is_bindable() => {
+                let (impl_kind, _bindings, instantiation_bindings) = interner
+                    .try_lookup_trait_implementation(
+                        &self.typ,
+                        self.trait_bound.trait_id,
+                        &self.trait_bound.trait_generics.ordered,
+                        &self.trait_bound.trait_generics.named,
+                        TraitLookupMode::SelfAssumedOnly,
+                    )?;
+                // Do not bind it the self type.
+                Ok((impl_kind, instantiation_bindings))
+            }
+            _ => interner.lookup_trait_implementation(
+                &self.typ,
+                self.trait_bound.trait_id,
+                &self.trait_bound.trait_generics.ordered,
+                &self.trait_bound.trait_generics.named,
+            ),
+        }
+    }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Eq)]
 pub struct ResolvedTraitBound {
     pub trait_id: TraitId,
     pub trait_generics: TraitGenerics,
@@ -125,6 +251,7 @@ pub struct ResolvedTraitBound {
 }
 
 impl ResolvedTraitBound {
+    /// Update all [Type]s in the bound generics by substituting some [`TypeBindings`] onto them.
     pub fn apply_bindings(&mut self, type_bindings: &TypeBindings) {
         for typ in &mut self.trait_generics.ordered {
             *typ = typ.substitute(type_bindings);
@@ -133,6 +260,13 @@ impl ResolvedTraitBound {
         for named in &mut self.trait_generics.named {
             named.typ = named.typ.substitute(type_bindings);
         }
+    }
+}
+
+impl PartialEq for ResolvedTraitBound {
+    fn eq(&self, other: &Self) -> bool {
+        // Location doesn't matter for equality
+        self.trait_id == other.trait_id && self.trait_generics == other.trait_generics
     }
 }
 
@@ -153,27 +287,61 @@ impl Trait {
         self.methods = methods;
     }
 
-    pub fn set_trait_bounds(&mut self, trait_bounds: Vec<ResolvedTraitBound>) {
-        self.trait_bounds = trait_bounds;
-    }
-
     pub fn set_where_clause(&mut self, where_clause: Vec<TraitConstraint>) {
         self.where_clause = where_clause;
+    }
+
+    /// The parent-trait bounds of this trait (the `Bar` in `trait Foo: Bar`).
+    ///
+    /// Parent bounds are stored in `where_clause` as constraints whose `typ` is this
+    /// trait's `Self` type variable; this accessor filters them back out.
+    pub fn parent_bounds(&self) -> impl Iterator<Item = &ResolvedTraitBound> {
+        let self_id = self.self_type_typevar.id();
+        self.where_clause.iter().filter_map(move |c| match &c.typ {
+            Type::TypeVariable(v) if v.id() == self_id => Some(&c.trait_bound),
+            _ => None,
+        })
     }
 
     pub fn set_visibility(&mut self, visibility: ItemVisibility) {
         self.visibility = visibility;
     }
 
-    pub fn find_method(&self, name: &str) -> Option<TraitMethodId> {
-        for (idx, method) in self.methods.iter().enumerate() {
+    pub fn set_all_generics(&mut self, generics: ResolvedGenerics) {
+        self.all_generics = generics;
+    }
+
+    pub fn set_associated_type_bounds(
+        &mut self,
+        associated_type_bounds: HashMap<String, Vec<ResolvedTraitBound>>,
+    ) {
+        self.associated_type_bounds = associated_type_bounds;
+    }
+
+    pub fn find_method(&self, name: &str, interner: &NodeInterner) -> Option<DefinitionId> {
+        for method in &self.methods {
             if &method.name == name {
-                return Some(TraitMethodId { trait_id: self.id, method_index: idx });
+                let id = *self.method_ids.get(name).unwrap();
+                return Some(interner.function_definition_id(id));
             }
         }
         None
     }
 
+    pub fn find_method_or_constant(
+        &self,
+        name: &str,
+        interner: &NodeInterner,
+    ) -> Option<DefinitionId> {
+        if let Some(method) = self.find_method(name, interner) {
+            return Some(method);
+        }
+        self.associated_constant_ids.get(name).copied()
+    }
+
+    /// Find an associated type by the last segments in its name.
+    ///
+    /// For example if a method returns `Self::Foo`, here we will be looking for it by the name `"Foo"`.
     pub fn get_associated_type(&self, last_name: &str) -> Option<&ResolvedGeneric> {
         self.associated_types.iter().find(|typ| typ.name.as_ref() == last_name)
     }
@@ -181,21 +349,26 @@ impl Trait {
     /// Returns both the ordered generics of this type, and its named, associated types.
     /// These types are all as-is and are not instantiated.
     pub fn get_generics(&self) -> (Vec<Type>, Vec<Type>) {
-        let ordered = vecmap(&self.generics, |generic| generic.clone().as_named_generic());
-        let named = vecmap(&self.associated_types, |generic| generic.clone().as_named_generic());
+        let ordered = vecmap(&self.generics, |generic| generic.clone().into_named_generic(None));
+        let named = vecmap(&self.associated_types, |generic| {
+            generic.clone().into_named_generic(Some((SELF_TYPE_NAME, self.name.as_str())))
+        });
         (ordered, named)
     }
 
     pub fn get_trait_generics(&self, location: Location) -> TraitGenerics {
-        let ordered = vecmap(&self.generics, |generic| generic.clone().as_named_generic());
+        let ordered = vecmap(&self.generics, |generic| generic.clone().into_named_generic(None));
         let named = vecmap(&self.associated_types, |generic| {
             let name = Ident::new(generic.name.to_string(), location);
-            NamedType { name, typ: generic.clone().as_named_generic() }
+            NamedType {
+                name,
+                typ: generic.clone().into_named_generic(Some((SELF_TYPE_NAME, self.name.as_str()))),
+            }
         });
         TraitGenerics { ordered, named }
     }
 
-    /// Returns a TraitConstraint for this trait using Self as the object
+    /// Returns a `TraitConstraint` for this trait using Self as the object
     /// type and the uninstantiated generics for any trait generics.
     pub fn as_constraint(&self, location: Location) -> TraitConstraint {
         let trait_generics = self.get_trait_generics(location);

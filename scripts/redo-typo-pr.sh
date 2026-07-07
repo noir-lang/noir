@@ -10,17 +10,17 @@ AUTHOR=`gh pr view $ORIGINAL_PR_NUMBER --json author --jq '.author.login'`
 
 # Step 1: Checkout the PR locally
 echo "Checking out PR #$ORIGINAL_PR_NUMBER"
-gh pr checkout $ORIGINAL_PR_NUMBER
+gh pr checkout $ORIGINAL_PR_NUMBER --branch "typo-pr-branch"
 
-# Step 2: Create a new local branch
+# Step 2: Create squash commit on master
+echo "Squashing PR branch onto master"
+git checkout master
+git merge "typo-pr-branch" --squash
+
+# Step 3: Commit squash commit to new branch
 echo "Creating new local branch $NEW_BRANCH"
 git checkout -b $NEW_BRANCH
-
-# Step 3: Squash commits
-echo "Squashing new local branch $NEW_BRANCH"
-git reset --soft master
-git add .
-git commit -m "chore: typo fixes"
+git commit -a -m "chore: redo typo PR"
 
 # Step 4: Push the new branch to GitHub
 echo "Pushing new branch $NEW_BRANCH to GitHub"
@@ -33,5 +33,8 @@ gh pr create --base master --head $NEW_BRANCH --title "chore: redo typo PR by $A
 # Step 6: Close the original PR
 echo "Closing original PR #$ORIGINAL_PR_NUMBER"
 gh pr close $ORIGINAL_PR_NUMBER
+
+# Step 7: Delete the temporary branch
+git branch -D typo-pr-branch
 
 echo "Script completed."

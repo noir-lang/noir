@@ -1,0 +1,8 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stdout
+---
+true
+true
+true
+true

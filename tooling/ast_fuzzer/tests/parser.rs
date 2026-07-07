@@ -1,0 +1,88 @@
+//! Test that the SSA of an arbitrary program can be printed and parsed back.
+//!
+//! ```shell
+//! cargo test -p noir_ast_fuzzer --test parser
+//! ```
+use noir_ast_fuzzer::{Config, DisplayAstAsNoir, arb_program};
+use noirc_evaluator::ssa::{
+    self, primary_passes,
+    ssa_gen::{self, Ssa},
+};
+
+mod common;
+
+/// How many programs to generate on CI, where we use a deterministic RNG.
+const CI_CASES: u32 = 1000;
+
+/// This test is about checking that the SSA parser can deal with arbitrary SSA:
+/// 1. Generate a random Program
+/// 2. Codegen the initial SSA and apply a random prefix of the the standard SSA passes on it
+/// 3. Print the transformed SSA and parse it back
+/// 4. Check that the same values are present in the transformed and the parsed SSA, nothing got lost or changed
+#[test]
+fn arb_ssa_roundtrip() {
+    let maybe_seed = common::seed_from_env();
+
+    common::run_fuzz(
+        |u| {
+            let config = Config::default();
+            let program = arb_program(u, config)?;
+
+            let options = ssa::SsaEvaluatorOptions::default();
+            let pipeline = primary_passes(&options);
+            let last_pass = u.choose_index(pipeline.len())?;
+            let passes = &pipeline[0..last_pass];
+
+            // Print the AST if something goes wrong, then panic.
+            let print_ast_and_panic = |msg: &str| -> ! {
+                eprintln!("{}", DisplayAstAsNoir(&program));
+                panic!("{msg}")
+            };
+
+            // If we have a seed to debug and we know it's going to crash, print the AST.
+            if maybe_seed.is_some() {
+                eprintln!("{}", DisplayAstAsNoir(&program));
+            }
+
+            // Generate the initial SSA;
+            let ssa = ssa_gen::generate_ssa(program.clone()).unwrap_or_else(|e| {
+                print_ast_and_panic(&format!("Failed to generate initial SSA: {e}"))
+            });
+
+            let mut ssa1 = passes.iter().fold(ssa, |ssa, pass| {
+                pass.run(ssa).unwrap_or_else(|e| {
+                    print_ast_and_panic(&format!("Failed to run pass {}: {e}", pass.msg()))
+                })
+            });
+
+            // Normalize before printing so IDs don't change.
+            ssa1.normalize_ids();
+
+            // Print to str and parse back.
+            let mut ssa2 = Ssa::from_str_no_validation(&ssa1.print_without_locations().to_string())
+                .unwrap_or_else(|e| {
+                    let msg = passes.last().map_or("Initial SSA", |p| p.msg());
+                    print_ast_and_panic(&format!(
+                        "Could not parse SSA after step {last_pass} ({msg}): \n{e:?}"
+                    ))
+                });
+
+            ssa2.normalize_ids();
+
+            // Not everything is populated by the parser, and unfortunately serializing to JSON doesn't work either.
+            for (func_id, func1) in ssa1.functions {
+                if func1.name() == "apply_dummy" {
+                    // The dummy function has different IDs for its parameters. But it's empty, so ignore it.
+                    continue;
+                }
+                let func2 = &ssa2.functions[&func_id];
+                let values1 = func1.view().values_iter().collect::<Vec<_>>();
+                let values2 = func2.view().values_iter().collect::<Vec<_>>();
+                similar_asserts::assert_eq!(values1, values2);
+            }
+
+            Ok(())
+        },
+        CI_CASES,
+    );
+}

@@ -1,0 +1,26 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+error: Comptime Stack Overflow
+   ┌─ src/main.nr:17:5
+   │
+17 │     ping()
+   │     ------ Exceeded the recursion limit
+   │
+   = Call stack:
+          1: ?
+                at src/main.nr:1:4
+          2: main
+                at src/main.nr:4:9
+          3: starter
+                at src/main.nr:9:5
+     ┌─   4: ping
+     │          at src/main.nr:13:5
+     │    5: pong
+     │          at src/main.nr:17:5
+     └─ (repeated 48 times)
+        100: ping
+                at src/main.nr:13:5
+
+Error interpreting main function

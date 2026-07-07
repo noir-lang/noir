@@ -1,0 +1,5 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stdout
+---
+[brillig_mutable_reference_lsf_bug] Circuit output: true

@@ -1,7 +1,0 @@
-
-            [package]
-            name = "noirc_frontend_tests_turbofish_turbofish_in_struct_pattern"
-            type = "bin"
-            authors = [""]
-            
-            [dependencies]

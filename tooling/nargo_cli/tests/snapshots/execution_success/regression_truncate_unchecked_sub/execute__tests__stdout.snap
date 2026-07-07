@@ -1,0 +1,5 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stdout
+---
+[regression_truncate_unchecked_sub] Circuit output: 0

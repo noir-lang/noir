@@ -1,0 +1,7 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn main(a: i8) {
+    assert((a | 127_i8) == -1_i8);
+}

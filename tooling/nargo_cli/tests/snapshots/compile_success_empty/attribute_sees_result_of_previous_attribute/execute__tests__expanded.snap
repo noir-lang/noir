@@ -1,0 +1,19 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+pub struct Foo {}
+
+impl Eq for Foo {
+    fn eq(_self: Self, _other: Self) -> bool {
+        true
+    }
+}
+
+fn main() {}
+
+comptime fn check_eq_derived_for_foo(_f: FunctionDefinition) {
+    let foo: Type = quote { Foo }.as_type();
+    let eq: TraitConstraint = quote { Eq }.as_trait_constraint();
+    assert(foo.implements(eq));
+}

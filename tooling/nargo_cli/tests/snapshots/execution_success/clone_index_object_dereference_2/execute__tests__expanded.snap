@@ -1,0 +1,15 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+unconstrained fn main(arr: [u32; 3], idx: u32) {
+    let mut x: [u32; 3] = arr;
+    let y: &mut [u32; 3] = &mut x;
+    let z: [u32; 3] = x;
+    let f1: fn[(u32, &mut [u32; 3])]() = || {
+        y[idx] = 100_u32;
+        assert(y[idx] == 100_u32);
+    };
+    f1();
+    assert(z[idx] == 1_u32);
+}

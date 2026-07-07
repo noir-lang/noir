@@ -1,0 +1,10 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn main(x: Field, y: Field, array_input: [[Field; 2]; 2]) {
+    assert(array_input[0_u32][0_u32] == x);
+    assert(array_input[0_u32][1_u32] == y);
+    let arr: [[Field; 2]; 1] = [[3_Field, 3_Field]];
+    assert(arr[0_u32] == array_input[1_u32]);
+}

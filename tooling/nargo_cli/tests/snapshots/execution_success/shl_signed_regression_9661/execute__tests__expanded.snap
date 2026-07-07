@@ -1,0 +1,15 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn main() -> pub i8 {
+    // Safety: comment added by `nargo expand`
+    unsafe {
+        foo(7_i8)
+    }
+}
+
+unconstrained fn foo(a: i8) -> i8 {
+    let _: i8 = 1_i8 << a;
+    a
+}

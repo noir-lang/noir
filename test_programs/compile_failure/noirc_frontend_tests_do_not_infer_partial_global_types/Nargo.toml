@@ -1,7 +1,0 @@
-
-            [package]
-            name = "noirc_frontend_tests_do_not_infer_partial_global_types"
-            type = "bin"
-            authors = [""]
-            
-            [dependencies]

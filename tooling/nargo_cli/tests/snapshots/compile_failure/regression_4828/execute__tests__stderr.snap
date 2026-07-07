@@ -1,0 +1,16 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+error: Attempted to recurse more than 1000 times during inlining function 'main'
+  ┌─ src/main.nr:3:5
+  │
+3 │     main();
+  │     ------
+  │
+  = Call stack:
+    ┌─ 1: main
+    │          at src/main.nr:3:5
+    └─ (repeated 1001 times)
+
+Aborting due to 1 previous error

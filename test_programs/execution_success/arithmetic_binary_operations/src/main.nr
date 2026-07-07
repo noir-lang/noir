@@ -5,7 +5,7 @@
 // x = 3, y = 4, z = 5
 fn main(x: Field, y: Field, z: Field) -> pub Field {
     //cast
-    assert(y as u1 == 0);
+    assert(y as u8 % 2 == 0);
 
     let a = x + x; // 3 + 3 = 6
     let b = a - y; // 6 - 4 = 2

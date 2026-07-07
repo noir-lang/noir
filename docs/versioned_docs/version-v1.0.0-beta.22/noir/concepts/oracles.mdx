@@ -1,0 +1,90 @@
+---
+title: Oracles
+description: Dive into how Noir supports Oracles via RPC calls, and learn how to declare an Oracle in Noir with our comprehensive guide.
+keywords:
+  - Noir
+  - Oracles
+  - RPC Calls
+  - Unconstrained Functions
+  - Programming
+  - Blockchain
+sidebar_position: 6
+---
+
+Noir has support for Oracles via RPC calls. This means Noir will make an RPC call and use the return value for proof generation.
+
+Since Oracles are not resolved by Noir, they are [`unconstrained` functions](./unconstrained.md)
+
+You can declare an Oracle through the `#[oracle(<name>)]` flag. Example:
+
+```rust
+#[oracle(get_number_sequence)]
+unconstrained fn get_number_sequence(_size: Field) -> [Field] {}
+```
+
+:::note Oracles must be free functions
+
+The `#[oracle(...)]` attribute may only be applied to a **free function** — a function declared at
+the top level of a module. It cannot be applied to a method defined inside an `impl` block or a
+trait `impl`:
+
+```rust
+struct Remote {}
+
+impl Remote {
+    // error: Usage of the `#[oracle]` function attribute is only valid on free functions
+    #[oracle(fetch_value)]
+    unconstrained fn fetch(x: Field) -> Field {}
+}
+```
+
+If you need to expose an oracle through a trait, declare the oracle as a free function and call it from a regular method implementation instead:
+
+```rust
+trait Fetcher {
+    unconstrained fn fetch(x: Field) -> Field;
+}
+
+#[oracle(fetch_value)]
+unconstrained fn fetch_value(x: Field) -> Field {}
+
+impl Fetcher for Remote {
+    unconstrained fn fetch(x: Field) -> Field {
+        fetch_value(x)
+    }
+}
+```
+
+:::
+
+The timeout for when using an external RPC oracle resolver can be set with the `NARGO_FOREIGN_CALL_TIMEOUT` environment variable. This timeout is in units of milliseconds.
+
+## The `#[pure]` attribute
+
+By default, the compiler treats every oracle call as potentially impure: the return value
+may depend on hidden state, the call may have side effects, and as such two calls with the same
+arguments may produce different results. This forces the compiler to keep every oracle
+call exactly as written.
+
+When you know an oracle's return value is purely a function of its arguments and the call
+has no observable effect on the program, you can mark the declaration with `#[pure]`:
+
+```rust
+#[pure]
+#[oracle(field_inverse)]
+unconstrained fn field_inverse_oracle(x: Field) -> Field {}
+```
+
+`#[pure]` is an unchecked assertion. If you mismark an oracle that secretly reads ambient state
+or has side effects, the optimizer can produce wrong circuits, so use it only when you are certain.
+However, `#[pure]` is compatible with functions that can fail on some inputs (e.g division by zero).
+
+
+### Restrictions
+
+`#[pure]` is rejected on functions that are not `#[oracle(...)]`, and on constrained
+functions.
+
+Do not use `#[pure]` on oracles that read mutable external state (witness maps, RPC
+endpoints that change between calls, etc.) — those are inherently impure even if their
+signatures look pure.

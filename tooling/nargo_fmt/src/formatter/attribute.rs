@@ -1,6 +1,7 @@
+use noirc_errors::Span;
 use noirc_frontend::token::{
-    Attribute, Attributes, FunctionAttribute, FuzzingScope, MetaAttribute, SecondaryAttribute,
-    TestScope, Token,
+    Attribute, Attributes, FunctionAttribute, FunctionAttributeKind, FuzzingScope, MetaAttribute,
+    MetaAttributeName, SecondaryAttribute, SecondaryAttributeKind, TestScope, Token,
 };
 
 use crate::chunks::ChunkGroup;
@@ -27,9 +28,13 @@ impl Formatter<'_> {
     }
 
     pub(super) fn format_secondary_attributes(&mut self, attributes: Vec<SecondaryAttribute>) {
+        // Attributes and doc comments can be mixed, so between each attribute
+        // we format potential doc comments
         for attribute in attributes {
+            self.format_outer_doc_comments();
             self.format_secondary_attribute(attribute);
         }
+        self.format_outer_doc_comments();
     }
 
     fn format_attribute(&mut self, attribute: Attribute) {
@@ -51,15 +56,18 @@ impl Formatter<'_> {
             panic!("Expected attribute start, got: {:?}", self.token);
         }
 
-        match attribute {
-            FunctionAttribute::Foreign(_)
-            | FunctionAttribute::Builtin(_)
-            | FunctionAttribute::Oracle(_) => self.format_one_arg_attribute(),
-            FunctionAttribute::Test(test_scope) => self.format_test_attribute(test_scope),
-            FunctionAttribute::FuzzingHarness(fuzz_scope) => self.format_fuzz_attribute(fuzz_scope),
-            FunctionAttribute::Fold
-            | FunctionAttribute::NoPredicates
-            | FunctionAttribute::InlineAlways => {
+        match attribute.kind {
+            FunctionAttributeKind::Foreign(_)
+            | FunctionAttributeKind::Builtin(_)
+            | FunctionAttributeKind::Oracle(_) => self.format_one_arg_attribute(),
+            FunctionAttributeKind::Test(test_scope) => self.format_test_attribute(test_scope),
+            FunctionAttributeKind::FuzzingHarness(fuzz_scope) => {
+                self.format_fuzz_attribute(fuzz_scope);
+            }
+            FunctionAttributeKind::Fold
+            | FunctionAttributeKind::NoPredicates
+            | FunctionAttributeKind::InlineAlways
+            | FunctionAttributeKind::InlineNever => {
                 self.format_no_args_attribute();
             }
         }
@@ -75,41 +83,55 @@ impl Formatter<'_> {
             panic!("Expected attribute start, got: {:?}", self.token);
         }
 
-        match attribute {
-            SecondaryAttribute::Deprecated(message) => {
-                self.format_deprecated_attribute(message);
+        match attribute.kind {
+            SecondaryAttributeKind::Deprecated(deny, message) => {
+                self.format_deprecated_attribute(deny, message);
             }
-            SecondaryAttribute::ContractLibraryMethod
-            | SecondaryAttribute::Export
-            | SecondaryAttribute::Varargs
-            | SecondaryAttribute::UseCallersScope => {
+            SecondaryAttributeKind::ContractLibraryMethod
+            | SecondaryAttributeKind::Export
+            | SecondaryAttributeKind::Varargs
+            | SecondaryAttributeKind::UseCallersScope
+            | SecondaryAttributeKind::Pure => {
                 self.format_no_args_attribute();
             }
-            SecondaryAttribute::Field(_)
-            | SecondaryAttribute::Abi(_)
-            | SecondaryAttribute::Allow(_) => {
+            SecondaryAttributeKind::Field(_)
+            | SecondaryAttributeKind::Abi(_)
+            | SecondaryAttributeKind::Allow(_) => {
                 self.format_one_arg_attribute();
             }
-            SecondaryAttribute::Tag(custom_attribute) => {
-                self.write_and_skip_span_without_formatting(custom_attribute.span);
+            SecondaryAttributeKind::Tag(_) => {
+                self.format_tag_attribute(attribute.location.span);
             }
-            SecondaryAttribute::Meta(meta_attribute) => {
+            SecondaryAttributeKind::Meta(meta_attribute) => {
                 self.format_meta_attribute(meta_attribute);
+            }
+            SecondaryAttributeKind::MustUse(message) => {
+                self.format_must_use_attribute(message);
             }
         }
 
         self.write_line();
     }
 
-    fn format_deprecated_attribute(&mut self, message: Option<String>) {
+    fn format_deprecated_attribute(&mut self, deny: bool, message: Option<String>) {
         self.write_current_token_and_bump(); // #[
         self.skip_comments_and_whitespace();
-        if message.is_some() {
+        if deny || message.is_some() {
             self.write_current_token_and_bump(); // deprecated
             self.write_left_paren(); // (
-            self.skip_comments_and_whitespace(); // message
-            self.write_current_token_and_bump(); // )
-            self.write_right_paren();
+            self.skip_comments_and_whitespace();
+
+            if deny {
+                self.write_current_token_and_bump(); // deny
+            }
+            if deny && message.is_some() {
+                self.write_comma(); // ,
+            }
+            if message.is_some() {
+                self.write_current_token_and_bump(); // message
+            }
+
+            self.write_right_paren(); // )
         } else {
             self.write_current_token_and_bump();
         }
@@ -129,10 +151,10 @@ impl Formatter<'_> {
                 self.write_current_token_and_bump(); // should_fail
                 self.write_right_paren(); // )
             }
-            TestScope::ShouldFailWith { reason: Some(..) } => {
+            TestScope::ShouldFailWith { reason: Some(..) } | TestScope::OnlyFailWith { .. } => {
                 self.write_left_paren(); // (
                 self.skip_comments_and_whitespace();
-                self.write_current_token_and_bump(); // should_fail_with
+                self.write_current_token_and_bump(); // should_fail_with | only_fail_with
                 self.write_space();
                 self.write_token(Token::Assign);
                 self.write_space();
@@ -163,6 +185,23 @@ impl Formatter<'_> {
                 self.write_current_token_and_bump(); // "reason"
                 self.write_right_paren(); // )
             }
+            FuzzingScope::ShouldFailWith { reason: None } => {
+                self.write_left_paren(); // (
+                self.skip_comments_and_whitespace();
+                self.write_current_token_and_bump(); // should_fail
+                self.write_right_paren(); // )
+            }
+            FuzzingScope::ShouldFailWith { reason: Some(..) } => {
+                self.write_left_paren(); // (
+                self.skip_comments_and_whitespace();
+                self.write_current_token_and_bump(); // should_fail_with
+                self.write_space();
+                self.write_token(Token::Assign);
+                self.write_space();
+                self.skip_comments_and_whitespace();
+                self.write_current_token_and_bump(); // "reason"
+                self.write_right_paren(); // )
+            }
         }
 
         self.write_right_bracket(); // ]
@@ -171,7 +210,12 @@ impl Formatter<'_> {
     fn format_meta_attribute(&mut self, meta_attribute: MetaAttribute) {
         self.write_current_token_and_bump(); // #[
         self.skip_comments_and_whitespace();
-        self.format_path(meta_attribute.name);
+        match meta_attribute.name {
+            MetaAttributeName::Path(path) => self.format_path(path),
+            MetaAttributeName::Resolved(_) => {
+                unreachable!("Resolved MetaAttributeName should not happen when formatting a file")
+            }
+        }
         self.skip_comments_and_whitespace();
         if self.is_at(Token::LeftParen) {
             let comments_count_before_arguments = self.written_comments_count;
@@ -197,6 +241,22 @@ impl Formatter<'_> {
         self.write_right_bracket();
     }
 
+    fn format_must_use_attribute(&mut self, message: Option<String>) {
+        self.write_current_token_and_bump(); // #[
+        self.skip_comments_and_whitespace();
+        self.write_current_token_and_bump(); // name
+
+        if message.is_some() {
+            self.write_space();
+            self.write_token(Token::Assign);
+            self.write_space();
+            self.write_current_token_and_bump(); // message
+            self.skip_comments_and_whitespace();
+        }
+
+        self.write_right_bracket(); // ]
+    }
+
     fn format_no_args_attribute(&mut self) {
         self.write_current_token_and_bump(); // #[
         self.skip_comments_and_whitespace();
@@ -220,6 +280,15 @@ impl Formatter<'_> {
         }
         self.write_right_bracket(); // ]
     }
+
+    /// Removes the trailing whitespaces from the tag attribute.
+    fn format_tag_attribute(&mut self, span: Span) {
+        self.write_source_span_trimmed(span);
+
+        while self.token_span.start() < span.end() && self.token != Token::EOF {
+            self.bump();
+        }
+    }
 }
 
 #[cfg(test)]
@@ -236,6 +305,13 @@ mod tests {
     fn format_inner_tag_attribute() {
         let src = "  #!['foo] ";
         let expected = "#!['foo]\n";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_inner_tag_attribute_new_line() {
+        let src = "#!['bar]     \n";
+        let expected = "#!['bar]\n";
         assert_format(src, expected);
     }
 
@@ -366,6 +442,13 @@ mod tests {
     }
 
     #[test]
+    fn format_test_only_fail_with_reason_attribute() {
+        let src = "  #[ test ( only_fail_with=\"reason\" )] ";
+        let expected = "#[test(only_fail_with = \"reason\")]";
+        assert_format_attribute(src, expected);
+    }
+
+    #[test]
     fn format_fuzz_attribute() {
         let src = "  #[ fuzz ] ";
         let expected = "#[fuzz]";
@@ -373,9 +456,23 @@ mod tests {
     }
 
     #[test]
-    fn format_test_only_fail_with_reason_attribute() {
+    fn format_fuzz_only_fail_with_reason_attribute() {
         let src = "  #[ fuzz ( only_fail_with=\"reason\" )] ";
         let expected = "#[fuzz(only_fail_with = \"reason\")]";
+        assert_format_attribute(src, expected);
+    }
+
+    #[test]
+    fn format_fuzz_should_fail_attribute() {
+        let src = "  #[ fuzz ( should_fail )] ";
+        let expected = "#[fuzz(should_fail)]";
+        assert_format_attribute(src, expected);
+    }
+
+    #[test]
+    fn format_fuzz_should_fail_with_reason_attribute() {
+        let src = "  #[ fuzz ( should_fail_with=\"reason\" )] ";
+        let expected = "#[fuzz(should_fail_with = \"reason\")]";
         assert_format_attribute(src, expected);
     }
 
@@ -383,6 +480,17 @@ mod tests {
     fn format_multiple_function_attributes() {
         let src = " #[foo] #[test] #[bar]  ";
         let expected = "#[foo]\n#[test]\n#[bar]";
+        assert_format_attribute(src, expected);
+    }
+
+    #[test]
+    fn format_must_use_attribute() {
+        let src = " #[  must_use  ] ";
+        let expected = "#[must_use]";
+        assert_format_attribute(src, expected);
+
+        let src = " #[   must_use   =   \"hey you should really use this thing\"  ]  ";
+        let expected = "#[must_use = \"hey you should really use this thing\"]";
         assert_format_attribute(src, expected);
     }
 }

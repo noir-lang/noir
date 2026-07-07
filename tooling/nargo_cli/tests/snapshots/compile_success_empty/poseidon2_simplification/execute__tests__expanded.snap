@@ -1,0 +1,12 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+use poseidon::poseidon2;
+
+fn main() {
+    let digest: Field = poseidon2::Poseidon2::hash([0_Field], 1_u32);
+    let expected_digest: Field =
+        17668610518173883319035856328661308815933580113901672897605691629848497347345_Field;
+    assert(digest == expected_digest);
+}

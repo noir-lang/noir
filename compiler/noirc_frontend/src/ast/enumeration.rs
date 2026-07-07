@@ -14,6 +14,7 @@ pub struct NoirEnumeration {
     pub name: Ident,
     pub attributes: Vec<SecondaryAttribute>,
     pub visibility: ItemVisibility,
+    pub comptime: bool,
     pub generics: UnresolvedGenerics,
     pub variants: Vec<Documented<EnumVariant>>,
     pub location: Location,
@@ -21,7 +22,7 @@ pub struct NoirEnumeration {
 
 impl NoirEnumeration {
     pub fn is_abi(&self) -> bool {
-        self.attributes.iter().any(|attr| attr.is_abi())
+        self.attributes.iter().any(|attr| attr.kind.is_abi())
     }
 }
 
@@ -40,11 +41,12 @@ pub struct EnumVariant {
 impl Display for NoirEnumeration {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let generics = vecmap(&self.generics, |generic| generic.to_string());
-        let generics = if generics.is_empty() { "".into() } else { generics.join(", ") };
+        let generics =
+            if generics.is_empty() { "".into() } else { format!("<{}>", generics.join(", ")) };
 
         writeln!(f, "enum {}{} {{", self.name, generics)?;
 
-        for variant in self.variants.iter() {
+        for variant in &self.variants {
             if let Some(parameters) = &variant.item.parameters {
                 let parameters = vecmap(parameters, ToString::to_string).join(", ");
                 writeln!(f, "    {}({}),", variant.item.name, parameters)?;

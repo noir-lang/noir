@@ -8,26 +8,59 @@ import {
   StackItem,
 } from '@noir-lang/acvm_js';
 
-it('successfully executes circuit and extracts return value', async () => {
-  const { bytecode, initialWitnessMap, resultWitness, expectedResult } = await import('../shared/addition');
+import {
+  bytecode as additionBytecode,
+  initialWitnessMap as additionInitialWitnessMap,
+  resultWitness as additionResultWitness,
+  expectedResult as additionExpectedResult,
+} from '../shared/addition';
+import {
+  bytecode as foreignCallBytecode,
+  initialWitnessMap as foreignCallInitialWitnessMap,
+  expectedWitnessMap as foreignCallExpectedWitnessMap,
+  oracleResponse as foreignCallOracleResponse,
+  oracleCallName as foreignCallOracleCallName,
+  oracleCallInputs as foreignCallOracleCallInputs,
+} from '../shared/foreign_call';
+import {
+  bytecode as complexForeignCallBytecode,
+  initialWitnessMap as complexForeignCallInitialWitnessMap,
+  expectedWitnessMap as complexForeignCallExpectedWitnessMap,
+  oracleResponse as complexForeignCallOracleResponse,
+  oracleCallName as complexForeignCallOracleCallName,
+  oracleCallInputs as complexForeignCallOracleCallInputs,
+} from '../shared/complex_foreign_call';
+import {
+  bytecode as multiScalarMulBytecode,
+  initialWitnessMap as multiScalarMulInitialWitnessMap,
+  expectedWitnessMap as multiScalarMulExpectedWitnessMap,
+} from '../shared/multi_scalar_mul';
+import {
+  bytecode as memoryOpBytecode,
+  initialWitnessMap as memoryOpInitialWitnessMap,
+  expectedWitnessMap as memoryOpExpectedWitnessMap,
+} from '../shared/memory_op';
+import {
+  bytecode as nestedCallBytecode,
+  initialWitnessMap as nestedCallInitialWitnessMap,
+  expectedWitnessStack as nestedCallExpectedWitnessStack,
+} from '../shared/nested_acir_call';
 
-  const solvedWitness: WitnessMap = await executeCircuit(bytecode, initialWitnessMap, () => {
+it('successfully executes circuit and extracts return value', async () => {
+  const solvedWitness: WitnessMap = await executeCircuit(additionBytecode, additionInitialWitnessMap, () => {
     throw Error('unexpected oracle');
   });
 
   // Solved witness should be consistent with initial witness
-  initialWitnessMap.forEach((value, key) => {
+  additionInitialWitnessMap.forEach((value, key) => {
     expect(solvedWitness.get(key) as string).to.be.eq(value);
   });
 
   // Solved witness should contain expected return value
-  expect(solvedWitness.get(resultWitness)).to.be.eq(expectedResult);
+  expect(solvedWitness.get(additionResultWitness)).to.be.eq(additionExpectedResult);
 });
 
 it('successfully processes simple brillig foreign call opcodes', async () => {
-  const { bytecode, initialWitnessMap, expectedWitnessMap, oracleResponse, oracleCallName, oracleCallInputs } =
-    await import('../shared/foreign_call');
-
   let observedName = '';
   let observedInputs: string[][] = [];
   const foreignCallHandler: ForeignCallHandler = async (name: string, inputs: string[][]) => {
@@ -36,24 +69,25 @@ it('successfully processes simple brillig foreign call opcodes', async () => {
     observedName = name;
     observedInputs = inputs;
 
-    return oracleResponse;
+    return foreignCallOracleResponse;
   };
 
-  const solved_witness: WitnessMap = await executeCircuit(bytecode, initialWitnessMap, foreignCallHandler);
+  const solvedWitness: WitnessMap = await executeCircuit(
+    foreignCallBytecode,
+    foreignCallInitialWitnessMap,
+    foreignCallHandler,
+  );
 
   // Check that expected values were passed to oracle callback.
-  expect(observedName).to.be.eq(oracleCallName);
-  expect(observedInputs).to.be.deep.eq(oracleCallInputs);
+  expect(observedName).to.be.eq(foreignCallOracleCallName);
+  expect(observedInputs).to.be.deep.eq(foreignCallOracleCallInputs);
 
   // If incorrect value is written into circuit then execution should halt due to unsatisfied constraint in
   // assert-zero opcode. Nevertheless, check that returned value was inserted correctly.
-  expect(solved_witness).to.be.deep.eq(expectedWitnessMap);
+  expect(solvedWitness).to.be.deep.eq(foreignCallExpectedWitnessMap);
 });
 
 it('successfully processes complex brillig foreign call opcodes', async () => {
-  const { bytecode, initialWitnessMap, expectedWitnessMap, oracleResponse, oracleCallName, oracleCallInputs } =
-    await import('../shared/complex_foreign_call');
-
   let observedName = '';
   let observedInputs: string[][] = [];
   const foreignCallHandler: ForeignCallHandler = async (name: string, inputs: string[][]) => {
@@ -62,38 +96,42 @@ it('successfully processes complex brillig foreign call opcodes', async () => {
     observedName = name;
     observedInputs = inputs;
 
-    return oracleResponse;
+    return complexForeignCallOracleResponse;
   };
 
-  const solved_witness: WitnessMap = await executeCircuit(bytecode, initialWitnessMap, foreignCallHandler);
+  const solvedWitness: WitnessMap = await executeCircuit(
+    complexForeignCallBytecode,
+    complexForeignCallInitialWitnessMap,
+    foreignCallHandler,
+  );
 
   // Check that expected values were passed to oracle callback.
-  expect(observedName).to.be.eq(oracleCallName);
-  expect(observedInputs).to.be.deep.eq(oracleCallInputs);
+  expect(observedName).to.be.eq(complexForeignCallOracleCallName);
+  expect(observedInputs).to.be.deep.eq(complexForeignCallOracleCallInputs);
 
   // If incorrect value is written into circuit then execution should halt due to unsatisfied constraint in
   // assert-zero opcode. Nevertheless, check that returned value was inserted correctly.
-  expect(solved_witness).to.be.deep.eq(expectedWitnessMap);
+  expect(solvedWitness).to.be.deep.eq(complexForeignCallExpectedWitnessMap);
 });
 
 it('successfully executes a MultiScalarMul opcode', async () => {
-  const { bytecode, initialWitnessMap, expectedWitnessMap } = await import('../shared/multi_scalar_mul');
+  const solvedWitness: WitnessMap = await executeCircuit(
+    multiScalarMulBytecode,
+    multiScalarMulInitialWitnessMap,
+    () => {
+      throw Error('unexpected oracle');
+    },
+  );
 
-  const solvedWitness: WitnessMap = await executeCircuit(bytecode, initialWitnessMap, () => {
-    throw Error('unexpected oracle');
-  });
-
-  expect(solvedWitness).to.be.deep.eq(expectedWitnessMap);
+  expect(solvedWitness).to.be.deep.eq(multiScalarMulExpectedWitnessMap);
 });
 
 it('successfully executes a MemoryOp opcode', async () => {
-  const { bytecode, initialWitnessMap, expectedWitnessMap } = await import('../shared/memory_op');
-
-  const solvedWitness: WitnessMap = await executeCircuit(bytecode, initialWitnessMap, () => {
+  const solvedWitness: WitnessMap = await executeCircuit(memoryOpBytecode, memoryOpInitialWitnessMap, () => {
     throw Error('unexpected oracle');
   });
 
-  expect(solvedWitness).to.be.deep.eq(expectedWitnessMap);
+  expect(solvedWitness).to.be.deep.eq(memoryOpExpectedWitnessMap);
 });
 
 /**
@@ -101,9 +139,7 @@ it('successfully executes a MemoryOp opcode', async () => {
  * TODO: also add a couple tests for executing multiple circuits
  */
 it('executeProgram: successfully executes program and extracts return value', async () => {
-  const { bytecode, initialWitnessMap, resultWitness, expectedResult } = await import('../shared/addition');
-
-  const witnessStack: WitnessStack = await executeProgram(bytecode, initialWitnessMap, () => {
+  const witnessStack: WitnessStack = await executeProgram(additionBytecode, additionInitialWitnessMap, () => {
     throw Error('unexpected oracle');
   });
 
@@ -112,20 +148,18 @@ it('executeProgram: successfully executes program and extracts return value', as
   const solvedWitnessMap: WitnessMap = solvedStackItem.witness;
 
   // Witness stack should be consistent with initial witness
-  initialWitnessMap.forEach((value, key) => {
+  additionInitialWitnessMap.forEach((value, key) => {
     expect(solvedWitnessMap.get(key) as string).to.be.eq(value);
   });
 
   // Solved witness should contain expected return value
-  expect(solvedWitnessMap.get(resultWitness)).to.be.eq(expectedResult);
+  expect(solvedWitnessMap.get(additionResultWitness)).to.be.eq(additionExpectedResult);
 });
 
 it('executeProgram: successfully process a program of acir functions with a nested call', async () => {
-  const { bytecode, initialWitnessMap, expectedWitnessStack } = await import('../shared/nested_acir_call');
-
-  const witnessStack: WitnessStack = await executeProgram(bytecode, initialWitnessMap, () => {
+  const witnessStack: WitnessStack = await executeProgram(nestedCallBytecode, nestedCallInitialWitnessMap, () => {
     throw Error('unexpected oracle');
   });
 
-  expect(witnessStack).to.be.deep.eq(expectedWitnessStack);
+  expect(witnessStack).to.be.deep.eq(nestedCallExpectedWitnessStack);
 });

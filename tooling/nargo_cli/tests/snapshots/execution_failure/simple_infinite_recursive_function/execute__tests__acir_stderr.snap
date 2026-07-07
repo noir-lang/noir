@@ -1,0 +1,27 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+warning: function `bar` cannot return without recursing
+   ┌─ src/main.nr:12:18
+   │
+12 │ unconstrained fn bar() {
+   │                  --- function cannot return without recursing
+   │
+
+error: Assertion failed: Stack too deep
+   ┌─ src/main.nr:13:5
+   │
+13 │     bar();
+   │     -----
+   │
+   = Call stack:
+        1: main
+                at src/main.nr:4:9
+        2: foo
+                at src/main.nr:9:5
+     ┌─ 3: bar
+     │          at src/main.nr:13:5
+     └─ (repeated 10240 times)
+
+Failed assertion

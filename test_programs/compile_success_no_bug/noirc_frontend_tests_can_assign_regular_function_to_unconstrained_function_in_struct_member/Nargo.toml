@@ -1,7 +1,0 @@
-
-            [package]
-            name = "noirc_frontend_tests_can_assign_regular_function_to_unconstrained_function_in_struct_member"
-            type = "bin"
-            authors = [""]
-            
-            [dependencies]

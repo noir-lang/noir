@@ -1,10 +1,12 @@
-use lsp_types::TextEdit;
+use async_lsp::lsp_types::TextEdit;
 use noirc_errors::Location;
-use noirc_frontend::ast::{Ident, Path};
+use noirc_frontend::{
+    ast::{Ident, Path},
+    modules::module_def_id_relative_path,
+};
 
 use crate::{
     byte_span_to_range,
-    modules::module_def_id_relative_path,
     use_segment_positions::{
         UseCompletionItemAdditionTextEditsRequest, use_completion_item_additional_text_edits,
     },
@@ -40,7 +42,7 @@ impl CodeActionFinder<'_> {
             for entry in entries {
                 let module_def_id = entry.module_def_id;
                 let visibility = entry.visibility;
-                let mut defining_module = entry.defining_module.as_ref().cloned();
+                let mut defining_module = entry.defining_module.as_ref().copied();
 
                 // If the item is offered via a re-export of it's parent module, this holds the name of the reexport.
                 let mut intermediate_name = None;
@@ -66,6 +68,7 @@ impl CodeActionFinder<'_> {
                     defining_module,
                     &intermediate_name,
                     self.interner,
+                    self.def_maps,
                 ) else {
                     continue;
                 };
@@ -77,7 +80,7 @@ impl CodeActionFinder<'_> {
     }
 
     fn push_import_code_action(&mut self, full_path: &str) {
-        let title = format!("Import {}", full_path);
+        let title = format!("Import {full_path}");
 
         let text_edits = use_completion_item_additional_text_edits(
             UseCompletionItemAdditionTextEditsRequest {
@@ -108,8 +111,8 @@ impl CodeActionFinder<'_> {
         prefix.pop();
         let prefix = prefix.join("::");
 
-        let title = format!("Qualify as {}", full_path);
-        let text_edit = TextEdit { range, new_text: format!("{}::", prefix) };
+        let title = format!("Qualify as {full_path}");
+        let text_edit = TextEdit { range, new_text: format!("{prefix}::") };
 
         let code_action = self.new_quick_fix(title, text_edit);
         self.code_actions.push(code_action);
@@ -282,6 +285,46 @@ mod foo {
 }
 
 fn foo(x: SomeTypeInBar) {}"#;
+
+        assert_code_action(title, src, expected).await;
+    }
+
+    #[test]
+    async fn test_import_code_action_for_struct_does_not_insert_into_existing_use_from_a_different_module()
+     {
+        let title = "Import crate::moo::StructTwo";
+
+        let src = r#"mod moo {
+    pub struct StructOne {}
+    pub struct StructTwo {}
+}
+
+use crate::moo::StructOne;
+
+mod one {
+    mod two {
+        fn foo() {
+            StructT>|<wo
+        }
+    }
+}"#;
+
+        let expected = r#"mod moo {
+    pub struct StructOne {}
+    pub struct StructTwo {}
+}
+
+use crate::moo::StructOne;
+
+mod one {
+    mod two {
+        use crate::moo::StructTwo;
+
+        fn foo() {
+            StructTwo
+        }
+    }
+}"#;
 
         assert_code_action(title, src, expected).await;
     }

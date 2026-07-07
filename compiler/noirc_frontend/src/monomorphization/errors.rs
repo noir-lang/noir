@@ -3,54 +3,43 @@ use noirc_errors::{CustomDiagnostic, Location};
 use crate::{
     Type,
     hir::{comptime::InterpreterError, type_check::TypeCheckError},
+    validity::InvalidType,
 };
 
 #[derive(Debug)]
 pub enum MonomorphizationError {
-    UnknownArrayLength {
-        length: Type,
-        err: TypeCheckError,
-        location: Location,
-    },
-    UnknownConstant {
-        location: Location,
-    },
-    NoDefaultType {
-        location: Location,
-    },
-    NoDefaultTypeInItem {
-        location: Location,
-        generic_name: String,
-        item_kind: &'static str,
-        item_name: String,
-    },
-    InternalError {
-        message: &'static str,
-        location: Location,
-    },
+    UnknownArrayLength { err: TypeCheckError, location: Location },
+    UnknownConstant { location: Location },
+    NoDefaultType { location: Location },
+    InternalError { message: &'static str, location: Location },
     InterpreterError(InterpreterError),
-    ComptimeFnInRuntimeCode {
-        name: String,
-        location: Location,
-    },
-    ComptimeTypeInRuntimeCode {
-        typ: String,
-        location: Location,
-    },
-    CheckedTransmuteFailed {
-        actual: Type,
-        expected: Type,
-        location: Location,
-    },
-    CheckedCastFailed {
-        actual: Type,
-        expected: Type,
-        location: Location,
-    },
-    RecursiveType {
-        typ: Type,
-        location: Location,
-    },
+    ComptimeFnInRuntimeCode { name: String, location: Location },
+    ComptimeTypeInRuntimeCode { typ: String, location: Location },
+    CheckedTransmuteFailed { actual: String, expected: String, location: Location },
+    CheckedCastFailed { actual: String, expected: Type, location: Location },
+    CheckedCastEvaluationFailed { err: TypeCheckError, location: Location },
+    RecursiveType { typ: Type, location: Location },
+    CannotComputeAssociatedConstant { name: String, err: TypeCheckError, location: Location },
+    ReferenceReturnedFromIfOrMatch { typ: String, location: Location },
+    AssignedToVarContainingReference { typ: String, location: Location },
+    NestedVectors { location: Location },
+    InvalidTypeInErrorMessage { typ: String, location: Location },
+    ConstrainedReferenceToUnconstrained { typ: String, location: Location },
+    NestedOrContainerReferenceToUnconstrained { typ: String, location: Location },
+    UnconstrainedReferenceReturnToConstrained { typ: String, location: Location },
+    UnconstrainedVectorReturnToConstrained { typ: String, location: Location },
+    UnconstrainedFunctionReturnToConstrained { typ: String, location: Location },
+    UnconstrainedEnumReturnToConstrained { typ: String, location: Location },
+    ReferenceReturnedFromOracle { typ: String, location: Location },
+    ReferenceParameterToOracle { typ: String, location: Location },
+    VectorWithNestedArrayReturnedFromOracle { typ: String, location: Location },
+    InvalidTypeForEntryPoint { invalid_type: InvalidType, location: Location },
+    InputLimitExceeded { num_elements: u64, max_elements: u64, location: Location },
+    ReturnLimitExceeded { num_elements: u64, max_elements: u64, location: Location },
+    ComplexType { complexity: usize, max_complexity: usize, location: Location },
+    CannotUseFunctionAsValue { name: String, location: Location },
+    GlobalContainsFunctionPointer { typ: String, location: Location },
+    CalledDisabledFunction { name: String, location: Location },
 }
 
 impl MonomorphizationError {
@@ -63,9 +52,36 @@ impl MonomorphizationError {
             | MonomorphizationError::ComptimeTypeInRuntimeCode { location, .. }
             | MonomorphizationError::CheckedTransmuteFailed { location, .. }
             | MonomorphizationError::CheckedCastFailed { location, .. }
+            | MonomorphizationError::CheckedCastEvaluationFailed { location, .. }
             | MonomorphizationError::RecursiveType { location, .. }
             | MonomorphizationError::NoDefaultType { location, .. }
-            | MonomorphizationError::NoDefaultTypeInItem { location, .. } => *location,
+            | MonomorphizationError::ReferenceReturnedFromIfOrMatch { location, .. }
+            | MonomorphizationError::AssignedToVarContainingReference { location, .. }
+            | MonomorphizationError::NestedVectors { location }
+            | MonomorphizationError::CannotComputeAssociatedConstant { location, .. }
+            | MonomorphizationError::InvalidTypeInErrorMessage { location, .. }
+            | MonomorphizationError::ConstrainedReferenceToUnconstrained { location, .. }
+            | MonomorphizationError::NestedOrContainerReferenceToUnconstrained {
+                location, ..
+            }
+            | MonomorphizationError::UnconstrainedReferenceReturnToConstrained {
+                location, ..
+            }
+            | MonomorphizationError::UnconstrainedVectorReturnToConstrained { location, .. }
+            | MonomorphizationError::UnconstrainedFunctionReturnToConstrained {
+                location, ..
+            }
+            | MonomorphizationError::UnconstrainedEnumReturnToConstrained { location, .. }
+            | MonomorphizationError::ReferenceReturnedFromOracle { location, .. }
+            | MonomorphizationError::ReferenceParameterToOracle { location, .. }
+            | MonomorphizationError::VectorWithNestedArrayReturnedFromOracle { location, .. }
+            | MonomorphizationError::InvalidTypeForEntryPoint { location, .. }
+            | MonomorphizationError::InputLimitExceeded { location, .. }
+            | MonomorphizationError::ReturnLimitExceeded { location, .. }
+            | MonomorphizationError::ComplexType { location, .. }
+            | MonomorphizationError::CannotUseFunctionAsValue { location, .. }
+            | MonomorphizationError::GlobalContainsFunctionPointer { location, .. }
+            | MonomorphizationError::CalledDisabledFunction { location, .. } => *location,
             MonomorphizationError::InterpreterError(error) => error.location(),
         }
     }
@@ -74,33 +90,26 @@ impl MonomorphizationError {
 impl From<MonomorphizationError> for CustomDiagnostic {
     fn from(error: MonomorphizationError) -> CustomDiagnostic {
         let message = match &error {
-            MonomorphizationError::UnknownArrayLength { length, err, .. } => {
-                format!("Could not determine array length `{length}`, encountered error: `{err}`")
+            MonomorphizationError::UnknownArrayLength { err, location } => {
+                let message = "Invalid array length".into();
+                let secondary = err.to_string();
+                return CustomDiagnostic::simple_error(message, secondary, *location);
             }
             MonomorphizationError::UnknownConstant { .. } => {
                 "Could not resolve constant".to_string()
             }
             MonomorphizationError::CheckedTransmuteFailed { actual, expected, .. } => {
-                format!("checked_transmute failed: `{actual:?}` != `{expected:?}`")
+                format!("checked_transmute failed: expected `{expected}` but found `{actual}`")
             }
             MonomorphizationError::CheckedCastFailed { actual, expected, .. } => {
                 format!("Arithmetic generics simplification failed: `{actual:?}` != `{expected:?}`")
             }
+            // Show the underlying type-check error (e.g. a division by zero)
+            // as the user-facing diagnostic.
+            MonomorphizationError::CheckedCastEvaluationFailed { err, .. } => return err.into(),
             MonomorphizationError::NoDefaultType { location } => {
                 let message = "Type annotation needed".into();
                 let secondary = "Could not determine type of generic argument".into();
-                return CustomDiagnostic::simple_error(message, secondary, *location);
-            }
-            MonomorphizationError::NoDefaultTypeInItem {
-                location,
-                generic_name,
-                item_kind,
-                item_name,
-            } => {
-                let message = "Type annotation needed".into();
-                let secondary = format!(
-                    "Could not determine the type of the generic argument `{generic_name}` declared on the {item_kind} `{item_name}`"
-                );
                 return CustomDiagnostic::simple_error(message, secondary, *location);
             }
             MonomorphizationError::InterpreterError(error) => return error.into(),
@@ -116,9 +125,143 @@ impl From<MonomorphizationError> for CustomDiagnostic {
                 let secondary = "Comptime type used here".into();
                 return CustomDiagnostic::simple_error(message, secondary, *location);
             }
+            MonomorphizationError::CalledDisabledFunction { name, location } => {
+                let message = format!("Called disabled function `{name}`");
+                let secondary = "This function was disabled by a comptime attribute".into();
+                return CustomDiagnostic::simple_error(message, secondary, *location);
+            }
             MonomorphizationError::RecursiveType { typ, location } => {
                 let message = format!("Type `{typ}` is recursive");
                 let secondary = "All types in Noir must have a known size at compile-time".into();
+                return CustomDiagnostic::simple_error(message, secondary, *location);
+            }
+            MonomorphizationError::CannotComputeAssociatedConstant { name, err, .. } => {
+                format!(
+                    "Could not determine the value of associated constant `{name}`, encountered error: `{err}`"
+                )
+            }
+            MonomorphizationError::ReferenceReturnedFromIfOrMatch { typ, location } => {
+                let message =
+                    "Cannot return a reference type from an if or match expression".to_string();
+                let secondary = if typ.starts_with("&") {
+                    format!("`{typ}` returned here")
+                } else {
+                    format!("`{typ}`, which contains a reference type internally, returned here")
+                };
+                return CustomDiagnostic::simple_error(message, secondary, *location);
+            }
+            MonomorphizationError::AssignedToVarContainingReference { typ, location } => {
+                let message =
+                    "Cannot assign to a mutable variable which contains a reference internally"
+                        .to_string();
+                let secondary = if typ.starts_with("&") {
+                    format!("Assigned expression has the type `{typ}`")
+                } else {
+                    format!(
+                        "Assigned expression has the type `{typ}`, which contains a reference type internally"
+                    )
+                };
+                return CustomDiagnostic::simple_error(message, secondary, *location);
+            }
+            MonomorphizationError::NestedVectors { .. } => {
+                "Nested vectors, i.e. vectors within an array or vector, are not supported"
+                    .to_string()
+            }
+            MonomorphizationError::InvalidTypeInErrorMessage { typ, location } => {
+                let message = format!("Invalid type {typ} used in the error message");
+                let secondary = "Error message fragments must be ABI compatible".into();
+                return CustomDiagnostic::simple_error(message, secondary, *location);
+            }
+            MonomorphizationError::ConstrainedReferenceToUnconstrained { typ, .. } => {
+                format!(
+                    "Cannot pass mutable reference `{typ}` from a constrained runtime to an unconstrained runtime"
+                )
+            }
+            MonomorphizationError::NestedOrContainerReferenceToUnconstrained { typ, .. } => {
+                format!(
+                    "Cannot pass `{typ}` across the constrained/unconstrained boundary: only a direct immutable reference `&T` to a reference-free type is supported"
+                )
+            }
+            MonomorphizationError::UnconstrainedReferenceReturnToConstrained { typ, .. } => {
+                format!(
+                    "Reference `{typ}` cannot be returned from an unconstrained runtime to a constrained runtime"
+                )
+            }
+            MonomorphizationError::UnconstrainedVectorReturnToConstrained { typ, .. } => {
+                format!(
+                    "Vector `{typ}` cannot be returned from an unconstrained runtime to a constrained runtime"
+                )
+            }
+            MonomorphizationError::UnconstrainedFunctionReturnToConstrained { typ, .. } => {
+                format!(
+                    "Function `{typ}` cannot be returned from an unconstrained runtime to a constrained runtime"
+                )
+            }
+            MonomorphizationError::UnconstrainedEnumReturnToConstrained { typ, .. } => {
+                format!(
+                    "Enum `{typ}` cannot be returned from an unconstrained runtime to a constrained runtime"
+                )
+            }
+            MonomorphizationError::ReferenceReturnedFromOracle { typ, .. } => {
+                format!("Reference `{typ}` cannot be returned from an oracle function")
+            }
+            MonomorphizationError::ReferenceParameterToOracle { typ, .. } => {
+                format!("Reference `{typ}` cannot be passed to an oracle function")
+            }
+            MonomorphizationError::VectorWithNestedArrayReturnedFromOracle { typ, .. } => {
+                format!(
+                    "Vector with nested array `{typ}` cannot be returned from an oracle function"
+                )
+            }
+            MonomorphizationError::InvalidTypeForEntryPoint { invalid_type, location } => {
+                let primary_message =
+                    "Invalid type found in the entry point to a program".to_string();
+                let mut diagnostic =
+                    CustomDiagnostic::simple_error(primary_message, String::new(), *location);
+                diagnostic.secondaries.clear();
+
+                if matches!(
+                    invalid_type,
+                    InvalidType::StructField { .. } | InvalidType::Alias { .. }
+                ) {
+                    diagnostic.add_secondary(
+                        "This type has an invalid entry point type inside it".to_string(),
+                        *location,
+                    );
+                }
+
+                diagnostic.add_note("Note: vectors, references, empty arrays, empty strings, or any type containing them may not be used in main, contract functions, test functions, fuzz functions or foldable functions.".to_string());
+                invalid_type.add_to_diagnostic(*location, &mut diagnostic);
+                return diagnostic;
+            }
+            MonomorphizationError::InputLimitExceeded { num_elements, max_elements, .. } => {
+                format!(
+                    "An input parameter has {num_elements} elements which exceeds the limit of {max_elements}"
+                )
+            }
+            MonomorphizationError::ReturnLimitExceeded { num_elements, max_elements, .. } => {
+                format!(
+                    "The return value has {num_elements} elements which exceeds the limit of {max_elements}"
+                )
+            }
+            MonomorphizationError::ComplexType { complexity, max_complexity, location } => {
+                let message = format!(
+                    "Type is too complex (complexity: {complexity}, max: {max_complexity})",
+                );
+                let secondary = "This usually happens with exponentially growing types. Consider simplifying the type structure.".to_string();
+                return CustomDiagnostic::simple_error(message, secondary, *location);
+            }
+            MonomorphizationError::CannotUseFunctionAsValue { name, location } => {
+                let message = format!(
+                    "`{name}` cannot be used as a function value; it must be called directly"
+                );
+                let secondary = "Used as a value here".to_string();
+                return CustomDiagnostic::simple_error(message, secondary, *location);
+            }
+            MonomorphizationError::GlobalContainsFunctionPointer { typ, location } => {
+                let message = "Globals cannot contain function pointers".to_string();
+                let secondary =
+                    format!("This global has type `{typ}`, which contains a function pointer");
                 return CustomDiagnostic::simple_error(message, secondary, *location);
             }
         };

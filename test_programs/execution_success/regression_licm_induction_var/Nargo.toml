@@ -1,0 +1,5 @@
+[package]
+name = "regression_licm_induction_var"
+type = "bin"
+authors = [""]
+compiler_version = ">=0.1.0"

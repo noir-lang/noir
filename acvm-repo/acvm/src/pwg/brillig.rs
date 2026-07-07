@@ -30,6 +30,8 @@ pub enum BrilligSolverStatus<F> {
     ForeignCallWait(ForeignCallWaitInfo<F>),
 }
 
+/// Specific solver for Brillig opcodes
+/// It maintains a Brillig VM that can execute the bytecode of the called brillig function
 pub struct BrilligSolver<'b, F, B: BlackBoxFunctionSolver<F>> {
     vm: VM<'b, F, B>,
     acir_index: usize,
@@ -86,6 +88,9 @@ impl<'b, B: BlackBoxFunctionSolver<F>, F: AcirField> BrilligSolver<'b, F, B> {
         Ok(Self { vm, acir_index, function_id: brillig_function_id })
     }
 
+    /// Get a `BrilligVM` for executing the provided bytecode
+    /// 1. Reduce the input expressions into a known value, or error if they do not reduce to a value.
+    /// 2. Instantiate the Brillig VM with the bytecode and the reduced inputs.
     fn setup_brillig_vm(
         initial_witness: &WitnessMap<F>,
         memory: &HashMap<BlockId, MemoryOpSolver<F>>,
@@ -113,7 +118,7 @@ impl<'b, B: BlackBoxFunctionSolver<F>, F: AcirField> BrilligSolver<'b, F, B> {
                 },
                 BrilligInputs::Array(expr_arr) => {
                     // Attempt to fetch all array input values
-                    for expr in expr_arr.iter() {
+                    for expr in expr_arr {
                         match get_value(expr, initial_witness) {
                             Ok(value) => calldata.push(value),
                             Err(_) => {
@@ -127,14 +132,8 @@ impl<'b, B: BlackBoxFunctionSolver<F>, F: AcirField> BrilligSolver<'b, F, B> {
                 BrilligInputs::MemoryArray(block_id) => {
                     let memory_block = memory
                         .get(block_id)
-                        .ok_or(OpcodeNotSolvable::MissingMemoryBlock(block_id.0))?;
-                    for memory_index in 0..memory_block.block_len {
-                        let memory_value = memory_block
-                            .block_value
-                            .get(&memory_index)
-                            .expect("All memory is initialized on creation");
-                        calldata.push(*memory_value);
-                    }
+                        .ok_or(OpcodeNotSolvable::MissingMemoryBlock(block_id.as_u32()))?;
+                    calldata.extend(&memory_block.block_value);
                 }
             }
         }
@@ -155,7 +154,7 @@ impl<'b, B: BlackBoxFunctionSolver<F>, F: AcirField> BrilligSolver<'b, F, B> {
         self.vm.get_memory()
     }
 
-    pub fn write_memory_at(&mut self, ptr: usize, value: MemoryValue<F>) {
+    pub fn write_memory_at(&mut self, ptr: u32, value: MemoryValue<F>) {
         self.vm.write_memory_at(ptr, value);
     }
 
@@ -173,7 +172,7 @@ impl<'b, B: BlackBoxFunctionSolver<F>, F: AcirField> BrilligSolver<'b, F, B> {
     }
 
     pub fn step(&mut self) -> Result<BrilligSolverStatus<F>, OpcodeResolutionError<F>> {
-        let status = self.vm.process_opcode();
+        let status = self.vm.process_opcode().clone();
         self.handle_vm_status(status)
     }
 
@@ -181,14 +180,14 @@ impl<'b, B: BlackBoxFunctionSolver<F>, F: AcirField> BrilligSolver<'b, F, B> {
         self.vm.program_counter()
     }
 
+    /// Returns the status of the Brillig VM as a '`BrilligSolverStatus`' resolution.
+    /// It may be finished, in-progress, failed, or may be waiting for results of a foreign call.
+    /// Return the "resolution" to the caller who may choose to make subsequent calls
+    /// (when it gets foreign call results for example).
     fn handle_vm_status(
         &self,
         vm_status: VMStatus<F>,
     ) -> Result<BrilligSolverStatus<F>, OpcodeResolutionError<F>> {
-        // Check the status of the Brillig VM and return a resolution.
-        // It may be finished, in-progress, failed, or may be waiting for results of a foreign call.
-        // Return the "resolution" to the caller who may choose to make subsequent calls
-        // (when it gets foreign call results for example).
         match vm_status {
             VMStatus::Finished { .. } => Ok(BrilligSolverStatus::Finished),
             VMStatus::InProgress => Ok(BrilligSolverStatus::InProgress),
@@ -207,8 +206,12 @@ impl<'b, B: BlackBoxFunctionSolver<F>, F: AcirField> BrilligSolver<'b, F, B> {
                     FailureReason::Trap { revert_data_offset, revert_data_size } => {
                         extract_failure_payload_from_memory(
                             self.vm.get_memory(),
-                            revert_data_offset,
-                            revert_data_size,
+                            revert_data_offset
+                                .try_into()
+                                .expect("Failed conversion from u32 to usize"),
+                            revert_data_size
+                                .try_into()
+                                .expect("Failed conversion from u32 to usize"),
                         )
                     }
                 };
@@ -234,6 +237,7 @@ impl<'b, B: BlackBoxFunctionSolver<F>, F: AcirField> BrilligSolver<'b, F, B> {
         self.finalize_inner(witness, outputs)
     }
 
+    /// Finalize the VM and return the profiling samples.
     pub(crate) fn finalize_with_profiling(
         mut self,
         witness: &mut WitnessMap<F>,
@@ -244,6 +248,7 @@ impl<'b, B: BlackBoxFunctionSolver<F>, F: AcirField> BrilligSolver<'b, F, B> {
         Ok(self.vm.take_profiling_samples())
     }
 
+    /// Finalize the VM execution and write the outputs to the provided witness map.
     fn finalize_inner(
         &self,
         witness: &mut WitnessMap<F>,
@@ -253,13 +258,19 @@ impl<'b, B: BlackBoxFunctionSolver<F>, F: AcirField> BrilligSolver<'b, F, B> {
         let vm_status = self.vm.get_status();
         match vm_status {
             VMStatus::Finished { return_data_offset, return_data_size } => {
-                self.write_brillig_outputs(witness, return_data_offset, return_data_size, outputs)?;
+                self.write_brillig_outputs(
+                    witness,
+                    return_data_offset.try_into().expect("Failed conversion from u32 to usize"),
+                    return_data_size.try_into().expect("Failed conversion from u32 to usize"),
+                    outputs,
+                )?;
                 Ok(())
             }
             _ => panic!("Brillig VM has not completed execution"),
         }
     }
 
+    /// Write VM execution results into the witness map
     fn write_brillig_outputs(
         &self,
         witness_map: &mut WitnessMap<F>,
@@ -267,30 +278,45 @@ impl<'b, B: BlackBoxFunctionSolver<F>, F: AcirField> BrilligSolver<'b, F, B> {
         return_data_size: usize,
         outputs: &[BrilligOutputs],
     ) -> Result<(), OpcodeResolutionError<F>> {
-        // Write VM execution results into the witness map
         let memory = self.vm.get_memory();
         let mut current_ret_data_idx = return_data_offset;
-        for output in outputs.iter() {
+        for output in outputs {
             match output {
                 BrilligOutputs::Simple(witness) => {
-                    insert_value(witness, memory[current_ret_data_idx].to_field(), witness_map)?;
-                    current_ret_data_idx += 1;
+                    let value =
+                        memory.get(current_ret_data_idx).ok_or_else(|| self.outputs_mismatch())?;
+                    insert_value(witness, value.to_field(), witness_map)?;
+                    current_ret_data_idx = current_ret_data_idx
+                        .checked_add(1)
+                        .ok_or_else(|| self.outputs_mismatch())?;
                 }
                 BrilligOutputs::Array(witness_arr) => {
-                    for witness in witness_arr.iter() {
-                        let value = &memory[current_ret_data_idx];
+                    for witness in witness_arr {
+                        let value = memory
+                            .get(current_ret_data_idx)
+                            .ok_or_else(|| self.outputs_mismatch())?;
                         insert_value(witness, value.to_field(), witness_map)?;
-                        current_ret_data_idx += 1;
+                        current_ret_data_idx = current_ret_data_idx
+                            .checked_add(1)
+                            .ok_or_else(|| self.outputs_mismatch())?;
                     }
                 }
             }
         }
 
-        assert!(
-            current_ret_data_idx == return_data_offset + return_data_size,
-            "Brillig VM did not write the expected number of return values"
-        );
+        let expected_end = return_data_offset
+            .checked_add(return_data_size)
+            .ok_or_else(|| self.outputs_mismatch())?;
+        if current_ret_data_idx != expected_end {
+            return Err(self.outputs_mismatch());
+        }
         Ok(())
+    }
+
+    /// Error raised when the brillig return data described by the `Stop` opcode is
+    /// inconsistent with the expected call outputs (out of bounds, or a different count).
+    fn outputs_mismatch(&self) -> OpcodeResolutionError<F> {
+        OpcodeResolutionError::BrilligOutputsMismatch { function_id: self.function_id }
     }
 
     pub fn resolve_pending_foreign_call(&mut self, foreign_call_result: ForeignCallResult<F>) {
@@ -313,8 +339,13 @@ fn extract_failure_payload_from_memory<F: AcirField>(
     if revert_data_size == 0 {
         None
     } else {
-        let mut revert_values_iter =
-            memory[revert_data_offset..(revert_data_offset + revert_data_size)].iter();
+        let end = revert_data_offset
+            .checked_add(revert_data_size)
+            .expect("Revert data offset and size overflow");
+        let mut revert_values_iter = memory
+            .get(revert_data_offset..end)
+            .expect("Revert data offset and size exceed memory bounds")
+            .iter();
         let error_selector = ErrorSelector::new(
             revert_values_iter
                 .next()
@@ -341,4 +372,195 @@ pub struct ForeignCallWaitInfo<F> {
     pub function: String,
     /// Resolved inputs to a foreign call computed in the previous steps of a Brillig VM process
     pub inputs: Vec<ForeignCallParam<F>>,
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::pwg::{BrilligSolver, OpcodeResolutionError};
+    use acir::{
+        FieldElement,
+        brillig::{BinaryFieldOp, BitSize, HeapVector, IntegerBitSize, MemoryAddress, Opcode},
+        circuit::brillig::{BrilligFunctionId, BrilligInputs, BrilligOutputs},
+        native_types::{Expression, Witness, WitnessMap},
+    };
+    use std::collections::{BTreeMap, HashMap};
+
+    #[test]
+    fn test_solver() {
+        let mut initial_witness = WitnessMap::from(BTreeMap::from_iter([
+            (Witness(1), FieldElement::from(1u128)),
+            (Witness(2), FieldElement::from(1u128)),
+            (Witness(3), FieldElement::from(2u128)),
+        ]));
+        let w1 = Expression::from(Witness(1));
+        let w2 = Expression::from(Witness(2));
+        let w3 = Expression::from(Witness(3));
+        let inputs =
+            vec![BrilligInputs::Single(w1), BrilligInputs::Single(w2), BrilligInputs::Single(w3)];
+
+        let backend = acvm_blackbox_solver::StubbedBlackBoxSolver;
+        let bytecode = vec![
+            Opcode::Const {
+                destination: MemoryAddress::Direct(21),
+                bit_size: BitSize::Integer(IntegerBitSize::U32),
+                value: FieldElement::from(1_u128),
+            },
+            Opcode::Const {
+                destination: MemoryAddress::Direct(20),
+                bit_size: BitSize::Integer(IntegerBitSize::U32),
+                value: FieldElement::from(0_u128),
+            },
+            Opcode::CalldataCopy {
+                destination_address: MemoryAddress::Direct(0),
+                size_address: MemoryAddress::Direct(21),
+                offset_address: MemoryAddress::Direct(20),
+            },
+            Opcode::Const {
+                destination: MemoryAddress::Direct(2),
+                bit_size: BitSize::Field,
+                value: FieldElement::from(0_u128),
+            },
+            Opcode::BinaryFieldOp {
+                destination: MemoryAddress::Direct(3),
+                op: BinaryFieldOp::Equals,
+                lhs: MemoryAddress::Direct(0),
+                rhs: MemoryAddress::Direct(2),
+            },
+            Opcode::JumpIf { condition: MemoryAddress::Direct(3), location: 8 },
+            Opcode::Const {
+                destination: MemoryAddress::Direct(1),
+                bit_size: BitSize::Field,
+                value: FieldElement::from(1_u128),
+            },
+            Opcode::BinaryFieldOp {
+                destination: MemoryAddress::Direct(0),
+                op: BinaryFieldOp::Add,
+                lhs: MemoryAddress::Direct(1),
+                rhs: MemoryAddress::Direct(0),
+            },
+            Opcode::Stop {
+                return_data: HeapVector {
+                    pointer: MemoryAddress::Direct(20),
+                    size: MemoryAddress::Direct(21),
+                },
+            },
+        ];
+        let mut solver = BrilligSolver::new_call(
+            &initial_witness,
+            &HashMap::new(),
+            &inputs,
+            &bytecode,
+            &backend,
+            0,
+            BrilligFunctionId::default(),
+            false,
+            None,
+        )
+        .unwrap();
+        solver.solve().unwrap();
+        let outputs = vec![BrilligOutputs::Simple(Witness(4))];
+        solver.finalize(&mut initial_witness, &outputs).unwrap();
+
+        assert_eq!(initial_witness[&Witness(4)], FieldElement::from(2u128));
+    }
+
+    /// A `Stop` opcode having return-data pointer outside of
+    /// the VM's allocated memory
+    #[test]
+    fn out_of_bounds_return_data_offset_errors_instead_of_panicking() {
+        let mut initial_witness = WitnessMap::from(BTreeMap::<Witness, FieldElement>::new());
+        let inputs: Vec<BrilligInputs<FieldElement>> = vec![];
+
+        let backend = acvm_blackbox_solver::StubbedBlackBoxSolver;
+        let bytecode = vec![
+            // The value stored here is dereferenced as the return-data offset; point it
+            // far beyond any memory the program actually wrote to.
+            Opcode::Const {
+                destination: MemoryAddress::Direct(10),
+                bit_size: BitSize::Integer(IntegerBitSize::U32),
+                value: FieldElement::from(1_000_000_u128),
+            },
+            Opcode::Const {
+                destination: MemoryAddress::Direct(11),
+                bit_size: BitSize::Integer(IntegerBitSize::U32),
+                value: FieldElement::from(1_u128),
+            },
+            Opcode::Stop {
+                return_data: HeapVector {
+                    pointer: MemoryAddress::Direct(10),
+                    size: MemoryAddress::Direct(11),
+                },
+            },
+        ];
+        let mut solver = BrilligSolver::new_call(
+            &initial_witness,
+            &HashMap::new(),
+            &inputs,
+            &bytecode,
+            &backend,
+            0,
+            BrilligFunctionId::default(),
+            false,
+            None,
+        )
+        .unwrap();
+        solver.solve().unwrap();
+
+        let outputs = vec![BrilligOutputs::Simple(Witness(4))];
+        let result = solver.finalize(&mut initial_witness, &outputs);
+        assert!(
+            matches!(result, Err(OpcodeResolutionError::BrilligOutputsMismatch { .. })),
+            "expected a BrilligOutputsMismatch error, got {result:?}"
+        );
+    }
+
+    /// A `Stop` opcode whose declared return-data size does not match the number of
+    /// `outputs`.
+    #[test]
+    fn return_data_size_mismatch_errors_instead_of_asserting() {
+        let mut initial_witness = WitnessMap::from(BTreeMap::<Witness, FieldElement>::new());
+        let inputs: Vec<BrilligInputs<FieldElement>> = vec![];
+
+        let backend = acvm_blackbox_solver::StubbedBlackBoxSolver;
+        let bytecode = vec![
+            // Dereferenced as the (in-bounds) return-data offset.
+            Opcode::Const {
+                destination: MemoryAddress::Direct(0),
+                bit_size: BitSize::Integer(IntegerBitSize::U32),
+                value: FieldElement::from(0_u128),
+            },
+            // Claim five return values while only a single output witness is provided.
+            Opcode::Const {
+                destination: MemoryAddress::Direct(5),
+                bit_size: BitSize::Integer(IntegerBitSize::U32),
+                value: FieldElement::from(5_u128),
+            },
+            Opcode::Stop {
+                return_data: HeapVector {
+                    pointer: MemoryAddress::Direct(0),
+                    size: MemoryAddress::Direct(5),
+                },
+            },
+        ];
+        let mut solver = BrilligSolver::new_call(
+            &initial_witness,
+            &HashMap::new(),
+            &inputs,
+            &bytecode,
+            &backend,
+            0,
+            BrilligFunctionId::default(),
+            false,
+            None,
+        )
+        .unwrap();
+        solver.solve().unwrap();
+
+        let outputs = vec![BrilligOutputs::Simple(Witness(4))];
+        let result = solver.finalize(&mut initial_witness, &outputs);
+        assert!(
+            matches!(result, Err(OpcodeResolutionError::BrilligOutputsMismatch { .. })),
+            "expected a BrilligOutputsMismatch error, got {result:?}"
+        );
+    }
 }

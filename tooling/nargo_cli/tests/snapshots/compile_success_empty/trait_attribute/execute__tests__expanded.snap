@@ -1,0 +1,28 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+trait Foo {
+    fn foo(self) -> Self;
+}
+
+impl Foo for Field {
+    fn foo(self) -> Self {
+        self + 1_Field
+    }
+}
+
+comptime fn trait_attr(_t: TraitDefinition) -> Quoted {
+    quote {
+        impl Foo for Field {
+            fn foo(self) -> Self {
+                self + 1
+            }
+        }
+    }
+}
+
+fn main() {
+    assert(1_Field.foo() == 2_Field);
+    assert(10_Field.foo() == 11_Field);
+}

@@ -5,4 +5,4 @@ self_path=$(dirname "$(readlink -f "$0")")
 
 
 $self_path/compile-programs.sh
-$self_path/codegen-verifiers.sh
+$self_path/generate-solidity-verifiers.sh

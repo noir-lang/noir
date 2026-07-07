@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
+use async_lsp::lsp_types::{Position, Range, TextEdit};
 use fm::{FileId, FileMap};
-use lsp_types::{Position, Range, TextEdit};
 use noirc_errors::Span;
 use noirc_frontend::ast::{PathKind, UseTree, UseTreeKind};
 
@@ -17,29 +17,29 @@ pub(crate) enum UseSegmentPosition {
     NoneOrMultiple,
     /// The segment is the last one in the `use` statement (or nested use statement):
     ///
-    /// use foo::bar;
+    /// use `foo::bar`;
     ///          ^^^
     ///
     /// Auto-import will transform it to this:
     ///
-    /// use foo::bar::{self, baz};
+    /// use `foo::bar::{self`, baz};
     Last { span: Span },
     /// The segment happens before another simple (ident) segment:
     ///
-    /// use foo::bar::qux;
+    /// use `foo::bar::qux`;
     ///          ^^^
     ///
     /// Auto-import will transform it to this:
     ///
-    /// use foo::bar::{qux, baz};
+    /// use `foo::bar::{qux`, baz};
     BeforeSegment { segment_span_until_end: Span },
     /// The segment happens before a list:
     ///
-    /// use foo::bar::{qux, another};
+    /// use `foo::bar::{qux`, another};
     ///
     /// Auto-import will transform it to this:
     ///
-    /// use foo::bar::{qux, another, baz};
+    /// use `foo::bar::{qux`, another, baz};
     BeforeList { first_entry_span: Span, list_is_empty: bool },
 }
 
@@ -69,7 +69,7 @@ impl UseSegmentPositions {
 
         loop {
             let use_segment_position =
-                self.use_segment_positions.get(&parent_path).cloned().unwrap_or_default();
+                self.use_segment_positions.get(&parent_path).copied().unwrap_or_default();
 
             if let UseSegmentPosition::NoneOrMultiple = use_segment_position {
                 if let Some(next_name) = segments.pop() {
@@ -87,8 +87,9 @@ impl UseSegmentPositions {
     fn gather_use_tree_segments(&mut self, use_tree: &UseTree, mut prefix: String) {
         let kind_string = match use_tree.prefix.kind {
             PathKind::Crate => Some("crate".to_string()),
-            PathKind::Super => Some("super".to_string()),
-            PathKind::Dep | PathKind::Plain => None,
+            PathKind::Super(extras) => Some(vec!["super"; extras + 1].join("::")),
+            PathKind::Absolute | PathKind::Plain => None,
+            PathKind::Resolved(_) => Some("$crate".to_string()),
         };
         if let Some(kind_string) = kind_string {
             if let Some(segment) = use_tree.prefix.segments.first() {
@@ -110,7 +111,7 @@ impl UseSegmentPositions {
             let ident = &segment.ident;
             if !prefix.is_empty() {
                 prefix.push_str("::");
-            };
+            }
             prefix.push_str(ident.as_str());
 
             if index < prefix_segments_len - 1 {
@@ -159,6 +160,11 @@ impl UseSegmentPositions {
     ) {
         match &use_tree.kind {
             UseTreeKind::Path(ident, _alias) => {
+                // The identifier might be empty for cases like `use crate::` or `use super::`.
+                if ident.is_empty() {
+                    return;
+                }
+
                 self.insert_use_segment_position(
                     prefix,
                     UseSegmentPosition::BeforeSegment {
@@ -213,7 +219,7 @@ pub(crate) struct UseCompletionItemAdditionTextEditsRequest<'a> {
     pub(crate) lines: &'a Vec<&'a str>,
     /// How many nested `mod` we are in deep
     pub(crate) nesting: usize,
-    /// The line where an auto_import must be inserted
+    /// The line where an `auto_import` must be inserted
     pub(crate) auto_import_line: usize,
 }
 
@@ -246,7 +252,7 @@ pub(crate) fn use_completion_item_additional_text_edits(
             if let Some(lsp_location) = to_lsp_location(request.files, request.file, span) {
                 let range = lsp_location.range;
                 vec![TextEdit {
-                    new_text: format!("::{{self, {}}}", name),
+                    new_text: format!("::{{self, {name}}}"),
                     range: Range { start: range.end, end: range.end },
                 }]
             } else {
@@ -281,7 +287,7 @@ pub(crate) fn use_completion_item_additional_text_edits(
                         range: Range { start: range.start, end: range.start },
                     },
                     TextEdit {
-                        new_text: format!(", {}}}", name),
+                        new_text: format!(", {name}}}"),
                         range: Range { start: range.end, end: range.end },
                     },
                 ]
@@ -307,7 +313,7 @@ pub(crate) fn use_completion_item_additional_text_edits(
             {
                 let range = lsp_location.range;
                 vec![TextEdit {
-                    new_text: if list_is_empty { name } else { format!("{}, ", name) },
+                    new_text: if list_is_empty { name } else { format!("{name}, ") },
                     range: Range { start: range.start, end: range.start },
                 }]
             } else {
@@ -326,10 +332,10 @@ fn new_use_completion_item_additional_text_edits(
     let mut newlines = "\n";
 
     // If the line we are inserting into is not an empty line, insert an extra line to make some room
-    if let Some(line_text) = request.lines.get(line as usize) {
-        if !line_text.trim().is_empty() {
-            newlines = "\n\n";
-        }
+    if let Some(line_text) = request.lines.get(line as usize)
+        && !line_text.trim().is_empty()
+    {
+        newlines = "\n\n";
     }
 
     vec![TextEdit {

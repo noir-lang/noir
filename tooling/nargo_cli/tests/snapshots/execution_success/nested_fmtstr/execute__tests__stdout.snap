@@ -1,0 +1,8 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stdout
+---
+pre array ([0x01, 0x02, 0x03]) post array
+pre one (pre array ([0x01, 0x02, 0x03]) post array) post one
+pre two (pre one (pre array ([0x01, 0x02, 0x03]) post array) post one) (pre one (pre array ([0x01, 0x02, 0x03]) post array) post one) post two
+pre three (pre two (pre one (pre array ([0x01, 0x02, 0x03]) post array) post one) (pre one (pre array ([0x01, 0x02, 0x03]) post array) post one) post two pre two (pre one (pre array ([0x01, 0x02, 0x03]) post array) post one) (pre one (pre array ([0x01, 0x02, 0x03]) post array) post one) post two pre two (pre one (pre array ([0x01, 0x02, 0x03]) post array) post one) (pre one (pre array ([0x01, 0x02, 0x03]) post array) post one) post two) post three

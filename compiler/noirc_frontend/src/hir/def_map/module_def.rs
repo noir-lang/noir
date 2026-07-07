@@ -1,6 +1,6 @@
-use crate::node_interner::{FuncId, GlobalId, TraitId, TypeAliasId, TypeId};
+use crate::node_interner::{FuncId, GlobalId, TraitAssociatedTypeId, TraitId, TypeAliasId, TypeId};
 
-use super::ModuleId;
+use super::{ModuleId, Namespace};
 
 /// A generic ID that references either a module, function, type, interface or global
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
@@ -10,6 +10,7 @@ pub enum ModuleDefId {
     TypeId(TypeId),
     TypeAliasId(TypeAliasId),
     TraitId(TraitId),
+    TraitAssociatedTypeId(TraitAssociatedTypeId),
     GlobalId(GlobalId),
 }
 
@@ -57,6 +58,7 @@ impl ModuleDefId {
             ModuleDefId::TypeId(_) => "type",
             ModuleDefId::TypeAliasId(_) => "type alias",
             ModuleDefId::TraitId(_) => "trait",
+            ModuleDefId::TraitAssociatedTypeId(_) => "associated type",
             ModuleDefId::ModuleId(_) => "module",
             ModuleDefId::GlobalId(_) => "global",
         }
@@ -66,6 +68,19 @@ impl ModuleDefId {
         match self {
             Self::ModuleId(v) => Some(*v),
             _ => None,
+        }
+    }
+
+    /// The namespace this definition lives in. Mirrors how [`super::PerNs`] splits its
+    /// `types` and `values` slots: functions and globals are values, everything else is a type.
+    pub fn namespace(&self) -> Namespace {
+        match self {
+            ModuleDefId::FunctionId(_) | ModuleDefId::GlobalId(_) => Namespace::Value,
+            ModuleDefId::ModuleId(_)
+            | ModuleDefId::TypeId(_)
+            | ModuleDefId::TypeAliasId(_)
+            | ModuleDefId::TraitId(_)
+            | ModuleDefId::TraitAssociatedTypeId(_) => Namespace::Type,
         }
     }
 }
@@ -97,5 +112,11 @@ impl From<GlobalId> for ModuleDefId {
 impl From<TraitId> for ModuleDefId {
     fn from(trait_id: TraitId) -> Self {
         ModuleDefId::TraitId(trait_id)
+    }
+}
+
+impl From<TraitAssociatedTypeId> for ModuleDefId {
+    fn from(id: TraitAssociatedTypeId) -> Self {
+        ModuleDefId::TraitAssociatedTypeId(id)
     }
 }

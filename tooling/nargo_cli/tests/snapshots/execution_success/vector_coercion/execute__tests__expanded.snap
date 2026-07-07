@@ -1,0 +1,30 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+struct Hasher {
+    fields: [Field],
+}
+
+impl Hasher {
+    pub fn new() -> Self {
+        Self { fields: [].as_vector() }
+    }
+
+    pub fn add(&mut self, field: Field) {
+        self.fields = self.fields.push_back(field);
+    }
+}
+
+fn main(expected: pub Field, first: Field) {
+    let mut hasher: Hasher = Hasher::new();
+    hasher.add(first);
+    assert(hasher.fields[0_u32] == expected);
+    regression_4967();
+}
+
+fn regression_4967() {
+    let var1: [(i32, u8)] = [(1_i32, 2_u8)].as_vector();
+    assert(var1.len() == 1_u32);
+    println(var1);
+}

@@ -1,9 +1,9 @@
 use super::{
-    call_stack::CallStackId,
     instruction::{InstructionId, TerminatorInstruction},
     map::Id,
     value::ValueId,
 };
+use noirc_errors::call_stack::CallStackId;
 use serde::{Deserialize, Serialize};
 
 /// A Basic block is a maximal collection of instructions
@@ -13,7 +13,7 @@ use serde::{Deserialize, Serialize};
 /// This means that if one instruction is executed in a basic
 /// block, then all instructions are executed. ie single-entry single-exit.
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Serialize, Deserialize)]
-pub(crate) struct BasicBlock {
+pub struct BasicBlock {
     /// Parameters to the basic block.
     parameters: Vec<ValueId>,
 
@@ -28,11 +28,11 @@ pub(crate) struct BasicBlock {
 }
 
 /// An identifier for a Basic Block.
-pub(crate) type BasicBlockId = Id<BasicBlock>;
+pub type BasicBlockId = Id<BasicBlock>;
 
 impl BasicBlock {
-    /// Create a new BasicBlock with the given parameters.
-    /// Parameters can also be added later via BasicBlock::add_parameter
+    /// Create a new `BasicBlock` with the given parameters.
+    /// Parameters can also be added later via `BasicBlock::add_parameter`
     pub(crate) fn new() -> Self {
         Self { parameters: Vec::new(), instructions: Vec::new(), terminator: None }
     }
@@ -42,14 +42,19 @@ impl BasicBlock {
         &self.parameters
     }
 
+    /// Returns the parameters of this block
+    pub(crate) fn parameters_mut(&mut self) -> &mut Vec<ValueId> {
+        &mut self.parameters
+    }
+
     /// Removes all the parameters of this block
     pub(crate) fn take_parameters(&mut self) -> Vec<ValueId> {
         std::mem::take(&mut self.parameters)
     }
 
-    /// Adds a parameter to this BasicBlock.
-    /// Expects that the ValueId given should refer to a Value::Param
-    /// instance with its position equal to self.parameters.len().
+    /// Adds a parameter to this `BasicBlock`.
+    /// Expects that the `ValueId` given should refer to a `Value::Param`
+    /// instance with its position equal to `self.parameters.len()`.
     pub(crate) fn add_parameter(&mut self, parameter: ValueId) {
         self.parameters.push(parameter);
     }
@@ -82,7 +87,7 @@ impl BasicBlock {
 
     /// Sets the terminator instruction of this block.
     ///
-    /// A properly-constructed block will always terminate with a TerminatorInstruction -
+    /// A properly-constructed block will always terminate with a `TerminatorInstruction` -
     /// which either jumps to another block or returns from the current function. A block
     /// will only have no terminator if it is still under construction.
     pub(crate) fn set_terminator(&mut self, terminator: TerminatorInstruction) {
@@ -128,7 +133,7 @@ impl BasicBlock {
         )
     }
 
-    /// Return the jmp arguments, if any, of this block's TerminatorInstruction.
+    /// Return the jmp arguments, if any, of this block's `TerminatorInstruction`.
     ///
     /// If this block has no terminator, or a Return terminator this will be empty.
     pub(crate) fn terminator_arguments(&self) -> &[ValueId] {
@@ -149,8 +154,9 @@ impl BasicBlock {
             Some(TerminatorInstruction::JmpIf { then_destination, else_destination, .. }) => {
                 vec![*then_destination, *else_destination].into_iter()
             }
-            Some(TerminatorInstruction::Return { .. }) => vec![].into_iter(),
-            None => vec![].into_iter(),
+            Some(TerminatorInstruction::Return { .. })
+            | Some(TerminatorInstruction::Unreachable { .. })
+            | None => vec![].into_iter(),
         }
     }
 }

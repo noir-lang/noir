@@ -23,8 +23,12 @@ impl Formatter<'_> {
                 self.write_space();
                 self.format_type_expression(*rhs);
             }
-            UnresolvedTypeExpression::AsTraitPath(..) => {
-                unreachable!("Should not be present in the AST")
+            UnresolvedTypeExpression::Negation(rhs, _span) => {
+                self.write_current_token_and_bump();
+                self.format_type_expression(*rhs);
+            }
+            UnresolvedTypeExpression::AsTraitPath(as_trait_path) => {
+                self.format_as_trait_path(*as_trait_path);
             }
         }
 

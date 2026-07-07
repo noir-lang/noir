@@ -1,7 +1,0 @@
-
-            [package]
-            name = "noirc_frontend_tests_visibility_errors_if_pub_trait_returns_private_struct"
-            type = "bin"
-            authors = [""]
-            
-            [dependencies]

@@ -26,14 +26,14 @@ export type SolvedAndReturnWitness = {
 #[wasm_bindgen]
 extern "C" {
     #[wasm_bindgen(extends = Map, js_name = "WitnessMap", typescript_type = "WitnessMap")]
-    #[derive(Clone, Debug, PartialEq, Eq)]
+    #[derive(Clone, Debug, PartialEq)]
     pub type JsWitnessMap;
 
     #[wasm_bindgen(constructor, js_class = "Map")]
     pub fn new() -> JsWitnessMap;
 
     #[wasm_bindgen(extends = Object, js_name = "SolvedAndReturnWitness", typescript_type = "SolvedAndReturnWitness")]
-    #[derive(Clone, Debug, PartialEq, Eq)]
+    #[derive(Clone, Debug, PartialEq)]
     pub type JsSolvedAndReturnWitness;
 
     #[wasm_bindgen(constructor, js_class = "Object")]
@@ -69,7 +69,7 @@ impl From<JsWitnessMap> for WitnessMap<FieldElement> {
     fn from(js_map: JsWitnessMap) -> Self {
         let mut witness_map = WitnessMap::new();
         js_map.for_each(&mut |value, key| {
-            let witness_index = Witness(key.as_f64().unwrap() as u32);
+            let witness_index = Witness::new(key.as_f64().unwrap() as u32);
             let witness_value = js_value_to_field_element(value).unwrap();
             witness_map.insert(witness_index, witness_value);
         });
@@ -95,7 +95,7 @@ pub(crate) fn js_value_to_field_element(js_value: JsValue) -> Result<FieldElemen
     let hex_str = js_value.as_string().ok_or("failed to parse field element from non-string")?;
 
     FieldElement::from_hex(&hex_str)
-        .ok_or_else(|| format!("Invalid hex string: '{}'", hex_str).into())
+        .ok_or_else(|| format!("Invalid hex string: '{hex_str}'").into())
 }
 
 pub(crate) fn field_element_to_js_string(field_element: &FieldElement) -> JsString {
@@ -107,7 +107,7 @@ pub(crate) fn field_element_to_js_string(field_element: &FieldElement) -> JsStri
 }
 
 #[cfg(all(test, any(target_arch = "wasm32", target_arch = "wasm64"), target_os = "unknown"))]
-mod test {
+mod tests {
     use wasm_bindgen_test::*;
 
     use std::collections::BTreeMap;

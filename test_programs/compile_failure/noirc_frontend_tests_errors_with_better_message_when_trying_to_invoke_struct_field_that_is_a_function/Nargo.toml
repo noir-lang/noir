@@ -1,7 +1,0 @@
-
-            [package]
-            name = "noirc_frontend_tests_errors_with_better_message_when_trying_to_invoke_struct_field_that_is_a_function"
-            type = "bin"
-            authors = [""]
-            
-            [dependencies]

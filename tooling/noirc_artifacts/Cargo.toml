@@ -14,14 +14,18 @@ workspace = true
 
 [dependencies]
 acvm.workspace = true
+acir.workspace = true
 fm.workspace = true
 noirc_abi.workspace = true
-noirc_driver.workspace = true
 noirc_errors.workspace = true
 noirc_printable_type.workspace = true
 serde.workspace = true
+serde_json.workspace = true
 codespan-reporting.workspace = true
-
+base64.workspace = true
+flate2.workspace = true
+tracing.workspace = true
+thiserror.workspace = true
 
 [dev-dependencies]
 tempfile.workspace = true

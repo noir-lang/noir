@@ -1,0 +1,18 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+use std::mem::zeroed;
+
+fn main() {
+    let arr: [&mut Field; 3] = zeroed();
+    *arr[1_u32] = 7_Field;
+    assert(*arr[0_u32] == 0_Field);
+    assert(*arr[1_u32] == 7_Field);
+    assert(*arr[2_u32] == 0_Field);
+    let nested: [(&mut Field,); 3] = zeroed();
+    *nested[1_u32].0 = 42_Field;
+    assert(*nested[0_u32].0 == 0_Field);
+    assert(*nested[1_u32].0 == 42_Field);
+    assert(*nested[2_u32].0 == 0_Field);
+}

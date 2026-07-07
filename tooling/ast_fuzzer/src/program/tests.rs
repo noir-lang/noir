@@ -1,0 +1,376 @@
+use std::rc::Rc;
+
+use arbitrary::Unstructured;
+use nargo::errors::Location;
+use noirc_evaluator::{assert_ssa_snapshot, ssa::ssa_gen};
+use noirc_frontend::{
+    ast::IntegerBitSize,
+    monomorphization::ast::{
+        Call, Definition, Expression, For, FuncId, Function, Ident, IdentId, InlineType, LValue,
+        Literal, LocalId, Program, Type,
+    },
+    shared::Visibility,
+};
+
+use crate::{Config, program::FunctionDeclaration};
+
+use super::{Context, DisplayAstAsNoir};
+
+#[test]
+fn test_make_name() {
+    use crate::program::make_name;
+
+    for (i, n) in
+        [(0, "a"), (1, "b"), (24, "y"), (25, "z"), (26, "ba"), (27, "bb"), (26 * 2 + 3, "cd")]
+    {
+        assert_eq!(make_name(i, false), n, "{i} should be {n}");
+    }
+}
+
+/// Put a body in a `fn main() { <body> }` and compile it into the initial SSA.
+fn generate_ssa_from_body(body: Expression) -> ssa_gen::Ssa {
+    let func = Function {
+        id: FuncId(0),
+        name: "main".to_string(),
+        parameters: Vec::new(),
+        body,
+        return_type: Type::Unit,
+        return_visibility: Visibility::Private,
+        unconstrained: false,
+        inline_type: InlineType::Inline,
+        is_entry_point: false,
+    };
+
+    let program = Program {
+        functions: vec![func],
+        return_location: None,
+        globals: Default::default(),
+        debug_variables: Default::default(),
+        debug_functions: Default::default(),
+        debug_types: Default::default(),
+    };
+
+    ssa_gen::generate_ssa(program).unwrap()
+}
+
+/// Test the SSA we get when we use negative range literals with modulo.
+#[test]
+fn test_modulo_of_negative_literals_in_range() {
+    use super::expr::{int_literal, range_modulo};
+
+    let max_size = 5;
+    let index_type =
+        Type::Integer(noirc_frontend::shared::Signedness::Signed, IntegerBitSize::SixtyFour);
+
+    let start_range =
+        range_modulo(int_literal(-9i64, index_type.clone()), index_type.clone(), max_size);
+    let end_range =
+        range_modulo(int_literal(-1i64, index_type.clone()), index_type.clone(), max_size);
+
+    let body = Expression::For(For {
+        index_variable: LocalId(0),
+        index_name: "idx".to_string(),
+        index_type,
+        start_range: Box::new(start_range),
+        end_range: Box::new(end_range),
+        block: Box::new(Expression::Break),
+        // Use exclusive range for this test case.
+        inclusive: false,
+        start_range_location: Location::dummy(),
+        end_range_location: Location::dummy(),
+    });
+
+    let ssa = generate_ssa_from_body(body);
+
+    // The lower bound is -4 (-9 % 5), represented as a field by subtracting it from u64::MAX.
+    assert_ssa_snapshot!(ssa, @r"
+    acir(inline) fn main f0 {
+      b0():
+        jmp b1(i64 -4)
+      b1(v0: i64):
+        v3 = lt v0, i64 -1
+        jmpif v3 then: b2(), else: b3()
+      b2():
+        jmp b3()
+      b3():
+        return
+    }
+    ");
+}
+
+/// Check that the AST we generate for recursive functions is as expected.
+#[test]
+fn test_recursion_limit_rewrite() {
+    let mut ctx = Context::new(Config::default());
+    let mut next_ident_id = 0;
+
+    let mut add_func = |id: FuncId, name: &str, unconstrained: bool, calling: &[FuncId]| {
+        let calls = calling
+            .iter()
+            .map(|callee_id| {
+                let (callee_name, callee_unconstrained) = if *callee_id == id {
+                    (name.to_string(), unconstrained)
+                } else {
+                    let callee = &ctx.functions[callee_id];
+                    (callee.name.clone(), callee.unconstrained)
+                };
+
+                let ident_id = IdentId(next_ident_id);
+                next_ident_id += 1;
+
+                Expression::Call(Call {
+                    func: Box::new(Expression::Ident(Ident {
+                        location: None,
+                        definition: Definition::Function(*callee_id),
+                        mutable: false,
+                        name: callee_name,
+                        typ: Rc::new(Type::Function(
+                            vec![],
+                            Rc::new(Type::Unit),
+                            Rc::new(Type::Unit),
+                            callee_unconstrained,
+                        )),
+                        id: ident_id,
+                    })),
+                    arguments: vec![],
+                    return_type: Type::Unit,
+                    location: Location::dummy(),
+                })
+            })
+            .collect();
+
+        let func = Function {
+            id,
+            name: name.to_string(),
+            parameters: vec![],
+            body: Expression::Block(calls),
+            return_type: Type::Unit,
+            return_visibility: Visibility::Private,
+            unconstrained,
+            inline_type: InlineType::InlineAlways,
+            is_entry_point: false,
+        };
+
+        ctx.function_declarations.insert(
+            id,
+            FunctionDeclaration {
+                name: name.to_string(),
+                params: vec![],
+                return_type: Type::Unit,
+                return_visibility: Visibility::Private,
+                inline_type: func.inline_type,
+                unconstrained: func.unconstrained,
+            },
+        );
+
+        ctx.functions.insert(id, func);
+    };
+
+    // Create functions:
+    // - ACIR main, calling foo
+    // - ACIR foo, calling bar
+    // - Brillig bar, calling baz and qux
+    // - Brillig baz, calling itself
+    // - Brillig qux, not calling anything
+
+    let main_id = FuncId(0);
+    let foo_id = FuncId(1);
+    let bar_id = FuncId(2);
+    let baz_id = FuncId(3);
+    let qux_id = FuncId(4);
+
+    add_func(qux_id, "qux", true, &[]);
+    add_func(baz_id, "baz", true, &[baz_id]);
+    add_func(bar_id, "bar", true, &[baz_id, qux_id]);
+    add_func(foo_id, "foo", false, &[bar_id]);
+    add_func(main_id, "main", false, &[foo_id]);
+
+    // We only generate `Unit` returns, so no randomness is expected,
+    // but it would be deterministic anyway.
+    let mut u = Unstructured::new(&[0u8; 1]);
+    ctx.rewrite_functions(&mut u).unwrap();
+    let program = ctx.finalize();
+
+    // Check that:
+    // - main passes the limit to foo by ref
+    // - foo passes the limit to bar_proxy by value
+    // - bar_proxy passes the limit to baz by ref
+    // - bar passes the limit to qux, even though it's unused
+    // - baz passes the limit to itself by ref
+
+    let code = format!("{}", DisplayAstAsNoir(&program));
+
+    insta::assert_snapshot!(code, @r"
+    #[inline_always]
+    fn main() -> () {
+        let mut ctx_limit: u32 = 25_u32;
+        foo((&mut ctx_limit))
+    }
+    #[inline_always]
+    fn foo(ctx_limit: &mut u32) -> () {
+        if ((*ctx_limit) == 0_u32) {
+            ()
+        } else {
+            *ctx_limit = ((*ctx_limit) - 1_u32);
+            unsafe { bar_proxy((*ctx_limit)) }
+        }
+    }
+    #[inline_always]
+    unconstrained fn bar(ctx_limit: &mut u32) -> () {
+        if ((*ctx_limit) == 0_u32) {
+            ()
+        } else {
+            *ctx_limit = ((*ctx_limit) - 1_u32);
+            baz(ctx_limit);
+            qux(ctx_limit)
+        }
+    }
+    #[inline_always]
+    unconstrained fn baz(ctx_limit: &mut u32) -> () {
+        if ((*ctx_limit) == 0_u32) {
+            ()
+        } else {
+            *ctx_limit = ((*ctx_limit) - 1_u32);
+            baz(ctx_limit)
+        }
+    }
+    #[inline_always]
+    unconstrained fn qux(_ctx_limit: &mut u32) -> () {
+    }
+    #[inline_always]
+    unconstrained fn bar_proxy(mut ctx_limit: u32) -> () {
+        bar((&mut ctx_limit))
+    }
+    ");
+}
+
+/// `assign_ref` must set `element_type` to the inner type (`u32`), not the
+/// full reference type (`&mut u32`). Otherwise nested lvalue codegen in SSA
+/// would produce `load ref -> &mut u32` which is invalid.
+#[test]
+fn test_assign_ref_element_type() {
+    use super::expr::assign_ref;
+
+    let ref_type = Type::Reference(Rc::new(crate::program::types::U32), true);
+    let ident = Ident {
+        location: None,
+        definition: Definition::Local(LocalId(0)),
+        mutable: false,
+        name: "r".to_string(),
+        typ: Rc::new(ref_type),
+        id: IdentId(0),
+    };
+
+    let rhs = Expression::Literal(Literal::Integer(
+        acir::FieldElement::from(0u32),
+        crate::program::types::U32,
+        Location::dummy(),
+    ));
+
+    let assign_expr = assign_ref(ident, rhs);
+    let Expression::Assign(assign) = assign_expr else {
+        panic!("expected Assign");
+    };
+
+    let LValue::Dereference { element_type, .. } = &assign.lvalue else {
+        panic!("expected LValue::Dereference, got {:?}", assign.lvalue);
+    };
+
+    // Before the fix, element_type was `&mut u32` instead of `u32`.
+    assert_eq!(
+        *element_type,
+        crate::program::types::U32,
+        "element_type should be the inner type (u32), not the reference type (&mut u32)"
+    );
+}
+
+/// The fuzzer's direct oracle print calls in ACIR functions must be wrapped
+/// in unconstrained wrapper functions, since ACIR code cannot call oracles
+/// directly. This matches nargo's `println` -> `print_unconstrained` -> oracle
+/// structure. Unconstrained functions are skipped since they can call oracles
+/// directly.
+#[test]
+fn test_wrap_oracle_prints_in_functions() {
+    use super::expr;
+    use super::rewrite::wrap_oracle_prints_in_functions;
+
+    let array_type = Type::Array(1, Rc::new(Type::Bool));
+
+    // Build: fn main() { let a = [true]; print_oracle(true, a, "...", false); }
+    let mut ctx = Context::new(Config::default());
+
+    let let_expr = Expression::Let(noirc_frontend::monomorphization::ast::Let {
+        id: LocalId(0),
+        mutable: false,
+        name: "a".to_string(),
+        expression: Box::new(Expression::Literal(Literal::Array(
+            noirc_frontend::monomorphization::ast::ArrayLiteral {
+                contents: vec![expr::lit_bool(true)],
+                typ: Type::Bool,
+            },
+        ))),
+    });
+
+    let value_ident = Ident {
+        location: None,
+        definition: Definition::Local(LocalId(0)),
+        mutable: false,
+        name: "a".to_string(),
+        typ: Rc::new(array_type.clone()),
+        id: IdentId(0),
+    };
+
+    let oracle_call = Expression::Call(Call {
+        func: Box::new(Expression::Ident(Ident {
+            location: None,
+            definition: Definition::Oracle { name: "print".to_string(), pure: false },
+            mutable: false,
+            name: "print_oracle".to_string(),
+            typ: Rc::new(Type::Function(
+                vec![Type::Bool, array_type],
+                Rc::new(Type::Unit),
+                Rc::new(Type::Unit),
+                true,
+            )),
+            id: IdentId(1),
+        })),
+        arguments: vec![
+            expr::lit_bool(true),
+            Expression::Ident(value_ident),
+            Expression::Literal(Literal::Str("type_info".to_string().into())),
+            expr::lit_bool(false),
+        ],
+        return_type: Type::Unit,
+        location: Location::dummy(),
+    });
+
+    let main_func = Function {
+        id: FuncId(0),
+        name: "main".to_string(),
+        parameters: vec![],
+        body: Expression::Block(vec![let_expr, oracle_call]),
+        return_type: Type::Unit,
+        return_visibility: Visibility::Private,
+        unconstrained: false,
+        inline_type: InlineType::default(),
+        is_entry_point: true,
+    };
+
+    ctx.functions.insert(FuncId(0), main_func);
+
+    wrap_oracle_prints_in_functions(&mut ctx);
+    let program = ctx.finalize();
+    let code = format!("{}", DisplayAstAsNoir(&program));
+
+    // The oracle call should be replaced with a call to a wrapper function,
+    // and the wrapper function should contain the oracle call with hardcoded args.
+    insta::assert_snapshot!(code, @r"
+    fn main() -> () {
+        let a: bool = [true];
+        unsafe { print_wrapper_1(a) }
+    }
+    unconstrained fn print_wrapper_1(value: [bool; 1]) -> () {
+        println(value)
+    }
+    ");
+}

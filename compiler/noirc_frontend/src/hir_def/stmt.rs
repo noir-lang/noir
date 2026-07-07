@@ -1,15 +1,15 @@
 use super::expr::HirIdent;
 use crate::Type;
 use crate::ast::Ident;
-use crate::node_interner::{ExprId, StmtId};
+use crate::node_interner::{ExprId, NodeInterner, StmtId};
 use crate::token::SecondaryAttribute;
 use noirc_errors::{Location, Span};
 
-/// A HirStatement is the result of performing name resolution on
+/// A `HirStatement` is the result of performing name resolution on
 /// the Statement AST node. Unlike the AST node, any nested nodes
-/// are referred to indirectly via ExprId or StmtId, which can be
-/// used to retrieve the relevant node via the NodeInterner.
-#[derive(Debug, Clone)]
+/// are referred to indirectly via `ExprId` or `StmtId`, which can be
+/// used to retrieve the relevant node via the `NodeInterner`.
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum HirStatement {
     Let(HirLetStatement),
     Assign(HirAssignStatement),
@@ -21,10 +21,16 @@ pub enum HirStatement {
     Expression(ExprId),
     Semi(ExprId),
     Comptime(StmtId),
+    /// Placeholder for a trait-level associated constant declaration like `let N: u32;`
+    /// inside a `trait` body. These declarations have no value (only impls do), so the
+    /// `GlobalInfo::let_statement` field for such globals points at this variant rather
+    /// than at a real `HirStatement::Let`. Distinct from `Error` so consumers walking
+    /// module globals can tell trait associated constants apart from broken globals.
+    TraitAssociatedConstant,
     Error,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct HirLetStatement {
     pub pattern: HirPattern,
     pub r#type: Type,
@@ -63,16 +69,17 @@ impl HirLetStatement {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct HirForStatement {
     pub identifier: HirIdent,
     pub start_range: ExprId,
     pub end_range: ExprId,
     pub block: ExprId,
+    pub inclusive: bool,
 }
 
 /// Corresponds to `lvalue = expression;` in the source code
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct HirAssignStatement {
     pub lvalue: HirLValue,
     pub expression: ExprId,
@@ -127,6 +134,15 @@ impl HirPattern {
             | HirPattern::Struct(_, _, location) => *location,
         }
     }
+
+    /// Returns `true` if this pattern is or contains a `self` identifier, `false` otherwise
+    pub fn is_self(&self, interner: &NodeInterner) -> bool {
+        match self {
+            HirPattern::Identifier(ident) => interner.definition(ident.id).name == "self",
+            HirPattern::Mutable(pattern, _) => pattern.is_self(interner),
+            HirPattern::Tuple(..) | HirPattern::Struct(..) => false,
+        }
+    }
 }
 
 /// Represents an Ast form that can be assigned to. These
@@ -143,6 +159,9 @@ pub enum HirLValue {
     },
     Index {
         array: Box<HirLValue>,
+        /// `index` is required to be an identifier to simplify sequencing of side-effects.
+        /// However we also store types and locations on `ExprIds` which makes these necessary
+        /// for evaluating/compiling `HirIdents` so we don't directly require a `HirIdent` type here.
         index: ExprId,
         typ: Type,
         location: Location,
@@ -150,6 +169,22 @@ pub enum HirLValue {
     Dereference {
         lvalue: Box<HirLValue>,
         element_type: Type,
+        implicitly_added: bool,
         location: Location,
     },
+    Error {
+        location: Location,
+    },
+}
+
+impl HirLValue {
+    pub fn location(&self) -> Location {
+        match self {
+            HirLValue::Ident(ident, _) => ident.location,
+            HirLValue::MemberAccess { location, .. }
+            | HirLValue::Index { location, .. }
+            | HirLValue::Dereference { location, .. }
+            | HirLValue::Error { location } => *location,
+        }
+    }
 }

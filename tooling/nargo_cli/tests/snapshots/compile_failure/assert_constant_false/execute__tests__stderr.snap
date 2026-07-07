@@ -1,0 +1,15 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+error: 
+  ┌─ src/main.nr:2:5
+  │
+2 │     std::static_assert(false, "");
+  │     -----------------------------
+  │
+  = Call stack:
+    1: main
+            at src/main.nr:2:5
+
+Aborting due to 1 previous error

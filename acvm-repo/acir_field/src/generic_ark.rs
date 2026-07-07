@@ -19,7 +19,7 @@ pub trait AcirField:
     + From<usize>
     + From<u128>
     // + From<u64>
-    // + From<u32>
+    + From<u32>
     // + From<u16>
     // + From<u8>
     + From<bool>
@@ -52,10 +52,15 @@ pub trait AcirField:
     /// This is the number of bits required to represent this specific field element
     fn num_bits(&self) -> u32;
 
+    /// Downcast the field into a `u128`.
+    /// Panic if the value does not fit
     fn to_u128(self) -> u128;
 
+    /// Downcast the field into a `u128` if it fits into 128 bits, otherwise return `None`.
     fn try_into_u128(self) -> Option<u128>;
 
+    /// Downcast the field into a `i128`.
+    /// Panic if the value does not fit
     fn to_i128(self) -> i128;
 
     fn try_into_i128(self) -> Option<i128>;
@@ -65,19 +70,27 @@ pub trait AcirField:
     fn try_to_u32(&self) -> Option<u32>;
 
     /// Computes the inverse or returns zero if the inverse does not exist
-    /// Before using this FieldElement, please ensure that this behavior is necessary
+    /// Before using this `FieldElement`, please ensure that this behavior is necessary
     fn inverse(&self) -> Self;
 
+    /// Returns the vale of this field as a hex string without the `0x` prefix.
+    /// The returned string will have a length equal to the maximum number of hex
+    /// digits needed to represent the maximum value of this field.
     fn to_hex(self) -> String;
+
+    /// Returns the value of this field as a hex string with leading zeroes removed,
+    /// prepended with `0x`.
+    /// A singular '0' will be prepended as well if the trimmed string has an odd length.
+    fn to_short_hex(self) -> String;
 
     fn from_hex(hex_str: &str) -> Option<Self>;
 
     fn to_be_bytes(self) -> Vec<u8>;
 
-    /// Converts bytes into a FieldElement and applies a reduction if needed.
+    /// Converts bytes into a `FieldElement` and applies a reduction if needed.
     fn from_be_bytes_reduce(bytes: &[u8]) -> Self;
 
-    /// Converts bytes in little-endian order into a FieldElement and applies a reduction if needed.
+    /// Converts bytes in little-endian order into a `FieldElement` and applies a reduction if needed.
     fn from_le_bytes_reduce(bytes: &[u8]) -> Self;
 
     /// Converts the field element to a vector of bytes in little-endian order
@@ -111,7 +124,7 @@ macro_rules! field_wrapper {
             Copy,
             Default,
             serde::Serialize,
-            serde::Deserialize,
+            serde::Deserialize
         )]
         struct $wrapper(pub $field);
 
@@ -144,7 +157,7 @@ macro_rules! field_wrapper {
                 $field::max_num_bytes()
             }
 
-            fn modulus() -> num_bigint::BigUint {
+            fn modulus() -> ::num_bigint::BigUint {
                 $field::modulus()
             }
 
@@ -184,6 +197,10 @@ macro_rules! field_wrapper {
                 self.0.to_hex()
             }
 
+            fn to_short_hex(self) -> String {
+                self.0.to_short_hex()
+            }
+
             fn from_hex(hex_str: &str) -> Option<Self> {
                 $field::from_hex(hex_str).map(Self)
             }
@@ -217,6 +234,12 @@ macro_rules! field_wrapper {
 
         impl From<u128> for $wrapper {
             fn from(value: u128) -> Self {
+                Self($field::from(value))
+            }
+        }
+
+        impl From<u32> for $wrapper {
+            fn from(value: u32) -> Self {
                 Self($field::from(value))
             }
         }

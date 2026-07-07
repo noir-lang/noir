@@ -12,9 +12,9 @@ mod labels;
 mod parser;
 
 use crate::ast::{
-    Documented, Ident, ImportStatement, ItemVisibility, LetStatement, ModuleDeclaration,
-    NoirEnumeration, NoirFunction, NoirStruct, NoirTrait, NoirTraitImpl, NoirTypeAlias, TypeImpl,
-    UseTree,
+    DocComment, Documented, Ident, ImportStatement, ItemVisibility, LetStatement,
+    ModuleDeclaration, NoirEnumeration, NoirFunction, NoirStruct, NoirTrait, NoirTraitImpl,
+    TypeAlias, TypeImpl, UseTree,
 };
 use crate::token::SecondaryAttribute;
 
@@ -22,19 +22,23 @@ pub use errors::ParserError;
 pub use errors::ParserErrorReason;
 use noirc_errors::Location;
 pub use parser::{
-    Parser, StatementOrExpressionOrLValue, parse_program, parse_program_with_dummy_file,
+    Parser, StatementOrExpressionOrLValue, block_comment_has_all_leading_stars,
+    parse_expression_in_quote_body, parse_program, parse_program_in_quote_body,
+    parse_program_with_dummy_file, parse_statement_in_quote_body,
 };
 
 #[derive(Clone, Default)]
 pub struct SortedModule {
-    pub imports: Vec<ImportStatement>,
+    /// Each entry is a batch of imports that was desugared into possibly multiple imports.
+    /// See also [`crate::hir::def_collector::dc_crate::ImportDirectiveBatch`].
+    pub imports: Vec<Vec<ImportStatement>>,
     pub functions: Vec<Documented<NoirFunction>>,
     pub structs: Vec<Documented<NoirStruct>>,
     pub enums: Vec<Documented<NoirEnumeration>>,
     pub traits: Vec<Documented<NoirTrait>>,
     pub trait_impls: Vec<NoirTraitImpl>,
     pub impls: Vec<TypeImpl>,
-    pub type_aliases: Vec<Documented<NoirTypeAlias>>,
+    pub type_aliases: Vec<Documented<TypeAlias>>,
     pub globals: Vec<(Documented<LetStatement>, ItemVisibility)>,
 
     /// Module declarations like `mod foo;`
@@ -44,52 +48,69 @@ pub struct SortedModule {
     pub submodules: Vec<Documented<SortedSubModule>>,
 
     pub inner_attributes: Vec<SecondaryAttribute>,
-    pub inner_doc_comments: Vec<String>,
+    pub inner_doc_comments: Vec<DocComment>,
 }
 
 impl std::fmt::Display for SortedModule {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        for inner_attribute in &self.inner_attributes {
+            writeln!(f, "#![{}]", inner_attribute.kind.contents())?;
+        }
+
         for decl in &self.module_decls {
             writeln!(f, "{decl};")?;
         }
 
-        for import in &self.imports {
-            write!(f, "{import}")?;
+        for batch in &self.imports {
+            for import in batch {
+                writeln!(f, "{import};")?;
+            }
         }
 
         for (global_const, _visibility) in &self.globals {
-            write!(f, "{global_const}")?;
+            writeln!(f, "{global_const}")?;
         }
 
         for type_ in &self.structs {
-            write!(f, "{type_}")?;
+            writeln!(f, "{type_}")?;
+        }
+        for type_ in &self.enums {
+            writeln!(f, "{type_}")?;
         }
 
         for function in &self.functions {
-            write!(f, "{function}")?;
+            writeln!(f, "{function}")?;
+        }
+
+        for trait_ in &self.traits {
+            writeln!(f, "{trait_}")?;
         }
 
         for impl_ in &self.impls {
-            write!(f, "{impl_}")?;
+            writeln!(f, "{impl_}")?;
+        }
+
+        for trait_impl in &self.trait_impls {
+            writeln!(f, "{trait_impl}")?;
         }
 
         for type_alias in &self.type_aliases {
-            write!(f, "{type_alias}")?;
+            writeln!(f, "{type_alias}")?;
         }
 
         for submodule in &self.submodules {
-            write!(f, "{submodule}")?;
+            writeln!(f, "{submodule}")?;
         }
 
         Ok(())
     }
 }
 
-/// A ParsedModule contains an entire Ast for one file.
+/// A `ParsedModule` contains an entire Ast for one file.
 #[derive(Clone, Debug, Default)]
 pub struct ParsedModule {
     pub items: Vec<Item>,
-    pub inner_doc_comments: Vec<String>,
+    pub inner_doc_comments: Vec<DocComment>,
 }
 
 impl ParsedModule {
@@ -104,7 +125,7 @@ impl ParsedModule {
                 ItemKind::Enum(typ) => module.push_enum(typ, item.doc_comments),
                 ItemKind::Trait(noir_trait) => module.push_trait(noir_trait, item.doc_comments),
                 ItemKind::TraitImpl(trait_impl) => module.push_trait_impl(trait_impl),
-                ItemKind::Impl(r#impl) => module.push_impl(r#impl),
+                ItemKind::Impl(r#impl) => module.push_impl(r#impl, item.doc_comments),
                 ItemKind::TypeAlias(type_alias) => {
                     module.push_type_alias(type_alias, item.doc_comments);
                 }
@@ -131,7 +152,7 @@ impl ParsedModule {
 pub struct Item {
     pub kind: ItemKind,
     pub location: Location,
-    pub doc_comments: Vec<String>,
+    pub doc_comments: Vec<DocComment>,
 }
 
 #[derive(Clone, Debug)]
@@ -143,7 +164,7 @@ pub enum ItemKind {
     Trait(NoirTrait),
     TraitImpl(NoirTraitImpl),
     Impl(TypeImpl),
-    TypeAlias(NoirTypeAlias),
+    TypeAlias(TypeAlias),
     Global(LetStatement, ItemVisibility),
     ModuleDecl(ModuleDeclaration),
     Submodules(ParsedSubModule),
@@ -175,13 +196,13 @@ impl std::fmt::Display for ItemKind {
                 }
                 c.fmt(f)
             }
-            ItemKind::InnerAttribute(a) => write!(f, "#![{}]", a),
+            ItemKind::InnerAttribute(a) => write!(f, "#![{a}]"),
         }
     }
 }
 
 /// A submodule defined via `mod name { contents }` in some larger file.
-/// These submodules always share the same file as some larger ParsedModule
+/// These submodules always share the same file as some larger `ParsedModule`
 #[derive(Clone, Debug)]
 pub struct ParsedSubModule {
     pub visibility: ItemVisibility,
@@ -225,19 +246,19 @@ pub struct SortedSubModule {
 }
 
 impl SortedModule {
-    fn push_function(&mut self, func: NoirFunction, doc_comments: Vec<String>) {
+    fn push_function(&mut self, func: NoirFunction, doc_comments: Vec<DocComment>) {
         self.functions.push(Documented::new(func, doc_comments));
     }
 
-    fn push_struct(&mut self, typ: NoirStruct, doc_comments: Vec<String>) {
+    fn push_struct(&mut self, typ: NoirStruct, doc_comments: Vec<DocComment>) {
         self.structs.push(Documented::new(typ, doc_comments));
     }
 
-    fn push_enum(&mut self, typ: NoirEnumeration, doc_comments: Vec<String>) {
+    fn push_enum(&mut self, typ: NoirEnumeration, doc_comments: Vec<DocComment>) {
         self.enums.push(Documented::new(typ, doc_comments));
     }
 
-    fn push_trait(&mut self, noir_trait: NoirTrait, doc_comments: Vec<String>) {
+    fn push_trait(&mut self, noir_trait: NoirTrait, doc_comments: Vec<DocComment>) {
         self.traits.push(Documented::new(noir_trait, doc_comments));
     }
 
@@ -245,23 +266,24 @@ impl SortedModule {
         self.trait_impls.push(trait_impl);
     }
 
-    fn push_impl(&mut self, r#impl: TypeImpl) {
+    fn push_impl(&mut self, mut r#impl: TypeImpl, doc_comments: Vec<DocComment>) {
+        r#impl.doc_comments = doc_comments;
         self.impls.push(r#impl);
     }
 
-    fn push_type_alias(&mut self, type_alias: NoirTypeAlias, doc_comments: Vec<String>) {
+    fn push_type_alias(&mut self, type_alias: TypeAlias, doc_comments: Vec<DocComment>) {
         self.type_aliases.push(Documented::new(type_alias, doc_comments));
     }
 
     fn push_import(&mut self, import_stmt: UseTree, visibility: ItemVisibility) {
-        self.imports.extend(import_stmt.desugar(None, visibility));
+        self.imports.push(import_stmt.desugar(None, visibility));
     }
 
-    fn push_module_decl(&mut self, mod_decl: ModuleDeclaration, doc_comments: Vec<String>) {
+    fn push_module_decl(&mut self, mod_decl: ModuleDeclaration, doc_comments: Vec<DocComment>) {
         self.module_decls.push(Documented::new(mod_decl, doc_comments));
     }
 
-    fn push_submodule(&mut self, submodule: SortedSubModule, doc_comments: Vec<String>) {
+    fn push_submodule(&mut self, submodule: SortedSubModule, doc_comments: Vec<DocComment>) {
         self.submodules.push(Documented::new(submodule, doc_comments));
     }
 
@@ -269,7 +291,7 @@ impl SortedModule {
         &mut self,
         global: LetStatement,
         visibility: ItemVisibility,
-        doc_comments: Vec<String>,
+        doc_comments: Vec<DocComment>,
     ) {
         self.globals.push((Documented::new(global, doc_comments), visibility));
     }

@@ -1,0 +1,8 @@
+[package]
+name = "similarly_named_types"
+type = "bin"
+authors = [""]
+compiler_version = ">=0.33.0"
+
+[dependencies]
+some_lib = { path = "some_lib" }

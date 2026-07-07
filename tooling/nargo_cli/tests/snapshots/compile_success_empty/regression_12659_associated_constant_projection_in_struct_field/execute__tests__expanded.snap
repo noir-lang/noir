@@ -1,0 +1,30 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+pub trait HasSize {
+    let N: u32;
+}
+
+pub struct PublicMutable<T> {}
+
+impl<T> HasSize for PublicMutable<T> {
+    let N: u32 = 1;
+}
+
+pub struct Wrapper<let N: u32> {
+    pub value: [Field; N],
+}
+
+pub struct StorageArray {
+    pub value: [Field; 1],
+}
+
+pub struct StorageWrapper {
+    pub value: Wrapper<1>,
+}
+
+fn main() {
+    let _: StorageArray = StorageArray { value: [0_Field] };
+    let _: StorageWrapper = StorageWrapper { value: Wrapper::<1> { value: [0_Field] } };
+}

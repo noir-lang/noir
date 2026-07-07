@@ -1,8 +1,6 @@
-use crate::check_errors;
+use crate::elaborator::UnstableFeature;
+use crate::tests::{assert_no_errors, check_errors, get_program_using_features};
 
-use crate::assert_no_errors;
-
-#[named]
 #[test]
 fn turbofish_numeric_generic_nested_function_call() {
     // Check for turbofish numeric generics used with function calls
@@ -21,10 +19,9 @@ fn turbofish_numeric_generic_nested_function_call() {
         let _ = bar::<M>();
     }
     "#;
-    assert_no_errors!(src);
+    assert_no_errors(src);
 }
 
-#[named]
 #[test]
 fn turbofish_numeric_generic_nested_method_call() {
     // Check for turbofish numeric generics used with method calls
@@ -44,7 +41,7 @@ fn turbofish_numeric_generic_nested_method_call() {
     }
 
     fn bar<let N: u32>() -> [u8; N] {
-        let _ = Foo::static_method::<N>();
+        let _ = Foo::<u8>::static_method::<N>();
         let x: Foo<u8> = Foo { a: 0 };
         x.impl_method::<N>()
     }
@@ -55,10 +52,9 @@ fn turbofish_numeric_generic_nested_method_call() {
         let _ = bar::<M>();
     }
     "#;
-    assert_no_errors!(src);
+    assert_no_errors(src);
 }
 
-#[named]
 #[test]
 fn turbofish_in_constructor_generics_mismatch() {
     let src = r#"
@@ -71,10 +67,9 @@ fn turbofish_in_constructor_generics_mismatch() {
                    ^^^^^^^^^^^^ struct Foo expects 1 generic but 2 were given
     }
     "#;
-    check_errors!(src);
+    check_errors(src);
 }
 
-#[named]
 #[test]
 fn turbofish_in_constructor() {
     let src = r#"
@@ -88,10 +83,9 @@ fn turbofish_in_constructor() {
                                 ^ Expected type i32, found type Field
     }
     "#;
-    check_errors!(src);
+    check_errors(src);
 }
 
-#[named]
 #[test]
 fn turbofish_in_struct_pattern() {
     let src = r#"
@@ -105,10 +99,9 @@ fn turbofish_in_struct_pattern() {
         let _ = x;
     }
     "#;
-    assert_no_errors!(src);
+    assert_no_errors(src);
 }
 
-#[named]
 #[test]
 fn turbofish_in_struct_pattern_errors_if_type_mismatch() {
     // TODO: maybe the error should be on the expression
@@ -124,10 +117,9 @@ fn turbofish_in_struct_pattern_errors_if_type_mismatch() {
         let _ = x;
     }
     "#;
-    check_errors!(src);
+    check_errors(src);
 }
 
-#[named]
 #[test]
 fn turbofish_in_struct_pattern_generic_count_mismatch() {
     let src = r#"
@@ -142,10 +134,9 @@ fn turbofish_in_struct_pattern_generic_count_mismatch() {
         let _ = x;
     }
     "#;
-    check_errors!(src);
+    check_errors(src);
 }
 
-#[named]
 #[test]
 fn numeric_turbofish() {
     let src = r#"
@@ -161,10 +152,9 @@ fn numeric_turbofish() {
         let _ = reader.read::<1234>();
     }
     "#;
-    assert_no_errors!(src);
+    assert_no_errors(src);
 }
 
-#[named]
 #[test]
 fn errors_if_turbofish_after_module() {
     let src = r#"
@@ -177,10 +167,9 @@ fn errors_if_turbofish_after_module() {
            ^^^^^^^ turbofish (`::<_>`) not allowed on module `moo`
     }
     "#;
-    check_errors!(src);
+    check_errors(src);
 }
 
-#[named]
 #[test]
 fn turbofish_in_type_before_call_does_not_error() {
     let src = r#"
@@ -198,10 +187,9 @@ fn turbofish_in_type_before_call_does_not_error() {
         let _ = Foo::<i32>::new(1);
     }
     "#;
-    assert_no_errors!(src);
+    assert_no_errors(src);
 }
 
-#[named]
 #[test]
 fn turbofish_in_type_before_call_errors() {
     let src = r#"
@@ -220,10 +208,9 @@ fn turbofish_in_type_before_call_errors() {
                                 ^^^^ Expected type i32, found type bool
     }
     "#;
-    check_errors!(src);
+    check_errors(src);
 }
 
-#[named]
 #[test]
 fn use_generic_type_alias_with_turbofish_in_method_call_does_not_error() {
     let src = r#"
@@ -246,10 +233,9 @@ fn use_generic_type_alias_with_turbofish_in_method_call_does_not_error() {
             let _ = foo();
         }
     "#;
-    assert_no_errors!(src);
+    assert_no_errors(src);
 }
 
-#[named]
 #[test]
 fn use_generic_type_alias_with_turbofish_in_method_call_errors() {
     let src = r#"
@@ -270,10 +256,9 @@ fn use_generic_type_alias_with_turbofish_in_method_call_errors() {
                                     ^^^^ Expected type i32, found type bool
         }
     "#;
-    check_errors!(src);
+    check_errors(src);
 }
 
-#[named]
 #[test]
 fn use_generic_type_alias_with_partial_generics_with_turbofish_in_method_call_does_not_error() {
     let src = r#"
@@ -294,10 +279,9 @@ fn use_generic_type_alias_with_partial_generics_with_turbofish_in_method_call_do
             let _ = Bar::<bool>::new(true, 1);
         }
     "#;
-    assert_no_errors!(src);
+    assert_no_errors(src);
 }
 
-#[named]
 #[test]
 fn use_generic_type_alias_with_partial_generics_with_turbofish_in_method_call_errors_first_type() {
     let src = r#"
@@ -319,10 +303,9 @@ fn use_generic_type_alias_with_partial_generics_with_turbofish_in_method_call_er
                                      ^ Expected type bool, found type Field
         }
     "#;
-    check_errors!(src);
+    check_errors(src);
 }
 
-#[named]
 #[test]
 fn use_generic_type_alias_with_partial_generics_with_turbofish_in_method_call_errors_second_type() {
     let src = r#"
@@ -344,10 +327,9 @@ fn use_generic_type_alias_with_partial_generics_with_turbofish_in_method_call_er
                                            ^^^^ Expected type i32, found type bool
         }
     "#;
-    check_errors!(src);
+    check_errors(src);
 }
 
-#[named]
 #[test]
 fn trait_function_with_turbofish_on_trait_gives_error() {
     let src = r#"
@@ -366,5 +348,816 @@ fn trait_function_with_turbofish_on_trait_gives_error() {
                                       ^ Expected type bool, found type Field
     }
     "#;
-    check_errors!(src);
+    check_errors(src);
+}
+
+#[test]
+fn turbofish_named_numeric() {
+    let src = r#"
+    trait Bar {
+        let N: u32;
+    }
+
+    impl Bar for Field {
+        let N: u32 = 1;
+    }
+
+    impl Bar for i32 {
+        let N: u32 = 2;
+    }
+
+    fn foo<B>()
+    where
+        B: Bar<N = 1>,
+    {}
+
+    fn main() {
+        foo::<Field>();
+        foo::<i32>();
+        ^^^^^^^^^^ No matching impl found for `i32: Bar<N = 1>`
+        ~~~~~~~~~~ No impl for `i32: Bar<N = 1>`
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn specify_function_types_with_turbofish() {
+    let src = r#"
+        trait Default2 {
+            fn default2() -> Self;
+        }
+
+        impl Default2 for Field {
+            fn default2() -> Self { 0 }
+        }
+
+        impl Default2 for u64 {
+            fn default2() -> Self { 0 }
+        }
+
+        // Need the above as we don't have access to the stdlib here.
+        // We also need to construct a concrete value of `U` without giving away its type
+        // as otherwise the unspecified type is ignored.
+
+        fn generic_func<T, U>() -> (T, U) where T: Default2, U: Default2 {
+            (T::default2(), U::default2())
+        }
+
+        fn main() {
+            let _ = generic_func::<u64, Field>();
+        }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn specify_method_types_with_turbofish() {
+    let src = r#"
+        trait Default2 {
+            fn default2() -> Self;
+        }
+
+        impl Default2 for Field {
+            fn default2() -> Self { 0 }
+        }
+
+        // Need the above as we don't have access to the stdlib here.
+        // We also need to construct a concrete value of `U` without giving away its type
+        // as otherwise the unspecified type is ignored.
+
+        struct Foo<T> {
+            inner: T
+        }
+
+        impl<T> Foo<T> {
+            fn generic_method<U>(_self: Self) -> U where U: Default2 {
+                U::default2()
+            }
+        }
+
+        fn main() {
+            let foo: Foo<Field> = Foo { inner: 1 };
+            let _ = foo.generic_method::<Field>();
+        }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn incorrect_turbofish_count_function_call() {
+    let src = r#"
+        trait Default2 {
+            fn default() -> Self;
+        }
+
+        impl Default2 for Field {
+            fn default() -> Self { 0 }
+        }
+
+        impl Default2 for u64 {
+            fn default() -> Self { 0 }
+        }
+
+        // Need the above as we don't have access to the stdlib here.
+        // We also need to construct a concrete value of `U` without giving away its type
+        // as otherwise the unspecified type is ignored.
+
+        fn generic_func<T, U>() -> (T, U) where T: Default2, U: Default2 {
+            (T::default(), U::default())
+        }
+
+        fn main() {
+            let _ = generic_func::<u64, Field, Field>();
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ Expected 2 generics from this function, but 3 were provided
+        }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn incorrect_turbofish_count_method_call() {
+    let src = r#"
+        trait Default2 {
+            fn default() -> Self;
+        }
+
+        impl Default2 for Field {
+            fn default() -> Self { 0 }
+        }
+
+        // Need the above as we don't have access to the stdlib here.
+        // We also need to construct a concrete value of `U` without giving away its type
+        // as otherwise the unspecified type is ignored.
+
+        struct Foo<T> {
+            inner: T
+        }
+
+        impl<T> Foo<T> {
+            fn generic_method<U>(_self: Self) -> U where U: Default2 {
+                U::default()
+            }
+        }
+
+        fn main() {
+            let foo: Foo<Field> = Foo { inner: 1 };
+            let _ = foo.generic_method::<Field, u32>();
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ Expected 1 generic from this function, but 2 were provided
+        }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn incorrect_turbofish_count_with_fewer_generics_than_expected() {
+    // Regression: when fewer turbofish generics than expected are provided,
+    // the returned list had fewer elements than expected, which caused a
+    // duplicate "incorrect generic count" error from a redundant check downstream.
+    let src = r#"
+        fn two_generics<A, B>(_a: A, _b: B) {}
+
+        fn main() {
+            two_generics::<Field>(1, 2);
+            ^^^^^^^^^^^^^^^^^^^^^ Expected 2 generics from this function, but 1 was provided
+        }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn cannot_determine_type_of_generic_argument_in_function_call_with_regular_generic() {
+    let src = r#"
+    fn foo<T>() {}
+
+    fn main()
+    {
+        foo();
+        ^^^ Type annotation needed
+        ~~~ Could not determine the type of the generic argument `T` declared on the function `foo`
+    }
+
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn cannot_determine_type_of_generic_argument_in_function_call_when_it_is_a_numeric_generic() {
+    let src = r#"
+    struct Foo<let N: u32> {
+        array: [Field; N],
+    }
+
+    impl<let N: u32> Foo<N> {
+        fn new() -> Self {
+            Self { array: [0; N] }
+        }
+    }
+
+    fn foo<let N: u32>() -> Foo<N> {
+        Foo::new()
+    }
+
+    fn main() {
+        let _ = foo();
+                ^^^ Type annotation needed
+                ~~~ Could not determine the value of the generic argument `N` declared on the function `foo`
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn static_method_with_generics_on_type_and_method() {
+    let src = r#"
+    struct Foo<T> {}
+
+    impl<T> Foo<T> {
+        fn static_method<U>() {}
+    }
+
+    fn main() {
+        Foo::<u8>::static_method::<Field>();
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn errors_on_incorrect_turbofish_on_struct() {
+    let src = r#"
+        trait From2<T> {
+        fn from2(input: T) -> Self;
+    }
+    struct U60Repr {}
+    impl From2<[Field; 3]> for U60Repr {
+        fn from2(_: [Field; 3]) -> Self {
+            U60Repr {}
+        }
+    }
+    impl From2<Field> for U60Repr {
+        fn from2(_: Field) -> Self {
+            U60Repr {}
+        }
+    }
+
+    fn main() {
+        let _ = U60Repr::<Field>::from2([1, 2, 3]);
+                       ^^^^^^^^^ struct U60Repr expects 0 generics but 1 was given
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn incorrect_turbofish_count_on_primitive_u8() {
+    let src = r#"
+        trait From<T> {
+            fn from(x: T) -> Self;
+        }
+
+        impl From<Field> for u8 {
+            fn from(x: Field) -> Self {
+                x as u8
+            }
+        }
+
+        fn main() {
+            let _ = u8::<u32, i64>::from(5);
+                      ^^^^^^^^^^^^ u8 expects 0 generics but 2 were given
+        }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn incorrect_turbofish_count_on_primitive_str() {
+    let src = r#"
+        trait MyTrait {
+            fn foo();
+        }
+
+        impl<let N: u32> MyTrait for str<N> {
+            fn foo() { }
+        }
+
+        fn main() {
+            let _ = str::<5, u32>::foo();
+                       ^^^^^^^^^^ primitive type str expects 1 generic but 2 were given
+        }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn incorrect_turbofish_count_on_primitive_fmtstr() {
+    let src = r#"
+        trait MyTrait {
+            fn foo();
+        }
+
+        impl<let N: u32, T> MyTrait for fmtstr<N, T> {
+            fn foo() { }
+        }
+
+        fn main() {
+            let _ = fmtstr::<5>::foo();
+                          ^^^^^ primitive type fmtstr expects 2 generics but 1 was given
+        }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn turbofish_on_primitive_fmtstr() {
+    let src = r#"
+        trait MyTrait {
+            fn foo();
+        }
+
+        impl<let N: u32, T> MyTrait for fmtstr<N, T> {
+            fn foo() { }
+        }
+
+        fn main() {
+            let _ = fmtstr::<5, Field>::foo();
+        }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn regression_10363() {
+    let src = r#"
+    pub trait Trait {
+        fn foo();
+    }
+
+    pub fn foo<T: Trait>() {
+        let _ = T::<i32, i32>::foo();
+                 ^^^^^^^^^^^^ turbofish (`::<_>`) not allowed on generic parameter
+    }
+
+    fn main() {}
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn concrete_impl_with_dual_turbofish() {
+    // Regression: https://github.com/noir-lang/noir/pull/11848
+    // Concrete impl's method generics were incorrectly bound to the type
+    // turbofish arguments because all_generics only contained direct_generics.
+    let src = r#"
+    struct S<T> {}
+
+    impl S<u32> {
+        fn foo<U>(_x: U) {}
+    }
+
+    fn main() {
+        let x: Field = 10;
+        S::<u32>::foo::<Field>(x);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn concrete_impl_with_dual_turbofish_mismatch() {
+    let src = r#"
+    struct S<T> {}
+
+    impl S<u32> {
+        pub fn foo<U>(_x: U) {}
+    }
+
+    fn main() {
+        let x: Field = 10;
+        S::<bool>::foo::<Field>(x);
+                   ^^^ No function named 'foo' found for 'S<bool>' in the current scope
+                   ~~~ the function was found for: `S<u32>`
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn generic_impl_with_dual_turbofish() {
+    // Ensure the generic impl case still works correctly after the fix.
+    let src = r#"
+    struct S<T> {}
+
+    impl<T> S<T> {
+        fn foo<U>(_x: U) {}
+    }
+
+    fn main() {
+        let x: Field = 10;
+        S::<u32>::foo::<Field>(x);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn partially_concrete_impl_turbofish_binds_correct_generic() {
+    let src = r#"
+    struct S<A, B> {}
+
+    impl<B> S<u32, B> {
+        fn foo(x: B) -> B {
+            x
+        }
+    }
+
+    fn main() {
+        let x: bool = true;
+        let _result: bool = S::<u32, bool>::foo(x);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn partially_concrete_impl_turbofish_reverse_direction() {
+    // The first struct param is the impl generic, the second is concrete.
+    let src = r#"
+    struct S<A, B> {}
+
+    impl<A> S<A, u32> {
+        fn foo(x: A) -> A {
+            x
+        }
+    }
+
+    fn main() {
+        let x: bool = true;
+        let _result: bool = S::<bool, u32>::foo(x);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn partially_concrete_impl_turbofish_three_params_middle_generic() {
+    // Three struct params where only the middle one is an impl generic.
+    let src = r#"
+    struct S<A, B, C> {}
+
+    impl<B> S<u32, B, Field> {
+        fn foo(x: B) -> B {
+            x
+        }
+    }
+
+    fn main() {
+        let x: bool = true;
+        let _result: bool = S::<u32, bool, Field>::foo(x);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn partially_concrete_impl_turbofish_mismatch_on_concrete_param() {
+    // Turbofish type conflicts with the impl's concrete param.
+    // S::<bool, bool>::foo(...) but impl hardcodes A=u32.
+    let src = r#"
+    struct S<A, B> {}
+
+    impl<B> S<u32, B> {
+        pub fn foo(x: B) -> B {
+            x
+        }
+    }
+
+    fn main() {
+        let x: bool = true;
+        let _result: bool = S::<bool, bool>::foo(x);
+                                             ^^^ No function named 'foo' found for 'S<bool, bool>' in the current scope
+                                             ~~~ the function was found for: `S<u32, B>`
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn regression_7648_impl_trait_numeric_generic_turbofish() {
+    let src = r#"
+    trait Foo<let N: u32> {}
+
+    impl<let N: u32> Foo<N> for [Field; N] {}
+
+    fn my_fn<let N: u32>(_input: impl Foo<N>) {}
+
+    fn main() {
+        my_fn::<0>([]);
+    }
+    "#;
+    let features = vec![UnstableFeature::TraitAsType];
+    let errors = get_program_using_features(src, &features).2;
+    assert!(errors.is_empty(), "Expected no errors but got: {errors:?}");
+}
+
+#[test]
+fn impl_trait_u64_numeric_generic_turbofish() {
+    let src = r#"
+    trait Foo<let N: u64> {}
+
+    struct Wrapper {}
+
+    global ONE: u64 = 1;
+
+    impl Foo<ONE> for Wrapper {}
+
+    fn my_fn<let N: u64>(_input: impl Foo<N>) {}
+
+    fn main() {
+        my_fn::<ONE>(Wrapper {});
+    }
+    "#;
+    let features = vec![UnstableFeature::TraitAsType];
+    let errors = get_program_using_features(src, &features).2;
+    assert!(errors.is_empty(), "Expected no errors but got: {errors:?}");
+}
+
+#[test]
+fn impl_trait_mixed_generics_with_turbofish() {
+    let src = r#"
+    trait Foo<let N: u32> {}
+
+    impl<let N: u32> Foo<N> for [Field; N] {}
+
+    fn my_fn<T, let N: u32>(_value: T, _input: impl Foo<N>) {}
+
+    fn main() {
+        my_fn::<Field, 0>(1, []);
+    }
+    "#;
+    let features = vec![UnstableFeature::TraitAsType];
+    let errors = get_program_using_features(src, &features).2;
+    assert!(errors.is_empty(), "Expected no errors but got: {errors:?}");
+}
+
+#[test]
+fn impl_trait_method_in_generic_impl_with_turbofish() {
+    let src = r#"
+    trait Foo<let N: u32> {}
+
+    impl<let N: u32> Foo<N> for [Field; N] {}
+
+    struct Container<T> {}
+
+    impl<T> Container<T> {
+        fn my_fn<let N: u32>(_self: Self, _input: impl Foo<N>) {}
+    }
+
+    fn main() {
+        let c: Container<Field> = Container {};
+        c.my_fn::<0>([]);
+    }
+    "#;
+    let features = vec![UnstableFeature::TraitAsType];
+    let errors = get_program_using_features(src, &features).2;
+    assert!(errors.is_empty(), "Expected no errors but got: {errors:?}");
+}
+
+#[test]
+fn impl_trait_without_turbofish_still_infers() {
+    let src = r#"
+    trait Foo<let N: u32> {}
+
+    impl<let N: u32> Foo<N> for [Field; N] {}
+
+    fn my_fn<let N: u32>(_input: impl Foo<N>) {}
+
+    fn main() {
+        my_fn([]);
+    }
+    "#;
+    let features = vec![UnstableFeature::TraitAsType];
+    let errors = get_program_using_features(src, &features).2;
+    assert!(errors.is_empty(), "Expected no errors but got: {errors:?}");
+}
+
+#[test]
+fn concrete_impl_dual_turbofish_type_mismatch() {
+    // The method turbofish binds the method generic, so passing a wrong type should error.
+    let src = r#"
+    struct S<T> {}
+
+    impl S<u32> {
+        fn foo<U>(_x: U) {}
+    }
+
+    fn main() {
+        S::<u32>::foo::<Field>(true);
+                               ^^^^ Expected type Field, found type bool
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn struct_turbofish_same_generic() {
+    let src = r#"
+    struct S<A, B> {}
+
+    impl<T> S<T, T> {
+        pub fn foo() {}
+    }
+
+    fn main() {
+        S::<u32, u64>::foo();
+                       ^^^ No function named 'foo' found for 'S<u32, u64>' in the current scope
+                       ~~~ the function was found for: `S<T, T>`
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn struct_turbofish_mixed_generics() {
+    let src = r#"
+    struct S<A, B> {}
+
+    impl<T> S<T, u64> {
+        pub fn foo() {}
+    }
+
+    impl S<u32, u32> {
+        pub fn foo() {}
+    }
+
+    fn main() {
+        S::<u32, u64>::foo();
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn struct_turbofish_mixed_generics_visibility_error() {
+    let src = r#"
+    struct S<A, B> {}
+
+    mod moo {
+        impl<T> super::S<T, u64> {
+            fn foo() {}
+        }
+
+        impl super::S<u32, u32> {
+            fn foo() {}
+               ^^^ unused function foo
+               ~~~ unused function
+        }
+    }
+
+    fn main() {
+        S::<u32, u64>::foo();
+                       ^^^ foo is private and not visible from the current module
+                       ~~~ foo is private
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn struct_turbofish_matching_identity_type_alias() {
+    let src = r#"
+    type Id<T> = T;
+
+    struct S<A> {
+        x: A,
+    }
+
+    impl<T> S<Id<T>> {
+        fn foo(x: T) -> T {
+            x
+        }
+    }
+
+    fn main() {
+        let x = 10u64;
+        let _y: u64 = S::<Id<u64>>::foo(x);
+        let _y: u64 = S::<u64>::foo(x);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn struct_turbofish_matching_struct_type_alias() {
+    let src = r#"
+    struct Foo<T> {}
+
+    type Id<T> = Foo<T>;
+
+    struct S<A> {
+        x: A,
+    }
+
+    impl<T> S<Id<T>> {
+        fn foo(x: T) -> T {
+            x
+        }
+    }
+
+    fn main() {
+        let x = 10u64;
+        let _y: u64 = S::<Id<u64>>::foo(x);
+        let _y: u64 = S::<Foo<u64>>::foo(x);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn no_turbofish_matching_on_type_alias_without_generics_with_underlaying_struct_with_generics() {
+    let src = r#"
+    struct S<A> {}
+
+    type Alias = S<u32>;
+
+    impl Alias {
+        fn foo() {}
+    }
+
+    fn main() {
+        Alias::foo();
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn errors_on_generics_applied_to_generic_type_parameter() {
+    let src = r#"
+    pub fn foo<T>(x: T) {
+        let _y: T<u32> = x;
+                ^ Cannot apply generics to a generic type
+                ~ A generic type parameter cannot itself take generic arguments
+    }
+
+    fn main() {}
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn turbofish_not_allowed_on_globals() {
+    let src = r#"
+    global x: Field = 1;
+
+    fn main() {
+        let _ = x::<hello, world>;
+                    ^^^^^ Could not resolve 'hello' in path
+                           ^^^^^ Could not resolve 'world' in path
+                 ^^^^^^^^^^^^^^^^ turbofish (`::<_>`) not allowed on globals
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn errors_on_generics_applied_to_wildcard_type() {
+    let src = r#"
+    fn main() {
+        let _x: _<u32, u64, Field> = 1;
+                ^ Cannot apply generics to a wildcard type
+                ~ The wildcard type `_` cannot take generic arguments
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn turbofish_not_allowed_on_local_variables() {
+    let src = r#"
+    fn main() {
+        let foobar = 1;
+        let _ = foobar::<hello, world>;
+                         ^^^^^ Could not resolve 'hello' in path
+                                ^^^^^ Could not resolve 'world' in path
+                      ^^^^^^^^^^^^^^^^ turbofish (`::<_>`) not allowed on local variables
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn turbofish_not_allowed_on_self_type() {
+    let src = r#"
+    struct Foo {}
+
+    impl Foo {
+        pub fn new() -> Self {
+            Self::<hello> {}
+                   ^^^^^ Could not resolve 'hello' in path
+                ^^^^^^^^^ turbofish (`::<_>`) not allowed on self type
+        }
+    }
+    "#;
+    check_errors(src);
 }

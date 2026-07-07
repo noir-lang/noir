@@ -1,7 +1,0 @@
-
-            [package]
-            name = "noirc_frontend_tests_traits_errors_if_trait_is_not_in_scope_for_method_call_and_there_are_multiple_candidates"
-            type = "bin"
-            authors = [""]
-            
-            [dependencies]

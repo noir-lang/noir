@@ -1,0 +1,12 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+use std::ops::WrappingMul;
+
+fn main(mut x: u32, y: u32) {
+    x = x.wrapping_mul(x);
+    assert(y == x);
+    let c: u8 = 0_u8;
+    assert(((x as u8) % 2_u8) > c);
+}

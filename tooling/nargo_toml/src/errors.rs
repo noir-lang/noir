@@ -15,6 +15,17 @@ pub enum ManifestError {
     #[error("Cannot read file {0} - does it exist?")]
     ReadFailed(PathBuf),
 
+    #[error("Cannot write to file {0}")]
+    WriteFailed(PathBuf),
+
+    #[error(
+        "A dependency named `{0}` already exists. Pass `--override` to replace it, or remove it from Nargo.toml first"
+    )]
+    DependencyAlreadyExists(String),
+
+    #[error("The `dependencies` section in {0} is not a table")]
+    InvalidDependenciesTable(PathBuf),
+
     #[error("Nargo.toml is missing a parent directory")]
     MissingParent,
 
@@ -25,8 +36,12 @@ pub enum ManifestError {
     InvalidPackageType(PathBuf, String),
 
     /// Package manifest is unreadable.
-    #[error("Nargo.toml is badly formed, could not parse.\n\n {0}")]
+    #[error("Nargo.toml is badly formed, could not parse.\n\n{}", .0.message())]
     MalformedFile(#[from] toml::de::Error),
+
+    /// Package manifest could not be parsed while editing it.
+    #[error("Nargo.toml is badly formed, could not parse.\n\n{0}")]
+    MalformedFileEdit(#[from] toml_edit::TomlError),
 
     #[error(
         "Unexpected workspace definition found in {0}. If you're attempting to load this as a dependency, you may need to add a `directory` field to your `Nargo.toml` to show which package within the workspace to use"
@@ -63,9 +78,6 @@ pub enum ManifestError {
     #[error("Package `{0}` has type `bin` but you cannot depend on binary packages")]
     BinaryDependency(CrateName),
 
-    #[error("Missing `name` field in {toml}")]
-    MissingNameField { toml: PathBuf },
-
     #[error("No common ancestor between {root} and {current}")]
     NoCommonAncestor { root: PathBuf, current: PathBuf },
 
@@ -74,9 +86,6 @@ pub enum ManifestError {
 
     #[error("Cyclic package dependency found when processing {cycle}")]
     CyclicDependency { cycle: String },
-
-    #[error("Failed to parse expression width with the following error: {0}")]
-    ParseExpressionWidth(String),
 }
 
 #[allow(clippy::enum_variant_names)]

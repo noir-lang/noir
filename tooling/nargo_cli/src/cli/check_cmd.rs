@@ -1,20 +1,20 @@
+use std::hash::BuildHasher;
+
 use crate::errors::CliError;
 
 use clap::Args;
 use fm::FileManager;
 use iter_extended::btree_map;
 use nargo::{
-    errors::CompileError, insert_all_files_for_workspace_into_file_manager, ops::report_errors,
-    package::Package, parse_all, prepare_package, workspace::Workspace,
+    errors::CompileError, insert_all_files_for_workspace_into_file_manager,
+    ops::check_crate_and_report_errors, package::Package, parse_all, prepare_package,
+    workspace::Workspace,
 };
 use nargo_toml::PackageSelection;
 use noir_artifact_cli::fs::artifact::write_to_file;
 use noirc_abi::{AbiParameter, AbiType, MAIN_RETURN_NAME};
-use noirc_driver::{CompileOptions, CrateId, check_crate, compute_function_abi};
-use noirc_frontend::{
-    hir::{Context, ParsedFiles},
-    monomorphization::monomorphize,
-};
+use noirc_driver::{CompileOptions, check_crate, compute_function_abi};
+use noirc_frontend::{hir::ParsedFiles, monomorphization::monomorphize};
 
 use super::{LockType, PackageOptions, WorkspaceCommand};
 
@@ -26,8 +26,8 @@ pub(crate) struct CheckCommand {
     pub(super) package_options: PackageOptions,
 
     /// Force overwrite of existing files
-    #[clap(long = "overwrite")]
-    pub(super) allow_overwrite: bool,
+    #[clap(long)]
+    overwrite: bool,
 
     #[clap(flatten)]
     compile_options: CompileOptions,
@@ -61,8 +61,14 @@ pub(crate) fn run(args: CheckCommand, workspace: Workspace) -> Result<(), CliErr
             let Some(main) = context.get_main_function(&crate_id) else {
                 continue;
             };
-            let program = monomorphize(main, &mut context.def_interner, false).unwrap();
-            let hash = fxhash::hash64(&program);
+            let program = monomorphize(
+                main,
+                &mut context.def_interner,
+                context.file_manager.as_file_map(),
+                false,
+            )
+            .unwrap();
+            let hash = rustc_hash::FxBuildHasher.hash_one(&program);
             println!("{}: {:x}", package.name, hash);
             continue;
         }
@@ -72,20 +78,20 @@ pub(crate) fn run(args: CheckCommand, workspace: Workspace) -> Result<(), CliErr
             &parsed_files,
             package,
             &args.compile_options,
-            args.allow_overwrite,
+            args.overwrite,
         )?;
     }
     Ok(())
 }
 
-/// Evaluates the necessity to create or update Prover.toml and Verifier.toml based on the allow_overwrite flag and files' existence.
+/// Evaluates the necessity to create or update Prover.toml and Verifier.toml based on the `allow_overwrite` flag and files' existence.
 /// Returns `true` if any file was generated or updated, `false` otherwise.
 fn check_package(
     file_manager: &FileManager,
     parsed_files: &ParsedFiles,
     package: &Package,
     compile_options: &CompileOptions,
-    allow_overwrite: bool,
+    overwrite: bool,
 ) -> Result<(), CompileError> {
     let (mut context, crate_id) = prepare_package(file_manager, parsed_files, package);
     check_crate_and_report_errors(&mut context, crate_id, compile_options)?;
@@ -93,26 +99,23 @@ fn check_package(
     if package.is_library() || package.is_contract() {
         // Libraries do not have ABIs while contracts have many, so we cannot generate a `Prover.toml` file.
         Ok(())
-    } else {
-        // XXX: We can have a --overwrite flag to determine if you want to overwrite the Prover/Verifier.toml files
-        if let Some((parameters, _)) = compute_function_abi(&context, &crate_id) {
-            let path_to_prover_input = package.prover_input_path();
+    } else if let Some((parameters, return_type)) = compute_function_abi(&context, &crate_id) {
+        let path_to_prover_input = package.prover_input_path();
 
-            // Before writing the file, check if it exists and whether overwrite is set
-            let should_write_prover = !path_to_prover_input.exists() || allow_overwrite;
+        // Before writing the file, check if it exists and whether overwrite is set
+        let should_write_prover = !path_to_prover_input.exists() || overwrite;
 
-            if should_write_prover {
-                let prover_toml = create_input_toml_template(parameters.clone(), None);
-                write_to_file(prover_toml.as_bytes(), &path_to_prover_input)
-                    .expect("failed to write template");
-            } else {
-                eprintln!("Note: Prover.toml already exists. Use --overwrite to force overwrite.");
-            }
-
-            Ok(())
+        if should_write_prover {
+            let prover_toml = create_input_toml_template(parameters, return_type);
+            write_to_file(prover_toml.as_bytes(), &path_to_prover_input)
+                .expect("failed to write template");
         } else {
-            Err(CompileError::MissingMainFunction(package.name.clone()))
+            eprintln!("Note: Prover.toml already exists. Use --overwrite to force overwrite.");
         }
+
+        Ok(())
+    } else {
+        Err(CompileError::MissingMainFunction(package.name.clone()))
     }
 }
 
@@ -126,9 +129,8 @@ fn create_input_toml_template(
     fn default_value(typ: AbiType) -> toml::Value {
         match typ {
             AbiType::Array { length, typ } => {
-                let default_value_vec = std::iter::repeat(default_value(*typ))
-                    .take(length.try_into().unwrap())
-                    .collect();
+                let default_value_vec =
+                    std::iter::repeat_n(default_value(*typ), length.try_into().unwrap()).collect();
                 toml::Value::Array(default_value_vec)
             }
             AbiType::Struct { fields, .. } => {
@@ -137,7 +139,13 @@ fn create_input_toml_template(
                 );
                 toml::Value::Table(default_value_map)
             }
-            _ => toml::Value::String("".to_owned()),
+            AbiType::Field | AbiType::Integer { .. } => toml::Value::Integer(0),
+            AbiType::Boolean => toml::Value::Boolean(false),
+            AbiType::Tuple { fields } => {
+                let default_value_vec = fields.into_iter().map(default_value).collect();
+                toml::Value::Array(default_value_vec)
+            }
+            AbiType::String { length } => toml::Value::String("_".repeat(length as usize)),
         }
     }
 
@@ -151,19 +159,9 @@ fn create_input_toml_template(
     toml::to_string(&map).unwrap()
 }
 
-/// Run the lexing, parsing, name resolution, and type checking passes and report any warnings
-/// and errors found.
-pub(crate) fn check_crate_and_report_errors(
-    context: &mut Context,
-    crate_id: CrateId,
-    options: &CompileOptions,
-) -> Result<(), CompileError> {
-    let result = check_crate(context, crate_id, options);
-    report_errors(result, &context.file_manager, options.deny_warnings, options.silence_warnings)
-}
-
 #[cfg(test)]
 mod tests {
+    use insta::assert_snapshot;
     use noirc_abi::{AbiParameter, AbiType, AbiVisibility, Sign};
 
     use super::create_input_toml_template;
@@ -193,19 +191,27 @@ mod tests {
                 },
             ),
             typed_param("e", AbiType::Boolean),
+            typed_param(
+                "f",
+                AbiType::Tuple { fields: vec![AbiType::Field, AbiType::String { length: 5 }] },
+            ),
         ];
 
-        let toml_str = create_input_toml_template(parameters, None);
+        let return_type = AbiType::Boolean;
 
-        let expected_toml_str = r#"a = ""
-b = ""
-c = ["", ""]
-e = ""
+        let toml_str = create_input_toml_template(parameters, Some(return_type));
 
-[d]
-d1 = ""
-d2 = ["", "", ""]
-"#;
-        assert_eq!(toml_str, expected_toml_str);
+        assert_snapshot!(toml_str, @r#"
+        a = 0
+        b = 0
+        c = [0, 0]
+        e = false
+        f = [0, "_____"]
+        return = false
+
+        [d]
+        d1 = 0
+        d2 = [0, 0, 0]
+        "#);
     }
 }

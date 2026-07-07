@@ -1,8 +1,10 @@
 use acvm::{acir::brillig::ForeignCallResult, pwg::ForeignCallWaitInfo};
+use noirc_printable_type::TryFromParamsError;
 use thiserror::Error;
 
 pub mod layers;
 pub mod mocker;
+pub mod oracle_resolver_url;
 pub mod print;
 pub mod transcript;
 
@@ -12,6 +14,9 @@ pub mod rpc;
 pub use default::DefaultForeignCallBuilder;
 #[cfg(feature = "rpc")]
 pub use default::DefaultForeignCallExecutor;
+pub use oracle_resolver_url::{OracleResolverUrl, OracleResolverUrlParseError};
+
+pub use noirc_frontend::shared::ForeignCall;
 
 /// Interface for executing foreign calls
 pub trait ForeignCallExecutor<F> {
@@ -19,52 +24,6 @@ pub trait ForeignCallExecutor<F> {
         &mut self,
         foreign_call: &ForeignCallWaitInfo<F>,
     ) -> Result<ForeignCallResult<F>, ForeignCallError>;
-}
-
-/// This enumeration represents the Brillig foreign calls that are natively supported by nargo.
-/// After resolution of a foreign call, nargo will restart execution of the ACVM
-pub enum ForeignCall {
-    /// Reference [mod@print] for more info regarding this call's inputs
-    Print,
-    CreateMock,
-    SetMockParams,
-    GetMockLastParams,
-    SetMockReturns,
-    SetMockTimes,
-    ClearMock,
-}
-
-impl std::fmt::Display for ForeignCall {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.name())
-    }
-}
-
-impl ForeignCall {
-    pub(crate) fn name(&self) -> &'static str {
-        match self {
-            ForeignCall::Print => "print",
-            ForeignCall::CreateMock => "create_mock",
-            ForeignCall::SetMockParams => "set_mock_params",
-            ForeignCall::GetMockLastParams => "get_mock_last_params",
-            ForeignCall::SetMockReturns => "set_mock_returns",
-            ForeignCall::SetMockTimes => "set_mock_times",
-            ForeignCall::ClearMock => "clear_mock",
-        }
-    }
-
-    pub(crate) fn lookup(op_name: &str) -> Option<ForeignCall> {
-        match op_name {
-            "print" => Some(ForeignCall::Print),
-            "create_mock" => Some(ForeignCall::CreateMock),
-            "set_mock_params" => Some(ForeignCall::SetMockParams),
-            "get_mock_last_params" => Some(ForeignCall::GetMockLastParams),
-            "set_mock_returns" => Some(ForeignCall::SetMockReturns),
-            "set_mock_times" => Some(ForeignCall::SetMockTimes),
-            "clear_mock" => Some(ForeignCall::ClearMock),
-            _ => None,
-        }
-    }
 }
 
 #[derive(Debug, Error)]
@@ -89,4 +48,15 @@ pub enum ForeignCallError {
 
     #[error("Failed to replay oracle transcript: {0}")]
     TranscriptError(String),
+}
+
+impl From<TryFromParamsError> for ForeignCallError {
+    fn from(err: TryFromParamsError) -> Self {
+        match err {
+            TryFromParamsError::MissingForeignCallInputs => {
+                ForeignCallError::MissingForeignCallInputs
+            }
+            TryFromParamsError::ParsingError(error) => ForeignCallError::ParsingError(error),
+        }
+    }
 }

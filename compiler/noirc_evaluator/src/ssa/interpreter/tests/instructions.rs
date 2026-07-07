@@ -1,0 +1,1527 @@
+use std::sync::Arc;
+
+use acvm::FieldElement;
+use iter_extended::vecmap;
+use noirc_frontend::Shared;
+
+use crate::ssa::{
+    interpreter::{
+        InterpreterError, Value,
+        tests::{
+            expect_value, expect_value_with_args, expect_values, expect_values_with_args,
+            from_constant,
+        },
+        value::ReferenceValue,
+    },
+    ir::{
+        integer::IntegerConstant,
+        types::{NumericType, Type},
+        value::ValueId,
+    },
+};
+
+use super::{Ssa, executes_with_no_errors, expect_error};
+
+fn make_unfit(value: impl Into<FieldElement>, typ: NumericType) -> Value {
+    Value::int_from_field(value.into(), typ).unwrap()
+}
+
+#[test]
+fn add_unsigned() {
+    let value = expect_value(
+        "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = add u32 2, u32 100
+            return v0
+        }
+    ",
+    );
+    assert_eq!(value, Value::u32(102));
+}
+
+#[test]
+fn add_signed() {
+    let value = expect_value(
+        "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = add i32 2, i32 100
+            v1 = truncate v0 to 32 bits, max_bit_size: 33
+            return v1
+        }
+    ",
+    );
+    assert_eq!(value, Value::i32(102));
+}
+
+#[test]
+fn add_overflow_unsigned() {
+    let error = expect_error(
+        "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = add u8 200, u8 100
+            return v0
+        }
+    ",
+    );
+    assert!(matches!(error, InterpreterError::Overflow { .. }));
+}
+
+#[test]
+fn add_overflow_signed() {
+    let error = expect_error(
+        "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = add i8 2, i8 127
+            v1 = truncate v0 to 8 bits, max_bit_size: 9
+            return v1
+        }
+    ",
+    );
+    assert!(matches!(error, InterpreterError::Overflow { .. }));
+}
+
+#[test]
+fn add_unchecked_unsigned() {
+    executes_with_no_errors(
+        "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = unchecked_add u8 200, u8 100
+            return v0
+        }
+    ",
+    );
+}
+
+#[test]
+fn add_unchecked_signed() {
+    let value = expect_value(
+        "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = unchecked_add i8 2, i8 127
+            return v0
+        }
+    ",
+    );
+    assert_ne!(value, Value::i8(-128), "no wrapping");
+    assert_eq!(value, make_unfit(129u32, NumericType::signed(8)));
+}
+
+// Regression test for noir-lang/noir-claude#1430.
+//
+// A checked arithmetic op whose operand escaped its type via an earlier overflowing unchecked op
+// (an out-of-range value) must evaluate against the operand's wrapped, in-range value — the value
+// ACIR (which truncates when lowering the checked op) and Brillig (fixed-width registers) carry
+// forward — instead of erroring. Otherwise the interpreter reports an overflow where the backends,
+// and the expanded SSA after `expand_signed_checks`, return the wrapped result.
+#[test]
+fn checked_signed_op_over_unfit_operand_wraps() {
+    // `unchecked_mul i32 i32::MAX, 2` yields the field 4294967294, whose i32 bit pattern is -2.
+    let value = expect_value(
+        "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = unchecked_mul i32 2147483647, i32 2
+            v1 = add v0, i32 0
+            return v1
+        }
+    ",
+    );
+    assert_eq!(value, Value::i32(-2));
+
+    // The second operand is irrelevant; the divergence was about the unfit operand: -2 + 5 = 3.
+    let value = expect_value(
+        "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = unchecked_mul i32 2147483647, i32 2
+            v1 = add v0, i32 5
+            return v1
+        }
+    ",
+    );
+    assert_eq!(value, Value::i32(3));
+}
+
+// Companion to [`checked_signed_op_over_unfit_operand_wraps`] for *unsigned* checked ops, and a
+// regression test for noir-lang/noir-claude#1441.
+//
+// Unlike the signed case, ACIR does not truncate the operand of an unsigned checked op: it keeps it
+// as a field and range-constrains the *result*, so an operand that overflowed/underflowed an
+// earlier unchecked op makes the range check fail and ACIR rejects the program. The interpreter must
+// therefore report the overflow rather than wrap the operand. Wrapping would diverge from ACIR and,
+// for underflow, would not even match Brillig: `0 - 10` carries the field `p - 10`, whose low 8 bits
+// are `247`, not the wrapped `246`.
+#[test]
+fn checked_unsigned_op_over_unfit_operand_errors() {
+    // `unchecked_add u8 200, u8 100` yields 300 (> u8::MAX); the checked add must not wrap to 44.
+    let error = expect_error(
+        "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = unchecked_add u8 200, u8 100
+            v1 = add v0, u8 0
+            return v1
+        }
+    ",
+    );
+    assert!(matches!(error, InterpreterError::Overflow { .. }));
+
+    // `unchecked_sub u8 0, u8 10` underflows; the checked add must not wrap (and in particular must
+    // not return `247` from truncating the field `p - 10`).
+    let error = expect_error(
+        "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = unchecked_sub u8 0, u8 10
+            v1 = add v0, u8 0
+            return v1
+        }
+    ",
+    );
+    assert!(matches!(error, InterpreterError::Overflow { .. }));
+}
+
+#[test]
+fn sub_unsigned() {
+    let value = expect_value(
+        "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = sub u32 10101, u32 101
+            return v0
+        }
+    ",
+    );
+    assert_eq!(value, Value::u32(10000));
+}
+
+#[test]
+fn sub_signed() {
+    let value = expect_value(
+        "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = sub i32 10101, i32 10102
+            v1 = truncate v0 to 32 bits, max_bit_size: 33
+            return v0
+        }
+    ",
+    );
+    assert_eq!(value, Value::i32(-1));
+}
+
+#[test]
+fn sub_underflow_unsigned() {
+    let error = expect_error(
+        "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = sub u8 0, u8 10  // 0 - 10
+            v1 = truncate v0 to 8 bits, max_bit_size: 9
+            return v1
+        }
+    ",
+    );
+    assert!(matches!(error, InterpreterError::Overflow { .. }));
+}
+
+#[test]
+fn sub_underflow_signed() {
+    let error = expect_error(
+        "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = sub i8 136, i8 10  // -120 - 10
+            v1 = truncate v0 to 8 bits, max_bit_size: 9
+            return v1
+        }
+    ",
+    );
+    assert!(matches!(error, InterpreterError::Overflow { .. }));
+}
+
+#[test]
+fn sub_unchecked_unsigned() {
+    executes_with_no_errors(
+        "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = unchecked_sub u8 0, u8 10  // 0 - 10
+            return v0
+        }
+    ",
+    );
+}
+
+#[test]
+fn sub_unchecked_signed_acir() {
+    let value = expect_value(
+        "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = unchecked_sub i8 3, i8 10
+            return v0
+        }
+    ",
+    );
+    // 3 - 10 = -7. On an ACIR function the unchecked subtraction is field arithmetic, which extends
+    // to the field-negative `-7` (i.e. `p - 7`) rather than the wrapped 8-bit pattern Brillig keeps.
+    // Here we can't compare against `Value::i8(-7)` because that constructor will produce a Field value
+    // that's `256 - 7 = 249`, but in this case we end up with `p - 7`, so a different value.
+    assert_eq!(
+        value.as_numeric().unwrap().to_field(),
+        FieldElement::from(3u32) - FieldElement::from(10u32)
+    );
+}
+
+#[test]
+fn sub_unchecked_signed_brillig() {
+    let value = expect_value(
+        "
+        brillig(inline) fn main f0 {
+          b0():
+            v0 = unchecked_sub i8 3, i8 10
+            return v0
+        }
+    ",
+    );
+    // On a Brillig function we restrict the value to the 8-bit pattern, which
+    // is why we can compare with `Value::i8` (it always produces values in the range `[0, 256)`).
+    assert_eq!(value, Value::i8(-7),);
+}
+
+#[test]
+fn mul_unsigned() {
+    let value = expect_value(
+        "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = mul u64 2, u64 100
+            return v0
+        }
+    ",
+    );
+    assert_eq!(value, Value::u64(200));
+}
+
+#[test]
+fn mul_signed() {
+    let value = expect_value(
+        "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = mul i64 2, i64 100
+            v1 = cast v0 as u128
+            v2 = truncate v1 to 64 bits, max_bit_size: 128
+            v3 = cast v2 as i64
+            return v3
+        }
+    ",
+    );
+    assert_eq!(value, Value::i64(200));
+}
+
+#[test]
+fn mul_overflow_unsigned() {
+    let error = expect_error(
+        "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = mul u8 128, u8 2
+            return v0
+        }
+    ",
+    );
+    assert!(matches!(error, InterpreterError::Overflow { .. }));
+}
+
+#[test]
+fn mul_overflow_signed() {
+    let error = expect_error(
+        "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = mul i8 127, i8 2
+            return v0
+        }
+    ",
+    );
+    assert!(matches!(error, InterpreterError::Overflow { .. }));
+}
+
+#[test]
+fn mul_unchecked_unsigned() {
+    let value = expect_value(
+        "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = unchecked_mul u8 128, u8 2
+            return v0
+        }
+    ",
+    );
+    assert_ne!(value, Value::u8(0), "no wrapping");
+    assert_eq!(value, make_unfit(256u32, NumericType::unsigned(8)));
+}
+
+#[test]
+fn mul_unchecked_signed() {
+    let value = expect_value(
+        "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = unchecked_mul i8 127, i8 2
+            return v0
+        }
+    ",
+    );
+    // 127 * 2 = 254, whose i8 bit pattern is -2 — an in-range value that both backends agree on.
+    // (Value::i8 always produces values in the `[0, 256)` range)
+    assert_eq!(value, Value::i8(-2));
+}
+
+#[test]
+fn div() {
+    let value = expect_value(
+        "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = div i16 128, i16 2
+            return v0
+        }
+    ",
+    );
+    assert_eq!(value, Value::i16(64));
+}
+
+#[test]
+fn div_zero() {
+    let error = expect_error(
+        "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = div Field 12, Field 0
+            return v0
+        }
+    ",
+    );
+    assert!(matches!(error, InterpreterError::DivisionByZero { .. }));
+}
+
+#[test]
+fn div_signed_overflow() {
+    let error = expect_error(
+        "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = div i32 2147483648, i32 4294967295
+            return v0
+        }
+    ",
+    );
+    assert!(
+        matches!(error, InterpreterError::Overflow { .. }),
+        "expected Overflow for i32::MIN / -1, got {error:?}"
+    );
+}
+
+#[test]
+fn mod_signed_overflow() {
+    let error = expect_error(
+        "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = mod i32 2147483648, i32 4294967295
+            return v0
+        }
+    ",
+    );
+    assert!(
+        matches!(error, InterpreterError::Overflow { .. }),
+        "expected Overflow for i32::MIN % -1, got {error:?}"
+    );
+}
+
+#[test]
+fn r#mod() {
+    let value = expect_value(
+        "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = mod i64 5, i64 3
+            return v0
+        }
+    ",
+    );
+    assert_eq!(value, Value::i64(2));
+}
+
+#[test]
+fn mod_zero() {
+    let error = expect_error(
+        "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = mod u8 12, u8 0
+            return v0
+        }
+    ",
+    );
+    assert!(matches!(error, InterpreterError::DivisionByZero { .. }));
+}
+
+#[test]
+fn eq() {
+    let value = expect_value(
+        "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = eq u8 3, u8 4
+            return v0
+        }
+    ",
+    );
+    assert_eq!(value, Value::bool(false));
+}
+
+#[test]
+fn lt() {
+    let values = expect_values(
+        "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = lt u32 3, u32 7
+            v1 = lt i32 3, i32 7
+            v2 = lt i32 3, i32 4294967293   // 3 < -3  (false)
+
+            v3 = lt i32 4294967293, i32 4294967294  // -3 < -2
+            v4 = lt i32 4294967293, i32 4294967293  // -3 < -3
+            v5 = lt i32 4294967293, i32 4294967292  // -3 < -4
+            return v0, v1, v2, v3, v4, v5
+        }
+    ",
+    );
+    assert_eq!(values[0], Value::bool(true));
+    assert_eq!(values[1], Value::bool(true));
+    assert_eq!(values[2], Value::bool(false));
+    assert_eq!(values[3], Value::bool(true));
+    assert_eq!(values[4], Value::bool(false));
+    assert_eq!(values[5], Value::bool(false));
+}
+
+#[test]
+fn and() {
+    let values = expect_values(
+        "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = and u1 1, u1 0
+            v1 = and u8 3, u8 5
+            return v0, v1
+        }
+    ",
+    );
+    assert_eq!(values[0], Value::bool(false));
+    assert_eq!(values[1], from_constant(1_u128.into(), NumericType::unsigned(8)));
+}
+
+#[test]
+fn or() {
+    let values = expect_values(
+        "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = or u1 1, u1 0
+            v1 = or u8 3, u8 5
+            return v0, v1
+        }
+    ",
+    );
+    assert_eq!(values[0], Value::bool(true));
+    assert_eq!(values[1], from_constant(7_u128.into(), NumericType::unsigned(8)));
+}
+
+#[test]
+fn xor() {
+    let values = expect_values(
+        "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = xor u1 1, u1 0
+            v1 = xor u8 3, u8 5
+            return v0, v1
+        }
+    ",
+    );
+    assert_eq!(values[0], Value::bool(true));
+    assert_eq!(values[1], from_constant(6_u128.into(), NumericType::unsigned(8)));
+}
+
+#[test]
+fn shl() {
+    let value = expect_value(
+        "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = shl i8 3, i8 2
+            return v0
+        }
+    ",
+    );
+    assert_eq!(value, from_constant(12_u128.into(), NumericType::signed(8)));
+}
+
+#[test]
+fn shl_overflow() {
+    let error = expect_error(
+        "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = shl u8 3, u8 9
+            return v0
+        }
+    ",
+    );
+    assert!(matches!(error, InterpreterError::Overflow { .. }));
+}
+
+#[test]
+fn shr_unsigned() {
+    let values = expect_values(
+        "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = shr u16 12, u16 2
+            v1 = shr u16 5, u16 1
+            v2 = shr u16 5, u16 4
+            return v0, v1, v2
+        }
+    ",
+    );
+    assert_eq!(values[0], from_constant(3_u128.into(), NumericType::unsigned(16)));
+    assert_eq!(values[1], from_constant(2_u128.into(), NumericType::unsigned(16)));
+    assert_eq!(values[2], from_constant(0_u128.into(), NumericType::unsigned(16)));
+}
+
+#[test]
+fn shr_signed() {
+    let values = expect_values(
+        "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = shr i16 65520, i16 2
+            v1 = shr i16 65533, i16 1
+            v2 = shr i16 65528, i16 3
+            return v0, v1, v2
+        }
+    ",
+    );
+
+    let neg_four = IntegerConstant::Signed { value: -4, bit_size: 16 };
+    let (neg_four_constant, typ) = neg_four.into_numeric_constant();
+    assert_eq!(values[0], from_constant(neg_four_constant, typ));
+    let neg_two = IntegerConstant::Signed { value: -2, bit_size: 16 };
+    let (neg_two_constant, typ) = neg_two.into_numeric_constant();
+    assert_eq!(values[1], from_constant(neg_two_constant, typ));
+    let neg_one = IntegerConstant::Signed { value: -1, bit_size: 16 };
+    let (neg_one_constant, typ) = neg_one.into_numeric_constant();
+    assert_eq!(values[2], from_constant(neg_one_constant, typ));
+}
+
+#[test]
+fn shr_overflow_unsigned() {
+    let error = expect_error(
+        "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = shr u8 3, u8 9
+            return v0
+        }
+    ",
+    );
+    assert!(matches!(error, InterpreterError::Overflow { .. }));
+}
+
+#[test]
+fn shr_overflow_signed_negative_lhs() {
+    let error = expect_error(
+        "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = shr i8 192, i8 9
+            return v0
+        }
+    ",
+    );
+    assert!(matches!(error, InterpreterError::Overflow { .. }));
+}
+
+#[test]
+fn shr_overflow_signed_negative_rhs() {
+    expect_error(
+        "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = shr i8 1, i8 -3
+            return v0
+        }
+    ",
+    );
+}
+
+#[test]
+fn cast() {
+    let values = expect_values(
+        "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = cast u32 2 as Field
+            v1 = cast u32 3 as u8
+            v2 = cast i8 255 as i32   // -1, remains as 255
+            v3 = cast i8 255 as u128  // also zero-extended, remains 255
+                                      // casts like this should be sign-extended in Noir
+                                      // but we rely on other SSA instructions to manually do this.
+            return v0, v1, v2, v3
+        }
+    ",
+    );
+    assert_eq!(values[0], from_constant(2_u32.into(), NumericType::NativeField));
+    assert_eq!(values[1], from_constant(3_u32.into(), NumericType::unsigned(8)));
+    assert_eq!(values[2], from_constant(255_u32.into(), NumericType::signed(32)));
+    assert_eq!(values[3], from_constant(255_u32.into(), NumericType::unsigned(128)));
+}
+
+#[test]
+fn not() {
+    let values = expect_values(
+        "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = not u1 0
+            v1 = not u1 1
+            v2 = not u8 136
+            return v0, v1, v2
+        }
+    ",
+    );
+    assert_eq!(values[0], Value::bool(true));
+    assert_eq!(values[1], Value::bool(false));
+
+    let not_constant = u128::from(!136_u8);
+    assert_eq!(values[2], from_constant(not_constant.into(), NumericType::unsigned(8)));
+}
+
+#[test]
+fn truncate() {
+    let value = expect_value(
+        "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = truncate u32 257 to 8 bits, max_bit_size: 9
+            return v0
+        }
+    ",
+    );
+    let constant = u128::from(257_u16 as u8);
+    assert_eq!(value, from_constant(constant.into(), NumericType::unsigned(32)));
+}
+
+/// Truncating a *negative* signed value performs no sign-specific logic: it reduces the
+/// value's two's-complement field representation modulo `2^bit_size`, i.e. it keeps the
+/// low `bit_size` bits. The result keeps the original signed type, so it is the masked
+/// low bits reinterpreted in that wider type (and is therefore non-negative).
+///
+/// `-1_i32` has representation `0xFFFF_FFFF`; truncating to 16 bits yields `0xFFFF = 65535`,
+/// which as an `i32` is `65535`.
+#[test]
+fn truncate_negative_signed_keeps_low_bits() {
+    let value = expect_value(
+        "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = truncate i32 -1 to 16 bits, max_bit_size: 32
+            return v0
+        }
+    ",
+    );
+    assert_eq!(value, from_constant(65535_u32.into(), NumericType::signed(32)));
+}
+
+/// The narrowing cast `i32 as i16` is lowered to a `truncate` followed by a `cast`. The
+/// truncate keeps the low 16 bits (`65535` for `-1_i32`); the subsequent cast reinterprets
+/// those bits in the narrower signed type, recovering `-1_i16`. This is exactly the wrapping
+/// `as` semantics, and confirms negatives round-trip correctly.
+#[test]
+fn truncate_then_cast_recovers_negative() {
+    let value = expect_value(
+        "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = truncate i32 -1 to 16 bits, max_bit_size: 32
+            v1 = cast v0 as i16
+            return v1
+        }
+    ",
+    );
+    // `-1_i16` has representation `0xFFFF = 65535`.
+    assert_eq!(value, from_constant(65535_u32.into(), NumericType::signed(16)));
+}
+
+/// A negative value whose low bits are all zero wraps to `0`: `-65536_i32 as i16 == 0`.
+#[test]
+fn truncate_then_cast_negative_wraps_to_zero() {
+    let value = expect_value(
+        "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = truncate i32 -65536 to 16 bits, max_bit_size: 32
+            v1 = cast v0 as i16
+            return v1
+        }
+    ",
+    );
+    assert_eq!(value, from_constant(0_u32.into(), NumericType::signed(16)));
+}
+
+/// A non-trivial negative that stays in range round-trips exactly: `-100_i32 as i16 == -100`.
+#[test]
+fn truncate_then_cast_preserves_in_range_negative() {
+    let value = expect_value(
+        "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = truncate i32 -100 to 16 bits, max_bit_size: 32
+            v1 = cast v0 as i16
+            return v1
+        }
+    ",
+    );
+    // `-100_i16` has representation `65536 - 100 = 65436`.
+    assert_eq!(value, from_constant(65436_u32.into(), NumericType::signed(16)));
+}
+
+/// The same behaviour holds for the smaller widths used by `i16 as i8`: `-1_i16 as i8 == -1`.
+#[test]
+fn truncate_then_cast_recovers_negative_i16_to_i8() {
+    let value = expect_value(
+        "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = truncate i16 -1 to 8 bits, max_bit_size: 16
+            v1 = cast v0 as i8
+            return v1
+        }
+    ",
+    );
+    // `-1_i8` has representation `0xFF = 255`.
+    assert_eq!(value, from_constant(255_u32.into(), NumericType::signed(8)));
+}
+
+#[test]
+fn constrain() {
+    executes_with_no_errors(
+        "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = eq u8 3, u8 4
+            constrain v0 == v0
+            constrain v0 == u1 0
+            return
+        }
+    ",
+    );
+}
+
+#[test]
+fn constrain_not_disabled_by_enable_side_effects() {
+    expect_error(
+        "
+        acir(inline) fn main f0 {
+          b0():
+            enable_side_effects u1 0
+            constrain u1 1 == u1 0
+            return
+        }
+    ",
+    );
+}
+
+#[test]
+fn constrain_not_equal() {
+    executes_with_no_errors(
+        "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = eq u8 3, u8 4
+            constrain v0 != u1 1
+            return
+        }
+    ",
+    );
+}
+
+#[test]
+fn constrain_not_equal_is_disabled_by_enable_side_effects() {
+    executes_with_no_errors(
+        "
+        acir(inline) fn main f0 {
+          b0():
+            enable_side_effects u1 0
+            constrain u1 1 != u1 1
+            return
+        }
+    ",
+    );
+}
+
+#[test]
+fn range_check() {
+    executes_with_no_errors(
+        "
+        acir(inline) fn main f0 {
+          b0():
+            range_check u32 1000 to 16 bits
+            return
+        }
+    ",
+    );
+}
+
+#[test]
+fn range_check_fail() {
+    let error = expect_error(
+        "
+        acir(inline) fn main f0 {
+          b0():
+            range_check u32 256 to 8 bits
+            return
+        }
+    ",
+    );
+    assert!(matches!(error, InterpreterError::RangeCheckFailed { .. }));
+}
+
+#[test]
+fn range_check_not_disabled_by_enable_side_effects() {
+    expect_error(
+        "
+        acir(inline) fn main f0 {
+          b0():
+            enable_side_effects u1 0
+            range_check u32 256 to 8 bits
+            return
+        }
+    ",
+    );
+}
+
+#[test]
+fn call() {
+    let value = expect_value(
+        "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = call f1(Field 4) -> Field
+            return v0
+        }
+
+        acir(inline) fn square f1 {
+          b0(v0: Field):
+            v1 = mul v0, v0
+            return v1
+        }
+    ",
+    );
+    assert_eq!(value, from_constant(16_u32.into(), NumericType::NativeField));
+}
+
+#[test]
+fn allocate() {
+    let value = expect_value(
+        "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = allocate -> &mut Field
+            return v0
+        }
+    ",
+    );
+    let expected = Value::Reference(ReferenceValue {
+        original_id: ValueId::test_new(0),
+        element: Shared::new(None),
+        element_type: Arc::new(Type::field()),
+        mutable: true,
+    });
+    assert_eq!(value, expected);
+}
+
+#[test]
+fn load() {
+    let value = expect_value(
+        "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = allocate -> &mut u1
+            store u1 1 at v0
+            v1 = load v0 -> u1
+            return v1
+        }
+    ",
+    );
+    assert_eq!(value, Value::bool(true));
+}
+
+#[test]
+fn store() {
+    let value = expect_value(
+        "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = allocate -> &mut u1
+            store u1 1 at v0
+            return v0
+        }
+    ",
+    );
+    let expected = Value::Reference(ReferenceValue {
+        original_id: ValueId::test_new(0),
+        element: Shared::new(Some(Value::bool(true))),
+        element_type: Arc::new(Type::bool()),
+        mutable: true,
+    });
+    assert_eq!(value, expected);
+}
+
+#[test]
+fn enable_side_effects() {
+    let values = expect_values(
+        "
+        acir(inline) fn main f0 {
+          b0():
+            enable_side_effects u1 0
+            v1 = allocate -> &mut Field
+            store Field 0 at v1
+            v2 = call f1(v1) -> Field
+            return v1, v2
+        }
+
+        acir(inline) fn foo f1 {
+          b0(v0: &mut Field):
+            store Field 2 at v0
+            return Field 7
+        }
+    ",
+    );
+    let field_zero = from_constant(0u128.into(), NumericType::NativeField);
+    let expected = Value::Reference(ReferenceValue {
+        original_id: ValueId::test_new(1),
+        element: Shared::new(Some(field_zero.clone())),
+        element_type: Arc::new(Type::field()),
+        mutable: true,
+    });
+    assert_eq!(values[0], expected);
+    assert_eq!(values[1], field_zero);
+}
+
+#[test]
+fn array_get() {
+    let value = expect_value(
+        r#"
+        acir(inline) fn main f0 {
+          b0():
+            v0 = make_array [Field 1, Field 2] : [Field; 2]
+            v1 = array_get v0, index u32 1 -> Field
+            return v1
+        }
+    "#,
+    );
+    assert_eq!(value, from_constant(2_u32.into(), NumericType::NativeField));
+}
+
+#[test]
+fn array_get_with_offset() {
+    let value = expect_value(
+        r#"
+        brillig(inline) fn main f0 {
+          b0():
+            v0 = make_array [Field 1, Field 2] : [Field; 2]
+            v1 = array_get v0, index u32 2 minus 1 -> Field
+            return v1
+        }
+    "#,
+    );
+    assert_eq!(value, from_constant(2_u32.into(), NumericType::NativeField));
+}
+
+#[test]
+fn array_get_not_disabled_by_enable_side_effects_if_index_is_known_to_be_safe() {
+    let value = expect_value(
+        r#"
+        acir(inline) fn main f0 {
+          b0():
+            enable_side_effects u1 0
+            v0 = make_array [Field 1, Field 2] : [Field; 2]
+            v1 = array_get v0, index u32 1 -> Field
+            return v1
+        }
+    "#,
+    );
+    assert_eq!(value, from_constant(2_u32.into(), NumericType::NativeField));
+}
+
+#[test]
+fn array_get_disabled_by_enable_side_effects_if_index_is_not_known_to_be_safe() {
+    let value = expect_value_with_args(
+        r#"
+        acir(inline) fn main f0 {
+          b0(v2: u32):
+            enable_side_effects u1 0
+            v0 = make_array [Field 1, Field 2] : [Field; 2]
+            v1 = array_get v0, index v2 -> Field
+            return v1
+        }
+    "#,
+        vec![Value::u32(1)],
+    );
+    // If enable_side_effects is false, array get will retrieve the value at the first compatible index
+    assert_eq!(value, from_constant(1_u32.into(), NumericType::NativeField));
+}
+
+#[test]
+fn brillig_oob_array_get_does_not_error() {
+    let src = "
+    brillig(inline) fn main f0 {
+      b0(v0: u32):
+        v4 = make_array [Field 1, Field 2, Field 3] : [Field; 3]
+        v5 = array_get v4, index v0 -> Field
+        return
+    }
+    ";
+    let ssa = Ssa::from_str(src).unwrap();
+    let result = ssa.interpret(vec![from_constant(10_u32.into(), NumericType::unsigned(32))]);
+    assert!(result.is_ok(), "expected success, got {result:?}");
+}
+
+#[test]
+fn brillig_oob_array_get_zero_length_does_not_error() {
+    let src = "
+    brillig(inline) fn main f0 {
+      b0(v0: u32):
+        v4 = make_array [] : [Field; 0]
+        v5 = array_get v4, index v0 -> Field
+        return
+    }
+    ";
+    let ssa = Ssa::from_str(src).unwrap();
+    let result = ssa.interpret(vec![from_constant(0_u32.into(), NumericType::unsigned(32))]);
+    assert!(result.is_ok(), "expected success, got {result:?}");
+}
+
+#[test]
+fn acir_oob_array_get_still_errors() {
+    let src = "
+    acir(inline) fn main f0 {
+      b0(v0: u32):
+        v4 = make_array [Field 1, Field 2, Field 3] : [Field; 3]
+        v5 = array_get v4, index v0 -> Field
+        return v5
+    }
+    ";
+    let ssa = Ssa::from_str(src).unwrap();
+    let result = ssa.interpret(vec![from_constant(10_u32.into(), NumericType::unsigned(32))]);
+    assert!(matches!(result, Err(InterpreterError::IndexOutOfBounds { .. })));
+}
+
+#[test]
+fn array_set() {
+    let values = expect_values(
+        "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = make_array [Field 1, Field 2] : [Field; 2]
+            v1 = array_set v0, index u32 1, value Field 5
+            v2 = array_set mut v0, index u32 0, value Field 4
+            return v0, v1, v2
+        }
+    ",
+    );
+
+    let v0 = values[0].as_array_or_vector().unwrap();
+    let v1 = values[1].as_array_or_vector().unwrap();
+    let v2 = values[2].as_array_or_vector().unwrap();
+
+    // acir function, so all rcs are 1
+    assert_eq!(*v0.rc.borrow(), 1);
+    assert_eq!(*v1.rc.borrow(), 1);
+    assert_eq!(*v2.rc.borrow(), 1);
+
+    let one = from_constant(1u32.into(), NumericType::NativeField);
+    let two = from_constant(2u32.into(), NumericType::NativeField);
+    let four = from_constant(4u32.into(), NumericType::NativeField);
+    let five = from_constant(5u32.into(), NumericType::NativeField);
+
+    // v0 was forcibly mutated via the last `array_set mut`
+    assert_eq!(*v0.elements.borrow(), vec![four.clone(), two.clone()]);
+
+    // v1 was not mutated when v2 was created since it is conceptually a different array
+    assert_eq!(*v1.elements.borrow(), vec![one, five]);
+
+    assert_eq!(*v2.elements.borrow(), vec![four, two]);
+}
+
+#[test]
+fn array_set_disabled_by_enable_side_effects() {
+    let values = expect_values(
+        "
+        acir(inline) fn main f0 {
+          b0():
+            enable_side_effects u1 0
+            v0 = make_array [Field 1, Field 2] : [Field; 2]
+            v1 = array_set v0, index u32 1, value Field 5
+            v2 = array_set mut v0, index u32 0, value Field 4
+            return v0, v1, v2
+        }
+    ",
+    );
+
+    let v0 = values[0].as_array_or_vector().unwrap();
+    let v1 = values[1].as_array_or_vector().unwrap();
+    let v2 = values[2].as_array_or_vector().unwrap();
+
+    // acir function, so all rcs are 1
+    assert_eq!(*v0.rc.borrow(), 1);
+    assert_eq!(*v1.rc.borrow(), 1);
+    assert_eq!(*v2.rc.borrow(), 1);
+
+    let one = from_constant(1u32.into(), NumericType::NativeField);
+    let two = from_constant(2u32.into(), NumericType::NativeField);
+    let expected = vec![one, two];
+
+    // No changes are made in case an index is out of bounds
+    assert_eq!(*v0.elements.borrow(), expected);
+    assert_eq!(*v1.elements.borrow(), expected);
+    assert_eq!(*v2.elements.borrow(), expected);
+}
+
+#[test]
+fn array_set_with_offset() {
+    let values = expect_values(
+        "
+        brillig(inline) fn main f0 {
+          b0():
+            v0 = make_array [Field 1, Field 2] : [Field; 2]
+            inc_rc v0
+            v1 = array_set v0, index u32 2 minus 1, value Field 5
+            return v0, v1
+        }
+    ",
+    );
+
+    let v0 = values[0].as_array_or_vector().unwrap();
+    let v1 = values[1].as_array_or_vector().unwrap();
+
+    assert_eq!(*v0.rc.borrow(), 2, "1+1-0; the copy of v1 does not decrease the RC of v0");
+    assert_eq!(*v1.rc.borrow(), 1);
+
+    let one = from_constant(1u32.into(), NumericType::NativeField);
+    let two = from_constant(2u32.into(), NumericType::NativeField);
+    let five = from_constant(5u32.into(), NumericType::NativeField);
+
+    assert_eq!(*v0.elements.borrow(), vec![one.clone(), two], "v0 should not be mutated");
+    assert_eq!(*v1.elements.borrow(), vec![one, five], "v1 should be mutated");
+}
+
+#[test]
+fn array_set_nested_array_value_is_not_shared() {
+    // Regression test: an array-valued `value` stored by `array_set` must not keep
+    // sharing its nested `Shared` handle with the source array. Otherwise a later
+    // `array_set mut` on that source array would also mutate the earlier stored value,
+    // diverging from ACIR (which copies array-set values).
+    let values = expect_values_with_args(
+        "
+        acir(inline) fn main f0 {
+          b0(v0: u32, v1: Field):
+            v3 = make_array [Field 0] : [Field; 1]
+            v5 = make_array [Field 9] : [Field; 1]
+            v6 = make_array [v5] : [[Field; 1]; 1]
+            v7 = array_set v6, index v0, value v3
+            v8 = array_set mut v3, index v0, value v1
+            return v7, v8
+        }
+    ",
+        vec![
+            from_constant(0u128.into(), NumericType::unsigned(32)),
+            from_constant(7u128.into(), NumericType::NativeField),
+        ],
+    );
+
+    let v7 = values[0].as_array_or_vector().unwrap();
+    let v8 = values[1].as_array_or_vector().unwrap();
+
+    let zero = from_constant(0u32.into(), NumericType::NativeField);
+    let seven = from_constant(7u32.into(), NumericType::NativeField);
+
+    // v7's nested array must still hold the original value: the `array_set mut` on v3
+    // should not reach through into the copy stored in v7.
+    let v7_inner = v7.elements.borrow()[0].as_array_or_vector().unwrap();
+    assert_eq!(*v7_inner.elements.borrow(), vec![zero]);
+
+    // v8 is v3 mutated in place.
+    assert_eq!(*v8.elements.borrow(), vec![seven]);
+}
+
+#[test]
+fn increment_rc() {
+    let value = expect_value(
+        "
+        brillig(inline) fn main f0 {
+          b0():
+            v0 = make_array [Field 1, Field 2] : [Field; 2]
+            inc_rc v0
+            inc_rc v0
+            inc_rc v0
+            return v0
+        }
+    ",
+    );
+    let array = value.as_array_or_vector().unwrap();
+    assert_eq!(*array.rc.borrow(), 4);
+}
+
+#[test]
+fn increment_rc_disabled_in_acir() {
+    let value = expect_value(
+        "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = make_array [Field 1, Field 2] : [Field; 2]
+            inc_rc v0
+            inc_rc v0
+            inc_rc v0
+            return v0
+        }
+    ",
+    );
+    let array = value.as_array_or_vector().unwrap();
+    assert_eq!(*array.rc.borrow(), 1);
+}
+
+#[test]
+#[ignore = "Bring back once we emit dec_rc instructions again"]
+fn decrement_rc() {
+    let value = expect_value(
+        "
+        brillig(inline) fn main f0 {
+          b0():
+            v0 = make_array [Field 1, Field 2] : [Field; 2]
+            dec_rc v0
+            return v0
+        }
+    ",
+    );
+    let array = value.as_array_or_vector().unwrap();
+    assert_eq!(*array.rc.borrow(), 0);
+}
+
+#[test]
+fn decrement_rc_disabled_in_acir() {
+    let value = expect_value(
+        "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = make_array [Field 1, Field 2] : [Field; 2]
+            dec_rc v0
+            return v0
+        }
+    ",
+    );
+    let array = value.as_array_or_vector().unwrap();
+    assert_eq!(*array.rc.borrow(), 1);
+}
+
+#[test]
+fn if_else() {
+    let values = expect_values(
+        "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = if u1 1 then u8 2 else (if u1 0) u8 3
+            v1 = if u1 0 then u8 2 else (if u1 1) u8 3
+            v2 = if u1 0 then u8 2 else (if u1 0) u8 3
+            return v0, v1, v2
+        }
+    ",
+    );
+    assert_eq!(values[0], from_constant(2_u32.into(), NumericType::unsigned(8)));
+    assert_eq!(values[1], from_constant(3_u32.into(), NumericType::unsigned(8)));
+    assert_eq!(values[2], from_constant(0_u32.into(), NumericType::unsigned(8)));
+}
+
+#[test]
+fn make_array() {
+    let values = expect_values(
+        r#"
+        acir(inline) fn main f0 {
+          b0():
+            v0 = make_array [Field 1, Field 2] : [Field; 2]
+            v1 = make_array [Field 1, Field 2] : [Field]
+            v2 = make_array b"Hello"
+            v3 = make_array &b"Hello"
+            return v0, v1, v2, v3
+        }
+    "#,
+    );
+    let one_two = vec![
+        from_constant(1u128.into(), NumericType::NativeField),
+        from_constant(2u128.into(), NumericType::NativeField),
+    ];
+    assert_eq!(values[0], Value::array(one_two.clone(), vec![Type::field()]));
+    assert_eq!(values[1], Value::vector(one_two, Arc::new(vec![Type::field()])));
+
+    let hello =
+        vecmap(b"Hello", |char| from_constant(u32::from(*char).into(), NumericType::char()));
+    assert_eq!(values[2], Value::array(hello.clone(), vec![Type::char()]));
+    assert_eq!(values[3], Value::vector(hello, Arc::new(vec![Type::char()])));
+}
+
+#[test]
+fn make_array_allows_reference_mutability_mismatch() {
+    // Reference mutability is a frontend concern with no meaning at the SSA
+    // level: the validator accepts a `&mut T` value in a `&T` MakeArray slot,
+    // and the interpreter must agree so that running the post-validation SSA
+    // doesn't fail with `MakeArrayElementTypeMismatch`. The unconstrained
+    // SSA-gen pattern this guards is a tuple `[&mut T, &T]` constructed from
+    // a mutable allocate alongside an immutable one — exactly what the
+    // `pass_vs_prev` fuzzer surfaces when it interprets intermediate SSA
+    // between passes.
+    executes_with_no_errors(
+        "
+        brillig(inline) fn main f0 {
+          b0():
+            v0 = allocate -> &mut Field
+            store Field 1 at v0
+            v1 = allocate -> &Field
+            store Field 2 at v1
+            v2 = make_array [v0, v1] : [&Field; 2]
+            return
+        }
+    ",
+    );
+}
+
+#[test]
+fn nop() {
+    executes_with_no_errors(
+        "
+        acir(inline) fn main f0 {
+          b0():
+            nop
+            nop
+            nop
+            return
+        }
+    ",
+    );
+}
+
+// Test that side_effects_enabled state is properly saved and restored across function calls.
+// If a callee function disables side effects, this should not affect the caller function
+// when the call returns.
+#[test]
+fn enable_side_effects_not_leaked_across_calls() {
+    // If side_effects_enabled state is leaked, the constrain_not_equal would be skipped
+    // and the program would succeed even though the values are equal.
+    let error = expect_error(
+        "
+        acir(inline) fn main f0 {
+          b0():
+            call f1()
+            // After returning from f1, side_effects should be enabled again
+            // This constrain should fail because 1 == 1
+            constrain u1 1 != u1 1
+            return
+        }
+
+        // This function disables side effects and doesn't restore them
+        acir(inline) fn disable_side_effects f1 {
+          b0():
+            enable_side_effects u1 0
+            return
+        }
+    ",
+    );
+    assert!(matches!(error, InterpreterError::ConstrainNeFailed { .. }));
+}
+
+// Test that side_effects_enabled state is properly saved and restored across function calls,
+// using a checked add instruction that would overflow.
+#[test]
+fn enable_side_effects_not_leaked_across_calls_2() {
+    // If side_effects_enabled state is leaked, the add would return 0 instead of overflowing
+    // and the program would succeed.
+    let error = expect_error(
+        "
+        acir(inline) fn main f0 {
+          b0():
+            call f1()
+            // After returning from f1, side_effects should be enabled again
+            // This add should overflow because 200 + 100 > 255 (u8 max)
+            v0 = add u8 200, u8 100
+            return v0
+        }
+
+        // This function disables side effects and doesn't restore them
+        acir(inline) fn disable_side_effects f1 {
+          b0():
+            enable_side_effects u1 0
+            return
+        }
+    ",
+    );
+    assert!(matches!(error, InterpreterError::Overflow { .. }));
+}
+
+#[test]
+fn test_range_and_xor_bb() {
+    let src = "
+      acir(inline) fn main f0 {
+        b0(v0: Field, v1: Field):
+          v2 = call black_box(v0) -> Field
+          v3 = call f2(v2,v1) -> Field
+          call f3(v3)
+          return
+      }
+
+      acir(inline) fn test_and_xor f2 {
+        b0(v0: Field, v1: Field):
+          v2 = truncate v0 to 8 bits, max_bit_size: 254
+          v3 = cast v2 as u8
+          v4 = truncate v1 to 8 bits, max_bit_size: 254
+          v5 = cast v4 as u8
+          v8 = and v3, v5
+          v9 = xor v3, v5
+          v10 = cast v9 as Field
+          return v10
+      }
+
+      acir(inline) fn test_range f3 {
+        b0(v0: Field):
+          range_check v0 to 8 bits
+          return
+      }
+      ";
+    let values = expect_values_with_args(
+        src,
+        vec![
+            from_constant(1_u128.into(), NumericType::NativeField),
+            from_constant(12_u128.into(), NumericType::NativeField),
+        ],
+    );
+    assert!(values.is_empty());
+}

@@ -1,493 +1,105 @@
-//! This integration test defines a set of circuits which are used in order to test the acvm_js package.
+//! This integration test defines a set of circuits which are used in order to test the `acvm_js` package.
 //!
-//! The acvm_js test suite contains serialized program [circuits][`Program`] which must be kept in sync with the format
+//! The `acvm_js` test suite contains serialized program [circuits][`Program`] which must be kept in sync with the format
 //! outputted from the [ACIR crate][acir].
-//! Breaking changes to the serialization format then require refreshing acvm_js's test suite.
+//! Breaking changes to the serialization format then require refreshing `acvm_js`'s test suite.
 //! This file contains Rust definitions of these circuits and outputs the updated serialized format.
 //!
 //! These tests also check this circuit serialization against an expected value, erroring if the serialization changes.
 //! Generally in this situation we just need to refresh the `expected_serialization` variables to match the
 //! actual output, **HOWEVER** note that this results in a breaking change to the backend ACIR format.
 
-use std::collections::BTreeSet;
+use acir::{SerializationFormat, circuit::Program, test_fixtures};
 
-use acir::{
-    circuit::{
-        Circuit, Opcode, Program, PublicInputs,
-        brillig::{BrilligBytecode, BrilligFunctionId, BrilligInputs, BrilligOutputs},
-        opcodes::{AcirFunctionId, BlackBoxFuncCall, BlockId, FunctionInput, MemOp},
-    },
-    native_types::{Expression, Witness},
-};
-use acir_field::{AcirField, FieldElement};
-use brillig::{
-    BitSize, HeapArray, HeapValueType, HeapVector, IntegerBitSize, MemoryAddress, ValueOrArray,
-};
+fn assert_deserialization(expected: &Program<acir::FieldElement>, bytes: [Vec<u8>; 2]) {
+    for (i, bytes) in bytes.iter().enumerate() {
+        let program = Program::deserialize_program(bytes)
+            .map_err(|e| format!("failed to deserialize format {i}: {e:?}"))
+            .unwrap();
+        assert_eq!(&program, expected, "incorrect deserialized program for format {i}");
+    }
+}
 
 #[test]
 fn addition_circuit() {
-    let addition = Opcode::AssertZero(Expression {
-        mul_terms: Vec::new(),
-        linear_combinations: vec![
-            (FieldElement::one(), Witness(1)),
-            (FieldElement::one(), Witness(2)),
-            (-FieldElement::one(), Witness(3)),
-        ],
-        q_c: FieldElement::zero(),
-    });
+    let program = test_fixtures::addition_program();
 
-    let circuit: Circuit<FieldElement> = Circuit {
-        current_witness_index: 4,
-        opcodes: vec![addition],
-        private_parameters: BTreeSet::from([Witness(1), Witness(2)]),
-        return_values: PublicInputs([Witness(3)].into()),
-        ..Circuit::<FieldElement>::default()
-    };
-    let program = Program { functions: vec![circuit], unconstrained_functions: vec![] };
+    let bytes_msgpack =
+        Program::serialize_program_with_format(&program, SerializationFormat::Msgpack);
+    insta::assert_compact_debug_snapshot!(bytes_msgpack, @"[31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 141, 144, 61, 75, 3, 65, 16, 134, 115, 151, 63, 98, 169, 157, 226, 47, 16, 17, 172, 196, 82, 4, 89, 38, 123, 163, 44, 220, 126, 56, 179, 27, 176, 60, 5, 235, 187, 228, 15, 4, 44, 36, 66, 144, 36, 144, 143, 62, 127, 36, 93, 202, 52, 233, 179, 4, 18, 82, 37, 153, 106, 24, 30, 94, 230, 121, 211, 207, 238, 107, 48, 210, 43, 107, 184, 250, 238, 109, 119, 97, 64, 99, 231, 215, 58, 105, 51, 228, 170, 248, 187, 97, 70, 242, 207, 72, 246, 171, 171, 67, 46, 60, 146, 230, 114, 152, 43, 131, 64, 66, 90, 221, 80, 6, 54, 41, 237, 214, 236, 172, 118, 120, 146, 228, 4, 38, 141, 204, 101, 246, 64, 243, 171, 206, 197, 228, 241, 110, 84, 20, 79, 47, 231, 215, 139, 251, 143, 169, 171, 110, 231, 171, 246, 50, 66, 245, 159, 119, 33, 143, 70, 213, 6, 142, 84, 19, 60, 10, 7, 20, 189, 226, 239, 220, 74, 210, 190, 11, 141, 92, 201, 189, 99, 217, 35, 244, 129, 140, 104, 66, 30, 162, 118, 253, 31, 54, 218, 66, 35, 51, 188, 33, 151, 227, 216, 79, 116, 244, 4, 81, 60, 19, 187, 234, 202, 53, 135, 201, 70, 16, 72, 1, 0, 0]");
 
-    let bytes = Program::serialize_program(&program);
+    let bytes_default = Program::serialize_program(&program);
+    insta::assert_compact_debug_snapshot!(bytes_default, @"[31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 141, 204, 49, 14, 64, 48, 24, 64, 97, 109, 47, 98, 100, 35, 78, 32, 34, 49, 137, 81, 36, 54, 157, 73, 107, 49, 246, 6, 253, 219, 196, 220, 217, 1, 132, 221, 69, 186, 25, 45, 118, 61, 1, 222, 252, 229, 17, 5, 179, 1, 177, 164, 156, 83, 54, 54, 148, 245, 90, 106, 117, 248, 222, 123, 8, 253, 48, 216, 153, 168, 43, 153, 141, 77, 184, 85, 249, 42, 68, 221, 6, 201, 89, 76, 251, 0, 153, 189, 245, 229, 16, 249, 220, 120, 10, 97, 9, 68, 202, 7, 63, 182, 26, 15, 171, 0, 0, 0]");
 
-    let expected_serialization: Vec<u8> = vec![
-        31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 173, 144, 65, 14, 128, 32, 12, 4, 65, 124, 80, 75, 91,
-        104, 111, 126, 69, 34, 252, 255, 9, 106, 228, 64, 194, 81, 38, 105, 182, 167, 201, 102,
-        189, 251, 216, 159, 243, 110, 38, 244, 60, 122, 194, 63, 208, 47, 116, 109, 131, 139, 32,
-        49, 215, 28, 43, 18, 158, 16, 173, 168, 0, 75, 73, 138, 138, 162, 114, 69, 37, 170, 202,
-        154, 173, 88, 6, 67, 166, 138, 77, 140, 90, 151, 133, 117, 189, 224, 117, 108, 221, 229,
-        135, 223, 13, 27, 135, 121, 106, 119, 3, 58, 173, 124, 163, 140, 1, 0, 0,
-    ];
-
-    assert_eq!(bytes, expected_serialization);
-
-    let program_de = Program::deserialize_program(&bytes).unwrap();
-    assert_eq!(program_de, program);
+    assert_deserialization(&program, [bytes_msgpack, bytes_default]);
 }
 
 #[test]
 fn multi_scalar_mul_circuit() {
-    let multi_scalar_mul: Opcode<FieldElement> =
-        Opcode::BlackBoxFuncCall(BlackBoxFuncCall::MultiScalarMul {
-            points: vec![
-                FunctionInput::witness(Witness(1), FieldElement::max_num_bits()),
-                FunctionInput::witness(Witness(2), FieldElement::max_num_bits()),
-                FunctionInput::witness(Witness(3), 1),
-            ],
-            scalars: vec![
-                FunctionInput::witness(Witness(4), FieldElement::max_num_bits()),
-                FunctionInput::witness(Witness(5), FieldElement::max_num_bits()),
-            ],
-            outputs: (Witness(6), Witness(7), Witness(8)),
-        });
+    let program = test_fixtures::multi_scalar_mul_program();
 
-    let circuit = Circuit {
-        current_witness_index: 9,
-        opcodes: vec![multi_scalar_mul],
-        private_parameters: BTreeSet::from([
-            Witness(1),
-            Witness(2),
-            Witness(3),
-            Witness(4),
-            Witness(5),
-        ]),
-        return_values: PublicInputs(BTreeSet::from_iter(vec![Witness(6), Witness(7), Witness(8)])),
-        ..Circuit::default()
-    };
-    let program = Program { functions: vec![circuit], unconstrained_functions: vec![] };
+    let bytes_msgpack =
+        Program::serialize_program_with_format(&program, SerializationFormat::Msgpack);
+    insta::assert_compact_debug_snapshot!(bytes_msgpack, @"[31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 77, 143, 189, 10, 2, 49, 16, 132, 241, 252, 123, 47, 5, 59, 43, 11, 203, 176, 230, 86, 9, 198, 36, 236, 110, 196, 246, 68, 172, 79, 193, 222, 202, 195, 194, 223, 198, 215, 51, 10, 30, 118, 31, 59, 179, 195, 76, 182, 62, 79, 163, 211, 98, 188, 227, 221, 246, 242, 99, 229, 96, 129, 199, 202, 7, 237, 115, 228, 93, 113, 239, 89, 208, 243, 158, 95, 13, 146, 161, 15, 214, 22, 215, 97, 180, 98, 70, 26, 44, 80, 194, 205, 41, 120, 227, 132, 247, 69, 53, 54, 226, 144, 185, 81, 83, 86, 241, 215, 246, 39, 54, 107, 106, 157, 3, 97, 110, 52, 8, 214, 183, 118, 229, 163, 132, 152, 210, 58, 221, 103, 32, 179, 76, 162, 10, 64, 169, 147, 32, 241, 161, 145, 53, 91, 237, 71, 136, 19, 107, 244, 223, 189, 188, 16, 74, 36, 167, 150, 96, 35, 126, 158, 111, 192, 140, 36, 106, 145, 66, 97, 134, 92, 190, 82, 253, 180, 84, 8, 140, 195, 92, 213, 211, 203, 55, 238, 115, 64, 226, 8, 1, 0, 0]");
 
-    let bytes = Program::serialize_program(&program);
+    let bytes_default = Program::serialize_program(&program);
+    insta::assert_compact_debug_snapshot!(bytes_default, @"[31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 69, 200, 187, 10, 128, 32, 20, 0, 80, 242, 81, 255, 101, 208, 214, 212, 208, 124, 145, 6, 233, 98, 144, 10, 173, 254, 129, 74, 53, 183, 181, 69, 159, 152, 147, 109, 135, 67, 83, 60, 175, 232, 95, 129, 32, 103, 177, 108, 157, 211, 178, 5, 68, 255, 244, 14, 173, 26, 36, 32, 172, 153, 123, 242, 247, 168, 172, 158, 140, 169, 138, 200, 159, 180, 136, 21, 241, 84, 55, 71, 69, 40, 227, 33, 43, 132, 15, 97, 220, 166, 97, 108, 0, 0, 0]");
 
-    let expected_serialization: Vec<u8> = vec![
-        31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 93, 77, 9, 10, 0, 48, 8, 114, 107, 231, 255, 255, 59,
-        86, 204, 64, 22, 136, 102, 89, 5, 175, 182, 163, 80, 7, 47, 135, 73, 31, 56, 228, 42, 218,
-        196, 203, 221, 38, 243, 78, 61, 28, 147, 119, 65, 31, 146, 53, 230, 210, 135, 252, 255,
-        179, 90, 23, 212, 196, 199, 187, 192, 0, 0, 0,
-    ];
-
-    assert_eq!(bytes, expected_serialization);
-
-    let program_de = Program::deserialize_program(&bytes).unwrap();
-    assert_eq!(program_de, program);
+    assert_deserialization(&program, [bytes_msgpack, bytes_default]);
 }
 
 #[test]
 fn simple_brillig_foreign_call() {
-    let w_input = Witness(1);
-    let w_inverted = Witness(2);
+    let program = test_fixtures::simple_brillig_foreign_call_program();
 
-    let value_address = MemoryAddress::direct(0);
-    let zero_usize = MemoryAddress::direct(1);
-    let one_usize = MemoryAddress::direct(2);
+    let bytes_msgpack =
+        Program::serialize_program_with_format(&program, SerializationFormat::Msgpack);
+    insta::assert_compact_debug_snapshot!(bytes_msgpack, @"[31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 165, 146, 205, 78, 2, 49, 20, 133, 153, 121, 18, 159, 65, 159, 64, 49, 36, 46, 92, 17, 215, 77, 153, 185, 76, 110, 210, 105, 107, 123, 135, 4, 119, 3, 234, 26, 72, 220, 27, 249, 207, 128, 6, 89, 240, 2, 62, 152, 29, 254, 37, 17, 76, 236, 170, 185, 109, 207, 185, 247, 235, 241, 27, 227, 106, 34, 3, 66, 37, 109, 251, 121, 186, 217, 51, 201, 99, 120, 29, 42, 29, 168, 16, 108, 59, 205, 174, 12, 10, 129, 81, 145, 11, 241, 248, 134, 97, 97, 128, 82, 39, 228, 78, 6, 101, 148, 145, 128, 230, 56, 78, 4, 35, 48, 177, 109, 205, 5, 74, 224, 134, 5, 42, 174, 160, 228, 43, 237, 206, 215, 89, 225, 248, 242, 188, 238, 61, 11, 78, 94, 43, 12, 85, 66, 91, 239, 88, 11, 240, 199, 218, 64, 136, 1, 167, 147, 109, 180, 254, 100, 225, 125, 106, 131, 53, 39, 199, 52, 55, 14, 132, 211, 179, 29, 207, 159, 233, 164, 34, 48, 216, 43, 182, 166, 6, 40, 49, 146, 213, 184, 72, 192, 182, 62, 184, 181, 96, 136, 197, 96, 45, 143, 92, 97, 225, 120, 58, 91, 50, 220, 245, 18, 178, 29, 234, 198, 79, 212, 25, 202, 90, 254, 48, 112, 124, 71, 149, 58, 65, 206, 253, 37, 237, 23, 243, 199, 205, 204, 253, 1, 173, 71, 72, 7, 215, 104, 32, 32, 111, 84, 65, 98, 22, 31, 32, 29, 222, 72, 130, 8, 76, 247, 238, 226, 188, 191, 236, 228, 52, 196, 99, 210, 254, 191, 164, 189, 116, 146, 167, 36, 228, 196, 139, 74, 215, 155, 243, 61, 7, 198, 195, 208, 56, 54, 27, 167, 194, 36, 119, 57, 172, 250, 239, 170, 90, 181, 64, 135, 117, 47, 205, 74, 202, 0, 70, 50, 55, 120, 26, 109, 8, 14, 86, 240, 38, 123, 70, 46, 28, 211, 91, 136, 149, 169, 95, 30, 56, 46, 246, 219, 89, 78, 196, 168, 174, 97, 151, 166, 126, 9, 65, 132, 219, 124, 255, 34, 51, 91, 158, 31, 17, 72, 123, 101, 82, 58, 205, 214, 1, 201, 113, 52, 134, 90, 161, 227, 105, 182, 3, 245, 150, 144, 55, 99, 127, 3, 222, 119, 30, 14, 140, 3, 0, 0]");
 
-    let brillig_bytecode = BrilligBytecode {
-        bytecode: vec![
-            brillig::Opcode::Const {
-                destination: zero_usize,
-                bit_size: BitSize::Integer(IntegerBitSize::U32),
-                value: FieldElement::from(0_usize),
-            },
-            brillig::Opcode::Const {
-                destination: one_usize,
-                bit_size: BitSize::Integer(IntegerBitSize::U32),
-                value: FieldElement::from(1_usize),
-            },
-            brillig::Opcode::CalldataCopy {
-                destination_address: value_address,
-                size_address: one_usize,
-                offset_address: zero_usize,
-            },
-            brillig::Opcode::ForeignCall {
-                function: "invert".into(),
-                destinations: vec![ValueOrArray::MemoryAddress(value_address)],
-                destination_value_types: vec![HeapValueType::field()],
-                inputs: vec![ValueOrArray::MemoryAddress(value_address)],
-                input_value_types: vec![HeapValueType::field()],
-            },
-            brillig::Opcode::Stop {
-                return_data: HeapVector { pointer: zero_usize, size: one_usize },
-            },
-        ],
-    };
+    let bytes_default = Program::serialize_program(&program);
+    insta::assert_compact_debug_snapshot!(bytes_default, @"[31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 149, 144, 63, 14, 130, 48, 20, 198, 41, 94, 196, 51, 232, 9, 20, 99, 226, 224, 68, 156, 13, 129, 23, 210, 164, 180, 164, 52, 38, 140, 189, 65, 91, 196, 217, 68, 193, 1, 189, 133, 7, 19, 66, 44, 137, 131, 232, 155, 191, 63, 191, 247, 77, 140, 62, 157, 181, 108, 150, 28, 19, 130, 99, 47, 32, 228, 232, 104, 89, 251, 152, 198, 4, 10, 165, 205, 115, 234, 124, 63, 132, 70, 37, 125, 98, 146, 18, 112, 11, 165, 198, 19, 13, 114, 149, 106, 187, 27, 76, 15, 192, 197, 62, 108, 177, 74, 89, 121, 140, 102, 162, 144, 245, 10, 115, 8, 5, 146, 183, 13, 21, 16, 3, 191, 236, 230, 179, 113, 134, 79, 191, 251, 159, 31, 201, 123, 183, 78, 20, 136, 192, 99, 105, 110, 99, 156, 33, 207, 130, 53, 107, 198, 1, 199, 180, 51, 148, 117, 255, 132, 150, 143, 45, 36, 140, 231, 139, 40, 226, 144, 101, 214, 111, 183, 169, 214, 24, 72, 244, 171, 78, 94, 125, 193, 82, 109, 134, 214, 55, 199, 11, 140, 230, 138, 87, 212, 1, 0, 0]");
 
-    let opcodes = vec![Opcode::BrilligCall {
-        id: BrilligFunctionId(0),
-        inputs: vec![
-            BrilligInputs::Single(w_input.into()), // Input Register 0,
-        ],
-        // This tells the BrilligSolver which witnesses its output values correspond to
-        outputs: vec![
-            BrilligOutputs::Simple(w_inverted), // Output Register 1
-        ],
-        predicate: None,
-    }];
-
-    let circuit: Circuit<FieldElement> = Circuit {
-        current_witness_index: 8,
-        opcodes,
-        private_parameters: BTreeSet::from([Witness(1), Witness(2)]),
-        ..Circuit::default()
-    };
-    let program =
-        Program { functions: vec![circuit], unconstrained_functions: vec![brillig_bytecode] };
-
-    let bytes = Program::serialize_program(&program);
-
-    let expected_serialization: Vec<u8> = vec![
-        31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 173, 81, 203, 10, 128, 48, 12, 179, 243, 57, 240, 230,
-        143, 108, 127, 224, 207, 120, 240, 226, 65, 196, 239, 119, 98, 11, 101, 100, 94, 214, 64,
-        73, 26, 88, 73, 24, 53, 31, 166, 52, 196, 186, 99, 150, 93, 67, 188, 149, 57, 212, 33, 146,
-        221, 173, 160, 243, 186, 92, 144, 54, 127, 138, 245, 204, 62, 243, 95, 110, 13, 195, 122,
-        144, 207, 240, 126, 28, 65, 71, 7, 250, 206, 105, 6, 214, 251, 113, 111, 231, 133, 190, 93,
-        191, 40, 237, 37, 127, 1, 190, 36, 121, 0, 128, 254, 118, 42, 127, 2, 0, 0,
-    ];
-
-    assert_eq!(bytes, expected_serialization);
-
-    let program_de = Program::deserialize_program(&bytes).unwrap();
-    assert_eq!(program_de, program);
+    assert_deserialization(&program, [bytes_msgpack, bytes_default]);
 }
 
 #[test]
 fn complex_brillig_foreign_call() {
-    let fe_0 = FieldElement::zero();
-    let fe_1 = FieldElement::one();
-    let a = Witness(1);
-    let b = Witness(2);
-    let c = Witness(3);
+    let program = test_fixtures::complex_brillig_foreign_call_program();
 
-    let a_times_2 = Witness(4);
-    let b_times_3 = Witness(5);
-    let c_times_4 = Witness(6);
-    let a_plus_b_plus_c = Witness(7);
-    let a_plus_b_plus_c_times_2 = Witness(8);
+    let bytes_msgpack =
+        Program::serialize_program_with_format(&program, SerializationFormat::Msgpack);
+    insta::assert_compact_debug_snapshot!(bytes_msgpack, @"[31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 197, 85, 205, 110, 211, 64, 24, 180, 227, 20, 120, 140, 72, 240, 4, 240, 4, 37, 168, 130, 3, 167, 138, 243, 106, 99, 127, 177, 86, 90, 239, 46, 187, 235, 10, 115, 219, 4, 56, 231, 231, 200, 5, 209, 38, 78, 228, 4, 84, 122, 232, 11, 240, 96, 172, 67, 156, 58, 85, 147, 88, 77, 127, 114, 114, 62, 217, 51, 243, 141, 103, 214, 181, 206, 180, 29, 51, 95, 19, 206, 84, 255, 219, 188, 184, 70, 12, 71, 240, 35, 229, 194, 231, 1, 168, 190, 201, 94, 75, 66, 41, 9, 155, 152, 210, 47, 63, 73, 224, 140, 9, 19, 177, 86, 3, 51, 58, 148, 18, 39, 195, 238, 52, 138, 41, 210, 32, 35, 213, 187, 160, 132, 1, 150, 200, 231, 81, 139, 48, 252, 31, 123, 240, 183, 225, 108, 255, 185, 238, 233, 71, 228, 239, 188, 205, 185, 11, 170, 218, 195, 81, 121, 213, 168, 204, 248, 152, 176, 144, 194, 46, 202, 97, 21, 35, 171, 56, 112, 119, 210, 83, 30, 235, 60, 12, 195, 34, 12, 245, 131, 39, 249, 58, 145, 160, 240, 180, 184, 120, 54, 21, 18, 2, 226, 99, 189, 115, 197, 94, 37, 90, 247, 143, 144, 228, 196, 194, 33, 129, 165, 77, 171, 197, 83, 67, 183, 230, 157, 139, 184, 69, 137, 95, 154, 246, 230, 18, 116, 44, 25, 58, 193, 52, 6, 213, 251, 141, 149, 2, 169, 81, 4, 74, 225, 208, 14, 46, 109, 234, 45, 175, 150, 216, 138, 9, 208, 85, 33, 58, 235, 133, 152, 89, 149, 118, 149, 79, 200, 183, 53, 152, 180, 18, 13, 121, 61, 190, 155, 81, 51, 127, 186, 155, 217, 170, 232, 229, 18, 102, 252, 134, 72, 240, 181, 51, 105, 17, 141, 20, 249, 12, 38, 125, 199, 52, 132, 32, 79, 63, 188, 122, 57, 90, 72, 217, 185, 163, 183, 13, 218, 221, 11, 218, 49, 179, 188, 204, 1, 214, 184, 201, 69, 210, 189, 40, 49, 32, 28, 4, 210, 154, 83, 48, 53, 102, 57, 203, 245, 169, 243, 139, 183, 219, 10, 244, 245, 185, 123, 127, 126, 52, 182, 65, 123, 123, 65, 111, 85, 93, 223, 243, 45, 86, 183, 218, 189, 209, 106, 111, 131, 213, 117, 147, 29, 113, 9, 36, 100, 57, 193, 215, 73, 145, 214, 116, 25, 212, 89, 137, 201, 214, 115, 250, 22, 176, 88, 84, 180, 147, 10, 78, 236, 34, 114, 245, 94, 206, 114, 94, 207, 204, 223, 67, 196, 101, 114, 184, 206, 243, 124, 195, 252, 197, 101, 121, 149, 133, 27, 72, 39, 2, 86, 71, 65, 39, 43, 13, 251, 197, 89, 48, 58, 34, 64, 131, 37, 227, 218, 108, 253, 223, 234, 35, 115, 107, 225, 238, 249, 2, 162, 44, 109, 112, 91, 105, 143, 147, 234, 253, 90, 126, 96, 206, 142, 53, 23, 38, 91, 158, 128, 121, 6, 55, 88, 184, 34, 252, 7, 159, 7, 118, 138, 19, 8, 0, 0]");
 
-    let brillig_bytecode = BrilligBytecode {
-        bytecode: vec![
-            brillig::Opcode::Const {
-                destination: MemoryAddress::direct(0),
-                bit_size: BitSize::Integer(IntegerBitSize::U32),
-                value: FieldElement::from(3_usize),
-            },
-            brillig::Opcode::Const {
-                destination: MemoryAddress::direct(1),
-                bit_size: BitSize::Integer(IntegerBitSize::U32),
-                value: FieldElement::from(0_usize),
-            },
-            brillig::Opcode::CalldataCopy {
-                destination_address: MemoryAddress::direct(32),
-                size_address: MemoryAddress::direct(0),
-                offset_address: MemoryAddress::direct(1),
-            },
-            brillig::Opcode::Const {
-                destination: MemoryAddress::direct(0),
-                value: FieldElement::from(32_usize),
-                bit_size: BitSize::Integer(IntegerBitSize::U32),
-            },
-            brillig::Opcode::Const {
-                destination: MemoryAddress::direct(3),
-                bit_size: BitSize::Integer(IntegerBitSize::U32),
-                value: FieldElement::from(1_usize),
-            },
-            brillig::Opcode::Const {
-                destination: MemoryAddress::direct(4),
-                bit_size: BitSize::Integer(IntegerBitSize::U32),
-                value: FieldElement::from(3_usize),
-            },
-            brillig::Opcode::CalldataCopy {
-                destination_address: MemoryAddress::direct(1),
-                size_address: MemoryAddress::direct(3),
-                offset_address: MemoryAddress::direct(4),
-            },
-            // Oracles are named 'foreign calls' in brillig
-            brillig::Opcode::ForeignCall {
-                function: "complex".into(),
-                inputs: vec![
-                    ValueOrArray::HeapArray(HeapArray {
-                        pointer: MemoryAddress::direct(0),
-                        size: 3,
-                    }),
-                    ValueOrArray::MemoryAddress(MemoryAddress::direct(1)),
-                ],
-                input_value_types: vec![
-                    HeapValueType::Array { size: 3, value_types: vec![HeapValueType::field()] },
-                    HeapValueType::field(),
-                ],
-                destinations: vec![
-                    ValueOrArray::HeapArray(HeapArray {
-                        pointer: MemoryAddress::direct(0),
-                        size: 3,
-                    }),
-                    ValueOrArray::MemoryAddress(MemoryAddress::direct(35)),
-                    ValueOrArray::MemoryAddress(MemoryAddress::direct(36)),
-                ],
-                destination_value_types: vec![
-                    HeapValueType::Array { size: 3, value_types: vec![HeapValueType::field()] },
-                    HeapValueType::field(),
-                    HeapValueType::field(),
-                ],
-            },
-            brillig::Opcode::Const {
-                destination: MemoryAddress::direct(0),
-                bit_size: BitSize::Integer(IntegerBitSize::U32),
-                value: FieldElement::from(32_usize),
-            },
-            brillig::Opcode::Const {
-                destination: MemoryAddress::direct(1),
-                bit_size: BitSize::Integer(IntegerBitSize::U32),
-                value: FieldElement::from(5_usize),
-            },
-            brillig::Opcode::Stop {
-                return_data: HeapVector {
-                    pointer: MemoryAddress::direct(0),
-                    size: MemoryAddress::direct(1),
-                },
-            },
-        ],
-    };
+    let bytes_default = Program::serialize_program(&program);
+    insta::assert_compact_debug_snapshot!(bytes_default, @"[31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 173, 82, 75, 78, 195, 48, 20, 140, 235, 22, 56, 70, 36, 56, 1, 156, 160, 4, 85, 176, 96, 85, 177, 70, 86, 98, 69, 150, 220, 56, 114, 188, 32, 75, 223, 192, 31, 96, 195, 6, 9, 210, 10, 181, 220, 130, 131, 209, 32, 156, 170, 45, 144, 88, 196, 43, 255, 102, 222, 188, 121, 3, 141, 126, 124, 214, 114, 121, 206, 9, 165, 36, 141, 16, 165, 247, 129, 145, 213, 152, 115, 84, 90, 171, 180, 249, 8, 131, 191, 23, 0, 173, 95, 130, 110, 68, 131, 190, 136, 96, 59, 145, 156, 79, 73, 150, 82, 108, 149, 237, 210, 98, 23, 245, 253, 8, 179, 206, 252, 225, 232, 160, 22, 57, 203, 41, 62, 116, 155, 35, 171, 84, 123, 21, 11, 6, 80, 169, 181, 83, 171, 152, 213, 168, 187, 219, 120, 61, 215, 39, 89, 69, 44, 43, 132, 149, 243, 11, 194, 113, 44, 2, 185, 184, 202, 4, 78, 49, 127, 185, 57, 59, 109, 165, 133, 187, 120, 224, 135, 15, 228, 170, 142, 87, 130, 4, 138, 88, 94, 54, 52, 225, 70, 79, 67, 252, 63, 165, 225, 46, 30, 250, 225, 247, 234, 15, 125, 157, 250, 185, 83, 176, 209, 211, 16, 47, 39, 140, 99, 146, 102, 53, 224, 97, 241, 61, 47, 43, 223, 46, 49, 202, 191, 114, 96, 26, 19, 160, 124, 191, 198, 51, 198, 203, 113, 146, 112, 92, 20, 238, 225, 248, 151, 251, 19, 23, 37, 163, 93, 126, 170, 9, 193, 52, 129, 219, 199, 237, 147, 241, 170, 13, 76, 199, 26, 61, 79, 212, 51, 123, 35, 249, 58, 21, 44, 215, 102, 63, 107, 159, 173, 62, 187, 243, 2, 5, 0, 0]");
 
-    let opcodes = vec![Opcode::BrilligCall {
-        id: BrilligFunctionId(0),
-        inputs: vec![
-            // Input 0,1,2
-            BrilligInputs::Array(vec![
-                Expression::from(a),
-                Expression::from(b),
-                Expression::from(c),
-            ]),
-            // Input 3
-            BrilligInputs::Single(Expression {
-                mul_terms: vec![],
-                linear_combinations: vec![(fe_1, a), (fe_1, b), (fe_1, c)],
-                q_c: fe_0,
-            }),
-        ],
-        // This tells the BrilligSolver which witnesses its output values correspond to
-        outputs: vec![
-            BrilligOutputs::Array(vec![a_times_2, b_times_3, c_times_4]), // Output 0,1,2
-            BrilligOutputs::Simple(a_plus_b_plus_c),                      // Output 3
-            BrilligOutputs::Simple(a_plus_b_plus_c_times_2),              // Output 4
-        ],
-        predicate: None,
-    }];
-
-    let circuit = Circuit {
-        current_witness_index: 8,
-        opcodes,
-        private_parameters: BTreeSet::from([Witness(1), Witness(2), Witness(3)]),
-        ..Circuit::default()
-    };
-    let program =
-        Program { functions: vec![circuit], unconstrained_functions: vec![brillig_bytecode] };
-
-    let bytes = Program::serialize_program(&program);
-    let expected_serialization: Vec<u8> = vec![
-        31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 213, 85, 205, 14, 130, 48, 12, 238, 54, 20, 136, 222,
-        124, 1, 19, 125, 128, 161, 241, 238, 187, 24, 111, 26, 61, 250, 248, 178, 216, 198, 89, 26,
-        56, 216, 18, 248, 146, 165, 12, 218, 175, 255, 193, 193, 7, 85, 123, 28, 62, 23, 40, 61,
-        202, 244, 62, 192, 47, 72, 247, 140, 50, 254, 135, 198, 233, 113, 69, 171, 24, 253, 12, 98,
-        12, 6, 49, 66, 214, 255, 9, 246, 91, 179, 47, 170, 245, 11, 194, 254, 164, 221, 90, 180,
-        103, 137, 247, 18, 101, 197, 11, 157, 140, 60, 116, 23, 47, 7, 13, 207, 10, 101, 45, 124,
-        87, 76, 232, 88, 51, 191, 202, 252, 145, 138, 177, 133, 254, 124, 109, 243, 60, 68, 226,
-        15, 38, 252, 177, 33, 254, 194, 168, 79, 37, 171, 87, 158, 75, 238, 119, 13, 223, 1, 188,
-        60, 238, 207, 219, 245, 21, 4, 83, 110, 158, 176, 99, 247, 189, 80, 178, 33, 14, 66, 254,
-        159, 233, 211, 119, 130, 254, 144, 205, 88, 163, 98, 180, 18, 167, 13, 116, 65, 190, 222,
-        250, 76, 4, 233, 188, 7, 0, 0,
-    ];
-
-    assert_eq!(bytes, expected_serialization);
-
-    let program_de = Program::deserialize_program(&bytes).unwrap();
-    assert_eq!(program_de, program);
+    assert_deserialization(&program, [bytes_msgpack, bytes_default]);
 }
 
 #[test]
 fn memory_op_circuit() {
-    let init = vec![Witness(1), Witness(2)];
+    let program = test_fixtures::memory_op_program();
 
-    let memory_init = Opcode::MemoryInit {
-        block_id: BlockId(0),
-        init,
-        block_type: acir::circuit::opcodes::BlockType::Memory,
-    };
-    let write = Opcode::MemoryOp {
-        block_id: BlockId(0),
-        op: MemOp::write_to_mem_index(FieldElement::from(1u128).into(), Witness(3).into()),
-        predicate: None,
-    };
-    let read = Opcode::MemoryOp {
-        block_id: BlockId(0),
-        op: MemOp::read_at_mem_index(FieldElement::one().into(), Witness(4)),
-        predicate: None,
-    };
+    let bytes_msgpack =
+        Program::serialize_program_with_format(&program, SerializationFormat::Msgpack);
+    insta::assert_compact_debug_snapshot!(bytes_msgpack, @"[31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 125, 144, 77, 10, 194, 48, 16, 133, 181, 234, 225, 92, 136, 71, 8, 177, 25, 37, 216, 38, 97, 38, 21, 93, 182, 5, 215, 173, 189, 128, 72, 171, 181, 80, 68, 55, 238, 245, 98, 22, 139, 127, 27, 87, 51, 243, 248, 6, 222, 123, 78, 116, 156, 6, 202, 181, 82, 43, 74, 215, 245, 107, 103, 138, 251, 176, 61, 104, 227, 106, 1, 148, 133, 213, 8, 124, 141, 171, 161, 146, 54, 46, 39, 158, 118, 231, 76, 138, 78, 46, 155, 123, 211, 117, 170, 86, 177, 43, 3, 251, 22, 12, 203, 118, 142, 77, 244, 193, 119, 218, 196, 57, 2, 23, 247, 66, 42, 1, 203, 65, 177, 224, 94, 0, 189, 255, 240, 237, 7, 238, 95, 12, 202, 5, 183, 192, 12, 199, 198, 163, 5, 164, 172, 235, 244, 206, 38, 152, 120, 210, 253, 82, 147, 26, 193, 6, 168, 216, 243, 143, 210, 254, 137, 19, 1, 90, 230, 3, 17, 159, 1, 37, 215, 38, 108, 19, 219, 34, 151, 10, 4, 123, 247, 144, 60, 0, 109, 151, 21, 17, 21, 1, 0, 0]");
 
-    let circuit = Circuit {
-        current_witness_index: 5,
-        opcodes: vec![memory_init, write, read],
-        private_parameters: BTreeSet::from([Witness(1), Witness(2), Witness(3)]),
-        return_values: PublicInputs([Witness(4)].into()),
-        ..Circuit::default()
-    };
-    let program = Program { functions: vec![circuit], unconstrained_functions: vec![] };
+    let bytes_default = Program::serialize_program(&program);
+    insta::assert_compact_debug_snapshot!(bytes_default, @"[31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 85, 199, 171, 13, 192, 32, 16, 0, 80, 224, 96, 184, 138, 166, 83, 84, 84, 244, 147, 6, 131, 100, 131, 227, 46, 65, 163, 8, 97, 12, 88, 12, 129, 66, 189, 60, 160, 16, 19, 251, 186, 159, 247, 251, 187, 237, 185, 44, 11, 146, 42, 207, 251, 50, 61, 62, 18, 220, 13, 44, 111, 70, 179, 84, 128, 65, 35, 14, 192, 34, 91, 68, 71, 0, 0, 0]");
 
-    let bytes = Program::serialize_program(&program);
-
-    let expected_serialization: Vec<u8> = vec![
-        31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 213, 144, 75, 10, 0, 32, 8, 68, 253, 117, 31, 187, 65,
-        247, 63, 85, 65, 10, 82, 203, 116, 209, 128, 60, 221, 12, 227, 32, 108, 181, 53, 108, 187,
-        147, 140, 24, 118, 231, 169, 97, 212, 55, 245, 106, 95, 76, 246, 229, 60, 47, 173, 46, 87,
-        127, 43, 87, 178, 127, 231, 16, 148, 194, 29, 195, 11, 220, 154, 119, 139, 115, 25, 38, 3,
-        0, 0,
-    ];
-
-    assert_eq!(bytes, expected_serialization);
-
-    let program_de = Program::deserialize_program(&bytes).unwrap();
-    assert_eq!(program_de, program);
+    assert_deserialization(&program, [bytes_msgpack, bytes_default]);
 }
 
 #[test]
 fn nested_acir_call_circuit() {
-    // Circuit for the following program:
-    // fn main(x: Field, y: pub Field) {
-    //     let z = nested_call(x, y);
-    //     let z2 = nested_call(x, y);
-    //     assert(z == z2);
-    // }
-    // #[fold]
-    // fn nested_call(x: Field, y: Field) -> Field {
-    //     inner_call(x + 2, y)
-    // }
-    // #[fold]
-    // fn inner_call(x: Field, y: Field) -> Field {
-    //     assert(x == y);
-    //     x
-    // }
-    let nested_call = Opcode::Call {
-        id: AcirFunctionId(1),
-        inputs: vec![Witness(0), Witness(1)],
-        outputs: vec![Witness(2)],
-        predicate: None,
-    };
-    let nested_call_two = Opcode::Call {
-        id: AcirFunctionId(1),
-        inputs: vec![Witness(0), Witness(1)],
-        outputs: vec![Witness(3)],
-        predicate: None,
-    };
+    let program = test_fixtures::nested_acir_call_program();
 
-    let assert_nested_call_results = Opcode::AssertZero(Expression {
-        mul_terms: Vec::new(),
-        linear_combinations: vec![
-            (FieldElement::one(), Witness(2)),
-            (-FieldElement::one(), Witness(3)),
-        ],
-        q_c: FieldElement::zero(),
-    });
+    let bytes_msgpack =
+        Program::serialize_program_with_format(&program, SerializationFormat::Msgpack);
+    insta::assert_compact_debug_snapshot!(bytes_msgpack,  @"[31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 197, 148, 205, 74, 3, 49, 16, 199, 179, 217, 23, 241, 168, 55, 197, 39, 144, 34, 120, 18, 143, 34, 72, 72, 179, 81, 2, 217, 36, 78, 146, 130, 199, 85, 241, 188, 31, 47, 80, 84, 44, 43, 20, 81, 193, 143, 187, 47, 210, 155, 71, 47, 222, 141, 133, 250, 65, 181, 93, 164, 98, 78, 195, 48, 204, 204, 239, 63, 127, 130, 15, 234, 29, 175, 152, 19, 90, 217, 234, 184, 63, 138, 137, 162, 41, 239, 246, 180, 97, 58, 225, 182, 202, 206, 90, 84, 202, 163, 19, 145, 68, 231, 66, 25, 239, 108, 137, 162, 158, 246, 238, 45, 44, 112, 109, 128, 39, 130, 81, 199, 15, 235, 212, 75, 226, 56, 164, 54, 191, 145, 66, 113, 10, 132, 233, 180, 45, 20, 29, 142, 200, 79, 247, 8, 123, 156, 67, 147, 95, 52, 121, 94, 60, 251, 121, 23, 43, 214, 114, 112, 91, 28, 244, 180, 150, 101, 57, 189, 31, 14, 53, 139, 201, 58, 12, 150, 186, 11, 247, 27, 171, 183, 89, 182, 185, 61, 191, 252, 180, 182, 255, 96, 138, 214, 224, 165, 122, 14, 69, 113, 163, 213, 208, 181, 1, 209, 9, 164, 196, 80, 8, 55, 9, 123, 217, 2, 93, 25, 223, 150, 130, 125, 206, 69, 125, 224, 206, 131, 34, 29, 42, 61, 183, 249, 37, 29, 18, 145, 148, 91, 75, 119, 67, 226, 167, 227, 150, 179, 134, 71, 13, 224, 113, 35, 120, 252, 225, 3, 60, 242, 1, 254, 75, 31, 124, 35, 118, 48, 222, 184, 218, 249, 87, 177, 139, 184, 177, 218, 197, 127, 168, 29, 253, 218, 106, 141, 232, 209, 24, 253, 93, 96, 15, 251, 59, 160, 1, 42, 33, 239, 63, 76, 254, 10, 36, 156, 46, 45, 111, 4, 0, 0]");
 
-    let main = Circuit {
-        current_witness_index: 3,
-        private_parameters: BTreeSet::from([Witness(0)]),
-        public_parameters: PublicInputs([Witness(1)].into()),
-        opcodes: vec![nested_call, nested_call_two, assert_nested_call_results],
-        ..Circuit::default()
-    };
+    let bytes_default = Program::serialize_program(&program);
+    insta::assert_compact_debug_snapshot!(bytes_default, @"[31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 181, 144, 161, 10, 2, 65, 20, 69, 223, 188, 249, 17, 163, 54, 197, 47, 144, 69, 48, 137, 81, 4, 131, 224, 182, 5, 101, 214, 98, 156, 63, 120, 239, 141, 108, 158, 96, 242, 3, 68, 187, 63, 178, 205, 104, 177, 59, 136, 193, 180, 51, 27, 246, 230, 123, 47, 135, 163, 197, 85, 222, 217, 115, 182, 41, 138, 147, 18, 80, 140, 142, 232, 209, 131, 230, 168, 255, 133, 78, 91, 92, 38, 101, 153, 155, 195, 42, 55, 59, 71, 34, 241, 5, 134, 206, 112, 59, 55, 245, 200, 15, 110, 139, 233, 213, 218, 229, 186, 63, 126, 206, 142, 247, 61, 103, 245, 219, 189, 66, 73, 71, 111, 128, 129, 21, 81, 229, 165, 61, 1, 36, 16, 96, 244, 6, 127, 178, 80, 48, 85, 86, 208, 74, 172, 3, 52, 119, 3, 173, 226, 218, 190, 8, 64, 244, 1, 164, 224, 142, 129, 34, 2, 0, 0]");
 
-    let call_parameter_addition = Opcode::AssertZero(Expression {
-        mul_terms: Vec::new(),
-        linear_combinations: vec![
-            (FieldElement::one(), Witness(0)),
-            (-FieldElement::one(), Witness(2)),
-        ],
-        q_c: FieldElement::one() + FieldElement::one(),
-    });
-    let call = Opcode::Call {
-        id: AcirFunctionId(2),
-        inputs: vec![Witness(2), Witness(1)],
-        outputs: vec![Witness(3)],
-        predicate: None,
-    };
-
-    let nested_call = Circuit {
-        current_witness_index: 3,
-        private_parameters: BTreeSet::from([Witness(0), Witness(1)]),
-        return_values: PublicInputs([Witness(3)].into()),
-        opcodes: vec![call_parameter_addition, call],
-        ..Circuit::default()
-    };
-
-    let assert_param_equality = Opcode::AssertZero(Expression {
-        mul_terms: Vec::new(),
-        linear_combinations: vec![
-            (FieldElement::one(), Witness(0)),
-            (-FieldElement::one(), Witness(1)),
-        ],
-        q_c: FieldElement::zero(),
-    });
-
-    let inner_call = Circuit {
-        current_witness_index: 1,
-        private_parameters: BTreeSet::from([Witness(0), Witness(1)]),
-        return_values: PublicInputs([Witness(0)].into()),
-        opcodes: vec![assert_param_equality],
-        ..Circuit::default()
-    };
-
-    let program =
-        Program { functions: vec![main, nested_call, inner_call], unconstrained_functions: vec![] };
-
-    let bytes = Program::serialize_program(&program);
-
-    let expected_serialization: Vec<u8> = vec![
-        31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 213, 146, 81, 10, 195, 48, 8, 134, 77, 164, 247, 209,
-        152, 52, 230, 109, 87, 89, 88, 122, 255, 35, 172, 99, 41, 11, 89, 161, 15, 77, 31, 250,
-        193, 143, 34, 34, 250, 35, 194, 23, 172, 250, 48, 173, 50, 171, 44, 252, 48, 85, 176, 213,
-        143, 154, 16, 58, 182, 198, 71, 141, 116, 14, 182, 205, 44, 161, 217, 251, 18, 93, 97, 225,
-        39, 185, 148, 53, 144, 15, 121, 86, 86, 14, 26, 94, 78, 69, 138, 122, 141, 41, 167, 72,
-        137, 189, 20, 94, 66, 146, 165, 14, 195, 113, 123, 17, 52, 38, 180, 185, 129, 127, 176, 51,
-        240, 42, 175, 96, 160, 87, 118, 220, 94, 110, 170, 183, 218, 230, 238, 221, 39, 234, 191,
-        172, 207, 177, 171, 153, 155, 153, 106, 96, 236, 3, 30, 249, 181, 199, 27, 99, 149, 130,
-        253, 11, 4, 0, 0,
-    ];
-    assert_eq!(bytes, expected_serialization);
-
-    let program_de = Program::deserialize_program(&bytes).unwrap();
-    assert_eq!(program_de, program);
+    assert_deserialization(&program, [bytes_msgpack, bytes_default]);
 }

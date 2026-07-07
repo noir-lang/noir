@@ -120,7 +120,7 @@ export class NoirWasmCompiler {
         for (const log of logs) {
           this.#log(log);
         }
-        throw new Error(logs.join('\n'));
+        throw new Error(logs.join('\n'), { cause: err });
       }
 
       throw err;
@@ -166,7 +166,7 @@ export class NoirWasmCompiler {
         for (const log of logs) {
           this.#log(log);
         }
-        throw new Error(logs.join('\n'));
+        throw new Error(logs.join('\n'), { cause: err });
       }
 
       throw err;

@@ -9,7 +9,7 @@ fn test_infinite_point() {
 
     let s1 = EmbeddedCurveScalar { lo: 1, hi: 0 };
     let a = multi_scalar_mul([g1], [s1]);
-    assert(!a.is_infinite);
+    assert(!a.is_infinite());
     assert(g1 + zero == g1);
     assert(g1 - g1 == zero);
     assert(g1 - zero == g1);

@@ -1,4 +1,4 @@
-use clap::{Parser, Subcommand, command};
+use clap::{Parser, Subcommand};
 use color_eyre::eyre;
 use const_format::formatcp;
 

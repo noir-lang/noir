@@ -1,7 +1,0 @@
-
-            [package]
-            name = "noirc_frontend_tests_visibility_does_not_error_when_accessing_private_struct_field_from_nested_module"
-            type = "bin"
-            authors = [""]
-            
-            [dependencies]

@@ -1,0 +1,5 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stdout
+---
+[encrypted_log_regression] Circuit output: [1, 2, 3, 1, 2, 0, 9, 8, 7, 6, 5, 4, 3, 2, 1]

@@ -1,7 +1,0 @@
-
-            [package]
-            name = "noirc_frontend_tests_traits_calls_trait_function_if_it_is_only_candidate_in_scope_in_nested_module_using_super"
-            type = "bin"
-            authors = [""]
-            
-            [dependencies]

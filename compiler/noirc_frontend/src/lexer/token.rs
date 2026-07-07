@@ -1,148 +1,64 @@
-use acvm::FieldElement;
 use noirc_errors::{Located, Location, Position, Span, Spanned};
+use num_bigint::BigInt;
 use std::fmt::{self, Display};
 
 use crate::{
     ast::{Expression, Path},
+    graph::CrateId,
     node_interner::{
         ExprId, InternedExpressionKind, InternedPattern, InternedStatementKind,
         InternedUnresolvedTypeData, QuotedTypeId,
     },
 };
 
-use super::Lexer;
+#[derive(PartialEq, Eq, Hash, Debug, Copy, Clone, PartialOrd, Ord)]
+pub enum IntegerTypeSuffix {
+    I8,
+    I16,
+    I32,
+    I64,
+    U8,
+    U16,
+    U32,
+    U64,
+    U128,
+    Field,
+}
 
-/// Represents a token in noir's grammar - a word, number,
-/// or symbol that can be used in noir's syntax. This is the
-/// smallest unit of grammar. A parser may (will) decide to parse
-/// items differently depending on the Tokens present but will
-/// never parse the same ordering of identical tokens differently.
-#[derive(PartialEq, Eq, Hash, Debug, Clone, PartialOrd, Ord)]
-pub enum BorrowedToken<'input> {
-    Ident(&'input str),
-    Int(FieldElement),
-    Bool(bool),
-    Str(&'input str),
-    /// the u8 is the number of hashes, i.e. r###..
-    RawStr(&'input str, u8),
-    FmtStr(&'input [FmtStrFragment], u32 /* length */),
-    Keyword(Keyword),
-    IntType(IntType),
-    AttributeStart {
-        is_inner: bool,
-        is_tag: bool,
-    },
-    LineComment(&'input str, Option<DocStyle>),
-    BlockComment(&'input str, Option<DocStyle>),
-    Quote(&'input Tokens),
-    QuotedType(QuotedTypeId),
-    InternedExpression(InternedExpressionKind),
-    InternedStatement(InternedStatementKind),
-    InternedLValue(InternedExpressionKind),
-    InternedUnresolvedTypeData(InternedUnresolvedTypeData),
-    InternedPattern(InternedPattern),
-    /// <
-    Less,
-    /// <=
-    LessEqual,
-    /// >
-    Greater,
-    /// >=
-    GreaterEqual,
-    /// ==
-    Equal,
-    /// !=
-    NotEqual,
-    /// +
-    Plus,
-    /// -
-    Minus,
-    /// *
-    Star,
-    /// /
-    Slash,
-    /// %
-    Percent,
-    /// &
-    Ampersand,
-    /// ^
-    Caret,
-    /// <<
-    ShiftLeft,
-    /// >>
-    ShiftRight,
-    /// .
-    Dot,
-    /// ..
-    DoubleDot,
-    /// ..=
-    DoubleDotEqual,
-    /// (
-    LeftParen,
-    /// )
-    RightParen,
-    /// {
-    LeftBrace,
-    /// }
-    RightBrace,
-    /// [
-    LeftBracket,
-    /// ]
-    RightBracket,
-    /// ->
-    Arrow,
-    /// =>
-    FatArrow,
-    /// |
-    Pipe,
-    /// #
-    Pound,
-    /// ,
-    Comma,
-    /// :
-    Colon,
-    /// ::
-    DoubleColon,
-    /// ;
-    Semicolon,
-    /// !
-    Bang,
-    /// $
-    DollarSign,
-    /// =
-    Assign,
-    /// &&
-    LogicalAnd,
-    #[allow(clippy::upper_case_acronyms)]
-    EOF,
-
-    Whitespace(&'input str),
-
-    /// This is an implementation detail on how macros are implemented by quoting token streams.
-    /// This token marks where an unquote operation is performed. The ExprId argument is the
-    /// resolved variable which is being unquoted at this position in the token stream.
-    UnquoteMarker(ExprId),
-
-    /// An invalid character is one that is not in noir's language or grammar.
+impl IntegerTypeSuffix {
+    /// Returns the type of this integer suffix when used in a value position.
+    /// Note that this is _not_ the type of the integer when the integer is in a type position!
     ///
-    /// We don't report invalid tokens in the source as errors until parsing to
-    /// avoid reporting the error twice (once while lexing, again when it is encountered
-    /// during parsing). Reporting during lexing then removing these from the token stream
-    /// would not be equivalent as it would change the resulting parse.
-    Invalid(char),
+    /// An integer value like `3u32` has type `u32` but when used in a type `[Field; 3u32]`,
+    /// `3u32` will have the type `Type::Constant(3, Kind::Numeric(u32))`. As a result, using
+    /// this method for any kind checks on integer types will result in a kind error!
+    pub(crate) fn as_type(self) -> crate::Type {
+        use crate::{Type::Integer, ast::IntegerBitSize::*, shared::Signedness::*};
+        match self {
+            IntegerTypeSuffix::I8 => Integer(Signed, Eight),
+            IntegerTypeSuffix::I16 => Integer(Signed, Sixteen),
+            IntegerTypeSuffix::I32 => Integer(Signed, ThirtyTwo),
+            IntegerTypeSuffix::I64 => Integer(Signed, SixtyFour),
+            IntegerTypeSuffix::U8 => Integer(Unsigned, Eight),
+            IntegerTypeSuffix::U16 => Integer(Unsigned, Sixteen),
+            IntegerTypeSuffix::U32 => Integer(Unsigned, ThirtyTwo),
+            IntegerTypeSuffix::U64 => Integer(Unsigned, SixtyFour),
+            IntegerTypeSuffix::U128 => Integer(Unsigned, HundredTwentyEight),
+            IntegerTypeSuffix::Field => crate::Type::FieldElement,
+        }
+    }
 }
 
 #[derive(PartialEq, Eq, Hash, Debug, Clone, PartialOrd, Ord)]
 pub enum Token {
     Ident(String),
-    Int(FieldElement),
+    Int(BigInt, Option<IntegerTypeSuffix>),
     Bool(bool),
     Str(String),
     /// the u8 is the number of hashes, i.e. r###..
     RawStr(String, u8),
     FmtStr(Vec<FmtStrFragment>, u32 /* length */),
     Keyword(Keyword),
-    IntType(IntType),
     AttributeStart {
         is_inner: bool,
         is_tag: bool,
@@ -166,6 +82,8 @@ pub enum Token {
     InternedUnresolvedTypeData(InternedUnresolvedTypeData),
     /// A reference to an interned `Pattern`.
     InternedPattern(InternedPattern),
+    /// A reference to an existing crate. This is a result of using `$crate` in a macro
+    InternedCrate(CrateId),
     /// <
     Less,
     /// <=
@@ -186,14 +104,14 @@ pub enum Token {
     Star,
     /// /
     Slash,
+    /// \
+    Backslash,
     /// %
     Percent,
     /// &
     Ampersand,
-    /// & followed immediately by '['
-    /// This is a lexer hack to distinguish slices
-    /// from taking a reference to an array
-    SliceStart,
+    /// @
+    At,
     /// ^
     Caret,
     /// <<
@@ -248,7 +166,7 @@ pub enum Token {
     Whitespace(String),
 
     /// This is an implementation detail on how macros are implemented by quoting token streams.
-    /// This token marks where an unquote operation is performed. The ExprId argument is the
+    /// This token marks where an unquote operation is performed. The `ExprId` argument is the
     /// resolved variable which is being unquoted at this position in the token stream.
     UnquoteMarker(ExprId),
 
@@ -259,72 +177,6 @@ pub enum Token {
     /// during parsing). Reporting during lexing then removing these from the token stream
     /// would not be equivalent as it would change the resulting parse.
     Invalid(char),
-}
-
-pub fn token_to_borrowed_token(token: &Token) -> BorrowedToken<'_> {
-    match token {
-        Token::Ident(s) => BorrowedToken::Ident(s),
-        Token::Int(n) => BorrowedToken::Int(*n),
-        Token::Bool(b) => BorrowedToken::Bool(*b),
-        Token::Str(b) => BorrowedToken::Str(b),
-        Token::FmtStr(b, length) => BorrowedToken::FmtStr(b, *length),
-        Token::RawStr(b, hashes) => BorrowedToken::RawStr(b, *hashes),
-        Token::Keyword(k) => BorrowedToken::Keyword(*k),
-        Token::AttributeStart { is_inner, is_tag } => {
-            BorrowedToken::AttributeStart { is_inner: *is_inner, is_tag: *is_tag }
-        }
-        Token::LineComment(s, _style) => BorrowedToken::LineComment(s, *_style),
-        Token::BlockComment(s, _style) => BorrowedToken::BlockComment(s, *_style),
-        Token::Quote(stream) => BorrowedToken::Quote(stream),
-        Token::QuotedType(id) => BorrowedToken::QuotedType(*id),
-        Token::InternedExpr(id) => BorrowedToken::InternedExpression(*id),
-        Token::InternedStatement(id) => BorrowedToken::InternedStatement(*id),
-        Token::InternedLValue(id) => BorrowedToken::InternedLValue(*id),
-        Token::InternedUnresolvedTypeData(id) => BorrowedToken::InternedUnresolvedTypeData(*id),
-        Token::InternedPattern(id) => BorrowedToken::InternedPattern(*id),
-        Token::IntType(i) => BorrowedToken::IntType(i.clone()),
-        Token::Less => BorrowedToken::Less,
-        Token::LessEqual => BorrowedToken::LessEqual,
-        Token::Greater => BorrowedToken::Greater,
-        Token::GreaterEqual => BorrowedToken::GreaterEqual,
-        Token::Equal => BorrowedToken::Equal,
-        Token::NotEqual => BorrowedToken::NotEqual,
-        Token::Plus => BorrowedToken::Plus,
-        Token::Minus => BorrowedToken::Minus,
-        Token::Star => BorrowedToken::Star,
-        Token::Slash => BorrowedToken::Slash,
-        Token::Percent => BorrowedToken::Percent,
-        Token::Ampersand => BorrowedToken::Ampersand,
-        Token::SliceStart => BorrowedToken::Ampersand,
-        Token::Caret => BorrowedToken::Caret,
-        Token::ShiftLeft => BorrowedToken::ShiftLeft,
-        Token::ShiftRight => BorrowedToken::ShiftRight,
-        Token::Dot => BorrowedToken::Dot,
-        Token::DoubleDot => BorrowedToken::DoubleDot,
-        Token::DoubleDotEqual => BorrowedToken::DoubleDotEqual,
-        Token::LeftParen => BorrowedToken::LeftParen,
-        Token::RightParen => BorrowedToken::RightParen,
-        Token::LeftBrace => BorrowedToken::LeftBrace,
-        Token::RightBrace => BorrowedToken::RightBrace,
-        Token::LeftBracket => BorrowedToken::LeftBracket,
-        Token::RightBracket => BorrowedToken::RightBracket,
-        Token::Arrow => BorrowedToken::Arrow,
-        Token::FatArrow => BorrowedToken::FatArrow,
-        Token::Pipe => BorrowedToken::Pipe,
-        Token::Pound => BorrowedToken::Pound,
-        Token::Comma => BorrowedToken::Comma,
-        Token::Colon => BorrowedToken::Colon,
-        Token::DoubleColon => BorrowedToken::DoubleColon,
-        Token::Semicolon => BorrowedToken::Semicolon,
-        Token::Assign => BorrowedToken::Assign,
-        Token::Bang => BorrowedToken::Bang,
-        Token::DollarSign => BorrowedToken::DollarSign,
-        Token::LogicalAnd => BorrowedToken::LogicalAnd,
-        Token::EOF => BorrowedToken::EOF,
-        Token::Invalid(c) => BorrowedToken::Invalid(*c),
-        Token::Whitespace(s) => BorrowedToken::Whitespace(s),
-        Token::UnquoteMarker(id) => BorrowedToken::UnquoteMarker(*id),
-    }
 }
 
 #[derive(Clone, PartialEq, Eq, Hash, Debug, PartialOrd, Ord)]
@@ -347,10 +199,10 @@ impl Display for FmtStrFragment {
                     .replace('\0', "\\0")
                     .replace('\'', "\\'")
                     .replace('\"', "\\\"");
-                write!(f, "{}", string)
+                write!(f, "{string}")
             }
             FmtStrFragment::Interpolation(string, _) => {
-                write!(f, "{{{}}}", string)
+                write!(f, "{{{string}}}")
             }
         }
     }
@@ -413,7 +265,7 @@ impl LocatedToken {
     }
 }
 
-impl std::fmt::Display for LocatedToken {
+impl Display for LocatedToken {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         self.token().fmt(f)
     }
@@ -463,17 +315,18 @@ impl SpannedToken {
     }
 }
 
-impl std::fmt::Display for SpannedToken {
+impl Display for SpannedToken {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         self.token().fmt(f)
     }
 }
 
-impl fmt::Display for Token {
+impl Display for Token {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
             Token::Ident(ref s) => write!(f, "{s}"),
-            Token::Int(n) => write!(f, "{}", n),
+            Token::Int(ref n, Some(suffix)) => write!(f, "{n}_{suffix}"),
+            Token::Int(ref n, None) => write!(f, "{n}"),
             Token::Bool(b) => write!(f, "{b}"),
             Token::Str(ref b) => write!(f, "{b:?}"),
             Token::FmtStr(ref b, _length) => write!(f, "f{b:?}"),
@@ -505,7 +358,7 @@ impl fmt::Display for Token {
             },
             Token::Quote(ref stream) => {
                 write!(f, "quote {{")?;
-                for token in stream.0.iter() {
+                for token in &stream.0 {
                     write!(f, " {token}")?;
                 }
                 write!(f, "}}")
@@ -519,7 +372,7 @@ impl fmt::Display for Token {
                 write!(f, "(expr)")
             }
             Token::InternedUnresolvedTypeData(_) => write!(f, "(type)"),
-            Token::IntType(ref i) => write!(f, "{i}"),
+            Token::InternedCrate(_) => write!(f, "$crate"),
             Token::Less => write!(f, "<"),
             Token::LessEqual => write!(f, "<="),
             Token::Greater => write!(f, ">"),
@@ -530,9 +383,10 @@ impl fmt::Display for Token {
             Token::Minus => write!(f, "-"),
             Token::Star => write!(f, "*"),
             Token::Slash => write!(f, "/"),
+            Token::Backslash => write!(f, "\\"),
             Token::Percent => write!(f, "%"),
             Token::Ampersand => write!(f, "&"),
-            Token::SliceStart => write!(f, "&"),
+            Token::At => write!(f, "@"),
             Token::Caret => write!(f, "^"),
             Token::ShiftLeft => write!(f, "<<"),
             Token::ShiftRight => write!(f, ">>"),
@@ -565,6 +419,23 @@ impl fmt::Display for Token {
     }
 }
 
+impl Display for IntegerTypeSuffix {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            IntegerTypeSuffix::I8 => write!(f, "i8"),
+            IntegerTypeSuffix::I16 => write!(f, "i16"),
+            IntegerTypeSuffix::I32 => write!(f, "i32"),
+            IntegerTypeSuffix::I64 => write!(f, "i64"),
+            IntegerTypeSuffix::U8 => write!(f, "u8"),
+            IntegerTypeSuffix::U16 => write!(f, "u16"),
+            IntegerTypeSuffix::U32 => write!(f, "u32"),
+            IntegerTypeSuffix::U64 => write!(f, "u64"),
+            IntegerTypeSuffix::U128 => write!(f, "u128"),
+            IntegerTypeSuffix::Field => write!(f, "Field"),
+        }
+    }
+}
+
 #[derive(PartialEq, Eq, Hash, Debug, Clone, Ord, PartialOrd)]
 /// The different kinds of tokens that are possible in the target language
 pub enum TokenKind {
@@ -587,7 +458,7 @@ pub enum TokenKind {
     InnerDocComment,
 }
 
-impl fmt::Display for TokenKind {
+impl Display for TokenKind {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             TokenKind::Token(tok) => write!(f, "{tok}"),
@@ -615,7 +486,7 @@ impl Token {
     pub fn kind(&self) -> TokenKind {
         match self {
             Token::Ident(_) => TokenKind::Ident,
-            Token::Int(_)
+            Token::Int(..)
             | Token::Bool(_)
             | Token::Str(_)
             | Token::RawStr(..)
@@ -688,7 +559,7 @@ pub enum IntType {
     Signed(u32),   // i64 = Signed(64)
 }
 
-impl fmt::Display for IntType {
+impl Display for IntType {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
             IntType::Unsigned(num) => write!(f, "u{num}"),
@@ -714,9 +585,8 @@ impl IntType {
 
         // Word start with 'u' or 'i'. Check if the latter is an integer
 
-        let str_as_u32 = match word[1..].parse::<u32>() {
-            Ok(str_as_u32) => str_as_u32,
-            Err(_) => return None,
+        let Ok(str_as_u32) = word[1..].parse::<u32>() else {
+            return None;
         };
 
         if is_signed {
@@ -727,18 +597,21 @@ impl IntType {
     }
 }
 
-/// TestScope is used to specify additional annotations for test functions
+/// `TestScope` is used to specify additional annotations for test functions
 #[derive(PartialEq, Eq, Hash, Debug, Clone, PartialOrd, Ord)]
 pub enum TestScope {
-    /// If a test has a scope of ShouldFailWith, then it can only pass
+    /// If a test has a scope of `ShouldFailWith`, then it can only pass
     /// if it fails with the specified reason. If the reason is None, then
     /// the test must unconditionally fail
     ShouldFailWith { reason: Option<String> },
+    /// If a test has a scope of `OnlyFailWith`, then it can only fail
+    /// if it fails with the specified reason.
+    OnlyFailWith { reason: String },
     /// No scope is applied and so the test must pass
     None,
 }
 
-impl fmt::Display for TestScope {
+impl Display for TestScope {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             TestScope::None => write!(f, ""),
@@ -746,14 +619,23 @@ impl fmt::Display for TestScope {
                 Some(failure_reason) => write!(f, "(should_fail_with = {failure_reason:?})"),
                 None => write!(f, "(should_fail)"),
             },
+            TestScope::OnlyFailWith { reason } => {
+                write!(f, "(only_fail_with = {reason:?})")
+            }
         }
     }
 }
 
-/// FuzzingScopr is used to specify additional annotations for fuzzing harnesses
+/// `FuzzingScope` is used to specify additional annotations for fuzzing harnesses
 #[derive(PartialEq, Eq, Hash, Debug, Clone, PartialOrd, Ord)]
 pub enum FuzzingScope {
-    /// If a fuzzing harness has a scope of OnlyFailWith, then it will only detect an assert
+    /// If the fuzzing harness has a scope of `ShouldFailWith`, then it should only pass
+    /// if it fails with the specified reason. If the reason is None, then
+    /// the harness must unconditionally fail
+    ShouldFailWith {
+        reason: Option<String>,
+    },
+    /// If a fuzzing harness has a scope of `OnlyFailWith`, then it will only detect an assert
     /// if it fails with the specified reason.
     OnlyFailWith {
         reason: String,
@@ -761,11 +643,15 @@ pub enum FuzzingScope {
     None,
 }
 
-impl fmt::Display for FuzzingScope {
+impl Display for FuzzingScope {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             FuzzingScope::None => write!(f, ""),
             FuzzingScope::OnlyFailWith { reason } => write!(f, "(only_fail_with = {reason:?})"),
+            FuzzingScope::ShouldFailWith { reason } => match reason {
+                Some(failure_reason) => write!(f, "(should_fail_with = {failure_reason:?})"),
+                None => write!(f, "(should_fail)"),
+            },
         }
     }
 }
@@ -800,15 +686,33 @@ impl Attributes {
     /// This is useful for finding out if we should compile a contract method
     /// as an entry point or not.
     pub fn has_contract_library_method(&self) -> bool {
-        self.has_secondary_attr(&SecondaryAttribute::ContractLibraryMethod)
+        self.has_secondary_attr(&SecondaryAttributeKind::ContractLibraryMethod)
     }
 
     pub fn is_test_function(&self) -> bool {
-        matches!(self.function(), Some(FunctionAttribute::Test(_)))
+        self.as_test_function().is_some()
+    }
+
+    pub fn as_test_function(&self) -> Option<(&TestScope, Location)> {
+        let attr = self.function()?;
+        if let FunctionAttributeKind::Test(scope) = &attr.kind {
+            Some((scope, attr.location))
+        } else {
+            None
+        }
     }
 
     pub fn is_fuzzing_harness(&self) -> bool {
-        matches!(self.function(), Some(FunctionAttribute::FuzzingHarness(_)))
+        self.as_fuzzing_harness().is_some()
+    }
+
+    pub fn as_fuzzing_harness(&self) -> Option<(&FuzzingScope, Location)> {
+        let attr = self.function()?;
+        if let FunctionAttributeKind::FuzzingHarness(scope) = &attr.kind {
+            Some((scope, attr.location))
+        } else {
+            None
+        }
     }
 
     /// True if these attributes mean the given function is an entry point function if it was
@@ -820,17 +724,19 @@ impl Attributes {
             && !self.is_fuzzing_harness()
     }
 
-    /// Returns note if a deprecated secondary attribute is found
-    pub fn get_deprecated_note(&self) -> Option<Option<String>> {
-        self.secondary.iter().find_map(|attr| match attr {
-            SecondaryAttribute::Deprecated(note) => Some(note.clone()),
+    /// If there is a deprecated attribute, return a tuple of (deny, message)
+    /// from the attribute's arguments. If neither argument is specified, deny
+    /// defaults to false while message defaults to None.
+    pub fn get_deprecated(&self) -> Option<(bool, Option<String>)> {
+        self.secondary.iter().find_map(|attr| match &attr.kind {
+            SecondaryAttributeKind::Deprecated(deny, note) => Some((*deny, note.clone())),
             _ => None,
         })
     }
 
     pub fn get_field_attribute(&self) -> Option<String> {
         for secondary in &self.secondary {
-            if let SecondaryAttribute::Field(field) = secondary {
+            if let SecondaryAttributeKind::Field(field) = &secondary.kind {
                 return Some(field.to_lowercase());
             }
         }
@@ -838,29 +744,38 @@ impl Attributes {
     }
 
     pub fn is_foldable(&self) -> bool {
-        self.function().is_some_and(|func_attribute| func_attribute.is_foldable())
+        self.function().is_some_and(|func_attribute| func_attribute.kind.is_foldable())
     }
 
     pub fn is_no_predicates(&self) -> bool {
-        self.function().is_some_and(|func_attribute| func_attribute.is_no_predicates())
+        self.function().is_some_and(|func_attribute| func_attribute.kind.is_no_predicates())
     }
 
     pub fn has_varargs(&self) -> bool {
-        self.has_secondary_attr(&SecondaryAttribute::Varargs)
+        self.has_secondary_attr(&SecondaryAttributeKind::Varargs)
     }
 
     pub fn has_use_callers_scope(&self) -> bool {
-        self.has_secondary_attr(&SecondaryAttribute::UseCallersScope)
+        self.has_secondary_attr(&SecondaryAttributeKind::UseCallersScope)
     }
 
     /// True if the function is marked with an `#[export]` attribute.
     pub fn has_export(&self) -> bool {
-        self.has_secondary_attr(&SecondaryAttribute::Export)
+        self.has_secondary_attr(&SecondaryAttributeKind::Export)
+    }
+
+    pub fn has_allow(&self, name: &'static str) -> bool {
+        self.secondary.iter().any(|attr| attr.kind.is_allow(name))
     }
 
     /// Check if secondary attributes contain a specific instance.
-    pub fn has_secondary_attr(&self, attr: &SecondaryAttribute) -> bool {
-        self.secondary.contains(attr)
+    pub fn has_secondary_attr(&self, kind: &SecondaryAttributeKind) -> bool {
+        self.secondary.iter().any(|attr| &attr.kind == kind)
+    }
+
+    /// True if the function is marked with `#[pure]`.
+    pub fn is_pure(&self) -> bool {
+        self.has_secondary_attr(&SecondaryAttributeKind::Pure)
     }
 }
 
@@ -873,7 +788,7 @@ pub enum Attribute {
     Secondary(SecondaryAttribute),
 }
 
-impl fmt::Display for Attribute {
+impl Display for Attribute {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             Attribute::Function(attribute) => write!(f, "{attribute}"),
@@ -883,9 +798,17 @@ impl fmt::Display for Attribute {
 }
 
 /// Primary Attributes are those which a function can only have one of.
-/// They change the FunctionKind and thus have direct impact on the IR output
+/// They change the `FunctionKind` and thus have direct impact on the IR output
 #[derive(PartialEq, Eq, Hash, Debug, Clone, PartialOrd, Ord)]
-pub enum FunctionAttribute {
+pub struct FunctionAttribute {
+    pub kind: FunctionAttributeKind,
+    pub location: Location,
+}
+
+/// Primary Attributes are those which a function can only have one of.
+/// They change the `FunctionKind` and thus have direct impact on the IR output
+#[derive(PartialEq, Eq, Hash, Debug, Clone, PartialOrd, Ord)]
+pub enum FunctionAttributeKind {
     Foreign(String),
     Builtin(String),
     Oracle(String),
@@ -893,86 +816,84 @@ pub enum FunctionAttribute {
     Fold,
     NoPredicates,
     InlineAlways,
+    InlineNever,
     FuzzingHarness(FuzzingScope),
 }
 
-impl FunctionAttribute {
+impl FunctionAttributeKind {
     pub fn builtin(&self) -> Option<&String> {
         match self {
-            FunctionAttribute::Builtin(name) => Some(name),
+            FunctionAttributeKind::Builtin(name) => Some(name),
             _ => None,
         }
     }
 
     pub fn foreign(&self) -> Option<&String> {
         match self {
-            FunctionAttribute::Foreign(name) => Some(name),
+            FunctionAttributeKind::Foreign(name) => Some(name),
             _ => None,
         }
     }
 
     pub fn oracle(&self) -> Option<&String> {
         match self {
-            FunctionAttribute::Oracle(name) => Some(name),
+            FunctionAttributeKind::Oracle(name) => Some(name),
             _ => None,
         }
     }
 
-    pub fn is_foreign(&self) -> bool {
-        matches!(self, FunctionAttribute::Foreign(_))
-    }
-
     pub fn is_oracle(&self) -> bool {
-        matches!(self, FunctionAttribute::Oracle(_))
+        matches!(self, FunctionAttributeKind::Oracle(_))
     }
 
     pub fn is_low_level(&self) -> bool {
-        matches!(self, FunctionAttribute::Foreign(_) | FunctionAttribute::Builtin(_))
+        matches!(self, FunctionAttributeKind::Foreign(_) | FunctionAttributeKind::Builtin(_))
     }
 
     pub fn is_foldable(&self) -> bool {
-        matches!(self, FunctionAttribute::Fold)
+        matches!(self, FunctionAttributeKind::Fold)
     }
 
     /// Check whether we have an `inline` attribute
     /// Although we also do not want to inline foldable functions,
     /// we keep the two attributes distinct for clarity.
     pub fn is_no_predicates(&self) -> bool {
-        matches!(self, FunctionAttribute::NoPredicates)
-    }
-
-    /// Check whether we have an `inline_always` attribute
-    /// This is used to indicate that a function should always be inlined
-    /// regardless of the target runtime.
-    pub fn is_inline_always(&self) -> bool {
-        matches!(self, FunctionAttribute::InlineAlways)
+        matches!(self, FunctionAttributeKind::NoPredicates)
     }
 
     pub fn name(&self) -> &'static str {
         match self {
-            FunctionAttribute::Foreign(_) => "foreign",
-            FunctionAttribute::Builtin(_) => "builtin",
-            FunctionAttribute::Oracle(_) => "oracle",
-            FunctionAttribute::Test(_) => "test",
-            FunctionAttribute::Fold => "fold",
-            FunctionAttribute::NoPredicates => "no_predicates",
-            FunctionAttribute::InlineAlways => "inline_always",
-            FunctionAttribute::FuzzingHarness(_) => "fuzz",
+            FunctionAttributeKind::Foreign(_) => "foreign",
+            FunctionAttributeKind::Builtin(_) => "builtin",
+            FunctionAttributeKind::Oracle(_) => "oracle",
+            FunctionAttributeKind::Test(_) => "test",
+            FunctionAttributeKind::Fold => "fold",
+            FunctionAttributeKind::NoPredicates => "no_predicates",
+            FunctionAttributeKind::InlineAlways => "inline_always",
+            FunctionAttributeKind::InlineNever => "inline_never",
+            FunctionAttributeKind::FuzzingHarness(_) => "fuzz",
         }
     }
 }
 
-impl fmt::Display for FunctionAttribute {
+impl Display for FunctionAttribute {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.kind.fmt(f)
+    }
+}
+
+impl Display for FunctionAttributeKind {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            FunctionAttribute::Test(scope) => write!(f, "#[test{scope}]"),
-            FunctionAttribute::Foreign(k) => write!(f, "#[foreign({k})]"),
-            FunctionAttribute::Builtin(k) => write!(f, "#[builtin({k})]"),
-            FunctionAttribute::Oracle(k) => write!(f, "#[oracle({k})]"),
-            FunctionAttribute::Fold => write!(f, "#[fold]"),
-            FunctionAttribute::NoPredicates => write!(f, "#[no_predicates]"),
-            FunctionAttribute::InlineAlways => write!(f, "#[inline_always]"),
-            FunctionAttribute::FuzzingHarness(scope) => write!(f, "#[fuzz{scope}]"),
+            FunctionAttributeKind::Test(scope) => write!(f, "#[test{scope}]"),
+            FunctionAttributeKind::Foreign(k) => write!(f, "#[foreign({k})]"),
+            FunctionAttributeKind::Builtin(k) => write!(f, "#[builtin({k})]"),
+            FunctionAttributeKind::Oracle(k) => write!(f, "#[oracle({k})]"),
+            FunctionAttributeKind::Fold => write!(f, "#[fold]"),
+            FunctionAttributeKind::NoPredicates => write!(f, "#[no_predicates]"),
+            FunctionAttributeKind::InlineAlways => write!(f, "#[inline_always]"),
+            FunctionAttributeKind::InlineNever => write!(f, "#[inline_never]"),
+            FunctionAttributeKind::FuzzingHarness(scope) => write!(f, "#[fuzz{scope}]"),
         }
     }
 }
@@ -981,8 +902,21 @@ impl fmt::Display for FunctionAttribute {
 /// They are not able to change the `FunctionKind` and thus do not have direct impact on the IR output
 /// They are often consumed by libraries or used as notices for the developer
 #[derive(PartialEq, Eq, Debug, Clone)]
-pub enum SecondaryAttribute {
-    Deprecated(Option<String>),
+pub struct SecondaryAttribute {
+    pub kind: SecondaryAttributeKind,
+    pub location: Location,
+}
+
+#[derive(PartialEq, Eq, Debug, Clone)]
+pub enum SecondaryAttributeKind {
+    /// Marks whether a function is deprecated or not.
+    ///
+    /// - The first parameter is `true` if this should be a hard error, or `false` for a warning.
+    ///   In source code, not specifying "deny" will default this to a warning.
+    /// - The second parameter is the optional error message. If provided, this becomes the primary
+    ///   error message.
+    Deprecated(bool, Option<String>),
+
     // This is an attribute to specify that a function
     // is a helper method for a contract and should not be seen as
     // the entry point.
@@ -991,11 +925,19 @@ pub enum SecondaryAttribute {
     Field(String),
 
     /// A custom tag attribute: `#['foo]`
-    Tag(CustomAttribute),
+    Tag(String),
 
     /// An attribute expected to run a comptime function of the same name: `#[foo]`
     Meta(MetaAttribute),
 
+    /// Tags a struct or global inside a `contract` block for inclusion in the
+    /// compiled contract artifact. The string is the tag name used as a key in
+    /// the compiled contract artifact: tagged structs go into a `structs` map and
+    /// tagged globals go into a `globals` map, both keyed by tag.
+    ///
+    /// Only valid inside `contract` blocks (enforced during elaboration).
+    ///
+    /// Example: `#[abi(my_tag)]`
     Abi(String),
 
     /// A variable-argument comptime function.
@@ -1008,57 +950,74 @@ pub enum SecondaryAttribute {
 
     /// Allow chosen warnings to happen so they are silenced.
     Allow(String),
+
+    /// Unlike Rust, all values in Noir already warn if they are not used.
+    ///
+    /// Instead, `#[must_use]` in Noir promotes this warning to a hard error, with
+    /// an optional message for the error.
+    MustUse(Option<String>),
+
+    /// Asserts that an `#[oracle]` function is pure and that
+    /// the call has no observable side effects on the program.
+    ///
+    /// Only valid on `unconstrained` functions also marked `#[oracle(...)]`.
+    /// For other functions, purity is deduced from their implementation.
+    Pure,
 }
 
-impl SecondaryAttribute {
-    pub(crate) fn name(&self) -> Option<String> {
+impl SecondaryAttributeKind {
+    pub(crate) fn is_allow(&self, name: &'static str) -> bool {
         match self {
-            SecondaryAttribute::Deprecated(_) => Some("deprecated".to_string()),
-            SecondaryAttribute::ContractLibraryMethod => {
-                Some("contract_library_method".to_string())
-            }
-            SecondaryAttribute::Export => Some("export".to_string()),
-            SecondaryAttribute::Field(_) => Some("field".to_string()),
-            SecondaryAttribute::Tag(custom) => custom.name(),
-            SecondaryAttribute::Meta(meta) => Some(meta.name.last_name().to_string()),
-            SecondaryAttribute::Abi(_) => Some("abi".to_string()),
-            SecondaryAttribute::Varargs => Some("varargs".to_string()),
-            SecondaryAttribute::UseCallersScope => Some("use_callers_scope".to_string()),
-            SecondaryAttribute::Allow(_) => Some("allow".to_string()),
-        }
-    }
-
-    pub(crate) fn is_allow_unused_variables(&self) -> bool {
-        match self {
-            SecondaryAttribute::Allow(string) => string == "unused_variables",
+            SecondaryAttributeKind::Allow(string) => string == name,
             _ => false,
         }
     }
 
     pub(crate) fn is_abi(&self) -> bool {
-        matches!(self, SecondaryAttribute::Abi(_))
+        matches!(self, SecondaryAttributeKind::Abi(_))
     }
 
     pub(crate) fn contents(&self) -> String {
         match self {
-            SecondaryAttribute::Deprecated(None) => "deprecated".to_string(),
-            SecondaryAttribute::Deprecated(Some(note)) => {
-                format!("deprecated({note:?})")
+            SecondaryAttributeKind::Deprecated(false, None) => "deprecated".to_string(),
+            SecondaryAttributeKind::Deprecated(true, None) => "deprecated(deny)".to_string(),
+            SecondaryAttributeKind::Deprecated(deny, Some(note)) => {
+                let deny = if *deny { "deny, " } else { "" };
+                format!("deprecated({deny}{note:?})")
             }
-            SecondaryAttribute::Tag(attribute) => format!("'{}", attribute.contents),
-            SecondaryAttribute::Meta(meta) => meta.to_string(),
-            SecondaryAttribute::ContractLibraryMethod => "contract_library_method".to_string(),
-            SecondaryAttribute::Export => "export".to_string(),
-            SecondaryAttribute::Field(k) => format!("field({k})"),
-            SecondaryAttribute::Abi(k) => format!("abi({k})"),
-            SecondaryAttribute::Varargs => "varargs".to_string(),
-            SecondaryAttribute::UseCallersScope => "use_callers_scope".to_string(),
-            SecondaryAttribute::Allow(k) => format!("allow({k})"),
+            SecondaryAttributeKind::Tag(contents) => format!("'{contents}"),
+            SecondaryAttributeKind::Meta(meta) => meta.to_string(),
+            SecondaryAttributeKind::ContractLibraryMethod => "contract_library_method".to_string(),
+            SecondaryAttributeKind::Export => "export".to_string(),
+            SecondaryAttributeKind::Field(k) => format!("field({k})"),
+            SecondaryAttributeKind::Abi(k) => format!("abi({k})"),
+            SecondaryAttributeKind::Varargs => "varargs".to_string(),
+            SecondaryAttributeKind::UseCallersScope => "use_callers_scope".to_string(),
+            SecondaryAttributeKind::Allow(k) => format!("allow({k})"),
+            SecondaryAttributeKind::MustUse(None) => "must_use".to_string(),
+            SecondaryAttributeKind::MustUse(Some(msg)) => format!("must_use = \"{msg}\""),
+            SecondaryAttributeKind::Pure => "pure".to_string(),
+        }
+    }
+
+    /// If this is a `#[must_use]` attribute, return `Some(message)` where message is the
+    /// optional message. Otherwise, return `None`. Since `message` itself is optional,
+    /// `Some(None)` indicates there is a `must_use` but no message was provided.
+    pub(crate) fn must_use_message(&self) -> Option<Option<String>> {
+        match self {
+            SecondaryAttributeKind::MustUse(message) => Some(message.clone()),
+            _ => None,
         }
     }
 }
 
-impl fmt::Display for SecondaryAttribute {
+impl Display for SecondaryAttribute {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.kind.fmt(f)
+    }
+}
+
+impl Display for SecondaryAttributeKind {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "#[{}]", self.contents())
     }
@@ -1066,9 +1025,8 @@ impl fmt::Display for SecondaryAttribute {
 
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct MetaAttribute {
-    pub name: Path,
+    pub name: MetaAttributeName,
     pub arguments: Vec<Expression>,
-    pub location: Location,
 }
 
 impl Display for MetaAttribute {
@@ -1083,20 +1041,20 @@ impl Display for MetaAttribute {
     }
 }
 
-#[derive(PartialEq, Eq, Hash, Debug, Clone, PartialOrd, Ord)]
-pub struct CustomAttribute {
-    pub contents: String,
-    // The span of the entire attribute, including leading `#[` and trailing `]`
-    pub span: Span,
-    // The span for the attribute contents (what's inside `#[...]`)
-    pub contents_span: Span,
+#[derive(PartialEq, Eq, Debug, Clone)]
+pub enum MetaAttributeName {
+    /// For example `foo::bar` in `#[foo::bar(...)]`
+    Path(Path),
+    /// For example `$expr` in `#[$expr(...)]` inside a `quote { ... }` expression.
+    Resolved(ExprId),
 }
 
-impl CustomAttribute {
-    fn name(&self) -> Option<String> {
-        let mut lexer = Lexer::new_with_dummy_file(&self.contents);
-        let token = lexer.next()?.ok()?;
-        if let Token::Ident(ident) = token.into_token() { Some(ident) } else { None }
+impl Display for MetaAttributeName {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            MetaAttributeName::Path(path) => path.fmt(f),
+            MetaAttributeName::Resolved(_) => write!(f, "(quoted)"),
+        }
     }
 }
 
@@ -1107,26 +1065,20 @@ pub enum Keyword {
     As,
     Assert,
     AssertEq,
-    Bool,
     Break,
     CallData,
-    Char,
     Comptime,
     Constrain,
+    Constrained,
     Continue,
     Contract,
     Crate,
-    CtString,
     Dep,
+    Dual,
     Else,
     Enum,
-    EnumDefinition,
-    Expr,
-    Field,
     Fn,
     For,
-    FormatString,
-    FunctionDefinition,
     Global,
     If,
     Impl,
@@ -1135,60 +1087,42 @@ pub enum Keyword {
     Loop,
     Match,
     Mod,
-    Module,
     Mut,
     Pub,
-    Quoted,
     Return,
     ReturnData,
-    String,
     Struct,
-    StructDefinition,
     Super,
-    TopLevelItem,
     Trait,
-    TraitConstraint,
-    TraitDefinition,
-    TraitImpl,
     Type,
-    TypeDefinition,
-    TypedExpr,
-    TypeType,
     Unchecked,
     Unconstrained,
-    UnresolvedType,
     Unsafe,
     Use,
     Where,
     While,
 }
 
-impl fmt::Display for Keyword {
+impl Display for Keyword {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
             Keyword::As => write!(f, "as"),
             Keyword::Assert => write!(f, "assert"),
             Keyword::AssertEq => write!(f, "assert_eq"),
-            Keyword::Bool => write!(f, "bool"),
             Keyword::Break => write!(f, "break"),
-            Keyword::Char => write!(f, "char"),
             Keyword::CallData => write!(f, "call_data"),
             Keyword::Comptime => write!(f, "comptime"),
             Keyword::Constrain => write!(f, "constrain"),
+            Keyword::Constrained => write!(f, "constrained"),
             Keyword::Continue => write!(f, "continue"),
             Keyword::Contract => write!(f, "contract"),
             Keyword::Crate => write!(f, "crate"),
-            Keyword::CtString => write!(f, "CtString"),
             Keyword::Dep => write!(f, "dep"),
+            Keyword::Dual => write!(f, "dual"),
             Keyword::Else => write!(f, "else"),
             Keyword::Enum => write!(f, "enum"),
-            Keyword::EnumDefinition => write!(f, "EnumDefinition"),
-            Keyword::Expr => write!(f, "Expr"),
-            Keyword::Field => write!(f, "Field"),
             Keyword::Fn => write!(f, "fn"),
             Keyword::For => write!(f, "for"),
-            Keyword::FormatString => write!(f, "fmtstr"),
-            Keyword::FunctionDefinition => write!(f, "FunctionDefinition"),
             Keyword::Global => write!(f, "global"),
             Keyword::If => write!(f, "if"),
             Keyword::Impl => write!(f, "impl"),
@@ -1197,28 +1131,16 @@ impl fmt::Display for Keyword {
             Keyword::Loop => write!(f, "loop"),
             Keyword::Match => write!(f, "match"),
             Keyword::Mod => write!(f, "mod"),
-            Keyword::Module => write!(f, "Module"),
             Keyword::Mut => write!(f, "mut"),
             Keyword::Pub => write!(f, "pub"),
-            Keyword::Quoted => write!(f, "Quoted"),
             Keyword::Return => write!(f, "return"),
             Keyword::ReturnData => write!(f, "return_data"),
-            Keyword::String => write!(f, "str"),
             Keyword::Struct => write!(f, "struct"),
-            Keyword::StructDefinition => write!(f, "StructDefinition"),
             Keyword::Super => write!(f, "super"),
-            Keyword::TopLevelItem => write!(f, "TopLevelItem"),
             Keyword::Trait => write!(f, "trait"),
-            Keyword::TraitConstraint => write!(f, "TraitConstraint"),
-            Keyword::TraitDefinition => write!(f, "TraitDefinition"),
-            Keyword::TraitImpl => write!(f, "TraitImpl"),
             Keyword::Type => write!(f, "type"),
-            Keyword::TypeDefinition => write!(f, "TypeDefinition"),
-            Keyword::TypedExpr => write!(f, "TypedExpr"),
-            Keyword::TypeType => write!(f, "Type"),
             Keyword::Unchecked => write!(f, "unchecked"),
             Keyword::Unconstrained => write!(f, "unconstrained"),
-            Keyword::UnresolvedType => write!(f, "UnresolvedType"),
             Keyword::Unsafe => write!(f, "unsafe"),
             Keyword::Use => write!(f, "use"),
             Keyword::Where => write!(f, "where"),
@@ -1234,26 +1156,20 @@ impl Keyword {
             "as" => Keyword::As,
             "assert" => Keyword::Assert,
             "assert_eq" => Keyword::AssertEq,
-            "bool" => Keyword::Bool,
             "break" => Keyword::Break,
             "call_data" => Keyword::CallData,
-            "char" => Keyword::Char,
             "comptime" => Keyword::Comptime,
             "constrain" => Keyword::Constrain,
+            "constrained" => Keyword::Constrained,
             "continue" => Keyword::Continue,
             "contract" => Keyword::Contract,
             "crate" => Keyword::Crate,
-            "CtString" => Keyword::CtString,
             "dep" => Keyword::Dep,
+            "dual" => Keyword::Dual,
             "else" => Keyword::Else,
             "enum" => Keyword::Enum,
-            "EnumDefinition" => Keyword::EnumDefinition,
-            "Expr" => Keyword::Expr,
-            "Field" => Keyword::Field,
             "fn" => Keyword::Fn,
             "for" => Keyword::For,
-            "fmtstr" => Keyword::FormatString,
-            "FunctionDefinition" => Keyword::FunctionDefinition,
             "global" => Keyword::Global,
             "if" => Keyword::If,
             "impl" => Keyword::Impl,
@@ -1262,28 +1178,16 @@ impl Keyword {
             "loop" => Keyword::Loop,
             "match" => Keyword::Match,
             "mod" => Keyword::Mod,
-            "Module" => Keyword::Module,
             "mut" => Keyword::Mut,
             "pub" => Keyword::Pub,
-            "Quoted" => Keyword::Quoted,
             "return" => Keyword::Return,
             "return_data" => Keyword::ReturnData,
-            "str" => Keyword::String,
             "struct" => Keyword::Struct,
             "super" => Keyword::Super,
-            "TopLevelItem" => Keyword::TopLevelItem,
             "trait" => Keyword::Trait,
-            "TraitConstraint" => Keyword::TraitConstraint,
-            "TraitDefinition" => Keyword::TraitDefinition,
-            "TraitImpl" => Keyword::TraitImpl,
             "type" => Keyword::Type,
-            "Type" => Keyword::TypeType,
-            "TypeDefinition" => Keyword::TypeDefinition,
-            "TypedExpr" => Keyword::TypedExpr,
-            "StructDefinition" => Keyword::StructDefinition,
             "unchecked" => Keyword::Unchecked,
             "unconstrained" => Keyword::Unconstrained,
-            "UnresolvedType" => Keyword::UnresolvedType,
             "unsafe" => Keyword::Unsafe,
             "use" => Keyword::Use,
             "where" => Keyword::Where,

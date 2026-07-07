@@ -1,0 +1,11 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+use std::ops::{WrappingAdd, WrappingMul, WrappingSub};
+
+fn main(x: u8, y: u8) {
+    assert(x.wrapping_sub(1_u8) == y);
+    assert(y.wrapping_add(1_u8) == x);
+    assert(y.wrapping_mul(y) == 1_u8);
+}

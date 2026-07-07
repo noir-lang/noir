@@ -1,0 +1,16 @@
+[package]
+name = "nargo_fuzz_target"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+nargo.workspace = true
+nargo_cli.workspace = true
+noirc_driver.workspace = true
+afl = "*"

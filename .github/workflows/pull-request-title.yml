@@ -16,10 +16,12 @@ jobs:
   conventional-title:
     name: Validate PR title is Conventional Commit
     runs-on: ubuntu-22.04
+    permissions:
+      contents: read
     steps:
       - name: Check title
         if: github.event_name == 'pull_request_target'
-        uses: amannn/action-semantic-pull-request@v5
+        uses: amannn/action-semantic-pull-request@48f256284bd46cdaab1048c3721360e808335d50 # v6
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
@@ -37,7 +39,7 @@ jobs:
 
     steps:
       - name: Post comment on force pushes
-        uses: marocchino/sticky-pull-request-comment@v2
+        uses: marocchino/sticky-pull-request-comment@5770ad5eb8f42dd2c4f34da00c94c5381e49af88 # v3
         with:
           message: |
             Thank you for your contribution to the Noir language.

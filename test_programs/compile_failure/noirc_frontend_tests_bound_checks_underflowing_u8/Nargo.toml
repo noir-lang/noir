@@ -1,7 +1,0 @@
-
-            [package]
-            name = "noirc_frontend_tests_bound_checks_underflowing_u8"
-            type = "bin"
-            authors = [""]
-            
-            [dependencies]

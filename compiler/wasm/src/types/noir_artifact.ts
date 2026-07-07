@@ -139,13 +139,20 @@ export interface SourceCodeLocation {
 
 /**
  * The location of an opcode in the bytecode.
- * It's a string of the form `{acirIndex}` or `{acirIndex}:{brilligIndex}`.
  */
-export type OpcodeLocation = string;
+export type OpcodeLocation = number;
 
 export type BrilligFunctionId = number;
 
 export type OpcodeToLocationsMap = Record<OpcodeLocation, SourceCodeLocation[]>;
+
+export interface LocationNodeDebugInfo {
+  value: SourceCodeLocation;
+}
+
+export interface LocationTree {
+  locations: Array<LocationNodeDebugInfo>;
+}
 
 /**
  * The debug information for a given function.
@@ -154,7 +161,7 @@ export interface DebugInfo {
   /**
    * A map of the opcode location to the source code location.
    */
-  locations: OpcodeToLocationsMap;
+  location_tree: LocationTree;
   /**
    * For each Brillig function, we have a map of the opcode location to the source code location.
    */
@@ -185,8 +192,20 @@ export type DebugFileMap = Record<
      * The path of the file.
      */
     path: string;
+    /**
+     * The range each function occupies in the file.
+     */
+    function_locations: FunctionLocation[];
   }
 >;
+
+/** The range a function occupies in a file. */
+export type FunctionLocation = {
+  /** The byte where the function starts. */
+  start: number;
+  /** The name of the function. */
+  name: string;
+};
 
 /** Compilation warning */
 export type Warning = unknown;

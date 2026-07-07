@@ -61,6 +61,10 @@ const webConfig: webpack.Configuration = {
     new webpack.ProvidePlugin({
       Buffer: ['buffer', 'Buffer'],
     }),
+    // Strip node: prefix from imports (used by memfs) so webpack can resolve them via fallback
+    new webpack.NormalModuleReplacementPlugin(/^node:/, (resource) => {
+      resource.request = resource.request.replace(/^node:/, '');
+    }),
   ],
   module: {
     rules: [
@@ -76,11 +80,19 @@ const webConfig: webpack.Configuration = {
         test: /\.wasm$/,
         type: 'asset/inline',
       },
+      {
+        test: /\.m?js$/,
+        resolve: { fullySpecified: false },
+      },
     ],
   },
   devServer: devServerConfig,
   resolve: {
     ...config.resolve,
+    fallback: {
+      ...config.resolve?.fallback,
+      worker_threads: false,
+    },
     alias: {
       fs: 'memfs',
     },

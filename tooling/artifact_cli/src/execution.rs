@@ -1,15 +1,18 @@
 use std::path::Path;
 
-use acir::{FieldElement, native_types::WitnessStack};
+use acir::{AcirField, FieldElement, native_types::WitnessStack};
 use acvm::BlackBoxFunctionSolver;
+use itertools::Itertools;
 use nargo::{NargoError, foreign_calls::ForeignCallExecutor};
-use noirc_abi::input_parser::InputValue;
-use noirc_artifacts::debug::DebugArtifact;
-use noirc_driver::CompiledProgram;
+use noirc_abi::{AbiType, MAIN_RETURN_NAME, Sign, input_parser::InputValue};
+use noirc_artifacts::{debug::DebugArtifact, program::CompiledProgram};
 
 use crate::{
     errors::CliError,
-    fs::{inputs::read_inputs_from_file, witness::save_witness_to_dir},
+    fs::{
+        inputs::{read_inputs_from_file, write_inputs_to_file},
+        witness::save_witness_to_dir,
+    },
 };
 
 /// Results of a circuit execution.
@@ -70,29 +73,31 @@ pub fn show_diagnostic(circuit: &CompiledProgram, err: &NargoError<FieldElement>
             debug_symbols: circuit.debug.clone(),
             file_map: circuit.file_map.clone(),
         };
-
-        diagnostic.report(&debug_artifact, false);
+        let function_locations = debug_artifact.function_locations_for_diagnostic(&diagnostic);
+        diagnostic.report(&debug_artifact, &function_locations, false);
     }
 }
 
-/// Print some information and save the witness if an output directory is specified,
-/// then checks if the expected return values were the ones we expected.
-pub fn save_and_check_witness(
+/// Print some feedback, save the witness if an output directory is specified,
+/// and show the circuit output.
+pub fn save_and_show_witness(
     circuit: &CompiledProgram,
-    results: ExecutionResults,
+    results: &ExecutionResults,
     circuit_name: &str,
     witness_dir: Option<&Path>,
     witness_name: Option<&str>,
 ) -> Result<(), CliError> {
-    println!("[{}] Circuit witness successfully solved", circuit_name);
+    noirc_errors::println_to_stdout!("[{circuit_name}] Circuit witness successfully solved");
     // Save first, so that we can potentially look at the output if the expectations fail.
     if let Some(witness_dir) = witness_dir {
         save_witness(&results.witness_stack, circuit_name, witness_dir, witness_name)?;
     }
     if let Some(ref return_value) = results.return_values.actual_return {
-        println!("[{}] Circuit output: {return_value:?}", circuit_name);
+        let abi_type = &circuit.abi.return_type.as_ref().unwrap().abi_type;
+        let output_string = input_value_to_string(return_value, abi_type);
+        noirc_errors::println_to_stdout!("[{circuit_name}] Circuit output: {output_string}");
     }
-    check_witness(circuit, results.return_values)
+    Ok(())
 }
 
 /// Save the witness stack to a file.
@@ -106,26 +111,39 @@ pub fn save_witness(
     let mut witness_path = save_witness_to_dir(witness_stack, witness_name, witness_dir)?;
 
     // See if we can make the file path a bit shorter/easier to read if it starts with the current directory
-    if let Ok(current_dir) = std::env::current_dir() {
-        if let Ok(name_without_prefix) = witness_path.strip_prefix(current_dir) {
-            witness_path = name_without_prefix.to_path_buf();
-        }
+    if let Ok(current_dir) = std::env::current_dir()
+        && let Ok(name_without_prefix) = witness_path.strip_prefix(current_dir)
+    {
+        witness_path = name_without_prefix.to_path_buf();
     }
 
-    println!("[{}] Witness saved to {}", circuit_name, witness_path.display());
+    noirc_errors::println_to_stdout!(
+        "[{}] Witness saved to {}",
+        circuit_name,
+        witness_path.display()
+    );
     Ok(())
 }
 
 /// Compare return values to expectations, returning errors if something unexpected was returned.
-pub fn check_witness(
+///
+/// If `overwrite_prover_file` is not empty, instead of checking the expected return value,
+/// it overwrites the `return` entry in the prover file with the actual return value,
+/// while preserving the inputs and the format.
+pub fn check_return(
     circuit: &CompiledProgram,
     return_values: ReturnValues,
+    overwrite_prover_file: Option<&Path>,
 ) -> Result<(), CliError> {
     // Check that the circuit returned a non-empty result if the ABI expects a return value.
-    if let Some(ref expected) = circuit.abi.return_type {
-        if return_values.actual_return.is_none() {
-            return Err(CliError::MissingReturn { expected: expected.clone() });
-        }
+    if let Some(ref expected) = circuit.abi.return_type
+        && return_values.actual_return.is_none()
+    {
+        return Err(CliError::MissingReturn { expected: expected.clone() });
+    }
+
+    if let Some(prover_file) = overwrite_prover_file {
+        return save_return_to_prover_file(circuit, return_values.actual_return, prover_file);
     }
 
     // Check that if the prover file contained a `return` entry then that's what we got.
@@ -143,4 +161,94 @@ pub fn check_witness(
     }
 
     Ok(())
+}
+
+/// Overwrite the `return` value in the Prover.toml file.
+fn save_return_to_prover_file(
+    circuit: &CompiledProgram,
+    return_value: Option<InputValue>,
+    prover_file: &Path,
+) -> Result<(), CliError> {
+    let (mut input_map, _) = read_inputs_from_file(prover_file, &circuit.abi)?;
+
+    if let Some(return_value) = return_value {
+        input_map.insert(MAIN_RETURN_NAME.to_string(), return_value);
+    }
+
+    write_inputs_to_file(prover_file, &circuit.abi, &input_map)
+}
+
+pub fn input_value_to_string(input_value: &InputValue, abi_type: &AbiType) -> String {
+    let mut string = String::new();
+    append_input_value_to_string(input_value, abi_type, &mut string);
+    string
+}
+
+fn append_input_value_to_string(input_value: &InputValue, abi_type: &AbiType, string: &mut String) {
+    match (abi_type, input_value) {
+        (AbiType::Field, InputValue::Field(field_element)) => {
+            string.push_str(&field_element.to_short_hex());
+        }
+        (AbiType::Array { length: _, typ }, InputValue::Vec(input_values)) => {
+            string.push('[');
+            for (index, input_value) in input_values.iter().enumerate() {
+                if index != 0 {
+                    string.push_str(", ");
+                }
+                append_input_value_to_string(input_value, typ, string);
+            }
+            string.push(']');
+        }
+        (AbiType::Integer { sign, width: bit_size }, InputValue::Field(f)) => match sign {
+            Sign::Unsigned => {
+                string.push_str(&f.to_string());
+            }
+            Sign::Signed => {
+                string.push_str(&f.to_string_as_signed_integer(*bit_size));
+            }
+        },
+        (AbiType::Boolean, InputValue::Field(field_element)) => {
+            if field_element.is_zero() {
+                string.push_str("false");
+            } else {
+                string.push_str("true");
+            }
+        }
+        (AbiType::Struct { path, fields: field_types }, InputValue::Struct(field_values)) => {
+            string.push_str(path);
+            string.push_str(" { ");
+            for (index, (field_name, typ)) in field_types.iter().enumerate() {
+                if index != 0 {
+                    string.push_str(", ");
+                }
+                string.push_str(field_name);
+                string.push_str(": ");
+                let field_value = &field_values[field_name];
+                append_input_value_to_string(field_value, typ, string);
+            }
+            string.push_str(" }");
+        }
+        (AbiType::Tuple { fields }, InputValue::Vec(input_values)) => {
+            assert_eq!(fields.len(), input_values.len());
+
+            string.push('(');
+            for (index, (input_value, field_type)) in input_values.iter().zip_eq(fields).enumerate()
+            {
+                if index != 0 {
+                    string.push_str(", ");
+                }
+                append_input_value_to_string(input_value, field_type, string);
+            }
+            if input_values.len() == 1 {
+                string.push(',');
+            }
+            string.push(')');
+        }
+        (AbiType::String { .. }, InputValue::String(value)) => {
+            string.push_str(&format!("{value:?}"));
+        }
+        (_, _) => {
+            panic!("Unexpected InputValue-AbiType combination: {input_value:?} - {abi_type:?}");
+        }
+    }
 }

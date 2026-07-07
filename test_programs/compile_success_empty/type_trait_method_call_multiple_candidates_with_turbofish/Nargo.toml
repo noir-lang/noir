@@ -1,0 +1,6 @@
+[package]
+name = "type_trait_method_call_multiple_candidates_with_turbofish"
+type = "bin"
+authors = [""]
+
+[dependencies]

@@ -1,13 +1,12 @@
-use acvm::acir::AcirField;
 use iter_extended::vecmap;
+use noirc_artifacts::debug::DebugVarId;
 use noirc_errors::Location;
-use noirc_errors::debug_info::DebugVarId;
 use noirc_printable_type::PrintableType;
+use num_traits::ToPrimitive;
 
 use crate::debug::{SourceFieldId, SourceVarId};
 use crate::hir_def::expr::*;
-use crate::node_interner::ExprId;
-use crate::signed_field::SignedField;
+use crate::node_interner::{DefinitionKind, ExprId};
 
 use super::ast::{Expression, Ident};
 use super::{MonomorphizationError, Monomorphizer};
@@ -40,10 +39,23 @@ impl Monomorphizer<'_> {
     pub(super) fn patch_debug_instrumentation_call(
         &mut self,
         call: &HirCallExpression,
+        function: &Expression,
         arguments: &mut [Expression],
     ) -> Result<(), MonomorphizationError> {
-        let original_func = Box::new(self.expr(call.func)?);
-        if let Expression::Ident(Ident { name, .. }) = original_func.as_ref() {
+        // Only patch calls to functions that originate from the debug crate.
+        // This prevents user-defined functions with the same name (e.g. __debug_var_assign)
+        // from being incorrectly patched.
+        let Some(debug_crate_id) = self.debug_crate_id else {
+            return Ok(());
+        };
+        if let HirExpression::Ident(ident, _) = self.interner.expression(&call.func)
+            && let DefinitionKind::Function(func_id) = &self.interner.definition(ident.id).kind
+            && self.interner.function_meta(func_id).source_crate != debug_crate_id
+        {
+            return Ok(());
+        }
+
+        if let Expression::Ident(Ident { name, .. }) = function {
             if name == "__debug_var_assign" {
                 self.patch_debug_var_assign(call, arguments)?;
             } else if name == "__debug_var_drop" {
@@ -57,7 +69,7 @@ impl Monomorphizer<'_> {
     }
 
     /// Update instrumentation code inserted on variable assignment. We need to
-    /// register the variable instance, its type and replace the source_var_id
+    /// register the variable instance, its type and replace the `source_var_id`
     /// with the ID of the registration. Multiple registrations of the same
     /// variable are possible if using generic functions, hence the temporary ID
     /// created when injecting the instrumentation code can map to multiple IDs
@@ -76,7 +88,7 @@ impl Monomorphizer<'_> {
         // instantiate tracked variable for the value type and associate it with
         // the ID used by the injected instrumentation code
         let var_type = self.interner.id_type(call.arguments[DEBUG_VALUE_ARG_SLOT]);
-        let source_var_id = source_var_id.field.to_u128().into();
+        let source_var_id = source_var_id.to_u128().expect("var id too large").into();
         // then update the ID used for tracking at runtime
         let var_id = self.debug_type_tracker.insert_var(source_var_id, &var_type);
         let interned_var_id = self.intern_var_id(var_id, &call.location);
@@ -85,7 +97,7 @@ impl Monomorphizer<'_> {
     }
 
     /// Update instrumentation code for a variable being dropped out of scope.
-    /// Given the source_var_id we search for the last assigned debug var_id and
+    /// Given the `source_var_id` we search for the last assigned debug `var_id` and
     /// replace it instead.
     fn patch_debug_var_drop(
         &mut self,
@@ -98,7 +110,7 @@ impl Monomorphizer<'_> {
             unreachable!("Missing source_var_id in __debug_var_drop call");
         };
         // update variable ID for tracked drops (ie. when the var goes out of scope)
-        let source_var_id = source_var_id.field.to_u128().into();
+        let source_var_id = source_var_id.to_u128().expect("var id too large").into();
         let var_id = self
             .debug_type_tracker
             .get_var_id(source_var_id)
@@ -109,7 +121,7 @@ impl Monomorphizer<'_> {
     }
 
     /// Update instrumentation code inserted when assigning to a member of an
-    /// existing variable. Same as above for replacing the source_var_id, but also
+    /// existing variable. Same as above for replacing the `source_var_id`, but also
     /// we need to resolve the path and the type of the member being assigned.
     /// For this last part, we need to resolve the mapping from field names in
     /// structs to positions in the runtime tuple, since all structs are
@@ -126,7 +138,7 @@ impl Monomorphizer<'_> {
             unreachable!("Missing source_var_id in __debug_member_assign call");
         };
         // update variable member assignments
-        let source_var_id = source_var_id.field.to_u128().into();
+        let source_var_id = source_var_id.to_u128().expect("var id too large").into();
 
         let var_type = self
             .debug_type_tracker
@@ -138,8 +150,9 @@ impl Monomorphizer<'_> {
             if let Some(HirExpression::Literal(HirLiteral::Integer(fe_i))) =
                 hir_arguments.get(DEBUG_MEMBER_FIELD_INDEX_ARG_SLOT + i)
             {
-                let index = fe_i.field.to_i128().unsigned_abs();
-                if fe_i.is_negative {
+                let fe_i = fe_i.to_i128().expect("member index too large");
+                let index = fe_i.unsigned_abs();
+                if fe_i.is_negative() {
                     // We use negative indices at instrumentation time to indicate
                     // and reference member accesses by name which cannot be
                     // resolved until we have a type. This strategy is also used
@@ -153,10 +166,12 @@ impl Monomorphizer<'_> {
                         });
 
                     cursor_type = element_type_at_index(cursor_type, field_index);
-                    let integer = HirLiteral::Integer(SignedField::positive(field_index));
-                    let index_id = self.interner.push_expr(HirExpression::Literal(integer));
-                    self.interner.push_expr_type(index_id, crate::Type::FieldElement);
-                    self.interner.push_expr_location(index_id, call.location);
+                    let integer = HirLiteral::Integer(field_index.into());
+                    let index_id = self.interner.push_expr_full(
+                        HirExpression::Literal(integer),
+                        call.location,
+                        crate::Type::FieldElement,
+                    );
                     arguments[DEBUG_MEMBER_FIELD_INDEX_ARG_SLOT + i] = self.expr(index_id)?;
                 } else {
                     // array/string element using constant index
@@ -178,19 +193,17 @@ impl Monomorphizer<'_> {
     }
 
     fn intern_var_id(&mut self, var_id: DebugVarId, location: &Location) -> ExprId {
-        let value = SignedField::positive(var_id.0);
-        let var_id_literal = HirLiteral::Integer(value);
-        let expr_id = self.interner.push_expr(HirExpression::Literal(var_id_literal));
-        self.interner.push_expr_type(expr_id, crate::Type::FieldElement);
-        self.interner.push_expr_location(expr_id, *location);
-        expr_id
+        let var_id_literal = HirLiteral::Integer(var_id.0.into());
+        let expression = HirExpression::Literal(var_id_literal);
+        let typ = crate::Type::u32();
+        self.interner.push_expr_full(expression, *location, typ)
     }
 }
 
-fn element_type_at_index(ptype: &PrintableType, i: usize) -> &PrintableType {
-    match ptype {
+fn element_type_at_index(printable_type: &PrintableType, i: usize) -> &PrintableType {
+    match printable_type {
         PrintableType::Array { length: _length, typ } => typ.as_ref(),
-        PrintableType::Slice { typ } => typ.as_ref(),
+        PrintableType::Vector { typ } => typ.as_ref(),
         PrintableType::Tuple { types } => &types[i],
         PrintableType::Struct { name: _name, fields } => &fields[i].1,
         PrintableType::String { length: _length } => &PrintableType::UnsignedInteger { width: 8 },

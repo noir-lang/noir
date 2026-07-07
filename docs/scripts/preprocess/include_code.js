@@ -56,7 +56,29 @@ function processHighlighting(codeSnippet, identifier) {
     result += line === '' && mutated ? '' : line + '\n';
   }
 
-  return result.trim();
+  return dedent(result);
+}
+
+/**
+ * Trim leading/trailing blank lines, then strip the common leading whitespace
+ * shared by every non-blank line. Using String.prototype.trim() here would only
+ * remove the indent from the first line and leave the rest of the snippet
+ * indented relative to it (see e.g. the "Calling annotations with additional
+ * arguments" section of the comptime docs), so the first line of a code block
+ * extracted from inside an indented scope ended up misaligned.
+ */
+function dedent(text) {
+  const lines = text.split('\n');
+  while (lines.length > 0 && lines[0].trim() === '') lines.shift();
+  while (lines.length > 0 && lines[lines.length - 1].trim() === '') lines.pop();
+  let indent = Infinity;
+  for (const line of lines) {
+    if (line.trim() === '') continue;
+    const match = line.match(/^[ \t]*/);
+    if (match[0].length < indent) indent = match[0].length;
+  }
+  if (indent === Infinity || indent === 0) return lines.join('\n');
+  return lines.map((line) => (line.length >= indent ? line.slice(indent) : line)).join('\n');
 }
 
 let lastReleasedVersion;
@@ -126,8 +148,8 @@ function doExtractCodeSnippet(filePath, identifier, useCurrent) {
   let lineRemovalCount = 0;
   let linesToRemove = [];
 
-  const startRegex = /(?:\/\/|#)\s+docs:start:([a-zA-Z0-9-._:]+)/g; // `g` will iterate through the regex.exec loop
-  const endRegex = /(?:\/\/|#)\s+docs:end:([a-zA-Z0-9-._:]+)/g;
+  const startRegex = /(?:\/\/|#|<!--)\s+docs:start:([a-zA-Z0-9-._:]+)(?:\s+-->)?/g; // `g` will iterate through the regex.exec loop
+  const endRegex = /(?:\/\/|#|<!--)\s+docs:end:([a-zA-Z0-9-._:]+)(?:\s+-->)?/g;
 
   /**
    * Search for one of the regex statements in the code file. If it's found, return the line as a string and the line number.

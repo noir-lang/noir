@@ -1,0 +1,20 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+comptime mut global COUNTER: Field = 0x02;
+
+fn main() {
+    ();
+    ();
+    ()
+}
+
+comptime fn get_counter() -> Field {
+    COUNTER
+}
+
+comptime fn increment() {
+    COUNTER = COUNTER + 1_Field;
+    assert(get_counter() == COUNTER);
+}

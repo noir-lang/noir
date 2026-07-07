@@ -1,4 +1,5 @@
-use crate::ast::{Ident, ItemVisibility, Path, UnsupportedNumericGenericType};
+use crate::ast::{Ident, ItemVisibility, UnsupportedNumericGenericType};
+use crate::elaborator::TypedPath;
 use crate::hir::resolution::import::PathResolutionError;
 use crate::hir::type_check::generics::TraitGenerics;
 
@@ -16,9 +17,7 @@ pub enum DuplicateType {
     Import,
     Trait,
     TraitImplementation,
-    TraitAssociatedType,
-    TraitAssociatedConst,
-    TraitAssociatedFunction,
+    TraitAssociatedItem,
     StructField,
     EnumVariant,
 }
@@ -35,10 +34,10 @@ pub enum DefCollectorErrorKind {
     PathResolutionError(PathResolutionError),
     #[error("Cannot re-export {item_name} because it has less visibility than this use statement")]
     CannotReexportItemWithLessVisibility { item_name: Ident, desired_visibility: ItemVisibility },
-    #[error("Non-struct type used in impl")]
-    NonStructTypeInImpl { location: Location },
+    #[error("Non-enum, non-struct type used in impl")]
+    NonEnumNonStructTypeInImpl { location: Location, is_primitive: bool },
     #[error("Cannot implement trait on a reference type")]
-    ReferenceInTraitImpl { location: Location },
+    ReferenceInTraitImpl { is_alias: bool, location: Location },
     #[error("Impl for type `{typ}` overlaps with existing impl")]
     OverlappingImpl { typ: crate::Type, location: Location, prev_location: Location },
     #[error("Cannot `impl` a type defined outside the current crate")]
@@ -46,9 +45,9 @@ pub enum DefCollectorErrorKind {
     #[error("Method is not defined in trait")]
     MethodNotInTrait { trait_name: Ident, impl_method: Ident },
     #[error("Only traits can be implemented")]
-    NotATrait { not_a_trait_name: Path },
+    NotATrait { not_a_trait_name: TypedPath },
     #[error("Trait not found")]
-    TraitNotFound { trait_path: Path },
+    TraitNotFound { trait_path: TypedPath },
     #[error("Missing Trait method implementation")]
     TraitMissingMethod { trait_name: Ident, method_name: Ident, trait_impl_location: Location },
     #[error("Module is already part of the crate")]
@@ -66,12 +65,20 @@ pub enum DefCollectorErrorKind {
         trait_method_name: String,
         trait_method_location: Location,
     },
-    #[error("{0}")]
-    UnsupportedNumericGenericType(#[from] UnsupportedNumericGenericType),
     #[error("The `#[test]` attribute may only be used on a non-associated function")]
     TestOnAssociatedFunction { location: Location },
+    #[error("The `#[fuzz]` attribute may only be used on a non-associated function")]
+    FuzzOnAssociatedFunction { location: Location },
     #[error("The `#[export]` attribute may only be used on a non-associated function")]
     ExportOnAssociatedFunction { location: Location },
+    #[error(
+        "The `#[test(only_fail_with = \"..\")]` attribute may only be used on functions with parameters"
+    )]
+    TestOnlyFailWithWithoutParameters { location: Location },
+    #[error("The `#[fuzz]` attribute may only be used on functions with parameters")]
+    FuzzingHarnessWithoutParameters { location: Location },
+    #[error("`{name}` entry-point function is not allowed to have generic parameters")]
+    EntryPointWithGenerics { name: String, location: Location },
 }
 
 impl DefCollectorErrorKind {
@@ -95,35 +102,40 @@ impl DefCollectorErrorKind {
                 ..
             }
             | DefCollectorErrorKind::TestOnAssociatedFunction { location }
+            | DefCollectorErrorKind::FuzzOnAssociatedFunction { location }
             | DefCollectorErrorKind::ExportOnAssociatedFunction { location }
-            | DefCollectorErrorKind::NonStructTypeInImpl { location }
-            | DefCollectorErrorKind::ReferenceInTraitImpl { location }
+            | DefCollectorErrorKind::NonEnumNonStructTypeInImpl { location, .. }
+            | DefCollectorErrorKind::ReferenceInTraitImpl { location, .. }
             | DefCollectorErrorKind::OverlappingImpl { location, .. }
             | DefCollectorErrorKind::ModuleAlreadyPartOfCrate { location, .. }
             | DefCollectorErrorKind::ModuleOriginallyDefined { location, .. }
             | DefCollectorErrorKind::TraitImplOrphaned { location }
             | DefCollectorErrorKind::TraitMissingMethod { trait_impl_location: location, .. }
-            | DefCollectorErrorKind::ForeignImpl { location, .. } => *location,
+            | DefCollectorErrorKind::ForeignImpl { location, .. }
+            | DefCollectorErrorKind::TestOnlyFailWithWithoutParameters { location }
+            | DefCollectorErrorKind::FuzzingHarnessWithoutParameters { location }
+            | DefCollectorErrorKind::EntryPointWithGenerics { location, .. } => *location,
             DefCollectorErrorKind::NotATrait { not_a_trait_name: path }
             | DefCollectorErrorKind::TraitNotFound { trait_path: path } => path.location,
-            DefCollectorErrorKind::UnsupportedNumericGenericType(
-                unsupported_numeric_generic_type,
-            ) => unsupported_numeric_generic_type.ident.location(),
         }
     }
 }
 
 impl<'a> From<&'a UnsupportedNumericGenericType> for Diagnostic {
     fn from(error: &'a UnsupportedNumericGenericType) -> Diagnostic {
-        let name = error.ident.as_str();
-        let typ = &error.typ;
+        let message = if let Some(name) = &error.name {
+            format!(
+                "{name} has a type of {}. The only supported numeric generic types are integers and `Field`.",
+                error.typ
+            )
+        } else {
+            error.to_string()
+        };
 
         Diagnostic::simple_error(
-            format!(
-                "{name} has a type of {typ}. The only supported numeric generic types are `u1`, `u8`, `u16`, and `u32`."
-            ),
+            message,
             "Unsupported numeric generic type".to_string(),
-            error.ident.location(),
+            error.location,
         )
     }
 }
@@ -138,9 +150,7 @@ impl fmt::Display for DuplicateType {
             DuplicateType::Trait => write!(f, "trait definition"),
             DuplicateType::TraitImplementation => write!(f, "trait implementation"),
             DuplicateType::Import => write!(f, "import"),
-            DuplicateType::TraitAssociatedType => write!(f, "trait associated type"),
-            DuplicateType::TraitAssociatedConst => write!(f, "trait associated constant"),
-            DuplicateType::TraitAssociatedFunction => write!(f, "trait associated function"),
+            DuplicateType::TraitAssociatedItem => write!(f, "trait associated item"),
             DuplicateType::StructField => write!(f, "struct field"),
             DuplicateType::EnumVariant => write!(f, "enum variant"),
         }
@@ -151,17 +161,18 @@ impl<'a> From<&'a DefCollectorErrorKind> for Diagnostic {
     fn from(error: &'a DefCollectorErrorKind) -> Diagnostic {
         match error {
             DefCollectorErrorKind::Duplicate { typ, first_def, second_def } => {
-                let primary_message = format!(
-                    "Duplicate definitions of {} with name {} found",
-                    &typ, first_def
-                );
+                let primary_message =
+                    format!("Duplicate definitions of {typ} with name {first_def} found");
                 {
+                    // The secondaries point at both definitions, which may be of different
+                    // kinds when names clash across namespaces, so they stay kind-neutral
+                    // rather than repeating `typ` (which describes only the second one).
                     let mut diag = Diagnostic::simple_error(
                         primary_message,
-                        format!("Second {} found here", &typ),
+                        "Second definition found here".to_string(),
                         second_def.location(),
                     );
-                    diag.add_secondary(format!("First {} found here", &typ), first_def.location());
+                    diag.add_secondary("First definition found here".to_string(), first_def.location());
                     diag
                 }
             }
@@ -186,16 +197,33 @@ impl<'a> From<&'a DefCollectorErrorKind> for Diagnostic {
                     format!("consider marking {item_name} as {desired_visibility}"),
                     item_name.location())
             }
-            DefCollectorErrorKind::NonStructTypeInImpl { location } => Diagnostic::simple_error(
-                "Non-struct type used in impl".into(),
-                "Only struct types may have implementation methods".into(),
-                *location,
-            ),
-            DefCollectorErrorKind::ReferenceInTraitImpl { location } => Diagnostic::simple_error(
-                "Trait impls are not allowed on reference types".into(),
-                "Try using a struct type here instead".into(),
-                *location,
-            ),
+            DefCollectorErrorKind::NonEnumNonStructTypeInImpl { location, is_primitive } =>{
+                if *is_primitive {
+                    Diagnostic::simple_error(
+                        "Cannot define inherent `impl` for primitive types".into(),
+                        "Primitive types can only have implementation methods defined in the standard library".into(),
+                        *location,
+                    )
+                }else{
+                    Diagnostic::simple_error(
+                        "Non-enum, non-struct type used in impl".into(),
+                        "Only enum and struct types may have implementation methods".into(),
+                        *location,
+                    )
+                }
+            }
+            DefCollectorErrorKind::ReferenceInTraitImpl { is_alias, location } => {
+                let alias_str = if *is_alias {
+                    "aliases to "
+                } else {
+                    ""
+                };
+                Diagnostic::simple_error(
+                    format!("Trait impls are not allowed on {alias_str}reference types"),
+                    "Try using a struct or enum type here instead".into(),
+                    *location,
+                )
+            }
             DefCollectorErrorKind::OverlappingImpl { location, typ, prev_location } => {
                 let mut diagnostic = Diagnostic::simple_error(
                     format!("Impl for type `{typ}` overlaps with existing impl"),
@@ -257,7 +285,7 @@ impl<'a> From<&'a DefCollectorErrorKind> for Diagnostic {
                 *location,
             ),
             DefCollectorErrorKind::ImplIsStricterThanTrait { constraint_typ, constraint_name, constraint_generics, constraint_location, trait_method_name, trait_method_location } => {
-                let constraint = format!("{}{}", constraint_name, constraint_generics);
+                let constraint = format!("{constraint_name}{constraint_generics}");
 
                 let mut diag = Diagnostic::simple_error(
                     "impl has stricter requirements than trait".to_string(),
@@ -267,14 +295,33 @@ impl<'a> From<&'a DefCollectorErrorKind> for Diagnostic {
                 diag.add_secondary(format!("definition of `{trait_method_name}` from trait"), *trait_method_location);
                 diag
             }
-            DefCollectorErrorKind::UnsupportedNumericGenericType(err) => err.into(),
             DefCollectorErrorKind::TestOnAssociatedFunction { location } => Diagnostic::simple_error(
-                "The `#[test]` attribute is disallowed on `impl` methods".into(),
+                "The `#[test]` attribute is disallowed on associated functions".into(),
+                String::new(),
+                *location,
+            ),
+            DefCollectorErrorKind::FuzzOnAssociatedFunction { location } => Diagnostic::simple_error(
+                "The `#[fuzz]` attribute is disallowed on associated functions".into(),
                 String::new(),
                 *location,
             ),
             DefCollectorErrorKind::ExportOnAssociatedFunction { location } => Diagnostic::simple_error(
                 "The `#[export]` attribute is disallowed on `impl` methods".into(),
+                String::new(),
+                *location,
+            ),
+            DefCollectorErrorKind::TestOnlyFailWithWithoutParameters { location } => Diagnostic::simple_error(
+                "The `#[test(only_fail_with = \"..\")]` attribute may only be used on functions with parameters".into(),
+                String::new(),
+                *location,
+            ),
+            DefCollectorErrorKind::FuzzingHarnessWithoutParameters { location } => Diagnostic::simple_error(
+                "The `#[fuzz]` attribute may only be used on functions with parameters".into(),
+                String::new(),
+                *location,
+            ),
+            DefCollectorErrorKind::EntryPointWithGenerics { name, location } => Diagnostic::simple_error(
+                format!("`{name}` entry-point function is not allowed to have generic parameters"),
                 String::new(),
                 *location,
             ),

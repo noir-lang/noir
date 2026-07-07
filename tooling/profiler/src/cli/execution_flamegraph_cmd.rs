@@ -31,12 +31,6 @@ pub(crate) struct ExecutionFlamegraphCommand {
     #[clap(long, short)]
     output: Option<PathBuf>,
 
-    /// Use pedantic ACVM solving, i.e. double-check some black-box function
-    /// assumptions when solving.
-    /// This is disabled by default.
-    #[clap(long, default_value = "false")]
-    pedantic_solving: bool,
-
     /// A single number representing the total opcodes executed.
     /// Outputs to stdout and skips generating a flamegraph.
     #[clap(long, default_value = "false")]
@@ -53,7 +47,6 @@ pub(crate) fn run(args: ExecutionFlamegraphCommand) -> eyre::Result<()> {
         &args.prover_toml_path,
         &InfernoFlamegraphGenerator { count_name: "samples".to_string() },
         &args.output,
-        args.pedantic_solving,
         args.sample_count,
         args.verbose,
     )
@@ -64,7 +57,6 @@ fn run_with_generator(
     prover_toml_path: &Path,
     flamegraph_generator: &impl FlamegraphGenerator,
     output_path: &Option<PathBuf>,
-    pedantic_solving: bool,
     print_sample_count: bool,
     verbose: bool,
 ) -> eyre::Result<()> {
@@ -90,7 +82,7 @@ fn run_with_generator(
     let solved_witness_stack_err = nargo::ops::execute_program_with_profiling(
         &program.bytecode,
         initial_witness,
-        &Bn254BlackBoxSolver(pedantic_solving),
+        &Bn254BlackBoxSolver,
         &mut DefaultForeignCallBuilder::default().with_output(std::io::stdout()).build(),
     );
     let mut profiling_samples = match solved_witness_stack_err {
@@ -106,7 +98,9 @@ fn run_with_generator(
                 &program.abi,
                 &program.debug_symbols.debug_infos,
             ) {
-                diagnostic.report(&debug_artifact, false);
+                let function_locations =
+                    debug_artifact.function_locations_for_diagnostic(&diagnostic);
+                diagnostic.report(&debug_artifact, &function_locations, false);
             }
 
             return Err(CliError::Generic.into());
@@ -136,7 +130,7 @@ fn run_with_generator(
             let brillig_function_id = std::mem::take(&mut sample.brillig_function_id);
             let last_entry = call_stack.last();
             let opcode = brillig_function_id
-                .and_then(|id| program.bytecode.unconstrained_functions.get(id.0 as usize))
+                .and_then(|id| program.bytecode.unconstrained_functions.get(id.as_usize()))
                 .and_then(|func| {
                     if let Some(OpcodeLocation::Brillig { brillig_index, .. }) = last_entry {
                         func.bytecode.get(*brillig_index)
@@ -193,9 +187,11 @@ mod tests {
     use acir::circuit::{Circuit, Program, brillig::BrilligBytecode};
     use color_eyre::eyre;
     use fm::codespan_files::Files;
-    use noirc_artifacts::program::ProgramArtifact;
+    use noirc_artifacts::{
+        debug::{DebugInfo, ProgramDebugInfo},
+        program::ProgramArtifact,
+    };
     use noirc_driver::CrateName;
-    use noirc_errors::debug_info::{DebugInfo, ProgramDebugInfo};
     use std::{collections::BTreeMap, path::Path, str::FromStr};
 
     use crate::flamegraph::Sample;
@@ -234,7 +230,10 @@ mod tests {
             hash: 27,
             abi: noirc_abi::Abi::default(),
             bytecode: Program {
-                functions: vec![Circuit::default()],
+                functions: vec![Circuit {
+                    function_name: "main".to_string(),
+                    ..Circuit::default()
+                }],
                 unconstrained_functions: vec![
                     BrilligBytecode::default(),
                     BrilligBytecode::default(),
@@ -242,8 +241,6 @@ mod tests {
             },
             debug_symbols: ProgramDebugInfo { debug_infos: vec![DebugInfo::default()] },
             file_map: BTreeMap::default(),
-            names: vec!["main".to_string()],
-            brillig_names: Vec::new(),
         };
 
         // Write the artifact to a file
@@ -261,10 +258,9 @@ mod tests {
                 &artifact_path,
                 &prover_toml_path,
                 &flamegraph_generator,
-                &Some(temp_dir.into_path()),
+                &Some(temp_dir.keep()),
                 false,
                 false,
-                false
             )
             .is_err()
         );

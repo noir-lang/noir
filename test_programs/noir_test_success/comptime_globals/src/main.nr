@@ -16,7 +16,7 @@ comptime fn foo() -> Field {
 
 #[test]
 fn foo_global_constant() {
-    assert_constant(FOO);
+    assert_constant(comptime { FOO });
 }
 
 #[test(should_fail)]

@@ -1,0 +1,11 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+global positive_global: Field = 0x11;
+
+global negative_global: Field = 0x30644e72e131a029b85045b68181585d2833e84879b9709143e1f593effffff0;
+
+fn main() {
+    assert((positive_global + negative_global) == 0_Field);
+}

@@ -1,0 +1,4 @@
+[package]
+name = "victim_lib"
+type = "lib"
+authors = [""]

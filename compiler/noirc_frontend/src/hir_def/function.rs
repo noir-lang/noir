@@ -1,3 +1,5 @@
+use std::borrow::Cow;
+
 use fm::FileId;
 use iter_extended::vecmap;
 use noirc_errors::{Location, Span};
@@ -8,7 +10,7 @@ use super::traits::TraitConstraint;
 use crate::ast::{BlockExpression, FunctionKind, FunctionReturnType};
 use crate::graph::CrateId;
 use crate::hir::def_map::LocalModuleId;
-use crate::node_interner::{ExprId, NodeInterner, TraitId, TraitImplId, TypeId};
+use crate::node_interner::{ExprId, ImplId, NodeInterner, TraitId, TraitImplId, TypeId};
 use crate::shared::Visibility;
 
 use crate::{ResolvedGeneric, Type};
@@ -89,10 +91,8 @@ impl From<Vec<Param>> for Parameters {
     }
 }
 
-pub type FunctionSignature = (Vec<Param>, Option<Type>);
-
-/// A FuncMeta contains the signature of the function and any associated meta data like
-/// the function's Location, FunctionKind, and attributes. If the function's body is
+/// A `FuncMeta` contains the signature of the function and any associated meta data like
+/// the function's Location, `FunctionKind`, and attributes. If the function's body is
 /// needed, it can be retrieved separately via `NodeInterner::function(&self, &FuncId)`.
 #[derive(Debug, Clone)]
 pub struct FuncMeta {
@@ -102,16 +102,21 @@ pub struct FuncMeta {
 
     pub parameters: Parameters,
 
-    /// The HirIdent of each identifier within the parameter list.
+    /// The `HirIdent` of each identifier within the parameter list.
     /// Note that this includes separate entries for each identifier in e.g. tuple patterns.
     pub parameter_idents: Vec<HirIdent>,
 
+    /// The return type as (and if) it appears in the AST.
+    ///
+    /// This is distinct from the `FuncMeta::return_type()` method,
+    /// which gets the return type from the [`FuncMeta::typ`] field.
     pub return_type: FunctionReturnType,
 
     pub return_visibility: Visibility,
+    pub return_visibility_location: Location,
 
-    /// The type of this function. Either a Type::Function
-    /// or a Type::Forall for generic functions.
+    /// The type of this function. Either a `Type::Function`
+    /// or a `Type::Forall` for generic functions.
     pub typ: Type,
 
     /// The set of generics that are declared directly on this function in the source code.
@@ -122,16 +127,18 @@ pub struct FuncMeta {
 
     /// All the generics used by this function, which includes any implicit generics or generics
     /// from outer scopes, such as those introduced by an impl.
-    /// This is stored when the FuncMeta is first created to later be used to set the current
+    /// This is stored when the `FuncMeta` is first created to later be used to set the current
     /// generics when the function's body is later resolved.
     pub all_generics: Vec<ResolvedGeneric>,
 
     pub location: Location,
 
-    // This flag is needed for the attribute check pass
-    pub has_body: bool,
-
+    /// Trait constraints that were specified directly on this function.
     pub trait_constraints: Vec<TraitConstraint>,
+
+    /// Trait constraints that came either from a parent item (for example a where clause on a
+    /// trait or trait impl) or from constraints on implicitly added named generics.
+    pub extra_trait_constraints: Vec<TraitConstraint>,
 
     /// The type this method belongs to, if any
     pub type_id: Option<TypeId>,
@@ -141,6 +148,9 @@ pub struct FuncMeta {
 
     /// The trait impl this function belongs to, if any
     pub trait_impl: Option<TraitImplId>,
+
+    /// The inherent (non-trait) impl this function belongs to, if any
+    pub impl_id: Option<ImplId>,
 
     /// If this function is the one related to an enum variant, this holds its index (relative to `type_id`)
     pub enum_variant_index: Option<usize>,
@@ -162,7 +172,7 @@ pub struct FuncMeta {
     /// The module this function was defined in
     pub source_module: LocalModuleId,
 
-    /// THe file this function was defined in
+    /// `THe` file this function was defined in
     pub source_file: FileId,
 
     /// If this function is from an impl (trait or regular impl), this
@@ -178,7 +188,7 @@ pub enum FunctionBody {
 }
 
 impl FuncMeta {
-    /// A stub function does not have a body. This includes Builtin, LowLevel,
+    /// A stub function does not have a body. This includes Builtin, `LowLevel`,
     /// and Oracle functions in addition to method declarations within a trait
     /// without a body.
     ///
@@ -188,12 +198,48 @@ impl FuncMeta {
         self.kind.can_ignore_return_type()
     }
 
-    pub fn function_signature(&self) -> FunctionSignature {
-        let return_type = match self.return_type() {
-            Type::Unit => None,
-            typ => Some(typ.clone()),
-        };
-        (self.parameters.0.clone(), return_type)
+    /// Number of generics introduced by the enclosing `impl<...>` (or trait `Self`),
+    /// i.e. the prefix of `all_generics` that is not part of `direct_generics`.
+    pub fn impl_generics_count(&self) -> usize {
+        self.all_generics.len() - self.direct_generics.len()
+    }
+
+    /// The generics introduced by the enclosing `impl<...>` (or trait `Self`).
+    /// These are the leading entries of `all_generics`; the remainder are `direct_generics`.
+    pub fn impl_generics(&self) -> &[ResolvedGeneric] {
+        &self.all_generics[..self.impl_generics_count()]
+    }
+
+    pub fn is_unconstrained(&self) -> bool {
+        match &self.typ {
+            Type::Function(_, _, _, unconstrained) => {
+                return *unconstrained;
+            }
+            Type::Forall(_, typ) => {
+                if let Type::Function(_, _, _, unconstrained) = typ.as_ref() {
+                    return *unconstrained;
+                }
+            }
+            _ => (),
+        }
+        unreachable!("A function type can only be Function or Forall(Function)")
+    }
+
+    pub fn set_unconstrained(&mut self, unconstrained: bool) {
+        match &mut self.typ {
+            Type::Function(_, _, _, unconstrained_field) => {
+                *unconstrained_field = unconstrained;
+                return;
+            }
+            Type::Forall(_, typ) => {
+                if let Type::Function(_, _, _, unconstrained_field) = typ.as_mut() {
+                    *unconstrained_field = unconstrained;
+                    return;
+                }
+            }
+            _ => (),
+        }
+        unreachable!("A function type can only be Function or Forall(Function)")
     }
 
     /// Gives the (uninstantiated) return type of this function.
@@ -220,6 +266,20 @@ impl FuncMeta {
             }
             FunctionBody::Resolving => FunctionBody::Resolving,
             FunctionBody::Resolved => FunctionBody::Resolved,
+        }
+    }
+
+    pub fn all_trait_constraints(&self) -> impl Iterator<Item = &TraitConstraint> {
+        self.trait_constraints.iter().chain(self.extra_trait_constraints.iter())
+    }
+
+    /// Instantiates a type by substituting any generics declared on this function that appear
+    /// in the given type with fresh type variables.
+    pub(crate) fn instantiate<'a>(&self, typ: &'a Type, interner: &NodeInterner) -> Cow<'a, Type> {
+        if let Type::Forall(type_vars, _) = &self.typ {
+            Cow::Owned(typ.substitute_type_vars_with_fresh_type_vars(type_vars, interner).0)
+        } else {
+            Cow::Borrowed(typ)
         }
     }
 }

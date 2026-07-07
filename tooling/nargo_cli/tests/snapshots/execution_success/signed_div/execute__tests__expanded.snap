@@ -1,0 +1,15 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+struct SignedDivOp {
+    lhs: i8,
+    rhs: i8,
+    result: i8,
+}
+
+fn main(ops: [SignedDivOp; 15]) {
+    for i in 0_u32..15_u32 {
+        assert((ops[i].lhs / ops[i].rhs) == ops[i].result);
+    }
+}

@@ -1,0 +1,11 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn main() -> pub bool {
+    foo().0
+}
+
+fn foo() -> (bool, i8) {
+    (true, -128_i8 / -1_i8)
+}

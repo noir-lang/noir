@@ -4,12 +4,12 @@
 //! cargo run -p noir_ast_fuzzer --example sample
 //! ```
 use arbitrary::Unstructured;
-use noir_ast_fuzzer::{Config, arb_program};
-use rand::RngCore;
+use noir_ast_fuzzer::{Config, DisplayAstAsNoir, arb_program};
+use rand::Rng;
 
 fn main() {
     let data = {
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
         let mut data = [0u8; 1024 * 1024];
         rng.fill_bytes(&mut data);
         data
@@ -18,5 +18,5 @@ fn main() {
 
     let program = arb_program(&mut u, Config::default()).expect("arb_program");
 
-    println!("{program}");
+    println!("{}", DisplayAstAsNoir(&program));
 }

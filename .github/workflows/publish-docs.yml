@@ -7,37 +7,44 @@ on:
     paths: [docs/**]
   workflow_dispatch:
 
+permissions: {}
+
 jobs:
   publish-docs:
     name: Publish docs
     runs-on: ubuntu-22.04
+    permissions:
+      contents: read
 
     steps:
       - name: Checkout release branch
-        uses: actions/checkout@v4
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
 
-      - name: Install Yarn dependencies
-        uses: ./.github/actions/setup
-
-      - name: Install wasm-bindgen-cli
-        uses: taiki-e/install-action@v2
+      - name: Setup Node.js
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
         with:
-          tool: wasm-bindgen-cli@0.2.100
+          node-version: '22.15.0'
+          cache: 'yarn'
+          cache-dependency-path: 'docs/yarn.lock'
 
-      - name: Install wasm-opt
-        run: |
-          npm i wasm-opt -g
+      - name: Install docs dependencies
+        working-directory: docs
+        run: yarn install --immutable
 
       - name: Query active docs versions
-        run: yarn workspace docs version::stables
+        working-directory: docs
+        run: yarn version::stables
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build docs for deploying
-        run: yarn workspaces foreach -Rpt --from docs run build
+        working-directory: docs
+        run: yarn build
 
       - name: Deploy to Netlify
-        uses: nwtgck/actions-netlify@v2.1
+        uses: nwtgck/actions-netlify@d22a32a27c918fe470bbc562e984f80ec48c2668 # v4.0.0
         with:
-          publish-dir: './docs/build'
+          publish-dir: "./docs/build"
           production-branch: master
           production-deploy: true
           github-token: ${{ secrets.GITHUB_TOKEN }}

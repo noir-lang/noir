@@ -1,0 +1,20 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn main(x: Field, y: pub Field) {
+    let z: Field = func_with_nested_foo_call(x, y);
+    let z2: Field = func_with_nested_foo_call(x, y);
+    assert(z == z2);
+}
+
+#[fold]
+fn func_with_nested_foo_call(x: Field, y: Field) -> Field {
+    foo(x + 2_Field, y)
+}
+
+#[fold]
+fn foo(x: Field, y: Field) -> Field {
+    assert(x != y);
+    x
+}

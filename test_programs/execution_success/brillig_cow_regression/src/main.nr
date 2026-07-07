@@ -167,11 +167,11 @@ unconstrained fn main(kernel_data: DataToHash) -> pub [Field; NUM_FIELDS_PER_SHA
         let input_as_bytes: [u8; 16] =
             tx_effects_hash_inputs[TX_EFFECT_HASH_FULL_FIELDS + log_field_index].to_be_bytes();
         for byte_index in 0..16 {
-            hash_input_flattened[TX_EFFECT_HASH_FULL_FIELDS * 32 + log_field_index * 16 + byte_index] =
-                input_as_bytes[byte_index];
+            hash_input_flattened[TX_EFFECT_HASH_FULL_FIELDS * 32 + log_field_index * 16 + byte_index
+                ] = input_as_bytes[byte_index];
         }
     }
 
-    let blake3_digest = std::hash::blake3(hash_input_flattened);
-    U256::from_bytes32(blake3_digest).to_u128_limbs()
+    let blake2_digest = std::hash::blake2s(hash_input_flattened);
+    U256::from_bytes32(blake2_digest).to_u128_limbs()
 }

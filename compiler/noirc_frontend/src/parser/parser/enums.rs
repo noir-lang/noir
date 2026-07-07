@@ -12,23 +12,25 @@ use super::{
 };
 
 impl Parser<'_> {
-    /// Enum = 'enum' identifier Generics '{' EnumVariant* '}'
+    /// Enum = 'enum' identifier Generics '{' `EnumVariant`* '}'
     ///
-    /// EnumField = OuterDocComments identifier ':' Type
+    /// `EnumField` = `OuterDocComments` identifier ':' Type
     pub(crate) fn parse_enum(
         &mut self,
         attributes: Vec<(Attribute, Location)>,
         visibility: ItemVisibility,
+        comptime: bool,
         start_location: Location,
     ) -> NoirEnumeration {
         let attributes = self.validate_secondary_attributes(attributes);
 
-        let Some(name) = self.eat_ident() else {
+        let Some(name) = self.eat_non_underscore_ident() else {
             self.expected_identifier();
             return self.empty_enum(
-                Ident::default(),
+                self.empty_ident_at_previous_token_end(),
                 attributes,
                 visibility,
+                comptime,
                 Vec::new(),
                 start_location,
             );
@@ -38,7 +40,14 @@ impl Parser<'_> {
 
         if !self.eat_left_brace() {
             self.expected_token(Token::LeftBrace);
-            return self.empty_enum(name, attributes, visibility, generics, start_location);
+            return self.empty_enum(
+                name,
+                attributes,
+                visibility,
+                comptime,
+                generics,
+                start_location,
+            );
         }
 
         let comma_separated = separated_by_comma_until_right_brace();
@@ -48,6 +57,7 @@ impl Parser<'_> {
             name,
             attributes,
             visibility,
+            comptime,
             generics,
             variants,
             location: self.location_since(start_location),
@@ -63,7 +73,7 @@ impl Parser<'_> {
             let doc_comments_start_location = self.current_token_location;
             doc_comments = self.parse_outer_doc_comments();
 
-            if let Some(ident) = self.eat_ident() {
+            if let Some(ident) = self.eat_non_underscore_ident() {
                 name = ident;
                 break;
             }
@@ -82,7 +92,7 @@ impl Parser<'_> {
             }
 
             // Or if we find a right brace
-            if self.at(Token::RightBrace) {
+            if self.at(&Token::RightBrace) {
                 return None;
             }
 
@@ -103,6 +113,7 @@ impl Parser<'_> {
         name: Ident,
         attributes: Vec<SecondaryAttribute>,
         visibility: ItemVisibility,
+        comptime: bool,
         generics: UnresolvedGenerics,
         start_location: Location,
     ) -> NoirEnumeration {
@@ -110,6 +121,7 @@ impl Parser<'_> {
             name,
             attributes,
             visibility,
+            comptime,
             generics,
             variants: Vec::new(),
             location: self.location_since(start_location),
@@ -120,13 +132,12 @@ impl Parser<'_> {
 #[cfg(test)]
 mod tests {
     use crate::{
-        ast::{IntegerBitSize, NoirEnumeration, UnresolvedGeneric, UnresolvedTypeData},
+        ast::{NoirEnumeration, UnresolvedGeneric},
         parse_program_with_dummy_file,
         parser::{
-            ItemKind, ParserErrorReason,
-            parser::tests::{expect_no_errors, get_source_with_error_span},
+            ItemKind,
+            parser::tests::{check_errors, expect_no_errors},
         },
-        shared::Signedness,
     };
 
     fn parse_enum_no_errors(src: &str) -> NoirEnumeration {
@@ -147,6 +158,17 @@ mod tests {
         assert_eq!("Foo", noir_enum.name.to_string());
         assert!(noir_enum.variants.is_empty());
         assert!(noir_enum.generics.is_empty());
+        assert!(!noir_enum.comptime);
+    }
+
+    #[test]
+    fn parse_empty_comptime_enum() {
+        let src = "comptime enum Foo {}";
+        let noir_enum = parse_enum_no_errors(src);
+        assert_eq!("Foo", noir_enum.name.to_string());
+        assert!(noir_enum.variants.is_empty());
+        assert!(noir_enum.generics.is_empty());
+        assert!(noir_enum.comptime);
     }
 
     #[test]
@@ -169,10 +191,7 @@ mod tests {
             panic!("Expected generic numeric");
         };
         assert_eq!("B", ident.to_string());
-        assert_eq!(
-            typ.typ,
-            UnresolvedTypeData::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo)
-        );
+        assert_eq!(typ.typ.to_string(), "u32");
     }
 
     #[test]
@@ -184,16 +203,13 @@ mod tests {
 
         let variant = noir_enum.variants.remove(0).item;
         assert_eq!("X", variant.name.to_string());
-        assert!(matches!(
-            variant.parameters.as_ref().unwrap()[0].typ,
-            UnresolvedTypeData::Integer(Signedness::Signed, IntegerBitSize::ThirtyTwo)
-        ));
+        assert_eq!(variant.parameters.as_ref().unwrap()[0].typ.to_string(), "i32");
 
         let variant = noir_enum.variants.remove(0).item;
         assert_eq!("y", variant.name.to_string());
         let parameters = variant.parameters.as_ref().unwrap();
-        assert!(matches!(parameters[0].typ, UnresolvedTypeData::FieldElement));
-        assert!(matches!(parameters[1].typ, UnresolvedTypeData::Integer(..)));
+        assert_eq!(parameters[0].typ.to_string(), "Field");
+        assert_eq!(parameters[1].typ.to_string(), "u32");
 
         let variant = noir_enum.variants.remove(0).item;
         assert_eq!("Z", variant.name.to_string());
@@ -231,22 +247,18 @@ mod tests {
     fn parse_error_no_function_attributes_allowed_on_enum() {
         let src = "
         #[test] enum Foo {}
-        ^^^^^^^
+        ^^^^^^^ A function attribute cannot be placed on a struct or enum
         ";
-        let (src, _) = get_source_with_error_span(src);
-        let (_, errors) = parse_program_with_dummy_file(&src);
-        let reason = errors[0].reason().unwrap();
-        assert!(matches!(reason, ParserErrorReason::NoFunctionAttributesAllowedOnType));
+        check_errors(src, |parser| parser.parse_program());
     }
 
     #[test]
     fn recovers_on_non_field() {
         let src = "
         enum Foo { 42 X(i32) }
-                   ^^
+                   ^^ Expected an identifier but found '42'
         ";
-        let (src, _) = get_source_with_error_span(src);
-        let (module, errors) = parse_program_with_dummy_file(&src);
+        let module = check_errors(src, |parser| parser.parse_program());
 
         assert_eq!(module.items.len(), 1);
         let item = &module.items[0];
@@ -255,9 +267,5 @@ mod tests {
         };
         assert_eq!("Foo", noir_enum.name.to_string());
         assert_eq!(noir_enum.variants.len(), 1);
-
-        assert_eq!(errors.len(), 1);
-        let error = &errors[0];
-        assert_eq!(error.to_string(), "Expected an identifier but found '42'");
     }
 }

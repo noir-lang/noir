@@ -1,0 +1,6 @@
+[package]
+name = "trait_inheritence_call_method_on_self"
+type = "bin"
+authors = [""]
+
+[dependencies]

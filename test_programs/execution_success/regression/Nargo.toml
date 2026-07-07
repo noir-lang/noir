@@ -1,6 +1,0 @@
-[package]
-name = "regression"
-type = "bin"
-authors = [""]
-
-[dependencies]

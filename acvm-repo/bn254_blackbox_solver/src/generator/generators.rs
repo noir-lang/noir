@@ -27,7 +27,7 @@ fn default_generators() -> &'static [Affine; NUM_DEFAULT_GENERATORS] {
 ///
 /// 1. Each generator has an associated "generator index" described by its location in the vector
 /// 2. a 64-byte preimage buffer is generated with the following structure:
-///     - bytes 0-31: BLAKE3 hash of domain_separator
+///     - bytes 0-31: BLAKE3 hash of `domain_separator`
 ///     - bytes 32-63: generator index in big-endian form
 /// 3. The hash-to-curve algorithm is used to hash the above into a curve point.
 ///
@@ -75,10 +75,11 @@ fn _derive_generators(
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
 
     use ark_ec::AffineRepr;
     use ark_ff::{BigInteger, PrimeField};
+    use itertools::Itertools;
 
     use super::*;
 
@@ -162,7 +163,7 @@ mod test {
         let generated_generators =
             derive_generators(DEFAULT_DOMAIN_SEPARATOR, DEFAULT_GENERATORS.len() as u32, 0);
         for (i, (generator, expected_generator)) in
-            generated_generators.iter().zip(DEFAULT_GENERATORS).enumerate()
+            generated_generators.iter().zip_eq(DEFAULT_GENERATORS).enumerate()
         {
             assert_eq!(
                 hex::encode(generator.x().unwrap().into_bigint().to_bytes_be()),

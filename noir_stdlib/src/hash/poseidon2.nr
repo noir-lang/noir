@@ -1,87 +1,9 @@
 use crate::default::Default;
-use crate::hash::Hasher;
+use crate::hash::{Hasher, POSEIDON2_CONFIG_STATE_SIZE};
 
-comptime global RATE: u32 = 3;
-
-pub(crate) struct Poseidon2 {
-    cache: [Field; 3],
-    state: [Field; 4],
-    cache_size: u32,
-    squeeze_mode: bool, // 0 => absorb, 1 => squeeze
-}
-
-impl Poseidon2 {
-    #[no_predicates]
-    pub(crate) fn hash<let N: u32>(input: [Field; N], message_size: u32) -> Field {
-        Poseidon2::hash_internal(input, message_size, message_size != N)
-    }
-
-    pub(crate) fn new(iv: Field) -> Poseidon2 {
-        let mut result =
-            Poseidon2 { cache: [0; 3], state: [0; 4], cache_size: 0, squeeze_mode: false };
-        result.state[RATE] = iv;
-        result
-    }
-
-    fn perform_duplex(&mut self) {
-        // add the cache into sponge state
-        for i in 0..RATE {
-            // We effectively zero-pad the cache by only adding to the state
-            // cache that is less than the specified `cache_size`
-            if i < self.cache_size {
-                self.state[i] += self.cache[i];
-            }
-        }
-        self.state = crate::hash::poseidon2_permutation(self.state, 4);
-    }
-
-    fn absorb(&mut self, input: Field) {
-        assert(!self.squeeze_mode);
-        if self.cache_size == RATE {
-            // If we're absorbing, and the cache is full, apply the sponge permutation to compress the cache
-            self.perform_duplex();
-            self.cache[0] = input;
-            self.cache_size = 1;
-        } else {
-            // If we're absorbing, and the cache is not full, add the input into the cache
-            self.cache[self.cache_size] = input;
-            self.cache_size += 1;
-        }
-    }
-
-    fn squeeze(&mut self) -> Field {
-        assert(!self.squeeze_mode);
-        // If we're in absorb mode, apply sponge permutation to compress the cache.
-        self.perform_duplex();
-        self.squeeze_mode = true;
-
-        // Pop one item off the top of the permutation and return it.
-        self.state[0]
-    }
-
-    fn hash_internal<let N: u32>(
-        input: [Field; N],
-        in_len: u32,
-        is_variable_length: bool,
-    ) -> Field {
-        let two_pow_64 = 18446744073709551616;
-        let iv: Field = (in_len as Field) * two_pow_64;
-        let mut sponge = Poseidon2::new(iv);
-        for i in 0..input.len() {
-            if i < in_len {
-                sponge.absorb(input[i]);
-            }
-        }
-
-        // In the case where the hash preimage is variable-length, we append `1` to the end of the input, to distinguish
-        // from fixed-length hashes. (the combination of this additional field element + the hash IV ensures
-        // fixed-length and variable-length hashes do not collide)
-        if is_variable_length {
-            sponge.absorb(1);
-        }
-        sponge.squeeze()
-    }
-}
+// Sponge capacity in field elements: It must match the backend's Poseidon2 parameter.
+global CAPACITY: u32 = 1;
+global RATE: u32 = POSEIDON2_CONFIG_STATE_SIZE - CAPACITY;
 
 pub(crate) struct Poseidon2Hasher {
     _state: [Field],
@@ -89,12 +11,30 @@ pub(crate) struct Poseidon2Hasher {
 
 impl Hasher for Poseidon2Hasher {
     fn finish(self) -> Field {
-        let iv: Field = (self._state.len() as Field) * 18446744073709551616; // iv = (self._state.len() << 64)
-        let mut sponge = Poseidon2::new(iv);
-        for i in 0..self._state.len() {
-            sponge.absorb(self._state[i]);
+        self.finish_ref()
+    }
+
+    fn finish_ref(&self) -> Field {
+        let input_length = self._state.len();
+        let iv: Field = (input_length as Field) * 18446744073709551616; // iv = (self._state.len() << 64)
+        let mut state = [0; POSEIDON2_CONFIG_STATE_SIZE];
+        state[RATE] = iv;
+
+        // These for-loops can run for a dynamic number of iterations, however
+        // this is not an issue in practice as this code is only reachable within a `comptime` context
+        for i in 0..input_length / RATE {
+            for j in 0..RATE {
+                state[j] += self._state[i * RATE + j];
+            }
+            state = super::poseidon2_permutation(state);
         }
-        sponge.squeeze()
+
+        let absorbed = (input_length / RATE) * RATE;
+        for i in 0..input_length % RATE {
+            state[i] += self._state[absorbed + i];
+        }
+
+        crate::hash::poseidon2_permutation(state)[0]
     }
 
     fn write(&mut self, input: Field) {
@@ -104,6 +44,66 @@ impl Hasher for Poseidon2Hasher {
 
 impl Default for Poseidon2Hasher {
     fn default() -> Self {
-        Poseidon2Hasher { _state: &[] }
+        Poseidon2Hasher { _state: [].as_vector() }
+    }
+}
+
+mod test {
+    use crate::hash::Hasher;
+    use super::Poseidon2Hasher;
+
+    // Test the exact output of Poseidon2. This catches any change to the parameters.
+    #[test]
+    unconstrained fn finish_ref_matches_known_digest() {
+        let mut a = Poseidon2Hasher { _state: [].as_vector() };
+        a.write(1);
+        a.write(2);
+        a.write(3);
+        a.write(4);
+        a.write(5);
+        assert(a.finish() == 0x2247be7014a54d17342a7ef677f58d28877780d203860396967f5d0a18d259db);
+    }
+
+    // The residual block absorbs the unabsorbed tail elements. If it instead
+    // re-absorbed the prefix, mutating the trailing `len % RATE` elements would
+    // leave the digest unchanged, producing a collision.
+    #[test]
+    unconstrained fn finish_ref_does_not_drop_tail_at_length_4() {
+        let mut a = Poseidon2Hasher { _state: [].as_vector() };
+        a.write(1);
+        a.write(2);
+        a.write(3);
+        a.write(4);
+        let h_a = a.finish();
+
+        let mut b = Poseidon2Hasher { _state: [].as_vector() };
+        b.write(1);
+        b.write(2);
+        b.write(3);
+        b.write(99999);
+        let h_b = b.finish();
+
+        assert(h_a != h_b);
+    }
+
+    #[test]
+    unconstrained fn finish_ref_does_not_drop_tail_at_length_5() {
+        let mut a = Poseidon2Hasher { _state: [].as_vector() };
+        a.write(1);
+        a.write(2);
+        a.write(3);
+        a.write(4);
+        a.write(5);
+        let h_a = a.finish();
+
+        let mut b = Poseidon2Hasher { _state: [].as_vector() };
+        b.write(1);
+        b.write(2);
+        b.write(3);
+        b.write(77);
+        b.write(88);
+        let h_b = b.finish();
+
+        assert(h_a != h_b);
     }
 }

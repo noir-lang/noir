@@ -1,1 +1,0 @@
-[arithmetic_binary_operations] Circuit output: Field(10)

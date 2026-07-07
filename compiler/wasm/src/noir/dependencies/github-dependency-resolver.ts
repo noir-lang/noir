@@ -32,7 +32,7 @@ export class GithubDependencyResolver implements DependencyResolver {
   async resolveDependency(_pkg: Package, dependency: DependencyConfig): Promise<Dependency | null> {
     // TODO accept ssh urls?
     // TODO github authentication?
-    if (!('git' in dependency) || !dependency.git.startsWith('https://github.com')) {
+    if (!('git' in dependency) || new URL(dependency.git).hostname != 'github.com') {
       return null;
     }
 
@@ -142,6 +142,13 @@ export function resolveGithubCodeArchive(dependency: GitDependencyConfig, format
 
   if (!owner || !repo || gitUrl.hostname !== 'github.com') {
     throw new Error('Invalid Github repository URL');
+  }
+
+  // Validate ref to prevent path traversal attacks
+  // First decode any URL encoding to catch encoded path traversal attempts
+  const decodedRef = decodeURIComponent(ref);
+  if (decodedRef.includes('..') || decodedRef.includes('/') || decodedRef.includes('\\')) {
+    throw new Error('Invalid git reference. Git references cannot contain path traversal characters');
   }
 
   return new URL(`https://github.com/${owner}/${repo}/archive/${ref}.${extension}`);

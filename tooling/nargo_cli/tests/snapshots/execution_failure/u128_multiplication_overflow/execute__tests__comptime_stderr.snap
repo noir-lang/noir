@@ -1,0 +1,12 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+error: Attempt to multiply with overflow
+  ┌─ src/main.nr:6:5
+  │
+6 │     x * y
+  │     -----
+  │
+
+Error interpreting main function

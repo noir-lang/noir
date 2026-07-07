@@ -106,7 +106,7 @@ Now, when we run the fuzzer, we'll see the following output:
 
 ![Fuzzing failure output showing the failing test case and its inputs](fuzzing_failure.png)
 
-It quickly finds a failing test case, and prints the inputs that lead to the failure in the json format. It also shows the path of the file where it saves a failing toml file, which will have the name "Prover-failling-\<package-name\>-\<fuzzing-harness-name\>.toml".
+It quickly finds a failing test case, and prints the inputs that lead to the failure in the json format. It also shows the path of the file where it saves a failing toml file, which will have the name "Prover-failing-\<package-name\>-\<fuzzing-harness-name\>.toml".
 
 
 ## Potential improvements (in order of most to least impact)

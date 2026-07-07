@@ -1,7 +1,0 @@
-
-            [package]
-            name = "noirc_frontend_tests_traits_regression_6314_double_inheritance"
-            type = "bin"
-            authors = [""]
-            
-            [dependencies]

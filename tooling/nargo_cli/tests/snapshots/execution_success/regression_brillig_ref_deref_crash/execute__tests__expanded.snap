@@ -1,0 +1,25 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn main() -> pub [Field; 1] {
+    // Safety: comment added by `nargo expand`
+    unsafe {
+        foo()
+    }
+}
+
+unconstrained fn foo() -> [Field; 1] {
+    bar([&mut [0_Field], &mut [0_Field]])
+}
+
+unconstrained fn bar(mut a: [&mut [Field; 1]; 2]) -> [Field; 1] {
+    {
+        let mut running: bool = true;
+        while running {
+            a = [&mut [0_Field], a[0_u32]];
+            running = false;
+        }
+    };
+    *a[0_u32]
+}

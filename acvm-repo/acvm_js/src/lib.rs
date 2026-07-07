@@ -1,9 +1,9 @@
-#![warn(unreachable_pub)]
-#![warn(clippy::semicolon_if_nothing_returned)]
 #![cfg_attr(not(test), warn(unused_crate_dependencies, unused_extern_crates))]
 
 // See Cargo.toml for explanation.
 use getrandom as _;
+use getrandom_v2 as _;
+use getrandom_v4 as _;
 
 mod black_box_solvers;
 mod build_info;

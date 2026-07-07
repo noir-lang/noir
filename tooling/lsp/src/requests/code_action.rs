@@ -5,14 +5,15 @@ use std::{
 };
 
 use async_lsp::ResponseError;
-use fm::{FileId, FileMap, PathString};
-use lsp_types::{
+use async_lsp::lsp_types::{
     CodeAction, CodeActionKind, CodeActionOrCommand, CodeActionParams, CodeActionResponse,
     TextDocumentPositionParams, TextEdit, Url, WorkspaceEdit,
 };
+use fm::{FileId, FileMap};
 use noirc_errors::Span;
 use noirc_frontend::{
     ParsedModule,
+    modules::{get_ancestor_module_reexport, module_def_id_is_visible},
     parser::{Item, ItemKind, ParsedSubModule},
 };
 use noirc_frontend::{
@@ -26,10 +27,7 @@ use noirc_frontend::{
     usage_tracker::UsageTracker,
 };
 
-use crate::{
-    LspState, modules::get_ancestor_module_reexport, use_segment_positions::UseSegmentPositions,
-    utils, visibility::module_def_id_is_visible,
-};
+use crate::{LspState, use_segment_positions::UseSegmentPositions, utils};
 
 use super::{process_request, to_lsp_location};
 
@@ -51,28 +49,25 @@ pub(crate) fn on_code_action_request(
         TextDocumentPositionParams { text_document: params.text_document, position };
 
     let result = process_request(state, text_document_position_params, |args| {
-        let path = PathString::from_path(uri.to_file_path().unwrap());
-        args.files.get_file_id(&path).and_then(|file_id| {
-            utils::range_to_byte_span(args.files, file_id, &params.range).and_then(|byte_range| {
-                let file = args.files.get_file(file_id).unwrap();
-                let source = file.source();
-                let (parsed_module, _errors) = noirc_frontend::parse_program(source, file_id);
+        let file_id = args.location.file;
+        let byte_range = utils::range_to_byte_span(args.files, file_id, &params.range)?;
+        let file = args.files.get_file(file_id).unwrap();
+        let source = file.source();
+        let (parsed_module, _errors) = noirc_frontend::parse_program(source, file_id);
 
-                let mut finder = CodeActionFinder::new(
-                    uri,
-                    args.files,
-                    file_id,
-                    source,
-                    byte_range,
-                    args.crate_id,
-                    args.def_maps,
-                    args.dependencies,
-                    args.interner,
-                    args.usage_tracker,
-                );
-                finder.find(&parsed_module)
-            })
-        })
+        let mut finder = CodeActionFinder::new(
+            uri,
+            args.files,
+            file_id,
+            source,
+            byte_range,
+            args.crate_id,
+            args.def_maps,
+            args.dependencies(),
+            args.interner,
+            args.usage_tracker,
+        );
+        finder.find(&parsed_module)
     });
     future::ready(result)
 }
@@ -93,7 +88,7 @@ struct CodeActionFinder<'a> {
     usage_tracker: &'a UsageTracker,
     /// How many nested `mod` we are in deep
     nesting: usize,
-    /// The line where an auto_import must be inserted
+    /// The line where an `auto_import` must be inserted
     auto_import_line: usize,
     use_segment_positions: UseSegmentPositions,
     /// Text edits for the "Remove all unused imports" code action
@@ -264,12 +259,16 @@ impl Visitor for CodeActionFinder<'_> {
             self.auto_import_line = (lsp_location.range.start.line + 1) as usize;
         }
 
+        // We are entering a child module so we shouldn't modify imports from a parent module
+        let previous_use_segment_positions = std::mem::take(&mut self.use_segment_positions);
+
         parsed_sub_module.contents.accept(self);
 
         // Restore the old module before continuing
         self.module_id = previous_module_id;
         self.nesting -= 1;
         self.auto_import_line = old_auto_import_line;
+        self.use_segment_positions = previous_use_segment_positions;
 
         false
     }

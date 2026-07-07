@@ -10,6 +10,8 @@
 
 # The Noir Programming Language
 
+[![Non-deterministic fuzz tests](https://github.com/noir-lang/noir/actions/workflows/nightly-fuzz-test.yml/badge.svg)](https://github.com/noir-lang/noir/actions/workflows/nightly-fuzz-test.yml)
+
 Noir is a Domain Specific Language for SNARK proving systems. It has been designed to use any ACIR compatible proving system.
 
 **This implementation is in early development. It has not been reviewed or audited. It is not suitable to be used in production. Expect bugs!**
@@ -34,7 +36,7 @@ The current focus is to gather as much feedback as possible while in the alpha p
 
 ## Minimum Rust version
 
-This workspace's minimum supported rustc version is 1.85.0.
+This workspace's minimum supported rustc version is 1.89.0.
 
 ## License
 

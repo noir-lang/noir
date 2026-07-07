@@ -1,0 +1,10 @@
+fn main() {
+    let _: fn(u32) -> u32 = std::mem::checked_transmute;
+    let _ = std::field::modulus_num_bits;
+    let _: fn() -> u32 = std::mem::zeroed;
+
+    let _ = std::field::modulus_be_bits;
+    let _ = std::field::modulus_be_bytes;
+    let _ = std::field::modulus_le_bits;
+    let _ = std::field::modulus_le_bytes;
+}

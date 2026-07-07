@@ -1,0 +1,21 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+unconstrained fn main() -> pub Field {
+    func_2(
+        [(0_u32, &mut -292434322542114415011969994633470574393_Field)],
+    )
+}
+
+unconstrained fn func_2(mut b: [(u32, &mut Field); 1]) -> Field {
+    let mut idx_e: u32 = 0_u32;
+    loop {
+        if idx_e == 1_u32 {
+            break;
+        } else {
+            idx_e = idx_e + 1_u32;
+        }
+    }
+    157653526363045079447323020681982670581_Field / *b[0_u32].1
+}

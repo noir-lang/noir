@@ -1,0 +1,13 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+use poseidon::poseidon;
+
+fn main(x: [Field; 7]) {
+    let result: Field = poseidon::bn254::sponge(x);
+    assert(
+        result
+            == 3637726918731233354960448572465528704217843406233123660822069175839457651784_Field,
+    );
+}

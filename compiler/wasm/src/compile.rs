@@ -1,13 +1,11 @@
-use acvm::acir::circuit::ExpressionWidth;
 use fm::FileManager;
 use gloo_utils::format::JsValueSerdeExt;
 use js_sys::{JsString, Object};
 use nargo::parse_all;
-use noirc_artifacts::{contract::ContractArtifact, program::ProgramArtifact};
+use noirc_artifacts::{contract::ContractArtifact, program::ProgramArtifact, ssa::SsaReport};
 use noirc_driver::{
     CompileOptions, add_dep, file_manager_with_stdlib, prepare_crate, prepare_dependency,
 };
-use noirc_evaluator::errors::SsaReport;
 use noirc_frontend::{
     graph::{CrateId, CrateName},
     hir::Context,
@@ -169,9 +167,7 @@ pub fn compile_program(
     console_error_panic_hook::set_once();
     let (crate_id, mut context) = prepare_context(entry_point, dependency_graph, file_source_map)?;
 
-    let expression_width = ExpressionWidth::Bounded { width: 4 };
-    let compile_options =
-        CompileOptions { expression_width: Some(expression_width), ..CompileOptions::default() };
+    let compile_options = CompileOptions::default();
 
     let compiled_program =
         noirc_driver::compile_main(&mut context, crate_id, &compile_options, None)
@@ -184,17 +180,16 @@ pub fn compile_program(
             })?
             .0;
 
-    let optimized_program = nargo::ops::transform_program(compiled_program, expression_width);
-    nargo::ops::check_program(&optimized_program).map_err(|errs| {
+    nargo::ops::check_program(&compiled_program).map_err(|errs| {
         CompileError::with_custom_diagnostics(
             "Compiled program is not solvable",
             errs,
             &context.file_manager,
         )
     })?;
-    let warnings = optimized_program.warnings.clone();
+    let warnings = compiled_program.warnings.clone();
 
-    Ok(JsCompileProgramResult::new(optimized_program.into(), warnings))
+    Ok(JsCompileProgramResult::new(compiled_program.into(), warnings))
 }
 
 #[wasm_bindgen]
@@ -206,9 +201,7 @@ pub fn compile_contract(
     console_error_panic_hook::set_once();
     let (crate_id, mut context) = prepare_context(entry_point, dependency_graph, file_source_map)?;
 
-    let expression_width = ExpressionWidth::Bounded { width: 4 };
-    let compile_options =
-        CompileOptions { expression_width: Some(expression_width), ..CompileOptions::default() };
+    let compile_options = CompileOptions::default();
 
     let compiled_contract =
         noirc_driver::compile_contract(&mut context, crate_id, &compile_options)
@@ -221,10 +214,9 @@ pub fn compile_contract(
             })?
             .0;
 
-    let optimized_contract = nargo::ops::transform_contract(compiled_contract, expression_width);
-    let warnings = optimized_contract.warnings.clone();
+    let warnings = compiled_contract.warnings.clone();
 
-    Ok(JsCompileContractResult::new(optimized_contract.into(), warnings))
+    Ok(JsCompileContractResult::new(compiled_contract.into(), warnings))
 }
 
 fn prepare_context(
@@ -309,7 +301,7 @@ fn add_noir_lib(context: &mut Context, library_name: &CrateName) -> CrateId {
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use nargo::parse_all;
     use noirc_driver::prepare_crate;
     use noirc_frontend::{graph::CrateName, hir::Context};

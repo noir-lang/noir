@@ -1,22 +1,25 @@
-use acvm::{AcirField as _, FieldElement};
+use crate::ssa::{
+    ir::{
+        basic_block::BasicBlockId,
+        dfg::simplify::value_merger::ValueMerger,
+        instruction::{
+            Binary, BinaryOp, ConstrainError, Instruction,
+            binary::{truncate, truncate_field},
+        },
+        types::{NumericType, Type},
+        value::{Value, ValueId},
+    },
+    opt::ArrayGetOptimizationResult,
+};
+use acvm::{
+    AcirField as _, FieldElement,
+    acir::brillig::lengths::{ElementTypesLength, SemanticLength},
+};
 use binary::simplify_binary;
 use call::simplify_call;
 use cast::simplify_cast;
 use constrain::decompose_constrain;
-
-use crate::ssa::{
-    ir::{
-        basic_block::BasicBlockId,
-        call_stack::CallStackId,
-        instruction::{
-            Binary, BinaryOp, Instruction,
-            binary::{truncate, truncate_field},
-        },
-        types::Type,
-        value::{Value, ValueId},
-    },
-    opt::flatten_cfg::value_merger::ValueMerger,
-};
+use noirc_errors::call_stack::CallStackId;
 
 use super::DataFlowGraph;
 
@@ -24,9 +27,43 @@ mod binary;
 mod call;
 mod cast;
 mod constrain;
+pub(crate) mod value_merger;
 
-/// Contains the result to Instruction::simplify, specifying how the instruction
+pub(crate) use call::constant_to_radix;
+
+/// Bail out of a `simplify_*` routine on input that cannot arise from well-formed SSA — a wrong
+/// argument count, a mismatched type, an unexpected array length, and the like.
+///
+/// Simplification runs during SSA construction, before the validation pass that would reject such
+/// input, so it cannot rely on validation as a backstop. By default this panics at the call site
+/// (preserving a precise stack trace) since the normal pipeline never produces malformed SSA.
+/// When the owning [`DataFlowGraph`]'s `allow_malformed_simplify` is set — only the `ssa_fuzzer`,
+/// which builds malformed SSA on purpose, does this — it instead emits a trace and returns
+/// [`SimplifyResult::None`], leaving the instruction untouched.
+///
+/// Only for checks on the instruction's *inputs*. Invariants on the simplifier's own logic or
+/// output should remain hard `assert!`s, so genuine compiler bugs still surface even under the fuzzer.
+macro_rules! bail_malformed {
+    // Default form, for routines that return `SimplifyResult`: decline by returning `None`.
+    ($dfg:expr, $($arg:tt)*) => {
+        $crate::ssa::ir::dfg::simplify::bail_malformed!(
+            @ret $crate::ssa::ir::dfg::simplify::SimplifyResult::None; $dfg, $($arg)*
+        )
+    };
+    // Explicit-return form, for routines whose decline value is not a bare `SimplifyResult`
+    // (e.g. an `Option<SimplifyResult>` helper returning `Some(SimplifyResult::None)`).
+    (@ret $ret:expr; $dfg:expr, $($arg:tt)*) => {{
+        let msg = format!($($arg)*);
+        assert!($dfg.allow_malformed_simplify, "malformed SSA reached simplify: {msg}");
+        tracing::warn!("malformed SSA reached simplify, leaving instruction unsimplified: {msg}");
+        return $ret;
+    }};
+}
+pub(crate) use bail_malformed;
+
+/// Contains the result to `Instruction::simplify`, specifying how the instruction
 /// should be simplified.
+#[derive(Debug)]
 pub(crate) enum SimplifyResult {
     /// Replace this function's result with the given value
     SimplifiedTo(ValueId),
@@ -60,6 +97,32 @@ impl SimplifyResult {
     }
 }
 
+/// Simplify the product `a * b`, returning `SimplifiedTo(a)` if b is 1,
+/// `SimplifiedTo(zero)` if b is 0, or `SimplifiedToInstruction(mul)` otherwise.
+/// This avoids emitting a mul instruction that would not be further simplified
+/// when the result of `simplify` is `SimplifiedToInstruction`.
+fn simplify_product(dfg: &DataFlowGraph, a: ValueId, b: ValueId) -> SimplifyResult {
+    if let Some(constant) = dfg.get_numeric_constant(b) {
+        if constant.is_one() {
+            return SimplifyResult::SimplifiedTo(a);
+        } else if constant.is_zero() {
+            return SimplifyResult::SimplifiedTo(b);
+        }
+    }
+    if let Some(constant) = dfg.get_numeric_constant(a) {
+        if constant.is_one() {
+            return SimplifyResult::SimplifiedTo(b);
+        } else if constant.is_zero() {
+            return SimplifyResult::SimplifiedTo(a);
+        }
+    }
+    SimplifyResult::SimplifiedToInstruction(Instruction::binary(
+        BinaryOp::Mul { unchecked: true },
+        a,
+        b,
+    ))
+}
+
 /// Try to simplify this instruction. If the instruction can be simplified to a known value,
 /// that value is returned. Otherwise None is returned.
 ///
@@ -69,22 +132,22 @@ pub(crate) fn simplify(
     instruction: &Instruction,
     dfg: &mut DataFlowGraph,
     block: BasicBlockId,
-    ctrl_typevars: Option<Vec<Type>>,
+    ctrl_typevars: Option<&[Type]>,
     call_stack: CallStackId,
 ) -> SimplifyResult {
     use SimplifyResult::*;
 
     match instruction {
-        Instruction::Binary(binary) => simplify_binary(binary, dfg),
+        Instruction::Binary(binary) => simplify_binary(binary, dfg, block, call_stack),
         Instruction::Cast(value, typ) => simplify_cast(*value, *typ, dfg),
         Instruction::Not(value) => {
-            match &dfg[dfg.resolve(*value)] {
+            match &dfg[*value] {
                 // Limit optimizing ! on constants to only booleans. If we tried it on fields,
                 // there is no Not on FieldElement, so we'd need to convert between u128. This
                 // would be incorrect however since the extra bits on the field would not be flipped.
                 Value::NumericConstant { constant, typ } if typ.is_unsigned() => {
                     // As we're casting to a `u128`, we need to clear out any upper bits that the NOT fills.
-                    let bit_size = typ.bit_size();
+                    let bit_size = typ.bit_size::<FieldElement>();
                     assert!(bit_size <= 128);
                     let not_value: u128 = truncate(!constant.to_u128(), bit_size);
                     SimplifiedTo(dfg.make_constant(not_value.into(), *typ))
@@ -110,43 +173,48 @@ pub(crate) fn simplify(
         }
         Instruction::ConstrainNotEqual(..) => None,
         Instruction::ArrayGet { array, index } => {
+            if trap_on_constant_out_of_bounds(dfg, block, call_stack, *array, *index) {
+                // The result is dead (the trap aborts first) but must stay well-typed. Reading a
+                // fixed slot such as index 0 is unsound for arrays whose element type flattens to
+                // several differently-typed fields (tuples/structs): slot 0 holds the first
+                // field's type, which need not match the type this `array_get` produces. Collapse
+                // the out-of-bounds index onto an in-bounds slot of the *same* flattened field.
+                let in_bounds = in_bounds_index_of_same_field(dfg, *array, *index);
+                let index = dfg.make_constant(in_bounds.into(), NumericType::length_type());
+                return SimplifiedToInstruction(Instruction::ArrayGet { array: *array, index });
+            }
+
             if let Some(index) = dfg.get_numeric_constant(*index) {
-                try_optimize_array_get_from_previous_set(dfg, *array, index)
+                return try_optimize_array_get_from_previous_instructions(dfg, *array, index);
+            }
+
+            let array_or_vector_type = dfg.type_of_value(*array);
+            if matches!(*array_or_vector_type, Type::Array(_, SemanticLength(1)))
+                && array_or_vector_type.element_size() == ElementTypesLength(1)
+            {
+                // If the array is of length 1 then we know the only value which can be potentially read out of it.
+                // We can then simply assert that the index is equal to zero and return the array's contained value.
+                optimize_length_one_array_read(dfg, block, call_stack, *array, *index)
             } else {
                 None
             }
         }
         Instruction::ArraySet { array: array_id, index: index_id, value, .. } => {
-            let array = dfg.get_array_constant(*array_id);
-            let index = dfg.get_numeric_constant(*index_id);
-            if let (Some((array, _element_type)), Some(index)) = (array, index) {
-                let index =
-                    index.try_to_u32().expect("Expected array index to fit in u32") as usize;
-
-                if index < array.len() {
-                    let elements = array.update(index, *value);
-                    let typ = dfg.type_of_value(*array_id);
-                    let instruction = Instruction::MakeArray { elements, typ };
-                    let new_array = dfg.insert_instruction_and_results(
-                        instruction,
-                        block,
-                        Option::None,
-                        call_stack,
-                    );
-                    return SimplifiedTo(new_array.first());
-                }
+            if trap_on_constant_out_of_bounds(dfg, block, call_stack, *array_id, *index_id) {
+                // The result is dead (the trap aborts first); forward the unmodified source array
+                // so any downstream use stays well-typed.
+                return SimplifiedTo(*array_id);
             }
-
             try_optimize_array_set_from_previous_get(dfg, *array_id, *index_id, *value)
         }
         Instruction::Truncate { value, bit_size, max_bit_size } => {
-            if bit_size == max_bit_size {
+            if bit_size >= max_bit_size {
                 return SimplifiedTo(*value);
             }
             if let Some((numeric_constant, typ)) = dfg.get_numeric_constant_with_type(*value) {
                 let truncated_field = truncate_field(numeric_constant, *bit_size);
                 SimplifiedTo(dfg.make_constant(truncated_field, typ))
-            } else if let Value::Instruction { instruction, .. } = &dfg[dfg.resolve(*value)] {
+            } else if let Value::Instruction { instruction, .. } = &dfg[*value] {
                 match &dfg[*instruction] {
                     Instruction::Truncate { bit_size: src_bit_size, .. } => {
                         // If we're truncating the value to fit into the same or larger bit size then this is a noop.
@@ -162,9 +230,15 @@ pub(crate) fn simplify(
                     {
                         // If we're truncating the result of a division by a constant denominator, we can
                         // reason about the maximum bit size of the result and whether a truncation is necessary.
+                        // This only applies to unsigned integer division where the quotient is bounded.
+                        // Field division is multiplication by the modular inverse, so the result can
+                        // be any field element.
 
-                        let numerator_type = dfg.type_of_value(*lhs);
-                        let max_numerator_bits = numerator_type.bit_size();
+                        let Type::Numeric(NumericType::Unsigned { bit_size: max_numerator_bits }) =
+                            *dfg.type_of_value(*lhs)
+                        else {
+                            return None;
+                        };
 
                         let divisor =
                             dfg.get_numeric_constant(*rhs).expect("rhs is checked to be constant.");
@@ -174,8 +248,10 @@ pub(crate) fn simplify(
                         // => max_quotient_bits = max_numerator_bits - divisor_bits
                         //
                         // In order for the truncation to be a noop, we then require `max_quotient_bits < bit_size`.
-                        let max_quotient_bits = max_numerator_bits - divisor_bits;
-                        if max_quotient_bits < *bit_size { SimplifiedTo(*value) } else { None }
+                        let numerator_smaller_than_denominator = max_numerator_bits
+                            .checked_sub(divisor_bits)
+                            .is_some_and(|max_quotient_bits| max_quotient_bits < *bit_size);
+                        if numerator_smaller_than_denominator { SimplifiedTo(*value) } else { None }
                     }
 
                     _ => None,
@@ -197,18 +273,42 @@ pub(crate) fn simplify(
             }
             None
         }
-        Instruction::Allocate { .. } => None,
+        Instruction::Allocate => None,
         Instruction::Load { .. } => None,
         Instruction::Store { .. } => None,
         Instruction::IncrementRc { .. } => None,
         Instruction::DecrementRc { .. } => None,
-        Instruction::RangeCheck { value, max_bit_size, .. } => {
+        Instruction::RangeCheck { value, max_bit_size, assert_message } => {
             let max_potential_bits = dfg.get_value_max_num_bits(*value);
-            if max_potential_bits <= *max_bit_size { Remove } else { None }
+            if max_potential_bits <= *max_bit_size {
+                Remove
+            } else if *max_bit_size == 0 {
+                let typ = dfg.type_of_value(*value).unwrap_numeric();
+                let zero = dfg.make_constant(FieldElement::zero(), typ);
+                SimplifiedToInstruction(Instruction::Constrain(
+                    *value,
+                    zero,
+                    assert_message.as_ref().map(|msg| ConstrainError::from(msg.clone())),
+                ))
+            } else if let Some(c) = dfg.get_numeric_constant(*value) {
+                if c.num_bits() > *max_bit_size {
+                    let zero = dfg.make_constant(FieldElement::zero(), NumericType::bool());
+                    let one = dfg.make_constant(FieldElement::one(), NumericType::bool());
+                    SimplifiedToInstruction(Instruction::Constrain(
+                        zero,
+                        one,
+                        assert_message.as_ref().map(|msg| ConstrainError::from(msg.clone())),
+                    ))
+                } else {
+                    Remove
+                }
+            } else {
+                None
+            }
         }
         Instruction::IfElse { then_condition, then_value, else_condition, else_value } => {
-            let then_condition = dfg.resolve(*then_condition);
-            let else_condition = dfg.resolve(*else_condition);
+            let then_condition = *then_condition;
+            let else_condition = *else_condition;
             let typ = dfg.type_of_value(*then_value);
 
             if let Some(constant) = dfg.get_numeric_constant(then_condition) {
@@ -219,57 +319,61 @@ pub(crate) fn simplify(
                 }
             }
 
-            let then_value = dfg.resolve(*then_value);
-            let else_value = dfg.resolve(*else_value);
+            let then_value = *then_value;
+            let else_value = *else_value;
             if then_value == else_value {
                 return SimplifiedTo(then_value);
             }
 
-            if let Value::Instruction { instruction, .. } = &dfg[then_value] {
-                if let Instruction::IfElse {
-                    then_condition: inner_then_condition,
-                    then_value: inner_then_value,
-                    else_condition: inner_else_condition,
-                    ..
-                } = dfg[*instruction]
-                {
-                    if then_condition == inner_then_condition {
-                        let instruction = Instruction::IfElse {
-                            then_condition,
-                            then_value: inner_then_value,
-                            else_condition: inner_else_condition,
-                            else_value,
-                        };
-                        return SimplifiedToInstruction(instruction);
-                    }
-                    // TODO: We could check to see if `then_condition == inner_else_condition`
-                    // but we run into issues with duplicate NOT instructions having distinct ValueIds.
-                }
-            };
+            if let Some(Instruction::IfElse {
+                then_condition: inner_then_condition,
+                then_value: inner_then_value,
+                ..
+            }) = dfg.get_local_or_global_instruction(then_value)
+                && then_condition == *inner_then_condition
+            {
+                let instruction = Instruction::IfElse {
+                    then_condition,
+                    then_value: *inner_then_value,
+                    else_condition,
+                    else_value,
+                };
+                return SimplifiedToInstruction(instruction);
+            }
+            // TODO: We could check to see if `then_condition == inner_else_condition`
+            // but we run into issues with duplicate NOT instructions having distinct ValueIds.
 
-            if let Value::Instruction { instruction, .. } = &dfg[else_value] {
-                if let Instruction::IfElse {
-                    then_condition: inner_then_condition,
-                    else_condition: inner_else_condition,
-                    else_value: inner_else_value,
-                    ..
-                } = dfg[*instruction]
-                {
-                    if then_condition == inner_then_condition {
-                        let instruction = Instruction::IfElse {
-                            then_condition,
-                            then_value,
-                            else_condition: inner_else_condition,
-                            else_value: inner_else_value,
-                        };
-                        return SimplifiedToInstruction(instruction);
-                    }
-                    // TODO: We could check to see if `then_condition == inner_else_condition`
-                    // but we run into issues with duplicate NOT instructions having distinct ValueIds.
-                }
-            };
+            if let Some(Instruction::IfElse {
+                then_condition: inner_then_condition,
+                else_value: inner_else_value,
+                ..
+            }) = dfg.get_local_or_global_instruction(else_value)
+                && then_condition == *inner_then_condition
+            {
+                let instruction = Instruction::IfElse {
+                    then_condition,
+                    then_value,
+                    else_condition,
+                    else_value: *inner_else_value,
+                };
+                return SimplifiedToInstruction(instruction);
+            }
+            // TODO: We could check to see if `then_condition == inner_else_condition`
+            // but we run into issues with duplicate NOT instructions having distinct ValueIds.
 
-            if matches!(&typ, Type::Numeric(_)) {
+            // IfElse conditions are always boolean, so not(cond) * cond = 0.
+            // When else_value == then_condition, the else term vanishes and
+            // the result is just then_condition * then_value.
+            if else_value == then_condition {
+                return simplify_product(dfg, then_condition, then_value);
+            }
+            // Symmetric case: when then_value == else_condition, the then term
+            // vanishes and the result is just else_condition * else_value.
+            if then_value == else_condition {
+                return simplify_product(dfg, else_condition, else_value);
+            }
+
+            if matches!(&*typ, Type::Numeric(_)) {
                 let result = ValueMerger::merge_numeric_values(
                     dfg,
                     block,
@@ -288,82 +392,171 @@ pub(crate) fn simplify(
     }
 }
 
-/// Given a chain of operations like:
-/// v1 = array_set [10, 11, 12], index 1, value: 5
-/// v2 = array_set v1, index 2, value: 6
-/// v3 = array_set v2, index 2, value: 7
-/// v4 = array_get v3, index 1
+/// Given an array access on a length 1 array such as:
+/// ```ssa
+/// v2 = make_array [v0] : [Field; 1]
+/// v3 = array_get v2, index v1 -> Field
+/// ```
 ///
-/// We want to optimize `v4` to `10`. To do this we need to follow the array value
-/// through several array sets. For each array set:
-/// - If the index is non-constant we fail the optimization since any index may be changed
-/// - If the index is constant and is our target index, we conservatively fail the optimization
-///   in case the array_set is disabled from a previous `enable_side_effects_if` and the array get
-///   was not.
-/// - Otherwise, we check the array value of the array set.
-///   - If the array value is constant, we use that array.
-///   - If the array value is from a previous array-set, we recur.
-fn try_optimize_array_get_from_previous_set(
-    dfg: &DataFlowGraph,
-    mut array_id: ValueId,
+/// We want to replace the array read with the only valid value which can be read from the array
+/// while ensuring that if there is an attempt to read past the end of the array then the program fails.
+///
+/// We then inject an explicit assertion that the index variable has the value zero while replacing the value
+/// being used in the `array_get` instruction with a constant value of zero. This then results in the SSA:
+///
+/// ```ssa
+/// v2 = make_array [v0] : [Field; 1]
+/// constrain v1 == u32 0, "Index out of bounds"
+/// v4 = array_get v2, index u32 0 -> Field
+/// ```
+/// We then attempt to resolve the array read immediately.
+///
+/// Note that this does not work if the array has length 1, but contains a complex type such as tuple,
+/// which consists of multiple elements. If that is the case than the `index` will most likely not be
+/// a constant, but a base plus an offset, and if the array contains repeated elements of the same type
+/// for example, we wouldn't be able to come up with a constant offset even if we knew the return type.
+fn optimize_length_one_array_read(
+    dfg: &mut DataFlowGraph,
+    block: BasicBlockId,
+    call_stack: CallStackId,
+    array: ValueId,
+    index: ValueId,
+) -> SimplifyResult {
+    let zero = dfg.make_constant(FieldElement::zero(), NumericType::length_type());
+    let index_constraint = Instruction::Constrain(
+        index,
+        zero,
+        Some(ConstrainError::from("Index out of bounds".to_string())),
+    );
+    dfg.insert_instruction_and_results(index_constraint, block, None, call_stack);
+
+    let result =
+        try_optimize_array_get_from_previous_instructions(dfg, array, FieldElement::zero());
+    if let SimplifyResult::None = result {
+        SimplifyResult::SimplifiedToInstruction(Instruction::ArrayGet { array, index: zero })
+    } else {
+        result
+    }
+}
+
+/// In a Brillig function, a constant index that is statically out of bounds for a known-length
+/// array can never be valid, so the array operation is replaced with an "Index out of bounds" trap.
+/// Without this, the operation reaches Brillig codegen as a plain memory access at the out-of-bounds
+/// offset, and the Brillig VM grows its memory to fit that offset — a large constant index requests
+/// gigabytes of memory before any check fires.
+///
+/// Returns `false` (leaving the instruction for the normal simplification path) for ACIR functions,
+/// whose memory model and the `array_oob_checks` DIE pass already cover this; for vectors, whose
+/// length is not known at compile time; for non-constant indices; and for in-bounds indices.
+///
+/// In Brillig there is no global side-effects predicate (`EnableSideEffectsIf` is stripped before
+/// codegen and conditionally-dead array operations are never flattened), so the inserted trap stays
+/// in the same branch as the original operation and inherits its exact reachability.
+fn trap_on_constant_out_of_bounds(
+    dfg: &mut DataFlowGraph,
+    block: BasicBlockId,
+    call_stack: CallStackId,
+    array: ValueId,
+    index: ValueId,
+) -> bool {
+    if !dfg.runtime().is_brillig() {
+        return false;
+    }
+    // Only known-length arrays have a compile-time bound; vectors do not.
+    let Some(length) = dfg.try_get_array_length(array) else {
+        return false;
+    };
+    if !dfg.constant_index_is_out_of_bounds(array, index, length) {
+        return false;
+    }
+
+    let false_const = dfg.make_constant(false.into(), NumericType::bool());
+    let true_const = dfg.make_constant(true.into(), NumericType::bool());
+    let trap = Instruction::Constrain(
+        false_const,
+        true_const,
+        Some(ConstrainError::from("Index out of bounds".to_string())),
+    );
+    dfg.insert_instruction_and_results(trap, block, None, call_stack);
+    true
+}
+
+/// Map a statically out-of-bounds constant `array_get` index onto an in-bounds index that selects
+/// a slot of the *same flattened field type*.
+///
+/// An array of `N` elements whose element type flattens to `element_size` fields lays those fields
+/// out as `element_size` repeating slots, so the flattened slot at index `i` has the same type as
+/// the slot at `i % element_size`. Collapsing the out-of-bounds index into the first element —
+/// `offset + (i - offset) % element_size` — preserves that field type while guaranteeing the result
+/// is in bounds, since every array has at least one element. This keeps the (dead) result of an
+/// out-of-bounds access well-typed even for arrays of tuples/structs, where reading a fixed slot
+/// such as index 0 would change the result type.
+///
+/// The index is required to be a constant; this is only called once
+/// [`trap_on_constant_out_of_bounds`] has confirmed a constant, out-of-bounds index.
+fn in_bounds_index_of_same_field(dfg: &DataFlowGraph, array: ValueId, index: ValueId) -> u128 {
+    let element_size = u128::from(dfg.type_of_value(array).element_size().0);
+    let offset = u128::from(dfg.array_offset(array, index).to_u32());
+    let index = dfg
+        .get_numeric_constant(index)
+        .expect("trap_on_constant_out_of_bounds only returns true for constant indices")
+        .to_u128();
+    // An empty element type has no slots to read; there is no field type to preserve.
+    if element_size == 0 {
+        return offset;
+    }
+    offset + (index.saturating_sub(offset) % element_size)
+}
+
+/// See [`crate::ssa::opt::try_optimize_array_get_from_previous_instructions`] for more information.
+fn try_optimize_array_get_from_previous_instructions(
+    dfg: &mut DataFlowGraph,
+    array_id: ValueId,
     target_index: FieldElement,
 ) -> SimplifyResult {
-    let mut elements = None;
+    let side_effects = None;
+    let result = crate::ssa::opt::try_optimize_array_get_from_previous_instructions(
+        array_id,
+        target_index,
+        dfg,
+        side_effects,
+    );
+    match result {
+        Some(ArrayGetOptimizationResult::Value(value)) => SimplifyResult::SimplifiedTo(value),
+        Some(ArrayGetOptimizationResult::ArrayGet(new_array_id)) => {
+            assert_ne!(
+                new_array_id, array_id,
+                "ArrayGetOptimizationResult::ArrayGet returned the same array_id"
+            );
 
-    // Arbitrary number of maximum tries just to prevent this optimization from taking too long.
-    let max_tries = 5;
-    for _ in 0..max_tries {
-        if let Some(instruction) = dfg.get_local_or_global_instruction(array_id) {
-            match instruction {
-                Instruction::ArraySet { array, index, value, .. } => {
-                    if let Some(constant) = dfg.get_numeric_constant(*index) {
-                        if constant == target_index {
-                            return SimplifyResult::SimplifiedTo(*value);
-                        }
-
-                        array_id = *array; // recur
-                    } else {
-                        return SimplifyResult::None;
-                    }
-                }
-                Instruction::MakeArray { elements: array, typ: _ } => {
-                    elements = Some(array.clone());
-                    break;
-                }
-                _ => return SimplifyResult::None,
-            }
-        } else {
-            return SimplifyResult::None;
+            let index = dfg.make_constant(target_index, NumericType::length_type());
+            SimplifyResult::SimplifiedToInstruction(Instruction::ArrayGet {
+                array: new_array_id,
+                index,
+            })
         }
+        None => SimplifyResult::None,
     }
-
-    if let (Some(array), Some(index)) = (elements, target_index.try_to_u64()) {
-        let index = index as usize;
-        if index < array.len() {
-            return SimplifyResult::SimplifiedTo(array[index]);
-        }
-    }
-    SimplifyResult::None
 }
 
 /// If we have an array set whose value is from an array get on the same array at the same index,
 /// we can simplify that array set to the array we were looking to perform an array set upon.
 ///
 /// Simple case:
-/// v3 = array_get v1, index v2
-/// v5 = array_set v1, index v2, value v3
+/// v3 = `array_get` v1, index v2
+/// v5 = `array_set` v1, index v2, value v3
 ///
 /// If we could not immediately simplify the array set from its value, we can try to follow
 /// the array set backwards in the case we have constant indices:
 ///
-/// v3 = array_get v1, index 1
-/// v5 = array_set v1, index 2, value [Field 100, Field 101, Field 102]
-/// v7 = array_set mut v5, index 1, value v3
+/// v3 = `array_get` v1, index 1
+/// v5 = `array_set` v1, index 2, value [Field 100, Field 101, Field 102]
+/// v7 = `array_set` mut v5, index 1, value v3
 ///
 /// We want to optimize `v7` to `v5`. We see that `v3` comes from an array get to `v1`. We follow `v5` backwards and see an array set
 /// to `v1` and see that the previous array set occurs to a different constant index.
 ///
-/// For each array_set:
+/// For each `array_set`:
 /// - If the index is non-constant we fail the optimization since any index may be changed.
 /// - If the index is constant and is our target index, we conservatively fail the optimization.
 /// - Otherwise, we check the array value of the `array_set`. We will refer to this array as array'.
@@ -379,20 +572,17 @@ fn try_optimize_array_set_from_previous_get(
     target_index: ValueId,
     target_value: ValueId,
 ) -> SimplifyResult {
-    let array_from_get = match &dfg[target_value] {
-        Value::Instruction { instruction, .. } => match &dfg[*instruction] {
-            Instruction::ArrayGet { array, index } => {
-                if *array == array_id && *index == target_index {
-                    // If array and index match from the value, we can immediately simplify
-                    return SimplifyResult::SimplifiedTo(array_id);
-                } else if *index == target_index {
-                    *array
-                } else {
-                    return SimplifyResult::None;
-                }
+    let array_from_get = match dfg.get_local_or_global_instruction(target_value) {
+        Some(Instruction::ArrayGet { array, index }) => {
+            if *array == array_id && *index == target_index {
+                // If array and index match from the value, we can immediately simplify
+                return SimplifyResult::SimplifiedTo(array_id);
+            } else if *index == target_index {
+                *array
+            } else {
+                return SimplifyResult::None;
             }
-            _ => return SimplifyResult::None,
-        },
+        }
         _ => return SimplifyResult::None,
     };
 
@@ -412,6 +602,12 @@ fn try_optimize_array_set_from_previous_get(
     // Arbitrary number of maximum tries just to prevent this optimization from taking too long.
     let max_tries = 5;
     for _ in 0..max_tries {
+        // The only `Value::Instruction` allowed in the globals graph is `MakeArray`, which
+        // doesn't appear in the local instructions table. Indexing `dfg[*instruction]` below
+        // assumes a local instruction id, so bail out as soon as we walk into a global.
+        if dfg.is_global(array_id) {
+            return SimplifyResult::None;
+        }
         match &dfg[array_id] {
             Value::Instruction { instruction, .. } => match &dfg[*instruction] {
                 Instruction::ArraySet { array, index, .. } => {
@@ -440,60 +636,434 @@ fn try_optimize_array_set_from_previous_get(
 
 #[cfg(test)]
 mod tests {
-    use crate::ssa::{opt::assert_normalized_ssa_equals, ssa_gen::Ssa};
+    use crate::{
+        assert_ssa_snapshot,
+        ssa::{opt::assert_normalized_ssa_equals, ssa_gen::Ssa},
+    };
 
+    /// Regression for an OOB panic in `try_optimize_array_set_from_previous_get` when the
+    /// `array` operand of an `array_set` resolved to a global `make_array`. The loop walked
+    /// `dfg[*instruction]` into the local instruction table, but global instruction IDs only
+    /// exist in the globals graph, producing `index out of bounds: the len is N but the
+    /// index is M`. Triggered in the wild by inlining a callee whose array parameter was
+    /// supplied as a global at the call site (fuzzer seed 0xed3d88f800100000).
     #[test]
-    fn removes_range_constraints_on_constants() {
+    fn array_set_with_global_array_does_not_panic() {
         let src = "
-        acir(inline) fn main f0 {
-          b0(v0: Field):
-            range_check Field 0 to 1 bits
-            range_check Field 1 to 1 bits
-            range_check Field 255 to 8 bits
-            range_check Field 256 to 8 bits
-            return
+        g0 = u8 1
+        g1 = make_array [g0, g0] : [u8; 2]
+
+        brillig(inline) fn main f0 {
+          b0(v0: [u8; 2]):
+            v1 = array_get v0, index u32 0 -> u8
+            v2 = array_set g1, index u32 0, value v1
+            return v2
+        }
+        ";
+        let _ = Ssa::from_str_simplifying(src).unwrap();
+    }
+
+    /// Regression for a type-unsoundness in the constant out-of-bounds Brillig array-get
+    /// handling. When a constant index is statically out of bounds the access is preceded by
+    /// an "Index out of bounds" trap, so its result is dead — but it must still be well-typed.
+    /// The handling rewrote the access to read flattened index 0, which only has the right
+    /// type when every element field shares a type. For an array of tuples (heterogeneous
+    /// flattened fields) index 0 has the *first* field's type, so a `[u8; 1]` (or any non-first
+    /// field) access folded to the leading `u64`, producing a `jmp` argument whose type no
+    /// longer matched its destination block parameter (fuzzer seeds 0xc8d17dd100100000 and
+    /// 0xfa4515e400100000).
+    ///
+    /// `from_str_simplifying` performs the out-of-bounds rewrite; `array_get_optimization` then
+    /// folds the in-bounds constant-index get to its element, which is where a wrongly-typed slot
+    /// would surface. Validating the SSA afterwards must not panic.
+    #[test]
+    fn oob_constant_array_get_on_tuple_array_stays_well_typed() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0():
+            v0 = make_array b\"A\"
+            v1 = make_array [u64 0, v0] : [(u64, [u8; 1]); 1]
+            v2 = array_get v1, index u32 3 -> [u8; 1]
+            jmp b1(v2)
+          b1(v3: [u8; 1]):
+            return v3
         }
         ";
         let ssa = Ssa::from_str_simplifying(src).unwrap();
+        let ssa = ssa.array_get_optimization();
+        crate::ssa::ssa_gen::validate_ssa(&ssa, true);
+    }
 
-        let expected = "
+    #[test]
+    fn removes_range_constraints_on_constants() {
+        let src = r#"
         acir(inline) fn main f0 {
-          b0(v0: Field):
-            range_check Field 256 to 8 bits
+          b0(v0: Field, v1: u8):
+            range_check Field 0 to 1 bits
+            range_check Field 1 to 1 bits
+            range_check Field 2 to 1 bits, "2 > 1"
+            range_check Field 255 to 8 bits
+            range_check Field 256 to 8 bits, "256 > 255"
+            range_check v0 to 8 bits
+            range_check v1 to 8 bits
             return
         }
-        ";
-        assert_normalized_ssa_equals(ssa, expected);
+        "#;
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+
+        assert_ssa_snapshot!(ssa, @r#"
+        acir(inline) fn main f0 {
+          b0(v0: Field, v1: u8):
+            constrain u1 0 == u1 1, "2 > 1"
+            constrain u1 0 == u1 1, "256 > 255"
+            range_check v0 to 8 bits
+            return
+        }
+        "#);
     }
 
     #[test]
     fn simplifies_or_when_one_side_is_all_1s() {
         let test_cases = vec![
-            ("u128", "340282366920938463463374607431768211455"),
-            ("u64", "18446744073709551615"),
-            ("u32", "4294967295"),
-            ("u16", "65535"),
-            ("u8", "255"),
+            ("u128", u128::MAX.to_string()),
+            ("u64", u64::MAX.to_string()),
+            ("u32", u32::MAX.to_string()),
+            ("u16", u16::MAX.to_string()),
+            ("u8", u8::MAX.to_string()),
         ];
         const SRC_TEMPLATE: &str = "
         acir(inline) pure fn main f0 {
-        b0(v1: {typ}):
-        v2 = or {typ} {max}, v1
-        return v2
+          b0(v1: {typ}):
+            v2 = or {typ} {max}, v1
+            return v2
         }
         ";
 
         const EXPECTED_TEMPLATE: &str = "
         acir(inline) pure fn main f0 {
-        b0(v1: {typ}):
-        return {typ} {max}
+          b0(v1: {typ}):
+            return {typ} {max}
         }
         ";
         for (typ, max) in test_cases {
-            let src = SRC_TEMPLATE.replace("{typ}", typ).replace("{max}", max);
-            let expected = EXPECTED_TEMPLATE.replace("{typ}", typ).replace("{max}", max);
+            let src = SRC_TEMPLATE.replace("{typ}", typ).replace("{max}", &max);
+            let expected = EXPECTED_TEMPLATE.replace("{typ}", typ).replace("{max}", &max);
             let ssa: Ssa = Ssa::from_str_simplifying(&src).unwrap();
             assert_normalized_ssa_equals(ssa, &expected);
         }
+    }
+
+    #[test]
+    fn simplifies_noop_bitwise_and_truncation() {
+        let test_cases = vec![
+            ("u128", u128::MAX.to_string()),
+            ("u64", u64::MAX.to_string()),
+            ("u32", u32::MAX.to_string()),
+            ("u16", u16::MAX.to_string()),
+            ("u8", u8::MAX.to_string()),
+        ];
+        const SRC_TEMPLATE: &str = "
+        acir(inline) pure fn main f0 {
+          b0(v1: {typ}):
+            v2 = and {typ} {max}, v1
+            return v2
+        }
+        ";
+
+        const EXPECTED_TEMPLATE: &str = "
+        acir(inline) pure fn main f0 {
+          b0(v1: {typ}):
+            return v1
+        }
+        ";
+        for (typ, max) in test_cases {
+            let src = SRC_TEMPLATE.replace("{typ}", typ).replace("{max}", &max);
+            let expected = EXPECTED_TEMPLATE.replace("{typ}", typ);
+            let ssa: Ssa = Ssa::from_str_simplifying(&src).unwrap();
+            assert_normalized_ssa_equals(ssa, &expected);
+        }
+    }
+
+    #[test]
+    fn truncate_to_bit_size_bigger_than_value_max_bit_size() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u8):
+            v1 = truncate v0 to 16 bits, max_bit_size: 8
+            v2 = cast v1 as u16
+            return v2
+        }
+        ";
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: u8):
+            v1 = cast v0 as u16
+            return v1
+        }
+        ");
+    }
+
+    #[test]
+    fn replaces_length_one_array_get_with_bounds_check() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: Field, v1: u32):
+            v2 = make_array [v0] : [Field; 1]
+            v3 = array_get v2, index v1 -> Field
+            return v3
+        }
+        ";
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+
+        assert_ssa_snapshot!(ssa, @r#"
+        acir(inline) fn main f0 {
+          b0(v0: Field, v1: u32):
+            v2 = make_array [v0] : [Field; 1]
+            constrain v1 == u32 0, "Index out of bounds"
+            return v0
+        }
+        "#);
+    }
+
+    #[test]
+    fn does_not_use_flattened_size_for_length_one_array_check() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: Field, v1: u32):
+            v2 = make_array [v0, v0] : [Field; 2]
+            v3 = make_array [v2] : [[Field; 2]; 1]
+            v4 = make_array [] : [Field; 0]
+            v5 = make_array [v4, v0] : [([Field; 0], Field); 1]
+            v6 = array_get v3, index v1 -> [Field; 2]
+            v7 = add v1, u32 1
+            v8 = array_get v5, index v7 -> Field
+            return v6, v8
+        }
+        ";
+        // The flattened size of v3 is 2, but it has 1 element -> it can be optimized.
+        // The flattened size of v5 is 1, but it has 2 elements -> it cannot be optimized.
+
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+
+        assert_ssa_snapshot!(ssa, @r#"
+        acir(inline) fn main f0 {
+          b0(v0: Field, v1: u32):
+            v2 = make_array [v0, v0] : [Field; 2]
+            v3 = make_array [v2] : [[Field; 2]; 1]
+            v4 = make_array [] : [Field; 0]
+            v5 = make_array [v4, v0] : [([Field; 0], Field); 1]
+            constrain v1 == u32 0, "Index out of bounds"
+            v8 = add v1, u32 1
+            v9 = array_get v5, index v8 -> Field
+            return v2, v9
+        }
+        "#);
+    }
+
+    #[test]
+    fn does_not_crash_on_truncated_division_with_large_denominators() {
+        // There can be invalid division instructions which have extremely large denominators
+        // so we want to make sure that we handle this case when optimizing truncations.
+
+        let src = "
+        acir(inline) predicate_pure fn main f0 {
+          b0():
+            v0 = div i8 94, i8 19807040628566084398385987584
+            v1 = truncate v0 to 8 bits, max_bit_size: 9
+            return v1
+        }
+        ";
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+
+        assert_normalized_ssa_equals(ssa, src);
+    }
+
+    #[test]
+    fn simplifies_array_get_from_previous_array_set_with_array_param_in_bounds() {
+        let src = "
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: [Field; 2]):
+            v1 = array_set mut v0, index u32 0, value Field 4
+            v2 = array_get v1, index u32 0 -> Field
+            v3 = array_get v1, index u32 1 -> Field
+            return v2, v3
+        }
+        ";
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+
+        // Only v3 was optimized because v2 reads from the same index
+        // as v1 and this basic optimization can't know if that array_set
+        // is under the same predicate as the array_get (there's a dedicated
+        // `array_get` optimization for that)
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: [Field; 2]):
+            v3 = array_set mut v0, index u32 0, value Field 4
+            v4 = array_get v3, index u32 0 -> Field
+            v6 = array_get v0, index u32 1 -> Field
+            return v4, v6
+        }
+        ");
+    }
+
+    #[test]
+    fn does_not_simplify_array_get_from_previous_array_set_with_array_param_out_of_bounds() {
+        let src = "
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: [Field; 2]):
+            v3 = array_set mut v0, index u32 0, value Field 4
+            v5 = array_get v3, index u32 2 -> Field
+            return v5
+        }
+        ";
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+        assert_normalized_ssa_equals(ssa, src);
+    }
+
+    #[test]
+    fn does_not_drop_truncate_on_field_division_result() {
+        // Regression: the truncate simplifier reasons about the bit size of `div` results
+        // using integer division logic (quotient_bits = numerator_bits - divisor_bits).
+        // This is incorrect for Field division, which is multiplication by the modular
+        // inverse — the result can be any field element regardless of the divisor's size.
+        // For example, `v0 / Field(-1)` = `-v0`, which is up to 254 bits.
+        use acvm::FieldElement;
+        use noirc_errors::call_stack::CallStackId;
+
+        use crate::ssa::ir::{
+            dfg::InsertInstructionResult,
+            function::Function,
+            instruction::{Binary, BinaryOp, Instruction},
+            types::{NumericType, Type},
+        };
+
+        let func_id = crate::ssa::ir::function::FunctionId::test_new(0);
+        let mut func = Function::new("main".into(), func_id);
+        let block = func.entry_block();
+
+        // Add a Field parameter
+        let v0 = func.dfg.add_block_parameter(block, Type::field());
+
+        // Insert `div v0, Field -1` WITHOUT simplification (to keep it as a div)
+        let minus_one =
+            func.dfg.make_constant(FieldElement::from(-1_i128), NumericType::NativeField);
+        let div = Instruction::Binary(Binary { lhs: v0, rhs: minus_one, operator: BinaryOp::Div });
+        let div_result = func
+            .dfg
+            .insert_instruction_and_results_without_simplification(
+                div,
+                block,
+                None,
+                CallStackId::root(),
+            )
+            .first();
+
+        // Insert `truncate div_result to 128 bits` WITH simplification
+        let truncate =
+            Instruction::Truncate { value: div_result, bit_size: 128, max_bit_size: 254 };
+        let truncate_result =
+            func.dfg.insert_instruction_and_results(truncate, block, None, CallStackId::root());
+
+        // The truncate must NOT be simplified away — field division doesn't
+        // bound the result's bit size.
+        assert!(
+            !matches!(truncate_result, InsertInstructionResult::SimplifiedTo(v) if v == div_result),
+            "truncate of field division result was incorrectly simplified to the division result"
+        );
+    }
+
+    #[test]
+    fn brillig_array_set_with_constant_oob_index_traps() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: u32):
+            v1 = make_array [v0, v0, v0, v0] : [u32; 4]
+            v2 = array_set v1, index u32 1000000000, value v0
+            return v2
+        }
+        ";
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+
+        assert_ssa_snapshot!(ssa, @r#"
+        brillig(inline) fn main f0 {
+          b0(v0: u32):
+            v1 = make_array [v0, v0, v0, v0] : [u32; 4]
+            constrain u1 0 == u1 1, "Index out of bounds"
+            return v1
+        }
+        "#);
+    }
+
+    #[test]
+    fn brillig_array_get_with_constant_oob_index_traps() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: u32):
+            v1 = make_array [v0, v0, v0, v0] : [u32; 4]
+            v2 = array_get v1, index u32 1000000000 -> u32
+            return v2
+        }
+        ";
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+
+        assert_ssa_snapshot!(ssa, @r#"
+        brillig(inline) fn main f0 {
+          b0(v0: u32):
+            v1 = make_array [v0, v0, v0, v0] : [u32; 4]
+            constrain u1 0 == u1 1, "Index out of bounds"
+            v5 = array_get v1, index u32 0 -> u32
+            return v5
+        }
+        "#);
+    }
+
+    #[test]
+    fn acir_array_set_with_constant_oob_index_is_not_trapped_at_simplify() {
+        // The constant-OOB trap is Brillig-only: ACIR relies on its memory model and the
+        // dedicated `array_oob_checks` DIE pass, so simplification must leave ACIR untouched.
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u32):
+            v1 = make_array [v0, v0, v0, v0] : [u32; 4]
+            v2 = array_set v1, index u32 1000000000, value v0
+            return v2
+        }
+        ";
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+        assert_normalized_ssa_equals(ssa, src);
+    }
+
+    #[test]
+    fn brillig_in_bounds_offset_index_is_not_trapped() {
+        // After `brillig_array_get_and_set` shifts a constant index past the array header, a valid
+        // in-bounds access (here logical index 0, written as `1 minus 1`) must not be trapped: the
+        // out-of-bounds check has to undo the offset before comparing against the length.
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: u32):
+            v1 = make_array [v0, v0, v0, v0] : [u32; 4]
+            v3 = array_set v1, index u32 1 minus 1, value u32 9
+            return v3
+        }
+        ";
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+        assert_normalized_ssa_equals(ssa, src);
+    }
+
+    #[test]
+    fn brillig_array_set_with_constant_oob_index_on_vector_is_not_trapped() {
+        // Vectors have a dynamic length unknown at compile time, so a constant index can never
+        // be proven out of bounds here; only known-length arrays are trapped.
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: [u32]):
+            v2 = array_set v0, index u32 1000000000, value u32 0
+            return v2
+        }
+        ";
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+        assert_normalized_ssa_equals(ssa, src);
     }
 }

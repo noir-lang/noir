@@ -5,32 +5,27 @@
 //! Source file -[Lexing]-> Tokens -[Parsing]-> Ast -[Name Resolution]-> Hir -[Type Checking]-> Hir -[Monomorphization]-> Monomorphized Ast
 //! ```
 //!
-//! After the monomorphized ast is created, it is passed to the noirc_evaluator crate to convert it to SSA form,
+//! After the monomorphized ast is created, it is passed to the `noirc_evaluator` crate to convert it to SSA form,
 //! perform optimizations, convert to ACIR and eventually prove/verify the program.
 #![forbid(unsafe_code)]
 #![warn(unused_crate_dependencies, unused_extern_crates)]
-#![warn(unreachable_pub)]
-#![warn(clippy::semicolon_if_nothing_returned)]
 // Temporary allows.
 #![allow(clippy::mutable_key_type, clippy::result_large_err)]
-
-#[cfg(test)]
-#[macro_use]
-extern crate function_name;
 
 pub mod ast;
 pub mod debug;
 pub mod elaborator;
+pub mod error_reporting;
 pub mod graph;
 pub mod lexer;
 pub mod locations;
+pub mod modules;
 pub mod monomorphization;
 pub mod node_interner;
-pub(crate) mod ownership;
+pub mod ownership;
 pub mod parser;
 pub mod resolve_locations;
 pub mod shared;
-pub mod signed_field;
 pub mod usage_tracker;
 
 pub mod hir;

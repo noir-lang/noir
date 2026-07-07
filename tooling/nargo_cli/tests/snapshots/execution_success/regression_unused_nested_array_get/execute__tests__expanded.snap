@@ -1,0 +1,24 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+global G_A: [[Field; 1]; 2] = [
+    [0x30644e72e131a029b85045b68181585c708d99c8f11077432e5fa5ac0385b927],
+    [0x30644e72e131a029b85045b68181585ce745e88dbc752643ee281f22d398a1ab],
+];
+
+fn main() {
+    if true {
+        for idx_a in 7845584091265575028_i64..7845584091265575034_i64 {
+            let mut b: [&mut u32; 1] = [&mut 81586902_u32];
+            let g: (i64, (i8, Field, Field, Field), u64) = (
+                idx_a,
+                (
+                    -118_i8, 1_Field,
+                    155342861061489534793205612322034234097_Field / G_A[1_u32][*b[0_u32] % 1_u32],
+                    G_A[*b[0_u32] % 2_u32][*b[0_u32] % 1_u32],
+                ), 1313306195659668909_u64,
+            );
+        }
+    }
+}

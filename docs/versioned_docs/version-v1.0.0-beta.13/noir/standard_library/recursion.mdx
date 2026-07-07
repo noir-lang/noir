@@ -1,0 +1,26 @@
+---
+title: Recursive Proofs
+description: Learn about how to write recursive proofs in Noir.
+keywords: [recursion, recursive proofs, verification_key, verify_proof]
+---
+
+import BlackBoxInfo from '@site/src/components/Notes/_blackbox';
+
+Noir supports recursively verifying proofs, meaning you verify the proof of a Noir program in another Noir program. This enables creating proofs of arbitrary size by doing step-wise verification of smaller components of a large proof.
+
+Noir cannot check internally whether a recursive proof is valid or not as this can only be checked by the proving backend. This means that witness execution can still succeed in the case where an invalid proof is used, however an invalid proof is expected to cause the proving backend to fail to generate a valid proof. 
+
+In order to verify recursive proofs from Barretenberg, it's recommended to use the [bb_proof_verification](https://github.com/AztecProtocol/aztec-packages/tree/next/barretenberg/noir/bb_proof_verification) library which is published by the Barretenberg team.
+
+## Verifying Recursive Proofs
+
+```rust
+#[foreign(recursive_aggregation)]
+pub fn verify_proof(verification_key: [Field], proof: [Field], public_inputs: [Field], key_hash: Field) {}
+```
+
+<BlackBoxInfo to="black_box_fns"/>
+
+Read [the explainer on recursion](https://barretenberg.aztec.network/docs/explainers/recursive_aggregation) to know more about this function and the [guide on how to use it.](https://barretenberg.aztec.network/docs/how_to_guides/recursive_aggregation)
+
+You can see a full example of recursive proofs in [this example recursion demo repo](https://github.com/noir-lang/noir-examples/tree/master/recursion).

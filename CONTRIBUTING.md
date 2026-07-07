@@ -96,6 +96,12 @@ The easiest way to do this is to have multiple Conventional Commits while you wo
 
 Significant changes, like new features or important bug fixes, typically have a more pronounced impact on the project’s overall development. For smaller fixes, such as typos, we encourage you to report them instead of opening PRs. This approach helps us manage our resources effectively and ensures that every change contributes meaningfully to the project. PRs involving such smaller fixes will likely be closed and incorporated in PRs authored by the core team.
 
+### AI generated PRs
+
+Please do not create PRs which consist of entirely AI generated code. While AI makes it easier to create PRs, we've found that these PRs suck up a disproportionate amount of review time as the authors are not properly engaged with the codebase.
+
+We can definitely tell when PRs are piped straight from an LLM and these PRs are likely to be closed.
+
 ### Reviews
 
 For any repository in the noir-lang organization, we require code review & approval by __one__ Noir team member before the changes are merged, as enforced by GitHub branch protection. Non-breaking pull requests may be merged at any time. Breaking pull requests should only be merged when the team has general agreement of the changes and is preparing a breaking release.
@@ -182,21 +188,13 @@ We aim to have every documentation version matching the versions of Noir. Howeve
 
 Please contact any member of the DevRel[^1] team if you believe a new docs version should be cut.
 
-### Cutting a new version of the docs
+### Documentation structure
 
-The Noir documentation is versioned according to the [Docusaurus documentation](https://docusaurus.io/docs/versioning). In the `versioned_docs` and `versioned_sidebar` folders you will find the docs and configs for the previous versions. If any change needs to be made to older versions, please do them in this folder.
+The Noir documentation is versioned according to the [Docusaurus documentation](https://docusaurus.io/docs/versioning). In the `versioned_docs` and `versioned_sidebars` folders you will find the docs and configs for the previous versions. If any change needs to be made to older versions, please do them in those folders.
 
 In the docs folder, you'll find the current, unreleased version, which we call `dev`. Any change in this folder will be reflected in the next release of the documentation.
 
-While the versioning is intended to be managed by the core maintainers, we feel it's important for external contributors to understand why and how is it maintained. To bump to a new version, run the following command, replacing with the intended version:
-
-```bash
-yarn docusaurus docs:version <new_version_tag>
-```
-
-This should create a new version by copying the docs folder and the sidebars.js file to the relevant folders, as well as adding this version to versions.json.
-
-You can then open a Pull Request according to the [PR section](#pull-requests)
+New versions are cut automatically by the release workflow. See [`docs/README.md`](docs/README.md#cutting-a-new-version) for details.
 
 ## Changelog
 

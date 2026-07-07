@@ -1,6 +1,6 @@
 //! This module contains functions for producing a higher level view disassembler of Brillig.
 
-use super::BrilligBinaryOp;
+use super::{BrilligBinaryOp, artifact::Label};
 use crate::brillig::brillig_ir::ReservedRegisters;
 use acvm::{
     FieldElement,
@@ -32,8 +32,8 @@ impl DebugToString for MemoryAddress {
             "StackPointer".into()
         } else {
             match self {
-                MemoryAddress::Direct(address) => format!("M{}", address),
-                MemoryAddress::Relative(offset) => format!("S{}", offset),
+                MemoryAddress::Direct(address) => format!("M{address}"),
+                MemoryAddress::Relative(offset) => format!("S{offset}"),
             }
         }
     }
@@ -67,8 +67,13 @@ impl DebugToString for BrilligBinaryOp {
             BrilligBinaryOp::Xor => "^".into(),
             BrilligBinaryOp::Shl => "<<".into(),
             BrilligBinaryOp::Shr => ">>".into(),
-            BrilligBinaryOp::Modulo => "%".into(),
         }
+    }
+}
+
+impl DebugToString for Label {
+    fn debug_to_string(&self) -> String {
+        self.to_string()
     }
 }
 
@@ -171,12 +176,22 @@ impl DebugShow {
         debug_println!(self.enable_debug_trace, "  {} = {} {} {}", result, lhs, operation, rhs);
     }
 
-    /// Stores the value of `constant` in the `result` register
+    /// Processes an unsigned modulo instruction.
+    pub(crate) fn modulo_instruction(
+        &self,
+        lhs: MemoryAddress,
+        rhs: MemoryAddress,
+        result: MemoryAddress,
+    ) {
+        debug_println!(self.enable_debug_trace, "  {} = {} % {}", result, lhs, rhs);
+    }
+
+    /// Stores the value of `constant` in the `result` register.
     pub(crate) fn const_instruction<F: DebugToString>(&self, result: MemoryAddress, constant: F) {
         debug_println!(self.enable_debug_trace, "  CONST {} = {}", result, constant);
     }
 
-    /// Stores the value of `constant` in the `result` register
+    /// Stores the value of `constant` in the register pointed at by `result_pointer`.
     pub(crate) fn indirect_const_instruction<F: DebugToString>(
         &self,
         result_pointer: MemoryAddress,
@@ -198,7 +213,7 @@ impl DebugShow {
     /// Processes a foreign call instruction.
     pub(crate) fn foreign_call_instruction(
         &self,
-        func_name: String,
+        func_name: &str,
         inputs: &[ValueOrArray],
         outputs: &[ValueOrArray],
     ) {
@@ -239,34 +254,29 @@ impl DebugShow {
         debug_println!(self.enable_debug_trace, "  STOP {}", return_data);
     }
 
-    /// Debug function for enter_context
-    pub(crate) fn enter_context(&self, label: String) {
+    /// Debug function for `enter_context`
+    pub(crate) fn enter_context(&self, label: &Label) {
+        if !self.enable_debug_trace {
+            return;
+        }
+        let label = label.to_string();
+        // Hacky readability fix: don't print labels e.g. f1 then f1-b0 one after another, they mean the same thing
         if !label.ends_with("-b0") {
-            // Hacky readability fix: don't print labels e.g. f1 then f1-b0 one after another, they mean the same thing
-            debug_println!(self.enable_debug_trace, "{}:", label);
+            println!("{label}:");
         }
     }
 
-    /// Debug function for jump_instruction
-    pub(crate) fn jump_instruction(&self, target_label: String) {
+    /// Debug function for `jump_instruction`
+    pub(crate) fn jump_instruction(&self, target_label: &Label) {
         debug_println!(self.enable_debug_trace, "  JUMP_TO {}", target_label);
     }
 
-    /// Debug function for jump_if_instruction
-    pub(crate) fn jump_if_instruction<T: ToString>(
-        &self,
-        condition: MemoryAddress,
-        target_label: T,
-    ) {
-        debug_println!(
-            self.enable_debug_trace,
-            "  JUMP_IF {} TO {}",
-            condition,
-            target_label.to_string()
-        );
+    /// Debug function for `jump_if_instruction`
+    pub(crate) fn jump_if_instruction(&self, condition: MemoryAddress, target_label: &Label) {
+        debug_println!(self.enable_debug_trace, "  JUMP_IF {} TO {}", condition, target_label);
     }
 
-    /// Debug function for black_box_op
+    /// Debug function for `black_box_op`
     pub(crate) fn black_box_op_instruction(&self, op: &BlackBoxOp) {
         match op {
             BlackBoxOp::AES128Encrypt { inputs, iv, key, outputs } => {
@@ -344,65 +354,11 @@ impl DebugShow {
                     result
                 );
             }
-            BlackBoxOp::BigIntAdd { lhs, rhs, output } => {
+            BlackBoxOp::Poseidon2Permutation { message, output } => {
                 debug_println!(
                     self.enable_debug_trace,
-                    "  BIGINT_ADD {} {} -> {}",
-                    lhs,
-                    rhs,
-                    output
-                );
-            }
-            BlackBoxOp::BigIntSub { lhs, rhs, output } => {
-                debug_println!(
-                    self.enable_debug_trace,
-                    "  BIGINT_NEG {} {} -> {}",
-                    lhs,
-                    rhs,
-                    output
-                );
-            }
-            BlackBoxOp::BigIntMul { lhs, rhs, output } => {
-                debug_println!(
-                    self.enable_debug_trace,
-                    "  BIGINT_MUL {} {} -> {}",
-                    lhs,
-                    rhs,
-                    output
-                );
-            }
-            BlackBoxOp::BigIntDiv { lhs, rhs, output } => {
-                debug_println!(
-                    self.enable_debug_trace,
-                    "  BIGINT_DIV {} {} -> {}",
-                    lhs,
-                    rhs,
-                    output
-                );
-            }
-            BlackBoxOp::BigIntFromLeBytes { inputs, modulus, output } => {
-                debug_println!(
-                    self.enable_debug_trace,
-                    "  BIGINT_FROM_LE_BYTES {} {} -> {}",
-                    inputs,
-                    modulus,
-                    output
-                );
-            }
-            BlackBoxOp::BigIntToLeBytes { input, output } => {
-                debug_println!(
-                    self.enable_debug_trace,
-                    "  BIGINT_TO_LE_BYTES {} -> {}",
-                    input,
-                    output
-                );
-            }
-            BlackBoxOp::Poseidon2Permutation { message, output, len } => {
-                debug_println!(
-                    self.enable_debug_trace,
-                    "  POSEIDON2_PERMUTATION {} {} -> {}",
+                    "  POSEIDON2_PERMUTATION {} -> {}",
                     message,
-                    len,
                     output
                 );
             }
@@ -428,12 +384,12 @@ impl DebugShow {
         }
     }
 
-    /// Debug function for cast_instruction
-    pub(crate) fn add_external_call_instruction(&self, func_label: String) {
+    /// Debug function for `cast_instruction`
+    pub(crate) fn add_external_call_instruction(&self, func_label: &Label) {
         debug_println!(self.enable_debug_trace, "  CALL {}", func_label);
     }
 
-    /// Debug function for calldata_copy
+    /// Debug function for `calldata_copy`
     pub(crate) fn calldata_copy_instruction(
         &self,
         destination: MemoryAddress,

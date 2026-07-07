@@ -1,6 +1,8 @@
 #!/bin/bash
 
-AZTEC_COMMIT=$(git ls-remote https://github.com/AztecProtocol/aztec-packages.git HEAD | grep -oE '^\b[0-9a-f]{40}\b')
+AZTEC_REPO="https://github.com/AztecProtocol/aztec-packages.git"
+AZTEC_BRANCH="next"
+AZTEC_COMMIT=$(git ls-remote $AZTEC_REPO $AZTEC_BRANCH | grep -oE '^\b[0-9a-f]{40}\b')
 
 function bump_commit() {
     FILE=$1

@@ -1,0 +1,19 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+error: No module `lib` at path `src/lib.nr` or `src/lib/mod.nr`
+  ┌─ src/main.nr:1:5
+  │
+1 │ mod lib;
+  │     ---
+  │
+
+error: Could not resolve 'lib' in path
+  ┌─ src/main.nr:3:12
+  │
+3 │ use crate::lib::foo;
+  │            ---
+  │
+
+Aborting due to 2 previous errors

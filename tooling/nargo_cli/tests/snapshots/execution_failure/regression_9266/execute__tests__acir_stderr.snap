@@ -1,0 +1,25 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+bug: Assertion is always false: Index out of bounds
+  ┌─ src/main.nr:4:18
+  │
+4 │     let (_, f) = a.pop_back();
+  │                  ---------- As a result, the compiled circuit is ensured to fail. Other assertions may also fail during execution
+  │
+  = Call stack:
+    1: main
+            at src/main.nr:4:18
+
+error: Assertion failed: Index out of bounds
+  ┌─ src/main.nr:4:18
+  │
+4 │     let (_, f) = a.pop_back();
+  │                  ----------
+  │
+  = Call stack:
+    1: main
+            at src/main.nr:4:18
+
+Failed assertion

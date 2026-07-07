@@ -1,0 +1,20 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+#[inline_never]
+unconstrained fn returns_true() -> bool {
+    true
+}
+
+unconstrained fn f(mut a: bool, mut b: bool) -> bool {
+    let r: &mut bool = if returns_true() { &mut a } else { &mut b };
+    a = true;
+    *r
+}
+
+unconstrained fn main() {
+    let expected: bool = true;
+    let result: bool = f(false, false);
+    assert(result == expected);
+}

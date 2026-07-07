@@ -1,0 +1,672 @@
+//! This module contains the last use analysis pass which is run on each function before
+//! the ownership pass.
+//!
+//! The purpose of this pass is to find which instance of a variable is the variable's
+//! last use. Note that a variable may have multiple last uses. This can happen if the
+//! variable's last use is within an `if` expression or similar. It could be last used
+//! in one place in the `then` branch and in another place in the `else` branch as long
+//! as no code after the `if` expression uses the same variable.
+//!
+//! This pass works by traversing the expression tree in **reverse** order. The first
+//! encounter of each variable (in reverse) is its last use. For if/match branches,
+//! each branch is processed independently (starting from a shared "seen" set), so a
+//! variable can accumulate multiple last uses — one per branch.
+//!
+//! Loop handling: variables declared outside a loop cannot be moved inside it (the loop
+//! may execute multiple times). When leaving a loop, any pending last uses for variables
+//! declared outside the loop are removed.
+//!
+//! Assignment handling: when `x = expr` is encountered (in reverse), `x` is removed from
+//! the "seen" set so that code before the assignment can independently identify the last
+//! use of the old value of `x`.
+//!
+//! This pass is not sophisticated with regard to struct and tuple fields. It currently
+//! ignores these entirely and counts each use as a use of the entire variable. This is an
+//! area for future optimization. E.g. the program `a.b.c; a.e.f` will result in `a` being
+//! cloned in its entirety in the first statement. Note that this is lessened in the overall
+//! ownership pass such that only `.c` is cloned but it is still an area for improvement.
+
+use crate::ast::UnaryOp;
+use crate::monomorphization::ast::{self, Definition, IdentId, LocalId};
+use crate::monomorphization::ast::{Expression, Function, Literal};
+use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
+
+use super::Context;
+
+struct LastUseContext {
+    /// Variables already encountered in the reverse traversal.
+    /// The first encounter of a variable (in reverse) is its last use in forward order.
+    seen: HashSet<LocalId>,
+
+    /// Accumulated last uses for each variable. May be truncated on loop exit
+    /// for variables declared outside the loop.
+    pending_last_uses: HashMap<LocalId, Vec<IdentId>>,
+
+    /// Last uses confirmed by an assignment (`x = f(x)`). The use of `x` in `f(x)` is
+    /// confirmed because the assignment kills the old value — these survive loop truncation.
+    confirmed_moves: HashMap<LocalId, Vec<IdentId>>,
+
+    /// Variables unconditionally reassigned in the current scope.
+    ///
+    /// A variable is in this set only if it is reassigned on ALL paths through the
+    /// current scope. The `if`/`match` handlers enforce this via intersection of each
+    /// branch's killed set.
+    ///
+    /// Used by loop truncation: normally, pending last uses for variables declared
+    /// outside a loop are truncated (the loop may execute multiple times, so moving
+    /// would consume the value). But if a variable is killed inside the loop, its value
+    /// is freshly created and consumed each iteration, so pending uses can survive.
+    killed: HashSet<LocalId>,
+
+    /// Loop depth at which each variable was declared.
+    /// 0 = function body (not in any loop).
+    declaration_depth: HashMap<LocalId, usize>,
+
+    /// Current loop nesting depth.
+    loop_depth: usize,
+
+    /// Variables that have been aliased via a reference expression (`&var` or `&mut var`).
+    ///
+    /// When a variable is referenced, any subsequent copy of it must be a clone (not a move).
+    /// This is because the reference creates an invisible alias: if the variable were moved
+    /// (sharing the same array pointer with refcount=1), a later write through the reference
+    /// would mutate the "moved" copy in place (bypassing copy-on-write semantics), since the
+    /// refcount would be 1 and no COW would be triggered.
+    ///
+    /// By preventing moves of aliased variables, we ensure that subsequent copies increment
+    /// the refcount, so that writes through the reference correctly trigger COW.
+    referenced_variables: HashSet<LocalId>,
+
+    /// Whether a `break`/`continue` targeting the current loop is reachable *after* the
+    /// point currently being traversed (in forward order), within the current scope.
+    ///
+    /// Because traversal is in reverse, this is set when a `break`/`continue` is reached and
+    /// remains set for the code that precedes it. The `if`/`match` handlers save/restore it
+    /// per branch (a `break` in one branch doesn't apply to the others) and loop boundaries
+    /// save/restore it (a `break` targeting a nested loop doesn't escape that loop).
+    has_break: bool,
+
+    /// Uses recorded while [`Self::has_break`] was set, i.e. uses on a path where a
+    /// `break`/`continue` can fire before the surrounding scope completes.
+    ///
+    /// Such a use cannot be promoted to a [confirmed move](Self::confirmed_moves) by an
+    /// enclosing assignment: if the assignment is skipped by the `break`, the old value is
+    /// still live after the loop, so it must be cloned rather than moved. The use stays in
+    /// `pending_last_uses` instead, where loop-exit truncation forces the clone.
+    break_dependent_uses: HashSet<IdentId>,
+}
+
+impl Context {
+    /// Traverse the given function and return the last use(s) of each local variable.
+    /// A variable may have multiple last uses if it was last used within a conditional expression.
+    pub(super) fn find_last_uses_of_variables(
+        function: &Function,
+    ) -> HashMap<LocalId, Vec<IdentId>> {
+        let mut context = LastUseContext {
+            seen: HashSet::default(),
+            pending_last_uses: HashMap::default(),
+            confirmed_moves: HashMap::default(),
+            declaration_depth: HashMap::default(),
+            loop_depth: 0,
+            killed: HashSet::default(),
+            referenced_variables: HashSet::default(),
+            has_break: false,
+            break_dependent_uses: HashSet::default(),
+        };
+
+        for (parameter, ..) in &function.parameters {
+            context.declare_variable(*parameter);
+        }
+        context.find_last_uses_in_expression(&function.body);
+        context.into_variables_to_move()
+    }
+}
+
+impl LastUseContext {
+    fn declare_variable(&mut self, id: LocalId) {
+        self.declaration_depth.insert(id, self.loop_depth);
+    }
+
+    /// Record a use of a local variable. If this is the first encounter in the
+    /// reverse traversal (i.e. the last use in forward order), add it to `pending_last_uses`.
+    fn use_variable(&mut self, id: LocalId, ident_id: IdentId) {
+        if self.seen.insert(id) {
+            self.pending_last_uses.entry(id).or_default().push(ident_id);
+            if self.has_break {
+                self.break_dependent_uses.insert(ident_id);
+            }
+        }
+    }
+
+    /// Collect all last uses, excluding variables that have been aliased via references.
+    fn into_variables_to_move(self) -> HashMap<LocalId, Vec<IdentId>> {
+        let mut moves = self.confirmed_moves;
+        for (id, uses) in self.pending_last_uses {
+            if !uses.is_empty() {
+                moves.entry(id).or_default().extend(uses);
+            }
+        }
+        moves.retain(|id, _| !self.referenced_variables.contains(id));
+        moves
+    }
+
+    // --- Expression traversal (reverse order) ---
+    //
+    // Sub-expressions are processed in reverse of their forward evaluation order
+    // so that the first encounter in our traversal corresponds to the last use.
+
+    fn find_last_uses_in_expression(&mut self, expr: &Expression) {
+        match expr {
+            Expression::Ident(ident) => self.find_last_uses_in_ident(ident),
+            Expression::Literal(literal) => self.find_last_uses_in_literal(literal),
+            Expression::Block(exprs) => {
+                for expr in exprs.iter().rev() {
+                    self.find_last_uses_in_expression(expr);
+                }
+            }
+            Expression::Unary(unary) => self.find_last_uses_in_unary(unary),
+            Expression::Binary(binary) => {
+                self.find_last_uses_in_expression(&binary.rhs);
+                self.find_last_uses_in_expression(&binary.lhs);
+            }
+            Expression::Index(index) => {
+                // SSA codegen evaluates the index before the collection, so in forward
+                // order the collection is used *after* the index. Reverse that here: visit
+                // the collection first so it (not the index) becomes the last use.
+                self.find_last_uses_in_expression(&index.collection);
+                self.find_last_uses_in_expression(&index.index);
+            }
+            Expression::Cast(cast) => self.find_last_uses_in_expression(&cast.lhs),
+            Expression::For(for_expr) => self.find_last_uses_in_for(for_expr),
+            Expression::Loop(body) => self.find_last_uses_in_loop_body(body, None),
+            Expression::While(while_expr) => {
+                // The body and condition are both re-evaluated each iteration, so both are
+                // analyzed at the loop's depth. A variable read in the condition and again in the
+                // body has its last use in the body (the condition runs first), so the body read
+                // becomes the move and the condition read is cloned. The condition is also where a
+                // `break` escapes to the enclosing loop, which `find_last_uses_in_loop_body`
+                // accounts for.
+                self.find_last_uses_in_loop_body(&while_expr.body, Some(&while_expr.condition));
+            }
+            Expression::If(if_expr) => self.find_last_uses_in_if(if_expr),
+            Expression::Match(match_expr) => self.find_last_uses_in_match(match_expr),
+            Expression::Tuple(elements) => {
+                for elem in elements.iter().rev() {
+                    self.find_last_uses_in_expression(elem);
+                }
+            }
+            Expression::ExtractTupleField(tuple, _) => {
+                self.find_last_uses_in_expression(tuple);
+            }
+            Expression::Call(call) => self.find_last_uses_in_call(call),
+            Expression::Let(let_expr) => self.find_last_uses_in_let(let_expr),
+            Expression::Constrain(boolean, _, msg) => {
+                if let Some(msg) = msg {
+                    self.find_last_uses_in_expression(&msg.0);
+                }
+                self.find_last_uses_in_expression(boolean);
+            }
+            Expression::Assign(assign) => self.find_last_uses_in_assign(assign),
+            Expression::Semi(expr) => self.find_last_uses_in_expression(expr),
+            Expression::Clone(_) => unreachable!("last_uses is called before clones are inserted"),
+            Expression::Drop(_) => unreachable!("last_uses is called before drops are inserted"),
+            Expression::Break | Expression::Continue => {
+                // break/continue can skip assignments that were processed earlier in
+                // the reverse traversal, making those assignments conditional.
+                self.killed.clear();
+                self.has_break = true;
+            }
+        }
+    }
+
+    fn find_last_uses_in_ident(&mut self, ident: &ast::Ident) {
+        if let Definition::Local(local_id) = &ident.definition {
+            self.use_variable(*local_id, ident.id);
+        }
+    }
+
+    fn find_last_uses_in_literal(&mut self, literal: &Literal) {
+        match literal {
+            Literal::Integer(..) | Literal::Bool(_) | Literal::Unit | Literal::Str(_) => (),
+            Literal::FmtStr(_, _, captures) => self.find_last_uses_in_expression(captures),
+            Literal::Array(array) | Literal::Vector(array) => {
+                for element in array.contents.iter().rev() {
+                    self.find_last_uses_in_expression(element);
+                }
+            }
+            Literal::Repeated { element, .. } => self.find_last_uses_in_expression(element),
+        }
+    }
+
+    fn find_last_uses_in_unary(&mut self, unary: &ast::Unary) {
+        if matches!(unary.operator, UnaryOp::Reference { .. }) {
+            // When a reference is taken to a local variable or one of its fields (e.g. `&mut x`
+            // or `&mut x.field`), the variable `x` is now aliased. Mark it so that any future
+            // copy of `x` must clone rather than move.
+            if let Some(local_id) = base_ident_of_field_access(&unary.rhs) {
+                self.referenced_variables.insert(local_id);
+            }
+        }
+        self.find_last_uses_in_expression(&unary.rhs);
+    }
+
+    fn find_last_uses_in_for(&mut self, for_expr: &ast::For) {
+        // The body is inside the loop scope; start/end ranges are evaluated once before
+        // the loop begins and are tracked outside the loop scope.
+        self.find_last_uses_in_loop_body(&for_expr.block, None);
+        self.find_last_uses_in_expression(&for_expr.end_range);
+        self.find_last_uses_in_expression(&for_expr.start_range);
+    }
+
+    /// Process a loop body (and, for a `while`, its condition) at an increased loop depth.
+    /// After processing, remove any pending last uses for variables declared outside the loop
+    /// since they cannot be safely moved inside a loop that may execute multiple times.
+    ///
+    /// The body is traversed first because, in the reverse traversal, an iteration's body runs
+    /// after its condition. A `break`/`continue` in the body targets this loop and must not be
+    /// observed outside it; but a `break`/`continue` in a `while` condition targets the
+    /// *enclosing* loop (consistent with SSA lowering and the comptime interpreter), so its
+    /// effect is propagated outward while the body's is not.
+    fn find_last_uses_in_loop_body(&mut self, body: &Expression, condition: Option<&Expression>) {
+        let pending_lengths: HashMap<LocalId, usize> =
+            self.pending_last_uses.iter().map(|(id, uses)| (*id, uses.len())).collect();
+        let saved_seen = self.seen.clone();
+
+        // Kills inside the loop don't propagate outward (the loop may execute 0 times).
+        let saved_killed = std::mem::take(&mut self.killed);
+
+        let saved_has_break = std::mem::take(&mut self.has_break);
+
+        let loop_body_depth = self.loop_depth + 1;
+        self.loop_depth = loop_body_depth;
+
+        self.find_last_uses_in_expression(body);
+
+        // The body's breaks target this loop, so discard them (the enclosing value is restored
+        // below). A `break` in a `while` condition targets the enclosing loop, so process the
+        // condition with a clean flag and let whatever it sets propagate outward.
+        self.has_break = false;
+        if let Some(condition) = condition {
+            self.find_last_uses_in_expression(condition);
+        }
+        let condition_has_break = self.has_break;
+
+        self.loop_depth = loop_body_depth - 1;
+
+        // Variables declared outside this loop cannot be moved inside it — unless
+        // they are unconditionally reassigned (killed) within the loop body, in which
+        // case their value is freshly created and consumed each iteration.
+        for (id, uses) in &mut self.pending_last_uses {
+            let decl_depth = self.declaration_depth.get(id).copied().unwrap_or(0);
+            if decl_depth < loop_body_depth && !self.killed.contains(id) {
+                let before_len = pending_lengths.get(id).copied().unwrap_or(0);
+                uses.truncate(before_len);
+            }
+        }
+        // Reinsert anything we have seen before, so nothing before the loop becomes a new last use.
+        for id in &saved_seen {
+            let decl_depth = self.declaration_depth.get(id).copied().unwrap_or(0);
+            if decl_depth < loop_body_depth {
+                self.seen.insert(*id);
+            }
+        }
+        self.killed = saved_killed;
+        self.has_break = saved_has_break || condition_has_break;
+    }
+
+    fn find_last_uses_in_if(&mut self, if_expr: &ast::If) {
+        let saved_seen = self.seen.clone();
+        let saved_killed = self.killed.clone();
+        let saved_has_break = self.has_break;
+
+        // Process the then-branch
+        self.find_last_uses_in_expression(&if_expr.consequence);
+        let mut merged = std::mem::replace(&mut self.seen, saved_seen.clone());
+        let then_killed = std::mem::replace(&mut self.killed, saved_killed);
+        // Reset to the incoming value so a `break` in the then-branch doesn't apply to the
+        // else-branch (each branch's reachable breaks are independent).
+        let then_has_break = std::mem::replace(&mut self.has_break, saved_has_break);
+
+        // Process the else-branch, or use saved_seen for the implicit "do nothing" path
+        if let Some(alt) = &if_expr.alternative {
+            self.find_last_uses_in_expression(alt);
+            merged.extend(&self.seen);
+        } else {
+            merged.extend(&saved_seen);
+        }
+
+        // A variable is killed only if it is reassigned on ALL paths
+        self.killed.retain(|id| then_killed.contains(id));
+        // A break is reachable through the `if` if it is reachable through either branch.
+        self.has_break |= then_has_break;
+
+        self.seen = merged;
+
+        // The condition is evaluated before either branch
+        self.find_last_uses_in_expression(&if_expr.condition);
+    }
+
+    fn find_last_uses_in_match(&mut self, match_expr: &ast::Match) {
+        // Note: We don't track `variable_to_match` as a use here because it's just a LocalId
+        // that references a variable defined earlier. The last-use analysis for that variable
+        // happens at its actual use sites.
+        let saved_seen = self.seen.clone();
+        let saved_killed = self.killed.clone();
+        let saved_has_break = self.has_break;
+        let mut merged = HashSet::default();
+        let mut all_killed: Option<HashSet<LocalId>> = None;
+        // A break is reachable through the match if it is reachable through any arm.
+        let mut any_has_break = saved_has_break;
+
+        for case in &match_expr.cases {
+            self.seen.clone_from(&saved_seen);
+            self.killed.clone_from(&saved_killed);
+            self.has_break = saved_has_break;
+            for (argument, _) in &case.arguments {
+                self.declare_variable(*argument);
+            }
+            self.find_last_uses_in_expression(&case.branch);
+            merged.extend(&self.seen);
+            any_has_break |= self.has_break;
+            match &mut all_killed {
+                None => all_killed = Some(self.killed.clone()),
+                Some(acc) => acc.retain(|id| self.killed.contains(id)),
+            }
+        }
+
+        if let Some(default_case) = &match_expr.default_case {
+            self.seen = saved_seen;
+            self.killed.clone_from(&saved_killed);
+            self.has_break = saved_has_break;
+            self.find_last_uses_in_expression(default_case);
+            merged.extend(&self.seen);
+            any_has_break |= self.has_break;
+            match &mut all_killed {
+                None => all_killed = Some(self.killed.clone()),
+                Some(acc) => acc.retain(|id| self.killed.contains(id)),
+            }
+        } else {
+            // No default case: conservatively include saved_seen
+            merged.extend(&saved_seen);
+            // No default path kills nothing new
+            if let Some(acc) = &mut all_killed {
+                acc.retain(|id| saved_killed.contains(id));
+            }
+        }
+
+        self.seen = merged;
+        self.killed = all_killed.unwrap_or(saved_killed);
+        self.has_break = any_has_break;
+    }
+
+    fn find_last_uses_in_call(&mut self, call: &ast::Call) {
+        // A reference passed directly as a call argument (e.g. `foo(&mut x)`) is temporary:
+        // it only lives for the duration of the call. After the call returns, `x` is no longer
+        // aliased, so future copies of `x` don't need to clone.
+        //
+        // We must fall back to conservative (mark `x` as aliased) if the reference could escape:
+        // 1. The call returns a reference type — the passed reference might be returned.
+        // 2. Another argument has type `&mut T` where `T` contains a reference — the function
+        //    could write the passed reference into `*that_arg`, making it escape without returning.
+        let conservative = type_contains_reference(&call.return_type)
+            || call.arguments.iter().any(arg_can_store_reference);
+
+        for arg in call.arguments.iter().rev() {
+            if !conservative
+                && let Expression::Unary(unary) = arg
+                && matches!(unary.operator, UnaryOp::Reference { .. })
+                && base_ident_of_field_access(&unary.rhs).is_some()
+            {
+                // Track the use of the variable inside the reference (for last-use analysis)
+                // but skip the unary handler, which would mark the variable as aliased.
+                self.find_last_uses_in_expression(&unary.rhs);
+            } else {
+                self.find_last_uses_in_expression(arg);
+            }
+        }
+        self.find_last_uses_in_expression(&call.func);
+    }
+
+    fn find_last_uses_in_let(&mut self, let_expr: &ast::Let) {
+        self.declare_variable(let_expr.id);
+        self.find_last_uses_in_expression(&let_expr.expression);
+    }
+
+    fn find_last_uses_in_assign(&mut self, assign: &ast::Assign) {
+        // See if we are reassigning a variable, killing the reference to its previous value.
+        // Remove it from `seen` so that earlier code can independently identify the last use
+        // of the old value.
+        if let ast::LValue::Ident(ast::Ident { definition: Definition::Local(local_id), .. }) =
+            &assign.lvalue
+        {
+            self.seen.remove(local_id);
+            let pending_before = self.pending_last_uses.get(local_id).map_or(0, |v| v.len());
+
+            // Detect whether the RHS itself can `break`/`continue` before the assignment
+            // commits. Reset the flag so we only observe breaks introduced by the RHS, then
+            // restore it (propagating upward) afterwards.
+            let saved_has_break = std::mem::replace(&mut self.has_break, false);
+            self.find_last_uses_in_expression(&assign.expression);
+            let rhs_has_break = self.has_break;
+            self.has_break = saved_has_break || rhs_has_break;
+
+            let new_uses = self
+                .pending_last_uses
+                .get_mut(local_id)
+                .filter(|uses| uses.len() > pending_before)
+                .map(|uses| uses.split_off(pending_before));
+
+            match new_uses {
+                Some(new_uses) => {
+                    // Uses of the variable added while processing the RHS (e.g. `x = f(x)`) are
+                    // confirmed as last uses of the old value killed by this assignment, except
+                    // those on a path that can `break`/`continue` before the assignment commits.
+                    // Confirmed moves survive loop-exit truncation.
+                    let (breakable, confirmed): (Vec<_>, Vec<_>) =
+                        new_uses.into_iter().partition(|id| self.break_dependent_uses.contains(id));
+
+                    self.confirmed_moves.entry(*local_id).or_default().extend(confirmed);
+
+                    // Break-dependent uses go back to `pending_last_uses` rather than being
+                    // confirmed or dropped. They are never confirmed: their `IdentId` stays in
+                    // `break_dependent_uses`, so this partition excludes them from every
+                    // assignment, not just this one. Keeping them pending lets the normal
+                    // last-use rules apply — loop-exit truncation drops them for variables
+                    // declared outside the loop (forcing a clone, since the old value is still
+                    // live on the break path), while a loop-local variable keeps the move (its
+                    // old value cannot be observed after the loop). Dropping them here instead
+                    // would needlessly clone loop-local variables.
+                    if !breakable.is_empty() {
+                        self.pending_last_uses.entry(*local_id).or_default().extend(breakable);
+                    }
+                }
+                // A fresh value that does not mention x is independent each iteration, so x's
+                // prior in-loop uses can be moved — unless the RHS can break before committing,
+                // in which case the kill is not guaranteed. `local_occurs_in` also rejects
+                // mentions of x that an inner loop truncated from the pending uses checked above.
+                None if !rhs_has_break
+                    && rhs_cannot_alias(&assign.expression)
+                    && !local_occurs_in(*local_id, &assign.expression) =>
+                {
+                    self.killed.insert(*local_id);
+                }
+                None => {}
+            }
+            return;
+        }
+
+        // For compound lvalues (e.g. `a[i] = expr`), process in reverse evaluation order:
+        // the lvalue is accessed after the RHS is evaluated.
+        self.find_last_uses_in_lvalue(&assign.lvalue, false);
+        self.find_last_uses_in_expression(&assign.expression);
+    }
+
+    /// A variable in an lvalue position is never moved (otherwise you wouldn't
+    /// be able to access the variable you assigned to afterward). However, the
+    /// index in an array expression `a[i] = ...` is an arbitrary expression that
+    /// is actually in an rvalue position and can thus be moved.
+    ///
+    /// The `nested` parameter indicates whether this lvalue is nested inside another lvalue.
+    /// For top-level identifiers there's nothing to track, but for an identifier happening
+    /// as part of an index (`ident[index] = ...`) we do want to consider `ident` as used,
+    /// which should preclude any previous last uses that could result in it being moved.
+    fn find_last_uses_in_lvalue(&mut self, lvalue: &ast::LValue, nested: bool) {
+        match lvalue {
+            ast::LValue::Ident(ident) => {
+                if nested {
+                    self.find_last_uses_in_ident(ident);
+                }
+            }
+            ast::LValue::Index { array, index, .. } => {
+                // As in the rvalue Index case, SSA codegen evaluates the index before
+                // touching the array in an lvalue position, so visit the array first in
+                // the reverse traversal to make it the last use.
+                self.find_last_uses_in_lvalue(array, true);
+                self.find_last_uses_in_expression(index);
+            }
+            ast::LValue::MemberAccess { object, .. } => {
+                self.find_last_uses_in_lvalue(object, true);
+            }
+            ast::LValue::Dereference { reference, .. } => {
+                self.find_last_uses_in_lvalue(reference, true);
+            }
+            ast::LValue::Clone(_) => {
+                unreachable!("LValue::Clone should only be inserted by the ownership pass")
+            }
+        }
+    }
+}
+
+/// Returns `true` if assigning `expr` to a variable produces a value whose outer buffer
+/// identity cannot alias the buffer being moved out of that variable by the same assignment.
+///
+/// Only fresh allocations and scalar literals qualify. A fresh allocation gets a new outer
+/// reference count, so moving the variable's prior in-loop uses cannot recreate a refcount-1
+/// alias with the reassigned value. A place expression (`Ident`, `Index`, member access, …),
+/// call result, or block tail may evaluate to an existing buffer and is treated as aliasing.
+///
+/// Only the OUTER buffer matters here; inner-array aliasing inside `[a, b]` or `[arr; N]` is
+/// handled separately by clone insertion at element/index sites, so array, vector, and repeated
+/// literals are fresh at this level regardless of their element expressions.
+///
+/// This only rules out the value *being* an existing buffer, not side effects (e.g. an in-place
+/// write to an element) during its construction; the caller pairs it with `local_occurs_in`.
+fn rhs_cannot_alias(expr: &Expression) -> bool {
+    match expr {
+        Expression::Literal(literal) => matches!(
+            literal,
+            Literal::Array(_)
+                | Literal::Vector(_)
+                | Literal::Repeated { .. }
+                | Literal::Integer(..)
+                | Literal::Bool(_)
+                | Literal::Unit
+                | Literal::Str(_)
+        ),
+        // A cast cannot change buffer identity, so it is fresh iff its operand is.
+        Expression::Cast(cast) => rhs_cannot_alias(&cast.lhs),
+        _ => false,
+    }
+}
+
+/// Returns `true` if `local_id` occurs anywhere within `expr`, in value position (`x`, `x[i]`)
+/// or as the base of an assignment lvalue (`x[i] = ..`). Monomorphized `LocalId`s are unique,
+/// so any occurrence is a free occurrence.
+fn local_occurs_in(local_id: LocalId, expr: &Expression) -> bool {
+    let mut occurs = false;
+    crate::monomorphization::visitor::visit_expr_be(
+        expr,
+        &mut |_| (true, ()),
+        &mut |_, ()| {},
+        &mut |ident: &ast::Ident| {
+            if let Definition::Local(id) = ident.definition
+                && id == local_id
+            {
+                occurs = true;
+            }
+        },
+    );
+    occurs
+}
+
+/// Given an expression that is the operand of a reference (`&expr` or `&mut expr`),
+/// walk through any chain of struct-field accesses (`expr.field` = `ExtractTupleField`)
+/// and return the `LocalId` of the base variable, if it is a local variable.
+///
+/// For example:
+/// - `&mut x`         → `Some(x_id)`
+/// - `&mut x.field`   → `Some(x_id)`  (field is `ExtractTupleField(x, _)`)
+/// - `&mut x.a.b`     → `Some(x_id)`
+/// - `&mut some_call()` → `None`
+///
+/// Block expressions intentionally return `None`: `&mut { ...; expr }` always allocates
+/// fresh storage and copies the tail's value into it, so the operand is no longer a
+/// "direct reference" to a local. The clones needed to keep refcounts honest are
+/// inserted by the forward pass when it processes the block's tail in normal context
+/// (see `handle_reference_expression`).
+fn base_ident_of_field_access(expr: &Expression) -> Option<LocalId> {
+    match expr {
+        Expression::Ident(ident) => {
+            if let Definition::Local(local_id) = ident.definition {
+                Some(local_id)
+            } else {
+                None
+            }
+        }
+        Expression::ExtractTupleField(inner, _) => base_ident_of_field_access(inner),
+        _ => None,
+    }
+}
+
+/// Returns `true` if `arg`'s type can be used to store a reference, i.e. the type
+/// contains a `&mut T` (at any depth) where `T` itself contains a reference.
+///
+/// When this is true for any argument, all `&mut x` arguments in the call must conservatively
+/// be treated as aliasing `x`, because the callee might write the reference into the location
+/// reachable through that argument.
+fn arg_can_store_reference(arg: &Expression) -> bool {
+    match arg.return_type() {
+        Some(typ) => type_can_store_reference(&typ),
+        None => true,
+    }
+}
+
+/// Returns `true` if `typ` contains — at any depth — a `&mut T` where `T` itself contains
+/// a reference. Such a type allows a reference to be written somewhere persistent.
+fn type_can_store_reference(typ: &ast::Type) -> bool {
+    use ast::Type;
+    match typ {
+        Type::Reference(inner, true /* mutable */) => type_contains_reference(inner),
+        Type::Reference(inner, false) => type_can_store_reference(inner),
+        Type::Tuple(elements) => elements.iter().any(type_can_store_reference),
+        Type::Array(_, elem) | Type::Vector(elem) | Type::FmtString(_, elem) => {
+            type_can_store_reference(elem)
+        }
+        Type::Function(args, ret, env, _) => {
+            args.iter().any(type_can_store_reference)
+                || type_can_store_reference(ret)
+                || type_can_store_reference(env)
+        }
+        Type::Field | Type::Integer(..) | Type::Bool | Type::String(..) | Type::Unit => false,
+    }
+}
+
+/// Returns `true` if the type contains a `Reference` anywhere (directly or nested within
+/// tuples, arrays, or function types). Used to decide whether a call might return a
+/// reference that aliases a variable passed by `&mut` to that call.
+fn type_contains_reference(typ: &ast::Type) -> bool {
+    use ast::Type;
+    match typ {
+        Type::Reference(..) => true,
+        Type::Tuple(elements) => elements.iter().any(type_contains_reference),
+        Type::Array(_, elem) | Type::Vector(elem) | Type::FmtString(_, elem) => {
+            type_contains_reference(elem)
+        }
+        Type::Function(args, ret, env, _) => {
+            args.iter().any(type_contains_reference)
+                || type_contains_reference(ret)
+                || type_contains_reference(env)
+        }
+        Type::Field | Type::Integer(..) | Type::Bool | Type::String(..) | Type::Unit => false,
+    }
+}

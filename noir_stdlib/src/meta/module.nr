@@ -1,18 +1,30 @@
-impl Module {
-    #[builtin(module_add_item)]
-    // docs:start:add_item
-    pub comptime fn add_item(self, item: Quoted) {}
-    // docs:end:add_item
+use crate::option::Option;
 
+impl Module {
     #[builtin(module_has_named_attribute)]
     // docs:start:has_named_attribute
     pub comptime fn has_named_attribute<let N: u32>(self, name: str<N>) -> bool {}
     // docs:end:has_named_attribute
 
+    #[builtin(module_named_attribute_args)]
+    // docs:start:named_attribute_args
+    pub comptime fn named_attribute_args<let N: u32>(self, name: str<N>) -> [[Quoted]] {}
+    // docs:end:named_attribute_args
+
+    #[builtin(module_has_builtin_attribute)]
+    // docs:start:has_builtin_attribute
+    pub comptime fn has_builtin_attribute<let N: u32>(self, name: str<N>) -> bool {}
+    // docs:end:has_builtin_attribute
+
     #[builtin(module_is_contract)]
     // docs:start:is_contract
     pub comptime fn is_contract(self) -> bool {}
     // docs:end:is_contract
+
+    #[builtin(module_location)]
+    // docs:start:location
+    pub comptime fn location(self) -> Location {}
+    // docs:end:location
 
     #[builtin(module_functions)]
     // docs:start:functions
@@ -24,10 +36,20 @@ impl Module {
     pub comptime fn structs(self) -> [TypeDefinition] {}
     // docs:end:structs
 
+    #[builtin(module_child_modules)]
+    // docs:start:child_modules
+    pub comptime fn child_modules(self) -> [Module] {}
+    // docs:end:child_modules
+
     #[builtin(module_name)]
     // docs:start:name
     pub comptime fn name(self) -> Quoted {}
     // docs:end:name
+
+    #[builtin(module_parent)]
+    // docs:start:parent
+    pub comptime fn parent(self) -> Option<Module> {}
+    // docs:end:parent
 }
 
 impl crate::hash::Hash for Module {
@@ -40,13 +62,9 @@ impl crate::hash::Hash for Module {
 }
 
 impl crate::cmp::Eq for Module {
-    comptime fn eq(self, other: Self) -> bool {
-        module_eq(self, other)
-    }
+    #[builtin(module_eq)]
+    comptime fn eq(self, other: Self) -> bool {}
 }
-
-#[builtin(module_eq)]
-comptime fn module_eq(_first: Module, _second: Module) -> bool {}
 
 #[builtin(module_hash)]
 comptime fn module_hash(_module: Module) -> Field {}

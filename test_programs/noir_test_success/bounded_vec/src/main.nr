@@ -3,11 +3,6 @@ fn test_vec_new_good() {
     good();
 }
 
-#[test(should_fail)]
-fn test_vec_new_bad() {
-    bad();
-}
-
 // docs:start:new_example
 fn good() -> BoundedVec<Field, 10> {
     // Ok! MaxLen is specified with a type annotation
@@ -17,28 +12,21 @@ fn good() -> BoundedVec<Field, 10> {
     // Ok! MaxLen is known from the type of `good`'s return value
     v2
 }
-
-fn bad() {
-    // Error: Type annotation needed
-    // The compiler can't infer `MaxLen` from this code.
-    let mut v3 = BoundedVec::new();
-    v3.push(5);
-}
 // docs:end:new_example
 
 #[test]
 fn test_vec_push_pop() {
     let mut vec: BoundedVec<Field, 3> = BoundedVec::new();
-    assert(vec.len == 0);
+    assert(vec.len() == 0);
     vec.push(2);
-    assert(vec.len == 1);
+    assert(vec.len() == 1);
     vec.push(4);
-    assert(vec.len == 2);
+    assert(vec.len() == 2);
     vec.push(6);
-    assert(vec.len == 3);
+    assert(vec.len() == 3);
     let x = vec.pop();
     assert(x == 6);
-    assert(vec.len == 2);
+    assert(vec.len() == 2);
     assert(vec.get(0) == 2);
     assert(vec.get(1) == 4);
 }
@@ -152,6 +140,41 @@ fn max_len_docs_example() {
 }
 
 #[test]
+fn set_len_docs_example() {
+    // docs:start:bounded-vec-set-len-example
+    let mut v: BoundedVec<Field, 10> = BoundedVec::from_array([1, 2, 3, 4, 5]);
+
+    v.set_unchecked(5, 6);
+    v.set_unchecked(6, 7);
+    v.set_unchecked(7, 8);
+    assert(v.len() == 5);
+
+    // Grow the length to expose the elements written above.
+    v.set_len(8);
+    assert(v.len() == 8);
+    assert(v.get(7) == 8);
+
+    // The length can also be reduced.
+    v.set_len(2);
+    assert(v.len() == 2);
+    // docs:end:bounded-vec-set-len-example
+}
+
+#[test]
+fn truncate_docs_example() {
+    // docs:start:bounded-vec-truncate-example
+    let mut v: BoundedVec<Field, 10> = BoundedVec::from_array([1, 2, 3, 4, 5]);
+
+    v.truncate(3);
+    assert(v.len() == 3);
+
+    // Truncating to a length greater than the current length is a no-op.
+    v.truncate(8);
+    assert(v.len() == 3);
+    // docs:end:bounded-vec-truncate-example
+}
+
+#[test]
 fn storage_docs_example() {
     // docs:start:bounded-vec-storage-example
     let mut v: BoundedVec<Field, 5> = BoundedVec::new();
@@ -169,7 +192,7 @@ fn test_vec_extend_from_array() {
     let mut vec: BoundedVec<Field, 3> = BoundedVec::new();
     vec.extend_from_array([2, 4]);
 
-    assert(vec.len == 2);
+    assert(vec.len() == 2);
     assert(vec.get(0) == 2);
     assert(vec.get(1) == 4);
     // docs:end:bounded-vec-extend-from-array-example
@@ -199,7 +222,7 @@ fn test_vec_extend_from_array_out_of_bound() {
 fn test_vec_extend_from_array_twice_out_of_bound() {
     let mut vec: BoundedVec<Field, 2> = BoundedVec::new();
     vec.extend_from_array([2]);
-    assert(vec.len == 1);
+    assert(vec.len() == 1);
     vec.extend_from_array([4, 6]);
 }
 

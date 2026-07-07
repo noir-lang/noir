@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 
 use noirc_frontend::{
-    Kind, ResolvedGeneric, Type,
+    Kind, NamedGeneric, ResolvedGeneric, Type,
     ast::{NoirTraitImpl, UnresolvedTypeData},
     graph::CrateId,
     hir::{
@@ -9,15 +9,13 @@ use noirc_frontend::{
         type_check::generics::TraitGenerics,
     },
     hir_def::{function::FuncMeta, stmt::HirPattern, traits::Trait},
-    node_interner::{FunctionModifiers, NodeInterner, ReferenceId},
+    modules::{get_parent_module, relative_module_id_path},
+    node_interner::NodeInterner,
 };
-
-use crate::modules::relative_module_id_path;
 
 pub(crate) struct TraitImplMethodStubGenerator<'a> {
     name: &'a str,
     func_meta: &'a FuncMeta,
-    modifiers: &'a FunctionModifiers,
     trait_: &'a Trait,
     noir_trait_impl: &'a NoirTraitImpl,
     interner: &'a NodeInterner,
@@ -33,7 +31,6 @@ impl<'a> TraitImplMethodStubGenerator<'a> {
     pub(crate) fn new(
         name: &'a str,
         func_meta: &'a FuncMeta,
-        modifiers: &'a FunctionModifiers,
         trait_: &'a Trait,
         noir_trait_impl: &'a NoirTraitImpl,
         interner: &'a NodeInterner,
@@ -44,7 +41,6 @@ impl<'a> TraitImplMethodStubGenerator<'a> {
         Self {
             name,
             func_meta,
-            modifiers,
             trait_,
             noir_trait_impl,
             interner,
@@ -65,7 +61,7 @@ impl<'a> TraitImplMethodStubGenerator<'a> {
         let indent_string = " ".repeat(self.indent);
 
         self.string.push_str(&indent_string);
-        if self.modifiers.is_unconstrained {
+        if self.func_meta.is_unconstrained() {
             self.string.push_str("unconstrained ");
         }
         self.string.push_str("fn ");
@@ -76,7 +72,20 @@ impl<'a> TraitImplMethodStubGenerator<'a> {
             if index > 0 {
                 self.string.push_str(", ");
             }
-            if self.append_pattern(pattern) {
+
+            let is_self = pattern.is_self(self.interner);
+            // `&mut self` is represented as a mutable reference type, not as a mutable pattern
+            if is_self && let Type::Reference(_, mutable) = typ {
+                if *mutable {
+                    self.string.push_str("&mut ");
+                } else {
+                    self.string.push('&');
+                }
+            }
+
+            self.append_pattern(pattern);
+
+            if !is_self {
                 self.string.push_str(": ");
                 self.append_type(typ);
             }
@@ -117,17 +126,15 @@ impl<'a> TraitImplMethodStubGenerator<'a> {
         std::mem::take(&mut self.string)
     }
 
-    /// Appends a pattern and returns true if this was not the self type
-    fn append_pattern(&mut self, pattern: &HirPattern) -> bool {
+    fn append_pattern(&mut self, pattern: &HirPattern) {
         match pattern {
             HirPattern::Identifier(hir_ident) => {
                 let definition = self.interner.definition(hir_ident.id);
                 self.string.push_str(&definition.name);
-                &definition.name != "self"
             }
             HirPattern::Mutable(pattern, _) => {
                 self.string.push_str("mut ");
-                self.append_pattern(pattern)
+                self.append_pattern(pattern);
             }
             HirPattern::Tuple(patterns, _) => {
                 self.string.push('(');
@@ -138,7 +145,6 @@ impl<'a> TraitImplMethodStubGenerator<'a> {
                     self.append_pattern(pattern);
                 }
                 self.string.push(')');
-                true
             }
             HirPattern::Struct(typ, patterns, _) => {
                 self.append_type(typ);
@@ -150,7 +156,6 @@ impl<'a> TraitImplMethodStubGenerator<'a> {
                     self.string.push_str(name.as_str());
                 }
                 self.string.push_str(" }");
-                true
             }
         }
     }
@@ -158,14 +163,14 @@ impl<'a> TraitImplMethodStubGenerator<'a> {
     fn append_type(&mut self, typ: &Type) {
         match typ {
             Type::FieldElement => self.string.push_str("Field"),
-            Type::Array(n, e) => {
+            Type::Array(e, n) => {
                 self.string.push('[');
                 self.append_type(e);
                 self.string.push_str("; ");
                 self.append_type(n);
                 self.string.push(']');
             }
-            Type::Slice(typ) => {
+            Type::Vector(typ) => {
                 self.string.push('[');
                 self.append_type(typ);
                 self.string.push(']');
@@ -188,12 +193,12 @@ impl<'a> TraitImplMethodStubGenerator<'a> {
 
                 // Check if the struct type is already imported/visible in this module
                 let per_ns = current_module_data.find_name(&struct_type.name);
-                if let Some((module_def_id, _, _)) = per_ns.types {
-                    if module_def_id == ModuleDefId::TypeId(struct_type.id) {
-                        self.string.push_str(struct_type.name.as_str());
-                        self.append_generics(generics);
-                        return;
-                    }
+                if let Some(scope) = per_ns.types
+                    && scope.id == ModuleDefId::TypeId(struct_type.id)
+                {
+                    self.string.push_str(struct_type.name.as_str());
+                    self.append_generics(generics);
+                    return;
                 }
 
                 let parent_module_id = struct_type.id.parent_module_id(self.def_maps);
@@ -223,23 +228,27 @@ impl<'a> TraitImplMethodStubGenerator<'a> {
 
                 // Check if the alias type is already imported/visible in this module
                 let per_ns = current_module_data.find_name(&type_alias.name);
-                if let Some((module_def_id, _, _)) = per_ns.types {
-                    if module_def_id == ModuleDefId::TypeAliasId(type_alias.id) {
-                        self.string.push_str(type_alias.name.as_str());
-                        self.append_generics(generics);
-                        return;
-                    }
+                if let Some(scope) = per_ns.types
+                    && scope.id == ModuleDefId::TypeAliasId(type_alias.id)
+                {
+                    self.string.push_str(type_alias.name.as_str());
+                    self.append_generics(generics);
+                    return;
                 }
 
-                let parent_module_id =
-                    self.interner.reference_module(ReferenceId::Alias(type_alias.id)).unwrap();
+                let parent_module_id = get_parent_module(
+                    ModuleDefId::TypeAliasId(type_alias.id),
+                    self.interner,
+                    self.def_maps,
+                )
+                .unwrap();
 
                 let current_module_parent_id = current_module_data
                     .parent
                     .map(|parent| ModuleId { krate: self.module_id.krate, local_id: parent });
 
                 let relative_path = relative_module_id_path(
-                    *parent_module_id,
+                    parent_module_id,
                     self.module_id,
                     current_module_parent_id,
                     self.interner,
@@ -264,15 +273,19 @@ impl<'a> TraitImplMethodStubGenerator<'a> {
                     return;
                 }
 
-                let parent_module_id =
-                    self.interner.reference_module(ReferenceId::Trait(*trait_id)).unwrap();
+                let parent_module_id = get_parent_module(
+                    ModuleDefId::TraitId(*trait_id),
+                    self.interner,
+                    self.def_maps,
+                )
+                .unwrap();
 
                 let current_module_parent_id = current_module_data
                     .parent
                     .map(|parent| ModuleId { krate: self.module_id.krate, local_id: parent });
 
                 let relative_path = relative_module_id_path(
-                    *parent_module_id,
+                    parent_module_id,
                     self.module_id,
                     current_module_parent_id,
                     self.interner,
@@ -324,8 +337,8 @@ impl<'a> TraitImplMethodStubGenerator<'a> {
 
                 self.string.push_str("error");
             }
-            Type::NamedGeneric(typevar, _name) => {
-                self.append_type(&Type::TypeVariable(typevar.clone()));
+            Type::NamedGeneric(NamedGeneric { type_var, .. }) => {
+                self.append_type(&Type::TypeVariable(type_var.clone()));
             }
             Type::Function(args, ret, env, unconstrained) => {
                 if *unconstrained {

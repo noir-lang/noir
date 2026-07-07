@@ -1,7 +1,0 @@
-
-            [package]
-            name = "noirc_frontend_tests_errors_if_loop_body_type_is_not_unit"
-            type = "bin"
-            authors = [""]
-            
-            [dependencies]

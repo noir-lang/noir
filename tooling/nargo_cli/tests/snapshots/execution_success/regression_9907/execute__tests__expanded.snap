@@ -1,0 +1,22 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn main() -> pub [[Field; 1]; 1] {
+    // Safety: comment added by `nargo expand`
+    let a: [[Field; 1]; 1] = unsafe { foo([[3405691582_Field]]) };
+    assert(a[0_u32][0_u32] == 3405691582_Field);
+    a
+}
+
+unconstrained fn foo(mut a: [[Field; 1]; 1]) -> [[Field; 1]; 1] {
+    let mut b: [Field; 1] = bar(a)[0_u32];
+    let mut x: Field = 0_Field;
+    while x != 0_Field {}
+    b[0_u32] = 3735928559_Field;
+    a
+}
+
+fn bar(mut a: [[Field; 1]; 1]) -> [[Field; 1]; 1] {
+    a
+}

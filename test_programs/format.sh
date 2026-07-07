@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 set -e
 
+NARGO=${NARGO:-nargo}
+
 # These tests are incompatible with gas reporting
 excluded_dirs=("workspace" "overlapping_dep_and_mod" "overlapping_dep_and_mod_fix" "workspace_default_member" "workspace_reexport_bug")
 
@@ -35,6 +37,7 @@ done
 }
 
 echo "[workspace]" > Nargo.toml
+trap 'rm -f "$current_dir/Nargo.toml"' EXIT
 echo "members = [" >> Nargo.toml
 
 collect_dirs compile_success_empty
@@ -54,4 +57,3 @@ else
 fi
 
 
-rm Nargo.toml

@@ -1,0 +1,14 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+unconstrained fn main() -> pub Field {
+    let mut value: Field = 1_Field;
+    foo(&mut value, &value)
+}
+
+unconstrained fn foo(v0: &mut Field, v1: &Field) -> Field {
+    let _: Field = *v1;
+    *v0 = 2_Field;
+    *v1
+}

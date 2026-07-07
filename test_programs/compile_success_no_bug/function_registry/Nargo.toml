@@ -1,0 +1,6 @@
+[package]
+name = "function_registry"
+type = "bin"
+authors = [""]
+
+[dependencies]

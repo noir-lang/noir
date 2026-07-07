@@ -1,17 +1,19 @@
 use buffer::Buffer;
 use noirc_frontend::{
     ParsedModule,
-    ast::Ident,
+    ast::{Expression, Ident, Statement},
     hir::resolution::errors::Span,
     lexer::Lexer,
     token::{Keyword, SpannedToken, Token},
 };
 
 use crate::Config;
+use crate::chunks::ChunkGroup;
 
 mod alias;
 mod attribute;
 mod buffer;
+mod comment_reflow;
 mod comments_and_whitespace;
 mod doc_comments;
 mod enums;
@@ -67,15 +69,23 @@ pub(crate) struct Formatter<'a> {
     /// we won't format the next node (in some cases: only applies to statements and items).
     ignore_next: bool,
 
-    /// A counter to create GroupTags.
+    /// A counter to create `GroupTags`.
     pub(crate) group_tag_counter: usize,
 
     /// We keep a copy of the config's max width because when we format chunk groups
-    /// we somethings change this so that a group has less space to write to.
+    /// we sometimes change this so that a group has less space to write to.
     pub(crate) max_width: usize,
 
     /// This is the buffer where we write the formatted code.
     pub(crate) buffer: Buffer,
+
+    /// Is the formatter inside a chunk?
+    pub(crate) in_chunk: bool,
+
+    /// One-token lookahead buffer. When `Some`, the next `bump` consumes this
+    /// instead of advancing the lexer. Used by grouping logic that needs to look
+    /// past a whitespace to see what kind of token follows.
+    peeked: Option<SpannedToken>,
 }
 
 impl<'a> Formatter<'a> {
@@ -94,6 +104,8 @@ impl<'a> Formatter<'a> {
             group_tag_counter: 0,
             max_width: config.max_width,
             buffer: Buffer::default(),
+            in_chunk: false,
+            peeked: None,
         };
         formatter.bump();
         formatter
@@ -119,8 +131,44 @@ impl<'a> Formatter<'a> {
         self.write_line();
     }
 
+    pub(crate) fn format_single_statement(&mut self, statement: Statement) {
+        self.skip_whitespace();
+        self.skip_comments_and_whitespace_impl(
+            true, // write lines
+            true, // at beginning
+        );
+
+        let ignore_next = self.ignore_next;
+        let mut group = ChunkGroup::new();
+        self.chunk_formatter().format_statement(statement, &mut group, ignore_next);
+        self.format_chunk_group(group);
+
+        self.buffer.trim_multiple_newlines();
+    }
+
+    pub(crate) fn format_single_expression(&mut self, expression: Expression) {
+        self.skip_whitespace();
+        self.skip_comments_and_whitespace_impl(
+            true, // write lines
+            true, // at beginning
+        );
+
+        let mut group = ChunkGroup::new();
+        self.chunk_formatter().format_expression(expression, &mut group);
+        self.format_chunk_group(group);
+
+        self.buffer.trim_multiple_newlines();
+    }
+
     pub(crate) fn write_identifier(&mut self, ident: Ident) {
         self.skip_comments_and_whitespace();
+
+        if ident.as_str().starts_with('$') && self.token == Token::DollarSign {
+            // The AST identifier was synthesized from `$` + a real identifier in a
+            // `quote { }` body. Consume both tokens.
+            self.bump();
+            self.skip_comments_and_whitespace();
+        }
 
         let Token::Ident(..) = self.token else {
             panic!("Expected identifier, got {:?}", self.token);
@@ -131,6 +179,11 @@ impl<'a> Formatter<'a> {
 
     pub(crate) fn write_identifier_or_integer(&mut self, ident: Ident) {
         self.skip_comments_and_whitespace();
+
+        if ident.as_str().starts_with('$') && self.token == Token::DollarSign {
+            self.bump();
+            self.skip_comments_and_whitespace();
+        }
 
         if !matches!(self.token, Token::Ident(..) | Token::Int(..)) {
             panic!("Expected identifier or integer, got {:?}", self.token);
@@ -207,13 +260,6 @@ impl<'a> Formatter<'a> {
         self.bump();
     }
 
-    /// Writes the current token trimming its end but doesn't advance to the next one.
-    /// Mainly used when writing comment lines, because we never want trailing spaces
-    /// inside comments.
-    pub(crate) fn write_current_token_trimming_end(&mut self) {
-        self.write(self.token.to_string().trim_end());
-    }
-
     /// Writes the current token but without turning it into a string using `to_string()`.
     /// Instead, we check the token's span and format what's in the original source there
     /// (useful when formatting integer tokens, because a token like 0xFF ends up being an
@@ -225,6 +271,13 @@ impl<'a> Formatter<'a> {
     /// Writes whatever is in the given span relative to the file's source that's being formatted.
     pub(crate) fn write_source_span(&mut self, span: Span) {
         self.write(&self.source[span.start() as usize..span.end() as usize]);
+    }
+
+    /// Writes whatever is in the given span relative to the file's source that's being formatted
+    /// but trims the whitespaces at the end.
+    pub(crate) fn write_source_span_trimmed(&mut self, span: Span) {
+        let source = self.source[span.start() as usize..span.end() as usize].trim_end();
+        self.write(source);
     }
 
     /// Writes the current indentation to the buffer, but only if the buffer
@@ -293,9 +346,17 @@ impl<'a> Formatter<'a> {
 
     /// Advances to the next token (the current token is not written).
     pub(crate) fn bump(&mut self) -> Token {
-        self.ignore_next = false;
+        let next_token =
+            if let Some(peeked) = self.peeked.take() { peeked } else { self.read_token_internal() };
 
-        let next_token = self.read_token_internal();
+        // Keep the ignore status as long as we keep finding comments or whitespace, otherwise reset it
+        if !matches!(
+            next_token.token(),
+            Token::LineComment(..) | Token::BlockComment(..) | Token::Whitespace(..),
+        ) {
+            self.ignore_next = false;
+        }
+
         self.token_span = next_token.span();
         std::mem::replace(&mut self.token, next_token.into_token())
     }
@@ -305,10 +366,20 @@ impl<'a> Formatter<'a> {
         if let Some(token) = token {
             match token {
                 Ok(token) => token.into_spanned_token(),
-                Err(err) => panic!("Expected lexer not to error, but got: {:?}", err),
+                Err(err) => panic!("Expected lexer not to error, but got: {err:?}"),
             }
         } else {
             SpannedToken::new(Token::EOF, Default::default())
         }
+    }
+
+    /// Returns the token that would become current after the next `bump`, without consuming it.
+    /// Used by grouping logic that needs to look past a whitespace to decide whether to extend
+    /// a comment group.
+    pub(crate) fn peek_next_token(&mut self) -> &Token {
+        if self.peeked.is_none() {
+            self.peeked = Some(self.read_token_internal());
+        }
+        self.peeked.as_ref().unwrap().token()
     }
 }

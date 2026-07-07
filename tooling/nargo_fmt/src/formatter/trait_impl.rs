@@ -88,10 +88,12 @@ impl Formatter<'_> {
                 self.write_keyword(Keyword::Type);
                 self.write_space();
                 self.write_identifier(name);
-                self.write_space();
-                self.write_token(Token::Assign);
-                self.write_space();
-                self.format_type(alias);
+                if let Some(alias) = alias {
+                    self.write_space();
+                    self.write_token(Token::Assign);
+                    self.write_space();
+                    self.format_type(alias);
+                }
                 self.write_semicolon();
             }
         }
@@ -183,20 +185,6 @@ pub fn foo ( ) { }
     impl Foo for Bar {
         /// Some doc comment
         fn foo() {}
-    }
-}
-";
-        assert_format(src, expected);
-    }
-
-    #[test]
-    fn format_trait_impl_constant_without_type() {
-        let src = " mod moo { impl  Foo  for  Bar {  
-            let X =42 ;
-         } }";
-        let expected = "mod moo {
-    impl Foo for Bar {
-        let X = 42;
     }
 }
 ";

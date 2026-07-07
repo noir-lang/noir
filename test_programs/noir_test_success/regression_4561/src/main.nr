@@ -60,13 +60,20 @@ struct TestTypeFoo {
 }
 
 #[test]
-unconstrained fn complexe_struct_return() {
-    OracleMock::mock("foo_return").returns((
-        0, [1, 2, 3, 4, 5, 6], 7,
-        [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24],
-        [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12], [1, 2, 3, 4, 5, 6],
+unconstrained fn complex_struct_return() {
+    let _ = OracleMock::mock("foo_return").returns((
+        0, [[1, 2, 3], [4, 5, 6]],
+        TestTypeFoo {
+            a: 7,
+            b: [
+                [[1, 2, 3], [4, 5, 6], [7, 8, 9], [10, 11, 12]],
+                [[13, 14, 15], [16, 17, 18], [19, 20, 21], [22, 23, 24]],
+            ],
+            c: [[1, 2, 3], [4, 5, 6]],
+            d: [1, 2, 3],
+        },
     ));
-    let foo_x = foo_return_unconstrained();
+    let foo_x: (Field, [[Field; 3]; 2], TestTypeFoo) = foo_return_unconstrained();
     assert_eq((foo_x.0, foo_x.1), (0, [[1, 2, 3], [4, 5, 6]]));
     assert_eq(foo_x.2.a, 7);
     assert_eq(

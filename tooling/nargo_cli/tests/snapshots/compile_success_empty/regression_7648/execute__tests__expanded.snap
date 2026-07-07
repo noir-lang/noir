@@ -1,0 +1,16 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+trait Foo<let N: u32> {}
+
+impl<let N: u32> Foo<N> for [Field; N] {}
+
+fn my_fn<let N: u32>(_input: impl Foo)
+where
+    impl Foo: Foo<N>,
+{}
+
+fn main() {
+    my_fn::<0>([]);
+}

@@ -1,0 +1,13 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+#[oracle(foo)]
+unconstrained fn foo() -> str<4> {}
+
+fn main() {
+    // Safety: comment added by `nargo expand`
+    unsafe {
+        assert(true, foo());
+    }
+}

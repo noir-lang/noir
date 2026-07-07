@@ -1,0 +1,439 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+warning: unused function rou
+  ┌─ src/main.nr:9:4
+  │
+9 │ fn rou
+  │    --- unused function
+  │
+
+error: cannot find `round` in this scope
+  ┌─ src/main.nr:4:3
+  │
+4 │   round::<3, = 2
+  │   ----- not found in this scope
+  │
+
+error: Visibility `pub` is not followed by an item
+  ┌─ src/main.nr:3:5
+  │
+3 │     pubunfn foo((((((((((((&(((((((((((((((((((((((((((((((()(((fn main() {
+  │     ---
+  │
+
+error: Expected an item but found ''
+  ┌─ src/main.nr:3:8
+  │
+3 │     pubunfn foo((((((((((((&(((((((((((((((((((((((((((((((()(((fn main() {
+  │        
+  │
+
+error: Expected an item but found 'unfn'
+  ┌─ src/main.nr:3:9
+  │
+3 │     pubunfn foo((((((((((((&(((((((((((((((((((((((((((((((()(((fn main() {
+  │        ----
+  │
+
+error: Expected an item but found 'foo'
+  ┌─ src/main.nr:3:14
+  │
+3 │     pubunfn foo((((((((((((&(((((((((((((((((((((((((((((((()(((fn main() {
+  │             ---
+  │
+
+error: Expected an item but found '('
+  ┌─ src/main.nr:3:17
+  │
+3 │     pubunfn foo((((((((((((&(((((((((((((((((((((((((((((((()(((fn main() {
+  │                -
+  │
+
+error: Expected an item but found '('
+  ┌─ src/main.nr:3:18
+  │
+3 │     pubunfn foo((((((((((((&(((((((((((((((((((((((((((((((()(((fn main() {
+  │                 -
+  │
+
+error: Expected an item but found '('
+  ┌─ src/main.nr:3:19
+  │
+3 │     pubunfn foo((((((((((((&(((((((((((((((((((((((((((((((()(((fn main() {
+  │                  -
+  │
+
+error: Expected an item but found '('
+  ┌─ src/main.nr:3:20
+  │
+3 │     pubunfn foo((((((((((((&(((((((((((((((((((((((((((((((()(((fn main() {
+  │                   -
+  │
+
+error: Expected an item but found '('
+  ┌─ src/main.nr:3:21
+  │
+3 │     pubunfn foo((((((((((((&(((((((((((((((((((((((((((((((()(((fn main() {
+  │                    -
+  │
+
+error: Expected an item but found '('
+  ┌─ src/main.nr:3:22
+  │
+3 │     pubunfn foo((((((((((((&(((((((((((((((((((((((((((((((()(((fn main() {
+  │                     -
+  │
+
+error: Expected an item but found '('
+  ┌─ src/main.nr:3:23
+  │
+3 │     pubunfn foo((((((((((((&(((((((((((((((((((((((((((((((()(((fn main() {
+  │                      -
+  │
+
+error: Expected an item but found '('
+  ┌─ src/main.nr:3:24
+  │
+3 │     pubunfn foo((((((((((((&(((((((((((((((((((((((((((((((()(((fn main() {
+  │                       -
+  │
+
+error: Expected an item but found '('
+  ┌─ src/main.nr:3:25
+  │
+3 │     pubunfn foo((((((((((((&(((((((((((((((((((((((((((((((()(((fn main() {
+  │                        -
+  │
+
+error: Expected an item but found '('
+  ┌─ src/main.nr:3:26
+  │
+3 │     pubunfn foo((((((((((((&(((((((((((((((((((((((((((((((()(((fn main() {
+  │                         -
+  │
+
+error: Expected an item but found '('
+  ┌─ src/main.nr:3:27
+  │
+3 │     pubunfn foo((((((((((((&(((((((((((((((((((((((((((((((()(((fn main() {
+  │                          -
+  │
+
+error: Expected an item but found '('
+  ┌─ src/main.nr:3:28
+  │
+3 │     pubunfn foo((((((((((((&(((((((((((((((((((((((((((((((()(((fn main() {
+  │                           -
+  │
+
+error: Expected an item but found '&'
+  ┌─ src/main.nr:3:29
+  │
+3 │     pubunfn foo((((((((((((&(((((((((((((((((((((((((((((((()(((fn main() {
+  │                            -
+  │
+
+error: Expected an item but found '('
+  ┌─ src/main.nr:3:30
+  │
+3 │     pubunfn foo((((((((((((&(((((((((((((((((((((((((((((((()(((fn main() {
+  │                             -
+  │
+
+error: Expected an item but found '('
+  ┌─ src/main.nr:3:31
+  │
+3 │     pubunfn foo((((((((((((&(((((((((((((((((((((((((((((((()(((fn main() {
+  │                              -
+  │
+
+error: Expected an item but found '('
+  ┌─ src/main.nr:3:32
+  │
+3 │     pubunfn foo((((((((((((&(((((((((((((((((((((((((((((((()(((fn main() {
+  │                               -
+  │
+
+error: Expected an item but found '('
+  ┌─ src/main.nr:3:33
+  │
+3 │     pubunfn foo((((((((((((&(((((((((((((((((((((((((((((((()(((fn main() {
+  │                                -
+  │
+
+error: Expected an item but found '('
+  ┌─ src/main.nr:3:34
+  │
+3 │     pubunfn foo((((((((((((&(((((((((((((((((((((((((((((((()(((fn main() {
+  │                                 -
+  │
+
+error: Expected an item but found '('
+  ┌─ src/main.nr:3:35
+  │
+3 │     pubunfn foo((((((((((((&(((((((((((((((((((((((((((((((()(((fn main() {
+  │                                  -
+  │
+
+error: Expected an item but found '('
+  ┌─ src/main.nr:3:36
+  │
+3 │     pubunfn foo((((((((((((&(((((((((((((((((((((((((((((((()(((fn main() {
+  │                                   -
+  │
+
+error: Expected an item but found '('
+  ┌─ src/main.nr:3:37
+  │
+3 │     pubunfn foo((((((((((((&(((((((((((((((((((((((((((((((()(((fn main() {
+  │                                    -
+  │
+
+error: Expected an item but found '('
+  ┌─ src/main.nr:3:38
+  │
+3 │     pubunfn foo((((((((((((&(((((((((((((((((((((((((((((((()(((fn main() {
+  │                                     -
+  │
+
+error: Expected an item but found '('
+  ┌─ src/main.nr:3:39
+  │
+3 │     pubunfn foo((((((((((((&(((((((((((((((((((((((((((((((()(((fn main() {
+  │                                      -
+  │
+
+error: Expected an item but found '('
+  ┌─ src/main.nr:3:40
+  │
+3 │     pubunfn foo((((((((((((&(((((((((((((((((((((((((((((((()(((fn main() {
+  │                                       -
+  │
+
+error: Expected an item but found '('
+  ┌─ src/main.nr:3:41
+  │
+3 │     pubunfn foo((((((((((((&(((((((((((((((((((((((((((((((()(((fn main() {
+  │                                        -
+  │
+
+error: Expected an item but found '('
+  ┌─ src/main.nr:3:42
+  │
+3 │     pubunfn foo((((((((((((&(((((((((((((((((((((((((((((((()(((fn main() {
+  │                                         -
+  │
+
+error: Expected an item but found '('
+  ┌─ src/main.nr:3:43
+  │
+3 │     pubunfn foo((((((((((((&(((((((((((((((((((((((((((((((()(((fn main() {
+  │                                          -
+  │
+
+error: Expected an item but found '('
+  ┌─ src/main.nr:3:44
+  │
+3 │     pubunfn foo((((((((((((&(((((((((((((((((((((((((((((((()(((fn main() {
+  │                                           -
+  │
+
+error: Expected an item but found '('
+  ┌─ src/main.nr:3:45
+  │
+3 │     pubunfn foo((((((((((((&(((((((((((((((((((((((((((((((()(((fn main() {
+  │                                            -
+  │
+
+error: Expected an item but found '('
+  ┌─ src/main.nr:3:46
+  │
+3 │     pubunfn foo((((((((((((&(((((((((((((((((((((((((((((((()(((fn main() {
+  │                                             -
+  │
+
+error: Expected an item but found '('
+  ┌─ src/main.nr:3:47
+  │
+3 │     pubunfn foo((((((((((((&(((((((((((((((((((((((((((((((()(((fn main() {
+  │                                              -
+  │
+
+error: Expected an item but found '('
+  ┌─ src/main.nr:3:48
+  │
+3 │     pubunfn foo((((((((((((&(((((((((((((((((((((((((((((((()(((fn main() {
+  │                                               -
+  │
+
+error: Expected an item but found '('
+  ┌─ src/main.nr:3:49
+  │
+3 │     pubunfn foo((((((((((((&(((((((((((((((((((((((((((((((()(((fn main() {
+  │                                                -
+  │
+
+error: Expected an item but found '('
+  ┌─ src/main.nr:3:50
+  │
+3 │     pubunfn foo((((((((((((&(((((((((((((((((((((((((((((((()(((fn main() {
+  │                                                 -
+  │
+
+error: Expected an item but found '('
+  ┌─ src/main.nr:3:51
+  │
+3 │     pubunfn foo((((((((((((&(((((((((((((((((((((((((((((((()(((fn main() {
+  │                                                  -
+  │
+
+error: Expected an item but found '('
+  ┌─ src/main.nr:3:52
+  │
+3 │     pubunfn foo((((((((((((&(((((((((((((((((((((((((((((((()(((fn main() {
+  │                                                   -
+  │
+
+error: Expected an item but found '('
+  ┌─ src/main.nr:3:53
+  │
+3 │     pubunfn foo((((((((((((&(((((((((((((((((((((((((((((((()(((fn main() {
+  │                                                    -
+  │
+
+error: Expected an item but found '('
+  ┌─ src/main.nr:3:54
+  │
+3 │     pubunfn foo((((((((((((&(((((((((((((((((((((((((((((((()(((fn main() {
+  │                                                     -
+  │
+
+error: Expected an item but found '('
+  ┌─ src/main.nr:3:55
+  │
+3 │     pubunfn foo((((((((((((&(((((((((((((((((((((((((((((((()(((fn main() {
+  │                                                      -
+  │
+
+error: Expected an item but found '('
+  ┌─ src/main.nr:3:56
+  │
+3 │     pubunfn foo((((((((((((&(((((((((((((((((((((((((((((((()(((fn main() {
+  │                                                       -
+  │
+
+error: Expected an item but found '('
+  ┌─ src/main.nr:3:57
+  │
+3 │     pubunfn foo((((((((((((&(((((((((((((((((((((((((((((((()(((fn main() {
+  │                                                        -
+  │
+
+error: Expected an item but found '('
+  ┌─ src/main.nr:3:58
+  │
+3 │     pubunfn foo((((((((((((&(((((((((((((((((((((((((((((((()(((fn main() {
+  │                                                         -
+  │
+
+error: Expected an item but found '('
+  ┌─ src/main.nr:3:59
+  │
+3 │     pubunfn foo((((((((((((&(((((((((((((((((((((((((((((((()(((fn main() {
+  │                                                          -
+  │
+
+error: Expected an item but found '('
+  ┌─ src/main.nr:3:60
+  │
+3 │     pubunfn foo((((((((((((&(((((((((((((((((((((((((((((((()(((fn main() {
+  │                                                           -
+  │
+
+error: Expected an item but found '('
+  ┌─ src/main.nr:3:61
+  │
+3 │     pubunfn foo((((((((((((&(((((((((((((((((((((((((((((((()(((fn main() {
+  │                                                            -
+  │
+
+error: Expected an item but found ')'
+  ┌─ src/main.nr:3:62
+  │
+3 │     pubunfn foo((((((((((((&(((((((((((((((((((((((((((((((()(((fn main() {
+  │                                                             -
+  │
+
+error: Expected an item but found '('
+  ┌─ src/main.nr:3:63
+  │
+3 │     pubunfn foo((((((((((((&(((((((((((((((((((((((((((((((()(((fn main() {
+  │                                                              -
+  │
+
+error: Expected an item but found '('
+  ┌─ src/main.nr:3:64
+  │
+3 │     pubunfn foo((((((((((((&(((((((((((((((((((((((((((((((()(((fn main() {
+  │                                                               -
+  │
+
+error: Expected an item but found '('
+  ┌─ src/main.nr:3:65
+  │
+3 │     pubunfn foo((((((((((((&(((((((((((((((((((((((((((((((()(((fn main() {
+  │                                                                -
+  │
+
+error: Expected a type or type expression but found '='
+  ┌─ src/main.nr:4:14
+  │
+4 │   round::<3, = 2
+  │              -
+  │
+
+error: Expected a statement but found ']'
+  ┌─ src/main.nr:6:10
+  │
+6 │          ]);
+  │          -
+  │
+
+error: Expected a statement but found ')'
+  ┌─ src/main.nr:6:11
+  │
+6 │          ]);
+  │           -
+  │
+
+error: Expected a statement but found '}'
+  ┌─ src/main.nr:7:1
+  │
+7 │ }
+  │ -
+  │
+
+error: Expected a statement but found '}'
+  ┌─ src/main.nr:7:1
+  │
+7 │ }
+  │ -
+  │
+
+error: Missing parameters for function definition
+  ┌─ src/main.nr:9:4
+  │
+9 │ fn rou
+  │    --- Add a parameter list: `()`
+  │
+
+error: Unexpected 'end of input', expected one of 'where', '{', '->'
+  ┌─ src/main.nr:9:6
+  │
+9 │ fn rou
+  │      -
+  │
+
+Aborting due to 61 previous errors

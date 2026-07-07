@@ -1,0 +1,9 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+use std::embedded_curve_ops::EmbeddedCurvePoint;
+
+fn main() {
+    ()
+}

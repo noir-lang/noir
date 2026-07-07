@@ -1,0 +1,34 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+struct MyOtherStruct<A, B> {
+    field1: A,
+    field2: B,
+}
+
+impl<A, B> Eq for MyOtherStruct<A, B>
+where
+    A: Eq,
+    B: Eq,
+{
+    fn eq(self, other: Self) -> bool {
+        (self.field1 == other.field1) & (self.field2 == other.field2)
+    }
+}
+
+comptime fn foo(_s: TypeDefinition) -> Quoted {
+    quote {
+        impl < A, B > Eq for MyOtherStruct < A, B > where A: Eq, B: Eq {
+            fn eq(self, other: Self) -> bool {
+                (self.field1 == other.field1) & (self.field2 == other.field2)
+            }
+        }
+    }
+}
+
+fn main() {
+    let x: MyOtherStruct<Field, Field> =
+        MyOtherStruct::<Field, Field> { field1: 1_Field, field2: 2_Field };
+    assert(x == x);
+}

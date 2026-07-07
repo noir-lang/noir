@@ -1,7 +1,0 @@
-
-            [package]
-            name = "noirc_frontend_tests_object_type_must_be_known_in_method_call"
-            type = "bin"
-            authors = [""]
-            
-            [dependencies]

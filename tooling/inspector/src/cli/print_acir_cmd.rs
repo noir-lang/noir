@@ -27,7 +27,7 @@ pub(crate) fn run(args: PrintAcirCommand) -> eyre::Result<()> {
             for function in contract
                 .functions
                 .into_iter()
-                .filter(|f| args.contract_fn.as_ref().map(|n| *n == f.name).unwrap_or(true))
+                .filter(|f| args.contract_fn.as_ref().is_none_or(|n| *n == f.name))
             {
                 println!("Compiled ACIR for function '{}':", function.name);
                 println!("{}", function.bytecode);

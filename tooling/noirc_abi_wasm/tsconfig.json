@@ -1,9 +1,10 @@
 {
   "compilerOptions": {
+    "ignoreDeprecations": "6.0",
     "moduleResolution": "node",
     "outDir": "lib",
-    "target": "ESNext",
-    "module": "ESNext",
+    "target": "esnext",
+    "module": "esnext",
     "strict": true,
     "experimentalDecorators": true,
     "esModuleInterop": true,
@@ -12,6 +13,6 @@
     "preserveConstEnums": true,
     "sourceMap": true,
     "resolveJsonModule": true,
-    "importHelpers": true
+    "skipLibCheck": true,
   }
 }

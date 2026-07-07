@@ -12,11 +12,11 @@ use thiserror::Error;
 /// either a `DenseMap<T>` or `SparseMap<T>`.
 ///
 /// Note that there is nothing in an Id binding it to a particular
-/// DenseMap or SparseMap. If an Id was created to correspond to one
+/// `DenseMap` or `SparseMap`. If an Id was created to correspond to one
 /// particular map type, users need to take care not to use it with
 /// another map where it will likely be invalid.
 #[derive(Serialize, Deserialize)]
-pub(crate) struct Id<T> {
+pub struct Id<T> {
     index: u32,
     // If we do not skip this field it will simply serialize as `"_marker":null` which is useless extra data
     #[serde(skip)]
@@ -28,19 +28,19 @@ impl<T> Id<T> {
     ///
     /// This is private so that we can guarantee ids created from this function
     /// point to valid T values in their external maps.
-    fn new(index: u32) -> Self {
+    pub fn new(index: u32) -> Self {
         Self { index, _marker: std::marker::PhantomData }
     }
 
     /// Returns the underlying index of this Id.
-    pub(crate) fn to_u32(self) -> u32 {
+    pub fn to_u32(self) -> u32 {
         self.index
     }
 
     /// Creates a test Id with the given index.
     /// The name of this function makes it apparent it should only
     /// be used for testing. Obtaining Ids in this way should be avoided
-    /// as unlike DenseMap::push and SparseMap::push, the Ids created
+    /// as unlike `DenseMap::push` and `SparseMap::push`, the Ids created
     /// here are likely invalid for any particularly map.
     #[cfg(test)]
     pub(crate) fn test_new(index: u32) -> Self {
@@ -118,12 +118,12 @@ impl std::fmt::Display for Id<super::instruction::Instruction> {
 }
 
 #[derive(Error, Debug)]
-pub(crate) enum IdDisplayFromStrErr {
+pub enum IdDisplayFromStrErr {
     #[error("Invalid id when deserializing SSA: {0}")]
     InvalidId(String),
 }
 
-/// The implementation of display and FromStr allows serializing and deserializing an `Id<T>` to a string.
+/// The implementation of display and `FromStr` allows serializing and deserializing an `Id<T>` to a string.
 /// This is useful when used as key in a map that has to be serialized to JSON/TOML.
 impl FromStr for Id<super::basic_block::BasicBlock> {
     type Err = IdDisplayFromStrErr;
@@ -168,11 +168,11 @@ fn id_from_str_helper<T>(s: &str, value_prefix: char) -> Result<Id<T>, IdDisplay
     }
 }
 
-/// A DenseMap is a Vec wrapper where each element corresponds
+/// A `DenseMap` is a Vec wrapper where each element corresponds
 /// to a unique ID that can be used to access the element. No direct
 /// access to indices is provided. Since IDs must be stable and correspond
 /// to indices in the internal Vec, operations that would change element
-/// ordering like pop, remove, swap_remove, etc, are not possible.
+/// ordering like pop, remove, `swap_remove`, etc, are not possible.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub(crate) struct DenseMap<T> {
     storage: Vec<T>,
@@ -193,6 +193,11 @@ impl<T> DenseMap<T> {
     pub(crate) fn iter(&self) -> impl DoubleEndedIterator<Item = (Id<T>, &T)> {
         let ids_iter = (0..self.storage.len() as u32).map(|idx| Id::new(idx));
         ids_iter.zip(self.storage.iter())
+    }
+
+    /// Length of the underlying storage.
+    pub(crate) fn len(&self) -> usize {
+        self.storage.len()
     }
 }
 
@@ -216,16 +221,16 @@ impl<T> std::ops::IndexMut<Id<T>> for DenseMap<T> {
     }
 }
 
-/// A SparseMap is a HashMap wrapper where each element corresponds
+/// A `SparseMap` is a `HashMap` wrapper where each element corresponds
 /// to a unique ID that can be used to access the element. No direct
 /// access to indices is provided.
 ///
-/// Unlike DenseMap, SparseMap's IDs are stored within the structure
+/// Unlike `DenseMap`, `SparseMap`'s IDs are stored within the structure
 /// and are thus stable after element removal.
 ///
-/// Note that unlike DenseMap, it is possible to panic when retrieving
+/// Note that unlike `DenseMap`, it is possible to panic when retrieving
 /// an element if the element's Id has been invalidated by a previous
-/// call to .remove().
+/// call to `.remove()`.
 #[derive(Debug)]
 pub(crate) struct SparseMap<T> {
     storage: BTreeMap<Id<T>, T>,
@@ -270,16 +275,16 @@ impl<T> std::ops::IndexMut<Id<T>> for SparseMap<T> {
 /// Useful for assigning ids before the storage is created or assigning ids
 /// for types that have no single owner.
 ///
-/// This type wraps an AtomicUsize so it can safely be used across threads.
+/// This type wraps an atomic number so it can safely be used across threads.
 #[derive(Debug, Serialize, Deserialize)]
-pub(crate) struct AtomicCounter<T> {
+pub struct AtomicCounter<T> {
     next: AtomicU32,
     _marker: std::marker::PhantomData<T>,
 }
 
 impl<T> AtomicCounter<T> {
     /// Create a new counter starting after the given Id.
-    /// Use AtomicCounter::default() to start at zero.
+    /// Use `AtomicCounter::default()` to start at zero.
     pub(crate) fn starting_after(id: Id<T>) -> Self {
         Self { next: AtomicU32::new(id.index + 1), _marker: Default::default() }
     }

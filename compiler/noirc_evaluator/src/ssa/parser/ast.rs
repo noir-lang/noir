@@ -4,7 +4,11 @@ use acvm::FieldElement;
 use noirc_errors::Span;
 
 use crate::ssa::{
-    ir::{function::RuntimeType, instruction::BinaryOp, types::Type},
+    ir::{
+        function::RuntimeType,
+        instruction::{ArrayOffset, BinaryOp},
+        types::Type,
+    },
     opt::pure::Purity,
 };
 
@@ -36,9 +40,26 @@ pub(crate) struct ParsedMakeArray {
 pub(crate) struct ParsedFunction {
     pub(crate) runtime_type: RuntimeType,
     pub(crate) purity: Option<Purity>,
+    /// Span of the stated purity keyword, when one is present. Used to point purity
+    /// validation errors at the offending annotation.
+    pub(crate) purity_span: Option<Span>,
     pub(crate) external_name: String,
     pub(crate) internal_name: String,
+    pub(crate) data_bus: ParsedDataBus,
     pub(crate) blocks: Vec<ParsedBlock>,
+}
+
+#[derive(Debug)]
+pub(crate) struct ParsedDataBus {
+    pub(crate) call_data: Vec<ParsedCallData>,
+    pub(crate) return_data: Option<ParsedValue>,
+}
+
+#[derive(Debug)]
+pub(crate) struct ParsedCallData {
+    pub(crate) call_data_id: u32,
+    pub(crate) array: ParsedValue,
+    pub(crate) index_map: Vec<(ParsedValue, usize)>,
 }
 
 #[derive(Debug)]
@@ -84,6 +105,7 @@ pub(crate) enum ParsedInstruction {
         element_type: Type,
         array: ParsedValue,
         index: ParsedValue,
+        offset: ArrayOffset,
     },
     ArraySet {
         target: Identifier,
@@ -91,6 +113,7 @@ pub(crate) enum ParsedInstruction {
         index: ParsedValue,
         value: ParsedValue,
         mutable: bool,
+        offset: ArrayOffset,
     },
     BinaryOp {
         target: Identifier,
@@ -103,6 +126,7 @@ pub(crate) enum ParsedInstruction {
         function: Identifier,
         arguments: Vec<ParsedValue>,
         types: Vec<Type>,
+        pure: bool,
     },
     Cast {
         target: Identifier,
@@ -121,6 +145,13 @@ pub(crate) enum ParsedInstruction {
     EnableSideEffectsIf {
         condition: ParsedValue,
     },
+    IfElse {
+        target: Identifier,
+        then_condition: ParsedValue,
+        then_value: ParsedValue,
+        else_condition: ParsedValue,
+        else_value: ParsedValue,
+    },
     IncrementRc {
         value: ParsedValue,
     },
@@ -134,6 +165,7 @@ pub(crate) enum ParsedInstruction {
         elements: Vec<ParsedValue>,
         typ: Type,
     },
+    Nop,
     Not {
         target: Identifier,
         value: ParsedValue,
@@ -141,6 +173,7 @@ pub(crate) enum ParsedInstruction {
     RangeCheck {
         value: ParsedValue,
         max_bit_size: u32,
+        assert_message: Option<String>,
     },
     Store {
         value: ParsedValue,
@@ -162,9 +195,19 @@ pub(crate) enum AssertMessage {
 
 #[derive(Debug)]
 pub(crate) enum ParsedTerminator {
-    Jmp { destination: Identifier, arguments: Vec<ParsedValue> },
-    Jmpif { condition: ParsedValue, then_block: Identifier, else_block: Identifier },
+    Jmp {
+        destination: Identifier,
+        arguments: Vec<ParsedValue>,
+    },
+    Jmpif {
+        condition: ParsedValue,
+        then_block: Identifier,
+        then_arguments: Vec<ParsedValue>,
+        else_block: Identifier,
+        else_arguments: Vec<ParsedValue>,
+    },
     Return(Vec<ParsedValue>),
+    Unreachable,
 }
 
 #[derive(Debug, Clone)]

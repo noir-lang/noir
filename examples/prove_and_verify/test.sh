@@ -5,6 +5,8 @@ set -eu
 
 BACKEND=${BACKEND:-bb}
 
+cd $(dirname $0)
+
 rm -rf ./target ./proofs
 
 ./prove_and_verify.sh

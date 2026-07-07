@@ -25,8 +25,8 @@ fn main() {
         assert((x | y) == or(x, y));
         // TODO SSA => ACIR has some issues with xor ops
         assert(check_xor(x, y, 4));
-        assert((x >> y as u8) == shr(x, y as u8));
-        assert((x << y as u8) == shl(x, y as u8));
+        assert((x >> y) == shr(x, y));
+        assert((x << y) == shl(x, y));
     }
 }
 
@@ -70,10 +70,10 @@ unconstrained fn check_xor(x: u32, y: u32, result: u32) -> bool {
     (x ^ y) == result
 }
 
-unconstrained fn shr(x: u32, y: u8) -> u32 {
+unconstrained fn shr(x: u32, y: u32) -> u32 {
     x >> y
 }
 
-unconstrained fn shl(x: u32, y: u8) -> u32 {
+unconstrained fn shl(x: u32, y: u32) -> u32 {
     x << y
 }

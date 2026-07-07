@@ -1,15 +1,18 @@
 #![cfg(test)]
 
+use core::panic;
+
 use acvm::{AcirField, FieldElement};
+use test_case::test_case;
 
-use crate::assert_no_errors;
-use crate::get_monomorphized;
+use crate::hir::comptime::Integer;
 use crate::hir::type_check::TypeCheckError;
-use crate::hir_def::types::{BinaryTypeOperator, Type};
 use crate::monomorphization::errors::MonomorphizationError;
-use crate::tests::Expect;
+use crate::test_utils::get_monomorphized;
+use crate::tests::{
+    assert_no_errors, check_errors, check_monomorphization_error, get_program_errors,
+};
 
-#[named]
 #[test]
 fn arithmetic_generics_canonicalization_deduplication_regression() {
     let source = r#"
@@ -25,10 +28,9 @@ fn arithmetic_generics_canonicalization_deduplication_regression() {
             };
         }
     "#;
-    assert_no_errors!(source);
+    assert_no_errors(source);
 }
 
-#[named]
 #[test]
 fn checked_casts_do_not_prevent_canonicalization() {
     // Regression test for https://github.com/noir-lang/noir/issues/6495
@@ -56,53 +58,93 @@ fn checked_casts_do_not_prevent_canonicalization() {
 
     fn main() { }
     "#;
-    assert_no_errors!(source);
+    assert_no_errors(source);
 }
 
-#[named]
+// A return-type expression that simplifies to `simplified` (the value the
+// function body must produce) but whose unsimplified `from` obligation contains
+// the cancelling core `(N - 1) + 1`. With N = 0 the `(0 - 1)` subexpression
+// underflows u32 even though every layer simplifies away, so canonicalizing the
+// CheckedCast must not drop the inner `from`: the underflow has to be reported
+// at monomorphization regardless of how the cancelling core is wrapped.
+//
+// Parametrised over the return type so it stays concise and extensible to other
+// arithmetic we want to reject.
+#[test_case("(N - 1) + 1", "N" ; "cancelling core simplified out of to")]
+#[test_case("((N - 1) + 1) + 0", "N" ; "wrapped in outer add zero")]
+#[test_case("((N - 1) + 1) + 1", "N + 1" ; "wrapped in outer add one")]
+fn arithmetic_generics_intermediate_underflow_reported(return_length: &str, simplified: &str) {
+    let source = format!(
+        r#"
+        fn intermediate_underflow<let N: u32>() -> [Field; {return_length}] {{
+            let result: [Field; {simplified}] = [0; {simplified}];
+            result
+        }}
+
+        fn main() {{
+            let _x = intermediate_underflow::<0>();
+                     ^^^^^^^^^^^^^^^^^^^^^^ Invalid array length
+                     ~~~~~~~~~~~~~~~~~~~~~~ `0 - 1` in the arithmetic generics here would overflow the bounds of a(n) `u32`
+        }}
+    "#,
+    );
+    check_monomorphization_error(&source);
+}
+
+#[test]
+fn arithmetic_generics_intermediate_expression_with_no_underflow() {
+    // Companion to `arithmetic_generics_intermediate_underflow_reported`:
+    // with N = 5 no intermediate step of `(N - 1) + 1` over/underflows, so the
+    // program must compile.
+    let source = r#"
+        fn intermediate_underflow<let N: u32>() -> [Field; (N - 1) + 1] {
+            let result: [Field; N] = [0; N];
+            result
+        }
+
+        fn main() {
+            let _x = intermediate_underflow::<5>();
+        }
+    "#;
+    check_monomorphization_error(source);
+}
+
 #[test]
 fn arithmetic_generics_checked_cast_zeros() {
     let source = r#"
-        struct W<let N: u1> {}
-        
-        fn foo<let N: u1>(_x: W<N>) -> W<(0 * N) / (N % N)> {
+        struct W<let N: u32> {}
+
+        fn foo<let N: u32>(_x: W<N>) -> W<(0 * N) / (N % N)> {
             W {}
         }
-        
-        fn bar<let N: u1>(_x: W<N>) -> u1 {
+
+        fn bar<let N: u32>(_x: W<N>) -> u32 {
             N
         }
-        
-        fn main() -> pub u1 {
+
+        fn main() -> pub u32 {
             let w_0: W<0> = W {};
             let w: W<_> = foo(w_0);
             bar(w)
         }
     "#;
 
-    let monomorphization_error = get_monomorphized!(source, Expect::Error).unwrap_err();
+    let monomorphization_error = get_monomorphized(source).unwrap_err();
 
     // Expect a CheckedCast (0 % 0) failure
-    if let MonomorphizationError::UnknownArrayLength { ref length, ref err, location: _ } =
+    if let MonomorphizationError::CheckedCastEvaluationFailed { ref err, location: _ } =
         monomorphization_error
     {
-        match length {
-            Type::CheckedCast { from, to } => {
-                assert!(matches!(*from.clone(), Type::InfixExpr { .. }));
-                assert!(matches!(*to.clone(), Type::InfixExpr { .. }));
-            }
-            _ => panic!("unexpected length: {:?}", length),
-        }
-        assert!(matches!(
-            err,
-            TypeCheckError::FailingBinaryOp { op: BinaryTypeOperator::Modulo, lhs: 0, rhs: 0, .. }
-        ));
+        let TypeCheckError::ModuloByZero { lhs, rhs, .. } = err else {
+            panic!("Expected ModuloByZero, but found: {err:?}");
+        };
+        assert_eq!(*lhs, Integer::U32(0));
+        assert_eq!(*rhs, Integer::U32(0));
     } else {
-        panic!("unexpected error: {:?}", monomorphization_error);
+        panic!("unexpected error: {monomorphization_error:?}");
     }
 }
 
-#[named]
 #[test]
 fn arithmetic_generics_checked_cast_indirect_zeros() {
     let source = r#"
@@ -117,38 +159,91 @@ fn arithmetic_generics_checked_cast_indirect_zeros() {
         }
         
         fn main() {
-            let w_0: W<0> = W {};
+            let w_0: W<0Field> = W {};
             let w = foo(w_0);
             let _ = bar(w);
         }
     "#;
 
-    let monomorphization_error = get_monomorphized!(source, Expect::Error).unwrap_err();
+    let monomorphization_error = get_monomorphized(source).unwrap_err();
 
     // Expect a CheckedCast (0 % 0) failure
-    if let MonomorphizationError::UnknownArrayLength { ref length, ref err, location: _ } =
+    if let MonomorphizationError::CheckedCastEvaluationFailed { ref err, location: _ } =
         monomorphization_error
     {
-        match length {
-            Type::CheckedCast { from, to } => {
-                assert!(matches!(*from.clone(), Type::InfixExpr { .. }));
-                assert!(matches!(*to.clone(), Type::InfixExpr { .. }));
-            }
-            _ => panic!("unexpected length: {:?}", length),
-        }
         match err {
             TypeCheckError::ModuloOnFields { lhs, rhs, .. } => {
                 assert_eq!(lhs.clone(), FieldElement::zero());
                 assert_eq!(rhs.clone(), FieldElement::zero());
             }
-            _ => panic!("expected ModuloOnFields, but found: {:?}", err),
+            _ => panic!("expected ModuloOnFields, but found: {err:?}"),
         }
     } else {
-        panic!("unexpected error: {:?}", monomorphization_error);
+        panic!("unexpected error: {monomorphization_error:?}");
     }
 }
 
-#[named]
+#[test]
+fn arithmetic_generics_checked_cast_fails_to_evaluate_destination() {
+    // A CheckedCast whose destination type fails to evaluate (here `N % N`
+    // with N = 0) must be a compilation error, even when the value is never
+    // forced to a runtime value elsewhere.
+    let source = r#"
+        struct W<let N: u32> {}
+
+        fn foo<let N: u32>(_x: W<N>) -> W<(0 * N) / (N % N)> {
+            W {}
+        }
+
+        fn main() {
+            let w_0: W<0> = W {};
+            let _w = foo(w_0);
+                     ^^^ Modulo by zero: 0 % 0
+        }
+    "#;
+    check_monomorphization_error(source);
+}
+
+#[test]
+fn arithmetic_generics_checked_cast_fails_to_evaluate_field_destination() {
+    // Same as `arithmetic_generics_checked_cast_fails_to_evaluate_destination`
+    // but with a `Field` generic, where modulo is rejected outright.
+    let source = r#"
+        struct W<let N: Field> {}
+
+        fn foo<let N: Field>(_x: W<N>) -> W<(N - N) % (N - N)> {
+            W {}
+        }
+
+        fn main() {
+            let w_0: W<0Field> = W {};
+            let _w = foo(w_0);
+                     ^^^ Modulo on Field elements: 0 % 0
+        }
+    "#;
+    check_monomorphization_error(source);
+}
+
+#[test]
+fn arithmetic_generics_field_division_by_zero() {
+    // A type-level `Field` division by zero must be rejected rather than
+    // silently canonicalized to zero (the field-element inverse of zero).
+    let source = r#"
+        struct W<let N: Field> {}
+
+        fn foo<let N: Field>(_x: W<N>) -> W<N / (N - N)> {
+            W {}
+        }
+
+        fn main() {
+            let w_5: W<5Field> = W {};
+            let _w = foo(w_5);
+                     ^^^ Division by zero: 0x05 / 0x00
+        }
+    "#;
+    check_monomorphization_error(source);
+}
+
 #[test]
 fn global_numeric_generic_larger_than_u32() {
     // Regression test for https://github.com/noir-lang/noir/issues/6125
@@ -161,10 +256,9 @@ fn global_numeric_generic_larger_than_u32() {
         let _ = foo::<A>();
     }
     "#;
-    assert_no_errors!(source);
+    assert_no_errors(source);
 }
 
-#[named]
 #[test]
 fn global_arithmetic_generic_larger_than_u32() {
     // Regression test for https://github.com/noir-lang/noir/issues/6126
@@ -191,5 +285,281 @@ fn global_arithmetic_generic_larger_than_u32() {
         let _ = foo::<A>().size();
     }
     "#;
-    assert_no_errors!(source);
+    assert_no_errors(source);
+}
+
+#[test]
+fn arithmetic_generics_rounding_pass() {
+    let src = r#"
+        fn main() {
+            // 3/2*2 = 2
+            round::<3, 2>([1, 2]);
+        }
+
+        fn round<let N: u32, let M: u32>(_x: [Field; N / M * M]) {}
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn arithmetic_generics_rounding_fail() {
+    let src = r#"
+        fn main() {
+            // Do not simplify N/M*M to just N
+            // This should be 3/2*2 = 2, not 3
+            round::<3, 2>([1, 2, 3]);
+                          ^^^^^^^^^ Expected type [Field; 2], found type [Field; 3]
+        }
+
+        fn round<let N: u32, let M: u32>(_x: [Field; N / M * M]) {}
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn arithmetic_generics_rounding_fail_on_struct() {
+    let src = r#"
+        struct W<let N: u32> {}
+
+        fn foo<let N: u32, let M: u32>(_x: W<N>, _y: W<M>) -> W<N / M * M> {
+            W {}
+        }
+
+        fn main() {
+            let w_2: W<2> = W {};
+            let w_3: W<3> = W {};
+            // Do not simplify N/M*M to just N
+            // This should be 3/2*2 = 2, not 3
+            let _: W<3> = foo(w_3, w_2);
+                          ^^^^^^^^^^^^^ Expected type W<3>, found type W<2>
+        }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn allows_struct_with_generic_infix_type_as_main_input_1() {
+    let src = r#"
+        struct Foo<let N: u32> {
+            x: [u64; N * 2],
+        }
+
+        fn main(_x: Foo<18>) {}
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn allows_struct_with_generic_infix_type_as_main_input_2() {
+    let src = r#"
+        struct Foo<let N: u32> {
+            x: [u64; N * 2],
+        }
+
+        fn main(_x: Foo<2 * 9>) {}
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn allows_struct_with_generic_infix_type_as_main_input_3() {
+    let src = r#"
+        struct Foo<let N: u32> {
+            x: [u64; N * 2],
+        }
+
+        global N: u32 = 9;
+
+        fn main(_x: Foo<N * 2>) {}
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn numeric_generic_arithmetic_in_return_type_concat() {
+    let src = r#"
+    fn concat<let N: u32, let M: u32>(a: [Field; N], b: [Field; M]) -> [Field; N + M] {
+        let mut result: [Field; N + M] = [0; N + M];
+        for i in 0..N {
+            result[i] = a[i];
+        }
+        for i in 0..M {
+            result[N + i] = b[i];
+        }
+        result
+    }
+
+    fn main() {
+        let a = [1, 2, 3];
+        let b = [4, 5];
+        let c = concat(a, b);
+        assert(c[0] == 1);
+        assert(c[4] == 5);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn no_stack_overflow_from_unification_of_unfoldable_constant_exprs() {
+    // Regression test: `0 - N` with kind u32 can't be constant-folded (underflow),
+    // leaving `((0 - N) + 3)` as an InfixExpr. This caused infinite recursion
+    // with unification trying to move the constant term on every other sides
+    let src = r#"
+        fn foo<let N: u32>(y: [u8; ((0 - N) + 3)]) {
+            let x: [u8; (N + 0)] = y;
+            let _ = x;
+        }
+
+        fn main() {
+            let a: [u8; 1] = [0];
+            foo::<2>(a);
+        }
+    "#;
+    let errors = get_program_errors(src);
+    assert!(!errors.is_empty(), "Expected type errors but got none");
+}
+
+// === Signed arithmetic generics ===
+
+// Signed and Field binary arithmetic operations on numeric generics
+#[test_case("i32", "+", "3i32", "4i32", "7" ; "signed addition")]
+#[test_case("i32", "-", "3i32", "10i32", "-7" ; "signed subtraction producing negative")]
+#[test_case("i32", "*", "-3i32", "4i32", "-12" ; "signed multiplication with negatives")]
+#[test_case("i32", "/", "-12i32", "4i32", "-3" ; "signed division with negatives")]
+#[test_case("Field", "+", "3Field", "7Field", "10" ; "field addition")]
+#[test_case("Field", "-", "10Field", "3Field", "7" ; "field subtraction")]
+#[test_case("Field", "*", "3Field", "7Field", "21" ; "field multiplication")]
+fn arithmetic_generic_binary_op(typ: &str, op: &str, a: &str, b: &str, expected: &str) {
+    let src = format!(
+        r#"
+        struct W<let N: {typ}> {{}}
+
+        fn binop<let A: {typ}, let B: {typ}>(_x: W<A>, _y: W<B>) -> W<A {op} B> {{
+            W {{}}
+        }}
+
+        fn value<let N: {typ}>(_w: W<N>) -> {typ} {{ N }}
+
+        fn main() {{
+            let a: W<{a}> = W {{}};
+            let b: W<{b}> = W {{}};
+            let c = binop(a, b);
+            assert(value(c) == {expected});
+        }}
+    "#,
+    );
+    assert_no_errors(&src);
+}
+
+// Variable cancellation (A - A == 0) for signed and field generics
+#[test_case("i32", "42i32" ; "signed variable cancellation")]
+#[test_case("Field", "42Field" ; "field variable cancellation")]
+fn arithmetic_generic_variable_cancellation(typ: &str, val: &str) {
+    let src = format!(
+        r#"
+        struct W<let N: {typ}> {{}}
+
+        fn cancel<let A: {typ}>(_x: W<A>) -> W<A - A> {{
+            W {{}}
+        }}
+
+        fn value<let N: {typ}>(_w: W<N>) -> {typ} {{ N }}
+
+        fn main() {{
+            let a: W<{val}> = W {{}};
+            let c = cancel(a);
+            assert(value(c) == 0);
+        }}
+    "#,
+    );
+    assert_no_errors(&src);
+}
+
+// Constant folding in generic expressions
+#[test_case("i32", "10i32", "A + 3i32 - 1i32", "12" ; "signed constant folding")]
+#[test_case("Field", "10Field", "A + 5Field - 2Field", "13" ; "field constant folding")]
+fn arithmetic_generic_constant_folding(typ: &str, input: &str, expr: &str, expected: &str) {
+    let src = format!(
+        r#"
+        struct W<let N: {typ}> {{}}
+
+        fn foo<let A: {typ}>(_x: W<A>) -> W<{expr}> {{
+            W {{}}
+        }}
+
+        fn value<let N: {typ}>(_w: W<N>) -> {typ} {{ N }}
+
+        fn main() {{
+            let a: W<{input}> = W {{}};
+            let c = foo(a);
+            assert(value(c) == {expected});
+        }}
+    "#,
+    );
+    assert_no_errors(&src);
+}
+
+// Overflow and underflow detection for signed generics
+#[test_case("127i8 + 1i8" ; "signed overflow")]
+#[test_case("-128i8 - 1i8" ; "signed underflow")]
+fn signed_arithmetic_generic_overflow_or_underflow_detected(expr: &str) {
+    let src = format!(
+        r#"
+        struct W<let N: i8> {{}}
+
+        fn value<let N: i8>(_w: W<N>) -> i8 {{ N }}
+
+        fn main() {{
+            let a: W<{expr}> = W {{}};
+            let _ = value(a);
+        }}
+    "#,
+    );
+    let errors = get_program_errors(&src);
+    assert!(!errors.is_empty(), "Expected overflow/underflow error for `{expr}` but got none");
+}
+
+#[test]
+fn field_arithmetic_generic_large_value() {
+    let src = r#"
+        struct W<let N: Field> {}
+
+        fn value<let N: Field>(_w: W<N>) -> Field { N }
+
+        // A value larger than u32::MAX
+        global BIG: Field = 4294967297;
+
+        fn main() {
+            let w: W<BIG> = W {};
+            assert(value(w) == 4294967297);
+        }
+    "#;
+    assert_no_errors(src);
+}
+#[test]
+fn arithmetic_generics_modulo_by_zero_in_array_length() {
+    // With N = 0, the `N % N` subexpressions modulo by zero when the array
+    // length is evaluated at monomorphization.
+    let source = r#"
+        fn foo<let N: u32>() -> [Field; ((N % N) + 1) - (N % N)] {
+            let result: [Field; 1] = [0];
+            result
+        }
+
+        fn main() {
+            let _x = foo::<0>();
+        }
+    "#;
+
+    let monomorphization_error = get_monomorphized(source).unwrap_err();
+
+    let MonomorphizationError::UnknownArrayLength { ref err, .. } = monomorphization_error else {
+        panic!("unexpected error: {monomorphization_error:?}");
+    };
+    let TypeCheckError::ModuloByZero { lhs, rhs, .. } = err else {
+        panic!("Expected ModuloByZero, but found: {err:?}");
+    };
+    assert_eq!(*lhs, Integer::U32(0));
+    assert_eq!(*rhs, Integer::U32(0));
 }

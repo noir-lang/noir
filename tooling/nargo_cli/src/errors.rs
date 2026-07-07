@@ -7,15 +7,36 @@ use std::path::PathBuf;
 use thiserror::Error;
 
 #[derive(Debug, Error)]
-pub(crate) enum CliError {
+pub enum CliError {
     #[error("{0}")]
     Generic(String),
 
-    #[error("Error: destination {} already exists", .0.display())]
+    #[error("Error: destination {} already exists\n\nUse `new init` to initialize the directory", .0.display())]
     DestinationAlreadyExists(PathBuf),
 
-    #[error("Invalid package name {0}. Did you mean to use `--name`?")]
+    #[error("Error: --program-directory '{}' does not exist", .0.display())]
+    ProgramDirDoesNotExist(PathBuf),
+
+    #[error("Error: --program-directory '{}' is not a directory", .0.display())]
+    ProgramDirIsNotADirectory(PathBuf),
+
+    #[error(
+        "Error: `nargo init` cannot be run on existing packages.\nNote: `Nargo.toml` already exists."
+    )]
+    NargoInitCannotBeRunOnExistingPackages,
+
+    #[error(
+        "Error: {0}\nIf you need a package name to not match the directory name, consider using the `--name` flag."
+    )]
     InvalidPackageName(String),
+
+    #[error("`--debug-compile-stdin` is incompatible with `--watch`")]
+    CantWatchStdin,
+
+    #[error(
+        "Error: cannot determine which package to add the dependency to.\nUse `--package <name>` to select a single workspace member."
+    )]
+    AddRequiresPackageSelection,
 
     /// Artifact CLI error
     #[error(transparent)]
