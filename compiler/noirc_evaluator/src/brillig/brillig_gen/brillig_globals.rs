@@ -357,7 +357,7 @@ impl Brillig {
 
         BrilligGlobalsArtifact {
             artifact,
-            brillig_globals: function_context.ssa_value_allocations,
+            brillig_globals: function_context.allocator.ssa_value_allocations,
             globals_size,
             hoisted_global_constants,
         }

@@ -240,7 +240,7 @@ fn coalescing_arg_to_deallocated_parameter_panics() {
     let mut function_context = FunctionContext::new(func, options.layout.max_stack_frame_size());
 
     assert_eq!(
-        function_context.coalescing.get_coalesced(&arg),
+        function_context.allocator.coalescing.get_coalesced(&arg),
         Some(param),
         "v4 should coalesce to v1"
     );

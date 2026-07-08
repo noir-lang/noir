@@ -72,7 +72,7 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
 
         // Filter out spilled values — they don't have valid registers and must not be pre-allocated.
         // Reset the LRU with non-spilled live-in values for this block.
-        if let Some(sm) = function_context.spill_manager.as_mut() {
+        if let Some(sm) = function_context.allocator.spill_manager.as_mut() {
             sm.begin_block(&mut live_in_no_globals);
         }
 
@@ -183,12 +183,13 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
 
     /// Returns `true` if spilling is enabled for this function.
     fn spill_enabled(&self) -> bool {
-        self.function_context.spill_manager.is_some()
+        self.function_context.allocator.spill_manager.is_some()
     }
 
     /// Returns `true` if the given value is currently spilled (has a slot and is not in a register).
     fn is_spilled(&self, value_id: &ValueId) -> bool {
         self.function_context
+            .allocator
             .spill_manager
             .as_ref()
             .is_some_and(|sm| sm.is_spilled(value_id, &self.variables))
@@ -197,6 +198,7 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
     /// Returns `true` if the value was transiently spilled and is currently reloaded into a register.
     fn is_transient_reloaded(&self, value_id: &ValueId) -> bool {
         self.function_context
+            .allocator
             .spill_manager
             .as_ref()
             .is_some_and(|sm| sm.is_transient_reloaded(value_id, &self.variables))
@@ -296,6 +298,7 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
             let was_transient_reloaded = self.is_transient_reloaded(&value_id);
             let promoted = self
                 .function_context
+                .allocator
                 .spill_manager
                 .as_mut()
                 .expect("ICE: spill_value called without spill manager")
@@ -316,8 +319,8 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
             return;
         }
 
-        let var = *self.function_context.ssa_value_allocations.get(&value_id).unwrap();
-        let sm = self.function_context.spill_manager.as_mut().unwrap();
+        let var = *self.function_context.allocator.ssa_value_allocations.get(&value_id).unwrap();
+        let sm = self.function_context.allocator.spill_manager.as_mut().unwrap();
         let prior_offset = sm.get_spill_offset(&value_id);
         let offset = prior_offset.unwrap_or_else(|| sm.allocate_spill_offset());
         if permanent {
@@ -405,7 +408,7 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
     fn spill_lru_value(&mut self) {
         // Ask the spill_manager for the LRU variable, and then spill it.
         let victim_id = {
-            let sm = self.function_context.spill_manager.as_ref().unwrap();
+            let sm = self.function_context.allocator.spill_manager.as_ref().unwrap();
             sm.lru_victim(&self.variables).expect("No values available to spill")
         };
         self.spill_value(victim_id, false, true);
@@ -417,7 +420,7 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
     /// the LRU, and the stores are emitted together so they can share address computations.
     fn spill_lru_values(&mut self, k: usize) {
         let victims = {
-            let sm = self.function_context.spill_manager.as_ref().unwrap();
+            let sm = self.function_context.allocator.spill_manager.as_ref().unwrap();
             sm.lru_victims(k, &self.variables)
         };
         if victims.is_empty() {
@@ -430,8 +433,8 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
         // assert sees legitimate spills.
         let mut stores = Vec::with_capacity(victims.len());
         for value_id in &victims {
-            let var = *self.function_context.ssa_value_allocations.get(value_id).unwrap();
-            let sm = self.function_context.spill_manager.as_mut().unwrap();
+            let var = *self.function_context.allocator.ssa_value_allocations.get(value_id).unwrap();
+            let sm = self.function_context.allocator.spill_manager.as_mut().unwrap();
             let prior_offset = sm.get_spill_offset(value_id);
             let offset = prior_offset.unwrap_or_else(|| sm.allocate_spill_offset());
             sm.record_spill(*value_id, offset, var, &self.variables);
@@ -453,7 +456,7 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
         self.ensure_register_capacity(1);
 
         let spill_record = {
-            let sm = self.function_context.spill_manager.as_ref().unwrap();
+            let sm = self.function_context.allocator.spill_manager.as_ref().unwrap();
             *sm.get_spill(&value_id, &self.variables).unwrap()
         };
 
@@ -468,7 +471,7 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
         let new_var = spill_record.variable.with_register(new_reg);
 
         // Update SSA mapping to point to new register
-        self.function_context.ssa_value_allocations.insert(value_id, new_var);
+        self.function_context.allocator.ssa_value_allocations.insert(value_id, new_var);
 
         // Re-add to available variables (was removed during spill); this is what marks the value
         // as no longer spilled now that it holds a register again.
@@ -477,7 +480,12 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
         // The slot is kept (the emitted load may re-execute in a loop iteration, so its data must
         // stay valid). The value is back in a register (added just above), so touch it as MRU —
         // which `touch` asserts.
-        self.function_context.spill_manager.as_mut().unwrap().touch(value_id, &self.variables);
+        self.function_context
+            .allocator
+            .spill_manager
+            .as_mut()
+            .unwrap()
+            .touch(value_id, &self.variables);
 
         new_var
     }
@@ -532,7 +540,7 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
             value_id,
             dfg,
         );
-        if let Some(sm) = self.function_context.spill_manager.as_mut() {
+        if let Some(sm) = self.function_context.allocator.spill_manager.as_mut() {
             sm.touch(value_id, &self.variables);
         }
         var
@@ -689,6 +697,7 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
             // regardless of compilation order.
             let spill_offset = self
                 .function_context
+                .allocator
                 .spill_manager
                 .as_ref()
                 .and_then(|sm| sm.get_permanent_spill_offset(param));
@@ -806,7 +815,7 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                     // Params of the current block are skipped
                     // because they already hold valid data from the predecessor.
                     if !own_params.contains(&param_id)
-                        && self.function_context.spill_manager.is_some()
+                        && self.function_context.allocator.spill_manager.is_some()
                     {
                         self.spill_value(param_id, true, false);
                     }
@@ -916,7 +925,7 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                 if not_global {
                     if self.is_spilled(dead_variable) {
                         // Spilled: register was already freed. Just clean up tracking.
-                        let sm = self.function_context.spill_manager.as_mut().unwrap();
+                        let sm = self.function_context.allocator.spill_manager.as_mut().unwrap();
                         sm.remove_spill(dead_variable);
                         // Only remove from available_variables if it's actually there.
                         // A permanently spilled value may have been filtered out at block
@@ -926,6 +935,7 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                         }
                     } else if self
                         .function_context
+                        .allocator
                         .coalescing
                         .has_live_partner(dead_variable, |v| self.variables.is_allocated(v))
                     {
@@ -939,7 +949,7 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                             self.function_context,
                             self.brillig_context,
                         );
-                        if let Some(sm) = self.function_context.spill_manager.as_mut() {
+                        if let Some(sm) = self.function_context.allocator.spill_manager.as_mut() {
                             // A value can reach this branch while still owning a spill slot: a
                             // transiently spilled value that was reloaded into a register is no
                             // longer spilled, yet its transient slot stays reserved. Release it so
@@ -1024,7 +1034,7 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                         return self.reload_spilled_value(value_id);
                     }
                     let var = self.variables.get_allocation(self.function_context, value_id);
-                    if let Some(sm) = self.function_context.spill_manager.as_mut() {
+                    if let Some(sm) = self.function_context.allocator.spill_manager.as_mut() {
                         sm.touch(value_id, &self.variables);
                     }
                     var
@@ -1041,7 +1051,7 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                 // (re)initialize the value inside.
                 if self.variables.is_allocated(&value_id) {
                     let var = self.variables.get_allocation(self.function_context, value_id);
-                    if let Some(sm) = self.function_context.spill_manager.as_mut() {
+                    if let Some(sm) = self.function_context.allocator.spill_manager.as_mut() {
                         sm.touch(value_id, &self.variables);
                     }
                     var

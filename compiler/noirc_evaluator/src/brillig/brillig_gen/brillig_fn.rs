@@ -3,22 +3,19 @@ use iter_extended::vecmap;
 
 use crate::{
     brillig::brillig_ir::{
-        artifact::BrilligParameter,
-        brillig_variable::{BrilligVariable, get_bit_size_from_ssa_type},
-        registers::Stack,
+        artifact::BrilligParameter, brillig_variable::get_bit_size_from_ssa_type, registers::Stack,
     },
     ssa::ir::{
         basic_block::BasicBlockId,
         function::{Function, FunctionId},
         post_order::PostOrder,
         types::Type,
-        value::ValueId,
     },
 };
 use rustc_hash::FxHashMap as HashMap;
 
 use super::{
-    coalescing::CoalescingMap, constant_allocation::ConstantAllocation,
+    allocator::GreedyAllocator, coalescing::CoalescingMap, constant_allocation::ConstantAllocation,
     spill_manager::SpillManager, variable_liveness::VariableLiveness,
 };
 
@@ -32,31 +29,14 @@ pub(crate) struct FunctionContext {
     /// A `FunctionContext` is necessary for using a Brillig block's code gen, but sometimes
     /// such as with globals, we are not within a function and do not have a [`FunctionId`].
     function_id: Option<FunctionId>,
-    /// Map from SSA values its allocation. Since values can be only defined once in SSA form,
-    /// we insert them here on when we allocate them at their definition.
-    ///
-    /// Multiple variables could be assigned the same slot, because this structure accumulates
-    /// historical allocations, not just the currently active ones. This is needed so that
-    /// when we start processing a block, we can always look up the allocation of the variables
-    /// which are live at the beginning of it, even if they were deemed dead by another block
-    /// we already visited.
-    ///
-    /// Note that we don't use `Allocated<BrilligVariable>` here, because we create a fresh
-    /// allocator for each block we process, and something that is allocated in e.g. block 1
-    /// might be deallocated in block 2, so it has to be done manually.
-    pub(crate) ssa_value_allocations: HashMap<ValueId, BrilligVariable>,
+    /// The register allocator: the SSA-value → register cache, spill manager, and coalescing map.
+    pub(crate) allocator: GreedyAllocator,
     /// The block ids of the function in Post Order.
     blocks: Vec<BasicBlockId>,
     /// Liveness information for each variable in the function.
     pub(crate) liveness: VariableLiveness,
     /// Information on where to allocate constants
     pub(crate) constant_allocation: ConstantAllocation,
-    /// Manages spilling of register values to the heap spill region when register pressure
-    /// exceeds the stack frame limit. Persists across blocks so spill state is not lost.
-    /// Present only when the function may need spilling (based on liveness analysis).
-    pub(crate) spill_manager: Option<SpillManager>,
-    /// Coalescing map for jmp argument → block parameter register sharing.
-    pub(crate) coalescing: CoalescingMap,
 }
 
 impl FunctionContext {
@@ -112,18 +92,20 @@ impl FunctionContext {
 
         Self {
             function_id: Some(id),
-            ssa_value_allocations: HashMap::default(),
+            allocator: GreedyAllocator {
+                ssa_value_allocations: HashMap::default(),
+                spill_manager,
+                coalescing,
+            },
             blocks: post_order,
             liveness,
             constant_allocation: constants,
-            spill_manager,
-            coalescing,
         }
     }
 
     /// Whether this function has spill infrastructure enabled.
     pub(crate) fn spill_enabled(&self) -> bool {
-        self.spill_manager.is_some()
+        self.allocator.spill_manager.is_some()
     }
 
     /// Whether any block in this function actually spilled a value.
@@ -133,7 +115,7 @@ impl FunctionContext {
 
     /// The number of spill slots needed (0 if no spilling occurred).
     pub(crate) fn max_spill_offset(&self) -> usize {
-        self.spill_manager.as_ref().map_or(0, |sm| sm.max_spill_offset())
+        self.allocator.spill_manager.as_ref().map_or(0, |sm| sm.max_spill_offset())
     }
 
     /// Get the ID of the function this context was created for.

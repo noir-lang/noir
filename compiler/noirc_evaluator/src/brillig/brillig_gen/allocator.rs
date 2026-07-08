@@ -12,6 +12,43 @@
 //! See `design/register_allocation.md` (Phase 0.5) for the full plan.
 
 use acvm::acir::brillig::MemoryAddress;
+use rustc_hash::FxHashMap as HashMap;
+
+use super::coalescing::CoalescingMap;
+use super::spill_manager::SpillManager;
+use crate::brillig::brillig_ir::brillig_variable::BrilligVariable;
+use crate::ssa::ir::value::ValueId;
+
+/// The register-allocation state and decisions for one function's Brillig codegen.
+///
+/// This gathers the state that was previously spread across [`FunctionContext`] — the persistent
+/// SSA-value → register cache, the spill manager, and the coalescing map — under one owner. It is
+/// the concrete "greedy + LRU spilling" allocator; the pluggable seam that lets a different
+/// strategy (e.g. linear scan) take its place is introduced on top of it.
+///
+/// [`FunctionContext`]: super::brillig_fn::FunctionContext
+#[derive(Default)]
+pub(crate) struct GreedyAllocator {
+    /// Map from SSA values to their allocation. Since values are defined only once in SSA form,
+    /// we insert them here when we allocate them at their definition.
+    ///
+    /// Multiple variables could be assigned the same slot, because this structure accumulates
+    /// historical allocations, not just the currently active ones. This is needed so that
+    /// when we start processing a block, we can always look up the allocation of the variables
+    /// which are live at the beginning of it, even if they were deemed dead by another block
+    /// we already visited.
+    ///
+    /// Note that we don't use `Allocated<BrilligVariable>` here, because we create a fresh
+    /// allocator for each block we process, and something that is allocated in e.g. block 1
+    /// might be deallocated in block 2, so it has to be done manually.
+    pub(crate) ssa_value_allocations: HashMap<ValueId, BrilligVariable>,
+    /// Manages spilling of register values to the heap spill region when register pressure
+    /// exceeds the stack frame limit. Persists across blocks so spill state is not lost.
+    /// Present only when the function may need spilling (based on liveness analysis).
+    pub(crate) spill_manager: Option<SpillManager>,
+    /// Coalescing map for jmp argument → block parameter register sharing.
+    pub(crate) coalescing: CoalescingMap,
+}
 
 /// A slot in the heap-backed spill region.
 ///

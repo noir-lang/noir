@@ -87,6 +87,7 @@ impl BlockVariables {
             .iter()
             .map(|value_id| {
                 function_context
+                    .allocator
                     .ssa_value_allocations
                     .get(value_id)
                     .unwrap_or_else(|| panic!("ICE: Value not found in cache {value_id}"))
@@ -110,8 +111,9 @@ impl BlockVariables {
         dfg: &DataFlowGraph,
     ) -> BrilligVariable {
         // Check coalescing map — reuse the block parameter's register if coalesced.
-        if let Some(param) = function_context.coalescing.get_coalesced(&value_id) {
+        if let Some(param) = function_context.allocator.coalescing.get_coalesced(&value_id) {
             let variable = *function_context
+                .allocator
                 .ssa_value_allocations
                 .get(&param)
                 .expect("ICE: Coalesced parameter not yet allocated");
@@ -123,7 +125,7 @@ impl BlockVariables {
                 self.available_variables.contains(&param),
                 "ICE: Coalesced parameter not currently available"
             );
-            function_context.ssa_value_allocations.insert(value_id, variable);
+            function_context.allocator.ssa_value_allocations.insert(value_id, variable);
             self.available_variables.insert(value_id);
             return variable;
         }
@@ -136,7 +138,7 @@ impl BlockVariables {
         // manage deallocation manually.
         let variable = allocated.detach();
 
-        if function_context.ssa_value_allocations.insert(value_id, variable).is_some() {
+        if function_context.allocator.ssa_value_allocations.insert(value_id, variable).is_some() {
             unreachable!("ICE: ValueId {value_id:?} was already in cache");
         }
 
@@ -156,6 +158,7 @@ impl BlockVariables {
 
         // Do not remove the allocation, just get it so we can mark it as free in memory.
         let variable = function_context
+            .allocator
             .ssa_value_allocations
             .get(value_id)
             .expect("ICE: Variable allocation not found");
@@ -206,6 +209,7 @@ impl BlockVariables {
         );
 
         let variable = function_context
+            .allocator
             .ssa_value_allocations
             .get(&value_id)
             .unwrap_or_else(|| panic!("ICE: Value not found in cache {value_id}"));
