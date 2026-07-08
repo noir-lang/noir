@@ -1,6 +1,13 @@
 //! Module containing Brillig-gen logic specific to SSA [Function]'s.
 use iter_extended::vecmap;
 
+use super::{
+    allocator::{Allocator, GreedyAllocator},
+    coalescing::CoalescingMap,
+    constant_allocation::ConstantAllocation,
+    spill_manager::SpillManager,
+    variable_liveness::VariableLiveness,
+};
 use crate::{
     brillig::brillig_ir::{
         artifact::BrilligParameter, brillig_variable::get_bit_size_from_ssa_type, registers::Stack,
@@ -11,12 +18,6 @@ use crate::{
         post_order::PostOrder,
         types::Type,
     },
-};
-use rustc_hash::FxHashMap as HashMap;
-
-use super::{
-    allocator::GreedyAllocator, coalescing::CoalescingMap, constant_allocation::ConstantAllocation,
-    spill_manager::SpillManager, variable_liveness::VariableLiveness,
 };
 
 /// Information required to compile an SSA [Function] into Brillig bytecode.
@@ -92,11 +93,7 @@ impl FunctionContext {
 
         Self {
             function_id: Some(id),
-            allocator: GreedyAllocator {
-                ssa_value_allocations: HashMap::default(),
-                spill_manager,
-                coalescing,
-            },
+            allocator: GreedyAllocator::new(spill_manager, coalescing),
             blocks: post_order,
             liveness,
             constant_allocation: constants,
@@ -105,7 +102,7 @@ impl FunctionContext {
 
     /// Whether this function has spill infrastructure enabled.
     pub(crate) fn spill_enabled(&self) -> bool {
-        self.allocator.spill_manager.is_some()
+        self.allocator.spill_enabled()
     }
 
     /// Whether any block in this function actually spilled a value.
@@ -115,7 +112,7 @@ impl FunctionContext {
 
     /// The number of spill slots needed (0 if no spilling occurred).
     pub(crate) fn max_spill_offset(&self) -> usize {
-        self.allocator.spill_manager.as_ref().map_or(0, |sm| sm.max_spill_offset())
+        self.allocator.max_spill_offset()
     }
 
     /// Get the ID of the function this context was created for.

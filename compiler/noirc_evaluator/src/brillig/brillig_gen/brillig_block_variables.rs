@@ -15,8 +15,6 @@
 //! - Allocated when first defined in a block (if not already global or hoisted to the global space).
 //! - Cached for reuse to avoid redundant register allocation.
 //! - Deallocated explicitly when no longer needed (as determined by SSA liveness).
-#[cfg(test)]
-use acvm::FieldElement;
 use acvm::acir::brillig::lengths::{ElementTypesLength, SemanticLength, SemiFlattenedLength};
 use rustc_hash::FxHashSet as HashSet;
 
@@ -36,7 +34,6 @@ use crate::{
     },
 };
 
-use super::brillig_fn::FunctionContext;
 use super::spill_manager::RegisterState;
 
 /// Tracks SSA variables that have a register currently allocated and usable during
@@ -72,55 +69,6 @@ impl BlockVariables {
         BlockVariables { available_variables: live_in }
     }
 
-    /// Returns the allocations for all variables that are currently available.
-    ///
-    /// These might have been technically removed earlier in a different block,
-    /// because of the order in which we process blocks, but we expect that the
-    /// `FunctionContext` will remember the earlier allocations, and return them
-    /// so that we can restore them as pre-allocations in the next slot.
-    pub(crate) fn get_available_variable_allocations(
-        &self,
-        function_context: &FunctionContext,
-    ) -> Vec<BrilligVariable> {
-        self.available_variables
-            .iter()
-            .map(|value_id| {
-                function_context
-                    .allocator
-                    .ssa_value_allocations
-                    .get(value_id)
-                    .unwrap_or_else(|| panic!("ICE: Value not found in cache {value_id}"))
-            })
-            .copied()
-            .collect()
-    }
-
-    /// Removes a variable so it's not used anymore within this block, unconditionally freeing its
-    /// register. Register lifetime is otherwise managed by the allocator (see
-    /// [`Allocator::retire`](super::allocator::Allocator::retire)); this direct form is retained for
-    /// tests that force a specific deallocation order.
-    #[cfg(test)]
-    pub(crate) fn remove_variable<Registers: RegisterAllocator>(
-        &mut self,
-        value_id: &ValueId,
-        function_context: &FunctionContext,
-        brillig_context: &BrilligContext<FieldElement, Registers>,
-    ) {
-        self.mark_unavailable(value_id);
-
-        // Do not remove the allocation, just get it so we can mark it as free in memory.
-        let variable = function_context
-            .allocator
-            .ssa_value_allocations
-            .get(value_id)
-            .expect("ICE: Variable allocation not found");
-
-        // Explicitly deallocate the memory; note that this might be a different register
-        // than the one the variable was defined in, which is why don't rely on automation.
-        let register = variable.extract_register();
-        brillig_context.deallocate_register(register);
-    }
-
     /// Removes a coalesced variable without deallocating its register.
     ///
     /// This is used for coalesced arguments that share a register with their
@@ -143,30 +91,6 @@ impl BlockVariables {
     /// Add a value back to the available set (used after reload).
     pub(crate) fn add_available(&mut self, value_id: ValueId) {
         self.available_variables.insert(value_id);
-    }
-
-    /// For a given SSA value id, return the corresponding cached allocation.
-    ///
-    /// Panics if
-    /// * the variable is not in [`Self::available_variables`], which means it is no longer live
-    /// * the variable is not in [`FunctionContext::ssa_value_allocations`], which means it was never defined
-    pub(crate) fn get_allocation(
-        &self,
-        function_context: &FunctionContext,
-        value_id: ValueId,
-    ) -> BrilligVariable {
-        assert!(
-            self.available_variables.contains(&value_id),
-            "ICE: ValueId {value_id:?} is not available"
-        );
-
-        let variable = function_context
-            .allocator
-            .ssa_value_allocations
-            .get(&value_id)
-            .unwrap_or_else(|| panic!("ICE: Value not found in cache {value_id}"));
-
-        *variable
     }
 }
 

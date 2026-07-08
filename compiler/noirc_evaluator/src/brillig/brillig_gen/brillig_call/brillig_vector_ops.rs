@@ -192,7 +192,6 @@ mod tests {
 
     use crate::brillig::ValueId;
     use crate::brillig::brillig_gen::brillig_block::BrilligBlock;
-    use crate::brillig::brillig_gen::brillig_block_variables::BlockVariables;
     use crate::brillig::brillig_gen::brillig_fn::FunctionContext;
     use crate::brillig::brillig_ir::artifact::{BrilligParameter, Label};
     use crate::brillig::brillig_ir::brillig_variable::BrilligVariable;
@@ -225,12 +224,11 @@ mod tests {
         globals: &'a HashMap<ValueId, BrilligVariable>,
         hoisted_global_constants: &'a HashMap<(FieldElement, NumericType), BrilligVariable>,
     ) -> BrilligBlock<'a, Stack> {
-        let variables = BlockVariables::default();
         BrilligBlock {
             function_context,
             block_id: Id::test_new(0),
             brillig_context,
-            variables,
+            shadow: Default::default(),
             last_uses: Default::default(),
             globals,
             hoisted_global_constants,

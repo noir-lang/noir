@@ -327,7 +327,7 @@ impl Brillig {
             function_context: &mut function_context,
             block_id,
             brillig_context: &mut brillig_context,
-            variables: Default::default(),
+            shadow: HashMap::default(),
             last_uses: HashMap::default(),
             globals: &empty_globals,
             hoisted_global_constants: &HashMap::default(),
@@ -357,7 +357,7 @@ impl Brillig {
 
         BrilligGlobalsArtifact {
             artifact,
-            brillig_globals: function_context.allocator.ssa_value_allocations,
+            brillig_globals: function_context.allocator.into_allocations(),
             globals_size,
             hoisted_global_constants,
         }

@@ -204,7 +204,6 @@ fn coalescing_spill_arg_register_aliased_by_subsequent_allocation() {
 #[should_panic(expected = "Coalesced parameter not currently available")]
 fn coalescing_arg_to_deallocated_parameter_panics() {
     use crate::brillig::brillig_gen::allocator::Allocator;
-    use crate::brillig::brillig_gen::brillig_block_variables::BlockVariables;
     use crate::brillig::{BrilligContext, FunctionContext};
     use crate::ssa::ir::instruction::TerminatorInstruction;
 
@@ -241,34 +240,26 @@ fn coalescing_arg_to_deallocated_parameter_panics() {
     let mut function_context = FunctionContext::new(func, options.layout.max_stack_frame_size());
 
     assert_eq!(
-        function_context.allocator.coalescing.get_coalesced(&arg),
+        function_context.allocator.get_coalesced(&arg),
         Some(param),
         "v4 should coalesce to v1"
     );
 
     let brillig_context = BrilligContext::new("test", &options);
-    let mut variables = BlockVariables::default();
 
     // Define the param SSA variable.
-    let (param_var, _) = function_context.allocator.define_variable(
-        &brillig_context,
-        &mut variables,
-        param,
-        &func.dfg,
-    );
+    let (param_var, _) =
+        function_context.allocator.define_variable(&brillig_context, param, &func.dfg);
 
-    // Remove the param SSA variable.
+    // Retire the param SSA variable, freeing its register.
     // This should *not* happen before the arg is defined, under normal circumstances, but this test forces it!
-    variables.remove_variable(&param, &function_context, &brillig_context);
+    // The arg (v4) is not yet defined, so `param` has no live coalescing partner and is freed.
+    function_context.allocator.retire(&brillig_context, &param);
 
     // Now define some other SSA variable, and see that it gets the same memory.
     let other = ValueId::new(3);
-    let (other_var, _) = function_context.allocator.define_variable(
-        &brillig_context,
-        &mut variables,
-        other,
-        &func.dfg,
-    );
+    let (other_var, _) =
+        function_context.allocator.define_variable(&brillig_context, other, &func.dfg);
     assert_eq!(
         other_var.extract_register(),
         param_var.extract_register(),
@@ -277,12 +268,7 @@ fn coalescing_arg_to_deallocated_parameter_panics() {
 
     // Finally define the arg.
     // This should either fail, or allocate a different register.
-    let (arg_var, _) = function_context.allocator.define_variable(
-        &brillig_context,
-        &mut variables,
-        arg,
-        &func.dfg,
-    );
+    let (arg_var, _) = function_context.allocator.define_variable(&brillig_context, arg, &func.dfg);
 
     // If we allocated the same register than this should cause the test to fail.
     assert_ne!(
