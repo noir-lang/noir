@@ -141,14 +141,6 @@ pub(crate) trait Allocator {
         value_id: &ValueId,
     );
 
-    /// Whether the value has a spill slot and is not currently in a register.
-    ///
-    /// Used by the driver only to decide whether a numeric constant is already defined (and so
-    /// should be reloaded via `use_variable`) or must be materialized. Once constant
-    /// materialization is separated from use (define at the allocation point, `use_variable`
-    /// everywhere else), the driver stops needing this query.
-    fn is_spilled(&self, value_id: &ValueId) -> bool;
-
     /// Whether spilling is enabled for this function (there is a spill manager).
     fn spill_enabled(&self) -> bool;
 
@@ -406,10 +398,6 @@ impl Allocator for GreedyAllocator {
         }
     }
 
-    fn is_spilled(&self, value_id: &ValueId) -> bool {
-        self.spill_manager.as_ref().is_some_and(|sm| sm.is_spilled(value_id, &self.resident))
-    }
-
     fn spill_enabled(&self) -> bool {
         self.spill_manager.is_some()
     }
@@ -420,6 +408,11 @@ impl Allocator for GreedyAllocator {
 }
 
 impl GreedyAllocator {
+    /// Whether the value has a spill slot and is not currently in a register.
+    fn is_spilled(&self, value_id: &ValueId) -> bool {
+        self.spill_manager.as_ref().is_some_and(|sm| sm.is_spilled(value_id, &self.resident))
+    }
+
     /// Whether the value was transiently spilled and is currently reloaded into a register.
     fn is_transient_reloaded(&self, value_id: &ValueId) -> bool {
         self.spill_manager

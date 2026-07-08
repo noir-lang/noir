@@ -185,11 +185,6 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
         self.function_context.allocator.spill_enabled()
     }
 
-    /// Returns `true` if the given value is currently spilled (has a slot and is not in a register).
-    fn is_spilled(&self, value_id: &ValueId) -> bool {
-        self.function_context.allocator.is_spilled(value_id)
-    }
-
     /// Ensure there is capacity for `n` more register allocations by spilling if necessary.
     ///
     /// This is required because temporary registers can be allocated in procedures where we don't
@@ -793,8 +788,25 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
         };
 
         for constant_id in constants {
-            self.convert_ssa_value(constant_id, dfg);
+            self.materialize_constant(constant_id, dfg);
         }
+    }
+
+    /// Materialize a numeric constant at its [`ConstantAllocation`](crate::brillig::brillig_gen::constant_allocation::ConstantAllocation)
+    /// point: define its register and emit the `const` opcode. This is the sole definition site for
+    /// a non-global constant; because the allocation point dominates every use, later references go
+    /// through `use_variable` (which reloads if the constant was spilled in between). Global and
+    /// hoisted constants live in the globals map and are looked up directly, not defined here.
+    fn materialize_constant(&mut self, value_id: ValueId, dfg: &DataFlowGraph) {
+        if self.get_hoisted_global(dfg, value_id).is_some() || dfg.is_global(value_id) {
+            return;
+        }
+        let Value::NumericConstant { constant, .. } = &dfg[value_id] else {
+            unreachable!("ICE: constant allocation holds only numeric constants");
+        };
+        let constant = *constant;
+        let new_variable = self.define_variable(value_id, dfg);
+        self.brillig_context.const_instruction(new_variable.extract_single_addr(), constant);
     }
 
     /// Converts an SSA [`ValueId`] into a [`BrilligVariable`]. Initializes if necessary, or returns an existing allocation.
@@ -843,26 +855,37 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                 }
             }
             Value::NumericConstant { constant, .. } => {
-                // Check spilled/allocated before materializing — a spilled value is not in the
-                // shadow, so a shadow check alone would miss it. Either way an already-defined
-                // constant is served by the allocator (reloaded if spilled).
-                if self.is_spilled(&value_id) || self.registers.contains_key(&value_id) {
+                if dfg.is_global(value_id) {
+                    *self.globals.get(&value_id).unwrap_or_else(|| {
+                        panic!("ICE: Global value allocation not found in cache {value_id}")
+                    })
+                } else if self.building_globals {
+                    // The globals context has no `ConstantAllocation` materialization pass, so it
+                    // defines each constant directly on first sight and reuses it afterwards.
+                    // Globals never spill, so the register shadow is an exact "already defined" test.
+                    if self.registers.contains_key(&value_id) {
+                        let (var, actions) = self
+                            .function_context
+                            .allocator
+                            .use_variable(self.brillig_context, value_id);
+                        self.apply_actions(actions);
+                        var
+                    } else {
+                        let new_variable = self.define_variable(value_id, dfg);
+                        self.brillig_context
+                            .const_instruction(new_variable.extract_single_addr(), *constant);
+                        new_variable
+                    }
+                } else {
+                    // A non-global numeric constant is materialized at its allocation point by
+                    // `initialize_constants` (which dominates all uses), so every reference here is
+                    // just a use: the allocator returns its register, reloading it if it was spilled.
                     let (var, actions) = self
                         .function_context
                         .allocator
                         .use_variable(self.brillig_context, value_id);
                     self.apply_actions(actions);
                     var
-                } else if dfg.is_global(value_id) {
-                    *self.globals.get(&value_id).unwrap_or_else(|| {
-                        panic!("ICE: Global value allocation not found in cache {value_id}")
-                    })
-                } else {
-                    let new_variable = self.define_variable(value_id, dfg);
-
-                    self.brillig_context
-                        .const_instruction(new_variable.extract_single_addr(), *constant);
-                    new_variable
                 }
             }
             Value::Function(_) => {
