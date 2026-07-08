@@ -267,6 +267,17 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                     self.brillig_context.mov_instruction(to, from);
                     self.registers.insert(value, to);
                 }
+                Action::Prune { value, register } => {
+                    // Bookkeeping only: the value died, so drop it from the map. The register it
+                    // vacated must be the one the allocator reported — asserting so confirms the
+                    // map never drifted from the allocator's residency.
+                    let removed = self.registers.remove(&value);
+                    assert_eq!(
+                        removed,
+                        Some(register),
+                        "ICE: pruned value {value} was not at its expected register in the map"
+                    );
+                }
             }
         }
         if !pending_stores.is_empty() {
@@ -615,9 +626,11 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
         }
 
         // The instruction has been lowered; tell the allocator to advance past it so it can free
-        // the registers of any value whose last use this was. This emits no opcode.
+        // the registers of any value whose last use this was. This emits no opcode, only the
+        // prunes that keep the register map in step with the freed registers.
         if !self.building_globals {
-            self.function_context.allocator.after_instruction(instruction_id);
+            let actions = self.function_context.allocator.after_instruction(instruction_id);
+            self.apply_actions(actions);
         }
 
         // Clear the call stack; it only applied to this instruction.

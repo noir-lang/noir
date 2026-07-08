@@ -11,10 +11,12 @@
 //! which value is in which register, what is spilled, the free list. The driver keeps only a
 //! *register shadow* (`value → MemoryAddress`), which it seeds from [`Allocator::begin_block`] and
 //! updates by applying the [`Action`]s the allocator returns (each carries its `value`) plus the
-//! addresses returned by `define_variable`/`use_variable`. The driver never tells the allocator
-//! what is resident. Because the shadow is a pure function of the allocator's output, swapping the
-//! greedy allocator for the linear-scan one requires no change to the driver — proving that is the
-//! point of this phase.
+//! addresses returned by `define_variable`/`use_variable`. Values enter the shadow at their
+//! definition/reload and leave it on a [`Action::Spill`] or, when they die, a [`Action::Prune`], so
+//! the shadow's registers are exactly the occupied ones at every point. The driver never tells the
+//! allocator what is resident. Because the shadow is a pure function of the allocator's output,
+//! swapping the greedy allocator for the linear-scan one requires no change to the driver — proving
+//! that is the point of this phase.
 //!
 //! See `design/register_allocation.md` (Phase 0.5) for the full plan.
 
@@ -53,23 +55,29 @@ impl SpillSlot {
     }
 }
 
-/// A single unit of memory traffic the allocator asks codegen to emit.
+/// A single unit of register-map traffic the allocator asks the driver to apply.
 ///
-/// Every action carries the `value` it concerns so the driver updates its register shadow
+/// Every action carries the `value` it concerns so the driver updates its register map
 /// mechanically as it applies the action: `Reload`/`Move` put the value at the destination
-/// register; `Spill` removes it. Register-facing endpoints are [`MemoryAddress`]; the spill region
-/// is addressed through [`SpillSlot`], which the allocator resolves from its own bookkeeping.
+/// register; `Spill` and `Prune` remove it. Most actions also emit an opcode; `Prune` is
+/// bookkeeping-only. Register-facing endpoints are [`MemoryAddress`]; the spill region is addressed
+/// through [`SpillSlot`], which the allocator resolves from its own bookkeeping.
 #[derive(Clone, Copy, Debug)]
 pub(crate) enum Action {
-    /// Store a register-resident value into its spill slot (the value leaves the shadow).
+    /// Store a register-resident value into its spill slot (the value leaves the map).
     Spill { value: ValueId, from: MemoryAddress, to: SpillSlot },
-    /// Load a spilled value from its slot into a register (the value enters the shadow at `into`).
+    /// Load a spilled value from its slot into a register (the value enters the map at `into`).
     Reload { value: ValueId, from: SpillSlot, into: MemoryAddress },
-    /// Register-to-register move (the value moves to `to` in the shadow). Produced by edge
+    /// Register-to-register move (the value moves to `to` in the map). Produced by edge
     /// resolution, which the greedy allocator does not yet drive; see `resolve_edge` in the design
     /// doc (Phase 1).
     #[allow(dead_code)]
     Move { value: ValueId, from: MemoryAddress, to: MemoryAddress },
+    /// Drop a now-dead value from the map, freeing `register`. Emits no opcode: it only keeps the
+    /// driver's map a faithful mirror of residency, so the map's registers are exactly the occupied
+    /// ones. `register` is the value's current register; the driver asserts the map agreed, which
+    /// checks the allocator and driver never drifted out of sync.
+    Prune { value: ValueId, register: MemoryAddress },
 }
 
 /// The register-allocation seam: codegen asks the allocator where each value lives and what memory
@@ -123,9 +131,11 @@ pub(crate) trait Allocator {
 
     /// Retire the values whose last use is `inst` now that it has been lowered: free their
     /// registers (returning them to the pool for reuse later in the block) and drop any bookkeeping.
-    /// Emits no opcode. Values the allocator does not track — globals and hoisted constants, which
-    /// live in the driver's globals map and are reserved for the whole program — are skipped.
-    fn after_instruction(&mut self, inst: InstructionId);
+    /// Returns a [`Action::Prune`] for each retired value that held a register, so the driver drops
+    /// it from its map; no opcodes are emitted. Values the allocator does not track — globals and
+    /// hoisted constants, which live in the driver's globals map and are reserved for the whole
+    /// program — are skipped.
+    fn after_instruction(&mut self, inst: InstructionId) -> Vec<Action>;
 
     /// Prepare for `block`'s terminator: settle the location of every value that lives across an
     /// outgoing edge, before the terminator's operands are read. Returns the memory traffic to emit
@@ -422,9 +432,9 @@ impl<R: RegisterAllocator> Allocator for GreedyAllocator<R> {
             .collect()
     }
 
-    fn after_instruction(&mut self, inst: InstructionId) {
+    fn after_instruction(&mut self, inst: InstructionId) -> Vec<Action> {
         let Some(dead) = self.last_uses.get(&inst) else {
-            return;
+            return Vec::new();
         };
         // Retire the values the allocator tracks; globals/hoisted constants live in the driver's
         // globals map (never in `ssa_value_allocations`) and must not be freed.
@@ -433,9 +443,18 @@ impl<R: RegisterAllocator> Allocator for GreedyAllocator<R> {
             .copied()
             .filter(|value_id| self.ssa_value_allocations.contains_key(value_id))
             .collect();
+        let mut actions = Vec::new();
         for value_id in dead {
+            // A register-resident value is exactly one the driver has in its map (spilled values
+            // left the map on their `Spill`). Retiring it frees the register, so tell the driver to
+            // drop the entry. Read the register before retiring, since retirement frees it.
+            if self.resident.is_allocated(&value_id) {
+                let register = self.ssa_value_allocations[&value_id].extract_register();
+                actions.push(Action::Prune { value: value_id, register });
+            }
             self.retire_value(&value_id);
         }
+        actions
     }
 
     fn spill_enabled(&self) -> bool {
