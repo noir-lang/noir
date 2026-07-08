@@ -294,6 +294,12 @@ live-across set. The phases below are ordered to land value early and de-risk in
 
 ### Phase 0: restore general parallel moves
 
+**Landed in noir-lang/noir#13307.** The restriction was lifted from
+`codegen_mov_registers_to_registers` itself (so one routine serves both return-value copies and
+general moves, and takes an optional `condition`), and `jmp_setup` now calls it; a block that
+rotates its parameters drops from one temporary per parameter to a single cycle-breaking temporary.
+The problem statement below is kept for context.
+
 `codegen_mov_registers_to_registers` was a general any-source→any-destination parallel-move solver
 (noir-lang/noir#6089): a movement graph with cycle detection and a scratch register to break
 cycles. noir-lang/noir#10305 specialized it to **consecutive destination slots** for the
@@ -373,7 +379,19 @@ trait Allocator {
     // operands and the instruction's scratch (count from `instruction_scratch_demand`). Returns only
     // actions; the scratch registers are allocated by codegen via the RAII `Allocated` path from the
     // room these spills free — the contract is "N slots are free", not "here are the registers".
+    //
+    // `before_instruction` assumes an instruction's operands can be made resident in one up-front
+    // batch, which holds for bounded operand sets. Streaming instructions break that assumption.
     fn before_instruction(&mut self, inst: InstructionId) -> Vec<Action>;
+
+    // Make one already-defined value resident on demand and return the register it now occupies,
+    // plus the actions to get it there: a Reload if it was spilled, and any Spills to free a slot
+    // (empty if it is already resident). This is the per-value companion to `before_instruction`,
+    // for streaming instructions like `MakeArray` that consume their operands one at a time rather
+    // than all at once (see "Streaming operands: MakeArray"). The driver calls it in a loop — e.g.
+    // per array element — and retires each working slot between iterations (RAII), so the reserved
+    // set stays at the working-set size rather than the operand count.
+    fn use_variable(&mut self, value: ValueId) -> (MemoryAddress, Vec<Action>);
 
     // Before a terminator: make its operands available (return values, or a jmpif condition).
     fn before_terminator(&mut self, block: BasicBlockId) -> Vec<Action>;
@@ -425,9 +443,9 @@ Notes on the interface:
 
 - **Streaming operands need an on-demand companion.** `before_instruction` assumes an instruction's
   operands can be made resident as one up-front batch. `MakeArray` breaks that — it consumes N
-  elements one at a time — so it needs a `use_value(value) -> Vec<Action>` method the driver calls
+  elements one at a time — so it needs a `use_variable(value) -> (MemoryAddress, Vec<Action>)` method the driver calls
   mid-lowering, per element. `before_instruction` is then the batched fast-path for bounded operand
-  sets; streaming ops drive `use_value` in a loop. See
+  sets; streaming ops drive `use_variable` in a loop. See
   [Streaming operands: MakeArray](#streaming-operands-makearray).
 - **Greedy/LRU impl** computes actions online (today's behavior); `set_allocated_registers`/`detach`
   become its internals.
@@ -759,19 +777,19 @@ restatement of the same over-count. Two ways to model the streaming:
 - **(b) Reserved-reused synthetic slots + on-demand reload.** Keep points coarse; reserve
   `element_types().len()` working slots at the `MakeArray` point as short intervals (like scratch),
   and have the driver RAII-cycle them across the N stores, pulling each element in via an on-demand
-  `use_value(value) -> Vec<Action>` that reloads from the element's home only if it is not already
+  `use_variable(value) -> (MemoryAddress, Vec<Action>)` that reloads from the element's home only if it is not already
   resident. The synthetic slots are *destinations* for on-demand reloads, not the elements' own
   lifetimes — a per-element interval would recreate the N-wide over-count. This localizes the special
-  case to streaming ops, at the cost of the on-demand discipline and of adding `use_value` as a
+  case to streaming ops, at the cost of the on-demand discipline and of adding `use_variable` as a
   first-class allocator method alongside a reservation-style `before_instruction` (whose contract is
   "K slots are free", not "here are the registers").
 
 The two are duals: (a) expresses the reuse as non-overlapping intervals sharing a slot; (b) as one
 reservation the driver fills imperatively. Either way the room reserved at the `MakeArray` point
 equals the floor the assertion enforces (result array-pointer + element working set +
-`items_pointer`/`write_pointer` temps), so analysis and allocator agree by construction. `use_value`
+`items_pointer`/`write_pointer` temps), so analysis and allocator agree by construction. `use_variable`
 is also the general answer to "`before_instruction` cannot enumerate a streaming instruction's
-operands up front": bounded instructions use `before_instruction`; streaming ones drive `use_value`
+operands up front": bounded instructions use `before_instruction`; streaming ones drive `use_variable`
 in a loop.
 
 ## Relationship to noir-lang/noir#11638
@@ -853,12 +871,15 @@ dependency.
       [A single instruction must fit](#a-single-instruction-must-fit-in-registers-at-once) for the
       `max(...)`/usable-slots refinements and [Streaming operands](#streaming-operands-makearray) for
       the `MakeArray` exception.
-- [ ] **Phase 0 — general parallel moves**
-  - [ ] Revive the any-to-any parallel-move solver behind a general entry point (keep the
-        specialized consecutive-destination path for return-value copies).
-  - [ ] Point `jmp_setup` at it, replacing the inline temp-per-conflict mover.
-  - [ ] Opcode-snapshot tests for chains/cycles (extend `jmp_block_params_parallel_move*`); measure
-        against the inline mover.
+- [x] **Phase 0 — general parallel moves** (noir-lang/noir#13307)
+  - [x] Revive the any-to-any parallel-move solver behind a general entry point. Rather than keeping
+        a separate specialized path, #13307 lifted the consecutive-destination restriction
+        `10305` had added to `codegen_mov_registers_to_registers`, so the one routine now serves both
+        return-value copies and general moves (and also takes an optional `condition`, emitting
+        `conditional_mov`).
+  - [x] Point `jmp_setup` at it, replacing the inline temp-per-conflict mover.
+  - [x] Opcode-snapshot test for cycles: a block that rotates its parameters now needs just 1
+        temporary, not one per parameter.
 - [ ] **Phase 0.5 — pluggable allocator seam**
   - [ ] Define the `Allocator` trait and `Action` type.
   - [ ] Extract the current greedy path (cache, `CoalescingMap`, `Option<SpillManager>`, decisions)
