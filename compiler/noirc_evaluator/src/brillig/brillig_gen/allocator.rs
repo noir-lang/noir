@@ -18,18 +18,22 @@
 //!
 //! See `design/register_allocation.md` (Phase 0.5) for the full plan.
 
-use acvm::FieldElement;
+use std::cell::RefCell;
+use std::rc::Rc;
+
 use acvm::acir::brillig::MemoryAddress;
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
-use super::brillig_block_variables::{BlockVariables, allocate_value};
+use super::brillig_block_variables::{BlockVariables, compute_array_length};
 use super::coalescing::CoalescingMap;
 use super::spill_manager::SpillManager;
-use crate::brillig::brillig_ir::BrilligContext;
-use crate::brillig::brillig_ir::brillig_variable::BrilligVariable;
+use crate::brillig::brillig_ir::brillig_variable::{
+    BrilligArray, BrilligVariable, BrilligVector, SingleAddrVariable, get_bit_size_from_ssa_type,
+};
 use crate::brillig::brillig_ir::registers::RegisterAllocator;
 use crate::ssa::ir::dfg::DataFlowGraph;
 use crate::ssa::ir::instruction::InstructionId;
+use crate::ssa::ir::types::Type;
 use crate::ssa::ir::value::ValueId;
 
 /// A slot in the heap-backed spill region.
@@ -74,28 +78,23 @@ pub(crate) enum Action {
 /// slots, and the SSA-value → register cache. Methods that move data return the [`Action`]s the
 /// driver must emit; methods that only reserve or free registers return nothing to emit.
 ///
-/// The `brillig_context`/`dfg` parameters remain a stepping stone toward the design's ID-only
-/// signatures: the register pool still lives in `BrilligContext`, and `define_variable` still reads
-/// the value's type from the DFG. Both are removed once the pool moves into the allocator and value
-/// shapes are precomputed (mirroring how the linear-scan allocator precomputes its plan).
+/// Methods are keyed on SSA ids (values, instructions, blocks); the allocator resolves them against
+/// state it owns. `define_variable` still takes the `dfg` to read the value's type — the register
+/// count is always one, but the driver needs the typed [`BrilligVariable`] wrapper. A linear-scan
+/// implementation would precompute the type shapes and drop even that.
 pub(crate) trait Allocator {
     /// Re-seed for a new block. `live_in` is the block's non-global live-in set; the allocator
     /// strips permanently-spilled values from it (they are reloaded on demand, not pre-allocated),
     /// resets its per-block eviction state, pre-allocates the register pool with the resident
     /// live-ins, and returns them so the driver can seed its shadow.
-    fn begin_block<R: RegisterAllocator>(
-        &mut self,
-        brillig_context: &mut BrilligContext<FieldElement, R>,
-        live_in: &mut HashSet<ValueId>,
-    ) -> Vec<(ValueId, MemoryAddress)>;
+    fn begin_block(&mut self, live_in: &mut HashSet<ValueId>) -> Vec<(ValueId, MemoryAddress)>;
 
     /// Bring a value into existence at its definition point (a constant, an instruction result, or
     /// a parameter). Reserves its register — spilling LRU victims first if the frame is full — and
     /// returns the allocation plus the spills that freed the room. The driver then writes the value
     /// into the returned register.
-    fn define_variable<R: RegisterAllocator>(
+    fn define_variable(
         &mut self,
-        brillig_context: &BrilligContext<FieldElement, R>,
         value_id: ValueId,
         dfg: &DataFlowGraph,
     ) -> (BrilligVariable, Vec<Action>);
@@ -103,11 +102,7 @@ pub(crate) trait Allocator {
     /// Make an already-defined value register-resident and return its allocation, plus the actions
     /// to get it there: a [`Action::Reload`] if it was spilled (and any [`Action::Spill`]s to free
     /// a slot for it), or no actions if it is already resident.
-    fn use_variable<R: RegisterAllocator>(
-        &mut self,
-        brillig_context: &BrilligContext<FieldElement, R>,
-        value_id: ValueId,
-    ) -> (BrilligVariable, Vec<Action>);
+    fn use_variable(&mut self, value_id: ValueId) -> (BrilligVariable, Vec<Action>);
 
     /// Ensure `n` registers are free for codegen to allocate scratch temporaries via its RAII path,
     /// returning the spills that freed the room. The contract is "N slots are free", not "here are
@@ -116,21 +111,13 @@ pub(crate) trait Allocator {
     /// This is the scratch half of the design's `before_instruction`; making the instruction's
     /// operands resident up front (the other half) is still done lazily by the driver via
     /// `use_variable`, so this takes an explicit count rather than an instruction id for now.
-    fn reserve_scratch<R: RegisterAllocator>(
-        &mut self,
-        brillig_context: &BrilligContext<FieldElement, R>,
-        scratch: usize,
-    ) -> Vec<Action>;
+    fn reserve_scratch(&mut self, scratch: usize) -> Vec<Action>;
 
     /// Retire the values whose last use is `inst` now that it has been lowered: free their
     /// registers (returning them to the pool for reuse later in the block) and drop any bookkeeping.
     /// Emits no opcode. Values the allocator does not track — globals and hoisted constants, which
     /// live in the driver's globals map and are reserved for the whole program — are skipped.
-    fn after_instruction<R: RegisterAllocator>(
-        &mut self,
-        brillig_context: &BrilligContext<FieldElement, R>,
-        inst: InstructionId,
-    );
+    fn after_instruction(&mut self, inst: InstructionId);
 
     /// Spill a value to a slot, freeing its register. `permanent` slots survive the whole function
     /// (used for cross-block values); `emit_store = false` skips the store for block parameters
@@ -139,13 +126,7 @@ pub(crate) trait Allocator {
     /// This is the terminator/edge spilling primitive the current greedy driver still calls
     /// directly; the design folds it into `before_terminator`/`resolve_edge` (Phase 1), at which
     /// point it stops being part of the trait surface.
-    fn spill_value<R: RegisterAllocator>(
-        &mut self,
-        brillig_context: &BrilligContext<FieldElement, R>,
-        value_id: ValueId,
-        permanent: bool,
-        emit_store: bool,
-    ) -> Vec<Action>;
+    fn spill_value(&mut self, value_id: ValueId, permanent: bool, emit_store: bool) -> Vec<Action>;
 
     /// The permanent spill slot of a value, if it has one. Used by the terminator to write a jmp
     /// argument straight into its destination parameter's slot; subsumed by `resolve_edge`.
@@ -164,8 +145,14 @@ pub(crate) trait Allocator {
 /// model (`resident`), the spill manager, and the coalescing map (a construction-time input, not a
 /// rival pass). The pluggable seam that lets a different strategy (e.g. linear scan) take its place
 /// is the [`Allocator`] trait above.
-#[derive(Default)]
-pub(crate) struct GreedyAllocator {
+pub(crate) struct GreedyAllocator<R: RegisterAllocator> {
+    /// A shared handle to the register pool (the same `Rc` the [`BrilligContext`] holds, so codegen
+    /// can still allocate its RAII scratch temporaries from it). The allocator owns the allocation
+    /// decisions: it allocates SSA-value registers here, frees them on retirement, and reseeds it in
+    /// place at each block entry.
+    ///
+    /// [`BrilligContext`]: crate::brillig::brillig_ir::BrilligContext
+    pool: Rc<RefCell<R>>,
     /// The allocator's authoritative residency model: which values currently hold a register. The
     /// spill manager queries this; the driver's shadow is a downstream projection of it.
     resident: BlockVariables,
@@ -186,16 +173,18 @@ pub(crate) struct GreedyAllocator {
     last_uses: HashMap<InstructionId, HashSet<ValueId>>,
 }
 
-impl GreedyAllocator {
-    /// Build the greedy allocator with the spill manager and coalescing map decided by
-    /// [`FunctionContext::new`](super::brillig_fn::FunctionContext::new), plus the per-instruction
-    /// last-use sets it retires against.
+impl<R: RegisterAllocator> GreedyAllocator<R> {
+    /// Build the greedy allocator with a shared handle to the register pool, plus the spill manager
+    /// and coalescing map decided by [`FunctionContext::new`](super::brillig_fn::FunctionContext::new)
+    /// and the per-instruction last-use sets it retires against.
     pub(crate) fn new(
+        pool: Rc<RefCell<R>>,
         spill_manager: Option<SpillManager>,
         coalescing: CoalescingMap,
         last_uses: HashMap<InstructionId, HashSet<ValueId>>,
     ) -> Self {
         Self {
+            pool,
             resident: BlockVariables::default(),
             ssa_value_allocations: HashMap::default(),
             spill_manager,
@@ -219,21 +208,13 @@ impl GreedyAllocator {
     /// Retire a single value, for tests that force a specific deallocation order. In production
     /// retirement is driven by `after_instruction` from the last-use sets.
     #[cfg(test)]
-    pub(crate) fn retire<R: RegisterAllocator>(
-        &mut self,
-        brillig_context: &BrilligContext<FieldElement, R>,
-        value_id: &ValueId,
-    ) {
-        self.retire_value(brillig_context, value_id);
+    pub(crate) fn retire(&mut self, value_id: &ValueId) {
+        self.retire_value(value_id);
     }
 }
 
-impl Allocator for GreedyAllocator {
-    fn begin_block<R: RegisterAllocator>(
-        &mut self,
-        brillig_context: &mut BrilligContext<FieldElement, R>,
-        live_in: &mut HashSet<ValueId>,
-    ) -> Vec<(ValueId, MemoryAddress)> {
+impl<R: RegisterAllocator> Allocator for GreedyAllocator<R> {
+    fn begin_block(&mut self, live_in: &mut HashSet<ValueId>) -> Vec<(ValueId, MemoryAddress)> {
         // Strip permanently-spilled live-ins and reset the eviction state for the new block.
         if let Some(sm) = self.spill_manager.as_mut() {
             sm.begin_block(live_in);
@@ -251,25 +232,29 @@ impl Allocator for GreedyAllocator {
                 (*value_id, register)
             })
             .collect();
-        // Pre-allocate the pool with the live-in registers: a fresh allocator instance where these
-        // are already taken (they may be freed and reused if they die in this block, then become
-        // pre-allocated again in a later block, depending on processing order).
-        brillig_context
-            .set_allocated_registers(resident_live_ins.iter().map(|(_, reg)| *reg).collect());
+        // Reseed the pool in place with the live-in registers pre-allocated: a fresh free list
+        // where these are already taken (they may be freed and reused if they die in this block,
+        // then become pre-allocated again in a later block, depending on processing order).
+        // Mutating through the shared `RefCell` (rather than swapping the `Rc`) keeps the handle
+        // the `BrilligContext` holds pointing at the same pool. This is sound because nothing
+        // outlives a block boundary holding an old register: cross-block allocations are detached,
+        // and within-block scratch temporaries are dropped before the next block begins.
+        let layout = self.pool.borrow().layout();
+        let registers = resident_live_ins.iter().map(|(_, reg)| *reg).collect();
+        *self.pool.borrow_mut() = R::from_preallocated_registers(registers, layout);
         // Report the register-resident live-ins so the driver can seed its shadow.
         resident_live_ins
     }
 
-    fn define_variable<R: RegisterAllocator>(
+    fn define_variable(
         &mut self,
-        brillig_context: &BrilligContext<FieldElement, R>,
         value_id: ValueId,
         dfg: &DataFlowGraph,
     ) -> (BrilligVariable, Vec<Action>) {
         // Making room here mirrors the historical `ensure_register_capacity(1)`. When coalescing is
         // active spilling is disabled (they are mutually exclusive), so this is a no-op on the
         // coalesced path below.
-        let actions = self.make_room(brillig_context, 1);
+        let actions = self.make_room(1);
 
         // Check the coalescing map — reuse the block parameter's register if coalesced.
         if let Some(param) = self.coalescing.get_coalesced(&value_id) {
@@ -289,10 +274,9 @@ impl Allocator for GreedyAllocator {
             return (variable, actions);
         }
 
-        // Allocators are rebuilt per block, with visible variables becoming pre-allocated in the
-        // next block; what is allocated in one block might be deallocated in another. Because of
-        // this we detach from the allocator and manage deallocation manually.
-        let variable = allocate_value(value_id, brillig_context, dfg).detach();
+        // Allocate the value's register from the pool. Registers are managed manually (freed at
+        // retirement), not via RAII: a register allocated in one block may be freed in another.
+        let variable = self.allocate_typed(value_id, dfg);
 
         if self.ssa_value_allocations.insert(value_id, variable).is_some() {
             unreachable!("ICE: ValueId {value_id:?} was already in cache");
@@ -306,13 +290,9 @@ impl Allocator for GreedyAllocator {
         (variable, actions)
     }
 
-    fn use_variable<R: RegisterAllocator>(
-        &mut self,
-        brillig_context: &BrilligContext<FieldElement, R>,
-        value_id: ValueId,
-    ) -> (BrilligVariable, Vec<Action>) {
+    fn use_variable(&mut self, value_id: ValueId) -> (BrilligVariable, Vec<Action>) {
         if self.is_spilled(&value_id) {
-            return self.reload_spilled_value(brillig_context, value_id);
+            return self.reload_spilled_value(value_id);
         }
 
         // Already resident: fetch the cached allocation and mark it most-recently-used.
@@ -330,21 +310,11 @@ impl Allocator for GreedyAllocator {
         (variable, Vec::new())
     }
 
-    fn reserve_scratch<R: RegisterAllocator>(
-        &mut self,
-        brillig_context: &BrilligContext<FieldElement, R>,
-        scratch: usize,
-    ) -> Vec<Action> {
-        self.make_room(brillig_context, scratch)
+    fn reserve_scratch(&mut self, scratch: usize) -> Vec<Action> {
+        self.make_room(scratch)
     }
 
-    fn spill_value<R: RegisterAllocator>(
-        &mut self,
-        brillig_context: &BrilligContext<FieldElement, R>,
-        value_id: ValueId,
-        permanent: bool,
-        emit_store: bool,
-    ) -> Vec<Action> {
+    fn spill_value(&mut self, value_id: ValueId, permanent: bool, emit_store: bool) -> Vec<Action> {
         // For a permanent spill, try to promote an existing record first.
         if permanent {
             // A reloaded transient value holds a register that must be freed when promoted to a
@@ -359,7 +329,7 @@ impl Allocator for GreedyAllocator {
                 .ensure_permanent_spill(&value_id);
             if promoted {
                 if was_transient_reloaded {
-                    self.deallocate(brillig_context, &value_id);
+                    self.deallocate(&value_id);
                 }
                 return Vec::new();
             }
@@ -400,7 +370,7 @@ impl Allocator for GreedyAllocator {
             Vec::new()
         };
 
-        self.deallocate(brillig_context, &value_id);
+        self.deallocate(&value_id);
         actions
     }
 
@@ -411,11 +381,7 @@ impl Allocator for GreedyAllocator {
             .map(SpillSlot)
     }
 
-    fn after_instruction<R: RegisterAllocator>(
-        &mut self,
-        brillig_context: &BrilligContext<FieldElement, R>,
-        inst: InstructionId,
-    ) {
+    fn after_instruction(&mut self, inst: InstructionId) {
         let Some(dead) = self.last_uses.get(&inst) else {
             return;
         };
@@ -427,7 +393,7 @@ impl Allocator for GreedyAllocator {
             .filter(|value_id| self.ssa_value_allocations.contains_key(value_id))
             .collect();
         for value_id in dead {
-            self.retire_value(brillig_context, &value_id);
+            self.retire_value(&value_id);
         }
     }
 
@@ -440,14 +406,29 @@ impl Allocator for GreedyAllocator {
     }
 }
 
-impl GreedyAllocator {
+impl<R: RegisterAllocator> GreedyAllocator<R> {
+    /// Allocate a register from the pool for `value_id` and wrap it in the typed [`BrilligVariable`]
+    /// its SSA type calls for. Every variant occupies exactly one register (the single-address
+    /// value, or an array/vector pointer); the size / bit-size are static metadata the driver needs
+    /// to emit typed opcodes, which is the only reason the type is consulted here.
+    fn allocate_typed(&self, value_id: ValueId, dfg: &DataFlowGraph) -> BrilligVariable {
+        let typ = dfg.type_of_value(value_id);
+        let register = self.pool.borrow_mut().allocate_register();
+        match typ.as_ref() {
+            Type::Numeric(_) | Type::Reference(..) | Type::Function => BrilligVariable::SingleAddr(
+                SingleAddrVariable::new(register, get_bit_size_from_ssa_type(&typ)),
+            ),
+            Type::Array(item_typ, elem_count) => BrilligVariable::BrilligArray(BrilligArray {
+                pointer: register,
+                size: compute_array_length(item_typ, *elem_count),
+            }),
+            Type::Vector(_) => BrilligVariable::BrilligVector(BrilligVector { pointer: register }),
+        }
+    }
+
     /// Free a dead value's register (returning it to the pool) and drop its bookkeeping. Called by
     /// `after_instruction` for each value tracked by the allocator whose last use has passed.
-    fn retire_value<R: RegisterAllocator>(
-        &mut self,
-        brillig_context: &BrilligContext<FieldElement, R>,
-        value_id: &ValueId,
-    ) {
+    fn retire_value(&mut self, value_id: &ValueId) {
         if self.is_spilled(value_id) {
             // Spilled: the register was already freed. Just clean up tracking.
             self.spill_manager.as_mut().unwrap().remove_spill(value_id);
@@ -461,7 +442,7 @@ impl GreedyAllocator {
             // register yet; it is freed when the partner dies (or at block-boundary cleanup).
             self.resident.remove_variable_without_dealloc(value_id);
         } else {
-            self.deallocate(brillig_context, value_id);
+            self.deallocate(value_id);
             if let Some(sm) = self.spill_manager.as_mut() {
                 // A value can reach this branch while still owning a spill slot: a transiently
                 // spilled value that was reloaded into a register is no longer spilled, yet its
@@ -487,59 +468,44 @@ impl GreedyAllocator {
     /// Check whether allocating `n` more registers would exceed the stack frame limit. Always
     /// `false` when spilling is disabled (including the globals context, whose spill manager is
     /// absent), matching the historical `building_globals || !spill_enabled` guard.
-    fn needs_spill_for<R: RegisterAllocator>(
-        &self,
-        brillig_context: &BrilligContext<FieldElement, R>,
-        n: usize,
-    ) -> bool {
+    fn needs_spill_for(&self, n: usize) -> bool {
         if self.spill_manager.is_none() {
             return false;
         }
-        brillig_context.registers().available_registers() < n
+        self.pool.borrow().available_registers() < n
     }
 
     /// Ensure there is capacity for `n` more register allocations by spilling if necessary, and
     /// return the stores to emit. It frees registers in the pool and records the spills, but leaves
     /// emission to the driver.
-    fn make_room<R: RegisterAllocator>(
-        &mut self,
-        brillig_context: &BrilligContext<FieldElement, R>,
-        n: usize,
-    ) -> Vec<Action> {
-        if !self.needs_spill_for(brillig_context, n) {
+    fn make_room(&mut self, n: usize) -> Vec<Action> {
+        if !self.needs_spill_for(n) {
             return Vec::new();
         }
         // Spill `n - available` in a batch first (more efficient, and lets consecutive slots share
         // address computation), then fall back to single spills until capacity is met.
-        let available = brillig_context.registers().available_registers();
-        let mut actions = self.spill_lru_values(brillig_context, n.saturating_sub(available));
-        while self.needs_spill_for(brillig_context, n) {
-            actions.extend(self.spill_lru_value(brillig_context));
+        let available = self.pool.borrow().available_registers();
+        let mut actions = self.spill_lru_values(n.saturating_sub(available));
+        while self.needs_spill_for(n) {
+            actions.extend(self.spill_lru_value());
         }
         actions
     }
 
     /// Spill the least-recently-used value.
-    fn spill_lru_value<R: RegisterAllocator>(
-        &mut self,
-        brillig_context: &BrilligContext<FieldElement, R>,
-    ) -> Vec<Action> {
+    fn spill_lru_value(&mut self) -> Vec<Action> {
         let victim_id = self
             .spill_manager
             .as_ref()
             .unwrap()
             .lru_victim(&self.resident)
             .expect("No values available to spill");
-        self.spill_value(brillig_context, victim_id, false, true)
+        self.spill_value(victim_id, false, true)
     }
 
     /// Spill the `k` least-recently-used values, recording all spills before freeing their
     /// registers so the stores can be emitted as one batch.
-    fn spill_lru_values<R: RegisterAllocator>(
-        &mut self,
-        brillig_context: &BrilligContext<FieldElement, R>,
-        k: usize,
-    ) -> Vec<Action> {
+    fn spill_lru_values(&mut self, k: usize) -> Vec<Action> {
         let victims = self.spill_manager.as_ref().unwrap().lru_victims(k, &self.resident);
         if victims.is_empty() {
             return Vec::new();
@@ -572,24 +538,20 @@ impl GreedyAllocator {
         }
 
         for value_id in &victims {
-            self.deallocate(brillig_context, value_id);
+            self.deallocate(value_id);
         }
         actions
     }
 
     /// Reload a previously spilled value into a freshly allocated register.
-    fn reload_spilled_value<R: RegisterAllocator>(
-        &mut self,
-        brillig_context: &BrilligContext<FieldElement, R>,
-        value_id: ValueId,
-    ) -> (BrilligVariable, Vec<Action>) {
+    fn reload_spilled_value(&mut self, value_id: ValueId) -> (BrilligVariable, Vec<Action>) {
         // Ensure capacity for the reload register (may trigger another spill).
-        let mut actions = self.make_room(brillig_context, 1);
+        let mut actions = self.make_room(1);
 
         let spill_record =
             *self.spill_manager.as_ref().unwrap().get_spill(&value_id, &self.resident).unwrap();
 
-        let new_reg = brillig_context.allocate_register().detach();
+        let new_reg = self.pool.borrow_mut().allocate_register();
         actions.push(Action::Reload {
             value: value_id,
             from: SpillSlot(spill_record.offset),
@@ -611,17 +573,13 @@ impl GreedyAllocator {
 
     /// Free a value's current register (which may differ from its definition register after a
     /// reload) and mark it unavailable in the residency model.
-    fn deallocate<R: RegisterAllocator>(
-        &mut self,
-        brillig_context: &BrilligContext<FieldElement, R>,
-        value_id: &ValueId,
-    ) {
+    fn deallocate(&mut self, value_id: &ValueId) {
         self.resident.mark_unavailable(value_id);
         let register = self
             .ssa_value_allocations
             .get(value_id)
             .expect("ICE: Variable allocation not found")
             .extract_register();
-        brillig_context.deallocate_register(register);
+        self.pool.borrow_mut().deallocate_register(register);
     }
 }

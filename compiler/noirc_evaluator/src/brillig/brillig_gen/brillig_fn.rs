@@ -1,4 +1,7 @@
 //! Module containing Brillig-gen logic specific to SSA [Function]'s.
+use std::cell::RefCell;
+use std::rc::Rc;
+
 use iter_extended::vecmap;
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
@@ -11,7 +14,9 @@ use super::{
 };
 use crate::{
     brillig::brillig_ir::{
-        artifact::BrilligParameter, brillig_variable::get_bit_size_from_ssa_type, registers::Stack,
+        artifact::BrilligParameter,
+        brillig_variable::get_bit_size_from_ssa_type,
+        registers::{RegisterAllocator, Stack},
     },
     ssa::ir::{
         basic_block::BasicBlockId,
@@ -28,13 +33,16 @@ use crate::{
 /// This structure is instantiated once per function and used throughout basic block code generation.
 /// It can also represent a non-function context (e.g., global instantiation) to reuse block codegen logic
 /// by leaving its `function_id` field unset.
-#[derive(Default)]
-pub(crate) struct FunctionContext {
+/// Generic over the register region `R` (`Stack` for functions, `GlobalSpace` for global-init
+/// codegen), which the allocator's register pool is typed on. This lines up with the same `R` that
+/// [`BrilligBlock`](super::brillig_block::BrilligBlock) already carries.
+pub(crate) struct FunctionContext<R: RegisterAllocator> {
     /// A `FunctionContext` is necessary for using a Brillig block's code gen, but sometimes
     /// such as with globals, we are not within a function and do not have a [`FunctionId`].
     function_id: Option<FunctionId>,
-    /// The register allocator: the SSA-value → register cache, spill manager, and coalescing map.
-    pub(crate) allocator: GreedyAllocator,
+    /// The register allocator: the register pool, the SSA-value → register cache, spill manager,
+    /// and coalescing map.
+    pub(crate) allocator: GreedyAllocator<R>,
     /// The block ids of the function in Post Order.
     blocks: Vec<BasicBlockId>,
     /// Liveness information for each variable in the function.
@@ -43,7 +51,7 @@ pub(crate) struct FunctionContext {
     pub(crate) constant_allocation: ConstantAllocation,
 }
 
-impl FunctionContext {
+impl<R: RegisterAllocator> FunctionContext<R> {
     /// Creates a new function context. It will allocate parameters for all blocks and compute the liveness of every variable.
     /// Safety margin added to `max_live_count` when deciding whether a function needs
     /// spill infrastructure.
@@ -61,7 +69,11 @@ impl FunctionContext {
     /// It can be tuned if it proves too aggressive or too conservative in practice.
     const SPILL_MARGIN: usize = 32;
 
-    pub(crate) fn new(function: &Function, max_stack_frame_size: usize) -> Self {
+    pub(crate) fn new(
+        function: &Function,
+        max_stack_frame_size: usize,
+        pool: Rc<RefCell<R>>,
+    ) -> Self {
         let id = function.id();
 
         let post_order = PostOrder::with_function(function).into_vec();
@@ -105,10 +117,28 @@ impl FunctionContext {
 
         Self {
             function_id: Some(id),
-            allocator: GreedyAllocator::new(spill_manager, coalescing, last_uses),
+            allocator: GreedyAllocator::new(pool, spill_manager, coalescing, last_uses),
             blocks: post_order,
             liveness,
             constant_allocation: constants,
+        }
+    }
+
+    /// An empty context for global-init codegen: it has no SSA function, so no liveness,
+    /// constants, or spilling — just the allocator holding the global-space pool, which the
+    /// globals block codegen uses to define global values.
+    pub(crate) fn new_for_globals(pool: Rc<RefCell<R>>) -> Self {
+        Self {
+            function_id: None,
+            allocator: GreedyAllocator::new(
+                pool,
+                None,
+                CoalescingMap::default(),
+                HashMap::default(),
+            ),
+            blocks: Vec::new(),
+            liveness: VariableLiveness::default(),
+            constant_allocation: ConstantAllocation::default(),
         }
     }
 
@@ -135,40 +165,6 @@ impl FunctionContext {
         self.function_id.expect("ICE: function_id should already be set")
     }
 
-    /// Collects the return values of a given function
-    pub(crate) fn return_values(func: &Function) -> Vec<BrilligParameter> {
-        func.returns()
-            .unwrap_or_default()
-            .iter()
-            .map(|&value_id| {
-                let typ = func.dfg.type_of_value(value_id);
-                Self::ssa_type_to_parameter(&typ)
-            })
-            .collect()
-    }
-
-    /// Converts an SSA [Type] into a corresponding [`BrilligParameter`].
-    ///
-    /// This conversion defines the calling convention for Brillig functions,
-    /// ensuring that SSA values are correctly mapped to memory layouts understood by the VM.
-    ///
-    /// # Panics
-    /// Panics if called with a vector type, as a vector's memory layout cannot be inferred without runtime data.
-    pub(crate) fn ssa_type_to_parameter(typ: &Type) -> BrilligParameter {
-        match typ {
-            Type::Numeric(_) | Type::Reference(..) | Type::Function => {
-                BrilligParameter::SingleAddr(get_bit_size_from_ssa_type(typ))
-            }
-            Type::Array(item_type, size) => BrilligParameter::Array(
-                vecmap(item_type.iter(), Self::ssa_type_to_parameter),
-                *size,
-            ),
-            Type::Vector(_) => {
-                panic!("ICE: Vector parameters cannot be derived from type information")
-            }
-        }
-    }
-
     /// Iterate blocks in Post Order.
     pub(crate) fn post_order(&self) -> impl ExactSizeIterator<Item = BasicBlockId> {
         self.blocks.iter().copied()
@@ -180,9 +176,47 @@ impl FunctionContext {
     }
 }
 
+/// Collects the return values of a given function.
+pub(crate) fn return_values(func: &Function) -> Vec<BrilligParameter> {
+    func.returns()
+        .unwrap_or_default()
+        .iter()
+        .map(|&value_id| {
+            let typ = func.dfg.type_of_value(value_id);
+            ssa_type_to_parameter(&typ)
+        })
+        .collect()
+}
+
+/// Converts an SSA [Type] into a corresponding [`BrilligParameter`].
+///
+/// This conversion defines the calling convention for Brillig functions,
+/// ensuring that SSA values are correctly mapped to memory layouts understood by the VM.
+///
+/// # Panics
+/// Panics if called with a vector type, as a vector's memory layout cannot be inferred without runtime data.
+pub(crate) fn ssa_type_to_parameter(typ: &Type) -> BrilligParameter {
+    match typ {
+        Type::Numeric(_) | Type::Reference(..) | Type::Function => {
+            BrilligParameter::SingleAddr(get_bit_size_from_ssa_type(typ))
+        }
+        Type::Array(item_type, size) => {
+            BrilligParameter::Array(vecmap(item_type.iter(), ssa_type_to_parameter), *size)
+        }
+        Type::Vector(_) => {
+            panic!("ICE: Vector parameters cannot be derived from type information")
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
+    use acvm::FieldElement;
+
     use super::FunctionContext;
+    use crate::brillig::BrilligOptions;
+    use crate::brillig::brillig_ir::BrilligContext;
+    use crate::brillig::brillig_ir::registers::Stack;
     use crate::ssa::ssa_gen::Ssa;
 
     // A signed `lt` needs max(2 inputs, 1 result) + 3 scratch = 5 usable registers at once,
@@ -202,7 +236,9 @@ mod tests {
         // the floor, so `new` must reject the layout up front instead of deferring to the
         // "Stack frame too deep" panic during codegen.
         let ssa = Ssa::from_str(SIGNED_LT).unwrap();
-        FunctionContext::new(ssa.main(), 6);
+        let brillig_context =
+            BrilligContext::<FieldElement, Stack>::new("test", &BrilligOptions::default());
+        FunctionContext::new(ssa.main(), 6, brillig_context.registers_rc());
     }
 
     #[test]
@@ -212,7 +248,9 @@ mod tests {
         // under-counts by the result count for scratch-bearing instructions, full codegen of
         // this `lt` actually needs one more slot — that residual is left to the codegen panic.)
         let ssa = Ssa::from_str(SIGNED_LT).unwrap();
-        let ctx = FunctionContext::new(ssa.main(), 7);
+        let brillig_context =
+            BrilligContext::<FieldElement, Stack>::new("test", &BrilligOptions::default());
+        let ctx = FunctionContext::new(ssa.main(), 7, brillig_context.registers_rc());
         assert_eq!(ctx.liveness.min_live_count, 5);
     }
 }

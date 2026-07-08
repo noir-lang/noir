@@ -421,7 +421,7 @@ impl VariableLiveness {
     /// This remains a lower bound, not an exact live count: some transients are not
     /// attributed per-instruction. Consumers of the max live count are expected to keep
     /// some extra margin to account for those.
-    /// See this example [spill margin][crate::brillig::brillig_gen::FunctionContext::SPILL_MARGIN].
+    /// See this example [spill margin][crate::brillig::brillig_gen::brillig_fn::FunctionContext::SPILL_MARGIN].
     fn compute_live_count(mut self, func: &Function, constants: &ConstantAllocation) -> Self {
         let mut max_count: usize = 0;
         let mut min_count: usize = 0;

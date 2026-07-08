@@ -156,11 +156,15 @@ impl Brillig {
         globals: &HashMap<ValueId, BrilligVariable>,
         hoisted_global_constants: &HashMap<(FieldElement, NumericType), BrilligVariable>,
         check_max_stack_depth: bool,
-    ) -> (FunctionContext, BrilligContext<FieldElement, Stack>) {
-        let mut function_context =
-            FunctionContext::new(func, options.layout.max_stack_frame_size());
-
+    ) -> (FunctionContext<Stack>, BrilligContext<FieldElement, Stack>) {
         let mut brillig_context = BrilligContext::new(func.name(), options);
+
+        // The allocator shares the context's register pool, so build it after the context exists.
+        let mut function_context = FunctionContext::new(
+            func,
+            options.layout.max_stack_frame_size(),
+            brillig_context.registers_rc(),
+        );
 
         brillig_context.enter_context(Label::function(func.id()));
 

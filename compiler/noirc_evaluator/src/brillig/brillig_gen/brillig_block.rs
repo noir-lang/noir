@@ -31,7 +31,7 @@ use super::constant_allocation::InstructionLocation;
 /// Context structure for compiling a [function block][crate::ssa::ir::basic_block::BasicBlock] into Brillig bytecode.
 pub(crate) struct BrilligBlock<'block, Registers: RegisterAllocator> {
     /// Per-function context shared across all of a function's blocks
-    pub(crate) function_context: &'block mut FunctionContext,
+    pub(crate) function_context: &'block mut FunctionContext<Registers>,
     /// The basic block that is being converted
     pub(crate) block_id: BasicBlockId,
     /// Context for creating brillig opcodes
@@ -61,7 +61,7 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
     /// This method contains the necessary initial variable and register setup for compiling
     /// an SSA block by accessing the pre-computed liveness context.
     pub(crate) fn compile_block(
-        function_context: &'block mut FunctionContext,
+        function_context: &'block mut FunctionContext<Registers>,
         brillig_context: &'block mut BrilligContext<FieldElement, Registers>,
         block_id: BasicBlockId,
         dfg: &DataFlowGraph,
@@ -76,11 +76,8 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
         // Hand the block's live-in set to the allocator; it resets its per-block state (dropping
         // permanently-spilled values), pre-allocates the pool, and returns the register-resident
         // live-ins so we can seed the shadow. Information flows one way: allocator → registers.
-        let registers = function_context
-            .allocator
-            .begin_block(brillig_context, &mut live_in_no_globals)
-            .into_iter()
-            .collect();
+        let registers =
+            function_context.allocator.begin_block(&mut live_in_no_globals).into_iter().collect();
 
         let mut brillig_block = BrilligBlock {
             function_context,
@@ -184,7 +181,7 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
     /// anticipation of such need. The allocator decides which values to evict and returns the spill
     /// stores; the driver emits them.
     pub(crate) fn ensure_register_capacity(&mut self, n: usize) {
-        let actions = self.function_context.allocator.reserve_scratch(self.brillig_context, n);
+        let actions = self.function_context.allocator.reserve_scratch(n);
         self.apply_actions(actions);
     }
 
@@ -244,12 +241,7 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
     /// whose registers don't yet contain the final value.
     /// The Jmp terminators write the value directly into the slot later.
     pub(crate) fn spill_value(&mut self, value_id: ValueId, permanent: bool, emit_store: bool) {
-        let actions = self.function_context.allocator.spill_value(
-            self.brillig_context,
-            value_id,
-            permanent,
-            emit_store,
-        );
+        let actions = self.function_context.allocator.spill_value(value_id, permanent, emit_store);
         self.apply_actions(actions);
     }
 
@@ -367,8 +359,7 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
         value_id: ValueId,
         dfg: &DataFlowGraph,
     ) -> BrilligVariable {
-        let (var, actions) =
-            self.function_context.allocator.define_variable(self.brillig_context, value_id, dfg);
+        let (var, actions) = self.function_context.allocator.define_variable(value_id, dfg);
         self.apply_actions(actions);
         // A definition has no Action carrying the new value (it is written by the driver, not the
         // allocator), so record its register in the shadow here.
@@ -736,7 +727,7 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
         // The instruction has been lowered; tell the allocator to advance past it so it can free
         // the registers of any value whose last use this was. This emits no opcode.
         if !self.building_globals {
-            self.function_context.allocator.after_instruction(self.brillig_context, instruction_id);
+            self.function_context.allocator.after_instruction(instruction_id);
         }
 
         // Clear the call stack; it only applied to this instruction.
@@ -825,10 +816,7 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                 } else {
                     // Already-defined value: the allocator returns its register, reloading it
                     // (and spilling to make room) if it is currently spilled.
-                    let (var, actions) = self
-                        .function_context
-                        .allocator
-                        .use_variable(self.brillig_context, value_id);
+                    let (var, actions) = self.function_context.allocator.use_variable(value_id);
                     self.apply_actions(actions);
                     var
                 }
@@ -843,10 +831,7 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                     // defines each constant directly on first sight and reuses it afterwards.
                     // Globals never spill, so the register shadow is an exact "already defined" test.
                     if self.registers.contains_key(&value_id) {
-                        let (var, actions) = self
-                            .function_context
-                            .allocator
-                            .use_variable(self.brillig_context, value_id);
+                        let (var, actions) = self.function_context.allocator.use_variable(value_id);
                         self.apply_actions(actions);
                         var
                     } else {
@@ -859,10 +844,7 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                     // A non-global numeric constant is materialized at its allocation point by
                     // `initialize_constants` (which dominates all uses), so every reference here is
                     // just a use: the allocator returns its register, reloading it if it was spilled.
-                    let (var, actions) = self
-                        .function_context
-                        .allocator
-                        .use_variable(self.brillig_context, value_id);
+                    let (var, actions) = self.function_context.allocator.use_variable(value_id);
                     self.apply_actions(actions);
                     var
                 }

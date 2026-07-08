@@ -571,6 +571,14 @@ impl<F, Registers: RegisterAllocator> BrilligContext<F, Registers> {
         self.registers = Rc::new(RefCell::new(new_registers));
     }
 
+    /// A shared handle to the register pool, so the register allocator can own the allocation
+    /// decisions while this context keeps using the same pool for its RAII-managed scratch
+    /// temporaries. The allocator reseeds the pool in place at block boundaries (see
+    /// `GreedyAllocator::begin_block`), which is visible here because they share the one `Rc`.
+    pub(crate) fn registers_rc(&self) -> Rc<RefCell<Registers>> {
+        self.registers.clone()
+    }
+
     /// Allocates an unused register.
     pub(crate) fn allocate_register(&self) -> Allocated<MemoryAddress, Registers> {
         let addr = self.registers_mut().allocate_register();

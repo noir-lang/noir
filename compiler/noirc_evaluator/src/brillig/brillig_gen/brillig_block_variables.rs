@@ -29,7 +29,6 @@ use crate::{
         },
     },
     ssa::ir::{
-        dfg::DataFlowGraph,
         types::{CompositeType, Type},
         value::ValueId,
     },
@@ -101,17 +100,6 @@ pub(crate) fn compute_array_length(
     elem_count: SemanticLength,
 ) -> SemiFlattenedLength {
     ElementTypesLength(assert_u32(item_typ.len())) * elem_count
-}
-
-/// For a given [`ValueId`], allocates the necessary registers to hold it.
-pub(crate) fn allocate_value<F, Registers: RegisterAllocator>(
-    value_id: ValueId,
-    brillig_context: &BrilligContext<F, Registers>,
-    dfg: &DataFlowGraph,
-) -> Allocated<BrilligVariable, Registers> {
-    let typ = dfg.type_of_value(value_id).into_owned();
-
-    allocate_value_with_type(brillig_context, typ)
 }
 
 /// For a given [Type], allocates the necessary registers to hold it.
