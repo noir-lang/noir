@@ -1947,3 +1947,27 @@ fn infinite_recursion() {
         panic!("unexpected result: {result:?}")
     };
 }
+
+#[test]
+fn acir_unchecked_signed_add_print_reduces() {
+    // ACIR `main` computes an i8 via `unchecked_add` whose logical value is 0, but in ACIR
+    // mode the interpreter stores the unreduced two's-complement field (256). It hands that
+    // value to a Brillig print wrapper (mirroring the AST fuzzer's generated `print_wrapper`).
+    // `print` must observe the reduced value 0, not the raw field 256.
+    let src = r#"
+        acir(inline) impure fn main f0 {
+          b0():
+            v2 = unchecked_add i8 -1, i8 1
+            call f1(v2)
+            return
+        }
+        brillig(inline) impure fn print_wrapper f1 {
+          b0(v0: i8):
+            v3 = make_array b"{\"kind\":\"signedinteger\",\"width\":8}"
+            call print(u1 1, v0, v3, u1 0)
+            return
+        }
+    "#;
+    let out = expect_printed_output(src);
+    assert_eq!(out, "0\n", "print observed raw unreduced ACIR field instead of reduced 0");
+}
