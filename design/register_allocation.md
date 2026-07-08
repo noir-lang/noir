@@ -405,12 +405,28 @@ trait Allocator {
     // Before a terminator: make its operands available (return values, or a jmpif condition).
     fn before_terminator(&mut self, block: BasicBlockId) -> Vec<Action>;
 
-    // Cross-block reconciliation for one edge: jmp args -> destination-param registers, plus any
-    // split reloads. Edge-centric (a 2-successor block differs per edge); the driver places it
-    // (pred exit / succ entry / branch path).
-    fn resolve_edge(&self, pred: BasicBlockId, succ: BasicBlockId) -> Vec<Action>;
+    // Cross-block reconciliation for one edge. In the shipped (fixed-home) form this returns a
+    // `ParamHome` per destination parameter — the register to move the jmp argument into, or the
+    // slot to store it to — and the driver emits the move/store (and, for a `JmpIf` then-edge,
+    // guards them with the branch condition). Non-parameter values crossing the edge need no entry
+    // here: with fixed homes a resident value is already in its one register, and a value reconciled
+    // through its slot is spilled by `before_terminator` and reloaded on demand in the successor. The
+    // `Vec<Action>` form (destination-valued Move/Reload, see "Resolution") is the interval-splitting
+    // upgrade, needed only to keep a value resident across one out-edge while spilling it across
+    // another; the base plan does not require it.
+    fn resolve_edge(&self, pred: BasicBlockId, succ: BasicBlockId) -> Vec<ParamHome>;
 
     // The coalescing map (union-find groups) is a construction-time INPUT, not a method.
+}
+
+// Where a destination parameter lives on an edge, as reported by `resolve_edge`. The source
+// (the jmp argument) is materialized separately by `use_variable`, which reloads it and reports
+// its register, so a spilled-argument-into-spilled-parameter pass is `use_variable`'s Reload
+// (slot -> register) followed by the Slot store below — Brillig has no memory-to-memory move, so
+// the register is a mandatory intermediate regardless.
+enum ParamHome {
+    Register(MemoryAddress), // move the argument into this register
+    Slot(SpillSlot),         // store the argument to this slot
 }
 ```
 
@@ -461,10 +477,12 @@ Notes on the interface:
   position instead.
 - **Terminators and the entry.** `before_terminator` + `resolve_edge` cover all terminators: a
   `Return` uses only `before_terminator` (reload return values); a `Jmp` uses only `resolve_edge`
-  (arg → param moves); a `JmpIf` uses both (condition via `before_terminator`, moves via
-  `resolve_edge`). Entry-block parameters arrive at ABI-fixed slots, so they are **fixed intervals**
-  (Wimmer's term for pre-colored intervals) the allocator must *honor* rather than assign —
-  surfaced through `define_variable` returning their fixed location with no spill.
+  (pass args to their params' homes); a `JmpIf` uses both (condition via `before_terminator`, arg
+  passing via `resolve_edge`, guarded by the condition on the then-edge). `before_terminator` also
+  carries the non-parameter cross-block reconciliation (see "Resolution"), so `resolve_edge` is
+  purely about parameters. Entry-block parameters arrive at ABI-fixed slots, so they are **fixed
+  intervals** (Wimmer's term for pre-colored intervals) the allocator must *honor* rather than
+  assign — surfaced through `define_variable` returning their fixed location with no spill.
 
 - **Operand residency is per-operand, not batched.** The design originally split instruction setup
   into a batched `before_instruction(inst)` — reload all operands *and* reserve scratch in one call —
@@ -602,14 +620,43 @@ only asymmetry is *access cost* (a register is a free operand; a spill slot need
 see "Not in scope" below) and *supply* (registers are a fixed budget, slots elastic). One can model
 registers + slots as a single location pool where registers are the cheap locations.
 
-**Resolution** is **edge-centric**. `resolve_edge(pred, succ)` computes the actions needed on a
-specific edge; reconciliation is required *only where a value's location differs across a merge*
-(register on one predecessor, spilled — or a different register — on another). When it must
+**Resolution** is **edge-centric**. `resolve_edge(pred, succ)` computes what a specific edge needs;
+reconciliation is required *only where a value's location differs across a merge* (register on one
+predecessor, spilled — or, under interval splitting, a different register — on another). When it must
 reconcile, it chooses the direction that wastes fewer registers: e.g. store-to-match on the
 in-register edge rather than reload-into-a-register early and tie that register up through blocks
 where the value is idle.
 
-The merge-entry location is a plan decision, and the "picture of both predecessors" lives in the
+**What the shipped `resolve_edge` returns, and why non-param values need no entry.** The extracted
+greedy allocator (Phase 0.5) returns a `ParamHome` per destination parameter — `Register(r)` to move
+the argument into, or `Slot(s)` to store it to — and nothing else. That is complete because of the
+**fixed-home** rule: each value has one register `R_v` and one slot `S_v` for its whole life, so a
+non-parameter value crossing an edge is reconciled by *state*, not *location*, with only four cases:
+
+| pred exit → succ entry | edge action |
+|---|---|
+| `R_v → R_v` | none — same register (the point of fixed homes) |
+| `S_v → S_v` | none — same slot |
+| `R_v → S_v` | store `v` to `S_v` |
+| `S_v → R_v` | reload `v` from `S_v` |
+
+The two non-trivial cases are carried by **`before_terminator`** — which already returns `Vec<Action>`
+for exactly this, spilling cross-block live-ins — and by on-demand **`use_variable`** reloads in the
+successor, *not* by `resolve_edge`. So `resolve_edge` never has to name a non-parameter value: the
+source side of a parameter pass is materialized by `use_variable` (which reports the argument's
+register, reloading it if it was spilled), and everything else crossing the edge already sits in its
+one fixed home. `ParamHome` is therefore a correct, stable interface for the base fixed-home plan.
+
+The **one** thing it cannot express is keeping a value *resident across one out-edge of a branching
+block while spilling it across another* — a per-out-edge, non-parameter decision a per-*block*
+`before_terminator` cannot make. That is the interval-splitting optimization, and it is the sole
+reason to upgrade `resolve_edge` to the destination-valued `Vec<Action>` form described next. The
+correctness-preserving fallback is always available — spill uniformly in `before_terminator` and let
+the successor reload (what greedy does) — at the cost of a reload the resident edge did not need.
+
+*The remainder of this section describes that `Vec<Action>` upgrade: per-edge resolution of arbitrary
+(including non-parameter) values, which subsumes the split-residency case.* The merge-entry location
+is a plan decision, and the "picture of both predecessors" lives in the
 plan rather than being reconstructed at codegen time. The RPO construction pass processes every
 predecessor before the merge, so it knows the value's location at each predecessor's exit and picks
 the entry home once; `resolve_edge(pred, succ)` is then a per-edge lookup comparing that
