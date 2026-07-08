@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1783505869248,
+  "lastUpdate": 1783505872206,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -35077,105 +35077,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "49558828+AztecBot@users.noreply.github.com",
-            "name": "Aztec Bot",
-            "username": "AztecBot"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "f807e4b801ffc66c03ed33d0b44f70f5734d0e8b",
-          "message": "chore: resolve array_get through a cached array view (#12745)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>\nCo-authored-by: Claude Opus 4.8 <noreply@anthropic.com>\nCo-authored-by: Akosh Farkash <aakoshh@gmail.com>",
-          "timestamp": "2026-07-02T11:00:40Z",
-          "tree_id": "d3eaba52017871b1819b898624f6bcc19bedd7a8",
-          "url": "https://github.com/noir-lang/noir/commit/f807e4b801ffc66c03ed33d0b44f70f5734d0e8b"
-        },
-        "date": 1782992086553,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 1.986,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 1.802,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 1.726,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-first-empty-tx",
-            "value": 1.894,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 2.1,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 2.32,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-checkpoint-merge",
-            "value": 2.012,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-checkpoint-root-single-block",
-            "value": 2.69,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-checkpoint-root",
-            "value": 2.78,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 2.226,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-tx-base-private",
-            "value": 1.23,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-tx-base-public",
-            "value": 2.314,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-tx-merge",
-            "value": 2.168,
-            "unit": "s"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 0.391,
-            "unit": "s"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 0.361,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "15848336+TomAFrench@users.noreply.github.com",
             "name": "Tom French",
             "username": "TomAFrench"
@@ -40020,6 +39921,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "sha512-100-bytes",
             "value": 0.367,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49558828+AztecBot@users.noreply.github.com",
+            "name": "Aztec Bot",
+            "username": "AztecBot"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "7fdc101f35e1f1801835009b91518704d06e040e",
+          "message": "fix(ssa): reduce numeric values to range when printing in the SSA interpreter (#13282)",
+          "timestamp": "2026-07-08T09:44:41Z",
+          "tree_id": "9e3b6b06ad8f9f642f5d0bb8eea6958f76df0058",
+          "url": "https://github.com/noir-lang/noir/commit/7fdc101f35e1f1801835009b91518704d06e040e"
+        },
+        "date": 1783505789133,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 1.892,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 2.024,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.758,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-first-empty-tx",
+            "value": 2.144,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 2.17,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 2.28,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-checkpoint-merge",
+            "value": 2.09,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-checkpoint-root-single-block",
+            "value": 2.8,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-checkpoint-root",
+            "value": 2.77,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.746,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-tx-base-private",
+            "value": 2.282,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-tx-base-public",
+            "value": 2.352,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-tx-merge",
+            "value": 2.108,
+            "unit": "s"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.412,
+            "unit": "s"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 0.381,
             "unit": "s"
           }
         ]
