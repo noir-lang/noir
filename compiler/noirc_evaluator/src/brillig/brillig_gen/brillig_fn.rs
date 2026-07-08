@@ -5,6 +5,7 @@ use crate::{
     brillig::brillig_ir::{
         artifact::BrilligParameter,
         brillig_variable::{BrilligVariable, get_bit_size_from_ssa_type},
+        registers::Stack,
     },
     ssa::ir::{
         basic_block::BasicBlockId,
@@ -82,6 +83,20 @@ impl FunctionContext {
         let post_order = PostOrder::with_function(function).into_vec();
         let constants = ConstantAllocation::from_function(function);
         let liveness = VariableLiveness::from_function(function, &constants);
+
+        // A single instruction's operands and scratch registers must all be resident at once;
+        // no amount of spilling can lower it in a frame that cannot hold them. Enforce that floor
+        // up front with a clear diagnostic, rather than letting codegen hit the reactive
+        // "Stack frame too deep" panic once an allocation overflows. The floor is compared against
+        // the *usable* slots — the frame minus the reserved prologue slots.
+        let usable_registers = max_stack_frame_size.saturating_sub(Stack::START_OFFSET);
+        assert!(
+            liveness.min_live_count <= usable_registers,
+            "Brillig function {id} has an instruction that needs at least {} registers, but only \
+             {usable_registers} are usable in a frame of max_stack_frame_size {max_stack_frame_size}",
+            liveness.min_live_count,
+        );
+
         let needs_spill_support =
             liveness.max_live_count + Self::SPILL_MARGIN >= max_stack_frame_size;
 
@@ -171,5 +186,42 @@ impl FunctionContext {
     /// Iterate blocks in Reverse Post Order.
     pub(crate) fn reverse_post_order(&self) -> impl ExactSizeIterator<Item = BasicBlockId> {
         self.blocks.iter().copied().rev()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::FunctionContext;
+    use crate::ssa::ssa_gen::Ssa;
+
+    // A signed `lt` needs max(2 inputs, 1 result) + 3 scratch = 5 usable registers at once,
+    // none of which can be spilled around.
+    const SIGNED_LT: &str = "
+        brillig(inline) fn main f0 {
+          b0(v0: i32, v1: i32):
+            v2 = lt v0, v1
+            return v2
+        }
+        ";
+
+    #[test]
+    #[should_panic(expected = "needs at least 5 registers, but only 4 are usable")]
+    fn new_asserts_frame_fits_per_instruction_floor() {
+        // Frame 6 leaves only 4 usable slots (2 are reserved for the prologue), one short of
+        // the floor, so `new` must reject the layout up front instead of deferring to the
+        // "Stack frame too deep" panic during codegen.
+        let ssa = Ssa::from_str(SIGNED_LT).unwrap();
+        FunctionContext::new(ssa.main(), 6);
+    }
+
+    #[test]
+    fn new_accepts_frame_when_the_floor_fits_the_usable_slots() {
+        // Frame 7 leaves 5 usable slots, exactly the floor, so the assertion passes.
+        // (`new` validates only this per-instruction lower bound; because `min_live_count`
+        // under-counts by the result count for scratch-bearing instructions, full codegen of
+        // this `lt` actually needs one more slot — that residual is left to the codegen panic.)
+        let ssa = Ssa::from_str(SIGNED_LT).unwrap();
+        let ctx = FunctionContext::new(ssa.main(), 7);
+        assert_eq!(ctx.liveness.min_live_count, 5);
     }
 }
