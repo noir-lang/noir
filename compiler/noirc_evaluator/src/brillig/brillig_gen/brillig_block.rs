@@ -36,12 +36,13 @@ pub(crate) struct BrilligBlock<'block, Registers: RegisterAllocator> {
     pub(crate) block_id: BasicBlockId,
     /// Context for creating brillig opcodes
     pub(crate) brillig_context: &'block mut BrilligContext<FieldElement, Registers>,
-    /// The per-block register shadow: where each register-resident value currently lives, as
-    /// codegen needs it to emit opcodes. This is a one-way projection of the allocator's state —
-    /// seeded by [`Allocator::begin_block`] and updated by applying the [`Action`]s the allocator
-    /// returns and the addresses from `define_variable`/`use_variable`. Codegen never writes back
-    /// to the allocator, which is what lets the allocator implementation be swapped freely.
-    pub(crate) shadow: HashMap<ValueId, MemoryAddress>,
+    /// Where each register-resident value currently lives, as codegen needs it to emit opcodes.
+    ///
+    /// This *shadows* the allocator's state: it is a one-way projection, seeded by
+    /// [`Allocator::begin_block`] and updated by applying the [`Action`]s the allocator returns and
+    /// the addresses from `define_variable`/`use_variable`. Codegen never writes back to the
+    /// allocator, which is what lets the allocator implementation be swapped freely.
+    pub(crate) registers: HashMap<ValueId, MemoryAddress>,
     /// For each instruction, the set of values that are not used anymore after it.
     pub(crate) last_uses: HashMap<InstructionId, HashSet<ValueId>>,
 
@@ -85,14 +86,14 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
         brillig_context.set_allocated_registers(
             resident_live_ins.iter().map(|(_, register)| *register).collect(),
         );
-        let shadow = resident_live_ins.into_iter().collect();
+        let registers = resident_live_ins.into_iter().collect();
         let last_uses = function_context.liveness.get_last_uses(&block_id).clone();
 
         let mut brillig_block = BrilligBlock {
             function_context,
             block_id,
             brillig_context,
-            shadow,
+            registers,
             last_uses,
             globals,
             hoisted_global_constants,
@@ -291,21 +292,21 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
             match action {
                 Action::Spill { value, from, to } => {
                     pending_stores.push((to.offset(), from));
-                    self.shadow.remove(&value);
+                    self.registers.remove(&value);
                 }
                 Action::Reload { value, from, into } => {
                     if !pending_stores.is_empty() {
                         self.codegen_spill_stores(std::mem::take(&mut pending_stores));
                     }
                     self.codegen_spill_load(from.offset(), into);
-                    self.shadow.insert(value, into);
+                    self.registers.insert(value, into);
                 }
                 Action::Move { value, from, to } => {
                     if !pending_stores.is_empty() {
                         self.codegen_spill_stores(std::mem::take(&mut pending_stores));
                     }
                     self.brillig_context.mov_instruction(to, from);
-                    self.shadow.insert(value, to);
+                    self.registers.insert(value, to);
                 }
             }
         }
@@ -384,7 +385,7 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
         self.apply_actions(actions);
         // A definition has no Action carrying the new value (it is written by the driver, not the
         // allocator), so record its register in the shadow here.
-        self.shadow.insert(value_id, var.extract_register());
+        self.registers.insert(value_id, var.extract_register());
         var
     }
 
@@ -547,7 +548,7 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                     None => self.codegen_spill_store(slot.offset(), arg_reg),
                 }
             } else {
-                let param_reg = self.shadow[param];
+                let param_reg = self.registers[param];
 
                 // Filter out self-moves (e.g. from coalesced args that already share the param register).
                 if arg_reg != param_reg {
@@ -759,7 +760,7 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                     self.function_context.allocator.retire(self.brillig_context, dead_variable);
                     // Retirement frees a register but emits no opcode/Action, so drop the value from
                     // the shadow here to keep it in step with the allocator.
-                    self.shadow.remove(dead_variable);
+                    self.registers.remove(dead_variable);
                 }
             }
         }
@@ -845,7 +846,7 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                 // Check spilled/allocated before materializing — a spilled value is not in the
                 // shadow, so a shadow check alone would miss it. Either way an already-defined
                 // constant is served by the allocator (reloaded if spilled).
-                if self.is_spilled(&value_id) || self.shadow.contains_key(&value_id) {
+                if self.is_spilled(&value_id) || self.registers.contains_key(&value_id) {
                     let (var, actions) = self
                         .function_context
                         .allocator
