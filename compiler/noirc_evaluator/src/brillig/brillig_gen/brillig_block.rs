@@ -22,6 +22,7 @@ use num_bigint::BigUint;
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 use std::collections::BTreeSet;
 
+use super::allocator::{Action, SpillSlot};
 use super::brillig_block_variables::{BlockVariables, allocate_value_with_type};
 use super::brillig_fn::FunctionContext;
 use super::brillig_globals::HoistedConstantsToBrilligGlobals;
@@ -331,7 +332,10 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
         // the slot still holds the correct value (SSA values are immutable) so the store
         // would be redundant.
         if emit_store && prior_offset.is_none() {
-            self.codegen_spill_store(offset, var.extract_register());
+            self.apply_actions([Action::Spill {
+                from: var.extract_register(),
+                to: SpillSlot(offset),
+            }]);
         }
 
         self.variables.remove_variable(&value_id, self.function_context, self.brillig_context);
@@ -345,6 +349,35 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
     fn codegen_spill_load(&mut self, offset: usize, dest_reg: MemoryAddress) {
         let addr = self.codegen_spill_slot_address(offset);
         self.brillig_context.load_instruction(dest_reg, addr);
+    }
+
+    /// Emit the opcodes for a sequence of allocator [`Action`]s.
+    ///
+    /// This is the codegen side of the allocator seam: the decisions (which value goes where,
+    /// what to spill) are made elsewhere and expressed as [`Action`]s; this method only lowers
+    /// them to Brillig opcodes. Consecutive [`Action::Spill`]s are emitted as a batch so a run of
+    /// adjacent slots can share address computation (see [`Self::codegen_spill_stores`]); a lone
+    /// spill lowers identically to a direct store.
+    fn apply_actions(&mut self, actions: impl IntoIterator<Item = Action>) {
+        // Accumulate a run of spills so they can share slot-address computation, flushing the run
+        // before any reload so store/load ordering is preserved.
+        let mut pending_stores: Vec<(usize, MemoryAddress)> = Vec::new();
+        for action in actions {
+            match action {
+                Action::Spill { from, to, .. } => {
+                    pending_stores.push((to.offset(), from));
+                }
+                Action::Reload { from, into, .. } => {
+                    if !pending_stores.is_empty() {
+                        self.codegen_spill_stores(std::mem::take(&mut pending_stores));
+                    }
+                    self.codegen_spill_load(from.offset(), into);
+                }
+            }
+        }
+        if !pending_stores.is_empty() {
+            self.codegen_spill_stores(pending_stores);
+        }
     }
 
     /// Return a register holding `spill_base + offset`.
@@ -403,12 +436,12 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
             let offset = prior_offset.unwrap_or_else(|| sm.allocate_spill_offset());
             sm.record_spill(*value_id, offset, var, &self.variables);
             if prior_offset.is_none() {
-                stores.push((offset, var.extract_register()));
+                stores.push(Action::Spill { from: var.extract_register(), to: SpillSlot(offset) });
             }
         }
 
         // Emit the stores while the source registers are still allocated, then free them.
-        self.codegen_spill_stores(stores);
+        self.apply_actions(stores);
         for value_id in &victims {
             self.variables.remove_variable(value_id, self.function_context, self.brillig_context);
         }
@@ -426,7 +459,10 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
 
         let new_reg = self.brillig_context.allocate_register().detach();
 
-        self.codegen_spill_load(spill_record.offset, new_reg);
+        self.apply_actions([Action::Reload {
+            from: SpillSlot(spill_record.offset),
+            into: new_reg,
+        }]);
 
         // Create updated variable with new register
         let new_var = spill_record.variable.with_register(new_reg);
