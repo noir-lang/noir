@@ -38,8 +38,8 @@
 //!
 //! - Before making room for a fresh value, [`BrilligBlock::ensure_register_capacity`] asks
 //!   [`SpillManager::lru_victim`] for the least-recently-used value (the LRU only ever holds
-//!   register-resident values) and spills it via [`BrilligBlock::spill_value`]. That emits the
-//!   store, records the slot, and frees the register.
+//!   register-resident values) and spills it: recording the slot, returning the store for the
+//!   driver to emit, and freeing the register.
 //! - When a spilled value is needed, the allocator's reload path ([`Allocator::use_variable`])
 //!   allocates a fresh register and returns a load action; re-adding the value to the register set
 //!   is what marks it no longer spilled (the slot is kept, since the load may re-execute in a loop
@@ -55,7 +55,6 @@
 //! [`LayoutConfig`]: crate::brillig::brillig_ir::LayoutConfig
 //! [`BlockVariables`]: super::brillig_block_variables::BlockVariables
 //! [`BrilligBlock::ensure_register_capacity`]: super::brillig_block::BrilligBlock::ensure_register_capacity
-//! [`BrilligBlock::spill_value`]: super::brillig_block::BrilligBlock::spill_value
 //! [`Allocator::use_variable`]: super::allocator::Allocator::use_variable
 
 use std::collections::BTreeSet;
@@ -933,7 +932,7 @@ mod tests {
 
     /// Promoting a reloaded permanent value back to spilled must drop it from the LRU, otherwise
     /// a spilled value lingers as an eviction candidate. In real codegen this happens for a
-    /// JmpIf condition re-spilled by `spill_non_param_live_ins` then reloaded, with
+    /// JmpIf condition re-spilled by the allocator's `before_terminator` then reloaded, with
     /// `ensure_register_capacity` querying `lru_victim` in between.
     #[test]
     fn ensure_permanent_spill_drops_reloaded_value_from_lru() {

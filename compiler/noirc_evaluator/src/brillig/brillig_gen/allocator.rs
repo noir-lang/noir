@@ -27,10 +27,12 @@ use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 use super::brillig_block_variables::{BlockVariables, compute_array_length};
 use super::coalescing::CoalescingMap;
 use super::spill_manager::SpillManager;
+use super::variable_liveness::VariableLiveness;
 use crate::brillig::brillig_ir::brillig_variable::{
     BrilligArray, BrilligVariable, BrilligVector, SingleAddrVariable, get_bit_size_from_ssa_type,
 };
 use crate::brillig::brillig_ir::registers::RegisterAllocator;
+use crate::ssa::ir::basic_block::BasicBlockId;
 use crate::ssa::ir::dfg::DataFlowGraph;
 use crate::ssa::ir::instruction::InstructionId;
 use crate::ssa::ir::types::Type;
@@ -83,11 +85,17 @@ pub(crate) enum Action {
 /// count is always one, but the driver needs the typed [`BrilligVariable`] wrapper. A linear-scan
 /// implementation would precompute the type shapes and drop even that.
 pub(crate) trait Allocator {
-    /// Re-seed for a new block. `live_in` is the block's non-global live-in set; the allocator
-    /// strips permanently-spilled values from it (they are reloaded on demand, not pre-allocated),
-    /// resets its per-block eviction state, pre-allocates the register pool with the resident
-    /// live-ins, and returns them so the driver can seed its shadow.
-    fn begin_block(&mut self, live_in: &mut HashSet<ValueId>) -> Vec<(ValueId, MemoryAddress)>;
+    /// Enter a block: reset per-block eviction state, pre-allocate the register pool with the
+    /// block's register-resident live-ins, and define the block parameters this block is
+    /// responsible for (its own, plus those of the blocks it immediately dominates). Returns the
+    /// register-resident values (live-ins and register-homed params) so the driver can seed its
+    /// register map. Values that live across a block boundary are handled by the allocator's own
+    /// cross-block policy (for the greedy allocator, a permanent spill), so they are not returned.
+    fn begin_block(
+        &mut self,
+        block: BasicBlockId,
+        dfg: &DataFlowGraph,
+    ) -> (Vec<(ValueId, MemoryAddress)>, Vec<Action>);
 
     /// Bring a value into existence at its definition point (a constant, an instruction result, or
     /// a parameter). Reserves its register — spilling LRU victims first if the frame is full — and
@@ -119,24 +127,37 @@ pub(crate) trait Allocator {
     /// live in the driver's globals map and are reserved for the whole program — are skipped.
     fn after_instruction(&mut self, inst: InstructionId);
 
-    /// Spill a value to a slot, freeing its register. `permanent` slots survive the whole function
-    /// (used for cross-block values); `emit_store = false` skips the store for block parameters
-    /// whose register does not yet hold the final value. Returns the store to emit, if any.
-    ///
-    /// This is the terminator/edge spilling primitive the current greedy driver still calls
-    /// directly; the design folds it into `before_terminator`/`resolve_edge` (Phase 1), at which
-    /// point it stops being part of the trait surface.
-    fn spill_value(&mut self, value_id: ValueId, permanent: bool, emit_store: bool) -> Vec<Action>;
+    /// Prepare for `block`'s terminator: settle the location of every value that lives across an
+    /// outgoing edge, before the terminator's operands are read. Returns the memory traffic to emit
+    /// (for the greedy allocator, permanent spills of the cross-block live-ins of each successor).
+    fn before_terminator(&mut self, block: BasicBlockId, dfg: &DataFlowGraph) -> Vec<Action>;
 
-    /// The permanent spill slot of a value, if it has one. Used by the terminator to write a jmp
-    /// argument straight into its destination parameter's slot; subsumed by `resolve_edge`.
-    fn permanent_spill_slot(&self, value_id: &ValueId) -> Option<SpillSlot>;
+    /// Where each parameter of `succ` lives, so the driver can pass a jmp's arguments to them —
+    /// a register-to-register move for a register-homed param, or a store to its slot for a
+    /// spill-homed one. This is per-edge because a value's home can differ per predecessor under a
+    /// splitting allocator; the greedy allocator's homes are per-value, so it ignores `pred`.
+    fn resolve_edge(
+        &self,
+        pred: BasicBlockId,
+        succ: BasicBlockId,
+        dfg: &DataFlowGraph,
+    ) -> Vec<ParamHome>;
 
     /// Whether spilling is enabled for this function (there is a spill manager).
     fn spill_enabled(&self) -> bool;
 
     /// The high-water mark of spill slots used, for sizing the spill prologue (0 if none).
     fn max_spill_offset(&self) -> usize;
+}
+
+/// Where a block parameter lives, as reported by [`Allocator::resolve_edge`], telling the driver
+/// how to pass a jmp argument to it.
+#[derive(Clone, Copy, Debug)]
+pub(crate) enum ParamHome {
+    /// The parameter is register-homed: move the argument into this register.
+    Register(MemoryAddress),
+    /// The parameter is spill-homed (permanently spilled): store the argument into this slot.
+    Slot(SpillSlot),
 }
 
 /// The concrete "greedy + LRU spilling" allocator.
@@ -166,21 +187,26 @@ pub(crate) struct GreedyAllocator<R: RegisterAllocator> {
     spill_manager: Option<SpillManager>,
     /// Coalescing map for jmp argument → block parameter register sharing.
     coalescing: CoalescingMap,
+    /// Per-variable liveness for the function. Immutable during codegen; the allocator reads it to
+    /// know a block's live-ins and the block parameters it defines (`begin_block`) and the
+    /// successors' cross-block live-ins to spill (`before_terminator`).
+    liveness: VariableLiveness,
     /// For each instruction, the values whose last use it is — i.e. those that die once the
     /// instruction has been lowered. The allocator retires them in `after_instruction`, freeing
-    /// their registers for reuse later in the block. Keyed by the globally-unique `InstructionId`,
-    /// so a single function-wide map suffices.
+    /// their registers for reuse later in the block. Keyed by the globally-unique `InstructionId`
+    /// (derived from `liveness`), so a single function-wide map suffices.
     last_uses: HashMap<InstructionId, HashSet<ValueId>>,
 }
 
 impl<R: RegisterAllocator> GreedyAllocator<R> {
-    /// Build the greedy allocator with a shared handle to the register pool, plus the spill manager
-    /// and coalescing map decided by [`FunctionContext::new`](super::brillig_fn::FunctionContext::new)
-    /// and the per-instruction last-use sets it retires against.
+    /// Build the greedy allocator with a shared handle to the register pool, plus the spill manager,
+    /// coalescing map, liveness, and per-instruction last-use sets decided by
+    /// [`FunctionContext::new`](super::brillig_fn::FunctionContext::new).
     pub(crate) fn new(
         pool: Rc<RefCell<R>>,
         spill_manager: Option<SpillManager>,
         coalescing: CoalescingMap,
+        liveness: VariableLiveness,
         last_uses: HashMap<InstructionId, HashSet<ValueId>>,
     ) -> Self {
         Self {
@@ -189,6 +215,7 @@ impl<R: RegisterAllocator> GreedyAllocator<R> {
             ssa_value_allocations: HashMap::default(),
             spill_manager,
             coalescing,
+            liveness,
             last_uses,
         }
     }
@@ -205,6 +232,12 @@ impl<R: RegisterAllocator> GreedyAllocator<R> {
         self.coalescing.get_coalesced(value_id)
     }
 
+    /// The liveness the allocator was built with. Exposed for tests.
+    #[cfg(test)]
+    pub(crate) fn liveness(&self) -> &VariableLiveness {
+        &self.liveness
+    }
+
     /// Retire a single value, for tests that force a specific deallocation order. In production
     /// retirement is driven by `after_instruction` from the last-use sets.
     #[cfg(test)]
@@ -214,24 +247,26 @@ impl<R: RegisterAllocator> GreedyAllocator<R> {
 }
 
 impl<R: RegisterAllocator> Allocator for GreedyAllocator<R> {
-    fn begin_block(&mut self, live_in: &mut HashSet<ValueId>) -> Vec<(ValueId, MemoryAddress)> {
-        // Strip permanently-spilled live-ins and reset the eviction state for the new block.
-        if let Some(sm) = self.spill_manager.as_mut() {
-            sm.begin_block(live_in);
-        }
-        // Seed the allocator's residency with the (non-spilled) live-ins.
-        self.resident = BlockVariables::new(live_in.clone());
-        let resident_live_ins: Vec<(ValueId, MemoryAddress)> = live_in
+    fn begin_block(
+        &mut self,
+        block: BasicBlockId,
+        dfg: &DataFlowGraph,
+    ) -> (Vec<(ValueId, MemoryAddress)>, Vec<Action>) {
+        // The block's register-resident live-ins are the live-in values the allocator tracks
+        // (globals/hoisted constants are never in `ssa_value_allocations`) minus any that are
+        // permanently spilled — those are reloaded on demand, not pre-allocated.
+        let mut live_in: HashSet<ValueId> = self
+            .liveness
+            .get_live_in(&block)
             .iter()
-            .map(|value_id| {
-                let register = self
-                    .ssa_value_allocations
-                    .get(value_id)
-                    .unwrap_or_else(|| panic!("ICE: live-in {value_id} not allocated"))
-                    .extract_register();
-                (*value_id, register)
-            })
+            .copied()
+            .filter(|value_id| self.ssa_value_allocations.contains_key(value_id))
             .collect();
+        if let Some(sm) = self.spill_manager.as_mut() {
+            sm.begin_block(&mut live_in);
+        }
+        self.resident = BlockVariables::new(live_in.clone());
+
         // Reseed the pool in place with the live-in registers pre-allocated: a fresh free list
         // where these are already taken (they may be freed and reused if they die in this block,
         // then become pre-allocated again in a later block, depending on processing order).
@@ -241,10 +276,36 @@ impl<R: RegisterAllocator> Allocator for GreedyAllocator<R> {
         // and within-block scratch temporaries are dropped before the next block begins. The reset
         // bumps the pool's generation, so any register that *did* survive panics on drop rather
         // than corrupting the reseeded free list.
-        let registers = resident_live_ins.iter().map(|(_, reg)| *reg).collect();
+        let registers = live_in
+            .iter()
+            .map(|value_id| self.ssa_value_allocations[value_id].extract_register())
+            .collect();
         self.pool.borrow_mut().reset_to_preallocated(registers);
-        // Report the register-resident live-ins so the driver can seed its shadow.
-        resident_live_ins
+
+        // Define the block parameters this block is responsible for: its own, plus those of the
+        // blocks it immediately dominates (so a predecessor's jmp can write to them, and the
+        // dominated block can read them, from a home reserved before either runs). A successor
+        // param does not hold valid data until a jmp writes it, so it is eagerly given a permanent
+        // spill home; the block's own params already hold data from the predecessor. Defining a
+        // param may spill under pressure, so collect the resulting stores for the driver to emit.
+        let mut actions = Vec::new();
+        let own_params: HashSet<ValueId> = dfg[block].parameters().iter().copied().collect();
+        for param_id in self.liveness.defined_block_params(&block) {
+            let (_, param_actions) = self.define_variable(param_id, dfg);
+            actions.extend(param_actions);
+            if !own_params.contains(&param_id) && self.spill_manager.is_some() {
+                actions.extend(self.spill_value(param_id, true, false));
+            }
+        }
+
+        // Report the register-resident values (live-ins and register-homed params) so the driver
+        // can seed its register map.
+        let resident: Vec<ValueId> = self.resident.iter().copied().collect();
+        let seed = resident
+            .into_iter()
+            .map(|value_id| (value_id, self.ssa_value_allocations[&value_id].extract_register()))
+            .collect();
+        (seed, actions)
     }
 
     fn define_variable(
@@ -315,13 +376,94 @@ impl<R: RegisterAllocator> Allocator for GreedyAllocator<R> {
         self.make_room(scratch)
     }
 
+    fn before_terminator(&mut self, block: BasicBlockId, dfg: &DataFlowGraph) -> Vec<Action> {
+        if self.spill_manager.is_none() {
+            return Vec::new();
+        }
+        // Permanently spill the non-param values that are live into a successor, before the
+        // terminator's operands are read (the arg conversion / condition reload may otherwise
+        // overwrite a register still holding a value we must store). Successor params are skipped:
+        // they are given permanent homes eagerly in `begin_block` and written by the jmp itself.
+        // This is greedy's blanket cross-block policy — spill everything crossing an edge and
+        // reload on demand — which a global-assignment allocator would replace with per-edge
+        // resolution.
+        let mut to_spill = Vec::new();
+        for succ in self.liveness.cfg().successors(block) {
+            let params: HashSet<ValueId> = dfg[succ].parameters().iter().copied().collect();
+            for value_id in self.liveness.get_live_in(&succ) {
+                if !params.contains(value_id)
+                    && self.ssa_value_allocations.contains_key(value_id)
+                    && !to_spill.contains(value_id)
+                {
+                    to_spill.push(*value_id);
+                }
+            }
+        }
+        let mut actions = Vec::new();
+        for value_id in to_spill {
+            actions.extend(self.spill_value(value_id, true, true));
+        }
+        actions
+    }
+
+    fn resolve_edge(
+        &self,
+        _pred: BasicBlockId,
+        succ: BasicBlockId,
+        dfg: &DataFlowGraph,
+    ) -> Vec<ParamHome> {
+        dfg[succ]
+            .parameters()
+            .iter()
+            .map(|param| match self.permanent_spill_slot(param) {
+                Some(slot) => ParamHome::Slot(slot),
+                None => ParamHome::Register(self.ssa_value_allocations[param].extract_register()),
+            })
+            .collect()
+    }
+
+    fn after_instruction(&mut self, inst: InstructionId) {
+        let Some(dead) = self.last_uses.get(&inst) else {
+            return;
+        };
+        // Retire the values the allocator tracks; globals/hoisted constants live in the driver's
+        // globals map (never in `ssa_value_allocations`) and must not be freed.
+        let dead: Vec<ValueId> = dead
+            .iter()
+            .copied()
+            .filter(|value_id| self.ssa_value_allocations.contains_key(value_id))
+            .collect();
+        for value_id in dead {
+            self.retire_value(&value_id);
+        }
+    }
+
+    fn spill_enabled(&self) -> bool {
+        self.spill_manager.is_some()
+    }
+
+    fn max_spill_offset(&self) -> usize {
+        self.spill_manager.as_ref().map_or(0, |sm| sm.max_spill_offset())
+    }
+}
+
+impl<R: RegisterAllocator> GreedyAllocator<R> {
+    /// Allocate a register from the pool for `value_id` and wrap it in the typed [`BrilligVariable`]
+    /// its SSA type calls for. Every variant occupies exactly one register (the single-address
+    /// value, or an array/vector pointer); the size / bit-size are static metadata the driver needs
+    /// to emit typed opcodes, which is the only reason the type is consulted here.
+    /// Spill a value to a slot, freeing its register. `permanent` slots survive the whole function
+    /// (used for cross-block values); `emit_store = false` skips the store for block parameters
+    /// whose register does not yet hold the final value (the jmp writes the slot later). Returns the
+    /// store to emit, if any. Internal: driven by `before_terminator` and the `begin_block`
+    /// eager-spill of successor params.
     fn spill_value(&mut self, value_id: ValueId, permanent: bool, emit_store: bool) -> Vec<Action> {
         // For a permanent spill, try to promote an existing record first.
         if permanent {
             // A reloaded transient value holds a register that must be freed when promoted to a
             // permanent spill. A value not currently in a register must not have its register freed
-            // here — it may still be live (e.g. the condition register of a jmpif when
-            // `spill_non_param_live_ins` fires multiple times). Capture this before promoting.
+            // here — it may still be live (e.g. a value live into more than one successor when
+            // `before_terminator` visits them). Capture this before promoting.
             let was_transient_reloaded = self.is_transient_reloaded(&value_id);
             let promoted = self
                 .spill_manager
@@ -375,6 +517,8 @@ impl<R: RegisterAllocator> Allocator for GreedyAllocator<R> {
         actions
     }
 
+    /// The permanent spill slot of a value, if it has one. Used by `resolve_edge` to route a jmp
+    /// argument into its destination parameter's slot.
     fn permanent_spill_slot(&self, value_id: &ValueId) -> Option<SpillSlot> {
         self.spill_manager
             .as_ref()
@@ -382,36 +526,6 @@ impl<R: RegisterAllocator> Allocator for GreedyAllocator<R> {
             .map(SpillSlot)
     }
 
-    fn after_instruction(&mut self, inst: InstructionId) {
-        let Some(dead) = self.last_uses.get(&inst) else {
-            return;
-        };
-        // Retire the values the allocator tracks; globals/hoisted constants live in the driver's
-        // globals map (never in `ssa_value_allocations`) and must not be freed.
-        let dead: Vec<ValueId> = dead
-            .iter()
-            .copied()
-            .filter(|value_id| self.ssa_value_allocations.contains_key(value_id))
-            .collect();
-        for value_id in dead {
-            self.retire_value(&value_id);
-        }
-    }
-
-    fn spill_enabled(&self) -> bool {
-        self.spill_manager.is_some()
-    }
-
-    fn max_spill_offset(&self) -> usize {
-        self.spill_manager.as_ref().map_or(0, |sm| sm.max_spill_offset())
-    }
-}
-
-impl<R: RegisterAllocator> GreedyAllocator<R> {
-    /// Allocate a register from the pool for `value_id` and wrap it in the typed [`BrilligVariable`]
-    /// its SSA type calls for. Every variant occupies exactly one register (the single-address
-    /// value, or an array/vector pointer); the size / bit-size are static metadata the driver needs
-    /// to emit typed opcodes, which is the only reason the type is consulted here.
     fn allocate_typed(&self, value_id: ValueId, dfg: &DataFlowGraph) -> BrilligVariable {
         let typ = dfg.type_of_value(value_id);
         let register = self.pool.borrow_mut().allocate_register();

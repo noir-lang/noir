@@ -115,7 +115,7 @@ fn coalescing_multiple_pairs_both_outlive() {
 /// (see the comment "Disable coalescing when spilling is enabled") because
 /// the two mechanisms interact unsafely:
 ///
-/// When a successor block param (`v4`) is eagerly spilled in `convert_block_params`,
+/// When a successor block param (`v4`) is eagerly spilled in the allocator's `begin_block`,
 /// its register (`R`) is freed and returned to the allocator's free pool. An
 /// instruction result that is arg-side coalesced with `v4` (`v2 -> v4`) reuses `R`
 /// by reading `ssa_value_allocations[v4]` — but crucially it does **not** remove
@@ -130,7 +130,7 @@ fn coalescing_multiple_pairs_both_outlive() {
 /// # Scenario (stack size 5 → 3 usable slots sp[2..4])
 ///
 /// ```text
-/// convert_block_params(b0):
+/// begin_block(b0):
 ///   define v4 → sp[4]; eagerly spill → sp[4] freed; pool = {sp[4]}
 ///
 /// define v2 (coalesced with v4):

@@ -82,6 +82,11 @@ impl BlockVariables {
         self.available_variables.contains(value_id)
     }
 
+    /// Iterate the register-resident values.
+    pub(crate) fn iter(&self) -> impl Iterator<Item = &ValueId> {
+        self.available_variables.iter()
+    }
+
     /// Remove from available set without deallocating register.
     /// Used when a spilled variable dies — its register was already freed during spill.
     pub(crate) fn mark_unavailable(&mut self, value_id: &ValueId) {

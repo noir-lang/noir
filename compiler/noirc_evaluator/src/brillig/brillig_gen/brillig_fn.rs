@@ -45,8 +45,6 @@ pub(crate) struct FunctionContext<R: RegisterAllocator> {
     pub(crate) allocator: GreedyAllocator<R>,
     /// The block ids of the function in Post Order.
     blocks: Vec<BasicBlockId>,
-    /// Liveness information for each variable in the function.
-    pub(crate) liveness: VariableLiveness,
     /// Information on where to allocate constants
     pub(crate) constant_allocation: ConstantAllocation,
 }
@@ -117,9 +115,8 @@ impl<R: RegisterAllocator> FunctionContext<R> {
 
         Self {
             function_id: Some(id),
-            allocator: GreedyAllocator::new(pool, spill_manager, coalescing, last_uses),
+            allocator: GreedyAllocator::new(pool, spill_manager, coalescing, liveness, last_uses),
             blocks: post_order,
-            liveness,
             constant_allocation: constants,
         }
     }
@@ -134,10 +131,10 @@ impl<R: RegisterAllocator> FunctionContext<R> {
                 pool,
                 None,
                 CoalescingMap::default(),
+                VariableLiveness::default(),
                 HashMap::default(),
             ),
             blocks: Vec::new(),
-            liveness: VariableLiveness::default(),
             constant_allocation: ConstantAllocation::default(),
         }
     }
@@ -251,6 +248,6 @@ mod tests {
         let brillig_context =
             BrilligContext::<FieldElement, Stack>::new("test", &BrilligOptions::default());
         let ctx = FunctionContext::new(ssa.main(), 7, brillig_context.registers_rc());
-        assert_eq!(ctx.liveness.min_live_count, 5);
+        assert_eq!(ctx.allocator.liveness().min_live_count, 5);
     }
 }
