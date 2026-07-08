@@ -220,7 +220,7 @@ impl TaintedDescendants {
     ///
     /// Returns `true` if at least one output was cleared by this call. Each output is
     /// cleared at most once (it is removed from its set when cleared), so this reflects
-    /// genuinely new progress, which the fixed-point loop in [`Self::constrain_tainted`]
+    /// genuinely new progress, which the fixed-point loop in [`Context::constrain_tainted`]
     /// uses to decide whether another walk is worthwhile.
     fn try_constrain(
         &mut self,
