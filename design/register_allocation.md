@@ -377,22 +377,22 @@ trait Allocator {
     // subsequent self-contained Spill stores it.
     fn define_variable(&mut self, value: ValueId) -> (MemoryAddress, Vec<Action>);
 
-    // Before lowering `inst`: reload its spilled operands and spill others to make room for the
-    // operands and the instruction's scratch (count from `instruction_scratch_demand`). Returns only
-    // actions; the scratch registers are allocated by codegen via the RAII `Allocated` path from the
-    // room these spills free — the contract is "N slots are free", not "here are the registers".
-    //
-    // `before_instruction` assumes an instruction's operands can be made resident in one up-front
-    // batch, which holds for bounded operand sets. Streaming instructions break that assumption.
-    fn before_instruction(&mut self, inst: InstructionId) -> Vec<Action>;
+    // Reserve `scratch` free registers for the RAII temporaries codegen allocates while lowering an
+    // instruction (signed-comparison scratch, array/call setup, ...), spilling to make the room and
+    // returning those spills. The contract is "N slots are free", not "here are the registers" —
+    // codegen owns the temporaries via the `Allocated` path. The count comes from
+    // `instruction_scratch_demand`. Operands are made resident separately and lazily, one at a time,
+    // via `use_variable` (see "Operand residency" below), so this is scratch-only and keys on a
+    // count rather than an instruction id.
+    fn reserve_scratch(&mut self, scratch: usize) -> Vec<Action>;
 
     // Make one already-defined value resident on demand and return the register it now occupies,
     // plus the actions to get it there: a Reload if it was spilled, and any Spills to free a slot
-    // (empty if it is already resident). This is the per-value companion to `before_instruction`,
-    // for streaming instructions like `MakeArray` that consume their operands one at a time rather
-    // than all at once (see "Streaming operands: MakeArray"). The driver calls it in a loop — e.g.
-    // per array element — and retires each working slot between iterations (RAII), so the reserved
-    // set stays at the working-set size rather than the operand count.
+    // (empty if it is already resident). This is the single operand-residency primitive: the driver
+    // calls it per operand as it reads them (`convert_ssa_value`), for every instruction — not only
+    // streaming ones. A streaming op like `MakeArray` is then literally a loop over this — per array
+    // element, retiring each working slot between iterations (RAII), so the reserved set stays at the
+    // working-set size rather than the operand count (see "Streaming operands: MakeArray").
     fn use_variable(&mut self, value: ValueId) -> (MemoryAddress, Vec<Action>);
 
     // After lowering `inst`: retire the values whose last use it was, freeing their registers for
@@ -452,10 +452,13 @@ Notes on the interface:
   constant register; with **interval splitting** the entry register can differ from the def register
   (path-reconciled by `resolve_edge`), and `begin_block` returns that — the plan-based analogue of
   today's `set_allocated_registers` reseed.
-- **`InstructionId` is not the position.** Methods key on `InstructionId` — a stable DFG id, meaningful
-  to codegen, occurring at most once — and the allocator maps it internally to a `ProgramPoint`
-  (`LiveIntervals` assigns points to block entries, instructions, *and* terminators). The id says
-  *which* operation; the program point says *where* in the linear order.
+- **`InstructionId` is not the position.** Where a method carries a position it keys on
+  `InstructionId` (`after_instruction`) — a stable DFG id, meaningful to codegen, occurring at most
+  once — and the allocator maps it internally to a `ProgramPoint` (`LiveIntervals` assigns points to
+  block entries, instructions, *and* terminators). The id says *which* operation; the program point
+  says *where* in the linear order. The one exception is `reserve_scratch`, which currently takes a
+  bare count; a plan-based allocator that pre-schedules scratch would key it on the instruction's
+  position instead.
 - **Terminators and the entry.** `before_terminator` + `resolve_edge` cover all terminators: a
   `Return` uses only `before_terminator` (reload return values); a `Jmp` uses only `resolve_edge`
   (arg → param moves); a `JmpIf` uses both (condition via `before_terminator`, moves via
@@ -463,11 +466,15 @@ Notes on the interface:
   (Wimmer's term for pre-colored intervals) the allocator must *honor* rather than assign —
   surfaced through `define_variable` returning their fixed location with no spill.
 
-- **Streaming operands need an on-demand companion.** `before_instruction` assumes an instruction's
-  operands can be made resident as one up-front batch. `MakeArray` breaks that — it consumes N
-  elements one at a time — so it needs a `use_variable(value) -> (MemoryAddress, Vec<Action>)` method the driver calls
-  mid-lowering, per element. `before_instruction` is then the batched fast-path for bounded operand
-  sets; streaming ops drive `use_variable` in a loop. See
+- **Operand residency is per-operand, not batched.** The design originally split instruction setup
+  into a batched `before_instruction(inst)` — reload all operands *and* reserve scratch in one call —
+  with `use_variable` as a streaming companion only for ops like `MakeArray` that consume operands
+  one at a time. The implementation collapsed the two: the driver makes each operand resident lazily
+  via `use_variable` as it reads it (`convert_ssa_value`) — the streaming path generalized to every
+  instruction — and a scratch-only `reserve_scratch(n)` reserves room for the RAII temporaries. So
+  there is no `before_instruction`: `reserve_scratch` is its scratch half and `use_variable` its
+  operand half. A batched variant remains a possible optimization (one call, shared spill-store
+  batching), but with bounded operand sets the lazy path was simpler at no measured cost. See
   [Streaming operands: MakeArray](#streaming-operands-makearray).
 - **Greedy/LRU impl** computes actions online (today's behavior); `set_allocated_registers`/`detach`
   become its internals.
@@ -750,8 +757,9 @@ eviction reaches for older values first — which works only while the frame exc
 The plan-based allocator makes this safe *by construction* and *checkable*:
 
 - The pressure at the instruction's point counts inputs + results + scratch together (as
-  `max_live_count` already does), so `before_instruction` reserves room for all of them at once;
-  `define_variable` for each result then draws a pre-reserved slot and never evicts a sibling.
+  `max_live_count` already does), so room for all of them is reserved at that point — operands via
+  `use_variable`, scratch via `reserve_scratch`; `define_variable` for each result then draws a
+  pre-reserved slot and never evicts a sibling.
 - The furthest-next-use victim rule *cannot* evict them: their next use is immediate, so they are
   never the furthest — protection by definition, not by the LRU recency proxy.
 - The pass should *assert* the bound up front, turning the latent panic into a clear "instruction
@@ -809,17 +817,17 @@ restatement of the same over-count. Two ways to model the streaming:
   `use_variable(value) -> (MemoryAddress, Vec<Action>)` that reloads from the element's home only if it is not already
   resident. The synthetic slots are *destinations* for on-demand reloads, not the elements' own
   lifetimes — a per-element interval would recreate the N-wide over-count. This localizes the special
-  case to streaming ops, at the cost of the on-demand discipline and of adding `use_variable` as a
-  first-class allocator method alongside a reservation-style `before_instruction` (whose contract is
-  "K slots are free", not "here are the registers").
+  case to streaming ops, at the cost of the on-demand discipline — though `use_variable` is a
+  first-class allocator method regardless, paired with the reservation-style `reserve_scratch` (whose
+  contract is "K slots are free", not "here are the registers").
 
 The two are duals: (a) expresses the reuse as non-overlapping intervals sharing a slot; (b) as one
 reservation the driver fills imperatively. Either way the room reserved at the `MakeArray` point
 equals the floor the assertion enforces (result array-pointer + element working set +
-`items_pointer`/`write_pointer` temps), so analysis and allocator agree by construction. `use_variable`
-is also the general answer to "`before_instruction` cannot enumerate a streaming instruction's
-operands up front": bounded instructions use `before_instruction`; streaming ones drive `use_variable`
-in a loop.
+`items_pointer`/`write_pointer` temps), so analysis and allocator agree by construction. This is also
+why the implementation makes operands resident per-operand rather than in a batch: every instruction
+— bounded or streaming — drives `use_variable` for each operand as it is read, so a streaming
+instruction needs no up-front enumeration of its operands at all.
 
 ## Relationship to noir-lang/noir#11638
 
