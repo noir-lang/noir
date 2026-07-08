@@ -468,7 +468,7 @@ impl VariableLiveness {
                 // Per-instruction register floor. Inputs and scratch must be resident together;
                 // results reuse operand registers (see the field docs), so they are folded in
                 // with `max` rather than added on top.
-                let num_inputs = variables_used_in_instruction(instruction, &func.dfg).len();
+                let num_inputs = instruction_min_inputs(instruction, &func.dfg);
                 min_count = min_count.max(num_inputs.max(results.len()) + scratch);
 
                 // Subtract variables that die after this instruction.
@@ -495,6 +495,22 @@ impl VariableLiveness {
 
     pub(super) fn cfg(&self) -> &ControlFlowGraph {
         &self.cfg
+    }
+}
+
+/// Number of distinct input variables that must be register-resident *simultaneously* to lower
+/// an instruction — the input contribution to the per-instruction register floor.
+///
+/// For most instructions this is every distinct operand (they feed a single Brillig opcode). The
+/// exception is [`Instruction::MakeArray`]: its elements are written to the heap one at a time
+/// (see `codegen_make_array` and `initialize_constant_array`), so they are never all
+/// register-resident at once — no matter how large the array literal is. The only path holding
+/// more than one element simultaneously is the repeating-item runtime loop, which materializes a
+/// single item's subitems (`subitem_to_repeat_variables`), bounded by the per-item type count.
+fn instruction_min_inputs(instruction: &Instruction, dfg: &DataFlowGraph) -> usize {
+    match instruction {
+        Instruction::MakeArray { typ, .. } => typ.element_types().len(),
+        _ => variables_used_in_instruction(instruction, dfg).len(),
     }
 }
 
@@ -1531,6 +1547,32 @@ mod tests {
         assert_eq!(
             liveness.min_live_count, 1,
             "repeated operand counts once and result reuses it: max(1, 1) = 1, got {}",
+            liveness.min_live_count
+        );
+    }
+
+    #[test]
+    fn min_live_count_does_not_scale_with_make_array_length() {
+        // `MakeArray` writes its elements to the heap one at a time, so they are never all
+        // register-resident together. The floor must not grow with the element count, otherwise a
+        // large array literal would spuriously exceed the frame (regression: `brillig_large_array`
+        // failed to compile). For a scalar-element array the per-item type count is 1.
+        let src = "
+        brillig(inline) fn main f0 {
+          b0():
+            v0 = make_array [u32 0, u32 1, u32 2, u32 3, u32 4, u32 5, u32 6, u32 7, u32 8, u32 9] : [u32; 10]
+            return v0
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let func = ssa.main();
+        let constants = ConstantAllocation::from_function(func);
+        let liveness = VariableLiveness::from_function(func, &constants);
+
+        assert_eq!(
+            liveness.min_live_count, 1,
+            "make_array of 10 scalars streams one element at a time, so the floor is the per-item \
+             type count (1), not the element count; got {}",
             liveness.min_live_count
         );
     }
