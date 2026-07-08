@@ -76,17 +76,13 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
         let mut live_in_no_globals = live_in_no_globals(live_in, dfg, hoisted_global_constants);
 
         // Hand the block's live-in set to the allocator; it resets its per-block state (dropping
-        // permanently-spilled values) and returns the register-resident live-ins so we can seed the
-        // shadow and pre-allocate the pool. Information flows one way: allocator → shadow.
-        let resident_live_ins = function_context.allocator.begin_block(&mut live_in_no_globals);
-
-        // Replace the previous registers with a new instance, where the currently live variables are
-        // pre-allocated. These might be deallocated and reused if their last use in this block
-        // indicates they are dead, then become pre-allocated again in a later block.
-        brillig_context.set_allocated_registers(
-            resident_live_ins.iter().map(|(_, register)| *register).collect(),
-        );
-        let registers = resident_live_ins.into_iter().collect();
+        // permanently-spilled values), pre-allocates the pool, and returns the register-resident
+        // live-ins so we can seed the shadow. Information flows one way: allocator → registers.
+        let registers = function_context
+            .allocator
+            .begin_block(brillig_context, &mut live_in_no_globals)
+            .into_iter()
+            .collect();
         let last_uses = function_context.liveness.get_last_uses(&block_id).clone();
 
         let mut brillig_block = BrilligBlock {

@@ -80,9 +80,13 @@ pub(crate) enum Action {
 pub(crate) trait Allocator {
     /// Re-seed for a new block. `live_in` is the block's non-global live-in set; the allocator
     /// strips permanently-spilled values from it (they are reloaded on demand, not pre-allocated),
-    /// resets its per-block eviction state, and returns the register-resident live-ins so the
-    /// driver can seed its shadow.
-    fn begin_block(&mut self, live_in: &mut HashSet<ValueId>) -> Vec<(ValueId, MemoryAddress)>;
+    /// resets its per-block eviction state, pre-allocates the register pool with the resident
+    /// live-ins, and returns them so the driver can seed its shadow.
+    fn begin_block<R: RegisterAllocator>(
+        &mut self,
+        brillig_context: &mut BrilligContext<FieldElement, R>,
+        live_in: &mut HashSet<ValueId>,
+    ) -> Vec<(ValueId, MemoryAddress)>;
 
     /// Bring a value into existence at its definition point (a constant, an instruction result, or
     /// a parameter). Reserves its register — spilling LRU victims first if the frame is full — and
@@ -197,15 +201,18 @@ impl GreedyAllocator {
 }
 
 impl Allocator for GreedyAllocator {
-    fn begin_block(&mut self, live_in: &mut HashSet<ValueId>) -> Vec<(ValueId, MemoryAddress)> {
+    fn begin_block<R: RegisterAllocator>(
+        &mut self,
+        brillig_context: &mut BrilligContext<FieldElement, R>,
+        live_in: &mut HashSet<ValueId>,
+    ) -> Vec<(ValueId, MemoryAddress)> {
         // Strip permanently-spilled live-ins and reset the eviction state for the new block.
         if let Some(sm) = self.spill_manager.as_mut() {
             sm.begin_block(live_in);
         }
-        // Seed the allocator's residency with the (non-spilled) live-ins and report their registers
-        // so the driver can seed its shadow and pre-allocate the pool.
+        // Seed the allocator's residency with the (non-spilled) live-ins.
         self.resident = BlockVariables::new(live_in.clone());
-        live_in
+        let resident_live_ins: Vec<(ValueId, MemoryAddress)> = live_in
             .iter()
             .map(|value_id| {
                 let register = self
@@ -215,7 +222,14 @@ impl Allocator for GreedyAllocator {
                     .extract_register();
                 (*value_id, register)
             })
-            .collect()
+            .collect();
+        // Pre-allocate the pool with the live-in registers: a fresh allocator instance where these
+        // are already taken (they may be freed and reused if they die in this block, then become
+        // pre-allocated again in a later block, depending on processing order).
+        brillig_context
+            .set_allocated_registers(resident_live_ins.iter().map(|(_, reg)| *reg).collect());
+        // Report the register-resident live-ins so the driver can seed its shadow.
+        resident_live_ins
     }
 
     fn define_variable<R: RegisterAllocator>(
