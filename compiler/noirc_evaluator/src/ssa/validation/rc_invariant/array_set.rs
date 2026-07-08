@@ -468,6 +468,230 @@ mod tests {
         assert_verifier_rejects(src);
     }
 
+    /// **Transitively-fresh swapped sibling through a nested loop header.**
+    /// Reduced from AST-fuzzer seed `0xfe6bbee600100000`
+    /// (`comptime_vs_brillig_direct`). The mutated array `v105` (outer header
+    /// `b21`) is rebound on its back-edge (`b25: jmp b21(v74, v106)`) to the
+    /// *inner*-loop header parameter `v106` (`b24`) — not a sibling parameter of
+    /// its own header. `v106` mixes two sources: a fresh `make_array` (`v71`) on
+    /// its own back-edge (`b28: jmp b24(v71, v40)`) and a forward-edge alias of
+    /// the mutated `v105` (`b22: jmp b24(v105, u32 0)`). The mutating branch
+    /// `b23` is only reachable after the inner loop has re-defined the
+    /// loop-carried value from its fresh back-edge source, so the value `v105`
+    /// mutates is a distinct per-iteration allocation and every `array_get v106`
+    /// read happened on a prior iteration over different fresh storage. Sound —
+    /// the swap exclusion must follow the sibling transitively across the nested
+    /// header's fresh back-edge and drop `v106` from `v105`'s alias-set.
+    #[test]
+    fn accepts_array_set_on_transitively_fresh_swapped_sibling() {
+        let src = r#"
+        brillig(inline_always) fn func_1 f0 {
+          b0(v0: [[u8; 2]; 3], v2: [[u8; 2]; 3], v4: &mut u32):
+            jmp b1(u128 8302379352820642275318148290232816646, v0, v2)
+          b1(v7: u128, v95: [[u8; 2]; 3], v96: [[u8; 2]; 3]):
+            v9 = lt v7, u128 8302379352820642275318148290232816647
+            jmpif v9 then: b2(), else: b3()
+          b2():
+            jmp b4(v95, v96, u32 0)
+          b3():
+            v90 = make_array b"GO"
+            v92 = make_array b"GD"
+            v93 = make_array b"LO"
+            v94 = make_array [v90, v92, v93] : [[u8; 2]; 3]
+            return v94
+          b4(v97: [[u8; 2]; 3], v98: [[u8; 2]; 3], v99: u32):
+            jmpif u1 0 then: b5(), else: b6()
+          b5():
+            v14 = eq v99, u32 1
+            jmpif v14 then: b7(), else: b8()
+          b6():
+            v86 = cast v7 as Field
+            v88 = unchecked_add v7, u128 1
+            jmp b1(v88, v97, v98)
+          b7():
+            jmp b6()
+          b8():
+            v16 = add v99, u32 1
+            jmp b10(v97, v98, u32 0)
+          b9():
+            jmp b4(v100, v101, v16)
+          b10(v100: [[u8; 2]; 3], v101: [[u8; 2]; 3], v102: u32):
+            v20 = eq v102, u32 2
+            jmpif v20 then: b12(), else: b13()
+          b11():
+            jmp b9()
+          b12():
+            jmp b11()
+          b13():
+            v22 = add v102, u32 1
+            jmp b15(v101, u32 0)
+          b14():
+            jmp b10(v82, v100, v22)
+          b15(v103: [[u8; 2]; 3], v104: u32):
+            jmpif u1 1 then: b16(), else: b17()
+          b16():
+            v26 = eq v104, u32 0
+            jmpif v26 then: b18(), else: b19()
+          b17():
+            v81 = array_get v103, index u32 1 -> [u8; 2]
+            inc_rc v81
+            inc_rc v81
+            v82 = make_array [v81, v81, v81] : [[u8; 2]; 3]
+            jmp b14()
+          b18():
+            jmp b17()
+          b19():
+            v28 = add v104, u32 1
+            jmp b21(u16 0, v103)
+          b20():
+            jmp b15(v79, v28)
+          b21(v34: u16, v105: [[u8; 2]; 3]):
+            v35 = eq v34, u16 0
+            jmpif v35 then: b22(), else: b23()
+          b22():
+            jmp b24(v105, u32 0)
+          b23():
+            v77 = make_array b"CG"
+            v79 = array_set v105, index u32 2, value v77
+            jmp b20()
+          b24(v106: [[u8; 2]; 3], v107: u32):
+            v38 = eq v107, u32 2
+            jmpif v38 then: b26(), else: b27()
+          b25():
+            v72 = cast v7 as Field
+            v74 = unchecked_add v34, u16 1
+            jmp b21(v74, v106)
+          b26():
+            jmp b25()
+          b27():
+            v40 = add v107, u32 1
+            v62 = make_array b"{\"kind\":\"unsignedinteger\",\"width\":128}"
+            call print(u1 1, v7, v62, u1 0)
+            v65 = array_get v106, index u32 1 -> [u8; 2]
+            inc_rc v65
+            v67 = array_get v106, index u32 2 -> [u8; 2]
+            inc_rc v67
+            v70 = make_array b"SL"
+            v71 = make_array [v65, v67, v70] : [[u8; 2]; 3]
+            jmp b28()
+          b28():
+            jmp b24(v71, v40)
+        }
+        "#;
+        assert_verifier_accepts_because(
+            src,
+            "v105's outer back-edge rebinds it to the inner-loop header param v106, whose \
+             loop-carried definition v71 is an iteration-local make_array — so v106 is a \
+             distinct per-iteration storage and the swap exclusion drops it from v105's alias-set",
+        );
+    }
+
+    /// **Nested-swap soundness canary — the inner loop must re-freshen the
+    /// swapped-in sibling.** Same outer-back-edge swap `v105 ← v106` as
+    /// [`Self::accepts_array_set_on_transitively_fresh_swapped_sibling`], but the
+    /// inner loop threads `v106` back onto its own back-edge **unchanged**
+    /// (`b28: jmp b24(v106, v40)`) instead of a fresh `make_array`. Now `v106`
+    /// is loop-invariant storage that stays equal to the entry `v105`, so the
+    /// in-loop `array_get v106` reads the very storage the outer
+    /// `array_set v105` mutates in place. The transitive-freshness relaxation
+    /// must **not** fire (the inner back-edge arg is not iteration-local fresh),
+    /// and the verifier must reject. Guards the load-bearing freshening
+    /// requirement of the nested extension.
+    #[test]
+    fn end_to_end_nested_swap_without_inner_freshening_is_rejected() {
+        let src = r#"
+        brillig(inline_always) fn func_1 f0 {
+          b0(v0: [[u8; 2]; 3], v2: [[u8; 2]; 3], v4: &mut u32):
+            jmp b1(u128 8302379352820642275318148290232816646, v0, v2)
+          b1(v7: u128, v95: [[u8; 2]; 3], v96: [[u8; 2]; 3]):
+            v9 = lt v7, u128 8302379352820642275318148290232816647
+            jmpif v9 then: b2(), else: b3()
+          b2():
+            jmp b4(v95, v96, u32 0)
+          b3():
+            v90 = make_array b"GO"
+            v92 = make_array b"GD"
+            v93 = make_array b"LO"
+            v94 = make_array [v90, v92, v93] : [[u8; 2]; 3]
+            return v94
+          b4(v97: [[u8; 2]; 3], v98: [[u8; 2]; 3], v99: u32):
+            jmpif u1 0 then: b5(), else: b6()
+          b5():
+            v14 = eq v99, u32 1
+            jmpif v14 then: b7(), else: b8()
+          b6():
+            v86 = cast v7 as Field
+            v88 = unchecked_add v7, u128 1
+            jmp b1(v88, v97, v98)
+          b7():
+            jmp b6()
+          b8():
+            v16 = add v99, u32 1
+            jmp b10(v97, v98, u32 0)
+          b9():
+            jmp b4(v100, v101, v16)
+          b10(v100: [[u8; 2]; 3], v101: [[u8; 2]; 3], v102: u32):
+            v20 = eq v102, u32 2
+            jmpif v20 then: b12(), else: b13()
+          b11():
+            jmp b9()
+          b12():
+            jmp b11()
+          b13():
+            v22 = add v102, u32 1
+            jmp b15(v101, u32 0)
+          b14():
+            jmp b10(v82, v100, v22)
+          b15(v103: [[u8; 2]; 3], v104: u32):
+            jmpif u1 1 then: b16(), else: b17()
+          b16():
+            v26 = eq v104, u32 0
+            jmpif v26 then: b18(), else: b19()
+          b17():
+            v81 = array_get v103, index u32 1 -> [u8; 2]
+            inc_rc v81
+            inc_rc v81
+            v82 = make_array [v81, v81, v81] : [[u8; 2]; 3]
+            jmp b14()
+          b18():
+            jmp b17()
+          b19():
+            v28 = add v104, u32 1
+            jmp b21(u16 0, v103)
+          b20():
+            jmp b15(v79, v28)
+          b21(v34: u16, v105: [[u8; 2]; 3]):
+            v35 = eq v34, u16 0
+            jmpif v35 then: b22(), else: b23()
+          b22():
+            jmp b24(v105, u32 0)
+          b23():
+            v77 = make_array b"CG"
+            v79 = array_set v105, index u32 2, value v77
+            jmp b20()
+          b24(v106: [[u8; 2]; 3], v107: u32):
+            v38 = eq v107, u32 2
+            jmpif v38 then: b26(), else: b27()
+          b25():
+            v72 = cast v7 as Field
+            v74 = unchecked_add v34, u16 1
+            jmp b21(v74, v106)
+          b26():
+            jmp b25()
+          b27():
+            v40 = add v107, u32 1
+            v65 = array_get v106, index u32 1 -> [u8; 2]
+            inc_rc v65
+            v67 = array_get v106, index u32 2 -> [u8; 2]
+            inc_rc v67
+            jmp b28()
+          b28():
+            jmp b24(v106, v40)
+        }
+        "#;
+        assert_verifier_rejects(src);
+    }
+
     /// ACIR functions are skipped: `inc_rc` / `dec_rc` are no-ops in ACIR and
     /// `array_set` always produces a fresh array.
     #[test]
