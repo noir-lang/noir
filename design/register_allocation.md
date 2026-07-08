@@ -27,6 +27,7 @@ linear-scan allocator (noir-lang/noir#11638).
   - [Coalescing](#coalescing)
   - [Temporaries and procedures](#temporaries-and-procedures)
   - [A single instruction must fit in registers at once](#a-single-instruction-must-fit-in-registers-at-once)
+  - [Streaming operands: MakeArray](#streaming-operands-makearray)
 - [Relationship to noir-lang/noir#11638](#relationship-to-noir-langnoir11638)
 - [Validation](#validation)
   - [Not in scope: in-place spill operands](#not-in-scope-in-place-spill-operands)
@@ -422,6 +423,12 @@ Notes on the interface:
   (Wimmer's term for pre-colored intervals) the allocator must *honor* rather than assign —
   surfaced through `define_variable` returning their fixed location with no spill.
 
+- **Streaming operands need an on-demand companion.** `before_instruction` assumes an instruction's
+  operands can be made resident as one up-front batch. `MakeArray` breaks that — it consumes N
+  elements one at a time — so it needs a `use_value(value) -> Vec<Action>` method the driver calls
+  mid-lowering, per element. `before_instruction` is then the batched fast-path for bounded operand
+  sets; streaming ops drive `use_value` in a loop. See
+  [Streaming operands: MakeArray](#streaming-operands-makearray).
 - **Greedy/LRU impl** computes actions online (today's behavior); `set_allocated_registers`/`detach`
   become its internals.
 - **Linear-scan impl** runs a pass first and serves the precomputed plan.
@@ -700,9 +707,72 @@ The plan-based allocator makes this safe *by construction* and *checkable*:
   `define_variable` for each result then draws a pre-reserved slot and never evicts a sibling.
 - The furthest-next-use victim rule *cannot* evict them: their next use is immediate, so they are
   never the furthest — protection by definition, not by the LRU recency proxy.
-- The pass should *assert* the bound up front — `max over instructions of (inputs + results +
-  scratch) <= frame_size` — turning the latent panic into a clear "instruction needs N registers,
-  frame is M". This assertion is worth adding on its own, even before the allocator rewrite.
+- The pass should *assert* the bound up front, turning the latent panic into a clear "instruction
+  needs N registers, frame is M". This landed on its own ahead of the allocator rewrite
+  (noir-lang/noir#13306) as `VariableLiveness::min_live_count`. Two refinements fell out of
+  *measuring* the real codegen floor (a frame-size sweep, smallest frame each instruction compiles
+  in without the panic):
+  - The bound is `max(inputs, results) + scratch`, not `inputs + results + scratch`: a result reuses
+    an operand register in place (the binary opcode reads both sources before writing the
+    destination, and a live operand it overwrites is first preserved in a spill slot). For a
+    scratch-bearing op the sweep confirmed the exact floor *is* `inputs + results + scratch`
+    (the result does not reuse when a post-op check keeps operands and result live together), so
+    `max(inputs, results) + scratch` is a deliberate *lower* bound — under-counting by up to
+    `results`. That is the safe direction for an assertion: a false positive would reject a frame
+    codegen could handle, whereas an under-count merely falls through to the existing panic.
+  - It is compared against the *usable* slots, `frame - Stack::START_OFFSET`, not the raw frame.
+  - "inputs" means the operands that must be resident *simultaneously*. A streaming instruction reads
+    its operands one at a time, so its floor is far smaller than its operand count — see
+    [Streaming operands: MakeArray](#streaming-operands-makearray).
+
+### Streaming operands: MakeArray
+
+`MakeArray` violates the "operands must be resident simultaneously" premise above, and it is the one
+place that bites in practice. Its elements are written to the heap **one at a time**
+(`codegen_make_array` -> `initialize_constant_array`); even the repeating-item runtime loop
+materializes only a single item's subitems (`subitem_to_repeat_variables`). So however large the
+literal, the simultaneously-resident element working set is `typ.element_types().len()` (1 for a
+scalar array, tuple-arity for a tuple array), never the element count.
+
+Counting every element as a simultaneous input over-states the floor badly enough to be a real bug,
+not a hypothetical: it made `execution_success/brillig_large_array` fail to compile as soon as the
+floor assertion landed. The fix (noir-lang/noir#13306) is `instruction_min_inputs`, which
+special-cases `MakeArray` to `element_types().len()`. Its floor is then
+`max(element_working_set, results) + scratch`, with `scratch = 3` for `MakeArray`:
+`codegen_make_array` reserves `ensure_register_capacity(4)` = the result array-pointer + `items_pointer`
++ `write_pointer` + a temp, and the result is an SSA value counted separately. `MakeArray` is the
+only heap-streaming operand case; `Call` marshals many arguments too, but into contiguous,
+`codegen_call`-bounds-checked *frame* slots, so counting those is correct.
+
+**Interval-model consequence (recover this when implementing linear scan).** Unlike genuine scratch
+(born and dead at a single point), array elements are real SSA values with homes, consumed at
+*staggered* moments. With instruction-level program points their `last_use` all collapse onto the
+one `MakeArray` point, so naive `[def, last_use]` intervals make all N overlap — the interval-space
+restatement of the same over-count. Two ways to model the streaming:
+
+- **(a) Sub-instruction program points.** Give `MakeArray` one micro-point per element store; each
+  element's interval ends at *its* store. Overlap at any micro-point is the working set (+ result +
+  temps), so pressure falls straight out of interval overlap with no special reuse logic — linear
+  scan shares one physical slot across the staggered elements, and an element that happens to be
+  *already* resident is stored without a reload. Cost: `ProgramPoint` gains sub-instruction
+  granularity for streaming ops. The more faithful — and more elegant — model.
+- **(b) Reserved-reused synthetic slots + on-demand reload.** Keep points coarse; reserve
+  `element_types().len()` working slots at the `MakeArray` point as short intervals (like scratch),
+  and have the driver RAII-cycle them across the N stores, pulling each element in via an on-demand
+  `use_value(value) -> Vec<Action>` that reloads from the element's home only if it is not already
+  resident. The synthetic slots are *destinations* for on-demand reloads, not the elements' own
+  lifetimes — a per-element interval would recreate the N-wide over-count. This localizes the special
+  case to streaming ops, at the cost of the on-demand discipline and of adding `use_value` as a
+  first-class allocator method alongside a reservation-style `before_instruction` (whose contract is
+  "K slots are free", not "here are the registers").
+
+The two are duals: (a) expresses the reuse as non-overlapping intervals sharing a slot; (b) as one
+reservation the driver fills imperatively. Either way the room reserved at the `MakeArray` point
+equals the floor the assertion enforces (result array-pointer + element working set +
+`items_pointer`/`write_pointer` temps), so analysis and allocator agree by construction. `use_value`
+is also the general answer to "`before_instruction` cannot enumerate a streaming instruction's
+operands up front": bounded instructions use `before_instruction`; streaming ones drive `use_value`
+in a loop.
 
 ## Relationship to noir-lang/noir#11638
 
@@ -776,9 +846,13 @@ PR-sized increments, ordered to land value early. Top-level boxes are roughly on
 broken down; nested boxes are the sub-PRs of a multi-PR phase. Boxes within a phase are ordered by
 dependency.
 
-- [ ] **Per-instruction floor assertion** — standalone, independent of everything below. Assert
-      `max over instructions of (inputs + results + scratch) ≤ frame_size` up front, converting the
-      reactive "Stack frame too deep" panic into a clear diagnostic.
+- [x] **Per-instruction floor assertion** — standalone, independent of everything below
+      (noir-lang/noir#13306). Landed as `VariableLiveness::min_live_count`, asserting
+      `max over instructions of (max(inputs, results) + scratch) ≤ frame - Stack::START_OFFSET` up
+      front, converting the reactive "Stack frame too deep" panic into a clear diagnostic. See
+      [A single instruction must fit](#a-single-instruction-must-fit-in-registers-at-once) for the
+      `max(...)`/usable-slots refinements and [Streaming operands](#streaming-operands-makearray) for
+      the `MakeArray` exception.
 - [ ] **Phase 0 — general parallel moves**
   - [ ] Revive the any-to-any parallel-move solver behind a general entry point (keep the
         specialized consecutive-destination path for return-value copies).
