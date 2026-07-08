@@ -354,11 +354,13 @@ edge code — predecessor exit, successor entry, or branch path):
 // Codegen-facing addresses are registers (`MemoryAddress`); spill slots (`SpillSlot`) appear only
 // inside actions, which the allocator fills in from its plan. Every action carries `value` so
 // codegen updates its register shadow mechanically (Reload/Move -> value now at the destination
-// register; Spill -> value leaves the shadow).
+// register; Spill/Prune -> value leaves the shadow). All but `Prune` lower to an opcode; `Prune` is
+// bookkeeping-only, keeping the shadow's registers exactly the occupied set as values die.
 enum Action {
     Spill  { value: ValueId, from: MemoryAddress, to: SpillSlot },     // store a register to a slot
     Reload { value: ValueId, from: SpillSlot, into: MemoryAddress },   // load a slot into a register
     Move   { value: ValueId, from: MemoryAddress, to: MemoryAddress }, // register-to-register
+    Prune  { value: ValueId, register: MemoryAddress },                // drop a dead value, freeing its register (no opcode)
 }
 
 trait Allocator {
@@ -393,6 +395,13 @@ trait Allocator {
     // set stays at the working-set size rather than the operand count.
     fn use_variable(&mut self, value: ValueId) -> (MemoryAddress, Vec<Action>);
 
+    // After lowering `inst`: retire the values whose last use it was, freeing their registers for
+    // reuse later in the block. Returns a `Prune` for each retired value that held a register, so
+    // codegen drops it from its shadow; no opcodes are emitted. The allocator owns liveness, so
+    // codegen cannot know when a value dies — this is how it is told. Without it the shadow would
+    // accumulate dead entries until the next `begin_block` reset.
+    fn after_instruction(&mut self, inst: InstructionId) -> Vec<Action>;
+
     // Before a terminator: make its operands available (return values, or a jmpif condition).
     fn before_terminator(&mut self, block: BasicBlockId) -> Vec<Action>;
 
@@ -412,14 +421,27 @@ Notes on the interface:
   fills it in. So codegen keeps only a per-block `value -> MemoryAddress` map for register-resident
   values (what it needs to emit Brillig opcodes — the role `RegisterState` plays today), seeded by
   `begin_block` and updated as it applies each action (`Reload`/`Move` put a value at the destination
-  register; `Spill` removes it) and each `define_variable`. The "glorified `SpillState`" — slots, the
-  LRU, spill decisions — stays entirely in the allocator; nothing about slots survives into codegen.
+  register; `Spill`/`Prune` remove it) and each `define_variable`. The "glorified `SpillState`" —
+  slots, the LRU, spill decisions — stays entirely in the allocator; nothing about slots survives
+  into codegen.
 - **`define_variable` is the single "value into existence" primitive**, covering constants,
   parameters, and instruction results. It returns the register the value is born in (values are
   always computed into a register) plus the spills to free it; the driver owns the actual write (the
   `const` opcode, the instruction, or the ABI placement). This keeps a single source of truth — the
   driver already knows which values to create where (from `ConstantAllocation`, the parameter ABI,
   the instruction itself), so the allocator does not also dictate that.
+- **`after_instruction` is the symmetric "value out of existence" primitive.** The allocator owns
+  liveness (last-use sets), so codegen cannot see when a value dies; `after_instruction` is how it is
+  told, once the instruction is lowered. It frees the retired values' registers for reuse later in
+  the block and returns a `Prune` per value that held one, so the shadow's registers stay exactly the
+  live set at every program point rather than accumulating dead entries until `begin_block`. `Prune`
+  carries the freed register purely so the driver can assert the shadow agreed — a cheap check that
+  the one-way allocator → shadow flow never drifted. This exactness is also load-bearing for the
+  free-list question below: once the shadow is a faithful residency mirror, a linear-scan allocator
+  need not own a mutable register pool at all — codegen can derive its scratch free list from the
+  shadow's complement (union the currently-live scratch, which RAII already tracks). That lets the
+  allocator's methods become read-only queries over a precomputed plan, which is the end state this
+  seam is aiming at.
 - **`begin_block` buys emission-order independence.** Without it the register shadow would have to be
   function-global, forcing a dominance-respecting emission order (a value's `define_variable` must
   run before any block reading it). `begin_block` hands each block its register-resident live-ins
@@ -461,22 +483,29 @@ actions carry both ends, the allocator supplies each slot, so the whole `SpillMa
 friction points are where the greedy allocator reacts to something the linear-scan plan decides up
 front (notably scratch demand); those are the parts to prototype before the interface is fixed.
 
-**Retirement is internal too.** Freeing a value's register at its last use (today `remove_variable`)
-emits no opcode — it only returns a register to the free list for the next `define_variable` — so it
-is neither a trait method nor an `Action`. The greedy allocator owns the liveness (`last_uses`,
-moved out of `BrilligBlock`) and retires as it advances through the instructions it is called on;
-the plan-based allocator has no free list, so reuse is baked into the static assignment and
-retirement is a non-concept.
+**Retirement surfaces as `after_instruction` + `Prune`.** Freeing a value's register at its last use
+(today `remove_variable`) emits no opcode — the allocator only returns the register to its free list
+for the next `define_variable`. The *decision* is internal: the greedy allocator owns the liveness
+(`last_uses`, moved out of `BrilligBlock`) and retires as it advances through the instructions it is
+called on; the plan-based allocator bakes reuse into its static assignment. But the *fact* of the
+death still has to reach codegen, because its register shadow would otherwise keep the dead value's
+entry until the next `begin_block` reset — a within-block drift from true residency. So
+`after_instruction(inst)` returns a `Prune` per retired value that held a register, and codegen drops
+it from the shadow. This keeps the shadow's registers exactly the live set at every point, which is
+what lets a later plan-based allocator stop owning a mutable pool entirely and have codegen derive
+its scratch free list from the shadow's complement. Both impls emit `Prune`; only the greedy one also
+mutates a real free list behind it. (`Prune` carries the freed register purely so codegen can assert
+the shadow agreed — a cheap sync check on the one-way flow.)
 
-The one death with no in-block advance to trigger it — a terminator's `return`/`jmp` argument
+The one death `after_instruction` does *not* cover — a terminator's `return`/`jmp` argument
 registers, dead only *after* the terminator — is reclaimed by the next `begin_block`, which for the
 greedy allocator also *resets* its occupied set to the new block's live-ins (the
 `set_allocated_registers` reseed), dropping whatever the previous block left behind. That is
 sufficient because nothing runs between a terminator and the next `begin_block` that needs those
 registers: `jmp`/`jmpif` arguments are consumed by `resolve_edge` (so they cannot be freed earlier
 anyway), and a `return` has nothing after it. So `begin_block` doubles as the greedy allocator's
-implicit end-of-block; no separate signal is needed. (This is also why greedy `begin_block` is
-`&mut` — it resets state — whereas for the plan-based allocator it is a pure query.)
+implicit end-of-block for that tail. (This is also why greedy `begin_block` is `&mut` — it resets
+state — whereas for the plan-based allocator it is a pure query.)
 
 **Stateful greedy vs stateless linear scan.** This statefulness split is the crux of the two impls,
 and it shows at the interface. The **linear-scan** allocator is effectively *stateless to query* —
