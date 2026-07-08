@@ -11,6 +11,10 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
     /// (and cycles broken with temporaries) so that every destination ends up holding the
     /// value its source held *before* any move was performed.
     ///
+    /// When `condition` is `Some(_)`, every destination is written with a `conditional_move`
+    /// guarded by that register, so the whole batch is a no-op when the condition is false;
+    /// with `None` the destinations are written unconditionally.
+    ///
     /// It assumes that:
     /// - every destination needs to be written at most once. Will panic if not.
     /// - sources and destinations are any addresses (relative registers or direct globals);
@@ -20,6 +24,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         &mut self,
         sources: &[MemoryAddress],
         destinations: &[MemoryAddress],
+        condition: Option<MemoryAddress>,
     ) {
         assert_eq!(sources.len(), destinations.len(), "sources and destinations length must match");
         let n = sources.len();
@@ -64,6 +69,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
                     node,
                     sources[node],
                     destinations,
+                    condition,
                     &mut num_destinations,
                     &mut processed,
                 );
@@ -86,22 +92,30 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
                 return;
             }
         }
-        // All sinks and their parents have been processed, remaining nodes are part of a loop
-        // Check if a tail_candidate is a branch to a loop
-        for (entry, free) in tail_candidates {
-            let entry_idx = to_index(&dest_index, &entry).unwrap();
-            if num_destinations[entry_idx] == 1 {
-                // Use the branch as the temporary register for the loop
-                let free_register = from_index(destinations, free);
-                self.process_loop(
-                    entry_idx,
-                    &free_register,
-                    destinations,
-                    &dest_index,
-                    &mut num_destinations,
-                    sources,
-                    &mut processed,
-                );
+        // All sinks and their parents have been processed, remaining nodes are part of a loop.
+        // Check if a tail_candidate is a branch to a loop.
+        //
+        // This reuses an already-written destination (`free`) as the loop's scratch register.
+        // That is only sound when the writes are unconditional: under a false `condition` the
+        // move into `free` never happened, so it would hold stale data. When conditional, we
+        // skip this and let these loops fall through to the fresh-temporary path below.
+        if condition.is_none() {
+            for (entry, free) in tail_candidates {
+                let entry_idx = to_index(&dest_index, &entry).unwrap();
+                if num_destinations[entry_idx] == 1 {
+                    // Use the branch as the temporary register for the loop
+                    let free_register = from_index(destinations, free);
+                    self.process_loop(
+                        entry_idx,
+                        &free_register,
+                        destinations,
+                        &dest_index,
+                        condition,
+                        &mut num_destinations,
+                        sources,
+                        &mut processed,
+                    );
+                }
             }
         }
         if processed == n {
@@ -117,12 +131,15 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
                 // Unfortunately, we cannot use one register for all the loops
                 // when the sources do not have the same type
                 let temp_register = self.registers_mut().allocate_register();
+                // Prime the temporary with the loop entry unconditionally: it is fresh scratch,
+                // so writing it even when the condition is false is harmless.
                 self.mov_instruction(temp_register, src);
                 self.process_loop(
                     i,
                     &temp_register,
                     destinations,
                     &dest_index,
+                    condition,
                     &mut num_destinations,
                     sources,
                     &mut processed,
@@ -144,6 +161,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         free: &MemoryAddress,
         destinations: &[MemoryAddress],
         dest_index: &HashMap<MemoryAddress, usize>,
+        condition: Option<MemoryAddress>,
         num_destinations: &mut [usize],
         source: &[MemoryAddress],
         processed: &mut usize,
@@ -154,25 +172,34 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
                 current,
                 source[current],
                 destinations,
+                condition,
                 num_destinations,
                 processed,
             );
             current = to_index(dest_index, &source[current]).unwrap();
         }
-        self.perform_movement(current, *free, destinations, num_destinations, processed);
+        self.perform_movement(current, *free, destinations, condition, num_destinations, processed);
     }
 
-    /// Generates a move opcode from 'src' to 'dest'.
+    /// Generates a move opcode from 'src' to 'dest'. When `condition` is `Some(_)`, the write
+    /// is a `conditional_move` guarded by it (leaving 'dest' unchanged when false); otherwise
+    /// it is an unconditional `mov`.
     fn perform_movement(
         &mut self,
         dest: usize,
         src: MemoryAddress,
         destinations: &[MemoryAddress],
+        condition: Option<MemoryAddress>,
         num_destinations: &mut [usize],
         processed: &mut usize,
     ) {
         let destination = from_index(destinations, dest);
-        self.mov_instruction(destination, src);
+        match condition {
+            None => self.mov_instruction(destination, src),
+            Some(condition) => {
+                self.conditional_move_instruction(condition, src, destination, destination);
+            }
+        }
         // set the node as 'processed'
         num_destinations[dest] = usize::MAX;
         *processed += 1;
@@ -263,7 +290,7 @@ mod tests {
             context.registers_mut().allocate_register();
         }
         let (sources, destinations) = movements_to_source_and_destinations(movements);
-        context.codegen_mov_registers_to_registers(&sources, &destinations);
+        context.codegen_mov_registers_to_registers(&sources, &destinations, None);
 
         let opcodes = context.into_artifact().byte_code;
 
@@ -389,24 +416,24 @@ mod tests {
         let mut context = create_context();
 
         // This should overflow the stack with recursive implementation
-        context.codegen_mov_registers_to_registers(&sources, &destinations);
+        context.codegen_mov_registers_to_registers(&sources, &destinations, None);
     }
 
     #[test]
     fn prop_mov_registers_to_registers() {
         const MEM_SIZE: usize = 10;
         arbtest::arbtest(|u| {
-            // Allocate more memory to allow for temporary variables.
-            let mut memory: Vec<u32> = vec![0; MEM_SIZE * 2];
+            // Room for the working slots, the condition register, and any temporaries.
+            let mut initial_memory: Vec<u32> = vec![0; MEM_SIZE * 3];
             // Fill the memory with some random numbers.
-            for slot in &mut memory {
+            for slot in &mut initial_memory {
                 *slot = u.arbitrary()?;
             }
 
             // Pick a random unique subset of the slots as destinations.
             let num_destinations = u.int_in_range(0..=MEM_SIZE)?;
 
-            // All potential memory slots; we can't address before the stack start.
+            // All potential source/destination slots; we can't address before the stack start.
             let all_indexes = (0..MEM_SIZE).map(|i| i + S).collect::<Vec<_>>();
 
             // Choose the destinations as a random unique subset of the slots (in an
@@ -425,39 +452,76 @@ mod tests {
                 sources.push(u.choose(&all_indexes).copied()?);
             }
 
-            // Take a snapshot of the source data; this is what we expect the destination to become.
-            let source_data = vecmap(&sources, |i| memory[*i]);
+            // A dedicated condition register just past the working slots, so it is never a
+            // source or destination and the mover's temporaries are allocated above it.
+            let condition_slot = S + MEM_SIZE;
 
-            // Generate the opcodes.
-            let opcodes = {
-                // Convert to MemoryAddress
-                let sources = vecmap(&sources, |i| MemoryAddress::relative(assert_u32(*i)));
-                let destinations =
-                    vecmap(&destinations, |i| MemoryAddress::relative(assert_u32(*i)));
+            // Exercise the same move set unconditionally, and conditionally with both a true
+            // and a false guard. A true (or absent) guard performs the moves; a false guard
+            // must leave every destination untouched.
+            for condition_value in [None, Some(true), Some(false)] {
+                let mut memory = initial_memory.clone();
+                if let Some(value) = condition_value {
+                    memory[condition_slot] = u32::from(value);
+                }
 
-                let mut context = create_context();
+                // Snapshots taken before the moves: what the destinations should become when
+                // the moves run, and what they must stay when a false guard suppresses them.
+                let source_data = vecmap(&sources, |i| memory[*i]);
+                let original_destination_data = vecmap(&destinations, |i| memory[*i]);
 
-                // Treat the memory we care about as pre-allocated, so temporary variables are created after them.
-                let all_registers = vecmap(all_indexes, |i| MemoryAddress::relative(assert_u32(i)));
-                context.set_allocated_registers(all_registers);
+                let condition_address =
+                    condition_value.map(|_| MemoryAddress::relative(assert_u32(condition_slot)));
 
-                context.codegen_mov_registers_to_registers(&sources, &destinations);
-                context.into_artifact().byte_code
-            };
+                // Generate the opcodes.
+                let opcodes = {
+                    // Convert to MemoryAddress
+                    let sources = vecmap(&sources, |i| MemoryAddress::relative(assert_u32(*i)));
+                    let destinations =
+                        vecmap(&destinations, |i| MemoryAddress::relative(assert_u32(*i)));
 
-            // Execute the opcodes.
-            for opcode in opcodes {
-                let Opcode::Mov { destination, source } = opcode else {
-                    unreachable!("only Mov expected");
+                    let mut context = create_context();
+
+                    // Pre-allocate the working slots and the condition register, so temporary
+                    // variables are created above them.
+                    let mut allocated =
+                        vecmap(&all_indexes, |i| MemoryAddress::relative(assert_u32(*i)));
+                    allocated.push(MemoryAddress::relative(assert_u32(condition_slot)));
+                    context.set_allocated_registers(allocated);
+
+                    context.codegen_mov_registers_to_registers(
+                        &sources,
+                        &destinations,
+                        condition_address,
+                    );
+                    context.into_artifact().byte_code
                 };
-                memory[assert_usize(destination.to_u32())] = memory[assert_usize(source.to_u32())];
+
+                // Execute the opcodes.
+                for opcode in opcodes {
+                    match opcode {
+                        Opcode::Mov { destination, source } => {
+                            memory[assert_usize(destination.to_u32())] =
+                                memory[assert_usize(source.to_u32())];
+                        }
+                        Opcode::ConditionalMov { destination, source_a, source_b, condition } => {
+                            let taken = memory[assert_usize(condition.to_u32())] != 0;
+                            let source = if taken { source_a } else { source_b };
+                            memory[assert_usize(destination.to_u32())] =
+                                memory[assert_usize(source.to_u32())];
+                        }
+                        other => unreachable!("only Mov/ConditionalMov expected, got {other:?}"),
+                    }
+                }
+
+                // Get the final values at the destination slots.
+                let destination_data = vecmap(&destinations, |i| memory[*i]);
+
+                match condition_value {
+                    None | Some(true) => assert_eq!(destination_data, source_data),
+                    Some(false) => assert_eq!(destination_data, original_destination_data),
+                }
             }
-
-            // Get the final values at the destination slots.
-            let destination_data = vecmap(&destinations, |i| memory[*i]);
-
-            // At the end the destination should have the same value as the source had.
-            assert_eq!(destination_data, source_data);
 
             Ok(())
         })

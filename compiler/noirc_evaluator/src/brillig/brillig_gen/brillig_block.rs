@@ -678,65 +678,12 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
 
         // Block-parameter assignments at a jump happen "simultaneously": a source register
         // may also be another param's destination, so emitting the moves naively in sequence
-        // can clobber a value before it is read. How we break that hazard differs between an
-        // unconditional and a conditional jump.
-        match condition {
-            None => self.codegen_unconditional_block_param_moves(moves),
-            Some(condition) => self.codegen_conditional_block_param_moves(moves, condition),
-        }
-    }
-
-    /// Lower the block-parameter moves of an unconditional `Jmp`.
-    ///
-    /// Every move is unconditional, so we hand the whole batch to the general parallel-move
-    /// solver: it orders the acyclic chains and breaks each cycle with a single temporary —
-    /// sometimes reusing an already-written destination as that scratch register, which is
-    /// only sound precisely because none of the writes are conditional.
-    fn codegen_unconditional_block_param_moves(
-        &mut self,
-        moves: Vec<(MemoryAddress, MemoryAddress)>,
-    ) {
+        // can clobber a value before it is read. The general parallel-move solver orders the
+        // moves and breaks any cycle with a single temporary. When lowering a `JmpIf`
+        // then-branch (`condition` is `Some(_)`), it emits the destination writes as
+        // conditional moves so an else-taken branch leaves the params untouched.
         let (sources, destinations): (Vec<_>, Vec<_>) = moves.into_iter().unzip();
-        self.brillig_context.codegen_mov_registers_to_registers(&sources, &destinations);
-    }
-
-    /// Lower the block-parameter moves of a `JmpIf` then-branch, guarded by `condition`.
-    ///
-    /// Every destination must be written with a `conditional_move` so that an else-taken
-    /// branch leaves it untouched. This rules out the general solver used for an
-    /// unconditional jump: it emits plain (unconditional) `mov`s and may reuse an
-    /// already-written destination as a cycle's scratch register — but under a false
-    /// condition that destination was never written, so reusing it would read stale data.
-    ///
-    /// Instead we save every source that is also a destination into a *fresh* temporary up
-    /// front. Copying into scratch unconditionally is harmless, and it guarantees each
-    /// conditional move reads the source's original value even after earlier moves have
-    /// (conditionally) overwritten destinations. This spends one temporary per such source
-    /// rather than one per cycle; teaching the solver to emit conditional moves so this path
-    /// can share it is left as a follow-up.
-    fn codegen_conditional_block_param_moves(
-        &mut self,
-        mut moves: Vec<(MemoryAddress, MemoryAddress)>,
-        condition: MemoryAddress,
-    ) {
-        // `Allocated` deallocates the register when dropped, so `temps` keeps them alive
-        // until all conditional moves have been emitted.
-        let dest_set: HashSet<MemoryAddress> = moves.iter().map(|(_, d)| *d).collect();
-        let mut temps = Vec::new();
-        for (src, _dst) in &mut moves {
-            if dest_set.contains(src) {
-                let temp = self.brillig_context.allocate_register();
-                self.brillig_context.mov_instruction(*temp, *src);
-                *src = *temp;
-                temps.push(temp);
-            }
-        }
-
-        for (src, dst) in &moves {
-            // The else_address is the same as the destination here to avoid modification if the
-            // condition is false.
-            self.brillig_context.conditional_move_instruction(condition, *src, *dst, *dst);
-        }
+        self.brillig_context.codegen_mov_registers_to_registers(&sources, &destinations, condition);
     }
 
     /// Conditionally move only the `then_arguments` of a jmpif terminator then

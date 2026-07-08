@@ -60,9 +60,10 @@ fn brillig_jmp_rotates_block_params_through_a_cycle() {
 /// then-branch parameter passing is a 4-cycle whose moves must be *conditional* so an
 /// else-taken branch leaves the params untouched.
 ///
-/// The general parallel-move solver only emits unconditional moves, so this path breaks
-/// the cycle inline by copying every source-that-is-a-destination into a fresh temporary
-/// before the conditional moves: 4 temporaries and 8 moves for the 4-cycle.
+/// The general parallel-move solver breaks the cycle by priming a single temporary with
+/// the loop entry (an unconditional copy into fresh scratch) and rotating the rest with
+/// conditional moves: 1 temporary and 5 moves for the 4-cycle. When the condition is
+/// false every conditional move is a no-op, so the params are left untouched.
 #[test]
 fn brillig_jmpif_rotates_block_params_through_a_cycle() {
     let src = "
@@ -80,9 +81,9 @@ fn brillig_jmpif_rotates_block_params_through_a_cycle() {
     let brillig = ssa_to_brillig_artifacts(src);
     let main = &brillig.ssa_function_to_brillig[&Id::test_new(0)];
 
-    // The conditional rotation at `b1` (bytecode indices 6-13) copies all four sources
-    // into fresh temporaries (sp[3..5], sp[10]) before the conditional moves: 8 moves,
-    // 4 temporaries for a single 4-cycle.
+    // The conditional rotation at `b1` (bytecode indices 6-10) primes one temporary
+    // (sp[3]) with the loop entry, then rotates the rest with conditional moves: 5 moves,
+    // 1 temporary for the 4-cycle.
     assert_artifact_snapshot!(main, @r"
     fn main
      0: sp[6] = sp[2]
@@ -91,17 +92,14 @@ fn brillig_jmpif_rotates_block_params_through_a_cycle() {
      3: sp[9] = sp[5]
      4: jump to 0 // -> 5: f0/b1
      5: sp[2] = u32 lt sp[6], sp[7] // f0/b1
-     6: sp[3] = sp[7]
-     7: sp[4] = sp[8]
-     8: sp[5] = sp[9]
-     9: sp[10] = sp[6]
-    10: sp[6] = if sp[2] then sp[3] else sp[6]
-    11: sp[7] = if sp[2] then sp[4] else sp[7]
-    12: sp[8] = if sp[2] then sp[5] else sp[8]
-    13: sp[9] = if sp[2] then sp[10] else sp[9]
-    14: jump if sp[2] to 0 // -> 5: f0/b1
-    15: jump to 0 // -> 16: f0/b2
-    16: sp[2] = sp[6] // f0/b2
-    17: return
+     6: sp[3] = sp[6]
+     7: sp[6] = if sp[2] then sp[7] else sp[6]
+     8: sp[7] = if sp[2] then sp[8] else sp[7]
+     9: sp[8] = if sp[2] then sp[9] else sp[8]
+    10: sp[9] = if sp[2] then sp[3] else sp[9]
+    11: jump if sp[2] to 0 // -> 5: f0/b1
+    12: jump to 0 // -> 13: f0/b2
+    13: sp[2] = sp[6] // f0/b2
+    14: return
     ");
 }
