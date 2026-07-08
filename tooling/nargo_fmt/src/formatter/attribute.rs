@@ -91,6 +91,7 @@ impl Formatter<'_> {
             | SecondaryAttributeKind::Export
             | SecondaryAttributeKind::Varargs
             | SecondaryAttributeKind::UseCallersScope
+            | SecondaryAttributeKind::Transparent
             | SecondaryAttributeKind::Pure => {
                 self.format_no_args_attribute();
             }

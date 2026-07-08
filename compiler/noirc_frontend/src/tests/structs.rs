@@ -3,8 +3,8 @@
 use crate::{
     elaborator::UnstableFeature,
     tests::{
-        assert_no_errors, check_errors, check_errors_using_features, check_monomorphization_error,
-        get_program_using_features,
+        assert_no_errors, check_errors, check_errors_using_features, check_errors_with_stdlib,
+        check_monomorphization_error, get_program_using_features,
     },
 };
 
@@ -373,6 +373,156 @@ fn deny_abi_attribute_on_struct_outside_contract() {
         fn main() {}
     "#;
     check_errors(src);
+}
+
+#[test]
+fn allow_transparent_on_single_field_struct_outside_contract() {
+    // `#[transparent]` is not contract-specific: it marks a single-field newtype wrapper as
+    // transparent so it serializes as its inner field. This lets a user wrap a foreign type to
+    // implement some trait on it without the wrapper appearing in `Prover.toml`.
+    let src = r#"
+        #[transparent]
+        pub struct Wrapper {
+            inner: Field,
+        }
+
+        pub fn foo(_: Wrapper) {}
+
+        fn main() {}
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn deny_transparent_on_multi_field_struct() {
+    let src = r#"
+        #[transparent]
+        ^^^^^^^^^^^^^^ `#[transparent]` can only be applied to a struct with a single field
+        ~~~~~~~~~~~~~~ not a single-field struct
+        pub struct Wrapper {
+            a: Field,
+            b: Field,
+        }
+
+        pub fn foo(_: Wrapper) {}
+
+        fn main() {}
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn deny_transparent_on_empty_struct() {
+    let src = r#"
+        #[transparent]
+        ^^^^^^^^^^^^^^ `#[transparent]` can only be applied to a struct with a single field
+        ~~~~~~~~~~~~~~ not a single-field struct
+        pub struct Wrapper {}
+
+        pub fn foo(_: Wrapper) {}
+
+        fn main() {}
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn deny_transparent_on_enum() {
+    let src = r#"
+        #[transparent]
+        ^^^^^^^^^^^^^^ `#[transparent]` can only be applied to a struct
+        ~~~~~~~~~~~~~~ not a struct
+        pub enum Wrapper {
+            A,
+            B,
+        }
+
+        pub fn foo(_: Wrapper) {}
+
+        fn main() {}
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn deny_transparent_on_global() {
+    let src = r#"
+        #[transparent]
+        ^^^^^^^^^^^^^^ `#[transparent]` can only be applied to a struct
+        ~~~~~~~~~~~~~~ not a struct
+        pub global X: Field = 1;
+
+        fn main() {
+            let _ = X;
+        }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn deny_transparent_via_comptime_add_transparent_on_multi_field_struct() {
+    // The single-field guard lives only in def-collection, so attaching `#[transparent]` through
+    // the comptime `TypeDefinition::add_transparent` API bypasses it: this multi-field struct is
+    // marked transparent with no error, later yielding a silently-wrong ABI (trailing fields
+    // dropped). The same `TransparentRequiresSingleField` error the source-level path raises should
+    // fire here too.
+    let stdlib = r#"
+        impl TypeDefinition {
+            #[builtin(type_def_add_transparent)]
+            pub comptime fn add_transparent(self) {}
+        }
+    "#;
+    let src = r#"
+        #[make_transparent]
+        pub struct Wrapper {
+            a: Field,
+            b: Field,
+        }
+
+        comptime fn make_transparent(s: TypeDefinition) {
+            s.add_transparent();
+            ^^^^^^^^^^^^^^^^^^^ `#[transparent]` can only be applied to a struct with a single field
+            ~~~~~~~~~~~~~~~~~~~ not a single-field struct
+        }
+
+        pub fn foo(_: Wrapper) {}
+
+        fn main() {}
+    "#;
+    check_errors_with_stdlib(src, [stdlib]);
+}
+
+#[test]
+fn allow_transparent_via_comptime_add_transparent_on_single_field_struct() {
+    // On a valid single-field struct the comptime `add_transparent` succeeds, and the attribute is
+    // afterwards observable as `transparent` (not `abi`) via `has_named_attribute`. Calling it a
+    // second time is a no-op rather than an error, so transparency stays idempotent.
+    let stdlib = r#"
+        impl TypeDefinition {
+            #[builtin(type_def_add_transparent)]
+            pub comptime fn add_transparent(self) {}
+
+            #[builtin(type_def_has_named_attribute)]
+            pub comptime fn has_named_attribute<let N: u32>(self, name: str<N>) -> bool {}
+        }
+    "#;
+    let src = r#"
+        #[make_transparent]
+        pub struct Wrapper {
+            inner: Field,
+        }
+
+        comptime fn make_transparent(s: TypeDefinition) {
+            s.add_transparent();
+            s.add_transparent();
+            assert(s.has_named_attribute("transparent"));
+        }
+
+        pub fn foo(_: Wrapper) {}
+
+        fn main() {}
+    "#;
+    check_errors_with_stdlib(src, [stdlib]);
 }
 
 #[test]

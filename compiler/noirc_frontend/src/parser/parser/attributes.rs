@@ -281,6 +281,12 @@ impl Parser<'_> {
                 let attr = Attribute::Secondary(attr);
                 self.parse_no_args_attribute(ident, &arguments, attr)
             }
+            "transparent" => {
+                let kind = SecondaryAttributeKind::Transparent;
+                let attr = SecondaryAttribute { kind, location };
+                let attr = Attribute::Secondary(attr);
+                self.parse_no_args_attribute(ident, &arguments, attr)
+            }
             "use_callers_scope" => {
                 let kind = SecondaryAttributeKind::UseCallersScope;
                 let attr = SecondaryAttribute { kind, location };

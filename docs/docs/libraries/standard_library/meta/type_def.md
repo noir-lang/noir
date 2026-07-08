@@ -14,6 +14,15 @@ This type corresponds to `struct Name { field1: Type1, ... }` and `enum Name { V
 
 Adds an abi attribute to the data type with the specified argument.
 
+### add_transparent
+
+#include_code add_transparent noir_stdlib/src/meta/type_def.nr rust
+
+Marks the type as `#[transparent]`, so that at the ABI boundary it is serialized and deserialized as
+its single inner field rather than as a wrapping struct. The type must be a struct with exactly one
+field. Calling this on a multi-field struct or an enum is an error; calling it on an already-transparent
+type is a no-op.
+
 ### as_type
 
 #include_code as_type noir_stdlib/src/meta/type_def.nr rust

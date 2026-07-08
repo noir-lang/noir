@@ -1287,13 +1287,21 @@ pub fn collect_struct(
 
     let parent_module_id = ModuleId { krate, local_id: module_id };
 
-    // ABI attributes are only meaningful within contracts, so error if used elsewhere.
-    if !def_map[module_id].is_contract {
-        for attr in &unresolved.struct_def.attributes {
-            if matches!(attr.kind, SecondaryAttributeKind::Abi(_)) {
+    for attr in &unresolved.struct_def.attributes {
+        match &attr.kind {
+            // `#[abi(tag)]` tags are only meaningful within contracts, so error if used elsewhere.
+            SecondaryAttributeKind::Abi(_) if !def_map[module_id].is_contract => {
                 definition_errors
                     .push(ResolverError::AbiAttributeOutsideContract { location: attr.location });
             }
+            // `#[transparent]` is allowed anywhere, but only makes sense on a newtype wrapper:
+            // it serializes the struct as its single inner field.
+            SecondaryAttributeKind::Transparent if unresolved.struct_def.fields.len() != 1 => {
+                definition_errors.push(ResolverError::TransparentRequiresSingleField {
+                    location: attr.location,
+                });
+            }
+            _ => {}
         }
     }
 
@@ -1404,6 +1412,14 @@ pub fn collect_enum(
     let result = def_map[module_id].declare_type(name.clone(), visibility, id);
 
     let parent_module_id = ModuleId { krate, local_id: module_id };
+
+    // `#[transparent]` only applies to a single-field struct, not to an enum.
+    for attr in &unresolved.enum_def.attributes {
+        if attr.kind.is_transparent() {
+            definition_errors
+                .push(ResolverError::TransparentOnlyOnStruct { location: attr.location });
+        }
+    }
 
     let has_allow_dead_code =
         unresolved.enum_def.attributes.iter().any(|attr| attr.kind.is_allow("dead_code"));
@@ -1687,6 +1703,14 @@ pub(crate) fn collect_global(
             DefCollectorErrorKind::Duplicate { typ: DuplicateType::Global, first_def, second_def };
         err.into()
     });
+
+    // `#[transparent]` only applies to a single-field struct, not to a global.
+    let error = global
+        .attributes
+        .iter()
+        .find(|attr| attr.kind.is_transparent())
+        .map(|attr| ResolverError::TransparentOnlyOnStruct { location: attr.location }.into())
+        .or(error);
 
     interner.set_doc_comments(ReferenceId::Global(global_id), doc_comments);
 

@@ -940,6 +940,13 @@ pub enum SecondaryAttributeKind {
     /// Example: `#[abi(my_tag)]`
     Abi(String),
 
+    /// Marks a single-field struct as transparent: it serializes to `Prover.toml` and the ABI
+    /// as its inner field rather than as a wrapping struct. Unlike [`Abi`](Self::Abi) this is not
+    /// contract-specific, carries no tag, and does not itself appear in the build artifact.
+    ///
+    /// Example: `#[transparent]`
+    Transparent,
+
     /// A variable-argument comptime function.
     Varargs,
 
@@ -977,6 +984,10 @@ impl SecondaryAttributeKind {
         matches!(self, SecondaryAttributeKind::Abi(_))
     }
 
+    pub(crate) fn is_transparent(&self) -> bool {
+        matches!(self, SecondaryAttributeKind::Transparent)
+    }
+
     pub(crate) fn contents(&self) -> String {
         match self {
             SecondaryAttributeKind::Deprecated(false, None) => "deprecated".to_string(),
@@ -991,6 +1002,7 @@ impl SecondaryAttributeKind {
             SecondaryAttributeKind::Export => "export".to_string(),
             SecondaryAttributeKind::Field(k) => format!("field({k})"),
             SecondaryAttributeKind::Abi(k) => format!("abi({k})"),
+            SecondaryAttributeKind::Transparent => "transparent".to_string(),
             SecondaryAttributeKind::Varargs => "varargs".to_string(),
             SecondaryAttributeKind::UseCallersScope => "use_callers_scope".to_string(),
             SecondaryAttributeKind::Allow(k) => format!("allow({k})"),

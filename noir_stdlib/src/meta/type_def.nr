@@ -6,6 +6,11 @@ impl TypeDefinition {
     pub comptime fn add_abi(self, abi_argument: CtString) {}
     // docs:end:add_abi
 
+    #[builtin(type_def_add_transparent)]
+    // docs:start:add_transparent
+    pub comptime fn add_transparent(self) {}
+    // docs:end:add_transparent
+
     /// Return a syntactic version of this type definition as a type.
     /// For example, `type Foo<A, B> { ... })` would return `Foo<A, B>` when called with this method.
     #[builtin(type_def_as_type)]

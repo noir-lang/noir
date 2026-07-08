@@ -1,0 +1,6 @@
+[package]
+name = "transparent"
+type = "bin"
+authors = [""]
+
+[dependencies]

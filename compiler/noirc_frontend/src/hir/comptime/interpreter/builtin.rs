@@ -47,7 +47,7 @@ use crate::{
             value::{ExprValue, FormatStringFragment, TypedExpr},
         },
         def_map::{ModuleDefId, ModuleId, fully_qualified_module_path},
-        resolution::visibility::item_in_module_is_visible,
+        resolution::{errors::ResolverError, visibility::item_in_module_is_visible},
     },
     hir_def::{
         expr::{HirExpression, HirIdent, HirLiteral, ImplKind, TraitItem},
@@ -248,6 +248,7 @@ impl Interpreter<'_, '_> {
             "type_as_data_type" => type_as_data_type(arguments, return_type, location),
             "type_as_tuple" => type_as_tuple(arguments, return_type, location),
             "type_def_add_abi" => type_def_add_abi(self, arguments, location),
+            "type_def_add_transparent" => type_def_add_transparent(self, arguments, location),
             "type_def_as_type" => type_def_as_type(interner, arguments, location),
             "type_def_as_type_with_generics" => {
                 type_def_as_type_with_generics(interner, arguments, return_type, location)
@@ -506,15 +507,57 @@ fn type_def_add_abi(
     let attribute = get_ctstring(attribute)?;
     let attribute = String::from_utf8_lossy(&attribute);
 
-    let attribute = SecondaryAttribute {
-        kind: SecondaryAttributeKind::Abi(attribute.into_owned()),
-        location: attribute_location,
-    };
+    let kind = SecondaryAttributeKind::Abi(attribute.into_owned());
+    let attribute = SecondaryAttribute { kind, location: attribute_location };
 
     let self_arg = self_argument.0.clone();
     let type_id = get_type_id(self_argument)?;
     check_item_crate_matches_current_crate(interpreter, &self_arg, type_id.module_id(), location)?;
 
+    interpreter.elaborator.interner.update_type_attributes(type_id, |attributes| {
+        attributes.push(attribute);
+    });
+
+    Ok(Value::Unit)
+}
+
+// fn add_transparent(self)
+fn type_def_add_transparent(
+    interpreter: &mut Interpreter,
+    arguments: Vec<(Value, Location)>,
+    location: Location,
+) -> IResult<Value> {
+    let self_argument = check_one_argument(arguments, location)?;
+    let self_arg = self_argument.0.clone();
+    let type_id = get_type_id(self_argument)?;
+    check_item_crate_matches_current_crate(interpreter, &self_arg, type_id.module_id(), location)?;
+
+    // Already transparent (declared in source or a previous `add_transparent`): nothing to attach,
+    // and it was validated when first marked, so there is nothing to re-check either.
+    if interpreter.elaborator.interner.is_transparent(type_id) {
+        return Ok(Value::Unit);
+    }
+
+    // The def-collection guards on `#[transparent]` never see attributes attached this late, so
+    // re-check them here: attaching transparency must not silently mark a non-single-field struct
+    // (or an enum) as transparent, which would later yield a wrong ABI.
+    let data_type = interpreter.elaborator.interner.get_type(type_id);
+    // `fields_raw` is `Some` only for structs, so this distinguishes the single-field struct
+    // (allowed) from a multi-field/empty struct and from an enum.
+    let error = match data_type.borrow().fields_raw() {
+        Some([_]) => None,
+        Some(_) => Some(ResolverError::TransparentRequiresSingleField { location }),
+        None => Some(ResolverError::TransparentOnlyOnStruct { location }),
+    };
+    if let Some(error) = error {
+        // Bail without attaching: a `Transparent` marker on a non-single-field struct is the very
+        // malformed state the guard rejects, and later consumers (e.g. ABI generation) assume a
+        // transparent struct has exactly one field.
+        interpreter.elaborator.push_err(error);
+        return Ok(Value::Unit);
+    }
+
+    let attribute = SecondaryAttribute { kind: SecondaryAttributeKind::Transparent, location };
     interpreter.elaborator.interner.update_type_attributes(type_id, |attributes| {
         attributes.push(attribute);
     });

@@ -1,0 +1,18 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+struct Point {
+    x: Field,
+    y: Field,
+}
+
+#[transparent]
+struct Wrapper {
+    inner: Point,
+}
+
+fn main(point: Wrapper) -> pub Wrapper {
+    println(point);
+    point
+}

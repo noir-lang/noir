@@ -540,6 +540,30 @@ Since we have an impl for our own type, the behavior of this code will not chang
 to provide its own `impl Default for Foo`. The downside of this pattern is that it requires extra wrapping and
 unwrapping of values when converting to and from the `Wrapper` and `Foo` types.
 
+#### Transparent Newtypes at the ABI Boundary
+
+When a newtype wrapper is used as a parameter or return type of `main`, it appears in the ABI (and in
+`Prover.toml`) as a struct wrapping its single field. That means callers must fill in the wrapper's field name
+rather than supplying the inner value directly. Annotating a single-field wrapper with `#[transparent]` erases
+the wrapper at the ABI boundary: the type is serialized and deserialized exactly as its inner field, while
+remaining a distinct type inside the program.
+
+```rust
+#[transparent]
+struct Wrapper {
+    inner: Field,
+}
+
+fn main(w: Wrapper) -> pub Wrapper {
+    w
+}
+```
+
+With `#[transparent]`, `Prover.toml` supplies `w` as a bare `Field` rather than a `{ inner = ... }` table, and
+the return value is encoded the same way. `#[transparent]` may only be applied to a struct with exactly one
+field. Note that it only affects ABI serialization: within the program the value is still a `Wrapper`, and
+`println` still prints it as one.
+
 ### Trait Inheritance
 
 Sometimes, you might need one trait to use another trait’s functionality (like "inheritance" in some other languages). In this case, you can specify this relationship by listing any child traits after the parent trait's name and a colon. Now, whenever the parent trait is implemented it will require the child traits to be implemented as well. A parent trait is also called a "super trait."

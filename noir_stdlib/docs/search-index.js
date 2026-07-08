@@ -63,6 +63,7 @@ window.searchIndex = [
   {"name":"add","path":"std::u64","kind":"method","url":"std/primitive.u64.html#impl-Add-for-u64","desc":""},
   {"name":"add","path":"std::u8","kind":"method","url":"std/primitive.u8.html#impl-Add-for-u8","desc":""},
   {"name":"add_abi","path":"std::TypeDefinition","kind":"method","url":"std/primitive.TypeDefinition.html#add_abi","desc":""},
+  {"name":"add_transparent","path":"std::TypeDefinition","kind":"method","url":"std/primitive.TypeDefinition.html#add_transparent","desc":""},
   {"name":"aes128","path":"std","kind":"module","url":"std/aes128/index.html","desc":""},
   {"name":"aes128_encrypt","path":"std::aes128","kind":"fn","url":"std/aes128/fn.aes128_encrypt.html","desc":"Given a plaintext as an array of bytes, returns the corresponding aes128 ciphertext (CBC mode). Input padding is performed using PKCS#7, so that the output length is `input.len() + (16 - input.len() % 16)`."},
   {"name":"all","path":"std::array","kind":"method","url":"std/primitive.array.html#all","desc":"Returns true if all the elements in this array satisfy the given predicate."},

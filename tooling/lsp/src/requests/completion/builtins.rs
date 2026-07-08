@@ -80,6 +80,7 @@ impl NodeFinder<'_> {
                 self.suggest_allow("dead_code", prefix);
             }
             AttributeTarget::Struct => {
+                self.suggest_no_arguments_attributes(prefix, &["transparent"]);
                 self.suggest_one_argument_attributes(prefix, &["abi"]);
                 self.suggest_allow("dead_code", prefix);
             }

@@ -80,7 +80,12 @@ fn run_package_comptime(
     let func_args =
         input_values_to_comptime_values(&prover_input, func_meta, &context.def_interner);
     let return_value = return_value.map(|return_value| {
-        input_value_to_comptime_value(&return_value, func_meta.return_type(), location)
+        input_value_to_comptime_value(
+            &return_value,
+            func_meta.return_type(),
+            location,
+            &context.def_interner,
+        )
     });
 
     match context.interpret_function(main_id, func_args) {
@@ -140,12 +145,17 @@ fn input_values_to_comptime_values(
         let input = prover_input
             .get(name)
             .unwrap_or_else(|| panic!("Expected to find {name} in prover inputs"));
-        let value = input_value_to_comptime_value(input, &typ, location);
+        let value = input_value_to_comptime_value(input, &typ, location, interner);
         (value, location)
     })
 }
 
-fn input_value_to_comptime_value(input: &InputValue, typ: &Type, location: Location) -> Value {
+fn input_value_to_comptime_value(
+    input: &InputValue,
+    typ: &Type,
+    location: Location,
+    interner: &NodeInterner,
+) -> Value {
     match typ {
         Type::Unit => Value::Unit,
         Type::Bool => {
@@ -203,7 +213,7 @@ fn input_value_to_comptime_value(input: &InputValue, typ: &Type, location: Locat
             assert_eq!(inputs.len(), length as usize, "Array length does not match input length");
             let array = inputs
                 .iter()
-                .map(|input| input_value_to_comptime_value(input, element_typ, location))
+                .map(|input| input_value_to_comptime_value(input, element_typ, location, interner))
                 .collect();
             Value::Array(array, typ.clone())
         }
@@ -223,7 +233,7 @@ fn input_value_to_comptime_value(input: &InputValue, typ: &Type, location: Locat
             };
             assert_eq!(inputs.len(), types.len(), "Tuple length does not match input length");
             let tuple = vecmap(inputs.iter().zip_eq(types.iter()), |(input, typ)| {
-                let value = input_value_to_comptime_value(input, typ, location);
+                let value = input_value_to_comptime_value(input, typ, location, interner);
                 Shared::new(value)
             });
             Value::Tuple(tuple)
@@ -233,6 +243,16 @@ fn input_value_to_comptime_value(input: &InputValue, typ: &Type, location: Locat
                 .borrow()
                 .get_fields(generics)
                 .expect("Enums as inputs are not yet supported");
+            // A `#[transparent]` wrapper is serialized as its inner field, so `input` holds the
+            // inner value directly (not a struct map). Decode it against the field's type and wrap it
+            // back up, mirroring how the ABI erases the wrapper (see `abi_type_from_hir_type`).
+            if interner.is_transparent(data_type.borrow().id) {
+                let (name, field_typ, _) =
+                    fields.into_iter().next().expect("`#[transparent]` struct has one field");
+                let value = input_value_to_comptime_value(input, &field_typ, location, interner);
+                let fields = [(Rc::new(name), Shared::new(value))].into_iter().collect();
+                return Value::Struct(fields, typ.clone());
+            }
             let InputValue::Struct(inputs) = input else {
                 panic!("expected struct input for data type");
             };
@@ -242,7 +262,7 @@ fn input_value_to_comptime_value(input: &InputValue, typ: &Type, location: Locat
                     let input = inputs
                         .get(&name)
                         .unwrap_or_else(|| panic!("Expected to find field {name} in input"));
-                    let value = input_value_to_comptime_value(input, &typ, location);
+                    let value = input_value_to_comptime_value(input, &typ, location, interner);
                     (Rc::new(name), Shared::new(value))
                 })
                 .collect();
@@ -250,7 +270,7 @@ fn input_value_to_comptime_value(input: &InputValue, typ: &Type, location: Locat
         }
         Type::Alias(alias, generics) => {
             let typ = alias.borrow().get_type(generics);
-            input_value_to_comptime_value(input, &typ, location)
+            input_value_to_comptime_value(input, &typ, location, interner)
         }
         Type::Vector(_)
         | Type::FmtString(_, _)
@@ -303,6 +323,15 @@ fn output_value_to_string(value: &Value, context: &Context) -> String {
                 other => unreachable!("Expected data type, found {other}"),
             };
             let data_type = data_type.borrow();
+
+            // A `#[transparent]` wrapper is invisible at the ABI boundary, so render its single
+            // field directly — matching the non-comptime path, which displays the output decoded
+            // through the (transparent) ABI rather than the Noir value.
+            if context.def_interner.is_transparent(data_type.id) {
+                let value = fields.values().next().expect("`#[transparent]` struct has one field");
+                return output_value_to_string(&value.borrow(), context);
+            }
+
             let typename =
                 context.fully_qualified_struct_path(context.root_crate_id(), data_type.id);
 
