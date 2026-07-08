@@ -775,6 +775,17 @@ retire (to the extent `instruction_scratch_demand` attributes every transient). 
 the analysis must know each lowering's temp appetite remains; an assertion tying the reserved count
 to the actual allocation would guard against drift.
 
+This is where the driver's register shadow earns a second role, and why `Prune` was worth adding in
+Phase 0.5. The plan-based allocator serves read-only queries and does not own a mutable register
+pool — but `BrilligContext` still needs one to hand out temporaries (`allocate_register`). The
+intent is to implement the `RegisterAllocator` trait *directly on the shadow*: the shadow's occupied
+registers are exactly `{ home(v) : v live at P }`, so a temporary is drawn from the complement (minus
+any scratch already live, which the `Allocated` RAII tracks) and returned on drop. This is sound only
+because `Prune` (returned by `after_instruction`) keeps the shadow an exact residency mirror within a
+block — without it the shadow would retain dead entries and the free set would be wrong. So the
+Phase-0.5 pieces (one-way shadow + `Prune`) are precisely what lets the Phase-1 allocator drop its
+pool and let codegen source temporaries from the shadow.
+
 **Constants** are handled the same way, and are already partly modelled. `ConstantAllocation`
 decides a materialization point per constant — the common dominator of its uses, hoisted out of
 loops where possible — and the greedy pass materializes it there (loads it into a register), treats
