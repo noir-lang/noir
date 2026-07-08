@@ -1,16 +1,20 @@
-use acvm::{AcirField, acir::brillig::MemoryAddress};
+use std::collections::HashMap;
 
-use crate::brillig::{assert_usize, brillig_ir::assert_u32};
+use acvm::{AcirField, acir::brillig::MemoryAddress};
 
 use super::{BrilligContext, debug_show::DebugToString, registers::RegisterAllocator};
 
 impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<F, Registers> {
     /// Map sources to potentially multiple destinations.
     /// This function moves values from a set of registers to another set of registers.
+    /// The movement is treated as a set of simultaneous assignments: the moves are ordered
+    /// (and cycles broken with temporaries) so that every destination ends up holding the
+    /// value its source held *before* any move was performed.
+    ///
     /// It assumes that:
     /// - every destination needs to be written at most once. Will panic if not.
-    /// - destinations are relative addresses, starting from 1 and consecutively incremented by one. Will panic if not
-    /// - sources are any relative addresses, and can also be direct address to the global space. TODO: panic if not
+    /// - sources and destinations are any addresses (relative registers or direct globals);
+    ///   a source that is not also a destination is read as-is.
     /// - sources and destinations have same length. Will panic if not.
     pub(crate) fn codegen_mov_registers_to_registers(
         &mut self,
@@ -18,16 +22,23 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         destinations: &[MemoryAddress],
     ) {
         assert_eq!(sources.len(), destinations.len(), "sources and destinations length must match");
-        let stack_start = self.registers().start();
         let n = sources.len();
+
+        // Map each destination address to its node index. Destinations must be unique,
+        // since every destination is written at most once.
+        let mut dest_index: HashMap<MemoryAddress, usize> = HashMap::with_capacity(n);
+        for (i, destination) in destinations.iter().enumerate() {
+            let previous = dest_index.insert(*destination, i);
+            assert!(previous.is_none(), "destination {destination:?} is written more than once");
+        }
+
         let mut processed = 0;
-        // Compute the number of destinations for each source node that is also a destination node (i.e within 0,..n-1) in the movement graph
+        // Count, for each node, how many *other* nodes read the value it writes (i.e. use its
+        // destination address as their source). A node with zero such readers is a sink and can
+        // be written immediately.
         let mut num_destinations = vec![0; n];
-        for i in 0..n {
-            // Check that destinations are relatives to 0,..,n-1
-            assert_eq!(to_index(&destinations[i], stack_start), Some(i));
-            if let Some(index) = to_index(&sources[i], stack_start)
-                && index < n
+        for (i, source) in sources.iter().enumerate() {
+            if let Some(index) = to_index(&dest_index, source)
                 && index != i
             {
                 num_destinations[index] += 1;
@@ -42,7 +53,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
             let mut node = i;
             // A sink has no child
             while num_destinations[node] == 0 {
-                if to_index(&sources[node], stack_start) == Some(node) {
+                if to_index(&dest_index, &sources[node]) == Some(node) {
                     //no-op: mark the node as processed
                     num_destinations[node] = usize::MAX;
                     processed += 1;
@@ -52,14 +63,12 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
                 self.perform_movement(
                     node,
                     sources[node],
-                    stack_start,
+                    destinations,
                     &mut num_destinations,
                     &mut processed,
                 );
                 // Follow the parent
-                if let Some(index) = to_index(&sources[node], stack_start)
-                    && index < n
-                {
+                if let Some(index) = to_index(&dest_index, &sources[node]) {
                     num_destinations[index] -= 1;
                     if num_destinations[index] > 0 {
                         // The parent node has another child, so we cannot process it yet.
@@ -80,13 +89,15 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         // All sinks and their parents have been processed, remaining nodes are part of a loop
         // Check if a tail_candidate is a branch to a loop
         for (entry, free) in tail_candidates {
-            let entry_idx = to_index(&entry, stack_start).unwrap();
-            if entry_idx < n && num_destinations[entry_idx] == 1 {
+            let entry_idx = to_index(&dest_index, &entry).unwrap();
+            if num_destinations[entry_idx] == 1 {
                 // Use the branch as the temporary register for the loop
+                let free_register = from_index(destinations, free);
                 self.process_loop(
                     entry_idx,
-                    &from_index(free, stack_start),
-                    stack_start,
+                    &free_register,
+                    destinations,
+                    &dest_index,
                     &mut num_destinations,
                     sources,
                     &mut processed,
@@ -101,7 +112,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         // since different loops may contain values of different types.
         for i in 0..n {
             if num_destinations[i] == 1 {
-                let src = from_index(i, stack_start);
+                let src = from_index(destinations, i);
                 // Copy the loop entry to a temporary register.
                 // Unfortunately, we cannot use one register for all the loops
                 // when the sources do not have the same type
@@ -110,7 +121,8 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
                 self.process_loop(
                     i,
                     &temp_register,
-                    stack_start,
+                    destinations,
+                    &dest_index,
                     &mut num_destinations,
                     sources,
                     &mut processed,
@@ -125,27 +137,29 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
 
     /// Generates mov opcodes corresponding to a loop, given a node from the loop (entry)
     /// and a register not in the loop that contains its value (free)
+    #[allow(clippy::too_many_arguments)]
     fn process_loop(
         &mut self,
         entry: usize,
         free: &MemoryAddress,
-        stack_start: usize,
+        destinations: &[MemoryAddress],
+        dest_index: &HashMap<MemoryAddress, usize>,
         num_destinations: &mut [usize],
         source: &[MemoryAddress],
         processed: &mut usize,
     ) {
         let mut current = entry;
-        while to_index(&source[current], stack_start).unwrap() != entry {
+        while to_index(dest_index, &source[current]).unwrap() != entry {
             self.perform_movement(
                 current,
                 source[current],
-                stack_start,
+                destinations,
                 num_destinations,
                 processed,
             );
-            current = to_index(&source[current], stack_start).unwrap();
+            current = to_index(dest_index, &source[current]).unwrap();
         }
-        self.perform_movement(current, *free, stack_start, num_destinations, processed);
+        self.perform_movement(current, *free, destinations, num_destinations, processed);
     }
 
     /// Generates a move opcode from 'src' to 'dest'.
@@ -153,11 +167,11 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         &mut self,
         dest: usize,
         src: MemoryAddress,
-        stack_start: usize,
+        destinations: &[MemoryAddress],
         num_destinations: &mut [usize],
         processed: &mut usize,
     ) {
-        let destination = from_index(dest, stack_start);
+        let destination = from_index(destinations, dest);
         self.mov_instruction(destination, src);
         // set the node as 'processed'
         num_destinations[dest] = usize::MAX;
@@ -165,18 +179,17 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
     }
 }
 
-/// Map the address so that the first register of the stack will have index 0
-fn to_index(adr: &MemoryAddress, stack_start: usize) -> Option<usize> {
-    match adr {
-        MemoryAddress::Relative(size) => Some(assert_usize(*size) - stack_start),
-        MemoryAddress::Direct(_) => None,
-    }
+/// Look up the node index of an address that is one of the destinations, if any.
+/// Sources that are not destinations (e.g. globals or registers outside the destination set)
+/// return `None` and are treated as leaves in the movement graph.
+fn to_index(dest_index: &HashMap<MemoryAddress, usize>, adr: &MemoryAddress) -> Option<usize> {
+    dest_index.get(adr).copied()
 }
 
-/// Construct the register corresponding to the given mapped 'index'
-fn from_index(idx: usize, stack_start: usize) -> MemoryAddress {
+/// Recover the destination address of the given node index.
+fn from_index(destinations: &[MemoryAddress], idx: usize) -> MemoryAddress {
     assert!(idx != usize::MAX, "invalid index");
-    MemoryAddress::relative(assert_u32(idx + stack_start))
+    destinations[idx]
 }
 
 #[cfg(test)]
@@ -396,7 +409,15 @@ mod tests {
             // All potential memory slots; we can't address before the stack start.
             let all_indexes = (0..MEM_SIZE).map(|i| i + S).collect::<Vec<_>>();
 
-            let destinations: Vec<usize> = (0..num_destinations).map(|i| i + S).collect();
+            // Choose the destinations as a random unique subset of the slots (in an
+            // arbitrary order, not necessarily consecutive) to exercise the general
+            // any-source-to-any-destination mover.
+            let mut pool = all_indexes.clone();
+            let mut destinations = Vec::with_capacity(num_destinations);
+            for _ in 0..num_destinations {
+                let idx = u.int_in_range(0..=pool.len() - 1)?;
+                destinations.push(pool.swap_remove(idx));
+            }
 
             // Pick random sources for each destination (same source can be repeated).
             let mut sources = Vec::with_capacity(num_destinations);
