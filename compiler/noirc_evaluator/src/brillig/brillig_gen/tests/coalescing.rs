@@ -203,6 +203,7 @@ fn coalescing_spill_arg_register_aliased_by_subsequent_allocation() {
 #[test]
 #[should_panic(expected = "Coalesced parameter not currently available")]
 fn coalescing_arg_to_deallocated_parameter_panics() {
+    use crate::brillig::brillig_gen::allocator::Allocator;
     use crate::brillig::brillig_gen::brillig_block_variables::BlockVariables;
     use crate::brillig::{BrilligContext, FunctionContext};
     use crate::ssa::ir::instruction::TerminatorInstruction;
@@ -249,8 +250,12 @@ fn coalescing_arg_to_deallocated_parameter_panics() {
     let mut variables = BlockVariables::default();
 
     // Define the param SSA variable.
-    let param_var =
-        variables.define_variable(&mut function_context, &brillig_context, param, &func.dfg);
+    let (param_var, _) = function_context.allocator.define_variable(
+        &brillig_context,
+        &mut variables,
+        param,
+        &func.dfg,
+    );
 
     // Remove the param SSA variable.
     // This should *not* happen before the arg is defined, under normal circumstances, but this test forces it!
@@ -258,8 +263,12 @@ fn coalescing_arg_to_deallocated_parameter_panics() {
 
     // Now define some other SSA variable, and see that it gets the same memory.
     let other = ValueId::new(3);
-    let other_var =
-        variables.define_variable(&mut function_context, &brillig_context, other, &func.dfg);
+    let (other_var, _) = function_context.allocator.define_variable(
+        &brillig_context,
+        &mut variables,
+        other,
+        &func.dfg,
+    );
     assert_eq!(
         other_var.extract_register(),
         param_var.extract_register(),
@@ -268,8 +277,12 @@ fn coalescing_arg_to_deallocated_parameter_panics() {
 
     // Finally define the arg.
     // This should either fail, or allocate a different register.
-    let arg_var =
-        variables.define_variable(&mut function_context, &brillig_context, arg, &func.dfg);
+    let (arg_var, _) = function_context.allocator.define_variable(
+        &brillig_context,
+        &mut variables,
+        arg,
+        &func.dfg,
+    );
 
     // If we allocated the same register than this should cause the test to fail.
     assert_ne!(

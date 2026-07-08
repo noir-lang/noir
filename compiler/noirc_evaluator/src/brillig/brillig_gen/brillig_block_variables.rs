@@ -96,57 +96,6 @@ impl BlockVariables {
             .collect()
     }
 
-    /// For a given SSA value id, define the variable and return the corresponding cached memory allocation.
-    ///
-    /// The allocation will be cached in [`FunctionContext::ssa_value_allocations`], which is how it will be
-    /// passed on to the next block as a pre-allocated register, if it's still alive at that point.
-    ///
-    /// The variable is added to [`Self::available_variables`] to show that it's live, where it stays until
-    /// [`Self::remove_variable`] deletes it.
-    pub(crate) fn define_variable<Registers: RegisterAllocator>(
-        &mut self,
-        function_context: &mut FunctionContext,
-        brillig_context: &BrilligContext<FieldElement, Registers>,
-        value_id: ValueId,
-        dfg: &DataFlowGraph,
-    ) -> BrilligVariable {
-        // Check coalescing map — reuse the block parameter's register if coalesced.
-        if let Some(param) = function_context.allocator.coalescing.get_coalesced(&value_id) {
-            let variable = *function_context
-                .allocator
-                .ssa_value_allocations
-                .get(&param)
-                .expect("ICE: Coalesced parameter not yet allocated");
-            // The param must be available at this point: it must have been declared earlier,
-            // and should not have been removed as dead, nor spilled. Otherwise the register
-            // could have been allocated to something else in the meantime.
-            // Alternatively we could fall back to allocating a new register.
-            assert!(
-                self.available_variables.contains(&param),
-                "ICE: Coalesced parameter not currently available"
-            );
-            function_context.allocator.ssa_value_allocations.insert(value_id, variable);
-            self.available_variables.insert(value_id);
-            return variable;
-        }
-
-        let allocated = allocate_value(value_id, brillig_context, dfg);
-
-        // Allocators get replaced in each block, with all visible variables becoming pre-allocated
-        // in the next block; what is allocated in one block might be deallocated in the next block,
-        // in a different allocator. Because of this we can detach from the allocator, and have to
-        // manage deallocation manually.
-        let variable = allocated.detach();
-
-        if function_context.allocator.ssa_value_allocations.insert(value_id, variable).is_some() {
-            unreachable!("ICE: ValueId {value_id:?} was already in cache");
-        }
-
-        self.available_variables.insert(value_id);
-
-        variable
-    }
-
     /// Removes a variable so it's not used anymore within this block.
     pub(crate) fn remove_variable<Registers: RegisterAllocator>(
         &mut self,
