@@ -960,9 +960,10 @@ impl Context<'_> {
     ///
     /// The table for a given `(value, shift)` is fixed (an SSA value's type and length are
     /// immutable), so it is computed once and cached, keeping repeated constant-index accesses into
-    /// the same non-homogenous array (e.g. an unrolled loop) from rebuilding it. The cached table is
-    /// interned, so structurally-identical values share one allocation rather than each holding a
-    /// copy.
+    /// the same non-homogenous array (e.g. an unrolled loop) from rebuilding it. The cache is keyed
+    /// only by `(array_id, shift)`; `supplied_acir_value` is a shortcut used to size the table on a
+    /// miss and is ignored on a hit (it is always the same value's ACIR representation, so it has
+    /// the same flattened length as `convert_value(array_id)`).
     fn element_type_sizes_table(
         &mut self,
         array_typ: &Type,
@@ -1009,15 +1010,6 @@ impl Context<'_> {
         let flattened_len = flattened_value_size(&array_acir_value);
         let table = Rc::new(calculate_element_type_sizes_array(array_typ, flattened_len, shift));
 
-        // Intern the table so a value with the same layout as one already seen shares its
-        // allocation instead of storing a duplicate.
-        let table = match self.element_type_sizes_interner.get(&table) {
-            Some(interned) => interned.clone(),
-            None => {
-                self.element_type_sizes_interner.insert(table.clone());
-                table
-            }
-        };
         self.element_type_sizes_tables.insert((array_id, shift), table.clone());
         Ok(table)
     }

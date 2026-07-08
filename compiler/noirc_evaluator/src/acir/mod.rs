@@ -105,15 +105,10 @@ struct Context<'a> {
     /// non-homogenous arrays end up having the same type sizes layout.
     type_sizes_to_blocks: BTreeMap<Vec<u32>, BlockId>,
 
-    /// Type sizes tables can have a lot of redundancy for arrays of the same types.
-    /// (see [`Self::type_sizes_to_blocks`])
-    /// Interns the distinct element-type-sizes tables with a reference count
-    /// to keep [`Self::element_type_sizes_tables`]  small.
-    element_type_sizes_interner: HashSet<Rc<Vec<u32>>>,
-
-    /// Maps each `(value, shift)` to its (interned) element-type-sizes table.
-    /// Caching it keeps repeated constant-index accesses into the same non-homogenous array
-    /// (e.g. an unrolled loop) from rebuilding it.
+    /// Maps each `(value, shift)` to its element-type-sizes table. Caching it keeps repeated
+    /// constant-index accesses into the same non-homogenous array (e.g. an unrolled loop) from
+    /// rebuilding it. The table is held behind an `Rc` so a cache hit is a cheap clone rather than
+    /// copying the whole vector.
     element_type_sizes_tables:
         HashMap<(Id<Value>, arrays::ElementTypeSizesArrayShift), Rc<Vec<u32>>>,
 
@@ -151,7 +146,6 @@ impl<'a> Context<'a> {
             return_data_block_id: None,
             element_type_sizes_blocks: HashMap::default(),
             type_sizes_to_blocks: BTreeMap::default(),
-            element_type_sizes_interner: HashSet::default(),
             element_type_sizes_tables: HashMap::default(),
             max_block_id: 0,
             data_bus: DataBus::default(),
