@@ -538,6 +538,11 @@ fn instruction_scratch_demand(instruction: &Instruction, dfg: &DataFlowGraph) ->
         Instruction::Store { .. } | Instruction::ArrayGet { .. } | Instruction::ArraySet { .. } => {
             1
         }
+        // `codegen_make_array` reserves `ensure_register_capacity(4)`: the result register plus
+        // three transient temporaries (items_pointer, write_pointer, and codegen temps used while
+        // writing the elements). The result is an SSA value already counted in the live set, so the
+        // scratch demand on top of it is 3.
+        Instruction::MakeArray { .. } => 3,
         _ => 0,
     }
 }
@@ -1556,7 +1561,8 @@ mod tests {
         // `MakeArray` writes its elements to the heap one at a time, so they are never all
         // register-resident together. The floor must not grow with the element count, otherwise a
         // large array literal would spuriously exceed the frame (regression: `brillig_large_array`
-        // failed to compile). For a scalar-element array the per-item type count is 1.
+        // failed to compile). It is a fixed `max(per-item type count, result) + scratch`: for a
+        // scalar-element array `max(1, 1) + 3 = 4`, independent of the element count.
         let src = "
         brillig(inline) fn main f0 {
           b0():
@@ -1570,9 +1576,9 @@ mod tests {
         let liveness = VariableLiveness::from_function(func, &constants);
 
         assert_eq!(
-            liveness.min_live_count, 1,
-            "make_array of 10 scalars streams one element at a time, so the floor is the per-item \
-             type count (1), not the element count; got {}",
+            liveness.min_live_count, 4,
+            "make_array of 10 scalars streams one element at a time, so the floor is \
+             max(1 per-item, 1 result) + 3 scratch = 4, independent of the 10 elements; got {}",
             liveness.min_live_count
         );
     }
@@ -1625,13 +1631,13 @@ mod tests {
         let constants = ConstantAllocation::from_function(func);
         let liveness = VariableLiveness::from_function(func, &constants);
 
-        // Peak: v0, v1, v2 (live-in params) + v3 (result) = 4
-        // The elements are already in the live set as block params, but
-        // the result register is allocated simultaneously during codegen.
+        // Peak: v0, v1, v2 (live-in params) + v3 (result) = 4 SSA values, plus the 3 transient
+        // temporaries `codegen_make_array` reserves (items_pointer, write_pointer, codegen temp),
+        // which `instruction_scratch_demand` accounts for = 7.
         assert_eq!(
-            liveness.max_live_count, 4,
-            "MakeArray peak must include the result register: \
-             3 element params + 1 result = 4, got {}",
+            liveness.max_live_count, 7,
+            "MakeArray peak must include the result register and its codegen scratch: \
+             3 element params + 1 result + 3 scratch = 7, got {}",
             liveness.max_live_count
         );
     }
@@ -1673,12 +1679,13 @@ mod tests {
         // Plain chain: peak is {previous, constant, new_result} = 3.
         assert_eq!(peak(plain_chain), 3, "plain chain peak should be 3");
 
-        // With MakeArray: v1 and v2 can no longer die early because they are elements,
-        // so by `v3 = add v2, Field 3` the live set is {v1, v2, Field 3, v3} = 4.
+        // With MakeArray: v1 and v2 can no longer die early because they are elements, so the peak
+        // moves to the MakeArray itself — its live set {v1, v2, v3, v4} = 4 plus the 3 transient
+        // temporaries `codegen_make_array` reserves = 7.
         assert_eq!(
             peak(with_make_array),
-            4,
-            "MakeArray keeps elements live, raising the peak to 4"
+            7,
+            "MakeArray keeps elements live and adds codegen scratch, raising the peak to 7"
         );
 
         assert!(
