@@ -31,9 +31,9 @@ fn brillig_jmp_rotates_block_params_through_a_cycle() {
     let brillig = ssa_to_brillig_artifacts(src);
     let main = &brillig.ssa_function_to_brillig[&Id::test_new(0)];
 
-    // The rotation at `b2` (bytecode indices 8-15) copies all four sources into
-    // fresh temporaries (sp[2..5]) before writing the destinations: 8 moves, 4
-    // temporaries for a single 4-cycle.
+    // The rotation at `b2` (bytecode indices 8-12) saves the loop entry into a
+    // single temporary (sp[2]) and rotates the rest in place: 5 moves, 1
+    // temporary for the 4-cycle.
     assert_artifact_snapshot!(main, @r"
     fn main
      0: sp[6] = sp[2]
@@ -43,17 +43,14 @@ fn brillig_jmp_rotates_block_params_through_a_cycle() {
      4: jump to 0 // -> 5: f0/b1
      5: sp[2] = u32 lt sp[6], sp[7] // f0/b1
      6: jump if sp[2] to 0 // -> 8: f0/b2
-     7: jump to 0 // -> 17: f0/b3
-     8: sp[2] = sp[7] // f0/b2
-     9: sp[3] = sp[8]
-    10: sp[4] = sp[9]
-    11: sp[5] = sp[6]
-    12: sp[6] = sp[2]
-    13: sp[7] = sp[3]
-    14: sp[8] = sp[4]
-    15: sp[9] = sp[5]
-    16: jump to 0 // -> 5: f0/b1
-    17: sp[2] = sp[6] // f0/b3
-    18: return
+     7: jump to 0 // -> 14: f0/b3
+     8: sp[2] = sp[6] // f0/b2
+     9: sp[6] = sp[7]
+    10: sp[7] = sp[8]
+    11: sp[8] = sp[9]
+    12: sp[9] = sp[2]
+    13: jump to 0 // -> 5: f0/b1
+    14: sp[2] = sp[6] // f0/b3
+    15: return
     ");
 }
