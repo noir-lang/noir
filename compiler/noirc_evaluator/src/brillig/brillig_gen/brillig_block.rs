@@ -753,46 +753,16 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
             let dead_variables = self.last_uses.get(&instruction_id).into_iter().flatten();
 
             for dead_variable in dead_variables {
-                // Globals are reserved throughout the entirety of the program
+                // Globals are reserved throughout the entirety of the program.
                 let is_global = dfg.is_global(*dead_variable);
                 let is_hoisted_global = self.get_hoisted_global(dfg, *dead_variable).is_some();
                 let not_global = !is_global && !is_hoisted_global;
                 if not_global {
-                    if self.is_spilled(dead_variable) {
-                        // Spilled: register was already freed. Just clean up tracking.
-                        let sm = self.function_context.allocator.spill_manager.as_mut().unwrap();
-                        sm.remove_spill(dead_variable);
-                        // Only remove from available_variables if it's actually there.
-                        // A permanently spilled value may have been filtered out at block
-                        // entry and never reloaded, so it was never in available_variables.
-                        if self.variables.is_allocated(dead_variable) {
-                            self.variables.mark_unavailable(dead_variable);
-                        }
-                    } else if self
-                        .function_context
-                        .allocator
-                        .coalescing
-                        .has_live_partner(dead_variable, |v| self.variables.is_allocated(v))
-                    {
-                        // This value shares a register with a coalescing partner that is
-                        // still alive. We must not deallocate the register yet; it will
-                        // be freed when the partner dies (or at block boundary cleanup).
-                        self.variables.remove_variable_without_dealloc(dead_variable);
-                    } else {
-                        self.variables.remove_variable(
-                            dead_variable,
-                            self.function_context,
-                            self.brillig_context,
-                        );
-                        if let Some(sm) = self.function_context.allocator.spill_manager.as_mut() {
-                            // A value can reach this branch while still owning a spill slot: a
-                            // transiently spilled value that was reloaded into a register is no
-                            // longer spilled, yet its transient slot stays reserved. Release it so
-                            // the offset returns to the free list. For a value with no spill
-                            // record, or a permanently spilled one, this is a no-op.
-                            sm.remove_spill(dead_variable);
-                        }
-                    }
+                    self.function_context.allocator.retire(
+                        self.brillig_context,
+                        &mut self.variables,
+                        dead_variable,
+                    );
                 }
             }
         }

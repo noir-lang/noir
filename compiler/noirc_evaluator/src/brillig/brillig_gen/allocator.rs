@@ -130,6 +130,16 @@ pub(crate) trait Allocator {
         emit_store: bool,
     ) -> Vec<Action>;
 
+    /// Retire a value at its last use: free its register (returning it to the pool for the next
+    /// allocation) and drop any bookkeeping. Emits no opcode, so there is nothing for the driver to
+    /// apply. The caller is responsible for skipping globals, which live for the whole program.
+    fn retire<F, R: RegisterAllocator>(
+        &mut self,
+        brillig_context: &BrilligContext<F, R>,
+        variables: &mut BlockVariables,
+        value_id: &ValueId,
+    );
+
     /// Whether the value has a spill slot and is not currently in a register.
     fn is_spilled(&self, value_id: &ValueId, variables: &BlockVariables) -> bool;
 
@@ -267,6 +277,37 @@ impl Allocator for GreedyAllocator {
 
         self.deallocate(brillig_context, variables, &value_id);
         actions
+    }
+
+    fn retire<F, R: RegisterAllocator>(
+        &mut self,
+        brillig_context: &BrilligContext<F, R>,
+        variables: &mut BlockVariables,
+        value_id: &ValueId,
+    ) {
+        if self.is_spilled(value_id, variables) {
+            // Spilled: the register was already freed. Just clean up tracking.
+            self.spill_manager.as_mut().unwrap().remove_spill(value_id);
+            // Only remove from the register shadow if it is actually there. A permanently spilled
+            // value may have been filtered out at block entry and never reloaded, so it was never
+            // marked available.
+            if variables.is_allocated(value_id) {
+                variables.mark_unavailable(value_id);
+            }
+        } else if self.coalescing.has_live_partner(value_id, |v| variables.is_allocated(v)) {
+            // Shares a register with a coalescing partner that is still alive: do not free the
+            // register yet; it is freed when the partner dies (or at block-boundary cleanup).
+            variables.remove_variable_without_dealloc(value_id);
+        } else {
+            self.deallocate(brillig_context, variables, value_id);
+            if let Some(sm) = self.spill_manager.as_mut() {
+                // A value can reach this branch while still owning a spill slot: a transiently
+                // spilled value that was reloaded into a register is no longer spilled, yet its
+                // transient slot stays reserved. Release it so the offset returns to the free list.
+                // For a value with no spill record, or a permanently spilled one, this is a no-op.
+                sm.remove_spill(value_id);
+            }
+        }
     }
 
     fn is_spilled(&self, value_id: &ValueId, variables: &BlockVariables) -> bool {

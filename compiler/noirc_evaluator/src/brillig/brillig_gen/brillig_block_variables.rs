@@ -15,10 +15,9 @@
 //! - Allocated when first defined in a block (if not already global or hoisted to the global space).
 //! - Cached for reuse to avoid redundant register allocation.
 //! - Deallocated explicitly when no longer needed (as determined by SSA liveness).
-use acvm::{
-    FieldElement,
-    acir::brillig::lengths::{ElementTypesLength, SemanticLength, SemiFlattenedLength},
-};
+#[cfg(test)]
+use acvm::FieldElement;
+use acvm::acir::brillig::lengths::{ElementTypesLength, SemanticLength, SemiFlattenedLength};
 use rustc_hash::FxHashSet as HashSet;
 
 use crate::{
@@ -96,7 +95,11 @@ impl BlockVariables {
             .collect()
     }
 
-    /// Removes a variable so it's not used anymore within this block.
+    /// Removes a variable so it's not used anymore within this block, unconditionally freeing its
+    /// register. Register lifetime is otherwise managed by the allocator (see
+    /// [`Allocator::retire`](super::allocator::Allocator::retire)); this direct form is retained for
+    /// tests that force a specific deallocation order.
+    #[cfg(test)]
     pub(crate) fn remove_variable<Registers: RegisterAllocator>(
         &mut self,
         value_id: &ValueId,
