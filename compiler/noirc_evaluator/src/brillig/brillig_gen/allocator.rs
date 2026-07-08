@@ -238,10 +238,11 @@ impl<R: RegisterAllocator> Allocator for GreedyAllocator<R> {
         // Mutating through the shared `RefCell` (rather than swapping the `Rc`) keeps the handle
         // the `BrilligContext` holds pointing at the same pool. This is sound because nothing
         // outlives a block boundary holding an old register: cross-block allocations are detached,
-        // and within-block scratch temporaries are dropped before the next block begins.
-        let layout = self.pool.borrow().layout();
+        // and within-block scratch temporaries are dropped before the next block begins. The reset
+        // bumps the pool's generation, so any register that *did* survive panics on drop rather
+        // than corrupting the reseeded free list.
         let registers = resident_live_ins.iter().map(|(_, reg)| *reg).collect();
-        *self.pool.borrow_mut() = R::from_preallocated_registers(registers, layout);
+        self.pool.borrow_mut().reset_to_preallocated(registers);
         // Report the register-resident live-ins so the driver can seed its shadow.
         resident_live_ins
     }
