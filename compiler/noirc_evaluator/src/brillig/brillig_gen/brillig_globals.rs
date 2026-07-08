@@ -328,7 +328,6 @@ impl Brillig {
             block_id,
             brillig_context: &mut brillig_context,
             registers: HashMap::default(),
-            last_uses: HashMap::default(),
             globals: &empty_globals,
             hoisted_global_constants: &HashMap::default(),
             building_globals: true,

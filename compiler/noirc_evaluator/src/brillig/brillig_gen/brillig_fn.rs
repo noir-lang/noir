@@ -1,5 +1,6 @@
 //! Module containing Brillig-gen logic specific to SSA [Function]'s.
 use iter_extended::vecmap;
+use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
 use super::{
     allocator::{Allocator, GreedyAllocator},
@@ -15,8 +16,10 @@ use crate::{
     ssa::ir::{
         basic_block::BasicBlockId,
         function::{Function, FunctionId},
+        instruction::InstructionId,
         post_order::PostOrder,
         types::Type,
+        value::ValueId,
     },
 };
 
@@ -91,9 +94,18 @@ impl FunctionContext {
             CoalescingMap::from_function(function, &liveness)
         };
 
+        // Collect the per-instruction last-use sets the allocator retires against. An instruction
+        // id is unique to its block, so merging every block's sets into one map is unambiguous.
+        let mut last_uses: HashMap<InstructionId, HashSet<ValueId>> = HashMap::default();
+        for block in &post_order {
+            for (inst, dead) in liveness.get_last_uses(block) {
+                last_uses.insert(*inst, dead.clone());
+            }
+        }
+
         Self {
             function_id: Some(id),
-            allocator: GreedyAllocator::new(spill_manager, coalescing),
+            allocator: GreedyAllocator::new(spill_manager, coalescing, last_uses),
             blocks: post_order,
             liveness,
             constant_allocation: constants,

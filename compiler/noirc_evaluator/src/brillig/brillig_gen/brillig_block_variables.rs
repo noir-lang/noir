@@ -8,8 +8,9 @@
 //! to the heap spill region. Spill tracking is managed separately by
 //! [`SpillManager`](super::spill_manager::SpillManager).
 //!
-//! [`BlockVariables`] cooperates with the [`FunctionContext`] to manage the mapping from
-//! SSA values to [`BrilligVariable`]s and with the [`BrilligContext`] for allocating registers.
+//! [`BlockVariables`] cooperates with the [`FunctionContext`](super::brillig_fn::FunctionContext)
+//! to manage the mapping from SSA values to [`BrilligVariable`]s and with the [`BrilligContext`]
+//! for allocating registers.
 //!
 //! Variables are:
 //! - Allocated when first defined in a block (if not already global or hoisted to the global space).

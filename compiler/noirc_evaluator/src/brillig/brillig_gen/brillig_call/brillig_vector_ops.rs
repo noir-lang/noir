@@ -229,7 +229,6 @@ mod tests {
             block_id: Id::test_new(0),
             brillig_context,
             registers: Default::default(),
-            last_uses: Default::default(),
             globals,
             hoisted_global_constants,
             building_globals: false,

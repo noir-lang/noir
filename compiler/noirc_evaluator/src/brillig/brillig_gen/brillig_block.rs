@@ -43,8 +43,6 @@ pub(crate) struct BrilligBlock<'block, Registers: RegisterAllocator> {
     /// the addresses from `define_variable`/`use_variable`. Codegen never writes back to the
     /// allocator, which is what lets the allocator implementation be swapped freely.
     pub(crate) registers: HashMap<ValueId, MemoryAddress>,
-    /// For each instruction, the set of values that are not used anymore after it.
-    pub(crate) last_uses: HashMap<InstructionId, HashSet<ValueId>>,
 
     /// Mapping of SSA [`ValueId`]s to their already instantiated values in the Brillig IR.
     pub(crate) globals: &'block HashMap<ValueId, BrilligVariable>,
@@ -83,14 +81,12 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
             .begin_block(brillig_context, &mut live_in_no_globals)
             .into_iter()
             .collect();
-        let last_uses = function_context.liveness.get_last_uses(&block_id).clone();
 
         let mut brillig_block = BrilligBlock {
             function_context,
             block_id,
             brillig_context,
             registers,
-            last_uses,
             globals,
             hoisted_global_constants,
             building_globals: false,
@@ -188,7 +184,7 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
     /// anticipation of such need. The allocator decides which values to evict and returns the spill
     /// stores; the driver emits them.
     pub(crate) fn ensure_register_capacity(&mut self, n: usize) {
-        let actions = self.function_context.allocator.before_instruction(self.brillig_context, n);
+        let actions = self.function_context.allocator.reserve_scratch(self.brillig_context, n);
         self.apply_actions(actions);
     }
 
@@ -737,23 +733,10 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
             Instruction::Noop => (),
         }
 
+        // The instruction has been lowered; tell the allocator to advance past it so it can free
+        // the registers of any value whose last use this was. This emits no opcode.
         if !self.building_globals {
-            // Instructions with no last uses are omitted from `last_uses` to save memory;
-            // a missing entry is equivalent to an empty set.
-            let dead_variables = self.last_uses.get(&instruction_id).into_iter().flatten();
-
-            for dead_variable in dead_variables {
-                // Globals are reserved throughout the entirety of the program.
-                let is_global = dfg.is_global(*dead_variable);
-                let is_hoisted_global = self.get_hoisted_global(dfg, *dead_variable).is_some();
-                let not_global = !is_global && !is_hoisted_global;
-                if not_global {
-                    self.function_context.allocator.retire(self.brillig_context, dead_variable);
-                    // Retirement frees a register but emits no opcode/Action, so drop the value from
-                    // the shadow here to keep it in step with the allocator.
-                    self.registers.remove(dead_variable);
-                }
-            }
+            self.function_context.allocator.after_instruction(self.brillig_context, instruction_id);
         }
 
         // Clear the call stack; it only applied to this instruction.

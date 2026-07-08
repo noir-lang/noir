@@ -40,9 +40,10 @@
 //!   [`SpillManager::lru_victim`] for the least-recently-used value (the LRU only ever holds
 //!   register-resident values) and spills it via [`BrilligBlock::spill_value`]. That emits the
 //!   store, records the slot, and frees the register.
-//! - When a spilled value is needed, [`BrilligBlock::reload_spilled_value`] allocates a fresh
-//!   register and emits the load; re-adding the value to the register set is what marks it no
-//!   longer spilled (the slot is kept, since the load may re-execute in a loop iteration).
+//! - When a spilled value is needed, the allocator's reload path ([`Allocator::use_variable`])
+//!   allocates a fresh register and returns a load action; re-adding the value to the register set
+//!   is what marks it no longer spilled (the slot is kept, since the load may re-execute in a loop
+//!   iteration).
 //! - When a value is used, [`SpillManager::touch`] bumps it to the most-recently-used end of
 //!   the LRU, so that freshly-loaded and just-produced values aren't the first victims of the
 //!   next eviction. `touch` also asserts the value is in a register, keeping spilled values out
@@ -55,7 +56,7 @@
 //! [`BlockVariables`]: super::brillig_block_variables::BlockVariables
 //! [`BrilligBlock::ensure_register_capacity`]: super::brillig_block::BrilligBlock::ensure_register_capacity
 //! [`BrilligBlock::spill_value`]: super::brillig_block::BrilligBlock::spill_value
-//! [`BrilligBlock::reload_spilled_value`]: super::brillig_block::BrilligBlock::reload_spilled_value
+//! [`Allocator::use_variable`]: super::allocator::Allocator::use_variable
 
 use std::collections::BTreeSet;
 use std::collections::hash_map::Entry;

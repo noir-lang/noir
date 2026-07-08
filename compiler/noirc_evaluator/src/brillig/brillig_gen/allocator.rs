@@ -29,6 +29,7 @@ use crate::brillig::brillig_ir::BrilligContext;
 use crate::brillig::brillig_ir::brillig_variable::BrilligVariable;
 use crate::brillig::brillig_ir::registers::RegisterAllocator;
 use crate::ssa::ir::dfg::DataFlowGraph;
+use crate::ssa::ir::instruction::InstructionId;
 use crate::ssa::ir::value::ValueId;
 
 /// A slot in the heap-backed spill region.
@@ -111,11 +112,25 @@ pub(crate) trait Allocator {
     /// Ensure `n` registers are free for codegen to allocate scratch temporaries via its RAII path,
     /// returning the spills that freed the room. The contract is "N slots are free", not "here are
     /// the registers" — codegen owns the temporaries.
-    fn before_instruction<R: RegisterAllocator>(
+    ///
+    /// This is the scratch half of the design's `before_instruction`; making the instruction's
+    /// operands resident up front (the other half) is still done lazily by the driver via
+    /// `use_variable`, so this takes an explicit count rather than an instruction id for now.
+    fn reserve_scratch<R: RegisterAllocator>(
         &mut self,
         brillig_context: &BrilligContext<FieldElement, R>,
         scratch: usize,
     ) -> Vec<Action>;
+
+    /// Retire the values whose last use is `inst` now that it has been lowered: free their
+    /// registers (returning them to the pool for reuse later in the block) and drop any bookkeeping.
+    /// Emits no opcode. Values the allocator does not track — globals and hoisted constants, which
+    /// live in the driver's globals map and are reserved for the whole program — are skipped.
+    fn after_instruction<R: RegisterAllocator>(
+        &mut self,
+        brillig_context: &BrilligContext<FieldElement, R>,
+        inst: InstructionId,
+    );
 
     /// Spill a value to a slot, freeing its register. `permanent` slots survive the whole function
     /// (used for cross-block values); `emit_store = false` skips the store for block parameters
@@ -135,15 +150,6 @@ pub(crate) trait Allocator {
     /// The permanent spill slot of a value, if it has one. Used by the terminator to write a jmp
     /// argument straight into its destination parameter's slot; subsumed by `resolve_edge`.
     fn permanent_spill_slot(&self, value_id: &ValueId) -> Option<SpillSlot>;
-
-    /// Retire a value at its last use: free its register (returning it to the pool for the next
-    /// allocation) and drop any bookkeeping. Emits no opcode, so there is nothing for the driver to
-    /// apply. The caller is responsible for skipping globals, which live for the whole program.
-    fn retire<R: RegisterAllocator>(
-        &mut self,
-        brillig_context: &BrilligContext<FieldElement, R>,
-        value_id: &ValueId,
-    );
 
     /// Whether spilling is enabled for this function (there is a spill manager).
     fn spill_enabled(&self) -> bool;
@@ -173,17 +179,28 @@ pub(crate) struct GreedyAllocator {
     spill_manager: Option<SpillManager>,
     /// Coalescing map for jmp argument → block parameter register sharing.
     coalescing: CoalescingMap,
+    /// For each instruction, the values whose last use it is — i.e. those that die once the
+    /// instruction has been lowered. The allocator retires them in `after_instruction`, freeing
+    /// their registers for reuse later in the block. Keyed by the globally-unique `InstructionId`,
+    /// so a single function-wide map suffices.
+    last_uses: HashMap<InstructionId, HashSet<ValueId>>,
 }
 
 impl GreedyAllocator {
     /// Build the greedy allocator with the spill manager and coalescing map decided by
-    /// [`FunctionContext::new`](super::brillig_fn::FunctionContext::new).
-    pub(crate) fn new(spill_manager: Option<SpillManager>, coalescing: CoalescingMap) -> Self {
+    /// [`FunctionContext::new`](super::brillig_fn::FunctionContext::new), plus the per-instruction
+    /// last-use sets it retires against.
+    pub(crate) fn new(
+        spill_manager: Option<SpillManager>,
+        coalescing: CoalescingMap,
+        last_uses: HashMap<InstructionId, HashSet<ValueId>>,
+    ) -> Self {
         Self {
             resident: BlockVariables::default(),
             ssa_value_allocations: HashMap::default(),
             spill_manager,
             coalescing,
+            last_uses,
         }
     }
 
@@ -197,6 +214,17 @@ impl GreedyAllocator {
     #[cfg(test)]
     pub(crate) fn get_coalesced(&self, value_id: &ValueId) -> Option<ValueId> {
         self.coalescing.get_coalesced(value_id)
+    }
+
+    /// Retire a single value, for tests that force a specific deallocation order. In production
+    /// retirement is driven by `after_instruction` from the last-use sets.
+    #[cfg(test)]
+    pub(crate) fn retire<R: RegisterAllocator>(
+        &mut self,
+        brillig_context: &BrilligContext<FieldElement, R>,
+        value_id: &ValueId,
+    ) {
+        self.retire_value(brillig_context, value_id);
     }
 }
 
@@ -302,7 +330,7 @@ impl Allocator for GreedyAllocator {
         (variable, Vec::new())
     }
 
-    fn before_instruction<R: RegisterAllocator>(
+    fn reserve_scratch<R: RegisterAllocator>(
         &mut self,
         brillig_context: &BrilligContext<FieldElement, R>,
         scratch: usize,
@@ -383,7 +411,39 @@ impl Allocator for GreedyAllocator {
             .map(SpillSlot)
     }
 
-    fn retire<R: RegisterAllocator>(
+    fn after_instruction<R: RegisterAllocator>(
+        &mut self,
+        brillig_context: &BrilligContext<FieldElement, R>,
+        inst: InstructionId,
+    ) {
+        let Some(dead) = self.last_uses.get(&inst) else {
+            return;
+        };
+        // Retire the values the allocator tracks; globals/hoisted constants live in the driver's
+        // globals map (never in `ssa_value_allocations`) and must not be freed.
+        let dead: Vec<ValueId> = dead
+            .iter()
+            .copied()
+            .filter(|value_id| self.ssa_value_allocations.contains_key(value_id))
+            .collect();
+        for value_id in dead {
+            self.retire_value(brillig_context, &value_id);
+        }
+    }
+
+    fn spill_enabled(&self) -> bool {
+        self.spill_manager.is_some()
+    }
+
+    fn max_spill_offset(&self) -> usize {
+        self.spill_manager.as_ref().map_or(0, |sm| sm.max_spill_offset())
+    }
+}
+
+impl GreedyAllocator {
+    /// Free a dead value's register (returning it to the pool) and drop its bookkeeping. Called by
+    /// `after_instruction` for each value tracked by the allocator whose last use has passed.
+    fn retire_value<R: RegisterAllocator>(
         &mut self,
         brillig_context: &BrilligContext<FieldElement, R>,
         value_id: &ValueId,
@@ -412,16 +472,6 @@ impl Allocator for GreedyAllocator {
         }
     }
 
-    fn spill_enabled(&self) -> bool {
-        self.spill_manager.is_some()
-    }
-
-    fn max_spill_offset(&self) -> usize {
-        self.spill_manager.as_ref().map_or(0, |sm| sm.max_spill_offset())
-    }
-}
-
-impl GreedyAllocator {
     /// Whether the value has a spill slot and is not currently in a register.
     fn is_spilled(&self, value_id: &ValueId) -> bool {
         self.spill_manager.as_ref().is_some_and(|sm| sm.is_spilled(value_id, &self.resident))
