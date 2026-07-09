@@ -66,13 +66,11 @@ impl LiveInterval {
     }
 
     /// Check whether two intervals overlap (conservative interference).
-    #[cfg(test)]
     pub(crate) fn interferes(&self, other: &LiveInterval) -> bool {
         self.def <= other.last_use && other.def <= self.last_use
     }
 
     /// Check whether a program point falls within this interval.
-    #[cfg(test)]
     pub(crate) fn contains(&self, point: ProgramPoint) -> bool {
         self.def <= point && point <= self.last_use
     }
@@ -96,7 +94,6 @@ pub(crate) struct LiveIntervals {
     max_point: ProgramPoint,
 }
 
-#[cfg(test)]
 impl LiveIntervals {
     /// Build liveness intervals for a function.
     ///
@@ -315,13 +312,11 @@ impl LiveIntervals {
     }
 
     /// Look up the interval for a value.
-    #[cfg(test)]
     pub(crate) fn get(&self, value: ValueId) -> Option<&LiveInterval> {
         self.intervals.get(&value)
     }
 
     /// Check whether two values' intervals overlap.
-    #[cfg(test)]
     pub(crate) fn interferes(&self, a: ValueId, b: ValueId) -> bool {
         match (self.intervals.get(&a), self.intervals.get(&b)) {
             (Some(ia), Some(ib)) => ia.interferes(ib),
@@ -330,25 +325,21 @@ impl LiveIntervals {
     }
 
     /// Get the program point at a block's entry.
-    #[cfg(test)]
     pub(crate) fn block_entry_point(&self, block: BasicBlockId) -> Option<ProgramPoint> {
         self.block_entry_points.get(&block).copied()
     }
 
     /// Get the program point for an instruction.
-    #[cfg(test)]
     pub(crate) fn instruction_point(&self, inst: InstructionId) -> Option<ProgramPoint> {
         self.instruction_points.get(&inst).copied()
     }
 
     /// Get the program point for a block's terminator.
-    #[cfg(test)]
     pub(crate) fn terminator_point(&self, block: BasicBlockId) -> Option<ProgramPoint> {
         self.terminator_points.get(&block).copied()
     }
 
     /// Count how many value intervals are live at a given block's entry point.
-    #[cfg(test)]
     pub(crate) fn register_pressure_at_block(&self, block: BasicBlockId) -> usize {
         let Some(&entry) = self.block_entry_points.get(&block) else {
             return 0;
@@ -361,7 +352,6 @@ impl LiveIntervals {
     /// This is an approximation. We check at every assigned program point how many
     /// intervals are alive. For large functions a sweep-line algorithm would be
     /// more efficient, but this is adequate for diagnostic use.
-    #[cfg(test)]
     pub(crate) fn max_register_pressure(&self) -> usize {
         if self.intervals.is_empty() {
             return 0;
