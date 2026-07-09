@@ -24,7 +24,7 @@ use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
 use super::allocator::{Action, Allocator, GreedyAllocator, ParamHome};
 use super::coalescing::CoalescingMap;
-use super::live_intervals::{LiveInterval, LiveIntervals, ProgramPoint};
+use super::live_intervals::{LiveRanges, ProgramPoint};
 use super::spill_manager::SpillManager;
 use super::variable_liveness::VariableLiveness;
 use crate::brillig::brillig_ir::brillig_variable::BrilligVariable;
@@ -34,36 +34,59 @@ use crate::ssa::ir::dfg::DataFlowGraph;
 use crate::ssa::ir::instruction::InstructionId;
 use crate::ssa::ir::value::ValueId;
 
-/// The register or spill-slot home assigned to an SSA value for its entire lifetime.
+/// Where a value physically lives over one stretch of its lifetime.
 ///
-/// The fixed-home model gives each value exactly one location for its whole live range: a register
-/// (an index in `[0, value_capacity)` that codegen maps to a concrete `MemoryAddress`) or a spill
-/// slot. A value never changes home, so one that lives across a block boundary and got a register
-/// simply stays in it — no cross-block spill/reload. That is the reduction in spill traffic over the
-/// greedy allocator, which permanently spills every cross-block value once spilling is enabled.
-// The plan API is consumed by `LinearScanAllocator` in the next milestone; unused until then.
+/// A value's register can change over time (interval splitting under pressure), but its spill slot
+/// is fixed — spills are unbounded, so a value keeps one slot for the whole function and
+/// non-interfering values pack into shared slots. So only [`Location::Register`] varies point to
+/// point; a spilled value is always in its one slot.
 #[allow(dead_code)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum Home {
-    /// Register index in `[0, value_capacity)`.
+pub(crate) enum Location {
+    /// A register, identified by index in `[0, value_capacity)` (codegen maps it to a concrete
+    /// `MemoryAddress`).
     Register(usize),
-    /// Spill-slot offset.
-    Spill(usize),
+    /// The value's fixed spill slot (offset in the spill region).
+    Slot(usize),
 }
 
-/// A global register-allocation plan: the home of every value, plus the spill-slot count.
+/// One contiguous stretch `[start, end]` over which a value sits in a single [`Location`].
+///
+/// A value's timeline is a list of these. Consecutive segments with different locations are the
+/// split points where codegen emits a spill/reload/move; a gap between segments is a liveness hole
+/// (the value is dead there and its register is free for another value).
+#[allow(dead_code)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) struct Segment {
+    pub(crate) start: ProgramPoint,
+    pub(crate) end: ProgramPoint,
+    pub(crate) location: Location,
+}
+
+/// The global register-allocation plan: each value's location timeline, plus the spill-slot count.
+///
+/// Read-only once built. The allocator answers "where is `v` at point `P`" by finding the segment
+/// containing `P`, and derives the spill/reload/move actions at `P` from the segment boundaries.
 #[allow(dead_code)]
 #[derive(Debug, Default)]
 pub(crate) struct Plan {
-    homes: HashMap<ValueId, Home>,
+    timeline: HashMap<ValueId, Vec<Segment>>,
     num_spill_slots: usize,
 }
 
 #[allow(dead_code)]
 impl Plan {
-    /// The home assigned to `value`, or `None` if the value is not tracked (e.g. a global).
-    pub(crate) fn home(&self, value: ValueId) -> Option<Home> {
-        self.homes.get(&value).copied()
+    /// The value's location timeline (segments in point order), or empty if the value is untracked.
+    pub(crate) fn timeline(&self, value: ValueId) -> &[Segment] {
+        self.timeline.get(&value).map_or(&[], Vec::as_slice)
+    }
+
+    /// Where `value` lives at `point`, or `None` if it is dead there (in a hole) or untracked.
+    pub(crate) fn location_at(&self, value: ValueId, point: ProgramPoint) -> Option<Location> {
+        self.timeline(value)
+            .iter()
+            .find(|seg| seg.start <= point && point <= seg.end)
+            .map(|seg| seg.location)
     }
 
     /// The number of distinct spill slots the plan uses (0 if nothing spilled).
@@ -72,79 +95,76 @@ impl Plan {
     }
 }
 
-/// Compute the fixed-home assignment by linear scan (Poletto & Sarkar, "Linear Scan Register
-/// Allocation", 1999) over the value intervals, with a value-register capacity of `value_capacity`.
-///
-/// `value_capacity` is `usable_registers - min_live_count`. Reserving `min_live_count` registers
-/// leaves every instruction room for its working set (operands, result, and scratch, which reuse
-/// one another up to the per-instruction floor `min_live_count`), so bounding register-homed values
-/// to `value_capacity` at every point guarantees codegen never overflows the frame. Values that do
-/// not fit are spilled whole, evicting the furthest-`last_use` interval — the classic heuristic,
-/// applied globally because a fixed home cannot be split.
-#[allow(dead_code)]
-pub(crate) fn assign(intervals: &LiveIntervals, value_capacity: usize) -> Plan {
-    let sorted = intervals.intervals_by_def();
-
-    // Free register indices; kept as a stack with the lowest index on top so `pop` is deterministic.
-    let mut free: Vec<usize> = (0..value_capacity).rev().collect();
-    // Register-homed values still live, with their interval and assigned index.
-    let mut active: Vec<(ValueId, LiveInterval, usize)> = Vec::new();
-    let mut homes: HashMap<ValueId, Home> = HashMap::default();
-    let mut num_spill_slots = 0usize;
-
-    for (value, interval) in sorted {
-        // Free the registers of intervals that ended before this one begins.
-        expire(&mut active, &mut free, interval.def);
-
-        if let Some(index) = free.pop() {
-            homes.insert(value, Home::Register(index));
-            active.push((value, interval, index));
-            continue;
-        }
-
-        // The frame's value budget is full. Spill either the active value that lives longest — and
-        // give this value its register — or this value itself, whichever dies later.
-        let furthest = active
-            .iter()
-            .enumerate()
-            .max_by_key(|(_, (_, iv, _))| iv.last_use)
-            .map(|(pos, (v, iv, idx))| (pos, *v, iv.last_use, *idx));
-
-        match furthest {
-            Some((pos, spilled_value, spilled_last_use, index))
-                if spilled_last_use > interval.last_use =>
-            {
-                active.remove(pos);
-                homes.insert(spilled_value, Home::Spill(num_spill_slots));
-                num_spill_slots += 1;
-                homes.insert(value, Home::Register(index));
-                active.push((value, interval, index));
-            }
-            _ => {
-                homes.insert(value, Home::Spill(num_spill_slots));
-                num_spill_slots += 1;
-            }
-        }
-    }
-
-    Plan { homes, num_spill_slots }
+/// A `[start, end]` live range tagged with the value it belongs to — the unit the scan consumes.
+struct RangeOf {
+    start: ProgramPoint,
+    end: ProgramPoint,
+    value: ValueId,
 }
 
-/// Remove active intervals whose `last_use` is before `point`, returning their registers to `free`.
+/// Assign registers by linear scan over the hole-aware [`LiveRanges`], with a value-register
+/// capacity of `value_capacity`.
+///
+/// Each of a value's live ranges is scanned as a separate interval, but a value **reclaims its
+/// previous register** when a later range begins if that register is still free — so a value with a
+/// hole on its own runtime path keeps one register (no spurious split), while a value dead across a
+/// *divergent-path* hole releases its register for another value to share during the hole.
+///
+/// This function handles only the case that fits in `value_capacity` (no pressure spilling yet):
+/// it returns `None` if a program point needs more registers than are available, which the caller
+/// treats as "linear scan cannot place this function" and falls back. Pressure spilling to the
+/// fixed per-value slot is layered on next.
 #[allow(dead_code)]
-fn expire(
-    active: &mut Vec<(ValueId, LiveInterval, usize)>,
-    free: &mut Vec<usize>,
-    point: ProgramPoint,
-) {
-    active.retain(|(_, interval, index)| {
-        if interval.last_use < point {
-            free.push(*index);
-            false
-        } else {
-            true
-        }
-    });
+pub(crate) fn assign(ranges: &LiveRanges, value_capacity: usize) -> Option<Plan> {
+    // Flatten to one interval per (value, range), scanned in start order.
+    let mut intervals: Vec<RangeOf> = ranges
+        .iter()
+        .flat_map(|(value, list)| {
+            list.iter().map(move |range| RangeOf { start: range.start, end: range.end, value })
+        })
+        .collect();
+    intervals.sort_by_key(|r| (r.start, r.end, r.value));
+
+    let mut free: std::collections::BTreeSet<usize> = (0..value_capacity).collect();
+    // Currently register-resident ranges: (range end, value, register index).
+    let mut active: Vec<(ProgramPoint, ValueId, usize)> = Vec::new();
+    // A value's most recent register, so a later range can reclaim it when free.
+    let mut previous_register: HashMap<ValueId, usize> = HashMap::default();
+    let mut timeline: HashMap<ValueId, Vec<Segment>> = HashMap::default();
+
+    for RangeOf { start, end, value } in intervals {
+        // Expire ranges that ended strictly before this one begins, freeing their registers back to
+        // the pool. Ranges touching at a point (`prev.end == start`) stay active — they interfere.
+        active.retain(|&(active_end, _, register)| {
+            let expired = active_end < start;
+            if expired {
+                free.insert(register);
+            }
+            !expired
+        });
+
+        // Prefer the value's previous register (reclaim across a hole), else the lowest free one.
+        let register = match previous_register.get(&value) {
+            Some(&prev) if free.remove(&prev) => prev,
+            _ => *free.iter().next()?,
+        };
+        free.remove(&register);
+
+        previous_register.insert(value, register);
+        active.push((end, value, register));
+        timeline.entry(value).or_default().push(Segment {
+            start,
+            end,
+            location: Location::Register(register),
+        });
+    }
+
+    // Keep each value's segments in point order.
+    for segments in timeline.values_mut() {
+        segments.sort_by_key(|seg| seg.start);
+    }
+
+    Some(Plan { timeline, num_spill_slots: 0 })
 }
 
 /// The plan-based allocator. See the module docs; presently a delegating scaffold over
@@ -363,65 +383,53 @@ impl<R: RegisterAllocator> Allocator for FunctionAllocator<R> {
 
 #[cfg(test)]
 mod assignment_tests {
-    use super::{Home, Plan, assign};
+    use super::{Location, Plan, Segment, assign};
     use crate::brillig::brillig_gen::constant_allocation::ConstantAllocation;
-    use crate::brillig::brillig_gen::live_intervals::LiveIntervals;
+    use crate::brillig::brillig_gen::live_intervals::{LiveIntervals, LiveRanges};
     use crate::brillig::brillig_gen::variable_liveness::VariableLiveness;
     use crate::ssa::ir::post_order::PostOrder;
     use crate::ssa::ir::value::ValueId;
     use crate::ssa::ssa_gen::Ssa;
 
-    fn intervals_for(src: &str) -> LiveIntervals {
+    fn ranges_for(src: &str) -> (LiveRanges, Ssa) {
         let ssa = Ssa::from_str(src).unwrap();
         let func = ssa.main();
         let constants = ConstantAllocation::from_function(func);
         let liveness = VariableLiveness::from_function(func, &constants);
         let post_order = PostOrder::with_function(func).into_vec();
-        LiveIntervals::from_function(func, &liveness, &constants, &post_order)
+        let intervals = LiveIntervals::from_function(func, &liveness, &constants, &post_order);
+        (LiveRanges::from_intervals(&intervals, &liveness, &post_order), ssa)
     }
 
-    fn register_homes(intervals: &LiveIntervals, plan: &Plan) -> Vec<(ValueId, usize)> {
-        intervals
-            .intervals_by_def()
-            .into_iter()
-            .filter_map(|(v, _)| match plan.home(v) {
-                Some(Home::Register(index)) => Some((v, index)),
-                _ => None,
-            })
-            .collect()
+    fn segments_overlap(a: &Segment, b: &Segment) -> bool {
+        a.start <= b.end && b.start <= a.end
     }
 
-    fn spilled(intervals: &LiveIntervals, plan: &Plan) -> Vec<ValueId> {
-        intervals
-            .intervals_by_def()
-            .into_iter()
-            .filter_map(|(v, _)| matches!(plan.home(v), Some(Home::Spill(_))).then_some(v))
-            .collect()
-    }
-
-    /// The core soundness invariant: two values that interfere must never share a register index,
-    /// and every register index is within the capacity.
-    fn assert_sound(intervals: &LiveIntervals, plan: &Plan, capacity: usize) {
-        let homes = register_homes(intervals, plan);
-        for (i, &(a, ia)) in homes.iter().enumerate() {
-            assert!(ia < capacity, "register index {ia} exceeds capacity {capacity}");
-            for &(b, ib) in &homes[i + 1..] {
-                if ia == ib {
-                    assert!(
-                        !intervals.interferes(a, b),
-                        "interfering values {a} and {b} share register index {ia}"
-                    );
+    /// The core soundness invariant: no two register segments of *different* values that share a
+    /// register index overlap in program points (interfering values never co-occupy a register),
+    /// and every register index is within capacity. Also every value has at least one segment.
+    fn assert_sound(ranges: &LiveRanges, plan: &Plan, capacity: usize) {
+        let mut register_segments: Vec<(ValueId, Segment)> = Vec::new();
+        for (value, _) in ranges.iter() {
+            assert!(!plan.timeline(value).is_empty(), "value {value} has no timeline");
+            for seg in plan.timeline(value) {
+                if let Location::Register(index) = seg.location {
+                    assert!(index < capacity, "register index {index} exceeds capacity {capacity}");
+                    register_segments.push((value, *seg));
                 }
             }
         }
-        // Every value has a home.
-        for (v, _) in intervals.intervals_by_def() {
-            assert!(plan.home(v).is_some(), "value {v} has no home");
+        for (i, (va, sa)) in register_segments.iter().enumerate() {
+            for (vb, sb) in &register_segments[i + 1..] {
+                if va != vb && sa.location == sb.location && segments_overlap(sa, sb) {
+                    panic!("values {va} and {vb} share {:?} over overlapping ranges", sa.location);
+                }
+            }
         }
     }
 
     #[test]
-    fn ample_capacity_spills_nothing() {
+    fn no_pressure_assigns_registers_soundly() {
         let src = "
         brillig(inline) fn main f0 {
           b0(v0: Field):
@@ -431,15 +439,22 @@ mod assignment_tests {
             return v3
         }
         ";
-        let intervals = intervals_for(src);
-        let plan = assign(&intervals, 8);
-        assert_eq!(plan.num_spill_slots(), 0, "nothing should spill with ample capacity");
-        assert_sound(&intervals, &plan, 8);
+        let (ranges, _ssa) = ranges_for(src);
+        let plan = assign(&ranges, 8).expect("fits in 8 registers");
+        assert_eq!(plan.num_spill_slots(), 0);
+        assert_sound(&ranges, &plan, 8);
+        // Nothing is spilled: every segment is a register.
+        for (value, _) in ranges.iter() {
+            for seg in plan.timeline(value) {
+                assert!(matches!(seg.location, Location::Register(_)));
+            }
+        }
     }
 
     #[test]
-    fn tight_capacity_spills_the_overflow_soundly() {
-        // Several values are simultaneously live; a capacity of 2 forces spilling.
+    fn pressure_beyond_capacity_is_not_yet_placeable() {
+        // Five values are live at once; capacity 2 cannot hold them and pressure spilling is not
+        // implemented yet, so the scan reports the function as unplaceable.
         let src = "
         brillig(inline) fn main f0 {
           b0(v0: Field, v1: Field):
@@ -451,34 +466,15 @@ mod assignment_tests {
             return v6
         }
         ";
-        let intervals = intervals_for(src);
-        let plan = assign(&intervals, 2);
-        assert!(plan.num_spill_slots() > 0, "tight capacity should force spills");
-        assert_sound(&intervals, &plan, 2);
+        let (ranges, _ssa) = ranges_for(src);
+        assert!(assign(&ranges, 2).is_none(), "capacity 2 should be unplaceable without spilling");
     }
 
     #[test]
-    fn zero_capacity_spills_everything() {
-        let src = "
-        brillig(inline) fn main f0 {
-          b0(v0: Field):
-            v1 = add v0, Field 1
-            return v1
-        }
-        ";
-        let intervals = intervals_for(src);
-        let plan = assign(&intervals, 0);
-        let total = intervals.intervals_by_def().len();
-        assert_eq!(plan.num_spill_slots(), total, "with no registers every value spills");
-        assert!(register_homes(&intervals, &plan).is_empty());
-        assert_eq!(spilled(&intervals, &plan).len(), total);
-    }
-
-    #[test]
-    fn cross_block_value_keeps_its_register() {
-        // `v1` is live across the branch into both successors and the merge. With ample capacity the
-        // fixed-home model must keep it in a register the whole time — the behaviour greedy lacks
-        // (it would permanently spill it once spilling is on).
+    fn cross_block_value_gets_one_register() {
+        // `v1` is live across the branch into both successors and the merge. Linear scan keeps it in
+        // a single register the whole time — no cross-block spill/reload, the behaviour greedy lacks
+        // (it permanently spills every cross-block value once spilling is on).
         let src = "
         brillig(inline) fn main f0 {
           b0(v0: u1, v1: Field):
@@ -493,14 +489,24 @@ mod assignment_tests {
             return v4
         }
         ";
-        let intervals = intervals_for(src);
-        let plan = assign(&intervals, 8);
-        let ssa = Ssa::from_str(src).unwrap();
-        let v1 = ssa.main().dfg[ssa.main().entry_block()].parameters()[1];
-        assert!(
-            matches!(plan.home(v1), Some(Home::Register(_))),
-            "cross-block value should keep a register with ample capacity"
-        );
-        assert_sound(&intervals, &plan, 8);
+        let (ranges, ssa) = ranges_for(src);
+        let plan = assign(&ranges, 8).expect("fits in 8 registers");
+        let func = ssa.main();
+        let v1 = func.dfg[func.entry_block()].parameters()[1];
+
+        let segments = plan.timeline(v1);
+        assert!(!segments.is_empty(), "v1 should have a timeline");
+        let first = match segments[0].location {
+            Location::Register(index) => index,
+            Location::Slot(_) => panic!("v1 should be register-homed"),
+        };
+        for seg in segments {
+            assert_eq!(
+                seg.location,
+                Location::Register(first),
+                "v1 should keep one register across all its ranges"
+            );
+        }
+        assert_sound(&ranges, &plan, 8);
     }
 }

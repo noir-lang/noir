@@ -459,6 +459,12 @@ impl LiveRanges {
         self.ranges.get(&value).map_or(&[], Vec::as_slice)
     }
 
+    /// Every tracked value with its range list. Order is unspecified; callers that need a scan
+    /// order (e.g. by first range start) sort themselves.
+    pub(crate) fn iter(&self) -> impl Iterator<Item = (ValueId, &[LiveRange])> {
+        self.ranges.iter().map(|(&value, ranges)| (value, ranges.as_slice()))
+    }
+
     /// Whether `value` is live at `point` (i.e. `point` falls in one of its ranges, not a hole).
     pub(crate) fn is_live_at(&self, value: ValueId, point: ProgramPoint) -> bool {
         self.ranges(value).iter().any(|range| range.contains(point))
