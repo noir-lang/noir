@@ -48,6 +48,14 @@ use super::{constant_allocation::ConstantAllocation, variable_liveness::Variable
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub(crate) struct ProgramPoint(u32);
 
+impl ProgramPoint {
+    /// The immediately-preceding program point (saturating at 0). Used to end a segment just before
+    /// a split point when a value is evicted at that point.
+    pub(crate) fn pred(self) -> ProgramPoint {
+        ProgramPoint(self.0.saturating_sub(1))
+    }
+}
+
 /// Conservative single-interval approximation of a value's liveness.
 ///
 /// Over-approximates for non-contiguous live ranges (sound for interference).

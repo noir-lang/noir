@@ -117,10 +117,11 @@ struct RangeOf {
 /// hole on its own runtime path keeps one register (no spurious split), while a value dead across a
 /// *divergent-path* hole releases its register for another value to share during the hole.
 ///
-/// This function handles only the case that fits in `value_capacity` (no pressure spilling yet):
-/// it returns `None` if a program point needs more registers than are available, which the caller
-/// treats as "linear scan cannot place this function" and falls back. Pressure spilling to the
-/// fixed per-value slot is layered on next.
+/// Under register pressure (no free register at a point) it **spills the longest-lived interval** —
+/// an active one if it outlives the incoming range, else the incoming range — to that value's fixed
+/// spill slot, splitting the evicted value's timeline into a register segment then a slot segment.
+/// The resulting plan therefore mixes `Register` and `Slot` locations (a value can be both over its
+/// life). Returns `None` only when the entry parameters alone exceed `value_capacity`.
 #[allow(dead_code)]
 pub(crate) fn assign(
     ranges: &LiveRanges,
@@ -150,16 +151,20 @@ pub(crate) fn assign(
     // Free register indices available to non-parameter values (parameter indices are reserved).
     let mut free: std::collections::BTreeSet<usize> =
         (param_registers.len()..value_capacity).collect();
-    // Currently register-resident non-parameter ranges: (range end, register index).
-    let mut active: Vec<(ProgramPoint, usize)> = Vec::new();
+    // Currently register-resident non-parameter ranges: (range end, value, register index).
+    let mut active: Vec<(ProgramPoint, ValueId, usize)> = Vec::new();
     // A value's most recent register, so a later range can reclaim it when free.
     let mut previous_register: HashMap<ValueId, usize> = HashMap::default();
     let mut timeline: HashMap<ValueId, Vec<Segment>> = HashMap::default();
+    // The fixed spill slot of each value that is ever spilled. One slot per value (not yet packed
+    // across non-interfering values — a later refinement); reused across all of the value's spills.
+    let mut slots: HashMap<ValueId, usize> = HashMap::default();
+    let mut num_spill_slots = 0usize;
 
     for RangeOf { start, end, value } in intervals {
-        // Expire non-parameter ranges that ended strictly before this one begins, freeing their
-        // registers. Ranges touching at a point (`prev.end == start`) stay active — they interfere.
-        active.retain(|&(active_end, register)| {
+        // Expire ranges that ended strictly before this one begins, freeing their registers. Ranges
+        // touching at a point (`prev.end == start`) stay active — they interfere.
+        active.retain(|&(active_end, _, register)| {
             let expired = active_end < start;
             if expired {
                 free.insert(register);
@@ -167,26 +172,80 @@ pub(crate) fn assign(
             !expired
         });
 
-        let register = if let Some(&index) = param_registers.get(&value) {
-            // Fixed-interval parameter: always its reserved index, never drawn from `free`.
-            index
-        } else {
-            // Prefer the value's previous register (reclaim across a hole), else the lowest free one.
-            let register = match previous_register.get(&value) {
-                Some(&prev) if free.remove(&prev) => prev,
-                _ => *free.iter().next()?,
-            };
-            free.remove(&register);
-            active.push((end, register));
-            register
-        };
+        // Parameters are fixed intervals in their reserved register, never spilled.
+        if let Some(&index) = param_registers.get(&value) {
+            previous_register.insert(value, index);
+            timeline.entry(value).or_default().push(Segment {
+                start,
+                end,
+                location: Location::Register(index),
+            });
+            continue;
+        }
 
-        previous_register.insert(value, register);
-        timeline.entry(value).or_default().push(Segment {
-            start,
-            end,
-            location: Location::Register(register),
-        });
+        // Prefer the value's previous register (reclaim across a hole), else the lowest free one.
+        let reclaim = previous_register.get(&value).copied().filter(|prev| free.contains(prev));
+        if let Some(register) = reclaim.or_else(|| free.iter().next().copied()) {
+            free.remove(&register);
+            previous_register.insert(value, register);
+            active.push((end, value, register));
+            timeline.entry(value).or_default().push(Segment {
+                start,
+                end,
+                location: Location::Register(register),
+            });
+            continue;
+        }
+
+        // Pressure: no register is free. Evict the longest-lived interval — an active one if it
+        // outlives this range, else this range itself — to its value's spill slot. The evicted
+        // stretch lives in the slot; uses within it reload on demand.
+        let victim = active.iter().enumerate().max_by_key(|(_, (active_end, _, _))| *active_end);
+        match victim {
+            Some((position, &(active_end, active_value, active_register))) if active_end > end => {
+                // Split the active value's current register segment at `start`: register before,
+                // slot from `start` onward.
+                let slot = *slots.entry(active_value).or_insert_with(|| {
+                    let slot = num_spill_slots;
+                    num_spill_slots += 1;
+                    slot
+                });
+                let segments = timeline.get_mut(&active_value).expect("active value has segments");
+                let current = segments.last_mut().expect("active value has a live segment");
+                if current.start < start {
+                    current.end = start.pred();
+                    segments.push(Segment {
+                        start,
+                        end: active_end,
+                        location: Location::Slot(slot),
+                    });
+                } else {
+                    current.location = Location::Slot(slot);
+                }
+                active.remove(position);
+                // Hand the freed register to this range.
+                previous_register.insert(value, active_register);
+                active.push((end, value, active_register));
+                timeline.entry(value).or_default().push(Segment {
+                    start,
+                    end,
+                    location: Location::Register(active_register),
+                });
+            }
+            _ => {
+                // This range outlives every active one: spill it directly.
+                let slot = *slots.entry(value).or_insert_with(|| {
+                    let slot = num_spill_slots;
+                    num_spill_slots += 1;
+                    slot
+                });
+                timeline.entry(value).or_default().push(Segment {
+                    start,
+                    end,
+                    location: Location::Slot(slot),
+                });
+            }
+        }
     }
 
     // Keep each value's segments in point order.
@@ -194,7 +253,7 @@ pub(crate) fn assign(
         segments.sort_by_key(|seg| seg.start);
     }
 
-    Some(Plan { timeline, num_spill_slots: 0 })
+    Some(Plan { timeline, num_spill_slots })
 }
 
 /// The plan-based allocator: a **read-only** server over a precomputed [`Plan`].
@@ -608,9 +667,10 @@ mod assignment_tests {
     }
 
     #[test]
-    fn pressure_beyond_capacity_is_not_yet_placeable() {
-        // Five values are live at once; capacity 2 cannot hold them and pressure spilling is not
-        // implemented yet, so the scan reports the function as unplaceable.
+    fn pressure_spills_soundly() {
+        // Several values are live at once; capacity 2 cannot hold them all, so the scan spills the
+        // overflow to slots. The plan must still be sound (register-resident values never share a
+        // register over overlapping points) and at least one value must be spilled.
         let src = "
         brillig(inline) fn main f0 {
           b0(v0: Field, v1: Field):
@@ -623,10 +683,19 @@ mod assignment_tests {
         }
         ";
         let (ranges, ssa) = ranges_for(src);
-        assert!(
-            assign(&ranges, 2, &entry_params(&ssa)).is_none(),
-            "capacity 2 should be unplaceable without spilling"
-        );
+        let plan = assign(&ranges, 2, &entry_params(&ssa)).expect("spills rather than failing");
+        assert!(plan.num_spill_slots() > 0, "capacity 2 should force at least one spill");
+        assert_sound(&ranges, &plan, 2);
+
+        // Every value has a home at every point of its liveness (register or slot).
+        for (value, value_ranges) in ranges.iter() {
+            for range in value_ranges {
+                assert!(
+                    plan.location_at(value, range.start).is_some(),
+                    "value {value} has no location at the start of a live range"
+                );
+            }
+        }
     }
 
     #[test]
