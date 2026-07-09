@@ -26,6 +26,7 @@ mod black_box;
 mod call;
 mod coalescing;
 mod jmp;
+mod linear_scan;
 mod memory;
 mod spill;
 mod truncate;

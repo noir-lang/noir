@@ -274,6 +274,7 @@ mod tests {
             show_opcode_advisories: false,
             layout: LayoutConfig::default(),
             copy_site_registry: None,
+            use_linear_scan_allocator: false,
         };
         let mut context = BrilligContext::new("test", &options);
         context.enter_context(Label::function(FunctionId::test_new(0)));

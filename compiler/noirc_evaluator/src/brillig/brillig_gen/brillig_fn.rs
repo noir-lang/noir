@@ -9,6 +9,7 @@ use super::{
     allocator::{Allocator, GreedyAllocator},
     coalescing::CoalescingMap,
     constant_allocation::ConstantAllocation,
+    linear_scan::{FunctionAllocator, LinearScanAllocator},
     spill_manager::SpillManager,
     variable_liveness::VariableLiveness,
 };
@@ -40,9 +41,9 @@ pub(crate) struct FunctionContext<R: RegisterAllocator> {
     /// A `FunctionContext` is necessary for using a Brillig block's code gen, but sometimes
     /// such as with globals, we are not within a function and do not have a [`FunctionId`].
     function_id: Option<FunctionId>,
-    /// The register allocator: the register pool, the SSA-value → register cache, spill manager,
-    /// and coalescing map.
-    pub(crate) allocator: GreedyAllocator<R>,
+    /// The register allocator (greedy or linear-scan, chosen per function): the register pool, the
+    /// SSA-value → register cache, spill manager, and coalescing map.
+    pub(crate) allocator: FunctionAllocator<R>,
     /// The block ids of the function in Post Order.
     blocks: Vec<BasicBlockId>,
     /// Information on where to allocate constants
@@ -67,10 +68,26 @@ impl<R: RegisterAllocator> FunctionContext<R> {
     /// It can be tuned if it proves too aggressive or too conservative in practice.
     const SPILL_MARGIN: usize = 32;
 
+    /// Build a function context using the greedy allocator. Convenience wrapper over
+    /// [`Self::new_with_allocator`] for tests that don't select an allocator.
+    #[cfg(test)]
     pub(crate) fn new(
         function: &Function,
         max_stack_frame_size: usize,
         pool: Rc<RefCell<R>>,
+    ) -> Self {
+        Self::new_with_allocator(function, max_stack_frame_size, pool, false)
+    }
+
+    /// Build a function context, choosing the linear-scan allocator when `use_linear_scan` is set
+    /// and the greedy one otherwise. Both are constructed from the same liveness/coalescing/spill
+    /// inputs and hidden behind [`FunctionAllocator`], so the rest of codegen is agnostic to the
+    /// choice.
+    pub(crate) fn new_with_allocator(
+        function: &Function,
+        max_stack_frame_size: usize,
+        pool: Rc<RefCell<R>>,
+        use_linear_scan: bool,
     ) -> Self {
         let id = function.id();
 
@@ -113,9 +130,27 @@ impl<R: RegisterAllocator> FunctionContext<R> {
             }
         }
 
+        let allocator = if use_linear_scan {
+            FunctionAllocator::LinearScan(LinearScanAllocator::new(
+                pool,
+                spill_manager,
+                coalescing,
+                liveness,
+                last_uses,
+            ))
+        } else {
+            FunctionAllocator::Greedy(GreedyAllocator::new(
+                pool,
+                spill_manager,
+                coalescing,
+                liveness,
+                last_uses,
+            ))
+        };
+
         Self {
             function_id: Some(id),
-            allocator: GreedyAllocator::new(pool, spill_manager, coalescing, liveness, last_uses),
+            allocator,
             blocks: post_order,
             constant_allocation: constants,
         }
@@ -127,13 +162,13 @@ impl<R: RegisterAllocator> FunctionContext<R> {
     pub(crate) fn new_for_globals(pool: Rc<RefCell<R>>) -> Self {
         Self {
             function_id: None,
-            allocator: GreedyAllocator::new(
+            allocator: FunctionAllocator::Greedy(GreedyAllocator::new(
                 pool,
                 None,
                 CoalescingMap::default(),
                 VariableLiveness::default(),
                 HashMap::default(),
-            ),
+            )),
             blocks: Vec::new(),
             constant_allocation: ConstantAllocation::default(),
         }

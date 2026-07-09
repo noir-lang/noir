@@ -553,6 +553,7 @@ pub(crate) mod tests {
             show_opcode_advisories: false,
             layout: Default::default(),
             copy_site_registry: None,
+            use_linear_scan_allocator: false,
         };
         let mut context = BrilligContext::new("test", &options);
 
@@ -733,6 +734,7 @@ pub(crate) mod tests {
             show_opcode_advisories: false,
             layout: Default::default(),
             copy_site_registry: None,
+            use_linear_scan_allocator: false,
         };
         let mut context = BrilligContext::new("test", &options);
 
@@ -960,6 +962,7 @@ pub(crate) mod tests {
             show_opcode_advisories: false,
             layout: small_layout,
             copy_site_registry: None,
+            use_linear_scan_allocator: false,
         };
 
         let mut context: BrilligContext<FieldElement, Stack> =
