@@ -24,11 +24,11 @@ use super::brillig_block_variables::compute_array_length;
 use super::constant_allocation::ConstantAllocation;
 use super::live_intervals::{LiveIntervals, LiveRanges, ProgramPoint};
 use super::variable_liveness::VariableLiveness;
-use crate::brillig::assert_u32;
 use crate::brillig::brillig_ir::brillig_variable::{
     BrilligArray, BrilligVariable, BrilligVector, SingleAddrVariable, get_bit_size_from_ssa_type,
 };
 use crate::brillig::brillig_ir::registers::RegisterAllocator;
+use crate::brillig::{assert_u32, assert_usize};
 use crate::ssa::ir::basic_block::BasicBlockId;
 use crate::ssa::ir::dfg::DataFlowGraph;
 use crate::ssa::ir::function::Function;
@@ -215,9 +215,10 @@ pub(crate) struct LinearScanAllocator {
     /// Each value's typed `BrilligVariable`, its register fixed by the plan. This is the final
     /// allocation map handed to the artifact via `into_allocations`.
     allocations: HashMap<ValueId, BrilligVariable>,
-    /// The number of low registers reserved for value homes (`usable - min_live_count`); codegen
-    /// keeps scratch above this band.
-    value_capacity: usize,
+    /// The number of low registers the plan actually uses for value homes — the reserved band
+    /// codegen keeps scratch above. Only the registers used (not the whole capacity) are reserved,
+    /// so the frame's high-water mark stays minimal (important for recursion depth).
+    reserved_registers: usize,
 }
 
 impl LinearScanAllocator {
@@ -246,27 +247,51 @@ impl LinearScanAllocator {
         let entry_params = function.dfg[function.entry_block()].parameters();
         let plan = assign(&ranges, value_capacity, entry_params)?;
 
-        // Materialize each value's typed variable at its planned (single, in the no-pressure case)
-        // register.
+        // Materialize each value's typed variable at its single planned register.
+        //
+        // The no-pressure allocator emits no spills, reloads, or moves, so it can only serve a plan
+        // where every value lives in exactly one register for its whole life. Register scarcity can
+        // still force a *split* even without slot spilling: when a value's register is reused during
+        // a divergent-path hole by another value whose range overlaps the first value's revival,
+        // reclaim fails and the value lands in a second register. Realizing a split needs a move on
+        // the revival edge, which only the pressure-aware allocator (with resolution) emits — so if
+        // any value's timeline is not a single register, decline and fall back to greedy.
         let mut allocations = HashMap::default();
         for (value, _) in ranges.iter() {
-            let register = match plan.timeline(value).first().map(|seg| seg.location) {
-                Some(Location::Register(index)) => {
-                    MemoryAddress::relative(assert_u32(register_offset + index))
-                }
-                // No pressure means no value is spill-homed; guard anyway.
-                _ => return None,
+            let segments = plan.timeline(value);
+            let Some(Location::Register(index)) = segments.first().map(|seg| seg.location) else {
+                return None;
             };
+            if segments.iter().any(|seg| seg.location != Location::Register(index)) {
+                return None;
+            }
+            let register = MemoryAddress::relative(assert_u32(register_offset + index));
             allocations.insert(value, typed_variable(function, value, register));
         }
 
-        Some(Self { plan, intervals, last_uses: last_uses.clone(), allocations, value_capacity })
+        // Reserve only the registers actually used, not the whole capacity: the highest value index
+        // plus one. Scratch sits above this band. Keeping the reservation tight keeps the frame's
+        // high-water mark minimal, which matters for recursion (each call frame is that size).
+        let reserved_registers = allocations
+            .values()
+            .map(|variable| assert_usize(variable.extract_register().unwrap_relative()))
+            .max()
+            .map_or(0, |max_offset| max_offset - register_offset + 1);
+
+        Some(Self {
+            plan,
+            intervals,
+            last_uses: last_uses.clone(),
+            allocations,
+            reserved_registers,
+        })
     }
 
-    /// The number of low registers the plan reserves for value homes. Codegen reserves the frame's
-    /// remaining (upper) registers for scratch, so scratch never collides with a value home.
-    pub(crate) fn value_capacity(&self) -> usize {
-        self.value_capacity
+    /// The number of low registers the plan actually uses for value homes. Codegen reserves exactly
+    /// these, keeping scratch above them, so scratch never collides with a value home and the frame
+    /// stays no larger than the values require.
+    pub(crate) fn reserved_registers(&self) -> usize {
+        self.reserved_registers
     }
 
     /// The final register allocations, consumed when handing the global allocations to the artifact.

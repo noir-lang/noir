@@ -161,11 +161,13 @@ impl<R: RegisterAllocator> FunctionContext<R> {
 
         let allocator = match linear_scan {
             Some(linear_scan) => {
-                // Reserve the low value-home band in the shared pool so codegen's scratch temporaries
-                // are drawn only from the registers above it and never collide with a value home.
+                // Reserve exactly the registers the plan uses for value homes, so codegen's scratch
+                // temporaries are drawn only from the registers above them (never colliding with a
+                // value home) while the frame's high-water mark stays as small as the values need —
+                // which keeps recursive call frames from ballooning.
                 {
                     let mut pool = pool.borrow_mut();
-                    for index in 0..linear_scan.value_capacity() {
+                    for index in 0..linear_scan.reserved_registers() {
                         pool.ensure_register_is_allocated(MemoryAddress::relative(assert_u32(
                             register_offset + index,
                         )));

@@ -163,11 +163,15 @@ impl Brillig {
         let mut brillig_context = BrilligContext::new(func.name(), options);
 
         // The allocator shares the context's register pool, so build it after the context exists.
+        // `NOIR_BRILLIG_LINEAR_SCAN` is an A/B override for validation, forcing the linear-scan
+        // allocator corpus-wide without threading the option through every entry point.
+        let use_linear_scan =
+            options.use_linear_scan_allocator || std::env::var("NOIR_BRILLIG_LINEAR_SCAN").is_ok();
         let mut function_context = FunctionContext::new_with_allocator(
             func,
             options.layout.max_stack_frame_size(),
             brillig_context.registers_rc(),
-            options.use_linear_scan_allocator,
+            use_linear_scan,
         );
 
         brillig_context.enter_context(Label::function(func.id()));
