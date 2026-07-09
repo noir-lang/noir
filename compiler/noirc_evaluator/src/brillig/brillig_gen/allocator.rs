@@ -211,7 +211,7 @@ pub(crate) struct GreedyAllocator<R: RegisterAllocator> {
 impl<R: RegisterAllocator> GreedyAllocator<R> {
     /// Build the greedy allocator with a shared handle to the register pool, plus the spill manager,
     /// coalescing map, liveness, and per-instruction last-use sets decided by
-    /// [`FunctionContext::new`](super::brillig_fn::FunctionContext::new).
+    /// [`FunctionContext::new_with_allocator`](super::brillig_fn::FunctionContext::new_with_allocator).
     pub(crate) fn new(
         pool: Rc<RefCell<R>>,
         spill_manager: Option<SpillManager>,

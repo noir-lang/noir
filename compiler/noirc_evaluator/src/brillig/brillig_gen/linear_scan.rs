@@ -2,16 +2,21 @@
 //! `design/register_allocation.md`).
 //!
 //! Where [`GreedyAllocator`] makes spill/placement decisions *online* (LRU eviction as it runs),
-//! the linear-scan allocator computes a global assignment *up front* from the value
-//! [`LiveIntervals`](super::live_intervals::LiveIntervals) and then serves it as read-only queries.
-//! Both implement the same [`Allocator`] seam, so the driver ([`BrilligBlock`]) is identical for
-//! either; which one runs is chosen per function by [`FunctionAllocator`].
+//! the linear-scan allocator computes a global assignment *up front* from the value [`LiveRanges`]
+//! and then serves it as read-only queries. Both implement the same [`Allocator`] seam, so the
+//! driver ([`BrilligBlock`]) is identical for either; which one runs is chosen per function by
+//! [`FunctionAllocator`].
 //!
-//! **Scaffold status.** [`LinearScanAllocator`] currently delegates to [`GreedyAllocator`]. This
-//! lets the selection seam — the flag, the polymorphic [`FunctionContext`] field, construction, the
-//! globals `into_allocations` path — be exercised end-to-end and proven behavior-preserving before
-//! the plan-based internals land. Selecting linear scan today therefore reproduces greedy output
-//! exactly; the assignment pass replaces these delegations.
+//! **Pipeline.** [`assign`] runs linear scan over the hole-aware [`LiveRanges`] and produces a
+//! [`Plan`] — each value's location timeline. [`LinearScanAllocator`] is then a pure read-only server
+//! over that plan (no register pool, no online decisions): every trait method is a lookup returning
+//! where a value lives and the [`Action`]s to realize it.
+//!
+//! **Scope.** Only the no-pressure case is implemented: functions whose register pressure fits the
+//! value capacity, with every value in one register for its whole life. Functions that would need
+//! pressure spilling — or a split (a value in two registers) that requires a move the no-pressure
+//! allocator does not emit — decline in [`LinearScanAllocator::try_build`] and fall back to
+//! [`GreedyAllocator`]. Pressure spilling with reloads and edge resolution is the next step.
 //!
 //! [`BrilligBlock`]: super::brillig_block::BrilligBlock
 //! [`FunctionContext`]: super::brillig_fn::FunctionContext
