@@ -131,7 +131,9 @@ fn verify_function(function: &Function) -> RtResult<()> {
             None
         } else if use_a_predicated_value.is_some() {
             use_a_predicated_value
-        } else if instruction.requires_acir_gen_predicate(dfg) {
+        } else if instruction.requires_acir_gen_predicate(dfg)
+            && !is_div_or_mod_by_nonzero_constant(dfg, instruction)
+        {
             current
         } else {
             None
@@ -203,6 +205,18 @@ fn is_predicate(dfg: &crate::ssa::ir::dfg::DataFlowGraph, mut value: ValueId, p:
 
 fn is_one(function: &Function, value: ValueId) -> bool {
     function.dfg.get_numeric_constant(value).is_some_and(|c| c.is_one())
+}
+
+fn is_div_or_mod_by_nonzero_constant(
+    dfg: &crate::ssa::ir::dfg::DataFlowGraph,
+    instruction: &Instruction,
+) -> bool {
+    let Instruction::Binary(Binary { rhs, operator: BinaryOp::Div | BinaryOp::Mod, .. }) =
+        instruction
+    else {
+        return false;
+    };
+    dfg.get_numeric_constant(*rhs).is_some_and(|c| !c.is_zero())
 }
 
 fn escape_error(function: &Function, operand: ValueId, call_stack: CallStack) -> RuntimeError {
@@ -289,6 +303,45 @@ mod tests {
             v4 = cast v3 as Field
             enable_side_effects u1 1
             return v4
+        }
+        ";
+        let ssa = Ssa::from_str_no_validation(src).unwrap();
+        assert!(verify_side_effect_predicates(&ssa).is_err());
+    }
+
+    #[test]
+    fn accepts_div_by_nonzero_constant_escape() {
+        // `div`/`mod` report `requires_acir_gen_predicate` so ACIR gen can guard against
+        // division by zero. A division by a non-zero *constant* can never divide by zero:
+        // `euclidean_division_var` returns the true quotient regardless of the predicate,
+        // so the result is not predicated and may escape its region ungated. This is the
+        // `0xc6ecd1e900100000` fuzzer shape, where a signed comparison (`cast (div x, 2^63)
+        // as u1`) escaped into a `constrain`.
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u1, v1: u32):
+            enable_side_effects v0
+            v2 = div v1, u32 2
+            enable_side_effects u1 1
+            return v2
+        }
+        ";
+        let ssa = Ssa::from_str_no_validation(src).unwrap();
+        assert!(verify_side_effect_predicates(&ssa).is_ok());
+    }
+
+    #[test]
+    fn rejects_div_by_non_constant_escape() {
+        // A division by a *runtime* divisor keeps requiring a predicate, so its result
+        // stays tracked and an ungated escape is still rejected. This pins the
+        // `accepts_div_by_nonzero_constant_escape` relaxation to the constant-divisor case.
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u1, v1: u32, v2: u32):
+            enable_side_effects v0
+            v3 = div v1, v2
+            enable_side_effects u1 1
+            return v3
         }
         ";
         let ssa = Ssa::from_str_no_validation(src).unwrap();
