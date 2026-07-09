@@ -316,6 +316,15 @@ impl LiveIntervals {
         self.intervals.get(&value)
     }
 
+    /// All value intervals ordered by definition point (ties broken by `last_use`, then `ValueId`
+    /// for determinism). This is the order the linear-scan assignment consumes them in.
+    pub(crate) fn intervals_by_def(&self) -> Vec<(ValueId, LiveInterval)> {
+        let mut result: Vec<(ValueId, LiveInterval)> =
+            self.intervals.iter().map(|(&v, &iv)| (v, iv)).collect();
+        result.sort_by_key(|(v, iv)| (iv.def, iv.last_use, *v));
+        result
+    }
+
     /// Check whether two values' intervals overlap.
     pub(crate) fn interferes(&self, a: ValueId, b: ValueId) -> bool {
         match (self.intervals.get(&a), self.intervals.get(&b)) {
