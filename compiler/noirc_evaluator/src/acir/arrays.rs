@@ -658,6 +658,12 @@ impl Context<'_> {
             let bus_index = self.acir_context.add_constant(FieldElement::from(bus_index as i128));
             let mut current_index = self.acir_context.add_var(bus_index, var_index)?;
             self.get_from_call_data(&mut current_index, call_data_block, res_typ)
+        } else if res_typ.flattened_size().0 == 0 {
+            // Reading a zero-slot value (e.g. an empty nested array like `[u8; 0]`) emits no
+            // `MemoryOp` reads, so initializing the source array's block here would leave an
+            // orphan `MemoryInit` with no linked use (rejected by `acir_post_check`). There is
+            // nothing to read, so skip initialization and return the empty value directly.
+            self.array_zero_value(res_typ)
         } else {
             // A non-call-data read is the first access to the array's own memory block, so it is
             // initialized lazily here rather than for every `ArrayGet` (call-data reads are served
