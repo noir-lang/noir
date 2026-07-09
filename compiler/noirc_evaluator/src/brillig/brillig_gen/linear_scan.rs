@@ -16,22 +16,24 @@
 //! [`BrilligBlock`]: super::brillig_block::BrilligBlock
 //! [`FunctionContext`]: super::brillig_fn::FunctionContext
 
-use std::cell::RefCell;
-use std::rc::Rc;
-
 use acvm::acir::brillig::MemoryAddress;
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
 use super::allocator::{Action, Allocator, GreedyAllocator, ParamHome};
-use super::coalescing::CoalescingMap;
-use super::live_intervals::{LiveRanges, ProgramPoint};
-use super::spill_manager::SpillManager;
+use super::brillig_block_variables::compute_array_length;
+use super::constant_allocation::ConstantAllocation;
+use super::live_intervals::{LiveIntervals, LiveRanges, ProgramPoint};
 use super::variable_liveness::VariableLiveness;
-use crate::brillig::brillig_ir::brillig_variable::BrilligVariable;
+use crate::brillig::assert_u32;
+use crate::brillig::brillig_ir::brillig_variable::{
+    BrilligArray, BrilligVariable, BrilligVector, SingleAddrVariable, get_bit_size_from_ssa_type,
+};
 use crate::brillig::brillig_ir::registers::RegisterAllocator;
 use crate::ssa::ir::basic_block::BasicBlockId;
 use crate::ssa::ir::dfg::DataFlowGraph;
+use crate::ssa::ir::function::Function;
 use crate::ssa::ir::instruction::InstructionId;
+use crate::ssa::ir::types::Type;
 use crate::ssa::ir::value::ValueId;
 
 /// Where a value physically lives over one stretch of its lifetime.
@@ -115,7 +117,22 @@ struct RangeOf {
 /// treats as "linear scan cannot place this function" and falls back. Pressure spilling to the
 /// fixed per-value slot is layered on next.
 #[allow(dead_code)]
-pub(crate) fn assign(ranges: &LiveRanges, value_capacity: usize) -> Option<Plan> {
+pub(crate) fn assign(
+    ranges: &LiveRanges,
+    value_capacity: usize,
+    entry_params: &[ValueId],
+) -> Option<Plan> {
+    // Entry-block parameters are pre-colored fixed intervals: the calling convention places argument
+    // `i` in register `i` (see `codegen_entry_point::allocate_function_arguments`), so the callee
+    // must read parameter `i` from register `i`. Reserve `[0, n_params)` for them, matching order,
+    // and never hand those indices to other values — over-reserving vs sharing a param's register
+    // after it dies, but correct and simple (register sharing for dead params is a later refinement).
+    let param_registers: HashMap<ValueId, usize> =
+        entry_params.iter().enumerate().map(|(index, &param)| (param, index)).collect();
+    if param_registers.len() > value_capacity {
+        return None;
+    }
+
     // Flatten to one interval per (value, range), scanned in start order.
     let mut intervals: Vec<RangeOf> = ranges
         .iter()
@@ -125,17 +142,19 @@ pub(crate) fn assign(ranges: &LiveRanges, value_capacity: usize) -> Option<Plan>
         .collect();
     intervals.sort_by_key(|r| (r.start, r.end, r.value));
 
-    let mut free: std::collections::BTreeSet<usize> = (0..value_capacity).collect();
-    // Currently register-resident ranges: (range end, value, register index).
-    let mut active: Vec<(ProgramPoint, ValueId, usize)> = Vec::new();
+    // Free register indices available to non-parameter values (parameter indices are reserved).
+    let mut free: std::collections::BTreeSet<usize> =
+        (param_registers.len()..value_capacity).collect();
+    // Currently register-resident non-parameter ranges: (range end, register index).
+    let mut active: Vec<(ProgramPoint, usize)> = Vec::new();
     // A value's most recent register, so a later range can reclaim it when free.
     let mut previous_register: HashMap<ValueId, usize> = HashMap::default();
     let mut timeline: HashMap<ValueId, Vec<Segment>> = HashMap::default();
 
     for RangeOf { start, end, value } in intervals {
-        // Expire ranges that ended strictly before this one begins, freeing their registers back to
-        // the pool. Ranges touching at a point (`prev.end == start`) stay active — they interfere.
-        active.retain(|&(active_end, _, register)| {
+        // Expire non-parameter ranges that ended strictly before this one begins, freeing their
+        // registers. Ranges touching at a point (`prev.end == start`) stay active — they interfere.
+        active.retain(|&(active_end, register)| {
             let expired = active_end < start;
             if expired {
                 free.insert(register);
@@ -143,15 +162,21 @@ pub(crate) fn assign(ranges: &LiveRanges, value_capacity: usize) -> Option<Plan>
             !expired
         });
 
-        // Prefer the value's previous register (reclaim across a hole), else the lowest free one.
-        let register = match previous_register.get(&value) {
-            Some(&prev) if free.remove(&prev) => prev,
-            _ => *free.iter().next()?,
+        let register = if let Some(&index) = param_registers.get(&value) {
+            // Fixed-interval parameter: always its reserved index, never drawn from `free`.
+            index
+        } else {
+            // Prefer the value's previous register (reclaim across a hole), else the lowest free one.
+            let register = match previous_register.get(&value) {
+                Some(&prev) if free.remove(&prev) => prev,
+                _ => *free.iter().next()?,
+            };
+            free.remove(&register);
+            active.push((end, register));
+            register
         };
-        free.remove(&register);
 
         previous_register.insert(value, register);
-        active.push((end, value, register));
         timeline.entry(value).or_default().push(Segment {
             start,
             end,
@@ -167,94 +192,185 @@ pub(crate) fn assign(ranges: &LiveRanges, value_capacity: usize) -> Option<Plan>
     Some(Plan { timeline, num_spill_slots: 0 })
 }
 
-/// The plan-based allocator. See the module docs; presently a delegating scaffold over
-/// [`GreedyAllocator`] pending the assignment pass.
-pub(crate) struct LinearScanAllocator<R: RegisterAllocator> {
-    inner: GreedyAllocator<R>,
+/// The plan-based allocator: a **read-only** server over a precomputed [`Plan`].
+///
+/// It holds no register pool and takes no online decisions — every method is a lookup into the plan
+/// (and the program-point maps in [`LiveIntervals`]) that returns where a value lives and the
+/// [`Action`]s to realize it. This is the endgame the design doc describes: "the allocator's methods
+/// become read-only queries over a precomputed plan".
+///
+/// **No-pressure scope.** This handles functions whose register pressure fits the value capacity
+/// (`usable - min_live_count`); [`Self::try_build`] returns `None` otherwise so the caller falls
+/// back to greedy. With no pressure every value keeps one register for its whole life, so there are
+/// no spills or reloads — `begin_block` seeds the register-resident values, `after_instruction`
+/// prunes the dead, and `resolve_edge` reports each parameter's register. Pressure spilling (splits,
+/// reloads, resolution) is layered on next.
+pub(crate) struct LinearScanAllocator {
+    /// The precomputed assignment (value location timelines).
+    plan: Plan,
+    /// Program-point maps, so `begin_block` can find a block's entry point.
+    intervals: LiveIntervals,
+    /// Values dying after each instruction, so `after_instruction` prunes them.
+    last_uses: HashMap<InstructionId, HashSet<ValueId>>,
+    /// Each value's typed `BrilligVariable`, its register fixed by the plan. This is the final
+    /// allocation map handed to the artifact via `into_allocations`.
+    allocations: HashMap<ValueId, BrilligVariable>,
+    /// The number of low registers reserved for value homes (`usable - min_live_count`); codegen
+    /// keeps scratch above this band.
+    value_capacity: usize,
 }
 
-impl<R: RegisterAllocator> LinearScanAllocator<R> {
-    /// Build the linear-scan allocator. Takes the same inputs as the greedy allocator so the two
-    /// are interchangeable at the construction site; the plan is derived from `liveness`.
-    pub(crate) fn new(
-        pool: Rc<RefCell<R>>,
-        spill_manager: Option<SpillManager>,
-        coalescing: CoalescingMap,
-        liveness: VariableLiveness,
-        last_uses: HashMap<InstructionId, HashSet<ValueId>>,
-    ) -> Self {
-        Self { inner: GreedyAllocator::new(pool, spill_manager, coalescing, liveness, last_uses) }
+impl LinearScanAllocator {
+    /// Build the plan and the read-only allocator, or `None` if the function does not fit
+    /// `value_capacity` without pressure spilling (the caller then falls back to greedy).
+    ///
+    /// `value_capacity` is the number of low registers usable for value homes; the caller reserves
+    /// the remaining upper registers for scratch (see [`FunctionContext`] — it sets the capacity to
+    /// `usable - (min_live_count + SPILL_MARGIN)`, leaving comfortable room for instruction scratch,
+    /// parallel-move temporaries, and on-demand constants that `min_live_count` under-counts).
+    /// `register_offset` is the first usable register offset (`Stack::START_OFFSET`), used to map a
+    /// plan register index to a frame-relative [`MemoryAddress`].
+    ///
+    /// [`FunctionContext`]: super::brillig_fn::FunctionContext
+    pub(crate) fn try_build(
+        function: &Function,
+        liveness: &VariableLiveness,
+        constants: &ConstantAllocation,
+        post_order: &[BasicBlockId],
+        last_uses: &HashMap<InstructionId, HashSet<ValueId>>,
+        value_capacity: usize,
+        register_offset: usize,
+    ) -> Option<Self> {
+        let intervals = LiveIntervals::from_function(function, liveness, constants, post_order);
+        let ranges = LiveRanges::from_intervals(&intervals, liveness, post_order);
+        let entry_params = function.dfg[function.entry_block()].parameters();
+        let plan = assign(&ranges, value_capacity, entry_params)?;
+
+        // Materialize each value's typed variable at its planned (single, in the no-pressure case)
+        // register.
+        let mut allocations = HashMap::default();
+        for (value, _) in ranges.iter() {
+            let register = match plan.timeline(value).first().map(|seg| seg.location) {
+                Some(Location::Register(index)) => {
+                    MemoryAddress::relative(assert_u32(register_offset + index))
+                }
+                // No pressure means no value is spill-homed; guard anyway.
+                _ => return None,
+            };
+            allocations.insert(value, typed_variable(function, value, register));
+        }
+
+        Some(Self { plan, intervals, last_uses: last_uses.clone(), allocations, value_capacity })
+    }
+
+    /// The number of low registers the plan reserves for value homes. Codegen reserves the frame's
+    /// remaining (upper) registers for scratch, so scratch never collides with a value home.
+    pub(crate) fn value_capacity(&self) -> usize {
+        self.value_capacity
     }
 
     /// The final register allocations, consumed when handing the global allocations to the artifact.
     pub(crate) fn into_allocations(self) -> HashMap<ValueId, BrilligVariable> {
-        self.inner.into_allocations()
+        self.allocations
     }
 
-    #[cfg(test)]
-    pub(crate) fn get_coalesced(&self, value_id: &ValueId) -> Option<ValueId> {
-        self.inner.get_coalesced(value_id)
-    }
-
-    #[cfg(test)]
-    pub(crate) fn liveness(&self) -> &VariableLiveness {
-        self.inner.liveness()
-    }
-
-    #[cfg(test)]
-    pub(crate) fn retire(&mut self, value_id: &ValueId) {
-        self.inner.retire(value_id);
+    /// The register a tracked value lives in (its home), panicking if it is untracked — every value
+    /// the driver defines or uses is in the plan.
+    fn register_of(&self, value: ValueId) -> MemoryAddress {
+        self.allocations
+            .get(&value)
+            .unwrap_or_else(|| panic!("ICE: linear-scan has no allocation for {value}"))
+            .extract_register()
     }
 }
 
-impl<R: RegisterAllocator> Allocator for LinearScanAllocator<R> {
+impl Allocator for LinearScanAllocator {
     fn begin_block(
         &mut self,
         block: BasicBlockId,
-        dfg: &DataFlowGraph,
+        _dfg: &DataFlowGraph,
     ) -> (Vec<(ValueId, MemoryAddress)>, Vec<Action>) {
-        self.inner.begin_block(block, dfg)
+        let entry = self.intervals.block_entry_point(block).expect("block has an entry point");
+        // Seed the shadow with every value register-resident at this block's entry.
+        let resident = self
+            .allocations
+            .iter()
+            .filter(|&(&value, _)| {
+                matches!(self.plan.location_at(value, entry), Some(Location::Register(_)))
+            })
+            .map(|(&value, variable)| (value, variable.extract_register()))
+            .collect();
+        (resident, Vec::new())
     }
 
     fn define_variable(
         &mut self,
         value_id: ValueId,
-        dfg: &DataFlowGraph,
+        _dfg: &DataFlowGraph,
     ) -> (BrilligVariable, Vec<Action>) {
-        self.inner.define_variable(value_id, dfg)
+        (self.allocations[&value_id], Vec::new())
     }
 
     fn use_variable(&mut self, value_id: ValueId) -> (BrilligVariable, Vec<Action>) {
-        self.inner.use_variable(value_id)
+        (self.allocations[&value_id], Vec::new())
     }
 
-    fn reserve_scratch(&mut self, scratch: usize) -> Vec<Action> {
-        self.inner.reserve_scratch(scratch)
+    fn reserve_scratch(&mut self, _scratch: usize) -> Vec<Action> {
+        // The plan reserved `min_live_count` upper registers for scratch, so there is always room;
+        // codegen allocates the temporaries from that band. Nothing to spill.
+        Vec::new()
     }
 
     fn after_instruction(&mut self, inst: InstructionId) -> Vec<Action> {
-        self.inner.after_instruction(inst)
+        let Some(dead) = self.last_uses.get(&inst) else {
+            return Vec::new();
+        };
+        dead.iter()
+            .filter(|value| self.allocations.contains_key(value))
+            .map(|&value| Action::Prune { value, register: self.register_of(value) })
+            .collect()
     }
 
-    fn before_terminator(&mut self, block: BasicBlockId, dfg: &DataFlowGraph) -> Vec<Action> {
-        self.inner.before_terminator(block, dfg)
+    fn before_terminator(&mut self, _block: BasicBlockId, _dfg: &DataFlowGraph) -> Vec<Action> {
+        // No pressure means no cross-edge value is spilled, so nothing to store before the branch.
+        Vec::new()
     }
 
     fn resolve_edge(
         &self,
-        pred: BasicBlockId,
+        _pred: BasicBlockId,
         succ: BasicBlockId,
         dfg: &DataFlowGraph,
     ) -> Vec<ParamHome> {
-        self.inner.resolve_edge(pred, succ, dfg)
+        dfg[succ]
+            .parameters()
+            .iter()
+            .map(|param| ParamHome::Register(self.register_of(*param)))
+            .collect()
     }
 
     fn spill_enabled(&self) -> bool {
-        self.inner.spill_enabled()
+        false
     }
 
     fn max_spill_offset(&self) -> usize {
-        self.inner.max_spill_offset()
+        0
+    }
+}
+
+/// Build a value's typed [`BrilligVariable`] at `register`, mirroring the greedy allocator's typed
+/// allocation but with the register fixed by the plan rather than pulled from a pool.
+fn typed_variable(function: &Function, value: ValueId, register: MemoryAddress) -> BrilligVariable {
+    let typ = function.dfg.type_of_value(value);
+    match typ.as_ref() {
+        Type::Numeric(_) | Type::Reference(..) | Type::Function => BrilligVariable::SingleAddr(
+            SingleAddrVariable::new(register, get_bit_size_from_ssa_type(&typ)),
+        ),
+        Type::Array(item_typ, elem_count) => BrilligVariable::BrilligArray(BrilligArray {
+            pointer: register,
+            size: compute_array_length(item_typ, *elem_count),
+        }),
+        Type::Vector(_) => BrilligVariable::BrilligVector(BrilligVector { pointer: register }),
     }
 }
 
@@ -264,9 +380,12 @@ impl<R: RegisterAllocator> Allocator for LinearScanAllocator<R> {
 /// which strategy is active. Keeping the choice in an enum (rather than `Box<dyn Allocator>`) lets
 /// the non-trait lifecycle methods (`into_allocations`, the test-only inspectors) stay off the
 /// [`Allocator`] trait, which is deliberately free of allocator-specific surface.
+// Exactly one instance exists per function, so the variant size gap does not matter; boxing would
+// add indirection on the hot allocator methods for no benefit.
+#[allow(clippy::large_enum_variant)]
 pub(crate) enum FunctionAllocator<R: RegisterAllocator> {
     Greedy(GreedyAllocator<R>),
-    LinearScan(LinearScanAllocator<R>),
+    LinearScan(LinearScanAllocator),
 }
 
 impl<R: RegisterAllocator> FunctionAllocator<R> {
@@ -278,11 +397,13 @@ impl<R: RegisterAllocator> FunctionAllocator<R> {
         }
     }
 
+    /// Greedy-only test inspectors. The tests that use them build greedy contexts (the default), so
+    /// the linear-scan arms are unreachable.
     #[cfg(test)]
     pub(crate) fn get_coalesced(&self, value_id: &ValueId) -> Option<ValueId> {
         match self {
             Self::Greedy(a) => a.get_coalesced(value_id),
-            Self::LinearScan(a) => a.get_coalesced(value_id),
+            Self::LinearScan(_) => panic!("get_coalesced is greedy-only"),
         }
     }
 
@@ -290,7 +411,7 @@ impl<R: RegisterAllocator> FunctionAllocator<R> {
     pub(crate) fn liveness(&self) -> &VariableLiveness {
         match self {
             Self::Greedy(a) => a.liveness(),
-            Self::LinearScan(a) => a.liveness(),
+            Self::LinearScan(_) => panic!("liveness is greedy-only"),
         }
     }
 
@@ -298,7 +419,7 @@ impl<R: RegisterAllocator> FunctionAllocator<R> {
     pub(crate) fn retire(&mut self, value_id: &ValueId) {
         match self {
             Self::Greedy(a) => a.retire(value_id),
-            Self::LinearScan(a) => a.retire(value_id),
+            Self::LinearScan(_) => panic!("retire is greedy-only"),
         }
     }
 }
@@ -405,6 +526,11 @@ mod assignment_tests {
         a.start <= b.end && b.start <= a.end
     }
 
+    fn entry_params(ssa: &Ssa) -> Vec<ValueId> {
+        let func = ssa.main();
+        func.dfg[func.entry_block()].parameters().to_vec()
+    }
+
     /// The core soundness invariant: no two register segments of *different* values that share a
     /// register index overlap in program points (interfering values never co-occupy a register),
     /// and every register index is within capacity. Also every value has at least one segment.
@@ -439,8 +565,8 @@ mod assignment_tests {
             return v3
         }
         ";
-        let (ranges, _ssa) = ranges_for(src);
-        let plan = assign(&ranges, 8).expect("fits in 8 registers");
+        let (ranges, ssa) = ranges_for(src);
+        let plan = assign(&ranges, 8, &entry_params(&ssa)).expect("fits in 8 registers");
         assert_eq!(plan.num_spill_slots(), 0);
         assert_sound(&ranges, &plan, 8);
         // Nothing is spilled: every segment is a register.
@@ -466,8 +592,11 @@ mod assignment_tests {
             return v6
         }
         ";
-        let (ranges, _ssa) = ranges_for(src);
-        assert!(assign(&ranges, 2).is_none(), "capacity 2 should be unplaceable without spilling");
+        let (ranges, ssa) = ranges_for(src);
+        assert!(
+            assign(&ranges, 2, &entry_params(&ssa)).is_none(),
+            "capacity 2 should be unplaceable without spilling"
+        );
     }
 
     #[test]
@@ -490,7 +619,7 @@ mod assignment_tests {
         }
         ";
         let (ranges, ssa) = ranges_for(src);
-        let plan = assign(&ranges, 8).expect("fits in 8 registers");
+        let plan = assign(&ranges, 8, &entry_params(&ssa)).expect("fits in 8 registers");
         let func = ssa.main();
         let v1 = func.dfg[func.entry_block()].parameters()[1];
 

@@ -2,6 +2,7 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
+use acvm::acir::brillig::MemoryAddress;
 use iter_extended::vecmap;
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
@@ -14,6 +15,7 @@ use super::{
     variable_liveness::VariableLiveness,
 };
 use crate::{
+    brillig::assert_u32,
     brillig::brillig_ir::{
         artifact::BrilligParameter,
         brillig_variable::get_bit_size_from_ssa_type,
@@ -130,22 +132,54 @@ impl<R: RegisterAllocator> FunctionContext<R> {
             }
         }
 
-        let allocator = if use_linear_scan {
-            FunctionAllocator::LinearScan(LinearScanAllocator::new(
+        // The first usable register offset; the linear-scan plan's register indices are relative to
+        // it, and the low value-home band is reserved from it.
+        let register_offset = pool.borrow().start();
+
+        // Try the linear-scan allocator when selected; it declines (returns `None`) for functions
+        // whose pressure exceeds the value capacity (no pressure spilling yet), and we fall back to
+        // greedy so every function still compiles.
+        // Value homes get the low registers up to this capacity; the rest of the frame is reserved
+        // for scratch. Match greedy's `SPILL_MARGIN` cushion, since `min_live_count` under-counts the
+        // true scratch peak (parallel moves, on-demand constants). This makes tight frames decline
+        // linear scan and fall back to greedy, which is correct.
+        let value_capacity =
+            usable_registers.saturating_sub(liveness.min_live_count + Self::SPILL_MARGIN);
+        let linear_scan = use_linear_scan
+            .then(|| {
+                LinearScanAllocator::try_build(
+                    function,
+                    &liveness,
+                    &constants,
+                    &post_order,
+                    &last_uses,
+                    value_capacity,
+                    register_offset,
+                )
+            })
+            .flatten();
+
+        let allocator = match linear_scan {
+            Some(linear_scan) => {
+                // Reserve the low value-home band in the shared pool so codegen's scratch temporaries
+                // are drawn only from the registers above it and never collide with a value home.
+                {
+                    let mut pool = pool.borrow_mut();
+                    for index in 0..linear_scan.value_capacity() {
+                        pool.ensure_register_is_allocated(MemoryAddress::relative(assert_u32(
+                            register_offset + index,
+                        )));
+                    }
+                }
+                FunctionAllocator::LinearScan(linear_scan)
+            }
+            None => FunctionAllocator::Greedy(GreedyAllocator::new(
                 pool,
                 spill_manager,
                 coalescing,
                 liveness,
                 last_uses,
-            ))
-        } else {
-            FunctionAllocator::Greedy(GreedyAllocator::new(
-                pool,
-                spill_manager,
-                coalescing,
-                liveness,
-                last_uses,
-            ))
+            )),
         };
 
         Self {
