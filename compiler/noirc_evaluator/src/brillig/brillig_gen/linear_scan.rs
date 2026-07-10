@@ -280,13 +280,19 @@ impl Scan<'_> {
             return Some(register);
         }
         // Evict the evictable resident with the furthest next use (a value with no further use sorts
-        // furthest, so it is evicted first).
+        // furthest, so it is evicted first). Never evict a parameter, a value used at this point
+        // (`protected`), or a value defined at this point (its open segment starts here): spilling a
+        // just-defined value would close a zero-width register segment `[point, point - 1]` and lose
+        // the value's home. If that leaves no victim, the point genuinely needs more registers than
+        // exist, so `assign` declines (returns `None`) and the caller falls back to greedy.
         let victim = self
             .register_of
             .keys()
             .copied()
             .filter(|resident| {
-                !self.param_registers.contains_key(resident) && !protected.contains(resident)
+                !self.param_registers.contains_key(resident)
+                    && !protected.contains(resident)
+                    && self.open.get(resident).is_none_or(|&(start, _)| start != point)
             })
             .max_by_key(|&resident| {
                 let next = self.next_use(resident, point);
@@ -533,10 +539,24 @@ pub(crate) struct LinearScanAllocator {
     reserved_registers: usize,
     /// Number of spill slots the plan uses — the spill prologue's high-water mark (0 if none).
     num_spill_slots: usize,
+    /// Values whose plan location disagrees across *any* control-flow edge — the RPO-linear scan
+    /// carried a location over a non-CFG edge, so they don't physically arrive where the plan's
+    /// block entry says. Reconciled through the slot, uniformly at *every* boundary: such a value is
+    /// treated slot-resident at every block entry (excluded from the entry seed, reloaded on demand)
+    /// and saved to its slot before every terminator where it is register-resident. Making it slot-
+    /// canonical everywhere — rather than only on the diverging edge — keeps the property self-
+    /// consistent (a slot-resolved value's own exit location would otherwise shift and mislead its
+    /// successors). Every such value has a spill slot (`try_build` declines otherwise).
+    slot_boundary: HashSet<ValueId>,
     /// Residency mirror, reset from the plan at each block entry and evolved as actions are emitted:
     /// which register index holds each live value, and the inverse.
     register_of_value: HashMap<ValueId, usize>,
     value_in_register: HashMap<usize, ValueId>,
+    /// The function's entry block. Its live-in values are parameters that physically arrive in their
+    /// registers (placed by the caller, not by a predecessor's terminator), so a slot-canonical value
+    /// among them is seeded here — otherwise its slot would never be initialized before a later
+    /// reload. Non-entry blocks reconcile slot-canonical values through the slot instead.
+    entry_block: BasicBlockId,
 }
 
 impl LinearScanAllocator {
@@ -566,16 +586,6 @@ impl LinearScanAllocator {
         let entry_params = function.dfg[function.entry_block()].parameters();
         let mut plan = assign(&ranges, &use_points, value_capacity, entry_params)?;
         plan.entry_registers = block_entry_registers(&plan.timeline, &intervals, post_order);
-
-        // Scope: serve register-only plans (a value may change register across a hole; its data
-        // survives on the taken path, and `make_resident` re-seeds it). Decline plans that use a
-        // spill slot: pressure spilling needs the slot-canonical merge resolution (a value live on
-        // both branches of a merge but spilled on one), which is not yet implemented. Until then,
-        // fall back to greedy for those. Keeping register-resident values (including cross-block
-        // ones) in a register already beats greedy, which permanently spills every cross-block value.
-        if plan.num_spill_slots() > 0 {
-            return None;
-        }
 
         // Precompute, from the plan: each value's typed template at its definition register, each
         // spilled value's fixed slot, and the highest register index used (which fixes the reserved
@@ -610,6 +620,41 @@ impl LinearScanAllocator {
         let reserved_registers = max_register_index.map_or(0, |index| index + 1);
         let num_spill_slots = plan.num_spill_slots();
 
+        // Merge resolution. A non-parameter value live-in to a block whose plan location differs
+        // from its location at some predecessor's terminator was carried over a non-CFG edge by the
+        // RPO-linear scan, so it does not physically arrive where the plan's entry says. Reconcile
+        // it through its slot: the block treats it as slot-resident (reloaded on demand), and each
+        // predecessor saves it before branching. This needs the value to have a slot; if a divergent
+        // value has none (no register→register moves are emitted), decline and fall back to greedy.
+        let mut slot_boundary: HashSet<ValueId> = HashSet::default();
+        for &block in post_order {
+            let entry = intervals.block_entry_point(block).expect("block has an entry point");
+            let params: HashSet<ValueId> =
+                function.dfg[block].parameters().iter().copied().collect();
+            let predecessors: Vec<BasicBlockId> = liveness.cfg().predecessors(block).collect();
+            if predecessors.is_empty() {
+                continue;
+            }
+            for &value in liveness.get_live_in(&block) {
+                if params.contains(&value) || plan.timeline(value).is_empty() {
+                    continue;
+                }
+                let at_entry = plan.location_at(value, entry);
+                let divergent = predecessors.iter().any(|&pred| {
+                    let term = intervals.terminator_point(pred).expect("block has a terminator");
+                    plan.location_at(value, term) != at_entry
+                });
+                if divergent {
+                    // Reconciled through the slot; register-only divergence has no slot to route
+                    // through (no register-to-register moves are emitted), so decline it.
+                    if !value_slot.contains_key(&value) {
+                        return None;
+                    }
+                    slot_boundary.insert(value);
+                }
+            }
+        }
+
         Some(Self {
             plan,
             intervals,
@@ -619,6 +664,8 @@ impl LinearScanAllocator {
             register_offset,
             reserved_registers,
             num_spill_slots,
+            entry_block: function.entry_block(),
+            slot_boundary,
             register_of_value: HashMap::default(),
             value_in_register: HashMap::default(),
         })
@@ -742,15 +789,22 @@ impl Allocator for LinearScanAllocator {
         _dfg: &DataFlowGraph,
     ) -> (Vec<(ValueId, MemoryAddress)>, Vec<Action>) {
         // Reset the residency mirror to the plan's picture at this block's entry: the values the plan
-        // homes in a register there, read directly from the precomputed snapshot. The physical
-        // registers hold exactly these on entry — the plan is globally consistent and each incoming
-        // edge leaves cross-edge values where the successor expects them — so this is a lookup, not a
-        // decision.
+        // homes in a register there, read directly from the precomputed snapshot — except values that
+        // arrive inconsistently across incoming edges (`slot_boundary`), which are reconciled through
+        // their slot and so are treated slot-resident here (reloaded on demand at their first use).
+        // For the rest, the physical registers hold exactly these on entry, so this is a lookup.
         let snapshot = self.plan.registers_at_block_entry(block);
         self.register_of_value.clear();
         self.value_in_register.clear();
         let mut resident = Vec::with_capacity(snapshot.len());
         for (&value, &index) in &snapshot {
+            // A slot-canonical value is reloaded on demand rather than trusted to arrive in a
+            // register — except at the entry block, where it is a parameter that physically arrives
+            // in its register, so seeding it here lets `before_terminator` save it to its slot (the
+            // reload path in later blocks depends on that slot having been initialized).
+            if self.slot_boundary.contains(&value) && block != self.entry_block {
+                continue;
+            }
             self.register_of_value.insert(value, index);
             self.value_in_register.insert(index, value);
             resident.push((value, self.addr(index)));
@@ -848,6 +902,25 @@ impl Allocator for LinearScanAllocator {
             let index = self.register_index_at(value, point);
             actions.extend(self.make_resident(value, index, point));
         }
+
+        // Merge resolution: a value that some successor reconciles through its slot must hold the
+        // right data in that slot before we branch. Save each such value that is currently
+        // register-resident (a `Save` stores it but keeps its register, so it stays available for
+        // this block's own terminator reads). It is harmless on every outgoing edge — the store
+        // targets the value's own slot and SSA values are immutable — so no critical-edge split is
+        // needed. Values already spill-resident here need no save (their slot already holds them).
+        let mut to_save: Vec<(ValueId, usize)> = Vec::new();
+        for (&value, &index) in &self.register_of_value {
+            if self.slot_boundary.contains(&value) {
+                to_save.push((value, index));
+            }
+        }
+        to_save.sort_unstable();
+        to_save.dedup();
+        for (value, index) in to_save {
+            let slot = self.value_slot[&value];
+            actions.push(Action::Save { value, from: self.addr(index), to: SpillSlot(slot) });
+        }
         actions
     }
 
@@ -862,14 +935,25 @@ impl Allocator for LinearScanAllocator {
         dfg[succ]
             .parameters()
             .iter()
-            .map(|&param| match self.plan.location_at(param, entry) {
-                Some(Location::Register(index)) => ParamHome::Register(self.addr(index)),
-                Some(Location::Slot(slot)) => ParamHome::Slot(SpillSlot(slot)),
-                // The parameter is dead at its own block's entry: it is passed by a predecessor but
-                // never read in the block (e.g. only forwarded as a jmp argument earlier). The jmp
-                // still has to write it somewhere valid, so route it to the parameter's home (its
-                // definition register). The write is dead but harmless.
-                None => ParamHome::Register(self.templates[&param].extract_register()),
+            .map(|&param| {
+                // A slot-canonical parameter is reconciled through its slot at the block entry
+                // (`begin_block` excludes it from the entry seed and reloads it on demand), so the
+                // edge must deliver its incoming value to that slot — not to the plan's register,
+                // which the entry never reads. This is what makes a loop-carried value that is
+                // slot-canonical correct: each back-edge writes the fresh value to the slot the
+                // reload reads, rather than to a register the reload ignores.
+                if self.slot_boundary.contains(&param) {
+                    return ParamHome::Slot(SpillSlot(self.value_slot[&param]));
+                }
+                match self.plan.location_at(param, entry) {
+                    Some(Location::Register(index)) => ParamHome::Register(self.addr(index)),
+                    Some(Location::Slot(slot)) => ParamHome::Slot(SpillSlot(slot)),
+                    // The parameter is dead at its own block's entry: it is passed by a predecessor
+                    // but never read in the block (e.g. only forwarded as a jmp argument earlier).
+                    // The jmp still has to write it somewhere valid, so route it to the parameter's
+                    // home (its definition register). The write is dead but harmless.
+                    None => ParamHome::Register(self.templates[&param].extract_register()),
+                }
             })
             .collect()
     }

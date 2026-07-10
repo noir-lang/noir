@@ -66,6 +66,12 @@ impl SpillSlot {
 pub(crate) enum Action {
     /// Store a register-resident value into its spill slot (the value leaves the map).
     Spill { value: ValueId, from: MemoryAddress, to: SpillSlot },
+    /// Store a register-resident value into its spill slot but *keep* it in its register (the map is
+    /// unchanged). Used by merge resolution: a value live across an edge whose successor expects it
+    /// in its slot is saved before the branch, while staying available for the block's own remaining
+    /// reads. The store is harmless on every outgoing edge (it targets the value's own slot and SSA
+    /// values are immutable), so it needs no critical-edge split.
+    Save { value: ValueId, from: MemoryAddress, to: SpillSlot },
     /// Load a spilled value from its slot into a register (the value enters the map at `into`).
     Reload { value: ValueId, from: SpillSlot, into: MemoryAddress },
     /// Register-to-register move (the value moves to `to` in the map). Produced by edge

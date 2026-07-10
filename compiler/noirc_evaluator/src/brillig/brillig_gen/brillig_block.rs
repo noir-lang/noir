@@ -261,6 +261,17 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                     pending_stores.push((to.offset(), from));
                     self.registers.remove(&value);
                 }
+                Action::Save { value, from, to } => {
+                    // Like a spill, but the value keeps its register — the map is unchanged.
+                    // Asserting it is at the reported register confirms the map never drifted from
+                    // the allocator's residency, the same guarantee `Prune` checks.
+                    debug_assert_eq!(
+                        self.registers.get(&value),
+                        Some(&from),
+                        "ICE: saved value {value} was not at its expected register in the map"
+                    );
+                    pending_stores.push((to.offset(), from));
+                }
                 Action::Reload { value, from, into } => {
                     if !pending_stores.is_empty() {
                         self.codegen_spill_stores(std::mem::take(&mut pending_stores));
