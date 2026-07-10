@@ -618,14 +618,12 @@ impl LinearScanAllocator {
             }
         }
         let reserved_registers = max_register_index.map_or(0, |index| index + 1);
-        let num_spill_slots = plan.num_spill_slots();
 
         // Merge resolution. A non-parameter value live-in to a block whose plan location differs
         // from its location at some predecessor's terminator was carried over a non-CFG edge by the
         // RPO-linear scan, so it does not physically arrive where the plan's entry says. Reconcile
         // it through its slot: the block treats it as slot-resident (reloaded on demand), and each
-        // predecessor saves it before branching. This needs the value to have a slot; if a divergent
-        // value has none (no register→register moves are emitted), decline and fall back to greedy.
+        // predecessor saves it before branching.
         let mut slot_boundary: HashSet<ValueId> = HashSet::default();
         for &block in post_order {
             let entry = intervals.block_entry_point(block).expect("block has an entry point");
@@ -645,15 +643,34 @@ impl LinearScanAllocator {
                     plan.location_at(value, term) != at_entry
                 });
                 if divergent {
-                    // Reconciled through the slot; register-only divergence has no slot to route
-                    // through (no register-to-register moves are emitted), so decline it.
-                    if !value_slot.contains_key(&value) {
-                        return None;
-                    }
                     slot_boundary.insert(value);
                 }
             }
         }
+
+        // A divergent value the plan never spilled has no slot to reconcile through: it stays in a
+        // register everywhere but lands in a *different* register across the diverging edges. The
+        // textbook fix (Wimmer & Franz §6) is a single register-to-register move on the diverging
+        // edge, but that needs critical-edge splitting — the move would clobber the predecessor's
+        // *other* successor — plus parallel-move cycle-breaking. Slot routing sidesteps both (a
+        // store to the value's own slot is harmless on every outgoing edge), so instead we give
+        // each such value a fresh slot and route it through that slot like every other
+        // slot-canonical value. This trades one move for a store+reload round-trip but reuses the
+        // slot machinery wholesale and needs no new edge handling. A future improvement could detect
+        // the pure register-to-register case and emit the move to avoid the round-trip; it would
+        // have to add the critical-edge/parallel-move handling this deliberately avoids.
+        //
+        // Slots are assigned in sorted value order so the spill-region layout is deterministic
+        // (`slot_boundary` is a `HashSet`, whose iteration order is not).
+        let mut next_slot = plan.num_spill_slots();
+        let mut slotless: Vec<ValueId> =
+            slot_boundary.iter().copied().filter(|value| !value_slot.contains_key(value)).collect();
+        slotless.sort_unstable();
+        for value in slotless {
+            value_slot.insert(value, next_slot);
+            next_slot += 1;
+        }
+        let num_spill_slots = next_slot;
 
         Some(Self {
             plan,
