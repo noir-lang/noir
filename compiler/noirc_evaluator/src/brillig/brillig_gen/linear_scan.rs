@@ -79,6 +79,11 @@ pub(crate) struct Segment {
 #[derive(Debug, Default)]
 pub(crate) struct Plan {
     timeline: HashMap<ValueId, Vec<Segment>>,
+    /// Per block, the values register-resident at its entry point → their register index. Stored as
+    /// `im` maps so the snapshots share structure across blocks; `begin_block` seeds the residency
+    /// mirror from its block's snapshot in O(live-at-entry), rather than scanning every value's
+    /// timeline (which is O(values) per block = quadratic over a whole function).
+    entry_registers: HashMap<BasicBlockId, im::HashMap<ValueId, usize>>,
     num_spill_slots: usize,
 }
 
@@ -87,6 +92,15 @@ impl Plan {
     /// The value's location timeline (segments in point order), or empty if the value is untracked.
     pub(crate) fn timeline(&self, value: ValueId) -> &[Segment] {
         self.timeline.get(&value).map_or(&[], Vec::as_slice)
+    }
+
+    /// The values register-resident at `block`'s entry, each mapped to its register index. Cheap to
+    /// clone (structural sharing).
+    pub(crate) fn registers_at_block_entry(
+        &self,
+        block: BasicBlockId,
+    ) -> im::HashMap<ValueId, usize> {
+        self.entry_registers.get(&block).cloned().unwrap_or_default()
     }
 
     /// Where `value` lives at `point`, or `None` if it is dead there (in a hole) or untracked.
@@ -275,7 +289,8 @@ impl Scan<'_> {
                 !self.param_registers.contains_key(resident) && !protected.contains(resident)
             })
             .max_by_key(|&resident| {
-                (self.next_use(resident, point).is_none(), self.next_use(resident, point), resident)
+                let next = self.next_use(resident, point);
+                (next.is_none(), next, resident)
             })?;
         let register = self.spill(victim, point);
         self.free.remove(&register);
@@ -345,6 +360,15 @@ pub(crate) fn assign(
         //    registers. Values still used at this point stay resident.
         scan.expire(point, true);
 
+        // A value whose live range *starts* at this point is defined here (an instruction result, or
+        // a constant materialized at its use — its def is the materialization point). It is handled
+        // by the range-starts step below, not reloaded as if it were a spilled operand; reloading it
+        // here would allocate it twice and leak its first register out of the free set.
+        let starts_here: HashSet<ValueId> = range_start_at
+            .get(&point)
+            .map(|starts| starts.iter().map(|(value, _)| *value).collect())
+            .unwrap_or_default();
+
         // 2. Uses here: a value used at this instruction must be register-resident. A currently
         //    spilled operand is reloaded — its slot segment ends just before the use and it takes a
         //    register.
@@ -352,7 +376,10 @@ pub(crate) fn assign(
             let mut users: Vec<ValueId> = users.iter().copied().collect();
             users.sort_unstable();
             for value in users {
-                if scan.register_of.contains_key(&value) || param_registers.contains_key(&value) {
+                if scan.register_of.contains_key(&value)
+                    || param_registers.contains_key(&value)
+                    || starts_here.contains(&value)
+                {
                     continue;
                 }
                 scan.close_segment(value, point.pred());
@@ -402,7 +429,71 @@ pub(crate) fn assign(
         segments.sort_by_key(|segment| segment.start);
     }
 
-    Some(Plan { timeline: scan.timeline, num_spill_slots: scan.num_spill_slots })
+    Some(Plan {
+        timeline: scan.timeline,
+        entry_registers: HashMap::default(),
+        num_spill_slots: scan.num_spill_slots,
+    })
+}
+
+/// Compute, per block, the values register-resident at its entry point (value → register index), as
+/// structurally-shared `im` maps. A single sweep over all register segments: a value enters the live
+/// set at a segment's start and leaves at its end + 1; the snapshot at a block-entry point is the
+/// live set there. This precomputes what `begin_block` would otherwise re-derive by scanning every
+/// value's timeline on each block.
+fn block_entry_registers(
+    timeline: &HashMap<ValueId, Vec<Segment>>,
+    intervals: &LiveIntervals,
+    post_order: &[BasicBlockId],
+) -> HashMap<BasicBlockId, im::HashMap<ValueId, usize>> {
+    use std::collections::BTreeMap;
+    // Register-segment enter/exit events, and the block-entry points to snapshot, keyed by point.
+    let mut enters: BTreeMap<ProgramPoint, Vec<(ValueId, usize)>> = BTreeMap::new();
+    let mut exits: BTreeMap<ProgramPoint, Vec<ValueId>> = BTreeMap::new();
+    for (&value, segments) in timeline {
+        for segment in segments {
+            if let Location::Register(index) = segment.location {
+                enters.entry(segment.start).or_default().push((value, index));
+                exits.entry(segment.end).or_default().push(value);
+            }
+        }
+    }
+    let mut entries_at: BTreeMap<ProgramPoint, Vec<BasicBlockId>> = BTreeMap::new();
+    for &block in post_order {
+        if let Some(point) = intervals.block_entry_point(block) {
+            entries_at.entry(point).or_default().push(block);
+        }
+    }
+
+    let mut points: Vec<ProgramPoint> =
+        enters.keys().chain(exits.keys()).chain(entries_at.keys()).copied().collect();
+    points.sort_unstable();
+    points.dedup();
+
+    // A segment `[start, end]` covers a point `p` iff `start <= p <= end`. Processing per point in
+    // the order enters → snapshot → exits keeps a value live for the snapshots at exactly its
+    // `[start, end]`: it is inserted before the snapshot at `start` and removed only after the
+    // snapshot at `end`.
+    let mut live: im::HashMap<ValueId, usize> = im::HashMap::new();
+    let mut result: HashMap<BasicBlockId, im::HashMap<ValueId, usize>> = HashMap::default();
+    for point in points {
+        if let Some(started) = enters.get(&point) {
+            for (value, index) in started {
+                live.insert(*value, *index);
+            }
+        }
+        if let Some(blocks) = entries_at.get(&point) {
+            for &block in blocks {
+                result.insert(block, live.clone());
+            }
+        }
+        if let Some(ended) = exits.get(&point) {
+            for value in ended {
+                live.remove(value);
+            }
+        }
+    }
+    result
 }
 
 /// The plan-based allocator: a server that *realizes* a precomputed [`Plan`] at codegen time.
@@ -473,27 +564,17 @@ impl LinearScanAllocator {
         let ranges = LiveRanges::from_intervals(&intervals, liveness, post_order);
         let use_points = compute_use_points(function, &intervals, post_order);
         let entry_params = function.dfg[function.entry_block()].parameters();
-        let plan = assign(&ranges, &use_points, value_capacity, entry_params)?;
+        let mut plan = assign(&ranges, &use_points, value_capacity, entry_params)?;
+        plan.entry_registers = block_entry_registers(&plan.timeline, &intervals, post_order);
 
-        // Conservative scope: serve only plans where every value stays in **one register** for its
-        // whole life. Holes are fine — a value dead across a divergent branch and revived in the
-        // *same* register is served by re-seeding it at that register (its data survives on the
-        // taken path; see `make_resident`). What is declined is a value whose register *changes*:
-        // a register→register revival across a hole, or a register↔slot spill. Those need an
-        // edge/merge resolution phase (moves reconciling a split interval's location across control
-        // flow) that is implemented in the allocator methods below but not yet sound end to end —
-        // a linear scan over a non-linear CFG reuses the register on a divergent branch and lands
-        // the value elsewhere at the merge with nothing to reconcile them. Until that resolution is
-        // designed, decline and fall back to greedy. Even so, keeping cross-block values in one
-        // register already beats greedy, which permanently spills every cross-block value.
-        for (value, _) in ranges.iter() {
-            let segments = plan.timeline(value);
-            let Some(Location::Register(index)) = segments.first().map(|seg| seg.location) else {
-                return None;
-            };
-            if segments.iter().any(|seg| seg.location != Location::Register(index)) {
-                return None;
-            }
+        // Scope: serve register-only plans (a value may change register across a hole; its data
+        // survives on the taken path, and `make_resident` re-seeds it). Decline plans that use a
+        // spill slot: pressure spilling needs the slot-canonical merge resolution (a value live on
+        // both branches of a merge but spilled on one), which is not yet implemented. Until then,
+        // fall back to greedy for those. Keeping register-resident values (including cross-block
+        // ones) in a register already beats greedy, which permanently spills every cross-block value.
+        if plan.num_spill_slots() > 0 {
+            return None;
         }
 
         // Precompute, from the plan: each value's typed template at its definition register, each
@@ -660,24 +741,16 @@ impl Allocator for LinearScanAllocator {
         block: BasicBlockId,
         _dfg: &DataFlowGraph,
     ) -> (Vec<(ValueId, MemoryAddress)>, Vec<Action>) {
-        let entry = self.intervals.block_entry_point(block).expect("block has an entry point");
-        // Reset the residency mirror to the plan's picture at this block's entry: every value the
-        // plan homes in a register there. The physical registers hold exactly these on entry — the
-        // plan is globally consistent and each incoming edge leaves cross-edge values where the
-        // successor expects them — so this is a lookup, not a decision.
-        let seeds: Vec<(ValueId, usize)> = self
-            .templates
-            .keys()
-            .copied()
-            .filter_map(|value| match self.plan.location_at(value, entry) {
-                Some(Location::Register(index)) => Some((value, index)),
-                _ => None,
-            })
-            .collect();
+        // Reset the residency mirror to the plan's picture at this block's entry: the values the plan
+        // homes in a register there, read directly from the precomputed snapshot. The physical
+        // registers hold exactly these on entry — the plan is globally consistent and each incoming
+        // edge leaves cross-edge values where the successor expects them — so this is a lookup, not a
+        // decision.
+        let snapshot = self.plan.registers_at_block_entry(block);
         self.register_of_value.clear();
         self.value_in_register.clear();
-        let mut resident = Vec::with_capacity(seeds.len());
-        for (value, index) in seeds {
+        let mut resident = Vec::with_capacity(snapshot.len());
+        for (&value, &index) in &snapshot {
             self.register_of_value.insert(value, index);
             self.value_in_register.insert(index, value);
             resident.push((value, self.addr(index)));
