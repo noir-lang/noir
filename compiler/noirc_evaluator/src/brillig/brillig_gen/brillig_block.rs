@@ -53,6 +53,13 @@ pub(crate) struct BrilligBlock<'block, Registers: RegisterAllocator> {
     /// For example, liveness analysis for globals is unnecessary (and adds complexity),
     /// and instead globals live throughout the entirety of the program.
     pub(crate) building_globals: bool,
+
+    /// The instruction currently being lowered, or `None` while lowering a terminator (or during
+    /// block setup). Operand reads route this to [`Allocator::use_variable`] so a global-assignment
+    /// allocator can resolve the program point of the use; the greedy allocator ignores it. A
+    /// terminator's operands carry `None`: they are made resident up front by
+    /// [`Allocator::before_terminator`].
+    pub(crate) current_instruction: Option<InstructionId>,
 }
 
 impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
@@ -84,6 +91,7 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
             globals,
             hoisted_global_constants,
             building_globals: false,
+            current_instruction: None,
         };
 
         brillig_block.apply_actions(actions);
@@ -174,7 +182,7 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
     /// anticipation of such need. The allocator decides which values to evict and returns the spill
     /// stores; the driver emits them.
     pub(crate) fn ensure_register_capacity(&mut self, n: usize) {
-        let actions = self.function_context.allocator.reserve_scratch(n);
+        let actions = self.function_context.allocator.reserve_scratch(n, self.current_instruction);
         self.apply_actions(actions);
     }
 
@@ -411,6 +419,12 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                 self.jmp(dfg, *destination, arguments);
             }
             TerminatorInstruction::Return { return_values, .. } => {
+                // Settle the return values into their planned registers before reading them, so a
+                // spilled or split return value is reloaded/moved once, up front. For greedy this is
+                // a no-op: a return block has no successors, so nothing crosses an edge.
+                let actions = self.function_context.allocator.before_terminator(self.block_id, dfg);
+                self.apply_actions(actions);
+
                 let return_registers = vecmap(return_values, |value_id| {
                     // Get the allocations of the values to be returned.
                     self.convert_ssa_value(*value_id, dfg)
@@ -554,6 +568,10 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
         let call_stack_new_id = call_stacks.get_or_insert_locations(&call_stack);
         self.brillig_context.set_call_stack(call_stack_new_id);
 
+        // Operand reads during this instruction's lowering carry its id to the allocator, so a
+        // global-assignment allocator can resolve the program point of each use.
+        self.current_instruction = Some(instruction_id);
+
         self.initialize_constants(dfg, InstructionLocation::Instruction(instruction_id));
 
         match instruction {
@@ -632,6 +650,10 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
             let actions = self.function_context.allocator.after_instruction(instruction_id);
             self.apply_actions(actions);
         }
+
+        // The instruction is fully lowered; later operand reads (terminator, next instruction's
+        // setup) must not attribute themselves to it.
+        self.current_instruction = None;
 
         // Clear the call stack; it only applied to this instruction.
         self.brillig_context.set_call_stack(CallStackId::root());
@@ -719,7 +741,10 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                 } else {
                     // Already-defined value: the allocator returns its register, reloading it
                     // (and spilling to make room) if it is currently spilled.
-                    let (var, actions) = self.function_context.allocator.use_variable(value_id);
+                    let (var, actions) = self
+                        .function_context
+                        .allocator
+                        .use_variable(value_id, self.current_instruction);
                     self.apply_actions(actions);
                     var
                 }
@@ -734,7 +759,10 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                     // defines each constant directly on first sight and reuses it afterwards.
                     // Globals never spill, so the register shadow is an exact "already defined" test.
                     if self.registers.contains_key(&value_id) {
-                        let (var, actions) = self.function_context.allocator.use_variable(value_id);
+                        let (var, actions) = self
+                            .function_context
+                            .allocator
+                            .use_variable(value_id, self.current_instruction);
                         self.apply_actions(actions);
                         var
                     } else {
@@ -747,7 +775,10 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                     // A non-global numeric constant is materialized at its allocation point by
                     // `initialize_constants` (which dominates all uses), so every reference here is
                     // just a use: the allocator returns its register, reloading it if it was spilled.
-                    let (var, actions) = self.function_context.allocator.use_variable(value_id);
+                    let (var, actions) = self
+                        .function_context
+                        .allocator
+                        .use_variable(value_id, self.current_instruction);
                     self.apply_actions(actions);
                     var
                 }

@@ -12,11 +12,12 @@
 //! over that plan (no register pool, no online decisions): every trait method is a lookup returning
 //! where a value lives and the [`Action`]s to realize it.
 //!
-//! **Scope.** Only the no-pressure case is implemented: functions whose register pressure fits the
-//! value capacity, with every value in one register for its whole life. Functions that would need
-//! pressure spilling — or a split (a value in two registers) that requires a move the no-pressure
-//! allocator does not emit — decline in [`LinearScanAllocator::try_build`] and fall back to
-//! [`GreedyAllocator`]. Pressure spilling with reloads and edge resolution is the next step.
+//! **Scope.** Functions whose register pressure fits the value capacity are served — including those
+//! that need pressure spilling (a value split register→slot→register, reloaded at its next use) and
+//! interval-splitting across holes. [`LinearScanAllocator::try_build`] declines (falls back to
+//! [`GreedyAllocator`]) only when [`assign`] cannot place the function at the capacity — e.g. a
+//! high-arity `MakeArray` whose elements the single-point plan counts as simultaneously live (the
+//! per-element sub-points that would stream them are a planned refinement).
 //!
 //! [`BrilligBlock`]: super::brillig_block::BrilligBlock
 //! [`FunctionContext`]: super::brillig_fn::FunctionContext
@@ -24,16 +25,16 @@
 use acvm::acir::brillig::MemoryAddress;
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
-use super::allocator::{Action, Allocator, GreedyAllocator, ParamHome};
+use super::allocator::{Action, Allocator, GreedyAllocator, ParamHome, SpillSlot};
 use super::brillig_block_variables::compute_array_length;
 use super::constant_allocation::ConstantAllocation;
 use super::live_intervals::{LiveIntervals, LiveRanges, ProgramPoint};
 use super::variable_liveness::VariableLiveness;
+use crate::brillig::assert_u32;
 use crate::brillig::brillig_ir::brillig_variable::{
     BrilligArray, BrilligVariable, BrilligVector, SingleAddrVariable, get_bit_size_from_ssa_type,
 };
 use crate::brillig::brillig_ir::registers::RegisterAllocator;
-use crate::brillig::{assert_u32, assert_usize};
 use crate::ssa::ir::basic_block::BasicBlockId;
 use crate::ssa::ir::dfg::DataFlowGraph;
 use crate::ssa::ir::function::Function;
@@ -102,187 +103,349 @@ impl Plan {
     }
 }
 
-/// A `[start, end]` live range tagged with the value it belongs to — the unit the scan consumes.
-struct RangeOf {
-    start: ProgramPoint,
-    end: ProgramPoint,
-    value: ValueId,
+/// The use points of every value in increasing order: the program points where the value is an
+/// operand of an instruction or terminator. A spilled value must be reloaded to a register at each
+/// of these, and the furthest next use drives victim selection.
+pub(crate) fn compute_use_points(
+    function: &Function,
+    intervals: &LiveIntervals,
+    post_order: &[BasicBlockId],
+) -> HashMap<ValueId, Vec<ProgramPoint>> {
+    let mut uses: HashMap<ValueId, Vec<ProgramPoint>> = HashMap::default();
+    for &block in post_order {
+        for &inst in function.dfg[block].instructions() {
+            let point = intervals.instruction_point(inst).expect("instruction has a program point");
+            function.dfg[inst].for_each_value(|value| {
+                if super::variable_liveness::is_variable(value, &function.dfg) {
+                    uses.entry(value).or_default().push(point);
+                }
+            });
+        }
+        let point = intervals.terminator_point(block).expect("block has a terminator point");
+        function.dfg[block].unwrap_terminator().for_each_value(|value| {
+            if super::variable_liveness::is_variable(value, &function.dfg) {
+                uses.entry(value).or_default().push(point);
+            }
+        });
+    }
+    for points in uses.values_mut() {
+        points.sort_unstable();
+        points.dedup();
+    }
+    uses
 }
 
-/// Assign registers by linear scan over the hole-aware [`LiveRanges`], with a value-register
-/// capacity of `value_capacity`.
+/// The program points, increasing, at which the scan acts: where a live range begins or a value is
+/// used. Range *ends* are handled lazily (a value's register frees at the first event past its
+/// current range's end), so they need not be events themselves.
+fn event_points(
+    ranges: &LiveRanges,
+    use_points: &HashMap<ValueId, Vec<ProgramPoint>>,
+) -> Vec<ProgramPoint> {
+    let mut points: Vec<ProgramPoint> = ranges
+        .iter()
+        .flat_map(|(_, list)| list.iter().map(|range| range.start))
+        .chain(use_points.values().flatten().copied())
+        .collect();
+    points.sort_unstable();
+    points.dedup();
+    points
+}
+
+/// Mutable state of the linear scan, evolving as it walks program points. All decisions are made
+/// here; the result is the read-only [`Plan`] (`timeline`).
+struct Scan<'a> {
+    param_registers: &'a HashMap<ValueId, usize>,
+    use_points: &'a HashMap<ValueId, Vec<ProgramPoint>>,
+    /// Register indices currently free for non-parameter values.
+    free: std::collections::BTreeSet<usize>,
+    /// Currently register-resident values → their register index.
+    register_of: HashMap<ValueId, usize>,
+    /// Each currently-live value → the end of the range it is in (for lazy expiry).
+    range_end_of: HashMap<ValueId, ProgramPoint>,
+    /// A value's most recent register, so a later range reclaims it when free (no spurious split).
+    previous_register: HashMap<ValueId, usize>,
+    /// Each live value's open segment: (start point, location).
+    open: HashMap<ValueId, (ProgramPoint, Location)>,
+    /// The accumulated per-value location timeline (the plan being built).
+    timeline: HashMap<ValueId, Vec<Segment>>,
+    /// The fixed spill slot of each value that is ever spilled (one per value; packing is a later
+    /// refinement).
+    slot_of: HashMap<ValueId, usize>,
+    num_spill_slots: usize,
+}
+
+impl Scan<'_> {
+    /// The first use of `value` strictly after `point`, if any.
+    fn next_use(&self, value: ValueId, point: ProgramPoint) -> Option<ProgramPoint> {
+        let points = self.use_points.get(&value)?;
+        points.iter().copied().find(|&p| p > point)
+    }
+
+    /// The value's fixed spill slot, allocating one on first spill.
+    fn slot(&mut self, value: ValueId) -> usize {
+        if let Some(&slot) = self.slot_of.get(&value) {
+            return slot;
+        }
+        let slot = self.num_spill_slots;
+        self.num_spill_slots += 1;
+        self.slot_of.insert(value, slot);
+        slot
+    }
+
+    /// Close `value`'s open segment ending inclusively at `end`.
+    fn close_segment(&mut self, value: ValueId, end: ProgramPoint) {
+        if let Some((start, location)) = self.open.remove(&value) {
+            self.timeline.entry(value).or_default().push(Segment { start, end, location });
+        }
+    }
+
+    /// Spill a register-resident value to its slot at `point`: end its register segment just before
+    /// `point`, free the register, and open a slot segment. (Never called on a parameter.)
+    fn spill(&mut self, value: ValueId, point: ProgramPoint) -> usize {
+        let (start, location) =
+            self.open.remove(&value).expect("resident value has an open segment");
+        let Location::Register(register) = location else {
+            unreachable!("only register-resident values are spilled");
+        };
+        self.timeline.entry(value).or_default().push(Segment {
+            start,
+            end: point.pred(),
+            location,
+        });
+        self.register_of.remove(&value);
+        self.free.insert(register);
+        let slot = self.slot(value);
+        self.open.insert(value, (point, Location::Slot(slot)));
+        register
+    }
+
+    /// Expire currently-live values whose range has ended, closing each one's open segment at its
+    /// range end and returning its (non-parameter) register to the free set. With `strict`, only
+    /// ranges ending *before* `point` expire — values still needed at `point` stay resident. Without
+    /// it, ranges ending *at* `point` also expire; the scan runs this only *after* this point's
+    /// result has claimed a register, so an operand consumed here keeps its register through the
+    /// result's allocation and the result never aliases it.
+    fn expire(&mut self, point: ProgramPoint, strict: bool) {
+        let param_registers = self.param_registers;
+        let expired: Vec<ValueId> = self
+            .range_end_of
+            .iter()
+            .filter(|&(_, &end)| if strict { end < point } else { end <= point })
+            .map(|(&value, _)| value)
+            .collect();
+        for value in expired {
+            let end = self.range_end_of.remove(&value).expect("expiring value has a range end");
+            let register = self.register_of.remove(&value);
+            self.close_segment(value, end);
+            if let Some(register) = register
+                && !param_registers.contains_key(&value)
+            {
+                self.free.insert(register);
+            }
+        }
+    }
+
+    /// Allocate a register for `value` at `point`: reclaim its previous register if free, else the
+    /// lowest free one, else evict the resident whose next use is furthest (spilling it). Values in
+    /// `protected` (used at this very point, so needed now) and parameters are never evicted. Returns
+    /// `None` only if no register can be obtained.
+    fn allocate(
+        &mut self,
+        value: ValueId,
+        point: ProgramPoint,
+        protected: &HashSet<ValueId>,
+    ) -> Option<usize> {
+        if let Some(&previous) = self.previous_register.get(&value)
+            && self.free.remove(&previous)
+        {
+            return Some(previous);
+        }
+        if let Some(&register) = self.free.iter().next() {
+            self.free.remove(&register);
+            return Some(register);
+        }
+        // Evict the evictable resident with the furthest next use (a value with no further use sorts
+        // furthest, so it is evicted first).
+        let victim = self
+            .register_of
+            .keys()
+            .copied()
+            .filter(|resident| {
+                !self.param_registers.contains_key(resident) && !protected.contains(resident)
+            })
+            .max_by_key(|&resident| {
+                (self.next_use(resident, point).is_none(), self.next_use(resident, point), resident)
+            })?;
+        let register = self.spill(victim, point);
+        self.free.remove(&register);
+        Some(register)
+    }
+}
+
+/// Assign registers by linear scan over the hole-aware [`LiveRanges`], reloading spilled values at
+/// their uses (Wimmer-style interval splitting), with a value-register capacity of `value_capacity`.
 ///
-/// Each of a value's live ranges is scanned as a separate interval, but a value **reclaims its
-/// previous register** when a later range begins if that register is still free — so a value with a
-/// hole on its own runtime path keeps one register (no spurious split), while a value dead across a
-/// *divergent-path* hole releases its register for another value to share during the hole.
-///
-/// Under register pressure (no free register at a point) it **spills the longest-lived interval** —
-/// an active one if it outlives the incoming range, else the incoming range — to that value's fixed
-/// spill slot, splitting the evicted value's timeline into a register segment then a slot segment.
-/// The resulting plan therefore mixes `Register` and `Slot` locations (a value can be both over its
-/// life). Returns `None` only when the entry parameters alone exceed `value_capacity`.
+/// Walking program points in order: a value becomes resident when its live range begins (reclaiming
+/// its previous register across a hole when free — no spurious split); when a value is used while
+/// spilled it is reloaded into a register; and under pressure the resident whose next use is furthest
+/// is evicted to its fixed spill slot. A value's register may therefore change over its life (a
+/// register→slot→register split), which edge resolution reconciles at merges. Returns `None` only
+/// when a value cannot be given any register (e.g. the entry parameters already fill the capacity).
 #[allow(dead_code)]
 pub(crate) fn assign(
     ranges: &LiveRanges,
+    use_points: &HashMap<ValueId, Vec<ProgramPoint>>,
     value_capacity: usize,
     entry_params: &[ValueId],
 ) -> Option<Plan> {
     // Entry-block parameters are pre-colored fixed intervals: the calling convention places argument
     // `i` in register `i` (see `codegen_entry_point::allocate_function_arguments`), so the callee
-    // must read parameter `i` from register `i`. Reserve `[0, n_params)` for them, matching order,
-    // and never hand those indices to other values — over-reserving vs sharing a param's register
-    // after it dies, but correct and simple (register sharing for dead params is a later refinement).
+    // must read parameter `i` from register `i`. Reserve `[0, n_params)` for them, never handing
+    // those indices to other values.
     let param_registers: HashMap<ValueId, usize> =
         entry_params.iter().enumerate().map(|(index, &param)| (param, index)).collect();
     if param_registers.len() > value_capacity {
         return None;
     }
 
-    // Flatten to one interval per (value, range), scanned in start order.
-    let mut intervals: Vec<RangeOf> = ranges
-        .iter()
-        .flat_map(|(value, list)| {
-            list.iter().map(move |range| RangeOf { start: range.start, end: range.end, value })
-        })
-        .collect();
-    intervals.sort_by_key(|r| (r.start, r.end, r.value));
-
-    // Free register indices available to non-parameter values (parameter indices are reserved).
-    let mut free: std::collections::BTreeSet<usize> =
-        (param_registers.len()..value_capacity).collect();
-    // Currently register-resident non-parameter ranges: (range end, value, register index).
-    let mut active: Vec<(ProgramPoint, ValueId, usize)> = Vec::new();
-    // A value's most recent register, so a later range can reclaim it when free.
-    let mut previous_register: HashMap<ValueId, usize> = HashMap::default();
-    let mut timeline: HashMap<ValueId, Vec<Segment>> = HashMap::default();
-    // The fixed spill slot of each value that is ever spilled. One slot per value (not yet packed
-    // across non-interfering values — a later refinement); reused across all of the value's spills.
-    let mut slots: HashMap<ValueId, usize> = HashMap::default();
-    let mut num_spill_slots = 0usize;
-
-    for RangeOf { start, end, value } in intervals {
-        // Expire ranges that ended strictly before this one begins, freeing their registers. Ranges
-        // touching at a point (`prev.end == start`) stay active — they interfere.
-        active.retain(|&(active_end, _, register)| {
-            let expired = active_end < start;
-            if expired {
-                free.insert(register);
-            }
-            !expired
-        });
-
-        // Parameters are fixed intervals in their reserved register, never spilled.
-        if let Some(&index) = param_registers.get(&value) {
-            previous_register.insert(value, index);
-            timeline.entry(value).or_default().push(Segment {
-                start,
-                end,
-                location: Location::Register(index),
-            });
-            continue;
+    // Per-point range starts (value → that range's end) and the values used at each point.
+    let mut range_start_at: HashMap<ProgramPoint, Vec<(ValueId, ProgramPoint)>> =
+        HashMap::default();
+    for (value, list) in ranges.iter() {
+        for range in list {
+            range_start_at.entry(range.start).or_default().push((value, range.end));
         }
-
-        // Prefer the value's previous register (reclaim across a hole), else the lowest free one.
-        let reclaim = previous_register.get(&value).copied().filter(|prev| free.contains(prev));
-        if let Some(register) = reclaim.or_else(|| free.iter().next().copied()) {
-            free.remove(&register);
-            previous_register.insert(value, register);
-            active.push((end, value, register));
-            timeline.entry(value).or_default().push(Segment {
-                start,
-                end,
-                location: Location::Register(register),
-            });
-            continue;
+    }
+    let mut used_at: HashMap<ProgramPoint, HashSet<ValueId>> = HashMap::default();
+    for (&value, points) in use_points {
+        for &point in points {
+            used_at.entry(point).or_default().insert(value);
         }
+    }
 
-        // Pressure: no register is free. Evict the longest-lived interval — an active one if it
-        // outlives this range, else this range itself — to its value's spill slot. The evicted
-        // stretch lives in the slot; uses within it reload on demand.
-        let victim = active.iter().enumerate().max_by_key(|(_, (active_end, _, _))| *active_end);
-        match victim {
-            Some((position, &(active_end, active_value, active_register))) if active_end > end => {
-                // Split the active value's current register segment at `start`: register before,
-                // slot from `start` onward.
-                let slot = *slots.entry(active_value).or_insert_with(|| {
-                    let slot = num_spill_slots;
-                    num_spill_slots += 1;
-                    slot
-                });
-                let segments = timeline.get_mut(&active_value).expect("active value has segments");
-                let current = segments.last_mut().expect("active value has a live segment");
-                if current.start < start {
-                    current.end = start.pred();
-                    segments.push(Segment {
-                        start,
-                        end: active_end,
-                        location: Location::Slot(slot),
-                    });
-                } else {
-                    current.location = Location::Slot(slot);
+    let mut scan = Scan {
+        param_registers: &param_registers,
+        use_points,
+        free: (param_registers.len()..value_capacity).collect(),
+        register_of: HashMap::default(),
+        range_end_of: HashMap::default(),
+        previous_register: HashMap::default(),
+        open: HashMap::default(),
+        timeline: HashMap::default(),
+        slot_of: HashMap::default(),
+        num_spill_slots: 0,
+    };
+    let empty = HashSet::default();
+
+    for point in event_points(ranges, use_points) {
+        let protected = used_at.get(&point).unwrap_or(&empty);
+
+        // 1. Expire values whose current range ended strictly before this point, freeing their
+        //    registers. Values still used at this point stay resident.
+        scan.expire(point, true);
+
+        // 2. Uses here: a value used at this instruction must be register-resident. A currently
+        //    spilled operand is reloaded — its slot segment ends just before the use and it takes a
+        //    register.
+        if let Some(users) = used_at.get(&point) {
+            let mut users: Vec<ValueId> = users.iter().copied().collect();
+            users.sort_unstable();
+            for value in users {
+                if scan.register_of.contains_key(&value) || param_registers.contains_key(&value) {
+                    continue;
                 }
-                active.remove(position);
-                // Hand the freed register to this range.
-                previous_register.insert(value, active_register);
-                active.push((end, value, active_register));
-                timeline.entry(value).or_default().push(Segment {
-                    start,
-                    end,
-                    location: Location::Register(active_register),
-                });
-            }
-            _ => {
-                // This range outlives every active one: spill it directly.
-                let slot = *slots.entry(value).or_insert_with(|| {
-                    let slot = num_spill_slots;
-                    num_spill_slots += 1;
-                    slot
-                });
-                timeline.entry(value).or_default().push(Segment {
-                    start,
-                    end,
-                    location: Location::Slot(slot),
-                });
+                scan.close_segment(value, point.pred());
+                let register = scan.allocate(value, point, protected)?;
+                scan.register_of.insert(value, register);
+                scan.previous_register.insert(value, register);
+                scan.open.insert(value, (point, Location::Register(register)));
             }
         }
+
+        // 3. Ranges starting here: the value becomes live and is placed in a register. Parameters
+        //    take their fixed register. A result is placed *before* its instruction's dying operands
+        //    are freed (step 4), so it never reuses an operand's register — codegen claims the result
+        //    register before reading the operands, so the two must not alias. Operands used at this
+        //    point are `protected`, so the result never evicts one either.
+        if let Some(starts) = range_start_at.get(&point) {
+            let mut starts = starts.clone();
+            starts.sort_unstable_by_key(|(value, _)| *value);
+            for (value, range_end) in starts {
+                scan.range_end_of.insert(value, range_end);
+                if let Some(&index) = param_registers.get(&value) {
+                    scan.register_of.insert(value, index);
+                    scan.previous_register.insert(value, index);
+                    scan.open.insert(value, (point, Location::Register(index)));
+                    continue;
+                }
+                let register = scan.allocate(value, point, protected)?;
+                scan.register_of.insert(value, register);
+                scan.previous_register.insert(value, register);
+                scan.open.insert(value, (point, Location::Register(register)));
+            }
+        }
+
+        // 4. Expire operands consumed exactly at this point, freeing their registers — but only now
+        //    that this point's result has already claimed a distinct register.
+        scan.expire(point, false);
     }
 
-    // Keep each value's segments in point order.
-    for segments in timeline.values_mut() {
-        segments.sort_by_key(|seg| seg.start);
+    // Close every still-open segment at its range end.
+    let open_values: Vec<ValueId> = scan.open.keys().copied().collect();
+    for value in open_values {
+        let end = scan.range_end_of.get(&value).copied().unwrap_or_else(|| scan.open[&value].0);
+        scan.close_segment(value, end);
     }
 
-    Some(Plan { timeline, num_spill_slots })
+    for segments in scan.timeline.values_mut() {
+        segments.sort_by_key(|segment| segment.start);
+    }
+
+    Some(Plan { timeline: scan.timeline, num_spill_slots: scan.num_spill_slots })
 }
 
-/// The plan-based allocator: a **read-only** server over a precomputed [`Plan`].
+/// The plan-based allocator: a server that *realizes* a precomputed [`Plan`] at codegen time.
 ///
-/// It holds no register pool and takes no online decisions — every method is a lookup into the plan
-/// (and the program-point maps in [`LiveIntervals`]) that returns where a value lives and the
-/// [`Action`]s to realize it. This is the endgame the design doc describes: "the allocator's methods
-/// become read-only queries over a precomputed plan".
+/// It makes no online allocation decisions — [`assign`] already fixed where every value lives at
+/// every program point. What this does is keep a small **residency mirror** (which value occupies
+/// which register right now) and, at each definition and use, emit the [`Action`]s that move the
+/// register file from its current state to what the plan requires at that point: an [`Action::Reload`]
+/// to bring a spilled value back, an [`Action::Move`] when the plan splits a value into a different
+/// register, and an [`Action::Spill`] to evict whatever currently holds a register the plan is about
+/// to reuse. Residency is reset from the plan at each block entry, so a value's register is always a
+/// lookup, never a decision.
 ///
-/// **No-pressure scope.** This handles functions whose register pressure fits the value capacity
-/// (`usable - min_live_count`); [`Self::try_build`] returns `None` otherwise so the caller falls
-/// back to greedy. With no pressure every value keeps one register for its whole life, so there are
-/// no spills or reloads — `begin_block` seeds the register-resident values, `after_instruction`
-/// prunes the dead, and `resolve_edge` reports each parameter's register. Pressure spilling (splits,
-/// reloads, resolution) is layered on next.
+/// **No move cycles.** A register a value needs may be held by another value; since [`assign`]
+/// always evicts a live value to *its slot* (never to another register), the incumbent is simply
+/// spilled first — there is never a register-to-register displacement chain to untangle. A result
+/// never shares a register with its instruction's operands (codegen claims the result register
+/// before reading the operands), so defining a result never displaces a value about to be read.
 pub(crate) struct LinearScanAllocator {
-    /// The precomputed assignment (value location timelines).
+    /// The precomputed assignment: each value's location timeline.
     plan: Plan,
-    /// Program-point maps, so `begin_block` can find a block's entry point.
+    /// Program-point maps, so a block entry / instruction / terminator resolves to its point.
     intervals: LiveIntervals,
     /// Values dying after each instruction, so `after_instruction` prunes them.
     last_uses: HashMap<InstructionId, HashSet<ValueId>>,
-    /// Each value's typed `BrilligVariable`, its register fixed by the plan. This is the final
-    /// allocation map handed to the artifact via `into_allocations`.
-    allocations: HashMap<ValueId, BrilligVariable>,
-    /// The number of low registers the plan actually uses for value homes — the reserved band
-    /// codegen keeps scratch above. Only the registers used (not the whole capacity) are reserved,
-    /// so the frame's high-water mark stays minimal (important for recursion depth).
+    /// Each value's typed [`BrilligVariable`] at its *definition* register. The shape (bit size,
+    /// array length) is fixed; only the register varies, so a value is served at its current register
+    /// via [`BrilligVariable::with_register`]. Also the map handed to the artifact.
+    templates: HashMap<ValueId, BrilligVariable>,
+    /// Each value that is ever spilled → its fixed spill slot.
+    value_slot: HashMap<ValueId, usize>,
+    /// The first usable register offset; plan index `i` is the relative address `register_offset + i`.
+    register_offset: usize,
+    /// Low registers reserved for value homes (highest plan register index + 1); scratch sits above.
+    /// Only the registers used (not the whole capacity) are reserved, so the frame's high-water mark
+    /// stays minimal (important for recursion depth).
     reserved_registers: usize,
+    /// Number of spill slots the plan uses — the spill prologue's high-water mark (0 if none).
+    num_spill_slots: usize,
+    /// Residency mirror, reset from the plan at each block entry and evolved as actions are emitted:
+    /// which register index holds each live value, and the inverse.
+    register_of_value: HashMap<ValueId, usize>,
+    value_in_register: HashMap<usize, ValueId>,
 }
 
 impl LinearScanAllocator {
@@ -308,19 +471,21 @@ impl LinearScanAllocator {
     ) -> Option<Self> {
         let intervals = LiveIntervals::from_function(function, liveness, constants, post_order);
         let ranges = LiveRanges::from_intervals(&intervals, liveness, post_order);
+        let use_points = compute_use_points(function, &intervals, post_order);
         let entry_params = function.dfg[function.entry_block()].parameters();
-        let plan = assign(&ranges, value_capacity, entry_params)?;
+        let plan = assign(&ranges, &use_points, value_capacity, entry_params)?;
 
-        // Materialize each value's typed variable at its single planned register.
-        //
-        // The no-pressure allocator emits no spills, reloads, or moves, so it can only serve a plan
-        // where every value lives in exactly one register for its whole life. Register scarcity can
-        // still force a *split* even without slot spilling: when a value's register is reused during
-        // a divergent-path hole by another value whose range overlaps the first value's revival,
-        // reclaim fails and the value lands in a second register. Realizing a split needs a move on
-        // the revival edge, which only the pressure-aware allocator (with resolution) emits — so if
-        // any value's timeline is not a single register, decline and fall back to greedy.
-        let mut allocations = HashMap::default();
+        // Conservative scope: serve only plans where every value stays in **one register** for its
+        // whole life. Holes are fine — a value dead across a divergent branch and revived in the
+        // *same* register is served by re-seeding it at that register (its data survives on the
+        // taken path; see `make_resident`). What is declined is a value whose register *changes*:
+        // a register→register revival across a hole, or a register↔slot spill. Those need an
+        // edge/merge resolution phase (moves reconciling a split interval's location across control
+        // flow) that is implemented in the allocator methods below but not yet sound end to end —
+        // a linear scan over a non-linear CFG reuses the register on a divergent branch and lands
+        // the value elsewhere at the merge with nothing to reconcile them. Until that resolution is
+        // designed, decline and fall back to greedy. Even so, keeping cross-block values in one
+        // register already beats greedy, which permanently spills every cross-block value.
         for (value, _) in ranges.iter() {
             let segments = plan.timeline(value);
             let Some(Location::Register(index)) = segments.first().map(|seg| seg.location) else {
@@ -329,25 +494,52 @@ impl LinearScanAllocator {
             if segments.iter().any(|seg| seg.location != Location::Register(index)) {
                 return None;
             }
-            let register = MemoryAddress::relative(assert_u32(register_offset + index));
-            allocations.insert(value, typed_variable(function, value, register));
         }
 
-        // Reserve only the registers actually used, not the whole capacity: the highest value index
-        // plus one. Scratch sits above this band. Keeping the reservation tight keeps the frame's
-        // high-water mark minimal, which matters for recursion (each call frame is that size).
-        let reserved_registers = allocations
-            .values()
-            .map(|variable| assert_usize(variable.extract_register().unwrap_relative()))
-            .max()
-            .map_or(0, |max_offset| max_offset - register_offset + 1);
+        // Precompute, from the plan: each value's typed template at its definition register, each
+        // spilled value's fixed slot, and the highest register index used (which fixes the reserved
+        // value-home band). The template's register is the value's first register segment; codegen
+        // serves the value at its current register by rewriting that address via `with_register`.
+        let mut templates = HashMap::default();
+        let mut value_slot = HashMap::default();
+        let mut max_register_index: Option<usize> = None;
+        for (value, _) in ranges.iter() {
+            let segments = plan.timeline(value);
+            let def_index = segments.iter().find_map(|seg| match seg.location {
+                Location::Register(index) => Some(index),
+                Location::Slot(_) => None,
+            });
+            // Every tracked value is defined into a register before any spill, so a timeline with no
+            // register segment is malformed; decline rather than serve it.
+            let def_index = def_index?;
+            let register = MemoryAddress::relative(assert_u32(register_offset + def_index));
+            templates.insert(value, typed_variable(function, value, register));
+            for seg in segments {
+                match seg.location {
+                    Location::Register(index) => {
+                        max_register_index =
+                            Some(max_register_index.map_or(index, |current| current.max(index)));
+                    }
+                    Location::Slot(slot) => {
+                        value_slot.insert(value, slot);
+                    }
+                }
+            }
+        }
+        let reserved_registers = max_register_index.map_or(0, |index| index + 1);
+        let num_spill_slots = plan.num_spill_slots();
 
         Some(Self {
             plan,
             intervals,
             last_uses: last_uses.clone(),
-            allocations,
+            templates,
+            value_slot,
+            register_offset,
             reserved_registers,
+            num_spill_slots,
+            register_of_value: HashMap::default(),
+            value_in_register: HashMap::default(),
         })
     }
 
@@ -358,18 +550,107 @@ impl LinearScanAllocator {
         self.reserved_registers
     }
 
-    /// The final register allocations, consumed when handing the global allocations to the artifact.
+    /// The register allocations handed to the artifact: each value at its definition register. A
+    /// split value has several registers over its life; its definition register is the representative
+    /// the artifact metadata records.
     pub(crate) fn into_allocations(self) -> HashMap<ValueId, BrilligVariable> {
-        self.allocations
+        self.templates
     }
 
-    /// The register a tracked value lives in (its home), panicking if it is untracked — every value
-    /// the driver defines or uses is in the plan.
-    fn register_of(&self, value: ValueId) -> MemoryAddress {
-        self.allocations
-            .get(&value)
-            .unwrap_or_else(|| panic!("ICE: linear-scan has no allocation for {value}"))
-            .extract_register()
+    /// The relative memory address of plan register `index`.
+    fn addr(&self, index: usize) -> MemoryAddress {
+        MemoryAddress::relative(assert_u32(self.register_offset + index))
+    }
+
+    /// The typed variable for `value` served at register `index` (its fixed shape, this register).
+    fn var_at(&self, value: ValueId, index: usize) -> BrilligVariable {
+        self.templates[&value].with_register(self.addr(index))
+    }
+
+    /// The register index the plan places `value` in at `point`, panicking if the plan does not put
+    /// it in a register there — definitions and uses are always register-homed points.
+    fn register_index_at(&self, value: ValueId, point: ProgramPoint) -> usize {
+        match self.plan.location_at(value, point) {
+            Some(Location::Register(index)) => index,
+            other => panic!(
+                "ICE: linear-scan expected {value} in a register at {point:?}, got {other:?}"
+            ),
+        }
+    }
+
+    /// Record that `value` now occupies register `index`, updating both sides of the residency
+    /// mirror and clearing any stale inverse entry for the register `value` used to hold.
+    fn occupy(&mut self, value: ValueId, index: usize) {
+        if let Some(previous) = self.register_of_value.insert(value, index) {
+            self.value_in_register.remove(&previous);
+        }
+        self.value_in_register.insert(index, value);
+    }
+
+    /// Free register `index` for an incoming value at `point`, emitting the action to preserve its
+    /// current occupant. The plan reuses a register only by evicting its occupant to that occupant's
+    /// slot, so the occupant is spilled (a real store). The fallback [`Action::Prune`] covers only a
+    /// value the plan no longer homes here at all — bookkeeping so the driver's shadow stays exact.
+    /// Clears the occupant from the mirror either way.
+    fn free_register(&mut self, index: usize, point: ProgramPoint, actions: &mut Vec<Action>) {
+        let Some(occupant) = self.value_in_register.get(&index).copied() else {
+            return;
+        };
+        match self.plan.location_at(occupant, point) {
+            Some(Location::Slot(slot)) => {
+                actions.push(Action::Spill {
+                    value: occupant,
+                    from: self.addr(index),
+                    to: SpillSlot(slot),
+                });
+            }
+            _ => {
+                actions.push(Action::Prune { value: occupant, register: self.addr(index) });
+            }
+        }
+        self.register_of_value.remove(&occupant);
+        self.value_in_register.remove(&index);
+    }
+
+    /// Make `value` register-resident in register `index` for a use at `point`, returning the
+    /// actions to get it there: nothing if it is already there, otherwise free the target and bring
+    /// `value` in — a [`Action::Move`] from its current register, a [`Action::Reload`] from its slot
+    /// if it is currently spilled, or (for a value whose register never changes) nothing but a
+    /// re-seed of the residency mirror.
+    fn make_resident(&mut self, value: ValueId, index: usize, point: ProgramPoint) -> Vec<Action> {
+        if self.register_of_value.get(&value) == Some(&index) {
+            return Vec::new();
+        }
+        let mut actions = Vec::new();
+        self.free_register(index, point, &mut actions);
+        match self.register_of_value.get(&value).copied() {
+            Some(current) => {
+                actions.push(Action::Move {
+                    value,
+                    from: self.addr(current),
+                    to: self.addr(index),
+                });
+            }
+            None => {
+                // A currently-spilled value is reloaded from its slot. A value that is neither
+                // mirrored nor spilled is one whose plan register never changes, revived after a
+                // liveness hole: its data still sits in `index` on the path that reaches this use
+                // (the hole is a divergent branch that did not execute, so nothing overwrote the
+                // register there), so re-establishing the mirror entry below is enough — the pruning
+                // that dropped it happened on a branch this path did not take. (A value whose
+                // register *does* change across a hole cannot be served this way; `try_build`
+                // declines such plans.)
+                if let Some(slot) = self.value_slot.get(&value).copied() {
+                    actions.push(Action::Reload {
+                        value,
+                        from: SpillSlot(slot),
+                        into: self.addr(index),
+                    });
+                }
+            }
+        }
+        self.occupy(value, index);
+        actions
     }
 }
 
@@ -380,15 +661,27 @@ impl Allocator for LinearScanAllocator {
         _dfg: &DataFlowGraph,
     ) -> (Vec<(ValueId, MemoryAddress)>, Vec<Action>) {
         let entry = self.intervals.block_entry_point(block).expect("block has an entry point");
-        // Seed the shadow with every value register-resident at this block's entry.
-        let resident = self
-            .allocations
-            .iter()
-            .filter(|&(&value, _)| {
-                matches!(self.plan.location_at(value, entry), Some(Location::Register(_)))
+        // Reset the residency mirror to the plan's picture at this block's entry: every value the
+        // plan homes in a register there. The physical registers hold exactly these on entry — the
+        // plan is globally consistent and each incoming edge leaves cross-edge values where the
+        // successor expects them — so this is a lookup, not a decision.
+        let seeds: Vec<(ValueId, usize)> = self
+            .templates
+            .keys()
+            .copied()
+            .filter_map(|value| match self.plan.location_at(value, entry) {
+                Some(Location::Register(index)) => Some((value, index)),
+                _ => None,
             })
-            .map(|(&value, variable)| (value, variable.extract_register()))
             .collect();
+        self.register_of_value.clear();
+        self.value_in_register.clear();
+        let mut resident = Vec::with_capacity(seeds.len());
+        for (value, index) in seeds {
+            self.register_of_value.insert(value, index);
+            self.value_in_register.insert(index, value);
+            resident.push((value, self.addr(index)));
+        }
         (resident, Vec::new())
     }
 
@@ -397,16 +690,49 @@ impl Allocator for LinearScanAllocator {
         value_id: ValueId,
         _dfg: &DataFlowGraph,
     ) -> (BrilligVariable, Vec<Action>) {
-        (self.allocations[&value_id], Vec::new())
+        // The result is defined into its planned register at its definition point. Free that
+        // register first (spilling a live incumbent the plan evicts here, or pruning a dying operand
+        // whose register is handed off); the driver then writes the value into it. There is no
+        // reload/move for the value itself — it is freshly computed.
+        let def_point =
+            self.plan.timeline(value_id).first().expect("defined value has a segment").start;
+        let index = self.register_index_at(value_id, def_point);
+        let mut actions = Vec::new();
+        self.free_register(index, def_point, &mut actions);
+        self.occupy(value_id, index);
+        (self.var_at(value_id, index), actions)
     }
 
-    fn use_variable(&mut self, value_id: ValueId) -> (BrilligVariable, Vec<Action>) {
-        (self.allocations[&value_id], Vec::new())
+    fn use_variable(
+        &mut self,
+        value_id: ValueId,
+        at: Option<InstructionId>,
+    ) -> (BrilligVariable, Vec<Action>) {
+        match at {
+            Some(inst) => {
+                let point =
+                    self.intervals.instruction_point(inst).expect("instruction has a point");
+                let index = self.register_index_at(value_id, point);
+                let actions = self.make_resident(value_id, index, point);
+                (self.var_at(value_id, index), actions)
+            }
+            None => {
+                // Terminator operand: `before_terminator` made every terminator operand resident up
+                // front, so this is a plain lookup of the register it currently occupies.
+                let index = *self.register_of_value.get(&value_id).unwrap_or_else(|| {
+                    panic!("ICE: terminator operand {value_id} is not resident")
+                });
+                (self.var_at(value_id, index), Vec::new())
+            }
+        }
     }
 
-    fn reserve_scratch(&mut self, _scratch: usize) -> Vec<Action> {
-        // The plan reserved `min_live_count` upper registers for scratch, so there is always room;
-        // codegen allocates the temporaries from that band. Nothing to spill.
+    fn reserve_scratch(&mut self, _scratch: usize, _at: Option<InstructionId>) -> Vec<Action> {
+        // Nothing to do: `value_capacity` was sized as `usable - (min_live_count + SPILL_MARGIN)`,
+        // and `min_live_count` already folds in each instruction's `instruction_scratch_demand`
+        // (see `VariableLiveness`). So the registers above the reserved value band are provably free
+        // for codegen's scratch at every point — the reservation is made once at capacity time,
+        // rather than per instruction here.
         Vec::new()
     }
 
@@ -414,15 +740,42 @@ impl Allocator for LinearScanAllocator {
         let Some(dead) = self.last_uses.get(&inst) else {
             return Vec::new();
         };
-        dead.iter()
-            .filter(|value| self.allocations.contains_key(value))
-            .map(|&value| Action::Prune { value, register: self.register_of(value) })
-            .collect()
+        let dead: Vec<ValueId> =
+            dead.iter().copied().filter(|value| self.templates.contains_key(value)).collect();
+        let mut actions = Vec::new();
+        for value in dead {
+            // A register-resident dead value is dropped from the mirror, freeing its register (a
+            // dying value already handed off at a define was pruned there, so it is no longer in the
+            // mirror). A dead value that is currently spilled holds no register — nothing to prune.
+            if let Some(index) = self.register_of_value.remove(&value) {
+                self.value_in_register.remove(&index);
+                actions.push(Action::Prune { value, register: self.addr(index) });
+            }
+        }
+        actions
     }
 
-    fn before_terminator(&mut self, _block: BasicBlockId, _dfg: &DataFlowGraph) -> Vec<Action> {
-        // No pressure means no cross-edge value is spilled, so nothing to store before the branch.
-        Vec::new()
+    fn before_terminator(&mut self, block: BasicBlockId, dfg: &DataFlowGraph) -> Vec<Action> {
+        // Make every terminator operand resident in its planned register at the terminator point,
+        // before the operands are read. Terminator operands are bounded (condition, return values,
+        // jmp arguments), so — unlike a streaming `MakeArray` — they can all be made resident here.
+        let point = self.intervals.terminator_point(block).expect("block has a terminator point");
+        let mut operands: Vec<ValueId> = Vec::new();
+        dfg[block].unwrap_terminator().for_each_value(|value| {
+            if super::variable_liveness::is_variable(value, dfg)
+                && self.templates.contains_key(&value)
+            {
+                operands.push(value);
+            }
+        });
+        operands.sort_unstable();
+        operands.dedup();
+        let mut actions = Vec::new();
+        for value in operands {
+            let index = self.register_index_at(value, point);
+            actions.extend(self.make_resident(value, index, point));
+        }
+        actions
     }
 
     fn resolve_edge(
@@ -431,19 +784,29 @@ impl Allocator for LinearScanAllocator {
         succ: BasicBlockId,
         dfg: &DataFlowGraph,
     ) -> Vec<ParamHome> {
+        // Each successor parameter lives where the plan places it at the successor's entry point.
+        let entry = self.intervals.block_entry_point(succ).expect("block has an entry point");
         dfg[succ]
             .parameters()
             .iter()
-            .map(|param| ParamHome::Register(self.register_of(*param)))
+            .map(|&param| match self.plan.location_at(param, entry) {
+                Some(Location::Register(index)) => ParamHome::Register(self.addr(index)),
+                Some(Location::Slot(slot)) => ParamHome::Slot(SpillSlot(slot)),
+                // The parameter is dead at its own block's entry: it is passed by a predecessor but
+                // never read in the block (e.g. only forwarded as a jmp argument earlier). The jmp
+                // still has to write it somewhere valid, so route it to the parameter's home (its
+                // definition register). The write is dead but harmless.
+                None => ParamHome::Register(self.templates[&param].extract_register()),
+            })
             .collect()
     }
 
     fn spill_enabled(&self) -> bool {
-        false
+        self.num_spill_slots > 0
     }
 
     fn max_spill_offset(&self) -> usize {
-        0
+        self.num_spill_slots
     }
 }
 
@@ -536,17 +899,21 @@ impl<R: RegisterAllocator> Allocator for FunctionAllocator<R> {
         }
     }
 
-    fn use_variable(&mut self, value_id: ValueId) -> (BrilligVariable, Vec<Action>) {
+    fn use_variable(
+        &mut self,
+        value_id: ValueId,
+        at: Option<InstructionId>,
+    ) -> (BrilligVariable, Vec<Action>) {
         match self {
-            Self::Greedy(a) => a.use_variable(value_id),
-            Self::LinearScan(a) => a.use_variable(value_id),
+            Self::Greedy(a) => a.use_variable(value_id, at),
+            Self::LinearScan(a) => a.use_variable(value_id, at),
         }
     }
 
-    fn reserve_scratch(&mut self, scratch: usize) -> Vec<Action> {
+    fn reserve_scratch(&mut self, scratch: usize, at: Option<InstructionId>) -> Vec<Action> {
         match self {
-            Self::Greedy(a) => a.reserve_scratch(scratch),
-            Self::LinearScan(a) => a.reserve_scratch(scratch),
+            Self::Greedy(a) => a.reserve_scratch(scratch, at),
+            Self::LinearScan(a) => a.reserve_scratch(scratch, at),
         }
     }
 
@@ -593,24 +960,31 @@ impl<R: RegisterAllocator> Allocator for FunctionAllocator<R> {
 
 #[cfg(test)]
 mod assignment_tests {
-    use super::{Location, Plan, Segment, assign};
+    use super::{Location, Plan, Segment, assign, compute_use_points};
     use crate::brillig::brillig_gen::constant_allocation::ConstantAllocation;
-    use crate::brillig::brillig_gen::live_intervals::{LiveIntervals, LiveRanges};
+    use crate::brillig::brillig_gen::live_intervals::{LiveIntervals, LiveRanges, ProgramPoint};
     use crate::brillig::brillig_gen::variable_liveness::VariableLiveness;
     use crate::ssa::ir::post_order::PostOrder;
     use crate::ssa::ir::value::ValueId;
     use crate::ssa::ssa_gen::Ssa;
+    use rustc_hash::FxHashMap as HashMap;
 
-    fn ranges_for(src: &str) -> (LiveRanges, Ssa) {
+    fn ranges_for(src: &str) -> (LiveRanges, HashMap<ValueId, Vec<ProgramPoint>>, Ssa) {
         let ssa = Ssa::from_str(src).unwrap();
         let func = ssa.main();
         let constants = ConstantAllocation::from_function(func);
         let liveness = VariableLiveness::from_function(func, &constants);
         let post_order = PostOrder::with_function(func).into_vec();
         let intervals = LiveIntervals::from_function(func, &liveness, &constants, &post_order);
-        (LiveRanges::from_intervals(&intervals, &liveness, &post_order), ssa)
+        let ranges = LiveRanges::from_intervals(&intervals, &liveness, &post_order);
+        let use_points = compute_use_points(func, &intervals, &post_order);
+        (ranges, use_points, ssa)
     }
 
+    /// Inclusive overlap: two segments conflict if they share any point. A result defined at `p` and
+    /// an operand last-used at `p` both need a register at `p` — codegen claims the result register
+    /// before reading the operands, so they must not alias — hence sharing the boundary point `p` is
+    /// a genuine conflict, and `assign` gives them distinct registers.
     fn segments_overlap(a: &Segment, b: &Segment) -> bool {
         a.start <= b.end && b.start <= a.end
     }
@@ -654,8 +1028,9 @@ mod assignment_tests {
             return v3
         }
         ";
-        let (ranges, ssa) = ranges_for(src);
-        let plan = assign(&ranges, 8, &entry_params(&ssa)).expect("fits in 8 registers");
+        let (ranges, use_points, ssa) = ranges_for(src);
+        let plan =
+            assign(&ranges, &use_points, 8, &entry_params(&ssa)).expect("fits in 8 registers");
         assert_eq!(plan.num_spill_slots(), 0);
         assert_sound(&ranges, &plan, 8);
         // Nothing is spilled: every segment is a register.
@@ -668,12 +1043,16 @@ mod assignment_tests {
 
     #[test]
     fn pressure_spills_soundly() {
-        // Several values are live at once; capacity 2 cannot hold them all, so the scan spills the
-        // overflow to slots. The plan must still be sound (register-resident values never share a
-        // register over overlapping points) and at least one value must be spilled.
+        // `v2` and `v3` are defined up front and used by both `v4` and `v5`, so at the `mul v2, v3`
+        // point four non-parameter values are live at once: the operands `v2`, `v3`, the earlier
+        // result `v4` (used later by `v6`), and the result `v5` — and the result never reuses an
+        // operand's register. Two parameters take registers 0 and 1; capacity 5 leaves three
+        // non-parameter registers, one short, so the scan must spill one and reload it at its later
+        // use. No constants appear, so nothing piles up at the block entry. The plan must stay sound
+        // (no two register-resident values share a register over overlapping points).
         let src = "
         brillig(inline) fn main f0 {
-          b0(v0: Field, v1: Field):
+          b0(v0: u32, v1: u32):
             v2 = add v0, v1
             v3 = mul v0, v1
             v4 = add v2, v3
@@ -682,10 +1061,11 @@ mod assignment_tests {
             return v6
         }
         ";
-        let (ranges, ssa) = ranges_for(src);
-        let plan = assign(&ranges, 2, &entry_params(&ssa)).expect("spills rather than failing");
-        assert!(plan.num_spill_slots() > 0, "capacity 2 should force at least one spill");
-        assert_sound(&ranges, &plan, 2);
+        let (ranges, use_points, ssa) = ranges_for(src);
+        let plan =
+            assign(&ranges, &use_points, 5, &entry_params(&ssa)).expect("placeable at capacity 5");
+        assert!(plan.num_spill_slots() > 0, "capacity 5 should force at least one spill");
+        assert_sound(&ranges, &plan, 5);
 
         // Every value has a home at every point of its liveness (register or slot).
         for (value, value_ranges) in ranges.iter() {
@@ -717,8 +1097,9 @@ mod assignment_tests {
             return v4
         }
         ";
-        let (ranges, ssa) = ranges_for(src);
-        let plan = assign(&ranges, 8, &entry_params(&ssa)).expect("fits in 8 registers");
+        let (ranges, use_points, ssa) = ranges_for(src);
+        let plan =
+            assign(&ranges, &use_points, 8, &entry_params(&ssa)).expect("fits in 8 registers");
         let func = ssa.main();
         let v1 = func.dfg[func.entry_block()].parameters()[1];
 

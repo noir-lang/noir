@@ -234,6 +234,7 @@ mod tests {
             globals,
             hoisted_global_constants,
             building_globals: false,
+            current_instruction: None,
         }
     }
 
