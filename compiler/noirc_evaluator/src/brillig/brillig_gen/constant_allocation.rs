@@ -77,6 +77,19 @@ impl ConstantAllocation {
         Some(constants.as_ref())
     }
 
+    /// Every constant allocation as `(block, location, constants)` — the exact point where each
+    /// constant is materialized. Consumers that must align a constant's live range with where
+    /// codegen actually emits its `const` opcode (rather than the block entry) use this.
+    pub(crate) fn allocations(
+        &self,
+    ) -> impl Iterator<Item = (BasicBlockId, InstructionLocation, &[ValueId])> + '_ {
+        self.allocation_points.iter().flat_map(|(&block, locations)| {
+            locations
+                .iter()
+                .map(move |(&location, constants)| (block, location, constants.as_slice()))
+        })
+    }
+
     /// Visit all constant variables in the function and record their locations.
     fn collect_constant_usage(&mut self, func: &Function) {
         let mut record_if_constant =

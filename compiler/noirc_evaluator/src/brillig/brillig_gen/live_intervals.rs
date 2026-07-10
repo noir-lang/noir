@@ -38,7 +38,10 @@ use crate::ssa::ir::{
 
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
-use super::{constant_allocation::ConstantAllocation, variable_liveness::VariableLiveness};
+use super::{
+    constant_allocation::{ConstantAllocation, InstructionLocation},
+    variable_liveness::VariableLiveness,
+};
 
 /// Monotonic index assigned to block entries, instructions, and terminators in RPO.
 ///
@@ -280,20 +283,29 @@ impl LiveIntervals {
         }
     }
 
-    /// Extend constant defs to their allocation block's entry point.
+    /// Set each constant's def to the program point where it is actually materialized.
     ///
-    /// Constants from `ConstantAllocation::allocated_in_block` are materialized
-    /// at specific block entries. We extend their def to match.
+    /// [`ConstantAllocation`] picks an allocation point for every constant — the common dominator of
+    /// its uses — and codegen emits the `const` opcode there (`initialize_constants`, at an
+    /// instruction or terminator location), *not* at the block entry. The def must match that point:
+    /// the interval seeded by [`Self::build_intervals`] starts at the block entry of the first block
+    /// that uses the constant, which is both too early (before materialization, in that block) and,
+    /// for a hoisted constant, in the wrong block entirely. Pinning the def to the materialization
+    /// point gives an accurate live range — so a value-register-pressure spill of a constant stores
+    /// data that has actually been computed, rather than garbage from before its `const` opcode ran.
     fn adjust_constant_defs(
         &mut self,
         constants: &ConstantAllocation,
-        post_order: &[BasicBlockId],
+        _post_order: &[BasicBlockId],
     ) {
-        for &block_id in post_order {
-            let entry_point = self.block_entry_points[&block_id];
-            for constant_id in constants.allocated_in_block(block_id) {
+        for (block_id, location, values) in constants.allocations() {
+            let point = match location {
+                InstructionLocation::Instruction(inst) => self.instruction_points[&inst],
+                InstructionLocation::Terminator => self.terminator_points[&block_id],
+            };
+            for &constant_id in values {
                 if let Some(interval) = self.intervals.get_mut(&constant_id) {
-                    interval.def = std::cmp::min(interval.def, entry_point);
+                    interval.def = point;
                 }
             }
         }
@@ -911,8 +923,6 @@ mod tests {
         let [b0, b1, b2, b3] = block_ids();
         assert_eq!(rpo, vec![b0, b1, b2, b3]);
 
-        let b0_entry = intervals.block_entry_point(b0).unwrap();
-
         let constants = ConstantAllocation::from_function(func);
 
         // Field 42 is used in both b1 and b2, so it should be allocated at b0
@@ -925,9 +935,14 @@ mod tests {
         );
         let constant_id = b0_constants[0];
 
-        // The constant's interval def should be at b0's entry.
+        // The constant's def should be where it is materialized: b0 has only a terminator (the
+        // `jmpif`), so it is allocated at b0's terminator, not b0's entry.
+        let b0_term = intervals.terminator_point(b0).unwrap();
         let iv = intervals.get(constant_id).expect("constant should have an interval");
-        assert_eq!(iv.def, b0_entry, "Field 42 def should be at b0 entry (common dominator)");
+        assert_eq!(
+            iv.def, b0_term,
+            "Field 42 def should be at b0's terminator (its materialization)"
+        );
 
         // RPO is [b0, b1, b2, b3], so b2 comes after b1.
         // Field 42's last_use should be at b2's instruction (the later use in RPO).
@@ -962,8 +977,6 @@ mod tests {
         let [b0, b1, b2, b3] = block_ids();
         assert_eq!(rpo, vec![b0, b1, b2, b3]);
 
-        let b0_entry = intervals.block_entry_point(b0).unwrap();
-
         let constants = ConstantAllocation::from_function(func);
 
         // u32 10 is used only inside the loop body (b2), but should be
@@ -972,9 +985,14 @@ mod tests {
         assert_eq!(b0_constants.len(), 1, "exactly one constant should be allocated in b0");
         let constant_id = b0_constants[0];
 
-        // The constant's def should be at b0's entry (hoisted).
+        // The constant's def should be where it is materialized: b0 has only a terminator (`jmp`),
+        // so it is hoisted to b0's terminator (outside the loop), not b0's entry.
+        let b0_term = intervals.terminator_point(b0).unwrap();
         let iv = intervals.get(constant_id).expect("u32 10 should have an interval");
-        assert_eq!(iv.def, b0_entry, "u32 10 def should be at b0 entry (hoisted outside loop)");
+        assert_eq!(
+            iv.def, b0_term,
+            "u32 10 def should be at b0's terminator (hoisted outside loop)"
+        );
 
         // The constant's last_use should be at b2's terminator: loop liveness
         // propagation keeps it live through the back-edge (b2 -> b1).
@@ -1004,11 +1022,13 @@ mod register_pressure {
         let (intervals, _ssa) = build_intervals(src);
 
         let pressure = intervals.max_register_pressure();
-        dbg!(pressure);
-        // We have a value and result for an addition and two constants declared at the beginning of the block.
+        // Each constant is live only from where it is materialized (its use), not from the block
+        // entry, so the peak is three: at `v1 = add v0, Field 1` the live values are `v0`, `Field 1`,
+        // and the fresh `v1`; likewise at the second add. (A block-entry model would inflate this to
+        // four by keeping both constants live from the start.)
         assert_eq!(
-            pressure, 4,
-            "need at least 2 values for the adds and 2 for the constants, got {pressure}"
+            pressure, 3,
+            "peak is an operand, a freshly-materialized constant, and the result, got {pressure}"
         );
     }
 
