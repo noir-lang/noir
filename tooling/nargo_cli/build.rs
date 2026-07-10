@@ -693,12 +693,35 @@ fn generate_brillig_small_stack_execution_success_tests(
     test_file: &mut File,
     test_data_dir: &Path,
 ) {
+    // Greedy allocator (the default) and the linear-scan allocator, each under a small stack frame
+    // where register pressure is highest. The linear-scan variant is what gives CI coverage of that
+    // allocator — nothing else runs it — so it must stay green as its capability grows.
+    generate_brillig_small_stack_variant(test_file, test_data_dir, Allocator::Greedy);
+    generate_brillig_small_stack_variant(test_file, test_data_dir, Allocator::LinearScan);
+}
+
+#[derive(Clone, Copy)]
+enum Allocator {
+    Greedy,
+    LinearScan,
+}
+
+fn generate_brillig_small_stack_variant(
+    test_file: &mut File,
+    test_data_dir: &Path,
+    allocator: Allocator,
+) {
     let test_type = "execution_success";
     let test_cases = read_test_cases(test_data_dir, test_type);
 
+    let (module_suffix, run_fn) = match allocator {
+        Allocator::Greedy => ("", "nargo_execute_brillig_small_stack"),
+        Allocator::LinearScan => ("linear_scan_", "nargo_execute_brillig_small_stack_linear_scan"),
+    };
+
     writeln!(
         test_file,
-        "mod brillig_small_stack_{test_type} {{
+        "mod brillig_small_stack_{module_suffix}{test_type} {{
         use super::*;
     "
     )
@@ -723,7 +746,7 @@ fn generate_brillig_small_stack_execution_success_tests(
             {should_panic}
             fn test_{test_name}() {{
                 let test_program_dir = PathBuf::from("{test_dir}");
-                nargo_execute_brillig_small_stack(test_program_dir);
+                {run_fn}(test_program_dir);
             }}
             "#
         )
