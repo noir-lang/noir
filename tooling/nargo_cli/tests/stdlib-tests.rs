@@ -205,14 +205,16 @@ fn display_test_report(
                     .expect("Failed to set color");
                 writeln!(writer, "skipped").expect("Failed to write to stderr");
             }
-            TestStatus::CompileError(err) => {
-                report_one(
-                    err,
-                    file_manager,
-                    parsed_files,
-                    compile_options.deny_warnings,
-                    compile_options.silence_warnings,
-                );
+            TestStatus::CompileError(errors) => {
+                for err in errors {
+                    report_one(
+                        err,
+                        file_manager,
+                        parsed_files,
+                        compile_options.deny_warnings,
+                        compile_options.silence_warnings,
+                    );
+                }
             }
         }
         writer.reset().expect("Failed to reset writer");

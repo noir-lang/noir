@@ -246,7 +246,7 @@ pub fn report<'files>(
     let diagnostic = convert_diagnostic(custom_diagnostic, stack_trace, deny_warnings);
     term::emit_to_write_style(&mut writer.lock(), &config, files, &diagnostic).unwrap();
 
-    deny_warnings || custom_diagnostic.is_error()
+    deny_warnings || custom_diagnostic.is_error() || custom_diagnostic.is_bug()
 }
 
 fn convert_diagnostic(

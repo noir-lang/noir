@@ -150,14 +150,16 @@ impl Formatter for PrettyFormatter {
                 show_time(&mut writer)?;
                 writeln!(writer)?;
             }
-            TestStatus::CompileError(file_diagnostic) => {
-                report_one(
-                    file_diagnostic,
-                    file_manager,
-                    parsed_files,
-                    deny_warnings,
-                    silence_warnings,
-                );
+            TestStatus::CompileError(file_diagnostics) => {
+                for file_diagnostic in file_diagnostics {
+                    report_one(
+                        file_diagnostic,
+                        file_manager,
+                        parsed_files,
+                        deny_warnings,
+                        silence_warnings,
+                    );
+                }
             }
         }
 
@@ -341,14 +343,16 @@ impl Formatter for TerseFormatter {
                             );
                         }
                     }
-                    TestStatus::CompileError(file_diagnostic) => {
-                        report_one(
-                            file_diagnostic,
-                            file_manager,
-                            parsed_files,
-                            deny_warnings,
-                            silence_warnings,
-                        );
+                    TestStatus::CompileError(file_diagnostics) => {
+                        for file_diagnostic in file_diagnostics {
+                            report_one(
+                                file_diagnostic,
+                                file_manager,
+                                parsed_files,
+                                deny_warnings,
+                                silence_warnings,
+                            );
+                        }
                     }
                 }
 
@@ -462,10 +466,13 @@ impl Formatter for JsonFormatter {
             TestStatus::Skipped => {
                 json.insert("event".to_string(), json!("ignored"));
             }
-            TestStatus::CompileError(diagnostic) => {
+            TestStatus::CompileError(diagnostics) => {
                 json.insert("event".to_string(), json!("failed"));
 
-                if !(diagnostic.is_warning() && silence_warnings) {
+                for diagnostic in diagnostics {
+                    if diagnostic.is_warning() && silence_warnings {
+                        continue;
+                    }
                     if !stdout.is_empty() {
                         stdout.push('\n');
                     }
