@@ -1207,4 +1207,68 @@ mod tests {
         }
         ");
     }
+
+    /// ACIR lowers `not x` on `uN` as `(2^N - 1) - x`, a non-reducing field subtraction, so `not`
+    /// of a value that exceeds its type width (here `unchecked_add u8 200, 100 = 300`, giving
+    /// `255 - 300`, a field-negative value) is itself wider than the type. A `range_check` on such
+    /// a result is load-bearing and must survive.
+    #[test]
+    fn range_check_after_not_of_unchecked_result_is_preserved_in_acir() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u8, v1: u8):
+            v2 = unchecked_add v0, v1
+            v3 = not v2
+            range_check v3 to 8 bits
+            return v3
+        }
+        ";
+        assert_ssa_does_not_change_after_simplifying(src);
+    }
+
+    /// `not` of a value bounded by its type width stays within that width, so the following
+    /// `range_check` is redundant and should still be removed.
+    #[test]
+    fn range_check_after_not_of_param_is_removed_in_acir() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u8):
+            v1 = not v0
+            range_check v1 to 8 bits
+            return v1
+        }
+        ";
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: u8):
+            v1 = not v0
+            return v1
+        }
+        ");
+    }
+
+    /// In Brillig, `not` masks its result to the type's bit width, so even `not` of an unchecked
+    /// arithmetic result is in range and the `range_check` is genuinely redundant.
+    #[test]
+    fn range_check_after_not_of_unchecked_result_is_removed_in_brillig() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: u8, v1: u8):
+            v2 = unchecked_add v0, v1
+            v3 = not v2
+            range_check v3 to 8 bits
+            return v3
+        }
+        ";
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) fn main f0 {
+          b0(v0: u8, v1: u8):
+            v2 = unchecked_add v0, v1
+            v3 = not v2
+            return v3
+        }
+        ");
+    }
 }

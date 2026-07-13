@@ -611,6 +611,16 @@ impl DataFlowGraph {
                         };
                         bound.min(field_max)
                     }
+                    // ACIR lowers `not x` on `uN` as `(2^N - 1) - x`, a non-reducing field
+                    // subtraction: if the operand can exceed its type width the result can go
+                    // field-negative, so it is only bounded by the type width when the operand is.
+                    // (In Brillig `not` masks its result to the type width.)
+                    Instruction::Not(operand)
+                        if self.runtime().is_acir()
+                            && self.operand_max_num_bits(*operand) > value_bit_size =>
+                    {
+                        FieldElement::max_num_bits()
+                    }
                     _ => value_bit_size,
                 }
             }
@@ -620,8 +630,8 @@ impl DataFlowGraph {
         }
     }
 
-    /// Upper bound on the number of bits an operand of an unchecked ACIR arithmetic instruction
-    /// may hold.
+    /// Upper bound on the number of bits an instruction operand may hold, for instructions whose
+    /// ACIR lowering does not reduce the result (unchecked arithmetic, `not`).
     ///
     /// Only unchecked ACIR arithmetic can exceed its static type width (a `u1` unchecked Mul is
     /// the one exception that cannot), so every other value is bounded by that width. An operand
