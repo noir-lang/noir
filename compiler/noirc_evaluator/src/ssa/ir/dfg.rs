@@ -581,19 +581,22 @@ impl DataFlowGraph {
                     }
                     // In ACIR, unchecked arithmetic is non-reducing field arithmetic, so its result
                     // may exceed the operands' type width until a later range check or truncation
-                    // brings it back. Report a conservative upper bound rather than the static type
-                    // width, so callers never mistake that width for a range proof. (In Brillig the
-                    // result wraps to the type width, and a `u1` result of add/mul stays a single
-                    // bit, so those keep the static width.)
+                    // brings it back: `unchecked_add u1 1, 1` is the field value 2, and an
+                    // unchecked Sub can underflow to a field-negative (near-modulus) value at any
+                    // width. Report a conservative upper bound rather than the static type width,
+                    // so callers never mistake that width for a range proof. (In Brillig the result
+                    // wraps to the type width, and a `u1` unchecked Mul stays a single bit, so
+                    // those keep the static width.)
                     Instruction::Binary(binary)
                         if self.runtime().is_acir()
-                            && value_bit_size > 1
                             && matches!(
                                 binary.operator,
                                 BinaryOp::Add { unchecked: true }
                                     | BinaryOp::Sub { unchecked: true }
                                     | BinaryOp::Mul { unchecked: true }
-                            ) =>
+                            )
+                            && !(value_bit_size == 1
+                                && matches!(binary.operator, BinaryOp::Mul { .. })) =>
                     {
                         let field_max = FieldElement::max_num_bits();
                         let bound = match binary.operator {
@@ -604,8 +607,6 @@ impl DataFlowGraph {
                             BinaryOp::Mul { .. } => self
                                 .operand_max_num_bits(binary.lhs)
                                 .saturating_add(self.operand_max_num_bits(binary.rhs)),
-                            // An unchecked Sub can underflow to a field-negative (near-modulus)
-                            // value, which no width narrower than the field bounds.
                             _ => field_max,
                         };
                         bound.min(field_max)
@@ -622,15 +623,14 @@ impl DataFlowGraph {
     /// Upper bound on the number of bits an operand of an unchecked ACIR arithmetic instruction
     /// may hold.
     ///
-    /// Only unchecked ACIR arithmetic can exceed its static type width, so every other value is
-    /// bounded by that width. An operand that is itself unchecked ACIR arithmetic is bounded only
-    /// by the field width. This is an O(1) upper bound that never inspects the operand's own
-    /// operands; it can only over-approximate, so callers that use it to drop range checks never
-    /// do so unsoundly.
+    /// Only unchecked ACIR arithmetic can exceed its static type width (a `u1` unchecked Mul is
+    /// the one exception that cannot), so every other value is bounded by that width. An operand
+    /// that is itself unchecked ACIR arithmetic is bounded only by the field width. This is an
+    /// O(1) upper bound that never inspects the operand's own operands; it can only
+    /// over-approximate, so callers that use it to drop range checks never do so unsoundly.
     fn operand_max_num_bits(&self, value: ValueId) -> u32 {
         let value_bit_size = self.type_of_value(value).bit_size();
-        if value_bit_size > 1
-            && self.runtime().is_acir()
+        if self.runtime().is_acir()
             && let Value::Instruction { instruction, .. } = self[value]
             && let Instruction::Binary(binary) = &self[instruction]
             && matches!(
@@ -639,6 +639,7 @@ impl DataFlowGraph {
                     | BinaryOp::Sub { unchecked: true }
                     | BinaryOp::Mul { unchecked: true }
             )
+            && !(value_bit_size == 1 && matches!(binary.operator, BinaryOp::Mul { .. }))
         {
             FieldElement::max_num_bits()
         } else {

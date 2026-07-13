@@ -1155,4 +1155,56 @@ mod tests {
         }
         ");
     }
+
+    /// `u1` is not exempt: in ACIR `unchecked_add u1 1, 1` is the field value 2, so a
+    /// `range_check ... to 1 bits` on its result is load-bearing and must survive.
+    #[test]
+    fn range_check_after_unchecked_add_u1_is_preserved_in_acir() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u1, v1: u1):
+            v2 = unchecked_add v0, v1
+            range_check v2 to 1 bits
+            return v2
+        }
+        ";
+        assert_ssa_does_not_change_after_simplifying(src);
+    }
+
+    /// `unchecked_sub u1 0, 1` underflows to a field-negative (near-modulus) value in ACIR, so a
+    /// `range_check ... to 1 bits` on its result must not be removed.
+    #[test]
+    fn range_check_after_unchecked_sub_u1_is_preserved_in_acir() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u1, v1: u1):
+            v2 = unchecked_sub v0, v1
+            range_check v2 to 1 bits
+            return v2
+        }
+        ";
+        assert_ssa_does_not_change_after_simplifying(src);
+    }
+
+    /// `unchecked_mul u1` genuinely stays a single bit (0*0, 0*1, 1*1), so a
+    /// `range_check ... to 1 bits` on its result is redundant and should still be removed.
+    #[test]
+    fn range_check_after_unchecked_mul_u1_is_removed_in_acir() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u1, v1: u1):
+            v2 = unchecked_mul v0, v1
+            range_check v2 to 1 bits
+            return v2
+        }
+        ";
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: u1, v1: u1):
+            v2 = unchecked_mul v0, v1
+            return v2
+        }
+        ");
+    }
 }
