@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 use std::collections::{BTreeMap, HashSet};
-use std::ops::ControlFlow;
 use std::path::{Path, PathBuf};
 use std::str::FromStr as _;
 
@@ -43,7 +42,7 @@ use crate::{
 pub(super) fn on_initialized(
     state: &mut LspState,
     _params: InitializedParams,
-) -> ControlFlow<Result<(), async_lsp::Error>> {
+) -> Result<(), async_lsp::Error> {
     // Register a file watcher for Nargo.toml so we get notified when it changes.
     let registration = Registration {
         id: "nargo-toml-watcher".to_string(),
@@ -61,13 +60,13 @@ pub(super) fn on_initialized(
     drop(
         state.client.register_capability(RegistrationParams { registrations: vec![registration] }),
     );
-    ControlFlow::Continue(())
+    Ok(())
 }
 
 pub(super) fn on_did_change_watched_files(
     state: &mut LspState,
     params: DidChangeWatchedFilesParams,
-) -> ControlFlow<Result<(), async_lsp::Error>> {
+) -> Result<(), async_lsp::Error> {
     for change in params.changes {
         if change.typ == FileChangeType::DELETED {
             // If a Nargo.toml was deleted, clear any diagnostics on it.
@@ -108,36 +107,33 @@ pub(super) fn on_did_change_watched_files(
             let _ = handle_text_document_open_or_close_notification(state, uri);
         }
     }
-    ControlFlow::Continue(())
+    Ok(())
 }
 
 pub(super) fn on_did_change_configuration(
     _state: &mut LspState,
     _params: DidChangeConfigurationParams,
-) -> ControlFlow<Result<(), async_lsp::Error>> {
-    ControlFlow::Continue(())
+) -> Result<(), async_lsp::Error> {
+    Ok(())
 }
 
 pub(crate) fn on_did_open_text_document(
     state: &mut LspState,
     params: DidOpenTextDocumentParams,
-) -> ControlFlow<Result<(), async_lsp::Error>> {
+) -> Result<(), async_lsp::Error> {
     state.input_files.insert(params.text_document.uri.to_string(), params.text_document.text);
 
     let document_uri = params.text_document.uri;
 
-    match handle_text_document_open_or_close_notification(state, document_uri) {
-        Ok(_) => ControlFlow::Continue(()),
-        Err(err) => ControlFlow::Break(Err(err)),
-    }
+    handle_text_document_open_or_close_notification(state, document_uri)
 }
 
 pub(super) fn on_did_change_text_document(
     state: &mut LspState,
     params: DidChangeTextDocumentParams,
-) -> ControlFlow<Result<(), async_lsp::Error>> {
+) -> Result<(), async_lsp::Error> {
     let Some(content_change) = params.content_changes.into_iter().next() else {
-        return ControlFlow::Continue(());
+        return Ok(());
     };
     let text = content_change.text;
     state.input_files.insert(params.text_document.uri.to_string(), text.clone());
@@ -145,41 +141,31 @@ pub(super) fn on_did_change_text_document(
 
     let document_uri = params.text_document.uri;
 
-    match handle_on_did_change_text_document_notification(state, document_uri, &text) {
-        Ok(_) => ControlFlow::Continue(()),
-        Err(err) => ControlFlow::Break(Err(err)),
-    }
+    handle_on_did_change_text_document_notification(state, document_uri, &text)
 }
 
 pub(super) fn on_did_close_text_document(
     state: &mut LspState,
     params: DidCloseTextDocumentParams,
-) -> ControlFlow<Result<(), async_lsp::Error>> {
+) -> Result<(), async_lsp::Error> {
     state.input_files.remove(&params.text_document.uri.to_string());
     state.workspace_symbol_cache.reprocess_uri(&params.text_document.uri);
 
     let document_uri = params.text_document.uri;
 
-    match handle_text_document_open_or_close_notification(state, document_uri) {
-        Ok(_) => ControlFlow::Continue(()),
-        Err(err) => ControlFlow::Break(Err(err)),
-    }
+    handle_text_document_open_or_close_notification(state, document_uri)
 }
 
 pub(super) fn on_did_save_text_document(
     state: &mut LspState,
     params: DidSaveTextDocumentParams,
-) -> ControlFlow<Result<(), async_lsp::Error>> {
-    let workspace = match workspace_from_document_uri(state, params.text_document.uri) {
-        Ok(Some(workspace)) => workspace,
-        Ok(None) => return ControlFlow::Continue(()),
-        Err(err) => return ControlFlow::Break(Err(err)),
+) -> Result<(), async_lsp::Error> {
+    let Some(workspace) = workspace_from_document_uri(state, params.text_document.uri)? else {
+        return Ok(());
     };
 
-    match process_workspace(state, &workspace) {
-        Ok(_) => ControlFlow::Continue(()),
-        Err(err) => ControlFlow::Break(Err(err)),
-    }
+    process_workspace(state, &workspace)?;
+    Ok(())
 }
 
 fn handle_text_document_open_or_close_notification(
@@ -683,7 +669,7 @@ mod notification_tests {
             },
         );
 
-        assert!(matches!(result, ControlFlow::Continue(())));
+        assert!(result.is_ok());
     }
 
     #[test]

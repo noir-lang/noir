@@ -13,7 +13,6 @@
 //! messages (jobs and their `Send` results) cross the thread boundary.
 
 use std::future::Future;
-use std::ops::ControlFlow;
 use std::pin::Pin;
 use std::sync::mpsc;
 use std::task::{Context, Poll};
@@ -135,7 +134,7 @@ fn process_message(state: &mut LspState, message: ActorMessage) {
     match message {
         ActorMessage::Job(job) => job(state),
         ActorMessage::FileChanged(params) => {
-            if let ControlFlow::Break(Err(error)) = on_did_change_text_document(state, params) {
+            if let Err(error) = on_did_change_text_document(state, params) {
                 eprintln!("error processing document change: {error}");
             }
         }

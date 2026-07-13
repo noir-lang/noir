@@ -237,10 +237,10 @@ where
 /// Adapts a notification handler over `&mut LspState` into a main-loop handler that forwards
 /// the notification to the compiler actor.
 ///
-/// A `ControlFlow::Break` returned by the handler no longer stops the main loop (the handler
-/// runs after the main-loop handler already returned); its error is reported instead.
+/// The handler cannot influence the main loop (it runs on the actor thread after the
+/// main-loop handler already returned `Continue`); an error it returns is only reported.
 fn forward_notification<P>(
-    handler: fn(&mut LspState, P) -> ControlFlow<Result<(), Error>>,
+    handler: fn(&mut LspState, P) -> Result<(), Error>,
 ) -> impl Fn(&mut ServerState, P) -> ControlFlow<Result<(), Error>>
 where
     P: Send + 'static,
@@ -251,17 +251,17 @@ where
     }
 }
 
-/// Enqueues a notification handler on the actor, reporting (instead of propagating) a
-/// `ControlFlow::Break` error since the main loop has already moved on.
+/// Enqueues a notification handler on the actor, reporting (instead of propagating) any
+/// error it returns since the main loop has already moved on.
 fn notify_actor<P>(
     actor: &CompilerActor,
-    handler: fn(&mut LspState, P) -> ControlFlow<Result<(), Error>>,
+    handler: fn(&mut LspState, P) -> Result<(), Error>,
     params: P,
 ) where
     P: Send + 'static,
 {
     actor.notify(move |lsp_state| {
-        if let ControlFlow::Break(Err(error)) = handler(lsp_state, params) {
+        if let Err(error) = handler(lsp_state, params) {
             eprintln!("error processing notification: {error}");
         }
     });
