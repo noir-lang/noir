@@ -638,7 +638,10 @@ fn try_optimize_array_set_from_previous_get(
 mod tests {
     use crate::{
         assert_ssa_snapshot,
-        ssa::{opt::assert_normalized_ssa_equals, ssa_gen::Ssa},
+        ssa::{
+            opt::{assert_normalized_ssa_equals, assert_ssa_does_not_change_after_simplifying},
+            ssa_gen::Ssa,
+        },
     };
 
     /// Regression for an OOB panic in `try_optimize_array_set_from_previous_get` when the
@@ -875,9 +878,7 @@ mod tests {
             return v1
         }
         ";
-        let ssa = Ssa::from_str_simplifying(src).unwrap();
-
-        assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_does_not_change_after_simplifying(src);
     }
 
     #[test]
@@ -918,8 +919,7 @@ mod tests {
             return v5
         }
         ";
-        let ssa = Ssa::from_str_simplifying(src).unwrap();
-        assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_does_not_change_after_simplifying(src);
     }
 
     #[test]
@@ -1031,8 +1031,7 @@ mod tests {
             return v2
         }
         ";
-        let ssa = Ssa::from_str_simplifying(src).unwrap();
-        assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_does_not_change_after_simplifying(src);
     }
 
     #[test]
@@ -1048,8 +1047,7 @@ mod tests {
             return v3
         }
         ";
-        let ssa = Ssa::from_str_simplifying(src).unwrap();
-        assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_does_not_change_after_simplifying(src);
     }
 
     #[test]
@@ -1063,7 +1061,150 @@ mod tests {
             return v2
         }
         ";
+        assert_ssa_does_not_change_after_simplifying(src);
+    }
+
+    /// In ACIR, unchecked arithmetic is non-reducing field arithmetic, so an `unchecked_add`
+    /// of two `u8`s can yield a field wider than 8 bits (e.g. `200 + 100 = 300`). The following
+    /// `range_check ... to 8 bits` is what rejects such an out-of-range result, so the simplifier
+    /// must not delete it on the basis of the static `u8` type width.
+    #[test]
+    fn range_check_after_unchecked_add_is_preserved_in_acir() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u8, v1: u8):
+            v2 = unchecked_add v0, v1
+            range_check v2 to 8 bits
+            return v2
+        }
+        ";
+        assert_ssa_does_not_change_after_simplifying(src);
+    }
+
+    /// `unchecked_mul` of two `u8`s can yield a field up to 16 bits wide in ACIR, so a
+    /// `range_check ... to 8 bits` on its result is meaningful and must survive.
+    #[test]
+    fn range_check_after_unchecked_mul_is_preserved_in_acir() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u8, v1: u8):
+            v2 = unchecked_mul v0, v1
+            range_check v2 to 8 bits
+            return v2
+        }
+        ";
+        assert_ssa_does_not_change_after_simplifying(src);
+    }
+
+    /// `unchecked_sub` of `u8`s can underflow to a field-negative (near-modulus) value in ACIR, so
+    /// a `range_check ... to 8 bits` on its result must not be removed.
+    #[test]
+    fn range_check_after_unchecked_sub_is_preserved_in_acir() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u8, v1: u8):
+            v2 = unchecked_sub v0, v1
+            range_check v2 to 8 bits
+            return v2
+        }
+        ";
+        assert_ssa_does_not_change_after_simplifying(src);
+    }
+
+    /// In Brillig, unchecked arithmetic wraps to the type's bit width, so an `unchecked_add u8`
+    /// result is always in range and the following `range_check ... to 8 bits` is genuinely
+    /// redundant. The simplifier should still remove it (the ACIR fix must not over-generalize).
+    #[test]
+    fn range_check_after_unchecked_add_is_removed_in_brillig() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: u8, v1: u8):
+            v2 = unchecked_add v0, v1
+            range_check v2 to 8 bits
+            return v2
+        }
+        ";
         let ssa = Ssa::from_str_simplifying(src).unwrap();
-        assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) fn main f0 {
+          b0(v0: u8, v1: u8):
+            v2 = unchecked_add v0, v1
+            return v2
+        }
+        ");
+    }
+
+    /// The retained-check bound stays tight: two `u8`s can sum to at most 9 bits, so a
+    /// `range_check ... to 9 bits` after an `unchecked_add u8` is redundant and must be removed.
+    #[test]
+    fn sufficiently_wide_range_check_after_unchecked_add_is_removed_in_acir() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u8, v1: u8):
+            v2 = unchecked_add v0, v1
+            range_check v2 to 9 bits
+            return v2
+        }
+        ";
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: u8, v1: u8):
+            v2 = unchecked_add v0, v1
+            return v2
+        }
+        ");
+    }
+
+    /// `u1` is not exempt: in ACIR `unchecked_add u1 1, 1` is the field value 2, so a
+    /// `range_check ... to 1 bits` on its result is load-bearing and must survive.
+    #[test]
+    fn range_check_after_unchecked_add_u1_is_preserved_in_acir() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u1, v1: u1):
+            v2 = unchecked_add v0, v1
+            range_check v2 to 1 bits
+            return v2
+        }
+        ";
+        assert_ssa_does_not_change_after_simplifying(src);
+    }
+
+    /// `unchecked_sub u1 0, 1` underflows to a field-negative (near-modulus) value in ACIR, so a
+    /// `range_check ... to 1 bits` on its result must not be removed.
+    #[test]
+    fn range_check_after_unchecked_sub_u1_is_preserved_in_acir() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u1, v1: u1):
+            v2 = unchecked_sub v0, v1
+            range_check v2 to 1 bits
+            return v2
+        }
+        ";
+        assert_ssa_does_not_change_after_simplifying(src);
+    }
+
+    /// `unchecked_mul u1` genuinely stays a single bit (0*0, 0*1, 1*1), so a
+    /// `range_check ... to 1 bits` on its result is redundant and should still be removed.
+    #[test]
+    fn range_check_after_unchecked_mul_u1_is_removed_in_acir() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u1, v1: u1):
+            v2 = unchecked_mul v0, v1
+            range_check v2 to 1 bits
+            return v2
+        }
+        ";
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: u1, v1: u1):
+            v2 = unchecked_mul v0, v1
+            return v2
+        }
+        ");
     }
 }
