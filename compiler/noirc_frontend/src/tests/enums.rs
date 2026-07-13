@@ -1086,6 +1086,21 @@ fn errors_on_segment_after_associated_constant() {
 }
 
 #[test]
+fn errors_on_enum_generics_specified_on_both_type_and_variant() {
+    // In `<E<u32>>::A::<bool>` the enum's generics are given both on the type (`<u32>`)
+    // and on the variant turbofish (`<bool>`); specifying them twice is an error.
+    let src = r#"
+    pub enum E<T> { A, B(T) }
+    fn main() {
+        let _ = <E<u32>>::A::<bool>;
+                              ^^^^ generic arguments are not allowed on both an enum and its variant's path segments simultaneously; they are only valid in one place or the other
+                              ~~~~ remove the generics arguments from one of the path segments
+    }
+    "#;
+    check_errors_using_features(src, &[UnstableFeature::Enums]);
+}
+
+#[test]
 fn turbofish_on_match_pattern_variant_binds_payload_type() {
     // Regression test for https://github.com/noir-lang/noir/issues/7430.
     // The scrutinee's generic is left undetermined so only the turbofish can pin
@@ -1214,8 +1229,8 @@ fn errors_on_turbofish_on_both_type_and_variant_in_match_pattern() {
         let f: Foo<i32> = Foo::Baz;
         match f {
             Foo::<i32>::Bar::<i32>(x) => {
-                              ^^^ Generic arguments for the enum were specified more than once
-                              ~~~ Specify the enum's generic arguments in only one place
+                              ^^^ generic arguments are not allowed on both an enum and its variant's path segments simultaneously; they are only valid in one place or the other
+                              ~~~ remove the generics arguments from one of the path segments
                 let _ = x;
             }
             Foo::Baz => {}
