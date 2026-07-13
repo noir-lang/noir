@@ -52,15 +52,14 @@ use rustc_hash::FxHashSet;
 
 use notifications::{
     on_did_change_configuration, on_did_change_watched_files, on_did_close_text_document,
-    on_did_open_text_document, on_did_save_text_document, on_exit, on_initialized,
+    on_did_open_text_document, on_did_save_text_document, on_initialized,
 };
 use requests::{
     LspInitializationOptions, WorkspaceSymbolCache, on_code_action_request, on_code_lens_request,
     on_completion_request, on_document_symbol_request, on_formatting, on_goto_declaration_request,
     on_goto_definition_request, on_goto_type_definition_request, on_hover_request, on_initialize,
     on_inlay_hint_request, on_prepare_rename_request, on_references_request, on_rename_request,
-    on_shutdown, on_signature_help_request, on_test_run_request, on_tests_request,
-    on_workspace_symbol_request,
+    on_signature_help_request, on_test_run_request, on_tests_request, on_workspace_symbol_request,
 };
 use serde_json::Value as JsonValue;
 use thiserror::Error;
@@ -280,7 +279,16 @@ impl NargoLspService {
             .request::<request::Formatting, _>(|state: &mut ServerState, params| {
                 state.format_document(params)
             })
-            .request::<request::Shutdown, _>(forward_request(on_shutdown))
+            // `shutdown` (and `exit` below) are deliberate no-ops. The `LifecycleLayer`
+            // wrapped around this service (see `nargo_cli`'s `lsp` command) implements the
+            // protocol's lifecycle: after `shutdown` it rejects further requests, and on
+            // `exit` it stops the main loop. That drops `ServerState`, whose `CompilerActor`
+            // disconnects its channel on drop, ending the actor thread. Nothing is forwarded
+            // to the actor because it holds no resources needing explicit cleanup; if that
+            // ever changes, these handlers are the place to hook it up.
+            .request::<request::Shutdown, _>(|_state: &mut ServerState, _params| {
+                std::future::ready(Ok(()))
+            })
             .request::<request::CodeLens, _>(forward_request(on_code_lens_request))
             .request::<request::NargoTests, _>(forward_request(on_tests_request))
             .request::<request::NargoTestRun, _>(forward_request(on_test_run_request))
@@ -335,7 +343,10 @@ impl NargoLspService {
             .notification::<notification::DidChangeWatchedFiles>(forward_notification(
                 on_did_change_watched_files,
             ))
-            .notification::<notification::Exit>(forward_notification(on_exit));
+            // No-op: see the `shutdown` handler above.
+            .notification::<notification::Exit>(|_state: &mut ServerState, _params| {
+                ControlFlow::Continue(())
+            });
         Self { router }
     }
 }

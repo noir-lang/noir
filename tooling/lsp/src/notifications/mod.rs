@@ -656,13 +656,6 @@ fn call_stack_frame_to_related_information(
     })
 }
 
-pub(super) fn on_exit(
-    _state: &mut LspState,
-    _params: (),
-) -> ControlFlow<Result<(), async_lsp::Error>> {
-    ControlFlow::Continue(())
-}
-
 #[cfg(test)]
 mod notification_tests {
     use crate::test_utils;

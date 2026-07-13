@@ -572,10 +572,6 @@ pub(crate) fn stdlib_path_to_uri(stdlib_path: &str) -> Url {
     Url::from_str(&format!("noir-std://{stdlib_path}")).unwrap()
 }
 
-pub(crate) fn on_shutdown(_state: &mut LspState, _params: ()) -> Result<(), ResponseError> {
-    Ok(())
-}
-
 pub(crate) struct ProcessRequestCallbackArgs<'a> {
     pub(crate) location: noirc_errors::Location,
     pub(crate) workspace: &'a Workspace,
