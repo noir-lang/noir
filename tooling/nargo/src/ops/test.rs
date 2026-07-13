@@ -71,9 +71,10 @@ where
     E: ForeignCallExecutor<FieldElement>,
 {
     if test_function.has_arguments {
-        fuzz_test::<B, F, E>(
+        fuzz_test::<W, B, F, E>(
             context,
             test_function,
+            output,
             package_name,
             config,
             fuzz_config,
@@ -183,23 +184,26 @@ where
 }
 
 /// Runs the fuzzer on a test function. This assumes the function has arguments.
-pub fn fuzz_test<'a, B, F, E>(
+pub fn fuzz_test<'a, W, B, F, E>(
     context: &mut Context,
     test_function: &TestFunction,
+    output: W,
     package_name: String,
     config: &CompileOptions,
     fuzz_config: FuzzConfig,
     build_foreign_call_executor: F,
 ) -> TestStatus
 where
+    W: std::io::Write + 'a,
     B: BlackBoxFunctionSolver<FieldElement> + Default,
     F: Fn(Box<dyn std::io::Write + 'a>, layers::Unhandled) -> E + Sync,
     E: ForeignCallExecutor<FieldElement>,
 {
     match compile_no_check(context, config, test_function.id, None, false) {
-        Ok(_) => fuzz_test_impl::<B, F, E>(
+        Ok(_) => fuzz_test_impl::<W, B, F, E>(
             context,
             test_function,
+            output,
             package_name,
             config,
             fuzz_config,
@@ -209,15 +213,17 @@ where
     }
 }
 
-fn fuzz_test_impl<'a, B, F, E>(
+fn fuzz_test_impl<'a, W, B, F, E>(
     context: &mut Context,
     test_function: &TestFunction,
+    output: W,
     package_name: String,
     config: &CompileOptions,
     fuzz_config: FuzzConfig,
     build_foreign_call_executor: F,
 ) -> TestStatus
 where
+    W: std::io::Write + 'a,
     B: BlackBoxFunctionSolver<FieldElement> + Default,
     F: Fn(Box<dyn std::io::Write + 'a>, layers::Unhandled) -> E + Sync,
     E: ForeignCallExecutor<FieldElement>,
@@ -256,12 +262,13 @@ where
     };
     let fuzz_execution_config = fuzz_config.execution_config;
 
-    // TODO: show output?
-    let show_output = false;
     let fuzz_result = run_fuzzing_harness::<B, _, _>(
         context,
         &fuzzing_harness,
-        show_output,
+        // The many executions during fuzzing discard their output; only the single
+        // representative re-run inside `run_fuzzing_harness` writes to `output`.
+        false,
+        Box::new(output),
         package_name,
         config,
         &fuzz_folder_config,
