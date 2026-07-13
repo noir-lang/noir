@@ -249,44 +249,41 @@ impl Context<'_> {
             let len = super::arrays::flattened_value_size(&new_vector_array);
 
             // 2. Copy the vector into an AcirDynamicArray
-            // Generates the element_type_sizes array
-            let element_type_sizes =
-                if super::arrays::array_has_constant_element_size(&vector_typ).is_none() {
-                    Some(self.init_element_type_sizes_array(
-                        &vector_typ,
-                        result_ids[1],
-                        Some(new_vector_array.clone()),
-                        dfg,
-                        // We do not need extra capacity here as `new_vector_array` has already pushed back new elements
-                        ElementTypeSizesArrayShift::None,
-                    )?)
-                } else {
-                    None
-                };
-
             // The block ID for the new vector is the one for the resulting vector
             let block_id = self.block_id(result_ids[1]);
             self.initialize_array(block_id, len, Some(new_vector_array))?;
-            let flattened_dynamic_array =
-                AcirDynamicArray { block_id, len, value_types, element_type_sizes };
+            let flattened_dynamic_array = AcirDynamicArray { block_id, len, value_types };
 
             // 3. Write to the dynamic array
 
-            // 3.1 Computes the flatten_idx where to write into the dynamic array.
-            // `get_flattened_index` handles both homogeneous (constant element size) and
-            // heterogeneous (element_type_sizes memory lookup) cases. Passing
-            // `is_safe_index: false` gates the index by the side-effects predicate so that
-            // a disabled branch writes to index 0 (always in bounds) instead of an OOB slot.
-            let acir_element_size = self.acir_context.add_constant(elements_to_push.len());
-            let acir_value_index = self.acir_context.mul_var(vector_length, acir_element_size)?;
-            let mut flatten_idx = self.get_flattened_index(
-                &vector_typ,
-                result_ids[1],
-                acir_value_index,
-                dfg,
-                false,
-                ElementTypeSizesArrayShift::None,
-            )?;
+            // 3.1 Compute the flattened offset at which to append the pushed element. It lands at a
+            // whole-element boundary (`length` elements in), so the offset is a constant multiple of
+            // the element's flattened size. `length` is gated by the side-effects predicate so a
+            // disabled branch writes to offset 0 (always in bounds) rather than an out-of-bounds slot.
+            let mut flatten_idx =
+                if super::arrays::array_has_constant_element_size(&vector_typ).is_some() {
+                    let acir_element_size = self.acir_context.add_constant(elements_to_push.len());
+                    let acir_value_index =
+                        self.acir_context.mul_var(vector_length, acir_element_size)?;
+                    self.get_flattened_index(
+                        &vector_typ,
+                        result_ids[1],
+                        acir_value_index,
+                        dfg,
+                        false,
+                        ElementTypeSizesArrayShift::None,
+                    )?
+                } else {
+                    // A non-homogenous layout would otherwise resolve offsets through an
+                    // element-type-sizes table, but a whole-element append needs no per-member offsets:
+                    // multiply the length by the flattened element size directly and skip building that
+                    // table for this write.
+                    let predicated_length = self
+                        .acir_context
+                        .mul_var(vector_length, self.current_side_effects_enabled_var)?;
+                    let element_flattened_size = self.acir_context.add_constant(elements_var.len());
+                    self.acir_context.mul_var(predicated_length, element_flattened_size)?
+                };
             // Write the elements to the dynamic array
             for element in &elements_var {
                 self.acir_context.write_to_memory(block_id, &flatten_idx, element)?;
@@ -801,21 +798,6 @@ impl Context<'_> {
             }
         }
 
-        let element_type_sizes =
-            if super::arrays::array_has_constant_element_size(&vector_typ).is_none() {
-                // Note that here we pass `Some(vector)` as the supplied acir value. This is
-                // the input vector before insertion, so we still need an increase shift here.
-                Some(self.init_element_type_sizes_array(
-                    &vector_typ,
-                    result_ids[1],
-                    Some(vector),
-                    dfg,
-                    shift,
-                )?)
-            } else {
-                None
-            };
-
         let value_types = flat_element_types(&vector_typ);
 
         // For types like `[(); 3]` we always end up with no elements and a zero-sized type
@@ -828,7 +810,6 @@ impl Context<'_> {
             block_id: result_block_id,
             len: vector_size,
             value_types,
-            element_type_sizes,
         });
 
         Ok(vec![AcirValue::Var(new_vector_length, NumericType::length_type()), result])
@@ -1015,21 +996,6 @@ impl Context<'_> {
             self.acir_context.write_to_memory(result_block_id, &current_index, &new_value)?;
         }
 
-        let element_type_sizes =
-            if super::arrays::array_has_constant_element_size(&vector_typ).is_none() {
-                // The resulting vector has one less element than before
-                let shift = ElementTypeSizesArrayShift::Decrease;
-                Some(self.init_element_type_sizes_array(
-                    &vector_typ,
-                    result_ids[1],
-                    Some(vector),
-                    dfg,
-                    shift,
-                )?)
-            } else {
-                None
-            };
-
         let value_types = flat_element_types(&vector_typ);
 
         // For types like `[(); 3]` we always end up with no elements and a zero-sized type
@@ -1042,7 +1008,6 @@ impl Context<'_> {
             block_id: result_block_id,
             len: result_size,
             value_types,
-            element_type_sizes,
         });
 
         let mut result =

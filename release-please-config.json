@@ -24,6 +24,8 @@
         "acvm-repo/bn254_blackbox_solver/Cargo.toml",
         "acvm-repo/brillig/Cargo.toml",
         "acvm-repo/brillig_vm/Cargo.toml",
+        "acvm-repo/msgpack_tagged/Cargo.toml",
+        "acvm-repo/msgpack_tagged_derive/Cargo.toml",
         {
           "type": "json",
           "path": "acvm-repo/acvm_js/package.json",

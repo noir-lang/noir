@@ -133,12 +133,17 @@ impl Type {
             }
             Type::CheckedCast { from, to } => {
                 let inner_found_checked_cast = true;
-                let to = to.canonicalize_helper(inner_found_checked_cast, run_simplifications);
 
                 if found_checked_cast {
-                    return to;
+                    // Collapse a nested CheckedCast into the enclosing one, keeping `to`
+                    // on the unchecked side and `from` (its validation obligation) on the
+                    // checked side. `run_simplifications` is false only on the `from` side.
+                    let inner = if run_simplifications { to } else { from };
+                    return inner
+                        .canonicalize_helper(inner_found_checked_cast, run_simplifications);
                 }
 
+                let to = to.canonicalize_helper(inner_found_checked_cast, run_simplifications);
                 let from = from.canonicalize_checked();
 
                 Type::CheckedCast { from: Box::new(from), to: Box::new(to) }
