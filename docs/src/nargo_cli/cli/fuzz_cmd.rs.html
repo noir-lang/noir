@@ -322,201 +322,204 @@
 <a href=#322 id=322 data-nosnippet>322</a>        context.get_all_fuzzing_harnesses_in_crate_matching(<span class="kw-2">&amp;</span>crate_id, <span class="kw-2">&amp;</span>pattern);
 <a href=#323 id=323 data-nosnippet>323</a>    <span class="kw">let </span>(<span class="kw">_</span>, fuzzing_harness) = fuzzing_harnesses.first().expect(<span class="string">"Fuzzing harness should exist"</span>);
 <a href=#324 id=324 data-nosnippet>324</a>
-<a href=#325 id=325 data-nosnippet>325</a>    nargo::ops::run_fuzzing_harness::&lt;S, <span class="kw">_</span>, <span class="kw">_</span>&gt;(
-<a href=#326 id=326 data-nosnippet>326</a>        <span class="kw-2">&amp;mut </span>context,
-<a href=#327 id=327 data-nosnippet>327</a>        fuzzing_harness,
-<a href=#328 id=328 data-nosnippet>328</a>        show_output,
-<a href=#329 id=329 data-nosnippet>329</a>        package_name.clone(),
-<a href=#330 id=330 data-nosnippet>330</a>        compile_options,
-<a href=#331 id=331 data-nosnippet>331</a>        fuzz_folder_config,
-<a href=#332 id=332 data-nosnippet>332</a>        fuzz_execution_config,
-<a href=#333 id=333 data-nosnippet>333</a>        |output, base| {
-<a href=#334 id=334 data-nosnippet>334</a>            DefaultForeignCallBuilder {
-<a href=#335 id=335 data-nosnippet>335</a>                output,
-<a href=#336 id=336 data-nosnippet>336</a>                enable_mocks: <span class="bool-val">true</span>,
-<a href=#337 id=337 data-nosnippet>337</a>                resolver_url: foreign_call_resolver_url.map(|s| s.to_string()),
-<a href=#338 id=338 data-nosnippet>338</a>                root_path: root_path.clone(),
-<a href=#339 id=339 data-nosnippet>339</a>                package_name: <span class="prelude-val">Some</span>(package_name.clone()),
-<a href=#340 id=340 data-nosnippet>340</a>            }
-<a href=#341 id=341 data-nosnippet>341</a>            .build_with_base(base)
-<a href=#342 id=342 data-nosnippet>342</a>        },
-<a href=#343 id=343 data-nosnippet>343</a>    )
-<a href=#344 id=344 data-nosnippet>344</a>}
-<a href=#345 id=345 data-nosnippet>345</a>
-<a href=#346 id=346 data-nosnippet>346</a><span class="kw">fn </span>get_fuzzing_harnesses_in_package(
-<a href=#347 id=347 data-nosnippet>347</a>    file_manager: <span class="kw-2">&amp;</span>FileManager,
-<a href=#348 id=348 data-nosnippet>348</a>    parsed_files: <span class="kw-2">&amp;</span>ParsedFiles,
-<a href=#349 id=349 data-nosnippet>349</a>    package: <span class="kw-2">&amp;</span>Package,
-<a href=#350 id=350 data-nosnippet>350</a>    fn_name: <span class="kw-2">&amp;</span>FunctionNameMatch,
-<a href=#351 id=351 data-nosnippet>351</a>    options: <span class="kw-2">&amp;</span>CompileOptions,
-<a href=#352 id=352 data-nosnippet>352</a>) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;String&gt;, CliError&gt; {
-<a href=#353 id=353 data-nosnippet>353</a>    <span class="kw">let </span>(<span class="kw-2">mut </span>context, crate_id) = prepare_package(file_manager, parsed_files, package);
-<a href=#354 id=354 data-nosnippet>354</a>    check_crate_and_report_errors(<span class="kw-2">&amp;mut </span>context, crate_id, options)<span class="question-mark">?</span>;
-<a href=#355 id=355 data-nosnippet>355</a>
-<a href=#356 id=356 data-nosnippet>356</a>    <span class="prelude-val">Ok</span>(context
-<a href=#357 id=357 data-nosnippet>357</a>        .get_all_fuzzing_harnesses_in_crate_matching(<span class="kw-2">&amp;</span>crate_id, fn_name)
-<a href=#358 id=358 data-nosnippet>358</a>        .into_iter()
-<a href=#359 id=359 data-nosnippet>359</a>        .map(|(test_name, <span class="kw">_</span>)| test_name)
-<a href=#360 id=360 data-nosnippet>360</a>        .collect())
-<a href=#361 id=361 data-nosnippet>361</a>}
-<a href=#362 id=362 data-nosnippet>362</a>
-<a href=#363 id=363 data-nosnippet>363</a><span class="kw">fn </span>display_fuzzing_report_and_store(
-<a href=#364 id=364 data-nosnippet>364</a>    root_path: <span class="prelude-ty">Option</span>&lt;PathBuf&gt;,
-<a href=#365 id=365 data-nosnippet>365</a>    fuzzing_failure_folder: <span class="prelude-ty">Option</span>&lt;String&gt;,
-<a href=#366 id=366 data-nosnippet>366</a>    file_manager: <span class="kw-2">&amp;</span>FileManager,
-<a href=#367 id=367 data-nosnippet>367</a>    parsed_files: <span class="kw-2">&amp;</span>ParsedFiles,
-<a href=#368 id=368 data-nosnippet>368</a>    package: <span class="kw-2">&amp;</span>Package,
-<a href=#369 id=369 data-nosnippet>369</a>    compile_options: <span class="kw-2">&amp;</span>CompileOptions,
-<a href=#370 id=370 data-nosnippet>370</a>    fuzzing_report: <span class="kw-2">&amp;</span>(String, FuzzingRunStatus),
-<a href=#371 id=371 data-nosnippet>371</a>) -&gt; <span class="prelude-ty">Result</span>&lt;(), CliError&gt; {
-<a href=#372 id=372 data-nosnippet>372</a>    <span class="kw">let </span>writer = StandardStream::stderr(ColorChoice::Always);
-<a href=#373 id=373 data-nosnippet>373</a>    <span class="kw">let </span><span class="kw-2">mut </span>writer = writer.lock();
-<a href=#374 id=374 data-nosnippet>374</a>    <span class="kw">let </span>fuzzing_failure_path =
-<a href=#375 id=375 data-nosnippet>375</a>        fuzzing_failure_folder.map(PathBuf::from).unwrap_or(root_path.unwrap_or_default());
-<a href=#376 id=376 data-nosnippet>376</a>    <span class="kw">if </span>!fuzzing_failure_path.exists() {
-<a href=#377 id=377 data-nosnippet>377</a>        std::fs::create_dir_all(<span class="kw-2">&amp;</span>fuzzing_failure_path)
-<a href=#378 id=378 data-nosnippet>378</a>            .expect(<span class="string">"Failed to create fuzzing failure directory"</span>);
-<a href=#379 id=379 data-nosnippet>379</a>    }
-<a href=#380 id=380 data-nosnippet>380</a>
-<a href=#381 id=381 data-nosnippet>381</a>    <span class="kw">let </span>(fuzzing_harness_name, status) = fuzzing_report;
-<a href=#382 id=382 data-nosnippet>382</a>    <span class="macro">write!</span>(writer, <span class="string">"["</span>).expect(<span class="string">"Failed to write to stderr"</span>);
-<a href=#383 id=383 data-nosnippet>383</a>    writer.set_color(ColorSpec::new().set_fg(<span class="prelude-val">Some</span>(Color::Blue))).expect(<span class="string">"Failed to set color"</span>);
-<a href=#384 id=384 data-nosnippet>384</a>
-<a href=#385 id=385 data-nosnippet>385</a>    <span class="macro">write!</span>(writer, <span class="string">"{}"</span>, package.name).expect(<span class="string">"Failed to write to stderr"</span>);
-<a href=#386 id=386 data-nosnippet>386</a>    writer.reset().expect(<span class="string">"Failed to reset writer"</span>);
-<a href=#387 id=387 data-nosnippet>387</a>    <span class="macro">write!</span>(writer, <span class="string">"] Executed fuzzing task on "</span>).expect(<span class="string">"Failed to write to stderr"</span>);
-<a href=#388 id=388 data-nosnippet>388</a>    writer.set_color(ColorSpec::new().set_fg(<span class="prelude-val">Some</span>(Color::Blue))).expect(<span class="string">"Failed to set color"</span>);
-<a href=#389 id=389 data-nosnippet>389</a>    <span class="macro">write!</span>(writer, <span class="string">"{fuzzing_harness_name}"</span>).expect(<span class="string">"Failed to write to stderr"</span>);
-<a href=#390 id=390 data-nosnippet>390</a>    writer.reset().expect(<span class="string">"Failed to reset writer"</span>);
-<a href=#391 id=391 data-nosnippet>391</a>    <span class="macro">write!</span>(writer, <span class="string">"..."</span>).expect(<span class="string">"Failed to write to stderr"</span>);
-<a href=#392 id=392 data-nosnippet>392</a>    writer.flush().expect(<span class="string">"Failed to flush writer"</span>);
-<a href=#393 id=393 data-nosnippet>393</a>
-<a href=#394 id=394 data-nosnippet>394</a>    <span class="kw">match </span><span class="kw-2">&amp;</span>status {
-<a href=#395 id=395 data-nosnippet>395</a>        FuzzingRunStatus::ExecutionPass =&gt; {
-<a href=#396 id=396 data-nosnippet>396</a>            writer
-<a href=#397 id=397 data-nosnippet>397</a>                .set_color(ColorSpec::new().set_fg(<span class="prelude-val">Some</span>(Color::Green)))
-<a href=#398 id=398 data-nosnippet>398</a>                .expect(<span class="string">"Failed to set color"</span>);
-<a href=#399 id=399 data-nosnippet>399</a>            <span class="macro">writeln!</span>(writer, <span class="string">"ok"</span>).expect(<span class="string">"Failed to write to stderr"</span>);
-<a href=#400 id=400 data-nosnippet>400</a>        }
-<a href=#401 id=401 data-nosnippet>401</a>        FuzzingRunStatus::MinimizationPass =&gt; {
-<a href=#402 id=402 data-nosnippet>402</a>            writer
-<a href=#403 id=403 data-nosnippet>403</a>                .set_color(ColorSpec::new().set_fg(<span class="prelude-val">Some</span>(Color::Green)))
-<a href=#404 id=404 data-nosnippet>404</a>                .expect(<span class="string">"Failed to set color"</span>);
-<a href=#405 id=405 data-nosnippet>405</a>            <span class="macro">writeln!</span>(writer, <span class="string">"successfully minimized corpus"</span>).expect(<span class="string">"Failed to write to stderr"</span>);
-<a href=#406 id=406 data-nosnippet>406</a>        }
-<a href=#407 id=407 data-nosnippet>407</a>        FuzzingRunStatus::CorpusFailure { message } =&gt; {
-<a href=#408 id=408 data-nosnippet>408</a>            <span class="macro">writeln!</span>(writer, <span class="string">"issue with corpus: "</span>).expect(<span class="string">"Failed to write to stderr"</span>);
-<a href=#409 id=409 data-nosnippet>409</a>            writer
-<a href=#410 id=410 data-nosnippet>410</a>                .set_color(ColorSpec::new().set_fg(<span class="prelude-val">Some</span>(Color::Red)))
-<a href=#411 id=411 data-nosnippet>411</a>                .expect(<span class="string">"Failed to set color"</span>);
-<a href=#412 id=412 data-nosnippet>412</a>
-<a href=#413 id=413 data-nosnippet>413</a>            <span class="macro">writeln!</span>(writer, <span class="string">"{message}"</span>).expect(<span class="string">"Failed to write to stderr"</span>);
-<a href=#414 id=414 data-nosnippet>414</a>            writer.reset().expect(<span class="string">"Failed to reset writer"</span>);
-<a href=#415 id=415 data-nosnippet>415</a>        }
-<a href=#416 id=416 data-nosnippet>416</a>        FuzzingRunStatus::MinimizationFailure { message } =&gt; {
-<a href=#417 id=417 data-nosnippet>417</a>            <span class="macro">writeln!</span>(writer, <span class="string">"couldn't minimize corpus: "</span>).expect(<span class="string">"Failed to write to stderr"</span>);
-<a href=#418 id=418 data-nosnippet>418</a>            writer
-<a href=#419 id=419 data-nosnippet>419</a>                .set_color(ColorSpec::new().set_fg(<span class="prelude-val">Some</span>(Color::Red)))
-<a href=#420 id=420 data-nosnippet>420</a>                .expect(<span class="string">"Failed to set color"</span>);
-<a href=#421 id=421 data-nosnippet>421</a>
-<a href=#422 id=422 data-nosnippet>422</a>            <span class="macro">writeln!</span>(writer, <span class="string">"{message}"</span>).expect(<span class="string">"Failed to write to stderr"</span>);
-<a href=#423 id=423 data-nosnippet>423</a>            writer.reset().expect(<span class="string">"Failed to reset writer"</span>);
-<a href=#424 id=424 data-nosnippet>424</a>        }
-<a href=#425 id=425 data-nosnippet>425</a>        FuzzingRunStatus::ForeignCallFailure { message } =&gt; {
-<a href=#426 id=426 data-nosnippet>426</a>            <span class="macro">writeln!</span>(writer, <span class="string">"issue with a foreign call: "</span>).expect(<span class="string">"Failed to write to stderr"</span>);
-<a href=#427 id=427 data-nosnippet>427</a>            writer
-<a href=#428 id=428 data-nosnippet>428</a>                .set_color(ColorSpec::new().set_fg(<span class="prelude-val">Some</span>(Color::Red)))
-<a href=#429 id=429 data-nosnippet>429</a>                .expect(<span class="string">"Failed to set color"</span>);
-<a href=#430 id=430 data-nosnippet>430</a>
-<a href=#431 id=431 data-nosnippet>431</a>            <span class="macro">writeln!</span>(writer, <span class="string">"{message}"</span>).expect(<span class="string">"Failed to write to stderr"</span>);
-<a href=#432 id=432 data-nosnippet>432</a>            writer.reset().expect(<span class="string">"Failed to reset writer"</span>);
-<a href=#433 id=433 data-nosnippet>433</a>        }
-<a href=#434 id=434 data-nosnippet>434</a>        FuzzingRunStatus::ExecutionFailure { message, counterexample, error_diagnostic } =&gt; {
-<a href=#435 id=435 data-nosnippet>435</a>            <span class="macro">write!</span>(writer, <span class="string">"execution "</span>).expect(<span class="string">"Failed to write to stderr"</span>);
-<a href=#436 id=436 data-nosnippet>436</a>            writer
-<a href=#437 id=437 data-nosnippet>437</a>                .set_color(ColorSpec::new().set_fg(<span class="prelude-val">Some</span>(Color::Red)))
-<a href=#438 id=438 data-nosnippet>438</a>                .expect(<span class="string">"Failed to set color"</span>);
-<a href=#439 id=439 data-nosnippet>439</a>            <span class="macro">write!</span>(writer, <span class="string">"failed"</span>).expect(<span class="string">"Failed to write to stderr"</span>);
-<a href=#440 id=440 data-nosnippet>440</a>            writer.reset().expect(<span class="string">"Failed to reset writer"</span>);
-<a href=#441 id=441 data-nosnippet>441</a>            <span class="macro">writeln!</span>(writer, <span class="string">" with message:"</span>).expect(<span class="string">"Failed to write to stderr"</span>);
-<a href=#442 id=442 data-nosnippet>442</a>            writer
-<a href=#443 id=443 data-nosnippet>443</a>                .set_color(ColorSpec::new().set_fg(<span class="prelude-val">Some</span>(Color::Yellow)))
-<a href=#444 id=444 data-nosnippet>444</a>                .expect(<span class="string">"Failed to set color"</span>);
-<a href=#445 id=445 data-nosnippet>445</a>
-<a href=#446 id=446 data-nosnippet>446</a>            <span class="macro">writeln!</span>(writer, <span class="string">"{message}"</span>).expect(<span class="string">"Failed to write to stderr"</span>);
-<a href=#447 id=447 data-nosnippet>447</a>            writer.reset().expect(<span class="string">"Failed to reset writer"</span>);
-<a href=#448 id=448 data-nosnippet>448</a>            <span class="kw">if let </span><span class="prelude-val">Some</span>((input_map, abi)) = counterexample {
-<a href=#449 id=449 data-nosnippet>449</a>                <span class="macro">writeln!</span>(writer, <span class="string">"Failing input: "</span>,).expect(<span class="string">"Failed to write to stderr"</span>);
-<a href=#450 id=450 data-nosnippet>450</a>                writer
-<a href=#451 id=451 data-nosnippet>451</a>                    .set_color(ColorSpec::new().set_fg(<span class="prelude-val">Some</span>(Color::Red)))
-<a href=#452 id=452 data-nosnippet>452</a>                    .expect(<span class="string">"Failed to set color"</span>);
-<a href=#453 id=453 data-nosnippet>453</a>                <span class="macro">writeln!</span>(
-<a href=#454 id=454 data-nosnippet>454</a>                    writer,
-<a href=#455 id=455 data-nosnippet>455</a>                    <span class="string">"{}"</span>,
-<a href=#456 id=456 data-nosnippet>456</a>                    serialize_to_json(input_map, abi)
-<a href=#457 id=457 data-nosnippet>457</a>                        .expect(<span class="string">"Input map should be correctly serialized with this Abi"</span>)
-<a href=#458 id=458 data-nosnippet>458</a>                )
-<a href=#459 id=459 data-nosnippet>459</a>                .expect(<span class="string">"Failed to write to stderr"</span>);
-<a href=#460 id=460 data-nosnippet>460</a>                writer.reset().expect(<span class="string">"Failed to reset writer"</span>);
-<a href=#461 id=461 data-nosnippet>461</a>                <span class="kw">let </span>file_name = <span class="string">"Prover-failing-"</span>.to_owned()
-<a href=#462 id=462 data-nosnippet>462</a>                    + <span class="kw-2">&amp;</span>package.name.to_string()
-<a href=#463 id=463 data-nosnippet>463</a>                    + <span class="string">"-"
-<a href=#464 id=464 data-nosnippet>464</a>                    </span>+ fuzzing_harness_name;
-<a href=#465 id=465 data-nosnippet>465</a>                write_inputs_to_file_with_format(
-<a href=#466 id=466 data-nosnippet>466</a>                    fuzzing_failure_path.clone(),
-<a href=#467 id=467 data-nosnippet>467</a>                    <span class="kw-2">&amp;</span>file_name,
-<a href=#468 id=468 data-nosnippet>468</a>                    Format::Toml,
-<a href=#469 id=469 data-nosnippet>469</a>                    abi,
-<a href=#470 id=470 data-nosnippet>470</a>                    input_map,
-<a href=#471 id=471 data-nosnippet>471</a>                )
-<a href=#472 id=472 data-nosnippet>472</a>                .expect(<span class="string">"Couldn't write toml file"</span>);
-<a href=#473 id=473 data-nosnippet>473</a>                <span class="macro">writeln!</span>(writer, <span class="string">"saved input to:"</span>).expect(<span class="string">"Failed to write to stderr"</span>);
-<a href=#474 id=474 data-nosnippet>474</a>                writer
-<a href=#475 id=475 data-nosnippet>475</a>                    .set_color(ColorSpec::new().set_fg(<span class="prelude-val">Some</span>(Color::Yellow)))
-<a href=#476 id=476 data-nosnippet>476</a>                    .expect(<span class="string">"Failed to set color"</span>);
-<a href=#477 id=477 data-nosnippet>477</a>                <span class="comment">// TODO(https://github.com/noir-lang/noir/issues/7796): Make the path shorter if possible
-<a href=#478 id=478 data-nosnippet>478</a>                </span><span class="kw">let </span><span class="kw-2">mut </span>full_path_of_example = fuzzing_failure_path.join(file_name);
-<a href=#479 id=479 data-nosnippet>479</a>                full_path_of_example.set_extension(PathBuf::from(<span class="string">"toml"</span>));
-<a href=#480 id=480 data-nosnippet>480</a>                <span class="macro">writeln!</span>(writer, <span class="string">"\"{}\""</span>, full_path_of_example.to_str().unwrap())
-<a href=#481 id=481 data-nosnippet>481</a>                    .expect(<span class="string">"Failed to write to stderr"</span>);
-<a href=#482 id=482 data-nosnippet>482</a>                writer.reset().expect(<span class="string">"Failed to reset writer"</span>);
-<a href=#483 id=483 data-nosnippet>483</a>            }
-<a href=#484 id=484 data-nosnippet>484</a>            <span class="kw">if let </span><span class="prelude-val">Some</span>(diag) = error_diagnostic {
-<a href=#485 id=485 data-nosnippet>485</a>                report_one(
-<a href=#486 id=486 data-nosnippet>486</a>                    diag,
-<a href=#487 id=487 data-nosnippet>487</a>                    file_manager,
-<a href=#488 id=488 data-nosnippet>488</a>                    parsed_files,
-<a href=#489 id=489 data-nosnippet>489</a>                    compile_options.deny_warnings,
-<a href=#490 id=490 data-nosnippet>490</a>                    compile_options.silence_warnings,
-<a href=#491 id=491 data-nosnippet>491</a>                );
-<a href=#492 id=492 data-nosnippet>492</a>            }
-<a href=#493 id=493 data-nosnippet>493</a>        }
-<a href=#494 id=494 data-nosnippet>494</a>        FuzzingRunStatus::CompileError(err) =&gt; {
-<a href=#495 id=495 data-nosnippet>495</a>            report_one(
-<a href=#496 id=496 data-nosnippet>496</a>                err,
-<a href=#497 id=497 data-nosnippet>497</a>                file_manager,
-<a href=#498 id=498 data-nosnippet>498</a>                parsed_files,
-<a href=#499 id=499 data-nosnippet>499</a>                compile_options.deny_warnings,
-<a href=#500 id=500 data-nosnippet>500</a>                compile_options.silence_warnings,
-<a href=#501 id=501 data-nosnippet>501</a>            );
-<a href=#502 id=502 data-nosnippet>502</a>        }
-<a href=#503 id=503 data-nosnippet>503</a>    }
-<a href=#504 id=504 data-nosnippet>504</a>    writer.reset().expect(<span class="string">"Failed to reset writer"</span>);
-<a href=#505 id=505 data-nosnippet>505</a>    writer.flush().expect(<span class="string">"Failed to flush writer"</span>);
-<a href=#506 id=506 data-nosnippet>506</a>
-<a href=#507 id=507 data-nosnippet>507</a>    <span class="macro">write!</span>(writer, <span class="string">"[{}] "</span>, package.name).expect(<span class="string">"Failed to write to stderr"</span>);
-<a href=#508 id=508 data-nosnippet>508</a>
-<a href=#509 id=509 data-nosnippet>509</a>    <span class="kw">if </span>!status.failed() {
-<a href=#510 id=510 data-nosnippet>510</a>        writer.set_color(ColorSpec::new().set_fg(<span class="prelude-val">Some</span>(Color::Green))).expect(<span class="string">"Failed to set color"</span>);
-<a href=#511 id=511 data-nosnippet>511</a>        <span class="macro">write!</span>(writer, <span class="string">"{fuzzing_harness_name} passed (didn't find any issues)"</span>)
-<a href=#512 id=512 data-nosnippet>512</a>            .expect(<span class="string">"Failed to write to stderr"</span>);
-<a href=#513 id=513 data-nosnippet>513</a>        writer.reset().expect(<span class="string">"Failed to reset writer"</span>);
-<a href=#514 id=514 data-nosnippet>514</a>        <span class="macro">writeln!</span>(writer).expect(<span class="string">"Failed to write to stderr"</span>);
-<a href=#515 id=515 data-nosnippet>515</a>    } <span class="kw">else </span>{
-<a href=#516 id=516 data-nosnippet>516</a>        writer.set_color(ColorSpec::new().set_fg(<span class="prelude-val">Some</span>(Color::Red))).expect(<span class="string">"Failed to set color"</span>);
-<a href=#517 id=517 data-nosnippet>517</a>        <span class="macro">write!</span>(writer, <span class="string">"{fuzzing_harness_name} failed"</span>).expect(<span class="string">"Failed to write to stderr"</span>);
-<a href=#518 id=518 data-nosnippet>518</a>        writer.reset().expect(<span class="string">"Failed to reset writer"</span>);
-<a href=#519 id=519 data-nosnippet>519</a>    }
-<a href=#520 id=520 data-nosnippet>520</a>
-<a href=#521 id=521 data-nosnippet>521</a>    <span class="prelude-val">Ok</span>(())
-<a href=#522 id=522 data-nosnippet>522</a>}</code></pre></div></section></main></body></html>
+<a href=#325 id=325 data-nosnippet>325</a>    <span class="kw">let </span>output_sink: Box&lt;<span class="kw">dyn </span>Write&gt; =
+<a href=#326 id=326 data-nosnippet>326</a>        <span class="kw">if </span>show_output { Box::new(std::io::stdout()) } <span class="kw">else </span>{ Box::new(std::io::empty()) };
+<a href=#327 id=327 data-nosnippet>327</a>    nargo::ops::run_fuzzing_harness::&lt;S, <span class="kw">_</span>, <span class="kw">_</span>&gt;(
+<a href=#328 id=328 data-nosnippet>328</a>        <span class="kw-2">&amp;mut </span>context,
+<a href=#329 id=329 data-nosnippet>329</a>        fuzzing_harness,
+<a href=#330 id=330 data-nosnippet>330</a>        show_output,
+<a href=#331 id=331 data-nosnippet>331</a>        output_sink,
+<a href=#332 id=332 data-nosnippet>332</a>        package_name.clone(),
+<a href=#333 id=333 data-nosnippet>333</a>        compile_options,
+<a href=#334 id=334 data-nosnippet>334</a>        fuzz_folder_config,
+<a href=#335 id=335 data-nosnippet>335</a>        fuzz_execution_config,
+<a href=#336 id=336 data-nosnippet>336</a>        |output, base| {
+<a href=#337 id=337 data-nosnippet>337</a>            DefaultForeignCallBuilder {
+<a href=#338 id=338 data-nosnippet>338</a>                output,
+<a href=#339 id=339 data-nosnippet>339</a>                enable_mocks: <span class="bool-val">true</span>,
+<a href=#340 id=340 data-nosnippet>340</a>                resolver_url: foreign_call_resolver_url.map(|s| s.to_string()),
+<a href=#341 id=341 data-nosnippet>341</a>                root_path: root_path.clone(),
+<a href=#342 id=342 data-nosnippet>342</a>                package_name: <span class="prelude-val">Some</span>(package_name.clone()),
+<a href=#343 id=343 data-nosnippet>343</a>            }
+<a href=#344 id=344 data-nosnippet>344</a>            .build_with_base(base)
+<a href=#345 id=345 data-nosnippet>345</a>        },
+<a href=#346 id=346 data-nosnippet>346</a>    )
+<a href=#347 id=347 data-nosnippet>347</a>}
+<a href=#348 id=348 data-nosnippet>348</a>
+<a href=#349 id=349 data-nosnippet>349</a><span class="kw">fn </span>get_fuzzing_harnesses_in_package(
+<a href=#350 id=350 data-nosnippet>350</a>    file_manager: <span class="kw-2">&amp;</span>FileManager,
+<a href=#351 id=351 data-nosnippet>351</a>    parsed_files: <span class="kw-2">&amp;</span>ParsedFiles,
+<a href=#352 id=352 data-nosnippet>352</a>    package: <span class="kw-2">&amp;</span>Package,
+<a href=#353 id=353 data-nosnippet>353</a>    fn_name: <span class="kw-2">&amp;</span>FunctionNameMatch,
+<a href=#354 id=354 data-nosnippet>354</a>    options: <span class="kw-2">&amp;</span>CompileOptions,
+<a href=#355 id=355 data-nosnippet>355</a>) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;String&gt;, CliError&gt; {
+<a href=#356 id=356 data-nosnippet>356</a>    <span class="kw">let </span>(<span class="kw-2">mut </span>context, crate_id) = prepare_package(file_manager, parsed_files, package);
+<a href=#357 id=357 data-nosnippet>357</a>    check_crate_and_report_errors(<span class="kw-2">&amp;mut </span>context, crate_id, options)<span class="question-mark">?</span>;
+<a href=#358 id=358 data-nosnippet>358</a>
+<a href=#359 id=359 data-nosnippet>359</a>    <span class="prelude-val">Ok</span>(context
+<a href=#360 id=360 data-nosnippet>360</a>        .get_all_fuzzing_harnesses_in_crate_matching(<span class="kw-2">&amp;</span>crate_id, fn_name)
+<a href=#361 id=361 data-nosnippet>361</a>        .into_iter()
+<a href=#362 id=362 data-nosnippet>362</a>        .map(|(test_name, <span class="kw">_</span>)| test_name)
+<a href=#363 id=363 data-nosnippet>363</a>        .collect())
+<a href=#364 id=364 data-nosnippet>364</a>}
+<a href=#365 id=365 data-nosnippet>365</a>
+<a href=#366 id=366 data-nosnippet>366</a><span class="kw">fn </span>display_fuzzing_report_and_store(
+<a href=#367 id=367 data-nosnippet>367</a>    root_path: <span class="prelude-ty">Option</span>&lt;PathBuf&gt;,
+<a href=#368 id=368 data-nosnippet>368</a>    fuzzing_failure_folder: <span class="prelude-ty">Option</span>&lt;String&gt;,
+<a href=#369 id=369 data-nosnippet>369</a>    file_manager: <span class="kw-2">&amp;</span>FileManager,
+<a href=#370 id=370 data-nosnippet>370</a>    parsed_files: <span class="kw-2">&amp;</span>ParsedFiles,
+<a href=#371 id=371 data-nosnippet>371</a>    package: <span class="kw-2">&amp;</span>Package,
+<a href=#372 id=372 data-nosnippet>372</a>    compile_options: <span class="kw-2">&amp;</span>CompileOptions,
+<a href=#373 id=373 data-nosnippet>373</a>    fuzzing_report: <span class="kw-2">&amp;</span>(String, FuzzingRunStatus),
+<a href=#374 id=374 data-nosnippet>374</a>) -&gt; <span class="prelude-ty">Result</span>&lt;(), CliError&gt; {
+<a href=#375 id=375 data-nosnippet>375</a>    <span class="kw">let </span>writer = StandardStream::stderr(ColorChoice::Always);
+<a href=#376 id=376 data-nosnippet>376</a>    <span class="kw">let </span><span class="kw-2">mut </span>writer = writer.lock();
+<a href=#377 id=377 data-nosnippet>377</a>    <span class="kw">let </span>fuzzing_failure_path =
+<a href=#378 id=378 data-nosnippet>378</a>        fuzzing_failure_folder.map(PathBuf::from).unwrap_or(root_path.unwrap_or_default());
+<a href=#379 id=379 data-nosnippet>379</a>    <span class="kw">if </span>!fuzzing_failure_path.exists() {
+<a href=#380 id=380 data-nosnippet>380</a>        std::fs::create_dir_all(<span class="kw-2">&amp;</span>fuzzing_failure_path)
+<a href=#381 id=381 data-nosnippet>381</a>            .expect(<span class="string">"Failed to create fuzzing failure directory"</span>);
+<a href=#382 id=382 data-nosnippet>382</a>    }
+<a href=#383 id=383 data-nosnippet>383</a>
+<a href=#384 id=384 data-nosnippet>384</a>    <span class="kw">let </span>(fuzzing_harness_name, status) = fuzzing_report;
+<a href=#385 id=385 data-nosnippet>385</a>    <span class="macro">write!</span>(writer, <span class="string">"["</span>).expect(<span class="string">"Failed to write to stderr"</span>);
+<a href=#386 id=386 data-nosnippet>386</a>    writer.set_color(ColorSpec::new().set_fg(<span class="prelude-val">Some</span>(Color::Blue))).expect(<span class="string">"Failed to set color"</span>);
+<a href=#387 id=387 data-nosnippet>387</a>
+<a href=#388 id=388 data-nosnippet>388</a>    <span class="macro">write!</span>(writer, <span class="string">"{}"</span>, package.name).expect(<span class="string">"Failed to write to stderr"</span>);
+<a href=#389 id=389 data-nosnippet>389</a>    writer.reset().expect(<span class="string">"Failed to reset writer"</span>);
+<a href=#390 id=390 data-nosnippet>390</a>    <span class="macro">write!</span>(writer, <span class="string">"] Executed fuzzing task on "</span>).expect(<span class="string">"Failed to write to stderr"</span>);
+<a href=#391 id=391 data-nosnippet>391</a>    writer.set_color(ColorSpec::new().set_fg(<span class="prelude-val">Some</span>(Color::Blue))).expect(<span class="string">"Failed to set color"</span>);
+<a href=#392 id=392 data-nosnippet>392</a>    <span class="macro">write!</span>(writer, <span class="string">"{fuzzing_harness_name}"</span>).expect(<span class="string">"Failed to write to stderr"</span>);
+<a href=#393 id=393 data-nosnippet>393</a>    writer.reset().expect(<span class="string">"Failed to reset writer"</span>);
+<a href=#394 id=394 data-nosnippet>394</a>    <span class="macro">write!</span>(writer, <span class="string">"..."</span>).expect(<span class="string">"Failed to write to stderr"</span>);
+<a href=#395 id=395 data-nosnippet>395</a>    writer.flush().expect(<span class="string">"Failed to flush writer"</span>);
+<a href=#396 id=396 data-nosnippet>396</a>
+<a href=#397 id=397 data-nosnippet>397</a>    <span class="kw">match </span><span class="kw-2">&amp;</span>status {
+<a href=#398 id=398 data-nosnippet>398</a>        FuzzingRunStatus::ExecutionPass =&gt; {
+<a href=#399 id=399 data-nosnippet>399</a>            writer
+<a href=#400 id=400 data-nosnippet>400</a>                .set_color(ColorSpec::new().set_fg(<span class="prelude-val">Some</span>(Color::Green)))
+<a href=#401 id=401 data-nosnippet>401</a>                .expect(<span class="string">"Failed to set color"</span>);
+<a href=#402 id=402 data-nosnippet>402</a>            <span class="macro">writeln!</span>(writer, <span class="string">"ok"</span>).expect(<span class="string">"Failed to write to stderr"</span>);
+<a href=#403 id=403 data-nosnippet>403</a>        }
+<a href=#404 id=404 data-nosnippet>404</a>        FuzzingRunStatus::MinimizationPass =&gt; {
+<a href=#405 id=405 data-nosnippet>405</a>            writer
+<a href=#406 id=406 data-nosnippet>406</a>                .set_color(ColorSpec::new().set_fg(<span class="prelude-val">Some</span>(Color::Green)))
+<a href=#407 id=407 data-nosnippet>407</a>                .expect(<span class="string">"Failed to set color"</span>);
+<a href=#408 id=408 data-nosnippet>408</a>            <span class="macro">writeln!</span>(writer, <span class="string">"successfully minimized corpus"</span>).expect(<span class="string">"Failed to write to stderr"</span>);
+<a href=#409 id=409 data-nosnippet>409</a>        }
+<a href=#410 id=410 data-nosnippet>410</a>        FuzzingRunStatus::CorpusFailure { message } =&gt; {
+<a href=#411 id=411 data-nosnippet>411</a>            <span class="macro">writeln!</span>(writer, <span class="string">"issue with corpus: "</span>).expect(<span class="string">"Failed to write to stderr"</span>);
+<a href=#412 id=412 data-nosnippet>412</a>            writer
+<a href=#413 id=413 data-nosnippet>413</a>                .set_color(ColorSpec::new().set_fg(<span class="prelude-val">Some</span>(Color::Red)))
+<a href=#414 id=414 data-nosnippet>414</a>                .expect(<span class="string">"Failed to set color"</span>);
+<a href=#415 id=415 data-nosnippet>415</a>
+<a href=#416 id=416 data-nosnippet>416</a>            <span class="macro">writeln!</span>(writer, <span class="string">"{message}"</span>).expect(<span class="string">"Failed to write to stderr"</span>);
+<a href=#417 id=417 data-nosnippet>417</a>            writer.reset().expect(<span class="string">"Failed to reset writer"</span>);
+<a href=#418 id=418 data-nosnippet>418</a>        }
+<a href=#419 id=419 data-nosnippet>419</a>        FuzzingRunStatus::MinimizationFailure { message } =&gt; {
+<a href=#420 id=420 data-nosnippet>420</a>            <span class="macro">writeln!</span>(writer, <span class="string">"couldn't minimize corpus: "</span>).expect(<span class="string">"Failed to write to stderr"</span>);
+<a href=#421 id=421 data-nosnippet>421</a>            writer
+<a href=#422 id=422 data-nosnippet>422</a>                .set_color(ColorSpec::new().set_fg(<span class="prelude-val">Some</span>(Color::Red)))
+<a href=#423 id=423 data-nosnippet>423</a>                .expect(<span class="string">"Failed to set color"</span>);
+<a href=#424 id=424 data-nosnippet>424</a>
+<a href=#425 id=425 data-nosnippet>425</a>            <span class="macro">writeln!</span>(writer, <span class="string">"{message}"</span>).expect(<span class="string">"Failed to write to stderr"</span>);
+<a href=#426 id=426 data-nosnippet>426</a>            writer.reset().expect(<span class="string">"Failed to reset writer"</span>);
+<a href=#427 id=427 data-nosnippet>427</a>        }
+<a href=#428 id=428 data-nosnippet>428</a>        FuzzingRunStatus::ForeignCallFailure { message } =&gt; {
+<a href=#429 id=429 data-nosnippet>429</a>            <span class="macro">writeln!</span>(writer, <span class="string">"issue with a foreign call: "</span>).expect(<span class="string">"Failed to write to stderr"</span>);
+<a href=#430 id=430 data-nosnippet>430</a>            writer
+<a href=#431 id=431 data-nosnippet>431</a>                .set_color(ColorSpec::new().set_fg(<span class="prelude-val">Some</span>(Color::Red)))
+<a href=#432 id=432 data-nosnippet>432</a>                .expect(<span class="string">"Failed to set color"</span>);
+<a href=#433 id=433 data-nosnippet>433</a>
+<a href=#434 id=434 data-nosnippet>434</a>            <span class="macro">writeln!</span>(writer, <span class="string">"{message}"</span>).expect(<span class="string">"Failed to write to stderr"</span>);
+<a href=#435 id=435 data-nosnippet>435</a>            writer.reset().expect(<span class="string">"Failed to reset writer"</span>);
+<a href=#436 id=436 data-nosnippet>436</a>        }
+<a href=#437 id=437 data-nosnippet>437</a>        FuzzingRunStatus::ExecutionFailure { message, counterexample, error_diagnostic } =&gt; {
+<a href=#438 id=438 data-nosnippet>438</a>            <span class="macro">write!</span>(writer, <span class="string">"execution "</span>).expect(<span class="string">"Failed to write to stderr"</span>);
+<a href=#439 id=439 data-nosnippet>439</a>            writer
+<a href=#440 id=440 data-nosnippet>440</a>                .set_color(ColorSpec::new().set_fg(<span class="prelude-val">Some</span>(Color::Red)))
+<a href=#441 id=441 data-nosnippet>441</a>                .expect(<span class="string">"Failed to set color"</span>);
+<a href=#442 id=442 data-nosnippet>442</a>            <span class="macro">write!</span>(writer, <span class="string">"failed"</span>).expect(<span class="string">"Failed to write to stderr"</span>);
+<a href=#443 id=443 data-nosnippet>443</a>            writer.reset().expect(<span class="string">"Failed to reset writer"</span>);
+<a href=#444 id=444 data-nosnippet>444</a>            <span class="macro">writeln!</span>(writer, <span class="string">" with message:"</span>).expect(<span class="string">"Failed to write to stderr"</span>);
+<a href=#445 id=445 data-nosnippet>445</a>            writer
+<a href=#446 id=446 data-nosnippet>446</a>                .set_color(ColorSpec::new().set_fg(<span class="prelude-val">Some</span>(Color::Yellow)))
+<a href=#447 id=447 data-nosnippet>447</a>                .expect(<span class="string">"Failed to set color"</span>);
+<a href=#448 id=448 data-nosnippet>448</a>
+<a href=#449 id=449 data-nosnippet>449</a>            <span class="macro">writeln!</span>(writer, <span class="string">"{message}"</span>).expect(<span class="string">"Failed to write to stderr"</span>);
+<a href=#450 id=450 data-nosnippet>450</a>            writer.reset().expect(<span class="string">"Failed to reset writer"</span>);
+<a href=#451 id=451 data-nosnippet>451</a>            <span class="kw">if let </span><span class="prelude-val">Some</span>((input_map, abi)) = counterexample {
+<a href=#452 id=452 data-nosnippet>452</a>                <span class="macro">writeln!</span>(writer, <span class="string">"Failing input: "</span>,).expect(<span class="string">"Failed to write to stderr"</span>);
+<a href=#453 id=453 data-nosnippet>453</a>                writer
+<a href=#454 id=454 data-nosnippet>454</a>                    .set_color(ColorSpec::new().set_fg(<span class="prelude-val">Some</span>(Color::Red)))
+<a href=#455 id=455 data-nosnippet>455</a>                    .expect(<span class="string">"Failed to set color"</span>);
+<a href=#456 id=456 data-nosnippet>456</a>                <span class="macro">writeln!</span>(
+<a href=#457 id=457 data-nosnippet>457</a>                    writer,
+<a href=#458 id=458 data-nosnippet>458</a>                    <span class="string">"{}"</span>,
+<a href=#459 id=459 data-nosnippet>459</a>                    serialize_to_json(input_map, abi)
+<a href=#460 id=460 data-nosnippet>460</a>                        .expect(<span class="string">"Input map should be correctly serialized with this Abi"</span>)
+<a href=#461 id=461 data-nosnippet>461</a>                )
+<a href=#462 id=462 data-nosnippet>462</a>                .expect(<span class="string">"Failed to write to stderr"</span>);
+<a href=#463 id=463 data-nosnippet>463</a>                writer.reset().expect(<span class="string">"Failed to reset writer"</span>);
+<a href=#464 id=464 data-nosnippet>464</a>                <span class="kw">let </span>file_name = <span class="string">"Prover-failing-"</span>.to_owned()
+<a href=#465 id=465 data-nosnippet>465</a>                    + <span class="kw-2">&amp;</span>package.name.to_string()
+<a href=#466 id=466 data-nosnippet>466</a>                    + <span class="string">"-"
+<a href=#467 id=467 data-nosnippet>467</a>                    </span>+ fuzzing_harness_name;
+<a href=#468 id=468 data-nosnippet>468</a>                write_inputs_to_file_with_format(
+<a href=#469 id=469 data-nosnippet>469</a>                    fuzzing_failure_path.clone(),
+<a href=#470 id=470 data-nosnippet>470</a>                    <span class="kw-2">&amp;</span>file_name,
+<a href=#471 id=471 data-nosnippet>471</a>                    Format::Toml,
+<a href=#472 id=472 data-nosnippet>472</a>                    abi,
+<a href=#473 id=473 data-nosnippet>473</a>                    input_map,
+<a href=#474 id=474 data-nosnippet>474</a>                )
+<a href=#475 id=475 data-nosnippet>475</a>                .expect(<span class="string">"Couldn't write toml file"</span>);
+<a href=#476 id=476 data-nosnippet>476</a>                <span class="macro">writeln!</span>(writer, <span class="string">"saved input to:"</span>).expect(<span class="string">"Failed to write to stderr"</span>);
+<a href=#477 id=477 data-nosnippet>477</a>                writer
+<a href=#478 id=478 data-nosnippet>478</a>                    .set_color(ColorSpec::new().set_fg(<span class="prelude-val">Some</span>(Color::Yellow)))
+<a href=#479 id=479 data-nosnippet>479</a>                    .expect(<span class="string">"Failed to set color"</span>);
+<a href=#480 id=480 data-nosnippet>480</a>                <span class="comment">// TODO(https://github.com/noir-lang/noir/issues/7796): Make the path shorter if possible
+<a href=#481 id=481 data-nosnippet>481</a>                </span><span class="kw">let </span><span class="kw-2">mut </span>full_path_of_example = fuzzing_failure_path.join(file_name);
+<a href=#482 id=482 data-nosnippet>482</a>                full_path_of_example.set_extension(PathBuf::from(<span class="string">"toml"</span>));
+<a href=#483 id=483 data-nosnippet>483</a>                <span class="macro">writeln!</span>(writer, <span class="string">"\"{}\""</span>, full_path_of_example.to_str().unwrap())
+<a href=#484 id=484 data-nosnippet>484</a>                    .expect(<span class="string">"Failed to write to stderr"</span>);
+<a href=#485 id=485 data-nosnippet>485</a>                writer.reset().expect(<span class="string">"Failed to reset writer"</span>);
+<a href=#486 id=486 data-nosnippet>486</a>            }
+<a href=#487 id=487 data-nosnippet>487</a>            <span class="kw">if let </span><span class="prelude-val">Some</span>(diag) = error_diagnostic {
+<a href=#488 id=488 data-nosnippet>488</a>                report_one(
+<a href=#489 id=489 data-nosnippet>489</a>                    diag,
+<a href=#490 id=490 data-nosnippet>490</a>                    file_manager,
+<a href=#491 id=491 data-nosnippet>491</a>                    parsed_files,
+<a href=#492 id=492 data-nosnippet>492</a>                    compile_options.deny_warnings,
+<a href=#493 id=493 data-nosnippet>493</a>                    compile_options.silence_warnings,
+<a href=#494 id=494 data-nosnippet>494</a>                );
+<a href=#495 id=495 data-nosnippet>495</a>            }
+<a href=#496 id=496 data-nosnippet>496</a>        }
+<a href=#497 id=497 data-nosnippet>497</a>        FuzzingRunStatus::CompileError(err) =&gt; {
+<a href=#498 id=498 data-nosnippet>498</a>            report_one(
+<a href=#499 id=499 data-nosnippet>499</a>                err,
+<a href=#500 id=500 data-nosnippet>500</a>                file_manager,
+<a href=#501 id=501 data-nosnippet>501</a>                parsed_files,
+<a href=#502 id=502 data-nosnippet>502</a>                compile_options.deny_warnings,
+<a href=#503 id=503 data-nosnippet>503</a>                compile_options.silence_warnings,
+<a href=#504 id=504 data-nosnippet>504</a>            );
+<a href=#505 id=505 data-nosnippet>505</a>        }
+<a href=#506 id=506 data-nosnippet>506</a>    }
+<a href=#507 id=507 data-nosnippet>507</a>    writer.reset().expect(<span class="string">"Failed to reset writer"</span>);
+<a href=#508 id=508 data-nosnippet>508</a>    writer.flush().expect(<span class="string">"Failed to flush writer"</span>);
+<a href=#509 id=509 data-nosnippet>509</a>
+<a href=#510 id=510 data-nosnippet>510</a>    <span class="macro">write!</span>(writer, <span class="string">"[{}] "</span>, package.name).expect(<span class="string">"Failed to write to stderr"</span>);
+<a href=#511 id=511 data-nosnippet>511</a>
+<a href=#512 id=512 data-nosnippet>512</a>    <span class="kw">if </span>!status.failed() {
+<a href=#513 id=513 data-nosnippet>513</a>        writer.set_color(ColorSpec::new().set_fg(<span class="prelude-val">Some</span>(Color::Green))).expect(<span class="string">"Failed to set color"</span>);
+<a href=#514 id=514 data-nosnippet>514</a>        <span class="macro">write!</span>(writer, <span class="string">"{fuzzing_harness_name} passed (didn't find any issues)"</span>)
+<a href=#515 id=515 data-nosnippet>515</a>            .expect(<span class="string">"Failed to write to stderr"</span>);
+<a href=#516 id=516 data-nosnippet>516</a>        writer.reset().expect(<span class="string">"Failed to reset writer"</span>);
+<a href=#517 id=517 data-nosnippet>517</a>        <span class="macro">writeln!</span>(writer).expect(<span class="string">"Failed to write to stderr"</span>);
+<a href=#518 id=518 data-nosnippet>518</a>    } <span class="kw">else </span>{
+<a href=#519 id=519 data-nosnippet>519</a>        writer.set_color(ColorSpec::new().set_fg(<span class="prelude-val">Some</span>(Color::Red))).expect(<span class="string">"Failed to set color"</span>);
+<a href=#520 id=520 data-nosnippet>520</a>        <span class="macro">write!</span>(writer, <span class="string">"{fuzzing_harness_name} failed"</span>).expect(<span class="string">"Failed to write to stderr"</span>);
+<a href=#521 id=521 data-nosnippet>521</a>        writer.reset().expect(<span class="string">"Failed to reset writer"</span>);
+<a href=#522 id=522 data-nosnippet>522</a>    }
+<a href=#523 id=523 data-nosnippet>523</a>
+<a href=#524 id=524 data-nosnippet>524</a>    <span class="prelude-val">Ok</span>(())
+<a href=#525 id=525 data-nosnippet>525</a>}</code></pre></div></section></main></body></html>
