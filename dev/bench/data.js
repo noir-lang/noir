@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1783944588100,
+  "lastUpdate": 1783947015379,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23101,48 +23101,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": true,
-          "id": "d3d1686078810e94d5176f0fda4e8ef796de312e",
-          "message": "feat(debug): Add source locations to `--count-array-copies` flag (#12067)",
-          "timestamp": "2026-07-02T15:07:17Z",
-          "tree_id": "2edb88ccbdd5bbfb028a1437c4653c14f607aa74",
-          "url": "https://github.com/noir-lang/noir/commit/d3d1686078810e94d5176f0fda4e8ef796de312e"
-        },
-        "date": 1783005998262,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 128912,
-            "range": "± 552",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 114511,
-            "range": "± 1144",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 3046107,
-            "range": "± 1226",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "jfecher11@gmail.com",
-            "name": "jfecher",
-            "username": "jfecher"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
           "id": "8757d13f1a399cbd3c0f759a12b0ae717ef55284",
           "message": "fix: Turbofish when used on a constructor in match patterns (#13236)",
           "timestamp": "2026-07-02T15:47:08Z",
@@ -25184,6 +25142,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2646730,
             "range": "± 29013",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jfecher11@gmail.com",
+            "name": "jfecher",
+            "username": "jfecher"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "e5a5b98fb65c910f96560ef08a9c8409f82149fb",
+          "message": "fix(nargo): show `--show-output` output for parameterized (fuzzed) tests (#13305)\n\nCo-authored-by: Claude Opus 4.8 (1M context) <noreply@anthropic.com>\nCo-authored-by: Ary Borenszweig <asterite@gmail.com>",
+          "timestamp": "2026-07-13T12:28:50Z",
+          "tree_id": "811d0be5a1e24fd1842b83ca713254e013ab9498",
+          "url": "https://github.com/noir-lang/noir/commit/e5a5b98fb65c910f96560ef08a9c8409f82149fb"
+        },
+        "date": 1783946937459,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 166885,
+            "range": "± 405",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 138213,
+            "range": "± 642",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2648944,
+            "range": "± 26536",
             "unit": "ns/iter"
           }
         ]
