@@ -1708,4 +1708,20 @@
 <a href=#1708 id=1708 data-nosnippet>1708</a>        }
 <a href=#1709 id=1709 data-nosnippet>1709</a>        "</span>);
 <a href=#1710 id=1710 data-nosnippet>1710</a>    }
-<a href=#1711 id=1711 data-nosnippet>1711</a>}</code></pre></div></section></main></body></html>
+<a href=#1711 id=1711 data-nosnippet>1711</a>
+<a href=#1712 id=1712 data-nosnippet>1712</a>    <span class="doccomment">/// Phase 2 of this pass re-inserts instructions through the DFG simplifier. That path must not
+<a href=#1713 id=1713 data-nosnippet>1713</a>    /// delete a `range_check` guarding the result of unchecked ACIR arithmetic, whose field value
+<a href=#1714 id=1714 data-nosnippet>1714</a>    /// can legitimately exceed the operands' type width (e.g. `unchecked_add u8 200, 100 = 300`).
+<a href=#1715 id=1715 data-nosnippet>1715</a>    </span><span class="attr">#[test]
+<a href=#1716 id=1716 data-nosnippet>1716</a>    </span><span class="kw">fn </span>range_check_after_unchecked_acir_arithmetic_is_not_removed() {
+<a href=#1717 id=1717 data-nosnippet>1717</a>        <span class="kw">let </span>src = <span class="string">"
+<a href=#1718 id=1718 data-nosnippet>1718</a>        acir(inline) fn main f0 {
+<a href=#1719 id=1719 data-nosnippet>1719</a>          b0(v0: u8, v1: u8):
+<a href=#1720 id=1720 data-nosnippet>1720</a>            v2 = unchecked_add v0, v1
+<a href=#1721 id=1721 data-nosnippet>1721</a>            range_check v2 to 8 bits
+<a href=#1722 id=1722 data-nosnippet>1722</a>            return v2
+<a href=#1723 id=1723 data-nosnippet>1723</a>        }
+<a href=#1724 id=1724 data-nosnippet>1724</a>        "</span>;
+<a href=#1725 id=1725 data-nosnippet>1725</a>        assert_ssa_does_not_change(src, Ssa::load_store_forwarding);
+<a href=#1726 id=1726 data-nosnippet>1726</a>    }
+<a href=#1727 id=1727 data-nosnippet>1727</a>}</code></pre></div></section></main></body></html>
