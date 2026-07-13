@@ -299,8 +299,15 @@ pub fn validate_witness<F: AcirField>(
                         let mut state = [0; 25];
                         for (it, input) in state.iter_mut().zip_eq(inputs.as_ref()) {
                             let witness_assignment = input_to_value(witness_map, *input)?;
-                            let lane = witness_assignment.try_to_u64();
-                            *it = lane.unwrap();
+                            check_fits_in_bits(
+                                witness_assignment,
+                                64,
+                                opcode_index,
+                                "Keccakf1600",
+                            )?;
+                            *it = witness_assignment
+                                .try_to_u64()
+                                .expect("value was just checked to fit in 64 bits");
                         }
                         let output_state = keccakf1600(state)?;
                         for (output_witness, value) in outputs.iter().zip_eq(output_state) {
@@ -508,6 +515,38 @@ mod tests {
             assert_messages: Default::default(),
             function_name: "test".to_string(),
         }
+    }
+
+    /// Builds a Keccakf1600 circuit over input witnesses `0..25` and output witnesses `25..50`.
+    fn keccakf1600_circuit() -> Circuit<FieldElement> {
+        let inputs: Box<[FunctionInput<FieldElement>; 25]> =
+            Box::new(std::array::from_fn(|i| FunctionInput::Witness(Witness(i as u32))));
+        let outputs: Box<[Witness; 25]> =
+            Box::new(std::array::from_fn(|i| Witness((25 + i) as u32)));
+        make_circuit(vec![Opcode::BlackBoxFuncCall(BlackBoxFuncCall::Keccakf1600 {
+            inputs,
+            outputs,
+        })])
+    }
+
+    #[test]
+    fn test_keccakf1600_out_of_range_lane_does_not_panic() {
+        // A lane holding 2^64 does not fit in 64 bits: `validate_witness` must report a
+        // graceful, opcode-located constraint violation rather than panicking on the
+        // internal `try_to_u64` conversion.
+        let circuit = keccakf1600_circuit();
+        let mut witness_map = WitnessMap::new();
+        witness_map.insert(Witness(0), FieldElement::from(1u128 << 64));
+        for i in 1..50u32 {
+            witness_map.insert(Witness(i), FieldElement::zero());
+        }
+
+        let backend = Bn254BlackBoxSolver;
+        assert_unsatisfied_constraint(
+            validate_witness(&backend, &witness_map, &circuit),
+            0,
+            "Keccakf1600 opcode violation: value 18446744073709551616 does not fit in 64 bits",
+        );
     }
 
     #[test]
