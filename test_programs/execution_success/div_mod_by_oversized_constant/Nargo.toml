@@ -1,0 +1,6 @@
+[package]
+name = "div_mod_by_oversized_constant"
+type = "bin"
+authors = [""]
+
+[dependencies]

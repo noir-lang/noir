@@ -569,14 +569,21 @@ impl DataFlowGraph {
         match self[value] {
             Value::Instruction { instruction, .. } => {
                 let value_bit_size = self.type_of_value(value).bit_size();
-                if let Instruction::Cast(original_value, _) = self[instruction] {
-                    let original_bit_size = self.get_value_max_num_bits(original_value);
-                    // We might have cast e.g. `u1` to `u8` to be able to do arithmetic,
-                    // in which case we want to recover the original smaller bit size;
-                    // OTOH if we cast down, then we don't need the higher original size.
-                    value_bit_size.min(original_bit_size)
-                } else {
-                    value_bit_size
+                match self[instruction] {
+                    Instruction::Cast(original_value, _) => {
+                        let original_bit_size = self.get_value_max_num_bits(original_value);
+                        // We might have cast e.g. `u1` to `u8` to be able to do arithmetic,
+                        // in which case we want to recover the original smaller bit size;
+                        // OTOH if we cast down, then we don't need the higher original size.
+                        value_bit_size.min(original_bit_size)
+                    }
+                    Instruction::Truncate { value: original_value, bit_size, .. } => {
+                        // A truncation bounds its result to `bit_size` bits, and the result
+                        // can never require more bits than the value being truncated.
+                        let original_bit_size = self.get_value_max_num_bits(original_value);
+                        value_bit_size.min(bit_size).min(original_bit_size)
+                    }
+                    _ => value_bit_size,
                 }
             }
 
