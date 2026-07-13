@@ -203,7 +203,7 @@ impl TaintedDescendants {
 
     /// Whether there are any unconstrained outputs left.
     /// Returns `true` if the call is fully constrained.
-    fn is_constrained(&self) -> bool {
+    fn is_fully_constrained(&self) -> bool {
         self.single_outputs.is_empty() && self.array_outputs.is_empty()
     }
 
@@ -790,7 +790,7 @@ impl Context {
                             self.max_ancestor_distance,
                         );
 
-                        let fully_constrained = tainted.is_constrained();
+                        let fully_constrained = tainted.is_fully_constrained();
                         if fully_constrained {
                             active_tainted.remove(id);
                         }
