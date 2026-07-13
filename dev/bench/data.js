@@ -1,107 +1,8 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1783947960445,
+  "lastUpdate": 1783947974933,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
-      {
-        "commit": {
-          "author": {
-            "email": "jfecher11@gmail.com",
-            "name": "jfecher",
-            "username": "jfecher"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "d3d1686078810e94d5176f0fda4e8ef796de312e",
-          "message": "feat(debug): Add source locations to `--count-array-copies` flag (#12067)",
-          "timestamp": "2026-07-02T15:07:17Z",
-          "tree_id": "2edb88ccbdd5bbfb028a1437c4653c14f607aa74",
-          "url": "https://github.com/noir-lang/noir/commit/d3d1686078810e94d5176f0fda4e8ef796de312e"
-        },
-        "date": 1783006986933,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 305.2,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 534.67,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 276.25,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root-first-empty-tx",
-            "value": 353.01,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 353.01,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 353.89,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-checkpoint-merge",
-            "value": 353.07,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-checkpoint-root-single-block",
-            "value": 6040,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-checkpoint-root",
-            "value": 6040,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 354.51,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-tx-base-private",
-            "value": 863.38,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-tx-base-public",
-            "value": 2820,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-tx-merge",
-            "value": 353.01,
-            "unit": "MB"
-          },
-          {
-            "name": "semaphore_depth_10",
-            "value": 103.63,
-            "unit": "MB"
-          },
-          {
-            "name": "sha512_100_bytes",
-            "value": 149.24,
-            "unit": "MB"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -4919,6 +4820,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-checkpoint-root",
             "value": 6040,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 354.68,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-base-private",
+            "value": 862.54,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-base-public",
+            "value": 2820,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-merge",
+            "value": 353.18,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 103.8,
+            "unit": "MB"
+          },
+          {
+            "name": "sha512_100_bytes",
+            "value": 149.32,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jfecher11@gmail.com",
+            "name": "jfecher",
+            "username": "jfecher"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "e5a5b98fb65c910f96560ef08a9c8409f82149fb",
+          "message": "fix(nargo): show `--show-output` output for parameterized (fuzzed) tests (#13305)\n\nCo-authored-by: Claude Opus 4.8 (1M context) <noreply@anthropic.com>\nCo-authored-by: Ary Borenszweig <asterite@gmail.com>",
+          "timestamp": "2026-07-13T12:28:50Z",
+          "tree_id": "811d0be5a1e24fd1842b83ca713254e013ab9498",
+          "url": "https://github.com/noir-lang/noir/commit/e5a5b98fb65c910f96560ef08a9c8409f82149fb"
+        },
+        "date": 1783947892437,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 305.36,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 534.25,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 276.4,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root-first-empty-tx",
+            "value": 353.18,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 353.18,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 354.05,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-merge",
+            "value": 353.18,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-root-single-block",
+            "value": 6040,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-root",
+            "value": 6050,
             "unit": "MB"
           },
           {
