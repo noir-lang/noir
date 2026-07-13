@@ -115,6 +115,7 @@ mod variable;
 mod visibility;
 
 use self::traits::check_trait_impl_method_matches_declaration;
+use self::variable::VariableResolution;
 use fm::FileMap;
 use function_context::FunctionContext;
 use noirc_errors::Location;
@@ -810,7 +811,7 @@ impl<'context> Elaborator<'context> {
     #[tracing::instrument(level = "trace", skip_all)]
     fn resolve_function_by_path(&mut self, path: TypedPath) -> Option<FuncId> {
         let location = path.location;
-        match self.resolve_path_or_error(path, PathResolutionTarget::Value) {
+        match self.resolve_path_or_error(path.clone(), PathResolutionTarget::Value) {
             Ok(item) => {
                 if let Some(func_id) = item.function_id() {
                     Some(func_id)
@@ -825,6 +826,14 @@ impl<'context> Elaborator<'context> {
                 }
             }
             Err(error) => {
+                // A `Type::method` path (an inherent or trait-impl method) is not resolvable as a
+                // value path, but it resolves the same way the expression `Type::method` does. Try
+                // that before surfacing the original path-resolution error.
+                if let Some(VariableResolution::Ident(_, Some(item))) = self.resolve_variable(path)
+                    && let Some(func_id) = item.function_id()
+                {
+                    return Some(func_id);
+                }
                 self.push_err(error);
                 None
             }
@@ -876,7 +885,7 @@ impl<'context> Elaborator<'context> {
             }
             Type::DataType(datatype, generics) => {
                 if type_recursion_context.insert_data_type(datatype.borrow().id, generics.clone()) {
-                    self.mark_struct_as_constructed(datatype.clone());
+                    self.mark_struct_as_constructed(datatype);
                     for generic in generics {
                         self.mark_type_as_used_helper(
                             generic,
@@ -1113,7 +1122,7 @@ impl<'context> Elaborator<'context> {
     fn elaborate_trait_impl(&mut self, trait_impl: UnresolvedTraitImpl) {
         let previous_local_module = self.replace_local_module(trait_impl.module_id);
 
-        self.generics = trait_impl.resolved_generics.clone();
+        self.generics.clone_from(&trait_impl.resolved_generics);
         self.current_trait_impl = trait_impl.impl_id;
         self.current_trait = trait_impl.trait_id;
 

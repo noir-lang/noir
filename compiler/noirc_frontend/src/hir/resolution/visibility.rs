@@ -45,6 +45,31 @@ pub fn item_in_module_is_visible(
     }
 }
 
+/// Returns true if `module` and every one of its ancestor modules (up to, but not including,
+/// the crate root) are visible from `current_module`.
+///
+/// This mimics the behavior of path resolution, which checks the visibility of each module
+/// segment as it walks a path.
+pub fn module_is_visible(
+    module: ModuleId,
+    current_module: ModuleId,
+    interner: &NodeInterner,
+    def_maps: &DefMaps,
+) -> bool {
+    // Each module's visibility is declared in its parent, so we check it against the parent just
+    // as path resolution checks a segment's visibility against the module it lives in. The crate
+    // root has no parent and is always reachable (it is entered via the extern prelude).
+    let mut module = module;
+    while let Some(parent) = module.parent(def_maps) {
+        let visibility = module_def_id_visibility(ModuleDefId::ModuleId(module), interner);
+        if !item_in_module_is_visible(def_maps, current_module, parent, visibility) {
+            return false;
+        }
+        module = parent;
+    }
+    true
+}
+
 /// Returns true if `current` is a (potentially nested) child module of `target`.
 /// This is also true if `current == target`.
 fn module_is_descendant_of_target(

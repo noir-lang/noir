@@ -293,14 +293,26 @@ impl Elaborator<'_> {
             // Transform any constraints omitting their associated types (e.g. `I: Iterator`)
             // into the explicit form (e.g. `I: Iterator<Item = FreshGeneric>`), returning
             // any fresh generics created in the process (`[FreshGeneric]` here).
-            let new_generics =
+            let desugared_generics =
                 self.desugar_trait_constraints(&mut unresolved_trait.trait_def.where_clause);
 
-            let new_generics = vecmap(new_generics, |desugared| {
-                // TODO: use `desugared.bounds` here
-                // See https://github.com/noir-lang/noir/issues/8601
-                desugared.generic
-            });
+            // Capture the bounds declared on associated types reached through the trait's own
+            // where clause (e.g. `<T as Foo>::E: Bar` from `where T: Foo` + `type E: Bar`). These
+            // must be assumed when elaborating this trait's default method bodies so that methods
+            // on such associated types resolve. See https://github.com/noir-lang/noir/issues/8601.
+            let mut implicit_associated_type_constraints = Vec::new();
+            for desugared in &desugared_generics {
+                for bound in &desugared.bounds {
+                    let constraint = TraitConstraint {
+                        typ: desugared.named_generic.clone(),
+                        trait_bound: bound.clone(),
+                    };
+                    implicit_associated_type_constraints
+                        .push((constraint, desugared.generic.location));
+                }
+            }
+
+            let new_generics = vecmap(desugared_generics, |desugared| desugared.generic);
             self.generics.extend(new_generics);
 
             let where_clause = self.resolve_trait_constraints_and_add_to_scope(
@@ -341,6 +353,8 @@ impl Elaborator<'_> {
                 trait_def.set_where_clause(where_clause);
                 trait_def.set_visibility(unresolved_trait.trait_def.visibility);
                 trait_def.set_associated_type_bounds(associated_type_bounds);
+                trait_def.implicit_associated_type_constraints =
+                    implicit_associated_type_constraints;
                 trait_def.set_all_generics(self.generics.clone());
             });
 
@@ -1066,13 +1080,11 @@ impl Elaborator<'_> {
         let kind =
             if has_body { FunctionKind::Normal } else { FunctionKind::TraitFunctionWithoutBody };
         let mut function = NoirFunction { kind, def };
-        let no_extra_trait_constraints = &[];
-        self.define_function_meta(
-            &mut function,
-            func_id,
-            Some(trait_id),
-            no_extra_trait_constraints,
-        );
+        // Assume the bounds implied by the trait's own where clause on associated types
+        // (e.g. `<T as Foo>::E: Bar`) while elaborating this method. See issue #8601.
+        let extra_trait_constraints =
+            self.interner.get_trait(trait_id).implicit_associated_type_constraints.clone();
+        self.define_function_meta(&mut function, func_id, Some(trait_id), &extra_trait_constraints);
 
         if !has_body {
             self.elaborate_function(func_id);
@@ -1131,6 +1143,11 @@ impl Elaborator<'_> {
         let self_typevar = self.interner.get_trait(trait_id).self_type_typevar.clone();
         let self_type = Some(Type::TypeVariable(self_typevar));
 
+        // Assume the bounds implied by the trait's own where clause on associated types
+        // (e.g. `<T as Foo>::E: Bar`) while elaborating this method. See issue #8601.
+        let extra_trait_constraints =
+            self.interner.get_trait(trait_id).implicit_associated_type_constraints.clone();
+
         self.unresolved_function_metas.insert(
             func_id,
             UnresolvedFunctionMeta {
@@ -1141,7 +1158,7 @@ impl Elaborator<'_> {
                 current_trait: Some(trait_id),
                 current_trait_impl: None,
                 current_impl: None,
-                extra_trait_constraints: Vec::new(),
+                extra_trait_constraints,
             },
         );
 
@@ -1284,12 +1301,8 @@ pub(crate) fn check_trait_impl_method_matches_declaration(
     }
 
     // Substitute each generic on the trait with the corresponding generic on the impl
-    let mut bindings = interner.trait_to_impl_bindings(
-        impl_.trait_id,
-        impl_id,
-        ordered_generics,
-        impl_.typ.clone(),
-    );
+    let mut bindings =
+        interner.trait_to_impl_bindings(impl_.trait_id, impl_id, ordered_generics, &impl_.typ);
 
     // If this is None, the trait does not have the corresponding function.
     // This error should have been caught in name resolution already so we don't

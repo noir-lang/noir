@@ -502,7 +502,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> ACVM<'a, F, B> {
             Opcode::MemoryOp { block_id, op } => match self.block_solvers.get_mut(block_id) {
                 Some(solver) => solver.solve_memory_op(op, &mut self.witness_map),
                 None => Err(OpcodeResolutionError::OpcodeNotSolvable(
-                    OpcodeNotSolvable::MissingMemoryBlock(block_id.0),
+                    OpcodeNotSolvable::MissingMemoryBlock(block_id.as_u32()),
                 )),
             },
             Opcode::BrilligCall { id, inputs, outputs, predicate } => {
@@ -773,7 +773,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> ACVM<'a, F, B> {
     ) -> Result<Option<AcirCallWaitInfo<F>>, OpcodeResolutionError<F>> {
         let opcode_location =
             ErrorLocation::Resolved(OpcodeLocation::Acir(self.instruction_pointer()));
-        if *id == AcirFunctionId(0) {
+        if *id == AcirFunctionId::new(0) {
             return Err(OpcodeResolutionError::AcirMainCallAttempted { opcode_location });
         }
 
@@ -789,7 +789,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> ACVM<'a, F, B> {
             let mut initial_witness = WitnessMap::default();
             for (i, input_witness) in inputs.iter().enumerate() {
                 let input_value = *witness_to_value(&self.witness_map, *input_witness)?;
-                initial_witness.insert(Witness(i as u32), input_value);
+                initial_witness.insert(Witness::new(i as u32), input_value);
             }
             return Ok(Some(AcirCallWaitInfo { id: *id, initial_witness }));
         }
@@ -821,7 +821,7 @@ pub fn witness_to_value<F>(
 ) -> Result<&F, OpcodeResolutionError<F>> {
     match initial_witness.get(&witness) {
         Some(value) => Ok(value),
-        None => Err(OpcodeNotSolvable::MissingAssignment(witness.0).into()),
+        None => Err(OpcodeNotSolvable::MissingAssignment(witness.witness_index()).into()),
     }
 }
 
@@ -1116,7 +1116,7 @@ mod tests {
             assert_eq!(
                 acvm.solve(),
                 ACVMStatus::Failure(OpcodeResolutionError::BrilligFunctionFailed {
-                    function_id: BrilligFunctionId(func_id),
+                    function_id: BrilligFunctionId::new(func_id),
                     call_stack: vec![OpcodeLocation::Acir(0)],
                     payload: None,
                 }),
@@ -1144,7 +1144,7 @@ mod tests {
                         payload,
                     },
                 )) => {
-                    assert_eq!(function_id, BrilligFunctionId(2));
+                    assert_eq!(function_id, BrilligFunctionId::new(2));
                     assert_eq!(call_stack, vec![OpcodeLocation::Acir(0)]);
                     assert!(payload.is_none());
                 }

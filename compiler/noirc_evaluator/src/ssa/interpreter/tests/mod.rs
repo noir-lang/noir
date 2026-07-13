@@ -116,6 +116,17 @@ fn test_truncate_signed() {
 }
 
 #[test]
+fn u1_is_in_range_only_for_zero_and_one() {
+    let u1 = |n: u32| {
+        NumericValue::int_from_field(FieldElement::from(n), NumericType::unsigned(1)).unwrap()
+    };
+    assert!(u1(0).is_in_range());
+    assert!(u1(1).is_in_range());
+    assert!(!u1(2).is_in_range());
+    assert!(!u1(5).is_in_range());
+}
+
+#[test]
 fn test_shl() {
     let binary = Binary { lhs: ValueId::new(0), rhs: ValueId::new(1), operator: BinaryOp::Shl };
 
@@ -136,7 +147,7 @@ fn test_shl() {
             (1, 8),
             Err(InterpreterError::Overflow {
                 operator: BinaryOp::Shl,
-                instruction: "`` (i8 1 << i8 8)".to_string(),
+                instruction: "`` (shl i8 1, i8 8)".to_string(),
             }),
         ),
     ];
@@ -145,12 +156,13 @@ fn test_shl() {
         assert_eq!(
             super::evaluate_binary(
                 &binary,
-                NumericValue::I8(lhs.into()),
-                NumericValue::I8(rhs.into()),
+                NumericValue::i8(lhs),
+                NumericValue::i8(rhs),
                 true,
+                false,
                 display
             ),
-            expected_result.map(|i| NumericValue::I8(i.into())),
+            expected_result.map(NumericValue::i8),
             "{lhs} << {rhs}",
         );
     }
@@ -174,7 +186,7 @@ fn value_snapshot_detaches_from_original() {
     // Access `array[0][0]`
     fn with_0_0<F>(value: &Value, f: F)
     where
-        F: FnOnce(&mut bool),
+        F: FnOnce(&mut Value),
     {
         let Value::ArrayOrVector(ArrayValue { elements, .. }) = value else {
             unreachable!("values are arrays")
@@ -185,21 +197,17 @@ fn value_snapshot_detaches_from_original() {
             unreachable!("inner values are arrays")
         };
         let mut elements = elements.borrow_mut();
-        let mut value = &mut elements[0];
-        let Value::Numeric(NumericValue::U1(b)) = &mut value else {
-            unreachable!("elements are bool");
-        };
-        f(b);
+        f(&mut elements[0]);
     }
 
     // Update the original.
-    with_0_0(&v0, |b| {
-        *b = true;
+    with_0_0(&v0, |v| {
+        *v = Value::bool(true);
     });
     // The clone is also changed.
-    with_0_0(&v1, |b| assert!(*b));
+    with_0_0(&v1, |v| assert_eq!(v.as_bool(), Some(true)));
     // The snapshot is not changed.
-    with_0_0(&v2, |b| assert!(!(*b)));
+    with_0_0(&v2, |v| assert_eq!(v.as_bool(), Some(false)));
 }
 
 #[test]
@@ -1791,6 +1799,27 @@ fn signed_integer_casting() {
 }
 
 #[test]
+fn cast_of_out_of_range_acir_value_relabels() {
+    // In an ACIR function an unchecked op does field arithmetic and can leave a value out of its
+    // type's range (here `unchecked_add u8 255, 1` = 256). A `cast` must relabel that value's type
+    // while keeping its bits — matching ACIR, where a cast is a no-op on the underlying field — and
+    // must not reject it the way a fresh constant would. This loops/casts the way the fuzzer found.
+    let src = r#"
+      acir(inline) fn main f0 {
+        b0():
+          v2 = unchecked_add u8 255, u8 1
+          v3 = cast v2 as i8
+          return v3
+      }
+      "#;
+    let value = expect_value(src);
+    assert_eq!(
+        value,
+        Value::int_from_field(FieldElement::from(256u32), NumericType::signed(8)).unwrap()
+    );
+}
+
+#[test]
 fn signed_integer_casting_2() {
     // fn main() -> pub i64 {
     //     (-(func_4() as i64))
@@ -1917,4 +1946,28 @@ fn infinite_recursion() {
     let Err(InterpreterError::StackOverflow { .. }) = result else {
         panic!("unexpected result: {result:?}")
     };
+}
+
+#[test]
+fn acir_unchecked_signed_add_print_reduces() {
+    // ACIR `main` computes an i8 via `unchecked_add` whose logical value is 0, but in ACIR
+    // mode the interpreter stores the unreduced two's-complement field (256). It hands that
+    // value to a Brillig print wrapper (mirroring the AST fuzzer's generated `print_wrapper`).
+    // `print` must observe the reduced value 0, not the raw field 256.
+    let src = r#"
+        acir(inline) impure fn main f0 {
+          b0():
+            v2 = unchecked_add i8 -1, i8 1
+            call f1(v2)
+            return
+        }
+        brillig(inline) impure fn print_wrapper f1 {
+          b0(v0: i8):
+            v3 = make_array b"{\"kind\":\"signedinteger\",\"width\":8}"
+            call print(u1 1, v0, v3, u1 0)
+            return
+        }
+    "#;
+    let out = expect_printed_output(src);
+    assert_eq!(out, "0\n", "print observed raw unreduced ACIR field instead of reduced 0");
 }

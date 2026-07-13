@@ -1,0 +1,11 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn main(idx: u32, val: Field) -> pub ([[Field; 1]; 1], [Field; 1]) {
+    let mut inner: [Field; 1] = [0_Field];
+    let mut outer: [[Field; 1]; 1] = [[9_Field]];
+    outer[idx] = inner;
+    inner[idx] = val;
+    (outer, inner)
+}

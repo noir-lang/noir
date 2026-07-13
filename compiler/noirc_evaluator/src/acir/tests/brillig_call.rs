@@ -36,8 +36,8 @@ fn multiple_brillig_calls_one_bytecode() {
     // We have two normal Brillig functions that were called multiple times.
     // We should have a single locations map for each function's debug metadata.
     assert_eq!(main_debug.brillig_locations.len(), 2);
-    assert!(main_debug.brillig_locations.contains_key(&BrilligFunctionId(0)));
-    assert!(main_debug.brillig_locations.contains_key(&BrilligFunctionId(1)));
+    assert!(main_debug.brillig_locations.contains_key(&BrilligFunctionId::new(0)));
+    assert!(main_debug.brillig_locations.contains_key(&BrilligFunctionId::new(1)));
 
     assert_circuit_snapshot!(program, @r"
     func 0
@@ -209,7 +209,7 @@ fn brillig_stdlib_calls_with_regular_brillig_call() {
     // We have one normal Brillig functions that was called twice.
     // We should have a single locations map for each function's debug metadata.
     assert_eq!(debug[0].brillig_locations.len(), 1);
-    assert!(debug[0].brillig_locations.contains_key(&BrilligFunctionId(0)));
+    assert!(debug[0].brillig_locations.contains_key(&BrilligFunctionId::new(0)));
 
     // Brillig stdlib IDs are expected to always come at the end of the Brillig functions list.
     assert_circuit_snapshot!(program, @r"
@@ -329,7 +329,7 @@ fn brillig_stdlib_calls_with_multiple_acir_calls() {
 
     let main_debug = &debug[0];
     assert_eq!(main_debug.brillig_locations.len(), 1);
-    assert!(main_debug.brillig_locations.contains_key(&BrilligFunctionId(0)));
+    assert!(main_debug.brillig_locations.contains_key(&BrilligFunctionId::new(0)));
 
     let foo_debug = &debug[1];
     assert_eq!(foo_debug.brillig_locations.len(), 0);

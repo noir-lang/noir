@@ -19,7 +19,7 @@ use crate::{
     },
     elaborator::{
         ScopeForest,
-        patterns::IdentFromPath,
+        patterns::PathValue,
         types::{WildcardAllowed, WildcardDisallowedContext},
     },
     hir::{
@@ -77,7 +77,13 @@ impl Elaborator<'_> {
 
         self.dec_recursion_depth();
 
-        if has_errors {
+        // `HirExpression::Error` is the elaborator's signal that this expression has already
+        // failed (parser error, recursion limit, or a path that intentionally produced
+        // `(HirExpression::Error, Type::Error)` after pushing its own diagnostic). Flag it so
+        // the comptime interpreter halts here instead of evaluating the node and raising an
+        // ICE on top of the existing diagnostic.
+        let is_error_expr = matches!(self.interner.expression(&id), HirExpression::Error);
+        if has_errors || is_error_expr {
             self.interner.exprs_with_errors.insert(id);
         }
 
@@ -513,18 +519,18 @@ impl Elaborator<'_> {
         for fragment in &fragments {
             if let FmtStrFragment::Interpolation(ident_name, location) = fragment {
                 let (typ, expr_id) = match self
-                    .get_ident_from_path(TypedPath::from_single(ident_name.clone(), *location))
+                    .resolve_path_as_value(TypedPath::from_single(ident_name.clone(), *location))
                 {
-                    Some(IdentFromPath::Variable(variable)) => {
+                    Some(PathValue::Variable(variable)) => {
                         self.handle_local_variable(&variable);
                         self.elaborate_fmt_string_ident(variable.ident, *location)
                     }
-                    Some(IdentFromPath::Definition { id, item: _ }) => {
+                    Some(PathValue::Definition { id, item: _ }) => {
                         self.handle_definition_id(id, *location);
                         let hir_ident = HirIdent::non_trait_method(id, *location);
                         self.elaborate_fmt_string_ident(hir_ident, *location)
                     }
-                    Some(IdentFromPath::TypeAlias(_)) | None => {
+                    Some(PathValue::TypeAlias(_)) | None => {
                         let hir_expr = HirExpression::Error;
                         let expr_id = self.intern_expr(hir_expr, *location);
                         let typ = Type::Error;
@@ -976,6 +982,7 @@ impl Elaborator<'_> {
             self.interner,
         );
 
+        let trait_constraints_checkpoint = self.pending_trait_constraint_checkpoint();
         let func_type = self.type_check_variable(function_name, &function_id, generics.clone());
 
         let function_id = self.intern_expr_type(function_id, func_type.clone());
@@ -1045,6 +1052,13 @@ impl Elaborator<'_> {
         // Type check the new call now that it has been changed from a method call
         // to a function call. This way we avoid duplicating code.
         let typ = self.type_check_call(&function_call, func_type, function_args, location);
+
+        // Argument unification may have made some constraints pushed by `type_check_variable`
+        // concrete. Resolve those now so any associated-type variables they bind are
+        // available before the caller unifies `typ` against an outer annotation. We bound
+        // the scan to constraints introduced by *this* call so per-call cost stays O(1)
+        // in the size of the surrounding function's accumulated constraint queue.
+        self.try_resolve_trait_constraints_since(trait_constraints_checkpoint);
 
         (function_call, typ)
     }
@@ -1226,7 +1240,7 @@ impl Elaborator<'_> {
         };
         let struct_id = struct_type.borrow().id;
 
-        self.mark_struct_as_constructed(struct_type.clone());
+        self.mark_struct_as_constructed(&struct_type);
 
         // `last_segment` is optional if this constructor was resolved from a quoted type
         let mut generics = generics.clone();
@@ -1268,12 +1282,8 @@ impl Elaborator<'_> {
             .get_fields_with_visibility(&generics)
             .expect("This type should already be validated to be a struct");
 
-        let fields = self.resolve_constructor_expr_fields(
-            struct_type.clone(),
-            field_types,
-            fields,
-            location,
-        );
+        let fields =
+            self.resolve_constructor_expr_fields(&struct_type, field_types, fields, location);
         let expr = HirExpression::Constructor(HirConstructorExpression {
             fields,
             r#type: struct_type.clone(),
@@ -1287,7 +1297,7 @@ impl Elaborator<'_> {
 
     /// Mark a struct as used in the [UsageTracker][crate::usage_tracker::UsageTracker].
     #[tracing::instrument(level = "trace", skip_all)]
-    pub(super) fn mark_struct_as_constructed(&mut self, struct_type: Shared<DataType>) {
+    pub(super) fn mark_struct_as_constructed(&mut self, struct_type: &Shared<DataType>) {
         let struct_type = struct_type.borrow();
         let parent_module_id = struct_type.id.parent_module_id(self.def_maps);
         self.usage_tracker.mark_as_used(parent_module_id, &struct_type.name, Namespace::Type);
@@ -1299,7 +1309,7 @@ impl Elaborator<'_> {
     #[tracing::instrument(level = "trace", skip_all)]
     fn resolve_constructor_expr_fields(
         &mut self,
-        struct_type: Shared<DataType>,
+        struct_type: &Shared<DataType>,
         field_types: Vec<(String, ItemVisibility, Type)>,
         fields: Vec<(Ident, Expression)>,
         location: Location,
@@ -1331,7 +1341,7 @@ impl Elaborator<'_> {
                 &field_name,
                 &mut seen_fields,
                 &mut unseen_fields,
-                &struct_type,
+                struct_type,
             ) {
                 self.unify_with_coercions(
                     &field_type,
@@ -1365,7 +1375,7 @@ impl Elaborator<'_> {
             ret.push((field_name, resolved));
         }
 
-        self.report_missing_fields(unseen_fields, location, &struct_type);
+        self.report_missing_fields(unseen_fields, location, struct_type);
         ret
     }
 
@@ -1479,7 +1489,7 @@ impl Elaborator<'_> {
 
         let file = infix.operator.location().file;
         let operator = HirBinaryOp::new(infix.operator, file);
-        self.finish_infix(lhs, lhs_type, operator, rhs, rhs_type, location)
+        self.finish_infix(lhs, &lhs_type, operator, rhs, &rhs_type, location)
     }
 
     /// Complete infix elaboration given pre-elaborated operands.
@@ -1490,10 +1500,10 @@ impl Elaborator<'_> {
     pub(super) fn finish_infix(
         &mut self,
         lhs: ExprId,
-        lhs_type: Type,
+        lhs_type: &Type,
         operator: HirBinaryOp,
         rhs: ExprId,
-        rhs_type: Type,
+        rhs_type: &Type,
         location: Location,
     ) -> (ExprId, Type) {
         let opt_trait_id = self.interner.try_get_operator_trait_method(operator.kind);
@@ -1508,10 +1518,10 @@ impl Elaborator<'_> {
 
         let expr_id = self.intern_expr(expr, location);
 
-        let result = self.infix_operand_type_rules(&lhs_type, &operator, &rhs_type, location);
+        let result = self.infix_operand_type_rules(lhs_type, &operator, rhs_type, location);
         let typ = self.handle_operand_type_rules_result(
             result,
-            &lhs_type,
+            lhs_type,
             opt_trait_id,
             *expr_id,
             location,
@@ -1758,7 +1768,7 @@ impl Elaborator<'_> {
                 (
                     self.elaborate_pattern(
                         pattern,
-                        typ.clone(),
+                        &typ,
                         parameter,
                         true, // warn_if_unused
                         true, // warn_if_not_mutated

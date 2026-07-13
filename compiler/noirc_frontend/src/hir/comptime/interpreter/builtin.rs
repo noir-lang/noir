@@ -47,7 +47,7 @@ use crate::{
             value::{ExprValue, FormatStringFragment, TypedExpr},
         },
         def_map::{ModuleDefId, ModuleId, fully_qualified_module_path},
-        resolution::visibility::item_in_module_is_visible,
+        resolution::visibility::{item_in_module_is_visible, module_is_visible},
     },
     hir_def::{
         expr::{HirExpression, HirIdent, HirLiteral, ImplKind, TraitItem},
@@ -192,11 +192,11 @@ impl Interpreter<'_, '_> {
             "module_name" => module_name(interner, arguments, location),
             "module_parent" => module_parent(self, arguments, return_type, location),
             "module_structs" => module_structs(self, arguments, location),
-            "modulus_be_bits" => modulus_be_bits(arguments, location),
-            "modulus_be_bytes" => modulus_be_bytes(arguments, location),
-            "modulus_le_bits" => modulus_le_bits(arguments, location),
-            "modulus_le_bytes" => modulus_le_bytes(arguments, location),
-            "modulus_num_bits" => modulus_num_bits(arguments, location),
+            "modulus_be_bits" => modulus_be_bits(&arguments, location),
+            "modulus_be_bytes" => modulus_be_bytes(&arguments, location),
+            "modulus_le_bits" => modulus_le_bits(&arguments, location),
+            "modulus_le_bytes" => modulus_le_bytes(&arguments, location),
+            "modulus_num_bits" => modulus_num_bits(&arguments, location),
             "quoted_as_expr" => quoted_as_expr(self.elaborator, arguments, return_type, location),
             "quoted_as_module" => quoted_as_module(self, arguments, return_type, location),
             "quoted_as_trait_constraint" => quoted_as_trait_constraint(self, arguments, location),
@@ -662,8 +662,8 @@ fn collect_meta_attribute_args(
         .collect()
 }
 
-/// Build the `[[Quoted]]` value returned by `named_attribute_args`: an outer slice with one
-/// entry per attribute occurrence, an inner slice of that occurrence's arguments, each argument
+/// Build the `[[Quoted]]` value returned by `named_attribute_args`: an outer vector with one
+/// entry per attribute occurrence, an inner vector of that occurrence's arguments, each argument
 /// a token stream that can be spliced into generated code.
 fn named_attribute_args_value(
     occurrences: Vec<Vec<Expression>>,
@@ -1910,7 +1910,7 @@ fn expr_as_binary_op(
 
             tuple_types.pop().unwrap();
             let binary_op_type = tuple_types.pop().unwrap();
-            let binary_op = Shared::new(new_binary_op(infix_expr.operator, binary_op_type));
+            let binary_op = Shared::new(new_binary_op(&infix_expr.operator, binary_op_type));
             let lhs = Shared::new(Value::expression(infix_expr.lhs.kind));
             let rhs = Shared::new(Value::expression(infix_expr.rhs.kind));
             Some(Value::Tuple(vec![lhs, binary_op, rhs]))
@@ -2122,7 +2122,7 @@ fn expr_as_if(
     expr_as(interner, arguments, return_type.clone(), location, |expr| {
         if let ExprValue::Expression(ExpressionKind::If(if_expr)) = expr {
             // Get the type of `Option<Expr>`
-            let option_type = extract_option_generic_type(return_type.clone());
+            let option_type = extract_option_generic_type(return_type);
             let Type::Tuple(option_types) = option_type else {
                 panic!("Expected the return type option generic arg to be a tuple");
             };
@@ -2679,12 +2679,20 @@ fn function_def_as_typed_expr(
         let defining_module = interpreter.elaborator.interner.function_module(func_id);
         let visibility = interpreter.elaborator.interner.function_visibility(func_id);
         let caller_module = interpreter.elaborator.module_id();
-        if !item_in_module_is_visible(
+        // Check both function visibility and module visibility:  a `pub` function in a private
+        // module is not reachable.
+        let visible = item_in_module_is_visible(
             interpreter.elaborator.def_maps,
             caller_module,
             defining_module,
             visibility,
-        ) {
+        ) && module_is_visible(
+            defining_module,
+            caller_module,
+            interpreter.elaborator.interner,
+            interpreter.elaborator.def_maps,
+        );
+        if !visible {
             let name = interpreter.elaborator.interner.function_name(&func_id).to_string();
             let defining_module = fully_qualified_module_path(
                 interpreter.elaborator.def_maps,
@@ -3094,8 +3102,8 @@ fn module_name(
     Ok(Value::Quoted(tokens))
 }
 
-fn modulus_be_bits(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
-    check_argument_count(0, &arguments, location)?;
+fn modulus_be_bits(arguments: &[(Value, Location)], location: Location) -> IResult<Value> {
+    check_argument_count(0, arguments, location)?;
 
     let bits = FieldElement::modulus().to_radix_be(2);
     let bits_vector = bits.into_iter().map(|bit| Value::Bool(bit != 0)).collect();
@@ -3104,8 +3112,8 @@ fn modulus_be_bits(arguments: Vec<(Value, Location)>, location: Location) -> IRe
     Ok(Value::Vector(bits_vector, typ))
 }
 
-fn modulus_be_bytes(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
-    check_argument_count(0, &arguments, location)?;
+fn modulus_be_bytes(arguments: &[(Value, Location)], location: Location) -> IResult<Value> {
+    check_argument_count(0, arguments, location)?;
 
     let bytes = FieldElement::modulus().to_bytes_be();
     let bytes_vector = bytes.into_iter().map(Value::u8).collect();
@@ -3115,7 +3123,7 @@ fn modulus_be_bytes(arguments: Vec<(Value, Location)>, location: Location) -> IR
     Ok(Value::Vector(bytes_vector, typ))
 }
 
-fn modulus_le_bits(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
+fn modulus_le_bits(arguments: &[(Value, Location)], location: Location) -> IResult<Value> {
     let Value::Vector(bits, typ) = modulus_be_bits(arguments, location)? else {
         unreachable!("modulus_be_bits must return vector")
     };
@@ -3123,7 +3131,7 @@ fn modulus_le_bits(arguments: Vec<(Value, Location)>, location: Location) -> IRe
     Ok(Value::Vector(reversed_bits, typ))
 }
 
-fn modulus_le_bytes(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
+fn modulus_le_bytes(arguments: &[(Value, Location)], location: Location) -> IResult<Value> {
     let Value::Vector(bytes, typ) = modulus_be_bytes(arguments, location)? else {
         unreachable!("modulus_be_bytes must return vector")
     };
@@ -3131,8 +3139,8 @@ fn modulus_le_bytes(arguments: Vec<(Value, Location)>, location: Location) -> IR
     Ok(Value::Vector(reversed_bytes, typ))
 }
 
-fn modulus_num_bits(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
-    check_argument_count(0, &arguments, location)?;
+fn modulus_num_bits(arguments: &[(Value, Location)], location: Location) -> IResult<Value> {
+    check_argument_count(0, arguments, location)?;
     let bits = FieldElement::max_num_bits().into();
     Ok(Value::u64(bits))
 }

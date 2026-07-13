@@ -6,23 +6,29 @@ use itertools::Itertools;
 use super::Elaborator;
 use crate::TypeAlias;
 use crate::ast::{
-    Expression, ExpressionKind, GenericTypeArgs, Ident, Path, TypePath, UnresolvedTypeExpression,
+    Expression, ExpressionKind, GenericTypeArgs, Ident, Path, PathKind, TypePath,
+    UnresolvedTypeExpression,
 };
 use crate::elaborator::TypedPath;
 use crate::elaborator::function_context::BindableTypeVariableKind;
-use crate::elaborator::path_resolution::PathResolutionItem;
-use crate::elaborator::path_resolution::TypedPathSegment;
-use crate::elaborator::patterns::{IdentFromPath, Variable};
+use crate::elaborator::path_resolution::{
+    PathResolution, PathResolutionItem, Turbofish, TypedPathSegment,
+};
+use crate::elaborator::patterns::{PathValue, Variable};
 use crate::elaborator::types::{SELF_TYPE_NAME, WildcardAllowed};
 use crate::hir::def_collector::dc_crate::CompilationError;
+use crate::hir::def_map::ModuleId;
 use crate::hir::resolution::errors::ResolverError;
+use crate::hir::resolution::import::PathResolutionError;
 use crate::hir::type_check::TypeCheckError;
 use crate::hir_def::expr::{
     HirExpression, HirIdent, HirMethodReference, HirTraitMethodReference, ImplKind, TraitItem,
 };
+use crate::hir_def::traits::TraitConstraint;
 use crate::node_interner::pusher::{HasLocation, PushedExpr};
 use crate::node_interner::{
-    DefinitionId, DefinitionInfo, DefinitionKind, ExprId, TraitImplId, TraitImplKind, TypeAliasId,
+    DefinitionId, DefinitionInfo, DefinitionKind, ExprId, FuncId, TraitId, TraitImplId,
+    TraitImplKind, TypeAliasId,
 };
 use crate::{Kind, Type, TypeBindings, TypeVariable, TypeVariableId};
 use iter_extended::{btree_map, vecmap};
@@ -42,6 +48,83 @@ pub(crate) enum VariableResolution {
     Ident(HirIdent, Option<PathResolutionItem>),
     /// The path resolved to a type alias that is numeric, infinitely recursive or one that errored.
     TypeAlias(TypeAliasId),
+}
+
+/// Describes how the type-level generics of a path item (everything before the final method)
+/// should be bound when the item resolves to a function.
+enum ItemTypeBinding {
+    /// Nothing to bind.
+    None,
+    /// A concrete self type to unify against the impl's declared self type, binding the impl's
+    /// generics. Used whenever a method is reached through a concrete type — a (possibly
+    /// partially concrete) data type `S::<u32, bool>::foo`, a primitive `str::<3>::foo`, a type
+    /// alias `type Pair = (u8, u32); Pair::foo`, or `Self::foo` inside an impl.
+    ConcreteSelfType(Type),
+    /// A concrete type to bind to the function's `Self` generic, leaving impl selection to
+    /// trait constraint solving. Used for `<Type as Trait>::foo`.
+    SelfGeneric(Type),
+    /// The trait's declared generic arguments to bind, in order. Used for a static method reached
+    /// through a trait, e.g. `Trait::<u32>::foo`, where the turbofish provides the trait's
+    /// generics rather than a self type.
+    TraitGenerics(Vec<Type>),
+    /// An enum whose variant constructor is being called (e.g. `Foo::<u32>::Eggs`), carrying the
+    /// enum's generic arguments. A constructor has no impl and no self type, so the enum's
+    /// generics are bound directly rather than by unifying a self type against an impl.
+    EnumVariantConstructor(Vec<Type>),
+}
+
+/// A path's prefix resolved into [its kind](PathPrefixKind) plus the "rest" — the last segment
+/// (the item accessed on the prefix) and the prefix's own turbofish. Produced by
+/// [`Elaborator::resolve_path_prefix`]; [`Elaborator::resolve_prefixed_variable`] resolves the last
+/// segment against the kind without re-deriving anything from the original path.
+#[derive(Debug)]
+struct ResolvedPrefix {
+    /// The path's last segment: the item being accessed on the prefix.
+    last_segment: TypedPathSegment,
+    /// Turbofish on the prefix's own last segment (e.g. the `<T>` in `Foo::<T>::bar`).
+    turbofish: Option<Turbofish>,
+    kind: PathPrefixKind,
+}
+
+/// What the prefix of a path (every segment but the last) is, when the path is used as an
+/// expression. This describes *what the prefix is*, not the already-resolved item; the shared
+/// "rest" (last segment, turbofish) lives on [`ResolvedPrefix`].
+#[derive(Debug)]
+enum PathPrefixKind {
+    /// `Self` inside a trait *impl*, where `Self` is the impl's concrete type (carried here, along
+    /// with the impl) since a trait impl always has both. The last segment is an associated-type
+    /// method, an associated constant, a primitive-`Self` method, or a plain method on the self
+    /// type ([`Elaborator::resolve_self_in_trait_impl`]).
+    SelfInTraitImpl { self_type: Type, trait_impl_id: TraitImplId },
+    /// `Self` inside a trait *definition* (carried here): an assumed constraint on the current
+    /// trait (or a supertrait reached through it) ([`Elaborator::resolve_self_in_trait`]).
+    SelfInTrait { trait_id: TraitId },
+    /// `Self` as a plain concrete type (an inherent impl, or any other context where `Self` names
+    /// a data type): the last segment resolves like `Type::method`
+    /// ([`Elaborator::resolve_self_as_concrete_type`]).
+    SelfInImpl,
+    /// A generic parameter with `: Trait` bound(s) in scope (e.g. `T` in `T::method`); the carried
+    /// constraints are the matched bounds. The last segment is a method or associated constant
+    /// reached through one of them.
+    BoundedGeneric(Vec<TraitConstraint>),
+    /// A trait (e.g. `Trait` in `Trait::method` / `Trait::CONST`). The last segment is a trait
+    /// static method or an associated constant.
+    Trait { trait_id: TraitId, resolution: PathResolution },
+    /// A concrete type, type alias, or primitive type (e.g. `Type` in `Type::method`). The last
+    /// segment is an inherent or qualified trait method.
+    Type { resolution: PathResolution },
+    /// A module (e.g. `foo::bar` in `foo::bar::GLOBAL`). The last segment is an ordinary value
+    /// item, resolved as a value directly in `module_id`. `errors` are the prefix's own resolution
+    /// errors (e.g. an intermediate segment's visibility), reported when the last segment resolves.
+    Module { module_id: ModuleId, errors: Vec<PathResolutionError> },
+    /// The prefix is `Self` but there is no self type in scope (e.g. in a free function), so `Self`
+    /// names nothing.
+    SelfNotInScope,
+    /// The prefix is not something that can carry an associated item: it is not a type, trait, or
+    /// module (it is a value, or it failed to resolve), so the path names nothing. The carried error
+    /// (either the prefix's own resolution failure, or that it is a value rather than a namespace) is
+    /// reported as-is.
+    InvalidPrefix { error: PathResolutionError },
 }
 
 impl Elaborator<'_> {
@@ -183,10 +266,10 @@ impl Elaborator<'_> {
 
         let definition_id = hir_ident.as_ref().map(|ident| ident.id);
 
-        let (type_generics, self_generic) = if let Some(item) = item {
-            self.resolve_item_turbofish_and_self_type(item)
+        let item_type_binding = if let Some(item) = item {
+            self.resolve_item_type_binding(item)
         } else {
-            (Vec::new(), None)
+            ItemTypeBinding::None
         };
 
         let definition = definition_id.map(|id| self.interner.definition(id));
@@ -198,94 +281,43 @@ impl Elaborator<'_> {
         let generics = if let Some(DefinitionKind::Function(func_id)) = &definition_kind {
             self.usage_tracker.mark_impl_function_as_used(func_id);
 
-            // If there's a self type, bind it to the self type generic
-            if let Some(self_generic) = self_generic {
-                let func_generics = &self.function_meta(*func_id).all_generics;
-                let self_resolved_generic =
-                    func_generics.iter().find(|generic| generic.name.as_str() == SELF_TYPE_NAME);
-                if let Some(self_resolved_generic) = self_resolved_generic {
-                    let type_var = &self_resolved_generic.type_var;
-                    bindings
-                        .insert(type_var.id(), (type_var.clone(), type_var.kind(), self_generic));
-                }
-            }
-
-            // If this is a function call on a type that has generics, we need to bind those generic types.
-            if !type_generics.is_empty() {
-                // We must only bind the type-level portion here; method generics are handled
-                // separately by the method turbofish.
-                let func_meta = self.function_meta(*func_id);
-                let impl_generics = vecmap(func_meta.impl_generics(), |g| g.type_var.clone());
-                let self_type =
-                    func_meta.self_type.as_ref().map(|t| t.follow_bindings_shallow().into_owned());
-
-                // An enum variant constructor (e.g. `Foo::<u32>::Eggs`) has no `impl_generics`
-                // and no `self_type`; the enum's generics are its `direct_generics`. The
-                // type-segment turbofish provides types for exactly those generics, so bind
-                // them directly. `type_generics` was resolved against the enum's generics, so
-                // its length matches `direct_generics`.
-                if func_meta.enum_variant_index.is_some() {
-                    let direct_generics =
-                        vecmap(&func_meta.direct_generics, |g| g.type_var.clone());
-                    for (type_generic, type_var) in
-                        type_generics.into_iter().zip_eq(direct_generics)
-                    {
-                        bindings.insert(
-                            type_var.id(),
-                            (type_var.clone(), type_var.kind(), type_generic),
-                        );
-                    }
-                }
-                // For partially concrete impls (e.g. `impl<B> S<u32, B>`), the number of
-                // impl generics differs from the number of struct generics. The turbofish
-                // `S::<u32, bool>` provides type_generics aligned with the struct's params
-                // [A, B], not the impl's generics [B]. Replace each impl generic in
-                // `self_type`'s args with a fresh type variable and unify those with the
-                // turbofish-provided type generics. The fresh type variables get bound by
-                // unification, and we record those bindings for the impl generics.
-                else if let Some(Type::DataType(_, self_type_args)) = self_type {
-                    assert_eq!(
-                        type_generics.len(),
-                        self_type_args.len(),
-                        "ICE: turbofish type_generics count ({}) should match self_type_args count ({})",
-                        type_generics.len(),
-                        self_type_args.len(),
-                    );
-                    let impl_replacements: TypeBindings = impl_generics
+            match item_type_binding {
+                ItemTypeBinding::None => {}
+                ItemTypeBinding::SelfGeneric(self_generic) => {
+                    // Bind the concrete self type to the function's `Self` generic, leaving impl
+                    // selection to trait constraint solving.
+                    let func_generics = &self.function_meta(*func_id).all_generics;
+                    let self_resolved_generic = func_generics
                         .iter()
-                        .map(|type_var| {
-                            let kind = type_var.kind();
-                            let fresh = self.interner.next_type_variable_with_kind(kind.clone());
-                            (type_var.id(), (type_var.clone(), kind, fresh))
-                        })
-                        .collect();
-                    for (type_generic, self_type_arg) in
-                        type_generics.into_iter().zip_eq(self_type_args)
-                    {
-                        let substituted = self_type_arg.substitute(&impl_replacements);
-                        self.unify_or_type_mismatch(&type_generic, &substituted, location);
-                    }
-                    bindings.extend(impl_replacements);
-                } else if type_generics.len() <= impl_generics.len() {
-                    // For trait function paths, impl_generics may include Self and associated
-                    // type generics after the trait's declared generics. The turbofish only
-                    // provides types for the declared generics, which are always the first
-                    // elements. Slice to match.
-                    let impl_generics = &impl_generics[..type_generics.len()];
-                    for (type_generic, type_var) in type_generics.into_iter().zip_eq(impl_generics)
-                    {
+                        .find(|generic| generic.name.as_str() == SELF_TYPE_NAME);
+                    if let Some(self_resolved_generic) = self_resolved_generic {
+                        let type_var = &self_resolved_generic.type_var;
                         bindings.insert(
                             type_var.id(),
-                            (type_var.clone(), type_var.kind(), type_generic),
+                            (type_var.clone(), type_var.kind(), self_generic),
                         );
                     }
-                } else {
-                    unreachable!(
-                        "type_generics.len() ({}) > impl_generics.len() ({}): \
-                        turbofish resolution should normalize the count",
-                        type_generics.len(),
-                        impl_generics.len()
+                }
+                ItemTypeBinding::ConcreteSelfType(self_type) => {
+                    // The method was reached through a concrete type. Unify that type against the
+                    // impl's self type to bind the impl's generics, regardless of which type former
+                    // it is (data type, array, slice, tuple, primitive, function type, ...).
+                    self.bind_impl_generics_from_self_type(
+                        *func_id,
+                        &self_type,
+                        &mut bindings,
+                        location,
                     );
+                }
+                ItemTypeBinding::EnumVariantConstructor(type_generics) => {
+                    self.bind_enum_variant_constructor_generics(
+                        *func_id,
+                        type_generics,
+                        &mut bindings,
+                    );
+                }
+                ItemTypeBinding::TraitGenerics(trait_generics) => {
+                    self.bind_trait_function_generics(*func_id, trait_generics, &mut bindings);
                 }
             }
 
@@ -345,7 +377,7 @@ impl Elaborator<'_> {
     /// to the variant global's `Forall` generics (the enum's generics), validating the count the
     /// same way [`Self::resolve_item_turbofish_generics`] does. A non-generic enum has no `Forall`,
     /// so a turbofish on it produces a count-mismatch error.
-    fn bind_enum_variant_global_turbofish(
+    pub(super) fn bind_enum_variant_global_turbofish(
         &mut self,
         definition_id: DefinitionId,
         turbofish: &[Located<Type>],
@@ -410,7 +442,7 @@ impl Elaborator<'_> {
                 });
                 Some(self.elaborate_type_path_impl_with_resolved_generics(
                     associated_type,
-                    method.ident.clone(),
+                    &method.ident,
                     resolved_generics,
                     variable.segments[1].location,
                 ))
@@ -468,12 +500,7 @@ impl Elaborator<'_> {
             return None;
         }
 
-        Some(self.elaborate_type_path_impl(
-            self_type.clone(),
-            item.ident.clone(),
-            None,
-            self_location,
-        ))
+        Some(self.elaborate_type_path_impl(self_type.clone(), &item.ident, None, self_location))
     }
 
     /// Intern an identifier expression referring to an associated constant of the given type.
@@ -496,7 +523,7 @@ impl Elaborator<'_> {
     /// current scope (a local variable, or a value item — global, function, enum-variant global,
     /// numeric type alias) via [`Self::resolve_unprefixed_variable`].
     #[tracing::instrument(level = "trace", skip_all)]
-    fn resolve_variable(&mut self, path: TypedPath) -> Option<VariableResolution> {
+    pub(super) fn resolve_variable(&mut self, path: TypedPath) -> Option<VariableResolution> {
         if path.segments.len() > 1 {
             self.resolve_prefixed_variable(path)
         } else {
@@ -504,14 +531,190 @@ impl Elaborator<'_> {
         }
     }
 
+    /// Resolve a [`TypedPath`] that has a prefix (more than one segment) to the item it names —
+    /// fully: it always resolves the path, reports an error, or falls back to a value lookup, so
+    /// the caller never needs a further fallback. [`Self::resolve_path_prefix`] classifies the
+    /// prefix once; the last segment is resolved against that classification directly in the
+    /// already-resolved prefix (a module value via [`Self::resolve_value_in_module`], an enum
+    /// variant or associated constant on a type via [`Self::resolve_value_in_type`]).
+    ///
+    /// Returns `None` only when an error has already been reported (an ambiguous trait method, or
+    /// an unresolved name), so the caller should produce an error expression rather than retry.
+    #[tracing::instrument(level = "trace", skip_all)]
+    fn resolve_prefixed_variable(&mut self, path: TypedPath) -> Option<VariableResolution> {
+        let ResolvedPrefix { last_segment, turbofish, kind } = self.resolve_path_prefix(&path);
+
+        match kind {
+            // `Self` is contextual; each context resolves the last segment its own way.
+            PathPrefixKind::SelfInTraitImpl { self_type, trait_impl_id } => self
+                .resolve_self_in_trait_impl(
+                    path,
+                    self_type,
+                    trait_impl_id,
+                    last_segment,
+                    turbofish,
+                ),
+            PathPrefixKind::SelfInTrait { trait_id } => {
+                self.resolve_self_in_trait(path, trait_id, last_segment, turbofish)
+            }
+            // `Self` is a concrete type here (classification guarantees `self_type` exists), so it
+            // resolves exactly like `Type::method`.
+            PathPrefixKind::SelfInImpl => {
+                self.resolve_self_as_concrete_type(path, last_segment, turbofish)
+            }
+            PathPrefixKind::BoundedGeneric(bounds) => {
+                self.resolve_bounded_generic_item(bounds, &last_segment, turbofish, path.location)
+            }
+            PathPrefixKind::Type { resolution } => {
+                let is_self_prefix = false;
+                self.resolve_method_on_type_prefix(
+                    last_segment,
+                    turbofish,
+                    is_self_prefix,
+                    resolution,
+                    path.location,
+                )
+            }
+            // A trait prefix: the last segment is either a trait static method (`Trait::method`)
+            // or an associated constant (`Trait::CONST`).
+            PathPrefixKind::Trait { trait_id, resolution } => self.resolve_trait_item_on_prefix(
+                trait_id,
+                turbofish,
+                &last_segment,
+                resolution,
+                path.location,
+            ),
+            // A module prefix: the last segment is an ordinary value item, resolved as a value
+            // directly in the already-resolved module.
+            PathPrefixKind::Module { module_id, errors } => {
+                self.push_errors(errors);
+                self.resolve_value_in_module(module_id, last_segment)
+            }
+            // No usable prefix: the path names nothing, and a value lookup would only rediscover
+            // the resolution failure already carried here, so report it directly.
+            PathPrefixKind::InvalidPrefix { error } => {
+                self.push_err(error);
+                None
+            }
+            // `Self` with no self type in scope: report it directly.
+            PathPrefixKind::SelfNotInScope => {
+                self.push_err(PathResolutionError::Unresolved(path.segments[0].ident.clone()));
+                None
+            }
+        }
+    }
+
+    /// Classify the prefix (every segment but the last) of a path used as an expression. This does
+    /// not resolve the last segment — it only answers "what is the prefix?", which the caller uses
+    /// to decide how to resolve the last segment. The caller only invokes this for a path that has
+    /// a prefix (more than one segment).
+    ///
+    /// The classification order is significant: it decides which interpretation wins when a path
+    /// is ambiguous, and mirrors the historical probe order. `Self` and a bounded generic are
+    /// recognized from context (`Self` is contextual; a generic is not in the module namespace)
+    /// before the prefix is resolved as a type to tell trait-, type-, and module-prefixed forms
+    /// apart.
+    #[tracing::instrument(level = "trace", skip_all)]
+    fn resolve_path_prefix(&mut self, path: &TypedPath) -> ResolvedPrefix {
+        // The caller (`resolve_variable`) only takes this path for a multi-segment path, so popping
+        // the last segment is always valid.
+        debug_assert!(path.segments.len() >= 2);
+
+        let mut prefix = path.clone();
+        let last_segment = prefix.pop();
+        let turbofish = prefix.last_segment().turbofish();
+
+        // `Self` and a generic parameter are only meaningful as a plain path: `crate::Self` /
+        // `super::T` name an item in another module, not the contextual `Self` or an in-scope
+        // generic, so they must not be classified as such.
+        let kind = if path.kind == PathKind::Plain && path.segments[0].ident.is_self_type_name() {
+            // `Self` is contextual; which kind it is depends only on where we are (a trait impl, a
+            // trait definition, somewhere `Self` is a plain type, or nowhere at all), so it is
+            // classified here and the matching arm resolves the last segment.
+            if let Some(trait_impl_id) = self.current_trait_impl {
+                let self_type =
+                    self.self_type.clone().expect("a trait impl always has a self type");
+                PathPrefixKind::SelfInTraitImpl { self_type, trait_impl_id }
+            } else if let Some(trait_id) = self.current_trait {
+                PathPrefixKind::SelfInTrait { trait_id }
+            } else if self.self_type.is_some() {
+                PathPrefixKind::SelfInImpl
+            } else {
+                PathPrefixKind::SelfNotInScope
+            }
+        } else if path.kind == PathKind::Plain
+            && let Some(bounds) = self.matching_generic_bounds(path)
+        {
+            // A generic parameter (e.g. `T`) with a `T: Trait` bound in scope. A generic is not in
+            // the module namespace, so this is recognized from the in-scope bounds, not resolution.
+            PathPrefixKind::BoundedGeneric(bounds)
+        } else {
+            // Otherwise the prefix is resolved as a type to distinguish trait/type/module.
+            let prefix_last_ident = prefix.last_segment().ident;
+            match self.use_path_as_type(prefix) {
+                Ok(resolution) => match &resolution.item {
+                    PathResolutionItem::Trait(trait_id) => {
+                        PathPrefixKind::Trait { trait_id: *trait_id, resolution }
+                    }
+                    PathResolutionItem::Type(..)
+                    | PathResolutionItem::TypeAlias(..)
+                    | PathResolutionItem::PrimitiveType(..) => PathPrefixKind::Type { resolution },
+                    PathResolutionItem::Module(module_id) => PathPrefixKind::Module {
+                        module_id: *module_id,
+                        errors: resolution.errors.clone(),
+                    },
+                    // Resolving a type path falls back to the value namespace, so the prefix's last
+                    // segment can also resolve to a value item; that (and an associated type) can't
+                    // carry the last segment of the path as an associated item, so the path names
+                    // nothing. Listed explicitly (rather than `_`) so a new `PathResolutionItem`
+                    // must be classified here.
+                    PathResolutionItem::TraitAssociatedType(..)
+                    | PathResolutionItem::Global(..)
+                    | PathResolutionItem::EnumVariant(..)
+                    | PathResolutionItem::ModuleFunction(..)
+                    | PathResolutionItem::Method(..)
+                    | PathResolutionItem::SelfMethod(..)
+                    | PathResolutionItem::TypeAliasFunction(..)
+                    | PathResolutionItem::TraitFunction(..)
+                    | PathResolutionItem::TypeTraitFunction(..)
+                    | PathResolutionItem::PrimitiveFunction(..)
+                    | PathResolutionItem::TraitConstant(..) => PathPrefixKind::InvalidPrefix {
+                        error: PathResolutionError::Unresolved(prefix_last_ident),
+                    },
+                },
+                Err(error) => PathPrefixKind::InvalidPrefix { error },
+            }
+        };
+
+        ResolvedPrefix { last_segment, turbofish, kind }
+    }
+
+    /// If the path's first segment names a generic parameter with `: Trait` bound(s) in scope,
+    /// return those matching bounds (so `Head::item` can be resolved through them). Only meaningful
+    /// for a two-segment path; a generic is not in the module namespace, so this scans the in-scope
+    /// bounds rather than resolving.
+    pub(super) fn matching_generic_bounds(&self, path: &TypedPath) -> Option<Vec<TraitConstraint>> {
+        if path.segments.len() != 2 {
+            return None;
+        }
+        let head = path.segments[0].ident.as_str();
+        let bounds: Vec<_> = self
+            .trait_bounds
+            .iter()
+            .filter(|constraint| {
+                matches!(&constraint.typ, Type::NamedGeneric(generic) if generic.name.as_str() == head)
+            })
+            .cloned()
+            .collect();
+        (!bounds.is_empty()).then_some(bounds)
+    }
+
     /// Resolve an unprefixed (single-segment) path to a local variable, or to a value item it
     /// names (global, function, enum-variant global, numeric type alias). The counterpart to
-    /// [`Self::resolve_prefixed_variable`]; a prefixed path's value fallback uses
-    /// [`Self::resolve_value_item`], which skips the local-variable lookup.
-    pub(super) fn resolve_unprefixed_variable(
-        &mut self,
-        path: TypedPath,
-    ) -> Option<VariableResolution> {
+    /// [`Self::resolve_prefixed_variable`], which resolves a prefixed path's last segment directly
+    /// in the already-resolved prefix ([`Self::resolve_value_in_module`] /
+    /// [`Self::resolve_value_in_type`]) and never looks for a local variable.
+    fn resolve_unprefixed_variable(&mut self, path: TypedPath) -> Option<VariableResolution> {
         // The location of variables or definitions we register (for LSP) must be that of the
         // path's last segment, as intermediate segments solve to other definitions.
         let location = path.last_ident().location();
@@ -520,19 +723,47 @@ impl Elaborator<'_> {
         // Otherwise, then it is referring to an Identifier
         // This lookup allows support of such statements: let x = foo::bar::SOME_GLOBAL + 10;
         // If the expression is a singular indent, we search the resolver's current scope as normal.
-        let ident_from_path = self.get_ident_from_path(path)?;
-        Some(self.variable_resolution_from_ident_from_path(ident_from_path, location))
+        let ident_from_path = self.resolve_path_as_value(path)?;
+        Some(self.variable_resolution_from_path_value(ident_from_path, location))
     }
 
-    /// Resolve a path's last segment as a value item (a global, function, enum-variant global,
-    /// trait constant, or numeric type alias). Unlike [`Self::resolve_unprefixed_variable`] this does
-    /// not look for a local variable, so it is the value fallback for a prefixed path: its last
-    /// segment is not a method or trait item, and a prefixed path can never name a local variable.
-    pub(super) fn resolve_value_item(&mut self, path: TypedPath) -> Option<VariableResolution> {
-        let location = path.last_ident().location();
-        match self.ident_from_value_item(path) {
+    /// Resolve a module-prefixed path's last segment as a value item, looked up directly in the
+    /// already-resolved prefix `module_id`, avoiding re-resolving the whole path now that the prefix
+    /// is known to be a module. The module counterpart of [`Self::resolve_value_in_type`].
+    fn resolve_value_in_module(
+        &mut self,
+        module_id: ModuleId,
+        last_segment: TypedPathSegment,
+    ) -> Option<VariableResolution> {
+        let location = last_segment.ident.location();
+        let ident = self.lookup_path_as_value_in_module(last_segment, module_id);
+        self.variable_resolution_from_value_item(ident, location)
+    }
+
+    /// Resolve a type-prefixed path's last segment as a value member (an enum variant or associated
+    /// constant) of the already-resolved type `typ`. The type-prefix counterpart of
+    /// [`Self::resolve_value_in_module`], avoiding re-resolving the whole path.
+    pub(super) fn resolve_value_in_type(
+        &mut self,
+        last_segment: &TypedPathSegment,
+        typ: &Type,
+        turbofish: Option<Turbofish>,
+    ) -> Option<VariableResolution> {
+        let location = last_segment.ident.location();
+        let ident = self.lookup_path_as_value_in_type(last_segment, typ, turbofish);
+        self.variable_resolution_from_value_item(ident, location)
+    }
+
+    /// Finish resolving a value item: build the [`VariableResolution`] it denotes, or report the
+    /// error if it could not be resolved as a value.
+    fn variable_resolution_from_value_item(
+        &mut self,
+        ident: Result<PathValue, ResolverError>,
+        location: Location,
+    ) -> Option<VariableResolution> {
+        match ident {
             Ok(ident_from_path) => {
-                Some(self.variable_resolution_from_ident_from_path(ident_from_path, location))
+                Some(self.variable_resolution_from_path_value(ident_from_path, location))
             }
             Err(error) => {
                 self.push_err(error);
@@ -541,57 +772,144 @@ impl Elaborator<'_> {
         }
     }
 
-    /// Build the [`VariableResolution`] an already-resolved [`IdentFromPath`] denotes, registering
+    /// Build the [`VariableResolution`] an already-resolved [`PathValue`] denotes, registering
     /// the reference (for LSP) along the way.
-    fn variable_resolution_from_ident_from_path(
+    fn variable_resolution_from_path_value(
         &mut self,
-        ident_from_path: IdentFromPath,
+        ident_from_path: PathValue,
         location: Location,
     ) -> VariableResolution {
         match ident_from_path {
-            IdentFromPath::Variable(variable) => {
+            PathValue::Variable(variable) => {
                 self.handle_local_variable(&variable);
                 let hir_ident = HirIdent::non_trait_method(variable.ident.id, location);
                 VariableResolution::Ident(hir_ident, None)
             }
-            IdentFromPath::Definition { id, item } => {
+            PathValue::Definition { id, item } => {
                 self.handle_definition_id(id, location);
                 let hir_ident = HirIdent::non_trait_method(id, location);
                 VariableResolution::Ident(hir_ident, Some(item))
             }
-            IdentFromPath::TypeAlias(type_alias_id) => VariableResolution::TypeAlias(type_alias_id),
+            PathValue::TypeAlias(type_alias_id) => VariableResolution::TypeAlias(type_alias_id),
         }
     }
 
-    /// Solve any generics that are part of the path before the function, for example:
+    /// Bind an impl's generics by unifying a concrete `self_type` against the impl's declared
+    /// self type (with the impl's own generics first replaced by fresh type variables). The
+    /// resulting bindings are recorded in `bindings`.
     ///
-    /// ```noir
-    /// foo::Bar::<i32>::baz
-    /// ```
-    /// Solve `<i32>` above
-    #[tracing::instrument(level = "trace", skip_all)]
-    fn resolve_item_turbofish_and_self_type(
+    /// This works for any built-in type former the self type can be (data type, array, slice,
+    /// tuple, string, ...): unifying `(u8, u32)` against `(A, B)`, or `[u8; 4]` against
+    /// `[T; N]`, recovers the impl generics structurally, and is correct regardless of the order
+    /// the impl declares them in, e.g. `impl<let N: u32, T> Trait for [T; N]`.
+    fn bind_impl_generics_from_self_type(
         &mut self,
-        item: PathResolutionItem,
-    ) -> (Vec<Type>, Option<Type>) {
+        func_id: FuncId,
+        self_type: &Type,
+        bindings: &mut TypeBindings,
+        location: Location,
+    ) {
+        let func_meta = self.function_meta(func_id);
+        let impl_generics = vecmap(func_meta.impl_generics(), |g| g.type_var.clone());
+        let Some(impl_self_type) =
+            func_meta.self_type.as_ref().map(|t| t.follow_bindings_shallow().into_owned())
+        else {
+            return;
+        };
+
+        let impl_replacements: TypeBindings = impl_generics
+            .iter()
+            .map(|type_var| {
+                let kind = type_var.kind();
+                let fresh = self.interner.next_type_variable_with_kind(kind.clone());
+                (type_var.id(), (type_var.clone(), kind, fresh))
+            })
+            .collect();
+        let substituted = impl_self_type.substitute(&impl_replacements);
+        self.unify_or_type_mismatch(self_type, &substituted, location);
+        bindings.extend(impl_replacements);
+    }
+
+    /// Bind a trait's declared generics from the turbofish solved for the trait before the method,
+    /// e.g. the `<u32>` in `Trait::<u32>::foo`. We only bind the trait-level portion here; method
+    /// generics are handled separately by the method turbofish.
+    fn bind_trait_function_generics(
+        &mut self,
+        func_id: FuncId,
+        trait_generics: Vec<Type>,
+        bindings: &mut TypeBindings,
+    ) {
+        if trait_generics.is_empty() {
+            return;
+        }
+
+        let func_meta = self.function_meta(func_id);
+        let impl_generics = vecmap(func_meta.impl_generics(), |g| g.type_var.clone());
+
+        // `impl_generics` may include `Self` and associated type generics after the trait's
+        // declared generics. The turbofish only provides types for the declared generics, which
+        // are always the first elements, so slice to match.
+        if trait_generics.len() <= impl_generics.len() {
+            let impl_generics = &impl_generics[..trait_generics.len()];
+            for (trait_generic, type_var) in trait_generics.into_iter().zip_eq(impl_generics) {
+                bindings.insert(type_var.id(), (type_var.clone(), type_var.kind(), trait_generic));
+            }
+        } else {
+            unreachable!(
+                "trait_generics.len() ({}) > impl_generics.len() ({}): \
+                turbofish resolution should normalize the count",
+                trait_generics.len(),
+                impl_generics.len()
+            );
+        }
+    }
+
+    /// Bind an enum's generics for a call to one of its variant constructors, e.g. the `<u32>` in
+    /// `Foo::<u32>::Eggs`. A constructor has no impl and no self type; the enum's generics are its
+    /// `direct_generics`, bound directly from `type_generics` (which was resolved against the
+    /// enum's generics, so its length matches).
+    fn bind_enum_variant_constructor_generics(
+        &mut self,
+        func_id: FuncId,
+        type_generics: Vec<Type>,
+        bindings: &mut TypeBindings,
+    ) {
+        let func_meta = self.function_meta(func_id);
+        let direct_generics = vecmap(&func_meta.direct_generics, |g| g.type_var.clone());
+        for (type_generic, type_var) in type_generics.into_iter().zip_eq(direct_generics) {
+            bindings.insert(type_var.id(), (type_var.clone(), type_var.kind(), type_generic));
+        }
+    }
+
+    /// Determine how the type-level generics of a resolved path item — everything in the path
+    /// before the final method — should be bound. For example, given `foo::Bar::<i32>::baz`, this
+    /// resolves the `Bar::<i32>` portion into the generics (`i32`) that the `baz` call must bind.
+    ///
+    /// The returned [`ItemTypeBinding`] describes which binding strategy applies; see its variants.
+    #[tracing::instrument(level = "trace", skip_all)]
+    fn resolve_item_type_binding(&mut self, item: PathResolutionItem) -> ItemTypeBinding {
         let mut errors = Vec::new();
         let result = match item {
-            PathResolutionItem::Method(struct_id, Some(generics), _func_id) => {
+            PathResolutionItem::Method(struct_id, Some(generics), func_id) => {
                 let generics = self.resolve_struct_id_turbofish_generics(
                     struct_id,
                     Some(generics),
                     &mut errors,
                 );
-                (generics, None)
-            }
-            PathResolutionItem::SelfMethod(_) => {
-                let generics = if let Some(Type::DataType(_, generics)) = &self.self_type {
-                    generics.clone()
+                // An enum variant constructor (e.g. `Foo::<u32>::Eggs`) has no impl and no self
+                // type; its enum generics are bound directly rather than by unifying a self type.
+                if self.function_meta(func_id).enum_variant_index.is_some() {
+                    ItemTypeBinding::EnumVariantConstructor(generics)
                 } else {
-                    Vec::new()
-                };
-                (generics, None)
+                    // Reconstruct the concrete self type `S<generics>` to unify against the impl.
+                    let data_type = self.interner.get_type(struct_id);
+                    ItemTypeBinding::ConcreteSelfType(Type::DataType(data_type, generics))
+                }
             }
+            PathResolutionItem::SelfMethod(_) => match &self.self_type {
+                Some(self_type) => ItemTypeBinding::ConcreteSelfType(self_type.clone()),
+                None => ItemTypeBinding::None,
+            },
             PathResolutionItem::TypeAliasFunction(type_alias_id, generics, _func_id) => {
                 let type_alias = self.interner.get_type_alias(type_alias_id);
                 let type_alias = type_alias.borrow();
@@ -601,12 +919,10 @@ impl Elaborator<'_> {
                     &mut errors,
                 );
 
-                // Now instantiate the underlying struct or alias with those generics, the struct might
-                // have more generics than those in the alias, like in this example:
-                //
-                // type Alias<T> = Struct<T, i32>;
-                let generics = get_type_alias_generics(&type_alias, &generics);
-                (generics, None)
+                // Expand the alias (recursively, through aliases-of-aliases) to its concrete
+                // underlying type, e.g. `type Pair = (u8, u32)` becomes `(u8, u32)`. We later
+                // unify this against the impl's self type to bind the impl's generics.
+                ItemTypeBinding::ConcreteSelfType(alias_concrete_type(&type_alias, &generics))
             }
             PathResolutionItem::TraitFunction(trait_id, Some(generics), _func_id) => {
                 let trait_ = self.interner.get_trait(trait_id);
@@ -622,29 +938,20 @@ impl Elaborator<'_> {
                     generics.location,
                     &mut errors,
                 );
-                (generics, None)
+                ItemTypeBinding::TraitGenerics(generics)
             }
             PathResolutionItem::TypeTraitFunction(self_type, _trait_id, _func_id) => {
-                (Vec::new(), Some(self_type))
+                ItemTypeBinding::SelfGeneric(self_type)
             }
             PathResolutionItem::PrimitiveFunction(primitive_type, turbofish, _func_id) => {
-                let (typ, has_generics) = self.instantiate_primitive_type_with_turbofish(
+                // Build the concrete primitive self type (e.g. `str<3>`) and unify it against the
+                // impl, just like any other concrete type.
+                let (typ, _has_generics) = self.instantiate_primitive_type_with_turbofish(
                     primitive_type,
                     turbofish,
                     &mut errors,
                 );
-                let generics = if has_generics {
-                    match typ {
-                        Type::String(length) => vec![*length],
-                        Type::FmtString(length, element) => vec![*length, *element],
-                        _ => {
-                            unreachable!("ICE: Primitive type has been specified to have generics")
-                        }
-                    }
-                } else {
-                    Vec::new()
-                };
-                (generics, None)
+                ItemTypeBinding::ConcreteSelfType(typ)
             }
             PathResolutionItem::Method(_, None, _)
             | PathResolutionItem::TraitFunction(_, None, _)
@@ -657,7 +964,7 @@ impl Elaborator<'_> {
             | PathResolutionItem::Global(..)
             | PathResolutionItem::EnumVariant(..)
             | PathResolutionItem::ModuleFunction(..)
-            | PathResolutionItem::TraitConstant(..) => (Vec::new(), None),
+            | PathResolutionItem::TraitConstant(..) => ItemTypeBinding::None,
         };
         self.push_errors(errors);
         result
@@ -670,7 +977,7 @@ impl Elaborator<'_> {
         let turbofish = path.turbofish;
         let wildcard_allowed = WildcardAllowed::Yes;
         let typ = self.use_type(path.typ, wildcard_allowed);
-        self.elaborate_type_path_impl(typ, path.item, turbofish, typ_location)
+        self.elaborate_type_path_impl(typ, &path.item, turbofish, typ_location)
     }
 
     /// Variant of [`Self::elaborate_type_path_impl_inner`] that accepts unresolved generics.
@@ -678,7 +985,7 @@ impl Elaborator<'_> {
     fn elaborate_type_path_impl(
         &mut self,
         typ: Type,
-        ident: Ident,
+        ident: &Ident,
         turbofish: Option<GenericTypeArgs>,
         typ_location: Location,
     ) -> (ExprId, Type) {
@@ -686,6 +993,16 @@ impl Elaborator<'_> {
         let check_self_param = false;
 
         self.interner.push_type_ref_location(&typ, typ_location);
+
+        // A type member may be an enum-variant constructor or a trait associated constant (e.g.
+        // `<Foo>::N`, `<E>::A`), which live in the value namespace rather than among the type's
+        // methods; resolve those exactly as a plain `Foo::N` / `E::A` path does. Methods and
+        // associated functions aren't found here, so they fall through to method lookup below.
+        let segment = TypedPathSegment::without_generics(ident.clone(), ident_location);
+        if let Ok(path_value) = self.lookup_path_as_value_in_type(&segment, &typ, None) {
+            let resolution = self.variable_resolution_from_path_value(path_value, ident_location);
+            return self.type_path_value_expr(resolution, &typ, turbofish.as_ref(), ident_location);
+        }
 
         let Some(method) = self.lookup_method(
             &typ,
@@ -708,13 +1025,59 @@ impl Elaborator<'_> {
         self.elaborate_type_path_impl_inner(&typ, typ_location, ident_location, method, generics)
     }
 
+    /// Build the expression for a type-path member (`<Type>::member`) that resolved to a value — an
+    /// enum-variant constructor or an associated constant. An enum-variant constructor is generic
+    /// over its enum's generics, so those are bound from the receiver type `typ` (`<E<bool>>::A` has
+    /// type `E<bool>`, not an unbound `E<_>`), exactly as the segment turbofish binds them for a
+    /// plain `E::<bool>::A` path. `item_turbofish` is the turbofish on the member itself
+    /// (`<Type>::member::<..>`); since the enum's generics already come from `typ`, one on a variant
+    /// specifies them a second time and is reported as an error.
+    fn type_path_value_expr(
+        &mut self,
+        resolution: VariableResolution,
+        typ: &Type,
+        item_turbofish: Option<&GenericTypeArgs>,
+        location: Location,
+    ) -> (ExprId, Type) {
+        // A value member of a type is always an enum-variant constructor or an associated
+        // constant, both of which resolve to an ident (never a local variable or a numeric type
+        // alias).
+        let VariableResolution::Ident(hir_ident, item) = resolution else {
+            unreachable!("a type's value member always resolves to an ident");
+        };
+
+        let mut bindings = TypeBindings::default();
+        if matches!(item, Some(PathResolutionItem::EnumVariant(_)))
+            && let Type::DataType(_, generics) = typ
+        {
+            if let Some(item_turbofish) = item_turbofish.filter(|_| !generics.is_empty()) {
+                let turbofish_location =
+                    item_turbofish.ordered_args.first().map_or(location, |arg| arg.location);
+                self.push_err(ResolverError::DuplicateEnumGenerics {
+                    location: turbofish_location,
+                });
+            }
+            let turbofish = vecmap(generics, |generic| Located::from(location, generic.clone()));
+            self.bind_enum_variant_global_turbofish(
+                hir_ident.id,
+                &turbofish,
+                location,
+                &mut bindings,
+            );
+        }
+        let id = self.intern_expr(HirExpression::Ident(hir_ident.clone(), None), location);
+        let typ = self.type_check_variable_with_bindings(hir_ident, &id, None, bindings);
+        let id = self.intern_expr_type(id, typ.clone());
+        (id, typ)
+    }
+
     /// Variant of [`Self::elaborate_type_path_impl_inner`] that accepts already resolved generics.
     /// Used when the turbofish generics have already been resolved.
     #[tracing::instrument(level = "trace", skip_all)]
     fn elaborate_type_path_impl_with_resolved_generics(
         &mut self,
         typ: Type,
-        ident: Ident,
+        ident: &Ident,
         resolved_generics: Option<Vec<Type>>,
         typ_location: Location,
     ) -> (ExprId, Type) {
@@ -1122,28 +1485,20 @@ impl Elaborator<'_> {
     }
 }
 
+/// Instantiate the [Type] aliased by the [TypeAlias] with the given generic arguments,
+/// recursively expanding aliases-of-aliases, returning the concrete innermost type.
+fn alias_concrete_type(type_alias: &TypeAlias, generics: &[Type]) -> Type {
+    match type_alias.get_type(generics) {
+        Type::Alias(type_alias, generics) => alias_concrete_type(&type_alias.borrow(), &generics),
+        typ => typ,
+    }
+}
+
 /// Returns the name of the data type a [Type] resolves to, looking through a `Forall` quantifier.
 fn data_type_name(typ: &Type) -> Option<String> {
     match typ {
         Type::Forall(_, body) => data_type_name(body),
         Type::DataType(datatype, _) => Some(datatype.borrow().name.to_string()),
         _ => None,
-    }
-}
-
-/// Bind the generics of the [Type] aliased by the [`TypeAlias`] to a list of generic arguments,
-/// recursively expanding the generics aliased aliases, finally returning the generics of the
-/// innermost aliased struct.
-///
-/// Panics if it encounters a type other than alias or struct.
-fn get_type_alias_generics(type_alias: &TypeAlias, generics: &[Type]) -> Vec<Type> {
-    let typ = type_alias.get_type(generics);
-    match typ {
-        Type::DataType(_, generics) => generics,
-        Type::Alias(type_alias, generics) => {
-            get_type_alias_generics(&type_alias.borrow(), &generics)
-        }
-        // Primitive types have no generics
-        _ => Vec::new(),
     }
 }

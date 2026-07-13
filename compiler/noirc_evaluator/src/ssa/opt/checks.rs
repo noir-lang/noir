@@ -179,6 +179,18 @@ pub(super) fn assert_not_mutable_array_set(instruction: &Instruction) {
     );
 }
 
+/// Panics if the instruction is an `EnableSideEffectsIf`.
+///
+/// `enable_side_effects` appears only after flattening, which collapses the function to a single
+/// block, so finding one alongside multiple blocks breaks the assumption that a non-trivial
+/// side-effects predicate is confined to a single block.
+pub(super) fn assert_not_enable_side_effects(instruction: &Instruction) {
+    assert!(
+        !matches!(instruction, Instruction::EnableSideEffectsIf { .. }),
+        "enable_side_effects instruction found"
+    );
+}
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------

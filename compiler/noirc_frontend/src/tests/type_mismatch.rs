@@ -427,7 +427,7 @@ fn type_mismatch_same_name_different_fully_qualified_name_cyclic_types() {
 }
 
 #[test]
-fn slice_used_in_assert_error_message() {
+fn vector_used_in_assert_error_message() {
     let src = r#"
     fn main() {
         let a: [Field] = @[1, 2, 3];

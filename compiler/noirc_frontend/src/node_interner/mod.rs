@@ -617,6 +617,7 @@ impl NodeInterner {
             associated_types,
             associated_type_bounds: HashMap::default(),
             where_clause: Vec::new(),
+            implicit_associated_type_constraints: Vec::new(),
             all_generics: Vec::new(),
             associated_constant_ids,
         };
@@ -1384,6 +1385,7 @@ impl NodeInterner {
             visibility: ItemVisibility::Public,
             self_type_typevar: TypeVariable::unbound(self_type_typevar, Kind::Normal),
             where_clause: vec![],
+            implicit_associated_type_constraints: vec![],
             all_generics: vec![],
             associated_constant_ids: Default::default(),
         };
@@ -1637,7 +1639,7 @@ impl NodeInterner {
         trait_id: TraitId,
         impl_id: TraitImplId,
         trait_impl_generics: &[Type],
-        impl_self_type: Type,
+        impl_self_type: &Type,
     ) -> TypeBindings {
         let mut bindings = TypeBindings::default();
         let mut visited = HashSet::default();
@@ -1646,7 +1648,7 @@ impl NodeInterner {
             trait_id,
             impl_id,
             trait_impl_generics,
-            &impl_self_type,
+            impl_self_type,
             TYPE_RECURSION_LIMIT,
             &mut visited,
             &mut bindings,

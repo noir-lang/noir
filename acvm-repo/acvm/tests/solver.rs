@@ -628,7 +628,7 @@ fn unsatisfied_opcode_resolved_brillig() {
     assert_eq!(
         solver_status,
         ACVMStatus::Failure(OpcodeResolutionError::BrilligFunctionFailed {
-            function_id: BrilligFunctionId(0),
+            function_id: BrilligFunctionId::new(0),
             payload: None,
             call_stack: vec![OpcodeLocation::Brillig { acir_index: 0, brillig_index: 6 }]
         }),

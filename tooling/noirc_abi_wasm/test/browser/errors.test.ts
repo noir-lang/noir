@@ -32,3 +32,15 @@ it('errors when passing a JavaScript number that is not a safe integer', async (
 
   expect(() => abiEncode(abi, { foo: unsafeInteger })).to.throw('is not a safe integer');
 });
+
+it('errors when passing a boxed Number that is not a safe integer', async () => {
+  const { abi, boxedUnsafeInteger } = await import('../shared/unsafe_integer');
+
+  expect(() => abiEncode(abi, { foo: boxedUnsafeInteger })).to.throw('is not a safe integer');
+});
+
+it('errors when passing an object whose toJSON returns an unsafe integer', async () => {
+  const { abi, toJsonUnsafeInteger } = await import('../shared/unsafe_integer');
+
+  expect(() => abiEncode(abi, { foo: toJsonUnsafeInteger })).to.throw('is not a safe integer');
+});

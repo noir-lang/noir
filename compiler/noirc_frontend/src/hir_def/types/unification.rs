@@ -140,7 +140,7 @@ impl Type {
                         })
                     } else {
                         other.try_unify_to_type_variable(var, flags, bindings, |bindings| {
-                            other.try_bind_to(var, bindings, typ.kind())
+                            other.try_bind_to(var, bindings, &typ.kind())
                         })
                     }
                 }
@@ -157,7 +157,7 @@ impl Type {
                 }
                 TypeBinding::Unbound(_id, type_var_kind) => {
                     other.try_unify_to_type_variable(var, flags, bindings, |bindings| {
-                        other.try_bind_to(var, bindings, type_var_kind.clone())
+                        other.try_bind_to(var, bindings, type_var_kind)
                     })
                 }
             },

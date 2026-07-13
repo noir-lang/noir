@@ -27,7 +27,7 @@ pub fn stdlib_paths_with_source() -> Vec<(String, String)> {
 
 /// Returns the contents of the Nargo.toml file for the standard library as a string.
 pub fn stdlib_nargo_toml_source() -> String {
-    include_str!("../../../noir_stdlib/Nargo.toml").to_string()
+    include_str!("../../../../noir_stdlib/Nargo.toml").to_string()
 }
 
 /// Returns the absolute path to the `noir_stdlib/src` directory on disk, when the

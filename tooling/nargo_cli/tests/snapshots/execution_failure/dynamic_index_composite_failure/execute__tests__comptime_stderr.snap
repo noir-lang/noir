@@ -1,0 +1,12 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+error: Index out of bounds: 10 is out of bounds for the array of length 2
+  ┌─ src/main.nr:3:5
+  │
+3 │     a[i].1
+  │     ----
+  │
+
+Error interpreting main function

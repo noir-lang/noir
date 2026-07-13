@@ -570,6 +570,18 @@ pub enum Type {
     ),
 }
 
+/// Maximum number of flattened field elements allowed at an entry point boundary,
+/// i.e. for a parameter or a return value.
+///
+/// This limit prevents hangs or out-of-memory issues when dealing with very large arrays:
+/// flattened sizes approaching `u32::MAX` cannot be represented, since Brillig arrays are
+/// heap-allocated using `u32` addressing and ACIR/data-bus construction reserves one witness
+/// per flattened element.
+///
+/// 2^24 = 16,777,216 witnesses. In practice the number of witnesses is limited by the CRS size,
+/// which is usually around 2^20, so this limit should not interfere with real use cases.
+pub const MAX_ELEMENTS: usize = 1 << 24;
+
 impl Type {
     pub fn flatten(&self) -> Vec<Type> {
         match self {

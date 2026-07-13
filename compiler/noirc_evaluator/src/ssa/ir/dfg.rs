@@ -177,11 +177,10 @@ impl From<GlobalsGraph> for DataFlowGraph {
 }
 
 /// Maximum number of elements allowed for return values, or for some arrays.
-/// This limit prevents hangings or out-of-memory issues when dealing with very large arrays.
-/// 2^24 = 16,777,216 witnesses.
-/// In practice, the number of witnesses is limited by the CRS size, which is usually around 2^20.
-/// So this limit should not interfere with real use cases.
-pub(crate) const MAX_ELEMENTS: usize = 1 << 24;
+///
+/// Defined in `noirc_frontend` alongside the entry point input-size check that shares it;
+/// see [`MAX_ELEMENTS`] for the full rationale.
+pub(crate) use noirc_frontend::monomorphization::ast::MAX_ELEMENTS;
 
 impl DataFlowGraph {
     /// Runtime type of the function.
@@ -331,7 +330,7 @@ impl DataFlowGraph {
         }
 
         let simplify_result =
-            simplify(&instruction, self, block, ctrl_typevars.clone(), call_stack);
+            simplify(&instruction, self, block, ctrl_typevars.as_deref(), call_stack);
 
         match simplify_result {
             SimplifyResult::SimplifiedTo(simplification) => {
@@ -386,10 +385,12 @@ impl DataFlowGraph {
                 // Pull off the last instruction as we want to return its results.
                 let last_instruction = instructions.pop().expect("`instructions` can't be empty");
                 for instruction in instructions {
+                    // These are all `Constrain` instructions, which have no results and so
+                    // never need control type variables.
                     self.insert_instruction_without_simplification(
                         instruction,
                         block,
-                        ctrl_typevars.clone(),
+                        None,
                         call_stack,
                     );
                 }
@@ -910,8 +911,15 @@ impl DataFlowGraph {
         self.function_purities = purities;
     }
 
+    /// Returns the purity of `function` as observed from this function (the caller).
+    ///
+    /// This is the callee's own purity, except that a pure Brillig function called from an ACIR
+    /// function is observed as [Purity::PureWithPredicate]: the call lowers to a predicated
+    /// `Opcode::BrilligCall` whose outputs are left unconstrained when the predicate is disabled,
+    /// so the result is predicate-dependent from an ACIR caller's perspective. From a Brillig
+    /// caller (whose calls are not predicated) the function's true purity is observed.
     pub(crate) fn purity_of(&self, function: FunctionId) -> Option<Purity> {
-        self.function_purities.get(&function).copied()
+        self.function_purities.purity_of(function, self.runtime())
     }
 
     /// Determine the appropriate [`ArrayOffset`] to use for indexing an array or vector.

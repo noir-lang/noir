@@ -1060,3 +1060,183 @@ fn fieldless_enum_variant_type_turbofish_on_non_generic_enum() {
     let features = vec![UnstableFeature::Enums];
     check_errors_using_features(src, &features);
 }
+
+#[test]
+fn errors_on_segment_after_enum_variant() {
+    let src = r#"
+    pub enum E { A, B }
+    pub fn f(_x: E::A::Bar) {}
+                    ^ enum variant `A` has no associated items
+    fn main() {}
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn errors_on_segment_after_associated_constant() {
+    let src = r#"
+    pub trait T { let C: u32; }
+    pub struct Foo {}
+    impl T for Foo { let C: u32 = 1; }
+    pub fn f(_x: Foo::C::Bar) {}
+                      ^ associated constant `C` has no associated items
+    fn main() {}
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn errors_on_enum_generics_specified_on_both_type_and_variant() {
+    // In `<E<u32>>::A::<bool>` the enum's generics are given both on the type (`<u32>`)
+    // and on the variant turbofish (`<bool>`); specifying them twice is an error.
+    let src = r#"
+    pub enum E<T> { A, B(T) }
+    fn main() {
+        let _ = <E<u32>>::A::<bool>;
+                              ^^^^ generic arguments are not allowed on both an enum and its variant's path segments simultaneously; they are only valid in one place or the other
+                              ~~~~ remove the generics arguments from one of the path segments
+    }
+    "#;
+    check_errors_using_features(src, &[UnstableFeature::Enums]);
+}
+
+#[test]
+fn turbofish_on_match_pattern_variant_binds_payload_type() {
+    // Regression test for https://github.com/noir-lang/noir/issues/7430.
+    // The scrutinee's generic is left undetermined so only the turbofish can pin
+    // the payload's type.
+    let src = r#"
+    enum Foo<T> {
+        Bar(T),
+        Baz,
+    }
+
+    fn main() {
+        let f = Foo::Baz;
+        match f {
+            Foo::Bar::<i32>(x) => {
+                let _: i32 = x;
+            }
+            Foo::Baz => {}
+        }
+    }
+    "#;
+    let features = vec![UnstableFeature::Enums];
+    assert_no_errors_using_features(src, &features);
+}
+
+#[test]
+fn turbofish_on_match_pattern_variant_conflicting_type() {
+    let src = r#"
+    enum Foo<T> {
+        Bar(T),
+        Baz,
+    }
+
+    fn main() {
+        let f = Foo::Baz;
+        match f {
+            Foo::Bar::<i32>(x) => {
+                let _: bool = x;
+                              ^ Expected type bool, found type i32
+            }
+            Foo::Baz => {}
+        }
+    }
+    "#;
+    let features = vec![UnstableFeature::Enums];
+    check_errors_using_features(src, &features);
+}
+
+#[test]
+fn turbofish_on_fieldless_match_pattern_variant_conflicting_type() {
+    let src = r#"
+    enum Foo<T> {
+        Bar(T),
+        Baz,
+    }
+
+    fn main() {
+        let f: Foo<Field> = Foo::Baz;
+        match f {
+            Foo::Baz::<i32> => {}
+            ^^^^^^^^^^^^^^^ Expected type Foo<Field>, found type Foo<i32>
+            Foo::Bar(_) => {}
+        }
+    }
+    "#;
+    let features = vec![UnstableFeature::Enums];
+    check_errors_using_features(src, &features);
+}
+
+#[test]
+fn turbofish_on_match_pattern_variant_type_segment() {
+    let src = r#"
+    enum Foo<T> {
+        Bar(T),
+        Baz,
+    }
+
+    fn main() {
+        let f = Foo::Baz;
+        match f {
+            Foo::<i32>::Bar(x) => {
+                let _: bool = x;
+                              ^ Expected type bool, found type i32
+            }
+            Foo::Baz => {}
+        }
+    }
+    "#;
+    let features = vec![UnstableFeature::Enums];
+    check_errors_using_features(src, &features);
+}
+
+#[test]
+fn turbofish_on_match_pattern_variant_count_mismatch() {
+    let src = r#"
+    enum Foo<T> {
+        Bar(T),
+        Baz,
+    }
+
+    fn main() {
+        let f: Foo<i32> = Foo::Baz;
+        match f {
+            Foo::Bar::<i32, bool>(x) => {
+            ^^^^^^^^^^^^^^^^^^^^^ Expected 1 generic from this function, but 2 were provided
+                let _ = x;
+            }
+            Foo::Baz => {}
+        }
+    }
+    "#;
+    let features = vec![UnstableFeature::Enums];
+    check_errors_using_features(src, &features);
+}
+
+#[test]
+fn errors_on_turbofish_on_both_type_and_variant_in_match_pattern() {
+    // The enum's generics can be given on the type segment (`Foo::<i32>`) or on the variant
+    // segment (`Bar::<i32>`), but giving them in both places specifies them twice.
+    let src = r#"
+    enum Foo<T> {
+        Bar(T),
+        Baz,
+    }
+
+    fn main() {
+        let f: Foo<i32> = Foo::Baz;
+        match f {
+            Foo::<i32>::Bar::<i32>(x) => {
+                              ^^^ generic arguments are not allowed on both an enum and its variant's path segments simultaneously; they are only valid in one place or the other
+                              ~~~ remove the generics arguments from one of the path segments
+                let _ = x;
+            }
+            Foo::Baz => {}
+        }
+    }
+    "#;
+    let features = vec![UnstableFeature::Enums];
+    check_errors_using_features(src, &features);
+}

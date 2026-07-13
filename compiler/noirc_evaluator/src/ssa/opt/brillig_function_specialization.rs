@@ -767,11 +767,11 @@ mod tests {
             v4 = eq v0, u32 3
             jmpif v4 then: b1(), else: b2()
           b1():
-            v7 = add v1, u32 10
-            jmp b3(v7)
-          b2():
-            v6 = sub v1, u32 10
+            v6 = add v1, u32 10
             jmp b3(v6)
+          b2():
+            v7 = sub v1, u32 10
+            jmp b3(v7)
           b3(v2: u32):
             constrain v2 == u32 0
             return
@@ -794,8 +794,8 @@ mod tests {
           b1():
             jmp b3(u32 14)
           b2():
-            v7 = sub u32 4, u32 10
-            jmp b3(v7)
+            v8 = sub u32 4, u32 10
+            jmp b3(v8)
           b3(v2: u32):
             constrain v2 == u32 0
             return
