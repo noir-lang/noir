@@ -38,6 +38,7 @@ use types::{
     SuccessfulCaseOutcome,
 };
 
+use noirc_abi::InputMap;
 use noirc_artifacts::program::ProgramArtifact;
 use rand::prelude::*;
 use rand::{Rng, SeedableRng};
@@ -48,6 +49,12 @@ use std::io::Write;
 use termcolor::{Color, ColorSpec, WriteColor};
 
 const FOREIGN_CALL_FAILURE_SUBSTRING: &str = "Failed calling external resolver.";
+
+/// Returns an arbitrary input from the corpus, used as a representative passing input so a single
+/// execution's output can be shown for `nargo test --show-output`.
+fn representative_case(corpus: &Corpus) -> Option<InputMap> {
+    corpus.get_current_discovered_testcases().first().map(|testcase| testcase.value().clone())
+}
 
 /// We aim the number of testcases per round so one round takes these many microseconds
 const SINGLE_FUZZING_ROUND_TARGET_TIME: u128 = 100_000u128;
@@ -968,15 +975,12 @@ impl<
                 }
                 self.metrics.refresh_round();
                 last_metric_check = time_tracker.elapsed();
-                // Check if we've exceeded the timeout
-                if self.timeout > 0 && time_tracker.elapsed() >= Duration::from_secs(self.timeout) {
-                    return FuzzTestResult::Success;
-                }
-                // Check if we've exceeded the maximum number of executions
-                if self.max_executions > 0
-                    && self.metrics.processed_testcase_count >= self.max_executions
+                // Check if we've exceeded the timeout or if we've exceeded the maximum number of executions
+                if (self.timeout > 0 && time_tracker.elapsed() >= Duration::from_secs(self.timeout))
+                    || (self.max_executions > 0
+                        && self.metrics.processed_testcase_count >= self.max_executions)
                 {
-                    return FuzzTestResult::Success;
+                    return FuzzTestResult::Success(representative_case(&corpus));
                 }
             }
 
@@ -1002,7 +1006,9 @@ impl<
 
         // Parse the execution result and convert it to the FuzzTestResult
         match fuzz_res {
-            HarnessExecutionOutcome::Case(_) => FuzzTestResult::Success,
+            HarnessExecutionOutcome::Case(SuccessfulCaseOutcome { case, .. }) => {
+                FuzzTestResult::Success(Some(case))
+            }
             HarnessExecutionOutcome::Discrepancy(DiscrepancyOutcome {
                 case_id: _,
                 exit_reason: status,
