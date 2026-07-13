@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1783967699773,
+  "lastUpdate": 1783968459426,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -35007,105 +35007,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": true,
-          "id": "9721bea38ec622ef570fedeef740e7282f759733",
-          "message": "chore(acir_gen): assert every non-databus MemoryInit has a linked read/write (#13234)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
-          "timestamp": "2026-07-03T13:17:43Z",
-          "tree_id": "59d11c352c0a4bf4c4c9c05c2f5cf351764ee084",
-          "url": "https://github.com/noir-lang/noir/commit/9721bea38ec622ef570fedeef740e7282f759733"
-        },
-        "date": 1783086601006,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 1.82,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 2.06,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 1.656,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-first-empty-tx",
-            "value": 2.138,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 2.25,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 2.18,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-checkpoint-merge",
-            "value": 2.032,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-checkpoint-root-single-block",
-            "value": 2.22,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-checkpoint-root",
-            "value": 2.83,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 2.096,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-tx-base-private",
-            "value": 2.324,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-tx-base-public",
-            "value": 2.3,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-tx-merge",
-            "value": 2.086,
-            "unit": "s"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 0.413,
-            "unit": "s"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 0.385,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "49558828+AztecBot@users.noreply.github.com",
-            "name": "Aztec Bot",
-            "username": "AztecBot"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
           "id": "57b18a3a931369a967320b870a0b717ac5bda0d3",
           "message": "chore(acir_gen): assert no zero-length memory block is initialized (#13251)\n\nCo-authored-by: Ary Borenszweig <asterite@gmail.com>",
           "timestamp": "2026-07-03T13:56:05Z",
@@ -39930,6 +39831,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "sha512-100-bytes",
             "value": 0.374,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jfecher11@gmail.com",
+            "name": "jfecher",
+            "username": "jfecher"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "e8e3a4609428dcbc4f07902f758c8b990aa5c5f1",
+          "message": "fix: range check removal unchecked acir (#13269)\n\nCo-authored-by: Claude Opus 4.8 (1M context) <noreply@anthropic.com>\nCo-authored-by: Ary Borenszweig <asterite@gmail.com>",
+          "timestamp": "2026-07-13T18:13:50Z",
+          "tree_id": "1e4ec34d890c16e325fee2367b523bdca803b831",
+          "url": "https://github.com/noir-lang/noir/commit/e8e3a4609428dcbc4f07902f758c8b990aa5c5f1"
+        },
+        "date": 1783968381500,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 1.822,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 1.964,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.338,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-first-empty-tx",
+            "value": 2.076,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 2.07,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 2.09,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-checkpoint-merge",
+            "value": 2.09,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-checkpoint-root-single-block",
+            "value": 2.66,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-checkpoint-root",
+            "value": 3.04,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 2.084,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-tx-base-private",
+            "value": 2.234,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-tx-base-public",
+            "value": 2.372,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-tx-merge",
+            "value": 2.082,
+            "unit": "s"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.398,
+            "unit": "s"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 0.385,
             "unit": "s"
           }
         ]
