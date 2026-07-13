@@ -14,5 +14,7 @@ fn main(idx: u32) -> pub [[Field; 0]; 1] {
     let mut arr: [[Field; 0]; 1] = [[]];
     arr[idx] = [];
     // Safety: `id` returns its argument unchanged; there are no values to constrain.
-    unsafe { id(arr) }
+    unsafe {
+        id(arr)
+    }
 }
