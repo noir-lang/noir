@@ -136,7 +136,10 @@ pub(super) fn on_did_change_text_document(
     state: &mut LspState,
     params: DidChangeTextDocumentParams,
 ) -> ControlFlow<Result<(), async_lsp::Error>> {
-    let text = params.content_changes.into_iter().next().unwrap().text;
+    let Some(content_change) = params.content_changes.into_iter().next() else {
+        return ControlFlow::Continue(());
+    };
+    let text = content_change.text;
     state.input_files.insert(params.text_document.uri.to_string(), text.clone());
     state.workspace_symbol_cache.reprocess_uri(&params.text_document.uri);
 
@@ -670,6 +673,29 @@ mod notification_tests {
         TextDocumentIdentifier, VersionedTextDocumentIdentifier, WorkDoneProgressParams,
     };
     use tokio::test;
+
+    #[test]
+    async fn test_did_change_with_empty_content_changes_is_ignored() {
+        let (mut state, noir_text_document) = test_utils::init_lsp_server_with_inline_source(
+            "inlay_hints",
+            "src/main.nr",
+            "fn main() {}",
+        )
+        .await;
+
+        let result = on_did_change_text_document(
+            &mut state,
+            DidChangeTextDocumentParams {
+                text_document: VersionedTextDocumentIdentifier {
+                    uri: noir_text_document,
+                    version: 1,
+                },
+                content_changes: vec![],
+            },
+        );
+
+        assert!(matches!(result, ControlFlow::Continue(())));
+    }
 
     #[test]
     async fn test_caches_open_files() {
