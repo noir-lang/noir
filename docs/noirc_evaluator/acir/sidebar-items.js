@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["acir_post_check"],"mod":["acir_context","arrays","call","shared_context","ssa","types"],"struct":["Context","GeneratedAcir"],"type":["Artifacts"]};
+window.SIDEBAR_ITEMS = {"fn":["acir_post_check","assert_constant_reads_are_folded","assert_initialized_blocks_are_used","assert_no_empty_memory_blocks","assert_no_trivial_assert_zero","assert_no_writes_to_type_size_arrays"],"mod":["acir_context","arrays","call","shared_context","ssa","types"],"struct":["Context","GeneratedAcir"],"type":["Artifacts"]};
