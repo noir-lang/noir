@@ -975,13 +975,10 @@ impl<
                 }
                 self.metrics.refresh_round();
                 last_metric_check = time_tracker.elapsed();
-                // Check if we've exceeded the timeout
-                if self.timeout > 0 && time_tracker.elapsed() >= Duration::from_secs(self.timeout) {
-                    return FuzzTestResult::Success(representative_case(&corpus));
-                }
-                // Check if we've exceeded the maximum number of executions
-                if self.max_executions > 0
-                    && self.metrics.processed_testcase_count >= self.max_executions
+                // Check if we've exceeded the timeout or if we've exceeded the maximum number of executions
+                if (self.timeout > 0 && time_tracker.elapsed() >= Duration::from_secs(self.timeout))
+                    || (self.max_executions > 0
+                        && self.metrics.processed_testcase_count >= self.max_executions)
                 {
                     return FuzzTestResult::Success(representative_case(&corpus));
                 }
