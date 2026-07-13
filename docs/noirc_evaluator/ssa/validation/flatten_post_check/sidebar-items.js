@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["escape_error","is_one","is_predicate","is_predicate_guard","strip_casts","verify_function","verify_side_effect_predicates"]};
+window.SIDEBAR_ITEMS = {"fn":["escape_error","is_div_or_mod_by_nonzero_constant","is_one","is_predicate","is_predicate_guard","strip_casts","verify_function","verify_side_effect_predicates"]};
