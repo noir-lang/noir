@@ -638,7 +638,10 @@ fn try_optimize_array_set_from_previous_get(
 mod tests {
     use crate::{
         assert_ssa_snapshot,
-        ssa::{opt::assert_normalized_ssa_equals, ssa_gen::Ssa},
+        ssa::{
+            opt::{assert_normalized_ssa_equals, assert_ssa_does_not_change_after_simplifying},
+            ssa_gen::Ssa,
+        },
     };
 
     /// Regression for an OOB panic in `try_optimize_array_set_from_previous_get` when the
@@ -875,9 +878,7 @@ mod tests {
             return v1
         }
         ";
-        let ssa = Ssa::from_str_simplifying(src).unwrap();
-
-        assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_does_not_change_after_simplifying(src);
     }
 
     #[test]
@@ -918,8 +919,7 @@ mod tests {
             return v5
         }
         ";
-        let ssa = Ssa::from_str_simplifying(src).unwrap();
-        assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_does_not_change_after_simplifying(src);
     }
 
     #[test]
@@ -1031,8 +1031,7 @@ mod tests {
             return v2
         }
         ";
-        let ssa = Ssa::from_str_simplifying(src).unwrap();
-        assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_does_not_change_after_simplifying(src);
     }
 
     #[test]
@@ -1048,8 +1047,7 @@ mod tests {
             return v3
         }
         ";
-        let ssa = Ssa::from_str_simplifying(src).unwrap();
-        assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_does_not_change_after_simplifying(src);
     }
 
     #[test]
@@ -1063,8 +1061,7 @@ mod tests {
             return v2
         }
         ";
-        let ssa = Ssa::from_str_simplifying(src).unwrap();
-        assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_does_not_change_after_simplifying(src);
     }
 
     /// In ACIR, unchecked arithmetic is non-reducing field arithmetic, so an `unchecked_add`
@@ -1081,15 +1078,7 @@ mod tests {
             return v2
         }
         ";
-        let ssa = Ssa::from_str_simplifying(src).unwrap();
-        assert_ssa_snapshot!(ssa, @r"
-        acir(inline) fn main f0 {
-          b0(v0: u8, v1: u8):
-            v2 = unchecked_add v0, v1
-            range_check v2 to 8 bits
-            return v2
-        }
-        ");
+        assert_ssa_does_not_change_after_simplifying(src);
     }
 
     /// `unchecked_mul` of two `u8`s can yield a field up to 16 bits wide in ACIR, so a
@@ -1104,15 +1093,7 @@ mod tests {
             return v2
         }
         ";
-        let ssa = Ssa::from_str_simplifying(src).unwrap();
-        assert_ssa_snapshot!(ssa, @r"
-        acir(inline) fn main f0 {
-          b0(v0: u8, v1: u8):
-            v2 = unchecked_mul v0, v1
-            range_check v2 to 8 bits
-            return v2
-        }
-        ");
+        assert_ssa_does_not_change_after_simplifying(src);
     }
 
     /// `unchecked_sub` of `u8`s can underflow to a field-negative (near-modulus) value in ACIR, so
@@ -1127,15 +1108,7 @@ mod tests {
             return v2
         }
         ";
-        let ssa = Ssa::from_str_simplifying(src).unwrap();
-        assert_ssa_snapshot!(ssa, @r"
-        acir(inline) fn main f0 {
-          b0(v0: u8, v1: u8):
-            v2 = unchecked_sub v0, v1
-            range_check v2 to 8 bits
-            return v2
-        }
-        ");
+        assert_ssa_does_not_change_after_simplifying(src);
     }
 
     /// In Brillig, unchecked arithmetic wraps to the type's bit width, so an `unchecked_add u8`
