@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1783960659002,
+  "lastUpdate": 1783963090353,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23011,48 +23011,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "d4ba2d1fe37b86cc1ff51d4f1699da8a429d3da3",
-          "message": "fix(interpreter): clone nested array in array_set in ACIR (#13247)",
-          "timestamp": "2026-07-03T10:20:48Z",
-          "tree_id": "bb1afb0f3b71f776d41c50f41693e6d547174c9d",
-          "url": "https://github.com/noir-lang/noir/commit/d4ba2d1fe37b86cc1ff51d4f1699da8a429d3da3"
-        },
-        "date": 1783075189641,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 175201,
-            "range": "± 800",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 146960,
-            "range": "± 1241",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2657599,
-            "range": "± 6727",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "49558828+AztecBot@users.noreply.github.com",
             "name": "Aztec Bot",
             "username": "AztecBot"
@@ -25104,6 +25062,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2667998,
             "range": "± 12051",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49558828+AztecBot@users.noreply.github.com",
+            "name": "Aztec Bot",
+            "username": "AztecBot"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "e09c179df5c2f25e364392fdd161097f84c82eff",
+          "message": "fix(acir_gen): lower a zero-length dynamic array Brillig input inline instead of MemoryArray (#13322)",
+          "timestamp": "2026-07-13T16:56:18Z",
+          "tree_id": "e51cc156e755bca6ca50d0b394f660badcd0730a",
+          "url": "https://github.com/noir-lang/noir/commit/e09c179df5c2f25e364392fdd161097f84c82eff"
+        },
+        "date": 1783963010094,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 173929,
+            "range": "± 757",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 144282,
+            "range": "± 1546",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2651718,
+            "range": "± 2365",
             "unit": "ns/iter"
           }
         ]
