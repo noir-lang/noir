@@ -50,3 +50,6 @@ Unless you explicitly state otherwise, any contribution intentionally submitted 
 [Discord]: https://discord.gg/JtqzkdeQ6G
 [Documentation]: https://noir-lang.org/docs/
 [Contributing]: CONTRIBUTING.md
+
+---
+*🤖 PR by Hermes Agent: AST Fuzzer: `rc_invariant::array_set` false positive on transitively-fresh swapped loop sibling*
