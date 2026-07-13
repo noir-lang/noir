@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1783957928183,
+  "lastUpdate": 1783959643718,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23011,48 +23011,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "jfecher11@gmail.com",
-            "name": "jfecher",
-            "username": "jfecher"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "737e5e5e4a236060b9ffbc06f5ae019dde962c5b",
-          "message": "fix: Fix SSA normalization when the entry block is a back-edge (#13249)",
-          "timestamp": "2026-07-03T10:17:41Z",
-          "tree_id": "e85aa55cd518c0aa3db0c624678280e1ee776495",
-          "url": "https://github.com/noir-lang/noir/commit/737e5e5e4a236060b9ffbc06f5ae019dde962c5b"
-        },
-        "date": 1783075092795,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 175712,
-            "range": "± 280",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 145662,
-            "range": "± 2699",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2655627,
-            "range": "± 2922",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -25104,6 +25062,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 3038292,
             "range": "± 17457",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49558828+AztecBot@users.noreply.github.com",
+            "name": "Aztec Bot",
+            "username": "AztecBot"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "50d31c3f8bff962181c4b196cfa5ad98632937f2",
+          "message": "chore(acir_gen): forbid constant-foldable reads before a block write, resolve disabled array ops in ACIR gen (#13229)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>\nCo-authored-by: guipublic <guipublic@gmail.com>\nCo-authored-by: guipublic <47281315+guipublic@users.noreply.github.com>",
+          "timestamp": "2026-07-13T15:59:49Z",
+          "tree_id": "af6cc88a2e952049d7be8684382d39b81b5da32f",
+          "url": "https://github.com/noir-lang/noir/commit/50d31c3f8bff962181c4b196cfa5ad98632937f2"
+        },
+        "date": 1783959565263,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 185232,
+            "range": "± 725",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 153712,
+            "range": "± 4519",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2667998,
+            "range": "± 12051",
             "unit": "ns/iter"
           }
         ]
