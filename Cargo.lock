@@ -4,7 +4,7 @@ version = 4
 
 [[package]]
 name = "acir"
-version = "1.0.0-beta.22"
+version = "1.0.0-beta.23"
 dependencies = [
  "acir",
  "acir_field",
@@ -37,7 +37,7 @@ dependencies = [
 
 [[package]]
 name = "acir_field"
-version = "1.0.0-beta.22"
+version = "1.0.0-beta.23"
 dependencies = [
  "ark-bls12-381",
  "ark-bn254 0.6.0",
@@ -54,7 +54,7 @@ dependencies = [
 
 [[package]]
 name = "acvm"
-version = "1.0.0-beta.22"
+version = "1.0.0-beta.23"
 dependencies = [
  "acir",
  "acvm_blackbox_solver",
@@ -79,7 +79,7 @@ dependencies = [
 
 [[package]]
 name = "acvm_blackbox_solver"
-version = "1.0.0-beta.22"
+version = "1.0.0-beta.23"
 dependencies = [
  "acir",
  "aes",
@@ -110,7 +110,7 @@ dependencies = [
  "nargo",
  "noir_artifact_cli",
  "proptest",
- "rand 0.10.1",
+ "rand 0.10.2",
  "toml 0.8.23",
  "tracing-appender",
  "tracing-subscriber",
@@ -118,7 +118,7 @@ dependencies = [
 
 [[package]]
 name = "acvm_js"
-version = "1.0.0-beta.22"
+version = "1.0.0-beta.23"
 dependencies = [
  "acvm",
  "bn254_blackbox_solver",
@@ -264,7 +264,7 @@ version = "1.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "40c48f72fd53cd289104fc64099abca73db4166ad86ea0b4341abe65af83dadc"
 dependencies = [
- "windows-sys 0.60.2",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -275,7 +275,7 @@ checksum = "291e6a250ff86cd4a820112fb8898808a366d8f9f58ce16d1f538353ad55747d"
 dependencies = [
  "anstyle",
  "once_cell_polyfill",
- "windows-sys 0.60.2",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -828,7 +828,7 @@ dependencies = [
 
 [[package]]
 name = "bn254_blackbox_solver"
-version = "1.0.0-beta.22"
+version = "1.0.0-beta.23"
 dependencies = [
  "acir",
  "acvm_blackbox_solver",
@@ -859,7 +859,7 @@ dependencies = [
 
 [[package]]
 name = "brillig"
-version = "1.0.0-beta.22"
+version = "1.0.0-beta.23"
 dependencies = [
  "acir_field",
  "itertools 0.15.0",
@@ -871,7 +871,7 @@ dependencies = [
 
 [[package]]
 name = "brillig_vm"
-version = "1.0.0-beta.22"
+version = "1.0.0-beta.23"
 dependencies = [
  "acir",
  "acvm_blackbox_solver",
@@ -947,9 +947,9 @@ checksum = "37b2a672a2cb129a2e41c10b1224bb368f9f37a2b16b612598138befd7b37eb5"
 
 [[package]]
 name = "cbc"
-version = "0.2.0"
+version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "98db6aeaef0eeef2c1e3ce9a27b739218825dae116076352ac3777076aa22225"
+checksum = "ce2dc9ee5f88d11e0beb842c88b33c8a5cf0d1329c4b19494af42b07dbfe8896"
 dependencies = [
  "cipher",
 ]
@@ -1038,11 +1038,11 @@ dependencies = [
 
 [[package]]
 name = "cipher"
-version = "0.5.1"
+version = "0.5.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e34d8227fe1ba289043aeb13792056ff80fd6de1a9f49137a5f499de8e8c78ea"
+checksum = "e8cf2a2c93cd704877c0858356ed03480ff301ee950b43f1cbe4573b088bfa6c"
 dependencies = [
- "crypto-common 0.2.1",
+ "crypto-common 0.2.2",
  "inout",
 ]
 
@@ -1078,9 +1078,9 @@ dependencies = [
 
 [[package]]
 name = "clap_complete"
-version = "4.6.5"
+version = "4.6.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e0a7a9bfdb35811f9e59832f0f05975114d2251b415fb534108e6f34060fd772"
+checksum = "db8b397918185f0161ff3d6fcaa9e4bfc09b8367caf6e1d4a2848e5477ed027b"
 dependencies = [
  "clap",
 ]
@@ -1116,9 +1116,9 @@ dependencies = [
 
 [[package]]
 name = "cmov"
-version = "0.5.3"
+version = "0.5.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3f88a43d011fc4a6876cb7344703e297c71dda42494fee094d5f7c76bf13f746"
+checksum = "0c9ea0ac24bc397ab3c98583a3c9ba74fa56b09a4449bbe172b9b1ddb016027a"
 
 [[package]]
 name = "codespan"
@@ -1385,9 +1385,9 @@ dependencies = [
 
 [[package]]
 name = "crossbeam-epoch"
-version = "0.9.18"
+version = "0.9.20"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5b82ac4a3c2ca9c3460964f020e1402edd5753411d7737aa39c3714ad1b5420e"
+checksum = "2d6914041f254d6e9176c01941b21115dcfb7089e55135a35411081bd106ef3f"
 dependencies = [
  "crossbeam-utils",
 ]
@@ -1432,9 +1432,9 @@ dependencies = [
 
 [[package]]
 name = "crypto-common"
-version = "0.2.1"
+version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "77727bb15fa921304124b128af125e7e3b968275d1b108b379190264f4423710"
+checksum = "ce6e4c961d6cd6c9a86db418387425e8bdeaf05b3c8bc1411e6dca4c252f1453"
 dependencies = [
  "getrandom 0.4.2",
  "hybrid-array",
@@ -1608,7 +1608,7 @@ checksum = "f1dd6dbb5841937940781866fa1281a1ff7bd3bf827091440879f9994983d5c2"
 dependencies = [
  "block-buffer 0.12.0",
  "const-oid",
- "crypto-common 0.2.1",
+ "crypto-common 0.2.2",
  "ctutils",
 ]
 
@@ -1640,7 +1640,7 @@ dependencies = [
  "libc",
  "option-ext",
  "redox_users 0.5.2",
- "windows-sys 0.59.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -1727,7 +1727,7 @@ checksum = "abda41bf4d801bd9bfe2ef26ab37ae40d8c703374985b5c642e141d23de3f556"
 dependencies = [
  "base16ct",
  "crypto-bigint",
- "crypto-common 0.2.1",
+ "crypto-common 0.2.2",
  "digest 0.11.3",
  "ff 0.14.0",
  "group 0.14.0",
@@ -1837,7 +1837,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "39cab71617ae0d63f51a36d69f866391735b51691dbda63cf6f96d042b63efeb"
 dependencies = [
  "libc",
- "windows-sys 0.52.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -1972,7 +1972,7 @@ dependencies = [
 
 [[package]]
 name = "fm"
-version = "1.0.0-beta.22"
+version = "1.0.0-beta.23"
 dependencies = [
  "codespan-reporting",
  "iter-extended",
@@ -2746,9 +2746,9 @@ dependencies = [
 
 [[package]]
 name = "inferno"
-version = "0.12.6"
+version = "0.12.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "90807d610575744524d9bdc69f3885d96f0e6c3354565b0828354a7ff2a262b8"
+checksum = "d2c05b9ae050366b3363927f59d2c07f922a746e97e2e96f70d479a3c7dbbbe5"
 dependencies = [
  "ahash",
  "clap",
@@ -2761,7 +2761,7 @@ dependencies = [
  "log",
  "num-format",
  "once_cell",
- "quick-xml 0.39.3",
+ "quick-xml 0.41.0",
  "rgb",
  "str_stack",
 ]
@@ -2819,7 +2819,7 @@ checksum = "3640c1c38b8e4e43584d8df18be5fc6b0aa314ce6ebf51b53313d4306cca8e46"
 dependencies = [
  "hermit-abi",
  "libc",
- "windows-sys 0.52.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -2830,7 +2830,7 @@ checksum = "a6cb138bb79a146c1bd460005623e142ef0181e3d0219cb493e02f7d08a35695"
 
 [[package]]
 name = "iter-extended"
-version = "1.0.0-beta.22"
+version = "1.0.0-beta.23"
 
 [[package]]
 name = "itertools"
@@ -3356,7 +3356,7 @@ dependencies = [
 
 [[package]]
 name = "msgpack_tagged"
-version = "1.0.0-beta.20"
+version = "1.0.0-beta.23"
 dependencies = [
  "msgpack_tagged_derive",
  "rmp",
@@ -3370,7 +3370,7 @@ dependencies = [
 
 [[package]]
 name = "msgpack_tagged_derive"
-version = "1.0.0-beta.20"
+version = "1.0.0-beta.23"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -3379,7 +3379,7 @@ dependencies = [
 
 [[package]]
 name = "nargo"
-version = "1.0.0-beta.22"
+version = "1.0.0-beta.23"
 dependencies = [
  "acvm",
  "brillig",
@@ -3395,7 +3395,7 @@ dependencies = [
  "num-bigint",
  "proptest",
  "proptest-derive",
- "rand 0.10.1",
+ "rand 0.10.2",
  "rayon",
  "serde",
  "serde_json",
@@ -3409,7 +3409,7 @@ dependencies = [
 
 [[package]]
 name = "nargo_cli"
-version = "1.0.0-beta.22"
+version = "1.0.0-beta.23"
 dependencies = [
  "acvm",
  "ark-bn254 0.6.0",
@@ -3480,7 +3480,7 @@ dependencies = [
 
 [[package]]
 name = "nargo_doc"
-version = "1.0.0-beta.22"
+version = "1.0.0-beta.23"
 dependencies = [
  "fm",
  "insta",
@@ -3497,7 +3497,7 @@ dependencies = [
 
 [[package]]
 name = "nargo_expand"
-version = "1.0.0-beta.22"
+version = "1.0.0-beta.23"
 dependencies = [
  "fm",
  "nargo_fmt",
@@ -3507,7 +3507,7 @@ dependencies = [
 
 [[package]]
 name = "nargo_fmt"
-version = "1.0.0-beta.22"
+version = "1.0.0-beta.23"
 dependencies = [
  "noirc_errors",
  "noirc_frontend",
@@ -3520,7 +3520,7 @@ dependencies = [
 
 [[package]]
 name = "nargo_fuzz_target"
-version = "1.0.0-beta.22"
+version = "1.0.0-beta.23"
 dependencies = [
  "afl",
  "nargo",
@@ -3530,7 +3530,7 @@ dependencies = [
 
 [[package]]
 name = "nargo_toml"
-version = "1.0.0-beta.22"
+version = "1.0.0-beta.23"
 dependencies = [
  "dirs",
  "fm",
@@ -3597,7 +3597,7 @@ dependencies = [
 
 [[package]]
 name = "noir_artifact_cli"
-version = "1.0.0-beta.22"
+version = "1.0.0-beta.23"
 dependencies = [
  "acir",
  "acvm",
@@ -3622,7 +3622,7 @@ dependencies = [
 
 [[package]]
 name = "noir_ast_fuzzer"
-version = "1.0.0-beta.22"
+version = "1.0.0-beta.23"
 dependencies = [
  "acir",
  "acvm",
@@ -3645,7 +3645,7 @@ dependencies = [
  "noirc_evaluator",
  "noirc_frontend",
  "proptest",
- "rand 0.10.1",
+ "rand 0.10.2",
  "regex",
  "serde_json",
  "similar-asserts",
@@ -3654,7 +3654,7 @@ dependencies = [
 
 [[package]]
 name = "noir_ast_fuzzer_fuzz"
-version = "1.0.0-beta.22"
+version = "1.0.0-beta.23"
 dependencies = [
  "acir",
  "arbitrary",
@@ -3672,7 +3672,7 @@ dependencies = [
 
 [[package]]
 name = "noir_debugger"
-version = "1.0.0-beta.22"
+version = "1.0.0-beta.23"
 dependencies = [
  "acvm",
  "assert_cmd",
@@ -3694,7 +3694,7 @@ dependencies = [
 
 [[package]]
 name = "noir_greybox_fuzzer"
-version = "1.0.0-beta.22"
+version = "1.0.0-beta.23"
 dependencies = [
  "acvm",
  "build-data",
@@ -3705,7 +3705,7 @@ dependencies = [
  "num-bigint",
  "num-traits",
  "proptest",
- "rand 0.10.1",
+ "rand 0.10.2",
  "rand_xorshift 0.5.0",
  "rayon",
  "sha256",
@@ -3715,7 +3715,7 @@ dependencies = [
 
 [[package]]
 name = "noir_inspector"
-version = "1.0.0-beta.22"
+version = "1.0.0-beta.23"
 dependencies = [
  "acir",
  "assert_cmd",
@@ -3734,7 +3734,7 @@ dependencies = [
 
 [[package]]
 name = "noir_lsp"
-version = "1.0.0-beta.22"
+version = "1.0.0-beta.23"
 dependencies = [
  "acvm",
  "async-lsp",
@@ -3765,7 +3765,7 @@ dependencies = [
 
 [[package]]
 name = "noir_profiler"
-version = "1.0.0-beta.22"
+version = "1.0.0-beta.23"
 dependencies = [
  "acir",
  "bn254_blackbox_solver",
@@ -3774,7 +3774,7 @@ dependencies = [
  "const_format",
  "fm",
  "im",
- "inferno 0.12.6",
+ "inferno 0.12.7",
  "itertools 0.15.0",
  "nargo",
  "noir_artifact_cli",
@@ -3794,7 +3794,7 @@ dependencies = [
 
 [[package]]
 name = "noir_ssa_cli"
-version = "1.0.0-beta.22"
+version = "1.0.0-beta.23"
 dependencies = [
  "base64",
  "clap",
@@ -3816,7 +3816,7 @@ dependencies = [
 
 [[package]]
 name = "noir_ssa_executor"
-version = "1.0.0-beta.22"
+version = "1.0.0-beta.23"
 dependencies = [
  "acvm",
  "base64",
@@ -3833,7 +3833,7 @@ dependencies = [
 
 [[package]]
 name = "noir_ssa_fuzzer"
-version = "1.0.0-beta.22"
+version = "1.0.0-beta.23"
 dependencies = [
  "acvm",
  "libfuzzer-sys",
@@ -3842,7 +3842,7 @@ dependencies = [
  "noirc_driver",
  "noirc_evaluator",
  "noirc_frontend",
- "rand 0.10.1",
+ "rand 0.10.2",
  "serde",
  "strum",
  "strum_macros",
@@ -3851,7 +3851,7 @@ dependencies = [
 
 [[package]]
 name = "noir_wasm"
-version = "1.0.0-beta.22"
+version = "1.0.0-beta.23"
 dependencies = [
  "build-data",
  "console_error_panic_hook",
@@ -3875,7 +3875,7 @@ dependencies = [
 
 [[package]]
 name = "noirc_abi"
-version = "1.0.0-beta.22"
+version = "1.0.0-beta.23"
 dependencies = [
  "acvm",
  "iter-extended",
@@ -3895,7 +3895,7 @@ dependencies = [
 
 [[package]]
 name = "noirc_abi_wasm"
-version = "1.0.0-beta.22"
+version = "1.0.0-beta.23"
 dependencies = [
  "acvm",
  "build-data",
@@ -3914,11 +3914,11 @@ dependencies = [
 
 [[package]]
 name = "noirc_arena"
-version = "1.0.0-beta.22"
+version = "1.0.0-beta.23"
 
 [[package]]
 name = "noirc_artifacts"
-version = "1.0.0-beta.22"
+version = "1.0.0-beta.23"
 dependencies = [
  "acir",
  "acvm",
@@ -3938,7 +3938,7 @@ dependencies = [
 
 [[package]]
 name = "noirc_artifacts_info"
-version = "1.0.0-beta.22"
+version = "1.0.0-beta.23"
 dependencies = [
  "acir",
  "acvm",
@@ -3952,7 +3952,7 @@ dependencies = [
 
 [[package]]
 name = "noirc_driver"
-version = "1.0.0-beta.22"
+version = "1.0.0-beta.23"
 dependencies = [
  "acvm",
  "build-data",
@@ -3972,7 +3972,7 @@ dependencies = [
 
 [[package]]
 name = "noirc_errors"
-version = "1.0.0-beta.22"
+version = "1.0.0-beta.23"
 dependencies = [
  "codespan-reporting",
  "fm",
@@ -3984,7 +3984,7 @@ dependencies = [
 
 [[package]]
 name = "noirc_evaluator"
-version = "1.0.0-beta.22"
+version = "1.0.0-beta.23"
 dependencies = [
  "acvm",
  "arbtest",
@@ -4023,7 +4023,7 @@ dependencies = [
 
 [[package]]
 name = "noirc_frontend"
-version = "1.0.0-beta.22"
+version = "1.0.0-beta.23"
 dependencies = [
  "acvm",
  "base64",
@@ -4060,7 +4060,7 @@ dependencies = [
 
 [[package]]
 name = "noirc_printable_type"
-version = "1.0.0-beta.22"
+version = "1.0.0-beta.23"
 dependencies = [
  "acvm",
  "iter-extended",
@@ -4072,7 +4072,7 @@ dependencies = [
 
 [[package]]
 name = "noirc_span"
-version = "1.0.0-beta.22"
+version = "1.0.0-beta.23"
 dependencies = [
  "codespan",
  "serde",
@@ -4130,7 +4130,7 @@ version = "0.50.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7957b9740744892f114936ab4a57b3f487491bbeafaf8083688b16841a4240e5"
 dependencies = [
- "windows-sys 0.59.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -4633,7 +4633,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2db02b39ea98560a1fec81df6266f3c1ef7fdde06ac5ef17f69aee6101602630"
 dependencies = [
  "crypto-bigint",
- "crypto-common 0.2.1",
+ "crypto-common 0.2.2",
  "ff 0.14.0",
  "rand_core 0.10.1",
  "subtle",
@@ -4723,9 +4723,9 @@ dependencies = [
 
 [[package]]
 name = "quick-xml"
-version = "0.39.3"
+version = "0.41.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "721da970c312655cde9b4ffe0547f20a8494866a4af5ff51f18b7c633d0c870b"
+checksum = "e660451e55124f798a69a5af3f49ccfbefbd41910eefd25caf2393e1f3473ec1"
 dependencies = [
  "memchr",
 ]
@@ -4790,9 +4790,9 @@ dependencies = [
 
 [[package]]
 name = "rand"
-version = "0.10.1"
+version = "0.10.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d2e8e8bcc7961af1fdac401278c6a831614941f6164ee3bf4ce61b7edb162207"
+checksum = "c7f5fa3a058cd35567ef9bfa5e75732bee0f9e4c55fa90477bef2dfcdbc4be80"
 dependencies = [
  "chacha20",
  "getrandom 0.4.2",
@@ -4898,9 +4898,9 @@ dependencies = [
 
 [[package]]
 name = "redis"
-version = "1.2.4"
+version = "1.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bae41a63fd0b8a5372f82b21e810e09a316f5dd7efd96bf08e678fb240fc1918"
+checksum = "2fa6f8e4b491d7a8ef3a9550a4d71969bd0064f46e32b8dbbcc7fc60dad94fed"
 dependencies = [
  "arcstr",
  "combine",
@@ -5158,7 +5158,7 @@ dependencies = [
  "errno",
  "libc",
  "linux-raw-sys 0.12.1",
- "windows-sys 0.52.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -5811,7 +5811,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3a766e1110788c36f4fa1c2b71b387a7815aa65f88ce0229841826633d93723e"
 dependencies = [
  "libc",
- "windows-sys 0.60.2",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -5875,7 +5875,7 @@ dependencies = [
  "noirc_evaluator",
  "noirc_frontend",
  "p256",
- "rand 0.10.1",
+ "rand 0.10.2",
  "redis",
  "rmp-serde",
  "sancov",
@@ -5889,7 +5889,7 @@ dependencies = [
 
 [[package]]
 name = "ssa_verification"
-version = "1.0.0-beta.22"
+version = "1.0.0-beta.23"
 dependencies = [
  "acvm",
  "clap",
@@ -6040,10 +6040,10 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "32497e9a4c7b38532efcdebeef879707aa9f794296a4f0244f6f69e9bc8574bd"
 dependencies = [
  "fastrand",
- "getrandom 0.4.2",
+ "getrandom 0.3.4",
  "once_cell",
  "rustix 1.1.4",
- "windows-sys 0.52.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -6957,7 +6957,7 @@ version = "0.1.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c2a7b1c03c876122aa43f3020e6c3c3ee5c05081c9a00739faf7503aeba10d22"
 dependencies = [
- "windows-sys 0.48.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -7447,7 +7447,7 @@ dependencies = [
 
 [[package]]
 name = "workspace_layering"
-version = "1.0.0-beta.22"
+version = "1.0.0-beta.23"
 dependencies = [
  "serde_json",
 ]

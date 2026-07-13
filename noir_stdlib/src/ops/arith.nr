@@ -632,45 +632,244 @@ mod tests {
             assert_eq(1u64.rem(42u64), 1u64);
         }
 
-        #[test(should_fail)]
-        fn test_u8_sub_overflow_failure() {
-            let _ = 0u8.sub(1u8);
+        // Per-operator overflow corners. The signed `iN::MIN` corners pin down
+        // compiler-side overflow detection on the trait dispatch path: the
+        // trait impls are one-line delegations to the built-in operators and
+        // rely entirely on the compiler's lowering to emit the two's-complement
+        // overflow constraints. These tests trip CI on any future SSA pass
+        // that drops one of those constraints.
+        //
+        // Each case pins the exact runtime message via `should_fail_with`, so a
+        // regression that starts failing for the *wrong* reason (a divide by
+        // zero, or a panic in unrelated code) is caught too, rather than being
+        // accepted as "it failed somehow". The matcher is a case-insensitive
+        // substring, so the same string works under both ACIR and Brillig even
+        // though Brillig capitalizes the divide/remainder messages.
+
+        mod add {
+            use crate::ops::arith::Add;
+
+            // `MAX + 1` is one past the largest representable value, so the
+            // range check on the sum rejects it. For unsigned this is a wrap
+            // past `2^bits - 1`; for signed it steps out of `[MIN, MAX]`.
+
+            #[test(should_fail_with = "attempt to add with overflow")]
+            fn u8_overflow() {
+                let _ = 255u8.add(1u8);
+            }
+
+            #[test(should_fail_with = "attempt to add with overflow")]
+            fn u16_overflow() {
+                let _ = 65535u16.add(1u16);
+            }
+
+            #[test(should_fail_with = "attempt to add with overflow")]
+            fn i8_overflow() {
+                let _ = 127i8.add(1i8);
+            }
+
+            #[test(should_fail_with = "attempt to add with overflow")]
+            fn i16_overflow() {
+                let _ = 32767i16.add(1i16);
+            }
+
+            #[test(should_fail_with = "attempt to add with overflow")]
+            fn i32_overflow() {
+                let _ = 2147483647i32.add(1i32);
+            }
+
+            #[test(should_fail_with = "attempt to add with overflow")]
+            fn i64_overflow() {
+                let _ = 9223372036854775807i64.add(1i64);
+            }
         }
 
-        #[test(should_fail)]
-        fn test_u8_add_overflow_failure() {
-            let _ = 255u8.add(1u8);
+        mod sub {
+            use crate::ops::arith::Sub;
+
+            // Subtraction underflows past the type's minimum: `0 - 1` for
+            // unsigned (a borrow below zero), and `MIN - 1` for signed (one step
+            // below the most-negative value).
+
+            #[test(should_fail_with = "attempt to subtract with overflow")]
+            fn u8_overflow() {
+                let _ = 0u8.sub(1u8);
+            }
+
+            #[test(should_fail_with = "attempt to subtract with overflow")]
+            fn u16_overflow() {
+                let _ = 0u16.sub(1u16);
+            }
+
+            #[test(should_fail_with = "attempt to subtract with overflow")]
+            fn i8_overflow() {
+                let val: i8 = -128;
+                let _ = val.sub(1i8);
+            }
+
+            #[test(should_fail_with = "attempt to subtract with overflow")]
+            fn i16_overflow() {
+                let val: i16 = -32768;
+                let _ = val.sub(1i16);
+            }
+
+            #[test(should_fail_with = "attempt to subtract with overflow")]
+            fn i32_overflow() {
+                let val: i32 = -2147483648;
+                let _ = val.sub(1i32);
+            }
+
+            #[test(should_fail_with = "attempt to subtract with overflow")]
+            fn i64_overflow() {
+                let val: i64 = -9223372036854775808;
+                let _ = val.sub(1i64);
+            }
         }
 
-        #[test(should_fail)]
-        fn test_u8_mul_overflow_failure() {
-            let _ = 255u8.mul(2u8);
+        mod mul {
+            use crate::ops::arith::Mul;
+
+            // Unsigned `MAX * 2` exceeds the maximum. The signed corner is
+            // `MIN * -1`: the true product is `-MIN == 2^(bits-1)`, exactly one
+            // past the signed maximum `2^(bits-1) - 1`, so it is unrepresentable.
+            // This is the same range asymmetry that makes negating MIN overflow.
+
+            #[test(should_fail_with = "attempt to multiply with overflow")]
+            fn u8_overflow() {
+                let _ = 255u8.mul(2u8);
+            }
+
+            #[test(should_fail_with = "attempt to multiply with overflow")]
+            fn u16_overflow() {
+                let _ = 65535u16.mul(2u16);
+            }
+
+            #[test(should_fail_with = "attempt to multiply with overflow")]
+            fn i8_min_times_neg_one_overflow() {
+                let val: i8 = -128;
+                let _ = val.mul(-1i8);
+            }
+
+            #[test(should_fail_with = "attempt to multiply with overflow")]
+            fn i16_min_times_neg_one_overflow() {
+                let val: i16 = -32768;
+                let _ = val.mul(-1i16);
+            }
+
+            #[test(should_fail_with = "attempt to multiply with overflow")]
+            fn i32_min_times_neg_one_overflow() {
+                let val: i32 = -2147483648;
+                let _ = val.mul(-1i32);
+            }
+
+            #[test(should_fail_with = "attempt to multiply with overflow")]
+            fn i64_min_times_neg_one_overflow() {
+                let val: i64 = -9223372036854775808;
+                let _ = val.mul(-1i64);
+            }
         }
 
-        #[test(should_fail)]
-        fn test_u16_sub_overflow_failure() {
-            let _ = 0u16.sub(1u16);
+        mod div {
+            use crate::ops::arith::Div;
+
+            // `MIN / -1` is the only division that overflows: the quotient is
+            // `-MIN == 2^(bits-1)`, one past the signed maximum. (Division by
+            // zero is a distinct error and is not what these cases exercise.)
+
+            #[test(should_fail_with = "attempt to divide with overflow")]
+            fn i8_min_by_neg_one_overflow() {
+                let val: i8 = -128;
+                let _ = val.div(-1i8);
+            }
+
+            #[test(should_fail_with = "attempt to divide with overflow")]
+            fn i16_min_by_neg_one_overflow() {
+                let val: i16 = -32768;
+                let _ = val.div(-1i16);
+            }
+
+            #[test(should_fail_with = "attempt to divide with overflow")]
+            fn i32_min_by_neg_one_overflow() {
+                let val: i32 = -2147483648;
+                let _ = val.div(-1i32);
+            }
+
+            #[test(should_fail_with = "attempt to divide with overflow")]
+            fn i64_min_by_neg_one_overflow() {
+                let val: i64 = -9223372036854775808;
+                let _ = val.div(-1i64);
+            }
         }
 
-        #[test(should_fail)]
-        fn test_u16_add_overflow_failure() {
-            let _ = 65535u16.add(1u16);
+        mod rem {
+            use crate::ops::arith::Rem;
+
+            // `MIN % -1` is mathematically 0, but it is computed via the same
+            // `MIN / -1` division that overflows, so the operation is rejected
+            // rather than silently yielding 0. This matches Rust, where
+            // `iN::MIN % -1` also overflows.
+
+            #[test(should_fail_with = "attempt to calculate the remainder with overflow")]
+            fn i8_min_by_neg_one_overflow() {
+                let val: i8 = -128;
+                let _ = val.rem(-1i8);
+            }
+
+            #[test(should_fail_with = "attempt to calculate the remainder with overflow")]
+            fn i16_min_by_neg_one_overflow() {
+                let val: i16 = -32768;
+                let _ = val.rem(-1i16);
+            }
+
+            #[test(should_fail_with = "attempt to calculate the remainder with overflow")]
+            fn i32_min_by_neg_one_overflow() {
+                let val: i32 = -2147483648;
+                let _ = val.rem(-1i32);
+            }
+
+            #[test(should_fail_with = "attempt to calculate the remainder with overflow")]
+            fn i64_min_by_neg_one_overflow() {
+                let val: i64 = -9223372036854775808;
+                let _ = val.rem(-1i64);
+            }
         }
 
-        #[test(should_fail)]
-        fn test_u16_mul_overflow_failure() {
-            let _ = 65535u16.mul(2u16);
-        }
+        mod neg {
+            use crate::ops::arith::Neg;
 
-        #[test(should_fail)]
-        fn test_signed_sub_overflow_failure() {
-            let val: i8 = -128;
-            let _ = val.sub(1i8);
-        }
+            // Negating `MIN` overflows because the two's-complement range is
+            // asymmetric: `-MIN == 2^(bits-1)` has no representable positive
+            // counterpart (the maximum is only `2^(bits-1) - 1`). MIN is the
+            // unique value with this property, so it is the only negation that
+            // fails. The wording of the failure depends on the execution path:
+            // the comptime interpreter reports "attempt to negate with
+            // overflow", while ACIR/Brillig lower unary `-` to `0 - x` and so
+            // report "attempt to subtract with overflow". Both share
+            // "with overflow", which is what these cases assert on.
 
-        #[test(should_fail)]
-        fn test_signed_overflow_failure() {
-            let _ = 127i8.add(1i8);
+            #[test(should_fail_with = "with overflow")]
+            fn i8_min_overflow() {
+                let val: i8 = -128;
+                let _ = val.neg();
+            }
+
+            #[test(should_fail_with = "with overflow")]
+            fn i16_min_overflow() {
+                let val: i16 = -32768;
+                let _ = val.neg();
+            }
+
+            #[test(should_fail_with = "with overflow")]
+            fn i32_min_overflow() {
+                let val: i32 = -2147483648;
+                let _ = val.neg();
+            }
+
+            #[test(should_fail_with = "with overflow")]
+            fn i64_min_overflow() {
+                let val: i64 = -9223372036854775808;
+                let _ = val.neg();
+            }
         }
 
         #[test]

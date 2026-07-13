@@ -838,7 +838,21 @@ fn values_to_fields(values: &[Value]) -> Vec<FieldElement> {
         let mut vector_length: Option<usize> = None;
         for value in values {
             match value {
-                Value::Numeric(numeric_value) => fields.push(numeric_value.to_field()),
+                Value::Numeric(numeric_value) => {
+                    // In ACIR mode unchecked arithmetic leaves values unreduced, so a numeric
+                    // value's stored field may exceed its type's bit width. Observers such as
+                    // `print` must see the reduced (in-range) two's-complement bit pattern, not
+                    // the raw field, otherwise a logical `i8 0` computed via `unchecked_add`
+                    // prints as `256`.
+                    let field = match numeric_value.get_type() {
+                        NumericType::NativeField => numeric_value.to_field(),
+                        _ => crate::ssa::ir::instruction::binary::truncate_field(
+                            numeric_value.to_field(),
+                            numeric_value.bit_size(),
+                        ),
+                    };
+                    fields.push(field);
+                }
                 Value::Reference(reference_value) => {
                     if let Some(value) = reference_value.element.borrow().as_ref() {
                         go(std::iter::once(value), fields);

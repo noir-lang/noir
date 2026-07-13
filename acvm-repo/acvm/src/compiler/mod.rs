@@ -4,7 +4,6 @@
 //!
 //! # Optimizers
 //! - `GeneralOptimizer`: simple pass which simplifies `AssertZero` opcodes when possible (e.g remove terms with null coefficient)
-//! - `UnusedMemoryOptimizer`: simple pass which removes `MemoryInit` opcodes when they are not used (e.g no corresponding `MemoryOp` opcode)
 //! - `RangeOptimizer`: forward pass to collect range check information, and backward pass to remove the ones that are redundant.
 //! - `CommonSubexpressionOptimizer`: Assigns common subexpressions to witnesses to simplify expressions and reduce the number of opcodes.
 //!

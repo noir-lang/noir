@@ -129,6 +129,7 @@ use acvm::acir::{circuit::opcodes::BlockType, native_types::Witness};
 use acvm::{FieldElement, acir::AcirField, acir::circuit::opcodes::BlockId};
 use iter_extended::{try_vecmap, vecmap};
 use itertools::Itertools;
+use std::rc::Rc;
 
 use crate::acir::types::flat_element_types;
 use crate::brillig::assert_u32;
@@ -880,7 +881,6 @@ impl Context<'_> {
     /// memory block has already been resolved by [`Self::resolve_array_set_block`].
     ///
     /// # Purpose
-    /// - Initializes the optional [`AcirDynamicArray::element_type_sizes`] helper array for when elements are non-homogenous.
     /// - Populates the `value_types` vector. See [`AcirDynamicArray::value_types`] for more information.
     pub(super) fn make_array_set_result_value(
         &mut self,
@@ -897,21 +897,6 @@ impl Context<'_> {
         let array_typ = dfg.type_of_value(array);
         let len = self.flattened_size(array, dfg);
 
-        // Check if we need the helper table to hold element sizes.
-        let element_type_sizes = if array_has_constant_element_size(&array_typ).is_none() {
-            let acir_value = self.convert_value(array, dfg);
-            let shift = ElementTypeSizesArrayShift::None;
-            Some(self.init_element_type_sizes_array(
-                &array_typ,
-                array,
-                Some(acir_value),
-                dfg,
-                shift,
-            )?)
-        } else {
-            None
-        };
-
         let value_types = flat_element_types(&array_typ);
         if value_types.is_empty() {
             // An element type with zero flattened width (e.g. `str<0>` or `[T; 0]`)
@@ -922,12 +907,7 @@ impl Context<'_> {
             assert_eq!(len.to_usize() % value_types.len(), 0);
         }
 
-        Ok(AcirValue::DynamicArray(AcirDynamicArray {
-            block_id,
-            len,
-            value_types,
-            element_type_sizes,
-        }))
+        Ok(AcirValue::DynamicArray(AcirDynamicArray { block_id, len, value_types }))
     }
 
     /// Initializes the element types sizes array to enable indexing of non-homogenous SSA arrays
@@ -957,6 +937,45 @@ impl Context<'_> {
             return Ok(base_block);
         }
 
+        let table = self
+            .element_type_sizes_table(array_typ, array_id, supplied_acir_value, dfg, shift)?
+            .as_ref()
+            .clone();
+
+        let block = self.reuse_or_init_element_type_sizes(table, base_block)?;
+
+        // Record which block backs this value's helper table. This also keeps the post-ACIR check's
+        // set of element-type-sizes blocks complete (it scans these values to forbid writes to them).
+        self.element_type_sizes_blocks.insert(array_id, block);
+        Ok(block)
+    }
+
+    /// Returns the element-type-sizes table (a cumulative prefix-offset array) for a non-homogenous
+    /// array or vector, without allocating or initializing any memory block for it.
+    ///
+    /// This is the computation shared by [`Self::init_element_type_sizes_array`] (which then
+    /// materializes the table into a memory block) and the constant-index fast path in
+    /// [`Self::get_flattened_index`] (which indexes the table directly at compile time and never
+    /// needs a block).
+    ///
+    /// The table for a given `(value, shift)` is fixed (an SSA value's type and length are
+    /// immutable), so it is computed once and cached, keeping repeated constant-index accesses into
+    /// the same non-homogenous array (e.g. an unrolled loop) from rebuilding it. The cache is keyed
+    /// only by `(array_id, shift)`; `supplied_acir_value` is a shortcut used to size the table on a
+    /// miss and is ignored on a hit (it is always the same value's ACIR representation, so it has
+    /// the same flattened length as `convert_value(array_id)`).
+    fn element_type_sizes_table(
+        &mut self,
+        array_typ: &Type,
+        array_id: ValueId,
+        supplied_acir_value: Option<AcirValue>,
+        dfg: &DataFlowGraph,
+        shift: ElementTypeSizesArrayShift,
+    ) -> Result<Rc<Vec<u32>>, RuntimeError> {
+        if let Some(table) = self.element_type_sizes_tables.get(&(array_id, shift)) {
+            return Ok(table.clone());
+        }
+
         if !matches!(array_typ, Type::Array(_, _) | Type::Vector(_)) {
             return Err(InternalError::Unexpected {
                 expected: "array or vector".to_owned(),
@@ -975,9 +994,9 @@ impl Context<'_> {
             .into());
         }
 
-        // An instruction/param representing the array means it has been processed previously during
-        // ACIR gen. Use that result to recover its flattened length, then apply the requested shift
-        // (e.g. one extra element for a vector insert) to size the table.
+        // An instruction/param representing the array means it has been processed previously
+        // during ACIR gen. Use that result to recover its flattened length, then apply the
+        // requested shift (e.g. one extra element for a vector insert) to size the table.
         let array_acir_value =
             supplied_acir_value.unwrap_or_else(|| self.convert_value(array_id, dfg));
         if !matches!(array_acir_value, AcirValue::Array(_) | AcirValue::DynamicArray(_)) {
@@ -989,14 +1008,10 @@ impl Context<'_> {
             .into());
         }
         let flattened_len = flattened_value_size(&array_acir_value);
-        let table = calculate_element_type_sizes_array(array_typ, flattened_len, shift);
+        let table = Rc::new(calculate_element_type_sizes_array(array_typ, flattened_len, shift));
 
-        let block = self.reuse_or_init_element_type_sizes(table, base_block)?;
-
-        // Record which block backs this value's helper table. This also keeps the post-ACIR check's
-        // set of element-type-sizes blocks complete (it scans these values to forbid writes to them).
-        self.element_type_sizes_blocks.insert(array_id, block);
-        Ok(block)
+        self.element_type_sizes_tables.insert((array_id, shift), table.clone());
+        Ok(table)
     }
 
     /// Returns a memory block holding the given element-type-sizes `table`, reusing an existing one
@@ -1150,30 +1165,23 @@ impl Context<'_> {
     ) -> Result<AcirVar, RuntimeError> {
         // For a non-homogenous layout a statically-known, in-bounds index resolves to a fixed
         // flattened offset held in the element-type-sizes table. That offset is independent of the
-        // side-effects predicate, so emit it as a constant rather than gating the index and reading
-        // the (never-written) table from memory. We use the original index here rather than the
-        // predicated one below, since gating can turn a constant into a witness and hide its value.
-        // An out-of-bounds constant index (no table entry) falls through to the runtime path, which
-        // defers the bounds failure to execution.
+        // side-effects predicate, so compute the table directly and emit the offset as a constant
+        // rather than allocating a memory block and reading the (never-written) table at runtime. We
+        // use the original index here rather than the predicated one below, since gating can turn a
+        // constant into a witness and hide its value. An out-of-bounds constant index (no table
+        // entry) falls through to the runtime path, which defers the bounds failure to execution.
         if array_has_constant_element_size(array_typ).is_none()
             && let Some(index) = self
                 .acir_context
                 .var_to_expression(var_index)?
                 .to_const()
                 .and_then(|c| c.try_to_u32())
+            && let Some(offset) = self
+                .element_type_sizes_table(array_typ, array_id, None, dfg, shift)?
+                .get(index as usize)
+                .copied()
         {
-            let element_type_sizes =
-                self.init_element_type_sizes_array(array_typ, array_id, None, dfg, shift)?;
-            // The table backing the block is its (constant) initialization values, recovered from
-            // the table-to-block cache rather than re-deriving the array's size.
-            let offset = self
-                .type_sizes_to_blocks
-                .iter()
-                .find_map(|(table, block)| (*block == element_type_sizes).then_some(table))
-                .and_then(|table| table.get(index as usize).copied());
-            if let Some(offset) = offset {
-                return Ok(self.acir_context.add_constant(offset));
-            }
+            return Ok(self.acir_context.add_constant(offset));
         }
 
         // Gate the input by the side-effects predicate when the index isn't statically
@@ -1324,14 +1332,13 @@ impl Context<'_> {
 }
 
 /// Represents a shift in the size of the element type sizes array.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(super) enum ElementTypeSizesArrayShift {
     /// No shift is needed.
     None,
     /// The element type sizes array needs to grow by one (semantic length).
     /// This is used for vector insert operations.
     Increase,
-    Decrease,
 }
 
 /// Calculates the element type sizes lookup array for heterogeneous arrays/vectors.
@@ -1370,9 +1377,6 @@ pub(super) fn calculate_element_type_sizes_array(
         ElementTypeSizesArrayShift::None => {}
         ElementTypeSizesArrayShift::Increase => {
             non_flattened_elements += SemanticLength(1);
-        }
-        ElementTypeSizesArrayShift::Decrease => {
-            non_flattened_elements = SemanticLength(non_flattened_elements.0.saturating_sub(1));
         }
     }
 

@@ -10,6 +10,7 @@ use noirc_artifacts::ssa::{InternalWarning, SsaReport};
 use noirc_errors::call_stack::CallStack;
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 use std::collections::BTreeMap;
+use std::rc::Rc;
 use types::{AcirDynamicArray, AcirValue};
 
 use acvm::acir::{
@@ -104,6 +105,13 @@ struct Context<'a> {
     /// non-homogenous arrays end up having the same type sizes layout.
     type_sizes_to_blocks: BTreeMap<Vec<u32>, BlockId>,
 
+    /// Maps each `(value, shift)` to its element-type-sizes table. Caching it keeps repeated
+    /// constant-index accesses into the same non-homogenous array (e.g. an unrolled loop) from
+    /// rebuilding it. The table is held behind an `Rc` so a cache hit is a cheap clone rather than
+    /// copying the whole vector.
+    element_type_sizes_tables:
+        HashMap<(Id<Value>, arrays::ElementTypeSizesArrayShift), Rc<Vec<u32>>>,
+
     /// Number of the next `BlockId`, it is used to construct
     /// a new `BlockId`
     max_block_id: u32,
@@ -138,6 +146,7 @@ impl<'a> Context<'a> {
             return_data_block_id: None,
             element_type_sizes_blocks: HashMap::default(),
             type_sizes_to_blocks: BTreeMap::default(),
+            element_type_sizes_tables: HashMap::default(),
             max_block_id: 0,
             data_bus: DataBus::default(),
             shared_context,
@@ -924,9 +933,11 @@ impl<'a> Context<'a> {
 ///   no linked read/write is dead weight that ACIR gen should never emit: arrays are only promoted
 ///   to a memory block on their first memory operation. Databus blocks (calldata/return data) are
 ///   exempt as they are part of the circuit's ABI and are intentionally initialized even when
-///   unused. Zero-length blocks are also exempt: an empty block has no slots to read or write, so
-///   it can never be referenced by a memory operation, and the ACVM unused-memory optimizer strips
-///   these inert initializations regardless.
+///   unused. Zero-length blocks never reach this check (they are asserted against above and are
+///   never emitted), so the non-empty guard here is a belt-and-braces filter.
+/// * No `Call` or `BrilligCall` opcode is emitted with a compile-time zero predicate. Such a call is
+///   on a statically-dead branch and is never executed, so ACIR gen must resolve it to don't-care
+///   outputs rather than lay down an opcode whose predicate is known to be zero.
 #[cfg(debug_assertions)]
 fn acir_post_check(context: &Context<'_>, acir: &GeneratedAcir<FieldElement>) {
     use acvm::acir::circuit::Opcode;
@@ -965,14 +976,24 @@ fn acir_post_check(context: &Context<'_>, acir: &GeneratedAcir<FieldElement>) {
                     );
                 }
             }
-            Opcode::BrilligCall { inputs, .. } => {
+            Opcode::BrilligCall { inputs, predicate, .. } => {
+                assert!(
+                    !predicate.is_zero(),
+                    "ICE: Brillig calls with a compile-time zero predicate should be resolved during ACIR gen, not emitted"
+                );
                 for input in inputs {
                     if let BrilligInputs::MemoryArray(block_id) = input {
                         used_blocks.insert(*block_id);
                     }
                 }
             }
-            _ => {}
+            Opcode::Call { predicate, .. } => {
+                assert!(
+                    !predicate.is_zero(),
+                    "ICE: ACIR calls with a compile-time zero predicate should be resolved during ACIR gen, not emitted"
+                );
+            }
+            Opcode::BlackBoxFuncCall(_) => {}
         }
     }
 
