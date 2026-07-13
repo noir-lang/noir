@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1783947974933,
+  "lastUpdate": 1783947978541,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23086,48 +23086,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "jfecher11@gmail.com",
-            "name": "jfecher",
-            "username": "jfecher"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "8757d13f1a399cbd3c0f759a12b0ae717ef55284",
-          "message": "fix: Turbofish when used on a constructor in match patterns (#13236)",
-          "timestamp": "2026-07-02T15:47:08Z",
-          "tree_id": "c094892d196a7aa739e19bd78e517d2badfb5790",
-          "url": "https://github.com/noir-lang/noir/commit/8757d13f1a399cbd3c0f759a12b0ae717ef55284"
-        },
-        "date": 1783008446136,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 175254,
-            "range": "± 630",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 146160,
-            "range": "± 1140",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2657528,
-            "range": "± 11451",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "47281315+guipublic@users.noreply.github.com",
             "name": "guipublic",
             "username": "guipublic"
@@ -25179,6 +25137,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2648944,
             "range": "± 26536",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49558828+AztecBot@users.noreply.github.com",
+            "name": "Aztec Bot",
+            "username": "AztecBot"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "e5639b2fe0d387aa2a66f55b09597d3bd45acea3",
+          "message": "fix(acvm): reject out-of-range Keccakf1600 lanes instead of panicking (#13319)",
+          "timestamp": "2026-07-13T12:45:18Z",
+          "tree_id": "580434ee18111454cdc7054c5569000008f46863",
+          "url": "https://github.com/noir-lang/noir/commit/e5639b2fe0d387aa2a66f55b09597d3bd45acea3"
+        },
+        "date": 1783947900464,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 173901,
+            "range": "± 825",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 143916,
+            "range": "± 1428",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2652425,
+            "range": "± 4131",
             "unit": "ns/iter"
           }
         ]
