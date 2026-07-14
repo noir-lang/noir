@@ -1051,7 +1051,10 @@ mod tests {
     use crate::ssa::ir::instruction::Endian;
     use crate::{
         assert_ssa_snapshot,
-        ssa::{Ssa, ir::dfg::simplify::call::constant_to_radix, opt::assert_normalized_ssa_equals},
+        ssa::{
+            Ssa, ir::dfg::simplify::call::constant_to_radix,
+            opt::assert_ssa_does_not_change_after_simplifying,
+        },
     };
 
     #[test]
@@ -1470,8 +1473,7 @@ mod tests {
             return v10, v11
         }
         "#;
-        let ssa = Ssa::from_str_simplifying(src).unwrap();
-        assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_does_not_change_after_simplifying(src);
     }
 
     #[test]

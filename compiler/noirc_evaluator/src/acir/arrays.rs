@@ -246,6 +246,10 @@ impl Context<'_> {
             return Ok(());
         }
 
+        if self.handle_disabled_array_operation(instruction, dfg, array, store_value)? {
+            return Ok(());
+        }
+
         let array_typ = dfg.type_of_value(array);
         let offset = self.compute_offset(instruction, dfg, &array_typ);
         let (new_index, new_value) = self.convert_array_operation_inputs(
@@ -263,6 +267,41 @@ impl Context<'_> {
         }
 
         Ok(())
+    }
+
+    /// Resolves an array operation whose side-effects predicate is statically false.
+    ///
+    /// When the predicate is a compile-time zero the access is on a branch that is known to be
+    /// disabled, so the runtime memory-op path would only lay down a predicated read/write whose
+    /// index the predicate gates down to a constant `0`. For a never-written block that leaves a
+    /// constant, in-bounds read that could not be resolved by [`Self::handle_constant_index`] (the
+    /// SSA index is not a numeric constant, e.g. an offset multiplication that overflowed its type),
+    /// so it should be resolved here instead. A disabled read yields a don't-care value (zeroed to
+    /// match its result type, which the surrounding predication masks to zero anyway) and a disabled
+    /// write leaves the array unchanged.
+    ///
+    /// # Returns
+    /// `true` if the operation was resolved as disabled
+    /// `false` if the predicate is not statically false
+    fn handle_disabled_array_operation(
+        &mut self,
+        instruction: InstructionId,
+        dfg: &DataFlowGraph,
+        array: ValueId,
+        store_value: Option<ValueId>,
+    ) -> Result<bool, RuntimeError> {
+        if !self.acir_context.is_constant_zero(&self.current_side_effects_enabled_var) {
+            return Ok(false);
+        }
+
+        let value = if store_value.is_some() {
+            self.convert_value(array, dfg)
+        } else {
+            let [result] = dfg.instruction_result(instruction);
+            self.array_zero_value(&dfg.type_of_value(result))?
+        };
+        self.define_result(dfg, instruction, value);
+        Ok(true)
     }
 
     /// For 0-length arrays and vectors, even the disabled memory operations would cause runtime failures.
