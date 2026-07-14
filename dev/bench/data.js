@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1784033433394,
+  "lastUpdate": 1784033555818,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -22976,48 +22976,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "357d73840f74fc8c11434eaffeb4c3ffbdcac5ac",
-          "message": "fix: Check that arrays in the ABI do not exceed the witness size limit (#13252)",
-          "timestamp": "2026-07-06T12:49:13Z",
-          "tree_id": "ba98c2b7d320f4c4aff0cd4f976a8bca9335ad22",
-          "url": "https://github.com/noir-lang/noir/commit/357d73840f74fc8c11434eaffeb4c3ffbdcac5ac"
-        },
-        "date": 1783343993098,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 175945,
-            "range": "± 248",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 145186,
-            "range": "± 270",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2655094,
-            "range": "± 1144",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "49558828+AztecBot@users.noreply.github.com",
             "name": "Aztec Bot",
             "username": "AztecBot"
@@ -25069,6 +25027,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2655804,
             "range": "± 3782",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49558828+AztecBot@users.noreply.github.com",
+            "name": "Aztec Bot",
+            "username": "AztecBot"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "dbcdb333ebb66f75eb66c9735d831198f554810a",
+          "message": "fix(acir_gen): skip array block init for a zero-length array_get result (#13312)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
+          "timestamp": "2026-07-14T12:31:29Z",
+          "tree_id": "3cee08b62df9eab3d2568576b5dc75175a0cbe40",
+          "url": "https://github.com/noir-lang/noir/commit/dbcdb333ebb66f75eb66c9735d831198f554810a"
+        },
+        "date": 1784033477524,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 167307,
+            "range": "± 627",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 136056,
+            "range": "± 415",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2653125,
+            "range": "± 1350",
             "unit": "ns/iter"
           }
         ]
