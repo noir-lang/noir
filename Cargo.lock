@@ -14,7 +14,7 @@ dependencies = [
  "flate2",
  "insta",
  "msgpack_tagged",
- "num-bigint",
+ "num-bigint 0.5.1",
  "num-traits",
  "num_enum",
  "pprof",
@@ -46,7 +46,7 @@ dependencies = [
  "criterion",
  "hex",
  "msgpack_tagged",
- "num-bigint",
+ "num-bigint 0.5.1",
  "proptest",
  "serde",
  "serde_bytes",
@@ -67,7 +67,7 @@ dependencies = [
  "indexmap 2.14.0",
  "insta",
  "itertools 0.15.0",
- "num-bigint",
+ "num-bigint 0.5.1",
  "pprof",
  "proptest",
  "rustc-hash",
@@ -374,7 +374,7 @@ dependencies = [
  "fnv",
  "hashbrown 0.17.0",
  "itertools 0.14.0",
- "num-bigint",
+ "num-bigint 0.4.8",
  "num-integer",
  "num-traits",
  "zeroize",
@@ -393,7 +393,7 @@ dependencies = [
  "derivative",
  "digest 0.10.7",
  "itertools 0.10.5",
- "num-bigint",
+ "num-bigint 0.4.8",
  "num-traits",
  "paste",
  "rustc_version",
@@ -412,7 +412,7 @@ dependencies = [
  "ark-std 0.6.0",
  "digest 0.10.7",
  "educe",
- "num-bigint",
+ "num-bigint 0.4.8",
  "num-traits",
  "zeroize",
 ]
@@ -443,7 +443,7 @@ version = "0.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7abe79b0e4288889c4574159ab790824d0033b9fdcb2a112a3182fac2e514565"
 dependencies = [
- "num-bigint",
+ "num-bigint 0.4.8",
  "num-traits",
  "proc-macro2",
  "quote",
@@ -456,7 +456,7 @@ version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4a0691ed21ef00ef89c1e9bda832eba493dda3ec2f8d892fb25b705f73f06bb8"
 dependencies = [
- "num-bigint",
+ "num-bigint 0.4.8",
  "num-traits",
  "proc-macro2",
  "quote",
@@ -512,7 +512,7 @@ dependencies = [
  "ark-serialize-derive 0.4.2",
  "ark-std 0.4.0",
  "digest 0.10.7",
- "num-bigint",
+ "num-bigint 0.4.8",
 ]
 
 [[package]]
@@ -524,7 +524,7 @@ dependencies = [
  "ark-serialize-derive 0.6.0",
  "ark-std 0.6.0",
  "digest 0.10.7",
- "num-bigint",
+ "num-bigint 0.4.8",
 ]
 
 [[package]]
@@ -841,7 +841,7 @@ dependencies = [
  "criterion",
  "hex",
  "itertools 0.15.0",
- "num-bigint",
+ "num-bigint 0.5.1",
  "pprof",
  "proptest",
  "zkhash",
@@ -876,7 +876,7 @@ dependencies = [
  "acir",
  "acvm_blackbox_solver",
  "itertools 0.15.0",
- "num-bigint",
+ "num-bigint 0.5.1",
  "num-traits",
  "proptest",
  "proptest-derive",
@@ -3392,7 +3392,7 @@ dependencies = [
  "noirc_errors",
  "noirc_frontend",
  "noirc_printable_type",
- "num-bigint",
+ "num-bigint 0.5.1",
  "proptest",
  "proptest-derive",
  "rand 0.10.2",
@@ -3702,7 +3702,7 @@ dependencies = [
  "itertools 0.15.0",
  "noirc_abi",
  "noirc_artifacts",
- "num-bigint",
+ "num-bigint 0.5.1",
  "num-traits",
  "proptest",
  "rand 0.10.2",
@@ -3752,7 +3752,7 @@ dependencies = [
  "noirc_driver",
  "noirc_errors",
  "noirc_frontend",
- "num-bigint",
+ "num-bigint 0.5.1",
  "rayon",
  "rustc-hash",
  "serde",
@@ -3882,7 +3882,7 @@ dependencies = [
  "iter-extended",
  "itertools 0.15.0",
  "noirc_printable_type",
- "num-bigint",
+ "num-bigint 0.5.1",
  "num-traits",
  "proptest",
  "proptest-derive",
@@ -4003,7 +4003,7 @@ dependencies = [
  "noirc_errors",
  "noirc_frontend",
  "noirc_printable_type",
- "num-bigint",
+ "num-bigint 0.5.1",
  "num-integer",
  "num-traits",
  "petgraph",
@@ -4040,7 +4040,7 @@ dependencies = [
  "noirc_artifacts",
  "noirc_errors",
  "noirc_printable_type",
- "num-bigint",
+ "num-bigint 0.5.1",
  "num-traits",
  "petgraph",
  "proptest",
@@ -4136,9 +4136,19 @@ dependencies = [
 
 [[package]]
 name = "num-bigint"
-version = "0.4.6"
+version = "0.4.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a5e44f723f1133c9deac646763579fdb3ac745e418f2a7af9cd0c431da1f20b9"
+checksum = "c89e69e7e0f03bea5ef08013795c25018e101932225a656383bd384495ecc367"
+dependencies = [
+ "num-integer",
+ "num-traits",
+]
+
+[[package]]
+name = "num-bigint"
+version = "0.5.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "93e7820bc0a80a0238e650327316f929ba18d5be054b647490a3a6a339f3e7c0"
 dependencies = [
  "num-integer",
  "num-traits",
@@ -4906,7 +4916,7 @@ dependencies = [
  "arcstr",
  "combine",
  "itoa",
- "num-bigint",
+ "num-bigint 0.4.8",
  "percent-encoding",
  "ryu",
  "sha1_smol",
@@ -6041,7 +6051,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "32497e9a4c7b38532efcdebeef879707aa9f794296a4f0244f6f69e9bc8574bd"
 dependencies = [
  "fastrand",
- "getrandom 0.3.4",
+ "getrandom 0.4.2",
  "once_cell",
  "rustix 1.1.4",
  "windows-sys 0.61.2",
