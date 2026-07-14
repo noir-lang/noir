@@ -3305,89 +3305,87 @@
 <a href=#3305 id=3305 data-nosnippet>3305</a>    <span class="kw">let </span>y_field_name: Rc&lt;String&gt; = Rc::new(<span class="string">"y"</span>.to_owned());
 <a href=#3306 id=3306 data-nosnippet>3306</a>    <span class="kw">let </span><span class="kw-2">mut </span>results = Vector::new();
 <a href=#3307 id=3307 data-nosnippet>3307</a>    <span class="kw">for </span>generator <span class="kw">in </span>generators {
-<a href=#3308 id=3308 data-nosnippet>3308</a>        <span class="kw">let </span>x_big: BigUint = generator.x.into();
-<a href=#3309 id=3309 data-nosnippet>3309</a>        <span class="kw">let </span>x = FieldElement::from_be_bytes_reduce(<span class="kw-2">&amp;</span>x_big.to_bytes_be());
-<a href=#3310 id=3310 data-nosnippet>3310</a>        <span class="kw">let </span>y_big: BigUint = generator.y.into();
-<a href=#3311 id=3311 data-nosnippet>3311</a>        <span class="kw">let </span>y = FieldElement::from_be_bytes_reduce(<span class="kw-2">&amp;</span>y_big.to_bytes_be());
-<a href=#3312 id=3312 data-nosnippet>3312</a>        <span class="kw">let </span><span class="kw-2">mut </span>embedded_curve_point_fields = HashMap::default();
-<a href=#3313 id=3313 data-nosnippet>3313</a>        embedded_curve_point_fields.insert(x_field_name.clone(), Shared::new(Value::field(x)));
-<a href=#3314 id=3314 data-nosnippet>3314</a>        embedded_curve_point_fields.insert(y_field_name.clone(), Shared::new(Value::field(y)));
-<a href=#3315 id=3315 data-nosnippet>3315</a>        <span class="kw">let </span>embedded_curve_point_struct =
-<a href=#3316 id=3316 data-nosnippet>3316</a>            Value::Struct(embedded_curve_point_fields, <span class="kw-2">*</span>elements.clone());
-<a href=#3317 id=3317 data-nosnippet>3317</a>        results.push_back(embedded_curve_point_struct);
-<a href=#3318 id=3318 data-nosnippet>3318</a>    }
-<a href=#3319 id=3319 data-nosnippet>3319</a>
-<a href=#3320 id=3320 data-nosnippet>3320</a>    <span class="prelude-val">Ok</span>(Value::Array(results, return_type))
-<a href=#3321 id=3321 data-nosnippet>3321</a>}
-<a href=#3322 id=3322 data-nosnippet>3322</a>
-<a href=#3323 id=3323 data-nosnippet>3323</a><span class="kw">fn </span>field_less_than(arguments: Vec&lt;(Value, Location)&gt;, location: Location) -&gt; IResult&lt;Value&gt; {
-<a href=#3324 id=3324 data-nosnippet>3324</a>    <span class="kw">let </span>(lhs, rhs) = check_two_arguments(arguments, location)<span class="question-mark">?</span>;
-<a href=#3325 id=3325 data-nosnippet>3325</a>
-<a href=#3326 id=3326 data-nosnippet>3326</a>    <span class="kw">let </span>lhs = get_field(lhs)<span class="question-mark">?</span>;
-<a href=#3327 id=3327 data-nosnippet>3327</a>    <span class="kw">let </span>rhs = get_field(rhs)<span class="question-mark">?</span>;
-<a href=#3328 id=3328 data-nosnippet>3328</a>
-<a href=#3329 id=3329 data-nosnippet>3329</a>    <span class="prelude-val">Ok</span>(Value::Bool(lhs &lt; rhs))
-<a href=#3330 id=3330 data-nosnippet>3330</a>}
-<a href=#3331 id=3331 data-nosnippet>3331</a>
-<a href=#3332 id=3332 data-nosnippet>3332</a><span class="attr">#[cfg(test)]
-<a href=#3333 id=3333 data-nosnippet>3333</a></span><span class="kw">mod </span>tests {
-<a href=#3334 id=3334 data-nosnippet>3334</a>    <span class="kw">use super</span>::{compute_to_radix_le, field_less_than};
-<a href=#3335 id=3335 data-nosnippet>3335</a>    <span class="kw">use </span><span class="kw">crate</span>::hir::comptime::value::Value;
-<a href=#3336 id=3336 data-nosnippet>3336</a>    <span class="kw">use </span>acvm::FieldElement;
-<a href=#3337 id=3337 data-nosnippet>3337</a>    <span class="kw">use </span>noirc_errors::Location;
-<a href=#3338 id=3338 data-nosnippet>3338</a>
-<a href=#3339 id=3339 data-nosnippet>3339</a>    <span class="attr">#[test]
-<a href=#3340 id=3340 data-nosnippet>3340</a>    </span><span class="kw">fn </span>compute_to_radix_le_decomposes_in_range() {
-<a href=#3341 id=3341 data-nosnippet>3341</a>        <span class="comment">// 6 in base 2 (little endian) is 0,1,1.
-<a href=#3342 id=3342 data-nosnippet>3342</a>        </span><span class="macro">assert_eq!</span>(compute_to_radix_le(FieldElement::from(<span class="number">6u128</span>), <span class="number">2</span>), <span class="macro">vec!</span>[<span class="number">0</span>, <span class="number">1</span>, <span class="number">1</span>]);
-<a href=#3343 id=3343 data-nosnippet>3343</a>        <span class="comment">// Zero decomposes into no significant limbs.
-<a href=#3344 id=3344 data-nosnippet>3344</a>        </span><span class="macro">assert_eq!</span>(compute_to_radix_le(FieldElement::from(<span class="number">0u128</span>), <span class="number">2</span>), Vec::&lt;u8&gt;::new());
-<a href=#3345 id=3345 data-nosnippet>3345</a>        <span class="comment">// Largest supported radix is accepted.
-<a href=#3346 id=3346 data-nosnippet>3346</a>        </span><span class="macro">assert_eq!</span>(compute_to_radix_le(FieldElement::from(<span class="number">255u128</span>), <span class="number">256</span>), <span class="macro">vec!</span>[<span class="number">255</span>]);
-<a href=#3347 id=3347 data-nosnippet>3347</a>    }
-<a href=#3348 id=3348 data-nosnippet>3348</a>
-<a href=#3349 id=3349 data-nosnippet>3349</a>    <span class="attr">#[test]
-<a href=#3350 id=3350 data-nosnippet>3350</a>    #[should_panic(expected = <span class="string">"radix must be in the range 2..=256"</span>)]
-<a href=#3351 id=3351 data-nosnippet>3351</a>    </span><span class="kw">fn </span>compute_to_radix_le_rejects_radix_below_two() {
-<a href=#3352 id=3352 data-nosnippet>3352</a>        compute_to_radix_le(FieldElement::from(<span class="number">6u128</span>), <span class="number">1</span>);
-<a href=#3353 id=3353 data-nosnippet>3353</a>    }
-<a href=#3354 id=3354 data-nosnippet>3354</a>
-<a href=#3355 id=3355 data-nosnippet>3355</a>    <span class="attr">#[test]
-<a href=#3356 id=3356 data-nosnippet>3356</a>    #[should_panic(expected = <span class="string">"radix must be in the range 2..=256"</span>)]
-<a href=#3357 id=3357 data-nosnippet>3357</a>    </span><span class="kw">fn </span>compute_to_radix_le_rejects_radix_above_256() {
-<a href=#3358 id=3358 data-nosnippet>3358</a>        compute_to_radix_le(FieldElement::from(<span class="number">6u128</span>), <span class="number">300</span>);
-<a href=#3359 id=3359 data-nosnippet>3359</a>    }
-<a href=#3360 id=3360 data-nosnippet>3360</a>
-<a href=#3361 id=3361 data-nosnippet>3361</a>    <span class="kw">fn </span>args(a: Value, b: Value) -&gt; Vec&lt;(Value, Location)&gt; {
-<a href=#3362 id=3362 data-nosnippet>3362</a>        <span class="macro">vec!</span>[(a, Location::dummy()), (b, Location::dummy())]
-<a href=#3363 id=3363 data-nosnippet>3363</a>    }
-<a href=#3364 id=3364 data-nosnippet>3364</a>
-<a href=#3365 id=3365 data-nosnippet>3365</a>    <span class="kw">fn </span>pos(v: u128) -&gt; Value {
-<a href=#3366 id=3366 data-nosnippet>3366</a>        Value::field(v.into())
-<a href=#3367 id=3367 data-nosnippet>3367</a>    }
-<a href=#3368 id=3368 data-nosnippet>3368</a>
-<a href=#3369 id=3369 data-nosnippet>3369</a>    <span class="kw">fn </span>neg(v: u128) -&gt; Value {
-<a href=#3370 id=3370 data-nosnippet>3370</a>        Value::field(-FieldElement::from(v))
-<a href=#3371 id=3371 data-nosnippet>3371</a>    }
-<a href=#3372 id=3372 data-nosnippet>3372</a>
-<a href=#3373 id=3373 data-nosnippet>3373</a>    <span class="attr">#[test]
-<a href=#3374 id=3374 data-nosnippet>3374</a>    </span><span class="kw">fn </span>test_field_less_than() {
-<a href=#3375 id=3375 data-nosnippet>3375</a>        <span class="kw">let </span>loc = Location::dummy();
-<a href=#3376 id=3376 data-nosnippet>3376</a>
-<a href=#3377 id=3377 data-nosnippet>3377</a>        <span class="comment">// positive comparisons
-<a href=#3378 id=3378 data-nosnippet>3378</a>        </span><span class="macro">assert_eq!</span>(field_less_than(args(pos(<span class="number">0</span>), pos(<span class="number">1</span>)), loc).unwrap(), Value::Bool(<span class="bool-val">true</span>));
-<a href=#3379 id=3379 data-nosnippet>3379</a>        <span class="macro">assert_eq!</span>(field_less_than(args(pos(<span class="number">1</span>), pos(<span class="number">0</span>)), loc).unwrap(), Value::Bool(<span class="bool-val">false</span>));
-<a href=#3380 id=3380 data-nosnippet>3380</a>        <span class="macro">assert_eq!</span>(field_less_than(args(pos(<span class="number">42</span>), pos(<span class="number">42</span>)), loc).unwrap(), Value::Bool(<span class="bool-val">false</span>));
-<a href=#3381 id=3381 data-nosnippet>3381</a>        <span class="macro">assert_eq!</span>(field_less_than(args(pos(<span class="number">0x100</span>), pos(<span class="number">0x200</span>)), loc).unwrap(), Value::Bool(<span class="bool-val">true</span>));
-<a href=#3382 id=3382 data-nosnippet>3382</a>        <span class="macro">assert_eq!</span>(field_less_than(args(pos(<span class="number">0x200</span>), pos(<span class="number">0x100</span>)), loc).unwrap(), Value::Bool(<span class="bool-val">false</span>));
-<a href=#3383 id=3383 data-nosnippet>3383</a>
-<a href=#3384 id=3384 data-nosnippet>3384</a>        <span class="comment">// negative values wrap around
-<a href=#3385 id=3385 data-nosnippet>3385</a>        </span><span class="macro">assert_eq!</span>(field_less_than(args(pos(<span class="number">1</span>), neg(<span class="number">1</span>)), loc).unwrap(), Value::Bool(<span class="bool-val">true</span>));
-<a href=#3386 id=3386 data-nosnippet>3386</a>        <span class="macro">assert_eq!</span>(field_less_than(args(neg(<span class="number">1</span>), pos(<span class="number">1</span>)), loc).unwrap(), Value::Bool(<span class="bool-val">false</span>));
-<a href=#3387 id=3387 data-nosnippet>3387</a>        <span class="comment">// -2 &lt; -1
-<a href=#3388 id=3388 data-nosnippet>3388</a>        </span><span class="macro">assert_eq!</span>(field_less_than(args(neg(<span class="number">2</span>), neg(<span class="number">1</span>)), loc).unwrap(), Value::Bool(<span class="bool-val">true</span>));
-<a href=#3389 id=3389 data-nosnippet>3389</a>        <span class="macro">assert_eq!</span>(field_less_than(args(neg(<span class="number">1</span>), neg(<span class="number">2</span>)), loc).unwrap(), Value::Bool(<span class="bool-val">false</span>));
-<a href=#3390 id=3390 data-nosnippet>3390</a>        <span class="comment">// -1 &lt; -1 is false
-<a href=#3391 id=3391 data-nosnippet>3391</a>        </span><span class="macro">assert_eq!</span>(field_less_than(args(neg(<span class="number">1</span>), neg(<span class="number">1</span>)), loc).unwrap(), Value::Bool(<span class="bool-val">false</span>));
-<a href=#3392 id=3392 data-nosnippet>3392</a>    }
-<a href=#3393 id=3393 data-nosnippet>3393</a>}</code></pre></div></section></main></body></html>
+<a href=#3308 id=3308 data-nosnippet>3308</a>        <span class="kw">let </span>x = FieldElement::from_repr(generator.x);
+<a href=#3309 id=3309 data-nosnippet>3309</a>        <span class="kw">let </span>y = FieldElement::from_repr(generator.y);
+<a href=#3310 id=3310 data-nosnippet>3310</a>        <span class="kw">let </span><span class="kw-2">mut </span>embedded_curve_point_fields = HashMap::default();
+<a href=#3311 id=3311 data-nosnippet>3311</a>        embedded_curve_point_fields.insert(x_field_name.clone(), Shared::new(Value::field(x)));
+<a href=#3312 id=3312 data-nosnippet>3312</a>        embedded_curve_point_fields.insert(y_field_name.clone(), Shared::new(Value::field(y)));
+<a href=#3313 id=3313 data-nosnippet>3313</a>        <span class="kw">let </span>embedded_curve_point_struct =
+<a href=#3314 id=3314 data-nosnippet>3314</a>            Value::Struct(embedded_curve_point_fields, <span class="kw-2">*</span>elements.clone());
+<a href=#3315 id=3315 data-nosnippet>3315</a>        results.push_back(embedded_curve_point_struct);
+<a href=#3316 id=3316 data-nosnippet>3316</a>    }
+<a href=#3317 id=3317 data-nosnippet>3317</a>
+<a href=#3318 id=3318 data-nosnippet>3318</a>    <span class="prelude-val">Ok</span>(Value::Array(results, return_type))
+<a href=#3319 id=3319 data-nosnippet>3319</a>}
+<a href=#3320 id=3320 data-nosnippet>3320</a>
+<a href=#3321 id=3321 data-nosnippet>3321</a><span class="kw">fn </span>field_less_than(arguments: Vec&lt;(Value, Location)&gt;, location: Location) -&gt; IResult&lt;Value&gt; {
+<a href=#3322 id=3322 data-nosnippet>3322</a>    <span class="kw">let </span>(lhs, rhs) = check_two_arguments(arguments, location)<span class="question-mark">?</span>;
+<a href=#3323 id=3323 data-nosnippet>3323</a>
+<a href=#3324 id=3324 data-nosnippet>3324</a>    <span class="kw">let </span>lhs = get_field(lhs)<span class="question-mark">?</span>;
+<a href=#3325 id=3325 data-nosnippet>3325</a>    <span class="kw">let </span>rhs = get_field(rhs)<span class="question-mark">?</span>;
+<a href=#3326 id=3326 data-nosnippet>3326</a>
+<a href=#3327 id=3327 data-nosnippet>3327</a>    <span class="prelude-val">Ok</span>(Value::Bool(lhs &lt; rhs))
+<a href=#3328 id=3328 data-nosnippet>3328</a>}
+<a href=#3329 id=3329 data-nosnippet>3329</a>
+<a href=#3330 id=3330 data-nosnippet>3330</a><span class="attr">#[cfg(test)]
+<a href=#3331 id=3331 data-nosnippet>3331</a></span><span class="kw">mod </span>tests {
+<a href=#3332 id=3332 data-nosnippet>3332</a>    <span class="kw">use super</span>::{compute_to_radix_le, field_less_than};
+<a href=#3333 id=3333 data-nosnippet>3333</a>    <span class="kw">use </span><span class="kw">crate</span>::hir::comptime::value::Value;
+<a href=#3334 id=3334 data-nosnippet>3334</a>    <span class="kw">use </span>acvm::FieldElement;
+<a href=#3335 id=3335 data-nosnippet>3335</a>    <span class="kw">use </span>noirc_errors::Location;
+<a href=#3336 id=3336 data-nosnippet>3336</a>
+<a href=#3337 id=3337 data-nosnippet>3337</a>    <span class="attr">#[test]
+<a href=#3338 id=3338 data-nosnippet>3338</a>    </span><span class="kw">fn </span>compute_to_radix_le_decomposes_in_range() {
+<a href=#3339 id=3339 data-nosnippet>3339</a>        <span class="comment">// 6 in base 2 (little endian) is 0,1,1.
+<a href=#3340 id=3340 data-nosnippet>3340</a>        </span><span class="macro">assert_eq!</span>(compute_to_radix_le(FieldElement::from(<span class="number">6u128</span>), <span class="number">2</span>), <span class="macro">vec!</span>[<span class="number">0</span>, <span class="number">1</span>, <span class="number">1</span>]);
+<a href=#3341 id=3341 data-nosnippet>3341</a>        <span class="comment">// Zero decomposes into no significant limbs.
+<a href=#3342 id=3342 data-nosnippet>3342</a>        </span><span class="macro">assert_eq!</span>(compute_to_radix_le(FieldElement::from(<span class="number">0u128</span>), <span class="number">2</span>), Vec::&lt;u8&gt;::new());
+<a href=#3343 id=3343 data-nosnippet>3343</a>        <span class="comment">// Largest supported radix is accepted.
+<a href=#3344 id=3344 data-nosnippet>3344</a>        </span><span class="macro">assert_eq!</span>(compute_to_radix_le(FieldElement::from(<span class="number">255u128</span>), <span class="number">256</span>), <span class="macro">vec!</span>[<span class="number">255</span>]);
+<a href=#3345 id=3345 data-nosnippet>3345</a>    }
+<a href=#3346 id=3346 data-nosnippet>3346</a>
+<a href=#3347 id=3347 data-nosnippet>3347</a>    <span class="attr">#[test]
+<a href=#3348 id=3348 data-nosnippet>3348</a>    #[should_panic(expected = <span class="string">"radix must be in the range 2..=256"</span>)]
+<a href=#3349 id=3349 data-nosnippet>3349</a>    </span><span class="kw">fn </span>compute_to_radix_le_rejects_radix_below_two() {
+<a href=#3350 id=3350 data-nosnippet>3350</a>        compute_to_radix_le(FieldElement::from(<span class="number">6u128</span>), <span class="number">1</span>);
+<a href=#3351 id=3351 data-nosnippet>3351</a>    }
+<a href=#3352 id=3352 data-nosnippet>3352</a>
+<a href=#3353 id=3353 data-nosnippet>3353</a>    <span class="attr">#[test]
+<a href=#3354 id=3354 data-nosnippet>3354</a>    #[should_panic(expected = <span class="string">"radix must be in the range 2..=256"</span>)]
+<a href=#3355 id=3355 data-nosnippet>3355</a>    </span><span class="kw">fn </span>compute_to_radix_le_rejects_radix_above_256() {
+<a href=#3356 id=3356 data-nosnippet>3356</a>        compute_to_radix_le(FieldElement::from(<span class="number">6u128</span>), <span class="number">300</span>);
+<a href=#3357 id=3357 data-nosnippet>3357</a>    }
+<a href=#3358 id=3358 data-nosnippet>3358</a>
+<a href=#3359 id=3359 data-nosnippet>3359</a>    <span class="kw">fn </span>args(a: Value, b: Value) -&gt; Vec&lt;(Value, Location)&gt; {
+<a href=#3360 id=3360 data-nosnippet>3360</a>        <span class="macro">vec!</span>[(a, Location::dummy()), (b, Location::dummy())]
+<a href=#3361 id=3361 data-nosnippet>3361</a>    }
+<a href=#3362 id=3362 data-nosnippet>3362</a>
+<a href=#3363 id=3363 data-nosnippet>3363</a>    <span class="kw">fn </span>pos(v: u128) -&gt; Value {
+<a href=#3364 id=3364 data-nosnippet>3364</a>        Value::field(v.into())
+<a href=#3365 id=3365 data-nosnippet>3365</a>    }
+<a href=#3366 id=3366 data-nosnippet>3366</a>
+<a href=#3367 id=3367 data-nosnippet>3367</a>    <span class="kw">fn </span>neg(v: u128) -&gt; Value {
+<a href=#3368 id=3368 data-nosnippet>3368</a>        Value::field(-FieldElement::from(v))
+<a href=#3369 id=3369 data-nosnippet>3369</a>    }
+<a href=#3370 id=3370 data-nosnippet>3370</a>
+<a href=#3371 id=3371 data-nosnippet>3371</a>    <span class="attr">#[test]
+<a href=#3372 id=3372 data-nosnippet>3372</a>    </span><span class="kw">fn </span>test_field_less_than() {
+<a href=#3373 id=3373 data-nosnippet>3373</a>        <span class="kw">let </span>loc = Location::dummy();
+<a href=#3374 id=3374 data-nosnippet>3374</a>
+<a href=#3375 id=3375 data-nosnippet>3375</a>        <span class="comment">// positive comparisons
+<a href=#3376 id=3376 data-nosnippet>3376</a>        </span><span class="macro">assert_eq!</span>(field_less_than(args(pos(<span class="number">0</span>), pos(<span class="number">1</span>)), loc).unwrap(), Value::Bool(<span class="bool-val">true</span>));
+<a href=#3377 id=3377 data-nosnippet>3377</a>        <span class="macro">assert_eq!</span>(field_less_than(args(pos(<span class="number">1</span>), pos(<span class="number">0</span>)), loc).unwrap(), Value::Bool(<span class="bool-val">false</span>));
+<a href=#3378 id=3378 data-nosnippet>3378</a>        <span class="macro">assert_eq!</span>(field_less_than(args(pos(<span class="number">42</span>), pos(<span class="number">42</span>)), loc).unwrap(), Value::Bool(<span class="bool-val">false</span>));
+<a href=#3379 id=3379 data-nosnippet>3379</a>        <span class="macro">assert_eq!</span>(field_less_than(args(pos(<span class="number">0x100</span>), pos(<span class="number">0x200</span>)), loc).unwrap(), Value::Bool(<span class="bool-val">true</span>));
+<a href=#3380 id=3380 data-nosnippet>3380</a>        <span class="macro">assert_eq!</span>(field_less_than(args(pos(<span class="number">0x200</span>), pos(<span class="number">0x100</span>)), loc).unwrap(), Value::Bool(<span class="bool-val">false</span>));
+<a href=#3381 id=3381 data-nosnippet>3381</a>
+<a href=#3382 id=3382 data-nosnippet>3382</a>        <span class="comment">// negative values wrap around
+<a href=#3383 id=3383 data-nosnippet>3383</a>        </span><span class="macro">assert_eq!</span>(field_less_than(args(pos(<span class="number">1</span>), neg(<span class="number">1</span>)), loc).unwrap(), Value::Bool(<span class="bool-val">true</span>));
+<a href=#3384 id=3384 data-nosnippet>3384</a>        <span class="macro">assert_eq!</span>(field_less_than(args(neg(<span class="number">1</span>), pos(<span class="number">1</span>)), loc).unwrap(), Value::Bool(<span class="bool-val">false</span>));
+<a href=#3385 id=3385 data-nosnippet>3385</a>        <span class="comment">// -2 &lt; -1
+<a href=#3386 id=3386 data-nosnippet>3386</a>        </span><span class="macro">assert_eq!</span>(field_less_than(args(neg(<span class="number">2</span>), neg(<span class="number">1</span>)), loc).unwrap(), Value::Bool(<span class="bool-val">true</span>));
+<a href=#3387 id=3387 data-nosnippet>3387</a>        <span class="macro">assert_eq!</span>(field_less_than(args(neg(<span class="number">1</span>), neg(<span class="number">2</span>)), loc).unwrap(), Value::Bool(<span class="bool-val">false</span>));
+<a href=#3388 id=3388 data-nosnippet>3388</a>        <span class="comment">// -1 &lt; -1 is false
+<a href=#3389 id=3389 data-nosnippet>3389</a>        </span><span class="macro">assert_eq!</span>(field_less_than(args(neg(<span class="number">1</span>), neg(<span class="number">1</span>)), loc).unwrap(), Value::Bool(<span class="bool-val">false</span>));
+<a href=#3390 id=3390 data-nosnippet>3390</a>    }
+<a href=#3391 id=3391 data-nosnippet>3391</a>}</code></pre></div></section></main></body></html>
