@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1784023889154,
+  "lastUpdate": 1784026722918,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23011,48 +23011,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "0df14918157edb923458f9a77ba27f994b6fc11d",
-          "message": "fix: Make `FunctionDefinition` coercion in meta-attributes work with inherent methods (#13259)",
-          "timestamp": "2026-07-04T09:44:14Z",
-          "tree_id": "8e6da5f3fa15b9a633df7390ff331848e2a84aa6",
-          "url": "https://github.com/noir-lang/noir/commit/0df14918157edb923458f9a77ba27f994b6fc11d"
-        },
-        "date": 1783159431736,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 175796,
-            "range": "± 659",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 145674,
-            "range": "± 778",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2657755,
-            "range": "± 1840",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -25104,6 +25062,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2657516,
             "range": "± 7054",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "b2ef3132b597dec8e86f22d7f16402f4b3a6f019",
+          "message": "chore: bundle playwright deps into a dedicated dependabot group (#13339)",
+          "timestamp": "2026-07-14T11:54:48+01:00",
+          "tree_id": "7d643589ceac5a0311216365f45a41bd3e08d491",
+          "url": "https://github.com/noir-lang/noir/commit/b2ef3132b597dec8e86f22d7f16402f4b3a6f019"
+        },
+        "date": 1784026644114,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 173709,
+            "range": "± 779",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 143703,
+            "range": "± 1777",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2652014,
+            "range": "± 819",
             "unit": "ns/iter"
           }
         ]
