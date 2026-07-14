@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1783968695885,
+  "lastUpdate": 1784020589682,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23021,48 +23021,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": true,
-          "id": "57b18a3a931369a967320b870a0b717ac5bda0d3",
-          "message": "chore(acir_gen): assert no zero-length memory block is initialized (#13251)\n\nCo-authored-by: Ary Borenszweig <asterite@gmail.com>",
-          "timestamp": "2026-07-03T13:56:05Z",
-          "tree_id": "fdd7d78ad2cc680b016173449afaeb81fb5dc8e3",
-          "url": "https://github.com/noir-lang/noir/commit/57b18a3a931369a967320b870a0b717ac5bda0d3"
-        },
-        "date": 1783088179221,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 176933,
-            "range": "± 474",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 146434,
-            "range": "± 262",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2657219,
-            "range": "± 21505",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "49558828+AztecBot@users.noreply.github.com",
-            "name": "Aztec Bot",
-            "username": "AztecBot"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
           "id": "f415358c9f5a96a7f65b19e608e5963da9ce4b71",
           "message": "chore: gitignore insta pending snapshots (*.snap.new, *.pending-snap) (#13258)",
           "timestamp": "2026-07-03T17:05:41Z",
@@ -25104,6 +25062,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2654529,
             "range": "± 8764",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "2bf903d934099fdcdd012714fc33e39429417c55",
+          "message": "chore: add per-ecosystem catch-all groups for minor/patch dependabot updates (#13336)",
+          "timestamp": "2026-07-14T10:11:46+01:00",
+          "tree_id": "10ee1cfda09318d38bafb4ecda694df1fb3e2a55",
+          "url": "https://github.com/noir-lang/noir/commit/2bf903d934099fdcdd012714fc33e39429417c55"
+        },
+        "date": 1784020500795,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 162432,
+            "range": "± 1574",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 140954,
+            "range": "± 263",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2128568,
+            "range": "± 2319",
             "unit": "ns/iter"
           }
         ]
