@@ -12,6 +12,15 @@ updates:
       core-actions:
         patterns:
           - "actions/**"
+      # Group assignment is first-match in definition order, so this catch-all
+      # only collects updates not claimed by a group above and must stay last.
+      actions-minor-and-patch:
+        applies-to: version-updates
+        update-types:
+          - "minor"
+          - "patch"
+        patterns:
+          - "*"
 
   # Maintain dependencies for Rust crates
   - package-ecosystem: "cargo"
@@ -31,6 +40,17 @@ updates:
         patterns:
           - "p256"
           - "k256"
+      # Group assignment is first-match in definition order, so this catch-all
+      # only collects updates not claimed by a group above and must stay last.
+      # Note: 0.x bumps such as 0.4 -> 0.5 count as "minor" here even though
+      # cargo treats them as breaking; CI still gates the grouped PR.
+      cargo-minor-and-patch:
+        applies-to: version-updates
+        update-types:
+          - "minor"
+          - "patch"
+        patterns:
+          - "*"
 
   # Enable version updates for npm
   - package-ecosystem: "npm"
@@ -82,3 +102,12 @@ updates:
           - "@types/chai"
           - "@types/mocha*"
           - "@types/sinon"
+      # Group assignment is first-match in definition order, so this catch-all
+      # only collects updates not claimed by a group above and must stay last.
+      npm-minor-and-patch:
+        applies-to: version-updates
+        update-types:
+          - "minor"
+          - "patch"
+        patterns:
+          - "*"
