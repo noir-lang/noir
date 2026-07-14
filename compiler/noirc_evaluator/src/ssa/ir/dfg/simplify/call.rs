@@ -1020,10 +1020,8 @@ fn simplify_derive_generators(
                 derive_generators(&domain_separator_bytes, num_generators, starting_index);
             let mut results = Vec::new();
             for generator in generators {
-                let x_big: BigUint = generator.x.into();
-                let x = FieldElement::from_be_bytes_reduce(&x_big.to_bytes_be());
-                let y_big: BigUint = generator.y.into();
-                let y = FieldElement::from_be_bytes_reduce(&y_big.to_bytes_be());
+                let x = FieldElement::from_repr(generator.x);
+                let y = FieldElement::from_repr(generator.y);
                 results.push(dfg.make_constant(x, NumericType::NativeField));
                 results.push(dfg.make_constant(y, NumericType::NativeField));
             }
@@ -1051,7 +1049,10 @@ mod tests {
     use crate::ssa::ir::instruction::Endian;
     use crate::{
         assert_ssa_snapshot,
-        ssa::{Ssa, ir::dfg::simplify::call::constant_to_radix, opt::assert_normalized_ssa_equals},
+        ssa::{
+            Ssa, ir::dfg::simplify::call::constant_to_radix,
+            opt::assert_ssa_does_not_change_after_simplifying,
+        },
     };
 
     #[test]
@@ -1470,8 +1471,7 @@ mod tests {
             return v10, v11
         }
         "#;
-        let ssa = Ssa::from_str_simplifying(src).unwrap();
-        assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_does_not_change_after_simplifying(src);
     }
 
     #[test]

@@ -6,17 +6,17 @@ BIN_TO_FLDS=../../scripts/binary_to_fields.py
 
 nargo compile
 
-$BACKEND write_vk -b ./target/hello_world.json -o ./target --oracle_hash keccak
+$BACKEND write_vk -b ./target/hello_world.json -o ./target --verifier_target evm
 $BACKEND write_solidity_verifier -k ./target/vk -o ./src/contract.sol
 
 # We now generate a proof and check whether the verifier contract will verify it.
 nargo execute witness
 
 # Generate proof
-$BACKEND prove -b ./target/hello_world.json -w ./target/witness.gz --oracle_hash keccak -o ./target
+$BACKEND prove -b ./target/hello_world.json -w ./target/witness.gz --verifier_target evm -o ./target
 
 # Sanity check that proof is valid.
-$BACKEND verify -k ./target/vk -p ./target/proof -i ./target/public_inputs --oracle_hash keccak
+$BACKEND verify -k ./target/vk -p ./target/proof -i ./target/public_inputs --verifier_target evm
 
 # Read proof and convert to hex string
 PROOF_HEX=$(cat ./target/proof | od -An -v -t x1 | tr -d $' \n')
@@ -43,12 +43,22 @@ ZKTRANSCRIPT_DEPLOY=$(forge create ZKTranscriptLib \
 ZKTRANSCRIPT_ADDRESS=$(echo $ZKTRANSCRIPT_DEPLOY | jq -r '.deployedTo')
 echo "ZKTranscriptLib deployed at: $ZKTRANSCRIPT_ADDRESS"
 
+echo "Deploying RelationsLib..."
+RELATIONS_DEPLOY=$(forge create RelationsLib \
+  --rpc-url "127.0.0.1:8545" \
+  --private-key "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80" \
+  --broadcast \
+  --json)
+RELATIONS_ADDRESS=$(echo $RELATIONS_DEPLOY | jq -r '.deployedTo')
+echo "RelationsLib deployed at: $RELATIONS_ADDRESS"
+
 # Deploy HonkVerifier with library linking
 echo "Deploying HonkVerifier..."
 DEPLOY_INFO=$(forge create HonkVerifier \
   --rpc-url "127.0.0.1:8545" \
   --private-key "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80" \
   --libraries "src/contract.sol:ZKTranscriptLib:$ZKTRANSCRIPT_ADDRESS" \
+  --libraries "src/contract.sol:RelationsLib:$RELATIONS_ADDRESS" \
   --broadcast \
   --json)
 VERIFIER_ADDRESS=$(echo $DEPLOY_INFO | jq -r '.deployedTo')

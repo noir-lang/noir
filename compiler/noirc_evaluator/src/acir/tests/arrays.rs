@@ -7,12 +7,31 @@ use crate::{
     acir::{
         AcirDynamicArray, Context, SharedContext,
         acir_context::BrilligStdLib,
-        tests::{ssa_to_acir_program, ssa_to_generated_acir},
+        tests::{ssa_to_acir_program, try_ssa_to_acir},
         types::AcirValue,
     },
     brillig::{Brillig, BrilligOptions},
     ssa::{ir::value::ValueId, ssa_gen::Ssa},
 };
+
+#[test]
+fn array_get_of_zero_length_element_emits_no_orphan_init() {
+    // A dynamic `array_get` whose result is a zero-length nested array (`[u8; 0]`)
+    // reads no memory slots, so ACIR gen must not initialize the source array's
+    // block: an orphan `MemoryInit` with no linked read is rejected by
+    // `acir_post_check` with
+    // "ICE: memory blocks initialized without any linked read/write/Brillig use".
+    let src = "
+    acir(inline) fn main f0 {
+      b0(v0: u32):
+        v1 = make_array [] : [u8; 0]
+        v2 = make_array [v1, u8 1, v1, u8 2] : [([u8; 0], u8); 2]
+        v3 = array_get v2, index v0 -> [u8; 0]
+        return
+    }
+    ";
+    try_ssa_to_acir(src).expect("zero-length-element array_get should compile to ACIR");
+}
 
 #[test]
 fn array_set_not_mutable() {
@@ -167,10 +186,6 @@ fn constant_reads_on_parameter_array_avoid_memory_blocks() {
     // entirely against its `AcirValue::Array`. ACIR generation must not initialize a memory
     // block for it, nor emit any `READ`/`WRITE` memory operations: each read folds directly to
     // the corresponding input witness.
-    //
-    // We inspect the raw `GeneratedAcir` rather than the optimized program because the ACVM
-    // unused-memory optimizer would otherwise prune an eagerly-emitted `MemoryInit`, hiding
-    // whether ACIR gen created the block in the first place.
     let src = "
     acir(inline) fn main f0 {
       b0(v0: [Field; 3]):
@@ -180,15 +195,16 @@ fn constant_reads_on_parameter_array_avoid_memory_blocks() {
         return v5
     }
     ";
-    let generated_acir = ssa_to_generated_acir(src);
+    let program = ssa_to_acir_program(src);
 
+    assert_eq!(program.functions.len(), 1);
     assert!(
-        !generated_acir
-            .opcodes()
+        !program.functions[0]
+            .opcodes
             .iter()
             .any(|opcode| matches!(opcode, Opcode::MemoryInit { .. } | Opcode::MemoryOp { .. })),
         "constant reads on a parameter array should not generate a memory block, got opcodes:\n{:#?}",
-        generated_acir.opcodes()
+        program.functions[0].opcodes
     );
 }
 
@@ -223,6 +239,138 @@ fn predicated_constant_index_set_folds_without_memory_block() {
     BLACKBOX::RANGE input: w3, bits: 1
     ASSERT w4 = w0 + w3
     ");
+}
+
+#[test]
+fn disabled_out_of_bounds_read_resolves_without_memory_block() {
+    // Regression test for an ICE in `acir_post_check`:
+    //   "Read at constant in-bounds index on memory block ... which has no preceding write".
+    //
+    // The read's flattened offset is computed with `unchecked_mul` (`3000000000 * 2`, which
+    // overflows `u32`), so it never reaches SSA constant folding and stays a non-constant index
+    // that `handle_constant_index` cannot resolve. The access is guarded by a predicate that the
+    // preceding `constrain v == 0` pins to a compile-time zero.
+    //
+    // On the runtime memory-op path that zero predicate gates the index down to `0`, leaving a
+    // constant, in-bounds `READ` on a never-written block. ACIR gen must instead recognize the
+    // access as disabled and resolve it directly, emitting no memory block at all.
+    let src = "
+    acir(inline) fn main f0 {
+      b0(v0: u32):
+        v2 = make_array [u32 1, u32 2, u32 3, u32 4] : [(u32, u32)]
+        v4 = eq v0, u32 5
+        enable_side_effects v4
+        constrain v4 == u1 0
+        v7 = unchecked_mul u32 3000000000, u32 2
+        v8 = array_get v2, index v7 -> u32
+        enable_side_effects u1 1
+        v9 = cast v4 as u32
+        v10 = unchecked_mul v9, v8
+        v11 = unchecked_add v10, v0
+        return v11
+    }
+    ";
+    let program = ssa_to_acir_program(src);
+
+    assert_eq!(program.functions.len(), 1);
+    assert!(
+        !program.functions[0]
+            .opcodes
+            .iter()
+            .any(|opcode| matches!(opcode, Opcode::MemoryInit { .. } | Opcode::MemoryOp { .. })),
+        "a disabled out-of-bounds read should not generate a memory block, got opcodes:\n{:#?}",
+        program.functions[0].opcodes
+    );
+}
+
+#[test]
+fn disabled_out_of_bounds_read_from_global_resolves_without_memory_block() {
+    // The same regression as `disabled_out_of_bounds_read_resolves_without_memory_block`, but
+    // exercised from the exact final SSA the compiler emits for:
+    //
+    //   global G: [(u32, u32)] = [(1, 2), (3, 4)].as_vector();
+    //   fn main(a: u32) -> pub u32 {
+    //       if a == 5 { G[3000000000].0 } else { a }
+    //   }
+    //
+    // The read on the global vector `g4` at the overflowing offset `3000000000 * 2` is guarded by a
+    // predicate that `constrain 0 == v7` pins to a compile-time zero, so ACIR gen must resolve it as
+    // a disabled access rather than materializing `g4` into a memory block.
+    let src = "
+    g0 = u32 1
+    g1 = u32 2
+    g2 = u32 3
+    g3 = u32 4
+    g4 = make_array [u32 1, u32 2, u32 3, u32 4] : [(u32, u32)]
+
+    acir(inline) predicate_pure fn main f0 {
+      b0(v5: u32):
+        v7 = eq v5, u32 5
+        enable_side_effects v7
+        constrain u1 0 == v7, \"Index out of bounds\"
+        v10 = unchecked_mul u32 3000000000, u32 2
+        v11 = array_get g4, index v10 -> u32
+        enable_side_effects u1 1
+        v13 = cast v7 as u32
+        v14 = unchecked_mul v13, v11
+        v15 = unchecked_add v14, v5
+        return v15
+    }
+    ";
+    let program = ssa_to_acir_program(src);
+
+    assert_eq!(program.functions.len(), 1);
+    assert!(
+        !program.functions[0]
+            .opcodes
+            .iter()
+            .any(|opcode| matches!(opcode, Opcode::MemoryInit { .. } | Opcode::MemoryOp { .. })),
+        "a disabled out-of-bounds read should not generate a memory block, got opcodes:\n{:#?}",
+        program.functions[0].opcodes
+    );
+}
+
+#[test]
+fn disabled_out_of_bounds_read_with_predicate_restored_resolves_without_memory_block() {
+    // Minimized from `orig_vs_morph` fuzzer seed 0xa7d9bbfc0000a00d.
+    //
+    // The distinguishing feature versus `disabled_out_of_bounds_read_from_global_resolves_without_memory_block`
+    // is that the `enable_side_effects` guarding the read has been *restored to a constant one*
+    // (`enable_side_effects u1 1`) before the `array_get`: the read is not syntactically under the
+    // pinned predicate `v7`. Instead the block is dead because two constraints on `v7` contradict
+    // (`constrain 0 == v7` then `constrain v7 == 1`), which ACIR gen resolves to a compile-time zero
+    // side-effects predicate. So a pass keyed only on the predicate a `constrain x == 0` pins would
+    // miss this read, but the ACIR-gen check on the effective side-effects predicate still resolves
+    // it as disabled and emits no memory block for the overflowing (`3000000000 * 2`) index.
+    let src = "
+    g0 = u32 1
+    g1 = u32 2
+    g2 = u32 3
+    g3 = u32 4
+    g4 = make_array [u32 1, u32 2, u32 3, u32 4] : [(u32, u32)]
+
+    acir(inline) predicate_pure fn main f0 {
+      b0(v5: u32):
+        v7 = eq v5, u32 5
+        enable_side_effects v7
+        constrain u1 0 == v7, \"Index out of bounds\"
+        enable_side_effects u1 1
+        constrain v7 == u1 1, \"Index out of bounds\"
+        v10 = unchecked_mul u32 3000000000, u32 2
+        v11 = array_get g4, index v10 -> u32
+        return v11
+    }
+    ";
+    let program = ssa_to_acir_program(src);
+    assert_eq!(program.functions.len(), 1);
+    assert!(
+        !program.functions[0]
+            .opcodes
+            .iter()
+            .any(|opcode| matches!(opcode, Opcode::MemoryInit { .. } | Opcode::MemoryOp { .. })),
+        "a disabled out-of-bounds read should not generate a memory block, got opcodes:\n{:#?}",
+        program.functions[0].opcodes
+    );
 }
 
 #[test]
@@ -416,11 +564,7 @@ fn zero_length_array_dynamic_set() {
 fn zero_length_array_is_not_initialized() {
     // A dynamic operation on an array whose flattened size is zero (`[[u8; 0]; 4]`, whose elements
     // are zero-width) must not emit a `MemoryInit` for the empty backing block. An empty block has
-    // no slots to read or write, so any such `MemoryInit` describes an orphan block that the ACVM
-    // unused-memory optimizer strips anyway.
-    //
-    // We inspect the raw `GeneratedAcir` rather than the optimized program because that optimizer
-    // would remove the empty `MemoryInit`, hiding whether ACIR gen emitted it in the first place.
+    // no slots to read or write, so any such `MemoryInit` describes an orphan block.
     let src = "
     acir(inline) fn main f0 {
       b0(v0: u32):
@@ -430,15 +574,16 @@ fn zero_length_array_is_not_initialized() {
         return v3
     }
     ";
-    let generated_acir = ssa_to_generated_acir(src);
+    let program = ssa_to_acir_program(src);
 
+    assert_eq!(program.functions.len(), 1);
     assert!(
-        !generated_acir
-            .opcodes()
+        !program.functions[0]
+            .opcodes
             .iter()
             .any(|opcode| { matches!(opcode, Opcode::MemoryInit { init, .. } if init.is_empty()) }),
         "ACIR gen must not initialize a zero-length memory block, got opcodes:\n{:#?}",
-        generated_acir.opcodes()
+        program.functions[0].opcodes
     );
 }
 

@@ -131,7 +131,9 @@ fn verify_function(function: &Function) -> RtResult<()> {
             None
         } else if use_a_predicated_value.is_some() {
             use_a_predicated_value
-        } else if instruction.requires_acir_gen_predicate(dfg) {
+        } else if instruction.requires_acir_gen_predicate(dfg)
+            && !is_div_or_mod_by_nonzero_constant(dfg, instruction)
+        {
             current
         } else {
             None
@@ -182,27 +184,72 @@ fn is_predicate_guard(
     }
 }
 
-/// Whether `value` is the predicate `p`, possibly through `cast`s.
-fn is_predicate(dfg: &crate::ssa::ir::dfg::DataFlowGraph, mut value: ValueId, p: ValueId) -> bool {
-    loop {
-        if value == p {
-            return true;
-        }
-        match &dfg[value] {
-            crate::ssa::ir::value::Value::Instruction { instruction, .. } => {
-                if let Instruction::Cast(src, _) = &dfg[*instruction] {
-                    value = *src;
-                    continue;
-                }
-                return false;
+/// Whether multiplying by `value` re-applies predicate `p`, i.e. `value` is `0`
+/// whenever `p` is `0`.
+///
+/// Predicates are `u1` conditions; casting one to a wider type preserves its
+/// zero/non-zero-ness, so casts on either side are ignored when comparing. This
+/// holds when `value` is `p` itself, but also when:
+/// - `value` is a product `p * r` (in any nesting or operand order): such a
+///   product is `0` whenever `p` is `0`, so `value * operand` is still `0` on the
+///   disabled branch. Flattening gates a nested branch by the *conjunction* of all
+///   enclosing conditions, so a value tainted by an outer predicate `p` is
+///   re-guarded by an inner predicate of the form `p * inner_condition`.
+/// - `value` and `p` are different casts of the same source: the signed-division
+///   expansion, for example, derives both the branch predicate and the merge
+///   multiplier as separate casts of one sign value.
+/// - `value` is an `IfElse` merge `then_condition * then_value + else_condition *
+///   else_value`: the sum is `0` whenever `p` is `0` exactly when each product term
+///   is, and a product term is `0` whenever either of its factors is.
+fn is_predicate(dfg: &crate::ssa::ir::dfg::DataFlowGraph, value: ValueId, p: ValueId) -> bool {
+    let value = strip_casts(dfg, value);
+    let p = strip_casts(dfg, p);
+    if value == p {
+        return true;
+    }
+    if let crate::ssa::ir::value::Value::Instruction { instruction, .. } = &dfg[value] {
+        match &dfg[*instruction] {
+            Instruction::Binary(Binary { lhs, rhs, operator: BinaryOp::Mul { .. } }) => {
+                return is_predicate(dfg, *lhs, p) || is_predicate(dfg, *rhs, p);
             }
-            _ => return false,
+            Instruction::IfElse { then_condition, then_value, else_condition, else_value } => {
+                return (is_predicate(dfg, *then_condition, p)
+                    || is_predicate(dfg, *then_value, p))
+                    && (is_predicate(dfg, *else_condition, p)
+                        || is_predicate(dfg, *else_value, p));
+            }
+            _ => {}
         }
     }
+    false
+}
+
+/// Follow a chain of `cast` instructions to the underlying source value.
+fn strip_casts(dfg: &crate::ssa::ir::dfg::DataFlowGraph, mut value: ValueId) -> ValueId {
+    while let crate::ssa::ir::value::Value::Instruction { instruction, .. } = &dfg[value] {
+        if let Instruction::Cast(src, _) = &dfg[*instruction] {
+            value = *src;
+        } else {
+            break;
+        }
+    }
+    value
 }
 
 fn is_one(function: &Function, value: ValueId) -> bool {
     function.dfg.get_numeric_constant(value).is_some_and(|c| c.is_one())
+}
+
+fn is_div_or_mod_by_nonzero_constant(
+    dfg: &crate::ssa::ir::dfg::DataFlowGraph,
+    instruction: &Instruction,
+) -> bool {
+    let Instruction::Binary(Binary { rhs, operator: BinaryOp::Div | BinaryOp::Mod, .. }) =
+        instruction
+    else {
+        return false;
+    };
+    dfg.get_numeric_constant(*rhs).is_some_and(|c| !c.is_zero())
 }
 
 fn escape_error(function: &Function, operand: ValueId, call_stack: CallStack) -> RuntimeError {
@@ -215,7 +262,40 @@ fn escape_error(function: &Function, operand: ValueId, call_stack: CallStack) ->
 #[cfg(test)]
 mod tests {
     use super::verify_side_effect_predicates;
+    use crate::ssa::interpreter::value::Value;
     use crate::ssa::ssa_gen::Ssa;
+
+    #[test]
+    fn ifelse_on_the_multiplier_side_is_recognized() {
+        // Here the `IfElse` sits on the *predicate side*: it is the multiplier of a
+        // `mul` guard, not the merge of the tainted value. `is_predicate`'s `IfElse`
+        // arm sees that each branch of `if v1 then v0 else v0` is `0` whenever `v0`
+        // is, so the merge is `0` whenever `v0` is, and the guard is recognized.
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u1, v1: u1, v2: u16):
+            enable_side_effects v0
+            v3 = cast v2 as u32
+            v4 = add v3, u32 1
+            enable_side_effects u1 1
+            v5 = not v1
+            v6 = if v1 then v0 else (if v5) v0
+            v7 = cast v6 as u32
+            v8 = mul v7, v4
+            return v8
+        }
+        ";
+        let ssa = Ssa::from_str_no_validation(src).unwrap();
+        assert!(verify_side_effect_predicates(&ssa).is_ok());
+
+        // `v6 = v0`, so with `v0 = 0` the escaping value really is `0`.
+        let disabled =
+            ssa.interpret(vec![Value::bool(false), Value::bool(true), Value::u16(7)]).unwrap();
+        assert_eq!(disabled, vec![Value::u32(0)]);
+        let enabled =
+            ssa.interpret(vec![Value::bool(true), Value::bool(true), Value::u16(7)]).unwrap();
+        assert_eq!(enabled, vec![Value::u32(8)]);
+    }
 
     #[test]
     fn rejects_ungated_escape_to_return() {
@@ -296,6 +376,45 @@ mod tests {
     }
 
     #[test]
+    fn accepts_div_by_nonzero_constant_escape() {
+        // `div`/`mod` report `requires_acir_gen_predicate` so ACIR gen can guard against
+        // division by zero. A division by a non-zero *constant* can never divide by zero:
+        // `euclidean_division_var` returns the true quotient regardless of the predicate,
+        // so the result is not predicated and may escape its region ungated. This is the
+        // `0xc6ecd1e900100000` fuzzer shape, where a signed comparison (`cast (div x, 2^63)
+        // as u1`) escaped into a `constrain`.
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u1, v1: u32):
+            enable_side_effects v0
+            v2 = div v1, u32 2
+            enable_side_effects u1 1
+            return v2
+        }
+        ";
+        let ssa = Ssa::from_str_no_validation(src).unwrap();
+        assert!(verify_side_effect_predicates(&ssa).is_ok());
+    }
+
+    #[test]
+    fn rejects_div_by_non_constant_escape() {
+        // A division by a *runtime* divisor keeps requiring a predicate, so its result
+        // stays tracked and an ungated escape is still rejected. This pins the
+        // `accepts_div_by_nonzero_constant_escape` relaxation to the constant-divisor case.
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u1, v1: u32, v2: u32):
+            enable_side_effects v0
+            v3 = div v1, v2
+            enable_side_effects u1 1
+            return v3
+        }
+        ";
+        let ssa = Ssa::from_str_no_validation(src).unwrap();
+        assert!(verify_side_effect_predicates(&ssa).is_err());
+    }
+
+    #[test]
     fn accepts_arithmetic_outside_any_region() {
         let src = "
         acir(inline) fn main f0 {
@@ -304,6 +423,52 @@ mod tests {
             v3 = cast v1 as u32
             v4 = add v2, v3
             return v4
+        }
+        ";
+        let ssa = Ssa::from_str_no_validation(src).unwrap();
+        assert!(verify_side_effect_predicates(&ssa).is_ok());
+    }
+
+    #[test]
+    fn accepts_guard_by_conjoined_sub_predicate() {
+        // A checked add tainted by `v0` is re-guarded by `v0 * v1`, the
+        // conjunction flattening builds for a nested branch. `v0 * v1` is `0`
+        // whenever `v0` is `0`, so the guard zeroes the value on the disabled
+        // branch and the escape is spurious.
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u1, v1: u1, v2: u16):
+            enable_side_effects v0
+            v3 = cast v2 as u32
+            v4 = add v3, u32 1
+            v5 = unchecked_mul v0, v1
+            v6 = cast v5 as u32
+            v7 = mul v6, v4
+            enable_side_effects u1 1
+            return v7
+        }
+        ";
+        let ssa = Ssa::from_str_no_validation(src).unwrap();
+        assert!(verify_side_effect_predicates(&ssa).is_ok());
+    }
+
+    #[test]
+    fn accepts_guard_by_other_cast_of_predicate_source() {
+        // The branch predicate (`cast v0 as u1`) and the merge multiplier
+        // (`cast v0 as u32`) are different casts of the same source `v0`, as the
+        // signed-division expansion produces. Casts preserve zero-ness, so the
+        // multiplier still zeroes the tainted value when the predicate is `0`.
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u32, v1: u16):
+            v2 = cast v0 as u1
+            enable_side_effects v2
+            v3 = cast v1 as u32
+            v4 = add v3, u32 1
+            enable_side_effects u1 1
+            v5 = cast v0 as u32
+            v6 = mul v5, v4
+            return v6
         }
         ";
         let ssa = Ssa::from_str_no_validation(src).unwrap();

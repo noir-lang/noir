@@ -134,8 +134,15 @@ pub(super) fn decompose_constrain(
             (Value::NumericConstant { constant, .. }, Value::Instruction { instruction, .. })
             | (Value::Instruction { instruction, .. }, Value::NumericConstant { constant, .. }) => {
                 match dfg[*instruction] {
-                    Instruction::Binary(Binary { lhs, rhs, operator: BinaryOp::Mul { .. } })
-                        if constant.is_zero() && lhs == rhs =>
+                    Instruction::Binary(Binary {
+                        lhs,
+                        rhs,
+                        operator: BinaryOp::Mul { unchecked },
+                    }) if constant.is_zero()
+                        && lhs == rhs
+                        && (!unchecked
+                            || dfg.type_of_value(lhs).unwrap_numeric()
+                                == NumericType::NativeField) =>
                     {
                         // Replace an assertion that a squared value is zero
                         //
@@ -152,8 +159,13 @@ pub(super) fn decompose_constrain(
                         // Note that this doesn't remove the value `v1` as it may be used in other instructions, but it
                         // will likely be removed through dead instruction elimination.
                         //
-                        // This is safe for all numeric types as the underlying field has a prime modulus so squaring
-                        // a non-zero value should never result in zero.
+                        // Soundness depends on `v0 * v0 == 0` implying `v0 == 0`. That holds when the
+                        // multiplication is performed in a domain with no non-zero zero divisors:
+                        //   * `Field` operands — the underlying field has a prime modulus.
+                        //   * `Mul { unchecked: false }` — overflow is checked, so reaching the
+                        //     constraint means the product was computed in the integers.
+                        // It does NOT hold for `unchecked_mul` on a non-`Field` integer type, where
+                        // Brillig wraps modulo `2^N` (e.g. `u8 16 * u8 16 == u8 0`).
 
                         let zero = FieldElement::zero();
                         let zero = dfg.make_constant(zero, dfg.type_of_value(lhs).unwrap_numeric());
@@ -229,7 +241,12 @@ pub(super) fn decompose_constrain(
 
 #[cfg(test)]
 mod tests {
-    use crate::{assert_ssa_snapshot, ssa::ssa_gen::Ssa};
+    use test_case::test_case;
+
+    use crate::{
+        assert_ssa_snapshot,
+        ssa::{opt::assert_normalized_ssa_equals, ssa_gen::Ssa},
+    };
 
     #[test]
     fn simplifies_assertions_that_squared_values_are_equal_to_zero() {
@@ -251,6 +268,102 @@ mod tests {
             return
         }
         ");
+    }
+
+    // For a checked `mul`, reaching the constraint guarantees the multiplication did not
+    // overflow, so `v0 * v0 == 0` was computed without wraparound and implies `v0 == 0`. This
+    // holds for every numeric type: integers via the overflow check, `Field` via its prime
+    // modulus. Squaring a `bool` (`u1`) is handled by a separate rule and is not exercised here.
+    #[test_case("Field")]
+    #[test_case("u8")]
+    #[test_case("u16")]
+    #[test_case("u32")]
+    #[test_case("u64")]
+    #[test_case("u128")]
+    #[test_case("i8")]
+    #[test_case("i16")]
+    #[test_case("i32")]
+    #[test_case("i64")]
+    fn simplifies_assertion_that_checked_squared_value_is_zero(typ: &str) {
+        let ssa = Ssa::from_str_simplifying(&format!(
+            "
+            brillig(inline) fn main f0 {{
+              b0(v0: {typ}):
+                v1 = mul v0, v0
+                constrain v1 == {typ} 0
+                return
+            }}
+            "
+        ))
+        .unwrap();
+
+        assert_normalized_ssa_equals(
+            ssa,
+            &format!(
+                "
+                brillig(inline) fn main f0 {{
+                  b0(v0: {typ}):
+                    v1 = mul v0, v0
+                    constrain v0 == {typ} 0
+                    return
+                }}
+                "
+            ),
+        );
+    }
+
+    // `unchecked_mul` is still sound to decompose for `Field`: the prime modulus has no non-zero
+    // zero divisors, so `v0 * v0 == 0` implies `v0 == 0`. (`simplify_binary` also normalises the
+    // `Field` multiplication back to a checked `mul`, since a field multiplication cannot overflow.)
+    #[test]
+    fn simplifies_assertion_that_unchecked_squared_field_is_zero() {
+        let ssa = Ssa::from_str_simplifying(
+            "
+            brillig(inline) fn main f0 {
+              b0(v0: Field):
+                v1 = unchecked_mul v0, v0
+                constrain v1 == Field 0
+                return
+            }
+            ",
+        )
+        .unwrap();
+
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) fn main f0 {
+          b0(v0: Field):
+            v1 = mul v0, v0
+            constrain v0 == Field 0
+            return
+        }
+        ");
+    }
+
+    // For `BinaryOp::Mul { unchecked: true }` on a non-`Field` integer type the product wraps
+    // modulo `2^N`, so `v0 * v0 == 0` does NOT imply `v0 == 0` (e.g. `u8 16 * u8 16 == u8 0`).
+    // The constraint must be left untouched for every integer width and signedness.
+    #[test_case("u8")]
+    #[test_case("u16")]
+    #[test_case("u32")]
+    #[test_case("u64")]
+    #[test_case("u128")]
+    #[test_case("i8")]
+    #[test_case("i16")]
+    #[test_case("i32")]
+    #[test_case("i64")]
+    fn does_not_simplify_squared_zero_for_unchecked_mul_on_integer_type(typ: &str) {
+        let src = format!(
+            "
+            brillig(inline) fn main f0 {{
+              b0(v0: {typ}):
+                v1 = unchecked_mul v0, v0
+                constrain v1 == {typ} 0
+                return
+            }}
+            "
+        );
+        let ssa = Ssa::from_str_simplifying(&src).unwrap();
+        assert_normalized_ssa_equals(ssa, &src);
     }
 
     #[test]

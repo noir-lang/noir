@@ -10,6 +10,7 @@ use noirc_artifacts::ssa::{InternalWarning, SsaReport};
 use noirc_errors::call_stack::CallStack;
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 use std::collections::BTreeMap;
+use std::rc::Rc;
 use types::{AcirDynamicArray, AcirValue};
 
 use acvm::acir::{
@@ -104,6 +105,13 @@ struct Context<'a> {
     /// non-homogenous arrays end up having the same type sizes layout.
     type_sizes_to_blocks: BTreeMap<Vec<u32>, BlockId>,
 
+    /// Maps each `(value, shift)` to its element-type-sizes table. Caching it keeps repeated
+    /// constant-index accesses into the same non-homogenous array (e.g. an unrolled loop) from
+    /// rebuilding it. The table is held behind an `Rc` so a cache hit is a cheap clone rather than
+    /// copying the whole vector.
+    element_type_sizes_tables:
+        HashMap<(Id<Value>, arrays::ElementTypeSizesArrayShift), Rc<Vec<u32>>>,
+
     /// Number of the next `BlockId`, it is used to construct
     /// a new `BlockId`
     max_block_id: u32,
@@ -138,6 +146,7 @@ impl<'a> Context<'a> {
             return_data_block_id: None,
             element_type_sizes_blocks: HashMap::default(),
             type_sizes_to_blocks: BTreeMap::default(),
+            element_type_sizes_tables: HashMap::default(),
             max_block_id: 0,
             data_bus: DataBus::default(),
             shared_context,
@@ -913,60 +922,136 @@ impl<'a> Context<'a> {
     }
 }
 
-/// Check post ACIR generation properties:
-/// * No empty `AssertZero` opcodes (asserting `0 == 0`) should be emitted.
-/// * No zero-length memory block should be initialized. An empty block has no slots to read or
-///   write, so a `MemoryInit` for it is dead weight that ACIR gen must never emit.
-/// * No memory opcodes should be laid down that write to the internal type sizes array.
-///   See [arrays] for more information on the type sizes array.
-/// * Every non-databus, non-empty memory block that is initialized is also referenced by at least
-///   one memory operation or Brillig memory-array input. A `MemoryInit` with
-///   no linked read/write is dead weight that ACIR gen should never emit: arrays are only promoted
-///   to a memory block on their first memory operation. Databus blocks (calldata/return data) are
-///   exempt as they are part of the circuit's ABI and are intentionally initialized even when
-///   unused. Zero-length blocks are also exempt: an empty block has no slots to read or write, so
-///   it can never be referenced by a memory operation, and the ACVM unused-memory optimizer strips
-///   these inert initializations regardless.
-/// * No `Call` or `BrilligCall` opcode is emitted with a compile-time zero predicate. Such a call is
-///   on a statically-dead branch and is never executed, so ACIR gen must resolve it to don't-care
-///   outputs rather than lay down an opcode whose predicate is known to be zero.
+/// Check post ACIR generation properties. Each property is an independent invariant verified by its
+/// own focused pass over the opcodes; see the individual functions for the rationale of each.
 #[cfg(debug_assertions)]
 fn acir_post_check(context: &Context<'_>, acir: &GeneratedAcir<FieldElement>) {
+    assert_no_trivial_assert_zero(acir);
+    assert_no_empty_memory_blocks(acir);
+    assert_no_writes_to_type_size_arrays(context, acir);
+    assert_constant_reads_are_folded(context, acir);
+    assert_initialized_blocks_are_used(acir);
+}
+
+/// No empty `AssertZero` opcodes (asserting `0 == 0`) should be emitted.
+#[cfg(debug_assertions)]
+fn assert_no_trivial_assert_zero(acir: &GeneratedAcir<FieldElement>) {
+    use acvm::acir::circuit::Opcode;
+    for opcode in acir.opcodes() {
+        if let Opcode::AssertZero(expr) = opcode {
+            assert!(
+                !expr.is_zero(),
+                "ICE: Empty AssertZero opcodes (0 == 0) should not be emitted"
+            );
+        }
+    }
+}
+
+/// No zero-length memory block should be initialized. An empty block has no slots to read or write,
+/// so a `MemoryInit` for it is dead weight that ACIR gen must never emit.
+#[cfg(debug_assertions)]
+fn assert_no_empty_memory_blocks(acir: &GeneratedAcir<FieldElement>) {
+    use acvm::acir::circuit::Opcode;
+    for opcode in acir.opcodes() {
+        if let Opcode::MemoryInit { init, .. } = opcode {
+            assert!(!init.is_empty(), "ICE: Zero-length memory blocks should not be initialized");
+        }
+    }
+}
+
+/// No memory opcode should write to an internal type sizes array. See [arrays] for more information
+/// on the type sizes array.
+#[cfg(debug_assertions)]
+fn assert_no_writes_to_type_size_arrays(context: &Context<'_>, acir: &GeneratedAcir<FieldElement>) {
+    use acvm::acir::circuit::Opcode;
+    use acvm::acir::circuit::opcodes::MemOpKind;
+    for opcode in acir.opcodes() {
+        if let Opcode::MemoryOp { block_id, op } = opcode
+            && op.operation == MemOpKind::Write
+            && context.element_type_sizes_blocks.values().any(|id| id == block_id)
+        {
+            panic!("ICE: Writes to the internal type sizes array are forbidden");
+        }
+    }
+}
+
+/// No `Read` at a constant index whose initialized value is itself a compile-time constant should be
+/// emitted on a block which has not yet been written to. Such a read is fully determined — it is that
+/// constant — so it should have been folded rather than laid down as a memory opcode; in particular a
+/// disabled access whose index the predicate gates to a constant slot must be resolved by
+/// [`Context::handle_disabled_array_operation`] instead.
+///
+/// Reads whose initialized value is a non-constant witness are exempt: forwarding that witness is a
+/// valid optimization but not one this invariant requires (e.g. `vector` intrinsics legitimately
+/// re-read freshly initialized blocks). An out-of-bounds constant index is likewise exempt: it has no
+/// initialized value and is deliberately deferred to a runtime bounds failure.
+#[cfg(debug_assertions)]
+fn assert_constant_reads_are_folded(context: &Context<'_>, acir: &GeneratedAcir<FieldElement>) {
+    use acvm::acir::circuit::Opcode;
+    use acvm::acir::circuit::opcodes::MemOpKind;
+
+    // The value of each witness which holds a compile-time constant.
+    let constant_witnesses: HashMap<Witness, FieldElement> =
+        context.acir_context.constant_witness_values().collect();
+    // The witnesses each block was initialized with.
+    let mut block_inits: HashMap<BlockId, &[Witness]> = HashMap::default();
+    // Blocks for which a `Write` has already been emitted: once written, the contents at a slot can
+    // no longer be resolved statically, so constant-index reads of them are legitimate.
+    let mut written_blocks: HashSet<BlockId> = HashSet::default();
+
+    for opcode in acir.opcodes() {
+        match opcode {
+            Opcode::MemoryInit { block_id, init, .. } => {
+                block_inits.insert(*block_id, init);
+            }
+            Opcode::MemoryOp { block_id, op } if op.operation == MemOpKind::Write => {
+                written_blocks.insert(*block_id);
+            }
+            Opcode::MemoryOp { block_id, op } => {
+                // The read resolves to a compile-time constant when its index is a constant,
+                // in-bounds slot whose initialized witness is itself a known constant.
+                let init_witness = constant_witnesses
+                    .get(&op.index)
+                    .and_then(AcirField::try_to_u64)
+                    .and_then(|index| block_inits.get(block_id)?.get(index as usize));
+                let read_resolves_to_constant =
+                    init_witness.is_some_and(|w| constant_witnesses.contains_key(w));
+                assert!(
+                    !read_resolves_to_constant || written_blocks.contains(block_id),
+                    "ICE: Read resolving to a compile-time constant on memory block {block_id} \
+                     which has no preceding write should be folded at compile time"
+                );
+            }
+            _ => {}
+        }
+    }
+}
+
+/// Every non-databus, non-empty memory block that is initialized is also referenced by at least one
+/// memory operation or Brillig memory-array input. A `MemoryInit` with no linked read/write is dead
+/// weight that ACIR gen should never emit: arrays are only promoted to a memory block on their first
+/// memory operation. Databus blocks (calldata/return data) are exempt as they are part of the
+/// circuit's ABI and are intentionally initialized even when unused. Zero-length blocks are also
+/// exempt: an empty block has no slots to read or write, so it can never be referenced by a memory
+/// operation, and the ACVM unused-memory optimizer strips these inert initializations regardless.
+#[cfg(debug_assertions)]
+fn assert_initialized_blocks_are_used(acir: &GeneratedAcir<FieldElement>) {
     use acvm::acir::circuit::Opcode;
     use acvm::acir::circuit::brillig::BrilligInputs;
-    use acvm::acir::circuit::opcodes::MemOpKind;
 
     let mut initialized_non_databus_blocks: HashSet<BlockId> = HashSet::default();
     let mut used_blocks: HashSet<BlockId> = HashSet::default();
 
     for opcode in acir.opcodes() {
         match opcode {
-            Opcode::AssertZero(expr) => {
-                assert!(
-                    !expr.is_zero(),
-                    "ICE: Empty AssertZero opcodes (0 == 0) should not be emitted"
-                );
-            }
+            Opcode::AssertZero(_) => {}
             Opcode::MemoryInit { block_id, block_type, init } => {
-                assert!(
-                    !init.is_empty(),
-                    "ICE: Zero-length memory blocks should not be initialized"
-                );
                 if !block_type.is_databus() && !init.is_empty() {
                     initialized_non_databus_blocks.insert(*block_id);
                 }
             }
-            Opcode::MemoryOp { block_id, op } => {
+            Opcode::MemoryOp { block_id, .. } => {
                 used_blocks.insert(*block_id);
-                if op.operation == MemOpKind::Write {
-                    // Check that we have no writes to the type size arrays
-                    let is_type_sizes_array =
-                        context.element_type_sizes_blocks.values().any(|id| id == block_id);
-                    assert!(
-                        !is_type_sizes_array,
-                        "ICE: Writes to the internal type sizes array are forbidden"
-                    );
-                }
             }
             Opcode::BrilligCall { inputs, predicate, .. } => {
                 assert!(

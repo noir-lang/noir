@@ -1220,12 +1220,6 @@ impl Loop {
         let mut unroll_into = self.get_pre_header(function, cfg)?;
         let mut header_args = get_header_arguments(&function.dfg, unroll_into)?;
 
-        // Collect the original header parameters before unrolling.
-        // The header may have extra parameters beyond the induction variable (promoted mutable variables).
-        // Blocks outside the loop can reference these params directly, so after unrolling we need to
-        // replace those references with the final iteration's values.
-        let header_params: Vec<ValueId> = function.dfg[self.header].parameters().to_vec();
-
         let induction_index = self.induction_variable_index(&function.dfg);
 
         // If we have the induction variable, it must be initialized with a constant value,
@@ -1244,23 +1238,20 @@ impl Loop {
         let termination_unproven = self.induction_step_may_miss_bound(function, unroll_into);
 
         let mut iterations = 0;
-        while let Some((context, loop_header_id)) =
-            self.unroll_header(function, unroll_into, &header_args, dom)?
-        {
-            (unroll_into, header_args) = context.unroll_loop_iteration(loop_header_id);
+        // Keep the context across the steps, and forward the mapping of the last unrolling step.
+        let mapping = loop {
+            match self.unroll_header(function, unroll_into, &header_args, dom)? {
+                UnrollStep::Iterate(context, loop_header_id) => {
+                    (unroll_into, header_args) = context.unroll_loop_iteration(loop_header_id);
 
-            iterations += 1;
-            if termination_unproven && iterations >= unroll_limit {
-                return Err(CallStack::empty());
+                    iterations += 1;
+                    if termination_unproven && iterations >= unroll_limit {
+                        return Err(CallStack::empty());
+                    }
+                }
+                UnrollStep::Done(context) => break context.inserter.into_value_mapping(),
             }
-        }
-
-        // Build a mapping from header params to their final values.
-        // The caller is responsible for applying this mapping to blocks outside the loop.
-        let mut mapping = ValueMapping::default();
-        if !header_params.is_empty() {
-            mapping.batch_insert(&header_params, &header_args);
-        }
+        };
 
         Ok(mapping)
     }
@@ -1291,14 +1282,15 @@ impl Loop {
 
     /// Unrolls the header block of the loop. This is the block that dominates all other blocks in the
     /// loop and contains the jmpif instruction that lets us know if we should continue looping.
-    /// Returns Some((iteration context, `loop_header_id`)) if we should perform another iteration.
+    /// Returns [`UnrollStep::Iterate`] with the iteration context if we should perform another
+    /// iteration, or [`UnrollStep::Done`] with the exit iteration context otherwise.
     fn unroll_header<'a>(
         &'a self,
         function: &'a mut Function,
         unroll_into: BasicBlockId,
         header_args: &[ValueId],
         dom: &'a DominatorTree,
-    ) -> Result<Option<(LoopIteration<'a>, BasicBlockId)>, CallStack> {
+    ) -> Result<UnrollStep<'a>, CallStack> {
         // We insert into a fresh block first and move instructions into the unroll_into block later
         // only once we verify the jmpif instruction has a constant condition. If it does not, we can
         // just discard this fresh block and leave the loop unmodified.
@@ -1362,9 +1354,11 @@ impl Loop {
                     // in `source_block` and can unroll that into the destination.
                     let is_in_loop = self.blocks.contains(&context.source_block);
 
-                    Ok(is_in_loop
-                        .then_some(context)
-                        .map(|iteration_context| (iteration_context, loop_header_id)))
+                    Ok(if is_in_loop {
+                        UnrollStep::Iterate(context, loop_header_id)
+                    } else {
+                        UnrollStep::Done(context)
+                    })
                 } else {
                     // If this case is reached the loop either uses non-constant indices or we need
                     // another pass, such as mem2reg to resolve them to constants.
@@ -2067,6 +2061,16 @@ fn get_header_arguments(
     }
 }
 
+/// The outcome of unrolling one loop header, returned by [`Loop::unroll_header`].
+enum UnrollStep<'a> {
+    /// The header guard was constant-true: another iteration must be unrolled. Carries the
+    /// iteration context (to unroll the body from) and the original loop header id.
+    Iterate(LoopIteration<'a>, BasicBlockId),
+    /// The header guard was constant-false: this was the exit iteration and unrolling is complete.
+    /// Carries the exit context, whose inserter holds the final-iteration value of each header value.
+    Done(LoopIteration<'a>),
+}
+
 /// The context object for each loop iteration.
 /// Notably each loop iteration maps each loop block to a fresh, unrolled block.
 struct LoopIteration<'f> {
@@ -2280,9 +2284,19 @@ impl<'f> LoopIteration<'f> {
                 // independent predecessor carrying a different argument, and its parameters
                 // must be preserved so the join body runs once over the merged parameter;
                 // specializing would copy the body for this edge and drop it for the others.
+                //
+                // It must also be restricted to destinations inside the loop. A destination
+                // outside the loop is the exit edge: its body is never inlined by this
+                // iteration, so the mapping would never be consulted here, but it *would* be
+                // exported by `Loop::unroll` via `into_value_mapping` and applied to every
+                // reachable block. If the exit edge carries arguments into a later loop's
+                // header, that would freeze the later loop's parameters at this edge's values
+                // throughout the function, corrupting that loop.
                 let folding_block_dominates_destination =
                     self.dom.dominates(folding_block, original_destination);
-                if folding_block_dominates_destination {
+                if folding_block_dominates_destination
+                    && self.loop_.blocks.contains(&original_destination)
+                {
                     let destination_params = self.dfg().block_parameters(destination).to_vec();
                     for (param, arg) in destination_params.iter().zip(&arguments) {
                         self.inserter.map_value(*param, *arg);
@@ -4891,21 +4905,18 @@ mod tests {
         ");
     }
 
-    /// Documents that loop unrolling does NOT propagate instruction results defined
-    /// in the loop header (only block parameters) to exit blocks.
+    /// Loop unrolling must propagate instruction results defined in the loop header
+    /// (not just block parameters) to blocks outside the loop.
     ///
-    /// If an instruction is hoisted into a loop header (e.g. by constant folding's CSE),
-    /// and the exit block references that instruction's result, unrolling will leave a
-    /// dangling reference because `Loop::unroll` only maps header parameters, not
-    /// instruction results.
-    ///
-    /// To fix this in the unrolling pass (if we ever want to allow hoisting into headers):
-    /// in `unroll_header`, on the final iteration (when `is_in_loop` is false), iterate
-    /// over header instruction results and add their resolved values from the inserter
-    /// to the `ValueMapping` returned by `unroll`.
+    /// When an instruction lives in a loop header (e.g. the loop guard's `cast`, or a value
+    /// hoisted there by constant folding's CSE) and an exit block references that
+    /// instruction's result, `Loop::unroll` must map it to its final-iteration value.
+    /// Previously only header parameters were mapped, so the exit block's reference to the
+    /// header instruction result was left dangling once the header was unrolled away — later
+    /// crashing the inliner (`should already be known during inlining`), the interpreter
+    /// (`should already be in scope`), or Brillig codegen (`Value not found in cache`).
     #[test]
-    #[should_panic(expected = "should already be in scope")]
-    fn unroll_panics_on_header_instruction_results_referenced_by_exit_block() {
+    fn unroll_maps_header_instruction_results_referenced_by_exit_block() {
         // Models the SSA after CSE hoists `mul v2, v2` into the loop header:
         //   b1 header has v4 = mul v2, v2 (an instruction result, not a parameter)
         //   b2 loop body uses v4
@@ -4926,14 +4937,68 @@ mod tests {
             return v4
         }
         ";
-        let ssa = Ssa::from_str(src).unwrap();
+        // Semantics: iteration 0 has v2 = 3 (v3 = 0 < 1 true) so we loop with v2 = 3*3 + 1 = 10;
+        // iteration 1 has v2 = 10 (v3 = 1 < 1 false) so we exit returning v4 = 10*10 = 100.
+        // The exit block's use of the header instruction result `v4` is remapped to its
+        // final-iteration value instead of dangling, so unrolling preserves the execution result.
+        let (_, result) = assert_pass_does_not_affect_execution(
+            Ssa::from_str(src).unwrap(),
+            vec![Value::field(3u128.into())],
+            |ssa| {
+                let (ssa, errors) = try_unroll_loops(ssa);
+                assert!(errors.is_empty(), "Loop should unroll successfully");
+                ssa
+            },
+        );
+        assert_eq!(result, Ok(vec![Value::field(100u128.into())]));
+    }
 
-        let (ssa, errors) = try_unroll_loops(ssa);
-        assert!(errors.is_empty(), "Loop should unroll successfully");
+    /// The value mapping `Loop::unroll` exports for post-loop replacement must not
+    /// rewrite blocks that belong to a *different* loop.
+    ///
+    /// When the final iteration folds the header's `jmpif` exit edge and that edge
+    /// carries arguments into a parameterized destination, `handle_jmpif` maps the
+    /// destination's block parameters to this edge's arguments. That specialization is
+    /// only valid local to the folded edge: if the destination is a later loop's header,
+    /// exporting it freezes that loop's parameters at their first-iteration values in
+    /// every reachable block, so its guard becomes constant, simplification folds the
+    /// header's `jmpif` into a `jmp`, and the next unrolling attempt hits the
+    /// "Expected loop header to terminate in a JmpIf" unreachable.
+    #[test]
+    fn unroll_direct_exit_to_next_loop_header_preserves_second_loop_final_value() {
+        // Two sibling loops: the first (header b1) accumulates Field 5 once and its exit
+        // edge jumps *directly* into the second loop's header b4, passing the accumulator
+        // and the second loop's initial counter as arguments. The second loop (header b4)
+        // then accumulates Field 10 once, so the program returns 0 + 5 + 10 = 15.
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            jmp b1(u32 0, Field 0)
+          b1(v0: u32, v1: Field):
+            v2 = eq v0, u32 1
+            jmpif v2 then: b4(v1, u32 0), else: b2()
+          b2():
+            v3 = add v1, Field 5
+            v4 = unchecked_add v0, u32 1
+            jmp b1(v4, v3)
+          b4(v5: Field, v6: u32):
+            v7 = eq v6, u32 1
+            jmpif v7 then: b6(v5), else: b5()
+          b5():
+            v8 = add v5, Field 10
+            v9 = unchecked_add v6, u32 1
+            jmp b4(v8, v9)
+          b6(v10: Field):
+            return v10
+        }
+        ";
 
-        // This panics because v4 (a header instruction result) was not mapped
-        // to its final-iteration value, leaving a dangling reference.
-        let _result = ssa.interpret(vec![Value::field(3u128.into())]);
+        let (_, result) =
+            assert_pass_does_not_affect_execution(Ssa::from_str(src).unwrap(), vec![], |ssa| {
+                ssa.unroll_loops_iteratively(None, MAX_UNROLL_ITERATIONS, FORCE_UNROLL_THRESHOLD)
+                    .unwrap()
+            });
+        assert_eq!(result, Ok(vec![Value::field(15u128.into())]));
     }
 }
 

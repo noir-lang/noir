@@ -362,7 +362,7 @@ fn can_simplify_arithmetic_identity(
 mod tests {
     use crate::{
         assert_ssa_snapshot,
-        ssa::{opt::assert_normalized_ssa_equals, ssa_gen::Ssa},
+        ssa::{opt::assert_ssa_does_not_change_after_simplifying, ssa_gen::Ssa},
     };
 
     #[test]
@@ -457,8 +457,7 @@ mod tests {
             return v4
         }
         ";
-        let ssa = Ssa::from_str_simplifying(src).unwrap();
-        assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_does_not_change_after_simplifying(src);
     }
 
     #[test]
@@ -471,8 +470,7 @@ mod tests {
             return v4
         }
         ";
-        let ssa = Ssa::from_str_simplifying(src).unwrap();
-        assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_does_not_change_after_simplifying(src);
     }
 
     #[test]
@@ -485,8 +483,7 @@ mod tests {
             return v4
         }
         ";
-        let ssa = Ssa::from_str_simplifying(src).unwrap();
-        assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_does_not_change_after_simplifying(src);
     }
 
     #[test]
@@ -518,7 +515,6 @@ mod tests {
         }
         ";
 
-        let ssa = Ssa::from_str_simplifying(src).unwrap();
-        assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_does_not_change_after_simplifying(src);
     }
 }

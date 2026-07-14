@@ -34,7 +34,6 @@ use noirc_evaluator::ssa::opt::{
 use noirc_evaluator::ssa::{
     SsaEvaluatorOptions, SsaLogging, SsaProgramArtifact, create_program_with_minimal_passes,
 };
-use noirc_frontend::debug::build_debug_crate_file;
 use noirc_frontend::elaborator::{FrontendOptions, UnstableFeature};
 use noirc_frontend::error_reporting::function_locations_in_parsed_module;
 use noirc_frontend::hir::def_map::{CrateDefMap, ModuleDefId, ModuleId};
@@ -45,18 +44,19 @@ use noirc_frontend::monomorphization::{
 use noirc_frontend::node_interner::{FuncId, GlobalId, GlobalValue, TypeId};
 use noirc_frontend::token::SecondaryAttributeKind;
 use std::collections::{BTreeMap, BTreeSet, HashMap};
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use tracing::info;
 
 mod abi_gen;
-mod stdlib;
+mod crate_graph;
+mod file_manager;
 
 pub use abi_gen::gen_abi;
+pub use crate_graph::{add_dep, link_to_debug_crate, prepare_crate, prepare_dependency};
+pub use file_manager::{
+    file_manager_with_stdlib, stdlib_disk_path, stdlib_nargo_toml_source, stdlib_paths_with_source,
+};
 pub use noirc_frontend::graph::{CrateId, CrateName};
-pub use stdlib::{stdlib_disk_path, stdlib_nargo_toml_source, stdlib_paths_with_source};
-
-const STD_CRATE_NAME: &str = "std";
-const DEBUG_CRATE_NAME: &str = "__debug";
 
 pub const GIT_COMMIT: &str = env!("GIT_COMMIT");
 pub const GIT_DIRTY: &str = env!("GIT_DIRTY");
@@ -439,100 +439,6 @@ pub type ErrorsAndWarnings = Vec<CustomDiagnostic>;
 
 /// Helper type for connecting a compilation artifact to the errors or warnings which were produced during compilation.
 pub type CompilationResult<T> = Result<(T, Warnings), ErrorsAndWarnings>;
-
-/// Helper method to return a file manager instance with the stdlib already added
-///
-/// TODO: This should become the canonical way to create a file manager and
-/// TODO if we use a File manager trait, we can move file manager into this crate
-/// TODO as a module
-pub fn file_manager_with_stdlib(root: &Path) -> FileManager {
-    let mut file_manager = FileManager::new(root);
-
-    add_stdlib_source_to_file_manager(&mut file_manager);
-    add_debug_source_to_file_manager(&mut file_manager);
-
-    file_manager
-}
-
-/// Adds the source code for the stdlib into the file manager
-fn add_stdlib_source_to_file_manager(file_manager: &mut FileManager) {
-    // Add the stdlib contents to the file manager, since every package automatically has a dependency
-    // on the stdlib. For other dependencies, we read the package.Dependencies file to add their file
-    // contents to the file manager. However since the dependency on the stdlib is implicit, we need
-    // to manually add it here.
-    let stdlib_paths_with_source = stdlib_paths_with_source();
-    for (path, source) in stdlib_paths_with_source {
-        file_manager.add_file_with_source_canonical_path(Path::new(&path), source);
-    }
-}
-
-/// Adds the source code of the debug crate needed to support instrumentation to
-/// track variables values
-fn add_debug_source_to_file_manager(file_manager: &mut FileManager) {
-    // Adds the synthetic debug module for instrumentation into the file manager
-    let path_to_debug_lib_file = Path::new(DEBUG_CRATE_NAME).join("lib.nr");
-    file_manager
-        .add_file_with_source_canonical_path(&path_to_debug_lib_file, build_debug_crate_file());
-}
-
-/// Adds the file from the file system at `Path` to the crate graph as a root file
-///
-/// Note: If the stdlib dependency has not been added yet, it's added. Otherwise
-/// this method assumes the root crate is the stdlib (useful for running tests
-/// in the stdlib, getting LSP stuff for the stdlib, etc.).
-pub fn prepare_crate(context: &mut Context, file_name: &Path) -> CrateId {
-    let path_to_std_lib_file = Path::new(STD_CRATE_NAME).join("lib.nr");
-    let std_file_id = context.file_manager.name_to_id(path_to_std_lib_file);
-    let std_crate_id = std_file_id.map(|std_file_id| context.crate_graph.add_stdlib(std_file_id));
-
-    let root_file_id = context.file_manager.name_to_id(file_name.to_path_buf()).unwrap_or_else(|| panic!("files are expected to be added to the FileManager before reaching the compiler file_path: {}", file_name.display()));
-
-    if let Some(std_crate_id) = std_crate_id {
-        let root_crate_id = context.crate_graph.add_crate_root(root_file_id);
-
-        add_dep(context, root_crate_id, std_crate_id, STD_CRATE_NAME.parse().unwrap());
-
-        root_crate_id
-    } else {
-        context.crate_graph.add_crate_root_and_stdlib(root_file_id)
-    }
-}
-
-pub fn link_to_debug_crate(context: &mut Context, root_crate_id: CrateId) {
-    let path_to_debug_lib_file = Path::new(DEBUG_CRATE_NAME).join("lib.nr");
-    let debug_crate_id = prepare_dependency(context, &path_to_debug_lib_file);
-    add_dep(context, root_crate_id, debug_crate_id, DEBUG_CRATE_NAME.parse().unwrap());
-    context.debug_crate_id = Some(debug_crate_id);
-}
-
-// Adds the file from the file system at `Path` to the crate graph
-pub fn prepare_dependency(context: &mut Context, file_name: &Path) -> CrateId {
-    let root_file_id = context
-        .file_manager
-        .name_to_id(file_name.to_path_buf())
-        .unwrap_or_else(|| panic!("files are expected to be added to the FileManager before reaching the compiler file_path: {}", file_name.display()));
-
-    let crate_id = context.crate_graph.add_crate(root_file_id);
-
-    // Every dependency has access to stdlib
-    let std_crate_id = context.stdlib_crate_id();
-    add_dep(context, crate_id, *std_crate_id, STD_CRATE_NAME.parse().unwrap());
-
-    crate_id
-}
-
-/// Adds a edge in the crate graph for two crates
-pub fn add_dep(
-    context: &mut Context,
-    this_crate: CrateId,
-    depends_on: CrateId,
-    crate_name: CrateName,
-) {
-    context
-        .crate_graph
-        .add_dep(this_crate, crate_name, depends_on)
-        .expect("cyclic dependency triggered");
-}
 
 /// Run the def collection, elaboration and type checking passes.
 ///

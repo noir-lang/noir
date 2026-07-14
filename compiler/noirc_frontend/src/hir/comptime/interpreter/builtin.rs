@@ -47,7 +47,7 @@ use crate::{
             value::{ExprValue, FormatStringFragment, TypedExpr},
         },
         def_map::{ModuleDefId, ModuleId, fully_qualified_module_path},
-        resolution::visibility::item_in_module_is_visible,
+        resolution::visibility::{item_in_module_is_visible, module_is_visible},
     },
     hir_def::{
         expr::{HirExpression, HirIdent, HirLiteral, ImplKind, TraitItem},
@@ -2679,12 +2679,20 @@ fn function_def_as_typed_expr(
         let defining_module = interpreter.elaborator.interner.function_module(func_id);
         let visibility = interpreter.elaborator.interner.function_visibility(func_id);
         let caller_module = interpreter.elaborator.module_id();
-        if !item_in_module_is_visible(
+        // Check both function visibility and module visibility:  a `pub` function in a private
+        // module is not reachable.
+        let visible = item_in_module_is_visible(
             interpreter.elaborator.def_maps,
             caller_module,
             defining_module,
             visibility,
-        ) {
+        ) && module_is_visible(
+            defining_module,
+            caller_module,
+            interpreter.elaborator.interner,
+            interpreter.elaborator.def_maps,
+        );
+        if !visible {
             let name = interpreter.elaborator.interner.function_name(&func_id).to_string();
             let defining_module = fully_qualified_module_path(
                 interpreter.elaborator.def_maps,
@@ -3297,10 +3305,8 @@ fn derive_generators(
     let y_field_name: Rc<String> = Rc::new("y".to_owned());
     let mut results = Vector::new();
     for generator in generators {
-        let x_big: BigUint = generator.x.into();
-        let x = FieldElement::from_be_bytes_reduce(&x_big.to_bytes_be());
-        let y_big: BigUint = generator.y.into();
-        let y = FieldElement::from_be_bytes_reduce(&y_big.to_bytes_be());
+        let x = FieldElement::from_repr(generator.x);
+        let y = FieldElement::from_repr(generator.y);
         let mut embedded_curve_point_fields = HashMap::default();
         embedded_curve_point_fields.insert(x_field_name.clone(), Shared::new(Value::field(x)));
         embedded_curve_point_fields.insert(y_field_name.clone(), Shared::new(Value::field(y)));
