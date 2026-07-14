@@ -1024,7 +1024,9 @@ prop_compose! {
             let positive_patch_value = std::cmp::max(patch_value, 1);
             if distinct_inputs_len != 0 {
                 let previous_input = &mut distinct_inputs[patch_location % distinct_inputs_len].0;
-                let patched_input: BigUint = (*previous_input + FieldElement::from(positive_patch_value)).into_repr().into();
+                let patched_input = BigUint::from_bytes_be(
+                    &(*previous_input + FieldElement::from(positive_patch_value)).to_be_bytes(),
+                );
                 *previous_input = FieldElement::from_be_bytes_reduce(&(patched_input % BigUint::from(modulus)).to_bytes_be());
             } else {
                 distinct_inputs.push((FieldElement::zero(), true));
