@@ -646,6 +646,31 @@ impl DataFlowGraph {
         }
     }
 
+    /// True if `value` is boolean: a 0/1 constant, a `u1`-typed value, or a chain of casts
+    /// bottoming out at one of those.
+    ///
+    /// This trusts the static type: a `u1`-typed value is assumed to hold 0 or 1, the canonicality
+    /// invariant the compiler maintains for every value it creates (in ACIR a `u1` unchecked
+    /// add/sub result can transiently violate it, but such values only ever flow into truncations
+    /// and casts). Use this for algebraic rewrites that are valid for canonical values, such as
+    /// `b*b = b`. Do NOT use it to justify deleting a range check: for that,
+    /// [`Self::get_value_max_num_bits`] gives a bound that does not assume canonicality of
+    /// unchecked arithmetic results.
+    pub(crate) fn is_boolean_value(&self, value: ValueId) -> bool {
+        if let Some(constant) = self.get_numeric_constant(value) {
+            return constant.is_zero() || constant.is_one();
+        }
+        if self.type_of_value(value).bit_size() == 1 {
+            return true;
+        }
+        if let Value::Instruction { instruction, .. } = self[value]
+            && let Instruction::Cast(inner, _) = self[instruction]
+        {
+            return self.is_boolean_value(inner);
+        }
+        false
+    }
+
     /// True if the type of this value is `Type::Reference`.
     /// Using this method over `type_of_value` avoids cloning the value's type.
     pub(crate) fn value_is_reference(&self, value: ValueId) -> bool {
