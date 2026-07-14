@@ -286,7 +286,8 @@ mod tests {
 
             // Check if this is smaller than the grumpkin modulus
             assert!(
-                grumpkin_integer < ark_grumpkin::FrConfig::MODULUS.into(),
+                grumpkin_integer
+                    < BigUint::from_bytes_le(&ark_grumpkin::FrConfig::MODULUS.to_bytes_le()),
                 "invalid grumpkin scalar",
             );
 
