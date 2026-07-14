@@ -5,12 +5,33 @@ use acvm::{
 
 use crate::{
     acir::{
-        AcirDynamicArray, Context, SharedContext, acir_context::BrilligStdLib,
-        tests::ssa_to_acir_program, types::AcirValue,
+        AcirDynamicArray, Context, SharedContext,
+        acir_context::BrilligStdLib,
+        tests::{ssa_to_acir_program, try_ssa_to_acir},
+        types::AcirValue,
     },
     brillig::{Brillig, BrilligOptions},
     ssa::{ir::value::ValueId, ssa_gen::Ssa},
 };
+
+#[test]
+fn array_get_of_zero_length_element_emits_no_orphan_init() {
+    // A dynamic `array_get` whose result is a zero-length nested array (`[u8; 0]`)
+    // reads no memory slots, so ACIR gen must not initialize the source array's
+    // block: an orphan `MemoryInit` with no linked read is rejected by
+    // `acir_post_check` with
+    // "ICE: memory blocks initialized without any linked read/write/Brillig use".
+    let src = "
+    acir(inline) fn main f0 {
+      b0(v0: u32):
+        v1 = make_array [] : [u8; 0]
+        v2 = make_array [v1, u8 1, v1, u8 2] : [([u8; 0], u8); 2]
+        v3 = array_get v2, index v0 -> [u8; 0]
+        return
+    }
+    ";
+    try_ssa_to_acir(src).expect("zero-length-element array_get should compile to ACIR");
+}
 
 #[test]
 fn array_set_not_mutable() {

@@ -2284,9 +2284,19 @@ impl<'f> LoopIteration<'f> {
                 // independent predecessor carrying a different argument, and its parameters
                 // must be preserved so the join body runs once over the merged parameter;
                 // specializing would copy the body for this edge and drop it for the others.
+                //
+                // It must also be restricted to destinations inside the loop. A destination
+                // outside the loop is the exit edge: its body is never inlined by this
+                // iteration, so the mapping would never be consulted here, but it *would* be
+                // exported by `Loop::unroll` via `into_value_mapping` and applied to every
+                // reachable block. If the exit edge carries arguments into a later loop's
+                // header, that would freeze the later loop's parameters at this edge's values
+                // throughout the function, corrupting that loop.
                 let folding_block_dominates_destination =
                     self.dom.dominates(folding_block, original_destination);
-                if folding_block_dominates_destination {
+                if folding_block_dominates_destination
+                    && self.loop_.blocks.contains(&original_destination)
+                {
                     let destination_params = self.dfg().block_parameters(destination).to_vec();
                     for (param, arg) in destination_params.iter().zip(&arguments) {
                         self.inserter.map_value(*param, *arg);
@@ -4755,7 +4765,7 @@ mod tests {
           b0(v0: u32):
             jmp b1(u32 50)
           b1(v1: u32):
-            return u32 50
+            return v1
         }
         ");
     }
@@ -4941,6 +4951,54 @@ mod tests {
             },
         );
         assert_eq!(result, Ok(vec![Value::field(100u128.into())]));
+    }
+
+    /// The value mapping `Loop::unroll` exports for post-loop replacement must not
+    /// rewrite blocks that belong to a *different* loop.
+    ///
+    /// When the final iteration folds the header's `jmpif` exit edge and that edge
+    /// carries arguments into a parameterized destination, `handle_jmpif` maps the
+    /// destination's block parameters to this edge's arguments. That specialization is
+    /// only valid local to the folded edge: if the destination is a later loop's header,
+    /// exporting it freezes that loop's parameters at their first-iteration values in
+    /// every reachable block, so its guard becomes constant, simplification folds the
+    /// header's `jmpif` into a `jmp`, and the next unrolling attempt hits the
+    /// "Expected loop header to terminate in a JmpIf" unreachable.
+    #[test]
+    fn unroll_direct_exit_to_next_loop_header_preserves_second_loop_final_value() {
+        // Two sibling loops: the first (header b1) accumulates Field 5 once and its exit
+        // edge jumps *directly* into the second loop's header b4, passing the accumulator
+        // and the second loop's initial counter as arguments. The second loop (header b4)
+        // then accumulates Field 10 once, so the program returns 0 + 5 + 10 = 15.
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            jmp b1(u32 0, Field 0)
+          b1(v0: u32, v1: Field):
+            v2 = eq v0, u32 1
+            jmpif v2 then: b4(v1, u32 0), else: b2()
+          b2():
+            v3 = add v1, Field 5
+            v4 = unchecked_add v0, u32 1
+            jmp b1(v4, v3)
+          b4(v5: Field, v6: u32):
+            v7 = eq v6, u32 1
+            jmpif v7 then: b6(v5), else: b5()
+          b5():
+            v8 = add v5, Field 10
+            v9 = unchecked_add v6, u32 1
+            jmp b4(v8, v9)
+          b6(v10: Field):
+            return v10
+        }
+        ";
+
+        let (_, result) =
+            assert_pass_does_not_affect_execution(Ssa::from_str(src).unwrap(), vec![], |ssa| {
+                ssa.unroll_loops_iteratively(None, MAX_UNROLL_ITERATIONS, FORCE_UNROLL_THRESHOLD)
+                    .unwrap()
+            });
+        assert_eq!(result, Ok(vec![Value::field(15u128.into())]));
     }
 }
 
