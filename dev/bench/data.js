@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1784028789806,
+  "lastUpdate": 1784029109496,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23011,48 +23011,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "92da0fecf80b9cafb8d5024e8343ffcc0ff9e43f",
-          "message": "chore: Ensure some Brillig functions called from ACIR are not pure pass through or constant in tests (#13254)",
-          "timestamp": "2026-07-06T11:07:50Z",
-          "tree_id": "ece1ea95b094db38006422b1827279987ca262b6",
-          "url": "https://github.com/noir-lang/noir/commit/92da0fecf80b9cafb8d5024e8343ffcc0ff9e43f"
-        },
-        "date": 1783337233243,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 171234,
-            "range": "± 1438",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 141619,
-            "range": "± 1715",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2365621,
-            "range": "± 14669",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "49558828+AztecBot@users.noreply.github.com",
             "name": "Aztec Bot",
             "username": "AztecBot"
@@ -25104,6 +25062,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 3041112,
             "range": "± 8635",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "0ebe124b8bd1da1823a156e3a602b27673f1281d",
+          "message": "chore(deps-dev): bump the npm-minor-and-patch group across 1 directory with 2 updates (#13340)\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2026-07-14T11:16:58Z",
+          "tree_id": "57aa85d87f4a7db0750dfa4038ae722bf384b217",
+          "url": "https://github.com/noir-lang/noir/commit/0ebe124b8bd1da1823a156e3a602b27673f1281d"
+        },
+        "date": 1784029031817,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 166972,
+            "range": "± 396",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 136013,
+            "range": "± 2311",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2651026,
+            "range": "± 27521",
             "unit": "ns/iter"
           }
         ]
