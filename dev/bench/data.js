@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1784030030562,
+  "lastUpdate": 1784032044713,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23020,48 +23020,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": true,
-          "id": "7ae87c6ea45690a163d5002aa2ccb05aad16d701",
-          "message": "chore(acir_gen): forbid emitting Call/BrilligCall opcodes with a compile-time zero predicate (#13260)",
-          "timestamp": "2026-07-06T11:50:01Z",
-          "tree_id": "d483fa972408ec77c639f6f6c65aefd79d0708ae",
-          "url": "https://github.com/noir-lang/noir/commit/7ae87c6ea45690a163d5002aa2ccb05aad16d701"
-        },
-        "date": 1783339803779,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 175478,
-            "range": "± 450",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 146078,
-            "range": "± 190",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2656166,
-            "range": "± 5031",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "49558828+AztecBot@users.noreply.github.com",
-            "name": "Aztec Bot",
-            "username": "AztecBot"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": false,
           "id": "78816cf7f74c37a63bc359e82d56ea9f6a6264ca",
           "message": "fix(ssa): remap loop-header instruction results referenced outside the loop during unrolling (#13245)\n\nCo-authored-by: guipublic <guipublic@gmail.com>",
@@ -25104,6 +25062,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2651026,
             "range": "± 27521",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "db34822b51ad02ca8ac47aefe6158b0d6b9ab920",
+          "message": "chore(deps): bump actions/setup-node from 6.4.0 to 7.0.0 in the core-actions group across 1 directory (#13326)\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2026-07-14T12:06:38Z",
+          "tree_id": "92a974183dbe2ef7274c4533c913cab34ed18e7f",
+          "url": "https://github.com/noir-lang/noir/commit/db34822b51ad02ca8ac47aefe6158b0d6b9ab920"
+        },
+        "date": 1784031967084,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 167294,
+            "range": "± 526",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 135190,
+            "range": "± 227",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2653387,
+            "range": "± 3240",
             "unit": "ns/iter"
           }
         ]
