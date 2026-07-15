@@ -195,6 +195,7 @@ enum UnsafeBlockStatus {
     InUnsafeBlockWithUnconstrainedCalls,
 }
 
+#[derive(Clone, Copy)]
 pub struct Loop {
     pub is_for: bool,
     pub has_break: bool,
