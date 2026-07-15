@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1784109126889,
+  "lastUpdate": 1784109130531,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -4942,105 +4942,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": true,
-          "id": "3ab9587eca55670a6adba11819b5465e58273c43",
-          "message": "chore(docs): add \"Embedder\" to cspell dictionary (#13276)",
-          "timestamp": "2026-07-06T17:50:21Z",
-          "tree_id": "1f6f2a9d53914073477ce43c33806b694cf8ba60",
-          "url": "https://github.com/noir-lang/noir/commit/3ab9587eca55670a6adba11819b5465e58273c43"
-        },
-        "date": 1783362202008,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 6.76,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 24.58,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 3.33,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-first-empty-tx",
-            "value": 1.914,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 2.36,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 2.16,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-checkpoint-merge",
-            "value": 2.268,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-checkpoint-root-single-block",
-            "value": 259,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-checkpoint-root",
-            "value": 240,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 2.206,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-tx-base-private",
-            "value": 16.56,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-tx-base-public",
-            "value": 112.4,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-tx-merge",
-            "value": 2.08,
-            "unit": "s"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 0.911,
-            "unit": "s"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 1.642,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "49558828+AztecBot@users.noreply.github.com",
-            "name": "Aztec Bot",
-            "username": "AztecBot"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": false,
           "id": "64e8d78b45d1346a6a909b99418d478b2c7205e6",
           "message": "feat(fuzz): `just fuzz-repro` recipe and nargo-project emission for AST fuzzer seeds (#13272)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
@@ -9866,6 +9767,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "sha512-100-bytes",
             "value": 1.526,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49558828+AztecBot@users.noreply.github.com",
+            "name": "Aztec Bot",
+            "username": "AztecBot"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "a88b19f000f09a476d4d6102ffada8b7f8c1668c",
+          "message": "fix(ci): pin aztec-packages commit in `compile-noir-contracts` job (#13349)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
+          "timestamp": "2026-07-15T09:18:00Z",
+          "tree_id": "9ffe5ea6f25992cdecdb9dc334618e59a300edd5",
+          "url": "https://github.com/noir-lang/noir/commit/a88b19f000f09a476d4d6102ffada8b7f8c1668c"
+        },
+        "date": 1784109050739,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 6.704,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 30.24,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 2.478,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-first-empty-tx",
+            "value": 2.184,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 2.45,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 2.14,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-checkpoint-merge",
+            "value": 2.222,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-checkpoint-root-single-block",
+            "value": 260,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-checkpoint-root",
+            "value": 214,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 2.25,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-tx-base-private",
+            "value": 15.24,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-tx-base-public",
+            "value": 85.98,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-tx-merge",
+            "value": 2.106,
+            "unit": "s"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.742,
+            "unit": "s"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 1.562,
             "unit": "s"
           }
         ]
