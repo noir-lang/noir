@@ -721,9 +721,6 @@ jobs:
 
       - name: Resolve pinned aztec-packages commit
         id: aztec-commit
-        # Pin to the same commit the external-repo-checks matrix uses so this job
-        # compiles against a fixed tree, not a moving `next` HEAD. Bumped in lockstep
-        # by the `bump-aztec-packages-commit` workflow, which updates this file.
         run: echo "commit=$(yq '.define' ./noir-repo/EXTERNAL_NOIR_LIBRARIES.yml)" >> "$GITHUB_OUTPUT"
 
       - name: Checkout
