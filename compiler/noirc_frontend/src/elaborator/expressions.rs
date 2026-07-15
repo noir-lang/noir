@@ -9,12 +9,13 @@ use rustc_hash::FxHashSet as HashSet;
 
 use crate::{
     DataType, Kind, MustUse, QuotedType, Shared, Type, TypeBindings, TypeVariable,
+    ast::Visitor,
     ast::{
         ArrayLiteral, AsTraitPath, BinaryOpKind, BlockExpression, CallExpression, CastExpression,
         ConstrainExpression, ConstrainKind, ConstructorExpression, Expression, ExpressionKind,
         Ident, IfExpression, IndexExpression, InfixExpression, IntegerBitSize, ItemVisibility,
         Lambda, Literal, MatchExpression, MemberAccessExpression, MethodCallExpression,
-        PrefixExpression, StatementKind, TraitBound, UnaryOp, UnresolvedTraitConstraint,
+        PrefixExpression, Statement, StatementKind, TraitBound, UnaryOp, UnresolvedTraitConstraint,
         UnresolvedTypeData, UnresolvedTypeExpression, UnsafeExpression,
     },
     elaborator::{
@@ -1127,7 +1128,12 @@ impl Elaborator<'_> {
         let (expr_id, expr_type) = self.elaborate_expression(expr);
 
         // Must type check the assertion message expression so that we instantiate bindings
-        let msg = message.map(|assert_msg_expr| {
+        let msg = message.and_then(|assert_msg_expr| {
+            if let Some(location) = assert_message_control_flow_location(&assert_msg_expr) {
+                self.push_err(ResolverError::ControlFlowInAssertionMessage { location });
+                return None;
+            }
+
             let (msg, typ) = self.elaborate_expression(assert_msg_expr);
             // If the error message contains a format string, those types need to appear in the ABI,
             // except if we are in a meta-programming context, in which case the comptime interpreter
@@ -1154,7 +1160,7 @@ impl Elaborator<'_> {
                     check_msg_compat(&typ);
                 }
             }
-            msg
+            Some(msg)
         });
 
         self.unify_or_type_mismatch(&expr_type, &Type::Bool, expr_location);
@@ -2284,4 +2290,25 @@ impl Elaborator<'_> {
             }
         }
     }
+}
+
+struct AssertMessageControlFlowVisitor {
+    location: Option<Location>,
+}
+
+impl Visitor for AssertMessageControlFlowVisitor {
+    fn visit_statement(&mut self, statement: &Statement) -> bool {
+        if matches!(statement.kind, StatementKind::Break | StatementKind::Continue) {
+            self.location = Some(statement.location);
+            false
+        } else {
+            self.location.is_none()
+        }
+    }
+}
+
+fn assert_message_control_flow_location(message: &Expression) -> Option<Location> {
+    let mut visitor = AssertMessageControlFlowVisitor { location: None };
+    message.accept(&mut visitor);
+    visitor.location
 }
