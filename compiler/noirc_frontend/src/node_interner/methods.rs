@@ -169,10 +169,10 @@ impl Methods {
         match function_typ.instantiate(interner).0 {
             Type::Function(args, _, _, _) => {
                 if check_self_param {
-                    if let Some(object) = args.first() {
-                        if Self::receiver_type_matches(object, typ) {
-                            return true;
-                        }
+                    if let Some(object) = args.first()
+                        && Self::receiver_type_matches(object, typ)
+                    {
+                        return true;
                     }
                 } else {
                     let method_type = func_meta.instantiate(method_type, interner);
