@@ -136,20 +136,20 @@ mod entry_point {
         let args = vec![BrilligParameter::SingleAddr(32), BrilligParameter::SingleAddr(32)];
         let entry = gen_brillig_for(ssa.main(), &args, &brillig, &options).unwrap();
 
-        // A simple function returning the addition of its inputs (line 16).
+        // A simple function returning the addition of its inputs (line 25).
         // The rest is entry point overhead for handling inputs, outputs, and stack checks.
         //
         // Lines 0-2: Reserved register setup (usize_one, free_memory_pointer, stack_pointer).
-        // Lines 3-9: Calldata copy — the two u32 inputs are copied and cast into sp[2] and sp[3].
-        //            There is no globals init call because this function has no globals.
-        // Line 10: call 15 — jumps to the function body.
-        // Line 11: Moves the return value out of the function's register.
-        // Lines 12-14: Return data handling — places the result in memory and stops execution.
-        // Line 15: call 22 — check_max_stack_depth procedure (lines 22-27).
-        // Line 16: The actual add instruction.
-        // Lines 17-19: Overflow check on the addition; traps via lines 28-30 if it overflowed.
-        // Line 20: Moves the result into the return register.
-        // Line 21: Returns from the function body back to line 11.
+        // Lines 3-5: Calldata copy.
+        // Lines 6-17: Range checks and casts for the two u32 inputs.
+        // Lines 18-19: Moves the inputs into sp[2] and sp[3].
+        // Line 20: call 25 — jumps to the function body.
+        // Line 21: Moves the return value out of the function's register.
+        // Lines 22-24: Return data handling — places the result in memory and stops execution.
+        // Line 25: The actual add instruction.
+        // Lines 26-28: Overflow check on the addition; traps via lines 31-33 if it overflowed.
+        // Line 29: Moves the result into the return register.
+        // Line 30: Returns from the function body back to line 21.
         assert_artifact_snapshot!(entry, @r"
         fn main
          0: @2 = const u32 1
@@ -158,24 +158,34 @@ mod entry_point {
          3: sp[4] = const u32 2
          4: sp[5] = const u32 0
          5: @67 = calldata copy [sp[5]; sp[4]]
-         6: @67 = cast @67 to u32
-         7: @68 = cast @68 to u32
-         8: sp[2] = @67
-         9: sp[3] = @68
-        10: call 15
-        11: @69 = sp[2]
-        12: sp[3] = const u32 69
-        13: sp[4] = const u32 1
-        14: stop @[sp[3]; sp[4]]
-        15: sp[4] = u32 add sp[2], sp[3]
-        16: sp[5] = u32 lt_eq sp[2], sp[4]
-        17: jump if sp[5] to 19
-        18: call 21
-        19: sp[2] = sp[4]
-        20: return
-        21: @1 = indirect const u64 14990209321349310352
-        22: trap @[@1; @2]
-        23: return
+         6: @3 = const field 4294967296
+         7: @4 = field lt @67, @3
+         8: jump if @4 to 11
+         9: @3 = const u32 0
+        10: trap @[@1; @3]
+        11: @67 = cast @67 to u32
+        12: @3 = const field 4294967296
+        13: @4 = field lt @68, @3
+        14: jump if @4 to 17
+        15: @3 = const u32 0
+        16: trap @[@1; @3]
+        17: @68 = cast @68 to u32
+        18: sp[2] = @67
+        19: sp[3] = @68
+        20: call 25
+        21: @69 = sp[2]
+        22: sp[3] = const u32 69
+        23: sp[4] = const u32 1
+        24: stop @[sp[3]; sp[4]]
+        25: sp[4] = u32 add sp[2], sp[3]
+        26: sp[5] = u32 lt_eq sp[2], sp[4]
+        27: jump if sp[5] to 29
+        28: call 31
+        29: sp[2] = sp[4]
+        30: return
+        31: @1 = indirect const u64 14990209321349310352
+        32: trap @[@1; @2]
+        33: return
         ");
     }
 
@@ -230,61 +240,71 @@ mod entry_point {
          3: sp[4] = const u32 2
          4: sp[5] = const u32 0
          5: @67 = calldata copy [sp[5]; sp[4]]
-         6: @67 = cast @67 to u32
-         7: @68 = cast @68 to u32
-         8: sp[2] = @67
-         9: sp[3] = @68
-        10: call 15
-        11: @69 = sp[2]
-        12: sp[3] = const u32 69
-        13: sp[4] = const u32 1
-        14: stop @[sp[3]; sp[4]]
-        15: sp[1] = @1
-        16: @3 = const u32 3
-        17: @1 = u32 add @1, @3
-        18: sp[4] = u32 add sp[2], sp[3]
-        19: sp[5] = const u32 2
-        20: sp[6] = u32 add sp[2], sp[5]
-        21: sp[5] = const u32 3
-        22: sp[7] = u32 add sp[2], sp[5]
-        23: sp[5] = const u32 4
-        24: sp[8] = u32 add sp[3], sp[5]
-        25: sp[5] = const u32 5
-        26: sp[9] = u32 add sp[3], sp[5]
-        27: sp[5] = const u32 6
-        28: sp[10] = u32 add sp[2], sp[5]
-        29: sp[5] = const u32 7
-        30: sp[11] = u32 add sp[3], sp[5]
-        31: sp[5] = const u32 8
-        32: store sp[4] at sp[1]
-        33: sp[4] = u32 add sp[2], sp[5]
-        34: sp[5] = const u32 9
-        35: @4 = const u32 1
-        36: @3 = u32 add sp[1], @4
-        37: store sp[6] at @3
-        38: sp[6] = u32 add sp[3], sp[5]
-        39: sp[3] = const u32 10
-        40: sp[5] = u32 add sp[2], sp[3]
-        41: sp[3] = load sp[1]
-        42: @4 = const u32 2
-        43: @3 = u32 add sp[1], @4
-        44: store sp[7] at @3
+         6: @3 = const field 4294967296
+         7: @4 = field lt @67, @3
+         8: jump if @4 to 11
+         9: @3 = const u32 0
+        10: trap @[@1; @3]
+        11: @67 = cast @67 to u32
+        12: @3 = const field 4294967296
+        13: @4 = field lt @68, @3
+        14: jump if @4 to 17
+        15: @3 = const u32 0
+        16: trap @[@1; @3]
+        17: @68 = cast @68 to u32
+        18: sp[2] = @67
+        19: sp[3] = @68
+        20: call 25
+        21: @69 = sp[2]
+        22: sp[3] = const u32 69
+        23: sp[4] = const u32 1
+        24: stop @[sp[3]; sp[4]]
+        25: sp[1] = @1
+        26: @3 = const u32 3
+        27: @1 = u32 add @1, @3
+        28: sp[4] = u32 add sp[2], sp[3]
+        29: sp[5] = const u32 2
+        30: sp[6] = u32 add sp[2], sp[5]
+        31: sp[5] = const u32 3
+        32: sp[7] = u32 add sp[2], sp[5]
+        33: sp[5] = const u32 4
+        34: sp[8] = u32 add sp[3], sp[5]
+        35: sp[5] = const u32 5
+        36: sp[9] = u32 add sp[3], sp[5]
+        37: sp[5] = const u32 6
+        38: sp[10] = u32 add sp[2], sp[5]
+        39: sp[5] = const u32 7
+        40: sp[11] = u32 add sp[3], sp[5]
+        41: sp[5] = const u32 8
+        42: store sp[4] at sp[1]
+        43: sp[4] = u32 add sp[2], sp[5]
+        44: sp[5] = const u32 9
         45: @4 = const u32 1
         46: @3 = u32 add sp[1], @4
-        47: sp[7] = load @3
-        48: sp[2] = u32 add sp[3], sp[7]
-        49: @4 = const u32 2
-        50: @3 = u32 add sp[1], @4
-        51: sp[7] = load @3
-        52: sp[3] = u32 add sp[2], sp[7]
-        53: sp[2] = u32 add sp[3], sp[8]
-        54: sp[3] = u32 add sp[2], sp[9]
-        55: sp[2] = u32 add sp[3], sp[10]
-        56: sp[3] = u32 add sp[2], sp[11]
-        57: sp[2] = u32 add sp[3], sp[4]
-        58: sp[3] = u32 add sp[2], sp[6]
-        59: sp[2] = u32 add sp[3], sp[5]
-        60: return
+        47: store sp[6] at @3
+        48: sp[6] = u32 add sp[3], sp[5]
+        49: sp[3] = const u32 10
+        50: sp[5] = u32 add sp[2], sp[3]
+        51: sp[3] = load sp[1]
+        52: @4 = const u32 2
+        53: @3 = u32 add sp[1], @4
+        54: store sp[7] at @3
+        55: @4 = const u32 1
+        56: @3 = u32 add sp[1], @4
+        57: sp[7] = load @3
+        58: sp[2] = u32 add sp[3], sp[7]
+        59: @4 = const u32 2
+        60: @3 = u32 add sp[1], @4
+        61: sp[7] = load @3
+        62: sp[3] = u32 add sp[2], sp[7]
+        63: sp[2] = u32 add sp[3], sp[8]
+        64: sp[3] = u32 add sp[2], sp[9]
+        65: sp[2] = u32 add sp[3], sp[10]
+        66: sp[3] = u32 add sp[2], sp[11]
+        67: sp[2] = u32 add sp[3], sp[4]
+        68: sp[3] = u32 add sp[2], sp[6]
+        69: sp[2] = u32 add sp[3], sp[5]
+        70: return
         ");
     }
 }

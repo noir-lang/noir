@@ -207,8 +207,33 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
 
         for (i, bit_size) in arguments.iter().flat_map(flat_bit_sizes).enumerate() {
             // cSpell:disable-next-line
-            // Calldatacopy tags everything with field type, so when downcast when necessary
+            // Calldatacopy tags everything with field type, so validate the value before
+            // downcasting it to avoid silently truncating out-of-range calldata.
             if bit_size < F::max_num_bits() {
+                let calldata_item = SingleAddrVariable::new_field(MemoryAddress::direct(
+                    assert_u32(self.calldata_start_offset() + i),
+                ));
+                let (upper_bound_address, in_range_address) = ReservedRegisters::spill_scratch();
+                let upper_bound = SingleAddrVariable::new_field(upper_bound_address);
+                self.const_instruction(
+                    upper_bound,
+                    F::from(2_usize).pow(&F::from(u128::from(bit_size))),
+                );
+                let in_range = SingleAddrVariable::new(in_range_address, 1);
+                self.binary_instruction(
+                    calldata_item,
+                    upper_bound,
+                    in_range,
+                    BrilligBinaryOp::LessThan,
+                );
+                self.codegen_if_not(in_range.address, |ctx| {
+                    ctx.usize_const_instruction(upper_bound.address, 0_usize.into());
+                    ctx.trap_instruction(HeapVector {
+                        pointer: ReservedRegisters::free_memory_pointer(),
+                        size: upper_bound.address,
+                    });
+                });
+
                 self.cast_instruction(
                     SingleAddrVariable::new(
                         MemoryAddress::direct(assert_u32(self.calldata_start_offset() + i)),
@@ -504,6 +529,33 @@ mod tests {
             flattened_array
         );
         assert_eq!(return_data_size, flattened_array.len());
+    }
+
+    #[test]
+    fn entry_point_rejects_out_of_range_integer_calldata() {
+        for (bit_size, calldata) in [(1, 2_u128), (8, 256_u128), (64, 1_u128 << 64)] {
+            let arguments = vec![BrilligParameter::SingleAddr(bit_size)];
+            let returns = vec![];
+
+            let mut context = create_context(FunctionId::test_new(0));
+            let _argument = context.allocate_single_addr(bit_size);
+            context.codegen_return(&[]);
+
+            let bytecode = create_entry_point_bytecode(context, &arguments, &returns).byte_code;
+            let mut vm = VM::new(
+                vec![FieldElement::from(calldata)],
+                &bytecode,
+                &DummyBlackBoxSolver,
+                false,
+                None,
+            );
+
+            let status = vm.process_opcodes();
+            assert!(
+                matches!(status, VMStatus::Failure { .. }),
+                "out-of-range u{bit_size} calldata should fail, got: {status:?}"
+            );
+        }
     }
 
     /// Enabling the array-copy-count debug flag must not change the value the circuit returns.

@@ -249,22 +249,32 @@ fn brillig_stdlib_calls_with_regular_brillig_call() {
      3: sp[4] = const u32 2
      4: sp[5] = const u32 0
      5: @67 = calldata copy [sp[5]; sp[4]]
-     6: @67 = cast @67 to u32
-     7: @68 = cast @68 to u32
-     8: sp[2] = @67
-     9: sp[3] = @68
-    10: call 15
-    11: @69 = sp[2]
-    12: sp[3] = const u32 69
-    13: sp[4] = const u32 1
-    14: stop @[sp[3]; sp[4]]
-    15: sp[4] = u32 eq sp[2], sp[3]
-    16: sp[3] = const bool 0
-    17: sp[5] = bool eq sp[4], sp[3]
-    18: jump if sp[5] to 21
-    19: sp[6] = const u32 0
-    20: trap @[@1; sp[6]]
-    21: return
+     6: @3 = const field 4294967296
+     7: @4 = field lt @67, @3
+     8: jump if @4 to 11
+     9: @3 = const u32 0
+    10: trap @[@1; @3]
+    11: @67 = cast @67 to u32
+    12: @3 = const field 4294967296
+    13: @4 = field lt @68, @3
+    14: jump if @4 to 17
+    15: @3 = const u32 0
+    16: trap @[@1; @3]
+    17: @68 = cast @68 to u32
+    18: sp[2] = @67
+    19: sp[3] = @68
+    20: call 25
+    21: @69 = sp[2]
+    22: sp[3] = const u32 69
+    23: sp[4] = const u32 1
+    24: stop @[sp[3]; sp[4]]
+    25: sp[4] = u32 eq sp[2], sp[3]
+    26: sp[3] = const bool 0
+    27: sp[5] = bool eq sp[4], sp[3]
+    28: jump if sp[5] to 31
+    29: sp[6] = const u32 0
+    30: trap @[@1; sp[6]]
+    31: return
     unconstrained func 1: directive_invert
     0: @21 = const u32 1
     1: @20 = const u32 0
@@ -387,22 +397,32 @@ fn brillig_stdlib_calls_with_multiple_acir_calls() {
      3: sp[4] = const u32 2
      4: sp[5] = const u32 0
      5: @67 = calldata copy [sp[5]; sp[4]]
-     6: @67 = cast @67 to u32
-     7: @68 = cast @68 to u32
-     8: sp[2] = @67
-     9: sp[3] = @68
-    10: call 15
-    11: @69 = sp[2]
-    12: sp[3] = const u32 69
-    13: sp[4] = const u32 1
-    14: stop @[sp[3]; sp[4]]
-    15: sp[4] = u32 eq sp[2], sp[3]
-    16: sp[3] = const bool 0
-    17: sp[5] = bool eq sp[4], sp[3]
-    18: jump if sp[5] to 21
-    19: sp[6] = const u32 0
-    20: trap @[@1; sp[6]]
-    21: return
+     6: @3 = const field 4294967296
+     7: @4 = field lt @67, @3
+     8: jump if @4 to 11
+     9: @3 = const u32 0
+    10: trap @[@1; @3]
+    11: @67 = cast @67 to u32
+    12: @3 = const field 4294967296
+    13: @4 = field lt @68, @3
+    14: jump if @4 to 17
+    15: @3 = const u32 0
+    16: trap @[@1; @3]
+    17: @68 = cast @68 to u32
+    18: sp[2] = @67
+    19: sp[3] = @68
+    20: call 25
+    21: @69 = sp[2]
+    22: sp[3] = const u32 69
+    23: sp[4] = const u32 1
+    24: stop @[sp[3]; sp[4]]
+    25: sp[4] = u32 eq sp[2], sp[3]
+    26: sp[3] = const bool 0
+    27: sp[5] = bool eq sp[4], sp[3]
+    28: jump if sp[5] to 31
+    29: sp[6] = const u32 0
+    30: trap @[@1; sp[6]]
+    31: return
     unconstrained func 1: directive_invert
     0: @21 = const u32 1
     1: @20 = const u32 0
