@@ -113,6 +113,8 @@ pub enum ResolverError {
     DependencyCycle { location: Location, item: String, cycle: String },
     #[error("break/continue are only allowed in unconstrained functions")]
     JumpInConstrainedFn { is_break: bool, location: Location },
+    #[error("break/continue are not allowed in assertion messages")]
+    ControlFlowInAssertionMessage { location: Location },
     #[error("`loop` is only allowed in unconstrained functions")]
     LoopInConstrainedFn { location: Location },
     #[error("`loop` must have at least one `break` in it")]
@@ -297,6 +299,7 @@ impl ResolverError {
             | ResolverError::NonAbiTypeInAbiGlobal { location, .. }
             | ResolverError::DependencyCycle { location, .. }
             | ResolverError::JumpInConstrainedFn { location, .. }
+            | ResolverError::ControlFlowInAssertionMessage { location }
             | ResolverError::LoopInConstrainedFn { location }
             | ResolverError::LoopWithoutBreak { location }
             | ResolverError::WhileInConstrainedFn { location }
@@ -689,6 +692,13 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                     *location,
                 )
             },
+            ResolverError::ControlFlowInAssertionMessage { location } => {
+                Diagnostic::simple_error(
+                    "break/continue are not allowed in assertion messages".into(),
+                    "Assertion messages cannot change control flow".into(),
+                    *location,
+                )
+            }
             ResolverError::LoopInConstrainedFn { location } => {
                 Diagnostic::simple_error(
                     "`loop` is only allowed in unconstrained functions".into(),

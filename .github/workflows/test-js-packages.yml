@@ -719,10 +719,15 @@ jobs:
           # Note that we are checking out into a sub-directory, which affects action paths.
           path: noir-repo
 
+      - name: Resolve pinned aztec-packages commit
+        id: aztec-commit
+        run: echo "commit=$(yq '.define' ./noir-repo/EXTERNAL_NOIR_LIBRARIES.yml)" >> "$GITHUB_OUTPUT"
+
       - name: Checkout
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           repository: AztecProtocol/aztec-packages
+          ref: ${{ steps.aztec-commit.outputs.commit }}
           path: test-repo
 
       - name: Download nargo binary
