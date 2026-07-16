@@ -38,7 +38,10 @@ use crate::ssa::ir::{
 
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
-use super::{constant_allocation::ConstantAllocation, variable_liveness::VariableLiveness};
+use super::{
+    constant_allocation::{ConstantAllocation, InstructionLocation},
+    variable_liveness::VariableLiveness,
+};
 
 /// Monotonic index assigned to block entries, instructions, and terminators in RPO.
 ///
@@ -47,6 +50,14 @@ use super::{constant_allocation::ConstantAllocation, variable_liveness::Variable
 /// intervals and check overlap.
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub(crate) struct ProgramPoint(u32);
+
+impl ProgramPoint {
+    /// The immediately-preceding program point (saturating at 0). Used to end a segment just before
+    /// a split point when a value is evicted at that point.
+    pub(crate) fn pred(self) -> ProgramPoint {
+        ProgramPoint(self.0.saturating_sub(1))
+    }
+}
 
 /// Conservative single-interval approximation of a value's liveness.
 ///
@@ -66,13 +77,11 @@ impl LiveInterval {
     }
 
     /// Check whether two intervals overlap (conservative interference).
-    #[cfg(test)]
     pub(crate) fn interferes(&self, other: &LiveInterval) -> bool {
         self.def <= other.last_use && other.def <= self.last_use
     }
 
     /// Check whether a program point falls within this interval.
-    #[cfg(test)]
     pub(crate) fn contains(&self, point: ProgramPoint) -> bool {
         self.def <= point && point <= self.last_use
     }
@@ -96,7 +105,6 @@ pub(crate) struct LiveIntervals {
     max_point: ProgramPoint,
 }
 
-#[cfg(test)]
 impl LiveIntervals {
     /// Build liveness intervals for a function.
     ///
@@ -275,20 +283,29 @@ impl LiveIntervals {
         }
     }
 
-    /// Extend constant defs to their allocation block's entry point.
+    /// Set each constant's def to the program point where it is actually materialized.
     ///
-    /// Constants from `ConstantAllocation::allocated_in_block` are materialized
-    /// at specific block entries. We extend their def to match.
+    /// [`ConstantAllocation`] picks an allocation point for every constant — the common dominator of
+    /// its uses — and codegen emits the `const` opcode there (`initialize_constants`, at an
+    /// instruction or terminator location), *not* at the block entry. The def must match that point:
+    /// the interval seeded by [`Self::build_intervals`] starts at the block entry of the first block
+    /// that uses the constant, which is both too early (before materialization, in that block) and,
+    /// for a hoisted constant, in the wrong block entirely. Pinning the def to the materialization
+    /// point gives an accurate live range — so a value-register-pressure spill of a constant stores
+    /// data that has actually been computed, rather than garbage from before its `const` opcode ran.
     fn adjust_constant_defs(
         &mut self,
         constants: &ConstantAllocation,
-        post_order: &[BasicBlockId],
+        _post_order: &[BasicBlockId],
     ) {
-        for &block_id in post_order {
-            let entry_point = self.block_entry_points[&block_id];
-            for constant_id in constants.allocated_in_block(block_id) {
+        for (block_id, location, values) in constants.allocations() {
+            let point = match location {
+                InstructionLocation::Instruction(inst) => self.instruction_points[&inst],
+                InstructionLocation::Terminator => self.terminator_points[&block_id],
+            };
+            for &constant_id in values {
                 if let Some(interval) = self.intervals.get_mut(&constant_id) {
-                    interval.def = std::cmp::min(interval.def, entry_point);
+                    interval.def = point;
                 }
             }
         }
@@ -315,13 +332,20 @@ impl LiveIntervals {
     }
 
     /// Look up the interval for a value.
-    #[cfg(test)]
     pub(crate) fn get(&self, value: ValueId) -> Option<&LiveInterval> {
         self.intervals.get(&value)
     }
 
+    /// All value intervals ordered by definition point (ties broken by `last_use`, then `ValueId`
+    /// for determinism). This is the order the linear-scan assignment consumes them in.
+    pub(crate) fn intervals_by_def(&self) -> Vec<(ValueId, LiveInterval)> {
+        let mut result: Vec<(ValueId, LiveInterval)> =
+            self.intervals.iter().map(|(&v, &iv)| (v, iv)).collect();
+        result.sort_by_key(|(v, iv)| (iv.def, iv.last_use, *v));
+        result
+    }
+
     /// Check whether two values' intervals overlap.
-    #[cfg(test)]
     pub(crate) fn interferes(&self, a: ValueId, b: ValueId) -> bool {
         match (self.intervals.get(&a), self.intervals.get(&b)) {
             (Some(ia), Some(ib)) => ia.interferes(ib),
@@ -330,25 +354,21 @@ impl LiveIntervals {
     }
 
     /// Get the program point at a block's entry.
-    #[cfg(test)]
     pub(crate) fn block_entry_point(&self, block: BasicBlockId) -> Option<ProgramPoint> {
         self.block_entry_points.get(&block).copied()
     }
 
     /// Get the program point for an instruction.
-    #[cfg(test)]
     pub(crate) fn instruction_point(&self, inst: InstructionId) -> Option<ProgramPoint> {
         self.instruction_points.get(&inst).copied()
     }
 
     /// Get the program point for a block's terminator.
-    #[cfg(test)]
     pub(crate) fn terminator_point(&self, block: BasicBlockId) -> Option<ProgramPoint> {
         self.terminator_points.get(&block).copied()
     }
 
     /// Count how many value intervals are live at a given block's entry point.
-    #[cfg(test)]
     pub(crate) fn register_pressure_at_block(&self, block: BasicBlockId) -> usize {
         let Some(&entry) = self.block_entry_points.get(&block) else {
             return 0;
@@ -361,7 +381,6 @@ impl LiveIntervals {
     /// This is an approximation. We check at every assigned program point how many
     /// intervals are alive. For large functions a sweep-line algorithm would be
     /// more efficient, but this is adequate for diagnostic use.
-    #[cfg(test)]
     pub(crate) fn max_register_pressure(&self) -> usize {
         if self.intervals.is_empty() {
             return 0;
@@ -383,6 +402,118 @@ impl LiveIntervals {
         }
         max_pressure
     }
+}
+
+/// A single contiguous stretch of program points over which a value is live (inclusive on both
+/// ends). A value's full liveness is a *list* of these, separated by holes.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) struct LiveRange {
+    pub(crate) start: ProgramPoint,
+    pub(crate) end: ProgramPoint,
+}
+
+impl LiveRange {
+    fn contains(&self, point: ProgramPoint) -> bool {
+        self.start <= point && point <= self.end
+    }
+
+    fn overlaps(&self, other: &LiveRange) -> bool {
+        self.start <= other.end && other.start <= self.end
+    }
+}
+
+/// Per-value liveness as a set of disjoint, sorted ranges that **preserves holes** — stretches of
+/// the program-point order where the value is dead even though it is live both before and after.
+///
+/// This is the precision [`LiveIntervals`] deliberately drops (it collapses to one `[def, last_use]`).
+/// The linear-scan allocator needs the holes: a value dead across a hole frees its register for a
+/// value that never co-resides with it (sharing "separated by a hole"), and only values that are
+/// *live but displaced* under register pressure are spilled. Without holes a linear scan would
+/// over-estimate pressure and lose to the greedy allocator, which already accounts for them.
+///
+/// Ranges are derived by punching holes into each value's contiguous `[def, last_use]`: a block
+/// whose whole point-range lies strictly inside the interval and in which the value is neither
+/// live-in nor live-out is a hole. (A value used or defined inside such an interior block is
+/// necessarily live-in there, so the live-in/live-out test alone identifies dead interior blocks.)
+#[derive(Debug, Default)]
+pub(crate) struct LiveRanges {
+    ranges: HashMap<ValueId, Vec<LiveRange>>,
+}
+
+impl LiveRanges {
+    /// Build the hole-aware ranges from the collapsed [`LiveIntervals`] and the block-granular
+    /// [`VariableLiveness`].
+    pub(crate) fn from_intervals(
+        intervals: &LiveIntervals,
+        liveness: &VariableLiveness,
+        post_order: &[BasicBlockId],
+    ) -> Self {
+        // Point-range of every block, so we can test "strictly interior to a value's interval".
+        let block_spans: Vec<(BasicBlockId, ProgramPoint, ProgramPoint)> = post_order
+            .iter()
+            .map(|&b| (b, intervals.block_entry_points[&b], intervals.terminator_points[&b]))
+            .collect();
+
+        let mut ranges = HashMap::default();
+        for (&value, interval) in &intervals.intervals {
+            let mut holes: Vec<(u32, u32)> = Vec::new();
+            for &(block, entry, term) in &block_spans {
+                let strictly_interior = entry.0 > interval.def.0 && term.0 < interval.last_use.0;
+                if !strictly_interior {
+                    continue;
+                }
+                let dead = !liveness.get_live_in(&block).contains(&value)
+                    && !liveness.get_live_out(&block).contains(&value);
+                if dead {
+                    holes.push((entry.0, term.0));
+                }
+            }
+            ranges.insert(value, subtract_holes(interval.def.0, interval.last_use.0, holes));
+        }
+
+        Self { ranges }
+    }
+
+    /// The live ranges of `value`, sorted and hole-separated, or empty if the value is untracked.
+    pub(crate) fn ranges(&self, value: ValueId) -> &[LiveRange] {
+        self.ranges.get(&value).map_or(&[], Vec::as_slice)
+    }
+
+    /// Every tracked value with its range list. Order is unspecified; callers that need a scan
+    /// order (e.g. by first range start) sort themselves.
+    pub(crate) fn iter(&self) -> impl Iterator<Item = (ValueId, &[LiveRange])> {
+        self.ranges.iter().map(|(&value, ranges)| (value, ranges.as_slice()))
+    }
+
+    /// Whether `value` is live at `point` (i.e. `point` falls in one of its ranges, not a hole).
+    pub(crate) fn is_live_at(&self, value: ValueId, point: ProgramPoint) -> bool {
+        self.ranges(value).iter().any(|range| range.contains(point))
+    }
+
+    /// Whether two values' live ranges overlap at any point (true interference, holes respected).
+    pub(crate) fn interferes(&self, a: ValueId, b: ValueId) -> bool {
+        let (a_ranges, b_ranges) = (self.ranges(a), self.ranges(b));
+        a_ranges.iter().any(|ra| b_ranges.iter().any(|rb| ra.overlaps(rb)))
+    }
+}
+
+/// Carve the sorted, disjoint `holes` out of the inclusive span `[def, last_use]`, returning the
+/// remaining live ranges in order. Each hole lies strictly inside the span.
+fn subtract_holes(def: u32, last_use: u32, mut holes: Vec<(u32, u32)>) -> Vec<LiveRange> {
+    holes.sort_unstable();
+    let mut ranges = Vec::new();
+    let mut cursor = def;
+    for (hole_start, hole_end) in holes {
+        if hole_start > cursor {
+            ranges
+                .push(LiveRange { start: ProgramPoint(cursor), end: ProgramPoint(hole_start - 1) });
+        }
+        cursor = hole_end + 1;
+    }
+    if cursor <= last_use {
+        ranges.push(LiveRange { start: ProgramPoint(cursor), end: ProgramPoint(last_use) });
+    }
+    ranges
 }
 
 #[cfg(test)]
@@ -792,8 +923,6 @@ mod tests {
         let [b0, b1, b2, b3] = block_ids();
         assert_eq!(rpo, vec![b0, b1, b2, b3]);
 
-        let b0_entry = intervals.block_entry_point(b0).unwrap();
-
         let constants = ConstantAllocation::from_function(func);
 
         // Field 42 is used in both b1 and b2, so it should be allocated at b0
@@ -806,9 +935,14 @@ mod tests {
         );
         let constant_id = b0_constants[0];
 
-        // The constant's interval def should be at b0's entry.
+        // The constant's def should be where it is materialized: b0 has only a terminator (the
+        // `jmpif`), so it is allocated at b0's terminator, not b0's entry.
+        let b0_term = intervals.terminator_point(b0).unwrap();
         let iv = intervals.get(constant_id).expect("constant should have an interval");
-        assert_eq!(iv.def, b0_entry, "Field 42 def should be at b0 entry (common dominator)");
+        assert_eq!(
+            iv.def, b0_term,
+            "Field 42 def should be at b0's terminator (its materialization)"
+        );
 
         // RPO is [b0, b1, b2, b3], so b2 comes after b1.
         // Field 42's last_use should be at b2's instruction (the later use in RPO).
@@ -843,8 +977,6 @@ mod tests {
         let [b0, b1, b2, b3] = block_ids();
         assert_eq!(rpo, vec![b0, b1, b2, b3]);
 
-        let b0_entry = intervals.block_entry_point(b0).unwrap();
-
         let constants = ConstantAllocation::from_function(func);
 
         // u32 10 is used only inside the loop body (b2), but should be
@@ -853,9 +985,14 @@ mod tests {
         assert_eq!(b0_constants.len(), 1, "exactly one constant should be allocated in b0");
         let constant_id = b0_constants[0];
 
-        // The constant's def should be at b0's entry (hoisted).
+        // The constant's def should be where it is materialized: b0 has only a terminator (`jmp`),
+        // so it is hoisted to b0's terminator (outside the loop), not b0's entry.
+        let b0_term = intervals.terminator_point(b0).unwrap();
         let iv = intervals.get(constant_id).expect("u32 10 should have an interval");
-        assert_eq!(iv.def, b0_entry, "u32 10 def should be at b0 entry (hoisted outside loop)");
+        assert_eq!(
+            iv.def, b0_term,
+            "u32 10 def should be at b0's terminator (hoisted outside loop)"
+        );
 
         // The constant's last_use should be at b2's terminator: loop liveness
         // propagation keeps it live through the back-edge (b2 -> b1).
@@ -885,11 +1022,13 @@ mod register_pressure {
         let (intervals, _ssa) = build_intervals(src);
 
         let pressure = intervals.max_register_pressure();
-        dbg!(pressure);
-        // We have a value and result for an addition and two constants declared at the beginning of the block.
+        // Each constant is live only from where it is materialized (its use), not from the block
+        // entry, so the peak is three: at `v1 = add v0, Field 1` the live values are `v0`, `Field 1`,
+        // and the fresh `v1`; likewise at the second add. (A block-entry model would inflate this to
+        // four by keeping both constants live from the start.)
         assert_eq!(
-            pressure, 4,
-            "need at least 2 values for the adds and 2 for the constants, got {pressure}"
+            pressure, 3,
+            "peak is an operand, a freshly-materialized constant, and the result, got {pressure}"
         );
     }
 
@@ -941,5 +1080,91 @@ mod register_pressure {
         // b3 has fewer (just v3).
         assert_eq!(p0, 3, "got {p0}");
         assert_eq!(p3, 1, "got {p3}");
+    }
+}
+
+#[cfg(test)]
+mod live_ranges {
+    use super::{LiveIntervals, LiveRanges};
+    use crate::brillig::brillig_gen::constant_allocation::ConstantAllocation;
+    use crate::brillig::brillig_gen::variable_liveness::VariableLiveness;
+    use crate::ssa::ir::post_order::PostOrder;
+    use crate::ssa::ssa_gen::Ssa;
+
+    fn build(src: &str) -> (LiveRanges, LiveIntervals, Ssa) {
+        let ssa = Ssa::from_str(src).unwrap();
+        let func = ssa.main();
+        let constants = ConstantAllocation::from_function(func);
+        let liveness = VariableLiveness::from_function(func, &constants);
+        let post_order = PostOrder::with_function(func).into_vec();
+        let intervals = LiveIntervals::from_function(func, &liveness, &constants, &post_order);
+        let ranges = LiveRanges::from_intervals(&intervals, &liveness, &post_order);
+        (ranges, intervals, ssa)
+    }
+
+    /// Straight-line code has no holes: every value's range list is a single range equal to its
+    /// collapsed `[def, last_use]` interval.
+    #[test]
+    fn straightline_has_no_holes() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: Field):
+            v1 = add v0, Field 1
+            v2 = add v1, Field 2
+            v3 = add v2, Field 3
+            return v3
+        }
+        ";
+        let (ranges, intervals, _ssa) = build(src);
+        for (value, interval) in intervals.intervals_by_def() {
+            let list = ranges.ranges(value);
+            assert_eq!(list.len(), 1, "value {value} should have a single range");
+            assert_eq!(list[0].start, interval.def, "value {value} range start");
+            assert_eq!(list[0].end, interval.last_use, "value {value} range end");
+        }
+    }
+
+    /// A value defined at entry and used only in a deep block, with a short sibling branch that is
+    /// dead for it and sorts early in RPO, must show a hole: the range list splits, and the value
+    /// reads as not-live at the dead branch's points even though they lie inside its collapsed
+    /// interval.
+    #[test]
+    fn dead_sibling_branch_is_a_hole() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: Field, v1: u1):
+            jmpif v1 then: b1(), else: b4()
+          b1():
+            jmp b2()
+          b2():
+            jmp b3()
+          b3():
+            v2 = add v0, Field 1
+            jmp b5(v2)
+          b4():
+            jmp b5(Field 0)
+          b5(v3: Field):
+            return v3
+        }
+        ";
+        let (ranges, intervals, ssa) = build(src);
+        let func = ssa.main();
+        let b0 = func.entry_block();
+        let v0 = func.dfg[b0].parameters()[0];
+
+        // v0 is used only in b3 (the deep branch); b4 is dead for v0 and RPO numbers it between b0
+        // and b3, so v0's liveness has a hole across b4.
+        let list = ranges.ranges(v0);
+        assert_eq!(
+            list.len(),
+            2,
+            "v0 should be split by a hole across the dead branch, got {list:?}"
+        );
+
+        // The collapsed interval spans the hole; the hole-aware ranges do not.
+        let interval = intervals.get(v0).unwrap();
+        assert_eq!(list[0].start, interval.def);
+        assert_eq!(list.last().unwrap().end, interval.last_use);
+        assert!(list[0].end < list[1].start, "the two ranges are separated by a gap");
     }
 }

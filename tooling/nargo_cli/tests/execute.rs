@@ -484,9 +484,23 @@ mod tests {
     }
 
     fn nargo_execute_brillig_small_stack(test_program_dir: PathBuf) {
+        nargo_execute_brillig_small_stack_with(test_program_dir, false);
+    }
+
+    /// Same as [`nargo_execute_brillig_small_stack`], but forces the linear-scan register allocator
+    /// (via `NOIR_BRILLIG_LINEAR_SCAN`) so CI exercises it. The small frame maximizes register
+    /// pressure, so this is where the allocator's placement and its greedy fallback are stressed.
+    fn nargo_execute_brillig_small_stack_linear_scan(test_program_dir: PathBuf) {
+        nargo_execute_brillig_small_stack_with(test_program_dir, true);
+    }
+
+    fn nargo_execute_brillig_small_stack_with(test_program_dir: PathBuf, linear_scan: bool) {
         let (mut nargo, target_dir) = setup_nargo(&test_program_dir);
         nargo.arg("execute").arg("--force").arg("--force-brillig");
         nargo.arg("--max-stack-frame-size").arg("64");
+        if linear_scan {
+            nargo.env("NOIR_BRILLIG_LINEAR_SCAN", "1");
+        }
 
         let skip_brillig_debug_assertions = IGNORED_BRILLIG_DEBUG_ASSERTIONS_TESTS
             .into_iter()

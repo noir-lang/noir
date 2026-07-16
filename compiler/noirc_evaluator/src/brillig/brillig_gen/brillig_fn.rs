@@ -2,6 +2,7 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
+use acvm::acir::brillig::MemoryAddress;
 use iter_extended::vecmap;
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
@@ -9,10 +10,12 @@ use super::{
     allocator::{Allocator, GreedyAllocator},
     coalescing::CoalescingMap,
     constant_allocation::ConstantAllocation,
+    linear_scan::{FunctionAllocator, LinearScanAllocator},
     spill_manager::SpillManager,
     variable_liveness::VariableLiveness,
 };
 use crate::{
+    brillig::assert_u32,
     brillig::brillig_ir::{
         artifact::BrilligParameter,
         brillig_variable::get_bit_size_from_ssa_type,
@@ -40,9 +43,9 @@ pub(crate) struct FunctionContext<R: RegisterAllocator> {
     /// A `FunctionContext` is necessary for using a Brillig block's code gen, but sometimes
     /// such as with globals, we are not within a function and do not have a [`FunctionId`].
     function_id: Option<FunctionId>,
-    /// The register allocator: the register pool, the SSA-value → register cache, spill manager,
-    /// and coalescing map.
-    pub(crate) allocator: GreedyAllocator<R>,
+    /// The register allocator (greedy or linear-scan, chosen per function): the register pool, the
+    /// SSA-value → register cache, spill manager, and coalescing map.
+    pub(crate) allocator: FunctionAllocator<R>,
     /// The block ids of the function in Post Order.
     blocks: Vec<BasicBlockId>,
     /// Information on where to allocate constants
@@ -67,10 +70,26 @@ impl<R: RegisterAllocator> FunctionContext<R> {
     /// It can be tuned if it proves too aggressive or too conservative in practice.
     const SPILL_MARGIN: usize = 32;
 
+    /// Build a function context using the greedy allocator. Convenience wrapper over
+    /// [`Self::new_with_allocator`] for tests that don't select an allocator.
+    #[cfg(test)]
     pub(crate) fn new(
         function: &Function,
         max_stack_frame_size: usize,
         pool: Rc<RefCell<R>>,
+    ) -> Self {
+        Self::new_with_allocator(function, max_stack_frame_size, pool, false)
+    }
+
+    /// Build a function context, choosing the linear-scan allocator when `use_linear_scan` is set
+    /// and the greedy one otherwise. Both are constructed from the same liveness/coalescing/spill
+    /// inputs and hidden behind [`FunctionAllocator`], so the rest of codegen is agnostic to the
+    /// choice.
+    pub(crate) fn new_with_allocator(
+        function: &Function,
+        max_stack_frame_size: usize,
+        pool: Rc<RefCell<R>>,
+        use_linear_scan: bool,
     ) -> Self {
         let id = function.id();
 
@@ -113,9 +132,61 @@ impl<R: RegisterAllocator> FunctionContext<R> {
             }
         }
 
+        // The first usable register offset; the linear-scan plan's register indices are relative to
+        // it, and the low value-home band is reserved from it.
+        let register_offset = pool.borrow().start();
+
+        // Try the linear-scan allocator when selected; it declines (returns `None`) for functions
+        // whose pressure exceeds the value capacity (no pressure spilling yet), and we fall back to
+        // greedy so every function still compiles.
+        // Value homes get the low registers up to this capacity; the rest of the frame is reserved
+        // for scratch. Match greedy's `SPILL_MARGIN` cushion, since `min_live_count` under-counts the
+        // true scratch peak (parallel moves, on-demand constants). This makes tight frames decline
+        // linear scan and fall back to greedy, which is correct.
+        let value_capacity =
+            usable_registers.saturating_sub(liveness.min_live_count + Self::SPILL_MARGIN);
+        let linear_scan = use_linear_scan
+            .then(|| {
+                LinearScanAllocator::try_build(
+                    function,
+                    &liveness,
+                    &constants,
+                    &post_order,
+                    &last_uses,
+                    value_capacity,
+                    register_offset,
+                )
+            })
+            .flatten();
+
+        let allocator = match linear_scan {
+            Some(linear_scan) => {
+                // Reserve exactly the registers the plan uses for value homes, so codegen's scratch
+                // temporaries are drawn only from the registers above them (never colliding with a
+                // value home) while the frame's high-water mark stays as small as the values need —
+                // which keeps recursive call frames from ballooning.
+                {
+                    let mut pool = pool.borrow_mut();
+                    for index in 0..linear_scan.reserved_registers() {
+                        pool.ensure_register_is_allocated(MemoryAddress::relative(assert_u32(
+                            register_offset + index,
+                        )));
+                    }
+                }
+                FunctionAllocator::LinearScan(linear_scan)
+            }
+            None => FunctionAllocator::Greedy(GreedyAllocator::new(
+                pool,
+                spill_manager,
+                coalescing,
+                liveness,
+                last_uses,
+            )),
+        };
+
         Self {
             function_id: Some(id),
-            allocator: GreedyAllocator::new(pool, spill_manager, coalescing, liveness, last_uses),
+            allocator,
             blocks: post_order,
             constant_allocation: constants,
         }
@@ -127,13 +198,13 @@ impl<R: RegisterAllocator> FunctionContext<R> {
     pub(crate) fn new_for_globals(pool: Rc<RefCell<R>>) -> Self {
         Self {
             function_id: None,
-            allocator: GreedyAllocator::new(
+            allocator: FunctionAllocator::Greedy(GreedyAllocator::new(
                 pool,
                 None,
                 CoalescingMap::default(),
                 VariableLiveness::default(),
                 HashMap::default(),
-            ),
+            )),
             blocks: Vec::new(),
             constant_allocation: ConstantAllocation::default(),
         }

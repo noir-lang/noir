@@ -63,6 +63,9 @@ pub struct BrilligOptions {
     /// Shared registry for per-site array copy tracking. Populated (via `--count-array-copies`)
     /// to enable the copy-counting instrumentation; `None` leaves ordinary compilation untouched.
     pub copy_site_registry: Option<CopySiteRegistry>,
+    /// Select the linear-scan register allocator instead of the default greedy one. Off by default;
+    /// used to A/B the two allocators behind the pluggable `Allocator` seam.
+    pub use_linear_scan_allocator: bool,
 }
 
 /// Context structure for the Brillig pass.
@@ -160,10 +163,15 @@ impl Brillig {
         let mut brillig_context = BrilligContext::new(func.name(), options);
 
         // The allocator shares the context's register pool, so build it after the context exists.
-        let mut function_context = FunctionContext::new(
+        // `NOIR_BRILLIG_LINEAR_SCAN` is an A/B override for validation, forcing the linear-scan
+        // allocator corpus-wide without threading the option through every entry point.
+        let use_linear_scan =
+            options.use_linear_scan_allocator || std::env::var("NOIR_BRILLIG_LINEAR_SCAN").is_ok();
+        let mut function_context = FunctionContext::new_with_allocator(
             func,
             options.layout.max_stack_frame_size(),
             brillig_context.registers_rc(),
+            use_linear_scan,
         );
 
         brillig_context.enter_context(Label::function(func.id()));

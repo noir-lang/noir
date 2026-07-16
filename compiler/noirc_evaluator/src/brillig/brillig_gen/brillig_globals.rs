@@ -332,6 +332,7 @@ impl Brillig {
             globals: &empty_globals,
             hoisted_global_constants: &HashMap::default(),
             building_globals: true,
+            current_instruction: None,
         };
 
         let hoisted_global_constants = brillig_block.compile_globals(

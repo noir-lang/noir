@@ -66,6 +66,12 @@ impl SpillSlot {
 pub(crate) enum Action {
     /// Store a register-resident value into its spill slot (the value leaves the map).
     Spill { value: ValueId, from: MemoryAddress, to: SpillSlot },
+    /// Store a register-resident value into its spill slot but *keep* it in its register (the map is
+    /// unchanged). Used by merge resolution: a value live across an edge whose successor expects it
+    /// in its slot is saved before the branch, while staying available for the block's own remaining
+    /// reads. The store is harmless on every outgoing edge (it targets the value's own slot and SSA
+    /// values are immutable), so it needs no critical-edge split.
+    Save { value: ValueId, from: MemoryAddress, to: SpillSlot },
     /// Load a spilled value from its slot into a register (the value enters the map at `into`).
     Reload { value: ValueId, from: SpillSlot, into: MemoryAddress },
     /// Register-to-register move (the value moves to `to` in the map). Produced by edge
@@ -115,19 +121,28 @@ pub(crate) trait Allocator {
         dfg: &DataFlowGraph,
     ) -> (BrilligVariable, Vec<Action>);
 
-    /// Make an already-defined value register-resident and return its allocation, plus the actions
-    /// to get it there: a [`Action::Reload`] if it was spilled (and any [`Action::Spill`]s to free
-    /// a slot for it), or no actions if it is already resident.
-    fn use_variable(&mut self, value_id: ValueId) -> (BrilligVariable, Vec<Action>);
-
-    /// Ensure `n` registers are free for codegen to allocate scratch temporaries via its RAII path,
-    /// returning the spills that freed the room. The contract is "N slots are free", not "here are
-    /// the registers" — codegen owns the temporaries.
+    /// Make an already-defined value register-resident *at the point where instruction `at` uses it*
+    /// and return its allocation, plus the actions to get it there: a [`Action::Reload`] if it was
+    /// spilled (and any [`Action::Spill`]s to free a slot for it), a [`Action::Move`] if a splitting
+    /// allocator's plan places it in a different register at this point, or no actions if it is
+    /// already where it should be. `at` is `None` for a terminator operand: those are made resident
+    /// up front by [`Allocator::before_terminator`], so the use is a plain lookup.
     ///
-    /// This is the scratch half of the design's `before_instruction`; making the instruction's
-    /// operands resident up front (the other half) is still done lazily by the driver via
-    /// `use_variable`, so this takes an explicit count rather than an instruction id for now.
-    fn reserve_scratch(&mut self, scratch: usize) -> Vec<Action>;
+    /// The instruction id (rather than a bare value) is what lets a global-assignment allocator find
+    /// the program point and thus the value's planned register there; the greedy allocator, whose
+    /// homes do not vary by point, ignores it.
+    fn use_variable(
+        &mut self,
+        value_id: ValueId,
+        at: Option<InstructionId>,
+    ) -> (BrilligVariable, Vec<Action>);
+
+    /// Ensure `n` registers are free for codegen to allocate the scratch temporaries instruction
+    /// `at` needs via its RAII path, returning the spills that freed the room. The contract is "N
+    /// slots are free", not "here are the registers" — codegen owns the temporaries. The instruction
+    /// id lets a global-assignment allocator evict by that point's plan; greedy evicts by LRU and
+    /// ignores it.
+    fn reserve_scratch(&mut self, scratch: usize, at: Option<InstructionId>) -> Vec<Action>;
 
     /// Retire the values whose last use is `inst` now that it has been lowered: free their
     /// registers (returning them to the pool for reuse later in the block) and drop any bookkeeping.
@@ -211,7 +226,7 @@ pub(crate) struct GreedyAllocator<R: RegisterAllocator> {
 impl<R: RegisterAllocator> GreedyAllocator<R> {
     /// Build the greedy allocator with a shared handle to the register pool, plus the spill manager,
     /// coalescing map, liveness, and per-instruction last-use sets decided by
-    /// [`FunctionContext::new`](super::brillig_fn::FunctionContext::new).
+    /// [`FunctionContext::new_with_allocator`](super::brillig_fn::FunctionContext::new_with_allocator).
     pub(crate) fn new(
         pool: Rc<RefCell<R>>,
         spill_manager: Option<SpillManager>,
@@ -362,7 +377,11 @@ impl<R: RegisterAllocator> Allocator for GreedyAllocator<R> {
         (variable, actions)
     }
 
-    fn use_variable(&mut self, value_id: ValueId) -> (BrilligVariable, Vec<Action>) {
+    fn use_variable(
+        &mut self,
+        value_id: ValueId,
+        _at: Option<InstructionId>,
+    ) -> (BrilligVariable, Vec<Action>) {
         if self.is_spilled(&value_id) {
             return self.reload_spilled_value(value_id);
         }
@@ -382,7 +401,7 @@ impl<R: RegisterAllocator> Allocator for GreedyAllocator<R> {
         (variable, Vec::new())
     }
 
-    fn reserve_scratch(&mut self, scratch: usize) -> Vec<Action> {
+    fn reserve_scratch(&mut self, scratch: usize, _at: Option<InstructionId>) -> Vec<Action> {
         self.make_room(scratch)
     }
 

@@ -369,6 +369,7 @@ impl CompileOptions {
                     self.max_scratch_space,
                 ),
                 copy_site_registry: None,
+                use_linear_scan_allocator: false,
             },
             print_codegen_timings: self.benchmark_codegen,
             emit_ssa: if self.emit_ssa { Some(package_build_path) } else { None },
