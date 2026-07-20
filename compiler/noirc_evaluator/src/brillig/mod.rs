@@ -185,14 +185,13 @@ impl Brillig {
             );
         }
 
-        // Resolve: overwrite placeholder NOPs with real allocation if spilling occurred
+        // If spilling occurred, overwrite the placeholder NOPs with the real allocation and mark the
+        // artifact so linking can verify the scratch space is large enough to hold the fixed spill
+        // scratch slots.
         if function_context.did_spill() {
             brillig_context.resolve_spill_prologue(function_context.max_spill_offset());
+            brillig_context.mark_did_spill();
         }
-
-        // Record whether this function spilled so linking can verify the scratch space is large
-        // enough to hold the fixed spill scratch slots.
-        brillig_context.set_did_spill(function_context.did_spill());
 
         (function_context, brillig_context)
     }
