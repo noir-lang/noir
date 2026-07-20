@@ -1,5 +1,3 @@
-use std::future::{self, Future};
-
 use async_lsp::ResponseError;
 use async_lsp::lsp_types::{Location, ReferenceParams};
 
@@ -10,9 +8,9 @@ use super::{find_all_references_in_workspace, process_request};
 pub(crate) fn on_references_request(
     state: &mut LspState,
     params: ReferenceParams,
-) -> impl Future<Output = Result<Option<Vec<Location>>, ResponseError>> + use<> {
+) -> Result<Option<Vec<Location>>, ResponseError> {
     let include_declaration = params.context.include_declaration;
-    let result = process_request(state, params.text_document_position, |args| {
+    process_request(state, params.text_document_position, |args| {
         find_all_references_in_workspace(
             args.location,
             args.interner,
@@ -21,8 +19,7 @@ pub(crate) fn on_references_request(
             include_declaration,
             true,
         )
-    });
-    future::ready(result)
+    })
 }
 
 #[cfg(test)]
@@ -35,9 +32,8 @@ mod references_tests {
         PartialResultParams, Position, ReferenceContext, TextDocumentIdentifier,
         TextDocumentPositionParams, Url, WorkDoneProgressParams,
     };
-    use tokio::test;
 
-    async fn check_references_succeeds(
+    fn check_references_succeeds(
         src: &str,
         name: &str,
         declaration_index: usize,
@@ -45,8 +41,7 @@ mod references_tests {
     ) {
         let ranges = search_in_text(src, name);
         let (mut state, noir_text_document) =
-            test_utils::init_lsp_server_with_inline_source("document_symbol", "src/main.nr", src)
-                .await;
+            test_utils::init_lsp_server_with_inline_source("document_symbol", "src/main.nr", src);
 
         // Test getting references works on any instance of the symbol.
         for target_range in &ranges {
@@ -63,7 +58,6 @@ mod references_tests {
             };
 
             let locations = on_references_request(&mut state, params)
-                .await
                 .expect("Could not execute on_references_request")
                 .unwrap();
 
@@ -92,13 +86,13 @@ fn main() {
 "#;
 
     #[test]
-    async fn test_on_references_request_including_declaration() {
-        check_references_succeeds(ANOTHER_FUNCTION_SRC, "another_function", 0, true).await;
+    fn test_on_references_request_including_declaration() {
+        check_references_succeeds(ANOTHER_FUNCTION_SRC, "another_function", 0, true);
     }
 
     #[test]
-    async fn test_on_references_request_without_including_declaration() {
-        check_references_succeeds(ANOTHER_FUNCTION_SRC, "another_function", 0, false).await;
+    fn test_on_references_request_without_including_declaration() {
+        check_references_succeeds(ANOTHER_FUNCTION_SRC, "another_function", 0, false);
     }
 
     // Ignored because making this work slows down everything, so for now things will not work
@@ -106,8 +100,8 @@ fn main() {
     // See https://github.com/noir-lang/noir/issues/5460
     #[ignore]
     #[test]
-    async fn test_on_references_request_works_across_workspace_packages() {
-        let (mut state, noir_text_document) = test_utils::init_lsp_server("workspace").await;
+    fn test_on_references_request_works_across_workspace_packages() {
+        let (mut state, noir_text_document) = test_utils::init_lsp_server("workspace");
 
         // noir_text_document is always `src/main.nr` in the workspace directory, so let's go to the workspace dir
         let noir_text_document = noir_text_document.to_file_path().unwrap();
@@ -134,7 +128,6 @@ fn main() {
         };
 
         let mut locations = on_references_request(&mut state, params)
-            .await
             .expect("Could not execute on_references_request")
             .unwrap();
 
@@ -160,7 +153,7 @@ fn main() {
     }
 
     #[test]
-    async fn ignores_macro_expansions() {
+    fn ignores_macro_expansions() {
         let src = "
         #[foo]
         struct Fo>|<o {}
@@ -182,8 +175,7 @@ fn main() {
                 "document_symbol",
                 "src/main.nr",
                 src,
-            )
-            .await;
+            );
 
         let result = on_references_request(
             &mut state,
@@ -196,8 +188,7 @@ fn main() {
                 partial_result_params: PartialResultParams { partial_result_token: None },
                 context: ReferenceContext { include_declaration: true },
             },
-        )
-        .await;
+        );
         let locations = result.unwrap().unwrap();
         assert_eq!(locations.len(), 1);
         assert_eq!(locations[0].range.start.line, 2); // Just the one for "struct Foo"

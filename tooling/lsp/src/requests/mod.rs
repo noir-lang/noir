@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
-use std::{collections::HashMap, future::Future};
 
 use crate::notifications::fake_stdlib_workspace;
 use crate::{PackageCacheData, insert_all_files_for_workspace_into_file_manager, parse_diff};
@@ -42,11 +42,8 @@ use crate::{
 pub(crate) use workspace_symbol::WorkspaceSymbolCache;
 
 // Handlers
-// The handlers for `request` are not `async` because it compiles down to lifetimes that can't be added to
-// the router. To return a future that fits the trait, it is easiest wrap your implementations in an `async {}`
-// block but you can also use `std::future::ready`.
-//
-// Additionally, the handlers for `notification` aren't async at all.
+// Request and notification handlers are synchronous functions over `&mut LspState`: the router
+// adapts them to the `Future`-returning signature it needs (see `NargoLspService::new`).
 //
 // They are not attached to the `NargoLspService` struct so they can be unit tested with only `LspState`
 // and params passed in.
@@ -260,7 +257,7 @@ impl Default for LspInitializationOptions {
 pub(crate) fn on_initialize(
     state: &mut LspState,
     params: InitializeParams,
-) -> impl Future<Output = Result<InitializeResult, ResponseError>> + use<> {
+) -> Result<InitializeResult, ResponseError> {
     state.root_path = params.root_uri.and_then(|root_uri| root_uri.to_file_path().ok());
     let initialization_options: LspInitializationOptions = params
         .initialization_options
@@ -281,7 +278,7 @@ pub(crate) fn on_initialize(
     let enable_semantic_tokens = !initialization_options.enable_lightweight_mode
         && initialization_options.enable_semantic_tokens;
 
-    async move {
+    {
         Ok(InitializeResult {
             capabilities: ServerCapabilities {
                 text_document_sync: Some(TextDocumentSyncCapability::Kind(
@@ -414,15 +411,12 @@ pub(crate) fn semantic_token_types_map() -> HashMap<SemanticTokenType, usize> {
     semantic_token_types().iter().enumerate().map(|(i, typ)| (typ.clone(), i)).collect()
 }
 
+/// Unlike the other handlers, formatting takes the open documents' current texts instead of
+/// `LspState`: it needs no compiler state, so the main loop answers it directly from its own
+/// text mirror rather than queueing it behind type-checking (with format-on-save enabled,
+/// the editor's save waits on this request).
 pub(crate) fn on_formatting(
-    state: &mut LspState,
-    params: lsp_types::DocumentFormattingParams,
-) -> impl Future<Output = Result<Option<Vec<lsp_types::TextEdit>>, ResponseError>> + use<> {
-    std::future::ready(on_formatting_inner(state, params))
-}
-
-fn on_formatting_inner(
-    state: &LspState,
+    input_files: &HashMap<String, String>,
     params: lsp_types::DocumentFormattingParams,
 ) -> Result<Option<Vec<lsp_types::TextEdit>>, ResponseError> {
     // The file_path might be Err/None if the action runs against an unsaved file
@@ -431,7 +425,7 @@ fn on_formatting_inner(
 
     let path = params.text_document.uri.to_string();
 
-    if let Some(source) = state.input_files.get(&path) {
+    if let Some(source) = input_files.get(&path) {
         let (module, errors) = noirc_frontend::parse_program_with_dummy_file(source);
         let is_all_warnings = errors.iter().all(ParserError::is_warning);
         if !is_all_warnings {
@@ -576,13 +570,6 @@ pub(crate) fn stdlib_path_to_uri(stdlib_path: &str) -> Url {
         }
     }
     Url::from_str(&format!("noir-std://{stdlib_path}")).unwrap()
-}
-
-pub(crate) fn on_shutdown(
-    _state: &mut LspState,
-    _params: (),
-) -> impl Future<Output = Result<(), ResponseError>> + use<> {
-    async { Ok(()) }
 }
 
 pub(crate) struct ProcessRequestCallbackArgs<'a> {
@@ -884,16 +871,15 @@ mod initialization {
     use async_lsp::lsp_types::{
         CodeLensOptions, InitializeParams, TextDocumentSyncCapability, TextDocumentSyncKind,
     };
-    use tokio::test;
 
     use crate::{LspState, requests::on_initialize, types::ServerCapabilities};
 
     #[test]
-    async fn test_on_initialize() {
+    fn test_on_initialize() {
         let client = ClientSocket::new_closed();
         let mut state = LspState::new(&client, StubbedBlackBoxSolver);
         let params = InitializeParams::default();
-        let response = on_initialize(&mut state, params).await.unwrap();
+        let response = on_initialize(&mut state, params).unwrap();
         assert!(matches!(
             response.capabilities,
             ServerCapabilities {

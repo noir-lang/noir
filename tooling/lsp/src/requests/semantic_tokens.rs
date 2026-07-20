@@ -5,7 +5,7 @@
 //!   be colorized as a function reference (only if such function actually exists).
 //! - code blocks inside doc comments. If these are Noir or Rust code blocks, a Lexer
 //!   will be used to colorize keywords and such.
-use std::{collections::HashMap, future};
+use std::collections::HashMap;
 
 use async_lsp::{
     ResponseError,
@@ -41,13 +41,13 @@ use crate::{
 pub(crate) fn on_semantic_tokens_full_request(
     state: &mut LspState,
     params: SemanticTokensParams,
-) -> impl Future<Output = Result<Option<SemanticTokensResult>, ResponseError>> + use<> {
+) -> Result<Option<SemanticTokensResult>, ResponseError> {
     let text_document_position_params = TextDocumentPositionParams {
         text_document: params.text_document,
         position: Position { line: 0, character: 0 },
     };
 
-    let result = process_request(state, text_document_position_params, |args| {
+    process_request(state, text_document_position_params, |args| {
         let file_id = args.location.file;
         let file = args.files.get_file(file_id).unwrap();
         let source = file.source();
@@ -56,8 +56,7 @@ pub(crate) fn on_semantic_tokens_full_request(
         let mut collector = SemanticTokenCollector::new(source, file_id, &args);
         let tokens = collector.collect(&parsed_module);
         Some(SemanticTokensResult::Tokens(SemanticTokens { result_id: None, data: tokens }))
-    });
-    future::ready(result)
+    })
 }
 
 struct SemanticTokenCollector<'args> {
@@ -546,14 +545,12 @@ mod tests {
         TextDocumentIdentifier, WorkDoneProgressParams,
     };
     use insta::assert_snapshot;
-    use tokio::test;
 
     use crate::{requests::on_semantic_tokens_full_request, test_utils};
 
-    async fn get_semantic_tokens(src: &str) -> Vec<SemanticToken> {
+    fn get_semantic_tokens(src: &str) -> Vec<SemanticToken> {
         let (mut state, noir_text_document) =
-            test_utils::init_lsp_server_with_inline_source("document_symbol", "src/main.nr", src)
-                .await;
+            test_utils::init_lsp_server_with_inline_source("document_symbol", "src/main.nr", src);
 
         let response = on_semantic_tokens_full_request(
             &mut state,
@@ -563,7 +560,6 @@ mod tests {
                 partial_result_params: PartialResultParams { partial_result_token: None },
             },
         )
-        .await
         .expect("Could not execute on_semantic_tokens_full_request");
 
         let SemanticTokensResult::Tokens(tokens) = response.unwrap() else {
@@ -573,7 +569,7 @@ mod tests {
     }
 
     #[test]
-    async fn test_doc_comments() {
+    fn test_doc_comments() {
         // This is mainly a regression test. You can check the snapshot to match
         // highlighted tokens with their positions in the source code.
         let src = "
@@ -601,7 +597,7 @@ mod tests {
         }
         ";
 
-        let tokens = get_semantic_tokens(src).await;
+        let tokens = get_semantic_tokens(src);
         let tokens = format!("{tokens:#?}");
         assert_snapshot!(tokens, @r"
         [
