@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1784551768658,
+  "lastUpdate": 1784551772138,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23001,48 +23001,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": false,
-          "id": "9309d1a65764c60eba07fe94fa8f8f7d2cb3c06e",
-          "message": "fix: resolve enum variants and associated constants via a type-path expression (#13241)\n\nCo-authored-by: Claude Opus 4.8 <noreply@anthropic.com>\nCo-authored-by: Aztec Bot <49558828+AztecBot@users.noreply.github.com>\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
-          "timestamp": "2026-07-07T12:03:38Z",
-          "tree_id": "2a5193b15b5d8c7eb566ac36d9cf2d1e630f9fe6",
-          "url": "https://github.com/noir-lang/noir/commit/9309d1a65764c60eba07fe94fa8f8f7d2cb3c06e"
-        },
-        "date": 1783427027098,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 174592,
-            "range": "± 3055",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 142959,
-            "range": "± 1377",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2652466,
-            "range": "± 29970",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
           "id": "27e7af99098013ab13937f9cf04831f462194593",
           "message": "fix(frontend): preserve nested CheckedCast validation obligations (#13018)\n\nCo-authored-by: Claude Opus 4.8 (1M context) <noreply@anthropic.com>\nCo-authored-by: Aztec Bot <49558828+AztecBot@users.noreply.github.com>\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
           "timestamp": "2026-07-07T12:14:29Z",
@@ -25084,6 +25042,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 1728842,
             "range": "± 11574",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "7dffb7549e890b1e573cfbeaf6094140957b09ff",
+          "message": "fix(lsp): don't block the editor while type-checking (#13255)\n\nCo-authored-by: Claude Fable 5 <noreply@anthropic.com>\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
+          "timestamp": "2026-07-20T12:28:20Z",
+          "tree_id": "1aaaec894fca242d6f01eca71bb069d43a2903f9",
+          "url": "https://github.com/noir-lang/noir/commit/7dffb7549e890b1e573cfbeaf6094140957b09ff"
+        },
+        "date": 1784551696772,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 98467,
+            "range": "± 284",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 88598,
+            "range": "± 810",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2361112,
+            "range": "± 12582",
             "unit": "ns/iter"
           }
         ]
