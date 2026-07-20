@@ -88,6 +88,19 @@ corrupts memory rather than failing loudly, so they are worth stating explicitly
   their contents are unaffected by stack-pointer changes across calls — the property the whole
   argument-passing scheme relies on.
 
+- **Scratch is sized by `max`, not `sum` — spilling adds nothing on top of the procedure peak.** The
+  spill slots `@3`/`@4`/`@5` and the up-to-18 slots a procedure uses share the same physical region,
+  but never overlap in time, so the region only has to fit the larger of the two. Spilling is a
+  `Stack`-context mechanism (its `SpillManager` lives on `FunctionContext`); procedures compile in a
+  `ScratchSpace` context and never spill. A regular function keeps its values on the stack, and its
+  only scratch use is the transient `@3`/`@4`/`@5`, which are consumed within a single spill
+  load/store sequence and are never held across a procedure call — the spilled *values* themselves go
+  to a heap region (`spill_base = free_memory_pointer`, bumped in the prologue), not to scratch. So
+  when a caller later writes procedure arguments into those same low slots, nothing live is there to
+  clobber. The whole-program scratch requirement is therefore `max(peak procedure demand,
+  spill_slots) = max(18, 3) = 18`, not their sum. (Spilling still sets the `MIN_SCRATCH_SPACE = 2`
+  floor, since even a spill-only function borrows `@3`/`@4`.)
+
 - **Bounds are enforced lazily, not globally.** The `ScratchSpace` allocator asserts every allocation
   stays within `[start(), start() + max_scratch_space)` ("Scratch space too deep"). There is no
   static computation of the true maximum scratch demand across all procedures; the compiler does not
