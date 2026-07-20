@@ -71,11 +71,14 @@ corrupts memory rather than failing loudly, so they are worth stating explicitly
 - **Block codegen never allocates from scratch space for user values.** Ordinary (non-procedure)
   codegen allocates everything on the stack. This is exactly what lets the spilling machinery treat
   `@3`/`@4`/`@5` as always-available fixed scratch registers — nothing else in a `Stack` context can
-  be holding a value there.
+  be holding a value there. *Enforced by* `stack_allocations_are_relative_never_scratch` in
+  [`registers.rs`][registers], which checks the `Stack` allocator only ever yields `Relative`
+  addresses.
 
 - **`@3`/`@4` and `@5` are disjoint.** The conditional-store value in `@5` is held across an inner
   load/store whose address computation reuses `@3`/`@4`. Overlapping them would clobber the value
-  mid-sequence.
+  mid-sequence. *Enforced by* `spill_scratch_slots_are_distinct_and_in_scratch_space` in
+  [`brillig_ir.rs`][brillig_ir].
 
 - **Procedures cannot call procedures.** A procedure context is constructed with
   `can_call_procedures = false` (see `new_for_procedure` in [`brillig_ir.rs`][brillig_ir]). Call
@@ -83,10 +86,14 @@ corrupts memory rather than failing loudly, so they are worth stating explicitly
   [`codegen_memory.rs`][codegen_memory]) fall back to inline codegen when this flag is false. This
   guarantees scratch "arenas" never nest: at most one procedure's argument/temporary layout is live
   at a time, so argument slots and a callee's temporaries can never collide across a nested call.
+  *Enforced by* `procedures_do_not_call_procedures` in [`procedures/mod.rs`][procedures], which
+  asserts no procedure's bytecode contains a `Call` opcode.
 
 - **Direct addressing makes scratch call-invariant.** Because scratch slots are absolute addresses,
   their contents are unaffected by stack-pointer changes across calls — the property the whole
-  argument-passing scheme relies on.
+  argument-passing scheme relies on. This is a property of the Brillig VM rather than a compiler
+  invariant, so it is covered only indirectly, by execution tests that call procedures and check
+  results.
 
 - **Scratch is sized by `max`, not `sum` — spilling adds nothing on top of the procedure peak.** The
   spill slots `@3`/`@4`/`@5` and the up-to-18 slots a procedure uses share the same physical region,
@@ -98,8 +105,9 @@ corrupts memory rather than failing loudly, so they are worth stating explicitly
   to a heap region (`spill_base = free_memory_pointer`, bumped in the prologue), not to scratch. So
   when a caller later writes procedure arguments into those same low slots, nothing live is there to
   clobber. The whole-program scratch requirement is therefore `max(peak procedure demand,
-  spill_slots) = max(18, 3) = 18`, not their sum. (Spilling still sets the `MIN_SCRATCH_SPACE = 2`
-  floor, since even a spill-only function borrows `@3`/`@4`.)
+  spill_slots) = max(18, 3) = 18`, not their sum. (The `MIN_SCRATCH_SPACE = 2` floor is sized by the
+  smallest procedure — `CheckMaxStackDepth`, which needs two scratch slots — not by spilling. The
+  spilling helpers actually occupy three fixed slots, `@3`–`@5`.)
 
 - **Bounds are enforced lazily, not globally.** The `ScratchSpace` allocator asserts every allocation
   stays within `[start(), start() + max_scratch_space)` ("Scratch space too deep"). There is no
@@ -114,7 +122,8 @@ corrupts memory rather than failing loudly, so they are worth stating explicitly
   [`procedures/mod.rs`][procedures] pins this figure by reading it straight from the generated
   bytecode; if a procedure change moves the peak, that test fails and both it and this number must be
   updated. If a working set ever grows past the configured `max_scratch_space`, the allocator
-  assertion above is the backstop that catches it.
+  assertion above is the backstop that catches it — exercised by
+  `scratch_allocation_beyond_capacity_panics` in [`registers.rs`][registers].
 
 # Relevant files
 

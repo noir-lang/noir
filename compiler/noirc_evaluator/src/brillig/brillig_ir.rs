@@ -441,6 +441,30 @@ pub(crate) mod tests {
     use super::registers::Stack;
     use super::{BrilligOpcode, ReservedRegisters};
 
+    #[test]
+    fn spill_scratch_slots_are_distinct_and_in_scratch_space() {
+        use super::registers::ScratchSpace;
+
+        let (address_lo, address_hi) = ReservedRegisters::spill_scratch();
+        let conditional_value = ReservedRegisters::spill_conditional_value();
+        let slots = [address_lo, address_hi, conditional_value];
+
+        // Pairwise distinct: the conditional-store value in `@5` is held across a load/store whose
+        // address computation reuses `@3`/`@4`, so any overlap would clobber it mid-sequence.
+        for i in 0..slots.len() {
+            for j in (i + 1)..slots.len() {
+                assert_ne!(slots[i], slots[j], "spill scratch slots must be disjoint");
+            }
+        }
+
+        // Each is a `Direct` address inside the scratch region (past the reserved registers).
+        let scratch_start = ScratchSpace::start();
+        for slot in slots {
+            let index = slot.unwrap_direct() as usize;
+            assert!(index >= scratch_start, "spill slot {slot} is not in the scratch region");
+        }
+    }
+
     pub(crate) struct DummyBlackBoxSolver;
 
     impl BlackBoxFunctionSolver<FieldElement> for DummyBlackBoxSolver {
