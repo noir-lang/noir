@@ -90,11 +90,18 @@ corrupts memory rather than failing loudly, so they are worth stating explicitly
 
 - **Bounds are enforced lazily, not globally.** The `ScratchSpace` allocator asserts every allocation
   stays within `[start(), start() + max_scratch_space)` ("Scratch space too deep"). There is no
-  static computation of the true maximum scratch demand across all procedures; in practice the peak
-  is small (≈7 slots for [`prepare_vector_push`][prepare_vector_push] /
-  [`prepare_vector_insert`][prepare_vector_insert] with copy-counting enabled) and always fits well
-  under the default 64. If a future procedure's working set grows past the configured
-  `max_scratch_space`, this assertion is what will catch it.
+  static computation of the true maximum scratch demand across all procedures; the compiler does not
+  prove a tight bound, it just traps any allocation that would overflow the configured region.
+
+  The peak is driven by procedure-local temporaries (point 2 above), *not* by argument counts. The
+  argument/return handshake for the widest procedures is only 6–7 slots, but a procedure also holds
+  its live locals in scratch, so the real high-water mark is larger. Measured across the current
+  procedures it is **18 scratch slots** (`@3`–`@20`, driven by [`vector_remove`][vector_remove]) —
+  still comfortably under the default 64. The test `peak_scratch_demand_across_procedures` in
+  [`procedures/mod.rs`][procedures] pins this figure by reading it straight from the generated
+  bytecode; if a procedure change moves the peak, that test fails and both it and this number must be
+  updated. If a working set ever grows past the configured `max_scratch_space`, the allocator
+  assertion above is the backstop that catches it.
 
 # Relevant files
 
@@ -111,8 +118,9 @@ corrupts memory rather than failing loudly, so they are worth stating explicitly
   scratch (globals, calldata, stack).
 - [`brillig_ir/procedures/`][procedures] — the procedures themselves, e.g.
   [`array_copy`][array_copy], [`prepare_vector_insert`][prepare_vector_insert],
-  [`prepare_vector_push`][prepare_vector_push], and
-  [`check_max_stack_depth`][check_max_stack_depth].
+  [`prepare_vector_push`][prepare_vector_push], [`vector_remove`][vector_remove], and
+  [`check_max_stack_depth`][check_max_stack_depth]. The peak-scratch guard test
+  (`peak_scratch_demand_across_procedures`) also lives here.
 
 [registers]: ../../compiler/noirc_evaluator/src/brillig/brillig_ir/registers.rs
 [brillig_ir]: ../../compiler/noirc_evaluator/src/brillig/brillig_ir.rs
@@ -123,4 +131,5 @@ corrupts memory rather than failing loudly, so they are worth stating explicitly
 [array_copy]: ../../compiler/noirc_evaluator/src/brillig/brillig_ir/procedures/array_copy.rs
 [prepare_vector_insert]: ../../compiler/noirc_evaluator/src/brillig/brillig_ir/procedures/prepare_vector_insert.rs
 [prepare_vector_push]: ../../compiler/noirc_evaluator/src/brillig/brillig_ir/procedures/prepare_vector_push.rs
+[vector_remove]: ../../compiler/noirc_evaluator/src/brillig/brillig_ir/procedures/vector_remove.rs
 [check_max_stack_depth]: ../../compiler/noirc_evaluator/src/brillig/brillig_ir/procedures/check_max_stack_depth.rs
