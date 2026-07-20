@@ -183,6 +183,22 @@ jobs:
         working-directory: ./test_programs
         run: ./format.sh check
 
+  design-links:
+    name: design doc links
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+
+      - uses: taiki-e/install-action@just
+
+      - name: Check design doc links
+        run: just check-design-links
+
   # This is a job which depends on all test jobs and reports the overall status.
   # This allows us to add/remove test jobs without having to update the required workflows.
   formatting-end:
@@ -196,6 +212,7 @@ jobs:
       - rustdoc
       - eslint
       - nargo_fmt
+      - design-links
     permissions:
       contents: read
 
