@@ -51,8 +51,8 @@ register allocator *is* the scratch space; the third is unrelated code borrowing
    procedure never touches the stack, so scratch is its only working memory. This — not the argument
    count — is what drives peak scratch demand: the arguments occupy the low slots, and the procedure's
    internal working set is allocated above them. (`MIN_SCRATCH_SPACE = 2` exists because even a
-   minimal program's [`CheckMaxStackDepth`][check_max_stack_depth] procedure allocates one scratch
-   temporary.)
+   minimal program's [`CheckMaxStackDepth`][check_max_stack_depth] procedure needs two scratch slots
+   — its `in_range` predicate plus a temporary for the bound constant.)
 
 3. **The register-spilling machinery** (in ordinary `Stack`-context block codegen, see
    [`brillig_block.rs`][brillig_block]) borrows the first three scratch slots as fixed transient
@@ -65,8 +65,9 @@ register allocator *is* the scratch space; the third is unrelated code borrowing
 
 # Safety guarantees
 
-These invariants are what make the three uses coexist safely. Breaking any of them silently
-corrupts memory rather than failing loudly, so they are worth stating explicitly.
+These invariants are what make the three uses coexist safely. Most would silently corrupt memory
+rather than fail loudly if violated, which is why they are worth stating explicitly — and why
+several are backed by an assertion or test, noted inline below.
 
 - **Block codegen never allocates from scratch space for user values.** Ordinary (non-procedure)
   codegen allocates everything on the stack. This is exactly what lets the spilling machinery treat
@@ -125,7 +126,9 @@ corrupts memory rather than failing loudly, so they are worth stating explicitly
   silently (see the previous point). That case gets its own assertion, the direct analogue of the
   allocator's "Scratch space too deep": when a function spills, codegen asserts
   `max_scratch_space >= NUM_SPILL_SCRATCH_SLOTS` before resolving the spill prologue. *Enforced by*
-  `spilling_with_too_small_scratch_space_panics` in [`spill.rs`][spill_tests].
+  `spilling_with_too_small_scratch_space_panics` in [`spill.rs`][spill_tests], with the exact
+  boundary (`NUM_SPILL_SCRATCH_SLOTS` slots is enough) pinned by
+  `spilling_with_minimum_scratch_space_compiles`.
 
   The peak is driven by procedure-local temporaries (point 2 above), *not* by argument counts. The
   argument/return handshake for the widest procedures is only 6–7 slots, but a procedure also holds
