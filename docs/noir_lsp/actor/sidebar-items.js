@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["ActorMessage"],"fn":["coalesce_file_changes","process_message","run_actor_loop"],"struct":["ActorResponse","CompilerActor"]};
