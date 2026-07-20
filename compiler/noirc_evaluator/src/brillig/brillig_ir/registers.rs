@@ -174,7 +174,7 @@ impl Stack {
     /// Number of reserved slots at the start of each stack frame:
     /// - `sp[0]`: previous stack pointer
     /// - `sp[1]`: per-frame spill base pointer
-    const START_OFFSET: usize = 2;
+    pub(crate) const START_OFFSET: usize = 2;
 
     pub(crate) fn new(layout: LayoutConfig) -> Self {
         Self { storage: DeallocationListAllocator::new(Self::START_OFFSET), layout }
