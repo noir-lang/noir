@@ -1,5 +1,25 @@
 # Changelog
 
+## [1.0.0-beta.24](https://github.com/noir-lang/noir/compare/v1.0.0-beta.23...v1.0.0-beta.24) (2026-07-20)
+
+
+### Bug Fixes
+
+* **acir_gen:** Lower a zero-length dynamic array Brillig input inline instead of MemoryArray ([#13322](https://github.com/noir-lang/noir/issues/13322)) ([e09c179](https://github.com/noir-lang/noir/commit/e09c179df5c2f25e364392fdd161097f84c82eff))
+* **acir_gen:** Skip array block init for a zero-length array_get result ([#13312](https://github.com/noir-lang/noir/issues/13312)) ([dbcdb33](https://github.com/noir-lang/noir/commit/dbcdb333ebb66f75eb66c9735d831198f554810a))
+* **acvm:** Reject out-of-range Keccakf1600 lanes instead of panicking ([#13319](https://github.com/noir-lang/noir/issues/13319)) ([e5639b2](https://github.com/noir-lang/noir/commit/e5639b2fe0d387aa2a66f55b09597d3bd45acea3))
+* **ci:** Pin aztec-packages commit in `compile-noir-contracts` job ([#13349](https://github.com/noir-lang/noir/issues/13349)) ([a88b19f](https://github.com/noir-lang/noir/commit/a88b19f000f09a476d4d6102ffada8b7f8c1668c))
+* **frontend:** Reject control flow in assert messages ([#13345](https://github.com/noir-lang/noir/issues/13345)) ([9a633a3](https://github.com/noir-lang/noir/commit/9a633a342d83287046d725f9fcfdc734a8e7b1a0))
+* **lsp:** Don't block the editor while type-checking ([#13255](https://github.com/noir-lang/noir/issues/13255)) ([7dffb75](https://github.com/noir-lang/noir/commit/7dffb7549e890b1e573cfbeaf6094140957b09ff))
+* **lsp:** Ignore empty didChange notifications ([#13316](https://github.com/noir-lang/noir/issues/13316)) ([a7ce8d4](https://github.com/noir-lang/noir/commit/a7ce8d469446f2521b333cd958c3b6311ff08978))
+* **nargo:** Show `--show-output` output for parameterized (fuzzed) tests ([#13305](https://github.com/noir-lang/noir/issues/13305)) ([e5a5b98](https://github.com/noir-lang/noir/commit/e5a5b98fb65c910f96560ef08a9c8409f82149fb))
+* Range check removal unchecked acir ([#13269](https://github.com/noir-lang/noir/issues/13269)) ([e8e3a46](https://github.com/noir-lang/noir/commit/e8e3a4609428dcbc4f07902f758c8b990aa5c5f1))
+* **ssa:** Don't leak exit-destination param mappings out of loop unrolling ([#13324](https://github.com/noir-lang/noir/issues/13324)) ([1802cf3](https://github.com/noir-lang/noir/commit/1802cf3895aac6ab1ff4f6ad0b30ede1dcbc119a))
+* **ssa:** Don't treat div/mod by a non-zero constant as predicated in flatten_post_check ([#13311](https://github.com/noir-lang/noir/issues/13311)) ([f11766f](https://github.com/noir-lang/noir/commit/f11766f9b92d829bbc3eacb33bbc608afc9a3906))
+* **ssa:** Only count array-typed stores in rc_invariant::call may_mutate ([#13354](https://github.com/noir-lang/noir/issues/13354)) ([111e7a9](https://github.com/noir-lang/noir/commit/111e7a968ca88f8d7a2ee65cde84aa21c82f6f38))
+* **ssa:** Recognize conjoined and cast-equal predicate guards in flatten_post_check ([#13199](https://github.com/noir-lang/noir/issues/13199)) ([37c70c5](https://github.com/noir-lang/noir/commit/37c70c51cfbd5e67c7ae9fd81816564d298705ef))
+* Track progress of constrained Brillig call outputs ([#13301](https://github.com/noir-lang/noir/issues/13301)) ([64a8c7d](https://github.com/noir-lang/noir/commit/64a8c7d0a8c399d3cc4a513e40e4e9e6793b706f))
+
 ## [1.0.0-beta.23](https://github.com/noir-lang/noir/compare/v1.0.0-beta.22...v1.0.0-beta.23) (2026-07-08)
 
 
