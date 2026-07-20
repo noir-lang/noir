@@ -831,6 +831,16 @@ impl Elaborator<'_> {
                         typ,
                         location,
                     });
+                } else {
+                    // `trait_id` comes from an already-resolved trait bound, so it should always
+                    // be found. Surface the inconsistency instead of silently dropping the
+                    // redundant-constraint diagnostic.
+                    self.push_err(TypeCheckError::expecting_other_error(
+                        format!(
+                            "Elaborator::add_trait_bound_to_scope: no trait found for resolved trait id {trait_id:?}"
+                        ),
+                        location,
+                    ));
                 }
             }
             Err(ImplSearchErrorKind::RecursionLimitReached) => {

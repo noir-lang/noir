@@ -165,6 +165,10 @@ impl Elaborator<'_> {
         if let UnresolvedGeneric::Numeric { ident, typ } = generic {
             let unresolved_typ = typ.clone();
             let wildcard_allowed = WildcardAllowed::No(WildcardDisallowedContext::NumericGeneric);
+            // A numeric generic's annotation is normally a plain type (e.g. `u32`), which the
+            // parser never produces as a type-level `Expression`. The type-expression branch is
+            // therefore only reachable for comptime/macro-constructed generics whose annotation is
+            // itself an expression; those are resolved under a numeric kind so they type-check.
             let typ = if unresolved_typ.is_type_expression() {
                 self.resolve_type_with_kind(
                     unresolved_typ.clone(),

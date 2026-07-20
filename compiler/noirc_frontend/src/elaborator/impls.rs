@@ -194,10 +194,15 @@ impl Elaborator<'_> {
         // We can define methods on primitive types only if we're in the stdlib
         } else if trait_id.is_none() && *self_type != Type::Error {
             if self.crate_id.is_stdlib() {
-                // Trait impl methods are already declared in NodeInterner::add_trait_implementation
-                if trait_id.is_none() {
-                    self.declare_methods(self_type, &function_ids);
-                }
+                // Within the stdlib, inherent impls are only expected on primitive types; the
+                // non-stdlib branch below rejects them for user crates. Assert that invariant so a
+                // stdlib impl on a non-primitive type surfaces as an internal error rather than
+                // silently registering methods.
+                debug_assert!(
+                    self_type.is_primitive(),
+                    "stdlib inherent impl on non-primitive type: {self_type}"
+                );
+                self.declare_methods(self_type, &function_ids);
             } else {
                 let is_primitive = self_type.is_primitive();
                 self.push_err(DefCollectorErrorKind::NonEnumNonStructTypeInImpl {

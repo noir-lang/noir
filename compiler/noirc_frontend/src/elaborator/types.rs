@@ -3546,16 +3546,18 @@ impl Elaborator<'_> {
         // Search in the parent traits, if any.
         let parent_bounds: Vec<_> = the_trait.parent_bounds().cloned().collect();
         for parent_trait_bound in &parent_bounds {
-            if let Some(the_trait) = self.interner.try_get_trait(parent_trait_bound.trait_id) {
-                let parent_trait_bound =
-                    self.instantiate_parent_trait_bound(trait_bound, parent_trait_bound);
-                matches.extend(self.lookup_methods_in_trait(
-                    the_trait,
-                    method_name,
-                    &parent_trait_bound,
-                    visited,
-                ));
-            }
+            // Parent bound trait ids are set during trait resolution and must always resolve;
+            // `get_trait` turns a violation into a clear internal error instead of silently
+            // skipping the parent trait's methods.
+            let the_trait = self.interner.get_trait(parent_trait_bound.trait_id);
+            let parent_trait_bound =
+                self.instantiate_parent_trait_bound(trait_bound, parent_trait_bound);
+            matches.extend(self.lookup_methods_in_trait(
+                the_trait,
+                method_name,
+                &parent_trait_bound,
+                visited,
+            ));
         }
 
         matches
@@ -3929,11 +3931,11 @@ impl Elaborator<'_> {
             return;
         }
 
-        let parent_bounds: Vec<_> = self
-            .interner
-            .try_get_trait(trait_bound.trait_id)
-            .map(|the_trait| the_trait.parent_bounds().cloned().collect())
-            .unwrap_or_default();
+        // `bind_generics_from_trait_bound` below already assumes this trait id resolves (via
+        // `get_trait`); use `get_trait` here too so a missing trait is a clear internal error
+        // rather than a silently-empty parent-bound list.
+        let parent_bounds: Vec<_> =
+            self.interner.get_trait(trait_bound.trait_id).parent_bounds().cloned().collect();
 
         for parent_bound in &parent_bounds {
             let instantiated = self.instantiate_parent_trait_bound(trait_bound, parent_bound);
