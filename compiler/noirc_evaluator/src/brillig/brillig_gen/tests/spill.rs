@@ -575,7 +575,7 @@ fn spilling_with_too_small_scratch_space_is_rejected() {
             brillig.ssa_function_to_brillig[&Id::test_new(0)].did_spill,
             "program did not spill"
         );
-        gen_brillig_for(&Ssa::from_str(src).unwrap().main(), &args, &brillig, &options)
+        gen_brillig_for(Ssa::from_str(src).unwrap().main(), &args, &brillig, &options)
     };
 
     // One slot short of what spilling needs: linking is rejected.
