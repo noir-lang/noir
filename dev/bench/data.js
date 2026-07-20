@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1784559220938,
+  "lastUpdate": 1784562011748,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23026,48 +23026,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "jfecher11@gmail.com",
-            "name": "jfecher",
-            "username": "jfecher"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "9db4e14b9e05a379d92a3c4ebe8a0d73fd97fc4b",
-          "message": "fix: assume associated-type bounds from a trait's where clause in default methods (#13283)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
-          "timestamp": "2026-07-07T13:09:44Z",
-          "tree_id": "4a49ee477aac595fa51ea618eef0883e67245175",
-          "url": "https://github.com/noir-lang/noir/commit/9db4e14b9e05a379d92a3c4ebe8a0d73fd97fc4b"
-        },
-        "date": 1783430989287,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 169694,
-            "range": "± 509",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 139205,
-            "range": "± 292",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2652760,
-            "range": "± 9743",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "49699333+dependabot[bot]@users.noreply.github.com",
             "name": "dependabot[bot]",
             "username": "dependabot[bot]"
@@ -25119,6 +25077,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2647244,
             "range": "± 16802",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49558828+AztecBot@users.noreply.github.com",
+            "name": "Aztec Bot",
+            "username": "AztecBot"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "74d5289339c76568afcf3a650d4249ed30e87d2a",
+          "message": "chore(frontend): deduplicate trait-impl scope save/restore in collect_trait_impl (#13364)",
+          "timestamp": "2026-07-20T15:18:22Z",
+          "tree_id": "ca8a52919f606e67569a41a128670f0d8eaf9f87",
+          "url": "https://github.com/noir-lang/noir/commit/74d5289339c76568afcf3a650d4249ed30e87d2a"
+        },
+        "date": 1784561933368,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 167441,
+            "range": "± 342",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 136231,
+            "range": "± 2020",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2649485,
+            "range": "± 2319",
             "unit": "ns/iter"
           }
         ]
