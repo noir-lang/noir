@@ -164,9 +164,8 @@ impl Elaborator<'_> {
         // A turbofish on the segment *before* the last one (e.g. `Foo::<u32>::Spam`) provides
         // type generics for the type the last segment is resolved within. This is needed for
         // fieldless enum variants, which resolve to a global rather than a function.
-        let type_segment_turbofish = (variable.segments.len() >= 2)
-            .then(|| variable.segments[variable.segments.len() - 2].generics.clone())
-            .flatten();
+        let type_segment_turbofish =
+            variable.segments.iter().rev().nth(1).and_then(|segment| segment.generics.clone());
 
         let location = variable.location;
         let variable_resolution = self.resolve_variable(variable);

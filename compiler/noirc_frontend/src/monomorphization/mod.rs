@@ -3361,8 +3361,8 @@ fn resolve_trait_item_impl(
                 &trait_generics.named,
             ) {
                 Ok((TraitImplKind::Normal(impl_id), instantiation_bindings)) => {
-                    // The extra bindings come from impl lookup, similar to
-                    // what's done in `verify_trait_constraint` in the frontend.
+                    // The extra bindings come from impl lookup, similar to what's done when
+                    // solving trait constraints in the frontend (see `check_trait_constraints`).
                     record_impl_instantiation_bindings(
                         interner,
                         method_id,

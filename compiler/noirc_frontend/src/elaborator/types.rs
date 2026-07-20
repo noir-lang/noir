@@ -637,8 +637,8 @@ impl Elaborator<'_> {
             // Because there is no ordering to when type aliases (and other globals) are resolved,
             // it is possible for one to refer to an Error type and issue no error if it is set
             // equal to another type alias. Fixing this fully requires an analysis to create a DFG
-            // of definition ordering, but for now we have an explicit check here so that we at
-            // least issue an error that the type was not found instead of silently passing.
+            // of definition ordering. There is no such check here, so a type alias pointing at a
+            // not-yet-resolved (or erroring) alias can still silently resolve to an Error type.
             return Type::Alias(type_alias, args);
         }
 
@@ -1033,6 +1033,12 @@ impl Elaborator<'_> {
     }
 
     /// Look up a path as a global used as a numeric type (e.g. `global N: u32 = 5;`
+    /// Resolves `path` as a numeric global used in type position (e.g. an array length).
+    ///
+    /// Returns `None` *without* emitting a diagnostic when `path` does not resolve to a global,
+    /// leaving it to the caller to surface the original path-resolution error. `None` is also
+    /// returned *with* a diagnostic already pushed for globals that exist but cannot be used as a
+    /// numeric type (unresolved, non-integral, or not fitting their type).
     #[tracing::instrument(level = "trace", skip_all)]
     fn lookup_global_type(&mut self, path: &TypedPath, mode: PathResolutionMode) -> Option<Type> {
         match self.resolve_path_inner(path.clone(), PathResolutionTarget::Value, mode) {
@@ -1087,6 +1093,7 @@ impl Elaborator<'_> {
 
                 Some(Type::Constant(*global_value))
             }
+            // Not a global: defer to the caller to report the original path-resolution error.
             _ => None,
         }
     }
@@ -1094,12 +1101,12 @@ impl Elaborator<'_> {
     #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn convert_expression_type(
         &mut self,
-        length: UnresolvedTypeExpression,
+        expr: UnresolvedTypeExpression,
         expected_kind: &Kind,
         location: Location,
         wildcard_allowed: WildcardAllowed,
     ) -> Type {
-        match length {
+        match expr {
             UnresolvedTypeExpression::Variable(path) => {
                 let mut ab = GenericTypeArgs::default();
                 // Use generics from path, if they exist
@@ -2921,7 +2928,8 @@ impl Elaborator<'_> {
         }
     }
 
-    /// Prerequisite: `verify_trait_constraint` of the operator's trait constraint.
+    /// Prerequisite: the operator's trait constraint has already been solved via the trait
+    /// constraint machinery (see `check_trait_constraints`).
     ///
     /// Although by this point the operator is expected to already have a trait impl,
     /// we still need to match the operator's type against the method's instantiated type

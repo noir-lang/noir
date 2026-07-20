@@ -108,6 +108,9 @@ impl Column {
 #[derive(Clone)]
 pub(super) struct Row {
     columns: Vec<Column>,
+    /// Guard expression for a guarded match arm (`match arm if <cond>`). Guarded arms are not yet
+    /// parseable, so this is currently always `None`; the downstream `HirMatch::Guard` lowering is
+    /// already wired to handle it once guards are supported.
     guard: Option<RowBody>,
     body: RowBody,
     original_body: RowBody,
