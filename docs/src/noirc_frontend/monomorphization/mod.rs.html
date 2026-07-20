@@ -3361,8 +3361,8 @@
 <a href=#3361 id=3361 data-nosnippet>3361</a>                <span class="kw-2">&amp;</span>trait_generics.named,
 <a href=#3362 id=3362 data-nosnippet>3362</a>            ) {
 <a href=#3363 id=3363 data-nosnippet>3363</a>                <span class="prelude-val">Ok</span>((TraitImplKind::Normal(impl_id), instantiation_bindings)) =&gt; {
-<a href=#3364 id=3364 data-nosnippet>3364</a>                    <span class="comment">// The extra bindings come from impl lookup, similar to
-<a href=#3365 id=3365 data-nosnippet>3365</a>                    // what's done in `verify_trait_constraint` in the frontend.
+<a href=#3364 id=3364 data-nosnippet>3364</a>                    <span class="comment">// The extra bindings come from impl lookup, similar to what's done when
+<a href=#3365 id=3365 data-nosnippet>3365</a>                    // solving trait constraints in the frontend (see `check_trait_constraints`).
 <a href=#3366 id=3366 data-nosnippet>3366</a>                    </span>record_impl_instantiation_bindings(
 <a href=#3367 id=3367 data-nosnippet>3367</a>                        interner,
 <a href=#3368 id=3368 data-nosnippet>3368</a>                        method_id,
