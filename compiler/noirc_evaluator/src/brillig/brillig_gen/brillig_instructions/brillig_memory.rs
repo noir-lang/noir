@@ -467,7 +467,7 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
         dfg: &DataFlowGraph,
     ) -> ValueId {
         let [result_id] = dfg.instruction_result(instruction_id);
-        assert!(!self.variables.is_allocated(&result_id), "ICE: array already allocated");
+        assert!(!self.registers.contains_key(&result_id), "ICE: array already allocated");
         result_id
     }
 }

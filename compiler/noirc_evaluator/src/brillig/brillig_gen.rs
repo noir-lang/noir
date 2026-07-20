@@ -1,4 +1,5 @@
 //! The code generation logic for converting [`crate::ssa`] objects into their respective [Brillig] artifacts.
+mod allocator;
 pub(crate) mod brillig_block;
 pub(crate) mod brillig_block_variables;
 mod brillig_call;
@@ -16,7 +17,7 @@ mod variable_liveness;
 use acvm::FieldElement;
 use noirc_errors::call_stack::CallStack;
 
-use self::brillig_fn::FunctionContext;
+use self::brillig_fn::return_values;
 use super::{
     Brillig, BrilligOptions, BrilligVariable, ValueId,
     brillig_ir::{
@@ -53,7 +54,7 @@ pub(crate) fn gen_brillig_for(
     brillig: &Brillig,
     options: &BrilligOptions,
 ) -> Result<GeneratedBrillig<FieldElement>, RuntimeError> {
-    let return_parameters = FunctionContext::return_values(func);
+    let return_parameters = return_values(func);
 
     // Check if the return value size exceeds the limit before generating the entry point.
     // This is done early to avoid the expensive entry point codegen which iterates over

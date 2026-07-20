@@ -126,6 +126,32 @@ pub(crate) struct VariableLiveness {
     /// The maximum number of variables simultaneously live at any point in the function.
     /// Computed after `last_uses` by walking each block instruction-by-instruction.
     pub(crate) max_live_count: usize,
+    /// A lower bound on the number of *usable* stack-frame registers required to lower any
+    /// single instruction in the function, i.e.
+    /// `max over instructions of (max(inputs, results) + scratch)`.
+    ///
+    /// An instruction's input variables and transient scratch registers (see
+    /// [`instruction_scratch_demand`]) must be register-resident at the same program point;
+    /// no allocator can spill around them, because you cannot evict an operand you are about
+    /// to read. The results are counted with `max(inputs, results)` rather than added on top
+    /// of the inputs: a result can take over an operand's register in place — the Brillig
+    /// binary opcode reads both sources before writing the destination, and a live operand it
+    /// overwrites is first preserved in a spill slot — so results and inputs share registers.
+    ///
+    /// This makes `min_live_count` a floor that a valid [`LayoutConfig`][layout] must leave room
+    /// for in each frame, after the reserved [`Stack::START_OFFSET`][start] slots. It is a
+    /// deliberate *lower* bound: for an instruction whose scratch outlives the operation (e.g. an
+    /// overflow check that reads operands and result together), the true floor is up to `results`
+    /// higher, because there the result does *not* reuse an operand register. Under-counting is the
+    /// safe direction — the assertion built on this never rejects a frame that codegen could
+    /// actually handle; the residual gap falls through to the reactive "Stack frame too deep" panic.
+    ///
+    /// Whereas [`Self::max_live_count`] drives the *decision to enable* spilling,
+    /// `min_live_count` is that per-instruction floor.
+    ///
+    /// [layout]: crate::brillig::brillig_ir::LayoutConfig
+    /// [start]: crate::brillig::brillig_ir::registers::Stack::START_OFFSET
+    pub(crate) min_live_count: usize,
 }
 
 impl VariableLiveness {
@@ -146,7 +172,7 @@ impl VariableLiveness {
             .compute_block_param_definitions(func, &loops.dom)
             .compute_live_in_of_blocks(func, constants, back_edges)
             .compute_last_uses(func)
-            .compute_max_live_count(func, constants)
+            .compute_live_count(func, constants)
     }
 
     /// The set of values that are alive before the block starts executing.
@@ -373,7 +399,9 @@ impl VariableLiveness {
         self
     }
 
-    /// Compute [`VariableLiveness::max_live_count`].
+    /// Compute [`VariableLiveness::max_live_count`] and [`VariableLiveness::min_live_count`].
+    ///
+    /// ### `max_live_count`
     ///
     /// Walk each block instruction-by-instruction, tracking the set of variables
     /// simultaneously alive: start with `live_in` plus block param definitions,
@@ -384,13 +412,19 @@ impl VariableLiveness {
     /// adds a per-instruction upper bound on the transient scratch registers the code
     /// generator allocates (see [`instruction_scratch_demand`]).
     ///
+    /// ### `min_live_count`
+    ///
+    /// The same walk also computes [`VariableLiveness::min_live_count`], the per-instruction
+    /// register floor: at each instruction `max(distinct inputs, results) + scratch`.
+    ///
     /// # Safety
     /// This remains a lower bound, not an exact live count: some transients are not
     /// attributed per-instruction. Consumers of the max live count are expected to keep
     /// some extra margin to account for those.
-    /// See this example [spill margin][crate::brillig::brillig_gen::FunctionContext::SPILL_MARGIN].
-    fn compute_max_live_count(mut self, func: &Function, constants: &ConstantAllocation) -> Self {
+    /// See this example [spill margin][crate::brillig::brillig_gen::brillig_fn::FunctionContext::SPILL_MARGIN].
+    fn compute_live_count(mut self, func: &Function, constants: &ConstantAllocation) -> Self {
         let mut max_count: usize = 0;
+        let mut min_count: usize = 0;
 
         for block_id in func.reachable_blocks() {
             let block = &func.dfg[block_id];
@@ -431,6 +465,12 @@ impl VariableLiveness {
                 let scratch = instruction_scratch_demand(instruction, &func.dfg);
                 max_count = max_count.max(live_set.len() + scratch);
 
+                // Per-instruction register floor. Inputs and scratch must be resident together;
+                // results reuse operand registers (see the field docs), so they are folded in
+                // with `max` rather than added on top.
+                let num_inputs = instruction_min_inputs(instruction, &func.dfg);
+                min_count = min_count.max(num_inputs.max(results.len()) + scratch);
+
                 // Subtract variables that die after this instruction.
                 if let Some(dead) = last_uses.get(instruction_id) {
                     for d in dead {
@@ -449,6 +489,7 @@ impl VariableLiveness {
         }
 
         self.max_live_count = max_count;
+        self.min_live_count = min_count;
         self
     }
 
@@ -457,10 +498,26 @@ impl VariableLiveness {
     }
 }
 
+/// Number of distinct input variables that must be register-resident *simultaneously* to lower
+/// an instruction — the input contribution to the per-instruction register floor.
+///
+/// For most instructions this is every distinct operand (they feed a single Brillig opcode). The
+/// exception is [`Instruction::MakeArray`]: its elements are written to the heap one at a time
+/// (see `codegen_make_array` and `initialize_constant_array`), so they are never all
+/// register-resident at once — no matter how large the array literal is. The only path holding
+/// more than one element simultaneously is the repeating-item runtime loop, which materializes a
+/// single item's subitems (`subitem_to_repeat_variables`), bounded by the per-item type count.
+fn instruction_min_inputs(instruction: &Instruction, dfg: &DataFlowGraph) -> usize {
+    match instruction {
+        Instruction::MakeArray { typ, .. } => typ.element_types().len(),
+        _ => variables_used_in_instruction(instruction, dfg).len(),
+    }
+}
+
 /// Upper bound on the temporary scratch registers the Brillig code generator allocates
 /// while lowering a single instruction (not counting the SSA values tracked by the live set).
 ///
-/// [`compute_max_live_count`] counts live SSA values, allocated constants, and `MakeArray`
+/// [`compute_live_count`] counts live SSA values, allocated constants, and `MakeArray`
 /// elements. The code generator additionally allocates short-lived registers that never
 /// appear as SSA values — overflow/range-check predicates, address-arithmetic temporaries,
 /// and call setup registers. These are live at the same program point as the instruction's
@@ -469,7 +526,7 @@ impl VariableLiveness {
 /// The result is a conservative upper bound added on top of the live set. It does not cover
 /// everything, the rest been handled by [`FunctionContext::SPILL_MARGIN`].
 ///
-/// [`compute_max_live_count`]: VariableLiveness::compute_max_live_count
+/// [`compute_live_count`]: VariableLiveness::compute_live_count
 /// [`FunctionContext::SPILL_MARGIN`]: crate::brillig::brillig_gen::brillig_fn::FunctionContext::SPILL_MARGIN
 fn instruction_scratch_demand(instruction: &Instruction, dfg: &DataFlowGraph) -> usize {
     match instruction {
@@ -481,6 +538,11 @@ fn instruction_scratch_demand(instruction: &Instruction, dfg: &DataFlowGraph) ->
         Instruction::Store { .. } | Instruction::ArrayGet { .. } | Instruction::ArraySet { .. } => {
             1
         }
+        // `codegen_make_array` reserves `ensure_register_capacity(4)`: the result register plus
+        // three transient temporaries (items_pointer, write_pointer, and codegen temps used while
+        // writing the elements). The result is an SSA value already counted in the live set, so the
+        // scratch demand on top of it is 3.
+        Instruction::MakeArray { .. } => 3,
         _ => 0,
     }
 }
@@ -1353,7 +1415,7 @@ mod tests {
     fn max_live_count_counts_terminator_constants() {
         // A constant used in multiple branches whose common dominator is a block that
         // doesn't itself use the constant is allocated at the dominator's terminator.
-        // The `InstructionLocation::Terminator` branch of compute_max_live_count was
+        // The `InstructionLocation::Terminator` branch of compute_live_count was
         // previously untested.
         //
         // b0 has four block params live through the jmpif. If the terminator branch
@@ -1413,6 +1475,115 @@ mod tests {
     }
 
     #[test]
+    fn min_live_count_is_per_instruction_floor_not_the_peak() {
+        // Many values are simultaneously live across this chain (high `max_live_count`),
+        // but every individual instruction only touches two inputs (the result reuses an
+        // operand register), so the per-instruction floor stays at 2 regardless of how much
+        // lives around it.
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: u32, v1: u32, v2: u32, v3: u32, v4: u32):
+            v5 = unchecked_add v0, v1
+            v6 = unchecked_add v2, v3
+            v7 = unchecked_add v4, v5
+            v8 = unchecked_add v6, v7
+            return v8
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let func = ssa.main();
+        let constants = ConstantAllocation::from_function(func);
+        let liveness = VariableLiveness::from_function(func, &constants);
+
+        assert_eq!(
+            liveness.min_live_count, 2,
+            "each add needs max(2 inputs, 1 result) = 2; got {}",
+            liveness.min_live_count
+        );
+        assert!(
+            liveness.max_live_count > liveness.min_live_count,
+            "this shape should keep many values live at once, so the peak ({}) must exceed \
+             the per-instruction floor ({})",
+            liveness.max_live_count,
+            liveness.min_live_count
+        );
+    }
+
+    #[test]
+    fn min_live_count_includes_instruction_scratch() {
+        // A signed `lt` biases both operands before an unsigned comparison, allocating 3
+        // scratch registers (validated by `binary_scratch_demand_matches_codegen`). The
+        // floor is max(2 inputs, 1 result) + 3 scratch = 5.
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: i32, v1: i32):
+            v2 = lt v0, v1
+            return v2
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let func = ssa.main();
+        let constants = ConstantAllocation::from_function(func);
+        let liveness = VariableLiveness::from_function(func, &constants);
+
+        assert_eq!(
+            liveness.min_live_count, 5,
+            "expected max(2 inputs, 1 result) + 3 signed-compare scratch = 5, got {}",
+            liveness.min_live_count
+        );
+    }
+
+    #[test]
+    fn min_live_count_deduplicates_repeated_operands() {
+        // `add v0, v0` reads a single distinct input, and the result reuses that operand
+        // register, so the floor is max(1 input, 1 result) = 1. The input set is deduplicated.
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: u32):
+            v1 = unchecked_add v0, v0
+            return v1
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let func = ssa.main();
+        let constants = ConstantAllocation::from_function(func);
+        let liveness = VariableLiveness::from_function(func, &constants);
+
+        assert_eq!(
+            liveness.min_live_count, 1,
+            "repeated operand counts once and result reuses it: max(1, 1) = 1, got {}",
+            liveness.min_live_count
+        );
+    }
+
+    #[test]
+    fn min_live_count_does_not_scale_with_make_array_length() {
+        // `MakeArray` writes its elements to the heap one at a time, so they are never all
+        // register-resident together. The floor must not grow with the element count, otherwise a
+        // large array literal would spuriously exceed the frame (regression: `brillig_large_array`
+        // failed to compile). It is a fixed `max(per-item type count, result) + scratch`: for a
+        // scalar-element array `max(1, 1) + 3 = 4`, independent of the element count.
+        let src = "
+        brillig(inline) fn main f0 {
+          b0():
+            v0 = make_array [u32 0, u32 1, u32 2, u32 3, u32 4, u32 5, u32 6, u32 7, u32 8, u32 9] : [u32; 10]
+            return v0
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let func = ssa.main();
+        let constants = ConstantAllocation::from_function(func);
+        let liveness = VariableLiveness::from_function(func, &constants);
+
+        assert_eq!(
+            liveness.min_live_count, 4,
+            "make_array of 10 scalars streams one element at a time, so the floor is \
+             max(1 per-item, 1 result) + 3 scratch = 4, independent of the 10 elements; got {}",
+            liveness.min_live_count
+        );
+    }
+
+    #[test]
     fn max_live_count_takes_max_across_blocks() {
         // The per-block peak is computed independently but the final value must be the
         // max across blocks — not the last block's value, not an average.
@@ -1460,13 +1631,13 @@ mod tests {
         let constants = ConstantAllocation::from_function(func);
         let liveness = VariableLiveness::from_function(func, &constants);
 
-        // Peak: v0, v1, v2 (live-in params) + v3 (result) = 4
-        // The elements are already in the live set as block params, but
-        // the result register is allocated simultaneously during codegen.
+        // Peak: v0, v1, v2 (live-in params) + v3 (result) = 4 SSA values, plus the 3 transient
+        // temporaries `codegen_make_array` reserves (items_pointer, write_pointer, codegen temp),
+        // which `instruction_scratch_demand` accounts for = 7.
         assert_eq!(
-            liveness.max_live_count, 4,
-            "MakeArray peak must include the result register: \
-             3 element params + 1 result = 4, got {}",
+            liveness.max_live_count, 7,
+            "MakeArray peak must include the result register and its codegen scratch: \
+             3 element params + 1 result + 3 scratch = 7, got {}",
             liveness.max_live_count
         );
     }
@@ -1508,12 +1679,13 @@ mod tests {
         // Plain chain: peak is {previous, constant, new_result} = 3.
         assert_eq!(peak(plain_chain), 3, "plain chain peak should be 3");
 
-        // With MakeArray: v1 and v2 can no longer die early because they are elements,
-        // so by `v3 = add v2, Field 3` the live set is {v1, v2, Field 3, v3} = 4.
+        // With MakeArray: v1 and v2 can no longer die early because they are elements, so the peak
+        // moves to the MakeArray itself — its live set {v1, v2, v3, v4} = 4 plus the 3 transient
+        // temporaries `codegen_make_array` reserves = 7.
         assert_eq!(
             peak(with_make_array),
-            4,
-            "MakeArray keeps elements live, raising the peak to 4"
+            7,
+            "MakeArray keeps elements live and adds codegen scratch, raising the peak to 7"
         );
 
         assert!(

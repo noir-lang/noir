@@ -10,7 +10,7 @@ use noirc_artifacts::ssa::SsaReport;
 
 use crate::acir::AcirVar;
 use crate::brillig::assert_u32;
-use crate::brillig::brillig_gen::brillig_fn::FunctionContext;
+use crate::brillig::brillig_gen::brillig_fn::ssa_type_to_parameter;
 use crate::brillig::brillig_gen::gen_brillig_for;
 use crate::brillig::brillig_ir::artifact::BrilligParameter;
 use crate::errors::RuntimeError;
@@ -224,11 +224,11 @@ impl Context<'_> {
                     };
 
                     BrilligParameter::Vector(
-                        item_types.iter().map(FunctionContext::ssa_type_to_parameter).collect(),
+                        item_types.iter().map(ssa_type_to_parameter).collect(),
                         len,
                     )
                 } else {
-                    FunctionContext::ssa_type_to_parameter(&typ)
+                    ssa_type_to_parameter(&typ)
                 }
             })
             .collect()

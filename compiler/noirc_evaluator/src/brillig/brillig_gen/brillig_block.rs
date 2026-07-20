@@ -22,7 +22,8 @@ use num_bigint::BigUint;
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 use std::collections::BTreeSet;
 
-use super::brillig_block_variables::{BlockVariables, allocate_value_with_type};
+use super::allocator::{Action, Allocator, ParamHome};
+use super::brillig_block_variables::allocate_value_with_type;
 use super::brillig_fn::FunctionContext;
 use super::brillig_globals::HoistedConstantsToBrilligGlobals;
 use super::constant_allocation::InstructionLocation;
@@ -30,15 +31,18 @@ use super::constant_allocation::InstructionLocation;
 /// Context structure for compiling a [function block][crate::ssa::ir::basic_block::BasicBlock] into Brillig bytecode.
 pub(crate) struct BrilligBlock<'block, Registers: RegisterAllocator> {
     /// Per-function context shared across all of a function's blocks
-    pub(crate) function_context: &'block mut FunctionContext,
+    pub(crate) function_context: &'block mut FunctionContext<Registers>,
     /// The basic block that is being converted
     pub(crate) block_id: BasicBlockId,
     /// Context for creating brillig opcodes
     pub(crate) brillig_context: &'block mut BrilligContext<FieldElement, Registers>,
-    /// Tracks the available variable during the codegen of the block
-    pub(crate) variables: BlockVariables,
-    /// For each instruction, the set of values that are not used anymore after it.
-    pub(crate) last_uses: HashMap<InstructionId, HashSet<ValueId>>,
+    /// Where each register-resident value currently lives, as codegen needs it to emit opcodes.
+    ///
+    /// This *shadows* the allocator's state: it is a one-way projection, seeded by
+    /// [`Allocator::begin_block`] and updated by applying the [`Action`]s the allocator returns and
+    /// the addresses from `define_variable`/`use_variable`. Codegen never writes back to the
+    /// allocator, which is what lets the allocator implementation be swapped freely.
+    pub(crate) registers: HashMap<ValueId, MemoryAddress>,
 
     /// Mapping of SSA [`ValueId`]s to their already instantiated values in the Brillig IR.
     pub(crate) globals: &'block HashMap<ValueId, BrilligVariable>,
@@ -57,7 +61,7 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
     /// This method contains the necessary initial variable and register setup for compiling
     /// an SSA block by accessing the pre-computed liveness context.
     pub(crate) fn compile_block(
-        function_context: &'block mut FunctionContext,
+        function_context: &'block mut FunctionContext<Registers>,
         brillig_context: &'block mut BrilligContext<FieldElement, Registers>,
         block_id: BasicBlockId,
         dfg: &DataFlowGraph,
@@ -65,41 +69,24 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
         globals: &'block HashMap<ValueId, BrilligVariable>,
         hoisted_global_constants: &'block HoistedConstantsToBrilligGlobals,
     ) {
-        let live_in = function_context.liveness.get_live_in(&block_id);
-
-        let mut live_in_no_globals = live_in_no_globals(live_in, dfg, hoisted_global_constants);
-
-        // Filter out spilled values — they don't have valid registers and must not be pre-allocated.
-        // Reset the LRU with non-spilled live-in values for this block.
-        if let Some(sm) = function_context.spill_manager.as_mut() {
-            sm.begin_block(&mut live_in_no_globals);
-        }
-
-        let variables = BlockVariables::new(live_in_no_globals);
-
-        // Replace the previous registers with a new instance, where the currently live variables are pre-allocated.
-        // These might be deallocated and reused if their last use in this block indicates they are dead,
-        // but then become pre-allocated in a new block again, depending on the order of processing.
-        brillig_context.set_allocated_registers(
-            variables
-                .get_available_variable_allocations(function_context)
-                .into_iter()
-                .map(|variable| variable.extract_register())
-                .collect(),
-        );
-        let last_uses = function_context.liveness.get_last_uses(&block_id).clone();
+        // Enter the block: the allocator resets its per-block state, pre-allocates the pool, defines
+        // this block's parameters, and returns the register-resident values to seed the register map
+        // plus any spill stores its param definitions produced. Information flows one way:
+        // allocator → registers.
+        let (resident, actions) = function_context.allocator.begin_block(block_id, dfg);
+        let registers = resident.into_iter().collect();
 
         let mut brillig_block = BrilligBlock {
             function_context,
             block_id,
             brillig_context,
-            variables,
-            last_uses,
+            registers,
             globals,
             hoisted_global_constants,
             building_globals: false,
         };
 
+        brillig_block.apply_actions(actions);
         brillig_block.convert_block(dfg, call_stacks);
     }
 
@@ -180,54 +167,15 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
         new_hoisted_constants
     }
 
-    /// Returns `true` if spilling is enabled for this function.
-    fn spill_enabled(&self) -> bool {
-        self.function_context.spill_manager.is_some()
-    }
-
-    /// Returns `true` if the given value is currently spilled (has a slot and is not in a register).
-    fn is_spilled(&self, value_id: &ValueId) -> bool {
-        self.function_context
-            .spill_manager
-            .as_ref()
-            .is_some_and(|sm| sm.is_spilled(value_id, &self.variables))
-    }
-
-    /// Returns `true` if the value was transiently spilled and is currently reloaded into a register.
-    fn is_transient_reloaded(&self, value_id: &ValueId) -> bool {
-        self.function_context
-            .spill_manager
-            .as_ref()
-            .is_some_and(|sm| sm.is_transient_reloaded(value_id, &self.variables))
-    }
-
-    /// Check if allocating `n` more registers would exceed the stack frame limit.
-    fn needs_spill_for(&self, n: usize) -> bool {
-        if self.building_globals || !self.spill_enabled() {
-            return false;
-        }
-        self.brillig_context.registers().available_registers() < n
-    }
-
     /// Ensure there is capacity for `n` more register allocations by spilling if necessary.
     ///
-    /// This is required because temporary registers can be allocated in in procedures where
-    /// we don't have access to the spill manager the context necessary to properly spill an
-    /// SSA variable, so we have to make room in anticipation of such need.
+    /// This is required because temporary registers can be allocated in procedures where we don't
+    /// have the spill-manager context to properly spill an SSA variable, so we have to make room in
+    /// anticipation of such need. The allocator decides which values to evict and returns the spill
+    /// stores; the driver emits them.
     pub(crate) fn ensure_register_capacity(&mut self, n: usize) {
-        if !self.needs_spill_for(n) {
-            return;
-        }
-        // We need to spill `n - available` registers.
-        // We spill them by batch, which is more efficient and avoids
-        // some address computations in case of consecutive slots.
-        let available = self.brillig_context.registers().available_registers();
-        self.spill_lru_values(n.saturating_sub(available));
-
-        // Fall back to single spills, in case of.
-        while self.needs_spill_for(n) {
-            self.spill_lru_value();
-        }
+        let actions = self.function_context.allocator.reserve_scratch(n);
+        self.apply_actions(actions);
     }
 
     /// Emit a store of `source_reg` into the spill region at the given offset relative
@@ -277,66 +225,6 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
         }
     }
 
-    /// Spill a value: record it in the spill manager, optionally emit a store to its slot,
-    /// and free its register. Returns the slot offset.
-    ///
-    /// Assumes spilling is enabled.
-    /// `permanent` indicates whether the spill is to be permanent.
-    /// `emit_store = false` is used only for block parameters,
-    /// whose registers don't yet contain the final value.
-    /// The Jmp terminators write the value directly into the slot later.
-    pub(crate) fn spill_value(&mut self, value_id: ValueId, permanent: bool, emit_store: bool) {
-        // For a permanent spill, try to promote an existing record first.
-        if permanent {
-            // A reloaded transient value holds a register that must be freed when promoted to a
-            // permanent spill. A value not currently in a register must not have its register
-            // freed here — it may still be live (e.g. the condition register of a jmpif when
-            // spill_non_param_live_ins fires multiple times). Capture this before promoting.
-            let was_transient_reloaded = self.is_transient_reloaded(&value_id);
-            let promoted = self
-                .function_context
-                .spill_manager
-                .as_mut()
-                .expect("ICE: spill_value called without spill manager")
-                .ensure_permanent_spill(&value_id);
-            if promoted {
-                if was_transient_reloaded {
-                    self.variables.remove_variable(
-                        &value_id,
-                        self.function_context,
-                        self.brillig_context,
-                    );
-                }
-                return;
-            }
-        }
-
-        if self.is_spilled(&value_id) {
-            return;
-        }
-
-        let var = *self.function_context.ssa_value_allocations.get(&value_id).unwrap();
-        let sm = self.function_context.spill_manager.as_mut().unwrap();
-        let prior_offset = sm.get_spill_offset(&value_id);
-        let offset = prior_offset.unwrap_or_else(|| sm.allocate_spill_offset());
-        if permanent {
-            sm.record_permanent_spill(value_id, offset, var);
-        } else {
-            // `value_id` is still in a register here (we free it below), so record_spill's
-            // double-spill assert sees a legitimate spill.
-            sm.record_spill(value_id, offset, var, &self.variables);
-        }
-
-        // Only store when we've just allocated the slot. If the value already had a slot,
-        // the slot still holds the correct value (SSA values are immutable) so the store
-        // would be redundant.
-        if emit_store && prior_offset.is_none() {
-            self.codegen_spill_store(offset, var.extract_register());
-        }
-
-        self.variables.remove_variable(&value_id, self.function_context, self.brillig_context);
-    }
-
     /// Emit a load from the spill region at the given offset into `dest_reg`.
     ///
     /// At offset 0 this is a single load from the spill base pointer; at any other
@@ -345,6 +233,56 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
     fn codegen_spill_load(&mut self, offset: usize, dest_reg: MemoryAddress) {
         let addr = self.codegen_spill_slot_address(offset);
         self.brillig_context.load_instruction(dest_reg, addr);
+    }
+
+    /// Emit the opcodes for a sequence of allocator [`Action`]s.
+    ///
+    /// This is the codegen side of the allocator seam: the decisions (which value goes where,
+    /// what to spill) are made elsewhere and expressed as [`Action`]s; this method only lowers
+    /// them to Brillig opcodes. Consecutive [`Action::Spill`]s are emitted as a batch so a run of
+    /// adjacent slots can share address computation (see [`Self::codegen_spill_stores`]); a lone
+    /// spill lowers identically to a direct store.
+    fn apply_actions(&mut self, actions: impl IntoIterator<Item = Action>) {
+        // Accumulate a run of spills so they can share slot-address computation, flushing the run
+        // before any reload/move so store ordering is preserved. Each action also updates the
+        // register shadow, so it always reflects where the allocator has placed each value.
+        let mut pending_stores: Vec<(usize, MemoryAddress)> = Vec::new();
+        for action in actions {
+            match action {
+                Action::Spill { value, from, to } => {
+                    pending_stores.push((to.offset(), from));
+                    self.registers.remove(&value);
+                }
+                Action::Reload { value, from, into } => {
+                    if !pending_stores.is_empty() {
+                        self.codegen_spill_stores(std::mem::take(&mut pending_stores));
+                    }
+                    self.codegen_spill_load(from.offset(), into);
+                    self.registers.insert(value, into);
+                }
+                Action::Move { value, from, to } => {
+                    if !pending_stores.is_empty() {
+                        self.codegen_spill_stores(std::mem::take(&mut pending_stores));
+                    }
+                    self.brillig_context.mov_instruction(to, from);
+                    self.registers.insert(value, to);
+                }
+                Action::Prune { value, register } => {
+                    // Bookkeeping only: the value died, so drop it from the map. The register it
+                    // vacated must be the one the allocator reported — asserting so confirms the
+                    // map never drifted from the allocator's residency.
+                    let removed = self.registers.remove(&value);
+                    assert_eq!(
+                        removed,
+                        Some(register),
+                        "ICE: pruned value {value} was not at its expected register in the map"
+                    );
+                }
+            }
+        }
+        if !pending_stores.is_empty() {
+            self.codegen_spill_stores(pending_stores);
+        }
     }
 
     /// Return a register holding `spill_base + offset`.
@@ -368,137 +306,19 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
         scratch_addr
     }
 
-    /// Spill the least-recently-used value to the spill region
-    fn spill_lru_value(&mut self) {
-        // Ask the spill_manager for the LRU variable, and then spill it.
-        let victim_id = {
-            let sm = self.function_context.spill_manager.as_ref().unwrap();
-            sm.lru_victim(&self.variables).expect("No values available to spill")
-        };
-        self.spill_value(victim_id, false, true);
-    }
-
-    /// Spill the `k` least-recently-used values in a single batch.
-    ///
-    /// Batched version of [`Self::spill_lru_value`]. Each `record_spill` drops its value from
-    /// the LRU, and the stores are emitted together so they can share address computations.
-    fn spill_lru_values(&mut self, k: usize) {
-        let victims = {
-            let sm = self.function_context.spill_manager.as_ref().unwrap();
-            sm.lru_victims(k, &self.variables)
-        };
-        if victims.is_empty() {
-            return;
-        }
-
-        // Record each spill and collect the stores that must be emitted. A value that
-        // already has a slot keeps it and does not need a store. The victims are still in
-        // registers at this point (freed in the loop below), so record_spill's double-spill
-        // assert sees legitimate spills.
-        let mut stores = Vec::with_capacity(victims.len());
-        for value_id in &victims {
-            let var = *self.function_context.ssa_value_allocations.get(value_id).unwrap();
-            let sm = self.function_context.spill_manager.as_mut().unwrap();
-            let prior_offset = sm.get_spill_offset(value_id);
-            let offset = prior_offset.unwrap_or_else(|| sm.allocate_spill_offset());
-            sm.record_spill(*value_id, offset, var, &self.variables);
-            if prior_offset.is_none() {
-                stores.push((offset, var.extract_register()));
-            }
-        }
-
-        // Emit the stores while the source registers are still allocated, then free them.
-        self.codegen_spill_stores(stores);
-        for value_id in &victims {
-            self.variables.remove_variable(value_id, self.function_context, self.brillig_context);
-        }
-    }
-
-    /// Reload a previously spilled value into a freshly allocated register
-    fn reload_spilled_value(&mut self, value_id: ValueId) -> BrilligVariable {
-        // Ensure capacity for the reload register (may trigger another spill)
-        self.ensure_register_capacity(1);
-
-        let spill_record = {
-            let sm = self.function_context.spill_manager.as_ref().unwrap();
-            *sm.get_spill(&value_id, &self.variables).unwrap()
-        };
-
-        let new_reg = self.brillig_context.allocate_register().detach();
-
-        self.codegen_spill_load(spill_record.offset, new_reg);
-
-        // Create updated variable with new register
-        let new_var = spill_record.variable.with_register(new_reg);
-
-        // Update SSA mapping to point to new register
-        self.function_context.ssa_value_allocations.insert(value_id, new_var);
-
-        // Re-add to available variables (was removed during spill); this is what marks the value
-        // as no longer spilled now that it holds a register again.
-        self.variables.add_available(value_id);
-
-        // The slot is kept (the emitted load may re-execute in a loop iteration, so its data must
-        // stay valid). The value is back in a register (added just above), so touch it as MRU —
-        // which `touch` asserts.
-        self.function_context.spill_manager.as_mut().unwrap().touch(value_id, &self.variables);
-
-        new_var
-    }
-
-    /// Permanently spill non-param values that are live-in to `destination`.
-    ///
-    /// Block parameters are handled separately by [`Self::convert_block_params`], which
-    /// eagerly spills successor params at definition time (before any Jmp writes
-    /// to them). This method handles the remaining cross-block values — those
-    /// defined in a dominating block that are still live at `destination`.
-    ///
-    /// Together, these two mechanisms ensure that ALL cross-block values go
-    /// through permanent spill slots when spilling is enabled. This is a
-    /// deliberate simplification: rather than tracking which specific values
-    /// could stay in registers across block boundaries (which would require a
-    /// full textbook pre-pass register allocator), we spill everything and let the destination
-    /// block reload on demand. Intra-block register pressure is still managed by LRU eviction.
-    ///
-    /// Our plans for a full register allocator can be found at <https://github.com/noir-lang/noir/issues/11638>.
-    fn spill_non_param_live_ins(&mut self, destination: BasicBlockId, dfg: &DataFlowGraph) {
-        if !self.spill_enabled() {
-            return;
-        }
-
-        let dest_params: HashSet<_> = dfg[destination].parameters().iter().copied().collect();
-        let live_in = self.function_context.liveness.get_live_in(&destination);
-        let live_in_no_globals = live_in_no_globals(live_in, dfg, self.hoisted_global_constants);
-
-        for value_id in live_in_no_globals {
-            if dest_params.contains(&value_id) {
-                // Parameters are eagerly spilled in `convert_block_params` at
-                // definition time. Their spill slots are written by each terminator (see `convert_ssa_terminator`).
-                // Skip them here.
-                continue;
-            }
-
-            self.spill_value(value_id, true, true);
-        }
-    }
-
-    /// Wrapper for [`BlockVariables::define_variable`] that ensures register capacity
-    /// and tracks the new value in the LRU.
+    /// Bring an SSA value into existence: the allocator reserves its register (spilling if the
+    /// frame is full) and returns the allocation plus any spill stores, which the driver emits.
+    /// The caller then writes the value into the returned register.
     pub(crate) fn define_variable(
         &mut self,
         value_id: ValueId,
         dfg: &DataFlowGraph,
     ) -> BrilligVariable {
-        self.ensure_register_capacity(1);
-        let var = self.variables.define_variable(
-            self.function_context,
-            self.brillig_context,
-            value_id,
-            dfg,
-        );
-        if let Some(sm) = self.function_context.spill_manager.as_mut() {
-            sm.touch(value_id, &self.variables);
-        }
+        let (var, actions) = self.function_context.allocator.define_variable(value_id, dfg);
+        self.apply_actions(actions);
+        // A definition has no Action carrying the new value (it is written by the driver, not the
+        // allocator), so record its register in the shadow here.
+        self.registers.insert(value_id, var.extract_register());
         var
     }
 
@@ -519,9 +339,6 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
         // Add a label for this block
         let block_label = self.create_block_label_for_current_function(self.block_id);
         self.brillig_context.enter_context(block_label);
-
-        // Allocate variables for parameter passing between blocks.
-        self.convert_block_params(dfg);
 
         let block = &dfg[self.block_id];
 
@@ -557,7 +374,8 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
     /// Converts an SSA terminator instruction into the necessary opcodes:
     /// * allocates the hoisted constants which are used by dominated blocks
     /// * for jumps:
-    ///   * copies the arguments to the registers allocated in [`Self::convert_block_params`]
+    ///   * passes the arguments to the destination parameters' homes, as reported by
+    ///     [`Allocator::resolve_edge`]
     ///   * adds jump opcodes to the labels of the destination blocks
     /// * for return it allocates registers for the return values and copies from variables.
     fn convert_ssa_terminator(
@@ -576,25 +394,20 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                 else_arguments,
                 call_stack: _,
             } => {
-                // Permanently spill non-param live-ins of BOTH branches BEFORE
-                // converting the condition. The condition conversion may reload a
-                // spilled value, overwriting a register that holds a live-in we
-                // still need to store.
-                //
-                // Both branches' stores execute unconditionally
-                // (only one branch is taken at runtime) but the then/else live-in sets
-                // may overlap. `spill_non_param_live_ins` handles this by skipping
-                // values that already have a permanent spill slot.
-                // Parameters are not spilled here — they are eagerly spilled in
-                // `convert_block_params` and written to their spill slots by the
-                // predecessor's terminator.
-                self.spill_non_param_live_ins(*then_destination, dfg);
-                self.spill_non_param_live_ins(*else_destination, dfg);
+                // Settle the location of every value crossing an outgoing edge BEFORE converting
+                // the condition or the arguments: reading those operands may reload a spilled value
+                // and overwrite a register still holding a cross-edge value we owe to a slot. The
+                // allocator handles both successors at once and skips values already homed.
+                let actions = self.function_context.allocator.before_terminator(self.block_id, dfg);
+                self.apply_actions(actions);
+
                 let condition = self.convert_ssa_single_addr_value(*condition, dfg);
                 self.jmpif_to_then_block(dfg, condition, *then_destination, then_arguments);
                 self.jmp(dfg, *else_destination, else_arguments);
             }
             TerminatorInstruction::Jmp { destination, arguments, call_stack: _ } => {
+                let actions = self.function_context.allocator.before_terminator(self.block_id, dfg);
+                self.apply_actions(actions);
                 self.jmp(dfg, *destination, arguments);
             }
             TerminatorInstruction::Return { return_values, .. } => {
@@ -611,10 +424,7 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
     }
 
     fn jmp(&mut self, dfg: &DataFlowGraph, destination: BasicBlockId, arguments: &[ValueId]) {
-        let moves = self.jmp_setup(dfg, destination, arguments, None);
-        for (src, dst) in &moves {
-            self.brillig_context.mov_instruction(*dst, *src);
-        }
+        self.jmp_setup(dfg, destination, arguments, None);
 
         self.brillig_context
             .jump_instruction(self.create_block_label_for_current_function(destination));
@@ -622,86 +432,60 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
 
     /// Lower a jmp/jmpif's parameter passing into Brillig instructions.
     ///
-    /// Spill-slot stores for params with eagerly-spilled destinations are emitted
-    /// directly here. Register-to-register moves are *returned* (not emitted) so
-    /// the caller can wrap them with a conditional move when lowering a `JmpIf`
-    /// then-branch. When `condition` is `Some(_)`, the spill-slot stores are also
-    /// guarded by the condition; this prevents a `JmpIf` else-branch from leaving a
-    /// then-arg in the then-destination param's spill slot.
+    /// The allocator reports where each destination parameter lives via
+    /// [`resolve_edge`](super::allocator::Allocator::resolve_edge); this emits the spill-slot stores
+    /// for slot-homed params and the register-to-register moves for register-homed ones. The caller
+    /// is left to emit the jump itself.
+    ///
+    /// `condition` selects between the two lowerings (see the parallel-move handling at the
+    /// end of the function) and, when `Some(_)`, also guards the spill-slot stores; this
+    /// prevents a `JmpIf` else-branch from leaving a then-arg in the then-destination param's
+    /// spill slot.
     fn jmp_setup(
         &mut self,
         dfg: &DataFlowGraph,
         destination: BasicBlockId,
         arguments: &[ValueId],
         condition: Option<MemoryAddress>,
-    ) -> Vec<(MemoryAddress, MemoryAddress)> {
-        // Permanently spill non-param live-ins BEFORE the arg/param parallel moves.
-        // The parallel moves may overwrite registers that hold values
-        // we need to store to spill slots. By spilling first, we guarantee
-        // the stores read correct register values.
-        // Parameters are not spilled here. They are eagerly spilled at the beginning of a block's code gen.
-        self.spill_non_param_live_ins(destination, dfg);
+    ) {
+        // Ask the allocator where each destination parameter lives on this edge. The greedy
+        // allocator homes cross-block params in permanent spill slots (assigned eagerly in
+        // `begin_block`); a global-assignment allocator could keep some in registers.
+        let homes = self.function_context.allocator.resolve_edge(self.block_id, destination, dfg);
 
-        let destination_block = &dfg[destination];
         let mut moves: Vec<(MemoryAddress, MemoryAddress)> = Vec::new();
 
-        for (arg, param) in arguments.iter().zip_eq(destination_block.parameters()) {
+        for (arg, home) in arguments.iter().zip_eq(homes) {
             let arg_var = self.convert_ssa_value(*arg, dfg);
             let arg_reg = arg_var.extract_register();
 
-            // Check if the param was eagerly spilled as a successor block
-            // param. Use the permanent record (not the transient `spilled`
-            // map) so ALL Jmp sites consistently write to the spill slot,
-            // regardless of compilation order.
-            let spill_offset = self
-                .function_context
-                .spill_manager
-                .as_ref()
-                .and_then(|sm| sm.get_permanent_spill_offset(param));
-
-            if let Some(offset) = spill_offset {
-                // Param was spilled — write arg directly to param's spill slot.
-                // Guard the store with `condition` for JmpIf then-args so an
-                // else-taken branch leaves the slot intact.
-                match condition {
-                    Some(c) => self.codegen_conditional_spill_store(offset, arg_reg, c),
-                    None => self.codegen_spill_store(offset, arg_reg),
+            match home {
+                ParamHome::Slot(slot) => {
+                    // Slot-homed param: write the arg directly to its spill slot. Guard the store
+                    // with `condition` for JmpIf then-args so an else-taken branch leaves the slot
+                    // intact.
+                    match condition {
+                        Some(c) => self.codegen_conditional_spill_store(slot.offset(), arg_reg, c),
+                        None => self.codegen_spill_store(slot.offset(), arg_reg),
+                    }
                 }
-            } else {
-                let param_reg =
-                    self.variables.get_allocation(self.function_context, *param).extract_register();
-
-                // Filter out self-moves (e.g. from coalesced args that already share the param register).
-                if arg_reg != param_reg {
-                    moves.push((arg_reg, param_reg));
+                ParamHome::Register(param_reg) => {
+                    // Filter out self-moves (e.g. from coalesced args that already share the param register).
+                    if arg_reg != param_reg {
+                        moves.push((arg_reg, param_reg));
+                    }
                 }
             }
         }
 
-        // Block parameter assignments at a jmp must happen "simultaneously".
-        // A naive sequential loop can lose values when a source register
-        // is overwritten by an earlier move in the same batch. For example, with:
-        //   `jmp b1(v1, v2, u32 10)` where b1(v2, v3, v4):
-        // Sequential execution would:
-        //      1. mov reg(v2), reg(v1) — overwrites old v3
-        //      2. mov reg(v3), reg(v2) — reads the NEW v2 instead of old
-        // To prevent this, we save any source that would be overwritten into a
-        // temporary first.
-        let dest_set: HashSet<MemoryAddress> = moves.iter().map(|(_, d)| *d).collect();
-
-        // `Allocated` automatically deallocates the register when dropped,
-        // so we collect the temporaries here to keep them alive until all
-        // moves have been emitted.
-        let mut temps = Vec::new();
-        for (src, _dst) in &mut moves {
-            if dest_set.contains(src) {
-                let temp = self.brillig_context.allocate_register();
-                self.brillig_context.mov_instruction(*temp, *src);
-                *src = *temp;
-                temps.push(temp);
-            }
-        }
-        moves
+        // Block-parameter assignments at a jump happen "simultaneously": a source register
+        // may also be another param's destination, so emitting the moves naively in sequence
+        // can clobber a value before it is read. The general parallel-move solver orders the
+        // moves and breaks any cycle with a single temporary. When lowering a `JmpIf`
+        // then-branch (`condition` is `Some(_)`), it emits the destination writes as
+        // conditional moves so an else-taken branch leaves the params untouched.
+        let (sources, destinations): (Vec<_>, Vec<_>) = moves.into_iter().unzip();
+        self.brillig_context.codegen_mov_registers_to_registers(&sources, &destinations, condition);
     }
 
     /// Conditionally move only the `then_arguments` of a jmpif terminator then
@@ -726,12 +510,7 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
         then_destination: BasicBlockId,
         then_arguments: &[ValueId],
     ) {
-        let moves = self.jmp_setup(dfg, then_destination, then_arguments, Some(condition.address));
-        for (src, dst) in &moves {
-            // The else_address is the same as the destination here to avoid modification if the
-            // condition is false.
-            self.brillig_context.conditional_move_instruction(condition.address, *src, *dst, *dst);
-        }
+        self.jmp_setup(dfg, then_destination, then_arguments, Some(condition.address));
 
         self.brillig_context.jump_if_instruction(
             condition.address,
@@ -759,50 +538,6 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
         self.codegen_spill_load(offset, tmp);
         self.brillig_context.conditional_move_instruction(condition, src, tmp, tmp);
         self.codegen_spill_store(offset, tmp);
-    }
-
-    /// Allocates the block parameters that the given block is defining.
-    ///
-    /// We don't allocate the block parameters of the block itself here, we allocate the parameters the block is defining
-    /// for the descendant blocks it immediately dominates. Since predecessors to a block have to know where the parameters
-    /// of the block are allocated to pass data to it in [`Self::convert_ssa_terminator`], the block parameters need to be
-    /// defined/allocated before the given block. [`VariableLiveness`](crate::brillig::brillig_gen::variable_liveness::VariableLiveness)
-    /// decides when the block parameters are defined.
-    ///
-    /// For the entry block, the defined block params will be the params of the function + any extra params of blocks it's the immediate dominator of.
-    fn convert_block_params(&mut self, dfg: &DataFlowGraph) {
-        let own_params: HashSet<ValueId> =
-            dfg[self.block_id].parameters().iter().copied().collect();
-
-        for param_id in self.function_context.liveness.defined_block_params(&self.block_id) {
-            let value = &dfg[param_id];
-            let Value::Param { typ: param_type, .. } = value else {
-                unreachable!("ICE: Only Param type values should appear in block parameters");
-            };
-            match param_type {
-                Type::Numeric(_) | Type::Array(..) | Type::Vector(..) | Type::Reference(..) => {
-                    // Simple parameters and arrays are passed as already filled registers.
-                    // In the case of arrays, the values should already be in memory and the register should be a valid pointer to the array.
-                    // For vectors, two registers are passed, the pointer to the data and a register holding the size of the vector.
-                    self.define_variable(param_id, dfg);
-
-                    // Successor block params (not this block's own params) don't hold
-                    // valid data until a Jmp terminator writes to them. Eagerly spill
-                    // them so that ALL Jmp sites consistently write to the spill slot
-                    // and the target block consistently reloads from it.
-                    // Params of the current block are skipped
-                    // because they already hold valid data from the predecessor.
-                    if !own_params.contains(&param_id)
-                        && self.function_context.spill_manager.is_some()
-                    {
-                        self.spill_value(param_id, true, false);
-                    }
-                }
-                Type::Function => unreachable!(
-                    "ICE: Type::Function Param not supported; should have been removed by defunctionalization."
-                ),
-            }
-        }
     }
 
     /// Converts an SSA instruction into a sequence of Brillig opcodes.
@@ -890,53 +625,12 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
             Instruction::Noop => (),
         }
 
+        // The instruction has been lowered; tell the allocator to advance past it so it can free
+        // the registers of any value whose last use this was. This emits no opcode, only the
+        // prunes that keep the register map in step with the freed registers.
         if !self.building_globals {
-            // Instructions with no last uses are omitted from `last_uses` to save memory;
-            // a missing entry is equivalent to an empty set.
-            let dead_variables = self.last_uses.get(&instruction_id).into_iter().flatten();
-
-            for dead_variable in dead_variables {
-                // Globals are reserved throughout the entirety of the program
-                let is_global = dfg.is_global(*dead_variable);
-                let is_hoisted_global = self.get_hoisted_global(dfg, *dead_variable).is_some();
-                let not_global = !is_global && !is_hoisted_global;
-                if not_global {
-                    if self.is_spilled(dead_variable) {
-                        // Spilled: register was already freed. Just clean up tracking.
-                        let sm = self.function_context.spill_manager.as_mut().unwrap();
-                        sm.remove_spill(dead_variable);
-                        // Only remove from available_variables if it's actually there.
-                        // A permanently spilled value may have been filtered out at block
-                        // entry and never reloaded, so it was never in available_variables.
-                        if self.variables.is_allocated(dead_variable) {
-                            self.variables.mark_unavailable(dead_variable);
-                        }
-                    } else if self
-                        .function_context
-                        .coalescing
-                        .has_live_partner(dead_variable, |v| self.variables.is_allocated(v))
-                    {
-                        // This value shares a register with a coalescing partner that is
-                        // still alive. We must not deallocate the register yet; it will
-                        // be freed when the partner dies (or at block boundary cleanup).
-                        self.variables.remove_variable_without_dealloc(dead_variable);
-                    } else {
-                        self.variables.remove_variable(
-                            dead_variable,
-                            self.function_context,
-                            self.brillig_context,
-                        );
-                        if let Some(sm) = self.function_context.spill_manager.as_mut() {
-                            // A value can reach this branch while still owning a spill slot: a
-                            // transiently spilled value that was reloaded into a register is no
-                            // longer spilled, yet its transient slot stays reserved. Release it so
-                            // the offset returns to the free list. For a value with no spill
-                            // record, or a permanently spilled one, this is a no-op.
-                            sm.remove_spill(dead_variable);
-                        }
-                    }
-                }
-            }
+            let actions = self.function_context.allocator.after_instruction(instruction_id);
+            self.apply_actions(actions);
         }
 
         // Clear the call stack; it only applied to this instruction.
@@ -967,8 +661,25 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
         };
 
         for constant_id in constants {
-            self.convert_ssa_value(constant_id, dfg);
+            self.materialize_constant(constant_id, dfg);
         }
+    }
+
+    /// Materialize a numeric constant at its [`ConstantAllocation`](crate::brillig::brillig_gen::constant_allocation::ConstantAllocation)
+    /// point: define its register and emit the `const` opcode. This is the sole definition site for
+    /// a non-global constant; because the allocation point dominates every use, later references go
+    /// through `use_variable` (which reloads if the constant was spilled in between). Global and
+    /// hoisted constants live in the globals map and are looked up directly, not defined here.
+    fn materialize_constant(&mut self, value_id: ValueId, dfg: &DataFlowGraph) {
+        if self.get_hoisted_global(dfg, value_id).is_some() || dfg.is_global(value_id) {
+            return;
+        }
+        let Value::NumericConstant { constant, .. } = &dfg[value_id] else {
+            unreachable!("ICE: constant allocation holds only numeric constants");
+        };
+        let constant = *constant;
+        let new_variable = self.define_variable(value_id, dfg);
+        self.brillig_context.const_instruction(new_variable.extract_single_addr(), constant);
     }
 
     /// Converts an SSA [`ValueId`] into a [`BrilligVariable`]. Initializes if necessary, or returns an existing allocation.
@@ -1006,42 +717,39 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                         panic!("ICE: Global value allocation not found in cache {value_id}")
                     })
                 } else {
-                    // Check if spilled, reload if needed
-                    if self.is_spilled(&value_id) {
-                        return self.reload_spilled_value(value_id);
-                    }
-                    let var = self.variables.get_allocation(self.function_context, value_id);
-                    if let Some(sm) = self.function_context.spill_manager.as_mut() {
-                        sm.touch(value_id, &self.variables);
-                    }
+                    // Already-defined value: the allocator returns its register, reloading it
+                    // (and spilling to make room) if it is currently spilled.
+                    let (var, actions) = self.function_context.allocator.use_variable(value_id);
+                    self.apply_actions(actions);
                     var
                 }
             }
             Value::NumericConstant { constant, .. } => {
-                // Check if spilled before is_allocated — spilled values are filtered
-                // out of available_variables at block entry, so is_allocated would
-                // return false even though the value exists.
-                if self.is_spilled(&value_id) {
-                    return self.reload_spilled_value(value_id);
-                }
-                // Constants might have been converted previously or not, so we get or create and
-                // (re)initialize the value inside.
-                if self.variables.is_allocated(&value_id) {
-                    let var = self.variables.get_allocation(self.function_context, value_id);
-                    if let Some(sm) = self.function_context.spill_manager.as_mut() {
-                        sm.touch(value_id, &self.variables);
-                    }
-                    var
-                } else if dfg.is_global(value_id) {
+                if dfg.is_global(value_id) {
                     *self.globals.get(&value_id).unwrap_or_else(|| {
                         panic!("ICE: Global value allocation not found in cache {value_id}")
                     })
+                } else if self.building_globals {
+                    // The globals context has no `ConstantAllocation` materialization pass, so it
+                    // defines each constant directly on first sight and reuses it afterwards.
+                    // Globals never spill, so the register shadow is an exact "already defined" test.
+                    if self.registers.contains_key(&value_id) {
+                        let (var, actions) = self.function_context.allocator.use_variable(value_id);
+                        self.apply_actions(actions);
+                        var
+                    } else {
+                        let new_variable = self.define_variable(value_id, dfg);
+                        self.brillig_context
+                            .const_instruction(new_variable.extract_single_addr(), *constant);
+                        new_variable
+                    }
                 } else {
-                    let new_variable = self.define_variable(value_id, dfg);
-
-                    self.brillig_context
-                        .const_instruction(new_variable.extract_single_addr(), *constant);
-                    new_variable
+                    // A non-global numeric constant is materialized at its allocation point by
+                    // `initialize_constants` (which dominates all uses), so every reference here is
+                    // just a use: the allocator returns its register, reloading it if it was spilled.
+                    let (var, actions) = self.function_context.allocator.use_variable(value_id);
+                    self.apply_actions(actions);
+                    var
                 }
             }
             Value::Function(_) => {
@@ -1258,24 +966,4 @@ pub(crate) fn type_of_binary_operation(lhs_type: &Type, rhs_type: &Type) -> Type
             Type::Numeric(*lhs_type)
         }
     }
-}
-
-/// Filter a block's live-in set to exclude globals and hoisted global constants.
-fn live_in_no_globals(
-    live_in: &HashSet<ValueId>,
-    dfg: &DataFlowGraph,
-    hoisted_global_constants: &HoistedConstantsToBrilligGlobals,
-) -> HashSet<ValueId> {
-    live_in
-        .iter()
-        .copied()
-        .filter(|&value| {
-            if let Value::NumericConstant { constant, typ } = dfg[value]
-                && hoisted_global_constants.contains_key(&(constant, typ))
-            {
-                return false;
-            }
-            !dfg.is_global(value)
-        })
-        .collect()
 }

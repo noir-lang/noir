@@ -16,7 +16,7 @@ use bn254_blackbox_solver::Bn254BlackBoxSolver;
 use crate::{
     brillig::{
         Brillig, BrilligOptions,
-        brillig_gen::{brillig_fn::FunctionContext, gen_brillig_for},
+        brillig_gen::{brillig_fn::ssa_type_to_parameter, gen_brillig_for},
     },
     ssa::ssa_gen::Ssa,
 };
@@ -25,6 +25,7 @@ mod binary;
 mod black_box;
 mod call;
 mod coalescing;
+mod jmp;
 mod memory;
 mod spill;
 mod truncate;
@@ -63,7 +64,7 @@ pub(crate) fn execute_brillig_from_ssa_with_options(
         .iter()
         .map(|&value_id| {
             let typ = func.dfg.type_of_value(value_id);
-            FunctionContext::ssa_type_to_parameter(&typ)
+            ssa_type_to_parameter(&typ)
         })
         .collect();
     let generated = gen_brillig_for(func, &arguments, &brillig, options).unwrap();

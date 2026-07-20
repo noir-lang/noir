@@ -192,7 +192,6 @@ mod tests {
 
     use crate::brillig::ValueId;
     use crate::brillig::brillig_gen::brillig_block::BrilligBlock;
-    use crate::brillig::brillig_gen::brillig_block_variables::BlockVariables;
     use crate::brillig::brillig_gen::brillig_fn::FunctionContext;
     use crate::brillig::brillig_ir::artifact::{BrilligParameter, Label};
     use crate::brillig::brillig_ir::brillig_variable::BrilligVariable;
@@ -207,7 +206,8 @@ mod tests {
     use crate::ssa::ir::types::NumericType;
     use crate::ssa::ssa_gen::Ssa;
 
-    fn create_test_environment() -> (Ssa, FunctionContext, BrilligContext<FieldElement, Stack>) {
+    fn create_test_environment()
+    -> (Ssa, FunctionContext<Stack>, BrilligContext<FieldElement, Stack>) {
         let mut builder = FunctionBuilder::new("main".to_string(), Id::test_new(0));
         builder.set_runtime(RuntimeType::Brillig(InlineType::default()));
         builder.terminate_with_return(vec![]);
@@ -215,23 +215,22 @@ mod tests {
         let mut brillig_context = create_context(ssa.main_id);
         brillig_context.enter_context(Label::block(ssa.main_id, Id::test_new(0)));
 
-        let function_context = FunctionContext::new(ssa.main(), MAX_STACK_FRAME_SIZE);
+        let function_context =
+            FunctionContext::new(ssa.main(), MAX_STACK_FRAME_SIZE, brillig_context.registers_rc());
         (ssa, function_context, brillig_context)
     }
 
     fn create_brillig_block<'a>(
-        function_context: &'a mut FunctionContext,
+        function_context: &'a mut FunctionContext<Stack>,
         brillig_context: &'a mut BrilligContext<FieldElement, Stack>,
         globals: &'a HashMap<ValueId, BrilligVariable>,
         hoisted_global_constants: &'a HashMap<(FieldElement, NumericType), BrilligVariable>,
     ) -> BrilligBlock<'a, Stack> {
-        let variables = BlockVariables::default();
         BrilligBlock {
             function_context,
             block_id: Id::test_new(0),
             brillig_context,
-            variables,
-            last_uses: Default::default(),
+            registers: Default::default(),
             globals,
             hoisted_global_constants,
             building_globals: false,

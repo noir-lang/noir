@@ -213,7 +213,7 @@ fn brillig_spill_successor_params() {
 ///
 /// Uses `max_stack_frame_size = 6` (4 usable slots after `start_offset = 2`).
 /// Block b0 has 4 params filling all slots, so computing v4 and v5 forces
-/// spills. At the `JmpIf`, `spill_non_param_live_ins(b1)` permanently spills
+/// spills. At the `JmpIf`, the allocator's `before_terminator` permanently spills
 /// v1–v5. In b1, the `IfElse` codegen reloads v4, v1, v2 but NOT v5
 /// (`else_condition`). When v5 appears in `last_uses`, the cleanup sees it
 /// as spilled but not available — this previously caused an ICE.
@@ -290,8 +290,8 @@ fn brillig_spill_case4_diamond_wrong_output() {
 ///
 /// `v3 = v0 + v1` transient-spills `v0`. `v4 = v3 + v0` reloads `v0` into a
 /// fresh register, leaving its record in "transient + reloaded" state. The
-/// terminator `jmp b1(v0, v1, v2)` permanent-spills `v0` via the
-/// `spill_non_param_live_ins` short-circuit, then reloads every arg to write
+/// terminator `jmp b1(v0, v1, v2)` permanent-spills `v0` via the allocator's
+/// `before_terminator` short-circuit, then reloads every arg to write
 /// it into b1's eagerly-spilled param slot. The fix frees the reloaded
 /// register immediately when the permanent-spill short-circuit fires, so the
 /// final reload fits without any extra eviction.
@@ -420,8 +420,8 @@ fn brillig_spill_batch_reduces_consecutive_spill_opcodes() {
 
 /// Regression for issue #12266.
 ///
-/// On the previously buggy path, `spill_non_param_live_ins` marked reloaded values as
-/// spilled without releasing their registers. With this 4-parameter shape and a
+/// On the previously buggy path, permanently spilling a reloaded value marked it as
+/// spilled without releasing its register. With this 4-parameter shape and a
 /// 2-register Brillig layout, that stale state reaches the next block as an
 /// active transient spill and ICEs with "Transient spill leaked across block boundary"
 /// at [`begin_block`][crate::brillig::brillig_gen::spill_manager::SpillManager::begin_block].
@@ -447,16 +447,16 @@ fn brillig_spill_does_not_cause_transient_spill_leak() {
     let _ = &brillig.ssa_function_to_brillig[&Id::test_new(0)];
 }
 
-/// Regression: the condition register of a `jmpif` was freed by the second
-/// `spill_non_param_live_ins` call inside `jmp_setup`, then reused for a u32 arg.
+/// Regression: permanently spilling a value that is only transiently reloaded must not free
+/// the register of a value that is already permanently spilled, or a live `jmpif` condition
+/// register gets reused for a u32 arg.
 ///
 /// Both the condition `v3` and the then-arg `v2` are non-param live-ins to `b1`
-/// (`v2` appears as the `IfElse` else-value). The first `spill_non_param_live_ins`
-/// permanently spills both. `convert_ssa_single_addr_value` reloads `v3` into
-/// `R_cond`. Inside `jmp_setup`, `spill_non_param_live_ins` fires a second time.
-/// The buggy code detected that `v3` had a spill record and was not currently
-/// marked spilled (`was_reloaded`), and freed `R_cond`. `convert_ssa_value(v2)` then
-/// reloaded `v2` (u32) into the freed `R_cond` slot. `JumpIf R_cond` failed at
+/// (`v2` appears as the `IfElse` else-value), so the allocator's `before_terminator`
+/// permanently spills both. `convert_ssa_single_addr_value` then reloads `v3` into `R_cond`.
+/// The buggy code, when later asked to spill `v3` again, detected that it had a spill record
+/// and was not currently marked spilled (`was_reloaded`) and freed `R_cond`; a subsequent
+/// reload of `v2` (u32) then took the freed `R_cond` slot, so `JumpIf R_cond` failed at
 /// runtime with "condition value is not a boolean: Bit size for value 32".
 ///
 /// The fix checks `was_transient_reloaded` instead, which excludes already-permanent
@@ -483,8 +483,8 @@ fn brillig_spill_jmpif_condition_register_reuse() {
     // (v5 for b1, v7 for b3) fill all 5 slots; the successor params are immediately
     // spilled and freed, leaving exactly enough room for v3 and v4. By the time
     // jmpif fires, v2, v3, and v4 are all in registers and all get permanently
-    // spilled by spill_non_param_live_ins(b1). Both v3 and v2 end up as non-param
-    // live-ins to b1, triggering the double-call pattern that exposed the bug.
+    // spilled by the allocator's before_terminator. Both v3 and v2 end up as non-param
+    // live-ins to b1, exercising the transient-reload spill path that exposed the bug.
     let layout = LayoutConfig::new(7, 16, MAX_SCRATCH_SPACE);
     let options = BrilligOptions { layout, ..Default::default() };
 

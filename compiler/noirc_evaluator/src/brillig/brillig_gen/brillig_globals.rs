@@ -5,7 +5,8 @@ use acvm::FieldElement;
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
 use super::brillig_block::BrilligBlock;
-use super::{BrilligVariable, Function, FunctionContext, ValueId};
+use super::brillig_fn::FunctionContext;
+use super::{BrilligVariable, Function, ValueId};
 use crate::ssa::ir::call_graph::CallGraph;
 use crate::ssa::ssa_gen::Ssa;
 use crate::{
@@ -319,7 +320,7 @@ impl Brillig {
         let empty_globals = HashMap::default();
         // We can use any ID here as this context is only going to be used for globals which does not differentiate
         // by functions and blocks. The only Label that should be used in the globals context is `Label::globals_init()`
-        let mut function_context = FunctionContext::default();
+        let mut function_context = FunctionContext::new_for_globals(brillig_context.registers_rc());
         brillig_context.enter_context(Label::globals_init(entry_point));
 
         let block_id = DataFlowGraph::default().make_block();
@@ -327,8 +328,7 @@ impl Brillig {
             function_context: &mut function_context,
             block_id,
             brillig_context: &mut brillig_context,
-            variables: Default::default(),
-            last_uses: HashMap::default(),
+            registers: HashMap::default(),
             globals: &empty_globals,
             hoisted_global_constants: &HashMap::default(),
             building_globals: true,
@@ -357,7 +357,7 @@ impl Brillig {
 
         BrilligGlobalsArtifact {
             artifact,
-            brillig_globals: function_context.ssa_value_allocations,
+            brillig_globals: function_context.allocator.into_allocations(),
             globals_size,
             hoisted_global_constants,
         }

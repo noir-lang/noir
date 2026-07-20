@@ -142,6 +142,15 @@ pub(crate) trait RegisterAllocator {
         preallocated_registers: Vec<MemoryAddress>,
         layout: LayoutConfig,
     ) -> Self;
+    /// Reset the free list in place to a set of previously-allocated registers (as at a new block
+    /// entry), preserving the layout and bumping the generation. Unlike
+    /// [`from_preallocated_registers`](Self::from_preallocated_registers) this mutates the existing
+    /// allocator, so a shared handle to it stays valid across the reset.
+    fn reset_to_preallocated(&mut self, preallocated_registers: Vec<MemoryAddress>);
+    /// A counter bumped on every [`reset_to_preallocated`](Self::reset_to_preallocated). An
+    /// [`Allocated`] captures it at creation and checks it on drop, catching a register that
+    /// outlived the reset it belongs to.
+    fn generation(&self) -> u64;
     /// Finds the first register which is followed only by free registers.
     ///
     /// Always returns a [`MemoryAddress::Relative`] address.
@@ -174,7 +183,7 @@ impl Stack {
     /// Number of reserved slots at the start of each stack frame:
     /// - `sp[0]`: previous stack pointer
     /// - `sp[1]`: per-frame spill base pointer
-    const START_OFFSET: usize = 2;
+    pub(crate) const START_OFFSET: usize = 2;
 
     pub(crate) fn new(layout: LayoutConfig) -> Self {
         Self { storage: DeallocationListAllocator::new(Self::START_OFFSET), layout }
@@ -229,6 +238,17 @@ impl RegisterAllocator for Stack {
             ),
             layout,
         }
+    }
+
+    fn reset_to_preallocated(&mut self, preallocated_registers: Vec<MemoryAddress>) {
+        for register in &preallocated_registers {
+            assert!(self.is_within_bounds(*register), "Register out of stack bounds: {register}");
+        }
+        self.storage.reseed(vecmap(preallocated_registers, |r| assert_usize(r.unwrap_relative())));
+    }
+
+    fn generation(&self) -> u64 {
+        self.storage.generation()
     }
 
     fn empty_registers_start(&self) -> MemoryAddress {
@@ -316,6 +336,14 @@ impl RegisterAllocator for ScratchSpace {
             ),
             layout,
         }
+    }
+
+    fn reset_to_preallocated(&mut self, _preallocated_registers: Vec<MemoryAddress>) {
+        unimplemented!("`ScratchSpace` is not reseeded per block")
+    }
+
+    fn generation(&self) -> u64 {
+        self.storage.generation()
     }
 
     fn empty_registers_start(&self) -> MemoryAddress {
@@ -422,6 +450,14 @@ impl RegisterAllocator for GlobalSpace {
         unimplemented!("`GlobalSpace` does not implement `from_preallocated_registers")
     }
 
+    fn reset_to_preallocated(&mut self, _preallocated_registers: Vec<MemoryAddress>) {
+        unimplemented!("`GlobalSpace` is not reseeded per block")
+    }
+
+    fn generation(&self) -> u64 {
+        self.storage.generation()
+    }
+
     fn empty_registers_start(&self) -> MemoryAddress {
         MemoryAddress::direct(assert_u32(self.storage.empty_registers_start()))
     }
@@ -450,6 +486,10 @@ struct DeallocationListAllocator {
     next_free_register_index: usize,
     /// Original start index.
     start_register_index: usize,
+    /// Bumped every time the free list is reset in place (see [`Self::reseed`]). Captured by each
+    /// [`Allocated`] at creation and checked in its `Drop`, so a register that outlives the reset
+    /// it was allocated under (which would corrupt the reseeded free list) panics loudly instead.
+    generation: u64,
 }
 
 impl DeallocationListAllocator {
@@ -459,7 +499,31 @@ impl DeallocationListAllocator {
             deallocated_registers: BTreeSet::new(),
             next_free_register_index: start,
             start_register_index: start,
+            generation: 0,
         }
+    }
+
+    /// The current allocator generation (see the [`generation`](Self::generation) field).
+    fn generation(&self) -> u64 {
+        self.generation
+    }
+
+    /// Reset the free list in place to the given preallocated registers (keeping the start index),
+    /// as at a new block entry, and bump the generation. Mutating in place — rather than replacing
+    /// the whole allocator — keeps the generation monotonic across resets so stale [`Allocated`]s
+    /// are detected.
+    fn reseed(&mut self, preallocated_registers: Vec<usize>) {
+        let start = self.start_register_index;
+        let next_free_register_index = preallocated_registers
+            .iter()
+            .fold(start, |free_register_index, &r| free_register_index.max(r + 1));
+        let mut deallocated_registers = (start..next_free_register_index).collect::<BTreeSet<_>>();
+        for pr in preallocated_registers {
+            deallocated_registers.remove(&pr);
+        }
+        self.deallocated_registers = deallocated_registers;
+        self.next_free_register_index = next_free_register_index;
+        self.generation += 1;
     }
 
     /// Ensure that a register index is allocated by:
@@ -521,7 +585,12 @@ impl DeallocationListAllocator {
             deallocated_registers.remove(&pr);
         }
 
-        Self { deallocated_registers, next_free_register_index, start_register_index: start }
+        Self {
+            deallocated_registers,
+            next_free_register_index,
+            start_register_index: start,
+            generation: 0,
+        }
     }
 
     /// Number of registers that can be allocated without exceeding the `max` register index.
@@ -569,6 +638,14 @@ impl<F, Registers: RegisterAllocator> BrilligContext<F, Registers> {
         let layout = self.registers().layout();
         let new_registers = Registers::from_preallocated_registers(allocated_registers, layout);
         self.registers = Rc::new(RefCell::new(new_registers));
+    }
+
+    /// A shared handle to the register pool, so the register allocator can own the allocation
+    /// decisions while this context keeps using the same pool for its RAII-managed scratch
+    /// temporaries. The allocator reseeds the pool in place at block boundaries (see
+    /// `GreedyAllocator::begin_block`), which is visible here because they share the one `Rc`.
+    pub(crate) fn registers_rc(&self) -> Rc<RefCell<Registers>> {
+        self.registers.clone()
     }
 
     /// Allocates an unused register.
@@ -671,6 +748,11 @@ struct AllocatedInner<A, R> {
     /// Reference to the registers, for deallocation.
     /// Optional so that pure values don't have to clone the registers.
     registers: Option<Rc<RefCell<R>>>,
+    /// The allocator generation at the time of allocation (see
+    /// [`RegisterAllocator::generation`]). `Some` exactly when `registers` is. On drop it must
+    /// still match the allocator's current generation; a mismatch means this value outlived the
+    /// block reset it was allocated under, so deallocating it would corrupt the reseeded free list.
+    generation: Option<u64>,
 }
 
 impl<A, R: RegisterAllocator> Drop for Allocated<A, R> {
@@ -683,6 +765,11 @@ impl<A, R: RegisterAllocator> Drop for Allocated<A, R> {
         };
         let addresses = std::mem::take(&mut inner.addresses);
         let mut registers = registers.borrow_mut();
+        assert_eq!(
+            inner.generation,
+            Some(registers.generation()),
+            "an Allocated register outlived its allocator generation (it survived a block reset)"
+        );
         for addr in addresses {
             registers.deallocate_register(addr);
         }
@@ -700,12 +787,23 @@ impl<R: RegisterAllocator> Allocated<MemoryAddress, R> {
 impl<A, R: RegisterAllocator> Allocated<A, R> {
     /// Wrap a value in [Allocated] without deallocating any address at the end.
     pub(crate) fn pure(value: A) -> Self {
-        Self::from_inner(AllocatedInner { value, addresses: smallvec![], registers: None })
+        Self::from_inner(AllocatedInner {
+            value,
+            addresses: smallvec![],
+            registers: None,
+            generation: None,
+        })
     }
 
     /// Create an [Allocated] value that deallocates its associated addresses at the end.
     pub(crate) fn new(value: A, addresses: AddressList, registers: Rc<RefCell<R>>) -> Self {
-        Self::from_inner(AllocatedInner { value, addresses, registers: Some(registers) })
+        let generation = Some(registers.borrow().generation());
+        Self::from_inner(AllocatedInner {
+            value,
+            addresses,
+            registers: Some(registers),
+            generation,
+        })
     }
 
     fn from_inner(inner: AllocatedInner<A, R>) -> Self {
@@ -734,6 +832,7 @@ impl<A, R: RegisterAllocator> Allocated<A, R> {
             value: f(inner.value),
             addresses: inner.addresses,
             registers: inner.registers,
+            generation: inner.generation,
         })
     }
 
@@ -748,6 +847,7 @@ impl<A, R: RegisterAllocator> Allocated<A, R> {
             value: f(inner.value, other.value),
             addresses: Self::merge_addresses(inner.addresses, other.addresses),
             registers: inner.registers.or(other.registers),
+            generation: inner.generation.or(other.generation),
         })
     }
 
@@ -793,6 +893,25 @@ mod tests {
         LayoutConfig,
         registers::{DeallocationListAllocator, GlobalSpace, RegisterAllocator, Stack},
     };
+
+    #[test]
+    #[should_panic(expected = "outlived its allocator generation")]
+    fn allocated_dropped_after_reseed_panics() {
+        use crate::brillig::brillig_ir::registers::Allocated;
+        use std::cell::RefCell;
+        use std::rc::Rc;
+
+        let pool = Rc::new(RefCell::new(Stack::new(LayoutConfig::default())));
+        let addr = pool.borrow_mut().allocate_register();
+        let allocated = Allocated::new_addr(addr, pool.clone());
+
+        // Entering a new block reseeds the pool, bumping its generation.
+        pool.borrow_mut().reset_to_preallocated(vec![]);
+
+        // Dropping a register that outlived that reset must panic rather than deallocate into
+        // (and corrupt) the reseeded free list.
+        drop(allocated);
+    }
 
     #[test]
     fn stack_should_prioritize_returning_low_registers() {

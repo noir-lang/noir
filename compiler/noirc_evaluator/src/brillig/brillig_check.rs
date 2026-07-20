@@ -47,7 +47,7 @@ pub(crate) type OpcodeAdvisories = HashMap<OpcodeLocation, Vec<OpcodeAdvisory>>;
 /// reconstruct the CFG from unresolved jump labels, and then establish a post order from that.
 pub(crate) fn opcode_advisories<F: AcirField>(
     function: &Function,
-    function_context: &FunctionContext,
+    function_context: &FunctionContext<Stack>,
     brillig_context: &BrilligContext<F, Stack>,
 ) -> OpcodeAdvisories {
     // Find where each block start and ends in the bytecode.
