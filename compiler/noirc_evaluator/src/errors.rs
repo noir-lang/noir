@@ -122,6 +122,10 @@ pub enum RuntimeError {
         "The return value has {num_witnesses} elements which exceeds the limit of {max_witnesses}"
     )]
     ReturnLimitExceeded { num_witnesses: usize, max_witnesses: usize, call_stack: CallStack },
+    #[error(
+        "Brillig scratch space is too small to spill registers: spilling needs {required} scratch slots but only {available} are configured (raise the `--max-scratch-space` value)"
+    )]
+    InsufficientScratchSpaceForSpilling { required: usize, available: usize, call_stack: CallStack },
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Error)]
@@ -177,7 +181,8 @@ impl RuntimeError {
             | RuntimeError::SsaValidationError { call_stack, .. }
             | RuntimeError::ArraySetAliasViolation { call_stack, .. }
             | RuntimeError::CallArgAliasViolation { call_stack, .. }
-            | RuntimeError::ReturnLimitExceeded { call_stack, .. } => call_stack,
+            | RuntimeError::ReturnLimitExceeded { call_stack, .. }
+            | RuntimeError::InsufficientScratchSpaceForSpilling { call_stack, .. } => call_stack,
         }
     }
 }

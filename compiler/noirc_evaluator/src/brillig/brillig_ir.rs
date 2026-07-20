@@ -64,6 +64,14 @@ impl ReservedRegisters {
     /// The stack should start after the reserved registers.
     const NUM_RESERVED_REGISTERS: usize = 3;
 
+    /// Number of scratch slots the register-spilling machinery reserves as fixed transient
+    /// registers: [`Self::spill_scratch`] (`@3`/`@4`) plus [`Self::spill_conditional_value`] (`@5`).
+    ///
+    /// Unlike procedure scratch, these are hardcoded `Direct` addresses that bypass the
+    /// [`ScratchSpace`] allocator's bounds check, so a function that spills is only sound when the
+    /// configured `max_scratch_space` is at least this many slots.
+    pub(crate) const NUM_SPILL_SCRATCH_SLOTS: usize = 3;
+
     /// Returns the length of the reserved registers
     pub(crate) fn len() -> usize {
         Self::NUM_RESERVED_REGISTERS
@@ -107,7 +115,7 @@ impl ReservedRegisters {
     /// [`Self::spill_scratch`] so the address-materialization scratch registers
     /// can be reused by the inner load/store without clobbering the value.
     pub(crate) fn spill_conditional_value() -> MemoryAddress {
-        MemoryAddress::direct(assert_u32(ScratchSpace::start() + 2))
+        MemoryAddress::direct(assert_u32(ScratchSpace::start() + Self::NUM_SPILL_SCRATCH_SLOTS - 1))
     }
 }
 
@@ -159,6 +167,12 @@ impl<F, R: RegisterAllocator> BrilligContext<F, R> {
             );
         }
         self.globals_memory_size = new_size;
+    }
+
+    /// Record whether the function actually spilled any registers. Consumed during linking to
+    /// verify the configured scratch space can hold the fixed spill scratch slots.
+    pub(crate) fn set_did_spill(&mut self, did_spill: bool) {
+        self.obj.did_spill = did_spill;
     }
 
     /// Returns the artifact, discarding the rest of the context.

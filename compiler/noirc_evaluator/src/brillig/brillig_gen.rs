@@ -20,7 +20,7 @@ use self::brillig_fn::FunctionContext;
 use super::{
     Brillig, BrilligOptions, BrilligVariable, ValueId,
     brillig_ir::{
-        BrilligContext,
+        BrilligContext, ReservedRegisters,
         artifact::{BrilligParameter, GeneratedBrillig},
     },
 };
@@ -93,6 +93,19 @@ pub(crate) fn gen_brillig_for(
             }
             .into());
         };
+
+        // A spilling function uses the fixed spill scratch slots (`@3`/`@4`/`@5`), which bypass
+        // the scratch allocator's bounds check. Reject linking it when the configured scratch
+        // space cannot hold them, rather than silently writing outside the scratch region.
+        let available_scratch = options.layout.max_scratch_space();
+        if artifact.did_spill && available_scratch < ReservedRegisters::NUM_SPILL_SCRATCH_SLOTS {
+            return Err(RuntimeError::InsufficientScratchSpaceForSpilling {
+                required: ReservedRegisters::NUM_SPILL_SCRATCH_SLOTS,
+                available: available_scratch,
+                call_stack: CallStack::empty(),
+            });
+        }
+
         entry_point.link_with(artifact);
         // Insert the range of opcode locations occupied by a procedure
         if let Some(procedure_id) = &artifact.procedure {

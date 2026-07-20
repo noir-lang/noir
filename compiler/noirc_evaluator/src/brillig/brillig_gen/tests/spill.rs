@@ -534,3 +534,62 @@ fn brillig_spill_jmpif_then_arg_does_not_overwrite_param_slot() {
 
     assert_eq!(result, vec![FieldElement::from(15u32)]);
 }
+
+/// Linking a function that spills must fail with a clear error when the configured scratch space
+/// cannot hold the fixed spill scratch slots (`@3`/`@4`/`@5`), rather than silently emitting writes
+/// outside the scratch region. The spill machinery needs `NUM_SPILL_SCRATCH_SLOTS` (3) slots.
+#[test]
+fn spilling_with_too_small_scratch_space_is_rejected() {
+    use crate::brillig::brillig_gen::gen_brillig_for;
+    use crate::brillig::brillig_ir::{ReservedRegisters, artifact::BrilligParameter};
+    use crate::errors::RuntimeError;
+    use crate::ssa::ssa_gen::Ssa;
+
+    // A long live chain forces register spilling with a small stack frame; only two parameters,
+    // so the entry point itself stays small enough to link.
+    let src = "
+    brillig(inline) fn main f0 {
+      b0(v0: u32, v1: u32):
+        v2 = unchecked_add v0, v1
+        v3 = unchecked_add v2, v0
+        v4 = unchecked_add v3, v1
+        v5 = unchecked_add v4, v0
+        v6 = unchecked_add v5, v1
+        v7 = unchecked_add v6, v0
+        v8 = unchecked_add v7, v1
+        v9 = unchecked_add v2, v8
+        v10 = unchecked_add v3, v9
+        v11 = unchecked_add v4, v10
+        v12 = unchecked_add v5, v11
+        v13 = unchecked_add v6, v12
+        return v13
+    }
+    ";
+    let args = vec![BrilligParameter::SingleAddr(32); 2];
+    let compile_and_link = |max_scratch: usize| {
+        let layout = LayoutConfig::new(8, 16, max_scratch);
+        let options = BrilligOptions { layout, ..Default::default() };
+        let brillig = ssa_to_brillig_artifacts_with_options(src, &options);
+        // Sanity-check the program actually spills; otherwise the test proves nothing.
+        assert!(
+            brillig.ssa_function_to_brillig[&Id::test_new(0)].did_spill,
+            "program did not spill"
+        );
+        gen_brillig_for(&Ssa::from_str(src).unwrap().main(), &args, &brillig, &options)
+    };
+
+    // One slot short of what spilling needs: linking is rejected.
+    let too_small = ReservedRegisters::NUM_SPILL_SCRATCH_SLOTS - 1;
+    let err = compile_and_link(too_small).expect_err("expected an insufficient-scratch error");
+    assert!(
+        matches!(
+            err,
+            RuntimeError::InsufficientScratchSpaceForSpilling { required, available, .. }
+                if required == ReservedRegisters::NUM_SPILL_SCRATCH_SLOTS && available == too_small
+        ),
+        "unexpected error: {err}"
+    );
+
+    // Exactly enough scratch: linking succeeds.
+    assert!(compile_and_link(ReservedRegisters::NUM_SPILL_SCRATCH_SLOTS).is_ok());
+}

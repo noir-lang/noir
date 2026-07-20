@@ -190,6 +190,10 @@ impl Brillig {
             brillig_context.resolve_spill_prologue(function_context.max_spill_offset());
         }
 
+        // Record whether this function spilled so linking can verify the scratch space is large
+        // enough to hold the fixed spill scratch slots.
+        brillig_context.set_did_spill(function_context.did_spill());
+
         (function_context, brillig_context)
     }
 

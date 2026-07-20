@@ -105,14 +105,28 @@ corrupts memory rather than failing loudly, so they are worth stating explicitly
   to a heap region (`spill_base = free_memory_pointer`, bumped in the prologue), not to scratch. So
   when a caller later writes procedure arguments into those same low slots, nothing live is there to
   clobber. The whole-program scratch requirement is therefore `max(peak procedure demand,
-  spill_slots) = max(18, 3) = 18`, not their sum. (The `MIN_SCRATCH_SPACE = 2` floor is sized by the
-  smallest procedure — `CheckMaxStackDepth`, which needs two scratch slots — not by spilling. The
-  spilling helpers actually occupy three fixed slots, `@3`–`@5`.)
+  spill_slots) = max(18, 3) = 18`, not their sum.
+
+  The `MIN_SCRATCH_SPACE = 2` floor is sized by the smallest procedure — `CheckMaxStackDepth`, which
+  needs two scratch slots — not by spilling, whose helpers occupy three fixed slots (`@3`–`@5`,
+  `ReservedRegisters::NUM_SPILL_SCRATCH_SLOTS`). So a `max_scratch_space` between the `2` CLI floor
+  and `3` is large enough for procedures but *too small* for a spilling function: the fixed `@5`
+  conditional-store slot would land in the globals region. This is caught, not tolerated — see the
+  next point.
 
 - **Bounds are enforced lazily, not globally.** The `ScratchSpace` allocator asserts every allocation
   stays within `[start(), start() + max_scratch_space)` ("Scratch space too deep"). There is no
   static computation of the true maximum scratch demand across all procedures; the compiler does not
   prove a tight bound, it just traps any allocation that would overflow the configured region.
+
+  That allocator check covers procedures, which allocate scratch *through* the allocator. It does
+  **not** cover spilling: the spill slots are hardcoded `Direct` addresses that never touch the
+  allocator, so an under-sized `max_scratch_space` would otherwise let `@5` escape the region
+  silently (see the previous point). That case is caught explicitly at link time — `gen_brillig_for`
+  rejects linking a function whose artifact is marked `did_spill` when
+  `max_scratch_space < NUM_SPILL_SCRATCH_SLOTS`, returning a
+  `RuntimeError::InsufficientScratchSpaceForSpilling`. *Enforced by*
+  `spilling_with_too_small_scratch_space_is_rejected` in [`spill.rs`][spill_tests].
 
   The peak is driven by procedure-local temporaries (point 2 above), *not* by argument counts. The
   argument/return handshake for the widest procedures is only 6–7 slots, but a procedure also holds
@@ -154,4 +168,5 @@ corrupts memory rather than failing loudly, so they are worth stating explicitly
 [prepare_vector_insert]: ../../compiler/noirc_evaluator/src/brillig/brillig_ir/procedures/prepare_vector_insert.rs
 [prepare_vector_push]: ../../compiler/noirc_evaluator/src/brillig/brillig_ir/procedures/prepare_vector_push.rs
 [vector_remove]: ../../compiler/noirc_evaluator/src/brillig/brillig_ir/procedures/vector_remove.rs
+[spill_tests]: ../../compiler/noirc_evaluator/src/brillig/brillig_gen/tests/spill.rs
 [check_max_stack_depth]: ../../compiler/noirc_evaluator/src/brillig/brillig_ir/procedures/check_max_stack_depth.rs
