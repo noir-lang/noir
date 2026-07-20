@@ -169,41 +169,123 @@
 <a href=#169 id=169 data-nosnippet>169</a>
 <a href=#170 id=170 data-nosnippet>170</a><span class="attr">#[cfg(test)]
 <a href=#171 id=171 data-nosnippet>171</a></span><span class="kw">mod </span>tests {
-<a href=#172 id=172 data-nosnippet>172</a>    <span class="kw">use </span>acvm::FieldElement;
+<a href=#172 id=172 data-nosnippet>172</a>    <span class="kw">use </span>acvm::{FieldElement, acir::brillig::Opcode <span class="kw">as </span>BrilligOpcode};
 <a href=#173 id=173 data-nosnippet>173</a>
 <a href=#174 id=174 data-nosnippet>174</a>    <span class="kw">use super</span>::{ProcedureId, compile_procedure};
 <a href=#175 id=175 data-nosnippet>175</a>    <span class="kw">use </span><span class="kw">crate</span>::brillig::BrilligOptions;
 <a href=#176 id=176 data-nosnippet>176</a>
-<a href=#177 id=177 data-nosnippet>177</a>    <span class="kw">fn </span>compile_procedure_to_string(procedure_id: ProcedureId) -&gt; String {
-<a href=#178 id=178 data-nosnippet>178</a>        <span class="kw">let </span>options = BrilligOptions::default();
-<a href=#179 id=179 data-nosnippet>179</a>        <span class="kw">let </span>artifact = compile_procedure::&lt;FieldElement&gt;(procedure_id, <span class="kw-2">&amp;</span>options, <span class="number">0</span>);
-<a href=#180 id=180 data-nosnippet>180</a>        artifact.finish().to_string()
-<a href=#181 id=181 data-nosnippet>181</a>    }
-<a href=#182 id=182 data-nosnippet>182</a>
-<a href=#183 id=183 data-nosnippet>183</a>    <span class="attr">#[test]
-<a href=#184 id=184 data-nosnippet>184</a>    </span><span class="kw">fn </span>array_copy_procedure() {
-<a href=#185 id=185 data-nosnippet>185</a>        <span class="kw">let </span>artifact_string = compile_procedure_to_string(ProcedureId::ArrayCopy);
-<a href=#186 id=186 data-nosnippet>186</a>        <span class="macro">insta::assert_snapshot!</span>(artifact_string, @<span class="string">r"
-<a href=#187 id=187 data-nosnippet>187</a>        fn ArrayCopy
-<a href=#188 id=188 data-nosnippet>188</a>         0: @6 = load @3
-<a href=#189 id=189 data-nosnippet>189</a>         1: @7 = u32 eq @6, @2
-<a href=#190 id=190 data-nosnippet>190</a>         2: jump if @7 to 17
-<a href=#191 id=191 data-nosnippet>191</a>         3: @5 = @1
-<a href=#192 id=192 data-nosnippet>192</a>         4: @1 = u32 add @1, @4
-<a href=#193 id=193 data-nosnippet>193</a>         5: @9 = u32 add @3, @4
-<a href=#194 id=194 data-nosnippet>194</a>         6: @10 = @3
-<a href=#195 id=195 data-nosnippet>195</a>         7: @11 = @5
-<a href=#196 id=196 data-nosnippet>196</a>         8: jump to 13
-<a href=#197 id=197 data-nosnippet>197</a>         9: @8 = load @10
-<a href=#198 id=198 data-nosnippet>198</a>        10: store @8 at @11
-<a href=#199 id=199 data-nosnippet>199</a>        11: @10 = u32 add @10, @2
-<a href=#200 id=200 data-nosnippet>200</a>        12: @11 = u32 add @11, @2
-<a href=#201 id=201 data-nosnippet>201</a>        13: @12 = u32 lt @10, @9
-<a href=#202 id=202 data-nosnippet>202</a>        14: jump if @12 to 9
-<a href=#203 id=203 data-nosnippet>203</a>        15: @5 = indirect const u32 1
-<a href=#204 id=204 data-nosnippet>204</a>        16: jump to 18
-<a href=#205 id=205 data-nosnippet>205</a>        17: @5 = @3
-<a href=#206 id=206 data-nosnippet>206</a>        18: return
-<a href=#207 id=207 data-nosnippet>207</a>        "</span>);
-<a href=#208 id=208 data-nosnippet>208</a>    }
-<a href=#209 id=209 data-nosnippet>209</a>}</code></pre></div></section></main></body></html>
+<a href=#177 id=177 data-nosnippet>177</a>    <span class="doccomment">/// Every procedure the compiler can emit. `RevertWithString` carries an arbitrary payload.
+<a href=#178 id=178 data-nosnippet>178</a>    </span><span class="kw">fn </span>all_procedures() -&gt; Vec&lt;ProcedureId&gt; {
+<a href=#179 id=179 data-nosnippet>179</a>        <span class="macro">vec!</span>[
+<a href=#180 id=180 data-nosnippet>180</a>            ProcedureId::ArrayCopy,
+<a href=#181 id=181 data-nosnippet>181</a>            ProcedureId::ArrayReverse,
+<a href=#182 id=182 data-nosnippet>182</a>            ProcedureId::VectorCopy,
+<a href=#183 id=183 data-nosnippet>183</a>            ProcedureId::MemCopy,
+<a href=#184 id=184 data-nosnippet>184</a>            ProcedureId::PrepareVectorPush(<span class="bool-val">true</span>),
+<a href=#185 id=185 data-nosnippet>185</a>            ProcedureId::PrepareVectorPush(<span class="bool-val">false</span>),
+<a href=#186 id=186 data-nosnippet>186</a>            ProcedureId::VectorPopFront,
+<a href=#187 id=187 data-nosnippet>187</a>            ProcedureId::VectorPopBack,
+<a href=#188 id=188 data-nosnippet>188</a>            ProcedureId::PrepareVectorInsert,
+<a href=#189 id=189 data-nosnippet>189</a>            ProcedureId::VectorRemove,
+<a href=#190 id=190 data-nosnippet>190</a>            ProcedureId::CheckMaxStackDepth,
+<a href=#191 id=191 data-nosnippet>191</a>            ProcedureId::RevertWithString(<span class="string">"x"</span>.to_string()),
+<a href=#192 id=192 data-nosnippet>192</a>        ]
+<a href=#193 id=193 data-nosnippet>193</a>    }
+<a href=#194 id=194 data-nosnippet>194</a>
+<a href=#195 id=195 data-nosnippet>195</a>    <span class="kw">fn </span>compile_procedure_to_string(procedure_id: ProcedureId) -&gt; String {
+<a href=#196 id=196 data-nosnippet>196</a>        <span class="kw">let </span>options = BrilligOptions::default();
+<a href=#197 id=197 data-nosnippet>197</a>        <span class="kw">let </span>artifact = compile_procedure::&lt;FieldElement&gt;(procedure_id, <span class="kw-2">&amp;</span>options, <span class="number">0</span>);
+<a href=#198 id=198 data-nosnippet>198</a>        artifact.finish().to_string()
+<a href=#199 id=199 data-nosnippet>199</a>    }
+<a href=#200 id=200 data-nosnippet>200</a>
+<a href=#201 id=201 data-nosnippet>201</a>    <span class="doccomment">/// Enforces the "procedures cannot call procedures" safety guarantee: a procedure is compiled
+<a href=#202 id=202 data-nosnippet>202</a>    /// with `can_call_procedures = false`, so every call site must fall back to inline codegen and
+<a href=#203 id=203 data-nosnippet>203</a>    /// no procedure's bytecode may contain a `Call` opcode. This keeps scratch "arenas" from nesting.
+<a href=#204 id=204 data-nosnippet>204</a>    </span><span class="attr">#[test]
+<a href=#205 id=205 data-nosnippet>205</a>    </span><span class="kw">fn </span>procedures_do_not_call_procedures() {
+<a href=#206 id=206 data-nosnippet>206</a>        <span class="kw">let </span>options = BrilligOptions::default();
+<a href=#207 id=207 data-nosnippet>207</a>        <span class="kw">for </span>procedure_id <span class="kw">in </span>all_procedures() {
+<a href=#208 id=208 data-nosnippet>208</a>            <span class="kw">let </span>artifact = compile_procedure::&lt;FieldElement&gt;(procedure_id.clone(), <span class="kw-2">&amp;</span>options, <span class="number">0</span>);
+<a href=#209 id=209 data-nosnippet>209</a>            <span class="kw">let </span>has_call =
+<a href=#210 id=210 data-nosnippet>210</a>                artifact.byte_code.iter().any(|op| <span class="macro">matches!</span>(op, BrilligOpcode::Call { .. }));
+<a href=#211 id=211 data-nosnippet>211</a>            <span class="macro">assert!</span>(
+<a href=#212 id=212 data-nosnippet>212</a>                !has_call,
+<a href=#213 id=213 data-nosnippet>213</a>                <span class="string">"procedure {procedure_id} emitted a Call opcode; procedures must not call procedures"
+<a href=#214 id=214 data-nosnippet>214</a>            </span>);
+<a href=#215 id=215 data-nosnippet>215</a>        }
+<a href=#216 id=216 data-nosnippet>216</a>    }
+<a href=#217 id=217 data-nosnippet>217</a>
+<a href=#218 id=218 data-nosnippet>218</a>    <span class="doccomment">/// Highest Direct memory address (`@N`) referenced anywhere in a procedure's bytecode.
+<a href=#219 id=219 data-nosnippet>219</a>    ///
+<a href=#220 id=220 data-nosnippet>220</a>    /// A procedure is compiled in a [`ScratchSpace`][crate::brillig::brillig_ir::registers::ScratchSpace]
+<a href=#221 id=221 data-nosnippet>221</a>    /// context, so it never touches the stack: every operand address is `Direct` and prints as
+<a href=#222 id=222 data-nosnippet>222</a>    /// `@N` (a `Relative` address would print as `sp[N]`). The maximum `N` is therefore the peak
+<a href=#223 id=223 data-nosnippet>223</a>    /// reserved+scratch slot the procedure occupies. Scratch begins right after the reserved
+<a href=#224 id=224 data-nosnippet>224</a>    /// registers, so the number of scratch slots used is `max_direct_address - ReservedRegisters::len() + 1`.
+<a href=#225 id=225 data-nosnippet>225</a>    </span><span class="kw">fn </span>max_direct_address(procedure_id: ProcedureId) -&gt; usize {
+<a href=#226 id=226 data-nosnippet>226</a>        <span class="kw">let </span>dump = compile_procedure_to_string(procedure_id);
+<a href=#227 id=227 data-nosnippet>227</a>        <span class="macro">assert!</span>(!dump.contains(<span class="string">"sp["</span>), <span class="string">"a procedure unexpectedly used a stack-relative address"</span>);
+<a href=#228 id=228 data-nosnippet>228</a>        dump.split(<span class="string">'@'</span>)
+<a href=#229 id=229 data-nosnippet>229</a>            .skip(<span class="number">1</span>)
+<a href=#230 id=230 data-nosnippet>230</a>            .filter_map(|s| {
+<a href=#231 id=231 data-nosnippet>231</a>                <span class="kw">let </span>digits: String = s.chars().take_while(|c| c.is_ascii_digit()).collect();
+<a href=#232 id=232 data-nosnippet>232</a>                digits.parse::&lt;usize&gt;().ok()
+<a href=#233 id=233 data-nosnippet>233</a>            })
+<a href=#234 id=234 data-nosnippet>234</a>            .max()
+<a href=#235 id=235 data-nosnippet>235</a>            .unwrap_or(<span class="number">0</span>)
+<a href=#236 id=236 data-nosnippet>236</a>    }
+<a href=#237 id=237 data-nosnippet>237</a>
+<a href=#238 id=238 data-nosnippet>238</a>    <span class="doccomment">/// Pins the peak scratch-space demand across every procedure.
+<a href=#239 id=239 data-nosnippet>239</a>    ///
+<a href=#240 id=240 data-nosnippet>240</a>    /// Procedures pass arguments/returns *and* allocate all of their local temporaries in scratch
+<a href=#241 id=241 data-nosnippet>241</a>    /// space, so the true peak is much larger than the argument count alone. This measures the
+<a href=#242 id=242 data-nosnippet>242</a>    /// high-water mark directly from the generated bytecode and guards two things:
+<a href=#243 id=243 data-nosnippet>243</a>    /// 1. the concrete peak stays what we expect, and
+<a href=#244 id=244 data-nosnippet>244</a>    /// 2. it stays comfortably below `MAX_SCRATCH_SPACE`, the hard ceiling the allocator enforces.
+<a href=#245 id=245 data-nosnippet>245</a>    ///
+<a href=#246 id=246 data-nosnippet>246</a>    /// If a procedure change moves the peak, update the expected number here.
+<a href=#247 id=247 data-nosnippet>247</a>    </span><span class="attr">#[test]
+<a href=#248 id=248 data-nosnippet>248</a>    </span><span class="kw">fn </span>peak_scratch_demand_across_procedures() {
+<a href=#249 id=249 data-nosnippet>249</a>        <span class="kw">use </span><span class="kw">crate</span>::brillig::brillig_ir::{ReservedRegisters, registers::MAX_SCRATCH_SPACE};
+<a href=#250 id=250 data-nosnippet>250</a>
+<a href=#251 id=251 data-nosnippet>251</a>        <span class="kw">let </span>peak_address = all_procedures().into_iter().map(max_direct_address).max().unwrap();
+<a href=#252 id=252 data-nosnippet>252</a>        <span class="kw">let </span>scratch_slots = peak_address - ReservedRegisters::len() + <span class="number">1</span>;
+<a href=#253 id=253 data-nosnippet>253</a>
+<a href=#254 id=254 data-nosnippet>254</a>        <span class="comment">// VectorRemove currently drives the peak at Direct address @20.
+<a href=#255 id=255 data-nosnippet>255</a>        </span><span class="macro">assert_eq!</span>(peak_address, <span class="number">20</span>, <span class="string">"peak Direct address across procedures changed"</span>);
+<a href=#256 id=256 data-nosnippet>256</a>        <span class="macro">assert_eq!</span>(scratch_slots, <span class="number">18</span>, <span class="string">"peak scratch-slot demand across procedures changed"</span>);
+<a href=#257 id=257 data-nosnippet>257</a>
+<a href=#258 id=258 data-nosnippet>258</a>        <span class="comment">// The peak must fit under the scratch ceiling the allocator enforces at runtime.
+<a href=#259 id=259 data-nosnippet>259</a>        </span><span class="macro">assert!</span>(
+<a href=#260 id=260 data-nosnippet>260</a>            scratch_slots &lt;= MAX_SCRATCH_SPACE,
+<a href=#261 id=261 data-nosnippet>261</a>            <span class="string">"peak scratch demand {scratch_slots} exceeds MAX_SCRATCH_SPACE {MAX_SCRATCH_SPACE}"
+<a href=#262 id=262 data-nosnippet>262</a>        </span>);
+<a href=#263 id=263 data-nosnippet>263</a>    }
+<a href=#264 id=264 data-nosnippet>264</a>
+<a href=#265 id=265 data-nosnippet>265</a>    <span class="attr">#[test]
+<a href=#266 id=266 data-nosnippet>266</a>    </span><span class="kw">fn </span>array_copy_procedure() {
+<a href=#267 id=267 data-nosnippet>267</a>        <span class="kw">let </span>artifact_string = compile_procedure_to_string(ProcedureId::ArrayCopy);
+<a href=#268 id=268 data-nosnippet>268</a>        <span class="macro">insta::assert_snapshot!</span>(artifact_string, @<span class="string">r"
+<a href=#269 id=269 data-nosnippet>269</a>        fn ArrayCopy
+<a href=#270 id=270 data-nosnippet>270</a>         0: @6 = load @3
+<a href=#271 id=271 data-nosnippet>271</a>         1: @7 = u32 eq @6, @2
+<a href=#272 id=272 data-nosnippet>272</a>         2: jump if @7 to 17
+<a href=#273 id=273 data-nosnippet>273</a>         3: @5 = @1
+<a href=#274 id=274 data-nosnippet>274</a>         4: @1 = u32 add @1, @4
+<a href=#275 id=275 data-nosnippet>275</a>         5: @9 = u32 add @3, @4
+<a href=#276 id=276 data-nosnippet>276</a>         6: @10 = @3
+<a href=#277 id=277 data-nosnippet>277</a>         7: @11 = @5
+<a href=#278 id=278 data-nosnippet>278</a>         8: jump to 13
+<a href=#279 id=279 data-nosnippet>279</a>         9: @8 = load @10
+<a href=#280 id=280 data-nosnippet>280</a>        10: store @8 at @11
+<a href=#281 id=281 data-nosnippet>281</a>        11: @10 = u32 add @10, @2
+<a href=#282 id=282 data-nosnippet>282</a>        12: @11 = u32 add @11, @2
+<a href=#283 id=283 data-nosnippet>283</a>        13: @12 = u32 lt @10, @9
+<a href=#284 id=284 data-nosnippet>284</a>        14: jump if @12 to 9
+<a href=#285 id=285 data-nosnippet>285</a>        15: @5 = indirect const u32 1
+<a href=#286 id=286 data-nosnippet>286</a>        16: jump to 18
+<a href=#287 id=287 data-nosnippet>287</a>        17: @5 = @3
+<a href=#288 id=288 data-nosnippet>288</a>        18: return
+<a href=#289 id=289 data-nosnippet>289</a>        "</span>);
+<a href=#290 id=290 data-nosnippet>290</a>    }
+<a href=#291 id=291 data-nosnippet>291</a>}</code></pre></div></section></main></body></html>
