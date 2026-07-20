@@ -214,7 +214,18 @@ fn compute_may_mutate_args(ssa: &Ssa) -> HashMap<FunctionId, bool> {
             for block_id in function.reachable_blocks() {
                 for instruction_id in function.dfg[block_id].instructions() {
                     match &function.dfg[*instruction_id] {
-                        Instruction::ArraySet { .. } | Instruction::Store { .. } => base = true,
+                        Instruction::ArraySet { .. } => base = true,
+                        // A `store` can only mutate an array argument's storage
+                        // when the stored value is (or contains) an array — e.g.
+                        // writing a new array through a `&mut [T]` parameter. A
+                        // store of a purely numeric value (such as a wrapper
+                        // materializing a scalar `&mut` argument) cannot touch any
+                        // array argument, so counting it would mark input-preserving
+                        // wrappers as may-mutate and reject SSA whose call-argument
+                        // clones the ownership pass legitimately elided.
+                        Instruction::Store { value, .. } => {
+                            base |= function.dfg.type_of_value(*value).contains_an_array();
+                        }
                         Instruction::Call { func, .. } => match &function.dfg[*func] {
                             Value::Function(callee) => calls.push(*callee),
                             Value::Intrinsic(intrinsic) => {
@@ -644,5 +655,41 @@ mod tests {
                 return v1
             }"#;
         assert_verifier_rejects(src);
+    }
+
+    /// Regression for the `acir_vs_brillig` AST-fuzzer seed `0x3f11548500100000`.
+    /// `wrapper` (`f1`) is an input-preserving forwarder — it only reads its
+    /// array argument (the real program `println`s it) and its single `store`
+    /// merely materializes a scalar `&mut` argument into a fresh local
+    /// allocation. That scalar store cannot mutate any array argument's storage,
+    /// so the ownership pass classifies `f1` as unable to modify its arguments
+    /// (`is_oracle_wrapper`) and elides the clone the caller would otherwise emit
+    /// before the reused array arg. `main` accordingly passes `v0` with no
+    /// preceding `inc_rc` and reads it back after the call. The call verifier
+    /// must agree: gating a `store` on whether the stored value contains an array
+    /// keeps `f1` off `may_mutate`, so the reused argument is not flagged. Before
+    /// that gate the scalar store marked `f1` may-mutate and this well-formed SSA
+    /// was rejected — an internal-compiler-error on valid code in debug builds.
+    #[test]
+    fn end_to_end_callee_with_scalar_store_only_reused_arg_is_accepted() {
+        let src = r#"
+            brillig(inline) fn main f0 {
+              b0():
+                v0 = make_array [] : [i16]
+                call f1(v0, u32 25)
+                inc_rc v0
+                v3 = array_get v0, index u32 0 -> i16
+                return v3
+            }
+            brillig(inline) fn wrapper f1 {
+              b0(v0: [i16], v1: u32):
+                v2 = allocate -> &mut u32
+                store v1 at v2
+                return
+            }"#;
+        assert_verifier_accepts_because(
+            src,
+            "a scalar store cannot mutate an array argument, so the reused arg is not a hazard",
+        );
     }
 }
