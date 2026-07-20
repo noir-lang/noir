@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1784544922298,
+  "lastUpdate": 1784545045155,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -22976,48 +22976,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "49558828+AztecBot@users.noreply.github.com",
-            "name": "Aztec Bot",
-            "username": "AztecBot"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "f3797f7ccb72a48785f3f04a57b3a05bea2bfe98",
-          "message": "fix(fuzz): print Program 2 in AST-fuzzer comparison output and remove dead reduce.sh (#13270)",
-          "timestamp": "2026-07-07T10:43:58Z",
-          "tree_id": "82c48a3621da0cfde9ff46b484985138544c9ad1",
-          "url": "https://github.com/noir-lang/noir/commit/f3797f7ccb72a48785f3f04a57b3a05bea2bfe98"
-        },
-        "date": 1783422210363,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 176142,
-            "range": "± 2278",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 136733,
-            "range": "± 2701",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2369739,
-            "range": "± 8542",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "15848336+TomAFrench@users.noreply.github.com",
             "name": "Tom French",
             "username": "TomAFrench"
@@ -25069,6 +25027,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2657298,
             "range": "± 5909",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49558828+AztecBot@users.noreply.github.com",
+            "name": "Aztec Bot",
+            "username": "AztecBot"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "111e7a968ca88f8d7a2ee65cde84aa21c82f6f38",
+          "message": "fix(ssa): only count array-typed stores in rc_invariant::call may_mutate (#13354)",
+          "timestamp": "2026-07-20T10:35:25Z",
+          "tree_id": "2862c010176f63b5040cd0fca616175e26dba4bc",
+          "url": "https://github.com/noir-lang/noir/commit/111e7a968ca88f8d7a2ee65cde84aa21c82f6f38"
+        },
+        "date": 1784544966104,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 177038,
+            "range": "± 1532",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 145031,
+            "range": "± 588",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2655341,
+            "range": "± 2168",
             "unit": "ns/iter"
           }
         ]
