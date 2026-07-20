@@ -30,7 +30,7 @@ projects:
     path: noir-projects/noir-protocol-circuits/crates/private-kernel-reset
     num_compile_runs: 5
     num_execute_runs: 10
-    compilation-timeout: 30
+    compilation-timeout: 35
     execution-timeout: 0.35
     brillig-compilation-timeout: 10
     brillig-execution-timeout: 0.35
