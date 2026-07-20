@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1784569886263,
+  "lastUpdate": 1784572645382,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23031,48 +23031,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "49699333+dependabot[bot]@users.noreply.github.com",
-            "name": "dependabot[bot]",
-            "username": "dependabot[bot]"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "138a5ef2826a7b64d8f29508cdc59cd2f0976b6c",
-          "message": "chore(deps): bump cbc from 0.2.0 to 0.2.1 (#13289)\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
-          "timestamp": "2026-07-07T13:53:37Z",
-          "tree_id": "d58edb1f906244b33702eb774a71935f944cccb4",
-          "url": "https://github.com/noir-lang/noir/commit/138a5ef2826a7b64d8f29508cdc59cd2f0976b6c"
-        },
-        "date": 1783433654406,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 173502,
-            "range": "± 529",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 140219,
-            "range": "± 6275",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2655362,
-            "range": "± 9532",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "15848336+TomAFrench@users.noreply.github.com",
             "name": "Tom French",
             "username": "TomAFrench"
@@ -25124,6 +25082,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2648165,
             "range": "± 19650",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "69d921b934c33b1c4faf770de3263ea752e3675f",
+          "message": "chore(deps): bump axios from 1.16.0 to 1.18.0 in /docs (#13365)\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2026-07-20T18:15:17Z",
+          "tree_id": "035e8a9f4f7fcf60480cb57ba65178fcba5e82ec",
+          "url": "https://github.com/noir-lang/noir/commit/69d921b934c33b1c4faf770de3263ea752e3675f"
+        },
+        "date": 1784572563992,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 168327,
+            "range": "± 677",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 136885,
+            "range": "± 379",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2647528,
+            "range": "± 4661",
             "unit": "ns/iter"
           }
         ]
