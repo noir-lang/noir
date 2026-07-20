@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1784552780736,
+  "lastUpdate": 1784554986195,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -22991,48 +22991,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "27e7af99098013ab13937f9cf04831f462194593",
-          "message": "fix(frontend): preserve nested CheckedCast validation obligations (#13018)\n\nCo-authored-by: Claude Opus 4.8 (1M context) <noreply@anthropic.com>\nCo-authored-by: Aztec Bot <49558828+AztecBot@users.noreply.github.com>\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
-          "timestamp": "2026-07-07T12:14:29Z",
-          "tree_id": "fa31cb49e8e1632701caf6e3ae9c20ef4aebcdfb",
-          "url": "https://github.com/noir-lang/noir/commit/27e7af99098013ab13937f9cf04831f462194593"
-        },
-        "date": 1783427669775,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 170223,
-            "range": "± 721",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 139154,
-            "range": "± 3559",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2646772,
-            "range": "± 22617",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "49699333+dependabot[bot]@users.noreply.github.com",
             "name": "dependabot[bot]",
             "username": "dependabot[bot]"
@@ -25084,6 +25042,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2361112,
             "range": "± 12582",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "163862677+noirwhal@users.noreply.github.com",
+            "name": "noirwhal",
+            "username": "noirwhal"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "5021a7196dc49d8e515177624f8759568f3360c0",
+          "message": "chore: Release Noir(1.0.0-beta.24) (#13318)\n\nCo-authored-by: noirwhal <tomfrench@aztecprotocol.com>",
+          "timestamp": "2026-07-20T13:21:32Z",
+          "tree_id": "a0166378467d6a73dbc337a3e555f4e981c7b964",
+          "url": "https://github.com/noir-lang/noir/commit/5021a7196dc49d8e515177624f8759568f3360c0"
+        },
+        "date": 1784554908431,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 168265,
+            "range": "± 609",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 136940,
+            "range": "± 237",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2651268,
+            "range": "± 2678",
             "unit": "ns/iter"
           }
         ]
