@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1784555987358,
+  "lastUpdate": 1784558263893,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23026,48 +23026,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "49699333+dependabot[bot]@users.noreply.github.com",
-            "name": "dependabot[bot]",
-            "username": "dependabot[bot]"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "bc69ef1c264a4b12b7533da31094bbea93e4c90a",
-          "message": "chore(deps): bump redis from 1.2.4 to 1.3.0 (#13290)\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
-          "timestamp": "2026-07-07T12:41:20Z",
-          "tree_id": "b7b91499552b49e7a72ebdd035132b6eb5fb1b70",
-          "url": "https://github.com/noir-lang/noir/commit/bc69ef1c264a4b12b7533da31094bbea93e4c90a"
-        },
-        "date": 1783429292202,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 169787,
-            "range": "± 961",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 139914,
-            "range": "± 1547",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2647362,
-            "range": "± 32309",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "jfecher11@gmail.com",
             "name": "jfecher",
             "username": "jfecher"
@@ -25119,6 +25077,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2651268,
             "range": "± 2678",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "b9b538a5776657081fe947d884b37237f0f47c2b",
+          "message": "chore(evaluator): rename misleading \"scratch\" identifiers in brillig gen (#13362)",
+          "timestamp": "2026-07-20T14:16:52Z",
+          "tree_id": "1746319e26f17483d20b17c574f20c98a26380c2",
+          "url": "https://github.com/noir-lang/noir/commit/b9b538a5776657081fe947d884b37237f0f47c2b"
+        },
+        "date": 1784558185120,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 167658,
+            "range": "± 1714",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 136655,
+            "range": "± 307",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2647244,
+            "range": "± 16802",
             "unit": "ns/iter"
           }
         ]
