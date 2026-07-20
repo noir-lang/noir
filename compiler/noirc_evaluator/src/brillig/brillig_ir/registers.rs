@@ -789,10 +789,42 @@ impl<A, R: RegisterAllocator> DerefMut for Allocated<A, R> {
 
 #[cfg(test)]
 mod tests {
+    use acvm::acir::brillig::MemoryAddress;
+
     use crate::brillig::brillig_ir::{
         LayoutConfig,
-        registers::{DeallocationListAllocator, GlobalSpace, RegisterAllocator, Stack},
+        registers::{
+            DeallocationListAllocator, GlobalSpace, MAX_STACK_FRAME_SIZE, MIN_SCRATCH_SPACE,
+            NUM_STACK_FRAMES, RegisterAllocator, ScratchSpace, Stack,
+        },
     };
+
+    #[test]
+    fn stack_allocations_are_relative_never_scratch() {
+        // Block codegen runs in a `Stack` context, so user values must land on the stack
+        // (`Relative` addresses) and never in scratch space (`Direct` addresses). This is what lets
+        // the spilling machinery treat `@3`/`@4`/`@5` as always-free.
+        let mut stack = Stack::new(LayoutConfig::default());
+        for _ in 0..16 {
+            let reg = stack.allocate_register();
+            assert!(
+                matches!(reg, MemoryAddress::Relative(_)),
+                "stack allocation produced a non-relative (scratch) address: {reg:?}"
+            );
+        }
+    }
+
+    #[test]
+    #[should_panic(expected = "Scratch space too deep")]
+    fn scratch_allocation_beyond_capacity_panics() {
+        // The scratch allocator is the backstop that traps any allocation overflowing
+        // `max_scratch_space`.
+        let layout = LayoutConfig::new(MAX_STACK_FRAME_SIZE, NUM_STACK_FRAMES, MIN_SCRATCH_SPACE);
+        let mut scratch = ScratchSpace::new(layout);
+        for _ in 0..=MIN_SCRATCH_SPACE {
+            scratch.allocate_register();
+        }
+    }
 
     #[test]
     fn stack_should_prioritize_returning_low_registers() {

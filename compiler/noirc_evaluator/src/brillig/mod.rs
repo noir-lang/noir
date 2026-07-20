@@ -15,6 +15,7 @@ use brillig_gen::constant_allocation::ConstantAllocation;
 use brillig_gen::{brillig_fn::FunctionContext, brillig_globals::BrilligGlobals};
 use brillig_ir::BrilligContext;
 use brillig_ir::{
+    ReservedRegisters,
     artifact::LabelType,
     brillig_variable::BrilligVariable,
     registers::{GlobalSpace, Stack},
@@ -185,8 +186,17 @@ impl Brillig {
             );
         }
 
-        // Resolve: overwrite placeholder NOPs with real allocation if spilling occurred
+        // If spilling occurred, overwrite the placeholder NOPs with the real allocation. Spilling
+        // uses the fixed scratch slots `@3`/`@4`/`@5`, which are addressed directly and bypass the
+        // `ScratchSpace` allocator's bounds check, so assert the configured scratch space can hold
+        // them — the analogue of the allocator's "Scratch space too deep" assertion for procedures.
         if function_context.did_spill() {
+            assert!(
+                options.layout.max_scratch_space() >= ReservedRegisters::NUM_SPILL_SCRATCH_SLOTS,
+                "Scratch space of {} too small for spilling, which needs {}",
+                options.layout.max_scratch_space(),
+                ReservedRegisters::NUM_SPILL_SCRATCH_SLOTS,
+            );
             brillig_context.resolve_spill_prologue(function_context.max_spill_offset());
         }
 
