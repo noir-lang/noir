@@ -90,11 +90,6 @@ pub struct BrilligArtifact<F> {
     /// If no spilling occurs, the no-ops remain harmless.
     unresolved_spill_prologue: Option<[OpcodeLocation; 3]>,
 
-    /// Whether the function this artifact was generated from actually spilled any registers.
-    /// A spilling function uses the fixed spill scratch slots (`@3`/`@4`/`@5`), so linking it
-    /// requires the configured scratch space to be large enough to hold them.
-    pub(crate) did_spill: bool,
-
     /// This field contains the given procedure id if this artifact originates from as procedure
     pub(crate) procedure: Option<ProcedureId>,
     /// Procedure ID mapped to the range of its opcode locations

@@ -7,7 +7,7 @@ use crate::{
         brillig_gen::tests::{
             execute_brillig_from_ssa_with_options, ssa_to_brillig_artifacts_with_options,
         },
-        brillig_ir::{LayoutConfig, registers::MAX_SCRATCH_SPACE},
+        brillig_ir::{LayoutConfig, ReservedRegisters, registers::MAX_SCRATCH_SPACE},
     },
     ssa::ir::map::Id,
 };
@@ -535,19 +535,9 @@ fn brillig_spill_jmpif_then_arg_does_not_overwrite_param_slot() {
     assert_eq!(result, vec![FieldElement::from(15u32)]);
 }
 
-/// Linking a function that spills must fail with a clear error when the configured scratch space
-/// cannot hold the fixed spill scratch slots (`@3`/`@4`/`@5`), rather than silently emitting writes
-/// outside the scratch region. The spill machinery needs `NUM_SPILL_SCRATCH_SLOTS` (3) slots.
-#[test]
-fn spilling_with_too_small_scratch_space_is_rejected() {
-    use crate::brillig::brillig_gen::gen_brillig_for;
-    use crate::brillig::brillig_ir::{ReservedRegisters, artifact::BrilligParameter};
-    use crate::errors::RuntimeError;
-    use crate::ssa::ssa_gen::Ssa;
-
-    // A long live chain forces register spilling with a small stack frame; only two parameters,
-    // so the entry point itself stays small enough to link.
-    let src = "
+/// A long live chain that forces register spilling with a small stack frame, and only two
+/// parameters so the entry point stays small enough to compile.
+const SPILLING_SRC: &str = "
     brillig(inline) fn main f0 {
       b0(v0: u32, v1: u32):
         v2 = unchecked_add v0, v1
@@ -565,31 +555,28 @@ fn spilling_with_too_small_scratch_space_is_rejected() {
         return v13
     }
     ";
-    let args = vec![BrilligParameter::SingleAddr(32); 2];
-    let compile_and_link = |max_scratch: usize| {
-        let layout = LayoutConfig::new(8, 16, max_scratch);
-        let options = BrilligOptions { layout, ..Default::default() };
-        let brillig = ssa_to_brillig_artifacts_with_options(src, &options);
-        // Sanity-check the program actually spills; otherwise the test proves nothing.
-        assert!(
-            brillig.ssa_function_to_brillig[&Id::test_new(0)].did_spill,
-            "program did not spill"
-        );
-        gen_brillig_for(Ssa::from_str(src).unwrap().main(), &args, &brillig, &options)
-    };
 
-    // One slot short of what spilling needs: linking is rejected.
+/// Spilling uses the fixed scratch slots `@3`/`@4`/`@5`, which bypass the `ScratchSpace` allocator's
+/// bounds check. Compiling a spilling function with fewer than `NUM_SPILL_SCRATCH_SLOTS` scratch
+/// slots must fail loudly rather than silently emitting writes outside the scratch region — the
+/// analogue of the allocator's "Scratch space too deep" assertion for procedures.
+#[test]
+#[should_panic(expected = "too small for spilling")]
+fn spilling_with_too_small_scratch_space_panics() {
     let too_small = ReservedRegisters::NUM_SPILL_SCRATCH_SLOTS - 1;
-    let err = compile_and_link(too_small).expect_err("expected an insufficient-scratch error");
-    assert!(
-        matches!(
-            err,
-            RuntimeError::InsufficientScratchSpaceForSpilling { required, available, .. }
-                if required == ReservedRegisters::NUM_SPILL_SCRATCH_SLOTS && available == too_small
-        ),
-        "unexpected error: {err}"
-    );
+    let layout = LayoutConfig::new(8, 16, too_small);
+    let options = BrilligOptions { layout, ..Default::default() };
+    // Panics in codegen while building the spilling function. If the program failed to spill the
+    // assertion would not fire and this `#[should_panic]` test would fail, so it also guards that
+    // the program still spills.
+    let _ = ssa_to_brillig_artifacts_with_options(SPILLING_SRC, &options);
+}
 
-    // Exactly enough scratch: linking succeeds.
-    assert!(compile_and_link(ReservedRegisters::NUM_SPILL_SCRATCH_SLOTS).is_ok());
+/// The boundary case: exactly `NUM_SPILL_SCRATCH_SLOTS` scratch slots is enough to spill.
+#[test]
+fn spilling_with_minimum_scratch_space_compiles() {
+    let layout = LayoutConfig::new(8, 16, ReservedRegisters::NUM_SPILL_SCRATCH_SLOTS);
+    let options = BrilligOptions { layout, ..Default::default() };
+    let brillig = ssa_to_brillig_artifacts_with_options(SPILLING_SRC, &options);
+    assert!(!brillig.ssa_function_to_brillig[&Id::test_new(0)].byte_code.is_empty());
 }

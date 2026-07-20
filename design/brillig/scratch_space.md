@@ -122,11 +122,10 @@ corrupts memory rather than failing loudly, so they are worth stating explicitly
   That allocator check covers procedures, which allocate scratch *through* the allocator. It does
   **not** cover spilling: the spill slots are hardcoded `Direct` addresses that never touch the
   allocator, so an under-sized `max_scratch_space` would otherwise let `@5` escape the region
-  silently (see the previous point). That case is caught explicitly at link time — `gen_brillig_for`
-  rejects linking a function whose artifact is marked `did_spill` when
-  `max_scratch_space < NUM_SPILL_SCRATCH_SLOTS`, returning a
-  `RuntimeError::InsufficientScratchSpaceForSpilling`. *Enforced by*
-  `spilling_with_too_small_scratch_space_is_rejected` in [`spill.rs`][spill_tests].
+  silently (see the previous point). That case gets its own assertion, the direct analogue of the
+  allocator's "Scratch space too deep": when a function spills, codegen asserts
+  `max_scratch_space >= NUM_SPILL_SCRATCH_SLOTS` before resolving the spill prologue. *Enforced by*
+  `spilling_with_too_small_scratch_space_panics` in [`spill.rs`][spill_tests].
 
   The peak is driven by procedure-local temporaries (point 2 above), *not* by argument counts. The
   argument/return handshake for the widest procedures is only 6–7 slots, but a procedure also holds

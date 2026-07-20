@@ -169,12 +169,6 @@ impl<F, R: RegisterAllocator> BrilligContext<F, R> {
         self.globals_memory_size = new_size;
     }
 
-    /// Record that the function spilled registers. Consumed during linking to verify the configured
-    /// scratch space can hold the fixed spill scratch slots.
-    pub(crate) fn mark_did_spill(&mut self) {
-        self.obj.did_spill = true;
-    }
-
     /// Returns the artifact, discarding the rest of the context.
     pub(crate) fn into_artifact(self) -> BrilligArtifact<F> {
         self.obj
