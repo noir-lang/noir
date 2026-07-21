@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1784573646633,
+  "lastUpdate": 1784623447379,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23036,48 +23036,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "336e4b3a7664d0177f7e54927db06427d74af5af",
-          "message": "chore: refactoring `noirc_driver` (#7977)\n\nCo-authored-by: AztecBot <tech@aztec-labs.com>",
-          "timestamp": "2026-07-07T15:12:01+01:00",
-          "tree_id": "f0bdbdf764a2d598607ed753490ba6482360261e",
-          "url": "https://github.com/noir-lang/noir/commit/336e4b3a7664d0177f7e54927db06427d74af5af"
-        },
-        "date": 1783433680496,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 174559,
-            "range": "± 420",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 140145,
-            "range": "± 441",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2648535,
-            "range": "± 1920",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "49699333+dependabot[bot]@users.noreply.github.com",
             "name": "dependabot[bot]",
             "username": "dependabot[bot]"
@@ -25129,6 +25087,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2647528,
             "range": "± 4661",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "418663af109241ac8ae7036454bd3bf88fc6be40",
+          "message": "chore(deps): bump the cargo-minor-and-patch group with 10 updates (#13374)\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2026-07-21T08:20:06Z",
+          "tree_id": "abd77448b375a63b70feaa5ba18f8721074a7951",
+          "url": "https://github.com/noir-lang/noir/commit/418663af109241ac8ae7036454bd3bf88fc6be40"
+        },
+        "date": 1784623365562,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 171383,
+            "range": "± 1154",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 141713,
+            "range": "± 3987",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2649173,
+            "range": "± 4512",
             "unit": "ns/iter"
           }
         ]
