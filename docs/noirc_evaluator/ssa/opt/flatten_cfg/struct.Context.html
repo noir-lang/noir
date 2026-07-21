@@ -159,7 +159,7 @@ starting to process a conditional statement.</p>
     else_destination: &amp;<a class="type" href="../../ir/basic_block/type.BasicBlockId.html" title="type noirc_evaluator::ssa::ir::basic_block::BasicBlockId">BasicBlockId</a>,
     else_arguments: &amp;[<a class="type" href="../../ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a>],
     if_entry: &amp;<a class="type" href="../../ir/basic_block/type.BasicBlockId.html" title="type noirc_evaluator::ssa::ir::basic_block::BasicBlockId">BasicBlockId</a>,
-    call_stack: <a class="struct" href="../../../../noirc_errors/call_stack/struct.CallStackId.html" title="struct noirc_errors::call_stack::CallStackId">CallStackId</a>,
+    call_stack: CallStackId,
 ) -&gt; <a class="struct" href="https://doc.rust-lang.org/1.89.0/alloc/vec/struct.Vec.html" title="struct alloc::vec::Vec">Vec</a>&lt;<a class="type" href="../../ir/basic_block/type.BasicBlockId.html" title="type noirc_evaluator::ssa::ir::basic_block::BasicBlockId">BasicBlockId</a>&gt; <a href="#" class="tooltip" data-notable-ty="Vec&lt;BasicBlockId&gt;">ⓘ</a></h4></section></summary><div class="docblock"><p>Process a conditional statement by creating a <code>ConditionalContext</code>
 with information about the branch, and storing it in the dedicated stack.
 Local allocations are moved to the ‘<code>then_branch</code>’ of the <code>ConditionalContext</code>.
@@ -175,7 +175,7 @@ and exit block of the conditional statement, so that they will be processed in t
 </div></details><details class="toggle method-toggle" open><summary><section id="method.not_instruction" class="method"><a class="src rightside" href="../../../../src/noirc_evaluator/ssa/opt/flatten_cfg.rs.html#739-747">Source</a><h4 class="code-header">fn <a href="#method.not_instruction" class="fn">not_instruction</a>(
     &amp;mut self,
     condition: <a class="type" href="../../ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a>,
-    call_stack: <a class="struct" href="../../../../noirc_errors/call_stack/struct.CallStackId.html" title="struct noirc_errors::call_stack::CallStackId">CallStackId</a>,
+    call_stack: CallStackId,
 ) -&gt; <a class="type" href="../../ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a></h4></section></summary><div class="docblock"><p>Negates a boolean value by inserting a Not instruction</p>
 </div></details><details class="toggle method-toggle" open><summary><section id="method.try_collapse_merge" class="method"><a class="src rightside" href="../../../../src/noirc_evaluator/ssa/opt/flatten_cfg.rs.html#765-806">Source</a><h4 class="code-header">fn <a href="#method.try_collapse_merge" class="fn">try_collapse_merge</a>(
     &amp;mut self,
@@ -235,7 +235,7 @@ to the ‘<code>predicated_values</code>’ map if not already stored.</p>
     then_condition: <a class="type" href="../../ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a>,
     else_condition: <a class="type" href="../../ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a>,
     mutable: <a class="primitive" href="https://doc.rust-lang.org/1.89.0/std/primitive.bool.html">bool</a>,
-    call_stack: <a class="struct" href="../../../../noirc_errors/call_stack/struct.CallStackId.html" title="struct noirc_errors::call_stack::CallStackId">CallStackId</a>,
+    call_stack: CallStackId,
     protect_array_set: <a class="primitive" href="https://doc.rust-lang.org/1.89.0/std/primitive.bool.html">bool</a>,
 ) -&gt; <a class="type" href="../../ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a></h4></section></summary><div class="docblock"><p>Create an array with a merged value at a single index, with an option to protect
 the final <code>array_set</code> from <code>remove_unreachable_instructions</code>.</p>
@@ -263,7 +263,7 @@ the index with a “safe” first-matching-type index, reading the wrong value.<
     typ: &amp;<a class="enum" href="../../ir/types/enum.Type.html" title="enum noirc_evaluator::ssa::ir::types::Type">Type</a>,
     then_condition: <a class="type" href="../../ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a>,
     else_condition: <a class="type" href="../../ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a>,
-    call_stack: <a class="struct" href="../../../../noirc_errors/call_stack/struct.CallStackId.html" title="struct noirc_errors::call_stack::CallStackId">CallStackId</a>,
+    call_stack: CallStackId,
 ) -&gt; <a class="type" href="../../ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a></h4></section></summary><div class="docblock"><p>Produce an index into <code>base_array</code> that is safe to read and write even when
 <code>then_condition</code> is false.</p>
 <p><a href="struct.Context.html#method.create_merged_array_set" title="method noirc_evaluator::ssa::opt::flatten_cfg::Context::create_merged_array_set"><code>Self::create_merged_array_set</code></a> emits its <code>array_get</code>/<code>array_set</code> under an
@@ -284,7 +284,7 @@ the extra <code>IfElse</code> opcodes.</p>
     address: <a class="type" href="../../ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a>,
     previous_value: <a class="type" href="../../ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a>,
     condition: <a class="type" href="../../ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a>,
-    call_stack: <a class="struct" href="../../../../noirc_errors/call_stack/struct.CallStackId.html" title="struct noirc_errors::call_stack::CallStackId">CallStackId</a>,
+    call_stack: CallStackId,
 ) -&gt; <a class="enum" href="https://doc.rust-lang.org/1.89.0/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;<a class="type" href="../../ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a>&gt;</h4></section></summary><div class="docblock"><p>Try to optimize a Store of an ArraySet by merging just the value at the modified index.</p>
 <p>When we have a conditional Store of an ArraySet result:</p>
 <div class="example-wrap"><pre class="language-text"><code>v1 = load addr
@@ -305,7 +305,7 @@ value, producing the same array as v1’.</p>
     then_value: <a class="type" href="../../ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a>,
     else_value: <a class="type" href="../../ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a>,
     then_condition: <a class="type" href="../../ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a>,
-    call_stack: <a class="struct" href="../../../../noirc_errors/call_stack/struct.CallStackId.html" title="struct noirc_errors::call_stack::CallStackId">CallStackId</a>,
+    call_stack: CallStackId,
 ) -&gt; <a class="enum" href="https://doc.rust-lang.org/1.89.0/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;<a class="type" href="../../ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a>&gt;</h4></section></summary><div class="docblock"><p>Try to optimize the merging of array values at a join point.</p>
 <p>This recognizes the pattern where:</p>
 <ul>
@@ -321,13 +321,13 @@ result = array_set(base_array, index, merged)</code></pre></div></div></details>
     then_value: <a class="type" href="../../ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a>,
     else_value: <a class="type" href="../../ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a>,
     then_condition: <a class="type" href="../../ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a>,
-    condition_call_stack: <a class="struct" href="../../../../noirc_errors/call_stack/struct.CallStackId.html" title="struct noirc_errors::call_stack::CallStackId">CallStackId</a>,
+    condition_call_stack: CallStackId,
     protect_array_set: <a class="primitive" href="https://doc.rust-lang.org/1.89.0/std/primitive.bool.html">bool</a>,
     is_base_array: impl <a class="trait" href="https://doc.rust-lang.org/1.89.0/core/ops/function/trait.Fn.html" title="trait core::ops::function::Fn">Fn</a>(&amp;Self, <a class="type" href="../../ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a>) -&gt; <a class="primitive" href="https://doc.rust-lang.org/1.89.0/std/primitive.bool.html">bool</a>,
 ) -&gt; <a class="enum" href="https://doc.rust-lang.org/1.89.0/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;<a class="type" href="../../ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a>&gt;</h4></section><details class="toggle method-toggle" open><summary><section id="method.insert_instruction" class="method"><a class="src rightside" href="../../../../src/noirc_evaluator/ssa/opt/flatten_cfg.rs.html#1335-1342">Source</a><h4 class="code-header">fn <a href="#method.insert_instruction" class="fn">insert_instruction</a>(
     &amp;mut self,
     instruction: <a class="enum" href="../../ir/instruction/enum.Instruction.html" title="enum noirc_evaluator::ssa::ir::instruction::Instruction">Instruction</a>,
-    call_stack: <a class="struct" href="../../../../noirc_errors/call_stack/struct.CallStackId.html" title="struct noirc_errors::call_stack::CallStackId">CallStackId</a>,
+    call_stack: CallStackId,
 ) -&gt; <a class="type" href="../../ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a></h4></section></summary><div class="docblock"><p>Insert a new instruction into the target block.
 Unlike <code>push_instruction</code>, this function will not map any <code>ValueIds</code>.
 within the given instruction, nor will it modify self.values in any way.</p>
@@ -335,7 +335,7 @@ within the given instruction, nor will it modify self.values in any way.</p>
     &amp;mut self,
     instruction: <a class="enum" href="../../ir/instruction/enum.Instruction.html" title="enum noirc_evaluator::ssa::ir::instruction::Instruction">Instruction</a>,
     ctrl_typevars: <a class="enum" href="https://doc.rust-lang.org/1.89.0/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;<a class="struct" href="https://doc.rust-lang.org/1.89.0/alloc/vec/struct.Vec.html" title="struct alloc::vec::Vec">Vec</a>&lt;<a class="enum" href="../../ir/types/enum.Type.html" title="enum noirc_evaluator::ssa::ir::types::Type">Type</a>&gt;&gt;,
-    call_stack: <a class="struct" href="../../../../noirc_errors/call_stack/struct.CallStackId.html" title="struct noirc_errors::call_stack::CallStackId">CallStackId</a>,
+    call_stack: CallStackId,
 ) -&gt; <a class="enum" href="../../ir/dfg/enum.InsertInstructionResult.html" title="enum noirc_evaluator::ssa::ir::dfg::InsertInstructionResult">InsertInstructionResult</a>&lt;'_&gt;</h4></section></summary><div class="docblock"><p>Inserts a new instruction into the target block, using the given
 control type variables to specify result types if needed.
 Unlike <code>push_instruction</code>, this function will not map any <code>ValueIds</code>.
@@ -352,7 +352,7 @@ will also be mapped to the results of the new instruction.</p>
 </div></details><details class="toggle method-toggle" open><summary><section id="method.handle_instruction_side_effects" class="method"><a class="src rightside" href="../../../../src/noirc_evaluator/ssa/opt/flatten_cfg.rs.html#1414-1501">Source</a><h4 class="code-header">fn <a href="#method.handle_instruction_side_effects" class="fn">handle_instruction_side_effects</a>(
     &amp;mut self,
     instruction: <a class="enum" href="../../ir/instruction/enum.Instruction.html" title="enum noirc_evaluator::ssa::ir::instruction::Instruction">Instruction</a>,
-    call_stack: <a class="struct" href="../../../../noirc_errors/call_stack/struct.CallStackId.html" title="struct noirc_errors::call_stack::CallStackId">CallStackId</a>,
+    call_stack: CallStackId,
 ) -&gt; <a class="enum" href="../../ir/instruction/enum.Instruction.html" title="enum noirc_evaluator::ssa::ir::instruction::Instruction">Instruction</a></h4></section></summary><div class="docblock"><p>If we are currently in a branch, we need to modify instructions that have side effects
 (e.g. constraints, stores, range checks) to ensure that the side effect is only applied
 if their branch is taken.</p>
@@ -362,27 +362,27 @@ if their branch is taken.</p>
     condition: <a class="type" href="../../ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a>,
     func: <a class="type" href="../../ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a>,
     arguments: <a class="struct" href="https://doc.rust-lang.org/1.89.0/alloc/vec/struct.Vec.html" title="struct alloc::vec::Vec">Vec</a>&lt;<a class="type" href="../../ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a>&gt;,
-    call_stack: <a class="struct" href="../../../../noirc_errors/call_stack/struct.CallStackId.html" title="struct noirc_errors::call_stack::CallStackId">CallStackId</a>,
+    call_stack: CallStackId,
 ) -&gt; <a class="struct" href="https://doc.rust-lang.org/1.89.0/alloc/vec/struct.Vec.html" title="struct alloc::vec::Vec">Vec</a>&lt;<a class="type" href="../../ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a>&gt; <a href="#" class="tooltip" data-notable-ty="Vec&lt;ValueId&gt;">ⓘ</a></h4></section></summary><div class="docblock"><p>Weave the <code>condition</code> into call arguments, returning the modified arguments.</p>
 </div></details><details class="toggle method-toggle" open><summary><section id="method.handle_intrinsic_side_effects" class="method"><a class="src rightside" href="../../../../src/noirc_evaluator/ssa/opt/flatten_cfg.rs.html#1524-1566">Source</a><h4 class="code-header">fn <a href="#method.handle_intrinsic_side_effects" class="fn">handle_intrinsic_side_effects</a>(
     &amp;mut self,
     condition: <a class="type" href="../../ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a>,
     intrinsic: <a class="enum" href="../../ir/instruction/enum.Intrinsic.html" title="enum noirc_evaluator::ssa::ir::instruction::Intrinsic">Intrinsic</a>,
     arguments: <a class="struct" href="https://doc.rust-lang.org/1.89.0/alloc/vec/struct.Vec.html" title="struct alloc::vec::Vec">Vec</a>&lt;<a class="type" href="../../ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a>&gt;,
-    call_stack: <a class="struct" href="../../../../noirc_errors/call_stack/struct.CallStackId.html" title="struct noirc_errors::call_stack::CallStackId">CallStackId</a>,
+    call_stack: CallStackId,
 ) -&gt; <a class="struct" href="https://doc.rust-lang.org/1.89.0/alloc/vec/struct.Vec.html" title="struct alloc::vec::Vec">Vec</a>&lt;<a class="type" href="../../ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a>&gt; <a href="#" class="tooltip" data-notable-ty="Vec&lt;ValueId&gt;">ⓘ</a></h4></section></summary><div class="docblock"><p>Weave the <code>condition</code> into intrinsic call arguments, returning the modified arguments.</p>
 </div></details><details class="toggle method-toggle" open><summary><section id="method.handle_blackbox_side_effects" class="method"><a class="src rightside" href="../../../../src/noirc_evaluator/ssa/opt/flatten_cfg.rs.html#1569-1609">Source</a><h4 class="code-header">fn <a href="#method.handle_blackbox_side_effects" class="fn">handle_blackbox_side_effects</a>(
     &amp;mut self,
     condition: <a class="type" href="../../ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a>,
-    blackbox: <a class="enum" href="../../../../acir/circuit/black_box_functions/enum.BlackBoxFunc.html" title="enum acir::circuit::black_box_functions::BlackBoxFunc">BlackBoxFunc</a>,
+    blackbox: BlackBoxFunc,
     arguments: <a class="struct" href="https://doc.rust-lang.org/1.89.0/alloc/vec/struct.Vec.html" title="struct alloc::vec::Vec">Vec</a>&lt;<a class="type" href="../../ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a>&gt;,
-    call_stack: <a class="struct" href="../../../../noirc_errors/call_stack/struct.CallStackId.html" title="struct noirc_errors::call_stack::CallStackId">CallStackId</a>,
+    call_stack: CallStackId,
 ) -&gt; <a class="struct" href="https://doc.rust-lang.org/1.89.0/alloc/vec/struct.Vec.html" title="struct alloc::vec::Vec">Vec</a>&lt;<a class="type" href="../../ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a>&gt; <a href="#" class="tooltip" data-notable-ty="Vec&lt;ValueId&gt;">ⓘ</a></h4></section></summary><div class="docblock"><p>Weave the <code>condition</code> into blackbox call arguments, returning the modified arguments.</p>
 </div></details><details class="toggle method-toggle" open><summary><section id="method.cast_condition_to_value_type" class="method"><a class="src rightside" href="../../../../src/noirc_evaluator/ssa/opt/flatten_cfg.rs.html#1617-1626">Source</a><h4 class="code-header">fn <a href="#method.cast_condition_to_value_type" class="fn">cast_condition_to_value_type</a>(
     &amp;mut self,
     condition: <a class="type" href="../../ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a>,
     value: <a class="type" href="../../ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a>,
-    call_stack: <a class="struct" href="../../../../noirc_errors/call_stack/struct.CallStackId.html" title="struct noirc_errors::call_stack::CallStackId">CallStackId</a>,
+    call_stack: CallStackId,
 ) -&gt; <a class="type" href="../../ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a></h4></section></summary><div class="docblock"><p>‘Cast’ the ‘condition’ to ‘value’ type</p>
 <p>This is needed because we need to multiply the condition with several values
 in order to ‘nullify’ side-effects when the ‘condition’ is false (in ‘<code>handle_instruction_side_effects</code>’ function).</p>
@@ -391,7 +391,7 @@ in order to ‘nullify’ side-effects when the ‘condition’ is false (in ‘
     &amp;mut self,
     value: <a class="type" href="../../ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a>,
     condition: <a class="type" href="../../ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a>,
-    call_stack: <a class="struct" href="../../../../noirc_errors/call_stack/struct.CallStackId.html" title="struct noirc_errors::call_stack::CallStackId">CallStackId</a>,
+    call_stack: CallStackId,
 ) -&gt; <a class="type" href="../../ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a></h4></section></summary><div class="docblock"><p>Insert a multiplication between ‘condition’ and ‘value’</p>
 </div></details><details class="toggle method-toggle" open><summary><section id="method.remove_superseded_array_sets" class="method"><a class="src rightside" href="../../../../src/noirc_evaluator/ssa/opt/flatten_cfg.rs.html#1652-1694">Source</a><h4 class="code-header">fn <a href="#method.remove_superseded_array_sets" class="fn">remove_superseded_array_sets</a>(&amp;mut self)</h4></section></summary><div class="docblock"><p>At the end of flattening, remove any potentially superseded <code>array_set</code> where
 the result isn’t used by any other instruction.</p>

@@ -2,7 +2,7 @@
     input: &amp;<a class="struct" href="https://docs.rs/syn/2.0.118/syn/derive/struct.DeriveInput.html" title="struct syn::derive::DeriveInput">DeriveInput</a>,
     inner_field: &amp;<a class="struct" href="https://docs.rs/syn/2.0.118/syn/data/struct.Field.html" title="struct syn::data::Field">Field</a>,
     type_attrs: &amp;<a class="struct" href="struct.TypeAttrs.html" title="struct msgpack_tagged_derive::TypeAttrs">TypeAttrs</a>,
-) -&gt; <a class="type" href="https://docs.rs/syn/2.0.118/syn/error/type.Result.html" title="type syn::error::Result">Result</a>&lt;<a class="struct" href="https://docs.rs/proc-macro2/1.0.106/proc_macro2/struct.TokenStream.html" title="struct proc_macro2::TokenStream">TokenStream</a>&gt;</code></pre><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p>Newtype (single-element tuple struct): wire bytes are exactly the inner
+) -&gt; <a class="type" href="https://docs.rs/syn/2.0.118/syn/error/type.Result.html" title="type syn::error::Result">Result</a>&lt;<a class="struct" href="https://docs.rs/proc-macro2/1.0.107/proc_macro2/struct.TokenStream.html" title="struct proc_macro2::TokenStream">TokenStream</a>&gt;</code></pre><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p>Newtype (single-element tuple struct): wire bytes are exactly the inner
 type’s bytes. The newtype itself doesn’t get a registry entry — only its
 inner type does (via the recursive <code>register_into</code>). Type-level
 <code>reserved</code>/<code>allow_unknown_tags</code> are inert and rejected for clarity.</p>

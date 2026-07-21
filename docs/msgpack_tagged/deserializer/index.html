@@ -2,7 +2,7 @@
 <p>Mirrors <a href="../serializer/struct.Serializer.html" title="struct msgpack_tagged::serializer::Serializer"><code>crate::serializer::Serializer</code></a>: each aggregate shape that the
 macro emits — named struct, multi-element tuple struct, sequence, tuple,
 map, option, newtype struct — is intercepted to translate integer wire
-tags back to the serde field/variant names the <a href="https://docs.rs/serde_core/1.0.228/serde_core/de/trait.Visitor.html" title="trait serde_core::de::Visitor"><code>Visitor</code></a> expects, via
+tags back to the serde field/variant names the <a href="https://docs.rs/serde_core/1.0.229/serde_core/de/trait.Visitor.html" title="trait serde_core::de::Visitor"><code>Visitor</code></a> expects, via
 the <a href="../struct.TagRegistry.html" title="struct msgpack_tagged::TagRegistry"><code>TagRegistry</code></a>.</p>
 <p>The public entry point is <a href="fn.msgpack_tagged_deserialize.html" title="fn msgpack_tagged::deserializer::msgpack_tagged_deserialize"><code>msgpack_tagged_deserialize</code></a>, which builds
 the registry up front via <code>T::register_into</code> and runs the bytes through
