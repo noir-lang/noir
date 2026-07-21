@@ -32,7 +32,7 @@
     "@web/dev-server-esbuild": "^1.0.5",
     "@web/dev-server-import-maps": "^0.3.0",
     "@web/test-runner": "^0.20.2",
-    "@web/test-runner-playwright": "^0.11.1",
+    "@web/test-runner-playwright": "^1.0.0",
     "buffer-esm": "^1.2.0",
     "eslint": "^10.7.0",
     "eslint-plugin-prettier": "^5.5.6",
