@@ -34,11 +34,11 @@
     "@web/test-runner": "^0.20.2",
     "@web/test-runner-playwright": "^0.11.1",
     "buffer-esm": "^1.2.0",
-    "eslint": "^10.6.0",
+    "eslint": "^10.7.0",
     "eslint-plugin-prettier": "^5.5.6",
     "ethers": "^6.17.0",
     "hardhat": "^3.9.1",
-    "prettier": "3.9.4",
+    "prettier": "3.9.5",
     "smol-toml": "^1.7.0",
     "toml": "^4.1.1",
     "tslog": "^4.10.2"
