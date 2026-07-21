@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1784625820551,
+  "lastUpdate": 1784626057245,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23041,48 +23041,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "47281315+guipublic@users.noreply.github.com",
-            "name": "guipublic",
-            "username": "guipublic"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "3771b2e984a99e4a888ba079ecdfc9682a27abb9",
-          "message": "fix: construct element_type_sizes on demand to avoid unused memory block (#13278)\n\nCo-authored-by: Aztec Bot <49558828+AztecBot@users.noreply.github.com>\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
-          "timestamp": "2026-07-07T16:50:44Z",
-          "tree_id": "28d6b90dcd2c009ecfb1c916db231c122c1a9aac",
-          "url": "https://github.com/noir-lang/noir/commit/3771b2e984a99e4a888ba079ecdfc9682a27abb9"
-        },
-        "date": 1783444241694,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 165638,
-            "range": "± 701",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 134453,
-            "range": "± 375",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2645046,
-            "range": "± 12814",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "49558828+AztecBot@users.noreply.github.com",
             "name": "Aztec Bot",
             "username": "AztecBot"
@@ -25134,6 +25092,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2647976,
             "range": "± 15483",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "65a984a64e11d25696db903f95b5cc774786fef7",
+          "message": "chore(deps): bump tar from 7.5.16 to 7.5.20 in /docs (#13380)\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2026-07-21T09:05:55Z",
+          "tree_id": "13369d7fbf9adbb6e0ef83710c4cdb47c05d5d9a",
+          "url": "https://github.com/noir-lang/noir/commit/65a984a64e11d25696db903f95b5cc774786fef7"
+        },
+        "date": 1784625976890,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 171498,
+            "range": "± 966",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 141137,
+            "range": "± 9471",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2646267,
+            "range": "± 16234",
             "unit": "ns/iter"
           }
         ]
