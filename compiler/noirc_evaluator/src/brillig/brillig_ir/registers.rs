@@ -30,7 +30,7 @@
 use std::{
     cell::{Ref, RefCell, RefMut},
     collections::BTreeSet,
-    ops::{Deref, DerefMut},
+    ops::{Deref, DerefMut, Range},
     rc::Rc,
 };
 
@@ -90,6 +90,15 @@ impl LayoutConfig {
 
     pub(crate) fn max_scratch_space(&self) -> usize {
         self.max_scratch_space
+    }
+
+    /// Memory region occupied by the scratch space:
+    /// `{reserved} [scratch space] {globals} {entry point} {stack} {heap}`.
+    ///
+    /// Returns the range of memory addresses reserved for scratch space.
+    /// Is public so external consumers can re-use the same scratch space layout.
+    pub fn scratch_space_range(&self) -> Range<usize> {
+        ScratchSpace::start()..ScratchSpace::end_with_layout(self)
     }
 
     /// Start of the entry point region:
