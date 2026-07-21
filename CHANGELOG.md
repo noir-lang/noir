@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.0.0-beta.25](https://github.com/noir-lang/noir/compare/v1.0.0-beta.24...v1.0.0-beta.25) (2026-07-21)
+
+
+### Features
+
+* Add pub helper to get scratch space range ([#13382](https://github.com/noir-lang/noir/issues/13382)) ([a95924c](https://github.com/noir-lang/noir/commit/a95924c43cba8c4b3bd119fab2fb79c142a3f326))
+
+
+### Bug Fixes
+
+* **ci:** Pass a real ref when dispatching publish-es-packages ([#13384](https://github.com/noir-lang/noir/issues/13384)) ([62751a5](https://github.com/noir-lang/noir/commit/62751a5edc9e6cb018c4d6625ccee4533ac21788))
+
 ## [1.0.0-beta.24](https://github.com/noir-lang/noir/compare/v1.0.0-beta.23...v1.0.0-beta.24) (2026-07-20)
 
 
