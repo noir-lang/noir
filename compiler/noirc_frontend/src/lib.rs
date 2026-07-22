@@ -24,6 +24,7 @@ pub mod monomorphization;
 pub mod node_interner;
 pub mod ownership;
 pub mod parser;
+pub mod remove_unused_imports;
 pub mod resolve_locations;
 pub mod shared;
 pub mod usage_tracker;

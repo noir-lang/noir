@@ -22,6 +22,7 @@ mod name_shadowing;
 mod numeric_generics;
 mod oracles;
 mod references;
+mod remove_unused_imports;
 mod runtime;
 mod structs;
 mod traits;
