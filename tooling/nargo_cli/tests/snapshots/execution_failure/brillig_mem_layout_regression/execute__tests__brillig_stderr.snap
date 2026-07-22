@@ -2,6 +2,13 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: stderr
 ---
+warning: variable does not need to be mutable
+   ┌─ src/main.nr:39:9
+   │
+39 │     mut b: (Field, &mut u128, (bool, bool, u8), (Field, u8), [i64; 4]),
+   │         -
+   │
+
 error: Assertion failed: Stack too deep
    ┌─ src/main.nr:44:15
    │
