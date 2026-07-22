@@ -152,7 +152,7 @@ fn array_length_overflow_during_monomorphization() {
 #[test]
 fn constant_index_out_of_bounds() {
     let src = r#"
-    fn main(a: u32, mut c: [u32; 2]) {
+    fn main(a: u32, c: [u32; 2]) {
         if (a == c[0]) {
             assert((c[0] == 12));
         } else if (a == c[1]) {

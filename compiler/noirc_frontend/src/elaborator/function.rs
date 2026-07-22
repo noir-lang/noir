@@ -744,7 +744,9 @@ impl Elaborator<'_> {
         for parameter in &func_meta.parameter_idents {
             let name = self.interner.definition_name(parameter.id).to_owned();
             let warn_if_unused = !(func_meta.trait_impl.is_some() && name == "self");
-            let warn_if_not_mutated = false;
+            // The unnecessary-mut check only considers definitions that are actually mutable,
+            // so this is a no-op for parameters without `mut`.
+            let warn_if_not_mutated = true;
             // We allow shadowing here because there's no outer scope to shadow
             // (duplicate parameter names were already checked in `resolve_function_parameters`)
             let allow_shadowing = true;
