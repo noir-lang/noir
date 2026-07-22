@@ -1,0 +1,59 @@
+{
+  "schema": "2",
+  "targets": [
+    {
+      "name": "acir_vs_brillig",
+      "display_name": "AST: ACIR vs Brillig differential",
+      "language": "rust",
+      "fuzzer_engine": "libfuzzer",
+      "source_path": "tooling/ast_fuzzer",
+      "modes": ["fuzz", "coverage", "minimize", "reproduce", "regress"],
+      "resources": { "cpus": 4, "memory_gb": 8 }
+    },
+    {
+      "name": "min_vs_full",
+      "display_name": "AST: Minimal vs Full pipeline",
+      "language": "rust",
+      "fuzzer_engine": "libfuzzer",
+      "source_path": "tooling/ast_fuzzer",
+      "modes": ["fuzz", "coverage", "minimize", "reproduce", "regress"],
+      "resources": { "cpus": 4, "memory_gb": 8 }
+    },
+    {
+      "name": "pass_vs_prev",
+      "display_name": "AST: Pass vs Previous differential",
+      "language": "rust",
+      "fuzzer_engine": "libfuzzer",
+      "source_path": "tooling/ast_fuzzer",
+      "modes": ["fuzz", "coverage", "minimize", "reproduce", "regress"],
+      "resources": { "cpus": 4, "memory_gb": 8 }
+    },
+    {
+      "name": "orig_vs_morph",
+      "display_name": "AST: Original vs Morphed differential",
+      "language": "rust",
+      "fuzzer_engine": "libfuzzer",
+      "source_path": "tooling/ast_fuzzer",
+      "modes": ["fuzz", "coverage", "minimize", "reproduce", "regress"],
+      "resources": { "cpus": 4, "memory_gb": 8 }
+    },
+    {
+      "name": "comptime_vs_brillig_nargo",
+      "display_name": "AST: Comptime vs Brillig (nargo)",
+      "language": "rust",
+      "fuzzer_engine": "libfuzzer",
+      "source_path": "tooling/ast_fuzzer",
+      "modes": ["fuzz", "coverage", "minimize", "reproduce", "regress"],
+      "resources": { "cpus": 4, "memory_gb": 8 }
+    },
+    {
+      "name": "comptime_vs_brillig_direct",
+      "display_name": "AST: Comptime vs Brillig (direct)",
+      "language": "rust",
+      "fuzzer_engine": "libfuzzer",
+      "source_path": "tooling/ast_fuzzer",
+      "modes": ["fuzz", "coverage", "minimize", "reproduce", "regress"],
+      "resources": { "cpus": 4, "memory_gb": 8 }
+    }
+  ]
+}

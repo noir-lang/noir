@@ -1,0 +1,14 @@
+{
+  "schema": "2",
+  "targets": [
+    {
+      "name": "acir_vs_brillig",
+      "display_name": "SSA: ACIR vs Brillig differential",
+      "language": "rust",
+      "fuzzer_engine": "libfuzzer",
+      "source_path": "tooling/ssa_fuzzer",
+      "modes": ["fuzz", "coverage", "minimize", "reproduce", "regress"],
+      "resources": { "cpus": 4, "memory_gb": 8 }
+    }
+  ]
+}
