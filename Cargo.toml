@@ -260,7 +260,7 @@ insta = "1.47.2"
 trybuild = "1.0.116"
 proc-macro2 = "1.0"
 quote = "1.0"
-syn = "2.0"
+syn = "3.0"
 
 [profile.dev]
 # This is required to be able to run `cargo test` in acvm_js due to the `locals exceeds maximum` error.
