@@ -49,7 +49,7 @@
 //! when a normal lambda is compiled in an unconstrained context and uses types, such as references,
 //! which shouldn't leave the current context.
 use crate::ast::{FunctionKind, ItemVisibility, UnaryOp};
-use crate::hir::comptime::{InterpreterError, bigint_to_field};
+use crate::hir::comptime::InterpreterError;
 use crate::hir::type_check::NoMatchingImplFoundError;
 use crate::node_interner::{ExprId, GlobalValue, ImplSearchErrorKind, TraitItemId};
 use crate::recursion::TypeRecursionContext;
@@ -67,13 +67,13 @@ use crate::{
     node_interner::{self, DefinitionKind, NodeInterner, StmtId, TraitImplKind},
 };
 use crate::{NamedGeneric, TypeVariable, TypeVariableId};
-use acvm::{FieldElement, acir::AcirField};
 use ast::{GlobalId, IdentId, While};
 use fm::FileMap;
 use iter_extended::{btree_map, try_vecmap, vecmap};
 use itertools::Itertools;
 use noirc_errors::Location;
 use noirc_printable_type::PrintableType;
+use num_bigint::BigInt;
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 use std::rc::Rc;
 use std::{
@@ -844,7 +844,7 @@ impl<'interner> Monomorphizer<'interner> {
             HirExpression::Literal(HirLiteral::Integer(value)) => {
                 let location = self.interner.id_location(expr);
                 let typ = Self::convert_type(&self.interner.id_type(expr), location)?;
-                Literal(Integer(bigint_to_field(&value), typ, location))
+                Literal(Integer(value, typ, location))
             }
             HirExpression::Literal(HirLiteral::Array(array)) => match array {
                 HirArrayLiteral::Standard(array) => self.standard_array(expr, array, false)?,
@@ -1276,7 +1276,7 @@ impl<'interner> Monomorphizer<'interner> {
         let location = self.interner.expr_location(&id);
         let variants = unwrap_enum_type(typ, location)?;
 
-        let tag_value = FieldElement::from(constructor.variant_index);
+        let tag_value = BigInt::from(constructor.variant_index);
         let tag = ast::Literal::Integer(tag_value, ast::Type::Field, location);
         let mut fields = vec![ast::Expression::Literal(tag)];
 
@@ -1562,7 +1562,7 @@ impl<'interner> Monomorphizer<'interner> {
                     Ok(value) => {
                         let typ = Self::convert_type(&typ, location)?;
                         Ok(ast::Expression::Literal(ast::Literal::Integer(
-                            value.as_field(),
+                            value.to_bigint(),
                             typ,
                             location,
                         )))
@@ -1664,7 +1664,7 @@ impl<'interner> Monomorphizer<'interner> {
         }
 
         let typ = Self::convert_type(expected_type, location)?;
-        Ok(ast::Expression::Literal(ast::Literal::Integer(value.as_field(), typ, location)))
+        Ok(ast::Expression::Literal(ast::Literal::Integer(value.to_bigint(), typ, location)))
     }
 
     fn global_ident(
@@ -3093,9 +3093,9 @@ impl<'interner> Monomorphizer<'interner> {
                 // of the fact the Ordering struct contains a single Field type, and our SSA
                 // pass will automatically unpack tuple values.
                 let ordering_value = if matches!(operator.kind, Less | GreaterEqual) {
-                    FieldElement::zero() // Ordering::Less
+                    BigInt::ZERO // Ordering::Less
                 } else {
-                    2u128.into() // Ordering::Greater
+                    BigInt::from(2u128) // Ordering::Greater
                 };
 
                 let operator =

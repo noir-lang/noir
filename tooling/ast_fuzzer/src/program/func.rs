@@ -1,4 +1,3 @@
-use acir::FieldElement;
 use iter_extended::vecmap;
 use itertools::Itertools;
 use nargo::errors::Location;
@@ -2029,15 +2028,6 @@ impl<'a> FunctionContext<'a> {
         Ok(Some((expr, is_dyn)))
     }
 
-    /// Generate a random field that can be used in the match constructor of a numeric type.
-    fn gen_num_field(&self, u: &mut Unstructured, typ: &Type) -> arbitrary::Result<FieldElement> {
-        let literal = self.gen_literal(u, typ)?;
-        let Expression::Literal(Literal::Integer(field, _, _)) = literal else {
-            unreachable!("expected Literal::Integer; got {literal:?}");
-        };
-        Ok(field)
-    }
-
     /// Generate a match constructor for a numeric type.
     fn gen_num_match_constructor(
         &self,
@@ -2045,9 +2035,12 @@ impl<'a> FunctionContext<'a> {
         typ: &Type,
     ) -> arbitrary::Result<Constructor> {
         // TODO: Currently the parser does not seem to support the `Constructor::Range` syntax.
-        // When it does, we should generate either a field, or a range.
-        let constructor = Constructor::Int(self.gen_num_field(u, typ)?);
-        Ok(constructor)
+        // When it does, we should generate either an integer, or a range.
+        let literal = self.gen_literal(u, typ)?;
+        let Expression::Literal(Literal::Integer(value, _, _)) = literal else {
+            unreachable!("expected Literal::Integer; got {literal:?}");
+        };
+        Ok(Constructor::Int(value))
     }
 
     /// If this is main, and we could have made a call to another function, but we didn't,

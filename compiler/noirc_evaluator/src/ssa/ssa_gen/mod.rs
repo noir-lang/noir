@@ -5,6 +5,7 @@ mod value;
 
 use acvm::AcirField;
 use noirc_errors::call_stack::CallStack;
+use noirc_frontend::hir::comptime::bigint_to_field;
 use noirc_frontend::hir_def::expr::Constructor;
 use noirc_frontend::token::FmtStrFragment;
 pub use program::Ssa;
@@ -314,7 +315,7 @@ impl FunctionContext<'_> {
             ast::Literal::Integer(value, typ, location) => {
                 self.builder.set_location(*location);
                 let typ = Self::convert_non_tuple_type(typ).unwrap_numeric();
-                self.checked_numeric_constant(*value, typ).map(Into::into)
+                self.checked_numeric_constant(bigint_to_field(value), typ).map(Into::into)
             }
             ast::Literal::Bool(value) => {
                 // Don't need to call checked_numeric_constant here since `value` can only be true or false
@@ -1235,7 +1236,7 @@ impl FunctionContext<'_> {
         typ: NumericType,
     ) -> Result<ValueId, RuntimeError> {
         match constructor {
-            Constructor::Int(value) => self.checked_numeric_constant(*value, typ),
+            Constructor::Int(value) => self.checked_numeric_constant(bigint_to_field(value), typ),
             other => Ok(self.builder.numeric_constant(other.variant_index(), typ)),
         }
     }
