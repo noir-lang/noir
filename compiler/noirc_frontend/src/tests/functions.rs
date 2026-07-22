@@ -515,6 +515,8 @@ fn rejects_mutable_tuple_pattern_in_main_param() {
     fn main(mut (a, b): pub (Field, Field)) -> pub Field {
             ^^^^^^^^^^ Entry point parameter must use a simple identifier pattern
             ~~~~~~~~~~ Destructuring patterns are not allowed here; bind to a name and destructure inside the body
+                 ^ variable does not need to be mutable
+                    ^ variable does not need to be mutable
         a + b
     }
     "#;
@@ -742,4 +744,91 @@ fn error_on_empty_composite_array_param_and_out_of_bounds_index() {
     }
     "#;
     check_errors(src);
+}
+
+#[test]
+fn warns_on_unnecessary_mut_function_parameter() {
+    let src = r#"
+    fn foo(mut x: Field) -> Field {
+               ^ variable does not need to be mutable
+        x
+    }
+
+    fn main() {
+        assert(foo(1) == 1);
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn warns_on_unnecessary_mut_self_parameter() {
+    let src = r#"
+    struct Counter {
+        count: Field,
+    }
+
+    impl Counter {
+        fn count(mut self) -> Field {
+                     ^^^^ variable does not need to be mutable
+            self.count
+        }
+    }
+
+    fn main() {
+        let counter = Counter { count: 1 };
+        assert(counter.count() == 1);
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn does_not_warn_on_mutated_mut_function_parameter() {
+    let src = r#"
+    fn foo(mut x: Field) -> Field {
+        x = x + 1;
+        x
+    }
+
+    fn main() {
+        assert(foo(1) == 2);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn does_not_warn_on_unnecessary_mut_parameter_with_underscore_name() {
+    let src = r#"
+    fn foo(mut _x: Field) -> Field {
+        1
+    }
+
+    fn main() {
+        assert(foo(1) == 1);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn does_not_warn_on_unmutated_mut_reference_self_parameter() {
+    let src = r#"
+    struct Counter {
+        count: Field,
+    }
+
+    impl Counter {
+        fn count(&mut self) -> Field {
+            self.count
+        }
+    }
+
+    fn main() {
+        let mut counter = Counter { count: 1 };
+        assert(counter.count() == 1);
+    }
+    "#;
+    assert_no_errors(src);
 }
