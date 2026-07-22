@@ -317,7 +317,7 @@ no argument at that position.</p>
     block: <a class="type" href="../../ir/basic_block/type.BasicBlockId.html" title="type noirc_evaluator::ssa::ir::basic_block::BasicBlockId">BasicBlockId</a>,
     idx: <a class="primitive" href="https://doc.rust-lang.org/1.89.0/std/primitive.usize.html">usize</a>,
     mutator_id: <a class="struct" href="../../ir/map/struct.Id.html" title="struct noirc_evaluator::ssa::ir::map::Id">Id</a>&lt;<a class="enum" href="../../ir/instruction/enum.Instruction.html" title="enum noirc_evaluator::ssa::ir::instruction::Instruction">Instruction</a>&gt;,
-    write_index_const: <a class="enum" href="https://doc.rust-lang.org/1.89.0/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;<a class="type" href="../../../../acir_field/type.FieldElement.html" title="type acir_field::FieldElement">FieldElement</a>&gt;,
+    write_index_const: <a class="enum" href="https://doc.rust-lang.org/1.89.0/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;FieldElement&gt;,
     initial_derived: HashSet&lt;<a class="type" href="../../ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a>&gt;,
 ) -&gt; <a class="enum" href="https://doc.rust-lang.org/1.89.0/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;<a class="struct" href="struct.AliasedUse.html" title="struct noirc_evaluator::ssa::validation::rc_invariant::AliasedUse">AliasedUse</a>&gt;</h4></section></summary><div class="docblock"><p>Run the coverage narrowing + forward reachable-use walk for a single
 potential in-place mutation of <code>source</code> at <code>(block, idx)</code> (the
@@ -335,7 +335,7 @@ result; for a <code>call</code> argument they are <code>None</code> and the empt
     mutator_id: <a class="struct" href="../../ir/map/struct.Id.html" title="struct noirc_evaluator::ssa::ir::map::Id">Id</a>&lt;<a class="enum" href="../../ir/instruction/enum.Instruction.html" title="enum noirc_evaluator::ssa::ir::instruction::Instruction">Instruction</a>&gt;,
     mutator_block: <a class="type" href="../../ir/basic_block/type.BasicBlockId.html" title="type noirc_evaluator::ssa::ir::basic_block::BasicBlockId">BasicBlockId</a>,
     mutator_idx: <a class="primitive" href="https://doc.rust-lang.org/1.89.0/std/primitive.usize.html">usize</a>,
-    write_index_const: <a class="enum" href="https://doc.rust-lang.org/1.89.0/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;<a class="type" href="../../../../acir_field/type.FieldElement.html" title="type acir_field::FieldElement">FieldElement</a>&gt;,
+    write_index_const: <a class="enum" href="https://doc.rust-lang.org/1.89.0/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;FieldElement&gt;,
     initial_derived: HashSet&lt;<a class="type" href="../../ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a>&gt;,
 ) -&gt; <a class="enum" href="https://doc.rust-lang.org/1.89.0/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;<a class="struct" href="struct.AliasedUse.html" title="struct noirc_evaluator::ssa::validation::rc_invariant::AliasedUse">AliasedUse</a>&gt;</h4></section></summary><div class="docblock"><p>Forward CFG walk from after the <em>mutating instruction</em> — an
 <code>array_set</code>, or a <code>call</code> that may mutate an array argument in place at
