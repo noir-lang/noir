@@ -1,51 +1,66 @@
-//! Rewrites source code to remove imports that the elaborator determined are unused.
+//! Rewrites source code to apply fixes for warnings whose fix is a pure removal: the code the
+//! elaborator warned about is deleted or simplified, never added to.
 //!
-//! The entry point is [remove_unused_imports], which takes a file's source text, its parsed
-//! AST and the set of unused import names (as reported by
-//! [UsageTracker::unused_imports][crate::usage_tracker::UsageTracker::unused_imports]) and
-//! returns the source with those imports pruned. Composite `use` trees are rewritten rather
-//! than deleted: `use foo::{bar, baz};` with `baz` unused becomes `use foo::bar;`, and a
-//! `use` whose imports are all unused is deleted entirely (along with its line, when the
-//! line contains nothing else).
+//! The entry point is [apply_fixes], which takes a file's source text, its parsed AST and the
+//! set of [Fixes] to apply, and returns the rewritten source. The supported fixes are:
 //!
-//! Unused imports are identified by the imported name and its exact source location — the
-//! same `(Ident, Location)` key the usage tracker records — so two imports of the same name
-//! never alias each other.
+//! - **Unused imports** (as reported by
+//!   [UsageTracker::unused_imports][crate::usage_tracker::UsageTracker::unused_imports]).
+//!   Composite `use` trees are rewritten rather than deleted: `use foo::{bar, baz};` with
+//!   `baz` unused becomes `use foo::bar;`, and a `use` whose imports are all unused is
+//!   deleted entirely (along with its line, when the line contains nothing else). Unused
+//!   imports are identified by the imported name and its exact source location — the same
+//!   `(Ident, Location)` key the usage tracker records — so two imports of the same name
+//!   never alias each other.
+//! - **Unnecessary `mut` modifiers**, identified by the location of the binding's
+//!   identifier (the location `ResolverError::VariableDoesNotNeedToBeMutable` reports). The
+//!   `mut` keyword is deleted and the binding is left untouched.
 //!
 //! Pruned `use` trees are re-rendered with [UseTree]'s `Display` impl, which produces a
 //! single-line canonical form. Callers that want the result to respect a formatting style
 //! should run the formatter afterwards.
 //!
-//! Removal is deliberately a single round, not a fixpoint: it removes exactly the imports
-//! the elaborator reported for the given compilation. An import whose only consumer is
-//! another `use` statement's path (resolving a path marks its first segment as used) is only
+//! Fixing is deliberately a single round, not a fixpoint: it applies exactly the fixes the
+//! elaborator reported for the given compilation. An import whose only consumer is another
+//! `use` statement's path (resolving a path marks its first segment as used) is only
 //! reported unused — and thus only removed — after the consuming `use` has been removed and
 //! the program re-elaborated.
 
 use std::collections::HashSet;
 use std::ops::Range;
 
-use noirc_errors::Location;
+use noirc_errors::{Location, Span};
 
-use crate::ast::{Ident, ItemVisibility, Path, UseTree, UseTreeKind};
-use crate::parser::{Item, ItemKind, ParsedModule};
+use crate::ast::{Ident, ItemVisibility, Path, Pattern, UseTree, UseTreeKind, Visitor};
+use crate::parser::ParsedModule;
 
-/// Returns `source` with all imports in `unused_imports` removed, or `None` if there was
-/// nothing to remove. `parsed_module` must be the result of parsing `source`.
-pub fn remove_unused_imports(
-    source: &str,
-    parsed_module: &ParsedModule,
-    unused_imports: &HashSet<(Ident, Location)>,
-) -> Option<String> {
-    if unused_imports.is_empty() {
+/// The warnings to fix, identified the same way the elaborator reports them.
+#[derive(Debug, Default)]
+pub struct Fixes {
+    /// Unused imports, keyed by the imported name and its location — the same key
+    /// [UsageTracker::unused_imports][crate::usage_tracker::UsageTracker::unused_imports]
+    /// records.
+    pub unused_imports: HashSet<(Ident, Location)>,
+    /// Locations of binding identifiers whose `mut` modifier is unnecessary.
+    pub unnecessary_muts: HashSet<Location>,
+}
+
+impl Fixes {
+    pub fn is_empty(&self) -> bool {
+        self.unused_imports.is_empty() && self.unnecessary_muts.is_empty()
+    }
+}
+
+/// Returns `source` with all of `fixes` applied, or `None` if there was nothing to fix.
+/// `parsed_module` must be the result of parsing `source`.
+pub fn apply_fixes(source: &str, parsed_module: &ParsedModule, fixes: &Fixes) -> Option<String> {
+    if fixes.is_empty() {
         return None;
     }
 
-    let is_unused = |ident: &Ident| unused_imports.contains(&(ident.clone(), ident.location()));
-
-    let mut replacements = Vec::new();
-    let mut deletions = Vec::new();
-    collect_edits(&parsed_module.items, &is_unused, &mut replacements, &mut deletions);
+    let mut collector = FixCollector { fixes, replacements: Vec::new(), deletions: Vec::new() };
+    parsed_module.accept(&mut collector);
+    let FixCollector { replacements, mut deletions, .. } = collector;
     if replacements.is_empty() && deletions.is_empty() {
         return None;
     }
@@ -80,43 +95,59 @@ pub fn remove_unused_imports(
     Some(new_source)
 }
 
-/// Walks `items` (recursing into inline submodules) and records one edit per `use` item that
-/// contains at least one unused import: a replacement when some imports remain, a deletion of
-/// the item's span when none do.
-fn collect_edits(
-    items: &[Item],
-    is_unused: &dyn Fn(&Ident) -> bool,
-    replacements: &mut Vec<(Range<usize>, String)>,
-    deletions: &mut Vec<Range<usize>>,
-) {
-    for item in items {
-        match &item.kind {
-            ItemKind::Import(use_tree, visibility) => {
-                let (new_use_tree, removed_count) =
-                    use_tree_without_unused_imports(use_tree, is_unused);
-                if removed_count == 0 {
-                    continue;
-                }
+/// Walks the AST recording one edit per fixable warning: a replacement for a `use` item that
+/// keeps some of its imports, a deletion of the whole item's span for a `use` item with no
+/// imports left.
+struct FixCollector<'a> {
+    fixes: &'a Fixes,
+    replacements: Vec<(Range<usize>, String)>,
+    deletions: Vec<Range<usize>>,
+}
 
-                let span = item.location.span;
-                let range = span.start() as usize..span.end() as usize;
-                match new_use_tree {
-                    Some(use_tree) => {
-                        let replacement = if *visibility == ItemVisibility::Private {
-                            format!("use {use_tree};")
-                        } else {
-                            format!("{visibility} use {use_tree};")
-                        };
-                        replacements.push((range, replacement));
-                    }
-                    None => deletions.push(range),
-                }
-            }
-            ItemKind::Submodules(submodule) => {
-                collect_edits(&submodule.contents.items, is_unused, replacements, deletions);
-            }
-            _ => (),
+impl Visitor for FixCollector<'_> {
+    fn visit_import(&mut self, use_tree: &UseTree, span: Span, visibility: ItemVisibility) -> bool {
+        let is_unused =
+            |ident: &Ident| self.fixes.unused_imports.contains(&(ident.clone(), ident.location()));
+
+        let (new_use_tree, removed_count) = use_tree_without_unused_imports(use_tree, &is_unused);
+        if removed_count == 0 {
+            return false;
         }
+
+        let range = span.start() as usize..span.end() as usize;
+        match new_use_tree {
+            Some(use_tree) => {
+                let replacement = if visibility == ItemVisibility::Private {
+                    format!("use {use_tree};")
+                } else {
+                    format!("{visibility} use {use_tree};")
+                };
+                self.replacements.push((range, replacement));
+            }
+            None => self.deletions.push(range),
+        }
+
+        false
+    }
+
+    fn visit_mutable_pattern(
+        &mut self,
+        pattern: &Pattern,
+        span: Span,
+        is_synthesized: bool,
+    ) -> bool {
+        // `span` covers the whole `mut x` pattern while the identifier starts after the
+        // `mut`, so deleting up to the identifier deletes exactly the modifier. Synthesized
+        // patterns (e.g. desugared `self`) have no `mut` token in the source to delete.
+        if !is_synthesized
+            && let Pattern::Identifier(ident) = pattern
+            && self.fixes.unnecessary_muts.contains(&ident.location())
+        {
+            let range = span.start() as usize..ident.location().span.start() as usize;
+            self.replacements.push((range, String::new()));
+        }
+
+        true
     }
 }
 

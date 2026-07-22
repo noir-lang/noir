@@ -36,6 +36,7 @@ use noirc_evaluator::ssa::{
 };
 use noirc_frontend::elaborator::{FrontendOptions, UnstableFeature};
 use noirc_frontend::error_reporting::function_locations_in_parsed_module;
+use noirc_frontend::hir::def_collector::dc_crate::CompilationError;
 use noirc_frontend::hir::def_map::{CrateDefMap, ModuleDefId, ModuleId};
 use noirc_frontend::hir::{Context, ParsedFiles};
 use noirc_frontend::monomorphization::{
@@ -451,6 +452,17 @@ pub fn check_crate(
     crate_id: CrateId,
     options: &CompileOptions,
 ) -> CompilationResult<()> {
+    check_crate_returning_frontend_errors(context, crate_id, options).0
+}
+
+/// Like [check_crate], but also returns the typed frontend errors the diagnostics were
+/// rendered from, for callers that need to act on specific error kinds (e.g. `nargo check
+/// --fix` locating the code a fixable warning points at).
+pub fn check_crate_returning_frontend_errors(
+    context: &mut Context,
+    crate_id: CrateId,
+    options: &CompileOptions,
+) -> (CompilationResult<()>, Vec<CompilationError>) {
     if options.disable_comptime_printing {
         context.disable_comptime_printing();
     }
@@ -470,11 +482,12 @@ pub fn check_crate(
         })
         .collect();
 
-    if has_errors(&warnings_and_errors, options.deny_warnings) {
+    let result = if has_errors(&warnings_and_errors, options.deny_warnings) {
         Err(warnings_and_errors)
     } else {
         Ok(((), warnings_and_errors))
-    }
+    };
+    (result, diagnostics)
 }
 
 pub fn compute_function_abi(

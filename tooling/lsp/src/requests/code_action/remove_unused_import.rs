@@ -4,8 +4,8 @@ use noirc_errors::{Location, Span};
 use noirc_frontend::{
     ParsedModule,
     ast::{Ident, ItemVisibility, UseTree},
+    fix::use_tree_without_unused_imports,
     parser::{Item, ItemKind},
-    remove_unused_imports::use_tree_without_unused_imports,
 };
 
 use crate::byte_span_to_range;

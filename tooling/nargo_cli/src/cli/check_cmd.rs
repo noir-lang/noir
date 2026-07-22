@@ -18,14 +18,16 @@ use nargo::{
 use nargo_toml::PackageSelection;
 use noir_artifact_cli::fs::artifact::write_to_file;
 use noirc_abi::{AbiParameter, AbiType, MAIN_RETURN_NAME};
-use noirc_driver::{CompileOptions, check_crate, compute_function_abi};
+use noirc_driver::{
+    CompileOptions, check_crate, check_crate_returning_frontend_errors, compute_function_abi,
+};
 use noirc_errors::{CustomDiagnostic, Location};
 use noirc_frontend::{
-    ast::Ident,
+    fix::{Fixes, apply_fixes},
     graph::CrateId,
-    hir::{Context, ParsedFiles},
+    hir::resolution::errors::ResolverError,
+    hir::{Context, ParsedFiles, def_collector::dc_crate::CompilationError as FrontendError},
     monomorphization::monomorphize,
-    remove_unused_imports::remove_unused_imports,
 };
 
 use super::{LockType, PackageOptions, WorkspaceCommand};
@@ -48,11 +50,12 @@ pub(crate) struct CheckCommand {
     #[clap(long, hide = true)]
     show_program_hash: bool,
 
-    /// Rewrite the package's source files, removing any imports that are unused.
-    /// Removing an import can reveal further unused imports (ones only referenced by the
-    /// removed import); run the command again to remove those too.
+    /// Rewrite the package's source files, fixing any warnings whose fix is a pure removal:
+    /// unused imports are removed and unnecessary `mut` modifiers are dropped.
+    /// Applying a fix can reveal further fixable warnings (e.g. an import only referenced by
+    /// a removed import); run the command again to fix those too.
     #[clap(long, hide = true)]
-    remove_unused_imports: bool,
+    fix: bool,
 }
 
 impl WorkspaceCommand for CheckCommand {
@@ -97,7 +100,7 @@ pub(crate) fn run(args: CheckCommand, workspace: Workspace) -> Result<(), CliErr
             package,
             &args.compile_options,
             args.overwrite,
-            args.remove_unused_imports,
+            args.fix,
         )?;
     }
     Ok(())
@@ -111,21 +114,21 @@ fn check_package(
     package: &Package,
     compile_options: &CompileOptions,
     overwrite: bool,
-    remove_unused_imports: bool,
+    fix: bool,
 ) -> Result<(), CliError> {
     let (mut context, crate_id) = prepare_package(file_manager, parsed_files, package);
 
-    if remove_unused_imports {
-        let mut result = check_crate(&mut context, crate_id, compile_options);
+    if fix {
+        let (mut result, frontend_errors) =
+            check_crate_returning_frontend_errors(&mut context, crate_id, compile_options);
 
         // Only rewrite sources when the check succeeded: with compilation errors present the
-        // usage tracker's picture of the program is not reliable. Warnings for the imports
-        // that were just removed are dropped so they aren't reported for code that no longer
-        // exists.
+        // frontend's picture of the program is not reliable. Warnings for the code that was
+        // just fixed are dropped so they aren't reported for code that no longer exists.
         if let Ok((_, warnings)) = &mut result {
-            let removed_import_locations =
-                remove_unused_imports_from_package(&context, crate_id, parsed_files)?;
-            remove_fixed_import_warnings(warnings, &removed_import_locations);
+            let fixed_locations =
+                apply_fixes_to_package(&context, crate_id, parsed_files, &frontend_errors)?;
+            remove_fixed_warnings(warnings, &fixed_locations);
         }
 
         report_errors(
@@ -162,41 +165,59 @@ fn check_package(
     }
 }
 
-/// Rewrites the package's source files on disk, pruning every import the frontend reported as
-/// unused. Only files belonging to `crate_id` are touched, so dependencies are never modified.
-/// Returns the locations of the imports that were removed.
-fn remove_unused_imports_from_package(
+/// Rewrites the package's source files on disk, applying every removal-only fix the frontend
+/// reported: unused imports are pruned and unnecessary `mut` modifiers are dropped. Only
+/// files belonging to `crate_id` are touched, so dependencies are never modified. Returns the
+/// locations of the fixed warnings (the imports that were removed, the bindings whose `mut`
+/// was dropped).
+fn apply_fixes_to_package(
     context: &Context,
     crate_id: CrateId,
     parsed_files: &ParsedFiles,
+    frontend_errors: &[FrontendError],
 ) -> Result<HashSet<Location>, CliError> {
-    let mut unused_imports_per_file: HashMap<FileId, HashSet<(Ident, Location)>> = HashMap::new();
+    let mut fixes_per_file: HashMap<FileId, Fixes> = HashMap::new();
+
     for (module_id, unused_imports) in context.usage_tracker.unused_imports() {
         if module_id.krate != crate_id {
             continue;
         }
         for (ident, location) in unused_imports.keys() {
-            unused_imports_per_file
+            fixes_per_file
                 .entry(location.file)
                 .or_default()
+                .unused_imports
                 .insert((ident.clone(), *location));
         }
     }
 
+    let crate_files = context.crate_files(&crate_id);
+    for error in frontend_errors {
+        if let FrontendError::ResolverError(ResolverError::VariableDoesNotNeedToBeMutable {
+            ident,
+        }) = error
+        {
+            let location = ident.location();
+            if crate_files.contains(&location.file) {
+                fixes_per_file.entry(location.file).or_default().unnecessary_muts.insert(location);
+            }
+        }
+    }
+
     // Sort by path so files are reported in a deterministic order.
-    let mut file_ids: Vec<FileId> = unused_imports_per_file.keys().copied().collect();
+    let mut file_ids: Vec<FileId> = fixes_per_file.keys().copied().collect();
     file_ids.sort_by_key(|file_id| context.file_manager.path(*file_id).map(Path::to_path_buf));
 
-    let mut removed_import_locations = HashSet::new();
+    let mut fixed_locations = HashSet::new();
     for file_id in file_ids {
-        let unused_imports = &unused_imports_per_file[&file_id];
+        let fixes = &fixes_per_file[&file_id];
         let Some((parsed_module, _)) = parsed_files.get(&file_id) else {
             continue;
         };
         let Some(source) = context.file_manager.fetch_file(file_id) else {
             continue;
         };
-        let Some(new_source) = remove_unused_imports(source, parsed_module, unused_imports) else {
+        let Some(new_source) = apply_fixes(source, parsed_module, fixes) else {
             continue;
         };
         let Some(path) = context.file_manager.path(file_id) else {
@@ -205,26 +226,24 @@ fn remove_unused_imports_from_package(
         std::fs::write(path, new_source).map_err(|error| {
             CliError::Generic(format!("Failed to write {}: {error}", path.display()))
         })?;
-        println!("Removed unused imports from {}", path.display());
-        removed_import_locations.extend(unused_imports.iter().map(|(_ident, location)| *location));
+        println!("Fixed {}", path.display());
+        fixed_locations.extend(fixes.unused_imports.iter().map(|(_ident, location)| *location));
+        fixed_locations.extend(fixes.unnecessary_muts.iter().copied());
     }
 
-    Ok(removed_import_locations)
+    Ok(fixed_locations)
 }
 
-/// Removes from `warnings` the unused-import warnings that were just fixed: the ones whose
-/// label points at an import that was removed from the source. Other diagnostics (warnings at
+/// Removes from `warnings` the ones that were just fixed: the ones whose label points at code
+/// that was rewritten (a removed import, a dropped `mut`). Other diagnostics (warnings at
 /// other locations, and anything that is not a warning) are left untouched.
-fn remove_fixed_import_warnings(
+fn remove_fixed_warnings(
     warnings: &mut Vec<CustomDiagnostic>,
-    removed_import_locations: &HashSet<Location>,
+    fixed_locations: &HashSet<Location>,
 ) {
     warnings.retain(|diagnostic| {
         !(diagnostic.is_warning()
-            && diagnostic
-                .secondaries
-                .iter()
-                .any(|label| removed_import_locations.contains(&label.location)))
+            && diagnostic.secondaries.iter().any(|label| fixed_locations.contains(&label.location)))
     });
 }
 
@@ -277,7 +296,7 @@ mod tests {
     use noirc_abi::{AbiParameter, AbiType, AbiVisibility, Sign};
     use noirc_errors::{CustomDiagnostic, Location, Span};
 
-    use super::{create_input_toml_template, remove_fixed_import_warnings};
+    use super::{create_input_toml_template, remove_fixed_warnings};
 
     #[test]
     fn removes_only_warnings_at_removed_import_locations() {
@@ -304,7 +323,7 @@ mod tests {
 
         let mut warnings = vec![fixed_warning, unrelated_warning, error_at_removed_location];
         let removed_import_locations = HashSet::from([removed_location]);
-        remove_fixed_import_warnings(&mut warnings, &removed_import_locations);
+        remove_fixed_warnings(&mut warnings, &removed_import_locations);
 
         let messages: Vec<&str> =
             warnings.iter().map(|diagnostic| diagnostic.message.as_str()).collect();
