@@ -2327,7 +2327,7 @@ mod tests {
             v12 = cast v11 as u8
             v13 = load v6 -> u8
             v14 = not v5
-            v15 = cast v4 as u8
+            v15 = cast v5 as u8
             v16 = cast v14 as u8
             v17 = unchecked_mul v15, v12
             v18 = unchecked_mul v16, v13
@@ -2336,7 +2336,7 @@ mod tests {
             enable_side_effects v14
             v20 = load v6 -> u8
             v21 = cast v14 as u8
-            v22 = cast v4 as u8
+            v22 = cast v5 as u8
             v23 = unchecked_mul v22, v20
             store v23 at v6
             enable_side_effects u1 1
