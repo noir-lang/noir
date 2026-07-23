@@ -1594,17 +1594,27 @@ impl Elaborator<'_> {
     ) -> (HirExpression, Type) {
         let expr_location = if_expr.condition.type_location();
         let consequence_location = if_expr.consequence.type_location();
+        let constant_condition = match &if_expr.condition.kind {
+            ExpressionKind::Literal(Literal::Bool(value)) => Some(*value),
+            _ => None,
+        };
         let (condition, cond_type) = self.elaborate_expression(if_expr.condition);
-        let (consequence, mut ret_type) =
-            self.elaborate_expression_with_target_type(if_expr.consequence, target_type);
+        let (consequence, mut ret_type) = self.elaborate_expression_counting_loop_breaks(
+            if_expr.consequence,
+            target_type,
+            constant_condition != Some(false),
+        );
 
         self.unify_or_type_mismatch(&cond_type, &Type::Bool, expr_location);
 
         let (alternative, else_type, error_location) =
             if let Some(alternative) = if_expr.alternative {
                 let alternative_location = alternative.type_location();
-                let (else_, else_type) =
-                    self.elaborate_expression_with_target_type(alternative, target_type);
+                let (else_, else_type) = self.elaborate_expression_counting_loop_breaks(
+                    alternative,
+                    target_type,
+                    constant_condition != Some(true),
+                );
                 (Some(else_), else_type, alternative_location)
             } else {
                 (None, Type::Unit, consequence_location)
@@ -1630,6 +1640,22 @@ impl Elaborator<'_> {
 
         let if_expr = HirIfExpression { condition, consequence, alternative };
         (HirExpression::If(if_expr), ret_type)
+    }
+
+    fn elaborate_expression_counting_loop_breaks(
+        &mut self,
+        expr: Expression,
+        target_type: Option<&Type>,
+        count_breaks: bool,
+    ) -> (ExprId, Type) {
+        if count_breaks {
+            self.elaborate_expression_with_target_type(expr, target_type)
+        } else {
+            let current_loop = self.current_loop;
+            let result = self.elaborate_expression_with_target_type(expr, target_type);
+            self.current_loop = current_loop;
+            result
+        }
     }
 
     /// Elaborate a `match <expr> { <rules> }` expression by creating an block such as this:
