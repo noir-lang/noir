@@ -607,6 +607,7 @@ impl<'context> Elaborator<'context> {
         // (an error for this was already produced during name resolution). Here we assume the user
         // used the vector element type instead of a vector.
         let varargs_type = varargs_type.map(|typ| {
+            let typ = typ.follow_bindings();
             if matches!(typ, Type::Vector(..)) { typ } else { Type::Vector(Box::new(typ)) }
         });
 
@@ -617,7 +618,8 @@ impl<'context> Elaborator<'context> {
 
         for (i, arg) in arguments.into_iter().enumerate() {
             let arg_location = arg.location;
-            let param_type = parameters.get(i).or(varargs_elem_type).unwrap_or(&Type::Error);
+            let param_type =
+                parameters.get(i).or(varargs_elem_type.as_ref()).unwrap_or(&Type::Error);
 
             let mut push_arg = |arg| {
                 if i >= parameters.len() {

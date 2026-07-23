@@ -3239,9 +3239,9 @@ impl Type {
         go(self, f, TYPE_RECURSION_LIMIT);
     }
 
-    pub fn vector_element_type(&self) -> Option<&Type> {
-        match self {
-            Type::Vector(element) => Some(element),
+    pub fn vector_element_type(&self) -> Option<Type> {
+        match self.follow_bindings() {
+            Type::Vector(element) => Some(*element),
             _ => None,
         }
     }
