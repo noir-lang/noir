@@ -337,6 +337,19 @@ struct Context<'f> {
     /// swapped into `P` would make `P_k = Q_{k-1} = Q_k` and genuinely
     /// alias.
     ///
+    /// **Nested swap.** `Q` need not be a sibling parameter of `P`'s own
+    /// header: it may instead be the loop-carried parameter of a *nested* loop
+    /// header that re-freshens it every iteration (the back-edge `P ← Q`
+    /// threads out the inner loop's exit value). The freshening requirement
+    /// then applies to the *inner* loop's back-edge, and the back-edge-only
+    /// entry guard is replaced by a structural one — the inner loop is exited
+    /// only through its header's branch and the header does not read `Q`, so
+    /// the value threaded out is a header-entry value never read on its own
+    /// iteration. See `is_transitively_fresh_sibling` in [`Context::new`].
+    /// Because such a `Q` also carries a forward-edge alias of `P` into its own
+    /// loop, [`Context::find_reachable_aliased_use`] additionally marks it
+    /// *protected* so the forward walk never re-adds it.
+    ///
     /// **Forward propagation.** After recording, exclusions are pushed
     /// forward across non-back-edge parameter edges to a fixed point: on a
     /// forward edge `R ← P`, `R` *is* `P` within the same iteration, so `R`
@@ -499,11 +512,103 @@ impl<'f> Context<'f> {
         let fresh_array_values: HashSet<ValueId> =
             make_array_values.union(&call_result_values).copied().collect();
 
+        // Index each loop's block set by its header so the nested-sibling
+        // relaxation below can find the loop a swapped-in value heads.
+        let mut loops_by_header: HashMap<BasicBlockId, Vec<&BTreeSet<BasicBlockId>>> =
+            HashMap::default();
+        for l in &loops.yet_to_unroll {
+            loops_by_header.entry(l.header).or_default().push(&l.blocks);
+        }
+
+        // Whether `sibling` is a *distinct per-iteration storage* by virtue of
+        // being the loop-carried parameter of a **nested** loop header that
+        // re-freshens it every iteration — the transitive analog of the
+        // same-header freshening the swap exclusion already recognizes. It lets
+        // an outer back-edge swap `source ← sibling` drop `sibling` even though
+        // `sibling` is a parameter of a *different* header (and may itself carry
+        // a forward-edge alias of `source` into its own loop).
+        //
+        // All three conditions must hold:
+        //
+        // 1. `sibling` is a parameter (at `sib_pos`) of some loop header
+        //    `sib_header`, and on **every** back-edge into `sib_header` the arg
+        //    threaded into `sib_pos` is an iteration-local fresh allocation — so
+        //    each completed inner iteration rebinds `sibling` to distinct
+        //    storage.
+        // 2. The inner loop's only exit is its header's own branch (no loop
+        //    block other than `sib_header` has an edge leaving the loop). Then
+        //    the value threaded out of the loop is always a *header-entry* value
+        //    of the exiting iteration — the one on which the body did **not**
+        //    run.
+        // 3. `sib_header` itself does not read `sibling`. Combined with (2),
+        //    that header-entry exit value was never read on its own iteration,
+        //    while every in-loop read of `sibling` saw a distinct earlier
+        //    allocation (by (1)). So the storage the outer `array_set` later
+        //    mutates in place — the swapped-in exit value — has no live aliased
+        //    read, exactly as the same-header case guarantees.
+        let is_transitively_fresh_sibling = |sibling: ValueId| -> bool {
+            let Some((sib_header, sib_pos)) = loops_by_header.keys().find_map(|&h| {
+                function
+                    .dfg
+                    .block_parameters(h)
+                    .iter()
+                    .position(|&p| p == sibling)
+                    .map(|pos| (h, pos))
+            }) else {
+                return false;
+            };
+
+            // (1) Every back-edge re-freshens `sibling`.
+            let mut saw_back_edge = false;
+            for &(bs, h) in &back_edges {
+                if h != sib_header {
+                    continue;
+                }
+                saw_back_edge = true;
+                let Some(args) = incoming_edges
+                    .get(&sib_header)
+                    .and_then(|edges| edges.iter().find(|(pred, _)| *pred == bs))
+                    .map(|(_, args)| args)
+                else {
+                    return false;
+                };
+                if !args.get(sib_pos).is_some_and(|a| iteration_local_fresh.contains(a)) {
+                    return false;
+                }
+            }
+            if !saw_back_edge {
+                return false;
+            }
+
+            // (2) The loop is exited only through its header's branch.
+            for blocks in loops_by_header.get(&sib_header).into_iter().flatten() {
+                for &b in *blocks {
+                    if b != sib_header && cfg.successors(b).any(|s| !blocks.contains(&s)) {
+                        return false;
+                    }
+                }
+            }
+
+            // (3) The header does not read `sibling` (terminator args aside —
+            // those are the legitimate threading mechanism).
+            for &inst_id in function.dfg[sib_header].instructions() {
+                let mut reads_sibling = false;
+                function.dfg[inst_id].for_each_value(|v| reads_sibling |= v == sibling);
+                if reads_sibling {
+                    return false;
+                }
+            }
+
+            true
+        };
+
         // Swap exclusions. For every loop back-edge `be_start → header`,
         // inspect each array-typed header parameter at `source_pos`: if
-        // the back-edge rebinds it to a *sibling* header parameter
-        // (`source ← sibling`) whose own back-edge arg is an
-        // iteration-local fresh allocation, and the source and sibling
+        // the back-edge rebinds it to a *sibling* freshly-reallocated
+        // per-iteration storage (`source ← sibling`) — either a sibling
+        // header parameter freshened on its own back-edge, or a nested loop
+        // header's loop-carried parameter (see
+        // `is_transitively_fresh_sibling`) — and the source and sibling
         // receive distinct storage on every forward edge into the header,
         // record the sibling as excluded from the source's alias-set. See
         // [`Context::swap_excluded_aliases`].
@@ -527,13 +632,23 @@ impl<'f> Context<'f> {
                 if sibling == source_param {
                     continue;
                 }
-                let Some(sibling_pos) = params.iter().position(|&pp| pp == sibling) else {
-                    continue;
+                // The swapped-in sibling must be a *distinct per-iteration
+                // storage*. Two shapes qualify:
+                //  - **Same-header swap** (the #12929 relaxation): `sibling` is
+                //    another parameter of `header` whose own back-edge arg is an
+                //    iteration-local fresh allocation (the `c3 = [..]` /
+                //    `c3 = f()` half of the swap).
+                //  - **Nested swap**: `sibling` is the loop-carried parameter of
+                //    a *nested* loop header, re-freshened on that inner loop's
+                //    back-edge — see `is_transitively_fresh_sibling`.
+                let sibling_pos = params.iter().position(|&pp| pp == sibling);
+                let sibling_is_fresh = match sibling_pos {
+                    Some(pos) => {
+                        be_args.get(pos).is_some_and(|a| iteration_local_fresh.contains(a))
+                    }
+                    None => is_transitively_fresh_sibling(sibling),
                 };
-                // The sibling's own back-edge arg must be an
-                // iteration-local fresh allocation (the `c3 = [..]` or
-                // `c3 = f()` half of the swap).
-                if !be_args.get(sibling_pos).is_some_and(|a| iteration_local_fresh.contains(a)) {
+                if !sibling_is_fresh {
                     continue;
                 }
                 // Loop-entry guard. On every *forward* edge into the
@@ -564,12 +679,14 @@ impl<'f> Context<'f> {
                         if source_forward_aliases.contains(&sibling) {
                             return true;
                         }
-                        args.get(sibling_pos).is_some_and(|&sibling_forward_arg| {
-                            let sibling_forward_aliases = backward_set(sibling_forward_arg);
-                            source_forward_aliases
-                                .iter()
-                                .any(|x| sibling_forward_aliases.contains(x))
-                        })
+                        sibling_pos.and_then(|sp| args.get(sp)).is_some_and(
+                            |&sibling_forward_arg| {
+                                let sibling_forward_aliases = backward_set(sibling_forward_arg);
+                                source_forward_aliases
+                                    .iter()
+                                    .any(|x| sibling_forward_aliases.contains(x))
+                            },
+                        )
                     });
                 if entry_aliased {
                     continue;
@@ -1152,7 +1269,7 @@ impl<'f> Context<'f> {
         // the loop-header parameter on the back-edge, since the value
         // threaded back is this protected participant rather than a
         // still-live alias.
-        let protected: im::HashSet<ValueId> = alias_set
+        let mut protected: im::HashSet<ValueId> = alias_set
             .iter()
             .copied()
             .filter(|&v| {
@@ -1161,6 +1278,16 @@ impl<'f> Context<'f> {
                     && self.back_edge_participants.contains(&v)
             })
             .collect();
+        // A swap-excluded sibling is a distinct per-iteration storage
+        // ([`Context::swap_excluded_aliases`]); besides being dropped from the
+        // seed alias-set in [`Context::alias_set_for`], it must never be
+        // *re-added* to the use-set by the forward walk's add-rule when the
+        // source flows into it on a forward edge (the nested swap feeds
+        // `sibling ← source` on the inner loop's entry edge). Marking it
+        // protected keeps it out for the whole walk.
+        if let Some(excluded) = self.swap_excluded_aliases.get(&source) {
+            protected.extend(excluded.iter().copied());
+        }
         let use_set: im::HashSet<ValueId> =
             alias_set.iter().copied().filter(|v| !protected.contains(v)).collect();
 
