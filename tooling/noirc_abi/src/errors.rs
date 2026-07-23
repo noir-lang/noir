@@ -30,6 +30,8 @@ pub enum InputParserError {
     AbiTypeMismatch(String, AbiType),
     #[error("Expected argument `{0}`, but none was found")]
     MissingArgument(String),
+    #[error("Received input arguments not expected by ABI: {0:?}")]
+    UnexpectedArguments(Vec<String>),
 }
 
 impl From<toml::ser::Error> for InputParserError {
