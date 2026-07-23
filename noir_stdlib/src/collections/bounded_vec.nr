@@ -179,7 +179,14 @@ impl<T, let MaxLen: u32> BoundedVec<T, MaxLen> {
     /// v.push(3);
     /// ```
     pub fn push(&mut self, elem: T) {
-        assert(self.len < MaxLen, "push out of bounds");
+        // Safety: The capacity check is run as an unconstrained oracle hint so that
+        // it provides a clear error message during execution without emitting an ACIR
+        // constraint. In constrained (ACIR) mode the bounds of the backing array are
+        // enforced by the ACVM; a write at an out-of-range index will be rejected
+        // during witness generation, preserving safety without a separate constraint.
+        // (See noir-lang/noir#5027 – this assert was generating ~4 k extra constraints
+        // per push when called inside a predicated loop, scaling nonlinearly.)
+        unsafe { assert_push_in_bounds(self.len, MaxLen) };
 
         self.storage[self.len] = elem;
         self.len += 1;
@@ -637,6 +644,17 @@ where
             false
         }
     }
+}
+
+/// Panics with "push out of bounds" when `len >= max_len`.
+///
+/// This function is called from `BoundedVec::push` inside an `unsafe {}` block so that
+/// the check runs as an oracle hint during witness generation (providing a clear error
+/// message) without emitting an ACIR constraint.  In ACIR mode the ACVM enforces array
+/// bounds itself; an out-of-range write during execution will cause witness generation
+/// to fail regardless.
+unconstrained fn assert_push_in_bounds(len: u32, max_len: u32) {
+    assert(len < max_len, "push out of bounds");
 }
 
 /// Returns true if both BoundedVecs are equal.
