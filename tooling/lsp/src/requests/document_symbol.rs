@@ -11,8 +11,9 @@ use noirc_frontend::ast::TraitBound;
 use noirc_frontend::{
     ParsedModule,
     ast::{
-        Expression, FunctionReturnType, Ident, LetStatement, NoirFunction, NoirStruct, NoirTrait,
-        NoirTraitImpl, TypeAlias, TypeImpl, UnresolvedType, UnresolvedTypeData, Visitor,
+        Expression, FunctionReturnType, Ident, LetStatement, ModuleDeclaration, NoirEnumeration,
+        NoirFunction, NoirStruct, NoirTrait, NoirTraitImpl, TypeAlias, TypeImpl, UnresolvedType,
+        UnresolvedTypeData, Visitor,
     },
     parser::ParsedSubModule,
 };
@@ -208,6 +209,68 @@ impl Visitor for DocumentSymbolCollector<'_> {
             name: noir_struct.name.to_string(),
             detail: None,
             kind: SymbolKind::STRUCT,
+            tags: None,
+            deprecated: None,
+            range: location.range,
+            selection_range: selection_location.range,
+            children: Some(children),
+        });
+
+        false
+    }
+
+    fn visit_noir_enum(&mut self, noir_enum: &NoirEnumeration, span: Span) -> bool {
+        if noir_enum.name.is_empty() {
+            return false;
+        }
+
+        let Some(location) = self.to_lsp_location(span) else {
+            return false;
+        };
+
+        let Some(selection_location) = self.to_lsp_location(noir_enum.name.span()) else {
+            return false;
+        };
+
+        let mut children = Vec::new();
+        for variant in &noir_enum.variants {
+            let variant_name = &variant.item.name;
+
+            let mut span = variant_name.span();
+
+            // If there are parameters, extend the span to include the last parameter type.
+            if let Some(parameters) = &variant.item.parameters
+                && let Some(typ) = parameters.last()
+            {
+                span = Span::from(span.start()..typ.location.span.end());
+            }
+
+            let Some(variant_location) = self.to_lsp_location(span) else {
+                continue;
+            };
+
+            let Some(variant_name_location) = self.to_lsp_location(variant_name.span()) else {
+                continue;
+            };
+
+            #[allow(deprecated)]
+            children.push(DocumentSymbol {
+                name: variant_name.to_string(),
+                detail: None,
+                kind: SymbolKind::ENUM_MEMBER,
+                tags: None,
+                deprecated: None,
+                range: variant_location.range,
+                selection_range: variant_name_location.range,
+                children: None,
+            });
+        }
+
+        #[allow(deprecated)]
+        self.symbols.push(DocumentSymbol {
+            name: noir_enum.name.to_string(),
+            detail: None,
+            kind: SymbolKind::ENUM,
             tags: None,
             deprecated: None,
             range: location.range,
@@ -505,6 +568,32 @@ impl Visitor for DocumentSymbolCollector<'_> {
         false
     }
 
+    fn visit_module_declaration(&mut self, module_declaration: &ModuleDeclaration, span: Span) {
+        if module_declaration.ident.is_empty() {
+            return;
+        }
+
+        let Some(name_location) = self.to_lsp_location(module_declaration.ident.span()) else {
+            return;
+        };
+
+        let Some(location) = self.to_lsp_location(span) else {
+            return;
+        };
+
+        #[allow(deprecated)]
+        self.symbols.push(DocumentSymbol {
+            name: module_declaration.ident.to_string(),
+            detail: None,
+            kind: SymbolKind::MODULE,
+            tags: None,
+            deprecated: None,
+            range: location.range,
+            selection_range: name_location.range,
+            children: None,
+        });
+    }
+
     fn visit_global(&mut self, global: &LetStatement, span: Span) -> bool {
         let name = global.pattern.to_string();
         if name.is_empty() {
@@ -763,6 +852,56 @@ impl SomeTrait<i32> for SomeStruct {
         assert!(symbol.children.is_none());
         assert_eq!(test_utils::text_at(src, symbol.range), "type MyAlias = (i32, bool);");
         assert_eq!(test_utils::text_at(src, symbol.selection_range), "MyAlias");
+    }
+
+    #[test]
+    fn test_document_symbol_for_enum_with_variants() {
+        let src = r#"enum Color {
+    Red,
+    Rgb(u8, u8, u8),
+}
+"#;
+        let symbols = get_document_symbols(src);
+
+        assert_eq!(symbols.len(), 1);
+        let symbol = &symbols[0];
+        assert_eq!(symbol.name, "Color");
+        assert_eq!(symbol.kind, SymbolKind::ENUM);
+        assert_eq!(
+            test_utils::text_at(src, symbol.range),
+            "enum Color {\n    Red,\n    Rgb(u8, u8, u8),\n}"
+        );
+        assert_eq!(test_utils::text_at(src, symbol.selection_range), "Color");
+
+        let children = symbol.children.as_ref().expect("Expected children");
+        assert_eq!(children.len(), 2);
+
+        let variant = &children[0];
+        assert_eq!(variant.name, "Red");
+        assert_eq!(variant.kind, SymbolKind::ENUM_MEMBER);
+        assert_eq!(test_utils::text_at(src, variant.range), "Red");
+        assert_eq!(test_utils::text_at(src, variant.selection_range), "Red");
+
+        let variant = &children[1];
+        assert_eq!(variant.name, "Rgb");
+        assert_eq!(variant.kind, SymbolKind::ENUM_MEMBER);
+        // The variant's range extends through the end of its last parameter type.
+        assert_eq!(test_utils::text_at(src, variant.range), "Rgb(u8, u8, u8");
+        assert_eq!(test_utils::text_at(src, variant.selection_range), "Rgb");
+    }
+
+    #[test]
+    fn test_document_symbol_for_module_declaration() {
+        let src = "mod foo;\n";
+        let symbols = get_document_symbols(src);
+
+        assert_eq!(symbols.len(), 1);
+        let symbol = &symbols[0];
+        assert_eq!(symbol.name, "foo");
+        assert_eq!(symbol.kind, SymbolKind::MODULE);
+        assert!(symbol.children.is_none());
+        assert_eq!(test_utils::text_at(src, symbol.range), "mod foo;");
+        assert_eq!(test_utils::text_at(src, symbol.selection_range), "foo");
     }
 
     #[test]
