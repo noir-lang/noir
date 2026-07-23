@@ -41,6 +41,21 @@ pub(super) struct FunctionContext {
     /// All `ExprId` in a function that correspond to integer literals.
     /// At the end, if they don't fit in their type's min/max range, we'll produce an error.
     integer_literal_expr_ids: Vec<ExprId>,
+
+    /// Casts to `Field` or `bool` whose source type is re-checked at the end of the
+    /// function, after type variables have been defaulted. Deferring lets us catch
+    /// casts whose source was still polymorphic at the time of the cast but became
+    /// signed (for `Field` casts) or numeric (for `bool` casts) via later constraints.
+    deferred_cast_checks: Vec<DeferredCastCheck>,
+}
+
+/// A cast whose source type is re-checked at the end of the function.
+#[derive(Debug)]
+enum DeferredCastCheck {
+    /// `from as Field`: error if `from` ends up signed.
+    SignedToField { from: Type, location: Location },
+    /// `from as bool`: error if `from` ends up numeric.
+    NumericToBool { from: Type, location: Location },
 }
 
 /// A type variable that is required to be bound after type-checking a function.
@@ -165,6 +180,26 @@ impl Elaborator<'_> {
         self.get_function_context_mut().integer_literal_expr_ids.truncate(len);
     }
 
+    /// Defer the signedness check of an `_ as Field` cast to the end of the function,
+    /// after unification and defaulting have run. This catches sources that were
+    /// polymorphic at cast time but later resolved to a signed integer.
+    #[tracing::instrument(level = "trace", skip_all)]
+    pub(super) fn push_signed_to_field_cast(&mut self, from: Type, location: Location) {
+        self.get_function_context_mut()
+            .deferred_cast_checks
+            .push(DeferredCastCheck::SignedToField { from, location });
+    }
+
+    /// Defer the numericness check of an `_ as bool` cast to the end of the function,
+    /// after unification and defaulting have run. This catches sources that were
+    /// polymorphic at cast time but later resolved to a numeric type.
+    #[tracing::instrument(level = "trace", skip_all)]
+    pub(super) fn push_numeric_to_bool_cast(&mut self, from: Type, location: Location) {
+        self.get_function_context_mut()
+            .deferred_cast_checks
+            .push(DeferredCastCheck::NumericToBool { from, location });
+    }
+
     #[tracing::instrument(level = "trace", skip_all)]
     fn get_function_context_mut(&mut self) -> &mut FunctionContext {
         let context = self.function_context.last_mut();
@@ -184,6 +219,7 @@ impl Elaborator<'_> {
         self.bind_type_variables_from_trait_constraints(&context.trait_constraints);
         self.check_defaultable_type_variables(context.defaultable_type_variables);
         self.check_integer_literal_fit_their_type(context.integer_literal_expr_ids);
+        self.check_deferred_cast_checks(context.deferred_cast_checks);
         self.check_trait_constraints(context.trait_constraints);
         self.check_required_type_variables(context.required_type_variables);
     }
@@ -217,6 +253,26 @@ impl Elaborator<'_> {
             if let Type::TypeVariable(variable) = typ.follow_bindings() {
                 let msg = "TypeChecker should only track defaultable type vars";
                 variable.bind(variable.kind().default_type().expect(msg));
+            }
+        }
+    }
+
+    #[tracing::instrument(level = "trace", skip_all)]
+    fn check_deferred_cast_checks(&mut self, checks: Vec<DeferredCastCheck>) {
+        for check in checks {
+            match check {
+                DeferredCastCheck::SignedToField { from, location } => {
+                    if from.is_signed() {
+                        self.push_err(TypeCheckError::UnsupportedFieldCast { location });
+                    }
+                }
+                DeferredCastCheck::NumericToBool { from, location } => {
+                    let typ = from.follow_bindings();
+                    let from_is_numeric = matches!(typ, Type::Integer(..) | Type::FieldElement);
+                    if from_is_numeric {
+                        self.push_err(TypeCheckError::CannotCastNumericToBool { typ, location });
+                    }
+                }
             }
         }
     }
