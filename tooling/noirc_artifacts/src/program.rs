@@ -17,9 +17,11 @@ use super::{deserialize_hash, serialize_hash};
 pub struct ProgramArtifact {
     pub noir_version: String,
 
-    /// Hash of the monomorphized program from which this [`ProgramArtifact`] was compiled.
+    /// Hash of the monomorphized program and compile options from which this [`ProgramArtifact`]
+    /// was compiled.
     ///
-    /// Used to short-circuit compilation in the case of the source code not changing since the last compilation.
+    /// Used to short-circuit compilation when neither the source code nor relevant compile options
+    /// have changed.
     #[serde(serialize_with = "serialize_hash", deserialize_with = "deserialize_hash")]
     pub hash: u64,
 
@@ -71,10 +73,11 @@ impl From<ProgramArtifact> for CompiledProgram {
 #[derive(Debug, Serialize, Deserialize, Clone, Hash)]
 pub struct CompiledProgram {
     pub noir_version: String,
-    /// Hash of the Program (`noirc_frontend::monomorphization::ast::Program`) from which this [`CompiledProgram`]
-    /// was compiled.
+    /// Hash of the Program (`noirc_frontend::monomorphization::ast::Program`) and compile options
+    /// from which this [`CompiledProgram`] was compiled.
     ///
-    /// Used to short-circuit compilation in the case of the source code not changing since the last compilation.
+    /// Used to short-circuit compilation when neither the source code nor relevant compile options
+    /// have changed.
     pub hash: u64,
 
     #[serde(
