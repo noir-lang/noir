@@ -12,7 +12,7 @@ use noirc_frontend::{
     ParsedModule,
     ast::{
         Expression, FunctionReturnType, Ident, LetStatement, NoirFunction, NoirStruct, NoirTrait,
-        NoirTraitImpl, TypeImpl, UnresolvedType, UnresolvedTypeData, Visitor,
+        NoirTraitImpl, TypeAlias, TypeImpl, UnresolvedType, UnresolvedTypeData, Visitor,
     },
     parser::ParsedSubModule,
 };
@@ -439,6 +439,34 @@ impl Visitor for DocumentSymbolCollector<'_> {
         false
     }
 
+    fn visit_noir_type_alias(&mut self, type_alias: &TypeAlias, span: Span) -> bool {
+        if type_alias.name.is_empty() {
+            return false;
+        }
+
+        let Some(location) = self.to_lsp_location(span) else {
+            return false;
+        };
+
+        let Some(selection_location) = self.to_lsp_location(type_alias.name.span()) else {
+            return false;
+        };
+
+        #[allow(deprecated)]
+        self.symbols.push(DocumentSymbol {
+            name: type_alias.name.to_string(),
+            detail: None,
+            kind: SymbolKind::TYPE_PARAMETER,
+            tags: None,
+            deprecated: None,
+            range: location.range,
+            selection_range: selection_location.range,
+            children: None,
+        });
+
+        false
+    }
+
     fn visit_parsed_submodule(&mut self, parsed_sub_module: &ParsedSubModule, span: Span) -> bool {
         if parsed_sub_module.name.is_empty() {
             return false;
@@ -721,6 +749,20 @@ impl SomeTrait<i32> for SomeStruct {
         assert_eq!(test_utils::text_at(src, symbol.range), "impl i32 {}");
         assert_eq!(test_utils::text_at(src, symbol.selection_range), "i32");
         assert_eq!(symbol.children.as_deref(), Some(&[][..]));
+    }
+
+    #[test]
+    fn test_document_symbol_for_type_alias() {
+        let src = "type MyAlias = (i32, bool);\n";
+        let symbols = get_document_symbols(src);
+
+        assert_eq!(symbols.len(), 1);
+        let symbol = &symbols[0];
+        assert_eq!(symbol.name, "MyAlias");
+        assert_eq!(symbol.kind, SymbolKind::TYPE_PARAMETER);
+        assert!(symbol.children.is_none());
+        assert_eq!(test_utils::text_at(src, symbol.range), "type MyAlias = (i32, bool);");
+        assert_eq!(test_utils::text_at(src, symbol.selection_range), "MyAlias");
     }
 
     #[test]
