@@ -257,7 +257,8 @@ impl<'local> SsaBuilder<'local> {
         let skip = self.skip_passes.iter().any(|s| msg.contains(s));
 
         if !skip {
-            self.ssa = time(&msg, self.print_codegen_timings, || pass(self.ssa))?;
+            self.ssa = tracing::trace_span!("ssa_pass", pass = %msg)
+                .in_scope(|| time(&msg, self.print_codegen_timings, || pass(self.ssa)))?;
             if self.validate_between_passes {
                 self.ssa = validate_ssa_or_err(self.ssa, false).map_err(|e| match e {
                     RuntimeError::SsaValidationError { message, call_stack } => {
