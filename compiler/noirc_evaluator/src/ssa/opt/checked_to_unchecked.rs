@@ -3,11 +3,19 @@
 //!
 //! Signed checked binary operations should have already been converted to unchecked ones with
 //! an explicit overflow check during [`super::expand_signed_checks`].
+//!
+//! In ACIR functions this pass additionally elides the overflow check of an intermediate checked
+//! `add` whose single-use result feeds a later checked `add` in the same block (issue #7161): over
+//! the field an overflow of the intermediate forces the dominating add to overflow, so the later
+//! range check rejects the same inputs. ACIR-only because Brillig wraps and traps per-op, so eliding
+//! would move the failure point (mirrors `check_u128_mul_overflow`'s runtime split).
 use acvm::AcirField as _;
 use rustc_hash::FxHashMap as HashMap;
+use rustc_hash::FxHashSet as HashSet;
 
 use crate::ssa::{
     ir::{
+        basic_block::BasicBlockId,
         dfg::DataFlowGraph,
         function::Function,
         instruction::{Binary, BinaryOp, Instruction},
@@ -35,6 +43,15 @@ impl Function {
 
         let mut value_max_num_bits = HashMap::<ValueId, u32>::default();
 
+        // Results of intermediate checked adds whose overflow is dominated by a later checked add
+        // in the same block (issue #7161). Empty for Brillig functions — see the module docs for
+        // why the dominated-elision reasoning is ACIR-only.
+        let dominated_add_checks = if self.runtime().is_acir() {
+            self.dominated_intermediate_add_checks()
+        } else {
+            HashSet::default()
+        };
+
         self.simple_optimization(|context| {
             let instruction = context.instruction();
             let Instruction::Binary(binary) = instruction else {
@@ -47,6 +64,9 @@ impl Function {
             let NumericType::Unsigned { .. } = lhs_type else {
                 return;
             };
+
+            // The result of the current instruction (a single-result binary op).
+            let result = context.dfg.instruction_results(context.instruction_id)[0];
 
             let dfg = &context.dfg;
 
@@ -61,7 +81,11 @@ impl Function {
                     //    we get `2^(n-1) - 1 + 2^(n-1) - 1`, so `2*(2^(n-1)) - 2`,
                     //    so `2^n - 2` which fits in `0..2^n`.
                     // In that case, `lhs` and `rhs` have both been casted up from smaller types and so cannot overflow.
-                    max_lhs_bits < bit_size && max_rhs_bits < bit_size
+                    (max_lhs_bits < bit_size && max_rhs_bits < bit_size)
+                        // Dominated-check elision (#7161, ACIR only): this add's overflow is
+                        // caught by a later checked add in the same block that consumes its
+                        // (single-use) result. See the module docs for the soundness argument.
+                        || dominated_add_checks.contains(&result)
                 }
                 BinaryOp::Sub { unchecked: false } => {
                     // True when an unsigned subtraction `lhs - rhs` is guaranteed not to underflow.
@@ -116,6 +140,85 @@ impl Function {
                 }));
             }
         });
+    }
+}
+
+impl Function {
+    /// Intermediate checked-`add` results whose overflow check is dominated by a later checked `add`
+    /// and can be elided (issue #7161). ACIR-only; see the module docs.
+    ///
+    /// An intermediate add's result is elidable when it is used exactly once (so its un-range-checked
+    /// value cannot leak), that use is an operand of a checked `add` in the same block under the same
+    /// side-effects predicate (a checked range check is applied to `predicate · result`, so a
+    /// differing predicate could make the dominating check vacuous), and it is unsigned. The consumer
+    /// is restricted to `add` for monotonicity (`mul`'s other operand may be `0`, `sub` decreases).
+    fn dominated_intermediate_add_checks(&self) -> HashSet<ValueId> {
+        let dfg = &self.dfg;
+
+        // Count uses of every value across all instructions and block terminators. A value is only
+        // ever elidable if it is used exactly once, so this global count is the primary filter.
+        let mut use_count = HashMap::<ValueId, u32>::default();
+        for block_id in self.reachable_blocks() {
+            let block = &dfg[block_id];
+            for instruction_id in block.instructions() {
+                dfg[*instruction_id].for_each_value(|value| {
+                    *use_count.entry(value).or_default() += 1;
+                });
+            }
+            if let Some(terminator) = block.terminator() {
+                terminator.for_each_value(|value| {
+                    *use_count.entry(value).or_default() += 1;
+                });
+            }
+        }
+
+        // For each checked-add result defined in a block, remember the (block, predicate epoch) at
+        // which it was defined. The epoch is bumped by every `EnableSideEffectsIf`, so two ops share
+        // an epoch iff no predicate change occurred between them within the block.
+        let mut checked_add_def = HashMap::<ValueId, (BasicBlockId, u32)>::default();
+        let mut elidable = HashSet::default();
+
+        for block_id in self.reachable_blocks() {
+            let block = &dfg[block_id];
+            let mut epoch = 0_u32;
+            for instruction_id in block.instructions() {
+                let instruction = &dfg[*instruction_id];
+
+                if matches!(instruction, Instruction::EnableSideEffectsIf { .. }) {
+                    epoch += 1;
+                    continue;
+                }
+
+                if let Instruction::Binary(Binary {
+                    lhs,
+                    rhs,
+                    operator: BinaryOp::Add { unchecked: false },
+                }) = instruction
+                {
+                    // If either operand is a checked-add result defined earlier in *this* block at
+                    // the *same* predicate epoch, used exactly once (i.e. only here), and is
+                    // unsigned, then its overflow is dominated by this add — elide its check.
+                    for operand in [*lhs, *rhs] {
+                        if use_count.get(&operand).copied() == Some(1)
+                            && checked_add_def.get(&operand) == Some(&(block_id, epoch))
+                            && matches!(
+                                dfg.type_of_value(operand).unwrap_numeric(),
+                                NumericType::Unsigned { .. }
+                            )
+                        {
+                            elidable.insert(operand);
+                        }
+                    }
+
+                    // Record this add's own result so a still-later add can dominate it in turn.
+                    if let [result] = dfg.instruction_results(*instruction_id) {
+                        checked_add_def.insert(*result, (block_id, epoch));
+                    }
+                }
+            }
+        }
+
+        elidable
     }
 }
 
@@ -341,6 +444,190 @@ mod tests {
             v5 = unchecked_mul v3, v4
             v6 = unchecked_mul v2, v5
             return v6
+        }
+        ");
+    }
+
+    // ----- #7161: overflow-check elision dominated by a later checked add (ACIR only) -----
+
+    #[test]
+    fn elides_intermediate_add_check_dominated_by_later_add() {
+        // The intermediate `v2 = add v0, 1`'s overflow is dominated by the later checked
+        // `v3 = add v2, 1`: over the field, if `v2` overflows then `v3` overflows too, so `v3`'s
+        // range check rejects exactly the inputs `v2`'s would have. `v2`'s check is elided; `v3`'s
+        // check is kept.
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u32):
+            v2 = add v0, u32 1
+            v3 = add v2, u32 1
+            return v3
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.checked_to_unchecked();
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: u32):
+            v2 = unchecked_add v0, u32 1
+            v3 = add v2, u32 1
+            return v3
+        }
+        ");
+    }
+
+    #[test]
+    fn elides_only_the_intermediate_checks_in_a_longer_add_chain() {
+        // A 3-add chain: the two intermediate adds are elided, the final (dominating) add keeps its
+        // check.
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u32):
+            v2 = add v0, u32 1
+            v3 = add v2, u32 1
+            v4 = add v3, u32 1
+            return v4
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.checked_to_unchecked();
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: u32):
+            v2 = unchecked_add v0, u32 1
+            v3 = unchecked_add v2, u32 1
+            v4 = add v3, u32 1
+            return v4
+        }
+        ");
+    }
+
+    #[test]
+    fn does_not_elide_when_intermediate_value_is_used_more_than_once() {
+        // `v2` is used both by the dominating add AND returned directly. Removing `v2`'s range check
+        // would leave the returned value un-range-checked, changing the accepted inputs / output.
+        // So the intermediate check must be kept.
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u32):
+            v2 = add v0, u32 1
+            v3 = add v2, u32 1
+            return v2, v3
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.checked_to_unchecked();
+        // v2's check must remain checked (multi-use); only the semantics-preserving cases fire.
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: u32):
+            v2 = add v0, u32 1
+            v3 = add v2, u32 1
+            return v2, v3
+        }
+        ");
+    }
+
+    #[test]
+    fn does_not_elide_when_dominating_consumer_is_a_subtraction() {
+        // `sub` is not monotone, so an overflow of `v2` is not guaranteed to be re-detected. Keep
+        // the intermediate check.
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u32):
+            v2 = add v0, u32 1
+            v3 = sub v2, u32 1
+            return v3
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.checked_to_unchecked();
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: u32):
+            v2 = add v0, u32 1
+            v3 = sub v2, u32 1
+            return v3
+        }
+        ");
+    }
+
+    #[test]
+    fn does_not_elide_dominated_check_in_brillig() {
+        // In Brillig, arithmetic wraps at bit_size and a checked op traps at its own location.
+        // Eliding the intermediate check would change the observable failure point, so the pass
+        // must NOT elide dominated checks in Brillig functions.
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: u32):
+            v2 = add v0, u32 1
+            v3 = add v2, u32 1
+            return v3
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.checked_to_unchecked();
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) fn main f0 {
+          b0(v0: u32):
+            v2 = add v0, u32 1
+            v3 = add v2, u32 1
+            return v3
+        }
+        ");
+    }
+
+    #[test]
+    fn does_not_elide_across_an_enable_side_effects_boundary() {
+        // An `enable_side_effects` between the intermediate add and its consumer changes the
+        // side-effects predicate: the consumer's overflow check may be vacuous (predicate 0) on
+        // paths where the intermediate's was active, so the intermediate check must be kept.
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u32, v1: u1):
+            v2 = add v0, u32 1
+            enable_side_effects v1
+            v3 = add v2, u32 1
+            return v3
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.checked_to_unchecked();
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: u32, v1: u1):
+            v3 = add v0, u32 1
+            enable_side_effects v1
+            v4 = add v3, u32 1
+            return v4
+        }
+        ");
+    }
+
+    #[test]
+    fn does_not_elide_across_a_block_boundary() {
+        // The dominating add is in a different block; the same-block restriction rejects it (the
+        // pass conservatively does not perform inter-block dominance analysis).
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u32):
+            v2 = add v0, u32 1
+            jmp b1(v2)
+          b1(v3: u32):
+            v4 = add v3, u32 1
+            return v4
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.checked_to_unchecked();
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: u32):
+            v3 = add v0, u32 1
+            jmp b1(v3)
+          b1(v1: u32):
+            v4 = add v1, u32 1
+            return v4
         }
         ");
     }
