@@ -665,6 +665,79 @@ mod tests {
     };
 
     #[test]
+    fn does_not_change_observable_failure_when_folding_grown_vector_access() {
+        use crate::ssa::interpreter::value::Value;
+        use crate::ssa::ir::types::NumericType;
+        use acvm::{AcirField, FieldElement};
+
+        // Regression test for a `noir_ast_fuzzer` `pass_vs_prev` failure
+        // (seed 0xa5a003b100100000).
+        //
+        // `v26` is a vector grown with `vector_push_back`: its physical backing store is longer
+        // than its semantic length. `array_get v26, index u32 2` reads one of those physical
+        // slots, so it is in-bounds at run time (the interpreter, matching ACIR memory semantics,
+        // reads it without error and goes on to trap on the later `mod u32 1, u32 0`).
+        //
+        // When this pass replaces `v26` (reached under a disabled predicate) with a defaulted
+        // vector, it must size that vector to the physical backing, not the shorter semantic
+        // length. Sizing it to the semantic length turns the in-bounds `array_get` into an
+        // out-of-bounds access, which is then folded into a "Index out of bounds" failure,
+        // changing the program's observable failure from "Division by zero" to "Index out of
+        // bounds". An SSA pass must preserve observable behavior.
+        let src = r#"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v2: Field, v3: Field):
+            v4 = make_array [] : [Field]
+            v6 = eq v2, Field 225967642115539960012221635256858803230
+            v8 = eq v2, Field 118735782721991324342889561718915530269
+            v9 = unchecked_mul v6, v8
+            enable_side_effects v9
+            v12 = mod u32 20239, u32 0
+            v13 = array_get v4, index v12 -> Field
+            v14 = mul v13, Field 3
+            v15 = mul v14, Field 3
+            v16 = mul v15, Field 3
+            v17 = make_array [v14, v15, v16] : [Field]
+            v18 = array_get v17, index v12 -> Field
+            v19 = mul v18, Field 3
+            v20 = make_array [v14, v15, v16] : [Field]
+            v21 = array_set v20, index u32 0, value v19
+            v22 = mul v19, Field 3
+            v25, v26 = call vector_push_back(u32 1, v21, v22) -> (u32, [Field])
+            enable_side_effects u1 1
+            v29 = array_get v26, index u32 2 -> Field
+            v30 = mod u32 1, u32 0
+            return v29
+        }
+        "#;
+
+        let args = || {
+            vec![Value::from_constant(FieldElement::zero(), NumericType::NativeField).unwrap(); 2]
+        };
+
+        let before = Ssa::from_str(src).unwrap().interpret(args()).unwrap_err().to_string();
+        assert!(
+            before.contains("Division by zero"),
+            "expected the unoptimized program to fail with a division by zero, got:\n{before}"
+        );
+
+        let after = Ssa::from_str(src)
+            .unwrap()
+            .remove_unreachable_instructions()
+            .interpret(args())
+            .unwrap_err()
+            .to_string();
+        // The pass may legitimately fold the guaranteed `mod _, 0` into a constraint, so the
+        // failure can be reported as a "divisor of zero" constraint rather than the raw
+        // `DivisionByZero`; both describe the same observable failure. What it must NOT do is
+        // turn the in-bounds `array_get` into an "Index out of bounds" failure.
+        assert!(
+            !after.contains("Index out of bounds") && after.to_lowercase().contains("zero"),
+            "remove_unreachable_instructions changed the observable failure to:\n{after}"
+        );
+    }
+
+    #[test]
     fn removes_unreachable_instructions_in_block_for_constrain_equal() {
         let src = r#"
         acir(inline) predicate_pure fn main f0 {

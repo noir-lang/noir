@@ -771,14 +771,24 @@ impl DataFlowGraph {
 
                 if let Value::Intrinsic(intrinsic) = &self[*func] {
                     use crate::ssa::ir::instruction::Intrinsic;
-                    // Try to get the semantic length, if it's a known constant.
-                    // It should be okay to use the semantic length; for example the ValueMerger would get fewer items.
-                    let length = self
+                    // The semantic length, if it's a known constant.
+                    let semantic_length = self
                         .get_numeric_constant(arguments[0])
                         .map(|length| length.to_u128() as u32)
                         .map(SemanticLength);
-                    // Otherwise fall back to the physical capacity.
-                    let length = length.or_else(|| self.try_get_vector_capacity(arguments[1]));
+                    // The physical capacity of the input vector, if known.
+                    let physical_capacity = self.try_get_vector_capacity(arguments[1]);
+                    // Take the larger of the two: a vector's physical backing store can be longer
+                    // than its semantic length (e.g. it was grown without shrinking the capacity),
+                    // and constant-index accesses read the physical slots. Using only the semantic
+                    // length here would under-size a defaulted replacement vector and turn an
+                    // in-bounds access into a (spurious) out-of-bounds one.
+                    let length = match (semantic_length, physical_capacity) {
+                        (Some(semantic), Some(physical)) => {
+                            Some(SemanticLength(semantic.0.max(physical.0)))
+                        }
+                        (semantic, physical) => semantic.or(physical),
+                    };
                     // Then adjust it. Note that this handling of PushBack assumes that even if
                     // the dynamic semantic length was less than the capacity, we will grow the vector.
                     if let Some(base) = length {
