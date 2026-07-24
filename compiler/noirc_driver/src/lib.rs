@@ -17,7 +17,7 @@ use noirc_artifacts::contract::{CompiledContract, CompiledContractOutputs, Contr
 use noirc_artifacts::debug::{DebugFile, DebugInfo, FunctionLocation};
 use noirc_artifacts::program::CompiledProgram;
 use noirc_artifacts::ssa::{InternalBug, InternalWarning, SsaReport};
-use noirc_errors::CustomDiagnostic;
+use noirc_errors::{CustomDiagnostic, Location};
 use noirc_evaluator::brillig::brillig_ir::{
     LayoutConfig, MAX_SCRATCH_SPACE, MAX_STACK_FRAME_SIZE, MIN_SCRATCH_SPACE, MIN_STACK_FRAME_SIZE,
     NUM_STACK_FRAMES,
@@ -514,8 +514,10 @@ pub fn compile_main(
         compile_no_check(context, options, main, cached_program, options.force_compile)
             .map_err(|error| vec![CustomDiagnostic::from(error)])?;
 
-    let compilation_warnings =
-        vecmap(compiled_program.warnings.clone(), ssa_report_to_custom_diagnostic);
+    let compilation_warnings = vecmap(
+        filter_allowed_ssa_warnings(context, compiled_program.warnings.clone()),
+        ssa_report_to_custom_diagnostic,
+    );
 
     if options.deny_warnings && !compilation_warnings.is_empty() {
         return Err(compilation_warnings);
@@ -572,8 +574,10 @@ pub fn compile_contract(
         }
     };
 
-    let compilation_warnings =
-        vecmap(compiled_contract.warnings.clone(), ssa_report_to_custom_diagnostic);
+    let compilation_warnings = vecmap(
+        filter_allowed_ssa_warnings(context, compiled_contract.warnings.clone()),
+        ssa_report_to_custom_diagnostic,
+    );
     warnings.extend(drop_silenced_warnings(compilation_warnings, options));
 
     if options.deny_warnings && !warnings.is_empty() {
@@ -991,6 +995,29 @@ fn drop_silenced_warnings(
         .into_iter()
         .filter(|diagnostic| !options.silence_warnings || !diagnostic.is_warning())
         .collect()
+}
+
+/// Drops the SSA warnings the user opted out of with a scoped `#[allow(...)]`.
+///
+/// Backend warnings such as `return_constant` are raised during ACIR generation, after
+/// source attributes are gone, so an `#[allow]` can only be honored by matching the
+/// warning's call stack against the body spans of the functions that carry the attribute.
+fn filter_allowed_ssa_warnings(context: &Context, warnings: Vec<SsaReport>) -> Vec<SsaReport> {
+    let allow_return_constant = context.def_interner.function_bodies_allowing("return_constant");
+    warnings
+        .into_iter()
+        .filter(|warning| !ssa_warning_is_allowed(warning, &allow_return_constant))
+        .collect()
+}
+
+fn ssa_warning_is_allowed(warning: &SsaReport, allow_return_constant: &[Location]) -> bool {
+    match warning {
+        SsaReport::Warning(InternalWarning::ReturnConstant { call_stack }) => call_stack
+            .as_ref()
+            .iter()
+            .any(|location| allow_return_constant.iter().any(|body| body.contains(location))),
+        _ => false,
+    }
 }
 
 fn ssa_report_to_custom_diagnostic(error: SsaReport) -> CustomDiagnostic {

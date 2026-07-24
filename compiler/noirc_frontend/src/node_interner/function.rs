@@ -209,4 +209,20 @@ impl NodeInterner {
     pub fn function_attributes(&self, func_id: &FuncId) -> &Attributes {
         &self.function_modifiers[func_id].attributes
     }
+
+    /// Returns the body [`Location`] of every function annotated with `#[allow(<name>)]`.
+    ///
+    /// Diagnostics produced after monomorphization (for example the `return_constant`
+    /// warning raised during ACIR generation) cannot inspect source attributes at the
+    /// point they are emitted. Matching such a diagnostic's call stack against these
+    /// spans recovers the `#[allow]` that should silence it.
+    pub fn function_bodies_allowing(&self, name: &'static str) -> Vec<Location> {
+        self.function_modifiers
+            .iter()
+            .filter(|(_, modifiers)| modifiers.attributes.has_allow(name))
+            .filter_map(|(func_id, _)| {
+                self.function(func_id).try_as_expr().map(|body| self.expr_location(&body))
+            })
+            .collect()
+    }
 }
