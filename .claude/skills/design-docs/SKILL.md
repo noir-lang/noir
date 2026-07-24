@@ -7,8 +7,21 @@ description: How to write and maintain entries in the `design/` directory. Use w
 
 The `design/` directory records **why** the Noir language, compiler, and tooling work the
 way they do. It is a decision record aimed at a contributor, not user-facing documentation
-(that lives in `docs/docs`). Follow these rules when writing or editing a `design/*.md`
-file.
+(that lives in `docs/docs`).
+
+Beyond the explicit decisions, describe how the feature is **expected to behave** in enough
+detail that an external party — someone who has not read the code — could compare the doc
+against the implementation and find where they disagree. The doc is the specification the
+implementation is checked against; prose so vague that nothing could contradict it does not
+serve that purpose. Cover the normal behaviour, the edge cases, and how the feature
+interacts with the parts of the system around it.
+
+When the intended behaviour is meant to **match an existing system** — for example Rust's
+`#[allow]` / `#[deny]` lint levels — say so explicitly and link to that system's
+documentation. That tells a reader where the reference behaviour is defined so they can
+check the match, and flags what should change here if that system changes.
+
+Follow these rules when writing or editing a `design/*.md` file.
 
 ## Describe the present, not the history
 
