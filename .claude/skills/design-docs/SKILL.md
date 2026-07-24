@@ -41,6 +41,20 @@ it. Every sentence must still make sense and be verifiable against the current c
 sentence only lands for someone who remembers the previous state or the PR that changed it,
 cut or rewrite it.
 
+## Sketch the intended future state when the feature is partial
+
+When a design doc describes a feature that isn't fully built yet, close the file with a
+short section (e.g. "Intended direction") describing the desired end state, so a reader
+knows the current design is a stepping stone rather than the whole picture. This is not the
+PR/task progress banned above: it describes *where the design is headed*, not *which PR
+added what*. Keep it lean:
+
+- Summarise the end state in a few sentences and **link to a tracking issue** for the full
+  plan whenever one exists.
+- If the section starts to grow, that is the signal that its content belongs in a tracking
+  issue: move it there and leave only a short pointer here. A design doc records the
+  decision in force plus a lean sketch of the direction — it is not a roadmap.
+
 ## Reference the code with a relative link
 
 When a design doc discusses code, link to the file it describes so a reader can open it and
