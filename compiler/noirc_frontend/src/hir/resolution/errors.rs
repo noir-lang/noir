@@ -157,6 +157,10 @@ pub enum ResolverError {
     MacroIsNotComptime { location: Location },
     #[error("Annotation name must refer to a comptime function")]
     NonFunctionInAnnotation { location: Location },
+    #[error(
+        "Comptime attributes are not supported on trait method declarations without a default implementation"
+    )]
+    ComptimeAttributeOnTraitMethodWithoutBody { location: Location },
     #[error("Type `{typ}` was inserted into the generics list from a macro, but is not a generic")]
     MacroResultInGenericsListNotAGeneric { location: Location, typ: Type },
     #[error("Named type arguments aren't allowed in a {item_kind}")]
@@ -315,6 +319,7 @@ impl ResolverError {
             | ResolverError::InvalidSyntaxInMacroCall { location }
             | ResolverError::MacroIsNotComptime { location }
             | ResolverError::NonFunctionInAnnotation { location }
+            | ResolverError::ComptimeAttributeOnTraitMethodWithoutBody { location }
             | ResolverError::MacroResultInGenericsListNotAGeneric { location, .. }
             | ResolverError::NamedTypeArgs { location, .. }
             | ResolverError::AssociatedConstantsMustBeNumeric { location }
@@ -844,6 +849,13 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                 Diagnostic::simple_error(
                     "Unknown annotation".into(),
                     "The name of an annotation must refer to a comptime function".into(),
+                    *location,
+                )
+            },
+            ResolverError::ComptimeAttributeOnTraitMethodWithoutBody { location } => {
+                Diagnostic::simple_error(
+                    "Comptime attributes are not supported on trait method declarations without a default implementation".into(),
+                    "Give this method a default implementation, or move the attribute onto the method in each impl, for it to run".into(),
                     *location,
                 )
             },

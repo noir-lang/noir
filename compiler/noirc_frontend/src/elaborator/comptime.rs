@@ -21,7 +21,7 @@ use noirc_errors::Location;
 use crate::{
     Type, TypeBindings,
     ast::{
-        Documented, Expression, ExpressionKind, TypeImpl, UnresolvedGenerics,
+        Documented, Expression, ExpressionKind, TraitItem, TypeImpl, UnresolvedGenerics,
         UnresolvedTraitConstraint, UnresolvedType,
     },
     hir::{
@@ -267,6 +267,7 @@ impl<'context> Elaborator<'context> {
         types: &BTreeMap<TypeId, UnresolvedStruct>,
         functions: &[UnresolvedFunctions],
         impls: &ImplMap,
+        trait_impls: &[UnresolvedTraitImpl],
         module_attributes: &[ModuleAttribute],
     ) -> CollectedAttributes {
         let mut attributes_to_run = Vec::new();
@@ -282,6 +283,8 @@ impl<'context> Elaborator<'context> {
                 None,
                 &mut attributes_to_run,
             );
+
+            self.collect_attributes_on_trait_methods(trait_, &mut attributes_to_run);
         }
 
         for (struct_id, struct_def) in types {
@@ -299,6 +302,7 @@ impl<'context> Elaborator<'context> {
 
         self.collect_attributes_on_functions(functions, None, &mut attributes_to_run);
         self.collect_attributes_on_impls(impls, &mut attributes_to_run);
+        self.collect_attributes_on_trait_impls(trait_impls, &mut attributes_to_run);
         self.collect_attributes_on_modules(module_attributes, &mut attributes_to_run);
 
         self.sort_attributes_by_run_order(&mut attributes_to_run);
@@ -366,6 +370,50 @@ impl<'context> Elaborator<'context> {
         }
     }
 
+    /// Collect comptime attributes on the methods of each trait `impl`.
+    ///
+    /// Attributes are routed back onto the impl's object type (via [`AttributeImplTarget`]) so a
+    /// macro-generated function becomes a method of that type, mirroring
+    /// [`Self::collect_attributes_on_impls`] for inherent impls.
+    ///
+    /// Methods inherited from a trait's default implementation are skipped: they reuse the trait's
+    /// own `FuncId`, so their attributes are already collected once at the trait definition by
+    /// [`Self::collect_attributes_on_trait_methods`]. Collecting them again here would run the
+    /// attribute a second time per impl.
+    #[tracing::instrument(level = "trace", skip_all)]
+    fn collect_attributes_on_trait_impls(
+        &mut self,
+        trait_impls: &[UnresolvedTraitImpl],
+        attributes_to_run: &mut CollectedAttributes,
+    ) {
+        for trait_impl in trait_impls {
+            let impl_target = AttributeImplTarget {
+                object_type: trait_impl.object_type.clone(),
+                generics: trait_impl.generics.clone(),
+                where_clause: trait_impl.where_clause.clone(),
+                type_location: trait_impl.object_type.location,
+            };
+
+            self.self_type = trait_impl.methods.self_type.clone();
+
+            for (local_module, function_id, function) in &trait_impl.methods.functions {
+                if trait_impl.inherited_default_method_func_ids.contains(function_id) {
+                    continue;
+                }
+                let context = AttributeContext::new(*local_module);
+                let attributes = function.secondary_attributes();
+                let item = Value::FunctionDefinition(*function_id);
+                self.collect_comptime_attributes_on_item(
+                    attributes,
+                    item,
+                    context,
+                    Some(&impl_target),
+                    attributes_to_run,
+                );
+            }
+        }
+    }
+
     #[tracing::instrument(level = "trace", skip_all)]
     fn collect_attributes_on_functions(
         &mut self,
@@ -387,6 +435,53 @@ impl<'context> Elaborator<'context> {
                     impl_target,
                     attributes_to_run,
                 );
+            }
+        }
+    }
+
+    /// Collect comptime attributes on a trait's default methods, and reject them on bodyless
+    /// method declarations.
+    ///
+    /// Only default-bodied methods have a body for the attribute to run against; the item passed to
+    /// the attribute is the method's [`Value::FunctionDefinition`], matching how impl and top-level
+    /// function attributes are run. A comptime attribute on a bodyless declaration has nothing to run
+    /// against, so it is reported as an error rather than silently skipped.
+    ///
+    /// Methods are walked in source order (their order in the trait body) so that collected
+    /// attributes tie-break deterministically, as required by the ordering invariant documented in
+    /// `design/comptime.md`.
+    #[tracing::instrument(level = "trace", skip_all)]
+    fn collect_attributes_on_trait_methods(
+        &mut self,
+        trait_: &UnresolvedTrait,
+        attributes_to_run: &mut CollectedAttributes,
+    ) {
+        let context = AttributeContext::new(trait_.module_id);
+        for trait_item in &trait_.trait_def.items {
+            let TraitItem::Function { name, body, attributes, .. } = &trait_item.item else {
+                continue;
+            };
+            let Some(func_id) = trait_.method_ids.get(name.as_str()) else {
+                continue;
+            };
+
+            if body.is_some() {
+                let item = Value::FunctionDefinition(*func_id);
+                self.collect_comptime_attributes_on_item(
+                    &attributes.secondary,
+                    item,
+                    context,
+                    None,
+                    attributes_to_run,
+                );
+            } else {
+                for attribute in &attributes.secondary {
+                    if matches!(attribute.kind, SecondaryAttributeKind::Meta(_)) {
+                        self.push_err(ResolverError::ComptimeAttributeOnTraitMethodWithoutBody {
+                            location: attribute.location,
+                        });
+                    }
+                }
             }
         }
     }
@@ -929,10 +1024,17 @@ impl<'context> Elaborator<'context> {
         types: &BTreeMap<TypeId, UnresolvedStruct>,
         functions: &[UnresolvedFunctions],
         impls: &ImplMap,
+        trait_impls: &[UnresolvedTraitImpl],
         module_attributes: &[ModuleAttribute],
     ) {
-        let attributes_to_run =
-            self.collect_all_attributes_to_run(traits, types, functions, impls, module_attributes);
+        let attributes_to_run = self.collect_all_attributes_to_run(
+            traits,
+            types,
+            functions,
+            impls,
+            trait_impls,
+            module_attributes,
+        );
 
         // Execute each collected attribute
         for attr in attributes_to_run {
