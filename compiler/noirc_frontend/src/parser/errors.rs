@@ -103,6 +103,8 @@ pub enum ParserErrorReason {
         found
     )]
     WrongNumberOfAttributeArguments { name: String, min: usize, max: usize, found: usize },
+    #[error("Unknown lint `{name}` in `allow` attribute")]
+    UnknownLint { name: String },
     #[error(
         "The `deprecated` attribute expects two optional arguments: `deny` and/or a string literal message"
     )]
@@ -306,6 +308,11 @@ impl<'a> From<&'a ParserError> for Diagnostic {
                 ParserErrorReason::ExpectedMutAfterAmpersand { found } => Diagnostic::simple_error(
                     format!("Expected `mut` after `&`, found `{found}`"),
                     "Noir doesn't have immutable references, only mutable references".to_string(),
+                    error.location(),
+                ),
+                ParserErrorReason::UnknownLint { name } => Diagnostic::simple_warning(
+                    format!("Unknown lint `{name}` in `allow` attribute"),
+                    "This lint is not recognised, so the `allow` has no effect".into(),
                     error.location(),
                 ),
                 ParserErrorReason::MissingSafetyComment => Diagnostic::simple_warning(

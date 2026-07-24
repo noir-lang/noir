@@ -51,6 +51,7 @@
 use crate::ast::{FunctionKind, ItemVisibility, UnaryOp};
 use crate::hir::comptime::{InterpreterError, bigint_to_field};
 use crate::hir::type_check::NoMatchingImplFoundError;
+use crate::lint::Lint;
 use crate::node_interner::{ExprId, GlobalValue, ImplSearchErrorKind, TraitItemId};
 use crate::recursion::TypeRecursionContext;
 use crate::shared::{ForeignCall, Visibility};
@@ -653,7 +654,7 @@ impl<'interner> Monomorphizer<'interner> {
         };
 
         let attributes = self.interner.function_attributes(&f);
-        let allow_constant_return = attributes.has_allow("constant_return");
+        let allow_constant_return = attributes.has_allow(Lint::ConstantReturn);
         let mut inline_type = InlineType::from(attributes);
         let unconstrained = self.in_unconstrained_function;
         if unconstrained {
