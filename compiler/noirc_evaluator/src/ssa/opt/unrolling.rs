@@ -2163,6 +2163,18 @@ impl<'f> LoopIteration<'f> {
             "expected to encounter loop header when visiting blocks"
         );
 
+        // Like every other pass that rewrites values through a `FunctionInserter`, the data
+        // bus must be re-resolved so it never references a value the inserter has remapped.
+        // Since `self` (and its inserter) are dropped after this method, this is the last
+        // chance to do so.
+        //
+        // This is defensive: the frontend only ever places data bus values (the call-data
+        // array, its index-map keys, and the return-data array) in blocks outside any loop,
+        // which unrolling does not remap. But were such a value to reach the data bus,
+        // skipping this would silently turn call-data reads into ordinary memory reads, so we
+        // keep the bus in sync unconditionally.
+        self.inserter.map_data_bus_in_place();
+
         (end_block, all_args)
     }
 
@@ -2752,6 +2764,52 @@ mod tests {
             v5 = add v0, u32 2
             jmp b1(v5)
           b3():
+            return
+        }
+        ");
+    }
+
+    #[test]
+    fn unroll_remaps_data_bus_values() {
+        // The call-data `index_map` is keyed on `v3`, a loop-header parameter carrying the
+        // call-data array, and `v3`'s pre-header argument is the real parameter `v0`.
+        // Unrolling remaps `v3` to `v0`, so the data bus must be updated to match: the
+        // unrolled `array_get`s read from `v0`, and if the bus still pointed at the (now
+        // dead) `v3`, ACIR generation would silently treat them as ordinary memory reads
+        // instead of call-data reads.
+        let src = "
+            acir(inline) fn main f0 {
+              call_data(0): array: v1, indices: [v3: 0]
+              b0(v0: [Field; 2]):
+                v1 = make_array [Field 0, Field 0] : [Field; 2]
+                jmp b1(u32 0, v0)
+              b1(v2: u32, v3: [Field; 2]):
+                v4 = lt v2, u32 2
+                jmpif v4 then: b2(), else: b3()
+              b2():
+                v5 = array_get v3, index v2 -> Field
+                constrain v5 == Field 0
+                v6 = add v2, u32 1
+                jmp b1(v6, v3)
+              b3():
+                return
+            }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let (ssa, errors) = try_unroll_loops(ssa);
+        assert_eq!(errors.len(), 0, "All loops should be unrolled");
+
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          call_data(0): array: v2, indices: [v0: 0]
+          b0(v0: [Field; 2]):
+            v2 = make_array [Field 0, Field 0] : [Field; 2]
+            v4 = array_get v0, index u32 0 -> Field
+            constrain v4 == Field 0
+            v6 = array_get v0, index u32 1 -> Field
+            constrain v6 == Field 0
+            jmp b1()
+          b1():
             return
         }
         ");
