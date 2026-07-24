@@ -12,6 +12,7 @@ mod entry_point_size;
 mod enums;
 mod expand;
 mod expressions;
+mod fix;
 mod functions;
 mod globals;
 mod imports;
