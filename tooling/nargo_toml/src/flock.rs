@@ -15,9 +15,8 @@ impl FileLock {
         let file = OpenOptions::new().create(true).truncate(false).write(true).open(file_path)?;
         if fs2::FileExt::try_lock_exclusive(&file).is_err() {
             eprintln!("Waiting for lock on {lock_name}...");
+            fs2::FileExt::lock_exclusive(&file)?;
         }
-
-        fs2::FileExt::lock_exclusive(&file)?;
 
         Ok(Self { file })
     }
