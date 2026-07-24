@@ -17,8 +17,11 @@
 
 use std::fmt;
 
+use strum::IntoEnumIterator;
+use strum_macros::EnumIter;
+
 /// A lint the compiler knows about and that can be named in `#[allow(...)]`.
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, EnumIter)]
 pub enum Lint {
     /// Item is never used (`dead_code`).
     DeadCode,
@@ -29,9 +32,6 @@ pub enum Lint {
 }
 
 impl Lint {
-    /// Every lint in the registry.
-    pub const ALL: &'static [Lint] = &[Lint::DeadCode, Lint::UnusedVariables, Lint::UnusedMut];
-
     /// The stable, human-readable slug used to refer to this lint in source
     /// (e.g. `#[allow(dead_code)]`).
     pub fn slug(self) -> &'static str {
@@ -44,7 +44,7 @@ impl Lint {
 
     /// Look up a lint by its slug, returning `None` if the slug is not recognised.
     pub fn from_slug(slug: &str) -> Option<Lint> {
-        Lint::ALL.iter().copied().find(|lint| lint.slug() == slug)
+        Lint::iter().find(|lint| lint.slug() == slug)
     }
 }
 
@@ -57,10 +57,11 @@ impl fmt::Display for Lint {
 #[cfg(test)]
 mod tests {
     use super::Lint;
+    use strum::IntoEnumIterator;
 
     #[test]
     fn slug_round_trips() {
-        for &lint in Lint::ALL {
+        for lint in Lint::iter() {
             assert_eq!(Lint::from_slug(lint.slug()), Some(lint));
         }
     }
