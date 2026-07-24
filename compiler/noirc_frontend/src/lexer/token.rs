@@ -5,6 +5,7 @@ use std::fmt::{self, Display};
 use crate::{
     ast::{Expression, Path},
     graph::CrateId,
+    lint::Lint,
     node_interner::{
         ExprId, InternedExpressionKind, InternedPattern, InternedStatementKind,
         InternedUnresolvedTypeData, QuotedTypeId,
@@ -764,8 +765,8 @@ impl Attributes {
         self.has_secondary_attr(&SecondaryAttributeKind::Export)
     }
 
-    pub fn has_allow(&self, name: &'static str) -> bool {
-        self.secondary.iter().any(|attr| attr.kind.is_allow(name))
+    pub fn has_allow(&self, lint: Lint) -> bool {
+        self.secondary.iter().any(|attr| attr.kind.is_allow(lint))
     }
 
     /// Check if secondary attributes contain a specific instance.
@@ -966,9 +967,9 @@ pub enum SecondaryAttributeKind {
 }
 
 impl SecondaryAttributeKind {
-    pub(crate) fn is_allow(&self, name: &'static str) -> bool {
+    pub(crate) fn is_allow(&self, lint: Lint) -> bool {
         match self {
-            SecondaryAttributeKind::Allow(string) => string == name,
+            SecondaryAttributeKind::Allow(string) => string == lint.slug(),
             _ => false,
         }
     }

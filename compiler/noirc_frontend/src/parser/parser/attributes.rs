@@ -2,6 +2,7 @@ use noirc_errors::Location;
 
 use crate::ast::{Expression, ExpressionKind, Ident, Literal, Path};
 use crate::lexer::errors::LexerErrorKind;
+use crate::lint::Lint;
 use crate::parser::ParserErrorReason;
 use crate::parser::labels::ParsingRuleLabel;
 use crate::token::{
@@ -203,11 +204,24 @@ impl Parser<'_> {
                 let attr = SecondaryAttribute { kind, location };
                 Attribute::Secondary(attr)
             }),
-            "allow" => self.parse_single_name_attribute(ident, arguments, start_location, |name| {
-                let kind = SecondaryAttributeKind::Allow(name);
-                let attr = SecondaryAttribute { kind, location };
-                Attribute::Secondary(attr)
-            }),
+            "allow" => {
+                let attr =
+                    self.parse_single_name_attribute(ident, arguments, start_location, |name| {
+                        let kind = SecondaryAttributeKind::Allow(name);
+                        let attr = SecondaryAttribute { kind, location };
+                        Attribute::Secondary(attr)
+                    });
+                if let Attribute::Secondary(SecondaryAttribute {
+                    kind: SecondaryAttributeKind::Allow(name),
+                    ..
+                }) = &attr
+                    && !name.is_empty()
+                    && Lint::from_slug(name).is_none()
+                {
+                    self.push_error(ParserErrorReason::UnknownLint { name: name.clone() }, location);
+                }
+                attr
+            }
             "builtin" => {
                 self.parse_single_name_attribute(ident, arguments, start_location, |name| {
                     let kind = FunctionAttributeKind::Builtin(name);

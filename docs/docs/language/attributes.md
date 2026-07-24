@@ -9,6 +9,15 @@ keywords: [Noir, attributes]
 Attributes are metadata that can be applied to data types, functions, and some statements and expressions,
 using the following syntax: `#[attribute(value)]`.
 
+### `allow(...)`
+
+`allow` silences a specific compiler lint (an opinionated warning) on the annotated item.
+The name inside the parentheses must be one of the compiler's known lints. Naming an
+unknown lint — for example a typo like `#[allow(dead_cod)]` — produces an
+`Unknown lint` warning and has no effect, so a misspelled `allow` never silently
+suppresses nothing. The currently recognised lints are `dead_code`, `unused_mut`,
+and `unused_variables`.
+
 ### `allow(dead_code)`
 
 When applied to a data type or function, the compiler won't produce a warning if the data type or function
