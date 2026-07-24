@@ -41,10 +41,28 @@ it. Every sentence must still make sense and be verifiable against the current c
 sentence only lands for someone who remembers the previous state or the PR that changed it,
 cut or rewrite it.
 
+## Reference the code with a relative link
+
+When a design doc discusses code, link to the file it describes so a reader can open it and
+compare the prose against the implementation. Prefer a link over a bare path in prose:
+
+- **Use a relative link** from the doc's location, e.g.
+  `[the lint registry](../compiler/noirc_frontend/src/lint.rs)`, not an absolute or GitHub
+  URL. Relative links keep working in a clone or fork, and they are what the link checker
+  validates.
+- **Never link to a line number.** Line numbers drift as the file changes, so a
+  line-anchored link silently starts pointing at the wrong place. Link to the file and name
+  the type or function in the prose instead; use a `#anchor` only if the file itself defines
+  one.
+- `just check-design-links` (script: `scripts/check_design_links.sh`) verifies that every
+  relative link in `design/` resolves to a file that exists, so a moved or renamed target
+  fails loudly in CI instead of rotting silently. It ignores external URLs and pure
+  `#anchor` links. Run it after editing links.
+
 ## Keep it accurate and in sync
 
-- Point at the code that implements the decision (module and type names, e.g.
-  `compiler/noirc_frontend/src/lint.rs`) so the doc can be checked against reality.
+- Point at the code that implements the decision — with a relative link (see above) and the
+  relevant type or function named — so the doc can be checked against reality.
 - When a change alters or invalidates a recorded decision, update the corresponding
   `design/` file **in the same PR**. A stale design doc is worse than none.
 - Record a new decision here when a change introduces a non-obvious, cross-cutting design

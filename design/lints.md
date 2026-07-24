@@ -19,7 +19,7 @@ warning is wired to consult the registry, its lint is added to `Lint`, so every 
 slug always corresponds to a lint that can actually be controlled.
 
 The registry and the mechanics of how slugs are validated and consumed live in
-`compiler/noirc_frontend/src/lint.rs`.
+[`compiler/noirc_frontend/src/lint.rs`](../compiler/noirc_frontend/src/lint.rs).
 
 ## Intended direction
 
