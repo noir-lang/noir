@@ -350,6 +350,8 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
             "Constant Folding",
         ),
         SsaPass::new(Ssa::flatten_basic_conditionals, "Simplify conditionals for unconstrained"),
+        SsaPass::new(Ssa::simplify_passthrough_calls, "Simplify pass-through calls")
+            .and_then(Ssa::remove_unreachable_functions),
         SsaPass::new(Ssa::remove_enable_side_effects, "EnableSideEffectsIf removal"),
         SsaPass::new(
             |ssa| ssa.fold_constants_using_constraints(options.constant_folding_max_iter),
