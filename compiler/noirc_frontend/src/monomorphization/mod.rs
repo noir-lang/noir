@@ -653,6 +653,7 @@ impl<'interner> Monomorphizer<'interner> {
         };
 
         let attributes = self.interner.function_attributes(&f);
+        let allow_constant_return = attributes.has_allow("constant_return");
         let mut inline_type = InlineType::from(attributes);
         let unconstrained = self.in_unconstrained_function;
         if unconstrained {
@@ -737,6 +738,7 @@ impl<'interner> Monomorphizer<'interner> {
             unconstrained,
             inline_type,
             is_entry_point: false,
+            allow_constant_return,
         };
 
         self.push_function(id, function);
@@ -2758,6 +2760,7 @@ impl<'interner> Monomorphizer<'interner> {
             unconstrained: self.in_unconstrained_function,
             inline_type: InlineType::default(),
             is_entry_point: false,
+            allow_constant_return: false,
         };
         self.push_function(id, function);
 
@@ -2883,6 +2886,7 @@ impl<'interner> Monomorphizer<'interner> {
             unconstrained: self.in_unconstrained_function,
             inline_type: InlineType::default(),
             is_entry_point: false,
+            allow_constant_return: false,
         };
         self.push_function(constrained_id, lambda_fn.clone());
 

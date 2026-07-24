@@ -17,7 +17,7 @@ use noirc_artifacts::contract::{CompiledContract, CompiledContractOutputs, Contr
 use noirc_artifacts::debug::{DebugFile, DebugInfo, FunctionLocation};
 use noirc_artifacts::program::CompiledProgram;
 use noirc_artifacts::ssa::{InternalBug, InternalWarning, SsaReport};
-use noirc_errors::{CustomDiagnostic, Location};
+use noirc_errors::CustomDiagnostic;
 use noirc_evaluator::brillig::brillig_ir::{
     LayoutConfig, MAX_SCRATCH_SPACE, MAX_STACK_FRAME_SIZE, MIN_SCRATCH_SPACE, MIN_STACK_FRAME_SIZE,
     NUM_STACK_FRAMES,
@@ -941,11 +941,6 @@ pub fn compile_no_check(
         )?
     };
 
-    // Drop backend warnings the user silenced with a scoped `#[allow(...)]`. This is baked into
-    // the artifact (rather than applied when reporting) so every consumer of `warnings` — nargo,
-    // the wasm bindings, tooling — observes the same silenced set.
-    let warnings = filter_allowed_ssa_warnings(context, warnings);
-
     let abi = gen_abi(context, &main_function, return_visibility, error_types);
     let file_map = filter_relevant_files(&debug, &context.file_manager, &context.parsed_files);
 
@@ -996,29 +991,6 @@ fn drop_silenced_warnings(
         .into_iter()
         .filter(|diagnostic| !options.silence_warnings || !diagnostic.is_warning())
         .collect()
-}
-
-/// Drops the SSA warnings the user opted out of with a scoped `#[allow(...)]`.
-///
-/// Backend warnings such as `constant_return` are raised during ACIR generation, after
-/// source attributes are gone, so an `#[allow]` can only be honored by matching the
-/// warning's call stack against the body spans of the functions that carry the attribute.
-fn filter_allowed_ssa_warnings(context: &Context, warnings: Vec<SsaReport>) -> Vec<SsaReport> {
-    let allow_constant_return = context.def_interner.function_bodies_allowing("constant_return");
-    warnings
-        .into_iter()
-        .filter(|warning| !ssa_warning_is_allowed(warning, &allow_constant_return))
-        .collect()
-}
-
-fn ssa_warning_is_allowed(warning: &SsaReport, allow_constant_return: &[Location]) -> bool {
-    match warning {
-        SsaReport::Warning(InternalWarning::ConstantReturn { call_stack }) => call_stack
-            .as_ref()
-            .iter()
-            .any(|location| allow_constant_return.iter().any(|body| body.contains(location))),
-        _ => false,
-    }
 }
 
 fn ssa_report_to_custom_diagnostic(error: SsaReport) -> CustomDiagnostic {

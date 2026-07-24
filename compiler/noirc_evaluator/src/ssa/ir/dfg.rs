@@ -124,6 +124,11 @@ pub(crate) struct DataFlowGraph {
     /// Indicate whether the Brillig array index offset optimizations have been performed.
     pub(crate) brillig_arrays_offset: bool,
 
+    /// When `true`, the `constant_return` warning is not emitted if this function is an
+    /// ACIR entry point whose return value is constant. Set from a
+    /// `#[allow(constant_return)]` attribute on the source function.
+    pub(crate) allow_constant_return: bool,
+
     /// When `false` (the default), a `simplify_*` routine that detects malformed input — SSA that
     /// could not arise from well-formed compilation — panics via [`bail_malformed!`][crate::ssa::ir::dfg::simplify::bail_malformed].
     /// When `true`, those routines instead emit a trace and decline to simplify, leaving the
