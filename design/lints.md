@@ -3,32 +3,37 @@
 A **lint** is an opinionated warning: a diagnostic that flags legitimate but
 usually-undesirable code (an unused item, an unnecessary `mut`, a `pub` that isn't
 needed, …). Unlike a hard error, a lint can be silenced by the author when the flagged
-code is intentional, by naming its slug in an `#[allow(...)]` attribute.
+code is intentional, by naming it in an `#[allow(...)]` attribute.
 
 ## Behaviour
 
-`#[allow(<lint>)]` silences the named lint on the item or statement it is attached to. The
-recognised lints, and where each takes effect:
+`#[allow(<lint>)]` silences the named lint on the item or statement it is attached to. It
+attaches to items and `let` statements today; blocks, expressions, and match arms are not
+yet supported (see [Intended direction](#intended-direction)). The recognised lints:
 
-- `dead_code` — on a function, struct, enum, trait, or impl method: its "never used" /
-  "never constructed" warning is suppressed.
-- `unused_variables` — on a `let` statement: no warning when the bound variable is never
-  used.
-- `unused_mut` — on a `let` statement: no warning when the binding is `mut` but never
-  mutated.
+- `dead_code` — suppresses the "never used" / "never constructed" warning on a function,
+  struct, enum, trait, or impl method.
+- `unused_variables` — suppresses the unused-variable warning on a `let` binding.
+- `unused_mut` — suppresses the never-mutated-`mut` warning on a `let` binding.
 
-A name that is not one of these — for example a typo, `#[allow(dead_cod)]` — produces an
-`unknown lint` warning, and because the name matched nothing the lint it was meant to
-silence still fires. The unknown-lint warning does not stop compilation.
+An unrecognised name — a typo such as `#[allow(dead_cod)]` — is reported as an `unknown
+lint` warning and silences nothing, so the lint it was meant to suppress still fires; that
+warning does not stop compilation.
 
-`#[allow(...)]` attaches to items and `let` statements today; blocks, expressions, and
-match arms are not yet supported (see [Intended direction](#intended-direction)).
+Each of these behaviours is pinned by a test, which is the authoritative specification:
+`allow_dead_code_on_unused_function`,
+`does_not_error_on_unused_impl_method_if_marked_as_allow_dead_code`,
+`silences_unused_variable_warning`, `warns_on_unknown_lint_in_allow_attribute`, and
+`typo_in_allow_does_not_suppress_the_lint` in
+[`unused_items.rs`](../compiler/noirc_frontend/src/tests/unused_items.rs), and
+`does_not_trigger_unnecessary_mut_on_variable_if_annotated_with_allow_unused_mut` in
+[`expressions.rs`](../compiler/noirc_frontend/src/tests/expressions.rs).
 
 This mirrors Rust's lint-control attributes; see
 [Rust's lint levels](https://doc.rust-lang.org/rustc/lints/levels.html). Noir implements the
 `allow` level only so far.
 
-## Slugs are a closed set
+## Lint names are a closed set
 
 The set of valid lint names is a closed set (the `Lint` enum) rather than free-form strings.
 This is a deliberate decision: because the set is closed, an unrecognised name can be
