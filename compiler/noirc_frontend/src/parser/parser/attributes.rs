@@ -218,7 +218,10 @@ impl Parser<'_> {
                     && !name.is_empty()
                     && Lint::from_slug(name).is_none()
                 {
-                    self.push_error(ParserErrorReason::UnknownLint { name: name.clone() }, location);
+                    self.push_error(
+                        ParserErrorReason::UnknownLint { name: name.clone() },
+                        location,
+                    );
                 }
                 attr
             }
