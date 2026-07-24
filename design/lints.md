@@ -58,15 +58,6 @@ statements:
   is distinct from `--silence-warnings`, a per-invocation flag applied when reporting, which
   hides warnings that were still produced.
 
-## Constraints
-
-- The flag is not part of the SSA textual form; hand-written SSA in tests leaves it unset.
-  Any pass that rebuilds a function from an existing one must copy it — see
-  `Function::clone_signature` in
-  [the SSA function IR](../compiler/noirc_evaluator/src/ssa/ir/function.rs) and
-  `FunctionBuilder::from_existing` in
-  [the function builder](../compiler/noirc_evaluator/src/ssa/function_builder/mod.rs).
-
 ## Intended direction
 
 Backend warning control is one instance of a general lint framework: a lint registry,
