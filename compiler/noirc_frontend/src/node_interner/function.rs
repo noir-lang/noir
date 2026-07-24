@@ -212,7 +212,7 @@ impl NodeInterner {
 
     /// Returns the body [`Location`] of every function annotated with `#[allow(<name>)]`.
     ///
-    /// Diagnostics produced after monomorphization (for example the `return_constant`
+    /// Diagnostics produced after monomorphization (for example the `constant_return`
     /// warning raised during ACIR generation) cannot inspect source attributes at the
     /// point they are emitted. Matching such a diagnostic's call stack against these
     /// spans recovers the `#[allow]` that should silence it.

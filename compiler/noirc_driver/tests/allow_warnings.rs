@@ -1,7 +1,7 @@
 //! Integration tests for silencing backend/SSA warnings with a scoped `#[allow(...)]`.
 //!
-//! The `return_constant` warning is produced during ACIR generation, long after source
-//! attributes are available, so honoring an `#[allow(return_constant)]` requires matching
+//! The `constant_return` warning is produced during ACIR generation, long after source
+//! attributes are available, so honoring an `#[allow(constant_return)]` requires matching
 //! the warning's call stack back to the annotated function. These tests exercise that path
 //! end-to-end.
 
@@ -40,35 +40,35 @@ fn constant_return_warns_without_allow() {
     let warnings = compile_warnings(source);
     assert!(
         warnings.iter().any(|warning| warning.message.contains("constant")),
-        "expected a return_constant warning, got {warnings:?}"
+        "expected a constant_return warning, got {warnings:?}"
     );
 }
 
 #[test]
-fn allow_return_constant_silences_the_warning() {
-    let source = "#[allow(return_constant)]\nfn main() -> pub Field { 1 }";
+fn allow_constant_return_silences_the_warning() {
+    let source = "#[allow(constant_return)]\nfn main() -> pub Field { 1 }";
     let warnings = compile_warnings(source);
     assert!(warnings.is_empty(), "expected no warnings, got {warnings:?}");
 }
 
 #[test]
-fn allow_of_a_different_lint_does_not_silence_return_constant() {
+fn allow_of_a_different_lint_does_not_silence_constant_return() {
     // Silencing is keyed on the specific lint name, so an unrelated `#[allow]` must not
-    // suppress the `return_constant` warning.
+    // suppress the `constant_return` warning.
     let source = "#[allow(dead_code)]\nfn main() -> pub Field { 1 }";
     let warnings = compile_warnings(source);
     assert!(
         warnings.iter().any(|warning| warning.message.contains("constant")),
-        "expected the return_constant warning to survive an unrelated allow, got {warnings:?}"
+        "expected the constant_return warning to survive an unrelated allow, got {warnings:?}"
     );
 }
 
 #[test]
-fn allow_return_constant_on_another_function_does_not_silence_main() {
+fn allow_constant_return_on_another_function_does_not_silence_main() {
     // The attribute is scoped to the annotated function's body, so annotating `helper`
     // must not leak into `main`'s constant return.
     let source = r#"
-    #[allow(return_constant)]
+    #[allow(constant_return)]
     fn helper(x: Field) -> Field { x + 1 }
 
     fn main(x: Field) -> pub Field {
@@ -79,6 +79,6 @@ fn allow_return_constant_on_another_function_does_not_silence_main() {
     let warnings = compile_warnings(source);
     assert!(
         warnings.iter().any(|warning| warning.message.contains("constant")),
-        "expected main's return_constant warning to survive, got {warnings:?}"
+        "expected main's constant_return warning to survive, got {warnings:?}"
     );
 }

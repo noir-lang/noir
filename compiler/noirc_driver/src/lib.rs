@@ -1000,23 +1000,23 @@ fn drop_silenced_warnings(
 
 /// Drops the SSA warnings the user opted out of with a scoped `#[allow(...)]`.
 ///
-/// Backend warnings such as `return_constant` are raised during ACIR generation, after
+/// Backend warnings such as `constant_return` are raised during ACIR generation, after
 /// source attributes are gone, so an `#[allow]` can only be honored by matching the
 /// warning's call stack against the body spans of the functions that carry the attribute.
 fn filter_allowed_ssa_warnings(context: &Context, warnings: Vec<SsaReport>) -> Vec<SsaReport> {
-    let allow_return_constant = context.def_interner.function_bodies_allowing("return_constant");
+    let allow_constant_return = context.def_interner.function_bodies_allowing("constant_return");
     warnings
         .into_iter()
-        .filter(|warning| !ssa_warning_is_allowed(warning, &allow_return_constant))
+        .filter(|warning| !ssa_warning_is_allowed(warning, &allow_constant_return))
         .collect()
 }
 
-fn ssa_warning_is_allowed(warning: &SsaReport, allow_return_constant: &[Location]) -> bool {
+fn ssa_warning_is_allowed(warning: &SsaReport, allow_constant_return: &[Location]) -> bool {
     match warning {
-        SsaReport::Warning(InternalWarning::ReturnConstant { call_stack }) => call_stack
+        SsaReport::Warning(InternalWarning::ConstantReturn { call_stack }) => call_stack
             .as_ref()
             .iter()
-            .any(|location| allow_return_constant.iter().any(|body| body.contains(location))),
+            .any(|location| allow_constant_return.iter().any(|body| body.contains(location))),
         _ => false,
     }
 }
@@ -1026,7 +1026,7 @@ fn ssa_report_to_custom_diagnostic(error: SsaReport) -> CustomDiagnostic {
         SsaReport::Warning(warning) => {
             let message = warning.to_string();
             let (secondary_message, call_stack) = match warning {
-                    InternalWarning::ReturnConstant { call_stack } => {
+                    InternalWarning::ConstantReturn { call_stack } => {
                         ("This variable contains a value which is constrained to be a constant. Consider removing this value as additional return values increase proving/verification time".to_string(), call_stack)
                     },
                 };
