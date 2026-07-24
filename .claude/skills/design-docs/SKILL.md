@@ -18,11 +18,13 @@ Do not narrate how the code got here.
 - **No historical narrative.** Drop "historically…", "this used to be…", "previously we
   did…", "originally…", "before this change…". Version control already records how things
   changed; the design doc records the decision that is in force now. Rewrite the rationale
-  in the present tense as a property the design guarantees, e.g.
-  - ❌ "Historically these slugs were bare strings, so a typo silently did nothing. The
-    registry fixes that."
-  - ✅ "Slugs are a closed enum so the parser can reject an unrecognised slug, rather than
-    accepting a typo as an inert no-op."
+  in the present tense as a property the design guarantees. Keep that property at the
+  design's altitude — the behaviour or invariant it ensures — not the mechanism that
+  implements it (that belongs next to the code). E.g.
+  - ❌ "Historically any lint name was accepted, so a typo silently did nothing; that was
+    later fixed."
+  - ✅ "Only recognised lint names are accepted, so a misspelled name is reported to the
+    author rather than silently ignored."
 
 - **Only keep history that is a live constraint.** The single exception is when a past
   decision still binds the present — a backwards-compatibility guarantee, a migration that
