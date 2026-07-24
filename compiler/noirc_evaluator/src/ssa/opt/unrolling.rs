@@ -1717,21 +1717,25 @@ impl Loop {
                 });
 
                 if all_operands_constant {
+                    if let Instruction::Call { func, .. } = instruction {
+                        // A retained call with constant inputs is still a runtime call after
+                        // unrolling, and its result is still a runtime value. Only calls that are
+                        // already known to be inlined may be treated as removable here.
+                        if let Value::Function(func_id) = function.dfg[*func]
+                            && let Some(&body_cost) = callee_costs.get(&func_id)
+                        {
+                            for result in results {
+                                constant_after_unroll.insert(*result);
+                            }
+                            useless_cost += body_cost;
+                        }
+                        continue;
+                    }
+
                     for result in results {
                         constant_after_unroll.insert(*result);
                     }
-                    // Use callee body cost for calls, matching count_loop_cost.
-                    // Without this, total_cost uses the callee body cost but
-                    // useless_cost would only subtract the default call overhead,
-                    // inflating useful_cost and preventing unrolling.
-                    if let Instruction::Call { func, .. } = instruction
-                        && let Value::Function(func_id) = function.dfg[*func]
-                        && let Some(&body_cost) = callee_costs.get(&func_id)
-                    {
-                        useless_cost += body_cost;
-                    } else {
-                        useless_cost += instruction.cost(*instruction_id, &function.dfg);
-                    }
+                    useless_cost += instruction.cost(*instruction_id, &function.dfg);
                 }
             }
 
@@ -2432,7 +2436,7 @@ mod tests {
     use crate::ssa::ir::integer::IntegerConstant;
     use crate::ssa::{
         Ssa,
-        ir::value::ValueId,
+        ir::{function::FunctionId, value::ValueId},
         opt::{assert_normalized_ssa_equals, assert_pass_does_not_affect_execution},
     };
 
@@ -3735,6 +3739,40 @@ mod tests {
         Ssa::from_str(&src).unwrap()
     }
 
+    fn brillig_unroll_retained_call_test_case(iterations: usize, helper_adds: usize) -> Ssa {
+        assert!(helper_adds >= 1, "need at least one helper instruction");
+
+        let mut helper_instructions = String::new();
+        let mut previous = "v0".to_string();
+        for value in 1..=helper_adds {
+            helper_instructions += &format!("            v{value} = add {previous}, Field 1\n");
+            previous = format!("v{value}");
+        }
+
+        let src = format!(
+            "
+        brillig(inline) pure fn main f0 {{
+          b0():
+            jmp b1(u32 0, Field 0)
+          b1(v0: u32, v1: Field):
+            v2 = lt v0, u32 {iterations}
+            jmpif v2 then: b2(), else: b3()
+          b2():
+            v3 = call f1(Field 7) -> Field
+            v4 = unchecked_add v0, u32 1
+            jmp b1(v4, v3)
+          b3():
+            return v1
+        }}
+        brillig(inline_never) pure fn helper f1 {{
+          b0(v0: Field):
+{helper_instructions}            return {previous}
+        }}
+        "
+        );
+        Ssa::from_str(&src).unwrap()
+    }
+
     /// Test case from #6470:
     /// ```text
     /// unconstrained fn __validate_gt_remainder(a_u60: [u64; 6]) -> [u64; 6] {
@@ -3897,6 +3935,31 @@ mod tests {
         let (ssa, errors) = try_unroll_loops(ssa);
         assert_eq!(errors.len(), 0);
         assert_normalized_ssa_equals(ssa, &parse_ssa().print_without_locations().to_string());
+    }
+
+    #[test]
+    fn force_unroll_counts_retained_calls_as_useful() {
+        let iterations = 1000;
+        let ssa = brillig_unroll_retained_call_test_case(iterations, 200);
+        let helper = &ssa.functions[&FunctionId::test_new(1)];
+        assert!(
+            helper.cost() > FORCE_UNROLL_THRESHOLD,
+            "the retained helper body should exceed the force-unroll threshold"
+        );
+
+        let stats = loop0_stats(&ssa);
+        assert_eq!(stats.iterations, iterations);
+        assert_eq!(stats.useful_cost(), 7, "the retained call-site cost remains useful");
+        assert!(
+            stats.unrolled_cost() > FORCE_UNROLL_THRESHOLD,
+            "retained call sites should block force-unrolling a large loop"
+        );
+
+        let ssa = ssa
+            .unroll_loops_iteratively(None, MAX_UNROLL_ITERATIONS, FORCE_UNROLL_THRESHOLD)
+            .unwrap();
+        let loops = Loops::find_all(ssa.main(), LoopOrder::InsideOut);
+        assert_eq!(loops.yet_to_unroll.len(), 1, "the retained-call loop should remain rolled");
     }
 
     #[test]
