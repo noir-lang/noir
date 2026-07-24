@@ -687,6 +687,39 @@ fn does_not_consider_struct_as_constructed_if_mentioned_in_function_argument() {
 }
 
 #[test]
+fn does_not_warn_on_struct_used_as_field_type_of_another_struct() {
+    // Mentioning a struct in a field of another type definition counts as using it, matching
+    // Rust, where a type reachable from a live struct's fields is not reported as dead code.
+    // (Rust goes further and propagates liveness, so a field type of a *dead* struct still
+    // warns; the tracker here is flat, so mention in any field silences the warning.)
+    let src = r#"
+    struct Foo {}
+
+    pub struct Gen<T> {
+        inner: Foo,
+        x: T,
+    }
+
+    fn main() {}
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn does_not_warn_on_struct_used_in_enum_variant_payload() {
+    let src = r#"
+    struct Foo {}
+
+    pub enum Gen {
+        A(Foo),
+    }
+
+    fn main() {}
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
 fn allow_dead_code_on_unused_function() {
     let src = "
     #[allow(dead_code)]

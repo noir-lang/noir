@@ -169,7 +169,11 @@ impl Elaborator<'_> {
             let fields = vecmap(&unresolved.fields, |field| {
                 let visibility = field.item.visibility;
                 let name = field.item.name.clone();
-                let typ = this.resolve_type(field.item.typ.clone(), wildcard_allowed);
+                // `use_type` (not `resolve_type`) so that a struct mentioned as a field type
+                // counts as constructed: a value of this struct can't exist without a value of
+                // the field's type, so warning that the field's type is never constructed would
+                // be misleading (and Rust doesn't warn in this situation either).
+                let typ = this.use_type(field.item.typ.clone(), wildcard_allowed);
                 StructField { visibility, name, typ }
             });
             this.impl_trait_is_disallowed = previous_impl_trait_context;
