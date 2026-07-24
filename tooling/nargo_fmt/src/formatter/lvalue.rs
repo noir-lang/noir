@@ -29,9 +29,27 @@ impl ChunkFormatter<'_, '_> {
                 group.text(self.chunk(|formatter| {
                     formatter.write_left_bracket();
                 }));
+
+                // Keep index comment/newline behavior consistent with rvalue index expressions.
+                let comments_chunk = self.skip_comments_and_whitespace_chunk();
+                let comments_chunk_has_newlines = comments_chunk.has_newlines;
+
+                if comments_chunk_has_newlines {
+                    group.increase_indentation();
+                    group.line();
+                }
+
+                group.leading_comment(comments_chunk);
+
                 let mut index_group = ChunkGroup::new();
                 self.format_expression(index, &mut index_group);
                 group.group(index_group);
+
+                if comments_chunk_has_newlines {
+                    group.decrease_indentation();
+                    group.line();
+                }
+
                 group.text(self.chunk(|formatter| {
                     formatter.write_right_bracket();
                 }));
