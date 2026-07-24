@@ -16,6 +16,14 @@ implementation is checked against; prose so vague that nothing could contradict 
 serve that purpose. Cover the normal behaviour, the edge cases, and how the feature
 interacts with the parts of the system around it.
 
+Where a behaviour can be enforced by a test, prefer a short summary plus a link to that
+test over an exhaustive prose description. A test is an executable specification that cannot
+silently drift from the code, whereas prose can — so state the behaviour in a sentence and
+link the test that demonstrates it, rather than enumerating every case at length. Link the
+test file and name the test (not a line number, per the linking rule below). Reserve prose
+for what a test cannot capture: the rationale, the invariants, and how the parts fit
+together.
+
 When the intended behaviour is meant to **match an existing system** — for example Rust's
 `#[allow]` / `#[deny]` lint levels — say so explicitly and link to that system's
 documentation. That tells a reader where the reference behaviour is defined so they can
