@@ -5,15 +5,20 @@
 //! has a stable, human-readable slug (`dead_code`, `unused_variables`, …) that a
 //! user can name in an `#[allow(...)]` attribute to silence it.
 //!
-//! Historically these slugs were bare strings compared inline at each consumer,
-//! which meant a typo such as `#[allow(dead_cod)]` compiled and silently did
-//! nothing. This module makes the set of valid slugs a closed enum so slugs can
-//! be validated (see [`Lint::from_slug`]) and referred to without stringly-typed
-//! comparisons.
+//! [`Lint`] is the closed set of valid slugs. Making the set closed is what lets the
+//! parser reject an unrecognised slug: parsing `#[allow(<slug>)]`
+//! (`parser/parser/attributes.rs`) looks the slug up with [`Lint::from_slug`], and an
+//! unknown slug raises the `UnknownLint` warning rather than being accepted as an inert
+//! no-op the author mistakes for a working suppression. That warning is a parser warning,
+//! which never blocks elaboration, so the lint the author *meant* to silence still fires.
 //!
-//! This registry currently lists only the lints that `#[allow(...)]` actually
-//! silences today. It is intended to grow to cover every opinionated warning the
-//! compiler emits (see `design/lints.md`).
+//! Consumers that honour `#[allow(...)]` compare against a [`Lint`] (via
+//! [`crate::token::Attributes::has_allow`] / `SecondaryAttributeKind::is_allow`) rather
+//! than a bare string, so the slug spellings live only in [`Lint::slug`].
+//!
+//! [`Lint`] lists only the lints `#[allow(...)]` actually silences: a slug is "known" only
+//! when naming it has a real effect. See `design/lints.md` for the rationale and the
+//! intended direction.
 
 use std::fmt;
 
