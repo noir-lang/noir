@@ -659,8 +659,8 @@ impl<'a> Context<'a> {
         }
 
         let call_stack = dfg.call_stack_data.get_call_stack(call_stack);
-        let warnings = if has_constant_return {
-            vec![SsaReport::Warning(InternalWarning::ReturnConstant { call_stack })]
+        let warnings = if has_constant_return && !dfg.allow_constant_return {
+            vec![SsaReport::Warning(InternalWarning::ConstantReturn { call_stack })]
         } else {
             Vec::new()
         };

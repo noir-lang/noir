@@ -998,7 +998,7 @@ fn ssa_report_to_custom_diagnostic(error: SsaReport) -> CustomDiagnostic {
         SsaReport::Warning(warning) => {
             let message = warning.to_string();
             let (secondary_message, call_stack) = match warning {
-                    InternalWarning::ReturnConstant { call_stack } => {
+                    InternalWarning::ConstantReturn { call_stack } => {
                         ("This variable contains a value which is constrained to be a constant. Consider removing this value as additional return values increase proving/verification time".to_string(), call_stack)
                     },
                 };

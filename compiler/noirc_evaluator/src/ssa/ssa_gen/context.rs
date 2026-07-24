@@ -186,6 +186,7 @@ impl<'a> FunctionContext<'a> {
         } else {
             self.builder.new_function(func.name.clone(), id, func.inline_type);
         }
+        self.builder.current_function.dfg.allow_constant_return = func.allow_constant_return;
 
         self.add_parameters_to_scope(&func.parameters);
     }
