@@ -37,7 +37,7 @@ If we determine that an overflow is not possible we can convert the checked oper
     lhs: &amp;<a class="type" href="../../ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a>,
     rhs: &amp;<a class="type" href="../../ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a>,
     err: &amp;<a class="enum" href="https://doc.rust-lang.org/1.89.0/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;<a class="enum" href="../../ir/instruction/enum.ConstrainError.html" title="enum noirc_evaluator::ssa::ir::instruction::ConstrainError">ConstrainError</a>&gt;,
-    call_stack: CallStackId,
+    call_stack: <a class="struct" href="../../../../noirc_errors/call_stack/struct.CallStackId.html" title="struct noirc_errors::call_stack::CallStackId">CallStackId</a>,
 ) -&gt; <a class="enum" href="../../ir/dfg/simplify/enum.SimplifyResult.html" title="enum noirc_evaluator::ssa::ir::dfg::simplify::SimplifyResult">SimplifyResult</a></h4></section></summary><div class="docblock"><p>Rewrite <code>assert(invariant != induction)</code> into a check, hoisted to the pre-header, that
 <code>invariant</code> is not one of the values the induction variable visits. The induction
 variable runs over <code>lower, lower + step, ...</code> while below <code>upper</code>, so the shape of the
