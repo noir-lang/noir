@@ -55,6 +55,52 @@ fn errors_on_unused_pub_crate_import() {
 }
 
 #[test]
+fn errors_on_unreachable_pub_function_in_private_module() {
+    let src = r#"
+    mod hidden {
+        pub fn helper() {}
+               ^^^^^^ unused function helper
+               ~~~~~~ unused function
+    }
+
+    fn main() {}
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn errors_on_unreachable_pub_import_in_private_module() {
+    let src = r#"
+    mod hidden {
+        mod source {
+            pub fn helper() {}
+        }
+
+        pub use source::helper;
+                        ^^^^^^ unused import helper
+                        ~~~~~~ unused import
+    }
+
+    fn main() {}
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn does_not_error_on_reexported_pub_function_from_private_module() {
+    let src = r#"
+    mod hidden {
+        pub fn helper() {}
+    }
+
+    pub use hidden::helper;
+
+    fn main() {}
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
 fn unused_global_clashing_with_function_is_reported_as_global() {
     // The global and the function share the `values` namespace, so collecting the
     // function clashes with the already-collected global. The unused warning must

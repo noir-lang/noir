@@ -199,6 +199,7 @@ fn calls_trait_function_if_it_is_only_candidate_in_scope_in_nested_module_using_
     mod moo {
         use super::public_mod::Foo;
 
+        #[allow(dead_code)]
         pub fn method() {
             let _ = super::Bar::foo();
         }
@@ -633,6 +634,8 @@ fn suggests_importing_trait_via_reexport() {
         }
 
         pub use two::Trait;
+                     ^^^^^ unused import Trait
+                     ~~~~~ unused import
     }
 
     fn main() {
@@ -660,6 +663,8 @@ fn suggests_importing_trait_via_module_reexport() {
         }
 
         pub use two::three;
+                     ^^^^^ unused import three
+                     ~~~~~ unused import
     }
 
     fn main() {
