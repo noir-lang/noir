@@ -514,10 +514,8 @@ pub fn compile_main(
         compile_no_check(context, options, main, cached_program, options.force_compile)
             .map_err(|error| vec![CustomDiagnostic::from(error)])?;
 
-    let compilation_warnings = vecmap(
-        filter_allowed_ssa_warnings(context, compiled_program.warnings.clone()),
-        ssa_report_to_custom_diagnostic,
-    );
+    let compilation_warnings =
+        vecmap(compiled_program.warnings.clone(), ssa_report_to_custom_diagnostic);
 
     if options.deny_warnings && !compilation_warnings.is_empty() {
         return Err(compilation_warnings);
@@ -574,10 +572,8 @@ pub fn compile_contract(
         }
     };
 
-    let compilation_warnings = vecmap(
-        filter_allowed_ssa_warnings(context, compiled_contract.warnings.clone()),
-        ssa_report_to_custom_diagnostic,
-    );
+    let compilation_warnings =
+        vecmap(compiled_contract.warnings.clone(), ssa_report_to_custom_diagnostic);
     warnings.extend(drop_silenced_warnings(compilation_warnings, options));
 
     if options.deny_warnings && !warnings.is_empty() {
@@ -944,6 +940,11 @@ pub fn compile_no_check(
             },
         )?
     };
+
+    // Drop backend warnings the user silenced with a scoped `#[allow(...)]`. This is baked into
+    // the artifact (rather than applied when reporting) so every consumer of `warnings` — nargo,
+    // the wasm bindings, tooling — observes the same silenced set.
+    let warnings = filter_allowed_ssa_warnings(context, warnings);
 
     let abi = gen_abi(context, &main_function, return_visibility, error_types);
     let file_map = filter_relevant_files(&debug, &context.file_manager, &context.parsed_files);
