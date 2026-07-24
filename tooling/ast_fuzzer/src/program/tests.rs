@@ -39,6 +39,7 @@ fn generate_ssa_from_body(body: Expression) -> ssa_gen::Ssa {
         unconstrained: false,
         inline_type: InlineType::Inline,
         is_entry_point: false,
+        allow_constant_return: false,
     };
 
     let program = Program {
@@ -149,6 +150,7 @@ fn test_recursion_limit_rewrite() {
             unconstrained,
             inline_type: InlineType::InlineAlways,
             is_entry_point: false,
+            allow_constant_return: false,
         };
 
         ctx.function_declarations.insert(
@@ -354,6 +356,7 @@ fn test_wrap_oracle_prints_in_functions() {
         unconstrained: false,
         inline_type: InlineType::default(),
         is_entry_point: true,
+        allow_constant_return: false,
     };
 
     ctx.functions.insert(FuncId(0), main_func);
