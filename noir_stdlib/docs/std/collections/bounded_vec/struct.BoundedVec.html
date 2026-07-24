@@ -51,6 +51,7 @@
 <ul class="sidebar-list">
 <li><a href="#impl-Eq-for-BoundedVec<T, MaxLen>">Eq</a></li>
 <li><a href="#impl-From&lt;[T; Len]&gt;-for-BoundedVec<T, MaxLen>">From&lt;[T; Len]&gt;</a></li>
+<li><a href="#impl-Validate-for-BoundedVec<T, MaxLen>">Validate</a></li>
 </ul>
 <h2>In module bounded_vec</h2>
 <h3>Structs</h3><ul class="item-list">
@@ -446,7 +447,19 @@ to give incorrect results since it will check even elements past <code>len</code
 
 <div class="padded-methods"><code class="code-header">pub fn <span class="fn">from</span>(array: [T; Len]) -> Self</code>
 
-</div></div>
+</div><h3 id="impl-Validate-for-BoundedVec<T, MaxLen>"><code class="code-header">impl&lt;let MaxLen: <a href="../../../std/primitive.u32.html" class="primitive">u32</a>, T&gt; <a href="../../../std/validate/trait.Validate.html" class="trait">Validate</a> for <a href="../../../std/collections/bounded_vec/struct.BoundedVec.html" class="struct">BoundedVec</a>&lt;T, MaxLen&gt;
+<div class="where-clause">where
+    T: <a href="../../../std/validate/trait.Validate.html" class="trait">Validate</a></div></code></h3>
+
+<div class="padded-methods"><code class="code-header">pub fn <span class="fn">validate</span>(&mut self: &Self)</code>
+
+<div class="padded-description"><div class="comments">
+<p>Asserts that the length is within capacity and that every <em>live</em> element (the first <code>len</code>,
+not the unused backing storage past it) upholds its own invariant. The backing slots beyond
+<code>len</code> are deliberately skipped: they hold arbitrary leftover values and are unreachable
+through the safe API, so validating them would reject vectors that are in fact well-formed.</p>
+</div>
+</div></div></div>
 </main>
 </span>
 </body>

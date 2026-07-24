@@ -1,0 +1,28 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+use std::validate::validate;
+
+struct Buffer<let N: u32> {
+    storage: [Field; N],
+    len: u32,
+}
+
+impl<let N: u32> Buffer<N> {
+    fn len_within_capacity(&self) {
+        assert(self.len <= N, "Buffer length exceeds its capacity");
+    }
+}
+
+impl<let N: u32> Validate for Buffer<N> {
+    fn validate(&self) {
+        self.storage.validate();
+        self.len.validate();
+        self.len_within_capacity();
+    }
+}
+
+fn main(buffer: Buffer<3>) {
+    buffer.validate();
+}

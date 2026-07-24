@@ -1,0 +1,19 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+error: Buffer length exceeds its capacity
+   ┌─ src/main.nr:16:16
+   │
+16 │         assert(self.len <= N, "Buffer length exceeds its capacity");
+   │                ------------- Assertion failed
+   │
+   = Call stack:
+     1: ?
+             at src/main.nr:20:6
+     2: main
+             at src/main.nr:21:7
+     3: #[validate]
+             at src/main.nr:8:14
+
+Error interpreting main function

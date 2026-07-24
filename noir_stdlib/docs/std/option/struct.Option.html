@@ -49,6 +49,7 @@
 <li><a href="#impl-Eq-for-Option<T>">Eq</a></li>
 <li><a href="#impl-Hash-for-Option<T>">Hash</a></li>
 <li><a href="#impl-Ord-for-Option<T>">Ord</a></li>
+<li><a href="#impl-Validate-for-Option<T>">Validate</a></li>
 </ul>
 <h2>In module option</h2>
 <h3>Structs</h3><ul class="item-list">
@@ -204,6 +205,12 @@ This returns None if the outer Option is None. Otherwise, this returns the inner
     T: <a href="../../std/cmp/trait.Ord.html" class="trait">Ord</a></div></code></h3>
 
 <div class="padded-methods"><code class="code-header">pub fn <span class="fn">cmp</span>(self, other: Self) -> <a href="../../std/cmp/struct.Ordering.html" class="struct">Ordering</a></code>
+
+</div><h3 id="impl-Validate-for-Option<T>"><code class="code-header">impl&lt;T&gt; <a href="../../std/validate/trait.Validate.html" class="trait">Validate</a> for <a href="../../std/option/struct.Option.html" class="struct">Option</a>&lt;T&gt;
+<div class="where-clause">where
+    T: <a href="../../std/validate/trait.Validate.html" class="trait">Validate</a></div></code></h3>
+
+<div class="padded-methods"><code class="code-header">pub fn <span class="fn">validate</span>(&mut self: &Self)</code>
 
 </div></div>
 </main>

@@ -1,0 +1,29 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+use std::validate::validate;
+
+struct Bounds {
+    lo: u32,
+    hi: u32,
+}
+
+impl Bounds {
+    fn ordered(&self) {
+        assert(self.lo <= self.hi, "Bounds: lo must not exceed hi");
+    }
+}
+
+impl Validate for Bounds {
+    fn validate(&self) {
+        self.lo.validate();
+        self.hi.validate();
+        self.ordered();
+    }
+}
+
+fn main(lo: u32, hi: u32) {
+    let bounds: Bounds = Bounds { lo: lo, hi: hi };
+    bounds.validate();
+}
