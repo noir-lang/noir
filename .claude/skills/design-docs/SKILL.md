@@ -41,6 +41,15 @@ it. Every sentence must still make sense and be verifiable against the current c
 sentence only lands for someone who remembers the previous state or the PR that changed it,
 cut or rewrite it.
 
+## Keep it accurate and in sync
+
+- Point at the code that implements the decision — with a relative link (see below) and the
+  relevant type or function named — so the doc can be checked against reality.
+- When a change alters or invalidates a recorded decision, update the corresponding
+  `design/` file **in the same PR**. A stale design doc is worse than none.
+- Record a new decision here when a change introduces a non-obvious, cross-cutting design
+  choice that isn't captured anywhere else.
+
 ## Sketch the intended future state when the feature is partial
 
 When a design doc describes a feature that isn't fully built yet, close the file with a
@@ -72,12 +81,3 @@ compare the prose against the implementation. Prefer a link over a bare path in 
   relative link in `design/` resolves to a file that exists, so a moved or renamed target
   fails loudly in CI instead of rotting silently. It ignores external URLs and pure
   `#anchor` links. Run it after editing links.
-
-## Keep it accurate and in sync
-
-- Point at the code that implements the decision — with a relative link (see above) and the
-  relevant type or function named — so the doc can be checked against reality.
-- When a change alters or invalidates a recorded decision, update the corresponding
-  `design/` file **in the same PR**. A stale design doc is worse than none.
-- Record a new decision here when a change introduces a non-obvious, cross-cutting design
-  choice that isn't captured anywhere else.
