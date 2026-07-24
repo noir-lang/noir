@@ -1,3 +1,7 @@
+use crate::hir::def_collector::dc_crate::CompilationError;
+use crate::hir::resolution::errors::ResolverError;
+use crate::hir::resolution::import::PathResolutionError;
+use crate::test_utils::get_program_with_stdlib_dependency;
 use crate::tests::{assert_no_errors, check_errors};
 
 #[test]
@@ -1660,4 +1664,64 @@ fn use_path_can_access_private_intermediate_module_from_within_its_parent() {
     }
     "#;
     assert_no_errors(src);
+}
+
+/// Regression test for https://github.com/noir-lang/noir/pull/13347
+/// (finding noir-lang/noir-claude#1077).
+///
+/// A `pub(crate)` inherent method on a composite primitive receiver (here `[T; N]`) defined in
+/// one crate must not be callable from another crate, even when the caller sits inside a trait
+/// `impl` whose `self_type` shares only the *top-level constructor* of the receiver.
+///
+/// Before the fix, `is_same_type_regardless_generics` returned `true` for any two arrays (or
+/// tuples, vectors, strings, format strings, or functions) regardless of their element types, so
+/// the `PublicCrate` branch of `method_call_is_visible` wrongly concluded "same type ⇒ same
+/// crate" and accepted the cross-crate call. `[Field; 8]` and the impl's `[u32; 4]` share the
+/// array constructor, which is exactly what triggered the bypass.
+#[test]
+fn errors_on_cross_crate_pub_crate_composite_primitive_method_from_foreign_trait_impl() {
+    // Only the standard library may define inherent impls on primitive/composite types, so the
+    // foreign `pub(crate)` helper lives in a separate `std` crate.
+    let stdlib_src = r#"
+        pub mod prelude {}
+
+        impl<T, let N: u32> [T; N] {
+            pub(crate) fn audit_internal_helper(self) -> u32 {
+                N
+            }
+        }
+    "#;
+
+    // The caller is a different crate. Here `self_type` is `[u32; 4]` (the trait impl receiver),
+    // while the actual method receiver is `[Field; 8]`: same constructor, different generics.
+    let root_src = r#"
+        trait MyTrait {
+            fn caller(self) -> u32;
+        }
+
+        impl MyTrait for [u32; 4] {
+            fn caller(self) -> u32 {
+                let other: [Field; 8] = [0; 8];
+                other.audit_internal_helper()
+            }
+        }
+
+        fn main() {
+            let a: [u32; 4] = [0; 4];
+            let _ = a.caller();
+        }
+    "#;
+
+    let errors = get_program_with_stdlib_dependency(stdlib_src, root_src);
+    let errors: Vec<_> = errors.into_iter().filter(CompilationError::is_error).collect();
+
+    assert_eq!(errors.len(), 1, "expected exactly one visibility error, got: {errors:?}");
+    match &errors[0] {
+        CompilationError::ResolverError(ResolverError::PathResolutionError(
+            PathResolutionError::Private(ident),
+        )) => {
+            assert_eq!(ident.as_str(), "audit_internal_helper");
+        }
+        other => panic!("expected `audit_internal_helper is private`, got: {other:?}"),
+    }
 }

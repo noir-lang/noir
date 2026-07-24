@@ -17,6 +17,7 @@ use noirc_errors::CustomDiagnostic;
 use noirc_errors::Location;
 
 use crate::hir::Context;
+use crate::hir::ParsedFiles;
 use crate::hir::def_collector::dc_crate::CompilationError;
 use crate::hir::def_collector::dc_crate::DefCollector;
 use crate::hir::def_map::CrateDefMap;
@@ -183,6 +184,87 @@ pub(crate) fn get_program_with_options(
     }
 
     (program, context, errors)
+}
+
+/// Compile a root crate that depends on a *separate* crate whose source is `stdlib_src`.
+///
+/// The dependency is registered as the stdlib crate (named `std`) so that it is allowed to
+/// define inherent `impl`s on primitive/composite types such as `[T; N]` — something only the
+/// standard library may do. This lets tests exercise *cross-crate* visibility of composite
+/// primitive receiver methods, which a single-crate snippet (or the `root_and_stdlib` option)
+/// cannot express.
+///
+/// Returns the compilation errors of the whole crate graph.
+pub(crate) fn get_program_with_stdlib_dependency(
+    stdlib_src: &str,
+    root_src: &str,
+) -> Vec<CompilationError> {
+    let root = Path::new("/");
+    let mut fm = FileManager::new(root);
+    let stdlib_file_id =
+        fm.add_file_with_source(Path::new("std_lib"), stdlib_src.to_string()).unwrap();
+    let root_file_id =
+        fm.add_file_with_source(Path::new("test_file"), root_src.to_string()).unwrap();
+
+    // Both crates must be parsed up front: dependency crates are collected via
+    // `Context::parsed_file_results`, which expects their parse results to already be present.
+    let (stdlib_program, stdlib_parser_errors) = parse_program(stdlib_src, stdlib_file_id);
+    let (root_program, root_parser_errors) = parse_program(root_src, root_file_id);
+
+    let mut parsed_files = ParsedFiles::default();
+    parsed_files.insert(stdlib_file_id, (stdlib_program, stdlib_parser_errors));
+    parsed_files.insert(root_file_id, (root_program.clone(), root_parser_errors.clone()));
+
+    let mut context = Context::new(fm, parsed_files);
+    context.def_interner.populate_dummy_operator_traits();
+
+    let stdlib_crate_id = context.crate_graph.add_stdlib(stdlib_file_id);
+    let root_crate_id = context.crate_graph.add_crate_root(root_file_id);
+    context
+        .crate_graph
+        .add_dep(root_crate_id, "std".parse().unwrap(), stdlib_crate_id)
+        .expect("std dependency should not be cyclic");
+
+    let mut errors = vecmap(root_parser_errors, |e| e.into());
+    remove_experimental_warnings(&mut errors);
+
+    if !has_parser_error(&errors) {
+        let inner_attributes: Vec<SecondaryAttribute> = root_program
+            .items
+            .iter()
+            .filter_map(|item| {
+                if let ItemKind::InnerAttribute(attribute) = &item.kind {
+                    Some(attribute.clone())
+                } else {
+                    None
+                }
+            })
+            .collect();
+
+        let location = Location::new(Default::default(), root_file_id);
+        let root_module = ModuleData::new(
+            None,
+            None,
+            location,
+            Vec::new(),
+            inner_attributes,
+            false, // is contract
+            false, // is struct
+        );
+
+        let def_map = CrateDefMap::new(root_crate_id, root_module);
+
+        // Collecting the root crate transitively collects its `std` dependency.
+        errors.extend(DefCollector::collect_crate_and_dependencies(
+            def_map,
+            &mut context,
+            root_program.into_sorted(),
+            root_file_id,
+            GetProgramOptions::default().frontend_options,
+        ));
+    }
+
+    errors
 }
 
 /// These snippets can be used in conjunction with `get_program_with_stdlib`.
