@@ -442,23 +442,37 @@ impl Elaborator<'_> {
                 self.push_assign_to_immutable_lvalue_error(array, main_lvalue);
             }
             HirLValue::Dereference { lvalue, .. } => {
-                if let HirLValue::Ident(ident, _) = lvalue.as_ref() {
-                    let definition = self.interner.definition(ident.id);
-                    let name = definition.name.clone();
-                    let location = ident.location;
-                    self.push_err(TypeCheckError::CannotAssignToReference { name, location });
+                let reference_ident = if let HirLValue::Ident(ident, _) = lvalue.as_ref() {
+                    let name = self.interner.definition(ident.id).name.clone();
+                    Some((name, ident.location))
                 } else {
-                    let lvalue = main_lvalue.to_display_ast(self.interner).to_string();
-                    let location = main_lvalue.location();
-                    self.push_err(TypeCheckError::CannotAssignToLValueBehindReference {
-                        lvalue,
-                        location,
-                    });
-                }
+                    None
+                };
+                self.push_write_through_reference_error(reference_ident, |this| {
+                    let lvalue = main_lvalue.to_display_ast(this.interner).to_string();
+                    (lvalue, main_lvalue.location())
+                });
             }
             HirLValue::Error { .. } => {
                 // An error was already pushed for this
             }
+        }
+    }
+
+    /// Push the error for attempting to write through an immutable `&` reference.
+    /// A reference that is a plain identifier is named directly (`CannotAssignToReference`);
+    /// otherwise `otherwise` supplies the rendered lvalue and location for a
+    /// `CannotAssignToLValueBehindReference` error.
+    pub(super) fn push_write_through_reference_error(
+        &mut self,
+        reference_ident: Option<(String, Location)>,
+        otherwise: impl FnOnce(&mut Self) -> (String, Location),
+    ) {
+        if let Some((name, location)) = reference_ident {
+            self.push_err(TypeCheckError::CannotAssignToReference { name, location });
+        } else {
+            let (lvalue, location) = otherwise(self);
+            self.push_err(TypeCheckError::CannotAssignToLValueBehindReference { lvalue, location });
         }
     }
 
