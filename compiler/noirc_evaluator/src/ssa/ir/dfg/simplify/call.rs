@@ -142,10 +142,53 @@ pub(super) fn simplify_call(
                     dfg.make_constant(vector_length_value.0.into(), NumericType::length_type());
                 let new_vector =
                     make_array(dfg, array, Type::Vector(inner_element_types), block, call_stack);
-                SimplifyResult::SimplifiedToMultiple(vec![vector_length, new_vector])
-            } else {
-                SimplifyResult::None
+                return SimplifyResult::SimplifiedToMultiple(vec![vector_length, new_vector]);
             }
+
+            // In ACIR we can simplify `as_vector(array)`, to:
+            //
+            // ```
+            // v0 = array_get array, index u32 0 -> T
+            // v1 = array_get array, index u32 1 -> T
+            // ...
+            // vN = make_array [v0, v1, ...]
+            // ```
+            //
+            // We don't do this for Brillig because it sometimes leads to more opcodes.
+            if !dfg.runtime().is_acir() {
+                return SimplifyResult::None;
+            }
+
+            let array_type = dfg.type_of_value(arguments[0]);
+            let Type::Array(element_types, length) = array_type.as_ref() else {
+                panic!("Expected as_vector input to be an array")
+            };
+            let element_types = element_types.clone();
+            let length = *length;
+
+            let mut elements = im::Vector::default();
+            let mut index: u32 = 0;
+            for _ in 0..length.0 {
+                for element_type in element_types.iter() {
+                    let index_value = dfg.make_constant(index.into(), NumericType::length_type());
+                    let array_get =
+                        Instruction::ArrayGet { array: arguments[0], index: index_value };
+                    let element = dfg
+                        .insert_instruction_and_results(
+                            array_get,
+                            block,
+                            Some(vec![element_type.clone()]),
+                            call_stack,
+                        )
+                        .first();
+                    elements.push_back(element);
+                    index += 1;
+                }
+            }
+            let new_vector =
+                make_array(dfg, elements, Type::Vector(element_types), block, call_stack);
+            let vector_length = dfg.make_constant(length.0.into(), NumericType::length_type());
+            SimplifyResult::SimplifiedToMultiple(vec![vector_length, new_vector])
         }
         Intrinsic::VectorPushBack => {
             if let Some(result) = simplify_vector_push_back_or_front_for_zero_sized_vector(
@@ -1267,6 +1310,71 @@ mod tests {
         }
         "#;
         let _ = Ssa::from_str_simplifying(src).unwrap();
+    }
+
+    #[test]
+    fn simplifies_as_vector_for_known_array() {
+        let src = r#"
+        acir(inline) fn main func {
+          b0():
+            v0 = make_array [Field 1, Field 2, Field 3] : [Field; 3]
+            v1, v2 = call as_vector(v0) -> (u32, [Field])
+            return v1, v2
+        }
+        "#;
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0():
+            v3 = make_array [Field 1, Field 2, Field 3] : [Field; 3]
+            v4 = make_array [Field 1, Field 2, Field 3] : [Field]
+            return u32 3, v4
+        }
+        ");
+    }
+
+    #[test]
+    fn simplifies_as_vector_for_unknown_array_in_acir() {
+        let src = r#"
+        acir(inline) fn main func {
+          b0(v0: [Field; 3]):
+            v1, v2 = call as_vector(v0) -> (u32, [Field])
+            return v1, v2
+        }
+        "#;
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: [Field; 3]):
+            v2 = array_get v0, index u32 0 -> Field
+            v4 = array_get v0, index u32 1 -> Field
+            v6 = array_get v0, index u32 2 -> Field
+            v7 = make_array [v2, v4, v6] : [Field]
+            return u32 3, v7
+        }
+        ");
+    }
+
+    #[test]
+    fn does_not_simplify_as_vector_for_unknown_array_in_brillig() {
+        let src = r#"
+        brillig(inline) fn main func {
+          b0(v0: [Field; 3]):
+            v1, v2 = call as_vector(v0) -> (u32, [Field])
+            return v1, v2
+        }
+        "#;
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) fn main f0 {
+          b0(v0: [Field; 3]):
+            v2, v3 = call as_vector(v0) -> (u32, [Field])
+            return v2, v3
+        }
+        ");
     }
 
     #[test]
