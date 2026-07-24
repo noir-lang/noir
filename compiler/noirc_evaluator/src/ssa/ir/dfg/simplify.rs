@@ -1207,4 +1207,39 @@ mod tests {
         }
         ");
     }
+
+    /// A `u1`-typed `unchecked_mul` stays a single bit only when its operands do: here the lhs is
+    /// an `unchecked_add u1` that can hold the field value 2 in ACIR (1 + 1), and multiplying by
+    /// `v1 = 1` preserves it, so the `range_check ... to 1 bits` is load-bearing and must survive.
+    #[test]
+    fn range_check_after_unchecked_mul_of_wide_u1_operand_is_preserved_in_acir() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u1, v1: u1):
+            v2 = unchecked_add v0, v1
+            v3 = unchecked_mul v2, v1
+            range_check v3 to 1 bits
+            return v3
+        }
+        ";
+        assert_ssa_does_not_change_after_simplifying(src);
+    }
+
+    /// Same as the previous test but with the wide value laundered through one more `u1` Mul
+    /// (by a boolean unrelated to the inner product, so no `b*(b*x)` absorption applies): the
+    /// bound must propagate through arbitrarily long `u1` Mul chains, not just one hop.
+    #[test]
+    fn range_check_after_unchecked_mul_chain_of_wide_u1_operand_is_preserved_in_acir() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u1, v1: u1, v2: u1):
+            v3 = unchecked_add v0, v1
+            v4 = unchecked_mul v3, v1
+            v5 = unchecked_mul v4, v2
+            range_check v5 to 1 bits
+            return v5
+        }
+        ";
+        assert_ssa_does_not_change_after_simplifying(src);
+    }
 }

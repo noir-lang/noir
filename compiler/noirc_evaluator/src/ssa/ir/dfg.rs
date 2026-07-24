@@ -589,8 +589,7 @@ impl DataFlowGraph {
                     // unchecked Sub can underflow to a field-negative (near-modulus) value at any
                     // width. Report a conservative upper bound rather than the static type width,
                     // so callers never mistake that width for a range proof. (In Brillig the result
-                    // wraps to the type width, and a `u1` unchecked Mul stays a single bit, so
-                    // those keep the static width.)
+                    // wraps to the type width, so it keeps the static width.)
                     Instruction::Binary(binary)
                         if self.runtime().is_acir()
                             && matches!(
@@ -598,9 +597,7 @@ impl DataFlowGraph {
                                 BinaryOp::Add { unchecked: true }
                                     | BinaryOp::Sub { unchecked: true }
                                     | BinaryOp::Mul { unchecked: true }
-                            )
-                            && !(value_bit_size == 1
-                                && matches!(binary.operator, BinaryOp::Mul { .. })) =>
+                            ) =>
                     {
                         let field_max = FieldElement::max_num_bits();
                         let bound = match binary.operator {
@@ -608,9 +605,21 @@ impl DataFlowGraph {
                                 .operand_max_num_bits(binary.lhs)
                                 .max(self.operand_max_num_bits(binary.rhs))
                                 .saturating_add(1),
-                            BinaryOp::Mul { .. } => self
-                                .operand_max_num_bits(binary.lhs)
-                                .saturating_add(self.operand_max_num_bits(binary.rhs)),
+                            BinaryOp::Mul { .. } => {
+                                let lhs_bits = self.operand_max_num_bits(binary.lhs);
+                                let rhs_bits = self.operand_max_num_bits(binary.rhs);
+                                // A 0/1 operand selects the other operand or zero, adding no
+                                // bits. In particular a `u1` Mul of two canonical `u1`s stays a
+                                // single bit, while a wide operand (e.g. an `unchecked_add u1`
+                                // holding 2) propagates its full bound to the product.
+                                if lhs_bits <= 1 {
+                                    rhs_bits
+                                } else if rhs_bits <= 1 {
+                                    lhs_bits
+                                } else {
+                                    lhs_bits.saturating_add(rhs_bits)
+                                }
+                            }
                             _ => field_max,
                         };
                         bound.min(field_max)
@@ -627,11 +636,11 @@ impl DataFlowGraph {
     /// Upper bound on the number of bits an operand of an unchecked ACIR arithmetic instruction
     /// may hold.
     ///
-    /// Only unchecked ACIR arithmetic can exceed its static type width (a `u1` unchecked Mul is
-    /// the one exception that cannot), so every other value is bounded by that width. An operand
-    /// that is itself unchecked ACIR arithmetic is bounded only by the field width. This is an
-    /// O(1) upper bound that never inspects the operand's own operands; it can only
-    /// over-approximate, so callers that use it to drop range checks never do so unsoundly.
+    /// Only unchecked ACIR arithmetic can exceed its static type width, so every other value is
+    /// bounded by that width. An operand that is itself unchecked ACIR arithmetic is bounded only
+    /// by the field width. This is an O(1) upper bound that never inspects the operand's own
+    /// operands; it can only over-approximate, so callers that use it to drop range checks never
+    /// do so unsoundly.
     fn operand_max_num_bits(&self, value: ValueId) -> u32 {
         let value_bit_size = self.type_of_value(value).bit_size();
         if self.runtime().is_acir()
@@ -643,12 +652,36 @@ impl DataFlowGraph {
                     | BinaryOp::Sub { unchecked: true }
                     | BinaryOp::Mul { unchecked: true }
             )
-            && !(value_bit_size == 1 && matches!(binary.operator, BinaryOp::Mul { .. }))
         {
             FieldElement::max_num_bits()
         } else {
             value_bit_size
         }
+    }
+
+    /// True if `value` is boolean: a 0/1 constant, a `u1`-typed value, or a chain of casts
+    /// bottoming out at one of those.
+    ///
+    /// This trusts the static type: a `u1`-typed value is assumed to hold 0 or 1, the canonicality
+    /// invariant the compiler maintains for every value it creates (in ACIR a `u1` unchecked
+    /// add/sub result can transiently violate it, but such values only ever flow into truncations
+    /// and casts). Use this for algebraic rewrites that are valid for canonical values, such as
+    /// `b*b = b`. Do NOT use it to justify deleting a range check: for that,
+    /// [`Self::get_value_max_num_bits`] gives a bound that does not assume canonicality of
+    /// unchecked arithmetic results.
+    pub(crate) fn is_boolean_value(&self, value: ValueId) -> bool {
+        if let Some(constant) = self.get_numeric_constant(value) {
+            return constant.is_zero() || constant.is_one();
+        }
+        if self.type_of_value(value).bit_size() == 1 {
+            return true;
+        }
+        if let Value::Instruction { instruction, .. } = self[value]
+            && let Instruction::Cast(inner, _) = self[instruction]
+        {
+            return self.is_boolean_value(inner);
+        }
+        false
     }
 
     /// True if the type of this value is `Type::Reference`.
