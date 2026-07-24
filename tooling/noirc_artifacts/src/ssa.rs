@@ -11,7 +11,7 @@ pub enum SsaReport {
 #[derive(Debug, PartialEq, Eq, Clone, Error, Serialize, Deserialize, Hash)]
 pub enum InternalWarning {
     #[error("Return variable contains a constant value")]
-    ReturnConstant { call_stack: CallStack },
+    ConstantReturn { call_stack: CallStack },
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Error, Serialize, Deserialize, Hash)]

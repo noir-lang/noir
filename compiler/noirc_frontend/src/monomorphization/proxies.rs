@@ -280,6 +280,7 @@ fn make_proxy(id: FuncId, ident: Ident, unconstrained: bool) -> Function {
         unconstrained,
         inline_type: InlineType::InlineAlways,
         is_entry_point: false, // This only matters for creating artifacts
+        allow_constant_return: false,
     }
 }
 

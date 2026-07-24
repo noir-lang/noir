@@ -74,6 +74,8 @@ pub fn generate_ssa(program: Program) -> Result<Ssa, RuntimeError> {
     };
     let mut function_context =
         FunctionContext::new(main.name.clone(), &main.parameters, main_runtime, &context, globals);
+    function_context.builder.current_function.dfg.allow_constant_return =
+        main.allow_constant_return;
 
     // Generate the call_data bus from the relevant parameters. We create it *before* processing the function body
     let call_data = function_context.builder.call_data_bus(is_databus);
