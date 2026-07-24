@@ -542,244 +542,249 @@
 <a href=#542 id=542 data-nosnippet>542</a>    <span class="kw">pub </span>unconstrained: bool,
 <a href=#543 id=543 data-nosnippet>543</a>    <span class="kw">pub </span>inline_type: InlineType,
 <a href=#544 id=544 data-nosnippet>544</a>    <span class="kw">pub </span>is_entry_point: bool,
-<a href=#545 id=545 data-nosnippet>545</a>}
-<a href=#546 id=546 data-nosnippet>546</a>
-<a href=#547 id=547 data-nosnippet>547</a><span class="doccomment">/// Compared to `hir_def::types::Type`, this monomorphized Type has:
-<a href=#548 id=548 data-nosnippet>548</a>/// - All type variables and generics removed
-<a href=#549 id=549 data-nosnippet>549</a>/// - Concrete lengths for each array and string
-<a href=#550 id=550 data-nosnippet>550</a>/// - Several other variants removed (such as `Type::Constant`)
-<a href=#551 id=551 data-nosnippet>551</a>/// - All structs replaced with tuples
-<a href=#552 id=552 data-nosnippet>552</a></span><span class="attr">#[derive(Debug, PartialEq, Eq, Clone, Hash, PartialOrd, Ord)]
-<a href=#553 id=553 data-nosnippet>553</a></span><span class="kw">pub enum </span>Type {
-<a href=#554 id=554 data-nosnippet>554</a>    Field,
-<a href=#555 id=555 data-nosnippet>555</a>    Array(<span class="comment">/*len:*/ </span>u32, Rc&lt;Type&gt;), <span class="comment">// Array(4, Field) = [Field; 4]
-<a href=#556 id=556 data-nosnippet>556</a>    </span>Integer(Signedness, <span class="comment">/*bits:*/ </span>IntegerBitSize), <span class="comment">// u32 = Integer(unsigned, ThirtyTwo)
-<a href=#557 id=557 data-nosnippet>557</a>    </span>Bool,
-<a href=#558 id=558 data-nosnippet>558</a>    String(<span class="comment">/*len:*/ </span>u32), <span class="comment">// String(4) = str[4]
-<a href=#559 id=559 data-nosnippet>559</a>    </span>FmtString(<span class="comment">/*len:*/ </span>u32, Rc&lt;Type&gt;),
-<a href=#560 id=560 data-nosnippet>560</a>    Unit,
-<a href=#561 id=561 data-nosnippet>561</a>    Tuple(Vec&lt;Type&gt;),
-<a href=#562 id=562 data-nosnippet>562</a>    Vector(Rc&lt;Type&gt;),
-<a href=#563 id=563 data-nosnippet>563</a>    Reference(Rc&lt;Type&gt;, <span class="comment">/*mutable:*/ </span>bool),
-<a href=#564 id=564 data-nosnippet>564</a>    <span class="doccomment">/// `(args, ret, env, unconstrained)`
-<a href=#565 id=565 data-nosnippet>565</a>    </span>Function(
-<a href=#566 id=566 data-nosnippet>566</a>        <span class="comment">/*args:*/ </span>Vec&lt;Type&gt;,
-<a href=#567 id=567 data-nosnippet>567</a>        <span class="comment">/*ret:*/ </span>Rc&lt;Type&gt;,
-<a href=#568 id=568 data-nosnippet>568</a>        <span class="comment">/*env:*/ </span>Rc&lt;Type&gt;,
-<a href=#569 id=569 data-nosnippet>569</a>        <span class="comment">/*unconstrained:*/ </span>bool,
-<a href=#570 id=570 data-nosnippet>570</a>    ),
-<a href=#571 id=571 data-nosnippet>571</a>}
-<a href=#572 id=572 data-nosnippet>572</a>
-<a href=#573 id=573 data-nosnippet>573</a><span class="doccomment">/// Maximum number of flattened field elements allowed at an entry point boundary,
-<a href=#574 id=574 data-nosnippet>574</a>/// i.e. for a parameter or a return value.
-<a href=#575 id=575 data-nosnippet>575</a>///
-<a href=#576 id=576 data-nosnippet>576</a>/// This limit prevents hangs or out-of-memory issues when dealing with very large arrays:
-<a href=#577 id=577 data-nosnippet>577</a>/// flattened sizes approaching `u32::MAX` cannot be represented, since Brillig arrays are
-<a href=#578 id=578 data-nosnippet>578</a>/// heap-allocated using `u32` addressing and ACIR/data-bus construction reserves one witness
-<a href=#579 id=579 data-nosnippet>579</a>/// per flattened element.
+<a href=#545 id=545 data-nosnippet>545</a>
+<a href=#546 id=546 data-nosnippet>546</a>    <span class="doccomment">/// True if the source function was annotated with `#[allow(constant_return)]`,
+<a href=#547 id=547 data-nosnippet>547</a>    /// which silences the `constant_return` warning raised during ACIR generation
+<a href=#548 id=548 data-nosnippet>548</a>    /// when this function is an ACIR entry point whose return value is constant.
+<a href=#549 id=549 data-nosnippet>549</a>    </span><span class="kw">pub </span>allow_constant_return: bool,
+<a href=#550 id=550 data-nosnippet>550</a>}
+<a href=#551 id=551 data-nosnippet>551</a>
+<a href=#552 id=552 data-nosnippet>552</a><span class="doccomment">/// Compared to `hir_def::types::Type`, this monomorphized Type has:
+<a href=#553 id=553 data-nosnippet>553</a>/// - All type variables and generics removed
+<a href=#554 id=554 data-nosnippet>554</a>/// - Concrete lengths for each array and string
+<a href=#555 id=555 data-nosnippet>555</a>/// - Several other variants removed (such as `Type::Constant`)
+<a href=#556 id=556 data-nosnippet>556</a>/// - All structs replaced with tuples
+<a href=#557 id=557 data-nosnippet>557</a></span><span class="attr">#[derive(Debug, PartialEq, Eq, Clone, Hash, PartialOrd, Ord)]
+<a href=#558 id=558 data-nosnippet>558</a></span><span class="kw">pub enum </span>Type {
+<a href=#559 id=559 data-nosnippet>559</a>    Field,
+<a href=#560 id=560 data-nosnippet>560</a>    Array(<span class="comment">/*len:*/ </span>u32, Rc&lt;Type&gt;), <span class="comment">// Array(4, Field) = [Field; 4]
+<a href=#561 id=561 data-nosnippet>561</a>    </span>Integer(Signedness, <span class="comment">/*bits:*/ </span>IntegerBitSize), <span class="comment">// u32 = Integer(unsigned, ThirtyTwo)
+<a href=#562 id=562 data-nosnippet>562</a>    </span>Bool,
+<a href=#563 id=563 data-nosnippet>563</a>    String(<span class="comment">/*len:*/ </span>u32), <span class="comment">// String(4) = str[4]
+<a href=#564 id=564 data-nosnippet>564</a>    </span>FmtString(<span class="comment">/*len:*/ </span>u32, Rc&lt;Type&gt;),
+<a href=#565 id=565 data-nosnippet>565</a>    Unit,
+<a href=#566 id=566 data-nosnippet>566</a>    Tuple(Vec&lt;Type&gt;),
+<a href=#567 id=567 data-nosnippet>567</a>    Vector(Rc&lt;Type&gt;),
+<a href=#568 id=568 data-nosnippet>568</a>    Reference(Rc&lt;Type&gt;, <span class="comment">/*mutable:*/ </span>bool),
+<a href=#569 id=569 data-nosnippet>569</a>    <span class="doccomment">/// `(args, ret, env, unconstrained)`
+<a href=#570 id=570 data-nosnippet>570</a>    </span>Function(
+<a href=#571 id=571 data-nosnippet>571</a>        <span class="comment">/*args:*/ </span>Vec&lt;Type&gt;,
+<a href=#572 id=572 data-nosnippet>572</a>        <span class="comment">/*ret:*/ </span>Rc&lt;Type&gt;,
+<a href=#573 id=573 data-nosnippet>573</a>        <span class="comment">/*env:*/ </span>Rc&lt;Type&gt;,
+<a href=#574 id=574 data-nosnippet>574</a>        <span class="comment">/*unconstrained:*/ </span>bool,
+<a href=#575 id=575 data-nosnippet>575</a>    ),
+<a href=#576 id=576 data-nosnippet>576</a>}
+<a href=#577 id=577 data-nosnippet>577</a>
+<a href=#578 id=578 data-nosnippet>578</a><span class="doccomment">/// Maximum number of flattened field elements allowed at an entry point boundary,
+<a href=#579 id=579 data-nosnippet>579</a>/// i.e. for a parameter or a return value.
 <a href=#580 id=580 data-nosnippet>580</a>///
-<a href=#581 id=581 data-nosnippet>581</a>/// 2^24 = 16,777,216 witnesses. In practice the number of witnesses is limited by the CRS size,
-<a href=#582 id=582 data-nosnippet>582</a>/// which is usually around 2^20, so this limit should not interfere with real use cases.
-<a href=#583 id=583 data-nosnippet>583</a></span><span class="kw">pub const </span>MAX_ELEMENTS: usize = <span class="number">1 </span>&lt;&lt; <span class="number">24</span>;
-<a href=#584 id=584 data-nosnippet>584</a>
-<a href=#585 id=585 data-nosnippet>585</a><span class="kw">impl </span>Type {
-<a href=#586 id=586 data-nosnippet>586</a>    <span class="kw">pub fn </span>flatten(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Vec&lt;Type&gt; {
-<a href=#587 id=587 data-nosnippet>587</a>        <span class="kw">match </span><span class="self">self </span>{
-<a href=#588 id=588 data-nosnippet>588</a>            Type::Tuple(fields) =&gt; fields.iter().flat_map(|field| field.flatten()).collect(),
-<a href=#589 id=589 data-nosnippet>589</a>            <span class="kw">_ </span>=&gt; <span class="macro">vec!</span>[<span class="self">self</span>.clone()],
-<a href=#590 id=590 data-nosnippet>590</a>        }
-<a href=#591 id=591 data-nosnippet>591</a>    }
-<a href=#592 id=592 data-nosnippet>592</a>
-<a href=#593 id=593 data-nosnippet>593</a>    <span class="doccomment">/// Returns true if this type is, or transitively contains, a reference.
-<a href=#594 id=594 data-nosnippet>594</a>    </span><span class="kw">pub fn </span>contains_reference(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
-<a href=#595 id=595 data-nosnippet>595</a>        <span class="kw">match </span><span class="self">self </span>{
-<a href=#596 id=596 data-nosnippet>596</a>            Type::Reference(..) =&gt; <span class="bool-val">true</span>,
-<a href=#597 id=597 data-nosnippet>597</a>            Type::Array(<span class="kw">_</span>, element) | Type::Vector(element) =&gt; element.contains_reference(),
-<a href=#598 id=598 data-nosnippet>598</a>            Type::Tuple(fields) =&gt; fields.iter().any(Type::contains_reference),
-<a href=#599 id=599 data-nosnippet>599</a>            Type::FmtString(<span class="kw">_</span>, fields) =&gt; fields.contains_reference(),
-<a href=#600 id=600 data-nosnippet>600</a>            Type::Field
-<a href=#601 id=601 data-nosnippet>601</a>            | Type::Integer(..)
-<a href=#602 id=602 data-nosnippet>602</a>            | Type::Bool
-<a href=#603 id=603 data-nosnippet>603</a>            | Type::String(<span class="kw">_</span>)
-<a href=#604 id=604 data-nosnippet>604</a>            | Type::Unit
-<a href=#605 id=605 data-nosnippet>605</a>            | Type::Function(..) =&gt; <span class="bool-val">false</span>,
-<a href=#606 id=606 data-nosnippet>606</a>        }
-<a href=#607 id=607 data-nosnippet>607</a>    }
-<a href=#608 id=608 data-nosnippet>608</a>
-<a href=#609 id=609 data-nosnippet>609</a>    <span class="doccomment">/// Returns the element type of this array or vector
-<a href=#610 id=610 data-nosnippet>610</a>    </span><span class="kw">pub fn </span>array_element_type(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>Type&gt; {
-<a href=#611 id=611 data-nosnippet>611</a>        <span class="kw">match </span><span class="self">self </span>{
-<a href=#612 id=612 data-nosnippet>612</a>            Type::Array(<span class="kw">_</span>, elem) | Type::Vector(elem) =&gt; <span class="prelude-val">Some</span>(elem),
-<a href=#613 id=613 data-nosnippet>613</a>            <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,
-<a href=#614 id=614 data-nosnippet>614</a>        }
-<a href=#615 id=615 data-nosnippet>615</a>    }
-<a href=#616 id=616 data-nosnippet>616</a>
-<a href=#617 id=617 data-nosnippet>617</a>    <span class="doccomment">/// Returns the number of field elements required to represent the type once encoded
-<a href=#618 id=618 data-nosnippet>618</a>    /// as a parameter to an entry point function.
-<a href=#619 id=619 data-nosnippet>619</a>    ///
-<a href=#620 id=620 data-nosnippet>620</a>    /// Panics if the type is not valid as a parameter to main.
-<a href=#621 id=621 data-nosnippet>621</a>    </span><span class="kw">pub fn </span>entry_point_field_count(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; u32 {
-<a href=#622 id=622 data-nosnippet>622</a>        <span class="kw">match </span><span class="self">self </span>{
-<a href=#623 id=623 data-nosnippet>623</a>            Type::Field | Type::Integer(..) | Type::Bool =&gt; <span class="number">1</span>,
-<a href=#624 id=624 data-nosnippet>624</a>            Type::Array(length, typ) =&gt; {
-<a href=#625 id=625 data-nosnippet>625</a>                <span class="kw">let </span>typ = typ.as_ref();
-<a href=#626 id=626 data-nosnippet>626</a>                length.checked_mul(typ.entry_point_field_count()).expect(<span class="string">"Array length overflow"</span>)
-<a href=#627 id=627 data-nosnippet>627</a>            }
-<a href=#628 id=628 data-nosnippet>628</a>            Type::String(length) =&gt; <span class="kw-2">*</span>length,
-<a href=#629 id=629 data-nosnippet>629</a>            Type::Tuple(fields) =&gt; fields.iter().fold(<span class="number">0</span>, |acc, field_typ| {
-<a href=#630 id=630 data-nosnippet>630</a>                acc.checked_add(field_typ.entry_point_field_count()).expect(<span class="string">"Tuple size overflow"</span>)
-<a href=#631 id=631 data-nosnippet>631</a>            }),
-<a href=#632 id=632 data-nosnippet>632</a>            Type::Function(..)
-<a href=#633 id=633 data-nosnippet>633</a>            | Type::FmtString(..)
-<a href=#634 id=634 data-nosnippet>634</a>            | Type::Unit
-<a href=#635 id=635 data-nosnippet>635</a>            | Type::Vector(<span class="kw">_</span>)
-<a href=#636 id=636 data-nosnippet>636</a>            | Type::Reference(<span class="kw">_</span>, <span class="kw">_</span>) =&gt; {
-<a href=#637 id=637 data-nosnippet>637</a>                <span class="macro">unreachable!</span>(<span class="string">"This type cannot exist as a parameter to main: {self:?}"</span>)
-<a href=#638 id=638 data-nosnippet>638</a>            }
-<a href=#639 id=639 data-nosnippet>639</a>        }
-<a href=#640 id=640 data-nosnippet>640</a>    }
-<a href=#641 id=641 data-nosnippet>641</a>}
-<a href=#642 id=642 data-nosnippet>642</a>
-<a href=#643 id=643 data-nosnippet>643</a><span class="attr">#[derive(Debug, Clone, Hash, Default)]
-<a href=#644 id=644 data-nosnippet>644</a></span><span class="kw">pub struct </span>Program {
-<a href=#645 id=645 data-nosnippet>645</a>    <span class="kw">pub </span>functions: Vec&lt;Function&gt;,
-<a href=#646 id=646 data-nosnippet>646</a>    <span class="kw">pub </span>return_location: <span class="prelude-ty">Option</span>&lt;Location&gt;,
-<a href=#647 id=647 data-nosnippet>647</a>    <span class="kw">pub </span>globals: BTreeMap&lt;GlobalId, (String, Type, Expression)&gt;,
-<a href=#648 id=648 data-nosnippet>648</a>    <span class="kw">pub </span>debug_variables: DebugVariables,
-<a href=#649 id=649 data-nosnippet>649</a>    <span class="kw">pub </span>debug_functions: DebugFunctions,
-<a href=#650 id=650 data-nosnippet>650</a>    <span class="kw">pub </span>debug_types: DebugTypes,
-<a href=#651 id=651 data-nosnippet>651</a>}
-<a href=#652 id=652 data-nosnippet>652</a>
-<a href=#653 id=653 data-nosnippet>653</a><span class="kw">impl </span>Program {
-<a href=#654 id=654 data-nosnippet>654</a>    <span class="attr">#[allow(clippy::too_many_arguments)]
-<a href=#655 id=655 data-nosnippet>655</a>    </span><span class="kw">pub fn </span>new(
-<a href=#656 id=656 data-nosnippet>656</a>        functions: Vec&lt;Function&gt;,
-<a href=#657 id=657 data-nosnippet>657</a>        return_location: <span class="prelude-ty">Option</span>&lt;Location&gt;,
-<a href=#658 id=658 data-nosnippet>658</a>        globals: BTreeMap&lt;GlobalId, (String, Type, Expression)&gt;,
-<a href=#659 id=659 data-nosnippet>659</a>        debug_variables: DebugVariables,
-<a href=#660 id=660 data-nosnippet>660</a>        debug_functions: DebugFunctions,
-<a href=#661 id=661 data-nosnippet>661</a>        debug_types: DebugTypes,
-<a href=#662 id=662 data-nosnippet>662</a>    ) -&gt; Program {
-<a href=#663 id=663 data-nosnippet>663</a>        Program {
-<a href=#664 id=664 data-nosnippet>664</a>            functions,
-<a href=#665 id=665 data-nosnippet>665</a>            return_location,
-<a href=#666 id=666 data-nosnippet>666</a>            globals,
-<a href=#667 id=667 data-nosnippet>667</a>            debug_variables,
-<a href=#668 id=668 data-nosnippet>668</a>            debug_functions,
-<a href=#669 id=669 data-nosnippet>669</a>            debug_types,
-<a href=#670 id=670 data-nosnippet>670</a>        }
-<a href=#671 id=671 data-nosnippet>671</a>    }
-<a href=#672 id=672 data-nosnippet>672</a>
-<a href=#673 id=673 data-nosnippet>673</a>    <span class="kw">pub fn </span>main(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>Function {
-<a href=#674 id=674 data-nosnippet>674</a>        <span class="kw-2">&amp;</span><span class="self">self</span>[<span class="self">Self</span>::main_id()]
-<a href=#675 id=675 data-nosnippet>675</a>    }
-<a href=#676 id=676 data-nosnippet>676</a>
-<a href=#677 id=677 data-nosnippet>677</a>    <span class="kw">pub fn </span>main_mut(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;mut </span>Function {
-<a href=#678 id=678 data-nosnippet>678</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>[<span class="self">Self</span>::main_id()]
-<a href=#679 id=679 data-nosnippet>679</a>    }
-<a href=#680 id=680 data-nosnippet>680</a>
-<a href=#681 id=681 data-nosnippet>681</a>    <span class="kw">pub fn </span>main_id() -&gt; FuncId {
-<a href=#682 id=682 data-nosnippet>682</a>        FuncId(<span class="number">0</span>)
-<a href=#683 id=683 data-nosnippet>683</a>    }
-<a href=#684 id=684 data-nosnippet>684</a>
-<a href=#685 id=685 data-nosnippet>685</a>    <span class="doccomment">/// Globals are expected to be generated within a different context than
-<a href=#686 id=686 data-nosnippet>686</a>    /// all other functions in the program. Thus, the globals space has the same
-<a href=#687 id=687 data-nosnippet>687</a>    /// ID as `main`, although we should never expect a clash in these IDs.
-<a href=#688 id=688 data-nosnippet>688</a>    </span><span class="kw">pub fn </span>global_space_id() -&gt; FuncId {
-<a href=#689 id=689 data-nosnippet>689</a>        FuncId(<span class="number">0</span>)
-<a href=#690 id=690 data-nosnippet>690</a>    }
-<a href=#691 id=691 data-nosnippet>691</a>
-<a href=#692 id=692 data-nosnippet>692</a>    <span class="doccomment">/// Takes a function body by replacing it with `false` and
-<a href=#693 id=693 data-nosnippet>693</a>    /// returning the previous value
-<a href=#694 id=694 data-nosnippet>694</a>    </span><span class="kw">pub fn </span>take_function_body(<span class="kw-2">&amp;mut </span><span class="self">self</span>, function: FuncId) -&gt; Expression {
-<a href=#695 id=695 data-nosnippet>695</a>        <span class="kw">let </span>function_definition = <span class="kw-2">&amp;mut </span><span class="self">self</span>[function];
-<a href=#696 id=696 data-nosnippet>696</a>        <span class="kw">let </span>replacement = Expression::Block(<span class="macro">vec!</span>[]);
-<a href=#697 id=697 data-nosnippet>697</a>        std::mem::replace(<span class="kw-2">&amp;mut </span>function_definition.body, replacement)
-<a href=#698 id=698 data-nosnippet>698</a>    }
-<a href=#699 id=699 data-nosnippet>699</a>
-<a href=#700 id=700 data-nosnippet>700</a>    <span class="kw">pub fn </span>return_visibility(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Visibility {
-<a href=#701 id=701 data-nosnippet>701</a>        <span class="self">self</span>.main().return_visibility
-<a href=#702 id=702 data-nosnippet>702</a>    }
-<a href=#703 id=703 data-nosnippet>703</a>
-<a href=#704 id=704 data-nosnippet>704</a>    <span class="kw">pub fn </span>main_function_parameters(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>Parameters {
-<a href=#705 id=705 data-nosnippet>705</a>        <span class="kw-2">&amp;</span><span class="self">self</span>.main().parameters
-<a href=#706 id=706 data-nosnippet>706</a>    }
-<a href=#707 id=707 data-nosnippet>707</a>}
+<a href=#581 id=581 data-nosnippet>581</a>/// This limit prevents hangs or out-of-memory issues when dealing with very large arrays:
+<a href=#582 id=582 data-nosnippet>582</a>/// flattened sizes approaching `u32::MAX` cannot be represented, since Brillig arrays are
+<a href=#583 id=583 data-nosnippet>583</a>/// heap-allocated using `u32` addressing and ACIR/data-bus construction reserves one witness
+<a href=#584 id=584 data-nosnippet>584</a>/// per flattened element.
+<a href=#585 id=585 data-nosnippet>585</a>///
+<a href=#586 id=586 data-nosnippet>586</a>/// 2^24 = 16,777,216 witnesses. In practice the number of witnesses is limited by the CRS size,
+<a href=#587 id=587 data-nosnippet>587</a>/// which is usually around 2^20, so this limit should not interfere with real use cases.
+<a href=#588 id=588 data-nosnippet>588</a></span><span class="kw">pub const </span>MAX_ELEMENTS: usize = <span class="number">1 </span>&lt;&lt; <span class="number">24</span>;
+<a href=#589 id=589 data-nosnippet>589</a>
+<a href=#590 id=590 data-nosnippet>590</a><span class="kw">impl </span>Type {
+<a href=#591 id=591 data-nosnippet>591</a>    <span class="kw">pub fn </span>flatten(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Vec&lt;Type&gt; {
+<a href=#592 id=592 data-nosnippet>592</a>        <span class="kw">match </span><span class="self">self </span>{
+<a href=#593 id=593 data-nosnippet>593</a>            Type::Tuple(fields) =&gt; fields.iter().flat_map(|field| field.flatten()).collect(),
+<a href=#594 id=594 data-nosnippet>594</a>            <span class="kw">_ </span>=&gt; <span class="macro">vec!</span>[<span class="self">self</span>.clone()],
+<a href=#595 id=595 data-nosnippet>595</a>        }
+<a href=#596 id=596 data-nosnippet>596</a>    }
+<a href=#597 id=597 data-nosnippet>597</a>
+<a href=#598 id=598 data-nosnippet>598</a>    <span class="doccomment">/// Returns true if this type is, or transitively contains, a reference.
+<a href=#599 id=599 data-nosnippet>599</a>    </span><span class="kw">pub fn </span>contains_reference(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
+<a href=#600 id=600 data-nosnippet>600</a>        <span class="kw">match </span><span class="self">self </span>{
+<a href=#601 id=601 data-nosnippet>601</a>            Type::Reference(..) =&gt; <span class="bool-val">true</span>,
+<a href=#602 id=602 data-nosnippet>602</a>            Type::Array(<span class="kw">_</span>, element) | Type::Vector(element) =&gt; element.contains_reference(),
+<a href=#603 id=603 data-nosnippet>603</a>            Type::Tuple(fields) =&gt; fields.iter().any(Type::contains_reference),
+<a href=#604 id=604 data-nosnippet>604</a>            Type::FmtString(<span class="kw">_</span>, fields) =&gt; fields.contains_reference(),
+<a href=#605 id=605 data-nosnippet>605</a>            Type::Field
+<a href=#606 id=606 data-nosnippet>606</a>            | Type::Integer(..)
+<a href=#607 id=607 data-nosnippet>607</a>            | Type::Bool
+<a href=#608 id=608 data-nosnippet>608</a>            | Type::String(<span class="kw">_</span>)
+<a href=#609 id=609 data-nosnippet>609</a>            | Type::Unit
+<a href=#610 id=610 data-nosnippet>610</a>            | Type::Function(..) =&gt; <span class="bool-val">false</span>,
+<a href=#611 id=611 data-nosnippet>611</a>        }
+<a href=#612 id=612 data-nosnippet>612</a>    }
+<a href=#613 id=613 data-nosnippet>613</a>
+<a href=#614 id=614 data-nosnippet>614</a>    <span class="doccomment">/// Returns the element type of this array or vector
+<a href=#615 id=615 data-nosnippet>615</a>    </span><span class="kw">pub fn </span>array_element_type(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>Type&gt; {
+<a href=#616 id=616 data-nosnippet>616</a>        <span class="kw">match </span><span class="self">self </span>{
+<a href=#617 id=617 data-nosnippet>617</a>            Type::Array(<span class="kw">_</span>, elem) | Type::Vector(elem) =&gt; <span class="prelude-val">Some</span>(elem),
+<a href=#618 id=618 data-nosnippet>618</a>            <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,
+<a href=#619 id=619 data-nosnippet>619</a>        }
+<a href=#620 id=620 data-nosnippet>620</a>    }
+<a href=#621 id=621 data-nosnippet>621</a>
+<a href=#622 id=622 data-nosnippet>622</a>    <span class="doccomment">/// Returns the number of field elements required to represent the type once encoded
+<a href=#623 id=623 data-nosnippet>623</a>    /// as a parameter to an entry point function.
+<a href=#624 id=624 data-nosnippet>624</a>    ///
+<a href=#625 id=625 data-nosnippet>625</a>    /// Panics if the type is not valid as a parameter to main.
+<a href=#626 id=626 data-nosnippet>626</a>    </span><span class="kw">pub fn </span>entry_point_field_count(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; u32 {
+<a href=#627 id=627 data-nosnippet>627</a>        <span class="kw">match </span><span class="self">self </span>{
+<a href=#628 id=628 data-nosnippet>628</a>            Type::Field | Type::Integer(..) | Type::Bool =&gt; <span class="number">1</span>,
+<a href=#629 id=629 data-nosnippet>629</a>            Type::Array(length, typ) =&gt; {
+<a href=#630 id=630 data-nosnippet>630</a>                <span class="kw">let </span>typ = typ.as_ref();
+<a href=#631 id=631 data-nosnippet>631</a>                length.checked_mul(typ.entry_point_field_count()).expect(<span class="string">"Array length overflow"</span>)
+<a href=#632 id=632 data-nosnippet>632</a>            }
+<a href=#633 id=633 data-nosnippet>633</a>            Type::String(length) =&gt; <span class="kw-2">*</span>length,
+<a href=#634 id=634 data-nosnippet>634</a>            Type::Tuple(fields) =&gt; fields.iter().fold(<span class="number">0</span>, |acc, field_typ| {
+<a href=#635 id=635 data-nosnippet>635</a>                acc.checked_add(field_typ.entry_point_field_count()).expect(<span class="string">"Tuple size overflow"</span>)
+<a href=#636 id=636 data-nosnippet>636</a>            }),
+<a href=#637 id=637 data-nosnippet>637</a>            Type::Function(..)
+<a href=#638 id=638 data-nosnippet>638</a>            | Type::FmtString(..)
+<a href=#639 id=639 data-nosnippet>639</a>            | Type::Unit
+<a href=#640 id=640 data-nosnippet>640</a>            | Type::Vector(<span class="kw">_</span>)
+<a href=#641 id=641 data-nosnippet>641</a>            | Type::Reference(<span class="kw">_</span>, <span class="kw">_</span>) =&gt; {
+<a href=#642 id=642 data-nosnippet>642</a>                <span class="macro">unreachable!</span>(<span class="string">"This type cannot exist as a parameter to main: {self:?}"</span>)
+<a href=#643 id=643 data-nosnippet>643</a>            }
+<a href=#644 id=644 data-nosnippet>644</a>        }
+<a href=#645 id=645 data-nosnippet>645</a>    }
+<a href=#646 id=646 data-nosnippet>646</a>}
+<a href=#647 id=647 data-nosnippet>647</a>
+<a href=#648 id=648 data-nosnippet>648</a><span class="attr">#[derive(Debug, Clone, Hash, Default)]
+<a href=#649 id=649 data-nosnippet>649</a></span><span class="kw">pub struct </span>Program {
+<a href=#650 id=650 data-nosnippet>650</a>    <span class="kw">pub </span>functions: Vec&lt;Function&gt;,
+<a href=#651 id=651 data-nosnippet>651</a>    <span class="kw">pub </span>return_location: <span class="prelude-ty">Option</span>&lt;Location&gt;,
+<a href=#652 id=652 data-nosnippet>652</a>    <span class="kw">pub </span>globals: BTreeMap&lt;GlobalId, (String, Type, Expression)&gt;,
+<a href=#653 id=653 data-nosnippet>653</a>    <span class="kw">pub </span>debug_variables: DebugVariables,
+<a href=#654 id=654 data-nosnippet>654</a>    <span class="kw">pub </span>debug_functions: DebugFunctions,
+<a href=#655 id=655 data-nosnippet>655</a>    <span class="kw">pub </span>debug_types: DebugTypes,
+<a href=#656 id=656 data-nosnippet>656</a>}
+<a href=#657 id=657 data-nosnippet>657</a>
+<a href=#658 id=658 data-nosnippet>658</a><span class="kw">impl </span>Program {
+<a href=#659 id=659 data-nosnippet>659</a>    <span class="attr">#[allow(clippy::too_many_arguments)]
+<a href=#660 id=660 data-nosnippet>660</a>    </span><span class="kw">pub fn </span>new(
+<a href=#661 id=661 data-nosnippet>661</a>        functions: Vec&lt;Function&gt;,
+<a href=#662 id=662 data-nosnippet>662</a>        return_location: <span class="prelude-ty">Option</span>&lt;Location&gt;,
+<a href=#663 id=663 data-nosnippet>663</a>        globals: BTreeMap&lt;GlobalId, (String, Type, Expression)&gt;,
+<a href=#664 id=664 data-nosnippet>664</a>        debug_variables: DebugVariables,
+<a href=#665 id=665 data-nosnippet>665</a>        debug_functions: DebugFunctions,
+<a href=#666 id=666 data-nosnippet>666</a>        debug_types: DebugTypes,
+<a href=#667 id=667 data-nosnippet>667</a>    ) -&gt; Program {
+<a href=#668 id=668 data-nosnippet>668</a>        Program {
+<a href=#669 id=669 data-nosnippet>669</a>            functions,
+<a href=#670 id=670 data-nosnippet>670</a>            return_location,
+<a href=#671 id=671 data-nosnippet>671</a>            globals,
+<a href=#672 id=672 data-nosnippet>672</a>            debug_variables,
+<a href=#673 id=673 data-nosnippet>673</a>            debug_functions,
+<a href=#674 id=674 data-nosnippet>674</a>            debug_types,
+<a href=#675 id=675 data-nosnippet>675</a>        }
+<a href=#676 id=676 data-nosnippet>676</a>    }
+<a href=#677 id=677 data-nosnippet>677</a>
+<a href=#678 id=678 data-nosnippet>678</a>    <span class="kw">pub fn </span>main(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>Function {
+<a href=#679 id=679 data-nosnippet>679</a>        <span class="kw-2">&amp;</span><span class="self">self</span>[<span class="self">Self</span>::main_id()]
+<a href=#680 id=680 data-nosnippet>680</a>    }
+<a href=#681 id=681 data-nosnippet>681</a>
+<a href=#682 id=682 data-nosnippet>682</a>    <span class="kw">pub fn </span>main_mut(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;mut </span>Function {
+<a href=#683 id=683 data-nosnippet>683</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>[<span class="self">Self</span>::main_id()]
+<a href=#684 id=684 data-nosnippet>684</a>    }
+<a href=#685 id=685 data-nosnippet>685</a>
+<a href=#686 id=686 data-nosnippet>686</a>    <span class="kw">pub fn </span>main_id() -&gt; FuncId {
+<a href=#687 id=687 data-nosnippet>687</a>        FuncId(<span class="number">0</span>)
+<a href=#688 id=688 data-nosnippet>688</a>    }
+<a href=#689 id=689 data-nosnippet>689</a>
+<a href=#690 id=690 data-nosnippet>690</a>    <span class="doccomment">/// Globals are expected to be generated within a different context than
+<a href=#691 id=691 data-nosnippet>691</a>    /// all other functions in the program. Thus, the globals space has the same
+<a href=#692 id=692 data-nosnippet>692</a>    /// ID as `main`, although we should never expect a clash in these IDs.
+<a href=#693 id=693 data-nosnippet>693</a>    </span><span class="kw">pub fn </span>global_space_id() -&gt; FuncId {
+<a href=#694 id=694 data-nosnippet>694</a>        FuncId(<span class="number">0</span>)
+<a href=#695 id=695 data-nosnippet>695</a>    }
+<a href=#696 id=696 data-nosnippet>696</a>
+<a href=#697 id=697 data-nosnippet>697</a>    <span class="doccomment">/// Takes a function body by replacing it with `false` and
+<a href=#698 id=698 data-nosnippet>698</a>    /// returning the previous value
+<a href=#699 id=699 data-nosnippet>699</a>    </span><span class="kw">pub fn </span>take_function_body(<span class="kw-2">&amp;mut </span><span class="self">self</span>, function: FuncId) -&gt; Expression {
+<a href=#700 id=700 data-nosnippet>700</a>        <span class="kw">let </span>function_definition = <span class="kw-2">&amp;mut </span><span class="self">self</span>[function];
+<a href=#701 id=701 data-nosnippet>701</a>        <span class="kw">let </span>replacement = Expression::Block(<span class="macro">vec!</span>[]);
+<a href=#702 id=702 data-nosnippet>702</a>        std::mem::replace(<span class="kw-2">&amp;mut </span>function_definition.body, replacement)
+<a href=#703 id=703 data-nosnippet>703</a>    }
+<a href=#704 id=704 data-nosnippet>704</a>
+<a href=#705 id=705 data-nosnippet>705</a>    <span class="kw">pub fn </span>return_visibility(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Visibility {
+<a href=#706 id=706 data-nosnippet>706</a>        <span class="self">self</span>.main().return_visibility
+<a href=#707 id=707 data-nosnippet>707</a>    }
 <a href=#708 id=708 data-nosnippet>708</a>
-<a href=#709 id=709 data-nosnippet>709</a><span class="kw">impl </span>std::ops::Index&lt;FuncId&gt; <span class="kw">for </span>Program {
-<a href=#710 id=710 data-nosnippet>710</a>    <span class="kw">type </span>Output = Function;
-<a href=#711 id=711 data-nosnippet>711</a>
-<a href=#712 id=712 data-nosnippet>712</a>    <span class="kw">fn </span>index(<span class="kw-2">&amp;</span><span class="self">self</span>, index: FuncId) -&gt; <span class="kw-2">&amp;</span><span class="self">Self</span>::Output {
-<a href=#713 id=713 data-nosnippet>713</a>        <span class="kw-2">&amp;</span><span class="self">self</span>.functions[index.<span class="number">0 </span><span class="kw">as </span>usize]
-<a href=#714 id=714 data-nosnippet>714</a>    }
-<a href=#715 id=715 data-nosnippet>715</a>}
+<a href=#709 id=709 data-nosnippet>709</a>    <span class="kw">pub fn </span>main_function_parameters(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>Parameters {
+<a href=#710 id=710 data-nosnippet>710</a>        <span class="kw-2">&amp;</span><span class="self">self</span>.main().parameters
+<a href=#711 id=711 data-nosnippet>711</a>    }
+<a href=#712 id=712 data-nosnippet>712</a>}
+<a href=#713 id=713 data-nosnippet>713</a>
+<a href=#714 id=714 data-nosnippet>714</a><span class="kw">impl </span>std::ops::Index&lt;FuncId&gt; <span class="kw">for </span>Program {
+<a href=#715 id=715 data-nosnippet>715</a>    <span class="kw">type </span>Output = Function;
 <a href=#716 id=716 data-nosnippet>716</a>
-<a href=#717 id=717 data-nosnippet>717</a><span class="kw">impl </span>std::ops::IndexMut&lt;FuncId&gt; <span class="kw">for </span>Program {
-<a href=#718 id=718 data-nosnippet>718</a>    <span class="kw">fn </span>index_mut(<span class="kw-2">&amp;mut </span><span class="self">self</span>, index: FuncId) -&gt; <span class="kw-2">&amp;mut </span><span class="self">Self</span>::Output {
-<a href=#719 id=719 data-nosnippet>719</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>.functions[index.<span class="number">0 </span><span class="kw">as </span>usize]
-<a href=#720 id=720 data-nosnippet>720</a>    }
-<a href=#721 id=721 data-nosnippet>721</a>}
-<a href=#722 id=722 data-nosnippet>722</a>
-<a href=#723 id=723 data-nosnippet>723</a><span class="kw">impl </span>Display <span class="kw">for </span>Program {
-<a href=#724 id=724 data-nosnippet>724</a>    <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>std::fmt::Formatter&lt;<span class="lifetime">'_</span>&gt;) -&gt; std::fmt::Result {
-<a href=#725 id=725 data-nosnippet>725</a>        <span class="kw">super</span>::printer::AstPrinter::default().print_program(<span class="self">self</span>, f)
-<a href=#726 id=726 data-nosnippet>726</a>    }
-<a href=#727 id=727 data-nosnippet>727</a>}
-<a href=#728 id=728 data-nosnippet>728</a>
-<a href=#729 id=729 data-nosnippet>729</a><span class="kw">impl </span>Display <span class="kw">for </span>Function {
-<a href=#730 id=730 data-nosnippet>730</a>    <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>std::fmt::Formatter&lt;<span class="lifetime">'_</span>&gt;) -&gt; std::fmt::Result {
-<a href=#731 id=731 data-nosnippet>731</a>        <span class="kw">super</span>::printer::AstPrinter::default().print_function(
-<a href=#732 id=732 data-nosnippet>732</a>            <span class="self">self</span>,
-<a href=#733 id=733 data-nosnippet>733</a>            f,
-<a href=#734 id=734 data-nosnippet>734</a>            <span class="kw">super</span>::printer::FunctionPrintOptions::default(),
-<a href=#735 id=735 data-nosnippet>735</a>        )
-<a href=#736 id=736 data-nosnippet>736</a>    }
-<a href=#737 id=737 data-nosnippet>737</a>}
-<a href=#738 id=738 data-nosnippet>738</a>
-<a href=#739 id=739 data-nosnippet>739</a><span class="kw">impl </span>Display <span class="kw">for </span>Expression {
-<a href=#740 id=740 data-nosnippet>740</a>    <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>std::fmt::Formatter&lt;<span class="lifetime">'_</span>&gt;) -&gt; std::fmt::Result {
-<a href=#741 id=741 data-nosnippet>741</a>        <span class="kw">super</span>::printer::AstPrinter::default().print_expr(<span class="self">self</span>, f)
-<a href=#742 id=742 data-nosnippet>742</a>    }
-<a href=#743 id=743 data-nosnippet>743</a>}
-<a href=#744 id=744 data-nosnippet>744</a>
-<a href=#745 id=745 data-nosnippet>745</a><span class="kw">impl </span>Display <span class="kw">for </span>Type {
-<a href=#746 id=746 data-nosnippet>746</a>    <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>std::fmt::Formatter&lt;<span class="lifetime">'_</span>&gt;) -&gt; std::fmt::Result {
-<a href=#747 id=747 data-nosnippet>747</a>        <span class="kw">match </span><span class="self">self </span>{
-<a href=#748 id=748 data-nosnippet>748</a>            Type::Field =&gt; <span class="macro">write!</span>(f, <span class="string">"Field"</span>),
-<a href=#749 id=749 data-nosnippet>749</a>            Type::Array(len, elements) =&gt; <span class="macro">write!</span>(f, <span class="string">"[{elements}; {len}]"</span>),
-<a href=#750 id=750 data-nosnippet>750</a>            Type::Integer(sign, bits) =&gt; <span class="kw">match </span>sign {
-<a href=#751 id=751 data-nosnippet>751</a>                Signedness::Unsigned =&gt; <span class="macro">write!</span>(f, <span class="string">"u{bits}"</span>),
-<a href=#752 id=752 data-nosnippet>752</a>                Signedness::Signed =&gt; <span class="macro">write!</span>(f, <span class="string">"i{bits}"</span>),
-<a href=#753 id=753 data-nosnippet>753</a>            },
-<a href=#754 id=754 data-nosnippet>754</a>            Type::Bool =&gt; <span class="macro">write!</span>(f, <span class="string">"bool"</span>),
-<a href=#755 id=755 data-nosnippet>755</a>            Type::String(len) =&gt; <span class="macro">write!</span>(f, <span class="string">"str&lt;{len}&gt;"</span>),
-<a href=#756 id=756 data-nosnippet>756</a>            Type::FmtString(len, elements) =&gt; {
-<a href=#757 id=757 data-nosnippet>757</a>                <span class="macro">write!</span>(f, <span class="string">"fmtstr&lt;{len}, {elements}&gt;"</span>)
-<a href=#758 id=758 data-nosnippet>758</a>            }
-<a href=#759 id=759 data-nosnippet>759</a>            Type::Unit =&gt; <span class="macro">write!</span>(f, <span class="string">"()"</span>),
-<a href=#760 id=760 data-nosnippet>760</a>            Type::Tuple(elements) =&gt; {
-<a href=#761 id=761 data-nosnippet>761</a>                <span class="kw">let </span>elements = vecmap(elements, ToString::to_string);
-<a href=#762 id=762 data-nosnippet>762</a>                <span class="kw">if </span>elements.len() == <span class="number">1 </span>{
-<a href=#763 id=763 data-nosnippet>763</a>                    <span class="macro">write!</span>(f, <span class="string">"({},)"</span>, elements[<span class="number">0</span>])
-<a href=#764 id=764 data-nosnippet>764</a>                } <span class="kw">else </span>{
-<a href=#765 id=765 data-nosnippet>765</a>                    <span class="macro">write!</span>(f, <span class="string">"({})"</span>, elements.join(<span class="string">", "</span>))
-<a href=#766 id=766 data-nosnippet>766</a>                }
-<a href=#767 id=767 data-nosnippet>767</a>            }
-<a href=#768 id=768 data-nosnippet>768</a>            Type::Function(args, ret, env, unconstrained) =&gt; {
-<a href=#769 id=769 data-nosnippet>769</a>                <span class="kw">if </span><span class="kw-2">*</span>unconstrained {
-<a href=#770 id=770 data-nosnippet>770</a>                    <span class="macro">write!</span>(f, <span class="string">"unconstrained "</span>)<span class="question-mark">?</span>;
+<a href=#717 id=717 data-nosnippet>717</a>    <span class="kw">fn </span>index(<span class="kw-2">&amp;</span><span class="self">self</span>, index: FuncId) -&gt; <span class="kw-2">&amp;</span><span class="self">Self</span>::Output {
+<a href=#718 id=718 data-nosnippet>718</a>        <span class="kw-2">&amp;</span><span class="self">self</span>.functions[index.<span class="number">0 </span><span class="kw">as </span>usize]
+<a href=#719 id=719 data-nosnippet>719</a>    }
+<a href=#720 id=720 data-nosnippet>720</a>}
+<a href=#721 id=721 data-nosnippet>721</a>
+<a href=#722 id=722 data-nosnippet>722</a><span class="kw">impl </span>std::ops::IndexMut&lt;FuncId&gt; <span class="kw">for </span>Program {
+<a href=#723 id=723 data-nosnippet>723</a>    <span class="kw">fn </span>index_mut(<span class="kw-2">&amp;mut </span><span class="self">self</span>, index: FuncId) -&gt; <span class="kw-2">&amp;mut </span><span class="self">Self</span>::Output {
+<a href=#724 id=724 data-nosnippet>724</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>.functions[index.<span class="number">0 </span><span class="kw">as </span>usize]
+<a href=#725 id=725 data-nosnippet>725</a>    }
+<a href=#726 id=726 data-nosnippet>726</a>}
+<a href=#727 id=727 data-nosnippet>727</a>
+<a href=#728 id=728 data-nosnippet>728</a><span class="kw">impl </span>Display <span class="kw">for </span>Program {
+<a href=#729 id=729 data-nosnippet>729</a>    <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>std::fmt::Formatter&lt;<span class="lifetime">'_</span>&gt;) -&gt; std::fmt::Result {
+<a href=#730 id=730 data-nosnippet>730</a>        <span class="kw">super</span>::printer::AstPrinter::default().print_program(<span class="self">self</span>, f)
+<a href=#731 id=731 data-nosnippet>731</a>    }
+<a href=#732 id=732 data-nosnippet>732</a>}
+<a href=#733 id=733 data-nosnippet>733</a>
+<a href=#734 id=734 data-nosnippet>734</a><span class="kw">impl </span>Display <span class="kw">for </span>Function {
+<a href=#735 id=735 data-nosnippet>735</a>    <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>std::fmt::Formatter&lt;<span class="lifetime">'_</span>&gt;) -&gt; std::fmt::Result {
+<a href=#736 id=736 data-nosnippet>736</a>        <span class="kw">super</span>::printer::AstPrinter::default().print_function(
+<a href=#737 id=737 data-nosnippet>737</a>            <span class="self">self</span>,
+<a href=#738 id=738 data-nosnippet>738</a>            f,
+<a href=#739 id=739 data-nosnippet>739</a>            <span class="kw">super</span>::printer::FunctionPrintOptions::default(),
+<a href=#740 id=740 data-nosnippet>740</a>        )
+<a href=#741 id=741 data-nosnippet>741</a>    }
+<a href=#742 id=742 data-nosnippet>742</a>}
+<a href=#743 id=743 data-nosnippet>743</a>
+<a href=#744 id=744 data-nosnippet>744</a><span class="kw">impl </span>Display <span class="kw">for </span>Expression {
+<a href=#745 id=745 data-nosnippet>745</a>    <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>std::fmt::Formatter&lt;<span class="lifetime">'_</span>&gt;) -&gt; std::fmt::Result {
+<a href=#746 id=746 data-nosnippet>746</a>        <span class="kw">super</span>::printer::AstPrinter::default().print_expr(<span class="self">self</span>, f)
+<a href=#747 id=747 data-nosnippet>747</a>    }
+<a href=#748 id=748 data-nosnippet>748</a>}
+<a href=#749 id=749 data-nosnippet>749</a>
+<a href=#750 id=750 data-nosnippet>750</a><span class="kw">impl </span>Display <span class="kw">for </span>Type {
+<a href=#751 id=751 data-nosnippet>751</a>    <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>std::fmt::Formatter&lt;<span class="lifetime">'_</span>&gt;) -&gt; std::fmt::Result {
+<a href=#752 id=752 data-nosnippet>752</a>        <span class="kw">match </span><span class="self">self </span>{
+<a href=#753 id=753 data-nosnippet>753</a>            Type::Field =&gt; <span class="macro">write!</span>(f, <span class="string">"Field"</span>),
+<a href=#754 id=754 data-nosnippet>754</a>            Type::Array(len, elements) =&gt; <span class="macro">write!</span>(f, <span class="string">"[{elements}; {len}]"</span>),
+<a href=#755 id=755 data-nosnippet>755</a>            Type::Integer(sign, bits) =&gt; <span class="kw">match </span>sign {
+<a href=#756 id=756 data-nosnippet>756</a>                Signedness::Unsigned =&gt; <span class="macro">write!</span>(f, <span class="string">"u{bits}"</span>),
+<a href=#757 id=757 data-nosnippet>757</a>                Signedness::Signed =&gt; <span class="macro">write!</span>(f, <span class="string">"i{bits}"</span>),
+<a href=#758 id=758 data-nosnippet>758</a>            },
+<a href=#759 id=759 data-nosnippet>759</a>            Type::Bool =&gt; <span class="macro">write!</span>(f, <span class="string">"bool"</span>),
+<a href=#760 id=760 data-nosnippet>760</a>            Type::String(len) =&gt; <span class="macro">write!</span>(f, <span class="string">"str&lt;{len}&gt;"</span>),
+<a href=#761 id=761 data-nosnippet>761</a>            Type::FmtString(len, elements) =&gt; {
+<a href=#762 id=762 data-nosnippet>762</a>                <span class="macro">write!</span>(f, <span class="string">"fmtstr&lt;{len}, {elements}&gt;"</span>)
+<a href=#763 id=763 data-nosnippet>763</a>            }
+<a href=#764 id=764 data-nosnippet>764</a>            Type::Unit =&gt; <span class="macro">write!</span>(f, <span class="string">"()"</span>),
+<a href=#765 id=765 data-nosnippet>765</a>            Type::Tuple(elements) =&gt; {
+<a href=#766 id=766 data-nosnippet>766</a>                <span class="kw">let </span>elements = vecmap(elements, ToString::to_string);
+<a href=#767 id=767 data-nosnippet>767</a>                <span class="kw">if </span>elements.len() == <span class="number">1 </span>{
+<a href=#768 id=768 data-nosnippet>768</a>                    <span class="macro">write!</span>(f, <span class="string">"({},)"</span>, elements[<span class="number">0</span>])
+<a href=#769 id=769 data-nosnippet>769</a>                } <span class="kw">else </span>{
+<a href=#770 id=770 data-nosnippet>770</a>                    <span class="macro">write!</span>(f, <span class="string">"({})"</span>, elements.join(<span class="string">", "</span>))
 <a href=#771 id=771 data-nosnippet>771</a>                }
-<a href=#772 id=772 data-nosnippet>772</a>
-<a href=#773 id=773 data-nosnippet>773</a>                <span class="kw">let </span>args = vecmap(args, ToString::to_string);
-<a href=#774 id=774 data-nosnippet>774</a>                <span class="kw">let </span>closure_env_text = <span class="kw">match </span><span class="kw-2">**</span>env {
-<a href=#775 id=775 data-nosnippet>775</a>                    Type::Unit =&gt; <span class="string">""</span>.to_string(),
-<a href=#776 id=776 data-nosnippet>776</a>                    <span class="kw">_ </span>=&gt; <span class="macro">format!</span>(<span class="string">" with closure environment {env}"</span>),
-<a href=#777 id=777 data-nosnippet>777</a>                };
-<a href=#778 id=778 data-nosnippet>778</a>                <span class="macro">write!</span>(f, <span class="string">"fn({}) -&gt; {}{}"</span>, args.join(<span class="string">", "</span>), ret, closure_env_text)
-<a href=#779 id=779 data-nosnippet>779</a>            }
-<a href=#780 id=780 data-nosnippet>780</a>            Type::Vector(element) =&gt; <span class="macro">write!</span>(f, <span class="string">"[{element}]"</span>),
-<a href=#781 id=781 data-nosnippet>781</a>            Type::Reference(element, mutable) <span class="kw">if </span><span class="kw-2">*</span>mutable =&gt; <span class="macro">write!</span>(f, <span class="string">"&amp;mut {element}"</span>),
-<a href=#782 id=782 data-nosnippet>782</a>            Type::Reference(element, _mutable) =&gt; <span class="macro">write!</span>(f, <span class="string">"&amp;{element}"</span>),
-<a href=#783 id=783 data-nosnippet>783</a>        }
-<a href=#784 id=784 data-nosnippet>784</a>    }
-<a href=#785 id=785 data-nosnippet>785</a>}</code></pre></div></section></main></body></html>
+<a href=#772 id=772 data-nosnippet>772</a>            }
+<a href=#773 id=773 data-nosnippet>773</a>            Type::Function(args, ret, env, unconstrained) =&gt; {
+<a href=#774 id=774 data-nosnippet>774</a>                <span class="kw">if </span><span class="kw-2">*</span>unconstrained {
+<a href=#775 id=775 data-nosnippet>775</a>                    <span class="macro">write!</span>(f, <span class="string">"unconstrained "</span>)<span class="question-mark">?</span>;
+<a href=#776 id=776 data-nosnippet>776</a>                }
+<a href=#777 id=777 data-nosnippet>777</a>
+<a href=#778 id=778 data-nosnippet>778</a>                <span class="kw">let </span>args = vecmap(args, ToString::to_string);
+<a href=#779 id=779 data-nosnippet>779</a>                <span class="kw">let </span>closure_env_text = <span class="kw">match </span><span class="kw-2">**</span>env {
+<a href=#780 id=780 data-nosnippet>780</a>                    Type::Unit =&gt; <span class="string">""</span>.to_string(),
+<a href=#781 id=781 data-nosnippet>781</a>                    <span class="kw">_ </span>=&gt; <span class="macro">format!</span>(<span class="string">" with closure environment {env}"</span>),
+<a href=#782 id=782 data-nosnippet>782</a>                };
+<a href=#783 id=783 data-nosnippet>783</a>                <span class="macro">write!</span>(f, <span class="string">"fn({}) -&gt; {}{}"</span>, args.join(<span class="string">", "</span>), ret, closure_env_text)
+<a href=#784 id=784 data-nosnippet>784</a>            }
+<a href=#785 id=785 data-nosnippet>785</a>            Type::Vector(element) =&gt; <span class="macro">write!</span>(f, <span class="string">"[{element}]"</span>),
+<a href=#786 id=786 data-nosnippet>786</a>            Type::Reference(element, mutable) <span class="kw">if </span><span class="kw-2">*</span>mutable =&gt; <span class="macro">write!</span>(f, <span class="string">"&amp;mut {element}"</span>),
+<a href=#787 id=787 data-nosnippet>787</a>            Type::Reference(element, _mutable) =&gt; <span class="macro">write!</span>(f, <span class="string">"&amp;{element}"</span>),
+<a href=#788 id=788 data-nosnippet>788</a>        }
+<a href=#789 id=789 data-nosnippet>789</a>    }
+<a href=#790 id=790 data-nosnippet>790</a>}</code></pre></div></section></main></body></html>

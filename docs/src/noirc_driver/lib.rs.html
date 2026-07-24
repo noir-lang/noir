@@ -998,7 +998,7 @@
 <a href=#998 id=998 data-nosnippet>998</a>        SsaReport::Warning(warning) =&gt; {
 <a href=#999 id=999 data-nosnippet>999</a>            <span class="kw">let </span>message = warning.to_string();
 <a href=#1000 id=1000 data-nosnippet>1000</a>            <span class="kw">let </span>(secondary_message, call_stack) = <span class="kw">match </span>warning {
-<a href=#1001 id=1001 data-nosnippet>1001</a>                    InternalWarning::ReturnConstant { call_stack } =&gt; {
+<a href=#1001 id=1001 data-nosnippet>1001</a>                    InternalWarning::ConstantReturn { call_stack } =&gt; {
 <a href=#1002 id=1002 data-nosnippet>1002</a>                        (<span class="string">"This variable contains a value which is constrained to be a constant. Consider removing this value as additional return values increase proving/verification time"</span>.to_string(), call_stack)
 <a href=#1003 id=1003 data-nosnippet>1003</a>                    },
 <a href=#1004 id=1004 data-nosnippet>1004</a>                };

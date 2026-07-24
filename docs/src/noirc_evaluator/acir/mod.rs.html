@@ -659,8 +659,8 @@
 <a href=#659 id=659 data-nosnippet>659</a>        }
 <a href=#660 id=660 data-nosnippet>660</a>
 <a href=#661 id=661 data-nosnippet>661</a>        <span class="kw">let </span>call_stack = dfg.call_stack_data.get_call_stack(call_stack);
-<a href=#662 id=662 data-nosnippet>662</a>        <span class="kw">let </span>warnings = <span class="kw">if </span>has_constant_return {
-<a href=#663 id=663 data-nosnippet>663</a>            <span class="macro">vec!</span>[SsaReport::Warning(InternalWarning::ReturnConstant { call_stack })]
+<a href=#662 id=662 data-nosnippet>662</a>        <span class="kw">let </span>warnings = <span class="kw">if </span>has_constant_return &amp;&amp; !dfg.allow_constant_return {
+<a href=#663 id=663 data-nosnippet>663</a>            <span class="macro">vec!</span>[SsaReport::Warning(InternalWarning::ConstantReturn { call_stack })]
 <a href=#664 id=664 data-nosnippet>664</a>        } <span class="kw">else </span>{
 <a href=#665 id=665 data-nosnippet>665</a>            Vec::new()
 <a href=#666 id=666 data-nosnippet>666</a>        };
