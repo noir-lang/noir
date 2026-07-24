@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.0.0-beta.26](https://github.com/noir-lang/noir/compare/v1.0.0-beta.25...v1.0.0-beta.26) (2026-07-24)
+
+
+### Features
+
+* **lsp:** Document symbol for type aliases and enums ([#13393](https://github.com/noir-lang/noir/issues/13393)) ([e22cd89](https://github.com/noir-lang/noir/commit/e22cd89be53c37393eed6520a2001193dd723349))
+* Silence `constant_return` warning via `#[allow(constant_return)]` ([#13399](https://github.com/noir-lang/noir/issues/13399)) ([e69bb22](https://github.com/noir-lang/noir/commit/e69bb2269c3d1c28daffcf6527692b96f25a0f80))
+
+
+### Bug Fixes
+
+* Warn on never-mutated `mut` function parameters ([#13391](https://github.com/noir-lang/noir/issues/13391)) ([072e80e](https://github.com/noir-lang/noir/commit/072e80ee8c1154c5f263affe11309f80f1a96805))
+
 ## [1.0.0-beta.25](https://github.com/noir-lang/noir/compare/v1.0.0-beta.24...v1.0.0-beta.25) (2026-07-21)
 
 
