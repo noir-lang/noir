@@ -15,6 +15,8 @@ yet supported (see [Intended direction](#intended-direction)). The recognised li
   struct, enum, trait, or impl method.
 - `unused_variables` — suppresses the unused-variable warning on a `let` binding.
 - `unused_mut` — suppresses the never-mutated-`mut` warning on a `let` binding.
+- `constant_return` — suppresses the warning for an entry point that always returns a
+  constant value.
 
 An unrecognised name — a typo such as `#[allow(dead_cod)]` — is reported as an `unknown
 lint` warning and silences nothing, so the lint it was meant to suppress still fires; that
@@ -27,7 +29,9 @@ Each of these behaviours is pinned by a test, which is the authoritative specifi
 `typo_in_allow_does_not_suppress_the_lint` in
 [`unused_items.rs`](../compiler/noirc_frontend/src/tests/unused_items.rs), and
 `does_not_trigger_unnecessary_mut_on_variable_if_annotated_with_allow_unused_mut` in
-[`expressions.rs`](../compiler/noirc_frontend/src/tests/expressions.rs).
+[`expressions.rs`](../compiler/noirc_frontend/src/tests/expressions.rs). The
+`constant_return` warning is covered end-to-end by
+[`allow_warnings.rs`](../compiler/noirc_driver/tests/allow_warnings.rs).
 
 This mirrors Rust's lint-control attributes; see
 [Rust's lint levels](https://doc.rust-lang.org/rustc/lints/levels.html). Noir implements the
@@ -52,8 +56,8 @@ The registry and the mechanics of how names are validated and consumed live in
 ## Intended direction
 
 The registry is meant to cover every opinionated warning the compiler emits (unnecessary
-`pub`, unreachable code, unbounded recursion, the backend `return_constant` warning, …) and
-to back a fuller lint-control surface matching Rust's lint levels: `#[warn]` / `#[deny]` /
-`#[expect]`, lint lists, and central location-based level resolution so that backend
-diagnostics can be controlled by source-level attributes too. The full plan is tracked in
+`pub`, unreachable code, unbounded recursion, …) and to back a fuller lint-control surface
+matching Rust's lint levels: `#[warn]` / `#[deny]` / `#[expect]`, lint lists, and central
+location-based level resolution so that backend diagnostics can be controlled by
+source-level attributes too. The full plan is tracked in
 [noir-lang/noir#7461](https://github.com/noir-lang/noir/issues/7461).

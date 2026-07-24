@@ -1,9 +1,10 @@
 //! The registry of lints understood by the compiler.
 //!
 //! A "lint" is an opinionated warning: a diagnostic that flags legitimate but
-//! usually-undesirable code (an unused item, an unnecessary `mut`, …). Each lint
-//! has a stable, human-readable slug (`dead_code`, `unused_variables`, …) that a
-//! user can name in an `#[allow(...)]` attribute to silence it.
+//! usually-undesirable code (an unused item, an unnecessary `mut`, a constant
+//! return value, …). Each lint has a stable, human-readable slug (`dead_code`,
+//! `unused_variables`, …) that a user can name in an `#[allow(...)]` attribute
+//! to silence it.
 //!
 //! [`Lint`] is the closed set of valid slugs. Making the set closed is what lets the
 //! parser reject an unrecognised slug: parsing `#[allow(<slug>)]`
@@ -34,6 +35,8 @@ pub enum Lint {
     UnusedVariables,
     /// Binding is marked `mut` but never mutated (`unused_mut`).
     UnusedMut,
+    /// Function always returns a constant (`constant_return`).
+    ConstantReturn,
 }
 
 impl Lint {
@@ -44,6 +47,7 @@ impl Lint {
             Lint::DeadCode => "dead_code",
             Lint::UnusedVariables => "unused_variables",
             Lint::UnusedMut => "unused_mut",
+            Lint::ConstantReturn => "constant_return",
         }
     }
 
