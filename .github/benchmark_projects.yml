@@ -5,6 +5,7 @@ projects:
     ref: *AZ_COMMIT
     path: noir-projects/noir-protocol-circuits/crates/private-kernel-inner
     num_compile_runs: 5
+    instruction_count: true
     num_execute_runs: 5
     compilation-timeout: 10
     execution-timeout: 0.08
@@ -17,6 +18,7 @@ projects:
     ref: *AZ_COMMIT
     path: noir-projects/noir-protocol-circuits/crates/private-kernel-tail
     num_compile_runs: 5
+    instruction_count: true
     num_execute_runs: 5
     compilation-timeout: 5
     execution-timeout: 0.04
@@ -42,6 +44,7 @@ projects:
     path: noir-projects/noir-protocol-circuits/crates/rollup-block-root-first-empty-tx
     cannot_execute: true
     num_compile_runs: 5
+    instruction_count: true
     num_execute_runs: 5
     compilation-timeout: 30
     brillig-compilation-timeout: 30
@@ -53,6 +56,7 @@ projects:
     path: noir-projects/noir-protocol-circuits/crates/rollup-block-root-single-tx
     cannot_execute: true
     num_compile_runs: 1
+    instruction_count: true
     num_execute_runs: 1
     compilation-timeout: 250
     brillig-compilation-timeout: 250
@@ -63,6 +67,7 @@ projects:
     ref: *AZ_COMMIT
     path: noir-projects/noir-protocol-circuits/crates/rollup-block-root
     num_compile_runs: 1
+    instruction_count: true
     num_execute_runs: 1
     compilation-timeout: 250
     execution-timeout: 40
@@ -75,6 +80,7 @@ projects:
     ref: *AZ_COMMIT
     path: noir-projects/noir-protocol-circuits/crates/rollup-checkpoint-merge
     num_compile_runs: 5
+    instruction_count: true
     num_execute_runs: 5
     compilation-timeout: 20
     execution-timeout: 0.75
@@ -111,6 +117,7 @@ projects:
     ref: *AZ_COMMIT
     path: noir-projects/noir-protocol-circuits/crates/rollup-tx-merge
     num_compile_runs: 5
+    instruction_count: true
     num_execute_runs: 5
     compilation-timeout: 4
     execution-timeout: 0.01
@@ -123,6 +130,7 @@ projects:
     ref: *AZ_COMMIT
     path: noir-projects/noir-protocol-circuits/crates/rollup-root
     num_compile_runs: 5
+    instruction_count: true
     num_execute_runs: 5
     compilation-timeout: 5
     execution-timeout: 0.6
@@ -157,7 +165,8 @@ projects:
   semaphore-depth-10:
     repo: noir-lang/noir
     path: test_programs/benchmarks/semaphore_depth_10
-    num_compile_runs: 20
+    num_compile_runs: 5
+    instruction_count: true
     num_execute_runs: 20
     compilation-timeout: 2
     execution-timeout: 0.6
@@ -168,7 +177,8 @@ projects:
   sha512-100-bytes:
     repo: noir-lang/noir
     path: test_programs/benchmarks/sha512_100_bytes
-    num_compile_runs: 10
+    num_compile_runs: 5
+    instruction_count: true
     num_execute_runs: 20
     compilation-timeout: 10
     execution-timeout: 5
