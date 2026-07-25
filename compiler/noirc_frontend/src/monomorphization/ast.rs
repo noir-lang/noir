@@ -1,10 +1,10 @@
 use std::rc::Rc;
 use std::{borrow::Cow, collections::BTreeMap, fmt::Display};
 
-use acvm::FieldElement;
 use iter_extended::vecmap;
 use noirc_artifacts::debug::{DebugFunctions, DebugTypes, DebugVariables};
 use noirc_errors::Location;
+use num_bigint::BigInt;
 use strum_macros::EnumIter;
 
 use crate::token::FmtStrFragment;
@@ -294,7 +294,7 @@ pub enum Literal {
         is_vector: bool,
         typ: Type,
     },
-    Integer(FieldElement, Type, Location),
+    Integer(BigInt, Type, Location),
     Bool(bool),
     Unit,
     Str(Vec<u8>),
