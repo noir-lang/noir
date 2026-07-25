@@ -1,0 +1,8 @@
+# x = 0x123456789abcddf5 (bit 8 set so that `x & 0x1ab` = 417 exceeds 8 bits)
+# y = 0xcafebabe
+x = 1311768467463790069
+y = 3405691582
+expected_a = 113
+expected_b = 161
+expected_c = 4660
+expected_kept = 161
