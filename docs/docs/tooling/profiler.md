@@ -16,30 +16,29 @@ Check if the profiler is already installed by running `noir-profiler --version`.
 
 ### Profiling ACIR opcodes
 
-The profiler provides the ability to flamegraph a Noir program's ACIR opcodes footprint. This is useful for _approximately_ identifying bottlenecks in constrained execution and proving of Noir programs.
+The profiler provides the ability to flamegraph a Noir program's ACIR opcode footprint. This is useful for _approximately_ identifying bottlenecks in constrained execution and proving of Noir programs.
 
 :::note
 
-"_Approximately_" as:
+"_Approximately_" because:
 - Execution speeds depend on the constrained execution trace compiled from ACIR opcodes
-- Proving speeds depend on the how the proving backend of choice interprets the ACIR opcodes
+- Proving speeds depend on how the proving backend of choice interprets the ACIR opcodes
 
 :::
 
 #### Create a demonstrative project
 
-Let's start by creating a simple Noir program that aims to zero out an array past some dynamic index.
+Let's start by creating a simple Noir program that converts a `u64` into its big-endian byte representation.
 
-Run `nargo new program` to create a new project named _program_, then copy in the following as source code:
+Run `nargo new program` to create a new project named _program_, then copy in the following source code:
 
 ```rust
-fn main(ptr: pub u32, mut array: [u32; 32]) -> pub [u32; 32] {
-    for i in 0..32 {
-        if i > ptr {
-            array[i] = 0;
-        }
+fn main(num: u64) -> pub [u8; 8] {
+    let mut out: [u8; 8] = [0; 8];
+    for i in 0..8 {
+        out[i] = (num >> (56 - (i as u64 * 8))) as u8;
     }
-    array
+    out
 }
 ```
 
@@ -57,62 +56,61 @@ The command generates a flamegraph in your _target_ folder that maps the number 
 
 Opening the flamegraph in a web browser will provide a more interactive experience, allowing you to click into different regions of the graph and examine them.
 
-Flamegraph of the demonstrative project generated with Nargo v1.0.0-beta.2:
+Flamegraph of the demonstrative project generated with Nargo v1.0.0-beta.22:
 
-![ACIR Flamegraph Unoptimized](@site/static/img/tooling/profiler/acir-flamegraph-unoptimized.png)
+![ACIR Flamegraph Constrained u64 Conversion](@site/static/img/tooling/profiler/acir-flamegraph-u64-constrained.png)
 
-The demonstrative project consists of 387 ACIR opcodes in total. From the flamegraph, we can see that the majority come from the write to `array[i]`.
+The demonstrative project consists of 65 ACIR opcodes in total. From the flamegraph, we can see that the shift-and-cast expression used to extract each byte contributes a large portion of the opcode footprint.
 
 With insight into our program's bottleneck, let's optimize it.
 
 #### Visualizing optimizations
 
-We can improve our program's performance using [unconstrained functions](../language/unconstrained.md).
+We can improve our program's constrained footprint using [unconstrained functions](../language/unconstrained.md).
 
-Let's replace expensive array writes with array gets with the new code below:
+Let's move the byte conversion into an unconstrained function, then constrain the returned bytes by reconstructing the original `u64`:
+
 ```rust
-fn main(ptr: pub u32, array: [u32; 32]) -> pub [u32; 32] {
-    // Safety: Sets all elements after `ptr` in `array` to zero.
-    let zeroed_array = unsafe { zero_out_array(ptr, array) };
-    for i in 0..32 {
-        if i > ptr {
-            assert_eq(zeroed_array[i], 0);
-        } else {
-            assert_eq(zeroed_array[i], array[i]);
-        }
+fn main(num: u64) -> pub [u8; 8] {
+    // Safety: `out` is constrained by reconstructing `num` below.
+    let out = unsafe { u64_to_u8(num) };
+
+    let mut reconstructed_num = 0;
+    for i in 0..8 {
+        reconstructed_num += (out[i] as u64 << (56 - (8 * i as u64)));
     }
-    zeroed_array
+    assert(num == reconstructed_num);
+    out
 }
 
-unconstrained fn zero_out_array(ptr: u32, mut array: [u32; 32]) -> [u32; 32] {
-    for i in 0..32 {
-        if i > ptr {
-            array[i] = 0;
-        }
+unconstrained fn u64_to_u8(num: u64) -> [u8; 8] {
+    let mut out: [u8; 8] = [0; 8];
+    for i in 0..8 {
+        out[i] = (num >> (56 - (i as u64 * 8))) as u8;
     }
-    array
+    out
 }
 ```
 
-Instead of writing our array in a fully constrained context, we first write our array inside an unconstrained function. Then, we assert every value in the array returned from the unconstrained function in a constrained context.
+Instead of performing the full byte conversion in a constrained context, we first compute the bytes inside an unconstrained function. Then, we assert in a constrained context that those bytes reconstruct the original input.
 
-This brings the ACIR opcodes count of our program down to a total of 284 opcodes:
+This brings the ACIR opcode count of our program down to 33 opcodes:
 
-![ACIR Flamegraph Optimized](@site/static/img/tooling/profiler/acir-flamegraph-optimized.png)
+![ACIR Flamegraph Unconstrained u64 Conversion](@site/static/img/tooling/profiler/acir-flamegraph-u64-unconstrained.png)
+
+The optimized artifact also contains a `u64_to_u8_0_brillig` function with 114 Brillig opcodes. This illustrates the usual tradeoff: moving work out of ACIR can reduce proving work, but it can introduce additional unconstrained execution work.
 
 #### Searching
 
-The `i > ptr` region in the above image is highlighted purple as we were searching for it.
+The `num >>` region in the constrained flamegraph contributes 43.08% of the ACIR opcode footprint.
 
-Click "Search" in the top right corner of the flamegraph to start a search (e.g. i > ptr).
+Click "Search" in the top right corner of the flamegraph to start a search, for example `num >>`.
 
-Check "Matched" in the bottom right corner to learn the percentage out of total opcodes associated with the search (e.g. 43.3%).
+Check "Matched" in the bottom right corner to learn the percentage out of total opcodes associated with the search.
 
 :::tip
 
-If you try searching for `memory::op` before and after the optimization, you will find that the search will no longer have matches after the optimization.
-
-This comes from the optimization removing the use of a dynamic array (i.e. an array with a dynamic index, that is its values rely on witness inputs). After the optimization, the program reads from two arrays with known constant indices, replacing the original memory operations with simple arithmetic operations.
+Try searching for `u64_to_u8` in the optimized ACIR flamegraph. The search highlights the call boundary into the unconstrained function, while the full byte conversion work appears in the generated Brillig function.
 
 :::
 
@@ -134,41 +132,31 @@ The `--backend-path` flag takes in the path to your proving backend binary.
 
 The above command assumes you have Barretenberg (bb) installed and that its path is saved in your PATH. If that is not the case, you can pass in the absolute path to your proving backend binary instead.
 
-Flamegraph of the optimized demonstrative project generated with bb v0.76.4:
+Flamegraph of the optimized demonstrative project generated with bb v5.0.0-nightly.20260522:
 
-![Gates Flamegraph Optimized](@site/static/img/tooling/profiler/gates-flamegraph-optimized.png)
+![Gates Flamegraph Unconstrained u64 Conversion](@site/static/img/tooling/profiler/gates-flamegraph-u64-unconstrained.png)
 
-The demonstrative project consists of 3,062 proving backend gates in total.
+The optimized demonstrative project reports 2,835 gates by opcode, with a backend circuit size of 2,859.
 
 :::note
 
-If you try searching for `i > ptr` in the source code, you will notice that this call stack is only contributing 3.8% of the total proving backend gates, versus the 43.3% ACIR opcodes it contributes.
+ACIR opcode counts are useful approximations, but they are not the same as proving backend gate counts.
 
-This illustrates that number of ACIR opcodes are at best approximations of proving performances, where actual proving performances depend on how the proving backend interprets and translates ACIR opcodes into proving gates.
+For example, the optimized version reduces the ACIR opcode count from 65 to 33. The backend gates by opcode decrease from 3,758 to 2,835. The improvement is still meaningful, but it is not proportional because the backend decides how each opcode is translated into proving gates.
 
 :::
 
 #### Understanding bottlenecks
 
-Profiling your program with different parameters is good way to understand your program's bottlenecks as it scales.
+From the optimized gates flamegraph above, you will notice that `blackbox::range` contributes the majority of the backend gates. This comes from how Barretenberg UltraHonk uses lookup tables for its range gates under the hood, which comes with a considerable but fixed setup cost in terms of proving gates.
 
-From the flamegraph above, you will notice that `blackbox::range` contributes the majority of the backend gates. This comes from how Barretenberg UltraHonk uses lookup tables for its range gates under the hood, which comes with a considerable but fixed setup cost in terms of proving gates.
+For comparison, this is the gates flamegraph of the constrained version of the same program:
 
-If our array is larger, range gates would become a much smaller percentage of our total circuit. See this flamegraph for the same optimized program but with an array of size 2,048 (versus originally 32) in comparison:
+![Gates Flamegraph Constrained u64 Conversion](@site/static/img/tooling/profiler/gates-flamegraph-u64-constrained.png)
 
-![Gates Flamegraph Optimized 2048](@site/static/img/tooling/profiler/gates-flamegraph-optimized-2048.png)
-
-Where `blackbox::range` contributes a considerably smaller portion of the total proving gates.
+The constrained version reports 3,758 gates by opcode, with a backend circuit size of 3,782.
 
 Every proving backend interprets ACIR opcodes differently, so it is important to profile proving backend gates to get the full picture of proving performance.
-
-As additional reference, this is the flamegraph of the pre-optimization demonstrative project at array size 32:
-
-![Gates Flamegraph Unoptimized](@site/static/img/tooling/profiler/gates-flamegraph-unoptimized.png)
-
-And at array size 2,048:
-
-![Gates Flamegraph Unoptimized 2048](@site/static/img/tooling/profiler/gates-flamegraph-unoptimized-2048.png)
 
 ### Profiling execution traces (unconstrained)
 
@@ -178,19 +166,24 @@ The profiler supports profiling fully unconstrained Noir programs at this moment
 
 #### Updating the demonstrative project
 
-Let's turn our demonstrative program into an unconstrained program by adding an `unconstrained` modifier to the main function:
+Let's profile the execution trace for the same byte conversion by making `main` fully unconstrained:
 
 ```rust
-unconstrained fn main(...){...}
+unconstrained fn main(num: u64) -> pub [u8; 8] {
+    let mut out: [u8; 8] = [0; 8];
+    for i in 0..8 {
+        out[i] = (num >> (56 - (i as u64 * 8))) as u8;
+    }
+    out
+}
 ```
 
 Since we are profiling the execution trace, we will also need to provide a set of inputs to execute the program with.
 
-Run `nargo check` to generate a _Prover.toml_ file, which you can fill it in with:
+Run `nargo check` to generate a _Prover.toml_ file, then fill it in with:
 
 ```toml
-ptr = 1
-array = [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
+num = "72623859790382856"
 ```
 
 #### Flamegraphing
@@ -203,22 +196,14 @@ noir-profiler execution-opcodes --artifact-path ./target/program.json --prover-t
 
 This is similar to the `opcodes` command, except it additionally takes in the _Prover.toml_ file to profile execution with a specific set of inputs.
 
-Flamegraph of the demonstrative project generated with Nargo v1.0.0-beta.2:
-![Brillig Trace "Optimized"](@site/static/img/tooling/profiler/brillig-trace-opt-32.png)
+Flamegraph of the demonstrative project generated with Nargo v1.0.0-beta.22:
 
-Note that unconstrained Noir functions compile down to Brillig opcodes, which is what the counts in this flamegraph stand for, rather than constrained ACIR opcodes like in the previous section.
+![Brillig Trace u64 Conversion](@site/static/img/tooling/profiler/brillig-trace-u64-unconstrained.png)
+
+The execution trace above consists of 348 Brillig samples. Note that unconstrained Noir functions compile down to Brillig opcodes, which is what the counts in this flamegraph stand for, rather than constrained ACIR opcodes like in the previous sections.
 
 #### Balancing proving and execution optimizations
 
-Rewriting constrained operations with unconstrained operations like what we did in [the optimization section](#visualizing-optimizations) helps remove ACIR opcodes (hence shorter proving times), but would introduce more Brillig opcodes (hence longer execution times).
+Rewriting constrained operations with unconstrained operations like what we did in [the optimization section](#visualizing-optimizations) helps remove ACIR opcodes and can reduce proving work, but may introduce more Brillig opcodes and therefore more unconstrained execution work.
 
-For example, we can find a 13.9% match `new_array` in the flamegraph above.
-
-In contrast, if we profile the pre-optimization demonstrative project:
-![Brillig Trace Initial Program](@site/static/img/tooling/profiler/brillig-trace-initial-32.png)
-
-You will notice that it does not contain `new_array` and executes a smaller total of 1,582 Brillig opcodes (versus 2,125 Brillig opcodes post-optimization).
-
-As new unconstrained functions were added, it is reasonable that the program would consist of more Brillig opcodes. That said, the tradeoff is often easily justifiable by the fact that proving speeds are more commonly the major bottleneck of Noir programs versus execution speeds.
-
-This is however good to keep in mind in case you start noticing execution speeds being the bottleneck of your program, or if you are simply looking to optimize your program's execution speeds.
+In the optimized constrained version, `noir-profiler opcodes` reports 33 ACIR opcodes for `main` and 114 Brillig opcodes for the generated `u64_to_u8_0_brillig` function. This is often a reasonable tradeoff when proving is the bottleneck, but it is worth measuring both sides if execution time also matters for your program.
