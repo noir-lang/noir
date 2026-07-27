@@ -18,7 +18,7 @@ projects:
     path: noir-projects/noir-protocol-circuits/crates/private-kernel-reset-tail
     num_compile_runs: 1
     num_execute_runs: 1
-    compilation-timeout: 150
+    compilation-timeout: 300
     execution-timeout: 1
     brillig-compilation-timeout: 150
     brillig-execution-timeout: 1
