@@ -1,7 +1,7 @@
 ---
 title: Traits
 description: Noir's stdlib provides a few commonly used traits.
-keywords: [traits, trait, interface, protocol, default, add, eq]
+keywords: [traits, trait, interface, protocol, default, add, eq, validate]
 ---
 
 ## `std::default`
@@ -179,6 +179,88 @@ impl<A, B, C, D> Ord for (A, B, C, D)
 impl<A, B, C, D, E> Ord for (A, B, C, D, E)
     where A: Ord, B: Ord, C: Ord, D: Ord, E: Ord { .. }
 ```
+
+---
+
+## `std::validate`
+
+### `std::validate::Validate`
+
+#include_code validate-trait noir_stdlib/src/validate.nr rust
+
+Asserts a type's own representation invariants — properties the type relies on but that the type
+system does not itself guarantee, such as a `BoundedVec`'s length not exceeding its capacity. It is
+meant to be called on values entering constrained code from an untrusted source (circuit inputs,
+oracle results), where those invariants would otherwise be assumed without being checked. `Validate`
+is in the prelude, so `validate` can be called without importing the trait.
+
+`#[derive(Validate)]` implements it by validating each field in turn. The implementations below are
+the leaves of that recursion — primitive types carry no invariant of their own, so their `validate`
+is a no-op:
+
+```rust
+impl Validate for Field { .. }
+
+impl Validate for i8 { .. }
+impl Validate for i16 { .. }
+impl Validate for i32 { .. }
+impl Validate for i64 { .. }
+
+impl Validate for u8 { .. }
+impl Validate for u16 { .. }
+impl Validate for u32 { .. }
+impl Validate for u64 { .. }
+impl Validate for u128 { .. }
+
+impl Validate for () { .. }
+impl Validate for bool { .. }
+impl<let N: u32> Validate for str<N> { .. }
+
+impl<T, let N: u32> Validate for [T; N]
+    where T: Validate { .. }
+
+impl<T> Validate for [T]
+    where T: Validate { .. }
+
+impl<A> Validate for (A, ..)
+    where A: Validate, .. { .. }
+
+impl<T> Validate for Option<T>
+    where T: Validate { .. }
+
+impl<T, let MaxLen: u32> Validate for BoundedVec<T, MaxLen>
+    where T: Validate { .. }
+```
+
+The `BoundedVec` implementation asserts that the length is within capacity and validates only the
+live elements (the first `len`), skipping the unused backing storage past them.
+
+#### Custom invariants with `#[validate]`
+
+A type can assert invariants of its own — ones that span several fields, or that the field recursion
+cannot see — by naming one or more methods with `#[validate(Type::method)]`. The derived `validate`
+calls each named method after recursing into the fields, so a custom invariant reads fields that
+have already passed their own validation. Each method must take `&self` and return nothing. Unlike
+`Validate`, the `validate` attribute is not in the prelude and must be imported:
+
+```rust
+use std::validate::validate;
+
+#[derive(Validate)]
+#[validate(Percent::in_range)]
+struct Percent {
+    value: u8,
+}
+
+impl Percent {
+    fn in_range(&self) {
+        assert(self.value <= 100);
+    }
+}
+```
+
+Note that `validate` is an explicit, point-in-time check: it is not run on construction or
+mutation, so a value can hold invariant-violating data until the next `validate` call surfaces it.
 
 ---
 

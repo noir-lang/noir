@@ -13,6 +13,7 @@ pub mod option;
 pub mod string;
 pub mod test;
 pub mod cmp;
+pub mod validate;
 pub mod ops;
 pub mod default;
 pub mod prelude;
