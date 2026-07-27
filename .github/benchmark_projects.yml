@@ -12,10 +12,10 @@ projects:
     brillig-execution-timeout: 0.08
     compilation-memory-limit: 350
     execution-memory-limit: 300
-  private-kernel-tail:
+  private-kernel-reset-tail:
     repo: AztecProtocol/aztec-packages
     ref: *AZ_COMMIT
-    path: noir-projects/noir-protocol-circuits/crates/private-kernel-tail
+    path: noir-projects/noir-protocol-circuits/crates/private-kernel-reset-tail
     num_compile_runs: 5
     num_execute_runs: 5
     compilation-timeout: 5
