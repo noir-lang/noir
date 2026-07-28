@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["collect_values_constrained_to_one","escape_error","is_constrained_to_one","is_div_or_mod_by_nonzero_constant","is_one","is_predicate","is_predicate_guard","strip_casts","verify_function","verify_side_effect_predicates"]};
+window.SIDEBAR_ITEMS = {"fn":["collect_constrained_booleans","escape_error","is_constrained_to","is_constrained_to_one","is_div_or_mod_by_nonzero_constant","is_one","is_predicate","is_predicate_guard","strip_casts","verify_function","verify_side_effect_predicates"],"struct":["ConstrainedBooleans"]};
