@@ -2322,6 +2322,15 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@nomicfoundation/hardhat-errors@npm:^3.0.17":
+  version: 3.0.17
+  resolution: "@nomicfoundation/hardhat-errors@npm:3.0.17"
+  dependencies:
+    "@nomicfoundation/hardhat-utils": "npm:^4.1.5"
+  checksum: 10/f1a83751d0c3d41646f0b6842fab0cdb2b98a2d2201509758532bd4b1f2ee1fe4dedc9e06035bae5472bcee583f8302cd757b566e722cbde7dd9a70afed08957
+  languageName: node
+  linkType: hard
+
 "@nomicfoundation/hardhat-ethers-chai-matchers@npm:^3.0.11":
   version: 3.0.11
   resolution: "@nomicfoundation/hardhat-ethers-chai-matchers@npm:3.0.11"
@@ -2339,19 +2348,19 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@nomicfoundation/hardhat-ethers@npm:^4.0.14":
-  version: 4.0.14
-  resolution: "@nomicfoundation/hardhat-ethers@npm:4.0.14"
+"@nomicfoundation/hardhat-ethers@npm:^4.0.15":
+  version: 4.0.15
+  resolution: "@nomicfoundation/hardhat-ethers@npm:4.0.15"
   dependencies:
-    "@nomicfoundation/hardhat-errors": "npm:^3.0.16"
-    "@nomicfoundation/hardhat-utils": "npm:^4.1.4"
+    "@nomicfoundation/hardhat-errors": "npm:^3.0.17"
+    "@nomicfoundation/hardhat-utils": "npm:^4.1.5"
     "@nomicfoundation/hardhat-zod-utils": "npm:^3.0.5"
     ethereum-cryptography: "npm:^2.2.1"
     ethers: "npm:^6.14.0"
     zod: "npm:^3.23.8"
   peerDependencies:
     hardhat: ^3.8.0
-  checksum: 10/55afc9031edafd13a816abbc2dde3d1e080dcad7077337447a3467800f9c6e91a1307ac368f7b112ab4abc89c5a3a7b5b08e0450af4d66b059aa41228c5e755d
+  checksum: 10/ad933ecbd1b40a47c17bd0b99fd526753d4fe9eb008a84abd5f2923f35de6ef42d1fc2ca3b4f6fad92ae6b5497ec6a3d81131e82c3dd7b7b534eca3217da7867
   languageName: node
   linkType: hard
 
@@ -2541,6 +2550,21 @@ __metadata:
     rfdc: "npm:^1.3.1"
     undici: "npm:^6.16.1"
   checksum: 10/fea88e07d94dc17d0a5242b02052c379fce76564f37279c4de565dc203693c8cf5e061ab29090c24b09074c2a65a52edbdc4b50f8cf672560c9de3d623ecde20
+  languageName: node
+  linkType: hard
+
+"@nomicfoundation/hardhat-utils@npm:^4.1.5":
+  version: 4.1.5
+  resolution: "@nomicfoundation/hardhat-utils@npm:4.1.5"
+  dependencies:
+    "@streamparser/json-node": "npm:^0.0.22"
+    env-paths: "npm:^2.2.0"
+    ethereum-cryptography: "npm:^2.2.1"
+    fast-equals: "npm:^5.4.0"
+    json-stream-stringify: "npm:^3.1.6"
+    rfdc: "npm:^1.3.1"
+    undici: "npm:^6.16.1"
+  checksum: 10/df266243d10b359d4ebaf006c6aed170b8e83f26cefe445726004aa5fc9d41278e1e44d2af8e044ed1c196bfa1e95122dfd110fc00627abd41518aa97a76b28e
   languageName: node
   linkType: hard
 
@@ -8160,7 +8184,7 @@ __metadata:
     "@aztec/bb.js": "npm:5.0.0"
     "@noir-lang/noir_js": "workspace:*"
     "@noir-lang/noir_wasm": "workspace:*"
-    "@nomicfoundation/hardhat-ethers": "npm:^4.0.14"
+    "@nomicfoundation/hardhat-ethers": "npm:^4.0.15"
     "@nomicfoundation/hardhat-ethers-chai-matchers": "npm:^3.0.11"
     "@nomicfoundation/hardhat-ignition": "npm:^3.1.8"
     "@nomicfoundation/hardhat-ignition-ethers": "npm:^3.1.6"
