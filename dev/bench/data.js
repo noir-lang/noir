@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1785233650126,
+  "lastUpdate": 1785233824104,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23111,48 +23111,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "49699333+dependabot[bot]@users.noreply.github.com",
-            "name": "dependabot[bot]",
-            "username": "dependabot[bot]"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "fcae22ad3aefac36c000a991ee85b1e3c82e889e",
-          "message": "chore(deps-dev): bump webpack-dev-server from 5.2.5 to 6.0.0 (#13335)\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
-          "timestamp": "2026-07-14T12:24:43Z",
-          "tree_id": "40ba5046d7300e6c692b42488acdca7e8d873a7a",
-          "url": "https://github.com/noir-lang/noir/commit/fcae22ad3aefac36c000a991ee85b1e3c82e889e"
-        },
-        "date": 1784033036404,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 167128,
-            "range": "± 417",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 134823,
-            "range": "± 219",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2655804,
-            "range": "± 3782",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "49558828+AztecBot@users.noreply.github.com",
             "name": "Aztec Bot",
             "username": "AztecBot"
@@ -25204,6 +25162,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2651222,
             "range": "± 25854",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "4c60c2e310afcdd6902e0e76bb24ce2325f5da54",
+          "message": "chore(deps-dev): bump the linter group with 2 updates (#13408)\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2026-07-28T09:53:38Z",
+          "tree_id": "bbadfc4c956a75efcc4a5cf6b74484fcb3d558a2",
+          "url": "https://github.com/noir-lang/noir/commit/4c60c2e310afcdd6902e0e76bb24ce2325f5da54"
+        },
+        "date": 1785233739617,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 126539,
+            "range": "± 567",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 112973,
+            "range": "± 1569",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 3040856,
+            "range": "± 9700",
             "unit": "ns/iter"
           }
         ]
