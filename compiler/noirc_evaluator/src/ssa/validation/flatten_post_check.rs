@@ -664,49 +664,55 @@ mod tests {
             return
         ";
 
-        /// A predicated value may escape ungated exactly when the block proves its predicate is
-        /// `1` in every satisfying assignment. The rejecting cases pin the relaxation: each one
-        /// is a near-miss of an accepting case, so widening the recognizer flips one of them.
-        #[test_case(PREDICATE_PINNED_TO_ONE, true; "predicate pinned to one")]
-        #[test_case(CONJOINED_PREDICATE_FACTORS_PINNED_TO_ONE, true; "conjoined predicate factors pinned to one")]
-        #[test_case(NEGATED_PREDICATE_SOURCE_PINNED_TO_ZERO, true; "negated predicate source pinned to zero")]
-        #[test_case(NEGATED_CONJOINED_PREDICATE_PINNED_TO_ZERO, true; "negated conjoined predicate pinned to zero")]
-        #[test_case(CONJOINED_PREDICATE_WITH_ONE_FACTOR_PINNED, false; "conjoined predicate with only one factor pinned")]
-        #[test_case(PREDICATE_PINNED_TO_ZERO, false; "predicate pinned to zero")]
-        #[test_case(NEGATED_PREDICATE_SOURCE_PINNED_TO_ONE, false; "negated predicate source pinned to one")]
-        #[test_case(NEGATED_PREDICATE_UNPINNED, false; "negated predicate not pinned at all")]
-        fn escape_is_accepted_only_when_its_predicate_is_proven(body: &str, accepted: bool) {
-            let ssa = Ssa::from_str_no_validation(&format!("acir(inline) fn main f0 {{{body}}}"))
-                .unwrap();
+        fn main_with_body(body: &str) -> Ssa {
+            Ssa::from_str_no_validation(&format!("acir(inline) fn main f0 {{{body}}}")).unwrap()
+        }
 
-            match (verify_side_effect_predicates(&ssa), accepted) {
-                (Err(error), true) => {
-                    panic!(
-                        "expected the escape to be accepted, but validation rejected it: {error:?}"
-                    )
-                }
-                (Ok(()), false) => {
-                    panic!("expected the escape to be rejected, but validation accepted it")
-                }
-                _ => {}
+        /// The block pins the active predicate to `1`, so the escaping value is never the
+        /// disabled-branch value and needs no guard.
+        #[test_case(PREDICATE_PINNED_TO_ONE; "predicate pinned to one")]
+        #[test_case(CONJOINED_PREDICATE_FACTORS_PINNED_TO_ONE; "conjoined predicate factors pinned to one")]
+        #[test_case(NEGATED_PREDICATE_SOURCE_PINNED_TO_ZERO; "negated predicate source pinned to zero")]
+        #[test_case(NEGATED_CONJOINED_PREDICATE_PINNED_TO_ZERO; "negated conjoined predicate pinned to zero")]
+        fn accepts_escape_when_predicate_is_proven(body: &str) {
+            let ssa = main_with_body(body);
+
+            if let Err(error) = verify_side_effect_predicates(&ssa) {
+                panic!("expected the escape to be accepted, but validation rejected it: {error:?}");
             }
         }
 
+        /// Each of these is a near-miss of an accepting case: the predicate can still be `0`, so
+        /// the escaping value can still be the disabled-branch value and the guard is required.
+        /// They pin the relaxation, in that widening the recognizer flips one of them.
+        #[test_case(CONJOINED_PREDICATE_WITH_ONE_FACTOR_PINNED; "conjoined predicate with only one factor pinned")]
+        #[test_case(PREDICATE_PINNED_TO_ZERO; "predicate pinned to zero")]
+        #[test_case(NEGATED_PREDICATE_SOURCE_PINNED_TO_ONE; "negated predicate source pinned to one")]
+        #[test_case(NEGATED_PREDICATE_UNPINNED; "negated predicate not pinned at all")]
+        fn rejects_escape_when_predicate_is_unproven(body: &str) {
+            let ssa = main_with_body(body);
+
+            assert!(
+                verify_side_effect_predicates(&ssa).is_err(),
+                "expected the escape to be rejected, but validation accepted it"
+            );
+        }
+
         #[test]
-        fn accepts_return_escape_when_predicate_is_constrained_to_one() {
-            // The predicate proofs above escape through a `constrain`. A proven predicate also
-            // clears the separate check on the block's `return` terminator.
-            let src = "
-            acir(inline) fn main f0 {
+        fn accepts_return_escape_when_predicate_is_proven() {
+            // The cases above all escape through a `constrain`. A proven predicate also clears
+            // the separate check on the block's `return` terminator.
+            let ssa = main_with_body(
+                "
               b0(v0: u1, v1: u32):
                 enable_side_effects v0
                 v2 = add v1, u32 1
                 enable_side_effects u1 1
                 constrain v0 == u1 1
                 return v2
-            }
-            ";
-            let ssa = Ssa::from_str_no_validation(src).unwrap();
+            ",
+            );
+
             assert!(verify_side_effect_predicates(&ssa).is_ok());
         }
     }
