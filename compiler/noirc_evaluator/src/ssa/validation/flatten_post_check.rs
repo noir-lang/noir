@@ -46,6 +46,7 @@ use crate::ssa::{
         dfg::DataFlowGraph,
         function::Function,
         instruction::{Binary, BinaryOp, Instruction, TerminatorInstruction},
+        types::Type,
         value::{Value, ValueId},
     },
     ssa_gen::Ssa,
@@ -87,7 +88,7 @@ fn verify_function(function: &Function) -> RtResult<()> {
 
     // Predicates that hold in every satisfying assignment need no guard, see
     // `is_constrained_to_one`.
-    let constrained_to_one = collect_values_constrained_to_one(dfg, block);
+    let constrained = collect_constrained_booleans(dfg, block);
 
     // The active predicate: `None` if no predicate (or `1`).
     let mut current: Option<ValueId> = None;
@@ -147,7 +148,7 @@ fn verify_function(function: &Function) -> RtResult<()> {
         if let Some(p) = result_predicate {
             // A predicate that is pinned to `1` is never false, so the results computed
             // under it are never the disabled-branch value and need no guard to escape.
-            if !is_constrained_to_one(dfg, p, &constrained_to_one) {
+            if !is_constrained_to_one(dfg, p, &constrained) {
                 for result in dfg.instruction_results(*instruction_id) {
                     predicated_values.insert(*result, p);
                 }
@@ -170,25 +171,45 @@ fn verify_function(function: &Function) -> RtResult<()> {
     Ok(())
 }
 
-/// Collect the values that an unconditional `constrain x == 1` pins to `1`.
+/// The values that unconditional `constrain x == 0` and `constrain x == 1` instructions
+/// pin to a boolean constant.
+#[derive(Default)]
+struct ConstrainedBooleans {
+    to_zero: HashSet<ValueId>,
+    to_one: HashSet<ValueId>,
+}
+
+impl ConstrainedBooleans {
+    fn contains(&self, value: ValueId, target_is_one: bool) -> bool {
+        let pinned = if target_is_one { &self.to_one } else { &self.to_zero };
+        pinned.contains(&value)
+    }
+}
+
+/// Collect the values that an unconditional `constrain x == 0` or `constrain x == 1` pins.
 ///
 /// A flattened ACIR function is a single block, so every `Constrain` in it is enforced
-/// on every execution. A value constrained to `1` here is therefore `1` in *every*
-/// satisfying assignment, no matter where in the block the constraint sits — which is
-/// why this is gathered up front rather than as the instructions are walked.
-fn collect_values_constrained_to_one(dfg: &DataFlowGraph, block: BasicBlockId) -> HashSet<ValueId> {
-    let mut constrained_to_one = HashSet::default();
+/// on every execution. A value constrained here is therefore pinned in *every* satisfying
+/// assignment, no matter where in the block the constraint sits — which is why this is
+/// gathered up front rather than as the instructions are walked.
+fn collect_constrained_booleans(dfg: &DataFlowGraph, block: BasicBlockId) -> ConstrainedBooleans {
+    let mut constrained = ConstrainedBooleans::default();
     for instruction_id in dfg[block].instructions() {
         let Instruction::Constrain(lhs, rhs, _) = &dfg[*instruction_id] else {
             continue;
         };
         for (value, expected) in [(lhs, rhs), (rhs, lhs)] {
-            if dfg.get_numeric_constant(*expected).is_some_and(|c| c.is_one()) {
-                constrained_to_one.insert(*value);
+            let Some(constant) = dfg.get_numeric_constant(*expected) else {
+                continue;
+            };
+            if constant.is_one() {
+                constrained.to_one.insert(*value);
+            } else if constant.is_zero() {
+                constrained.to_zero.insert(*value);
             }
         }
     }
-    constrained_to_one
+    constrained
 }
 
 /// Whether predicate `p` is `1` in every satisfying assignment, in which case a value
@@ -199,38 +220,65 @@ fn collect_values_constrained_to_one(dfg: &DataFlowGraph, block: BasicBlockId) -
 /// `constrain value == 1`, dropping the multiplication that guarded `value`. The two forms
 /// admit exactly the same assignments (`p = 1` and `value = 1`), so the bare use of `value`
 /// is not an over-constraint — but it is only faithful *because* `p` is pinned alongside it.
-///
-/// The proof may be spread over the factors rather than the product: flattening gates a
-/// nested branch by the conjunction of its enclosing conditions, and the decomposition
-/// recurses through that product, so `p = p_outer * p_inner` is proven by
-/// `constrain p_outer == 1` plus `constrain p_inner == 1`.
-///
-/// Casts are followed towards the source: casting `1` yields `1` in any numeric type, so a
-/// constrained source proves every cast of it.
 fn is_constrained_to_one(
     dfg: &DataFlowGraph,
     value: ValueId,
-    constrained_to_one: &HashSet<ValueId>,
+    constrained: &ConstrainedBooleans,
 ) -> bool {
-    if constrained_to_one.contains(&value) {
+    is_constrained_to(dfg, value, true, constrained)
+}
+
+/// Whether `value` is pinned to `1` (`target_is_one`) or to `0` in every satisfying
+/// assignment.
+///
+/// The proof rarely names the value directly, because `decompose_constrain` rewrites a
+/// constraint into constraints on the operands that produced it:
+/// - a product is `1` exactly when both factors are, and `0` as soon as either is, so
+///   `p = p_outer * p_inner` — the conjunction flattening builds for a nested branch — is
+///   proven by `constrain p_outer == 1` plus `constrain p_inner == 1`;
+/// - a negation inverts the target: flattening gates an else branch by `not condition`, and
+///   `constrain (not condition) == 1` is rewritten to `constrain condition == 0`, so the
+///   proof names the source of the negation rather than the predicate itself. This arm is
+///   restricted to booleans, where `not` is `1 - x`; on a wider integer it is a bitwise
+///   complement and `not x == 1` would not follow from `x == 0`.
+///
+/// Casts are followed towards the source: a boolean constant casts to itself in any numeric
+/// type, so a pinned source pins every cast of it. The converse is not assumed, since
+/// narrowing casts are not injective.
+fn is_constrained_to(
+    dfg: &DataFlowGraph,
+    value: ValueId,
+    target_is_one: bool,
+    constrained: &ConstrainedBooleans,
+) -> bool {
+    if constrained.contains(value, target_is_one) {
         return true;
     }
     let value = strip_casts(dfg, value);
-    if constrained_to_one.contains(&value) {
+    if constrained.contains(value, target_is_one) {
         return true;
     }
-    if dfg.get_numeric_constant(value).is_some_and(|c| c.is_one()) {
-        return true;
+    if let Some(constant) = dfg.get_numeric_constant(value) {
+        return if target_is_one { constant.is_one() } else { constant.is_zero() };
     }
-    if let Value::Instruction { instruction, .. } = &dfg[value]
-        && let Instruction::Binary(Binary { lhs, rhs, operator: BinaryOp::Mul { .. } }) =
-            &dfg[*instruction]
-    {
-        // A product is `1` exactly when both of its factors are.
-        return is_constrained_to_one(dfg, *lhs, constrained_to_one)
-            && is_constrained_to_one(dfg, *rhs, constrained_to_one);
+    let Value::Instruction { instruction, .. } = &dfg[value] else {
+        return false;
+    };
+    match &dfg[*instruction] {
+        Instruction::Binary(Binary { lhs, rhs, operator: BinaryOp::Mul { .. } }) => {
+            if target_is_one {
+                is_constrained_to(dfg, *lhs, true, constrained)
+                    && is_constrained_to(dfg, *rhs, true, constrained)
+            } else {
+                is_constrained_to(dfg, *lhs, false, constrained)
+                    || is_constrained_to(dfg, *rhs, false, constrained)
+            }
+        }
+        Instruction::Not(source) if *dfg.type_of_value(*source) == Type::bool() => {
+            is_constrained_to(dfg, *source, !target_is_one, constrained)
+        }
+        _ => false,
     }
-    false
 }
 
 /// True if `instruction` re-applies predicate `p` to `operand`, zeroing it
@@ -565,6 +613,91 @@ mod tests {
             enable_side_effects u1 1
             constrain v0 == u1 0
             return v2
+        }
+        ";
+        let ssa = Ssa::from_str_no_validation(src).unwrap();
+        assert!(verify_side_effect_predicates(&ssa).is_err());
+    }
+
+    #[test]
+    fn accepts_escape_when_negated_predicate_source_is_constrained_to_zero() {
+        // Flattening gates an else branch by `not condition`. When the assertion proves
+        // that branch ran, `decompose_constrain` rewrites `constrain (not v0) == 1` into
+        // `constrain v0 == 0`, so the proof names the *source* of the negation rather
+        // than the predicate. `not v0` is still `1` in every satisfying assignment.
+        //
+        // This is the `assert(if c { false } else { <predicated value> })` shape: the
+        // mirror image of `accepts_escape_when_predicate_is_constrained_to_one`.
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u1, v1: u32):
+            v2 = not v0
+            enable_side_effects v2
+            v3 = add v1, u32 1
+            enable_side_effects u1 1
+            constrain v0 == u1 0
+            constrain v3 == u32 8
+            return
+        }
+        ";
+        let ssa = Ssa::from_str_no_validation(src).unwrap();
+        assert!(verify_side_effect_predicates(&ssa).is_ok());
+    }
+
+    #[test]
+    fn accepts_escape_when_negated_conjoined_predicate_is_constrained_to_zero() {
+        // A nested else branch negates a conjunction. `decompose_constrain` has no rule
+        // for `constrain (mul _ _) == 0`, so the proof names the product itself; the
+        // negation still has to be seen through.
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u1, v1: u1, v2: u32):
+            v3 = unchecked_mul v0, v1
+            v4 = not v3
+            enable_side_effects v4
+            v5 = add v2, u32 1
+            enable_side_effects u1 1
+            constrain v3 == u1 0
+            constrain v5 == u32 8
+            return
+        }
+        ";
+        let ssa = Ssa::from_str_no_validation(src).unwrap();
+        assert!(verify_side_effect_predicates(&ssa).is_ok());
+    }
+
+    #[test]
+    fn rejects_escape_when_negated_predicate_source_is_constrained_to_one() {
+        // `constrain v0 == 1` proves `not v0` is `0`, i.e. the guarded branch never ran.
+        // That is the opposite of a proof and must not be mistaken for one — the
+        // counterpart of `rejects_escape_when_predicate_is_constrained_to_zero`.
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u1, v1: u32):
+            v2 = not v0
+            enable_side_effects v2
+            v3 = add v1, u32 1
+            enable_side_effects u1 1
+            constrain v0 == u1 1
+            return v3
+        }
+        ";
+        let ssa = Ssa::from_str_no_validation(src).unwrap();
+        assert!(verify_side_effect_predicates(&ssa).is_err());
+    }
+
+    #[test]
+    fn rejects_escape_when_negated_predicate_is_unproven() {
+        // Without any constraint on `v0`, `not v0` can be `0` and the escaping value can
+        // still be the disabled-branch zero.
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u1, v1: u32):
+            v2 = not v0
+            enable_side_effects v2
+            v3 = add v1, u32 1
+            enable_side_effects u1 1
+            return v3
         }
         ";
         let ssa = Ssa::from_str_no_validation(src).unwrap();
