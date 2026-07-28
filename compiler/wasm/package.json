@@ -72,7 +72,7 @@
     "prettier": "3.9.5",
     "process": "^0.11.10",
     "readable-stream": "^4.7.0",
-    "sinon": "^22.0.0",
+    "sinon": "^22.1.0",
     "ts-loader": "^9.6.2",
     "tsx": "^4.23.1",
     "typescript": "^6.0.3",
