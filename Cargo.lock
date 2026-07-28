@@ -8,7 +8,7 @@ version = "1.0.0-beta.25"
 dependencies = [
  "acir",
  "acir_field",
- "base64",
+ "base64 0.23.0",
  "brillig",
  "criterion",
  "flate2",
@@ -562,6 +562,12 @@ name = "base64"
 version = "0.22.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "72b3254f16251a8381aa12e40e3c4d2f0199f8c6508fbecb9d91f575e0fbb8c6"
+
+[[package]]
+name = "base64"
+version = "0.23.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b25655df2c3cdd83c5e5b293b88acd880332b2ddadd7c30ac43144fdc0033da9"
 
 [[package]]
 name = "base64ct"
@@ -2732,7 +2738,7 @@ version = "0.26.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "790bedefcec85321e007ff3af84b4e417540d5c87b3c9779b9e247d1bcc3dab8"
 dependencies = [
- "base64",
+ "base64 0.22.1",
  "http-body",
  "hyper",
  "hyper-rustls",
@@ -3133,7 +3139,7 @@ dependencies = [
  "assert_cmd",
  "assert_fs",
  "async-lsp",
- "base64",
+ "base64 0.23.0",
  "bn254_blackbox_solver",
  "build-data",
  "clap",
@@ -3513,7 +3519,7 @@ dependencies = [
 name = "noir_ssa_cli"
 version = "1.0.0-beta.25"
 dependencies = [
- "base64",
+ "base64 0.23.0",
  "clap",
  "color-eyre",
  "const_format",
@@ -3536,7 +3542,7 @@ name = "noir_ssa_executor"
 version = "1.0.0-beta.25"
 dependencies = [
  "acvm",
- "base64",
+ "base64 0.23.0",
  "bn254_blackbox_solver",
  "nargo",
  "noirc_abi",
@@ -3639,7 +3645,7 @@ version = "1.0.0-beta.25"
 dependencies = [
  "acir",
  "acvm",
- "base64",
+ "base64 0.23.0",
  "codespan-reporting",
  "flate2",
  "fm",
@@ -3743,7 +3749,7 @@ name = "noirc_frontend"
 version = "1.0.0-beta.25"
 dependencies = [
  "acvm",
- "base64",
+ "base64 0.23.0",
  "bn254_blackbox_solver",
  "cfg-if",
  "fm",
@@ -5254,7 +5260,7 @@ version = "3.21.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "76a5c54c7310e7b8b9577c286d7e399ddd876c3e12b3ed917a8aabc4b96e9e8c"
 dependencies = [
- "base64",
+ "base64 0.22.1",
  "bs58",
  "chrono",
  "hex",
@@ -5493,7 +5499,7 @@ version = "0.8.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2e859df029d160cb88608f5d7df7fb4753fd20fdfb4de5644f3d8b8440841721"
 dependencies = [
- "base64",
+ "base64 0.22.1",
  "bytes",
  "futures",
  "http",
@@ -5527,7 +5533,7 @@ name = "ssa_fuzzer_fuzz"
 version = "0.0.1"
 dependencies = [
  "acvm",
- "base64",
+ "base64 0.23.0",
  "env_logger",
  "flate2",
  "hex",
