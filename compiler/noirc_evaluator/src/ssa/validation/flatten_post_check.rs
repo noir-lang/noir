@@ -379,6 +379,8 @@ fn escape_error(function: &Function, operand: ValueId, call_stack: CallStack) ->
 
 #[cfg(test)]
 mod tests {
+    use test_case::test_case;
+
     use super::verify_side_effect_predicates;
     use crate::ssa::interpreter::value::Value;
     use crate::ssa::ssa_gen::Ssa;
@@ -532,14 +534,153 @@ mod tests {
         assert!(verify_side_effect_predicates(&ssa).is_err());
     }
 
+    // The proof shapes `decompose_constrain` can leave behind for a predicate.
+    //
+    // Each constant below is the body of a single-block ACIR `main` in which a checked `add`
+    // — a `requires_acir_gen_predicate` instruction — is computed under a predicate and then
+    // escapes into a `constrain` once the region has closed. The escape is identical in every
+    // case; only the predicate's shape and the constraints that pin it differ, so a case
+    // flipping means the *proof* was (mis)recognized and nothing else.
+
+    /// `constrain (p * value) == 1` on booleans is decomposed into `constrain p == 1` plus
+    /// `constrain value == 1`, which strips the multiplication that guarded `value`. The
+    /// rewrite is faithful precisely because `p` is pinned alongside it.
+    const PREDICATE_PINNED_TO_ONE: &str = "
+      b0(v0: u1, v1: u32):
+        enable_side_effects v0
+        v2 = add v1, u32 1
+        enable_side_effects u1 1
+        constrain v0 == u1 1
+        constrain v2 == u32 8
+        return
+    ";
+
+    /// For a nested branch the predicate is the conjunction `v0 * v1`, and the decomposition
+    /// recurses through the product to constrain the individual factors. The conjunction is
+    /// `1` exactly when each factor is.
+    const CONJOINED_PREDICATE_FACTORS_PINNED_TO_ONE: &str = "
+      b0(v0: u1, v1: u1, v2: u32):
+        enable_side_effects v0
+        v3 = unchecked_mul v0, v1
+        enable_side_effects v3
+        v4 = add v2, u32 1
+        enable_side_effects u1 1
+        constrain v0 == u1 1
+        constrain v1 == u1 1
+        constrain v4 == u32 8
+        return
+    ";
+
+    /// Flattening gates an else branch by `not condition`, and `decompose_constrain` rewrites
+    /// `constrain (not v0) == 1` into `constrain v0 == 0`, so the proof names the *source* of
+    /// the negation rather than the predicate. `not v0` is still `1` everywhere.
+    const NEGATED_PREDICATE_SOURCE_PINNED_TO_ZERO: &str = "
+      b0(v0: u1, v1: u32):
+        v2 = not v0
+        enable_side_effects v2
+        v3 = add v1, u32 1
+        enable_side_effects u1 1
+        constrain v0 == u1 0
+        constrain v3 == u32 8
+        return
+    ";
+
+    /// A nested else branch negates a conjunction. `decompose_constrain` has no rule for
+    /// `constrain (mul _ _) == 0`, so the proof names the product itself and the negation
+    /// still has to be seen through.
+    const NEGATED_CONJOINED_PREDICATE_PINNED_TO_ZERO: &str = "
+      b0(v0: u1, v1: u1, v2: u32):
+        v3 = unchecked_mul v0, v1
+        v4 = not v3
+        enable_side_effects v4
+        v5 = add v2, u32 1
+        enable_side_effects u1 1
+        constrain v3 == u1 0
+        constrain v5 == u32 8
+        return
+    ";
+
+    /// Only `v0` is pinned, so the conjunction `v0 * v1` can still be `0` and the escaping
+    /// value can still be the disabled-branch zero.
+    const CONJOINED_PREDICATE_WITH_ONE_FACTOR_PINNED: &str = "
+      b0(v0: u1, v1: u1, v2: u32):
+        enable_side_effects v0
+        v3 = unchecked_mul v0, v1
+        enable_side_effects v3
+        v4 = add v2, u32 1
+        enable_side_effects u1 1
+        constrain v0 == u1 1
+        constrain v4 == u32 8
+        return
+    ";
+
+    /// Only a constraint pinning the predicate to `1` proves the enabled branch is taken;
+    /// pinning it to `0` proves the opposite.
+    const PREDICATE_PINNED_TO_ZERO: &str = "
+      b0(v0: u1, v1: u32):
+        enable_side_effects v0
+        v2 = add v1, u32 1
+        enable_side_effects u1 1
+        constrain v0 == u1 0
+        constrain v2 == u32 8
+        return
+    ";
+
+    /// `constrain v0 == 1` proves `not v0` is `0`, i.e. the guarded branch never ran. That is
+    /// the opposite of a proof — the negated counterpart of [`PREDICATE_PINNED_TO_ZERO`].
+    const NEGATED_PREDICATE_SOURCE_PINNED_TO_ONE: &str = "
+      b0(v0: u1, v1: u32):
+        v2 = not v0
+        enable_side_effects v2
+        v3 = add v1, u32 1
+        enable_side_effects u1 1
+        constrain v0 == u1 1
+        constrain v3 == u32 8
+        return
+    ";
+
+    /// Without any constraint on `v0`, `not v0` can be `0` and the escaping value can still
+    /// be the disabled-branch zero.
+    const NEGATED_PREDICATE_UNPINNED: &str = "
+      b0(v0: u1, v1: u32):
+        v2 = not v0
+        enable_side_effects v2
+        v3 = add v1, u32 1
+        enable_side_effects u1 1
+        constrain v3 == u32 8
+        return
+    ";
+
+    /// A predicated value may escape ungated exactly when the block proves its predicate is
+    /// `1` in every satisfying assignment. The rejecting cases pin the relaxation: each one
+    /// is a near-miss of an accepting case, so widening the recognizer flips one of them.
+    #[test_case(PREDICATE_PINNED_TO_ONE, true; "predicate pinned to one")]
+    #[test_case(CONJOINED_PREDICATE_FACTORS_PINNED_TO_ONE, true; "conjoined predicate factors pinned to one")]
+    #[test_case(NEGATED_PREDICATE_SOURCE_PINNED_TO_ZERO, true; "negated predicate source pinned to zero")]
+    #[test_case(NEGATED_CONJOINED_PREDICATE_PINNED_TO_ZERO, true; "negated conjoined predicate pinned to zero")]
+    #[test_case(CONJOINED_PREDICATE_WITH_ONE_FACTOR_PINNED, false; "conjoined predicate with only one factor pinned")]
+    #[test_case(PREDICATE_PINNED_TO_ZERO, false; "predicate pinned to zero")]
+    #[test_case(NEGATED_PREDICATE_SOURCE_PINNED_TO_ONE, false; "negated predicate source pinned to one")]
+    #[test_case(NEGATED_PREDICATE_UNPINNED, false; "negated predicate not pinned at all")]
+    fn escape_is_accepted_only_when_its_predicate_is_proven(body: &str, accepted: bool) {
+        let ssa =
+            Ssa::from_str_no_validation(&format!("acir(inline) fn main f0 {{{body}}}")).unwrap();
+
+        match (verify_side_effect_predicates(&ssa), accepted) {
+            (Err(error), true) => {
+                panic!("expected the escape to be accepted, but validation rejected it: {error:?}")
+            }
+            (Ok(()), false) => {
+                panic!("expected the escape to be rejected, but validation accepted it")
+            }
+            _ => {}
+        }
+    }
+
     #[test]
-    fn accepts_escape_when_predicate_is_constrained_to_one() {
-        // `constrain (p * value) == 1` on booleans is decomposed by
-        // `decompose_constrain` into `constrain p == 1` and `constrain value == 1`,
-        // which strips the predicate multiplication that guarded `value`. The
-        // rewrite is faithful: `constrain p == 1` pins the predicate to `1`, so
-        // every satisfying assignment runs the enabled branch and the ungated use
-        // of `value` is not an over-constraint.
+    fn accepts_return_escape_when_predicate_is_constrained_to_one() {
+        // The predicate proofs above escape through a `constrain`. A proven predicate also
+        // clears the separate check on the block's `return` terminator.
         let src = "
         acir(inline) fn main f0 {
           b0(v0: u1, v1: u32):
@@ -547,161 +688,11 @@ mod tests {
             v2 = add v1, u32 1
             enable_side_effects u1 1
             constrain v0 == u1 1
-            constrain v2 == u32 8
-            return
-        }
-        ";
-        let ssa = Ssa::from_str_no_validation(src).unwrap();
-        assert!(verify_side_effect_predicates(&ssa).is_ok());
-    }
-
-    #[test]
-    fn accepts_escape_when_conjoined_predicate_factors_are_constrained_to_one() {
-        // For a nested branch the predicate is the conjunction `v0 * v1`, and the
-        // decomposition constrains the individual factors rather than the product.
-        // The conjunction is `1` exactly when each factor is, so the predicate still
-        // holds in every satisfying assignment.
-        let src = "
-        acir(inline) fn main f0 {
-          b0(v0: u1, v1: u1, v2: u32):
-            enable_side_effects v0
-            v3 = unchecked_mul v0, v1
-            enable_side_effects v3
-            v4 = add v2, u32 1
-            enable_side_effects u1 1
-            constrain v4 == u32 8
-            constrain v0 == u1 1
-            constrain v1 == u1 1
-            return
-        }
-        ";
-        let ssa = Ssa::from_str_no_validation(src).unwrap();
-        assert!(verify_side_effect_predicates(&ssa).is_ok());
-    }
-
-    #[test]
-    fn rejects_escape_when_only_one_conjoined_predicate_factor_is_constrained_to_one() {
-        // Only `v0` is pinned, so the conjunction `v0 * v1` can still be `0` and the
-        // escaping value can still be the disabled-branch zero. This pins the
-        // relaxation to predicates that are fully proven.
-        let src = "
-        acir(inline) fn main f0 {
-          b0(v0: u1, v1: u1, v2: u32):
-            enable_side_effects v0
-            v3 = unchecked_mul v0, v1
-            enable_side_effects v3
-            v4 = add v2, u32 1
-            enable_side_effects u1 1
-            constrain v0 == u1 1
-            return v4
-        }
-        ";
-        let ssa = Ssa::from_str_no_validation(src).unwrap();
-        assert!(verify_side_effect_predicates(&ssa).is_err());
-    }
-
-    #[test]
-    fn rejects_escape_when_predicate_is_constrained_to_zero() {
-        // Only a constraint pinning the predicate to `1` proves the enabled branch is
-        // taken; constraining it to `0` proves the opposite and must not be mistaken
-        // for a proof.
-        let src = "
-        acir(inline) fn main f0 {
-          b0(v0: u1, v1: u32):
-            enable_side_effects v0
-            v2 = add v1, u32 1
-            enable_side_effects u1 1
-            constrain v0 == u1 0
             return v2
         }
         ";
         let ssa = Ssa::from_str_no_validation(src).unwrap();
-        assert!(verify_side_effect_predicates(&ssa).is_err());
-    }
-
-    #[test]
-    fn accepts_escape_when_negated_predicate_source_is_constrained_to_zero() {
-        // Flattening gates an else branch by `not condition`. When the assertion proves
-        // that branch ran, `decompose_constrain` rewrites `constrain (not v0) == 1` into
-        // `constrain v0 == 0`, so the proof names the *source* of the negation rather
-        // than the predicate. `not v0` is still `1` in every satisfying assignment.
-        //
-        // This is the `assert(if c { false } else { <predicated value> })` shape: the
-        // mirror image of `accepts_escape_when_predicate_is_constrained_to_one`.
-        let src = "
-        acir(inline) fn main f0 {
-          b0(v0: u1, v1: u32):
-            v2 = not v0
-            enable_side_effects v2
-            v3 = add v1, u32 1
-            enable_side_effects u1 1
-            constrain v0 == u1 0
-            constrain v3 == u32 8
-            return
-        }
-        ";
-        let ssa = Ssa::from_str_no_validation(src).unwrap();
         assert!(verify_side_effect_predicates(&ssa).is_ok());
-    }
-
-    #[test]
-    fn accepts_escape_when_negated_conjoined_predicate_is_constrained_to_zero() {
-        // A nested else branch negates a conjunction. `decompose_constrain` has no rule
-        // for `constrain (mul _ _) == 0`, so the proof names the product itself; the
-        // negation still has to be seen through.
-        let src = "
-        acir(inline) fn main f0 {
-          b0(v0: u1, v1: u1, v2: u32):
-            v3 = unchecked_mul v0, v1
-            v4 = not v3
-            enable_side_effects v4
-            v5 = add v2, u32 1
-            enable_side_effects u1 1
-            constrain v3 == u1 0
-            constrain v5 == u32 8
-            return
-        }
-        ";
-        let ssa = Ssa::from_str_no_validation(src).unwrap();
-        assert!(verify_side_effect_predicates(&ssa).is_ok());
-    }
-
-    #[test]
-    fn rejects_escape_when_negated_predicate_source_is_constrained_to_one() {
-        // `constrain v0 == 1` proves `not v0` is `0`, i.e. the guarded branch never ran.
-        // That is the opposite of a proof and must not be mistaken for one — the
-        // counterpart of `rejects_escape_when_predicate_is_constrained_to_zero`.
-        let src = "
-        acir(inline) fn main f0 {
-          b0(v0: u1, v1: u32):
-            v2 = not v0
-            enable_side_effects v2
-            v3 = add v1, u32 1
-            enable_side_effects u1 1
-            constrain v0 == u1 1
-            return v3
-        }
-        ";
-        let ssa = Ssa::from_str_no_validation(src).unwrap();
-        assert!(verify_side_effect_predicates(&ssa).is_err());
-    }
-
-    #[test]
-    fn rejects_escape_when_negated_predicate_is_unproven() {
-        // Without any constraint on `v0`, `not v0` can be `0` and the escaping value can
-        // still be the disabled-branch zero.
-        let src = "
-        acir(inline) fn main f0 {
-          b0(v0: u1, v1: u32):
-            v2 = not v0
-            enable_side_effects v2
-            v3 = add v1, u32 1
-            enable_side_effects u1 1
-            return v3
-        }
-        ";
-        let ssa = Ssa::from_str_no_validation(src).unwrap();
-        assert!(verify_side_effect_predicates(&ssa).is_err());
     }
 
     #[test]
