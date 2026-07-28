@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1785243440452,
+  "lastUpdate": 1785243443467,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -25257,105 +25257,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": true,
-          "id": "a88b19f000f09a476d4d6102ffada8b7f8c1668c",
-          "message": "fix(ci): pin aztec-packages commit in `compile-noir-contracts` job (#13349)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
-          "timestamp": "2026-07-15T09:18:00Z",
-          "tree_id": "9ffe5ea6f25992cdecdb9dc334618e59a300edd5",
-          "url": "https://github.com/noir-lang/noir/commit/a88b19f000f09a476d4d6102ffada8b7f8c1668c"
-        },
-        "date": 1784109053679,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 1094.5,
-            "unit": "KB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 2422.2,
-            "unit": "KB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 542.9,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-block-root-first-empty-tx",
-            "value": 272.1,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 275.6,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 332.9,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-checkpoint-merge",
-            "value": 417.3,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-checkpoint-root-single-block",
-            "value": 30683.2,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-checkpoint-root",
-            "value": 30718.9,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 442.1,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-tx-base-private",
-            "value": 4592.4,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-tx-base-public",
-            "value": 5176.8,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-tx-merge",
-            "value": 206,
-            "unit": "KB"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 502.9,
-            "unit": "KB"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 449.9,
-            "unit": "KB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "49558828+AztecBot@users.noreply.github.com",
-            "name": "Aztec Bot",
-            "username": "AztecBot"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": false,
           "id": "9a633a342d83287046d725f9fcfdc734a8e7b1a0",
           "message": "fix(frontend): reject control flow in assert messages (#13345)",
@@ -30111,6 +30012,105 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/a2c04be83dedf2e5627afca8cc4db53604af0d1b"
         },
         "date": 1785241977604,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 1105.2,
+            "unit": "KB"
+          },
+          {
+            "name": "private-kernel-reset-tail",
+            "value": 2681,
+            "unit": "KB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 2113.2,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root-first-empty-tx",
+            "value": 276.9,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 280.3,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 337.6,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-checkpoint-merge",
+            "value": 436.1,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-checkpoint-root-single-block",
+            "value": 30746,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-checkpoint-root",
+            "value": 30777.1,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 470.9,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-tx-base-private",
+            "value": 4599.7,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-tx-base-public",
+            "value": 5167.4,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-tx-merge",
+            "value": 209,
+            "unit": "KB"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 502.9,
+            "unit": "KB"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 449.9,
+            "unit": "KB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "ccbf297d345bcc2d312fdfa3cdf3cd8ef0cc5edd",
+          "message": "fix: don't warn that a struct is never constructed if it's a field of… (#13403)\n\nCo-authored-by: Claude Fable 5 <noreply@anthropic.com>",
+          "timestamp": "2026-07-28T12:27:01Z",
+          "tree_id": "1ee68ed19647418f3739e64d8b98627a9846f15b",
+          "url": "https://github.com/noir-lang/noir/commit/ccbf297d345bcc2d312fdfa3cdf3cd8ef0cc5edd"
+        },
+        "date": 1785243350860,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
