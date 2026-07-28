@@ -37,14 +37,16 @@
 
 use acvm::AcirField as _;
 use noirc_errors::call_stack::CallStack;
-use rustc_hash::FxHashMap as HashMap;
+use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
 use crate::errors::{RtResult, RuntimeError};
 use crate::ssa::{
     ir::{
+        basic_block::BasicBlockId,
+        dfg::DataFlowGraph,
         function::Function,
         instruction::{Binary, BinaryOp, Instruction, TerminatorInstruction},
-        value::ValueId,
+        value::{Value, ValueId},
     },
     ssa_gen::Ssa,
 };
@@ -82,6 +84,10 @@ fn verify_function(function: &Function) -> RtResult<()> {
     // These are the 'unsafe' values that we want to track for a non-predicated
     // use outside their enable-side-effect definition.
     let mut predicated_values: HashMap<ValueId, ValueId> = HashMap::default();
+
+    // Predicates that hold in every satisfying assignment need no guard, see
+    // `is_constrained_to_one`.
+    let constrained_to_one = collect_values_constrained_to_one(dfg, block);
 
     // The active predicate: `None` if no predicate (or `1`).
     let mut current: Option<ValueId> = None;
@@ -139,8 +145,12 @@ fn verify_function(function: &Function) -> RtResult<()> {
             None
         };
         if let Some(p) = result_predicate {
-            for result in dfg.instruction_results(*instruction_id) {
-                predicated_values.insert(*result, p);
+            // A predicate that is pinned to `1` is never false, so the results computed
+            // under it are never the disabled-branch value and need no guard to escape.
+            if !is_constrained_to_one(dfg, p, &constrained_to_one) {
+                for result in dfg.instruction_results(*instruction_id) {
+                    predicated_values.insert(*result, p);
+                }
             }
         }
     }
@@ -160,13 +170,76 @@ fn verify_function(function: &Function) -> RtResult<()> {
     Ok(())
 }
 
+/// Collect the values that an unconditional `constrain x == 1` pins to `1`.
+///
+/// A flattened ACIR function is a single block, so every `Constrain` in it is enforced
+/// on every execution. A value constrained to `1` here is therefore `1` in *every*
+/// satisfying assignment, no matter where in the block the constraint sits — which is
+/// why this is gathered up front rather than as the instructions are walked.
+fn collect_values_constrained_to_one(dfg: &DataFlowGraph, block: BasicBlockId) -> HashSet<ValueId> {
+    let mut constrained_to_one = HashSet::default();
+    for instruction_id in dfg[block].instructions() {
+        let Instruction::Constrain(lhs, rhs, _) = &dfg[*instruction_id] else {
+            continue;
+        };
+        for (value, expected) in [(lhs, rhs), (rhs, lhs)] {
+            if dfg.get_numeric_constant(*expected).is_some_and(|c| c.is_one()) {
+                constrained_to_one.insert(*value);
+            }
+        }
+    }
+    constrained_to_one
+}
+
+/// Whether predicate `p` is `1` in every satisfying assignment, in which case a value
+/// computed under it is never the disabled-branch value and may escape ungated.
+///
+/// This is what keeps the decomposition of a guarded assertion valid. `decompose_constrain`
+/// rewrites a boolean `constrain (p * value) == 1` into `constrain p == 1` and
+/// `constrain value == 1`, dropping the multiplication that guarded `value`. The two forms
+/// admit exactly the same assignments (`p = 1` and `value = 1`), so the bare use of `value`
+/// is not an over-constraint — but it is only faithful *because* `p` is pinned alongside it.
+///
+/// The proof may be spread over the factors rather than the product: flattening gates a
+/// nested branch by the conjunction of its enclosing conditions, and the decomposition
+/// recurses through that product, so `p = p_outer * p_inner` is proven by
+/// `constrain p_outer == 1` plus `constrain p_inner == 1`.
+///
+/// Casts are followed towards the source: casting `1` yields `1` in any numeric type, so a
+/// constrained source proves every cast of it.
+fn is_constrained_to_one(
+    dfg: &DataFlowGraph,
+    value: ValueId,
+    constrained_to_one: &HashSet<ValueId>,
+) -> bool {
+    if constrained_to_one.contains(&value) {
+        return true;
+    }
+    let value = strip_casts(dfg, value);
+    if constrained_to_one.contains(&value) {
+        return true;
+    }
+    if dfg.get_numeric_constant(value).is_some_and(|c| c.is_one()) {
+        return true;
+    }
+    if let Value::Instruction { instruction, .. } = &dfg[value]
+        && let Instruction::Binary(Binary { lhs, rhs, operator: BinaryOp::Mul { .. } }) =
+            &dfg[*instruction]
+    {
+        // A product is `1` exactly when both of its factors are.
+        return is_constrained_to_one(dfg, *lhs, constrained_to_one)
+            && is_constrained_to_one(dfg, *rhs, constrained_to_one);
+    }
+    false
+}
+
 /// True if `instruction` re-applies predicate `p` to `operand`, zeroing it
 /// whenever `p` is false: `mul p, operand` (either order), or a branch of an
 /// `IfElse` whose condition is `p` and whose value is `operand`. A merge gates
 /// each branch by its own condition (`then_condition * then_value +
 /// else_condition * else_value`), so both branches are checked.
 fn is_predicate_guard(
-    dfg: &crate::ssa::ir::dfg::DataFlowGraph,
+    dfg: &DataFlowGraph,
     instruction: &Instruction,
     operand: ValueId,
     p: ValueId,
@@ -201,13 +274,13 @@ fn is_predicate_guard(
 /// - `value` is an `IfElse` merge `then_condition * then_value + else_condition *
 ///   else_value`: the sum is `0` whenever `p` is `0` exactly when each product term
 ///   is, and a product term is `0` whenever either of its factors is.
-fn is_predicate(dfg: &crate::ssa::ir::dfg::DataFlowGraph, value: ValueId, p: ValueId) -> bool {
+fn is_predicate(dfg: &DataFlowGraph, value: ValueId, p: ValueId) -> bool {
     let value = strip_casts(dfg, value);
     let p = strip_casts(dfg, p);
     if value == p {
         return true;
     }
-    if let crate::ssa::ir::value::Value::Instruction { instruction, .. } = &dfg[value] {
+    if let Value::Instruction { instruction, .. } = &dfg[value] {
         match &dfg[*instruction] {
             Instruction::Binary(Binary { lhs, rhs, operator: BinaryOp::Mul { .. } }) => {
                 return is_predicate(dfg, *lhs, p) || is_predicate(dfg, *rhs, p);
@@ -225,8 +298,8 @@ fn is_predicate(dfg: &crate::ssa::ir::dfg::DataFlowGraph, value: ValueId, p: Val
 }
 
 /// Follow a chain of `cast` instructions to the underlying source value.
-fn strip_casts(dfg: &crate::ssa::ir::dfg::DataFlowGraph, mut value: ValueId) -> ValueId {
-    while let crate::ssa::ir::value::Value::Instruction { instruction, .. } = &dfg[value] {
+fn strip_casts(dfg: &DataFlowGraph, mut value: ValueId) -> ValueId {
+    while let Value::Instruction { instruction, .. } = &dfg[value] {
         if let Instruction::Cast(src, _) = &dfg[*instruction] {
             value = *src;
         } else {
@@ -240,10 +313,7 @@ fn is_one(function: &Function, value: ValueId) -> bool {
     function.dfg.get_numeric_constant(value).is_some_and(|c| c.is_one())
 }
 
-fn is_div_or_mod_by_nonzero_constant(
-    dfg: &crate::ssa::ir::dfg::DataFlowGraph,
-    instruction: &Instruction,
-) -> bool {
+fn is_div_or_mod_by_nonzero_constant(dfg: &DataFlowGraph, instruction: &Instruction) -> bool {
     let Instruction::Binary(Binary { rhs, operator: BinaryOp::Div | BinaryOp::Mod, .. }) =
         instruction
     else {
@@ -408,6 +478,93 @@ mod tests {
             v3 = div v1, v2
             enable_side_effects u1 1
             return v3
+        }
+        ";
+        let ssa = Ssa::from_str_no_validation(src).unwrap();
+        assert!(verify_side_effect_predicates(&ssa).is_err());
+    }
+
+    #[test]
+    fn accepts_escape_when_predicate_is_constrained_to_one() {
+        // `constrain (p * value) == 1` on booleans is decomposed by
+        // `decompose_constrain` into `constrain p == 1` and `constrain value == 1`,
+        // which strips the predicate multiplication that guarded `value`. The
+        // rewrite is faithful: `constrain p == 1` pins the predicate to `1`, so
+        // every satisfying assignment runs the enabled branch and the ungated use
+        // of `value` is not an over-constraint.
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u1, v1: u32):
+            enable_side_effects v0
+            v2 = add v1, u32 1
+            enable_side_effects u1 1
+            constrain v0 == u1 1
+            constrain v2 == u32 8
+            return
+        }
+        ";
+        let ssa = Ssa::from_str_no_validation(src).unwrap();
+        assert!(verify_side_effect_predicates(&ssa).is_ok());
+    }
+
+    #[test]
+    fn accepts_escape_when_conjoined_predicate_factors_are_constrained_to_one() {
+        // For a nested branch the predicate is the conjunction `v0 * v1`, and the
+        // decomposition constrains the individual factors rather than the product.
+        // The conjunction is `1` exactly when each factor is, so the predicate still
+        // holds in every satisfying assignment.
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u1, v1: u1, v2: u32):
+            enable_side_effects v0
+            v3 = unchecked_mul v0, v1
+            enable_side_effects v3
+            v4 = add v2, u32 1
+            enable_side_effects u1 1
+            constrain v4 == u32 8
+            constrain v0 == u1 1
+            constrain v1 == u1 1
+            return
+        }
+        ";
+        let ssa = Ssa::from_str_no_validation(src).unwrap();
+        assert!(verify_side_effect_predicates(&ssa).is_ok());
+    }
+
+    #[test]
+    fn rejects_escape_when_only_one_conjoined_predicate_factor_is_constrained_to_one() {
+        // Only `v0` is pinned, so the conjunction `v0 * v1` can still be `0` and the
+        // escaping value can still be the disabled-branch zero. This pins the
+        // relaxation to predicates that are fully proven.
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u1, v1: u1, v2: u32):
+            enable_side_effects v0
+            v3 = unchecked_mul v0, v1
+            enable_side_effects v3
+            v4 = add v2, u32 1
+            enable_side_effects u1 1
+            constrain v0 == u1 1
+            return v4
+        }
+        ";
+        let ssa = Ssa::from_str_no_validation(src).unwrap();
+        assert!(verify_side_effect_predicates(&ssa).is_err());
+    }
+
+    #[test]
+    fn rejects_escape_when_predicate_is_constrained_to_zero() {
+        // Only a constraint pinning the predicate to `1` proves the enabled branch is
+        // taken; constraining it to `0` proves the opposite and must not be mistaken
+        // for a proof.
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u1, v1: u32):
+            enable_side_effects v0
+            v2 = add v1, u32 1
+            enable_side_effects u1 1
+            constrain v0 == u1 0
+            return v2
         }
         ";
         let ssa = Ssa::from_str_no_validation(src).unwrap();
