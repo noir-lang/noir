@@ -4,7 +4,7 @@
         object_type: <a class="enum" href="../hir_def/types/enum.Type.html" title="enum noirc_frontend::hir_def::types::Type">Type</a>,
         trait_generics: <a class="struct" href="../hir/type_check/generics/struct.TraitGenerics.html" title="struct noirc_frontend::hir::type_check::generics::TraitGenerics">TraitGenerics</a>,
     },
-    Prepared(<a class="struct" href="struct.TraitImplId.html" title="struct noirc_frontend::node_interner::TraitImplId">TraitImplId</a>, <a class="struct" href="../../noirc_errors/position/struct.Location.html" title="struct noirc_errors::position::Location">Location</a>),
+    Prepared(<a class="struct" href="struct.TraitImplId.html" title="struct noirc_frontend::node_interner::TraitImplId">TraitImplId</a>, Location),
 }</code></pre><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p>A trait implementation is either a normal implementation that is present in the source
 program via an <code>impl</code> block, or it is assumed to exist from a <code>where</code> clause or similar.</p>
 </div></details><h2 id="variants" class="variants section-header">Variants<a href="#variants" class="anchor">§</a></h2><div class="variants"><section id="variant.Normal" class="variant"><a href="#variant.Normal" class="anchor">§</a><h3 class="code-header">Normal(<a class="struct" href="struct.TraitImplId.html" title="struct noirc_frontend::node_interner::TraitImplId">TraitImplId</a>)</h3></section><div class="docblock"><p>A fully resolved trait implementation.</p>
@@ -17,7 +17,7 @@ This is allowed to be empty when they are inferred. E.g. for:</p>
 }</code></pre></div>
 <p>The reference <code>Into::into(x)</code> would have inferred generics, but
 <code>x.into()</code> with a <code>X: Into&lt;Y&gt;</code> in scope would not.</p>
-</div></div></div><section id="variant.Prepared" class="variant"><a href="#variant.Prepared" class="anchor">§</a><h3 class="code-header">Prepared(<a class="struct" href="struct.TraitImplId.html" title="struct noirc_frontend::node_interner::TraitImplId">TraitImplId</a>, <a class="struct" href="../../noirc_errors/position/struct.Location.html" title="struct noirc_errors::position::Location">Location</a>)</h3></section><div class="docblock"><p>Trait impls first get prepared, to support the definition of function metas.
+</div></div></div><section id="variant.Prepared" class="variant"><a href="#variant.Prepared" class="anchor">§</a><h3 class="code-header">Prepared(<a class="struct" href="struct.TraitImplId.html" title="struct noirc_frontend::node_interner::TraitImplId">TraitImplId</a>, Location)</h3></section><div class="docblock"><p>Trait impls first get prepared, to support the definition of function metas.
 During this phase we already know what the associated types of the impl are
 for a particular object type (which is stored in the <code>NodeInterner</code>), which
 we need to be able to handle <code>&lt;Foo as Bar&gt;::Qux</code> types when they appear
