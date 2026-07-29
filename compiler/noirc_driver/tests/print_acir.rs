@@ -47,7 +47,7 @@ fn print_acir_renders_static_assertion_payload() {
     "#;
 
     let program = compile(source, false);
-    let displayed = display_compiled_program(&program);
+    let displayed = display_compiled_program(&program, false);
 
     insta::assert_snapshot!(displayed, @r"
     func 0
@@ -120,6 +120,141 @@ fn dynamic_custom_error_type_is_preserved() {
 }
 
 #[test]
+fn print_acir_with_locations_annotates_opcode_runs() {
+    let source = r#"
+    fn main(x: u32, y: u32) -> pub u32 {
+        let sum = x * y;
+        assert(sum != 10);
+        sum
+    }
+    "#;
+
+    let program = compile(source, false);
+    let displayed = display_compiled_program(&program, true);
+
+    // Each run of opcodes compiled from the same source span gets a single
+    // `// file:line:col: snippet` comment above it.
+    insta::assert_snapshot!(displayed, @r"
+    func 0
+    private parameters: [w0, w1]
+    public parameters: []
+    return values: [w2]
+    BLACKBOX::RANGE input: w0, bits: 32
+    BLACKBOX::RANGE input: w1, bits: 32
+    // main.nr:3:19: x * y
+    ASSERT w3 = w0*w1
+    BLACKBOX::RANGE input: w3, bits: 32 // attempt to multiply with overflow
+    // main.nr:4:9: assert(sum != 10)
+    BRILLIG CALL func: 0, predicate: 1, inputs: [w3 - 10], outputs: [w4]
+    ASSERT 0 = w3*w4 - 10*w4 - 1
+    // no source location
+    ASSERT w2 = w3
+
+    unconstrained func 0: directive_invert
+    0: @21 = const u32 1
+    1: @20 = const u32 0
+    2: @0 = calldata copy [@20; @21]
+    3: @2 = const field 0
+    4: @3 = field eq @0, @2
+    5: jump if @3 to 8
+    6: @1 = const field 1
+    7: @0 = field field_div @1, @0
+    8: stop @[@20; @21]
+    ");
+}
+
+#[test]
+fn print_acir_with_locations_shows_inlined_caller_chain() {
+    let source = r#"
+    fn square(v: u32) -> u32 {
+        v * v
+    }
+
+    fn main(x: u32) -> pub u32 {
+        square(x)
+    }
+    "#;
+
+    let program = compile(source, false);
+    let displayed = display_compiled_program(&program, true);
+
+    // Opcodes from the inlined `square` body are annotated with the location
+    // inside `square` plus a `(via ...)` trail back to the call site in `main`.
+    insta::assert_snapshot!(displayed, @r"
+    func 0
+    private parameters: [w0]
+    public parameters: []
+    return values: [w1]
+    BLACKBOX::RANGE input: w0, bits: 32
+    // main.nr:3:9: v * v (via main.nr:7:9)
+    ASSERT w2 = w0*w0
+    BLACKBOX::RANGE input: w2, bits: 32 // attempt to multiply with overflow
+    // no source location
+    ASSERT w1 = w2
+    ");
+}
+
+#[test]
+fn print_acir_with_locations_collapses_multi_line_snippets() {
+    let source = r#"
+    fn main(x: u32) -> pub u32 {
+        let y = x
+            * 3
+            * x;
+        y
+    }
+    "#;
+
+    let program = compile(source, false);
+    let displayed = display_compiled_program(&program, true);
+
+    // A span covering several source lines is collapsed to a single line,
+    // so the two nested multiplication spans remain distinguishable.
+    insta::assert_snapshot!(displayed, @r"
+    func 0
+    private parameters: [w0]
+    public parameters: []
+    return values: [w1]
+    BLACKBOX::RANGE input: w0, bits: 32
+    // main.nr:3:17: x * 3
+    ASSERT w2 = 3*w0
+    BLACKBOX::RANGE input: w2, bits: 32 // attempt to multiply with overflow
+    // main.nr:3:17: x * 3 * x
+    ASSERT w3 = w0*w2
+    BLACKBOX::RANGE input: w3, bits: 32 // attempt to multiply with overflow
+    // no source location
+    ASSERT w1 = w3
+    ");
+}
+
+#[test]
+fn print_acir_with_locations_round_trips_through_parser() {
+    let source = r#"
+    fn main(x: u32, y: u32) -> pub u32 {
+        let sum = x * y;
+        assert(sum != 10);
+        sum
+    }
+    "#;
+
+    let program = compile(source, false);
+
+    // Location annotations are `//` comments, which the ACIR parser skips, so
+    // the annotated display must parse to exactly the same circuit as the
+    // unannotated one.
+    let parse = |displayed: &str| {
+        let circuit_text = displayed
+            .strip_prefix("func 0\n")
+            .expect("displayed program should start with the `func 0` header");
+        Circuit::from_str(circuit_text).expect("displayed ACIR should be parseable")
+    };
+
+    let annotated = parse(&display_compiled_program(&program, true));
+    let unannotated = parse(&display_compiled_program(&program, false));
+    assert_eq!(annotated, unannotated);
+}
+
+#[test]
 fn print_acir_renders_brillig_assertion_payload() {
     let source = r#"
     fn main(x: u32) {
@@ -128,7 +263,7 @@ fn print_acir_renders_brillig_assertion_payload() {
     "#;
 
     let program = compile(source, true);
-    let displayed = display_compiled_program(&program);
+    let displayed = display_compiled_program(&program, false);
 
     insta::assert_snapshot!(displayed, @r#"
     func 0
