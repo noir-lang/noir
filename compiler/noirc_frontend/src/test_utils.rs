@@ -195,7 +195,7 @@ pub(crate) fn get_program_with_options(
 /// cannot express.
 ///
 /// Returns the compilation errors of the whole crate graph.
-pub(crate) fn get_program_with_stdlib_dependency(
+pub fn get_program_with_stdlib_dependency(
     stdlib_src: &str,
     root_src: &str,
 ) -> Vec<CompilationError> {
