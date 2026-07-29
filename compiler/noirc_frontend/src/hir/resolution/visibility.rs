@@ -279,12 +279,6 @@ fn is_same_type_regardless_generics(type1: &Type, type2: &Type) -> bool {
     }
 
     match (type1.follow_bindings(), type2.follow_bindings()) {
-        (Type::Array(..), Type::Array(..)) => true,
-        (Type::Vector(..), Type::Vector(..)) => true,
-        (Type::String(..), Type::String(..)) => true,
-        (Type::FmtString(..), Type::FmtString(..)) => true,
-        (Type::Tuple(..), Type::Tuple(..)) => true,
-        (Type::Function(..), Type::Function(..)) => true,
         (Type::DataType(data_type1, ..), Type::DataType(data_type2, ..)) => {
             data_type1.borrow().id == data_type2.borrow().id
         }
@@ -321,5 +315,44 @@ pub fn module_def_id_visibility(
             let global_info = interner.get_global(global_id);
             global_info.visibility
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn array_type(element: Type, length: u32) -> Type {
+        Type::Array(Box::new(element), Box::new(Type::constant_u32(length)))
+    }
+
+    #[test]
+    fn composite_primitive_types_must_match_exactly_for_visibility() {
+        let array_u32_4 = array_type(Type::u32(), 4);
+        let array_u32_8 = array_type(Type::u32(), 8);
+        let array_bool_4 = array_type(Type::Bool, 4);
+
+        assert!(is_same_type_regardless_generics(&array_u32_4, &array_u32_4));
+        assert!(!is_same_type_regardless_generics(&array_u32_4, &array_u32_8));
+        assert!(!is_same_type_regardless_generics(&array_u32_4, &array_bool_4));
+
+        let tuple_u32 = Type::Tuple(vec![Type::u32()]);
+        let tuple_bool = Type::Tuple(vec![Type::Bool]);
+        assert!(!is_same_type_regardless_generics(&tuple_u32, &tuple_bool));
+
+        let function_u32 =
+            Type::Function(vec![Type::u32()], Box::new(Type::u32()), Box::new(Type::Unit), false);
+        let function_bool =
+            Type::Function(vec![Type::Bool], Box::new(Type::u32()), Box::new(Type::Unit), false);
+        assert!(!is_same_type_regardless_generics(&function_u32, &function_bool));
+    }
+
+    #[test]
+    fn references_still_compare_by_inner_type_for_visibility() {
+        let array = array_type(Type::u32(), 4);
+        let reference = Type::Reference(Box::new(array.clone()), false);
+
+        assert!(is_same_type_regardless_generics(&reference, &array));
+        assert!(is_same_type_regardless_generics(&array, &reference));
     }
 }
