@@ -1,5 +1,25 @@
 # Changelog
 
+## [1.0.0-beta.26](https://github.com/noir-lang/noir/compare/v1.0.0-beta.25...v1.0.0-beta.26) (2026-07-29)
+
+
+### Features
+
+* Add lint registry and validate `#[allow(...)]` slugs ([#13400](https://github.com/noir-lang/noir/issues/13400)) ([a352e71](https://github.com/noir-lang/noir/commit/a352e7152a28afd5e15b363ddf32ba88df28f312))
+* **lsp:** Document symbol for type aliases and enums ([#13393](https://github.com/noir-lang/noir/issues/13393)) ([e22cd89](https://github.com/noir-lang/noir/commit/e22cd89be53c37393eed6520a2001193dd723349))
+* Silence `constant_return` warning via `#[allow(constant_return)]` ([#13399](https://github.com/noir-lang/noir/issues/13399)) ([e69bb22](https://github.com/noir-lang/noir/commit/e69bb2269c3d1c28daffcf6527692b96f25a0f80))
+
+
+### Bug Fixes
+
+* Don't trust the static type of a `u1` unchecked mul in ACIR bit bounds ([#13343](https://github.com/noir-lang/noir/issues/13343)) ([72cda84](https://github.com/noir-lang/noir/commit/72cda845a59e567f7c3d0f4e34ec4fd3b89e6856))
+* Don't warn that a struct is never constructed if it's a field of… ([#13403](https://github.com/noir-lang/noir/issues/13403)) ([ccbf297](https://github.com/noir-lang/noir/commit/ccbf297d345bcc2d312fdfa3cdf3cd8ef0cc5edd))
+* **frontend:** Require exact composite receivers for visibility ([#13347](https://github.com/noir-lang/noir/issues/13347)) ([83743f4](https://github.com/noir-lang/noir/commit/83743f42efd2cbebe4a90058bf47af97b52e696e))
+* **ssa:** Accept escapes whose predicate is constrained to one in flatten_post_check ([#13414](https://github.com/noir-lang/noir/issues/13414)) ([b4a307a](https://github.com/noir-lang/noir/commit/b4a307a047ed9393398c1f9dfd0a02088d85fc0e))
+* **ssa:** Keep retained calls in Brillig unroll cost ([#13348](https://github.com/noir-lang/noir/issues/13348)) ([2a3b642](https://github.com/noir-lang/noir/commit/2a3b64261d7a8e29ed2591234d7b1c59d7fa1a15))
+* **ssa:** Recognize negated predicates proved by a source-zero constraint in flatten_post_check ([#13417](https://github.com/noir-lang/noir/issues/13417)) ([a2c04be](https://github.com/noir-lang/noir/commit/a2c04be83dedf2e5627afca8cc4db53604af0d1b))
+* Warn on never-mutated `mut` function parameters ([#13391](https://github.com/noir-lang/noir/issues/13391)) ([072e80e](https://github.com/noir-lang/noir/commit/072e80ee8c1154c5f263affe11309f80f1a96805))
+
 ## [1.0.0-beta.25](https://github.com/noir-lang/noir/compare/v1.0.0-beta.24...v1.0.0-beta.25) (2026-07-21)
 
 

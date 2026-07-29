@@ -2,7 +2,7 @@
 name = "msgpack_tagged"
 description = "Tagged-map serialization format for Noir bytecode (https://github.com/noir-lang/noir/issues/12554)."
 # x-release-please-start-version
-version = "1.0.0-beta.25"
+version = "1.0.0-beta.26"
 # x-release-please-end
 authors.workspace = true
 edition.workspace = true
