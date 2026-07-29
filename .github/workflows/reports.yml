@@ -67,10 +67,20 @@ jobs:
     outputs:
       projects: ${{ steps.get_bench_projects.outputs.projects }}
       has_projects: ${{ steps.get_bench_projects.outputs.has_projects }}
+      run_benchmarks: ${{ steps.should_run_benchmarks.outputs.run_benchmarks }}
 
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      # Benchmarking the external repos takes a matrix of long-running jobs per project, so we only
+      # pay for it on master. A PR which is expected to move compilation time or memory usage can opt
+      # in by applying the `bench-show` label, which also makes the results show up as a PR comment.
+      - name: Decide whether to run the benchmarks
+        id: should_run_benchmarks
+        env:
+          RUN_BENCHMARKS: ${{ github.ref == 'refs/heads/master' || contains( github.event.pull_request.labels.*.name, 'bench-show') }}
+        run: echo "run_benchmarks=$RUN_BENCHMARKS" >> $GITHUB_OUTPUT
 
       - name: Build list of projects
         id: get_bench_projects
@@ -121,6 +131,9 @@ jobs:
           retention-days: 3
 
   build-noir-inspector:
+    needs: [benchmark-projects-list]
+    # `noir-inspector` is only consumed by the external repo benchmarks.
+    if: ${{ needs.benchmark-projects-list.outputs.run_benchmarks == 'true' }}
     runs-on: ubuntu-22.04
     timeout-minutes: 15
     permissions:
@@ -313,7 +326,9 @@ jobs:
 
   generate_memory_report:
     name: Peak memory usage
-    needs: [build-nargo]
+    needs: [build-nargo, benchmark-projects-list]
+    # This report is only published as part of the memory report upload jobs.
+    if: ${{ needs.benchmark-projects-list.outputs.run_benchmarks == 'true' }}
     runs-on: ubuntu-22.04
     timeout-minutes: 20
     permissions:
@@ -357,6 +372,7 @@ jobs:
 
   external_repo_reports:
     needs: [build-nargo, build-noir-inspector, benchmark-projects-list]
+    if: ${{ needs.benchmark-projects-list.outputs.run_benchmarks == 'true' }}
     runs-on: ubuntu-22.04
     timeout-minutes: 20
     permissions:
@@ -482,6 +498,7 @@ jobs:
 
   external_repo_memory_report:
     needs: [build-nargo, benchmark-projects-list]
+    if: ${{ needs.benchmark-projects-list.outputs.run_benchmarks == 'true' }}
     runs-on: ubuntu-22.04
     timeout-minutes: 30
     permissions:
@@ -598,8 +615,8 @@ jobs:
     needs: [external_repo_reports, benchmark-projects-list]
     timeout-minutes: 5
     # We want this job to run even if one variation of the matrix in `external_repo_reports` fails
-    # but only if there are benchmark projects to report on.
-    if: ${{ always() && needs.benchmark-projects-list.outputs.has_projects == 'true' }}
+    # but only if the benchmarks ran and there are benchmark projects to report on.
+    if: ${{ always() && needs.benchmark-projects-list.outputs.has_projects == 'true' && needs.benchmark-projects-list.outputs.run_benchmarks == 'true' }}
     runs-on: ubuntu-22.04
     permissions:
       pull-requests: write
@@ -646,8 +663,8 @@ jobs:
     needs: [external_repo_reports, benchmark-projects-list]
     timeout-minutes: 5
     # We want this job to run even if one variation of the matrix in `external_repo_reports` fails
-    # but only if there are benchmark projects to report on.
-    if: ${{ always() && needs.benchmark-projects-list.outputs.has_projects == 'true' }}
+    # but only if the benchmarks ran and there are benchmark projects to report on.
+    if: ${{ always() && needs.benchmark-projects-list.outputs.has_projects == 'true' && needs.benchmark-projects-list.outputs.run_benchmarks == 'true' }}
     runs-on: ubuntu-22.04
     permissions:
       pull-requests: write
@@ -694,8 +711,8 @@ jobs:
     needs: [external_repo_reports, benchmark-projects-list]
     timeout-minutes: 5
     # We want this job to run even if one variation of the matrix in `external_repo_reports` fails
-    # but only if there are benchmark projects to report on.
-    if: ${{ always() && needs.benchmark-projects-list.outputs.has_projects == 'true' }}
+    # but only if the benchmarks ran and there are benchmark projects to report on.
+    if: ${{ always() && needs.benchmark-projects-list.outputs.has_projects == 'true' && needs.benchmark-projects-list.outputs.run_benchmarks == 'true' }}
     runs-on: ubuntu-22.04
     permissions:
       pull-requests: write
@@ -742,8 +759,8 @@ jobs:
     needs: [external_repo_reports, benchmark-projects-list]
     timeout-minutes: 5
     # We want this job to run even if one variation of the matrix in `external_repo_reports` fails
-    # but only if there are benchmark projects to report on.
-    if: ${{ always() && needs.benchmark-projects-list.outputs.has_projects == 'true' }}
+    # but only if the benchmarks ran and there are benchmark projects to report on.
+    if: ${{ always() && needs.benchmark-projects-list.outputs.has_projects == 'true' && needs.benchmark-projects-list.outputs.run_benchmarks == 'true' }}
     runs-on: ubuntu-22.04
     permissions:
       pull-requests: write
@@ -790,8 +807,8 @@ jobs:
     needs: [external_repo_reports, benchmark-projects-list]
     timeout-minutes: 5
     # We want this job to run even if one variation of the matrix in `external_repo_reports` fails
-    # but only if there are benchmark projects to report on.
-    if: ${{ always() && needs.benchmark-projects-list.outputs.has_projects == 'true' }}
+    # but only if the benchmarks ran and there are benchmark projects to report on.
+    if: ${{ always() && needs.benchmark-projects-list.outputs.has_projects == 'true' && needs.benchmark-projects-list.outputs.run_benchmarks == 'true' }}
     runs-on: ubuntu-22.04
     permissions:
       pull-requests: write
@@ -838,8 +855,8 @@ jobs:
     needs: [external_repo_reports, benchmark-projects-list]
     timeout-minutes: 5
     # We want this job to run even if one variation of the matrix in `external_repo_reports` fails
-    # but only if there are benchmark projects to report on.
-    if: ${{ always() && needs.benchmark-projects-list.outputs.has_projects == 'true' }}
+    # but only if the benchmarks ran and there are benchmark projects to report on.
+    if: ${{ always() && needs.benchmark-projects-list.outputs.has_projects == 'true' && needs.benchmark-projects-list.outputs.run_benchmarks == 'true' }}
     runs-on: ubuntu-22.04
     permissions:
       pull-requests: write
@@ -886,8 +903,8 @@ jobs:
     needs: [external_repo_reports, benchmark-projects-list]
     timeout-minutes: 5
     # We want this job to run even if one variation of the matrix in `external_repo_reports` fails
-    # but only if there are benchmark projects to report on.
-    if: ${{ always() && needs.benchmark-projects-list.outputs.has_projects == 'true' }}
+    # but only if the benchmarks ran and there are benchmark projects to report on.
+    if: ${{ always() && needs.benchmark-projects-list.outputs.has_projects == 'true' && needs.benchmark-projects-list.outputs.run_benchmarks == 'true' }}
     runs-on: ubuntu-22.04
     permissions:
       pull-requests: write
@@ -934,8 +951,8 @@ jobs:
     needs: [external_repo_reports, benchmark-projects-list]
     timeout-minutes: 5
     # We want this job to run even if one variation of the matrix in `external_repo_reports` fails
-    # but only if there are benchmark projects to report on.
-    if: ${{ always() && needs.benchmark-projects-list.outputs.has_projects == 'true' }}
+    # but only if the benchmarks ran and there are benchmark projects to report on.
+    if: ${{ always() && needs.benchmark-projects-list.outputs.has_projects == 'true' && needs.benchmark-projects-list.outputs.run_benchmarks == 'true' }}
     runs-on: ubuntu-22.04
     permissions:
       pull-requests: write
@@ -982,8 +999,8 @@ jobs:
     needs: [generate_memory_report, external_repo_memory_report, benchmark-projects-list]
     timeout-minutes: 5
     # We want this job to run even if one variation of the matrix in `external_repo_memory_report` fails
-    # but only if there are benchmark projects to report on.
-    if: ${{ always() && needs.benchmark-projects-list.outputs.has_projects == 'true' }}
+    # but only if the benchmarks ran and there are benchmark projects to report on.
+    if: ${{ always() && needs.benchmark-projects-list.outputs.has_projects == 'true' && needs.benchmark-projects-list.outputs.run_benchmarks == 'true' }}
     runs-on: ubuntu-22.04
     permissions:
       pull-requests: write
@@ -1035,8 +1052,8 @@ jobs:
     needs: [generate_memory_report, external_repo_memory_report, benchmark-projects-list]
     timeout-minutes: 5
     # We want this job to run even if one variation of the matrix in `external_repo_memory_report` fails
-    # but only if there are benchmark projects to report on.
-    if: ${{ always() && needs.benchmark-projects-list.outputs.has_projects == 'true' }}
+    # but only if the benchmarks ran and there are benchmark projects to report on.
+    if: ${{ always() && needs.benchmark-projects-list.outputs.has_projects == 'true' && needs.benchmark-projects-list.outputs.run_benchmarks == 'true' }}
     runs-on: ubuntu-22.04
     permissions:
       pull-requests: write
@@ -1116,5 +1133,6 @@ jobs:
           fi
         env:
           # We treat any failing or cancelled jobs as a failure for the workflow as a whole.
-          # Note: skipped is not treated as failure because upload jobs are intentionally skipped when there are no benchmark projects.
+          # Note: skipped is not treated as failure because the benchmark jobs are intentionally skipped when there are no
+          # benchmark projects, or on a PR which hasn't opted into benchmarking with the `bench-show` label.
           FAIL: ${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') }}

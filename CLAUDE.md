@@ -247,9 +247,11 @@ When introducing breaking changes:
 
 Special labels to control CI behavior:
 
-- **`bench-show`**: Print the comparisons of CI benchmarks between the PR commit and the base branch.
+- **`bench-show`**: Run the external repo benchmarks on the PR and print the comparisons of CI benchmarks between the PR commit and the base branch.
 
   - Use when you think that the PR will result in improvements/degradation of compilation time or memory usage.
+  - The external repo benchmarks in `Reports` otherwise only run on `master`, so a PR needs this label to get benchmark numbers at all.
+  - The label is read from the triggering event's payload, so apply it before pushing the commit you want benchmarked. Labelling an existing PR needs a new push (or a reopen) to take effect — re-running the workflow replays the old payload.
 
 ### GitHub Actions
 
