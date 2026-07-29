@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1785323754721,
+  "lastUpdate": 1785323756619,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -44950,95 +44950,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": true,
-          "id": "2ec73b15430b2ee03e289c62e06ebdc7fa9081b9",
-          "message": "chore: bump private-kernel-reset and private-kernel-lib CI timeouts (#13357)",
-          "timestamp": "2026-07-20T13:04:25+01:00",
-          "tree_id": "fc67c521faadb2c706752884247c15e035dbe885",
-          "url": "https://github.com/noir-lang/noir/commit/2ec73b15430b2ee03e289c62e06ebdc7fa9081b9"
-        },
-        "date": 1784549966393,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 0.033,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 0.052,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 0.005,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-first-empty-tx",
-            "value": 0.003,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 0.002,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 0.003,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-checkpoint-merge",
-            "value": 0.001,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 0.002,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-tx-base-private",
-            "value": 0.025,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-tx-base-public",
-            "value": 0.035,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-tx-merge",
-            "value": 0.001,
-            "unit": "s"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 0.006,
-            "unit": "s"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 0.014,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "49558828+AztecBot@users.noreply.github.com",
-            "name": "Aztec Bot",
-            "username": "AztecBot"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": false,
           "id": "c4c78fefcef8eeaea550107340c8c97a80a79fff",
           "message": "chore(frontend): elaborator maintainability cleanups (comments, naming, defensive tidy) (#13355)",
@@ -49339,6 +49250,95 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-block-root-first-empty-tx",
             "value": 0.002,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 0.002,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 0.003,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-checkpoint-merge",
+            "value": 0.001,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 0.002,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-tx-base-private",
+            "value": 0.044,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-tx-base-public",
+            "value": 0.032,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-tx-merge",
+            "value": 0.001,
+            "unit": "s"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.007,
+            "unit": "s"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 0.013,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49558828+AztecBot@users.noreply.github.com",
+            "name": "Aztec Bot",
+            "username": "AztecBot"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "2a3b64261d7a8e29ed2591234d7b1c59d7fa1a15",
+          "message": "fix(ssa): keep retained calls in Brillig unroll cost (#13348)",
+          "timestamp": "2026-07-29T10:44:58Z",
+          "tree_id": "068b5bb7ed14920994783f08894a32b95196bf64",
+          "url": "https://github.com/noir-lang/noir/commit/2a3b64261d7a8e29ed2591234d7b1c59d7fa1a15"
+        },
+        "date": 1785323671923,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 0.018,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset-tail",
+            "value": 0.052,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 0.008,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-first-empty-tx",
+            "value": 0.003,
             "unit": "s"
           },
           {
