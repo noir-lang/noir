@@ -51,6 +51,7 @@
 use crate::ast::{FunctionKind, ItemVisibility, UnaryOp};
 use crate::hir::comptime::{InterpreterError, bigint_to_field};
 use crate::hir::type_check::NoMatchingImplFoundError;
+use crate::lint::Lint;
 use crate::node_interner::{ExprId, GlobalValue, ImplSearchErrorKind, TraitItemId};
 use crate::recursion::TypeRecursionContext;
 use crate::shared::{ForeignCall, Visibility};
@@ -653,6 +654,7 @@ impl<'interner> Monomorphizer<'interner> {
         };
 
         let attributes = self.interner.function_attributes(&f);
+        let allow_constant_return = attributes.has_allow(Lint::ConstantReturn);
         let mut inline_type = InlineType::from(attributes);
         let unconstrained = self.in_unconstrained_function;
         if unconstrained {
@@ -737,6 +739,7 @@ impl<'interner> Monomorphizer<'interner> {
             unconstrained,
             inline_type,
             is_entry_point: false,
+            allow_constant_return,
         };
 
         self.push_function(id, function);
@@ -2758,6 +2761,7 @@ impl<'interner> Monomorphizer<'interner> {
             unconstrained: self.in_unconstrained_function,
             inline_type: InlineType::default(),
             is_entry_point: false,
+            allow_constant_return: false,
         };
         self.push_function(id, function);
 
@@ -2883,6 +2887,7 @@ impl<'interner> Monomorphizer<'interner> {
             unconstrained: self.in_unconstrained_function,
             inline_type: InlineType::default(),
             is_entry_point: false,
+            allow_constant_return: false,
         };
         self.push_function(constrained_id, lambda_fn.clone());
 
@@ -3361,8 +3366,8 @@ fn resolve_trait_item_impl(
                 &trait_generics.named,
             ) {
                 Ok((TraitImplKind::Normal(impl_id), instantiation_bindings)) => {
-                    // The extra bindings come from impl lookup, similar to
-                    // what's done in `verify_trait_constraint` in the frontend.
+                    // The extra bindings come from impl lookup, similar to what's done when
+                    // solving trait constraints in the frontend (see `check_trait_constraints`).
                     record_impl_instantiation_bindings(
                         interner,
                         method_id,

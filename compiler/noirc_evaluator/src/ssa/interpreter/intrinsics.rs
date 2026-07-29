@@ -4,7 +4,6 @@ use acvm::{AcirField, BlackBoxFunctionSolver, BlackBoxResolutionError, FieldElem
 use bn254_blackbox_solver::derive_generators;
 use iter_extended::{try_vecmap, vecmap};
 use noirc_printable_type::{PrintableType, PrintableValueDisplay, decode_printable_value};
-use num_bigint::BigUint;
 
 use crate::ssa::ir::{
     dfg,
@@ -430,10 +429,8 @@ impl<W: Write> Interpreter<'_, W> {
                 let generators = derive_generators(&inputs, n.0, index);
                 let mut result = Vec::with_capacity(inputs.len());
                 for generator in &generators {
-                    let x_big: BigUint = generator.x.into();
-                    let x = FieldElement::from_le_bytes_reduce(&x_big.to_bytes_le());
-                    let y_big: BigUint = generator.y.into();
-                    let y = FieldElement::from_le_bytes_reduce(&y_big.to_bytes_le());
+                    let x = FieldElement::from_repr(generator.x);
+                    let y = FieldElement::from_repr(generator.y);
                     result.push(Value::from_constant(x, NumericType::NativeField)?);
                     result.push(Value::from_constant(y, NumericType::NativeField)?);
                 }

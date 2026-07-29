@@ -1020,10 +1020,8 @@ fn simplify_derive_generators(
                 derive_generators(&domain_separator_bytes, num_generators, starting_index);
             let mut results = Vec::new();
             for generator in generators {
-                let x_big: BigUint = generator.x.into();
-                let x = FieldElement::from_be_bytes_reduce(&x_big.to_bytes_be());
-                let y_big: BigUint = generator.y.into();
-                let y = FieldElement::from_be_bytes_reduce(&y_big.to_bytes_be());
+                let x = FieldElement::from_repr(generator.x);
+                let y = FieldElement::from_repr(generator.y);
                 results.push(dfg.make_constant(x, NumericType::NativeField));
                 results.push(dfg.make_constant(y, NumericType::NativeField));
             }

@@ -183,17 +183,17 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         let bit_size = left.bit_size;
         assert!(bit_size != BitSize::Field.to_u32::<F>(), "Attempt to modulo fields");
 
-        let scratch_var_i = self.allocate_single_addr(bit_size);
-        let scratch_var_j = self.allocate_single_addr(bit_size);
+        let quotient = self.allocate_single_addr(bit_size);
+        let product = self.allocate_single_addr(bit_size);
 
-        // i = left / right
-        self.binary(left, right, *scratch_var_i, BrilligBinaryOp::UnsignedDiv);
+        // quotient = left / right
+        self.binary(left, right, *quotient, BrilligBinaryOp::UnsignedDiv);
 
-        // j = i * right
-        self.binary(*scratch_var_i, right, *scratch_var_j, BrilligBinaryOp::Mul);
+        // product = quotient * right
+        self.binary(*quotient, right, *product, BrilligBinaryOp::Mul);
 
-        // result_register = left - j
-        self.binary(left, *scratch_var_j, result, BrilligBinaryOp::Sub);
+        // result_register = left - product
+        self.binary(left, *product, result, BrilligBinaryOp::Sub);
     }
 
     fn binary_result_bit_size(operation: BrilligBinaryOp, arguments_bit_size: u32) -> u32 {

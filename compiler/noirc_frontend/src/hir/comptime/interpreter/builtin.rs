@@ -3305,10 +3305,8 @@ fn derive_generators(
     let y_field_name: Rc<String> = Rc::new("y".to_owned());
     let mut results = Vector::new();
     for generator in generators {
-        let x_big: BigUint = generator.x.into();
-        let x = FieldElement::from_be_bytes_reduce(&x_big.to_bytes_be());
-        let y_big: BigUint = generator.y.into();
-        let y = FieldElement::from_be_bytes_reduce(&y_big.to_bytes_be());
+        let x = FieldElement::from_repr(generator.x);
+        let y = FieldElement::from_repr(generator.y);
         let mut embedded_curve_point_fields = HashMap::default();
         embedded_curve_point_fields.insert(x_field_name.clone(), Shared::new(Value::field(x)));
         embedded_curve_point_fields.insert(y_field_name.clone(), Shared::new(Value::field(y)));

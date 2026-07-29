@@ -98,6 +98,7 @@ impl FunctionBuilder {
         this.current_function.set_runtime(function.runtime());
         this.current_function.dfg.set_function_purities(this.purities.clone());
         this.set_allow_malformed_simplify(function.dfg.allow_malformed_simplify);
+        this.current_function.dfg.allow_constant_return = function.dfg.allow_constant_return;
         this
     }
 

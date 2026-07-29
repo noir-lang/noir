@@ -224,3 +224,7 @@ run-example EXAMPLE:
 # Runs spellcheck on Rust source and markdown files
 spellcheck:
     yarn spellcheck
+
+# Checks that relative links in the design/ docs point to files that exist
+check-design-links:
+    ./scripts/check_design_links.sh

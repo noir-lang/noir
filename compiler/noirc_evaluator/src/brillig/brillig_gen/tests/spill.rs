@@ -7,7 +7,7 @@ use crate::{
         brillig_gen::tests::{
             execute_brillig_from_ssa_with_options, ssa_to_brillig_artifacts_with_options,
         },
-        brillig_ir::{LayoutConfig, registers::MAX_SCRATCH_SPACE},
+        brillig_ir::{LayoutConfig, ReservedRegisters, registers::MAX_SCRATCH_SPACE},
     },
     ssa::ir::map::Id,
 };
@@ -533,4 +533,50 @@ fn brillig_spill_jmpif_then_arg_does_not_overwrite_param_slot() {
     );
 
     assert_eq!(result, vec![FieldElement::from(15u32)]);
+}
+
+/// A long live chain that forces register spilling with a small stack frame, and only two
+/// parameters so the entry point stays small enough to compile.
+const SPILLING_SRC: &str = "
+    brillig(inline) fn main f0 {
+      b0(v0: u32, v1: u32):
+        v2 = unchecked_add v0, v1
+        v3 = unchecked_add v2, v0
+        v4 = unchecked_add v3, v1
+        v5 = unchecked_add v4, v0
+        v6 = unchecked_add v5, v1
+        v7 = unchecked_add v6, v0
+        v8 = unchecked_add v7, v1
+        v9 = unchecked_add v2, v8
+        v10 = unchecked_add v3, v9
+        v11 = unchecked_add v4, v10
+        v12 = unchecked_add v5, v11
+        v13 = unchecked_add v6, v12
+        return v13
+    }
+    ";
+
+/// Spilling uses the fixed scratch slots `@3`/`@4`/`@5`, which bypass the `ScratchSpace` allocator's
+/// bounds check. Compiling a spilling function with fewer than `NUM_SPILL_SCRATCH_SLOTS` scratch
+/// slots must fail loudly rather than silently emitting writes outside the scratch region — the
+/// analogue of the allocator's "Scratch space too deep" assertion for procedures.
+#[test]
+#[should_panic(expected = "too small for spilling")]
+fn spilling_with_too_small_scratch_space_panics() {
+    let too_small = ReservedRegisters::NUM_SPILL_SCRATCH_SLOTS - 1;
+    let layout = LayoutConfig::new(8, 16, too_small);
+    let options = BrilligOptions { layout, ..Default::default() };
+    // Panics in codegen while building the spilling function. If the program failed to spill the
+    // assertion would not fire and this `#[should_panic]` test would fail, so it also guards that
+    // the program still spills.
+    let _ = ssa_to_brillig_artifacts_with_options(SPILLING_SRC, &options);
+}
+
+/// The boundary case: exactly `NUM_SPILL_SCRATCH_SLOTS` scratch slots is enough to spill.
+#[test]
+fn spilling_with_minimum_scratch_space_compiles() {
+    let layout = LayoutConfig::new(8, 16, ReservedRegisters::NUM_SPILL_SCRATCH_SLOTS);
+    let options = BrilligOptions { layout, ..Default::default() };
+    let brillig = ssa_to_brillig_artifacts_with_options(SPILLING_SRC, &options);
+    assert!(!brillig.ssa_function_to_brillig[&Id::test_new(0)].byte_code.is_empty());
 }

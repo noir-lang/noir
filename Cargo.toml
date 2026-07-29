@@ -65,7 +65,7 @@ resolver = "2"
 
 [workspace.package]
 # x-release-please-start-version
-version = "1.0.0-beta.23"
+version = "1.0.0-beta.25"
 # x-release-please-end
 authors = ["The Noir Team <team@noir-lang.org>"]
 edition = "2024"
@@ -117,15 +117,15 @@ useless_conversion = "warn"
 [workspace.dependencies]
 
 # ACVM workspace dependencies
-acir_field = { version = "1.0.0-beta.23", path = "acvm-repo/acir_field", default-features = false }
-acir = { version = "1.0.0-beta.23", path = "acvm-repo/acir", default-features = false }
-acvm = { version = "1.0.0-beta.23", path = "acvm-repo/acvm" }
-brillig = { version = "1.0.0-beta.23", path = "acvm-repo/brillig", default-features = false }
-brillig_vm = { version = "1.0.0-beta.23", path = "acvm-repo/brillig_vm", default-features = false }
-acvm_blackbox_solver = { version = "1.0.0-beta.23", path = "acvm-repo/blackbox_solver", default-features = false }
-bn254_blackbox_solver = { version = "1.0.0-beta.23", path = "acvm-repo/bn254_blackbox_solver", default-features = false }
-msgpack_tagged = { version = "1.0.0-beta.23", path = "acvm-repo/msgpack_tagged", default-features = false }
-msgpack_tagged_derive = { version = "1.0.0-beta.23", path = "acvm-repo/msgpack_tagged_derive" }
+acir_field = { version = "1.0.0-beta.25", path = "acvm-repo/acir_field", default-features = false }
+acir = { version = "1.0.0-beta.25", path = "acvm-repo/acir", default-features = false }
+acvm = { version = "1.0.0-beta.25", path = "acvm-repo/acvm" }
+brillig = { version = "1.0.0-beta.25", path = "acvm-repo/brillig", default-features = false }
+brillig_vm = { version = "1.0.0-beta.25", path = "acvm-repo/brillig_vm", default-features = false }
+acvm_blackbox_solver = { version = "1.0.0-beta.25", path = "acvm-repo/blackbox_solver", default-features = false }
+bn254_blackbox_solver = { version = "1.0.0-beta.25", path = "acvm-repo/bn254_blackbox_solver", default-features = false }
+msgpack_tagged = { version = "1.0.0-beta.25", path = "acvm-repo/msgpack_tagged", default-features = false }
+msgpack_tagged_derive = { version = "1.0.0-beta.25", path = "acvm-repo/msgpack_tagged_derive" }
 
 # Noir compiler workspace dependencies
 fm = { path = "compiler/fm" }
@@ -214,7 +214,7 @@ thiserror = "2.0.18"
 toml = "0.8"
 toml_edit = "0.22"
 url = "2.5.4"
-base64 = "^0.22.1"
+base64 = "^0.23.0"
 rustc-hash = "2.1.2"
 siphasher = "1.0.3"
 build-data = "^0.3.3"
@@ -223,7 +223,7 @@ const_format = "0.2.36"
 indexmap = "^2.14.0"
 itertools = "0.15"
 libfuzzer-sys = "0.4"
-num-bigint = "0.4"
+num-bigint = "0.5"
 num-traits = "0.2"
 num_enum = "0.7.3"
 num-integer = "0.1"
@@ -260,7 +260,7 @@ insta = "1.47.2"
 trybuild = "1.0.116"
 proc-macro2 = "1.0"
 quote = "1.0"
-syn = "2.0"
+syn = "3.0"
 
 [profile.dev]
 # This is required to be able to run `cargo test` in acvm_js due to the `locals exceeds maximum` error.

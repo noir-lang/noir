@@ -1,4 +1,9 @@
-use crate::tests::{assert_no_errors, check_errors};
+use noirc_errors::CustomDiagnostic;
+
+use crate::hir::def_collector::dc_crate::CompilationError;
+use crate::parser::ParserErrorReason;
+use crate::test_utils::{GetProgramOptions, get_program_with_options};
+use crate::tests::{assert_no_errors, check_errors, get_program_errors};
 
 #[test]
 fn errors_on_unused_private_import() {
@@ -687,6 +692,39 @@ fn does_not_consider_struct_as_constructed_if_mentioned_in_function_argument() {
 }
 
 #[test]
+fn does_not_warn_on_struct_used_as_field_type_of_another_struct() {
+    // Mentioning a struct in a field of another type definition counts as using it, matching
+    // Rust, where a type reachable from a live struct's fields is not reported as dead code.
+    // (Rust goes further and propagates liveness, so a field type of a *dead* struct still
+    // warns; the tracker here is flat, so mention in any field silences the warning.)
+    let src = r#"
+    struct Foo {}
+
+    pub struct Gen<T> {
+        inner: Foo,
+        x: T,
+    }
+
+    fn main() {}
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn does_not_warn_on_struct_used_in_enum_variant_payload() {
+    let src = r#"
+    struct Foo {}
+
+    pub enum Gen {
+        A(Foo),
+    }
+
+    fn main() {}
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
 fn allow_dead_code_on_unused_function() {
     let src = "
     #[allow(dead_code)]
@@ -799,4 +837,76 @@ fn does_not_error_on_unused_impl_method_if_marked_as_allow_dead_code() {
     fn main() {}
     ";
     assert_no_errors(src);
+}
+
+fn unknown_lint_reasons(src: &str) -> Vec<String> {
+    get_program_errors(src)
+        .iter()
+        .filter_map(|error| match error {
+            CompilationError::ParseError(error) => match error.reason() {
+                Some(ParserErrorReason::UnknownLint { name }) => Some(name.clone()),
+                _ => None,
+            },
+            _ => None,
+        })
+        .collect()
+}
+
+#[test]
+fn warns_on_unknown_lint_in_allow_attribute() {
+    // `dead_cod` is a typo for `dead_code`, so the `allow` names a lint that
+    // doesn't exist. `foo` is used, so the only diagnostic is the unknown-lint warning.
+    let src = r#"
+    #[allow(dead_cod)]
+    fn foo() {}
+
+    fn main() {
+        foo();
+    }
+    "#;
+    assert_eq!(unknown_lint_reasons(src), vec!["dead_cod".to_string()]);
+}
+
+#[test]
+fn does_not_warn_on_known_lint_in_allow_attribute() {
+    let src = r#"
+    #[allow(dead_code)]
+    fn foo() {}
+
+    fn main() {}
+    "#;
+    assert!(unknown_lint_reasons(src).is_empty());
+}
+
+#[test]
+fn typo_in_allow_does_not_suppress_the_lint() {
+    // A misspelled slug must not silence the warning it looks like it targets. `x` is
+    // unused, so both the unknown-lint warning and the unused-variable warning fire.
+    // `allow_parser_errors` lets elaboration run past the unknown-lint parse warning,
+    // mirroring the real compiler, which never blocks elaboration on parser warnings.
+    let src = r#"
+    fn main() {
+        #[allow(unused_variabl)]
+        let x = 1;
+    }
+    "#;
+    let options = GetProgramOptions { allow_parser_errors: true, ..Default::default() };
+    let errors = get_program_with_options(src, options).2;
+
+    let unknown_lints: Vec<_> = errors
+        .iter()
+        .filter_map(|error| match error {
+            CompilationError::ParseError(error) => match error.reason() {
+                Some(ParserErrorReason::UnknownLint { name }) => Some(name.clone()),
+                _ => None,
+            },
+            _ => None,
+        })
+        .collect();
+    assert_eq!(unknown_lints, vec!["unused_variabl".to_string()]);
+
+    let has_unused_variable_warning = errors
+        .iter()
+        .any(|error| CustomDiagnostic::from(error).message.contains("unused variable"));
+    assert!(has_unused_variable_warning, "expected unused-variable warning, got {errors:#?}");
 }

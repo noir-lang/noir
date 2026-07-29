@@ -37,12 +37,11 @@ impl CodeActionFinder<'_> {
 
 #[cfg(test)]
 mod tests {
-    use tokio::test;
 
     use crate::requests::code_action::tests::assert_code_action;
 
     #[test]
-    async fn test_removes_bang_from_call() {
+    fn test_removes_bang_from_call() {
         let title = "Remove `!` from call";
 
         let src = r#"
@@ -61,11 +60,11 @@ mod tests {
         }
         "#;
 
-        assert_code_action(title, src, expected).await;
+        assert_code_action(title, src, expected);
     }
 
     #[test]
-    async fn test_removes_bang_from_method_call() {
+    fn test_removes_bang_from_method_call() {
         let title = "Remove `!` from call";
 
         let src = r#"
@@ -92,6 +91,6 @@ mod tests {
         }
         "#;
 
-        assert_code_action(title, src, expected).await;
+        assert_code_action(title, src, expected);
     }
 }
