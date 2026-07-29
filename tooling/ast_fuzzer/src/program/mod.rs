@@ -390,6 +390,7 @@ impl Context {
             unconstrained: decl.unconstrained,
             inline_type: decl.inline_type,
             is_entry_point: id == FuncId(0), // we only need main as an entry point
+            allow_constant_return: false,
         };
         self.functions.insert(id, func);
         Ok(())

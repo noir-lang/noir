@@ -231,5 +231,6 @@ fn make_print_wrapper(
         unconstrained: true,
         inline_type: InlineType::default(),
         is_entry_point: false,
+        allow_constant_return: false,
     }
 }

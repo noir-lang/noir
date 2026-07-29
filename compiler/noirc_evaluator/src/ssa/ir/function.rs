@@ -134,6 +134,7 @@ impl Function {
         new_function.set_globals(another.dfg.globals.clone());
         new_function.dfg.set_function_purities(another.dfg.function_purities.clone());
         new_function.dfg.brillig_arrays_offset = another.dfg.brillig_arrays_offset;
+        new_function.dfg.allow_constant_return = another.dfg.allow_constant_return;
         new_function
     }
 

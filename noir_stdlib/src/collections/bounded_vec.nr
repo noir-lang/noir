@@ -578,7 +578,7 @@ impl<T, let MaxLen: u32> BoundedVec<T, MaxLen> {
     /// let vec: BoundedVec<u32, 4> = BoundedVec::from_parts([1, 2, 3, 0], 3);
     /// assert_eq(vec.len(), 3);
     /// ```
-    pub fn from_parts(mut array: [T; MaxLen], len: u32) -> Self {
+    pub fn from_parts(array: [T; MaxLen], len: u32) -> Self {
         assert(len <= MaxLen);
         BoundedVec { storage: array, len }
     }

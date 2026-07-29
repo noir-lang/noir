@@ -2,6 +2,13 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: stderr
 ---
+warning: variable does not need to be mutable
+  ┌─ src/main.nr:6:13
+  │
+6 │ fn main(mut x: [Foo; 3], y: pub u32) {
+  │             -
+  │
+
 error: Assertion failed: Index out of bounds
   ┌─ src/main.nr:7:12
   │

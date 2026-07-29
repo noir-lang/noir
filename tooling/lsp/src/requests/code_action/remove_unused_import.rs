@@ -170,12 +170,11 @@ fn use_tree_to_string(use_tree: UseTree, visibility: ItemVisibility, nesting: us
 
 #[cfg(test)]
 mod tests {
-    use tokio::test;
 
     use crate::requests::code_action::tests::assert_code_action;
 
     #[test]
-    async fn test_removes_entire_unused_import_at_top_level() {
+    fn test_removes_entire_unused_import_at_top_level() {
         let title = "Remove the whole `use` item";
 
         let src = r#"
@@ -198,11 +197,11 @@ mod tests {
         }
         "#;
 
-        assert_code_action(title, src, expected).await;
+        assert_code_action(title, src, expected);
     }
 
     #[test]
-    async fn test_removes_entire_unused_import_in_nested_module() {
+    fn test_removes_entire_unused_import_in_nested_module() {
         let title = "Remove the whole `use` item";
 
         let src = r#"
@@ -231,11 +230,11 @@ mod tests {
         }
         "#;
 
-        assert_code_action(title, src, expected).await;
+        assert_code_action(title, src, expected);
     }
 
     #[test]
-    async fn test_removes_single_import() {
+    fn test_removes_single_import() {
         let title = "Remove unused import";
 
         let src = r#"
@@ -262,11 +261,11 @@ mod tests {
         }
         "#;
 
-        assert_code_action(title, src, expected).await;
+        assert_code_action(title, src, expected);
     }
 
     #[test]
-    async fn test_removes_multiple_imports() {
+    fn test_removes_multiple_imports() {
         let title = "Remove unused imports";
 
         let src = r#"
@@ -295,11 +294,11 @@ mod tests {
         }
         "#;
 
-        assert_code_action(title, src, expected).await;
+        assert_code_action(title, src, expected);
     }
 
     #[test]
-    async fn test_removes_single_import_with_visibility() {
+    fn test_removes_single_import_with_visibility() {
         let title = "Remove unused import";
 
         let src = r#"
@@ -326,6 +325,6 @@ mod tests {
         }
         "#;
 
-        assert_code_action(title, src, expected).await;
+        assert_code_action(title, src, expected);
     }
 }

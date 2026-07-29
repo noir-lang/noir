@@ -64,6 +64,14 @@ impl ReservedRegisters {
     /// The stack should start after the reserved registers.
     const NUM_RESERVED_REGISTERS: usize = 3;
 
+    /// Number of scratch slots the register-spilling machinery reserves as fixed transient
+    /// registers: [`Self::spill_scratch`] (`@3`/`@4`) plus [`Self::spill_conditional_value`] (`@5`).
+    ///
+    /// Unlike procedure scratch, these are hardcoded `Direct` addresses that bypass the
+    /// [`ScratchSpace`] allocator's bounds check, so a function that spills is only sound when the
+    /// configured `max_scratch_space` is at least this many slots.
+    pub(crate) const NUM_SPILL_SCRATCH_SLOTS: usize = 3;
+
     /// Returns the length of the reserved registers
     pub(crate) fn len() -> usize {
         Self::NUM_RESERVED_REGISTERS
@@ -107,7 +115,7 @@ impl ReservedRegisters {
     /// [`Self::spill_scratch`] so the address-materialization scratch registers
     /// can be reused by the inner load/store without clobbering the value.
     pub(crate) fn spill_conditional_value() -> MemoryAddress {
-        MemoryAddress::direct(assert_u32(ScratchSpace::start() + 2))
+        MemoryAddress::direct(assert_u32(ScratchSpace::start() + Self::NUM_SPILL_SCRATCH_SLOTS - 1))
     }
 }
 
@@ -440,6 +448,30 @@ pub(crate) mod tests {
     use super::procedures::compile_procedure;
     use super::registers::Stack;
     use super::{BrilligOpcode, ReservedRegisters};
+
+    #[test]
+    fn spill_scratch_slots_are_distinct_and_in_scratch_space() {
+        use super::registers::ScratchSpace;
+
+        let (address_lo, address_hi) = ReservedRegisters::spill_scratch();
+        let conditional_value = ReservedRegisters::spill_conditional_value();
+        let slots = [address_lo, address_hi, conditional_value];
+
+        // Pairwise distinct: the conditional-store value in `@5` is held across a load/store whose
+        // address computation reuses `@3`/`@4`, so any overlap would clobber it mid-sequence.
+        for i in 0..slots.len() {
+            for j in (i + 1)..slots.len() {
+                assert_ne!(slots[i], slots[j], "spill scratch slots must be disjoint");
+            }
+        }
+
+        // Each is a `Direct` address inside the scratch region (past the reserved registers).
+        let scratch_start = ScratchSpace::start();
+        for slot in slots {
+            let index = slot.unwrap_direct() as usize;
+            assert!(index >= scratch_start, "spill slot {slot} is not in the scratch region");
+        }
+    }
 
     pub(crate) struct DummyBlackBoxSolver;
 

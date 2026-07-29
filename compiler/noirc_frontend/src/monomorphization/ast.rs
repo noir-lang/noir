@@ -542,6 +542,11 @@ pub struct Function {
     pub unconstrained: bool,
     pub inline_type: InlineType,
     pub is_entry_point: bool,
+
+    /// True if the source function was annotated with `#[allow(constant_return)]`,
+    /// which silences the `constant_return` warning raised during ACIR generation
+    /// when this function is an ACIR entry point whose return value is constant.
+    pub allow_constant_return: bool,
 }
 
 /// Compared to `hir_def::types::Type`, this monomorphized Type has:
