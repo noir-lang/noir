@@ -20,6 +20,7 @@ use crate::ast::{
 use crate::elaborator::PrimitiveType;
 use crate::hir::def_collector::dc_crate::CompilationErrors;
 use crate::hir::resolution::errors::ResolverError;
+use crate::lint::Lint;
 use crate::node_interner::{DefinitionKind, ModuleAttributes, NodeInterner, ReferenceId, TypeId};
 use crate::token::{SecondaryAttribute, SecondaryAttributeKind, TestScope};
 use crate::usage_tracker::{UnusedItem, UsageTracker};
@@ -454,7 +455,7 @@ impl ModCollector<'_> {
             let name = trait_definition.name.clone();
             let location = trait_definition.name.location();
             let has_allow_dead_code =
-                trait_definition.attributes.iter().any(|attr| attr.kind.is_allow("dead_code"));
+                trait_definition.attributes.iter().any(|attr| attr.kind.is_allow(Lint::DeadCode));
 
             desugar_generic_trait_bounds_and_reorder_where_clause(
                 &mut trait_definition.generics,
@@ -1149,7 +1150,7 @@ pub fn collect_function(
         is_crate_root && function.name() == MAIN_FUNCTION
     };
     let has_export = function.def.attributes.has_export();
-    let has_allow_dead_code = function.def.attributes.has_allow("dead_code");
+    let has_allow_dead_code = function.def.attributes.has_allow(Lint::DeadCode);
 
     let name = function.name_ident().clone();
     let func_id = interner.push_empty_fn();
@@ -1298,7 +1299,7 @@ pub fn collect_struct(
     }
 
     let has_allow_dead_code =
-        unresolved.struct_def.attributes.iter().any(|attr| attr.kind.is_allow("dead_code"));
+        unresolved.struct_def.attributes.iter().any(|attr| attr.kind.is_allow(Lint::DeadCode));
 
     if !unresolved.struct_def.is_abi() && !has_allow_dead_code {
         usage_tracker.add_unused_item(
@@ -1406,7 +1407,7 @@ pub fn collect_enum(
     let parent_module_id = ModuleId { krate, local_id: module_id };
 
     let has_allow_dead_code =
-        unresolved.enum_def.attributes.iter().any(|attr| attr.kind.is_allow("dead_code"));
+        unresolved.enum_def.attributes.iter().any(|attr| attr.kind.is_allow(Lint::DeadCode));
 
     if !unresolved.enum_def.is_abi() && !has_allow_dead_code {
         usage_tracker.add_unused_item(
