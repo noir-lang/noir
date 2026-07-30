@@ -379,7 +379,7 @@ impl<'f> Validator<'f> {
                 for (index, element) in elements.iter().enumerate() {
                     let element_type = dfg.type_of_value(*element);
                     let expected_type = &composite_type[index % composite_type_len];
-                    if !element_type.canonical_eq(expected_type) {
+                    if !element_type.can_be_used_as(expected_type) {
                         panic!(
                             "MakeArray has incorrect element type at index {index}: expected {expected_type}, got {element_type}"
                         );
@@ -388,12 +388,20 @@ impl<'f> Validator<'f> {
             }
             Instruction::Store { address, value } => {
                 let address_type = dfg.type_of_value(*address);
-                let Type::Reference(address_value_type, _) = &*address_type else {
+                let Type::Reference(address_value_type, mutable) = &*address_type else {
                     panic!("Store address must be a reference type, got {address_type}");
                 };
+                // TODO(discovery): SSA-gen materializes immutable borrows as
+                // `allocate -> &T` followed by an initializing store through the
+                // `&T` address, so this rule cannot be enabled until ssa_gen
+                // allocates `&mut T` and weakens at the use site instead.
+                let _ = mutable;
+                // if !mutable {
+                //     panic!("Store address must be a mutable reference, got {address_type}");
+                // }
 
                 let value_type = dfg.type_of_value(*value);
-                if !address_value_type.canonical_eq(&value_type) {
+                if !value_type.can_be_used_as(address_value_type) {
                     panic!(
                         "Store address type {address_value_type} does not match value type {value_type}"
                     );
@@ -446,7 +454,7 @@ impl<'f> Validator<'f> {
                     arguments.iter().zip_eq(parameter_types).enumerate()
                 {
                     let argument_type = dfg.type_of_value(*argument);
-                    if !argument_type.canonical_eq(&parameter_type) {
+                    if !argument_type.can_be_used_as(&parameter_type) {
                         panic!(
                             "Argument #{} to {func_id} has type {parameter_type}, but {argument_type} was given",
                             index + 1,
@@ -469,7 +477,7 @@ impl<'f> Validator<'f> {
                     {
                         let return_type = called_function.dfg.type_of_value(*return_value);
                         let instruction_result_type = dfg.type_of_value(*instruction_result);
-                        if !return_type.canonical_eq(&instruction_result_type) {
+                        if !return_type.can_be_used_as(&instruction_result_type) {
                             panic!(
                                 "Function call to {} expected return type {}, but got {} (at position {})",
                                 func_id,
@@ -1197,7 +1205,7 @@ impl<'f> Validator<'f> {
                 };
                 let result = dfg.instruction_results(instruction)[0];
                 let result_type = dfg.type_of_value(result);
-                if !result_type.canonical_eq(expected_type) {
+                if !expected_type.can_be_used_as(&result_type) {
                     panic!(
                         "load should return {expected_type}, not {result_type}; address = {address}, result = {result}"
                     );
@@ -1208,7 +1216,7 @@ impl<'f> Validator<'f> {
                     return;
                 };
                 let value_type = dfg.type_of_value(*value);
-                if !value_type.canonical_eq(expected_type) {
+                if !value_type.can_be_used_as(expected_type) {
                     panic!(
                         "store value should have type {expected_type}, not {value_type}; address = {address}, value = {value}"
                     );
@@ -1329,7 +1337,7 @@ fn check_jump_arguments_match_block_parameters(
         let argument_type = function.dfg.type_of_value(*argument);
         let parameter_type = function.dfg.type_of_value(*parameter);
         assert!(
-            argument_type.canonical_eq(&parameter_type),
+            argument_type.can_be_used_as(&parameter_type),
             "Argument type in {kind} must match block parameter type\n  left: {argument_type}\n right: {parameter_type}"
         );
     }

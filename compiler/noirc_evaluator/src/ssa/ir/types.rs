@@ -425,6 +425,41 @@ impl Type {
             _ => self == other,
         }
     }
+
+    /// Whether a value of type `self` may be used where a value of type `target`
+    /// is expected, applying standard variance rules to reference mutability:
+    ///
+    /// - `&mut T` may be used as `&T` (weakening), never the reverse.
+    /// - A mutable target reference is invariant in its pointee: `&mut &mut T`
+    ///   must not be usable as `&mut &T`, since a `&T` could then be stored
+    ///   through the weaker view and loaded back as `&mut T` through an alias.
+    /// - An immutable target reference is covariant in its pointee.
+    /// - Arrays and vectors are covariant in their element types: they are
+    ///   semantically immutable values (`array_set` produces a new array), so
+    ///   an element can only be weakened, never written back at a stronger type.
+    pub(crate) fn can_be_used_as(&self, target: &Type) -> bool {
+        let all_can = |a: &[Type], b: &[Type]| {
+            a.len() == b.len() && a.iter().zip(b).all(|(a, b)| a.can_be_used_as(b))
+        };
+
+        match (self, target) {
+            (
+                Type::Reference(self_elem, self_mutable),
+                Type::Reference(target_elem, target_mutable),
+            ) => {
+                if *target_mutable {
+                    *self_mutable && self_elem == target_elem
+                } else {
+                    self_elem.can_be_used_as(target_elem)
+                }
+            }
+            (Type::Array(a_elems, a_len), Type::Array(b_elems, b_len)) => {
+                a_len == b_len && all_can(a_elems, b_elems)
+            }
+            (Type::Vector(a_elems), Type::Vector(b_elems)) => all_can(a_elems, b_elems),
+            _ => self == target,
+        }
+    }
 }
 
 /// Composite Types are essentially flattened struct or tuple types.
