@@ -391,14 +391,9 @@ impl<'f> Validator<'f> {
                 let Type::Reference(address_value_type, mutable) = &*address_type else {
                     panic!("Store address must be a reference type, got {address_type}");
                 };
-                // TODO(discovery): SSA-gen materializes immutable borrows as
-                // `allocate -> &T` followed by an initializing store through the
-                // `&T` address, so this rule cannot be enabled until ssa_gen
-                // allocates `&mut T` and weakens at the use site instead.
-                let _ = mutable;
-                // if !mutable {
-                //     panic!("Store address must be a mutable reference, got {address_type}");
-                // }
+                if !mutable {
+                    panic!("Store address must be a mutable reference, got {address_type}");
+                }
 
                 let value_type = dfg.type_of_value(*value);
                 if !value_type.can_be_used_as(address_value_type) {
@@ -2187,10 +2182,11 @@ mod tests {
     }
 
     #[test]
-    fn call_allows_argument_reference_mutability_mismatch() {
-        // Reference mutability is a frontend concern with no meaning at the SSA
-        // level, so a `&mut Field` argument is accepted by a `&Field` parameter
-        // (and vice versa).
+    fn call_allows_mutable_reference_argument_for_immutable_parameter() {
+        // Reference mutability is directional at the SSA level: a `&mut Field`
+        // argument is accepted by a `&Field` parameter (the callee gets fewer
+        // capabilities than the value carries), matching the frontend's
+        // `&mut T → &T` coercion.
         let src = "
         acir(inline) fn main f0 {
           b0():
@@ -2204,7 +2200,15 @@ mod tests {
         }
         ";
         let _ = Ssa::from_str(src).unwrap();
+    }
 
+    #[test]
+    #[should_panic(expected = "Argument #1 to f1 has type &mut Field, but &Field was given")]
+    fn call_rejects_immutable_reference_argument_for_mutable_parameter() {
+        // The reverse direction is rejected: a callee with a `&mut Field`
+        // formal may store through it, so accepting a `&Field` argument would
+        // let a write happen through a value whose type promises none, e.g.
+        // making Load Store Forwarding keep a stale cached load across the call.
         let src = "
         acir(inline) fn main f0 {
           b0():
@@ -2222,7 +2226,7 @@ mod tests {
 
     #[test]
     fn call_allows_argument_reference_mutability_mismatch_nested_in_array() {
-        // The mutability-equivalence rule must look through composite types:
+        // Array covariance must look through composite types:
         // a `[&mut Field; 1]` argument is accepted by a `[&Field; 1]` parameter.
         let src = "
         acir(inline) fn main f0 {
@@ -2241,9 +2245,14 @@ mod tests {
     }
 
     #[test]
-    fn call_allows_argument_reference_mutability_mismatch_nested_in_reference() {
-        // The mutability-equivalence rule must recurse through nested references:
-        // a `&mut &mut Field` argument is accepted by a `&mut &Field` parameter.
+    #[should_panic(
+        expected = "Argument #1 to f1 has type &mut &Field, but &mut &mut Field was given"
+    )]
+    fn call_rejects_reference_mutability_weakening_nested_under_mutable_reference() {
+        // A mutable reference is invariant in its pointee: if `&mut &mut Field`
+        // were usable as `&mut &Field`, the callee could store a plain `&Field`
+        // through the weak view while an alias loads it back as `&mut Field`,
+        // laundering an immutable reference into a mutable one.
         let src = "
         acir(inline) fn main f0 {
           b0():
@@ -2262,10 +2271,10 @@ mod tests {
     }
 
     #[test]
-    fn call_allows_return_reference_mutability_mismatch() {
-        // Reference mutability is a frontend concern with no meaning at the SSA
-        // level, so a callee returning `&mut Field` satisfies a call instruction
-        // declaring `&Field` (and vice versa).
+    fn call_allows_mutable_reference_return_for_immutable_result() {
+        // A callee returning `&mut Field` satisfies a call instruction whose
+        // result is declared `&Field`: the caller receives fewer capabilities
+        // than the value carries.
         let src = "
         acir(inline) fn main f0 {
           b0():
@@ -2279,7 +2288,15 @@ mod tests {
         }
         ";
         let _ = Ssa::from_str(src).unwrap();
+    }
 
+    #[test]
+    #[should_panic(
+        expected = "Function call to f1 expected return type &mut Field, but got &Field (at position 1)"
+    )]
+    fn call_rejects_immutable_reference_return_for_mutable_result() {
+        // The reverse direction is rejected: declaring the result `&mut Field`
+        // would grant the caller a write capability the callee's value never had.
         let src = "
         acir(inline) fn main f0 {
           b0():
@@ -2297,7 +2314,7 @@ mod tests {
 
     #[test]
     fn call_allows_return_reference_mutability_mismatch_nested_in_array() {
-        // The mutability-equivalence rule must look through composite types:
+        // Array covariance must look through composite types:
         // a callee returning `[&mut Field; 1]` satisfies a call declaring
         // `[&Field; 1]`.
         let src = "
@@ -2317,10 +2334,14 @@ mod tests {
     }
 
     #[test]
-    fn call_allows_return_reference_mutability_mismatch_nested_in_reference() {
-        // The mutability-equivalence rule must recurse through nested references:
-        // a callee returning `&mut &mut Field` satisfies a call declaring
-        // `&mut &Field`.
+    #[should_panic(
+        expected = "Function call to f1 expected return type &mut &Field, but got &mut &mut Field (at position 1)"
+    )]
+    fn call_rejects_return_reference_mutability_weakening_nested_under_mutable_reference() {
+        // A mutable reference is invariant in its pointee (see
+        // call_rejects_reference_mutability_weakening_nested_under_mutable_reference),
+        // so a callee returning `&mut &mut Field` must not satisfy a call
+        // declaring `&mut &Field`.
         let src = "
         acir(inline) fn main f0 {
           b0():
@@ -2433,10 +2454,12 @@ mod tests {
     }
 
     #[test]
-    fn make_array_allows_reference_mutability_mismatch() {
-        // Reference mutability is a frontend concern with no meaning at the SSA
-        // level, so a `&mut Field` element is accepted in a `&Field` composite
-        // slot (and vice versa).
+    fn make_array_allows_mutable_reference_element_in_immutable_slot() {
+        // Arrays are covariant in their element types (an element can only be
+        // read back out, never written at a stronger type), so a `&mut Field`
+        // element is accepted in a `&Field` composite slot. This is the
+        // SSA-gen pattern for `[&a; 1]` over a `mut a` binding, which reuses
+        // the variable's `&mut` cell (see issue #12733).
         let src = "
         acir(inline) fn main f0 {
           b0():
@@ -2446,7 +2469,15 @@ mod tests {
         }
         ";
         let _ = Ssa::from_str(src).unwrap();
+    }
 
+    #[test]
+    #[should_panic(
+        expected = "MakeArray has incorrect element type at index 0: expected &mut Field, got &Field"
+    )]
+    fn make_array_rejects_immutable_reference_element_in_mutable_slot() {
+        // The reverse direction is rejected: reading the element back out at
+        // `&mut Field` would grant a write capability the value never had.
         let src = "
         acir(inline) fn main f0 {
           b0():
@@ -2460,7 +2491,7 @@ mod tests {
 
     #[test]
     fn make_array_allows_reference_mutability_mismatch_nested_in_array() {
-        // The mutability-equivalence rule must look through composite types:
+        // Array covariance must look through composite types:
         // a `[&mut Field; 1]` element is accepted in a `[&Field; 1]` composite
         // slot.
         let src = "
@@ -2476,10 +2507,14 @@ mod tests {
     }
 
     #[test]
-    fn make_array_allows_reference_mutability_mismatch_nested_in_reference() {
-        // The mutability-equivalence rule must recurse through nested references:
-        // a `&mut &mut Field` element is accepted in a `&mut &Field` composite
-        // slot.
+    #[should_panic(
+        expected = "MakeArray has incorrect element type at index 0: expected &mut &Field, got &mut &mut Field"
+    )]
+    fn make_array_rejects_reference_mutability_weakening_nested_under_mutable_reference() {
+        // A mutable reference is invariant in its pointee (see
+        // call_rejects_reference_mutability_weakening_nested_under_mutable_reference),
+        // so a `&mut &mut Field` element must not be accepted in a
+        // `&mut &Field` composite slot.
         let src = "
         acir(inline) fn main f0 {
           b0():
@@ -2494,13 +2529,14 @@ mod tests {
     }
 
     #[test]
-    fn store_allows_reference_mutability_mismatch() {
-        // Reference mutability is a frontend concern with no meaning at the SSA
-        // level, so a `&mut Field` value is accepted at a `&mut &Field` slot
-        // (and vice versa). The minimal SSA-gen pattern this guards is an
-        // assignment like `b.1 = &b.0` inside an unconstrained mutable tuple:
-        // the slot is allocated as `&mut &T` while the right-hand side carries
-        // `&mut T` because `b.0` itself lives in a mutable binding.
+    fn store_allows_mutable_reference_value_in_immutable_pointee_slot() {
+        // A `&mut Field` value is accepted at a `&mut &Field` slot: the value
+        // is weakened on the way in, and every load of the slot yields a
+        // `&Field` that cannot be written through. The minimal SSA-gen pattern
+        // this guards is an assignment like `b.1 = &b.0` inside an
+        // unconstrained mutable tuple: the slot is allocated as `&mut &T`
+        // while the right-hand side carries `&mut T` because `b.0` itself
+        // lives in a mutable binding.
         let src = "
         acir(inline) fn main f0 {
           b0():
@@ -2511,7 +2547,14 @@ mod tests {
         }
         ";
         let _ = Ssa::from_str(src).unwrap();
+    }
 
+    #[test]
+    #[should_panic(expected = "store value should have type &mut Field, not &Field")]
+    fn store_rejects_immutable_reference_value_in_mutable_pointee_slot() {
+        // The reverse direction is rejected: a later load of the slot would
+        // yield a `&mut Field`, laundering the stored immutable reference into
+        // a writable one.
         let src = "
         acir(inline) fn main f0 {
           b0():
@@ -2525,10 +2568,61 @@ mod tests {
     }
 
     #[test]
-    fn load_allows_reference_mutability_mismatch() {
-        // The Load path mirrors the Store path: when an Allocate's recorded
-        // element type only differs from the Load result type by reference
-        // mutability we must accept it.
+    #[should_panic(expected = "Store address must be a mutable reference, got &Field")]
+    fn store_rejects_immutable_reference_address() {
+        // Writes are only permitted through `&mut`-typed addresses. Together
+        // with the directional rules at calls, jumps, stores, and loads, this
+        // guarantees that no write can ever happen through a value whose type
+        // contains only immutable references.
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: &Field):
+            store Field 1 at v0
+            return
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    #[should_panic(expected = "Argument #1 to f2 has type &mut Field, but &Field was given")]
+    fn call_rejects_stale_load_repro_with_immutable_argument_for_mutable_formal() {
+        // Regression test for a Load Store Forwarding stale-load scenario:
+        // `mutate` stores 99 through its `&mut Field` formal while the caller
+        // passes the same reference typed `&Field`. Load Store Forwarding
+        // trusts caller-side argument types to decide whether a call can
+        // write, so if this program validated it would forward the cached
+        // `Field 1` into v3 and change the returned value. The directional
+        // call-argument rule rejects the program instead.
+        let src = "
+        brillig(inline) fn main f0 {
+          b0():
+            v0 = allocate -> &mut Field
+            store Field 1 at v0
+            v1 = call f1(v0) -> &Field
+            v2 = load v1 -> Field
+            call f2(v1)
+            v3 = load v1 -> Field
+            return v3
+        }
+        brillig(inline) fn as_imm f1 {
+          b0(v0: &Field):
+            return v0
+        }
+        brillig(inline) fn mutate f2 {
+          b0(v0: &mut Field):
+            store Field 99 at v0
+            return
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    fn load_allows_immutable_result_from_mutable_pointee_slot() {
+        // The Load path mirrors the Store path: loading from a slot whose
+        // recorded element type is `&mut Field` may declare the weaker result
+        // type `&Field`.
         let src = "
         acir(inline) fn main f0 {
           b0():
@@ -2538,7 +2632,14 @@ mod tests {
         }
         ";
         let _ = Ssa::from_str(src).unwrap();
+    }
 
+    #[test]
+    #[should_panic(expected = "load should return &Field, not &mut Field")]
+    fn load_rejects_mutable_result_from_immutable_pointee_slot() {
+        // The reverse direction is rejected: the slot only ever holds `&Field`
+        // values, so a `&mut Field` result would grant a write capability the
+        // stored reference never had.
         let src = "
         acir(inline) fn main f0 {
           b0():
@@ -3051,10 +3152,9 @@ mod tests {
     }
 
     #[test]
-    fn jmp_allows_reference_mutability_mismatch() {
-        // Reference mutability is a frontend concern with no meaning at the SSA
-        // level, so a `&mut T` argument is accepted by a `&T` block parameter
-        // (and vice versa).
+    fn jmp_allows_mutable_reference_argument_for_immutable_block_parameter() {
+        // Reference mutability is directional at the SSA level: a `&mut u32`
+        // argument is accepted by a `&u32` block parameter.
         let src = "
         acir(inline) pure fn main f0 {
           b0():
@@ -3065,7 +3165,14 @@ mod tests {
         }
         ";
         let _ = Ssa::from_str(src).unwrap();
+    }
 
+    #[test]
+    #[should_panic(expected = "Argument type in jmp must match block parameter type")]
+    fn jmp_rejects_immutable_reference_argument_for_mutable_block_parameter() {
+        // The reverse direction is rejected: the destination block could store
+        // through its `&mut u32` parameter, a write the argument's type says
+        // cannot happen.
         let src = "
         acir(inline) pure fn main f0 {
           b0():
@@ -3080,7 +3187,7 @@ mod tests {
 
     #[test]
     fn jmp_allows_reference_mutability_mismatch_nested_in_array() {
-        // The mutability-equivalence rule must look through composite types:
+        // Array covariance must look through composite types:
         // `[&mut Field; 1]` should be accepted by a `[&Field; 1]` block parameter.
         let src = "
         acir(inline) pure fn main f0 {
@@ -3096,9 +3203,12 @@ mod tests {
     }
 
     #[test]
-    fn jmp_allows_reference_mutability_mismatch_nested_in_reference() {
-        // The mutability-equivalence rule must recurse through nested references:
-        // `&mut &mut Field` should be accepted by a `&mut &Field` block parameter.
+    #[should_panic(expected = "Argument type in jmp must match block parameter type")]
+    fn jmp_rejects_reference_mutability_weakening_nested_under_mutable_reference() {
+        // A mutable reference is invariant in its pointee (see
+        // call_rejects_reference_mutability_weakening_nested_under_mutable_reference),
+        // so `&mut &mut Field` must not be accepted by a `&mut &Field` block
+        // parameter.
         let src = "
         acir(inline) pure fn main f0 {
           b0():

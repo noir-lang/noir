@@ -1288,3 +1288,42 @@ fn enum_on_circuit_interface_rejects_malicious_tag_issue_754() {
          cross the circuit interface."
     );
 }
+
+#[test]
+fn immutable_borrow_allocates_mutable_cell() {
+    // `&x` over an immutable value is materialized as an allocation plus an
+    // initializing store. The allocation must be typed `&mut Field` even though
+    // the borrow's type is `&Field`: stores are only valid through mutable
+    // reference types, and a `&mut T` value may be used wherever `&T` is
+    // expected. `generate_ssa` validates the result, so a `&Field`-typed
+    // allocation would make this fail with a store-address validation error.
+    let src = "
+    unconstrained fn read_ref(r: &Field) -> Field {
+        *r
+    }
+
+    fn main(x: Field) {
+        // Safety: reading through the reference has no side effects.
+        let result = unsafe { read_ref(&x) };
+        assert(result == x);
+    }
+    ";
+    let program = get_monomorphized(src).unwrap();
+    let ssa = generate_ssa(program).unwrap();
+    assert_ssa_snapshot!(ssa, @r"
+    acir(inline) fn main f0 {
+      b0(v0: Field):
+        v1 = allocate -> &mut Field
+        store v0 at v1
+        v3 = call f1(v1) -> Field
+        v4 = eq v3, v0
+        constrain v3 == v0
+        return
+    }
+    brillig(inline) fn read_ref f1 {
+      b0(v0: &Field):
+        v1 = load v0 -> Field
+        return v1
+    }
+    ");
+}
