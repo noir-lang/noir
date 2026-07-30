@@ -230,11 +230,22 @@ impl<'a> FunctionContext<'a> {
     pub(super) fn new_mutable_variable(&mut self, value_to_store: ValueId) -> Value {
         let element_type =
             self.builder.current_function.dfg.type_of_value(value_to_store).into_owned();
+        self.new_mutable_variable_with_type(value_to_store, element_type)
+    }
 
-        let alloc = self.builder.insert_allocate(element_type);
+    /// Like [`Self::new_mutable_variable`], but the cell is allocated with the given
+    /// element type instead of the initializer value's type. The two can differ in
+    /// reference mutability: a borrow used as an initializer is `&mut T`-typed while
+    /// the binding may declare `&T`, and the cell must use the declared type so that
+    /// later assignments of genuinely `&T`-typed values still type-check.
+    pub(super) fn new_mutable_variable_with_type(
+        &mut self,
+        value_to_store: ValueId,
+        element_type: Type,
+    ) -> Value {
+        let alloc = self.builder.insert_allocate(element_type.clone());
         self.builder.insert_store(alloc, value_to_store);
-        let typ = self.builder.type_of_value(value_to_store);
-        Value::Mutable(alloc, typ)
+        Value::Mutable(alloc, element_type)
     }
 
     /// Maps the given type to a Tree of the result type.

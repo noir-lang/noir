@@ -311,6 +311,7 @@ fn test_wrap_oracle_prints_in_functions() {
                 typ: Type::Bool,
             },
         ))),
+        typ: array_type.clone(),
     });
 
     let value_ident = Ident {

@@ -171,6 +171,7 @@ impl<'a, 'b> LimitContext<'a, 'b> {
             limit_id,
             true,
             LIMIT_NAME.to_string(),
+            types::U32,
             expr::u32_literal(self.config.max_recursive_calls as u32),
         );
         expr::prepend(&mut self.func.body, init_limit);
