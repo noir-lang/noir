@@ -369,11 +369,11 @@ impl Type {
 
     /// Recursively rewrite every [`Type::Reference`] inside `self` to be immutable.
     ///
-    /// The SSA validator ([`Type::canonical_eq`]) and the Noir frontend both
-    /// accept passing `&mut T` where `&T` is expected. To make types in those
-    /// positions compare equal under that same leniency, callers that need a
-    /// canonical form (e.g., map keys in defunctionalize) can collapse
-    /// reference mutability here.
+    /// This deliberately erases the reference-mutability distinction that the
+    /// SSA validator otherwise enforces (see [`Type::can_be_used_as`]). It is
+    /// only appropriate for analyses where collapsing mutability is
+    /// conservative, e.g. alias-analysis grouping, where treating `&T` and
+    /// `&mut T` as the same type can only report more aliasing, never less.
     pub(crate) fn canonicalize(&mut self) {
         match self {
             Type::Reference(element, mutable) => {
@@ -404,13 +404,12 @@ impl Type {
     /// Compares two types, treating mutable and immutable references as equivalent.
     ///
     /// Equivalent to `self.canonicalized() == other.canonicalized()` but walks
-    /// both types in lockstep instead of allocating cloned trees — the SSA
-    /// validator calls this for every block-terminator argument and every call
-    /// site, so the no-alloc path matters in debug builds.
+    /// both types in lockstep instead of allocating cloned trees.
     ///
-    /// This is a validation aid, not a soundness check: the frontend rejects
-    /// trying to use `&T` where `&mut T` is expected, but once compiled to
-    /// SSA, we can treat them as equivalents.
+    /// Like [`Type::canonicalize`], this erases the mutability distinction and
+    /// is only appropriate where that is conservative (alias analysis). Typed
+    /// boundaries — calls, jumps, stores, loads — are checked with the
+    /// directional [`Type::can_be_used_as`] instead.
     pub(crate) fn canonical_eq(&self, other: &Type) -> bool {
         let all_eq = |a: &[Type], b: &[Type]| {
             a.len() == b.len() && a.iter().zip(b).all(|(a, b)| a.canonical_eq(b))

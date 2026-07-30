@@ -1259,7 +1259,7 @@ pub(crate) fn validate_terminators(function: &Function) {
 
 /// Validates that the block has a terminator, that no jump targets the entry block, that
 /// `JmpIf` conditions are boolean, that `Jmp`/`JmpIf` arguments match the destination
-/// block's parameters (in arity and canonical type), and that a `Return` returns the
+/// block's parameters (in arity and directional type compatibility), and that a `Return` returns the
 /// databus when one is present.
 fn validate_block_terminator(function: &Function, block: BasicBlockId) {
     let terminator = function.dfg[block]
