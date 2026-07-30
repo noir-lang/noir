@@ -1136,36 +1136,6 @@ fn can_reborrow_through_immutable_ref() {
     ");
 }
 
-/// `&mut *p` where `p` is an immutable `&u64` bound to a variable must still reborrow
-/// as a writable reference aliasing the original location, just like the parenthesized
-/// `&mut (*p)` form. The re-borrow simplification must not collapse to `p` and inherit
-/// its immutable type, which previously rejected `*p1 = 15`.
-#[test]
-fn mut_reborrow_through_immutable_ref_variable() {
-    let src = "
-    fn main() {
-        let mut f: u64 = 10;
-        let p = &f;
-        let p1 = &mut *p;
-        *p1 = 15;
-        assert(f == 15);
-    }
-    ";
-    let ssa = get_initial_ssa(src).unwrap();
-    assert_ssa_snapshot!(ssa, @r"
-    acir(inline) fn main f0 {
-      b0():
-        v0 = allocate -> &mut u64
-        store u64 10 at v0
-        store u64 15 at v0
-        v3 = load v0 -> u64
-        v4 = eq v3, u64 15
-        constrain v3 == u64 15
-        return
-    }
-    ");
-}
-
 /// Reassigning a mutable tuple using its own fields (`b = (false, b.0)`) must load
 /// the old values before any stores. Regression test for a lazy `codegen_ident` bug
 /// where stores were interleaved with lazy loads, causing stale reads.

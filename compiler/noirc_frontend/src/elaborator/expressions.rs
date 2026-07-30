@@ -673,6 +673,33 @@ impl Elaborator<'_> {
             HirExpression::MemberAccess(member_access) => {
                 self.check_can_mutate(member_access.lhs, location);
             }
+            HirExpression::Prefix(prefix)
+                if matches!(prefix.operator, UnaryOp::Dereference { .. }) =>
+            {
+                // Mutating through `*r` is only legal when `r` is a `&mut` reference. An
+                // immutable `&T` deref (such as the implicit deref inserted for `ref.field`)
+                // must be rejected, exactly as a direct assignment through it would be.
+                let rhs = prefix.rhs;
+                if let Type::Reference(_, false) = self.interner.id_type(rhs).follow_bindings() {
+                    let reference_ident = if let HirExpression::Ident(hir_ident, _) =
+                        self.interner.expression(&rhs)
+                    {
+                        let name = self.interner.definition(hir_ident.id).name.clone();
+                        Some((name, hir_ident.location))
+                    } else {
+                        None
+                    };
+                    self.push_write_through_reference_error(reference_ident, |this| {
+                        let location = this.interner.id_location(rhs);
+                        let lvalue = this
+                            .interner
+                            .expression(&rhs)
+                            .to_display_ast(this.interner, location)
+                            .to_string();
+                        (lvalue, location)
+                    });
+                }
+            }
             _ => (),
         }
     }
