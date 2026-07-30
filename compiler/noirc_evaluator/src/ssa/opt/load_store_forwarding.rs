@@ -15,19 +15,23 @@
 //!
 //! Alias queries go through the [`AliasAnalysis`] computed over the whole SSA.
 //!
-//! Calls are handled conservatively: simple reference arguments invalidate
-//! that address and all its potential aliases; containers or nested
-//! references clear all state.
+//! Calls invalidate cached values for an argument (and all its potential
+//! aliases) when the callee's formal parameter type contains a mutable
+//! reference — validation guarantees a callee cannot write through an
+//! argument whose formal type holds only immutable references. Any reference
+//! argument keeps prior stores live, since the callee may read through it.
+use iter_extended::vecmap;
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
 use crate::ssa::{
     ir::{
         basic_block::BasicBlockId,
-        function::Function,
+        function::{Function, FunctionId},
         function_inserter::FunctionInserter,
         instruction::{Instruction, InstructionId},
         post_order::PostOrder,
-        value::ValueId,
+        types::Type,
+        value::{Value, ValueId},
     },
     opt::alias_analysis::{AliasAnalysis, GlobalValueId},
     ssa_gen::Ssa,
@@ -37,11 +41,24 @@ impl Ssa {
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn load_store_forwarding(mut self) -> Ssa {
         let mut analysis = AliasAnalysis::analyze(&self);
+        // Formal parameter types of every function. The call handler uses the
+        // callee's formal type — not the caller-side argument type — to decide
+        // which arguments a callee may write through.
+        let parameter_types: HashMap<FunctionId, Vec<Type>> = self
+            .functions
+            .iter()
+            .map(|(id, function)| {
+                let types = vecmap(function.parameters(), |param| {
+                    function.dfg.type_of_value(*param).into_owned()
+                });
+                (*id, types)
+            })
+            .collect();
         // Phase 1: forward loads/stores in place, driven by the frozen
         // analysis. This only removes instructions and remaps operands, so it
         // never mints values the analysis does not already know about.
         for function in self.functions.values_mut() {
-            function.forward_loads_and_stores(&mut analysis);
+            function.forward_loads_and_stores(&mut analysis, &parameter_types);
         }
         // Phase 2: simplify. Re-inserting through the DFG simplify path can mint
         // new values (e.g. a collapsed `IfElse`), but the alias analysis is no
@@ -64,13 +81,17 @@ impl Function {
     /// Simplification of the forwarded instructions (constant folding, IfElse
     /// collapse, …) is left to a subsequent [`Function::simplify_instructions`]
     /// run, which may mint new values but no longer consults the analysis.
-    fn forward_loads_and_stores(&mut self, analysis: &mut AliasAnalysis) {
+    fn forward_loads_and_stores(
+        &mut self,
+        analysis: &mut AliasAnalysis,
+        parameter_types: &HashMap<FunctionId, Vec<Type>>,
+    ) {
         let mut inserter = FunctionInserter::new(self);
         let blocks = PostOrder::with_function(inserter.function).into_vec_reverse();
 
         for block in blocks {
             let instructions_to_remove =
-                forward_loads_and_stores_in_block(&mut inserter, block, analysis);
+                forward_loads_and_stores_in_block(&mut inserter, block, analysis, parameter_types);
 
             if !instructions_to_remove.is_empty() {
                 inserter.function.dfg[block]
@@ -97,6 +118,7 @@ fn forward_loads_and_stores_in_block(
     inserter: &mut FunctionInserter,
     block: BasicBlockId,
     analysis: &mut AliasAnalysis,
+    parameter_types: &HashMap<FunctionId, Vec<Type>>,
 ) -> HashSet<InstructionId> {
     let mut known_values: HashMap<GlobalValueId, (GlobalValueId, ValueId)> = HashMap::default();
     let mut last_stores: HashMap<GlobalValueId, (GlobalValueId, InstructionId)> =
@@ -147,23 +169,39 @@ fn forward_loads_and_stores_in_block(
                     last_stores.retain(|_k, (a, _)| !analysis.may_alias(function, address, *a));
                 }
             }
-            Instruction::Call { .. } => {
+            Instruction::Call { func, arguments } => {
                 // If the call arguments can reference a known value, we invalidate it.
-                let mut call_values: Vec<ValueId> = Vec::new();
-                instruction.for_each_value(|v| call_values.push(v));
-                for value in call_values {
-                    let value = inserter.resolve(value);
+                let func = *func;
+                let arguments = arguments.clone();
+                let func = inserter.resolve(func);
+                // Formal parameter types of the callee, when it is a direct call to a
+                // known function. Validation guarantees a callee can only store through
+                // an argument whose *formal* type contains a mutable reference, so the
+                // formal is a more precise write gate than the caller-side argument
+                // type: a `&mut`-typed value passed to a `&Field` formal cannot be
+                // written through. Intrinsic and other non-function callees fall back
+                // to the caller-side argument type.
+                let formal_types = match &inserter.function.dfg[func] {
+                    Value::Function(id) => parameter_types.get(id),
+                    _ => None,
+                };
+                for (index, argument) in arguments.into_iter().enumerate() {
+                    let value = inserter.resolve(argument);
                     let typ = inserter.function.dfg.type_of_value(value);
                     if !typ.contains_reference() {
                         continue;
                     }
+                    // A call can only *write* through an argument whose formal type
+                    // exposes a mutable reference, so cached loaded values are only
+                    // invalidated by those.
+                    let can_write = match formal_types.and_then(|formals| formals.get(index)) {
+                        Some(formal) => formal.contains_mutable_reference(),
+                        None => typ.contains_mutable_reference(),
+                    };
                     let value = GlobalValueId::new(inserter.function, value);
                     // We check against the original address `a` for consistency with the other
                     // handlers, but here it does not matter.
-
-                    // A call can only *write* through an argument that exposes a mutable
-                    // reference, so cached loaded values are only invalidated by those.
-                    if typ.contains_mutable_reference() {
+                    if can_write {
                         known_values.retain(|_k, (a, _)| !analysis.may_reference(value, *a));
                     }
                     // Any reference argument, mutable or not, can be *read* by the callee,
@@ -1723,5 +1761,90 @@ mod tests {
         }
         ";
         assert_ssa_does_not_change(src, Ssa::load_store_forwarding);
+    }
+
+    #[test]
+    fn keeps_cached_load_across_call_with_immutable_reference_formal() {
+        // The callee's formal is `&Field`, and validated SSA guarantees a
+        // callee can only write through an argument whose *formal* type
+        // contains a mutable reference — even though the caller-side value is
+        // `&mut Field`-typed (every `&x` borrow is materialized as a `&mut`
+        // allocation). The cached load must therefore survive the call and
+        // the second load is forwarded.
+        let src = "
+        brillig(inline) fn main f0 {
+          b0():
+            v0 = allocate -> &mut Field
+            store Field 1 at v0
+            v2 = load v0 -> Field
+            call f1(v0)
+            v3 = load v0 -> Field
+            v4 = add v2, v3
+            return v4
+        }
+        brillig(inline) fn read_only f1 {
+          b0(v0: &Field):
+            v1 = load v0 -> Field
+            return
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.load_store_forwarding();
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) fn main f0 {
+          b0():
+            v0 = allocate -> &mut Field
+            store Field 1 at v0
+            call f1(v0)
+            return Field 2
+        }
+        brillig(inline) fn read_only f1 {
+          b0(v0: &Field):
+            v1 = load v0 -> Field
+            return
+        }
+        ");
+    }
+
+    #[test]
+    fn invalidates_cached_load_across_call_with_mutable_reference_formal() {
+        // The callee's formal is `&mut Field`, so it may store through the
+        // argument: the cached value must be invalidated and the second load
+        // kept.
+        let src = "
+        brillig(inline) fn main f0 {
+          b0():
+            v0 = allocate -> &mut Field
+            store Field 1 at v0
+            v2 = load v0 -> Field
+            call f1(v0)
+            v3 = load v0 -> Field
+            v4 = add v2, v3
+            return v4
+        }
+        brillig(inline) fn mutate f1 {
+          b0(v0: &mut Field):
+            store Field 99 at v0
+            return
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.load_store_forwarding();
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) fn main f0 {
+          b0():
+            v0 = allocate -> &mut Field
+            store Field 1 at v0
+            call f1(v0)
+            v3 = load v0 -> Field
+            v4 = add Field 1, v3
+            return v4
+        }
+        brillig(inline) fn mutate f1 {
+          b0(v0: &mut Field):
+            store Field 99 at v0
+            return
+        }
+        ");
     }
 }
