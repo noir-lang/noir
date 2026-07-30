@@ -659,29 +659,69 @@ impl DataFlowGraph {
         }
     }
 
-    /// True if `value` is boolean: a 0/1 constant, a `u1`-typed value, or a chain of casts
-    /// bottoming out at one of those.
+    /// True if `value` is boolean, meaning its field value is guaranteed to be `0` or `1`.
     ///
-    /// This trusts the static type: a `u1`-typed value is assumed to hold 0 or 1, the canonicality
-    /// invariant the compiler maintains for every value it creates (in ACIR a `u1` unchecked
-    /// add/sub result can transiently violate it, but such values only ever flow into truncations
-    /// and casts). Use this for algebraic rewrites that are valid for canonical values, such as
+    /// This trusts the static type — a `u1`-typed value holds `0` or `1` — but only after ruling
+    /// out the one thing that breaks that invariant. In ACIR, unchecked arithmetic is raw
+    /// non-reducing field arithmetic, so its result can leave the range of its static type:
+    /// `unchecked_add u1 1, 1` is the field value `2`, and `unchecked_sub u1 0, 1` is
+    /// field-negative, until a later range check or truncation brings the value back. A `u1`
+    /// static type is therefore not a range proof for such a result, nor for anything a `Cast`
+    /// carries it into, since a `Cast` in ACIR only retags a value and leaves the underlying
+    /// field element untouched.
+    ///
+    /// Use this for algebraic rewrites that are only valid for canonical values, such as
     /// `b*b = b`. Do NOT use it to justify deleting a range check: for that,
-    /// [`Self::get_value_max_num_bits`] gives a bound that does not assume canonicality of
-    /// unchecked arithmetic results.
+    /// [`Self::get_value_max_num_bits`] gives a bound that holds regardless of the width of the
+    /// operands feeding an unchecked operation.
     pub(crate) fn is_boolean_value(&self, value: ValueId) -> bool {
+        // The traversal fans out through the operands of a Mul, so bound the number of values it
+        // may inspect. Exhausting the budget only makes the answer conservative.
+        let mut budget = 64;
+        self.is_boolean_value_within_budget(value, &mut budget)
+    }
+
+    fn is_boolean_value_within_budget(&self, value: ValueId, budget: &mut u32) -> bool {
+        if *budget == 0 {
+            return false;
+        }
+        *budget -= 1;
+
         if let Some(constant) = self.get_numeric_constant(value) {
             return constant.is_zero() || constant.is_one();
         }
-        if self.type_of_value(value).bit_size() == 1 {
-            return true;
-        }
-        if let Value::Instruction { instruction, .. } = self[value]
-            && let Instruction::Cast(inner, _) = self[instruction]
+
+        // Only in ACIR can a value fail to fit its static type; in Brillig every operation wraps
+        // to the type's width, so a `u1` there always holds 0 or 1.
+        if self.runtime().is_acir()
+            && let Value::Instruction { instruction, .. } = self[value]
         {
-            return self.is_boolean_value(inner);
+            match &self[instruction] {
+                // A Cast leaves the field value untouched, so the result is boolean exactly when
+                // its source is: casting a canonical `u1` up to a wider type keeps it boolean,
+                // and casting a wide value down to `u1` does not make it one.
+                Instruction::Cast(original_value, _) => {
+                    return self.is_boolean_value_within_budget(*original_value, budget);
+                }
+                Instruction::Binary(binary) => match binary.operator {
+                    // Non-reducing field arithmetic that can leave the type's range.
+                    BinaryOp::Add { unchecked: true } | BinaryOp::Sub { unchecked: true } => {
+                        return false;
+                    }
+                    // A product of booleans is boolean whatever its static type, which is what
+                    // keeps the `unchecked_mul` predicate chains emitted by flattening classified
+                    // as boolean. A product of anything wider is not.
+                    BinaryOp::Mul { unchecked: true } => {
+                        return self.is_boolean_value_within_budget(binary.lhs, budget)
+                            && self.is_boolean_value_within_budget(binary.rhs, budget);
+                    }
+                    _ => (),
+                },
+                _ => (),
+            }
         }
-        false
+
+        self.type_of_value(value).bit_size() == 1
     }
 
     /// True if the type of this value is `Type::Reference`.

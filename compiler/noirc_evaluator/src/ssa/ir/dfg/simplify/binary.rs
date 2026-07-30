@@ -517,4 +517,165 @@ mod tests {
 
         assert_ssa_does_not_change_after_simplifying(src);
     }
+
+    #[test]
+    fn does_not_square_unchecked_u1_add_in_acir() {
+        // `b*b = b` needs `b` to be 0 or 1. In ACIR an `unchecked_add u1` is raw field
+        // arithmetic, so it can hold the field value 2 (1 + 1), and squaring it is 4: the
+        // multiplication is a real relation and must survive.
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u1, v1: u1):
+            v2 = unchecked_add v0, v1
+            v3 = unchecked_mul v2, v2
+            return v3
+        }
+        ";
+        assert_ssa_does_not_change_after_simplifying(src);
+    }
+
+    #[test]
+    fn does_not_square_unchecked_u1_sub_in_acir() {
+        // An `unchecked_sub u1` can underflow to a field-negative value, which is no more
+        // boolean than an overflowing add.
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u1, v1: u1):
+            v2 = unchecked_sub v0, v1
+            v3 = unchecked_mul v2, v2
+            return v3
+        }
+        ";
+        assert_ssa_does_not_change_after_simplifying(src);
+    }
+
+    #[test]
+    fn does_not_square_unchecked_u1_add_cast_to_a_wider_type_in_acir() {
+        // A `Cast` in ACIR only retags the value, so widening a non-canonical `u1` to `u8`
+        // does not make it boolean either.
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u1, v1: u1):
+            v2 = unchecked_add v0, v1
+            v3 = cast v2 as u8
+            v4 = unchecked_mul v3, v3
+            return v4
+        }
+        ";
+        assert_ssa_does_not_change_after_simplifying(src);
+    }
+
+    #[test]
+    fn does_not_absorb_unchecked_u1_add_into_a_product_in_acir() {
+        // `b*(b*x) = b*x` has the same canonicality requirement on `b` as `b*b = b`.
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u1, v1: u1, v2: u1):
+            v3 = unchecked_add v0, v1
+            v4 = unchecked_mul v3, v2
+            v5 = unchecked_mul v3, v4
+            return v5
+        }
+        ";
+        assert_ssa_does_not_change_after_simplifying(src);
+    }
+
+    #[test]
+    fn does_not_absorb_unchecked_u1_add_into_a_reversed_product_in_acir() {
+        // The `(b*x)*b = b*x` orientation of the same rewrite.
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u1, v1: u1, v2: u1):
+            v3 = unchecked_add v0, v1
+            v4 = unchecked_mul v3, v2
+            v5 = unchecked_mul v4, v3
+            return v5
+        }
+        ";
+        assert_ssa_does_not_change_after_simplifying(src);
+    }
+
+    #[test]
+    fn squares_canonical_u1_value_in_acir() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u1):
+            v1 = unchecked_mul v0, v0
+            return v1
+        }
+        ";
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+        assert_ssa_snapshot!(ssa, @"
+        acir(inline) fn main f0 {
+          b0(v0: u1):
+            return v0
+        }
+        ");
+    }
+
+    #[test]
+    fn squares_product_of_canonical_u1_values_in_acir() {
+        // A product of booleans is boolean, so the identity still applies to the predicate
+        // chains that flattening builds out of `unchecked_mul`.
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u1, v1: u1, v2: u1):
+            v3 = unchecked_mul v0, v1
+            v4 = unchecked_mul v3, v2
+            v5 = unchecked_mul v4, v4
+            return v5
+        }
+        ";
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+        assert_ssa_snapshot!(ssa, @"
+        acir(inline) fn main f0 {
+          b0(v0: u1, v1: u1, v2: u1):
+            v3 = unchecked_mul v0, v1
+            v4 = unchecked_mul v3, v2
+            return v4
+        }
+        ");
+    }
+
+    #[test]
+    fn absorbs_canonical_u1_value_into_a_product_in_acir() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u1, v1: u1):
+            v2 = unchecked_mul v0, v1
+            v3 = unchecked_mul v0, v2
+            return v3
+        }
+        ";
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+        assert_ssa_snapshot!(ssa, @"
+        acir(inline) fn main f0 {
+          b0(v0: u1, v1: u1):
+            v2 = unchecked_mul v0, v1
+            return v2
+        }
+        ");
+    }
+
+    #[test]
+    fn squares_unchecked_u1_add_in_brillig() {
+        // In Brillig, arithmetic wraps to the type's width, so a `u1` really is 0 or 1 and the
+        // identity still applies.
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: u1, v1: u1):
+            v2 = unchecked_add v0, v1
+            v3 = unchecked_mul v2, v2
+            return v3
+        }
+        ";
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+        assert_ssa_snapshot!(ssa, @"
+        brillig(inline) fn main f0 {
+          b0(v0: u1, v1: u1):
+            v2 = unchecked_add v0, v1
+            return v2
+        }
+        ");
+    }
 }
