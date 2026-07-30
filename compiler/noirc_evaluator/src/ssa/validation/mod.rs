@@ -295,6 +295,56 @@ impl<'f> Validator<'f> {
                          produce a forbidden Truncate of the unchecked Sub."
                     );
                 }
+
+                // In ACIR, unchecked arithmetic is field arithmetic, so an `unchecked_add` of two
+                // `u1` values can produce the non-canonical value 2, breaking the invariant that a
+                // `u1` holds 0 or 1 (which other rewrites, e.g. `b*b = b`, rely on). The only `u1`
+                // `unchecked_add` the compiler emits is the value merger's `c*x + !c*y` (possibly
+                // simplified), whose opposing guards make the operands disjoint and the sum
+                // canonical. Require that provable disjointness.
+                //
+                // Full mode only: passes can legitimately erode the structural witness while
+                // preserving canonicality — e.g. "Constant Folding using constraints" can learn
+                // `c == 0` from a constrain and fold the `!c*y` product to a bare `y`, leaving
+                // `unchecked_add (c*x), y` whose disjointness is constraint-based and invisible
+                // to a local syntactic check.
+                if self.full
+                    && matches!(operator, BinaryOp::Add { unchecked: true })
+                    && self.function.runtime().is_acir()
+                    && *lhs_type == Type::bool()
+                    && !u1_unchecked_add_operands_are_disjoint(dfg, *lhs, *rhs)
+                {
+                    panic!(
+                        "ACIR `unchecked_add` on `u1` values may produce the non-canonical value 2; \
+                         it is only valid when its operands are guarded by opposing boolean conditions \
+                         (`c*x + !c*y`, as emitted by the value merger) or one operand is zero"
+                    );
+                }
+
+                // Similarly, an ACIR `unchecked_sub` of `u1` values can underflow to a
+                // field-negative (near-modulus) value. The only `u1` `unchecked_sub` the compiler
+                // emits comes from `checked_to_unchecked`, which requires the lhs to be a constant
+                // at least as large as the rhs's maximum value. Full mode only, like the
+                // `unchecked_add` rule above: a pass can replace one operand with a
+                // constraint-derived equivalent value, erasing a structural no-underflow witness
+                // (e.g. `lhs == rhs`) without breaking canonicality.
+                if self.full
+                    && matches!(operator, BinaryOp::Sub { unchecked: true })
+                    && self.function.runtime().is_acir()
+                    && *lhs_type == Type::bool()
+                {
+                    let lhs_is_max =
+                        dfg.get_numeric_constant(*lhs).is_some_and(|constant| constant.is_one());
+                    let rhs_is_zero =
+                        dfg.get_numeric_constant(*rhs).is_some_and(|constant| constant.is_zero());
+                    if !(lhs_is_max || rhs_is_zero || lhs == rhs) {
+                        panic!(
+                            "ACIR `unchecked_sub` on `u1` values may underflow to a field-negative \
+                             value; it is only valid when it provably cannot underflow (the lhs is \
+                             the constant 1, the rhs is zero, or both operands are the same value)"
+                        );
+                    }
+                }
             }
             Instruction::ArrayGet { array, index, .. }
             | Instruction::ArraySet { array, index, .. } => {
@@ -1232,6 +1282,60 @@ fn defined_by_unchecked_signed_sub(dfg: &DataFlowGraph, value: ValueId) -> bool 
     } else {
         false
     }
+}
+
+/// Whether the operands of an ACIR `u1` `unchecked_add` are provably disjoint — at most one can be
+/// nonzero — which keeps the sum canonical (0 or 1).
+///
+/// This recognizes the shape the value merger emits: each operand is a tree of `u1`
+/// multiplications (or a bare value), and some factor of one operand is the boolean negation of a
+/// factor of the other. When the negated factor is 1 the other operand contains a 0 factor and
+/// vanishes; when it is 0 its own operand vanishes. A constant 0 operand is also accepted.
+fn u1_unchecked_add_operands_are_disjoint(dfg: &DataFlowGraph, lhs: ValueId, rhs: ValueId) -> bool {
+    let is_zero = |value| dfg.get_numeric_constant(value).is_some_and(|c| c.is_zero());
+    if is_zero(lhs) || is_zero(rhs) {
+        return true;
+    }
+
+    let lhs_factors = collect_u1_mul_factors(dfg, lhs);
+    let rhs_factors = collect_u1_mul_factors(dfg, rhs);
+
+    let has_factor_negated_in = |factors: &HashSet<ValueId>, other: &HashSet<ValueId>| {
+        factors.iter().any(|factor| {
+            if let Value::Instruction { instruction, .. } = dfg[*factor]
+                && let Instruction::Not(inner) = dfg[instruction]
+            {
+                other.contains(&inner)
+            } else {
+                false
+            }
+        })
+    };
+
+    has_factor_negated_in(&lhs_factors, &rhs_factors)
+        || has_factor_negated_in(&rhs_factors, &lhs_factors)
+}
+
+/// Multiplicative factors of `value`: the values in its `Mul` tree, recursing through `u1`
+/// multiplication results. Intermediate products count as factors too — if any value in the tree
+/// is zero the whole product is zero — so an opposing condition can be matched at any level (e.g.
+/// `remove_if_else` negates a whole condition product, not its leaves).
+fn collect_u1_mul_factors(dfg: &DataFlowGraph, value: ValueId) -> HashSet<ValueId> {
+    let mut factors = HashSet::default();
+    let mut worklist = vec![value];
+    while let Some(value) = worklist.pop() {
+        if !factors.insert(value) {
+            continue;
+        }
+        if let Value::Instruction { instruction, .. } = dfg[value]
+            && let Instruction::Binary(Binary { lhs, rhs, operator: BinaryOp::Mul { .. } }) =
+                dfg[instruction]
+        {
+            worklist.push(lhs);
+            worklist.push(rhs);
+        }
+    }
+    factors
 }
 
 /// Validates that the [Function] is well formed.
@@ -3272,5 +3376,173 @@ mod tests {
         ";
         let ssa = Ssa::from_str_no_validation(src).unwrap();
         super::validate_terminators(ssa.main());
+    }
+
+    #[test]
+    #[should_panic(expected = "guarded by opposing boolean conditions")]
+    fn disallows_acir_u1_unchecked_add_of_unrelated_values() {
+        // In ACIR, `unchecked_add` is field arithmetic: adding two unrelated `u1` values can
+        // produce the non-canonical value 2, breaking the invariant that `u1` holds 0 or 1.
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u1, v1: u1):
+            v2 = unchecked_add v0, v1
+            return v2
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    fn allows_acir_u1_unchecked_add_of_value_merger_shape() {
+        // The flattening value merger emits `c*a + !c*b`: the products are guarded by opposing
+        // conditions, so at most one is nonzero and the sum stays 0 or 1.
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u1, v1: u1, v2: u1):
+            v3 = not v0
+            v4 = unchecked_mul v0, v1
+            v5 = unchecked_mul v3, v2
+            v6 = unchecked_add v4, v5
+            return v6
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    fn allows_acir_u1_unchecked_add_with_bare_condition_operand() {
+        // `if c { true } else { b }`: the `c*1` product simplifies to the bare condition `c`,
+        // which is its own guard opposing the `!c` factor on the other side.
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u1, v1: u1):
+            v2 = not v0
+            v3 = unchecked_mul v2, v1
+            v4 = unchecked_add v0, v3
+            return v4
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    fn allows_acir_u1_unchecked_add_with_nested_condition_products() {
+        // Nested ifs guard each side with a *product* of conditions: `(c1*c2)*a + (c1*!c2)*b`.
+        // The opposing pair (`c2` vs `!c2`) is found among the operands' multiplicative factors.
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u1, v1: u1, v2: u1, v3: u1):
+            v4 = unchecked_mul v0, v1
+            v5 = not v1
+            v6 = unchecked_mul v0, v5
+            v7 = unchecked_mul v4, v2
+            v8 = unchecked_mul v6, v3
+            v9 = unchecked_add v7, v8
+            return v9
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    #[should_panic(expected = "only valid when it provably cannot underflow")]
+    fn disallows_acir_u1_unchecked_sub_that_may_underflow() {
+        // In ACIR, `unchecked_sub u1 0, 1` underflows to a field-negative (near-modulus) value,
+        // breaking the invariant that a `u1` holds 0 or 1.
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u1, v1: u1):
+            v2 = unchecked_sub v0, v1
+            return v2
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    fn allows_acir_u1_unchecked_sub_from_one() {
+        // `checked_to_unchecked` converts `sub u1 1, x` to unchecked: 1 is the maximum value of
+        // the rhs's type, so the subtraction cannot underflow.
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u1):
+            v1 = unchecked_sub u1 1, v0
+            return v1
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    fn allows_acir_u1_unchecked_sub_of_zero() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u1):
+            v1 = unchecked_sub v0, u1 0
+            return v1
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    fn allows_brillig_u1_unchecked_sub() {
+        // In Brillig, unchecked arithmetic wraps to the type width, so the result stays canonical.
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: u1, v1: u1):
+            v2 = unchecked_sub v0, v1
+            return v2
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    fn allows_brillig_u1_unchecked_add() {
+        // In Brillig, unchecked arithmetic wraps to the type width, so the result stays canonical.
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: u1, v1: u1):
+            v2 = unchecked_add v0, v1
+            return v2
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    fn allows_acir_u1_unchecked_add_with_constant_zero_operand() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u1):
+            v1 = unchecked_add v0, u1 0
+            return v1
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    fn allows_eroded_u1_unchecked_add_between_passes() {
+        // Found by the `valid_after_pass` fuzzer: "Constant Folding using constraints" learns
+        // `v0 == 0` from the constrain and folds the merger's `!v0 * y` product to a bare `y`,
+        // leaving an `unchecked_add` whose disjointness witness is constraint-based rather than
+        // structural. Between passes (`full = false`) the canonicality rules are skipped, so this
+        // must validate.
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u1, v1: u1, v2: u1):
+            enable_side_effects v0
+            constrain u1 0 == v0
+            enable_side_effects u1 1
+            v3 = unchecked_mul v0, v1
+            v4 = unchecked_add v3, v2
+            return v4
+        }
+        ";
+        let ssa = Ssa::from_str_no_validation(src).unwrap();
+        crate::ssa::ssa_gen::validate_ssa(&ssa, false);
     }
 }

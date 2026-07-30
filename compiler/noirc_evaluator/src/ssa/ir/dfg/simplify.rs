@@ -639,7 +639,10 @@ mod tests {
     use crate::{
         assert_ssa_snapshot,
         ssa::{
-            opt::{assert_normalized_ssa_equals, assert_ssa_does_not_change_after_simplifying},
+            opt::{
+                assert_normalized_ssa_equals, assert_ssa_does_not_change_after_simplifying,
+                assert_ssa_does_not_change_after_simplifying_no_validation,
+            },
             ssa_gen::Ssa,
         },
     };
@@ -1158,6 +1161,9 @@ mod tests {
 
     /// `u1` is not exempt: in ACIR `unchecked_add u1 1, 1` is the field value 2, so a
     /// `range_check ... to 1 bits` on its result is load-bearing and must survive.
+    ///
+    /// The validator rejects this `unchecked_add` of unrelated `u1` values outright, so the
+    /// parse skips validation: the simplifier must stay conservative even for such SSA.
     #[test]
     fn range_check_after_unchecked_add_u1_is_preserved_in_acir() {
         let src = "
@@ -1168,11 +1174,14 @@ mod tests {
             return v2
         }
         ";
-        assert_ssa_does_not_change_after_simplifying(src);
+        assert_ssa_does_not_change_after_simplifying_no_validation(src);
     }
 
     /// `unchecked_sub u1 0, 1` underflows to a field-negative (near-modulus) value in ACIR, so a
     /// `range_check ... to 1 bits` on its result must not be removed.
+    ///
+    /// The validator rejects this possibly-underflowing `u1` `unchecked_sub` outright, so the
+    /// parse skips validation: the simplifier must stay conservative even for such SSA.
     #[test]
     fn range_check_after_unchecked_sub_u1_is_preserved_in_acir() {
         let src = "
@@ -1183,7 +1192,7 @@ mod tests {
             return v2
         }
         ";
-        assert_ssa_does_not_change_after_simplifying(src);
+        assert_ssa_does_not_change_after_simplifying_no_validation(src);
     }
 
     /// `unchecked_mul u1` genuinely stays a single bit (0*0, 0*1, 1*1), so a
@@ -1211,6 +1220,9 @@ mod tests {
     /// A `u1`-typed `unchecked_mul` stays a single bit only when its operands do: here the lhs is
     /// an `unchecked_add u1` that can hold the field value 2 in ACIR (1 + 1), and multiplying by
     /// `v1 = 1` preserves it, so the `range_check ... to 1 bits` is load-bearing and must survive.
+    ///
+    /// The validator rejects this `unchecked_add` of unrelated `u1` values outright, so the
+    /// parse skips validation: the simplifier must stay conservative even for such SSA.
     #[test]
     fn range_check_after_unchecked_mul_of_wide_u1_operand_is_preserved_in_acir() {
         let src = "
@@ -1222,7 +1234,7 @@ mod tests {
             return v3
         }
         ";
-        assert_ssa_does_not_change_after_simplifying(src);
+        assert_ssa_does_not_change_after_simplifying_no_validation(src);
     }
 
     /// Same as the previous test but with the wide value laundered through one more `u1` Mul
@@ -1240,6 +1252,6 @@ mod tests {
             return v5
         }
         ";
-        assert_ssa_does_not_change_after_simplifying(src);
+        assert_ssa_does_not_change_after_simplifying_no_validation(src);
     }
 }

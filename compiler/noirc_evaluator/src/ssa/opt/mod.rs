@@ -72,7 +72,12 @@ use crate::ssa::{
 /// is equal to the expected string. Normalization is done so the IDs don't
 /// shift depending on whether temporary intermediate values were created.
 #[cfg(test)]
-pub(crate) fn assert_normalized_ssa_equals(mut ssa: Ssa, expected: &str) {
+pub(crate) fn assert_normalized_ssa_equals(ssa: Ssa, expected: &str) {
+    assert_normalized_ssa_equals_impl(ssa, expected, true);
+}
+
+#[cfg(test)]
+fn assert_normalized_ssa_equals_impl(mut ssa: Ssa, expected: &str, validate: bool) {
     use crate::{ssa::Ssa, trim_comments_from_lines, trim_leading_whitespace_from_lines};
 
     // Clean up the expected SSA a bit
@@ -82,7 +87,9 @@ pub(crate) fn assert_normalized_ssa_equals(mut ssa: Ssa, expected: &str) {
     // First check if `expected` is valid SSA by parsing it, otherwise
     // the comparison will always fail but it won't be clear that it's because
     // expected is not valid.
-    let mut expected_ssa = match Ssa::from_str(&expected) {
+    let expected_parse_result =
+        if validate { Ssa::from_str(&expected) } else { Ssa::from_str_no_validation(&expected) };
+    let mut expected_ssa = match expected_parse_result {
         Ok(ssa) => ssa,
         Err(err) => {
             panic!("`expected` argument of `assert_ssa_equals` is not valid SSA:\n{err:?}")
@@ -163,6 +170,15 @@ pub(crate) fn assert_ssa_does_not_change(src: &str, pass: impl FnOnce(Ssa) -> Ss
 pub(crate) fn assert_ssa_does_not_change_after_simplifying(src: &str) {
     let ssa = Ssa::from_str_simplifying(src).unwrap();
     assert_normalized_ssa_equals(ssa, src);
+}
+
+/// Same as [assert_ssa_does_not_change_after_simplifying] but skips SSA validation: for
+/// deliberately non-canonical SSA that the validator rejects, to check that the simplifier
+/// stays conservative for it as defense in depth.
+#[cfg(test)]
+pub(crate) fn assert_ssa_does_not_change_after_simplifying_no_validation(src: &str) {
+    let ssa = Ssa::from_str_impl(src, true, false, false).unwrap();
+    assert_normalized_ssa_equals_impl(ssa, src, false);
 }
 
 /// Assert that running a certain pass on the SSA does not change the execution result.
