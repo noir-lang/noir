@@ -3,6 +3,6 @@ name = "std"
 type = "lib"
 authors = [""]
 # x-release-please-start-version
-version = "1.0.0-beta.25"
+version = "1.0.0-beta.26"
 # x-release-please-end
 [dependencies]
