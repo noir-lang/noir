@@ -33,6 +33,7 @@ mod loop_invariant;
 mod lower_refs_at_acir_brillig_boundary;
 mod make_constrain_not_equal;
 mod mem2reg;
+mod must_alias;
 mod mutable_array_set;
 mod normalize_value_ids;
 mod preprocess_fns;
