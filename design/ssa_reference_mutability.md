@@ -21,9 +21,28 @@ as capable as `B`:
   `array_set` produces a new array).
 
 `Type::can_be_used_as` implements this. The SSA validator enforces it at every
-typed boundary — call arguments, call returns, jump arguments, `MakeArray`
-elements, and load/store against the tracked allocation type — and additionally
-requires `store` addresses to be `&mut`-typed.
+typed boundary, and additionally requires `store` addresses to be `&mut`-typed.
+
+The boundaries are every point at which a reference-typed value is produced or
+consumed under a type that is written on the instruction rather than derived
+from its operands. Missing any one of them reopens the whole guarantee, because
+a single strengthening step is enough to launder a `&T` into a `&mut T`:
+
+- **call arguments** and **call returns**;
+- **jump arguments** against the destination block's parameters;
+- **`MakeArray`** elements against the array's element types;
+- **`store`** values, and **`load`** results, against the tracked allocation
+  type — *and*, since that tracking only covers addresses that are an
+  `allocate` result in the same function, every `load` result against its
+  address's own type, which is what catches an opaque address such as a
+  parameter;
+- **`array_get`** results and **`array_set`** values against the array's element
+  type. `MakeArray` covariance means an array is a legal home for a weakened
+  reference, so without the get side the array is a laundering channel. (An
+  `array_set`'s result type is its array operand's type by construction, so it
+  needs no separate check.)
+- **`IfElse`** operands against the result type. The result type is derived from
+  the `then_value` alone, so the `else_value` is otherwise unchecked.
 
 ## What this buys
 
@@ -31,6 +50,11 @@ Together the rules guarantee: **in validated SSA, no write can ever happen
 through a value whose type contains only immutable references.** There is no
 strengthening conversion at any boundary, no store through an immutable
 address, and no way to launder mutability through memory.
+
+Note that `--validate-between-passes` is off by default, so this is a property
+of SSA that has been validated, not one the release pipeline re-checks after
+every pass. A pass that violates it turns into a silent miscompile rather than a
+panic, which is the cost of letting other passes trust reference mutability.
 
 Passes may therefore trust reference mutability. Load Store Forwarding uses the
 *callee's formal parameter types* to decide which call arguments a callee may
