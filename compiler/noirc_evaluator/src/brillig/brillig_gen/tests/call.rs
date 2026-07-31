@@ -90,7 +90,7 @@ fn brillig_as_vector() {
      3: sp[5] = @1
      4: sp[6] = const u32 4
      5: @1 = u32 add @1, sp[6]
-     6: sp[5] = indirect const u32 1
+     6: sp[5] = indirect const bool 1
      7: sp[6] = u32 add sp[5], @2
      8: sp[7] = sp[6]
      9: store sp[2] at sp[7]
@@ -104,7 +104,7 @@ fn brillig_as_vector() {
     17: sp[6] = u32 add sp[4], sp[7]
     18: sp[3] = @1
     19: @1 = u32 add @1, sp[6]
-    20: sp[3] = indirect const u32 1
+    20: sp[3] = indirect const bool 1
     21: sp[6] = u32 add sp[3], @2
     22: store sp[4] at sp[6]
     23: sp[6] = u32 add sp[6], @2
@@ -140,7 +140,7 @@ fn brillig_to_bits() {
      2: sp[3] = @1
      3: sp[6] = const u32 9
      4: @1 = u32 add @1, sp[6]
-     5: sp[3] = indirect const u32 1
+     5: sp[3] = indirect const bool 1
      6: sp[6] = u32 add sp[3], @2
      7: sp[7] = const u32 8
      8: to_radix(input: sp[2], radix: sp[4], num_limbs: sp[7], output_pointer: sp[6], output_bits: sp[5])
@@ -186,7 +186,7 @@ fn brillig_to_radix() {
      1: sp[4] = @1
      2: sp[6] = const u32 9
      3: @1 = u32 add @1, sp[6]
-     4: sp[4] = indirect const u32 1
+     4: sp[4] = indirect const bool 1
      5: sp[6] = u32 add sp[4], @2
      6: sp[7] = const u32 8
      7: to_radix(input: sp[2], radix: sp[3], num_limbs: sp[7], output_pointer: sp[6], output_bits: sp[5])
@@ -241,7 +241,7 @@ fn brillig_array_ref_count() {
      3: sp[5] = @1
      4: sp[6] = const u32 4
      5: @1 = u32 add @1, sp[6]
-     6: sp[5] = indirect const u32 1
+     6: sp[5] = indirect const bool 1
      7: sp[6] = u32 add sp[5], @2
      8: sp[7] = sp[6]
      9: store sp[2] at sp[7]
@@ -249,8 +249,9 @@ fn brillig_array_ref_count() {
     11: store sp[3] at sp[7]
     12: sp[7] = u32 add sp[7], @2
     13: store sp[4] at sp[7]
-    14: sp[2] = load sp[5]
-    15: return
+    14: sp[3] = load sp[5]
+    15: sp[2] = cast sp[3] to u32
+    16: return
     ");
 }
 
@@ -277,7 +278,7 @@ fn brillig_vector_ref_count() {
      3: sp[5] = @1
      4: sp[6] = const u32 4
      5: @1 = u32 add @1, sp[6]
-     6: sp[5] = indirect const u32 1
+     6: sp[5] = indirect const bool 1
      7: sp[6] = u32 add sp[5], @2
      8: sp[7] = sp[6]
      9: store sp[2] at sp[7]
@@ -291,7 +292,7 @@ fn brillig_vector_ref_count() {
     17: sp[6] = u32 add sp[4], sp[7]
     18: sp[3] = @1
     19: @1 = u32 add @1, sp[6]
-    20: sp[3] = indirect const u32 1
+    20: sp[3] = indirect const bool 1
     21: sp[6] = u32 add sp[3], @2
     22: store sp[4] at sp[6]
     23: sp[6] = u32 add sp[6], @2
@@ -303,8 +304,9 @@ fn brillig_vector_ref_count() {
     29: @4 = sp[6]
     30: @5 = sp[4]
     31: call 0 // -> MemCopy
-    32: sp[4] = load sp[3]
-    33: sp[2] = sp[4]
-    34: return
+    32: sp[5] = load sp[3]
+    33: sp[4] = cast sp[5] to u32
+    34: sp[2] = sp[4]
+    35: return
     ");
 }
