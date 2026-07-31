@@ -444,7 +444,7 @@ impl Elaborator<'_> {
 
         let the_trait = self.get_trait(trait_id);
         let trait_name = the_trait.name.to_string();
-        let object_name = object.to_string();
+        let object_name = self.unresolved_type_name(object);
         let associated_type_bounds = the_trait.associated_type_bounds.clone();
 
         for associated_type in &the_trait.associated_types.clone() {
