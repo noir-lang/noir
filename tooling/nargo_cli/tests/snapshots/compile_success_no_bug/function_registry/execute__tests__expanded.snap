@@ -4,24 +4,8 @@ expression: expanded_code
 ---
 use std::{collections::umap::UHashMap, hash::{BuildHasherDefault, Hasher}};
 
-comptime mut global REGISTRY: UHashMap<Module, [FunctionDefinition], BuildHasherDefault<DummyHasher>> = UHashMap::<Module, [FunctionDefinition], BuildHasherDefault<DummyHasher>> {
-    _len: 1,
-    _table: @[
-        std::collections::umap::Slot::<Module, [FunctionDefinition]> {
-            _value: @[panic(f"comptime value that cannot be represented with code")],
-            _is_present: true,
-            _key: panic(f"comptime value that cannot be represented with code"),
-            _is_deleted: false,
-        },
-        std::collections::umap::Slot::<Module, [FunctionDefinition]> {
-            _value: @[],
-            _is_present: false,
-            _key: crate::mem::zeroed(),
-            _is_deleted: false,
-        },
-    ],
-    _build_hasher: BuildHasherDefault::<DummyHasher> {},
-};
+comptime mut global REGISTRY: UHashMap<Module, [FunctionDefinition], BuildHasherDefault<DummyHasher>> =
+    UHashMap::<Module, [FunctionDefinition], BuildHasherDefault<DummyHasher>>::default();
 
 comptime fn add_to_registry(
     registry: &mut UHashMap<Module, [FunctionDefinition], BuildHasherDefault<DummyHasher>>,

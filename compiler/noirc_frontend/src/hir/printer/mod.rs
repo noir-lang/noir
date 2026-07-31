@@ -3,7 +3,7 @@ use std::collections::{BTreeSet, HashMap, HashSet};
 use crate::graph::{CrateGraph, CrateId};
 use crate::hir::comptime::FormatStringFragment;
 use crate::hir::printer::items::ItemBuilder;
-use crate::hir::resolution::visibility::module_def_id_visibility;
+use crate::hir::resolution::visibility::{module_def_id_visibility, struct_member_is_visible};
 use crate::node_interner::TraitImplId;
 use crate::{
     DataType, Kind, NamedGeneric, ResolvedGenerics, Type, TypeVariableId,
@@ -21,7 +21,7 @@ use crate::{
         traits::{ResolvedTraitBound, TraitConstraint},
     },
     modules::{get_parent_module, module_def_id_is_visible, module_def_id_to_reference_id},
-    node_interner::{FuncId, GlobalId, GlobalValue, NodeInterner, ReferenceId, TypeAliasId},
+    node_interner::{FuncId, GlobalId, GlobalValue, NodeInterner, ReferenceId, TypeAliasId, TypeId},
     shared::Visibility,
     token::{FunctionAttributeKind, LocatedToken, SecondaryAttribute, SecondaryAttributeKind},
 };
@@ -628,9 +628,120 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
         self.show_type(&typ);
         if let GlobalValue::Resolved(value) = &global_info.value {
             self.push_str(" = ");
-            self.show_value(value);
+            // Prefer the evaluated value: a comptime-mutable global's final value can differ
+            // from what its initializer evaluates to. But some values can't be reconstructed
+            // as source code (private struct fields, comptime-only values): for those, print
+            // the original initializer expression, which is at least as visible as it was in
+            // the original program.
+            if self.value_is_representable(value) {
+                self.show_value(value);
+            } else if let Some(let_statement) = self.interner.get_global_let_statement(global_id) {
+                let expr_id = let_statement.expression;
+                let hir_expr = self.interner.expression(&expr_id);
+                self.show_hir_expression(hir_expr, expr_id);
+            } else {
+                self.show_value(value);
+            }
         }
         self.push_str(";");
+    }
+
+    /// Whether [`Self::show_value`] can print `value` as source code that compiles from the
+    /// current module. Some values have no code representation at all (they print as a
+    /// `panic(...)` placeholder), and a struct literal only compiles where the struct's type
+    /// and all of its fields are visible.
+    fn value_is_representable(&self, value: &Value) -> bool {
+        match value {
+            Value::Unit
+            | Value::Bool(_)
+            | Value::Integer(_)
+            | Value::String(_)
+            | Value::CtString(_)
+            | Value::Function(..)
+            | Value::Closure(_)
+            | Value::Quoted(_)
+            | Value::Zeroed(_) => true,
+
+            Value::FormatString(fragments, ..) => fragments.iter().all(|fragment| match fragment {
+                FormatStringFragment::String(_) => true,
+                FormatStringFragment::Value { value, .. } => self.value_is_representable(value),
+            }),
+
+            Value::Tuple(values) => {
+                values.iter().all(|value| self.value_is_representable(&value.borrow()))
+            }
+
+            Value::Struct(fields, typ) => {
+                self.struct_literal_is_visible(typ)
+                    && fields.values().all(|value| self.value_is_representable(&value.borrow()))
+            }
+
+            Value::Enum(_, args, typ) => {
+                self.data_type_is_visible(typ)
+                    && args.iter().all(|arg| self.value_is_representable(arg))
+            }
+
+            Value::Array(values, _) | Value::Vector(values, _) => {
+                values.iter().all(|value| self.value_is_representable(value))
+            }
+
+            Value::Pointer(value, ..) => self.value_is_representable(&value.borrow()),
+
+            // These print as a `panic(...)` placeholder (see `show_value`).
+            Value::TypeDefinition(_)
+            | Value::TraitConstraint(..)
+            | Value::TraitDefinition(_)
+            | Value::TraitImpl(_)
+            | Value::FunctionDefinition(_)
+            | Value::ModuleDefinition(_)
+            | Value::Type(_)
+            | Value::Expr(_)
+            | Value::TypedExpr(_)
+            | Value::UnresolvedType(_)
+            | Value::Location(_) => false,
+        }
+    }
+
+    /// Whether a struct literal of the given type compiles from the current module:
+    /// the type itself and every field must be visible.
+    fn struct_literal_is_visible(&self, typ: &Type) -> bool {
+        let typ = typ.follow_bindings();
+        let Type::DataType(data_type, generics) = &typ else {
+            return true;
+        };
+        let data_type = data_type.borrow();
+        if !self.data_type_id_is_visible(data_type.id, data_type.visibility) {
+            return false;
+        }
+        let Some(fields) = data_type.get_fields(generics) else {
+            return false;
+        };
+        fields.iter().all(|(_, _, visibility)| {
+            struct_member_is_visible(data_type.id, *visibility, self.module_id, self.def_maps)
+        })
+    }
+
+    /// Whether the given data type (by name) is visible from the current module.
+    fn data_type_is_visible(&self, typ: &Type) -> bool {
+        let typ = typ.follow_bindings();
+        let Type::DataType(data_type, _) = &typ else {
+            return true;
+        };
+        let data_type = data_type.borrow();
+        self.data_type_id_is_visible(data_type.id, data_type.visibility)
+    }
+
+    fn data_type_id_is_visible(&self, id: TypeId, visibility: ItemVisibility) -> bool {
+        let module_def_id = ModuleDefId::TypeId(id);
+        module_def_id_is_visible(
+            module_def_id,
+            self.module_id,
+            visibility,
+            None,
+            self.interner,
+            self.def_maps,
+            self.dependencies,
+        ) || !self.interner.get_reexports(module_def_id).is_empty()
     }
 
     /// Whether a constraint already in scope from an enclosing item subsumes the given one, so

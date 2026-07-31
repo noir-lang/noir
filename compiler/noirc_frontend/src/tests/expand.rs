@@ -700,3 +700,42 @@ fn expands_impl_trait_parameter_with_generics() {
     }
     ");
 }
+
+#[test]
+fn expands_global_whose_value_has_private_fields_as_its_initializer_expression() {
+    let src = r#"
+    mod foo {
+        pub struct Bar {
+            value: Field,
+        }
+
+        pub fn make_bar() -> Bar {
+            Bar { value: 1 }
+        }
+    }
+
+    global B: foo::Bar = foo::make_bar();
+
+    fn main() {
+        let _ = B;
+    }
+    "#;
+    let expanded = assert_no_errors_and_to_string(src);
+    insta::assert_snapshot!(expanded, @r"
+    mod foo {
+        pub struct Bar {
+            value: Field,
+        }
+
+        pub fn make_bar() -> Bar {
+            Bar { value: 1_Field}
+        }
+    }
+
+    global B: foo::Bar = foo::make_bar();
+
+    fn main() {
+        let _: foo::Bar = B;
+    }
+    ");
+}
