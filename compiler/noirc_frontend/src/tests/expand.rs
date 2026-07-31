@@ -808,3 +808,30 @@ fn expands_numeric_type_alias_with_its_numeric_type() {
     }
     ");
 }
+
+#[test]
+fn expands_numeric_type_alias_used_as_value_with_turbofish() {
+    let src = r#"
+    type AliasN<let N: u32>: u32 = N;
+
+    global N: u32 = 100;
+
+    fn main() {
+        let a: u32 = AliasN::<1>;
+        assert(a == 1);
+        assert(N == 100);
+    }
+    "#;
+    let expanded = assert_no_errors_and_to_string(src);
+    insta::assert_snapshot!(expanded, @r"
+    type AliasN<let N: u32>: u32 = N;
+
+    global N: u32 = 100;
+
+    fn main() {
+        let a: u32 = N;
+        assert(a == 1_u32);
+        assert(N == 100_u32);
+    }
+    ");
+}
