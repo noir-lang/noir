@@ -6,7 +6,7 @@ use crate::hir::printer::items::ItemBuilder;
 use crate::hir::resolution::visibility::module_def_id_visibility;
 use crate::node_interner::TraitImplId;
 use crate::{
-    DataType, Kind, NamedGeneric, ResolvedGenerics, Type,
+    DataType, Kind, NamedGeneric, ResolvedGenerics, Type, TypeVariableId,
     ast::{DocComment, Ident, ItemVisibility},
     graph::Dependency,
     hir::{
@@ -89,6 +89,11 @@ struct ItemPrinter<'context, 'string> {
     imports: HashMap<ModuleDefId, Ident>,
     self_type: Option<Type>,
 
+    /// When printing the body of a trait, this is the trait's `Self` type variable.
+    /// Any unbound occurrence of it (for example in `Self::method()` inside a default
+    /// method) must be printed as `Self`, which is the only name it has in source.
+    trait_self_typevar: Option<TypeVariableId>,
+
     /// Trait constraints in scope from an enclosing trait, trait impl, inherent impl, or
     /// function. A method's own where clause is filtered against these (see
     /// [`Self::parent_constraints_contain`]) so constraints already shown on the enclosing item
@@ -122,6 +127,7 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
             module_id,
             imports,
             self_type: None,
+            trait_self_typevar: None,
             trait_constraints: Vec::new(),
             trait_impls_printed: HashSet::new(),
         }
@@ -448,6 +454,7 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
         self.increase_indent();
 
         self.trait_constraints = trait_.where_clause.clone();
+        self.trait_self_typevar = Some(trait_.self_type_typevar.id());
 
         let mut printed_type_or_function = false;
 
@@ -498,6 +505,7 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
         self.push('}');
 
         self.trait_constraints.clear();
+        self.trait_self_typevar = None;
 
         // Only show trait impls for types outside of the current crate:
         // trait impls for types in this crate are already shown alongside the type definition.

@@ -6,15 +6,15 @@ trait Foo {
     let BAR: u32;
 
     fn via_trait(_: Self) -> u32 {
-        BAR
+        Self::BAR
     }
 
     fn via_self(_: Self) -> u32 {
-        BAR
+        Self::BAR
     }
 
     fn arith(_: Self) -> u32 {
-        BAR + 1_u32
+        Self::BAR + 1_u32
     }
 }
 

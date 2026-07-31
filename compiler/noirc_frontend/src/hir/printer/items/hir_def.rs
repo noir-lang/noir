@@ -857,7 +857,15 @@ impl ItemPrinter<'_, '_> {
                 } else {
                     match &constraint.typ {
                         Type::TypeVariable(type_var) if type_var.borrow().is_unbound() => {
-                            // Don't show this as `AsTraitPath`
+                            // The trait's own `Self` type variable can only stay unbound inside
+                            // that trait's body, where the item is reachable as `Self::item`.
+                            if self.trait_self_typevar == Some(type_var.id()) {
+                                self.push_str("Self::");
+                                let name = self.interner.definition_name(trait_item.definition);
+                                self.push_str(name);
+                                return;
+                            }
+                            // Otherwise don't show this as `AsTraitPath`
                         }
                         _ => {
                             self.push('<');

@@ -6,7 +6,7 @@ trait ATrait {
     fn asd() -> Self;
 
     fn static_method() -> Field {
-        ATrait::static_method_2()
+        Self::static_method_2()
     }
 
     fn static_method_2() -> Field {

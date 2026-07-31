@@ -562,3 +562,55 @@ fn expands_trait_method_call_shadowed_by_inherent_method() {
     }
     ");
 }
+
+#[test]
+fn expands_self_static_trait_method_call_in_default_method() {
+    let src = r#"
+    trait ATrait {
+        fn static_method() -> Field {
+            Self::static_method_2()
+        }
+
+        fn static_method_2() -> Field {
+            100
+        }
+    }
+
+    struct Foo {}
+
+    impl ATrait for Foo {
+        fn static_method_2() -> Field {
+            200
+        }
+    }
+
+    fn main() {
+        let _ = Foo::static_method();
+    }
+    "#;
+    let expanded = assert_no_errors_and_to_string(src);
+    insta::assert_snapshot!(expanded, @r"
+    trait ATrait {
+        fn static_method() -> Field {
+            Self::static_method_2()
+        }
+
+        fn static_method_2() -> Field {
+            100_Field
+        }
+    }
+
+    struct Foo {
+    }
+
+    impl ATrait for Foo {
+        fn static_method_2() -> Field {
+            200_Field
+        }
+    }
+
+    fn main() {
+        let _: Field = <Foo as ATrait>::static_method();
+    }
+    ");
+}
