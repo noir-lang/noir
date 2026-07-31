@@ -35,6 +35,7 @@ mod make_constrain_not_equal;
 mod mem2reg;
 mod mutable_array_set;
 mod normalize_value_ids;
+mod passthrough_calls;
 mod preprocess_fns;
 pub(crate) mod pure;
 mod rc;
