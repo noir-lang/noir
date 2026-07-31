@@ -19,11 +19,11 @@ trait Foo {
 }
 
 impl Foo for Field {
-    let BAR: u32 = 254;
+    let BAR: u32 = 254_u32;
 }
 
 impl Foo for u8 {
-    let BAR: u32 = 7;
+    let BAR: u32 = 7_u32;
 }
 
 struct Wrapper<T> {
@@ -31,7 +31,7 @@ struct Wrapper<T> {
 }
 
 impl<T> Foo for Wrapper<T> {
-    let BAR: u32 = 11;
+    let BAR: u32 = 11_u32;
 }
 
 fn main() {

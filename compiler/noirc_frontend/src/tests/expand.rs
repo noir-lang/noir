@@ -775,7 +775,7 @@ fn expands_associated_constant_reference_in_impl_method() {
     }
 
     impl Trait for Foo {
-        let N: u32 = 30;
+        let N: u32 = 30_u32;
 
         fn foo() -> u32 {
             Self::N
@@ -832,6 +832,45 @@ fn expands_numeric_type_alias_used_as_value_with_turbofish() {
         let a: u32 = 1;
         assert(a == 1_u32);
         assert(N == 100_u32);
+    }
+    ");
+}
+
+#[test]
+fn expands_associated_constant_over_self_type_with_concrete_annotation() {
+    let src = r#"
+    trait Foo {
+        let N: i32;
+
+        fn n() -> i32 {
+            Self::N
+        }
+    }
+
+    impl Foo for i32 {
+        let N: i32 = -12345i32;
+    }
+
+    fn main() {
+        let _ = i32::n();
+    }
+    "#;
+    let expanded = assert_no_errors_and_to_string(src);
+    insta::assert_snapshot!(expanded, @r"
+    trait Foo {
+        let N: i32;
+
+        fn n() -> i32 {
+            Self::N
+        }
+    }
+
+    impl Foo for i32 {
+        let N: i32 = -12345_i32;
+    }
+
+    fn main() {
+        let _: i32 = <i32 as Foo>::n();
     }
     ");
 }

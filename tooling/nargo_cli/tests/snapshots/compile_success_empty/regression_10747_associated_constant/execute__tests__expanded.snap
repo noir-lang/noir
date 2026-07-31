@@ -7,7 +7,7 @@ pub trait Ser {
 }
 
 impl Ser for Field {
-    let N: u32 = 1;
+    let N: u32 = 1_u32;
 }
 
 impl<let M: u32, T> Ser for [T; M]

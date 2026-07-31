@@ -216,7 +216,7 @@ const IGNORED_MINIMAL_EXECUTION_TESTS: [&str; 18] = [
 /// might not be worth it.
 /// Others are ignored because of existing bugs in `nargo expand`.
 /// As the bugs are fixed these tests should be removed from this list.
-const IGNORED_NARGO_EXPAND_EXECUTION_TESTS: [&str; 8] = [
+const IGNORED_NARGO_EXPAND_EXECUTION_TESTS: [&str; 7] = [
     // `nargo expand` prints an associated-constant access by its bare name (e.g. `N`),
     // dropping the `Box::<Field>::` qualifier, so the expanded source no longer resolves.
     "comptime_resolve_associated_constant_scope",
@@ -225,7 +225,6 @@ const IGNORED_NARGO_EXPAND_EXECUTION_TESTS: [&str; 8] = [
     "custom_entry",
     // There's no "src/main.nr" here so it's trickier to make this work
     "diamond_deps_0",
-    "negative_associated_constants",
     // There's no "src/main.nr" here so it's trickier to make this work
     "overlapping_dep_and_mod",
     // Globals evaluate to invalid utf-8 which don't display correctly in a source file

@@ -575,14 +575,27 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
                 self.push_str("let ");
                 self.push_str(&named_type.name.to_string());
                 self.push_str(": ");
+                // `Self` doesn't resolve in an associated constant's numeric type annotation,
+                // so print the type itself even when it's the impl's self type.
+                let self_type = self.self_type.take();
                 self.show_type(&numeric_type);
                 self.push_str(" = ");
+                // An unsuffixed literal in this position is checked as `u32`, so a constant
+                // of any other numeric type needs its type suffix.
+                if let Type::Constant(constant) = named_type.typ.follow_bindings() {
+                    self.push_str(&constant.to_string());
+                    self.push('_');
+                    self.show_type(&numeric_type);
+                } else {
+                    self.show_type(&named_type.typ);
+                }
+                self.self_type = self_type;
             } else {
                 self.push_str("type ");
                 self.push_str(&named_type.name.to_string());
                 self.push_str(" = ");
+                self.show_type(&named_type.typ);
             }
-            self.show_type(&named_type.typ);
             self.push_str(";");
 
             printed_item = true;

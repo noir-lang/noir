@@ -11,7 +11,7 @@ trait Serialize {
 }
 
 impl Serialize for Field {
-    let N: u32 = 1;
+    let N: u32 = 1_u32;
 
     #[inline_always]
     fn serialize(self) -> [Self; 1] {
@@ -35,7 +35,7 @@ trait Deserialize {
 }
 
 impl Deserialize for Field {
-    let N: u32 = 1;
+    let N: u32 = 1_u32;
 
     #[inline_always]
     fn deserialize(fields: [Self; 1]) -> Self {
