@@ -315,6 +315,56 @@ impl<'f> Validator<'f> {
                         "ICE: Nested vector type is not supported"
                     );
                 }
+
+                // An `array_get`'s result type and an `array_set`'s value type are
+                // annotations on the instruction, not derived from the array type, so
+                // they must be checked: otherwise an element could be read back out at
+                // a *stronger* reference type than the array holds, laundering a `&T`
+                // into a `&mut T` and defeating the guarantee that no write can happen
+                // through an immutably-typed value (see `Type::can_be_used_as`).
+                //
+                // This deliberately only covers accesses where a reference is involved.
+                // Passes are allowed to leave an element access whose *numeric* type no
+                // longer agrees with the array in code they have already proven
+                // unreachable (see
+                // `remove_unreachable_instructions::tests::replaces_array_get_following_conditional_constraint_with_default_if_index_was_defaulted`),
+                // and that laxness is orthogonal to reference mutability.
+                if let Some(element_types) = element_types_of(&array_type)
+                    && array_type.contains_reference()
+                {
+                    // The element the access touches, when it can be pinned down
+                    // statically; `None` means "could be any of `element_types`".
+                    let element_type = resolved_element_type(dfg, element_types, *array, *index);
+                    let compatible = |check: &dyn Fn(&Type) -> bool| match element_type {
+                        Some(element) => check(element),
+                        None => element_types.iter().any(check),
+                    };
+
+                    match &dfg[instruction] {
+                        Instruction::ArrayGet { .. } => {
+                            let result_type = dfg.type_of_value(instruction_results[0]);
+                            if !compatible(&|element: &Type| element.can_be_used_as(&result_type)) {
+                                panic!(
+                                    "ArrayGet result type {result_type} is not compatible with the element type of {array_type}"
+                                );
+                            }
+                        }
+                        Instruction::ArraySet { value, .. } => {
+                            let value_type = dfg.type_of_value(*value);
+                            if !compatible(&|element: &Type| value_type.can_be_used_as(element)) {
+                                panic!(
+                                    "ArraySet value type {value_type} is not compatible with the element type of {array_type}"
+                                );
+                            }
+                            // The result exposes the untouched elements of the input
+                            // array, so it must not strengthen them either. That needs
+                            // no check: `Instruction::result_type` derives an
+                            // `ArraySet`'s result type from its array operand, so the
+                            // two are equal by construction.
+                        }
+                        _ => unreachable!("checked by the outer match"),
+                    }
+                }
             }
             Instruction::Call { func, arguments } => {
                 self.type_check_call(instruction, func, arguments);
@@ -384,6 +434,41 @@ impl<'f> Validator<'f> {
                             "MakeArray has incorrect element type at index {index}: expected {expected_type}, got {element_type}"
                         );
                     }
+                }
+            }
+            Instruction::IfElse { then_value, else_value, .. } => {
+                // `Instruction::result_type` derives an `IfElse`'s result type from its
+                // `then_value` alone, so the `else_value` is the side that can smuggle a
+                // stronger reference out: `if_else c, <&mut Field>, <&Field>` would hand
+                // back the immutable reference typed `&mut Field` on the else path.
+                let result_type = self.assert_one_result(instruction, "IfElse");
+                for (value, side) in [(then_value, "then"), (else_value, "else")] {
+                    let value_type = dfg.type_of_value(*value);
+                    if !value_type.can_be_used_as(&result_type) {
+                        panic!(
+                            "IfElse {side} value type {value_type} is not compatible with the result type {result_type}"
+                        );
+                    }
+                }
+            }
+            Instruction::Load { address } => {
+                // Checked for *every* load, not just those whose address is an
+                // `allocate` result tracked by `track_allocate_and_check_load_store`:
+                // when the address is a parameter, a block argument, or any other
+                // opaque value, that tracking sees nothing, and an unchecked result
+                // type could strengthen the pointee's reference mutability — e.g.
+                // `load v0 -> &mut Field` from a `v0: &&Field` hands out a writable
+                // alias of an immutable reference.
+                let address_type = dfg.type_of_value(*address);
+                let Type::Reference(address_value_type, _) = &*address_type else {
+                    panic!("Load address must be a reference type, got {address_type}");
+                };
+
+                let result_type = self.assert_one_result(instruction, "Load");
+                if !address_value_type.can_be_used_as(&result_type) {
+                    panic!(
+                        "Load result type {result_type} is not compatible with address type {address_type}"
+                    );
                 }
             }
             Instruction::Store { address, value } => {
@@ -1220,6 +1305,36 @@ impl<'f> Validator<'f> {
             _ => (),
         }
     }
+}
+
+/// The semi-flattened element types of an array or vector type, if `typ` is one.
+fn element_types_of(typ: &Type) -> Option<&[Type]> {
+    match typ {
+        Type::Array(element_types, _) | Type::Vector(element_types) => Some(element_types),
+        _ => None,
+    }
+}
+
+/// The element type that an `array_get`/`array_set` at `index` touches, when it can be
+/// determined statically.
+///
+/// SSA arrays are stored semi-flattened, so the element at flat index `i` has type
+/// `element_types[i % element_types.len()]`. That is pinned down when the array has a
+/// single element type, or when the index is a constant. Otherwise this returns `None`
+/// and the caller must accept any of the element types.
+fn resolved_element_type<'a>(
+    dfg: &DataFlowGraph,
+    element_types: &'a [Type],
+    array: ValueId,
+    index: ValueId,
+) -> Option<&'a Type> {
+    if element_types.len() == 1 {
+        return element_types.first();
+    }
+    // In Brillig an index may include the array header offset (see `DataFlowGraph::array_offset`).
+    let offset = dfg.array_offset(array, index).to_u32();
+    let index = dfg.get_numeric_constant(index)?.try_to_u32()?.checked_sub(offset)?;
+    element_types.get(index as usize % element_types.len())
 }
 
 /// Whether `value` is the result of an `unchecked` signed `Sub` — an operation whose result may be
@@ -2645,6 +2760,177 @@ mod tests {
           b0():
             v0 = allocate -> &mut &Field
             v1 = load v0 -> &mut Field
+            return
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    #[should_panic(
+        expected = "Load result type &mut Field is not compatible with address type &&Field"
+    )]
+    fn load_rejects_mutable_result_when_address_is_not_a_tracked_allocate() {
+        // `track_allocate_and_check_load_store` only sees loads whose address is an
+        // `allocate` result in this function, so the load result type must also be
+        // checked against the address's own type. Otherwise a parameter-typed
+        // address launders: `v0: &&Field` promises no write can happen through what
+        // it points at, but the load hands out a `&mut Field` alias of it.
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: &&Field):
+            v1 = load v0 -> &mut Field
+            return
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    #[should_panic(expected = "Load address must be a reference type, got Field")]
+    fn load_rejects_non_reference_address() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: Field):
+            v1 = load v0 -> Field
+            return
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    fn array_get_allows_immutable_result_from_mutable_element() {
+        // Arrays are covariant in their element types, so reading a `&mut Field`
+        // element out at the weaker `&Field` is fine.
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: [&mut Field; 1]):
+            v1 = array_get v0, index u32 0 -> &Field
+            return
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    #[should_panic(
+        expected = "ArrayGet result type &mut Field is not compatible with the element type of [&Field; 1]"
+    )]
+    fn array_get_rejects_mutable_result_from_immutable_element() {
+        // The reverse direction is rejected. `MakeArray` accepts a `&mut Field`
+        // element in a `&Field` slot (covariance), so without this check the get
+        // side would hand the element back at `&mut Field` and launder every
+        // immutable reference that can be put in an array.
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: [&Field; 1]):
+            v1 = array_get v0, index u32 0 -> &mut Field
+            return
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    #[should_panic(
+        expected = "ArraySet value type &Field is not compatible with the element type of [&mut Field; 1]"
+    )]
+    fn array_set_rejects_immutable_value_for_mutable_element() {
+        // Mirrors the `MakeArray` rule: writing a `&Field` into a `&mut Field`
+        // slot would let a later get read it back out as `&mut Field`.
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: [&mut Field; 1], v1: &Field):
+            v2 = array_set v0, index u32 0, value v1
+            return
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    #[should_panic(
+        expected = "IfElse else value type &Field is not compatible with the result type &mut Field"
+    )]
+    fn if_else_rejects_immutable_else_value_for_mutable_result() {
+        // An `IfElse`'s result type comes from its `then_value`, so the `else_value`
+        // needs its own check: otherwise the else path's `&Field` comes back out
+        // typed `&mut Field`.
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u1, v1: u1, v2: &mut Field, v3: &Field):
+            v4 = if v0 then v2 else (if v1) v3
+            return
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    #[should_panic(
+        expected = "Load result type &mut Field is not compatible with address type &&Field"
+    )]
+    fn load_rejects_stale_load_repro_laundering_through_a_reference_parameter() {
+        // Regression test for a Load Store Forwarding stale-load scenario that
+        // survives the directional call-argument rule.
+        //
+        // `f1`'s formal is `&&Field`, which contains no mutable reference, so Load
+        // Store Forwarding's callee-formal gate concludes the call cannot write and
+        // keeps the cached `Field 1`. `f1` writes anyway by loading the inner
+        // reference back out at `&mut Field`. Without the load rule above this
+        // program validates, and one Load Store Forwarding pass then changes its
+        // result from `Field 100` to `Field 2`.
+        let src = "
+        brillig(inline) fn main f0 {
+          b0():
+            v0 = allocate -> &mut Field
+            store Field 1 at v0
+            v1 = allocate -> &mut &Field
+            store v0 at v1
+            v2 = load v0 -> Field
+            call f1(v1)
+            v3 = load v0 -> Field
+            v4 = add v2, v3
+            return v4
+        }
+        brillig(inline) fn launder f1 {
+          b0(v0: &&Field):
+            v1 = load v0 -> &mut Field
+            store Field 99 at v1
+            return
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    #[should_panic(
+        expected = "ArrayGet result type &mut Field is not compatible with the element type of [&Field; 1]"
+    )]
+    fn array_get_rejects_stale_load_repro_laundering_through_an_array() {
+        // The same stale-load scenario, laundering through array covariance
+        // instead of through a reference: `[&Field; 1]` contains no mutable
+        // reference, so the callee-formal gate again concludes the call cannot
+        // write, and `f1` writes anyway via a `&mut Field`-typed `array_get`.
+        // Without the `array_get` rule above, one Load Store Forwarding pass
+        // changes the result from `Field 100` to `Field 2`.
+        let src = "
+        brillig(inline) fn main f0 {
+          b0():
+            v0 = allocate -> &mut Field
+            store Field 1 at v0
+            v1 = make_array [v0] : [&Field; 1]
+            v2 = load v0 -> Field
+            call f1(v1)
+            v3 = load v0 -> Field
+            v4 = add v2, v3
+            return v4
+        }
+        brillig(inline) fn launder f1 {
+          b0(v0: [&Field; 1]):
+            v1 = array_get v0, index u32 0 -> &mut Field
+            store Field 99 at v1
             return
         }
         ";
