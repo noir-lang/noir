@@ -3,9 +3,10 @@ use std::borrow::Cow;
 use itertools::Itertools;
 
 use crate::{
-    NamedGeneric, Type, TypeBinding, TypeBindings,
+    Kind, NamedGeneric, Type, TypeBinding, TypeBindings,
     ast::{ItemVisibility, UnaryOp},
     hir::def_map::ModuleDefId,
+    modules::module_def_id_is_visible,
     hir_def::{
         expr::{
             Constructor, HirArrayLiteral, HirBlockExpression, HirCallExpression, HirExpression,
@@ -966,6 +967,36 @@ impl ItemPrinter<'_, '_> {
                 if self.self_type.as_ref() == Some(&trait_impl.typ) {
                     self.push_str("Self::");
                 } else {
+                    // The qualified form `<Type as Trait>::N` names the trait; when the trait
+                    // isn't visible from this module (e.g. the reference was spliced in by a
+                    // comptime `Expr::resolve` in another module's scope), print the constant's
+                    // compile-time value instead.
+                    let module_def_id = ModuleDefId::TraitId(trait_impl.trait_id);
+                    let trait_ = self.interner.get_trait(trait_impl.trait_id);
+                    let trait_is_visible = module_def_id_is_visible(
+                        module_def_id,
+                        self.module_id,
+                        trait_.visibility,
+                        None,
+                        self.interner,
+                        self.def_maps,
+                        self.dependencies,
+                    ) || !self.interner.get_reexports(module_def_id).is_empty();
+                    if !trait_is_visible
+                        && let Some(named_type) = self
+                            .interner
+                            .get_associated_types_for_impl(trait_impl_id)
+                            .iter()
+                            .find(|named_type| named_type.name.as_str() == name)
+                        && let Type::Constant(constant) = named_type.typ.follow_bindings()
+                    {
+                        self.push_str(&constant.to_string());
+                        if let Kind::Numeric(numeric_type) = named_type.typ.kind() {
+                            self.push('_');
+                            self.show_type(&numeric_type);
+                        }
+                        return;
+                    }
                     self.push('<');
                     self.show_type(&trait_impl.typ);
                     self.push_str(" as ");
