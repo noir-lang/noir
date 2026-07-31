@@ -16,6 +16,7 @@ use crate::{
     },
     hir_def::{
         expr::HirExpression,
+        function::FuncMeta,
         stmt::{HirLetStatement, HirPattern},
         traits::{ResolvedTraitBound, TraitConstraint},
     },
@@ -685,7 +686,16 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
                 if matches!(visibility, Visibility::Public) {
                     self.push_str("pub ");
                 }
-                self.show_type(typ);
+
+                // An `impl Trait` parameter desugars to a hidden generic whose synthetic name
+                // omits the trait's generic arguments (see `desugar_impl_trait_arg`), so it is
+                // printed from its resolved trait constraint instead.
+                if let Some(constraint) = impl_trait_parameter_constraint(func_meta, typ) {
+                    self.push_str("impl ");
+                    self.show_trait_bound(&constraint.trait_bound);
+                } else {
+                    self.show_type(typ);
+                }
             }
 
             if index != parameters.len() - 1 {
@@ -1440,4 +1450,25 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
     fn push(&mut self, char: char) {
         self.string.push(char);
     }
+}
+
+/// If `typ` is the hidden generic minted for an `impl Trait` parameter, returns the trait
+/// constraint that was desugared alongside it (see `desugar_impl_trait_arg`). The synthetic
+/// generic's name omits the trait's generic arguments, so printing the parameter faithfully
+/// requires the resolved bound instead.
+fn impl_trait_parameter_constraint<'meta>(
+    func_meta: &'meta FuncMeta,
+    typ: &Type,
+) -> Option<&'meta TraitConstraint> {
+    let Type::NamedGeneric(generic) = typ else {
+        return None;
+    };
+    if !generic.name.starts_with("impl ") {
+        return None;
+    }
+    func_meta.trait_constraints.iter().find(|constraint| {
+        matches!(&constraint.typ,
+            Type::NamedGeneric(constraint_generic)
+                if constraint_generic.type_var.id() == generic.type_var.id())
+    })
 }

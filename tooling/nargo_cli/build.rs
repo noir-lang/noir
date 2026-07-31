@@ -250,7 +250,7 @@ const TESTS_WITHOUT_STDOUT_CHECK: [&str; 0] = [];
 /// These tests are ignored because of existing bugs in `nargo expand`.
 /// As the bugs are fixed these tests should be removed from this list.
 /// (some are ignored on purpose for the same reason as `IGNORED_NARGO_EXPAND_EXECUTION_TESTS`)
-const IGNORED_NARGO_EXPAND_COMPILE_SUCCESS_EMPTY_TESTS: [&str; 8] = [
+const IGNORED_NARGO_EXPAND_COMPILE_SUCCESS_EMPTY_TESTS: [&str; 7] = [
     // A generated associated constant resolves to `<[T; N] as Ser>::N`, which `nargo expand`
     // prints as `<(resolved type) as Ser>::N` — not valid syntax to recompile.
     "regression_10747_associated_constant",
@@ -263,8 +263,6 @@ const IGNORED_NARGO_EXPAND_COMPILE_SUCCESS_EMPTY_TESTS: [&str; 8] = [
     "workspace_reexport_bug",
     // bug
     "trait_call_in_global",
-    // `nargo expand` drops the trait generic arguments on `impl Trait<...>` parameters
-    "regression_7648",
     // The expanded code names a transitive-only dependency (`leaflib`) by path, which isn't
     // directly importable when the expansion is recompiled as a standalone program.
     "comptime_as_typed_expr_public_type_trait_method",

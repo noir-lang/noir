@@ -665,3 +665,38 @@ fn expands_impl_trait_parameter_without_where_clause() {
     }
     ");
 }
+
+#[test]
+fn expands_impl_trait_parameter_with_generics() {
+    let src = r#"
+    trait Foo<let N: u32> {}
+
+    impl<let N: u32> Foo<N> for [Field; N] {}
+
+    fn my_fn<let N: u32>(_input: impl Foo<N>) {}
+
+    fn main() {
+        my_fn::<0>([]);
+    }
+    "#;
+    let expanded = assert_no_errors_and_to_string_using_features(
+        src,
+        &[crate::elaborator::UnstableFeature::TraitAsType],
+    );
+    insta::assert_snapshot!(expanded, @r"
+    trait Foo<let N: u32> {
+
+    }
+
+    impl<let N: u32> Foo<N> for [Field; N] {
+
+    }
+
+    fn my_fn<let N: u32>(_input: impl Foo<N>) {
+    }
+
+    fn main() {
+        my_fn::<0>([]);
+    }
+    ");
+}
