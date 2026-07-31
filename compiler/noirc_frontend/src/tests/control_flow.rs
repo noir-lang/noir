@@ -333,6 +333,23 @@ fn continue_in_loop() {
 }
 
 #[test]
+fn errors_on_break_or_continue_in_assertion_message() {
+    let src = r#"
+    unconstrained fn main(dummy: Field) -> pub Field {
+        loop {
+        ^^^^ `loop` must have at least one `break` in it
+        ~~~~ Infinite loops are disallowed
+            assert(false, { break; "assertion skipped" });
+                            ^^^^^^ break/continue are not allowed in assertion messages
+                            ~~~~~~ Assertion messages cannot change control flow
+        }
+        dummy + 99
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
 fn errors_if_for_body_type_is_not_unit() {
     let src = r#"
     fn main() {

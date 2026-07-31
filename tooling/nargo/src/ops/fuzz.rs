@@ -77,6 +77,7 @@ pub fn run_fuzzing_harness<'a, B, F, E>(
     context: &mut Context,
     fuzzing_harness: &FuzzingHarness,
     show_output: bool,
+    output_sink: Box<dyn std::io::Write + 'a>,
     package_name: String,
     compile_config: &CompileOptions,
     fuzz_folder_config: &FuzzFolderConfig,
@@ -221,7 +222,26 @@ where
 
             let result = fuzzer.fuzz();
             match result {
-                FuzzTestResult::Success => FuzzingRunStatus::ExecutionPass,
+                FuzzTestResult::Success(maybe_input) => {
+                    // Re-run a single representative input so `--show-output` can display the
+                    // output of one execution, mirroring tests without arguments. The many
+                    // executions during fuzzing itself intentionally discard their output.
+                    if let (Some(input_map), Some(acir_program)) = (maybe_input, &acir_program_copy)
+                        && let Ok(initial_witness) = acir_program.abi.encode(&input_map, None)
+                    {
+                        let foreign_call_executor =
+                            build_foreign_call_executor(output_sink, layers::Unhandled);
+                        let mut foreign_call_executor =
+                            TestForeignCallExecutor::new(foreign_call_executor);
+                        let _ = execute_program(
+                            &acir_program.program,
+                            initial_witness,
+                            &B::default(),
+                            &mut foreign_call_executor,
+                        );
+                    }
+                    FuzzingRunStatus::ExecutionPass
+                }
                 FuzzTestResult::ProgramFailure(program_failure_result) => {
                     // Collect failing callstack
                     let unwrapped_acir_program = acir_program_copy.unwrap();
@@ -230,7 +250,7 @@ where
                         .encode(&program_failure_result.counterexample, None)
                         .unwrap();
                     let foreign_call_executor =
-                        build_foreign_call_executor(output(show_output), layers::Unhandled);
+                        build_foreign_call_executor(output_sink, layers::Unhandled);
                     let mut foreign_call_executor =
                         TestForeignCallExecutor::new(foreign_call_executor);
                     // Execute the program with the failing witness
@@ -267,12 +287,19 @@ where
                                 .encode(&program_failure_result.counterexample, None)
                                 .unwrap();
 
+                            // The ACIR re-execution above already captured this input's output
+                            // into `output_sink`, so discard the Brillig re-execution's output to
+                            // avoid showing it twice.
+                            let brillig_foreign_call_executor =
+                                build_foreign_call_executor(output(false), layers::Unhandled);
+                            let mut brillig_foreign_call_executor =
+                                TestForeignCallExecutor::new(brillig_foreign_call_executor);
                             // Execute the program with the failing witness
                             let execution_failure = execute_program(
                                 &unwrapped_brillig_program.program,
                                 initial_witness,
                                 &B::default(),
-                                &mut foreign_call_executor,
+                                &mut brillig_foreign_call_executor,
                             );
                             match execution_failure {
                                 Err(err) => FuzzingRunStatus::ExecutionFailure {

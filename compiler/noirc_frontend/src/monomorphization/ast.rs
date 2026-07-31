@@ -542,6 +542,11 @@ pub struct Function {
     pub unconstrained: bool,
     pub inline_type: InlineType,
     pub is_entry_point: bool,
+
+    /// True if the source function was annotated with `#[allow(constant_return)]`,
+    /// which silences the `constant_return` warning raised during ACIR generation
+    /// when this function is an ACIR entry point whose return value is constant.
+    pub allow_constant_return: bool,
 }
 
 /// Compared to `hir_def::types::Type`, this monomorphized Type has:
@@ -569,6 +574,18 @@ pub enum Type {
         /*unconstrained:*/ bool,
     ),
 }
+
+/// Maximum number of flattened field elements allowed at an entry point boundary,
+/// i.e. for a parameter or a return value.
+///
+/// This limit prevents hangs or out-of-memory issues when dealing with very large arrays:
+/// flattened sizes approaching `u32::MAX` cannot be represented, since Brillig arrays are
+/// heap-allocated using `u32` addressing and ACIR/data-bus construction reserves one witness
+/// per flattened element.
+///
+/// 2^24 = 16,777,216 witnesses. In practice the number of witnesses is limited by the CRS size,
+/// which is usually around 2^20, so this limit should not interfere with real use cases.
+pub const MAX_ELEMENTS: usize = 1 << 24;
 
 impl Type {
     pub fn flatten(&self) -> Vec<Type> {

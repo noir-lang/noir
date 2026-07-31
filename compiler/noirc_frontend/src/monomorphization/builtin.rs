@@ -107,6 +107,7 @@ impl Monomorphizer<'_> {
                 unconstrained: is_unconstrained,
                 inline_type: InlineType::InlineAlways,
                 is_entry_point: false,
+                allow_constant_return: false,
             },
         );
         let typ = Type::Function(parameter_types, return_type, env, unconstrained);
@@ -309,6 +310,7 @@ impl Monomorphizer<'_> {
             unconstrained,
             inline_type: InlineType::default(),
             is_entry_point: false,
+            allow_constant_return: false,
         };
         self.push_function(id, function);
 

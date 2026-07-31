@@ -1708,4 +1708,20 @@ mod tests {
         }
         ");
     }
+
+    /// Phase 2 of this pass re-inserts instructions through the DFG simplifier. That path must not
+    /// delete a `range_check` guarding the result of unchecked ACIR arithmetic, whose field value
+    /// can legitimately exceed the operands' type width (e.g. `unchecked_add u8 200, 100 = 300`).
+    #[test]
+    fn range_check_after_unchecked_acir_arithmetic_is_not_removed() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u8, v1: u8):
+            v2 = unchecked_add v0, v1
+            range_check v2 to 8 bits
+            return v2
+        }
+        ";
+        assert_ssa_does_not_change(src, Ssa::load_store_forwarding);
+    }
 }

@@ -7,7 +7,7 @@ use super::{
     dfg::InsertInstructionResult,
     function::Function,
     instruction::{Instruction, InstructionId},
-    value::ValueId,
+    value::{ValueId, ValueMapping},
 };
 use rustc_hash::FxHashMap as HashMap;
 
@@ -207,5 +207,15 @@ impl<'f> FunctionInserter<'f> {
 
     pub(crate) fn set_mapping(&mut self, mapping: HashMap<ValueId, ValueId>) {
         self.values = mapping;
+    }
+
+    /// Consume the inserter, returning its accumulated old-value to new-value substitution as a
+    /// [`ValueMapping`].
+    pub(crate) fn into_value_mapping(self) -> ValueMapping {
+        let mut mapping = ValueMapping::default();
+        for (from, to) in self.values {
+            mapping.insert(from, to);
+        }
+        mapping
     }
 }

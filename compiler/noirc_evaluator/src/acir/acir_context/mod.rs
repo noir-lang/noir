@@ -101,6 +101,18 @@ impl<F: AcirField> AcirContext<F> {
             .collect()
     }
 
+    /// Returns each witness that has been constrained to hold a constant value, paired with that
+    /// value.
+    ///
+    /// Whenever a constant [`AcirVar`] is materialized into a [`Witness`] (e.g. to be used as the
+    /// index of a memory operation) it is recorded in `constant_witnesses`. This exposes that map so
+    /// the post-ACIR check can tell whether a memory-op index is a compile-time constant and what
+    /// its value is.
+    #[cfg(debug_assertions)]
+    pub(crate) fn constant_witness_values(&self) -> impl Iterator<Item = (Witness, F)> + '_ {
+        self.constant_witnesses.iter().map(|(value, witness)| (*witness, *value))
+    }
+
     /// Adds a constant to the context and assigns a Variable to represent it
     pub(crate) fn add_constant(&mut self, constant: impl Into<F>) -> AcirVar {
         let constant_data = AcirVarData::Const(constant.into());
@@ -257,6 +269,14 @@ impl<F: AcirField> AcirContext<F> {
     pub(crate) fn is_constant_one(&self, var: &AcirVar) -> bool {
         match self.vars.get(var) {
             Some(AcirVarData::Const(field)) => field.is_one(),
+            _ => false,
+        }
+    }
+
+    /// True if the given `AcirVar` refers to a constant zero value
+    pub(crate) fn is_constant_zero(&self, var: &AcirVar) -> bool {
+        match self.vars.get(var) {
+            Some(AcirVarData::Const(field)) => field.is_zero(),
             _ => false,
         }
     }
@@ -1469,6 +1489,14 @@ impl<F: AcirField> AcirContext<F> {
         predicate: AcirVar,
     ) -> Result<Vec<AcirVar>, RuntimeError> {
         let output_count = output_count.to_usize();
+
+        // A call whose predicate folds to a compile-time zero is on a statically-dead branch and is
+        // never executed. We resolve it up front to don't-care zeroed outputs and emit no `Call`
+        // opcode, mirroring the equivalent handling for Brillig calls. This keeps the
+        // `acir_post_check` invariant that no emitted call carries a compile-time zero predicate.
+        if self.var_to_expression(predicate)?.is_zero() {
+            return Ok(vecmap(0..output_count, |_| self.add_constant(F::zero())));
+        }
 
         let inputs = self.prepare_inputs_for_black_box_func_call(inputs, false)?;
         let inputs = inputs

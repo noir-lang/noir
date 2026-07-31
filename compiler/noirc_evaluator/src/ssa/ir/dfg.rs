@@ -15,7 +15,8 @@ use super::{
     basic_block::{BasicBlock, BasicBlockId},
     function::{FunctionId, RuntimeType},
     instruction::{
-        Instruction, InstructionId, InstructionResultType, Intrinsic, TerminatorInstruction,
+        BinaryOp, Instruction, InstructionId, InstructionResultType, Intrinsic,
+        TerminatorInstruction,
     },
     integer::IntegerConstant,
     map::DenseMap,
@@ -123,6 +124,11 @@ pub(crate) struct DataFlowGraph {
     /// Indicate whether the Brillig array index offset optimizations have been performed.
     pub(crate) brillig_arrays_offset: bool,
 
+    /// When `true`, the `constant_return` warning is not emitted if this function is an
+    /// ACIR entry point whose return value is constant. Set from a
+    /// `#[allow(constant_return)]` attribute on the source function.
+    pub(crate) allow_constant_return: bool,
+
     /// When `false` (the default), a `simplify_*` routine that detects malformed input — SSA that
     /// could not arise from well-formed compilation — panics via [`bail_malformed!`][crate::ssa::ir::dfg::simplify::bail_malformed].
     /// When `true`, those routines instead emit a trace and decline to simplify, leaving the
@@ -177,11 +183,10 @@ impl From<GlobalsGraph> for DataFlowGraph {
 }
 
 /// Maximum number of elements allowed for return values, or for some arrays.
-/// This limit prevents hangings or out-of-memory issues when dealing with very large arrays.
-/// 2^24 = 16,777,216 witnesses.
-/// In practice, the number of witnesses is limited by the CRS size, which is usually around 2^20.
-/// So this limit should not interfere with real use cases.
-pub(crate) const MAX_ELEMENTS: usize = 1 << 24;
+///
+/// Defined in `noirc_frontend` alongside the entry point input-size check that shares it;
+/// see [`MAX_ELEMENTS`] for the full rationale.
+pub(crate) use noirc_frontend::monomorphization::ast::MAX_ELEMENTS;
 
 impl DataFlowGraph {
     /// Runtime type of the function.
@@ -570,20 +575,113 @@ impl DataFlowGraph {
         match self[value] {
             Value::Instruction { instruction, .. } => {
                 let value_bit_size = self.type_of_value(value).bit_size();
-                if let Instruction::Cast(original_value, _) = self[instruction] {
-                    let original_bit_size = self.get_value_max_num_bits(original_value);
-                    // We might have cast e.g. `u1` to `u8` to be able to do arithmetic,
-                    // in which case we want to recover the original smaller bit size;
-                    // OTOH if we cast down, then we don't need the higher original size.
-                    value_bit_size.min(original_bit_size)
-                } else {
-                    value_bit_size
+                match &self[instruction] {
+                    Instruction::Cast(original_value, _) => {
+                        let original_bit_size = self.get_value_max_num_bits(*original_value);
+                        // We might have cast e.g. `u1` to `u8` to be able to do arithmetic,
+                        // in which case we want to recover the original smaller bit size;
+                        // OTOH if we cast down, then we don't need the higher original size.
+                        value_bit_size.min(original_bit_size)
+                    }
+                    // In ACIR, unchecked arithmetic is non-reducing field arithmetic, so its result
+                    // may exceed the operands' type width until a later range check or truncation
+                    // brings it back: `unchecked_add u1 1, 1` is the field value 2, and an
+                    // unchecked Sub can underflow to a field-negative (near-modulus) value at any
+                    // width. Report a conservative upper bound rather than the static type width,
+                    // so callers never mistake that width for a range proof. (In Brillig the result
+                    // wraps to the type width, so it keeps the static width.)
+                    Instruction::Binary(binary)
+                        if self.runtime().is_acir()
+                            && matches!(
+                                binary.operator,
+                                BinaryOp::Add { unchecked: true }
+                                    | BinaryOp::Sub { unchecked: true }
+                                    | BinaryOp::Mul { unchecked: true }
+                            ) =>
+                    {
+                        let field_max = FieldElement::max_num_bits();
+                        let bound = match binary.operator {
+                            BinaryOp::Add { .. } => self
+                                .operand_max_num_bits(binary.lhs)
+                                .max(self.operand_max_num_bits(binary.rhs))
+                                .saturating_add(1),
+                            BinaryOp::Mul { .. } => {
+                                let lhs_bits = self.operand_max_num_bits(binary.lhs);
+                                let rhs_bits = self.operand_max_num_bits(binary.rhs);
+                                // A 0/1 operand selects the other operand or zero, adding no
+                                // bits. In particular a `u1` Mul of two canonical `u1`s stays a
+                                // single bit, while a wide operand (e.g. an `unchecked_add u1`
+                                // holding 2) propagates its full bound to the product.
+                                if lhs_bits <= 1 {
+                                    rhs_bits
+                                } else if rhs_bits <= 1 {
+                                    lhs_bits
+                                } else {
+                                    lhs_bits.saturating_add(rhs_bits)
+                                }
+                            }
+                            _ => field_max,
+                        };
+                        bound.min(field_max)
+                    }
+                    _ => value_bit_size,
                 }
             }
 
             Value::NumericConstant { constant, .. } => constant.num_bits(),
             _ => self.type_of_value(value).bit_size(),
         }
+    }
+
+    /// Upper bound on the number of bits an operand of an unchecked ACIR arithmetic instruction
+    /// may hold.
+    ///
+    /// Only unchecked ACIR arithmetic can exceed its static type width, so every other value is
+    /// bounded by that width. An operand that is itself unchecked ACIR arithmetic is bounded only
+    /// by the field width. This is an O(1) upper bound that never inspects the operand's own
+    /// operands; it can only over-approximate, so callers that use it to drop range checks never
+    /// do so unsoundly.
+    fn operand_max_num_bits(&self, value: ValueId) -> u32 {
+        let value_bit_size = self.type_of_value(value).bit_size();
+        if self.runtime().is_acir()
+            && let Value::Instruction { instruction, .. } = self[value]
+            && let Instruction::Binary(binary) = &self[instruction]
+            && matches!(
+                binary.operator,
+                BinaryOp::Add { unchecked: true }
+                    | BinaryOp::Sub { unchecked: true }
+                    | BinaryOp::Mul { unchecked: true }
+            )
+        {
+            FieldElement::max_num_bits()
+        } else {
+            value_bit_size
+        }
+    }
+
+    /// True if `value` is boolean: a 0/1 constant, a `u1`-typed value, or a chain of casts
+    /// bottoming out at one of those.
+    ///
+    /// This trusts the static type: a `u1`-typed value is assumed to hold 0 or 1, the canonicality
+    /// invariant the compiler maintains for every value it creates (in ACIR a `u1` unchecked
+    /// add/sub result can transiently violate it, but such values only ever flow into truncations
+    /// and casts). Use this for algebraic rewrites that are valid for canonical values, such as
+    /// `b*b = b`. Do NOT use it to justify deleting a range check: for that,
+    /// [`Self::get_value_max_num_bits`] gives a bound that does not assume canonicality of
+    /// unchecked arithmetic results.
+    pub(crate) fn is_boolean_value(&self, value: ValueId) -> bool {
+        if let Some(constant) = self.get_numeric_constant(value) {
+            return constant.is_zero() || constant.is_one();
+        }
+        if self.type_of_value(value).bit_size() == 1 {
+            return true;
+        }
+        if let Value::Instruction { instruction, .. } = self[value]
+            && let Instruction::Cast(inner, _) = self[instruction]
+        {
+            return self.is_boolean_value(inner);
+        }
+        false
     }
 
     /// True if the type of this value is `Type::Reference`.
@@ -1123,8 +1221,12 @@ impl std::ops::Index<usize> for InsertInstructionResult<'_> {
 
 #[cfg(test)]
 mod tests {
-    use super::DataFlowGraph;
-    use crate::ssa::ir::{instruction::Instruction, types::Type};
+    use super::{DataFlowGraph, FieldElement};
+    use crate::ssa::{
+        ir::{instruction::Instruction, types::Type},
+        ssa_gen::Ssa,
+    };
+    use acvm::AcirField;
 
     #[test]
     fn make_instruction() {
@@ -1134,5 +1236,29 @@ mod tests {
 
         let results = dfg.instruction_results(ins_id);
         assert_eq!(results.len(), 1);
+    }
+
+    // Each `v_i` reuses the two previous results (a Fibonacci-shaped dependency), so the number of
+    // distinct paths from `v_depth` back to the leaves is exponential in `depth`. This guards that
+    // `get_value_max_num_bits` bounds an unchecked add's operands without walking those paths, and
+    // so returns quickly regardless of depth rather than fanning out over them.
+    #[test]
+    fn get_value_max_num_bits_terminates_on_deep_unchecked_acir_chain() {
+        let depth = 128;
+
+        let mut src = String::from("acir(inline) fn main f0 {\n  b0(v0: u8, v1: u8):\n");
+        for i in 2..=depth {
+            src.push_str(&format!("    v{i} = unchecked_add v{}, v{}\n", i - 1, i - 2));
+        }
+        src.push_str(&format!("    return v{depth}\n}}\n"));
+
+        let ssa = Ssa::from_str(&src).unwrap();
+        let main = ssa.main();
+        let returned = main.returns().expect("expected a Return terminator")[0];
+
+        // The bound saturates at the field width; the exact value does not matter, only that the
+        // call terminates.
+        let bits = main.dfg.get_value_max_num_bits(returned);
+        assert!(bits <= FieldElement::max_num_bits());
     }
 }

@@ -124,103 +124,101 @@ impl Poseidon2<'_> {
 
 #[cfg(test)]
 mod tests {
-    use std::sync::Arc;
+    use super::poseidon2_permutation;
+    use crate::poseidon2_constants::field_from_hex;
 
-    use acir::AcirField;
-
-    use proptest::prelude::*;
-    use proptest::result::maybe_ok;
-
-    use super::{FieldElement, poseidon2_permutation};
-    use crate::poseidon2_constants::{POSEIDON2_CONFIG, field_from_hex};
-
+    /// Cross-check vectors against an independent Poseidon2 implementation.
+    ///
+    /// The expected outputs were generated with the `zkhash` crate v0.2.0
+    /// (<https://github.com/HorizenLabs/poseidon2>), instantiating its
+    /// `Poseidon2` permutation with the parameters from
+    /// `crate::poseidon2_constants::POSEIDON2_CONFIG` (t = 4, d = 5) and
+    /// feeding it the inputs below.
     #[test]
-    fn smoke_test() {
-        let inputs = [FieldElement::zero(); 4];
-        let result = poseidon2_permutation(&inputs).expect("should successfully permute");
-
-        let expected_result = [
-            field_from_hex("18DFB8DC9B82229CFF974EFEFC8DF78B1CE96D9D844236B496785C698BC6732E"),
-            field_from_hex("095C230D1D37A246E8D2D5A63B165FE0FADE040D442F61E25F0590E5FB76F839"),
-            field_from_hex("0BB9545846E1AFA4FA3C97414A60A20FC4949F537A68CCECA34C5CE71E28AA59"),
-            field_from_hex("18A4F34C9C6F99335FF7638B82AEED9018026618358873C982BBDDE265B2ED6D"),
-        ];
-        assert_eq!(result, expected_result);
-    }
-
-    fn into_old_ark_field<T, U>(field: T) -> U
-    where
-        T: AcirField,
-        U: ark_ff_v04::PrimeField,
-    {
-        U::from_be_bytes_mod_order(&field.to_be_bytes())
-    }
-
-    fn into_new_ark_field<T, U>(field: T) -> U
-    where
-        T: ark_ff_v04::PrimeField,
-        U: ark_ff::PrimeField,
-    {
-        use zkhash::ark_ff::BigInteger;
-
-        U::from_be_bytes_mod_order(&field.into_bigint().to_bytes_be())
-    }
-
-    fn run_both_poseidon2_permutations(
-        inputs: Vec<FieldElement>,
-    ) -> (Vec<ark_bn254::Fr>, Vec<ark_bn254::Fr>) {
-        let poseidon2_t = POSEIDON2_CONFIG.t as usize;
-        let poseidon2_d = 5;
-        let rounds_f = POSEIDON2_CONFIG.rounds_f as usize;
-        let rounds_p = POSEIDON2_CONFIG.rounds_p as usize;
-        let mat_internal_diag_m_1: Vec<ark_bn254_v04::Fr> =
-            POSEIDON2_CONFIG.internal_matrix_diagonal.into_iter().map(into_old_ark_field).collect();
-        let mat_internal = vec![];
-        let round_constants: Vec<Vec<ark_bn254_v04::Fr>> = POSEIDON2_CONFIG
-            .round_constant
-            .into_iter()
-            .map(|fields| fields.into_iter().map(into_old_ark_field).collect())
-            .collect();
-
-        let external_poseidon2 = zkhash::poseidon2::poseidon2::Poseidon2::new(&Arc::new(
-            zkhash::poseidon2::poseidon2_params::Poseidon2Params::new(
-                poseidon2_t,
-                poseidon2_d,
-                rounds_f,
-                rounds_p,
-                &mat_internal_diag_m_1,
-                &mat_internal,
-                &round_constants,
+    fn matches_external_reference_implementation() {
+        let cases: [([&str; 4], [&str; 4]); 5] = [
+            // all zeroes
+            (
+                [
+                    "0000000000000000000000000000000000000000000000000000000000000000",
+                    "0000000000000000000000000000000000000000000000000000000000000000",
+                    "0000000000000000000000000000000000000000000000000000000000000000",
+                    "0000000000000000000000000000000000000000000000000000000000000000",
+                ],
+                [
+                    "18DFB8DC9B82229CFF974EFEFC8DF78B1CE96D9D844236B496785C698BC6732E",
+                    "095C230D1D37A246E8D2D5A63B165FE0FADE040D442F61E25F0590E5FB76F839",
+                    "0BB9545846E1AFA4FA3C97414A60A20FC4949F537A68CCECA34C5CE71E28AA59",
+                    "18A4F34C9C6F99335FF7638B82AEED9018026618358873C982BBDDE265B2ED6D",
+                ],
             ),
-        ));
+            // sequential small values
+            (
+                [
+                    "0000000000000000000000000000000000000000000000000000000000000000",
+                    "0000000000000000000000000000000000000000000000000000000000000001",
+                    "0000000000000000000000000000000000000000000000000000000000000002",
+                    "0000000000000000000000000000000000000000000000000000000000000003",
+                ],
+                [
+                    "01BD538C2EE014ED5141B29E9AE240BF8DB3FE5B9A38629A9647CF8D76C01737",
+                    "239B62E7DB98AA3A2A8F6A0D2FA1709E7A35959AA6C7034814D9DAA90CBAC662",
+                    "04CBB44C61D928ED06808456BF758CBF0C18D1E15A7B6DBC8245FA7515D5E3CB",
+                    "2E11C5CFF2A22C64D01304B778D78F6998EFF1AB73163A35603F54794C30847A",
+                ],
+            ),
+            // u128::MAX in every lane
+            (
+                [
+                    "00000000000000000000000000000000ffffffffffffffffffffffffffffffff",
+                    "00000000000000000000000000000000ffffffffffffffffffffffffffffffff",
+                    "00000000000000000000000000000000ffffffffffffffffffffffffffffffff",
+                    "00000000000000000000000000000000ffffffffffffffffffffffffffffffff",
+                ],
+                [
+                    "1452D1D69A606FB2F6AFF10FA4C73EA7486AC4BD59B3557B52311EFFB283A261",
+                    "2433004A0EDE6798EF76B637F9E2A0EAB454D70B7433A9AB18512D5A980890A9",
+                    "05A2ECD90756DD7DBD1840B0F252E490A73594CD103B56F6A3B1ADD8F38449BE",
+                    "1D5B91141464C8B36F830F33B7BA06BEA37D309A7A5E63A91100BB23C55168F1",
+                ],
+            ),
+            // p - 1 (largest field element) in every lane
+            (
+                [
+                    "30644E72E131A029B85045B68181585D2833E84879B9709143E1F593F0000000",
+                    "30644E72E131A029B85045B68181585D2833E84879B9709143E1F593F0000000",
+                    "30644E72E131A029B85045B68181585D2833E84879B9709143E1F593F0000000",
+                    "30644E72E131A029B85045B68181585D2833E84879B9709143E1F593F0000000",
+                ],
+                [
+                    "1B18E6CA21A1E9B15D65F0B5861EDE5FF20DB8FA3722531823D0C817D69D945D",
+                    "0AFB50EA6867B1CB2D9D1EAC935AF746BC7A780E181A1E6AE9B768C9CBA68878",
+                    "0A521A22CA614E65B877D0676652FB60E90A11B462F9846A08E811D95272A9D8",
+                    "2369F077784E0AEA99EE3DC6B7B01612AF7F80D7F08B755F9F116E2885EE367F",
+                ],
+            ),
+            // arbitrary full-width distinct values
+            (
+                [
+                    "123456789ABCDEF00FEDCBA987654321123456789ABCDEF00FEDCBA987654321",
+                    "2718281828459045235360287471352662497757247093699959574966967627",
+                    "1414213562373095048801688724209698078569671875376948073176679737",
+                    "0B172182839274F8E5D4C3B2A1908070605040302010FFEEDDCCBBAA99887766",
+                ],
+                [
+                    "1C68B20A2080BCC11A2B6F38A46F8270C3CE1DCD40CF8A16626E1CC936E90D56",
+                    "22FDAD6F2E2AED646BE444EFB2AE2EAACD49F0440C846F4882F8B013C01C792C",
+                    "1726C0B52C59E7008DBB710A8D3046214257D997A6E7870F46E7DFE5C6729378",
+                    "03B4A4B3B3694B4EFAF50186E75062F30D3FF4B73D95CAB554763B7E19DE8BA0",
+                ],
+            ),
+        ];
 
-        let result =
-            poseidon2_permutation(&inputs).unwrap().into_iter().map(|x| x.into_repr()).collect();
-
-        let expected_result = external_poseidon2.permutation(
-            &inputs.into_iter().map(into_old_ark_field).collect::<Vec<ark_bn254_v04::Fr>>(),
-        );
-        (result, expected_result.into_iter().map(into_new_ark_field).collect())
-    }
-
-    prop_compose! {
-        // Use both `u128` and hex proptest strategies
-        fn field_element()
-            (u128_or_hex in maybe_ok(any::<u128>(), "[0-9a-f]{64}"))
-            -> FieldElement
-        {
-            match u128_or_hex {
-                Ok(number) => FieldElement::from(number),
-                Err(hex) => FieldElement::from_hex(&hex).expect("should accept any 32 byte hex string"),
-            }
-        }
-    }
-
-    proptest! {
-        #[test]
-        fn poseidon2_permutation_matches_external_impl(inputs in proptest::collection::vec(field_element(), 4)) {
-            let (result, expected_result) = run_both_poseidon2_permutations(inputs);
-            prop_assert_eq!(result, expected_result);
+        for (inputs, expected) in cases {
+            let inputs = inputs.map(field_from_hex);
+            let expected = expected.map(field_from_hex);
+            let result = poseidon2_permutation(&inputs).expect("should successfully permute");
+            assert_eq!(result, expected, "mismatch for inputs {inputs:?}");
         }
     }
 }

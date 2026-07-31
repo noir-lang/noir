@@ -72,3 +72,8 @@ mutants.out.old
 
 # Claude Code worktrees
 .claude/worktrees/
+
+# insta pending snapshots — transient review artifacts, never committed.
+# Accepted snapshots (*.snap) are tracked and intentionally not ignored.
+*.snap.new
+*.pending-snap

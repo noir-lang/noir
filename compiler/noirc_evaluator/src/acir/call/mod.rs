@@ -25,7 +25,7 @@ use crate::ssa::ir::{
 use crate::ssa::ssa_gen::Ssa;
 
 use super::{
-    Context, arrays,
+    Context,
     types::{AcirDynamicArray, AcirType, AcirValue},
 };
 
@@ -76,7 +76,7 @@ impl Context<'_> {
                             outputs.len(),
                             "ICE: intrinsic call produced a different number of outputs than result ids"
                         );
-                        self.handle_ssa_call_outputs(result_ids, outputs, dfg)?;
+                        self.handle_ssa_call_outputs(result_ids, outputs)?;
                     }
                     Value::ForeignFunction { .. } => unreachable!(
                         "Frontend should remove any oracle calls from constrained functions"
@@ -126,7 +126,7 @@ impl Context<'_> {
         )?;
 
         let output_values = self.convert_vars_to_values(output_vars, dfg, result_ids);
-        self.handle_ssa_call_outputs(result_ids, output_values, dfg)
+        self.handle_ssa_call_outputs(result_ids, output_values)
     }
 
     fn handle_brillig_function_call(
@@ -180,7 +180,7 @@ impl Context<'_> {
         };
 
         assert_eq!(result_ids.len(), output_values.len(), "Brillig output length mismatch");
-        self.handle_ssa_call_outputs(result_ids, output_values, dfg)
+        self.handle_ssa_call_outputs(result_ids, output_values)
     }
 
     pub(super) fn gen_brillig_parameters(
@@ -238,23 +238,16 @@ impl Context<'_> {
         &mut self,
         result_ids: &[ValueId],
         output_values: Vec<AcirValue>,
-        dfg: &DataFlowGraph,
     ) -> Result<(), RuntimeError> {
         for (result_id, output) in result_ids.iter().zip_eq(output_values) {
-            if let AcirValue::Array(_) = &output {
-                let array_id = *result_id;
-                let block_id = self.block_id(array_id);
-                let array_typ = dfg.type_of_value(array_id);
-                let len = if matches!(*array_typ, Type::Array(_, _)) {
-                    array_typ.flattened_size()
-                } else {
-                    arrays::flattened_value_size(&output)
-                };
-                self.initialize_array(block_id, len, Some(output.clone()))?;
-            }
-            // Do nothing for AcirValue::DynamicArray and AcirValue::Var
-            // A dynamic array returned from a function call should already be initialized
-            // and a single variable does not require any extra initialization.
+            // An `AcirValue::Array` result is held inline, exactly as `make_array` does: its
+            // backing memory block is created lazily by `ensure_array_is_initialized` on the first
+            // memory operation that needs it. Initializing it eagerly here would emit a
+            // `MemoryInit` for a block that is never read/written when the result is only accessed
+            // at constant indices or is entirely unused.
+            //
+            // A returned `AcirValue::DynamicArray` is already backed by an initialized block, and an
+            // `AcirValue::Var` requires no initialization.
             self.ssa_values.insert(*result_id, output);
         }
         Ok(())

@@ -9,7 +9,10 @@ use itertools::Itertools;
 use self::{aes128::solve_aes128_encryption_opcode, hash::solve_poseidon2_permutation_opcode};
 
 use super::{OpcodeNotSolvable, OpcodeResolutionError, insert_value};
-use crate::{BlackBoxFunctionSolver, pwg::input_to_value};
+use crate::{
+    BlackBoxFunctionSolver,
+    pwg::{check_bit_size, input_to_value},
+};
 
 pub(crate) mod aes128;
 pub(crate) mod embedded_curve_ops;
@@ -102,8 +105,10 @@ pub(crate) fn solve<F: AcirField>(
             let mut state = [0; 25];
             for (it, input) in state.iter_mut().zip_eq(inputs.as_ref()) {
                 let witness_assignment = input_to_value(initial_witness, *input)?;
-                let lane = witness_assignment.try_to_u64();
-                *it = lane.unwrap();
+                check_bit_size(witness_assignment, 64)?;
+                *it = witness_assignment
+                    .try_to_u64()
+                    .expect("value was just checked to fit in 64 bits");
             }
             let output_state = keccakf1600(state)?;
             for (output_witness, value) in outputs.iter().zip_eq(output_state) {

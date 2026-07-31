@@ -98,20 +98,16 @@ pub(super) struct AcirDynamicArray {
     /// and `value_types` will be `[u8, u32, Field]`. To know the type of the element at index `i`
     /// we can fetch `value_types[i % value_types.len()]`.
     pub(super) value_types: Vec<NumericType>,
-    /// Identification for the ACIR dynamic array
-    /// inner element type sizes array
-    pub(super) element_type_sizes: Option<BlockId>,
 }
 
 impl Debug for AcirDynamicArray {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(
             f,
-            "id: {}, len: {}, value_types: {:?}, element_type_sizes: {:?}",
+            "id: {}, len: {}, value_types: {:?}",
             self.block_id.as_u32(),
             self.len,
             self.value_types,
-            self.element_type_sizes.map(|block_id| block_id.as_u32())
         )
     }
 }

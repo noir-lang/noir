@@ -1,3 +1,4 @@
+use ark_ff::BigInteger;
 use ark_ff::PrimeField;
 use ark_ff::Zero;
 use msgpack_tagged::MsgpackTagged;
@@ -404,7 +405,9 @@ impl<F: PrimeField> AcirField for FieldElement<F> {
     }
 
     fn modulus() -> BigUint {
-        F::MODULUS.into()
+        // `ark_ff` pins `num-bigint` 0.4, so `F::MODULUS.into()` would yield that crate version's
+        // `BigUint` rather than the one used here. Round-trip through bytes to bridge the two.
+        BigUint::from_bytes_le(&F::MODULUS.to_bytes_le())
     }
 
     /// This is the number of bits required to represent this specific field element

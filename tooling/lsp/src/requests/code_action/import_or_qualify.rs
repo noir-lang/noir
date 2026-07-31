@@ -121,12 +121,11 @@ impl CodeActionFinder<'_> {
 
 #[cfg(test)]
 mod tests {
-    use tokio::test;
 
     use crate::requests::code_action::tests::assert_code_action;
 
     #[test]
-    async fn test_qualify_code_action_for_struct() {
+    fn test_qualify_code_action_for_struct() {
         let title = "Qualify as foo::bar::SomeTypeInBar";
 
         let src = r#"
@@ -149,11 +148,11 @@ mod tests {
         fn foo(x: foo::bar::SomeTypeInBar) {}
         "#;
 
-        assert_code_action(title, src, expected).await;
+        assert_code_action(title, src, expected);
     }
 
     #[test]
-    async fn test_import_code_action_for_struct() {
+    fn test_import_code_action_for_struct() {
         let title = "Import foo::bar::SomeTypeInBar";
 
         let src = r#"mod foo {
@@ -174,11 +173,11 @@ mod foo {
 
 fn foo(x: SomeTypeInBar) {}"#;
 
-        assert_code_action(title, src, expected).await;
+        assert_code_action(title, src, expected);
     }
 
     #[test]
-    async fn test_import_code_action_for_struct_at_beginning_of_name() {
+    fn test_import_code_action_for_struct_at_beginning_of_name() {
         let title = "Import foo::bar::SomeTypeInBar";
 
         let src = r#"mod foo {
@@ -199,11 +198,11 @@ mod foo {
 
 fn foo(x: SomeTypeInBar) {}"#;
 
-        assert_code_action(title, src, expected).await;
+        assert_code_action(title, src, expected);
     }
 
     #[test]
-    async fn test_qualify_code_action_for_module() {
+    fn test_qualify_code_action_for_module() {
         let title = "Qualify as foo::bar::some_module_in_bar";
 
         let src = r#"
@@ -230,11 +229,11 @@ fn foo(x: SomeTypeInBar) {}"#;
         }
         "#;
 
-        assert_code_action(title, src, expected).await;
+        assert_code_action(title, src, expected);
     }
 
     #[test]
-    async fn test_import_code_action_for_module() {
+    fn test_import_code_action_for_module() {
         let title = "Import foo::bar::some_module_in_bar";
 
         let src = r#"mod foo {
@@ -259,11 +258,11 @@ fn main() {
     some_module_in_bar
 }"#;
 
-        assert_code_action(title, src, expected).await;
+        assert_code_action(title, src, expected);
     }
 
     #[test]
-    async fn test_import_code_action_for_struct_inserts_into_existing_use() {
+    fn test_import_code_action_for_struct_inserts_into_existing_use() {
         let title = "Import foo::bar::SomeTypeInBar";
 
         let src = r#"use foo::bar::SomeOtherType;
@@ -286,11 +285,11 @@ mod foo {
 
 fn foo(x: SomeTypeInBar) {}"#;
 
-        assert_code_action(title, src, expected).await;
+        assert_code_action(title, src, expected);
     }
 
     #[test]
-    async fn test_import_code_action_for_struct_does_not_insert_into_existing_use_from_a_different_module()
+    fn test_import_code_action_for_struct_does_not_insert_into_existing_use_from_a_different_module()
      {
         let title = "Import crate::moo::StructTwo";
 
@@ -326,11 +325,11 @@ mod one {
     }
 }"#;
 
-        assert_code_action(title, src, expected).await;
+        assert_code_action(title, src, expected);
     }
 
     #[test]
-    async fn test_import_via_reexport() {
+    fn test_import_via_reexport() {
         let title = "Import aztec::protocol_types::SomeStruct";
 
         let src = r#"mod aztec {
@@ -363,11 +362,11 @@ fn main() {
     SomeStruct
 }"#;
 
-        assert_code_action(title, src, expected).await;
+        assert_code_action(title, src, expected);
     }
 
     #[test]
-    async fn test_qualify_via_reexport() {
+    fn test_qualify_via_reexport() {
         let title = "Qualify as aztec::protocol_types::SomeStruct";
 
         let src = r#"mod aztec {
@@ -398,6 +397,6 @@ fn main() {
     aztec::protocol_types::SomeStruct
 }"#;
 
-        assert_code_action(title, src, expected).await;
+        assert_code_action(title, src, expected);
     }
 }

@@ -648,8 +648,13 @@ impl Elaborator<'_> {
         // Use the caller's module if set, else the module the lookup started in.
         let visibility_module = self.caller_module.unwrap_or(self.module_id());
 
+        // The first segment's visibility is computed with the same module the rest of
+        // the path's visibility is checked against (`visibility_module`). When resolving on behalf
+        // of a caller (e.g. `Expr::resolve` with a foreign function scope), that is the caller's
+        // module, not the module the lookup happens to run in — otherwise a private first segment
+        // that is only locally visible in the foreign scope would be wrongly exempted.
         let first_segment_is_always_visible =
-            first_segment_is_always_visible(&path, self.module_id(), starting_module);
+            first_segment_is_always_visible(&path, visibility_module, starting_module);
 
         // The current module and module ID as we resolve path segments
         let mut current_module_id = starting_module;

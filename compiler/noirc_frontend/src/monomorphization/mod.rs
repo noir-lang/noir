@@ -51,6 +51,7 @@
 use crate::ast::{FunctionKind, ItemVisibility, UnaryOp};
 use crate::hir::comptime::{InterpreterError, bigint_to_field};
 use crate::hir::type_check::NoMatchingImplFoundError;
+use crate::lint::Lint;
 use crate::node_interner::{ExprId, GlobalValue, ImplSearchErrorKind, TraitItemId};
 use crate::recursion::TypeRecursionContext;
 use crate::shared::{ForeignCall, Visibility};
@@ -193,6 +194,30 @@ type HirType = Type;
 type CanonicalBindings = Vec<(TypeVariableId, HirType)>;
 
 const MAX_TYPE_COMPLEXITY: usize = 100_000;
+
+/// Number of field elements needed to represent `typ` as a flattened entry point parameter.
+///
+/// Computed with saturating `u64` arithmetic so that sizes beyond `u32::MAX` are reported as a
+/// clean limit error rather than overflowing: [`ast::Type::entry_point_field_count`] panics on
+/// `u32` overflow. Types that cannot appear as entry point parameters contribute nothing; they
+/// are rejected separately by the entry point validity checks.
+fn entry_point_field_count_saturating(typ: &ast::Type) -> u64 {
+    match typ {
+        ast::Type::Field | ast::Type::Integer(..) | ast::Type::Bool => 1,
+        ast::Type::Array(length, element) => {
+            u64::from(*length).saturating_mul(entry_point_field_count_saturating(element))
+        }
+        ast::Type::String(length) => u64::from(*length),
+        ast::Type::Tuple(fields) => {
+            fields.iter().map(entry_point_field_count_saturating).fold(0, u64::saturating_add)
+        }
+        ast::Type::FmtString(..)
+        | ast::Type::Unit
+        | ast::Type::Vector(_)
+        | ast::Type::Reference(..)
+        | ast::Type::Function(..) => 0,
+    }
+}
 
 /// Starting from the given `main` function, monomorphize the entire program,
 /// replacing all references to type variables and `NamedGenerics` with concrete
@@ -629,6 +654,7 @@ impl<'interner> Monomorphizer<'interner> {
         };
 
         let attributes = self.interner.function_attributes(&f);
+        let allow_constant_return = attributes.has_allow(Lint::ConstantReturn);
         let mut inline_type = InlineType::from(attributes);
         let unconstrained = self.in_unconstrained_function;
         if unconstrained {
@@ -661,6 +687,40 @@ impl<'interner> Monomorphizer<'interner> {
             }
         }
 
+        // Reject entry point parameters whose flattened size exceeds the limit. Enforcing it here
+        // fails fast before data-bus construction and Brillig array allocation, which assume the
+        // flattened size is `u32`-representable. `is_entry_point` is only finalized in
+        // `into_program`, so recompute the same condition here.
+        let is_entry_point =
+            (!self.force_unconstrained && inline_type.is_entry_point()) || id == Program::main_id();
+        if is_entry_point {
+            let max_elements = ast::MAX_ELEMENTS as u64;
+            for (pattern, typ, _visibility) in &func_parameters.0 {
+                let location = pattern.location();
+                let num_elements =
+                    entry_point_field_count_saturating(&Self::convert_type(typ, location)?);
+                if num_elements > max_elements {
+                    return Err(MonomorphizationError::InputLimitExceeded {
+                        num_elements,
+                        max_elements,
+                        location,
+                    });
+                }
+            }
+
+            let num_elements = entry_point_field_count_saturating(&Self::convert_type(
+                return_target_type,
+                return_type_location,
+            )?);
+            if num_elements > max_elements {
+                return Err(MonomorphizationError::ReturnLimitExceeded {
+                    num_elements,
+                    max_elements,
+                    location: return_type_location,
+                });
+            }
+        }
+
         // If `convert_type` fails here it is most likely because of generics at the
         // call site after instantiating this function's type. So show the error there
         // instead of at the function definition.
@@ -679,6 +739,7 @@ impl<'interner> Monomorphizer<'interner> {
             unconstrained,
             inline_type,
             is_entry_point: false,
+            allow_constant_return,
         };
 
         self.push_function(id, function);
@@ -2700,6 +2761,7 @@ impl<'interner> Monomorphizer<'interner> {
             unconstrained: self.in_unconstrained_function,
             inline_type: InlineType::default(),
             is_entry_point: false,
+            allow_constant_return: false,
         };
         self.push_function(id, function);
 
@@ -2825,6 +2887,7 @@ impl<'interner> Monomorphizer<'interner> {
             unconstrained: self.in_unconstrained_function,
             inline_type: InlineType::default(),
             is_entry_point: false,
+            allow_constant_return: false,
         };
         self.push_function(constrained_id, lambda_fn.clone());
 
@@ -3303,8 +3366,8 @@ fn resolve_trait_item_impl(
                 &trait_generics.named,
             ) {
                 Ok((TraitImplKind::Normal(impl_id), instantiation_bindings)) => {
-                    // The extra bindings come from impl lookup, similar to
-                    // what's done in `verify_trait_constraint` in the frontend.
+                    // The extra bindings come from impl lookup, similar to what's done when
+                    // solving trait constraints in the frontend (see `check_trait_constraints`).
                     record_impl_instantiation_bindings(
                         interner,
                         method_id,

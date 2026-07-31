@@ -108,6 +108,9 @@ impl Column {
 #[derive(Clone)]
 pub(super) struct Row {
     columns: Vec<Column>,
+    /// Guard expression for a guarded match arm (`match arm if <cond>`). Guarded arms are not yet
+    /// parseable, so this is currently always `None`; the downstream `HirMatch::Guard` lowering is
+    /// already wired to handle it once guards are supported.
     guard: Option<RowBody>,
     body: RowBody,
     original_body: RowBody,
@@ -220,7 +223,9 @@ impl Elaborator<'_> {
         for (i, variant) in enum_def.variants.iter().enumerate() {
             let parameters = variant.item.parameters.as_ref();
             let types = parameters.map(|params| {
-                vecmap(params, |typ| self.resolve_type(typ.clone(), wildcard_allowed))
+                // `use_type` so a struct mentioned in a variant payload counts as constructed,
+                // for the same reason as struct fields (see `resolve_struct_fields`).
+                vecmap(params, |typ| self.use_type(typ.clone(), wildcard_allowed))
             });
             let name = variant.item.name.clone();
 

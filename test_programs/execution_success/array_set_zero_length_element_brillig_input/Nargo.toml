@@ -1,0 +1,6 @@
+[package]
+name = "array_set_zero_length_element_brillig_input"
+type = "bin"
+authors = [""]
+
+[dependencies]
