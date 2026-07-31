@@ -21,7 +21,9 @@ use crate::{
         traits::{ResolvedTraitBound, TraitConstraint},
     },
     modules::{get_parent_module, module_def_id_is_visible, module_def_id_to_reference_id},
-    node_interner::{FuncId, GlobalId, GlobalValue, NodeInterner, ReferenceId, TypeAliasId, TypeId},
+    node_interner::{
+        FuncId, GlobalId, GlobalValue, NodeInterner, ReferenceId, TypeAliasId, TypeId,
+    },
     shared::Visibility,
     token::{FunctionAttributeKind, LocatedToken, SecondaryAttribute, SecondaryAttributeKind},
 };
@@ -423,6 +425,12 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
         self.push_str("type ");
         self.push_str(&type_alias.name.to_string());
         self.show_generics(&type_alias.generics);
+        // A numeric type alias (`type Double<let N: u32>: u32 = N * 2;`) must spell out its
+        // numeric type, otherwise the right-hand side is rejected as a type expression.
+        if let Kind::Numeric(numeric_type) = type_alias.typ.kind() {
+            self.push_str(": ");
+            self.show_type(&numeric_type);
+        }
         self.push_str(" = ");
         self.show_type(&type_alias.typ);
         self.push(';');

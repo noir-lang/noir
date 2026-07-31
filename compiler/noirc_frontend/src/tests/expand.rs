@@ -787,3 +787,24 @@ fn expands_associated_constant_reference_in_impl_method() {
     }
     ");
 }
+
+#[test]
+fn expands_numeric_type_alias_with_its_numeric_type() {
+    let src = r#"
+    type Double<let N: u32>: u32 = N * 2;
+
+    fn main() {
+        let arr: [Field; Double::<2>] = [0; 4];
+        let _ = arr;
+    }
+    "#;
+    let expanded = assert_no_errors_and_to_string(src);
+    insta::assert_snapshot!(expanded, @r"
+    type Double<let N: u32>: u32 = N * 2;
+
+    fn main() {
+        let arr: [Field; 2 * 2] = [0_Field; 4];
+        let _: [Field; 2 * 2] = arr;
+    }
+    ");
+}
