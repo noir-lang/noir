@@ -214,8 +214,6 @@ const IGNORED_MINIMAL_EXECUTION_TESTS: [&str; 18] = [
 
 /// These tests are ignored because making them work involves a more complex test code that
 /// might not be worth it.
-/// Others are ignored because of existing bugs in `nargo expand`.
-/// As the bugs are fixed these tests should be removed from this list.
 const IGNORED_NARGO_EXPAND_EXECUTION_TESTS: [&str; 5] = [
     // There's nothing special about this program but making it work with a custom entry would involve
     // having to parse the Nargo.toml file, etc., which is not worth it
