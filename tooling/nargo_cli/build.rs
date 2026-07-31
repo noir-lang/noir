@@ -250,7 +250,7 @@ const TESTS_WITHOUT_STDOUT_CHECK: [&str; 0] = [];
 /// These tests are ignored because of existing bugs in `nargo expand`.
 /// As the bugs are fixed these tests should be removed from this list.
 /// (some are ignored on purpose for the same reason as `IGNORED_NARGO_EXPAND_EXECUTION_TESTS`)
-const IGNORED_NARGO_EXPAND_COMPILE_SUCCESS_EMPTY_TESTS: [&str; 9] = [
+const IGNORED_NARGO_EXPAND_COMPILE_SUCCESS_EMPTY_TESTS: [&str; 8] = [
     // A generated associated constant resolves to `<[T; N] as Ser>::N`, which `nargo expand`
     // prints as `<(resolved type) as Ser>::N` — not valid syntax to recompile.
     "regression_10747_associated_constant",
@@ -259,8 +259,6 @@ const IGNORED_NARGO_EXPAND_COMPILE_SUCCESS_EMPTY_TESTS: [&str; 9] = [
     // this one works, but copying its `Nargo.toml` file to somewhere else doesn't work
     // because it references another project by a relative path
     "reexports",
-    // bug
-    "trait_method_mut_self",
     // There's no "src/main.nr" here so it's trickier to make this work
     "workspace_reexport_bug",
     // bug

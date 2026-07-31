@@ -1,7 +1,7 @@
 //! Tests for `nargo expand` output (via the HIR printer), focusing on faithfully
 //! reconstructing impls: their generics and where clauses.
 
-use crate::tests::assert_no_errors_and_to_string;
+use crate::tests::{assert_no_errors_and_to_string, assert_no_errors_and_to_string_using_features};
 
 #[test]
 fn expands_inherent_impl_with_where_clause() {
@@ -611,6 +611,57 @@ fn expands_self_static_trait_method_call_in_default_method() {
 
     fn main() {
         let _: Field = <Foo as ATrait>::static_method();
+    }
+    ");
+}
+
+#[test]
+fn expands_impl_trait_parameter_without_where_clause() {
+    let src = r#"
+    trait SomeTrait {
+        fn get_value(self) -> Field;
+    }
+
+    struct AType {}
+
+    impl SomeTrait for AType {
+        fn get_value(self) -> Field {
+            1
+        }
+    }
+
+    fn take(x: impl SomeTrait) -> Field {
+        x.get_value()
+    }
+
+    fn main() {
+        let _ = take(AType {});
+    }
+    "#;
+    let expanded = assert_no_errors_and_to_string_using_features(
+        src,
+        &[crate::elaborator::UnstableFeature::TraitAsType],
+    );
+    insta::assert_snapshot!(expanded, @r"
+    trait SomeTrait {
+        fn get_value(self) -> Field;
+    }
+
+    struct AType {
+    }
+
+    impl SomeTrait for AType {
+        fn get_value(self) -> Field {
+            1_Field
+        }
+    }
+
+    fn take(x: impl SomeTrait) -> Field {
+        x.get_value()
+    }
+
+    fn main() {
+        let _: Field = take(AType { });
     }
     ");
 }

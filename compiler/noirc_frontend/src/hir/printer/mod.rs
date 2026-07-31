@@ -713,7 +713,20 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
             .cloned()
             .collect::<Vec<_>>();
 
-        self.show_where_clause(&func_trait_constraints);
+        // An `impl Trait` parameter desugars to a hidden generic named `impl {Trait}` with a
+        // trait constraint (see `desugar_impl_trait_arg`). That constraint is implied by the
+        // parameter type itself and its synthetic name is not valid in a where clause, so it
+        // must not be printed.
+        let shown_trait_constraints = func_trait_constraints
+            .iter()
+            .filter(|constraint| {
+                !matches!(&constraint.typ,
+                    Type::NamedGeneric(generic) if generic.name.starts_with("impl "))
+            })
+            .cloned()
+            .collect::<Vec<_>>();
+
+        self.show_where_clause(&shown_trait_constraints);
 
         let previous_trait_constraints_length = self.trait_constraints.len();
         self.trait_constraints.extend(func_trait_constraints);
