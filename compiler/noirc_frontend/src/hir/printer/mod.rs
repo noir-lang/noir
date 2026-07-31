@@ -676,12 +676,14 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
             Value::Unit
             | Value::Bool(_)
             | Value::Integer(_)
-            | Value::String(_)
-            | Value::CtString(_)
             | Value::Function(..)
             | Value::Closure(_)
             | Value::Quoted(_)
             | Value::Zeroed(_) => true,
+
+            // A string that isn't valid UTF-8 can only be printed lossily, which changes both
+            // its content and its length.
+            Value::String(bytes) | Value::CtString(bytes) => std::str::from_utf8(bytes).is_ok(),
 
             Value::FormatString(fragments, ..) => fragments.iter().all(|fragment| match fragment {
                 FormatStringFragment::String(_) => true,
