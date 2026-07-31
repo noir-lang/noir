@@ -1,0 +1,25 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+pub trait Trait {
+    let N: u32;
+
+    fn foo() -> u32;
+}
+
+struct Foo<let A: u32, let B: u32> {}
+
+impl<let A: u32, let B: u32> Trait for Foo<A, B> {
+    let N: u32 = A + B;
+
+    fn foo() -> u32 {
+        Self::N
+    }
+}
+
+fn main() {
+    let x: u32 = Foo::<10, 20>::foo();
+    assert(x == 30_u32);
+    ()
+}

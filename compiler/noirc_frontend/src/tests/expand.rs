@@ -739,3 +739,51 @@ fn expands_global_whose_value_has_private_fields_as_its_initializer_expression()
     }
     ");
 }
+
+#[test]
+fn expands_associated_constant_reference_in_impl_method() {
+    let src = r#"
+    trait Trait {
+        let N: u32;
+
+        fn foo() -> u32;
+    }
+
+    struct Foo {}
+
+    impl Trait for Foo {
+        let N: u32 = 30;
+
+        fn foo() -> u32 {
+            Self::N
+        }
+    }
+
+    fn main() {
+        let _ = Foo::foo();
+    }
+    "#;
+    let expanded = assert_no_errors_and_to_string(src);
+    insta::assert_snapshot!(expanded, @r"
+    trait Trait {
+        let N: u32;
+
+        fn foo() -> u32;
+    }
+
+    struct Foo {
+    }
+
+    impl Trait for Foo {
+        let N: u32 = 30;
+
+        fn foo() -> u32 {
+            Self::N
+        }
+    }
+
+    fn main() {
+        let _: u32 = Foo::foo();
+    }
+    ");
+}

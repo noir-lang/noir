@@ -958,9 +958,31 @@ impl ItemPrinter<'_, '_> {
                     use_import,
                 );
             }
-            DefinitionKind::Local(..)
-            | DefinitionKind::NumericGeneric(..)
-            | DefinitionKind::AssociatedConstant(..) => {
+            DefinitionKind::AssociatedConstant(trait_impl_id, ref name) => {
+                // The bare name only resolves inside the trait impl that defines the constant,
+                // so qualify it: `Self::N` within that impl, `<Type as Trait>::N` elsewhere.
+                let trait_impl = self.interner.get_trait_implementation(trait_impl_id);
+                let trait_impl = trait_impl.borrow();
+                if self.self_type.as_ref() == Some(&trait_impl.typ) {
+                    self.push_str("Self::");
+                } else {
+                    self.push('<');
+                    self.show_type(&trait_impl.typ);
+                    self.push_str(" as ");
+                    let trait_ = self.interner.get_trait(trait_impl.trait_id);
+                    self.show_reference_to_module_def_id(
+                        ModuleDefId::TraitId(trait_impl.trait_id),
+                        trait_.visibility,
+                        true,
+                    );
+                    let trait_generics = self.interner.get_trait_generics_for_impl(trait_impl_id);
+                    let use_colons = false;
+                    self.show_generic_types(&trait_generics.ordered, use_colons);
+                    self.push_str(">::");
+                }
+                self.push_str(name);
+            }
+            DefinitionKind::Local(..) | DefinitionKind::NumericGeneric(..) => {
                 let name = self.interner.definition_name(ident.id);
 
                 // The compiler uses '$' for some internal identifiers.
