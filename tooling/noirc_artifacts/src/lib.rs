@@ -9,6 +9,7 @@
 
 use serde::{Deserializer, Serializer, de::Visitor};
 
+pub mod annotations;
 pub mod contract;
 pub mod debug;
 mod debug_vars;
