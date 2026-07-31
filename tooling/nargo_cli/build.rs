@@ -247,9 +247,9 @@ const IGNORED_NARGO_EXPAND_EXECUTION_TESTS: [&str; 12] = [
 /// Tests for which we don't check that stdout matches the expected output.
 const TESTS_WITHOUT_STDOUT_CHECK: [&str; 0] = [];
 
-/// These tests are ignored because of existing bugs in `nargo expand`.
-/// As the bugs are fixed these tests should be removed from this list.
-/// (some are ignored on purpose for the same reason as `IGNORED_NARGO_EXPAND_EXECUTION_TESTS`)
+/// These tests are ignored on purpose for the same reason as
+/// `IGNORED_NARGO_EXPAND_EXECUTION_TESTS`: making them work involves more complex test code
+/// that might not be worth it.
 const IGNORED_NARGO_EXPAND_COMPILE_SUCCESS_EMPTY_TESTS: [&str; 5] = [
     // There's no "src/main.nr" here so it's trickier to make this work
     "overlapping_dep_and_mod",
@@ -268,24 +268,7 @@ const IGNORED_NARGO_EXPAND_COMPILE_SUCCESS_EMPTY_TESTS: [&str; 5] = [
 
 /// These tests are ignored because of existing bugs in `nargo expand`.
 /// As the bugs are fixed these tests should be removed from this list.
-const IGNORED_NARGO_EXPAND_COMPILE_SUCCESS_NO_BUG_TESTS: [&str; 15] = [
-    "noirc_frontend_tests_check_trait_as_type_as_fn_parameter",
-    "noirc_frontend_tests_check_trait_as_type_as_two_fn_parameters",
-    "noirc_frontend_tests_enums_match_on_empty_enum",
-    "noirc_frontend_tests_traits_trait_alias_polymorphic_inheritance",
-    "noirc_frontend_tests_traits_trait_alias_single_member",
-    "noirc_frontend_tests_traits_trait_alias_two_members",
-    "noirc_frontend_tests_traits_trait_impl_with_where_clause_with_trait_with_associated_numeric",
-    "noirc_frontend_tests_traits_accesses_associated_type_inside_trait_impl_using_self",
-    "noirc_frontend_tests_traits_accesses_associated_type_inside_trait_using_self",
-    "noirc_frontend_tests_u32_globals_as_sizes_in_types",
-    // This creates a struct at comptime which, expanded, gives a visibility error
-    "noirc_frontend_tests_visibility_visibility_bug_inside_comptime",
-    "noirc_frontend_tests_aliases_identity_numeric_type_alias_works",
-    "noirc_frontend_tests_aliases_type_alias_to_numeric_as_generic",
-    "noirc_frontend_tests_aliases_type_alias_to_numeric_generic",
-    "noirc_frontend_tests_traits_trait_bound_on_implementing_type",
-];
+const IGNORED_NARGO_EXPAND_COMPILE_SUCCESS_NO_BUG_TESTS: [&str; 0] = [];
 
 const IGNORED_NARGO_EXPAND_COMPILE_SUCCESS_WITH_BUG_TESTS: [&str; 0] = [];
 
