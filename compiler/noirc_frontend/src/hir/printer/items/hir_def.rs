@@ -3,7 +3,7 @@ use std::borrow::Cow;
 use itertools::Itertools;
 
 use crate::{
-    NamedGeneric, Type, TypeBindings,
+    NamedGeneric, Type, TypeBinding, TypeBindings,
     ast::{ItemVisibility, UnaryOp},
     hir::def_map::ModuleDefId,
     hir_def::{
@@ -982,7 +982,21 @@ impl ItemPrinter<'_, '_> {
                 }
                 self.push_str(name);
             }
-            DefinitionKind::Local(..) | DefinitionKind::NumericGeneric(..) => {
+            DefinitionKind::NumericGeneric(ref type_var, _) => {
+                // When a numeric type alias's parameter is used as a value (`AliasN::<1>`),
+                // the definition's type variable is bound to the resolved value and the bare
+                // name doesn't resolve at the use site (or worse, resolves to something else
+                // with the same name). Print the value instead.
+                if let TypeBinding::Bound(binding) = &*type_var.borrow()
+                    && let Type::Constant(constant) = binding.follow_bindings()
+                {
+                    self.push_str(&constant.to_string());
+                    return;
+                }
+                let name = self.interner.definition_name(ident.id);
+                self.push_str(name);
+            }
+            DefinitionKind::Local(..) => {
                 let name = self.interner.definition_name(ident.id);
 
                 // The compiler uses '$' for some internal identifiers.
