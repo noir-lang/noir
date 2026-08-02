@@ -2593,24 +2593,18 @@ impl Elaborator<'_> {
         match to {
             Type::Integer(sign, bits) => Type::Integer(sign, bits),
             Type::FieldElement => {
-                if from_follow_bindings.is_signed() {
-                    self.push_err(TypeCheckError::UnsupportedFieldCast { location });
-                }
+                // Deferred to the end of the function so the source type's bindings have
+                // settled. If `from` is still a polymorphic type variable at this point it
+                // may later be constrained to a signed integer, which only an end-of-function
+                // check can detect.
+                self.push_signed_to_field_cast(from.clone(), location);
 
                 Type::FieldElement
             }
             Type::Bool => {
-                let from_is_numeric = match from_follow_bindings {
-                    Type::Integer(..) | Type::FieldElement => true,
-                    Type::TypeVariable(ref var) => var.is_integer() || var.is_integer_or_field(),
-                    _ => false,
-                };
-                if from_is_numeric {
-                    self.push_err(TypeCheckError::CannotCastNumericToBool {
-                        typ: from_follow_bindings,
-                        location,
-                    });
-                }
+                // Deferred for the same reason as the FieldElement branch above: `from` may
+                // still be polymorphic here and only later resolve to a numeric type.
+                self.push_numeric_to_bool_cast(from.clone(), location);
 
                 Type::Bool
             }
