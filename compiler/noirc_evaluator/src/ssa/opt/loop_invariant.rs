@@ -2906,7 +2906,6 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "SSA pass has resulted in a different execution result")]
     fn hoisting_vector_mutator_out_of_loop_drops_refcount_guard() {
         // Reproduction for the AST fuzzer `pass_vs_prev` failure on seed 0xb6bc8e1f00100000,
         // bisected to the Loop Invariant Code Motion pass.
@@ -2914,14 +2913,13 @@ mod tests {
         // Brillig arrays are copy-on-write: `vector_push_front` writes through its input vector in
         // place once the operand's reference count is 1. Inside the loop the operand `v1` is
         // protected by the `inc_rc v1` immediately before the call, because `v1` is still read by
-        // the `array_get` in `b3`. `vector_push_front` is `PureWithPredicate`, so LICM hoists the
-        // call into the pre-header — but the `inc_rc` guard is a separate instruction that is never
-        // hoisted. Separated from its guard, the hoisted push mutates `v1` in place and corrupts the
-        // value `b3` reads, so the pass changes the program's result.
+        // the `array_get` in `b3`. The `inc_rc` guard is never hoisted, so the call must not be
+        // hoisted either: separated from its guard, the hoisted push would mutate `v1` in place
+        // and corrupt the value `b3` reads. `vector_push_front` is `PureWithPredicate` exactly so
+        // that LICM leaves it in the loop body, behind the guard.
         //
         // `assert_pass_does_not_affect_execution` interprets before and after LICM and panics when
-        // they differ, which they do on `master`. Once LICM re-establishes the `inc_rc` on hoisted
-        // vector-mutator operands the results match and the `#[should_panic]` should be removed.
+        // the results differ.
         let src = r#"
         brillig(inline) impure fn main f0 {
           b0(v0: u1):

@@ -265,13 +265,38 @@ impl Intrinsic {
             | Intrinsic::VectorInsert
             | Intrinsic::VectorPushBack => Purity::PureWithPredicate,
 
+            // Unlike the vector operations above, `vector_push_front` needs no
+            // non-emptiness assertion and its ACIR lowering does not read the
+            // side-effects variable. It still must not be fully `Pure`: in Brillig it
+            // may write through its vector argument in place when the argument's
+            // runtime reference count is 1, so a pass that moves `Pure` calls freely
+            // (e.g. loop-invariant code motion) could separate it from the `inc_rc`
+            // that makes the mutation unobservable, or execute it on a path where the
+            // source program never runs it. The same applies to any Brillig function
+            // wrapping it, which inherits this purity through `purity_analysis`.
+            Intrinsic::VectorPushFront => Purity::PureWithPredicate,
+
             Intrinsic::AssertConstant
             | Intrinsic::StaticAssert
             | Intrinsic::ApplyRangeConstraint
             | Intrinsic::AsWitness => Purity::PureWithPredicate,
 
-            _ if self.has_side_effects() => Purity::Impure,
-            _ => Purity::Pure,
+            // Reference counts are runtime state stored next to the array contents:
+            // reading one is ordering-dependent on the rc traffic around it, so these
+            // calls cannot be moved or deduplicated.
+            Intrinsic::ArrayRefCount | Intrinsic::VectorRefCount => Purity::Impure,
+
+            // Deliberately opaque to the optimizer.
+            Intrinsic::Hint(Hint::BlackBox) => Purity::Impure,
+
+            Intrinsic::ArrayLen
+            | Intrinsic::ArrayAsStrUnchecked
+            | Intrinsic::AsVector
+            | Intrinsic::StrAsBytes
+            | Intrinsic::IsUnconstrained
+            | Intrinsic::DerivePedersenGenerators
+            | Intrinsic::FieldLessThan
+            | Intrinsic::BlackBox(_) => Purity::Pure,
         }
     }
 
