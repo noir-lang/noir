@@ -2906,6 +2906,51 @@ mod tests {
     }
 
     #[test]
+    #[should_panic(expected = "SSA pass has resulted in a different execution result")]
+    fn hoisting_vector_mutator_out_of_loop_drops_refcount_guard() {
+        // Reproduction for the AST fuzzer `pass_vs_prev` failure on seed 0xb6bc8e1f00100000,
+        // bisected to the Loop Invariant Code Motion pass.
+        //
+        // Brillig arrays are copy-on-write: `vector_push_front` writes through its input vector in
+        // place once the operand's reference count is 1. Inside the loop the operand `v1` is
+        // protected by the `inc_rc v1` immediately before the call, because `v1` is still read by
+        // the `array_get` in `b3`. `vector_push_front` is `PureWithPredicate`, so LICM hoists the
+        // call into the pre-header — but the `inc_rc` guard is a separate instruction that is never
+        // hoisted. Separated from its guard, the hoisted push mutates `v1` in place and corrupts the
+        // value `b3` reads, so the pass changes the program's result.
+        //
+        // `assert_pass_does_not_affect_execution` interprets before and after LICM and panics when
+        // they differ, which they do on `master`. Once LICM re-establishes the `inc_rc` on hoisted
+        // vector-mutator operands the results match and the `#[should_panic]` should be removed.
+        let src = r#"
+        brillig(inline) impure fn main f0 {
+          b0(v0: u1):
+            v1 = make_array [v0, u1 1] : [u1]
+            v2 = call f1(u32 2, v1) -> u1
+            return v2
+        }
+        brillig(inline) impure fn foo f1 {
+          b0(v0: u32, v1: [u1]):
+            jmp b1(u32 0)
+          b1(v2: u32):
+            v3 = lt v2, u32 2
+            jmpif v3 then: b2(), else: b3()
+          b2():
+            inc_rc v1
+            v4, v5 = call vector_push_front(v0, v1, u1 0) -> (u32, [u1])
+            v6 = unchecked_add v2, u32 1
+            jmp b1(v6)
+          b3():
+            v7 = array_get v1, index u32 0 -> u1
+            return v7
+        }
+        "#;
+        let ssa = Ssa::from_str(src).unwrap();
+        let input = vec![crate::ssa::interpreter::value::Value::bool(true)];
+        let _ = assert_pass_does_not_affect_execution(ssa, input, Ssa::loop_invariant_code_motion);
+    }
+
+    #[test]
     fn inserts_inc_rc_for_hoisted_array_set() {
         // The SSA below has been captured during the pre-processing of functions in the following:
 
