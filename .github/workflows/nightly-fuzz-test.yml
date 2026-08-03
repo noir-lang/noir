@@ -81,7 +81,7 @@ jobs:
           mode: public
           target-ref: origin/${{ github.ref_name }}
           link: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          slack-bot-token: ${{ secrets.SLACK_BOT_TOKEN }}
+          slack-bot-token: ${{ secrets.CLAUDEBOX_SLACK_BOT_TOKEN }}
           slack-channel: ${{ secrets.CLAUDEBOX_SLACK_CHANNEL }}
           slack-alert: >-
             :rotating_light: <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|Nightly compiler fuzzing>
