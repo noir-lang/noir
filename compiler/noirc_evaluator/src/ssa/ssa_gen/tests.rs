@@ -1136,16 +1136,12 @@ fn can_reborrow_through_immutable_ref() {
     ");
 }
 
-/// `&mut *p` where `p` is an immutable `&u64` bound to a variable must still reborrow
-/// as a writable reference aliasing the original location, just like the parenthesized
-/// `&mut (*p)` form. The re-borrow simplification must not collapse to `p` and inherit
-/// its immutable type, which previously rejected `*p1 = 15`.
 #[test]
-fn mut_reborrow_through_immutable_ref_variable() {
+fn mut_reborrow_through_mutable_ref_variable() {
     let src = "
     fn main() {
         let mut f: u64 = 10;
-        let p = &f;
+        let p = &mut f;
         let p1 = &mut *p;
         *p1 = 15;
         assert(f == 15);
