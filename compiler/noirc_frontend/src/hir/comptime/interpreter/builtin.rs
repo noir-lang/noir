@@ -941,11 +941,7 @@ fn vector_pop_front(
             let element = element.move_struct();
             Ok(Value::Tuple(vec![Shared::new(element), Shared::new(Value::Vector(values, typ))]))
         }
-        None => failing_constraint(
-            "Index out of bounds: vector_pop_front called on empty vector",
-            location,
-            call_stack,
-        ),
+        None => failing_constraint("Attempt to pop from an empty vector", location, call_stack),
     }
 }
 
@@ -965,11 +961,7 @@ fn vector_pop_back(
             let element = element.move_struct();
             Ok(Value::Tuple(vec![Shared::new(Value::Vector(values, typ)), Shared::new(element)]))
         }
-        None => failing_constraint(
-            "Index out of bounds: vector_pop_back called on empty vector",
-            location,
-            call_stack,
-        ),
+        None => failing_constraint("Attempt to pop from an empty vector", location, call_stack),
     }
 }
 
