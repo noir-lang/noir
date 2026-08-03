@@ -1014,15 +1014,18 @@ impl ItemPrinter<'_, '_> {
                 }
                 self.push_str(name);
             }
-            DefinitionKind::NumericGeneric(ref type_var, _) => {
+            DefinitionKind::NumericGeneric(ref type_var, ref numeric_type) => {
                 // When a numeric type alias's parameter is used as a value (`AliasN::<1>`),
                 // the definition's type variable is bound to the resolved value and the bare
                 // name doesn't resolve at the use site (or worse, resolves to something else
-                // with the same name). Print the value instead.
+                // with the same name). Print the value instead, suffixed with its numeric
+                // type so it can't be inferred as a different one.
                 if let TypeBinding::Bound(binding) = &*type_var.borrow()
                     && let Type::Constant(constant) = binding.follow_bindings()
                 {
                     self.push_str(&constant.to_string());
+                    self.push('_');
+                    self.show_type(numeric_type);
                     return;
                 }
                 let name = self.interner.definition_name(ident.id);

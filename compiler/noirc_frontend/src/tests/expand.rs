@@ -829,7 +829,7 @@ fn expands_numeric_type_alias_used_as_value_with_turbofish() {
     global N: u32 = 100;
 
     fn main() {
-        let a: u32 = 1;
+        let a: u32 = 1_u32;
         assert(a == 1_u32);
         assert(N == 100_u32);
     }

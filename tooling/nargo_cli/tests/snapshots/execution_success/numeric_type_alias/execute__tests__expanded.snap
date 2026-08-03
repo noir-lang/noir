@@ -31,10 +31,10 @@ fn main(x: Field) {
     assert(three == 3_u32);
     let arr2: [Field; 2] = [0_Field; 2];
     assert(arr2.len() == 2_u32);
-    let a: u32 = 1;
+    let a: u32 = 1_u32;
     assert(a == 1_u32);
     assert(N == 100_u32);
-    let b: u32 = 5;
+    let b: u32 = 5_u32;
     assert(b == 5_u32);
     let mut m: Matrix<3, 4> = new_matrix::<3, 4>();
     m.elements[(3_u32 * 2_u32) + 3_u32] = 10_Field;
