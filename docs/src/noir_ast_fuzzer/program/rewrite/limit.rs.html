@@ -171,363 +171,364 @@
 <a href=#171 id=171 data-nosnippet>171</a>            limit_id,
 <a href=#172 id=172 data-nosnippet>172</a>            <span class="bool-val">true</span>,
 <a href=#173 id=173 data-nosnippet>173</a>            LIMIT_NAME.to_string(),
-<a href=#174 id=174 data-nosnippet>174</a>            expr::u32_literal(<span class="self">self</span>.config.max_recursive_calls <span class="kw">as </span>u32),
-<a href=#175 id=175 data-nosnippet>175</a>        );
-<a href=#176 id=176 data-nosnippet>176</a>        expr::prepend(<span class="kw-2">&amp;mut </span><span class="self">self</span>.func.body, init_limit);
-<a href=#177 id=177 data-nosnippet>177</a>    }
-<a href=#178 id=178 data-nosnippet>178</a>
-<a href=#179 id=179 data-nosnippet>179</a>    <span class="doccomment">/// In non-main we look at the limit and return a random value if it's zero,
-<a href=#180 id=180 data-nosnippet>180</a>    /// otherwise decrease it by one and continue with the original body.
-<a href=#181 id=181 data-nosnippet>181</a>    </span><span class="kw">fn </span>modify_body_when_recursive(
-<a href=#182 id=182 data-nosnippet>182</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-<a href=#183 id=183 data-nosnippet>183</a>        u: <span class="kw-2">&amp;mut </span>Unstructured,
-<a href=#184 id=184 data-nosnippet>184</a>        limit_id: LocalId,
-<a href=#185 id=185 data-nosnippet>185</a>    ) -&gt; arbitrary::Result&lt;()&gt; {
-<a href=#186 id=186 data-nosnippet>186</a>        <span class="kw">let </span>limit_var = VariableId::Local(limit_id);
-<a href=#187 id=187 data-nosnippet>187</a>
-<a href=#188 id=188 data-nosnippet>188</a>        <span class="kw">let </span>limit_type = Rc::new(types::ref_mut(types::U32));
-<a href=#189 id=189 data-nosnippet>189</a>        <span class="self">self</span>.func.parameters.push((
-<a href=#190 id=190 data-nosnippet>190</a>            limit_id,
-<a href=#191 id=191 data-nosnippet>191</a>            <span class="bool-val">false</span>,
-<a href=#192 id=192 data-nosnippet>192</a>            LIMIT_NAME.to_string(),
-<a href=#193 id=193 data-nosnippet>193</a>            limit_type.clone(),
-<a href=#194 id=194 data-nosnippet>194</a>            Visibility::Private,
-<a href=#195 id=195 data-nosnippet>195</a>        ));
-<a href=#196 id=196 data-nosnippet>196</a>
-<a href=#197 id=197 data-nosnippet>197</a>        <span class="comment">// Generate a random value to return.
-<a href=#198 id=198 data-nosnippet>198</a>        </span><span class="kw">let </span>default_return = expr::gen_literal(u, <span class="kw-2">&amp;</span><span class="self">self</span>.func.return_type, <span class="self">self</span>.config)<span class="question-mark">?</span>;
-<a href=#199 id=199 data-nosnippet>199</a>
-<a href=#200 id=200 data-nosnippet>200</a>        <span class="kw">let </span>limit_ident = expr::ident_inner(
-<a href=#201 id=201 data-nosnippet>201</a>            limit_var,
-<a href=#202 id=202 data-nosnippet>202</a>            <span class="self">self</span>.next_ident_id(),
-<a href=#203 id=203 data-nosnippet>203</a>            <span class="bool-val">false</span>,
-<a href=#204 id=204 data-nosnippet>204</a>            LIMIT_NAME.to_string(),
-<a href=#205 id=205 data-nosnippet>205</a>            limit_type,
-<a href=#206 id=206 data-nosnippet>206</a>        );
-<a href=#207 id=207 data-nosnippet>207</a>        <span class="kw">let </span>limit_expr = Expression::Ident(limit_ident.clone());
-<a href=#208 id=208 data-nosnippet>208</a>
-<a href=#209 id=209 data-nosnippet>209</a>        expr::replace(<span class="kw-2">&amp;mut </span><span class="self">self</span>.func.body, |<span class="kw-2">mut </span>body| {
-<a href=#210 id=210 data-nosnippet>210</a>            expr::prepend(
-<a href=#211 id=211 data-nosnippet>211</a>                <span class="kw-2">&amp;mut </span>body,
-<a href=#212 id=212 data-nosnippet>212</a>                expr::assign_ref(
-<a href=#213 id=213 data-nosnippet>213</a>                    limit_ident,
-<a href=#214 id=214 data-nosnippet>214</a>                    expr::binary(
-<a href=#215 id=215 data-nosnippet>215</a>                        expr::deref(limit_expr.clone(), types::U32),
-<a href=#216 id=216 data-nosnippet>216</a>                        BinaryOpKind::Subtract,
-<a href=#217 id=217 data-nosnippet>217</a>                        expr::u32_literal(<span class="number">1</span>),
-<a href=#218 id=218 data-nosnippet>218</a>                    ),
-<a href=#219 id=219 data-nosnippet>219</a>                ),
-<a href=#220 id=220 data-nosnippet>220</a>            );
-<a href=#221 id=221 data-nosnippet>221</a>            expr::if_else(
-<a href=#222 id=222 data-nosnippet>222</a>                expr::equal(expr::deref(limit_expr.clone(), types::U32), expr::u32_literal(<span class="number">0</span>)),
-<a href=#223 id=223 data-nosnippet>223</a>                default_return,
-<a href=#224 id=224 data-nosnippet>224</a>                body,
-<a href=#225 id=225 data-nosnippet>225</a>                <span class="self">self</span>.func.return_type.clone(),
-<a href=#226 id=226 data-nosnippet>226</a>            )
-<a href=#227 id=227 data-nosnippet>227</a>        });
-<a href=#228 id=228 data-nosnippet>228</a>
-<a href=#229 id=229 data-nosnippet>229</a>        <span class="prelude-val">Ok</span>(())
-<a href=#230 id=230 data-nosnippet>230</a>    }
-<a href=#231 id=231 data-nosnippet>231</a>
-<a href=#232 id=232 data-nosnippet>232</a>    <span class="doccomment">/// For non-recursive functions just add an unused parameter.
-<a href=#233 id=233 data-nosnippet>233</a>    /// In non-main we look at the limit and return a random value if it's zero,
-<a href=#234 id=234 data-nosnippet>234</a>    /// otherwise decrease it by one and continue with the original body.
-<a href=#235 id=235 data-nosnippet>235</a>    </span><span class="kw">fn </span>modify_body_when_non_recursive(<span class="kw-2">&amp;mut </span><span class="self">self</span>, limit_id: LocalId) {
-<a href=#236 id=236 data-nosnippet>236</a>        <span class="kw">let </span>limit_type = types::ref_mut(types::U32);
-<a href=#237 id=237 data-nosnippet>237</a>        <span class="self">self</span>.func.parameters.push((
-<a href=#238 id=238 data-nosnippet>238</a>            limit_id,
-<a href=#239 id=239 data-nosnippet>239</a>            <span class="bool-val">false</span>,
-<a href=#240 id=240 data-nosnippet>240</a>            <span class="macro">format!</span>(<span class="string">"_{LIMIT_NAME}"</span>),
-<a href=#241 id=241 data-nosnippet>241</a>            Rc::new(limit_type),
-<a href=#242 id=242 data-nosnippet>242</a>            Visibility::Private,
-<a href=#243 id=243 data-nosnippet>243</a>        ));
-<a href=#244 id=244 data-nosnippet>244</a>    }
-<a href=#245 id=245 data-nosnippet>245</a>
-<a href=#246 id=246 data-nosnippet>246</a>    <span class="doccomment">/// Fill the body of a `func_{i}_proxy` with an expression to forward the call
-<a href=#247 id=247 data-nosnippet>247</a>    /// to the original function. Add the `ctx_parameter` as well.
-<a href=#248 id=248 data-nosnippet>248</a>    </span><span class="kw">fn </span>set_proxy_function(
-<a href=#249 id=249 data-nosnippet>249</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-<a href=#250 id=250 data-nosnippet>250</a>        limit_id: LocalId,
-<a href=#251 id=251 data-nosnippet>251</a>        proxy_functions: <span class="kw-2">&amp;mut </span>HashMap&lt;FuncId, Function&gt;,
-<a href=#252 id=252 data-nosnippet>252</a>    ) {
-<a href=#253 id=253 data-nosnippet>253</a>        <span class="kw">let </span><span class="prelude-val">Some</span>(proxy) = proxy_functions.get_mut(<span class="kw-2">&amp;</span><span class="self">self</span>.func_id) <span class="kw">else </span>{
-<a href=#254 id=254 data-nosnippet>254</a>            <span class="kw">return</span>;
-<a href=#255 id=255 data-nosnippet>255</a>        };
-<a href=#256 id=256 data-nosnippet>256</a>
-<a href=#257 id=257 data-nosnippet>257</a>        proxy.parameters.push((
-<a href=#258 id=258 data-nosnippet>258</a>            limit_id,
-<a href=#259 id=259 data-nosnippet>259</a>            <span class="bool-val">true</span>,
-<a href=#260 id=260 data-nosnippet>260</a>            LIMIT_NAME.to_string(),
-<a href=#261 id=261 data-nosnippet>261</a>            Rc::new(types::U32),
-<a href=#262 id=262 data-nosnippet>262</a>            Visibility::Private,
-<a href=#263 id=263 data-nosnippet>263</a>        ));
-<a href=#264 id=264 data-nosnippet>264</a>
-<a href=#265 id=265 data-nosnippet>265</a>        <span class="comment">// The body is just a call the the non-proxy function.
-<a href=#266 id=266 data-nosnippet>266</a>        </span>proxy.body = Expression::Call(Call {
-<a href=#267 id=267 data-nosnippet>267</a>            func: Box::new(Expression::Ident(Ident {
-<a href=#268 id=268 data-nosnippet>268</a>                location: <span class="prelude-val">None</span>,
-<a href=#269 id=269 data-nosnippet>269</a>                definition: Definition::Function(<span class="self">self</span>.func_id),
-<a href=#270 id=270 data-nosnippet>270</a>                mutable: <span class="bool-val">false</span>,
-<a href=#271 id=271 data-nosnippet>271</a>                name: <span class="self">self</span>.func.name.clone(),
-<a href=#272 id=272 data-nosnippet>272</a>                typ: Rc::new(Type::Function(
-<a href=#273 id=273 data-nosnippet>273</a>                    <span class="self">self</span>.func.parameters.iter().map(|p| p.<span class="number">3</span>.as_ref().clone()).collect(),
-<a href=#274 id=274 data-nosnippet>274</a>                    Rc::new(<span class="self">self</span>.func.return_type.clone()),
-<a href=#275 id=275 data-nosnippet>275</a>                    Rc::new(Type::Unit),
-<a href=#276 id=276 data-nosnippet>276</a>                    <span class="self">self</span>.func.unconstrained,
-<a href=#277 id=277 data-nosnippet>277</a>                )),
-<a href=#278 id=278 data-nosnippet>278</a>                id: <span class="self">self</span>.next_ident_id(),
-<a href=#279 id=279 data-nosnippet>279</a>            })),
-<a href=#280 id=280 data-nosnippet>280</a>            arguments: proxy
-<a href=#281 id=281 data-nosnippet>281</a>                .parameters
-<a href=#282 id=282 data-nosnippet>282</a>                .iter()
-<a href=#283 id=283 data-nosnippet>283</a>                .map(|(id, mutable, name, typ, _visibility)| {
-<a href=#284 id=284 data-nosnippet>284</a>                    <span class="kw">if </span><span class="kw-2">*</span>id == limit_id {
-<a href=#285 id=285 data-nosnippet>285</a>                        <span class="comment">// Pass mutable reference to the limit.
-<a href=#286 id=286 data-nosnippet>286</a>                        </span>expr::ref_mut(
-<a href=#287 id=287 data-nosnippet>287</a>                            expr::ident(
-<a href=#288 id=288 data-nosnippet>288</a>                                VariableId::Local(<span class="kw-2">*</span>id),
-<a href=#289 id=289 data-nosnippet>289</a>                                <span class="self">self</span>.next_ident_id(),
-<a href=#290 id=290 data-nosnippet>290</a>                                <span class="kw-2">*</span>mutable,
-<a href=#291 id=291 data-nosnippet>291</a>                                name.clone(),
-<a href=#292 id=292 data-nosnippet>292</a>                                typ.clone(),
-<a href=#293 id=293 data-nosnippet>293</a>                            ),
-<a href=#294 id=294 data-nosnippet>294</a>                            typ.as_ref().clone(),
-<a href=#295 id=295 data-nosnippet>295</a>                        )
-<a href=#296 id=296 data-nosnippet>296</a>                    } <span class="kw">else </span>{
-<a href=#297 id=297 data-nosnippet>297</a>                        <span class="comment">// Pass every other parameter as-is.
-<a href=#298 id=298 data-nosnippet>298</a>                        </span>expr::ident(
-<a href=#299 id=299 data-nosnippet>299</a>                            VariableId::Local(<span class="kw-2">*</span>id),
-<a href=#300 id=300 data-nosnippet>300</a>                            <span class="self">self</span>.next_ident_id(),
-<a href=#301 id=301 data-nosnippet>301</a>                            <span class="kw-2">*</span>mutable,
-<a href=#302 id=302 data-nosnippet>302</a>                            name.clone(),
-<a href=#303 id=303 data-nosnippet>303</a>                            typ.clone(),
-<a href=#304 id=304 data-nosnippet>304</a>                        )
-<a href=#305 id=305 data-nosnippet>305</a>                    }
-<a href=#306 id=306 data-nosnippet>306</a>                })
-<a href=#307 id=307 data-nosnippet>307</a>                .collect(),
-<a href=#308 id=308 data-nosnippet>308</a>            return_type: proxy.return_type.clone(),
-<a href=#309 id=309 data-nosnippet>309</a>            location: Location::dummy(),
-<a href=#310 id=310 data-nosnippet>310</a>        });
-<a href=#311 id=311 data-nosnippet>311</a>    }
-<a href=#312 id=312 data-nosnippet>312</a>
-<a href=#313 id=313 data-nosnippet>313</a>    <span class="doccomment">/// Visit all the calls made by this function and pass along the limit.
-<a href=#314 id=314 data-nosnippet>314</a>    </span><span class="kw">fn </span>modify_calls(<span class="kw-2">&amp;mut </span><span class="self">self</span>, limit_id: LocalId, proxy_functions: <span class="kw-2">&amp;</span>HashMap&lt;FuncId, Function&gt;) {
-<a href=#315 id=315 data-nosnippet>315</a>        <span class="kw">let </span>limit_var = VariableId::Local(limit_id);
-<a href=#316 id=316 data-nosnippet>316</a>
-<a href=#317 id=317 data-nosnippet>317</a>        <span class="comment">// Swap out the body because we need mutable access to self in the visitor.
-<a href=#318 id=318 data-nosnippet>318</a>        </span><span class="kw">let </span><span class="kw-2">mut </span>body = Expression::Break;
-<a href=#319 id=319 data-nosnippet>319</a>        std::mem::swap(<span class="kw-2">&amp;mut </span><span class="self">self</span>.func.body, <span class="kw-2">&amp;mut </span>body);
-<a href=#320 id=320 data-nosnippet>320</a>
-<a href=#321 id=321 data-nosnippet>321</a>        <span class="comment">// Update calls to pass along the limit and call the proxy if necessary.
-<a href=#322 id=322 data-nosnippet>322</a>        // Also find places where we are passing a function pointer, and change
-<a href=#323 id=323 data-nosnippet>323</a>        // it into the proxy version if necessary.
-<a href=#324 id=324 data-nosnippet>324</a>        </span>visit_expr_mut(<span class="kw-2">&amp;mut </span>body, <span class="kw-2">&amp;mut </span>|expr: <span class="kw-2">&amp;mut </span>Expression| {
-<a href=#325 id=325 data-nosnippet>325</a>            <span class="kw">if let </span>Expression::Call(call) = expr {
-<a href=#326 id=326 data-nosnippet>326</a>                <span class="kw">let </span>Expression::Ident(ident) = expr::unref_mut(call.func.as_mut()) <span class="kw">else </span>{
-<a href=#327 id=327 data-nosnippet>327</a>                    <span class="macro">unreachable!</span>(<span class="string">"functions are called by ident; got {}"</span>, call.func);
-<a href=#328 id=328 data-nosnippet>328</a>                };
-<a href=#329 id=329 data-nosnippet>329</a>
-<a href=#330 id=330 data-nosnippet>330</a>                <span class="kw">let </span>proxy = <span class="kw">match </span><span class="kw-2">&amp;</span>ident.definition {
-<a href=#331 id=331 data-nosnippet>331</a>                    Definition::Function(id) =&gt; proxy_functions.get(id),
-<a href=#332 id=332 data-nosnippet>332</a>                    Definition::Local(<span class="kw">_</span>) =&gt; {
-<a href=#333 id=333 data-nosnippet>333</a>                        <span class="comment">// Doesn't have a proxy, but still needs its parameters adjusted.
-<a href=#334 id=334 data-nosnippet>334</a>                        </span><span class="prelude-val">None
-<a href=#335 id=335 data-nosnippet>335</a>                    </span>}
-<a href=#336 id=336 data-nosnippet>336</a>                    Definition::Oracle { .. } | Definition::Builtin(<span class="kw">_</span>) =&gt; {
-<a href=#337 id=337 data-nosnippet>337</a>                        <span class="comment">// Oracles don't participate in recursion, let's leave them alone.
-<a href=#338 id=338 data-nosnippet>338</a>                        </span><span class="kw">return </span><span class="bool-val">true</span>;
-<a href=#339 id=339 data-nosnippet>339</a>                    }
-<a href=#340 id=340 data-nosnippet>340</a>                    other =&gt; <span class="macro">unreachable!</span>(<span class="string">"unexpected call target definition: {}"</span>, other),
-<a href=#341 id=341 data-nosnippet>341</a>                };
-<a href=#342 id=342 data-nosnippet>342</a>
-<a href=#343 id=343 data-nosnippet>343</a>                types::unref_mut_rc(<span class="kw-2">&amp;mut </span>ident.typ, |unref_mut_typ| {
-<a href=#344 id=344 data-nosnippet>344</a>                    <span class="kw">let </span>Type::Function(<span class="kw-2">mut </span>param_types, ret, env, callee_unconstrained) =
-<a href=#345 id=345 data-nosnippet>345</a>                        unref_mut_typ
-<a href=#346 id=346 data-nosnippet>346</a>                    <span class="kw">else </span>{
-<a href=#347 id=347 data-nosnippet>347</a>                        <span class="macro">unreachable!</span>(<span class="string">"function type expected"</span>);
-<a href=#348 id=348 data-nosnippet>348</a>                    };
-<a href=#349 id=349 data-nosnippet>349</a>
-<a href=#350 id=350 data-nosnippet>350</a>                    <span class="kw">if </span>callee_unconstrained &amp;&amp; !<span class="self">self</span>.func.unconstrained {
-<a href=#351 id=351 data-nosnippet>351</a>                        <span class="comment">// Calling Brillig from ACIR: call the proxy if it's global.
-<a href=#352 id=352 data-nosnippet>352</a>                        </span><span class="kw">if let </span><span class="prelude-val">Some</span>(proxy) = proxy {
-<a href=#353 id=353 data-nosnippet>353</a>                            ident.name = proxy.name.clone();
-<a href=#354 id=354 data-nosnippet>354</a>                            ident.definition = Definition::Function(proxy.id);
-<a href=#355 id=355 data-nosnippet>355</a>                        }
-<a href=#356 id=356 data-nosnippet>356</a>                        <span class="comment">// Pass the limit by value.
-<a href=#357 id=357 data-nosnippet>357</a>                        </span><span class="kw">let </span>limit_expr = <span class="kw">if </span><span class="self">self</span>.is_main {
-<a href=#358 id=358 data-nosnippet>358</a>                            expr::ident(
-<a href=#359 id=359 data-nosnippet>359</a>                                limit_var,
-<a href=#360 id=360 data-nosnippet>360</a>                                <span class="self">self</span>.next_ident_id(),
-<a href=#361 id=361 data-nosnippet>361</a>                                <span class="bool-val">true</span>,
-<a href=#362 id=362 data-nosnippet>362</a>                                LIMIT_NAME.to_string(),
-<a href=#363 id=363 data-nosnippet>363</a>                                Rc::new(types::U32),
-<a href=#364 id=364 data-nosnippet>364</a>                            )
-<a href=#365 id=365 data-nosnippet>365</a>                        } <span class="kw">else </span>{
-<a href=#366 id=366 data-nosnippet>366</a>                            expr::deref(
-<a href=#367 id=367 data-nosnippet>367</a>                                expr::ident(
-<a href=#368 id=368 data-nosnippet>368</a>                                    limit_var,
-<a href=#369 id=369 data-nosnippet>369</a>                                    <span class="self">self</span>.next_ident_id(),
-<a href=#370 id=370 data-nosnippet>370</a>                                    <span class="bool-val">false</span>,
-<a href=#371 id=371 data-nosnippet>371</a>                                    LIMIT_NAME.to_string(),
-<a href=#372 id=372 data-nosnippet>372</a>                                    Rc::new(types::ref_mut(types::U32)),
-<a href=#373 id=373 data-nosnippet>373</a>                                ),
-<a href=#374 id=374 data-nosnippet>374</a>                                types::U32,
-<a href=#375 id=375 data-nosnippet>375</a>                            )
-<a href=#376 id=376 data-nosnippet>376</a>                        };
-<a href=#377 id=377 data-nosnippet>377</a>                        param_types.push(types::U32);
-<a href=#378 id=378 data-nosnippet>378</a>                        call.arguments.push(limit_expr);
-<a href=#379 id=379 data-nosnippet>379</a>                    } <span class="kw">else </span>{
-<a href=#380 id=380 data-nosnippet>380</a>                        <span class="comment">// Pass the limit by reference.
-<a href=#381 id=381 data-nosnippet>381</a>                        </span><span class="kw">let </span>limit_type = types::ref_mut(types::U32);
-<a href=#382 id=382 data-nosnippet>382</a>                        <span class="kw">let </span>limit_expr = <span class="kw">if </span><span class="self">self</span>.is_main {
-<a href=#383 id=383 data-nosnippet>383</a>                            <span class="comment">// In main we take a mutable reference to the limit.
-<a href=#384 id=384 data-nosnippet>384</a>                            </span>expr::ref_mut(
-<a href=#385 id=385 data-nosnippet>385</a>                                expr::ident(
-<a href=#386 id=386 data-nosnippet>386</a>                                    limit_var,
-<a href=#387 id=387 data-nosnippet>387</a>                                    <span class="self">self</span>.next_ident_id(),
-<a href=#388 id=388 data-nosnippet>388</a>                                    <span class="bool-val">true</span>,
-<a href=#389 id=389 data-nosnippet>389</a>                                    LIMIT_NAME.to_string(),
-<a href=#390 id=390 data-nosnippet>390</a>                                    Rc::new(types::U32),
-<a href=#391 id=391 data-nosnippet>391</a>                                ),
-<a href=#392 id=392 data-nosnippet>392</a>                                limit_type,
-<a href=#393 id=393 data-nosnippet>393</a>                            )
-<a href=#394 id=394 data-nosnippet>394</a>                        } <span class="kw">else </span>{
-<a href=#395 id=395 data-nosnippet>395</a>                            <span class="comment">// In non-main we just pass along the parameter.
-<a href=#396 id=396 data-nosnippet>396</a>                            </span>expr::ident(
-<a href=#397 id=397 data-nosnippet>397</a>                                limit_var,
-<a href=#398 id=398 data-nosnippet>398</a>                                <span class="self">self</span>.next_ident_id(),
-<a href=#399 id=399 data-nosnippet>399</a>                                <span class="bool-val">false</span>,
-<a href=#400 id=400 data-nosnippet>400</a>                                LIMIT_NAME.to_string(),
-<a href=#401 id=401 data-nosnippet>401</a>                                Rc::new(limit_type),
-<a href=#402 id=402 data-nosnippet>402</a>                            )
-<a href=#403 id=403 data-nosnippet>403</a>                        };
-<a href=#404 id=404 data-nosnippet>404</a>                        param_types.push(types::U32);
-<a href=#405 id=405 data-nosnippet>405</a>                        call.arguments.push(limit_expr);
-<a href=#406 id=406 data-nosnippet>406</a>                    }
-<a href=#407 id=407 data-nosnippet>407</a>
-<a href=#408 id=408 data-nosnippet>408</a>                    <span class="comment">// Now go through all the parameters: if they are function pointer,
-<a href=#409 id=409 data-nosnippet>409</a>                    // change the signature type of the parameter based on the caller.
-<a href=#410 id=410 data-nosnippet>410</a>                    </span>modify_function_pointer_param_types(<span class="kw-2">&amp;mut </span>param_types, callee_unconstrained);
-<a href=#411 id=411 data-nosnippet>411</a>
-<a href=#412 id=412 data-nosnippet>412</a>                    <span class="comment">// Go through the arguments of the call: if they point at a global
-<a href=#413 id=413 data-nosnippet>413</a>                    // function, they might need to point at the proxy instead.
-<a href=#414 id=414 data-nosnippet>414</a>                    </span>modify_function_pointer_param_values(
-<a href=#415 id=415 data-nosnippet>415</a>                        <span class="kw-2">&amp;mut </span>call.arguments,
-<a href=#416 id=416 data-nosnippet>416</a>                        <span class="kw-2">&amp;</span>param_types,
-<a href=#417 id=417 data-nosnippet>417</a>                        callee_unconstrained,
-<a href=#418 id=418 data-nosnippet>418</a>                        proxy_functions,
-<a href=#419 id=419 data-nosnippet>419</a>                    );
-<a href=#420 id=420 data-nosnippet>420</a>
-<a href=#421 id=421 data-nosnippet>421</a>                    Type::Function(param_types, ret, env, callee_unconstrained)
-<a href=#422 id=422 data-nosnippet>422</a>                });
-<a href=#423 id=423 data-nosnippet>423</a>            }
-<a href=#424 id=424 data-nosnippet>424</a>
-<a href=#425 id=425 data-nosnippet>425</a>            <span class="comment">// Continue the visiting expressions.
-<a href=#426 id=426 data-nosnippet>426</a>            </span><span class="bool-val">true
-<a href=#427 id=427 data-nosnippet>427</a>        </span>});
-<a href=#428 id=428 data-nosnippet>428</a>
-<a href=#429 id=429 data-nosnippet>429</a>        <span class="comment">// Put the result back.
-<a href=#430 id=430 data-nosnippet>430</a>        </span>std::mem::swap(<span class="kw-2">&amp;mut </span><span class="self">self</span>.func.body, <span class="kw-2">&amp;mut </span>body);
-<a href=#431 id=431 data-nosnippet>431</a>    }
-<a href=#432 id=432 data-nosnippet>432</a>
-<a href=#433 id=433 data-nosnippet>433</a>    <span class="doccomment">/// Update any function pointer and the function and its proxy's signature to take the limit.
-<a href=#434 id=434 data-nosnippet>434</a>    </span><span class="kw">fn </span>modify_function_pointer_param_types(
-<a href=#435 id=435 data-nosnippet>435</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-<a href=#436 id=436 data-nosnippet>436</a>        proxy_functions: <span class="kw-2">&amp;mut </span>HashMap&lt;FuncId, Function&gt;,
-<a href=#437 id=437 data-nosnippet>437</a>    ) {
-<a href=#438 id=438 data-nosnippet>438</a>        <span class="kw">for </span>(<span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span>, param_type, <span class="kw">_</span>) <span class="kw">in </span><span class="kw-2">&amp;mut </span><span class="self">self</span>.func.parameters {
-<a href=#439 id=439 data-nosnippet>439</a>            <span class="kw">let </span><span class="kw-2">mut </span>typ = param_type.as_ref().clone();
-<a href=#440 id=440 data-nosnippet>440</a>            modify_function_pointer_param_type(<span class="kw-2">&amp;mut </span>typ, <span class="self">self</span>.func.unconstrained);
-<a href=#441 id=441 data-nosnippet>441</a>            <span class="kw-2">*</span>param_type = Rc::new(typ);
-<a href=#442 id=442 data-nosnippet>442</a>        }
-<a href=#443 id=443 data-nosnippet>443</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>(proxy) = proxy_functions.get_mut(<span class="kw-2">&amp;</span><span class="self">self</span>.func_id) {
-<a href=#444 id=444 data-nosnippet>444</a>            <span class="kw">for </span>(<span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span>, param_type, <span class="kw">_</span>) <span class="kw">in </span><span class="kw-2">&amp;mut </span>proxy.parameters {
-<a href=#445 id=445 data-nosnippet>445</a>                <span class="kw">let </span><span class="kw-2">mut </span>typ = param_type.as_ref().clone();
-<a href=#446 id=446 data-nosnippet>446</a>                modify_function_pointer_param_type(<span class="kw-2">&amp;mut </span>typ, <span class="self">self</span>.func.unconstrained);
-<a href=#447 id=447 data-nosnippet>447</a>                <span class="kw-2">*</span>param_type = Rc::new(typ);
-<a href=#448 id=448 data-nosnippet>448</a>            }
-<a href=#449 id=449 data-nosnippet>449</a>        }
-<a href=#450 id=450 data-nosnippet>450</a>    }
-<a href=#451 id=451 data-nosnippet>451</a>}
-<a href=#452 id=452 data-nosnippet>452</a>
-<a href=#453 id=453 data-nosnippet>453</a><span class="doccomment">/// Go through the types of each function parameter. If they are function pointers,
-<a href=#454 id=454 data-nosnippet>454</a>/// then they need the context, depending on the callee type.
-<a href=#455 id=455 data-nosnippet>455</a></span><span class="kw">fn </span>modify_function_pointer_param_types(param_types: <span class="kw-2">&amp;mut </span>[Type], callee_unconstrained: bool) {
-<a href=#456 id=456 data-nosnippet>456</a>    <span class="kw">for </span>param_type <span class="kw">in </span>param_types.iter_mut() {
-<a href=#457 id=457 data-nosnippet>457</a>        modify_function_pointer_param_type(param_type, callee_unconstrained);
-<a href=#458 id=458 data-nosnippet>458</a>    }
-<a href=#459 id=459 data-nosnippet>459</a>}
-<a href=#460 id=460 data-nosnippet>460</a>
-<a href=#461 id=461 data-nosnippet>461</a><span class="doccomment">/// Recursively modify function pointers in the param type.
-<a href=#462 id=462 data-nosnippet>462</a></span><span class="kw">fn </span>modify_function_pointer_param_type(param_type: <span class="kw-2">&amp;mut </span>Type, callee_unconstrained: bool) {
-<a href=#463 id=463 data-nosnippet>463</a>    types::unref_mut(param_type, |param_type| {
-<a href=#464 id=464 data-nosnippet>464</a>        <span class="kw">let </span>Type::Function(<span class="kw-2">mut </span>param_types, ret, env, param_unconstrained) = param_type.clone()
-<a href=#465 id=465 data-nosnippet>465</a>        <span class="kw">else </span>{
-<a href=#466 id=466 data-nosnippet>466</a>            <span class="kw">return </span>param_type;
-<a href=#467 id=467 data-nosnippet>467</a>        };
-<a href=#468 id=468 data-nosnippet>468</a>
-<a href=#469 id=469 data-nosnippet>469</a>        <span class="kw">let </span>limit_typ = ctx_limit_type_for_func_param(callee_unconstrained, param_unconstrained);
-<a href=#470 id=470 data-nosnippet>470</a>
-<a href=#471 id=471 data-nosnippet>471</a>        <span class="comment">// Add the limit to the function described in the parameter.
-<a href=#472 id=472 data-nosnippet>472</a>        </span>param_types.push(limit_typ);
-<a href=#473 id=473 data-nosnippet>473</a>
-<a href=#474 id=474 data-nosnippet>474</a>        <span class="comment">// We need to recurse into the parameters of the function pointer.
-<a href=#475 id=475 data-nosnippet>475</a>        </span>modify_function_pointer_param_types(<span class="kw-2">&amp;mut </span>param_types, param_unconstrained);
-<a href=#476 id=476 data-nosnippet>476</a>
-<a href=#477 id=477 data-nosnippet>477</a>        Type::Function(param_types, ret, env, param_unconstrained)
-<a href=#478 id=478 data-nosnippet>478</a>    });
-<a href=#479 id=479 data-nosnippet>479</a>}
-<a href=#480 id=480 data-nosnippet>480</a>
-<a href=#481 id=481 data-nosnippet>481</a><span class="doccomment">/// Go through the call arguments and update global function pointers to their
-<a href=#482 id=482 data-nosnippet>482</a>/// proxy equivalents if necessary.
-<a href=#483 id=483 data-nosnippet>483</a></span><span class="kw">fn </span>modify_function_pointer_param_values(
-<a href=#484 id=484 data-nosnippet>484</a>    args: <span class="kw-2">&amp;mut </span>[Expression],
-<a href=#485 id=485 data-nosnippet>485</a>    param_types: <span class="kw-2">&amp;</span>[Type],
-<a href=#486 id=486 data-nosnippet>486</a>    callee_unconstrained: bool,
-<a href=#487 id=487 data-nosnippet>487</a>    proxy_functions: <span class="kw-2">&amp;</span>HashMap&lt;FuncId, Function&gt;,
-<a href=#488 id=488 data-nosnippet>488</a>) {
-<a href=#489 id=489 data-nosnippet>489</a>    <span class="kw">for </span>i <span class="kw">in </span><span class="number">0</span>..param_types.len() {
-<a href=#490 id=490 data-nosnippet>490</a>        <span class="comment">// We only consider parameters that take functions, not function references,
-<a href=#491 id=491 data-nosnippet>491</a>        // because if something can take a function reference, and we can call it,
-<a href=#492 id=492 data-nosnippet>492</a>        // then it must be a Brillig to Brillig call, and we don't have to change
-<a href=#493 id=493 data-nosnippet>493</a>        // it to pass the proxy instead.
-<a href=#494 id=494 data-nosnippet>494</a>        </span><span class="kw">let </span>Type::Function(<span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span>, param_unconstrained) = <span class="kw-2">&amp;</span>param_types[i] <span class="kw">else </span>{
-<a href=#495 id=495 data-nosnippet>495</a>            <span class="kw">continue</span>;
-<a href=#496 id=496 data-nosnippet>496</a>        };
-<a href=#497 id=497 data-nosnippet>497</a>        <span class="kw">let </span>limit_typ = ctx_limit_type_for_func_param(callee_unconstrained, <span class="kw-2">*</span>param_unconstrained);
-<a href=#498 id=498 data-nosnippet>498</a>
-<a href=#499 id=499 data-nosnippet>499</a>        <span class="comment">// If it's passed by reference we can leave it alone.
-<a href=#500 id=500 data-nosnippet>500</a>        </span><span class="kw">if </span>types::is_reference(<span class="kw-2">&amp;</span>limit_typ) {
-<a href=#501 id=501 data-nosnippet>501</a>            <span class="kw">continue</span>;
-<a href=#502 id=502 data-nosnippet>502</a>        }
-<a href=#503 id=503 data-nosnippet>503</a>
-<a href=#504 id=504 data-nosnippet>504</a>        <span class="comment">// If we need to pass by value, then it's going to the proxy, but only if it's a global function,
-<a href=#505 id=505 data-nosnippet>505</a>        // and not a function parameter, which we wouldn't know what to change to, and doing so happens
-<a href=#506 id=506 data-nosnippet>506</a>        // when it's first passed as a global.
-<a href=#507 id=507 data-nosnippet>507</a>        </span><span class="kw">let </span>arg = <span class="kw-2">&amp;mut </span>args[i];
-<a href=#508 id=508 data-nosnippet>508</a>
-<a href=#509 id=509 data-nosnippet>509</a>        <span class="comment">// If we are dereferencing a variable, then it's not a global function we are passing.
-<a href=#510 id=510 data-nosnippet>510</a>        </span><span class="kw">if </span>expr::is_deref(arg) {
-<a href=#511 id=511 data-nosnippet>511</a>            <span class="kw">continue</span>;
-<a href=#512 id=512 data-nosnippet>512</a>        }
-<a href=#513 id=513 data-nosnippet>513</a>        <span class="comment">// Otherwise we should be passing a function by identifier directly.
-<a href=#514 id=514 data-nosnippet>514</a>        </span><span class="kw">let </span>Expression::Ident(param_func_ident) = arg <span class="kw">else </span>{
-<a href=#515 id=515 data-nosnippet>515</a>            <span class="macro">unreachable!</span>(<span class="string">"functions are passed by ident; got {arg}"</span>);
-<a href=#516 id=516 data-nosnippet>516</a>        };
-<a href=#517 id=517 data-nosnippet>517</a>        <span class="kw">let </span>param_func_id = <span class="kw">match </span><span class="kw-2">&amp;</span>param_func_ident.definition {
-<a href=#518 id=518 data-nosnippet>518</a>            Definition::Function(id) =&gt; id,
-<a href=#519 id=519 data-nosnippet>519</a>            Definition::Local(<span class="kw">_</span>) =&gt; <span class="kw">continue</span>,
-<a href=#520 id=520 data-nosnippet>520</a>            other =&gt; {
-<a href=#521 id=521 data-nosnippet>521</a>                <span class="macro">unreachable!</span>(<span class="string">"function definition expected; got {}"</span>, other);
-<a href=#522 id=522 data-nosnippet>522</a>            }
-<a href=#523 id=523 data-nosnippet>523</a>        };
-<a href=#524 id=524 data-nosnippet>524</a>        <span class="kw">let </span><span class="prelude-val">Some</span>(proxy) = proxy_functions.get(param_func_id) <span class="kw">else </span>{
-<a href=#525 id=525 data-nosnippet>525</a>            <span class="macro">unreachable!</span>(
-<a href=#526 id=526 data-nosnippet>526</a>                <span class="string">"expected to have a proxy for the function pointer: {param_func_id}; only have them for {:?}"</span>,
-<a href=#527 id=527 data-nosnippet>527</a>                proxy_functions.keys().collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;()
-<a href=#528 id=528 data-nosnippet>528</a>            );
-<a href=#529 id=529 data-nosnippet>529</a>        };
-<a href=#530 id=530 data-nosnippet>530</a>        param_func_ident.name = proxy.name.clone();
-<a href=#531 id=531 data-nosnippet>531</a>        param_func_ident.definition = Definition::Function(proxy.id);
-<a href=#532 id=532 data-nosnippet>532</a>    }
-<a href=#533 id=533 data-nosnippet>533</a>}</code></pre></div></section></main></body></html>
+<a href=#174 id=174 data-nosnippet>174</a>            types::U32,
+<a href=#175 id=175 data-nosnippet>175</a>            expr::u32_literal(<span class="self">self</span>.config.max_recursive_calls <span class="kw">as </span>u32),
+<a href=#176 id=176 data-nosnippet>176</a>        );
+<a href=#177 id=177 data-nosnippet>177</a>        expr::prepend(<span class="kw-2">&amp;mut </span><span class="self">self</span>.func.body, init_limit);
+<a href=#178 id=178 data-nosnippet>178</a>    }
+<a href=#179 id=179 data-nosnippet>179</a>
+<a href=#180 id=180 data-nosnippet>180</a>    <span class="doccomment">/// In non-main we look at the limit and return a random value if it's zero,
+<a href=#181 id=181 data-nosnippet>181</a>    /// otherwise decrease it by one and continue with the original body.
+<a href=#182 id=182 data-nosnippet>182</a>    </span><span class="kw">fn </span>modify_body_when_recursive(
+<a href=#183 id=183 data-nosnippet>183</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+<a href=#184 id=184 data-nosnippet>184</a>        u: <span class="kw-2">&amp;mut </span>Unstructured,
+<a href=#185 id=185 data-nosnippet>185</a>        limit_id: LocalId,
+<a href=#186 id=186 data-nosnippet>186</a>    ) -&gt; arbitrary::Result&lt;()&gt; {
+<a href=#187 id=187 data-nosnippet>187</a>        <span class="kw">let </span>limit_var = VariableId::Local(limit_id);
+<a href=#188 id=188 data-nosnippet>188</a>
+<a href=#189 id=189 data-nosnippet>189</a>        <span class="kw">let </span>limit_type = Rc::new(types::ref_mut(types::U32));
+<a href=#190 id=190 data-nosnippet>190</a>        <span class="self">self</span>.func.parameters.push((
+<a href=#191 id=191 data-nosnippet>191</a>            limit_id,
+<a href=#192 id=192 data-nosnippet>192</a>            <span class="bool-val">false</span>,
+<a href=#193 id=193 data-nosnippet>193</a>            LIMIT_NAME.to_string(),
+<a href=#194 id=194 data-nosnippet>194</a>            limit_type.clone(),
+<a href=#195 id=195 data-nosnippet>195</a>            Visibility::Private,
+<a href=#196 id=196 data-nosnippet>196</a>        ));
+<a href=#197 id=197 data-nosnippet>197</a>
+<a href=#198 id=198 data-nosnippet>198</a>        <span class="comment">// Generate a random value to return.
+<a href=#199 id=199 data-nosnippet>199</a>        </span><span class="kw">let </span>default_return = expr::gen_literal(u, <span class="kw-2">&amp;</span><span class="self">self</span>.func.return_type, <span class="self">self</span>.config)<span class="question-mark">?</span>;
+<a href=#200 id=200 data-nosnippet>200</a>
+<a href=#201 id=201 data-nosnippet>201</a>        <span class="kw">let </span>limit_ident = expr::ident_inner(
+<a href=#202 id=202 data-nosnippet>202</a>            limit_var,
+<a href=#203 id=203 data-nosnippet>203</a>            <span class="self">self</span>.next_ident_id(),
+<a href=#204 id=204 data-nosnippet>204</a>            <span class="bool-val">false</span>,
+<a href=#205 id=205 data-nosnippet>205</a>            LIMIT_NAME.to_string(),
+<a href=#206 id=206 data-nosnippet>206</a>            limit_type,
+<a href=#207 id=207 data-nosnippet>207</a>        );
+<a href=#208 id=208 data-nosnippet>208</a>        <span class="kw">let </span>limit_expr = Expression::Ident(limit_ident.clone());
+<a href=#209 id=209 data-nosnippet>209</a>
+<a href=#210 id=210 data-nosnippet>210</a>        expr::replace(<span class="kw-2">&amp;mut </span><span class="self">self</span>.func.body, |<span class="kw-2">mut </span>body| {
+<a href=#211 id=211 data-nosnippet>211</a>            expr::prepend(
+<a href=#212 id=212 data-nosnippet>212</a>                <span class="kw-2">&amp;mut </span>body,
+<a href=#213 id=213 data-nosnippet>213</a>                expr::assign_ref(
+<a href=#214 id=214 data-nosnippet>214</a>                    limit_ident,
+<a href=#215 id=215 data-nosnippet>215</a>                    expr::binary(
+<a href=#216 id=216 data-nosnippet>216</a>                        expr::deref(limit_expr.clone(), types::U32),
+<a href=#217 id=217 data-nosnippet>217</a>                        BinaryOpKind::Subtract,
+<a href=#218 id=218 data-nosnippet>218</a>                        expr::u32_literal(<span class="number">1</span>),
+<a href=#219 id=219 data-nosnippet>219</a>                    ),
+<a href=#220 id=220 data-nosnippet>220</a>                ),
+<a href=#221 id=221 data-nosnippet>221</a>            );
+<a href=#222 id=222 data-nosnippet>222</a>            expr::if_else(
+<a href=#223 id=223 data-nosnippet>223</a>                expr::equal(expr::deref(limit_expr.clone(), types::U32), expr::u32_literal(<span class="number">0</span>)),
+<a href=#224 id=224 data-nosnippet>224</a>                default_return,
+<a href=#225 id=225 data-nosnippet>225</a>                body,
+<a href=#226 id=226 data-nosnippet>226</a>                <span class="self">self</span>.func.return_type.clone(),
+<a href=#227 id=227 data-nosnippet>227</a>            )
+<a href=#228 id=228 data-nosnippet>228</a>        });
+<a href=#229 id=229 data-nosnippet>229</a>
+<a href=#230 id=230 data-nosnippet>230</a>        <span class="prelude-val">Ok</span>(())
+<a href=#231 id=231 data-nosnippet>231</a>    }
+<a href=#232 id=232 data-nosnippet>232</a>
+<a href=#233 id=233 data-nosnippet>233</a>    <span class="doccomment">/// For non-recursive functions just add an unused parameter.
+<a href=#234 id=234 data-nosnippet>234</a>    /// In non-main we look at the limit and return a random value if it's zero,
+<a href=#235 id=235 data-nosnippet>235</a>    /// otherwise decrease it by one and continue with the original body.
+<a href=#236 id=236 data-nosnippet>236</a>    </span><span class="kw">fn </span>modify_body_when_non_recursive(<span class="kw-2">&amp;mut </span><span class="self">self</span>, limit_id: LocalId) {
+<a href=#237 id=237 data-nosnippet>237</a>        <span class="kw">let </span>limit_type = types::ref_mut(types::U32);
+<a href=#238 id=238 data-nosnippet>238</a>        <span class="self">self</span>.func.parameters.push((
+<a href=#239 id=239 data-nosnippet>239</a>            limit_id,
+<a href=#240 id=240 data-nosnippet>240</a>            <span class="bool-val">false</span>,
+<a href=#241 id=241 data-nosnippet>241</a>            <span class="macro">format!</span>(<span class="string">"_{LIMIT_NAME}"</span>),
+<a href=#242 id=242 data-nosnippet>242</a>            Rc::new(limit_type),
+<a href=#243 id=243 data-nosnippet>243</a>            Visibility::Private,
+<a href=#244 id=244 data-nosnippet>244</a>        ));
+<a href=#245 id=245 data-nosnippet>245</a>    }
+<a href=#246 id=246 data-nosnippet>246</a>
+<a href=#247 id=247 data-nosnippet>247</a>    <span class="doccomment">/// Fill the body of a `func_{i}_proxy` with an expression to forward the call
+<a href=#248 id=248 data-nosnippet>248</a>    /// to the original function. Add the `ctx_parameter` as well.
+<a href=#249 id=249 data-nosnippet>249</a>    </span><span class="kw">fn </span>set_proxy_function(
+<a href=#250 id=250 data-nosnippet>250</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+<a href=#251 id=251 data-nosnippet>251</a>        limit_id: LocalId,
+<a href=#252 id=252 data-nosnippet>252</a>        proxy_functions: <span class="kw-2">&amp;mut </span>HashMap&lt;FuncId, Function&gt;,
+<a href=#253 id=253 data-nosnippet>253</a>    ) {
+<a href=#254 id=254 data-nosnippet>254</a>        <span class="kw">let </span><span class="prelude-val">Some</span>(proxy) = proxy_functions.get_mut(<span class="kw-2">&amp;</span><span class="self">self</span>.func_id) <span class="kw">else </span>{
+<a href=#255 id=255 data-nosnippet>255</a>            <span class="kw">return</span>;
+<a href=#256 id=256 data-nosnippet>256</a>        };
+<a href=#257 id=257 data-nosnippet>257</a>
+<a href=#258 id=258 data-nosnippet>258</a>        proxy.parameters.push((
+<a href=#259 id=259 data-nosnippet>259</a>            limit_id,
+<a href=#260 id=260 data-nosnippet>260</a>            <span class="bool-val">true</span>,
+<a href=#261 id=261 data-nosnippet>261</a>            LIMIT_NAME.to_string(),
+<a href=#262 id=262 data-nosnippet>262</a>            Rc::new(types::U32),
+<a href=#263 id=263 data-nosnippet>263</a>            Visibility::Private,
+<a href=#264 id=264 data-nosnippet>264</a>        ));
+<a href=#265 id=265 data-nosnippet>265</a>
+<a href=#266 id=266 data-nosnippet>266</a>        <span class="comment">// The body is just a call the the non-proxy function.
+<a href=#267 id=267 data-nosnippet>267</a>        </span>proxy.body = Expression::Call(Call {
+<a href=#268 id=268 data-nosnippet>268</a>            func: Box::new(Expression::Ident(Ident {
+<a href=#269 id=269 data-nosnippet>269</a>                location: <span class="prelude-val">None</span>,
+<a href=#270 id=270 data-nosnippet>270</a>                definition: Definition::Function(<span class="self">self</span>.func_id),
+<a href=#271 id=271 data-nosnippet>271</a>                mutable: <span class="bool-val">false</span>,
+<a href=#272 id=272 data-nosnippet>272</a>                name: <span class="self">self</span>.func.name.clone(),
+<a href=#273 id=273 data-nosnippet>273</a>                typ: Rc::new(Type::Function(
+<a href=#274 id=274 data-nosnippet>274</a>                    <span class="self">self</span>.func.parameters.iter().map(|p| p.<span class="number">3</span>.as_ref().clone()).collect(),
+<a href=#275 id=275 data-nosnippet>275</a>                    Rc::new(<span class="self">self</span>.func.return_type.clone()),
+<a href=#276 id=276 data-nosnippet>276</a>                    Rc::new(Type::Unit),
+<a href=#277 id=277 data-nosnippet>277</a>                    <span class="self">self</span>.func.unconstrained,
+<a href=#278 id=278 data-nosnippet>278</a>                )),
+<a href=#279 id=279 data-nosnippet>279</a>                id: <span class="self">self</span>.next_ident_id(),
+<a href=#280 id=280 data-nosnippet>280</a>            })),
+<a href=#281 id=281 data-nosnippet>281</a>            arguments: proxy
+<a href=#282 id=282 data-nosnippet>282</a>                .parameters
+<a href=#283 id=283 data-nosnippet>283</a>                .iter()
+<a href=#284 id=284 data-nosnippet>284</a>                .map(|(id, mutable, name, typ, _visibility)| {
+<a href=#285 id=285 data-nosnippet>285</a>                    <span class="kw">if </span><span class="kw-2">*</span>id == limit_id {
+<a href=#286 id=286 data-nosnippet>286</a>                        <span class="comment">// Pass mutable reference to the limit.
+<a href=#287 id=287 data-nosnippet>287</a>                        </span>expr::ref_mut(
+<a href=#288 id=288 data-nosnippet>288</a>                            expr::ident(
+<a href=#289 id=289 data-nosnippet>289</a>                                VariableId::Local(<span class="kw-2">*</span>id),
+<a href=#290 id=290 data-nosnippet>290</a>                                <span class="self">self</span>.next_ident_id(),
+<a href=#291 id=291 data-nosnippet>291</a>                                <span class="kw-2">*</span>mutable,
+<a href=#292 id=292 data-nosnippet>292</a>                                name.clone(),
+<a href=#293 id=293 data-nosnippet>293</a>                                typ.clone(),
+<a href=#294 id=294 data-nosnippet>294</a>                            ),
+<a href=#295 id=295 data-nosnippet>295</a>                            typ.as_ref().clone(),
+<a href=#296 id=296 data-nosnippet>296</a>                        )
+<a href=#297 id=297 data-nosnippet>297</a>                    } <span class="kw">else </span>{
+<a href=#298 id=298 data-nosnippet>298</a>                        <span class="comment">// Pass every other parameter as-is.
+<a href=#299 id=299 data-nosnippet>299</a>                        </span>expr::ident(
+<a href=#300 id=300 data-nosnippet>300</a>                            VariableId::Local(<span class="kw-2">*</span>id),
+<a href=#301 id=301 data-nosnippet>301</a>                            <span class="self">self</span>.next_ident_id(),
+<a href=#302 id=302 data-nosnippet>302</a>                            <span class="kw-2">*</span>mutable,
+<a href=#303 id=303 data-nosnippet>303</a>                            name.clone(),
+<a href=#304 id=304 data-nosnippet>304</a>                            typ.clone(),
+<a href=#305 id=305 data-nosnippet>305</a>                        )
+<a href=#306 id=306 data-nosnippet>306</a>                    }
+<a href=#307 id=307 data-nosnippet>307</a>                })
+<a href=#308 id=308 data-nosnippet>308</a>                .collect(),
+<a href=#309 id=309 data-nosnippet>309</a>            return_type: proxy.return_type.clone(),
+<a href=#310 id=310 data-nosnippet>310</a>            location: Location::dummy(),
+<a href=#311 id=311 data-nosnippet>311</a>        });
+<a href=#312 id=312 data-nosnippet>312</a>    }
+<a href=#313 id=313 data-nosnippet>313</a>
+<a href=#314 id=314 data-nosnippet>314</a>    <span class="doccomment">/// Visit all the calls made by this function and pass along the limit.
+<a href=#315 id=315 data-nosnippet>315</a>    </span><span class="kw">fn </span>modify_calls(<span class="kw-2">&amp;mut </span><span class="self">self</span>, limit_id: LocalId, proxy_functions: <span class="kw-2">&amp;</span>HashMap&lt;FuncId, Function&gt;) {
+<a href=#316 id=316 data-nosnippet>316</a>        <span class="kw">let </span>limit_var = VariableId::Local(limit_id);
+<a href=#317 id=317 data-nosnippet>317</a>
+<a href=#318 id=318 data-nosnippet>318</a>        <span class="comment">// Swap out the body because we need mutable access to self in the visitor.
+<a href=#319 id=319 data-nosnippet>319</a>        </span><span class="kw">let </span><span class="kw-2">mut </span>body = Expression::Break;
+<a href=#320 id=320 data-nosnippet>320</a>        std::mem::swap(<span class="kw-2">&amp;mut </span><span class="self">self</span>.func.body, <span class="kw-2">&amp;mut </span>body);
+<a href=#321 id=321 data-nosnippet>321</a>
+<a href=#322 id=322 data-nosnippet>322</a>        <span class="comment">// Update calls to pass along the limit and call the proxy if necessary.
+<a href=#323 id=323 data-nosnippet>323</a>        // Also find places where we are passing a function pointer, and change
+<a href=#324 id=324 data-nosnippet>324</a>        // it into the proxy version if necessary.
+<a href=#325 id=325 data-nosnippet>325</a>        </span>visit_expr_mut(<span class="kw-2">&amp;mut </span>body, <span class="kw-2">&amp;mut </span>|expr: <span class="kw-2">&amp;mut </span>Expression| {
+<a href=#326 id=326 data-nosnippet>326</a>            <span class="kw">if let </span>Expression::Call(call) = expr {
+<a href=#327 id=327 data-nosnippet>327</a>                <span class="kw">let </span>Expression::Ident(ident) = expr::unref_mut(call.func.as_mut()) <span class="kw">else </span>{
+<a href=#328 id=328 data-nosnippet>328</a>                    <span class="macro">unreachable!</span>(<span class="string">"functions are called by ident; got {}"</span>, call.func);
+<a href=#329 id=329 data-nosnippet>329</a>                };
+<a href=#330 id=330 data-nosnippet>330</a>
+<a href=#331 id=331 data-nosnippet>331</a>                <span class="kw">let </span>proxy = <span class="kw">match </span><span class="kw-2">&amp;</span>ident.definition {
+<a href=#332 id=332 data-nosnippet>332</a>                    Definition::Function(id) =&gt; proxy_functions.get(id),
+<a href=#333 id=333 data-nosnippet>333</a>                    Definition::Local(<span class="kw">_</span>) =&gt; {
+<a href=#334 id=334 data-nosnippet>334</a>                        <span class="comment">// Doesn't have a proxy, but still needs its parameters adjusted.
+<a href=#335 id=335 data-nosnippet>335</a>                        </span><span class="prelude-val">None
+<a href=#336 id=336 data-nosnippet>336</a>                    </span>}
+<a href=#337 id=337 data-nosnippet>337</a>                    Definition::Oracle { .. } | Definition::Builtin(<span class="kw">_</span>) =&gt; {
+<a href=#338 id=338 data-nosnippet>338</a>                        <span class="comment">// Oracles don't participate in recursion, let's leave them alone.
+<a href=#339 id=339 data-nosnippet>339</a>                        </span><span class="kw">return </span><span class="bool-val">true</span>;
+<a href=#340 id=340 data-nosnippet>340</a>                    }
+<a href=#341 id=341 data-nosnippet>341</a>                    other =&gt; <span class="macro">unreachable!</span>(<span class="string">"unexpected call target definition: {}"</span>, other),
+<a href=#342 id=342 data-nosnippet>342</a>                };
+<a href=#343 id=343 data-nosnippet>343</a>
+<a href=#344 id=344 data-nosnippet>344</a>                types::unref_mut_rc(<span class="kw-2">&amp;mut </span>ident.typ, |unref_mut_typ| {
+<a href=#345 id=345 data-nosnippet>345</a>                    <span class="kw">let </span>Type::Function(<span class="kw-2">mut </span>param_types, ret, env, callee_unconstrained) =
+<a href=#346 id=346 data-nosnippet>346</a>                        unref_mut_typ
+<a href=#347 id=347 data-nosnippet>347</a>                    <span class="kw">else </span>{
+<a href=#348 id=348 data-nosnippet>348</a>                        <span class="macro">unreachable!</span>(<span class="string">"function type expected"</span>);
+<a href=#349 id=349 data-nosnippet>349</a>                    };
+<a href=#350 id=350 data-nosnippet>350</a>
+<a href=#351 id=351 data-nosnippet>351</a>                    <span class="kw">if </span>callee_unconstrained &amp;&amp; !<span class="self">self</span>.func.unconstrained {
+<a href=#352 id=352 data-nosnippet>352</a>                        <span class="comment">// Calling Brillig from ACIR: call the proxy if it's global.
+<a href=#353 id=353 data-nosnippet>353</a>                        </span><span class="kw">if let </span><span class="prelude-val">Some</span>(proxy) = proxy {
+<a href=#354 id=354 data-nosnippet>354</a>                            ident.name = proxy.name.clone();
+<a href=#355 id=355 data-nosnippet>355</a>                            ident.definition = Definition::Function(proxy.id);
+<a href=#356 id=356 data-nosnippet>356</a>                        }
+<a href=#357 id=357 data-nosnippet>357</a>                        <span class="comment">// Pass the limit by value.
+<a href=#358 id=358 data-nosnippet>358</a>                        </span><span class="kw">let </span>limit_expr = <span class="kw">if </span><span class="self">self</span>.is_main {
+<a href=#359 id=359 data-nosnippet>359</a>                            expr::ident(
+<a href=#360 id=360 data-nosnippet>360</a>                                limit_var,
+<a href=#361 id=361 data-nosnippet>361</a>                                <span class="self">self</span>.next_ident_id(),
+<a href=#362 id=362 data-nosnippet>362</a>                                <span class="bool-val">true</span>,
+<a href=#363 id=363 data-nosnippet>363</a>                                LIMIT_NAME.to_string(),
+<a href=#364 id=364 data-nosnippet>364</a>                                Rc::new(types::U32),
+<a href=#365 id=365 data-nosnippet>365</a>                            )
+<a href=#366 id=366 data-nosnippet>366</a>                        } <span class="kw">else </span>{
+<a href=#367 id=367 data-nosnippet>367</a>                            expr::deref(
+<a href=#368 id=368 data-nosnippet>368</a>                                expr::ident(
+<a href=#369 id=369 data-nosnippet>369</a>                                    limit_var,
+<a href=#370 id=370 data-nosnippet>370</a>                                    <span class="self">self</span>.next_ident_id(),
+<a href=#371 id=371 data-nosnippet>371</a>                                    <span class="bool-val">false</span>,
+<a href=#372 id=372 data-nosnippet>372</a>                                    LIMIT_NAME.to_string(),
+<a href=#373 id=373 data-nosnippet>373</a>                                    Rc::new(types::ref_mut(types::U32)),
+<a href=#374 id=374 data-nosnippet>374</a>                                ),
+<a href=#375 id=375 data-nosnippet>375</a>                                types::U32,
+<a href=#376 id=376 data-nosnippet>376</a>                            )
+<a href=#377 id=377 data-nosnippet>377</a>                        };
+<a href=#378 id=378 data-nosnippet>378</a>                        param_types.push(types::U32);
+<a href=#379 id=379 data-nosnippet>379</a>                        call.arguments.push(limit_expr);
+<a href=#380 id=380 data-nosnippet>380</a>                    } <span class="kw">else </span>{
+<a href=#381 id=381 data-nosnippet>381</a>                        <span class="comment">// Pass the limit by reference.
+<a href=#382 id=382 data-nosnippet>382</a>                        </span><span class="kw">let </span>limit_type = types::ref_mut(types::U32);
+<a href=#383 id=383 data-nosnippet>383</a>                        <span class="kw">let </span>limit_expr = <span class="kw">if </span><span class="self">self</span>.is_main {
+<a href=#384 id=384 data-nosnippet>384</a>                            <span class="comment">// In main we take a mutable reference to the limit.
+<a href=#385 id=385 data-nosnippet>385</a>                            </span>expr::ref_mut(
+<a href=#386 id=386 data-nosnippet>386</a>                                expr::ident(
+<a href=#387 id=387 data-nosnippet>387</a>                                    limit_var,
+<a href=#388 id=388 data-nosnippet>388</a>                                    <span class="self">self</span>.next_ident_id(),
+<a href=#389 id=389 data-nosnippet>389</a>                                    <span class="bool-val">true</span>,
+<a href=#390 id=390 data-nosnippet>390</a>                                    LIMIT_NAME.to_string(),
+<a href=#391 id=391 data-nosnippet>391</a>                                    Rc::new(types::U32),
+<a href=#392 id=392 data-nosnippet>392</a>                                ),
+<a href=#393 id=393 data-nosnippet>393</a>                                limit_type,
+<a href=#394 id=394 data-nosnippet>394</a>                            )
+<a href=#395 id=395 data-nosnippet>395</a>                        } <span class="kw">else </span>{
+<a href=#396 id=396 data-nosnippet>396</a>                            <span class="comment">// In non-main we just pass along the parameter.
+<a href=#397 id=397 data-nosnippet>397</a>                            </span>expr::ident(
+<a href=#398 id=398 data-nosnippet>398</a>                                limit_var,
+<a href=#399 id=399 data-nosnippet>399</a>                                <span class="self">self</span>.next_ident_id(),
+<a href=#400 id=400 data-nosnippet>400</a>                                <span class="bool-val">false</span>,
+<a href=#401 id=401 data-nosnippet>401</a>                                LIMIT_NAME.to_string(),
+<a href=#402 id=402 data-nosnippet>402</a>                                Rc::new(limit_type),
+<a href=#403 id=403 data-nosnippet>403</a>                            )
+<a href=#404 id=404 data-nosnippet>404</a>                        };
+<a href=#405 id=405 data-nosnippet>405</a>                        param_types.push(types::U32);
+<a href=#406 id=406 data-nosnippet>406</a>                        call.arguments.push(limit_expr);
+<a href=#407 id=407 data-nosnippet>407</a>                    }
+<a href=#408 id=408 data-nosnippet>408</a>
+<a href=#409 id=409 data-nosnippet>409</a>                    <span class="comment">// Now go through all the parameters: if they are function pointer,
+<a href=#410 id=410 data-nosnippet>410</a>                    // change the signature type of the parameter based on the caller.
+<a href=#411 id=411 data-nosnippet>411</a>                    </span>modify_function_pointer_param_types(<span class="kw-2">&amp;mut </span>param_types, callee_unconstrained);
+<a href=#412 id=412 data-nosnippet>412</a>
+<a href=#413 id=413 data-nosnippet>413</a>                    <span class="comment">// Go through the arguments of the call: if they point at a global
+<a href=#414 id=414 data-nosnippet>414</a>                    // function, they might need to point at the proxy instead.
+<a href=#415 id=415 data-nosnippet>415</a>                    </span>modify_function_pointer_param_values(
+<a href=#416 id=416 data-nosnippet>416</a>                        <span class="kw-2">&amp;mut </span>call.arguments,
+<a href=#417 id=417 data-nosnippet>417</a>                        <span class="kw-2">&amp;</span>param_types,
+<a href=#418 id=418 data-nosnippet>418</a>                        callee_unconstrained,
+<a href=#419 id=419 data-nosnippet>419</a>                        proxy_functions,
+<a href=#420 id=420 data-nosnippet>420</a>                    );
+<a href=#421 id=421 data-nosnippet>421</a>
+<a href=#422 id=422 data-nosnippet>422</a>                    Type::Function(param_types, ret, env, callee_unconstrained)
+<a href=#423 id=423 data-nosnippet>423</a>                });
+<a href=#424 id=424 data-nosnippet>424</a>            }
+<a href=#425 id=425 data-nosnippet>425</a>
+<a href=#426 id=426 data-nosnippet>426</a>            <span class="comment">// Continue the visiting expressions.
+<a href=#427 id=427 data-nosnippet>427</a>            </span><span class="bool-val">true
+<a href=#428 id=428 data-nosnippet>428</a>        </span>});
+<a href=#429 id=429 data-nosnippet>429</a>
+<a href=#430 id=430 data-nosnippet>430</a>        <span class="comment">// Put the result back.
+<a href=#431 id=431 data-nosnippet>431</a>        </span>std::mem::swap(<span class="kw-2">&amp;mut </span><span class="self">self</span>.func.body, <span class="kw-2">&amp;mut </span>body);
+<a href=#432 id=432 data-nosnippet>432</a>    }
+<a href=#433 id=433 data-nosnippet>433</a>
+<a href=#434 id=434 data-nosnippet>434</a>    <span class="doccomment">/// Update any function pointer and the function and its proxy's signature to take the limit.
+<a href=#435 id=435 data-nosnippet>435</a>    </span><span class="kw">fn </span>modify_function_pointer_param_types(
+<a href=#436 id=436 data-nosnippet>436</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+<a href=#437 id=437 data-nosnippet>437</a>        proxy_functions: <span class="kw-2">&amp;mut </span>HashMap&lt;FuncId, Function&gt;,
+<a href=#438 id=438 data-nosnippet>438</a>    ) {
+<a href=#439 id=439 data-nosnippet>439</a>        <span class="kw">for </span>(<span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span>, param_type, <span class="kw">_</span>) <span class="kw">in </span><span class="kw-2">&amp;mut </span><span class="self">self</span>.func.parameters {
+<a href=#440 id=440 data-nosnippet>440</a>            <span class="kw">let </span><span class="kw-2">mut </span>typ = param_type.as_ref().clone();
+<a href=#441 id=441 data-nosnippet>441</a>            modify_function_pointer_param_type(<span class="kw-2">&amp;mut </span>typ, <span class="self">self</span>.func.unconstrained);
+<a href=#442 id=442 data-nosnippet>442</a>            <span class="kw-2">*</span>param_type = Rc::new(typ);
+<a href=#443 id=443 data-nosnippet>443</a>        }
+<a href=#444 id=444 data-nosnippet>444</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>(proxy) = proxy_functions.get_mut(<span class="kw-2">&amp;</span><span class="self">self</span>.func_id) {
+<a href=#445 id=445 data-nosnippet>445</a>            <span class="kw">for </span>(<span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span>, param_type, <span class="kw">_</span>) <span class="kw">in </span><span class="kw-2">&amp;mut </span>proxy.parameters {
+<a href=#446 id=446 data-nosnippet>446</a>                <span class="kw">let </span><span class="kw-2">mut </span>typ = param_type.as_ref().clone();
+<a href=#447 id=447 data-nosnippet>447</a>                modify_function_pointer_param_type(<span class="kw-2">&amp;mut </span>typ, <span class="self">self</span>.func.unconstrained);
+<a href=#448 id=448 data-nosnippet>448</a>                <span class="kw-2">*</span>param_type = Rc::new(typ);
+<a href=#449 id=449 data-nosnippet>449</a>            }
+<a href=#450 id=450 data-nosnippet>450</a>        }
+<a href=#451 id=451 data-nosnippet>451</a>    }
+<a href=#452 id=452 data-nosnippet>452</a>}
+<a href=#453 id=453 data-nosnippet>453</a>
+<a href=#454 id=454 data-nosnippet>454</a><span class="doccomment">/// Go through the types of each function parameter. If they are function pointers,
+<a href=#455 id=455 data-nosnippet>455</a>/// then they need the context, depending on the callee type.
+<a href=#456 id=456 data-nosnippet>456</a></span><span class="kw">fn </span>modify_function_pointer_param_types(param_types: <span class="kw-2">&amp;mut </span>[Type], callee_unconstrained: bool) {
+<a href=#457 id=457 data-nosnippet>457</a>    <span class="kw">for </span>param_type <span class="kw">in </span>param_types.iter_mut() {
+<a href=#458 id=458 data-nosnippet>458</a>        modify_function_pointer_param_type(param_type, callee_unconstrained);
+<a href=#459 id=459 data-nosnippet>459</a>    }
+<a href=#460 id=460 data-nosnippet>460</a>}
+<a href=#461 id=461 data-nosnippet>461</a>
+<a href=#462 id=462 data-nosnippet>462</a><span class="doccomment">/// Recursively modify function pointers in the param type.
+<a href=#463 id=463 data-nosnippet>463</a></span><span class="kw">fn </span>modify_function_pointer_param_type(param_type: <span class="kw-2">&amp;mut </span>Type, callee_unconstrained: bool) {
+<a href=#464 id=464 data-nosnippet>464</a>    types::unref_mut(param_type, |param_type| {
+<a href=#465 id=465 data-nosnippet>465</a>        <span class="kw">let </span>Type::Function(<span class="kw-2">mut </span>param_types, ret, env, param_unconstrained) = param_type.clone()
+<a href=#466 id=466 data-nosnippet>466</a>        <span class="kw">else </span>{
+<a href=#467 id=467 data-nosnippet>467</a>            <span class="kw">return </span>param_type;
+<a href=#468 id=468 data-nosnippet>468</a>        };
+<a href=#469 id=469 data-nosnippet>469</a>
+<a href=#470 id=470 data-nosnippet>470</a>        <span class="kw">let </span>limit_typ = ctx_limit_type_for_func_param(callee_unconstrained, param_unconstrained);
+<a href=#471 id=471 data-nosnippet>471</a>
+<a href=#472 id=472 data-nosnippet>472</a>        <span class="comment">// Add the limit to the function described in the parameter.
+<a href=#473 id=473 data-nosnippet>473</a>        </span>param_types.push(limit_typ);
+<a href=#474 id=474 data-nosnippet>474</a>
+<a href=#475 id=475 data-nosnippet>475</a>        <span class="comment">// We need to recurse into the parameters of the function pointer.
+<a href=#476 id=476 data-nosnippet>476</a>        </span>modify_function_pointer_param_types(<span class="kw-2">&amp;mut </span>param_types, param_unconstrained);
+<a href=#477 id=477 data-nosnippet>477</a>
+<a href=#478 id=478 data-nosnippet>478</a>        Type::Function(param_types, ret, env, param_unconstrained)
+<a href=#479 id=479 data-nosnippet>479</a>    });
+<a href=#480 id=480 data-nosnippet>480</a>}
+<a href=#481 id=481 data-nosnippet>481</a>
+<a href=#482 id=482 data-nosnippet>482</a><span class="doccomment">/// Go through the call arguments and update global function pointers to their
+<a href=#483 id=483 data-nosnippet>483</a>/// proxy equivalents if necessary.
+<a href=#484 id=484 data-nosnippet>484</a></span><span class="kw">fn </span>modify_function_pointer_param_values(
+<a href=#485 id=485 data-nosnippet>485</a>    args: <span class="kw-2">&amp;mut </span>[Expression],
+<a href=#486 id=486 data-nosnippet>486</a>    param_types: <span class="kw-2">&amp;</span>[Type],
+<a href=#487 id=487 data-nosnippet>487</a>    callee_unconstrained: bool,
+<a href=#488 id=488 data-nosnippet>488</a>    proxy_functions: <span class="kw-2">&amp;</span>HashMap&lt;FuncId, Function&gt;,
+<a href=#489 id=489 data-nosnippet>489</a>) {
+<a href=#490 id=490 data-nosnippet>490</a>    <span class="kw">for </span>i <span class="kw">in </span><span class="number">0</span>..param_types.len() {
+<a href=#491 id=491 data-nosnippet>491</a>        <span class="comment">// We only consider parameters that take functions, not function references,
+<a href=#492 id=492 data-nosnippet>492</a>        // because if something can take a function reference, and we can call it,
+<a href=#493 id=493 data-nosnippet>493</a>        // then it must be a Brillig to Brillig call, and we don't have to change
+<a href=#494 id=494 data-nosnippet>494</a>        // it to pass the proxy instead.
+<a href=#495 id=495 data-nosnippet>495</a>        </span><span class="kw">let </span>Type::Function(<span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span>, param_unconstrained) = <span class="kw-2">&amp;</span>param_types[i] <span class="kw">else </span>{
+<a href=#496 id=496 data-nosnippet>496</a>            <span class="kw">continue</span>;
+<a href=#497 id=497 data-nosnippet>497</a>        };
+<a href=#498 id=498 data-nosnippet>498</a>        <span class="kw">let </span>limit_typ = ctx_limit_type_for_func_param(callee_unconstrained, <span class="kw-2">*</span>param_unconstrained);
+<a href=#499 id=499 data-nosnippet>499</a>
+<a href=#500 id=500 data-nosnippet>500</a>        <span class="comment">// If it's passed by reference we can leave it alone.
+<a href=#501 id=501 data-nosnippet>501</a>        </span><span class="kw">if </span>types::is_reference(<span class="kw-2">&amp;</span>limit_typ) {
+<a href=#502 id=502 data-nosnippet>502</a>            <span class="kw">continue</span>;
+<a href=#503 id=503 data-nosnippet>503</a>        }
+<a href=#504 id=504 data-nosnippet>504</a>
+<a href=#505 id=505 data-nosnippet>505</a>        <span class="comment">// If we need to pass by value, then it's going to the proxy, but only if it's a global function,
+<a href=#506 id=506 data-nosnippet>506</a>        // and not a function parameter, which we wouldn't know what to change to, and doing so happens
+<a href=#507 id=507 data-nosnippet>507</a>        // when it's first passed as a global.
+<a href=#508 id=508 data-nosnippet>508</a>        </span><span class="kw">let </span>arg = <span class="kw-2">&amp;mut </span>args[i];
+<a href=#509 id=509 data-nosnippet>509</a>
+<a href=#510 id=510 data-nosnippet>510</a>        <span class="comment">// If we are dereferencing a variable, then it's not a global function we are passing.
+<a href=#511 id=511 data-nosnippet>511</a>        </span><span class="kw">if </span>expr::is_deref(arg) {
+<a href=#512 id=512 data-nosnippet>512</a>            <span class="kw">continue</span>;
+<a href=#513 id=513 data-nosnippet>513</a>        }
+<a href=#514 id=514 data-nosnippet>514</a>        <span class="comment">// Otherwise we should be passing a function by identifier directly.
+<a href=#515 id=515 data-nosnippet>515</a>        </span><span class="kw">let </span>Expression::Ident(param_func_ident) = arg <span class="kw">else </span>{
+<a href=#516 id=516 data-nosnippet>516</a>            <span class="macro">unreachable!</span>(<span class="string">"functions are passed by ident; got {arg}"</span>);
+<a href=#517 id=517 data-nosnippet>517</a>        };
+<a href=#518 id=518 data-nosnippet>518</a>        <span class="kw">let </span>param_func_id = <span class="kw">match </span><span class="kw-2">&amp;</span>param_func_ident.definition {
+<a href=#519 id=519 data-nosnippet>519</a>            Definition::Function(id) =&gt; id,
+<a href=#520 id=520 data-nosnippet>520</a>            Definition::Local(<span class="kw">_</span>) =&gt; <span class="kw">continue</span>,
+<a href=#521 id=521 data-nosnippet>521</a>            other =&gt; {
+<a href=#522 id=522 data-nosnippet>522</a>                <span class="macro">unreachable!</span>(<span class="string">"function definition expected; got {}"</span>, other);
+<a href=#523 id=523 data-nosnippet>523</a>            }
+<a href=#524 id=524 data-nosnippet>524</a>        };
+<a href=#525 id=525 data-nosnippet>525</a>        <span class="kw">let </span><span class="prelude-val">Some</span>(proxy) = proxy_functions.get(param_func_id) <span class="kw">else </span>{
+<a href=#526 id=526 data-nosnippet>526</a>            <span class="macro">unreachable!</span>(
+<a href=#527 id=527 data-nosnippet>527</a>                <span class="string">"expected to have a proxy for the function pointer: {param_func_id}; only have them for {:?}"</span>,
+<a href=#528 id=528 data-nosnippet>528</a>                proxy_functions.keys().collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;()
+<a href=#529 id=529 data-nosnippet>529</a>            );
+<a href=#530 id=530 data-nosnippet>530</a>        };
+<a href=#531 id=531 data-nosnippet>531</a>        param_func_ident.name = proxy.name.clone();
+<a href=#532 id=532 data-nosnippet>532</a>        param_func_ident.definition = Definition::Function(proxy.id);
+<a href=#533 id=533 data-nosnippet>533</a>    }
+<a href=#534 id=534 data-nosnippet>534</a>}</code></pre></div></section></main></body></html>

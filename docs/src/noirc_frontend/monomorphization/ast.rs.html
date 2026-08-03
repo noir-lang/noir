@@ -398,393 +398,398 @@
 <a href=#398 id=398 data-nosnippet>398</a>    <span class="kw">pub </span>mutable: bool,
 <a href=#399 id=399 data-nosnippet>399</a>    <span class="kw">pub </span>name: String,
 <a href=#400 id=400 data-nosnippet>400</a>    <span class="kw">pub </span>expression: Box&lt;Expression&gt;,
-<a href=#401 id=401 data-nosnippet>401</a>}
-<a href=#402 id=402 data-nosnippet>402</a>
-<a href=#403 id=403 data-nosnippet>403</a><span class="attr">#[derive(Debug, Clone, Hash)]
-<a href=#404 id=404 data-nosnippet>404</a></span><span class="kw">pub struct </span>Assign {
-<a href=#405 id=405 data-nosnippet>405</a>    <span class="kw">pub </span>lvalue: LValue,
-<a href=#406 id=406 data-nosnippet>406</a>    <span class="kw">pub </span>expression: Box&lt;Expression&gt;,
-<a href=#407 id=407 data-nosnippet>407</a>}
-<a href=#408 id=408 data-nosnippet>408</a>
-<a href=#409 id=409 data-nosnippet>409</a><span class="attr">#[derive(Debug, Clone)]
-<a href=#410 id=410 data-nosnippet>410</a></span><span class="kw">pub struct </span>BinaryStatement {
-<a href=#411 id=411 data-nosnippet>411</a>    <span class="kw">pub </span>lhs: Box&lt;Expression&gt;,
-<a href=#412 id=412 data-nosnippet>412</a>    <span class="kw">pub </span>r#type: Type,
-<a href=#413 id=413 data-nosnippet>413</a>    <span class="kw">pub </span>expression: Box&lt;Expression&gt;,
-<a href=#414 id=414 data-nosnippet>414</a>}
-<a href=#415 id=415 data-nosnippet>415</a>
-<a href=#416 id=416 data-nosnippet>416</a><span class="doccomment">/// Represents an Ast form that can be assigned to
-<a href=#417 id=417 data-nosnippet>417</a></span><span class="attr">#[derive(Debug, Clone, Hash)]
-<a href=#418 id=418 data-nosnippet>418</a></span><span class="kw">pub enum </span>LValue {
-<a href=#419 id=419 data-nosnippet>419</a>    Ident(Ident),
-<a href=#420 id=420 data-nosnippet>420</a>    Index {
-<a href=#421 id=421 data-nosnippet>421</a>        array: Box&lt;LValue&gt;,
-<a href=#422 id=422 data-nosnippet>422</a>        index: Box&lt;Expression&gt;,
-<a href=#423 id=423 data-nosnippet>423</a>        element_type: Type,
-<a href=#424 id=424 data-nosnippet>424</a>        location: Location,
-<a href=#425 id=425 data-nosnippet>425</a>    },
-<a href=#426 id=426 data-nosnippet>426</a>    MemberAccess {
-<a href=#427 id=427 data-nosnippet>427</a>        object: Box&lt;LValue&gt;,
-<a href=#428 id=428 data-nosnippet>428</a>        field_index: usize,
-<a href=#429 id=429 data-nosnippet>429</a>    },
-<a href=#430 id=430 data-nosnippet>430</a>    Dereference {
-<a href=#431 id=431 data-nosnippet>431</a>        reference: Box&lt;LValue&gt;,
-<a href=#432 id=432 data-nosnippet>432</a>        element_type: Type,
-<a href=#433 id=433 data-nosnippet>433</a>    },
-<a href=#434 id=434 data-nosnippet>434</a>    <span class="doccomment">/// Analogous to `Expression::Clone`. Clone the resulting lvalue after evaluating it.
-<a href=#435 id=435 data-nosnippet>435</a>    </span>Clone(Box&lt;LValue&gt;),
-<a href=#436 id=436 data-nosnippet>436</a>}
-<a href=#437 id=437 data-nosnippet>437</a>
-<a href=#438 id=438 data-nosnippet>438</a><span class="kw">pub type </span>Parameters =
-<a href=#439 id=439 data-nosnippet>439</a>    Vec&lt;(LocalId, <span class="comment">/*mutable:*/ </span>bool, <span class="comment">/*name:*/ </span>String, Rc&lt;Type&gt;, Visibility)&gt;;
-<a href=#440 id=440 data-nosnippet>440</a>
-<a href=#441 id=441 data-nosnippet>441</a><span class="doccomment">/// Represents how an Acir function should be inlined.
-<a href=#442 id=442 data-nosnippet>442</a>/// This type is only relevant for ACIR functions as we do not inline any Brillig functions
-<a href=#443 id=443 data-nosnippet>443</a></span><span class="attr">#[derive(Default, Clone, Copy, PartialEq, Eq, Debug, Hash, PartialOrd, Ord, EnumIter)]
-<a href=#444 id=444 data-nosnippet>444</a>#[derive(Serialize, Deserialize)]
-<a href=#445 id=445 data-nosnippet>445</a></span><span class="kw">pub enum </span>InlineType {
-<a href=#446 id=446 data-nosnippet>446</a>    <span class="doccomment">/// The most basic entry point can expect all its functions to be inlined.
-<a href=#447 id=447 data-nosnippet>447</a>    /// All function calls are expected to be inlined into a single ACIR.
-<a href=#448 id=448 data-nosnippet>448</a>    </span><span class="attr">#[default]
-<a href=#449 id=449 data-nosnippet>449</a>    </span>Inline,
-<a href=#450 id=450 data-nosnippet>450</a>    <span class="doccomment">/// Functions marked as inline always will always be inlined, even in brillig contexts.
-<a href=#451 id=451 data-nosnippet>451</a>    </span>InlineAlways,
-<a href=#452 id=452 data-nosnippet>452</a>    <span class="doccomment">/// Functions marked as inline never will never be inlined
-<a href=#453 id=453 data-nosnippet>453</a>    </span>InlineNever,
-<a href=#454 id=454 data-nosnippet>454</a>    <span class="doccomment">/// Functions marked as foldable will not be inlined and compiled separately into ACIR
-<a href=#455 id=455 data-nosnippet>455</a>    </span>Fold,
-<a href=#456 id=456 data-nosnippet>456</a>    <span class="doccomment">/// Functions marked to have no predicates will not be inlined in the default inlining pass
-<a href=#457 id=457 data-nosnippet>457</a>    /// and will be separately inlined after the flattening pass.
-<a href=#458 id=458 data-nosnippet>458</a>    ///
-<a href=#459 id=459 data-nosnippet>459</a>    /// Flattening and inlining are necessary compiler passes in the ACIR runtime. More specifically,
-<a href=#460 id=460 data-nosnippet>460</a>    /// flattening is the removal of control flow through predicating side-effectual instructions.
-<a href=#461 id=461 data-nosnippet>461</a>    /// In some cases, a user may only want predicates applied to the result of a function call rather
-<a href=#462 id=462 data-nosnippet>462</a>    /// than all of a function's internal execution. To allow this behavior, we can simply inline a function
-<a href=#463 id=463 data-nosnippet>463</a>    /// after performing flattening (as ultimately in ACIR a non-entry point function will have to be inlined).
-<a href=#464 id=464 data-nosnippet>464</a>    /// These functions are different from `Fold` as they are expected to be inlined into the program
-<a href=#465 id=465 data-nosnippet>465</a>    /// entry point before being used in the backend.
-<a href=#466 id=466 data-nosnippet>466</a>    ///
-<a href=#467 id=467 data-nosnippet>467</a>    /// This attribute is unsafe and can cause a function whose logic relies on predicates from
-<a href=#468 id=468 data-nosnippet>468</a>    /// the flattening pass to fail.
-<a href=#469 id=469 data-nosnippet>469</a>    </span>NoPredicates,
-<a href=#470 id=470 data-nosnippet>470</a>}
-<a href=#471 id=471 data-nosnippet>471</a>
-<a href=#472 id=472 data-nosnippet>472</a><span class="kw">impl </span>From&lt;<span class="kw-2">&amp;</span>Attributes&gt; <span class="kw">for </span>InlineType {
-<a href=#473 id=473 data-nosnippet>473</a>    <span class="kw">fn </span>from(attributes: <span class="kw-2">&amp;</span>Attributes) -&gt; <span class="self">Self </span>{
-<a href=#474 id=474 data-nosnippet>474</a>        attributes.function().map_or(InlineType::default(), |func_attribute| <span class="kw">match </span><span class="kw-2">&amp;</span>func_attribute
-<a href=#475 id=475 data-nosnippet>475</a>            .kind
-<a href=#476 id=476 data-nosnippet>476</a>        {
-<a href=#477 id=477 data-nosnippet>477</a>            FunctionAttributeKind::Fold =&gt; InlineType::Fold,
-<a href=#478 id=478 data-nosnippet>478</a>            FunctionAttributeKind::NoPredicates =&gt; InlineType::NoPredicates,
-<a href=#479 id=479 data-nosnippet>479</a>            FunctionAttributeKind::InlineAlways =&gt; InlineType::InlineAlways,
-<a href=#480 id=480 data-nosnippet>480</a>            FunctionAttributeKind::InlineNever =&gt; InlineType::InlineNever,
-<a href=#481 id=481 data-nosnippet>481</a>            <span class="kw">_ </span>=&gt; InlineType::default(),
-<a href=#482 id=482 data-nosnippet>482</a>        })
-<a href=#483 id=483 data-nosnippet>483</a>    }
-<a href=#484 id=484 data-nosnippet>484</a>}
-<a href=#485 id=485 data-nosnippet>485</a>
-<a href=#486 id=486 data-nosnippet>486</a><span class="kw">impl </span>InlineType {
-<a href=#487 id=487 data-nosnippet>487</a>    <span class="kw">pub fn </span>is_entry_point(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
-<a href=#488 id=488 data-nosnippet>488</a>        <span class="kw">match </span><span class="self">self </span>{
-<a href=#489 id=489 data-nosnippet>489</a>            InlineType::Inline =&gt; <span class="bool-val">false</span>,
-<a href=#490 id=490 data-nosnippet>490</a>            InlineType::InlineAlways =&gt; <span class="bool-val">false</span>,
-<a href=#491 id=491 data-nosnippet>491</a>            InlineType::InlineNever =&gt; <span class="bool-val">false</span>,
-<a href=#492 id=492 data-nosnippet>492</a>            InlineType::Fold =&gt; <span class="bool-val">true</span>,
-<a href=#493 id=493 data-nosnippet>493</a>            InlineType::NoPredicates =&gt; <span class="bool-val">false</span>,
-<a href=#494 id=494 data-nosnippet>494</a>        }
-<a href=#495 id=495 data-nosnippet>495</a>    }
-<a href=#496 id=496 data-nosnippet>496</a>
-<a href=#497 id=497 data-nosnippet>497</a>    <span class="doccomment">/// Produce an `InlineType` which we can use with an unconstrained version of a function.
-<a href=#498 id=498 data-nosnippet>498</a>    </span><span class="kw">pub fn </span>into_unconstrained(<span class="self">self</span>) -&gt; <span class="self">Self </span>{
-<a href=#499 id=499 data-nosnippet>499</a>        <span class="kw">match </span><span class="self">self </span>{
-<a href=#500 id=500 data-nosnippet>500</a>            InlineType::Inline | InlineType::InlineAlways | InlineType::InlineNever =&gt; <span class="self">self</span>,
-<a href=#501 id=501 data-nosnippet>501</a>            InlineType::Fold =&gt; {
-<a href=#502 id=502 data-nosnippet>502</a>                <span class="comment">// The #[fold] attribute is about creating separate ACIR circuits for proving,
-<a href=#503 id=503 data-nosnippet>503</a>                // not relevant in Brillig. Leaving it violates some expectations that each
-<a href=#504 id=504 data-nosnippet>504</a>                // will become its own entry point.
-<a href=#505 id=505 data-nosnippet>505</a>                </span><span class="self">Self</span>::default()
-<a href=#506 id=506 data-nosnippet>506</a>            }
-<a href=#507 id=507 data-nosnippet>507</a>            InlineType::NoPredicates =&gt; {
-<a href=#508 id=508 data-nosnippet>508</a>                <span class="comment">// The #[no_predicates] are guaranteed to be inlined after flattening,
-<a href=#509 id=509 data-nosnippet>509</a>                // which is needed for some of the programs even in Brillig, otherwise
-<a href=#510 id=510 data-nosnippet>510</a>                // some intrinsics can survive until Brillig-gen that weren't supposed to.
-<a href=#511 id=511 data-nosnippet>511</a>                // We can keep these, or try inlining more aggressively, since we don't
-<a href=#512 id=512 data-nosnippet>512</a>                // have to wait until after flattening in Brillig, but InlineAlways
-<a href=#513 id=513 data-nosnippet>513</a>                // resulted in some Brillig bytecode size regressions.
-<a href=#514 id=514 data-nosnippet>514</a>                </span><span class="self">self
-<a href=#515 id=515 data-nosnippet>515</a>            </span>}
-<a href=#516 id=516 data-nosnippet>516</a>        }
-<a href=#517 id=517 data-nosnippet>517</a>    }
-<a href=#518 id=518 data-nosnippet>518</a>}
-<a href=#519 id=519 data-nosnippet>519</a>
-<a href=#520 id=520 data-nosnippet>520</a><span class="kw">impl </span>Display <span class="kw">for </span>InlineType {
-<a href=#521 id=521 data-nosnippet>521</a>    <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>std::fmt::Formatter&lt;<span class="lifetime">'_</span>&gt;) -&gt; std::fmt::Result {
-<a href=#522 id=522 data-nosnippet>522</a>        <span class="kw">match </span><span class="self">self </span>{
-<a href=#523 id=523 data-nosnippet>523</a>            InlineType::Inline =&gt; <span class="macro">write!</span>(f, <span class="string">"inline"</span>),
-<a href=#524 id=524 data-nosnippet>524</a>            InlineType::InlineAlways =&gt; <span class="macro">write!</span>(f, <span class="string">"inline_always"</span>),
-<a href=#525 id=525 data-nosnippet>525</a>            InlineType::InlineNever =&gt; <span class="macro">write!</span>(f, <span class="string">"inline_never"</span>),
-<a href=#526 id=526 data-nosnippet>526</a>            InlineType::Fold =&gt; <span class="macro">write!</span>(f, <span class="string">"fold"</span>),
-<a href=#527 id=527 data-nosnippet>527</a>            InlineType::NoPredicates =&gt; <span class="macro">write!</span>(f, <span class="string">"no_predicates"</span>),
-<a href=#528 id=528 data-nosnippet>528</a>        }
-<a href=#529 id=529 data-nosnippet>529</a>    }
-<a href=#530 id=530 data-nosnippet>530</a>}
-<a href=#531 id=531 data-nosnippet>531</a>
-<a href=#532 id=532 data-nosnippet>532</a><span class="attr">#[derive(Debug, Clone, Hash)]
-<a href=#533 id=533 data-nosnippet>533</a></span><span class="kw">pub struct </span>Function {
-<a href=#534 id=534 data-nosnippet>534</a>    <span class="kw">pub </span>id: FuncId,
-<a href=#535 id=535 data-nosnippet>535</a>    <span class="kw">pub </span>name: String,
+<a href=#401 id=401 data-nosnippet>401</a>    <span class="doccomment">/// The declared type of the binding. For mutable bindings this determines
+<a href=#402 id=402 data-nosnippet>402</a>    /// the element type of the allocated cell, which can differ from the
+<a href=#403 id=403 data-nosnippet>403</a>    /// initializer value's type in reference mutability (e.g. a borrow of a
+<a href=#404 id=404 data-nosnippet>404</a>    /// mutable variable is `&amp;mut T`-typed while the binding declares `&amp;T`).
+<a href=#405 id=405 data-nosnippet>405</a>    </span><span class="kw">pub </span>typ: Type,
+<a href=#406 id=406 data-nosnippet>406</a>}
+<a href=#407 id=407 data-nosnippet>407</a>
+<a href=#408 id=408 data-nosnippet>408</a><span class="attr">#[derive(Debug, Clone, Hash)]
+<a href=#409 id=409 data-nosnippet>409</a></span><span class="kw">pub struct </span>Assign {
+<a href=#410 id=410 data-nosnippet>410</a>    <span class="kw">pub </span>lvalue: LValue,
+<a href=#411 id=411 data-nosnippet>411</a>    <span class="kw">pub </span>expression: Box&lt;Expression&gt;,
+<a href=#412 id=412 data-nosnippet>412</a>}
+<a href=#413 id=413 data-nosnippet>413</a>
+<a href=#414 id=414 data-nosnippet>414</a><span class="attr">#[derive(Debug, Clone)]
+<a href=#415 id=415 data-nosnippet>415</a></span><span class="kw">pub struct </span>BinaryStatement {
+<a href=#416 id=416 data-nosnippet>416</a>    <span class="kw">pub </span>lhs: Box&lt;Expression&gt;,
+<a href=#417 id=417 data-nosnippet>417</a>    <span class="kw">pub </span>r#type: Type,
+<a href=#418 id=418 data-nosnippet>418</a>    <span class="kw">pub </span>expression: Box&lt;Expression&gt;,
+<a href=#419 id=419 data-nosnippet>419</a>}
+<a href=#420 id=420 data-nosnippet>420</a>
+<a href=#421 id=421 data-nosnippet>421</a><span class="doccomment">/// Represents an Ast form that can be assigned to
+<a href=#422 id=422 data-nosnippet>422</a></span><span class="attr">#[derive(Debug, Clone, Hash)]
+<a href=#423 id=423 data-nosnippet>423</a></span><span class="kw">pub enum </span>LValue {
+<a href=#424 id=424 data-nosnippet>424</a>    Ident(Ident),
+<a href=#425 id=425 data-nosnippet>425</a>    Index {
+<a href=#426 id=426 data-nosnippet>426</a>        array: Box&lt;LValue&gt;,
+<a href=#427 id=427 data-nosnippet>427</a>        index: Box&lt;Expression&gt;,
+<a href=#428 id=428 data-nosnippet>428</a>        element_type: Type,
+<a href=#429 id=429 data-nosnippet>429</a>        location: Location,
+<a href=#430 id=430 data-nosnippet>430</a>    },
+<a href=#431 id=431 data-nosnippet>431</a>    MemberAccess {
+<a href=#432 id=432 data-nosnippet>432</a>        object: Box&lt;LValue&gt;,
+<a href=#433 id=433 data-nosnippet>433</a>        field_index: usize,
+<a href=#434 id=434 data-nosnippet>434</a>    },
+<a href=#435 id=435 data-nosnippet>435</a>    Dereference {
+<a href=#436 id=436 data-nosnippet>436</a>        reference: Box&lt;LValue&gt;,
+<a href=#437 id=437 data-nosnippet>437</a>        element_type: Type,
+<a href=#438 id=438 data-nosnippet>438</a>    },
+<a href=#439 id=439 data-nosnippet>439</a>    <span class="doccomment">/// Analogous to `Expression::Clone`. Clone the resulting lvalue after evaluating it.
+<a href=#440 id=440 data-nosnippet>440</a>    </span>Clone(Box&lt;LValue&gt;),
+<a href=#441 id=441 data-nosnippet>441</a>}
+<a href=#442 id=442 data-nosnippet>442</a>
+<a href=#443 id=443 data-nosnippet>443</a><span class="kw">pub type </span>Parameters =
+<a href=#444 id=444 data-nosnippet>444</a>    Vec&lt;(LocalId, <span class="comment">/*mutable:*/ </span>bool, <span class="comment">/*name:*/ </span>String, Rc&lt;Type&gt;, Visibility)&gt;;
+<a href=#445 id=445 data-nosnippet>445</a>
+<a href=#446 id=446 data-nosnippet>446</a><span class="doccomment">/// Represents how an Acir function should be inlined.
+<a href=#447 id=447 data-nosnippet>447</a>/// This type is only relevant for ACIR functions as we do not inline any Brillig functions
+<a href=#448 id=448 data-nosnippet>448</a></span><span class="attr">#[derive(Default, Clone, Copy, PartialEq, Eq, Debug, Hash, PartialOrd, Ord, EnumIter)]
+<a href=#449 id=449 data-nosnippet>449</a>#[derive(Serialize, Deserialize)]
+<a href=#450 id=450 data-nosnippet>450</a></span><span class="kw">pub enum </span>InlineType {
+<a href=#451 id=451 data-nosnippet>451</a>    <span class="doccomment">/// The most basic entry point can expect all its functions to be inlined.
+<a href=#452 id=452 data-nosnippet>452</a>    /// All function calls are expected to be inlined into a single ACIR.
+<a href=#453 id=453 data-nosnippet>453</a>    </span><span class="attr">#[default]
+<a href=#454 id=454 data-nosnippet>454</a>    </span>Inline,
+<a href=#455 id=455 data-nosnippet>455</a>    <span class="doccomment">/// Functions marked as inline always will always be inlined, even in brillig contexts.
+<a href=#456 id=456 data-nosnippet>456</a>    </span>InlineAlways,
+<a href=#457 id=457 data-nosnippet>457</a>    <span class="doccomment">/// Functions marked as inline never will never be inlined
+<a href=#458 id=458 data-nosnippet>458</a>    </span>InlineNever,
+<a href=#459 id=459 data-nosnippet>459</a>    <span class="doccomment">/// Functions marked as foldable will not be inlined and compiled separately into ACIR
+<a href=#460 id=460 data-nosnippet>460</a>    </span>Fold,
+<a href=#461 id=461 data-nosnippet>461</a>    <span class="doccomment">/// Functions marked to have no predicates will not be inlined in the default inlining pass
+<a href=#462 id=462 data-nosnippet>462</a>    /// and will be separately inlined after the flattening pass.
+<a href=#463 id=463 data-nosnippet>463</a>    ///
+<a href=#464 id=464 data-nosnippet>464</a>    /// Flattening and inlining are necessary compiler passes in the ACIR runtime. More specifically,
+<a href=#465 id=465 data-nosnippet>465</a>    /// flattening is the removal of control flow through predicating side-effectual instructions.
+<a href=#466 id=466 data-nosnippet>466</a>    /// In some cases, a user may only want predicates applied to the result of a function call rather
+<a href=#467 id=467 data-nosnippet>467</a>    /// than all of a function's internal execution. To allow this behavior, we can simply inline a function
+<a href=#468 id=468 data-nosnippet>468</a>    /// after performing flattening (as ultimately in ACIR a non-entry point function will have to be inlined).
+<a href=#469 id=469 data-nosnippet>469</a>    /// These functions are different from `Fold` as they are expected to be inlined into the program
+<a href=#470 id=470 data-nosnippet>470</a>    /// entry point before being used in the backend.
+<a href=#471 id=471 data-nosnippet>471</a>    ///
+<a href=#472 id=472 data-nosnippet>472</a>    /// This attribute is unsafe and can cause a function whose logic relies on predicates from
+<a href=#473 id=473 data-nosnippet>473</a>    /// the flattening pass to fail.
+<a href=#474 id=474 data-nosnippet>474</a>    </span>NoPredicates,
+<a href=#475 id=475 data-nosnippet>475</a>}
+<a href=#476 id=476 data-nosnippet>476</a>
+<a href=#477 id=477 data-nosnippet>477</a><span class="kw">impl </span>From&lt;<span class="kw-2">&amp;</span>Attributes&gt; <span class="kw">for </span>InlineType {
+<a href=#478 id=478 data-nosnippet>478</a>    <span class="kw">fn </span>from(attributes: <span class="kw-2">&amp;</span>Attributes) -&gt; <span class="self">Self </span>{
+<a href=#479 id=479 data-nosnippet>479</a>        attributes.function().map_or(InlineType::default(), |func_attribute| <span class="kw">match </span><span class="kw-2">&amp;</span>func_attribute
+<a href=#480 id=480 data-nosnippet>480</a>            .kind
+<a href=#481 id=481 data-nosnippet>481</a>        {
+<a href=#482 id=482 data-nosnippet>482</a>            FunctionAttributeKind::Fold =&gt; InlineType::Fold,
+<a href=#483 id=483 data-nosnippet>483</a>            FunctionAttributeKind::NoPredicates =&gt; InlineType::NoPredicates,
+<a href=#484 id=484 data-nosnippet>484</a>            FunctionAttributeKind::InlineAlways =&gt; InlineType::InlineAlways,
+<a href=#485 id=485 data-nosnippet>485</a>            FunctionAttributeKind::InlineNever =&gt; InlineType::InlineNever,
+<a href=#486 id=486 data-nosnippet>486</a>            <span class="kw">_ </span>=&gt; InlineType::default(),
+<a href=#487 id=487 data-nosnippet>487</a>        })
+<a href=#488 id=488 data-nosnippet>488</a>    }
+<a href=#489 id=489 data-nosnippet>489</a>}
+<a href=#490 id=490 data-nosnippet>490</a>
+<a href=#491 id=491 data-nosnippet>491</a><span class="kw">impl </span>InlineType {
+<a href=#492 id=492 data-nosnippet>492</a>    <span class="kw">pub fn </span>is_entry_point(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
+<a href=#493 id=493 data-nosnippet>493</a>        <span class="kw">match </span><span class="self">self </span>{
+<a href=#494 id=494 data-nosnippet>494</a>            InlineType::Inline =&gt; <span class="bool-val">false</span>,
+<a href=#495 id=495 data-nosnippet>495</a>            InlineType::InlineAlways =&gt; <span class="bool-val">false</span>,
+<a href=#496 id=496 data-nosnippet>496</a>            InlineType::InlineNever =&gt; <span class="bool-val">false</span>,
+<a href=#497 id=497 data-nosnippet>497</a>            InlineType::Fold =&gt; <span class="bool-val">true</span>,
+<a href=#498 id=498 data-nosnippet>498</a>            InlineType::NoPredicates =&gt; <span class="bool-val">false</span>,
+<a href=#499 id=499 data-nosnippet>499</a>        }
+<a href=#500 id=500 data-nosnippet>500</a>    }
+<a href=#501 id=501 data-nosnippet>501</a>
+<a href=#502 id=502 data-nosnippet>502</a>    <span class="doccomment">/// Produce an `InlineType` which we can use with an unconstrained version of a function.
+<a href=#503 id=503 data-nosnippet>503</a>    </span><span class="kw">pub fn </span>into_unconstrained(<span class="self">self</span>) -&gt; <span class="self">Self </span>{
+<a href=#504 id=504 data-nosnippet>504</a>        <span class="kw">match </span><span class="self">self </span>{
+<a href=#505 id=505 data-nosnippet>505</a>            InlineType::Inline | InlineType::InlineAlways | InlineType::InlineNever =&gt; <span class="self">self</span>,
+<a href=#506 id=506 data-nosnippet>506</a>            InlineType::Fold =&gt; {
+<a href=#507 id=507 data-nosnippet>507</a>                <span class="comment">// The #[fold] attribute is about creating separate ACIR circuits for proving,
+<a href=#508 id=508 data-nosnippet>508</a>                // not relevant in Brillig. Leaving it violates some expectations that each
+<a href=#509 id=509 data-nosnippet>509</a>                // will become its own entry point.
+<a href=#510 id=510 data-nosnippet>510</a>                </span><span class="self">Self</span>::default()
+<a href=#511 id=511 data-nosnippet>511</a>            }
+<a href=#512 id=512 data-nosnippet>512</a>            InlineType::NoPredicates =&gt; {
+<a href=#513 id=513 data-nosnippet>513</a>                <span class="comment">// The #[no_predicates] are guaranteed to be inlined after flattening,
+<a href=#514 id=514 data-nosnippet>514</a>                // which is needed for some of the programs even in Brillig, otherwise
+<a href=#515 id=515 data-nosnippet>515</a>                // some intrinsics can survive until Brillig-gen that weren't supposed to.
+<a href=#516 id=516 data-nosnippet>516</a>                // We can keep these, or try inlining more aggressively, since we don't
+<a href=#517 id=517 data-nosnippet>517</a>                // have to wait until after flattening in Brillig, but InlineAlways
+<a href=#518 id=518 data-nosnippet>518</a>                // resulted in some Brillig bytecode size regressions.
+<a href=#519 id=519 data-nosnippet>519</a>                </span><span class="self">self
+<a href=#520 id=520 data-nosnippet>520</a>            </span>}
+<a href=#521 id=521 data-nosnippet>521</a>        }
+<a href=#522 id=522 data-nosnippet>522</a>    }
+<a href=#523 id=523 data-nosnippet>523</a>}
+<a href=#524 id=524 data-nosnippet>524</a>
+<a href=#525 id=525 data-nosnippet>525</a><span class="kw">impl </span>Display <span class="kw">for </span>InlineType {
+<a href=#526 id=526 data-nosnippet>526</a>    <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>std::fmt::Formatter&lt;<span class="lifetime">'_</span>&gt;) -&gt; std::fmt::Result {
+<a href=#527 id=527 data-nosnippet>527</a>        <span class="kw">match </span><span class="self">self </span>{
+<a href=#528 id=528 data-nosnippet>528</a>            InlineType::Inline =&gt; <span class="macro">write!</span>(f, <span class="string">"inline"</span>),
+<a href=#529 id=529 data-nosnippet>529</a>            InlineType::InlineAlways =&gt; <span class="macro">write!</span>(f, <span class="string">"inline_always"</span>),
+<a href=#530 id=530 data-nosnippet>530</a>            InlineType::InlineNever =&gt; <span class="macro">write!</span>(f, <span class="string">"inline_never"</span>),
+<a href=#531 id=531 data-nosnippet>531</a>            InlineType::Fold =&gt; <span class="macro">write!</span>(f, <span class="string">"fold"</span>),
+<a href=#532 id=532 data-nosnippet>532</a>            InlineType::NoPredicates =&gt; <span class="macro">write!</span>(f, <span class="string">"no_predicates"</span>),
+<a href=#533 id=533 data-nosnippet>533</a>        }
+<a href=#534 id=534 data-nosnippet>534</a>    }
+<a href=#535 id=535 data-nosnippet>535</a>}
 <a href=#536 id=536 data-nosnippet>536</a>
-<a href=#537 id=537 data-nosnippet>537</a>    <span class="kw">pub </span>parameters: Parameters,
-<a href=#538 id=538 data-nosnippet>538</a>    <span class="kw">pub </span>body: Expression,
-<a href=#539 id=539 data-nosnippet>539</a>
-<a href=#540 id=540 data-nosnippet>540</a>    <span class="kw">pub </span>return_type: Type,
-<a href=#541 id=541 data-nosnippet>541</a>    <span class="kw">pub </span>return_visibility: Visibility,
-<a href=#542 id=542 data-nosnippet>542</a>    <span class="kw">pub </span>unconstrained: bool,
-<a href=#543 id=543 data-nosnippet>543</a>    <span class="kw">pub </span>inline_type: InlineType,
-<a href=#544 id=544 data-nosnippet>544</a>    <span class="kw">pub </span>is_entry_point: bool,
-<a href=#545 id=545 data-nosnippet>545</a>
-<a href=#546 id=546 data-nosnippet>546</a>    <span class="doccomment">/// True if the source function was annotated with `#[allow(constant_return)]`,
-<a href=#547 id=547 data-nosnippet>547</a>    /// which silences the `constant_return` warning raised during ACIR generation
-<a href=#548 id=548 data-nosnippet>548</a>    /// when this function is an ACIR entry point whose return value is constant.
-<a href=#549 id=549 data-nosnippet>549</a>    </span><span class="kw">pub </span>allow_constant_return: bool,
-<a href=#550 id=550 data-nosnippet>550</a>}
-<a href=#551 id=551 data-nosnippet>551</a>
-<a href=#552 id=552 data-nosnippet>552</a><span class="doccomment">/// Compared to `hir_def::types::Type`, this monomorphized Type has:
-<a href=#553 id=553 data-nosnippet>553</a>/// - All type variables and generics removed
-<a href=#554 id=554 data-nosnippet>554</a>/// - Concrete lengths for each array and string
-<a href=#555 id=555 data-nosnippet>555</a>/// - Several other variants removed (such as `Type::Constant`)
-<a href=#556 id=556 data-nosnippet>556</a>/// - All structs replaced with tuples
-<a href=#557 id=557 data-nosnippet>557</a></span><span class="attr">#[derive(Debug, PartialEq, Eq, Clone, Hash, PartialOrd, Ord)]
-<a href=#558 id=558 data-nosnippet>558</a></span><span class="kw">pub enum </span>Type {
-<a href=#559 id=559 data-nosnippet>559</a>    Field,
-<a href=#560 id=560 data-nosnippet>560</a>    Array(<span class="comment">/*len:*/ </span>u32, Rc&lt;Type&gt;), <span class="comment">// Array(4, Field) = [Field; 4]
-<a href=#561 id=561 data-nosnippet>561</a>    </span>Integer(Signedness, <span class="comment">/*bits:*/ </span>IntegerBitSize), <span class="comment">// u32 = Integer(unsigned, ThirtyTwo)
-<a href=#562 id=562 data-nosnippet>562</a>    </span>Bool,
-<a href=#563 id=563 data-nosnippet>563</a>    String(<span class="comment">/*len:*/ </span>u32), <span class="comment">// String(4) = str[4]
-<a href=#564 id=564 data-nosnippet>564</a>    </span>FmtString(<span class="comment">/*len:*/ </span>u32, Rc&lt;Type&gt;),
-<a href=#565 id=565 data-nosnippet>565</a>    Unit,
-<a href=#566 id=566 data-nosnippet>566</a>    Tuple(Vec&lt;Type&gt;),
-<a href=#567 id=567 data-nosnippet>567</a>    Vector(Rc&lt;Type&gt;),
-<a href=#568 id=568 data-nosnippet>568</a>    Reference(Rc&lt;Type&gt;, <span class="comment">/*mutable:*/ </span>bool),
-<a href=#569 id=569 data-nosnippet>569</a>    <span class="doccomment">/// `(args, ret, env, unconstrained)`
-<a href=#570 id=570 data-nosnippet>570</a>    </span>Function(
-<a href=#571 id=571 data-nosnippet>571</a>        <span class="comment">/*args:*/ </span>Vec&lt;Type&gt;,
-<a href=#572 id=572 data-nosnippet>572</a>        <span class="comment">/*ret:*/ </span>Rc&lt;Type&gt;,
-<a href=#573 id=573 data-nosnippet>573</a>        <span class="comment">/*env:*/ </span>Rc&lt;Type&gt;,
-<a href=#574 id=574 data-nosnippet>574</a>        <span class="comment">/*unconstrained:*/ </span>bool,
-<a href=#575 id=575 data-nosnippet>575</a>    ),
-<a href=#576 id=576 data-nosnippet>576</a>}
-<a href=#577 id=577 data-nosnippet>577</a>
-<a href=#578 id=578 data-nosnippet>578</a><span class="doccomment">/// Maximum number of flattened field elements allowed at an entry point boundary,
-<a href=#579 id=579 data-nosnippet>579</a>/// i.e. for a parameter or a return value.
-<a href=#580 id=580 data-nosnippet>580</a>///
-<a href=#581 id=581 data-nosnippet>581</a>/// This limit prevents hangs or out-of-memory issues when dealing with very large arrays:
-<a href=#582 id=582 data-nosnippet>582</a>/// flattened sizes approaching `u32::MAX` cannot be represented, since Brillig arrays are
-<a href=#583 id=583 data-nosnippet>583</a>/// heap-allocated using `u32` addressing and ACIR/data-bus construction reserves one witness
-<a href=#584 id=584 data-nosnippet>584</a>/// per flattened element.
+<a href=#537 id=537 data-nosnippet>537</a><span class="attr">#[derive(Debug, Clone, Hash)]
+<a href=#538 id=538 data-nosnippet>538</a></span><span class="kw">pub struct </span>Function {
+<a href=#539 id=539 data-nosnippet>539</a>    <span class="kw">pub </span>id: FuncId,
+<a href=#540 id=540 data-nosnippet>540</a>    <span class="kw">pub </span>name: String,
+<a href=#541 id=541 data-nosnippet>541</a>
+<a href=#542 id=542 data-nosnippet>542</a>    <span class="kw">pub </span>parameters: Parameters,
+<a href=#543 id=543 data-nosnippet>543</a>    <span class="kw">pub </span>body: Expression,
+<a href=#544 id=544 data-nosnippet>544</a>
+<a href=#545 id=545 data-nosnippet>545</a>    <span class="kw">pub </span>return_type: Type,
+<a href=#546 id=546 data-nosnippet>546</a>    <span class="kw">pub </span>return_visibility: Visibility,
+<a href=#547 id=547 data-nosnippet>547</a>    <span class="kw">pub </span>unconstrained: bool,
+<a href=#548 id=548 data-nosnippet>548</a>    <span class="kw">pub </span>inline_type: InlineType,
+<a href=#549 id=549 data-nosnippet>549</a>    <span class="kw">pub </span>is_entry_point: bool,
+<a href=#550 id=550 data-nosnippet>550</a>
+<a href=#551 id=551 data-nosnippet>551</a>    <span class="doccomment">/// True if the source function was annotated with `#[allow(constant_return)]`,
+<a href=#552 id=552 data-nosnippet>552</a>    /// which silences the `constant_return` warning raised during ACIR generation
+<a href=#553 id=553 data-nosnippet>553</a>    /// when this function is an ACIR entry point whose return value is constant.
+<a href=#554 id=554 data-nosnippet>554</a>    </span><span class="kw">pub </span>allow_constant_return: bool,
+<a href=#555 id=555 data-nosnippet>555</a>}
+<a href=#556 id=556 data-nosnippet>556</a>
+<a href=#557 id=557 data-nosnippet>557</a><span class="doccomment">/// Compared to `hir_def::types::Type`, this monomorphized Type has:
+<a href=#558 id=558 data-nosnippet>558</a>/// - All type variables and generics removed
+<a href=#559 id=559 data-nosnippet>559</a>/// - Concrete lengths for each array and string
+<a href=#560 id=560 data-nosnippet>560</a>/// - Several other variants removed (such as `Type::Constant`)
+<a href=#561 id=561 data-nosnippet>561</a>/// - All structs replaced with tuples
+<a href=#562 id=562 data-nosnippet>562</a></span><span class="attr">#[derive(Debug, PartialEq, Eq, Clone, Hash, PartialOrd, Ord)]
+<a href=#563 id=563 data-nosnippet>563</a></span><span class="kw">pub enum </span>Type {
+<a href=#564 id=564 data-nosnippet>564</a>    Field,
+<a href=#565 id=565 data-nosnippet>565</a>    Array(<span class="comment">/*len:*/ </span>u32, Rc&lt;Type&gt;), <span class="comment">// Array(4, Field) = [Field; 4]
+<a href=#566 id=566 data-nosnippet>566</a>    </span>Integer(Signedness, <span class="comment">/*bits:*/ </span>IntegerBitSize), <span class="comment">// u32 = Integer(unsigned, ThirtyTwo)
+<a href=#567 id=567 data-nosnippet>567</a>    </span>Bool,
+<a href=#568 id=568 data-nosnippet>568</a>    String(<span class="comment">/*len:*/ </span>u32), <span class="comment">// String(4) = str[4]
+<a href=#569 id=569 data-nosnippet>569</a>    </span>FmtString(<span class="comment">/*len:*/ </span>u32, Rc&lt;Type&gt;),
+<a href=#570 id=570 data-nosnippet>570</a>    Unit,
+<a href=#571 id=571 data-nosnippet>571</a>    Tuple(Vec&lt;Type&gt;),
+<a href=#572 id=572 data-nosnippet>572</a>    Vector(Rc&lt;Type&gt;),
+<a href=#573 id=573 data-nosnippet>573</a>    Reference(Rc&lt;Type&gt;, <span class="comment">/*mutable:*/ </span>bool),
+<a href=#574 id=574 data-nosnippet>574</a>    <span class="doccomment">/// `(args, ret, env, unconstrained)`
+<a href=#575 id=575 data-nosnippet>575</a>    </span>Function(
+<a href=#576 id=576 data-nosnippet>576</a>        <span class="comment">/*args:*/ </span>Vec&lt;Type&gt;,
+<a href=#577 id=577 data-nosnippet>577</a>        <span class="comment">/*ret:*/ </span>Rc&lt;Type&gt;,
+<a href=#578 id=578 data-nosnippet>578</a>        <span class="comment">/*env:*/ </span>Rc&lt;Type&gt;,
+<a href=#579 id=579 data-nosnippet>579</a>        <span class="comment">/*unconstrained:*/ </span>bool,
+<a href=#580 id=580 data-nosnippet>580</a>    ),
+<a href=#581 id=581 data-nosnippet>581</a>}
+<a href=#582 id=582 data-nosnippet>582</a>
+<a href=#583 id=583 data-nosnippet>583</a><span class="doccomment">/// Maximum number of flattened field elements allowed at an entry point boundary,
+<a href=#584 id=584 data-nosnippet>584</a>/// i.e. for a parameter or a return value.
 <a href=#585 id=585 data-nosnippet>585</a>///
-<a href=#586 id=586 data-nosnippet>586</a>/// 2^24 = 16,777,216 witnesses. In practice the number of witnesses is limited by the CRS size,
-<a href=#587 id=587 data-nosnippet>587</a>/// which is usually around 2^20, so this limit should not interfere with real use cases.
-<a href=#588 id=588 data-nosnippet>588</a></span><span class="kw">pub const </span>MAX_ELEMENTS: usize = <span class="number">1 </span>&lt;&lt; <span class="number">24</span>;
-<a href=#589 id=589 data-nosnippet>589</a>
-<a href=#590 id=590 data-nosnippet>590</a><span class="kw">impl </span>Type {
-<a href=#591 id=591 data-nosnippet>591</a>    <span class="kw">pub fn </span>flatten(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Vec&lt;Type&gt; {
-<a href=#592 id=592 data-nosnippet>592</a>        <span class="kw">match </span><span class="self">self </span>{
-<a href=#593 id=593 data-nosnippet>593</a>            Type::Tuple(fields) =&gt; fields.iter().flat_map(|field| field.flatten()).collect(),
-<a href=#594 id=594 data-nosnippet>594</a>            <span class="kw">_ </span>=&gt; <span class="macro">vec!</span>[<span class="self">self</span>.clone()],
-<a href=#595 id=595 data-nosnippet>595</a>        }
-<a href=#596 id=596 data-nosnippet>596</a>    }
-<a href=#597 id=597 data-nosnippet>597</a>
-<a href=#598 id=598 data-nosnippet>598</a>    <span class="doccomment">/// Returns true if this type is, or transitively contains, a reference.
-<a href=#599 id=599 data-nosnippet>599</a>    </span><span class="kw">pub fn </span>contains_reference(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
-<a href=#600 id=600 data-nosnippet>600</a>        <span class="kw">match </span><span class="self">self </span>{
-<a href=#601 id=601 data-nosnippet>601</a>            Type::Reference(..) =&gt; <span class="bool-val">true</span>,
-<a href=#602 id=602 data-nosnippet>602</a>            Type::Array(<span class="kw">_</span>, element) | Type::Vector(element) =&gt; element.contains_reference(),
-<a href=#603 id=603 data-nosnippet>603</a>            Type::Tuple(fields) =&gt; fields.iter().any(Type::contains_reference),
-<a href=#604 id=604 data-nosnippet>604</a>            Type::FmtString(<span class="kw">_</span>, fields) =&gt; fields.contains_reference(),
-<a href=#605 id=605 data-nosnippet>605</a>            Type::Field
-<a href=#606 id=606 data-nosnippet>606</a>            | Type::Integer(..)
-<a href=#607 id=607 data-nosnippet>607</a>            | Type::Bool
-<a href=#608 id=608 data-nosnippet>608</a>            | Type::String(<span class="kw">_</span>)
-<a href=#609 id=609 data-nosnippet>609</a>            | Type::Unit
-<a href=#610 id=610 data-nosnippet>610</a>            | Type::Function(..) =&gt; <span class="bool-val">false</span>,
-<a href=#611 id=611 data-nosnippet>611</a>        }
-<a href=#612 id=612 data-nosnippet>612</a>    }
-<a href=#613 id=613 data-nosnippet>613</a>
-<a href=#614 id=614 data-nosnippet>614</a>    <span class="doccomment">/// Returns the element type of this array or vector
-<a href=#615 id=615 data-nosnippet>615</a>    </span><span class="kw">pub fn </span>array_element_type(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>Type&gt; {
-<a href=#616 id=616 data-nosnippet>616</a>        <span class="kw">match </span><span class="self">self </span>{
-<a href=#617 id=617 data-nosnippet>617</a>            Type::Array(<span class="kw">_</span>, elem) | Type::Vector(elem) =&gt; <span class="prelude-val">Some</span>(elem),
-<a href=#618 id=618 data-nosnippet>618</a>            <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,
-<a href=#619 id=619 data-nosnippet>619</a>        }
-<a href=#620 id=620 data-nosnippet>620</a>    }
-<a href=#621 id=621 data-nosnippet>621</a>
-<a href=#622 id=622 data-nosnippet>622</a>    <span class="doccomment">/// Returns the number of field elements required to represent the type once encoded
-<a href=#623 id=623 data-nosnippet>623</a>    /// as a parameter to an entry point function.
-<a href=#624 id=624 data-nosnippet>624</a>    ///
-<a href=#625 id=625 data-nosnippet>625</a>    /// Panics if the type is not valid as a parameter to main.
-<a href=#626 id=626 data-nosnippet>626</a>    </span><span class="kw">pub fn </span>entry_point_field_count(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; u32 {
-<a href=#627 id=627 data-nosnippet>627</a>        <span class="kw">match </span><span class="self">self </span>{
-<a href=#628 id=628 data-nosnippet>628</a>            Type::Field | Type::Integer(..) | Type::Bool =&gt; <span class="number">1</span>,
-<a href=#629 id=629 data-nosnippet>629</a>            Type::Array(length, typ) =&gt; {
-<a href=#630 id=630 data-nosnippet>630</a>                <span class="kw">let </span>typ = typ.as_ref();
-<a href=#631 id=631 data-nosnippet>631</a>                length.checked_mul(typ.entry_point_field_count()).expect(<span class="string">"Array length overflow"</span>)
-<a href=#632 id=632 data-nosnippet>632</a>            }
-<a href=#633 id=633 data-nosnippet>633</a>            Type::String(length) =&gt; <span class="kw-2">*</span>length,
-<a href=#634 id=634 data-nosnippet>634</a>            Type::Tuple(fields) =&gt; fields.iter().fold(<span class="number">0</span>, |acc, field_typ| {
-<a href=#635 id=635 data-nosnippet>635</a>                acc.checked_add(field_typ.entry_point_field_count()).expect(<span class="string">"Tuple size overflow"</span>)
-<a href=#636 id=636 data-nosnippet>636</a>            }),
-<a href=#637 id=637 data-nosnippet>637</a>            Type::Function(..)
-<a href=#638 id=638 data-nosnippet>638</a>            | Type::FmtString(..)
-<a href=#639 id=639 data-nosnippet>639</a>            | Type::Unit
-<a href=#640 id=640 data-nosnippet>640</a>            | Type::Vector(<span class="kw">_</span>)
-<a href=#641 id=641 data-nosnippet>641</a>            | Type::Reference(<span class="kw">_</span>, <span class="kw">_</span>) =&gt; {
-<a href=#642 id=642 data-nosnippet>642</a>                <span class="macro">unreachable!</span>(<span class="string">"This type cannot exist as a parameter to main: {self:?}"</span>)
-<a href=#643 id=643 data-nosnippet>643</a>            }
-<a href=#644 id=644 data-nosnippet>644</a>        }
-<a href=#645 id=645 data-nosnippet>645</a>    }
-<a href=#646 id=646 data-nosnippet>646</a>}
-<a href=#647 id=647 data-nosnippet>647</a>
-<a href=#648 id=648 data-nosnippet>648</a><span class="attr">#[derive(Debug, Clone, Hash, Default)]
-<a href=#649 id=649 data-nosnippet>649</a></span><span class="kw">pub struct </span>Program {
-<a href=#650 id=650 data-nosnippet>650</a>    <span class="kw">pub </span>functions: Vec&lt;Function&gt;,
-<a href=#651 id=651 data-nosnippet>651</a>    <span class="kw">pub </span>return_location: <span class="prelude-ty">Option</span>&lt;Location&gt;,
-<a href=#652 id=652 data-nosnippet>652</a>    <span class="kw">pub </span>globals: BTreeMap&lt;GlobalId, (String, Type, Expression)&gt;,
-<a href=#653 id=653 data-nosnippet>653</a>    <span class="kw">pub </span>debug_variables: DebugVariables,
-<a href=#654 id=654 data-nosnippet>654</a>    <span class="kw">pub </span>debug_functions: DebugFunctions,
-<a href=#655 id=655 data-nosnippet>655</a>    <span class="kw">pub </span>debug_types: DebugTypes,
-<a href=#656 id=656 data-nosnippet>656</a>}
-<a href=#657 id=657 data-nosnippet>657</a>
-<a href=#658 id=658 data-nosnippet>658</a><span class="kw">impl </span>Program {
-<a href=#659 id=659 data-nosnippet>659</a>    <span class="attr">#[allow(clippy::too_many_arguments)]
-<a href=#660 id=660 data-nosnippet>660</a>    </span><span class="kw">pub fn </span>new(
-<a href=#661 id=661 data-nosnippet>661</a>        functions: Vec&lt;Function&gt;,
-<a href=#662 id=662 data-nosnippet>662</a>        return_location: <span class="prelude-ty">Option</span>&lt;Location&gt;,
-<a href=#663 id=663 data-nosnippet>663</a>        globals: BTreeMap&lt;GlobalId, (String, Type, Expression)&gt;,
-<a href=#664 id=664 data-nosnippet>664</a>        debug_variables: DebugVariables,
-<a href=#665 id=665 data-nosnippet>665</a>        debug_functions: DebugFunctions,
-<a href=#666 id=666 data-nosnippet>666</a>        debug_types: DebugTypes,
-<a href=#667 id=667 data-nosnippet>667</a>    ) -&gt; Program {
-<a href=#668 id=668 data-nosnippet>668</a>        Program {
-<a href=#669 id=669 data-nosnippet>669</a>            functions,
-<a href=#670 id=670 data-nosnippet>670</a>            return_location,
-<a href=#671 id=671 data-nosnippet>671</a>            globals,
-<a href=#672 id=672 data-nosnippet>672</a>            debug_variables,
-<a href=#673 id=673 data-nosnippet>673</a>            debug_functions,
-<a href=#674 id=674 data-nosnippet>674</a>            debug_types,
-<a href=#675 id=675 data-nosnippet>675</a>        }
-<a href=#676 id=676 data-nosnippet>676</a>    }
-<a href=#677 id=677 data-nosnippet>677</a>
-<a href=#678 id=678 data-nosnippet>678</a>    <span class="kw">pub fn </span>main(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>Function {
-<a href=#679 id=679 data-nosnippet>679</a>        <span class="kw-2">&amp;</span><span class="self">self</span>[<span class="self">Self</span>::main_id()]
-<a href=#680 id=680 data-nosnippet>680</a>    }
-<a href=#681 id=681 data-nosnippet>681</a>
-<a href=#682 id=682 data-nosnippet>682</a>    <span class="kw">pub fn </span>main_mut(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;mut </span>Function {
-<a href=#683 id=683 data-nosnippet>683</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>[<span class="self">Self</span>::main_id()]
-<a href=#684 id=684 data-nosnippet>684</a>    }
-<a href=#685 id=685 data-nosnippet>685</a>
-<a href=#686 id=686 data-nosnippet>686</a>    <span class="kw">pub fn </span>main_id() -&gt; FuncId {
-<a href=#687 id=687 data-nosnippet>687</a>        FuncId(<span class="number">0</span>)
-<a href=#688 id=688 data-nosnippet>688</a>    }
-<a href=#689 id=689 data-nosnippet>689</a>
-<a href=#690 id=690 data-nosnippet>690</a>    <span class="doccomment">/// Globals are expected to be generated within a different context than
-<a href=#691 id=691 data-nosnippet>691</a>    /// all other functions in the program. Thus, the globals space has the same
-<a href=#692 id=692 data-nosnippet>692</a>    /// ID as `main`, although we should never expect a clash in these IDs.
-<a href=#693 id=693 data-nosnippet>693</a>    </span><span class="kw">pub fn </span>global_space_id() -&gt; FuncId {
-<a href=#694 id=694 data-nosnippet>694</a>        FuncId(<span class="number">0</span>)
-<a href=#695 id=695 data-nosnippet>695</a>    }
-<a href=#696 id=696 data-nosnippet>696</a>
-<a href=#697 id=697 data-nosnippet>697</a>    <span class="doccomment">/// Takes a function body by replacing it with `false` and
-<a href=#698 id=698 data-nosnippet>698</a>    /// returning the previous value
-<a href=#699 id=699 data-nosnippet>699</a>    </span><span class="kw">pub fn </span>take_function_body(<span class="kw-2">&amp;mut </span><span class="self">self</span>, function: FuncId) -&gt; Expression {
-<a href=#700 id=700 data-nosnippet>700</a>        <span class="kw">let </span>function_definition = <span class="kw-2">&amp;mut </span><span class="self">self</span>[function];
-<a href=#701 id=701 data-nosnippet>701</a>        <span class="kw">let </span>replacement = Expression::Block(<span class="macro">vec!</span>[]);
-<a href=#702 id=702 data-nosnippet>702</a>        std::mem::replace(<span class="kw-2">&amp;mut </span>function_definition.body, replacement)
-<a href=#703 id=703 data-nosnippet>703</a>    }
-<a href=#704 id=704 data-nosnippet>704</a>
-<a href=#705 id=705 data-nosnippet>705</a>    <span class="kw">pub fn </span>return_visibility(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Visibility {
-<a href=#706 id=706 data-nosnippet>706</a>        <span class="self">self</span>.main().return_visibility
-<a href=#707 id=707 data-nosnippet>707</a>    }
-<a href=#708 id=708 data-nosnippet>708</a>
-<a href=#709 id=709 data-nosnippet>709</a>    <span class="kw">pub fn </span>main_function_parameters(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>Parameters {
-<a href=#710 id=710 data-nosnippet>710</a>        <span class="kw-2">&amp;</span><span class="self">self</span>.main().parameters
-<a href=#711 id=711 data-nosnippet>711</a>    }
-<a href=#712 id=712 data-nosnippet>712</a>}
+<a href=#586 id=586 data-nosnippet>586</a>/// This limit prevents hangs or out-of-memory issues when dealing with very large arrays:
+<a href=#587 id=587 data-nosnippet>587</a>/// flattened sizes approaching `u32::MAX` cannot be represented, since Brillig arrays are
+<a href=#588 id=588 data-nosnippet>588</a>/// heap-allocated using `u32` addressing and ACIR/data-bus construction reserves one witness
+<a href=#589 id=589 data-nosnippet>589</a>/// per flattened element.
+<a href=#590 id=590 data-nosnippet>590</a>///
+<a href=#591 id=591 data-nosnippet>591</a>/// 2^24 = 16,777,216 witnesses. In practice the number of witnesses is limited by the CRS size,
+<a href=#592 id=592 data-nosnippet>592</a>/// which is usually around 2^20, so this limit should not interfere with real use cases.
+<a href=#593 id=593 data-nosnippet>593</a></span><span class="kw">pub const </span>MAX_ELEMENTS: usize = <span class="number">1 </span>&lt;&lt; <span class="number">24</span>;
+<a href=#594 id=594 data-nosnippet>594</a>
+<a href=#595 id=595 data-nosnippet>595</a><span class="kw">impl </span>Type {
+<a href=#596 id=596 data-nosnippet>596</a>    <span class="kw">pub fn </span>flatten(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Vec&lt;Type&gt; {
+<a href=#597 id=597 data-nosnippet>597</a>        <span class="kw">match </span><span class="self">self </span>{
+<a href=#598 id=598 data-nosnippet>598</a>            Type::Tuple(fields) =&gt; fields.iter().flat_map(|field| field.flatten()).collect(),
+<a href=#599 id=599 data-nosnippet>599</a>            <span class="kw">_ </span>=&gt; <span class="macro">vec!</span>[<span class="self">self</span>.clone()],
+<a href=#600 id=600 data-nosnippet>600</a>        }
+<a href=#601 id=601 data-nosnippet>601</a>    }
+<a href=#602 id=602 data-nosnippet>602</a>
+<a href=#603 id=603 data-nosnippet>603</a>    <span class="doccomment">/// Returns true if this type is, or transitively contains, a reference.
+<a href=#604 id=604 data-nosnippet>604</a>    </span><span class="kw">pub fn </span>contains_reference(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
+<a href=#605 id=605 data-nosnippet>605</a>        <span class="kw">match </span><span class="self">self </span>{
+<a href=#606 id=606 data-nosnippet>606</a>            Type::Reference(..) =&gt; <span class="bool-val">true</span>,
+<a href=#607 id=607 data-nosnippet>607</a>            Type::Array(<span class="kw">_</span>, element) | Type::Vector(element) =&gt; element.contains_reference(),
+<a href=#608 id=608 data-nosnippet>608</a>            Type::Tuple(fields) =&gt; fields.iter().any(Type::contains_reference),
+<a href=#609 id=609 data-nosnippet>609</a>            Type::FmtString(<span class="kw">_</span>, fields) =&gt; fields.contains_reference(),
+<a href=#610 id=610 data-nosnippet>610</a>            Type::Field
+<a href=#611 id=611 data-nosnippet>611</a>            | Type::Integer(..)
+<a href=#612 id=612 data-nosnippet>612</a>            | Type::Bool
+<a href=#613 id=613 data-nosnippet>613</a>            | Type::String(<span class="kw">_</span>)
+<a href=#614 id=614 data-nosnippet>614</a>            | Type::Unit
+<a href=#615 id=615 data-nosnippet>615</a>            | Type::Function(..) =&gt; <span class="bool-val">false</span>,
+<a href=#616 id=616 data-nosnippet>616</a>        }
+<a href=#617 id=617 data-nosnippet>617</a>    }
+<a href=#618 id=618 data-nosnippet>618</a>
+<a href=#619 id=619 data-nosnippet>619</a>    <span class="doccomment">/// Returns the element type of this array or vector
+<a href=#620 id=620 data-nosnippet>620</a>    </span><span class="kw">pub fn </span>array_element_type(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>Type&gt; {
+<a href=#621 id=621 data-nosnippet>621</a>        <span class="kw">match </span><span class="self">self </span>{
+<a href=#622 id=622 data-nosnippet>622</a>            Type::Array(<span class="kw">_</span>, elem) | Type::Vector(elem) =&gt; <span class="prelude-val">Some</span>(elem),
+<a href=#623 id=623 data-nosnippet>623</a>            <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,
+<a href=#624 id=624 data-nosnippet>624</a>        }
+<a href=#625 id=625 data-nosnippet>625</a>    }
+<a href=#626 id=626 data-nosnippet>626</a>
+<a href=#627 id=627 data-nosnippet>627</a>    <span class="doccomment">/// Returns the number of field elements required to represent the type once encoded
+<a href=#628 id=628 data-nosnippet>628</a>    /// as a parameter to an entry point function.
+<a href=#629 id=629 data-nosnippet>629</a>    ///
+<a href=#630 id=630 data-nosnippet>630</a>    /// Panics if the type is not valid as a parameter to main.
+<a href=#631 id=631 data-nosnippet>631</a>    </span><span class="kw">pub fn </span>entry_point_field_count(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; u32 {
+<a href=#632 id=632 data-nosnippet>632</a>        <span class="kw">match </span><span class="self">self </span>{
+<a href=#633 id=633 data-nosnippet>633</a>            Type::Field | Type::Integer(..) | Type::Bool =&gt; <span class="number">1</span>,
+<a href=#634 id=634 data-nosnippet>634</a>            Type::Array(length, typ) =&gt; {
+<a href=#635 id=635 data-nosnippet>635</a>                <span class="kw">let </span>typ = typ.as_ref();
+<a href=#636 id=636 data-nosnippet>636</a>                length.checked_mul(typ.entry_point_field_count()).expect(<span class="string">"Array length overflow"</span>)
+<a href=#637 id=637 data-nosnippet>637</a>            }
+<a href=#638 id=638 data-nosnippet>638</a>            Type::String(length) =&gt; <span class="kw-2">*</span>length,
+<a href=#639 id=639 data-nosnippet>639</a>            Type::Tuple(fields) =&gt; fields.iter().fold(<span class="number">0</span>, |acc, field_typ| {
+<a href=#640 id=640 data-nosnippet>640</a>                acc.checked_add(field_typ.entry_point_field_count()).expect(<span class="string">"Tuple size overflow"</span>)
+<a href=#641 id=641 data-nosnippet>641</a>            }),
+<a href=#642 id=642 data-nosnippet>642</a>            Type::Function(..)
+<a href=#643 id=643 data-nosnippet>643</a>            | Type::FmtString(..)
+<a href=#644 id=644 data-nosnippet>644</a>            | Type::Unit
+<a href=#645 id=645 data-nosnippet>645</a>            | Type::Vector(<span class="kw">_</span>)
+<a href=#646 id=646 data-nosnippet>646</a>            | Type::Reference(<span class="kw">_</span>, <span class="kw">_</span>) =&gt; {
+<a href=#647 id=647 data-nosnippet>647</a>                <span class="macro">unreachable!</span>(<span class="string">"This type cannot exist as a parameter to main: {self:?}"</span>)
+<a href=#648 id=648 data-nosnippet>648</a>            }
+<a href=#649 id=649 data-nosnippet>649</a>        }
+<a href=#650 id=650 data-nosnippet>650</a>    }
+<a href=#651 id=651 data-nosnippet>651</a>}
+<a href=#652 id=652 data-nosnippet>652</a>
+<a href=#653 id=653 data-nosnippet>653</a><span class="attr">#[derive(Debug, Clone, Hash, Default)]
+<a href=#654 id=654 data-nosnippet>654</a></span><span class="kw">pub struct </span>Program {
+<a href=#655 id=655 data-nosnippet>655</a>    <span class="kw">pub </span>functions: Vec&lt;Function&gt;,
+<a href=#656 id=656 data-nosnippet>656</a>    <span class="kw">pub </span>return_location: <span class="prelude-ty">Option</span>&lt;Location&gt;,
+<a href=#657 id=657 data-nosnippet>657</a>    <span class="kw">pub </span>globals: BTreeMap&lt;GlobalId, (String, Type, Expression)&gt;,
+<a href=#658 id=658 data-nosnippet>658</a>    <span class="kw">pub </span>debug_variables: DebugVariables,
+<a href=#659 id=659 data-nosnippet>659</a>    <span class="kw">pub </span>debug_functions: DebugFunctions,
+<a href=#660 id=660 data-nosnippet>660</a>    <span class="kw">pub </span>debug_types: DebugTypes,
+<a href=#661 id=661 data-nosnippet>661</a>}
+<a href=#662 id=662 data-nosnippet>662</a>
+<a href=#663 id=663 data-nosnippet>663</a><span class="kw">impl </span>Program {
+<a href=#664 id=664 data-nosnippet>664</a>    <span class="attr">#[allow(clippy::too_many_arguments)]
+<a href=#665 id=665 data-nosnippet>665</a>    </span><span class="kw">pub fn </span>new(
+<a href=#666 id=666 data-nosnippet>666</a>        functions: Vec&lt;Function&gt;,
+<a href=#667 id=667 data-nosnippet>667</a>        return_location: <span class="prelude-ty">Option</span>&lt;Location&gt;,
+<a href=#668 id=668 data-nosnippet>668</a>        globals: BTreeMap&lt;GlobalId, (String, Type, Expression)&gt;,
+<a href=#669 id=669 data-nosnippet>669</a>        debug_variables: DebugVariables,
+<a href=#670 id=670 data-nosnippet>670</a>        debug_functions: DebugFunctions,
+<a href=#671 id=671 data-nosnippet>671</a>        debug_types: DebugTypes,
+<a href=#672 id=672 data-nosnippet>672</a>    ) -&gt; Program {
+<a href=#673 id=673 data-nosnippet>673</a>        Program {
+<a href=#674 id=674 data-nosnippet>674</a>            functions,
+<a href=#675 id=675 data-nosnippet>675</a>            return_location,
+<a href=#676 id=676 data-nosnippet>676</a>            globals,
+<a href=#677 id=677 data-nosnippet>677</a>            debug_variables,
+<a href=#678 id=678 data-nosnippet>678</a>            debug_functions,
+<a href=#679 id=679 data-nosnippet>679</a>            debug_types,
+<a href=#680 id=680 data-nosnippet>680</a>        }
+<a href=#681 id=681 data-nosnippet>681</a>    }
+<a href=#682 id=682 data-nosnippet>682</a>
+<a href=#683 id=683 data-nosnippet>683</a>    <span class="kw">pub fn </span>main(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>Function {
+<a href=#684 id=684 data-nosnippet>684</a>        <span class="kw-2">&amp;</span><span class="self">self</span>[<span class="self">Self</span>::main_id()]
+<a href=#685 id=685 data-nosnippet>685</a>    }
+<a href=#686 id=686 data-nosnippet>686</a>
+<a href=#687 id=687 data-nosnippet>687</a>    <span class="kw">pub fn </span>main_mut(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;mut </span>Function {
+<a href=#688 id=688 data-nosnippet>688</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>[<span class="self">Self</span>::main_id()]
+<a href=#689 id=689 data-nosnippet>689</a>    }
+<a href=#690 id=690 data-nosnippet>690</a>
+<a href=#691 id=691 data-nosnippet>691</a>    <span class="kw">pub fn </span>main_id() -&gt; FuncId {
+<a href=#692 id=692 data-nosnippet>692</a>        FuncId(<span class="number">0</span>)
+<a href=#693 id=693 data-nosnippet>693</a>    }
+<a href=#694 id=694 data-nosnippet>694</a>
+<a href=#695 id=695 data-nosnippet>695</a>    <span class="doccomment">/// Globals are expected to be generated within a different context than
+<a href=#696 id=696 data-nosnippet>696</a>    /// all other functions in the program. Thus, the globals space has the same
+<a href=#697 id=697 data-nosnippet>697</a>    /// ID as `main`, although we should never expect a clash in these IDs.
+<a href=#698 id=698 data-nosnippet>698</a>    </span><span class="kw">pub fn </span>global_space_id() -&gt; FuncId {
+<a href=#699 id=699 data-nosnippet>699</a>        FuncId(<span class="number">0</span>)
+<a href=#700 id=700 data-nosnippet>700</a>    }
+<a href=#701 id=701 data-nosnippet>701</a>
+<a href=#702 id=702 data-nosnippet>702</a>    <span class="doccomment">/// Takes a function body by replacing it with `false` and
+<a href=#703 id=703 data-nosnippet>703</a>    /// returning the previous value
+<a href=#704 id=704 data-nosnippet>704</a>    </span><span class="kw">pub fn </span>take_function_body(<span class="kw-2">&amp;mut </span><span class="self">self</span>, function: FuncId) -&gt; Expression {
+<a href=#705 id=705 data-nosnippet>705</a>        <span class="kw">let </span>function_definition = <span class="kw-2">&amp;mut </span><span class="self">self</span>[function];
+<a href=#706 id=706 data-nosnippet>706</a>        <span class="kw">let </span>replacement = Expression::Block(<span class="macro">vec!</span>[]);
+<a href=#707 id=707 data-nosnippet>707</a>        std::mem::replace(<span class="kw-2">&amp;mut </span>function_definition.body, replacement)
+<a href=#708 id=708 data-nosnippet>708</a>    }
+<a href=#709 id=709 data-nosnippet>709</a>
+<a href=#710 id=710 data-nosnippet>710</a>    <span class="kw">pub fn </span>return_visibility(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Visibility {
+<a href=#711 id=711 data-nosnippet>711</a>        <span class="self">self</span>.main().return_visibility
+<a href=#712 id=712 data-nosnippet>712</a>    }
 <a href=#713 id=713 data-nosnippet>713</a>
-<a href=#714 id=714 data-nosnippet>714</a><span class="kw">impl </span>std::ops::Index&lt;FuncId&gt; <span class="kw">for </span>Program {
-<a href=#715 id=715 data-nosnippet>715</a>    <span class="kw">type </span>Output = Function;
-<a href=#716 id=716 data-nosnippet>716</a>
-<a href=#717 id=717 data-nosnippet>717</a>    <span class="kw">fn </span>index(<span class="kw-2">&amp;</span><span class="self">self</span>, index: FuncId) -&gt; <span class="kw-2">&amp;</span><span class="self">Self</span>::Output {
-<a href=#718 id=718 data-nosnippet>718</a>        <span class="kw-2">&amp;</span><span class="self">self</span>.functions[index.<span class="number">0 </span><span class="kw">as </span>usize]
-<a href=#719 id=719 data-nosnippet>719</a>    }
-<a href=#720 id=720 data-nosnippet>720</a>}
+<a href=#714 id=714 data-nosnippet>714</a>    <span class="kw">pub fn </span>main_function_parameters(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>Parameters {
+<a href=#715 id=715 data-nosnippet>715</a>        <span class="kw-2">&amp;</span><span class="self">self</span>.main().parameters
+<a href=#716 id=716 data-nosnippet>716</a>    }
+<a href=#717 id=717 data-nosnippet>717</a>}
+<a href=#718 id=718 data-nosnippet>718</a>
+<a href=#719 id=719 data-nosnippet>719</a><span class="kw">impl </span>std::ops::Index&lt;FuncId&gt; <span class="kw">for </span>Program {
+<a href=#720 id=720 data-nosnippet>720</a>    <span class="kw">type </span>Output = Function;
 <a href=#721 id=721 data-nosnippet>721</a>
-<a href=#722 id=722 data-nosnippet>722</a><span class="kw">impl </span>std::ops::IndexMut&lt;FuncId&gt; <span class="kw">for </span>Program {
-<a href=#723 id=723 data-nosnippet>723</a>    <span class="kw">fn </span>index_mut(<span class="kw-2">&amp;mut </span><span class="self">self</span>, index: FuncId) -&gt; <span class="kw-2">&amp;mut </span><span class="self">Self</span>::Output {
-<a href=#724 id=724 data-nosnippet>724</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>.functions[index.<span class="number">0 </span><span class="kw">as </span>usize]
-<a href=#725 id=725 data-nosnippet>725</a>    }
-<a href=#726 id=726 data-nosnippet>726</a>}
-<a href=#727 id=727 data-nosnippet>727</a>
-<a href=#728 id=728 data-nosnippet>728</a><span class="kw">impl </span>Display <span class="kw">for </span>Program {
-<a href=#729 id=729 data-nosnippet>729</a>    <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>std::fmt::Formatter&lt;<span class="lifetime">'_</span>&gt;) -&gt; std::fmt::Result {
-<a href=#730 id=730 data-nosnippet>730</a>        <span class="kw">super</span>::printer::AstPrinter::default().print_program(<span class="self">self</span>, f)
-<a href=#731 id=731 data-nosnippet>731</a>    }
-<a href=#732 id=732 data-nosnippet>732</a>}
-<a href=#733 id=733 data-nosnippet>733</a>
-<a href=#734 id=734 data-nosnippet>734</a><span class="kw">impl </span>Display <span class="kw">for </span>Function {
-<a href=#735 id=735 data-nosnippet>735</a>    <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>std::fmt::Formatter&lt;<span class="lifetime">'_</span>&gt;) -&gt; std::fmt::Result {
-<a href=#736 id=736 data-nosnippet>736</a>        <span class="kw">super</span>::printer::AstPrinter::default().print_function(
-<a href=#737 id=737 data-nosnippet>737</a>            <span class="self">self</span>,
-<a href=#738 id=738 data-nosnippet>738</a>            f,
-<a href=#739 id=739 data-nosnippet>739</a>            <span class="kw">super</span>::printer::FunctionPrintOptions::default(),
-<a href=#740 id=740 data-nosnippet>740</a>        )
-<a href=#741 id=741 data-nosnippet>741</a>    }
-<a href=#742 id=742 data-nosnippet>742</a>}
-<a href=#743 id=743 data-nosnippet>743</a>
-<a href=#744 id=744 data-nosnippet>744</a><span class="kw">impl </span>Display <span class="kw">for </span>Expression {
-<a href=#745 id=745 data-nosnippet>745</a>    <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>std::fmt::Formatter&lt;<span class="lifetime">'_</span>&gt;) -&gt; std::fmt::Result {
-<a href=#746 id=746 data-nosnippet>746</a>        <span class="kw">super</span>::printer::AstPrinter::default().print_expr(<span class="self">self</span>, f)
-<a href=#747 id=747 data-nosnippet>747</a>    }
-<a href=#748 id=748 data-nosnippet>748</a>}
-<a href=#749 id=749 data-nosnippet>749</a>
-<a href=#750 id=750 data-nosnippet>750</a><span class="kw">impl </span>Display <span class="kw">for </span>Type {
-<a href=#751 id=751 data-nosnippet>751</a>    <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>std::fmt::Formatter&lt;<span class="lifetime">'_</span>&gt;) -&gt; std::fmt::Result {
-<a href=#752 id=752 data-nosnippet>752</a>        <span class="kw">match </span><span class="self">self </span>{
-<a href=#753 id=753 data-nosnippet>753</a>            Type::Field =&gt; <span class="macro">write!</span>(f, <span class="string">"Field"</span>),
-<a href=#754 id=754 data-nosnippet>754</a>            Type::Array(len, elements) =&gt; <span class="macro">write!</span>(f, <span class="string">"[{elements}; {len}]"</span>),
-<a href=#755 id=755 data-nosnippet>755</a>            Type::Integer(sign, bits) =&gt; <span class="kw">match </span>sign {
-<a href=#756 id=756 data-nosnippet>756</a>                Signedness::Unsigned =&gt; <span class="macro">write!</span>(f, <span class="string">"u{bits}"</span>),
-<a href=#757 id=757 data-nosnippet>757</a>                Signedness::Signed =&gt; <span class="macro">write!</span>(f, <span class="string">"i{bits}"</span>),
-<a href=#758 id=758 data-nosnippet>758</a>            },
-<a href=#759 id=759 data-nosnippet>759</a>            Type::Bool =&gt; <span class="macro">write!</span>(f, <span class="string">"bool"</span>),
-<a href=#760 id=760 data-nosnippet>760</a>            Type::String(len) =&gt; <span class="macro">write!</span>(f, <span class="string">"str&lt;{len}&gt;"</span>),
-<a href=#761 id=761 data-nosnippet>761</a>            Type::FmtString(len, elements) =&gt; {
-<a href=#762 id=762 data-nosnippet>762</a>                <span class="macro">write!</span>(f, <span class="string">"fmtstr&lt;{len}, {elements}&gt;"</span>)
-<a href=#763 id=763 data-nosnippet>763</a>            }
-<a href=#764 id=764 data-nosnippet>764</a>            Type::Unit =&gt; <span class="macro">write!</span>(f, <span class="string">"()"</span>),
-<a href=#765 id=765 data-nosnippet>765</a>            Type::Tuple(elements) =&gt; {
-<a href=#766 id=766 data-nosnippet>766</a>                <span class="kw">let </span>elements = vecmap(elements, ToString::to_string);
-<a href=#767 id=767 data-nosnippet>767</a>                <span class="kw">if </span>elements.len() == <span class="number">1 </span>{
-<a href=#768 id=768 data-nosnippet>768</a>                    <span class="macro">write!</span>(f, <span class="string">"({},)"</span>, elements[<span class="number">0</span>])
-<a href=#769 id=769 data-nosnippet>769</a>                } <span class="kw">else </span>{
-<a href=#770 id=770 data-nosnippet>770</a>                    <span class="macro">write!</span>(f, <span class="string">"({})"</span>, elements.join(<span class="string">", "</span>))
-<a href=#771 id=771 data-nosnippet>771</a>                }
-<a href=#772 id=772 data-nosnippet>772</a>            }
-<a href=#773 id=773 data-nosnippet>773</a>            Type::Function(args, ret, env, unconstrained) =&gt; {
-<a href=#774 id=774 data-nosnippet>774</a>                <span class="kw">if </span><span class="kw-2">*</span>unconstrained {
-<a href=#775 id=775 data-nosnippet>775</a>                    <span class="macro">write!</span>(f, <span class="string">"unconstrained "</span>)<span class="question-mark">?</span>;
+<a href=#722 id=722 data-nosnippet>722</a>    <span class="kw">fn </span>index(<span class="kw-2">&amp;</span><span class="self">self</span>, index: FuncId) -&gt; <span class="kw-2">&amp;</span><span class="self">Self</span>::Output {
+<a href=#723 id=723 data-nosnippet>723</a>        <span class="kw-2">&amp;</span><span class="self">self</span>.functions[index.<span class="number">0 </span><span class="kw">as </span>usize]
+<a href=#724 id=724 data-nosnippet>724</a>    }
+<a href=#725 id=725 data-nosnippet>725</a>}
+<a href=#726 id=726 data-nosnippet>726</a>
+<a href=#727 id=727 data-nosnippet>727</a><span class="kw">impl </span>std::ops::IndexMut&lt;FuncId&gt; <span class="kw">for </span>Program {
+<a href=#728 id=728 data-nosnippet>728</a>    <span class="kw">fn </span>index_mut(<span class="kw-2">&amp;mut </span><span class="self">self</span>, index: FuncId) -&gt; <span class="kw-2">&amp;mut </span><span class="self">Self</span>::Output {
+<a href=#729 id=729 data-nosnippet>729</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>.functions[index.<span class="number">0 </span><span class="kw">as </span>usize]
+<a href=#730 id=730 data-nosnippet>730</a>    }
+<a href=#731 id=731 data-nosnippet>731</a>}
+<a href=#732 id=732 data-nosnippet>732</a>
+<a href=#733 id=733 data-nosnippet>733</a><span class="kw">impl </span>Display <span class="kw">for </span>Program {
+<a href=#734 id=734 data-nosnippet>734</a>    <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>std::fmt::Formatter&lt;<span class="lifetime">'_</span>&gt;) -&gt; std::fmt::Result {
+<a href=#735 id=735 data-nosnippet>735</a>        <span class="kw">super</span>::printer::AstPrinter::default().print_program(<span class="self">self</span>, f)
+<a href=#736 id=736 data-nosnippet>736</a>    }
+<a href=#737 id=737 data-nosnippet>737</a>}
+<a href=#738 id=738 data-nosnippet>738</a>
+<a href=#739 id=739 data-nosnippet>739</a><span class="kw">impl </span>Display <span class="kw">for </span>Function {
+<a href=#740 id=740 data-nosnippet>740</a>    <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>std::fmt::Formatter&lt;<span class="lifetime">'_</span>&gt;) -&gt; std::fmt::Result {
+<a href=#741 id=741 data-nosnippet>741</a>        <span class="kw">super</span>::printer::AstPrinter::default().print_function(
+<a href=#742 id=742 data-nosnippet>742</a>            <span class="self">self</span>,
+<a href=#743 id=743 data-nosnippet>743</a>            f,
+<a href=#744 id=744 data-nosnippet>744</a>            <span class="kw">super</span>::printer::FunctionPrintOptions::default(),
+<a href=#745 id=745 data-nosnippet>745</a>        )
+<a href=#746 id=746 data-nosnippet>746</a>    }
+<a href=#747 id=747 data-nosnippet>747</a>}
+<a href=#748 id=748 data-nosnippet>748</a>
+<a href=#749 id=749 data-nosnippet>749</a><span class="kw">impl </span>Display <span class="kw">for </span>Expression {
+<a href=#750 id=750 data-nosnippet>750</a>    <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>std::fmt::Formatter&lt;<span class="lifetime">'_</span>&gt;) -&gt; std::fmt::Result {
+<a href=#751 id=751 data-nosnippet>751</a>        <span class="kw">super</span>::printer::AstPrinter::default().print_expr(<span class="self">self</span>, f)
+<a href=#752 id=752 data-nosnippet>752</a>    }
+<a href=#753 id=753 data-nosnippet>753</a>}
+<a href=#754 id=754 data-nosnippet>754</a>
+<a href=#755 id=755 data-nosnippet>755</a><span class="kw">impl </span>Display <span class="kw">for </span>Type {
+<a href=#756 id=756 data-nosnippet>756</a>    <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>std::fmt::Formatter&lt;<span class="lifetime">'_</span>&gt;) -&gt; std::fmt::Result {
+<a href=#757 id=757 data-nosnippet>757</a>        <span class="kw">match </span><span class="self">self </span>{
+<a href=#758 id=758 data-nosnippet>758</a>            Type::Field =&gt; <span class="macro">write!</span>(f, <span class="string">"Field"</span>),
+<a href=#759 id=759 data-nosnippet>759</a>            Type::Array(len, elements) =&gt; <span class="macro">write!</span>(f, <span class="string">"[{elements}; {len}]"</span>),
+<a href=#760 id=760 data-nosnippet>760</a>            Type::Integer(sign, bits) =&gt; <span class="kw">match </span>sign {
+<a href=#761 id=761 data-nosnippet>761</a>                Signedness::Unsigned =&gt; <span class="macro">write!</span>(f, <span class="string">"u{bits}"</span>),
+<a href=#762 id=762 data-nosnippet>762</a>                Signedness::Signed =&gt; <span class="macro">write!</span>(f, <span class="string">"i{bits}"</span>),
+<a href=#763 id=763 data-nosnippet>763</a>            },
+<a href=#764 id=764 data-nosnippet>764</a>            Type::Bool =&gt; <span class="macro">write!</span>(f, <span class="string">"bool"</span>),
+<a href=#765 id=765 data-nosnippet>765</a>            Type::String(len) =&gt; <span class="macro">write!</span>(f, <span class="string">"str&lt;{len}&gt;"</span>),
+<a href=#766 id=766 data-nosnippet>766</a>            Type::FmtString(len, elements) =&gt; {
+<a href=#767 id=767 data-nosnippet>767</a>                <span class="macro">write!</span>(f, <span class="string">"fmtstr&lt;{len}, {elements}&gt;"</span>)
+<a href=#768 id=768 data-nosnippet>768</a>            }
+<a href=#769 id=769 data-nosnippet>769</a>            Type::Unit =&gt; <span class="macro">write!</span>(f, <span class="string">"()"</span>),
+<a href=#770 id=770 data-nosnippet>770</a>            Type::Tuple(elements) =&gt; {
+<a href=#771 id=771 data-nosnippet>771</a>                <span class="kw">let </span>elements = vecmap(elements, ToString::to_string);
+<a href=#772 id=772 data-nosnippet>772</a>                <span class="kw">if </span>elements.len() == <span class="number">1 </span>{
+<a href=#773 id=773 data-nosnippet>773</a>                    <span class="macro">write!</span>(f, <span class="string">"({},)"</span>, elements[<span class="number">0</span>])
+<a href=#774 id=774 data-nosnippet>774</a>                } <span class="kw">else </span>{
+<a href=#775 id=775 data-nosnippet>775</a>                    <span class="macro">write!</span>(f, <span class="string">"({})"</span>, elements.join(<span class="string">", "</span>))
 <a href=#776 id=776 data-nosnippet>776</a>                }
-<a href=#777 id=777 data-nosnippet>777</a>
-<a href=#778 id=778 data-nosnippet>778</a>                <span class="kw">let </span>args = vecmap(args, ToString::to_string);
-<a href=#779 id=779 data-nosnippet>779</a>                <span class="kw">let </span>closure_env_text = <span class="kw">match </span><span class="kw-2">**</span>env {
-<a href=#780 id=780 data-nosnippet>780</a>                    Type::Unit =&gt; <span class="string">""</span>.to_string(),
-<a href=#781 id=781 data-nosnippet>781</a>                    <span class="kw">_ </span>=&gt; <span class="macro">format!</span>(<span class="string">" with closure environment {env}"</span>),
-<a href=#782 id=782 data-nosnippet>782</a>                };
-<a href=#783 id=783 data-nosnippet>783</a>                <span class="macro">write!</span>(f, <span class="string">"fn({}) -&gt; {}{}"</span>, args.join(<span class="string">", "</span>), ret, closure_env_text)
-<a href=#784 id=784 data-nosnippet>784</a>            }
-<a href=#785 id=785 data-nosnippet>785</a>            Type::Vector(element) =&gt; <span class="macro">write!</span>(f, <span class="string">"[{element}]"</span>),
-<a href=#786 id=786 data-nosnippet>786</a>            Type::Reference(element, mutable) <span class="kw">if </span><span class="kw-2">*</span>mutable =&gt; <span class="macro">write!</span>(f, <span class="string">"&amp;mut {element}"</span>),
-<a href=#787 id=787 data-nosnippet>787</a>            Type::Reference(element, _mutable) =&gt; <span class="macro">write!</span>(f, <span class="string">"&amp;{element}"</span>),
-<a href=#788 id=788 data-nosnippet>788</a>        }
-<a href=#789 id=789 data-nosnippet>789</a>    }
-<a href=#790 id=790 data-nosnippet>790</a>}</code></pre></div></section></main></body></html>
+<a href=#777 id=777 data-nosnippet>777</a>            }
+<a href=#778 id=778 data-nosnippet>778</a>            Type::Function(args, ret, env, unconstrained) =&gt; {
+<a href=#779 id=779 data-nosnippet>779</a>                <span class="kw">if </span><span class="kw-2">*</span>unconstrained {
+<a href=#780 id=780 data-nosnippet>780</a>                    <span class="macro">write!</span>(f, <span class="string">"unconstrained "</span>)<span class="question-mark">?</span>;
+<a href=#781 id=781 data-nosnippet>781</a>                }
+<a href=#782 id=782 data-nosnippet>782</a>
+<a href=#783 id=783 data-nosnippet>783</a>                <span class="kw">let </span>args = vecmap(args, ToString::to_string);
+<a href=#784 id=784 data-nosnippet>784</a>                <span class="kw">let </span>closure_env_text = <span class="kw">match </span><span class="kw-2">**</span>env {
+<a href=#785 id=785 data-nosnippet>785</a>                    Type::Unit =&gt; <span class="string">""</span>.to_string(),
+<a href=#786 id=786 data-nosnippet>786</a>                    <span class="kw">_ </span>=&gt; <span class="macro">format!</span>(<span class="string">" with closure environment {env}"</span>),
+<a href=#787 id=787 data-nosnippet>787</a>                };
+<a href=#788 id=788 data-nosnippet>788</a>                <span class="macro">write!</span>(f, <span class="string">"fn({}) -&gt; {}{}"</span>, args.join(<span class="string">", "</span>), ret, closure_env_text)
+<a href=#789 id=789 data-nosnippet>789</a>            }
+<a href=#790 id=790 data-nosnippet>790</a>            Type::Vector(element) =&gt; <span class="macro">write!</span>(f, <span class="string">"[{element}]"</span>),
+<a href=#791 id=791 data-nosnippet>791</a>            Type::Reference(element, mutable) <span class="kw">if </span><span class="kw-2">*</span>mutable =&gt; <span class="macro">write!</span>(f, <span class="string">"&amp;mut {element}"</span>),
+<a href=#792 id=792 data-nosnippet>792</a>            Type::Reference(element, _mutable) =&gt; <span class="macro">write!</span>(f, <span class="string">"&amp;{element}"</span>),
+<a href=#793 id=793 data-nosnippet>793</a>        }
+<a href=#794 id=794 data-nosnippet>794</a>    }
+<a href=#795 id=795 data-nosnippet>795</a>}</code></pre></div></section></main></body></html>
