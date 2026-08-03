@@ -1374,3 +1374,34 @@ fn borrowed_composite_cells_use_declared_types_not_value_types() {
     let program = get_monomorphized(src).unwrap();
     let _ = generate_ssa(program).unwrap();
 }
+
+#[test]
+fn brillig_pop_front_empty_check_uses_the_vector_pop_message() {
+    // Popping from a conditionally-empty vector fails in both runtimes. The messages have to
+    // agree: ACIR emits "Attempt to pop from an empty vector" (see `vector_pop_new_length` in
+    // `acir/call/intrinsics/vector_ops.rs`), so the Brillig-only guard emitted by
+    // `codegen_intrinsic_call_checks` must not fall back to the generic "Index out of bounds"
+    // default of `codegen_access_check`. A differential run of the same program treats those two
+    // strings as non-equivalent failures.
+    let src = r#"
+    unconstrained fn main(x: Field, b: bool) -> pub Field {
+        let mut v: [Field] = @[x];
+        if b {
+            v = @[];
+        }
+        let (elem, _rest) = pop_front(v);
+        elem
+    }
+    "#;
+    let stdlib = "
+        #[builtin(vector_pop_front)]
+        pub fn pop_front<T>(_v: [T]) -> (T, [T]) {}
+    ";
+    let program = get_monomorphized_with_stdlib(src, &[stdlib]).unwrap();
+    let ssa = generate_ssa(program).unwrap().to_string();
+    assert!(
+        ssa.contains(r#""Attempt to pop from an empty vector""#),
+        "Brillig empty-vector `pop` guard should use the same assertion message as ACIR, but the \
+         generated SSA still reads:\n{ssa}"
+    );
+}

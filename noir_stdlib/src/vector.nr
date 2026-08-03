@@ -274,7 +274,7 @@ mod test {
         assert_eq(result, [0, 1, 2, 3].as_vector());
     }
 
-    #[test(should_fail_with = "Index out of bounds")]
+    #[test(should_fail_with = "Attempt to pop from an empty vector")]
     fn pop_back_empty() {
         let vector: [Field] = [].as_vector();
         let (_, _) = vector.pop_back();
@@ -297,7 +297,7 @@ mod test {
         assert_eq(elem, 3);
     }
 
-    #[test(should_fail_with = "Index out of bounds")]
+    #[test(should_fail_with = "Attempt to pop from an empty vector")]
     fn pop_front_empty() {
         let vector: [Field] = [].as_vector();
         let (_, _) = vector.pop_front();
