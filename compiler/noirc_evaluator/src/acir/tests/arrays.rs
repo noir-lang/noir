@@ -717,3 +717,37 @@ fn make_dynamic_array_value_types() {
         "a vector should have all the types of its first element flattened"
     );
 }
+
+#[test]
+#[should_panic(
+    expected = "ICE: Read resolving to a compile-time constant on memory block b0 which has no preceding write should be folded at compile time"
+)]
+fn constant_index_known_only_to_acir_gen_ices() {
+    // Reproduction for the AST fuzzer `acir_vs_brillig` failure on seed 0xabdfa2be00100000.
+    //
+    // `v0` is not an SSA numeric constant, so `dfg.get_numeric_constant` reports it as dynamic.
+    // But the `constrain u1 0 == v0` proves it is zero: when that constraint is lowered,
+    // `assert_eq_var` rewrites the witness for `v0` to the constant 0, and the cast and the
+    // `unchecked_add` fold, so the `array_get` index is the compile-time constant 2 by the time the
+    // array operation is lowered.
+    //
+    // `handle_constant_index_wrapper` only consults SSA-level constants, so the read falls through
+    // to the dynamic memory-op path: a `MemoryInit` for `v1` plus a `MemoryOp::Read` at a constant
+    // index into a block that is never written. That is exactly what `assert_constant_reads_are_folded`
+    // forbids, so ACIR gen panics with the ICE below.
+    //
+    // The fix is to also consult ACIR gen's own constant tracking when choosing the compile-time
+    // path; once fixed this stops panicking and the `#[should_panic]` should be removed.
+    let src = "
+    acir(inline) fn main f0 {
+      b0(v0: u1):
+        v1 = make_array [u1 0, u1 0, u1 1] : [u1; 3]
+        constrain u1 0 == v0
+        v2 = cast v0 as u32
+        v3 = unchecked_add v2, u32 2
+        v4 = array_get v1, index v3 -> u1
+        return v4
+    }
+    ";
+    let _ = ssa_to_acir_program(src);
+}
