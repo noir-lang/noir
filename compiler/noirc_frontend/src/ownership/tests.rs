@@ -1306,6 +1306,34 @@ fn reference_passed_alongside_struct_with_mut_ref_to_ref_prevents_move() {
 }
 
 #[test]
+fn by_value_arg_aliasing_mut_ref_arg_of_same_call_prevents_move() {
+    // When passing `&mut a` and `a`, `a` needs to be cloned
+    let src = "
+    unconstrained fn main(x: [Field; 2]) -> pub ([Field; 2], [Field; 2]) {
+        let mut a = x;
+        foo(&mut a, a)
+    }
+
+    fn foo(r: &mut [Field; 2], b: [Field; 2]) -> ([Field; 2], [Field; 2]) {
+        (*r)[0] = 99;
+        (*r, b)
+    }
+    ";
+
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    unconstrained fn main$f0(x$l0: [Field; 2]) -> pub ([Field; 2], [Field; 2]) {
+        let mut a$l1 = x$l0;
+        foo$f1((&mut a$l1), a$l1.clone())
+    }
+    unconstrained fn foo$f1(r$l2: &mut [Field; 2], b$l3: [Field; 2]) -> ([Field; 2], [Field; 2]) {
+        (*r$l2)[0] = 99;
+        ((*r$l2).clone(), b$l3)
+    }
+    ");
+}
+
+#[test]
 fn call_with_extract_tuple_field_args_does_not_prevent_move() {
     // Mirrors the `try_resize` pattern in UHashMap: `insert(&mut new_map, entry.0, entry.1)`
     // where `entry` is a tuple. The arguments `entry.0` and `entry.1` are `ExtractTupleField`
