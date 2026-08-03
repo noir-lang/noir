@@ -398,6 +398,11 @@ pub struct Let {
     pub mutable: bool,
     pub name: String,
     pub expression: Box<Expression>,
+    /// The declared type of the binding. For mutable bindings this determines
+    /// the element type of the allocated cell, which can differ from the
+    /// initializer value's type in reference mutability (e.g. a borrow of a
+    /// mutable variable is `&mut T`-typed while the binding declares `&T`).
+    pub typ: Type,
 }
 
 #[derive(Debug, Clone, Hash)]

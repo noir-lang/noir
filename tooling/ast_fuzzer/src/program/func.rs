@@ -1282,12 +1282,12 @@ impl<'a> FunctionContext<'a> {
 
         // Add the variable so we can use it in subsequent expressions.
         if add_to_scope {
-            self.locals.add(id, mutable, name.clone(), typ);
+            self.locals.add(id, mutable, name.clone(), typ.clone());
         }
 
         self.set_dynamic(id, is_dynamic);
 
-        expr::let_var(id, mutable, name, expr)
+        expr::let_var(id, mutable, name, typ, expr)
     }
 
     /// Add a new local variable and return a `Let` expression along with an `Ident` to refer it by.
@@ -1791,7 +1791,7 @@ impl<'a> FunctionContext<'a> {
         self.decrease_budget(1);
 
         // Start building the loop harness, initialize index to 0
-        let let_idx = expr::let_var(idx_local_id, true, idx_name, expr::u32_literal(0));
+        let let_idx = expr::let_var(idx_local_id, true, idx_name, types::U32, expr::u32_literal(0));
 
         // Get the randomized loop body
         let was_in_loop = std::mem::replace(&mut self.in_loop, true);
@@ -1836,6 +1836,7 @@ impl<'a> FunctionContext<'a> {
             mutable: true,
             name: idx_name,
             expression: Box::new(expr::u32_literal(0)),
+            typ: types::U32,
         })];
 
         // Get the randomized loop body

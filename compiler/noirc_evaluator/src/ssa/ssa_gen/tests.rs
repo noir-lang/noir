@@ -1288,3 +1288,89 @@ fn enum_on_circuit_interface_rejects_malicious_tag_issue_754() {
          cross the circuit interface."
     );
 }
+
+#[test]
+fn immutable_borrow_allocates_mutable_cell() {
+    // `&x` over an immutable value is materialized as an allocation plus an
+    // initializing store. The allocation must be typed `&mut Field` even though
+    // the borrow's type is `&Field`: stores are only valid through mutable
+    // reference types, and a `&mut T` value may be used wherever `&T` is
+    // expected. `generate_ssa` validates the result, so a `&Field`-typed
+    // allocation would make this fail with a store-address validation error.
+    let src = "
+    unconstrained fn read_ref(r: &Field) -> Field {
+        *r
+    }
+
+    fn main(x: Field) {
+        // Safety: reading through the reference has no side effects.
+        let result = unsafe { read_ref(&x) };
+        assert(result == x);
+    }
+    ";
+    let program = get_monomorphized(src).unwrap();
+    let ssa = generate_ssa(program).unwrap();
+    assert_ssa_snapshot!(ssa, @r"
+    acir(inline) fn main f0 {
+      b0(v0: Field):
+        v1 = allocate -> &mut Field
+        store v0 at v1
+        v3 = call f1(v1) -> Field
+        v4 = eq v3, v0
+        constrain v3 == v0
+        return
+    }
+    brillig(inline) fn read_ref f1 {
+      b0(v0: &Field):
+        v1 = load v0 -> Field
+        return v1
+    }
+    ");
+}
+
+#[test]
+fn mutable_let_cell_uses_declared_type_not_initializer_type() {
+    // `&a` over a mutable binding reuses the variable's `&mut Field` cell, so
+    // the initializer value is `&mut Field`-typed even though `s` is declared
+    // `&Field`. The cell for `s` must be allocated as `&mut &Field` (the
+    // declared type), not `&mut &mut Field` (the initializer's type):
+    // otherwise the later `s = r` stores a `&Field` value into a
+    // `&mut Field`-pointee slot, which directional validation rejects.
+    let src = "
+    unconstrained fn bar(r: &Field, mut a: Field) -> Field {
+        let mut s: &Field = &a;
+        s = r;
+        *s
+    }
+
+    unconstrained fn main(x: Field) {
+        let mut y = x;
+        assert(bar(&y, x) == x);
+    }
+    ";
+    let program = get_monomorphized(src).unwrap();
+    let _ = generate_ssa(program).unwrap();
+}
+
+#[test]
+fn borrowed_composite_cells_use_declared_types_not_value_types() {
+    // The tuple literal's first element is a borrow, so its value is
+    // `&mut Field`-typed while the declared element type is `&Field`. The
+    // cells materialized for `&mut (...)` must use the declared element types,
+    // or the later write through `a` stores a `&Field` value into a
+    // `&mut Field`-pointee slot.
+    let src = "
+    unconstrained fn foo(r: &Field, x: Field) -> Field {
+        let a: &mut (&Field, Field) = &mut (&x, x);
+        *a = (r, x);
+        (*a).1
+    }
+
+    unconstrained fn main(x: Field) {
+        let mut y = x;
+        assert(foo(&y, x) == x);
+    }
+    ";
+    let program = get_monomorphized(src).unwrap();
+    let _ = generate_ssa(program).unwrap();
+}
