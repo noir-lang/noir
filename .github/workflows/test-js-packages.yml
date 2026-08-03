@@ -743,7 +743,7 @@ jobs:
           sed -i '/^compiler_version/d' ./**/Nargo.toml
 
       - name: Run nargo compile
-        working-directory: ./test-repo/noir-projects/noir-contracts
+        working-directory: ./test-repo/noir-projects/labs/noir-contracts
         run: nargo compile --inliner-aggressiveness 0
 
   upload_critical_library_report:
