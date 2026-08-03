@@ -77,7 +77,7 @@ jobs:
           claudebox-api-secret: ${{ secrets.CLAUDEBOX_API_SECRET }}
           repo: noir-lang/noir
           run-url: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          user: nightly-fuzz
+          user: noir-nightly-fuzz
           mode: public
           target-ref: origin/${{ github.ref_name }}
           link: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
