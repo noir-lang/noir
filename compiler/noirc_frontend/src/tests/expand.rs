@@ -874,3 +874,34 @@ fn expands_associated_constant_over_self_type_with_concrete_annotation() {
     }
     ");
 }
+
+#[test]
+fn expands_global_capturing_closure_as_its_initializer_expression() {
+    let src = r#"
+    fn make() -> fn[(Field,)](Field) -> Field {
+        let x: Field = 3;
+        |y: Field| -> Field { y + x }
+    }
+
+    global F: fn[(Field,)](Field) -> Field = make();
+
+    fn main() {
+        let _ = F;
+    }
+    "#;
+    let expanded = assert_no_errors_and_to_string(src);
+    insta::assert_snapshot!(expanded, @r"
+    fn make() -> fn[(Field,)](Field) -> Field {
+        let x: Field = 3_Field;
+        |y: Field| -> Field {
+            y + x
+        }
+    }
+
+    global F: fn[(Field,)](Field) -> Field = make();
+
+    fn main() {
+        let _: fn[(Field,)](Field) -> Field = F;
+    }
+    ");
+}

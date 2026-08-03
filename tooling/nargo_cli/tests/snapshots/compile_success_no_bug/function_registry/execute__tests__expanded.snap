@@ -5,7 +5,7 @@ expression: expanded_code
 use std::{collections::umap::UHashMap, hash::{BuildHasherDefault, Hasher}};
 
 comptime mut global REGISTRY: UHashMap<Module, [FunctionDefinition], BuildHasherDefault<DummyHasher>> =
-    UHashMap::<Module, [FunctionDefinition], BuildHasherDefault<DummyHasher>>::default();
+    UHashMap::<Module, [FunctionDefinition], BuildHasherDefault<DummyHasher>>::default(); // Warning: this global was mutated at compile time; its final value could not be printed, so this is its initializer
 
 comptime fn add_to_registry(
     registry: &mut UHashMap<Module, [FunctionDefinition], BuildHasherDefault<DummyHasher>>,

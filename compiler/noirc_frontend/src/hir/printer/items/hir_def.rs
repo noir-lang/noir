@@ -13,7 +13,6 @@ use crate::{
         },
         stmt::{HirLValue, HirPattern, HirStatement},
     },
-    modules::module_def_id_is_visible,
     node_interner::{DefinitionId, DefinitionKind, ExprId, FuncId, StmtId},
     token::FmtStrFragment,
 };
@@ -973,16 +972,8 @@ impl ItemPrinter<'_, '_> {
                     // compile-time value instead.
                     let module_def_id = ModuleDefId::TraitId(trait_impl.trait_id);
                     let trait_ = self.interner.get_trait(trait_impl.trait_id);
-                    let trait_is_visible =
-                        module_def_id_is_visible(
-                            module_def_id,
-                            self.module_id,
-                            trait_.visibility,
-                            None,
-                            self.interner,
-                            self.def_maps,
-                            self.dependencies,
-                        ) || !self.interner.get_reexports(module_def_id).is_empty();
+                    let trait_is_visible = self
+                        .module_def_id_is_visible_or_reexported(module_def_id, trait_.visibility);
                     if !trait_is_visible
                         && let Some(named_type) = self
                             .interner

@@ -132,6 +132,12 @@ impl Elaborator<'_> {
     /// its `Display` is the "(resolved type)" placeholder, so look through the resolution to
     /// the actual type. These names resurface in `nargo expand` output, where the placeholder
     /// would not parse.
+    ///
+    /// Note that `Display` for a resolved [Type] is not source-faithful: data types print as
+    /// their bare name (no module path, so a same-named type in scope at the printing site can
+    /// shadow it) and unbound type variables print as `_` or their kind's default. These names
+    /// are display-only — nothing semantic keys off them — but the printed projection may not
+    /// re-resolve in every context.
     pub(super) fn unresolved_type_name(&self, typ: &UnresolvedType) -> String {
         match &typ.typ {
             UnresolvedTypeData::Resolved(quoted_type_id) => {
