@@ -371,7 +371,7 @@
 <a href=#371 id=371 data-nosnippet>371</a>    ///
 <a href=#372 id=372 data-nosnippet>372</a>    /// If the vector has zero length, this function skips the memory read and returns zero values.
 <a href=#373 id=373 data-nosnippet>373</a>    /// It asserts that the current side effects must be disabled (predicate = 0), otherwise fails
-<a href=#374 id=374 data-nosnippet>374</a>    /// with "cannot pop from a vector with length 0". This prevents reading from empty memory blocks
+<a href=#374 id=374 data-nosnippet>374</a>    /// with "Attempt to pop from an empty vector". This prevents reading from empty memory blocks
 <a href=#375 id=375 data-nosnippet>375</a>    /// which would cause "Index out of bounds" errors.
 <a href=#376 id=376 data-nosnippet>376</a>    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>convert_vector_pop_back(
 <a href=#377 id=377 data-nosnippet>377</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
@@ -388,8 +388,8 @@
 <a href=#388 id=388 data-nosnippet>388</a>
 <a href=#389 id=389 data-nosnippet>389</a>        <span class="comment">// Check if we're trying to pop from a known empty vector.
 <a href=#390 id=390 data-nosnippet>390</a>        </span><span class="kw">if </span><span class="self">self</span>.has_zero_length(vector_contents_id, dfg) {
-<a href=#391 id=391 data-nosnippet>391</a>            <span class="comment">// Make sure this code is disabled, or fail with "Index out of bounds".
-<a href=#392 id=392 data-nosnippet>392</a>            </span><span class="kw">let </span>msg = <span class="string">"cannot pop from a vector with length 0"</span>.to_string();
+<a href=#391 id=391 data-nosnippet>391</a>            <span class="comment">// Make sure this code is disabled, or fail with the empty-vector pop message.
+<a href=#392 id=392 data-nosnippet>392</a>            </span><span class="kw">let </span>msg = <span class="string">"Attempt to pop from an empty vector"</span>.to_string();
 <a href=#393 id=393 data-nosnippet>393</a>            <span class="self">self</span>.acir_context.assert_zero_var(<span class="self">self</span>.current_side_effects_enabled_var, msg)<span class="question-mark">?</span>;
 <a href=#394 id=394 data-nosnippet>394</a>
 <a href=#395 id=395 data-nosnippet>395</a>            <span class="comment">// Fill the result with default values.
@@ -531,7 +531,7 @@
 <a href=#531 id=531 data-nosnippet>531</a>    ///
 <a href=#532 id=532 data-nosnippet>532</a>    /// If the vector has zero length, this function skips the memory read and returns zero values.
 <a href=#533 id=533 data-nosnippet>533</a>    /// It asserts that the current side effects must be disabled (predicate = 0), otherwise fails
-<a href=#534 id=534 data-nosnippet>534</a>    /// with "cannot pop from a vector with length 0". This prevents reading from empty memory blocks
+<a href=#534 id=534 data-nosnippet>534</a>    /// with "Attempt to pop from an empty vector". This prevents reading from empty memory blocks
 <a href=#535 id=535 data-nosnippet>535</a>    /// which would cause "Index out of bounds" errors.
 <a href=#536 id=536 data-nosnippet>536</a>    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>convert_vector_pop_front(
 <a href=#537 id=537 data-nosnippet>537</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
@@ -549,8 +549,8 @@
 <a href=#549 id=549 data-nosnippet>549</a>
 <a href=#550 id=550 data-nosnippet>550</a>        <span class="comment">// Check if we're trying to pop from a known empty vector.
 <a href=#551 id=551 data-nosnippet>551</a>        </span><span class="kw">if </span><span class="self">self</span>.has_zero_length(vector_contents_id, dfg) {
-<a href=#552 id=552 data-nosnippet>552</a>            <span class="comment">// Make sure this code is disabled, or fail with "Index out of bounds".
-<a href=#553 id=553 data-nosnippet>553</a>            </span><span class="kw">let </span>msg = <span class="string">"cannot pop from a vector with length 0"</span>.to_string();
+<a href=#552 id=552 data-nosnippet>552</a>            <span class="comment">// Make sure this code is disabled, or fail with the empty-vector pop message.
+<a href=#553 id=553 data-nosnippet>553</a>            </span><span class="kw">let </span>msg = <span class="string">"Attempt to pop from an empty vector"</span>.to_string();
 <a href=#554 id=554 data-nosnippet>554</a>            <span class="self">self</span>.acir_context.assert_zero_var(<span class="self">self</span>.current_side_effects_enabled_var, msg)<span class="question-mark">?</span>;
 <a href=#555 id=555 data-nosnippet>555</a>
 <a href=#556 id=556 data-nosnippet>556</a>            <span class="comment">// Fill the result with default values.

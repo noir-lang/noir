@@ -465,7 +465,7 @@ The <code>result_ids</code> encode the type/shape of the removed element.</p>
 <h5 id="empty-vector-handling"><a class="doc-anchor" href="#empty-vector-handling">§</a>Empty Vector Handling</h5>
 <p>If the vector has zero length, this function skips the memory read and returns zero values.
 It asserts that the current side effects must be disabled (predicate = 0), otherwise fails
-with “cannot pop from a vector with length 0”. This prevents reading from empty memory blocks
+with “Attempt to pop from an empty vector”. This prevents reading from empty memory blocks
 which would cause “Index out of bounds” errors.</p>
 </div></details><details class="toggle method-toggle" open><summary><section id="method.vector_pop_new_length" class="method"><a class="src rightside" href="../../src/noirc_evaluator/acir/call/intrinsics/vector_ops.rs.html#459-496">Source</a><h4 class="code-header">fn <a href="#method.vector_pop_new_length" class="fn">vector_pop_new_length</a>(
     &amp;mut self,
@@ -512,7 +512,7 @@ consistently with the element’s type.</p>
 <h5 id="empty-vector-handling-1"><a class="doc-anchor" href="#empty-vector-handling-1">§</a>Empty Vector Handling</h5>
 <p>If the vector has zero length, this function skips the memory read and returns zero values.
 It asserts that the current side effects must be disabled (predicate = 0), otherwise fails
-with “cannot pop from a vector with length 0”. This prevents reading from empty memory blocks
+with “Attempt to pop from an empty vector”. This prevents reading from empty memory blocks
 which would cause “Index out of bounds” errors.</p>
 </div></details><details class="toggle method-toggle" open><summary><section id="method.convert_vector_insert" class="method"><a class="src rightside" href="../../src/noirc_evaluator/acir/call/intrinsics/vector_ops.rs.html#634-816">Source</a><h4 class="code-header">pub(super) fn <a href="#method.convert_vector_insert" class="fn">convert_vector_insert</a>(
     &amp;mut self,
