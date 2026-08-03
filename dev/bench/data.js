@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1785504532069,
+  "lastUpdate": 1785753006212,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23051,48 +23051,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "5a1e59db49dd4e04cfc4453dc40c3d0b6fb8ce41",
-          "message": "chore(design): record brillig scratch space usage and safety guarantees (#13363)",
-          "timestamp": "2026-07-20T17:11:44Z",
-          "tree_id": "a3c3b9c46a89e69291a8b3d0d2c91df610a67a6b",
-          "url": "https://github.com/noir-lang/noir/commit/5a1e59db49dd4e04cfc4453dc40c3d0b6fb8ce41"
-        },
-        "date": 1784568743512,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 167771,
-            "range": "± 2929",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 138075,
-            "range": "± 328",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2648165,
-            "range": "± 19650",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "49699333+dependabot[bot]@users.noreply.github.com",
             "name": "dependabot[bot]",
             "username": "dependabot[bot]"
@@ -25144,6 +25102,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2644140,
             "range": "± 1572",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "5f65381ee789f7efba8ce7afa7f74a1ac813af6b",
+          "message": "fix(ssa): make reference mutability directional and meaningful in SSA (#13435)\n\nCo-authored-by: Claude Fable 5 <noreply@anthropic.com>\nCo-authored-by: Aztec Bot <49558828+AztecBot@users.noreply.github.com>",
+          "timestamp": "2026-08-03T10:09:33Z",
+          "tree_id": "f40dcfc51203079f471827c69eda1ea3f3aa6f72",
+          "url": "https://github.com/noir-lang/noir/commit/5f65381ee789f7efba8ce7afa7f74a1ac813af6b"
+        },
+        "date": 1785752924463,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 172411,
+            "range": "± 412",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 141113,
+            "range": "± 425",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2648956,
+            "range": "± 18745",
             "unit": "ns/iter"
           }
         ]
