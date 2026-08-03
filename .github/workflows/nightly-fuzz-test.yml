@@ -82,7 +82,7 @@ jobs:
           target-ref: origin/${{ github.ref_name }}
           link: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           slack-bot-token: ${{ secrets.CLAUDEBOX_SLACK_BOT_TOKEN }}
-          slack-channel: ${{ secrets.CLAUDEBOX_SLACK_CHANNEL }}
+          slack-channel: ${{ secrets.FUZZER_FAILURE_SLACK_CHANNEL_ID }}
           slack-alert: >-
             :rotating_light: <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|Nightly compiler fuzzing>
             failed — ${{ steps.seeds.outputs.seed_count }} seed(s): `${{ steps.seeds.outputs.seeds }}`.
