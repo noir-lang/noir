@@ -27,6 +27,6 @@ where
 }
 
 fn main(x: Field) {
-    assert(takes(AliasN::<200u8>).which() == 1);
+    assert(takes(AliasN::<200_u8>).which() == 1);
     assert(x == 5);
 }
