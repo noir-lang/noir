@@ -153,20 +153,23 @@ fn verify_function(function: &Function, needs_check: &impl Fn(FunctionId) -> boo
 /// only established here, at the call site, so this is where it must be checked
 /// (noir-lang/noir-claude#1563).
 ///
-/// Each argument position is resolved to the storage it may denote at the
-/// call: an array-typed argument to its backward alias set, and a reference
-/// argument to the alias set of the value its in-block reaching `store` wrote,
-/// when there is one (after `mem2reg_brillig` the emitted shape keeps that
-/// `store` in the call's own block; a pointee established elsewhere is not
-/// traced — a false negative, never a false positive). Two *reference*
-/// arguments sharing a pointee are not flagged: a write through a reference is
-/// ordinary reference semantics, visible through every alias of the reference
-/// by design, not a copy-on-write violation — so a pair must include at least
-/// one array-value position.
+/// Each argument position is resolved to the storage it denotes at the call:
+/// an array-typed argument to itself, and a reference argument to the value
+/// its in-block reaching `store` wrote, when there is one (after
+/// `mem2reg_brillig` the emitted shape keeps that `store` in the call's own
+/// block; a pointee established elsewhere is not traced — a false negative,
+/// never a false positive). Two *reference* arguments sharing a pointee are
+/// not flagged: a write through a reference is ordinary reference semantics,
+/// visible through every alias of the reference by design, not a copy-on-write
+/// violation — so a pair must include at least one array-value position.
 ///
-/// A co-aliased pair is accepted when some `inc_rc` on a backward alias of the
-/// shared storage precedes the call: the runtime count is then at least 2, so
-/// the callee's write copies and the sibling handle keeps its snapshot.
+/// Whether a pair denotes one buffer, and whether that buffer is protected, is
+/// decided per path by [`Context::pair_has_unprotected_shared_storage`]: a
+/// pair is flagged only when some backward path resolves both positions to the
+/// same storage with no `inc_rc` crossed on it. A whole-call relation is not
+/// path-sensitive enough — a branch-local `inc_rc` protecting the only sharing
+/// path, or two branches passing one buffer through *different* positions,
+/// must both be accepted.
 fn check_co_aliased_arguments(
     function: &Function,
     ctx: &Context,
@@ -176,35 +179,29 @@ fn check_co_aliased_arguments(
     call_id: InstructionId,
 ) -> RtResult<()> {
     // For each argument position: `is_value` (an array value, as opposed to a
-    // reference whose pointee was resolved) and the storage's backward alias
-    // set. `None` when the position denotes no array storage we can resolve.
-    let storages: Vec<Option<(bool, im::HashSet<ValueId>)>> = arguments
+    // reference whose pointee was resolved) and the storage the position
+    // denotes. `None` when the position denotes no array storage we can
+    // resolve.
+    let storages: Vec<Option<(bool, ValueId)>> = arguments
         .iter()
         .map(|&arg| match function.dfg.type_of_value(arg).as_ref() {
-            typ if typ.is_array() => Some((true, ctx.alias_set_for(arg, block_id, call_idx))),
+            typ if typ.is_array() => Some((true, arg)),
             Type::Reference(element, _) if element.contains_an_array() => {
                 let pointee = in_block_reaching_store(function, block_id, call_idx, arg)?;
-                Some((false, ctx.alias_set_for(pointee, block_id, call_idx)))
+                Some((false, pointee))
             }
             _ => None,
         })
         .collect();
 
     for (i, i_storage) in storages.iter().enumerate() {
-        let Some((i_is_value, i_set)) = i_storage else { continue };
+        let Some((i_is_value, i_value)) = i_storage else { continue };
         for (j, j_storage) in storages.iter().enumerate().skip(i + 1) {
-            let Some((j_is_value, j_set)) = j_storage else { continue };
+            let Some((j_is_value, j_value)) = j_storage else { continue };
             if !i_is_value && !j_is_value {
                 continue;
             }
-            if i_set.clone().intersection(j_set.clone()).is_empty() {
-                continue;
-            }
-            // An `inc_rc` on any backward alias of either position protects the
-            // shared buffer, so check the union of both sets.
-            let union = i_set.clone().union(j_set.clone());
-            let source = if *i_is_value { arguments[i] } else { arguments[j] };
-            if ctx.some_inc_rc_precedes(&union, source, block_id, call_idx) {
+            if !ctx.pair_has_unprotected_shared_storage(*i_value, *j_value, block_id, call_idx) {
                 continue;
             }
             let message = format!(
@@ -898,6 +895,112 @@ mod tests {
         assert_verifier_accepts_because(
             src,
             "the by-value sibling of the &mut argument is protected by a preceding inc_rc",
+        );
+    }
+
+    /// Regression for the `valid_after_pass` fuzzer seed `0x96293a520000f025`.
+    /// Two block parameters of a join reach a call as sibling arguments. On the
+    /// branch that passes the *same* array in both positions, the frontend's
+    /// clones are present as `inc_rc`s in that branch — protection delivered
+    /// per path, from a predecessor that does not dominate the join. On the
+    /// other branch the two positions carry distinct fresh arrays and need no
+    /// protection. Well-formed on every path, so the co-aliased-arguments
+    /// check must accept: a dominance-only `inc_rc` search rejects this SSA.
+    #[test]
+    fn end_to_end_join_passing_shared_array_with_branch_local_inc_rc_is_accepted() {
+        let src = r#"
+            brillig(inline) fn main f0 {
+              b0(v0: u1):
+                jmpif v0 then: b1(), else: b2()
+              b1():
+                v2 = make_array [Field 1, Field 2] : [Field; 2]
+                v3 = make_array [Field 3, Field 4] : [Field; 2]
+                jmp b3(v2, v3)
+              b2():
+                v4 = make_array [Field 5, Field 6] : [Field; 2]
+                inc_rc v4
+                inc_rc v4
+                jmp b3(v4, v4)
+              b3(v5: [Field; 2], v6: [Field; 2]):
+                v7, v8 = call f1(v5, v6) -> ([Field; 2], [Field; 2])
+                return v7, v8
+            }
+            brillig(inline) fn f f1 {
+              b0(v0: [Field; 2], v1: [Field; 2]):
+                v2 = array_set v0, index u32 0, value Field 9
+                inc_rc v2
+                return v1, v2
+            }"#;
+        assert_verifier_accepts_because(
+            src,
+            "the only path passing one buffer through both positions bumps it in that branch",
+        );
+    }
+
+    /// The unprotected counterpart of
+    /// [`end_to_end_join_passing_shared_array_with_branch_local_inc_rc_is_accepted`]:
+    /// the branch that passes the same array through both positions carries no
+    /// `inc_rc`, so on that path the callee's in-place mutation is observable
+    /// through the sibling argument. Must be rejected.
+    #[test]
+    fn end_to_end_join_passing_shared_array_without_inc_rc_is_rejected() {
+        let src = r#"
+            brillig(inline) fn main f0 {
+              b0(v0: u1):
+                jmpif v0 then: b1(), else: b2()
+              b1():
+                v2 = make_array [Field 1, Field 2] : [Field; 2]
+                v3 = make_array [Field 3, Field 4] : [Field; 2]
+                jmp b3(v2, v3)
+              b2():
+                v4 = make_array [Field 5, Field 6] : [Field; 2]
+                jmp b3(v4, v4)
+              b3(v5: [Field; 2], v6: [Field; 2]):
+                v7, v8 = call f1(v5, v6) -> ([Field; 2], [Field; 2])
+                return v7, v8
+            }
+            brillig(inline) fn f f1 {
+              b0(v0: [Field; 2], v1: [Field; 2]):
+                v2 = array_set v0, index u32 0, value Field 9
+                inc_rc v2
+                return v1, v2
+            }"#;
+        assert_verifier_rejects(src);
+    }
+
+    /// A join whose branches pass one array through *different* positions —
+    /// `(v2, v3)` on one arm, `(v4, v2)` on the other. `v2` reaches both
+    /// argument positions, but never both on the same path, so no path hands
+    /// the callee one buffer twice and there is nothing to protect: each
+    /// branch-local use of `v2` is that branch's last use and is legitimately
+    /// moved without a clone. The check must accept — relating the positions'
+    /// backward alias sets without path sensitivity rejects this SSA.
+    #[test]
+    fn end_to_end_join_passing_array_through_different_positions_per_branch_is_accepted() {
+        let src = r#"
+            brillig(inline) fn main f0 {
+              b0(v0: u1):
+                v2 = make_array [Field 1, Field 2] : [Field; 2]
+                jmpif v0 then: b1(), else: b2()
+              b1():
+                v3 = make_array [Field 3, Field 4] : [Field; 2]
+                jmp b3(v2, v3)
+              b2():
+                v4 = make_array [Field 5, Field 6] : [Field; 2]
+                jmp b3(v4, v2)
+              b3(v5: [Field; 2], v6: [Field; 2]):
+                v7, v8 = call f1(v5, v6) -> ([Field; 2], [Field; 2])
+                return v7, v8
+            }
+            brillig(inline) fn f f1 {
+              b0(v0: [Field; 2], v1: [Field; 2]):
+                v2 = array_set v0, index u32 0, value Field 9
+                inc_rc v2
+                return v1, v2
+            }"#;
+        assert_verifier_accepts_because(
+            src,
+            "no single path passes the same buffer through two argument positions",
         );
     }
 }
