@@ -11,6 +11,10 @@
 //! [`super::array_set`], seeded from call arguments instead of `array_set`
 //! sources, and gated on whether the callee can modify its arguments (mirroring
 //! `can_modify_args` in `ssa_gen`).
+//!
+//! It additionally checks a relation only visible at the call site: whether two
+//! argument positions of one call denote the same storage with no protecting
+//! `inc_rc` (see [`check_co_aliased_arguments`]).
 
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
@@ -20,7 +24,8 @@ use crate::{
         ir::{
             basic_block::BasicBlockId,
             function::{Function, FunctionId},
-            instruction::{Instruction, Intrinsic, TerminatorInstruction},
+            instruction::{Instruction, InstructionId, Intrinsic, TerminatorInstruction},
+            types::Type,
             value::{Value, ValueId},
         },
         opt::pure::Purity,
@@ -126,9 +131,115 @@ fn verify_function(function: &Function, needs_check: &impl Fn(FunctionId) -> boo
                         .get_instruction_call_stack(hit.instruction),
                 });
             }
+
+            check_co_aliased_arguments(function, &ctx, arguments, block_id, idx, instruction_id)?;
         }
     }
     Ok(())
+}
+
+/// Reject a `call` in which two argument positions may denote the same array
+/// storage with no protecting `inc_rc`.
+///
+/// The per-argument forward walk in [`verify_function`] looks for an aliased
+/// read *in the caller, after the call*, so it cannot see the hazard where the
+/// same buffer reaches the callee twice — as the same value in two positions
+/// (`f(v, v)`), or once as an array value and once as the pointee of a
+/// reference (the shape `ssa_gen` emits for `f(&mut x, x)`). The callee can
+/// then mutate one handle in place at reference count 1 and observe (e.g.
+/// return) the pre-mutation contents through the other, entirely inside the
+/// callee — where the two parameters are unrelated values and the shared-buffer
+/// relation is invisible to the intraprocedural alias engine. The relation is
+/// only established here, at the call site, so this is where it must be checked
+/// (noir-lang/noir-claude#1563).
+///
+/// Each argument position is resolved to the storage it may denote at the
+/// call: an array-typed argument to its backward alias set, and a reference
+/// argument to the alias set of the value its in-block reaching `store` wrote,
+/// when there is one (after `mem2reg_brillig` the emitted shape keeps that
+/// `store` in the call's own block; a pointee established elsewhere is not
+/// traced — a false negative, never a false positive). Two *reference*
+/// arguments sharing a pointee are not flagged: a write through a reference is
+/// ordinary reference semantics, visible through every alias of the reference
+/// by design, not a copy-on-write violation — so a pair must include at least
+/// one array-value position.
+///
+/// A co-aliased pair is accepted when some `inc_rc` on a backward alias of the
+/// shared storage precedes the call: the runtime count is then at least 2, so
+/// the callee's write copies and the sibling handle keeps its snapshot.
+fn check_co_aliased_arguments(
+    function: &Function,
+    ctx: &Context,
+    arguments: &[ValueId],
+    block_id: BasicBlockId,
+    call_idx: usize,
+    call_id: InstructionId,
+) -> RtResult<()> {
+    // For each argument position: `is_value` (an array value, as opposed to a
+    // reference whose pointee was resolved) and the storage's backward alias
+    // set. `None` when the position denotes no array storage we can resolve.
+    let storages: Vec<Option<(bool, im::HashSet<ValueId>)>> = arguments
+        .iter()
+        .map(|&arg| match function.dfg.type_of_value(arg).as_ref() {
+            typ if typ.is_array() => Some((true, ctx.alias_set_for(arg, block_id, call_idx))),
+            Type::Reference(element, _) if element.contains_an_array() => {
+                let pointee = in_block_reaching_store(function, block_id, call_idx, arg)?;
+                Some((false, ctx.alias_set_for(pointee, block_id, call_idx)))
+            }
+            _ => None,
+        })
+        .collect();
+
+    for (i, i_storage) in storages.iter().enumerate() {
+        let Some((i_is_value, i_set)) = i_storage else { continue };
+        for (j, j_storage) in storages.iter().enumerate().skip(i + 1) {
+            let Some((j_is_value, j_set)) = j_storage else { continue };
+            if !i_is_value && !j_is_value {
+                continue;
+            }
+            if i_set.clone().intersection(j_set.clone()).is_empty() {
+                continue;
+            }
+            // An `inc_rc` on any backward alias of either position protects the
+            // shared buffer, so check the union of both sets.
+            let union = i_set.clone().union(j_set.clone());
+            let source = if *i_is_value { arguments[i] } else { arguments[j] };
+            if ctx.some_inc_rc_precedes(&union, source, block_id, call_idx) {
+                continue;
+            }
+            let message = format!(
+                "call in function {} passes the same array storage through two arguments \
+                 ({} and {}) with no preceding `inc_rc`; if the callee mutates it in place \
+                 through one of them, the mutation would be observable through the other",
+                function.name(),
+                arguments[i],
+                arguments[j],
+            );
+            let call_stack = function.dfg.get_instruction_call_stack(call_id);
+            return Err(RuntimeError::CallArgAliasViolation {
+                message,
+                call_stack: call_stack.clone(),
+                aliased_use_call_stack: call_stack,
+            });
+        }
+    }
+    Ok(())
+}
+
+/// The value most recently stored through `address` in `block_id` before the
+/// instruction at `call_idx` — the reference's in-block reaching definition —
+/// or `None` when the block contains no such store.
+fn in_block_reaching_store(
+    function: &Function,
+    block_id: BasicBlockId,
+    call_idx: usize,
+    address: ValueId,
+) -> Option<ValueId> {
+    let instructions = function.dfg[block_id].instructions();
+    instructions[..call_idx].iter().rev().find_map(|id| match &function.dfg[*id] {
+        Instruction::Store { address: a, value } if *a == address => Some(*value),
+        _ => None,
+    })
 }
 
 /// Whether a call to the callee referenced by `func` needs its array arguments
@@ -690,6 +801,103 @@ mod tests {
         assert_verifier_accepts_because(
             src,
             "a scalar store cannot mutate an array argument, so the reused arg is not a hazard",
+        );
+    }
+
+    /// Regression for noir-lang/noir-claude#1563. The same buffer reaches the
+    /// callee through **two argument positions of one call**: `v1` is a `&mut`
+    /// reference whose pointee (the dominating `store v0 at v1`) is also passed
+    /// by value as the second argument, with no `inc_rc` protecting it. The
+    /// callee mutates the buffer in place through the reference (RC is 1) and
+    /// returns its by-value parameter, so the pre-mutation snapshot the
+    /// by-value argument is supposed to be is observably corrupted — running
+    /// this SSA yields `([9,2], [9,2])` where its SSA-level meaning is
+    /// `([9,2], [1,2])`. The verifier must reject: checking each argument in
+    /// isolation misses it, because the caller never reads `v0` after the call
+    /// (the aliased read is the callee's `return` of the sibling argument).
+    /// This is the SSA shape `ssa_gen` emitted for `f(&mut x, x)` before the
+    /// ownership pass learned to clone a by-value argument that aliases a
+    /// `&mut` argument of the same call (noir-lang/noir-claude#1553).
+    #[test]
+    fn end_to_end_mut_ref_arg_pointing_at_by_value_arg_of_same_call_is_rejected() {
+        let src = r#"
+            brillig(inline) fn main f0 {
+              b0():
+                v0 = make_array [Field 1, Field 2] : [Field; 2]
+                v1 = allocate -> &mut [Field; 2]
+                store v0 at v1
+                v2, v3 = call f1(v1, v0) -> ([Field; 2], [Field; 2])
+                return v2, v3
+            }
+            brillig(inline) fn f f1 {
+              b0(v0: &mut [Field; 2], v1: [Field; 2]):
+                v2 = load v0 -> [Field; 2]
+                v3 = array_set v2, index u32 0, value Field 9
+                store v3 at v0
+                inc_rc v3
+                return v1, v3
+            }"#;
+        assert_verifier_rejects(src);
+    }
+
+    /// Companion of
+    /// [`end_to_end_mut_ref_arg_pointing_at_by_value_arg_of_same_call_is_rejected`]
+    /// with no reference anywhere: the **same array value occupies two argument
+    /// positions** (`call f1(v0, v0)`), the callee mutates one in place at RC 1
+    /// and returns the other, corrupted. This pins that the missing relation is
+    /// between argument positions as such, not something introduced by the
+    /// `&mut` argument. The frontend does not emit this shape (a reused
+    /// by-value argument is always cloned), so it is reachable from hand-written
+    /// SSA only; it must still be rejected.
+    #[test]
+    fn end_to_end_same_array_in_two_argument_positions_is_rejected() {
+        let src = r#"
+            brillig(inline) fn main f0 {
+              b0():
+                v0 = make_array [Field 1, Field 2] : [Field; 2]
+                v1, v2 = call f1(v0, v0) -> ([Field; 2], [Field; 2])
+                return v1, v2
+            }
+            brillig(inline) fn f f1 {
+              b0(v0: [Field; 2], v1: [Field; 2]):
+                v2 = array_set v0, index u32 0, value Field 9
+                inc_rc v2
+                return v1, v2
+            }"#;
+        assert_verifier_rejects(src);
+    }
+
+    /// The well-formed counterpart of
+    /// [`end_to_end_mut_ref_arg_pointing_at_by_value_arg_of_same_call_is_rejected`]:
+    /// the `inc_rc v0` the ownership pass emits for the by-value sibling of a
+    /// `&mut` argument is present before the call, so the callee's in-place
+    /// write copies (RC is 2) and the by-value parameter keeps its snapshot.
+    /// Accepted — this pins that the co-aliased-arguments check credits the
+    /// protecting `inc_rc` instead of flagging every call that passes a buffer
+    /// through two positions.
+    #[test]
+    fn end_to_end_mut_ref_arg_pointing_at_protected_by_value_arg_is_accepted() {
+        let src = r#"
+            brillig(inline) fn main f0 {
+              b0():
+                v0 = make_array [Field 1, Field 2] : [Field; 2]
+                v1 = allocate -> &mut [Field; 2]
+                store v0 at v1
+                inc_rc v0
+                v2, v3 = call f1(v1, v0) -> ([Field; 2], [Field; 2])
+                return v2, v3
+            }
+            brillig(inline) fn f f1 {
+              b0(v0: &mut [Field; 2], v1: [Field; 2]):
+                v2 = load v0 -> [Field; 2]
+                v3 = array_set v2, index u32 0, value Field 9
+                store v3 at v0
+                inc_rc v3
+                return v1, v3
+            }"#;
+        assert_verifier_accepts_because(
+            src,
+            "the by-value sibling of the &mut argument is protected by a preceding inc_rc",
         );
     }
 }
