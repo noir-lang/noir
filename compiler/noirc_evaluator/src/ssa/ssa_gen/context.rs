@@ -132,7 +132,7 @@ pub(super) fn array_index_needs_explicit_oob_check(
     runtime: RuntimeType,
     array_type: &Type,
 ) -> bool {
-    runtime.is_brillig() || array_type.flattened_size().0 == 0
+    runtime.is_brillig() || array_type.element_size().0 != 1 || array_type.flattened_size().0 == 0
 }
 
 impl<'a> FunctionContext<'a> {
