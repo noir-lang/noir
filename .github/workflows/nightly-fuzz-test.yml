@@ -91,7 +91,7 @@ jobs:
             The nightly Noir compiler fuzzer failed on `${{ github.ref_name }}`.
 
             Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-            Failing seeds (${{ steps.seeds.outputs.seed_count }}): ${{ steps.seeds.outputs.
+            Failing seeds (${{ steps.seeds.outputs.seed_count }}): ${{ steps.seeds.outputs.seeds }}
 
             Working one by one, reproduce the fuzzer failures using those seeds
             against noir-lang/noir master. For each seed perform an RCA and determine
