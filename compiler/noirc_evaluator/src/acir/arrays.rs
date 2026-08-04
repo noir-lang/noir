@@ -127,7 +127,7 @@ use acvm::acir::brillig::lengths::{
 };
 use acvm::acir::{circuit::opcodes::BlockType, native_types::Witness};
 use acvm::{FieldElement, acir::AcirField, acir::circuit::opcodes::BlockId};
-use iter_extended::{try_vecmap, vecmap};
+use iter_extended::vecmap;
 use itertools::Itertools;
 use std::rc::Rc;
 
@@ -251,19 +251,21 @@ impl Context<'_> {
         }
 
         let array_typ = dfg.type_of_value(array);
-        let offset = self.compute_offset(instruction, dfg, &array_typ);
-        let (new_index, new_value) = self.convert_array_operation_inputs(
-            array,
-            dfg,
-            index,
-            store_value,
-            offset.unwrap_or_default(),
-        )?;
+        // A disabled `array_set` writes the read-back dummy value to the very slots it was read
+        // from, leaving memory unchanged whatever those slots' types are — there is nothing for
+        // a fallback offset to protect, so only reads need one.
+        let offset = if store_value.is_none() {
+            self.compute_offset(instruction, dfg, &array_typ)
+        } else {
+            0
+        };
+        let (new_index, new_value) =
+            self.convert_array_operation_inputs(array, dfg, index, store_value, offset)?;
 
         if let Some(new_value) = new_value {
             self.array_set(instruction, new_index, new_value, dfg, mutable)?;
         } else {
-            self.array_get(instruction, array, new_index, dfg, offset.is_none())?;
+            self.array_get(instruction, array, new_index, dfg)?;
         }
 
         Ok(())
@@ -447,14 +449,10 @@ impl Context<'_> {
     ///
     /// [`Self::convert_array_operation_inputs`] biases the predicate-gated index by this offset
     /// (`offset * (1 - predicate)`), so under a false predicate the read lands on that field of
-    /// element 0 and is type-compatible by construction — [`Self::apply_index_side_effects`]
-    /// then has nothing to mask. The offset must be in flat slot units, the units of the index
-    /// it biases: an item ordinal diverges from it as soon as a multi-slot field precedes the
-    /// matched one, sending the fallback read to slots of unrelated types.
-    ///
-    /// Returns `None` — falling back to per-leaf masking — for an `ArraySet` (a disabled set
-    /// writes the read-back dummy value, so slot types are irrelevant) and when the element
-    /// contains a vector (no static flattening).
+    /// element 0 and is type-compatible by construction: no leaf of the result can end up
+    /// holding a value wider than its declared type. The offset must be in flat slot units, the
+    /// units of the index it biases: an item ordinal diverges from it as soon as a multi-slot
+    /// field precedes the matched one, sending the fallback read to slots of unrelated types.
     ///
     /// A match always exists for SSA generated from Noir source: an `array_get`'s result is
     /// one of the element's fields. No match is an ICE (reachable only through hand-written
@@ -466,17 +464,10 @@ impl Context<'_> {
         instruction: InstructionId,
         dfg: &DataFlowGraph,
         array_typ: &Type,
-    ) -> Option<usize> {
-        if !matches!(dfg[instruction], Instruction::ArrayGet { .. }) {
-            return None;
-        }
-
+    ) -> usize {
         let (Type::Array(element_types, _) | Type::Vector(element_types)) = array_typ else {
-            return None;
+            unreachable!("ICE: array_get must operate on an array or vector, got {array_typ}")
         };
-        if element_types.iter().any(|typ| typ.contains_vector_element()) {
-            return None;
-        }
 
         let [result] = dfg.instruction_result(instruction);
         let result_type = dfg.type_of_value(result);
@@ -484,7 +475,7 @@ impl Context<'_> {
         let mut offset = 0;
         for typ in element_types.iter() {
             if *typ == *result_type {
-                return Some(offset);
+                return offset;
             }
             offset += typ.flattened_size().0 as usize;
         }
@@ -502,8 +493,8 @@ impl Context<'_> {
     /// predicate when `is_safe_index = false`, so on a disabled branch the index
     /// collapses to `0`. When `offset != 0` and `is_safe_index = false` we additionally
     /// bias the disabled-branch fallback to `offset` by adding `offset * (1 - predicate)`,
-    /// because [`Self::apply_index_side_effects`] relies on the dummy value at `offset`
-    /// being type-compatible with the read's result type to skip masking.
+    /// so that the dummy value a disabled read returns is type-compatible with the read's
+    /// result type (see [`Self::compute_offset`]).
     fn convert_array_operation_inputs(
         &mut self,
         array_id: ValueId,
@@ -658,19 +649,19 @@ impl Context<'_> {
 
     /// Generates a read opcode for the array.
     ///
-    /// `index_side_effect == false` means that we ensured `var_index` will have a type matching the value in the array.
+    /// `var_index` is already predicated: on a disabled branch it is gated and biased to the
+    /// type-matching fallback offset (see [`Self::compute_offset`]), so the value read always
+    /// fits the declared result type.
     fn array_get(
         &mut self,
         instruction: InstructionId,
         array: ValueId,
         var_index: AcirVar,
         dfg: &DataFlowGraph,
-        index_side_effect: bool,
     ) -> Result<(), RuntimeError> {
         let [result] = dfg.instruction_result(instruction);
         let res_typ = dfg.type_of_value(result);
         let value = self.load_array_value(array, var_index, &res_typ, dfg)?;
-        let value = self.apply_index_side_effects(array, value, index_side_effect, dfg)?;
         self.define_result(dfg, instruction, value);
         Ok(())
     }
@@ -731,82 +722,6 @@ impl Context<'_> {
             // from the databus block and never touch this one).
             let block_id = self.ensure_array_is_initialized(array, dfg)?;
             self.array_get_value(res_typ, block_id, &mut var_index)
-        }
-    }
-
-    /// Applies predication logic on the result in case the read under a false predicate
-    /// returns a value with a larger type that may later trigger an overflow.
-    /// Ensures values read under false predicate are zeroed out if types don’t align.
-    ///
-    /// Under a false predicate the flattened index is gated to 0, so the leaves of `value` read
-    /// the flat slots `0, 1, 2, ...` of the element layout in order. The verdict must be made per
-    /// leaf, against the slot that leaf actually reads: a multi-slot composite read covers slots
-    /// the type at slot 0 says nothing about, so a single verdict from the leading slot cannot
-    /// stand in for all of them.
-    fn apply_index_side_effects(
-        &mut self,
-        array: ValueId,
-        value: AcirValue,
-        index_side_effect: bool,
-        dfg: &DataFlowGraph,
-    ) -> Result<AcirValue, RuntimeError> {
-        if !index_side_effect {
-            return Ok(value);
-        }
-
-        // A `Type::Vector` element has no statically-known flattened layout, so we cannot decide
-        // per-slot; fall back to masking every leaf. `flat_element_types` also returns an empty
-        // list for a zero-width element type — same fallback applies. An extra multiplication on
-        // a disabled branch costs a gate; it never loses correctness.
-        let array_typ = dfg.type_of_value(array);
-        let fallback_types = if array_typ.contains_vector_element() {
-            Vec::new()
-        } else {
-            flat_element_types(&array_typ)
-        };
-
-        let mut slot = 0;
-        self.mask_leaves_that_do_not_fit(value, &fallback_types, &mut slot)
-    }
-
-    /// Multiplies by the side-effects predicate every leaf of `value` whose declared type is too
-    /// narrow for the value stored at the flat slot that leaf reads under a false predicate.
-    ///
-    /// `slot` tracks the flat position reached so far, so the walk stays in lockstep with the
-    /// reads `array_get_value` emitted. An empty `fallback_types` means the layout could not be
-    /// computed, in which case every leaf is masked.
-    fn mask_leaves_that_do_not_fit(
-        &mut self,
-        value: AcirValue,
-        fallback_types: &[NumericType],
-        slot: &mut usize,
-    ) -> Result<AcirValue, RuntimeError> {
-        match value {
-            AcirValue::Var(acir_var, typ) => {
-                let read_typ = (!fallback_types.is_empty())
-                    .then(|| fallback_types[*slot % fallback_types.len()]);
-                *slot += 1;
-
-                let fits = read_typ.is_some_and(|read_typ| {
-                    read_typ.bit_size::<FieldElement>() <= typ.bit_size::<FieldElement>()
-                });
-                if fits {
-                    return Ok(AcirValue::Var(acir_var, typ));
-                }
-                Ok(AcirValue::Var(
-                    self.acir_context.mul_var(acir_var, self.current_side_effects_enabled_var)?,
-                    typ,
-                ))
-            }
-            AcirValue::Array(vector) => {
-                let new_values = try_vecmap(vector, |val| {
-                    self.mask_leaves_that_do_not_fit(val, fallback_types, slot)
-                })?;
-                Ok(AcirValue::Array(im::Vector::from(new_values)))
-            }
-            AcirValue::DynamicArray(_) => {
-                unreachable!("ICE: Nested dynamic arrays are not supported")
-            }
         }
     }
 
