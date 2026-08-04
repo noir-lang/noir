@@ -8301,7 +8301,7 @@ __metadata:
     prettier: "npm:3.9.6"
     smol-toml: "npm:^1.7.1"
     toml: "npm:^5.0.0"
-    tslog: "npm:^4.10.2"
+    tslog: "npm:^5.1.0"
   languageName: unknown
   linkType: soft
 
@@ -12338,10 +12338,12 @@ __metadata:
   languageName: node
   linkType: hard
 
-"tslog@npm:^4.10.2":
-  version: 4.10.2
-  resolution: "tslog@npm:4.10.2"
-  checksum: 10/fb8f8a154876bcacd1a9ad7f4e40974623554508efe610edab5242562ccac2f7aa30a53971c49172e8fb9f4d096f2d0ca26a154f48d32d159d21f7d3a0dd0dc7
+"tslog@npm:^5.1.0":
+  version: 5.1.0
+  resolution: "tslog@npm:5.1.0"
+  bin:
+    tslog: esm/subpaths/cli.js
+  checksum: 10/4ab40b773aa3f64926b7dee6c80044d93b757b24b4f358d3b113ed75ca3223360e39a72fe9222d09a8b505a31866f4679158a7861050ea847c7cc493fbfebc0e
   languageName: node
   linkType: hard
 
