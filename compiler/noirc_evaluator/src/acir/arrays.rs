@@ -111,11 +111,12 @@
 //!
 //! #### Reads
 //!
-//! If we perform an array read under a false predicate we will read from `offset`. As arrays are not always homogenous
-//! the result at index `offset` may contain a value that will overflow the resulting type of the array read.
-//! When we read a value from a non-homogenous array, we multiply any resulting [`AcirValue::Var`] by the predicate
-//! to avoid any possible mismatch. In the case of a false predicate, the value will now be zero.
-//! For homogenous arrays, the fallback `offset` will produce a value with a compatible type.
+//! If we perform an array read under a false predicate we will read from `offset`. As arrays are
+//! not always homogenous, an arbitrary fallback slot could hold a value wider than the read's
+//! declared result type. `offset` is therefore chosen per read as the flat slot of the element
+//! field whose type matches the result type (see [`Context::compute_offset`]), so the dummy
+//! value a disabled read returns always fits its declared type. The surrounding predication
+//! discards that dummy value.
 //!
 //! ### Zero-Length Arrays
 //!
