@@ -131,7 +131,7 @@ use iter_extended::{try_vecmap, vecmap};
 use itertools::Itertools;
 use std::rc::Rc;
 
-use crate::acir::types::{flat_element_types, try_flat_leaf_types};
+use crate::acir::types::flat_element_types;
 use crate::brillig::assert_u32;
 use crate::errors::{InternalError, RuntimeError};
 use crate::ssa::ir::types::NumericType;
@@ -441,19 +441,21 @@ impl Context<'_> {
         }
     }
 
-    /// For an `ArrayGet`, finds a flat offset into the array's element layout such that a
-    /// disabled-branch fallback read starting there lands every leaf of the result on a slot
-    /// whose type fits the leaf's declared type (slot bit size <= leaf bit size).
+    /// For an `ArrayGet`, finds the flat slot offset of the element field whose type matches
+    /// the result: the read targets a field of the element, and that same field also exists in
+    /// element 0, at this offset, with exactly the result's layout.
     ///
     /// [`Self::convert_array_operation_inputs`] biases the predicate-gated index by this offset
-    /// (`offset * (1 - predicate)`), so under a false predicate the read is type-compatible by
-    /// construction and [`Self::apply_index_side_effects`] has nothing to mask. Reads produced
-    /// by SSA generation always have such an offset: their result is a field of the element,
-    /// and that field's own flat offset is a fitting window.
+    /// (`offset * (1 - predicate)`), so under a false predicate the read lands on that field of
+    /// element 0 and is type-compatible by construction — [`Self::apply_index_side_effects`]
+    /// then has nothing to mask. The offset must be in flat slot units, the units of the index
+    /// it biases: an item ordinal diverges from it as soon as a multi-slot field precedes the
+    /// matched one, sending the fallback read to slots of unrelated types.
     ///
     /// Returns `None` — falling back to per-leaf masking — for an `ArraySet` (a disabled set
-    /// writes the read-back dummy value, so slot types are irrelevant), when the layout has no
-    /// static flattening (vector elements), or when no offset fits (hand-written SSA only).
+    /// writes the read-back dummy value, so slot types are irrelevant), when the element
+    /// contains a vector (no static flattening), or when no field matches (only possible for
+    /// SSA that did not come from the Noir frontend).
     ///
     /// cf. <https://github.com/noir-lang/noir/pull/4971>
     fn compute_offset(
@@ -469,26 +471,21 @@ impl Context<'_> {
         let (Type::Array(element_types, _) | Type::Vector(element_types)) = array_typ else {
             return None;
         };
-        let mut element_layout = Vec::new();
-        for typ in element_types.iter() {
-            element_layout.extend(try_flat_leaf_types(typ)?);
-        }
-
-        let [result] = dfg.instruction_result(instruction);
-        let result_leaves = try_flat_leaf_types(&dfg.type_of_value(result))?;
-        if result_leaves.is_empty() || result_leaves.len() > element_layout.len() {
+        if element_types.iter().any(|typ| typ.contains_vector_element()) {
             return None;
         }
 
-        // Keeping the window within one element guarantees the biased read stays in bounds:
-        // element 0 is fully present in any non-empty block, and zero-length arrays are
-        // resolved earlier by `handle_zero_length_array`.
-        (0..=element_layout.len() - result_leaves.len()).find(|&offset| {
-            result_leaves.iter().enumerate().all(|(i, leaf)| {
-                element_layout[offset + i].bit_size::<FieldElement>()
-                    <= leaf.bit_size::<FieldElement>()
-            })
-        })
+        let [result] = dfg.instruction_result(instruction);
+        let result_type = dfg.type_of_value(result);
+
+        let mut offset = 0;
+        for typ in element_types.iter() {
+            if *typ == *result_type {
+                return Some(offset);
+            }
+            offset += typ.flattened_size().0 as usize;
+        }
+        None
     }
 
     /// Sets up the inputs for an `ArrayGet` / `ArraySet` instruction.
