@@ -131,7 +131,7 @@ use iter_extended::{try_vecmap, vecmap};
 use itertools::Itertools;
 use std::rc::Rc;
 
-use crate::acir::types::flat_element_types;
+use crate::acir::types::{flat_element_types, try_flat_leaf_types};
 use crate::brillig::assert_u32;
 use crate::errors::{InternalError, RuntimeError};
 use crate::ssa::ir::types::NumericType;
@@ -441,34 +441,54 @@ impl Context<'_> {
         }
     }
 
-    /// Get an offset such that the type of the array at the offset is the same as the type at the 'index'.
+    /// For an `ArrayGet`, finds a flat offset into the array's element layout such that a
+    /// disabled-branch fallback read starting there lands every leaf of the result on a slot
+    /// whose type fits the leaf's declared type (slot bit size <= leaf bit size).
     ///
-    /// If we find one, we will use it when computing the index under the `enable_side_effect` predicate.
-    /// If not, `array_get(..)` will use a fallback costing one multiplication in the worst case.
+    /// [`Self::convert_array_operation_inputs`] biases the predicate-gated index by this offset
+    /// (`offset * (1 - predicate)`), so under a false predicate the read is type-compatible by
+    /// construction and [`Self::apply_index_side_effects`] has nothing to mask. Reads produced
+    /// by SSA generation always have such an offset: their result is a field of the element,
+    /// and that field's own flat offset is a fitting window.
+    ///
+    /// Returns `None` — falling back to per-leaf masking — for an `ArraySet` (a disabled set
+    /// writes the read-back dummy value, so slot types are irrelevant), when the layout has no
+    /// static flattening (vector elements), or when no offset fits (hand-written SSA only).
     ///
     /// cf. <https://github.com/noir-lang/noir/pull/4971>
-    ///
-    /// For simplicity we compute the offset only for simple arrays.
     fn compute_offset(
         &self,
         instruction: InstructionId,
         dfg: &DataFlowGraph,
         array_typ: &Type,
     ) -> Option<usize> {
-        let is_simple_array = dfg.instruction_results(instruction).len() == 1
-            && (array_has_constant_element_size(array_typ) == Some(1));
-        if is_simple_array {
-            let result_type = dfg.type_of_value(dfg.instruction_results(instruction)[0]);
-            match array_typ {
-                Type::Array(item_type, _) | Type::Vector(item_type) => item_type
-                    .iter()
-                    .enumerate()
-                    .find_map(|(index, typ)| (*result_type == *typ).then_some(index)),
-                _ => None,
-            }
-        } else {
-            None
+        if !matches!(dfg[instruction], Instruction::ArrayGet { .. }) {
+            return None;
         }
+
+        let (Type::Array(element_types, _) | Type::Vector(element_types)) = array_typ else {
+            return None;
+        };
+        let mut element_layout = Vec::new();
+        for typ in element_types.iter() {
+            element_layout.extend(try_flat_leaf_types(typ)?);
+        }
+
+        let [result] = dfg.instruction_result(instruction);
+        let result_leaves = try_flat_leaf_types(&dfg.type_of_value(result))?;
+        if result_leaves.is_empty() || result_leaves.len() > element_layout.len() {
+            return None;
+        }
+
+        // Keeping the window within one element guarantees the biased read stays in bounds:
+        // element 0 is fully present in any non-empty block, and zero-length arrays are
+        // resolved earlier by `handle_zero_length_array`.
+        (0..=element_layout.len() - result_leaves.len()).find(|&offset| {
+            result_leaves.iter().enumerate().all(|(i, leaf)| {
+                element_layout[offset + i].bit_size::<FieldElement>()
+                    <= leaf.bit_size::<FieldElement>()
+            })
+        })
     }
 
     /// Sets up the inputs for an `ArrayGet` / `ArraySet` instruction.
