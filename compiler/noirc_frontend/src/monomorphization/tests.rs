@@ -1927,20 +1927,19 @@ fn lambda_in_if_condition_of_unconstrained_fn_target_is_not_forced() {
     }
     "#;
     let program = get_monomorphized(src).unwrap();
-    // The snapshot below is WRONG and records the buggy output. Both halves of the lambda pair
-    // are `unconstrained`, so the condition is computed in Brillig and `y * y` is unconstrained
-    // even though the call is made from constrained code. A correct lowering emits a constrained
-    // `fn lambda$f1` and calls it without the `unsafe` wrapper.
+    // The condition calls the constrained `lambda$f1` directly, with no `unsafe` wrapper, so
+    // `y * y` is constrained. The branches, which do produce the value occupying the
+    // `unconstrained fn` slot, are still forced to `(dummy$f3, dummy$f3)`.
     insta::assert_snapshot!(program, @r"
     fn main$f0(x$l0: u32) -> pub u32 {
-        let _f$l3 = if (unsafe { lambda$f1(x$l0) } == 9) {
+        let _f$l3 = if (lambda$f1(x$l0) == 9) {
             (dummy$f3, dummy$f3)
         } else {
             (dummy$f3, dummy$f3)
         };
         x$l0
     }
-    unconstrained fn lambda$f1(y$l1: u32) -> u32 {
+    fn lambda$f1(y$l1: u32) -> u32 {
         (y$l1 * y$l1)
     }
     unconstrained fn lambda$f2(y$l2: u32) -> u32 {

@@ -837,7 +837,17 @@ impl<'interner> Monomorphizer<'interner> {
     }
 
     /// Monomorphize an expression.
+    /// Monomorphize an expression in a position that does not produce the enclosing position's
+    /// value. Any function value built here occupies no `unconstrained fn(..)` slot of its own,
+    /// so it keeps the runtime its own type declares.
     pub(crate) fn expr(&mut self, expr: ExprId) -> Result<ast::Expression, MonomorphizationError> {
+        self.expr_with_force_unconstrained(expr, false)
+    }
+
+    /// Monomorphize an expression that produces the enclosing position's value -- a block's
+    /// trailing expression, or an `if`/`match` branch. An `unconstrained fn(..)` target on that
+    /// enclosing position applies here too, because this is the value that lands in the slot.
+    fn expr_forwarding(&mut self, expr: ExprId) -> Result<ast::Expression, MonomorphizationError> {
         use ast::Expression::Literal;
         use ast::Literal::*;
 
@@ -1005,9 +1015,12 @@ impl<'interner> Monomorphizer<'interner> {
 
             HirExpression::If(if_expr) => {
                 let condition = Box::new(self.expr(if_expr.condition)?);
-                let consequence = Box::new(self.expr(if_expr.consequence)?);
-                let else_ =
-                    if_expr.alternative.map(|alt| self.expr(alt)).transpose()?.map(Box::new);
+                let consequence = Box::new(self.expr_forwarding(if_expr.consequence)?);
+                let else_ = if_expr
+                    .alternative
+                    .map(|alt| self.expr_forwarding(alt))
+                    .transpose()?
+                    .map(Box::new);
 
                 let location = self.interner.expr_location(&expr);
                 let frontend_type = self.interner.id_type(expr);
@@ -1217,7 +1230,7 @@ impl<'interner> Monomorphizer<'interner> {
         forced: bool,
     ) -> Result<ast::Expression, MonomorphizationError> {
         let old = std::mem::replace(&mut self.force_unconstrained, self.force_brillig || forced);
-        let result = self.expr(expr);
+        let result = self.expr_forwarding(expr);
         self.force_unconstrained = old;
         result
     }
@@ -1333,7 +1346,18 @@ impl<'interner> Monomorphizer<'interner> {
         &mut self,
         statement_ids: Vec<StmtId>,
     ) -> Result<ast::Expression, MonomorphizationError> {
-        let stmts = try_vecmap(statement_ids, |id| self.statement(id));
+        // A block's value comes from a trailing expression statement, so that statement is the
+        // only one that inherits an enclosing `unconstrained fn(..)` target. Every other statement
+        // goes through `expr`, which clears it.
+        let last_index = statement_ids.len().wrapping_sub(1);
+        let stmts = try_vecmap(statement_ids.into_iter().enumerate(), |(index, id)| {
+            if index == last_index
+                && let HirStatement::Expression(expr) = self.interner.statement(&id)
+            {
+                return self.expr_forwarding(expr);
+            }
+            self.statement(id)
+        });
         stmts.map(ast::Expression::Block)
     }
 
@@ -3026,7 +3050,7 @@ impl<'interner> Monomorphizer<'interner> {
         }
 
         match match_expr {
-            HirMatch::Success(id) => self.expr(id),
+            HirMatch::Success(id) => self.expr_forwarding(id),
             HirMatch::Failure { .. } => {
                 let false_ = Box::new(ast::Expression::Literal(ast::Literal::Bool(false)));
                 let msg = "match failure";
@@ -3042,7 +3066,7 @@ impl<'interner> Monomorphizer<'interner> {
             }
             HirMatch::Guard { cond, body, otherwise } => {
                 let condition = Box::new(self.expr(cond)?);
-                let consequence = Box::new(self.expr(body)?);
+                let consequence = Box::new(self.expr_forwarding(body)?);
                 let alternative = Some(Box::new(self.match_expr(*otherwise, expr_id)?));
                 let typ = Self::convert_type(&result_type, location)?;
                 Ok(ast::Expression::If(ast::If { condition, consequence, alternative, typ }))
