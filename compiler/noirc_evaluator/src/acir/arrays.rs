@@ -453,9 +453,12 @@ impl Context<'_> {
     /// matched one, sending the fallback read to slots of unrelated types.
     ///
     /// Returns `None` — falling back to per-leaf masking — for an `ArraySet` (a disabled set
-    /// writes the read-back dummy value, so slot types are irrelevant), when the element
-    /// contains a vector (no static flattening), or when no field matches (only possible for
-    /// SSA that did not come from the Noir frontend).
+    /// writes the read-back dummy value, so slot types are irrelevant) and when the element
+    /// contains a vector (no static flattening).
+    ///
+    /// A match always exists for SSA generated from Noir source: an `array_get`'s result is
+    /// one of the element's fields. No match is an ICE (reachable only through hand-written
+    /// SSA, which the SSA validator currently accepts).
     ///
     /// cf. <https://github.com/noir-lang/noir/pull/4971>
     fn compute_offset(
@@ -485,7 +488,9 @@ impl Context<'_> {
             }
             offset += typ.flattened_size().0 as usize;
         }
-        None
+        unreachable!(
+            "ICE: array_get result type {result_type} is not a field of the array element type ({array_typ})"
+        )
     }
 
     /// Sets up the inputs for an `ArrayGet` / `ArraySet` instruction.
