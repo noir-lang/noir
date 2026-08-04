@@ -171,9 +171,19 @@ pub struct Monomorphizer<'interner> {
     /// constrained function called from this context to be monomorphized as unconstrained too.
     in_unconstrained_function: bool,
 
-    /// Set to true to force every function to be unconstrained.
-    /// Note that this also changes the first-class function representation
-    /// from a pair of `(constrained, unconstrained)` to `(unconstrained, unconstrained)`
+    /// Set to true to force every function in the program to be unconstrained (`--force-brillig`).
+    /// This is fixed for the whole pass; `force_unconstrained` is derived from it.
+    force_brillig: bool,
+
+    /// Set to true while monomorphizing an expression whose target slot is typed
+    /// `unconstrained fn(..)`. Note that this also changes the first-class function representation
+    /// from a pair of `(constrained, unconstrained)` to `(unconstrained, unconstrained)`, so that
+    /// a constrained caller dispatching through slot `.0` still runs the unconstrained version.
+    ///
+    /// This is a property of the *position* being monomorphized, not of the pass, so it must be
+    /// re-derived at every position with a known target type rather than only ever set. A nested
+    /// binding carrying its own constrained `fn` type does not flow into the enclosing
+    /// `unconstrained fn` slot and must not inherit the forcing.
     force_unconstrained: bool,
 }
 
@@ -299,6 +309,7 @@ impl<'interner> Monomorphizer<'interner> {
             debug_type_tracker,
             debug_crate_id,
             in_unconstrained_function: force_unconstrained,
+            force_brillig: force_unconstrained,
             force_unconstrained,
         }
     }
@@ -388,7 +399,7 @@ impl<'interner> Monomorphizer<'interner> {
             self.debug_type_tracker.extract_vars_and_types();
 
         for f in &mut functions {
-            let is_acir_entry_point = !self.force_unconstrained && f.inline_type.is_entry_point();
+            let is_acir_entry_point = !self.force_brillig && f.inline_type.is_entry_point();
             f.is_entry_point = is_acir_entry_point || f.id == Program::main_id();
         }
 
@@ -692,7 +703,7 @@ impl<'interner> Monomorphizer<'interner> {
         // flattened size is `u32`-representable. `is_entry_point` is only finalized in
         // `into_program`, so recompute the same condition here.
         let is_entry_point =
-            (!self.force_unconstrained && inline_type.is_entry_point()) || id == Program::main_id();
+            (!self.force_brillig && inline_type.is_entry_point()) || id == Program::main_id();
         if is_entry_point {
             let max_elements = ast::MAX_ELEMENTS as u64;
             for (pattern, typ, _visibility) in &func_parameters.0 {
@@ -1186,14 +1197,29 @@ impl<'interner> Monomorphizer<'interner> {
         expr: ExprId,
         target_type: &Type,
     ) -> Result<ast::Expression, MonomorphizationError> {
-        if matches!(target_type.follow_bindings(), Type::Function(_, _, _, true)) {
-            let old = std::mem::replace(&mut self.force_unconstrained, true);
-            let result = self.expr(expr);
-            self.force_unconstrained = old;
-            result
-        } else {
-            self.expr(expr)
-        }
+        let forced = matches!(target_type.follow_bindings(), Type::Function(_, _, _, true));
+        self.expr_with_force_unconstrained(expr, forced)
+    }
+
+    /// Monomorphize `expr` with `force_unconstrained` set to `forced`, restoring the previous
+    /// value afterwards.
+    ///
+    /// `forced` is assigned rather than or-ed into the current value: a position whose target type
+    /// is not `unconstrained fn(..)` clears the forcing inherited from an enclosing position, since
+    /// the value it produces does not flow into that enclosing `unconstrained fn` slot. Restoring
+    /// afterwards keeps the enclosing position forced, so a `let` earlier in a forced block does
+    /// not unforce the block's terminal expression.
+    ///
+    /// `--force-brillig` is a program-wide property and always wins.
+    fn expr_with_force_unconstrained(
+        &mut self,
+        expr: ExprId,
+        forced: bool,
+    ) -> Result<ast::Expression, MonomorphizationError> {
+        let old = std::mem::replace(&mut self.force_unconstrained, self.force_brillig || forced);
+        let result = self.expr(expr);
+        self.force_unconstrained = old;
+        result
     }
 
     fn constructor(
@@ -2308,19 +2334,12 @@ impl<'interner> Monomorphizer<'interner> {
                 // of the unconstrained variant, being itself unconstrained, we can generate a pair of
                 // two unconstrained functions, and avoid potential illegal passing of mutable references
                 // from constrained to unconstrained code in a lambda that we know will never be called.
-                let expr = match typ {
+                let forced = matches!(
+                    typ,
                     Type::Function(_, _, _, lambda_unconstrained)
-                        if *lambda_unconstrained || *callee_unconstrained =>
-                    {
-                        let old_force_unconstrained =
-                            std::mem::replace(&mut self.force_unconstrained, true);
-                        let expr = self.expr(*id)?;
-                        self.force_unconstrained = old_force_unconstrained;
-                        expr
-                    }
-                    _ => self.expr(*id)?,
-                };
-                arguments.push(expr);
+                        if *lambda_unconstrained || *callee_unconstrained
+                );
+                arguments.push(self.expr_with_force_unconstrained(*id, forced)?);
             }
         } else {
             for id in &call.arguments {

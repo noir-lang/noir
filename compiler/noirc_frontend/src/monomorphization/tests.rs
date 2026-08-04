@@ -1883,27 +1883,28 @@ fn constrained_fn_value_nested_in_unconstrained_fn_target_keeps_mixed_pair() {
     }
     "#;
     let program = get_monomorphized(src).unwrap();
-    // The snapshot below is WRONG and records the buggy output. `g$l2` is
-    // `(compute$f1, compute$f1)` -- both halves are the same function, and `compute$f1` is
-    // emitted `unconstrained` -- so `g$l2.0(x$l0)` lowers to a Brillig call from constrained
-    // code and `x * x` never becomes a constraint. A correct lowering binds `g$l2` to a mixed
-    // pair with a constrained slot `.0`, as in
-    // `constrained_fn_value_in_unconstrained_fn_target_control` below.
+    // `g$l2` is a mixed pair and slot `.0` -- the one `g$l2.0(x$l0)` selects from constrained
+    // code -- is the constrained `compute$f1`, so `x * x` becomes an ACIR constraint. `dummy`,
+    // which does occupy the `unconstrained fn` slot, is still forced to a
+    // `(unconstrained, unconstrained)` pair.
     insta::assert_snapshot!(program, @r"
     fn main$f0(x$l0: u32) -> pub u32 {
         let mut r$l1 = 0;
         let _f$l3 = {
-            let g$l2 = (compute$f1, compute$f1);
+            let g$l2 = (compute$f1, compute$f2);
             r$l1 = g$l2.0(x$l0);
-            (dummy$f2, dummy$f2)
+            (dummy$f3, dummy$f3)
         };
         r$l1
     }
-    unconstrained fn compute$f1(x$l4: u32) -> u32 {
+    fn compute$f1(x$l4: u32) -> u32 {
         (x$l4 * x$l4)
     }
-    unconstrained fn dummy$f2(x$l5: u32) -> u32 {
-        x$l5
+    unconstrained fn compute$f2(x$l5: u32) -> u32 {
+        (x$l5 * x$l5)
+    }
+    unconstrained fn dummy$f3(x$l6: u32) -> u32 {
+        x$l6
     }
     ");
 }
