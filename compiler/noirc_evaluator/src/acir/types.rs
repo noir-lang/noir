@@ -250,25 +250,3 @@ fn collect_fully_flattened_numeric_types(typ: &SsaType, flat_types: &mut Vec<Num
         _ => panic!("Called collect_fully_flattened_numeric_types on unsupported type"),
     }
 }
-
-/// Returns the fully flattened numeric leaf types of a value of type `typ`, or `None` if the
-/// type has no static numeric flattening (it contains a vector, reference, or function).
-///
-/// For example, `(u32, [Field; 2])` yields `[u32, Field, Field]`.
-pub(crate) fn try_flat_leaf_types(typ: &SsaType) -> Option<Vec<NumericType>> {
-    fn collect(typ: &SsaType, flat: &mut Vec<NumericType>) -> bool {
-        match typ {
-            SsaType::Numeric(numeric_type) => {
-                flat.push(*numeric_type);
-                true
-            }
-            SsaType::Array(types, len) => {
-                (0..len.0).all(|_| types.iter().all(|typ| collect(typ, flat)))
-            }
-            SsaType::Vector(_) | SsaType::Reference(..) | SsaType::Function => false,
-        }
-    }
-
-    let mut flat = Vec::new();
-    collect(typ, &mut flat).then_some(flat)
-}
