@@ -39,7 +39,7 @@
     "ethers": "^6.17.0",
     "hardhat": "^3.9.1",
     "prettier": "3.9.6",
-    "smol-toml": "^1.7.0",
+    "smol-toml": "^1.7.1",
     "toml": "^5.0.0",
     "tslog": "^4.10.2"
   }

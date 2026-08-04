@@ -2202,7 +2202,7 @@ __metadata:
     cspell: "npm:^10.0.1"
     eslint: "npm:^10.8.0"
     eslint-plugin-prettier: "npm:^5.5.6"
-    globals: "npm:^17.7.0"
+    globals: "npm:^17.8.0"
     mocha: "npm:^11.7.6"
     prettier: "npm:3.9.6"
     tsx: "npm:^4.23.1"
@@ -7781,10 +7781,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"globals@npm:^17.7.0":
-  version: 17.7.0
-  resolution: "globals@npm:17.7.0"
-  checksum: 10/79304ccc4d2ca167ea15bdb25da346aa34ce3847b18fbd6c3cad182e152505305db3c9722fd5e292c62f6db97a8fa06e0c110a1e7703d7325498e5351d08cab4
+"globals@npm:^17.8.0":
+  version: 17.8.0
+  resolution: "globals@npm:17.8.0"
+  checksum: 10/b7b854b2052d2608d1878884bf730c027e17b9e2d194834f48c3280a7f0005b06d5f51dba362d3149cc05eb90d36d990e5c996728ecd3585a43dc3b4a286ed85
   languageName: node
   linkType: hard
 
@@ -8299,7 +8299,7 @@ __metadata:
     ethers: "npm:^6.17.0"
     hardhat: "npm:^3.9.1"
     prettier: "npm:3.9.6"
-    smol-toml: "npm:^1.7.0"
+    smol-toml: "npm:^1.7.1"
     toml: "npm:^5.0.0"
     tslog: "npm:^4.10.2"
   languageName: unknown
@@ -11739,10 +11739,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"smol-toml@npm:^1.7.0":
-  version: 1.7.0
-  resolution: "smol-toml@npm:1.7.0"
-  checksum: 10/b99829e4d9b357f5841eca9d9bcedbb5cb8421645d698b9d41a49cd97d039d747b92a9882efe640d7cc9a9fd1da8862ce7352e5d59ae097f8a9d3a0a56792e8d
+"smol-toml@npm:^1.7.1":
+  version: 1.7.1
+  resolution: "smol-toml@npm:1.7.1"
+  checksum: 10/7f3aea1c7dbbd844de95e8f9b84d8bc77280873adf3bc42a7618e8693b65b9bf844e7412883c02f4999a67e4a3155f8179df5b19806263af6abeea7ddc78ac0f
   languageName: node
   linkType: hard
 
