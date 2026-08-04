@@ -715,46 +715,77 @@ impl Context<'_> {
     /// Applies predication logic on the result in case the read under a false predicate
     /// returns a value with a larger type that may later trigger an overflow.
     /// Ensures values read under false predicate are zeroed out if types don’t align.
-    /// This is done recursively for nested arrays.
+    ///
+    /// Under a false predicate the flattened index is gated to 0, so the leaves of `value` read
+    /// the flat slots `0, 1, 2, ...` of the element layout in order. The verdict must be made per
+    /// leaf, against the slot that leaf actually reads: a multi-slot composite read covers slots
+    /// the type at slot 0 says nothing about, so a single verdict from the leading slot cannot
+    /// stand in for all of them.
     fn apply_index_side_effects(
         &mut self,
         array: ValueId,
-        mut value: AcirValue,
-        mut index_side_effect: bool,
+        value: AcirValue,
+        index_side_effect: bool,
         dfg: &DataFlowGraph,
     ) -> Result<AcirValue, RuntimeError> {
-        match &value {
-            AcirValue::Var(acir_var, typ) => {
-                // If we read under a false predicate, we will read element 0, which has `numeric_type`.
-                // The variable we expect to read is of `typ`. We check whether reading 0 is compatible with `typ`.
-                let array_typ = dfg.type_of_value(array);
-                if let Type::Numeric(numeric_type) = array_typ.first()
-                    && numeric_type.bit_size::<FieldElement>() <= typ.bit_size::<FieldElement>()
-                {
-                    // first element is compatible
-                    index_side_effect = false;
-                }
+        if !index_side_effect {
+            return Ok(value);
+        }
 
-                if index_side_effect {
-                    value = AcirValue::Var(
-                        self.acir_context
-                            .mul_var(*acir_var, self.current_side_effects_enabled_var)?,
-                        *typ,
-                    );
+        // A `Type::Vector` element has no statically-known flattened layout, so we cannot decide
+        // per-slot; fall back to masking every leaf. `flat_element_types` also returns an empty
+        // list for a zero-width element type — same fallback applies. An extra multiplication on
+        // a disabled branch costs a gate; it never loses correctness.
+        let array_typ = dfg.type_of_value(array);
+        let fallback_types = if array_typ.contains_vector_element() {
+            Vec::new()
+        } else {
+            flat_element_types(&array_typ)
+        };
+
+        let mut slot = 0;
+        self.mask_leaves_that_do_not_fit(value, &fallback_types, &mut slot)
+    }
+
+    /// Multiplies by the side-effects predicate every leaf of `value` whose declared type is too
+    /// narrow for the value stored at the flat slot that leaf reads under a false predicate.
+    ///
+    /// `slot` tracks the flat position reached so far, so the walk stays in lockstep with the
+    /// reads `array_get_value` emitted. An empty `fallback_types` means the layout could not be
+    /// computed, in which case every leaf is masked.
+    fn mask_leaves_that_do_not_fit(
+        &mut self,
+        value: AcirValue,
+        fallback_types: &[NumericType],
+        slot: &mut usize,
+    ) -> Result<AcirValue, RuntimeError> {
+        match value {
+            AcirValue::Var(acir_var, typ) => {
+                let read_typ = (!fallback_types.is_empty())
+                    .then(|| fallback_types[*slot % fallback_types.len()]);
+                *slot += 1;
+
+                let fits = read_typ.is_some_and(|read_typ| {
+                    read_typ.bit_size::<FieldElement>() <= typ.bit_size::<FieldElement>()
+                });
+                if fits {
+                    return Ok(AcirValue::Var(acir_var, typ));
                 }
+                Ok(AcirValue::Var(
+                    self.acir_context.mul_var(acir_var, self.current_side_effects_enabled_var)?,
+                    typ,
+                ))
             }
             AcirValue::Array(vector) => {
-                let new_values = try_vecmap(vector.iter(), |val| {
-                    self.apply_index_side_effects(array, val.clone(), index_side_effect, dfg)
+                let new_values = try_vecmap(vector, |val| {
+                    self.mask_leaves_that_do_not_fit(val, fallback_types, slot)
                 })?;
-                value = AcirValue::Array(im::Vector::from(new_values));
+                Ok(AcirValue::Array(im::Vector::from(new_values)))
             }
             AcirValue::DynamicArray(_) => {
                 unreachable!("ICE: Nested dynamic arrays are not supported")
             }
         }
-
-        Ok(value)
     }
 
     /// Reads the value of type `ssa_type` at the flattened position `var_index` of the array backed
