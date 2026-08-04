@@ -766,17 +766,18 @@ fn predicated_composite_get_with_heterogeneous_element_layout() {
     ASSERT w27 = 2*w15*w16 + w16
     READ w28 = b0[w27]
     INIT b1 = [w0, w1, w2, w3, w4, w5, w6, w7, w8, w9, w10, w11, w12, w13, w14]
-    READ w29 = b1[w28]
-    ASSERT w30 = w28 + 1
-    READ w31 = b1[w30]
-    ASSERT w32 = w30 + 1
-    READ w33 = b1[w32]
-    ASSERT w34 = w32 + 1
-    READ w35 = b1[w34]
-    ASSERT w17 = w29
-    ASSERT w18 = w31
-    ASSERT w19 = w16*w33
-    ASSERT w20 = w35
+    ASSERT w29 = -w16 + w28 + 1
+    READ w30 = b1[w29]
+    ASSERT w31 = w29 + 1
+    READ w32 = b1[w31]
+    ASSERT w33 = w31 + 1
+    READ w34 = b1[w33]
+    ASSERT w35 = w33 + 1
+    READ w36 = b1[w35]
+    ASSERT w17 = w30
+    ASSERT w18 = w32
+    ASSERT w19 = w34
+    ASSERT w20 = w36
     ");
 }
 
@@ -819,11 +820,12 @@ fn predicated_composite_get_on_vector_with_heterogeneous_items() {
     ASSERT w11 = 5
     ASSERT w12 = 6
     INIT b1 = [w5, w10, w6, w7, w11, w12]
-    READ w13 = b1[w9]
-    ASSERT w14 = w9 + 1
-    READ w15 = b1[w14]
-    ASSERT w2 = w1*w13
-    ASSERT w3 = w1*w15
+    ASSERT w13 = -w1 + w9 + 1
+    READ w14 = b1[w13]
+    ASSERT w15 = w13 + 1
+    READ w16 = b1[w15]
+    ASSERT w2 = w14
+    ASSERT w3 = w16
     ");
 }
 
