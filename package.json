@@ -33,7 +33,7 @@
     "cspell": "^10.0.1",
     "eslint": "^10.8.0",
     "eslint-plugin-prettier": "^5.5.6",
-    "globals": "^17.7.0",
+    "globals": "^17.8.0",
     "mocha": "^11.7.6",
     "prettier": "3.9.6",
     "tsx": "^4.23.1",
