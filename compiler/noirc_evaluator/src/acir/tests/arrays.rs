@@ -830,11 +830,12 @@ fn predicated_composite_get_on_vector_with_heterogeneous_items() {
 }
 
 #[test]
-fn predicated_get_with_no_type_compatible_fallback_masks_result() {
-    // A hand-written `array_get` whose result type is narrower than every slot of the element
-    // layout: the `u8` leaf cannot be pointed at any type-compatible fallback slot, so on a
-    // disabled branch the result must be masked (multiplied by the predicate) to avoid leaving
-    // a `Field`-wide witness tagged `u8`.
+#[should_panic(expected = "is not a field of the array element type")]
+fn type_mismatched_array_get_is_an_ice() {
+    // An `array_get` whose result type is not one of the element's field types cannot come out
+    // of SSA generation, so the disabled-branch fallback offset cannot be computed for it. The
+    // SSA validator currently accepts such (hand-written) SSA, so ACIR gen refuses it with a
+    // deliberate ICE rather than picking a fallback index whose slot type it cannot vouch for.
     let src = "
     acir(inline) fn main f0 {
       b0(v0: [Field; 3], v1: u32, v2: u1):
@@ -844,19 +845,7 @@ fn predicated_get_with_no_type_compatible_fallback_masks_result() {
         return v3
     }
     ";
-    let program = ssa_to_acir_program(src);
-    assert_circuit_snapshot!(program, @r"
-    func 0
-    private parameters: [w0, w1, w2, w3, w4]
-    public parameters: []
-    return values: [w5]
-    BLACKBOX::RANGE input: w3, bits: 32
-    BLACKBOX::RANGE input: w4, bits: 1
-    INIT b0 = [w0, w1, w2]
-    ASSERT w6 = w3*w4
-    READ w7 = b0[w6]
-    ASSERT w5 = w4*w7
-    ");
+    let _ = ssa_to_acir_program(src);
 }
 
 #[test]
