@@ -214,4 +214,4 @@ Note: When used incorrectly it will create **less** efficient circuits (higher g
 
 ## References
 - Guillaume's ["`Crypdoku`" talk](https://www.youtube.com/watch?v=MrQyzuogxgg) (Jun'23)
-- [Idiomatic Noir](https://www.vlayer.xyz/blog/idiomatic-noir-part-1-collections) blog post
+- [Idiomatic Noir](https://www.vlayer.xyz/blog) blog posts
