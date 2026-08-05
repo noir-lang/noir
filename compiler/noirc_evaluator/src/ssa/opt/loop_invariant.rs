@@ -3174,6 +3174,58 @@ mod tests {
     }
 
     #[test]
+    fn hoisted_vector_mutator_guard_prevents_operand_corruption() {
+        // The output-guarding half of `hoisted_vector_mutator_guards_its_own_array_operand`.
+        //
+        // That test keeps the SSA well-formed, which means the entry block already protects `v1`
+        // and the `inc_rc` LICM emits is redundant: revert the guard and the program still
+        // returns the same value, so only its snapshot notices. That is not a gap in the test but
+        // a property of the fix — on SSA that honours the ownership contract a live array operand
+        // is always already protected on every path to the mutator, so the guard can never change
+        // a result. The only inputs where it can are ones that violate the contract, and this is
+        // one: `v1` is read by the `array_get` in `b3` with nothing bumping it anywhere.
+        //
+        // `assert_pass_does_not_affect_execution` cannot express this. Interpreting the input
+        // before the pass already yields the corrupted `0`: the loop mutates `v1` in place at
+        // reference count 1 and `b3` reads the pushed `u1 0` back. The pass is *supposed* to
+        // change that, by hoisting the push behind a guard it emits itself, landing on the
+        // SSA-level meaning of `1` — `vector_push_front` returns a new vector and leaves `v1`
+        // alone. Without the guard the hoisted push mutates in place exactly as before and the
+        // assertion below sees `false`.
+        let src = r#"
+        brillig(inline) predicate_pure fn main f0 {
+          b0(v0: u1):
+            v1 = make_array [v0, u1 1] : [u1]
+            v2 = call f1(u32 2, v1) -> u1
+            return v2
+        }
+        brillig(inline) predicate_pure fn foo f1 {
+          b0(v0: u32, v1: [u1]):
+            jmp b1(u32 0)
+          b1(v2: u32):
+            v3 = lt v2, u32 2
+            jmpif v3 then: b2(), else: b3()
+          b2():
+            v4, v5 = call vector_push_front(v0, v1, u1 0) -> (u32, [u1])
+            v6 = unchecked_add v2, u32 1
+            jmp b1(v6)
+          b3():
+            v7 = array_get v1, index u32 0 -> u1
+            return v7
+        }
+        "#;
+        let ssa = Ssa::from_str(src).unwrap();
+        let input = vec![crate::ssa::interpreter::value::Value::bool(true)];
+        let ssa = ssa.loop_invariant_code_motion();
+
+        assert_eq!(
+            ssa.interpret(crate::ssa::interpreter::value::Value::snapshot_args(&input)),
+            Ok(vec![crate::ssa::interpreter::value::Value::bool(true)]),
+            "the hoisted push must not be observable through `v1`",
+        );
+    }
+
+    #[test]
     fn inserts_inc_rc_for_hoisted_array_set() {
         // The SSA below has been captured during the pre-processing of functions in the following:
 
