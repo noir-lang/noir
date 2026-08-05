@@ -3013,32 +3013,30 @@ mod tests {
         assert_eq!(can_be_hoisted(&instruction, &function.dfg), result);
     }
 
+    /// Regression for noir-claude#244, found by the AST fuzzer `pass_vs_prev` on seed
+    /// `0xb6bc8e1f00100000` and bisected to this pass. LICM hoisted a Brillig vector mutator out
+    /// of a loop and left the `inc_rc` guarding its operand behind, so the hoisted push mutated a
+    /// still-live vector in place and the program returned the wrong answer with no error.
+    ///
+    /// Brillig arrays are copy-on-write: `vector_push_front` writes through its input vector in
+    /// place once the operand's reference count is 1. Here the operand `v1` is protected by the
+    /// `inc_rc v1` immediately before the call, because `v1` is still read by the `array_get` in
+    /// `b3`. That guard is classified `CanBeHoistedResult::No` and stays in the loop body, so the
+    /// call must stay with it.
+    ///
+    /// The assertions prove both halves of what keeps it there. `vector_push_front` being
+    /// `PureWithPredicate` is necessary but not sufficient: `can_be_hoisted` maps that to
+    /// `WithPredicate`, and `BlockContext::can_hoist_control_dependent_instruction` still hoists
+    /// out of a loop guaranteed to execute — which `b1`'s `0..2` bounds are. What stops it is the
+    /// third condition of that check, `!is_impure`: the guard is itself side-effecting, so it
+    /// marks `b2` impure before the call is considered. The guard protects the mutator by being
+    /// in front of it, not merely by existing. Reclassify the intrinsic `Pure`, or stop counting
+    /// rc traffic towards `is_impure`, and the call moves into `b0` — which the snapshot catches
+    /// and, on the corrupted read, the returned value does too.
     #[test]
     fn hoisting_vector_mutator_out_of_loop_drops_refcount_guard() {
-        // Reproduction for the AST fuzzer `pass_vs_prev` failure on seed 0xb6bc8e1f00100000,
-        // bisected to the Loop Invariant Code Motion pass.
-        //
-        // Brillig arrays are copy-on-write: `vector_push_front` writes through its input vector in
-        // place once the operand's reference count is 1. Inside the loop the operand `v1` is
-        // protected by the `inc_rc v1` immediately before the call, because `v1` is still read by
-        // the `array_get` in `b3`. The `inc_rc` guard is never hoisted, so the call must not be
-        // hoisted either: separated from its guard, the hoisted push would mutate `v1` in place
-        // and corrupt the value `b3` reads. `vector_push_front` is `PureWithPredicate` exactly so
-        // that LICM leaves it in the loop body, behind the guard.
-        //
-        // `PureWithPredicate` is necessary but not sufficient on its own: `can_be_hoisted` maps it
-        // to `WithPredicate`, and `BlockContext::can_hoist_control_dependent_instruction` still
-        // hoists such an instruction out of a loop that is guaranteed to execute — which `b1`'s
-        // `0..2` bounds are. What stops the hoist here is the third condition of that check,
-        // `!is_impure`: the `inc_rc` guard itself is side-effecting, so it marks `b2` impure
-        // before the call is considered. In other words the guard protects the mutator by being
-        // in front of it, not merely by existing. Both halves are load-bearing, so this test
-        // asserts on the SSA as well as on the execution result: were `vector_push_front` `Pure`
-        // again, or were rc instructions to stop marking a block impure, the call below would
-        // move into `b0` and the snapshot would change.
-        //
-        // `assert_pass_does_not_affect_execution` interprets before and after LICM and panics when
-        // the results differ.
+        use crate::ssa::interpreter::value::Value;
+
         let src = r#"
         brillig(inline) impure fn main f0 {
           b0(v0: u1):
@@ -3053,6 +3051,7 @@ mod tests {
             v3 = lt v2, u32 2
             jmpif v3 then: b2(), else: b3()
           b2():
+            // `v1` is guarded here because `b3` still reads it.
             inc_rc v1
             v4, v5 = call vector_push_front(v0, v1, u1 0) -> (u32, [u1])
             v6 = unchecked_add v2, u32 1
@@ -3063,12 +3062,17 @@ mod tests {
         }
         "#;
         let ssa = Ssa::from_str(src).unwrap();
-        let input = vec![crate::ssa::interpreter::value::Value::bool(true)];
-        let (ssa, _) =
-            assert_pass_does_not_affect_execution(ssa, input, Ssa::loop_invariant_code_motion);
+        let (ssa, result) = assert_pass_does_not_affect_execution(
+            ssa,
+            vec![Value::bool(true)],
+            Ssa::loop_invariant_code_motion,
+        );
 
-        // Nothing is hoisted: the pre-header `b0` of `f1` stays empty and the call stays in `b2`,
-        // immediately after the `inc_rc` that guards its vector operand.
+        // Behavior: `main` returns `v1[0]`, i.e. the argument it was given.
+        assert_eq!(result, Ok(vec![Value::bool(true)]));
+
+        // Shape: nothing is hoisted. The pre-header `b0` of `f1` stays empty and the call stays
+        // in `b2`, immediately after the `inc_rc` that guards its vector operand.
         assert_ssa_snapshot!(ssa, @r"
         brillig(inline) impure fn main f0 {
           b0(v0: u1):
@@ -3094,27 +3098,30 @@ mod tests {
         ");
     }
 
+    /// Companion of [`hoisting_vector_mutator_out_of_loop_drops_refcount_guard`] for
+    /// noir-claude#244, with the `inc_rc v1` guard moved out of the loop body and into the entry
+    /// block. The SSA is well-formed either way — `v1` is read by the `array_get` in `b4` and the
+    /// entry bump dominates every mutation of it — but the two shapes hoist differently.
+    ///
+    /// With the guard in the loop body its side effect marks the block impure and the call stays
+    /// put. Here the loop body has nothing side-effecting ahead of the call, so the block is
+    /// pure, the `0..2` loop is guaranteed to execute, and the call *is* hoisted. The purity
+    /// classification does not distinguish the two cases at all; only the guard's position does.
+    /// So LICM has to re-establish the protection at the point it moves the mutator to, by
+    /// emitting `inc_rc v1` into the pre-header ahead of the hoisted call — which the snapshot
+    /// asserts. `Ssa::interpret` models copy-on-write faithfully, so the returned value is what
+    /// would catch a guard emitted in the wrong place: `b4` reads `v1[0]` after the push.
+    ///
+    /// The bump is redundant in this particular shape, since the entry block already protects
+    /// `v1`: the pre-header scan in `unprotected_mutable_array_operands` is deliberately local,
+    /// and [`inserts_inc_rc_for_hoisted_array_set`] pins the case it does recognise. Conservative
+    /// in this direction costs one rc bump; conservative in the other is a miscompilation. See
+    /// [`hoisted_vector_mutator_guard_prevents_operand_corruption`] for the shape where the guard
+    /// changes the result.
     #[test]
     fn hoisted_vector_mutator_guards_its_own_array_operand() {
-        // The companion of `hoisting_vector_mutator_out_of_loop_drops_refcount_guard`, with the
-        // `inc_rc v1` guard moved out of the loop body and into the entry block. The SSA is
-        // well-formed either way — `v1` is read by the `array_get` in `b4` and the entry bump
-        // dominates every mutation of it — but the two shapes hoist differently.
-        //
-        // With the guard in the loop body its side effect marks the block impure and the call
-        // stays put. Here the loop body has nothing side-effecting ahead of the call, so the
-        // block is pure, the `0..2` loop is guaranteed to execute, and the call is hoisted. The
-        // purity classification does not distinguish these two cases at all; only the guard's
-        // accidental position does. So LICM has to re-establish the protection at the point it
-        // moves the mutator to, by emitting `inc_rc v1` into the pre-header ahead of the hoisted
-        // call. `Ssa::interpret` models copy-on-write faithfully, so the returned value is what
-        // catches a guard emitted in the wrong place: `b4` reads `v1[0]` after the push.
-        //
-        // The bump is redundant here, since the entry block already protects `v1` — the
-        // pre-header scan in `unprotected_mutable_array_operands` is deliberately local, and
-        // `inserts_inc_rc_for_hoisted_array_set` pins the case it does recognise. Conservative in
-        // this direction costs one rc bump; conservative in the other direction is a
-        // miscompilation.
+        use crate::ssa::interpreter::value::Value;
+
         let src = r#"
         brillig(inline) impure fn main f0 {
           b0(v0: u1):
@@ -3124,6 +3131,7 @@ mod tests {
         }
         brillig(inline) impure fn foo f1 {
           b0(v0: u32, v1: [u1]):
+            // The guard dominates every mutation of `v1`, but is not in the pre-header `b1`.
             inc_rc v1
             jmp b1()
           b1():
@@ -3141,17 +3149,19 @@ mod tests {
         }
         "#;
         let ssa = Ssa::from_str(src).unwrap();
-        let input = vec![crate::ssa::interpreter::value::Value::bool(true)];
-        let (ssa, result) =
-            assert_pass_does_not_affect_execution(ssa, input, Ssa::loop_invariant_code_motion);
+        let (ssa, result) = assert_pass_does_not_affect_execution(
+            ssa,
+            vec![Value::bool(true)],
+            Ssa::loop_invariant_code_motion,
+        );
 
-        // `main` returns `v1[0]`, i.e. the argument it was given: the hoisted push must not be
-        // observable through `v1`.
-        assert_eq!(result, Ok(vec![crate::ssa::interpreter::value::Value::bool(true)]));
+        // Behavior: `main` returns `v1[0]`, i.e. the argument it was given — the hoisted push is
+        // not observable through `v1`.
+        assert_eq!(result, Ok(vec![Value::bool(true)]));
 
-        // The call is hoisted into the pre-header `b1`, preceded by the `inc_rc v1` LICM inserted
-        // to protect the operand it can write through, and followed by the pre-existing `inc_rc`
-        // on its array result.
+        // Shape: the call is hoisted into the pre-header `b1`, preceded by the `inc_rc v1` LICM
+        // inserted to protect the operand it can write through, and followed by the pre-existing
+        // `inc_rc` on its array result.
         assert_ssa_snapshot!(ssa, @r"
         brillig(inline) impure fn main f0 {
           b0(v0: u1):
@@ -3181,28 +3191,27 @@ mod tests {
         ");
     }
 
+    /// The result-changing half of [`hoisted_vector_mutator_guards_its_own_array_operand`], for
+    /// noir-claude#244. That test keeps the entry block's bump, so the guard LICM emits is
+    /// redundant and only its snapshot notices when the guard is removed. Here `v1` is read by
+    /// the `array_get` in `b3` with nothing bumping it anywhere, so the guard is the only thing
+    /// between the hoisted push and a corrupted result: without it the assertion below sees
+    /// `false`.
+    ///
+    /// A hand-written input is needed only because `vector_push_front` is now `PureWithPredicate`
+    /// and so is never hoisted. Reclassify it `Pure` and the three
+    /// `test_programs/execution_success/regression_licm_vector_mutator*` programs reach this same
+    /// path from ordinary Noir source — and pass, on the strength of this guard alone.
+    ///
+    /// `assert_pass_does_not_affect_execution` deliberately does not apply: this input violates
+    /// the ownership pass's contract, so interpreting it *before* LICM already yields the
+    /// corrupted `0` — the loop mutates `v1` in place at reference count 1 and `b3` reads the
+    /// pushed `u1 0` back. The pass is supposed to change that result, landing on the SSA-level
+    /// meaning of `1`, where `vector_push_front` returns a new vector and leaves `v1` alone.
     #[test]
     fn hoisted_vector_mutator_guard_prevents_operand_corruption() {
-        // The output-guarding half of `hoisted_vector_mutator_guards_its_own_array_operand`.
-        //
-        // That test keeps the SSA well-formed, which means the entry block already protects `v1`
-        // and the `inc_rc` LICM emits is redundant: revert the guard and the program still
-        // returns the same value, so only its snapshot notices. This one is the complement, on
-        // SSA where `v1` is read by the `array_get` in `b3` with nothing bumping it anywhere, so
-        // the guard is the only thing standing between the hoisted push and a corrupted result.
-        //
-        // A hand-written input is needed only because `vector_push_front` is now
-        // `PureWithPredicate` and so is never hoisted. Reclassify it `Pure` again and the three
-        // `regression_licm_vector_mutator*` programs reach this same path from ordinary Noir
-        // source — and pass, on the strength of this guard alone.
-        //
-        // `assert_pass_does_not_affect_execution` cannot express this. Interpreting the input
-        // before the pass already yields the corrupted `0`: the loop mutates `v1` in place at
-        // reference count 1 and `b3` reads the pushed `u1 0` back. The pass is *supposed* to
-        // change that, by hoisting the push behind a guard it emits itself, landing on the
-        // SSA-level meaning of `1` — `vector_push_front` returns a new vector and leaves `v1`
-        // alone. Without the guard the hoisted push mutates in place exactly as before and the
-        // assertion below sees `false`.
+        use crate::ssa::interpreter::value::Value;
+
         let src = r#"
         brillig(inline) predicate_pure fn main f0 {
           b0(v0: u1):
@@ -3217,6 +3226,7 @@ mod tests {
             v3 = lt v2, u32 2
             jmpif v3 then: b2(), else: b3()
           b2():
+            // No `inc_rc v1` anywhere, even though `b3` reads `v1`.
             v4, v5 = call vector_push_front(v0, v1, u1 0) -> (u32, [u1])
             v6 = unchecked_add v2, u32 1
             jmp b1(v6)
@@ -3225,15 +3235,38 @@ mod tests {
             return v7
         }
         "#;
-        let ssa = Ssa::from_str(src).unwrap();
-        let input = vec![crate::ssa::interpreter::value::Value::bool(true)];
-        let ssa = ssa.loop_invariant_code_motion();
+        let input = vec![Value::bool(true)];
+        let ssa = Ssa::from_str(src).unwrap().loop_invariant_code_motion();
 
-        assert_eq!(
-            ssa.interpret(crate::ssa::interpreter::value::Value::snapshot_args(&input)),
-            Ok(vec![crate::ssa::interpreter::value::Value::bool(true)]),
-            "the hoisted push must not be observable through `v1`",
-        );
+        // Behavior: the hoisted push must not be observable through `v1`.
+        assert_eq!(ssa.interpret(Value::snapshot_args(&input)), Ok(vec![Value::bool(true)]),);
+
+        // Shape: the `inc_rc v1` LICM emitted is what makes that true, by putting `v1` at
+        // reference count 2 before the hoisted push and forcing it to clone.
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) predicate_pure fn main f0 {
+          b0(v0: u1):
+            v2 = make_array [v0, u1 1] : [u1]
+            v5 = call f1(u32 2, v2) -> u1
+            return v5
+        }
+        brillig(inline) predicate_pure fn foo f1 {
+          b0(v0: u32, v1: [u1]):
+            inc_rc v1
+            v5, v6 = call vector_push_front(v0, v1, u1 0) -> (u32, [u1])
+            jmp b1(u32 0)
+          b1(v2: u32):
+            v9 = lt v2, u32 2
+            jmpif v9 then: b2(), else: b3()
+          b2():
+            inc_rc v6
+            v11 = unchecked_add v2, u32 1
+            jmp b1(v11)
+          b3():
+            v12 = array_get v1, index u32 0 -> u1
+            return v12
+        }
+        ");
     }
 
     #[test]
