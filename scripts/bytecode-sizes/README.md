@@ -22,8 +22,8 @@ export NOIR_SERIALIZATION_FORMAT=$BASELINE
 Run these commands to compile Noir protocol circuits and contracts in `aztec-packages` after rebuilding `nargo`:
 
 ```shell
-./target/release/nargo --program-dir ../aztec-packages/noir-projects/noir-protocol-circuits compile --force --silence-warnings --skip-underconstrained-check --skip-brillig-constraints-check
-./target/release/nargo --program-dir ../aztec-packages/noir-projects/noir-contracts compile --force --silence-warnings --skip-underconstrained-check --skip-brillig-constraints-check
+./target/release/nargo --program-dir ../aztec-packages/noir-projects/fnd/noir-protocol-circuits compile --force --silence-warnings --skip-underconstrained-check --skip-brillig-constraints-check
+./target/release/nargo --program-dir ../aztec-packages/noir-projects/labs/noir-contracts compile --force --silence-warnings --skip-underconstrained-check --skip-brillig-constraints-check
 ```
 
 ## Baseline measurement

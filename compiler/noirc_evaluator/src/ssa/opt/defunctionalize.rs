@@ -330,13 +330,11 @@ fn find_variants(ssa: &Ssa) -> Variants {
         );
     }
 
-    // Group function variant candidates by their signature
-    let mut signature_to_functions_as_value: BTreeMap<Signature, Vec<FunctionId>> = BTreeMap::new();
-
-    for function_id in functions_as_values {
-        let signature = ssa.functions[&function_id].signature();
-        signature_to_functions_as_value.entry(signature).or_default().push(function_id);
-    }
+    // Collect each variant candidate's exact signature once.
+    let function_signatures: Vec<(FunctionId, Signature)> = functions_as_values
+        .into_iter()
+        .map(|function_id| (function_id, ssa.functions[&function_id].signature()))
+        .collect();
 
     let mut variants: Variants = BTreeMap::new();
 
@@ -349,18 +347,36 @@ fn find_variants(ssa: &Ssa) -> Variants {
     // The solution is to add the runtime information to the variants map
     // and defer to create_apply_function for handling the runtime checks.
     for (dispatch_signature, caller_runtime) in dynamic_dispatches {
-        let target_fns = signature_to_functions_as_value
-            .get(&dispatch_signature)
-            .cloned()
-            .unwrap_or_default()
-            .into_iter()
-            .map(|f| (f, ssa.functions[&f].runtime()));
-        let target_fns: Vec<(FunctionId, RuntimeType)> = target_fns.collect();
+        let target_fns: Vec<(FunctionId, RuntimeType)> = function_signatures
+            .iter()
+            .filter(|(_, signature)| dispatch_compatible(&dispatch_signature, signature))
+            .map(|(f, _)| (*f, ssa.functions[f].runtime()))
+            .collect();
         variants.insert((dispatch_signature, caller_runtime), target_fns);
     }
 
     // We will now have fully constructed our variants map and can return it
     variants
+}
+
+/// Whether a function with the exact signature `target` may be dispatched from a
+/// call site with the exact signature `dispatch`.
+///
+/// The apply function's parameters and returns take the dispatch site's types, so
+/// a target is compatible when every dispatch argument type can be used as the
+/// target's formal parameter type (`&mut T` may be passed where `&T` is expected,
+/// never the reverse) and every target return type can be used as the type the
+/// dispatch site expects.
+///
+/// A function value whose signature is incompatible with a dispatch site cannot
+/// flow there in frontend-generated SSA, since frontend function types are
+/// invariant in parameter mutability. If hand-written SSA routes one there
+/// anyway, the apply function's final id constraint fails at runtime.
+fn dispatch_compatible(dispatch: &Signature, target: &Signature) -> bool {
+    dispatch.params.len() == target.params.len()
+        && dispatch.returns.len() == target.returns.len()
+        && dispatch.params.iter().zip(&target.params).all(|(d, t)| d.can_be_used_as(t))
+        && target.returns.iter().zip(&dispatch.returns).all(|(t, d)| t.can_be_used_as(d))
 }
 
 /// Finds all literal functions used as values in the given function
@@ -2716,5 +2732,93 @@ mod tests {
         ";
         let ssa = Ssa::from_str(src).unwrap();
         super::defunctionalize_post_check(ssa.main());
+    }
+
+    #[test]
+    fn apply_functions_preserve_reference_mutability() {
+        // Two first-class functions that write through a `&mut Field` parameter
+        // and return it. The generated apply function's signature must keep the
+        // `&mut`: a `&Field`-typed apply parameter forwarded to a `&mut Field`
+        // formal (or a `&Field`-typed apply return feeding a call site that
+        // expects `&mut Field`) fails directional reference-mutability
+        // validation, because it would let a pass assume no write can happen
+        // through the immutably-typed value.
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: u1):
+            jmpif v0 then: b1(), else: b2()
+          b1():
+            jmp b3(f1)
+          b2():
+            jmp b3(f2)
+          b3(v1: function):
+            v2 = allocate -> &mut Field
+            store Field 3 at v2
+            v3 = call v1(v2) -> &mut Field
+            v4 = load v3 -> Field
+            return v4
+        }
+        brillig(inline) fn add1 f1 {
+          b0(v0: &mut Field):
+            v1 = load v0 -> Field
+            v3 = add v1, Field 1
+            store v3 at v0
+            return v0
+        }
+        brillig(inline) fn mul2 f2 {
+          b0(v0: &mut Field):
+            v1 = load v0 -> Field
+            v3 = mul v1, Field 2
+            store v3 at v0
+            return v0
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.defunctionalize().unwrap();
+        crate::ssa::ssa_gen::validate_ssa(&ssa, false);
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) fn main f0 {
+          b0(v0: u1):
+            jmpif v0 then: b1(), else: b2()
+          b1():
+            jmp b3(Field 1)
+          b2():
+            jmp b3(Field 2)
+          b3(v1: Field):
+            v4 = allocate -> &mut Field
+            store Field 3 at v4
+            v7 = call f3(v1, v4) -> &mut Field
+            v8 = load v7 -> Field
+            return v8
+        }
+        brillig(inline) fn add1 f1 {
+          b0(v0: &mut Field):
+            v1 = load v0 -> Field
+            v3 = add v1, Field 1
+            store v3 at v0
+            return v0
+        }
+        brillig(inline) fn mul2 f2 {
+          b0(v0: &mut Field):
+            v1 = load v0 -> Field
+            v3 = mul v1, Field 2
+            store v3 at v0
+            return v0
+        }
+        brillig(inline_always) fn apply f3 {
+          b0(v0: Field, v1: &mut Field):
+            v4 = eq v0, Field 1
+            jmpif v4 then: b2(), else: b1()
+          b1():
+            constrain v0 == Field 2
+            v7 = call f2(v1) -> &mut Field
+            jmp b3(v7)
+          b2():
+            v9 = call f1(v1) -> &mut Field
+            jmp b3(v9)
+          b3(v2: &mut Field):
+            return v2
+        }
+        ");
     }
 }

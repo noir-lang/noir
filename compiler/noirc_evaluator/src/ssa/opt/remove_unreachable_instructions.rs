@@ -116,7 +116,7 @@
 //!
 //! ```ssa
 //! v0 = make_array [] -> [u32]
-//! constrain u1 0 == u1 1, "Index out of bounds"
+//! constrain u1 0 == u1 1, "Attempt to pop from an empty vector"
 //! v1 = make_array [] -> [u32]
 //! return v1, u32 0
 //! ```
@@ -395,7 +395,11 @@ impl Function {
 
                     // We might think that if the predicate is constant 1, we can leave the pop as it will always fail.
                     // However by turning the block Unreachable, ACIR-gen would create empty bytecode and not fail the circuit.
-                    insert_constraint(context, block_id, "Index out of bounds".to_string());
+                    insert_constraint(
+                        context,
+                        block_id,
+                        "Attempt to pop from an empty vector".to_string(),
+                    );
 
                     current_block_reachability = if always_fail {
                         context.remove_current_instruction();
@@ -503,12 +507,15 @@ fn zeroed_value(
         Type::Vector(_) => {
             panic!("zeroed_value() does not support vectors, use zeroed_vector_of_size() instead");
         }
-        Type::Reference(element_type, mutable) => {
+        Type::Reference(element_type, _) => {
             // The result of the instruction is a reference; Allocate creates a reference,
             // but if we tried to Load from it we would get an error, so follow it with a
-            // Store of a default value.
+            // Store of a default value. The cell is always allocated as `&mut T`, even
+            // when the replaced result is immutable: the initializing store is only
+            // valid through a mutable reference type, and a `&mut T` value may be used
+            // wherever `&T` is expected.
             let instruction = Instruction::Allocate;
-            let reference_type = Type::Reference(Arc::new((**element_type).clone()), *mutable);
+            let reference_type = Type::Reference(Arc::new((**element_type).clone()), true);
 
             let reference_id = dfg
                 .insert_instruction_and_results(
@@ -1424,7 +1431,7 @@ mod tests {
           b0(v0: u1):
             v1 = make_array [] : [u32]
             enable_side_effects v0
-            constrain u1 0 == v0, "Index out of bounds"
+            constrain u1 0 == v0, "Attempt to pop from an empty vector"
             v3 = make_array [] : [u32]
             enable_side_effects u1 1
             return u32 1
@@ -1450,7 +1457,7 @@ mod tests {
         acir(inline) predicate_pure fn main f0 {
           b0(v0: u1):
             v1 = make_array [] : [u32]
-            constrain u1 0 == u1 1, "Index out of bounds"
+            constrain u1 0 == u1 1, "Attempt to pop from an empty vector"
             unreachable
         }
         "#);
@@ -1586,5 +1593,40 @@ mod tests {
             return
         }
         ");
+    }
+
+    #[test]
+    fn replaces_immutable_reference_results_with_valid_defaults() {
+        // An always-out-of-bounds array_get whose result is an *immutable*
+        // reference is replaced with a default value. The default cell must be
+        // allocated as `&mut Field` (weakening to `&Field` at its uses): stores
+        // are only valid through mutable reference types, so allocating the
+        // cell with the reference's own mutability would produce a store
+        // through a `&Field`-typed address and fail validation.
+        let src = "
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u1):
+            enable_side_effects v0
+            v1 = make_array [] : [&Field; 0]
+            v3 = array_get v1, index u32 0 -> &Field
+            v4 = load v3 -> Field
+            return v4
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.remove_unreachable_instructions();
+        crate::ssa::ssa_gen::validate_ssa(&ssa, false);
+        assert_ssa_snapshot!(ssa, @r#"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u1):
+            enable_side_effects v0
+            v1 = make_array [] : [&Field; 0]
+            constrain u1 0 == v0, "Index out of bounds"
+            v3 = allocate -> &mut Field
+            store Field 0 at v3
+            v5 = load v3 -> Field
+            return v5
+        }
+        "#);
     }
 }

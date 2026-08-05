@@ -1268,7 +1268,7 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
             elements.iter().zip(element_types.iter().cycle()).enumerate()
         {
             let actual_type = element.get_type();
-            if !actual_type.canonical_eq(expected_type) {
+            if !actual_type.can_be_used_as(expected_type) {
                 return Err(internal(InternalError::MakeArrayElementTypeMismatch {
                     result,
                     index,

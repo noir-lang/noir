@@ -1219,6 +1219,7 @@ impl<'interner> Monomorphizer<'interner> {
             let field_type = *field_type_map.get(field_name.as_str()).unwrap();
             let location = self.interner.expr_location(&expr_id);
             let typ = Self::convert_type(field_type, location)?;
+            let let_typ = typ.clone();
 
             if field_vars.insert(field_name.to_string(), (new_id, typ)).is_some() {
                 unreachable!("ICE - Duplicate field {field_name} in constructor");
@@ -1231,6 +1232,7 @@ impl<'interner> Monomorphizer<'interner> {
                 mutable: false,
                 name: field_name.into_string(),
                 expression,
+                typ: let_typ,
             }));
         }
 
@@ -1326,12 +1328,13 @@ impl<'interner> Monomorphizer<'interner> {
                     mutable: definition.mutable,
                     name: definition.name.clone(),
                     expression: Box::new(value),
+                    typ: Self::convert_type(typ, ident.location)?,
                 }))
             }
             HirPattern::Mutable(pattern, _) => self.unpack_pattern(*pattern, value, typ),
-            HirPattern::Tuple(patterns, _) => {
+            HirPattern::Tuple(patterns, location) => {
                 let fields = unwrap_tuple_type(typ);
-                self.unpack_tuple_pattern(value, patterns.into_iter().zip_eq(fields), typ)
+                self.unpack_tuple_pattern(value, patterns.into_iter().zip_eq(fields), typ, location)
             }
             HirPattern::Struct(_, patterns, location) => {
                 let fields = unwrap_struct_type(typ, location)?;
@@ -1346,7 +1349,7 @@ impl<'interner> Monomorphizer<'interner> {
                     (pattern, field_type)
                 });
 
-                self.unpack_tuple_pattern(value, patterns_iter, typ)
+                self.unpack_tuple_pattern(value, patterns_iter, typ, location)
             }
         }
     }
@@ -1356,6 +1359,7 @@ impl<'interner> Monomorphizer<'interner> {
         value: ast::Expression,
         fields: impl Iterator<Item = (HirPattern, HirType)>,
         tuple_type: &Type,
+        location: Location,
     ) -> Result<ast::Expression, MonomorphizationError> {
         let fresh_id = self.next_local_id();
 
@@ -1364,6 +1368,7 @@ impl<'interner> Monomorphizer<'interner> {
             mutable: false,
             name: "_".into(),
             expression: Box::new(value),
+            typ: Self::convert_type(tuple_type, location)?,
         })];
 
         for (i, (field_pattern, field_type)) in fields.into_iter().enumerate() {
@@ -2368,11 +2373,13 @@ impl<'interner> Monomorphizer<'interner> {
             // store the function in a temporary variable before calling it
             // this is needed for example if call.func is of the form `foo()()`
             // without this, we would translate it to `foo().1(foo().0)`
+            let func_typ = Self::convert_type(&self.interner.id_type(call.func), location)?;
             let let_stmt = ast::Expression::Let(ast::Let {
                 id: local_id,
                 mutable: false,
                 name: "tmp".to_string(),
                 expression: Box::new(*original_func),
+                typ: func_typ.clone(),
             });
             block_expressions.push(let_stmt);
 
@@ -2381,7 +2388,7 @@ impl<'interner> Monomorphizer<'interner> {
                 definition: Definition::Local(local_id),
                 mutable: false,
                 name: "tmp".to_string(),
-                typ: Rc::new(Self::convert_type(&self.interner.id_type(call.func), location)?),
+                typ: Rc::new(func_typ),
                 id: self.next_ident_id(),
             });
 
@@ -2843,6 +2850,7 @@ impl<'interner> Monomorphizer<'interner> {
             mutable: false,
             name: env_name.to_string(),
             expression: Box::new(env_tuple),
+            typ: env_typ.as_ref().clone(),
         });
 
         let env_ident = ast::Ident {
@@ -2963,14 +2971,15 @@ impl<'interner> Monomorphizer<'interner> {
         let block_local_id = self.next_local_id();
         let block_ident_name = "closure_variable";
 
+        let result_typ = ast::Type::Tuple(vec![constrained_closure_typ, unconstrained_closure_typ]);
+
         let block_let_stmt = ast::Expression::Let(ast::Let {
             id: block_local_id,
             mutable: false,
             name: block_ident_name.to_string(),
             expression: Box::new(ast::Expression::Block(vec![env_let_stmt, closure_pair])),
+            typ: result_typ.clone(),
         });
-
-        let result_typ = ast::Type::Tuple(vec![constrained_closure_typ, unconstrained_closure_typ]);
 
         let closure_ident = ast::Expression::Ident(ast::Ident {
             location: Some(location),

@@ -2,7 +2,7 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: stderr
 ---
-error: Assertion failed: Index out of bounds
+error: Assertion failed: Attempt to pop from an empty vector
   ┌─ src/main.nr:9:23
   │
 9 │         let (s2, x) = vector.pop_back();

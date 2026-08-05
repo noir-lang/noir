@@ -438,19 +438,30 @@ impl FunctionContext<'_> {
                     unary.location,
                 ))
             }
-            UnaryOp::Reference { mutable } => {
+            UnaryOp::Reference { mutable: _ } => {
                 let rhs = self.codegen_reference(&unary.rhs)?;
                 // If skip is set then `rhs` is a member access expression which is already a reference
                 if unary.skip {
                     return Ok(rhs);
                 }
-                Ok(rhs.map(|rhs| {
+                let ast::Type::Reference(element_type, _) = &unary.result_type else {
+                    panic!(
+                        "codegen_unary: expected reference result type for a Reference unary op, got {}",
+                        unary.result_type
+                    );
+                };
+                let element_types = Self::convert_type(element_type);
+                Ok(rhs.map_both(element_types, |rhs, element_type| {
                     match rhs {
                         value::Value::Normal(value) => {
-                            let rhs_type =
-                                self.builder.current_function.dfg.type_of_value(value).into_owned();
-                            let alloc =
-                                self.builder.insert_allocate_with_mutability(rhs_type, mutable);
+                            // The cell uses the borrow's declared pointee type — the
+                            // value may carry a more-mutable reference type than the
+                            // borrow declares — and is always allocated as `&mut T`,
+                            // even for an immutable borrow: the initializing store
+                            // below is only valid through a mutable reference type,
+                            // and a `&mut T` value may be used wherever `&T` is
+                            // expected.
+                            let alloc = self.builder.insert_allocate(element_type);
                             self.builder.insert_store(alloc, value);
                             Tree::Leaf(value::Value::Normal(alloc))
                         }
@@ -1460,14 +1471,19 @@ impl FunctionContext<'_> {
                 {
                     // We need to put in a constraint to protect against accessing empty vectors:
                     // * In Brillig this is essential, otherwise it would read an unrelated piece of memory.
-                    // * In ACIR we do have protection against reading empty vectors (it returns "Index Out of Bounds"), so we don't get invalid reads.
+                    // * In ACIR we do have protection against reading empty vectors, so we don't get invalid reads.
                     //   The memory operations in ACIR ignore the side effect variables, so even if we added a constraint here, it could still fail
                     //   when it inevitably tries to read from an empty vector anyway. We have to handle that by removing operations which are known
                     //   to fail and replace them with conditional constraints that do take the side effect into account.
                     // By doing this in the SSA we might be able to optimize this away later.
+                    //
+                    // The error must match the one ACIR's `vector_pop_new_length` raises, otherwise the
+                    // same failing pop reports differently depending on the runtime it was compiled to.
                     let zero =
                         self.builder.numeric_constant(0u32, NumericType::Unsigned { bit_size: 32 });
-                    self.codegen_access_check(zero, arguments[0], None);
+                    let error =
+                        ConstrainError::from("Attempt to pop from an empty vector".to_owned());
+                    self.codegen_access_check(zero, arguments[0], Some(error));
                 }
                 _ => {
                     // Do nothing as the other intrinsics do not require checks
@@ -1483,15 +1499,23 @@ impl FunctionContext<'_> {
     fn codegen_let(&mut self, let_expr: &ast::Let) -> Result<Values, RuntimeError> {
         let mut values = self.codegen_expression(&let_expr.expression)?;
 
-        values = values.map(|value| {
-            let value = value.eval(self);
-
-            Tree::Leaf(if let_expr.mutable {
-                self.new_mutable_variable(value)
-            } else {
-                value::Value::Normal(value)
-            })
-        });
+        if let_expr.mutable {
+            // The variable's cells use the declared type, not the initializer
+            // value's type: the initializer can carry a more-mutable reference
+            // type than the binding declares (a borrow is `&mut T`-typed even
+            // when the binding declares `&T`), while later assignments store
+            // values typed exactly as declared.
+            let element_types = Self::convert_type(&let_expr.typ);
+            values = values.map_both(element_types, |value, element_type| {
+                let value = value.eval(self);
+                Tree::Leaf(self.new_mutable_variable_with_type(value, element_type))
+            });
+        } else {
+            values = values.map(|value| {
+                let value = value.eval(self);
+                Tree::Leaf(value::Value::Normal(value))
+            });
+        }
 
         self.define(let_expr.id, values);
         Ok(Self::unit_value())

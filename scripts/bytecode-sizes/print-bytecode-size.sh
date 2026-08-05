@@ -33,13 +33,13 @@ emit_sizes() {
         '{name: $name, compressed_size: $compressed_size, uncompressed_size: $uncompressed_size}'
 }
 
-for file in "$AZTEC_PACKAGES_DIR/noir-projects/noir-protocol-circuits/target/"*.json; do
+for file in "$AZTEC_PACKAGES_DIR/noir-projects/fnd/noir-protocol-circuits/target/"*.json; do
     program=$(basename "$file" .json)
     b64=$(jq -r '.bytecode' "$file")
     emit_sizes "$program" "$b64"
 done
 
-for file in "$AZTEC_PACKAGES_DIR/noir-projects/noir-contracts/target/"*.json; do
+for file in "$AZTEC_PACKAGES_DIR/noir-projects/labs/noir-contracts/target/"*.json; do
     contract=$(basename "$file" .json)
     # Each contract file has multiple functions, each with its own bytecode.
     # `@tsv` puts the function name and its base64 bytecode on one line each.

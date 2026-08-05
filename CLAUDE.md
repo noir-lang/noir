@@ -51,7 +51,7 @@ Test cases are auto-generated from these directories by `tooling/nargo_cli/build
 ### Key Patterns
 
 - **Unsafe code is forbidden** (`#![forbid(unsafe_code)]` workspace-wide).
-- **SSA passes** live in `compiler/noirc_evaluator/src/ssa/opt/` — each module has its own unit tests.
+- **SSA passes** live in `compiler/noirc_evaluator/src/ssa/opt/` — each module has its own unit tests. See `.claude/skills/noir-ssa-tests/SKILL.md` for how to write them: a snapshot alone does not prove a pass is correct, so default to `assert_pass_does_not_affect_execution` (interprets the SSA before and after the pass) and pair it with `assert_ssa_snapshot!`.
 - **Elaboration** (`compiler/noirc_frontend/src/elaborator/`) combines name resolution and type checking in a single pass.
 - PRs are **squash-merged** into `master`.
 
