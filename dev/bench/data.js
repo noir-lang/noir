@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1785845483050,
+  "lastUpdate": 1785945794803,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23106,48 +23106,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "163862677+noirwhal@users.noreply.github.com",
-            "name": "noirwhal",
-            "username": "noirwhal"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "75061fab15986eedee4e7d9104ff87dd9fa4ca10",
-          "message": "chore: Release Noir(1.0.0-beta.25) (#13383)\n\nCo-authored-by: noirwhal <tomfrench@aztecprotocol.com>",
-          "timestamp": "2026-07-22T10:19:51Z",
-          "tree_id": "610bc6b1becf914aef7e1192e58fc438c0e52674",
-          "url": "https://github.com/noir-lang/noir/commit/75061fab15986eedee4e7d9104ff87dd9fa4ca10"
-        },
-        "date": 1784716801167,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 128867,
-            "range": "± 440",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 113217,
-            "range": "± 1637",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 3036828,
-            "range": "± 1263",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "49699333+dependabot[bot]@users.noreply.github.com",
             "name": "dependabot[bot]",
             "username": "dependabot[bot]"
@@ -25199,6 +25157,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 3042303,
             "range": "± 11493",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49558828+AztecBot@users.noreply.github.com",
+            "name": "Aztec Bot",
+            "username": "AztecBot"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "65092c6b84d4397e75110795ba1fc0a7f40a1f3a",
+          "message": "chore: document SSA pass test conventions and the execution-preservation helper (#13470)",
+          "timestamp": "2026-08-05T16:59:42+01:00",
+          "tree_id": "b08c0ebba05cb61ddd4fa0e3b5c172b2e442c5e4",
+          "url": "https://github.com/noir-lang/noir/commit/65092c6b84d4397e75110795ba1fc0a7f40a1f3a"
+        },
+        "date": 1785945727447,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 97995,
+            "range": "± 318",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 87162,
+            "range": "± 629",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2356289,
+            "range": "± 979",
             "unit": "ns/iter"
           }
         ]
