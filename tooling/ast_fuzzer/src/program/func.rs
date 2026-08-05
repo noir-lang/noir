@@ -744,6 +744,27 @@ impl<'a> FunctionContext<'a> {
                 let expr = expr::ref_with_mut(src_expr, typ.as_ref().clone(), false);
                 Ok(Some((expr, src_dyn)))
             }
+            // Decompose a numeric value into its bit or byte representation.
+            //
+            // `to_le_bits`/`to_be_bits`/`to_le_radix`/`to_be_radix` are implemented four times
+            // over — in the comptime interpreter, the SSA interpreter, ACIR gen and Brillig gen
+            // — and those implementations have to agree. The source value is first narrowed to
+            // an integer type whose width the output can always represent, so a program can
+            // never fail merely because the decomposition did not fit.
+            (Type::Integer(_, _) | Type::Field, Type::Array(len, item_type))
+                if self.decomposition_target(*len, item_type).is_some() =>
+            {
+                let (bits, is_radix) = self
+                    .decomposition_target(*len, item_type)
+                    .expect("checked by the guard above");
+                let narrowed = expr::cast(
+                    expr::cast(src_expr, Type::Integer(Signedness::Unsigned, bits)),
+                    Type::Field,
+                );
+                let expr =
+                    self.call_decompose(u, narrowed, *len, item_type.as_ref().clone(), is_radix)?;
+                Ok(Some((expr, src_dyn)))
+            }
             // Convert an array into a vector with `as_vector`. This is how a fixed-size array
             // becomes dynamically sized in real Noir, and it is what promotes the value into
             // the runtime memory-block representation that vector intrinsics and the
@@ -2422,6 +2443,77 @@ impl<'a> FunctionContext<'a> {
             return_type: types::U32,
             location: Location::dummy(),
         })
+    }
+
+    /// If an array of `len` values of `item_type` is a valid target for a bit or radix
+    /// decomposition, return the integer width the input must be narrowed to and whether the
+    /// intrinsic is a radix (byte) rather than a bit decomposition.
+    ///
+    /// The width is chosen so every value of the narrowed type is representable in `len`
+    /// digits: `len` bits for a bit decomposition, `len` bytes for a radix-256 one.
+    fn decomposition_target(
+        &self,
+        len: u32,
+        item_type: &Type,
+    ) -> Option<(IntegerBitSize, bool)> {
+        let width = |bits: u32| {
+            IntegerBitSize::iter()
+                .filter(|bs| u32::from(bs.bit_size()) <= bits)
+                .max_by_key(|bs| bs.bit_size())
+        };
+        match item_type {
+            Type::Bool => width(len).map(|bits| (bits, false)),
+            Type::Integer(Signedness::Unsigned, IntegerBitSize::Eight) => {
+                width(len.saturating_mul(8)).map(|bits| (bits, true))
+            }
+            _ => None,
+        }
+    }
+
+    /// Construct a `Call` to one of the bit/radix decomposition builtins.
+    fn call_decompose(
+        &mut self,
+        u: &mut Unstructured,
+        value: Expression,
+        len: u32,
+        item_type: Type,
+        is_radix: bool,
+    ) -> arbitrary::Result<Expression> {
+        let little_endian = bool::arbitrary(u)?;
+        let name = match (is_radix, little_endian) {
+            (false, true) => "to_le_bits",
+            (false, false) => "to_be_bits",
+            (true, true) => "to_le_radix",
+            (true, false) => "to_be_radix",
+        };
+        let return_type = Type::Array(len, Rc::new(item_type));
+        // The radix intrinsics take the radix as a second argument; 256 pairs with the `u8`
+        // element type the guard requires.
+        let mut arg_types = vec![Type::Field];
+        let mut args = vec![value];
+        if is_radix {
+            arg_types.push(types::U32);
+            args.push(expr::u32_literal(256));
+        }
+        let func_ident = Ident {
+            location: None,
+            definition: Definition::Builtin(name.to_string()),
+            mutable: false,
+            name: name.to_string(),
+            typ: Rc::new(Type::Function(
+                arg_types,
+                Rc::new(return_type.clone()),
+                Rc::new(Type::Unit),
+                false,
+            )),
+            id: self.next_ident_id(),
+        };
+        Ok(Expression::Call(Call {
+            func: Box::new(Expression::Ident(func_ident)),
+            arguments: args,
+            return_type,
+            location: Location::dummy(),
+        }))
     }
 
     /// Construct a `Call` to the `as_vector` builtin, converting an array into a vector.
