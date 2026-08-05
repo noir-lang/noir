@@ -499,9 +499,17 @@ impl Context {
                 4 | 5 => {
                     // 1-size tuples look strange, so let's make it minimum 2 fields.
                     let size = u.int_in_range(2..=self.config.max_tuple_size)?;
-                    let types = (0..size)
+                    let mut types = (0..size)
                         .map(|_| gen_inner_type(self, u, is_vector_allowed))
                         .collect::<Result<Vec<_>, _>>()?;
+                    // Bias: half the time force one field to be a string, so tuples
+                    // (and arrays of tuples) frequently have fields whose flattened
+                    // sizes differ - the layouts predicated array reads must handle.
+                    if u.ratio(1, 2)? {
+                        let i = u.choose_index(types.len())?;
+                        types[i] =
+                            Type::String(u.int_in_range(1..=self.config.max_array_size)? as u32);
+                    }
                     Type::Tuple(types)
                 }
                 6 if is_vector_allowed && !self.config.avoid_vectors => {

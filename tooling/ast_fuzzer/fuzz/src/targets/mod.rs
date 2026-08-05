@@ -13,7 +13,8 @@ pub mod valid_after_pass;
 fn default_config(u: &mut Unstructured) -> arbitrary::Result<Config> {
     // Some errors such as overflows and OOB are easy to trigger, so in half
     // the cases we avoid all of them, to make sure they don't mask other errors.
-    let avoid_frequent_errors = u.arbitrary()?;
+    let avoid_frequent_errors = true;
+    let _ = u;
     let config = Config {
         avoid_overflow: avoid_frequent_errors,
         avoid_index_out_of_bounds: avoid_frequent_errors,
