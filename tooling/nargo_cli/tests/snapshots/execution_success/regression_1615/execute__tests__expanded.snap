@@ -1,0 +1,19 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+struct Account {
+    balance: Field,
+    tag: [u8; 2],
+}
+
+fn main(mut accts: [Account; 3], idx: u32, w: Account, cond: bool, y: u32) -> pub [u8; 2] {
+    accts[idx] = w;
+    let mut r: [u8; 2] = [0_u8, 0_u8];
+    if cond {
+        r = [(y + 1_u32) as u8, 0_u8];
+    } else {
+        r = accts[0_u32].tag;
+    };
+    r
+}

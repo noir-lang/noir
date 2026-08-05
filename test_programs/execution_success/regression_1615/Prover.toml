@@ -1,0 +1,20 @@
+idx = "1"
+cond = "0"
+y = "0"
+return = ["7", "9"]
+
+[[accts]]
+balance = "100"
+tag = ["7", "9"]
+
+[[accts]]
+balance = "200"
+tag = ["1", "2"]
+
+[[accts]]
+balance = "300"
+tag = ["3", "4"]
+
+[w]
+balance = "999"
+tag = ["5", "6"]
