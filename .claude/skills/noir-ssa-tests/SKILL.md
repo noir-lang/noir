@@ -42,7 +42,10 @@ acir(inline) fn main f0 {
 ```
 
 This is the single most underused helper in the SSA test suite. Reach for it whenever
-the pass under test can change what the program computes — which is nearly always.
+the pass under test can change what the program computes — which is nearly always. It
+also gives the red step something meaningful to fail on: against the unfixed pass the
+execution assertion fails with a different *result*, where a snapshot only shows a
+different shape.
 
 ## Helpers
 
@@ -174,20 +177,6 @@ catches passes that break a self-contained program.
   and what the assertions prove. Existing tests use
   `/// Regression for noir-claude#1381: …` or `// Regression for #9451`.
 
-## Snapshots
-
-Per `CLAUDE.md`: never `cargo insta review` (interactive TUI, unusable from an
-agent). Use `cargo insta accept`, or generate and accept in one step:
-
-```bash
-cargo insta test --accept -p noirc_evaluator --test-runner cargo-test -- <test_name>
-```
-
-Read the `.snap.new` / the resulting diff before accepting. **An accepted snapshot is
-not evidence of correctness** — that is what the execution assertion is for. For a
-bug fix caught by a snapshot, split into two commits: the regression test showing the
-wrong snapshot, then the fix updating it.
-
 ## When the execution helper doesn't apply
 
 Fall back to a snapshot-only test, and say why in a comment:
@@ -203,15 +192,3 @@ Fall back to a snapshot-only test, and say why in a comment:
 
 Note that a `Result` mismatch is still a valid assertion when the program *fails*:
 you do not need a passing program to use the helper.
-
-## Running
-
-```bash
-cargo nextest run -p noirc_evaluator                    # all evaluator tests
-cargo nextest run -p noirc_evaluator -E 'test(name)'    # one test
-```
-
-Red-green-refactor applies as everywhere else in this repo: write the test, watch it
-fail against the unfixed pass, then fix. For a miscompilation, "watch it fail" means
-watching `assert_pass_does_not_affect_execution` fail with a different result — not
-just watching a snapshot differ.
