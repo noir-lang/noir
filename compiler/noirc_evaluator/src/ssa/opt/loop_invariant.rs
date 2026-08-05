@@ -2918,6 +2918,17 @@ mod tests {
         // and corrupt the value `b3` reads. `vector_push_front` is `PureWithPredicate` exactly so
         // that LICM leaves it in the loop body, behind the guard.
         //
+        // `PureWithPredicate` is necessary but not sufficient on its own: `can_be_hoisted` maps it
+        // to `WithPredicate`, and `BlockContext::can_hoist_control_dependent_instruction` still
+        // hoists such an instruction out of a loop that is guaranteed to execute — which `b1`'s
+        // `0..2` bounds are. What stops the hoist here is the third condition of that check,
+        // `!is_impure`: the `inc_rc` guard itself is side-effecting, so it marks `b2` impure
+        // before the call is considered. In other words the guard protects the mutator by being
+        // in front of it, not merely by existing. Both halves are load-bearing, so this test
+        // asserts on the SSA as well as on the execution result: were `vector_push_front` `Pure`
+        // again, or were rc instructions to stop marking a block impure, the call below would
+        // move into `b0` and the snapshot would change.
+        //
         // `assert_pass_does_not_affect_execution` interprets before and after LICM and panics when
         // the results differ.
         let src = r#"
@@ -2945,7 +2956,34 @@ mod tests {
         "#;
         let ssa = Ssa::from_str(src).unwrap();
         let input = vec![crate::ssa::interpreter::value::Value::bool(true)];
-        let _ = assert_pass_does_not_affect_execution(ssa, input, Ssa::loop_invariant_code_motion);
+        let (ssa, _) =
+            assert_pass_does_not_affect_execution(ssa, input, Ssa::loop_invariant_code_motion);
+
+        // Nothing is hoisted: the pre-header `b0` of `f1` stays empty and the call stays in `b2`,
+        // immediately after the `inc_rc` that guards its vector operand.
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) impure fn main f0 {
+          b0(v0: u1):
+            v2 = make_array [v0, u1 1] : [u1]
+            v5 = call f1(u32 2, v2) -> u1
+            return v5
+        }
+        brillig(inline) impure fn foo f1 {
+          b0(v0: u32, v1: [u1]):
+            jmp b1(u32 0)
+          b1(v2: u32):
+            v5 = lt v2, u32 2
+            jmpif v5 then: b2(), else: b3()
+          b2():
+            inc_rc v1
+            v8, v9 = call vector_push_front(v0, v1, u1 0) -> (u32, [u1])
+            v11 = unchecked_add v2, u32 1
+            jmp b1(v11)
+          b3():
+            v12 = array_get v1, index u32 0 -> u1
+            return v12
+        }
+        ");
     }
 
     #[test]
