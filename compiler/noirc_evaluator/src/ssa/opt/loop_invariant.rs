@@ -692,12 +692,20 @@ impl<'f> LoopInvariantContext<'f> {
     /// classifies `No`, so it stays in the loop body. A mutator hoisted out from in front of its
     /// guard would find the operand at reference count 1 and corrupt it (noir-lang/noir-claude#244).
     ///
-    /// Today nothing reaches that state: the guard is side-effecting, so it marks the block impure
-    /// and `BlockContext::can_hoist_control_dependent_instruction` refuses the hoist. That is an
-    /// accident of instruction order rather than a property of this pass — it holds only because
-    /// the guard happens to sit in the same block, ahead of the mutator, and it evaporates the
-    /// moment rc traffic stops counting towards `is_impure`. Emitting the guard alongside the
-    /// hoisted instruction makes the motion safe on its own terms instead.
+    /// That state is reachable from Noir source: it is exactly what
+    /// `test_programs/execution_success/regression_licm_vector_mutator` compiled to before
+    /// `vector_push_front` was reclassified `PureWithPredicate`. The guard the ownership pass
+    /// emits sits in the loop body, so it is not protection *at the pre-header*, and hoisting the
+    /// push past it corrupted the vector. Emitting the guard here fixes those three regression
+    /// programs on its own, without the purity change — the two are independent remedies for the
+    /// same defect, and this one fixes the whole class rather than one intrinsic.
+    ///
+    /// With the reclassification also in place, no vector mutator is hoisted at all, so nothing
+    /// in the test corpus reaches this code any more (919 packages compiled: zero hits). What
+    /// still holds the other route shut is that the guard is side-effecting, so it marks the
+    /// block impure and `BlockContext::can_hoist_control_dependent_instruction` refuses the
+    /// hoist — an accident of instruction order rather than a property of this pass, which
+    /// evaporates the moment rc traffic stops counting towards `is_impure`.
     ///
     /// This deliberately does not cover the other two entries of
     /// `Intrinsic::unsafe_for_clone_elision_in_brillig`, `StrAsBytes` and `ArrayAsStrUnchecked`:
@@ -3179,11 +3187,14 @@ mod tests {
         //
         // That test keeps the SSA well-formed, which means the entry block already protects `v1`
         // and the `inc_rc` LICM emits is redundant: revert the guard and the program still
-        // returns the same value, so only its snapshot notices. That is not a gap in the test but
-        // a property of the fix — on SSA that honours the ownership contract a live array operand
-        // is always already protected on every path to the mutator, so the guard can never change
-        // a result. The only inputs where it can are ones that violate the contract, and this is
-        // one: `v1` is read by the `array_get` in `b3` with nothing bumping it anywhere.
+        // returns the same value, so only its snapshot notices. This one is the complement, on
+        // SSA where `v1` is read by the `array_get` in `b3` with nothing bumping it anywhere, so
+        // the guard is the only thing standing between the hoisted push and a corrupted result.
+        //
+        // A hand-written input is needed only because `vector_push_front` is now
+        // `PureWithPredicate` and so is never hoisted. Reclassify it `Pure` again and the three
+        // `regression_licm_vector_mutator*` programs reach this same path from ordinary Noir
+        // source — and pass, on the strength of this guard alone.
         //
         // `assert_pass_does_not_affect_execution` cannot express this. Interpreting the input
         // before the pass already yields the corrupted `0`: the loop mutates `v1` in place at
