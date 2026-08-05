@@ -891,9 +891,10 @@ fn predicated_constant_index_get_on_heterogeneous_vector() {
     // For a layout whose fields have differing flattened sizes,
     // [`Context::get_flattened_index`] resolves a constant index through the element-type-sizes
     // table into a flat offset that is already known to be in bounds, and therefore returns it
-    // ungated. `DataFlowGraph::is_safe_index` reports `false` for every vector, constant index
-    // or not, so the bias is added on top of that resolved offset instead of replacing a gated
-    // `0`.
+    // ungated — and unbiased, even though `DataFlowGraph::is_safe_index` reports `false` for
+    // every vector (it cannot see the vector's semantic length): a bias on top of that resolved
+    // offset would relocate the read to the wrong slots, or off the end of the block, exactly
+    // when the predicate is `0`.
     //
     // The vector holds two `(Field, [u8; 2])` items in six slots. Semi-flattened index `3` is
     // item 1's `[u8; 2]`, i.e. flat slot 4, and the read must stay on slots 4 and 5 whatever
@@ -912,8 +913,8 @@ fn predicated_constant_index_get_on_heterogeneous_vector() {
     }
     ";
     let program = ssa_to_acir_program(src);
-    // `w13 = -w1 + 5` reads slot 5 (and then slot 6, which does not exist) when the predicate
-    // `w1` is `0`. It should be the constant `4`, as it is on the array-typed counterpart.
+    // The index resolves to the constant `4` and both reads stay on slots 4 and 5 whatever the
+    // predicate is — identical to the array-typed counterpart below.
     assert_circuit_snapshot!(program, @r"
     func 0
     private parameters: [w0, w1, w2]
@@ -931,12 +932,10 @@ fn predicated_constant_index_get_on_heterogeneous_vector() {
     ASSERT w12 = 6
     INIT b1 = [w6, w10, w7, w8, w11, w12]
     WRITE b1[w9] = w2
-    ASSERT w13 = -w1 + 5
-    READ w14 = b1[w13]
-    ASSERT w15 = w13 + 1
-    READ w16 = b1[w15]
-    ASSERT w3 = w14
-    ASSERT w4 = w16
+    READ w13 = b1[w8]
+    READ w14 = b1[w11]
+    ASSERT w3 = w13
+    ASSERT w4 = w14
     ");
 }
 

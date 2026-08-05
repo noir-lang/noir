@@ -272,6 +272,7 @@ impl Context<'_> {
                         dfg,
                         false,
                         ElementTypeSizesArrayShift::None,
+                        0,
                     )?
                 } else {
                     // A non-homogenous layout would otherwise resolve offsets through an
@@ -673,6 +674,7 @@ impl Context<'_> {
             dfg,
             is_safe_index,
             shift,
+            0,
         )?;
 
         // Determine the elements we need to write into our resulting dynamic array.
@@ -929,6 +931,7 @@ impl Context<'_> {
             dfg,
             is_safe_index,
             ElementTypeSizesArrayShift::None,
+            0,
         )?;
 
         // Fetch the values we are remove from the vector.
