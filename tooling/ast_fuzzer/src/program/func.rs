@@ -22,6 +22,7 @@ use noirc_frontend::{
         },
     },
     shared::{Signedness, Visibility},
+    token::FmtStrFragment,
 };
 
 use super::{
@@ -1538,25 +1539,44 @@ impl<'a> FunctionContext<'a> {
             .locals
             .current()
             .variables()
-            .filter_map(|(id, (_, _, typ))| types::is_printable(typ).then_some((id, typ)))
+            .filter_map(|(id, (_, _, typ))| types::is_printable(typ).then_some((*id, typ.clone())))
             // TODO(#10499): comptime function representations are at the moment just "(function)"
             // (disable printing functions if comptime_friendly is on)
             .filter(|(_, typ)| !types::is_function(typ) || !self.config().comptime_friendly)
-            .collect::<Vec<_>>();
+            .collect::<Vec<(LocalId, Type)>>();
 
         if opts.is_empty() {
             return Ok(None);
         }
 
+        // Half the time, print through a format string rather than printing a value as-is.
+        // A `f"..."` literal carries its interpolated values in a separate tuple alongside the
+        // fragment list, and that pairing has to survive monomorphization and the comptime
+        // interpreter; it is the only literal form no generated program was producing.
+        let fmt_opts = opts
+            .iter()
+            .filter(|(_, typ)| !types::is_function(typ))
+            .cloned()
+            .collect::<Vec<_>>();
+        // Only in unconstrained functions: a constrained `println` is routed through a proxy
+        // function generated once per signature in a later pass, which does not know how to key
+        // the per-interpolation metadata a format string carries.
+        if self.unconstrained()
+            && u.ratio(1, 2)?
+            && let Some(call) = self.gen_print_fmt_str(u, &fmt_opts)?
+        {
+            return Ok(Some(call));
+        }
+
         // Print one of the variables as-is.
-        let (id, typ) = u.choose_iter(opts)?;
-        let id = *id;
+        let (id, typ) = u.choose_iter(opts.iter())?;
+        let (id, typ) = (*id, typ.clone());
 
         // The print oracle takes 2 parameters: the newline marker and the value,
         // but it takes 2 more arguments: the type descriptor and the format string marker,
         // which are inserted automatically by the monomorphizer.
         let param_types = vec![Type::Bool, typ.clone()];
-        let hir_type = types::to_hir_type(typ);
+        let hir_type = types::to_hir_type(&typ);
         let ident = self.local_ident(id);
 
         // Functions need to be passed as a tuple.
@@ -1598,6 +1618,72 @@ impl<'a> FunctionContext<'a> {
         });
 
         Ok(Some(call))
+    }
+
+    /// Generate a `println` of a format string interpolating one or two printable locals.
+    ///
+    /// Function-typed locals are excluded by the caller: they would print as "(function)" and
+    /// the tuple element type could not be described by the printable-type metadata.
+    fn gen_print_fmt_str(
+        &mut self,
+        u: &mut Unstructured,
+        opts: &[(LocalId, Type)],
+    ) -> arbitrary::Result<Option<Expression>> {
+        if opts.is_empty() {
+            return Ok(None);
+        }
+
+        let count = u.int_in_range(1..=opts.len().min(2))?;
+        let mut fragments = Vec::new();
+        let mut values = Vec::new();
+        let mut value_types = Vec::new();
+        fragments.push(FmtStrFragment::String("v".to_string()));
+        for i in 0..count {
+            let (id, typ) = u.choose(&opts)?.clone();
+            if i > 0 {
+                fragments.push(FmtStrFragment::String(" ".to_string()));
+            }
+            let ident = self.local_ident(id);
+            fragments.push(FmtStrFragment::Interpolation(ident.name.clone(), Location::dummy()));
+            values.push(Expression::Ident(ident));
+            value_types.push(typ);
+        }
+
+        // `Literal::FmtStr`'s second field is the number of interpolated variables, which is
+        // also what `Expression::return_type` uses as the `FmtString` size.
+        let count = count as u32;
+        let values_type = Type::Tuple(value_types);
+        let fmt_type = Type::FmtString(count, Rc::new(values_type));
+        let fmt_literal = Expression::Literal(Literal::FmtStr(
+            fragments,
+            u64::from(count),
+            Box::new(Expression::Tuple(values)),
+        ));
+
+        let param_types = vec![Type::Bool, fmt_type.clone()];
+        let mut args = vec![expr::lit_bool(true), fmt_literal];
+        append_printable_type_info_for_type(types::to_hir_type(&fmt_type), &mut args);
+
+        let print_oracle_ident = Ident {
+            location: None,
+            definition: Definition::Oracle { name: "print".to_string(), pure: false },
+            mutable: false,
+            name: "print_oracle".to_string(),
+            typ: Rc::new(Type::Function(
+                param_types,
+                Rc::new(Type::Unit),
+                Rc::new(Type::Unit),
+                true,
+            )),
+            id: self.next_ident_id(),
+        };
+
+        Ok(Some(Expression::Call(Call {
+            func: Box::new(Expression::Ident(print_oracle_ident)),
+            arguments: args,
+            return_type: Type::Unit,
+            location: Location::dummy(),
+        })))
     }
 
     /// Generate a `constrain` statement, if there is some local variable we can do it on.
