@@ -744,6 +744,20 @@ impl<'a> FunctionContext<'a> {
                 let expr = expr::ref_with_mut(src_expr, typ.as_ref().clone(), false);
                 Ok(Some((expr, src_dyn)))
             }
+            // Reinterpret a string as its byte array with `str_as_bytes`.
+            //
+            // The conversion returns a value that shares the string's storage, so the ownership
+            // pass has to keep them apart; noir-claude#1201 was exactly a missing clone here.
+            (Type::String(len), Type::Array(tgt_len, item_type))
+                if *len == *tgt_len
+                    && matches!(
+                        item_type.as_ref(),
+                        Type::Integer(Signedness::Unsigned, IntegerBitSize::Eight)
+                    ) =>
+            {
+                let expr = self.call_str_as_bytes(src_expr, *len, tgt_type.clone());
+                Ok(Some((expr, src_dyn)))
+            }
             // Decompose a numeric value into its bit or byte representation.
             //
             // `to_le_bits`/`to_be_bits`/`to_le_radix`/`to_be_radix` are implemented four times
@@ -2441,6 +2455,29 @@ impl<'a> FunctionContext<'a> {
             func: Box::new(Expression::Ident(func_ident)),
             arguments: vec![array_or_vector],
             return_type: types::U32,
+            location: Location::dummy(),
+        })
+    }
+
+    /// Construct a `Call` to the `str_as_bytes` builtin.
+    fn call_str_as_bytes(&mut self, value: Expression, len: u32, bytes_type: Type) -> Expression {
+        let func_ident = Ident {
+            location: None,
+            definition: Definition::Builtin("str_as_bytes".to_string()),
+            mutable: false,
+            name: "as_bytes".to_string(),
+            typ: Rc::new(Type::Function(
+                vec![Type::String(len)],
+                Rc::new(bytes_type.clone()),
+                Rc::new(Type::Unit),
+                false,
+            )),
+            id: self.next_ident_id(),
+        };
+        Expression::Call(Call {
+            func: Box::new(Expression::Ident(func_ident)),
+            arguments: vec![value],
+            return_type: bytes_type,
             location: Location::dummy(),
         })
     }
