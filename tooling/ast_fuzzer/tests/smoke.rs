@@ -88,3 +88,4 @@ fn arb_program_can_be_executed() {
         CI_CASES,
     );
 }
+

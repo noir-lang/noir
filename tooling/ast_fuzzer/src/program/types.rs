@@ -153,6 +153,16 @@ pub fn is_reference(typ: &Type) -> bool {
 }
 
 /// Check if the type is a function.
+/// True if the type is a function, or a composite that holds one.
+pub(crate) fn contains_function(typ: &Type) -> bool {
+    match typ {
+        Type::Function(_, _, _, _) => true,
+        Type::Array(_, typ) | Type::Vector(typ) | Type::Reference(typ, _) => contains_function(typ),
+        Type::Tuple(types) => types.iter().any(contains_function),
+        _ => false,
+    }
+}
+
 pub(crate) fn is_function(typ: &Type) -> bool {
     matches!(typ, Type::Function(_, _, _, _))
 }

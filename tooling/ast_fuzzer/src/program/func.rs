@@ -559,8 +559,75 @@ impl<'a> FunctionContext<'a> {
             return Ok(expr);
         }
 
+        // A composite that holds a function has no literal form — there is no way to write a
+        // function value as a literal — so build it out of its parts instead, letting each
+        // function element resolve to a function in scope or a global one.
+        if types::contains_function(typ) {
+            return self.gen_composite_with_function(u, typ, max_depth, flags);
+        }
+
         // If nothing else worked out we can always produce a random literal.
         self.gen_literal(u, typ).map(|expr| (expr, false))
+    }
+
+    /// Build a value of a composite type that holds a function, element by element.
+    ///
+    /// [`expr::gen_literal`] cannot do this: a function value can only come from a function in
+    /// scope or a global one, which it has no access to.
+    fn gen_composite_with_function(
+        &mut self,
+        u: &mut Unstructured,
+        typ: &Type,
+        max_depth: usize,
+        flags: Flags,
+    ) -> arbitrary::Result<TrackedExpression> {
+        match typ {
+            Type::Tuple(items) => {
+                let mut values = Vec::new();
+                let mut is_dyn = false;
+                for item in items {
+                    let (value, dyn_item) = self.gen_expr(u, item, max_depth, flags)?;
+                    values.push(value);
+                    is_dyn |= dyn_item;
+                }
+                Ok((Expression::Tuple(values), is_dyn))
+            }
+            Type::Array(len, item) => {
+                let mut contents = Vec::new();
+                let mut is_dyn = false;
+                for _ in 0..*len {
+                    let (value, dyn_item) = self.gen_expr(u, item, max_depth, flags)?;
+                    contents.push(value);
+                    is_dyn |= dyn_item;
+                }
+                let arr = ArrayLiteral { contents, typ: typ.clone() };
+                Ok((Expression::Literal(Literal::Array(arr)), is_dyn))
+            }
+            Type::Vector(item) => {
+                let len = u.int_in_range(0..=self.config().max_array_size)?;
+                let mut contents = Vec::new();
+                let mut is_dyn = false;
+                for _ in 0..len {
+                    let (value, dyn_item) = self.gen_expr(u, item, max_depth, flags)?;
+                    contents.push(value);
+                    is_dyn |= dyn_item;
+                }
+                let arr = ArrayLiteral { contents, typ: typ.clone() };
+                Ok((Expression::Literal(Literal::Vector(arr)), is_dyn))
+            }
+            Type::Reference(inner, _) => {
+                // Mirror how a bare function reference is produced: an immutable global ident
+                // has to be bound to a variable before a reference can be taken over it.
+                let (expr, is_dyn) = self.gen_expr(u, inner, max_depth, flags)?;
+                let expr = if expr::is_immutable_ident(&expr) {
+                    self.indirect_ref_mut((expr, is_dyn), inner.as_ref().clone())
+                } else {
+                    expr::ref_mut(expr, inner.as_ref().clone())
+                };
+                Ok((expr, is_dyn))
+            }
+            other => unreachable!("not a composite holding a function: {other}"),
+        }
     }
 
     /// Try to generate an expression with a certain type out of the variables in scope.
@@ -1540,6 +1607,10 @@ impl<'a> FunctionContext<'a> {
             .current()
             .variables()
             .filter_map(|(id, (_, _, typ))| types::is_printable(typ).then_some((*id, typ.clone())))
+            // A bare function is printed by passing it as a pair of idents, but a function
+            // nested in a composite has no such encoding: the printable-type metadata would
+            // describe more values than the call supplies.
+            .filter(|(_, typ)| types::is_function(typ) || !types::contains_function(typ))
             // TODO(#10499): comptime function representations are at the moment just "(function)"
             // (disable printing functions if comptime_friendly is on)
             .filter(|(_, typ)| !types::is_function(typ) || !self.config().comptime_friendly)
