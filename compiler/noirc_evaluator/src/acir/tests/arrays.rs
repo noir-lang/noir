@@ -881,3 +881,105 @@ fn predicated_get_of_scalar_field_biases_index_to_matching_slot() {
     ASSERT w8 = w10
     ");
 }
+
+#[test]
+fn predicated_constant_index_get_on_heterogeneous_vector() {
+    // A *constant* index read, the counterpart of
+    // `predicated_composite_get_on_vector_with_heterogeneous_items`.
+    //
+    // The fallback offset may only be added to an index that the predicate gates down to `0`.
+    // For a layout whose fields have differing flattened sizes,
+    // [`Context::get_flattened_index`] resolves a constant index through the element-type-sizes
+    // table into a flat offset that is already known to be in bounds, and therefore returns it
+    // ungated. `DataFlowGraph::is_safe_index` reports `false` for every vector, constant index
+    // or not, so the bias is added on top of that resolved offset instead of replacing a gated
+    // `0`.
+    //
+    // The vector holds two `(Field, [u8; 2])` items in six slots. Semi-flattened index `3` is
+    // item 1's `[u8; 2]`, i.e. flat slot 4, and the read must stay on slots 4 and 5 whatever
+    // the predicate is.
+    let src = "
+    acir(inline) fn main f0 {
+      b0(v0: u32, v1: u1, v2: Field):
+        v3 = make_array [u8 2, u8 3] : [u8; 2]
+        v4 = make_array [u8 5, u8 6] : [u8; 2]
+        v5 = make_array [Field 1, v3, Field 4, v4] : [(Field, [u8; 2])]
+        v6 = array_set v5, index v0, value v2
+        enable_side_effects v1
+        v7 = array_get v6, index u32 3 -> [u8; 2]
+        enable_side_effects u1 1
+        return v7
+    }
+    ";
+    let program = ssa_to_acir_program(src);
+    // `w13 = -w1 + 5` reads slot 5 (and then slot 6, which does not exist) when the predicate
+    // `w1` is `0`. It should be the constant `4`, as it is on the array-typed counterpart.
+    assert_circuit_snapshot!(program, @r"
+    func 0
+    private parameters: [w0, w1, w2]
+    public parameters: []
+    return values: [w3, w4]
+    BLACKBOX::RANGE input: w1, bits: 1
+    ASSERT w5 = 0
+    ASSERT w6 = 1
+    ASSERT w7 = 3
+    ASSERT w8 = 4
+    INIT b0 = [w5, w6, w7, w8]
+    READ w9 = b0[w0]
+    ASSERT w10 = 2
+    ASSERT w11 = 5
+    ASSERT w12 = 6
+    INIT b1 = [w6, w10, w7, w8, w11, w12]
+    WRITE b1[w9] = w2
+    ASSERT w13 = -w1 + 5
+    READ w14 = b1[w13]
+    ASSERT w15 = w13 + 1
+    READ w16 = b1[w15]
+    ASSERT w3 = w14
+    ASSERT w4 = w16
+    ");
+}
+
+#[test]
+fn predicated_constant_index_get_on_heterogeneous_array() {
+    // The array-typed counterpart of `predicated_constant_index_get_on_heterogeneous_vector`,
+    // pinning the behaviour the vector case should match: `is_safe_index` holds for an
+    // in-bounds constant index into an array, so no bias is applied and both reads stay on the
+    // slots the index resolved to.
+    let src = "
+    acir(inline) fn main f0 {
+      b0(v0: u32, v1: u1, v2: Field):
+        v3 = make_array [u8 2, u8 3] : [u8; 2]
+        v4 = make_array [u8 5, u8 6] : [u8; 2]
+        v5 = make_array [Field 1, v3, Field 4, v4] : [(Field, [u8; 2]); 2]
+        v6 = array_set v5, index v0, value v2
+        enable_side_effects v1
+        v7 = array_get v6, index u32 3 -> [u8; 2]
+        enable_side_effects u1 1
+        return v7
+    }
+    ";
+    let program = ssa_to_acir_program(src);
+    assert_circuit_snapshot!(program, @r"
+    func 0
+    private parameters: [w0, w1, w2]
+    public parameters: []
+    return values: [w3, w4]
+    BLACKBOX::RANGE input: w1, bits: 1
+    ASSERT w5 = 0
+    ASSERT w6 = 1
+    ASSERT w7 = 3
+    ASSERT w8 = 4
+    INIT b0 = [w5, w6, w7, w8]
+    READ w9 = b0[w0]
+    ASSERT w10 = 2
+    ASSERT w11 = 5
+    ASSERT w12 = 6
+    INIT b1 = [w6, w10, w7, w8, w11, w12]
+    WRITE b1[w9] = w2
+    READ w13 = b1[w8]
+    READ w14 = b1[w11]
+    ASSERT w3 = w13
+    ASSERT w4 = w14
+    ");
+}

@@ -1,0 +1,6 @@
+[package]
+name = "predicated_vector_constant_index"
+type = "bin"
+authors = [""]
+
+[dependencies]
