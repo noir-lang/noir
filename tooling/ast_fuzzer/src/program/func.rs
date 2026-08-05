@@ -1800,10 +1800,31 @@ impl<'a> FunctionContext<'a> {
         // Start building the loop harness, initialize index to 0
         let let_idx = expr::let_var(idx_local_id, true, idx_name, types::U32, expr::u32_literal(0));
 
+        // Half the time, give the loop a user induction variable and a user break guard, so the
+        // exit condition is not always the synthetic `idx == max` shape.
+        self.enter_scope();
+        let induction =
+            if u.ratio(1, 2)? { Some(self.gen_user_induction(u)?) } else { None };
+
         // Get the randomized loop body
         let was_in_loop = std::mem::replace(&mut self.in_loop, true);
         let (mut loop_body, _) = self.gen_block(u, &Type::Unit)?;
         self.in_loop = was_in_loop;
+
+        if let Some((_, update, guard)) = &induction {
+            // Prepend in reverse order to get `if guard { break }; step; <body>` — a
+            // user-written break-on-condition loop rather than the synthetic `idx == max` one.
+            expr::prepend(&mut loop_body, update.clone());
+            expr::prepend(
+                &mut loop_body,
+                expr::if_else(
+                    guard.clone(),
+                    Expression::Break,
+                    Expression::Block(vec![]),
+                    Type::Unit,
+                ),
+            );
+        }
 
         // Increment the index in the beginning of the body.
         expr::prepend(
@@ -1823,7 +1844,89 @@ impl<'a> FunctionContext<'a> {
             Type::Unit,
         );
 
-        Ok(Expression::Block(vec![let_idx, Expression::Loop(Box::new(loop_body))]))
+        let mut stmts = vec![let_idx];
+        if let Some((decl, _, _)) = induction {
+            stmts.push(decl);
+        }
+        stmts.push(Expression::Loop(Box::new(loop_body)));
+        self.exit_scope();
+
+        Ok(Expression::Block(stmts))
+    }
+
+
+    /// Declare a *user* induction variable for a `while`/`loop`: a mutable integer local the
+    /// body updates by an arbitrary (possibly negative) step, guarded by an arbitrary
+    /// comparison against an arbitrary bound.
+    ///
+    /// The synthetic `idx` counter that bounds every generated loop always starts at `0`, always
+    /// steps by `+1` and is always compared with `==`, which is the one shape loop analyses get
+    /// right. Loop-bound inference, induction-variable simplification and empty-loop detection
+    /// are instead wrong on decreasing induction, guards that oppose the update direction,
+    /// equality guards that are false on entry, and steps that skip the guard's sentinel — so
+    /// those are exactly what this generates. The synthetic counter still bounds the iteration
+    /// count, so a guard that never fires cannot hang the loop.
+    ///
+    /// Returns the statement declaring the variable, the update statement to place in the body,
+    /// and the guard expression. The variable is registered in the current scope, so the caller
+    /// must have entered one.
+    fn gen_user_induction(
+        &mut self,
+        u: &mut Unstructured,
+    ) -> arbitrary::Result<(Expression, Expression, Expression)> {
+        let signed = bool::arbitrary(u)?;
+        let typ = if signed {
+            Type::Integer(Signedness::Signed, IntegerBitSize::ThirtyTwo)
+        } else {
+            types::U32
+        };
+
+        let local_id = self.next_local_id();
+        let ident_id = self.next_ident_id();
+        let name = format!("ind_{}", make_name(local_id.0 as usize, false));
+        let ident = expr::ident_inner(
+            VariableId::Local(local_id),
+            ident_id,
+            true,
+            name.clone(),
+            Rc::new(typ.clone()),
+        );
+        let ident_expr = Expression::Ident(ident.clone());
+
+        // Keep the values small so a checked update is unlikely to overflow before the
+        // synthetic counter stops the loop, and allow negative starts for signed types.
+        let start = u.int_in_range(if signed { -8 } else { 0 }..=8)?;
+        let step = u.int_in_range(1..=3)?;
+        let bound = u.int_in_range(if signed { -8 } else { 0 }..=8)?;
+
+        let decl = expr::let_var(
+            local_id,
+            true,
+            name.clone(),
+            typ.clone(),
+            expr::int_literal(start, typ.clone()),
+        );
+        self.locals.add(local_id, true, name, typ.clone());
+
+        // Half the time the update opposes the guard's direction, which is what makes bound
+        // inference and checked-to-unchecked rewrites interesting.
+        let op = if bool::arbitrary(u)? { BinaryOp::Add } else { BinaryOp::Subtract };
+        let update = expr::assign_ident(
+            ident.clone(),
+            expr::binary(ident_expr.clone(), op, expr::int_literal(step, typ.clone())),
+        );
+
+        let cmp = u.choose(&[
+            BinaryOp::Less,
+            BinaryOp::LessEqual,
+            BinaryOp::Greater,
+            BinaryOp::GreaterEqual,
+            BinaryOp::Equal,
+            BinaryOp::NotEqual,
+        ])?;
+        let guard = expr::binary(ident_expr, *cmp, expr::int_literal(bound, typ));
+
+        Ok((decl, update, guard))
     }
 
     /// Generate a `while` loop.
@@ -1846,10 +1949,22 @@ impl<'a> FunctionContext<'a> {
             typ: types::U32,
         })];
 
+        // Half the time, drive the loop with a user induction variable rather than an arbitrary
+        // boolean condition, so the loop analyses see a guard tied to a variable the body steps.
+        self.enter_scope();
+        let induction =
+            if u.ratio(1, 2)? { Some(self.gen_user_induction(u)?) } else { None };
+
         // Get the randomized loop body
         let was_in_loop = std::mem::replace(&mut self.in_loop, true);
         let (mut loop_body, _) = self.gen_block(u, &Type::Unit)?;
         self.in_loop = was_in_loop;
+
+        // Step the user induction variable at the top of the body. Appending it instead would
+        // have to survive a body whose last statement is `break`.
+        if let Some((_, update, _)) = &induction {
+            expr::prepend(&mut loop_body, update.clone());
+        }
 
         // Increment the index in the beginning of the body.
         expr::prepend(
@@ -1870,7 +1985,14 @@ impl<'a> FunctionContext<'a> {
         )]);
 
         // Generate the `while` condition with depth 1
-        let (condition, _) = self.gen_expr(u, &Type::Bool, 1, Flags::CONDITION)?;
+        let condition = match &induction {
+            Some((_, _, guard)) => guard.clone(),
+            None => self.gen_expr(u, &Type::Bool, 1, Flags::CONDITION)?.0,
+        };
+        if let Some((decl, _, _)) = induction {
+            stmts.push(decl);
+        }
+        self.exit_scope();
 
         stmts.push(Expression::While(While {
             condition: Box::new(condition),
