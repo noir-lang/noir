@@ -3088,80 +3088,85 @@ mod tests {
 
     #[test]
     fn hoisted_vector_mutator_guards_its_own_array_operand() {
-        // The companion of `hoisting_vector_mutator_out_of_loop_drops_refcount_guard` with the
-        // `inc_rc v1` guard removed from `b2`. `v1` is still read by the `array_get` in `b3`, so
-        // the mutation must not be observable — but with nothing side-effecting ahead of it, `b2`
-        // is pure, the loop is guaranteed to execute and the call *is* hoisted.
+        // The companion of `hoisting_vector_mutator_out_of_loop_drops_refcount_guard`, with the
+        // `inc_rc v1` guard moved out of the loop body and into the entry block. The SSA is
+        // well-formed either way — `v1` is read by the `array_get` in `b4` and the entry bump
+        // dominates every mutation of it — but the two shapes hoist differently.
         //
-        // That is the case the purity classification alone does not cover: it is only the guard's
-        // side effect that keeps the mutator in the loop in the other test, so as soon as the
-        // guard is not sitting in front of the call the hoist goes ahead. LICM therefore has to
-        // re-establish the protection itself, by emitting `inc_rc v1` into the pre-header ahead of
-        // the hoisted call, which puts `v1` at reference count 2 and forces the push to clone.
+        // With the guard in the loop body its side effect marks the block impure and the call
+        // stays put. Here the loop body has nothing side-effecting ahead of the call, so the
+        // block is pure, the `0..2` loop is guaranteed to execute, and the call is hoisted. The
+        // purity classification does not distinguish these two cases at all; only the guard's
+        // accidental position does. So LICM has to re-establish the protection at the point it
+        // moves the mutator to, by emitting `inc_rc v1` into the pre-header ahead of the hoisted
+        // call. `Ssa::interpret` models copy-on-write faithfully, so the returned value is what
+        // catches a guard emitted in the wrong place: `b4` reads `v1[0]` after the push.
         //
-        // The frontend does not emit this shape today (the ownership pass always places the clone
-        // beside the mutating use), so this is hardening rather than a reachable miscompilation —
-        // but nothing in the pass was enforcing it.
+        // The bump is redundant here, since the entry block already protects `v1` — the
+        // pre-header scan in `unprotected_mutable_array_operands` is deliberately local, and
+        // `inserts_inc_rc_for_hoisted_array_set` pins the case it does recognise. Conservative in
+        // this direction costs one rc bump; conservative in the other direction is a
+        // miscompilation.
         let src = r#"
-        brillig(inline) predicate_pure fn main f0 {
+        brillig(inline) impure fn main f0 {
           b0(v0: u1):
             v1 = make_array [v0, u1 1] : [u1]
             v2 = call f1(u32 2, v1) -> u1
             return v2
         }
-        brillig(inline) predicate_pure fn foo f1 {
+        brillig(inline) impure fn foo f1 {
           b0(v0: u32, v1: [u1]):
-            jmp b1(u32 0)
-          b1(v2: u32):
+            inc_rc v1
+            jmp b1()
+          b1():
+            jmp b2(u32 0)
+          b2(v2: u32):
             v3 = lt v2, u32 2
-            jmpif v3 then: b2(), else: b3()
-          b2():
+            jmpif v3 then: b3(), else: b4()
+          b3():
             v4, v5 = call vector_push_front(v0, v1, u1 0) -> (u32, [u1])
             v6 = unchecked_add v2, u32 1
-            jmp b1(v6)
-          b3():
+            jmp b2(v6)
+          b4():
             v7 = array_get v1, index u32 0 -> u1
             return v7
         }
         "#;
-        // `assert_pass_does_not_affect_execution` is deliberately not used here: the input is
-        // ill-formed, so its pre-LICM interpretation is already the corrupted one. Interpreting
-        // this SSA before the pass yields `0` — the loop mutates `v1` in place at reference count
-        // 1 on every iteration, and `b3` reads the pushed `u1 0` back. Its SSA-level meaning is
-        // `1`: `vector_push_front` returns a new vector and leaves `v1` alone. The pass must land
-        // on the latter.
         let ssa = Ssa::from_str(src).unwrap();
         let input = vec![crate::ssa::interpreter::value::Value::bool(true)];
-        let ssa = ssa.loop_invariant_code_motion();
-        assert_eq!(
-            ssa.interpret(crate::ssa::interpreter::value::Value::snapshot_args(&input)),
-            Ok(vec![crate::ssa::interpreter::value::Value::bool(true)]),
-            "the hoisted push must not be observable through `v1`",
-        );
+        let (ssa, result) =
+            assert_pass_does_not_affect_execution(ssa, input, Ssa::loop_invariant_code_motion);
 
-        // The call is hoisted into `b0`, preceded by the `inc_rc v1` that LICM inserted to protect
-        // the operand it can write through, and followed by the pre-existing `inc_rc` on its
-        // array result.
+        // `main` returns `v1[0]`, i.e. the argument it was given: the hoisted push must not be
+        // observable through `v1`.
+        assert_eq!(result, Ok(vec![crate::ssa::interpreter::value::Value::bool(true)]));
+
+        // The call is hoisted into the pre-header `b1`, preceded by the `inc_rc v1` LICM inserted
+        // to protect the operand it can write through, and followed by the pre-existing `inc_rc`
+        // on its array result.
         assert_ssa_snapshot!(ssa, @r"
-        brillig(inline) predicate_pure fn main f0 {
+        brillig(inline) impure fn main f0 {
           b0(v0: u1):
             v2 = make_array [v0, u1 1] : [u1]
             v5 = call f1(u32 2, v2) -> u1
             return v5
         }
-        brillig(inline) predicate_pure fn foo f1 {
+        brillig(inline) impure fn foo f1 {
           b0(v0: u32, v1: [u1]):
             inc_rc v1
+            jmp b1()
+          b1():
+            inc_rc v1
             v5, v6 = call vector_push_front(v0, v1, u1 0) -> (u32, [u1])
-            jmp b1(u32 0)
-          b1(v2: u32):
+            jmp b2(u32 0)
+          b2(v2: u32):
             v9 = lt v2, u32 2
-            jmpif v9 then: b2(), else: b3()
-          b2():
+            jmpif v9 then: b3(), else: b4()
+          b3():
             inc_rc v6
             v11 = unchecked_add v2, u32 1
-            jmp b1(v11)
-          b3():
+            jmp b2(v11)
+          b4():
             v12 = array_get v1, index u32 0 -> u1
             return v12
         }
