@@ -798,6 +798,30 @@ impl<'a> FunctionContext<'a> {
                 let expr = expr::deref(src_expr, tgt_type.clone());
                 Ok(Some((expr, src_dyn)))
             }
+            // Reborrow a field of a referenced tuple: `&mut (*r).i`.
+            //
+            // The reborrow has to alias the field in place. Copying it into a fresh allocation
+            // instead silently detaches the two, so a write through the reborrow never reaches
+            // the original — which is what noir-claude#1099 was.
+            (Type::Reference(inner, true), Type::Reference(field_type, true))
+                if matches!(inner.as_ref(), Type::Tuple(fields)
+                    if fields.iter().any(|field| field == field_type.as_ref())) =>
+            {
+                let Type::Tuple(fields) = inner.as_ref() else {
+                    unreachable!("checked by the guard above");
+                };
+                let candidates = fields
+                    .iter()
+                    .enumerate()
+                    .filter(|(_, field)| *field == field_type.as_ref())
+                    .map(|(i, _)| i)
+                    .collect::<Vec<_>>();
+                let field_index = *u.choose(&candidates)?;
+                let deref = expr::deref(src_expr, inner.as_ref().clone());
+                let field = Expression::ExtractTupleField(Box::new(deref), field_index);
+                let expr = expr::ref_mut(field, field_type.as_ref().clone());
+                Ok(Some((expr, src_dyn)))
+            }
             // Mutable reference over the source type.
             (_, Type::Reference(typ, true)) if typ.as_ref() == src_type => {
                 let expr = if src_mutable {
