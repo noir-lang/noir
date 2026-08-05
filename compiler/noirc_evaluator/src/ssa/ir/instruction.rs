@@ -243,6 +243,24 @@ impl Intrinsic {
         )
     }
 
+    /// Returns true if this intrinsic may write through its vector operand in place in Brillig,
+    /// i.e. when that operand's copy-on-write reference count is 1.
+    ///
+    /// This is the subset of [`Self::unsafe_for_clone_elision_in_brillig`] that actually mutates:
+    /// `StrAsBytes` and `ArrayAsStrUnchecked` are unsafe to elide a clone around because their
+    /// result aliases their operand, not because they write to it.
+    pub(crate) fn mutates_array_operand_in_brillig(&self) -> bool {
+        matches!(
+            self,
+            Intrinsic::VectorPushBack
+                | Intrinsic::VectorPushFront
+                | Intrinsic::VectorPopBack
+                | Intrinsic::VectorPopFront
+                | Intrinsic::VectorInsert
+                | Intrinsic::VectorRemove
+        )
+    }
+
     pub(crate) fn purity(&self) -> Purity {
         match self {
             // These apply a constraint in the form of ACIR opcodes, but they can be deduplicated
