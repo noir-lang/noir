@@ -744,6 +744,16 @@ impl<'a> FunctionContext<'a> {
                 let expr = expr::ref_with_mut(src_expr, typ.as_ref().clone(), false);
                 Ok(Some((expr, src_dyn)))
             }
+            // Convert an array into a vector with `as_vector`. This is how a fixed-size array
+            // becomes dynamically sized in real Noir, and it is what promotes the value into
+            // the runtime memory-block representation that vector intrinsics and the
+            // reference-counting machinery operate on.
+            (Type::Array(_, item_type), Type::Vector(tgt_item))
+                if item_type == tgt_item && !self.in_no_dynamic =>
+            {
+                let expr = self.call_as_vector(src_expr, src_type.clone(), tgt_type.clone());
+                Ok(Some((expr, src_dyn)))
+            }
             // Index a non-empty array.
             (Type::Array(len, item_type), _) if *len > 0 => {
                 // Indexing arrays that contains references with dynamic indexes was banned in #8888
@@ -2410,6 +2420,34 @@ impl<'a> FunctionContext<'a> {
             func: Box::new(Expression::Ident(func_ident)),
             arguments: vec![array_or_vector],
             return_type: types::U32,
+            location: Location::dummy(),
+        })
+    }
+
+    /// Construct a `Call` to the `as_vector` builtin, converting an array into a vector.
+    fn call_as_vector(
+        &mut self,
+        array: Expression,
+        array_type: Type,
+        vector_type: Type,
+    ) -> Expression {
+        let func_ident = Ident {
+            location: None,
+            definition: Definition::Builtin("as_vector".to_string()),
+            mutable: false,
+            name: "as_vector".to_string(),
+            typ: Rc::new(Type::Function(
+                vec![array_type],
+                Rc::new(vector_type.clone()),
+                Rc::new(Type::Unit),
+                false,
+            )),
+            id: self.next_ident_id(),
+        };
+        Expression::Call(Call {
+            func: Box::new(Expression::Ident(func_ident)),
+            arguments: vec![array],
+            return_type: vector_type,
             location: Location::dummy(),
         })
     }
