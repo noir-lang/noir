@@ -328,10 +328,13 @@ impl Context {
         let inline_type = if is_main {
             InlineType::default()
         } else {
-            // Automatically include any new inline type, except the ones we don't want: #[fold] is deprecated
+            // Automatically include any new inline type, except where the compiler does not
+            // support it: `#[fold]` compiles the function into a separate ACIR circuit, which
+            // has no meaning for an unconstrained function, and `#[no_predicates]` acts on the
+            // flattening pass that unconstrained code does not run.
             let choices = InlineType::iter()
                 .filter(|it| {
-                    *it != InlineType::Fold && !(*it == InlineType::NoPredicates && unconstrained)
+                    !(unconstrained && matches!(it, InlineType::Fold | InlineType::NoPredicates))
                 })
                 .collect::<Vec<_>>();
             *u.choose(&choices)?
