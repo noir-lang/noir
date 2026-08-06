@@ -308,6 +308,12 @@ impl<'a> FunctionContext<'a> {
         self.config().max_depth
     }
 
+    /// The maximum depth to generate types at, which is tracked separately from
+    /// the depth of expressions.
+    fn max_type_depth(&self) -> usize {
+        self.config().max_type_depth
+    }
+
     /// Get and increment the next local ID.
     fn next_local_id(&mut self) -> LocalId {
         let id = LocalId(self.next_local_id);
@@ -1244,7 +1250,8 @@ impl<'a> FunctionContext<'a> {
         // Generate a type or choose an existing one.
         let max_depth = self.max_depth();
         let comptime_friendly = self.config().comptime_friendly;
-        let mut typ = self.ctx.gen_type(u, max_depth, false, false, comptime_friendly, true)?;
+        let mut typ =
+            self.ctx.gen_type(u, self.max_type_depth(), false, false, comptime_friendly, true)?;
 
         // If we picked the target type to be a vector, we can consider popping from it.
         if let Type::Vector(ref item_type) = typ

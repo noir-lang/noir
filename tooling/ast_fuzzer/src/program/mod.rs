@@ -188,7 +188,7 @@ impl Context {
     ) -> arbitrary::Result<(Name, Type, Expression)> {
         let typ = self.gen_type(
             u,
-            self.config.max_depth,
+            self.config.max_type_depth,
             true,
             false,
             self.config.comptime_friendly,
@@ -240,7 +240,7 @@ impl Context {
         } else {
             self.gen_type(
                 u,
-                self.config.max_depth,
+                self.config.max_type_depth,
                 false,
                 is_main || is_abi,
                 self.config.comptime_friendly,
@@ -279,7 +279,7 @@ impl Context {
                 // Take some kind of data type.
                 self.gen_type(
                     u,
-                    self.config.max_depth,
+                    self.config.max_type_depth,
                     false,
                     is_main || is_abi,
                     self.config.comptime_friendly,
