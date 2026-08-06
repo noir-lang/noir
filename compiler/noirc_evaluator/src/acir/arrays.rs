@@ -252,16 +252,21 @@ impl Context<'_> {
         }
 
         let array_typ = dfg.type_of_value(array);
-        // A disabled `array_set` writes the read-back dummy value to the very slots it was read
-        // from, leaving memory unchanged whatever those slots' types are — there is nothing for
-        // a fallback offset to protect, so only reads need one.
-        let offset = if store_value.is_none() {
-            self.compute_offset(instruction, dfg, &array_typ)
-        } else {
-            0
+        let gating = match (dfg.is_safe_index(index, array), store_value) {
+            // The access stays on the slots the program asked for, so there is no fallback slot
+            // to compute: an offset would be discarded, and computing one for a read whose
+            // result type does not describe any element field would fail for nothing.
+            (true, _) => IndexGating::Safe,
+            // A disabled `array_set` writes the read-back dummy value to the very slots it was
+            // read from, leaving memory unchanged whatever those slots' types are — there is
+            // nothing for a fallback offset to protect, so only reads need one.
+            (false, Some(_)) => IndexGating::Gated { fallback_offset: 0 },
+            (false, None) => IndexGating::Gated {
+                fallback_offset: self.compute_offset(instruction, dfg, &array_typ)?,
+            },
         };
         let (new_index, new_value) =
-            self.convert_array_operation_inputs(array, dfg, index, store_value, offset)?;
+            self.convert_array_operation_inputs(array, dfg, index, store_value, gating)?;
 
         if let Some(new_value) = new_value {
             self.array_set(instruction, new_index, new_value, dfg, mutable)?;
@@ -484,9 +489,17 @@ impl Context<'_> {
     /// units of the index it biases: an item ordinal diverges from it as soon as a multi-slot
     /// field precedes the matched one, sending the fallback read to slots of unrelated types.
     ///
-    /// A match always exists for SSA generated from Noir source: an `array_get`'s result is
-    /// one of the element's fields. No match is an ICE (reachable only through hand-written
-    /// SSA, which the SSA validator currently accepts).
+    /// A match always exists for a read that SSA generation produced: an `array_get`'s result is
+    /// one of the element's fields. It is not an invariant the SSA type system enforces, though —
+    /// [`crate::ssa::validation`] only checks an `array_get`'s result type against the element
+    /// types when a reference is involved, and deliberately tolerates a numeric mismatch left
+    /// behind by a pass in code it has already proven unreachable. Such a read has no slot whose
+    /// type this can vouch for, so it is reported as an ICE rather than lowered onto a fallback
+    /// slot that could hold a wider value than the result's leaves declare.
+    ///
+    /// Only a read whose index is gated needs an offset, so the error is out of reach for the
+    /// safe-index reads that a defaulted (constant) index produces; see
+    /// [`Context::handle_array_operation`].
     ///
     /// cf. <https://github.com/noir-lang/noir/pull/4971>
     fn compute_offset(
@@ -494,9 +507,14 @@ impl Context<'_> {
         instruction: InstructionId,
         dfg: &DataFlowGraph,
         array_typ: &Type,
-    ) -> usize {
+    ) -> Result<usize, RuntimeError> {
         let (Type::Array(element_types, _) | Type::Vector(element_types)) = array_typ else {
-            unreachable!("ICE: array_get must operate on an array or vector, got {array_typ}")
+            return Err(InternalError::Unexpected {
+                expected: "an array or vector to read from".to_owned(),
+                found: array_typ.to_string(),
+                call_stack: self.acir_context.get_call_stack(),
+            }
+            .into());
         };
 
         let [result] = dfg.instruction_result(instruction);
@@ -505,13 +523,17 @@ impl Context<'_> {
         let mut offset = 0;
         for typ in element_types.iter() {
             if *typ == *result_type {
-                return offset;
+                return Ok(offset);
             }
             offset += typ.flattened_size().0 as usize;
         }
-        unreachable!(
-            "ICE: array_get result type {result_type} is not a field of the array element type ({array_typ})"
-        )
+        Err(InternalError::General {
+            message: format!(
+                "array_get result type {result_type} is not a field of the array element type ({array_typ})"
+            ),
+            call_stack: self.acir_context.get_call_stack(),
+        }
+        .into())
     }
 
     /// Sets up the inputs for an `ArrayGet` / `ArraySet` instruction.
@@ -520,8 +542,8 @@ impl Context<'_> {
     /// (predicated) value to store.
     ///
     /// [`Self::get_flattened_index`] gates the returned index by the side-effects predicate
-    /// where necessary and biases the disabled-branch fallback to `offset`, so the dummy value
-    /// a disabled read returns is type-compatible with the read's result type
+    /// where necessary and biases the disabled-branch fallback to `gating`'s offset, so the
+    /// dummy value a disabled read returns is type-compatible with the read's result type
     /// (see [`Self::compute_offset`]).
     fn convert_array_operation_inputs(
         &mut self,
@@ -529,17 +551,12 @@ impl Context<'_> {
         dfg: &DataFlowGraph,
         index: ValueId,
         store_value: Option<ValueId>,
-        offset: usize,
+        gating: IndexGating,
     ) -> Result<(AcirVar, Option<AcirValue>), RuntimeError> {
         let array_typ = dfg.type_of_value(array_id);
 
         let shift = ElementTypeSizesArrayShift::None;
         let index_var = self.convert_numeric_value(index, dfg)?;
-        let gating = if dfg.is_safe_index(index, array_id) {
-            IndexGating::Safe
-        } else {
-            IndexGating::Gated { fallback_offset: offset }
-        };
         let index_var =
             self.get_flattened_index(&array_typ, array_id, index_var, dfg, gating, shift)?;
 
@@ -1235,11 +1252,16 @@ impl Context<'_> {
         // (memory reads/writes, comparisons, etc.) would fail the ACVM bounds check on
         // a disabled branch with an OOB user-supplied index. `mul_var` constant-folds
         // when the predicate is `0` or `1`, so this is free in those cases.
-        let var_index = match gating {
-            IndexGating::Safe => var_index,
-            IndexGating::Gated { .. } => {
-                self.acir_context.mul_var(var_index, self.current_side_effects_enabled_var)?
-            }
+        //
+        // Gating is what makes a fallback slot reachable at all, so the offset to bias by is
+        // carried out of this match: an index that took the ungated arm has no `fallback_offset`
+        // in scope below, and so cannot be biased.
+        let (var_index, fallback_offset) = match gating {
+            IndexGating::Safe => (var_index, None),
+            IndexGating::Gated { fallback_offset } => (
+                self.acir_context.mul_var(var_index, self.current_side_effects_enabled_var)?,
+                Some(fallback_offset),
+            ),
         };
 
         let flat_index = if let Some(step_size) = array_has_constant_element_size(array_typ) {
@@ -1254,18 +1276,18 @@ impl Context<'_> {
 
         // The gated flat index is `0` on a disabled branch; bias it to the fallback slot.
         // `raw_index * predicate + fallback_offset * (1 - predicate)` yields the raw index when
-        // the predicate is `1` and `fallback_offset` when it is `0`.
-        match gating {
-            IndexGating::Gated { fallback_offset } if fallback_offset != 0 => {
-                let one = self.acir_context.add_constant(FieldElement::one());
-                let not_pred =
-                    self.acir_context.sub_var(one, self.current_side_effects_enabled_var)?;
-                let offset_var = self.acir_context.add_constant(fallback_offset);
-                let offset_term = self.acir_context.mul_var(offset_var, not_pred)?;
-                Ok(self.acir_context.add_var(flat_index, offset_term)?)
-            }
-            IndexGating::Safe | IndexGating::Gated { .. } => Ok(flat_index),
-        }
+        // the predicate is `1` and `fallback_offset` when it is `0`. Both branches above start
+        // element 0 at flat slot `0` — a constant element size scales `0` to `0`, and the
+        // element-type-sizes table's first entry is the start of element 0's first field — so
+        // the bias is measured from the start of the block either way.
+        let Some(fallback_offset) = fallback_offset.filter(|offset| *offset != 0) else {
+            return Ok(flat_index);
+        };
+        let one = self.acir_context.add_constant(FieldElement::one());
+        let not_pred = self.acir_context.sub_var(one, self.current_side_effects_enabled_var)?;
+        let offset_var = self.acir_context.add_constant(fallback_offset);
+        let offset_term = self.acir_context.mul_var(offset_var, not_pred)?;
+        self.acir_context.add_var(flat_index, offset_term)
     }
 
     /// Calculate the flattened size of a value.
