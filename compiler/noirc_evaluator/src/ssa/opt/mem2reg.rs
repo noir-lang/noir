@@ -89,6 +89,20 @@ impl Function {
         // - v0 can't be optimized out because it's stored in v2
         // - v2 can and will be optimized out
         // - now running it again will lead to optimizing out v0, etc.
+        //
+        // The same chain can be built through an array of references:
+        //
+        // ```
+        // v0 = allocate -> &mut u16
+        // store u16 1 at v0
+        // v2 = make_array [v0] : [&mut u16; 1]
+        // v3 = allocate -> &mut [&mut u16; 1]
+        // store v2 at v3
+        // ```
+        //
+        // Here `v0` is ineligible because it appears in `v2`, and `v2` stays alive only because it
+        // is stored into `v3`. Once `v3` is optimized out, `v2` has no users left, so it is dropped
+        // between iterations to let the next one reach `v0`.
         loop {
             let mut inserter = FunctionInserter::new(self);
 
@@ -145,6 +159,8 @@ impl Function {
                 // mem2reg can no longer simplify the program.
                 break;
             }
+
+            remove_unused_make_arrays(self, &blocks);
         }
     }
 }
@@ -542,6 +558,61 @@ fn collect_eligible_variables_and_def_sites(
     (variables, def_sites, has_ineligible_variables)
 }
 
+/// Remove every [`MakeArray`][Instruction::MakeArray] instruction whose result has no users left.
+///
+/// An array holding a reference makes that reference ineligible for promotion, even when the array
+/// itself is dead. Dropping such arrays here is what lets the surrounding loop peel one level of
+/// nesting per iteration; without it the pass stops at the outermost reference cell and leaves the
+/// inner `allocate`/`store` pairs behind for good, because dead-store removal is mem2reg's job and
+/// no later pass in the pipeline revisits them.
+///
+/// Only `MakeArray` is considered: it is side-effect free and, unlike an array read, carries no
+/// out-of-bounds check that dead instruction elimination would have to preserve.
+fn remove_unused_make_arrays(function: &mut Function, blocks: &[BasicBlockId]) {
+    loop {
+        // The databus arrays are roots alongside the instructions and terminators: they are named
+        // by the function's ABI rather than by anything in the instruction stream.
+        let mut used = HashSet::default();
+        for block in blocks.iter().copied() {
+            for instruction_id in function.dfg[block].instructions() {
+                function.dfg[*instruction_id].for_each_value(|value| {
+                    used.insert(value);
+                });
+            }
+            if let Some(terminator) = function.dfg[block].terminator() {
+                terminator.for_each_value(|value| {
+                    used.insert(value);
+                });
+            }
+        }
+        for call_data in &function.dfg.data_bus.call_data {
+            used.insert(call_data.array_id);
+        }
+        used.extend(function.dfg.data_bus.return_data);
+
+        let mut removed_any = false;
+        for block in blocks.iter().copied() {
+            let mut instructions = function.dfg[block].take_instructions();
+            instructions.retain(|instruction_id| {
+                let keep = !matches!(function.dfg[*instruction_id], Instruction::MakeArray { .. })
+                    || function
+                        .dfg
+                        .instruction_results(*instruction_id)
+                        .iter()
+                        .any(|result| used.contains(result));
+                removed_any |= !keep;
+                keep
+            });
+            *function.dfg[block].instructions_mut() = instructions;
+        }
+
+        // An array can hold another array, so removing one can free up the next.
+        if !removed_any {
+            break;
+        }
+    }
+}
+
 /// Commit to all changes made by the pass:
 /// - Map any values mapped from the inserter to their new values in the function
 /// - Remove all Allocate, Load, and Store instructions from the eligible variables
@@ -583,7 +654,10 @@ fn commit(
 mod tests {
     use crate::{
         assert_ssa_snapshot,
-        ssa::{opt::assert_ssa_does_not_change, ssa_gen::Ssa},
+        ssa::{
+            opt::{assert_pass_does_not_affect_execution, assert_ssa_does_not_change},
+            ssa_gen::Ssa,
+        },
     };
 
     #[test]
@@ -1743,5 +1817,140 @@ brillig(inline) fn main f0 {
         assert!(
             super::get_value_from_visited_predecessor(dummy_var, b1, &cfg, &block_states).is_none()
         );
+    }
+
+    /// A reference stored into an array that is itself only kept alive by a store to a dead
+    /// reference cell must still be promoted. Nothing later in the pipeline removes dead stores,
+    /// so an `allocate`/`store` pair surviving here reaches `mutable_array_set_optimization` and
+    /// ACIR generation, neither of which accepts memory operations.
+    #[test]
+    fn dead_reference_array_does_not_block_promotion() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = allocate -> &mut Field
+            store Field 1 at v0
+            v2 = make_array [v0] : [&mut Field; 1]
+            v3 = allocate -> &mut [&mut Field; 1]
+            store v2 at v3
+            return
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let (ssa, _) = assert_pass_does_not_affect_execution(ssa, vec![], Ssa::mem2reg);
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0():
+            return
+        }
+        ");
+    }
+
+    /// Each level of reference nesting is peeled by one iteration of the pass, so a chain deeper
+    /// than the one in `dead_reference_array_does_not_block_promotion` must also be fully removed
+    /// by a single `mem2reg` run.
+    #[test]
+    fn nested_dead_reference_arrays_are_fully_promoted() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = allocate -> &mut Field
+            store Field 1 at v0
+            v2 = make_array [v0] : [&mut Field; 1]
+            v3 = allocate -> &mut [&mut Field; 1]
+            store v2 at v3
+            v5 = make_array [v3] : [&mut [&mut Field; 1]; 1]
+            v6 = allocate -> &mut [&mut [&mut Field; 1]; 1]
+            store v5 at v6
+            return
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let (ssa, _) = assert_pass_does_not_affect_execution(ssa, vec![], Ssa::mem2reg);
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0():
+            return
+        }
+        ");
+    }
+
+    /// An array of references that is actually read from keeps the references inside it aliased,
+    /// so neither the array nor the `allocate`/`store` pair backing the reference may be dropped.
+    #[test]
+    fn live_reference_array_still_prevents_optimization() {
+        let src = "
+        brillig(inline) fn func f0 {
+          b0():
+            v0 = allocate -> &mut Field
+            store Field 1 at v0
+            v2 = make_array [v0] : [&mut Field; 1]
+            v3 = array_get v2, index u32 0 -> &mut Field
+            v4 = load v3 -> Field
+            return v4
+        }
+        ";
+        assert_ssa_does_not_change(src, Ssa::mem2reg);
+    }
+
+    /// A reference count instruction is a use of the array it names, so an array that is only
+    /// reachable through `inc_rc` must be kept: dropping it would leave the `inc_rc` dangling.
+    #[test]
+    fn make_array_used_by_rc_instruction_is_kept() {
+        let src = "
+        brillig(inline) fn func f0 {
+          b0():
+            v0 = allocate -> &mut Field
+            store Field 1 at v0
+            v2 = make_array [v0] : [&mut Field; 1]
+            inc_rc v2
+            v3 = allocate -> &mut [&mut Field; 1]
+            store v2 at v3
+            return
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let (ssa, _) = assert_pass_does_not_affect_execution(ssa, vec![], Ssa::mem2reg);
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) fn func f0 {
+          b0():
+            v0 = allocate -> &mut Field
+            store Field 1 at v0
+            v2 = make_array [v0] : [&mut Field; 1]
+            inc_rc v2
+            return
+        }
+        ");
+    }
+
+    /// A databus array is named by the function's ABI, not by any instruction, so it has no
+    /// instruction users at all. It must survive the sweep that drops arrays which became dead
+    /// once the reference cell holding them was promoted.
+    #[test]
+    fn databus_arrays_are_kept() {
+        let src = "
+        acir(inline) fn main f0 {
+          call_data(0): array: v1, indices: []
+          return_data: v3
+          b0(v0: Field):
+            v1 = make_array [v0] : [Field; 1]
+            v2 = allocate -> &mut [Field; 1]
+            store v1 at v2
+            v3 = make_array [v0] : [Field; 1]
+            return v3
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.mem2reg();
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          call_data(0): array: v1, indices: []
+          return_data: v2
+          b0(v0: Field):
+            v1 = make_array [v0] : [Field; 1]
+            v2 = make_array [v0] : [Field; 1]
+            return v2
+        }
+        ");
     }
 }
