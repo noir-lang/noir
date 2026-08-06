@@ -1,6 +1,6 @@
 use itertools::Itertools;
 
-use crate::acir::arrays::ElementTypeSizesArrayShift;
+use crate::acir::arrays::{ElementTypeSizesArrayShift, IndexGating};
 use crate::acir::types::flat_element_types;
 use crate::acir::{AcirDynamicArray, AcirValue, AcirVar};
 use crate::brillig::assert_u32;
@@ -270,7 +270,7 @@ impl Context<'_> {
                         result_ids[1],
                         acir_value_index,
                         dfg,
-                        false,
+                        IndexGating::Gated { fallback_offset: 0 },
                         ElementTypeSizesArrayShift::None,
                     )?
                 } else {
@@ -671,7 +671,7 @@ impl Context<'_> {
             vector_contents,
             insert_index,
             dfg,
-            is_safe_index,
+            IndexGating::without_fallback(is_safe_index),
             shift,
         )?;
 
@@ -927,7 +927,7 @@ impl Context<'_> {
             vector_contents,
             remove_index,
             dfg,
-            is_safe_index,
+            IndexGating::without_fallback(is_safe_index),
             ElementTypeSizesArrayShift::None,
         )?;
 
