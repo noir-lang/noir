@@ -116,7 +116,7 @@
 //!
 //! ```ssa
 //! v0 = make_array [] -> [u32]
-//! constrain u1 0 == u1 1, "Index out of bounds"
+//! constrain u1 0 == u1 1, "Attempt to pop from an empty vector"
 //! v1 = make_array [] -> [u32]
 //! return v1, u32 0
 //! ```
@@ -395,7 +395,11 @@ impl Function {
 
                     // We might think that if the predicate is constant 1, we can leave the pop as it will always fail.
                     // However by turning the block Unreachable, ACIR-gen would create empty bytecode and not fail the circuit.
-                    insert_constraint(context, block_id, "Index out of bounds".to_string());
+                    insert_constraint(
+                        context,
+                        block_id,
+                        "Attempt to pop from an empty vector".to_string(),
+                    );
 
                     current_block_reachability = if always_fail {
                         context.remove_current_instruction();
@@ -1427,7 +1431,7 @@ mod tests {
           b0(v0: u1):
             v1 = make_array [] : [u32]
             enable_side_effects v0
-            constrain u1 0 == v0, "Index out of bounds"
+            constrain u1 0 == v0, "Attempt to pop from an empty vector"
             v3 = make_array [] : [u32]
             enable_side_effects u1 1
             return u32 1
@@ -1453,7 +1457,7 @@ mod tests {
         acir(inline) predicate_pure fn main f0 {
           b0(v0: u1):
             v1 = make_array [] : [u32]
-            constrain u1 0 == u1 1, "Index out of bounds"
+            constrain u1 0 == u1 1, "Attempt to pop from an empty vector"
             unreachable
         }
         "#);

@@ -1,9 +1,9 @@
-define: &AZ_COMMIT 0e7787a7c47db1e36089b09362072fd0c62ebed1
+define: &AZ_COMMIT 203c2f42bf67e007b2433b8ffe4717210b0814c5
 projects:
   private-kernel-inner:
     repo: AztecProtocol/aztec-packages
     ref: *AZ_COMMIT
-    path: noir-projects/noir-protocol-circuits/crates/private-kernel-inner
+    path: noir-projects/fnd/noir-protocol-circuits/crates/private-kernel-inner
     num_compile_runs: 5
     num_execute_runs: 5
     compilation-timeout: 10
@@ -15,7 +15,7 @@ projects:
   private-kernel-reset-tail:
     repo: AztecProtocol/aztec-packages
     ref: *AZ_COMMIT
-    path: noir-projects/noir-protocol-circuits/crates/private-kernel-reset-tail
+    path: noir-projects/fnd/noir-protocol-circuits/crates/private-kernel-reset-tail
     num_compile_runs: 1
     num_execute_runs: 1
     compilation-timeout: 300
@@ -27,7 +27,7 @@ projects:
   private-kernel-reset:
     repo: AztecProtocol/aztec-packages
     ref: *AZ_COMMIT
-    path: noir-projects/noir-protocol-circuits/crates/private-kernel-reset
+    path: noir-projects/fnd/noir-protocol-circuits/crates/private-kernel-reset
     num_compile_runs: 5
     num_execute_runs: 10
     compilation-timeout: 35
@@ -39,7 +39,7 @@ projects:
   rollup-block-root-first-empty-tx:
     repo: AztecProtocol/aztec-packages
     ref: *AZ_COMMIT
-    path: noir-projects/noir-protocol-circuits/crates/rollup-block-root-first-empty-tx
+    path: noir-projects/fnd/noir-protocol-circuits/crates/rollup-block-root-first-empty-tx
     cannot_execute: true
     num_compile_runs: 5
     num_execute_runs: 5
@@ -50,7 +50,7 @@ projects:
   rollup-block-root-single-tx:
     repo: AztecProtocol/aztec-packages
     ref: *AZ_COMMIT
-    path: noir-projects/noir-protocol-circuits/crates/rollup-block-root-single-tx
+    path: noir-projects/fnd/noir-protocol-circuits/crates/rollup-block-root-single-tx
     cannot_execute: true
     num_compile_runs: 1
     num_execute_runs: 1
@@ -61,7 +61,7 @@ projects:
   rollup-block-root:
     repo: AztecProtocol/aztec-packages
     ref: *AZ_COMMIT
-    path: noir-projects/noir-protocol-circuits/crates/rollup-block-root
+    path: noir-projects/fnd/noir-protocol-circuits/crates/rollup-block-root
     num_compile_runs: 1
     num_execute_runs: 1
     compilation-timeout: 250
@@ -73,7 +73,7 @@ projects:
   rollup-checkpoint-merge:
     repo: AztecProtocol/aztec-packages
     ref: *AZ_COMMIT
-    path: noir-projects/noir-protocol-circuits/crates/rollup-checkpoint-merge
+    path: noir-projects/fnd/noir-protocol-circuits/crates/rollup-checkpoint-merge
     num_compile_runs: 5
     num_execute_runs: 5
     compilation-timeout: 20
@@ -85,7 +85,7 @@ projects:
   rollup-checkpoint-root-single-block:
     repo: AztecProtocol/aztec-packages
     ref: *AZ_COMMIT
-    path: noir-projects/noir-protocol-circuits/crates/rollup-checkpoint-root-single-block
+    path: noir-projects/fnd/noir-protocol-circuits/crates/rollup-checkpoint-root-single-block
     cannot_execute_brillig: true
     num_compile_runs: 1
     num_execute_runs: 5
@@ -97,7 +97,7 @@ projects:
   rollup-checkpoint-root:
     repo: AztecProtocol/aztec-packages
     ref: *AZ_COMMIT
-    path: noir-projects/noir-protocol-circuits/crates/rollup-checkpoint-root
+    path: noir-projects/fnd/noir-protocol-circuits/crates/rollup-checkpoint-root
     cannot_execute_brillig: true
     num_compile_runs: 1
     num_execute_runs: 5
@@ -109,7 +109,7 @@ projects:
   rollup-tx-merge:
     repo: AztecProtocol/aztec-packages
     ref: *AZ_COMMIT
-    path: noir-projects/noir-protocol-circuits/crates/rollup-tx-merge
+    path: noir-projects/fnd/noir-protocol-circuits/crates/rollup-tx-merge
     num_compile_runs: 5
     num_execute_runs: 5
     compilation-timeout: 4
@@ -121,7 +121,7 @@ projects:
   rollup-root:
     repo: AztecProtocol/aztec-packages
     ref: *AZ_COMMIT
-    path: noir-projects/noir-protocol-circuits/crates/rollup-root
+    path: noir-projects/fnd/noir-protocol-circuits/crates/rollup-root
     num_compile_runs: 5
     num_execute_runs: 5
     compilation-timeout: 5
@@ -133,7 +133,7 @@ projects:
   rollup-tx-base-private:
     repo: AztecProtocol/aztec-packages
     ref: *AZ_COMMIT
-    path: noir-projects/noir-protocol-circuits/crates/rollup-tx-base-private
+    path: noir-projects/fnd/noir-protocol-circuits/crates/rollup-tx-base-private
     num_compile_runs: 5
     num_execute_runs: 10
     compilation-timeout: 50
@@ -145,7 +145,7 @@ projects:
   rollup-tx-base-public:
     repo: AztecProtocol/aztec-packages
     ref: *AZ_COMMIT
-    path: noir-projects/noir-protocol-circuits/crates/rollup-tx-base-public
+    path: noir-projects/fnd/noir-protocol-circuits/crates/rollup-tx-base-public
     num_compile_runs: 5
     num_execute_runs: 10
     compilation-timeout: 150

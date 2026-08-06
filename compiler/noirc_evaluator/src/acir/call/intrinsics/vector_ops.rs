@@ -1,6 +1,6 @@
 use itertools::Itertools;
 
-use crate::acir::arrays::ElementTypeSizesArrayShift;
+use crate::acir::arrays::{ElementTypeSizesArrayShift, IndexGating};
 use crate::acir::types::flat_element_types;
 use crate::acir::{AcirDynamicArray, AcirValue, AcirVar};
 use crate::brillig::assert_u32;
@@ -270,7 +270,7 @@ impl Context<'_> {
                         result_ids[1],
                         acir_value_index,
                         dfg,
-                        false,
+                        IndexGating::Gated { fallback_offset: 0 },
                         ElementTypeSizesArrayShift::None,
                     )?
                 } else {
@@ -371,7 +371,7 @@ impl Context<'_> {
     ///
     /// If the vector has zero length, this function skips the memory read and returns zero values.
     /// It asserts that the current side effects must be disabled (predicate = 0), otherwise fails
-    /// with "cannot pop from a vector with length 0". This prevents reading from empty memory blocks
+    /// with "Attempt to pop from an empty vector". This prevents reading from empty memory blocks
     /// which would cause "Index out of bounds" errors.
     pub(super) fn convert_vector_pop_back(
         &mut self,
@@ -388,8 +388,8 @@ impl Context<'_> {
 
         // Check if we're trying to pop from a known empty vector.
         if self.has_zero_length(vector_contents_id, dfg) {
-            // Make sure this code is disabled, or fail with "Index out of bounds".
-            let msg = "cannot pop from a vector with length 0".to_string();
+            // Make sure this code is disabled, or fail with the empty-vector pop message.
+            let msg = "Attempt to pop from an empty vector".to_string();
             self.acir_context.assert_zero_var(self.current_side_effects_enabled_var, msg)?;
 
             // Fill the result with default values.
@@ -531,7 +531,7 @@ impl Context<'_> {
     ///
     /// If the vector has zero length, this function skips the memory read and returns zero values.
     /// It asserts that the current side effects must be disabled (predicate = 0), otherwise fails
-    /// with "cannot pop from a vector with length 0". This prevents reading from empty memory blocks
+    /// with "Attempt to pop from an empty vector". This prevents reading from empty memory blocks
     /// which would cause "Index out of bounds" errors.
     pub(super) fn convert_vector_pop_front(
         &mut self,
@@ -549,8 +549,8 @@ impl Context<'_> {
 
         // Check if we're trying to pop from a known empty vector.
         if self.has_zero_length(vector_contents_id, dfg) {
-            // Make sure this code is disabled, or fail with "Index out of bounds".
-            let msg = "cannot pop from a vector with length 0".to_string();
+            // Make sure this code is disabled, or fail with the empty-vector pop message.
+            let msg = "Attempt to pop from an empty vector".to_string();
             self.acir_context.assert_zero_var(self.current_side_effects_enabled_var, msg)?;
 
             // Fill the result with default values.
@@ -671,7 +671,7 @@ impl Context<'_> {
             vector_contents,
             insert_index,
             dfg,
-            is_safe_index,
+            IndexGating::without_fallback(is_safe_index),
             shift,
         )?;
 
@@ -927,7 +927,7 @@ impl Context<'_> {
             vector_contents,
             remove_index,
             dfg,
-            is_safe_index,
+            IndexGating::without_fallback(is_safe_index),
             ElementTypeSizesArrayShift::None,
         )?;
 

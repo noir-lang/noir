@@ -429,6 +429,379 @@ fn generates_memory_op_for_dynamic_write() {
     ");
 }
 
+// An array index can be a compile-time constant to ACIR gen while remaining symbolic in SSA:
+// `dfg.get_numeric_constant` answers for SSA, but ACIR gen also folds over its own expression
+// algebra. A read at such an index must still take the compile-time path — laying it down as a
+// memory op leaves a `READ` at a constant index on a block that is never written, which is a
+// fully determined read and is what `assert_constant_reads_are_folded` rejects.
+//
+// The tests below cover each route by which an index reaches ACIR gen in that state, plus the
+// cases that must keep their memory block.
+
+#[test]
+fn folds_read_at_an_index_constrained_from_a_parameter() {
+    // Lowering `constrain u1 0 == v0` rewrites `v0`'s `AcirVar` to the constant `0` (see
+    // `AcirContext::mark_variables_equivalent`, which prefers a constant over a witness). The
+    // `cast` and `unchecked_add` above it then fold, leaving the index the constant `2`.
+    let src = "
+    acir(inline) fn main f0 {
+      b0(v0: u1):
+        v1 = make_array [u1 0, u1 0, u1 1] : [u1; 3]
+        constrain u1 0 == v0
+        v2 = cast v0 as u32
+        v3 = unchecked_add v2, u32 2
+        v4 = array_get v1, index v3 -> u1
+        return v4
+    }
+    ";
+    let program = ssa_to_acir_program(src);
+
+    // No `INIT`/`READ` pair at all: the array never reaches a memory block, and the returned
+    // value is the constant `1` held at index 2.
+    assert_circuit_snapshot!(program, @r"
+    func 0
+    private parameters: [w0]
+    public parameters: []
+    return values: [w1]
+    ASSERT w0 = 0
+    ASSERT w1 = 1
+    ");
+}
+
+#[test]
+fn keeps_memory_block_when_constrain_protects_an_input_witness() {
+    // The mirror image of `folds_read_at_an_index_constrained_from_a_parameter`, differing only in
+    // which side of the `constrain` the parameter sits. `mark_variables_equivalent` declines to
+    // rewrite an input witness, and it inspects its `lhs` argument alone, so with the parameter on
+    // the left no substitution happens and the index stays symbolic in ACIR too. The read is then
+    // genuinely dynamic as far as ACIR gen can tell and keeps its memory block.
+    let src = "
+    acir(inline) fn main f0 {
+      b0(v0: u1):
+        v1 = make_array [u1 0, u1 0, u1 1] : [u1; 3]
+        constrain v0 == u1 0
+        v2 = cast v0 as u32
+        v3 = unchecked_add v2, u32 2
+        v4 = array_get v1, index v3 -> u1
+        return v4
+    }
+    ";
+    let program = ssa_to_acir_program(src);
+
+    assert_circuit_snapshot!(program, @r"
+    func 0
+    private parameters: [w0]
+    public parameters: []
+    return values: [w1]
+    ASSERT w0 = 0
+    ASSERT w2 = 0
+    ASSERT w3 = 1
+    INIT b0 = [w2, w2, w3]
+    ASSERT w4 = w0 + 2
+    READ w5 = b0[w4]
+    ASSERT w1 = w5
+    ");
+}
+
+#[test]
+fn folds_read_at_an_index_cancelled_by_expression_algebra() {
+    // The final SSA for `a[p0.wrapping_sub(p0)]`. There is no `constrain` here at all: the index
+    // becomes constant purely because ACIR gen's polynomial arithmetic cancels the `v6` terms of
+    // `(v6 + 2^128) - v6`. SSA's `sub x, x` identity does not match, since the operands are
+    // distinct values.
+    let src = "
+    acir(inline) predicate_pure fn main f0 {
+      b0(v0: u32):
+        v5 = make_array [u8 10, u8 20, u8 30, u8 40] : [u8; 4]
+        v6 = cast v0 as Field
+        v8 = add v6, Field 340282366920938463463374607431768211456
+        v9 = sub v8, v6
+        v10 = truncate v9 to 32 bits, max_bit_size: 254
+        v11 = cast v10 as u32
+        v12 = array_get v5, index v11 -> u8
+        return v12
+    }
+    ";
+    let program = ssa_to_acir_program(src);
+
+    assert_circuit_snapshot!(program, @r"
+    func 0
+    private parameters: [w0]
+    public parameters: []
+    return values: [w1]
+    BLACKBOX::RANGE input: w0, bits: 32
+    ASSERT w1 = 10
+    ");
+}
+
+#[test]
+fn folds_read_at_a_constrained_derived_index_with_value_on_the_left() {
+    // `mark_variables_equivalent`'s input-witness guard only protects a parameter's own witness.
+    // Once the constrained value is derived, the substitution happens whichever side it sits on,
+    // so this and `..._with_value_on_the_right` must agree.
+    let src = "
+    acir(inline) fn main f0 {
+      b0(v0: u32):
+        v1 = make_array [u8 10, u8 20, u8 30, u8 40] : [u8; 4]
+        v2 = unchecked_add v0, u32 7
+        constrain v2 == u32 7
+        v3 = unchecked_sub v2, u32 5
+        v4 = array_get v1, index v3 -> u8
+        return v4
+    }
+    ";
+    let program = ssa_to_acir_program(src);
+
+    assert_circuit_snapshot!(program, @r"
+    func 0
+    private parameters: [w0]
+    public parameters: []
+    return values: [w1]
+    ASSERT w0 = 0
+    ASSERT w1 = 30
+    ");
+}
+
+#[test]
+fn folds_read_at_a_constrained_derived_index_with_value_on_the_right() {
+    // See `..._with_value_on_the_left`: the operand order is immaterial for a derived value.
+    let src = "
+    acir(inline) fn main f0 {
+      b0(v0: u32):
+        v1 = make_array [u8 10, u8 20, u8 30, u8 40] : [u8; 4]
+        v2 = unchecked_add v0, u32 7
+        constrain u32 7 == v2
+        v3 = unchecked_sub v2, u32 5
+        v4 = array_get v1, index v3 -> u8
+        return v4
+    }
+    ";
+    let program = ssa_to_acir_program(src);
+
+    assert_circuit_snapshot!(program, @r"
+    func 0
+    private parameters: [w0]
+    public parameters: []
+    return values: [w1]
+    ASSERT w0 = 0
+    ASSERT w1 = 30
+    ");
+}
+
+#[test]
+fn folds_read_from_a_global_array_at_an_acir_only_constant_index() {
+    // A global array is an `AcirValue::Array` like a local `make_array`, so it takes the same
+    // compile-time path.
+    let src = "
+    g0 = make_array [u8 10, u8 20, u8 30, u8 40] : [u8; 4]
+
+    acir(inline) fn main f0 {
+      b0(v0: u1):
+        constrain u1 0 == v0
+        v2 = cast v0 as u32
+        v3 = unchecked_add v2, u32 2
+        v4 = array_get g0, index v3 -> u8
+        return v4
+    }
+    ";
+    let program = ssa_to_acir_program(src);
+
+    assert_circuit_snapshot!(program, @r"
+    func 0
+    private parameters: [w0]
+    public parameters: []
+    return values: [w1]
+    ASSERT w0 = 0
+    ASSERT w1 = 30
+    ");
+}
+
+#[test]
+fn folds_read_at_an_acir_only_constant_index_into_a_tuple_array() {
+    // An array of tuples is flattened in SSA, so the index is scaled by the element width before
+    // the read. The scaling multiplication folds along with everything else, landing on the
+    // `Field` slot at flattened index 4.
+    let src = "
+    acir(inline) predicate_pure fn main f0 {
+      b0(v5: u1):
+        v0 = make_array [Field 7, u1 0, Field 8, u1 0, Field 9, u1 0, Field 10, u1 0] : [(Field, u1)]
+        enable_side_effects v5
+        constrain u1 0 == v5, \"Index out of bounds\"
+        enable_side_effects u1 1
+        v7 = cast v5 as u32
+        v9 = unchecked_mul v7, u32 2329284907
+        v11 = unchecked_add v9, u32 3320108434
+        v12 = truncate v11 to 2 bits, max_bit_size: 32
+        v15 = unchecked_mul v12, u32 2
+        v16 = array_get v0, index v15 -> Field
+        return v16
+    }
+    ";
+    let program = ssa_to_acir_program(src);
+
+    assert_circuit_snapshot!(program, @r"
+    func 0
+    private parameters: [w0]
+    public parameters: []
+    return values: [w1]
+    ASSERT w0 = 0
+    ASSERT w1 = 9
+    ");
+}
+
+#[test]
+fn folds_read_at_a_constant_slot_of_a_partly_witness_array() {
+    // `assert_constant_reads_are_folded` exempts a read whose initialized value is a non-constant
+    // witness, but it decides that per slot rather than per array. An array holding one witness
+    // among constants is therefore still fully determined at a constant slot.
+    let src = "
+    acir(inline) fn main f0 {
+      b0(v0: u1, v1: u8):
+        v2 = make_array [v1, u8 20, u8 30, u8 40] : [u8; 4]
+        constrain u1 0 == v0
+        v3 = cast v0 as u32
+        v4 = unchecked_add v3, u32 2
+        v5 = array_get v2, index v4 -> u8
+        return v5
+    }
+    ";
+    let program = ssa_to_acir_program(src);
+
+    assert_circuit_snapshot!(program, @r"
+    func 0
+    private parameters: [w0, w1]
+    public parameters: []
+    return values: [w2]
+    BLACKBOX::RANGE input: w1, bits: 8
+    ASSERT w0 = 0
+    ASSERT w2 = 30
+    ");
+}
+
+#[test]
+fn folds_read_on_a_parameter_array_at_an_acir_only_constant_index() {
+    // A parameter array is an `AcirValue::Array` whose elements are witnesses, so the fold yields
+    // the witness at that slot rather than a literal, and the array still never needs a block.
+    let src = "
+    acir(inline) fn main f0 {
+      b0(v0: u1, v1: [u8; 4]):
+        constrain u1 0 == v0
+        v2 = cast v0 as u32
+        v3 = unchecked_add v2, u32 2
+        v4 = array_get v1, index v3 -> u8
+        return v4
+    }
+    ";
+    let program = ssa_to_acir_program(src);
+
+    // `w1`..`w4` are the array's elements, so slot 2 is `w3`.
+    assert_circuit_snapshot!(program, @r"
+    func 0
+    private parameters: [w0, w1, w2, w3, w4]
+    public parameters: []
+    return values: [w5]
+    BLACKBOX::RANGE input: w1, bits: 8
+    BLACKBOX::RANGE input: w2, bits: 8
+    BLACKBOX::RANGE input: w3, bits: 8
+    BLACKBOX::RANGE input: w4, bits: 8
+    ASSERT w0 = 0
+    ASSERT w5 = w3
+    ");
+}
+
+#[test]
+fn folds_write_at_an_acir_only_constant_index() {
+    // The same gate gates `array_set`. A write at a known in-bounds slot under an enabled
+    // predicate is resolved into the `AcirValue::Array`, so a later constant-index read of the
+    // result sees the stored value without either operation touching memory.
+    let src = "
+    acir(inline) fn main f0 {
+      b0(v0: u1):
+        v1 = make_array [u8 10, u8 20, u8 30, u8 40] : [u8; 4]
+        constrain u1 0 == v0
+        v2 = cast v0 as u32
+        v3 = unchecked_add v2, u32 2
+        v4 = array_set v1, index v3, value u8 99
+        v5 = array_get v4, index u32 2 -> u8
+        return v5
+    }
+    ";
+    let program = ssa_to_acir_program(src);
+
+    assert_circuit_snapshot!(program, @r"
+    func 0
+    private parameters: [w0]
+    public parameters: []
+    return values: [w1]
+    ASSERT w0 = 0
+    ASSERT w1 = 99
+    ");
+}
+
+#[test]
+fn defers_out_of_bounds_acir_only_constant_index_to_runtime() {
+    // An out-of-bounds constant index has no initialized value to fold to, so it stays on the
+    // memory path and fails at runtime, matching `constant_array_access_out_of_bounds`.
+    let src = "
+    acir(inline) fn main f0 {
+      b0(v0: u1):
+        v1 = make_array [u1 0, u1 0, u1 1] : [u1; 3]
+        constrain u1 0 == v0
+        v2 = cast v0 as u32
+        v3 = unchecked_add v2, u32 9
+        v4 = array_get v1, index v3 -> u1
+        return v4
+    }
+    ";
+    let program = ssa_to_acir_program(src);
+
+    assert_circuit_snapshot!(program, @r"
+    func 0
+    private parameters: [w0]
+    public parameters: []
+    return values: [w1]
+    ASSERT w0 = 0
+    ASSERT w2 = 0
+    ASSERT w3 = 1
+    INIT b0 = [w2, w2, w3]
+    ASSERT w4 = 9
+    READ w5 = b0[w4]
+    ASSERT w1 = w5
+    ");
+}
+
+#[test]
+fn defers_acir_only_constant_index_equal_to_the_array_length_to_runtime() {
+    // The boundary of `defers_out_of_bounds_acir_only_constant_index_to_runtime`: the first slot
+    // past the end must be treated as out of bounds, not folded to the last element.
+    let src = "
+    acir(inline) fn main f0 {
+      b0(v0: u1):
+        v1 = make_array [u1 0, u1 0, u1 1] : [u1; 3]
+        constrain u1 0 == v0
+        v2 = cast v0 as u32
+        v3 = unchecked_add v2, u32 3
+        v4 = array_get v1, index v3 -> u1
+        return v4
+    }
+    ";
+    let program = ssa_to_acir_program(src);
+
+    assert_circuit_snapshot!(program, @r"
+    func 0
+    private parameters: [w0]
+    public parameters: []
+    return values: [w1]
+    ASSERT w0 = 0
+    ASSERT w2 = 0
+    ASSERT w3 = 1
+    INIT b0 = [w2, w2, w3]
+    ASSERT w4 = 3
+    READ w5 = b0[w4]
+    ASSERT w1 = w5
+    ");
+}
+
 #[test]
 fn generates_predicated_index_for_dynamic_read() {
     let src = "
@@ -716,4 +1089,269 @@ fn make_dynamic_array_value_types() {
         (2 + 1) * 3,
         "a vector should have all the types of its first element flattened"
     );
+}
+
+#[test]
+fn predicated_composite_get_with_heterogeneous_element_layout() {
+    // A dynamic `array_get` under a dynamic predicate, on an array whose element layout is
+    // heterogeneous (`(u8, [(u8, Field); 2])` flattens to `u8, u8, Field, u8, Field`). The SSA
+    // index `v1 * 2 + 1` targets the `[(u8, Field); 2]` field of element `v1`.
+    //
+    // On a disabled branch the read must not leave any result leaf holding a value wider than
+    // its declared type: the leaves (declared `u8, Field, u8, Field`) would read the leading
+    // flat slots of the array, and a `Field` slot landing under a `u8` leaf would produce an
+    // unconstrained wide witness tagged as narrow.
+    let src = "
+    acir(inline) fn main f0 {
+      b0(v0: [(u8, [(u8, Field); 2]); 3], v1: u32, v2: u1):
+        enable_side_effects v2
+        v4 = unchecked_mul v1, u32 2
+        v6 = unchecked_add v4, u32 1
+        v7 = array_get v0, index v6 -> [(u8, Field); 2]
+        enable_side_effects u1 1
+        return v7
+    }
+    ";
+    let program = ssa_to_acir_program(src);
+    assert_circuit_snapshot!(program, @r"
+    func 0
+    private parameters: [w0, w1, w2, w3, w4, w5, w6, w7, w8, w9, w10, w11, w12, w13, w14, w15, w16]
+    public parameters: []
+    return values: [w17, w18, w19, w20]
+    BLACKBOX::RANGE input: w0, bits: 8
+    BLACKBOX::RANGE input: w1, bits: 8
+    BLACKBOX::RANGE input: w3, bits: 8
+    BLACKBOX::RANGE input: w5, bits: 8
+    BLACKBOX::RANGE input: w6, bits: 8
+    BLACKBOX::RANGE input: w8, bits: 8
+    BLACKBOX::RANGE input: w10, bits: 8
+    BLACKBOX::RANGE input: w11, bits: 8
+    BLACKBOX::RANGE input: w13, bits: 8
+    BLACKBOX::RANGE input: w15, bits: 32
+    BLACKBOX::RANGE input: w16, bits: 1
+    ASSERT w21 = 0
+    ASSERT w22 = 1
+    ASSERT w23 = 5
+    ASSERT w24 = 6
+    ASSERT w25 = 10
+    ASSERT w26 = 11
+    INIT b0 = [w21, w22, w23, w24, w25, w26]
+    ASSERT w27 = 2*w15*w16 + w16
+    READ w28 = b0[w27]
+    INIT b1 = [w0, w1, w2, w3, w4, w5, w6, w7, w8, w9, w10, w11, w12, w13, w14]
+    ASSERT w29 = -w16 + w28 + 1
+    READ w30 = b1[w29]
+    ASSERT w31 = w29 + 1
+    READ w32 = b1[w31]
+    ASSERT w33 = w31 + 1
+    READ w34 = b1[w33]
+    ASSERT w35 = w33 + 1
+    READ w36 = b1[w35]
+    ASSERT w17 = w30
+    ASSERT w18 = w32
+    ASSERT w19 = w34
+    ASSERT w20 = w36
+    ");
+}
+
+#[test]
+fn predicated_composite_get_on_vector_with_heterogeneous_items() {
+    // Same hazard as `predicated_composite_get_with_heterogeneous_element_layout`, but on a
+    // vector: the item sizes are not homogeneous (`Field` is 1 slot, `[u8; 2]` is 2), and the
+    // read targets the `[u8; 2]` item, whose `u8` leaves must not be left holding the vector's
+    // leading `Field` slot on a disabled branch.
+    let src = "
+    acir(inline) fn main f0 {
+      b0(v0: u32, v1: u1):
+        v4 = make_array [u8 2, u8 3] : [u8; 2]
+        v7 = make_array [u8 5, u8 6] : [u8; 2]
+        v8 = make_array [Field 1, v4, Field 4, v7] : [(Field, [u8; 2])]
+        enable_side_effects v1
+        v9 = unchecked_mul v0, u32 2
+        v10 = unchecked_add v9, u32 1
+        v11 = array_get v8, index v10 -> [u8; 2]
+        enable_side_effects u1 1
+        return v11
+    }
+    ";
+    let program = ssa_to_acir_program(src);
+    assert_circuit_snapshot!(program, @r"
+    func 0
+    private parameters: [w0, w1]
+    public parameters: []
+    return values: [w2, w3]
+    BLACKBOX::RANGE input: w0, bits: 32
+    BLACKBOX::RANGE input: w1, bits: 1
+    ASSERT w4 = 0
+    ASSERT w5 = 1
+    ASSERT w6 = 3
+    ASSERT w7 = 4
+    INIT b0 = [w4, w5, w6, w7]
+    ASSERT w8 = 2*w0*w1 + w1
+    READ w9 = b0[w8]
+    ASSERT w10 = 2
+    ASSERT w11 = 5
+    ASSERT w12 = 6
+    INIT b1 = [w5, w10, w6, w7, w11, w12]
+    ASSERT w13 = -w1 + w9 + 1
+    READ w14 = b1[w13]
+    ASSERT w15 = w13 + 1
+    READ w16 = b1[w15]
+    ASSERT w2 = w14
+    ASSERT w3 = w16
+    ");
+}
+
+#[test]
+#[should_panic(expected = "is not a field of the array element type")]
+fn type_mismatched_array_get_is_an_ice() {
+    // An `array_get` whose result type is not one of the element's field types cannot come out
+    // of SSA generation, so the disabled-branch fallback offset cannot be computed for it. The
+    // SSA validator currently accepts such (hand-written) SSA, so ACIR gen refuses it with a
+    // deliberate ICE rather than picking a fallback index whose slot type it cannot vouch for.
+    let src = "
+    acir(inline) fn main f0 {
+      b0(v0: [Field; 3], v1: u32, v2: u1):
+        enable_side_effects v2
+        v3 = array_get v0, index v1 -> u8
+        enable_side_effects u1 1
+        return v3
+    }
+    ";
+    let _ = ssa_to_acir_program(src);
+}
+
+#[test]
+fn predicated_get_of_scalar_field_biases_index_to_matching_slot() {
+    // A dynamic get of the `u32` field of a `(Field, u32)` element under a dynamic predicate.
+    // All items are single-slot, so the disabled-branch fallback index can be biased to slot 1
+    // (`(1 - predicate) * 1`), whose type matches the result exactly — no masking needed.
+    let src = "
+    acir(inline) fn main f0 {
+      b0(v0: [(Field, u32); 3], v1: u32, v2: u1):
+        enable_side_effects v2
+        v4 = unchecked_mul v1, u32 2
+        v6 = unchecked_add v4, u32 1
+        v7 = array_get v0, index v6 -> u32
+        enable_side_effects u1 1
+        return v7
+    }
+    ";
+    let program = ssa_to_acir_program(src);
+    assert_circuit_snapshot!(program, @r"
+    func 0
+    private parameters: [w0, w1, w2, w3, w4, w5, w6, w7]
+    public parameters: []
+    return values: [w8]
+    BLACKBOX::RANGE input: w1, bits: 32
+    BLACKBOX::RANGE input: w3, bits: 32
+    BLACKBOX::RANGE input: w5, bits: 32
+    BLACKBOX::RANGE input: w6, bits: 32
+    BLACKBOX::RANGE input: w7, bits: 1
+    INIT b0 = [w0, w1, w2, w3, w4, w5]
+    ASSERT w9 = 2*w6*w7 + 1
+    READ w10 = b0[w9]
+    ASSERT w8 = w10
+    ");
+}
+
+#[test]
+fn predicated_constant_index_get_on_heterogeneous_vector() {
+    // A *constant* index read, the counterpart of
+    // `predicated_composite_get_on_vector_with_heterogeneous_items`.
+    //
+    // The fallback offset may only be added to an index that the predicate gates down to `0`.
+    // For a layout whose fields have differing flattened sizes,
+    // [`Context::get_flattened_index`] resolves a constant index through the element-type-sizes
+    // table into a flat offset that is already known to be in bounds, and therefore returns it
+    // ungated — and unbiased, even though `DataFlowGraph::is_safe_index` reports `false` for
+    // every vector (it cannot see the vector's semantic length): a bias on top of that resolved
+    // offset would relocate the read to the wrong slots, or off the end of the block, exactly
+    // when the predicate is `0`.
+    //
+    // The vector holds two `(Field, [u8; 2])` items in six slots. Semi-flattened index `3` is
+    // item 1's `[u8; 2]`, i.e. flat slot 4, and the read must stay on slots 4 and 5 whatever
+    // the predicate is.
+    let src = "
+    acir(inline) fn main f0 {
+      b0(v0: u32, v1: u1, v2: Field):
+        v3 = make_array [u8 2, u8 3] : [u8; 2]
+        v4 = make_array [u8 5, u8 6] : [u8; 2]
+        v5 = make_array [Field 1, v3, Field 4, v4] : [(Field, [u8; 2])]
+        v6 = array_set v5, index v0, value v2
+        enable_side_effects v1
+        v7 = array_get v6, index u32 3 -> [u8; 2]
+        enable_side_effects u1 1
+        return v7
+    }
+    ";
+    let program = ssa_to_acir_program(src);
+    // The index resolves to the constant `4` and both reads stay on slots 4 and 5 whatever the
+    // predicate is — identical to the array-typed counterpart below.
+    assert_circuit_snapshot!(program, @r"
+    func 0
+    private parameters: [w0, w1, w2]
+    public parameters: []
+    return values: [w3, w4]
+    BLACKBOX::RANGE input: w1, bits: 1
+    ASSERT w5 = 0
+    ASSERT w6 = 1
+    ASSERT w7 = 3
+    ASSERT w8 = 4
+    INIT b0 = [w5, w6, w7, w8]
+    READ w9 = b0[w0]
+    ASSERT w10 = 2
+    ASSERT w11 = 5
+    ASSERT w12 = 6
+    INIT b1 = [w6, w10, w7, w8, w11, w12]
+    WRITE b1[w9] = w2
+    READ w13 = b1[w8]
+    READ w14 = b1[w11]
+    ASSERT w3 = w13
+    ASSERT w4 = w14
+    ");
+}
+
+#[test]
+fn predicated_constant_index_get_on_heterogeneous_array() {
+    // The array-typed counterpart of `predicated_constant_index_get_on_heterogeneous_vector`,
+    // pinning the behaviour the vector case should match: `is_safe_index` holds for an
+    // in-bounds constant index into an array, so no bias is applied and both reads stay on the
+    // slots the index resolved to.
+    let src = "
+    acir(inline) fn main f0 {
+      b0(v0: u32, v1: u1, v2: Field):
+        v3 = make_array [u8 2, u8 3] : [u8; 2]
+        v4 = make_array [u8 5, u8 6] : [u8; 2]
+        v5 = make_array [Field 1, v3, Field 4, v4] : [(Field, [u8; 2]); 2]
+        v6 = array_set v5, index v0, value v2
+        enable_side_effects v1
+        v7 = array_get v6, index u32 3 -> [u8; 2]
+        enable_side_effects u1 1
+        return v7
+    }
+    ";
+    let program = ssa_to_acir_program(src);
+    assert_circuit_snapshot!(program, @r"
+    func 0
+    private parameters: [w0, w1, w2]
+    public parameters: []
+    return values: [w3, w4]
+    BLACKBOX::RANGE input: w1, bits: 1
+    ASSERT w5 = 0
+    ASSERT w6 = 1
+    ASSERT w7 = 3
+    ASSERT w8 = 4
+    INIT b0 = [w5, w6, w7, w8]
+    READ w9 = b0[w0]
+    ASSERT w10 = 2
+    ASSERT w11 = 5
+    ASSERT w12 = 6
+    INIT b1 = [w6, w10, w7, w8, w11, w12]
+    WRITE b1[w9] = w2
+    READ w13 = b1[w8]
+    READ w14 = b1[w11]
+    ASSERT w3 = w13
+    ASSERT w4 = w14
+    ");
 }

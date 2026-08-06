@@ -70,6 +70,8 @@ When new tests are added, their output needs to be checked in using [cargo insta
 
 The SSA passes can be found in the [opt](compiler/noirc_evaluator/src/ssa/opt) module. Each module contains unit tests specific to their pass.
 
+Those unit tests parse textual SSA with `Ssa::from_str`, run a single pass, and assert on the result. Because most SSA bugs are miscompilations rather than crashes, an output snapshot on its own is weak evidence — it pins the shape of the SSA, not its meaning. Prefer [`assert_pass_does_not_affect_execution`](compiler/noirc_evaluator/src/ssa/opt/mod.rs), which interprets `main` before and after the pass and asserts the results (including the failure, if the program fails) are unchanged, then returns the transformed SSA so you can `assert_ssa_snapshot!` it as well. The helpers, input construction, and the common test patterns are documented in [`.claude/skills/noir-ssa-tests/SKILL.md`](.claude/skills/noir-ssa-tests/SKILL.md).
+
 We can use the `--show-ssa` CLI option to print the SSA after each pass, or the `--show-ssa-pass` CLI option to limit the output to a specific passes. For example the following command would show SSA passes with either "Defunct" or "Simple" in their labels:
 
 ```console

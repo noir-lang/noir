@@ -127,6 +127,8 @@ pub enum TypeCheckError {
     MutableCaptureWithoutRef { name: String, location: Location },
     #[error("Mutable references to array indices are unsupported")]
     MutableReferenceToArrayElement { location: Location },
+    #[error("Cannot take a mutable reference to a value behind a `&` reference")]
+    MutableReferenceBehindImmutableReference { location: Location },
     #[error("No method named '{method_name}' found for type '{object_type}'")]
     UnresolvedMethodCall { method_name: String, object_type: Type, location: Location },
     #[error("Cannot invoke function field '{method_name}' on type '{object_type}' as a method")]
@@ -359,6 +361,7 @@ impl TypeCheckError {
             | TypeCheckError::CannotMutateImmutableVariable { location, .. }
             | TypeCheckError::MutableCaptureWithoutRef { location, .. }
             | TypeCheckError::MutableReferenceToArrayElement { location }
+            | TypeCheckError::MutableReferenceBehindImmutableReference { location }
             | TypeCheckError::UnresolvedMethodCall { location, .. }
             | TypeCheckError::CannotInvokeStructFieldFunctionType { location, .. }
             | TypeCheckError::IntegerSignedness { location, .. }
@@ -654,6 +657,9 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
             ),
             TypeCheckError::MutableReferenceToArrayElement { location } => {
                 Diagnostic::simple_error("Mutable references to array elements are currently unsupported".into(), "Try storing the element in a fresh variable first".into(), *location)
+            },
+            TypeCheckError::MutableReferenceBehindImmutableReference { location } => {
+                Diagnostic::simple_error(error.to_string(), "A `&` reference grants read-only access to the value behind it".into(), *location)
             },
             TypeCheckError::TypeAnnotationsNeededForMethodCall { location } => {
                 let mut error = Diagnostic::simple_error(

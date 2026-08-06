@@ -243,6 +243,24 @@ impl Intrinsic {
         )
     }
 
+    /// Returns true if this intrinsic may write through its vector operand in place in Brillig,
+    /// i.e. when that operand's copy-on-write reference count is 1.
+    ///
+    /// This is the subset of [`Self::unsafe_for_clone_elision_in_brillig`] that actually mutates:
+    /// `StrAsBytes` and `ArrayAsStrUnchecked` are unsafe to elide a clone around because their
+    /// result aliases their operand, not because they write to it.
+    pub(crate) fn mutates_array_operand_in_brillig(&self) -> bool {
+        matches!(
+            self,
+            Intrinsic::VectorPushBack
+                | Intrinsic::VectorPushFront
+                | Intrinsic::VectorPopBack
+                | Intrinsic::VectorPopFront
+                | Intrinsic::VectorInsert
+                | Intrinsic::VectorRemove
+        )
+    }
+
     pub(crate) fn purity(&self) -> Purity {
         match self {
             // These apply a constraint in the form of ACIR opcodes, but they can be deduplicated
@@ -265,13 +283,38 @@ impl Intrinsic {
             | Intrinsic::VectorInsert
             | Intrinsic::VectorPushBack => Purity::PureWithPredicate,
 
+            // Unlike the vector operations above, `vector_push_front` needs no
+            // non-emptiness assertion and its ACIR lowering does not read the
+            // side-effects variable. It still must not be fully `Pure`: in Brillig it
+            // may write through its vector argument in place when the argument's
+            // runtime reference count is 1, so a pass that moves `Pure` calls freely
+            // (e.g. loop-invariant code motion) could separate it from the `inc_rc`
+            // that makes the mutation unobservable, or execute it on a path where the
+            // source program never runs it. The same applies to any Brillig function
+            // wrapping it, which inherits this purity through `purity_analysis`.
+            Intrinsic::VectorPushFront => Purity::PureWithPredicate,
+
             Intrinsic::AssertConstant
             | Intrinsic::StaticAssert
             | Intrinsic::ApplyRangeConstraint
             | Intrinsic::AsWitness => Purity::PureWithPredicate,
 
-            _ if self.has_side_effects() => Purity::Impure,
-            _ => Purity::Pure,
+            // Reference counts are runtime state stored next to the array contents:
+            // reading one is ordering-dependent on the rc traffic around it, so these
+            // calls cannot be moved or deduplicated.
+            Intrinsic::ArrayRefCount | Intrinsic::VectorRefCount => Purity::Impure,
+
+            // Deliberately opaque to the optimizer.
+            Intrinsic::Hint(Hint::BlackBox) => Purity::Impure,
+
+            Intrinsic::ArrayLen
+            | Intrinsic::ArrayAsStrUnchecked
+            | Intrinsic::AsVector
+            | Intrinsic::StrAsBytes
+            | Intrinsic::IsUnconstrained
+            | Intrinsic::DerivePedersenGenerators
+            | Intrinsic::FieldLessThan
+            | Intrinsic::BlackBox(_) => Purity::Pure,
         }
     }
 
