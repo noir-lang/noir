@@ -364,7 +364,7 @@ impl Context<'_> {
             }
             AcirValue::Array(array) => {
                 // `AcirValue::Array` supports reading/writing to constant indices at compile-time in some cases.
-                if let Some(constant_index) = dfg.get_numeric_constant(index) {
+                if let Some(constant_index) = self.constant_index(index, dfg)? {
                     let store_value = store_value.map(|value| self.convert_value(value, dfg));
                     self.handle_constant_index(instruction, dfg, array, constant_index, store_value)
                 } else {
@@ -378,6 +378,35 @@ impl Context<'_> {
                 Ok(false)
             }
         }
+    }
+
+    /// The compile-time value of an array index, if it has one.
+    ///
+    /// An SSA numeric constant is the obvious case, but ACIR gen tracks constants of its own which
+    /// SSA cannot see: `constrain x == c` rewrites `x`'s [`AcirVar`] to the constant `c`
+    /// (see `AcirContext::assert_eq_var`), and the arithmetic layered on top of it then folds in
+    /// the ACIR expression algebra. An index that is constant only in that second sense must still
+    /// take the compile-time path — the dynamic memory-op path would lay down a read at a constant
+    /// index on a block that has never been written, which is a fully determined read that ACIR gen
+    /// is required to fold (see `assert_constant_reads_are_folded`).
+    ///
+    /// That second kind of constant is only trustworthy as an index while it stays inside the range
+    /// of an index type. ACIR folds over the field, so an expression such as `unchecked_mul u32
+    /// 3000000000, u32 2` yields `6000000000` where the `u32` index it stands for is that value
+    /// wrapped; the two agree exactly when the folded value fits a `u32`. A wider value is left for
+    /// the paths that do not have to interpret it as a slot — a disabled access, or a runtime
+    /// bounds failure.
+    fn constant_index(
+        &mut self,
+        index: ValueId,
+        dfg: &DataFlowGraph,
+    ) -> Result<Option<FieldElement>, RuntimeError> {
+        if let Some(constant_index) = dfg.get_numeric_constant(index) {
+            return Ok(Some(constant_index));
+        }
+        let index_var = self.convert_numeric_value(index, dfg)?;
+        let constant_index = self.acir_context.var_to_expression(index_var)?.to_const().copied();
+        Ok(constant_index.filter(|index| index.try_to_u32().is_some()))
     }
 
     /// See [`Self::handle_constant_index_wrapper`]

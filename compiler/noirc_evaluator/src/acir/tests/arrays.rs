@@ -429,6 +429,379 @@ fn generates_memory_op_for_dynamic_write() {
     ");
 }
 
+// An array index can be a compile-time constant to ACIR gen while remaining symbolic in SSA:
+// `dfg.get_numeric_constant` answers for SSA, but ACIR gen also folds over its own expression
+// algebra. A read at such an index must still take the compile-time path — laying it down as a
+// memory op leaves a `READ` at a constant index on a block that is never written, which is a
+// fully determined read and is what `assert_constant_reads_are_folded` rejects.
+//
+// The tests below cover each route by which an index reaches ACIR gen in that state, plus the
+// cases that must keep their memory block.
+
+#[test]
+fn folds_read_at_an_index_constrained_from_a_parameter() {
+    // Lowering `constrain u1 0 == v0` rewrites `v0`'s `AcirVar` to the constant `0` (see
+    // `AcirContext::mark_variables_equivalent`, which prefers a constant over a witness). The
+    // `cast` and `unchecked_add` above it then fold, leaving the index the constant `2`.
+    let src = "
+    acir(inline) fn main f0 {
+      b0(v0: u1):
+        v1 = make_array [u1 0, u1 0, u1 1] : [u1; 3]
+        constrain u1 0 == v0
+        v2 = cast v0 as u32
+        v3 = unchecked_add v2, u32 2
+        v4 = array_get v1, index v3 -> u1
+        return v4
+    }
+    ";
+    let program = ssa_to_acir_program(src);
+
+    // No `INIT`/`READ` pair at all: the array never reaches a memory block, and the returned
+    // value is the constant `1` held at index 2.
+    assert_circuit_snapshot!(program, @r"
+    func 0
+    private parameters: [w0]
+    public parameters: []
+    return values: [w1]
+    ASSERT w0 = 0
+    ASSERT w1 = 1
+    ");
+}
+
+#[test]
+fn keeps_memory_block_when_constrain_protects_an_input_witness() {
+    // The mirror image of `folds_read_at_an_index_constrained_from_a_parameter`, differing only in
+    // which side of the `constrain` the parameter sits. `mark_variables_equivalent` declines to
+    // rewrite an input witness, and it inspects its `lhs` argument alone, so with the parameter on
+    // the left no substitution happens and the index stays symbolic in ACIR too. The read is then
+    // genuinely dynamic as far as ACIR gen can tell and keeps its memory block.
+    let src = "
+    acir(inline) fn main f0 {
+      b0(v0: u1):
+        v1 = make_array [u1 0, u1 0, u1 1] : [u1; 3]
+        constrain v0 == u1 0
+        v2 = cast v0 as u32
+        v3 = unchecked_add v2, u32 2
+        v4 = array_get v1, index v3 -> u1
+        return v4
+    }
+    ";
+    let program = ssa_to_acir_program(src);
+
+    assert_circuit_snapshot!(program, @r"
+    func 0
+    private parameters: [w0]
+    public parameters: []
+    return values: [w1]
+    ASSERT w0 = 0
+    ASSERT w2 = 0
+    ASSERT w3 = 1
+    INIT b0 = [w2, w2, w3]
+    ASSERT w4 = w0 + 2
+    READ w5 = b0[w4]
+    ASSERT w1 = w5
+    ");
+}
+
+#[test]
+fn folds_read_at_an_index_cancelled_by_expression_algebra() {
+    // The final SSA for `a[p0.wrapping_sub(p0)]`. There is no `constrain` here at all: the index
+    // becomes constant purely because ACIR gen's polynomial arithmetic cancels the `v6` terms of
+    // `(v6 + 2^128) - v6`. SSA's `sub x, x` identity does not match, since the operands are
+    // distinct values.
+    let src = "
+    acir(inline) predicate_pure fn main f0 {
+      b0(v0: u32):
+        v5 = make_array [u8 10, u8 20, u8 30, u8 40] : [u8; 4]
+        v6 = cast v0 as Field
+        v8 = add v6, Field 340282366920938463463374607431768211456
+        v9 = sub v8, v6
+        v10 = truncate v9 to 32 bits, max_bit_size: 254
+        v11 = cast v10 as u32
+        v12 = array_get v5, index v11 -> u8
+        return v12
+    }
+    ";
+    let program = ssa_to_acir_program(src);
+
+    assert_circuit_snapshot!(program, @r"
+    func 0
+    private parameters: [w0]
+    public parameters: []
+    return values: [w1]
+    BLACKBOX::RANGE input: w0, bits: 32
+    ASSERT w1 = 10
+    ");
+}
+
+#[test]
+fn folds_read_at_a_constrained_derived_index_with_value_on_the_left() {
+    // `mark_variables_equivalent`'s input-witness guard only protects a parameter's own witness.
+    // Once the constrained value is derived, the substitution happens whichever side it sits on,
+    // so this and `..._with_value_on_the_right` must agree.
+    let src = "
+    acir(inline) fn main f0 {
+      b0(v0: u32):
+        v1 = make_array [u8 10, u8 20, u8 30, u8 40] : [u8; 4]
+        v2 = unchecked_add v0, u32 7
+        constrain v2 == u32 7
+        v3 = unchecked_sub v2, u32 5
+        v4 = array_get v1, index v3 -> u8
+        return v4
+    }
+    ";
+    let program = ssa_to_acir_program(src);
+
+    assert_circuit_snapshot!(program, @r"
+    func 0
+    private parameters: [w0]
+    public parameters: []
+    return values: [w1]
+    ASSERT w0 = 0
+    ASSERT w1 = 30
+    ");
+}
+
+#[test]
+fn folds_read_at_a_constrained_derived_index_with_value_on_the_right() {
+    // See `..._with_value_on_the_left`: the operand order is immaterial for a derived value.
+    let src = "
+    acir(inline) fn main f0 {
+      b0(v0: u32):
+        v1 = make_array [u8 10, u8 20, u8 30, u8 40] : [u8; 4]
+        v2 = unchecked_add v0, u32 7
+        constrain u32 7 == v2
+        v3 = unchecked_sub v2, u32 5
+        v4 = array_get v1, index v3 -> u8
+        return v4
+    }
+    ";
+    let program = ssa_to_acir_program(src);
+
+    assert_circuit_snapshot!(program, @r"
+    func 0
+    private parameters: [w0]
+    public parameters: []
+    return values: [w1]
+    ASSERT w0 = 0
+    ASSERT w1 = 30
+    ");
+}
+
+#[test]
+fn folds_read_from_a_global_array_at_an_acir_only_constant_index() {
+    // A global array is an `AcirValue::Array` like a local `make_array`, so it takes the same
+    // compile-time path.
+    let src = "
+    g0 = make_array [u8 10, u8 20, u8 30, u8 40] : [u8; 4]
+
+    acir(inline) fn main f0 {
+      b0(v0: u1):
+        constrain u1 0 == v0
+        v2 = cast v0 as u32
+        v3 = unchecked_add v2, u32 2
+        v4 = array_get g0, index v3 -> u8
+        return v4
+    }
+    ";
+    let program = ssa_to_acir_program(src);
+
+    assert_circuit_snapshot!(program, @r"
+    func 0
+    private parameters: [w0]
+    public parameters: []
+    return values: [w1]
+    ASSERT w0 = 0
+    ASSERT w1 = 30
+    ");
+}
+
+#[test]
+fn folds_read_at_an_acir_only_constant_index_into_a_tuple_array() {
+    // An array of tuples is flattened in SSA, so the index is scaled by the element width before
+    // the read. The scaling multiplication folds along with everything else, landing on the
+    // `Field` slot at flattened index 4.
+    let src = "
+    acir(inline) predicate_pure fn main f0 {
+      b0(v5: u1):
+        v0 = make_array [Field 7, u1 0, Field 8, u1 0, Field 9, u1 0, Field 10, u1 0] : [(Field, u1)]
+        enable_side_effects v5
+        constrain u1 0 == v5, \"Index out of bounds\"
+        enable_side_effects u1 1
+        v7 = cast v5 as u32
+        v9 = unchecked_mul v7, u32 2329284907
+        v11 = unchecked_add v9, u32 3320108434
+        v12 = truncate v11 to 2 bits, max_bit_size: 32
+        v15 = unchecked_mul v12, u32 2
+        v16 = array_get v0, index v15 -> Field
+        return v16
+    }
+    ";
+    let program = ssa_to_acir_program(src);
+
+    assert_circuit_snapshot!(program, @r"
+    func 0
+    private parameters: [w0]
+    public parameters: []
+    return values: [w1]
+    ASSERT w0 = 0
+    ASSERT w1 = 9
+    ");
+}
+
+#[test]
+fn folds_read_at_a_constant_slot_of_a_partly_witness_array() {
+    // `assert_constant_reads_are_folded` exempts a read whose initialized value is a non-constant
+    // witness, but it decides that per slot rather than per array. An array holding one witness
+    // among constants is therefore still fully determined at a constant slot.
+    let src = "
+    acir(inline) fn main f0 {
+      b0(v0: u1, v1: u8):
+        v2 = make_array [v1, u8 20, u8 30, u8 40] : [u8; 4]
+        constrain u1 0 == v0
+        v3 = cast v0 as u32
+        v4 = unchecked_add v3, u32 2
+        v5 = array_get v2, index v4 -> u8
+        return v5
+    }
+    ";
+    let program = ssa_to_acir_program(src);
+
+    assert_circuit_snapshot!(program, @r"
+    func 0
+    private parameters: [w0, w1]
+    public parameters: []
+    return values: [w2]
+    BLACKBOX::RANGE input: w1, bits: 8
+    ASSERT w0 = 0
+    ASSERT w2 = 30
+    ");
+}
+
+#[test]
+fn folds_read_on_a_parameter_array_at_an_acir_only_constant_index() {
+    // A parameter array is an `AcirValue::Array` whose elements are witnesses, so the fold yields
+    // the witness at that slot rather than a literal, and the array still never needs a block.
+    let src = "
+    acir(inline) fn main f0 {
+      b0(v0: u1, v1: [u8; 4]):
+        constrain u1 0 == v0
+        v2 = cast v0 as u32
+        v3 = unchecked_add v2, u32 2
+        v4 = array_get v1, index v3 -> u8
+        return v4
+    }
+    ";
+    let program = ssa_to_acir_program(src);
+
+    // `w1`..`w4` are the array's elements, so slot 2 is `w3`.
+    assert_circuit_snapshot!(program, @r"
+    func 0
+    private parameters: [w0, w1, w2, w3, w4]
+    public parameters: []
+    return values: [w5]
+    BLACKBOX::RANGE input: w1, bits: 8
+    BLACKBOX::RANGE input: w2, bits: 8
+    BLACKBOX::RANGE input: w3, bits: 8
+    BLACKBOX::RANGE input: w4, bits: 8
+    ASSERT w0 = 0
+    ASSERT w5 = w3
+    ");
+}
+
+#[test]
+fn folds_write_at_an_acir_only_constant_index() {
+    // The same gate gates `array_set`. A write at a known in-bounds slot under an enabled
+    // predicate is resolved into the `AcirValue::Array`, so a later constant-index read of the
+    // result sees the stored value without either operation touching memory.
+    let src = "
+    acir(inline) fn main f0 {
+      b0(v0: u1):
+        v1 = make_array [u8 10, u8 20, u8 30, u8 40] : [u8; 4]
+        constrain u1 0 == v0
+        v2 = cast v0 as u32
+        v3 = unchecked_add v2, u32 2
+        v4 = array_set v1, index v3, value u8 99
+        v5 = array_get v4, index u32 2 -> u8
+        return v5
+    }
+    ";
+    let program = ssa_to_acir_program(src);
+
+    assert_circuit_snapshot!(program, @r"
+    func 0
+    private parameters: [w0]
+    public parameters: []
+    return values: [w1]
+    ASSERT w0 = 0
+    ASSERT w1 = 99
+    ");
+}
+
+#[test]
+fn defers_out_of_bounds_acir_only_constant_index_to_runtime() {
+    // An out-of-bounds constant index has no initialized value to fold to, so it stays on the
+    // memory path and fails at runtime, matching `constant_array_access_out_of_bounds`.
+    let src = "
+    acir(inline) fn main f0 {
+      b0(v0: u1):
+        v1 = make_array [u1 0, u1 0, u1 1] : [u1; 3]
+        constrain u1 0 == v0
+        v2 = cast v0 as u32
+        v3 = unchecked_add v2, u32 9
+        v4 = array_get v1, index v3 -> u1
+        return v4
+    }
+    ";
+    let program = ssa_to_acir_program(src);
+
+    assert_circuit_snapshot!(program, @r"
+    func 0
+    private parameters: [w0]
+    public parameters: []
+    return values: [w1]
+    ASSERT w0 = 0
+    ASSERT w2 = 0
+    ASSERT w3 = 1
+    INIT b0 = [w2, w2, w3]
+    ASSERT w4 = 9
+    READ w5 = b0[w4]
+    ASSERT w1 = w5
+    ");
+}
+
+#[test]
+fn defers_acir_only_constant_index_equal_to_the_array_length_to_runtime() {
+    // The boundary of `defers_out_of_bounds_acir_only_constant_index_to_runtime`: the first slot
+    // past the end must be treated as out of bounds, not folded to the last element.
+    let src = "
+    acir(inline) fn main f0 {
+      b0(v0: u1):
+        v1 = make_array [u1 0, u1 0, u1 1] : [u1; 3]
+        constrain u1 0 == v0
+        v2 = cast v0 as u32
+        v3 = unchecked_add v2, u32 3
+        v4 = array_get v1, index v3 -> u1
+        return v4
+    }
+    ";
+    let program = ssa_to_acir_program(src);
+
+    assert_circuit_snapshot!(program, @r"
+    func 0
+    private parameters: [w0]
+    public parameters: []
+    return values: [w1]
+    ASSERT w0 = 0
+    ASSERT w2 = 0
+    ASSERT w3 = 1
+    INIT b0 = [w2, w2, w3]
+    ASSERT w4 = 3
+    READ w5 = b0[w4]
+    ASSERT w1 = w5
+    ");
+}
+
 #[test]
 fn generates_predicated_index_for_dynamic_read() {
     let src = "
