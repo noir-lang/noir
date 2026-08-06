@@ -1856,3 +1856,136 @@ fn zeroed_array_of_references_does_not_alias() {
     }
     ");
 }
+
+#[test]
+fn constrained_fn_value_nested_in_unconstrained_fn_target_keeps_mixed_pair() {
+    // A `let` whose declared type is `unconstrained fn(..)` forces every function value in its
+    // initializer to be built as an `(unconstrained, unconstrained)` pair, so that a constrained
+    // caller dispatching through slot `.0` still runs Brillig. That is correct for the value that
+    // occupies the slot -- here `dummy`.
+    //
+    // It must not extend to `g`, which is a separate binding with its own, constrained, `fn` type
+    // and never flows into that slot. `g` must stay a mixed `(constrained, unconstrained)` pair so
+    // that `g(x)` -- a call from constrained code with no `unsafe` -- selects the constrained
+    // specialization of `compute` and its `x * x` becomes an ACIR constraint.
+    let src = r#"
+    fn compute(x: u32) -> u32 { x * x }
+    unconstrained fn dummy(x: u32) -> u32 { x }
+
+    fn main(x: u32) -> pub u32 {
+        let mut r: u32 = 0;
+        let _f: unconstrained fn(u32) -> u32 = {
+            let g: fn(u32) -> u32 = compute;
+            r = g(x);
+            dummy
+        };
+        r
+    }
+    "#;
+    let program = get_monomorphized(src).unwrap();
+    // `g$l2` is a mixed pair and slot `.0` -- the one `g$l2.0(x$l0)` selects from constrained
+    // code -- is the constrained `compute$f1`, so `x * x` becomes an ACIR constraint. `dummy`,
+    // which does occupy the `unconstrained fn` slot, is still forced to a
+    // `(unconstrained, unconstrained)` pair.
+    insta::assert_snapshot!(program, @r"
+    fn main$f0(x$l0: u32) -> pub u32 {
+        let mut r$l1 = 0;
+        let _f$l3 = {
+            let g$l2 = (compute$f1, compute$f2);
+            r$l1 = g$l2.0(x$l0);
+            (dummy$f3, dummy$f3)
+        };
+        r$l1
+    }
+    fn compute$f1(x$l4: u32) -> u32 {
+        (x$l4 * x$l4)
+    }
+    unconstrained fn compute$f2(x$l5: u32) -> u32 {
+        (x$l5 * x$l5)
+    }
+    unconstrained fn dummy$f3(x$l6: u32) -> u32 {
+        x$l6
+    }
+    ");
+}
+
+#[test]
+fn lambda_in_if_condition_of_unconstrained_fn_target_is_not_forced() {
+    // An `if` condition does not produce the value that lands in the enclosing `unconstrained fn`
+    // slot -- only the branches do. A lambda built in the condition is therefore an ordinary
+    // constrained function value, and `(|y| y * y)(x)` must be constrained.
+    //
+    // If it is forced, the comparison feeding the `if` becomes a free witness, so every assertion
+    // inside a branch is predicated on a value the prover chooses and can be made vacuous.
+    let src = r#"
+    unconstrained fn dummy(y: u32) -> u32 { y }
+
+    fn main(x: u32) -> pub u32 {
+        let _f: unconstrained fn(u32) -> u32 =
+            if (|y: u32| y * y)(x) == 9 { dummy } else { dummy };
+        x
+    }
+    "#;
+    let program = get_monomorphized(src).unwrap();
+    // The condition calls the constrained `lambda$f1` directly, with no `unsafe` wrapper, so
+    // `y * y` is constrained. The branches, which do produce the value occupying the
+    // `unconstrained fn` slot, are still forced to `(dummy$f3, dummy$f3)`.
+    insta::assert_snapshot!(program, @r"
+    fn main$f0(x$l0: u32) -> pub u32 {
+        let _f$l3 = if (lambda$f1(x$l0) == 9) {
+            (dummy$f3, dummy$f3)
+        } else {
+            (dummy$f3, dummy$f3)
+        };
+        x$l0
+    }
+    fn lambda$f1(y$l1: u32) -> u32 {
+        (y$l1 * y$l1)
+    }
+    unconstrained fn lambda$f2(y$l2: u32) -> u32 {
+        (y$l2 * y$l2)
+    }
+    unconstrained fn dummy$f3(y$l4: u32) -> u32 {
+        y$l4
+    }
+    ");
+}
+
+#[test]
+fn constrained_fn_value_in_unconstrained_fn_target_control() {
+    // Control for `constrained_fn_value_nested_in_unconstrained_fn_target_keeps_mixed_pair`:
+    // the identical program with the `unconstrained fn` ascription removed. `g` is bound to a
+    // mixed pair whose slot `.0` is the constrained `compute$f1`, so `x * x` is constrained.
+    // This is the shape the forced case must also produce for its nested `g` binding.
+    let src = r#"
+    fn compute(x: u32) -> u32 { x * x }
+
+    fn main(x: u32) -> pub u32 {
+        let mut r: u32 = 0;
+        let _f: u32 = {
+            let g: fn(u32) -> u32 = compute;
+            r = g(x);
+            0
+        };
+        r
+    }
+    "#;
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    fn main$f0(x$l0: u32) -> pub u32 {
+        let mut r$l1 = 0;
+        let _f$l3 = {
+            let g$l2 = (compute$f1, compute$f2);
+            r$l1 = g$l2.0(x$l0);
+            0
+        };
+        r$l1
+    }
+    fn compute$f1(x$l4: u32) -> u32 {
+        (x$l4 * x$l4)
+    }
+    unconstrained fn compute$f2(x$l5: u32) -> u32 {
+        (x$l5 * x$l5)
+    }
+    ");
+}

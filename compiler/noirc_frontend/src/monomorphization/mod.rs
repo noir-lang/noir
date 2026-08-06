@@ -171,9 +171,19 @@ pub struct Monomorphizer<'interner> {
     /// constrained function called from this context to be monomorphized as unconstrained too.
     in_unconstrained_function: bool,
 
-    /// Set to true to force every function to be unconstrained.
-    /// Note that this also changes the first-class function representation
-    /// from a pair of `(constrained, unconstrained)` to `(unconstrained, unconstrained)`
+    /// Set to true to force every function in the program to be unconstrained (`--force-brillig`).
+    /// This is fixed for the whole pass; `force_unconstrained` is derived from it.
+    force_brillig: bool,
+
+    /// Set to true while monomorphizing an expression whose target slot is typed
+    /// `unconstrained fn(..)`. Note that this also changes the first-class function representation
+    /// from a pair of `(constrained, unconstrained)` to `(unconstrained, unconstrained)`, so that
+    /// a constrained caller dispatching through slot `.0` still runs the unconstrained version.
+    ///
+    /// This is a property of the position being monomorphized, not of the pass: it holds for the
+    /// value stored into that slot and for nothing else. A binding nested inside that value's
+    /// expression carries its own type and its own slot, so it is monomorphized under its own
+    /// value of this field.
     force_unconstrained: bool,
 }
 
@@ -299,6 +309,7 @@ impl<'interner> Monomorphizer<'interner> {
             debug_type_tracker,
             debug_crate_id,
             in_unconstrained_function: force_unconstrained,
+            force_brillig: force_unconstrained,
             force_unconstrained,
         }
     }
@@ -388,7 +399,7 @@ impl<'interner> Monomorphizer<'interner> {
             self.debug_type_tracker.extract_vars_and_types();
 
         for f in &mut functions {
-            let is_acir_entry_point = !self.force_unconstrained && f.inline_type.is_entry_point();
+            let is_acir_entry_point = !self.force_brillig && f.inline_type.is_entry_point();
             f.is_entry_point = is_acir_entry_point || f.id == Program::main_id();
         }
 
@@ -692,7 +703,7 @@ impl<'interner> Monomorphizer<'interner> {
         // flattened size is `u32`-representable. `is_entry_point` is only finalized in
         // `into_program`, so recompute the same condition here.
         let is_entry_point =
-            (!self.force_unconstrained && inline_type.is_entry_point()) || id == Program::main_id();
+            (!self.force_brillig && inline_type.is_entry_point()) || id == Program::main_id();
         if is_entry_point {
             let max_elements = ast::MAX_ELEMENTS as u64;
             for (pattern, typ, _visibility) in &func_parameters.0 {
@@ -827,6 +838,18 @@ impl<'interner> Monomorphizer<'interner> {
 
     /// Monomorphize an expression.
     pub(crate) fn expr(&mut self, expr: ExprId) -> Result<ast::Expression, MonomorphizationError> {
+        self.expr_with_force_unconstrained(expr, false)
+    }
+
+    /// Monomorphize an expression in tail position, meaning its value becomes the value of the
+    /// expression containing it: a block's trailing expression, or an `if` or `match` branch.
+    ///
+    /// Only such an expression inherits the containing position's `force_unconstrained`, because
+    /// it is the one that produces the value stored into that position's slot.
+    fn expr_in_tail_position(
+        &mut self,
+        expr: ExprId,
+    ) -> Result<ast::Expression, MonomorphizationError> {
         use ast::Expression::Literal;
         use ast::Literal::*;
 
@@ -994,9 +1017,12 @@ impl<'interner> Monomorphizer<'interner> {
 
             HirExpression::If(if_expr) => {
                 let condition = Box::new(self.expr(if_expr.condition)?);
-                let consequence = Box::new(self.expr(if_expr.consequence)?);
-                let else_ =
-                    if_expr.alternative.map(|alt| self.expr(alt)).transpose()?.map(Box::new);
+                let consequence = Box::new(self.expr_in_tail_position(if_expr.consequence)?);
+                let else_ = if_expr
+                    .alternative
+                    .map(|alt| self.expr_in_tail_position(alt))
+                    .transpose()?
+                    .map(Box::new);
 
                 let location = self.interner.expr_location(&expr);
                 let frontend_type = self.interner.id_type(expr);
@@ -1186,14 +1212,28 @@ impl<'interner> Monomorphizer<'interner> {
         expr: ExprId,
         target_type: &Type,
     ) -> Result<ast::Expression, MonomorphizationError> {
-        if matches!(target_type.follow_bindings(), Type::Function(_, _, _, true)) {
-            let old = std::mem::replace(&mut self.force_unconstrained, true);
-            let result = self.expr(expr);
-            self.force_unconstrained = old;
-            result
-        } else {
-            self.expr(expr)
-        }
+        let forced = matches!(target_type.follow_bindings(), Type::Function(_, _, _, true));
+        self.expr_with_force_unconstrained(expr, forced)
+    }
+
+    /// Monomorphize `expr` as the value of a position that is forced unconstrained when `forced`,
+    /// then restore the caller's own forcing.
+    ///
+    /// `forced` describes this position alone, so it replaces the caller's value for the duration
+    /// rather than adding to it. Restoring on the way out is what lets a block hold a mix: a `let`
+    /// with a constrained type is monomorphized unforced, while the block's trailing expression
+    /// still sees the target that applies to the block as a whole.
+    ///
+    /// `--force-brillig` applies to every function in the program, so it always forces.
+    fn expr_with_force_unconstrained(
+        &mut self,
+        expr: ExprId,
+        forced: bool,
+    ) -> Result<ast::Expression, MonomorphizationError> {
+        let old = std::mem::replace(&mut self.force_unconstrained, self.force_brillig || forced);
+        let result = self.expr_in_tail_position(expr);
+        self.force_unconstrained = old;
+        result
     }
 
     fn constructor(
@@ -1307,7 +1347,16 @@ impl<'interner> Monomorphizer<'interner> {
         &mut self,
         statement_ids: Vec<StmtId>,
     ) -> Result<ast::Expression, MonomorphizationError> {
-        let stmts = try_vecmap(statement_ids, |id| self.statement(id));
+        // Only a trailing expression statement produces the block's value.
+        let last_index = statement_ids.len().wrapping_sub(1);
+        let stmts = try_vecmap(statement_ids.into_iter().enumerate(), |(index, id)| {
+            if index == last_index
+                && let HirStatement::Expression(expr) = self.interner.statement(&id)
+            {
+                return self.expr_in_tail_position(expr);
+            }
+            self.statement(id)
+        });
         stmts.map(ast::Expression::Block)
     }
 
@@ -2308,19 +2357,12 @@ impl<'interner> Monomorphizer<'interner> {
                 // of the unconstrained variant, being itself unconstrained, we can generate a pair of
                 // two unconstrained functions, and avoid potential illegal passing of mutable references
                 // from constrained to unconstrained code in a lambda that we know will never be called.
-                let expr = match typ {
+                let forced = matches!(
+                    typ,
                     Type::Function(_, _, _, lambda_unconstrained)
-                        if *lambda_unconstrained || *callee_unconstrained =>
-                    {
-                        let old_force_unconstrained =
-                            std::mem::replace(&mut self.force_unconstrained, true);
-                        let expr = self.expr(*id)?;
-                        self.force_unconstrained = old_force_unconstrained;
-                        expr
-                    }
-                    _ => self.expr(*id)?,
-                };
-                arguments.push(expr);
+                        if *lambda_unconstrained || *callee_unconstrained
+                );
+                arguments.push(self.expr_with_force_unconstrained(*id, forced)?);
             }
         } else {
             for id in &call.arguments {
@@ -3007,7 +3049,7 @@ impl<'interner> Monomorphizer<'interner> {
         }
 
         match match_expr {
-            HirMatch::Success(id) => self.expr(id),
+            HirMatch::Success(id) => self.expr_in_tail_position(id),
             HirMatch::Failure { .. } => {
                 let false_ = Box::new(ast::Expression::Literal(ast::Literal::Bool(false)));
                 let msg = "match failure";
@@ -3023,7 +3065,7 @@ impl<'interner> Monomorphizer<'interner> {
             }
             HirMatch::Guard { cond, body, otherwise } => {
                 let condition = Box::new(self.expr(cond)?);
-                let consequence = Box::new(self.expr(body)?);
+                let consequence = Box::new(self.expr_in_tail_position(body)?);
                 let alternative = Some(Box::new(self.match_expr(*otherwise, expr_id)?));
                 let typ = Self::convert_type(&result_type, location)?;
                 Ok(ast::Expression::If(ast::If { condition, consequence, alternative, typ }))
