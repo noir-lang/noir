@@ -860,9 +860,8 @@ impl<'a> FunctionContext<'a> {
             (Type::Integer(_, _) | Type::Field, Type::Array(len, item_type))
                 if self.decomposition_target(*len, item_type).is_some() =>
             {
-                let (bits, is_radix) = self
-                    .decomposition_target(*len, item_type)
-                    .expect("checked by the guard above");
+                let (bits, is_radix) =
+                    self.decomposition_target(*len, item_type).expect("checked by the guard above");
                 let narrowed = expr::cast(
                     expr::cast(src_expr, Type::Integer(Signedness::Unsigned, bits)),
                     Type::Field,
@@ -1648,11 +1647,8 @@ impl<'a> FunctionContext<'a> {
         // A `f"..."` literal carries its interpolated values in a separate tuple alongside the
         // fragment list, and that pairing has to survive monomorphization and the comptime
         // interpreter; it is the only literal form no generated program was producing.
-        let fmt_opts = opts
-            .iter()
-            .filter(|(_, typ)| !types::is_function(typ))
-            .cloned()
-            .collect::<Vec<_>>();
+        let fmt_opts =
+            opts.iter().filter(|(_, typ)| !types::is_function(typ)).cloned().collect::<Vec<_>>();
         // Only in unconstrained functions: a constrained `println` is routed through a proxy
         // function generated once per signature in a later pass, which does not know how to key
         // the per-interpolation metadata a format string carries.
@@ -1734,7 +1730,7 @@ impl<'a> FunctionContext<'a> {
         let mut value_types = Vec::new();
         fragments.push(FmtStrFragment::String("v".to_string()));
         for i in 0..count {
-            let (id, typ) = u.choose(&opts)?.clone();
+            let (id, typ) = u.choose(opts)?.clone();
             if i > 0 {
                 fragments.push(FmtStrFragment::String(" ".to_string()));
             }
@@ -2029,8 +2025,7 @@ impl<'a> FunctionContext<'a> {
         // Half the time, give the loop a user induction variable and a user break guard, so the
         // exit condition is not always the synthetic `idx == max` shape.
         self.enter_scope();
-        let induction =
-            if u.ratio(1, 2)? { Some(self.gen_user_induction(u)?) } else { None };
+        let induction = if u.ratio(1, 2)? { Some(self.gen_user_induction(u)?) } else { None };
 
         // Get the randomized loop body
         let was_in_loop = std::mem::replace(&mut self.in_loop, true);
@@ -2079,7 +2074,6 @@ impl<'a> FunctionContext<'a> {
 
         Ok(Expression::Block(stmts))
     }
-
 
     /// Declare a *user* induction variable for a `while`/`loop`: a mutable integer local the
     /// body updates by an arbitrary (possibly negative) step, guarded by an arbitrary
@@ -2138,7 +2132,7 @@ impl<'a> FunctionContext<'a> {
         // inference and checked-to-unchecked rewrites interesting.
         let op = if bool::arbitrary(u)? { BinaryOp::Add } else { BinaryOp::Subtract };
         let update = expr::assign_ident(
-            ident.clone(),
+            ident,
             expr::binary(ident_expr.clone(), op, expr::int_literal(step, typ.clone())),
         );
 
@@ -2178,8 +2172,7 @@ impl<'a> FunctionContext<'a> {
         // Half the time, drive the loop with a user induction variable rather than an arbitrary
         // boolean condition, so the loop analyses see a guard tied to a variable the body steps.
         self.enter_scope();
-        let induction =
-            if u.ratio(1, 2)? { Some(self.gen_user_induction(u)?) } else { None };
+        let induction = if u.ratio(1, 2)? { Some(self.gen_user_induction(u)?) } else { None };
 
         // Get the randomized loop body
         let was_in_loop = std::mem::replace(&mut self.in_loop, true);
@@ -2669,11 +2662,7 @@ impl<'a> FunctionContext<'a> {
     ///
     /// The width is chosen so every value of the narrowed type is representable in `len`
     /// digits: `len` bits for a bit decomposition, `len` bytes for a radix-256 one.
-    fn decomposition_target(
-        &self,
-        len: u32,
-        item_type: &Type,
-    ) -> Option<(IntegerBitSize, bool)> {
+    fn decomposition_target(&self, len: u32, item_type: &Type) -> Option<(IntegerBitSize, bool)> {
         let width = |bits: u32| {
             IntegerBitSize::iter()
                 .filter(|bs| u32::from(bs.bit_size()) <= bits)
