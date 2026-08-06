@@ -2,4 +2,4 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: stdout
 ---
-[regression_1601] Circuit output: 0
+[predicated_composite_get_wide_slot] Circuit output: 0
