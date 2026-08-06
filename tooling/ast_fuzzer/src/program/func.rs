@@ -2886,17 +2886,27 @@ mod tests {
         function_ctx.budget = 2;
         let loop_code = format!("{}", function_ctx.gen_loop(&mut u).unwrap()).replace(" ", "");
 
+        // `ind_b` is the user induction variable: the loop is driven by a variable the body
+        // steps and a guard the generator chose, while `idx_a` remains the harness counter that
+        // bounds the iteration count no matter what the guard does.
         assert!(
             loop_code.starts_with(
                 &r#"{
     let mut idx_a$l0 = 0;
+    let mut ind_b$l1 = 0;
     loop {
         if (idx_a$l0 == 10) {
             break
         } else {
-            idx_a$l0 = (idx_a$l0 + 1);"#
+            idx_a$l0 = (idx_a$l0 + 1);
+            if (ind_b$l1 < 0) {
+                break
+            } else {
+            };
+            ind_b$l1 = (ind_b$l1 - 1);"#
                     .replace(" ", "")
-            )
+            ),
+            "{loop_code}"
         );
     }
 
@@ -2911,17 +2921,22 @@ mod tests {
         function_ctx.budget = 2;
         let while_code = format!("{}", function_ctx.gen_while(&mut u).unwrap()).replace(" ", "");
 
+        // The `while` guard is the user induction variable's comparison, and `ind_b` is stepped
+        // inside the body; `idx_a` is the harness counter that still bounds the iterations.
         assert!(
             while_code.starts_with(
                 &r#"{
     let mut idx_a$l0 = 0;
-    while (!false) {
+    let mut ind_b$l1 = 0;
+    while (ind_b$l1 < 0) {
         if (idx_a$l0 == 10) {
             break
         } else {
-            idx_a$l0 = (idx_a$l0 + 1)"#
+            idx_a$l0 = (idx_a$l0 + 1);
+            ind_b$l1 = (ind_b$l1 - 1)"#
                     .replace(" ", "")
-            )
+            ),
+            "{while_code}"
         );
     }
 }
