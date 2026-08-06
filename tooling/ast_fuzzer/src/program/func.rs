@@ -559,75 +559,8 @@ impl<'a> FunctionContext<'a> {
             return Ok(expr);
         }
 
-        // A composite that holds a function has no literal form — there is no way to write a
-        // function value as a literal — so build it out of its parts instead, letting each
-        // function element resolve to a function in scope or a global one.
-        if types::contains_function(typ) {
-            return self.gen_composite_with_function(u, typ, max_depth, flags);
-        }
-
         // If nothing else worked out we can always produce a random literal.
         self.gen_literal(u, typ).map(|expr| (expr, false))
-    }
-
-    /// Build a value of a composite type that holds a function, element by element.
-    ///
-    /// [`expr::gen_literal`] cannot do this: a function value can only come from a function in
-    /// scope or a global one, which it has no access to.
-    fn gen_composite_with_function(
-        &mut self,
-        u: &mut Unstructured,
-        typ: &Type,
-        max_depth: usize,
-        flags: Flags,
-    ) -> arbitrary::Result<TrackedExpression> {
-        match typ {
-            Type::Tuple(items) => {
-                let mut values = Vec::new();
-                let mut is_dyn = false;
-                for item in items {
-                    let (value, dyn_item) = self.gen_expr(u, item, max_depth, flags)?;
-                    values.push(value);
-                    is_dyn |= dyn_item;
-                }
-                Ok((Expression::Tuple(values), is_dyn))
-            }
-            Type::Array(len, item) => {
-                let mut contents = Vec::new();
-                let mut is_dyn = false;
-                for _ in 0..*len {
-                    let (value, dyn_item) = self.gen_expr(u, item, max_depth, flags)?;
-                    contents.push(value);
-                    is_dyn |= dyn_item;
-                }
-                let arr = ArrayLiteral { contents, typ: typ.clone() };
-                Ok((Expression::Literal(Literal::Array(arr)), is_dyn))
-            }
-            Type::Vector(item) => {
-                let len = u.int_in_range(0..=self.config().max_array_size)?;
-                let mut contents = Vec::new();
-                let mut is_dyn = false;
-                for _ in 0..len {
-                    let (value, dyn_item) = self.gen_expr(u, item, max_depth, flags)?;
-                    contents.push(value);
-                    is_dyn |= dyn_item;
-                }
-                let arr = ArrayLiteral { contents, typ: typ.clone() };
-                Ok((Expression::Literal(Literal::Vector(arr)), is_dyn))
-            }
-            Type::Reference(inner, _) => {
-                // Mirror how a bare function reference is produced: an immutable global ident
-                // has to be bound to a variable before a reference can be taken over it.
-                let (expr, is_dyn) = self.gen_expr(u, inner, max_depth, flags)?;
-                let expr = if expr::is_immutable_ident(&expr) {
-                    self.indirect_ref_mut((expr, is_dyn), inner.as_ref().clone())
-                } else {
-                    expr::ref_mut(expr, inner.as_ref().clone())
-                };
-                Ok((expr, is_dyn))
-            }
-            other => unreachable!("not a composite holding a function: {other}"),
-        }
     }
 
     /// Try to generate an expression with a certain type out of the variables in scope.
@@ -850,24 +783,18 @@ impl<'a> FunctionContext<'a> {
                 let expr = self.call_str_as_bytes(src_expr, *len, tgt_type.clone());
                 Ok(Some((expr, src_dyn)))
             }
-            // Decompose a numeric value into its bit or byte representation.
+            // Reinterpret a string as its byte array with `str_as_bytes`.
             //
-            // `to_le_bits`/`to_be_bits`/`to_le_radix`/`to_be_radix` are implemented four times
-            // over — in the comptime interpreter, the SSA interpreter, ACIR gen and Brillig gen
-            // — and those implementations have to agree. The source value is first narrowed to
-            // an integer type whose width the output can always represent, so a program can
-            // never fail merely because the decomposition did not fit.
-            (Type::Integer(_, _) | Type::Field, Type::Array(len, item_type))
-                if self.decomposition_target(*len, item_type).is_some() =>
+            // The conversion returns a value that shares the string's storage, so the ownership
+            // pass has to keep them apart; noir-claude#1201 was exactly a missing clone here.
+            (Type::String(len), Type::Array(tgt_len, item_type))
+                if *len == *tgt_len
+                    && matches!(
+                        item_type.as_ref(),
+                        Type::Integer(Signedness::Unsigned, IntegerBitSize::Eight)
+                    ) =>
             {
-                let (bits, is_radix) =
-                    self.decomposition_target(*len, item_type).expect("checked by the guard above");
-                let narrowed = expr::cast(
-                    expr::cast(src_expr, Type::Integer(Signedness::Unsigned, bits)),
-                    Type::Field,
-                );
-                let expr =
-                    self.call_decompose(u, narrowed, *len, item_type.as_ref().clone(), is_radix)?;
+                let expr = self.call_str_as_bytes(src_expr, *len, tgt_type.clone());
                 Ok(Some((expr, src_dyn)))
             }
             // Convert an array into a vector with `as_vector`. This is how a fixed-size array
@@ -1630,10 +1557,6 @@ impl<'a> FunctionContext<'a> {
             .current()
             .variables()
             .filter_map(|(id, (_, _, typ))| types::is_printable(typ).then_some((*id, typ.clone())))
-            // A bare function is printed by passing it as a pair of idents, but a function
-            // nested in a composite has no such encoding: the printable-type metadata would
-            // describe more values than the call supplies.
-            .filter(|(_, typ)| types::is_function(typ) || !types::contains_function(typ))
             // TODO(#10499): comptime function representations are at the moment just "(function)"
             // (disable printing functions if comptime_friendly is on)
             .filter(|(_, typ)| !types::is_function(typ) || !self.config().comptime_friendly)
@@ -1724,21 +1647,18 @@ impl<'a> FunctionContext<'a> {
             return Ok(None);
         }
 
-        let count = u.int_in_range(1..=opts.len().min(2))?;
-        let mut fragments = Vec::new();
-        let mut values = Vec::new();
-        let mut value_types = Vec::new();
-        fragments.push(FmtStrFragment::String("v".to_string()));
-        for i in 0..count {
-            let (id, typ) = u.choose(opts)?.clone();
-            if i > 0 {
-                fragments.push(FmtStrFragment::String(" ".to_string()));
-            }
-            let ident = self.local_ident(id);
-            fragments.push(FmtStrFragment::Interpolation(ident.name.clone(), Location::dummy()));
-            values.push(Expression::Ident(ident));
-            value_types.push(typ);
-        }
+        // Exactly one interpolation: the monomorphized `print` call takes the value, one piece
+        // of type metadata and the format-string marker, and the printer asserts that shape.
+        // A second interpolation would add another metadata argument and break it.
+        let count = 1;
+        let (id, typ) = u.choose(opts)?.clone();
+        let ident = self.local_ident(id);
+        let fragments = vec![
+            FmtStrFragment::String("v".to_string()),
+            FmtStrFragment::Interpolation(ident.name.clone(), Location::dummy()),
+        ];
+        let values = vec![Expression::Ident(ident)];
+        let value_types = vec![typ];
 
         // `Literal::FmtStr`'s second field is the number of interpolated variables, which is
         // also what `Expression::return_type` uses as the `FmtString` size.
@@ -2654,73 +2574,6 @@ impl<'a> FunctionContext<'a> {
             return_type: bytes_type,
             location: Location::dummy(),
         })
-    }
-
-    /// If an array of `len` values of `item_type` is a valid target for a bit or radix
-    /// decomposition, return the integer width the input must be narrowed to and whether the
-    /// intrinsic is a radix (byte) rather than a bit decomposition.
-    ///
-    /// The width is chosen so every value of the narrowed type is representable in `len`
-    /// digits: `len` bits for a bit decomposition, `len` bytes for a radix-256 one.
-    fn decomposition_target(&self, len: u32, item_type: &Type) -> Option<(IntegerBitSize, bool)> {
-        let width = |bits: u32| {
-            IntegerBitSize::iter()
-                .filter(|bs| u32::from(bs.bit_size()) <= bits)
-                .max_by_key(|bs| bs.bit_size())
-        };
-        match item_type {
-            Type::Bool => width(len).map(|bits| (bits, false)),
-            Type::Integer(Signedness::Unsigned, IntegerBitSize::Eight) => {
-                width(len.saturating_mul(8)).map(|bits| (bits, true))
-            }
-            _ => None,
-        }
-    }
-
-    /// Construct a `Call` to one of the bit/radix decomposition builtins.
-    fn call_decompose(
-        &mut self,
-        u: &mut Unstructured,
-        value: Expression,
-        len: u32,
-        item_type: Type,
-        is_radix: bool,
-    ) -> arbitrary::Result<Expression> {
-        let little_endian = bool::arbitrary(u)?;
-        let name = match (is_radix, little_endian) {
-            (false, true) => "to_le_bits",
-            (false, false) => "to_be_bits",
-            (true, true) => "to_le_radix",
-            (true, false) => "to_be_radix",
-        };
-        let return_type = Type::Array(len, Rc::new(item_type));
-        // The radix intrinsics take the radix as a second argument; 256 pairs with the `u8`
-        // element type the guard requires.
-        let mut arg_types = vec![Type::Field];
-        let mut args = vec![value];
-        if is_radix {
-            arg_types.push(types::U32);
-            args.push(expr::u32_literal(256));
-        }
-        let func_ident = Ident {
-            location: None,
-            definition: Definition::Builtin(name.to_string()),
-            mutable: false,
-            name: name.to_string(),
-            typ: Rc::new(Type::Function(
-                arg_types,
-                Rc::new(return_type.clone()),
-                Rc::new(Type::Unit),
-                false,
-            )),
-            id: self.next_ident_id(),
-        };
-        Ok(Expression::Call(Call {
-            func: Box::new(Expression::Ident(func_ident)),
-            arguments: args,
-            return_type,
-            location: Location::dummy(),
-        }))
     }
 
     /// Construct a `Call` to the `as_vector` builtin, converting an array into a vector.

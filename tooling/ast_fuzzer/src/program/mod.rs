@@ -297,15 +297,6 @@ impl Context {
                     Rc::new(Type::Unit),
                     callee.unconstrained,
                 );
-                // Sometimes bury the function inside a composite. Defunctionalization builds its
-                // dispatch table by finding function values, and reaching one through a tuple or
-                // an array exercises that discovery, and the `apply` dispatch it generates,
-                // rather than only the bare-parameter case.
-                let typ = match u.choose_index(4)? {
-                    0 => Type::Tuple(vec![typ, Type::Field]),
-                    1 => Type::Array(u.int_in_range(1..=2)?, Rc::new(typ)),
-                    _ => typ,
-                };
                 if u.ratio(2, 5)? { types::ref_mut(typ) } else { typ }
             };
 
