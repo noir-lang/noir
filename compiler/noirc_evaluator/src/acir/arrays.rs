@@ -506,16 +506,13 @@ impl Context<'_> {
 
         let shift = ElementTypeSizesArrayShift::None;
         let index_var = self.convert_numeric_value(index, dfg)?;
-        let is_safe_index = dfg.is_safe_index(index, array_id);
-        let index_var = self.get_flattened_index(
-            &array_typ,
-            array_id,
-            index_var,
-            dfg,
-            is_safe_index,
-            shift,
-            offset,
-        )?;
+        let gating = if dfg.is_safe_index(index, array_id) {
+            IndexGating::Safe
+        } else {
+            IndexGating::Gated { fallback_offset: offset }
+        };
+        let index_var =
+            self.get_flattened_index(&array_typ, array_id, index_var, dfg, gating, shift)?;
 
         // Side-effects are always enabled so we do not need to do any predication
         if self.acir_context.is_constant_one(&self.current_side_effects_enabled_var) {
@@ -1160,26 +1157,23 @@ impl Context<'_> {
     /// In some cases this requires consulting a side ["element type sizes"][Self::init_element_type_sizes_array]
     /// array to calculate offsets when elements have a non-homogenous layout.
     ///
-    /// When the index isn't statically known to be in range it is gated by the side-effects
-    /// predicate, and `fallback_offset * (1 - predicate)` is added on top, so that on a disabled
-    /// branch the access collapses to `fallback_offset` — a slot whose type is compatible with
-    /// the access (see [`Self::compute_offset`]). The bias's precondition is exactly "the index
-    /// collapses to `0` under a false predicate", so it is applied here, on the gated path and
-    /// nowhere else: an index that is not gated — a safe index, or a constant resolved through
-    /// the element-type-sizes table below — stays on its true slots whatever the predicate is,
-    /// and must not be biased.
+    /// For an [`IndexGating::Gated`] index the returned index is gated by the side-effects
+    /// predicate and `fallback_offset * (1 - predicate)` is added on top, so that on a disabled
+    /// branch the access collapses to `fallback_offset` (see [`IndexGating`]). The bias's
+    /// precondition is exactly "the index collapses to `0` under a false predicate", so it is
+    /// applied here, on the gated path and nowhere else: an index that is not gated — a safe
+    /// index, or a constant resolved through the element-type-sizes table below — stays on its
+    /// true slots whatever the predicate is, and must not be biased.
     ///
     /// See [self] for a more concrete example of how flattened indices are computed.
-    #[allow(clippy::too_many_arguments)]
     pub(super) fn get_flattened_index(
         &mut self,
         array_typ: &Type,
         array_id: ValueId,
         var_index: AcirVar,
         dfg: &DataFlowGraph,
-        is_safe_index: bool,
+        gating: IndexGating,
         shift: ElementTypeSizesArrayShift,
-        fallback_offset: usize,
     ) -> Result<AcirVar, RuntimeError> {
         // For a non-homogenous layout a statically-known, in-bounds index resolves to a fixed
         // flattened offset held in the element-type-sizes table. That offset is independent of the
@@ -1189,9 +1183,10 @@ impl Context<'_> {
         // constant into a witness and hide its value. An out-of-bounds constant index (no table
         // entry) falls through to the runtime path, which defers the bounds failure to execution.
         //
-        // This resolved index is in bounds and ungated (`is_safe_index` cannot see it: it holds
-        // vector indices to the vector's unknown semantic length, so it is `false` for every
-        // vector). The access reads the slots the program asked for, so no fallback bias applies.
+        // This resolved index is in bounds and ungated even when the caller asked for gating
+        // ([`DataFlowGraph::is_safe_index`] cannot see it: it holds vector indices to the vector's
+        // unknown semantic length, so it is `false` for every vector). The access reads the slots
+        // the program asked for, so no fallback bias applies.
         if array_has_constant_element_size(array_typ).is_none()
             && let Some(index) = self
                 .acir_context
@@ -1211,11 +1206,11 @@ impl Context<'_> {
         // (memory reads/writes, comparisons, etc.) would fail the ACVM bounds check on
         // a disabled branch with an OOB user-supplied index. `mul_var` constant-folds
         // when the predicate is `0` or `1`, so this is free in those cases.
-        let gated = !is_safe_index;
-        let var_index = if gated {
-            self.acir_context.mul_var(var_index, self.current_side_effects_enabled_var)?
-        } else {
-            var_index
+        let var_index = match gating {
+            IndexGating::Safe => var_index,
+            IndexGating::Gated { .. } => {
+                self.acir_context.mul_var(var_index, self.current_side_effects_enabled_var)?
+            }
         };
 
         let flat_index = if let Some(step_size) = array_has_constant_element_size(array_typ) {
@@ -1231,14 +1226,16 @@ impl Context<'_> {
         // The gated flat index is `0` on a disabled branch; bias it to the fallback slot.
         // `raw_index * predicate + fallback_offset * (1 - predicate)` yields the raw index when
         // the predicate is `1` and `fallback_offset` when it is `0`.
-        if gated && fallback_offset != 0 {
-            let one = self.acir_context.add_constant(FieldElement::one());
-            let not_pred = self.acir_context.sub_var(one, self.current_side_effects_enabled_var)?;
-            let offset_var = self.acir_context.add_constant(fallback_offset);
-            let offset_term = self.acir_context.mul_var(offset_var, not_pred)?;
-            Ok(self.acir_context.add_var(flat_index, offset_term)?)
-        } else {
-            Ok(flat_index)
+        match gating {
+            IndexGating::Gated { fallback_offset } if fallback_offset != 0 => {
+                let one = self.acir_context.add_constant(FieldElement::one());
+                let not_pred =
+                    self.acir_context.sub_var(one, self.current_side_effects_enabled_var)?;
+                let offset_var = self.acir_context.add_constant(fallback_offset);
+                let offset_term = self.acir_context.mul_var(offset_var, not_pred)?;
+                Ok(self.acir_context.add_var(flat_index, offset_term)?)
+            }
+            IndexGating::Safe | IndexGating::Gated { .. } => Ok(flat_index),
         }
     }
 
@@ -1362,6 +1359,32 @@ impl Context<'_> {
 
         self.acir_context.initialize_array(array, len, value, databus)?;
         Ok(())
+    }
+}
+
+/// How an index is treated on a branch the side-effects predicate disables.
+///
+/// The two cases are one decision, not two independent knobs: a fallback slot is only reachable
+/// because gating collapsed the index to `0` first, so an ungated index has no fallback to speak
+/// of. [`Context::get_flattened_index`] is the only place that can tell them apart.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) enum IndexGating {
+    /// The index is statically known to be in range for the access, so it is used as-is: the
+    /// access stays on the slots the program asked for whatever the predicate is.
+    Safe,
+    /// The index is not known to be in range, so it is gated by the predicate — a disabled
+    /// branch would otherwise fail the ACVM bounds check on an out-of-bounds user-supplied
+    /// index. The gated index is `0`, and `fallback_offset` moves the access from there onto a
+    /// slot whose type is compatible with it (see [`Context::compute_offset`]); `0` for an
+    /// access that has no such slot to land on and only needs to be in bounds.
+    Gated { fallback_offset: usize },
+}
+
+impl IndexGating {
+    /// The gating for an access that addresses whole elements, and so has no field of the element
+    /// to fall back on: a disabled branch collapses it to the start of the block.
+    pub(super) fn without_fallback(is_safe_index: bool) -> Self {
+        if is_safe_index { Self::Safe } else { Self::Gated { fallback_offset: 0 } }
     }
 }
 
