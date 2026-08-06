@@ -2,4 +2,4 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: stdout
 ---
-[regression_1615] Circuit output: [7, 9]
+[predicated_safe_get_stale_predicate] Circuit output: [7, 9]
