@@ -493,7 +493,7 @@
 <a href=#493 id=493 data-nosnippet>493</a></span><span class="kw">mod </span>tests {
 <a href=#494 id=494 data-nosnippet>494</a>    <span class="kw">use crate</span>::{
 <a href=#495 id=495 data-nosnippet>495</a>        assert_ssa_snapshot,
-<a href=#496 id=496 data-nosnippet>496</a>        ssa::{Ssa, opt::assert_ssa_does_not_change},
+<a href=#496 id=496 data-nosnippet>496</a>        ssa::{Ssa, opt::assert_ssa_does_not_change, ssa_gen::validate_ssa},
 <a href=#497 id=497 data-nosnippet>497</a>    };
 <a href=#498 id=498 data-nosnippet>498</a>
 <a href=#499 id=499 data-nosnippet>499</a>    <span class="attr">#[test]
@@ -531,252 +531,278 @@
 <a href=#531 id=531 data-nosnippet>531</a>    }
 <a href=#532 id=532 data-nosnippet>532</a>
 <a href=#533 id=533 data-nosnippet>533</a>    <span class="attr">#[test]
-<a href=#534 id=534 data-nosnippet>534</a>    </span><span class="kw">fn </span>array_jmpif() {
-<a href=#535 id=535 data-nosnippet>535</a>        <span class="comment">// With merge_cost=3 per exit param, jump_overhead = (2+2+2) - 3 = 3.
-<a href=#536 id=536 data-nosnippet>536</a>        // A 3-element MakeArray costs 6 per branch. Total cost 12 &gt;= 12/2 + 3 = 9,
-<a href=#537 id=537 data-nosnippet>537</a>        // so the conditional is NOT flattened.
-<a href=#538 id=538 data-nosnippet>538</a>        </span><span class="kw">let </span>src = <span class="string">r#"
-<a href=#539 id=539 data-nosnippet>539</a>              brillig(inline) fn foo f0 {
-<a href=#540 id=540 data-nosnippet>540</a>                b0(v0: u32):
-<a href=#541 id=541 data-nosnippet>541</a>                  v3 = eq v0, u32 5
-<a href=#542 id=542 data-nosnippet>542</a>                  jmpif v3 then: b2(), else: b1()
-<a href=#543 id=543 data-nosnippet>543</a>                b1():
-<a href=#544 id=544 data-nosnippet>544</a>                  v10 = make_array b"foo"
-<a href=#545 id=545 data-nosnippet>545</a>                  jmp b3(v10)
-<a href=#546 id=546 data-nosnippet>546</a>                b2():
-<a href=#547 id=547 data-nosnippet>547</a>                  v7 = make_array b"bar"
-<a href=#548 id=548 data-nosnippet>548</a>                  jmp b3(v7)
-<a href=#549 id=549 data-nosnippet>549</a>                b3(v1: [u8; 3]):
-<a href=#550 id=550 data-nosnippet>550</a>                  return v1
-<a href=#551 id=551 data-nosnippet>551</a>            }
-<a href=#552 id=552 data-nosnippet>552</a>            "#</span>;
-<a href=#553 id=553 data-nosnippet>553</a>        assert_ssa_does_not_change(src, Ssa::flatten_basic_conditionals);
-<a href=#554 id=554 data-nosnippet>554</a>    }
-<a href=#555 id=555 data-nosnippet>555</a>
-<a href=#556 id=556 data-nosnippet>556</a>    <span class="attr">#[test]
-<a href=#557 id=557 data-nosnippet>557</a>    </span><span class="kw">fn </span>large_array_jmpif_not_flattened() {
-<a href=#558 id=558 data-nosnippet>558</a>        <span class="comment">// Large MakeArrays (10+ elements) cost min(len*2, 20) = 20 each.
-<a href=#559 id=559 data-nosnippet>559</a>        // Combined cost of 40 &gt;= 40/2 + 10 = 30, so the conditional is not worth flattening.
-<a href=#560 id=560 data-nosnippet>560</a>        </span><span class="kw">let </span>src = <span class="string">r#"
-<a href=#561 id=561 data-nosnippet>561</a>              brillig(inline) fn foo f0 {
-<a href=#562 id=562 data-nosnippet>562</a>                b0(v0: u32):
-<a href=#563 id=563 data-nosnippet>563</a>                  v3 = eq v0, u32 5
-<a href=#564 id=564 data-nosnippet>564</a>                  jmpif v3 then: b2(), else: b1()
-<a href=#565 id=565 data-nosnippet>565</a>                b1():
-<a href=#566 id=566 data-nosnippet>566</a>                  v10 = make_array b"0123456789a"
-<a href=#567 id=567 data-nosnippet>567</a>                  jmp b3(v10)
-<a href=#568 id=568 data-nosnippet>568</a>                b2():
-<a href=#569 id=569 data-nosnippet>569</a>                  v7 = make_array b"abcdefghijk"
-<a href=#570 id=570 data-nosnippet>570</a>                  jmp b3(v7)
-<a href=#571 id=571 data-nosnippet>571</a>                b3(v1: [u8; 11]):
-<a href=#572 id=572 data-nosnippet>572</a>                  return v1
-<a href=#573 id=573 data-nosnippet>573</a>            }
-<a href=#574 id=574 data-nosnippet>574</a>            "#</span>;
-<a href=#575 id=575 data-nosnippet>575</a>        assert_ssa_does_not_change(src, Ssa::flatten_basic_conditionals);
-<a href=#576 id=576 data-nosnippet>576</a>    }
-<a href=#577 id=577 data-nosnippet>577</a>
-<a href=#578 id=578 data-nosnippet>578</a>    <span class="attr">#[test]
-<a href=#579 id=579 data-nosnippet>579</a>    </span><span class="kw">fn </span>nested_jmpifs() {
-<a href=#580 id=580 data-nosnippet>580</a>        <span class="kw">let </span>src = <span class="string">"
-<a href=#581 id=581 data-nosnippet>581</a>            brillig(inline) fn foo f0 {
-<a href=#582 id=582 data-nosnippet>582</a>              b0(v0: u32):
-<a href=#583 id=583 data-nosnippet>583</a>                v5 = eq v0, u32 5
-<a href=#584 id=584 data-nosnippet>584</a>                v6 = not v5
-<a href=#585 id=585 data-nosnippet>585</a>                jmpif v5 then: b5(), else: b1()
-<a href=#586 id=586 data-nosnippet>586</a>              b1():
-<a href=#587 id=587 data-nosnippet>587</a>                v8 = lt v0, u32 3
-<a href=#588 id=588 data-nosnippet>588</a>                jmpif v8 then: b3(), else: b2()
-<a href=#589 id=589 data-nosnippet>589</a>              b2():
-<a href=#590 id=590 data-nosnippet>590</a>                v9 = truncate v0 to 2 bits, max_bit_size: 32
-<a href=#591 id=591 data-nosnippet>591</a>                jmp b4(v9)
-<a href=#592 id=592 data-nosnippet>592</a>              b3():
-<a href=#593 id=593 data-nosnippet>593</a>                v10 = truncate v0 to 1 bits, max_bit_size: 32
-<a href=#594 id=594 data-nosnippet>594</a>                jmp b4(v10)
-<a href=#595 id=595 data-nosnippet>595</a>              b4(v1: u32):
-<a href=#596 id=596 data-nosnippet>596</a>                jmp b9(v1)
-<a href=#597 id=597 data-nosnippet>597</a>              b5():
-<a href=#598 id=598 data-nosnippet>598</a>                v12 = lt u32 2, v0
-<a href=#599 id=599 data-nosnippet>599</a>                jmpif v12 then: b7(), else: b6()
-<a href=#600 id=600 data-nosnippet>600</a>              b6():
-<a href=#601 id=601 data-nosnippet>601</a>                v13 = truncate v0 to 3 bits, max_bit_size: 32
-<a href=#602 id=602 data-nosnippet>602</a>                jmp b8(v13)
-<a href=#603 id=603 data-nosnippet>603</a>              b7():
-<a href=#604 id=604 data-nosnippet>604</a>                v14 = and v0, u32 2
-<a href=#605 id=605 data-nosnippet>605</a>                jmp b8(v14)
-<a href=#606 id=606 data-nosnippet>606</a>              b8(v2: u32):
-<a href=#607 id=607 data-nosnippet>607</a>                jmp b9(v2)
-<a href=#608 id=608 data-nosnippet>608</a>              b9(v3: u32):
-<a href=#609 id=609 data-nosnippet>609</a>                return v3
-<a href=#610 id=610 data-nosnippet>610</a>            }
-<a href=#611 id=611 data-nosnippet>611</a>            "</span>;
-<a href=#612 id=612 data-nosnippet>612</a>        <span class="comment">// Inner 1 is NOT flattened: truncate costs are high enough.
-<a href=#613 id=613 data-nosnippet>613</a>        // Inner 2 IS flattened: and+truncate is cheap enough to merge.
-<a href=#614 id=614 data-nosnippet>614</a>        </span><span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
-<a href=#615 id=615 data-nosnippet>615</a>        <span class="kw">let </span>ssa = ssa.flatten_basic_conditionals();
-<a href=#616 id=616 data-nosnippet>616</a>        <span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
-<a href=#617 id=617 data-nosnippet>617</a>        brillig(inline) fn foo f0 {
-<a href=#618 id=618 data-nosnippet>618</a>          b0(v0: u32):
-<a href=#619 id=619 data-nosnippet>619</a>            v4 = eq v0, u32 5
-<a href=#620 id=620 data-nosnippet>620</a>            v5 = not v4
-<a href=#621 id=621 data-nosnippet>621</a>            jmpif v4 then: b5(), else: b1()
-<a href=#622 id=622 data-nosnippet>622</a>          b1():
-<a href=#623 id=623 data-nosnippet>623</a>            v7 = lt v0, u32 3
-<a href=#624 id=624 data-nosnippet>624</a>            jmpif v7 then: b3(), else: b2()
-<a href=#625 id=625 data-nosnippet>625</a>          b2():
-<a href=#626 id=626 data-nosnippet>626</a>            v18 = truncate v0 to 2 bits, max_bit_size: 32
-<a href=#627 id=627 data-nosnippet>627</a>            jmp b4(v18)
-<a href=#628 id=628 data-nosnippet>628</a>          b3():
-<a href=#629 id=629 data-nosnippet>629</a>            v19 = truncate v0 to 1 bits, max_bit_size: 32
-<a href=#630 id=630 data-nosnippet>630</a>            jmp b4(v19)
-<a href=#631 id=631 data-nosnippet>631</a>          b4(v1: u32):
-<a href=#632 id=632 data-nosnippet>632</a>            jmp b6(v1)
-<a href=#633 id=633 data-nosnippet>633</a>          b5():
-<a href=#634 id=634 data-nosnippet>634</a>            v9 = lt u32 2, v0
-<a href=#635 id=635 data-nosnippet>635</a>            v10 = and v0, u32 2
-<a href=#636 id=636 data-nosnippet>636</a>            v11 = not v9
-<a href=#637 id=637 data-nosnippet>637</a>            v12 = truncate v0 to 3 bits, max_bit_size: 32
-<a href=#638 id=638 data-nosnippet>638</a>            v13 = cast v9 as u32
-<a href=#639 id=639 data-nosnippet>639</a>            v14 = cast v11 as u32
-<a href=#640 id=640 data-nosnippet>640</a>            v15 = unchecked_mul v13, v10
-<a href=#641 id=641 data-nosnippet>641</a>            v16 = unchecked_mul v14, v12
-<a href=#642 id=642 data-nosnippet>642</a>            v17 = unchecked_add v15, v16
-<a href=#643 id=643 data-nosnippet>643</a>            jmp b6(v17)
-<a href=#644 id=644 data-nosnippet>644</a>          b6(v2: u32):
-<a href=#645 id=645 data-nosnippet>645</a>            return v2
-<a href=#646 id=646 data-nosnippet>646</a>        }
-<a href=#647 id=647 data-nosnippet>647</a>        "</span>);
-<a href=#648 id=648 data-nosnippet>648</a>    }
-<a href=#649 id=649 data-nosnippet>649</a>
-<a href=#650 id=650 data-nosnippet>650</a>    <span class="attr">#[test]
-<a href=#651 id=651 data-nosnippet>651</a>    </span><span class="kw">fn </span>nested_jmpifs_not_flattened() {
-<a href=#652 id=652 data-nosnippet>652</a>        <span class="comment">// Both inner conditionals use truncate on both branches (cost 7 each),
-<a href=#653 id=653 data-nosnippet>653</a>        // so total cost per inner = 14. jump_overhead = (2+2+2) - 1 = 5.
-<a href=#654 id=654 data-nosnippet>654</a>        // 14 &gt;= 14/2 + 5 = 12, so neither inner conditional is flattened.
-<a href=#655 id=655 data-nosnippet>655</a>        </span><span class="kw">let </span>src = <span class="string">"
-<a href=#656 id=656 data-nosnippet>656</a>            brillig(inline) fn foo f0 {
-<a href=#657 id=657 data-nosnippet>657</a>              b0(v0: u32):
-<a href=#658 id=658 data-nosnippet>658</a>                v5 = eq v0, u32 5
-<a href=#659 id=659 data-nosnippet>659</a>                v6 = not v5
-<a href=#660 id=660 data-nosnippet>660</a>                jmpif v5 then: b5(), else: b1()
-<a href=#661 id=661 data-nosnippet>661</a>              b1():
-<a href=#662 id=662 data-nosnippet>662</a>                v8 = lt v0, u32 3
-<a href=#663 id=663 data-nosnippet>663</a>                jmpif v8 then: b3(), else: b2()
-<a href=#664 id=664 data-nosnippet>664</a>              b2():
-<a href=#665 id=665 data-nosnippet>665</a>                v9 = truncate v0 to 2 bits, max_bit_size: 32
-<a href=#666 id=666 data-nosnippet>666</a>                jmp b4(v9)
-<a href=#667 id=667 data-nosnippet>667</a>              b3():
-<a href=#668 id=668 data-nosnippet>668</a>                v10 = truncate v0 to 1 bits, max_bit_size: 32
-<a href=#669 id=669 data-nosnippet>669</a>                jmp b4(v10)
-<a href=#670 id=670 data-nosnippet>670</a>              b4(v1: u32):
-<a href=#671 id=671 data-nosnippet>671</a>                jmp b9(v1)
-<a href=#672 id=672 data-nosnippet>672</a>              b5():
-<a href=#673 id=673 data-nosnippet>673</a>                v12 = lt u32 2, v0
-<a href=#674 id=674 data-nosnippet>674</a>                jmpif v12 then: b7(), else: b6()
-<a href=#675 id=675 data-nosnippet>675</a>              b6():
-<a href=#676 id=676 data-nosnippet>676</a>                v13 = truncate v0 to 3 bits, max_bit_size: 32
-<a href=#677 id=677 data-nosnippet>677</a>                jmp b8(v13)
-<a href=#678 id=678 data-nosnippet>678</a>              b7():
-<a href=#679 id=679 data-nosnippet>679</a>                v14 = truncate v0 to 4 bits, max_bit_size: 32
-<a href=#680 id=680 data-nosnippet>680</a>                jmp b8(v14)
-<a href=#681 id=681 data-nosnippet>681</a>              b8(v2: u32):
-<a href=#682 id=682 data-nosnippet>682</a>                jmp b9(v2)
-<a href=#683 id=683 data-nosnippet>683</a>              b9(v3: u32):
-<a href=#684 id=684 data-nosnippet>684</a>                return v3
-<a href=#685 id=685 data-nosnippet>685</a>            }
-<a href=#686 id=686 data-nosnippet>686</a>            "</span>;
-<a href=#687 id=687 data-nosnippet>687</a>        assert_ssa_does_not_change(src, Ssa::flatten_basic_conditionals);
-<a href=#688 id=688 data-nosnippet>688</a>    }
-<a href=#689 id=689 data-nosnippet>689</a>
-<a href=#690 id=690 data-nosnippet>690</a>    <span class="doccomment">/// Diamond-shaped conditional where the entry `JmpIf` carries then/else arguments
-<a href=#691 id=691 data-nosnippet>691</a>    /// (as emitted by mem2reg). Both branches receive a promoted variable value
-<a href=#692 id=692 data-nosnippet>692</a>    /// as a block parameter. The optimization should still fire and produce merged output.
-<a href=#693 id=693 data-nosnippet>693</a>    </span><span class="attr">#[test]
-<a href=#694 id=694 data-nosnippet>694</a>    </span><span class="kw">fn </span>jmpif_with_then_and_else_args_diamond() {
-<a href=#695 id=695 data-nosnippet>695</a>        <span class="kw">let </span>src = <span class="string">"
-<a href=#696 id=696 data-nosnippet>696</a>            brillig(inline) fn foo f0 {
-<a href=#697 id=697 data-nosnippet>697</a>              b0(v0: u1):
-<a href=#698 id=698 data-nosnippet>698</a>                jmpif v0 then: b1(u32 10), else: b2(u32 20)
-<a href=#699 id=699 data-nosnippet>699</a>              b1(v1: u32):
-<a href=#700 id=700 data-nosnippet>700</a>                v3 = unchecked_add v1, u32 1
-<a href=#701 id=701 data-nosnippet>701</a>                jmp b3(v3)
-<a href=#702 id=702 data-nosnippet>702</a>              b2(v2: u32):
-<a href=#703 id=703 data-nosnippet>703</a>                v4 = unchecked_add v2, u32 2
-<a href=#704 id=704 data-nosnippet>704</a>                jmp b3(v4)
-<a href=#705 id=705 data-nosnippet>705</a>              b3(v5: u32):
-<a href=#706 id=706 data-nosnippet>706</a>                return v5
-<a href=#707 id=707 data-nosnippet>707</a>            }
-<a href=#708 id=708 data-nosnippet>708</a>            "</span>;
-<a href=#709 id=709 data-nosnippet>709</a>        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
-<a href=#710 id=710 data-nosnippet>710</a>        <span class="macro">assert_eq!</span>(ssa.main().reachable_blocks().len(), <span class="number">4</span>);
-<a href=#711 id=711 data-nosnippet>711</a>
-<a href=#712 id=712 data-nosnippet>712</a>        <span class="kw">let </span>ssa = ssa.flatten_basic_conditionals();
-<a href=#713 id=713 data-nosnippet>713</a>        <span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
-<a href=#714 id=714 data-nosnippet>714</a>        brillig(inline) fn foo f0 {
-<a href=#715 id=715 data-nosnippet>715</a>          b0(v0: u1):
-<a href=#716 id=716 data-nosnippet>716</a>            v1 = not v0
-<a href=#717 id=717 data-nosnippet>717</a>            v2 = cast v0 as u32
-<a href=#718 id=718 data-nosnippet>718</a>            v3 = cast v1 as u32
-<a href=#719 id=719 data-nosnippet>719</a>            v5 = unchecked_mul v2, u32 11
-<a href=#720 id=720 data-nosnippet>720</a>            v7 = unchecked_mul v3, u32 22
-<a href=#721 id=721 data-nosnippet>721</a>            v8 = unchecked_add v5, v7
-<a href=#722 id=722 data-nosnippet>722</a>            return v8
-<a href=#723 id=723 data-nosnippet>723</a>        }
-<a href=#724 id=724 data-nosnippet>724</a>        "</span>);
-<a href=#725 id=725 data-nosnippet>725</a>    }
-<a href=#726 id=726 data-nosnippet>726</a>
-<a href=#727 id=727 data-nosnippet>727</a>    <span class="doccomment">/// Diamond-shaped conditional where only the then-branch receives a `JmpIf` argument.
-<a href=#728 id=728 data-nosnippet>728</a>    /// The optimization should fire; the else branch value is folded through unchanged.
-<a href=#729 id=729 data-nosnippet>729</a>    </span><span class="attr">#[test]
-<a href=#730 id=730 data-nosnippet>730</a>    </span><span class="kw">fn </span>jmpif_with_only_then_args_diamond() {
-<a href=#731 id=731 data-nosnippet>731</a>        <span class="kw">let </span>src = <span class="string">"
-<a href=#732 id=732 data-nosnippet>732</a>            brillig(inline) fn foo f0 {
-<a href=#733 id=733 data-nosnippet>733</a>              b0(v0: u1):
-<a href=#734 id=734 data-nosnippet>734</a>                jmpif v0 then: b1(u32 10), else: b2()
-<a href=#735 id=735 data-nosnippet>735</a>              b1(v1: u32):
-<a href=#736 id=736 data-nosnippet>736</a>                v3 = unchecked_add v1, u32 1
-<a href=#737 id=737 data-nosnippet>737</a>                jmp b3(v3)
-<a href=#738 id=738 data-nosnippet>738</a>              b2():
-<a href=#739 id=739 data-nosnippet>739</a>                jmp b3(u32 5)
-<a href=#740 id=740 data-nosnippet>740</a>              b3(v4: u32):
-<a href=#741 id=741 data-nosnippet>741</a>                return v4
-<a href=#742 id=742 data-nosnippet>742</a>            }
-<a href=#743 id=743 data-nosnippet>743</a>            "</span>;
-<a href=#744 id=744 data-nosnippet>744</a>        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
-<a href=#745 id=745 data-nosnippet>745</a>        <span class="macro">assert_eq!</span>(ssa.main().reachable_blocks().len(), <span class="number">4</span>);
-<a href=#746 id=746 data-nosnippet>746</a>
-<a href=#747 id=747 data-nosnippet>747</a>        <span class="kw">let </span>ssa = ssa.flatten_basic_conditionals();
-<a href=#748 id=748 data-nosnippet>748</a>        <span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
-<a href=#749 id=749 data-nosnippet>749</a>        brillig(inline) fn foo f0 {
-<a href=#750 id=750 data-nosnippet>750</a>          b0(v0: u1):
-<a href=#751 id=751 data-nosnippet>751</a>            v1 = not v0
-<a href=#752 id=752 data-nosnippet>752</a>            v2 = cast v0 as u32
-<a href=#753 id=753 data-nosnippet>753</a>            v3 = cast v1 as u32
-<a href=#754 id=754 data-nosnippet>754</a>            v5 = unchecked_mul v2, u32 11
-<a href=#755 id=755 data-nosnippet>755</a>            v7 = unchecked_mul v3, u32 5
-<a href=#756 id=756 data-nosnippet>756</a>            v8 = unchecked_add v5, v7
-<a href=#757 id=757 data-nosnippet>757</a>            return v8
-<a href=#758 id=758 data-nosnippet>758</a>        }
-<a href=#759 id=759 data-nosnippet>759</a>        "</span>);
-<a href=#760 id=760 data-nosnippet>760</a>    }
-<a href=#761 id=761 data-nosnippet>761</a>
-<a href=#762 id=762 data-nosnippet>762</a>    <span class="doccomment">/// Non-diamond (then-only) case with `JmpIf` arguments: the optimization must be
-<a href=#763 id=763 data-nosnippet>763</a>    /// skipped because the `else_arguments` go directly to the exit block, which
-<a href=#764 id=764 data-nosnippet>764</a>    /// `inline_branch_end` cannot handle correctly yet.
-<a href=#765 id=765 data-nosnippet>765</a>    </span><span class="attr">#[test]
-<a href=#766 id=766 data-nosnippet>766</a>    </span><span class="kw">fn </span>jmpif_with_args_then_only_not_flattened() {
-<a href=#767 id=767 data-nosnippet>767</a>        <span class="comment">// then-only shape: jmpif c then: b1(v_arg), else: b2(v_arg2)
-<a href=#768 id=768 data-nosnippet>768</a>        // where b2 is the exit block reached directly from the JmpIf.
-<a href=#769 id=769 data-nosnippet>769</a>        </span><span class="kw">let </span>src = <span class="string">"
-<a href=#770 id=770 data-nosnippet>770</a>            brillig(inline) fn foo f0 {
-<a href=#771 id=771 data-nosnippet>771</a>              b0(v0: u1):
-<a href=#772 id=772 data-nosnippet>772</a>                jmpif v0 then: b1(u32 10), else: b2(u32 20)
-<a href=#773 id=773 data-nosnippet>773</a>              b1(v1: u32):
-<a href=#774 id=774 data-nosnippet>774</a>                v3 = unchecked_add v1, u32 1
-<a href=#775 id=775 data-nosnippet>775</a>                jmp b2(v3)
-<a href=#776 id=776 data-nosnippet>776</a>              b2(v2: u32):
-<a href=#777 id=777 data-nosnippet>777</a>                return v2
-<a href=#778 id=778 data-nosnippet>778</a>            }
-<a href=#779 id=779 data-nosnippet>779</a>            "</span>;
-<a href=#780 id=780 data-nosnippet>780</a>        assert_ssa_does_not_change(src, Ssa::flatten_basic_conditionals);
-<a href=#781 id=781 data-nosnippet>781</a>    }
-<a href=#782 id=782 data-nosnippet>782</a>}</code></pre></div></section></main></body></html>
+<a href=#534 id=534 data-nosnippet>534</a>    </span><span class="kw">fn </span>merges_mixed_reference_mutability_at_the_weaker_type() {
+<a href=#535 id=535 data-nosnippet>535</a>        <span class="comment">// An immutable borrow of a temporary is allocated as `&amp;mut u1` by ssa_gen, so a
+<a href=#536 id=536 data-nosnippet>536</a>        // conditional can join it with a genuine `&amp;u1`. The merged value must come back at
+<a href=#537 id=537 data-nosnippet>537</a>        // `&amp;u1` — typing it `&amp;mut u1` (the "then" side) would hand out a writable alias of
+<a href=#538 id=538 data-nosnippet>538</a>        // an immutable reference.
+<a href=#539 id=539 data-nosnippet>539</a>        </span><span class="kw">let </span>src = <span class="string">"
+<a href=#540 id=540 data-nosnippet>540</a>              brillig(inline) fn foo f0 {
+<a href=#541 id=541 data-nosnippet>541</a>                b0(v0: u1, v1: &amp;u1):
+<a href=#542 id=542 data-nosnippet>542</a>                  v2 = allocate -&gt; &amp;mut u1
+<a href=#543 id=543 data-nosnippet>543</a>                  store v0 at v2
+<a href=#544 id=544 data-nosnippet>544</a>                  jmpif v0 then: b1(), else: b2()
+<a href=#545 id=545 data-nosnippet>545</a>                b1():
+<a href=#546 id=546 data-nosnippet>546</a>                  jmp b3(v2)
+<a href=#547 id=547 data-nosnippet>547</a>                b2():
+<a href=#548 id=548 data-nosnippet>548</a>                  jmp b3(v1)
+<a href=#549 id=549 data-nosnippet>549</a>                b3(v3: &amp;u1):
+<a href=#550 id=550 data-nosnippet>550</a>                  v4 = load v3 -&gt; u1
+<a href=#551 id=551 data-nosnippet>551</a>                  return v4
+<a href=#552 id=552 data-nosnippet>552</a>              }
+<a href=#553 id=553 data-nosnippet>553</a>            "</span>;
+<a href=#554 id=554 data-nosnippet>554</a>        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
+<a href=#555 id=555 data-nosnippet>555</a>        <span class="kw">let </span>ssa = ssa.flatten_basic_conditionals();
+<a href=#556 id=556 data-nosnippet>556</a>        validate_ssa(<span class="kw-2">&amp;</span>ssa, <span class="bool-val">true</span>);
+<a href=#557 id=557 data-nosnippet>557</a>    }
+<a href=#558 id=558 data-nosnippet>558</a>
+<a href=#559 id=559 data-nosnippet>559</a>    <span class="attr">#[test]
+<a href=#560 id=560 data-nosnippet>560</a>    </span><span class="kw">fn </span>array_jmpif() {
+<a href=#561 id=561 data-nosnippet>561</a>        <span class="comment">// With merge_cost=3 per exit param, jump_overhead = (2+2+2) - 3 = 3.
+<a href=#562 id=562 data-nosnippet>562</a>        // A 3-element MakeArray costs 6 per branch. Total cost 12 &gt;= 12/2 + 3 = 9,
+<a href=#563 id=563 data-nosnippet>563</a>        // so the conditional is NOT flattened.
+<a href=#564 id=564 data-nosnippet>564</a>        </span><span class="kw">let </span>src = <span class="string">r#"
+<a href=#565 id=565 data-nosnippet>565</a>              brillig(inline) fn foo f0 {
+<a href=#566 id=566 data-nosnippet>566</a>                b0(v0: u32):
+<a href=#567 id=567 data-nosnippet>567</a>                  v3 = eq v0, u32 5
+<a href=#568 id=568 data-nosnippet>568</a>                  jmpif v3 then: b2(), else: b1()
+<a href=#569 id=569 data-nosnippet>569</a>                b1():
+<a href=#570 id=570 data-nosnippet>570</a>                  v10 = make_array b"foo"
+<a href=#571 id=571 data-nosnippet>571</a>                  jmp b3(v10)
+<a href=#572 id=572 data-nosnippet>572</a>                b2():
+<a href=#573 id=573 data-nosnippet>573</a>                  v7 = make_array b"bar"
+<a href=#574 id=574 data-nosnippet>574</a>                  jmp b3(v7)
+<a href=#575 id=575 data-nosnippet>575</a>                b3(v1: [u8; 3]):
+<a href=#576 id=576 data-nosnippet>576</a>                  return v1
+<a href=#577 id=577 data-nosnippet>577</a>            }
+<a href=#578 id=578 data-nosnippet>578</a>            "#</span>;
+<a href=#579 id=579 data-nosnippet>579</a>        assert_ssa_does_not_change(src, Ssa::flatten_basic_conditionals);
+<a href=#580 id=580 data-nosnippet>580</a>    }
+<a href=#581 id=581 data-nosnippet>581</a>
+<a href=#582 id=582 data-nosnippet>582</a>    <span class="attr">#[test]
+<a href=#583 id=583 data-nosnippet>583</a>    </span><span class="kw">fn </span>large_array_jmpif_not_flattened() {
+<a href=#584 id=584 data-nosnippet>584</a>        <span class="comment">// Large MakeArrays (10+ elements) cost min(len*2, 20) = 20 each.
+<a href=#585 id=585 data-nosnippet>585</a>        // Combined cost of 40 &gt;= 40/2 + 10 = 30, so the conditional is not worth flattening.
+<a href=#586 id=586 data-nosnippet>586</a>        </span><span class="kw">let </span>src = <span class="string">r#"
+<a href=#587 id=587 data-nosnippet>587</a>              brillig(inline) fn foo f0 {
+<a href=#588 id=588 data-nosnippet>588</a>                b0(v0: u32):
+<a href=#589 id=589 data-nosnippet>589</a>                  v3 = eq v0, u32 5
+<a href=#590 id=590 data-nosnippet>590</a>                  jmpif v3 then: b2(), else: b1()
+<a href=#591 id=591 data-nosnippet>591</a>                b1():
+<a href=#592 id=592 data-nosnippet>592</a>                  v10 = make_array b"0123456789a"
+<a href=#593 id=593 data-nosnippet>593</a>                  jmp b3(v10)
+<a href=#594 id=594 data-nosnippet>594</a>                b2():
+<a href=#595 id=595 data-nosnippet>595</a>                  v7 = make_array b"abcdefghijk"
+<a href=#596 id=596 data-nosnippet>596</a>                  jmp b3(v7)
+<a href=#597 id=597 data-nosnippet>597</a>                b3(v1: [u8; 11]):
+<a href=#598 id=598 data-nosnippet>598</a>                  return v1
+<a href=#599 id=599 data-nosnippet>599</a>            }
+<a href=#600 id=600 data-nosnippet>600</a>            "#</span>;
+<a href=#601 id=601 data-nosnippet>601</a>        assert_ssa_does_not_change(src, Ssa::flatten_basic_conditionals);
+<a href=#602 id=602 data-nosnippet>602</a>    }
+<a href=#603 id=603 data-nosnippet>603</a>
+<a href=#604 id=604 data-nosnippet>604</a>    <span class="attr">#[test]
+<a href=#605 id=605 data-nosnippet>605</a>    </span><span class="kw">fn </span>nested_jmpifs() {
+<a href=#606 id=606 data-nosnippet>606</a>        <span class="kw">let </span>src = <span class="string">"
+<a href=#607 id=607 data-nosnippet>607</a>            brillig(inline) fn foo f0 {
+<a href=#608 id=608 data-nosnippet>608</a>              b0(v0: u32):
+<a href=#609 id=609 data-nosnippet>609</a>                v5 = eq v0, u32 5
+<a href=#610 id=610 data-nosnippet>610</a>                v6 = not v5
+<a href=#611 id=611 data-nosnippet>611</a>                jmpif v5 then: b5(), else: b1()
+<a href=#612 id=612 data-nosnippet>612</a>              b1():
+<a href=#613 id=613 data-nosnippet>613</a>                v8 = lt v0, u32 3
+<a href=#614 id=614 data-nosnippet>614</a>                jmpif v8 then: b3(), else: b2()
+<a href=#615 id=615 data-nosnippet>615</a>              b2():
+<a href=#616 id=616 data-nosnippet>616</a>                v9 = truncate v0 to 2 bits, max_bit_size: 32
+<a href=#617 id=617 data-nosnippet>617</a>                jmp b4(v9)
+<a href=#618 id=618 data-nosnippet>618</a>              b3():
+<a href=#619 id=619 data-nosnippet>619</a>                v10 = truncate v0 to 1 bits, max_bit_size: 32
+<a href=#620 id=620 data-nosnippet>620</a>                jmp b4(v10)
+<a href=#621 id=621 data-nosnippet>621</a>              b4(v1: u32):
+<a href=#622 id=622 data-nosnippet>622</a>                jmp b9(v1)
+<a href=#623 id=623 data-nosnippet>623</a>              b5():
+<a href=#624 id=624 data-nosnippet>624</a>                v12 = lt u32 2, v0
+<a href=#625 id=625 data-nosnippet>625</a>                jmpif v12 then: b7(), else: b6()
+<a href=#626 id=626 data-nosnippet>626</a>              b6():
+<a href=#627 id=627 data-nosnippet>627</a>                v13 = truncate v0 to 3 bits, max_bit_size: 32
+<a href=#628 id=628 data-nosnippet>628</a>                jmp b8(v13)
+<a href=#629 id=629 data-nosnippet>629</a>              b7():
+<a href=#630 id=630 data-nosnippet>630</a>                v14 = and v0, u32 2
+<a href=#631 id=631 data-nosnippet>631</a>                jmp b8(v14)
+<a href=#632 id=632 data-nosnippet>632</a>              b8(v2: u32):
+<a href=#633 id=633 data-nosnippet>633</a>                jmp b9(v2)
+<a href=#634 id=634 data-nosnippet>634</a>              b9(v3: u32):
+<a href=#635 id=635 data-nosnippet>635</a>                return v3
+<a href=#636 id=636 data-nosnippet>636</a>            }
+<a href=#637 id=637 data-nosnippet>637</a>            "</span>;
+<a href=#638 id=638 data-nosnippet>638</a>        <span class="comment">// Inner 1 is NOT flattened: truncate costs are high enough.
+<a href=#639 id=639 data-nosnippet>639</a>        // Inner 2 IS flattened: and+truncate is cheap enough to merge.
+<a href=#640 id=640 data-nosnippet>640</a>        </span><span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
+<a href=#641 id=641 data-nosnippet>641</a>        <span class="kw">let </span>ssa = ssa.flatten_basic_conditionals();
+<a href=#642 id=642 data-nosnippet>642</a>        <span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
+<a href=#643 id=643 data-nosnippet>643</a>        brillig(inline) fn foo f0 {
+<a href=#644 id=644 data-nosnippet>644</a>          b0(v0: u32):
+<a href=#645 id=645 data-nosnippet>645</a>            v4 = eq v0, u32 5
+<a href=#646 id=646 data-nosnippet>646</a>            v5 = not v4
+<a href=#647 id=647 data-nosnippet>647</a>            jmpif v4 then: b5(), else: b1()
+<a href=#648 id=648 data-nosnippet>648</a>          b1():
+<a href=#649 id=649 data-nosnippet>649</a>            v7 = lt v0, u32 3
+<a href=#650 id=650 data-nosnippet>650</a>            jmpif v7 then: b3(), else: b2()
+<a href=#651 id=651 data-nosnippet>651</a>          b2():
+<a href=#652 id=652 data-nosnippet>652</a>            v18 = truncate v0 to 2 bits, max_bit_size: 32
+<a href=#653 id=653 data-nosnippet>653</a>            jmp b4(v18)
+<a href=#654 id=654 data-nosnippet>654</a>          b3():
+<a href=#655 id=655 data-nosnippet>655</a>            v19 = truncate v0 to 1 bits, max_bit_size: 32
+<a href=#656 id=656 data-nosnippet>656</a>            jmp b4(v19)
+<a href=#657 id=657 data-nosnippet>657</a>          b4(v1: u32):
+<a href=#658 id=658 data-nosnippet>658</a>            jmp b6(v1)
+<a href=#659 id=659 data-nosnippet>659</a>          b5():
+<a href=#660 id=660 data-nosnippet>660</a>            v9 = lt u32 2, v0
+<a href=#661 id=661 data-nosnippet>661</a>            v10 = and v0, u32 2
+<a href=#662 id=662 data-nosnippet>662</a>            v11 = not v9
+<a href=#663 id=663 data-nosnippet>663</a>            v12 = truncate v0 to 3 bits, max_bit_size: 32
+<a href=#664 id=664 data-nosnippet>664</a>            v13 = cast v9 as u32
+<a href=#665 id=665 data-nosnippet>665</a>            v14 = cast v11 as u32
+<a href=#666 id=666 data-nosnippet>666</a>            v15 = unchecked_mul v13, v10
+<a href=#667 id=667 data-nosnippet>667</a>            v16 = unchecked_mul v14, v12
+<a href=#668 id=668 data-nosnippet>668</a>            v17 = unchecked_add v15, v16
+<a href=#669 id=669 data-nosnippet>669</a>            jmp b6(v17)
+<a href=#670 id=670 data-nosnippet>670</a>          b6(v2: u32):
+<a href=#671 id=671 data-nosnippet>671</a>            return v2
+<a href=#672 id=672 data-nosnippet>672</a>        }
+<a href=#673 id=673 data-nosnippet>673</a>        "</span>);
+<a href=#674 id=674 data-nosnippet>674</a>    }
+<a href=#675 id=675 data-nosnippet>675</a>
+<a href=#676 id=676 data-nosnippet>676</a>    <span class="attr">#[test]
+<a href=#677 id=677 data-nosnippet>677</a>    </span><span class="kw">fn </span>nested_jmpifs_not_flattened() {
+<a href=#678 id=678 data-nosnippet>678</a>        <span class="comment">// Both inner conditionals use truncate on both branches (cost 7 each),
+<a href=#679 id=679 data-nosnippet>679</a>        // so total cost per inner = 14. jump_overhead = (2+2+2) - 1 = 5.
+<a href=#680 id=680 data-nosnippet>680</a>        // 14 &gt;= 14/2 + 5 = 12, so neither inner conditional is flattened.
+<a href=#681 id=681 data-nosnippet>681</a>        </span><span class="kw">let </span>src = <span class="string">"
+<a href=#682 id=682 data-nosnippet>682</a>            brillig(inline) fn foo f0 {
+<a href=#683 id=683 data-nosnippet>683</a>              b0(v0: u32):
+<a href=#684 id=684 data-nosnippet>684</a>                v5 = eq v0, u32 5
+<a href=#685 id=685 data-nosnippet>685</a>                v6 = not v5
+<a href=#686 id=686 data-nosnippet>686</a>                jmpif v5 then: b5(), else: b1()
+<a href=#687 id=687 data-nosnippet>687</a>              b1():
+<a href=#688 id=688 data-nosnippet>688</a>                v8 = lt v0, u32 3
+<a href=#689 id=689 data-nosnippet>689</a>                jmpif v8 then: b3(), else: b2()
+<a href=#690 id=690 data-nosnippet>690</a>              b2():
+<a href=#691 id=691 data-nosnippet>691</a>                v9 = truncate v0 to 2 bits, max_bit_size: 32
+<a href=#692 id=692 data-nosnippet>692</a>                jmp b4(v9)
+<a href=#693 id=693 data-nosnippet>693</a>              b3():
+<a href=#694 id=694 data-nosnippet>694</a>                v10 = truncate v0 to 1 bits, max_bit_size: 32
+<a href=#695 id=695 data-nosnippet>695</a>                jmp b4(v10)
+<a href=#696 id=696 data-nosnippet>696</a>              b4(v1: u32):
+<a href=#697 id=697 data-nosnippet>697</a>                jmp b9(v1)
+<a href=#698 id=698 data-nosnippet>698</a>              b5():
+<a href=#699 id=699 data-nosnippet>699</a>                v12 = lt u32 2, v0
+<a href=#700 id=700 data-nosnippet>700</a>                jmpif v12 then: b7(), else: b6()
+<a href=#701 id=701 data-nosnippet>701</a>              b6():
+<a href=#702 id=702 data-nosnippet>702</a>                v13 = truncate v0 to 3 bits, max_bit_size: 32
+<a href=#703 id=703 data-nosnippet>703</a>                jmp b8(v13)
+<a href=#704 id=704 data-nosnippet>704</a>              b7():
+<a href=#705 id=705 data-nosnippet>705</a>                v14 = truncate v0 to 4 bits, max_bit_size: 32
+<a href=#706 id=706 data-nosnippet>706</a>                jmp b8(v14)
+<a href=#707 id=707 data-nosnippet>707</a>              b8(v2: u32):
+<a href=#708 id=708 data-nosnippet>708</a>                jmp b9(v2)
+<a href=#709 id=709 data-nosnippet>709</a>              b9(v3: u32):
+<a href=#710 id=710 data-nosnippet>710</a>                return v3
+<a href=#711 id=711 data-nosnippet>711</a>            }
+<a href=#712 id=712 data-nosnippet>712</a>            "</span>;
+<a href=#713 id=713 data-nosnippet>713</a>        assert_ssa_does_not_change(src, Ssa::flatten_basic_conditionals);
+<a href=#714 id=714 data-nosnippet>714</a>    }
+<a href=#715 id=715 data-nosnippet>715</a>
+<a href=#716 id=716 data-nosnippet>716</a>    <span class="doccomment">/// Diamond-shaped conditional where the entry `JmpIf` carries then/else arguments
+<a href=#717 id=717 data-nosnippet>717</a>    /// (as emitted by mem2reg). Both branches receive a promoted variable value
+<a href=#718 id=718 data-nosnippet>718</a>    /// as a block parameter. The optimization should still fire and produce merged output.
+<a href=#719 id=719 data-nosnippet>719</a>    </span><span class="attr">#[test]
+<a href=#720 id=720 data-nosnippet>720</a>    </span><span class="kw">fn </span>jmpif_with_then_and_else_args_diamond() {
+<a href=#721 id=721 data-nosnippet>721</a>        <span class="kw">let </span>src = <span class="string">"
+<a href=#722 id=722 data-nosnippet>722</a>            brillig(inline) fn foo f0 {
+<a href=#723 id=723 data-nosnippet>723</a>              b0(v0: u1):
+<a href=#724 id=724 data-nosnippet>724</a>                jmpif v0 then: b1(u32 10), else: b2(u32 20)
+<a href=#725 id=725 data-nosnippet>725</a>              b1(v1: u32):
+<a href=#726 id=726 data-nosnippet>726</a>                v3 = unchecked_add v1, u32 1
+<a href=#727 id=727 data-nosnippet>727</a>                jmp b3(v3)
+<a href=#728 id=728 data-nosnippet>728</a>              b2(v2: u32):
+<a href=#729 id=729 data-nosnippet>729</a>                v4 = unchecked_add v2, u32 2
+<a href=#730 id=730 data-nosnippet>730</a>                jmp b3(v4)
+<a href=#731 id=731 data-nosnippet>731</a>              b3(v5: u32):
+<a href=#732 id=732 data-nosnippet>732</a>                return v5
+<a href=#733 id=733 data-nosnippet>733</a>            }
+<a href=#734 id=734 data-nosnippet>734</a>            "</span>;
+<a href=#735 id=735 data-nosnippet>735</a>        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
+<a href=#736 id=736 data-nosnippet>736</a>        <span class="macro">assert_eq!</span>(ssa.main().reachable_blocks().len(), <span class="number">4</span>);
+<a href=#737 id=737 data-nosnippet>737</a>
+<a href=#738 id=738 data-nosnippet>738</a>        <span class="kw">let </span>ssa = ssa.flatten_basic_conditionals();
+<a href=#739 id=739 data-nosnippet>739</a>        <span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
+<a href=#740 id=740 data-nosnippet>740</a>        brillig(inline) fn foo f0 {
+<a href=#741 id=741 data-nosnippet>741</a>          b0(v0: u1):
+<a href=#742 id=742 data-nosnippet>742</a>            v1 = not v0
+<a href=#743 id=743 data-nosnippet>743</a>            v2 = cast v0 as u32
+<a href=#744 id=744 data-nosnippet>744</a>            v3 = cast v1 as u32
+<a href=#745 id=745 data-nosnippet>745</a>            v5 = unchecked_mul v2, u32 11
+<a href=#746 id=746 data-nosnippet>746</a>            v7 = unchecked_mul v3, u32 22
+<a href=#747 id=747 data-nosnippet>747</a>            v8 = unchecked_add v5, v7
+<a href=#748 id=748 data-nosnippet>748</a>            return v8
+<a href=#749 id=749 data-nosnippet>749</a>        }
+<a href=#750 id=750 data-nosnippet>750</a>        "</span>);
+<a href=#751 id=751 data-nosnippet>751</a>    }
+<a href=#752 id=752 data-nosnippet>752</a>
+<a href=#753 id=753 data-nosnippet>753</a>    <span class="doccomment">/// Diamond-shaped conditional where only the then-branch receives a `JmpIf` argument.
+<a href=#754 id=754 data-nosnippet>754</a>    /// The optimization should fire; the else branch value is folded through unchanged.
+<a href=#755 id=755 data-nosnippet>755</a>    </span><span class="attr">#[test]
+<a href=#756 id=756 data-nosnippet>756</a>    </span><span class="kw">fn </span>jmpif_with_only_then_args_diamond() {
+<a href=#757 id=757 data-nosnippet>757</a>        <span class="kw">let </span>src = <span class="string">"
+<a href=#758 id=758 data-nosnippet>758</a>            brillig(inline) fn foo f0 {
+<a href=#759 id=759 data-nosnippet>759</a>              b0(v0: u1):
+<a href=#760 id=760 data-nosnippet>760</a>                jmpif v0 then: b1(u32 10), else: b2()
+<a href=#761 id=761 data-nosnippet>761</a>              b1(v1: u32):
+<a href=#762 id=762 data-nosnippet>762</a>                v3 = unchecked_add v1, u32 1
+<a href=#763 id=763 data-nosnippet>763</a>                jmp b3(v3)
+<a href=#764 id=764 data-nosnippet>764</a>              b2():
+<a href=#765 id=765 data-nosnippet>765</a>                jmp b3(u32 5)
+<a href=#766 id=766 data-nosnippet>766</a>              b3(v4: u32):
+<a href=#767 id=767 data-nosnippet>767</a>                return v4
+<a href=#768 id=768 data-nosnippet>768</a>            }
+<a href=#769 id=769 data-nosnippet>769</a>            "</span>;
+<a href=#770 id=770 data-nosnippet>770</a>        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
+<a href=#771 id=771 data-nosnippet>771</a>        <span class="macro">assert_eq!</span>(ssa.main().reachable_blocks().len(), <span class="number">4</span>);
+<a href=#772 id=772 data-nosnippet>772</a>
+<a href=#773 id=773 data-nosnippet>773</a>        <span class="kw">let </span>ssa = ssa.flatten_basic_conditionals();
+<a href=#774 id=774 data-nosnippet>774</a>        <span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
+<a href=#775 id=775 data-nosnippet>775</a>        brillig(inline) fn foo f0 {
+<a href=#776 id=776 data-nosnippet>776</a>          b0(v0: u1):
+<a href=#777 id=777 data-nosnippet>777</a>            v1 = not v0
+<a href=#778 id=778 data-nosnippet>778</a>            v2 = cast v0 as u32
+<a href=#779 id=779 data-nosnippet>779</a>            v3 = cast v1 as u32
+<a href=#780 id=780 data-nosnippet>780</a>            v5 = unchecked_mul v2, u32 11
+<a href=#781 id=781 data-nosnippet>781</a>            v7 = unchecked_mul v3, u32 5
+<a href=#782 id=782 data-nosnippet>782</a>            v8 = unchecked_add v5, v7
+<a href=#783 id=783 data-nosnippet>783</a>            return v8
+<a href=#784 id=784 data-nosnippet>784</a>        }
+<a href=#785 id=785 data-nosnippet>785</a>        "</span>);
+<a href=#786 id=786 data-nosnippet>786</a>    }
+<a href=#787 id=787 data-nosnippet>787</a>
+<a href=#788 id=788 data-nosnippet>788</a>    <span class="doccomment">/// Non-diamond (then-only) case with `JmpIf` arguments: the optimization must be
+<a href=#789 id=789 data-nosnippet>789</a>    /// skipped because the `else_arguments` go directly to the exit block, which
+<a href=#790 id=790 data-nosnippet>790</a>    /// `inline_branch_end` cannot handle correctly yet.
+<a href=#791 id=791 data-nosnippet>791</a>    </span><span class="attr">#[test]
+<a href=#792 id=792 data-nosnippet>792</a>    </span><span class="kw">fn </span>jmpif_with_args_then_only_not_flattened() {
+<a href=#793 id=793 data-nosnippet>793</a>        <span class="comment">// then-only shape: jmpif c then: b1(v_arg), else: b2(v_arg2)
+<a href=#794 id=794 data-nosnippet>794</a>        // where b2 is the exit block reached directly from the JmpIf.
+<a href=#795 id=795 data-nosnippet>795</a>        </span><span class="kw">let </span>src = <span class="string">"
+<a href=#796 id=796 data-nosnippet>796</a>            brillig(inline) fn foo f0 {
+<a href=#797 id=797 data-nosnippet>797</a>              b0(v0: u1):
+<a href=#798 id=798 data-nosnippet>798</a>                jmpif v0 then: b1(u32 10), else: b2(u32 20)
+<a href=#799 id=799 data-nosnippet>799</a>              b1(v1: u32):
+<a href=#800 id=800 data-nosnippet>800</a>                v3 = unchecked_add v1, u32 1
+<a href=#801 id=801 data-nosnippet>801</a>                jmp b2(v3)
+<a href=#802 id=802 data-nosnippet>802</a>              b2(v2: u32):
+<a href=#803 id=803 data-nosnippet>803</a>                return v2
+<a href=#804 id=804 data-nosnippet>804</a>            }
+<a href=#805 id=805 data-nosnippet>805</a>            "</span>;
+<a href=#806 id=806 data-nosnippet>806</a>        assert_ssa_does_not_change(src, Ssa::flatten_basic_conditionals);
+<a href=#807 id=807 data-nosnippet>807</a>    }
+<a href=#808 id=808 data-nosnippet>808</a>}</code></pre></div></section></main></body></html>
