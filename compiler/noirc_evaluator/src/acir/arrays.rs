@@ -448,7 +448,7 @@ impl Context<'_> {
     /// the result: the read targets a field of the element, and that same field also exists in
     /// element 0, at this offset, with exactly the result's layout.
     ///
-    /// [`Self::convert_array_operation_inputs`] biases the predicate-gated index by this offset
+    /// [`Self::get_flattened_index`] biases the predicate-gated index by this offset
     /// (`offset * (1 - predicate)`), so under a false predicate the read lands on that field of
     /// element 0 and is type-compatible by construction: no leaf of the result can end up
     /// holding a value wider than its declared type. The offset must be in flat slot units, the
@@ -490,12 +490,10 @@ impl Context<'_> {
     /// Returns the flat memory index to read/write at and, for `ArraySet`, the
     /// (predicated) value to store.
     ///
-    /// [`Self::get_flattened_index`] already gates the returned index by the side-effects
-    /// predicate when `is_safe_index = false`, so on a disabled branch the index
-    /// collapses to `0`. When `offset != 0` and `is_safe_index = false` we additionally
-    /// bias the disabled-branch fallback to `offset` by adding `offset * (1 - predicate)`,
-    /// so that the dummy value a disabled read returns is type-compatible with the read's
-    /// result type (see [`Self::compute_offset`]).
+    /// [`Self::get_flattened_index`] gates the returned index by the side-effects predicate
+    /// where necessary and biases the disabled-branch fallback to `offset`, so the dummy value
+    /// a disabled read returns is type-compatible with the read's result type
+    /// (see [`Self::compute_offset`]).
     fn convert_array_operation_inputs(
         &mut self,
         array_id: ValueId,
@@ -509,25 +507,20 @@ impl Context<'_> {
         let shift = ElementTypeSizesArrayShift::None;
         let index_var = self.convert_numeric_value(index, dfg)?;
         let is_safe_index = dfg.is_safe_index(index, array_id);
-        let mut index_var =
-            self.get_flattened_index(&array_typ, array_id, index_var, dfg, is_safe_index, shift)?;
+        let index_var = self.get_flattened_index(
+            &array_typ,
+            array_id,
+            index_var,
+            dfg,
+            is_safe_index,
+            shift,
+            offset,
+        )?;
 
         // Side-effects are always enabled so we do not need to do any predication
         if self.acir_context.is_constant_one(&self.current_side_effects_enabled_var) {
             let store_value = store_value.map(|store| self.convert_value(store, dfg));
             return Ok((index_var, store_value));
-        }
-
-        // Bias the disabled-branch fallback toward `offset` instead of `0`.
-        // `index_var` is already `raw_index * predicate` from `get_flattened_index`, so
-        // adding `offset * (1 - predicate)` yields `raw_index` when `predicate == 1` and
-        // `offset` when `predicate == 0` — without a second predicate multiplication.
-        if !is_safe_index && offset != 0 {
-            let one = self.acir_context.add_constant(FieldElement::one());
-            let not_pred = self.acir_context.sub_var(one, self.current_side_effects_enabled_var)?;
-            let offset_var = self.acir_context.add_constant(offset);
-            let offset_term = self.acir_context.mul_var(offset_var, not_pred)?;
-            index_var = self.acir_context.add_var(index_var, offset_term)?;
         }
 
         let new_value = store_value
@@ -1167,7 +1160,17 @@ impl Context<'_> {
     /// In some cases this requires consulting a side ["element type sizes"][Self::init_element_type_sizes_array]
     /// array to calculate offsets when elements have a non-homogenous layout.
     ///
+    /// When the index isn't statically known to be in range it is gated by the side-effects
+    /// predicate, and `fallback_offset * (1 - predicate)` is added on top, so that on a disabled
+    /// branch the access collapses to `fallback_offset` — a slot whose type is compatible with
+    /// the access (see [`Self::compute_offset`]). The bias's precondition is exactly "the index
+    /// collapses to `0` under a false predicate", so it is applied here, on the gated path and
+    /// nowhere else: an index that is not gated — a safe index, or a constant resolved through
+    /// the element-type-sizes table below — stays on its true slots whatever the predicate is,
+    /// and must not be biased.
+    ///
     /// See [self] for a more concrete example of how flattened indices are computed.
+    #[allow(clippy::too_many_arguments)]
     pub(super) fn get_flattened_index(
         &mut self,
         array_typ: &Type,
@@ -1176,6 +1179,7 @@ impl Context<'_> {
         dfg: &DataFlowGraph,
         is_safe_index: bool,
         shift: ElementTypeSizesArrayShift,
+        fallback_offset: usize,
     ) -> Result<AcirVar, RuntimeError> {
         // For a non-homogenous layout a statically-known, in-bounds index resolves to a fixed
         // flattened offset held in the element-type-sizes table. That offset is independent of the
@@ -1184,6 +1188,10 @@ impl Context<'_> {
         // use the original index here rather than the predicated one below, since gating can turn a
         // constant into a witness and hide its value. An out-of-bounds constant index (no table
         // entry) falls through to the runtime path, which defers the bounds failure to execution.
+        //
+        // This resolved index is in bounds and ungated (`is_safe_index` cannot see it: it holds
+        // vector indices to the vector's unknown semantic length, so it is `false` for every
+        // vector). The access reads the slots the program asked for, so no fallback bias applies.
         if array_has_constant_element_size(array_typ).is_none()
             && let Some(index) = self
                 .acir_context
@@ -1203,22 +1211,34 @@ impl Context<'_> {
         // (memory reads/writes, comparisons, etc.) would fail the ACVM bounds check on
         // a disabled branch with an OOB user-supplied index. `mul_var` constant-folds
         // when the predicate is `0` or `1`, so this is free in those cases.
-        let var_index = if is_safe_index {
-            var_index
-        } else {
+        let gated = !is_safe_index;
+        let var_index = if gated {
             self.acir_context.mul_var(var_index, self.current_side_effects_enabled_var)?
+        } else {
+            var_index
         };
 
-        if let Some(step_size) = array_has_constant_element_size(array_typ) {
+        let flat_index = if let Some(step_size) = array_has_constant_element_size(array_typ) {
             let step_size = self.acir_context.add_constant(step_size);
-            self.acir_context.mul_var(var_index, step_size)
+            self.acir_context.mul_var(var_index, step_size)?
         } else {
             let element_type_sizes =
                 self.init_element_type_sizes_array(array_typ, array_id, None, dfg, shift)?;
 
-            self.acir_context
-                .read_from_memory(element_type_sizes, &var_index)
-                .map_err(RuntimeError::from)
+            self.acir_context.read_from_memory(element_type_sizes, &var_index)?
+        };
+
+        // The gated flat index is `0` on a disabled branch; bias it to the fallback slot.
+        // `raw_index * predicate + fallback_offset * (1 - predicate)` yields the raw index when
+        // the predicate is `1` and `fallback_offset` when it is `0`.
+        if gated && fallback_offset != 0 {
+            let one = self.acir_context.add_constant(FieldElement::one());
+            let not_pred = self.acir_context.sub_var(one, self.current_side_effects_enabled_var)?;
+            let offset_var = self.acir_context.add_constant(fallback_offset);
+            let offset_term = self.acir_context.mul_var(offset_var, not_pred)?;
+            Ok(self.acir_context.add_var(flat_index, offset_term)?)
+        } else {
+            Ok(flat_index)
         }
     }
 
