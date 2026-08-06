@@ -188,7 +188,7 @@
 <a href=#188 id=188 data-nosnippet>188</a>    ) -&gt; arbitrary::Result&lt;(Name, Type, Expression)&gt; {
 <a href=#189 id=189 data-nosnippet>189</a>        <span class="kw">let </span>typ = <span class="self">self</span>.gen_type(
 <a href=#190 id=190 data-nosnippet>190</a>            u,
-<a href=#191 id=191 data-nosnippet>191</a>            <span class="self">self</span>.config.max_depth,
+<a href=#191 id=191 data-nosnippet>191</a>            <span class="self">self</span>.config.max_type_depth,
 <a href=#192 id=192 data-nosnippet>192</a>            <span class="bool-val">true</span>,
 <a href=#193 id=193 data-nosnippet>193</a>            <span class="bool-val">false</span>,
 <a href=#194 id=194 data-nosnippet>194</a>            <span class="self">self</span>.config.comptime_friendly,
@@ -240,7 +240,7 @@
 <a href=#240 id=240 data-nosnippet>240</a>        } <span class="kw">else </span>{
 <a href=#241 id=241 data-nosnippet>241</a>            <span class="self">self</span>.gen_type(
 <a href=#242 id=242 data-nosnippet>242</a>                u,
-<a href=#243 id=243 data-nosnippet>243</a>                <span class="self">self</span>.config.max_depth,
+<a href=#243 id=243 data-nosnippet>243</a>                <span class="self">self</span>.config.max_type_depth,
 <a href=#244 id=244 data-nosnippet>244</a>                <span class="bool-val">false</span>,
 <a href=#245 id=245 data-nosnippet>245</a>                is_main || is_abi,
 <a href=#246 id=246 data-nosnippet>246</a>                <span class="self">self</span>.config.comptime_friendly,
@@ -279,7 +279,7 @@
 <a href=#279 id=279 data-nosnippet>279</a>                <span class="comment">// Take some kind of data type.
 <a href=#280 id=280 data-nosnippet>280</a>                </span><span class="self">self</span>.gen_type(
 <a href=#281 id=281 data-nosnippet>281</a>                    u,
-<a href=#282 id=282 data-nosnippet>282</a>                    <span class="self">self</span>.config.max_depth,
+<a href=#282 id=282 data-nosnippet>282</a>                    <span class="self">self</span>.config.max_type_depth,
 <a href=#283 id=283 data-nosnippet>283</a>                    <span class="bool-val">false</span>,
 <a href=#284 id=284 data-nosnippet>284</a>                    is_main || is_abi,
 <a href=#285 id=285 data-nosnippet>285</a>                    <span class="self">self</span>.config.comptime_friendly,
