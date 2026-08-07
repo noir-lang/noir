@@ -3400,7 +3400,6 @@ dependencies = [
  "assert_fs",
  "async-lsp",
  "base64 0.23.0",
- "bn254_blackbox_solver",
  "build-data",
  "clap",
  "clap-markdown",
@@ -6039,7 +6038,7 @@ dependencies = [
 
 [[package]]
 name = "t256_blackbox_solver"
-version = "1.0.0-beta.25"
+version = "1.0.0-beta.26"
 dependencies = [
  "acir",
  "acvm_blackbox_solver",
@@ -7602,7 +7601,7 @@ checksum = "3c50655cbb0fe3fc43170059e702f1ce5e19b84cec58dc87b037a09935c2f328"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.118",
+ "syn 2.0.119",
 ]
 
 [[package]]
