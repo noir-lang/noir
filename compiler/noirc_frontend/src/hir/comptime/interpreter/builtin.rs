@@ -8,6 +8,7 @@ use std::{
 
 use crate::hir::comptime::bigint_to_field;
 use acvm::{AcirField, FieldElement};
+use ark_ff::{BigInteger, PrimeField};
 use builtin_helpers::{
     block_expression_to_value, byte_array_type, check_argument_count,
     check_function_not_yet_resolved, check_one_argument, check_return_type_shape,
@@ -3305,8 +3306,8 @@ fn derive_generators(
     let y_field_name: Rc<String> = Rc::new("y".to_owned());
     let mut results = Vector::new();
     for generator in generators {
-        let x = FieldElement::from_repr(generator.x);
-        let y = FieldElement::from_repr(generator.y);
+        let x = FieldElement::from_be_bytes_reduce(&generator.x.into_bigint().to_bytes_be());
+        let y = FieldElement::from_be_bytes_reduce(&generator.y.into_bigint().to_bytes_be());
         let mut embedded_curve_point_fields = HashMap::default();
         embedded_curve_point_fields.insert(x_field_name.clone(), Shared::new(Value::field(x)));
         embedded_curve_point_fields.insert(y_field_name.clone(), Shared::new(Value::field(y)));

@@ -3977,6 +3977,7 @@ version = "1.0.0-beta.26"
 dependencies = [
  "acvm",
  "arbtest",
+ "ark-ff 0.6.0",
  "bit-vec 0.9.1",
  "bn254_blackbox_solver",
  "cfg-if",
@@ -4017,6 +4018,7 @@ name = "noirc_frontend"
 version = "1.0.0-beta.26"
 dependencies = [
  "acvm",
+ "ark-ff 0.6.0",
  "base64 0.23.0",
  "bn254_blackbox_solver",
  "cfg-if",

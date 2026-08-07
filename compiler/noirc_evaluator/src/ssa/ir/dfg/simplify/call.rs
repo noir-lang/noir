@@ -12,6 +12,8 @@ use crate::{
         value::{Value, ValueId},
     },
 };
+use ark_ff::{BigInteger, PrimeField};
+
 use acvm::blackbox_solver::StubbedBlackBoxSolver;
 use acvm::{
     AcirField as _, FieldElement,
@@ -1022,8 +1024,10 @@ fn simplify_derive_generators(
                 derive_generators(&domain_separator_bytes, num_generators, starting_index);
             let mut results = Vec::new();
             for generator in generators {
-                let x = FieldElement::from_repr(generator.x);
-                let y = FieldElement::from_repr(generator.y);
+                let x =
+                    FieldElement::from_be_bytes_reduce(&generator.x.into_bigint().to_bytes_be());
+                let y =
+                    FieldElement::from_be_bytes_reduce(&generator.y.into_bigint().to_bytes_be());
                 results.push(dfg.make_constant(x, NumericType::NativeField));
                 results.push(dfg.make_constant(y, NumericType::NativeField));
             }

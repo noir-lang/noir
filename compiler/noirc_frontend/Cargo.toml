@@ -13,6 +13,7 @@ workspace = true
 
 [dependencies]
 acvm.workspace = true
+ark-ff.workspace = true
 bn254_blackbox_solver.workspace = true
 t256_blackbox_solver.workspace = true
 noirc_arena.workspace = true

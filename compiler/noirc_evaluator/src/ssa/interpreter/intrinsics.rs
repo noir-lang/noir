@@ -1,6 +1,7 @@
 use std::{hash::BuildHasher, io::Write};
 
 use acvm::{AcirField, BlackBoxFunctionSolver, BlackBoxResolutionError, FieldElement};
+use ark_ff::{BigInteger, PrimeField};
 use bn254_blackbox_solver::derive_generators;
 use iter_extended::{try_vecmap, vecmap};
 use noirc_printable_type::{PrintableType, PrintableValueDisplay, decode_printable_value};
@@ -432,8 +433,12 @@ impl<W: Write> Interpreter<'_, W> {
                 let generators = derive_generators(&inputs, n.0, index);
                 let mut result = Vec::with_capacity(inputs.len());
                 for generator in &generators {
-                    let x = FieldElement::from_repr(generator.x);
-                    let y = FieldElement::from_repr(generator.y);
+                    let x = FieldElement::from_be_bytes_reduce(
+                        &generator.x.into_bigint().to_bytes_be(),
+                    );
+                    let y = FieldElement::from_be_bytes_reduce(
+                        &generator.y.into_bigint().to_bytes_be(),
+                    );
                     result.push(Value::from_constant(x, NumericType::NativeField)?);
                     result.push(Value::from_constant(y, NumericType::NativeField)?);
                 }
