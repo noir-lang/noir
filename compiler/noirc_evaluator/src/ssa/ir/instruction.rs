@@ -290,8 +290,10 @@ impl Intrinsic {
             // runtime reference count is 1, so a pass that moves `Pure` calls freely
             // (e.g. loop-invariant code motion) could separate it from the `inc_rc`
             // that makes the mutation unobservable, or execute it on a path where the
-            // source program never runs it. The same applies to any Brillig function
-            // wrapping it, which inherits this purity through `purity_analysis`.
+            // source program never runs it. Note that this purity only covers moving
+            // or deduplicating the intrinsic call itself: a Brillig function calling a
+            // vector mutator on its own array parameter can mutate a buffer its caller
+            // still holds, so `Function::is_pure` classifies such a wrapper `Impure`.
             Intrinsic::VectorPushFront => Purity::PureWithPredicate,
 
             Intrinsic::AssertConstant

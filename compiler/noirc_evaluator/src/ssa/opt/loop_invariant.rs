@@ -3213,13 +3213,15 @@ mod tests {
         use crate::ssa::interpreter::value::Value;
 
         let src = r#"
-        brillig(inline) predicate_pure fn main f0 {
+        brillig(inline) impure fn main f0 {
           b0(v0: u1):
             v1 = make_array [v0, u1 1] : [u1]
             v2 = call f1(u32 2, v1) -> u1
             return v2
         }
-        brillig(inline) predicate_pure fn foo f1 {
+        // `foo` is impure by design: it calls a vector mutator on its own array parameter, which
+        // in Brillig can write through the caller's buffer in place at reference count 1.
+        brillig(inline) impure fn foo f1 {
           b0(v0: u32, v1: [u1]):
             jmp b1(u32 0)
           b1(v2: u32):
@@ -3244,13 +3246,13 @@ mod tests {
         // Shape: the `inc_rc v1` LICM emitted is what makes that true, by putting `v1` at
         // reference count 2 before the hoisted push and forcing it to clone.
         assert_ssa_snapshot!(ssa, @r"
-        brillig(inline) predicate_pure fn main f0 {
+        brillig(inline) impure fn main f0 {
           b0(v0: u1):
             v2 = make_array [v0, u1 1] : [u1]
             v5 = call f1(u32 2, v2) -> u1
             return v5
         }
-        brillig(inline) predicate_pure fn foo f1 {
+        brillig(inline) impure fn foo f1 {
           b0(v0: u32, v1: [u1]):
             inc_rc v1
             v5, v6 = call vector_push_front(v0, v1, u1 0) -> (u32, [u1])
