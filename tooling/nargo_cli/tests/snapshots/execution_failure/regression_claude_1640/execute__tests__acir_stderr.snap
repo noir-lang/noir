@@ -1,0 +1,25 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+bug: Input to Brillig function is in a separate subgraph to output
+  ┌─ src/main.nr:6:22
+  │
+6 │     let t = unsafe { inner(x) };
+  │                      -------- There is no path from the output of this Brillig call to either return values or inputs of the circuit, which creates an independent subgraph. This is quite likely a soundness vulnerability
+  │
+  = Call stack:
+    1: main
+            at src/main.nr:6:22
+
+error: Assertion failed: t must be 20
+  ┌─ src/main.nr:8:5
+  │
+8 │     assert(t == 20, "t must be 20");
+  │     -------------------------------
+  │
+  = Call stack:
+    1: main
+            at src/main.nr:8:5
+
+Failed assertion
