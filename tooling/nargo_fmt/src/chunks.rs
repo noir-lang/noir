@@ -925,12 +925,15 @@ impl<'a> Formatter<'a> {
             match chunk {
                 Chunk::Text(text_chunk, _) => {
                     self.write(&text_chunk.string);
+                    self.protect_open_line_comment();
                 }
                 Chunk::TrailingComment(text_chunk, _) => {
                     self.write(&text_chunk.string);
+                    self.protect_open_line_comment();
                 }
                 Chunk::LeadingComment(text_chunk) => {
                     self.write(&text_chunk.string);
+                    self.protect_open_line_comment();
                     self.write_space_without_skipping_whitespace_and_comments();
                 }
                 Chunk::Group(chunks) => self.format_chunk_group_impl(chunks),
@@ -1291,6 +1294,10 @@ impl<'a> Formatter<'a> {
                 inside_block_comment = false;
             }
         }
+
+        // `str::lines()` above drops the chunk's final newline, so a `//` comment on
+        // the chunk's last line is left unterminated in the buffer here.
+        self.protect_open_line_comment();
     }
 
     /// Returns a new `GroupTag` that is unique compared to other `new_group_tag` calls.
