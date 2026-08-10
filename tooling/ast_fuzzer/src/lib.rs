@@ -101,17 +101,15 @@ pub struct Config {
     /// acyclic only lets a function call lower IDs, so without an exception for `main` no
     /// constrained function other than `main` is reachable and every one of them is deleted
     /// as unreachable. Lifting that makes the whole constrained call graph — ACIR calling
-    /// ACIR, `#[fold]`, `#[no_predicates]` — reachable for the first time, and the
-    /// comparison targets immediately disagree on programs that use it. Keep it off until
-    /// those are triaged; see the notes on [`Config::avoid_fold`] for one known cause.
+    /// ACIR, `#[fold]`, `#[no_predicates]` — reachable, which is a region of the compiler
+    /// nothing else exercises.
     pub avoid_constrained_calls: bool,
     /// Avoid marking functions with `#[fold]`.
     ///
-    /// A `#[fold]` function is compiled into its own ACIR circuit, and `create_program`
-    /// counts the entry points in the AST up front and asserts that count against the
-    /// number of ACIRs the backend produced. When every call to a fold function sits in a
-    /// branch the SSA folds away, the backend produces no ACIR for it and that assertion
-    /// fires. Until the count is derived from what is actually generated, keep them out.
+    /// A `#[fold]` function is compiled into its own ACIR circuit, which is a backend path
+    /// reached through `Opcode::Call` with its own argument marshalling and predicate
+    /// handling at the boundary. It only means anything for a constrained function that is
+    /// actually called, so it depends on [`Config::avoid_constrained_calls`] being off.
     pub avoid_fold: bool,
     /// Only use comptime friendly expressions.
     pub comptime_friendly: bool,
@@ -185,8 +183,8 @@ impl Default for Config {
             avoid_constrain: false,
             avoid_match: false,
             avoid_vectors: false,
-            avoid_constrained_calls: true,
-            avoid_fold: true,
+            avoid_constrained_calls: false,
+            avoid_fold: false,
             comptime_friendly: false,
         }
     }
