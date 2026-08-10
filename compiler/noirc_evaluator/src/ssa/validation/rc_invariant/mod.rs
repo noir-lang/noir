@@ -883,24 +883,18 @@ impl<'f> Context<'f> {
             }
 
             // Wall: an `inc_rc` on the threaded value in this block.
-            if let Some(locations) = self.inc_rc_locations.get(&value)
-                && locations
-                    .iter()
-                    .any(|&(b, i)| b == block && seed_idx.is_none_or(|limit| i < limit))
-            {
+            if self.inc_rc_in_block(value, block, seed_idx) {
                 graph
                     .insert((block, value), Node { successors: vec![], uncovered_terminal: false });
                 continue;
             }
 
             // If `value` is defined in this block, the walk stops here.
-            if let Some(&(def_block, def_idx)) = self.array_value_defs.get(&value)
-                && def_block == block
-            {
-                let inst_id = self.function.dfg[block].instructions()[def_idx];
+            if let Some(instruction) = self.def_in_block(value, block) {
                 // An `array_set` result shares its operand's storage; continue
                 // threading with the operand.
-                if let Instruction::ArraySet { array, .. } = self.function.dfg[inst_id] {
+                if let Instruction::ArraySet { array, .. } = instruction {
+                    let array = *array;
                     graph.insert(
                         (block, value),
                         Node { successors: vec![(block, array)], uncovered_terminal: false },
@@ -978,6 +972,28 @@ impl<'f> Context<'f> {
         }
     }
 
+    /// Whether an `inc_rc` on `value` sits in `block`. `limit` restricts the
+    /// search to instruction indices before it — used in a backward walk's seed
+    /// block, where only bumps *preceding* the seed instruction have executed;
+    /// any other block on a backward path runs in full before the seed, so pass
+    /// `None` and count an `inc_rc` anywhere in it.
+    fn inc_rc_in_block(&self, value: ValueId, block: BasicBlockId, limit: Option<usize>) -> bool {
+        self.inc_rc_locations.get(&value).is_some_and(|locations| {
+            locations
+                .iter()
+                .any(|&(rc_block, i)| rc_block == block && limit.is_none_or(|limit| i < limit))
+        })
+    }
+
+    /// The instruction defining `value` in `block`, if `value` is an
+    /// array-typed instruction result defined there (per
+    /// [`Context::array_value_defs`]).
+    fn def_in_block(&self, value: ValueId, block: BasicBlockId) -> Option<&Instruction> {
+        let &(def_block, def_idx) = self.array_value_defs.get(&value)?;
+        (def_block == block)
+            .then(|| &self.function.dfg[self.function.dfg[block].instructions()[def_idx]])
+    }
+
     /// Whether some backward path from the call at `(call_block, call_idx)`
     /// resolves `a` and `b` — the storages two argument positions of that call
     /// denote — to the **same** buffer without crossing an `inc_rc` on it.
@@ -1025,21 +1041,6 @@ impl<'f> Context<'f> {
     ) -> bool {
         type State = (BasicBlockId, ValueId, ValueId);
 
-        let inc_rc_in_block = |value: ValueId, block: BasicBlockId, limit: Option<usize>| {
-            self.inc_rc_locations.get(&value).is_some_and(|locations| {
-                locations
-                    .iter()
-                    .any(|&(rc_block, i)| rc_block == block && limit.is_none_or(|limit| i < limit))
-            })
-        };
-
-        // The instruction defining `value` in `block`, if any.
-        let def_in_block = |value: ValueId, block: BasicBlockId| -> Option<&Instruction> {
-            let &(def_block, def_idx) = self.array_value_defs.get(&value)?;
-            (def_block == block)
-                .then(|| &self.function.dfg[self.function.dfg[block].instructions()[def_idx]])
-        };
-
         // Phase 1: build the backward threading graph over (block, a, b) states.
         let mut graph: HashMap<State, Node<State>> = HashMap::default();
         let mut worklist: Vec<(BasicBlockId, ValueId, ValueId, Option<usize>)> =
@@ -1052,14 +1053,15 @@ impl<'f> Context<'f> {
 
             // Wall: a bump on either name protects the buffer if the names
             // coincide, and if they don't there is no hazard on this path.
-            if inc_rc_in_block(a, block, seed_idx) || inc_rc_in_block(b, block, seed_idx) {
+            if self.inc_rc_in_block(a, block, seed_idx) || self.inc_rc_in_block(b, block, seed_idx)
+            {
                 graph.insert((block, a, b), Node { successors: vec![], uncovered_terminal: false });
                 continue;
             }
 
             // An `array_set` result shares its operand's storage; continue
             // threading the pair with the operand.
-            if let Some(Instruction::ArraySet { array, .. }) = def_in_block(a, block) {
+            if let Some(Instruction::ArraySet { array, .. }) = self.def_in_block(a, block) {
                 let array = *array;
                 graph.insert(
                     (block, a, b),
@@ -1068,7 +1070,7 @@ impl<'f> Context<'f> {
                 worklist.push((block, array, b, seed_idx));
                 continue;
             }
-            if let Some(Instruction::ArraySet { array, .. }) = def_in_block(b, block) {
+            if let Some(Instruction::ArraySet { array, .. }) = self.def_in_block(b, block) {
                 let array = *array;
                 graph.insert(
                     (block, a, b),
@@ -1083,7 +1085,7 @@ impl<'f> Context<'f> {
                 // unthreadable definition) or the walk reached an entry with
                 // no bump crossed, this path hands the callee one buffer twice
                 // unprotected.
-                let defined_here = def_in_block(a, block).is_some();
+                let defined_here = self.def_in_block(a, block).is_some();
                 let mut preds = self.cfg.predecessors(block).peekable();
                 if defined_here || preds.peek().is_none() {
                     graph.insert(
@@ -1092,7 +1094,8 @@ impl<'f> Context<'f> {
                     );
                     continue;
                 }
-            } else if def_in_block(a, block).is_some() || def_in_block(b, block).is_some() {
+            } else if self.def_in_block(a, block).is_some() || self.def_in_block(b, block).is_some()
+            {
                 // Distinct names and one storage originates here: the other
                 // name cannot resolve to it further back, so this path carries
                 // two distinct buffers.
