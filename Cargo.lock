@@ -3388,6 +3388,7 @@ dependencies = [
  "nargo_fmt",
  "noir_ast_fuzzer",
  "noirc_abi",
+ "noirc_errors",
  "noirc_evaluator",
  "noirc_frontend",
  "proptest",
