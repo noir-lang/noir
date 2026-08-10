@@ -1,0 +1,16 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn main(idx: u32, c: bool, val: Field) {
+    let mut arr: [Field; 4] = [1_Field, 2_Field, 3_Field, 4_Field];
+    arr[idx] = val;
+    let mut out: Field = 0_Field;
+    if c {
+        assert(false, "bad branch");
+    } else {
+        out = arr[0_u32];
+        assert(out != 999_Field);
+    };
+    assert(out == 1_Field);
+}

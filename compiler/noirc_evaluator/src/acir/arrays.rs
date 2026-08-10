@@ -247,7 +247,7 @@ impl Context<'_> {
             return Ok(());
         }
 
-        if self.handle_disabled_array_operation(instruction, dfg, array, store_value)? {
+        if self.handle_disabled_array_operation(instruction, dfg, array, index, store_value)? {
             return Ok(());
         }
 
@@ -283,17 +283,35 @@ impl Context<'_> {
     /// match its result type, which the surrounding predication masks to zero anyway) and a disabled
     /// write leaves the array unchanged.
     ///
+    /// Reads at a statically safe index are excluded: the predicate in scope is not necessarily
+    /// theirs, so their value is not a don't-care. See the comment on that check below.
+    ///
     /// # Returns
     /// `true` if the operation was resolved as disabled
-    /// `false` if the predicate is not statically false
+    /// `false` if the predicate is not statically false, or does not belong to this instruction
     fn handle_disabled_array_operation(
         &mut self,
         instruction: InstructionId,
         dfg: &DataFlowGraph,
         array: ValueId,
+        index: ValueId,
         store_value: Option<ValueId>,
     ) -> Result<bool, RuntimeError> {
         if !self.acir_context.is_constant_zero(&self.current_side_effects_enabled_var) {
+            return Ok(false);
+        }
+
+        // The side-effects predicate is only this instruction's own for the instructions
+        // [`crate::ssa::opt::remove_enable_side_effects`] fences, that is those reporting
+        // `Instruction::requires_acir_gen_predicate == true`. A read at a statically safe index
+        // reports `false`, so that pass is free to move an `EnableSideEffectsIf` past it and the
+        // predicate reaching here can belong to an unrelated region: zeroing such a read would
+        // discard a live value, along with every constraint written over it.
+        //
+        // Resolving it as disabled is also unnecessary. A safe index is in bounds by construction,
+        // so it never needs the predicate's fallback to a valid slot and the ordinary path emits
+        // exactly the read the program asked for.
+        if store_value.is_none() && dfg.is_safe_index(index, array) {
             return Ok(false);
         }
 
