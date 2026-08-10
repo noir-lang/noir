@@ -1632,14 +1632,8 @@ impl<'a> FunctionContext<'a> {
             return Ok(false);
         }
 
-        let (numerator, denominator) = self.config().doomed_branch_probability;
-        if numerator == 0 || denominator == 0 {
-            Ok(false)
-        } else if numerator >= denominator {
-            Ok(true)
-        } else {
-            u.ratio(numerator, denominator)
-        }
+        let mut freq = Freq::new(u, &self.config().doomed_branch_freqs)?;
+        Ok(freq.enabled("doomed"))
     }
 
     /// Generate an if-then-else statement or expression.
@@ -2481,7 +2475,7 @@ mod tests {
     use arbitrary::Unstructured;
     use noirc_frontend::monomorphization::ast::{FuncId, Type};
 
-    use crate::program::{Context, FunctionContext, types};
+    use crate::program::{Context, FunctionContext, freq::Freqs, types};
 
     #[test]
     fn test_loop() {
@@ -2552,7 +2546,7 @@ mod tests {
     fn test_gen_if_can_generate_doomed_branch() {
         let mut u = Unstructured::new(&[0u8; 128]);
         let mut ctx = Context::default();
-        ctx.config.doomed_branch_probability = (1, 1);
+        ctx.config.doomed_branch_freqs = Freqs::new(&[("doomed", 1), ("regular", 0)]);
         ctx.config.max_block_size = 1;
         ctx.config.max_depth = 0;
         ctx.gen_main_decl(&mut u);
