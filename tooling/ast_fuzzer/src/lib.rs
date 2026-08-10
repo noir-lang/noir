@@ -57,6 +57,11 @@ pub struct Config {
     pub max_recursive_calls: usize,
     /// Maximum number of match cases.
     pub max_match_cases: usize,
+    /// Probability of replacing one conditional arm with a literal `assert(false)`.
+    ///
+    /// The ratio is expressed as `(numerator, denominator)`. A zero numerator
+    /// or denominator disables doomed branch generation.
+    pub doomed_branch_probability: (u32, u32),
     /// Frequency of expressions, which produce a value.
     pub expr_freqs: Freqs,
     /// Frequency of statements in ACIR functions.
@@ -148,6 +153,7 @@ impl Default for Config {
             vary_loop_size: true,
             max_recursive_calls: 25,
             max_match_cases: 3,
+            doomed_branch_probability: (1, 20),
             expr_freqs,
             stmt_freqs_acir,
             stmt_freqs_brillig,
