@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1786365374547,
+  "lastUpdate": 1786367469733,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23096,48 +23096,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "a613339135959a3934ccfa101b6fceca3668e4a7",
-          "message": "chore: remove old assignees from templates (#13394)",
-          "timestamp": "2026-07-24T11:20:41+01:00",
-          "tree_id": "9323171a174e3ea069721ba525faf62f333c861f",
-          "url": "https://github.com/noir-lang/noir/commit/a613339135959a3934ccfa101b6fceca3668e4a7"
-        },
-        "date": 1784888582453,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 122171,
-            "range": "± 486",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 99800,
-            "range": "± 293",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 1725622,
-            "range": "± 32202",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "49558828+AztecBot@users.noreply.github.com",
             "name": "Aztec Bot",
             "username": "AztecBot"
@@ -25189,6 +25147,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2647593,
             "range": "± 3696",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49558828+AztecBot@users.noreply.github.com",
+            "name": "Aztec Bot",
+            "username": "AztecBot"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "3554591b911582a8a7ed0b921556945eb54f347d",
+          "message": "feat(ast_fuzzer): generate doomed conditional branches (#13490)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
+          "timestamp": "2026-08-10T12:49:05Z",
+          "tree_id": "4e5e54716755e70ba2441b043a4e59638acade03",
+          "url": "https://github.com/noir-lang/noir/commit/3554591b911582a8a7ed0b921556945eb54f347d"
+        },
+        "date": 1786367385993,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 173002,
+            "range": "± 772",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 141623,
+            "range": "± 445",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2648481,
+            "range": "± 5695",
             "unit": "ns/iter"
           }
         ]
