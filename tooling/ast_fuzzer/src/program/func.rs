@@ -1574,6 +1574,68 @@ impl<'a> FunctionContext<'a> {
         Ok(Some(cons))
     }
 
+    /// Generate a block which is statically doomed by a literal failing assertion.
+    fn gen_doomed_block(
+        &mut self,
+        u: &mut Unstructured,
+        typ: &Type,
+    ) -> arbitrary::Result<TrackedExpression> {
+        self.decrease_budget(1);
+
+        let msg = self.gen_literal(u, &CONSTRAIN_MSG_TYPE)?;
+        let assertion = Expression::Constrain(
+            Box::new(expr::lit_bool(false)),
+            Location::dummy(),
+            Some(Box::new((msg, types::to_hir_type(&CONSTRAIN_MSG_TYPE)))),
+        );
+
+        let block = if types::is_unit(typ) {
+            Expression::Block(vec![assertion])
+        } else {
+            Expression::Block(vec![
+                Expression::Semi(Box::new(assertion)),
+                self.gen_literal(u, typ)?,
+            ])
+        };
+
+        Ok((block, false))
+    }
+
+    fn gen_if_arm(
+        &mut self,
+        u: &mut Unstructured,
+        typ: &Type,
+        max_depth: usize,
+        flags: Flags,
+        doomed: bool,
+    ) -> arbitrary::Result<TrackedExpression> {
+        if doomed {
+            self.gen_doomed_block(u, typ)
+        } else if flags.allow_blocks {
+            self.gen_block(u, typ)
+        } else {
+            self.gen_expr(u, typ, max_depth, flags)
+        }
+    }
+
+    fn should_gen_doomed_branch(
+        &self,
+        u: &mut Unstructured,
+        typ: &Type,
+        flags: Flags,
+    ) -> arbitrary::Result<bool> {
+        if self.unconstrained()
+            || self.config().avoid_constrain
+            || !flags.allow_blocks
+            || types::contains_reference(typ)
+        {
+            return Ok(false);
+        }
+
+        let mut freq = Freq::new(u, &self.config().doomed_branch_freqs)?;
+        Ok(freq.enabled("doomed"))
+    }
+
     /// Generate an if-then-else statement or expression.
     fn gen_if(
         &mut self,
@@ -1593,23 +1655,22 @@ impl<'a> FunctionContext<'a> {
         let in_dynamic = self.in_dynamic || cond_dyn;
         let was_in_dynamic = std::mem::replace(&mut self.in_dynamic, in_dynamic);
 
-        let (cons, cons_dyn) = {
-            if flags.allow_blocks {
-                self.gen_block(u, typ)?
-            } else {
-                self.gen_expr(u, typ, max_depth, flags)?
-            }
-        };
+        let gen_doomed_branch = self.should_gen_doomed_branch(u, typ, flags)?;
+        let doomed_consequence = gen_doomed_branch && bool::arbitrary(u)?;
 
-        let alt = if types::is_unit(typ) && bool::arbitrary(u)? {
+        let (cons, cons_dyn) = self.gen_if_arm(u, typ, max_depth, flags, doomed_consequence)?;
+
+        let alt = if types::is_unit(typ) && !gen_doomed_branch && bool::arbitrary(u)? {
             None
         } else {
             self.decrease_budget(1);
-            let expr = if flags.allow_blocks {
-                self.gen_block(u, typ)?
-            } else {
-                self.gen_expr(u, typ, max_depth, flags)?
-            };
+            let expr = self.gen_if_arm(
+                u,
+                typ,
+                max_depth,
+                flags,
+                gen_doomed_branch && !doomed_consequence,
+            )?;
             Some(expr)
         };
 
@@ -2412,9 +2473,9 @@ impl<'a> FunctionContext<'a> {
 #[cfg(test)]
 mod tests {
     use arbitrary::Unstructured;
-    use noirc_frontend::monomorphization::ast::FuncId;
+    use noirc_frontend::monomorphization::ast::{FuncId, Type};
 
-    use crate::program::{Context, FunctionContext};
+    use crate::program::{Context, FunctionContext, freq::Freqs, types};
 
     #[test]
     fn test_loop() {
@@ -2464,5 +2525,38 @@ mod tests {
                     .replace(" ", "")
             )
         );
+    }
+
+    #[test]
+    fn test_doomed_block_returns_requested_type() {
+        let mut u = Unstructured::new(&[0u8; 16]);
+        let mut ctx = Context::default();
+        ctx.gen_main_decl(&mut u);
+        let mut function_ctx = FunctionContext::new(&mut ctx, FuncId(0));
+
+        let (block, is_dyn) = function_ctx.gen_doomed_block(&mut u, &types::U32).unwrap();
+        let block_code = format!("{block}");
+
+        assert!(!is_dyn);
+        assert_eq!(block.return_type().unwrap().as_ref(), &types::U32);
+        assert!(block_code.contains("assert(false"));
+    }
+
+    #[test]
+    fn test_gen_if_can_generate_doomed_branch() {
+        let mut u = Unstructured::new(&[0u8; 128]);
+        let mut ctx = Context::default();
+        ctx.config.doomed_branch_freqs = Freqs::new(&[("doomed", 1), ("regular", 0)]);
+        ctx.config.max_block_size = 1;
+        ctx.config.max_depth = 0;
+        ctx.gen_main_decl(&mut u);
+        let mut function_ctx = FunctionContext::new(&mut ctx, FuncId(0));
+        function_ctx.budget = 4;
+
+        let (if_expr, _) = function_ctx.gen_if(&mut u, &Type::Unit, 0, super::Flags::TOP).unwrap();
+        let if_code = format!("{if_expr}");
+
+        assert!(if_code.contains("} else {"));
+        assert!(if_code.contains("assert(false"));
     }
 }

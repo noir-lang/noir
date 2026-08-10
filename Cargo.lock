@@ -3385,6 +3385,7 @@ dependencies = [
  "color-eyre",
  "env_logger",
  "libfuzzer-sys",
+ "nargo_fmt",
  "noir_ast_fuzzer",
  "noirc_abi",
  "noirc_evaluator",
