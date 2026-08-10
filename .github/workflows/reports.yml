@@ -37,6 +37,9 @@ jobs:
 
       - name: Run ACVM benchmarks
         run: |
+          # A stale `base` baseline restored from the cache makes Criterion print errors
+          # mid-line, breaking the bencher output parsed by github-action-benchmark.
+          rm -rf ./target/criterion
           cargo bench -p acvm -- --output-format bencher | tee acvm-bench.txt
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
