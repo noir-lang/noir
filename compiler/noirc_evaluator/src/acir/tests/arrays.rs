@@ -374,6 +374,75 @@ fn disabled_out_of_bounds_read_with_predicate_restored_resolves_without_memory_b
 }
 
 #[test]
+fn safe_index_read_under_disabled_predicate_emits_the_read() {
+    // The side-effects latch is only the reading instruction's own predicate for instructions
+    // that `remove_enable_side_effects` fences, i.e. those reporting
+    // `requires_acir_gen_predicate == true`. A safe-index `array_get` reports `false`, so the
+    // pass is free to move an `EnableSideEffectsIf` past it and the latch reaching ACIR gen can
+    // belong to an entirely different region.
+    //
+    // The SSA below is the shape that pass leaves behind: `v3` is pinned to a compile-time zero
+    // by `constrain u1 0 == v3`, but the read at the constant index `0` belongs to the region
+    // *after* it and is live. Resolving it as a disabled access would bind a live value to zero
+    // and delete the `constrain` the program wrote over it.
+    let src = "
+    acir(inline) fn main f0 {
+      b0(v0: [Field; 4], v1: u32, v2: Field, v3: u1):
+        v4 = array_set v0, index v1, value v2
+        enable_side_effects v3
+        constrain u1 0 == v3, \"bad branch\"
+        v5 = array_get v4, index u32 0 -> Field
+        enable_side_effects u1 1
+        constrain v5 != Field 999
+        return v5
+    }
+    ";
+    let program = ssa_to_acir_program(src);
+
+    assert_circuit_snapshot!(program, @r"
+    func 0
+    private parameters: [w0, w1, w2, w3, w4, w5, w6]
+    public parameters: []
+    return values: [w7]
+    INIT b0 = [w0, w1, w2, w3]
+    WRITE b0[w4] = w5
+    ASSERT w6 = 0
+    ASSERT w7 = 0
+    ");
+}
+
+#[test]
+fn unsafe_index_read_under_disabled_predicate_still_resolves_as_disabled() {
+    // The boundary of the fix above: a read whose index is *not* statically safe does report
+    // `requires_acir_gen_predicate == true`, so `remove_enable_side_effects` fences it and the
+    // latch really is this read's own predicate. Such a read must keep taking the disabled
+    // shortcut — no memory block, result zeroed.
+    let src = "
+    acir(inline) fn main f0 {
+      b0(v0: [Field; 4], v1: u32, v2: Field, v3: u1):
+        v4 = array_set v0, index v1, value v2
+        enable_side_effects v3
+        constrain u1 0 == v3, \"bad branch\"
+        v5 = array_get v4, index v1 -> Field
+        enable_side_effects u1 1
+        return v5
+    }
+    ";
+    let program = ssa_to_acir_program(src);
+
+    assert_circuit_snapshot!(program, @r"
+    func 0
+    private parameters: [w0, w1, w2, w3, w4, w5, w6]
+    public parameters: []
+    return values: [w7]
+    INIT b0 = [w0, w1, w2, w3]
+    WRITE b0[w4] = w5
+    ASSERT w6 = 0
+    ASSERT w7 = 0
+    ");
+}
+
+#[test]
 fn generates_memory_op_for_dynamic_read() {
     let src = "
     acir(inline) fn main f0 {
