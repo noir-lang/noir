@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1786375347948,
+  "lastUpdate": 1786378292762,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23131,48 +23131,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": true,
-          "id": "d0bb1c992fb394acc2a8cc015d104c7d746c3855",
-          "message": "chore: add a skill for writing design docs (#13402)",
-          "timestamp": "2026-07-24T15:56:19+01:00",
-          "tree_id": "681eba0f3eef34ce7f5feede2e39fbb757dbd68c",
-          "url": "https://github.com/noir-lang/noir/commit/d0bb1c992fb394acc2a8cc015d104c7d746c3855"
-        },
-        "date": 1784905127945,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 127077,
-            "range": "± 140",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 113309,
-            "range": "± 2203",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 3043054,
-            "range": "± 2834",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "49558828+AztecBot@users.noreply.github.com",
-            "name": "Aztec Bot",
-            "username": "AztecBot"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
           "id": "e69bb2269c3d1c28daffcf6527692b96f25a0f80",
           "message": "feat: silence `constant_return` warning via `#[allow(constant_return)]` (#13399)\n\nCo-authored-by: Ary Borenszweig <asterite@gmail.com>\nCo-authored-by: Claude Fable 5 <noreply@anthropic.com>\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
           "timestamp": "2026-07-24T14:58:38Z",
@@ -25214,6 +25172,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2648481,
             "range": "± 5695",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49558828+AztecBot@users.noreply.github.com",
+            "name": "Aztec Bot",
+            "username": "AztecBot"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "f078538b29fd3977e65240048b3902cd442e3d90",
+          "message": "fix(fmt): do not desynchronize on a shift operator or a negative zero (#13496)",
+          "timestamp": "2026-08-10T17:06:49+01:00",
+          "tree_id": "95dcb1ad0edca3b9f7d17c8b9136de3b541d29e9",
+          "url": "https://github.com/noir-lang/noir/commit/f078538b29fd3977e65240048b3902cd442e3d90"
+        },
+        "date": 1786378209202,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 174042,
+            "range": "± 476",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 142352,
+            "range": "± 5217",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2648953,
+            "range": "± 1770",
             "unit": "ns/iter"
           }
         ]
