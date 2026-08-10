@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1786374630291,
+  "lastUpdate": 1786375248133,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -19314,85 +19314,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "62751a5edc9e6cb018c4d6625ccee4533ac21788",
-          "message": "fix(ci): pass a real ref when dispatching publish-es-packages (#13384)",
-          "timestamp": "2026-07-21T15:14:00+01:00",
-          "tree_id": "1062e4c6a096a1838c2ed0e7981bf18903500b56",
-          "url": "https://github.com/noir-lang/noir/commit/62751a5edc9e6cb018c4d6625ccee4533ac21788"
-        },
-        "date": 1784644111180,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "test_report_AztecProtocol_aztec-packages_noir-projects_aztec-nr",
-            "value": 326,
-            "unit": "s"
-          },
-          {
-            "name": "test_report_AztecProtocol_aztec-packages_noir-projects_noir-contracts",
-            "value": 261,
-            "unit": "s"
-          },
-          {
-            "name": "test_report_AztecProtocol_aztec-packages_noir-projects_noir-protocol-circuits_crates_blob",
-            "value": 156,
-            "unit": "s"
-          },
-          {
-            "name": "test_report_AztecProtocol_aztec-packages_noir-projects_noir-protocol-circuits_crates_private-kernel-lib",
-            "value": 501,
-            "unit": "s"
-          },
-          {
-            "name": "test_report_AztecProtocol_aztec-packages_noir-projects_noir-protocol-circuits_crates_types",
-            "value": 173,
-            "unit": "s"
-          },
-          {
-            "name": "test_report_noir-lang_noir-bignum_",
-            "value": 155,
-            "unit": "s"
-          },
-          {
-            "name": "test_report_noir-lang_noir_bigcurve_",
-            "value": 294,
-            "unit": "s"
-          },
-          {
-            "name": "test_report_noir-lang_sha256_",
-            "value": 22,
-            "unit": "s"
-          },
-          {
-            "name": "test_report_noir-lang_sha512_",
-            "value": 15,
-            "unit": "s"
-          },
-          {
-            "name": "test_report_zkpassport_noir-ecdsa_",
-            "value": 3,
-            "unit": "s"
-          },
-          {
-            "name": "test_report_zkpassport_noir_rsa_",
-            "value": 2,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "163862677+noirwhal@users.noreply.github.com",
             "name": "noirwhal",
             "username": "noirwhal"
@@ -23107,6 +23028,90 @@ window.BENCHMARK_DATA = {
           {
             "name": "test_report_zkpassport_noir_rsa_",
             "value": 1,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "7e26554b70ee3a3fd3b09eb8f59ad68b4d72897b",
+          "message": "chore(fmt): replace the line-comment termination guard with faithful newline re-emission (#13494)\n\nCo-authored-by: Claude Fable 5 <noreply@anthropic.com>",
+          "timestamp": "2026-08-10T15:55:46+01:00",
+          "tree_id": "85a85f00e1f918ac943e67e126a5ad5462b58323",
+          "url": "https://github.com/noir-lang/noir/commit/7e26554b70ee3a3fd3b09eb8f59ad68b4d72897b"
+        },
+        "date": 1786375138859,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "test_report_AztecProtocol_aztec-packages_noir-projects_fnd_noir-protocol-circuits_crates_blob",
+            "value": 266,
+            "unit": "s"
+          },
+          {
+            "name": "test_report_AztecProtocol_aztec-packages_noir-projects_fnd_noir-protocol-circuits_crates_private-kernel-lib",
+            "value": 1007,
+            "unit": "s"
+          },
+          {
+            "name": "test_report_AztecProtocol_aztec-packages_noir-projects_fnd_noir-protocol-circuits_crates_types",
+            "value": 128,
+            "unit": "s"
+          },
+          {
+            "name": "test_report_AztecProtocol_aztec-packages_noir-projects_labs_aztec-nr",
+            "value": 811,
+            "unit": "s"
+          },
+          {
+            "name": "test_report_AztecProtocol_aztec-packages_noir-projects_labs_noir-contracts",
+            "value": 502,
+            "unit": "s"
+          },
+          {
+            "name": "test_report_noir-lang_noir-bignum_",
+            "value": 185,
+            "unit": "s"
+          },
+          {
+            "name": "test_report_noir-lang_noir_bigcurve_",
+            "value": 329,
+            "unit": "s"
+          },
+          {
+            "name": "test_report_noir-lang_noir_json_parser_",
+            "value": 16,
+            "unit": "s"
+          },
+          {
+            "name": "test_report_noir-lang_sha256_",
+            "value": 35,
+            "unit": "s"
+          },
+          {
+            "name": "test_report_noir-lang_sha512_",
+            "value": 13,
+            "unit": "s"
+          },
+          {
+            "name": "test_report_zkpassport_noir-ecdsa_",
+            "value": 5,
+            "unit": "s"
+          },
+          {
+            "name": "test_report_zkpassport_noir_rsa_",
+            "value": 4,
             "unit": "s"
           }
         ]
