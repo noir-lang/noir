@@ -2719,322 +2719,363 @@
 <a href=#2719 id=2719 data-nosnippet>2719</a>    }
 <a href=#2720 id=2720 data-nosnippet>2720</a>
 <a href=#2721 id=2721 data-nosnippet>2721</a>    <span class="attr">#[test]
-<a href=#2722 id=2722 data-nosnippet>2722</a>    </span><span class="kw">fn </span>format_lambda_as_last_call_argument() {
-<a href=#2723 id=2723 data-nosnippet>2723</a>        <span class="kw">let </span>src = <span class="string">"global x = foo(1, |x| { 1; 2 });"</span>;
-<a href=#2724 id=2724 data-nosnippet>2724</a>        <span class="kw">let </span>expected = <span class="string">"global x = foo(1, |x| {
-<a href=#2725 id=2725 data-nosnippet>2725</a>    1;
-<a href=#2726 id=2726 data-nosnippet>2726</a>    2
-<a href=#2727 id=2727 data-nosnippet>2727</a>});
-<a href=#2728 id=2728 data-nosnippet>2728</a>"</span>;
-<a href=#2729 id=2729 data-nosnippet>2729</a>        assert_format(src, expected);
-<a href=#2730 id=2730 data-nosnippet>2730</a>    }
-<a href=#2731 id=2731 data-nosnippet>2731</a>
-<a href=#2732 id=2732 data-nosnippet>2732</a>    <span class="attr">#[test]
-<a href=#2733 id=2733 data-nosnippet>2733</a>    </span><span class="kw">fn </span>format_lambda_as_last_method_call_argument() {
-<a href=#2734 id=2734 data-nosnippet>2734</a>        <span class="kw">let </span>src = <span class="string">"global x = foo.bar(1, |x| { 1; 2 });"</span>;
-<a href=#2735 id=2735 data-nosnippet>2735</a>        <span class="kw">let </span>expected = <span class="string">"global x = foo.bar(1, |x| {
-<a href=#2736 id=2736 data-nosnippet>2736</a>    1;
-<a href=#2737 id=2737 data-nosnippet>2737</a>    2
-<a href=#2738 id=2738 data-nosnippet>2738</a>});
-<a href=#2739 id=2739 data-nosnippet>2739</a>"</span>;
-<a href=#2740 id=2740 data-nosnippet>2740</a>        assert_format(src, expected);
-<a href=#2741 id=2741 data-nosnippet>2741</a>    }
-<a href=#2742 id=2742 data-nosnippet>2742</a>
-<a href=#2743 id=2743 data-nosnippet>2743</a>    <span class="attr">#[test]
-<a href=#2744 id=2744 data-nosnippet>2744</a>    </span><span class="kw">fn </span>format_lambda_as_last_method_call_argument_2() {
-<a href=#2745 id=2745 data-nosnippet>2745</a>        <span class="kw">let </span>src = <span class="string">"fn foo(){
-<a href=#2746 id=2746 data-nosnippet>2746</a>    m.structs().any(|s: StructDefinition| s.has_named_attribute(\"storage\") | s.has_named_attribute(\"storage_no_init\"),
-<a href=#2747 id=2747 data-nosnippet>2747</a>    )
-<a href=#2748 id=2748 data-nosnippet>2748</a>}
-<a href=#2749 id=2749 data-nosnippet>2749</a>"</span>;
-<a href=#2750 id=2750 data-nosnippet>2750</a>        <span class="kw">let </span>expected = <span class="string">"fn foo() {
-<a href=#2751 id=2751 data-nosnippet>2751</a>    m.structs().any(|s: StructDefinition| {
-<a href=#2752 id=2752 data-nosnippet>2752</a>        s.has_named_attribute(\"storage\") | s.has_named_attribute(\"storage_no_init\")
-<a href=#2753 id=2753 data-nosnippet>2753</a>    })
-<a href=#2754 id=2754 data-nosnippet>2754</a>}
-<a href=#2755 id=2755 data-nosnippet>2755</a>"</span>;
-<a href=#2756 id=2756 data-nosnippet>2756</a>        assert_format(src, expected);
-<a href=#2757 id=2757 data-nosnippet>2757</a>    }
-<a href=#2758 id=2758 data-nosnippet>2758</a>
-<a href=#2759 id=2759 data-nosnippet>2759</a>    <span class="attr">#[test]
-<a href=#2760 id=2760 data-nosnippet>2760</a>    </span><span class="kw">fn </span>format_lambda_as_last_method_call_argument_3() {
-<a href=#2761 id=2761 data-nosnippet>2761</a>        <span class="kw">let </span>src = <span class="string">"mod moo {
-<a href=#2762 id=2762 data-nosnippet>2762</a>    fn foo() {
-<a href=#2763 id=2763 data-nosnippet>2763</a>        let mut sorted_write_tuples = unsafe {
-<a href=#2764 id=2764 data-nosnippet>2764</a>            get_sorted_tuple(
-<a href=#2765 id=2765 data-nosnippet>2765</a>                final_public_data_writes.storage,
-<a href=#2766 id=2766 data-nosnippet>2766</a>                |(_, leaf_a): (u32, PublicDataTreeLeaf), (_, leaf_b): (u32, PublicDataTreeLeaf)| full_field_less_than(
-<a href=#2767 id=2767 data-nosnippet>2767</a>                    1, 2,
-<a href=#2768 id=2768 data-nosnippet>2768</a>                ),
-<a href=#2769 id=2769 data-nosnippet>2769</a>            )
-<a href=#2770 id=2770 data-nosnippet>2770</a>        };
+<a href=#2722 id=2722 data-nosnippet>2722</a>    </span><span class="kw">fn </span>format_lambda_with_comment_between_parameters_and_body() {
+<a href=#2723 id=2723 data-nosnippet>2723</a>        <span class="comment">// Regression test for https://github.com/noir-lang/noir-claude/issues/1646:
+<a href=#2724 id=2724 data-nosnippet>2724</a>        // the comment's terminating newline was dropped, so the lambda body was
+<a href=#2725 id=2725 data-nosnippet>2725</a>        // swallowed into the comment while the program still compiled.
+<a href=#2726 id=2726 data-nosnippet>2726</a>        </span><span class="kw">let </span>src = <span class="string">"fn main(x: Field, y: Field) {
+<a href=#2727 id=2727 data-nosnippet>2727</a>    let check = |v| // every checked value must equal y
+<a href=#2728 id=2728 data-nosnippet>2728</a>{ assert(v == y); };
+<a href=#2729 id=2729 data-nosnippet>2729</a>    check(x);
+<a href=#2730 id=2730 data-nosnippet>2730</a>}
+<a href=#2731 id=2731 data-nosnippet>2731</a>"</span>;
+<a href=#2732 id=2732 data-nosnippet>2732</a>        <span class="kw">let </span>expected = <span class="string">"fn main(x: Field, y: Field) {
+<a href=#2733 id=2733 data-nosnippet>2733</a>    let check = |v| // every checked value must equal y
+<a href=#2734 id=2734 data-nosnippet>2734</a>    { assert(v == y); };
+<a href=#2735 id=2735 data-nosnippet>2735</a>    check(x);
+<a href=#2736 id=2736 data-nosnippet>2736</a>}
+<a href=#2737 id=2737 data-nosnippet>2737</a>"</span>;
+<a href=#2738 id=2738 data-nosnippet>2738</a>        assert_format(src, expected);
+<a href=#2739 id=2739 data-nosnippet>2739</a>    }
+<a href=#2740 id=2740 data-nosnippet>2740</a>
+<a href=#2741 id=2741 data-nosnippet>2741</a>    <span class="attr">#[test]
+<a href=#2742 id=2742 data-nosnippet>2742</a>    </span><span class="kw">fn </span>format_lambda_as_last_call_argument_with_comment_between_parameters_and_body() {
+<a href=#2743 id=2743 data-nosnippet>2743</a>        <span class="comment">// Regression test for https://github.com/noir-lang/noir-claude/issues/1646.
+<a href=#2744 id=2744 data-nosnippet>2744</a>        // A lambda as the last call argument is formatted through a fast path that
+<a href=#2745 id=2745 data-nosnippet>2745</a>        // writes the group in one line, which is a separate way for the comment's
+<a href=#2746 id=2746 data-nosnippet>2746</a>        // terminating newline to be lost.
+<a href=#2747 id=2747 data-nosnippet>2747</a>        </span><span class="kw">let </span>src = <span class="string">"fn main() {
+<a href=#2748 id=2748 data-nosnippet>2748</a>    foo(1, |x| // doubles the input
+<a href=#2749 id=2749 data-nosnippet>2749</a>    {
+<a href=#2750 id=2750 data-nosnippet>2750</a>        x * 2
+<a href=#2751 id=2751 data-nosnippet>2751</a>    });
+<a href=#2752 id=2752 data-nosnippet>2752</a>}
+<a href=#2753 id=2753 data-nosnippet>2753</a>"</span>;
+<a href=#2754 id=2754 data-nosnippet>2754</a>        <span class="kw">let </span>expected = <span class="string">"fn main() {
+<a href=#2755 id=2755 data-nosnippet>2755</a>    foo(1, |x| // doubles the input
+<a href=#2756 id=2756 data-nosnippet>2756</a>    x * 2);
+<a href=#2757 id=2757 data-nosnippet>2757</a>}
+<a href=#2758 id=2758 data-nosnippet>2758</a>"</span>;
+<a href=#2759 id=2759 data-nosnippet>2759</a>        assert_format(src, expected);
+<a href=#2760 id=2760 data-nosnippet>2760</a>    }
+<a href=#2761 id=2761 data-nosnippet>2761</a>
+<a href=#2762 id=2762 data-nosnippet>2762</a>    <span class="attr">#[test]
+<a href=#2763 id=2763 data-nosnippet>2763</a>    </span><span class="kw">fn </span>format_lambda_as_last_call_argument() {
+<a href=#2764 id=2764 data-nosnippet>2764</a>        <span class="kw">let </span>src = <span class="string">"global x = foo(1, |x| { 1; 2 });"</span>;
+<a href=#2765 id=2765 data-nosnippet>2765</a>        <span class="kw">let </span>expected = <span class="string">"global x = foo(1, |x| {
+<a href=#2766 id=2766 data-nosnippet>2766</a>    1;
+<a href=#2767 id=2767 data-nosnippet>2767</a>    2
+<a href=#2768 id=2768 data-nosnippet>2768</a>});
+<a href=#2769 id=2769 data-nosnippet>2769</a>"</span>;
+<a href=#2770 id=2770 data-nosnippet>2770</a>        assert_format(src, expected);
 <a href=#2771 id=2771 data-nosnippet>2771</a>    }
-<a href=#2772 id=2772 data-nosnippet>2772</a>}
-<a href=#2773 id=2773 data-nosnippet>2773</a>"</span>;
-<a href=#2774 id=2774 data-nosnippet>2774</a>        <span class="kw">let </span>expected = <span class="string">"mod moo {
-<a href=#2775 id=2775 data-nosnippet>2775</a>    fn foo() {
-<a href=#2776 id=2776 data-nosnippet>2776</a>        let mut sorted_write_tuples = unsafe {
-<a href=#2777 id=2777 data-nosnippet>2777</a>            get_sorted_tuple(
-<a href=#2778 id=2778 data-nosnippet>2778</a>                final_public_data_writes.storage,
-<a href=#2779 id=2779 data-nosnippet>2779</a>                |(_, leaf_a): (u32, PublicDataTreeLeaf), (_, leaf_b): (u32, PublicDataTreeLeaf)| {
-<a href=#2780 id=2780 data-nosnippet>2780</a>                    full_field_less_than(1, 2)
-<a href=#2781 id=2781 data-nosnippet>2781</a>                },
-<a href=#2782 id=2782 data-nosnippet>2782</a>            )
-<a href=#2783 id=2783 data-nosnippet>2783</a>        };
-<a href=#2784 id=2784 data-nosnippet>2784</a>    }
-<a href=#2785 id=2785 data-nosnippet>2785</a>}
-<a href=#2786 id=2786 data-nosnippet>2786</a>"</span>;
-<a href=#2787 id=2787 data-nosnippet>2787</a>        assert_format(src, expected);
-<a href=#2788 id=2788 data-nosnippet>2788</a>    }
-<a href=#2789 id=2789 data-nosnippet>2789</a>
-<a href=#2790 id=2790 data-nosnippet>2790</a>    <span class="attr">#[test]
-<a href=#2791 id=2791 data-nosnippet>2791</a>    </span><span class="kw">fn </span>format_lambda_as_last_method_call_chain_argument() {
-<a href=#2792 id=2792 data-nosnippet>2792</a>        <span class="kw">let </span>src = <span class="string">"global x = foo.bar(1).baz(2, |x| { 1; 2 });"</span>;
-<a href=#2793 id=2793 data-nosnippet>2793</a>        <span class="kw">let </span>expected = <span class="string">"global x = foo.bar(1).baz(2, |x| {
-<a href=#2794 id=2794 data-nosnippet>2794</a>    1;
-<a href=#2795 id=2795 data-nosnippet>2795</a>    2
-<a href=#2796 id=2796 data-nosnippet>2796</a>});
-<a href=#2797 id=2797 data-nosnippet>2797</a>"</span>;
-<a href=#2798 id=2798 data-nosnippet>2798</a>        assert_format(src, expected);
-<a href=#2799 id=2799 data-nosnippet>2799</a>    }
-<a href=#2800 id=2800 data-nosnippet>2800</a>
-<a href=#2801 id=2801 data-nosnippet>2801</a>    <span class="attr">#[test]
-<a href=#2802 id=2802 data-nosnippet>2802</a>    </span><span class="kw">fn </span>format_lambda_as_last_method_call_chain_argument_2() {
-<a href=#2803 id=2803 data-nosnippet>2803</a>        <span class="kw">let </span>src = <span class="string">"fn foo() { expr.as_unsafe().map(|exprs| { a; aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa }) }
-<a href=#2804 id=2804 data-nosnippet>2804</a>        "</span>;
-<a href=#2805 id=2805 data-nosnippet>2805</a>        <span class="kw">let </span>expected = <span class="string">"fn foo() {
-<a href=#2806 id=2806 data-nosnippet>2806</a>    expr.as_unsafe().map(|exprs| {
-<a href=#2807 id=2807 data-nosnippet>2807</a>        a;
-<a href=#2808 id=2808 data-nosnippet>2808</a>        aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
-<a href=#2809 id=2809 data-nosnippet>2809</a>    })
-<a href=#2810 id=2810 data-nosnippet>2810</a>}
-<a href=#2811 id=2811 data-nosnippet>2811</a>"</span>;
-<a href=#2812 id=2812 data-nosnippet>2812</a>        assert_format(src, expected);
-<a href=#2813 id=2813 data-nosnippet>2813</a>    }
-<a href=#2814 id=2814 data-nosnippet>2814</a>
-<a href=#2815 id=2815 data-nosnippet>2815</a>    <span class="attr">#[test]
-<a href=#2816 id=2816 data-nosnippet>2816</a>    </span><span class="kw">fn </span>format_lambda_as_last_method_call_has_to_wrap() {
-<a href=#2817 id=2817 data-nosnippet>2817</a>        <span class="kw">let </span>src = <span class="string">"global foo = bar(1, 2, 3, |argument| { 1; 2 });"</span>;
-<a href=#2818 id=2818 data-nosnippet>2818</a>        <span class="kw">let </span>expected = <span class="string">"global foo = bar(
-<a href=#2819 id=2819 data-nosnippet>2819</a>    1,
-<a href=#2820 id=2820 data-nosnippet>2820</a>    2,
-<a href=#2821 id=2821 data-nosnippet>2821</a>    3,
-<a href=#2822 id=2822 data-nosnippet>2822</a>    |argument| {
-<a href=#2823 id=2823 data-nosnippet>2823</a>        1;
-<a href=#2824 id=2824 data-nosnippet>2824</a>        2
-<a href=#2825 id=2825 data-nosnippet>2825</a>    },
-<a href=#2826 id=2826 data-nosnippet>2826</a>);
+<a href=#2772 id=2772 data-nosnippet>2772</a>
+<a href=#2773 id=2773 data-nosnippet>2773</a>    <span class="attr">#[test]
+<a href=#2774 id=2774 data-nosnippet>2774</a>    </span><span class="kw">fn </span>format_lambda_as_last_method_call_argument() {
+<a href=#2775 id=2775 data-nosnippet>2775</a>        <span class="kw">let </span>src = <span class="string">"global x = foo.bar(1, |x| { 1; 2 });"</span>;
+<a href=#2776 id=2776 data-nosnippet>2776</a>        <span class="kw">let </span>expected = <span class="string">"global x = foo.bar(1, |x| {
+<a href=#2777 id=2777 data-nosnippet>2777</a>    1;
+<a href=#2778 id=2778 data-nosnippet>2778</a>    2
+<a href=#2779 id=2779 data-nosnippet>2779</a>});
+<a href=#2780 id=2780 data-nosnippet>2780</a>"</span>;
+<a href=#2781 id=2781 data-nosnippet>2781</a>        assert_format(src, expected);
+<a href=#2782 id=2782 data-nosnippet>2782</a>    }
+<a href=#2783 id=2783 data-nosnippet>2783</a>
+<a href=#2784 id=2784 data-nosnippet>2784</a>    <span class="attr">#[test]
+<a href=#2785 id=2785 data-nosnippet>2785</a>    </span><span class="kw">fn </span>format_lambda_as_last_method_call_argument_2() {
+<a href=#2786 id=2786 data-nosnippet>2786</a>        <span class="kw">let </span>src = <span class="string">"fn foo(){
+<a href=#2787 id=2787 data-nosnippet>2787</a>    m.structs().any(|s: StructDefinition| s.has_named_attribute(\"storage\") | s.has_named_attribute(\"storage_no_init\"),
+<a href=#2788 id=2788 data-nosnippet>2788</a>    )
+<a href=#2789 id=2789 data-nosnippet>2789</a>}
+<a href=#2790 id=2790 data-nosnippet>2790</a>"</span>;
+<a href=#2791 id=2791 data-nosnippet>2791</a>        <span class="kw">let </span>expected = <span class="string">"fn foo() {
+<a href=#2792 id=2792 data-nosnippet>2792</a>    m.structs().any(|s: StructDefinition| {
+<a href=#2793 id=2793 data-nosnippet>2793</a>        s.has_named_attribute(\"storage\") | s.has_named_attribute(\"storage_no_init\")
+<a href=#2794 id=2794 data-nosnippet>2794</a>    })
+<a href=#2795 id=2795 data-nosnippet>2795</a>}
+<a href=#2796 id=2796 data-nosnippet>2796</a>"</span>;
+<a href=#2797 id=2797 data-nosnippet>2797</a>        assert_format(src, expected);
+<a href=#2798 id=2798 data-nosnippet>2798</a>    }
+<a href=#2799 id=2799 data-nosnippet>2799</a>
+<a href=#2800 id=2800 data-nosnippet>2800</a>    <span class="attr">#[test]
+<a href=#2801 id=2801 data-nosnippet>2801</a>    </span><span class="kw">fn </span>format_lambda_as_last_method_call_argument_3() {
+<a href=#2802 id=2802 data-nosnippet>2802</a>        <span class="kw">let </span>src = <span class="string">"mod moo {
+<a href=#2803 id=2803 data-nosnippet>2803</a>    fn foo() {
+<a href=#2804 id=2804 data-nosnippet>2804</a>        let mut sorted_write_tuples = unsafe {
+<a href=#2805 id=2805 data-nosnippet>2805</a>            get_sorted_tuple(
+<a href=#2806 id=2806 data-nosnippet>2806</a>                final_public_data_writes.storage,
+<a href=#2807 id=2807 data-nosnippet>2807</a>                |(_, leaf_a): (u32, PublicDataTreeLeaf), (_, leaf_b): (u32, PublicDataTreeLeaf)| full_field_less_than(
+<a href=#2808 id=2808 data-nosnippet>2808</a>                    1, 2,
+<a href=#2809 id=2809 data-nosnippet>2809</a>                ),
+<a href=#2810 id=2810 data-nosnippet>2810</a>            )
+<a href=#2811 id=2811 data-nosnippet>2811</a>        };
+<a href=#2812 id=2812 data-nosnippet>2812</a>    }
+<a href=#2813 id=2813 data-nosnippet>2813</a>}
+<a href=#2814 id=2814 data-nosnippet>2814</a>"</span>;
+<a href=#2815 id=2815 data-nosnippet>2815</a>        <span class="kw">let </span>expected = <span class="string">"mod moo {
+<a href=#2816 id=2816 data-nosnippet>2816</a>    fn foo() {
+<a href=#2817 id=2817 data-nosnippet>2817</a>        let mut sorted_write_tuples = unsafe {
+<a href=#2818 id=2818 data-nosnippet>2818</a>            get_sorted_tuple(
+<a href=#2819 id=2819 data-nosnippet>2819</a>                final_public_data_writes.storage,
+<a href=#2820 id=2820 data-nosnippet>2820</a>                |(_, leaf_a): (u32, PublicDataTreeLeaf), (_, leaf_b): (u32, PublicDataTreeLeaf)| {
+<a href=#2821 id=2821 data-nosnippet>2821</a>                    full_field_less_than(1, 2)
+<a href=#2822 id=2822 data-nosnippet>2822</a>                },
+<a href=#2823 id=2823 data-nosnippet>2823</a>            )
+<a href=#2824 id=2824 data-nosnippet>2824</a>        };
+<a href=#2825 id=2825 data-nosnippet>2825</a>    }
+<a href=#2826 id=2826 data-nosnippet>2826</a>}
 <a href=#2827 id=2827 data-nosnippet>2827</a>"</span>;
-<a href=#2828 id=2828 data-nosnippet>2828</a>        assert_format_with_max_width(src, expected, src.len() - <span class="number">10</span>);
+<a href=#2828 id=2828 data-nosnippet>2828</a>        assert_format(src, expected);
 <a href=#2829 id=2829 data-nosnippet>2829</a>    }
 <a href=#2830 id=2830 data-nosnippet>2830</a>
 <a href=#2831 id=2831 data-nosnippet>2831</a>    <span class="attr">#[test]
-<a href=#2832 id=2832 data-nosnippet>2832</a>    </span><span class="kw">fn </span>removes_nested_parens() {
-<a href=#2833 id=2833 data-nosnippet>2833</a>        <span class="kw">let </span>src = <span class="string">"global x = ( ( ( ( ) ) ) ) ;"</span>;
-<a href=#2834 id=2834 data-nosnippet>2834</a>        <span class="kw">let </span>expected = <span class="string">"global x = (());\n"</span>;
-<a href=#2835 id=2835 data-nosnippet>2835</a>        assert_format(src, expected);
-<a href=#2836 id=2836 data-nosnippet>2836</a>    }
-<a href=#2837 id=2837 data-nosnippet>2837</a>
-<a href=#2838 id=2838 data-nosnippet>2838</a>    <span class="attr">#[test]
-<a href=#2839 id=2839 data-nosnippet>2839</a>    </span><span class="kw">fn </span>does_not_remove_nested_parens_if_not_told_so() {
-<a href=#2840 id=2840 data-nosnippet>2840</a>        <span class="kw">let </span>src = <span class="string">"global x = ( ( ( ( ) ) ) ) ;"</span>;
-<a href=#2841 id=2841 data-nosnippet>2841</a>        <span class="kw">let </span>expected = <span class="string">"global x = (((())));\n"</span>;
-<a href=#2842 id=2842 data-nosnippet>2842</a>
-<a href=#2843 id=2843 data-nosnippet>2843</a>        <span class="kw">let </span>config = Config { remove_nested_parens: <span class="bool-val">false</span>, ..Config::default() };
-<a href=#2844 id=2844 data-nosnippet>2844</a>        assert_format_with_config(src, expected, config);
-<a href=#2845 id=2845 data-nosnippet>2845</a>    }
-<a href=#2846 id=2846 data-nosnippet>2846</a>
-<a href=#2847 id=2847 data-nosnippet>2847</a>    <span class="attr">#[test]
-<a href=#2848 id=2848 data-nosnippet>2848</a>    </span><span class="kw">fn </span>attaches_comma_to_last_group() {
-<a href=#2849 id=2849 data-nosnippet>2849</a>        <span class="kw">let </span>src = <span class="string">" mod moo {
-<a href=#2850 id=2850 data-nosnippet>2850</a>    fn foo() {
-<a href=#2851 id=2851 data-nosnippet>2851</a>        [
-<a href=#2852 id=2852 data-nosnippet>2852</a>            Foo { a: 1 }, Foo { a: 1 }
-<a href=#2853 id=2853 data-nosnippet>2853</a>            ];
-<a href=#2854 id=2854 data-nosnippet>2854</a>            bar;
-<a href=#2855 id=2855 data-nosnippet>2855</a>        }
-<a href=#2856 id=2856 data-nosnippet>2856</a>}
-<a href=#2857 id=2857 data-nosnippet>2857</a>"</span>;
-<a href=#2858 id=2858 data-nosnippet>2858</a>        <span class="kw">let </span>expected = <span class="string">"mod moo {
-<a href=#2859 id=2859 data-nosnippet>2859</a>    fn foo() {
-<a href=#2860 id=2860 data-nosnippet>2860</a>        [
-<a href=#2861 id=2861 data-nosnippet>2861</a>            Foo {
-<a href=#2862 id=2862 data-nosnippet>2862</a>                a: 1,
-<a href=#2863 id=2863 data-nosnippet>2863</a>            },
-<a href=#2864 id=2864 data-nosnippet>2864</a>            Foo {
-<a href=#2865 id=2865 data-nosnippet>2865</a>                a: 1,
-<a href=#2866 id=2866 data-nosnippet>2866</a>            },
-<a href=#2867 id=2867 data-nosnippet>2867</a>        ];
-<a href=#2868 id=2868 data-nosnippet>2868</a>        bar;
-<a href=#2869 id=2869 data-nosnippet>2869</a>    }
-<a href=#2870 id=2870 data-nosnippet>2870</a>}
-<a href=#2871 id=2871 data-nosnippet>2871</a>"</span>;
-<a href=#2872 id=2872 data-nosnippet>2872</a>        assert_format_with_max_width(src, expected, <span class="string">"            Foo { a: 1 },"</span>.len() - <span class="number">1</span>);
-<a href=#2873 id=2873 data-nosnippet>2873</a>    }
-<a href=#2874 id=2874 data-nosnippet>2874</a>
-<a href=#2875 id=2875 data-nosnippet>2875</a>    <span class="attr">#[test]
-<a href=#2876 id=2876 data-nosnippet>2876</a>    </span><span class="kw">fn </span>format_match() {
-<a href=#2877 id=2877 data-nosnippet>2877</a>        <span class="kw">let </span>src = <span class="string">"fn main() {  match  x  {  A=&gt;B  ,  C  =&gt;  {D}E=&gt;()  ,  } }"</span>;
-<a href=#2878 id=2878 data-nosnippet>2878</a>        <span class="comment">// We should remove the block on D for single expressions in the future,
-<a href=#2879 id=2879 data-nosnippet>2879</a>        // unless D is an if or match.
-<a href=#2880 id=2880 data-nosnippet>2880</a>        </span><span class="kw">let </span>expected = <span class="string">"fn main() {
-<a href=#2881 id=2881 data-nosnippet>2881</a>    match x {
-<a href=#2882 id=2882 data-nosnippet>2882</a>        A =&gt; B,
-<a href=#2883 id=2883 data-nosnippet>2883</a>        C =&gt; { D },
-<a href=#2884 id=2884 data-nosnippet>2884</a>        E =&gt; (),
-<a href=#2885 id=2885 data-nosnippet>2885</a>    }
-<a href=#2886 id=2886 data-nosnippet>2886</a>}\n"</span>;
-<a href=#2887 id=2887 data-nosnippet>2887</a>        assert_format(src, expected);
-<a href=#2888 id=2888 data-nosnippet>2888</a>    }
-<a href=#2889 id=2889 data-nosnippet>2889</a>
-<a href=#2890 id=2890 data-nosnippet>2890</a>    <span class="attr">#[test]
-<a href=#2891 id=2891 data-nosnippet>2891</a>    </span><span class="kw">fn </span>format_last_assignment_in_block_without_semicolon() {
-<a href=#2892 id=2892 data-nosnippet>2892</a>        <span class="kw">let </span>src = <span class="string">"fn main() {
-<a href=#2893 id=2893 data-nosnippet>2893</a>    let mut x: Field = 0;
-<a href=#2894 id=2894 data-nosnippet>2894</a>    {
-<a href=#2895 id=2895 data-nosnippet>2895</a>        x = 1
-<a href=#2896 id=2896 data-nosnippet>2896</a>    }
-<a href=#2897 id=2897 data-nosnippet>2897</a>    assert_eq(x, 1);
-<a href=#2898 id=2898 data-nosnippet>2898</a>}
-<a href=#2899 id=2899 data-nosnippet>2899</a>"</span>;
-<a href=#2900 id=2900 data-nosnippet>2900</a>        assert_format(src, src);
-<a href=#2901 id=2901 data-nosnippet>2901</a>    }
-<a href=#2902 id=2902 data-nosnippet>2902</a>
-<a href=#2903 id=2903 data-nosnippet>2903</a>    <span class="attr">#[test]
-<a href=#2904 id=2904 data-nosnippet>2904</a>    </span><span class="kw">fn </span>format_last_break_in_block_without_semicolon() {
-<a href=#2905 id=2905 data-nosnippet>2905</a>        <span class="kw">let </span>src = <span class="string">"fn main() {
-<a href=#2906 id=2906 data-nosnippet>2906</a>    let mut x: Field = 0;
-<a href=#2907 id=2907 data-nosnippet>2907</a>    {
-<a href=#2908 id=2908 data-nosnippet>2908</a>        break
-<a href=#2909 id=2909 data-nosnippet>2909</a>    }
-<a href=#2910 id=2910 data-nosnippet>2910</a>    assert_eq(x, 1);
+<a href=#2832 id=2832 data-nosnippet>2832</a>    </span><span class="kw">fn </span>format_lambda_as_last_method_call_chain_argument() {
+<a href=#2833 id=2833 data-nosnippet>2833</a>        <span class="kw">let </span>src = <span class="string">"global x = foo.bar(1).baz(2, |x| { 1; 2 });"</span>;
+<a href=#2834 id=2834 data-nosnippet>2834</a>        <span class="kw">let </span>expected = <span class="string">"global x = foo.bar(1).baz(2, |x| {
+<a href=#2835 id=2835 data-nosnippet>2835</a>    1;
+<a href=#2836 id=2836 data-nosnippet>2836</a>    2
+<a href=#2837 id=2837 data-nosnippet>2837</a>});
+<a href=#2838 id=2838 data-nosnippet>2838</a>"</span>;
+<a href=#2839 id=2839 data-nosnippet>2839</a>        assert_format(src, expected);
+<a href=#2840 id=2840 data-nosnippet>2840</a>    }
+<a href=#2841 id=2841 data-nosnippet>2841</a>
+<a href=#2842 id=2842 data-nosnippet>2842</a>    <span class="attr">#[test]
+<a href=#2843 id=2843 data-nosnippet>2843</a>    </span><span class="kw">fn </span>format_lambda_as_last_method_call_chain_argument_2() {
+<a href=#2844 id=2844 data-nosnippet>2844</a>        <span class="kw">let </span>src = <span class="string">"fn foo() { expr.as_unsafe().map(|exprs| { a; aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa }) }
+<a href=#2845 id=2845 data-nosnippet>2845</a>        "</span>;
+<a href=#2846 id=2846 data-nosnippet>2846</a>        <span class="kw">let </span>expected = <span class="string">"fn foo() {
+<a href=#2847 id=2847 data-nosnippet>2847</a>    expr.as_unsafe().map(|exprs| {
+<a href=#2848 id=2848 data-nosnippet>2848</a>        a;
+<a href=#2849 id=2849 data-nosnippet>2849</a>        aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+<a href=#2850 id=2850 data-nosnippet>2850</a>    })
+<a href=#2851 id=2851 data-nosnippet>2851</a>}
+<a href=#2852 id=2852 data-nosnippet>2852</a>"</span>;
+<a href=#2853 id=2853 data-nosnippet>2853</a>        assert_format(src, expected);
+<a href=#2854 id=2854 data-nosnippet>2854</a>    }
+<a href=#2855 id=2855 data-nosnippet>2855</a>
+<a href=#2856 id=2856 data-nosnippet>2856</a>    <span class="attr">#[test]
+<a href=#2857 id=2857 data-nosnippet>2857</a>    </span><span class="kw">fn </span>format_lambda_as_last_method_call_has_to_wrap() {
+<a href=#2858 id=2858 data-nosnippet>2858</a>        <span class="kw">let </span>src = <span class="string">"global foo = bar(1, 2, 3, |argument| { 1; 2 });"</span>;
+<a href=#2859 id=2859 data-nosnippet>2859</a>        <span class="kw">let </span>expected = <span class="string">"global foo = bar(
+<a href=#2860 id=2860 data-nosnippet>2860</a>    1,
+<a href=#2861 id=2861 data-nosnippet>2861</a>    2,
+<a href=#2862 id=2862 data-nosnippet>2862</a>    3,
+<a href=#2863 id=2863 data-nosnippet>2863</a>    |argument| {
+<a href=#2864 id=2864 data-nosnippet>2864</a>        1;
+<a href=#2865 id=2865 data-nosnippet>2865</a>        2
+<a href=#2866 id=2866 data-nosnippet>2866</a>    },
+<a href=#2867 id=2867 data-nosnippet>2867</a>);
+<a href=#2868 id=2868 data-nosnippet>2868</a>"</span>;
+<a href=#2869 id=2869 data-nosnippet>2869</a>        assert_format_with_max_width(src, expected, src.len() - <span class="number">10</span>);
+<a href=#2870 id=2870 data-nosnippet>2870</a>    }
+<a href=#2871 id=2871 data-nosnippet>2871</a>
+<a href=#2872 id=2872 data-nosnippet>2872</a>    <span class="attr">#[test]
+<a href=#2873 id=2873 data-nosnippet>2873</a>    </span><span class="kw">fn </span>removes_nested_parens() {
+<a href=#2874 id=2874 data-nosnippet>2874</a>        <span class="kw">let </span>src = <span class="string">"global x = ( ( ( ( ) ) ) ) ;"</span>;
+<a href=#2875 id=2875 data-nosnippet>2875</a>        <span class="kw">let </span>expected = <span class="string">"global x = (());\n"</span>;
+<a href=#2876 id=2876 data-nosnippet>2876</a>        assert_format(src, expected);
+<a href=#2877 id=2877 data-nosnippet>2877</a>    }
+<a href=#2878 id=2878 data-nosnippet>2878</a>
+<a href=#2879 id=2879 data-nosnippet>2879</a>    <span class="attr">#[test]
+<a href=#2880 id=2880 data-nosnippet>2880</a>    </span><span class="kw">fn </span>does_not_remove_nested_parens_if_not_told_so() {
+<a href=#2881 id=2881 data-nosnippet>2881</a>        <span class="kw">let </span>src = <span class="string">"global x = ( ( ( ( ) ) ) ) ;"</span>;
+<a href=#2882 id=2882 data-nosnippet>2882</a>        <span class="kw">let </span>expected = <span class="string">"global x = (((())));\n"</span>;
+<a href=#2883 id=2883 data-nosnippet>2883</a>
+<a href=#2884 id=2884 data-nosnippet>2884</a>        <span class="kw">let </span>config = Config { remove_nested_parens: <span class="bool-val">false</span>, ..Config::default() };
+<a href=#2885 id=2885 data-nosnippet>2885</a>        assert_format_with_config(src, expected, config);
+<a href=#2886 id=2886 data-nosnippet>2886</a>    }
+<a href=#2887 id=2887 data-nosnippet>2887</a>
+<a href=#2888 id=2888 data-nosnippet>2888</a>    <span class="attr">#[test]
+<a href=#2889 id=2889 data-nosnippet>2889</a>    </span><span class="kw">fn </span>attaches_comma_to_last_group() {
+<a href=#2890 id=2890 data-nosnippet>2890</a>        <span class="kw">let </span>src = <span class="string">" mod moo {
+<a href=#2891 id=2891 data-nosnippet>2891</a>    fn foo() {
+<a href=#2892 id=2892 data-nosnippet>2892</a>        [
+<a href=#2893 id=2893 data-nosnippet>2893</a>            Foo { a: 1 }, Foo { a: 1 }
+<a href=#2894 id=2894 data-nosnippet>2894</a>            ];
+<a href=#2895 id=2895 data-nosnippet>2895</a>            bar;
+<a href=#2896 id=2896 data-nosnippet>2896</a>        }
+<a href=#2897 id=2897 data-nosnippet>2897</a>}
+<a href=#2898 id=2898 data-nosnippet>2898</a>"</span>;
+<a href=#2899 id=2899 data-nosnippet>2899</a>        <span class="kw">let </span>expected = <span class="string">"mod moo {
+<a href=#2900 id=2900 data-nosnippet>2900</a>    fn foo() {
+<a href=#2901 id=2901 data-nosnippet>2901</a>        [
+<a href=#2902 id=2902 data-nosnippet>2902</a>            Foo {
+<a href=#2903 id=2903 data-nosnippet>2903</a>                a: 1,
+<a href=#2904 id=2904 data-nosnippet>2904</a>            },
+<a href=#2905 id=2905 data-nosnippet>2905</a>            Foo {
+<a href=#2906 id=2906 data-nosnippet>2906</a>                a: 1,
+<a href=#2907 id=2907 data-nosnippet>2907</a>            },
+<a href=#2908 id=2908 data-nosnippet>2908</a>        ];
+<a href=#2909 id=2909 data-nosnippet>2909</a>        bar;
+<a href=#2910 id=2910 data-nosnippet>2910</a>    }
 <a href=#2911 id=2911 data-nosnippet>2911</a>}
 <a href=#2912 id=2912 data-nosnippet>2912</a>"</span>;
-<a href=#2913 id=2913 data-nosnippet>2913</a>        assert_format(src, src);
+<a href=#2913 id=2913 data-nosnippet>2913</a>        assert_format_with_max_width(src, expected, <span class="string">"            Foo { a: 1 },"</span>.len() - <span class="number">1</span>);
 <a href=#2914 id=2914 data-nosnippet>2914</a>    }
 <a href=#2915 id=2915 data-nosnippet>2915</a>
 <a href=#2916 id=2916 data-nosnippet>2916</a>    <span class="attr">#[test]
-<a href=#2917 id=2917 data-nosnippet>2917</a>    </span><span class="kw">fn </span>format_last_continue_in_block_without_semicolon() {
-<a href=#2918 id=2918 data-nosnippet>2918</a>        <span class="kw">let </span>src = <span class="string">"fn main() {
-<a href=#2919 id=2919 data-nosnippet>2919</a>    let mut x: Field = 0;
-<a href=#2920 id=2920 data-nosnippet>2920</a>    {
-<a href=#2921 id=2921 data-nosnippet>2921</a>        continue
-<a href=#2922 id=2922 data-nosnippet>2922</a>    }
-<a href=#2923 id=2923 data-nosnippet>2923</a>    assert_eq(x, 1);
-<a href=#2924 id=2924 data-nosnippet>2924</a>}
-<a href=#2925 id=2925 data-nosnippet>2925</a>"</span>;
-<a href=#2926 id=2926 data-nosnippet>2926</a>        assert_format(src, src);
-<a href=#2927 id=2927 data-nosnippet>2927</a>    }
-<a href=#2928 id=2928 data-nosnippet>2928</a>
-<a href=#2929 id=2929 data-nosnippet>2929</a>    <span class="attr">#[test]
-<a href=#2930 id=2930 data-nosnippet>2930</a>    </span><span class="kw">fn </span>does_not_add_extra_spaces_to_fmtstr() {
-<a href=#2931 id=2931 data-nosnippet>2931</a>        <span class="kw">let </span>src = <span class="string">r#"fn main() {
-<a href=#2932 id=2932 data-nosnippet>2932</a>    let multiline_string: str&lt;22&gt; = "{
-<a href=#2933 id=2933 data-nosnippet>2933</a>        \"key\": \"value\"
-<a href=#2934 id=2934 data-nosnippet>2934</a>}";
-<a href=#2935 id=2935 data-nosnippet>2935</a>}
-<a href=#2936 id=2936 data-nosnippet>2936</a>"#</span>;
-<a href=#2937 id=2937 data-nosnippet>2937</a>        assert_format(src, src);
-<a href=#2938 id=2938 data-nosnippet>2938</a>    }
-<a href=#2939 id=2939 data-nosnippet>2939</a>
-<a href=#2940 id=2940 data-nosnippet>2940</a>    <span class="attr">#[test]
-<a href=#2941 id=2941 data-nosnippet>2941</a>    </span><span class="kw">fn </span>joins_comma_with_verbatim() {
-<a href=#2942 id=2942 data-nosnippet>2942</a>        <span class="kw">let </span>src = <span class="string">r#"fn main() {
-<a href=#2943 id=2943 data-nosnippet>2943</a>    foo(1, ["(", "I", " ", "x" , "b"]);
-<a href=#2944 id=2944 data-nosnippet>2944</a>}
-<a href=#2945 id=2945 data-nosnippet>2945</a>"#</span>;
-<a href=#2946 id=2946 data-nosnippet>2946</a>        <span class="kw">let </span>expected = <span class="string">r#"fn main() {
-<a href=#2947 id=2947 data-nosnippet>2947</a>    foo(
-<a href=#2948 id=2948 data-nosnippet>2948</a>        1,
-<a href=#2949 id=2949 data-nosnippet>2949</a>        [
-<a href=#2950 id=2950 data-nosnippet>2950</a>            "(", "I", " ",
-<a href=#2951 id=2951 data-nosnippet>2951</a>            "x", "b",
-<a href=#2952 id=2952 data-nosnippet>2952</a>        ],
-<a href=#2953 id=2953 data-nosnippet>2953</a>    );
-<a href=#2954 id=2954 data-nosnippet>2954</a>}
-<a href=#2955 id=2955 data-nosnippet>2955</a>"#</span>;
-<a href=#2956 id=2956 data-nosnippet>2956</a>        assert_format_with_max_width(src, expected, <span class="number">30</span>);
-<a href=#2957 id=2957 data-nosnippet>2957</a>    }
-<a href=#2958 id=2958 data-nosnippet>2958</a>
-<a href=#2959 id=2959 data-nosnippet>2959</a>    <span class="attr">#[test]
-<a href=#2960 id=2960 data-nosnippet>2960</a>    </span><span class="kw">fn </span>lambda_in_method_call_that_exceeds_max_width_because_of_curly_1() {
-<a href=#2961 id=2961 data-nosnippet>2961</a>        <span class="kw">let </span>src = <span class="string">r#"fn foo() {
-<a href=#2962 id=2962 data-nosnippet>2962</a>    let _ = foo.bar().x(|y| {
-<a href=#2963 id=2963 data-nosnippet>2963</a>        y.qux()
-<a href=#2964 id=2964 data-nosnippet>2964</a>    });
+<a href=#2917 id=2917 data-nosnippet>2917</a>    </span><span class="kw">fn </span>format_match() {
+<a href=#2918 id=2918 data-nosnippet>2918</a>        <span class="kw">let </span>src = <span class="string">"fn main() {  match  x  {  A=&gt;B  ,  C  =&gt;  {D}E=&gt;()  ,  } }"</span>;
+<a href=#2919 id=2919 data-nosnippet>2919</a>        <span class="comment">// We should remove the block on D for single expressions in the future,
+<a href=#2920 id=2920 data-nosnippet>2920</a>        // unless D is an if or match.
+<a href=#2921 id=2921 data-nosnippet>2921</a>        </span><span class="kw">let </span>expected = <span class="string">"fn main() {
+<a href=#2922 id=2922 data-nosnippet>2922</a>    match x {
+<a href=#2923 id=2923 data-nosnippet>2923</a>        A =&gt; B,
+<a href=#2924 id=2924 data-nosnippet>2924</a>        C =&gt; { D },
+<a href=#2925 id=2925 data-nosnippet>2925</a>        E =&gt; (),
+<a href=#2926 id=2926 data-nosnippet>2926</a>    }
+<a href=#2927 id=2927 data-nosnippet>2927</a>}\n"</span>;
+<a href=#2928 id=2928 data-nosnippet>2928</a>        assert_format(src, expected);
+<a href=#2929 id=2929 data-nosnippet>2929</a>    }
+<a href=#2930 id=2930 data-nosnippet>2930</a>
+<a href=#2931 id=2931 data-nosnippet>2931</a>    <span class="attr">#[test]
+<a href=#2932 id=2932 data-nosnippet>2932</a>    </span><span class="kw">fn </span>format_last_assignment_in_block_without_semicolon() {
+<a href=#2933 id=2933 data-nosnippet>2933</a>        <span class="kw">let </span>src = <span class="string">"fn main() {
+<a href=#2934 id=2934 data-nosnippet>2934</a>    let mut x: Field = 0;
+<a href=#2935 id=2935 data-nosnippet>2935</a>    {
+<a href=#2936 id=2936 data-nosnippet>2936</a>        x = 1
+<a href=#2937 id=2937 data-nosnippet>2937</a>    }
+<a href=#2938 id=2938 data-nosnippet>2938</a>    assert_eq(x, 1);
+<a href=#2939 id=2939 data-nosnippet>2939</a>}
+<a href=#2940 id=2940 data-nosnippet>2940</a>"</span>;
+<a href=#2941 id=2941 data-nosnippet>2941</a>        assert_format(src, src);
+<a href=#2942 id=2942 data-nosnippet>2942</a>    }
+<a href=#2943 id=2943 data-nosnippet>2943</a>
+<a href=#2944 id=2944 data-nosnippet>2944</a>    <span class="attr">#[test]
+<a href=#2945 id=2945 data-nosnippet>2945</a>    </span><span class="kw">fn </span>format_last_break_in_block_without_semicolon() {
+<a href=#2946 id=2946 data-nosnippet>2946</a>        <span class="kw">let </span>src = <span class="string">"fn main() {
+<a href=#2947 id=2947 data-nosnippet>2947</a>    let mut x: Field = 0;
+<a href=#2948 id=2948 data-nosnippet>2948</a>    {
+<a href=#2949 id=2949 data-nosnippet>2949</a>        break
+<a href=#2950 id=2950 data-nosnippet>2950</a>    }
+<a href=#2951 id=2951 data-nosnippet>2951</a>    assert_eq(x, 1);
+<a href=#2952 id=2952 data-nosnippet>2952</a>}
+<a href=#2953 id=2953 data-nosnippet>2953</a>"</span>;
+<a href=#2954 id=2954 data-nosnippet>2954</a>        assert_format(src, src);
+<a href=#2955 id=2955 data-nosnippet>2955</a>    }
+<a href=#2956 id=2956 data-nosnippet>2956</a>
+<a href=#2957 id=2957 data-nosnippet>2957</a>    <span class="attr">#[test]
+<a href=#2958 id=2958 data-nosnippet>2958</a>    </span><span class="kw">fn </span>format_last_continue_in_block_without_semicolon() {
+<a href=#2959 id=2959 data-nosnippet>2959</a>        <span class="kw">let </span>src = <span class="string">"fn main() {
+<a href=#2960 id=2960 data-nosnippet>2960</a>    let mut x: Field = 0;
+<a href=#2961 id=2961 data-nosnippet>2961</a>    {
+<a href=#2962 id=2962 data-nosnippet>2962</a>        continue
+<a href=#2963 id=2963 data-nosnippet>2963</a>    }
+<a href=#2964 id=2964 data-nosnippet>2964</a>    assert_eq(x, 1);
 <a href=#2965 id=2965 data-nosnippet>2965</a>}
-<a href=#2966 id=2966 data-nosnippet>2966</a>"#</span>;
-<a href=#2967 id=2967 data-nosnippet>2967</a>        <span class="kw">let </span>expected = <span class="string">r#"fn foo() {
-<a href=#2968 id=2968 data-nosnippet>2968</a>    let _ = foo
-<a href=#2969 id=2969 data-nosnippet>2969</a>        .bar()
-<a href=#2970 id=2970 data-nosnippet>2970</a>        .x(|y| y.qux());
-<a href=#2971 id=2971 data-nosnippet>2971</a>}
-<a href=#2972 id=2972 data-nosnippet>2972</a>"#</span>;
-<a href=#2973 id=2973 data-nosnippet>2973</a>        assert_format_with_max_width(src, expected, <span class="number">28</span>);
-<a href=#2974 id=2974 data-nosnippet>2974</a>    }
-<a href=#2975 id=2975 data-nosnippet>2975</a>
-<a href=#2976 id=2976 data-nosnippet>2976</a>    <span class="attr">#[test]
-<a href=#2977 id=2977 data-nosnippet>2977</a>    </span><span class="kw">fn </span>lambda_in_method_call_that_exceeds_max_width_because_of_curly_2() {
-<a href=#2978 id=2978 data-nosnippet>2978</a>        <span class="kw">let </span>src = <span class="string">r#"fn foo() {
-<a href=#2979 id=2979 data-nosnippet>2979</a>    let _ = foo.bar().x(
-<a href=#2980 id=2980 data-nosnippet>2980</a>        |y| y.qux(),
-<a href=#2981 id=2981 data-nosnippet>2981</a>    );
-<a href=#2982 id=2982 data-nosnippet>2982</a>}
-<a href=#2983 id=2983 data-nosnippet>2983</a>"#</span>;
-<a href=#2984 id=2984 data-nosnippet>2984</a>        <span class="kw">let </span>expected = <span class="string">r#"fn foo() {
-<a href=#2985 id=2985 data-nosnippet>2985</a>    let _ = foo
-<a href=#2986 id=2986 data-nosnippet>2986</a>        .bar()
-<a href=#2987 id=2987 data-nosnippet>2987</a>        .x(|y| y.qux());
-<a href=#2988 id=2988 data-nosnippet>2988</a>}
-<a href=#2989 id=2989 data-nosnippet>2989</a>"#</span>;
-<a href=#2990 id=2990 data-nosnippet>2990</a>        assert_format_with_max_width(src, expected, <span class="number">28</span>);
-<a href=#2991 id=2991 data-nosnippet>2991</a>    }
-<a href=#2992 id=2992 data-nosnippet>2992</a>
-<a href=#2993 id=2993 data-nosnippet>2993</a>    <span class="attr">#[test]
-<a href=#2994 id=2994 data-nosnippet>2994</a>    </span><span class="kw">fn </span>lambda_in_method_call_that_exceeds_max_width_because_of_curly_3() {
-<a href=#2995 id=2995 data-nosnippet>2995</a>        <span class="kw">let </span>src = <span class="string">r#"fn foo() {
-<a href=#2996 id=2996 data-nosnippet>2996</a>    let _ = foo
-<a href=#2997 id=2997 data-nosnippet>2997</a>        .bar()
-<a href=#2998 id=2998 data-nosnippet>2998</a>        .x(|y| y.qux());
-<a href=#2999 id=2999 data-nosnippet>2999</a>}
-<a href=#3000 id=3000 data-nosnippet>3000</a>"#</span>;
-<a href=#3001 id=3001 data-nosnippet>3001</a>        assert_format_with_max_width(src, src, <span class="number">28</span>);
-<a href=#3002 id=3002 data-nosnippet>3002</a>    }
-<a href=#3003 id=3003 data-nosnippet>3003</a>
-<a href=#3004 id=3004 data-nosnippet>3004</a>    <span class="attr">#[test]
-<a href=#3005 id=3005 data-nosnippet>3005</a>    </span><span class="kw">fn </span>cast_broken_to_two_lines_inside_array() {
-<a href=#3006 id=3006 data-nosnippet>3006</a>        <span class="kw">let </span>src = <span class="string">r#"fn foo() {
-<a href=#3007 id=3007 data-nosnippet>3007</a>    bar(
-<a href=#3008 id=3008 data-nosnippet>3008</a>        "",
-<a href=#3009 id=3009 data-nosnippet>3009</a>        [
-<a href=#3010 id=3010 data-nosnippet>3010</a>            (private_call_timestamp)
-<a href=#3011 id=3011 data-nosnippet>3011</a>                 as i32,
-<a href=#3012 id=3012 data-nosnippet>3012</a>            2,
-<a href=#3013 id=3013 data-nosnippet>3013</a>        ],
-<a href=#3014 id=3014 data-nosnippet>3014</a>    );
-<a href=#3015 id=3015 data-nosnippet>3015</a>}
-<a href=#3016 id=3016 data-nosnippet>3016</a>"#</span>;
-<a href=#3017 id=3017 data-nosnippet>3017</a>        assert_format_with_max_width(src, src, <span class="number">40</span>);
-<a href=#3018 id=3018 data-nosnippet>3018</a>    }
-<a href=#3019 id=3019 data-nosnippet>3019</a>
-<a href=#3020 id=3020 data-nosnippet>3020</a>    <span class="attr">#[test]
-<a href=#3021 id=3021 data-nosnippet>3021</a>    </span><span class="kw">fn </span>regression_9556() {
-<a href=#3022 id=3022 data-nosnippet>3022</a>        <span class="kw">let </span>src = <span class="string">r#"fn foo() {
-<a href=#3023 id=3023 data-nosnippet>3023</a>    let x = a()
-<a href=#3024 id=3024 data-nosnippet>3024</a>        .bcde(fghijk
-<a href=#3025 id=3025 data-nosnippet>3025</a>            );
-<a href=#3026 id=3026 data-nosnippet>3026</a>    x
-<a href=#3027 id=3027 data-nosnippet>3027</a>}
-<a href=#3028 id=3028 data-nosnippet>3028</a>"#</span>;
-<a href=#3029 id=3029 data-nosnippet>3029</a>        assert_format_with_max_width(src, src, <span class="number">20</span>);
-<a href=#3030 id=3030 data-nosnippet>3030</a>    }
-<a href=#3031 id=3031 data-nosnippet>3031</a>
-<a href=#3032 id=3032 data-nosnippet>3032</a>    <span class="attr">#[test]
-<a href=#3033 id=3033 data-nosnippet>3033</a>    </span><span class="kw">fn </span>turbofish_with_negative_literal() {
-<a href=#3034 id=3034 data-nosnippet>3034</a>        <span class="kw">let </span>src = <span class="string">r#"fn main() {
-<a href=#3035 id=3035 data-nosnippet>3035</a>    foo::&lt;-128&gt;();
-<a href=#3036 id=3036 data-nosnippet>3036</a>}
-<a href=#3037 id=3037 data-nosnippet>3037</a>"#</span>;
-<a href=#3038 id=3038 data-nosnippet>3038</a>        assert_format(src, src);
-<a href=#3039 id=3039 data-nosnippet>3039</a>    }
-<a href=#3040 id=3040 data-nosnippet>3040</a>}</code></pre></div></section></main></body></html>
+<a href=#2966 id=2966 data-nosnippet>2966</a>"</span>;
+<a href=#2967 id=2967 data-nosnippet>2967</a>        assert_format(src, src);
+<a href=#2968 id=2968 data-nosnippet>2968</a>    }
+<a href=#2969 id=2969 data-nosnippet>2969</a>
+<a href=#2970 id=2970 data-nosnippet>2970</a>    <span class="attr">#[test]
+<a href=#2971 id=2971 data-nosnippet>2971</a>    </span><span class="kw">fn </span>does_not_add_extra_spaces_to_fmtstr() {
+<a href=#2972 id=2972 data-nosnippet>2972</a>        <span class="kw">let </span>src = <span class="string">r#"fn main() {
+<a href=#2973 id=2973 data-nosnippet>2973</a>    let multiline_string: str&lt;22&gt; = "{
+<a href=#2974 id=2974 data-nosnippet>2974</a>        \"key\": \"value\"
+<a href=#2975 id=2975 data-nosnippet>2975</a>}";
+<a href=#2976 id=2976 data-nosnippet>2976</a>}
+<a href=#2977 id=2977 data-nosnippet>2977</a>"#</span>;
+<a href=#2978 id=2978 data-nosnippet>2978</a>        assert_format(src, src);
+<a href=#2979 id=2979 data-nosnippet>2979</a>    }
+<a href=#2980 id=2980 data-nosnippet>2980</a>
+<a href=#2981 id=2981 data-nosnippet>2981</a>    <span class="attr">#[test]
+<a href=#2982 id=2982 data-nosnippet>2982</a>    </span><span class="kw">fn </span>joins_comma_with_verbatim() {
+<a href=#2983 id=2983 data-nosnippet>2983</a>        <span class="kw">let </span>src = <span class="string">r#"fn main() {
+<a href=#2984 id=2984 data-nosnippet>2984</a>    foo(1, ["(", "I", " ", "x" , "b"]);
+<a href=#2985 id=2985 data-nosnippet>2985</a>}
+<a href=#2986 id=2986 data-nosnippet>2986</a>"#</span>;
+<a href=#2987 id=2987 data-nosnippet>2987</a>        <span class="kw">let </span>expected = <span class="string">r#"fn main() {
+<a href=#2988 id=2988 data-nosnippet>2988</a>    foo(
+<a href=#2989 id=2989 data-nosnippet>2989</a>        1,
+<a href=#2990 id=2990 data-nosnippet>2990</a>        [
+<a href=#2991 id=2991 data-nosnippet>2991</a>            "(", "I", " ",
+<a href=#2992 id=2992 data-nosnippet>2992</a>            "x", "b",
+<a href=#2993 id=2993 data-nosnippet>2993</a>        ],
+<a href=#2994 id=2994 data-nosnippet>2994</a>    );
+<a href=#2995 id=2995 data-nosnippet>2995</a>}
+<a href=#2996 id=2996 data-nosnippet>2996</a>"#</span>;
+<a href=#2997 id=2997 data-nosnippet>2997</a>        assert_format_with_max_width(src, expected, <span class="number">30</span>);
+<a href=#2998 id=2998 data-nosnippet>2998</a>    }
+<a href=#2999 id=2999 data-nosnippet>2999</a>
+<a href=#3000 id=3000 data-nosnippet>3000</a>    <span class="attr">#[test]
+<a href=#3001 id=3001 data-nosnippet>3001</a>    </span><span class="kw">fn </span>lambda_in_method_call_that_exceeds_max_width_because_of_curly_1() {
+<a href=#3002 id=3002 data-nosnippet>3002</a>        <span class="kw">let </span>src = <span class="string">r#"fn foo() {
+<a href=#3003 id=3003 data-nosnippet>3003</a>    let _ = foo.bar().x(|y| {
+<a href=#3004 id=3004 data-nosnippet>3004</a>        y.qux()
+<a href=#3005 id=3005 data-nosnippet>3005</a>    });
+<a href=#3006 id=3006 data-nosnippet>3006</a>}
+<a href=#3007 id=3007 data-nosnippet>3007</a>"#</span>;
+<a href=#3008 id=3008 data-nosnippet>3008</a>        <span class="kw">let </span>expected = <span class="string">r#"fn foo() {
+<a href=#3009 id=3009 data-nosnippet>3009</a>    let _ = foo
+<a href=#3010 id=3010 data-nosnippet>3010</a>        .bar()
+<a href=#3011 id=3011 data-nosnippet>3011</a>        .x(|y| y.qux());
+<a href=#3012 id=3012 data-nosnippet>3012</a>}
+<a href=#3013 id=3013 data-nosnippet>3013</a>"#</span>;
+<a href=#3014 id=3014 data-nosnippet>3014</a>        assert_format_with_max_width(src, expected, <span class="number">28</span>);
+<a href=#3015 id=3015 data-nosnippet>3015</a>    }
+<a href=#3016 id=3016 data-nosnippet>3016</a>
+<a href=#3017 id=3017 data-nosnippet>3017</a>    <span class="attr">#[test]
+<a href=#3018 id=3018 data-nosnippet>3018</a>    </span><span class="kw">fn </span>lambda_in_method_call_that_exceeds_max_width_because_of_curly_2() {
+<a href=#3019 id=3019 data-nosnippet>3019</a>        <span class="kw">let </span>src = <span class="string">r#"fn foo() {
+<a href=#3020 id=3020 data-nosnippet>3020</a>    let _ = foo.bar().x(
+<a href=#3021 id=3021 data-nosnippet>3021</a>        |y| y.qux(),
+<a href=#3022 id=3022 data-nosnippet>3022</a>    );
+<a href=#3023 id=3023 data-nosnippet>3023</a>}
+<a href=#3024 id=3024 data-nosnippet>3024</a>"#</span>;
+<a href=#3025 id=3025 data-nosnippet>3025</a>        <span class="kw">let </span>expected = <span class="string">r#"fn foo() {
+<a href=#3026 id=3026 data-nosnippet>3026</a>    let _ = foo
+<a href=#3027 id=3027 data-nosnippet>3027</a>        .bar()
+<a href=#3028 id=3028 data-nosnippet>3028</a>        .x(|y| y.qux());
+<a href=#3029 id=3029 data-nosnippet>3029</a>}
+<a href=#3030 id=3030 data-nosnippet>3030</a>"#</span>;
+<a href=#3031 id=3031 data-nosnippet>3031</a>        assert_format_with_max_width(src, expected, <span class="number">28</span>);
+<a href=#3032 id=3032 data-nosnippet>3032</a>    }
+<a href=#3033 id=3033 data-nosnippet>3033</a>
+<a href=#3034 id=3034 data-nosnippet>3034</a>    <span class="attr">#[test]
+<a href=#3035 id=3035 data-nosnippet>3035</a>    </span><span class="kw">fn </span>lambda_in_method_call_that_exceeds_max_width_because_of_curly_3() {
+<a href=#3036 id=3036 data-nosnippet>3036</a>        <span class="kw">let </span>src = <span class="string">r#"fn foo() {
+<a href=#3037 id=3037 data-nosnippet>3037</a>    let _ = foo
+<a href=#3038 id=3038 data-nosnippet>3038</a>        .bar()
+<a href=#3039 id=3039 data-nosnippet>3039</a>        .x(|y| y.qux());
+<a href=#3040 id=3040 data-nosnippet>3040</a>}
+<a href=#3041 id=3041 data-nosnippet>3041</a>"#</span>;
+<a href=#3042 id=3042 data-nosnippet>3042</a>        assert_format_with_max_width(src, src, <span class="number">28</span>);
+<a href=#3043 id=3043 data-nosnippet>3043</a>    }
+<a href=#3044 id=3044 data-nosnippet>3044</a>
+<a href=#3045 id=3045 data-nosnippet>3045</a>    <span class="attr">#[test]
+<a href=#3046 id=3046 data-nosnippet>3046</a>    </span><span class="kw">fn </span>cast_broken_to_two_lines_inside_array() {
+<a href=#3047 id=3047 data-nosnippet>3047</a>        <span class="kw">let </span>src = <span class="string">r#"fn foo() {
+<a href=#3048 id=3048 data-nosnippet>3048</a>    bar(
+<a href=#3049 id=3049 data-nosnippet>3049</a>        "",
+<a href=#3050 id=3050 data-nosnippet>3050</a>        [
+<a href=#3051 id=3051 data-nosnippet>3051</a>            (private_call_timestamp)
+<a href=#3052 id=3052 data-nosnippet>3052</a>                 as i32,
+<a href=#3053 id=3053 data-nosnippet>3053</a>            2,
+<a href=#3054 id=3054 data-nosnippet>3054</a>        ],
+<a href=#3055 id=3055 data-nosnippet>3055</a>    );
+<a href=#3056 id=3056 data-nosnippet>3056</a>}
+<a href=#3057 id=3057 data-nosnippet>3057</a>"#</span>;
+<a href=#3058 id=3058 data-nosnippet>3058</a>        assert_format_with_max_width(src, src, <span class="number">40</span>);
+<a href=#3059 id=3059 data-nosnippet>3059</a>    }
+<a href=#3060 id=3060 data-nosnippet>3060</a>
+<a href=#3061 id=3061 data-nosnippet>3061</a>    <span class="attr">#[test]
+<a href=#3062 id=3062 data-nosnippet>3062</a>    </span><span class="kw">fn </span>regression_9556() {
+<a href=#3063 id=3063 data-nosnippet>3063</a>        <span class="kw">let </span>src = <span class="string">r#"fn foo() {
+<a href=#3064 id=3064 data-nosnippet>3064</a>    let x = a()
+<a href=#3065 id=3065 data-nosnippet>3065</a>        .bcde(fghijk
+<a href=#3066 id=3066 data-nosnippet>3066</a>            );
+<a href=#3067 id=3067 data-nosnippet>3067</a>    x
+<a href=#3068 id=3068 data-nosnippet>3068</a>}
+<a href=#3069 id=3069 data-nosnippet>3069</a>"#</span>;
+<a href=#3070 id=3070 data-nosnippet>3070</a>        assert_format_with_max_width(src, src, <span class="number">20</span>);
+<a href=#3071 id=3071 data-nosnippet>3071</a>    }
+<a href=#3072 id=3072 data-nosnippet>3072</a>
+<a href=#3073 id=3073 data-nosnippet>3073</a>    <span class="attr">#[test]
+<a href=#3074 id=3074 data-nosnippet>3074</a>    </span><span class="kw">fn </span>turbofish_with_negative_literal() {
+<a href=#3075 id=3075 data-nosnippet>3075</a>        <span class="kw">let </span>src = <span class="string">r#"fn main() {
+<a href=#3076 id=3076 data-nosnippet>3076</a>    foo::&lt;-128&gt;();
+<a href=#3077 id=3077 data-nosnippet>3077</a>}
+<a href=#3078 id=3078 data-nosnippet>3078</a>"#</span>;
+<a href=#3079 id=3079 data-nosnippet>3079</a>        assert_format(src, src);
+<a href=#3080 id=3080 data-nosnippet>3080</a>    }
+<a href=#3081 id=3081 data-nosnippet>3081</a>}</code></pre></div></section></main></body></html>
