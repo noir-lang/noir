@@ -1,6 +1,6 @@
 use acvm::{FieldElement, acir::AcirField};
 
-use super::{Context, acir_context::AcirContext, types::AcirVar};
+use super::{Context, types::AcirVar};
 
 /// The predicate set by the most recently lowered `EnableSideEffectsIf` instruction.
 ///
@@ -13,9 +13,9 @@ pub(super) struct SideEffectsLatch {
 }
 
 impl SideEffectsLatch {
-    pub(super) fn new(acir_context: &mut AcirContext<FieldElement>) -> Self {
+    pub(super) fn new(one: AcirVar) -> Self {
         Self {
-            predicate: acir_context.add_constant(FieldElement::one()),
+            predicate: one,
             #[cfg(debug_assertions)]
             current_instruction_declares_predicate: false,
         }

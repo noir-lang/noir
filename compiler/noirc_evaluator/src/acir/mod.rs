@@ -136,7 +136,7 @@ impl<'a> Context<'a> {
         brillig_options: &'a BrilligOptions,
     ) -> Context<'a> {
         let mut acir_context = AcirContext::new(brillig_stdlib);
-        let side_effects = SideEffectsLatch::new(&mut acir_context);
+        let side_effects = SideEffectsLatch::new(acir_context.add_constant(FieldElement::one()));
 
         Context {
             ssa_values: HashMap::default(),
