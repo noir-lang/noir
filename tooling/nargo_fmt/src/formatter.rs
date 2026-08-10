@@ -312,59 +312,8 @@ impl<'a> Formatter<'a> {
     }
 
     /// Writes a string to the buffer.
-    ///
-    /// A `//` comment is terminated only by a newline, so if the current line ends
-    /// inside one, appending anything to it would silently turn that text into part
-    /// of the comment. When the buffer says the current line needs its comment
-    /// terminated, break the line first so the text that follows stays code.
     pub(crate) fn write(&mut self, str: &str) {
-        if self.buffer.line_comment_needs_termination()
-            && !str.starts_with('\n')
-            && !str.trim().is_empty()
-        {
-            self.buffer.trim_spaces();
-            self.buffer.write("\n");
-            self.write_indentation();
-            self.buffer.write(str.trim_start_matches(' '));
-            return;
-        }
-
         self.buffer.write(str);
-    }
-
-    /// Checks whether the buffer's current line ends inside a `//` line comment and,
-    /// if so, flags it so that any text appended to that line triggers a line break
-    /// first (see `write`). Chunk text is written without its final newline (that
-    /// newline, if any, is the enclosing layout's decision), so this must be called
-    /// after writing a chunk's text to protect a comment that ends it.
-    pub(crate) fn protect_open_line_comment(&mut self) {
-        let line = self.buffer.current_line();
-        if !line.contains("//") {
-            return;
-        }
-
-        // Lex the line to check that the `//` really starts a comment (as opposed to,
-        // say, appearing inside a string literal). A line comment always extends to
-        // the end of the input, so finding one means the line ends inside it.
-        let lexer = Lexer::new_with_dummy_file(line).skip_comments(false).skip_whitespaces(false);
-        for token in lexer {
-            match token {
-                Ok(token) => {
-                    if matches!(token.token(), Token::LineComment(..)) {
-                        self.buffer.set_line_comment_needs_termination();
-                        return;
-                    }
-                }
-                // The line is not lexable on its own (for example, it could end in the
-                // middle of a multiline string literal). Err on the side of breaking
-                // the line: a spurious break only perturbs layout, while a missed one
-                // comments out code.
-                Err(_) => {
-                    self.buffer.set_line_comment_needs_termination();
-                    return;
-                }
-            }
-        }
     }
 
     pub(crate) fn current_line_width(&self) -> usize {
