@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1786361605854,
+  "lastUpdate": 1786361695165,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23111,48 +23111,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": true,
-          "id": "072e80ee8c1154c5f263affe11309f80f1a96805",
-          "message": "fix: warn on never-mutated `mut` function parameters (#13391)",
-          "timestamp": "2026-07-22T21:08:38Z",
-          "tree_id": "41b8066576297b802d34d73f45b94808c83b0dbc",
-          "url": "https://github.com/noir-lang/noir/commit/072e80ee8c1154c5f263affe11309f80f1a96805"
-        },
-        "date": 1784756027334,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 177760,
-            "range": "± 692",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 146622,
-            "range": "± 2789",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2651350,
-            "range": "± 4249",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
           "id": "a613339135959a3934ccfa101b6fceca3668e4a7",
           "message": "chore: remove old assignees from templates (#13394)",
           "timestamp": "2026-07-24T11:20:41+01:00",
@@ -25194,6 +25152,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2122942,
             "range": "± 1309",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49558828+AztecBot@users.noreply.github.com",
+            "name": "Aztec Bot",
+            "username": "AztecBot"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "0e921dd132ca008bb86f6e4284b36ca3c94497dd",
+          "message": "fix: do not resolve a safe-index array read as a disabled access (#13486)",
+          "timestamp": "2026-08-10T11:08:28Z",
+          "tree_id": "a241af8d5fa5d312c0b77a4d459e002c8e929a5e",
+          "url": "https://github.com/noir-lang/noir/commit/0e921dd132ca008bb86f6e4284b36ca3c94497dd"
+        },
+        "date": 1786361613887,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 174350,
+            "range": "± 494",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 143067,
+            "range": "± 3841",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2647593,
+            "range": "± 3696",
             "unit": "ns/iter"
           }
         ]
