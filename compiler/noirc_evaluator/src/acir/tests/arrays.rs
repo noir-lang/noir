@@ -399,6 +399,9 @@ fn safe_index_read_under_disabled_predicate_emits_the_read() {
     ";
     let program = ssa_to_acir_program(src);
 
+    // `READ w9 = b0[w8]` (with `w8` pinned to the constant index `0`) is the read the program
+    // asked for, `w7 = w9` returns it rather than a zero, and the `!= 999` constraint the source
+    // wrote over it survives as the `directive_invert` call and its inverse constraint.
     assert_circuit_snapshot!(program, @r"
     func 0
     private parameters: [w0, w1, w2, w3, w4, w5, w6]
@@ -407,7 +410,22 @@ fn safe_index_read_under_disabled_predicate_emits_the_read() {
     INIT b0 = [w0, w1, w2, w3]
     WRITE b0[w4] = w5
     ASSERT w6 = 0
-    ASSERT w7 = 0
+    ASSERT w8 = 0
+    READ w9 = b0[w8]
+    BRILLIG CALL func: 0, predicate: 1, inputs: [w9 - 999], outputs: [w10]
+    ASSERT 0 = w9*w10 - 999*w10 - 1
+    ASSERT w7 = w9
+
+    unconstrained func 0: directive_invert
+    0: @21 = const u32 1
+    1: @20 = const u32 0
+    2: @0 = calldata copy [@20; @21]
+    3: @2 = const field 0
+    4: @3 = field eq @0, @2
+    5: jump if @3 to 8
+    6: @1 = const field 1
+    7: @0 = field field_div @1, @0
+    8: stop @[@20; @21]
     ");
 }
 
