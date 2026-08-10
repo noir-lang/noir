@@ -231,10 +231,18 @@ fn build_calls_to_update(
     for (entry_point, functions_to_clone) in functions_to_clone_map {
         for old_id in functions_to_clone {
             let function = ssa.functions[&old_id].clone();
-            ssa.add_fn(|id| {
+            let new_id = ssa.add_fn(|id| {
                 calls_to_update.insert((entry_point, old_id), id);
                 Function::clone_with_id(id, &function)
             });
+            // A clone's body is instruction-for-instruction identical to its original's,
+            // so it keeps the original's purity.
+            if let Some(purity) = ssa.function_purities.intrinsic_purity_of(old_id) {
+                ssa.function_purities.insert_purity(new_id, purity);
+            }
+            if ssa.function_purities.is_brillig_function(old_id) {
+                ssa.function_purities.insert_brillig_function(new_id);
+            }
         }
     }
 
@@ -839,7 +847,7 @@ mod tests {
           b3(v2: u1):
             return v2
         }
-        brillig(inline) fn func_2 f3 {
+        brillig(inline) predicate_pure fn func_2 f3 {
           b0(v0: u1, v1: u32):
             v4 = eq v1, u32 0
             jmpif v4 then: b1(), else: b2()
@@ -853,7 +861,7 @@ mod tests {
           b3(v2: u1):
             return v2
         }
-        brillig(inline) fn func_1 f4 {
+        brillig(inline) predicate_pure fn func_1 f4 {
           b0(v0: u1, v1: u32):
             v4 = eq v1, u32 0
             jmpif v4 then: b1(), else: b2()
@@ -867,7 +875,7 @@ mod tests {
           b3(v2: u1):
             return v2
         }
-        brillig(inline) fn func_2 f5 {
+        brillig(inline) predicate_pure fn func_2 f5 {
           b0(v0: u1, v1: u32):
             v4 = eq v1, u32 0
             jmpif v4 then: b1(), else: b2()
@@ -881,7 +889,7 @@ mod tests {
           b3(v2: u1):
             return v2
         }
-        brillig(inline) fn func_1 f6 {
+        brillig(inline) predicate_pure fn func_1 f6 {
           b0(v0: u1, v1: u32):
             v4 = eq v1, u32 0
             jmpif v4 then: b1(), else: b2()
@@ -928,7 +936,7 @@ mod tests {
         // We want no shared callees between entry points.
         // Each Brillig entry point (f1 and f2 called from f0) should have its own
         // specialized function call graph.
-        assert_ssa_snapshot!(ssa, @"
+        assert_ssa_snapshot!(ssa, @r"
         acir(inline) predicate_pure fn main f0 {
           b0():
             call f1(Field 1)
@@ -946,24 +954,24 @@ mod tests {
             call f3(Field 1)
             return
         }
-        brillig(inline) fn bar f3 {
+        brillig(inline) predicate_pure fn bar f3 {
           b0(v0: Field):
             call f4(Field 1)
             call f3(Field 1)
             return
         }
-        brillig(inline) fn foo f4 {
+        brillig(inline) predicate_pure fn foo f4 {
           b0(v0: Field):
             call f3(v0)
             return
         }
-        brillig(inline) fn bar f5 {
+        brillig(inline) predicate_pure fn bar f5 {
           b0(v0: Field):
             call f6(Field 1)
             call f5(Field 1)
             return
         }
-        brillig(inline) fn foo f6 {
+        brillig(inline) predicate_pure fn foo f6 {
           b0(v0: Field):
             call f5(v0)
             return
@@ -1159,5 +1167,59 @@ mod tests {
             return
         }
         ");
+    }
+
+    #[test]
+    fn cloned_functions_keep_their_purity() {
+        // Two Brillig entry points share `inner_func`, so the pass clones it once per
+        // entry point. A clone's body is identical to its original's, so it must keep
+        // the original's purity status rather than end up with none at all.
+        let src = "
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: Field):
+            v2 = call f1(v0) -> Field
+            v4 = call f2(v0) -> Field
+            v5 = add v2, v4
+            return v5
+        }
+        brillig(inline) pure fn entry_point_one f1 {
+          b0(v0: Field):
+            v2 = call f3(v0) -> Field
+            return v2
+        }
+        brillig(inline) pure fn entry_point_two f2 {
+          b0(v0: Field):
+            v2 = call f3(v0) -> Field
+            return v2
+        }
+        brillig(inline) pure fn inner_func f3 {
+          b0(v0: Field):
+            v1 = mul v0, v0
+            return v1
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+
+        let original_purities: std::collections::HashMap<String, _> = ssa
+            .functions
+            .values()
+            .map(|function| {
+                let purity = ssa.function_purities.intrinsic_purity_of(function.id());
+                (function.name().to_string(), purity)
+            })
+            .collect();
+
+        let ssa = ssa.brillig_entry_point_analysis();
+
+        for (id, function) in &ssa.functions {
+            let purity = ssa.function_purities.intrinsic_purity_of(*id);
+            assert!(purity.is_some(), "function {} {id} has no purity status", function.name());
+            assert_eq!(
+                purity,
+                original_purities[function.name()],
+                "function {} {id} does not have the same purity as its original",
+                function.name()
+            );
+        }
     }
 }

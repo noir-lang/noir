@@ -49,6 +49,7 @@ use crate::ssa::{
         types::NumericType,
         value::{Value, ValueId, ValueMapping},
     },
+    opt::pure::FunctionPurities,
     ssa_gen::Ssa,
 };
 
@@ -237,6 +238,7 @@ fn optimize_clone(
     function: &mut Function,
     constant_folding_max_iter: usize,
     all_functions: &BTreeMap<FunctionId, Function>,
+    purities: &FunctionPurities,
 ) {
     use crate::ssa::interpreter::{Interpreter, InterpreterOptions};
 
@@ -261,7 +263,7 @@ fn optimize_clone(
     );
     interpreter.interpret_globals().expect("ICE: Interpreter failed to interpret globals");
 
-    function.constant_fold(false, constant_folding_max_iter, &mut interpreter);
+    function.constant_fold(false, constant_folding_max_iter, &mut interpreter, purities);
 
     // Simplify CFG again after folding to merge any newly-dead blocks.
     // Note: We skip per-function DIE here because it is intentionally private
@@ -307,7 +309,12 @@ fn create_specialized_clones(
             substitute_constants(&mut clone, &key.constants);
 
             // Run per-function optimization passes on the clone.
-            optimize_clone(&mut clone, constant_folding_max_iter, &ssa.functions);
+            optimize_clone(
+                &mut clone,
+                constant_folding_max_iter,
+                &ssa.functions,
+                &ssa.function_purities,
+            );
 
             let specialized_cost = clone.cost();
             let savings_percent = if original_cost > specialized_cost {

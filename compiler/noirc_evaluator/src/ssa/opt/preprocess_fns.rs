@@ -55,7 +55,7 @@ impl Ssa {
             // Help unrolling determine bounds.
             function.as_vector_optimization();
             // Prepare for unrolling
-            function.loop_invariant_code_motion();
+            function.loop_invariant_code_motion(&self.function_purities);
             // Clear out constant jmpifs to ensure that loops are properly unrolled.
             function.simplify_function();
             // We might not be able to unroll all loops without fully inlining them, so ignore errors.

@@ -72,7 +72,7 @@ struct Translator {
     globals_graph: Arc<GlobalsGraph>,
 
     error_selector_counter: u64,
-    purities: Arc<FunctionPurities>,
+    purities: FunctionPurities,
 }
 
 impl Translator {
@@ -162,9 +162,6 @@ impl Translator {
         // Does not matter what ID we use here.
         let globals = Function::new("globals".to_owned(), main_id);
 
-        let purities = Arc::new(purities);
-        builder.set_purities(purities.clone());
-
         let mut translator = Self {
             builder,
             functions,
@@ -208,8 +205,6 @@ impl Translator {
                 self.builder.set_call_stack(call_stack);
             }
         }
-
-        self.builder.set_purities(self.purities.clone());
 
         self.translate_function_body(function)
     }
@@ -690,6 +685,7 @@ impl Translator {
 
     fn finish(self) -> Ssa {
         let mut ssa = self.builder.finish().generate_entry_point_index();
+        ssa.function_purities = self.purities;
 
         // Normalize the IDs so we have a better chance of matching the SSA we parsed
         // after the step-by-step reconstruction done during translation. This assumes

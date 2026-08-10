@@ -33,7 +33,10 @@ use crate::ssa::{
         types::{NumericType, Type},
         value::{Value, ValueId, ValueMapping},
     },
-    opt::{LoopOrder, Loops, pure::Purity},
+    opt::{
+        LoopOrder, Loops,
+        pure::{FunctionPurities, Purity},
+    },
     ssa_gen::Ssa,
     visit_once_priority_queue::VisitOncePriorityQueue,
 };
@@ -81,7 +84,7 @@ impl Ssa {
         interpreter.interpret_globals().expect("ICE: Interpreter failed to interpret globals");
 
         for function in self.functions.values_mut() {
-            function.constant_fold(false, max_iter, &mut interpreter);
+            function.constant_fold(false, max_iter, &mut interpreter, &self.function_purities);
         }
         self
     }
@@ -111,7 +114,7 @@ impl Ssa {
         interpreter.interpret_globals().expect("ICE: Interpreter failed to interpret globals");
 
         for function in self.functions.values_mut() {
-            function.constant_fold(true, max_iter, &mut interpreter);
+            function.constant_fold(true, max_iter, &mut interpreter, &self.function_purities);
         }
         self
     }
@@ -139,6 +142,7 @@ impl Function {
         use_constraint_info: bool,
         max_iter: usize,
         interpreter: &mut Interpreter<Empty>,
+        purities: &FunctionPurities,
     ) {
         let loops = Loops::find_all(self, LoopOrder::OutsideIn);
 
@@ -160,7 +164,7 @@ impl Function {
 
         let dom = loops.dom;
         let mutated_types = find_mutated_block_param_array_types(self);
-        let mut context = Context::new(use_constraint_info, mutated_types.clone());
+        let mut context = Context::new(use_constraint_info, mutated_types.clone(), purities);
 
         context.enqueue(&dom, [self.entry_block()]);
 
@@ -195,7 +199,7 @@ impl Function {
             // Create a fresh context, so values cached towards the end are not visible to blocks during a revisit.
             // For example reusing the cache could be problematic when using constraint info, as it could make the
             // original content simplify out based on its own prior assertion of a value being a constant.
-            context = Context::new(use_constraint_info, mutated_types.clone());
+            context = Context::new(use_constraint_info, mutated_types.clone(), purities);
             context.values_to_replace = values_to_replace;
             context.enqueue(&dom, blocks_to_revisit);
         }
@@ -273,7 +277,11 @@ fn find_mutated_block_param_array_types(function: &Function) -> HashSet<Type> {
     result
 }
 
-struct Context {
+struct Context<'a> {
+    /// The purity of every function in the program, consulted when deciding whether calls
+    /// can be deduplicated or their cached results reused.
+    purities: &'a FunctionPurities,
+
     /// Keeps track of visited blocks and blocks to visit.
     /// Prioritizes them based on their Reverse Post Order rank, which ensures
     /// that we see them in a consistent order even during restarts.
@@ -321,9 +329,14 @@ struct Context {
     mutated_block_param_array_types: HashSet<Type>,
 }
 
-impl Context {
-    fn new(use_constraint_info: bool, mutated_block_param_array_types: HashSet<Type>) -> Self {
+impl<'a> Context<'a> {
+    fn new(
+        use_constraint_info: bool,
+        mutated_block_param_array_types: HashSet<Type>,
+        purities: &'a FunctionPurities,
+    ) -> Self {
         Self {
+            purities,
             use_constraint_info,
             block_queue: Default::default(),
             constraint_simplification_mappings: Default::default(),
@@ -417,9 +430,15 @@ impl Context {
         // If a copy of this instruction exists earlier in the block, then reuse the previous results.
         let runtime_is_brillig = dfg.runtime().is_brillig();
         let predicate = self.cache_predicate(*side_effects_enabled_var, &instruction, dfg);
-        if let Some(cache_result) =
-            self.cached_instruction_results.get(dfg, dom, id, &instruction, predicate, block)
-        {
+        if let Some(cache_result) = self.cached_instruction_results.get(
+            dfg,
+            dom,
+            id,
+            &instruction,
+            predicate,
+            block,
+            self.purities,
+        ) {
             match cache_result {
                 CacheResult::Cached { results: cached, .. } => {
                     // Guard against self-deduplication: if the cached results are exactly
@@ -682,13 +701,16 @@ impl Context {
             }
         }
 
-        self.cached_instruction_results
-            .remove_possibly_mutated_cached_make_arrays(instruction, dfg);
+        self.cached_instruction_results.remove_possibly_mutated_cached_make_arrays(
+            instruction,
+            dfg,
+            self.purities,
+        );
 
         // If the instruction doesn't have side-effects and if it won't interact with enable_side_effects during acir_gen,
         // we cache the results so we can reuse them if the same instruction appears again later in the block.
         // Others have side effects representing failure, which are implicit in the ACIR code and can also be deduplicated.
-        let can_be_deduplicated = can_be_deduplicated(instruction, dfg);
+        let can_be_deduplicated = can_be_deduplicated(instruction, dfg, self.purities);
 
         let use_constraint_info = self.use_constraint_info;
         let is_safe_make_array = match instruction {
@@ -727,6 +749,7 @@ impl Context {
                         last_instruction,
                         predicate,
                         block,
+                        self.purities,
                     )
                 {
                     self.blocks_to_revisit.insert(dominator);
@@ -828,7 +851,11 @@ enum CanBeDeduplicated {
 /// These can be deduplicated because they implicitly depend on the predicate, not only when the caller uses the
 /// predicate variable as a key to cache results. However, to avoid tight coupling between passes, we make the deduplication
 /// conditional on whether the caller wants the predicate to be taken into account or not.
-fn can_be_deduplicated(instruction: &Instruction, dfg: &DataFlowGraph) -> CanBeDeduplicated {
+fn can_be_deduplicated(
+    instruction: &Instruction,
+    dfg: &DataFlowGraph,
+    purities: &FunctionPurities,
+) -> CanBeDeduplicated {
     use Instruction::*;
 
     match instruction {
@@ -848,12 +875,12 @@ fn can_be_deduplicated(instruction: &Instruction, dfg: &DataFlowGraph) -> CanBeD
             },
             // A call to a user-defined function from an ACIR caller lowers to a predicated
             // `Opcode::Call` or `Opcode::BrilligCall`, which leaves the callee's outputs
-            // unconstrained when the predicate is disabled. `DataFlowGraph::purity_of` already
+            // unconstrained when the predicate is disabled. `FunctionPurities::purity_of` already
             // reflects this: from an ACIR caller a pure Brillig callee is observed as
             // `PureWithPredicate`, so a callee seen here as `Pure` is one that genuinely does not
             // depend on the predicate (e.g. any callee from a Brillig caller, whose calls are not
             // predicated) and can be deduplicated freely.
-            Value::Function(id) => match dfg.purity_of(id) {
+            Value::Function(id) => match purities.purity_of(id, dfg.runtime()) {
                 Some(Purity::Pure) if dfg.runtime().is_brillig() => CanBeDeduplicated::Always,
                 Some(Purity::Pure | Purity::PureWithPredicate) => {
                     CanBeDeduplicated::UnderSamePredicate
@@ -1713,7 +1740,8 @@ mod test {
             InterpreterOptions::default(),
             std::io::empty(),
         );
-        ssa.main_mut().constant_fold(false, 1, &mut empty_interpreter);
+        let purities = ssa.function_purities.clone();
+        ssa.main_mut().constant_fold(false, 1, &mut empty_interpreter, &purities);
 
         // 1. v9 is a duplicate of v5 -> hoisted to b0
         // 2. v13 is a duplicate of v9 -> immediately deduplicated because it's now in b0

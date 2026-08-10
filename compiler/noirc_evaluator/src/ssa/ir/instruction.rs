@@ -10,7 +10,10 @@ use acvm::{
 use iter_extended::vecmap;
 use noirc_frontend::hir_def::types::Type as HirType;
 
-use crate::ssa::{ir::integer::IntegerConstant, opt::pure::Purity};
+use crate::ssa::{
+    ir::integer::IntegerConstant,
+    opt::pure::{FunctionPurities, Purity},
+};
 
 use super::{
     basic_block::BasicBlockId,
@@ -592,7 +595,11 @@ impl Instruction {
     }
 
     /// Indicates if the instruction has a side effect, ie. it can fail, or it interacts with memory.
-    pub(crate) fn has_side_effects(&self, dfg: &DataFlowGraph) -> bool {
+    pub(crate) fn has_side_effects(
+        &self,
+        dfg: &DataFlowGraph,
+        purities: &FunctionPurities,
+    ) -> bool {
         use Instruction::*;
 
         match self {
@@ -608,7 +615,9 @@ impl Instruction {
                 Value::Intrinsic(intrinsic) => intrinsic.has_side_effects(),
                 // Functions known to be pure have no side effects.
                 // `PureWithPredicates` functions may still have side effects.
-                Value::Function(function) => dfg.purity_of(function) != Some(Purity::Pure),
+                Value::Function(function) => {
+                    purities.purity_of(function, dfg.runtime()) != Some(Purity::Pure)
+                }
                 _ => true, // Be conservative and assume other functions can have side effects.
             },
 

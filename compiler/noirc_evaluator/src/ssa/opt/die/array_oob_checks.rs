@@ -13,7 +13,7 @@ use crate::ssa::{
     opt::die::Context,
 };
 
-impl Context {
+impl Context<'_> {
     /// Replaces unused ArrayGet/ArraySet instructions with out of bounds checks.
     /// Returns `true` if at least one check was inserted.
     /// Because some `ArrayGet` might happen in groups (for composite types), if just

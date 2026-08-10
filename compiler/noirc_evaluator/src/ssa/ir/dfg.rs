@@ -3,11 +3,8 @@ use std::{borrow::Cow, sync::Arc};
 use crate::{
     brillig::assert_u32,
     ssa::{
-        RuntimeError,
-        function_builder::data_bus::DataBus,
-        ir::function::Function,
+        RuntimeError, function_builder::data_bus::DataBus, ir::function::Function,
         ir::instruction::ArrayOffset,
-        opt::pure::{FunctionPurities, Purity},
     },
 };
 
@@ -117,9 +114,6 @@ pub(crate) struct DataFlowGraph {
     pub(crate) data_bus: DataBus,
 
     pub(crate) globals: Arc<GlobalsGraph>,
-
-    #[serde(skip)]
-    pub(crate) function_purities: Arc<FunctionPurities>,
 
     /// Indicate whether the Brillig array index offset optimizations have been performed.
     pub(crate) brillig_arrays_offset: bool,
@@ -1004,21 +998,6 @@ impl DataFlowGraph {
             }
             _ => None,
         }
-    }
-
-    pub(crate) fn set_function_purities(&mut self, purities: Arc<FunctionPurities>) {
-        self.function_purities = purities;
-    }
-
-    /// Returns the purity of `function` as observed from this function (the caller).
-    ///
-    /// This is the callee's own purity, except that a pure Brillig function called from an ACIR
-    /// function is observed as [Purity::PureWithPredicate]: the call lowers to a predicated
-    /// `Opcode::BrilligCall` whose outputs are left unconstrained when the predicate is disabled,
-    /// so the result is predicate-dependent from an ACIR caller's perspective. From a Brillig
-    /// caller (whose calls are not predicated) the function's true purity is observed.
-    pub(crate) fn purity_of(&self, function: FunctionId) -> Option<Purity> {
-        self.function_purities.purity_of(function, self.runtime())
     }
 
     /// Determine the appropriate [`ArrayOffset`] to use for indexing an array or vector.

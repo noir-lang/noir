@@ -6,10 +6,13 @@ use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
 
-use crate::ssa::ir::{
-    function::{Function, FunctionId},
-    map::AtomicCounter,
-    value::Value,
+use crate::ssa::{
+    ir::{
+        function::{Function, FunctionId},
+        map::AtomicCounter,
+        value::Value,
+    },
+    opt::pure::FunctionPurities,
 };
 use noirc_frontend::hir_def::types::Type as HirType;
 
@@ -38,6 +41,13 @@ pub struct Ssa {
     /// ABI not the actual SSA IR.
     #[serde(skip)]
     pub error_selector_to_type: BTreeMap<ErrorSelector, HirType>,
+    /// The purity of every function, as computed by [Ssa::purity_analysis][crate::ssa::opt::pure].
+    ///
+    /// This is empty until the first purity analysis runs. Passes that add functions must record
+    /// a purity for them here (or be followed by another purity analysis) so that the map never
+    /// goes stale.
+    #[serde(skip)]
+    pub(crate) function_purities: FunctionPurities,
 }
 
 impl Ssa {
@@ -58,6 +68,7 @@ impl Ssa {
             next_id: AtomicCounter::starting_after(max_id),
             entry_point_to_generated_index: BTreeMap::new(),
             error_selector_to_type: error_types,
+            function_purities: FunctionPurities::default(),
         }
     }
 
