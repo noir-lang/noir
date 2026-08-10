@@ -57,9 +57,9 @@ pub fn can_be_matched(typ: &Type) -> bool {
 ///
 /// This is what the producer index in [`Scope`](super::scope::Scope) is built from, so it
 /// decides which variables are offered for a target type. It should stay in step with
-/// [`FunctionContext::gen_expr_from_source`](super::func): a type listed here that the
-/// generator cannot actually reach costs coverage, because the chosen producer yields
-/// nothing and the expression falls back to a literal.
+/// `FunctionContext::gen_expr_from_source`: a type listed here that the generator cannot
+/// actually reach costs coverage, because the chosen producer yields nothing and the
+/// expression falls back to a literal.
 pub fn types_produced(typ: &Type) -> HashSet<Type> {
     /// Recursively visit subtypes.
     fn visit(acc: &mut HashSet<Type>, typ: &Type) {
