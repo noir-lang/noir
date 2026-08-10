@@ -4,6 +4,7 @@ use noir_ast_fuzzer::Config;
 pub mod acir_vs_brillig;
 pub mod comptime_vs_brillig_direct;
 pub mod comptime_vs_brillig_nargo;
+pub mod fmt_line_comments;
 pub mod min_vs_full;
 pub mod orig_vs_morph;
 pub mod pass_vs_prev;

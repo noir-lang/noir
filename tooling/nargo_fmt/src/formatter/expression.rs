@@ -2719,6 +2719,47 @@ let     x   =    1   +    2 ;
     }
 
     #[test]
+    fn format_lambda_with_comment_between_parameters_and_body() {
+        // Regression test for https://github.com/noir-lang/noir-claude/issues/1646:
+        // the comment's terminating newline was dropped, so the lambda body was
+        // swallowed into the comment while the program still compiled.
+        let src = "fn main(x: Field, y: Field) {
+    let check = |v| // every checked value must equal y
+{ assert(v == y); };
+    check(x);
+}
+";
+        let expected = "fn main(x: Field, y: Field) {
+    let check = |v| // every checked value must equal y
+    { assert(v == y); };
+    check(x);
+}
+";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_lambda_as_last_call_argument_with_comment_between_parameters_and_body() {
+        // Regression test for https://github.com/noir-lang/noir-claude/issues/1646.
+        // A lambda as the last call argument is formatted through a fast path that
+        // writes the group in one line, which is a separate way for the comment's
+        // terminating newline to be lost.
+        let src = "fn main() {
+    foo(1, |x| // doubles the input
+    {
+        x * 2
+    });
+}
+";
+        let expected = "fn main() {
+    foo(1, |x| // doubles the input
+    x * 2);
+}
+";
+        assert_format(src, expected);
+    }
+
+    #[test]
     fn format_lambda_as_last_call_argument() {
         let src = "global x = foo(1, |x| { 1; 2 });";
         let expected = "global x = foo(1, |x| {
