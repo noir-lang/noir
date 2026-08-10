@@ -72,10 +72,6 @@ struct Context<'a> {
     /// The condition belonging to the most recently invoked `SideEffectsEnabled` instruction.
     side_effects: SideEffectsLatch,
 
-    /// Whether the instruction currently being lowered declared that it consumes the predicate.
-    #[cfg(debug_assertions)]
-    current_instruction_declares_predicate: bool,
-
     /// Manages and builds the `AcirVar`s to which the converted SSA values refer.
     acir_context: AcirContext<FieldElement>,
 
@@ -145,8 +141,6 @@ impl<'a> Context<'a> {
         Context {
             ssa_values: HashMap::default(),
             side_effects,
-            #[cfg(debug_assertions)]
-            current_instruction_declares_predicate: false,
             acir_context,
             initialized_arrays: HashSet::default(),
             memory_blocks: HashMap::default(),
@@ -483,11 +477,10 @@ impl<'a> Context<'a> {
     ) -> Result<Vec<SsaReport>, RuntimeError> {
         let instruction = &dfg[instruction_id];
         #[cfg(debug_assertions)]
-        {
-            self.current_instruction_declares_predicate = instruction
-                .requires_acir_gen_predicate(dfg)
-                || matches!(instruction, Instruction::Constrain(..));
-        }
+        self.side_effects.begin_instruction(
+            instruction.requires_acir_gen_predicate(dfg)
+                || matches!(instruction, Instruction::Constrain(..)),
+        );
         self.acir_context.set_call_stack(dfg.get_instruction_call_stack(instruction_id));
         let mut warnings = Vec::new();
 

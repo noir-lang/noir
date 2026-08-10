@@ -6,19 +6,43 @@ use super::{Context, types::AcirVar};
 ///
 /// The inner value is private to this module so ACIR lowering cannot read it without choosing one
 /// of the accessors on [`Context`].
-pub(super) struct SideEffectsLatch(AcirVar);
+pub(super) struct SideEffectsLatch {
+    predicate: AcirVar,
+    #[cfg(debug_assertions)]
+    current_instruction_declares_predicate: bool,
+}
 
 impl SideEffectsLatch {
     pub(super) fn new(one: AcirVar) -> Self {
-        Self(one)
+        Self {
+            predicate: one,
+            #[cfg(debug_assertions)]
+            current_instruction_declares_predicate: false,
+        }
     }
 
+    #[cfg_attr(debug_assertions, track_caller)]
     fn get(&self) -> AcirVar {
-        self.0
+        #[cfg(debug_assertions)]
+        debug_assert!(
+            self.current_instruction_declares_predicate,
+            "ACIR generation read the side-effects predicate while lowering an instruction that \
+             declared it does not consume one"
+        );
+        self.predicate
+    }
+
+    fn get_unchecked(&self) -> AcirVar {
+        self.predicate
     }
 
     fn set(&mut self, predicate: AcirVar) {
-        self.0 = predicate;
+        self.predicate = predicate;
+    }
+
+    #[cfg(debug_assertions)]
+    pub(super) fn begin_instruction(&mut self, declares_predicate: bool) {
+        self.current_instruction_declares_predicate = declares_predicate;
     }
 }
 
@@ -40,12 +64,6 @@ impl Context<'_> {
     /// Returns the predicate of the instruction currently being lowered.
     #[cfg_attr(debug_assertions, track_caller)]
     pub(super) fn predicate(&self) -> AcirVar {
-        #[cfg(debug_assertions)]
-        debug_assert!(
-            self.current_instruction_declares_predicate,
-            "ACIR generation read the side-effects predicate while lowering an instruction that \
-             declared it does not consume one"
-        );
         self.side_effects.get()
     }
 
@@ -56,7 +74,7 @@ impl Context<'_> {
 
     /// Returns the latch when a possibly stale value is only used in a fail-safe way.
     pub(super) fn out_of_scope_predicate(&self, _why: StaleReadIsSafe) -> AcirVar {
-        self.side_effects.get()
+        self.side_effects.get_unchecked()
     }
 
     pub(super) fn set_predicate(&mut self, predicate: AcirVar) {
