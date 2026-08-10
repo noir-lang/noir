@@ -1,4 +1,4 @@
-use acvm::acir::brillig::lengths::FlattenedLength;
+use acvm::acir::{BlackBoxFunc, brillig::lengths::FlattenedLength};
 use iter_extended::vecmap;
 
 use crate::errors::RuntimeError;
@@ -54,13 +54,15 @@ impl Context<'_> {
                     .iter()
                     .map(|result_id| dfg.type_of_value(*result_id).flattened_size())
                     .sum();
+                let predicate = matches!(black_box, BlackBoxFunc::RecursiveAggregation)
+                    .then(|| self.predicate());
 
                 let vars = self.acir_context.black_box_function(
                     black_box,
                     inputs,
                     None,
                     output_count,
-                    Some(self.current_side_effects_enabled_var),
+                    predicate,
                 )?;
 
                 Ok(self.convert_vars_to_values(vars, dfg, result_ids))

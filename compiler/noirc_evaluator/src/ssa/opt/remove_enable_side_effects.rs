@@ -571,7 +571,7 @@ mod tests {
 
     #[test]
     fn keep_enable_side_effects_for_recursive_aggregation() {
-        // RecursiveAggregation uses the `current_side_effects_enabled_var` as its predicate
+        // RecursiveAggregation uses the current side-effects predicate
         // during ACIR generation. If `remove_enable_side_effects` drops the `EnableSideEffectsIf`
         // before a recursive_aggregation call, ACIR gen injects a stale predicate, which can
         // silently disable recursive verification constraints.
@@ -591,11 +591,11 @@ mod tests {
     }
 
     /// Regression test: the heterogeneous `vector_push_back` path in ACIR lowering multiplies
-    /// `vector_length` by `current_side_effects_enabled_var` to compute the write offset.
+    /// `vector_length` by the side-effects predicate to compute the write offset.
     /// `remove_enable_side_effects` must preserve the `EnableSideEffectsIf` before these calls.
     ///
     /// This test uses ACVM execution (not the SSA interpreter) because the bug is in how
-    /// ACIR lowering consumes `current_side_effects_enabled_var`.
+    /// ACIR lowering consumes the side-effects predicate.
     #[test]
     fn vector_push_back_heterogeneous_predicate_preserved_in_acir() {
         use acvm::pwg::ACVMStatus;
