@@ -9,7 +9,8 @@ use noirc_frontend::{
     ast::BinaryOpKind,
     monomorphization::{
         ast::{
-            Call, Definition, Expression, FuncId, Function, Ident, IdentId, LocalId, Program, Type,
+            Call, Definition, Expression, FuncId, Function, Ident, IdentId, InlineType, LocalId,
+            Program, Type,
         },
         visitor::visit_expr_mut,
     },
@@ -40,6 +41,15 @@ pub(crate) fn add_recursion_limit(
     ctx: &mut Context,
     u: &mut Unstructured,
 ) -> arbitrary::Result<()> {
+    // A `#[fold]` function is compiled into its own ACIR circuit, so its signature has to
+    // cross a circuit boundary and cannot contain a reference; it takes the limit by value.
+    let fold_functions = ctx
+        .functions
+        .iter()
+        .filter(|(_, func)| func.inline_type == InlineType::Fold)
+        .map(|(id, _)| *id)
+        .collect::<HashSet<FuncId>>();
+
     // Collect functions potentially called from ACIR; they will need proxy functions.
     let called_from_acir = ctx.functions.values().filter(|func| !func.unconstrained).fold(
         HashSet::<FuncId>::new(),
@@ -70,7 +80,7 @@ pub(crate) fn add_recursion_limit(
 
     // Rewrite functions.
     for (func_id, func) in &mut ctx.functions {
-        let mut limit_ctx = LimitContext::new(*func_id, func, &ctx.config);
+        let mut limit_ctx = LimitContext::new(*func_id, func, &ctx.config, &fold_functions);
 
         limit_ctx.rewrite_functions(u, &mut proxy_functions)?;
     }
@@ -103,11 +113,21 @@ struct LimitContext<'a, 'b> {
     is_recursive: bool,
     next_local_id: u32,
     next_ident_id: u32,
+    /// Whether this function holds the limit by value rather than by mutable reference.
+    is_fold: bool,
+    /// Functions which hold the limit by value, so calls to them pass it that way.
+    fold_functions: &'b HashSet<FuncId>,
 }
 
 impl<'a, 'b> LimitContext<'a, 'b> {
-    fn new(func_id: FuncId, func: &'a mut Function, config: &'b Config) -> Self {
+    fn new(
+        func_id: FuncId,
+        func: &'a mut Function,
+        config: &'b Config,
+        fold_functions: &'b HashSet<FuncId>,
+    ) -> Self {
         let is_main = func_id == Program::main_id();
+        let is_fold = func.inline_type == InlineType::Fold;
 
         // Recursive functions are those that call another function.
         let is_recursive = expr::has_call(&func.body);
@@ -121,7 +141,17 @@ impl<'a, 'b> LimitContext<'a, 'b> {
         // traverse the AST to figure out what the next ID to use is.
         let (next_local_id, next_ident_id) = next_local_and_ident_id(func);
 
-        Self { func_id, func, config, is_main, is_recursive, next_local_id, next_ident_id }
+        Self {
+            func_id,
+            func,
+            config,
+            is_main,
+            is_recursive,
+            next_local_id,
+            next_ident_id,
+            is_fold,
+            fold_functions,
+        }
     }
 
     /// Rewrite the function and its proxy (if it has one).
@@ -186,10 +216,16 @@ impl<'a, 'b> LimitContext<'a, 'b> {
     ) -> arbitrary::Result<()> {
         let limit_var = VariableId::Local(limit_id);
 
-        let limit_type = Rc::new(types::ref_mut(types::U32));
+        // A `#[fold]` function takes the limit by value, because it is compiled into its own
+        // ACIR circuit and a reference cannot cross that boundary. It therefore cannot
+        // decrease its caller's budget, which is sound because the constrained call graph is
+        // acyclic — see `can_call` — so a constrained function can never recurse.
+        let by_value = self.is_fold;
+        let limit_type = Rc::new(if by_value { types::U32 } else { types::ref_mut(types::U32) });
+
         self.func.parameters.push((
             limit_id,
-            false,
+            by_value,
             LIMIT_NAME.to_string(),
             limit_type.clone(),
             Visibility::Private,
@@ -201,26 +237,32 @@ impl<'a, 'b> LimitContext<'a, 'b> {
         let limit_ident = expr::ident_inner(
             limit_var,
             self.next_ident_id(),
-            false,
+            by_value,
             LIMIT_NAME.to_string(),
             limit_type,
         );
         let limit_expr = Expression::Ident(limit_ident.clone());
 
+        // Reading the limit goes through a dereference unless we hold it by value.
+        let read_limit =
+            |expr: Expression| if by_value { expr } else { expr::deref(expr, types::U32) };
+
         expr::replace(&mut self.func.body, |mut body| {
+            let decreased = expr::binary(
+                read_limit(limit_expr.clone()),
+                BinaryOpKind::Subtract,
+                expr::u32_literal(1),
+            );
             expr::prepend(
                 &mut body,
-                expr::assign_ref(
-                    limit_ident,
-                    expr::binary(
-                        expr::deref(limit_expr.clone(), types::U32),
-                        BinaryOpKind::Subtract,
-                        expr::u32_literal(1),
-                    ),
-                ),
+                if by_value {
+                    expr::assign_ident(limit_ident, decreased)
+                } else {
+                    expr::assign_ref(limit_ident, decreased)
+                },
             );
             expr::if_else(
-                expr::equal(expr::deref(limit_expr.clone(), types::U32), expr::u32_literal(0)),
+                expr::equal(read_limit(limit_expr.clone()), expr::u32_literal(0)),
                 default_return,
                 body,
                 self.func.return_type.clone(),
@@ -234,7 +276,8 @@ impl<'a, 'b> LimitContext<'a, 'b> {
     /// In non-main we look at the limit and return a random value if it's zero,
     /// otherwise decrease it by one and continue with the original body.
     fn modify_body_when_non_recursive(&mut self, limit_id: LocalId) {
-        let limit_type = types::ref_mut(types::U32);
+        // See `modify_body_when_recursive` for why a `#[fold]` function takes it by value.
+        let limit_type = if self.is_fold { types::U32 } else { types::ref_mut(types::U32) };
         self.func.parameters.push((
             limit_id,
             false,
@@ -341,6 +384,14 @@ impl<'a, 'b> LimitContext<'a, 'b> {
                     other => unreachable!("unexpected call target definition: {}", other),
                 };
 
+                let callee_is_fold = match &ident.definition {
+                    Definition::Function(id) => self.fold_functions.contains(id),
+                    _ => false,
+                };
+                // `main` keeps the limit in a local, and a `#[fold]` function receives it as
+                // a by-value parameter; everyone else holds a mutable reference to it.
+                let holds_by_value = self.is_main || self.is_fold;
+
                 types::unref_mut_rc(&mut ident.typ, |unref_mut_typ| {
                     let Type::Function(mut param_types, ret, env, callee_unconstrained) =
                         unref_mut_typ
@@ -348,14 +399,14 @@ impl<'a, 'b> LimitContext<'a, 'b> {
                         unreachable!("function type expected");
                     };
 
-                    if callee_unconstrained && !self.func.unconstrained {
+                    if (callee_unconstrained && !self.func.unconstrained) || callee_is_fold {
                         // Calling Brillig from ACIR: call the proxy if it's global.
                         if let Some(proxy) = proxy {
                             ident.name = proxy.name.clone();
                             ident.definition = Definition::Function(proxy.id);
                         }
                         // Pass the limit by value.
-                        let limit_expr = if self.is_main {
+                        let limit_expr = if holds_by_value {
                             expr::ident(
                                 limit_var,
                                 self.next_ident_id(),
@@ -380,8 +431,8 @@ impl<'a, 'b> LimitContext<'a, 'b> {
                     } else {
                         // Pass the limit by reference.
                         let limit_type = types::ref_mut(types::U32);
-                        let limit_expr = if self.is_main {
-                            // In main we take a mutable reference to the limit.
+                        let limit_expr = if holds_by_value {
+                            // When we hold the limit itself, take a mutable reference to it.
                             expr::ref_mut(
                                 expr::ident(
                                     limit_var,
