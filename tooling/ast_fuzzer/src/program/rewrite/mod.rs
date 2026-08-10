@@ -68,6 +68,10 @@ pub fn change_all_functions_into_unconstrained(mut program: Program) -> Program 
         }
         // Modify the function.
         f.unconstrained = true;
+        // Only a constrained function is compiled into its own ACIR circuit, so an
+        // unconstrained one is an entry point only if it is `main`. This mirrors the
+        // `force_unconstrained` arm of `Monomorphizer::into_program`.
+        f.is_entry_point = f.id == Program::main_id();
         // Modify any function pointers it takes.
         for (_, _, _, typ, _) in &mut f.parameters {
             types::unref_mut_rc(typ, |unref_mut_typ| {

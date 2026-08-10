@@ -454,3 +454,108 @@ fn test_generates_non_homogeneous_array_types() {
          ACIR's non-homogeneous array handling is unreachable from the fuzzer"
     );
 }
+
+/// A `FunctionDeclaration` with no parameters, returning `Field`.
+fn simple_decl(unconstrained: bool, inline_type: InlineType) -> FunctionDeclaration {
+    FunctionDeclaration {
+        name: "func".to_string(),
+        params: vec![],
+        return_type: Type::Field,
+        return_visibility: Visibility::Private,
+        inline_type,
+        unconstrained,
+    }
+}
+
+#[test]
+fn test_main_can_call_constrained_functions() {
+    use super::func::can_call;
+
+    let acir = simple_decl(false, InlineType::Inline);
+
+    // `main` has the lowest ID, so the "higher calls lower" rule alone would leave every
+    // constrained function unreachable and `remove_unreachable_functions` would delete them.
+    assert!(
+        can_call(Program::main_id(), false, false, FuncId(1), &acir, true),
+        "main should be able to call a constrained function"
+    );
+    assert!(
+        !can_call(Program::main_id(), false, false, FuncId(1), &acir, false),
+        "the exception is off unless constrained calls are allowed"
+    );
+
+    // Between other constrained functions the ordering rule still keeps the graph acyclic.
+    assert!(can_call(FuncId(2), false, false, FuncId(1), &acir, true));
+    assert!(!can_call(FuncId(1), false, false, FuncId(2), &acir, true));
+
+    // Nothing calls main, which is what makes the exception above safe.
+    assert!(!can_call(FuncId(1), false, false, Program::main_id(), &acir, true));
+
+    // Brillig still only calls Brillig.
+    assert!(!can_call(FuncId(1), true, false, FuncId(2), &acir, true));
+}
+
+#[test]
+fn test_functions_returning_references_do_not_call() {
+    use super::func::can_call;
+
+    let acir = simple_decl(false, InlineType::Inline);
+    let brillig = simple_decl(true, InlineType::Inline);
+
+    // The recursion limit rewrite wraps the body of any function that makes a call in an
+    // `if ctx_limit == 0 { .. } else { .. }`, and an `if` cannot return a reference in ACIR.
+    // The rewrite keys off whether the body calls anything, not off the runtime.
+    assert!(!can_call(Program::main_id(), false, true, FuncId(1), &acir, true));
+    assert!(!can_call(FuncId(2), true, true, FuncId(1), &brillig, true));
+}
+
+#[test]
+fn test_generates_constrained_functions_other_than_main() {
+    let config = Config { avoid_constrained_calls: false, ..Config::default() };
+
+    // A deterministic byte source; the generator only needs entropy, not randomness.
+    let mut state = 0x2545_F491_4F6C_DD1Du64;
+    let mut data = vec![0u8; 1 << 20];
+    for byte in &mut data {
+        state ^= state << 13;
+        state ^= state >> 7;
+        state ^= state << 17;
+        *byte = state as u8;
+    }
+    let mut u = Unstructured::new(&data);
+
+    let mut found = 0;
+    for _ in 0..32 {
+        let Ok(program) = crate::arb_program(&mut u, config.clone()) else { break };
+        found += program
+            .functions
+            .iter()
+            .filter(|f| !f.unconstrained && f.id != Program::main_id())
+            .count();
+    }
+
+    assert!(
+        found > 0,
+        "every generated program consisted of `main` plus Brillig functions; \
+         the whole constrained call graph is unreachable"
+    );
+}
+
+#[test]
+fn test_types_produced_covers_the_builtin_conversions() {
+    use super::types::{U8, types_produced};
+
+    // `str_as_bytes`
+    let produced = types_produced(&Type::String(3));
+    assert!(
+        produced.contains(&Type::Array(3, Rc::new(U8))),
+        "a string should offer the byte array it converts into: {produced:?}"
+    );
+
+    // `as_vector`
+    let produced = types_produced(&Type::Array(4, Rc::new(Type::Field)));
+    assert!(
+        produced.contains(&Type::Vector(Rc::new(Type::Field))),
+        "an array should offer the vector it converts into: {produced:?}"
+    );
+}
