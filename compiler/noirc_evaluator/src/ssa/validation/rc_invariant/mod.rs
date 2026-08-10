@@ -154,6 +154,7 @@
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
 use std::collections::BTreeSet;
+use std::hash::Hash;
 
 use acvm::FieldElement;
 
@@ -862,13 +863,9 @@ impl<'f> Context<'f> {
         array_set_block: BasicBlockId,
         array_set_idx: usize,
     ) -> HashSet<ValueId> {
-        struct Node {
-            successors: Vec<(BasicBlockId, ValueId)>,
-            uncovered_terminal: bool,
-        }
-
         // Phase 1: build the backward threading graph.
-        let mut graph: HashMap<(BasicBlockId, ValueId), Node> = HashMap::default();
+        let mut graph: HashMap<(BasicBlockId, ValueId), Node<(BasicBlockId, ValueId)>> =
+            HashMap::default();
         let mut worklist: Vec<(BasicBlockId, ValueId, Option<usize>)> =
             vec![(array_set_block, source, Some(array_set_idx))];
 
@@ -951,22 +948,7 @@ impl<'f> Context<'f> {
         }
 
         // Phase 2: propagate "uncovered" from terminals to a fixed point.
-        let mut uncovered: HashSet<(BasicBlockId, ValueId)> =
-            graph.iter().filter(|(_, n)| n.uncovered_terminal).map(|(k, _)| *k).collect();
-        let mut changed = true;
-        while changed {
-            changed = false;
-            for (state, node) in &graph {
-                if !uncovered.contains(state)
-                    && node.successors.iter().any(|s| uncovered.contains(s))
-                {
-                    uncovered.insert(*state);
-                    changed = true;
-                }
-            }
-        }
-
-        uncovered.into_iter().map(|(_, value)| value).collect()
+        propagate_uncovered(&graph).into_iter().map(|(_, value)| value).collect()
     }
 
     /// The argument passed to parameter position `i` of `dest` on the edge
@@ -1031,9 +1013,9 @@ impl<'f> Context<'f> {
     /// - **Names distinct at an entry block**: distinct roots — covered.
     ///
     /// An unresolvable edge argument is conservatively an uncovered terminal.
-    /// Phase 2 propagates "uncovered" to a fixed point exactly like
-    /// [`Context::compute_uncovered_values`]; a cycle with no uncovered
-    /// terminal stays covered.
+    /// Phase 2 ([`propagate_uncovered`], shared with
+    /// [`Context::compute_uncovered_values`]) floods "uncovered" backward from
+    /// the terminals; a cycle with no uncovered terminal stays covered.
     fn pair_has_unprotected_shared_storage(
         &self,
         a: ValueId,
@@ -1041,10 +1023,7 @@ impl<'f> Context<'f> {
         call_block: BasicBlockId,
         call_idx: usize,
     ) -> bool {
-        struct Node {
-            successors: Vec<(BasicBlockId, ValueId, ValueId)>,
-            uncovered_terminal: bool,
-        }
+        type State = (BasicBlockId, ValueId, ValueId);
 
         let inc_rc_in_block = |value: ValueId, block: BasicBlockId, limit: Option<usize>| {
             self.inc_rc_locations.get(&value).is_some_and(|locations| {
@@ -1062,7 +1041,7 @@ impl<'f> Context<'f> {
         };
 
         // Phase 1: build the backward threading graph over (block, a, b) states.
-        let mut graph: HashMap<(BasicBlockId, ValueId, ValueId), Node> = HashMap::default();
+        let mut graph: HashMap<State, Node<State>> = HashMap::default();
         let mut worklist: Vec<(BasicBlockId, ValueId, ValueId, Option<usize>)> =
             vec![(call_block, a, b, Some(call_idx))];
 
@@ -1100,8 +1079,8 @@ impl<'f> Context<'f> {
             }
 
             if a == b {
-                // One name, both positions. If its storage originates here (a
-                // non-threadable definition) or the walk reached an entry with
+                // One name, both positions. If its storage originates here (an
+                // unthreadable definition) or the walk reached an entry with
                 // no bump crossed, this path hands the callee one buffer twice
                 // unprotected.
                 let defined_here = def_in_block(a, block).is_some();
@@ -1153,22 +1132,7 @@ impl<'f> Context<'f> {
         }
 
         // Phase 2: propagate "uncovered" from terminals to a fixed point.
-        let mut uncovered: HashSet<(BasicBlockId, ValueId, ValueId)> =
-            graph.iter().filter(|(_, n)| n.uncovered_terminal).map(|(k, _)| *k).collect();
-        let mut changed = true;
-        while changed {
-            changed = false;
-            for (state, node) in &graph {
-                if !uncovered.contains(state)
-                    && node.successors.iter().any(|s| uncovered.contains(s))
-                {
-                    uncovered.insert(*state);
-                    changed = true;
-                }
-            }
-        }
-
-        uncovered.contains(&(call_block, a, b))
+        propagate_uncovered(&graph).contains(&(call_block, a, b))
     }
 
     /// Run the coverage narrowing + forward reachable-use walk for a single
@@ -1700,6 +1664,40 @@ fn compute_backward_aliases(
     }
 
     result
+}
+
+/// A state in a backward threading graph: the states one step further back
+/// on each path, and whether the walk ended here on an uncovered terminal.
+struct Node<S> {
+    successors: Vec<S>,
+    uncovered_terminal: bool,
+}
+
+/// Propagate "uncovered" from terminal states to a fixed point: a state is
+/// uncovered if it is an uncovered terminal or any of its successors is
+/// uncovered. A cycle with no uncovered terminal stays covered.
+fn propagate_uncovered<S: Copy + Eq + Hash>(graph: &HashMap<S, Node<S>>) -> HashSet<S> {
+    // Invert the edges so the flood can step from a state to the states that
+    // point at it.
+    let mut incoming: HashMap<S, Vec<S>> = HashMap::default();
+    for (&state, node) in graph {
+        for &successor in &node.successors {
+            incoming.entry(successor).or_default().push(state);
+        }
+    }
+
+    // Flood backward from the uncovered terminals.
+    let mut worklist: Vec<S> = graph
+        .iter()
+        .filter_map(|(&state, node)| node.uncovered_terminal.then_some(state))
+        .collect();
+    let mut uncovered = HashSet::default();
+    while let Some(state) = worklist.pop() {
+        if uncovered.insert(state) {
+            worklist.extend(incoming.get(&state).into_iter().flatten());
+        }
+    }
+    uncovered
 }
 
 /// Per-frame state of the forward reachable-use walk: which alias-set
