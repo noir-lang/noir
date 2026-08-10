@@ -85,7 +85,7 @@ impl Display for Function {
 
 /// Helper function for Function's Display impl to pretty-print the function with the given formatter.
 ///
-/// Purities live on the [Ssa][crate::ssa::ssa_gen::Ssa] rather than on each function, so a
+/// Purities live on the [Ssa] rather than on each function, so a
 /// standalone [Function] display (which has no `purities`) omits the purity keyword.
 fn display_function(
     function: &Function,
