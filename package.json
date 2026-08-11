@@ -27,8 +27,8 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
-    "@typescript-eslint/eslint-plugin": "^8.65.0",
-    "@typescript-eslint/parser": "^8.65.0",
+    "@typescript-eslint/eslint-plugin": "^8.66.0",
+    "@typescript-eslint/parser": "^8.66.0",
     "chai": "^6.2.2",
     "cspell": "^10.0.1",
     "eslint": "^10.8.0",
