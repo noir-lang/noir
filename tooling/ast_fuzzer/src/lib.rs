@@ -57,6 +57,8 @@ pub struct Config {
     pub max_recursive_calls: usize,
     /// Maximum number of match cases.
     pub max_match_cases: usize,
+    /// Frequency of replacing one conditional arm with a literal `assert(false)`.
+    pub doomed_branch_freqs: Freqs,
     /// Frequency of expressions, which produce a value.
     pub expr_freqs: Freqs,
     /// Frequency of statements in ACIR functions.
@@ -126,13 +128,14 @@ impl Default for Config {
             ("if", 10),
             ("match", 15),
             ("for", 45),
-            ("loop", 45),
-            ("while", 45),
+            ("loop", 75),
+            ("while", 75),
             ("let", 20),
             ("call", 5),
             ("print", 15),
             ("constrain", 25),
         ]);
+        let doomed_branch_freqs = Freqs::new(&[("doomed", 1), ("regular", 19)]);
         Self {
             max_globals: 3,
             min_functions: 0,
@@ -148,6 +151,7 @@ impl Default for Config {
             vary_loop_size: true,
             max_recursive_calls: 25,
             max_match_cases: 3,
+            doomed_branch_freqs,
             expr_freqs,
             stmt_freqs_acir,
             stmt_freqs_brillig,

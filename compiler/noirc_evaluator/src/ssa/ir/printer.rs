@@ -3,7 +3,7 @@ use std::fmt::{Display, Formatter, Result};
 
 use acvm::{FieldElement, acir::AcirField};
 use fm::codespan_files;
-use im::Vector;
+use imbl::Vector;
 use iter_extended::vecmap;
 
 use crate::ssa::{

@@ -65,7 +65,8 @@ pub fn generate_ssa(program: Program) -> Result<Ssa, RuntimeError> {
     let main_id = Program::main_id();
     let main = context.program.main();
 
-    // Queue the main function for compilation
+    // Queue the main function for compilation; the `FunctionContext` constructor below pops
+    // it back off the queue.
     context.get_or_queue_function(main_id);
     let main_runtime = if main.unconstrained {
         RuntimeType::Brillig(main.inline_type)
@@ -76,6 +77,20 @@ pub fn generate_ssa(program: Program) -> Result<Ssa, RuntimeError> {
         FunctionContext::new(main.name.clone(), &main.parameters, main_runtime, &context, globals);
     function_context.builder.current_function.dfg.allow_constant_return =
         main.allow_constant_return;
+
+    // Queue every other entry point up front rather than on demand, because `create_program`
+    // derives one function signature per AST entry point and pairs them with the generated
+    // circuits positionally:
+    // - an entry point whose only call site is eliminated as statically unreachable during
+    //   codegen would otherwise never be queued, producing fewer circuits than signatures;
+    // - queueing here, in declaration order, assigns the entry points contiguous function ids
+    //   right after `main`, so the circuits keep the same order as the signatures independent
+    //   of the order in which calls to them are first encountered.
+    for function in &context.program.functions {
+        if function.is_entry_point && function.id != main_id {
+            context.get_or_queue_function(function.id);
+        }
+    }
 
     // Generate the call_data bus from the relevant parameters. We create it *before* processing the function body
     let call_data = function_context.builder.call_data_bus(is_databus);
@@ -399,7 +414,7 @@ impl FunctionContext<'_> {
     ///
     /// The value returned from this function is always that of the allocate instruction.
     fn codegen_array(&mut self, elements: Vec<Values>, typ: Type) -> Values {
-        let mut array = im::Vector::new();
+        let mut array = imbl::Vector::new();
 
         for element in elements {
             element.for_each(|element| {
