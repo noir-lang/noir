@@ -446,14 +446,14 @@ pub enum Instruction {
     /// An instruction to increment the reference count of a value.
     ///
     /// This currently only has an effect in Brillig code where array sharing and copy on write is
-    /// implemented via reference counting. In ACIR code this is done with `im::Vector` and these
+    /// implemented via reference counting. In ACIR code this is done with `imbl::Vector` and these
     /// `IncrementRc` instructions are ignored.
     IncrementRc { value: ValueId },
 
     /// An instruction to decrement the reference count of a value.
     ///
     /// This currently only has an effect in Brillig code where array sharing and copy on write is
-    /// implemented via reference counting. In ACIR code this is done with `im::Vector` and these
+    /// implemented via reference counting. In ACIR code this is done with `imbl::Vector` and these
     /// `DecrementRc` instructions are ignored.
     DecrementRc { value: ValueId },
 
@@ -477,7 +477,7 @@ pub enum Instruction {
     ///
     /// `typ` should be an array or vector type with an element type
     /// matching each of the `elements` values' types.
-    MakeArray { elements: im::Vector<ValueId>, typ: Type },
+    MakeArray { elements: imbl::Vector<ValueId>, typ: Type },
 
     /// A No-op instruction. These are intended to replace other instructions in a block's
     /// instructions vector without having to move each instruction afterward.
@@ -1211,7 +1211,7 @@ impl TerminatorInstruction {
 /// Try to avoid mutation until we know something changed, to take advantage of
 /// structural sharing, and avoid needlessly calling `Arc::make_mut` which clones
 /// the content and increases memory use by allocating more pointers on the heap.
-fn im_vec_map_values_mut<T, F>(xs: &mut im::Vector<T>, mut f: F)
+fn im_vec_map_values_mut<T, F>(xs: &mut imbl::Vector<T>, mut f: F)
 where
     T: Copy + PartialEq,
     F: FnMut(T) -> T,
@@ -1277,14 +1277,14 @@ mod tests {
 
         let typ = Type::Array(std::sync::Arc::new(vec![Type::field()]), SemanticLength(2));
         let mut instruction =
-            Instruction::MakeArray { elements: im::Vector::from(vec![v0, v1]), typ: typ.clone() };
+            Instruction::MakeArray { elements: imbl::Vector::from(vec![v0, v1]), typ: typ.clone() };
         assert!(instruction.replace_values(&mapping));
         let Instruction::MakeArray { elements, .. } = instruction else { unreachable!() };
         assert_eq!(elements[0], v0);
         assert_eq!(elements[1], v2);
 
         let mut unrelated =
-            Instruction::MakeArray { elements: im::Vector::from(vec![v0, v0]), typ };
+            Instruction::MakeArray { elements: imbl::Vector::from(vec![v0, v0]), typ };
         assert!(!unrelated.replace_values(&mapping));
         let Instruction::MakeArray { elements, .. } = unrelated else { unreachable!() };
         assert_eq!(elements[0], v0);

@@ -1238,7 +1238,7 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
 
     fn interpret_make_array(
         &mut self,
-        elements: &im::Vector<ValueId>,
+        elements: &imbl::Vector<ValueId>,
         result: ValueId,
         result_type: &Type,
     ) -> IResult<()> {

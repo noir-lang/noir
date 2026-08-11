@@ -810,7 +810,7 @@ fn make_dummy_return_data(function_builder: &mut FunctionBuilder, typ: &Type) ->
     match typ {
         Type::Numeric(numeric_type) => function_builder.numeric_constant(0_u128, *numeric_type),
         Type::Array(element_types, len) => {
-            let mut array = im::Vector::new();
+            let mut array = imbl::Vector::new();
             for _ in 0..len.0 {
                 for typ in element_types.iter() {
                     array.push_back(make_dummy_return_data(function_builder, typ));
@@ -819,7 +819,7 @@ fn make_dummy_return_data(function_builder: &mut FunctionBuilder, typ: &Type) ->
             function_builder.insert_make_array(array, typ.clone())
         }
         Type::Vector(_) => {
-            let array = im::Vector::new();
+            let array = imbl::Vector::new();
             // The contents of a vector do not matter for a dummy function, we simply
             // desire to have a well formed SSA by returning the correct value for a type.
             // Thus, we return an empty vector here.

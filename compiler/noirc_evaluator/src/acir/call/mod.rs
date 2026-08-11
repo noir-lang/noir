@@ -278,7 +278,7 @@ impl Context<'_> {
                     .constant(&len, "len".to_string())
                     .expect("ICE - expected the variable to be a constant value")
                     .to_u128();
-                let mut element_values = im::Vector::new();
+                let mut element_values = imbl::Vector::new();
                 for _ in 0..len {
                     for element_type in elements_type.iter() {
                         let element = Self::convert_var_type_to_values(element_type, &mut vars);
@@ -307,7 +307,7 @@ impl Context<'_> {
     ) -> AcirValue {
         match result_type {
             Type::Array(elements, size) => {
-                let mut element_values = im::Vector::new();
+                let mut element_values = imbl::Vector::new();
                 for _ in 0..size.0 {
                     for element_type in elements.iter() {
                         let element = Self::convert_var_type_to_values(element_type, vars);
