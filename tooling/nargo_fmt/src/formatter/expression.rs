@@ -132,7 +132,10 @@ impl ChunkFormatter<'_, '_> {
                 }));
             }
             Literal::Integer(..) => group.text(self.chunk(|formatter| {
-                if formatter.is_at(Token::Minus) {
+                // A `-` in front of an integer literal is folded into the literal itself, and
+                // because negating zero yields zero every `-` in front of a literal zero folds
+                // into the same literal.
+                while formatter.is_at(Token::Minus) {
                     formatter.write_token(Token::Minus);
                     formatter.skip_comments_and_whitespace();
                 }
@@ -871,7 +874,13 @@ impl ChunkFormatter<'_, '_> {
             } else {
                 1
             };
-            for _ in 0..tokens_count {
+            for index in 0..tokens_count {
+                // `<<` and `>>` are lexed as two separate tokens so that nested generic types
+                // are easier to parse, which means whitespace or a comment can sit between the
+                // two halves of a shift operator.
+                if index > 0 {
+                    formatter.skip_comments_and_whitespace();
+                }
                 formatter.write_current_token();
                 formatter.bump();
             }
@@ -1526,6 +1535,20 @@ mod tests {
     }
 
     #[test]
+    fn format_repeated_negative_zero() {
+        let src = "global x =  - - - 0 ;";
+        let expected = "global x = ---0;\n";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_negative_zero_with_comment_before_it() {
+        let src = "global x = - // negate\n-0;";
+        let expected = "global x = - // negate\n-0;\n";
+        assert_format(src, expected);
+    }
+
+    #[test]
     fn format_ref_mut_integer() {
         let src = "global x = & mut 42 ;";
         let expected = "global x = &mut 42;\n";
@@ -1776,6 +1799,27 @@ global y = 1;
     fn format_infix() {
         let src = "global x =  a  +  b  ;";
         let expected = "global x = a + b;\n";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_shift_written_as_two_separate_tokens() {
+        let src = "global x =  a  <  <  b  ;";
+        let expected = "global x = a << b;\n";
+        assert_format(src, expected);
+
+        let src = "global x =  a  >  >  b  ;";
+        let expected = "global x = a >> b;\n";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_shift_with_a_comment_between_its_two_tokens() {
+        let src = "global x = a < // shift\n< b;";
+        let expected = "global x = a
+    < // shift
+    < b;
+";
         assert_format(src, expected);
     }
 
