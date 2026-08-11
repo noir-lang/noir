@@ -2072,7 +2072,7 @@ __metadata:
     chai: "npm:^6.2.2"
     eslint: "npm:^10.8.0"
     eslint-plugin-prettier: "npm:^5.5.6"
-    mocha: "npm:^11.7.6"
+    mocha: "npm:^11.8.0"
     prettier: "npm:3.9.6"
     tsx: "npm:^4.23.1"
     typescript: "npm:^6.0.3"
@@ -2093,7 +2093,7 @@ __metadata:
     eslint: "npm:^10.8.0"
     eslint-plugin-prettier: "npm:^5.5.6"
     glob: "npm:^13.0.6"
-    mocha: "npm:^11.7.6"
+    mocha: "npm:^11.8.0"
     prettier: "npm:3.9.6"
     ts-command-line-args: "npm:^2.5.1"
     tsx: "npm:^4.23.1"
@@ -2118,7 +2118,7 @@ __metadata:
     chai: "npm:^6.2.2"
     eslint: "npm:^10.8.0"
     eslint-plugin-prettier: "npm:^5.5.6"
-    mocha: "npm:^11.7.6"
+    mocha: "npm:^11.8.0"
     pako: "npm:^3.0.1"
     prettier: "npm:3.9.6"
     tsc-multi: "npm:^1.1.0"
@@ -2157,7 +2157,7 @@ __metadata:
     eslint-plugin-prettier: "npm:^5.5.6"
     html-webpack-plugin: "npm:^5.6.8"
     memfs: "npm:^4.64.0"
-    mocha: "npm:^11.7.6"
+    mocha: "npm:^11.8.0"
     mocha-each: "npm:^2.0.1"
     pako: "npm:^3.0.1"
     path-browserify: "npm:^1.0.1"
@@ -2186,7 +2186,7 @@ __metadata:
     "@web/test-runner": "npm:^0.20.2"
     "@web/test-runner-playwright": "npm:^1.0.0"
     eslint: "npm:^10.8.0"
-    mocha: "npm:^11.7.6"
+    mocha: "npm:^11.8.0"
     tsx: "npm:^4.23.1"
   languageName: unknown
   linkType: soft
@@ -2203,7 +2203,7 @@ __metadata:
     eslint: "npm:^10.8.0"
     eslint-plugin-prettier: "npm:^5.5.6"
     globals: "npm:^17.8.0"
-    mocha: "npm:^11.7.6"
+    mocha: "npm:^11.8.0"
     prettier: "npm:3.9.6"
     tsx: "npm:^4.23.1"
     typescript: "npm:^6.0.3"
@@ -9774,9 +9774,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"mocha@npm:^11.7.6":
-  version: 11.7.6
-  resolution: "mocha@npm:11.7.6"
+"mocha@npm:^11.8.0":
+  version: 11.8.0
+  resolution: "mocha@npm:11.8.0"
   dependencies:
     browser-stdout: "npm:^1.3.1"
     chokidar: "npm:^4.0.1"
@@ -9802,7 +9802,7 @@ __metadata:
   bin:
     _mocha: bin/_mocha
     mocha: bin/mocha.js
-  checksum: 10/a083a65d4a2e74129ef06a77246088159e6dda09f3098e53b93edfd3df32a16d4c32a8ad37845da896365c29da44d1c0d5e6daa8062ad21dec2ebff71ce785c6
+  checksum: 10/4387620673d47c1249a5aac8d2becc6f54db004d96cf189cf4bd878e7333871228a9911dfd62fa0b71ef61a4b147a9032820c6401fcef77ec46ebcf17fc977c2
   languageName: node
   linkType: hard
 
