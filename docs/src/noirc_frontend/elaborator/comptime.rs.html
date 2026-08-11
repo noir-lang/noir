@@ -613,7 +613,7 @@
 <a href=#613 id=613 data-nosnippet>613</a>        <span class="kw">let </span>varargs_elem_type = varargs_type.as_ref().and_then(|t| t.vector_element_type());
 <a href=#614 id=614 data-nosnippet>614</a>
 <a href=#615 id=615 data-nosnippet>615</a>        <span class="kw">let </span><span class="kw-2">mut </span>new_arguments = Vec::with_capacity(arguments.len());
-<a href=#616 id=616 data-nosnippet>616</a>        <span class="kw">let </span><span class="kw-2">mut </span>varargs = im::Vector::new();
+<a href=#616 id=616 data-nosnippet>616</a>        <span class="kw">let </span><span class="kw-2">mut </span>varargs = imbl::Vector::new();
 <a href=#617 id=617 data-nosnippet>617</a>
 <a href=#618 id=618 data-nosnippet>618</a>        <span class="kw">for </span>(i, arg) <span class="kw">in </span>arguments.into_iter().enumerate() {
 <a href=#619 id=619 data-nosnippet>619</a>            <span class="kw">let </span>arg_location = arg.location;

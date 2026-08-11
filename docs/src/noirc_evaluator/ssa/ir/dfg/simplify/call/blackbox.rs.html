@@ -4,7 +4,7 @@
 <a href=#4 id=4 data-nosnippet>4</a><span class="kw">use </span>acvm::acir::brillig::lengths::SemanticLength;
 <a href=#5 id=5 data-nosnippet>5</a><span class="kw">use </span>acvm::blackbox_solver::sha256_compression;
 <a href=#6 id=6 data-nosnippet>6</a><span class="kw">use </span>acvm::{BlackBoxFunctionSolver, BlackBoxResolutionError, FieldElement, acir::AcirField};
-<a href=#7 id=7 data-nosnippet>7</a><span class="kw">use </span>im::Vector;
+<a href=#7 id=7 data-nosnippet>7</a><span class="kw">use </span>imbl::Vector;
 <a href=#8 id=8 data-nosnippet>8</a><span class="kw">use </span>noirc_errors::call_stack::CallStackId;
 <a href=#9 id=9 data-nosnippet>9</a>
 <a href=#10 id=10 data-nosnippet>10</a><span class="kw">use </span><span class="kw">crate</span>::ssa::ir::types::NumericType;
@@ -50,7 +50,7 @@
 <a href=#50 id=50 data-nosnippet>50</a>    <span class="kw">let </span>result_x = dfg.make_constant(x, NumericType::NativeField);
 <a href=#51 id=51 data-nosnippet>51</a>    <span class="kw">let </span>result_y = dfg.make_constant(y, NumericType::NativeField);
 <a href=#52 id=52 data-nosnippet>52</a>
-<a href=#53 id=53 data-nosnippet>53</a>    <span class="kw">let </span>elements = <span class="macro">im::vector!</span>[result_x, result_y];
+<a href=#53 id=53 data-nosnippet>53</a>    <span class="kw">let </span>elements = <span class="macro">imbl::vector!</span>[result_x, result_y];
 <a href=#54 id=54 data-nosnippet>54</a>    <span class="kw">let </span>typ = Type::Array(Arc::new(<span class="macro">vec!</span>[Type::field(), Type::field()]), SemanticLength(<span class="number">1</span>));
 <a href=#55 id=55 data-nosnippet>55</a>    Instruction::MakeArray { elements, typ }
 <a href=#56 id=56 data-nosnippet>56</a>}
@@ -127,7 +127,7 @@
 <a href=#127 id=127 data-nosnippet>127</a>        <span class="kw">let </span>result_x = dfg.make_constant(result_x, NumericType::NativeField);
 <a href=#128 id=128 data-nosnippet>128</a>        <span class="kw">let </span>result_y = dfg.make_constant(result_y, NumericType::NativeField);
 <a href=#129 id=129 data-nosnippet>129</a>
-<a href=#130 id=130 data-nosnippet>130</a>        <span class="kw">let </span>elements = <span class="macro">im::vector!</span>[result_x, result_y];
+<a href=#130 id=130 data-nosnippet>130</a>        <span class="kw">let </span>elements = <span class="macro">imbl::vector!</span>[result_x, result_y];
 <a href=#131 id=131 data-nosnippet>131</a>        <span class="kw">let </span>typ = Type::Array(Arc::new(<span class="macro">vec!</span>[Type::field(), Type::field()]), SemanticLength(<span class="number">1</span>));
 <a href=#132 id=132 data-nosnippet>132</a>        <span class="kw">let </span>instruction = Instruction::MakeArray { elements, typ };
 <a href=#133 id=133 data-nosnippet>133</a>        <span class="kw">let </span>result_array = dfg.insert_instruction_and_results(instruction, block, <span class="prelude-val">None</span>, call_stack);

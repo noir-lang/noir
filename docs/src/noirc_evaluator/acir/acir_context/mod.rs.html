@@ -1634,7 +1634,7 @@
 <a href=#1634 id=1634 data-nosnippet>1634</a>
 <a href=#1635 id=1635 data-nosnippet>1635</a>        <span class="kw">let </span><span class="kw-2">mut </span>context = AcirContext::&lt;FieldElement&gt;::new(BrilligStdLib::default());
 <a href=#1636 id=1636 data-nosnippet>1636</a>        <span class="kw">let </span>var = context.add_constant(FieldElement::one());
-<a href=#1637 id=1637 data-nosnippet>1637</a>        <span class="kw">let </span>value = AcirValue::Array(<span class="macro">im::vector!</span>[AcirValue::Var(var, NumericType::NativeField)]);
+<a href=#1637 id=1637 data-nosnippet>1637</a>        <span class="kw">let </span>value = AcirValue::Array(<span class="macro">imbl::vector!</span>[AcirValue::Var(var, NumericType::NativeField)]);
 <a href=#1638 id=1638 data-nosnippet>1638</a>
 <a href=#1639 id=1639 data-nosnippet>1639</a>        <span class="comment">// Claim a flattened length of 2 but provide only a single value.
 <a href=#1640 id=1640 data-nosnippet>1640</a>        </span><span class="kw">let </span>result = context.initialize_array(

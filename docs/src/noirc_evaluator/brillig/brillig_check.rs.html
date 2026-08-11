@@ -59,7 +59,7 @@
 <a href=#59 id=59 data-nosnippet>59</a>    <span class="kw">let </span>addr_range = Range { start: registers.start(), end: registers.end() };
 <a href=#60 id=60 data-nosnippet>60</a>
 <a href=#61 id=61 data-nosnippet>61</a>    <span class="comment">// First collect all reads per block.
-<a href=#62 id=62 data-nosnippet>62</a>    </span><span class="kw">let </span>reads_in_blocks: HashMap&lt;BasicBlockId, im::HashSet&lt;MemoryAddress&gt;&gt; = function_context
+<a href=#62 id=62 data-nosnippet>62</a>    </span><span class="kw">let </span>reads_in_blocks: HashMap&lt;BasicBlockId, imbl::HashSet&lt;MemoryAddress&gt;&gt; = function_context
 <a href=#63 id=63 data-nosnippet>63</a>        .reverse_post_order()
 <a href=#64 id=64 data-nosnippet>64</a>        .map(|block_id| {
 <a href=#65 id=65 data-nosnippet>65</a>            <span class="kw">let </span><span class="kw-2">mut </span>read_collector = ReadCollector::new(<span class="kw-2">&amp;</span>addr_range);
@@ -81,7 +81,7 @@
 <a href=#81 id=81 data-nosnippet>81</a>        .collect();
 <a href=#82 id=82 data-nosnippet>82</a>
 <a href=#83 id=83 data-nosnippet>83</a>    <span class="comment">// Collect all the reads that happen in the descendants of blocks.
-<a href=#84 id=84 data-nosnippet>84</a>    </span><span class="kw">let </span><span class="kw-2">mut </span>reads_in_descendants: HashMap&lt;BasicBlockId, im::HashSet&lt;MemoryAddress&gt;&gt; =
+<a href=#84 id=84 data-nosnippet>84</a>    </span><span class="kw">let </span><span class="kw-2">mut </span>reads_in_descendants: HashMap&lt;BasicBlockId, imbl::HashSet&lt;MemoryAddress&gt;&gt; =
 <a href=#85 id=85 data-nosnippet>85</a>        HashMap::default();
 <a href=#86 id=86 data-nosnippet>86</a>
 <a href=#87 id=87 data-nosnippet>87</a>    <span class="comment">// Going in Post Order, so successors will have been processed already,
@@ -90,7 +90,7 @@
 <a href=#90 id=90 data-nosnippet>90</a>        <span class="comment">// The reads are a union of addresses read:
 <a href=#91 id=91 data-nosnippet>91</a>        // * directly by the successors
 <a href=#92 id=92 data-nosnippet>92</a>        // * indirectly by the descendants of the successors
-<a href=#93 id=93 data-nosnippet>93</a>        </span><span class="kw">let </span><span class="kw-2">mut </span>acc = im::HashSet::new();
+<a href=#93 id=93 data-nosnippet>93</a>        </span><span class="kw">let </span><span class="kw-2">mut </span>acc = imbl::HashSet::new();
 <a href=#94 id=94 data-nosnippet>94</a>        <span class="kw">for </span>successor_id <span class="kw">in </span>function.dfg[block_id].successors() {
 <a href=#95 id=95 data-nosnippet>95</a>            acc = acc.union(reads_in_blocks[<span class="kw-2">&amp;</span>successor_id].clone());
 <a href=#96 id=96 data-nosnippet>96</a>            <span class="comment">// If this is a back-edge block, the header will not have been done yet.
@@ -293,15 +293,15 @@
 <a href=#293 id=293 data-nosnippet>293</a><span class="doccomment">/// Collect all the relative addresses read in a range of relative address offsets.
 <a href=#294 id=294 data-nosnippet>294</a></span><span class="kw">struct </span>ReadCollector&lt;<span class="lifetime">'a</span>&gt; {
 <a href=#295 id=295 data-nosnippet>295</a>    addr_range: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>Range&lt;Offset&gt;,
-<a href=#296 id=296 data-nosnippet>296</a>    reads: im::HashSet&lt;MemoryAddress&gt;,
+<a href=#296 id=296 data-nosnippet>296</a>    reads: imbl::HashSet&lt;MemoryAddress&gt;,
 <a href=#297 id=297 data-nosnippet>297</a>}
 <a href=#298 id=298 data-nosnippet>298</a>
 <a href=#299 id=299 data-nosnippet>299</a><span class="kw">impl</span>&lt;<span class="lifetime">'a</span>&gt; ReadCollector&lt;<span class="lifetime">'a</span>&gt; {
 <a href=#300 id=300 data-nosnippet>300</a>    <span class="kw">fn </span>new(addr_range: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>Range&lt;Offset&gt;) -&gt; <span class="self">Self </span>{
-<a href=#301 id=301 data-nosnippet>301</a>        <span class="self">Self </span>{ addr_range, reads: im::HashSet::new() }
+<a href=#301 id=301 data-nosnippet>301</a>        <span class="self">Self </span>{ addr_range, reads: imbl::HashSet::new() }
 <a href=#302 id=302 data-nosnippet>302</a>    }
 <a href=#303 id=303 data-nosnippet>303</a>
-<a href=#304 id=304 data-nosnippet>304</a>    <span class="kw">fn </span>into_reads(<span class="self">self</span>) -&gt; im::HashSet&lt;MemoryAddress&gt; {
+<a href=#304 id=304 data-nosnippet>304</a>    <span class="kw">fn </span>into_reads(<span class="self">self</span>) -&gt; imbl::HashSet&lt;MemoryAddress&gt; {
 <a href=#305 id=305 data-nosnippet>305</a>        <span class="self">self</span>.reads
 <a href=#306 id=306 data-nosnippet>306</a>    }
 <a href=#307 id=307 data-nosnippet>307</a>}
@@ -328,7 +328,7 @@
 <a href=#328 id=328 data-nosnippet>328</a></span><span class="kw">struct </span>AdvisoryCollector&lt;<span class="lifetime">'a</span>&gt; {
 <a href=#329 id=329 data-nosnippet>329</a>    addr_range: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>Range&lt;Offset&gt;,
 <a href=#330 id=330 data-nosnippet>330</a>    <span class="doccomment">/// Addresses read in any of the descendants of the block.
-<a href=#331 id=331 data-nosnippet>331</a>    </span>reads_in_descendants: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>im::HashSet&lt;MemoryAddress&gt;,
+<a href=#331 id=331 data-nosnippet>331</a>    </span>reads_in_descendants: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>imbl::HashSet&lt;MemoryAddress&gt;,
 <a href=#332 id=332 data-nosnippet>332</a>    <span class="doccomment">/// Last location the address was read from in this block.
 <a href=#333 id=333 data-nosnippet>333</a>    </span>reads: HashMap&lt;MemoryAddress, OpcodeLocation&gt;,
 <a href=#334 id=334 data-nosnippet>334</a>    <span class="doccomment">/// Last location the address was written to in this block.
@@ -347,7 +347,7 @@
 <a href=#347 id=347 data-nosnippet>347</a><span class="kw">impl</span>&lt;<span class="lifetime">'a</span>&gt; AdvisoryCollector&lt;<span class="lifetime">'a</span>&gt; {
 <a href=#348 id=348 data-nosnippet>348</a>    <span class="kw">fn </span>new(
 <a href=#349 id=349 data-nosnippet>349</a>        addr_range: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>Range&lt;Offset&gt;,
-<a href=#350 id=350 data-nosnippet>350</a>        reads_in_descendants: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>im::HashSet&lt;MemoryAddress&gt;,
+<a href=#350 id=350 data-nosnippet>350</a>        reads_in_descendants: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>imbl::HashSet&lt;MemoryAddress&gt;,
 <a href=#351 id=351 data-nosnippet>351</a>    ) -&gt; <span class="self">Self </span>{
 <a href=#352 id=352 data-nosnippet>352</a>        <span class="self">Self </span>{
 <a href=#353 id=353 data-nosnippet>353</a>            addr_range,

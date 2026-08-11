@@ -186,7 +186,7 @@
 <a href=#186 id=186 data-nosnippet>186</a>
 <a href=#187 id=187 data-nosnippet>187</a><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>get_array(
 <a href=#188 id=188 data-nosnippet>188</a>    (value, location): (Value, Location),
-<a href=#189 id=189 data-nosnippet>189</a>) -&gt; IResult&lt;(im::Vector&lt;Value&gt;, Type)&gt; {
+<a href=#189 id=189 data-nosnippet>189</a>) -&gt; IResult&lt;(imbl::Vector&lt;Value&gt;, Type)&gt; {
 <a href=#190 id=190 data-nosnippet>190</a>    <span class="kw">match </span>value {
 <a href=#191 id=191 data-nosnippet>191</a>        Value::Array(values, typ) =&gt; <span class="prelude-val">Ok</span>((values, typ)),
 <a href=#192 id=192 data-nosnippet>192</a>        value =&gt; {
@@ -239,7 +239,7 @@
 <a href=#239 id=239 data-nosnippet>239</a>
 <a href=#240 id=240 data-nosnippet>240</a><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>get_vector(
 <a href=#241 id=241 data-nosnippet>241</a>    (value, location): (Value, Location),
-<a href=#242 id=242 data-nosnippet>242</a>) -&gt; IResult&lt;(im::Vector&lt;Value&gt;, Type)&gt; {
+<a href=#242 id=242 data-nosnippet>242</a>) -&gt; IResult&lt;(imbl::Vector&lt;Value&gt;, Type)&gt; {
 <a href=#243 id=243 data-nosnippet>243</a>    <span class="kw">match </span>value {
 <a href=#244 id=244 data-nosnippet>244</a>        Value::Vector(values, typ) =&gt; <span class="prelude-val">Ok</span>((values, typ)),
 <a href=#245 id=245 data-nosnippet>245</a>        value =&gt; {
@@ -986,7 +986,7 @@
 <a href=#986 id=986 data-nosnippet>986</a>
 <a href=#987 id=987 data-nosnippet>987</a>    <span class="kw">use </span>siphasher::sip::SipHasher13;
 <a href=#988 id=988 data-nosnippet>988</a>
-<a href=#989 id=989 data-nosnippet>989</a>    <span class="kw">use </span>im::Vector;
+<a href=#989 id=989 data-nosnippet>989</a>    <span class="kw">use </span>imbl::Vector;
 <a href=#990 id=990 data-nosnippet>990</a>    <span class="kw">use </span>noirc_errors::Location;
 <a href=#991 id=991 data-nosnippet>991</a>
 <a href=#992 id=992 data-nosnippet>992</a>    <span class="kw">use </span><span class="kw">super</span>::DeterministicHasher;

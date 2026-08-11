@@ -228,7 +228,7 @@
 <a href=#228 id=228 data-nosnippet>228</a>    /// reachable from the other along param→arg edges. This is what
 <a href=#229 id=229 data-nosnippet>229</a>    /// keeps path-merge over-approximation at join points out of the
 <a href=#230 id=230 data-nosnippet>230</a>    /// alias-set.
-<a href=#231 id=231 data-nosnippet>231</a>    </span>backward_aliases: HashMap&lt;ValueId, im::HashSet&lt;ValueId&gt;&gt;,
+<a href=#231 id=231 data-nosnippet>231</a>    </span>backward_aliases: HashMap&lt;ValueId, imbl::HashSet&lt;ValueId&gt;&gt;,
 <a href=#232 id=232 data-nosnippet>232</a>    <span class="doccomment">/// For each array-typed value defined by an instruction, the
 <a href=#233 id=233 data-nosnippet>233</a>    /// `(block, instruction-position-within-block)` of the defining
 <a href=#234 id=234 data-nosnippet>234</a>    /// instruction. Used by the def-block-entry kill rule in
@@ -550,8 +550,8 @@
 <a href=#550 id=550 data-nosnippet>550</a>                //   backward-set member — e.g. `jmp header(v, v)` feeds the
 <a href=#551 id=551 data-nosnippet>551</a>                //   same `v` to both, so they're runtime-equal even though
 <a href=#552 id=552 data-nosnippet>552</a>                //   the directed backward walk keeps them in separate sets.
-<a href=#553 id=553 data-nosnippet>553</a>                </span><span class="kw">let </span>backward_set = |v: ValueId| -&gt; im::HashSet&lt;ValueId&gt; {
-<a href=#554 id=554 data-nosnippet>554</a>                    backward_aliases.get(<span class="kw-2">&amp;</span>v).cloned().unwrap_or_else(|| im::HashSet::unit(v))
+<a href=#553 id=553 data-nosnippet>553</a>                </span><span class="kw">let </span>backward_set = |v: ValueId| -&gt; imbl::HashSet&lt;ValueId&gt; {
+<a href=#554 id=554 data-nosnippet>554</a>                    backward_aliases.get(<span class="kw-2">&amp;</span>v).cloned().unwrap_or_else(|| imbl::HashSet::unit(v))
 <a href=#555 id=555 data-nosnippet>555</a>                };
 <a href=#556 id=556 data-nosnippet>556</a>                <span class="kw">let </span>entry_aliased = edges
 <a href=#557 id=557 data-nosnippet>557</a>                    .iter()
@@ -683,12 +683,12 @@
 <a href=#683 id=683 data-nosnippet>683</a>        source: ValueId,
 <a href=#684 id=684 data-nosnippet>684</a>        array_set_block: BasicBlockId,
 <a href=#685 id=685 data-nosnippet>685</a>        array_set_idx: usize,
-<a href=#686 id=686 data-nosnippet>686</a>    ) -&gt; im::HashSet&lt;ValueId&gt; {
+<a href=#686 id=686 data-nosnippet>686</a>    ) -&gt; imbl::HashSet&lt;ValueId&gt; {
 <a href=#687 id=687 data-nosnippet>687</a>        <span class="kw">let </span>class = <span class="self">self
 <a href=#688 id=688 data-nosnippet>688</a>            </span>.backward_aliases
 <a href=#689 id=689 data-nosnippet>689</a>            .get(<span class="kw-2">&amp;</span>source)
 <a href=#690 id=690 data-nosnippet>690</a>            .cloned()
-<a href=#691 id=691 data-nosnippet>691</a>            .unwrap_or_else(|| im::HashSet::unit(source));
+<a href=#691 id=691 data-nosnippet>691</a>            .unwrap_or_else(|| imbl::HashSet::unit(source));
 <a href=#692 id=692 data-nosnippet>692</a>        class
 <a href=#693 id=693 data-nosnippet>693</a>            .into_iter()
 <a href=#694 id=694 data-nosnippet>694</a>            .filter(|<span class="kw-2">&amp;</span>v| {
@@ -731,14 +731,14 @@
 <a href=#731 id=731 data-nosnippet>731</a>    /// after the `array_set`.
 <a href=#732 id=732 data-nosnippet>732</a>    </span><span class="kw">fn </span>unprotected_aliases(
 <a href=#733 id=733 data-nosnippet>733</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
-<a href=#734 id=734 data-nosnippet>734</a>        alias_set: <span class="kw-2">&amp;</span>im::HashSet&lt;ValueId&gt;,
+<a href=#734 id=734 data-nosnippet>734</a>        alias_set: <span class="kw-2">&amp;</span>imbl::HashSet&lt;ValueId&gt;,
 <a href=#735 id=735 data-nosnippet>735</a>        source: ValueId,
 <a href=#736 id=736 data-nosnippet>736</a>        array_set_block: BasicBlockId,
 <a href=#737 id=737 data-nosnippet>737</a>        array_set_idx: usize,
-<a href=#738 id=738 data-nosnippet>738</a>    ) -&gt; im::HashSet&lt;ValueId&gt; {
+<a href=#738 id=738 data-nosnippet>738</a>    ) -&gt; imbl::HashSet&lt;ValueId&gt; {
 <a href=#739 id=739 data-nosnippet>739</a>        <span class="comment">// Fast full-accept short-circuits cover the whole array_set at once.
 <a href=#740 id=740 data-nosnippet>740</a>        </span><span class="kw">if </span><span class="self">self</span>.some_inc_rc_precedes(alias_set, source, array_set_block, array_set_idx) {
-<a href=#741 id=741 data-nosnippet>741</a>            <span class="kw">return </span>im::HashSet::new();
+<a href=#741 id=741 data-nosnippet>741</a>            <span class="kw">return </span>imbl::HashSet::new();
 <a href=#742 id=742 data-nosnippet>742</a>        }
 <a href=#743 id=743 data-nosnippet>743</a>        <span class="comment">// Otherwise compute per-member coverage and keep only uncovered members.
 <a href=#744 id=744 data-nosnippet>744</a>        </span><span class="kw">let </span>uncovered = <span class="self">self</span>.compute_uncovered_values(source, array_set_block, array_set_idx);
@@ -774,7 +774,7 @@
 <a href=#774 id=774 data-nosnippet>774</a>    /// about a `dec_rc` intervening between the `inc_rc` and the `array_set`.
 <a href=#775 id=775 data-nosnippet>775</a>    </span><span class="kw">fn </span>some_inc_rc_precedes(
 <a href=#776 id=776 data-nosnippet>776</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
-<a href=#777 id=777 data-nosnippet>777</a>        alias_set: <span class="kw-2">&amp;</span>im::HashSet&lt;ValueId&gt;,
+<a href=#777 id=777 data-nosnippet>777</a>        alias_set: <span class="kw-2">&amp;</span>imbl::HashSet&lt;ValueId&gt;,
 <a href=#778 id=778 data-nosnippet>778</a>        source: ValueId,
 <a href=#779 id=779 data-nosnippet>779</a>        array_set_block: BasicBlockId,
 <a href=#780 id=780 data-nosnippet>780</a>        array_set_idx: usize,
@@ -1013,7 +1013,7 @@
 <a href=#1013 id=1013 data-nosnippet>1013</a>        idx: usize,
 <a href=#1014 id=1014 data-nosnippet>1014</a>        mutator_id: InstructionId,
 <a href=#1015 id=1015 data-nosnippet>1015</a>        write_index_const: <span class="prelude-ty">Option</span>&lt;FieldElement&gt;,
-<a href=#1016 id=1016 data-nosnippet>1016</a>        initial_derived: im::HashSet&lt;ValueId&gt;,
+<a href=#1016 id=1016 data-nosnippet>1016</a>        initial_derived: imbl::HashSet&lt;ValueId&gt;,
 <a href=#1017 id=1017 data-nosnippet>1017</a>    ) -&gt; <span class="prelude-ty">Option</span>&lt;AliasedUse&gt; {
 <a href=#1018 id=1018 data-nosnippet>1018</a>        <span class="kw">let </span>alias_set = <span class="self">self</span>.alias_set_for(source, block, idx);
 <a href=#1019 id=1019 data-nosnippet>1019</a>
@@ -1106,13 +1106,13 @@
 <a href=#1106 id=1106 data-nosnippet>1106</a>    </span><span class="attr">#[allow(clippy::too_many_arguments)]
 <a href=#1107 id=1107 data-nosnippet>1107</a>    </span><span class="kw">fn </span>find_reachable_aliased_use(
 <a href=#1108 id=1108 data-nosnippet>1108</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
-<a href=#1109 id=1109 data-nosnippet>1109</a>        alias_set: <span class="kw-2">&amp;</span>im::HashSet&lt;ValueId&gt;,
+<a href=#1109 id=1109 data-nosnippet>1109</a>        alias_set: <span class="kw-2">&amp;</span>imbl::HashSet&lt;ValueId&gt;,
 <a href=#1110 id=1110 data-nosnippet>1110</a>        source: ValueId,
 <a href=#1111 id=1111 data-nosnippet>1111</a>        mutator_id: InstructionId,
 <a href=#1112 id=1112 data-nosnippet>1112</a>        mutator_block: BasicBlockId,
 <a href=#1113 id=1113 data-nosnippet>1113</a>        mutator_idx: usize,
 <a href=#1114 id=1114 data-nosnippet>1114</a>        write_index_const: <span class="prelude-ty">Option</span>&lt;FieldElement&gt;,
-<a href=#1115 id=1115 data-nosnippet>1115</a>        initial_derived: im::HashSet&lt;ValueId&gt;,
+<a href=#1115 id=1115 data-nosnippet>1115</a>        initial_derived: imbl::HashSet&lt;ValueId&gt;,
 <a href=#1116 id=1116 data-nosnippet>1116</a>    ) -&gt; <span class="prelude-ty">Option</span>&lt;AliasedUse&gt; {
 <a href=#1117 id=1117 data-nosnippet>1117</a>        <span class="kw">let </span><span class="kw-2">mut </span>visited: HashMap&lt;BasicBlockId, WalkState&gt; = HashMap::default();
 <a href=#1118 id=1118 data-nosnippet>1118</a>
@@ -1152,7 +1152,7 @@
 <a href=#1152 id=1152 data-nosnippet>1152</a>        // the loop-header parameter on the back-edge, since the value
 <a href=#1153 id=1153 data-nosnippet>1153</a>        // threaded back is this protected participant rather than a
 <a href=#1154 id=1154 data-nosnippet>1154</a>        // still-live alias.
-<a href=#1155 id=1155 data-nosnippet>1155</a>        </span><span class="kw">let </span>protected: im::HashSet&lt;ValueId&gt; = alias_set
+<a href=#1155 id=1155 data-nosnippet>1155</a>        </span><span class="kw">let </span>protected: imbl::HashSet&lt;ValueId&gt; = alias_set
 <a href=#1156 id=1156 data-nosnippet>1156</a>            .iter()
 <a href=#1157 id=1157 data-nosnippet>1157</a>            .copied()
 <a href=#1158 id=1158 data-nosnippet>1158</a>            .filter(|<span class="kw-2">&amp;</span>v| {
@@ -1161,13 +1161,13 @@
 <a href=#1161 id=1161 data-nosnippet>1161</a>                    &amp;&amp; <span class="self">self</span>.back_edge_participants.contains(<span class="kw-2">&amp;</span>v)
 <a href=#1162 id=1162 data-nosnippet>1162</a>            })
 <a href=#1163 id=1163 data-nosnippet>1163</a>            .collect();
-<a href=#1164 id=1164 data-nosnippet>1164</a>        <span class="kw">let </span>use_set: im::HashSet&lt;ValueId&gt; =
+<a href=#1164 id=1164 data-nosnippet>1164</a>        <span class="kw">let </span>use_set: imbl::HashSet&lt;ValueId&gt; =
 <a href=#1165 id=1165 data-nosnippet>1165</a>            alias_set.iter().copied().filter(|v| !protected.contains(v)).collect();
 <a href=#1166 id=1166 data-nosnippet>1166</a>
 <a href=#1167 id=1167 data-nosnippet>1167</a>        <span class="kw">let </span>initial_state = WalkState {
 <a href=#1168 id=1168 data-nosnippet>1168</a>            use_set,
 <a href=#1169 id=1169 data-nosnippet>1169</a>            derived: initial_derived,
-<a href=#1170 id=1170 data-nosnippet>1170</a>            tainted: write_index_const.map(im::HashSet::unit),
+<a href=#1170 id=1170 data-nosnippet>1170</a>            tainted: write_index_const.map(imbl::HashSet::unit),
 <a href=#1171 id=1171 data-nosnippet>1171</a>        };
 <a href=#1172 id=1172 data-nosnippet>1172</a>        <span class="kw">let </span><span class="kw-2">mut </span>worklist: Vec&lt;WalkFrame&gt; = <span class="macro">vec!</span>[WalkFrame {
 <a href=#1173 id=1173 data-nosnippet>1173</a>            block: mutator_block,
@@ -1349,7 +1349,7 @@
 <a href=#1349 id=1349 data-nosnippet>1349</a>        dest: BasicBlockId,
 <a href=#1350 id=1350 data-nosnippet>1350</a>        arguments: <span class="kw-2">&amp;</span>[ValueId],
 <a href=#1351 id=1351 data-nosnippet>1351</a>        state: <span class="kw-2">&amp;</span>WalkState,
-<a href=#1352 id=1352 data-nosnippet>1352</a>        protected: <span class="kw-2">&amp;</span>im::HashSet&lt;ValueId&gt;,
+<a href=#1352 id=1352 data-nosnippet>1352</a>        protected: <span class="kw-2">&amp;</span>imbl::HashSet&lt;ValueId&gt;,
 <a href=#1353 id=1353 data-nosnippet>1353</a>    ) -&gt; WalkState {
 <a href=#1354 id=1354 data-nosnippet>1354</a>        WalkState {
 <a href=#1355 id=1355 data-nosnippet>1355</a>            use_set: <span class="self">self</span>.succ_use_set(dest, arguments, <span class="kw-2">&amp;</span>state.use_set, protected),
@@ -1392,9 +1392,9 @@
 <a href=#1392 id=1392 data-nosnippet>1392</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
 <a href=#1393 id=1393 data-nosnippet>1393</a>        dest: BasicBlockId,
 <a href=#1394 id=1394 data-nosnippet>1394</a>        arguments: <span class="kw-2">&amp;</span>[ValueId],
-<a href=#1395 id=1395 data-nosnippet>1395</a>        use_set: <span class="kw-2">&amp;</span>im::HashSet&lt;ValueId&gt;,
-<a href=#1396 id=1396 data-nosnippet>1396</a>        protected: <span class="kw-2">&amp;</span>im::HashSet&lt;ValueId&gt;,
-<a href=#1397 id=1397 data-nosnippet>1397</a>    ) -&gt; im::HashSet&lt;ValueId&gt; {
+<a href=#1395 id=1395 data-nosnippet>1395</a>        use_set: <span class="kw-2">&amp;</span>imbl::HashSet&lt;ValueId&gt;,
+<a href=#1396 id=1396 data-nosnippet>1396</a>        protected: <span class="kw-2">&amp;</span>imbl::HashSet&lt;ValueId&gt;,
+<a href=#1397 id=1397 data-nosnippet>1397</a>    ) -&gt; imbl::HashSet&lt;ValueId&gt; {
 <a href=#1398 id=1398 data-nosnippet>1398</a>        <span class="kw">let </span><span class="kw-2">mut </span>result = use_set.clone();
 <a href=#1399 id=1399 data-nosnippet>1399</a>
 <a href=#1400 id=1400 data-nosnippet>1400</a>        <span class="comment">// (1) Per-arg propagation for params of `dest`.
@@ -1475,14 +1475,14 @@
 <a href=#1475 id=1475 data-nosnippet>1475</a>    function: <span class="kw-2">&amp;</span>Function,
 <a href=#1476 id=1476 data-nosnippet>1476</a>    rpo: <span class="kw-2">&amp;</span>[BasicBlockId],
 <a href=#1477 id=1477 data-nosnippet>1477</a>    incoming_edges: <span class="kw-2">&amp;</span>HashMap&lt;BasicBlockId, Vec&lt;(BasicBlockId, Vec&lt;ValueId&gt;)&gt;&gt;,
-<a href=#1478 id=1478 data-nosnippet>1478</a>) -&gt; HashMap&lt;ValueId, im::HashSet&lt;ValueId&gt;&gt; {
-<a href=#1479 id=1479 data-nosnippet>1479</a>    <span class="kw">let </span><span class="kw-2">mut </span>result: HashMap&lt;ValueId, im::HashSet&lt;ValueId&gt;&gt; = HashMap::default();
+<a href=#1478 id=1478 data-nosnippet>1478</a>) -&gt; HashMap&lt;ValueId, imbl::HashSet&lt;ValueId&gt;&gt; {
+<a href=#1479 id=1479 data-nosnippet>1479</a>    <span class="kw">let </span><span class="kw-2">mut </span>result: HashMap&lt;ValueId, imbl::HashSet&lt;ValueId&gt;&gt; = HashMap::default();
 <a href=#1480 id=1480 data-nosnippet>1480</a>
 <a href=#1481 id=1481 data-nosnippet>1481</a>    <span class="comment">// Seed each array-typed block parameter with `{p}`.
 <a href=#1482 id=1482 data-nosnippet>1482</a>    </span><span class="kw">for </span><span class="kw-2">&amp;</span>block_id <span class="kw">in </span>rpo {
 <a href=#1483 id=1483 data-nosnippet>1483</a>        <span class="kw">for </span><span class="kw-2">&amp;</span>param <span class="kw">in </span>function.dfg.block_parameters(block_id) {
 <a href=#1484 id=1484 data-nosnippet>1484</a>            <span class="kw">if </span>function.dfg.type_of_value(param).contains_an_array() {
-<a href=#1485 id=1485 data-nosnippet>1485</a>                result.insert(param, im::HashSet::unit(param));
+<a href=#1485 id=1485 data-nosnippet>1485</a>                result.insert(param, imbl::HashSet::unit(param));
 <a href=#1486 id=1486 data-nosnippet>1486</a>            }
 <a href=#1487 id=1487 data-nosnippet>1487</a>        }
 <a href=#1488 id=1488 data-nosnippet>1488</a>    }
@@ -1502,7 +1502,7 @@
 <a href=#1502 id=1502 data-nosnippet>1502</a>                <span class="kw">if </span>!function.dfg.type_of_value(param).contains_an_array() {
 <a href=#1503 id=1503 data-nosnippet>1503</a>                    <span class="kw">continue</span>;
 <a href=#1504 id=1504 data-nosnippet>1504</a>                }
-<a href=#1505 id=1505 data-nosnippet>1505</a>                <span class="kw">let </span><span class="kw-2">mut </span>new_set = result.get(<span class="kw-2">&amp;</span>param).cloned().unwrap_or_else(im::HashSet::new);
+<a href=#1505 id=1505 data-nosnippet>1505</a>                <span class="kw">let </span><span class="kw-2">mut </span>new_set = result.get(<span class="kw-2">&amp;</span>param).cloned().unwrap_or_else(imbl::HashSet::new);
 <a href=#1506 id=1506 data-nosnippet>1506</a>                <span class="kw">let </span>prev_len = new_set.len();
 <a href=#1507 id=1507 data-nosnippet>1507</a>                <span class="kw">for </span>(_pred, args) <span class="kw">in </span>incoming {
 <a href=#1508 id=1508 data-nosnippet>1508</a>                    <span class="kw">if let </span><span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span>arg) = args.get(i) {
@@ -1538,16 +1538,16 @@
 <a href=#1538 id=1538 data-nosnippet>1538</a>    /// `array_set`'s source storage *at the `array_set`'s program point*. A
 <a href=#1539 id=1539 data-nosnippet>1539</a>    /// non-terminator read of one of these is the hazard the walk is
 <a href=#1540 id=1540 data-nosnippet>1540</a>    /// looking for.
-<a href=#1541 id=1541 data-nosnippet>1541</a>    </span>use_set: im::HashSet&lt;ValueId&gt;,
+<a href=#1541 id=1541 data-nosnippet>1541</a>    </span>use_set: imbl::HashSet&lt;ValueId&gt;,
 <a href=#1542 id=1542 data-nosnippet>1542</a>    <span class="doccomment">/// Values that may share the source's storage through transitive
 <a href=#1543 id=1543 data-nosnippet>1543</a>    /// in-place chain mutations. Seeded with the `array_set`'s own result;
 <a href=#1544 id=1544 data-nosnippet>1544</a>    /// extended by every later `array_set` whose `array` operand is
 <a href=#1545 id=1545 data-nosnippet>1545</a>    /// already in `derived`.
-<a href=#1546 id=1546 data-nosnippet>1546</a>    </span>derived: im::HashSet&lt;ValueId&gt;,
+<a href=#1546 id=1546 data-nosnippet>1546</a>    </span>derived: imbl::HashSet&lt;ValueId&gt;,
 <a href=#1547 id=1547 data-nosnippet>1547</a>    <span class="doccomment">/// Storage positions any chain link may already have written. `None`
 <a href=#1548 id=1548 data-nosnippet>1548</a>    /// (= "all positions") absorbs a dynamic chain write — once we lose
 <a href=#1549 id=1549 data-nosnippet>1549</a>    /// precise tracking we can't recover it.
-<a href=#1550 id=1550 data-nosnippet>1550</a>    </span>tainted: <span class="prelude-ty">Option</span>&lt;im::HashSet&lt;FieldElement&gt;&gt;,
+<a href=#1550 id=1550 data-nosnippet>1550</a>    </span>tainted: <span class="prelude-ty">Option</span>&lt;imbl::HashSet&lt;FieldElement&gt;&gt;,
 <a href=#1551 id=1551 data-nosnippet>1551</a>}
 <a href=#1552 id=1552 data-nosnippet>1552</a>
 <a href=#1553 id=1553 data-nosnippet>1553</a><span class="kw">impl </span>WalkState {

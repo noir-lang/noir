@@ -427,7 +427,7 @@
 <a href=#427 id=427 data-nosnippet>427</a>                <span class="prelude-val">Ok</span>(AcirValue::Var(make_var(<span class="self">self</span>, <span class="kw-2">*</span>numeric_type)<span class="question-mark">?</span>, <span class="kw-2">*</span>numeric_type))
 <a href=#428 id=428 data-nosnippet>428</a>            }
 <a href=#429 id=429 data-nosnippet>429</a>            Type::Array(element_types, length) =&gt; {
-<a href=#430 id=430 data-nosnippet>430</a>                <span class="kw">let </span><span class="kw-2">mut </span>elements = im::Vector::new();
+<a href=#430 id=430 data-nosnippet>430</a>                <span class="kw">let </span><span class="kw-2">mut </span>elements = imbl::Vector::new();
 <a href=#431 id=431 data-nosnippet>431</a>
 <a href=#432 id=432 data-nosnippet>432</a>                <span class="kw">for _ in </span><span class="number">0</span>..length.<span class="number">0 </span>{
 <a href=#433 id=433 data-nosnippet>433</a>                    <span class="kw">for </span>element <span class="kw">in </span>element_types.iter() {

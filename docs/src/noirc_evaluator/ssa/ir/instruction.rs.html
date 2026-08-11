@@ -446,14 +446,14 @@
 <a href=#446 id=446 data-nosnippet>446</a>    <span class="doccomment">/// An instruction to increment the reference count of a value.
 <a href=#447 id=447 data-nosnippet>447</a>    ///
 <a href=#448 id=448 data-nosnippet>448</a>    /// This currently only has an effect in Brillig code where array sharing and copy on write is
-<a href=#449 id=449 data-nosnippet>449</a>    /// implemented via reference counting. In ACIR code this is done with `im::Vector` and these
+<a href=#449 id=449 data-nosnippet>449</a>    /// implemented via reference counting. In ACIR code this is done with `imbl::Vector` and these
 <a href=#450 id=450 data-nosnippet>450</a>    /// `IncrementRc` instructions are ignored.
 <a href=#451 id=451 data-nosnippet>451</a>    </span>IncrementRc { value: ValueId },
 <a href=#452 id=452 data-nosnippet>452</a>
 <a href=#453 id=453 data-nosnippet>453</a>    <span class="doccomment">/// An instruction to decrement the reference count of a value.
 <a href=#454 id=454 data-nosnippet>454</a>    ///
 <a href=#455 id=455 data-nosnippet>455</a>    /// This currently only has an effect in Brillig code where array sharing and copy on write is
-<a href=#456 id=456 data-nosnippet>456</a>    /// implemented via reference counting. In ACIR code this is done with `im::Vector` and these
+<a href=#456 id=456 data-nosnippet>456</a>    /// implemented via reference counting. In ACIR code this is done with `imbl::Vector` and these
 <a href=#457 id=457 data-nosnippet>457</a>    /// `DecrementRc` instructions are ignored.
 <a href=#458 id=458 data-nosnippet>458</a>    </span>DecrementRc { value: ValueId },
 <a href=#459 id=459 data-nosnippet>459</a>
@@ -477,7 +477,7 @@
 <a href=#477 id=477 data-nosnippet>477</a>    ///
 <a href=#478 id=478 data-nosnippet>478</a>    /// `typ` should be an array or vector type with an element type
 <a href=#479 id=479 data-nosnippet>479</a>    /// matching each of the `elements` values' types.
-<a href=#480 id=480 data-nosnippet>480</a>    </span>MakeArray { elements: im::Vector&lt;ValueId&gt;, typ: Type },
+<a href=#480 id=480 data-nosnippet>480</a>    </span>MakeArray { elements: imbl::Vector&lt;ValueId&gt;, typ: Type },
 <a href=#481 id=481 data-nosnippet>481</a>
 <a href=#482 id=482 data-nosnippet>482</a>    <span class="doccomment">/// A No-op instruction. These are intended to replace other instructions in a block's
 <a href=#483 id=483 data-nosnippet>483</a>    /// instructions vector without having to move each instruction afterward.
@@ -1211,7 +1211,7 @@
 <a href=#1211 id=1211 data-nosnippet>1211</a><span class="doccomment">/// Try to avoid mutation until we know something changed, to take advantage of
 <a href=#1212 id=1212 data-nosnippet>1212</a>/// structural sharing, and avoid needlessly calling `Arc::make_mut` which clones
 <a href=#1213 id=1213 data-nosnippet>1213</a>/// the content and increases memory use by allocating more pointers on the heap.
-<a href=#1214 id=1214 data-nosnippet>1214</a></span><span class="kw">fn </span>im_vec_map_values_mut&lt;T, F&gt;(xs: <span class="kw-2">&amp;mut </span>im::Vector&lt;T&gt;, <span class="kw-2">mut </span>f: F)
+<a href=#1214 id=1214 data-nosnippet>1214</a></span><span class="kw">fn </span>im_vec_map_values_mut&lt;T, F&gt;(xs: <span class="kw-2">&amp;mut </span>imbl::Vector&lt;T&gt;, <span class="kw-2">mut </span>f: F)
 <a href=#1215 id=1215 data-nosnippet>1215</a><span class="kw">where
 <a href=#1216 id=1216 data-nosnippet>1216</a>    </span>T: Copy + PartialEq,
 <a href=#1217 id=1217 data-nosnippet>1217</a>    F: FnMut(T) -&gt; T,
@@ -1277,14 +1277,14 @@
 <a href=#1277 id=1277 data-nosnippet>1277</a>
 <a href=#1278 id=1278 data-nosnippet>1278</a>        <span class="kw">let </span>typ = Type::Array(std::sync::Arc::new(<span class="macro">vec!</span>[Type::field()]), SemanticLength(<span class="number">2</span>));
 <a href=#1279 id=1279 data-nosnippet>1279</a>        <span class="kw">let </span><span class="kw-2">mut </span>instruction =
-<a href=#1280 id=1280 data-nosnippet>1280</a>            Instruction::MakeArray { elements: im::Vector::from(<span class="macro">vec!</span>[v0, v1]), typ: typ.clone() };
+<a href=#1280 id=1280 data-nosnippet>1280</a>            Instruction::MakeArray { elements: imbl::Vector::from(<span class="macro">vec!</span>[v0, v1]), typ: typ.clone() };
 <a href=#1281 id=1281 data-nosnippet>1281</a>        <span class="macro">assert!</span>(instruction.replace_values(<span class="kw-2">&amp;</span>mapping));
 <a href=#1282 id=1282 data-nosnippet>1282</a>        <span class="kw">let </span>Instruction::MakeArray { elements, .. } = instruction <span class="kw">else </span>{ <span class="macro">unreachable!</span>() };
 <a href=#1283 id=1283 data-nosnippet>1283</a>        <span class="macro">assert_eq!</span>(elements[<span class="number">0</span>], v0);
 <a href=#1284 id=1284 data-nosnippet>1284</a>        <span class="macro">assert_eq!</span>(elements[<span class="number">1</span>], v2);
 <a href=#1285 id=1285 data-nosnippet>1285</a>
 <a href=#1286 id=1286 data-nosnippet>1286</a>        <span class="kw">let </span><span class="kw-2">mut </span>unrelated =
-<a href=#1287 id=1287 data-nosnippet>1287</a>            Instruction::MakeArray { elements: im::Vector::from(<span class="macro">vec!</span>[v0, v0]), typ };
+<a href=#1287 id=1287 data-nosnippet>1287</a>            Instruction::MakeArray { elements: imbl::Vector::from(<span class="macro">vec!</span>[v0, v0]), typ };
 <a href=#1288 id=1288 data-nosnippet>1288</a>        <span class="macro">assert!</span>(!unrelated.replace_values(<span class="kw-2">&amp;</span>mapping));
 <a href=#1289 id=1289 data-nosnippet>1289</a>        <span class="kw">let </span>Instruction::MakeArray { elements, .. } = unrelated <span class="kw">else </span>{ <span class="macro">unreachable!</span>() };
 <a href=#1290 id=1290 data-nosnippet>1290</a>        <span class="macro">assert_eq!</span>(elements[<span class="number">0</span>], v0);

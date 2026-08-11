@@ -143,7 +143,7 @@
 <a href=#143 id=143 data-nosnippet>143</a></span><span class="kw">use </span>std::sync::Arc;
 <a href=#144 id=144 data-nosnippet>144</a>
 <a href=#145 id=145 data-nosnippet>145</a><span class="kw">use </span>acvm::{AcirField, FieldElement, acir::brillig::lengths::SemiFlattenedLength};
-<a href=#146 id=146 data-nosnippet>146</a><span class="kw">use </span>im::HashSet;
+<a href=#146 id=146 data-nosnippet>146</a><span class="kw">use </span>imbl::HashSet;
 <a href=#147 id=147 data-nosnippet>147</a><span class="kw">use </span>noirc_errors::call_stack::CallStackId;
 <a href=#148 id=148 data-nosnippet>148</a>
 <a href=#149 id=149 data-nosnippet>149</a><span class="kw">use crate</span>::{
@@ -494,7 +494,7 @@
 <a href=#494 id=494 data-nosnippet>494</a>    <span class="kw">match </span>typ {
 <a href=#495 id=495 data-nosnippet>495</a>        Type::Numeric(numeric_type) =&gt; dfg.make_constant(FieldElement::zero(), <span class="kw-2">*</span>numeric_type),
 <a href=#496 id=496 data-nosnippet>496</a>        Type::Array(element_types, len) =&gt; {
-<a href=#497 id=497 data-nosnippet>497</a>            <span class="kw">let </span><span class="kw-2">mut </span>array = im::Vector::new();
+<a href=#497 id=497 data-nosnippet>497</a>            <span class="kw">let </span><span class="kw-2">mut </span>array = imbl::Vector::new();
 <a href=#498 id=498 data-nosnippet>498</a>            <span class="kw">for _ in </span><span class="number">0</span>..len.<span class="number">0 </span>{
 <a href=#499 id=499 data-nosnippet>499</a>                <span class="kw">for </span>typ <span class="kw">in </span>element_types.iter() {
 <a href=#500 id=500 data-nosnippet>500</a>                    array.push_back(zeroed_value(dfg, func_id, block_id, typ));
@@ -590,7 +590,7 @@
 <a href=#590 id=590 data-nosnippet>590</a>        <span class="macro">panic!</span>(<span class="string">"Expected vector type"</span>);
 <a href=#591 id=591 data-nosnippet>591</a>    };
 <a href=#592 id=592 data-nosnippet>592</a>
-<a href=#593 id=593 data-nosnippet>593</a>    <span class="kw">let </span><span class="kw-2">mut </span>array = im::Vector::new();
+<a href=#593 id=593 data-nosnippet>593</a>    <span class="kw">let </span><span class="kw-2">mut </span>array = imbl::Vector::new();
 <a href=#594 id=594 data-nosnippet>594</a>    <span class="kw">for _ in </span><span class="number">0</span>..size {
 <a href=#595 id=595 data-nosnippet>595</a>        <span class="kw">for </span>elem_typ <span class="kw">in </span>element_type.iter() {
 <a href=#596 id=596 data-nosnippet>596</a>            array.push_back(zeroed_value(dfg, func_id, block_id, elem_typ));

@@ -427,7 +427,7 @@
 <a href=#427 id=427 data-nosnippet>427</a>
 <a href=#428 id=428 data-nosnippet>428</a>    <span class="doccomment">/// Insert a `make_array` instruction to create a new array or vector.
 <a href=#429 id=429 data-nosnippet>429</a>    /// Returns the new array value. Expects `typ` to be an array or vector type.
-<a href=#430 id=430 data-nosnippet>430</a>    </span><span class="kw">pub fn </span>insert_make_array(<span class="kw-2">&amp;mut </span><span class="self">self</span>, elements: im::Vector&lt;ValueId&gt;, typ: Type) -&gt; ValueId {
+<a href=#430 id=430 data-nosnippet>430</a>    </span><span class="kw">pub fn </span>insert_make_array(<span class="kw-2">&amp;mut </span><span class="self">self</span>, elements: imbl::Vector&lt;ValueId&gt;, typ: Type) -&gt; ValueId {
 <a href=#431 id=431 data-nosnippet>431</a>        <span class="macro">assert!</span>(<span class="macro">matches!</span>(typ, Type::Array(..) | Type::Vector(<span class="kw">_</span>)));
 <a href=#432 id=432 data-nosnippet>432</a>        <span class="self">self</span>.insert_instruction(Instruction::MakeArray { elements, typ }, <span class="prelude-val">None</span>).first()
 <a href=#433 id=433 data-nosnippet>433</a>    }

@@ -276,7 +276,7 @@
 <a href=#276 id=276 data-nosnippet>276</a>                    .constant(<span class="kw-2">&amp;</span>len, <span class="string">"len"</span>.to_string())
 <a href=#277 id=277 data-nosnippet>277</a>                    .expect(<span class="string">"ICE - expected the variable to be a constant value"</span>)
 <a href=#278 id=278 data-nosnippet>278</a>                    .to_u128();
-<a href=#279 id=279 data-nosnippet>279</a>                <span class="kw">let </span><span class="kw-2">mut </span>element_values = im::Vector::new();
+<a href=#279 id=279 data-nosnippet>279</a>                <span class="kw">let </span><span class="kw-2">mut </span>element_values = imbl::Vector::new();
 <a href=#280 id=280 data-nosnippet>280</a>                <span class="kw">for _ in </span><span class="number">0</span>..len {
 <a href=#281 id=281 data-nosnippet>281</a>                    <span class="kw">for </span>element_type <span class="kw">in </span>elements_type.iter() {
 <a href=#282 id=282 data-nosnippet>282</a>                        <span class="kw">let </span>element = <span class="self">Self</span>::convert_var_type_to_values(element_type, <span class="kw-2">&amp;mut </span>vars);
@@ -305,7 +305,7 @@
 <a href=#305 id=305 data-nosnippet>305</a>    ) -&gt; AcirValue {
 <a href=#306 id=306 data-nosnippet>306</a>        <span class="kw">match </span>result_type {
 <a href=#307 id=307 data-nosnippet>307</a>            Type::Array(elements, size) =&gt; {
-<a href=#308 id=308 data-nosnippet>308</a>                <span class="kw">let </span><span class="kw-2">mut </span>element_values = im::Vector::new();
+<a href=#308 id=308 data-nosnippet>308</a>                <span class="kw">let </span><span class="kw-2">mut </span>element_values = imbl::Vector::new();
 <a href=#309 id=309 data-nosnippet>309</a>                <span class="kw">for _ in </span><span class="number">0</span>..size.<span class="number">0 </span>{
 <a href=#310 id=310 data-nosnippet>310</a>                    <span class="kw">for </span>element_type <span class="kw">in </span>elements.iter() {
 <a href=#311 id=311 data-nosnippet>311</a>                        <span class="kw">let </span>element = <span class="self">Self</span>::convert_var_type_to_values(element_type, vars);

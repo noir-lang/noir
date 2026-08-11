@@ -11,11 +11,11 @@
 <a href=#11 id=11 data-nosnippet>11</a></span><span class="kw">pub struct </span>Scope&lt;K: Ord&gt; {
 <a href=#12 id=12 data-nosnippet>12</a>    <span class="doccomment">/// ID and type of variables created in all visible scopes,
 <a href=#13 id=13 data-nosnippet>13</a>    /// which includes this scope and its ancestors.
-<a href=#14 id=14 data-nosnippet>14</a>    </span>variables: im::OrdMap&lt;K, Variable&gt;,
+<a href=#14 id=14 data-nosnippet>14</a>    </span>variables: imbl::OrdMap&lt;K, Variable&gt;,
 <a href=#15 id=15 data-nosnippet>15</a>    <span class="doccomment">/// Reverse index of variables which can produce a type.
 <a href=#16 id=16 data-nosnippet>16</a>    /// For example an `(u8, [u64; 4])` can produce the tuple itself,
 <a href=#17 id=17 data-nosnippet>17</a>    /// the array in it, and both primitive types.
-<a href=#18 id=18 data-nosnippet>18</a>    </span>producers: im::OrdMap&lt;Type, im::OrdSet&lt;K&gt;&gt;,
+<a href=#18 id=18 data-nosnippet>18</a>    </span>producers: imbl::OrdMap&lt;Type, imbl::OrdSet&lt;K&gt;&gt;,
 <a href=#19 id=19 data-nosnippet>19</a>}
 <a href=#20 id=20 data-nosnippet>20</a>
 <a href=#21 id=21 data-nosnippet>21</a><span class="kw">impl</span>&lt;K&gt; Scope&lt;K&gt;
@@ -24,7 +24,7 @@
 <a href=#24 id=24 data-nosnippet>24</a>{
 <a href=#25 id=25 data-nosnippet>25</a>    <span class="doccomment">/// Create the initial scope from function parameters.
 <a href=#26 id=26 data-nosnippet>26</a>    </span><span class="kw">pub fn </span>from_variables(vars: <span class="kw">impl </span>Iterator&lt;Item = (K, bool, Name, Type)&gt;) -&gt; <span class="self">Self </span>{
-<a href=#27 id=27 data-nosnippet>27</a>        <span class="kw">let </span><span class="kw-2">mut </span>scope = <span class="self">Self </span>{ variables: im::OrdMap::new(), producers: im::OrdMap::new() };
+<a href=#27 id=27 data-nosnippet>27</a>        <span class="kw">let </span><span class="kw-2">mut </span>scope = <span class="self">Self </span>{ variables: imbl::OrdMap::new(), producers: imbl::OrdMap::new() };
 <a href=#28 id=28 data-nosnippet>28</a>        <span class="kw">for </span>(id, mutable, name, typ) <span class="kw">in </span>vars {
 <a href=#29 id=29 data-nosnippet>29</a>            scope.add(id, mutable, name, typ);
 <a href=#30 id=30 data-nosnippet>30</a>        }

@@ -324,7 +324,7 @@
 <a href=#324 id=324 data-nosnippet>324</a>
 <a href=#325 id=325 data-nosnippet>325</a>    crate_id: CrateId,
 <a href=#326 id=326 data-nosnippet>326</a>
-<a href=#327 id=327 data-nosnippet>327</a>    interpreter_call_stack: im::Vector&lt;Location&gt;,
+<a href=#327 id=327 data-nosnippet>327</a>    interpreter_call_stack: imbl::Vector&lt;Location&gt;,
 <a href=#328 id=328 data-nosnippet>328</a>
 <a href=#329 id=329 data-nosnippet>329</a>    <span class="doccomment">/// If greater than 0, field visibility errors won't be reported.
 <a href=#330 id=330 data-nosnippet>330</a>    /// This is used when elaborating a comptime expression that is a struct constructor
@@ -342,7 +342,7 @@
 <a href=#342 id=342 data-nosnippet>342</a>    <span class="doccomment">/// Sometimes items are elaborated because a function attribute ran and generated items.
 <a href=#343 id=343 data-nosnippet>343</a>    /// The Elaborator keeps track of these reasons so that when an error is produced it will
 <a href=#344 id=344 data-nosnippet>344</a>    /// be wrapped in another error that will include this reason.
-<a href=#345 id=345 data-nosnippet>345</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) elaborate_reasons: im::Vector&lt;ElaborateReason&gt;,
+<a href=#345 id=345 data-nosnippet>345</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) elaborate_reasons: imbl::Vector&lt;ElaborateReason&gt;,
 <a href=#346 id=346 data-nosnippet>346</a>
 <a href=#347 id=347 data-nosnippet>347</a>    <span class="doccomment">/// Set to true when the interpreter encounters an errored expression/statement,
 <a href=#348 id=348 data-nosnippet>348</a>    /// causing all subsequent comptime evaluation to be skipped.
@@ -480,9 +480,9 @@
 <a href=#480 id=480 data-nosnippet>480</a>        required_unstable_features: <span class="kw-2">&amp;</span><span class="lifetime">'context </span>BTreeMap&lt;CrateId, Vec&lt;UnstableFeature&gt;&gt;,
 <a href=#481 id=481 data-nosnippet>481</a>        unresolved_globals: <span class="kw-2">&amp;</span><span class="lifetime">'context </span><span class="kw-2">mut </span>BTreeMap&lt;GlobalId, UnresolvedGlobal&gt;,
 <a href=#482 id=482 data-nosnippet>482</a>        crate_id: CrateId,
-<a href=#483 id=483 data-nosnippet>483</a>        interpreter_call_stack: im::Vector&lt;Location&gt;,
+<a href=#483 id=483 data-nosnippet>483</a>        interpreter_call_stack: imbl::Vector&lt;Location&gt;,
 <a href=#484 id=484 data-nosnippet>484</a>        options: ElaboratorOptions&lt;<span class="lifetime">'context</span>&gt;,
-<a href=#485 id=485 data-nosnippet>485</a>        elaborate_reasons: im::Vector&lt;ElaborateReason&gt;,
+<a href=#485 id=485 data-nosnippet>485</a>        elaborate_reasons: imbl::Vector&lt;ElaborateReason&gt;,
 <a href=#486 id=486 data-nosnippet>486</a>    ) -&gt; <span class="self">Self </span>{
 <a href=#487 id=487 data-nosnippet>487</a>        <span class="self">Self </span>{
 <a href=#488 id=488 data-nosnippet>488</a>            scopes: ScopeForest::default(),
@@ -559,9 +559,9 @@
 <a href=#559 id=559 data-nosnippet>559</a>            <span class="kw-2">&amp;</span>context.required_unstable_features,
 <a href=#560 id=560 data-nosnippet>560</a>            <span class="kw-2">&amp;mut </span>context.unresolved_globals,
 <a href=#561 id=561 data-nosnippet>561</a>            crate_id,
-<a href=#562 id=562 data-nosnippet>562</a>            im::Vector::new(),
+<a href=#562 id=562 data-nosnippet>562</a>            imbl::Vector::new(),
 <a href=#563 id=563 data-nosnippet>563</a>            options,
-<a href=#564 id=564 data-nosnippet>564</a>            im::Vector::new(),
+<a href=#564 id=564 data-nosnippet>564</a>            imbl::Vector::new(),
 <a href=#565 id=565 data-nosnippet>565</a>        )
 <a href=#566 id=566 data-nosnippet>566</a>    }
 <a href=#567 id=567 data-nosnippet>567</a>
@@ -1321,7 +1321,7 @@
 <a href=#1321 id=1321 data-nosnippet>1321</a>
 <a href=#1322 id=1322 data-nosnippet>1322</a>    <span class="doccomment">/// The current interpreter call stack.
 <a href=#1323 id=1323 data-nosnippet>1323</a>    </span><span class="attr">#[tracing::instrument(level = <span class="string">"trace"</span>, skip_all)]
-<a href=#1324 id=1324 data-nosnippet>1324</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>interpreter_call_stack(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>im::Vector&lt;Location&gt; {
+<a href=#1324 id=1324 data-nosnippet>1324</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>interpreter_call_stack(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>imbl::Vector&lt;Location&gt; {
 <a href=#1325 id=1325 data-nosnippet>1325</a>        <span class="kw-2">&amp;</span><span class="self">self</span>.interpreter_call_stack
 <a href=#1326 id=1326 data-nosnippet>1326</a>    }
 <a href=#1327 id=1327 data-nosnippet>1327</a>

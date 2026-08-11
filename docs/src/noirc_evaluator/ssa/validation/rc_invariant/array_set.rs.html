@@ -67,7 +67,7 @@
 <a href=#67 id=67 data-nosnippet>67</a>                idx,
 <a href=#68 id=68 data-nosnippet>68</a>                instruction_id,
 <a href=#69 id=69 data-nosnippet>69</a>                write_index_const,
-<a href=#70 id=70 data-nosnippet>70</a>                im::HashSet::unit(result),
+<a href=#70 id=70 data-nosnippet>70</a>                imbl::HashSet::unit(result),
 <a href=#71 id=71 data-nosnippet>71</a>            ) <span class="kw">else </span>{
 <a href=#72 id=72 data-nosnippet>72</a>                <span class="kw">continue</span>;
 <a href=#73 id=73 data-nosnippet>73</a>            };
@@ -2247,7 +2247,7 @@
 <a href=#2247 id=2247 data-nosnippet>2247</a>                block,
 <a href=#2248 id=2248 data-nosnippet>2248</a>                idx,
 <a href=#2249 id=2249 data-nosnippet>2249</a>                write_index_const,
-<a href=#2250 id=2250 data-nosnippet>2250</a>                im::HashSet::unit(function.dfg.instruction_results(instruction_id)[<span class="number">0</span>]),
+<a href=#2250 id=2250 data-nosnippet>2250</a>                imbl::HashSet::unit(function.dfg.instruction_results(instruction_id)[<span class="number">0</span>]),
 <a href=#2251 id=2251 data-nosnippet>2251</a>            )
 <a href=#2252 id=2252 data-nosnippet>2252</a>            .is_some();
 <a href=#2253 id=2253 data-nosnippet>2253</a>        <span class="macro">assert!</span>(
@@ -2293,7 +2293,7 @@
 <a href=#2293 id=2293 data-nosnippet>2293</a>                block,
 <a href=#2294 id=2294 data-nosnippet>2294</a>                idx,
 <a href=#2295 id=2295 data-nosnippet>2295</a>                write_index_const,
-<a href=#2296 id=2296 data-nosnippet>2296</a>                im::HashSet::unit(function.dfg.instruction_results(instruction_id)[<span class="number">0</span>]),
+<a href=#2296 id=2296 data-nosnippet>2296</a>                imbl::HashSet::unit(function.dfg.instruction_results(instruction_id)[<span class="number">0</span>]),
 <a href=#2297 id=2297 data-nosnippet>2297</a>            )
 <a href=#2298 id=2298 data-nosnippet>2298</a>            .is_some();
 <a href=#2299 id=2299 data-nosnippet>2299</a>        <span class="macro">assert!</span>(
@@ -2347,7 +2347,7 @@
 <a href=#2347 id=2347 data-nosnippet>2347</a>                block,
 <a href=#2348 id=2348 data-nosnippet>2348</a>                idx,
 <a href=#2349 id=2349 data-nosnippet>2349</a>                write_index_const,
-<a href=#2350 id=2350 data-nosnippet>2350</a>                im::HashSet::unit(function.dfg.instruction_results(instruction_id)[<span class="number">0</span>]),
+<a href=#2350 id=2350 data-nosnippet>2350</a>                imbl::HashSet::unit(function.dfg.instruction_results(instruction_id)[<span class="number">0</span>]),
 <a href=#2351 id=2351 data-nosnippet>2351</a>            )
 <a href=#2352 id=2352 data-nosnippet>2352</a>            .is_some();
 <a href=#2353 id=2353 data-nosnippet>2353</a>        <span class="macro">assert!</span>(
@@ -2451,7 +2451,7 @@
 <a href=#2451 id=2451 data-nosnippet>2451</a>                block,
 <a href=#2452 id=2452 data-nosnippet>2452</a>                idx,
 <a href=#2453 id=2453 data-nosnippet>2453</a>                write_index_const,
-<a href=#2454 id=2454 data-nosnippet>2454</a>                im::HashSet::unit(function.dfg.instruction_results(instruction_id)[<span class="number">0</span>]),
+<a href=#2454 id=2454 data-nosnippet>2454</a>                imbl::HashSet::unit(function.dfg.instruction_results(instruction_id)[<span class="number">0</span>]),
 <a href=#2455 id=2455 data-nosnippet>2455</a>            )
 <a href=#2456 id=2456 data-nosnippet>2456</a>            .is_some();
 <a href=#2457 id=2457 data-nosnippet>2457</a>        <span class="macro">assert!</span>(
@@ -2544,7 +2544,7 @@
 <a href=#2544 id=2544 data-nosnippet>2544</a>        idx: usize,
 <a href=#2545 id=2545 data-nosnippet>2545</a>        instruction_id: InstructionId,
 <a href=#2546 id=2546 data-nosnippet>2546</a>        source: ValueId,
-<a href=#2547 id=2547 data-nosnippet>2547</a>        alias_set: im::HashSet&lt;ValueId&gt;,
+<a href=#2547 id=2547 data-nosnippet>2547</a>        alias_set: imbl::HashSet&lt;ValueId&gt;,
 <a href=#2548 id=2548 data-nosnippet>2548</a>        <span class="doccomment">/// The `array_set`'s index when it is a numeric constant. `None`
 <a href=#2549 id=2549 data-nosnippet>2549</a>        /// indicates a dynamic index, in which case the verifier
 <a href=#2550 id=2550 data-nosnippet>2550</a>        /// conservatively flags every aliased use.

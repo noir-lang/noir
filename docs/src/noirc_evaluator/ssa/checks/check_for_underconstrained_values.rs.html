@@ -149,8 +149,8 @@
 <a href=#149 id=149 data-nosnippet>149</a><span class="kw">struct </span>Context {
 <a href=#150 id=150 data-nosnippet>150</a>    block_queue: VisitOnceDeque,
 <a href=#151 id=151 data-nosnippet>151</a>    uf: UnionFind,
-<a href=#152 id=152 data-nosnippet>152</a>    brillig_return_to_argument: im::HashMap&lt;ValueId, Vec&lt;ValueId&gt;&gt;,
-<a href=#153 id=153 data-nosnippet>153</a>    brillig_return_to_instruction_id: im::HashMap&lt;ValueId, InstructionId&gt;,
+<a href=#152 id=152 data-nosnippet>152</a>    brillig_return_to_argument: imbl::HashMap&lt;ValueId, Vec&lt;ValueId&gt;&gt;,
+<a href=#153 id=153 data-nosnippet>153</a>    brillig_return_to_instruction_id: imbl::HashMap&lt;ValueId, InstructionId&gt;,
 <a href=#154 id=154 data-nosnippet>154</a>}
 <a href=#155 id=155 data-nosnippet>155</a>
 <a href=#156 id=156 data-nosnippet>156</a><span class="kw">impl </span>Default <span class="kw">for </span>Context {
@@ -158,8 +158,8 @@
 <a href=#158 id=158 data-nosnippet>158</a>        <span class="self">Self </span>{
 <a href=#159 id=159 data-nosnippet>159</a>            block_queue: VisitOnceDeque::default(),
 <a href=#160 id=160 data-nosnippet>160</a>            uf: UnionFind::new(),
-<a href=#161 id=161 data-nosnippet>161</a>            brillig_return_to_argument: im::HashMap::default(),
-<a href=#162 id=162 data-nosnippet>162</a>            brillig_return_to_instruction_id: im::HashMap::default(),
+<a href=#161 id=161 data-nosnippet>161</a>            brillig_return_to_argument: imbl::HashMap::default(),
+<a href=#162 id=162 data-nosnippet>162</a>            brillig_return_to_instruction_id: imbl::HashMap::default(),
 <a href=#163 id=163 data-nosnippet>163</a>        }
 <a href=#164 id=164 data-nosnippet>164</a>    }
 <a href=#165 id=165 data-nosnippet>165</a>}
