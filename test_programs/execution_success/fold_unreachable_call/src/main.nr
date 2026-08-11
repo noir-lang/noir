@@ -7,5 +7,9 @@ fn folded() -> Field {
 }
 
 fn main() -> pub Field {
-    if false { folded() } else { 0 }
+    if false {
+        folded()
+    } else {
+        0
+    }
 }
