@@ -14,7 +14,7 @@
 <a href=#14 id=14 data-nosnippet>14</a></span><span class="kw">fn </span>default_config(u: <span class="kw-2">&amp;mut </span>Unstructured) -&gt; arbitrary::Result&lt;Config&gt; {
 <a href=#15 id=15 data-nosnippet>15</a>    <span class="comment">// Some errors such as overflows and OOB are easy to trigger, so in half
 <a href=#16 id=16 data-nosnippet>16</a>    // the cases we avoid all of them, to make sure they don't mask other errors.
-<a href=#17 id=17 data-nosnippet>17</a>    </span><span class="kw">let </span>avoid_frequent_errors = u.arbitrary()<span class="question-mark">?</span>;
+<a href=#17 id=17 data-nosnippet>17</a>    </span><span class="kw">let </span>avoid_frequent_errors = u.ratio(<span class="number">3</span>, <span class="number">4</span>)<span class="question-mark">?</span>;
 <a href=#18 id=18 data-nosnippet>18</a>    <span class="kw">let </span>config = Config {
 <a href=#19 id=19 data-nosnippet>19</a>        avoid_overflow: avoid_frequent_errors,
 <a href=#20 id=20 data-nosnippet>20</a>        avoid_index_out_of_bounds: avoid_frequent_errors,
@@ -100,45 +100,91 @@
 <a href=#100 id=100 data-nosnippet>100</a>
 <a href=#101 id=101 data-nosnippet>101</a>    <span class="doccomment">/// Run the tests non-deterministically until the timeout.
 <a href=#102 id=102 data-nosnippet>102</a>    ///
-<a href=#103 id=103 data-nosnippet>103</a>    /// This is the local behavior.
-<a href=#104 id=104 data-nosnippet>104</a>    </span><span class="kw">fn </span>run_nondeterministic(f: <span class="kw">impl </span>Fn(<span class="kw-2">&amp;mut </span>Unstructured) -&gt; eyre::Result&lt;()&gt;) {
-<a href=#105 id=105 data-nosnippet>105</a>        arbtest::arbtest(|u| {
-<a href=#106 id=106 data-nosnippet>106</a>            f(u).unwrap();
-<a href=#107 id=107 data-nosnippet>107</a>            <span class="prelude-val">Ok</span>(())
-<a href=#108 id=108 data-nosnippet>108</a>        })
-<a href=#109 id=109 data-nosnippet>109</a>        .size_min(MIN_SIZE)
-<a href=#110 id=110 data-nosnippet>110</a>        .size_max(MAX_SIZE)
-<a href=#111 id=111 data-nosnippet>111</a>        .budget(budget())
-<a href=#112 id=112 data-nosnippet>112</a>        .run();
-<a href=#113 id=113 data-nosnippet>113</a>    }
-<a href=#114 id=114 data-nosnippet>114</a>
-<a href=#115 id=115 data-nosnippet>115</a>    <span class="doccomment">/// Run multiple tests with a deterministic RNG.
-<a href=#116 id=116 data-nosnippet>116</a>    ///
-<a href=#117 id=117 data-nosnippet>117</a>    /// This is the behavior on CI.
-<a href=#118 id=118 data-nosnippet>118</a>    </span><span class="kw">fn </span>run_deterministic(f: <span class="kw">impl </span>Fn(<span class="kw-2">&amp;mut </span>Unstructured) -&gt; eyre::Result&lt;()&gt;, cases: u32) {
-<a href=#119 id=119 data-nosnippet>119</a>        <span class="kw">let </span>config = proptest::test_runner::Config {
-<a href=#120 id=120 data-nosnippet>120</a>            cases,
-<a href=#121 id=121 data-nosnippet>121</a>            failure_persistence: <span class="prelude-val">None</span>,
-<a href=#122 id=122 data-nosnippet>122</a>            max_shrink_iters: <span class="number">0</span>,
-<a href=#123 id=123 data-nosnippet>123</a>            ..Default::default()
-<a href=#124 id=124 data-nosnippet>124</a>        };
-<a href=#125 id=125 data-nosnippet>125</a>        <span class="kw">let </span>rng = proptest::test_runner::TestRng::deterministic_rng(config.rng_algorithm);
-<a href=#126 id=126 data-nosnippet>126</a>        <span class="kw">let </span><span class="kw-2">mut </span>runner = proptest::test_runner::TestRunner::new_with_rng(config, rng);
-<a href=#127 id=127 data-nosnippet>127</a>
-<a href=#128 id=128 data-nosnippet>128</a>        runner
-<a href=#129 id=129 data-nosnippet>129</a>            .run(<span class="kw-2">&amp;</span>seed_strategy(), |seed| {
-<a href=#130 id=130 data-nosnippet>130</a>                run_reproduce(<span class="kw-2">&amp;</span>f, seed);
-<a href=#131 id=131 data-nosnippet>131</a>                <span class="prelude-val">Ok</span>(())
-<a href=#132 id=132 data-nosnippet>132</a>            })
-<a href=#133 id=133 data-nosnippet>133</a>            .unwrap();
-<a href=#134 id=134 data-nosnippet>134</a>    }
-<a href=#135 id=135 data-nosnippet>135</a>
-<a href=#136 id=136 data-nosnippet>136</a>    <span class="doccomment">/// Generate seeds for `arbtest` where the top 32 bits are random and the lower 32 bits represent the input size.
-<a href=#137 id=137 data-nosnippet>137</a>    </span><span class="kw">fn </span>seed_strategy() -&gt; proptest::strategy::BoxedStrategy&lt;u64&gt; {
-<a href=#138 id=138 data-nosnippet>138</a>        (MIN_SIZE..MAX_SIZE)
-<a href=#139 id=139 data-nosnippet>139</a>            .prop_flat_map(<span class="kw">move </span>|size| {
-<a href=#140 id=140 data-nosnippet>140</a>                any::&lt;u64&gt;().prop_map(<span class="kw">move </span>|raw| (size <span class="kw">as </span>u64) | (raw &lt;&lt; u32::BITS))
-<a href=#141 id=141 data-nosnippet>141</a>            })
-<a href=#142 id=142 data-nosnippet>142</a>            .boxed()
-<a href=#143 id=143 data-nosnippet>143</a>    }
-<a href=#144 id=144 data-nosnippet>144</a>}</code></pre></div></section></main></body></html>
+<a href=#103 id=103 data-nosnippet>103</a>    /// This is the local and nightly behavior.
+<a href=#104 id=104 data-nosnippet>104</a>    ///
+<a href=#105 id=105 data-nosnippet>105</a>    /// A failure does not stop the run: the panic (which carries the reproduction seed) is
+<a href=#106 id=106 data-nosnippet>106</a>    /// printed and fuzzing continues with a fresh session until the budget is spent, so one
+<a href=#107 id=107 data-nosnippet>107</a>    /// shallow, frequent bug cannot shield deeper ones from an entire run's budget. Distinct
+<a href=#108 id=108 data-nosnippet>108</a>    /// failures are collected and re-raised together at the end.
+<a href=#109 id=109 data-nosnippet>109</a>    </span><span class="kw">fn </span>run_nondeterministic(f: <span class="kw">impl </span>Fn(<span class="kw-2">&amp;mut </span>Unstructured) -&gt; eyre::Result&lt;()&gt;) {
+<a href=#110 id=110 data-nosnippet>110</a>        <span class="doccomment">/// Cap on collected failures, so a bug that fails instantly on almost every input
+<a href=#111 id=111 data-nosnippet>111</a>        /// cannot keep the loop spinning for the whole budget.
+<a href=#112 id=112 data-nosnippet>112</a>        </span><span class="kw">const </span>MAX_FAILURES: usize = <span class="number">5</span>;
+<a href=#113 id=113 data-nosnippet>113</a>
+<a href=#114 id=114 data-nosnippet>114</a>        <span class="kw">let </span>budget = budget();
+<a href=#115 id=115 data-nosnippet>115</a>        <span class="kw">let </span>start = std::time::Instant::now();
+<a href=#116 id=116 data-nosnippet>116</a>        <span class="kw">let </span><span class="kw-2">mut </span>failures: Vec&lt;String&gt; = Vec::new();
+<a href=#117 id=117 data-nosnippet>117</a>
+<a href=#118 id=118 data-nosnippet>118</a>        <span class="kw">while </span>failures.len() &lt; MAX_FAILURES {
+<a href=#119 id=119 data-nosnippet>119</a>            <span class="kw">let </span>remaining = budget.saturating_sub(start.elapsed());
+<a href=#120 id=120 data-nosnippet>120</a>            <span class="kw">if </span>remaining.is_zero() {
+<a href=#121 id=121 data-nosnippet>121</a>                <span class="kw">break</span>;
+<a href=#122 id=122 data-nosnippet>122</a>            }
+<a href=#123 id=123 data-nosnippet>123</a>            <span class="kw">let </span>result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+<a href=#124 id=124 data-nosnippet>124</a>                arbtest::arbtest(|u| {
+<a href=#125 id=125 data-nosnippet>125</a>                    f(u).unwrap();
+<a href=#126 id=126 data-nosnippet>126</a>                    <span class="prelude-val">Ok</span>(())
+<a href=#127 id=127 data-nosnippet>127</a>                })
+<a href=#128 id=128 data-nosnippet>128</a>                .size_min(MIN_SIZE)
+<a href=#129 id=129 data-nosnippet>129</a>                .size_max(MAX_SIZE)
+<a href=#130 id=130 data-nosnippet>130</a>                .budget(remaining)
+<a href=#131 id=131 data-nosnippet>131</a>                .run();
+<a href=#132 id=132 data-nosnippet>132</a>            }));
+<a href=#133 id=133 data-nosnippet>133</a>            <span class="kw">match </span>result {
+<a href=#134 id=134 data-nosnippet>134</a>                <span class="comment">// The session ran out of budget without finding a failure.
+<a href=#135 id=135 data-nosnippet>135</a>                </span><span class="prelude-val">Ok</span>(()) =&gt; <span class="kw">break</span>,
+<a href=#136 id=136 data-nosnippet>136</a>                <span class="prelude-val">Err</span>(panic) =&gt; {
+<a href=#137 id=137 data-nosnippet>137</a>                    <span class="comment">// The default panic hook has already printed the full message, which
+<a href=#138 id=138 data-nosnippet>138</a>                    // includes the `Seed: 0x…` line that `extract-fuzz-seeds.sh` scrapes.
+<a href=#139 id=139 data-nosnippet>139</a>                    </span><span class="kw">let </span>msg = panic
+<a href=#140 id=140 data-nosnippet>140</a>                        .downcast_ref::&lt;String&gt;()
+<a href=#141 id=141 data-nosnippet>141</a>                        .map(String::as_str)
+<a href=#142 id=142 data-nosnippet>142</a>                        .or_else(|| panic.downcast_ref::&lt;<span class="kw-2">&amp;</span>str&gt;().copied())
+<a href=#143 id=143 data-nosnippet>143</a>                        .unwrap_or(<span class="string">"&lt;non-string panic&gt;"</span>)
+<a href=#144 id=144 data-nosnippet>144</a>                        .to_string();
+<a href=#145 id=145 data-nosnippet>145</a>                    <span class="kw">if </span>!failures.contains(<span class="kw-2">&amp;</span>msg) {
+<a href=#146 id=146 data-nosnippet>146</a>                        failures.push(msg);
+<a href=#147 id=147 data-nosnippet>147</a>                    }
+<a href=#148 id=148 data-nosnippet>148</a>                }
+<a href=#149 id=149 data-nosnippet>149</a>            }
+<a href=#150 id=150 data-nosnippet>150</a>        }
+<a href=#151 id=151 data-nosnippet>151</a>
+<a href=#152 id=152 data-nosnippet>152</a>        <span class="kw">if </span>!failures.is_empty() {
+<a href=#153 id=153 data-nosnippet>153</a>            <span class="macro">panic!</span>(
+<a href=#154 id=154 data-nosnippet>154</a>                <span class="string">"arbtest found {} distinct failure(s) within the budget:\n\n{}"</span>,
+<a href=#155 id=155 data-nosnippet>155</a>                failures.len(),
+<a href=#156 id=156 data-nosnippet>156</a>                failures.join(<span class="string">"\n---\n"</span>)
+<a href=#157 id=157 data-nosnippet>157</a>            );
+<a href=#158 id=158 data-nosnippet>158</a>        }
+<a href=#159 id=159 data-nosnippet>159</a>    }
+<a href=#160 id=160 data-nosnippet>160</a>
+<a href=#161 id=161 data-nosnippet>161</a>    <span class="doccomment">/// Run multiple tests with a deterministic RNG.
+<a href=#162 id=162 data-nosnippet>162</a>    ///
+<a href=#163 id=163 data-nosnippet>163</a>    /// This is the behavior on CI.
+<a href=#164 id=164 data-nosnippet>164</a>    </span><span class="kw">fn </span>run_deterministic(f: <span class="kw">impl </span>Fn(<span class="kw-2">&amp;mut </span>Unstructured) -&gt; eyre::Result&lt;()&gt;, cases: u32) {
+<a href=#165 id=165 data-nosnippet>165</a>        <span class="kw">let </span>config = proptest::test_runner::Config {
+<a href=#166 id=166 data-nosnippet>166</a>            cases,
+<a href=#167 id=167 data-nosnippet>167</a>            failure_persistence: <span class="prelude-val">None</span>,
+<a href=#168 id=168 data-nosnippet>168</a>            max_shrink_iters: <span class="number">0</span>,
+<a href=#169 id=169 data-nosnippet>169</a>            ..Default::default()
+<a href=#170 id=170 data-nosnippet>170</a>        };
+<a href=#171 id=171 data-nosnippet>171</a>        <span class="kw">let </span>rng = proptest::test_runner::TestRng::deterministic_rng(config.rng_algorithm);
+<a href=#172 id=172 data-nosnippet>172</a>        <span class="kw">let </span><span class="kw-2">mut </span>runner = proptest::test_runner::TestRunner::new_with_rng(config, rng);
+<a href=#173 id=173 data-nosnippet>173</a>
+<a href=#174 id=174 data-nosnippet>174</a>        runner
+<a href=#175 id=175 data-nosnippet>175</a>            .run(<span class="kw-2">&amp;</span>seed_strategy(), |seed| {
+<a href=#176 id=176 data-nosnippet>176</a>                run_reproduce(<span class="kw-2">&amp;</span>f, seed);
+<a href=#177 id=177 data-nosnippet>177</a>                <span class="prelude-val">Ok</span>(())
+<a href=#178 id=178 data-nosnippet>178</a>            })
+<a href=#179 id=179 data-nosnippet>179</a>            .unwrap();
+<a href=#180 id=180 data-nosnippet>180</a>    }
+<a href=#181 id=181 data-nosnippet>181</a>
+<a href=#182 id=182 data-nosnippet>182</a>    <span class="doccomment">/// Generate seeds for `arbtest` where the top 32 bits are random and the lower 32 bits represent the input size.
+<a href=#183 id=183 data-nosnippet>183</a>    </span><span class="kw">fn </span>seed_strategy() -&gt; proptest::strategy::BoxedStrategy&lt;u64&gt; {
+<a href=#184 id=184 data-nosnippet>184</a>        (MIN_SIZE..MAX_SIZE)
+<a href=#185 id=185 data-nosnippet>185</a>            .prop_flat_map(<span class="kw">move </span>|size| {
+<a href=#186 id=186 data-nosnippet>186</a>                any::&lt;u64&gt;().prop_map(<span class="kw">move </span>|raw| (size <span class="kw">as </span>u64) | (raw &lt;&lt; u32::BITS))
+<a href=#187 id=187 data-nosnippet>187</a>            })
+<a href=#188 id=188 data-nosnippet>188</a>            .boxed()
+<a href=#189 id=189 data-nosnippet>189</a>    }
+<a href=#190 id=190 data-nosnippet>190</a>}</code></pre></div></section></main></body></html>
