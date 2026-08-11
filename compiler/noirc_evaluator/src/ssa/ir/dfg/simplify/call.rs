@@ -290,7 +290,7 @@ pub(super) fn simplify_call(
                 let start = index.to_u128() as usize * elements.len();
 
                 // Do not simplify if the index is greater than the vector capacity
-                // or else we will panic inside of the im::Vector insert method
+                // or else we will panic inside of the imbl::Vector insert method
                 // Constraints should be generated during SSA gen to tell the user
                 // they are attempting to insert at too large of an index
                 if start > vector.len() {
@@ -332,7 +332,7 @@ pub(super) fn simplify_call(
                 let index = index.to_u128() as usize * element_count;
 
                 // Do not simplify if the index is not less than the vector capacity
-                // or else we will panic inside of the im::Vector remove method.
+                // or else we will panic inside of the imbl::Vector remove method.
                 // Constraints should be generated during SSA gen to tell the user
                 // they are attempting to remove at too large of an index.
                 if index >= vector.len() {
@@ -476,7 +476,7 @@ fn simplify_as_vector_for_zero_sized_vector(
     let element_types = element_types.clone();
     let vector_length = dfg.make_constant(length.0.into(), NumericType::length_type());
     let new_vector =
-        make_array(dfg, im::Vector::new(), Type::Vector(element_types), block, call_stack);
+        make_array(dfg, imbl::Vector::new(), Type::Vector(element_types), block, call_stack);
     Some(SimplifyResult::SimplifiedToMultiple(vec![vector_length, new_vector]))
 }
 
@@ -695,7 +695,7 @@ fn make_constant_array(
     block: BasicBlockId,
     call_stack: CallStackId,
 ) -> ValueId {
-    let result_constants: im::Vector<_> =
+    let result_constants: imbl::Vector<_> =
         results.map(|element| dfg.make_constant(element, typ)).collect();
 
     let typ = Type::Array(
@@ -707,7 +707,7 @@ fn make_constant_array(
 
 fn make_array(
     dfg: &mut DataFlowGraph,
-    elements: im::Vector<ValueId>,
+    elements: imbl::Vector<ValueId>,
     typ: Type,
     block: BasicBlockId,
     call_stack: CallStackId,
@@ -768,7 +768,7 @@ fn decrement_vector_length(
 /// There result is that the vector will physically always be extended by 1, with the pushed
 /// item appearing at the end, and potentially in the middle of the vector if we weren't at capacity.
 fn simplify_vector_push_back(
-    mut vector: im::Vector<ValueId>,
+    mut vector: imbl::Vector<ValueId>,
     element_type: Type,
     arguments: &[ValueId],
     dfg: &mut DataFlowGraph,
@@ -813,7 +813,7 @@ fn simplify_vector_push_back(
 /// array, returning `[new_length, new_vector, popped_elements..]`. A vector of tuples pops several
 /// flattened slots per element, so the elements are read in reverse from the tail.
 fn simplify_vector_pop_back(
-    mut vector: im::Vector<ValueId>,
+    mut vector: imbl::Vector<ValueId>,
     vector_type: Type,
     arguments: &[ValueId],
     dfg: &mut DataFlowGraph,
@@ -968,7 +968,7 @@ fn simplify_black_box_func(
     }
 }
 
-fn to_u8_vec(dfg: &DataFlowGraph, values: im::Vector<ValueId>) -> Vec<u8> {
+fn to_u8_vec(dfg: &DataFlowGraph, values: imbl::Vector<ValueId>) -> Vec<u8> {
     values
         .iter()
         .map(|id| {
@@ -980,7 +980,7 @@ fn to_u8_vec(dfg: &DataFlowGraph, values: im::Vector<ValueId>) -> Vec<u8> {
         .collect()
 }
 
-fn array_is_constant(dfg: &DataFlowGraph, values: &im::Vector<ValueId>) -> bool {
+fn array_is_constant(dfg: &DataFlowGraph, values: &imbl::Vector<ValueId>) -> bool {
     values.iter().all(|value| dfg.get_numeric_constant(*value).is_some())
 }
 

@@ -14,7 +14,7 @@ concurrency:
 
 env:
   # How long should we run the fuzzing for, in seconds.
-  NOIR_AST_FUZZER_BUDGET_SECS: 300
+  NOIR_AST_FUZZER_BUDGET_SECS: 1800
 
 jobs:
   ast-fuzz:
