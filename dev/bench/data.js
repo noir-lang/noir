@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1786467657490,
+  "lastUpdate": 1786468966161,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23191,48 +23191,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "49699333+dependabot[bot]@users.noreply.github.com",
-            "name": "dependabot[bot]",
-            "username": "dependabot[bot]"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "55edbcb24f546ad53256c931010a2c6d8b1fc091",
-          "message": "chore(deps): bump lodash from 4.17.23 to 4.18.1 in /docs (#13418)\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
-          "timestamp": "2026-07-28T11:42:19Z",
-          "tree_id": "02dd434b6ec104d736b8087b33a613cc9cdd1fb5",
-          "url": "https://github.com/noir-lang/noir/commit/55edbcb24f546ad53256c931010a2c6d8b1fc091"
-        },
-        "date": 1785240057411,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 173717,
-            "range": "± 322",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 141989,
-            "range": "± 3239",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2646491,
-            "range": "± 960",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "49558828+AztecBot@users.noreply.github.com",
             "name": "Aztec Bot",
             "username": "AztecBot"
@@ -25284,6 +25242,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2362035,
             "range": "± 3917",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "4bcac14457bb2560510d81f53314ce88fe3d4984",
+          "message": "fix(ssa): scope LICM outer induction bounds to nested loops (#13481)\n\nCo-authored-by: Claude Fable 5 <noreply@anthropic.com>",
+          "timestamp": "2026-08-11T17:00:26Z",
+          "tree_id": "dc1d65faee2631bcc524dff1fdefc21b6d7be4f9",
+          "url": "https://github.com/noir-lang/noir/commit/4bcac14457bb2560510d81f53314ce88fe3d4984"
+        },
+        "date": 1786468881260,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 173678,
+            "range": "± 390",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 141990,
+            "range": "± 2241",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2652097,
+            "range": "± 1943",
             "unit": "ns/iter"
           }
         ]
