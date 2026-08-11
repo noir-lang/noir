@@ -36,7 +36,11 @@ jobs:
           save-if: ${{ github.event_name != 'merge_group' }}
 
       - name: Run ACVM benchmarks
+        # `target/criterion` must not survive from the cache: rust-cache's cleanup can strip
+        # the files inside it while keeping the directories, and Criterion errors mid-output
+        # on such a hollow baseline, which breaks the bencher-format parsing below.
         run: |
+          rm -rf target/criterion
           cargo bench -p acvm -- --output-format bencher | tee acvm-bench.txt
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

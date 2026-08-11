@@ -20,6 +20,7 @@ strum.workspace = true
 acir.workspace = true
 nargo_fmt.workspace = true
 noirc_abi.workspace = true
+noirc_errors.workspace = true
 noirc_evaluator.workspace = true
 noirc_frontend.workspace = true
 
