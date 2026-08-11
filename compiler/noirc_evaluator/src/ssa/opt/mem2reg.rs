@@ -231,7 +231,8 @@ fn compute_visible_vars(
         vars_by_decl_block.entry(*decl_block).or_default().push(*var);
     }
 
-    let mut visible: HashMap<BasicBlockId, imbl::OrdMap<ValueId, BasicBlockId>> = HashMap::default();
+    let mut visible: HashMap<BasicBlockId, imbl::OrdMap<ValueId, BasicBlockId>> =
+        HashMap::default();
     for &block in blocks {
         let mut vars = match dom_tree.immediate_dominator(block) {
             Some(idom) => visible[&idom].clone(),
