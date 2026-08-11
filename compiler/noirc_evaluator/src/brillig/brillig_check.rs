@@ -59,7 +59,7 @@ pub(crate) fn opcode_advisories<F: AcirField>(
     let addr_range = Range { start: registers.start(), end: registers.end() };
 
     // First collect all reads per block.
-    let reads_in_blocks: HashMap<BasicBlockId, im::HashSet<MemoryAddress>> = function_context
+    let reads_in_blocks: HashMap<BasicBlockId, imbl::HashSet<MemoryAddress>> = function_context
         .reverse_post_order()
         .map(|block_id| {
             let mut read_collector = ReadCollector::new(&addr_range);
@@ -81,7 +81,7 @@ pub(crate) fn opcode_advisories<F: AcirField>(
         .collect();
 
     // Collect all the reads that happen in the descendants of blocks.
-    let mut reads_in_descendants: HashMap<BasicBlockId, im::HashSet<MemoryAddress>> =
+    let mut reads_in_descendants: HashMap<BasicBlockId, imbl::HashSet<MemoryAddress>> =
         HashMap::default();
 
     // Going in Post Order, so successors will have been processed already,
@@ -90,7 +90,7 @@ pub(crate) fn opcode_advisories<F: AcirField>(
         // The reads are a union of addresses read:
         // * directly by the successors
         // * indirectly by the descendants of the successors
-        let mut acc = im::HashSet::new();
+        let mut acc = imbl::HashSet::new();
         for successor_id in function.dfg[block_id].successors() {
             acc = acc.union(reads_in_blocks[&successor_id].clone());
             // If this is a back-edge block, the header will not have been done yet.
@@ -293,15 +293,15 @@ fn block_opcode_ranges<F, R: RegisterAllocator>(
 /// Collect all the relative addresses read in a range of relative address offsets.
 struct ReadCollector<'a> {
     addr_range: &'a Range<Offset>,
-    reads: im::HashSet<MemoryAddress>,
+    reads: imbl::HashSet<MemoryAddress>,
 }
 
 impl<'a> ReadCollector<'a> {
     fn new(addr_range: &'a Range<Offset>) -> Self {
-        Self { addr_range, reads: im::HashSet::new() }
+        Self { addr_range, reads: imbl::HashSet::new() }
     }
 
-    fn into_reads(self) -> im::HashSet<MemoryAddress> {
+    fn into_reads(self) -> imbl::HashSet<MemoryAddress> {
         self.reads
     }
 }
@@ -328,7 +328,7 @@ impl OpcodeAddressVisitor for ReadCollector<'_> {
 struct AdvisoryCollector<'a> {
     addr_range: &'a Range<Offset>,
     /// Addresses read in any of the descendants of the block.
-    reads_in_descendants: &'a im::HashSet<MemoryAddress>,
+    reads_in_descendants: &'a imbl::HashSet<MemoryAddress>,
     /// Last location the address was read from in this block.
     reads: HashMap<MemoryAddress, OpcodeLocation>,
     /// Last location the address was written to in this block.
@@ -347,7 +347,7 @@ struct AdvisoryCollector<'a> {
 impl<'a> AdvisoryCollector<'a> {
     fn new(
         addr_range: &'a Range<Offset>,
-        reads_in_descendants: &'a im::HashSet<MemoryAddress>,
+        reads_in_descendants: &'a imbl::HashSet<MemoryAddress>,
     ) -> Self {
         Self {
             addr_range,

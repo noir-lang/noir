@@ -199,9 +199,11 @@ impl MorphContext<'_> {
                 // No need to visit children, we just visited them.
                 false
             }
-            Expression::Unary(
-                unary @ Unary { operator: UnaryOp::Reference { mutable: true }, .. },
-            ) => {
+            Expression::Unary(unary @ Unary { operator: UnaryOp::Reference { .. }, .. }) => {
+                // Both `&mut x` and `&x` alias what they point at, so rewriting the operand
+                // into an equal-valued expression changes the meaning: `&(x ^ (x ^ x))`
+                // references a temporary, and a later write to `x` is no longer observed
+                // through it.
                 let ctx = rules::Context { is_in_ref_mut: true, ..*ctx };
                 self.rewrite_expr(&ctx, u, &mut unary.rhs);
                 false
@@ -319,7 +321,7 @@ mod rules {
         pub unconstrained: bool,
         /// Are we rewriting an expression which is a `start` or `end` of a `for` loop?
         pub is_in_range: bool,
-        /// Are we in an expression that we're just taking a mutable reference to?
+        /// Are we in an expression that we're taking a reference to, mutable or not?
         pub is_in_ref_mut: bool,
         /// Are we processing the arguments of an non-user function call, such as an oracle or built-in?
         pub is_in_special_call: bool,

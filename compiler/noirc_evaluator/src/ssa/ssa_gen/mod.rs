@@ -399,7 +399,7 @@ impl FunctionContext<'_> {
     ///
     /// The value returned from this function is always that of the allocate instruction.
     fn codegen_array(&mut self, elements: Vec<Values>, typ: Type) -> Values {
-        let mut array = im::Vector::new();
+        let mut array = imbl::Vector::new();
 
         for element in elements {
             element.for_each(|element| {
