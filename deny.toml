@@ -22,6 +22,10 @@ ignore = [
     "RUSTSEC-2026-0247", # bitmaps
     "RUSTSEC-2026-0248", # im
     "RUSTSEC-2026-0251", # sized-chunks
+    # Unsoundness in im::OrdSet insertion (Miri stacked-borrows violation in
+    # sized_chunks::Chunk::force_copy). No fixed im version exists; the imbl fork
+    # fixes this, so it goes away with the migration above.
+    "RUSTSEC-2023-0126",
 ]
 
 # This section is considered when running `cargo deny check bans`.
