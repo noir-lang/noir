@@ -580,7 +580,14 @@ impl AstPrinter {
             let is_unsafe = unconstrained && !self.in_unconstrained;
             let special = match definition {
                 Definition::Oracle { name: s, .. } if s == "print" => Some(SpecialCall::Print),
-                Definition::Builtin(s) if s.starts_with("array") || s.starts_with("vector") => {
+                // Builtins that are written as methods in Noir source have to be printed that
+                // way, or the printed program does not parse back: `as_bytes(s)` is not a
+                // function in scope, `s.as_bytes()` is.
+                Definition::Builtin(s)
+                    if s.starts_with("array")
+                        || s.starts_with("vector")
+                        || matches!(s.as_str(), "as_vector" | "str_as_bytes") =>
+                {
                     Some(SpecialCall::Object(name.clone()))
                 }
                 _ => None,

@@ -64,7 +64,7 @@ impl Context<'_> {
                 Ok(AcirValue::Var(read, *numeric_type))
             }
             Type::Array(element_types, len) => {
-                let mut result = im::Vector::new();
+                let mut result = imbl::Vector::new();
                 for _ in 0..len.0 {
                     for typ in element_types.as_ref() {
                         result.push_back(self.read_vector_value(

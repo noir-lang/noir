@@ -105,7 +105,7 @@ fn verify_function(function: &Function, needs_check: &impl Fn(FunctionId) -> boo
                     idx,
                     instruction_id,
                     None,
-                    im::HashSet::new(),
+                    imbl::HashSet::new(),
                 ) else {
                     continue;
                 };
