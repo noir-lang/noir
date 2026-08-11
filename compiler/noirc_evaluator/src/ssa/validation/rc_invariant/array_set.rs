@@ -67,7 +67,7 @@ fn verify_function(function: &Function) -> RtResult<()> {
                 idx,
                 instruction_id,
                 write_index_const,
-                im::HashSet::unit(result),
+                imbl::HashSet::unit(result),
             ) else {
                 continue;
             };
@@ -2247,7 +2247,7 @@ mod tests {
                 block,
                 idx,
                 write_index_const,
-                im::HashSet::unit(function.dfg.instruction_results(instruction_id)[0]),
+                imbl::HashSet::unit(function.dfg.instruction_results(instruction_id)[0]),
             )
             .is_some();
         assert!(
@@ -2293,7 +2293,7 @@ mod tests {
                 block,
                 idx,
                 write_index_const,
-                im::HashSet::unit(function.dfg.instruction_results(instruction_id)[0]),
+                imbl::HashSet::unit(function.dfg.instruction_results(instruction_id)[0]),
             )
             .is_some();
         assert!(
@@ -2347,7 +2347,7 @@ mod tests {
                 block,
                 idx,
                 write_index_const,
-                im::HashSet::unit(function.dfg.instruction_results(instruction_id)[0]),
+                imbl::HashSet::unit(function.dfg.instruction_results(instruction_id)[0]),
             )
             .is_some();
         assert!(
@@ -2451,7 +2451,7 @@ mod tests {
                 block,
                 idx,
                 write_index_const,
-                im::HashSet::unit(function.dfg.instruction_results(instruction_id)[0]),
+                imbl::HashSet::unit(function.dfg.instruction_results(instruction_id)[0]),
             )
             .is_some();
         assert!(
@@ -2544,7 +2544,7 @@ mod tests {
         idx: usize,
         instruction_id: InstructionId,
         source: ValueId,
-        alias_set: im::HashSet<ValueId>,
+        alias_set: imbl::HashSet<ValueId>,
         /// The `array_set`'s index when it is a numeric constant. `None`
         /// indicates a dynamic index, in which case the verifier
         /// conservatively flags every aliased use.

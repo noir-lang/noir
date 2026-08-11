@@ -13,19 +13,11 @@ ignore = [
     # fixed quick-xml (>= 0.41.0) exists yet; drop these once one does.
     "RUSTSEC-2026-0194",
     "RUSTSEC-2026-0195",
-    # im and its dependencies bitmaps and sized-chunks are unmaintained
-    # (repositories archived); the advisories cover all versions, so no upgrade
-    # fixes them. Migrating to imbl (the maintained im fork) would clear the im
-    # and sized-chunks advisories, but imbl still depends on bitmaps too
-    # (https://github.com/jneem/imbl/issues/170). Drop these once imbl drops
-    # bitmaps and we migrate to it.
+    # bitmaps is unmaintained (repository archived); the advisory covers all
+    # versions, so no upgrade fixes it. It is pulled in by imbl, which plans to
+    # drop it (https://github.com/jneem/imbl/issues/170). Drop this once an
+    # imbl release without bitmaps exists.
     "RUSTSEC-2026-0247", # bitmaps
-    "RUSTSEC-2026-0248", # im
-    "RUSTSEC-2026-0251", # sized-chunks
-    # Unsoundness in im::OrdSet insertion (Miri stacked-borrows violation in
-    # sized_chunks::Chunk::force_copy). No fixed im version exists; the imbl fork
-    # fixes this, so it goes away with the migration above.
-    "RUSTSEC-2023-0126",
 ]
 
 # This section is considered when running `cargo deny check bans`.
@@ -69,7 +61,7 @@ allow = [
     "Unicode-3.0",
     "Unlicense",
     "Zlib",
-    # bitmaps 2.1.0, im 15.1.0
+    # bitmaps, imbl, imbl-sized-chunks
     "MPL-2.0",
     # Boost Software License
     "BSL-1.0",
@@ -84,7 +76,6 @@ exceptions = [
     # so we prefer to not have dependencies using it
     # https://tldrlegal.com/license/creative-commons-cc0-1.0-universal
     { allow = ["CC0-1.0"], name = "notify" },
-    { allow = ["MPL-2.0"], name = "sized-chunks" },
     { allow = ["CDLA-Permissive-2.0"], name = "webpki-root-certs" },
     { allow = ["CDDL-1.0"], name = "inferno" },
 ]

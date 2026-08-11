@@ -146,7 +146,7 @@ pub(crate) enum AcirValue {
     /// The length of the inner vector is a [`acvm::acir::brillig::lengths::SemiFlattenedLength`].
     ///
     /// Compare this with `DynamicArray` below.
-    Array(im::Vector<AcirValue>),
+    Array(imbl::Vector<AcirValue>),
     /// Represents an array whose size is not known during compile time,
     /// and which might be indexed with a dynamic index.
     ///

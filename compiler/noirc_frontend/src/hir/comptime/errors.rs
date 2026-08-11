@@ -66,7 +66,7 @@ pub enum InterpreterError {
     FailingConstraint {
         message: Option<String>,
         location: Location,
-        call_stack: im::Vector<Location>,
+        call_stack: imbl::Vector<Location>,
     },
     NonIntegerUsedInLoop {
         typ: Type,
@@ -301,11 +301,11 @@ pub enum InterpreterError {
     },
     StackOverflow {
         location: Location,
-        call_stack: im::Vector<Location>,
+        call_stack: imbl::Vector<Location>,
     },
     EvaluationDepthOverflow {
         location: Location,
-        call_stack: im::Vector<Location>,
+        call_stack: imbl::Vector<Location>,
     },
     AttributeRecursionLimitExceeded {
         location: Location,

@@ -59,7 +59,7 @@
 use std::collections::HashMap;
 
 use acvm::AcirField;
-use im::Vector;
+use imbl::Vector;
 use noirc_errors::call_stack::CallStackId;
 
 use crate::ssa::{
