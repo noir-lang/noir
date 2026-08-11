@@ -190,11 +190,14 @@ impl Loop {
 struct LoopInvariantContext<'f> {
     inserter: FunctionInserter<'f>,
 
-    /// Maps an outer loop's induction variable to its [`LoopBounds`].
+    /// Maps an outer loop's induction variable to its [`LoopBounds`] and the owning loop's blocks.
     ///
     /// Used by inner loops to reason about operations on an outer loop's induction variable —
     /// hoisting an in-bounds array access or proving a `Div`/`Mod` divisor is never zero.
-    outer_induction_variables: HashMap<ValueId, LoopBounds>,
+    ///
+    /// The bounds only hold inside the owning loop, so reads must go through
+    /// [`Self::get_outer_induction_variable_bounds`].
+    outer_induction_variables: HashMap<ValueId, OuterInductionVariable>,
     /// All induction variables collected up front, with their [`LoopBounds`].    
     all_induction_variables: HashMap<ValueId, LoopBounds>,
     cfg: ControlFlowGraph,
@@ -207,8 +210,15 @@ struct LoopInvariantContext<'f> {
     false_value: ValueId,
 }
 
+/// A loop induction variable's [`LoopBounds`] together with the blocks of the loop that owns it.
+struct OuterInductionVariable {
+    bounds: LoopBounds,
+    blocks: BTreeSet<BasicBlockId>,
+}
+
 /// Context with the scope of just one loop.
 struct LoopContext {
+    header: BasicBlockId,
     pre_header: BasicBlockId,
     /// Maps current loop induction variable with its bounds and step.
     /// If the loop doesn't have constant bounds with then it's `None`.
@@ -297,6 +307,7 @@ impl LoopContext {
             // There is only ever one current induction variable for a loop.
             induction_variable,
             does_loop_execute,
+            header: loop_.header,
             pre_header,
             defined_in_loop,
             loop_invariants: HashSet::default(),
@@ -503,7 +514,8 @@ impl<'f> LoopInvariantContext<'f> {
             get_induction_var_bounds(&self.inserter, loop_, pre_header)
             && bounds.iterator_in_bounds(step)
         {
-            self.outer_induction_variables.insert(induction_variable, bounds);
+            let variable = OuterInductionVariable { bounds, blocks: loop_.blocks.clone() };
+            self.outer_induction_variables.insert(induction_variable, variable);
         }
     }
 
@@ -858,8 +870,9 @@ impl<'f> LoopInvariantContext<'f> {
         match instruction {
             ArrayGet { array, index } => {
                 let array_typ = self.inserter.function.dfg.type_of_value(*array);
-                let upper_bound =
-                    self.outer_induction_variables.get(index).map(|bounds| bounds.upper);
+                let upper_bound = self
+                    .get_outer_induction_variable_bounds(loop_context, *index)
+                    .map(|bounds| bounds.upper);
                 if let (Type::Array(_, len), Some(upper_bound)) =
                     (array_typ.into_owned(), upper_bound)
                 {
@@ -873,6 +886,20 @@ impl<'f> LoopInvariantContext<'f> {
             // The rest of the instructions should not depend on the loop bounds.
             _ => false,
         }
+    }
+
+    /// Get the [`LoopBounds`] of an outer loop's induction variable, but only if the loop
+    /// currently being processed is nested inside the loop that owns `value`: the bounds
+    /// do not hold once the owning loop has exited (e.g. in a later sibling loop).
+    fn get_outer_induction_variable_bounds(
+        &self,
+        loop_context: &LoopContext,
+        value: ValueId,
+    ) -> Option<LoopBounds> {
+        self.outer_induction_variables
+            .get(&value)
+            .filter(|variable| variable.blocks.contains(&loop_context.header))
+            .map(|variable| variable.bounds)
     }
 
     /// Loop invariant hoisting only operates over loop instructions.
@@ -1207,6 +1234,222 @@ mod tests {
         let ssa = Ssa::from_str(src).unwrap();
         let _ =
             assert_pass_does_not_affect_execution(ssa, Vec::new(), Ssa::loop_invariant_code_motion);
+    }
+
+    #[test]
+    fn sibling_loop_stale_bounds_must_not_fold_comparison() {
+        // Regression for noir-lang/noir-claude#1640: the first loop's bounds `v0 in [0, 3)`
+        // must not be applied to the sibling loop {b5, b6}, where `v0` is exactly 3, so the
+        // `lt v0, u32 3` feeding the constrain is false and the constrain must fail.
+        // The first loop is padded with a pass-through block so it is processed first.
+        use crate::ssa::interpreter::errors::InterpreterError;
+
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            jmp b1(u32 0)
+          b1(v0: u32):
+            v2 = lt v0, u32 3
+            jmpif v2 then: b2(), else: b4()
+          b2():
+            jmp b3()
+          b3():
+            v4 = unchecked_add v0, u32 1
+            jmp b1(v4)
+          b4():
+            jmp b5(u32 0)
+          b5(v5: u32):
+            v8 = lt v5, u32 2
+            jmpif v8 then: b6(), else: b7()
+          b6():
+            v9 = lt v0, u32 3
+            constrain v9 == u1 1
+            v12 = unchecked_add v5, u32 1
+            jmp b5(v12)
+          b7():
+            return
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        // The pass legitimately hoists the invariant `lt` and its constrain, renumbering the
+        // value ids in the error, so compare the errors field-wise instead of using
+        // `assert_pass_does_not_affect_execution`.
+        let before = ssa.interpret(Vec::new());
+        let ssa = ssa.loop_invariant_code_motion();
+        let after = ssa.interpret(Vec::new());
+
+        let Err(InterpreterError::ConstrainEqFailed { lhs: lhs_before, rhs: rhs_before, .. }) =
+            before
+        else {
+            panic!("the constrain must fail before the pass, got {before:?}");
+        };
+        let Err(InterpreterError::ConstrainEqFailed { lhs: lhs_after, rhs: rhs_after, .. }) = after
+        else {
+            panic!("the constrain must still fail after the pass, got {after:?}");
+        };
+        assert_eq!((lhs_before, rhs_before), (lhs_after, rhs_after));
+
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0():
+            jmp b1(u32 0)
+          b1(v0: u32):
+            v4 = lt v0, u32 3
+            jmpif v4 then: b2(), else: b4()
+          b2():
+            jmp b3()
+          b3():
+            v6 = unchecked_add v0, u32 1
+            jmp b1(v6)
+          b4():
+            v7 = lt v0, u32 3
+            constrain v7 == u1 1
+            jmp b5(u32 0)
+          b5(v1: u32):
+            v10 = lt v1, u32 2
+            jmpif v10 then: b6(), else: b7()
+          b6():
+            v11 = unchecked_add v1, u32 1
+            jmp b5(v11)
+          b7():
+            return
+        }
+        ");
+    }
+
+    #[test]
+    fn sibling_loop_stale_bounds_must_not_drop_overflow_check() {
+        // Regression for noir-lang/noir-claude#1640, checked-arithmetic consumer: the first
+        // loop steps `v0` through 0, 3, ..., 249 and exits holding 252, outside its recorded
+        // bounds `[0, 250)`. The `add v0, u8 5` in the sibling loop must stay checked so that
+        // `252 + 5` overflows instead of wrapping.
+        use crate::ssa::interpreter::errors::InterpreterError;
+
+        let src = "
+        brillig(inline) fn main f0 {
+          b0():
+            jmp b1(u8 0)
+          b1(v0: u8):
+            v2 = lt v0, u8 250
+            jmpif v2 then: b2(), else: b4()
+          b2():
+            jmp b3()
+          b3():
+            v4 = add v0, u8 3
+            jmp b1(v4)
+          b4():
+            jmp b5(u8 0, u8 0)
+          b5(v5: u8, v6: u8):
+            v7 = lt v5, u8 1
+            jmpif v7 then: b6(), else: b7()
+          b6():
+            v8 = add v0, u8 5
+            v9 = add v5, u8 1
+            jmp b5(v9, v8)
+          b7():
+            return v6
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let (ssa, result) =
+            assert_pass_does_not_affect_execution(ssa, Vec::new(), Ssa::loop_invariant_code_motion);
+        assert!(
+            matches!(result, Err(InterpreterError::Overflow { .. })),
+            "the add on the exited induction variable must overflow, got {result:?}"
+        );
+
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) fn main f0 {
+          b0():
+            jmp b1(u8 0)
+          b1(v0: u8):
+            v5 = lt v0, u8 250
+            jmpif v5 then: b2(), else: b4()
+          b2():
+            jmp b3()
+          b3():
+            v7 = unchecked_add v0, u8 3
+            jmp b1(v7)
+          b4():
+            v9 = add v0, u8 5
+            jmp b5(u8 0, u8 0)
+          b5(v1: u8, v2: u8):
+            v10 = eq v1, u8 0
+            jmpif v10 then: b6(), else: b7()
+          b6():
+            v12 = unchecked_add v1, u8 1
+            jmp b5(v12, v9)
+          b7():
+            return v2
+        }
+        ");
+    }
+
+    #[test]
+    fn sibling_loop_stale_bounds_must_not_hoist_oob_array_get() {
+        // Regression for noir-lang/noir-claude#1640, `array_get` consumer: the sibling loop
+        // runs zero times, so `array_get v5, index v0` (with `v0 == 3`, out of bounds for the
+        // length-3 array) must not be hoisted into the pre-header.
+        use crate::ssa::interpreter::value::Value;
+
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            jmp b1(u32 0)
+          b1(v0: u32):
+            v2 = lt v0, u32 3
+            jmpif v2 then: b2(), else: b4()
+          b2():
+            jmp b3()
+          b3():
+            v4 = unchecked_add v0, u32 1
+            jmp b1(v4)
+          b4():
+            v5 = make_array [u32 10, u32 20, u32 30] : [u32; 3]
+            jmp b5(u32 0, u32 0)
+          b5(v6: u32, v7: u32):
+            v9 = lt v6, u32 0
+            jmpif v9 then: b6(), else: b7()
+          b6():
+            v10 = array_get v5, index v0 -> u32
+            v11 = unchecked_add v7, v10
+            v12 = unchecked_add v6, u32 1
+            jmp b5(v12, v11)
+          b7():
+            return v7
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let (ssa, result) =
+            assert_pass_does_not_affect_execution(ssa, Vec::new(), Ssa::loop_invariant_code_motion);
+        assert_eq!(result, Ok(vec![Value::u32(0)]), "the zero-iteration loop must not execute");
+
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0():
+            jmp b1(u32 0)
+          b1(v0: u32):
+            v5 = lt v0, u32 3
+            jmpif v5 then: b2(), else: b4()
+          b2():
+            jmp b3()
+          b3():
+            v7 = unchecked_add v0, u32 1
+            jmp b1(v7)
+          b4():
+            v11 = make_array [u32 10, u32 20, u32 30] : [u32; 3]
+            jmp b5(u32 0, u32 0)
+          b5(v1: u32, v2: u32):
+            jmpif u1 0 then: b6(), else: b7()
+          b6():
+            v13 = array_get v11, index v0 -> u32
+            v14 = unchecked_add v2, v13
+            v15 = unchecked_add v1, u32 1
+            jmp b5(v15, v14)
+          b7():
+            return v2
+        }
+        ");
     }
 
     #[test]
