@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1786459435660,
+  "lastUpdate": 1786466097271,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23186,48 +23186,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "49699333+dependabot[bot]@users.noreply.github.com",
-            "name": "dependabot[bot]",
-            "username": "dependabot[bot]"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "698947168d372c2880bdf5bf6c45fe7d241a5fb0",
-          "message": "chore(deps): bump joi from 17.13.3 to 17.13.4 in /docs (#13416)\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
-          "timestamp": "2026-07-28T11:04:11Z",
-          "tree_id": "f7b01d7c2fd6d1bd2476d518f15f56b79191c8a2",
-          "url": "https://github.com/noir-lang/noir/commit/698947168d372c2880bdf5bf6c45fe7d241a5fb0"
-        },
-        "date": 1785237832502,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 173358,
-            "range": "± 437",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 141248,
-            "range": "± 417",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2647394,
-            "range": "± 2037",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "163862677+noirwhal@users.noreply.github.com",
             "name": "noirwhal",
             "username": "noirwhal"
@@ -25279,6 +25237,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2120638,
             "range": "± 1461",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "2b9c685180038922714acdb3b303f5657a3a03aa",
+          "message": "chore(deps): bump the cargo-minor-and-patch group with 7 updates (#13506)\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2026-08-11T16:12:25Z",
+          "tree_id": "30c5904b90ad48233f72153a3c2a0c542ab74232",
+          "url": "https://github.com/noir-lang/noir/commit/2b9c685180038922714acdb3b303f5657a3a03aa"
+        },
+        "date": 1786466012296,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 127065,
+            "range": "± 260",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 113160,
+            "range": "± 1030",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 3043007,
+            "range": "± 1958",
             "unit": "ns/iter"
           }
         ]
