@@ -1634,7 +1634,7 @@ mod tests {
 
         let mut context = AcirContext::<FieldElement>::new(BrilligStdLib::default());
         let var = context.add_constant(FieldElement::one());
-        let value = AcirValue::Array(im::vector![AcirValue::Var(var, NumericType::NativeField)]);
+        let value = AcirValue::Array(imbl::vector![AcirValue::Var(var, NumericType::NativeField)]);
 
         // Claim a flattened length of 2 but provide only a single value.
         let result = context.initialize_array(

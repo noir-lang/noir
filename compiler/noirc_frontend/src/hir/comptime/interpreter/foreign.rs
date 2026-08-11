@@ -2,7 +2,7 @@
 //! all foreign functions available to the interpreter.
 use acvm::{BlackBoxResolutionError, FieldElement, blackbox_solver::BlackBoxFunctionSolver};
 use bn254_blackbox_solver::Bn254BlackBoxSolver; // Currently locked to only bn254!
-use im::{Vector, vector};
+use imbl::{Vector, vector};
 use noirc_errors::Location;
 
 use crate::{

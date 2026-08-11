@@ -4,7 +4,7 @@ use std::{borrow::Cow, rc::Rc, vec};
 
 use acvm::FieldElement;
 use fm::FileMap;
-use im::Vector;
+use imbl::Vector;
 use iter_extended::{try_vecmap, vecmap};
 use noirc_errors::Location;
 use strum_macros::Display;
