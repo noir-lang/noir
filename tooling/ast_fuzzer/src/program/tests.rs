@@ -542,6 +542,33 @@ fn test_generates_constrained_functions_other_than_main() {
 }
 
 #[test]
+fn test_avoid_no_predicates_generates_none() {
+    let config = Config { avoid_no_predicates: true, ..Config::default() };
+
+    // A deterministic byte source; the generator only needs entropy, not randomness.
+    let mut state = 0x2545_F491_4F6C_DD1Du64;
+    let mut data = vec![0u8; 1 << 20];
+    for byte in &mut data {
+        state ^= state << 13;
+        state ^= state >> 7;
+        state ^= state << 17;
+        *byte = state as u8;
+    }
+    let mut u = Unstructured::new(&data);
+
+    for _ in 0..32 {
+        let Ok(program) = crate::arb_program(&mut u, config.clone()) else { break };
+        for func in &program.functions {
+            assert!(
+                !matches!(func.inline_type, InlineType::NoPredicates),
+                "function {} is `#[no_predicates]` despite `avoid_no_predicates`",
+                func.name
+            );
+        }
+    }
+}
+
+#[test]
 fn test_types_produced_covers_the_builtin_conversions() {
     use super::types::{U8, types_produced};
 

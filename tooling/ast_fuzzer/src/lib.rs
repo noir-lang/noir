@@ -111,6 +111,16 @@ pub struct Config {
     /// handling at the boundary. It only means anything for a constrained function that is
     /// actually called, so it depends on [`Config::avoid_constrained_calls`] being off.
     pub avoid_fold: bool,
+    /// Avoid marking functions with `#[no_predicates]`.
+    ///
+    /// The attribute inlines the callee's body only after the flattening pass, so the body
+    /// runs unpredicated: a call sitting in an untaken branch really executes in ACIR while
+    /// in Brillig it does not. That is the attribute's documented behavior, but it means a
+    /// target that asserts two builds of the same program agree (ACIR vs Brillig, or two
+    /// predicate structures the morph is entitled to change) reports a false positive for
+    /// any program whose `#[no_predicates]` function is fallible or side-effecting. Such
+    /// targets set this flag; targets that compare a pass against its own input keep it off.
+    pub avoid_no_predicates: bool,
     /// Only use comptime friendly expressions.
     pub comptime_friendly: bool,
 }
@@ -185,6 +195,7 @@ impl Default for Config {
             avoid_vectors: false,
             avoid_constrained_calls: false,
             avoid_fold: false,
+            avoid_no_predicates: false,
             comptime_friendly: false,
         }
     }

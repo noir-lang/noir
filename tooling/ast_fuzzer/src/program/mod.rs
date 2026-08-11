@@ -349,7 +349,8 @@ impl Context {
                     if unconstrained {
                         !matches!(it, InlineType::Fold | InlineType::NoPredicates)
                     } else {
-                        *it != InlineType::Fold || can_be_folded
+                        (*it != InlineType::Fold || can_be_folded)
+                            && (*it != InlineType::NoPredicates || !self.config.avoid_no_predicates)
                     }
                 })
                 .collect::<Vec<_>>();
