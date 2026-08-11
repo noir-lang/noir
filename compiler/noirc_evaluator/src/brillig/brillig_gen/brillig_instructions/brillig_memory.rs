@@ -3,7 +3,7 @@ use std::sync::Arc;
 use acvm::acir::brillig::MemoryAddress;
 use acvm::acir::brillig::lengths::SemiFlattenedLength;
 use acvm::{AcirField, FieldElement};
-use im::Vector;
+use imbl::Vector;
 
 use crate::brillig::assert_u32;
 use crate::brillig::brillig_gen::brillig_block::BrilligBlock;

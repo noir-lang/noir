@@ -4,7 +4,7 @@ mod similarly_named_types;
 use std::{borrow::Cow, collections::BTreeSet, rc::Rc};
 
 use acvm::{AcirField, FieldElement};
-use im::HashSet;
+use imbl::HashSet;
 use iter_extended::vecmap;
 use itertools::Itertools;
 use noirc_errors::Location;

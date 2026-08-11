@@ -229,7 +229,7 @@ struct Context<'f> {
     /// reachable from the other along param→arg edges. This is what
     /// keeps path-merge over-approximation at join points out of the
     /// alias-set.
-    backward_aliases: HashMap<ValueId, im::HashSet<ValueId>>,
+    backward_aliases: HashMap<ValueId, imbl::HashSet<ValueId>>,
     /// For each array-typed value defined by an instruction, the
     /// `(block, instruction-position-within-block)` of the defining
     /// instruction. Used by the def-block-entry kill rule in
@@ -551,8 +551,8 @@ impl<'f> Context<'f> {
                 //   backward-set member — e.g. `jmp header(v, v)` feeds the
                 //   same `v` to both, so they're runtime-equal even though
                 //   the directed backward walk keeps them in separate sets.
-                let backward_set = |v: ValueId| -> im::HashSet<ValueId> {
-                    backward_aliases.get(&v).cloned().unwrap_or_else(|| im::HashSet::unit(v))
+                let backward_set = |v: ValueId| -> imbl::HashSet<ValueId> {
+                    backward_aliases.get(&v).cloned().unwrap_or_else(|| imbl::HashSet::unit(v))
                 };
                 let entry_aliased = edges
                     .iter()
@@ -684,12 +684,12 @@ impl<'f> Context<'f> {
         source: ValueId,
         array_set_block: BasicBlockId,
         array_set_idx: usize,
-    ) -> im::HashSet<ValueId> {
+    ) -> imbl::HashSet<ValueId> {
         let class = self
             .backward_aliases
             .get(&source)
             .cloned()
-            .unwrap_or_else(|| im::HashSet::unit(source));
+            .unwrap_or_else(|| imbl::HashSet::unit(source));
         class
             .into_iter()
             .filter(|&v| {
@@ -732,14 +732,14 @@ impl<'f> Context<'f> {
     /// after the `array_set`.
     fn unprotected_aliases(
         &self,
-        alias_set: &im::HashSet<ValueId>,
+        alias_set: &imbl::HashSet<ValueId>,
         source: ValueId,
         array_set_block: BasicBlockId,
         array_set_idx: usize,
-    ) -> im::HashSet<ValueId> {
+    ) -> imbl::HashSet<ValueId> {
         // Fast full-accept short-circuits cover the whole array_set at once.
         if self.some_inc_rc_precedes(alias_set, source, array_set_block, array_set_idx) {
-            return im::HashSet::new();
+            return imbl::HashSet::new();
         }
         // Otherwise compute per-member coverage and keep only uncovered members.
         let uncovered = self.compute_uncovered_values(source, array_set_block, array_set_idx);
@@ -775,7 +775,7 @@ impl<'f> Context<'f> {
     /// about a `dec_rc` intervening between the `inc_rc` and the `array_set`.
     fn some_inc_rc_precedes(
         &self,
-        alias_set: &im::HashSet<ValueId>,
+        alias_set: &imbl::HashSet<ValueId>,
         source: ValueId,
         array_set_block: BasicBlockId,
         array_set_idx: usize,
@@ -1155,7 +1155,7 @@ impl<'f> Context<'f> {
         idx: usize,
         mutator_id: InstructionId,
         write_index_const: Option<FieldElement>,
-        initial_derived: im::HashSet<ValueId>,
+        initial_derived: imbl::HashSet<ValueId>,
     ) -> Option<AliasedUse> {
         let alias_set = self.alias_set_for(source, block, idx);
 
@@ -1248,13 +1248,13 @@ impl<'f> Context<'f> {
     #[allow(clippy::too_many_arguments)]
     fn find_reachable_aliased_use(
         &self,
-        alias_set: &im::HashSet<ValueId>,
+        alias_set: &imbl::HashSet<ValueId>,
         source: ValueId,
         mutator_id: InstructionId,
         mutator_block: BasicBlockId,
         mutator_idx: usize,
         write_index_const: Option<FieldElement>,
-        initial_derived: im::HashSet<ValueId>,
+        initial_derived: imbl::HashSet<ValueId>,
     ) -> Option<AliasedUse> {
         let mut visited: HashMap<BasicBlockId, WalkState> = HashMap::default();
 
@@ -1294,7 +1294,7 @@ impl<'f> Context<'f> {
         // the loop-header parameter on the back-edge, since the value
         // threaded back is this protected participant rather than a
         // still-live alias.
-        let protected: im::HashSet<ValueId> = alias_set
+        let protected: imbl::HashSet<ValueId> = alias_set
             .iter()
             .copied()
             .filter(|&v| {
@@ -1303,13 +1303,13 @@ impl<'f> Context<'f> {
                     && self.back_edge_participants.contains(&v)
             })
             .collect();
-        let use_set: im::HashSet<ValueId> =
+        let use_set: imbl::HashSet<ValueId> =
             alias_set.iter().copied().filter(|v| !protected.contains(v)).collect();
 
         let initial_state = WalkState {
             use_set,
             derived: initial_derived,
-            tainted: write_index_const.map(im::HashSet::unit),
+            tainted: write_index_const.map(imbl::HashSet::unit),
         };
         let mut worklist: Vec<WalkFrame> = vec![WalkFrame {
             block: mutator_block,
@@ -1491,7 +1491,7 @@ impl<'f> Context<'f> {
         dest: BasicBlockId,
         arguments: &[ValueId],
         state: &WalkState,
-        protected: &im::HashSet<ValueId>,
+        protected: &imbl::HashSet<ValueId>,
     ) -> WalkState {
         WalkState {
             use_set: self.succ_use_set(dest, arguments, &state.use_set, protected),
@@ -1534,9 +1534,9 @@ impl<'f> Context<'f> {
         &self,
         dest: BasicBlockId,
         arguments: &[ValueId],
-        use_set: &im::HashSet<ValueId>,
-        protected: &im::HashSet<ValueId>,
-    ) -> im::HashSet<ValueId> {
+        use_set: &imbl::HashSet<ValueId>,
+        protected: &imbl::HashSet<ValueId>,
+    ) -> imbl::HashSet<ValueId> {
         let mut result = use_set.clone();
 
         // (1) Per-arg propagation for params of `dest`.
@@ -1617,14 +1617,14 @@ fn compute_backward_aliases(
     function: &Function,
     rpo: &[BasicBlockId],
     incoming_edges: &HashMap<BasicBlockId, Vec<(BasicBlockId, Vec<ValueId>)>>,
-) -> HashMap<ValueId, im::HashSet<ValueId>> {
-    let mut result: HashMap<ValueId, im::HashSet<ValueId>> = HashMap::default();
+) -> HashMap<ValueId, imbl::HashSet<ValueId>> {
+    let mut result: HashMap<ValueId, imbl::HashSet<ValueId>> = HashMap::default();
 
     // Seed each array-typed block parameter with `{p}`.
     for &block_id in rpo {
         for &param in function.dfg.block_parameters(block_id) {
             if function.dfg.type_of_value(param).contains_an_array() {
-                result.insert(param, im::HashSet::unit(param));
+                result.insert(param, imbl::HashSet::unit(param));
             }
         }
     }
@@ -1644,7 +1644,7 @@ fn compute_backward_aliases(
                 if !function.dfg.type_of_value(param).contains_an_array() {
                     continue;
                 }
-                let mut new_set = result.get(&param).cloned().unwrap_or_else(im::HashSet::new);
+                let mut new_set = result.get(&param).cloned().unwrap_or_else(imbl::HashSet::new);
                 let prev_len = new_set.len();
                 for (_pred, args) in incoming {
                     if let Some(&arg) = args.get(i) {
@@ -1714,16 +1714,16 @@ struct WalkState {
     /// `array_set`'s source storage *at the `array_set`'s program point*. A
     /// non-terminator read of one of these is the hazard the walk is
     /// looking for.
-    use_set: im::HashSet<ValueId>,
+    use_set: imbl::HashSet<ValueId>,
     /// Values that may share the source's storage through transitive
     /// in-place chain mutations. Seeded with the `array_set`'s own result;
     /// extended by every later `array_set` whose `array` operand is
     /// already in `derived`.
-    derived: im::HashSet<ValueId>,
+    derived: imbl::HashSet<ValueId>,
     /// Storage positions any chain link may already have written. `None`
     /// (= "all positions") absorbs a dynamic chain write — once we lose
     /// precise tracking we can't recover it.
-    tainted: Option<im::HashSet<FieldElement>>,
+    tainted: Option<imbl::HashSet<FieldElement>>,
 }
 
 impl WalkState {
