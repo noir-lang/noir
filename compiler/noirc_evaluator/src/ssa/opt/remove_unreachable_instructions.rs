@@ -143,7 +143,7 @@
 use std::sync::Arc;
 
 use acvm::{AcirField, FieldElement, acir::brillig::lengths::SemiFlattenedLength};
-use im::HashSet;
+use imbl::HashSet;
 use noirc_errors::call_stack::CallStackId;
 
 use crate::{
@@ -494,7 +494,7 @@ fn zeroed_value(
     match typ {
         Type::Numeric(numeric_type) => dfg.make_constant(FieldElement::zero(), *numeric_type),
         Type::Array(element_types, len) => {
-            let mut array = im::Vector::new();
+            let mut array = imbl::Vector::new();
             for _ in 0..len.0 {
                 for typ in element_types.iter() {
                     array.push_back(zeroed_value(dfg, func_id, block_id, typ));
@@ -590,7 +590,7 @@ fn zeroed_vector_of_size(
         panic!("Expected vector type");
     };
 
-    let mut array = im::Vector::new();
+    let mut array = imbl::Vector::new();
     for _ in 0..size {
         for elem_typ in element_type.iter() {
             array.push_back(zeroed_value(dfg, func_id, block_id, elem_typ));

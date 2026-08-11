@@ -18,7 +18,7 @@ use builtin_helpers::{
     new_unary_op, parse, quote_ident, type_shape, visibility_to_quoted,
 };
 use fm::FileMap;
-use im::Vector;
+use imbl::Vector;
 use iter_extended::{try_vecmap, vecmap};
 use itertools::Itertools;
 use noirc_errors::Location;

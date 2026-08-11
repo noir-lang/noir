@@ -186,7 +186,7 @@ pub(crate) fn check_arguments<const N: usize>(
 
 pub(crate) fn get_array(
     (value, location): (Value, Location),
-) -> IResult<(im::Vector<Value>, Type)> {
+) -> IResult<(imbl::Vector<Value>, Type)> {
     match value {
         Value::Array(values, typ) => Ok((values, typ)),
         value => {
@@ -239,7 +239,7 @@ pub(crate) fn get_bool((value, location): (Value, Location)) -> IResult<bool> {
 
 pub(crate) fn get_vector(
     (value, location): (Value, Location),
-) -> IResult<(im::Vector<Value>, Type)> {
+) -> IResult<(imbl::Vector<Value>, Type)> {
     match value {
         Value::Vector(values, typ) => Ok((values, typ)),
         value => {
@@ -986,7 +986,7 @@ mod tests {
 
     use siphasher::sip::SipHasher13;
 
-    use im::Vector;
+    use imbl::Vector;
     use noirc_errors::Location;
 
     use super::DeterministicHasher;

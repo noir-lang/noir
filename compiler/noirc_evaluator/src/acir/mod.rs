@@ -427,7 +427,7 @@ impl<'a> Context<'a> {
                 Ok(AcirValue::Var(make_var(self, *numeric_type)?, *numeric_type))
             }
             Type::Array(element_types, length) => {
-                let mut elements = im::Vector::new();
+                let mut elements = imbl::Vector::new();
 
                 for _ in 0..length.0 {
                     for element in element_types.iter() {

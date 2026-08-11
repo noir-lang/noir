@@ -247,7 +247,7 @@ impl Context<'_> {
             return Ok(());
         }
 
-        if self.handle_disabled_array_operation(instruction, dfg, array, store_value)? {
+        if self.handle_disabled_array_operation(instruction, dfg, array, index, store_value)? {
             return Ok(());
         }
 
@@ -288,17 +288,35 @@ impl Context<'_> {
     /// match its result type, which the surrounding predication masks to zero anyway) and a disabled
     /// write leaves the array unchanged.
     ///
+    /// Reads at a statically safe index are excluded: the predicate in scope is not necessarily
+    /// theirs, so their value is not a don't-care. See the comment on that check below.
+    ///
     /// # Returns
     /// `true` if the operation was resolved as disabled
-    /// `false` if the predicate is not statically false
+    /// `false` if the predicate is not statically false, or does not belong to this instruction
     fn handle_disabled_array_operation(
         &mut self,
         instruction: InstructionId,
         dfg: &DataFlowGraph,
         array: ValueId,
+        index: ValueId,
         store_value: Option<ValueId>,
     ) -> Result<bool, RuntimeError> {
         if !self.acir_context.is_constant_zero(&self.current_side_effects_enabled_var) {
+            return Ok(false);
+        }
+
+        // The side-effects predicate is only this instruction's own for the instructions
+        // [`crate::ssa::opt::remove_enable_side_effects`] fences, that is those reporting
+        // `Instruction::requires_acir_gen_predicate == true`. A read at a statically safe index
+        // reports `false`, so that pass is free to move an `EnableSideEffectsIf` past it and the
+        // predicate reaching here can belong to an unrelated region: zeroing such a read would
+        // discard a live value, along with every constraint written over it.
+        //
+        // Resolving it as disabled is also unnecessary. A safe index is in bounds by construction,
+        // so it never needs the predicate's fallback to a valid slot and the ordinary path emits
+        // exactly the read the program asked for.
+        if store_value.is_none() && dfg.is_safe_index(index, array) {
             return Ok(false);
         }
 
@@ -419,7 +437,7 @@ impl Context<'_> {
         &mut self,
         instruction: InstructionId,
         dfg: &DataFlowGraph,
-        array: im::Vector<AcirValue>,
+        array: imbl::Vector<AcirValue>,
         index: FieldElement,
         store_value: Option<AcirValue>,
     ) -> Result<bool, RuntimeError> {
@@ -610,7 +628,7 @@ impl Context<'_> {
                 Ok(AcirValue::Var(new_value, *typ))
             }
             (AcirValue::Array(values), AcirValue::Array(dummy_values)) => {
-                let mut elements = im::Vector::new();
+                let mut elements = imbl::Vector::new();
 
                 assert_eq!(
                     values.len(),
@@ -645,7 +663,7 @@ impl Context<'_> {
                 let values: Vec<_> = self
                     .read_dynamic_array(*block_id, *len, value_types)
                     .collect::<Result<_, _>>()?;
-                let mut elements = im::Vector::new();
+                let mut elements = imbl::Vector::new();
                 for (val, dummy_val) in values.iter().zip_eq(dummy_values) {
                     elements.push_back(self.convert_array_set_store_value(val, &dummy_val)?);
                 }
@@ -671,7 +689,7 @@ impl Context<'_> {
         match typ {
             Type::Numeric(_) => self.array_get_value(typ, call_data_block, offset),
             Type::Array(arc, len) => {
-                let mut result = im::Vector::new();
+                let mut result = imbl::Vector::new();
                 for _i in 0..len.0 {
                     for sub_type in arc.iter() {
                         let element = self.get_from_call_data(offset, call_data_block, sub_type)?;
@@ -782,7 +800,7 @@ impl Context<'_> {
                 Ok(AcirValue::Var(read, *numeric_type))
             }
             Type::Array(element_types, len) => {
-                let mut values = im::Vector::new();
+                let mut values = imbl::Vector::new();
                 for _ in 0..len.0 {
                     for typ in element_types.as_ref() {
                         values.push_back(self.array_get_value(typ, block_id, var_index)?);
@@ -808,7 +826,7 @@ impl Context<'_> {
                 Ok(AcirValue::Var(zero, numeric_type))
             }
             Type::Array(element_types, len) => {
-                let mut values = im::Vector::new();
+                let mut values = imbl::Vector::new();
                 for _ in 0..len.0 {
                     for typ in element_types.as_ref() {
                         values.push_back(self.array_zero_value(typ)?);
@@ -816,7 +834,7 @@ impl Context<'_> {
                 }
                 Ok(AcirValue::Array(values))
             }
-            Type::Vector(_) => Ok(AcirValue::Array(im::Vector::new())),
+            Type::Vector(_) => Ok(AcirValue::Array(imbl::Vector::new())),
             Type::Reference(reference_type, _) => self.array_zero_value(reference_type.as_ref()),
             Type::Function => {
                 unreachable!("ICE: unexpected Function type in array_zero_value")
@@ -1109,7 +1127,7 @@ impl Context<'_> {
         &mut self,
         array: AcirValue,
         array_typ: &Type,
-    ) -> Result<im::Vector<AcirValue>, RuntimeError> {
+    ) -> Result<imbl::Vector<AcirValue>, RuntimeError> {
         match array {
             AcirValue::Var(_, _) => unreachable!("ICE: attempting to read a non-array value"),
             //Array are already structured
@@ -1127,7 +1145,7 @@ impl Context<'_> {
                 assert_ne!(element_flat_size.0, 0, "ICE: array elements are empty");
                 let num_elements = len / ElementsFlattenedLength::from(element_flat_size);
 
-                let mut result = im::Vector::new();
+                let mut result = imbl::Vector::new();
                 let mut var_index = self.acir_context.add_constant(FieldElement::zero());
                 // Reconstruct each element with its proper structure
                 for _ in 0..num_elements.0 {
