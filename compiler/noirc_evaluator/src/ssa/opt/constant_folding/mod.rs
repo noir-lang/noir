@@ -3854,11 +3854,9 @@ mod test {
             assert_pass_does_not_affect_execution(ssa, vec![Value::bool(true)], |ssa| {
                 ssa.fold_constants(DEFAULT_MAX_ITER)
             });
-        assert!(execution_result.is_ok());
+        assert_eq!(execution_result, Ok(vec![Value::bool(true)]));
 
-        assert_normalized_ssa_equals(
-            ssa,
-            "
+        assert_ssa_snapshot!(ssa, @r"
         brillig(inline) fn main f0 {
           b0(v0: u1):
             v1 = allocate -> &mut u1
@@ -3867,8 +3865,7 @@ mod test {
             v3 = load v1 -> u1
             return v3
         }
-        ",
-        );
+        ");
     }
 
     /// Guard: the Brillig-caller relaxation must not leak to ACIR callers. The plain constant
