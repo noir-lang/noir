@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1786531579647,
+  "lastUpdate": 1786532608609,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23201,48 +23201,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "ccbf297d345bcc2d312fdfa3cdf3cd8ef0cc5edd",
-          "message": "fix: don't warn that a struct is never constructed if it's a field of… (#13403)\n\nCo-authored-by: Claude Fable 5 <noreply@anthropic.com>",
-          "timestamp": "2026-07-28T12:27:01Z",
-          "tree_id": "1ee68ed19647418f3739e64d8b98627a9846f15b",
-          "url": "https://github.com/noir-lang/noir/commit/ccbf297d345bcc2d312fdfa3cdf3cd8ef0cc5edd"
-        },
-        "date": 1785242835106,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 127029,
-            "range": "± 338",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 112827,
-            "range": "± 1397",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 3041538,
-            "range": "± 1110",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "49699333+dependabot[bot]@users.noreply.github.com",
             "name": "dependabot[bot]",
             "username": "dependabot[bot]"
@@ -25294,6 +25252,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2648591,
             "range": "± 1750",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49558828+AztecBot@users.noreply.github.com",
+            "name": "Aztec Bot",
+            "username": "AztecBot"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "c6b4e226fbd2641c481a60a43c58cf1ecf6726f4",
+          "message": "fix(acvm): enforce all-or-nothing scalar limbs in MultiScalarMul (#13512)",
+          "timestamp": "2026-08-12T10:41:44Z",
+          "tree_id": "c79405092421fbbe36f507fec0349b8653c81a8d",
+          "url": "https://github.com/noir-lang/noir/commit/c6b4e226fbd2641c481a60a43c58cf1ecf6726f4"
+        },
+        "date": 1786532524998,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 174213,
+            "range": "± 880",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 142319,
+            "range": "± 503",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2651776,
+            "range": "± 2412",
             "unit": "ns/iter"
           }
         ]
