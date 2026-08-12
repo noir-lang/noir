@@ -670,8 +670,10 @@ mod tests {
     use crate::{
         assert_ssa_snapshot,
         ssa::{
+            SsaBuilder, SsaEvaluatorOptions,
             interpreter::value::Value,
             opt::{assert_pass_does_not_affect_execution, assert_ssa_does_not_change},
+            primary_passes,
             ssa_gen::Ssa,
         },
     };
@@ -2017,6 +2019,185 @@ brillig(inline) fn main f0 {
         }
         ";
         assert_ssa_does_not_change(src, Ssa::mem2reg);
+    }
+
+    /// The AST fuzzer found this program with seed `0xbc347a7e00100000`. A dead array of
+    /// references keeps the allocation inside it ineligible for promotion, so `mem2reg` reaches
+    /// its fixed point with an `allocate`/`store` pair still live. Dead instruction elimination
+    /// then drops the array but deliberately keeps the store, and the surviving memory operation
+    /// reaches ACIR generation, which rejects it.
+    ///
+    /// The program is checked in rather than the seed because the fuzzer's generator evolves:
+    /// replaying a seed against a later generator produces a different program, so the seed stops
+    /// being a reproduction while the compiler bug it found is still there. This is that seed's
+    /// own output, reduced to the part which fails.
+    ///
+    /// It has no equivalent in Noir source. Keeping the reference-holding array alive this far
+    /// into the pipeline needs a dynamic index into a vector whose elements contain references,
+    /// which the frontend rejects and `verify_no_dynamic_indices_to_references` re-checks; with
+    /// constant indices the array is optimized away early and nothing fails.
+    #[test]
+    fn dead_reference_array_from_ast_fuzzer_does_not_reach_acir() {
+        let src = r#"
+        g2 = make_array [u1 1] : [u1]
+        g4 = make_array [u1 1] : [u1]
+        acir(inline) fn main f0 {
+          b0(v11: [u8; 4]):
+            v13 = allocate -> &mut u32
+            jmpif u1 1 then: b2(), else: b3()
+          b1(v14: u1):
+            return v14
+          b2():
+            v17 = make_array [Field 1, Field 1] : [Field; 2]
+            v21 = make_array b"WRD"
+            v25 = make_array b"VEA"
+            v28 = make_array b"EMN"
+            v29 = make_array [v21, v25, v28] : [[u8; 3]; 3]
+            v34 = make_array b"A"
+            v35 = allocate -> &mut [u8; 1]
+            store v34 at v35
+            v37 = make_array b"A"
+            v38 = allocate -> &mut [u8; 1]
+            store v37 at v38
+            v39 = make_array [v35, v38] : [&[u8; 1]; 2]
+            v40 = allocate -> &mut [&[u8; 1]; 2]
+            store v39 at v40
+            v42 = make_array [v17, v29, Field 1, Field 1, Field 1, v40, v17, v29, Field 1, Field 1, Field 1, v40] : [([Field; 2], [[u8; 3]; 3], Field, Field, Field, &[&[u8; 1]; 2])]
+            v44 = allocate -> &mut [([Field; 2], [[u8; 3]; 3], Field, Field, Field, &[&[u8; 1]; 2])]
+            store v42 at v44
+            v48 = load v44 -> [([Field; 2], [[u8; 3]; 3], Field, Field, Field, &[&[u8; 1]; 2])]
+            v51 = unchecked_mul u32 9, u32 6
+            v52 = array_get v48, index v51 -> [Field; 2]
+            v66 = array_get v52, index u32 1 -> Field
+            v67 = load v13 -> u32
+            v68 = call f1(v66, v67) -> [Field; 2]
+            v69 = array_get v68, index u32 1 -> Field
+            v73 = load v44 -> [([Field; 2], [[u8; 3]; 3], Field, Field, Field, &[&[u8; 1]; 2])]
+            v75 = unchecked_mul u32 9, u32 6
+            v76 = array_get v73, index v75 -> [Field; 2]
+            v87 = array_get v76, index u32 1 -> Field
+            v88 = load v13 -> u32
+            v89 = call f1(v87, v88) -> [Field; 2]
+            v90 = array_get v89, index u32 0 -> Field
+            v91 = eq v69, v90
+            v92 = not v91
+            jmpif v92 then: b4(), else: b5()
+          b3():
+            jmpif u1 0 then: b17(), else: b18()
+          b4():
+            jmp b6(i16 0)
+          b5():
+            jmp b15()
+          b6(v98: i16):
+            jmp b15()
+          b15():
+            v122 = array_get g2, index u32 9 -> u1
+            jmp b16(v122)
+          b16(v123: u1):
+            jmp b22(v123)
+          b17():
+            jmp b19(u1 0)
+          b18():
+            v128 = array_get g2, index u32 9 -> u1
+            jmp b20(v128)
+          b19(v124: u1):
+            jmp b21(v124)
+          b20(v125: u1):
+            jmp b21(v125)
+          b21(v129: u1):
+            jmp b22(v129)
+          b22(v130: u1):
+            jmp b1(v130)
+        }
+        brillig(inline_always) fn func_1_proxy f1 {
+          b0(v11: Field, v12: u32):
+            v13 = allocate -> &mut u32
+            store v12 at v13
+            v15 = call f2(v11, v13) -> [Field; 2]
+            return v15
+        }
+        brillig(inline_always) fn func_1 f2 {
+          b0(v11: Field, v12: &mut u32):
+            v23 = eq v11, Field 1
+            jmpif v23 then: b5(), else: b6()
+          b3(v81: [Field; 2]):
+            return v81
+          b4(v21: Field):
+            v44 = array_get g4, index u32 9 -> u1
+            v45 = not v44
+            jmpif v45 then: b14(), else: b15()
+          b5():
+            v25 = array_get g4, index u32 9 -> u1
+            v26 = cast v25 as Field
+            v28 = array_get g4, index u32 9 -> u1
+            v29 = cast v28 as Field
+            v30 = div v26, v29
+            v32 = div v30, Field 0
+            jmp b7(v32)
+          b6():
+            v35 = eq v11, Field 1
+            jmpif v35 then: b8(), else: b9()
+          b7(v33: Field):
+            jmp b13(v33)
+          b8():
+            jmp b10(v11)
+          b9():
+            jmp b11(v11)
+          b10(v36: Field):
+            jmp b12(v36)
+          b11(v37: Field):
+            jmp b12(v37)
+          b12(v38: Field):
+            jmp b13(v38)
+          b13(v39: Field):
+            jmp b4(v39)
+          b14():
+            v46 = call f2(v11, v12) -> [Field; 2]
+            v47 = array_get v46, index u32 0 -> Field
+            jmp b16(v47)
+          b15():
+            v48 = call f2(v11, v12) -> [Field; 2]
+            v49 = array_get v48, index u32 1 -> Field
+            jmp b16(v49)
+          b16(v50: Field):
+            v51 = call f2(v50, v12) -> [Field; 2]
+            v52 = array_get v51, index u32 0 -> Field
+            v53 = make_array [v21, v52] : [Field; 2]
+            v79 = allocate -> &mut [Field; 2]
+            store v53 at v79
+            v80 = load v79 -> [Field; 2]
+            jmp b3(v80)
+        }
+        "#;
+        let ssa = Ssa::from_str(src).unwrap();
+        let options = SsaEvaluatorOptions::default();
+        let builder = SsaBuilder::from_ssa(
+            ssa,
+            options.ssa_logging.clone(),
+            options.ssa_logging_hide_unchanged,
+            false,
+            None,
+        );
+        // A memory operation surviving into ACIR makes the pipeline's own post-check panic with
+        // "Load or Store instruction found"; the assertion below states the same invariant on the
+        // finished SSA.
+        let ssa =
+            builder.run_passes(&primary_passes(&options)).expect("passes should run").finish();
+
+        for function in ssa.functions.values().filter(|function| function.runtime().is_acir()) {
+            for block in function.reachable_blocks() {
+                for instruction_id in function.dfg[block].instructions() {
+                    assert!(
+                        !matches!(
+                            function.dfg[*instruction_id],
+                            super::Instruction::Load { .. } | super::Instruction::Store { .. }
+                        ),
+                        "a memory operation reached ACIR generation in {}",
+                        function.name()
+                    );
+                }
+            }
+        }
     }
 
     /// An array of references that is actually read from keeps the references inside it aliased,
