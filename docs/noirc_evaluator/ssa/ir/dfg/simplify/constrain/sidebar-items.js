@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["decompose_constrain"]};
+window.SIDEBAR_ITEMS = {"fn":["decompose_constrain"],"struct":["ConstrainQueue"]};
