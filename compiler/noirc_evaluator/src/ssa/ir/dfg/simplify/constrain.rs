@@ -419,6 +419,47 @@ mod tests {
     }
 
     #[test]
+    fn constraint_decomposition_over_shared_values() {
+        // `v2` and `v3` are both operands of `v4` and of `v5`, so each of them - and everything
+        // below them - is reachable from the constrained value `v6` along more than one route.
+        // The values being constrained form a DAG rather than a tree, and decomposition should
+        // emit one constraint per distinct value rather than one per route through the DAG.
+        let src = "
+            acir(inline) fn main f0 {
+              b0(v0: u1, v1: u1):
+                v2 = mul v0, v1
+                v3 = mul v1, v0
+                v4 = mul v2, v3
+                v5 = mul v3, v2
+                v6 = mul v4, v5
+                constrain v6 == u1 1
+                return
+            }
+            ";
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: u1, v1: u1):
+            v2 = unchecked_mul v0, v1
+            v3 = unchecked_mul v1, v0
+            v4 = unchecked_mul v2, v3
+            v5 = unchecked_mul v3, v2
+            v6 = unchecked_mul v4, v5
+            constrain v0 == u1 1
+            constrain v1 == u1 1
+            constrain v1 == u1 1
+            constrain v0 == u1 1
+            constrain v1 == u1 1
+            constrain v0 == u1 1
+            constrain v0 == u1 1
+            constrain v1 == u1 1
+            return
+        }
+        ");
+    }
+
+    #[test]
     fn decompose_not_condition() {
         let src_template = "
             acir(inline) fn main f0 {
