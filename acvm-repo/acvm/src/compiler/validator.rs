@@ -476,7 +476,7 @@ mod tests {
     use std::collections::BTreeMap;
 
     use acir::{
-        AcirField, FieldElement,
+        AcirField, BlackBoxFunc, FieldElement,
         circuit::{
             Circuit, Opcode, OpcodeLocation, PublicInputs,
             brillig::{BrilligFunctionId, BrilligInputs, BrilligOutputs},
@@ -546,6 +546,50 @@ mod tests {
             validate_witness(&backend, &witness_map, &circuit),
             0,
             "Keccakf1600 opcode violation: value 18446744073709551616 does not fit in 64 bits",
+        );
+    }
+
+    #[test]
+    fn test_multi_scalar_mul_mixed_scalar_limbs_rejected() {
+        // The `MultiScalarMul` opcode requires each scalar's `(lo, hi)` limbs to be
+        // uniformly witnesses or uniformly constants, just like each point's coordinates.
+        // A witness cannot satisfy a circuit whose declared input shape is invalid, so
+        // `validate_witness` must reject the circuit rather than compute an output for it.
+        let generator_y = FieldElement::try_from_str(
+            "17631683881184975370165255887551781615748388533673675138860",
+        )
+        .unwrap();
+
+        let circuit =
+            make_circuit(vec![Opcode::BlackBoxFuncCall(BlackBoxFuncCall::MultiScalarMul {
+                points: vec![
+                    FunctionInput::Witness(Witness(0)),
+                    FunctionInput::Witness(Witness(1)),
+                ],
+                scalars: vec![
+                    FunctionInput::Constant(FieldElement::one()),
+                    FunctionInput::Witness(Witness(2)),
+                ],
+                predicate: FunctionInput::Constant(FieldElement::one()),
+                outputs: (Witness(3), Witness(4)),
+            })]);
+
+        let witness_map = WitnessMap::from(BTreeMap::from_iter([
+            (Witness(0), FieldElement::one()),
+            (Witness(1), generator_y),
+            (Witness(2), FieldElement::zero()),
+            (Witness(3), FieldElement::one()),
+            (Witness(4), generator_y),
+        ]));
+
+        let result = validate_witness(&Bn254BlackBoxSolver, &witness_map, &circuit);
+        let Err(OpcodeResolutionError::BlackBoxFunctionFailed(func, message)) = result else {
+            panic!("expected a mixed constant/witness scalar pair to be rejected, got {result:?}");
+        };
+        assert_eq!(func, BlackBoxFunc::MultiScalarMul);
+        assert!(
+            message.contains("both witnesses or both constants"),
+            "unexpected failure message: {message}"
         );
     }
 
