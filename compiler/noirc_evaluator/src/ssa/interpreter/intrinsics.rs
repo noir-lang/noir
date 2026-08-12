@@ -12,7 +12,10 @@ use crate::ssa::ir::{
     value::ValueId,
 };
 
-use super::{ArrayValue, IResult, IResults, InternalError, Interpreter, InterpreterError, Value};
+use super::{
+    ArrayValue, IResult, IResults, InternalError, Interpreter, InterpreterError, Value,
+    value::StorageIdentity,
+};
 
 impl<W: Write> Interpreter<'_, W> {
     pub(super) fn call_intrinsic(
@@ -528,6 +531,10 @@ impl<W: Write> Interpreter<'_, W> {
         f: impl FnOnce(&mut Vec<Value>) -> IResult<R>,
     ) -> IResult<(R, Value)> {
         if self.vector_mutates_in_place(&vector) {
+            self.check_purity_on_mutation(
+                vector.elements.as_ptr() as StorageIdentity,
+                "a vector intrinsic writing through its input vector",
+            )?;
             let result = f(&mut vector.elements.borrow_mut())?;
             Ok((result, Value::ArrayOrVector(vector)))
         } else {
