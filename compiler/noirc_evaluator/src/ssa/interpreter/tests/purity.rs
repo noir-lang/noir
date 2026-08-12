@@ -9,8 +9,8 @@
 use std::sync::Arc;
 
 use crate::ssa::{
-    interpreter::{IResults, errors::InterpreterError},
-    ir::function::FunctionId,
+    interpreter::{IResults, errors::InterpreterError, intrinsics::check_intrinsic_mutation_label},
+    ir::{function::FunctionId, instruction::Intrinsic},
     opt::pure::{FunctionPurities, Purity},
 };
 
@@ -212,6 +212,35 @@ fn pure_function_may_mutate_local_memory() {
     "#;
     let result = interpret_with_injected_purities(src, &[(1, Purity::Pure)], Vec::new());
     assert!(result.is_ok(), "expected success, got {result:?}");
+}
+
+#[test]
+fn in_place_vector_mutation_requires_the_mutator_label() {
+    // Every intrinsic the interpreter mutates a vector through must declare itself in
+    // `Intrinsic::mutates_array_operand_in_brillig`: purity analysis classifies the
+    // containing function from that list, so an unlisted mutator would silently
+    // poison recorded purities. The six vector mutators pass; a non-mutator is
+    // rejected at the moment of mutation.
+    let mutators = [
+        Intrinsic::VectorPushBack,
+        Intrinsic::VectorPushFront,
+        Intrinsic::VectorPopBack,
+        Intrinsic::VectorPopFront,
+        Intrinsic::VectorInsert,
+        Intrinsic::VectorRemove,
+    ];
+    for intrinsic in mutators {
+        assert!(check_intrinsic_mutation_label(intrinsic).is_ok());
+    }
+
+    let result = check_intrinsic_mutation_label(Intrinsic::ArrayLen);
+    assert!(
+        matches!(
+            result,
+            Err(InterpreterError::IntrinsicPurityViolation { intrinsic: Intrinsic::ArrayLen })
+        ),
+        "expected an intrinsic purity violation, got {result:?}"
+    );
 }
 
 #[test]

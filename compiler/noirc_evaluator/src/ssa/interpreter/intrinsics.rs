@@ -525,12 +525,17 @@ impl<W: Write> Interpreter<'_, W> {
     /// When mutating in place the returned vector shares its backing store with `vector`, so any
     /// other handle to the same vector observes the mutation as well — exactly as in Brillig when
     /// the reference count is 1 and the ownership pass did not insert a protecting `inc_rc`.
+    ///
+    /// `intrinsic` is the operation on whose behalf the mutation happens; it must declare
+    /// itself a mutator (see [check_intrinsic_mutation_label]).
     fn update_vector_elements<R>(
         &self,
+        intrinsic: Intrinsic,
         vector: ArrayValue,
         f: impl FnOnce(&mut Vec<Value>) -> IResult<R>,
     ) -> IResult<(R, Value)> {
         if self.vector_mutates_in_place(&vector) {
+            check_intrinsic_mutation_label(intrinsic)?;
             self.check_purity_on_mutation(
                 vector.elements.as_ptr() as StorageIdentity,
                 "a vector intrinsic writing through its input vector",
@@ -552,23 +557,24 @@ impl<W: Write> Interpreter<'_, W> {
 
         let new_values = try_vecmap(args.iter().skip(2), |arg| self.lookup(*arg))?;
 
-        let (_, new_vector) = self.update_vector_elements(vector, |elements| {
-            // The vector might contain more elements than its length.
-            // We need to either insert before the extras, overwrite, or remove them.
-            // We could remove any extras and then append:
-            //  elements.truncate(width * length as usize);
-            // But the way some SSA passes work is that they assume we *always* grow the vector capacity,
-            // so instead of truncating, we append as well as overwrite.
-            let end_index = width * (length as usize);
-            let push_only = end_index == elements.len();
-            for (i, value) in new_values.into_iter().enumerate() {
-                if !push_only {
-                    elements[end_index + i] = value.clone();
+        let (_, new_vector) =
+            self.update_vector_elements(Intrinsic::VectorPushBack, vector, |elements| {
+                // The vector might contain more elements than its length.
+                // We need to either insert before the extras, overwrite, or remove them.
+                // We could remove any extras and then append:
+                //  elements.truncate(width * length as usize);
+                // But the way some SSA passes work is that they assume we *always* grow the vector capacity,
+                // so instead of truncating, we append as well as overwrite.
+                let end_index = width * (length as usize);
+                let push_only = end_index == elements.len();
+                for (i, value) in new_values.into_iter().enumerate() {
+                    if !push_only {
+                        elements[end_index + i] = value.clone();
+                    }
+                    elements.push(value);
                 }
-                elements.push(value);
-            }
-            Ok(())
-        })?;
+                Ok(())
+            })?;
 
         let new_length = Value::u32(length + 1);
         Ok(vec![new_length, new_vector])
@@ -581,12 +587,13 @@ impl<W: Write> Interpreter<'_, W> {
 
         let new_values = try_vecmap(args.iter().skip(2), |arg| self.lookup(*arg))?;
 
-        let (_, new_vector) = self.update_vector_elements(vector, |elements| {
-            let mut prefixed = new_values;
-            prefixed.append(elements);
-            *elements = prefixed;
-            Ok(())
-        })?;
+        let (_, new_vector) =
+            self.update_vector_elements(Intrinsic::VectorPushFront, vector, |elements| {
+                let mut prefixed = new_values;
+                prefixed.append(elements);
+                *elements = prefixed;
+                Ok(())
+            })?;
 
         let new_length = Value::u32(length + 1);
         Ok(vec![new_length, new_vector])
@@ -612,11 +619,12 @@ impl<W: Write> Interpreter<'_, W> {
         let width = vector.element_types.len();
         let last_index = width * (length as usize - 1);
 
-        let (popped_elements, new_vector) = self.update_vector_elements(vector, |elements| {
-            let popped = elements[last_index..last_index + width].to_vec();
-            elements.truncate(elements.len() - width);
-            Ok(popped)
-        })?;
+        let (popped_elements, new_vector) =
+            self.update_vector_elements(Intrinsic::VectorPopBack, vector, |elements| {
+                let popped = elements[last_index..last_index + width].to_vec();
+                elements.truncate(elements.len() - width);
+                Ok(popped)
+            })?;
 
         let new_length = Value::u32(length - 1);
         let mut results = vec![new_length, new_vector];
@@ -637,9 +645,10 @@ impl<W: Write> Interpreter<'_, W> {
 
         let width = vector.element_types.len();
 
-        let (mut results, new_vector) = self.update_vector_elements(vector, |elements| {
-            Ok(elements.drain(0..width).collect::<Vec<_>>())
-        })?;
+        let (mut results, new_vector) =
+            self.update_vector_elements(Intrinsic::VectorPopFront, vector, |elements| {
+                Ok(elements.drain(0..width).collect::<Vec<_>>())
+            })?;
 
         let new_length = Value::u32(length - 1);
         results.push(new_length);
@@ -656,13 +665,14 @@ impl<W: Write> Interpreter<'_, W> {
 
         let new_values = try_vecmap(args.iter().skip(3), |arg| self.lookup(*arg))?;
 
-        let (_, new_vector) = self.update_vector_elements(vector, |elements| {
-            let start = index as usize * width;
-            for (offset, value) in new_values.into_iter().enumerate() {
-                elements.insert(start + offset, value);
-            }
-            Ok(())
-        })?;
+        let (_, new_vector) =
+            self.update_vector_elements(Intrinsic::VectorInsert, vector, |elements| {
+                let start = index as usize * width;
+                for (offset, value) in new_values.into_iter().enumerate() {
+                    elements.insert(start + offset, value);
+                }
+                Ok(())
+            })?;
 
         let new_length = Value::u32(length + 1);
         Ok(vec![new_length, new_vector])
@@ -683,9 +693,10 @@ impl<W: Write> Interpreter<'_, W> {
         let width = vector.element_types.len();
         let index = index as usize * width;
 
-        let (removed, new_vector) = self.update_vector_elements(vector, |elements| {
-            Ok(elements.drain(index..index + width).collect::<Vec<_>>())
-        })?;
+        let (removed, new_vector) =
+            self.update_vector_elements(Intrinsic::VectorRemove, vector, |elements| {
+                Ok(elements.drain(index..index + width).collect::<Vec<_>>())
+            })?;
 
         let new_length = Value::u32(length - 1);
         let mut results = vec![new_length, new_vector];
@@ -774,6 +785,21 @@ impl<W: Write> Interpreter<'_, W> {
         }
 
         Ok(Vec::new())
+    }
+}
+
+/// Checks that an intrinsic about to write through its input vector's backing store
+/// declares itself a mutator via [Intrinsic::mutates_array_operand_in_brillig].
+///
+/// Purity analysis uses that list to classify functions containing intrinsic calls,
+/// so an intrinsic that mutates without being listed silently poisons the recorded
+/// purity of every function it appears in. Checking at the moment of mutation keeps
+/// the list and the interpreter's (Brillig-mirroring) behavior from drifting apart.
+pub(super) fn check_intrinsic_mutation_label(intrinsic: Intrinsic) -> IResult<()> {
+    if intrinsic.mutates_array_operand_in_brillig() {
+        Ok(())
+    } else {
+        Err(InterpreterError::IntrinsicPurityViolation { intrinsic })
     }
 }
 

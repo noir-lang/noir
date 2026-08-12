@@ -81,6 +81,14 @@ pub enum InterpreterError {
         "purity violation: function {function} ({function_name}) is recorded as {purity} but {reason}"
     )]
     PurityViolation { function: FunctionId, function_name: String, purity: String, reason: String },
+    /// An intrinsic mutated its vector operand in place without being listed in
+    /// [Intrinsic::mutates_array_operand_in_brillig]. Purity analysis relies on that
+    /// list to classify callers, so an unlisted mutator silently poisons every
+    /// containing function's recorded purity.
+    #[error(
+        "purity violation: intrinsic {intrinsic} mutated its vector operand in place but is not marked as a vector mutator"
+    )]
+    IntrinsicPurityViolation { intrinsic: Intrinsic },
 }
 
 impl InterpreterError {
