@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1786470185929,
+  "lastUpdate": 1786530412880,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23196,48 +23196,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "49558828+AztecBot@users.noreply.github.com",
-            "name": "Aztec Bot",
-            "username": "AztecBot"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "a2c04be83dedf2e5627afca8cc4db53604af0d1b",
-          "message": "fix(ssa): recognize negated predicates proved by a source-zero constraint in flatten_post_check (#13417)",
-          "timestamp": "2026-07-28T12:04:01Z",
-          "tree_id": "48777c44d7f4cdf167a00ae3ee2c889f5e259094",
-          "url": "https://github.com/noir-lang/noir/commit/a2c04be83dedf2e5627afca8cc4db53604af0d1b"
-        },
-        "date": 1785241461916,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 173228,
-            "range": "± 962",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 141066,
-            "range": "± 167",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2647358,
-            "range": "± 13742",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -25289,6 +25247,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2652097,
             "range": "± 1943",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "44aab2db1561d8cbd31a54bd39c3d7c4bcd5925e",
+          "message": "fix(ssa): mark Brillig functions calling a vector mutator on an array input as impure (#13479)\n\nCo-authored-by: Claude Fable 5 <noreply@anthropic.com>\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
+          "timestamp": "2026-08-12T10:05:17Z",
+          "tree_id": "a8386ab2a65e76c5ac2fdaa2cba704daaef64a7a",
+          "url": "https://github.com/noir-lang/noir/commit/44aab2db1561d8cbd31a54bd39c3d7c4bcd5925e"
+        },
+        "date": 1786530330768,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 174093,
+            "range": "± 932",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 142685,
+            "range": "± 760",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2648591,
+            "range": "± 1750",
             "unit": "ns/iter"
           }
         ]
