@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["prepare_and_compile_snippet","prepare_snippet"],"struct":["CompareComptime"]};
+window.SIDEBAR_ITEMS = {"constant":["COMPTIME_STDLIB_SHIM"],"fn":["comptime_source","prepare_and_compile_snippet","prepare_snippet"],"struct":["CompareComptime"]};
