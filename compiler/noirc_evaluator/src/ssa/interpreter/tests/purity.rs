@@ -215,6 +215,33 @@ fn pure_function_may_mutate_local_memory() {
 }
 
 #[test]
+fn acir_in_place_array_set_on_a_parameter_is_not_a_purity_violation() {
+    // In a constrained context arrays have value semantics: the Mutable Array Set
+    // Optimizations pass marks an `array_set` mutable when the old array value is
+    // dead, so the in-place write only reuses that value's backing store. It is not
+    // a caller-visible mutation, and the function legitimately stays
+    // `predicate_pure` under the real analysis.
+    let src = r#"
+        acir(inline) fn main f0 {
+          b0():
+            v3 = make_array [Field 1, Field 2] : [Field; 2]
+            v5 = call f1(v3) -> Field
+            constrain v5 == Field 5
+            return
+        }
+        acir(inline) fn set_first f1 {
+          b0(v0: [Field; 2]):
+            v4 = array_set mut v0, index u32 0, value Field 5
+            v6 = array_get v4, index u32 0 -> Field
+            return v6
+        }
+    "#;
+    let ssa = Ssa::from_str(src).unwrap().purity_analysis();
+    let result = ssa.interpret(Vec::new());
+    assert!(result.is_ok(), "expected success, got {result:?}");
+}
+
+#[test]
 fn in_place_vector_mutation_requires_the_mutator_label() {
     // Every intrinsic the interpreter mutates a vector through must declare itself in
     // `Intrinsic::mutates_array_operand_in_brillig`: purity analysis classifies the

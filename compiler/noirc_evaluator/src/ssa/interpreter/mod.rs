@@ -515,6 +515,11 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
     /// observable by that call's caller, which both [Purity::Pure] and
     /// [Purity::PureWithPredicate] forbid. Storage allocated during the call is not
     /// in any scope's set, so local mutations pass freely.
+    ///
+    /// Callers only invoke this for writes that are genuinely observable under the
+    /// current runtime's semantics: constrained-context `array_set`s marked mutable
+    /// are exempt, since they merely reuse the backing store of an array value
+    /// proven dead, under ACIR's value semantics.
     fn check_purity_on_mutation(&self, storage: StorageIdentity, what: &str) -> IResult<()> {
         for context in self.call_stack.iter().rev() {
             let Some(scope) = &context.pure_scope else { continue };
@@ -1294,10 +1299,18 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
             }
 
             if should_mutate {
-                self.check_purity_on_mutation(
-                    array.elements.as_ptr() as StorageIdentity,
-                    "an in-place array_set",
-                )?;
+                // In a constrained context arrays have value semantics: an in-place write
+                // here only reuses the backing store of an array value that the Mutable
+                // Array Set Optimizations pass proved dead, so it is not a caller-visible
+                // mutation and purity analysis rightly ignores it. Only in Brillig, where
+                // the reference count governs genuine sharing, is writing through
+                // argument-reachable storage observable by the caller.
+                if self.in_unconstrained_context() {
+                    self.check_purity_on_mutation(
+                        array.elements.as_ptr() as StorageIdentity,
+                        "an in-place array_set",
+                    )?;
+                }
                 array.elements.borrow_mut()[index as usize] = value;
                 Value::ArrayOrVector(array)
             } else {
