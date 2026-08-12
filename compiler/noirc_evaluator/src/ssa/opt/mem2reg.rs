@@ -572,8 +572,10 @@ fn collect_eligible_variables_and_def_sites(
 ///
 /// Like [`Ssa::dead_instruction_elimination`], blocks are visited in post order and their
 /// instructions in reverse, so a whole chain of nested dead arrays is removed in one traversal:
-/// a value is only referenced after the instruction defining it, so every use of a result has
-/// been seen by the time its defining instruction is reached.
+/// every use of a result has been seen by the time its defining instruction is reached. Back
+/// edges do not disturb this. A use is always dominated by its definition, and the post-order is
+/// the reverse of a topological order of the CFG with back edges removed, so a block is always
+/// visited before any block dominating it.
 fn remove_unused_make_arrays(function: &mut Function, blocks: &[BasicBlockId]) {
     // Databus arrays are roots alongside the instructions and terminators: they are named by the
     // function's ABI rather than by anything in the instruction stream.
@@ -668,6 +670,7 @@ mod tests {
     use crate::{
         assert_ssa_snapshot,
         ssa::{
+            interpreter::value::Value,
             opt::{assert_pass_does_not_affect_execution, assert_ssa_does_not_change},
             ssa_gen::Ssa,
         },
@@ -1915,6 +1918,105 @@ brillig(inline) fn main f0 {
             return
         }
         ");
+    }
+
+    /// A back edge orders the block defining an array after the block using it in the CFG's
+    /// depth-first walk, so the sweep must still see the use first. The array here is defined in
+    /// the loop preheader and only used from inside the loop body.
+    #[test]
+    fn dead_reference_array_defined_before_loop_is_removed() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: u1):
+            v1 = allocate -> &mut Field
+            store Field 1 at v1
+            v3 = make_array [v1] : [&mut Field; 1]
+            jmp b1()
+          b1():
+            jmpif v0 then: b2(), else: b3()
+          b2():
+            v4 = allocate -> &mut [&mut Field; 1]
+            store v3 at v4
+            jmp b1()
+          b3():
+            return
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let (ssa, _) =
+            assert_pass_does_not_affect_execution(ssa, vec![Value::bool(false)], Ssa::mem2reg);
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) fn main f0 {
+          b0(v0: u1):
+            jmp b1()
+          b1():
+            jmpif v0 then: b2(), else: b3()
+          b2():
+            jmp b1()
+          b3():
+            return
+        }
+        ");
+    }
+
+    /// A dead reference array built inside a loop body is removed like any other, letting the
+    /// reference it holds be promoted on the following iteration of the pass.
+    #[test]
+    fn dead_reference_array_inside_loop_body_is_removed() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: u1):
+            jmp b1()
+          b1():
+            jmpif v0 then: b2(), else: b3()
+          b2():
+            v1 = allocate -> &mut Field
+            store Field 1 at v1
+            v3 = make_array [v1] : [&mut Field; 1]
+            v4 = allocate -> &mut [&mut Field; 1]
+            store v3 at v4
+            jmp b1()
+          b3():
+            return
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let (ssa, _) =
+            assert_pass_does_not_affect_execution(ssa, vec![Value::bool(false)], Ssa::mem2reg);
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) fn main f0 {
+          b0(v0: u1):
+            jmp b1()
+          b1():
+            jmpif v0 then: b2(), else: b3()
+          b2():
+            jmp b1()
+          b3():
+            return
+        }
+        ");
+    }
+
+    /// An array carried around a loop as a block argument is used by the terminators on both the
+    /// entry and back edges, so it is live and the reference inside it stays ineligible.
+    #[test]
+    fn reference_array_carried_across_back_edge_is_kept() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: u1):
+            v1 = allocate -> &mut Field
+            store Field 1 at v1
+            v3 = make_array [v1] : [&mut Field; 1]
+            jmp b1(v3)
+          b1(v4: [&mut Field; 1]):
+            jmpif v0 then: b2(), else: b3()
+          b2():
+            jmp b1(v4)
+          b3():
+            return
+        }
+        ";
+        assert_ssa_does_not_change(src, Ssa::mem2reg);
     }
 
     /// An array of references that is actually read from keeps the references inside it aliased,
