@@ -121,12 +121,19 @@
 <a href=#121 id=121 data-nosnippet>121</a>        }
 <a href=#122 id=122 data-nosnippet>122</a>    }
 <a href=#123 id=123 data-nosnippet>123</a>
-<a href=#124 id=124 data-nosnippet>124</a>    <span class="doccomment">/// Returns true if all [`ValueId`]s are mapped to a [`ValueId`] of the same type.
-<a href=#125 id=125 data-nosnippet>125</a>    ///
-<a href=#126 id=126 data-nosnippet>126</a>    /// Mapping a [`ValueId`] to one of a different type implies a compilation error.
-<a href=#127 id=127 data-nosnippet>127</a>    </span><span class="attr">#[must_use]
-<a href=#128 id=128 data-nosnippet>128</a>    #[cfg(debug_assertions)]
-<a href=#129 id=129 data-nosnippet>129</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>value_types_are_consistent(<span class="kw-2">&amp;</span><span class="self">self</span>, dfg: <span class="kw-2">&amp;</span><span class="kw">super</span>::dfg::DataFlowGraph) -&gt; bool {
-<a href=#130 id=130 data-nosnippet>130</a>        <span class="self">self</span>.map.iter().all(|(from, to)| dfg.type_of_value(<span class="kw-2">*</span>from) == dfg.type_of_value(<span class="kw-2">*</span>to))
-<a href=#131 id=131 data-nosnippet>131</a>    }
-<a href=#132 id=132 data-nosnippet>132</a>}</code></pre></div></section></main></body></html>
+<a href=#124 id=124 data-nosnippet>124</a>    <span class="doccomment">/// Returns true if every replacement value may be used wherever the value it replaces
+<a href=#125 id=125 data-nosnippet>125</a>    /// was expected.
+<a href=#126 id=126 data-nosnippet>126</a>    ///
+<a href=#127 id=127 data-nosnippet>127</a>    /// This is the directional [`Type::can_be_used_as`] rather than type equality, because a
+<a href=#128 id=128 data-nosnippet>128</a>    /// borrow is always allocated as `&amp;mut T` even when the borrow is declared `&amp;T` (see the
+<a href=#129 id=129 data-nosnippet>129</a>    /// `UnaryOp::Reference` arm of `codegen_unary`). A `&amp;T`-typed read of such a cell can
+<a href=#130 id=130 data-nosnippet>130</a>    /// therefore be replaced by the `&amp;mut T` cell itself, which is a weakening and sound;
+<a href=#131 id=131 data-nosnippet>131</a>    /// the reverse would hand a mutable view to code that only proved an immutable one.
+<a href=#132 id=132 data-nosnippet>132</a>    </span><span class="attr">#[must_use]
+<a href=#133 id=133 data-nosnippet>133</a>    #[cfg(debug_assertions)]
+<a href=#134 id=134 data-nosnippet>134</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>value_types_are_consistent(<span class="kw-2">&amp;</span><span class="self">self</span>, dfg: <span class="kw-2">&amp;</span><span class="kw">super</span>::dfg::DataFlowGraph) -&gt; bool {
+<a href=#135 id=135 data-nosnippet>135</a>        <span class="self">self</span>.map
+<a href=#136 id=136 data-nosnippet>136</a>            .iter()
+<a href=#137 id=137 data-nosnippet>137</a>            .all(|(from, to)| dfg.type_of_value(<span class="kw-2">*</span>to).can_be_used_as(<span class="kw-2">&amp;</span>dfg.type_of_value(<span class="kw-2">*</span>from)))
+<a href=#138 id=138 data-nosnippet>138</a>    }
+<a href=#139 id=139 data-nosnippet>139</a>}</code></pre></div></section></main></body></html>

@@ -3831,25 +3831,62 @@
 <a href=#3831 id=3831 data-nosnippet>3831</a>            });
 <a href=#3832 id=3832 data-nosnippet>3832</a>    }
 <a href=#3833 id=3833 data-nosnippet>3833</a>
-<a href=#3834 id=3834 data-nosnippet>3834</a>    <span class="doccomment">/// Guard: the Brillig-caller relaxation must not leak to ACIR callers. The plain constant
-<a href=#3835 id=3835 data-nosnippet>3835</a>    /// folding pass must not deduplicate an ACIR caller's repeated calls to a pure Brillig
-<a href=#3836 id=3836 data-nosnippet>3836</a>    /// function, since that would drop the predicate sensitivity of the call opcode.
-<a href=#3837 id=3837 data-nosnippet>3837</a>    </span><span class="attr">#[test]
-<a href=#3838 id=3838 data-nosnippet>3838</a>    </span><span class="kw">fn </span>acir_caller_does_not_deduplicate_pure_brillig_call_without_constraint_info() {
-<a href=#3839 id=3839 data-nosnippet>3839</a>        <span class="kw">let </span>src = <span class="string">"
-<a href=#3840 id=3840 data-nosnippet>3840</a>        acir(inline) predicate_pure fn main f0 {
-<a href=#3841 id=3841 data-nosnippet>3841</a>          b0(v1: Field):
-<a href=#3842 id=3842 data-nosnippet>3842</a>            v2 = call f1(v1) -&gt; Field
-<a href=#3843 id=3843 data-nosnippet>3843</a>            v4 = call f1(v1) -&gt; Field
-<a href=#3844 id=3844 data-nosnippet>3844</a>            v5 = add v2, v4
-<a href=#3845 id=3845 data-nosnippet>3845</a>            return v5
-<a href=#3846 id=3846 data-nosnippet>3846</a>        }
-<a href=#3847 id=3847 data-nosnippet>3847</a>        brillig(inline) pure fn pure_callee f1 {
-<a href=#3848 id=3848 data-nosnippet>3848</a>          b0(v0: Field):
-<a href=#3849 id=3849 data-nosnippet>3849</a>            v1 = add v0, Field 1
-<a href=#3850 id=3850 data-nosnippet>3850</a>            return v1
-<a href=#3851 id=3851 data-nosnippet>3851</a>        }
-<a href=#3852 id=3852 data-nosnippet>3852</a>        "</span>;
-<a href=#3853 id=3853 data-nosnippet>3853</a>        assert_ssa_does_not_change(src, |ssa| ssa.fold_constants(MIN_ITER));
-<a href=#3854 id=3854 data-nosnippet>3854</a>    }
-<a href=#3855 id=3855 data-nosnippet>3855</a>}</code></pre></div></section></main></body></html>
+<a href=#3834 id=3834 data-nosnippet>3834</a>    <span class="doccomment">/// A borrow is always allocated as `&amp;mut T` even when the source declares `&amp;T`, so an
+<a href=#3835 id=3835 data-nosnippet>3835</a>    /// array of immutable references holds `&amp;mut`-typed elements while the array type says
+<a href=#3836 id=3836 data-nosnippet>3836</a>    /// `&amp;`. Folding `array_get` on such a `make_array` maps the `&amp;u1`-typed result onto the
+<a href=#3837 id=3837 data-nosnippet>3837</a>    /// `&amp;mut u1` cell; the post-check has to accept that weakening or constant folding panics
+<a href=#3838 id=3838 data-nosnippet>3838</a>    /// on any program that reads an immutable-reference array element.
+<a href=#3839 id=3839 data-nosnippet>3839</a>    </span><span class="attr">#[test]
+<a href=#3840 id=3840 data-nosnippet>3840</a>    </span><span class="kw">fn </span>folds_array_get_of_immutable_reference_array_element() {
+<a href=#3841 id=3841 data-nosnippet>3841</a>        <span class="kw">let </span>src = <span class="string">"
+<a href=#3842 id=3842 data-nosnippet>3842</a>        brillig(inline) fn main f0 {
+<a href=#3843 id=3843 data-nosnippet>3843</a>          b0(v0: u1):
+<a href=#3844 id=3844 data-nosnippet>3844</a>            v1 = allocate -&gt; &amp;mut u1
+<a href=#3845 id=3845 data-nosnippet>3845</a>            store v0 at v1
+<a href=#3846 id=3846 data-nosnippet>3846</a>            v2 = make_array [v1, v1] : [&amp;u1; 2]
+<a href=#3847 id=3847 data-nosnippet>3847</a>            v3 = array_get v2, index u32 0 -&gt; &amp;u1
+<a href=#3848 id=3848 data-nosnippet>3848</a>            v4 = load v3 -&gt; u1
+<a href=#3849 id=3849 data-nosnippet>3849</a>            return v4
+<a href=#3850 id=3850 data-nosnippet>3850</a>        }
+<a href=#3851 id=3851 data-nosnippet>3851</a>        "</span>;
+<a href=#3852 id=3852 data-nosnippet>3852</a>        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
+<a href=#3853 id=3853 data-nosnippet>3853</a>        <span class="kw">let </span>(ssa, execution_result) =
+<a href=#3854 id=3854 data-nosnippet>3854</a>            assert_pass_does_not_affect_execution(ssa, <span class="macro">vec!</span>[Value::bool(<span class="bool-val">true</span>)], |ssa| {
+<a href=#3855 id=3855 data-nosnippet>3855</a>                ssa.fold_constants(DEFAULT_MAX_ITER)
+<a href=#3856 id=3856 data-nosnippet>3856</a>            });
+<a href=#3857 id=3857 data-nosnippet>3857</a>        <span class="macro">assert_eq!</span>(execution_result, <span class="prelude-val">Ok</span>(<span class="macro">vec!</span>[Value::bool(<span class="bool-val">true</span>)]));
+<a href=#3858 id=3858 data-nosnippet>3858</a>
+<a href=#3859 id=3859 data-nosnippet>3859</a>        <span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
+<a href=#3860 id=3860 data-nosnippet>3860</a>        brillig(inline) fn main f0 {
+<a href=#3861 id=3861 data-nosnippet>3861</a>          b0(v0: u1):
+<a href=#3862 id=3862 data-nosnippet>3862</a>            v1 = allocate -&gt; &amp;mut u1
+<a href=#3863 id=3863 data-nosnippet>3863</a>            store v0 at v1
+<a href=#3864 id=3864 data-nosnippet>3864</a>            v2 = make_array [v1, v1] : [&amp;u1; 2]
+<a href=#3865 id=3865 data-nosnippet>3865</a>            v3 = load v1 -&gt; u1
+<a href=#3866 id=3866 data-nosnippet>3866</a>            return v3
+<a href=#3867 id=3867 data-nosnippet>3867</a>        }
+<a href=#3868 id=3868 data-nosnippet>3868</a>        "</span>);
+<a href=#3869 id=3869 data-nosnippet>3869</a>    }
+<a href=#3870 id=3870 data-nosnippet>3870</a>
+<a href=#3871 id=3871 data-nosnippet>3871</a>    <span class="doccomment">/// Guard: the Brillig-caller relaxation must not leak to ACIR callers. The plain constant
+<a href=#3872 id=3872 data-nosnippet>3872</a>    /// folding pass must not deduplicate an ACIR caller's repeated calls to a pure Brillig
+<a href=#3873 id=3873 data-nosnippet>3873</a>    /// function, since that would drop the predicate sensitivity of the call opcode.
+<a href=#3874 id=3874 data-nosnippet>3874</a>    </span><span class="attr">#[test]
+<a href=#3875 id=3875 data-nosnippet>3875</a>    </span><span class="kw">fn </span>acir_caller_does_not_deduplicate_pure_brillig_call_without_constraint_info() {
+<a href=#3876 id=3876 data-nosnippet>3876</a>        <span class="kw">let </span>src = <span class="string">"
+<a href=#3877 id=3877 data-nosnippet>3877</a>        acir(inline) predicate_pure fn main f0 {
+<a href=#3878 id=3878 data-nosnippet>3878</a>          b0(v1: Field):
+<a href=#3879 id=3879 data-nosnippet>3879</a>            v2 = call f1(v1) -&gt; Field
+<a href=#3880 id=3880 data-nosnippet>3880</a>            v4 = call f1(v1) -&gt; Field
+<a href=#3881 id=3881 data-nosnippet>3881</a>            v5 = add v2, v4
+<a href=#3882 id=3882 data-nosnippet>3882</a>            return v5
+<a href=#3883 id=3883 data-nosnippet>3883</a>        }
+<a href=#3884 id=3884 data-nosnippet>3884</a>        brillig(inline) pure fn pure_callee f1 {
+<a href=#3885 id=3885 data-nosnippet>3885</a>          b0(v0: Field):
+<a href=#3886 id=3886 data-nosnippet>3886</a>            v1 = add v0, Field 1
+<a href=#3887 id=3887 data-nosnippet>3887</a>            return v1
+<a href=#3888 id=3888 data-nosnippet>3888</a>        }
+<a href=#3889 id=3889 data-nosnippet>3889</a>        "</span>;
+<a href=#3890 id=3890 data-nosnippet>3890</a>        assert_ssa_does_not_change(src, |ssa| ssa.fold_constants(MIN_ITER));
+<a href=#3891 id=3891 data-nosnippet>3891</a>    }
+<a href=#3892 id=3892 data-nosnippet>3892</a>}</code></pre></div></section></main></body></html>
