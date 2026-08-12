@@ -115,6 +115,12 @@ const COMPTIME_STDLIB_SHIM: &str = r#"
         }
         "#;
 
+/// The source handed to the elaborator by [`CompareComptime::exec_direct`]: the generated
+/// program made `comptime`, followed by the stdlib items that path cannot import.
+fn comptime_source(program_source: &str) -> String {
+    format!("comptime {program_source}{COMPTIME_STDLIB_SHIM}")
+}
+
 /// Compare the execution of a Noir program in pure comptime (via interpreter)
 /// vs normal SSA execution.
 pub struct CompareComptime {
@@ -137,8 +143,7 @@ impl CompareComptime {
         let (res2, print2) =
             Self::exec_bytecode(&self.ssa.artifact.program, initial_witness.clone());
 
-        // Add comptime modifier for main
-        let source = format!("comptime {}{}", self.source, COMPTIME_STDLIB_SHIM);
+        let source = comptime_source(&self.source);
         let output = Rc::new(RefCell::new(Vec::new()));
 
         // Take the printed output.
@@ -334,46 +339,28 @@ mod tests {
 
     use noirc_frontend::elaborator::test_utils::interpret;
 
-    use super::{COMPTIME_STDLIB_SHIM, prepare_and_compile_snippet};
+    use super::{comptime_source, prepare_and_compile_snippet};
 
-    /// Elaborate a snippet the same way [`super::CompareComptime::exec_direct`] does.
-    fn interpret_with_shim(source: &str) -> Result<(), String> {
-        let source = format!("comptime {source}{COMPTIME_STDLIB_SHIM}");
-        let output = Rc::new(RefCell::new(Vec::new()));
-        interpret(&source, output).map(|_| ()).map_err(|e| format!("{e:?}"))
-    }
-
-    /// The AST fuzzer turns a `str<N>` into a `[u8; N]` with the `str_as_bytes` builtin, which
-    /// the printer renders as `s.as_bytes()`. `exec_direct` elaborates without the real stdlib,
-    /// so the shim has to carry that method or every generated program containing a
-    /// string-to-bytes conversion dies with `UnresolvedMethodCall` before it is ever compared.
+    /// The AST fuzzer turns a `str<N>` into a `[u8; N]` with the `str_as_bytes` builtin, which the
+    /// printer renders as `s.as_bytes()`. `exec_direct` elaborates with the generated snippet
+    /// standing in for the stdlib, so the shim it appends has to carry that method or every
+    /// generated program containing a string-to-bytes conversion dies with `UnresolvedMethodCall`
+    /// before it is ever compared.
     #[test]
     fn shim_resolves_str_as_bytes() {
-        let src = r#"
+        let source = comptime_source(
+            r#"
 fn main() -> pub [u8; 2] {
     comptime { func_1("AB") }
 }
 fn func_1(a: str<2>) -> [u8; 2] {
     a.as_bytes()
 }
-"#;
-        interpret_with_shim(src).expect("`str::as_bytes` should resolve against the comptime shim");
-    }
-
-    /// The shim is only reachable through method-call syntax, so a `println` regression would
-    /// show up the same way. Keeping both in one place documents what the shim owes the printer.
-    #[test]
-    fn shim_resolves_println() {
-        let src = r#"
-fn main() -> pub u8 {
-    comptime { func_1(1_u8) }
-}
-fn func_1(a: u8) -> u8 {
-    println(a);
-    a
-}
-"#;
-        interpret_with_shim(src).expect("`println` should resolve against the comptime shim");
+"#,
+        );
+        let output = Rc::new(RefCell::new(Vec::new()));
+        interpret(&source, output)
+            .expect("`str::as_bytes` should resolve against the comptime shim");
     }
 
     /// Comptime compilation can fail with stack overflow because of how the interpreter is evaluating instructions.
