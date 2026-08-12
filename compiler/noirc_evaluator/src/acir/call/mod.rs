@@ -118,11 +118,12 @@ impl Context<'_> {
             );
         };
 
+        let predicate = self.read_predicate();
         let output_vars = self.acir_context.call_acir_function(
             AcirFunctionId::new(acir_function_id),
             inputs,
             output_count,
-            self.current_side_effects_enabled_var,
+            predicate,
         )?;
 
         let output_values = self.convert_vars_to_values(output_vars, dfg, result_ids);
@@ -143,13 +144,14 @@ impl Context<'_> {
             vecmap(result_ids, |result_id| dfg.type_of_value(*result_id).as_ref().into());
 
         // Reuse or generate Brillig code
+        let predicate = self.read_predicate();
         let output_values = if let Some(generated_pointer) =
             self.shared_context.generated_brillig_pointer(func.id(), arguments.clone())
         {
             let code = self.shared_context.generated_brillig(generated_pointer.as_usize());
             let skip_output_range_checks = false;
             self.acir_context.brillig_call(
-                self.current_side_effects_enabled_var,
+                predicate,
                 code,
                 inputs,
                 outputs,
@@ -162,7 +164,7 @@ impl Context<'_> {
             let generated_pointer = self.shared_context.new_generated_pointer();
             let skip_output_range_checks = false;
             let output_values = self.acir_context.brillig_call(
-                self.current_side_effects_enabled_var,
+                predicate,
                 &code,
                 inputs,
                 outputs,

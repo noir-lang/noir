@@ -55,12 +55,23 @@ impl Context<'_> {
                     .map(|result_id| dfg.type_of_value(*result_id).flattened_size())
                     .sum();
 
+                // Only `RecursiveAggregation` consumes the side-effects predicate: it is
+                // injected as an extra witness input so aggregation can be conditionally
+                // executed. Other blackbox functions either take no predicate or receive
+                // one as an ordinary SSA-level argument (e.g. MSM, ECDSA).
+                let predicate =
+                    if matches!(black_box, acvm::acir::BlackBoxFunc::RecursiveAggregation) {
+                        Some(self.read_predicate())
+                    } else {
+                        None
+                    };
+
                 let vars = self.acir_context.black_box_function(
                     black_box,
                     inputs,
                     None,
                     output_count,
-                    Some(self.current_side_effects_enabled_var),
+                    predicate,
                 )?;
 
                 Ok(self.convert_vars_to_values(vars, dfg, result_ids))

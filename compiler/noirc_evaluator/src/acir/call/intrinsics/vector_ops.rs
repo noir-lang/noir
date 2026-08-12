@@ -197,6 +197,9 @@ impl Context<'_> {
         });
         let new_vector_val = if let Some(len_const) = len_const {
             // Length is known at compile time - we can precisely determine where to write
+            self.predicate_not_needed(
+                "vector length folded to a compile-time constant; elements placed inline",
+            );
             let mut new_vector = self.read_array_with_type(vector, &vector_typ)?;
             // length of Acir Values vector
             let len = len_const.to_u128() as usize * elements_to_push.len();
@@ -278,9 +281,8 @@ impl Context<'_> {
                     // element-type-sizes table, but a whole-element append needs no per-member offsets:
                     // multiply the length by the flattened element size directly and skip building that
                     // table for this write.
-                    let predicated_length = self
-                        .acir_context
-                        .mul_var(vector_length, self.current_side_effects_enabled_var)?;
+                    let predicate = self.read_predicate();
+                    let predicated_length = self.acir_context.mul_var(vector_length, predicate)?;
                     let element_flattened_size = self.acir_context.add_constant(elements_var.len());
                     self.acir_context.mul_var(predicated_length, element_flattened_size)?
                 };
@@ -390,7 +392,8 @@ impl Context<'_> {
         if self.has_zero_length(vector_contents_id, dfg) {
             // Make sure this code is disabled, or fail with the empty-vector pop message.
             let msg = "Attempt to pop from an empty vector".to_string();
-            self.acir_context.assert_zero_var(self.current_side_effects_enabled_var, msg)?;
+            let predicate = self.read_predicate();
+            self.acir_context.assert_zero_var(predicate, msg)?;
 
             // Fill the result with default values.
             let mut results = Vec::with_capacity(result_ids.len());
@@ -472,12 +475,17 @@ impl Context<'_> {
             let assert_message = self.acir_context.generate_assertion_message_payload(
                 "Attempt to pop from an empty vector".to_string(),
             );
+            let predicate = self.read_predicate();
             self.acir_context.assert_neq_var(
                 vector_length_var,
                 zero,
-                self.current_side_effects_enabled_var,
+                predicate,
                 Some(assert_message),
             )?;
+        } else {
+            // A known-constant, nonzero length (the constant-zero case was handled by the
+            // caller) needs neither the runtime emptiness assertion nor index gating.
+            self.predicate_not_needed("vector length is a known nonzero constant");
         }
 
         let one = self.acir_context.add_constant(FieldElement::one());
@@ -487,9 +495,8 @@ impl Context<'_> {
         // to ensure we don't end up trying to look up an item at index -1, when the semantic length is 0,
         // which can fail a circuit even when the side effects are disabled.
         if is_unknown_length {
-            new_vector_length_var = self
-                .acir_context
-                .mul_var(new_vector_length_var, self.current_side_effects_enabled_var)?;
+            let predicate = self.read_predicate();
+            new_vector_length_var = self.acir_context.mul_var(new_vector_length_var, predicate)?;
         }
 
         Ok(new_vector_length_var)
@@ -551,7 +558,8 @@ impl Context<'_> {
         if self.has_zero_length(vector_contents_id, dfg) {
             // Make sure this code is disabled, or fail with the empty-vector pop message.
             let msg = "Attempt to pop from an empty vector".to_string();
-            self.acir_context.assert_zero_var(self.current_side_effects_enabled_var, msg)?;
+            let predicate = self.read_predicate();
+            self.acir_context.assert_zero_var(predicate, msg)?;
 
             // Fill the result with default values.
             let mut results = Vec::with_capacity(result_ids.len());
@@ -661,6 +669,11 @@ impl Context<'_> {
         // Fetch the flattened index from the user provided index argument.
         let item_size = self.acir_context.add_constant(elements_to_insert.len());
         let is_safe_index = Self::is_index_safe(arguments[2], dfg, &vector_typ, vector_size);
+        if is_safe_index {
+            // A statically safe insert index needs no gating, so no lowering path below
+            // consults the predicate.
+            self.predicate_not_needed("insert index is statically safe");
+        }
         let insert_index = self.acir_context.mul_var(insert_index, item_size)?;
 
         // Because the insert index might be at the end of the vector, the element type sizes we
@@ -877,7 +890,8 @@ impl Context<'_> {
         if self.has_zero_length(vector_contents, dfg) {
             // Make sure this code is disabled, or fail with "Index out of bounds".
             let msg = "Index out of bounds, vector has size 0".to_string();
-            self.acir_context.assert_zero_var(self.current_side_effects_enabled_var, msg)?;
+            let predicate = self.read_predicate();
+            self.acir_context.assert_zero_var(predicate, msg)?;
 
             // Fill the result with default values.
             let mut results = Vec::with_capacity(result_ids.len());
@@ -920,6 +934,11 @@ impl Context<'_> {
         let item_size_var = self.acir_context.add_constant(item_size);
         let remove_index = self.acir_context.mul_var(remove_index, item_size_var)?;
         let is_safe_index = Self::is_index_safe(arguments[2], dfg, &vector_typ, vector_size);
+        if is_safe_index {
+            // A statically safe remove index needs no gating, so no lowering path below
+            // consults the predicate.
+            self.predicate_not_needed("remove index is statically safe");
+        }
 
         // Fetch the flattened index from the user provided index argument.
         let flat_user_index = self.get_flattened_index(

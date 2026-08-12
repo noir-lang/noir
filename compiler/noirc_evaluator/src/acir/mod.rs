@@ -71,6 +71,11 @@ struct Context<'a> {
     /// `SideEffectsEnabled` instruction.
     current_side_effects_enabled_var: AcirVar,
 
+    /// Whether the instruction currently being converted consulted the side-effects
+    /// predicate (set by [`Self::read_predicate`] / [`Self::predicate_not_needed`]).
+    /// Compared against `Instruction::requires_acir_gen_predicate` after each instruction.
+    predicate_was_read: bool,
+
     /// Manages and builds the `AcirVar`s to which the converted SSA values refer.
     acir_context: AcirContext<FieldElement>,
 
@@ -140,6 +145,7 @@ impl<'a> Context<'a> {
         Context {
             ssa_values: HashMap::default(),
             current_side_effects_enabled_var,
+            predicate_was_read: false,
             acir_context,
             initialized_arrays: HashSet::default(),
             memory_blocks: HashMap::default(),
@@ -466,6 +472,22 @@ impl<'a> Context<'a> {
         Ok(acir_var)
     }
 
+    /// Returns the current side-effects predicate, recording that the instruction being
+    /// converted consulted it. Every read of `current_side_effects_enabled_var` during
+    /// instruction conversion must go through here so the recorded flag stays accurate.
+    fn read_predicate(&mut self) -> AcirVar {
+        self.predicate_was_read = true;
+        self.current_side_effects_enabled_var
+    }
+
+    /// Records that the instruction being converted deliberately skipped consulting the
+    /// side-effects predicate on this lowering path, even though its
+    /// `requires_acir_gen_predicate` reports `true` (e.g. every relevant operand folded to
+    /// a compile-time constant, so no predication was necessary).
+    fn predicate_not_needed(&mut self, _reason: &str) {
+        self.predicate_was_read = true;
+    }
+
     /// Converts an SSA instruction into its ACIR representation
     fn convert_ssa_instruction(
         &mut self,
@@ -476,12 +498,13 @@ impl<'a> Context<'a> {
         let instruction = &dfg[instruction_id];
         self.acir_context.set_call_stack(dfg.get_instruction_call_stack(instruction_id));
         let mut warnings = Vec::new();
+        self.predicate_was_read = false;
 
         match instruction {
             Instruction::Binary(binary) => {
                 // Disable the side effects if the binary instruction does not require them
                 let predicate = if instruction.requires_acir_gen_predicate(dfg) {
-                    self.current_side_effects_enabled_var
+                    self.read_predicate()
                 } else {
                     self.acir_context.add_constant(FieldElement::one())
                 };
@@ -498,7 +521,7 @@ impl<'a> Context<'a> {
                 let lhs = self.convert_numeric_value(*lhs, dfg)?;
                 let rhs = self.convert_numeric_value(*rhs, dfg)?;
                 let assert_payload = self.convert_constrain_error(dfg, assert_message)?;
-                let predicate = self.current_side_effects_enabled_var;
+                let predicate = self.read_predicate();
                 self.acir_context.assert_neq_var(lhs, rhs, predicate, assert_payload)?;
             }
             Instruction::Cast(value_id, _) => {
@@ -565,6 +588,19 @@ impl<'a> Context<'a> {
                 self.ssa_values.insert(result, value);
             }
             Instruction::Noop => (),
+        }
+
+        // The lowering above must consult the side-effects predicate exactly when
+        // `requires_acir_gen_predicate` says it may. `EnableSideEffectsIf` is excluded: it
+        // writes the predicate rather than reading it.
+        if !matches!(instruction, Instruction::EnableSideEffectsIf { .. }) {
+            let requires = instruction.requires_acir_gen_predicate(dfg);
+            assert_eq!(
+                requires, self.predicate_was_read,
+                "ACIR-gen predicate use mismatch: requires_acir_gen_predicate = {requires} but \
+                 predicate_was_read = {} for instruction {instruction:?}",
+                self.predicate_was_read,
+            );
         }
 
         self.acir_context.set_call_stack(CallStack::empty());

@@ -297,10 +297,6 @@ impl Context<'_> {
         index: ValueId,
         store_value: Option<ValueId>,
     ) -> Result<bool, RuntimeError> {
-        if !self.acir_context.is_constant_zero(&self.current_side_effects_enabled_var) {
-            return Ok(false);
-        }
-
         // The side-effects predicate is only this instruction's own for the instructions
         // [`crate::ssa::opt::remove_enable_side_effects`] fences, that is those reporting
         // `Instruction::requires_acir_gen_predicate == true`. A read at a statically safe index
@@ -311,7 +307,15 @@ impl Context<'_> {
         // Resolving it as disabled is also unnecessary. A safe index is in bounds by construction,
         // so it never needs the predicate's fallback to a valid slot and the ordinary path emits
         // exactly the read the program asked for.
+        //
+        // This check runs before the predicate is inspected: a safe read's outcome here is
+        // "not handled" regardless of the predicate's value, so it is not a predicate read.
         if store_value.is_none() && dfg.is_safe_index(index, array) {
+            return Ok(false);
+        }
+
+        let predicate = self.read_predicate();
+        if !self.acir_context.is_constant_zero(&predicate) {
             return Ok(false);
         }
 
@@ -351,7 +355,8 @@ impl Context<'_> {
         }
         // Make sure this code is disabled, or fail with "Index out of bounds".
         let msg = "Index out of bounds, array has size 0".to_string();
-        self.acir_context.assert_zero_var(self.current_side_effects_enabled_var, msg)?;
+        let predicate = self.read_predicate();
+        self.acir_context.assert_zero_var(predicate, msg)?;
         Ok(true)
     }
 
@@ -380,11 +385,27 @@ impl Context<'_> {
                     call_stack: self.acir_context.get_call_stack(),
                 }))
             }
-            AcirValue::Array(array) => {
+            AcirValue::Array(array_value) => {
                 // `AcirValue::Array` supports reading/writing to constant indices at compile-time in some cases.
                 if let Some(constant_index) = self.constant_index(index, dfg)? {
-                    let store_value = store_value.map(|value| self.convert_value(value, dfg));
-                    self.handle_constant_index(instruction, dfg, array, constant_index, store_value)
+                    let store = store_value.map(|value| self.convert_value(value, dfg));
+                    let resolved = self.handle_constant_index(
+                        instruction,
+                        dfg,
+                        array_value,
+                        constant_index,
+                        store,
+                    )?;
+                    // A compile-time read at an index that is not statically safe reports
+                    // `requires_acir_gen_predicate = true`, yet resolves optimistically
+                    // without consulting the predicate: if the predicate were false the
+                    // result is a don't-care that downstream predication masks anyway.
+                    if resolved && store_value.is_none() && !dfg.is_safe_index(index, array) {
+                        self.predicate_not_needed(
+                            "constant in-bounds index resolved at compile time",
+                        );
+                    }
+                    Ok(resolved)
                 } else {
                     Ok(false)
                 }
@@ -454,8 +475,8 @@ impl Context<'_> {
         }
 
         if let Some(store_value) = store_value {
-            let side_effects_always_enabled =
-                self.acir_context.is_constant_one(&self.current_side_effects_enabled_var);
+            let predicate = self.read_predicate();
+            let side_effects_always_enabled = self.acir_context.is_constant_one(&predicate);
 
             if side_effects_always_enabled {
                 // If we know that this write will always occur then we can perform it at compile time.
@@ -561,15 +582,18 @@ impl Context<'_> {
         let index_var =
             self.get_flattened_index(&array_typ, array_id, index_var, dfg, gating, shift)?;
 
+        // Reads need no store predication; only the store value depends on the predicate.
+        let Some(store) = store_value else {
+            return Ok((index_var, None));
+        };
+
         // Side-effects are always enabled so we do not need to do any predication
-        if self.acir_context.is_constant_one(&self.current_side_effects_enabled_var) {
-            let store_value = store_value.map(|store| self.convert_value(store, dfg));
-            return Ok((index_var, store_value));
+        let predicate = self.read_predicate();
+        if self.acir_context.is_constant_one(&predicate) {
+            return Ok((index_var, Some(self.convert_value(store, dfg))));
         }
 
-        let new_value = store_value
-            .map(|store| self.predicated_store_value(store, dfg, array_id, index_var))
-            .transpose()?;
+        let new_value = Some(self.predicated_store_value(store, dfg, array_id, index_var)?);
 
         Ok((index_var, new_value))
     }
@@ -600,11 +624,10 @@ impl Context<'_> {
     ) -> Result<AcirValue, RuntimeError> {
         match (store_value, dummy_value) {
             (AcirValue::Var(store_var, typ), AcirValue::Var(dummy_var, _)) => {
-                let true_pred =
-                    self.acir_context.mul_var(*store_var, self.current_side_effects_enabled_var)?;
+                let predicate = self.read_predicate();
+                let true_pred = self.acir_context.mul_var(*store_var, predicate)?;
                 let one = self.acir_context.add_constant(FieldElement::one());
-                let not_pred =
-                    self.acir_context.sub_var(one, self.current_side_effects_enabled_var)?;
+                let not_pred = self.acir_context.sub_var(one, predicate)?;
                 let false_pred = self.acir_context.mul_var(not_pred, *dummy_var)?;
                 // predicate*value + (1-predicate)*dummy
                 let new_value = self.acir_context.add_var(true_pred, false_pred)?;
@@ -1245,6 +1268,11 @@ impl Context<'_> {
                 .get(index as usize)
                 .copied()
         {
+            if matches!(gating, IndexGating::Gated { .. }) {
+                self.predicate_not_needed(
+                    "constant index resolved to a fixed flattened offset at compile time",
+                );
+            }
             return Ok(self.acir_context.add_constant(offset));
         }
 
@@ -1256,7 +1284,8 @@ impl Context<'_> {
         let var_index = match gating {
             IndexGating::Safe => var_index,
             IndexGating::Gated { .. } => {
-                self.acir_context.mul_var(var_index, self.current_side_effects_enabled_var)?
+                let predicate = self.read_predicate();
+                self.acir_context.mul_var(var_index, predicate)?
             }
         };
 
@@ -1276,8 +1305,8 @@ impl Context<'_> {
         match gating {
             IndexGating::Gated { fallback_offset } if fallback_offset != 0 => {
                 let one = self.acir_context.add_constant(FieldElement::one());
-                let not_pred =
-                    self.acir_context.sub_var(one, self.current_side_effects_enabled_var)?;
+                let predicate = self.read_predicate();
+                let not_pred = self.acir_context.sub_var(one, predicate)?;
                 let offset_var = self.acir_context.add_constant(fallback_offset);
                 let offset_term = self.acir_context.mul_var(offset_var, not_pred)?;
                 Ok(self.acir_context.add_var(flat_index, offset_term)?)
