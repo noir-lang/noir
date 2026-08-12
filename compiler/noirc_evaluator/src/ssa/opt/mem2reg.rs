@@ -559,58 +559,70 @@ fn collect_eligible_variables_and_def_sites(
     (variables, def_sites, has_ineligible_variables)
 }
 
-/// Remove every [`MakeArray`][Instruction::MakeArray] instruction whose result has no users left.
+/// Remove every [`MakeArray`][Instruction::MakeArray] instruction whose results are unused.
 ///
-/// An array holding a reference makes that reference ineligible for promotion, even when the array
-/// itself is dead. Dropping such arrays here is what lets the surrounding loop peel one level of
+/// An array holding a reference makes that reference ineligible for promotion even when the array
+/// itself is dead. Dropping such arrays is what lets [`Function::mem2reg`]'s loop peel one level of
 /// nesting per iteration; without it the pass stops at the outermost reference cell and leaves the
-/// inner `allocate`/`store` pairs behind for good, because dead-store removal is mem2reg's job and
-/// no later pass in the pipeline revisits them.
+/// inner `allocate`/`store` pairs behind for good, since removing a dead store needs the alias
+/// information only mem2reg has and no later pass in the pipeline revisits them.
 ///
 /// Only `MakeArray` is considered: it is side-effect free and, unlike an array read, carries no
-/// out-of-bounds check that dead instruction elimination would have to preserve.
+/// out-of-bounds check that would have to be preserved in its place.
+///
+/// Like [`Ssa::dead_instruction_elimination`], blocks are visited in post order and their
+/// instructions in reverse, so a whole chain of nested dead arrays is removed in one traversal:
+/// a value is only referenced after the instruction defining it, so every use of a result has
+/// been seen by the time its defining instruction is reached.
 fn remove_unused_make_arrays(function: &mut Function, blocks: &[BasicBlockId]) {
-    loop {
-        // The databus arrays are roots alongside the instructions and terminators: they are named
-        // by the function's ABI rather than by anything in the instruction stream.
-        let mut used = HashSet::default();
-        for block in blocks.iter().copied() {
-            for instruction_id in function.dfg[block].instructions() {
-                function.dfg[*instruction_id].for_each_value(|value| {
-                    used.insert(value);
+    // Databus arrays are roots alongside the instructions and terminators: they are named by the
+    // function's ABI rather than by anything in the instruction stream.
+    let mut used_values: HashSet<ValueId> = function
+        .dfg
+        .data_bus
+        .call_data
+        .iter()
+        .map(|call_data| call_data.array_id)
+        .chain(function.dfg.data_bus.return_data)
+        .collect();
+
+    let mut instructions_to_remove = HashSet::default();
+
+    // `blocks` is in reverse post order, so iterating it backwards gives post order.
+    for block in blocks.iter().rev().copied() {
+        function.dfg[block].unwrap_terminator().for_each_value(|value| {
+            used_values.insert(value);
+        });
+
+        for instruction_id in function.dfg[block].instructions().iter().rev() {
+            let instruction = &function.dfg[*instruction_id];
+            let is_unused_array = matches!(instruction, Instruction::MakeArray { .. })
+                && function
+                    .dfg
+                    .instruction_results(*instruction_id)
+                    .iter()
+                    .all(|result| !used_values.contains(result));
+
+            if is_unused_array {
+                // Leaving the array's elements out of `used_values` is what exposes an array whose
+                // only use is another dead array.
+                instructions_to_remove.insert(*instruction_id);
+            } else {
+                instruction.for_each_value(|value| {
+                    used_values.insert(value);
                 });
             }
-            if let Some(terminator) = function.dfg[block].terminator() {
-                terminator.for_each_value(|value| {
-                    used.insert(value);
-                });
-            }
         }
-        for call_data in &function.dfg.data_bus.call_data {
-            used.insert(call_data.array_id);
-        }
-        used.extend(function.dfg.data_bus.return_data);
+    }
 
-        let mut removed_any = false;
-        for block in blocks.iter().copied() {
-            let mut instructions = function.dfg[block].take_instructions();
-            instructions.retain(|instruction_id| {
-                let keep = !matches!(function.dfg[*instruction_id], Instruction::MakeArray { .. })
-                    || function
-                        .dfg
-                        .instruction_results(*instruction_id)
-                        .iter()
-                        .any(|result| used.contains(result));
-                removed_any |= !keep;
-                keep
-            });
-            *function.dfg[block].instructions_mut() = instructions;
-        }
+    if instructions_to_remove.is_empty() {
+        return;
+    }
 
-        // An array can hold another array, so removing one can free up the next.
-        if !removed_any {
-            break;
-        }
+    for block in blocks.iter().copied() {
+        function.dfg[block]
+            .instructions_mut()
+            .retain(|instruction_id| !instructions_to_remove.contains(instruction_id));
     }
 }
 
@@ -1871,6 +1883,35 @@ brillig(inline) fn main f0 {
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
           b0():
+            return
+        }
+        ");
+    }
+
+    /// The array and the reference cell keeping it alive need not sit in the same block, so a dead
+    /// array must also be found when its only use is in a successor block.
+    #[test]
+    fn dead_reference_array_used_in_another_block_is_removed() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = allocate -> &mut Field
+            store Field 1 at v0
+            v2 = make_array [v0] : [&mut Field; 1]
+            jmp b1()
+          b1():
+            v3 = allocate -> &mut [&mut Field; 1]
+            store v2 at v3
+            return
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let (ssa, _) = assert_pass_does_not_affect_execution(ssa, vec![], Ssa::mem2reg);
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0():
+            jmp b1()
+          b1():
             return
         }
         ");
