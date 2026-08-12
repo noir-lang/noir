@@ -16,6 +16,7 @@ use std::collections::HashSet;
 
 use acvm::acir::AcirField;
 use itertools::Itertools;
+use rustc_hash::FxHashMap as HashMap;
 
 use crate::ssa::{
     ir::{
@@ -23,7 +24,7 @@ use crate::ssa::{
         cfg::ControlFlowGraph,
         function::{Function, RuntimeType},
         instruction::{Instruction, TerminatorInstruction},
-        value::{Value, ValueMapping},
+        value::{Value, ValueId, ValueMapping},
     },
     ssa_gen::Ssa,
 };
@@ -47,11 +48,15 @@ impl Function {
     /// be inlined into their predecessor.
     pub(crate) fn simplify_function(&mut self) {
         let mut cfg = ControlFlowGraph::with_function(self);
-        let mut values_to_replace = ValueMapping::default();
+        let mut values_to_replace = PendingReplacements::default();
         let mut stack = vec![self.entry_block()];
         // Tracks which blocks are currently in `stack`
         let mut queued: HashSet<BasicBlockId> = stack.iter().copied().collect();
         let mut visited = HashSet::new();
+
+        for block in self.reachable_blocks() {
+            values_to_replace.register_condition(self, block);
+        }
 
         while let Some(block) = stack.pop() {
             queued.remove(&block);
@@ -63,7 +68,7 @@ impl Function {
             }
 
             if !values_to_replace.is_empty() {
-                self.dfg.replace_values_in_block_instructions(block, &values_to_replace);
+                self.dfg.replace_values_in_block_instructions(block, values_to_replace.mapping());
             }
 
             // First perform any simplifications on the current block, this ensures that we add the proper successors
@@ -106,18 +111,123 @@ impl Function {
             // When `block` is inlined into its predecessor it becomes empty and unreachable,
             // so it no longer has a terminator worth updating.
             if !inlined && !values_to_replace.is_empty() {
-                self.dfg.replace_values_in_block_terminator(block, &values_to_replace);
+                self.dfg.replace_values_in_block_terminator(block, values_to_replace.mapping());
+                values_to_replace.register_condition(self, block);
+            }
+
+            // Bring the conditions that observe this iteration's replacements up to date and
+            // re-examine the blocks branching on them, so a condition that has just become
+            // constant is folded here rather than only being noticed by the sweep below.
+            for updated in apply_replacements_to_conditions(self, &mut values_to_replace) {
+                if queued.insert(updated) {
+                    stack.push(updated);
+                }
             }
         }
 
         if !values_to_replace.is_empty() {
             // Values from previous blocks might need to be replaced
             for block in self.reachable_blocks() {
-                self.dfg.replace_values_in_block(block, &values_to_replace);
+                self.dfg.replace_values_in_block(block, values_to_replace.mapping());
             }
-            self.dfg.data_bus.replace_values(&values_to_replace);
+            self.dfg.data_bus.replace_values(values_to_replace.mapping());
         }
     }
+}
+
+/// The value replacements recorded while the worklist drains, indexed by the branch conditions
+/// that observe them.
+///
+/// [`remove_block_parameters`] maps a removed block parameter to the argument its sole
+/// predecessor passed for it. Blocks are only revisited while they are still reachable from a
+/// block that simplified, so without an index a replacement recorded after a block was last
+/// visited would reach that block's terminator for the first time in the sweep that runs once
+/// the worklist is empty — past the fold that turns a `jmpif` on a now-constant condition into
+/// a `jmp`, and so past this pass's own postcondition. Applying each replacement to the
+/// conditions that observe it keeps every fold decision based on an up-to-date terminator, and
+/// leaves the final sweep with no terminator left to change.
+#[derive(Default)]
+struct PendingReplacements {
+    mapping: ValueMapping,
+
+    /// The blocks that branch on a given value.
+    ///
+    /// Entries are allowed to go stale: a block is acted on only after its current terminator
+    /// has been checked, and is registered afresh whenever its condition changes. Only
+    /// additions have to be complete, which is what [`Self::register_condition`] is for.
+    blocks_branching_on: HashMap<ValueId, Vec<BasicBlockId>>,
+
+    /// The values mapped since [`Self::take_newly_mapped`] was last called.
+    newly_mapped: Vec<ValueId>,
+}
+
+impl PendingReplacements {
+    fn mapping(&self) -> &ValueMapping {
+        &self.mapping
+    }
+
+    fn is_empty(&self) -> bool {
+        self.mapping.is_empty()
+    }
+
+    fn insert(&mut self, from: ValueId, to: ValueId) {
+        self.mapping.insert(from, to);
+        self.newly_mapped.push(from);
+    }
+
+    /// Record the value `block` branches on, if it branches at all.
+    ///
+    /// Must be called whenever a block's terminator starts branching on a value it was not
+    /// already registered under, so that a later replacement of that value finds the block.
+    fn register_condition(&mut self, function: &Function, block: BasicBlockId) {
+        if let Some(TerminatorInstruction::JmpIf { condition, .. }) =
+            function.dfg[block].terminator()
+        {
+            let blocks = self.blocks_branching_on.entry(*condition).or_default();
+            if !blocks.contains(&block) {
+                blocks.push(block);
+            }
+        }
+    }
+
+    fn take_newly_mapped(&mut self) -> Vec<ValueId> {
+        std::mem::take(&mut self.newly_mapped)
+    }
+
+    fn blocks_branching_on(&self, value: ValueId) -> Vec<BasicBlockId> {
+        self.blocks_branching_on.get(&value).cloned().unwrap_or_default()
+    }
+}
+
+/// Apply the replacements recorded since this was last called to the terminators branching on
+/// them, returning the blocks whose condition changed as a result.
+fn apply_replacements_to_conditions(
+    function: &mut Function,
+    values_to_replace: &mut PendingReplacements,
+) -> Vec<BasicBlockId> {
+    let mut updated = Vec::new();
+
+    for value in values_to_replace.take_newly_mapped() {
+        for block in values_to_replace.blocks_branching_on(value) {
+            let Some(TerminatorInstruction::JmpIf { condition, .. }) =
+                function.dfg[block].terminator()
+            else {
+                // A stale index entry: the block no longer branches at all.
+                continue;
+            };
+
+            let condition = *condition;
+            if values_to_replace.mapping().get(condition) == condition {
+                continue;
+            }
+
+            function.dfg.replace_values_in_block_terminator(block, values_to_replace.mapping());
+            values_to_replace.register_condition(function, block);
+            updated.push(block);
+        }
+    }
+
+    updated
 }
 
 #[cfg(debug_assertions)]
@@ -151,14 +261,15 @@ fn simplify_current_block(
     function: &mut Function,
     block: BasicBlockId,
     cfg: &mut ControlFlowGraph,
-    values_to_replace: &mut ValueMapping,
+    values_to_replace: &mut PendingReplacements,
 ) -> bool {
     // Apply any pending replacements to the terminator before we inspect it.
     // Without this, checks like `check_for_constant_jmpif` may miss constant conditions
     // that were only recorded in `values_to_replace` but not yet applied to this block's
     // terminator (e.g. a block parameter replaced by a constant during inlining).
     if !values_to_replace.is_empty() {
-        function.dfg.replace_values_in_block_terminator(block, values_to_replace);
+        function.dfg.replace_values_in_block_terminator(block, values_to_replace.mapping());
+        values_to_replace.register_condition(function, block);
     }
 
     // These functions return `true` if they successfully simplified the CFG for the current block.
@@ -174,11 +285,16 @@ fn simplify_current_block(
 
         ever_simplified |= simplified;
 
-        // Simplifications may rewrite the terminator with values that have pending
-        // replacements (e.g. block parameters mapped to constants). Apply them so
-        // the next iteration sees the resolved values.
-        if simplified && !values_to_replace.is_empty() {
-            function.dfg.replace_values_in_block_terminator(block, values_to_replace);
+        if simplified {
+            // Simplifications may rewrite the terminator with values that have pending
+            // replacements (e.g. block parameters mapped to constants). Apply them so
+            // the next iteration sees the resolved values.
+            if !values_to_replace.is_empty() {
+                function.dfg.replace_values_in_block_terminator(block, values_to_replace.mapping());
+            }
+            // A simplification such as un-negating a condition leaves the block branching on
+            // a different value.
+            values_to_replace.register_condition(function, block);
         }
     }
 
@@ -509,7 +625,7 @@ fn remove_block_parameters(
     function: &mut Function,
     block: BasicBlockId,
     predecessor: BasicBlockId,
-    values_to_replace: &mut ValueMapping,
+    values_to_replace: &mut PendingReplacements,
 ) {
     let block = &mut function.dfg[block];
 
@@ -537,10 +653,19 @@ fn try_inline_successor(
     function: &mut Function,
     cfg: &mut ControlFlowGraph,
     block: BasicBlockId,
-    values_to_replace: &mut ValueMapping,
+    values_to_replace: &mut PendingReplacements,
 ) -> bool {
     if let Some(TerminatorInstruction::Jmp { destination, .. }) = function.dfg[block].terminator() {
         let destination = *destination;
+
+        // A block that jumps to itself has nothing to inline: inlining it into itself would
+        // report a simplification on every attempt without making progress. Such a block is
+        // only ever its own sole predecessor when it is unreachable, so there is nothing to
+        // gain by handling it here either.
+        if destination == block {
+            return false;
+        }
+
         let predecessors = cfg.predecessors(destination);
         if predecessors.len() == 1 {
             drop(predecessors);
@@ -554,7 +679,15 @@ fn try_inline_successor(
             // If successful, `block` will be empty and unreachable after this call, so any
             // optimizations performed after this point on the same block should check if
             // the inlining here was successful before continuing.
-            try_inline_into_predecessor(function, cfg, destination, block)
+            let inlined = try_inline_into_predecessor(function, cfg, destination, block);
+
+            if inlined {
+                // `block` has taken on the destination's terminator, which may branch on a
+                // value it was not previously registered under.
+                values_to_replace.register_condition(function, block);
+            }
+
+            inlined
         } else {
             false
         }
@@ -592,8 +725,100 @@ mod tests {
 
     use crate::{
         assert_ssa_snapshot,
-        ssa::{Ssa, opt::assert_ssa_does_not_change},
+        ssa::{
+            Ssa,
+            interpreter::value::Value,
+            opt::{assert_pass_does_not_affect_execution, assert_ssa_does_not_change},
+        },
     };
+
+    /// `b3` folds its constant `jmpif` to `b5`, which strands `b4` and with it `b6`, the only
+    /// back-edge into the header `b1`. `b1` then has a single predecessor, so its parameters
+    /// are replaced by `b0`'s arguments, recording `v2 -> u1 1`. `b2` branches on `v2` but was
+    /// already visited by then, so the replacement has to reach `b2`'s terminator through the
+    /// index of blocks branching on `v2` rather than through the worklist.
+    ///
+    /// The block ordering is load-bearing: `b2` has to be popped before `b3`, which is why the
+    /// header's `jmpif` lists `b3` in the `then` slot.
+    #[test]
+    fn folds_jmpif_whose_condition_becomes_constant_after_the_block_was_visited() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: u1):
+            jmp b1(v0, u1 1)
+          b1(v1: u1, v2: u1):
+            jmpif v1 then: b3(), else: b2()
+          b2():
+            jmpif v2 then: b8(), else: b9()
+          b3():
+            jmpif u1 0 then: b4(), else: b5()
+          b4():
+            jmp b6()
+          b5():
+            jmp b7(u1 0)
+          b6():
+            jmp b1(u1 0, v1)
+          b8():
+            jmp b7(u1 1)
+          b9():
+            jmp b7(u1 0)
+          b7(v3: u1):
+            return v3
+        }
+        ";
+
+        for input in [false, true] {
+            let ssa = Ssa::from_str(src).unwrap();
+            let _ = assert_pass_does_not_affect_execution(
+                ssa,
+                vec![Value::bool(input)],
+                Ssa::simplify_cfg,
+            );
+        }
+
+        let ssa = Ssa::from_str(src).unwrap().simplify_cfg();
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) fn main f0 {
+          b0(v0: u1):
+            jmpif v0 then: b2(), else: b1()
+          b1():
+            jmp b3(u1 1)
+          b2():
+            jmp b3(u1 0)
+          b3(v1: u1):
+            return v1
+        }
+        ");
+    }
+
+    /// Folding `b0` and `b1`'s constant branches leaves `b1` jumping to itself with itself as
+    /// its only predecessor. Inlining a block into itself always reports success, so without a
+    /// guard the pass never settles on `b1`.
+    #[test]
+    fn terminates_on_a_block_whose_only_predecessor_is_itself() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u1):
+            jmpif u1 0 then: b1(v0), else: b2(u1 1)
+          b1(v1: u1):
+            jmpif u1 1 then: b1(u1 1), else: b2(v1)
+          b2(v2: u1):
+            jmpif v2 then: b3(), else: b1(v2)
+          b3():
+            jmp b3()
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap().simplify_cfg();
+
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: u1):
+            jmp b1()
+          b1():
+            jmp b1()
+        }
+        ");
+    }
 
     #[test]
     fn inline_blocks() {
