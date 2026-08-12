@@ -118,6 +118,35 @@ mod tests {
     }
 
     #[test]
+    fn dynamic_array_set_of_references() {
+        // Writing a reference into an array at a dynamic index selects which reference the array
+        // ends up aliasing, so it is as unresolvable before ACIR generation as reading one out.
+        // fn main(c: u32) -> pub bool {
+        //     let mut x = false;
+        //     let mut b: [&mut bool; 2] = [&mut false, &mut true];
+        //     b[c] = &mut x;
+        //     *b[0]
+        // }
+        let src = r#"
+            acir(inline) predicate_pure fn main f0 {
+            b0(v0: u32):
+                v1 = allocate -> &mut u1
+                v2 = allocate -> &mut u1
+                store u1 0 at v1
+                store u1 1 at v2
+                v3 = make_array [v1, v2] : [&mut u1; 2]
+                v4 = array_set v3, index v0, value v1
+                v5 = array_get v4, index u32 0 -> &mut u1
+                v6 = load v5 -> u1
+                return v6
+            }"#;
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let result = verify_no_dynamic_indices_to_references(&ssa);
+        assert!(matches!(result, Err(RuntimeError::DynamicIndexingWithReference { .. })));
+    }
+
+    #[test]
     fn no_error_in_brillig() {
         // unconstrained fn main(c: u32) -> pub bool {
         //     let b: [&mut bool; 2] = [&mut false, &mut true];
