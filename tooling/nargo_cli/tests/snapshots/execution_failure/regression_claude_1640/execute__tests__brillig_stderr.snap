@@ -1,0 +1,15 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+error: Assertion failed: t must be 20
+  ┌─ src/main.nr:8:5
+  │
+8 │     assert(t == 20, "t must be 20");
+  │     -------------------------------
+  │
+  = Call stack:
+    1: main
+            at src/main.nr:8:5
+
+Failed assertion
