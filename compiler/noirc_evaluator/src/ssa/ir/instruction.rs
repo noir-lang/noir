@@ -275,7 +275,7 @@ impl Intrinsic {
 
             // Operations that remove items from a vector don't modify the vector, they just assert it's non-empty.
             // Vector insert also reads from its input vector, thus needing to assert that it is non-empty.
-            // Vector push back's ACIR lowering multiplies the write index by `current_side_effects_enabled_var`,
+            // Vector push back's ACIR lowering multiplies the write index by the side-effects predicate,
             // so deduplicating two pushes across different `enable_side_effects` predicates is unsound.
             Intrinsic::VectorPopBack
             | Intrinsic::VectorPopFront
@@ -560,7 +560,7 @@ impl Instruction {
                         // which uses the side effects predicate.
                         Intrinsic::VectorInsert | Intrinsic::VectorRemove => true,
                         // The heterogeneous vector path in ACIR lowering uses
-                        // `get_flattened_index` which reads `current_side_effects_enabled_var`
+                        // `get_flattened_index` which reads the side-effects predicate
                         // to guard the element-type-sizes memory lookup.
                         Intrinsic::VectorPushBack => true,
                         // Technically these don't use the side effects predicate, but they fail on empty vectors,
@@ -569,7 +569,7 @@ impl Instruction {
                         // would fail, but they shouldn't because they might be disabled.
                         Intrinsic::VectorPopFront | Intrinsic::VectorPopBack => true,
                         // RecursiveAggregation's predicate is injected implicitly from
-                        // `current_side_effects_enabled_var` during ACIR generation, so we
+                        // the side-effects predicate during ACIR generation, so we
                         // must preserve the EnableSideEffectsIf that sets it.
                         Intrinsic::BlackBox(BlackBoxFunc::RecursiveAggregation) => true,
                         _ => false,
