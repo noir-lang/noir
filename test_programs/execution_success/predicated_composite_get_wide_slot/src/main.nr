@@ -1,3 +1,5 @@
+// Regression test for https://github.com/noir-lang/noir-claude/issues/1601
+//
 // A composite `array_get` under a false predicate reads the fallback flat slots
 // `0, 1, 2, ...` of the element layout in order. Every leaf whose declared type is
 // narrower than the fallback slot's real type must be multiplied by the predicate,
