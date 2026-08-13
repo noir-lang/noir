@@ -421,6 +421,43 @@ fn oracle_wrapper_with_mutating_arg_keeps_clone() {
 }
 
 #[test]
+fn pure_builtin_call_with_mutating_sibling_arg_keeps_clone() {
+    // `x` is passed by value to `sha256_compression`, so the intrinsic must digest it as it
+    // was before `bump` (evaluated as a later argument of the same call) writes 7 into it.
+    // Eliding the clone on `x` lets Brillig's copy-on-write mutate the buffer in place, and
+    // the intrinsic digests the mutated bytes.
+    let src = "
+    #[foreign(sha256_compression)]
+    fn sha256_compression(input: [u32; 16], state: [u32; 8]) -> [u32; 8] {}
+
+    unconstrained fn bump(x: &mut [u32; 16], i: u32) -> [u32; 8] {
+        (*x)[i] = 7;
+        [1, 2, 3, 4, 5, 6, 7, 8]
+    }
+
+    unconstrained fn main(i: u32) -> pub u64 {
+        let mut x = [i + 1; 16];
+        let out = sha256_compression(x, bump(&mut x, i));
+        out[0] as u64 + x[i] as u64
+    }
+    ";
+
+    let program = get_monomorphized_with_options(
+        src,
+        GetProgramOptions { root_and_stdlib: true, ..Default::default() },
+    )
+    .unwrap();
+
+    let ssa = generate_ssa(program).unwrap();
+
+    // For i = 0: word 0 of sha256_compression([1; 16], [1, ..., 8]) is 1620291495, and
+    // x[0] is 7 after `bump`, giving 1620291502. Digesting the mutated buffer instead
+    // yields 702624835 + 7 = 702624842.
+    let results = ssa.interpret(vec![InterpreterValue::u32(0)]).unwrap();
+    assert_eq!(results, vec![InterpreterValue::u64(1620291502)]);
+}
+
+#[test]
 fn for_loop_exclusive() {
     let assert_src = "
     fn main() -> pub u32 {
