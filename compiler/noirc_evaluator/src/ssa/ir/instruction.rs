@@ -322,6 +322,12 @@ impl Intrinsic {
 
     /// Lookup an Intrinsic by name and return it if found.
     /// If there is no such intrinsic by that name, None is returned.
+    ///
+    /// `noirc_frontend::ownership::builtin_supports_clone_elision` keeps a name-based
+    /// copy of the clone-elision classification of these intrinsics (it cannot depend
+    /// on this crate). When adding or reclassifying a name here, update it as well;
+    /// `ownership_clone_elision_list_matches_intrinsic_purity` in `ssa_gen::tests`
+    /// checks the two agree.
     pub(crate) fn lookup(name: &str) -> Option<Intrinsic> {
         match name {
             "array_len" => Some(Intrinsic::ArrayLen),

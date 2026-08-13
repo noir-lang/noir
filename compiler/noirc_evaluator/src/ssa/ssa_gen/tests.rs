@@ -343,15 +343,15 @@ fn oracle_wrapper_call_args_do_not_get_cloned() {
 
     let program = get_monomorphized_with_stdlib(src, &[stdlib_src::PRINT]).unwrap();
 
-    // The ownership pass wraps `a` in `.clone()` in `foo` because `a` is used again
-    // after the `println` call. The clone is unnecessary: the wrapper chain only
-    // forwards the argument to the `print` oracle, which cannot modify the array.
+    // Even though `a` is used again after the `println` call, the ownership pass does
+    // not wrap it in `.clone()`: the wrapper chain only forwards the argument to the
+    // `print` oracle, which cannot modify the array.
     insta::assert_snapshot!(program.to_string(), @r##"
     unconstrained fn main$f0() -> pub u64 {
         foo$f1([1])
     }
     unconstrained fn foo$f1(a$l0: [u64; 1]) -> u64 {
-        println$f2(a$l0.clone());;
+        println$f2(a$l0);;
         a$l0[0]
     }
     unconstrained fn println$f2(input$l1: [u64; 1]) -> () {
@@ -364,9 +364,9 @@ fn oracle_wrapper_call_args_do_not_get_cloned() {
 
     let ssa = generate_ssa(program).unwrap();
 
-    // `foo` does not emit `inc_rc v0` before the call to `println` even though the
-    // monomorphized AST contains `a.clone()`: the SSA-gen call lowering recognizes
-    // `println` as a thin wrapper around the `print` oracle and skips the clone.
+    // `foo` does not emit `inc_rc v0` before the call to `println`: the ownership
+    // pass recognizes `println` as a thin wrapper around the `print` oracle and
+    // skips the clone.
     assert_ssa_snapshot!(ssa, @r#"
     brillig(inline) fn main f0 {
       b0():
@@ -455,6 +455,59 @@ fn pure_builtin_call_with_mutating_sibling_arg_keeps_clone() {
     // yields 702624835 + 7 = 702624842.
     let results = ssa.interpret(vec![InterpreterValue::u32(0)]).unwrap();
     assert_eq!(results, vec![InterpreterValue::u64(1620291502)]);
+}
+
+/// The ownership pass decides clone elision in `noirc_frontend`, which cannot see
+/// [`Intrinsic`]: it keeps its own name-based copy of the classification. This test
+/// pins the two lists together so a new or reclassified intrinsic cannot silently
+/// diverge from the frontend's view.
+#[test]
+fn ownership_clone_elision_list_matches_intrinsic_purity() {
+    use crate::ssa::opt::pure::Purity;
+    use acvm::acir::BlackBoxFunc;
+    use noirc_frontend::ownership::builtin_supports_clone_elision;
+    use strum::IntoEnumIterator;
+
+    // Keep in sync with the names recognized by `Intrinsic::lookup`.
+    let intrinsic_names = [
+        "array_len",
+        "array_as_str_unchecked",
+        "as_vector",
+        "assert_constant",
+        "static_assert",
+        "apply_range_constraint",
+        "vector_push_back",
+        "vector_push_front",
+        "vector_pop_back",
+        "vector_pop_front",
+        "vector_insert",
+        "vector_remove",
+        "str_as_bytes",
+        "to_le_radix",
+        "to_be_radix",
+        "to_le_bits",
+        "to_be_bits",
+        "as_witness",
+        "is_unconstrained",
+        "derive_pedersen_generators",
+        "field_less_than",
+        "black_box",
+        "array_refcount",
+        "vector_refcount",
+    ];
+    let blackbox_names = BlackBoxFunc::iter().map(|func| func.name().to_string());
+
+    for name in intrinsic_names.into_iter().map(String::from).chain(blackbox_names) {
+        let intrinsic = crate::ssa::ir::instruction::Intrinsic::lookup(&name)
+            .unwrap_or_else(|| panic!("`{name}` should be a known intrinsic"));
+        let elidable = !intrinsic.unsafe_for_clone_elision_in_brillig()
+            && matches!(intrinsic.purity(), Purity::Pure | Purity::PureWithPredicate);
+        assert_eq!(
+            builtin_supports_clone_elision(&name),
+            elidable,
+            "`builtin_supports_clone_elision` disagrees with `Intrinsic`'s classification of `{name}`",
+        );
+    }
 }
 
 #[test]
