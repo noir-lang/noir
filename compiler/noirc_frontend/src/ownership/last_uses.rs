@@ -311,6 +311,11 @@ impl LastUseContext {
             }
         }
         self.killed = saved_killed;
+        // A `break`/`continue` in the condition targets the enclosing loop, so its
+        // `killed.clear()` must apply to the enclosing set we just restored.
+        if condition_has_break {
+            self.killed.clear();
+        }
         self.has_break = saved_has_break || condition_has_break;
     }
 
