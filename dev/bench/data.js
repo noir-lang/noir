@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1786629756461,
+  "lastUpdate": 1786630227471,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -14862,95 +14862,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "49558828+AztecBot@users.noreply.github.com",
-            "name": "Aztec Bot",
-            "username": "AztecBot"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "83743f42efd2cbebe4a90058bf47af97b52e696e",
-          "message": "fix(frontend): require exact composite receivers for visibility (#13347)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
-          "timestamp": "2026-07-29T12:37:34Z",
-          "tree_id": "48e7453d74ffd06cc1f61e748e72c2ee587896a8",
-          "url": "https://github.com/noir-lang/noir/commit/83743f42efd2cbebe4a90058bf47af97b52e696e"
-        },
-        "date": 1785330967293,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 294.41,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset-tail",
-            "value": 334.6,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 321.74,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 362.66,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-checkpoint-merge",
-            "value": 362.83,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-checkpoint-root-single-block",
-            "value": 1280,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-checkpoint-root",
-            "value": 1280,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 363.05,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-tx-base-private",
-            "value": 468.34,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-tx-base-public",
-            "value": 480.66,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-tx-merge",
-            "value": 362.3,
-            "unit": "MB"
-          },
-          {
-            "name": "semaphore_depth_10",
-            "value": 84.1,
-            "unit": "MB"
-          },
-          {
-            "name": "sha512_100_bytes",
-            "value": 77.92,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "163862677+noirwhal@users.noreply.github.com",
             "name": "noirwhal",
             "username": "noirwhal"
@@ -19240,6 +19151,95 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/f490b3ff4b7104c1ebbcb82592ca7ab250ecbd5f"
         },
         "date": 1786628119679,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 294.22,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset-tail",
+            "value": 335.23,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 321.54,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 362.55,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-merge",
+            "value": 362.71,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-root-single-block",
+            "value": 1280,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-root",
+            "value": 1280,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 362.95,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-base-private",
+            "value": 468.33,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-base-public",
+            "value": 480.69,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-merge",
+            "value": 362.19,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 84.1,
+            "unit": "MB"
+          },
+          {
+            "name": "sha512_100_bytes",
+            "value": 77.92,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49558828+AztecBot@users.noreply.github.com",
+            "name": "Aztec Bot",
+            "username": "AztecBot"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "b914a2766ab740c6500c084a9874c419466603b4",
+          "message": "chore(acir): enforce side-effects predicate scope (#13492)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
+          "timestamp": "2026-08-13T13:30:54Z",
+          "tree_id": "9bfb3ea8a235edc6b176390c29f42e4a1e24674d",
+          "url": "https://github.com/noir-lang/noir/commit/b914a2766ab740c6500c084a9874c419466603b4"
+        },
+        "date": 1786630160247,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
