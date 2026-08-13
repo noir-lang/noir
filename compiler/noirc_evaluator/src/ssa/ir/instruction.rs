@@ -275,7 +275,7 @@ impl Intrinsic {
 
             // Operations that remove items from a vector don't modify the vector, they just assert it's non-empty.
             // Vector insert also reads from its input vector, thus needing to assert that it is non-empty.
-            // Vector push back's ACIR lowering multiplies the write index by `current_side_effects_enabled_var`,
+            // Vector push back's ACIR lowering multiplies the write index by the side-effects predicate,
             // so deduplicating two pushes across different `enable_side_effects` predicates is unsound.
             Intrinsic::VectorPopBack
             | Intrinsic::VectorPopFront
@@ -290,8 +290,10 @@ impl Intrinsic {
             // runtime reference count is 1, so a pass that moves `Pure` calls freely
             // (e.g. loop-invariant code motion) could separate it from the `inc_rc`
             // that makes the mutation unobservable, or execute it on a path where the
-            // source program never runs it. The same applies to any Brillig function
-            // wrapping it, which inherits this purity through `purity_analysis`.
+            // source program never runs it. Note that this purity only covers moving
+            // or deduplicating the intrinsic call itself: a Brillig function calling a
+            // vector mutator on its own array parameter can mutate a buffer its caller
+            // still holds, so `Function::is_pure` classifies such a wrapper `Impure`.
             Intrinsic::VectorPushFront => Purity::PureWithPredicate,
 
             Intrinsic::AssertConstant
@@ -446,14 +448,14 @@ pub enum Instruction {
     /// An instruction to increment the reference count of a value.
     ///
     /// This currently only has an effect in Brillig code where array sharing and copy on write is
-    /// implemented via reference counting. In ACIR code this is done with `im::Vector` and these
+    /// implemented via reference counting. In ACIR code this is done with `imbl::Vector` and these
     /// `IncrementRc` instructions are ignored.
     IncrementRc { value: ValueId },
 
     /// An instruction to decrement the reference count of a value.
     ///
     /// This currently only has an effect in Brillig code where array sharing and copy on write is
-    /// implemented via reference counting. In ACIR code this is done with `im::Vector` and these
+    /// implemented via reference counting. In ACIR code this is done with `imbl::Vector` and these
     /// `DecrementRc` instructions are ignored.
     DecrementRc { value: ValueId },
 
@@ -477,7 +479,7 @@ pub enum Instruction {
     ///
     /// `typ` should be an array or vector type with an element type
     /// matching each of the `elements` values' types.
-    MakeArray { elements: im::Vector<ValueId>, typ: Type },
+    MakeArray { elements: imbl::Vector<ValueId>, typ: Type },
 
     /// A No-op instruction. These are intended to replace other instructions in a block's
     /// instructions vector without having to move each instruction afterward.
@@ -558,7 +560,7 @@ impl Instruction {
                         // which uses the side effects predicate.
                         Intrinsic::VectorInsert | Intrinsic::VectorRemove => true,
                         // The heterogeneous vector path in ACIR lowering uses
-                        // `get_flattened_index` which reads `current_side_effects_enabled_var`
+                        // `get_flattened_index` which reads the side-effects predicate
                         // to guard the element-type-sizes memory lookup.
                         Intrinsic::VectorPushBack => true,
                         // Technically these don't use the side effects predicate, but they fail on empty vectors,
@@ -567,7 +569,7 @@ impl Instruction {
                         // would fail, but they shouldn't because they might be disabled.
                         Intrinsic::VectorPopFront | Intrinsic::VectorPopBack => true,
                         // RecursiveAggregation's predicate is injected implicitly from
-                        // `current_side_effects_enabled_var` during ACIR generation, so we
+                        // the side-effects predicate during ACIR generation, so we
                         // must preserve the EnableSideEffectsIf that sets it.
                         Intrinsic::BlackBox(BlackBoxFunc::RecursiveAggregation) => true,
                         _ => false,
@@ -1211,7 +1213,7 @@ impl TerminatorInstruction {
 /// Try to avoid mutation until we know something changed, to take advantage of
 /// structural sharing, and avoid needlessly calling `Arc::make_mut` which clones
 /// the content and increases memory use by allocating more pointers on the heap.
-fn im_vec_map_values_mut<T, F>(xs: &mut im::Vector<T>, mut f: F)
+fn im_vec_map_values_mut<T, F>(xs: &mut imbl::Vector<T>, mut f: F)
 where
     T: Copy + PartialEq,
     F: FnMut(T) -> T,
@@ -1277,14 +1279,14 @@ mod tests {
 
         let typ = Type::Array(std::sync::Arc::new(vec![Type::field()]), SemanticLength(2));
         let mut instruction =
-            Instruction::MakeArray { elements: im::Vector::from(vec![v0, v1]), typ: typ.clone() };
+            Instruction::MakeArray { elements: imbl::Vector::from(vec![v0, v1]), typ: typ.clone() };
         assert!(instruction.replace_values(&mapping));
         let Instruction::MakeArray { elements, .. } = instruction else { unreachable!() };
         assert_eq!(elements[0], v0);
         assert_eq!(elements[1], v2);
 
         let mut unrelated =
-            Instruction::MakeArray { elements: im::Vector::from(vec![v0, v0]), typ };
+            Instruction::MakeArray { elements: imbl::Vector::from(vec![v0, v0]), typ };
         assert!(!unrelated.replace_values(&mapping));
         let Instruction::MakeArray { elements, .. } = unrelated else { unreachable!() };
         assert_eq!(elements[0], v0);

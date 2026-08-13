@@ -81,7 +81,7 @@
 //!
 //! ### Side effects and Predication
 //!
-//! This module uses the special [side effects variable][Context::current_side_effects_enabled_var] to guard
+//! This module uses the [side-effects predicate][Context::predicate] to guard
 //! array operations that may not always be executed. This variable acts as a predicate.
 //!
 //! The goal is to preserve SSA semantics where some array operations are dominated by a branch condition.
@@ -145,6 +145,7 @@ use crate::ssa::ir::{
 
 use super::{
     AcirVar, Context,
+    side_effects::StaleReadIsSafe,
     types::{AcirDynamicArray, AcirValue},
 };
 
@@ -297,10 +298,6 @@ impl Context<'_> {
         index: ValueId,
         store_value: Option<ValueId>,
     ) -> Result<bool, RuntimeError> {
-        if !self.acir_context.is_constant_zero(&self.current_side_effects_enabled_var) {
-            return Ok(false);
-        }
-
         // The side-effects predicate is only this instruction's own for the instructions
         // [`crate::ssa::opt::remove_enable_side_effects`] fences, that is those reporting
         // `Instruction::requires_acir_gen_predicate == true`. A read at a statically safe index
@@ -312,6 +309,11 @@ impl Context<'_> {
         // so it never needs the predicate's fallback to a valid slot and the ordinary path emits
         // exactly the read the program asked for.
         if store_value.is_none() && dfg.is_safe_index(index, array) {
+            return Ok(false);
+        }
+
+        let predicate = self.predicate();
+        if !self.acir_context.is_constant_zero(&predicate) {
             return Ok(false);
         }
 
@@ -351,7 +353,8 @@ impl Context<'_> {
         }
         // Make sure this code is disabled, or fail with "Index out of bounds".
         let msg = "Index out of bounds, array has size 0".to_string();
-        self.acir_context.assert_zero_var(self.current_side_effects_enabled_var, msg)?;
+        let predicate = self.predicate();
+        self.acir_context.assert_zero_var(predicate, msg)?;
         Ok(true)
     }
 
@@ -432,7 +435,7 @@ impl Context<'_> {
         &mut self,
         instruction: InstructionId,
         dfg: &DataFlowGraph,
-        array: im::Vector<AcirValue>,
+        array: imbl::Vector<AcirValue>,
         index: FieldElement,
         store_value: Option<AcirValue>,
     ) -> Result<bool, RuntimeError> {
@@ -454,8 +457,8 @@ impl Context<'_> {
         }
 
         if let Some(store_value) = store_value {
-            let side_effects_always_enabled =
-                self.acir_context.is_constant_one(&self.current_side_effects_enabled_var);
+            let predicate = self.predicate();
+            let side_effects_always_enabled = self.acir_context.is_constant_one(&predicate);
 
             if side_effects_always_enabled {
                 // If we know that this write will always occur then we can perform it at compile time.
@@ -561,8 +564,14 @@ impl Context<'_> {
         let index_var =
             self.get_flattened_index(&array_typ, array_id, index_var, dfg, gating, shift)?;
 
+        let predicate = if store_value.is_none() && dfg.is_safe_index(index, array_id) {
+            self.out_of_scope_predicate(StaleReadIsSafe::OnlyToSkipGating)
+        } else {
+            self.predicate()
+        };
+
         // Side-effects are always enabled so we do not need to do any predication
-        if self.acir_context.is_constant_one(&self.current_side_effects_enabled_var) {
+        if self.acir_context.is_constant_one(&predicate) {
             let store_value = store_value.map(|store| self.convert_value(store, dfg));
             return Ok((index_var, store_value));
         }
@@ -600,18 +609,17 @@ impl Context<'_> {
     ) -> Result<AcirValue, RuntimeError> {
         match (store_value, dummy_value) {
             (AcirValue::Var(store_var, typ), AcirValue::Var(dummy_var, _)) => {
-                let true_pred =
-                    self.acir_context.mul_var(*store_var, self.current_side_effects_enabled_var)?;
+                let predicate = self.predicate();
+                let true_pred = self.acir_context.mul_var(*store_var, predicate)?;
                 let one = self.acir_context.add_constant(FieldElement::one());
-                let not_pred =
-                    self.acir_context.sub_var(one, self.current_side_effects_enabled_var)?;
+                let not_pred = self.acir_context.sub_var(one, predicate)?;
                 let false_pred = self.acir_context.mul_var(not_pred, *dummy_var)?;
                 // predicate*value + (1-predicate)*dummy
                 let new_value = self.acir_context.add_var(true_pred, false_pred)?;
                 Ok(AcirValue::Var(new_value, *typ))
             }
             (AcirValue::Array(values), AcirValue::Array(dummy_values)) => {
-                let mut elements = im::Vector::new();
+                let mut elements = imbl::Vector::new();
 
                 assert_eq!(
                     values.len(),
@@ -646,7 +654,7 @@ impl Context<'_> {
                 let values: Vec<_> = self
                     .read_dynamic_array(*block_id, *len, value_types)
                     .collect::<Result<_, _>>()?;
-                let mut elements = im::Vector::new();
+                let mut elements = imbl::Vector::new();
                 for (val, dummy_val) in values.iter().zip_eq(dummy_values) {
                     elements.push_back(self.convert_array_set_store_value(val, &dummy_val)?);
                 }
@@ -672,7 +680,7 @@ impl Context<'_> {
         match typ {
             Type::Numeric(_) => self.array_get_value(typ, call_data_block, offset),
             Type::Array(arc, len) => {
-                let mut result = im::Vector::new();
+                let mut result = imbl::Vector::new();
                 for _i in 0..len.0 {
                     for sub_type in arc.iter() {
                         let element = self.get_from_call_data(offset, call_data_block, sub_type)?;
@@ -783,7 +791,7 @@ impl Context<'_> {
                 Ok(AcirValue::Var(read, *numeric_type))
             }
             Type::Array(element_types, len) => {
-                let mut values = im::Vector::new();
+                let mut values = imbl::Vector::new();
                 for _ in 0..len.0 {
                     for typ in element_types.as_ref() {
                         values.push_back(self.array_get_value(typ, block_id, var_index)?);
@@ -809,7 +817,7 @@ impl Context<'_> {
                 Ok(AcirValue::Var(zero, numeric_type))
             }
             Type::Array(element_types, len) => {
-                let mut values = im::Vector::new();
+                let mut values = imbl::Vector::new();
                 for _ in 0..len.0 {
                     for typ in element_types.as_ref() {
                         values.push_back(self.array_zero_value(typ)?);
@@ -817,7 +825,7 @@ impl Context<'_> {
                 }
                 Ok(AcirValue::Array(values))
             }
-            Type::Vector(_) => Ok(AcirValue::Array(im::Vector::new())),
+            Type::Vector(_) => Ok(AcirValue::Array(imbl::Vector::new())),
             Type::Reference(reference_type, _) => self.array_zero_value(reference_type.as_ref()),
             Type::Function => {
                 unreachable!("ICE: unexpected Function type in array_zero_value")
@@ -1110,7 +1118,7 @@ impl Context<'_> {
         &mut self,
         array: AcirValue,
         array_typ: &Type,
-    ) -> Result<im::Vector<AcirValue>, RuntimeError> {
+    ) -> Result<imbl::Vector<AcirValue>, RuntimeError> {
         match array {
             AcirValue::Var(_, _) => unreachable!("ICE: attempting to read a non-array value"),
             //Array are already structured
@@ -1128,7 +1136,7 @@ impl Context<'_> {
                 assert_ne!(element_flat_size.0, 0, "ICE: array elements are empty");
                 let num_elements = len / ElementsFlattenedLength::from(element_flat_size);
 
-                let mut result = im::Vector::new();
+                let mut result = imbl::Vector::new();
                 let mut var_index = self.acir_context.add_constant(FieldElement::zero());
                 // Reconstruct each element with its proper structure
                 for _ in 0..num_elements.0 {
@@ -1256,7 +1264,8 @@ impl Context<'_> {
         let var_index = match gating {
             IndexGating::Safe => var_index,
             IndexGating::Gated { .. } => {
-                self.acir_context.mul_var(var_index, self.current_side_effects_enabled_var)?
+                let predicate = self.predicate();
+                self.acir_context.mul_var(var_index, predicate)?
             }
         };
 
@@ -1276,8 +1285,8 @@ impl Context<'_> {
         match gating {
             IndexGating::Gated { fallback_offset } if fallback_offset != 0 => {
                 let one = self.acir_context.add_constant(FieldElement::one());
-                let not_pred =
-                    self.acir_context.sub_var(one, self.current_side_effects_enabled_var)?;
+                let predicate = self.predicate();
+                let not_pred = self.acir_context.sub_var(one, predicate)?;
                 let offset_var = self.acir_context.add_constant(fallback_offset);
                 let offset_term = self.acir_context.mul_var(offset_var, not_pred)?;
                 Ok(self.acir_context.add_var(flat_index, offset_term)?)
