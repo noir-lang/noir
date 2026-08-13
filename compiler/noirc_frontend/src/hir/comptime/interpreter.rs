@@ -55,7 +55,7 @@ use crate::monomorphization::{
     undo_instantiation_bindings,
 };
 use crate::node_interner::GlobalValue;
-use crate::shared::{ForeignCall, Signedness};
+use crate::shared::{Builtin, ForeignCall, Signedness};
 use crate::token::{FmtStrFragment, Tokens};
 use crate::{
     Shared, Type, TypeBindings,
@@ -330,10 +330,18 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         let func_attrs = &attributes.function()
             .expect("all builtin functions must contain a function attribute which contains the opcode which it links to").kind;
 
-        if let Some(builtin) = func_attrs.builtin() {
-            self.call_builtin(builtin.clone().as_str(), arguments, return_type, location)
-        } else if let Some(foreign) = func_attrs.foreign() {
-            self.call_foreign(foreign.clone().as_str(), arguments, return_type, location)
+        if let Some(name) = func_attrs.builtin() {
+            let Some(builtin) = Builtin::lookup(name) else {
+                let item = format!("Comptime evaluation for builtin function '{name}'");
+                return Err(InterpreterError::Unimplemented { item, location });
+            };
+            self.call_builtin(builtin, arguments, return_type, location)
+        } else if let Some(name) = func_attrs.foreign() {
+            let Some(foreign) = Builtin::lookup(name) else {
+                let item = format!("Comptime evaluation for foreign function '{name}'");
+                return Err(InterpreterError::Unimplemented { item, location });
+            };
+            self.call_foreign(foreign, arguments, return_type, location)
         } else if let Some(oracle) = func_attrs.oracle() {
             if let Some(ForeignCall::Print) = ForeignCall::lookup(oracle) {
                 self.print_oracle(&arguments)

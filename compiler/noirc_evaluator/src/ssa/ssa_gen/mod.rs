@@ -257,10 +257,10 @@ impl FunctionContext<'_> {
             ast::Definition::Oracle { name, pure } => {
                 self.builder.import_foreign_function(name, *pure).into()
             }
-            ast::Definition::Builtin(name) | ast::Definition::LowLevel(name) => {
-                match self.builder.import_intrinsic(name) {
-                    Some(builtin) => builtin.into(),
-                    None => panic!("No builtin function named '{name}' found"),
+            ast::Definition::Builtin(builtin) | ast::Definition::LowLevel(builtin) => {
+                match Intrinsic::from_builtin(*builtin) {
+                    Some(intrinsic) => self.builder.import_intrinsic_id(intrinsic).into(),
+                    None => panic!("No builtin function named '{builtin}' found"),
                 }
             }
         }

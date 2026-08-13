@@ -54,7 +54,7 @@ use crate::hir::type_check::NoMatchingImplFoundError;
 use crate::lint::Lint;
 use crate::node_interner::{ExprId, GlobalValue, ImplSearchErrorKind, TraitItemId};
 use crate::recursion::TypeRecursionContext;
-use crate::shared::{ForeignCall, Visibility};
+use crate::shared::{Builtin, ForeignCall, Visibility};
 use crate::token::FunctionAttributeKind;
 use crate::{
     Kind, Type, TypeBinding, TypeBindings,
@@ -482,12 +482,12 @@ impl<'interner> Monomorphizer<'interner> {
                         let opcode = attribute.kind.foreign().expect(
                             "ICE: function marked as foreign, but attribute kind does not match this",
                         );
-                        let opcode = opcode.clone();
                         let location = self.interner.expr_location(&expr_id);
+                        let opcode = Self::lookup_builtin(opcode, location)?;
 
                         if evaluate_builtin {
                             match self.try_evaluate_builtin(
-                                &opcode,
+                                opcode,
                                 typ,
                                 turbofish_generics,
                                 bindings_key,
@@ -507,12 +507,12 @@ impl<'interner> Monomorphizer<'interner> {
                         let opcode = attribute.kind.builtin().expect(
                             "ICE: function marked as builtin, but attribute kind does not match this",
                         );
-                        let opcode = opcode.clone();
                         let location = self.interner.expr_location(&expr_id);
+                        let opcode = Self::lookup_builtin(opcode, location)?;
 
                         if evaluate_builtin {
                             match self.try_evaluate_builtin(
-                                &opcode,
+                                opcode,
                                 typ,
                                 turbofish_generics,
                                 bindings_key,
@@ -2396,9 +2396,7 @@ impl<'interner> Monomorphizer<'interner> {
                 // The second argument is expected to always be an ident
                 self.append_printable_type_info(&hir_arguments[1], &mut arguments);
             }
-            if let Definition::Builtin(name) = &ident.definition
-                && name.as_str() == "static_assert"
-            {
+            if let Definition::Builtin(Builtin::StaticAssert) = &ident.definition {
                 // static_assert can take any type for the `message` argument.
                 // Here we append printable type info so we can know how to turn that argument
                 // into a human-readable string.
@@ -3263,7 +3261,7 @@ impl<'interner> Monomorphizer<'interner> {
 /// direct calls.
 fn special_function_name(definition: &Definition) -> Option<&str> {
     match definition {
-        Definition::Builtin(name) if name == "static_assert" => Some(name),
+        Definition::Builtin(builtin @ Builtin::StaticAssert) => Some(builtin.name()),
         Definition::Oracle { name, .. }
             if matches!(ForeignCall::lookup(name), Some(ForeignCall::Print)) =>
         {

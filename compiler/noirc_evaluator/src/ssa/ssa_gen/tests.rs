@@ -458,54 +458,38 @@ fn pure_builtin_call_with_mutating_sibling_arg_keeps_clone() {
 }
 
 /// The ownership pass decides clone elision in `noirc_frontend`, which cannot see
-/// [`Intrinsic`]: it keeps its own name-based copy of the classification. This test
-/// pins the two lists together so a new or reclassified intrinsic cannot silently
-/// diverge from the frontend's view.
+/// [`Intrinsic`](crate::ssa::ir::instruction::Intrinsic): it keeps its own copy of
+/// the classification. This test pins the two together over every [`Builtin`] so a
+/// new or reclassified builtin cannot silently diverge from the frontend's view.
 #[test]
 fn ownership_clone_elision_list_matches_intrinsic_purity() {
+    use crate::ssa::ir::instruction::Intrinsic;
     use crate::ssa::opt::pure::Purity;
     use acvm::acir::BlackBoxFunc;
     use noirc_frontend::ownership::builtin_supports_clone_elision;
+    use noirc_frontend::shared::Builtin;
     use strum::IntoEnumIterator;
 
-    // Keep in sync with the names recognized by `Intrinsic::lookup`.
-    let intrinsic_names = [
-        "array_len",
-        "array_as_str_unchecked",
-        "as_vector",
-        "assert_constant",
-        "static_assert",
-        "apply_range_constraint",
-        "vector_push_back",
-        "vector_push_front",
-        "vector_pop_back",
-        "vector_pop_front",
-        "vector_insert",
-        "vector_remove",
-        "str_as_bytes",
-        "to_le_radix",
-        "to_be_radix",
-        "to_le_bits",
-        "to_be_bits",
-        "as_witness",
-        "is_unconstrained",
-        "derive_pedersen_generators",
-        "field_less_than",
-        "black_box",
-        "array_refcount",
-        "vector_refcount",
-    ];
-    let blackbox_names = BlackBoxFunc::iter().map(|func| func.name().to_string());
-
-    for name in intrinsic_names.into_iter().map(String::from).chain(blackbox_names) {
-        let intrinsic = crate::ssa::ir::instruction::Intrinsic::lookup(&name)
-            .unwrap_or_else(|| panic!("`{name}` should be a known intrinsic"));
-        let elidable = !intrinsic.unsafe_for_clone_elision_in_brillig()
-            && matches!(intrinsic.purity(), Purity::Pure | Purity::PureWithPredicate);
+    // `Builtin::iter` skips the strum-disabled `BlackBox` variant, so chain the
+    // callable black box functions explicitly.
+    let black_boxes = BlackBoxFunc::iter()
+        .filter(|func| Builtin::lookup(func.name()).is_some())
+        .map(Builtin::BlackBox);
+    for builtin in Builtin::iter().chain(black_boxes) {
+        // Builtins that never reach SSA generation have no runtime call whose clone
+        // could be elided; those that do must agree with `Intrinsic`'s purity and
+        // aliasing classification.
+        let elidable = match Intrinsic::from_builtin(builtin) {
+            Some(intrinsic) => {
+                !intrinsic.unsafe_for_clone_elision_in_brillig()
+                    && matches!(intrinsic.purity(), Purity::Pure | Purity::PureWithPredicate)
+            }
+            None => false,
+        };
         assert_eq!(
-            builtin_supports_clone_elision(&name),
+            builtin_supports_clone_elision(builtin),
             elidable,
-            "`builtin_supports_clone_elision` disagrees with `Intrinsic`'s classification of `{name}`",
+            "`builtin_supports_clone_elision` disagrees with `Intrinsic`'s classification of `{builtin}`",
         );
     }
 }

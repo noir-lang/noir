@@ -1989,3 +1989,28 @@ fn constrained_fn_value_in_unconstrained_fn_target_control() {
     }
     ");
 }
+
+#[test]
+fn errors_on_unknown_builtin_name() {
+    // The name in a `#[builtin]`/`#[foreign]` attribute is free-form at parse time;
+    // it is resolved to `shared::Builtin` when a call to it is monomorphized. A name
+    // the compiler does not implement must produce a diagnostic here rather than
+    // surviving to SSA generation and panicking there.
+    let src = r#"
+    #[builtin(not_a_real_builtin)]
+    pub fn not_a_real_builtin() {}
+
+    fn main() {
+        not_a_real_builtin();
+    }
+    "#;
+    let err = get_monomorphized_with_options(
+        src,
+        GetProgramOptions { root_and_stdlib: true, ..Default::default() },
+    )
+    .unwrap_err();
+    assert!(
+        matches!(&err, MonomorphizationError::UnknownBuiltin { name, .. } if name == "not_a_real_builtin"),
+        "expected UnknownBuiltin, got: {err:?}"
+    );
+}

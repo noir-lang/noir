@@ -49,14 +49,14 @@ keeps the clone, which is always sound (at worst a wasted copy).
 
 ## The duplicated builtin classification
 
-`builtin_supports_clone_elision` in the frontend is a name-based copy of
-information that canonically lives in `noirc_evaluator`
-(`Intrinsic::purity` and `Intrinsic::unsafe_for_clone_elision_in_brillig`),
-because the crate dependency only goes the other way. The duplication is
-deliberate and small; the test
-`ownership_clone_elision_list_matches_intrinsic_purity` in
-`noirc_evaluator`'s `ssa_gen::tests` asserts the two classifications agree for
-every intrinsic name, so they cannot drift silently.
+`builtin_supports_clone_elision` in the frontend duplicates information that
+canonically lives in `noirc_evaluator` (`Intrinsic::purity` and
+`Intrinsic::unsafe_for_clone_elision_in_brillig`), because the crate
+dependency only goes the other way. Both sides are keyed on the shared
+`noirc_frontend::shared::Builtin` enum, and the test
+`ownership_clone_elision_list_matches_intrinsic_purity` in `noirc_evaluator`'s
+`ssa_gen::tests` iterates every `Builtin` variant and asserts the two
+classifications agree, so they cannot drift silently.
 
 Notable entries: vector mutators are excluded because they may write through
 their input pointer in place at reference count 1; `str_as_bytes` and

@@ -18,37 +18,36 @@
 //! callee would read the mutated buffer. The clone on an argument is therefore
 //! kept unless every later argument of the same call is side-effect-free.
 
-use acvm::acir::BlackBoxFunc;
 use rustc_hash::FxHashSet as HashSet;
 
 use crate::monomorphization::ast::{Call, Definition, Expression, FuncId, Literal, Program};
+use crate::shared::Builtin;
 
-/// Return whether a call to the builtin or low level function with the given name
-/// allows the `Clone` around its array arguments to be elided: the callee must
-/// neither modify the input nor return an alias of it that a later Brillig mutation
-/// could observe.
+/// Return whether a call to the given builtin or low level function allows the
+/// `Clone` around its array arguments to be elided: the callee must neither modify
+/// the input nor return an alias of it that a later Brillig mutation could observe.
 ///
 /// This mirrors `Intrinsic::purity` and `Intrinsic::unsafe_for_clone_elision_in_brillig`
 /// in `noirc_evaluator`, which cannot be used here directly since `noirc_frontend` cannot
 /// depend on `noirc_evaluator`. A test in `noirc_evaluator` (`ssa::ssa_gen::tests`) checks
-/// that this function agrees with them for every intrinsic name.
-pub fn builtin_supports_clone_elision(name: &str) -> bool {
-    match name {
+/// that this function agrees with them for every builtin.
+pub fn builtin_supports_clone_elision(builtin: Builtin) -> bool {
+    match builtin {
         // Pure or predicate-pure builtins that neither modify their array arguments
         // nor return an alias of them.
-        "array_len"
-        | "as_vector"
-        | "assert_constant"
-        | "static_assert"
-        | "apply_range_constraint"
-        | "to_le_radix"
-        | "to_be_radix"
-        | "to_le_bits"
-        | "to_be_bits"
-        | "as_witness"
-        | "is_unconstrained"
-        | "derive_pedersen_generators"
-        | "field_less_than" => true,
+        Builtin::ArrayLen
+        | Builtin::AsVector
+        | Builtin::AssertConstant
+        | Builtin::StaticAssert
+        | Builtin::ApplyRangeConstraint
+        | Builtin::ToLeRadix
+        | Builtin::ToBeRadix
+        | Builtin::ToLeBits
+        | Builtin::ToBeBits
+        | Builtin::AsWitness
+        | Builtin::IsUnconstrained
+        | Builtin::DerivePedersenGenerators
+        | Builtin::FieldLessThan => true,
 
         // Vector mutators may write through their input pointer in place when the
         // copy-on-write reference count is 1. `str_as_bytes` and
@@ -56,21 +55,26 @@ pub fn builtin_supports_clone_elision(name: &str) -> bool {
         // input, so a later mutation of the result could corrupt the source.
         // `black_box` is deliberately opaque to the optimizer, and reference count
         // reads are ordering-dependent on the rc traffic around them.
-        "vector_push_back"
-        | "vector_push_front"
-        | "vector_pop_back"
-        | "vector_pop_front"
-        | "vector_insert"
-        | "vector_remove"
-        | "str_as_bytes"
-        | "array_as_str_unchecked"
-        | "black_box"
-        | "array_refcount"
-        | "vector_refcount" => false,
+        Builtin::VectorPushBack
+        | Builtin::VectorPushFront
+        | Builtin::VectorPopBack
+        | Builtin::VectorPopFront
+        | Builtin::VectorInsert
+        | Builtin::VectorRemove
+        | Builtin::StrAsBytes
+        | Builtin::ArrayAsStrUnchecked
+        | Builtin::BlackBoxHint
+        | Builtin::ArrayRefcount
+        | Builtin::VectorRefcount => false,
 
-        // Blackbox functions (hashes, curve operations, signature verification, and
-        // bitwise AND/XOR) only read their inputs and return fresh outputs.
-        other => BlackBoxFunc::lookup(other).is_some(),
+        // Black box functions (hashes, curve operations, signature verification)
+        // only read their inputs and return fresh outputs.
+        Builtin::BlackBox(_) => true,
+
+        // Anything else is either evaluated away before SSA generation
+        // (comptime-only and monomorphizer-handled builtins) or unknown;
+        // conservatively keep the clone.
+        _ => false,
     }
 }
 
@@ -120,8 +124,8 @@ pub fn find_oracle_wrappers(program: &Program) -> HashSet<FuncId> {
 /// elided (sibling arguments permitting, see [`elide_clones_in_call_arguments`]).
 fn callee_preserves_array_arguments(func: &Expression, oracle_wrappers: &HashSet<FuncId>) -> bool {
     match callee_definition(func) {
-        Some(Definition::Builtin(name) | Definition::LowLevel(name)) => {
-            builtin_supports_clone_elision(name)
+        Some(Definition::Builtin(builtin) | Definition::LowLevel(builtin)) => {
+            builtin_supports_clone_elision(*builtin)
         }
         Some(Definition::Oracle { .. }) => true,
         Some(Definition::Function(func_id)) => oracle_wrappers.contains(func_id),
