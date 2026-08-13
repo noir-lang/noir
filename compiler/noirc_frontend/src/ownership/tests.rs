@@ -2280,3 +2280,112 @@ fn closure_captured_array_used_twice_clones_first_use() {
     }
     ");
 }
+
+#[test]
+fn break_in_nested_while_condition_clears_killed() {
+    // The `break` in the inner `while`'s condition targets the OUTER loop, so it can skip
+    // the reassignment `x = [v, v, v]`. `x`'s old value is then still live after the loop,
+    // so its use in `let mut y = x` must be cloned, not moved: `x` may not stay in the
+    // `killed` set that exempts it from loop-exit truncation.
+    //
+    // This snapshot currently records the WRONG decision (`let mut y$l5 = x$l2;`, a move):
+    // the `killed.clear()` performed by the `break` lands on the loop-local set and is
+    // discarded when the enclosing set is restored at the loop boundary. Once fixed, the
+    // snapshot must show `let mut y$l5 = x$l2.clone();`.
+    let src = "
+    unconstrained fn main(v: Field, n: u32) -> pub [Field; 2] {
+        let mut x = [v, v, v];
+        let mut z = [0, 0, 0];
+        let mut i = 0;
+        while i < n {
+            let mut y = x;
+            y[0] = 9;
+            z = y;
+            let mut j = 0;
+            while ({ if i == 1 { break; } j < 3 }) { j = j + 1; }
+            x = [v, v, v];
+            i = i + 1;
+        }
+        [x[0], z[0]]
+    }
+    ";
+
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    unconstrained fn main$f0(v$l0: Field, n$l1: u32) -> pub [Field; 2] {
+        let mut x$l2 = [v$l0, v$l0, v$l0];
+        let mut z$l3 = [0, 0, 0];
+        let mut i$l4 = 0;
+        while (i$l4 < n$l1) {
+            let mut y$l5 = x$l2;
+            y$l5[0] = 9;
+            z$l3 = y$l5;
+            let mut j$l6 = 0;
+            while {
+                if (i$l4 == 1) {
+                    break
+                };
+                (j$l6 < 3)
+            } {
+                j$l6 = (j$l6 + 1)
+            };
+            x$l2 = [v$l0, v$l0, v$l0];
+            i$l4 = (i$l4 + 1)
+        };
+        [x$l2[0], z$l3[0]]
+    }
+    ");
+}
+
+#[test]
+fn continue_in_nested_while_condition_clears_killed() {
+    // The `continue` spelling of `break_in_nested_while_condition_clears_killed`: it also
+    // targets the outer loop and can also skip the reassignment `x = [v, v, v]`, so the use
+    // of `x` in `let mut y = x` must be cloned, not moved.
+    //
+    // This snapshot currently records the WRONG decision (`let mut y$l5 = x$l2;`, a move).
+    // Once fixed, the snapshot must show `let mut y$l5 = x$l2.clone();`.
+    let src = "
+    unconstrained fn main(v: Field, n: u32) -> pub [Field; 2] {
+        let mut x = [v, v, v];
+        let mut z = [0, 0, 0];
+        let mut i = 0;
+        while i < n {
+            let mut y = x;
+            y[0] = 9;
+            z = y;
+            i = i + 1;
+            let mut j = 0;
+            while ({ if i == n { continue; } j < 3 }) { j = j + 1; }
+            x = [v, v, v];
+        }
+        [x[0], z[0]]
+    }
+    ";
+
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    unconstrained fn main$f0(v$l0: Field, n$l1: u32) -> pub [Field; 2] {
+        let mut x$l2 = [v$l0, v$l0, v$l0];
+        let mut z$l3 = [0, 0, 0];
+        let mut i$l4 = 0;
+        while (i$l4 < n$l1) {
+            let mut y$l5 = x$l2;
+            y$l5[0] = 9;
+            z$l3 = y$l5;
+            i$l4 = (i$l4 + 1);
+            let mut j$l6 = 0;
+            while {
+                if (i$l4 == n$l1) {
+                    continue
+                };
+                (j$l6 < 3)
+            } {
+                j$l6 = (j$l6 + 1)
+            };
+            x$l2 = [v$l0, v$l0, v$l0]
+        };
+        [x$l2[0], z$l3[0]]
+    }
+    ");
+}
