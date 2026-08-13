@@ -12,7 +12,7 @@
 //!    If the branches converge, the jmpif is unnecessary and can be replaced with a simple jmp.
 //!
 //! Currently only 1 is unimplemented.
-use std::collections::HashSet;
+use std::collections::{BTreeSet, HashSet};
 
 use acvm::acir::AcirField;
 use itertools::Itertools;
@@ -155,7 +155,7 @@ struct PendingReplacements {
     /// Entries are allowed to go stale: a block is acted on only after its current terminator
     /// has been checked, and is registered afresh whenever its condition changes. Only
     /// additions have to be complete, which is what [`Self::register_condition`] is for.
-    blocks_branching_on: HashMap<ValueId, Vec<BasicBlockId>>,
+    blocks_branching_on: HashMap<ValueId, BTreeSet<BasicBlockId>>,
 
     /// The values mapped since [`Self::take_newly_mapped`] was last called.
     newly_mapped: Vec<ValueId>,
@@ -171,6 +171,9 @@ impl PendingReplacements {
     }
 
     fn insert(&mut self, from: ValueId, to: ValueId) {
+        if from == to {
+            return;
+        }
         self.mapping.insert(from, to);
         self.newly_mapped.push(from);
     }
@@ -183,10 +186,7 @@ impl PendingReplacements {
         if let Some(TerminatorInstruction::JmpIf { condition, .. }) =
             function.dfg[block].terminator()
         {
-            let blocks = self.blocks_branching_on.entry(*condition).or_default();
-            if !blocks.contains(&block) {
-                blocks.push(block);
-            }
+            self.blocks_branching_on.entry(*condition).or_default().insert(block);
         }
     }
 
@@ -194,8 +194,13 @@ impl PendingReplacements {
         std::mem::take(&mut self.newly_mapped)
     }
 
-    fn blocks_branching_on(&self, value: ValueId) -> Vec<BasicBlockId> {
-        self.blocks_branching_on.get(&value).cloned().unwrap_or_default()
+    /// Take the blocks registered as branching on `value`.
+    ///
+    /// Removing the entry keeps the index proportional to the conditions currently in the
+    /// function: once `value` has been replaced, every block that branched on it is
+    /// re-registered under whatever it branches on now.
+    fn take_blocks_branching_on(&mut self, value: ValueId) -> BTreeSet<BasicBlockId> {
+        self.blocks_branching_on.remove(&value).unwrap_or_default()
     }
 }
 
@@ -208,16 +213,19 @@ fn apply_replacements_to_conditions(
     let mut updated = Vec::new();
 
     for value in values_to_replace.take_newly_mapped() {
-        for block in values_to_replace.blocks_branching_on(value) {
+        for block in values_to_replace.take_blocks_branching_on(value) {
             let Some(TerminatorInstruction::JmpIf { condition, .. }) =
                 function.dfg[block].terminator()
             else {
-                // A stale index entry: the block no longer branches at all.
+                // A stale entry: the block no longer branches at all.
                 continue;
             };
 
             let condition = *condition;
             if values_to_replace.mapping().get(condition) == condition {
+                // A stale entry: the block has moved on to a condition that is not waiting to
+                // be replaced. It still has to be findable under that condition.
+                values_to_replace.register_condition(function, block);
                 continue;
             }
 
