@@ -571,7 +571,7 @@
 <a href=#571 id=571 data-nosnippet>571</a>
 <a href=#572 id=572 data-nosnippet>572</a>    <span class="attr">#[test]
 <a href=#573 id=573 data-nosnippet>573</a>    </span><span class="kw">fn </span>keep_enable_side_effects_for_recursive_aggregation() {
-<a href=#574 id=574 data-nosnippet>574</a>        <span class="comment">// RecursiveAggregation uses the `current_side_effects_enabled_var` as its predicate
+<a href=#574 id=574 data-nosnippet>574</a>        <span class="comment">// RecursiveAggregation uses the current side-effects predicate
 <a href=#575 id=575 data-nosnippet>575</a>        // during ACIR generation. If `remove_enable_side_effects` drops the `EnableSideEffectsIf`
 <a href=#576 id=576 data-nosnippet>576</a>        // before a recursive_aggregation call, ACIR gen injects a stale predicate, which can
 <a href=#577 id=577 data-nosnippet>577</a>        // silently disable recursive verification constraints.
@@ -591,11 +591,11 @@
 <a href=#591 id=591 data-nosnippet>591</a>    }
 <a href=#592 id=592 data-nosnippet>592</a>
 <a href=#593 id=593 data-nosnippet>593</a>    <span class="doccomment">/// Regression test: the heterogeneous `vector_push_back` path in ACIR lowering multiplies
-<a href=#594 id=594 data-nosnippet>594</a>    /// `vector_length` by `current_side_effects_enabled_var` to compute the write offset.
+<a href=#594 id=594 data-nosnippet>594</a>    /// `vector_length` by the side-effects predicate to compute the write offset.
 <a href=#595 id=595 data-nosnippet>595</a>    /// `remove_enable_side_effects` must preserve the `EnableSideEffectsIf` before these calls.
 <a href=#596 id=596 data-nosnippet>596</a>    ///
 <a href=#597 id=597 data-nosnippet>597</a>    /// This test uses ACVM execution (not the SSA interpreter) because the bug is in how
-<a href=#598 id=598 data-nosnippet>598</a>    /// ACIR lowering consumes `current_side_effects_enabled_var`.
+<a href=#598 id=598 data-nosnippet>598</a>    /// ACIR lowering consumes the side-effects predicate.
 <a href=#599 id=599 data-nosnippet>599</a>    </span><span class="attr">#[test]
 <a href=#600 id=600 data-nosnippet>600</a>    </span><span class="kw">fn </span>vector_push_back_heterogeneous_predicate_preserved_in_acir() {
 <a href=#601 id=601 data-nosnippet>601</a>        <span class="kw">use </span>acvm::pwg::ACVMStatus;

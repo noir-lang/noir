@@ -275,7 +275,7 @@
 <a href=#275 id=275 data-nosnippet>275</a>
 <a href=#276 id=276 data-nosnippet>276</a>            <span class="comment">// Operations that remove items from a vector don't modify the vector, they just assert it's non-empty.
 <a href=#277 id=277 data-nosnippet>277</a>            // Vector insert also reads from its input vector, thus needing to assert that it is non-empty.
-<a href=#278 id=278 data-nosnippet>278</a>            // Vector push back's ACIR lowering multiplies the write index by `current_side_effects_enabled_var`,
+<a href=#278 id=278 data-nosnippet>278</a>            // Vector push back's ACIR lowering multiplies the write index by the side-effects predicate,
 <a href=#279 id=279 data-nosnippet>279</a>            // so deduplicating two pushes across different `enable_side_effects` predicates is unsound.
 <a href=#280 id=280 data-nosnippet>280</a>            </span>Intrinsic::VectorPopBack
 <a href=#281 id=281 data-nosnippet>281</a>            | Intrinsic::VectorPopFront
@@ -560,7 +560,7 @@
 <a href=#560 id=560 data-nosnippet>560</a>                        // which uses the side effects predicate.
 <a href=#561 id=561 data-nosnippet>561</a>                        </span>Intrinsic::VectorInsert | Intrinsic::VectorRemove =&gt; <span class="bool-val">true</span>,
 <a href=#562 id=562 data-nosnippet>562</a>                        <span class="comment">// The heterogeneous vector path in ACIR lowering uses
-<a href=#563 id=563 data-nosnippet>563</a>                        // `get_flattened_index` which reads `current_side_effects_enabled_var`
+<a href=#563 id=563 data-nosnippet>563</a>                        // `get_flattened_index` which reads the side-effects predicate
 <a href=#564 id=564 data-nosnippet>564</a>                        // to guard the element-type-sizes memory lookup.
 <a href=#565 id=565 data-nosnippet>565</a>                        </span>Intrinsic::VectorPushBack =&gt; <span class="bool-val">true</span>,
 <a href=#566 id=566 data-nosnippet>566</a>                        <span class="comment">// Technically these don't use the side effects predicate, but they fail on empty vectors,
@@ -569,7 +569,7 @@
 <a href=#569 id=569 data-nosnippet>569</a>                        // would fail, but they shouldn't because they might be disabled.
 <a href=#570 id=570 data-nosnippet>570</a>                        </span>Intrinsic::VectorPopFront | Intrinsic::VectorPopBack =&gt; <span class="bool-val">true</span>,
 <a href=#571 id=571 data-nosnippet>571</a>                        <span class="comment">// RecursiveAggregation's predicate is injected implicitly from
-<a href=#572 id=572 data-nosnippet>572</a>                        // `current_side_effects_enabled_var` during ACIR generation, so we
+<a href=#572 id=572 data-nosnippet>572</a>                        // the side-effects predicate during ACIR generation, so we
 <a href=#573 id=573 data-nosnippet>573</a>                        // must preserve the EnableSideEffectsIf that sets it.
 <a href=#574 id=574 data-nosnippet>574</a>                        </span>Intrinsic::BlackBox(BlackBoxFunc::RecursiveAggregation) =&gt; <span class="bool-val">true</span>,
 <a href=#575 id=575 data-nosnippet>575</a>                        <span class="kw">_ </span>=&gt; <span class="bool-val">false</span>,
