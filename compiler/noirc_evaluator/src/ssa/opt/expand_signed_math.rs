@@ -515,19 +515,20 @@ mod tests {
             v27 = cast v26 as u8
             v28 = mod v20, v27
             v29 = cast v10 as u1
-            v30 = cast v28 as Field
-            v31 = sub Field 128, v30
-            v32 = cast v10 as Field
-            v33 = mul v31, v32
-            v34 = mul v33, Field 2
-            v35 = add v30, v34
-            v37 = eq v30, Field 0
-            v38 = not v37
-            v39 = cast v38 as Field
-            v40 = mul v35, v39
-            v41 = cast v40 as u8
-            v42 = cast v40 as i8
-            return v42
+            v30 = cast v29 as u8
+            v31 = cast v28 as Field
+            v32 = sub Field 128, v31
+            v33 = cast v29 as Field
+            v34 = mul v32, v33
+            v35 = mul v34, Field 2
+            v36 = add v31, v35
+            v38 = eq v31, Field 0
+            v39 = not v38
+            v40 = cast v39 as Field
+            v41 = mul v36, v40
+            v42 = cast v41 as u8
+            v43 = cast v41 as i8
+            return v43
         }
         "#);
     }
