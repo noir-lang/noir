@@ -1,5 +1,35 @@
 # Changelog
 
+## [1.0.0-rc.0](https://github.com/noir-lang/noir/compare/v1.0.0-beta.26...v1.0.0-rc.0) (2026-08-10)
+
+
+### Features
+
+* **acir_gen:** Bias disabled-branch array_get fallback to a type-compatible flat offset ([#13466](https://github.com/noir-lang/noir/issues/13466)) ([1718fa5](https://github.com/noir-lang/noir/commit/1718fa5280eadd0610cae69b06527942c8ab7ebd))
+* **ast_fuzzer:** Generate arrays with non-homogeneous element types ([#13473](https://github.com/noir-lang/noir/issues/13473)) ([2702a1e](https://github.com/noir-lang/noir/commit/2702a1e82e6e146119a65a39fb4f794a93536a50))
+* **ast_fuzzer:** Generate doomed conditional branches ([#13490](https://github.com/noir-lang/noir/issues/13490)) ([3554591](https://github.com/noir-lang/noir/commit/3554591b911582a8a7ed0b921556945eb54f347d))
+
+
+### Bug Fixes
+
+* **acir_gen:** Fold array reads at an index only ACIR gen knows is constant ([#13444](https://github.com/noir-lang/noir/issues/13444)) ([2f2ea63](https://github.com/noir-lang/noir/commit/2f2ea63fd7c91922f6d6b604a53a6bcde1866279))
+* **ci:** Clear stale Criterion baselines before running ACVM benchmarks ([#13497](https://github.com/noir-lang/noir/issues/13497)) ([b7d9395](https://github.com/noir-lang/noir/commit/b7d93959093528ccfeb96f5dc0727084917df4e2))
+* **ci:** Close truncated expression in nightly fuzz workflow ([#13458](https://github.com/noir-lang/noir/issues/13458)) ([940e8cc](https://github.com/noir-lang/noir/commit/940e8cc7aea71a93d812739607c6f55340867f8c))
+* Disallow `&mut (*x)` when x is not a mutable reference ([#13447](https://github.com/noir-lang/noir/issues/13447)) ([0aee828](https://github.com/noir-lang/noir/commit/0aee828af2aea271d2eff91e956f51639951d1c3))
+* Do not resolve a safe-index array read as a disabled access ([#13486](https://github.com/noir-lang/noir/issues/13486)) ([0e921dd](https://github.com/noir-lang/noir/commit/0e921dd132ca008bb86f6e4284b36ca3c94497dd))
+* **fmt:** Do not desynchronize on a shift operator or a negative zero ([#13496](https://github.com/noir-lang/noir/issues/13496)) ([f078538](https://github.com/noir-lang/noir/commit/f078538b29fd3977e65240048b3902cd442e3d90))
+* **fmt:** Terminate line comments before appending more output to the line ([#13480](https://github.com/noir-lang/noir/issues/13480)) ([c5fc641](https://github.com/noir-lang/noir/commit/c5fc641319126bf49ce37424586ef887ecac89b5))
+* **fuzzer:** Compare format-string tokens without their source locations ([#13495](https://github.com/noir-lang/noir/issues/13495)) ([e088a9e](https://github.com/noir-lang/noir/commit/e088a9e76b8cbda40b35bebcabb981ffd6c70483))
+* **ssa:** Align empty-vector pop assertion messages ([#13443](https://github.com/noir-lang/noir/issues/13443)) ([2927dc4](https://github.com/noir-lang/noir/commit/2927dc4d5609af479155b24f10a1ae7b8104a1d5))
+* **ssa:** Make reference mutability directional and meaningful in SSA ([#13435](https://github.com/noir-lang/noir/issues/13435)) ([5f65381](https://github.com/noir-lang/noir/commit/5f65381ee789f7efba8ce7afa7f74a1ac813af6b))
+* **ssa:** Orient branch-argument merges so the result takes the weaker reference type ([#13475](https://github.com/noir-lang/noir/issues/13475)) ([2bfc676](https://github.com/noir-lang/noir/commit/2bfc6762ac4cbc09a16416d526c8c6ef5e88ed66))
+* Vector_push_front is PureWithPredicate ([#13445](https://github.com/noir-lang/noir/issues/13445)) ([83fa188](https://github.com/noir-lang/noir/commit/83fa188968f0a2220fa51382eb274ea822b53a9a))
+
+
+### Miscellaneous Chores
+
+* Switch release-please prerelease tag from beta to rc ([d89d99a](https://github.com/noir-lang/noir/commit/d89d99a9442295afa676633d9433291377f7d3b2))
+
 ## [1.0.0-beta.26](https://github.com/noir-lang/noir/compare/v1.0.0-beta.25...v1.0.0-beta.26) (2026-07-29)
 
 
