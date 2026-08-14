@@ -771,6 +771,17 @@ impl AliasAnalysisContext {
                 Instruction::ArraySet { array, value, .. } => {
                     let new_array = function.dfg.instruction_result::<1>(*instruction_id)[0];
 
+                    // An `array_set` replaces a single element, so the result preserves every
+                    // reference field the original array held apart from the overwritten one.
+                    // The result therefore inherits the original array's whole reference graph,
+                    // which also covers the case where the written value is a scalar and carries
+                    // no references of its own.
+                    if function.dfg.type_of_value(*array).contains_reference() {
+                        let array_g = GlobalValueId::new(function, *array);
+                        let new_array_g = GlobalValueId::new(function, new_array);
+                        self.merge_alias(array_g, new_array_g);
+                    }
+
                     // Field-insensitive: the array is merged with its elements (and the index is not used)
                     self.merge_reference(function, *value, new_array);
                     // The original array is merged with the new one transitively through the value, because they share elements:
