@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1786714414609,
+  "lastUpdate": 1786720568211,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23246,48 +23246,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "49558828+AztecBot@users.noreply.github.com",
-            "name": "Aztec Bot",
-            "username": "AztecBot"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "2a3b64261d7a8e29ed2591234d7b1c59d7fa1a15",
-          "message": "fix(ssa): keep retained calls in Brillig unroll cost (#13348)",
-          "timestamp": "2026-07-29T10:44:58Z",
-          "tree_id": "068b5bb7ed14920994783f08894a32b95196bf64",
-          "url": "https://github.com/noir-lang/noir/commit/2a3b64261d7a8e29ed2591234d7b1c59d7fa1a15"
-        },
-        "date": 1785323185453,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 173616,
-            "range": "± 199",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 141191,
-            "range": "± 4465",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2647628,
-            "range": "± 2795",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -25339,6 +25297,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2127509,
             "range": "± 3065",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "5d03f42ead67ccd1aae768301b6a33adb1574089",
+          "message": "fix: array nested via array_set must not be mutated (#13524)",
+          "timestamp": "2026-08-14T14:53:34Z",
+          "tree_id": "c06a567e0b1a00b0fe6e834dd1fe0ea385dbedf6",
+          "url": "https://github.com/noir-lang/noir/commit/5d03f42ead67ccd1aae768301b6a33adb1574089"
+        },
+        "date": 1786720489106,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 98155,
+            "range": "± 1070",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 87256,
+            "range": "± 1266",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2361766,
+            "range": "± 1022",
             "unit": "ns/iter"
           }
         ]
