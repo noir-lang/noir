@@ -1,0 +1,6 @@
+[package]
+name = "validate_bounded"
+type = "bin"
+authors = [""]
+
+[dependencies]

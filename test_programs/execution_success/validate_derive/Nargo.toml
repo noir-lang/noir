@@ -1,0 +1,6 @@
+[package]
+name = "validate_derive"
+type = "bin"
+authors = [""]
+
+[dependencies]

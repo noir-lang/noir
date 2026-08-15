@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<link rel="stylesheet" href="../../styles.css">
+<script>window.docRoot = "../../";</script>
+<script defer src="../../search-index.js"></script>
+<script defer src="../../nargo_doc.js"></script>
+<script defer src="../../search.js"></script>
+<title>Function validate documentation</title>
+</head>
+<body>
+<div id="sidebar-toggle">
+<button id="sidebar-toggle-button"></button>
+<div id="sidebar-toggle-title">validate</div>
+</div>
+<span id="main-contents">
+<nav class="sidebar">
+<h1><a href="../../index.html">noir_stdlib</a></h1>
+<div><a href="../../all.html">All items</a></div>
+<h2 id="crate-name"><a href="../index.html">std</a></h2>
+<div id="crate-version">1.0.0-beta.22</div>
+<h2>In module validate</h2>
+<h3>Traits</h3><ul class="item-list">
+<li><a href="trait.Validate.html">Validate</a></div></li>
+</ul>
+<h3>Functions</h3><ul class="item-list">
+<li><a href="fn.validate.html">validate</a></div></li>
+</ul>
+</nav>
+<main>
+<div><a href="../../index.html">noir_stdlib</a> - <a href="../index.html">std</a>::<a href="index.html">validate</a></div>
+<div class="heading-row">
+<h1 class="heading-content">Function <span class="fn">validate</span></h1>
+<button id="search-toggle" type="button">Search</button>
+</div>
+<input id="search-input" type="search" placeholder="Type 's' or '/' to search" autocomplete="off" spellcheck="false" aria-label="Search" hidden>
+<div id="search-results" hidden></div>
+<div id="page-content">
+<pre><code>pub comptime fn validate(s: <a href="../../std/primitive.TypeDefinition.html" class="primitive">TypeDefinition</a>, method: <a href="../../std/primitive.FunctionDefinition.html" class="primitive">FunctionDefinition</a>)</code></pre>
+
+<div class="comments">
+<p>Attribute backing <code>#[validate(Type::method)]</code>. It does not generate any code itself — the
+<code>#[derive(Validate)]</code> handler reads these attributes and splices the calls — but it checks that
+each named method has the shape the derived <code>validate</code> expects to call: a single <code>self</code> argument
+and no return value. Reporting that here points the error at the attribute rather than at the
+generated impl.</p>
+</div>
+</div>
+</main>
+</span>
+</body>
+</html>
