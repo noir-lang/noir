@@ -47,6 +47,7 @@ members = [
     # Utility crates
     "utils/iter-extended",
 
+    "tooling/compiler_profiler",
     "tooling/ssa_cli",
     "tooling/ssa_fuzzer",
     "tooling/ssa_fuzzer/fuzzer",
