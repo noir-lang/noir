@@ -1,0 +1,20 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn main(
+    a: [Field; 4],
+    outer: [[Field; 4]; 2],
+    i: u32,
+    j: u32,
+    k: u32,
+) -> pub ([Field; 4], [Field; 4]) {
+    let mut a: [Field; 4] = a;
+    let mut outer: [[Field; 4]; 2] = outer;
+    a[i] = 7_Field;
+    outer[0_u32] = a;
+    a[j] = 9_Field;
+    let snapshot: [Field; 4] = outer[k];
+    assert(snapshot[j] == 0_Field, "snapshot was mutated");
+    (snapshot, a)
+}
