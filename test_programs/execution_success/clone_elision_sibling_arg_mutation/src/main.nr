@@ -1,6 +1,6 @@
-// The clone elision in `codegen_call` must not drop the `inc_rc` protecting a
-// by-value array argument when a *later* argument of the same call mutates that
-// array through a `&mut`. `sha256_compression` must hash `x` as it was before
+// The ownership pass must keep the clone protecting a by-value array argument
+// when a *later* argument of the same call mutates that array through a
+// `&mut`. `sha256_compression` must hash `x` as it was before
 // `bump` ran; without the clone, Brillig's copy-on-write writes in place and the
 // intrinsic hashes the mutated buffer, diverging from ACIR.
 fn bump(x: &mut [u32; 16], i: u32) -> [u32; 8] {
