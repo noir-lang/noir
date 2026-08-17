@@ -77,6 +77,17 @@ impl<K: Copy + Eq + Hash> UnionFind<K> {
         sizes
     }
 
+    /// Return a map from each class representative to the members of its class.
+    pub(crate) fn class_sets(&self) -> HashMap<K, Vec<K>> {
+        let mut sets: HashMap<K, Vec<K>> = HashMap::default();
+        for &v in self.parent.keys() {
+            if let Some(root) = self.find_immutable(v) {
+                sets.entry(root).or_default().push(v);
+            }
+        }
+        sets
+    }
+
     /// Union the sets containing `a` and `b`. Uses union by rank.
     pub(crate) fn union(&mut self, a: K, b: K) {
         let ra = self.find(a);
