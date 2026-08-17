@@ -123,8 +123,8 @@ impl Function {
             let element_types = typ.element_types();
             let len = context
                 .dfg
-                .try_get_vector_capacity(array)
-                .expect("candidate ArraySet must have a known capacity");
+                .try_get_uniform_vector_capacity(array)
+                .expect("candidate ArraySet must have a known uniform capacity");
 
             let array_constant = context.dfg.get_array_constant(array);
             let element_count = ElementTypesLength(element_types.len() as u32);
@@ -306,7 +306,7 @@ fn find_candidates(dfg: &DataFlowGraph, block_id: BasicBlockId) -> HashSet<Instr
                                 Some(*len * elements_length)
                             }
                             Type::Vector(elements) => {
-                                dfg.try_get_vector_capacity(*array).map(|capacity| {
+                                dfg.try_get_uniform_vector_capacity(*array).map(|capacity| {
                                     let elements_length =
                                         ElementTypesLength(assert_u32(elements.len()));
                                     capacity * elements_length
@@ -947,5 +947,34 @@ mod tests {
             return v17, v18
         }
         ");
+    }
+
+    /// The candidate `array_set` operates on a vector produced by an `IfElse` merge
+    /// of two vectors with *unequal* capacities (3 and 4). The merged vector's runtime
+    /// length equals the selected branch's length, so reading every index up to the
+    /// larger capacity over-reads the shorter branch's tail. The optimization must not
+    /// apply here.
+    #[test]
+    fn does_not_replace_vector_array_set_from_unequal_if_else_merge() {
+        let src = r#"
+        acir(inline) fn main f0 {
+          b0(v0: u1, v1: u1):
+            enable_side_effects v0
+            v5 = make_array [Field 1, Field 2, Field 3] : [Field]
+            v6 = not v0
+            enable_side_effects v6
+            v11 = make_array [Field 4, Field 5, Field 6, Field 7] : [Field]
+            enable_side_effects u1 1
+            v20 = if v0 then v5 else (if v6) v11
+            enable_side_effects v1
+            v25 = array_set v20, index u32 1, value Field 99
+            v26 = not v1
+            enable_side_effects u1 1
+            v27 = if v1 then v25 else (if v26) v20
+            v30 = array_get v27, index u32 2 -> Field
+            return v30
+        }
+        "#;
+        assert_ssa_does_not_change(src, Ssa::array_set_window_optimization);
     }
 }
