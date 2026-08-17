@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1786968570636,
+  "lastUpdate": 1786968695576,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23311,48 +23311,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "49558828+AztecBot@users.noreply.github.com",
-            "name": "Aztec Bot",
-            "username": "AztecBot"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "83743f42efd2cbebe4a90058bf47af97b52e696e",
-          "message": "fix(frontend): require exact composite receivers for visibility (#13347)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
-          "timestamp": "2026-07-29T12:37:34Z",
-          "tree_id": "48e7453d74ffd06cc1f61e748e72c2ee587896a8",
-          "url": "https://github.com/noir-lang/noir/commit/83743f42efd2cbebe4a90058bf47af97b52e696e"
-        },
-        "date": 1785329847008,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 174772,
-            "range": "± 710",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 142305,
-            "range": "± 4377",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2648566,
-            "range": "± 7235",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "163862677+noirwhal@users.noreply.github.com",
             "name": "noirwhal",
             "username": "noirwhal"
@@ -25404,6 +25362,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 3047057,
             "range": "± 10301",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "163862677+noirwhal@users.noreply.github.com",
+            "name": "noirwhal",
+            "username": "noirwhal"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "56205ad6c0246ad6154e5a8544a7b5de670c6295",
+          "message": "chore: bump external pinned commits (#13527)\n\nCo-authored-by: noirwhal <tomfrench@aztecprotocol.com>\nCo-authored-by: Aztec Bot <49558828+AztecBot@users.noreply.github.com>",
+          "timestamp": "2026-08-17T11:49:51Z",
+          "tree_id": "b46cf717991e87962cccf769550dbdd7f71017cb",
+          "url": "https://github.com/noir-lang/noir/commit/56205ad6c0246ad6154e5a8544a7b5de670c6295"
+        },
+        "date": 1786968610535,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 126845,
+            "range": "± 612",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 112961,
+            "range": "± 1158",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 3044769,
+            "range": "± 4677",
             "unit": "ns/iter"
           }
         ]
