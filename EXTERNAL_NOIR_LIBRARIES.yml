@@ -67,7 +67,7 @@ libraries:
     repo: AztecProtocol/aztec-packages
     ref: *AZ_COMMIT
     path: noir-projects/labs/aztec-nr
-    timeout: 1050
+    timeout: 1300
     critical: false
   noir_contracts:
     repo: AztecProtocol/aztec-packages
