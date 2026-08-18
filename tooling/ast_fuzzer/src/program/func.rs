@@ -21,7 +21,7 @@ use noirc_frontend::{
             Parameters, Program, Type, While,
         },
     },
-    shared::{Signedness, Visibility},
+    shared::{Builtin, Signedness, Visibility},
     token::FmtStrFragment,
 };
 
@@ -2595,7 +2595,7 @@ impl<'a> FunctionContext<'a> {
     fn call_array_len(&mut self, array_or_vector: Expression, typ: Type) -> Expression {
         let func_ident = Ident {
             location: None,
-            definition: Definition::Builtin("array_len".to_string()),
+            definition: Definition::Builtin(Builtin::ArrayLen),
             mutable: false,
             name: "len".to_string(),
             typ: Rc::new(Type::Function(
@@ -2618,7 +2618,7 @@ impl<'a> FunctionContext<'a> {
     fn call_str_as_bytes(&mut self, value: Expression, len: u32, bytes_type: Type) -> Expression {
         let func_ident = Ident {
             location: None,
-            definition: Definition::Builtin("str_as_bytes".to_string()),
+            definition: Definition::Builtin(Builtin::StrAsBytes),
             mutable: false,
             name: "as_bytes".to_string(),
             typ: Rc::new(Type::Function(
@@ -2646,7 +2646,7 @@ impl<'a> FunctionContext<'a> {
     ) -> Expression {
         let func_ident = Ident {
             location: None,
-            definition: Definition::Builtin("as_vector".to_string()),
+            definition: Definition::Builtin(Builtin::AsVector),
             mutable: false,
             name: "as_vector".to_string(),
             typ: Rc::new(Type::Function(
@@ -2668,14 +2668,18 @@ impl<'a> FunctionContext<'a> {
     /// Construct a `Call` to one of the `vector_*` builtin functions.
     fn call_vector_builtin(
         &mut self,
-        name: &str,
+        builtin: Builtin,
         return_type: Type,
         arg_types: Vec<Type>,
         args: Vec<Expression>,
     ) -> Expression {
+        let name = builtin
+            .name()
+            .strip_prefix("vector_")
+            .expect("call_vector_builtin expects a vector_* builtin");
         let func_ident = Ident {
             location: None,
-            definition: Definition::Builtin(format!("vector_{name}")),
+            definition: Definition::Builtin(builtin),
             mutable: false,
             name: name.to_string(),
             typ: Rc::new(Type::Function(
@@ -2704,7 +2708,7 @@ impl<'a> FunctionContext<'a> {
         item: Expression,
     ) -> Expression {
         self.call_vector_builtin(
-            if is_front { "push_front" } else { "push_back" },
+            if is_front { Builtin::VectorPushFront } else { Builtin::VectorPushBack },
             vector_type.clone(),
             vec![vector_type, item_type],
             vec![vector, item],
@@ -2725,7 +2729,7 @@ impl<'a> FunctionContext<'a> {
             vec![vector_type.clone(), item_type]
         };
         self.call_vector_builtin(
-            if is_front { "pop_front" } else { "pop_back" },
+            if is_front { Builtin::VectorPopFront } else { Builtin::VectorPopBack },
             Type::Tuple(return_fields),
             vec![vector_type],
             vec![vector],
@@ -2741,7 +2745,7 @@ impl<'a> FunctionContext<'a> {
         idx: Expression,
     ) -> Expression {
         self.call_vector_builtin(
-            "remove",
+            Builtin::VectorRemove,
             Type::Tuple(vec![vector_type.clone(), item_type]),
             vec![vector_type, types::U32],
             vec![vector, idx],
@@ -2758,7 +2762,7 @@ impl<'a> FunctionContext<'a> {
         item: Expression,
     ) -> Expression {
         self.call_vector_builtin(
-            "insert",
+            Builtin::VectorInsert,
             Type::Tuple(vec![vector_type.clone()]),
             vec![vector_type, types::U32, item_type],
             vec![vector, idx, item],
