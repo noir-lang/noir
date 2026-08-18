@@ -96,7 +96,7 @@
 <a href=#96 id=96 data-nosnippet>96</a>    </span>break_dependent_uses: HashSet&lt;IdentId&gt;,
 <a href=#97 id=97 data-nosnippet>97</a>}
 <a href=#98 id=98 data-nosnippet>98</a>
-<a href=#99 id=99 data-nosnippet>99</a><span class="kw">impl </span>Context {
+<a href=#99 id=99 data-nosnippet>99</a><span class="kw">impl </span>Context&lt;<span class="lifetime">'_</span>&gt; {
 <a href=#100 id=100 data-nosnippet>100</a>    <span class="doccomment">/// Traverse the given function and return the last use(s) of each local variable.
 <a href=#101 id=101 data-nosnippet>101</a>    /// A variable may have multiple last uses if it was last used within a conditional expression.
 <a href=#102 id=102 data-nosnippet>102</a>    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>find_last_uses_of_variables(

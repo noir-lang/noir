@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["builtin_supports_clone_elision","callee_definition","callee_preserves_array_arguments","elide_clones_in_call_arguments","find_oracle_wrappers","is_side_effect_free","peel_to_single_call"]};

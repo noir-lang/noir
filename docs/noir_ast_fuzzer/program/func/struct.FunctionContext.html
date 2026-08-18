@@ -33,7 +33,7 @@ from using expression that requires no-dynamic mode.</p>
 </div><span id="structfield.call_targets" class="structfield section-header"><a href="#structfield.call_targets" class="anchor field">§</a><code>call_targets: <a class="struct" href="https://doc.rust-lang.org/1.89.0/alloc/collections/btree/map/struct.BTreeMap.html" title="struct alloc::collections::btree::map::BTreeMap">BTreeMap</a>&lt;<a class="enum" href="../enum.CallableId.html" title="enum noir_ast_fuzzer::program::CallableId">CallableId</a>, <a class="struct" href="https://doc.rust-lang.org/1.89.0/std/collections/hash/set/struct.HashSet.html" title="struct std::collections::hash::set::HashSet">HashSet</a>&lt;Type&gt;&gt;</code></span><div class="docblock"><p>All the functions callable from this one, with the types we can
 produce from their return value.</p>
 </div><span id="structfield.has_call" class="structfield section-header"><a href="#structfield.has_call" class="anchor field">§</a><code>has_call: <a class="primitive" href="https://doc.rust-lang.org/1.89.0/std/primitive.bool.html">bool</a></code></span><div class="docblock"><p>Indicate that we have generated a <code>Call</code>.</p>
-</div><h2 id="implementations" class="section-header">Implementations<a href="#implementations" class="anchor">§</a></h2><div id="implementations-list"><details class="toggle implementors-toggle" open><summary><section id="impl-FunctionContext%3C'a%3E" class="impl"><a class="src rightside" href="../../../src/noir_ast_fuzzer/program/func.rs.html#205-2783">Source</a><a href="#impl-FunctionContext%3C'a%3E" class="anchor">§</a><h3 class="code-header">impl&lt;'a&gt; <a class="struct" href="struct.FunctionContext.html" title="struct noir_ast_fuzzer::program::func::FunctionContext">FunctionContext</a>&lt;'a&gt;</h3></section></summary><div class="impl-items"><section id="method.new" class="method"><a class="src rightside" href="../../../src/noir_ast_fuzzer/program/func.rs.html#206-262">Source</a><h4 class="code-header">pub(super) fn <a href="#method.new" class="fn">new</a>(ctx: &amp;'a mut <a class="struct" href="../struct.Context.html" title="struct noir_ast_fuzzer::program::Context">Context</a>, id: FuncId) -&gt; Self</h4></section><details class="toggle method-toggle" open><summary><section id="method.gen_body" class="method"><a class="src rightside" href="../../../src/noir_ast_fuzzer/program/func.rs.html#265-275">Source</a><h4 class="code-header">pub(super) fn <a href="#method.gen_body" class="fn">gen_body</a>(self, u: &amp;mut Unstructured&lt;'_&gt;) -&gt; Result&lt;Expression&gt;</h4></section></summary><div class="docblock"><p>Generate the function body.</p>
+</div><h2 id="implementations" class="section-header">Implementations<a href="#implementations" class="anchor">§</a></h2><div id="implementations-list"><details class="toggle implementors-toggle" open><summary><section id="impl-FunctionContext%3C'a%3E" class="impl"><a class="src rightside" href="../../../src/noir_ast_fuzzer/program/func.rs.html#205-2787">Source</a><a href="#impl-FunctionContext%3C'a%3E" class="anchor">§</a><h3 class="code-header">impl&lt;'a&gt; <a class="struct" href="struct.FunctionContext.html" title="struct noir_ast_fuzzer::program::func::FunctionContext">FunctionContext</a>&lt;'a&gt;</h3></section></summary><div class="impl-items"><section id="method.new" class="method"><a class="src rightside" href="../../../src/noir_ast_fuzzer/program/func.rs.html#206-262">Source</a><h4 class="code-header">pub(super) fn <a href="#method.new" class="fn">new</a>(ctx: &amp;'a mut <a class="struct" href="../struct.Context.html" title="struct noir_ast_fuzzer::program::Context">Context</a>, id: FuncId) -&gt; Self</h4></section><details class="toggle method-toggle" open><summary><section id="method.gen_body" class="method"><a class="src rightside" href="../../../src/noir_ast_fuzzer/program/func.rs.html#265-275">Source</a><h4 class="code-header">pub(super) fn <a href="#method.gen_body" class="fn">gen_body</a>(self, u: &amp;mut Unstructured&lt;'_&gt;) -&gt; Result&lt;Expression&gt;</h4></section></summary><div class="docblock"><p>Generate the function body.</p>
 </div></details><details class="toggle method-toggle" open><summary><section id="method.gen_body_with_lit_call" class="method"><a class="src rightside" href="../../../src/noir_ast_fuzzer/program/func.rs.html#279-285">Source</a><h4 class="code-header">pub(super) fn <a href="#method.gen_body_with_lit_call" class="fn">gen_body_with_lit_call</a>(
     self,
     u: &amp;mut Unstructured&lt;'_&gt;,
@@ -328,14 +328,14 @@ identifier of a vector or an array.</p>
     array_type: Type,
     vector_type: Type,
 ) -&gt; Expression</h4></section></summary><div class="docblock"><p>Construct a <code>Call</code> to the <code>as_vector</code> builtin, converting an array into a vector.</p>
-</div></details><details class="toggle method-toggle" open><summary><section id="method.call_vector_builtin" class="method"><a class="src rightside" href="../../../src/noir_ast_fuzzer/program/func.rs.html#2669-2695">Source</a><h4 class="code-header">fn <a href="#method.call_vector_builtin" class="fn">call_vector_builtin</a>(
+</div></details><details class="toggle method-toggle" open><summary><section id="method.call_vector_builtin" class="method"><a class="src rightside" href="../../../src/noir_ast_fuzzer/program/func.rs.html#2669-2699">Source</a><h4 class="code-header">fn <a href="#method.call_vector_builtin" class="fn">call_vector_builtin</a>(
     &amp;mut self,
-    name: &amp;<a class="primitive" href="https://doc.rust-lang.org/1.89.0/std/primitive.str.html">str</a>,
+    builtin: Builtin,
     return_type: Type,
     arg_types: <a class="struct" href="https://doc.rust-lang.org/1.89.0/alloc/vec/struct.Vec.html" title="struct alloc::vec::Vec">Vec</a>&lt;Type&gt;,
     args: <a class="struct" href="https://doc.rust-lang.org/1.89.0/alloc/vec/struct.Vec.html" title="struct alloc::vec::Vec">Vec</a>&lt;Expression&gt;,
 ) -&gt; Expression</h4></section></summary><div class="docblock"><p>Construct a <code>Call</code> to one of the <code>vector_*</code> builtin functions.</p>
-</div></details><details class="toggle method-toggle" open><summary><section id="method.call_vector_push" class="method"><a class="src rightside" href="../../../src/noir_ast_fuzzer/program/func.rs.html#2698-2712">Source</a><h4 class="code-header">fn <a href="#method.call_vector_push" class="fn">call_vector_push</a>(
+</div></details><details class="toggle method-toggle" open><summary><section id="method.call_vector_push" class="method"><a class="src rightside" href="../../../src/noir_ast_fuzzer/program/func.rs.html#2702-2716">Source</a><h4 class="code-header">fn <a href="#method.call_vector_push" class="fn">call_vector_push</a>(
     &amp;mut self,
     vector_type: Type,
     item_type: Type,
@@ -343,21 +343,21 @@ identifier of a vector or an array.</p>
     is_front: <a class="primitive" href="https://doc.rust-lang.org/1.89.0/std/primitive.bool.html">bool</a>,
     item: Expression,
 ) -&gt; Expression</h4></section></summary><div class="docblock"><p>Construct a <code>Call</code> to the <code>vector_push_front</code> or <code>vector_push_back</code> builtin function.</p>
-</div></details><details class="toggle method-toggle" open><summary><section id="method.call_vector_pop" class="method"><a class="src rightside" href="../../../src/noir_ast_fuzzer/program/func.rs.html#2715-2733">Source</a><h4 class="code-header">fn <a href="#method.call_vector_pop" class="fn">call_vector_pop</a>(
+</div></details><details class="toggle method-toggle" open><summary><section id="method.call_vector_pop" class="method"><a class="src rightside" href="../../../src/noir_ast_fuzzer/program/func.rs.html#2719-2737">Source</a><h4 class="code-header">fn <a href="#method.call_vector_pop" class="fn">call_vector_pop</a>(
     &amp;mut self,
     vector_type: Type,
     item_type: Type,
     vector: Expression,
     is_front: <a class="primitive" href="https://doc.rust-lang.org/1.89.0/std/primitive.bool.html">bool</a>,
 ) -&gt; Expression</h4></section></summary><div class="docblock"><p>Construct a <code>Call</code> to the <code>vector_pop_front</code> or <code>vector_pop_back</code> builtin function.</p>
-</div></details><details class="toggle method-toggle" open><summary><section id="method.call_vector_remove" class="method"><a class="src rightside" href="../../../src/noir_ast_fuzzer/program/func.rs.html#2736-2749">Source</a><h4 class="code-header">fn <a href="#method.call_vector_remove" class="fn">call_vector_remove</a>(
+</div></details><details class="toggle method-toggle" open><summary><section id="method.call_vector_remove" class="method"><a class="src rightside" href="../../../src/noir_ast_fuzzer/program/func.rs.html#2740-2753">Source</a><h4 class="code-header">fn <a href="#method.call_vector_remove" class="fn">call_vector_remove</a>(
     &amp;mut self,
     vector_type: Type,
     item_type: Type,
     vector: Expression,
     idx: Expression,
 ) -&gt; Expression</h4></section></summary><div class="docblock"><p>Construct a <code>Call</code> to the <code>vector_remove</code> builtin function.</p>
-</div></details><details class="toggle method-toggle" open><summary><section id="method.call_vector_insert" class="method"><a class="src rightside" href="../../../src/noir_ast_fuzzer/program/func.rs.html#2752-2766">Source</a><h4 class="code-header">fn <a href="#method.call_vector_insert" class="fn">call_vector_insert</a>(
+</div></details><details class="toggle method-toggle" open><summary><section id="method.call_vector_insert" class="method"><a class="src rightside" href="../../../src/noir_ast_fuzzer/program/func.rs.html#2756-2770">Source</a><h4 class="code-header">fn <a href="#method.call_vector_insert" class="fn">call_vector_insert</a>(
     &amp;mut self,
     vector_type: Type,
     item_type: Type,
@@ -365,7 +365,7 @@ identifier of a vector or an array.</p>
     idx: Expression,
     item: Expression,
 ) -&gt; Expression</h4></section></summary><div class="docblock"><p>Construct a <code>Call</code> to the <code>vector_insert</code> builtin function.</p>
-</div></details><details class="toggle method-toggle" open><summary><section id="method.avoid_index_out_of_bounds" class="method"><a class="src rightside" href="../../../src/noir_ast_fuzzer/program/func.rs.html#2776-2782">Source</a><h4 class="code-header">fn <a href="#method.avoid_index_out_of_bounds" class="fn">avoid_index_out_of_bounds</a>(&amp;self, u: &amp;mut Unstructured&lt;'_&gt;) -&gt; Result&lt;<a class="primitive" href="https://doc.rust-lang.org/1.89.0/std/primitive.bool.html">bool</a>&gt;</h4></section></summary><div class="docblock"><p>Random decision whether to allow “Index out of bounds” errors to happen
+</div></details><details class="toggle method-toggle" open><summary><section id="method.avoid_index_out_of_bounds" class="method"><a class="src rightside" href="../../../src/noir_ast_fuzzer/program/func.rs.html#2780-2786">Source</a><h4 class="code-header">fn <a href="#method.avoid_index_out_of_bounds" class="fn">avoid_index_out_of_bounds</a>(&amp;self, u: &amp;mut Unstructured&lt;'_&gt;) -&gt; Result&lt;<a class="primitive" href="https://doc.rust-lang.org/1.89.0/std/primitive.bool.html">bool</a>&gt;</h4></section></summary><div class="docblock"><p>Random decision whether to allow “Index out of bounds” errors to happen
 on a specific array or vector access operation.</p>
 <p>If <a href="../../struct.Config.html#structfield.avoid_index_out_of_bounds" title="field noir_ast_fuzzer::Config::avoid_index_out_of_bounds"><code>Config::avoid_index_out_of_bounds</code></a> is turned on, then this is always <code>true</code>.</p>
 <p>It also returns <code>true</code> when <code>in_no_dynamic</code> mode is on, because an overflowing

@@ -21,7 +21,7 @@
 <a href=#21 id=21 data-nosnippet>21</a>            Parameters, Program, Type, While,
 <a href=#22 id=22 data-nosnippet>22</a>        },
 <a href=#23 id=23 data-nosnippet>23</a>    },
-<a href=#24 id=24 data-nosnippet>24</a>    shared::{Signedness, Visibility},
+<a href=#24 id=24 data-nosnippet>24</a>    shared::{Builtin, Signedness, Visibility},
 <a href=#25 id=25 data-nosnippet>25</a>    token::FmtStrFragment,
 <a href=#26 id=26 data-nosnippet>26</a>};
 <a href=#27 id=27 data-nosnippet>27</a>
@@ -2595,7 +2595,7 @@
 <a href=#2595 id=2595 data-nosnippet>2595</a>    </span><span class="kw">fn </span>call_array_len(<span class="kw-2">&amp;mut </span><span class="self">self</span>, array_or_vector: Expression, typ: Type) -&gt; Expression {
 <a href=#2596 id=2596 data-nosnippet>2596</a>        <span class="kw">let </span>func_ident = Ident {
 <a href=#2597 id=2597 data-nosnippet>2597</a>            location: <span class="prelude-val">None</span>,
-<a href=#2598 id=2598 data-nosnippet>2598</a>            definition: Definition::Builtin(<span class="string">"array_len"</span>.to_string()),
+<a href=#2598 id=2598 data-nosnippet>2598</a>            definition: Definition::Builtin(Builtin::ArrayLen),
 <a href=#2599 id=2599 data-nosnippet>2599</a>            mutable: <span class="bool-val">false</span>,
 <a href=#2600 id=2600 data-nosnippet>2600</a>            name: <span class="string">"len"</span>.to_string(),
 <a href=#2601 id=2601 data-nosnippet>2601</a>            typ: Rc::new(Type::Function(
@@ -2618,7 +2618,7 @@
 <a href=#2618 id=2618 data-nosnippet>2618</a>    </span><span class="kw">fn </span>call_str_as_bytes(<span class="kw-2">&amp;mut </span><span class="self">self</span>, value: Expression, len: u32, bytes_type: Type) -&gt; Expression {
 <a href=#2619 id=2619 data-nosnippet>2619</a>        <span class="kw">let </span>func_ident = Ident {
 <a href=#2620 id=2620 data-nosnippet>2620</a>            location: <span class="prelude-val">None</span>,
-<a href=#2621 id=2621 data-nosnippet>2621</a>            definition: Definition::Builtin(<span class="string">"str_as_bytes"</span>.to_string()),
+<a href=#2621 id=2621 data-nosnippet>2621</a>            definition: Definition::Builtin(Builtin::StrAsBytes),
 <a href=#2622 id=2622 data-nosnippet>2622</a>            mutable: <span class="bool-val">false</span>,
 <a href=#2623 id=2623 data-nosnippet>2623</a>            name: <span class="string">"as_bytes"</span>.to_string(),
 <a href=#2624 id=2624 data-nosnippet>2624</a>            typ: Rc::new(Type::Function(
@@ -2646,7 +2646,7 @@
 <a href=#2646 id=2646 data-nosnippet>2646</a>    ) -&gt; Expression {
 <a href=#2647 id=2647 data-nosnippet>2647</a>        <span class="kw">let </span>func_ident = Ident {
 <a href=#2648 id=2648 data-nosnippet>2648</a>            location: <span class="prelude-val">None</span>,
-<a href=#2649 id=2649 data-nosnippet>2649</a>            definition: Definition::Builtin(<span class="string">"as_vector"</span>.to_string()),
+<a href=#2649 id=2649 data-nosnippet>2649</a>            definition: Definition::Builtin(Builtin::AsVector),
 <a href=#2650 id=2650 data-nosnippet>2650</a>            mutable: <span class="bool-val">false</span>,
 <a href=#2651 id=2651 data-nosnippet>2651</a>            name: <span class="string">"as_vector"</span>.to_string(),
 <a href=#2652 id=2652 data-nosnippet>2652</a>            typ: Rc::new(Type::Function(
@@ -2668,222 +2668,226 @@
 <a href=#2668 id=2668 data-nosnippet>2668</a>    <span class="doccomment">/// Construct a `Call` to one of the `vector_*` builtin functions.
 <a href=#2669 id=2669 data-nosnippet>2669</a>    </span><span class="kw">fn </span>call_vector_builtin(
 <a href=#2670 id=2670 data-nosnippet>2670</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-<a href=#2671 id=2671 data-nosnippet>2671</a>        name: <span class="kw-2">&amp;</span>str,
+<a href=#2671 id=2671 data-nosnippet>2671</a>        builtin: Builtin,
 <a href=#2672 id=2672 data-nosnippet>2672</a>        return_type: Type,
 <a href=#2673 id=2673 data-nosnippet>2673</a>        arg_types: Vec&lt;Type&gt;,
 <a href=#2674 id=2674 data-nosnippet>2674</a>        args: Vec&lt;Expression&gt;,
 <a href=#2675 id=2675 data-nosnippet>2675</a>    ) -&gt; Expression {
-<a href=#2676 id=2676 data-nosnippet>2676</a>        <span class="kw">let </span>func_ident = Ident {
-<a href=#2677 id=2677 data-nosnippet>2677</a>            location: <span class="prelude-val">None</span>,
-<a href=#2678 id=2678 data-nosnippet>2678</a>            definition: Definition::Builtin(<span class="macro">format!</span>(<span class="string">"vector_{name}"</span>)),
-<a href=#2679 id=2679 data-nosnippet>2679</a>            mutable: <span class="bool-val">false</span>,
-<a href=#2680 id=2680 data-nosnippet>2680</a>            name: name.to_string(),
-<a href=#2681 id=2681 data-nosnippet>2681</a>            typ: Rc::new(Type::Function(
-<a href=#2682 id=2682 data-nosnippet>2682</a>                arg_types,
-<a href=#2683 id=2683 data-nosnippet>2683</a>                Rc::new(return_type.clone()),
-<a href=#2684 id=2684 data-nosnippet>2684</a>                Rc::new(Type::Unit),
-<a href=#2685 id=2685 data-nosnippet>2685</a>                <span class="bool-val">false</span>,
-<a href=#2686 id=2686 data-nosnippet>2686</a>            )),
-<a href=#2687 id=2687 data-nosnippet>2687</a>            id: <span class="self">self</span>.next_ident_id(),
-<a href=#2688 id=2688 data-nosnippet>2688</a>        };
-<a href=#2689 id=2689 data-nosnippet>2689</a>        Expression::Call(Call {
-<a href=#2690 id=2690 data-nosnippet>2690</a>            func: Box::new(Expression::Ident(func_ident)),
-<a href=#2691 id=2691 data-nosnippet>2691</a>            arguments: args,
-<a href=#2692 id=2692 data-nosnippet>2692</a>            return_type,
-<a href=#2693 id=2693 data-nosnippet>2693</a>            location: Location::dummy(),
-<a href=#2694 id=2694 data-nosnippet>2694</a>        })
-<a href=#2695 id=2695 data-nosnippet>2695</a>    }
-<a href=#2696 id=2696 data-nosnippet>2696</a>
-<a href=#2697 id=2697 data-nosnippet>2697</a>    <span class="doccomment">/// Construct a `Call` to the `vector_push_front` or `vector_push_back` builtin function.
-<a href=#2698 id=2698 data-nosnippet>2698</a>    </span><span class="kw">fn </span>call_vector_push(
-<a href=#2699 id=2699 data-nosnippet>2699</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-<a href=#2700 id=2700 data-nosnippet>2700</a>        vector_type: Type,
-<a href=#2701 id=2701 data-nosnippet>2701</a>        item_type: Type,
-<a href=#2702 id=2702 data-nosnippet>2702</a>        vector: Expression,
-<a href=#2703 id=2703 data-nosnippet>2703</a>        is_front: bool,
-<a href=#2704 id=2704 data-nosnippet>2704</a>        item: Expression,
-<a href=#2705 id=2705 data-nosnippet>2705</a>    ) -&gt; Expression {
-<a href=#2706 id=2706 data-nosnippet>2706</a>        <span class="self">self</span>.call_vector_builtin(
-<a href=#2707 id=2707 data-nosnippet>2707</a>            <span class="kw">if </span>is_front { <span class="string">"push_front" </span>} <span class="kw">else </span>{ <span class="string">"push_back" </span>},
-<a href=#2708 id=2708 data-nosnippet>2708</a>            vector_type.clone(),
-<a href=#2709 id=2709 data-nosnippet>2709</a>            <span class="macro">vec!</span>[vector_type, item_type],
-<a href=#2710 id=2710 data-nosnippet>2710</a>            <span class="macro">vec!</span>[vector, item],
-<a href=#2711 id=2711 data-nosnippet>2711</a>        )
-<a href=#2712 id=2712 data-nosnippet>2712</a>    }
-<a href=#2713 id=2713 data-nosnippet>2713</a>
-<a href=#2714 id=2714 data-nosnippet>2714</a>    <span class="doccomment">/// Construct a `Call` to the `vector_pop_front` or `vector_pop_back` builtin function.
-<a href=#2715 id=2715 data-nosnippet>2715</a>    </span><span class="kw">fn </span>call_vector_pop(
-<a href=#2716 id=2716 data-nosnippet>2716</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-<a href=#2717 id=2717 data-nosnippet>2717</a>        vector_type: Type,
-<a href=#2718 id=2718 data-nosnippet>2718</a>        item_type: Type,
-<a href=#2719 id=2719 data-nosnippet>2719</a>        vector: Expression,
-<a href=#2720 id=2720 data-nosnippet>2720</a>        is_front: bool,
-<a href=#2721 id=2721 data-nosnippet>2721</a>    ) -&gt; Expression {
-<a href=#2722 id=2722 data-nosnippet>2722</a>        <span class="kw">let </span>return_fields = <span class="kw">if </span>is_front {
-<a href=#2723 id=2723 data-nosnippet>2723</a>            <span class="macro">vec!</span>[item_type, vector_type.clone()]
-<a href=#2724 id=2724 data-nosnippet>2724</a>        } <span class="kw">else </span>{
-<a href=#2725 id=2725 data-nosnippet>2725</a>            <span class="macro">vec!</span>[vector_type.clone(), item_type]
-<a href=#2726 id=2726 data-nosnippet>2726</a>        };
-<a href=#2727 id=2727 data-nosnippet>2727</a>        <span class="self">self</span>.call_vector_builtin(
-<a href=#2728 id=2728 data-nosnippet>2728</a>            <span class="kw">if </span>is_front { <span class="string">"pop_front" </span>} <span class="kw">else </span>{ <span class="string">"pop_back" </span>},
-<a href=#2729 id=2729 data-nosnippet>2729</a>            Type::Tuple(return_fields),
-<a href=#2730 id=2730 data-nosnippet>2730</a>            <span class="macro">vec!</span>[vector_type],
-<a href=#2731 id=2731 data-nosnippet>2731</a>            <span class="macro">vec!</span>[vector],
-<a href=#2732 id=2732 data-nosnippet>2732</a>        )
-<a href=#2733 id=2733 data-nosnippet>2733</a>    }
-<a href=#2734 id=2734 data-nosnippet>2734</a>
-<a href=#2735 id=2735 data-nosnippet>2735</a>    <span class="doccomment">/// Construct a `Call` to the `vector_remove` builtin function.
-<a href=#2736 id=2736 data-nosnippet>2736</a>    </span><span class="kw">fn </span>call_vector_remove(
-<a href=#2737 id=2737 data-nosnippet>2737</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-<a href=#2738 id=2738 data-nosnippet>2738</a>        vector_type: Type,
-<a href=#2739 id=2739 data-nosnippet>2739</a>        item_type: Type,
-<a href=#2740 id=2740 data-nosnippet>2740</a>        vector: Expression,
-<a href=#2741 id=2741 data-nosnippet>2741</a>        idx: Expression,
-<a href=#2742 id=2742 data-nosnippet>2742</a>    ) -&gt; Expression {
-<a href=#2743 id=2743 data-nosnippet>2743</a>        <span class="self">self</span>.call_vector_builtin(
-<a href=#2744 id=2744 data-nosnippet>2744</a>            <span class="string">"remove"</span>,
-<a href=#2745 id=2745 data-nosnippet>2745</a>            Type::Tuple(<span class="macro">vec!</span>[vector_type.clone(), item_type]),
-<a href=#2746 id=2746 data-nosnippet>2746</a>            <span class="macro">vec!</span>[vector_type, types::U32],
-<a href=#2747 id=2747 data-nosnippet>2747</a>            <span class="macro">vec!</span>[vector, idx],
-<a href=#2748 id=2748 data-nosnippet>2748</a>        )
-<a href=#2749 id=2749 data-nosnippet>2749</a>    }
-<a href=#2750 id=2750 data-nosnippet>2750</a>
-<a href=#2751 id=2751 data-nosnippet>2751</a>    <span class="doccomment">/// Construct a `Call` to the `vector_insert` builtin function.
-<a href=#2752 id=2752 data-nosnippet>2752</a>    </span><span class="kw">fn </span>call_vector_insert(
-<a href=#2753 id=2753 data-nosnippet>2753</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-<a href=#2754 id=2754 data-nosnippet>2754</a>        vector_type: Type,
-<a href=#2755 id=2755 data-nosnippet>2755</a>        item_type: Type,
-<a href=#2756 id=2756 data-nosnippet>2756</a>        vector: Expression,
-<a href=#2757 id=2757 data-nosnippet>2757</a>        idx: Expression,
-<a href=#2758 id=2758 data-nosnippet>2758</a>        item: Expression,
-<a href=#2759 id=2759 data-nosnippet>2759</a>    ) -&gt; Expression {
-<a href=#2760 id=2760 data-nosnippet>2760</a>        <span class="self">self</span>.call_vector_builtin(
-<a href=#2761 id=2761 data-nosnippet>2761</a>            <span class="string">"insert"</span>,
-<a href=#2762 id=2762 data-nosnippet>2762</a>            Type::Tuple(<span class="macro">vec!</span>[vector_type.clone()]),
-<a href=#2763 id=2763 data-nosnippet>2763</a>            <span class="macro">vec!</span>[vector_type, types::U32, item_type],
-<a href=#2764 id=2764 data-nosnippet>2764</a>            <span class="macro">vec!</span>[vector, idx, item],
-<a href=#2765 id=2765 data-nosnippet>2765</a>        )
-<a href=#2766 id=2766 data-nosnippet>2766</a>    }
-<a href=#2767 id=2767 data-nosnippet>2767</a>
-<a href=#2768 id=2768 data-nosnippet>2768</a>    <span class="doccomment">/// Random decision whether to allow "Index out of bounds" errors to happen
-<a href=#2769 id=2769 data-nosnippet>2769</a>    /// on a specific array or vector access operation.
-<a href=#2770 id=2770 data-nosnippet>2770</a>    ///
-<a href=#2771 id=2771 data-nosnippet>2771</a>    /// If [`Config::avoid_index_out_of_bounds`] is turned on, then this is always `true`.
-<a href=#2772 id=2772 data-nosnippet>2772</a>    ///
-<a href=#2773 id=2773 data-nosnippet>2773</a>    /// It also returns `true` when `in_no_dynamic` mode is on, because an overflowing
-<a href=#2774 id=2774 data-nosnippet>2774</a>    /// index might not be simplified out of the SSA in ACIR, and end up being considered
-<a href=#2775 id=2775 data-nosnippet>2775</a>    /// a dynamic index, and leave reference allocations until ACIR gen, where they fail.
-<a href=#2776 id=2776 data-nosnippet>2776</a>    </span><span class="kw">fn </span>avoid_index_out_of_bounds(<span class="kw-2">&amp;</span><span class="self">self</span>, u: <span class="kw-2">&amp;mut </span>Unstructured) -&gt; arbitrary::Result&lt;bool&gt; {
-<a href=#2777 id=2777 data-nosnippet>2777</a>        <span class="kw">if </span><span class="self">self</span>.config().avoid_index_out_of_bounds || <span class="self">self</span>.in_no_dynamic {
-<a href=#2778 id=2778 data-nosnippet>2778</a>            <span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="bool-val">true</span>);
-<a href=#2779 id=2779 data-nosnippet>2779</a>        }
-<a href=#2780 id=2780 data-nosnippet>2780</a>        <span class="comment">// Avoid OOB with 90% chance.
-<a href=#2781 id=2781 data-nosnippet>2781</a>        </span>u.ratio(<span class="number">9</span>, <span class="number">10</span>)
-<a href=#2782 id=2782 data-nosnippet>2782</a>    }
-<a href=#2783 id=2783 data-nosnippet>2783</a>}
-<a href=#2784 id=2784 data-nosnippet>2784</a>
-<a href=#2785 id=2785 data-nosnippet>2785</a><span class="attr">#[cfg(test)]
-<a href=#2786 id=2786 data-nosnippet>2786</a></span><span class="kw">mod </span>tests {
-<a href=#2787 id=2787 data-nosnippet>2787</a>    <span class="kw">use </span>arbitrary::Unstructured;
-<a href=#2788 id=2788 data-nosnippet>2788</a>    <span class="kw">use </span>noirc_frontend::monomorphization::ast::{FuncId, Type};
-<a href=#2789 id=2789 data-nosnippet>2789</a>
-<a href=#2790 id=2790 data-nosnippet>2790</a>    <span class="kw">use </span><span class="kw">crate</span>::program::{Context, FunctionContext, freq::Freqs, types};
-<a href=#2791 id=2791 data-nosnippet>2791</a>
-<a href=#2792 id=2792 data-nosnippet>2792</a>    <span class="attr">#[test]
-<a href=#2793 id=2793 data-nosnippet>2793</a>    </span><span class="kw">fn </span>test_loop() {
-<a href=#2794 id=2794 data-nosnippet>2794</a>        <span class="kw">let </span><span class="kw-2">mut </span>u = Unstructured::new(<span class="kw-2">&amp;</span>[<span class="number">0u8</span>; <span class="number">1</span>]);
-<a href=#2795 id=2795 data-nosnippet>2795</a>        <span class="kw">let </span><span class="kw-2">mut </span>ctx = Context::default();
-<a href=#2796 id=2796 data-nosnippet>2796</a>        ctx.config.max_loop_size = <span class="number">10</span>;
-<a href=#2797 id=2797 data-nosnippet>2797</a>        ctx.config.vary_loop_size = <span class="bool-val">false</span>;
-<a href=#2798 id=2798 data-nosnippet>2798</a>        ctx.gen_main_decl(<span class="kw-2">&amp;mut </span>u);
-<a href=#2799 id=2799 data-nosnippet>2799</a>        <span class="kw">let </span><span class="kw-2">mut </span>function_ctx = FunctionContext::new(<span class="kw-2">&amp;mut </span>ctx, FuncId(<span class="number">0</span>));
-<a href=#2800 id=2800 data-nosnippet>2800</a>        function_ctx.budget = <span class="number">2</span>;
-<a href=#2801 id=2801 data-nosnippet>2801</a>        <span class="kw">let </span>loop_code = <span class="macro">format!</span>(<span class="string">"{}"</span>, function_ctx.gen_loop(<span class="kw-2">&amp;mut </span>u).unwrap()).replace(<span class="string">" "</span>, <span class="string">""</span>);
-<a href=#2802 id=2802 data-nosnippet>2802</a>
-<a href=#2803 id=2803 data-nosnippet>2803</a>        <span class="comment">// `ind_b` is the user induction variable: the loop is driven by a variable the body
-<a href=#2804 id=2804 data-nosnippet>2804</a>        // steps and a guard the generator chose, while `idx_a` remains the harness counter that
-<a href=#2805 id=2805 data-nosnippet>2805</a>        // bounds the iteration count no matter what the guard does.
-<a href=#2806 id=2806 data-nosnippet>2806</a>        </span><span class="macro">assert!</span>(
-<a href=#2807 id=2807 data-nosnippet>2807</a>            loop_code.starts_with(
-<a href=#2808 id=2808 data-nosnippet>2808</a>                <span class="kw-2">&amp;</span><span class="string">r#"{
-<a href=#2809 id=2809 data-nosnippet>2809</a>    let mut idx_a$l0 = 0;
-<a href=#2810 id=2810 data-nosnippet>2810</a>    let mut ind_b$l1 = 0;
-<a href=#2811 id=2811 data-nosnippet>2811</a>    loop {
-<a href=#2812 id=2812 data-nosnippet>2812</a>        if (idx_a$l0 == 10) {
-<a href=#2813 id=2813 data-nosnippet>2813</a>            break
-<a href=#2814 id=2814 data-nosnippet>2814</a>        } else {
-<a href=#2815 id=2815 data-nosnippet>2815</a>            idx_a$l0 = (idx_a$l0 + 1);
-<a href=#2816 id=2816 data-nosnippet>2816</a>            if (ind_b$l1 &lt; 0) {
-<a href=#2817 id=2817 data-nosnippet>2817</a>                break
-<a href=#2818 id=2818 data-nosnippet>2818</a>            } else {
-<a href=#2819 id=2819 data-nosnippet>2819</a>            };
-<a href=#2820 id=2820 data-nosnippet>2820</a>            ind_b$l1 = (ind_b$l1 - 1);"#
-<a href=#2821 id=2821 data-nosnippet>2821</a>                    </span>.replace(<span class="string">" "</span>, <span class="string">""</span>)
-<a href=#2822 id=2822 data-nosnippet>2822</a>            ),
-<a href=#2823 id=2823 data-nosnippet>2823</a>            <span class="string">"{loop_code}"
-<a href=#2824 id=2824 data-nosnippet>2824</a>        </span>);
-<a href=#2825 id=2825 data-nosnippet>2825</a>    }
-<a href=#2826 id=2826 data-nosnippet>2826</a>
-<a href=#2827 id=2827 data-nosnippet>2827</a>    <span class="attr">#[test]
-<a href=#2828 id=2828 data-nosnippet>2828</a>    </span><span class="kw">fn </span>test_while() {
-<a href=#2829 id=2829 data-nosnippet>2829</a>        <span class="kw">let </span><span class="kw-2">mut </span>u = Unstructured::new(<span class="kw-2">&amp;</span>[<span class="number">0u8</span>; <span class="number">1</span>]);
-<a href=#2830 id=2830 data-nosnippet>2830</a>        <span class="kw">let </span><span class="kw-2">mut </span>ctx = Context::default();
-<a href=#2831 id=2831 data-nosnippet>2831</a>        ctx.config.max_loop_size = <span class="number">10</span>;
-<a href=#2832 id=2832 data-nosnippet>2832</a>        ctx.config.vary_loop_size = <span class="bool-val">false</span>;
-<a href=#2833 id=2833 data-nosnippet>2833</a>        ctx.gen_main_decl(<span class="kw-2">&amp;mut </span>u);
-<a href=#2834 id=2834 data-nosnippet>2834</a>        <span class="kw">let </span><span class="kw-2">mut </span>function_ctx = FunctionContext::new(<span class="kw-2">&amp;mut </span>ctx, FuncId(<span class="number">0</span>));
-<a href=#2835 id=2835 data-nosnippet>2835</a>        function_ctx.budget = <span class="number">2</span>;
-<a href=#2836 id=2836 data-nosnippet>2836</a>        <span class="kw">let </span>while_code = <span class="macro">format!</span>(<span class="string">"{}"</span>, function_ctx.gen_while(<span class="kw-2">&amp;mut </span>u).unwrap()).replace(<span class="string">" "</span>, <span class="string">""</span>);
-<a href=#2837 id=2837 data-nosnippet>2837</a>
-<a href=#2838 id=2838 data-nosnippet>2838</a>        <span class="comment">// The `while` guard is the user induction variable's comparison, and `ind_b` is stepped
-<a href=#2839 id=2839 data-nosnippet>2839</a>        // inside the body; `idx_a` is the harness counter that still bounds the iterations.
-<a href=#2840 id=2840 data-nosnippet>2840</a>        </span><span class="macro">assert!</span>(
-<a href=#2841 id=2841 data-nosnippet>2841</a>            while_code.starts_with(
-<a href=#2842 id=2842 data-nosnippet>2842</a>                <span class="kw-2">&amp;</span><span class="string">r#"{
-<a href=#2843 id=2843 data-nosnippet>2843</a>    let mut idx_a$l0 = 0;
-<a href=#2844 id=2844 data-nosnippet>2844</a>    let mut ind_b$l1 = 0;
-<a href=#2845 id=2845 data-nosnippet>2845</a>    while (ind_b$l1 &lt; 0) {
-<a href=#2846 id=2846 data-nosnippet>2846</a>        if (idx_a$l0 == 10) {
-<a href=#2847 id=2847 data-nosnippet>2847</a>            break
-<a href=#2848 id=2848 data-nosnippet>2848</a>        } else {
-<a href=#2849 id=2849 data-nosnippet>2849</a>            idx_a$l0 = (idx_a$l0 + 1);
-<a href=#2850 id=2850 data-nosnippet>2850</a>            ind_b$l1 = (ind_b$l1 - 1)"#
-<a href=#2851 id=2851 data-nosnippet>2851</a>                    </span>.replace(<span class="string">" "</span>, <span class="string">""</span>)
-<a href=#2852 id=2852 data-nosnippet>2852</a>            ),
-<a href=#2853 id=2853 data-nosnippet>2853</a>            <span class="string">"{while_code}"
-<a href=#2854 id=2854 data-nosnippet>2854</a>        </span>);
-<a href=#2855 id=2855 data-nosnippet>2855</a>    }
-<a href=#2856 id=2856 data-nosnippet>2856</a>
-<a href=#2857 id=2857 data-nosnippet>2857</a>    <span class="attr">#[test]
-<a href=#2858 id=2858 data-nosnippet>2858</a>    </span><span class="kw">fn </span>test_doomed_block_returns_requested_type() {
-<a href=#2859 id=2859 data-nosnippet>2859</a>        <span class="kw">let </span><span class="kw-2">mut </span>u = Unstructured::new(<span class="kw-2">&amp;</span>[<span class="number">0u8</span>; <span class="number">16</span>]);
-<a href=#2860 id=2860 data-nosnippet>2860</a>        <span class="kw">let </span><span class="kw-2">mut </span>ctx = Context::default();
-<a href=#2861 id=2861 data-nosnippet>2861</a>        ctx.gen_main_decl(<span class="kw-2">&amp;mut </span>u);
-<a href=#2862 id=2862 data-nosnippet>2862</a>        <span class="kw">let </span><span class="kw-2">mut </span>function_ctx = FunctionContext::new(<span class="kw-2">&amp;mut </span>ctx, FuncId(<span class="number">0</span>));
-<a href=#2863 id=2863 data-nosnippet>2863</a>
-<a href=#2864 id=2864 data-nosnippet>2864</a>        <span class="kw">let </span>(block, is_dyn) = function_ctx.gen_doomed_block(<span class="kw-2">&amp;mut </span>u, <span class="kw-2">&amp;</span>types::U32).unwrap();
-<a href=#2865 id=2865 data-nosnippet>2865</a>        <span class="kw">let </span>block_code = <span class="macro">format!</span>(<span class="string">"{block}"</span>);
-<a href=#2866 id=2866 data-nosnippet>2866</a>
-<a href=#2867 id=2867 data-nosnippet>2867</a>        <span class="macro">assert!</span>(!is_dyn);
-<a href=#2868 id=2868 data-nosnippet>2868</a>        <span class="macro">assert_eq!</span>(block.return_type().unwrap().as_ref(), <span class="kw-2">&amp;</span>types::U32);
-<a href=#2869 id=2869 data-nosnippet>2869</a>        <span class="macro">assert!</span>(block_code.contains(<span class="string">"assert(false"</span>));
-<a href=#2870 id=2870 data-nosnippet>2870</a>    }
-<a href=#2871 id=2871 data-nosnippet>2871</a>
-<a href=#2872 id=2872 data-nosnippet>2872</a>    <span class="attr">#[test]
-<a href=#2873 id=2873 data-nosnippet>2873</a>    </span><span class="kw">fn </span>test_gen_if_can_generate_doomed_branch() {
-<a href=#2874 id=2874 data-nosnippet>2874</a>        <span class="kw">let </span><span class="kw-2">mut </span>u = Unstructured::new(<span class="kw-2">&amp;</span>[<span class="number">0u8</span>; <span class="number">128</span>]);
-<a href=#2875 id=2875 data-nosnippet>2875</a>        <span class="kw">let </span><span class="kw-2">mut </span>ctx = Context::default();
-<a href=#2876 id=2876 data-nosnippet>2876</a>        ctx.config.doomed_branch_freqs = Freqs::new(<span class="kw-2">&amp;</span>[(<span class="string">"doomed"</span>, <span class="number">1</span>), (<span class="string">"regular"</span>, <span class="number">0</span>)]);
-<a href=#2877 id=2877 data-nosnippet>2877</a>        ctx.config.max_block_size = <span class="number">1</span>;
-<a href=#2878 id=2878 data-nosnippet>2878</a>        ctx.config.max_depth = <span class="number">0</span>;
-<a href=#2879 id=2879 data-nosnippet>2879</a>        ctx.gen_main_decl(<span class="kw-2">&amp;mut </span>u);
-<a href=#2880 id=2880 data-nosnippet>2880</a>        <span class="kw">let </span><span class="kw-2">mut </span>function_ctx = FunctionContext::new(<span class="kw-2">&amp;mut </span>ctx, FuncId(<span class="number">0</span>));
-<a href=#2881 id=2881 data-nosnippet>2881</a>        function_ctx.budget = <span class="number">4</span>;
-<a href=#2882 id=2882 data-nosnippet>2882</a>
-<a href=#2883 id=2883 data-nosnippet>2883</a>        <span class="kw">let </span>(if_expr, <span class="kw">_</span>) = function_ctx.gen_if(<span class="kw-2">&amp;mut </span>u, <span class="kw-2">&amp;</span>Type::Unit, <span class="number">0</span>, <span class="kw">super</span>::Flags::TOP).unwrap();
-<a href=#2884 id=2884 data-nosnippet>2884</a>        <span class="kw">let </span>if_code = <span class="macro">format!</span>(<span class="string">"{if_expr}"</span>);
-<a href=#2885 id=2885 data-nosnippet>2885</a>
-<a href=#2886 id=2886 data-nosnippet>2886</a>        <span class="macro">assert!</span>(if_code.contains(<span class="string">"} else {"</span>));
-<a href=#2887 id=2887 data-nosnippet>2887</a>        <span class="macro">assert!</span>(if_code.contains(<span class="string">"assert(false"</span>));
-<a href=#2888 id=2888 data-nosnippet>2888</a>    }
-<a href=#2889 id=2889 data-nosnippet>2889</a>}</code></pre></div></section></main></body></html>
+<a href=#2676 id=2676 data-nosnippet>2676</a>        <span class="kw">let </span>name = builtin
+<a href=#2677 id=2677 data-nosnippet>2677</a>            .name()
+<a href=#2678 id=2678 data-nosnippet>2678</a>            .strip_prefix(<span class="string">"vector_"</span>)
+<a href=#2679 id=2679 data-nosnippet>2679</a>            .expect(<span class="string">"call_vector_builtin expects a vector_* builtin"</span>);
+<a href=#2680 id=2680 data-nosnippet>2680</a>        <span class="kw">let </span>func_ident = Ident {
+<a href=#2681 id=2681 data-nosnippet>2681</a>            location: <span class="prelude-val">None</span>,
+<a href=#2682 id=2682 data-nosnippet>2682</a>            definition: Definition::Builtin(builtin),
+<a href=#2683 id=2683 data-nosnippet>2683</a>            mutable: <span class="bool-val">false</span>,
+<a href=#2684 id=2684 data-nosnippet>2684</a>            name: name.to_string(),
+<a href=#2685 id=2685 data-nosnippet>2685</a>            typ: Rc::new(Type::Function(
+<a href=#2686 id=2686 data-nosnippet>2686</a>                arg_types,
+<a href=#2687 id=2687 data-nosnippet>2687</a>                Rc::new(return_type.clone()),
+<a href=#2688 id=2688 data-nosnippet>2688</a>                Rc::new(Type::Unit),
+<a href=#2689 id=2689 data-nosnippet>2689</a>                <span class="bool-val">false</span>,
+<a href=#2690 id=2690 data-nosnippet>2690</a>            )),
+<a href=#2691 id=2691 data-nosnippet>2691</a>            id: <span class="self">self</span>.next_ident_id(),
+<a href=#2692 id=2692 data-nosnippet>2692</a>        };
+<a href=#2693 id=2693 data-nosnippet>2693</a>        Expression::Call(Call {
+<a href=#2694 id=2694 data-nosnippet>2694</a>            func: Box::new(Expression::Ident(func_ident)),
+<a href=#2695 id=2695 data-nosnippet>2695</a>            arguments: args,
+<a href=#2696 id=2696 data-nosnippet>2696</a>            return_type,
+<a href=#2697 id=2697 data-nosnippet>2697</a>            location: Location::dummy(),
+<a href=#2698 id=2698 data-nosnippet>2698</a>        })
+<a href=#2699 id=2699 data-nosnippet>2699</a>    }
+<a href=#2700 id=2700 data-nosnippet>2700</a>
+<a href=#2701 id=2701 data-nosnippet>2701</a>    <span class="doccomment">/// Construct a `Call` to the `vector_push_front` or `vector_push_back` builtin function.
+<a href=#2702 id=2702 data-nosnippet>2702</a>    </span><span class="kw">fn </span>call_vector_push(
+<a href=#2703 id=2703 data-nosnippet>2703</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+<a href=#2704 id=2704 data-nosnippet>2704</a>        vector_type: Type,
+<a href=#2705 id=2705 data-nosnippet>2705</a>        item_type: Type,
+<a href=#2706 id=2706 data-nosnippet>2706</a>        vector: Expression,
+<a href=#2707 id=2707 data-nosnippet>2707</a>        is_front: bool,
+<a href=#2708 id=2708 data-nosnippet>2708</a>        item: Expression,
+<a href=#2709 id=2709 data-nosnippet>2709</a>    ) -&gt; Expression {
+<a href=#2710 id=2710 data-nosnippet>2710</a>        <span class="self">self</span>.call_vector_builtin(
+<a href=#2711 id=2711 data-nosnippet>2711</a>            <span class="kw">if </span>is_front { Builtin::VectorPushFront } <span class="kw">else </span>{ Builtin::VectorPushBack },
+<a href=#2712 id=2712 data-nosnippet>2712</a>            vector_type.clone(),
+<a href=#2713 id=2713 data-nosnippet>2713</a>            <span class="macro">vec!</span>[vector_type, item_type],
+<a href=#2714 id=2714 data-nosnippet>2714</a>            <span class="macro">vec!</span>[vector, item],
+<a href=#2715 id=2715 data-nosnippet>2715</a>        )
+<a href=#2716 id=2716 data-nosnippet>2716</a>    }
+<a href=#2717 id=2717 data-nosnippet>2717</a>
+<a href=#2718 id=2718 data-nosnippet>2718</a>    <span class="doccomment">/// Construct a `Call` to the `vector_pop_front` or `vector_pop_back` builtin function.
+<a href=#2719 id=2719 data-nosnippet>2719</a>    </span><span class="kw">fn </span>call_vector_pop(
+<a href=#2720 id=2720 data-nosnippet>2720</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+<a href=#2721 id=2721 data-nosnippet>2721</a>        vector_type: Type,
+<a href=#2722 id=2722 data-nosnippet>2722</a>        item_type: Type,
+<a href=#2723 id=2723 data-nosnippet>2723</a>        vector: Expression,
+<a href=#2724 id=2724 data-nosnippet>2724</a>        is_front: bool,
+<a href=#2725 id=2725 data-nosnippet>2725</a>    ) -&gt; Expression {
+<a href=#2726 id=2726 data-nosnippet>2726</a>        <span class="kw">let </span>return_fields = <span class="kw">if </span>is_front {
+<a href=#2727 id=2727 data-nosnippet>2727</a>            <span class="macro">vec!</span>[item_type, vector_type.clone()]
+<a href=#2728 id=2728 data-nosnippet>2728</a>        } <span class="kw">else </span>{
+<a href=#2729 id=2729 data-nosnippet>2729</a>            <span class="macro">vec!</span>[vector_type.clone(), item_type]
+<a href=#2730 id=2730 data-nosnippet>2730</a>        };
+<a href=#2731 id=2731 data-nosnippet>2731</a>        <span class="self">self</span>.call_vector_builtin(
+<a href=#2732 id=2732 data-nosnippet>2732</a>            <span class="kw">if </span>is_front { Builtin::VectorPopFront } <span class="kw">else </span>{ Builtin::VectorPopBack },
+<a href=#2733 id=2733 data-nosnippet>2733</a>            Type::Tuple(return_fields),
+<a href=#2734 id=2734 data-nosnippet>2734</a>            <span class="macro">vec!</span>[vector_type],
+<a href=#2735 id=2735 data-nosnippet>2735</a>            <span class="macro">vec!</span>[vector],
+<a href=#2736 id=2736 data-nosnippet>2736</a>        )
+<a href=#2737 id=2737 data-nosnippet>2737</a>    }
+<a href=#2738 id=2738 data-nosnippet>2738</a>
+<a href=#2739 id=2739 data-nosnippet>2739</a>    <span class="doccomment">/// Construct a `Call` to the `vector_remove` builtin function.
+<a href=#2740 id=2740 data-nosnippet>2740</a>    </span><span class="kw">fn </span>call_vector_remove(
+<a href=#2741 id=2741 data-nosnippet>2741</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+<a href=#2742 id=2742 data-nosnippet>2742</a>        vector_type: Type,
+<a href=#2743 id=2743 data-nosnippet>2743</a>        item_type: Type,
+<a href=#2744 id=2744 data-nosnippet>2744</a>        vector: Expression,
+<a href=#2745 id=2745 data-nosnippet>2745</a>        idx: Expression,
+<a href=#2746 id=2746 data-nosnippet>2746</a>    ) -&gt; Expression {
+<a href=#2747 id=2747 data-nosnippet>2747</a>        <span class="self">self</span>.call_vector_builtin(
+<a href=#2748 id=2748 data-nosnippet>2748</a>            Builtin::VectorRemove,
+<a href=#2749 id=2749 data-nosnippet>2749</a>            Type::Tuple(<span class="macro">vec!</span>[vector_type.clone(), item_type]),
+<a href=#2750 id=2750 data-nosnippet>2750</a>            <span class="macro">vec!</span>[vector_type, types::U32],
+<a href=#2751 id=2751 data-nosnippet>2751</a>            <span class="macro">vec!</span>[vector, idx],
+<a href=#2752 id=2752 data-nosnippet>2752</a>        )
+<a href=#2753 id=2753 data-nosnippet>2753</a>    }
+<a href=#2754 id=2754 data-nosnippet>2754</a>
+<a href=#2755 id=2755 data-nosnippet>2755</a>    <span class="doccomment">/// Construct a `Call` to the `vector_insert` builtin function.
+<a href=#2756 id=2756 data-nosnippet>2756</a>    </span><span class="kw">fn </span>call_vector_insert(
+<a href=#2757 id=2757 data-nosnippet>2757</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+<a href=#2758 id=2758 data-nosnippet>2758</a>        vector_type: Type,
+<a href=#2759 id=2759 data-nosnippet>2759</a>        item_type: Type,
+<a href=#2760 id=2760 data-nosnippet>2760</a>        vector: Expression,
+<a href=#2761 id=2761 data-nosnippet>2761</a>        idx: Expression,
+<a href=#2762 id=2762 data-nosnippet>2762</a>        item: Expression,
+<a href=#2763 id=2763 data-nosnippet>2763</a>    ) -&gt; Expression {
+<a href=#2764 id=2764 data-nosnippet>2764</a>        <span class="self">self</span>.call_vector_builtin(
+<a href=#2765 id=2765 data-nosnippet>2765</a>            Builtin::VectorInsert,
+<a href=#2766 id=2766 data-nosnippet>2766</a>            Type::Tuple(<span class="macro">vec!</span>[vector_type.clone()]),
+<a href=#2767 id=2767 data-nosnippet>2767</a>            <span class="macro">vec!</span>[vector_type, types::U32, item_type],
+<a href=#2768 id=2768 data-nosnippet>2768</a>            <span class="macro">vec!</span>[vector, idx, item],
+<a href=#2769 id=2769 data-nosnippet>2769</a>        )
+<a href=#2770 id=2770 data-nosnippet>2770</a>    }
+<a href=#2771 id=2771 data-nosnippet>2771</a>
+<a href=#2772 id=2772 data-nosnippet>2772</a>    <span class="doccomment">/// Random decision whether to allow "Index out of bounds" errors to happen
+<a href=#2773 id=2773 data-nosnippet>2773</a>    /// on a specific array or vector access operation.
+<a href=#2774 id=2774 data-nosnippet>2774</a>    ///
+<a href=#2775 id=2775 data-nosnippet>2775</a>    /// If [`Config::avoid_index_out_of_bounds`] is turned on, then this is always `true`.
+<a href=#2776 id=2776 data-nosnippet>2776</a>    ///
+<a href=#2777 id=2777 data-nosnippet>2777</a>    /// It also returns `true` when `in_no_dynamic` mode is on, because an overflowing
+<a href=#2778 id=2778 data-nosnippet>2778</a>    /// index might not be simplified out of the SSA in ACIR, and end up being considered
+<a href=#2779 id=2779 data-nosnippet>2779</a>    /// a dynamic index, and leave reference allocations until ACIR gen, where they fail.
+<a href=#2780 id=2780 data-nosnippet>2780</a>    </span><span class="kw">fn </span>avoid_index_out_of_bounds(<span class="kw-2">&amp;</span><span class="self">self</span>, u: <span class="kw-2">&amp;mut </span>Unstructured) -&gt; arbitrary::Result&lt;bool&gt; {
+<a href=#2781 id=2781 data-nosnippet>2781</a>        <span class="kw">if </span><span class="self">self</span>.config().avoid_index_out_of_bounds || <span class="self">self</span>.in_no_dynamic {
+<a href=#2782 id=2782 data-nosnippet>2782</a>            <span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="bool-val">true</span>);
+<a href=#2783 id=2783 data-nosnippet>2783</a>        }
+<a href=#2784 id=2784 data-nosnippet>2784</a>        <span class="comment">// Avoid OOB with 90% chance.
+<a href=#2785 id=2785 data-nosnippet>2785</a>        </span>u.ratio(<span class="number">9</span>, <span class="number">10</span>)
+<a href=#2786 id=2786 data-nosnippet>2786</a>    }
+<a href=#2787 id=2787 data-nosnippet>2787</a>}
+<a href=#2788 id=2788 data-nosnippet>2788</a>
+<a href=#2789 id=2789 data-nosnippet>2789</a><span class="attr">#[cfg(test)]
+<a href=#2790 id=2790 data-nosnippet>2790</a></span><span class="kw">mod </span>tests {
+<a href=#2791 id=2791 data-nosnippet>2791</a>    <span class="kw">use </span>arbitrary::Unstructured;
+<a href=#2792 id=2792 data-nosnippet>2792</a>    <span class="kw">use </span>noirc_frontend::monomorphization::ast::{FuncId, Type};
+<a href=#2793 id=2793 data-nosnippet>2793</a>
+<a href=#2794 id=2794 data-nosnippet>2794</a>    <span class="kw">use </span><span class="kw">crate</span>::program::{Context, FunctionContext, freq::Freqs, types};
+<a href=#2795 id=2795 data-nosnippet>2795</a>
+<a href=#2796 id=2796 data-nosnippet>2796</a>    <span class="attr">#[test]
+<a href=#2797 id=2797 data-nosnippet>2797</a>    </span><span class="kw">fn </span>test_loop() {
+<a href=#2798 id=2798 data-nosnippet>2798</a>        <span class="kw">let </span><span class="kw-2">mut </span>u = Unstructured::new(<span class="kw-2">&amp;</span>[<span class="number">0u8</span>; <span class="number">1</span>]);
+<a href=#2799 id=2799 data-nosnippet>2799</a>        <span class="kw">let </span><span class="kw-2">mut </span>ctx = Context::default();
+<a href=#2800 id=2800 data-nosnippet>2800</a>        ctx.config.max_loop_size = <span class="number">10</span>;
+<a href=#2801 id=2801 data-nosnippet>2801</a>        ctx.config.vary_loop_size = <span class="bool-val">false</span>;
+<a href=#2802 id=2802 data-nosnippet>2802</a>        ctx.gen_main_decl(<span class="kw-2">&amp;mut </span>u);
+<a href=#2803 id=2803 data-nosnippet>2803</a>        <span class="kw">let </span><span class="kw-2">mut </span>function_ctx = FunctionContext::new(<span class="kw-2">&amp;mut </span>ctx, FuncId(<span class="number">0</span>));
+<a href=#2804 id=2804 data-nosnippet>2804</a>        function_ctx.budget = <span class="number">2</span>;
+<a href=#2805 id=2805 data-nosnippet>2805</a>        <span class="kw">let </span>loop_code = <span class="macro">format!</span>(<span class="string">"{}"</span>, function_ctx.gen_loop(<span class="kw-2">&amp;mut </span>u).unwrap()).replace(<span class="string">" "</span>, <span class="string">""</span>);
+<a href=#2806 id=2806 data-nosnippet>2806</a>
+<a href=#2807 id=2807 data-nosnippet>2807</a>        <span class="comment">// `ind_b` is the user induction variable: the loop is driven by a variable the body
+<a href=#2808 id=2808 data-nosnippet>2808</a>        // steps and a guard the generator chose, while `idx_a` remains the harness counter that
+<a href=#2809 id=2809 data-nosnippet>2809</a>        // bounds the iteration count no matter what the guard does.
+<a href=#2810 id=2810 data-nosnippet>2810</a>        </span><span class="macro">assert!</span>(
+<a href=#2811 id=2811 data-nosnippet>2811</a>            loop_code.starts_with(
+<a href=#2812 id=2812 data-nosnippet>2812</a>                <span class="kw-2">&amp;</span><span class="string">r#"{
+<a href=#2813 id=2813 data-nosnippet>2813</a>    let mut idx_a$l0 = 0;
+<a href=#2814 id=2814 data-nosnippet>2814</a>    let mut ind_b$l1 = 0;
+<a href=#2815 id=2815 data-nosnippet>2815</a>    loop {
+<a href=#2816 id=2816 data-nosnippet>2816</a>        if (idx_a$l0 == 10) {
+<a href=#2817 id=2817 data-nosnippet>2817</a>            break
+<a href=#2818 id=2818 data-nosnippet>2818</a>        } else {
+<a href=#2819 id=2819 data-nosnippet>2819</a>            idx_a$l0 = (idx_a$l0 + 1);
+<a href=#2820 id=2820 data-nosnippet>2820</a>            if (ind_b$l1 &lt; 0) {
+<a href=#2821 id=2821 data-nosnippet>2821</a>                break
+<a href=#2822 id=2822 data-nosnippet>2822</a>            } else {
+<a href=#2823 id=2823 data-nosnippet>2823</a>            };
+<a href=#2824 id=2824 data-nosnippet>2824</a>            ind_b$l1 = (ind_b$l1 - 1);"#
+<a href=#2825 id=2825 data-nosnippet>2825</a>                    </span>.replace(<span class="string">" "</span>, <span class="string">""</span>)
+<a href=#2826 id=2826 data-nosnippet>2826</a>            ),
+<a href=#2827 id=2827 data-nosnippet>2827</a>            <span class="string">"{loop_code}"
+<a href=#2828 id=2828 data-nosnippet>2828</a>        </span>);
+<a href=#2829 id=2829 data-nosnippet>2829</a>    }
+<a href=#2830 id=2830 data-nosnippet>2830</a>
+<a href=#2831 id=2831 data-nosnippet>2831</a>    <span class="attr">#[test]
+<a href=#2832 id=2832 data-nosnippet>2832</a>    </span><span class="kw">fn </span>test_while() {
+<a href=#2833 id=2833 data-nosnippet>2833</a>        <span class="kw">let </span><span class="kw-2">mut </span>u = Unstructured::new(<span class="kw-2">&amp;</span>[<span class="number">0u8</span>; <span class="number">1</span>]);
+<a href=#2834 id=2834 data-nosnippet>2834</a>        <span class="kw">let </span><span class="kw-2">mut </span>ctx = Context::default();
+<a href=#2835 id=2835 data-nosnippet>2835</a>        ctx.config.max_loop_size = <span class="number">10</span>;
+<a href=#2836 id=2836 data-nosnippet>2836</a>        ctx.config.vary_loop_size = <span class="bool-val">false</span>;
+<a href=#2837 id=2837 data-nosnippet>2837</a>        ctx.gen_main_decl(<span class="kw-2">&amp;mut </span>u);
+<a href=#2838 id=2838 data-nosnippet>2838</a>        <span class="kw">let </span><span class="kw-2">mut </span>function_ctx = FunctionContext::new(<span class="kw-2">&amp;mut </span>ctx, FuncId(<span class="number">0</span>));
+<a href=#2839 id=2839 data-nosnippet>2839</a>        function_ctx.budget = <span class="number">2</span>;
+<a href=#2840 id=2840 data-nosnippet>2840</a>        <span class="kw">let </span>while_code = <span class="macro">format!</span>(<span class="string">"{}"</span>, function_ctx.gen_while(<span class="kw-2">&amp;mut </span>u).unwrap()).replace(<span class="string">" "</span>, <span class="string">""</span>);
+<a href=#2841 id=2841 data-nosnippet>2841</a>
+<a href=#2842 id=2842 data-nosnippet>2842</a>        <span class="comment">// The `while` guard is the user induction variable's comparison, and `ind_b` is stepped
+<a href=#2843 id=2843 data-nosnippet>2843</a>        // inside the body; `idx_a` is the harness counter that still bounds the iterations.
+<a href=#2844 id=2844 data-nosnippet>2844</a>        </span><span class="macro">assert!</span>(
+<a href=#2845 id=2845 data-nosnippet>2845</a>            while_code.starts_with(
+<a href=#2846 id=2846 data-nosnippet>2846</a>                <span class="kw-2">&amp;</span><span class="string">r#"{
+<a href=#2847 id=2847 data-nosnippet>2847</a>    let mut idx_a$l0 = 0;
+<a href=#2848 id=2848 data-nosnippet>2848</a>    let mut ind_b$l1 = 0;
+<a href=#2849 id=2849 data-nosnippet>2849</a>    while (ind_b$l1 &lt; 0) {
+<a href=#2850 id=2850 data-nosnippet>2850</a>        if (idx_a$l0 == 10) {
+<a href=#2851 id=2851 data-nosnippet>2851</a>            break
+<a href=#2852 id=2852 data-nosnippet>2852</a>        } else {
+<a href=#2853 id=2853 data-nosnippet>2853</a>            idx_a$l0 = (idx_a$l0 + 1);
+<a href=#2854 id=2854 data-nosnippet>2854</a>            ind_b$l1 = (ind_b$l1 - 1)"#
+<a href=#2855 id=2855 data-nosnippet>2855</a>                    </span>.replace(<span class="string">" "</span>, <span class="string">""</span>)
+<a href=#2856 id=2856 data-nosnippet>2856</a>            ),
+<a href=#2857 id=2857 data-nosnippet>2857</a>            <span class="string">"{while_code}"
+<a href=#2858 id=2858 data-nosnippet>2858</a>        </span>);
+<a href=#2859 id=2859 data-nosnippet>2859</a>    }
+<a href=#2860 id=2860 data-nosnippet>2860</a>
+<a href=#2861 id=2861 data-nosnippet>2861</a>    <span class="attr">#[test]
+<a href=#2862 id=2862 data-nosnippet>2862</a>    </span><span class="kw">fn </span>test_doomed_block_returns_requested_type() {
+<a href=#2863 id=2863 data-nosnippet>2863</a>        <span class="kw">let </span><span class="kw-2">mut </span>u = Unstructured::new(<span class="kw-2">&amp;</span>[<span class="number">0u8</span>; <span class="number">16</span>]);
+<a href=#2864 id=2864 data-nosnippet>2864</a>        <span class="kw">let </span><span class="kw-2">mut </span>ctx = Context::default();
+<a href=#2865 id=2865 data-nosnippet>2865</a>        ctx.gen_main_decl(<span class="kw-2">&amp;mut </span>u);
+<a href=#2866 id=2866 data-nosnippet>2866</a>        <span class="kw">let </span><span class="kw-2">mut </span>function_ctx = FunctionContext::new(<span class="kw-2">&amp;mut </span>ctx, FuncId(<span class="number">0</span>));
+<a href=#2867 id=2867 data-nosnippet>2867</a>
+<a href=#2868 id=2868 data-nosnippet>2868</a>        <span class="kw">let </span>(block, is_dyn) = function_ctx.gen_doomed_block(<span class="kw-2">&amp;mut </span>u, <span class="kw-2">&amp;</span>types::U32).unwrap();
+<a href=#2869 id=2869 data-nosnippet>2869</a>        <span class="kw">let </span>block_code = <span class="macro">format!</span>(<span class="string">"{block}"</span>);
+<a href=#2870 id=2870 data-nosnippet>2870</a>
+<a href=#2871 id=2871 data-nosnippet>2871</a>        <span class="macro">assert!</span>(!is_dyn);
+<a href=#2872 id=2872 data-nosnippet>2872</a>        <span class="macro">assert_eq!</span>(block.return_type().unwrap().as_ref(), <span class="kw-2">&amp;</span>types::U32);
+<a href=#2873 id=2873 data-nosnippet>2873</a>        <span class="macro">assert!</span>(block_code.contains(<span class="string">"assert(false"</span>));
+<a href=#2874 id=2874 data-nosnippet>2874</a>    }
+<a href=#2875 id=2875 data-nosnippet>2875</a>
+<a href=#2876 id=2876 data-nosnippet>2876</a>    <span class="attr">#[test]
+<a href=#2877 id=2877 data-nosnippet>2877</a>    </span><span class="kw">fn </span>test_gen_if_can_generate_doomed_branch() {
+<a href=#2878 id=2878 data-nosnippet>2878</a>        <span class="kw">let </span><span class="kw-2">mut </span>u = Unstructured::new(<span class="kw-2">&amp;</span>[<span class="number">0u8</span>; <span class="number">128</span>]);
+<a href=#2879 id=2879 data-nosnippet>2879</a>        <span class="kw">let </span><span class="kw-2">mut </span>ctx = Context::default();
+<a href=#2880 id=2880 data-nosnippet>2880</a>        ctx.config.doomed_branch_freqs = Freqs::new(<span class="kw-2">&amp;</span>[(<span class="string">"doomed"</span>, <span class="number">1</span>), (<span class="string">"regular"</span>, <span class="number">0</span>)]);
+<a href=#2881 id=2881 data-nosnippet>2881</a>        ctx.config.max_block_size = <span class="number">1</span>;
+<a href=#2882 id=2882 data-nosnippet>2882</a>        ctx.config.max_depth = <span class="number">0</span>;
+<a href=#2883 id=2883 data-nosnippet>2883</a>        ctx.gen_main_decl(<span class="kw-2">&amp;mut </span>u);
+<a href=#2884 id=2884 data-nosnippet>2884</a>        <span class="kw">let </span><span class="kw-2">mut </span>function_ctx = FunctionContext::new(<span class="kw-2">&amp;mut </span>ctx, FuncId(<span class="number">0</span>));
+<a href=#2885 id=2885 data-nosnippet>2885</a>        function_ctx.budget = <span class="number">4</span>;
+<a href=#2886 id=2886 data-nosnippet>2886</a>
+<a href=#2887 id=2887 data-nosnippet>2887</a>        <span class="kw">let </span>(if_expr, <span class="kw">_</span>) = function_ctx.gen_if(<span class="kw-2">&amp;mut </span>u, <span class="kw-2">&amp;</span>Type::Unit, <span class="number">0</span>, <span class="kw">super</span>::Flags::TOP).unwrap();
+<a href=#2888 id=2888 data-nosnippet>2888</a>        <span class="kw">let </span>if_code = <span class="macro">format!</span>(<span class="string">"{if_expr}"</span>);
+<a href=#2889 id=2889 data-nosnippet>2889</a>
+<a href=#2890 id=2890 data-nosnippet>2890</a>        <span class="macro">assert!</span>(if_code.contains(<span class="string">"} else {"</span>));
+<a href=#2891 id=2891 data-nosnippet>2891</a>        <span class="macro">assert!</span>(if_code.contains(<span class="string">"assert(false"</span>));
+<a href=#2892 id=2892 data-nosnippet>2892</a>    }
+<a href=#2893 id=2893 data-nosnippet>2893</a>}</code></pre></div></section></main></body></html>
