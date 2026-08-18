@@ -3736,13 +3736,7 @@ impl Elaborator<'_> {
                     let location = self.interner.id_location(*object);
                     if mutable {
                         let inside_mutable_ref = false;
-                        let inside_member_access = false;
-                        self.check_can_mutate(
-                            *object,
-                            location,
-                            inside_mutable_ref,
-                            inside_member_access,
-                        );
+                        self.check_can_mutate(*object, location, inside_mutable_ref);
                     }
 
                     let new_type = Type::Reference(Box::new(actual_type), mutable);
