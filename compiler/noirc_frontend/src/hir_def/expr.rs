@@ -1,4 +1,3 @@
-use acvm::FieldElement;
 use fm::FileId;
 use iter_extended::vecmap;
 use noirc_errors::Location;
@@ -479,10 +478,10 @@ pub enum Constructor {
     True,
     False,
     Unit,
-    Int(FieldElement),
+    Int(BigInt),
     Tuple(Vec<Type>),
     Variant(Type, usize),
-    Range(FieldElement, FieldElement),
+    Range(BigInt, BigInt),
 }
 
 impl Constructor {
