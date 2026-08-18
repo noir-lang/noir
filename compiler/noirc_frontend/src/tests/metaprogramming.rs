@@ -2516,6 +2516,9 @@ const META_API_STDLIB: &str = r#"
         #[builtin(module_functions)]
         pub comptime fn functions(self) -> [FunctionDefinition] {}
 
+        #[builtin(module_child_modules)]
+        pub comptime fn child_modules(self) -> [Module] {}
+
         #[builtin(module_named_attribute_args)]
         pub comptime fn named_attribute_args<let N: u32>(self, _name: str<N>) -> [[Quoted]] {}
     }
@@ -2545,6 +2548,9 @@ const META_API_STDLIB: &str = r#"
     impl TypeDefinition {
         #[builtin(type_def_named_attribute_args)]
         pub comptime fn named_attribute_args<let N: u32>(self, _name: str<N>) -> [[Quoted]] {}
+
+        #[builtin(type_def_fields_as_written)]
+        pub comptime fn fields_as_written(self) -> [(Quoted, Type, Quoted)] {}
     }
 "#;
 
@@ -2593,6 +2599,116 @@ fn comptime_as_typed_expr_visibility() {
         };
 
         assert(victim::read(hijacked_vault) == 31337);
+    }
+    "#;
+    check_errors_with_stdlib(src, [META_API_STDLIB]);
+}
+
+/// A `pub fn` inside a private module is not reachable from outside that module through a
+/// normal path (the enclosing module is private), so it must not be reachable through
+/// `as_typed_expr` either. Checking only the function's own visibility misses the private
+/// enclosing module.
+#[test]
+fn comptime_as_typed_expr_visibility_through_private_module() {
+    let src = r#"
+    mod victim {
+        pub struct Vault {
+            secret: Field,
+        }
+
+        pub fn new() -> Vault {
+            Vault { secret: 1 }
+        }
+
+        pub fn read(v: Vault) -> Field {
+            v.secret
+        }
+
+        mod priv_mod {
+            use super::Vault;
+
+            pub fn set_secret(mut v: Vault, new_secret: Field) -> Vault {
+                v.secret = new_secret;
+                v
+            }
+        }
+    }
+
+    fn main() {
+        let original_vault = victim::new();
+            ^^^^^^^^^^^^^^ unused variable original_vault
+            ~~~~~~~~~~~~~~ unused variable
+
+        let hijacked_vault = comptime {
+            let victim_module = quote { victim }.as_module().unwrap();
+            let mut found = Option::none();
+            for m in victim_module.child_modules() {
+                for f in m.functions() {
+                    if quoted_eq(f.name(), quote { set_secret }) {
+                        found = Option::some(f);
+                    }
+                }
+            }
+            let set_secret = found.unwrap();
+            let set_secret_expr = set_secret.as_typed_expr();
+                                  ^^^^^^^^^^^^^^^^^^^^^^^^^^ Function `set_secret` is private
+                                  ~~~~~~~~~~~~~~~~~~~~~~~~~~ `set_secret` is declared in `victim::priv_mod`
+            quote { $set_secret_expr(original_vault, 31337) }
+        };
+
+        assert(victim::read(hijacked_vault) == 31337);
+    }
+    "#;
+    check_errors_with_stdlib(src, [META_API_STDLIB]);
+}
+
+/// The private-module check must not over-restrict: a `pub fn` inside a `pub mod` is reachable
+/// through a normal path, so it must remain reachable through `as_typed_expr` as well.
+#[test]
+fn comptime_as_typed_expr_visibility_through_public_module() {
+    let src = r#"
+    mod victim {
+        pub struct Vault {
+            secret: Field,
+        }
+
+        pub fn new() -> Vault {
+            Vault { secret: 1 }
+        }
+
+        pub fn read(v: Vault) -> Field {
+            v.secret
+        }
+
+        pub mod pub_mod {
+            use super::Vault;
+
+            pub fn set_secret(mut v: Vault, new_secret: Field) -> Vault {
+                v.secret = new_secret;
+                v
+            }
+        }
+    }
+
+    fn main() {
+        let original_vault = victim::new();
+
+        let updated_vault = comptime {
+            let victim_module = quote { victim }.as_module().unwrap();
+            let mut found = Option::none();
+            for m in victim_module.child_modules() {
+                for f in m.functions() {
+                    if quoted_eq(f.name(), quote { set_secret }) {
+                        found = Option::some(f);
+                    }
+                }
+            }
+            let set_secret = found.unwrap();
+            let set_secret_expr = set_secret.as_typed_expr();
+            quote { $set_secret_expr(original_vault, 31337) }
+        };
+
+        assert(victim::read(updated_vault) == 31337);
     }
     "#;
     check_errors_with_stdlib(src, [META_API_STDLIB]);
@@ -3321,6 +3437,29 @@ fn meta_attribute_coerces_function_path_to_function_definition() {
 }
 
 #[test]
+fn meta_attribute_coerces_inherent_method_path_to_function_definition() {
+    // https://github.com/noir-lang/noir/issues/13186
+    // An inherent method path (`Type::method`) is not resolvable as a plain value path the way a
+    // free function is, but it must still coerce to a `FunctionDefinition` argument — mirroring how
+    // the expression `Type::method` resolves to that method.
+    let src = r#"
+    pub struct Foo {}
+
+    impl Foo {
+        pub fn check(_self: &Self) {}
+    }
+
+    #[validate(Foo::check)]
+    pub fn target() {}
+
+    comptime fn validate(_f: FunctionDefinition, _method: FunctionDefinition) {}
+
+    fn main() {}
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
 fn meta_attribute_function_definition_argument_can_be_inspected() {
     // The coerced `FunctionDefinition` is a real definition whose signature can be inspected,
     // which is the point of accepting it as `FunctionDefinition` rather than `Quoted`.
@@ -3496,6 +3635,114 @@ fn module_named_attribute_args_returns_attribute_arguments() {
     }
 
     fn main() {}
+    "#;
+    check_errors_with_stdlib(src, [META_API_STDLIB]);
+}
+
+#[test]
+fn spliced_field_type_generic_rebinds_to_generated_impl_generic() {
+    // Regression test for https://github.com/noir-lang/noir/issues/10747
+    //
+    // A field type obtained via `fields_as_written()` carries the *struct's* generic
+    // (`PublicImmutable<Context>` where `Context` is `Storage`'s generic). When it is spliced
+    // via `$typ` into a generated `impl<Context> Storage<Context>`, the spliced type's `Context`
+    // must resolve to the *impl's* `Context`, exactly like the textually-written `Context` does.
+    let src = r#"
+    pub trait StateVariable<Context> {
+        fn new(context: Context) -> Self;
+    }
+
+    pub struct PublicImmutable<Context> {
+        context: Context,
+    }
+
+    impl<Context> StateVariable<Context> for PublicImmutable<Context> {
+        fn new(context: Context) -> Self {
+            PublicImmutable { context }
+        }
+    }
+
+    #[storage]
+    struct Storage<Context> {
+        symbol: PublicImmutable<Context>,
+    }
+
+    pub comptime fn storage(s: TypeDefinition) -> Quoted {
+        let (name, typ, _) = s.fields_as_written()[0];
+        quote {
+            impl<Context> Storage<Context> {
+                fn init(context: Context) -> Self {
+                    Self {
+                        $name: <$typ as StateVariable<Context>>::new(context),
+                    }
+                }
+            }
+        }
+    }
+
+    struct PrivateContext {}
+
+    fn main() {
+        let context: PrivateContext = PrivateContext {};
+        let _ = Storage::init(context);
+    }
+    "#;
+    check_errors_with_stdlib(src, [META_API_STDLIB]);
+}
+
+#[test]
+fn spliced_bare_generic_field_type_rebinds_in_generated_impl() {
+    // Companion to the regression above: the field type is the bare generic `Context` itself.
+    // The spliced `$typ` (the struct's `Context`) must rebind to the generated impl's `Context`.
+    let src = r#"
+    #[identity_impl]
+    struct Wrapper<Context> {
+        inner: Context,
+    }
+
+    pub comptime fn identity_impl(s: TypeDefinition) -> Quoted {
+        let (_name, typ, _) = s.fields_as_written()[0];
+        quote {
+            impl<Context> Wrapper<Context> {
+                fn identity(value: $typ) -> Context {
+                    value
+                }
+            }
+        }
+    }
+
+    fn main() {
+        let _ = Wrapper::identity(1);
+    }
+    "#;
+    check_errors_with_stdlib(src, [META_API_STDLIB]);
+}
+
+/// `Expr::resolve` with a foreign function scope must judge visibility from the caller's module,
+/// including the first path segment. A `pub` item inside a private module of the foreign scope is
+/// reachable there as a plain first segment, but it must not become reachable from the caller.
+#[test]
+fn comptime_resolve_first_segment_visibility() {
+    let src = r#"
+    mod victim {
+        pub fn foreign_scope() {}
+
+        mod secret_mod {
+            pub struct Leaked { pub x: Field }
+        }
+    }
+
+    fn main() {
+        let leaked = comptime {
+            let victim_module = quote { victim }.as_module().unwrap();
+            let expr = quote { secret_mod::Leaked { x: 5 } }.as_expr().unwrap().resolve(Option::some(victim_module.functions()[0]));
+                       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ While evaluating `Expr::resolve`
+                               ^^^^^^^^^^ secret_mod is private and not visible from the current module
+                               ~~~~~~~~~~ secret_mod is private
+            quote { $expr.x }
+        };
+        assert(leaked == 5);
+    }
     "#;
     check_errors_with_stdlib(src, [META_API_STDLIB]);
 }

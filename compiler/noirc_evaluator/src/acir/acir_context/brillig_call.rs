@@ -76,8 +76,20 @@ impl<F: AcirField> AcirContext<F> {
                         }
                         Ok(BrilligInputs::Array(var_expressions))
                     }
-                    AcirValue::DynamicArray(AcirDynamicArray { block_id, .. }) => {
-                        Ok(BrilligInputs::MemoryArray(block_id))
+                    AcirValue::DynamicArray(AcirDynamicArray { block_id, len, .. }) => {
+                        if len.to_usize() == 0 {
+                            // A zero-length dynamic array has no backing `MemoryInit` opcode:
+                            // zero-length blocks are recorded as initialized but emit no memory
+                            // operations, per the "Zero-Length Arrays" rule in `acir/arrays.rs`.
+                            // Referencing such a block as a `MemoryArray` input yields an orphan
+                            // block id that has no `MemoryInit`, which later panics
+                            // `MergeExpressionsOptimizer` with "Unknown block id" (and fails raw
+                            // ACVM with `MissingMemoryBlock`). An empty block carries no calldata
+                            // cells, so lower it inline as an empty array instead.
+                            Ok(BrilligInputs::Array(Vec::new()))
+                        } else {
+                            Ok(BrilligInputs::MemoryArray(block_id))
+                        }
                     }
                 }
             })?;
@@ -183,7 +195,7 @@ impl<F: AcirField> AcirContext<F> {
         element_types: &[AcirType],
         size: SemanticLength,
     ) -> AcirValue {
-        let mut array_values = im::Vector::new();
+        let mut array_values = imbl::Vector::new();
         for _ in 0..size.0 {
             for element_type in element_types {
                 match element_type {
@@ -210,7 +222,7 @@ impl<F: AcirField> AcirContext<F> {
         size: SemanticLength,
     ) -> (AcirValue, Vec<Witness>) {
         let mut witnesses = Vec::new();
-        let mut array_values = im::Vector::new();
+        let mut array_values = imbl::Vector::new();
         for _ in 0..size.0 {
             for element_type in element_types {
                 match element_type {

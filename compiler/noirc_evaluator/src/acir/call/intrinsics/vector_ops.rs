@@ -1,6 +1,6 @@
 use itertools::Itertools;
 
-use crate::acir::arrays::ElementTypeSizesArrayShift;
+use crate::acir::arrays::{ElementTypeSizesArrayShift, IndexGating};
 use crate::acir::types::flat_element_types;
 use crate::acir::{AcirDynamicArray, AcirValue, AcirVar};
 use crate::brillig::assert_u32;
@@ -8,21 +8,25 @@ use crate::errors::{InternalError, RuntimeError};
 use crate::ssa::ir::types::{NumericType, Type};
 use crate::ssa::ir::{dfg::DataFlowGraph, value::ValueId};
 use acvm::acir::brillig::lengths::FlattenedLength;
-use acvm::acir::circuit::opcodes::BlockId;
 use acvm::{AcirField, FieldElement};
 
 use super::Context;
 
 /// Flattens a vector's contents to its scalar vars when they are still known inline.
 ///
-/// Returns `Some` for an [`AcirValue::Array`] (whose elements are held directly) and `None` for an
-/// [`AcirValue::DynamicArray`], which is backed by a memory block and must be read from it. The
-/// result indexes positionally into the vector's flattened memory layout.
+/// Returns `Some` for an [`AcirValue::Array`] whose elements are all held directly, and `None` for
+/// an [`AcirValue::DynamicArray`], which is backed by a memory block and must be read from it. A
+/// `None` is also returned when the outer array holds a nested [`AcirValue::DynamicArray`] element
+/// (which makes [`AcirValue::flatten`] fail), since that element's scalars only exist in the
+/// backing memory block; in that case the whole read falls back to the memory block. The result
+/// indexes positionally into the vector's flattened memory layout.
 fn flattened_inline_source(value: &AcirValue) -> Option<Vec<AcirVar>> {
     match value {
-        AcirValue::Array(_) => {
-            Some(value.clone().flatten().into_iter().map(|(var, _typ)| var).collect())
-        }
+        AcirValue::Array(_) => value
+            .clone()
+            .flatten()
+            .ok()
+            .map(|flat| flat.into_iter().map(|(var, _typ)| var).collect()),
         AcirValue::Var(_, _) | AcirValue::DynamicArray(_) => None,
     }
 }
@@ -40,30 +44,34 @@ impl Context<'_> {
         &mut self,
         flattened_source: Option<&[AcirVar]>,
         ssa_type: &Type,
-        block_id: BlockId,
+        array: ValueId,
+        dfg: &DataFlowGraph,
         var_index: &mut AcirVar,
     ) -> Result<AcirValue, RuntimeError> {
         let Some(values) = flattened_source else {
-            // No inline contents: every scalar is read from the backing memory block.
+            // No inline contents: every scalar is read from the backing memory block, which is
+            // initialized lazily on this first access.
+            let block_id = self.ensure_array_is_initialized(array, dfg)?;
             return self.array_get_value(ssa_type, block_id, var_index);
         };
 
         let one = self.acir_context.add_constant(FieldElement::one());
         match ssa_type {
             Type::Numeric(numeric_type) => {
-                let read = self.read_vector_scalar(values, block_id, var_index)?;
+                let read = self.read_vector_scalar(values, array, dfg, var_index)?;
                 // Increment the var_index in case of a nested vector element
                 *var_index = self.acir_context.add_var(*var_index, one)?;
                 Ok(AcirValue::Var(read, *numeric_type))
             }
             Type::Array(element_types, len) => {
-                let mut result = im::Vector::new();
+                let mut result = imbl::Vector::new();
                 for _ in 0..len.0 {
                     for typ in element_types.as_ref() {
                         result.push_back(self.read_vector_value(
                             Some(values),
                             typ,
-                            block_id,
+                            array,
+                            dfg,
                             var_index,
                         )?);
                     }
@@ -71,7 +79,7 @@ impl Context<'_> {
                 Ok(AcirValue::Array(result))
             }
             Type::Reference(reference_type, _) => {
-                self.read_vector_value(Some(values), reference_type.as_ref(), block_id, var_index)
+                self.read_vector_value(Some(values), reference_type.as_ref(), array, dfg, var_index)
             }
             _ => unreachable!("ICE: Expected an array or numeric but got {ssa_type:?}"),
         }
@@ -80,11 +88,13 @@ impl Context<'_> {
     /// Reads the scalar at the flattened position `var_index` of a vector.
     ///
     /// Returns the inline value directly when `var_index` is a constant within `values`' bounds;
-    /// otherwise emits a `MemoryOp::Read` of `block_id`.
+    /// otherwise emits a `MemoryOp::Read` of the vector's backing block, which is initialized
+    /// lazily on that first read.
     fn read_vector_scalar(
         &mut self,
         values: &[AcirVar],
-        block_id: BlockId,
+        array: ValueId,
+        dfg: &DataFlowGraph,
         var_index: &AcirVar,
     ) -> Result<AcirVar, RuntimeError> {
         if let Some(index) = self
@@ -96,6 +106,7 @@ impl Context<'_> {
         {
             return Ok(*element);
         }
+        let block_id = self.ensure_array_is_initialized(array, dfg)?;
         Ok(self.acir_context.read_from_memory(block_id, var_index)?)
     }
 
@@ -238,44 +249,40 @@ impl Context<'_> {
             let len = super::arrays::flattened_value_size(&new_vector_array);
 
             // 2. Copy the vector into an AcirDynamicArray
-            // Generates the element_type_sizes array
-            let element_type_sizes =
-                if super::arrays::array_has_constant_element_size(&vector_typ).is_none() {
-                    Some(self.init_element_type_sizes_array(
-                        &vector_typ,
-                        result_ids[1],
-                        Some(new_vector_array.clone()),
-                        dfg,
-                        // We do not need extra capacity here as `new_vector_array` has already pushed back new elements
-                        ElementTypeSizesArrayShift::None,
-                    )?)
-                } else {
-                    None
-                };
-
             // The block ID for the new vector is the one for the resulting vector
             let block_id = self.block_id(result_ids[1]);
             self.initialize_array(block_id, len, Some(new_vector_array))?;
-            let flattened_dynamic_array =
-                AcirDynamicArray { block_id, len, value_types, element_type_sizes };
+            let flattened_dynamic_array = AcirDynamicArray { block_id, len, value_types };
 
             // 3. Write to the dynamic array
 
-            // 3.1 Computes the flatten_idx where to write into the dynamic array.
-            // `get_flattened_index` handles both homogeneous (constant element size) and
-            // heterogeneous (element_type_sizes memory lookup) cases. Passing
-            // `is_safe_index: false` gates the index by the side-effects predicate so that
-            // a disabled branch writes to index 0 (always in bounds) instead of an OOB slot.
-            let acir_element_size = self.acir_context.add_constant(elements_to_push.len());
-            let acir_value_index = self.acir_context.mul_var(vector_length, acir_element_size)?;
-            let mut flatten_idx = self.get_flattened_index(
-                &vector_typ,
-                result_ids[1],
-                acir_value_index,
-                dfg,
-                false,
-                ElementTypeSizesArrayShift::None,
-            )?;
+            // 3.1 Compute the flattened offset at which to append the pushed element. It lands at a
+            // whole-element boundary (`length` elements in), so the offset is a constant multiple of
+            // the element's flattened size. `length` is gated by the side-effects predicate so a
+            // disabled branch writes to offset 0 (always in bounds) rather than an out-of-bounds slot.
+            let mut flatten_idx =
+                if super::arrays::array_has_constant_element_size(&vector_typ).is_some() {
+                    let acir_element_size = self.acir_context.add_constant(elements_to_push.len());
+                    let acir_value_index =
+                        self.acir_context.mul_var(vector_length, acir_element_size)?;
+                    self.get_flattened_index(
+                        &vector_typ,
+                        result_ids[1],
+                        acir_value_index,
+                        dfg,
+                        IndexGating::Gated { fallback_offset: 0 },
+                        ElementTypeSizesArrayShift::None,
+                    )?
+                } else {
+                    // A non-homogenous layout would otherwise resolve offsets through an
+                    // element-type-sizes table, but a whole-element append needs no per-member offsets:
+                    // multiply the length by the flattened element size directly and skip building that
+                    // table for this write.
+                    let predicate = self.predicate();
+                    let predicated_length = self.acir_context.mul_var(vector_length, predicate)?;
+                    let element_flattened_size = self.acir_context.add_constant(elements_var.len());
+                    self.acir_context.mul_var(predicated_length, element_flattened_size)?
+                };
             // Write the elements to the dynamic array
             for element in &elements_var {
                 self.acir_context.write_to_memory(block_id, &flatten_idx, element)?;
@@ -363,7 +370,7 @@ impl Context<'_> {
     ///
     /// If the vector has zero length, this function skips the memory read and returns zero values.
     /// It asserts that the current side effects must be disabled (predicate = 0), otherwise fails
-    /// with "cannot pop from a vector with length 0". This prevents reading from empty memory blocks
+    /// with "Attempt to pop from an empty vector". This prevents reading from empty memory blocks
     /// which would cause "Index out of bounds" errors.
     pub(super) fn convert_vector_pop_back(
         &mut self,
@@ -374,16 +381,16 @@ impl Context<'_> {
         let vector_length_id = arguments[0];
         let vector_contents_id = arguments[1];
         let vector_length_value = self.convert_value(vector_length_id, dfg);
-        let block_id = self.ensure_array_is_initialized(vector_contents_id, dfg)?;
         let vector_contents_value = self.convert_value(vector_contents_id, dfg);
         let vector_type = dfg.type_of_value(vector_contents_id);
         self.check_vector_result_count("vector_pop_back", result_ids, &vector_type)?;
 
         // Check if we're trying to pop from a known empty vector.
         if self.has_zero_length(vector_contents_id, dfg) {
-            // Make sure this code is disabled, or fail with "Index out of bounds".
-            let msg = "cannot pop from a vector with length 0".to_string();
-            self.acir_context.assert_zero_var(self.current_side_effects_enabled_var, msg)?;
+            // Make sure this code is disabled, or fail with the empty-vector pop message.
+            let msg = "Attempt to pop from an empty vector".to_string();
+            let predicate = self.predicate();
+            self.acir_context.assert_zero_var(predicate, msg)?;
 
             // Fill the result with default values.
             let mut results = Vec::with_capacity(result_ids.len());
@@ -422,7 +429,8 @@ impl Context<'_> {
             let elem = self.read_vector_value(
                 flattened_source.as_deref(),
                 &dfg.type_of_value(*res),
-                block_id,
+                vector_contents_id,
+                dfg,
                 &mut var_index,
             )?;
             popped_elements.push(elem);
@@ -464,10 +472,11 @@ impl Context<'_> {
             let assert_message = self.acir_context.generate_assertion_message_payload(
                 "Attempt to pop from an empty vector".to_string(),
             );
+            let predicate = self.predicate();
             self.acir_context.assert_neq_var(
                 vector_length_var,
                 zero,
-                self.current_side_effects_enabled_var,
+                predicate,
                 Some(assert_message),
             )?;
         }
@@ -479,9 +488,8 @@ impl Context<'_> {
         // to ensure we don't end up trying to look up an item at index -1, when the semantic length is 0,
         // which can fail a circuit even when the side effects are disabled.
         if is_unknown_length {
-            new_vector_length_var = self
-                .acir_context
-                .mul_var(new_vector_length_var, self.current_side_effects_enabled_var)?;
+            let predicate = self.predicate();
+            new_vector_length_var = self.acir_context.mul_var(new_vector_length_var, predicate)?;
         }
 
         Ok(new_vector_length_var)
@@ -523,7 +531,7 @@ impl Context<'_> {
     ///
     /// If the vector has zero length, this function skips the memory read and returns zero values.
     /// It asserts that the current side effects must be disabled (predicate = 0), otherwise fails
-    /// with "cannot pop from a vector with length 0". This prevents reading from empty memory blocks
+    /// with "Attempt to pop from an empty vector". This prevents reading from empty memory blocks
     /// which would cause "Index out of bounds" errors.
     pub(super) fn convert_vector_pop_front(
         &mut self,
@@ -534,7 +542,6 @@ impl Context<'_> {
         let vector_length_id = arguments[0];
         let vector_contents_id = arguments[1];
         let vector_length_value = self.convert_value(vector_length_id, dfg);
-        let block_id = self.ensure_array_is_initialized(vector_contents_id, dfg)?;
         let vector_contents_value = self.convert_value(vector_contents_id, dfg);
         let vector_type = dfg.type_of_value(vector_contents_id);
         self.check_vector_result_count("vector_pop_front", result_ids, &vector_type)?;
@@ -542,9 +549,10 @@ impl Context<'_> {
 
         // Check if we're trying to pop from a known empty vector.
         if self.has_zero_length(vector_contents_id, dfg) {
-            // Make sure this code is disabled, or fail with "Index out of bounds".
-            let msg = "cannot pop from a vector with length 0".to_string();
-            self.acir_context.assert_zero_var(self.current_side_effects_enabled_var, msg)?;
+            // Make sure this code is disabled, or fail with the empty-vector pop message.
+            let msg = "Attempt to pop from an empty vector".to_string();
+            let predicate = self.predicate();
+            self.acir_context.assert_zero_var(predicate, msg)?;
 
             // Fill the result with default values.
             let mut results = Vec::with_capacity(result_ids.len());
@@ -577,7 +585,8 @@ impl Context<'_> {
             let element = self.read_vector_value(
                 flattened_source.as_deref(),
                 &dfg.type_of_value(*res),
-                block_id,
+                vector_contents_id,
+                dfg,
                 &mut var_index,
             )?;
             popped_elements.push(element);
@@ -633,7 +642,6 @@ impl Context<'_> {
         let vector_contents = arguments[1];
 
         let vector_typ = dfg.type_of_value(vector_contents);
-        let block_id = self.ensure_array_is_initialized(vector_contents, dfg)?;
 
         // Check if we're trying to insert into an empty vector.
         // If so, we must avoid trying to read from the original vector.
@@ -664,7 +672,7 @@ impl Context<'_> {
             vector_contents,
             insert_index,
             dfg,
-            is_safe_index,
+            IndexGating::without_fallback(is_safe_index),
             shift,
         )?;
 
@@ -764,7 +772,8 @@ impl Context<'_> {
                 self.read_vector_value(
                     flattened_source.as_deref(),
                     &Type::Numeric(NumericType::NativeField),
-                    block_id,
+                    vector_contents,
+                    dfg,
                     &mut index,
                 )?
                 .into_var()?
@@ -790,21 +799,6 @@ impl Context<'_> {
             }
         }
 
-        let element_type_sizes =
-            if super::arrays::array_has_constant_element_size(&vector_typ).is_none() {
-                // Note that here we pass `Some(vector)` as the supplied acir value. This is
-                // the input vector before insertion, so we still need an increase shift here.
-                Some(self.init_element_type_sizes_array(
-                    &vector_typ,
-                    result_ids[1],
-                    Some(vector),
-                    dfg,
-                    shift,
-                )?)
-            } else {
-                None
-            };
-
         let value_types = flat_element_types(&vector_typ);
 
         // For types like `[(); 3]` we always end up with no elements and a zero-sized type
@@ -817,7 +811,6 @@ impl Context<'_> {
             block_id: result_block_id,
             len: vector_size,
             value_types,
-            element_type_sizes,
         });
 
         Ok(vec![AcirValue::Var(new_vector_length, NumericType::length_type()), result])
@@ -880,13 +873,13 @@ impl Context<'_> {
 
         let vector_typ = dfg.type_of_value(vector_contents);
         self.check_vector_result_count("vector_remove", result_ids, &vector_typ)?;
-        let block_id = self.ensure_array_is_initialized(vector_contents, dfg)?;
 
         // Check if we're trying to remove from an empty vector
         if self.has_zero_length(vector_contents, dfg) {
             // Make sure this code is disabled, or fail with "Index out of bounds".
             let msg = "Index out of bounds, vector has size 0".to_string();
-            self.acir_context.assert_zero_var(self.current_side_effects_enabled_var, msg)?;
+            let predicate = self.predicate();
+            self.acir_context.assert_zero_var(predicate, msg)?;
 
             // Fill the result with default values.
             let mut results = Vec::with_capacity(result_ids.len());
@@ -936,7 +929,7 @@ impl Context<'_> {
             vector_contents,
             remove_index,
             dfg,
-            is_safe_index,
+            IndexGating::without_fallback(is_safe_index),
             ElementTypeSizesArrayShift::None,
         )?;
 
@@ -953,7 +946,8 @@ impl Context<'_> {
             let element = self.read_vector_value(
                 flattened_source.as_deref(),
                 &dfg.type_of_value(*res),
-                block_id,
+                vector_contents,
+                dfg,
                 &mut temp_index,
             )?;
             let elem_size = super::arrays::flattened_value_size(&element);
@@ -985,7 +979,8 @@ impl Context<'_> {
                 .read_vector_value(
                     flattened_source.as_deref(),
                     &Type::Numeric(NumericType::NativeField),
-                    block_id,
+                    vector_contents,
+                    dfg,
                     &mut index,
                 )?
                 .into_var()?;
@@ -1003,21 +998,6 @@ impl Context<'_> {
             self.acir_context.write_to_memory(result_block_id, &current_index, &new_value)?;
         }
 
-        let element_type_sizes =
-            if super::arrays::array_has_constant_element_size(&vector_typ).is_none() {
-                // The resulting vector has one less element than before
-                let shift = ElementTypeSizesArrayShift::Decrease;
-                Some(self.init_element_type_sizes_array(
-                    &vector_typ,
-                    result_ids[1],
-                    Some(vector),
-                    dfg,
-                    shift,
-                )?)
-            } else {
-                None
-            };
-
         let value_types = flat_element_types(&vector_typ);
 
         // For types like `[(); 3]` we always end up with no elements and a zero-sized type
@@ -1030,7 +1010,6 @@ impl Context<'_> {
             block_id: result_block_id,
             len: result_size,
             value_types,
-            element_type_sizes,
         });
 
         let mut result =

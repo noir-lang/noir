@@ -343,15 +343,15 @@ fn oracle_wrapper_call_args_do_not_get_cloned() {
 
     let program = get_monomorphized_with_stdlib(src, &[stdlib_src::PRINT]).unwrap();
 
-    // The ownership pass wraps `a` in `.clone()` in `foo` because `a` is used again
-    // after the `println` call. The clone is unnecessary: the wrapper chain only
-    // forwards the argument to the `print` oracle, which cannot modify the array.
+    // Even though `a` is used again after the `println` call, the ownership pass does
+    // not wrap it in `.clone()`: the wrapper chain only forwards the argument to the
+    // `print` oracle, which cannot modify the array.
     insta::assert_snapshot!(program.to_string(), @r##"
     unconstrained fn main$f0() -> pub u64 {
         foo$f1([1])
     }
     unconstrained fn foo$f1(a$l0: [u64; 1]) -> u64 {
-        println$f2(a$l0.clone());;
+        println$f2(a$l0);;
         a$l0[0]
     }
     unconstrained fn println$f2(input$l1: [u64; 1]) -> () {
@@ -364,9 +364,9 @@ fn oracle_wrapper_call_args_do_not_get_cloned() {
 
     let ssa = generate_ssa(program).unwrap();
 
-    // `foo` does not emit `inc_rc v0` before the call to `println` even though the
-    // monomorphized AST contains `a.clone()`: the SSA-gen call lowering recognizes
-    // `println` as a thin wrapper around the `print` oracle and skips the clone.
+    // `foo` does not emit `inc_rc v0` before the call to `println`: the ownership
+    // pass recognizes `println` as a thin wrapper around the `print` oracle and
+    // skips the clone.
     assert_ssa_snapshot!(ssa, @r#"
     brillig(inline) fn main f0 {
       b0():
@@ -418,6 +418,80 @@ fn oracle_wrapper_with_mutating_arg_keeps_clone() {
         .interpret(vec![InterpreterValue::field(FieldElement::one()), InterpreterValue::u32(0)])
         .unwrap();
     assert_eq!(results, vec![InterpreterValue::field(FieldElement::one())]);
+}
+
+#[test]
+fn pure_builtin_call_with_mutating_sibling_arg_keeps_clone() {
+    // `x` is passed by value to `sha256_compression`, so the intrinsic must digest it as it
+    // was before `bump` (evaluated as a later argument of the same call) writes 7 into it.
+    // Eliding the clone on `x` lets Brillig's copy-on-write mutate the buffer in place, and
+    // the intrinsic digests the mutated bytes.
+    let src = "
+    #[foreign(sha256_compression)]
+    fn sha256_compression(input: [u32; 16], state: [u32; 8]) -> [u32; 8] {}
+
+    unconstrained fn bump(x: &mut [u32; 16], i: u32) -> [u32; 8] {
+        (*x)[i] = 7;
+        [1, 2, 3, 4, 5, 6, 7, 8]
+    }
+
+    unconstrained fn main(i: u32) -> pub u64 {
+        let mut x = [i + 1; 16];
+        let out = sha256_compression(x, bump(&mut x, i));
+        out[0] as u64 + x[i] as u64
+    }
+    ";
+
+    let program = get_monomorphized_with_options(
+        src,
+        GetProgramOptions { root_and_stdlib: true, ..Default::default() },
+    )
+    .unwrap();
+
+    let ssa = generate_ssa(program).unwrap();
+
+    // For i = 0: word 0 of sha256_compression([1; 16], [1, ..., 8]) is 1620291495, and
+    // x[0] is 7 after `bump`, giving 1620291502. Digesting the mutated buffer instead
+    // yields 702624835 + 7 = 702624842.
+    let results = ssa.interpret(vec![InterpreterValue::u32(0)]).unwrap();
+    assert_eq!(results, vec![InterpreterValue::u64(1620291502)]);
+}
+
+/// The ownership pass decides clone elision in `noirc_frontend`, which cannot see
+/// [`Intrinsic`](crate::ssa::ir::instruction::Intrinsic): it keeps its own copy of
+/// the classification. This test pins the two together over every [`Builtin`] so a
+/// new or reclassified builtin cannot silently diverge from the frontend's view.
+#[test]
+fn ownership_clone_elision_list_matches_intrinsic_purity() {
+    use crate::ssa::ir::instruction::Intrinsic;
+    use crate::ssa::opt::pure::Purity;
+    use acvm::acir::BlackBoxFunc;
+    use noirc_frontend::ownership::builtin_supports_clone_elision;
+    use noirc_frontend::shared::Builtin;
+    use strum::IntoEnumIterator;
+
+    // `Builtin::iter` skips the strum-disabled `BlackBox` variant, so chain the
+    // callable black box functions explicitly.
+    let black_boxes = BlackBoxFunc::iter()
+        .filter(|func| Builtin::lookup(func.name()).is_some())
+        .map(Builtin::BlackBox);
+    for builtin in Builtin::iter().chain(black_boxes) {
+        // Builtins that never reach SSA generation have no runtime call whose clone
+        // could be elided; those that do must agree with `Intrinsic`'s purity and
+        // aliasing classification.
+        let elidable = match Intrinsic::from_builtin(builtin) {
+            Some(intrinsic) => {
+                !intrinsic.unsafe_for_clone_elision_in_brillig()
+                    && matches!(intrinsic.purity(), Purity::Pure | Purity::PureWithPredicate)
+            }
+            None => false,
+        };
+        assert_eq!(
+            builtin_supports_clone_elision(builtin),
+            elidable,
+            "`builtin_supports_clone_elision` disagrees with `Intrinsic`'s classification of `{builtin}`",
+        );
+    }
 }
 
 #[test]
@@ -1136,6 +1210,32 @@ fn can_reborrow_through_immutable_ref() {
     ");
 }
 
+#[test]
+fn mut_reborrow_through_mutable_ref_variable() {
+    let src = "
+    fn main() {
+        let mut f: u64 = 10;
+        let p = &mut f;
+        let p1 = &mut *p;
+        *p1 = 15;
+        assert(f == 15);
+    }
+    ";
+    let ssa = get_initial_ssa(src).unwrap();
+    assert_ssa_snapshot!(ssa, @r"
+    acir(inline) fn main f0 {
+      b0():
+        v0 = allocate -> &mut u64
+        store u64 10 at v0
+        store u64 15 at v0
+        v3 = load v0 -> u64
+        v4 = eq v3, u64 15
+        constrain v3 == u64 15
+        return
+    }
+    ");
+}
+
 /// Reassigning a mutable tuple using its own fields (`b = (false, b.0)`) must load
 /// the old values before any stores. Regression test for a lazy `codegen_ident` bug
 /// where stores were interleaved with lazy loads, causing stale reads.
@@ -1256,5 +1356,122 @@ fn enum_on_circuit_interface_rejects_malicious_tag_issue_754() {
          accepted. A malicious prover can force the last match arm and bypass every other arm's \
          constraints. Constrain the enum tag to a valid variant index before allowing enums to \
          cross the circuit interface."
+    );
+}
+
+#[test]
+fn immutable_borrow_allocates_mutable_cell() {
+    // `&x` over an immutable value is materialized as an allocation plus an
+    // initializing store. The allocation must be typed `&mut Field` even though
+    // the borrow's type is `&Field`: stores are only valid through mutable
+    // reference types, and a `&mut T` value may be used wherever `&T` is
+    // expected. `generate_ssa` validates the result, so a `&Field`-typed
+    // allocation would make this fail with a store-address validation error.
+    let src = "
+    unconstrained fn read_ref(r: &Field) -> Field {
+        *r
+    }
+
+    fn main(x: Field) {
+        // Safety: reading through the reference has no side effects.
+        let result = unsafe { read_ref(&x) };
+        assert(result == x);
+    }
+    ";
+    let program = get_monomorphized(src).unwrap();
+    let ssa = generate_ssa(program).unwrap();
+    assert_ssa_snapshot!(ssa, @r"
+    acir(inline) fn main f0 {
+      b0(v0: Field):
+        v1 = allocate -> &mut Field
+        store v0 at v1
+        v3 = call f1(v1) -> Field
+        v4 = eq v3, v0
+        constrain v3 == v0
+        return
+    }
+    brillig(inline) fn read_ref f1 {
+      b0(v0: &Field):
+        v1 = load v0 -> Field
+        return v1
+    }
+    ");
+}
+
+#[test]
+fn mutable_let_cell_uses_declared_type_not_initializer_type() {
+    // `&a` over a mutable binding reuses the variable's `&mut Field` cell, so
+    // the initializer value is `&mut Field`-typed even though `s` is declared
+    // `&Field`. The cell for `s` must be allocated as `&mut &Field` (the
+    // declared type), not `&mut &mut Field` (the initializer's type):
+    // otherwise the later `s = r` stores a `&Field` value into a
+    // `&mut Field`-pointee slot, which directional validation rejects.
+    let src = "
+    unconstrained fn bar(r: &Field, mut a: Field) -> Field {
+        let mut s: &Field = &a;
+        s = r;
+        *s
+    }
+
+    unconstrained fn main(x: Field) {
+        let mut y = x;
+        assert(bar(&y, x) == x);
+    }
+    ";
+    let program = get_monomorphized(src).unwrap();
+    let _ = generate_ssa(program).unwrap();
+}
+
+#[test]
+fn borrowed_composite_cells_use_declared_types_not_value_types() {
+    // The tuple literal's first element is a borrow, so its value is
+    // `&mut Field`-typed while the declared element type is `&Field`. The
+    // cells materialized for `&mut (...)` must use the declared element types,
+    // or the later write through `a` stores a `&Field` value into a
+    // `&mut Field`-pointee slot.
+    let src = "
+    unconstrained fn foo(r: &Field, x: Field) -> Field {
+        let a: &mut (&Field, Field) = &mut (&x, x);
+        *a = (r, x);
+        (*a).1
+    }
+
+    unconstrained fn main(x: Field) {
+        let mut y = x;
+        assert(foo(&y, x) == x);
+    }
+    ";
+    let program = get_monomorphized(src).unwrap();
+    let _ = generate_ssa(program).unwrap();
+}
+
+#[test]
+fn brillig_pop_front_empty_check_uses_the_vector_pop_message() {
+    // Popping from a conditionally-empty vector fails in both runtimes. The messages have to
+    // agree: ACIR emits "Attempt to pop from an empty vector" (see `vector_pop_new_length` in
+    // `acir/call/intrinsics/vector_ops.rs`), so the Brillig-only guard emitted by
+    // `codegen_intrinsic_call_checks` must not fall back to the generic "Index out of bounds"
+    // default of `codegen_access_check`. A differential run of the same program treats those two
+    // strings as non-equivalent failures.
+    let src = r#"
+    unconstrained fn main(x: Field, b: bool) -> pub Field {
+        let mut v: [Field] = @[x];
+        if b {
+            v = @[];
+        }
+        let (elem, _rest) = pop_front(v);
+        elem
+    }
+    "#;
+    let stdlib = "
+        #[builtin(vector_pop_front)]
+        pub fn pop_front<T>(_v: [T]) -> (T, [T]) {}
+    ";
+    let program = get_monomorphized_with_stdlib(src, &[stdlib]).unwrap();
+    let ssa = generate_ssa(program).unwrap().to_string();
+    assert!(
+        ssa.contains(r#""Attempt to pop from an empty vector""#),
+        "Brillig empty-vector `pop` guard should use the same assertion message as ACIR, but the \
+         generated SSA still reads:\n{ssa}"
     );
 }

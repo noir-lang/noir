@@ -21,6 +21,7 @@ pub(crate) mod codegen_control_flow;
 mod codegen_intrinsic;
 mod codegen_memory;
 mod codegen_stack;
+pub(crate) mod count_array_copies;
 mod entry_point;
 mod instructions;
 
@@ -48,7 +49,7 @@ use acvm::{
 };
 use debug_show::DebugShow;
 
-use super::{BrilligOptions, FunctionId, GlobalSpace, ProcedureId};
+use super::{BrilligOptions, CopySiteRegistry, FunctionId, GlobalSpace, ProcedureId};
 
 /// The Brillig VM does not apply a limit to the memory address space,
 /// As a convention, we take use 32 bits. This means that we assume that
@@ -62,6 +63,14 @@ impl ReservedRegisters {
     /// The number of reserved registers. These are allocated in the first memory positions.
     /// The stack should start after the reserved registers.
     const NUM_RESERVED_REGISTERS: usize = 3;
+
+    /// Number of scratch slots the register-spilling machinery reserves as fixed transient
+    /// registers: [`Self::spill_scratch`] (`@3`/`@4`) plus [`Self::spill_conditional_value`] (`@5`).
+    ///
+    /// Unlike procedure scratch, these are hardcoded `Direct` addresses that bypass the
+    /// [`ScratchSpace`] allocator's bounds check, so a function that spills is only sound when the
+    /// configured `max_scratch_space` is at least this many slots.
+    pub(crate) const NUM_SPILL_SCRATCH_SLOTS: usize = 3;
 
     /// Returns the length of the reserved registers
     pub(crate) fn len() -> usize {
@@ -106,7 +115,7 @@ impl ReservedRegisters {
     /// [`Self::spill_scratch`] so the address-materialization scratch registers
     /// can be reused by the inner load/store without clobbering the value.
     pub(crate) fn spill_conditional_value() -> MemoryAddress {
-        MemoryAddress::direct(assert_u32(ScratchSpace::start() + 2))
+        MemoryAddress::direct(assert_u32(ScratchSpace::start() + Self::NUM_SPILL_SCRATCH_SLOTS - 1))
     }
 }
 
@@ -129,8 +138,10 @@ pub(crate) struct BrilligContext<F, Registers> {
     can_call_procedures: bool,
     /// Insert extra assertions that we expect to be true, at the cost of larger bytecode size.
     enable_debug_assertions: bool,
-    /// Count the number of arrays that are copied, and output this to stdout
-    count_arrays_copied: bool,
+    /// When set, per-site array copy tracking is enabled; see [`count_array_copies`].
+    ///
+    /// [`count_array_copies`]: crate::brillig::brillig_ir::count_array_copies
+    copy_site_registry: Option<CopySiteRegistry>,
 
     globals_memory_size: Option<usize>,
 }
@@ -144,23 +155,6 @@ impl<F, R: RegisterAllocator> BrilligContext<F, R> {
     /// Enable the insertion of bytecode with extra assertions during testing.
     pub(crate) fn enable_debug_assertions(&self) -> bool {
         self.enable_debug_assertions
-    }
-
-    /// Returns the address of the implicit debug variable containing the count of
-    /// implicitly copied arrays as a result of RC's copy on write semantics.
-    pub(crate) fn array_copy_counter_address(&self) -> MemoryAddress {
-        assert!(
-            self.count_arrays_copied,
-            "`count_arrays_copied` is not set, so the array copy counter does not exist"
-        );
-
-        // The copy counter is always put in the first global slot
-        MemoryAddress::direct(assert_u32(GlobalSpace::start_with_layout(&self.layout())))
-    }
-
-    /// If this flag is set, compile the array copy counter as a global.
-    pub(crate) fn count_array_copies(&self) -> bool {
-        self.count_arrays_copied
     }
 
     /// Set the globals memory size if it is not already set.
@@ -203,7 +197,7 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
             next_section: 1,
             debug_show: DebugShow::new(options.enable_debug_trace),
             enable_debug_assertions: options.enable_debug_assertions,
-            count_arrays_copied: options.enable_array_copy_counter,
+            copy_site_registry: options.copy_site_registry.clone(),
             can_call_procedures: true,
             globals_memory_size: None,
         }
@@ -379,7 +373,7 @@ impl<F: AcirField + DebugToString> BrilligContext<F, ScratchSpace> {
             next_section: 1,
             debug_show: DebugShow::new(options.enable_debug_trace),
             enable_debug_assertions: options.enable_debug_assertions,
-            count_arrays_copied: options.enable_array_copy_counter,
+            copy_site_registry: options.copy_site_registry.clone(),
             can_call_procedures: false,
             globals_memory_size: None,
         }
@@ -401,7 +395,7 @@ impl<F: AcirField + DebugToString> BrilligContext<F, GlobalSpace> {
             next_section: 1,
             debug_show: DebugShow::new(options.enable_debug_trace),
             enable_debug_assertions: options.enable_debug_assertions,
-            count_arrays_copied: options.enable_array_copy_counter,
+            copy_site_registry: options.copy_site_registry.clone(),
             can_call_procedures: false,
             globals_memory_size: None,
         }
@@ -423,6 +417,11 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
     /// Sets a current call stack that the next pushed opcodes will be associated with.
     pub(crate) fn set_call_stack(&mut self, call_stack: CallStackId) {
         self.obj.set_call_stack(call_stack);
+    }
+
+    /// Returns the `CallStackId` that is currently active in this context.
+    pub(crate) fn current_call_stack_id(&self) -> CallStackId {
+        self.obj.current_call_stack_id()
     }
 }
 
@@ -449,6 +448,30 @@ pub(crate) mod tests {
     use super::procedures::compile_procedure;
     use super::registers::Stack;
     use super::{BrilligOpcode, ReservedRegisters};
+
+    #[test]
+    fn spill_scratch_slots_are_distinct_and_in_scratch_space() {
+        use super::registers::ScratchSpace;
+
+        let (address_lo, address_hi) = ReservedRegisters::spill_scratch();
+        let conditional_value = ReservedRegisters::spill_conditional_value();
+        let slots = [address_lo, address_hi, conditional_value];
+
+        // Pairwise distinct: the conditional-store value in `@5` is held across a load/store whose
+        // address computation reuses `@3`/`@4`, so any overlap would clobber it mid-sequence.
+        for i in 0..slots.len() {
+            for j in (i + 1)..slots.len() {
+                assert_ne!(slots[i], slots[j], "spill scratch slots must be disjoint");
+            }
+        }
+
+        // Each is a `Direct` address inside the scratch region (past the reserved registers).
+        let scratch_start = ScratchSpace::start();
+        for slot in slots {
+            let index = slot.unwrap_direct() as usize;
+            assert!(index >= scratch_start, "spill slot {slot} is not in the scratch region");
+        }
+    }
 
     pub(crate) struct DummyBlackBoxSolver;
 
@@ -486,7 +509,6 @@ pub(crate) mod tests {
         let options = BrilligOptions {
             enable_debug_trace: true,
             enable_debug_assertions: true,
-            enable_array_copy_counter: false,
             ..Default::default()
         };
         let mut context = BrilligContext::new("test", &options);
@@ -502,7 +524,7 @@ pub(crate) mod tests {
         let options = BrilligOptions {
             enable_debug_trace: false,
             enable_debug_assertions: context.enable_debug_assertions,
-            enable_array_copy_counter: context.count_arrays_copied,
+            copy_site_registry: context.copy_site_registry.clone(),
             ..Default::default()
         };
         let artifact = context.into_artifact();
@@ -560,9 +582,9 @@ pub(crate) mod tests {
         let options = BrilligOptions {
             enable_debug_trace: true,
             enable_debug_assertions: true,
-            enable_array_copy_counter: false,
             show_opcode_advisories: false,
             layout: Default::default(),
+            copy_site_registry: None,
         };
         let mut context = BrilligContext::new("test", &options);
 
@@ -740,9 +762,9 @@ pub(crate) mod tests {
         let options = BrilligOptions {
             enable_debug_trace: false,
             enable_debug_assertions: true,
-            enable_array_copy_counter: false,
             show_opcode_advisories: false,
             layout: Default::default(),
+            copy_site_registry: None,
         };
         let mut context = BrilligContext::new("test", &options);
 
@@ -967,9 +989,9 @@ pub(crate) mod tests {
         let options = BrilligOptions {
             enable_debug_trace: false,
             enable_debug_assertions: true,
-            enable_array_copy_counter: false,
             show_opcode_advisories: false,
             layout: small_layout,
+            copy_site_registry: None,
         };
 
         let mut context: BrilligContext<FieldElement, Stack> =

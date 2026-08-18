@@ -42,7 +42,7 @@ pub fn optimize_ssa_into_acir(
         }
     }));
     let result = std::panic::catch_unwind(AssertUnwindSafe(|| {
-        validate_ssa(&ssa);
+        validate_ssa(&ssa, true);
 
         let builder = SsaBuilder::from_ssa(
             ssa,
@@ -51,7 +51,7 @@ pub fn optimize_ssa_into_acir(
             options.print_codegen_timings,
             None,
         );
-        optimize_ssa_builder_into_acir(builder, &options, &primary_passes(&options))
+        optimize_ssa_builder_into_acir(builder, &options, &primary_passes(&options), None)
     }));
     std::panic::set_hook(previous_hook);
     match result {

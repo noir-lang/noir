@@ -1,0 +1,47 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+pub trait StateVariable<Context> {
+    fn new(context: Context) -> Self;
+}
+
+pub struct PublicImmutable<Context> {
+    context: Context,
+}
+
+impl<Context> StateVariable<Context> for PublicImmutable<Context> {
+    fn new(context: Context) -> Self {
+        Self { context: context }
+    }
+}
+
+struct Storage<Context> {
+    symbol: PublicImmutable<Context>,
+}
+
+impl<Context> Storage<Context> {
+    fn init(context: Context) -> Self {
+        Self { symbol: <PublicImmutable<Context> as StateVariable<Context>>::new(context) }
+    }
+}
+
+pub comptime fn storage(s: TypeDefinition) -> Quoted {
+    let (name, typ, _): (Quoted, Type, Quoted) = s.fields_as_written()[0_u32];
+    quote {
+        impl < Context > Storage < Context >  {
+            fn init(context: Context) -> Self {
+                Self {
+                    $name:  < $typ as StateVariable < Context >  > ::new(context), 
+                }
+            }
+        }
+    }
+}
+
+struct PrivateContext {}
+
+fn main() {
+    let context: PrivateContext = PrivateContext {};
+    let _: Storage<PrivateContext> = Storage::<PrivateContext>::init(context);
+}

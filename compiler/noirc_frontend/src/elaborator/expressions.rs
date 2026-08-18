@@ -9,12 +9,13 @@ use rustc_hash::FxHashSet as HashSet;
 
 use crate::{
     DataType, Kind, MustUse, QuotedType, Shared, Type, TypeBindings, TypeVariable,
+    ast::Visitor,
     ast::{
         ArrayLiteral, AsTraitPath, BinaryOpKind, BlockExpression, CallExpression, CastExpression,
         ConstrainExpression, ConstrainKind, ConstructorExpression, Expression, ExpressionKind,
         Ident, IfExpression, IndexExpression, InfixExpression, IntegerBitSize, ItemVisibility,
         Lambda, Literal, MatchExpression, MemberAccessExpression, MethodCallExpression,
-        PrefixExpression, StatementKind, TraitBound, UnaryOp, UnresolvedTraitConstraint,
+        PrefixExpression, Statement, StatementKind, TraitBound, UnaryOp, UnresolvedTraitConstraint,
         UnresolvedTypeData, UnresolvedTypeExpression, UnsafeExpression,
     },
     elaborator::{
@@ -574,7 +575,8 @@ impl Elaborator<'_> {
             let rhs_location = inner.rhs.location;
             let (rhs, typ) = self.elaborate_expression(inner.rhs);
             if mutable {
-                self.check_can_mutate(rhs, rhs_location);
+                let inside_mutable_ref = false;
+                self.check_can_mutate(rhs, rhs_location, inside_mutable_ref);
             }
             return (rhs, typ);
         }
@@ -609,12 +611,11 @@ impl Elaborator<'_> {
 
         let trait_method_id = self.interner.get_prefix_operator_trait_method(&operator);
 
-        if let UnaryOp::Reference { mutable } = operator
-            && mutable
-        {
+        if let UnaryOp::Reference { mutable: true } = operator {
             // If skip_op is set we already know we have a mutable reference
             if !skip_op {
-                self.check_can_mutate(rhs, rhs_location);
+                let inside_mutable_ref = true;
+                self.check_can_mutate(rhs, rhs_location, inside_mutable_ref);
             }
         }
 
@@ -652,8 +653,16 @@ impl Elaborator<'_> {
     /// Pushes an error if it cannot be done.
     ///
     /// Also, if the expression is a local variable, marks it as mutated.
+    ///
+    /// `inside_mutable_ref` is true when this method was called to check the contents
+    /// of an explicit `&mut` expression.
     #[tracing::instrument(level = "trace", skip_all)]
-    pub(super) fn check_can_mutate(&mut self, expr_id: ExprId, location: Location) {
+    pub(super) fn check_can_mutate(
+        &mut self,
+        expr_id: ExprId,
+        location: Location,
+        inside_mutable_ref: bool,
+    ) {
         match self.interner.expression(&expr_id) {
             HirExpression::Ident(hir_ident, _) => {
                 let definition = self.interner.definition(hir_ident.id);
@@ -670,7 +679,7 @@ impl Elaborator<'_> {
                 self.push_err(TypeCheckError::MutableReferenceToArrayElement { location });
             }
             HirExpression::MemberAccess(member_access) => {
-                self.check_can_mutate(member_access.lhs, location);
+                self.check_can_mutate(member_access.lhs, location, inside_mutable_ref);
             }
             HirExpression::Prefix(prefix)
                 if matches!(prefix.operator, UnaryOp::Dereference { .. }) =>
@@ -680,22 +689,38 @@ impl Elaborator<'_> {
                 // must be rejected, exactly as a direct assignment through it would be.
                 let rhs = prefix.rhs;
                 if let Type::Reference(_, false) = self.interner.id_type(rhs).follow_bindings() {
-                    let reference_ident = if let HirExpression::Ident(hir_ident, _) =
-                        self.interner.expression(&rhs)
-                    {
-                        let name = self.interner.definition(hir_ident.id).name.clone();
-                        Some((name, hir_ident.location))
+                    if inside_mutable_ref {
+                        self.push_err(TypeCheckError::MutableReferenceBehindImmutableReference {
+                            location,
+                        });
                     } else {
-                        None
-                    };
-                    self.push_write_through_reference_error(reference_ident, |this| {
-                        let location = this.interner.id_location(rhs);
-                        let lvalue = this
-                            .interner
-                            .expression(&rhs)
-                            .to_display_ast(this.interner, location)
-                            .to_string();
-                        (lvalue, location)
+                        let reference_ident = if let HirExpression::Ident(hir_ident, _) =
+                            self.interner.expression(&rhs)
+                        {
+                            let name = self.interner.definition(hir_ident.id).name.clone();
+                            Some((name, hir_ident.location))
+                        } else {
+                            None
+                        };
+                        self.push_write_through_reference_error(reference_ident, |this| {
+                            let location = this.interner.id_location(rhs);
+                            let lvalue = this
+                                .interner
+                                .expression(&rhs)
+                                .to_display_ast(this.interner, location)
+                                .to_string();
+                            (lvalue, location)
+                        });
+                    }
+                }
+            }
+            HirExpression::Prefix(prefix)
+                if matches!(prefix.operator, UnaryOp::Reference { mutable: true }) =>
+            {
+                let typ = self.interner.id_type(prefix.rhs).follow_bindings();
+                if matches!(typ, Type::Reference(_, false)) {
+                    self.push_err(TypeCheckError::MutableReferenceBehindImmutableReference {
+                        location,
                     });
                 }
             }
@@ -1009,6 +1034,7 @@ impl Elaborator<'_> {
             self.interner,
         );
 
+        let trait_constraints_checkpoint = self.pending_trait_constraint_checkpoint();
         let func_type = self.type_check_variable(function_name, &function_id, generics.clone());
 
         let function_id = self.intern_expr_type(function_id, func_type.clone());
@@ -1079,6 +1105,13 @@ impl Elaborator<'_> {
         // to a function call. This way we avoid duplicating code.
         let typ = self.type_check_call(&function_call, func_type, function_args, location);
 
+        // Argument unification may have made some constraints pushed by `type_check_variable`
+        // concrete. Resolve those now so any associated-type variables they bind are
+        // available before the caller unifies `typ` against an outer annotation. We bound
+        // the scan to constraints introduced by *this* call so per-call cost stays O(1)
+        // in the size of the surrounding function's accumulated constraint queue.
+        self.try_resolve_trait_constraints_since(trait_constraints_checkpoint);
+
         (function_call, typ)
     }
 
@@ -1146,7 +1179,12 @@ impl Elaborator<'_> {
         let (expr_id, expr_type) = self.elaborate_expression(expr);
 
         // Must type check the assertion message expression so that we instantiate bindings
-        let msg = message.map(|assert_msg_expr| {
+        let msg = message.and_then(|assert_msg_expr| {
+            if let Some(location) = assert_message_control_flow_location(&assert_msg_expr) {
+                self.push_err(ResolverError::ControlFlowInAssertionMessage { location });
+                return None;
+            }
+
             let (msg, typ) = self.elaborate_expression(assert_msg_expr);
             // If the error message contains a format string, those types need to appear in the ABI,
             // except if we are in a meta-programming context, in which case the comptime interpreter
@@ -1173,7 +1211,7 @@ impl Elaborator<'_> {
                     check_msg_compat(&typ);
                 }
             }
-            msg
+            Some(msg)
         });
 
         self.unify_or_type_mismatch(&expr_type, &Type::Bool, expr_location);
@@ -2303,4 +2341,25 @@ impl Elaborator<'_> {
             }
         }
     }
+}
+
+struct AssertMessageControlFlowVisitor {
+    location: Option<Location>,
+}
+
+impl Visitor for AssertMessageControlFlowVisitor {
+    fn visit_statement(&mut self, statement: &Statement) -> bool {
+        if matches!(statement.kind, StatementKind::Break | StatementKind::Continue) {
+            self.location = Some(statement.location);
+            false
+        } else {
+            self.location.is_none()
+        }
+    }
+}
+
+fn assert_message_control_flow_location(message: &Expression) -> Option<Location> {
+    let mut visitor = AssertMessageControlFlowVisitor { location: None };
+    message.accept(&mut visitor);
+    visitor.location
 }

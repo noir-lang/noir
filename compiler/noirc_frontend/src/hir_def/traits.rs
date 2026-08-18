@@ -87,6 +87,13 @@ pub struct Trait {
     /// [`Trait::parent_bounds`] to extract just the parent-trait bounds.
     pub where_clause: Vec<TraitConstraint>,
 
+    /// Bounds implied on associated types reached through this trait's own where clause.
+    /// E.g. for `trait Baz<T> where T: Foo` with `trait Foo { type E: Bar; }`, this holds
+    /// the constraint `<T as Foo>::E: Bar`. These are assumed when elaborating the trait's
+    /// default method bodies, but are deliberately kept out of `where_clause` so they do not
+    /// participate in trait-impl where-clause matching or trait-method signature matching.
+    pub implicit_associated_type_constraints: Vec<(TraitConstraint, Location)>,
+
     pub all_generics: ResolvedGenerics,
 
     /// Map from each associated constant's name to a unique `DefinitionId` for that constant.

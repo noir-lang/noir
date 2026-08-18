@@ -81,7 +81,7 @@
 //!
 //! ### Side effects and Predication
 //!
-//! This module uses the special [side effects variable][Context::current_side_effects_enabled_var] to guard
+//! This module uses the [side-effects predicate][Context::predicate] to guard
 //! array operations that may not always be executed. This variable acts as a predicate.
 //!
 //! The goal is to preserve SSA semantics where some array operations are dominated by a branch condition.
@@ -111,11 +111,12 @@
 //!
 //! #### Reads
 //!
-//! If we perform an array read under a false predicate we will read from `offset`. As arrays are not always homogenous
-//! the result at index `offset` may contain a value that will overflow the resulting type of the array read.
-//! When we read a value from a non-homogenous array, we multiply any resulting [`AcirValue::Var`] by the predicate
-//! to avoid any possible mismatch. In the case of a false predicate, the value will now be zero.
-//! For homogenous arrays, the fallback `offset` will produce a value with a compatible type.
+//! If we perform an array read under a false predicate we will read from `offset`. As arrays are
+//! not always homogenous, an arbitrary fallback slot could hold a value wider than the read's
+//! declared result type. `offset` is therefore chosen per read as the flat slot of the element
+//! field whose type matches the result type (see [`Context::compute_offset`]), so the dummy
+//! value a disabled read returns always fits its declared type. The surrounding predication
+//! discards that dummy value.
 //!
 //! ### Zero-Length Arrays
 //!
@@ -127,8 +128,9 @@ use acvm::acir::brillig::lengths::{
 };
 use acvm::acir::{circuit::opcodes::BlockType, native_types::Witness};
 use acvm::{FieldElement, acir::AcirField, acir::circuit::opcodes::BlockId};
-use iter_extended::{try_vecmap, vecmap};
+use iter_extended::vecmap;
 use itertools::Itertools;
+use std::rc::Rc;
 
 use crate::acir::types::flat_element_types;
 use crate::brillig::assert_u32;
@@ -143,6 +145,7 @@ use crate::ssa::ir::{
 
 use super::{
     AcirVar, Context,
+    side_effects::StaleReadIsSafe,
     types::{AcirDynamicArray, AcirValue},
 };
 
@@ -245,23 +248,83 @@ impl Context<'_> {
             return Ok(());
         }
 
+        if self.handle_disabled_array_operation(instruction, dfg, array, index, store_value)? {
+            return Ok(());
+        }
+
         let array_typ = dfg.type_of_value(array);
-        let offset = self.compute_offset(instruction, dfg, &array_typ);
-        let (new_index, new_value) = self.convert_array_operation_inputs(
-            array,
-            dfg,
-            index,
-            store_value,
-            offset.unwrap_or_default(),
-        )?;
+        // A disabled `array_set` writes the read-back dummy value to the very slots it was read
+        // from, leaving memory unchanged whatever those slots' types are — there is nothing for
+        // a fallback offset to protect, so only reads need one.
+        let offset = if store_value.is_none() {
+            self.compute_offset(instruction, dfg, &array_typ)
+        } else {
+            0
+        };
+        let (new_index, new_value) =
+            self.convert_array_operation_inputs(array, dfg, index, store_value, offset)?;
 
         if let Some(new_value) = new_value {
             self.array_set(instruction, new_index, new_value, dfg, mutable)?;
         } else {
-            self.array_get(instruction, array, new_index, dfg, offset.is_none())?;
+            self.array_get(instruction, array, new_index, dfg)?;
         }
 
         Ok(())
+    }
+
+    /// Resolves an array operation whose side-effects predicate is statically false.
+    ///
+    /// When the predicate is a compile-time zero the access is on a branch that is known to be
+    /// disabled, so the runtime memory-op path would only lay down a predicated read/write whose
+    /// index the predicate gates down to a constant `0`. For a never-written block that leaves a
+    /// constant, in-bounds read that could not be resolved by [`Self::handle_constant_index`] (the
+    /// SSA index is not a numeric constant, e.g. an offset multiplication that overflowed its type),
+    /// so it should be resolved here instead. A disabled read yields a don't-care value (zeroed to
+    /// match its result type, which the surrounding predication masks to zero anyway) and a disabled
+    /// write leaves the array unchanged.
+    ///
+    /// Reads at a statically safe index are excluded: the predicate in scope is not necessarily
+    /// theirs, so their value is not a don't-care. See the comment on that check below.
+    ///
+    /// # Returns
+    /// `true` if the operation was resolved as disabled
+    /// `false` if the predicate is not statically false, or does not belong to this instruction
+    fn handle_disabled_array_operation(
+        &mut self,
+        instruction: InstructionId,
+        dfg: &DataFlowGraph,
+        array: ValueId,
+        index: ValueId,
+        store_value: Option<ValueId>,
+    ) -> Result<bool, RuntimeError> {
+        // The side-effects predicate is only this instruction's own for the instructions
+        // [`crate::ssa::opt::remove_enable_side_effects`] fences, that is those reporting
+        // `Instruction::requires_acir_gen_predicate == true`. A read at a statically safe index
+        // reports `false`, so that pass is free to move an `EnableSideEffectsIf` past it and the
+        // predicate reaching here can belong to an unrelated region: zeroing such a read would
+        // discard a live value, along with every constraint written over it.
+        //
+        // Resolving it as disabled is also unnecessary. A safe index is in bounds by construction,
+        // so it never needs the predicate's fallback to a valid slot and the ordinary path emits
+        // exactly the read the program asked for.
+        if store_value.is_none() && dfg.is_safe_index(index, array) {
+            return Ok(false);
+        }
+
+        let predicate = self.predicate();
+        if !self.acir_context.is_constant_zero(&predicate) {
+            return Ok(false);
+        }
+
+        let value = if store_value.is_some() {
+            self.convert_value(array, dfg)
+        } else {
+            let [result] = dfg.instruction_result(instruction);
+            self.array_zero_value(&dfg.type_of_value(result))?
+        };
+        self.define_result(dfg, instruction, value);
+        Ok(true)
     }
 
     /// For 0-length arrays and vectors, even the disabled memory operations would cause runtime failures.
@@ -290,7 +353,8 @@ impl Context<'_> {
         }
         // Make sure this code is disabled, or fail with "Index out of bounds".
         let msg = "Index out of bounds, array has size 0".to_string();
-        self.acir_context.assert_zero_var(self.current_side_effects_enabled_var, msg)?;
+        let predicate = self.predicate();
+        self.acir_context.assert_zero_var(predicate, msg)?;
         Ok(true)
     }
 
@@ -321,7 +385,7 @@ impl Context<'_> {
             }
             AcirValue::Array(array) => {
                 // `AcirValue::Array` supports reading/writing to constant indices at compile-time in some cases.
-                if let Some(constant_index) = dfg.get_numeric_constant(index) {
+                if let Some(constant_index) = self.constant_index(index, dfg)? {
                     let store_value = store_value.map(|value| self.convert_value(value, dfg));
                     self.handle_constant_index(instruction, dfg, array, constant_index, store_value)
                 } else {
@@ -337,12 +401,41 @@ impl Context<'_> {
         }
     }
 
+    /// The compile-time value of an array index, if it has one.
+    ///
+    /// An SSA numeric constant is the obvious case, but ACIR gen tracks constants of its own which
+    /// SSA cannot see: `constrain x == c` rewrites `x`'s [`AcirVar`] to the constant `c`
+    /// (see `AcirContext::assert_eq_var`), and the arithmetic layered on top of it then folds in
+    /// the ACIR expression algebra. An index that is constant only in that second sense must still
+    /// take the compile-time path — the dynamic memory-op path would lay down a read at a constant
+    /// index on a block that has never been written, which is a fully determined read that ACIR gen
+    /// is required to fold (see `assert_constant_reads_are_folded`).
+    ///
+    /// That second kind of constant is only trustworthy as an index while it stays inside the range
+    /// of an index type. ACIR folds over the field, so an expression such as `unchecked_mul u32
+    /// 3000000000, u32 2` yields `6000000000` where the `u32` index it stands for is that value
+    /// wrapped; the two agree exactly when the folded value fits a `u32`. A wider value is left for
+    /// the paths that do not have to interpret it as a slot — a disabled access, or a runtime
+    /// bounds failure.
+    fn constant_index(
+        &mut self,
+        index: ValueId,
+        dfg: &DataFlowGraph,
+    ) -> Result<Option<FieldElement>, RuntimeError> {
+        if let Some(constant_index) = dfg.get_numeric_constant(index) {
+            return Ok(Some(constant_index));
+        }
+        let index_var = self.convert_numeric_value(index, dfg)?;
+        let constant_index = self.acir_context.var_to_expression(index_var)?.to_const().copied();
+        Ok(constant_index.filter(|index| index.try_to_u32().is_some()))
+    }
+
     /// See [`Self::handle_constant_index_wrapper`]
     fn handle_constant_index(
         &mut self,
         instruction: InstructionId,
         dfg: &DataFlowGraph,
-        array: im::Vector<AcirValue>,
+        array: imbl::Vector<AcirValue>,
         index: FieldElement,
         store_value: Option<AcirValue>,
     ) -> Result<bool, RuntimeError> {
@@ -364,8 +457,8 @@ impl Context<'_> {
         }
 
         if let Some(store_value) = store_value {
-            let side_effects_always_enabled =
-                self.acir_context.is_constant_one(&self.current_side_effects_enabled_var);
+            let predicate = self.predicate();
+            let side_effects_always_enabled = self.acir_context.is_constant_one(&predicate);
 
             if side_effects_always_enabled {
                 // If we know that this write will always occur then we can perform it at compile time.
@@ -401,34 +494,45 @@ impl Context<'_> {
         }
     }
 
-    /// Get an offset such that the type of the array at the offset is the same as the type at the 'index'.
+    /// For an `ArrayGet`, finds the flat slot offset of the element field whose type matches
+    /// the result: the read targets a field of the element, and that same field also exists in
+    /// element 0, at this offset, with exactly the result's layout.
     ///
-    /// If we find one, we will use it when computing the index under the `enable_side_effect` predicate.
-    /// If not, `array_get(..)` will use a fallback costing one multiplication in the worst case.
+    /// [`Self::get_flattened_index`] biases the predicate-gated index by this offset
+    /// (`offset * (1 - predicate)`), so under a false predicate the read lands on that field of
+    /// element 0 and is type-compatible by construction: no leaf of the result can end up
+    /// holding a value wider than its declared type. The offset must be in flat slot units, the
+    /// units of the index it biases: an item ordinal diverges from it as soon as a multi-slot
+    /// field precedes the matched one, sending the fallback read to slots of unrelated types.
+    ///
+    /// A match always exists for SSA generated from Noir source: an `array_get`'s result is
+    /// one of the element's fields. No match is an ICE (reachable only through hand-written
+    /// SSA, which the SSA validator currently accepts).
     ///
     /// cf. <https://github.com/noir-lang/noir/pull/4971>
-    ///
-    /// For simplicity we compute the offset only for simple arrays.
     fn compute_offset(
         &self,
         instruction: InstructionId,
         dfg: &DataFlowGraph,
         array_typ: &Type,
-    ) -> Option<usize> {
-        let is_simple_array = dfg.instruction_results(instruction).len() == 1
-            && (array_has_constant_element_size(array_typ) == Some(1));
-        if is_simple_array {
-            let result_type = dfg.type_of_value(dfg.instruction_results(instruction)[0]);
-            match array_typ {
-                Type::Array(item_type, _) | Type::Vector(item_type) => item_type
-                    .iter()
-                    .enumerate()
-                    .find_map(|(index, typ)| (*result_type == *typ).then_some(index)),
-                _ => None,
+    ) -> usize {
+        let (Type::Array(element_types, _) | Type::Vector(element_types)) = array_typ else {
+            unreachable!("ICE: array_get must operate on an array or vector, got {array_typ}")
+        };
+
+        let [result] = dfg.instruction_result(instruction);
+        let result_type = dfg.type_of_value(result);
+
+        let mut offset = 0;
+        for typ in element_types.iter() {
+            if *typ == *result_type {
+                return offset;
             }
-        } else {
-            None
+            offset += typ.flattened_size().0 as usize;
         }
+        unreachable!(
+            "ICE: array_get result type {result_type} is not a field of the array element type ({array_typ})"
+        )
     }
 
     /// Sets up the inputs for an `ArrayGet` / `ArraySet` instruction.
@@ -436,12 +540,10 @@ impl Context<'_> {
     /// Returns the flat memory index to read/write at and, for `ArraySet`, the
     /// (predicated) value to store.
     ///
-    /// [`Self::get_flattened_index`] already gates the returned index by the side-effects
-    /// predicate when `is_safe_index = false`, so on a disabled branch the index
-    /// collapses to `0`. When `offset != 0` and `is_safe_index = false` we additionally
-    /// bias the disabled-branch fallback to `offset` by adding `offset * (1 - predicate)`,
-    /// because [`Self::apply_index_side_effects`] relies on the dummy value at `offset`
-    /// being type-compatible with the read's result type to skip masking.
+    /// [`Self::get_flattened_index`] gates the returned index by the side-effects predicate
+    /// where necessary and biases the disabled-branch fallback to `offset`, so the dummy value
+    /// a disabled read returns is type-compatible with the read's result type
+    /// (see [`Self::compute_offset`]).
     fn convert_array_operation_inputs(
         &mut self,
         array_id: ValueId,
@@ -451,34 +553,31 @@ impl Context<'_> {
         offset: usize,
     ) -> Result<(AcirVar, Option<AcirValue>), RuntimeError> {
         let array_typ = dfg.type_of_value(array_id);
-        let block_id = self.ensure_array_is_initialized(array_id, dfg)?;
 
         let shift = ElementTypeSizesArrayShift::None;
         let index_var = self.convert_numeric_value(index, dfg)?;
-        let is_safe_index = dfg.is_safe_index(index, array_id);
-        let mut index_var =
-            self.get_flattened_index(&array_typ, array_id, index_var, dfg, is_safe_index, shift)?;
+        let gating = if dfg.is_safe_index(index, array_id) {
+            IndexGating::Safe
+        } else {
+            IndexGating::Gated { fallback_offset: offset }
+        };
+        let index_var =
+            self.get_flattened_index(&array_typ, array_id, index_var, dfg, gating, shift)?;
+
+        let predicate = if store_value.is_none() && dfg.is_safe_index(index, array_id) {
+            self.out_of_scope_predicate(StaleReadIsSafe::OnlyToSkipGating)
+        } else {
+            self.predicate()
+        };
 
         // Side-effects are always enabled so we do not need to do any predication
-        if self.acir_context.is_constant_one(&self.current_side_effects_enabled_var) {
+        if self.acir_context.is_constant_one(&predicate) {
             let store_value = store_value.map(|store| self.convert_value(store, dfg));
             return Ok((index_var, store_value));
         }
 
-        // Bias the disabled-branch fallback toward `offset` instead of `0`.
-        // `index_var` is already `raw_index * predicate` from `get_flattened_index`, so
-        // adding `offset * (1 - predicate)` yields `raw_index` when `predicate == 1` and
-        // `offset` when `predicate == 0` — without a second predicate multiplication.
-        if !is_safe_index && offset != 0 {
-            let one = self.acir_context.add_constant(FieldElement::one());
-            let not_pred = self.acir_context.sub_var(one, self.current_side_effects_enabled_var)?;
-            let offset_var = self.acir_context.add_constant(offset);
-            let offset_term = self.acir_context.mul_var(offset_var, not_pred)?;
-            index_var = self.acir_context.add_var(index_var, offset_term)?;
-        }
-
         let new_value = store_value
-            .map(|store| self.predicated_store_value(store, dfg, block_id, index_var))
+            .map(|store| self.predicated_store_value(store, dfg, array_id, index_var))
             .transpose()?;
 
         Ok((index_var, new_value))
@@ -490,11 +589,14 @@ impl Context<'_> {
         &mut self,
         store: ValueId,
         dfg: &DataFlowGraph,
-        block_id: BlockId,
+        array_id: ValueId,
         mut dummy_predicate_index: AcirVar,
     ) -> Result<AcirValue, RuntimeError> {
         let store_value = self.convert_value(store, dfg);
         let store_type = dfg.type_of_value(store);
+        // Reading the dummy value is the first memory access to the array under a predicate, so the
+        // backing block is initialized lazily here.
+        let block_id = self.ensure_array_is_initialized(array_id, dfg)?;
         // We must setup the dummy value to match the type of the value we wish to store
         let dummy = self.array_get_value(&store_type, block_id, &mut dummy_predicate_index)?;
         self.convert_array_set_store_value(&store_value, &dummy)
@@ -507,18 +609,17 @@ impl Context<'_> {
     ) -> Result<AcirValue, RuntimeError> {
         match (store_value, dummy_value) {
             (AcirValue::Var(store_var, typ), AcirValue::Var(dummy_var, _)) => {
-                let true_pred =
-                    self.acir_context.mul_var(*store_var, self.current_side_effects_enabled_var)?;
+                let predicate = self.predicate();
+                let true_pred = self.acir_context.mul_var(*store_var, predicate)?;
                 let one = self.acir_context.add_constant(FieldElement::one());
-                let not_pred =
-                    self.acir_context.sub_var(one, self.current_side_effects_enabled_var)?;
+                let not_pred = self.acir_context.sub_var(one, predicate)?;
                 let false_pred = self.acir_context.mul_var(not_pred, *dummy_var)?;
                 // predicate*value + (1-predicate)*dummy
                 let new_value = self.acir_context.add_var(true_pred, false_pred)?;
                 Ok(AcirValue::Var(new_value, *typ))
             }
             (AcirValue::Array(values), AcirValue::Array(dummy_values)) => {
-                let mut elements = im::Vector::new();
+                let mut elements = imbl::Vector::new();
 
                 assert_eq!(
                     values.len(),
@@ -537,7 +638,10 @@ impl Context<'_> {
             ) => {
                 let dummy_values = dummy_values
                     .into_iter()
-                    .flat_map(|val| val.clone().flatten())
+                    .map(|val| val.clone().flatten())
+                    .collect::<Result<Vec<_>, _>>()?
+                    .into_iter()
+                    .flatten()
                     .map(|(var, typ)| AcirValue::Var(var, typ))
                     .collect::<Vec<_>>();
 
@@ -550,7 +654,7 @@ impl Context<'_> {
                 let values: Vec<_> = self
                     .read_dynamic_array(*block_id, *len, value_types)
                     .collect::<Result<_, _>>()?;
-                let mut elements = im::Vector::new();
+                let mut elements = imbl::Vector::new();
                 for (val, dummy_val) in values.iter().zip_eq(dummy_values) {
                     elements.push_back(self.convert_array_set_store_value(val, &dummy_val)?);
                 }
@@ -576,7 +680,7 @@ impl Context<'_> {
         match typ {
             Type::Numeric(_) => self.array_get_value(typ, call_data_block, offset),
             Type::Array(arc, len) => {
-                let mut result = im::Vector::new();
+                let mut result = imbl::Vector::new();
                 for _i in 0..len.0 {
                     for sub_type in arc.iter() {
                         let element = self.get_from_call_data(offset, call_data_block, sub_type)?;
@@ -591,20 +695,19 @@ impl Context<'_> {
 
     /// Generates a read opcode for the array.
     ///
-    /// `index_side_effect == false` means that we ensured `var_index` will have a type matching the value in the array.
+    /// `var_index` is already predicated: on a disabled branch it is gated and biased to the
+    /// type-matching fallback offset (see [`Self::compute_offset`]), so the value read always
+    /// fits the declared result type.
     fn array_get(
         &mut self,
         instruction: InstructionId,
         array: ValueId,
         var_index: AcirVar,
         dfg: &DataFlowGraph,
-        index_side_effect: bool,
     ) -> Result<(), RuntimeError> {
-        let block_id = self.ensure_array_is_initialized(array, dfg)?;
         let [result] = dfg.instruction_result(instruction);
         let res_typ = dfg.type_of_value(result);
-        let value = self.load_array_value(array, block_id, var_index, &res_typ, dfg)?;
-        let value = self.apply_index_side_effects(array, value, index_side_effect, dfg)?;
+        let value = self.load_array_value(array, var_index, &res_typ, dfg)?;
         self.define_result(dfg, instruction, value);
         Ok(())
     }
@@ -613,7 +716,6 @@ impl Context<'_> {
     fn load_array_value(
         &mut self,
         array: ValueId,
-        block_id: BlockId,
         mut var_index: AcirVar,
         res_typ: &Type,
         dfg: &DataFlowGraph,
@@ -654,54 +756,19 @@ impl Context<'_> {
             let bus_index = self.acir_context.add_constant(FieldElement::from(bus_index as i128));
             let mut current_index = self.acir_context.add_var(bus_index, var_index)?;
             self.get_from_call_data(&mut current_index, call_data_block, res_typ)
+        } else if res_typ.flattened_size().0 == 0 {
+            // Reading a zero-slot value (e.g. an empty nested array like `[u8; 0]`) emits no
+            // `MemoryOp` reads, so initializing the source array's block here would leave an
+            // orphan `MemoryInit` with no linked use (rejected by `acir_post_check`). There is
+            // nothing to read, so skip initialization and return the empty value directly.
+            self.array_zero_value(res_typ)
         } else {
+            // A non-call-data read is the first access to the array's own memory block, so it is
+            // initialized lazily here rather than for every `ArrayGet` (call-data reads are served
+            // from the databus block and never touch this one).
+            let block_id = self.ensure_array_is_initialized(array, dfg)?;
             self.array_get_value(res_typ, block_id, &mut var_index)
         }
-    }
-
-    /// Applies predication logic on the result in case the read under a false predicate
-    /// returns a value with a larger type that may later trigger an overflow.
-    /// Ensures values read under false predicate are zeroed out if types don’t align.
-    /// This is done recursively for nested arrays.
-    fn apply_index_side_effects(
-        &mut self,
-        array: ValueId,
-        mut value: AcirValue,
-        mut index_side_effect: bool,
-        dfg: &DataFlowGraph,
-    ) -> Result<AcirValue, RuntimeError> {
-        match &value {
-            AcirValue::Var(acir_var, typ) => {
-                // If we read under a false predicate, we will read element 0, which has `numeric_type`.
-                // The variable we expect to read is of `typ`. We check whether reading 0 is compatible with `typ`.
-                let array_typ = dfg.type_of_value(array);
-                if let Type::Numeric(numeric_type) = array_typ.first()
-                    && numeric_type.bit_size::<FieldElement>() <= typ.bit_size::<FieldElement>()
-                {
-                    // first element is compatible
-                    index_side_effect = false;
-                }
-
-                if index_side_effect {
-                    value = AcirValue::Var(
-                        self.acir_context
-                            .mul_var(*acir_var, self.current_side_effects_enabled_var)?,
-                        *typ,
-                    );
-                }
-            }
-            AcirValue::Array(vector) => {
-                let new_values = try_vecmap(vector.iter(), |val| {
-                    self.apply_index_side_effects(array, val.clone(), index_side_effect, dfg)
-                })?;
-                value = AcirValue::Array(im::Vector::from(new_values));
-            }
-            AcirValue::DynamicArray(_) => {
-                unreachable!("ICE: Nested dynamic arrays are not supported")
-            }
-        }
-
-        Ok(value)
     }
 
     /// Reads the value of type `ssa_type` at the flattened position `var_index` of the array backed
@@ -724,7 +791,7 @@ impl Context<'_> {
                 Ok(AcirValue::Var(read, *numeric_type))
             }
             Type::Array(element_types, len) => {
-                let mut values = im::Vector::new();
+                let mut values = imbl::Vector::new();
                 for _ in 0..len.0 {
                     for typ in element_types.as_ref() {
                         values.push_back(self.array_get_value(typ, block_id, var_index)?);
@@ -750,7 +817,7 @@ impl Context<'_> {
                 Ok(AcirValue::Var(zero, numeric_type))
             }
             Type::Array(element_types, len) => {
-                let mut values = im::Vector::new();
+                let mut values = imbl::Vector::new();
                 for _ in 0..len.0 {
                     for typ in element_types.as_ref() {
                         values.push_back(self.array_zero_value(typ)?);
@@ -758,7 +825,7 @@ impl Context<'_> {
                 }
                 Ok(AcirValue::Array(values))
             }
-            Type::Vector(_) => Ok(AcirValue::Array(im::Vector::new())),
+            Type::Vector(_) => Ok(AcirValue::Array(imbl::Vector::new())),
             Type::Reference(reference_type, _) => self.array_zero_value(reference_type.as_ref()),
             Type::Function => {
                 unreachable!("ICE: unexpected Function type in array_zero_value")
@@ -810,11 +877,15 @@ impl Context<'_> {
         dfg: &DataFlowGraph,
         mutate_array: bool,
     ) -> Result<BlockId, RuntimeError> {
-        let block_id = self.ensure_array_is_initialized(array, dfg)?;
         if mutate_array {
+            let block_id = self.ensure_array_is_initialized(array, dfg)?;
             self.memory_blocks.insert(result, block_id);
             Ok(block_id)
         } else {
+            // The copy reads the source through its `AcirValue` (inline contents, or the already
+            // initialized block of a `DynamicArray`), so we do not force the source into a memory
+            // block here: a constant-only source that is copied and then discarded must not leave
+            // an orphaned `MemoryInit` behind.
             let new_block = self.block_id(result);
             self.copy_array(array, new_block, dfg)?;
             Ok(new_block)
@@ -869,7 +940,6 @@ impl Context<'_> {
     /// memory block has already been resolved by [`Self::resolve_array_set_block`].
     ///
     /// # Purpose
-    /// - Initializes the optional [`AcirDynamicArray::element_type_sizes`] helper array for when elements are non-homogenous.
     /// - Populates the `value_types` vector. See [`AcirDynamicArray::value_types`] for more information.
     pub(super) fn make_array_set_result_value(
         &mut self,
@@ -886,21 +956,6 @@ impl Context<'_> {
         let array_typ = dfg.type_of_value(array);
         let len = self.flattened_size(array, dfg);
 
-        // Check if we need the helper table to hold element sizes.
-        let element_type_sizes = if array_has_constant_element_size(&array_typ).is_none() {
-            let acir_value = self.convert_value(array, dfg);
-            let shift = ElementTypeSizesArrayShift::None;
-            Some(self.init_element_type_sizes_array(
-                &array_typ,
-                array,
-                Some(acir_value),
-                dfg,
-                shift,
-            )?)
-        } else {
-            None
-        };
-
         let value_types = flat_element_types(&array_typ);
         if value_types.is_empty() {
             // An element type with zero flattened width (e.g. `str<0>` or `[T; 0]`)
@@ -911,12 +966,7 @@ impl Context<'_> {
             assert_eq!(len.to_usize() % value_types.len(), 0);
         }
 
-        Ok(AcirValue::DynamicArray(AcirDynamicArray {
-            block_id,
-            len,
-            value_types,
-            element_type_sizes,
-        }))
+        Ok(AcirValue::DynamicArray(AcirDynamicArray { block_id, len, value_types }))
     }
 
     /// Initializes the element types sizes array to enable indexing of non-homogenous SSA arrays
@@ -946,6 +996,45 @@ impl Context<'_> {
             return Ok(base_block);
         }
 
+        let table = self
+            .element_type_sizes_table(array_typ, array_id, supplied_acir_value, dfg, shift)?
+            .as_ref()
+            .clone();
+
+        let block = self.reuse_or_init_element_type_sizes(table, base_block)?;
+
+        // Record which block backs this value's helper table. This also keeps the post-ACIR check's
+        // set of element-type-sizes blocks complete (it scans these values to forbid writes to them).
+        self.element_type_sizes_blocks.insert(array_id, block);
+        Ok(block)
+    }
+
+    /// Returns the element-type-sizes table (a cumulative prefix-offset array) for a non-homogenous
+    /// array or vector, without allocating or initializing any memory block for it.
+    ///
+    /// This is the computation shared by [`Self::init_element_type_sizes_array`] (which then
+    /// materializes the table into a memory block) and the constant-index fast path in
+    /// [`Self::get_flattened_index`] (which indexes the table directly at compile time and never
+    /// needs a block).
+    ///
+    /// The table for a given `(value, shift)` is fixed (an SSA value's type and length are
+    /// immutable), so it is computed once and cached, keeping repeated constant-index accesses into
+    /// the same non-homogenous array (e.g. an unrolled loop) from rebuilding it. The cache is keyed
+    /// only by `(array_id, shift)`; `supplied_acir_value` is a shortcut used to size the table on a
+    /// miss and is ignored on a hit (it is always the same value's ACIR representation, so it has
+    /// the same flattened length as `convert_value(array_id)`).
+    fn element_type_sizes_table(
+        &mut self,
+        array_typ: &Type,
+        array_id: ValueId,
+        supplied_acir_value: Option<AcirValue>,
+        dfg: &DataFlowGraph,
+        shift: ElementTypeSizesArrayShift,
+    ) -> Result<Rc<Vec<u32>>, RuntimeError> {
+        if let Some(table) = self.element_type_sizes_tables.get(&(array_id, shift)) {
+            return Ok(table.clone());
+        }
+
         if !matches!(array_typ, Type::Array(_, _) | Type::Vector(_)) {
             return Err(InternalError::Unexpected {
                 expected: "array or vector".to_owned(),
@@ -964,9 +1053,9 @@ impl Context<'_> {
             .into());
         }
 
-        // An instruction/param representing the array means it has been processed previously during
-        // ACIR gen. Use that result to recover its flattened length, then apply the requested shift
-        // (e.g. one extra element for a vector insert) to size the table.
+        // An instruction/param representing the array means it has been processed previously
+        // during ACIR gen. Use that result to recover its flattened length, then apply the
+        // requested shift (e.g. one extra element for a vector insert) to size the table.
         let array_acir_value =
             supplied_acir_value.unwrap_or_else(|| self.convert_value(array_id, dfg));
         if !matches!(array_acir_value, AcirValue::Array(_) | AcirValue::DynamicArray(_)) {
@@ -978,14 +1067,10 @@ impl Context<'_> {
             .into());
         }
         let flattened_len = flattened_value_size(&array_acir_value);
-        let table = calculate_element_type_sizes_array(array_typ, flattened_len, shift);
+        let table = Rc::new(calculate_element_type_sizes_array(array_typ, flattened_len, shift));
 
-        let block = self.reuse_or_init_element_type_sizes(table, base_block)?;
-
-        // Record which block backs this value's helper table. This also keeps the post-ACIR check's
-        // set of element-type-sizes blocks complete (it scans these values to forbid writes to them).
-        self.element_type_sizes_blocks.insert(array_id, block);
-        Ok(block)
+        self.element_type_sizes_tables.insert((array_id, shift), table.clone());
+        Ok(table)
     }
 
     /// Returns a memory block holding the given element-type-sizes `table`, reusing an existing one
@@ -1033,7 +1118,7 @@ impl Context<'_> {
         &mut self,
         array: AcirValue,
         array_typ: &Type,
-    ) -> Result<im::Vector<AcirValue>, RuntimeError> {
+    ) -> Result<imbl::Vector<AcirValue>, RuntimeError> {
         match array {
             AcirValue::Var(_, _) => unreachable!("ICE: attempting to read a non-array value"),
             //Array are already structured
@@ -1051,7 +1136,7 @@ impl Context<'_> {
                 assert_ne!(element_flat_size.0, 0, "ICE: array elements are empty");
                 let num_elements = len / ElementsFlattenedLength::from(element_flat_size);
 
-                let mut result = im::Vector::new();
+                let mut result = imbl::Vector::new();
                 let mut var_index = self.acir_context.add_constant(FieldElement::zero());
                 // Reconstruct each element with its proper structure
                 for _ in 0..num_elements.0 {
@@ -1127,6 +1212,14 @@ impl Context<'_> {
     /// In some cases this requires consulting a side ["element type sizes"][Self::init_element_type_sizes_array]
     /// array to calculate offsets when elements have a non-homogenous layout.
     ///
+    /// For an [`IndexGating::Gated`] index the returned index is gated by the side-effects
+    /// predicate and `fallback_offset * (1 - predicate)` is added on top, so that on a disabled
+    /// branch the access collapses to `fallback_offset` (see [`IndexGating`]). The bias's
+    /// precondition is exactly "the index collapses to `0` under a false predicate", so it is
+    /// applied here, on the gated path and nowhere else: an index that is not gated — a safe
+    /// index, or a constant resolved through the element-type-sizes table below — stays on its
+    /// true slots whatever the predicate is, and must not be biased.
+    ///
     /// See [self] for a more concrete example of how flattened indices are computed.
     pub(super) fn get_flattened_index(
         &mut self,
@@ -1134,35 +1227,33 @@ impl Context<'_> {
         array_id: ValueId,
         var_index: AcirVar,
         dfg: &DataFlowGraph,
-        is_safe_index: bool,
+        gating: IndexGating,
         shift: ElementTypeSizesArrayShift,
     ) -> Result<AcirVar, RuntimeError> {
         // For a non-homogenous layout a statically-known, in-bounds index resolves to a fixed
         // flattened offset held in the element-type-sizes table. That offset is independent of the
-        // side-effects predicate, so emit it as a constant rather than gating the index and reading
-        // the (never-written) table from memory. We use the original index here rather than the
-        // predicated one below, since gating can turn a constant into a witness and hide its value.
-        // An out-of-bounds constant index (no table entry) falls through to the runtime path, which
-        // defers the bounds failure to execution.
+        // side-effects predicate, so compute the table directly and emit the offset as a constant
+        // rather than allocating a memory block and reading the (never-written) table at runtime. We
+        // use the original index here rather than the predicated one below, since gating can turn a
+        // constant into a witness and hide its value. An out-of-bounds constant index (no table
+        // entry) falls through to the runtime path, which defers the bounds failure to execution.
+        //
+        // This resolved index is in bounds and ungated even when the caller asked for gating
+        // ([`DataFlowGraph::is_safe_index`] cannot see it: it holds vector indices to the vector's
+        // unknown semantic length, so it is `false` for every vector). The access reads the slots
+        // the program asked for, so no fallback bias applies.
         if array_has_constant_element_size(array_typ).is_none()
             && let Some(index) = self
                 .acir_context
                 .var_to_expression(var_index)?
                 .to_const()
                 .and_then(|c| c.try_to_u32())
+            && let Some(offset) = self
+                .element_type_sizes_table(array_typ, array_id, None, dfg, shift)?
+                .get(index as usize)
+                .copied()
         {
-            let element_type_sizes =
-                self.init_element_type_sizes_array(array_typ, array_id, None, dfg, shift)?;
-            // The table backing the block is its (constant) initialization values, recovered from
-            // the table-to-block cache rather than re-deriving the array's size.
-            let offset = self
-                .type_sizes_to_blocks
-                .iter()
-                .find_map(|(table, block)| (*block == element_type_sizes).then_some(table))
-                .and_then(|table| table.get(index as usize).copied());
-            if let Some(offset) = offset {
-                return Ok(self.acir_context.add_constant(offset));
-            }
+            return Ok(self.acir_context.add_constant(offset));
         }
 
         // Gate the input by the side-effects predicate when the index isn't statically
@@ -1170,22 +1261,37 @@ impl Context<'_> {
         // (memory reads/writes, comparisons, etc.) would fail the ACVM bounds check on
         // a disabled branch with an OOB user-supplied index. `mul_var` constant-folds
         // when the predicate is `0` or `1`, so this is free in those cases.
-        let var_index = if is_safe_index {
-            var_index
-        } else {
-            self.acir_context.mul_var(var_index, self.current_side_effects_enabled_var)?
+        let var_index = match gating {
+            IndexGating::Safe => var_index,
+            IndexGating::Gated { .. } => {
+                let predicate = self.predicate();
+                self.acir_context.mul_var(var_index, predicate)?
+            }
         };
 
-        if let Some(step_size) = array_has_constant_element_size(array_typ) {
+        let flat_index = if let Some(step_size) = array_has_constant_element_size(array_typ) {
             let step_size = self.acir_context.add_constant(step_size);
-            self.acir_context.mul_var(var_index, step_size)
+            self.acir_context.mul_var(var_index, step_size)?
         } else {
             let element_type_sizes =
                 self.init_element_type_sizes_array(array_typ, array_id, None, dfg, shift)?;
 
-            self.acir_context
-                .read_from_memory(element_type_sizes, &var_index)
-                .map_err(RuntimeError::from)
+            self.acir_context.read_from_memory(element_type_sizes, &var_index)?
+        };
+
+        // The gated flat index is `0` on a disabled branch; bias it to the fallback slot.
+        // `raw_index * predicate + fallback_offset * (1 - predicate)` yields the raw index when
+        // the predicate is `1` and `fallback_offset` when it is `0`.
+        match gating {
+            IndexGating::Gated { fallback_offset } if fallback_offset != 0 => {
+                let one = self.acir_context.add_constant(FieldElement::one());
+                let predicate = self.predicate();
+                let not_pred = self.acir_context.sub_var(one, predicate)?;
+                let offset_var = self.acir_context.add_constant(fallback_offset);
+                let offset_term = self.acir_context.mul_var(offset_var, not_pred)?;
+                Ok(self.acir_context.add_var(flat_index, offset_term)?)
+            }
+            IndexGating::Safe | IndexGating::Gated { .. } => Ok(flat_index),
         }
     }
 
@@ -1285,6 +1391,20 @@ impl Context<'_> {
         len: FlattenedLength,
         value: Option<AcirValue>,
     ) -> Result<(), InternalError> {
+        // Record the block as initialized even for a zero-length array so that downstream
+        // bookkeeping stays consistent, but emit no `MemoryInit` opcode for it: an empty block has
+        // no slots to read or write, so any access to it is out of bounds and the opcode would only
+        // ever describe an orphan block.
+        if !self.initialized_arrays.insert(array) {
+            return Err(InternalError::General {
+                message: "Attempted to initialize memory block twice".to_owned(),
+                call_stack: self.acir_context.get_call_stack(),
+            });
+        }
+        if len.to_usize() == 0 {
+            return Ok(());
+        }
+
         let mut databus = BlockType::Memory;
         for (call_data_id, array_id) in self.data_bus.call_data_array() {
             if self.block_id(array_id) == array {
@@ -1294,26 +1414,44 @@ impl Context<'_> {
         }
 
         self.acir_context.initialize_array(array, len, value, databus)?;
-        if self.initialized_arrays.insert(array) {
-            Ok(())
-        } else {
-            Err(InternalError::General {
-                message: "Attempted to initialize memory block twice".to_owned(),
-                call_stack: self.acir_context.get_call_stack(),
-            })
-        }
+        Ok(())
+    }
+}
+
+/// How an index is treated on a branch the side-effects predicate disables.
+///
+/// The two cases are one decision, not two independent knobs: a fallback slot is only reachable
+/// because gating collapsed the index to `0` first, so an ungated index has no fallback to speak
+/// of. [`Context::get_flattened_index`] is the only place that can tell them apart.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) enum IndexGating {
+    /// The index is statically known to be in range for the access, so it is used as-is: the
+    /// access stays on the slots the program asked for whatever the predicate is.
+    Safe,
+    /// The index is not known to be in range, so it is gated by the predicate — a disabled
+    /// branch would otherwise fail the ACVM bounds check on an out-of-bounds user-supplied
+    /// index. The gated index is `0`, and `fallback_offset` moves the access from there onto a
+    /// slot whose type is compatible with it (see [`Context::compute_offset`]); `0` for an
+    /// access that has no such slot to land on and only needs to be in bounds.
+    Gated { fallback_offset: usize },
+}
+
+impl IndexGating {
+    /// The gating for an access that addresses whole elements, and so has no field of the element
+    /// to fall back on: a disabled branch collapses it to the start of the block.
+    pub(super) fn without_fallback(is_safe_index: bool) -> Self {
+        if is_safe_index { Self::Safe } else { Self::Gated { fallback_offset: 0 } }
     }
 }
 
 /// Represents a shift in the size of the element type sizes array.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(super) enum ElementTypeSizesArrayShift {
     /// No shift is needed.
     None,
     /// The element type sizes array needs to grow by one (semantic length).
     /// This is used for vector insert operations.
     Increase,
-    Decrease,
 }
 
 /// Calculates the element type sizes lookup array for heterogeneous arrays/vectors.
@@ -1352,9 +1490,6 @@ pub(super) fn calculate_element_type_sizes_array(
         ElementTypeSizesArrayShift::None => {}
         ElementTypeSizesArrayShift::Increase => {
             non_flattened_elements += SemanticLength(1);
-        }
-        ElementTypeSizesArrayShift::Decrease => {
-            non_flattened_elements = SemanticLength(non_flattened_elements.0.saturating_sub(1));
         }
     }
 

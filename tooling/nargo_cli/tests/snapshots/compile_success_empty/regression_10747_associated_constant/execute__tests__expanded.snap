@@ -1,0 +1,50 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+
+pub trait Ser {
+    let N: u32;
+}
+
+impl Ser for Field {
+    let N: u32 = 1;
+}
+
+impl<let M: u32, T> Ser for [T; M] where T: Ser {
+    let N: u32 = M * <T as Ser>::N;
+}
+
+struct Wrapped<T, let N: u32> {
+    xs: [T; N],
+}
+
+impl<let N: u32, T> Ser for Wrapped<T, N> where T: Ser {
+    let N: u32 = N * <(resolved type) as Ser>::N;
+}
+
+pub comptime fn derive_ser(s: TypeDefinition) -> Quoted {
+    let typ: Type = s.as_type();
+    let rhs: Quoted = s.fields_as_written().map(|(_, field_type, _): (Quoted, Type, Quoted)| -> Quoted quote {  < $field_type as Ser > ::N }).join(quote {  +  });
+    let generics: Quoted = s.generics().map(|(name, maybe_int): (Type, Option<Type>)| -> Quoted {
+        if maybe_int.is_some() {
+            let int_type: Type = maybe_int.unwrap();
+            quote { let $name: $int_type }
+        } else {
+            quote { $name }
+        }
+    }).join(quote { ,  });
+    let where_clause: Quoted = s.generics().filter(|(_, maybe_int): (Type, Option<Type>)| -> bool maybe_int.is_none()).map(|(name, _): (Type, Option<Type>)| -> Quoted quote { $name: Ser }).join(quote { ,  });
+    quote {
+        impl < $generics > Ser for $typ where $where_clause {
+            let N: u32 = $rhs;
+        }
+    }
+}
+
+fn main() {
+    let _wrapped: Wrapped<Field, 3> = Wrapped::<Field, 3> { xs: [1_Field, 2_Field, 3_Field]};
+    let _len: u32 = <Wrapped<Field, 3> as Ser<N = 3 * 1>>::N;
+}
+
+// Warning: the generated code has syntax errors

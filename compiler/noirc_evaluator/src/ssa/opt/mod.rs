@@ -158,6 +158,13 @@ pub(crate) fn assert_ssa_does_not_change(src: &str, pass: impl FnOnce(Ssa) -> Ss
     assert_normalized_ssa_equals(ssa, src);
 }
 
+/// Assert that parsing the given SSA with instruction simplification enabled leaves it unchanged.
+#[cfg(test)]
+pub(crate) fn assert_ssa_does_not_change_after_simplifying(src: &str) {
+    let ssa = Ssa::from_str_simplifying(src).unwrap();
+    assert_normalized_ssa_equals(ssa, src);
+}
+
 /// Assert that running a certain pass on the SSA does not change the execution result.
 #[cfg(test)]
 fn assert_pass_does_not_affect_execution(

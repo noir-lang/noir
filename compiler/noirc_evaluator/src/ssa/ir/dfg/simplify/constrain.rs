@@ -1,6 +1,7 @@
 use std::collections::VecDeque;
 
 use acvm::{FieldElement, acir::AcirField};
+use rustc_hash::FxHashSet as HashSet;
 
 use crate::ssa::ir::{
     dfg::DataFlowGraph,
@@ -8,6 +9,37 @@ use crate::ssa::ir::{
     types::{NumericType, Type},
     value::{Value, ValueId},
 };
+
+/// The set of `constrain lhs == rhs` pairs which still have to be considered for decomposition,
+/// where each pair is only ever considered once.
+///
+/// The values a constraint is decomposed into form a DAG rather than a tree: a value may be an
+/// operand of any number of later instructions, so it can be reachable from the constrained value
+/// along many distinct routes. Queueing a pair once per route would re-expand that pair's whole
+/// sub-graph once per route, making the traversal cost proportional to the number of paths through
+/// the DAG rather than to the number of values in it, which is exponential in its depth.
+///
+/// Skipping repeats is semantics-preserving: reaching a pair along a second route derives a
+/// constraint which is already queued or emitted, so dropping it cannot weaken the circuit.
+/// Constants are interned by [`DataFlowGraph::make_constant`], so the same constraint always
+/// yields the same pair of [`ValueId`]s.
+#[derive(Default)]
+struct ConstrainQueue {
+    queue: VecDeque<(ValueId, ValueId)>,
+    queued: HashSet<(ValueId, ValueId)>,
+}
+
+impl ConstrainQueue {
+    fn push(&mut self, lhs: ValueId, rhs: ValueId) {
+        if self.queued.insert((lhs, rhs)) {
+            self.queue.push_back((lhs, rhs));
+        }
+    }
+
+    fn pop(&mut self) -> Option<(ValueId, ValueId)> {
+        self.queue.pop_front()
+    }
+}
 
 /// Try to decompose this constrain instruction. This constraint will be broken down such that it instead constrains
 /// all the values which are used to compute the values which were being constrained.
@@ -20,12 +52,12 @@ pub(super) fn decompose_constrain(
     let mut instructions = Vec::new();
 
     // Sometimes when decomposing a constraint we may generate further constraints to decompose.
-    // A recursive version can hit stack overflow, so here we use a stack for an iterative approach.
-    // Each entry in the stack represents `constrain lhs == rhs`.
-    let mut constrains = VecDeque::new();
-    constrains.push_back((lhs, rhs));
+    // A recursive version can hit stack overflow, so here we use a queue for an iterative approach.
+    // Each entry in the queue represents `constrain lhs == rhs`.
+    let mut constrains = ConstrainQueue::default();
+    constrains.push(lhs, rhs);
 
-    while let Some((lhs, rhs)) = constrains.pop_front() {
+    while let Some((lhs, rhs)) = constrains.pop() {
         // Remove trivial case `assert_eq(x, x)`
         if lhs == rhs {
             continue;
@@ -76,8 +108,8 @@ pub(super) fn decompose_constrain(
                         let one = FieldElement::one();
                         let one = dfg.make_constant(one, NumericType::bool());
 
-                        constrains.push_back((lhs, one));
-                        constrains.push_back((rhs, one));
+                        constrains.push(lhs, one);
+                        constrains.push(rhs, one);
                     }
 
                     Instruction::Binary(Binary { lhs, rhs, operator: BinaryOp::Or })
@@ -101,8 +133,8 @@ pub(super) fn decompose_constrain(
                         let zero = FieldElement::zero();
                         let zero = dfg.make_constant(zero, dfg.type_of_value(lhs).unwrap_numeric());
 
-                        constrains.push_back((lhs, zero));
-                        constrains.push_back((rhs, zero));
+                        constrains.push(lhs, zero);
+                        constrains.push(rhs, zero);
                     }
 
                     Instruction::Not(value) => {
@@ -122,7 +154,7 @@ pub(super) fn decompose_constrain(
                         let reversed_constant =
                             dfg.make_constant(reversed_constant, NumericType::bool());
 
-                        constrains.push_back((value, reversed_constant));
+                        constrains.push(value, reversed_constant);
                     }
 
                     _ => {
@@ -134,8 +166,15 @@ pub(super) fn decompose_constrain(
             (Value::NumericConstant { constant, .. }, Value::Instruction { instruction, .. })
             | (Value::Instruction { instruction, .. }, Value::NumericConstant { constant, .. }) => {
                 match dfg[*instruction] {
-                    Instruction::Binary(Binary { lhs, rhs, operator: BinaryOp::Mul { .. } })
-                        if constant.is_zero() && lhs == rhs =>
+                    Instruction::Binary(Binary {
+                        lhs,
+                        rhs,
+                        operator: BinaryOp::Mul { unchecked },
+                    }) if constant.is_zero()
+                        && lhs == rhs
+                        && (!unchecked
+                            || dfg.type_of_value(lhs).unwrap_numeric()
+                                == NumericType::NativeField) =>
                     {
                         // Replace an assertion that a squared value is zero
                         //
@@ -152,12 +191,17 @@ pub(super) fn decompose_constrain(
                         // Note that this doesn't remove the value `v1` as it may be used in other instructions, but it
                         // will likely be removed through dead instruction elimination.
                         //
-                        // This is safe for all numeric types as the underlying field has a prime modulus so squaring
-                        // a non-zero value should never result in zero.
+                        // Soundness depends on `v0 * v0 == 0` implying `v0 == 0`. That holds when the
+                        // multiplication is performed in a domain with no non-zero zero divisors:
+                        //   * `Field` operands — the underlying field has a prime modulus.
+                        //   * `Mul { unchecked: false }` — overflow is checked, so reaching the
+                        //     constraint means the product was computed in the integers.
+                        // It does NOT hold for `unchecked_mul` on a non-`Field` integer type, where
+                        // Brillig wraps modulo `2^N` (e.g. `u8 16 * u8 16 == u8 0`).
 
                         let zero = FieldElement::zero();
                         let zero = dfg.make_constant(zero, dfg.type_of_value(lhs).unwrap_numeric());
-                        constrains.push_back((lhs, zero));
+                        constrains.push(lhs, zero);
                     }
 
                     // Casting a value just to constrain it to a constant.
@@ -229,7 +273,12 @@ pub(super) fn decompose_constrain(
 
 #[cfg(test)]
 mod tests {
-    use crate::{assert_ssa_snapshot, ssa::ssa_gen::Ssa};
+    use test_case::test_case;
+
+    use crate::{
+        assert_ssa_snapshot,
+        ssa::{opt::assert_normalized_ssa_equals, ssa_gen::Ssa},
+    };
 
     #[test]
     fn simplifies_assertions_that_squared_values_are_equal_to_zero() {
@@ -251,6 +300,102 @@ mod tests {
             return
         }
         ");
+    }
+
+    // For a checked `mul`, reaching the constraint guarantees the multiplication did not
+    // overflow, so `v0 * v0 == 0` was computed without wraparound and implies `v0 == 0`. This
+    // holds for every numeric type: integers via the overflow check, `Field` via its prime
+    // modulus. Squaring a `bool` (`u1`) is handled by a separate rule and is not exercised here.
+    #[test_case("Field")]
+    #[test_case("u8")]
+    #[test_case("u16")]
+    #[test_case("u32")]
+    #[test_case("u64")]
+    #[test_case("u128")]
+    #[test_case("i8")]
+    #[test_case("i16")]
+    #[test_case("i32")]
+    #[test_case("i64")]
+    fn simplifies_assertion_that_checked_squared_value_is_zero(typ: &str) {
+        let ssa = Ssa::from_str_simplifying(&format!(
+            "
+            brillig(inline) fn main f0 {{
+              b0(v0: {typ}):
+                v1 = mul v0, v0
+                constrain v1 == {typ} 0
+                return
+            }}
+            "
+        ))
+        .unwrap();
+
+        assert_normalized_ssa_equals(
+            ssa,
+            &format!(
+                "
+                brillig(inline) fn main f0 {{
+                  b0(v0: {typ}):
+                    v1 = mul v0, v0
+                    constrain v0 == {typ} 0
+                    return
+                }}
+                "
+            ),
+        );
+    }
+
+    // `unchecked_mul` is still sound to decompose for `Field`: the prime modulus has no non-zero
+    // zero divisors, so `v0 * v0 == 0` implies `v0 == 0`. (`simplify_binary` also normalises the
+    // `Field` multiplication back to a checked `mul`, since a field multiplication cannot overflow.)
+    #[test]
+    fn simplifies_assertion_that_unchecked_squared_field_is_zero() {
+        let ssa = Ssa::from_str_simplifying(
+            "
+            brillig(inline) fn main f0 {
+              b0(v0: Field):
+                v1 = unchecked_mul v0, v0
+                constrain v1 == Field 0
+                return
+            }
+            ",
+        )
+        .unwrap();
+
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) fn main f0 {
+          b0(v0: Field):
+            v1 = mul v0, v0
+            constrain v0 == Field 0
+            return
+        }
+        ");
+    }
+
+    // For `BinaryOp::Mul { unchecked: true }` on a non-`Field` integer type the product wraps
+    // modulo `2^N`, so `v0 * v0 == 0` does NOT imply `v0 == 0` (e.g. `u8 16 * u8 16 == u8 0`).
+    // The constraint must be left untouched for every integer width and signedness.
+    #[test_case("u8")]
+    #[test_case("u16")]
+    #[test_case("u32")]
+    #[test_case("u64")]
+    #[test_case("u128")]
+    #[test_case("i8")]
+    #[test_case("i16")]
+    #[test_case("i32")]
+    #[test_case("i64")]
+    fn does_not_simplify_squared_zero_for_unchecked_mul_on_integer_type(typ: &str) {
+        let src = format!(
+            "
+            brillig(inline) fn main f0 {{
+              b0(v0: {typ}):
+                v1 = unchecked_mul v0, v0
+                constrain v1 == {typ} 0
+                return
+            }}
+            "
+        );
+        let ssa = Ssa::from_str_simplifying(&src).unwrap();
+        assert_normalized_ssa_equals(ssa, &src);
     }
 
     #[test]
@@ -303,6 +448,69 @@ mod tests {
             return
         }
         ");
+    }
+
+    #[test]
+    fn constraint_decomposition_over_shared_values() {
+        // `v2` and `v3` are both operands of `v4` and of `v5`, so each of them - and everything
+        // below them - is reachable from the constrained value `v6` along more than one route.
+        // The values being constrained form a DAG rather than a tree, and decomposition should
+        // emit one constraint per distinct value rather than one per route through the DAG.
+        let src = "
+            acir(inline) fn main f0 {
+              b0(v0: u1, v1: u1):
+                v2 = mul v0, v1
+                v3 = mul v1, v0
+                v4 = mul v2, v3
+                v5 = mul v3, v2
+                v6 = mul v4, v5
+                constrain v6 == u1 1
+                return
+            }
+            ";
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: u1, v1: u1):
+            v2 = unchecked_mul v0, v1
+            v3 = unchecked_mul v1, v0
+            v4 = unchecked_mul v2, v3
+            v5 = unchecked_mul v3, v2
+            v6 = unchecked_mul v4, v5
+            constrain v0 == u1 1
+            constrain v1 == u1 1
+            return
+        }
+        ");
+    }
+
+    #[test]
+    fn decomposition_is_linear_in_the_size_of_the_value_graph() {
+        // The same shape as `constraint_decomposition_over_shared_values`, but deep enough that
+        // the difference between visiting each value once and visiting it once per route through
+        // the graph is unmistakable: `DEPTH` levels of sharing have 2^(DEPTH + 1) routes down to
+        // the two parameters, but only 2 distinct constraints to emit.
+        const DEPTH: u32 = 12;
+
+        let mut src = "acir(inline) fn main f0 {\n  b0(v0: u1, v1: u1):\n".to_string();
+        let (mut x, mut y) = (0, 1);
+        for _ in 0..=DEPTH {
+            let (next_x, next_y) = (y + 1, y + 2);
+            src += &format!("    v{next_x} = mul v{x}, v{y}\n");
+            src += &format!("    v{next_y} = mul v{y}, v{x}\n");
+            (x, y) = (next_x, next_y);
+        }
+        src += &format!("    constrain v{x} == u1 1\n    return\n}}\n");
+
+        let ssa = Ssa::from_str_simplifying(&src).unwrap();
+
+        let constraints = ssa
+            .to_string()
+            .lines()
+            .filter(|line| line.trim_start().starts_with("constrain "))
+            .count();
+        assert_eq!(constraints, 2);
     }
 
     #[test]

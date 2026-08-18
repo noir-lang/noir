@@ -63,6 +63,11 @@ pub struct Context<'file_manager, 'parsed_files> {
 
     pub package_build_path: PathBuf,
 
+    /// Instrument the compiled Brillig to count array/vector copies per source location.
+    /// Set only by `nargo execute --count-array-copies`, which compiles in memory so the
+    /// instrumented artifact is never persisted.
+    pub count_array_copies: bool,
+
     /// Writer for comptime prints.
     pub interpreter_output: Option<Rc<RefCell<dyn std::io::Write>>>,
 
@@ -104,6 +109,7 @@ impl Context<'_, '_> {
             debug_crate_id: None,
             parsed_files: Cow::Owned(parsed_files),
             package_build_path: PathBuf::default(),
+            count_array_copies: false,
             interpreter_output: Some(Rc::new(RefCell::new(std::io::stdout()))),
             required_unstable_features: BTreeMap::new(),
             unresolved_globals: BTreeMap::new(),
@@ -126,6 +132,7 @@ impl Context<'_, '_> {
             debug_crate_id: None,
             parsed_files: Cow::Borrowed(parsed_files),
             package_build_path: PathBuf::default(),
+            count_array_copies: false,
             interpreter_output: Some(Rc::new(RefCell::new(std::io::stdout()))),
             required_unstable_features: BTreeMap::new(),
             unresolved_globals: BTreeMap::new(),
@@ -153,6 +160,7 @@ impl Context<'_, '_> {
             debug_crate_id: None,
             parsed_files: Cow::Borrowed(parsed_files),
             package_build_path: PathBuf::default(),
+            count_array_copies: false,
             interpreter_output: Some(Rc::new(RefCell::new(std::io::stdout()))),
             required_unstable_features: BTreeMap::new(),
             unresolved_globals: BTreeMap::new(),

@@ -316,14 +316,6 @@ impl Type {
         }
     }
 
-    pub(crate) fn first(&self) -> Type {
-        match self {
-            Type::Numeric(_) | Type::Function => self.clone(),
-            Type::Reference(typ, _) => typ.first(),
-            Type::Vector(element_types) | Type::Array(element_types, _) => element_types[0].first(),
-        }
-    }
-
     /// True if this is a reference type or if it is a composite type which contains a reference.
     pub(crate) fn contains_reference(&self) -> bool {
         match self {
@@ -369,11 +361,11 @@ impl Type {
 
     /// Recursively rewrite every [`Type::Reference`] inside `self` to be immutable.
     ///
-    /// The SSA validator ([`Type::canonical_eq`]) and the Noir frontend both
-    /// accept passing `&mut T` where `&T` is expected. To make types in those
-    /// positions compare equal under that same leniency, callers that need a
-    /// canonical form (e.g., map keys in defunctionalize) can collapse
-    /// reference mutability here.
+    /// This deliberately erases the reference-mutability distinction that the
+    /// SSA validator otherwise enforces (see [`Type::can_be_used_as`]). It is
+    /// only appropriate for analyses where collapsing mutability is
+    /// conservative, e.g. alias-analysis grouping, where treating `&T` and
+    /// `&mut T` as the same type can only report more aliasing, never less.
     pub(crate) fn canonicalize(&mut self) {
         match self {
             Type::Reference(element, mutable) => {
@@ -404,13 +396,12 @@ impl Type {
     /// Compares two types, treating mutable and immutable references as equivalent.
     ///
     /// Equivalent to `self.canonicalized() == other.canonicalized()` but walks
-    /// both types in lockstep instead of allocating cloned trees — the SSA
-    /// validator calls this for every block-terminator argument and every call
-    /// site, so the no-alloc path matters in debug builds.
+    /// both types in lockstep instead of allocating cloned trees.
     ///
-    /// This is a validation aid, not a soundness check: the frontend rejects
-    /// trying to use `&T` where `&mut T` is expected, but once compiled to
-    /// SSA, we can treat them as equivalents.
+    /// Like [`Type::canonicalize`], this erases the mutability distinction and
+    /// is only appropriate where that is conservative (alias analysis). Typed
+    /// boundaries — calls, jumps, stores, loads — are checked with the
+    /// directional [`Type::can_be_used_as`] instead.
     pub(crate) fn canonical_eq(&self, other: &Type) -> bool {
         let all_eq = |a: &[Type], b: &[Type]| {
             a.len() == b.len() && a.iter().zip(b).all(|(a, b)| a.canonical_eq(b))
@@ -423,6 +414,41 @@ impl Type {
             }
             (Type::Vector(a_elems), Type::Vector(b_elems)) => all_eq(a_elems, b_elems),
             _ => self == other,
+        }
+    }
+
+    /// Whether a value of type `self` may be used where a value of type `target`
+    /// is expected, applying standard variance rules to reference mutability:
+    ///
+    /// - `&mut T` may be used as `&T` (weakening), never the reverse.
+    /// - A mutable target reference is invariant in its pointee: `&mut &mut T`
+    ///   must not be usable as `&mut &T`, since a `&T` could then be stored
+    ///   through the weaker view and loaded back as `&mut T` through an alias.
+    /// - An immutable target reference is covariant in its pointee.
+    /// - Arrays and vectors are covariant in their element types: they are
+    ///   semantically immutable values (`array_set` produces a new array), so
+    ///   an element can only be weakened, never written back at a stronger type.
+    pub(crate) fn can_be_used_as(&self, target: &Type) -> bool {
+        let all_can = |a: &[Type], b: &[Type]| {
+            a.len() == b.len() && a.iter().zip(b).all(|(a, b)| a.can_be_used_as(b))
+        };
+
+        match (self, target) {
+            (
+                Type::Reference(self_elem, self_mutable),
+                Type::Reference(target_elem, target_mutable),
+            ) => {
+                if *target_mutable {
+                    *self_mutable && self_elem == target_elem
+                } else {
+                    self_elem.can_be_used_as(target_elem)
+                }
+            }
+            (Type::Array(a_elems, a_len), Type::Array(b_elems, b_len)) => {
+                a_len == b_len && all_can(a_elems, b_elems)
+            }
+            (Type::Vector(a_elems), Type::Vector(b_elems)) => all_can(a_elems, b_elems),
+            _ => self == target,
         }
     }
 }

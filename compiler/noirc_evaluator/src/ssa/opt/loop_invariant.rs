@@ -190,11 +190,14 @@ impl Loop {
 struct LoopInvariantContext<'f> {
     inserter: FunctionInserter<'f>,
 
-    /// Maps an outer loop's induction variable to its [`LoopBounds`].
+    /// Maps an outer loop's induction variable to its [`LoopBounds`] and the owning loop's blocks.
     ///
     /// Used by inner loops to reason about operations on an outer loop's induction variable —
     /// hoisting an in-bounds array access or proving a `Div`/`Mod` divisor is never zero.
-    outer_induction_variables: HashMap<ValueId, LoopBounds>,
+    ///
+    /// The bounds only hold inside the owning loop, so reads must go through
+    /// [`Self::get_outer_induction_variable_bounds`].
+    outer_induction_variables: HashMap<ValueId, OuterInductionVariable>,
     /// All induction variables collected up front, with their [`LoopBounds`].    
     all_induction_variables: HashMap<ValueId, LoopBounds>,
     cfg: ControlFlowGraph,
@@ -207,8 +210,15 @@ struct LoopInvariantContext<'f> {
     false_value: ValueId,
 }
 
+/// A loop induction variable's [`LoopBounds`] together with the blocks of the loop that owns it.
+struct OuterInductionVariable {
+    bounds: LoopBounds,
+    blocks: BTreeSet<BasicBlockId>,
+}
+
 /// Context with the scope of just one loop.
 struct LoopContext {
+    header: BasicBlockId,
     pre_header: BasicBlockId,
     /// Maps current loop induction variable with its bounds and step.
     /// If the loop doesn't have constant bounds with then it's `None`.
@@ -297,6 +307,7 @@ impl LoopContext {
             // There is only ever one current induction variable for a loop.
             induction_variable,
             does_loop_execute,
+            header: loop_.header,
             pre_header,
             defined_in_loop,
             loop_invariants: HashSet::default(),
@@ -426,6 +437,27 @@ impl<'f> LoopInvariantContext<'f> {
                     self.can_hoist_invariant(&loop_context, &block_context, instruction_id);
 
                 if hoist_invariant {
+                    // If we are hoisting an instruction which can write through one of its array
+                    // operands in place, that operand needs an `inc_rc` of its own in the
+                    // pre-header, ahead of the hoisted instruction. See
+                    // `mutable_array_operands` for why this cannot be left to the guard the
+                    // ownership pass already emits in the loop body.
+                    let guards =
+                        self.unprotected_mutable_array_operands(instruction_id, pre_header);
+                    if !guards.is_empty() {
+                        let call_stack = self
+                            .inserter
+                            .function
+                            .dfg
+                            .get_instruction_call_stack_id(instruction_id);
+                        for operand in guards {
+                            let inc_rc = Instruction::IncrementRc { value: operand };
+                            self.inserter.function.dfg.insert_instruction_and_results(
+                                inc_rc, pre_header, None, call_stack,
+                            );
+                        }
+                    }
+
                     self.inserter.push_instruction(instruction_id, pre_header, false);
 
                     // If we are hoisting an instruction which returns a new array,
@@ -482,7 +514,8 @@ impl<'f> LoopInvariantContext<'f> {
             get_induction_var_bounds(&self.inserter, loop_, pre_header)
             && bounds.iterator_in_bounds(step)
         {
-            self.outer_induction_variables.insert(induction_variable, bounds);
+            let variable = OuterInductionVariable { bounds, blocks: loop_.blocks.clone() };
+            self.outer_induction_variables.insert(induction_variable, variable);
         }
     }
 
@@ -661,6 +694,93 @@ impl<'f> LoopInvariantContext<'f> {
         }
     }
 
+    /// The array operands of `instruction_id` that it may write through in place, and which
+    /// therefore need an `inc_rc` in the pre-header when the instruction is hoisted.
+    ///
+    /// Brillig arrays are copy-on-write: `array_set` and the vector mutator intrinsics write
+    /// through their array operand once that operand's reference count is 1, and clone otherwise.
+    /// The ownership pass keeps that safe by emitting an `inc_rc` on any operand still live after
+    /// the mutation — but that `inc_rc` is a separate instruction which `can_be_hoisted`
+    /// classifies `No`, so it stays in the loop body. A mutator hoisted out from in front of its
+    /// guard would find the operand at reference count 1 and corrupt it (noir-lang/noir-claude#244).
+    ///
+    /// That state is reachable from Noir source: it is exactly what
+    /// `test_programs/execution_success/regression_licm_vector_mutator` compiled to before
+    /// `vector_push_front` was reclassified `PureWithPredicate`. The guard the ownership pass
+    /// emits sits in the loop body, so it is not protection *at the pre-header*, and hoisting the
+    /// push past it corrupted the vector. Emitting the guard here fixes those three regression
+    /// programs on its own, without the purity change — the two are independent remedies for the
+    /// same defect, and this one fixes the whole class rather than one intrinsic.
+    ///
+    /// With the reclassification also in place, no vector mutator is hoisted at all, so nothing
+    /// in the test corpus reaches this code any more (919 packages compiled: zero hits). What
+    /// still holds the other route shut is that the guard is side-effecting, so it marks the
+    /// block impure and `BlockContext::can_hoist_control_dependent_instruction` refuses the
+    /// hoist — an accident of instruction order rather than a property of this pass, which
+    /// evaporates the moment rc traffic stops counting towards `is_impure`.
+    ///
+    /// This deliberately does not cover the other two entries of
+    /// `Intrinsic::unsafe_for_clone_elision_in_brillig`, `StrAsBytes` and `ArrayAsStrUnchecked`:
+    /// they alias their operand rather than write through it, and the shared buffer is already
+    /// covered by the `inc_rc` inserted on the hoisted instruction's *results*.
+    ///
+    /// Calls to user-defined functions need no entry here either: a Brillig function that can
+    /// mutate an array parameter in place is `Purity::Impure` (see `Function::is_pure`), so
+    /// `can_be_hoisted` never lets it out of the loop in the first place.
+    ///
+    /// An operand the pre-header already bumps is skipped: it is protected at the position the
+    /// instruction is being hoisted to, so a second bump would only force a copy. That is the
+    /// shape `inserts_inc_rc_for_hoisted_array_set` captures, and the reason this pass can go on
+    /// hoisting a Brillig `array_set` whose operand is cloned before the loop.
+    fn unprotected_mutable_array_operands(
+        &self,
+        instruction_id: InstructionId,
+        pre_header: BasicBlockId,
+    ) -> Vec<ValueId> {
+        let operands = self.mutable_array_operands(instruction_id);
+        if operands.is_empty() {
+            return operands;
+        }
+
+        let dfg = &self.inserter.function.dfg;
+        let bumped_in_pre_header: HashSet<ValueId> = dfg[pre_header]
+            .instructions()
+            .iter()
+            .filter_map(|instruction| match dfg[*instruction] {
+                Instruction::IncrementRc { value } => Some(self.inserter.resolve(value)),
+                _ => None,
+            })
+            .collect();
+
+        operands.into_iter().filter(|operand| !bumped_in_pre_header.contains(operand)).collect()
+    }
+
+    /// The array operands of `instruction_id` that it may write through in place, whether or not
+    /// they are already protected. See [`Self::unprotected_mutable_array_operands`].
+    fn mutable_array_operands(&self, instruction_id: InstructionId) -> Vec<ValueId> {
+        let dfg = &self.inserter.function.dfg;
+        if !dfg.runtime().is_brillig() {
+            return Vec::new();
+        }
+
+        let operands = match &dfg[instruction_id] {
+            Instruction::ArraySet { array, .. } => vec![*array],
+            Instruction::Call { func, arguments } => match dfg[*func] {
+                Value::Intrinsic(intrinsic) if intrinsic.mutates_array_operand_in_brillig() => {
+                    arguments
+                        .iter()
+                        .copied()
+                        .filter(|argument| dfg.type_of_value(*argument).is_array())
+                        .collect()
+                }
+                _ => Vec::new(),
+            },
+            _ => Vec::new(),
+        };
+
+        operands.into_iter().map(|operand| self.inserter.resolve(operand)).collect()
+    }
+
     /// Decide if an in instruction can be hoisted into the pre-header of the loop.
     ///
     /// Returns 2 flags:
@@ -750,8 +870,9 @@ impl<'f> LoopInvariantContext<'f> {
         match instruction {
             ArrayGet { array, index } => {
                 let array_typ = self.inserter.function.dfg.type_of_value(*array);
-                let upper_bound =
-                    self.outer_induction_variables.get(index).map(|bounds| bounds.upper);
+                let upper_bound = self
+                    .get_outer_induction_variable_bounds(loop_context, *index)
+                    .map(|bounds| bounds.upper);
                 if let (Type::Array(_, len), Some(upper_bound)) =
                     (array_typ.into_owned(), upper_bound)
                 {
@@ -765,6 +886,20 @@ impl<'f> LoopInvariantContext<'f> {
             // The rest of the instructions should not depend on the loop bounds.
             _ => false,
         }
+    }
+
+    /// Get the [`LoopBounds`] of an outer loop's induction variable, but only if the loop
+    /// currently being processed is nested inside the loop that owns `value`: the bounds
+    /// do not hold once the owning loop has exited (e.g. in a later sibling loop).
+    fn get_outer_induction_variable_bounds(
+        &self,
+        loop_context: &LoopContext,
+        value: ValueId,
+    ) -> Option<LoopBounds> {
+        self.outer_induction_variables
+            .get(&value)
+            .filter(|variable| variable.blocks.contains(&loop_context.header))
+            .map(|variable| variable.bounds)
     }
 
     /// Loop invariant hoisting only operates over loop instructions.
@@ -1099,6 +1234,222 @@ mod tests {
         let ssa = Ssa::from_str(src).unwrap();
         let _ =
             assert_pass_does_not_affect_execution(ssa, Vec::new(), Ssa::loop_invariant_code_motion);
+    }
+
+    #[test]
+    fn sibling_loop_stale_bounds_must_not_fold_comparison() {
+        // Regression for noir-lang/noir-claude#1640: the first loop's bounds `v0 in [0, 3)`
+        // must not be applied to the sibling loop {b5, b6}, where `v0` is exactly 3, so the
+        // `lt v0, u32 3` feeding the constrain is false and the constrain must fail.
+        // The first loop is padded with a pass-through block so it is processed first.
+        use crate::ssa::interpreter::errors::InterpreterError;
+
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            jmp b1(u32 0)
+          b1(v0: u32):
+            v2 = lt v0, u32 3
+            jmpif v2 then: b2(), else: b4()
+          b2():
+            jmp b3()
+          b3():
+            v4 = unchecked_add v0, u32 1
+            jmp b1(v4)
+          b4():
+            jmp b5(u32 0)
+          b5(v5: u32):
+            v8 = lt v5, u32 2
+            jmpif v8 then: b6(), else: b7()
+          b6():
+            v9 = lt v0, u32 3
+            constrain v9 == u1 1
+            v12 = unchecked_add v5, u32 1
+            jmp b5(v12)
+          b7():
+            return
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        // The pass legitimately hoists the invariant `lt` and its constrain, renumbering the
+        // value ids in the error, so compare the errors field-wise instead of using
+        // `assert_pass_does_not_affect_execution`.
+        let before = ssa.interpret(Vec::new());
+        let ssa = ssa.loop_invariant_code_motion();
+        let after = ssa.interpret(Vec::new());
+
+        let Err(InterpreterError::ConstrainEqFailed { lhs: lhs_before, rhs: rhs_before, .. }) =
+            before
+        else {
+            panic!("the constrain must fail before the pass, got {before:?}");
+        };
+        let Err(InterpreterError::ConstrainEqFailed { lhs: lhs_after, rhs: rhs_after, .. }) = after
+        else {
+            panic!("the constrain must still fail after the pass, got {after:?}");
+        };
+        assert_eq!((lhs_before, rhs_before), (lhs_after, rhs_after));
+
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0():
+            jmp b1(u32 0)
+          b1(v0: u32):
+            v4 = lt v0, u32 3
+            jmpif v4 then: b2(), else: b4()
+          b2():
+            jmp b3()
+          b3():
+            v6 = unchecked_add v0, u32 1
+            jmp b1(v6)
+          b4():
+            v7 = lt v0, u32 3
+            constrain v7 == u1 1
+            jmp b5(u32 0)
+          b5(v1: u32):
+            v10 = lt v1, u32 2
+            jmpif v10 then: b6(), else: b7()
+          b6():
+            v11 = unchecked_add v1, u32 1
+            jmp b5(v11)
+          b7():
+            return
+        }
+        ");
+    }
+
+    #[test]
+    fn sibling_loop_stale_bounds_must_not_drop_overflow_check() {
+        // Regression for noir-lang/noir-claude#1640, checked-arithmetic consumer: the first
+        // loop steps `v0` through 0, 3, ..., 249 and exits holding 252, outside its recorded
+        // bounds `[0, 250)`. The `add v0, u8 5` in the sibling loop must stay checked so that
+        // `252 + 5` overflows instead of wrapping.
+        use crate::ssa::interpreter::errors::InterpreterError;
+
+        let src = "
+        brillig(inline) fn main f0 {
+          b0():
+            jmp b1(u8 0)
+          b1(v0: u8):
+            v2 = lt v0, u8 250
+            jmpif v2 then: b2(), else: b4()
+          b2():
+            jmp b3()
+          b3():
+            v4 = add v0, u8 3
+            jmp b1(v4)
+          b4():
+            jmp b5(u8 0, u8 0)
+          b5(v5: u8, v6: u8):
+            v7 = lt v5, u8 1
+            jmpif v7 then: b6(), else: b7()
+          b6():
+            v8 = add v0, u8 5
+            v9 = add v5, u8 1
+            jmp b5(v9, v8)
+          b7():
+            return v6
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let (ssa, result) =
+            assert_pass_does_not_affect_execution(ssa, Vec::new(), Ssa::loop_invariant_code_motion);
+        assert!(
+            matches!(result, Err(InterpreterError::Overflow { .. })),
+            "the add on the exited induction variable must overflow, got {result:?}"
+        );
+
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) fn main f0 {
+          b0():
+            jmp b1(u8 0)
+          b1(v0: u8):
+            v5 = lt v0, u8 250
+            jmpif v5 then: b2(), else: b4()
+          b2():
+            jmp b3()
+          b3():
+            v7 = unchecked_add v0, u8 3
+            jmp b1(v7)
+          b4():
+            v9 = add v0, u8 5
+            jmp b5(u8 0, u8 0)
+          b5(v1: u8, v2: u8):
+            v10 = eq v1, u8 0
+            jmpif v10 then: b6(), else: b7()
+          b6():
+            v12 = unchecked_add v1, u8 1
+            jmp b5(v12, v9)
+          b7():
+            return v2
+        }
+        ");
+    }
+
+    #[test]
+    fn sibling_loop_stale_bounds_must_not_hoist_oob_array_get() {
+        // Regression for noir-lang/noir-claude#1640, `array_get` consumer: the sibling loop
+        // runs zero times, so `array_get v5, index v0` (with `v0 == 3`, out of bounds for the
+        // length-3 array) must not be hoisted into the pre-header.
+        use crate::ssa::interpreter::value::Value;
+
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            jmp b1(u32 0)
+          b1(v0: u32):
+            v2 = lt v0, u32 3
+            jmpif v2 then: b2(), else: b4()
+          b2():
+            jmp b3()
+          b3():
+            v4 = unchecked_add v0, u32 1
+            jmp b1(v4)
+          b4():
+            v5 = make_array [u32 10, u32 20, u32 30] : [u32; 3]
+            jmp b5(u32 0, u32 0)
+          b5(v6: u32, v7: u32):
+            v9 = lt v6, u32 0
+            jmpif v9 then: b6(), else: b7()
+          b6():
+            v10 = array_get v5, index v0 -> u32
+            v11 = unchecked_add v7, v10
+            v12 = unchecked_add v6, u32 1
+            jmp b5(v12, v11)
+          b7():
+            return v7
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let (ssa, result) =
+            assert_pass_does_not_affect_execution(ssa, Vec::new(), Ssa::loop_invariant_code_motion);
+        assert_eq!(result, Ok(vec![Value::u32(0)]), "the zero-iteration loop must not execute");
+
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0():
+            jmp b1(u32 0)
+          b1(v0: u32):
+            v5 = lt v0, u32 3
+            jmpif v5 then: b2(), else: b4()
+          b2():
+            jmp b3()
+          b3():
+            v7 = unchecked_add v0, u32 1
+            jmp b1(v7)
+          b4():
+            v11 = make_array [u32 10, u32 20, u32 30] : [u32; 3]
+            jmp b5(u32 0, u32 0)
+          b5(v1: u32, v2: u32):
+            jmpif u1 0 then: b6(), else: b7()
+          b6():
+            v13 = array_get v11, index v0 -> u32
+            v14 = unchecked_add v2, v13
+            v15 = unchecked_add v1, u32 1
+            jmp b5(v15, v14)
+          b7():
+            return v2
+        }
+        ");
     }
 
     #[test]
@@ -2903,6 +3254,264 @@ mod tests {
         };
 
         assert_eq!(can_be_hoisted(&instruction, &function.dfg), result);
+    }
+
+    /// Regression for noir-claude#244, found by the AST fuzzer `pass_vs_prev` on seed
+    /// `0xb6bc8e1f00100000` and bisected to this pass. LICM hoisted a Brillig vector mutator out
+    /// of a loop and left the `inc_rc` guarding its operand behind, so the hoisted push mutated a
+    /// still-live vector in place and the program returned the wrong answer with no error.
+    ///
+    /// Brillig arrays are copy-on-write: `vector_push_front` writes through its input vector in
+    /// place once the operand's reference count is 1. Here the operand `v1` is protected by the
+    /// `inc_rc v1` immediately before the call, because `v1` is still read by the `array_get` in
+    /// `b3`. That guard is classified `CanBeHoistedResult::No` and stays in the loop body, so the
+    /// call must stay with it.
+    ///
+    /// The assertions prove both halves of what keeps it there. `vector_push_front` being
+    /// `PureWithPredicate` is necessary but not sufficient: `can_be_hoisted` maps that to
+    /// `WithPredicate`, and `BlockContext::can_hoist_control_dependent_instruction` still hoists
+    /// out of a loop guaranteed to execute — which `b1`'s `0..2` bounds are. What stops it is the
+    /// third condition of that check, `!is_impure`: the guard is itself side-effecting, so it
+    /// marks `b2` impure before the call is considered. The guard protects the mutator by being
+    /// in front of it, not merely by existing. Reclassify the intrinsic `Pure`, or stop counting
+    /// rc traffic towards `is_impure`, and the call moves into `b0` — which the snapshot catches
+    /// and, on the corrupted read, the returned value does too.
+    #[test]
+    fn hoisting_vector_mutator_out_of_loop_drops_refcount_guard() {
+        use crate::ssa::interpreter::value::Value;
+
+        let src = r#"
+        brillig(inline) impure fn main f0 {
+          b0(v0: u1):
+            v1 = make_array [v0, u1 1] : [u1]
+            v2 = call f1(u32 2, v1) -> u1
+            return v2
+        }
+        brillig(inline) impure fn foo f1 {
+          b0(v0: u32, v1: [u1]):
+            jmp b1(u32 0)
+          b1(v2: u32):
+            v3 = lt v2, u32 2
+            jmpif v3 then: b2(), else: b3()
+          b2():
+            // `v1` is guarded here because `b3` still reads it.
+            inc_rc v1
+            v4, v5 = call vector_push_front(v0, v1, u1 0) -> (u32, [u1])
+            v6 = unchecked_add v2, u32 1
+            jmp b1(v6)
+          b3():
+            v7 = array_get v1, index u32 0 -> u1
+            return v7
+        }
+        "#;
+        let ssa = Ssa::from_str(src).unwrap();
+        let (ssa, result) = assert_pass_does_not_affect_execution(
+            ssa,
+            vec![Value::bool(true)],
+            Ssa::loop_invariant_code_motion,
+        );
+
+        // Behavior: `main` returns `v1[0]`, i.e. the argument it was given.
+        assert_eq!(result, Ok(vec![Value::bool(true)]));
+
+        // Shape: nothing is hoisted. The pre-header `b0` of `f1` stays empty and the call stays
+        // in `b2`, immediately after the `inc_rc` that guards its vector operand.
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) impure fn main f0 {
+          b0(v0: u1):
+            v2 = make_array [v0, u1 1] : [u1]
+            v5 = call f1(u32 2, v2) -> u1
+            return v5
+        }
+        brillig(inline) impure fn foo f1 {
+          b0(v0: u32, v1: [u1]):
+            jmp b1(u32 0)
+          b1(v2: u32):
+            v5 = lt v2, u32 2
+            jmpif v5 then: b2(), else: b3()
+          b2():
+            inc_rc v1
+            v8, v9 = call vector_push_front(v0, v1, u1 0) -> (u32, [u1])
+            v11 = unchecked_add v2, u32 1
+            jmp b1(v11)
+          b3():
+            v12 = array_get v1, index u32 0 -> u1
+            return v12
+        }
+        ");
+    }
+
+    /// Companion of [`hoisting_vector_mutator_out_of_loop_drops_refcount_guard`] for
+    /// noir-claude#244, with the `inc_rc v1` guard moved out of the loop body and into the entry
+    /// block. The SSA is well-formed either way — `v1` is read by the `array_get` in `b4` and the
+    /// entry bump dominates every mutation of it — but the two shapes hoist differently.
+    ///
+    /// With the guard in the loop body its side effect marks the block impure and the call stays
+    /// put. Here the loop body has nothing side-effecting ahead of the call, so the block is
+    /// pure, the `0..2` loop is guaranteed to execute, and the call *is* hoisted. The purity
+    /// classification does not distinguish the two cases at all; only the guard's position does.
+    /// So LICM has to re-establish the protection at the point it moves the mutator to, by
+    /// emitting `inc_rc v1` into the pre-header ahead of the hoisted call — which the snapshot
+    /// asserts. `Ssa::interpret` models copy-on-write faithfully, so the returned value is what
+    /// would catch a guard emitted in the wrong place: `b4` reads `v1[0]` after the push.
+    ///
+    /// The bump is redundant in this particular shape, since the entry block already protects
+    /// `v1`: the pre-header scan in `unprotected_mutable_array_operands` is deliberately local,
+    /// and [`inserts_inc_rc_for_hoisted_array_set`] pins the case it does recognise. Conservative
+    /// in this direction costs one rc bump; conservative in the other is a miscompilation. See
+    /// [`hoisted_vector_mutator_guard_prevents_operand_corruption`] for the shape where the guard
+    /// changes the result.
+    #[test]
+    fn hoisted_vector_mutator_guards_its_own_array_operand() {
+        use crate::ssa::interpreter::value::Value;
+
+        let src = r#"
+        brillig(inline) impure fn main f0 {
+          b0(v0: u1):
+            v1 = make_array [v0, u1 1] : [u1]
+            v2 = call f1(u32 2, v1) -> u1
+            return v2
+        }
+        brillig(inline) impure fn foo f1 {
+          b0(v0: u32, v1: [u1]):
+            // The guard dominates every mutation of `v1`, but is not in the pre-header `b1`.
+            inc_rc v1
+            jmp b1()
+          b1():
+            jmp b2(u32 0)
+          b2(v2: u32):
+            v3 = lt v2, u32 2
+            jmpif v3 then: b3(), else: b4()
+          b3():
+            v4, v5 = call vector_push_front(v0, v1, u1 0) -> (u32, [u1])
+            v6 = unchecked_add v2, u32 1
+            jmp b2(v6)
+          b4():
+            v7 = array_get v1, index u32 0 -> u1
+            return v7
+        }
+        "#;
+        let ssa = Ssa::from_str(src).unwrap();
+        let (ssa, result) = assert_pass_does_not_affect_execution(
+            ssa,
+            vec![Value::bool(true)],
+            Ssa::loop_invariant_code_motion,
+        );
+
+        // Behavior: `main` returns `v1[0]`, i.e. the argument it was given — the hoisted push is
+        // not observable through `v1`.
+        assert_eq!(result, Ok(vec![Value::bool(true)]));
+
+        // Shape: the call is hoisted into the pre-header `b1`, preceded by the `inc_rc v1` LICM
+        // inserted to protect the operand it can write through, and followed by the pre-existing
+        // `inc_rc` on its array result.
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) impure fn main f0 {
+          b0(v0: u1):
+            v2 = make_array [v0, u1 1] : [u1]
+            v5 = call f1(u32 2, v2) -> u1
+            return v5
+        }
+        brillig(inline) impure fn foo f1 {
+          b0(v0: u32, v1: [u1]):
+            inc_rc v1
+            jmp b1()
+          b1():
+            inc_rc v1
+            v5, v6 = call vector_push_front(v0, v1, u1 0) -> (u32, [u1])
+            jmp b2(u32 0)
+          b2(v2: u32):
+            v9 = lt v2, u32 2
+            jmpif v9 then: b3(), else: b4()
+          b3():
+            inc_rc v6
+            v11 = unchecked_add v2, u32 1
+            jmp b2(v11)
+          b4():
+            v12 = array_get v1, index u32 0 -> u1
+            return v12
+        }
+        ");
+    }
+
+    /// The result-changing half of [`hoisted_vector_mutator_guards_its_own_array_operand`], for
+    /// noir-claude#244. That test keeps the entry block's bump, so the guard LICM emits is
+    /// redundant and only its snapshot notices when the guard is removed. Here `v1` is read by
+    /// the `array_get` in `b3` with nothing bumping it anywhere, so the guard is the only thing
+    /// between the hoisted push and a corrupted result: without it the assertion below sees
+    /// `false`.
+    ///
+    /// A hand-written input is needed only because `vector_push_front` is now `PureWithPredicate`
+    /// and so is never hoisted. Reclassify it `Pure` and the three
+    /// `test_programs/execution_success/regression_licm_vector_mutator*` programs reach this same
+    /// path from ordinary Noir source — and pass, on the strength of this guard alone.
+    ///
+    /// `assert_pass_does_not_affect_execution` deliberately does not apply: this input violates
+    /// the ownership pass's contract, so interpreting it *before* LICM already yields the
+    /// corrupted `0` — the loop mutates `v1` in place at reference count 1 and `b3` reads the
+    /// pushed `u1 0` back. The pass is supposed to change that result, landing on the SSA-level
+    /// meaning of `1`, where `vector_push_front` returns a new vector and leaves `v1` alone.
+    #[test]
+    fn hoisted_vector_mutator_guard_prevents_operand_corruption() {
+        use crate::ssa::interpreter::value::Value;
+
+        let src = r#"
+        brillig(inline) impure fn main f0 {
+          b0(v0: u1):
+            v1 = make_array [v0, u1 1] : [u1]
+            v2 = call f1(u32 2, v1) -> u1
+            return v2
+        }
+        // `foo` is impure by design: it calls a vector mutator on its own array parameter, which
+        // in Brillig can write through the caller's buffer in place at reference count 1.
+        brillig(inline) impure fn foo f1 {
+          b0(v0: u32, v1: [u1]):
+            jmp b1(u32 0)
+          b1(v2: u32):
+            v3 = lt v2, u32 2
+            jmpif v3 then: b2(), else: b3()
+          b2():
+            // No `inc_rc v1` anywhere, even though `b3` reads `v1`.
+            v4, v5 = call vector_push_front(v0, v1, u1 0) -> (u32, [u1])
+            v6 = unchecked_add v2, u32 1
+            jmp b1(v6)
+          b3():
+            v7 = array_get v1, index u32 0 -> u1
+            return v7
+        }
+        "#;
+        let input = vec![Value::bool(true)];
+        let ssa = Ssa::from_str(src).unwrap().loop_invariant_code_motion();
+
+        // Behavior: the hoisted push must not be observable through `v1`.
+        assert_eq!(ssa.interpret(Value::snapshot_args(&input)), Ok(vec![Value::bool(true)]),);
+
+        // Shape: the `inc_rc v1` LICM emitted is what makes that true, by putting `v1` at
+        // reference count 2 before the hoisted push and forcing it to clone.
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) impure fn main f0 {
+          b0(v0: u1):
+            v2 = make_array [v0, u1 1] : [u1]
+            v5 = call f1(u32 2, v2) -> u1
+            return v5
+        }
+        brillig(inline) impure fn foo f1 {
+          b0(v0: u32, v1: [u1]):
+            inc_rc v1
+            v5, v6 = call vector_push_front(v0, v1, u1 0) -> (u32, [u1])
+            jmp b1(u32 0)
+          b1(v2: u32):
+            v9 = lt v2, u32 2
+            jmpif v9 then: b2(), else: b3()
+          b2():
+            inc_rc v6
+            v11 = unchecked_add v2, u32 1
+            jmp b1(v11)
+          b3():
+            v12 = array_get v1, index u32 0 -> u1
+            return v12
+        }
+        ");
     }
 
     #[test]

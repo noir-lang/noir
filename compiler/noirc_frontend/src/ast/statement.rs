@@ -840,6 +840,13 @@ impl ForRange {
         // Counter used to generate unique names when desugaring
         // code in the parser requires the creation of fresh variables.
         let mut unique_name_counter: u32 = 0;
+        // Allocate a fresh, collision-free variable name. Wrapped in a closure so that any
+        // desugaring added here obtains a distinct name without manual counter bookkeeping.
+        let mut fresh_name = || {
+            let name = format!("$i{unique_name_counter}");
+            unique_name_counter += 1;
+            name
+        };
 
         match self {
             ForRange::Range(..) => {
@@ -850,9 +857,7 @@ impl ForRange {
                 let start_range = ExpressionKind::integer(BigInt::ZERO, None);
                 let start_range = Expression::new(start_range, array_location);
 
-                let next_unique_id = unique_name_counter;
-                unique_name_counter += 1;
-                let array_name = format!("$i{next_unique_id}");
+                let array_name = fresh_name();
                 let array_location = array.location;
                 let array_ident = Ident::new(array_name, array_location);
 
@@ -880,8 +885,7 @@ impl ForRange {
                 }));
                 let end_range = Expression::new(end_range, array_location);
 
-                let next_unique_id = unique_name_counter;
-                let index_name = format!("$i{next_unique_id}");
+                let index_name = fresh_name();
                 let fresh_identifier = Ident::new(index_name.clone(), array_location);
 
                 // array[i]

@@ -87,7 +87,9 @@ impl<F: AcirField> AcirContext<F> {
     pub(crate) fn extract_witnesses(&self, inputs: &[AcirValue]) -> Vec<Witness> {
         inputs
             .iter()
-            .flat_map(|value| value.clone().flatten())
+            .flat_map(|value| {
+                value.clone().flatten().expect("ICE: cannot extract witnesses from a dynamic array")
+            })
             .map(|value| {
                 self.vars
                     .get(&value.0)
@@ -97,6 +99,18 @@ impl<F: AcirField> AcirContext<F> {
                     .expect("ICE - cannot extract a witness")
             })
             .collect()
+    }
+
+    /// Returns each witness that has been constrained to hold a constant value, paired with that
+    /// value.
+    ///
+    /// Whenever a constant [`AcirVar`] is materialized into a [`Witness`] (e.g. to be used as the
+    /// index of a memory operation) it is recorded in `constant_witnesses`. This exposes that map so
+    /// the post-ACIR check can tell whether a memory-op index is a compile-time constant and what
+    /// its value is.
+    #[cfg(debug_assertions)]
+    pub(crate) fn constant_witness_values(&self) -> impl Iterator<Item = (Witness, F)> + '_ {
+        self.constant_witnesses.iter().map(|(value, witness)| (*witness, *value))
     }
 
     /// Adds a constant to the context and assigns a Variable to represent it
@@ -255,6 +269,14 @@ impl<F: AcirField> AcirContext<F> {
     pub(crate) fn is_constant_one(&self, var: &AcirVar) -> bool {
         match self.vars.get(var) {
             Some(AcirVarData::Const(field)) => field.is_one(),
+            _ => false,
+        }
+    }
+
+    /// True if the given `AcirVar` refers to a constant zero value
+    pub(crate) fn is_constant_zero(&self, var: &AcirVar) -> bool {
+        match self.vars.get(var) {
+            Some(AcirVarData::Const(field)) => field.is_zero(),
             _ => false,
         }
     }
@@ -1468,6 +1490,14 @@ impl<F: AcirField> AcirContext<F> {
     ) -> Result<Vec<AcirVar>, RuntimeError> {
         let output_count = output_count.to_usize();
 
+        // A call whose predicate folds to a compile-time zero is on a statically-dead branch and is
+        // never executed. We resolve it up front to don't-care zeroed outputs and emit no `Call`
+        // opcode, mirroring the equivalent handling for Brillig calls. This keeps the
+        // `acir_post_check` invariant that no emitted call carries a compile-time zero predicate.
+        if self.var_to_expression(predicate)?.is_zero() {
+            return Ok(vecmap(0..output_count, |_| self.add_constant(F::zero())));
+        }
+
         let inputs = self.prepare_inputs_for_black_box_func_call(inputs, false)?;
         let inputs = inputs
             .iter()
@@ -1604,7 +1634,7 @@ mod tests {
 
         let mut context = AcirContext::<FieldElement>::new(BrilligStdLib::default());
         let var = context.add_constant(FieldElement::one());
-        let value = AcirValue::Array(im::vector![AcirValue::Var(var, NumericType::NativeField)]);
+        let value = AcirValue::Array(imbl::vector![AcirValue::Var(var, NumericType::NativeField)]);
 
         // Claim a flattened length of 2 but provide only a single value.
         let result = context.initialize_array(

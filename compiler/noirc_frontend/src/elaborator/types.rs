@@ -4,7 +4,7 @@ mod similarly_named_types;
 use std::{borrow::Cow, collections::BTreeSet, rc::Rc};
 
 use acvm::{AcirField, FieldElement};
-use im::HashSet;
+use imbl::HashSet;
 use iter_extended::vecmap;
 use itertools::Itertools;
 use noirc_errors::Location;
@@ -167,6 +167,39 @@ impl Elaborator<'_> {
         resolved_type
     }
 
+    /// Rebind the free named generics of a type spliced in from a `quote { $typ }` to the
+    /// same-named generics in scope at the splice site.
+    ///
+    /// A `Type` interpolated into a quote (e.g. one obtained from `TypeDefinition::fields_as_written`)
+    /// is already resolved: its named generics carry the type variables of the definition it came
+    /// from. When such a type is spliced into a new generic scope (e.g. a generated
+    /// `impl<Context> ..`), a textually-written `Context` resolves by name to the new scope's
+    /// generic, so the spliced type's `Context` must too; otherwise two identically-named generics
+    /// with different type variables fail to unify.
+    ///
+    /// Only ordinary named generics are rebound. Associated-type and associated-constant
+    /// projections are also modeled as `NamedGeneric`s, but their name is the projection itself
+    /// (e.g. `<T as Deserialize>::N`); rebinding one to a same-named projection in scope would
+    /// conflate distinct projections (e.g. a field's `<[T; N] as Deserialize>::N` with the
+    /// enclosing impl's own `Self::N`, yielding a cyclic associated constant).
+    fn rebind_resolved_type_generics(&self, typ: Type) -> Type {
+        let mut bindings = TypeBindings::default();
+        typ.visit(&mut |typ| {
+            if let Type::NamedGeneric(named) = typ
+                && !named.is_associated()
+                && let TypeBinding::Unbound(id, kind) = &*named.type_var.borrow()
+                && let Some(generic) = self.find_generic(named.name.as_str())
+                && generic.type_var.id() != *id
+            {
+                let replacement = generic.clone().into_named_generic(None);
+                bindings.insert(*id, (named.type_var.clone(), kind.clone(), replacement));
+            }
+            true
+        });
+
+        if bindings.is_empty() { typ } else { typ.substitute(&bindings) }
+    }
+
     /// Resolves an [`UnresolvedType`] to a [Type] with a given [Kind] and marks it, and any generic types it contains, as _referenced_.
     #[tracing::instrument(level = "trace", skip_all)]
     pub(crate) fn resolve_type_with_kind(
@@ -278,7 +311,10 @@ impl Elaborator<'_> {
             Parenthesized(typ) => {
                 self.resolve_type_with_kind_inner(*typ, kind, mode, wildcard_allowed)
             }
-            Resolved(id) => self.interner.get_quoted_type(id).clone(),
+            Resolved(id) => {
+                let typ = self.interner.get_quoted_type(id).clone();
+                self.rebind_resolved_type_generics(typ)
+            }
             AsTraitPath(path) => self.resolve_as_trait_path(*path, mode, wildcard_allowed),
             Interned(id) => {
                 let typ = self.interner.get_unresolved_type_data(id).clone();
@@ -601,8 +637,8 @@ impl Elaborator<'_> {
             // Because there is no ordering to when type aliases (and other globals) are resolved,
             // it is possible for one to refer to an Error type and issue no error if it is set
             // equal to another type alias. Fixing this fully requires an analysis to create a DFG
-            // of definition ordering, but for now we have an explicit check here so that we at
-            // least issue an error that the type was not found instead of silently passing.
+            // of definition ordering. There is no such check here, so a type alias pointing at a
+            // not-yet-resolved (or erroring) alias can still silently resolve to an Error type.
             return Type::Alias(type_alias, args);
         }
 
@@ -997,6 +1033,12 @@ impl Elaborator<'_> {
     }
 
     /// Look up a path as a global used as a numeric type (e.g. `global N: u32 = 5;`
+    /// Resolves `path` as a numeric global used in type position (e.g. an array length).
+    ///
+    /// Returns `None` *without* emitting a diagnostic when `path` does not resolve to a global,
+    /// leaving it to the caller to surface the original path-resolution error. `None` is also
+    /// returned *with* a diagnostic already pushed for globals that exist but cannot be used as a
+    /// numeric type (unresolved, non-integral, or not fitting their type).
     #[tracing::instrument(level = "trace", skip_all)]
     fn lookup_global_type(&mut self, path: &TypedPath, mode: PathResolutionMode) -> Option<Type> {
         match self.resolve_path_inner(path.clone(), PathResolutionTarget::Value, mode) {
@@ -1051,6 +1093,7 @@ impl Elaborator<'_> {
 
                 Some(Type::Constant(*global_value))
             }
+            // Not a global: defer to the caller to report the original path-resolution error.
             _ => None,
         }
     }
@@ -1058,12 +1101,12 @@ impl Elaborator<'_> {
     #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn convert_expression_type(
         &mut self,
-        length: UnresolvedTypeExpression,
+        expr: UnresolvedTypeExpression,
         expected_kind: &Kind,
         location: Location,
         wildcard_allowed: WildcardAllowed,
     ) -> Type {
-        match length {
+        match expr {
             UnresolvedTypeExpression::Variable(path) => {
                 let mut ab = GenericTypeArgs::default();
                 // Use generics from path, if they exist
@@ -2885,7 +2928,8 @@ impl Elaborator<'_> {
         }
     }
 
-    /// Prerequisite: `verify_trait_constraint` of the operator's trait constraint.
+    /// Prerequisite: the operator's trait constraint has already been solved via the trait
+    /// constraint machinery (see `check_trait_constraints`).
     ///
     /// Although by this point the operator is expected to already have a trait impl,
     /// we still need to match the operator's type against the method's instantiated type
@@ -3510,16 +3554,18 @@ impl Elaborator<'_> {
         // Search in the parent traits, if any.
         let parent_bounds: Vec<_> = the_trait.parent_bounds().cloned().collect();
         for parent_trait_bound in &parent_bounds {
-            if let Some(the_trait) = self.interner.try_get_trait(parent_trait_bound.trait_id) {
-                let parent_trait_bound =
-                    self.instantiate_parent_trait_bound(trait_bound, parent_trait_bound);
-                matches.extend(self.lookup_methods_in_trait(
-                    the_trait,
-                    method_name,
-                    &parent_trait_bound,
-                    visited,
-                ));
-            }
+            // Parent bound trait ids are set during trait resolution and must always resolve;
+            // `get_trait` turns a violation into a clear internal error instead of silently
+            // skipping the parent trait's methods.
+            let the_trait = self.interner.get_trait(parent_trait_bound.trait_id);
+            let parent_trait_bound =
+                self.instantiate_parent_trait_bound(trait_bound, parent_trait_bound);
+            matches.extend(self.lookup_methods_in_trait(
+                the_trait,
+                method_name,
+                &parent_trait_bound,
+                visited,
+            ));
         }
 
         matches
@@ -3689,7 +3735,8 @@ impl Elaborator<'_> {
                 if !matches!(actual_type, Type::Reference(..)) {
                     let location = self.interner.id_location(*object);
                     if mutable {
-                        self.check_can_mutate(*object, location);
+                        let inside_mutable_ref = false;
+                        self.check_can_mutate(*object, location, inside_mutable_ref);
                     }
 
                     let new_type = Type::Reference(Box::new(actual_type), mutable);
@@ -3893,11 +3940,11 @@ impl Elaborator<'_> {
             return;
         }
 
-        let parent_bounds: Vec<_> = self
-            .interner
-            .try_get_trait(trait_bound.trait_id)
-            .map(|the_trait| the_trait.parent_bounds().cloned().collect())
-            .unwrap_or_default();
+        // `bind_generics_from_trait_bound` below already assumes this trait id resolves (via
+        // `get_trait`); use `get_trait` here too so a missing trait is a clear internal error
+        // rather than a silently-empty parent-bound list.
+        let parent_bounds: Vec<_> =
+            self.interner.get_trait(trait_bound.trait_id).parent_bounds().cloned().collect();
 
         for parent_bound in &parent_bounds {
             let instantiated = self.instantiate_parent_trait_bound(trait_bound, parent_bound);

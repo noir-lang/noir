@@ -29,6 +29,8 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         self.add_procedure_call_instruction(ProcedureId::VectorCopy);
 
         self.mov_instruction(destination_vector.pointer, destination_vector_pointer_return);
+
+        self.codegen_count_if_copy_occurred(source_vector.pointer, destination_vector.pointer);
     }
 }
 
@@ -72,7 +74,7 @@ pub(super) fn compile_vector_copy_procedure<F: AcirField + DebugToString>(
             ctx.codegen_decrement_rc(source_vector.pointer, rc.address);
 
             // Increase our array copy counter if that flag is set
-            if ctx.count_arrays_copied {
+            if ctx.count_array_copies() {
                 ctx.codegen_increment_array_copy_counter();
             }
         }

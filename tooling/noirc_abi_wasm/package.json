@@ -3,7 +3,7 @@
   "contributors": [
     "The Noir Team <team@noir-lang.org>"
   ],
-  "version": "1.0.0-beta.22",
+  "version": "1.0.0-beta.26",
   "license": "(MIT OR Apache-2.0)",
   "homepage": "https://noir-lang.org/",
   "repository": {
@@ -42,9 +42,9 @@
     "@esm-bundle/chai": "^4.3.4-fix.0",
     "@web/dev-server-esbuild": "^1.0.5",
     "@web/test-runner": "^0.20.2",
-    "@web/test-runner-playwright": "^0.11.1",
-    "eslint": "^10.5.0",
-    "mocha": "^11.7.6",
-    "tsx": "^4.22.4"
+    "@web/test-runner-playwright": "^1.0.0",
+    "eslint": "^10.8.1",
+    "mocha": "^11.8.0",
+    "tsx": "^4.23.12"
   }
 }

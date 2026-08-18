@@ -347,7 +347,8 @@ fn disallows_mut_reborrow_through_immutable_reference() {
         let f: u64 = 10;
         let p = &f;
         let p1 = &mut *p;
-                       ^ `p` is a `&` reference, so it cannot be written to
+                      ^^ Cannot take a mutable reference to a value behind a `&` reference
+                      ~~ A `&` reference grants read-only access to the value behind it
         *p1 = 15;
         assert(f == 15);
     }
@@ -388,6 +389,57 @@ fn disallows_mutating_non_mutable_reference_inside_mutable_reference() {
     }
     "#;
     check_errors_using_features(src, &[]);
+}
+
+#[test]
+fn disallows_mutable_reference_to_value_behind_immutable_reference() {
+    let src = r#"
+    fn main() {
+        let x: [Field; 2] = [1, 2];
+        let r = &x;
+        let m = &mut *r;
+                     ^^ Cannot take a mutable reference to a value behind a `&` reference
+                     ~~ A `&` reference grants read-only access to the value behind it
+        let _ = m;
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn disallows_mutable_reference_to_member_behind_immutable_reference() {
+    // Companion of `disallows_mutable_reference_to_value_behind_immutable_reference`:
+    // reaching through a field of the dereferenced value must not launder the upgrade.
+    let src = r#"
+    struct Foo {
+        x: Field,
+    }
+    fn main() {
+        let foo = Foo { x: 1 };
+        let r = &foo;
+        let m = &mut (*r).x;
+                     ^^^^^^ Cannot take a mutable reference to a value behind a `&` reference
+                     ~~~~~~ A `&` reference grants read-only access to the value behind it
+        let _ = m;
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn allows_reborrows_that_do_not_upgrade_mutability() {
+    // The two legal reborrow directions: `&mut *m` on a `&mut T` preserves mutability and
+    // `&*m` downgrades it. Only the upgrade (`&mut *r` on a `&T`) is banned.
+    let src = r#"
+    fn main() {
+        let mut x: [Field; 2] = [1, 2];
+        let m = &mut x;
+        let m2 = &mut *m;
+        let r: &[Field; 2] = &*m2;
+        assert((*r)[0] == 1);
+    }
+    "#;
+    assert_no_errors(src);
 }
 
 #[test]

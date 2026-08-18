@@ -67,7 +67,11 @@ pub(crate) fn gen_brillig_for(
         .copied()
         .expect("Should have the globals memory size specified for an entry point");
 
-    let options = BrilligOptions { enable_debug_trace: false, ..*options };
+    let options = BrilligOptions {
+        enable_debug_trace: false,
+        copy_site_registry: options.copy_site_registry.clone(),
+        ..*options
+    };
 
     let (mut entry_point, stack_start) = BrilligContext::new_entry_point_artifact(
         arguments,

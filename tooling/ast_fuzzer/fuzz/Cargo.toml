@@ -18,7 +18,9 @@ libfuzzer-sys.workspace = true
 strum.workspace = true
 
 acir.workspace = true
+nargo_fmt.workspace = true
 noirc_abi.workspace = true
+noirc_errors.workspace = true
 noirc_evaluator.workspace = true
 noirc_frontend.workspace = true
 
@@ -68,6 +70,20 @@ bench = false
 [[bin]]
 name = "pass_vs_prev"
 path = "fuzz_targets/pass_vs_prev.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "valid_after_pass"
+path = "fuzz_targets/valid_after_pass.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "fmt_line_comments"
+path = "fuzz_targets/fmt_line_comments.rs"
 test = false
 doc = false
 bench = false

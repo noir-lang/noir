@@ -4,15 +4,17 @@ use noir_ast_fuzzer::Config;
 pub mod acir_vs_brillig;
 pub mod comptime_vs_brillig_direct;
 pub mod comptime_vs_brillig_nargo;
+pub mod fmt_line_comments;
 pub mod min_vs_full;
 pub mod orig_vs_morph;
 pub mod pass_vs_prev;
+pub mod valid_after_pass;
 
 /// Create a default configuration instance, with some common flags randomized.
 fn default_config(u: &mut Unstructured) -> arbitrary::Result<Config> {
     // Some errors such as overflows and OOB are easy to trigger, so in half
     // the cases we avoid all of them, to make sure they don't mask other errors.
-    let avoid_frequent_errors = u.arbitrary()?;
+    let avoid_frequent_errors = u.ratio(3, 4)?;
     let config = Config {
         avoid_overflow: avoid_frequent_errors,
         avoid_index_out_of_bounds: avoid_frequent_errors,
@@ -98,16 +100,62 @@ mod tests {
 
     /// Run the tests non-deterministically until the timeout.
     ///
-    /// This is the local behavior.
+    /// This is the local and nightly behavior.
+    ///
+    /// A failure does not stop the run: the panic (which carries the reproduction seed) is
+    /// printed and fuzzing continues with a fresh session until the budget is spent, so one
+    /// shallow, frequent bug cannot shield deeper ones from an entire run's budget. Distinct
+    /// failures are collected and re-raised together at the end.
     fn run_nondeterministic(f: impl Fn(&mut Unstructured) -> eyre::Result<()>) {
-        arbtest::arbtest(|u| {
-            f(u).unwrap();
-            Ok(())
-        })
-        .size_min(MIN_SIZE)
-        .size_max(MAX_SIZE)
-        .budget(budget())
-        .run();
+        /// Cap on collected failures, so a bug that fails instantly on almost every input
+        /// cannot keep the loop spinning for the whole budget.
+        const MAX_FAILURES: usize = 5;
+
+        let budget = budget();
+        let start = std::time::Instant::now();
+        let mut failures: Vec<String> = Vec::new();
+
+        while failures.len() < MAX_FAILURES {
+            let remaining = budget.saturating_sub(start.elapsed());
+            if remaining.is_zero() {
+                break;
+            }
+            let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                arbtest::arbtest(|u| {
+                    f(u).unwrap();
+                    Ok(())
+                })
+                .size_min(MIN_SIZE)
+                .size_max(MAX_SIZE)
+                .budget(remaining)
+                .run();
+            }));
+            match result {
+                // The session ran out of budget without finding a failure.
+                Ok(()) => break,
+                Err(panic) => {
+                    // The default panic hook has already printed the full message, which
+                    // includes the `Seed: 0x…` line that `extract-fuzz-seeds.sh` scrapes.
+                    let msg = panic
+                        .downcast_ref::<String>()
+                        .map(String::as_str)
+                        .or_else(|| panic.downcast_ref::<&str>().copied())
+                        .unwrap_or("<non-string panic>")
+                        .to_string();
+                    if !failures.contains(&msg) {
+                        failures.push(msg);
+                    }
+                }
+            }
+        }
+
+        if !failures.is_empty() {
+            panic!(
+                "arbtest found {} distinct failure(s) within the budget:\n\n{}",
+                failures.len(),
+                failures.join("\n---\n")
+            );
+        }
     }
 
     /// Run multiple tests with a deterministic RNG.

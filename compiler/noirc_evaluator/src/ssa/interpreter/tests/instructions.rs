@@ -1238,6 +1238,45 @@ fn array_set_with_offset() {
 }
 
 #[test]
+fn array_set_nested_array_value_is_not_shared() {
+    // Regression test: an array-valued `value` stored by `array_set` must not keep
+    // sharing its nested `Shared` handle with the source array. Otherwise a later
+    // `array_set mut` on that source array would also mutate the earlier stored value,
+    // diverging from ACIR (which copies array-set values).
+    let values = expect_values_with_args(
+        "
+        acir(inline) fn main f0 {
+          b0(v0: u32, v1: Field):
+            v3 = make_array [Field 0] : [Field; 1]
+            v5 = make_array [Field 9] : [Field; 1]
+            v6 = make_array [v5] : [[Field; 1]; 1]
+            v7 = array_set v6, index v0, value v3
+            v8 = array_set mut v3, index v0, value v1
+            return v7, v8
+        }
+    ",
+        vec![
+            from_constant(0u128.into(), NumericType::unsigned(32)),
+            from_constant(7u128.into(), NumericType::NativeField),
+        ],
+    );
+
+    let v7 = values[0].as_array_or_vector().unwrap();
+    let v8 = values[1].as_array_or_vector().unwrap();
+
+    let zero = from_constant(0u32.into(), NumericType::NativeField);
+    let seven = from_constant(7u32.into(), NumericType::NativeField);
+
+    // v7's nested array must still hold the original value: the `array_set mut` on v3
+    // should not reach through into the copy stored in v7.
+    let v7_inner = v7.elements.borrow()[0].as_array_or_vector().unwrap();
+    assert_eq!(*v7_inner.elements.borrow(), vec![zero]);
+
+    // v8 is v3 mutated in place.
+    assert_eq!(*v8.elements.borrow(), vec![seven]);
+}
+
+#[test]
 fn increment_rc() {
     let value = expect_value(
         "
@@ -1352,13 +1391,12 @@ fn make_array() {
 }
 
 #[test]
-fn make_array_allows_reference_mutability_mismatch() {
-    // Reference mutability is a frontend concern with no meaning at the SSA
-    // level: the validator accepts a `&mut T` value in a `&T` MakeArray slot,
-    // and the interpreter must agree so that running the post-validation SSA
-    // doesn't fail with `MakeArrayElementTypeMismatch`. The unconstrained
-    // SSA-gen pattern this guards is a tuple `[&mut T, &T]` constructed from
-    // a mutable allocate alongside an immutable one — exactly what the
+fn make_array_allows_mutable_reference_element_in_immutable_slot() {
+    // The validator accepts a `&mut T` value in a `&T` MakeArray slot (array
+    // element types are covariant), and the interpreter must agree so that
+    // running post-validation SSA doesn't fail with
+    // `MakeArrayElementTypeMismatch`. This is the SSA-gen pattern for `&a`
+    // over a `mut a` binding placed alongside other references, which the
     // `pass_vs_prev` fuzzer surfaces when it interprets intermediate SSA
     // between passes.
     executes_with_no_errors(
@@ -1367,7 +1405,7 @@ fn make_array_allows_reference_mutability_mismatch() {
           b0():
             v0 = allocate -> &mut Field
             store Field 1 at v0
-            v1 = allocate -> &Field
+            v1 = allocate -> &mut Field
             store Field 2 at v1
             v2 = make_array [v0, v1] : [&Field; 2]
             return

@@ -115,6 +115,7 @@ mod variable;
 mod visibility;
 
 use self::traits::check_trait_impl_method_matches_declaration;
+use self::variable::VariableResolution;
 use fm::FileMap;
 use function_context::FunctionContext;
 use noirc_errors::Location;
@@ -323,7 +324,7 @@ pub struct Elaborator<'context> {
 
     crate_id: CrateId,
 
-    interpreter_call_stack: im::Vector<Location>,
+    interpreter_call_stack: imbl::Vector<Location>,
 
     /// If greater than 0, field visibility errors won't be reported.
     /// This is used when elaborating a comptime expression that is a struct constructor
@@ -341,7 +342,7 @@ pub struct Elaborator<'context> {
     /// Sometimes items are elaborated because a function attribute ran and generated items.
     /// The Elaborator keeps track of these reasons so that when an error is produced it will
     /// be wrapped in another error that will include this reason.
-    pub(crate) elaborate_reasons: im::Vector<ElaborateReason>,
+    pub(crate) elaborate_reasons: imbl::Vector<ElaborateReason>,
 
     /// Set to true when the interpreter encounters an errored expression/statement,
     /// causing all subsequent comptime evaluation to be skipped.
@@ -479,9 +480,9 @@ impl<'context> Elaborator<'context> {
         required_unstable_features: &'context BTreeMap<CrateId, Vec<UnstableFeature>>,
         unresolved_globals: &'context mut BTreeMap<GlobalId, UnresolvedGlobal>,
         crate_id: CrateId,
-        interpreter_call_stack: im::Vector<Location>,
+        interpreter_call_stack: imbl::Vector<Location>,
         options: ElaboratorOptions<'context>,
-        elaborate_reasons: im::Vector<ElaborateReason>,
+        elaborate_reasons: imbl::Vector<ElaborateReason>,
     ) -> Self {
         Self {
             scopes: ScopeForest::default(),
@@ -558,9 +559,9 @@ impl<'context> Elaborator<'context> {
             &context.required_unstable_features,
             &mut context.unresolved_globals,
             crate_id,
-            im::Vector::new(),
+            imbl::Vector::new(),
             options,
-            im::Vector::new(),
+            imbl::Vector::new(),
         )
     }
 
@@ -810,7 +811,7 @@ impl<'context> Elaborator<'context> {
     #[tracing::instrument(level = "trace", skip_all)]
     fn resolve_function_by_path(&mut self, path: TypedPath) -> Option<FuncId> {
         let location = path.location;
-        match self.resolve_path_or_error(path, PathResolutionTarget::Value) {
+        match self.resolve_path_or_error(path.clone(), PathResolutionTarget::Value) {
             Ok(item) => {
                 if let Some(func_id) = item.function_id() {
                     Some(func_id)
@@ -825,6 +826,14 @@ impl<'context> Elaborator<'context> {
                 }
             }
             Err(error) => {
+                // A `Type::method` path (an inherent or trait-impl method) is not resolvable as a
+                // value path, but it resolves the same way the expression `Type::method` does. Try
+                // that before surfacing the original path-resolution error.
+                if let Some(VariableResolution::Ident(_, Some(item))) = self.resolve_variable(path)
+                    && let Some(func_id) = item.function_id()
+                {
+                    return Some(func_id);
+                }
                 self.push_err(error);
                 None
             }
@@ -1312,7 +1321,7 @@ impl<'context> Elaborator<'context> {
 
     /// The current interpreter call stack.
     #[tracing::instrument(level = "trace", skip_all)]
-    pub(crate) fn interpreter_call_stack(&self) -> &im::Vector<Location> {
+    pub(crate) fn interpreter_call_stack(&self) -> &imbl::Vector<Location> {
         &self.interpreter_call_stack
     }
 

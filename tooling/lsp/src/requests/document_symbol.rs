@@ -1,46 +1,42 @@
-use std::future::{self, Future};
-
 use async_lsp::ResponseError;
 use async_lsp::lsp_types::{
-    DocumentSymbol, DocumentSymbolParams, DocumentSymbolResponse, Location, Position, SymbolKind,
-    TextDocumentPositionParams,
+    DocumentSymbol, DocumentSymbolParams, DocumentSymbolResponse, Location, SymbolKind,
 };
-use fm::{FileId, FileMap};
+use std::collections::HashMap;
+use std::path::PathBuf;
+
+use fm::{FileId, FileMap, PathString};
 use noirc_errors::Span;
 use noirc_frontend::ast::TraitBound;
 use noirc_frontend::{
     ParsedModule,
     ast::{
-        Expression, FunctionReturnType, Ident, LetStatement, NoirFunction, NoirStruct, NoirTrait,
-        NoirTraitImpl, TypeImpl, UnresolvedType, UnresolvedTypeData, Visitor,
+        Expression, FunctionReturnType, Ident, LetStatement, ModuleDeclaration, NoirEnumeration,
+        NoirFunction, NoirStruct, NoirTrait, NoirTraitImpl, TypeAlias, TypeImpl, UnresolvedType,
+        UnresolvedTypeData, Visitor,
     },
     parser::ParsedSubModule,
 };
 
-use crate::LspState;
-use crate::requests::process_request;
-
+/// Like formatting, this request is parse-only: it takes the open documents' current texts
+/// instead of `LspState`, so the main loop answers it directly from its text mirror instead
+/// of queueing it behind type-checking.
 pub(crate) fn on_document_symbol_request(
-    state: &mut LspState,
+    input_files: &HashMap<String, String>,
     params: DocumentSymbolParams,
-) -> impl Future<Output = Result<Option<DocumentSymbolResponse>, ResponseError>> + use<> {
-    let text_document_position_params = TextDocumentPositionParams {
-        text_document: params.text_document,
-        position: Position { line: 0, character: 0 },
+) -> Result<Option<DocumentSymbolResponse>, ResponseError> {
+    let uri = params.text_document.uri;
+    let Some(source) = input_files.get(&uri.to_string()) else {
+        return Ok(None);
     };
 
-    let result = process_request(state, text_document_position_params, |args| {
-        let file_id = args.location.file;
-        let file = args.files.get_file(file_id).unwrap();
-        let source = file.source();
-        let (parsed_module, _errors) = noirc_frontend::parse_program(source, file_id);
+    let mut files = FileMap::default();
+    let file_id = files.add_file(PathString::from_path(PathBuf::from(uri.path())), source.clone());
+    let (parsed_module, _errors) = noirc_frontend::parse_program(source, file_id);
 
-        let mut collector = DocumentSymbolCollector::new(file_id, args.files);
-        let symbols = collector.collect(&parsed_module);
-        Some(DocumentSymbolResponse::Nested(symbols))
-    });
-
-    future::ready(result)
+    let mut collector = DocumentSymbolCollector::new(file_id, &files);
+    let symbols = collector.collect(&parsed_module);
+    Ok(Some(DocumentSymbolResponse::Nested(symbols)))
 }
 
 struct DocumentSymbolCollector<'a> {
@@ -213,6 +209,68 @@ impl Visitor for DocumentSymbolCollector<'_> {
             name: noir_struct.name.to_string(),
             detail: None,
             kind: SymbolKind::STRUCT,
+            tags: None,
+            deprecated: None,
+            range: location.range,
+            selection_range: selection_location.range,
+            children: Some(children),
+        });
+
+        false
+    }
+
+    fn visit_noir_enum(&mut self, noir_enum: &NoirEnumeration, span: Span) -> bool {
+        if noir_enum.name.is_empty() {
+            return false;
+        }
+
+        let Some(location) = self.to_lsp_location(span) else {
+            return false;
+        };
+
+        let Some(selection_location) = self.to_lsp_location(noir_enum.name.span()) else {
+            return false;
+        };
+
+        let mut children = Vec::new();
+        for variant in &noir_enum.variants {
+            let variant_name = &variant.item.name;
+
+            let mut span = variant_name.span();
+
+            // If there are parameters, extend the span to include the last parameter type.
+            if let Some(parameters) = &variant.item.parameters
+                && let Some(typ) = parameters.last()
+            {
+                span = Span::from(span.start()..typ.location.span.end());
+            }
+
+            let Some(variant_location) = self.to_lsp_location(span) else {
+                continue;
+            };
+
+            let Some(variant_name_location) = self.to_lsp_location(variant_name.span()) else {
+                continue;
+            };
+
+            #[allow(deprecated)]
+            children.push(DocumentSymbol {
+                name: variant_name.to_string(),
+                detail: None,
+                kind: SymbolKind::ENUM_MEMBER,
+                tags: None,
+                deprecated: None,
+                range: variant_location.range,
+                selection_range: variant_name_location.range,
+                children: None,
+            });
+        }
+
+        #[allow(deprecated)]
+        self.symbols.push(DocumentSymbol {
+            name: noir_enum.name.to_string(),
+            detail: None,
+            kind: SymbolKind::ENUM,
             tags: None,
             deprecated: None,
             range: location.range,
@@ -444,6 +502,34 @@ impl Visitor for DocumentSymbolCollector<'_> {
         false
     }
 
+    fn visit_noir_type_alias(&mut self, type_alias: &TypeAlias, span: Span) -> bool {
+        if type_alias.name.is_empty() {
+            return false;
+        }
+
+        let Some(location) = self.to_lsp_location(span) else {
+            return false;
+        };
+
+        let Some(selection_location) = self.to_lsp_location(type_alias.name.span()) else {
+            return false;
+        };
+
+        #[allow(deprecated)]
+        self.symbols.push(DocumentSymbol {
+            name: type_alias.name.to_string(),
+            detail: None,
+            kind: SymbolKind::TYPE_PARAMETER,
+            tags: None,
+            deprecated: None,
+            range: location.range,
+            selection_range: selection_location.range,
+            children: None,
+        });
+
+        false
+    }
+
     fn visit_parsed_submodule(&mut self, parsed_sub_module: &ParsedSubModule, span: Span) -> bool {
         if parsed_sub_module.name.is_empty() {
             return false;
@@ -482,6 +568,32 @@ impl Visitor for DocumentSymbolCollector<'_> {
         false
     }
 
+    fn visit_module_declaration(&mut self, module_declaration: &ModuleDeclaration, span: Span) {
+        if module_declaration.ident.is_empty() {
+            return;
+        }
+
+        let Some(name_location) = self.to_lsp_location(module_declaration.ident.span()) else {
+            return;
+        };
+
+        let Some(location) = self.to_lsp_location(span) else {
+            return;
+        };
+
+        #[allow(deprecated)]
+        self.symbols.push(DocumentSymbol {
+            name: module_declaration.ident.to_string(),
+            detail: None,
+            kind: SymbolKind::MODULE,
+            tags: None,
+            deprecated: None,
+            range: location.range,
+            selection_range: name_location.range,
+            children: None,
+        });
+    }
+
     fn visit_global(&mut self, global: &LetStatement, span: Span) -> bool {
         let name = global.pattern.to_string();
         if name.is_empty() {
@@ -518,24 +630,21 @@ mod document_symbol_tests {
 
     use super::*;
     use async_lsp::lsp_types::{
-        PartialResultParams, SymbolKind, TextDocumentIdentifier, WorkDoneProgressParams,
+        PartialResultParams, SymbolKind, TextDocumentIdentifier, Url, WorkDoneProgressParams,
     };
-    use tokio::test;
 
-    async fn get_document_symbols(src: &str) -> Vec<DocumentSymbol> {
-        let (mut state, noir_text_document) =
-            test_utils::init_lsp_server_with_inline_source("document_symbol", "src/main.nr", src)
-                .await;
+    fn get_document_symbols(src: &str) -> Vec<DocumentSymbol> {
+        let uri = Url::parse("file:///main.nr").unwrap();
+        let input_files = HashMap::from([(uri.to_string(), src.to_string())]);
 
         let response = on_document_symbol_request(
-            &mut state,
+            &input_files,
             DocumentSymbolParams {
-                text_document: TextDocumentIdentifier { uri: noir_text_document },
+                text_document: TextDocumentIdentifier { uri },
                 work_done_progress_params: WorkDoneProgressParams { work_done_token: None },
                 partial_result_params: PartialResultParams { partial_result_token: None },
             },
         )
-        .await
         .expect("Could not execute on_document_symbol_request")
         .unwrap();
 
@@ -547,12 +656,12 @@ mod document_symbol_tests {
     }
 
     #[test]
-    async fn test_document_symbol_for_function() {
+    fn test_document_symbol_for_function() {
         let src = r#"fn foo(_x: i32) {
     let _ = 1;
 }
 "#;
-        let symbols = get_document_symbols(src).await;
+        let symbols = get_document_symbols(src);
 
         assert_eq!(symbols.len(), 1);
         let symbol = &symbols[0];
@@ -567,12 +676,12 @@ mod document_symbol_tests {
     }
 
     #[test]
-    async fn test_document_symbol_for_struct_with_field() {
+    fn test_document_symbol_for_struct_with_field() {
         let src = r#"struct SomeStruct {
     field: i32,
 }
 "#;
-        let symbols = get_document_symbols(src).await;
+        let symbols = get_document_symbols(src);
 
         assert_eq!(symbols.len(), 1);
         let symbol = &symbols[0];
@@ -594,7 +703,7 @@ mod document_symbol_tests {
     }
 
     #[test]
-    async fn test_document_symbol_for_inherent_impl() {
+    fn test_document_symbol_for_inherent_impl() {
         let src = r#"struct SomeStruct {}
 
 impl SomeStruct {
@@ -603,7 +712,7 @@ impl SomeStruct {
     }
 }
 "#;
-        let symbols = get_document_symbols(src).await;
+        let symbols = get_document_symbols(src);
 
         let impl_symbol = &symbols[1];
         assert_eq!(impl_symbol.name, "SomeStruct");
@@ -628,12 +737,12 @@ impl SomeStruct {
     }
 
     #[test]
-    async fn test_document_symbol_for_trait() {
+    fn test_document_symbol_for_trait() {
         let src = r#"trait SomeTrait<U> {
     fn some_method(x: U);
 }
 "#;
-        let symbols = get_document_symbols(src).await;
+        let symbols = get_document_symbols(src);
 
         assert_eq!(symbols.len(), 1);
         let trait_symbol = &symbols[0];
@@ -656,7 +765,7 @@ impl SomeStruct {
     }
 
     #[test]
-    async fn test_document_symbol_for_trait_impl() {
+    fn test_document_symbol_for_trait_impl() {
         let src = r#"struct SomeStruct {}
 
 trait SomeTrait<U> {
@@ -668,7 +777,7 @@ impl SomeTrait<i32> for SomeStruct {
     }
 }
 "#;
-        let symbols = get_document_symbols(src).await;
+        let symbols = get_document_symbols(src);
 
         // [struct SomeStruct, trait SomeTrait, impl SomeTrait<i32> for SomeStruct]
         assert_eq!(symbols.len(), 3);
@@ -691,12 +800,12 @@ impl SomeTrait<i32> for SomeStruct {
     }
 
     #[test]
-    async fn test_document_symbol_for_module_with_global() {
+    fn test_document_symbol_for_module_with_global() {
         let src = r#"mod submodule {
     global SOME_GLOBAL = 1;
 }
 "#;
-        let symbols = get_document_symbols(src).await;
+        let symbols = get_document_symbols(src);
 
         assert_eq!(symbols.len(), 1);
         let module = &symbols[0];
@@ -718,9 +827,9 @@ impl SomeTrait<i32> for SomeStruct {
     }
 
     #[test]
-    async fn test_document_symbol_for_primitive_impl() {
+    fn test_document_symbol_for_primitive_impl() {
         let src = "impl i32 {}\n";
-        let symbols = get_document_symbols(src).await;
+        let symbols = get_document_symbols(src);
 
         assert_eq!(symbols.len(), 1);
         let symbol = &symbols[0];
@@ -732,9 +841,73 @@ impl SomeTrait<i32> for SomeStruct {
     }
 
     #[test]
-    async fn test_function_with_just_open_parentheses() {
+    fn test_document_symbol_for_type_alias() {
+        let src = "type MyAlias = (i32, bool);\n";
+        let symbols = get_document_symbols(src);
+
+        assert_eq!(symbols.len(), 1);
+        let symbol = &symbols[0];
+        assert_eq!(symbol.name, "MyAlias");
+        assert_eq!(symbol.kind, SymbolKind::TYPE_PARAMETER);
+        assert!(symbol.children.is_none());
+        assert_eq!(test_utils::text_at(src, symbol.range), "type MyAlias = (i32, bool);");
+        assert_eq!(test_utils::text_at(src, symbol.selection_range), "MyAlias");
+    }
+
+    #[test]
+    fn test_document_symbol_for_enum_with_variants() {
+        let src = r#"enum Color {
+    Red,
+    Rgb(u8, u8, u8),
+}
+"#;
+        let symbols = get_document_symbols(src);
+
+        assert_eq!(symbols.len(), 1);
+        let symbol = &symbols[0];
+        assert_eq!(symbol.name, "Color");
+        assert_eq!(symbol.kind, SymbolKind::ENUM);
+        assert_eq!(
+            test_utils::text_at(src, symbol.range),
+            "enum Color {\n    Red,\n    Rgb(u8, u8, u8),\n}"
+        );
+        assert_eq!(test_utils::text_at(src, symbol.selection_range), "Color");
+
+        let children = symbol.children.as_ref().expect("Expected children");
+        assert_eq!(children.len(), 2);
+
+        let variant = &children[0];
+        assert_eq!(variant.name, "Red");
+        assert_eq!(variant.kind, SymbolKind::ENUM_MEMBER);
+        assert_eq!(test_utils::text_at(src, variant.range), "Red");
+        assert_eq!(test_utils::text_at(src, variant.selection_range), "Red");
+
+        let variant = &children[1];
+        assert_eq!(variant.name, "Rgb");
+        assert_eq!(variant.kind, SymbolKind::ENUM_MEMBER);
+        // The variant's range extends through the end of its last parameter type.
+        assert_eq!(test_utils::text_at(src, variant.range), "Rgb(u8, u8, u8");
+        assert_eq!(test_utils::text_at(src, variant.selection_range), "Rgb");
+    }
+
+    #[test]
+    fn test_document_symbol_for_module_declaration() {
+        let src = "mod foo;\n";
+        let symbols = get_document_symbols(src);
+
+        assert_eq!(symbols.len(), 1);
+        let symbol = &symbols[0];
+        assert_eq!(symbol.name, "foo");
+        assert_eq!(symbol.kind, SymbolKind::MODULE);
+        assert!(symbol.children.is_none());
+        assert_eq!(test_utils::text_at(src, symbol.range), "mod foo;");
+        assert_eq!(test_utils::text_at(src, symbol.selection_range), "foo");
+    }
+
+    #[test]
+    fn test_function_with_just_open_parentheses() {
         let src = "fn main(\n";
-        let mut symbols = get_document_symbols(src).await;
+        let mut symbols = get_document_symbols(src);
         assert_eq!(symbols.len(), 1);
         let symbol = symbols.remove(0);
         // Parse-recovery: the symbol's range extends from `fn` to the end of the only line

@@ -694,3 +694,41 @@ fn unresolved_trait_item_points_at_item() {
     "#;
     check_errors(src);
 }
+
+#[test]
+fn resolves_associated_constant_via_type_path() {
+    // `<Foo>::N` should resolve the associated constant, just like `Foo::N` does (and as Rust allows).
+    let src = r#"
+    pub trait T { let N: u32; }
+    pub struct Foo {}
+    impl T for Foo { let N: u32 = 3; }
+    fn main() {
+        let _ = <Foo>::N;
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn resolves_enum_variant_via_type_path() {
+    // `<E>::A` should resolve the enum variant, just like `E::A` does (and as Rust allows).
+    let src = r#"
+    pub enum E { A, B }
+    fn main() {
+        let _ = <E>::A;
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn resolves_generic_enum_variant_via_type_path_binding_receiver_generics() {
+    // `<E<bool>>::A` must bind the receiver type's generics (type `E<bool>`), like `E::<bool>::A`.
+    let src = r#"
+    pub enum E<T> { A, B(T) }
+    fn main() {
+        let _: E<bool> = <E<bool>>::A;
+    }
+    "#;
+    assert_no_errors(src);
+}

@@ -195,6 +195,17 @@ impl NamedGeneric {
         };
         Self { type_var, name, implicit, original_type_var_id }
     }
+
+    /// Whether this generic represents an associated-type or associated-constant projection
+    /// rather than an ordinary user-written generic.
+    ///
+    /// Associated items are modeled as `NamedGeneric`s whose name is the projection that
+    /// disambiguates them, formatted as `<{object} as {trait}>::{name}` or `Self::{name}` (see
+    /// [`NamedGeneric::new`]). An ordinary generic's name is always a plain identifier, so the
+    /// `::` in a projection name is a reliable marker.
+    pub fn is_associated(&self) -> bool {
+        self.name.contains("::")
+    }
 }
 
 /// A Kind is the type of a Type. These are used since only certain kinds of types are allowed in

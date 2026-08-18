@@ -7,7 +7,7 @@ use async_lsp::lsp_types::{
     WorkDoneProgressParams,
 };
 
-pub(crate) async fn init_lsp_server(directory: &str) -> (LspState, Url) {
+pub(crate) fn init_lsp_server(directory: &str) -> (LspState, Url) {
     let client = ClientSocket::new_closed();
     let mut state = LspState::new(&client, StubbedBlackBoxSolver);
 
@@ -37,7 +37,6 @@ pub(crate) async fn init_lsp_server(directory: &str) -> (LspState, Url) {
     };
 
     let _initialize_response = crate::requests::on_initialize(&mut state, initialize_params)
-        .await
         .expect("Could not initialize LSP server");
 
     (state, noir_text_document)
@@ -50,12 +49,12 @@ pub(crate) async fn init_lsp_server(directory: &str) -> (LspState, Url) {
 /// dependency crates the test refers to (e.g. `one`, `std`).
 ///
 /// Returns the LSP state and the opened file's URI.
-pub(crate) async fn init_lsp_server_with_inline_source(
+pub(crate) fn init_lsp_server_with_inline_source(
     workspace_directory: &str,
     relative_file_path: &str,
     src: &str,
 ) -> (LspState, Url) {
-    let (mut state, root_marker_uri) = init_lsp_server(workspace_directory).await;
+    let (mut state, root_marker_uri) = init_lsp_server(workspace_directory);
 
     // `init_lsp_server` returns a URI pointing at `<workspace>/src/main.nr` regardless of layout;
     // step up to the workspace root, then descend to the file we actually want to open.
@@ -83,14 +82,14 @@ pub(crate) async fn init_lsp_server_with_inline_source(
 /// `>|<` cursor marker. The marker is stripped before the document is opened, and its
 /// position is returned alongside the cleaned source so the caller can issue a request at
 /// the cursor and (e.g.) apply text edits against the cleaned source.
-pub(crate) async fn init_lsp_server_with_inline_source_and_cursor(
+pub(crate) fn init_lsp_server_with_inline_source_and_cursor(
     workspace_directory: &str,
     relative_file_path: &str,
     src: &str,
 ) -> (LspState, Url, Position, String) {
     let (line, column, src) = crate::utils::get_cursor_line_and_column(src);
     let (state, file_uri) =
-        init_lsp_server_with_inline_source(workspace_directory, relative_file_path, &src).await;
+        init_lsp_server_with_inline_source(workspace_directory, relative_file_path, &src);
     let position = Position { line: line as u32, character: column as u32 };
     (state, file_uri, position, src)
 }

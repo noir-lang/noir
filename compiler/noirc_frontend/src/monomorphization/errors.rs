@@ -34,8 +34,11 @@ pub enum MonomorphizationError {
     ReferenceParameterToOracle { typ: String, location: Location },
     VectorWithNestedArrayReturnedFromOracle { typ: String, location: Location },
     InvalidTypeForEntryPoint { invalid_type: InvalidType, location: Location },
+    InputLimitExceeded { num_elements: u64, max_elements: u64, location: Location },
+    ReturnLimitExceeded { num_elements: u64, max_elements: u64, location: Location },
     ComplexType { complexity: usize, max_complexity: usize, location: Location },
     CannotUseFunctionAsValue { name: String, location: Location },
+    UnknownBuiltin { name: String, location: Location },
     GlobalContainsFunctionPointer { typ: String, location: Location },
     CalledDisabledFunction { name: String, location: Location },
 }
@@ -74,8 +77,11 @@ impl MonomorphizationError {
             | MonomorphizationError::ReferenceParameterToOracle { location, .. }
             | MonomorphizationError::VectorWithNestedArrayReturnedFromOracle { location, .. }
             | MonomorphizationError::InvalidTypeForEntryPoint { location, .. }
+            | MonomorphizationError::InputLimitExceeded { location, .. }
+            | MonomorphizationError::ReturnLimitExceeded { location, .. }
             | MonomorphizationError::ComplexType { location, .. }
             | MonomorphizationError::CannotUseFunctionAsValue { location, .. }
+            | MonomorphizationError::UnknownBuiltin { location, .. }
             | MonomorphizationError::GlobalContainsFunctionPointer { location, .. }
             | MonomorphizationError::CalledDisabledFunction { location, .. } => *location,
             MonomorphizationError::InterpreterError(error) => error.location(),
@@ -230,6 +236,16 @@ impl From<MonomorphizationError> for CustomDiagnostic {
                 invalid_type.add_to_diagnostic(*location, &mut diagnostic);
                 return diagnostic;
             }
+            MonomorphizationError::InputLimitExceeded { num_elements, max_elements, .. } => {
+                format!(
+                    "An input parameter has {num_elements} elements which exceeds the limit of {max_elements}"
+                )
+            }
+            MonomorphizationError::ReturnLimitExceeded { num_elements, max_elements, .. } => {
+                format!(
+                    "The return value has {num_elements} elements which exceeds the limit of {max_elements}"
+                )
+            }
             MonomorphizationError::ComplexType { complexity, max_complexity, location } => {
                 let message = format!(
                     "Type is too complex (complexity: {complexity}, max: {max_complexity})",
@@ -242,6 +258,11 @@ impl From<MonomorphizationError> for CustomDiagnostic {
                     "`{name}` cannot be used as a function value; it must be called directly"
                 );
                 let secondary = "Used as a value here".to_string();
+                return CustomDiagnostic::simple_error(message, secondary, *location);
+            }
+            MonomorphizationError::UnknownBuiltin { name, location } => {
+                let message = format!("`{name}` is not a builtin function known to the compiler");
+                let secondary = "Called here".to_string();
                 return CustomDiagnostic::simple_error(message, secondary, *location);
             }
             MonomorphizationError::GlobalContainsFunctionPointer { typ, location } => {

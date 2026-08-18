@@ -106,6 +106,7 @@ impl Debug for SsaErrorWithSource {
         let span = self.error.span();
 
         let mut byte: usize = 0;
+        let mut printed_error = false;
         for line in self.src.lines() {
             let has_error =
                 byte <= span.start() as usize && span.end() as usize <= byte + line.len();
@@ -122,10 +123,18 @@ impl Debug for SsaErrorWithSource {
                 write!(f, "{}", " ".repeat(offset))?;
                 writeln!(f, "{}", self.error)?;
                 writeln!(f)?;
+                printed_error = true;
             }
 
             byte += line.len() + 1; // "+ 1" for the newline
         }
+
+        // No source line covered the error span (e.g. empty or whitespace-only input); still
+        // surface the message so the failure isn't reported as a blank error.
+        if !printed_error {
+            writeln!(f, "{}", self.error)?;
+        }
+
         Ok(())
     }
 }
@@ -156,6 +165,8 @@ pub(crate) enum SsaError {
         "Function '{function_name}' is declared as `{stated}` but its instructions compute `{computed}`"
     )]
     PurityMismatch { function_name: String, stated: Purity, computed: Purity, span: Span },
+    #[error("The SSA has no functions; expected at least a `main` function")]
+    NoFunctions,
 }
 
 impl SsaError {
@@ -172,6 +183,7 @@ impl SsaError {
             | SsaError::IllegalOffset(identifier, _) => identifier.span,
             SsaError::MismatchedReturnValues { returns, expected: _ } => returns[0].span,
             SsaError::PurityMismatch { span, .. } => *span,
+            SsaError::NoFunctions => Span::initial(),
         }
     }
 }

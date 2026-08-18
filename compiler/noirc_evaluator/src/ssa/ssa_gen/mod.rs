@@ -18,7 +18,6 @@ use noirc_frontend::hir_def::types::Type as HirType;
 use noirc_frontend::monomorphization::ast::{self, Expression, MatchCase, Program, While};
 use noirc_frontend::shared::Visibility;
 
-use crate::ssa::opt::pure::Purity;
 use crate::{
     errors::RuntimeError,
     ssa::{function_builder::data_bus::DataBusBuilder, ir::instruction::Intrinsic},
@@ -65,7 +64,8 @@ pub fn generate_ssa(program: Program) -> Result<Ssa, RuntimeError> {
     let main_id = Program::main_id();
     let main = context.program.main();
 
-    // Queue the main function for compilation
+    // Queue the main function for compilation; the `FunctionContext` constructor below pops
+    // it back off the queue.
     context.get_or_queue_function(main_id);
     let main_runtime = if main.unconstrained {
         RuntimeType::Brillig(main.inline_type)
@@ -74,6 +74,22 @@ pub fn generate_ssa(program: Program) -> Result<Ssa, RuntimeError> {
     };
     let mut function_context =
         FunctionContext::new(main.name.clone(), &main.parameters, main_runtime, &context, globals);
+    function_context.builder.current_function.dfg.allow_constant_return =
+        main.allow_constant_return;
+
+    // Queue every other entry point up front rather than on demand, because `create_program`
+    // derives one function signature per AST entry point and pairs them with the generated
+    // circuits positionally:
+    // - an entry point whose only call site is eliminated as statically unreachable during
+    //   codegen would otherwise never be queued, producing fewer circuits than signatures;
+    // - queueing here, in declaration order, assigns the entry points contiguous function ids
+    //   right after `main`, so the circuits keep the same order as the signatures independent
+    //   of the order in which calls to them are first encountered.
+    for function in &context.program.functions {
+        if function.is_entry_point && function.id != main_id {
+            context.get_or_queue_function(function.id);
+        }
+    }
 
     // Generate the call_data bus from the relevant parameters. We create it *before* processing the function body
     let call_data = function_context.builder.call_data_bus(is_databus);
@@ -136,15 +152,18 @@ pub fn generate_ssa(program: Program) -> Result<Ssa, RuntimeError> {
 
     let ssa = function_context.builder.finish();
 
-    validate_ssa_or_err(ssa)
+    validate_ssa_or_err(ssa, true)
 }
 
 /// Run the panicky validation, and try to turn it into a [`RuntimeError`] if it fails.
-fn validate_ssa_or_err(ssa: Ssa) -> Result<Ssa, RuntimeError> {
+///
+/// On failure the SSA is printed when the `NOIR_SHOW_INVALID_SSA` env var is set.
+pub fn validate_ssa_or_err(ssa: Ssa, full: bool) -> Result<Ssa, RuntimeError> {
     // Temporarily take the hook, so we don't get the panic printout.
     let old_hook = std::panic::take_hook();
     std::panic::set_hook(Box::new(|_info| {}));
-    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| validate_ssa(&ssa)));
+    let result =
+        std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| validate_ssa(&ssa, full)));
     std::panic::set_hook(old_hook);
 
     if let Err(payload) = result {
@@ -169,9 +188,9 @@ fn validate_ssa_or_err(ssa: Ssa) -> Result<Ssa, RuntimeError> {
     }
 }
 
-pub fn validate_ssa(ssa: &Ssa) {
+pub fn validate_ssa(ssa: &Ssa, full: bool) {
     for function in ssa.functions.values() {
-        validate_function(function, ssa);
+        validate_function(function, ssa, full);
     }
 }
 
@@ -238,10 +257,10 @@ impl FunctionContext<'_> {
             ast::Definition::Oracle { name, pure } => {
                 self.builder.import_foreign_function(name, *pure).into()
             }
-            ast::Definition::Builtin(name) | ast::Definition::LowLevel(name) => {
-                match self.builder.import_intrinsic(name) {
-                    Some(builtin) => builtin.into(),
-                    None => panic!("No builtin function named '{name}' found"),
+            ast::Definition::Builtin(builtin) | ast::Definition::LowLevel(builtin) => {
+                match Intrinsic::from_builtin(*builtin) {
+                    Some(intrinsic) => self.builder.import_intrinsic_id(intrinsic).into(),
+                    None => panic!("No builtin function named '{builtin}' found"),
                 }
             }
         }
@@ -394,7 +413,7 @@ impl FunctionContext<'_> {
     ///
     /// The value returned from this function is always that of the allocate instruction.
     fn codegen_array(&mut self, elements: Vec<Values>, typ: Type) -> Values {
-        let mut array = im::Vector::new();
+        let mut array = imbl::Vector::new();
 
         for element in elements {
             element.for_each(|element| {
@@ -433,19 +452,30 @@ impl FunctionContext<'_> {
                     unary.location,
                 ))
             }
-            UnaryOp::Reference { mutable } => {
+            UnaryOp::Reference { mutable: _ } => {
                 let rhs = self.codegen_reference(&unary.rhs)?;
                 // If skip is set then `rhs` is a member access expression which is already a reference
                 if unary.skip {
                     return Ok(rhs);
                 }
-                Ok(rhs.map(|rhs| {
+                let ast::Type::Reference(element_type, _) = &unary.result_type else {
+                    panic!(
+                        "codegen_unary: expected reference result type for a Reference unary op, got {}",
+                        unary.result_type
+                    );
+                };
+                let element_types = Self::convert_type(element_type);
+                Ok(rhs.map_both(element_types, |rhs, element_type| {
                     match rhs {
                         value::Value::Normal(value) => {
-                            let rhs_type =
-                                self.builder.current_function.dfg.type_of_value(value).into_owned();
-                            let alloc =
-                                self.builder.insert_allocate_with_mutability(rhs_type, mutable);
+                            // The cell uses the borrow's declared pointee type — the
+                            // value may carry a more-mutable reference type than the
+                            // borrow declares — and is always allocated as `&mut T`,
+                            // even for an immutable borrow: the initializing store
+                            // below is only valid through a mutable reference type,
+                            // and a `&mut T` value may be used wherever `&T` is
+                            // expected.
+                            let alloc = self.builder.insert_allocate(element_type);
                             self.builder.insert_store(alloc, value);
                             Tree::Leaf(value::Value::Normal(alloc))
                         }
@@ -1347,29 +1377,13 @@ impl FunctionContext<'_> {
         let function = self.codegen_non_tuple_expression(&call.func)?;
         let mut arguments = Vec::with_capacity(call.arguments.len());
 
-        // Do we know that the callee won't modify its arguments? Foreign calls only read their
-        // inputs, and the same property propagates through thin wrappers that only forward to
-        // a foreign call (e.g. `println` -> `print_unconstrained` -> `print` oracle).
-        let program = &self.shared_context.program;
-        let can_modify_args = !is_pure_builtin_func(&call.func)
-            && !is_oracle_func(&call.func)
-            && !is_oracle_wrapper(&call.func, program);
-
+        // The ownership pass decides which arguments need a `Clone` (lowered to an
+        // `IncrementRc` for arrays), including skipping the clone for callees known
+        // not to modify their arguments. See `noirc_frontend::ownership::clone_elision`.
         for argument in &call.arguments {
-            // The ownership pass inserts `Clone` around call arguments, however if we know that
-            // we are calling a builtin function that will not modify the argument, then we can
-            // skip generating an `IncrementRc` for cloned arrays.
-            // The purity information isn't currently available to the ownership pass.
-            let arg = match argument {
-                Expression::Clone(arg) if !can_modify_args => arg.as_ref(),
-                other => other,
-            };
-            let mut values = self.codegen_expression(arg)?.into_value_list(self);
+            let mut values = self.codegen_expression(argument)?.into_value_list(self);
             arguments.append(&mut values);
         }
-
-        // Don't need to increment array reference counts when passed in as arguments
-        // since it is done within the function to each parameter already.
 
         self.codegen_intrinsic_call_checks(function, &arguments, call.location);
 
@@ -1455,14 +1469,19 @@ impl FunctionContext<'_> {
                 {
                     // We need to put in a constraint to protect against accessing empty vectors:
                     // * In Brillig this is essential, otherwise it would read an unrelated piece of memory.
-                    // * In ACIR we do have protection against reading empty vectors (it returns "Index Out of Bounds"), so we don't get invalid reads.
+                    // * In ACIR we do have protection against reading empty vectors, so we don't get invalid reads.
                     //   The memory operations in ACIR ignore the side effect variables, so even if we added a constraint here, it could still fail
                     //   when it inevitably tries to read from an empty vector anyway. We have to handle that by removing operations which are known
                     //   to fail and replace them with conditional constraints that do take the side effect into account.
                     // By doing this in the SSA we might be able to optimize this away later.
+                    //
+                    // The error must match the one ACIR's `vector_pop_new_length` raises, otherwise the
+                    // same failing pop reports differently depending on the runtime it was compiled to.
                     let zero =
                         self.builder.numeric_constant(0u32, NumericType::Unsigned { bit_size: 32 });
-                    self.codegen_access_check(zero, arguments[0], None);
+                    let error =
+                        ConstrainError::from("Attempt to pop from an empty vector".to_owned());
+                    self.codegen_access_check(zero, arguments[0], Some(error));
                 }
                 _ => {
                     // Do nothing as the other intrinsics do not require checks
@@ -1478,15 +1497,23 @@ impl FunctionContext<'_> {
     fn codegen_let(&mut self, let_expr: &ast::Let) -> Result<Values, RuntimeError> {
         let mut values = self.codegen_expression(&let_expr.expression)?;
 
-        values = values.map(|value| {
-            let value = value.eval(self);
-
-            Tree::Leaf(if let_expr.mutable {
-                self.new_mutable_variable(value)
-            } else {
-                value::Value::Normal(value)
-            })
-        });
+        if let_expr.mutable {
+            // The variable's cells use the declared type, not the initializer
+            // value's type: the initializer can carry a more-mutable reference
+            // type than the binding declares (a borrow is `&mut T`-typed even
+            // when the binding declares `&T`), while later assignments store
+            // values typed exactly as declared.
+            let element_types = Self::convert_type(&let_expr.typ);
+            values = values.map_both(element_types, |value, element_type| {
+                let value = value.eval(self);
+                Tree::Leaf(self.new_mutable_variable_with_type(value, element_type))
+            });
+        } else {
+            values = values.map(|value| {
+                let value = value.eval(self);
+                Tree::Leaf(value::Value::Normal(value))
+            });
+        }
 
         self.define(let_expr.id, values);
         Ok(Self::unit_value())
@@ -1619,119 +1646,5 @@ impl FunctionContext<'_> {
             Err(RuntimeError::BreakOrContinue { .. }) => Ok(()),
             Err(err) => Err(err),
         }
-    }
-}
-
-/// Return whether the expression refers to a builtin or low level function for
-/// which the ownership pass's `Clone` around an array argument can be safely
-/// elided: the callee must neither modify the input nor return an alias of it
-/// that a later Brillig mutation could observe.
-fn is_pure_builtin_func(expr: &Expression) -> bool {
-    let Expression::Ident(ident) = expr else {
-        return false;
-    };
-    let (ast::Definition::Builtin(name) | ast::Definition::LowLevel(name)) = &ident.definition
-    else {
-        return false;
-    };
-    let Some(intrinsic) = Intrinsic::lookup(name) else {
-        return false;
-    };
-
-    // Some intrinsics are technically pure but unsafe to elide clones around in
-    // Brillig: vector mutators mutate through the input pointer when RC=1, and
-    // no-op conversions (`str_as_bytes`, `array_as_str_unchecked`) return an
-    // alias of their input that a later mutation could corrupt.
-    if intrinsic.unsafe_for_clone_elision_in_brillig() {
-        return false;
-    }
-
-    matches!(intrinsic.purity(), Purity::Pure | Purity::PureWithPredicate)
-}
-
-/// Return whether the expression refers to a foreign function.
-fn is_oracle_func(expr: &Expression) -> bool {
-    matches!(expr, Expression::Ident(ast::Ident { definition: ast::Definition::Oracle { .. }, .. }))
-}
-
-/// Return whether the expression refers to a function whose body, after peeling block/semi
-/// wrapping, is exactly one [`Call`](ast::Call) whose target is either an oracle directly
-/// or another oracle wrapper, and whose arguments are structurally side-effect-free.
-///
-/// Such "thin wrappers" inherit the input-preserving property of oracles: foreign calls
-/// only read their inputs (values are copied across the runtime boundary), so a wrapper
-/// that forwards to one cannot modify its array arguments either. This lets us drop the
-/// `Clone` that the ownership pass conservatively inserts around array arguments.
-fn is_oracle_wrapper(expr: &Expression, program: &Program) -> bool {
-    /// Maximum recursion depth for [`is_oracle_wrapper`]. Real wrapper chains are 2–3 deep
-    /// (e.g. `println` -> `print_unconstrained` -> `print` oracle); the bound only exists to
-    /// keep pathological inputs from blowing the stack.
-    const ORACLE_WRAPPER_MAX_DEPTH: u32 = 5;
-
-    /// `depth` is the maximum remaining recursion depth; reaching zero bails out conservatively.
-    fn go(expr: &Expression, program: &Program, depth: u32) -> bool {
-        if depth == 0 {
-            return false;
-        }
-        let Expression::Ident(ident) = expr else {
-            return false;
-        };
-        let ast::Definition::Function(func_id) = &ident.definition else {
-            return false;
-        };
-        let Some(inner) = peel_to_single_call(&program[*func_id].body) else {
-            return false;
-        };
-        if !inner.arguments.iter().all(is_side_effect_free_arg) {
-            return false;
-        }
-        is_oracle_func(&inner.func) || go(&inner.func, program, depth - 1)
-    }
-
-    go(expr, program, ORACLE_WRAPPER_MAX_DEPTH)
-}
-
-/// If `expr` is a block or `Semi` wrapping that ultimately reduces to a single
-/// [`Call`](ast::Call), return that call. Otherwise return `None`.
-fn peel_to_single_call(expr: &Expression) -> Option<&ast::Call> {
-    match expr {
-        Expression::Call(call) => Some(call),
-        Expression::Semi(inner) => peel_to_single_call(inner),
-        Expression::Block(stmts) if stmts.len() == 1 => peel_to_single_call(&stmts[0]),
-        _ => None,
-    }
-}
-
-/// Conservatively check whether evaluating `expr` cannot mutate any caller-visible state.
-///
-/// Used by [`is_oracle_wrapper`] to confirm that the inner call's arguments do not run
-/// any side-effectful computation (such as an `Assign` against the wrapper's parameter)
-/// before the forwarded oracle call. Anything not on this whitelist — `Block`, `Semi`,
-/// `Assign`, `Let`, nested `Call`, control flow, etc. — is treated as potentially
-/// side-effectful and rejects the wrapper classification.
-fn is_side_effect_free_arg(expr: &Expression) -> bool {
-    match expr {
-        Expression::Ident(_) => true,
-        Expression::Literal(lit) => match lit {
-            ast::Literal::Array(arr) | ast::Literal::Vector(arr) => {
-                arr.contents.iter().all(is_side_effect_free_arg)
-            }
-            ast::Literal::Repeated { element, .. } => is_side_effect_free_arg(element),
-            ast::Literal::Integer(..)
-            | ast::Literal::Bool(_)
-            | ast::Literal::Unit
-            | ast::Literal::Str(_) => true,
-            ast::Literal::FmtStr(_, _, inner) => is_side_effect_free_arg(inner),
-        },
-        Expression::ExtractTupleField(inner, _) => is_side_effect_free_arg(inner),
-        Expression::Tuple(items) => items.iter().all(is_side_effect_free_arg),
-        Expression::Index(idx) => {
-            is_side_effect_free_arg(&idx.collection) && is_side_effect_free_arg(&idx.index)
-        }
-        Expression::Cast(cast) => is_side_effect_free_arg(&cast.lhs),
-        Expression::Unary(u) => is_side_effect_free_arg(&u.rhs),
-        Expression::Binary(b) => is_side_effect_free_arg(&b.lhs) && is_side_effect_free_arg(&b.rhs),
-        Expression::Clone(inner) => is_side_effect_free_arg(inner),
-        _ => false,
     }
 }

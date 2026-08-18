@@ -69,6 +69,10 @@ pub enum ResolverError {
     GenericsOnGeneric { location: Location },
     #[error("Cannot apply generics on a wildcard type")]
     GenericsOnWildcardType { location: Location },
+    #[error(
+        "generic arguments are not allowed on both an enum and its variant's path segments simultaneously; they are only valid in one place or the other"
+    )]
+    DuplicateEnumGenerics { location: Location },
     #[error("{0}")]
     ParserError(Box<ParserError>),
     #[error("Closure environment must be a tuple or unit type")]
@@ -109,6 +113,8 @@ pub enum ResolverError {
     DependencyCycle { location: Location, item: String, cycle: String },
     #[error("break/continue are only allowed in unconstrained functions")]
     JumpInConstrainedFn { is_break: bool, location: Location },
+    #[error("break/continue are not allowed in assertion messages")]
+    ControlFlowInAssertionMessage { location: Location },
     #[error("`loop` is only allowed in unconstrained functions")]
     LoopInConstrainedFn { location: Location },
     #[error("`loop` must have at least one `break` in it")]
@@ -286,12 +292,14 @@ impl ResolverError {
             | ResolverError::GenericsOnAssociatedType { location }
             | ResolverError::GenericsOnGeneric { location }
             | ResolverError::GenericsOnWildcardType { location }
+            | ResolverError::DuplicateEnumGenerics { location }
             | ResolverError::InvalidClosureEnvironment { location, .. }
             | ResolverError::NestedVectors { location }
             | ResolverError::AbiAttributeOutsideContract { location, .. }
             | ResolverError::NonAbiTypeInAbiGlobal { location, .. }
             | ResolverError::DependencyCycle { location, .. }
             | ResolverError::JumpInConstrainedFn { location, .. }
+            | ResolverError::ControlFlowInAssertionMessage { location }
             | ResolverError::LoopInConstrainedFn { location }
             | ResolverError::LoopWithoutBreak { location }
             | ResolverError::WhileInConstrainedFn { location }
@@ -560,6 +568,11 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                 "The wildcard type `_` cannot take generic arguments".into(),
                 *location,
             ),
+            ResolverError::DuplicateEnumGenerics { location } => Diagnostic::simple_error(
+                "generic arguments are not allowed on both an enum and its variant's path segments simultaneously; they are only valid in one place or the other".into(),
+                "remove the generics arguments from one of the path segments".into(),
+                *location,
+            ),
             ResolverError::ParserError(error) => error.as_ref().into(),
             ResolverError::InvalidClosureEnvironment { location, typ } => Diagnostic::simple_error(
                 format!("{typ} is not a valid closure environment type"),
@@ -679,6 +692,13 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                     *location,
                 )
             },
+            ResolverError::ControlFlowInAssertionMessage { location } => {
+                Diagnostic::simple_error(
+                    "break/continue are not allowed in assertion messages".into(),
+                    "Assertion messages cannot change control flow".into(),
+                    *location,
+                )
+            }
             ResolverError::LoopInConstrainedFn { location } => {
                 Diagnostic::simple_error(
                     "`loop` is only allowed in unconstrained functions".into(),

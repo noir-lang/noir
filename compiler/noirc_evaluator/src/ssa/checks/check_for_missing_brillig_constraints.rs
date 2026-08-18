@@ -202,7 +202,8 @@ impl TaintedDescendants {
     }
 
     /// Whether there are any unconstrained outputs left.
-    fn is_constrained(&self) -> bool {
+    /// Returns `true` if the call is fully constrained.
+    fn is_fully_constrained(&self) -> bool {
         self.single_outputs.is_empty() && self.array_outputs.is_empty()
     }
 
@@ -217,7 +218,10 @@ impl TaintedDescendants {
     ///
     /// Any constrained output is added to the `all_constrained` set.
     ///
-    /// Return `true` if all outputs have been constrained.
+    /// Returns `true` if at least one output was cleared by this call. Each output is
+    /// cleared at most once (it is removed from its set when cleared), so this reflects
+    /// genuinely new progress, which the fixed-point loop in [`Context::constrain_tainted`]
+    /// uses to decide whether another walk is worthwhile.
     fn try_constrain(
         &mut self,
         constrained_values: &[ValueId],
@@ -251,6 +255,9 @@ impl TaintedDescendants {
             return false;
         }
 
+        // Set whenever an output is cleared below.
+        let mut progressed = false;
+
         // Remove any results that have been directly or indirectly constrained.
         self.single_outputs.retain(|output| {
             let constrained = constrained_values.iter().any(|value| {
@@ -259,6 +266,7 @@ impl TaintedDescendants {
 
             if constrained {
                 all_constrained.insert(*output);
+                progressed = true;
             }
 
             !constrained
@@ -293,6 +301,7 @@ impl TaintedDescendants {
 
                 if constrained {
                     all_constrained.extend(descendants.iter());
+                    progressed = true;
                 }
 
                 !constrained
@@ -302,7 +311,7 @@ impl TaintedDescendants {
             !index_outputs.is_empty()
         });
 
-        self.is_constrained()
+        progressed
     }
 
     /// Whether one of the constrained values:
@@ -700,12 +709,42 @@ impl Context {
         func: &Function,
         all_functions: &BTreeMap<FunctionId, Function>,
     ) -> Self {
+        // Persists across passes: an output shown to be constrained anywhere in the
+        // function stays constrained, so a later constraint can rely on it regardless
+        // of the source order of the two assertions. This is what makes the check
+        // order-independent and requires iterating to a fixed point below.
+        let mut all_constrained = ValueSet::new(&func.dfg);
+
+        loop {
+            let progressed = self.constrain_tainted_pass(func, all_functions, &mut all_constrained);
+
+            // Re-walk only while we are still making progress and work remains.
+            // Fully constrained functions empty `tainted` in the first pass (no
+            // extra walk), and genuinely under-constrained ones make no progress and stop.
+            if self.tainted.is_empty() || !progressed {
+                break;
+            }
+        }
+
+        self
+    }
+
+    /// A single Reverse Post Order walk attempting to constrain Brillig outputs,
+    /// accumulating cleared outputs into `all_constrained`. See [`Self::constrain_tainted`].
+    ///
+    /// Returns `true` if at least one output was cleared during the walk.
+    fn constrain_tainted_pass(
+        &mut self,
+        func: &Function,
+        all_functions: &BTreeMap<FunctionId, Function>,
+        all_constrained: &mut ValueSet,
+    ) -> bool {
         // Constraints on tainted output cannot be used to connect output to input.
         let mut all_tainted = ValueSet::new(&func.dfg);
-        // Unless such output has already been shown to be constrained.
-        let mut all_constrained = ValueSet::new(&func.dfg);
         // Skip checks until we encounter the tainted instruction.
         let mut active_tainted = HashSet::new();
+        // Whether any output was cleared during this walk.
+        let mut progressed = false;
 
         // Traverse in Reverse Post Order, ie. top-down.
         for block_id in self.post_order.clone().into_iter().rev() {
@@ -742,26 +781,27 @@ impl Context {
                             return true;
                         }
 
-                        let constrained = tainted.try_constrain(
+                        progressed |= tainted.try_constrain(
                             &constrained_values,
                             parents,
                             equivalences,
                             &all_tainted,
-                            &mut all_constrained,
+                            &mut *all_constrained,
                             self.max_ancestor_distance,
                         );
 
-                        if constrained {
+                        let fully_constrained = tainted.is_fully_constrained();
+                        if fully_constrained {
                             active_tainted.remove(id);
                         }
 
-                        !constrained
+                        !fully_constrained
                     });
                 }
             }
         }
 
-        self
+        progressed
     }
 
     /// Every Brillig call not properly constrained should remain in the tainted set
@@ -1896,5 +1936,86 @@ mod tests {
             1,
             "arr[idx] == x with dynamic idx does not constrain arr[0] = brillig(x)"
         );
+    }
+
+    #[test]
+    #[traced_test]
+    /// Regression test for <https://github.com/noir-lang/noir/issues/12506>:
+    /// an equivalence between two Brillig outputs must clear the second call
+    /// even when it appears *before* the constraint that pins the first output.
+    /// The result must not depend on the source order of the two assertions.
+    fn equivalence_before_pin_is_order_independent() {
+        let program = r#"
+        acir(inline) fn main f0 {
+          b0(v0: Field):
+            v1 = add v0, Field 3
+            v2 = call f1(v1) -> Field
+            v3 = call f1(v1) -> Field
+            constrain v2 == v3   // (A) equivalence of the two outputs, seen first
+            constrain v2 == v1   // (B) pins the first output to an input-derived value
+            return
+        }
+
+        brillig(inline) fn read_imm f1 {
+          b0(v0: Field):
+            return v0
+        }
+        "#;
+
+        let ssa_level_warnings = check_for_missing_brillig_constraints_in_ssa(program);
+        assert_eq!(ssa_level_warnings.len(), 0);
+    }
+
+    #[test]
+    #[traced_test]
+    /// Mirror of [`equivalence_before_pin_is_order_independent`] with the
+    /// assertions in the opposite order, which already compiled cleanly before
+    /// the fix. Both orders must now agree (no warning).
+    fn pin_before_equivalence_is_order_independent() {
+        let program = r#"
+        acir(inline) fn main f0 {
+          b0(v0: Field):
+            v1 = add v0, Field 3
+            v2 = call f1(v1) -> Field
+            v3 = call f1(v1) -> Field
+            constrain v2 == v1   // (B) pins the first output to an input-derived value
+            constrain v2 == v3   // (A) equivalence of the two outputs
+            return
+        }
+
+        brillig(inline) fn read_imm f1 {
+          b0(v0: Field):
+            return v0
+        }
+        "#;
+
+        let ssa_level_warnings = check_for_missing_brillig_constraints_in_ssa(program);
+        assert_eq!(ssa_level_warnings.len(), 0);
+    }
+
+    #[test]
+    #[traced_test]
+    /// Multi-output variant of [`equivalence_before_pin_is_order_independent`]:
+    /// a single Brillig call returns two outputs, an equivalence between them is
+    /// seen before the constraint that pins the first output. Clearing the first
+    /// output leaves the call partially tainted, so the fixed-point loop must
+    /// re-walk (tracking cleared outputs, not whole calls) to clear the second.
+    fn multi_output_equivalence_before_pin_is_order_independent() {
+        let program = r#"
+    acir(inline) predicate_pure fn main f0 {
+      b0(v0: u32):
+        v1, v2 = call f1(v0) -> (u32, u32)
+        constrain v1 == v2
+        constrain v1 == v0
+        return
+    }
+    brillig(inline) pure fn f f1 {
+      b0(v0: u32):
+        return v0, v0
+    }
+    "#;
+
+        let ssa_level_warnings = check_for_missing_brillig_constraints_in_ssa(program);
+        assert_eq!(ssa_level_warnings.len(), 0);
     }
 }
