@@ -29,7 +29,7 @@
     "@nomicfoundation/hardhat-toolbox-mocha-ethers": "^3.0.7",
     "@nomicfoundation/hardhat-typechain": "^3.1.1",
     "@nomicfoundation/hardhat-verify": "^3.0.22",
-    "@web/dev-server-esbuild": "^1.0.5",
+    "@web/dev-server-esbuild": "^2.0.0",
     "@web/dev-server-import-maps": "^0.3.0",
     "@web/test-runner": "^0.20.2",
     "@web/test-runner-playwright": "^1.0.0",
