@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1787060145436,
+  "lastUpdate": 1787064110506,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23386,48 +23386,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": true,
-          "id": "54386dfcd6449707ec737e416d90825c0872e96b",
-          "message": "chore: hand nightly fuzz failures straight to ClaudeBox (#13442)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
-          "timestamp": "2026-08-03T16:46:57Z",
-          "tree_id": "2275048e3662594fec231e519a488f41ea35d3b2",
-          "url": "https://github.com/noir-lang/noir/commit/54386dfcd6449707ec737e416d90825c0872e96b"
-        },
-        "date": 1785776841127,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 128390,
-            "range": "± 625",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 114224,
-            "range": "± 4059",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 3040962,
-            "range": "± 29252",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "49558828+AztecBot@users.noreply.github.com",
-            "name": "Aztec Bot",
-            "username": "AztecBot"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
           "id": "940e8cc7aea71a93d812739607c6f55340867f8c",
           "message": "fix(ci): close truncated expression in nightly fuzz workflow (#13458)",
           "timestamp": "2026-08-04T08:38:41+01:00",
@@ -25469,6 +25427,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2018083,
             "range": "± 13228",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "9d66a0e905c7bc8deb68632cb7d06097e016284f",
+          "message": "chore: resolve builtin/foreign attribute names to a shared enum (#13521)\n\nCo-authored-by: Claude Fable 5 <noreply@anthropic.com>",
+          "timestamp": "2026-08-18T14:17:56Z",
+          "tree_id": "7954f7b213b8726a90fa506a7eda1bb114d9a845",
+          "url": "https://github.com/noir-lang/noir/commit/9d66a0e905c7bc8deb68632cb7d06097e016284f"
+        },
+        "date": 1787064009090,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 126493,
+            "range": "± 372",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 112895,
+            "range": "± 1332",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 3043572,
+            "range": "± 11484",
             "unit": "ns/iter"
           }
         ]
