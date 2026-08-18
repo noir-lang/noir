@@ -427,6 +427,27 @@ fn disallows_mutable_reference_to_member_behind_immutable_reference() {
 }
 
 #[test]
+fn disallows_mutable_reference_to_member_behind_immutable_reference_implicit_deref() {
+    // Implicit-deref spelling of the program in
+    // `disallows_mutable_reference_to_member_behind_immutable_reference`:
+    // `r.x` auto-derefs `r`, so this is the same program as `&mut (*r).x`.
+    let src = r#"
+    struct Foo {
+        x: Field,
+    }
+    fn main() {
+        let foo = Foo { x: 1 };
+        let r = &foo;
+        let m = &mut r.x;
+                     ^^^ Cannot take a mutable reference to a value behind a `&` reference
+                     ~~~ A `&` reference grants read-only access to the value behind it
+        let _ = m;
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
 fn allows_reborrows_that_do_not_upgrade_mutability() {
     // The two legal reborrow directions: `&mut *m` on a `&mut T` preserves mutability and
     // `&*m` downgrades it. Only the upgrade (`&mut *r` on a `&T`) is banned.
@@ -942,4 +963,16 @@ fn can_mutate_mutable_reference_inside_immutable_reference() {
     }
     "#;
     assert_no_errors(src);
+}
+
+#[test]
+fn cannot_mutate_immutable_variable_that_is_a_mutable_reference() {
+    let src = r#"
+    fn main() {
+        let x = &mut 1;
+        let _ = &mut x;
+                     ^ Cannot mutate immutable variable `x`
+    }
+    "#;
+    check_errors(src);
 }
