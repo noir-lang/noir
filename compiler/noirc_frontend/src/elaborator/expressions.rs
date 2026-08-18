@@ -684,19 +684,26 @@ impl Elaborator<'_> {
             HirExpression::MemberAccess(member_access) => {
                 let lhs = member_access.lhs;
                 // A field access decides mutability from the receiver's type when the
-                // receiver is a reference: writes reach the referent, so `&mut T` allows
-                // the write outright and `&T` rejects it. Otherwise the receiver is a
-                // value and the recursion continues to whatever roots it.
-                match self.interner.id_type(lhs).follow_bindings() {
-                    Type::Reference(_, false) => {
-                        self.push_cannot_mutate_immutable_reference_error(
-                            lhs,
-                            location,
-                            inside_mutable_ref,
-                        );
+                // receiver is a reference: writes reach the referent, and the field access
+                // auto-dereferences until it lands on a value. Every reference layer along
+                // that chain must be `&mut` for the write to reach an actual value; a
+                // single `&T` anywhere in the chain (e.g. `m: &mut &Foo`) blocks it.
+                let lhs_typ = self.interner.id_type(lhs).follow_bindings();
+                if matches!(lhs_typ, Type::Reference(..)) {
+                    let mut typ = lhs_typ;
+                    while let Type::Reference(inner, mutable) = typ {
+                        if !mutable {
+                            self.push_cannot_mutate_immutable_reference_error(
+                                lhs,
+                                location,
+                                inside_mutable_ref,
+                            );
+                            return;
+                        }
+                        typ = inner.follow_bindings();
                     }
-                    Type::Reference(_, true) => {}
-                    _ => self.check_can_mutate(lhs, location, inside_mutable_ref),
+                } else {
+                    self.check_can_mutate(lhs, location, inside_mutable_ref);
                 }
             }
             HirExpression::Prefix(prefix)
