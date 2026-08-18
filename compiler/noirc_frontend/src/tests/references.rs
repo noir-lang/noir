@@ -448,6 +448,28 @@ fn disallows_mutable_reference_to_member_behind_immutable_reference_implicit_der
 }
 
 #[test]
+fn disallows_mutable_reference_to_member_behind_mutable_reference_to_immutable_reference() {
+    // `m: &mut &Foo` — the field access reaches `Foo` through the inner `&`, so writes
+    // to `m.x` reach a value behind an immutable reference. Every field access down the
+    // chain, not just the outermost reference, must be `&mut` for the write to be legal.
+    let src = r#"
+    struct Foo {
+        x: Field,
+    }
+    fn main() {
+        let foo = Foo { x: 1 };
+        let mut r = &foo;
+        let m = &mut r;
+        let p = &mut m.x;
+                     ^^^ Cannot take a mutable reference to a value behind a `&` reference
+                     ~~~ A `&` reference grants read-only access to the value behind it
+        let _ = p;
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
 fn allows_reborrows_that_do_not_upgrade_mutability() {
     // The two legal reborrow directions: `&mut *m` on a `&mut T` preserves mutability and
     // `&*m` downgrades it. Only the upgrade (`&mut *r` on a `&T`) is banned.
