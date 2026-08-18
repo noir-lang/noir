@@ -411,7 +411,7 @@ fn clone_nested_array_in_lvalue() {
 }
 
 #[test]
-fn pure_builtin_args_get_cloned() {
+fn pure_builtin_args_do_not_get_cloned() {
     let src = "
     unconstrained fn main() -> pub u32 {
         let a = [1, 2, 3];
@@ -423,12 +423,12 @@ fn pure_builtin_args_get_cloned() {
 
     let program = get_monomorphized_with_stdlib(src, &[stdlib_src::ARRAY_LEN]).unwrap();
 
-    // The ownership pass doesn't know which builtin functions are pure and which ones
-    // modifies the arguments, so this optimization is deferred to the SSA generation.
+    // `a` is not at its last use in the first `len` call, but `array_len` cannot
+    // modify it, so the clone is elided anyway. See the `clone_elision` module.
     insta::assert_snapshot!(program, @r"
     unconstrained fn main$f0() -> pub u32 {
         let a$l0 = [1, 2, 3];
-        let x$l1 = len$array_len(a$l0.clone());
+        let x$l1 = len$array_len(a$l0);
         let y$l2 = len$array_len(a$l0);
         (x$l1 + y$l2)
     }
@@ -2334,6 +2334,47 @@ fn break_in_nested_while_condition_clears_killed() {
 }
 
 #[test]
+fn keeps_clone_when_later_sibling_argument_mutates() {
+    // `x` is passed by value to `sha256_compression` and is not at its last use, so it
+    // is cloned. Even though the blackbox callee cannot modify its arguments, the clone
+    // must not be elided: `bump(&mut x, i)` is evaluated after `x` is materialized and
+    // before the call, and without the reference count bump its in-place write would be
+    // visible through the already-materialized argument.
+    let src = "
+    #[foreign(sha256_compression)]
+    fn sha256_compression(input: [u32; 16], state: [u32; 8]) -> [u32; 8] {}
+
+    unconstrained fn bump(x: &mut [u32; 16], i: u32) -> [u32; 8] {
+        (*x)[i] = 7;
+        [1, 2, 3, 4, 5, 6, 7, 8]
+    }
+
+    unconstrained fn main(i: u32) -> pub u64 {
+        let mut x = [i + 1; 16];
+        let out = sha256_compression(x, bump(&mut x, i));
+        out[0] as u64 + x[i] as u64
+    }
+    ";
+
+    let program = get_monomorphized_with_options(
+        src,
+        GetProgramOptions { root_and_stdlib: true, ..Default::default() },
+    )
+    .unwrap();
+    insta::assert_snapshot!(program, @r"
+    unconstrained fn main$f0(i$l0: u32) -> pub u64 {
+        let mut x$l1 = [(i$l0 + 1); 16];
+        let out$l2 = sha256_compression$sha256_compression(x$l1.clone(), bump$f1((&mut x$l1), i$l0));
+        ((out$l2[0] as u64) + (x$l1[i$l0] as u64))
+    }
+    unconstrained fn bump$f1(x$l3: &mut [u32; 16], i$l4: u32) -> [u32; 8] {
+        (*x$l3)[i$l4] = 7;
+        [1, 2, 3, 4, 5, 6, 7, 8]
+    }
+    ");
+}
+
+#[test]
 fn continue_in_nested_while_condition_clears_killed() {
     // The `continue` spelling of `break_in_nested_while_condition_clears_killed`: it also
     // targets the outer loop and can also skip the reassignment `x = [v, v, v]`, so the use
@@ -2379,6 +2420,45 @@ fn continue_in_nested_while_condition_clears_killed() {
             x$l2 = [v$l0, v$l0, v$l0]
         };
         [x$l2[0], z$l3[0]]
+    }
+    ");
+}
+
+#[test]
+fn elides_clone_when_mutation_is_in_earlier_argument() {
+    // Same shape as `keeps_clone_when_later_sibling_argument_mutates`, but the mutation
+    // happens in the first argument: by the time `x` is materialized for the second
+    // argument nothing else runs before the call, so its clone is elided.
+    let src = "
+    #[foreign(sha256_compression)]
+    fn sha256_compression(input: [u32; 16], state: [u32; 8]) -> [u32; 8] {}
+
+    unconstrained fn bump(x: &mut [u32; 8], i: u32) -> [u32; 16] {
+        (*x)[i] = 7;
+        [1; 16]
+    }
+
+    unconstrained fn main(i: u32) -> pub u64 {
+        let mut x = [i + 1; 8];
+        let out = sha256_compression(bump(&mut x, i), x);
+        out[0] as u64 + x[i] as u64
+    }
+    ";
+
+    let program = get_monomorphized_with_options(
+        src,
+        GetProgramOptions { root_and_stdlib: true, ..Default::default() },
+    )
+    .unwrap();
+    insta::assert_snapshot!(program, @r"
+    unconstrained fn main$f0(i$l0: u32) -> pub u64 {
+        let mut x$l1 = [(i$l0 + 1); 8];
+        let out$l2 = sha256_compression$sha256_compression(bump$f1((&mut x$l1), i$l0), x$l1);
+        ((out$l2[0] as u64) + (x$l1[i$l0] as u64))
+    }
+    unconstrained fn bump$f1(x$l3: &mut [u32; 8], i$l4: u32) -> [u32; 16] {
+        (*x$l3)[i$l4] = 7;
+        [1; 16]
     }
     ");
 }

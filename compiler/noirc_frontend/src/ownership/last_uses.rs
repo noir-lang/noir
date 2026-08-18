@@ -96,7 +96,7 @@ struct LastUseContext {
     break_dependent_uses: HashSet<IdentId>,
 }
 
-impl Context {
+impl Context<'_> {
     /// Traverse the given function and return the last use(s) of each local variable.
     /// A variable may have multiple last uses if it was last used within a conditional expression.
     pub(super) fn find_last_uses_of_variables(
