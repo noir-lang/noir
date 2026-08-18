@@ -3639,6 +3639,212 @@ fn module_named_attribute_args_returns_attribute_arguments() {
     check_errors_with_stdlib(src, [META_API_STDLIB]);
 }
 
+/// Returns true if `error` is the `assert(false)` failure raised by the
+/// `must_abort` attribute, looking through any `ComptimeError` wrapping added
+/// while running the attribute.
+fn is_failing_constraint(error: &CompilationError) -> bool {
+    use crate::hir::comptime::InterpreterError;
+    match error {
+        CompilationError::InterpreterError(InterpreterError::FailingConstraint { .. }) => true,
+        CompilationError::ComptimeError(ComptimeError::ErrorRunningAttribute { error, .. }) => {
+            is_failing_constraint(error)
+        }
+        _ => false,
+    }
+}
+
+/// Regression for https://github.com/noir-lang/noir-claude/issues/1439.
+///
+/// A comptime attribute on a top-level function aborts compilation. This is the
+/// control case for the trait-method variants below.
+#[test]
+fn comptime_attribute_on_top_level_function_runs() {
+    let src = r#"
+    #[must_abort]
+    pub fn touched() {}
+
+    comptime fn must_abort(_: FunctionDefinition) {
+        assert(false);
+    }
+
+    fn main() {}
+    "#;
+    let errors = get_program_errors(src);
+    assert!(
+        errors.iter().any(is_failing_constraint),
+        "Expected the attribute's `assert(false)` to abort compilation, but got: {errors:#?}"
+    );
+}
+
+/// Regression for https://github.com/noir-lang/noir-claude/issues/1439.
+///
+/// A comptime attribute on a trait default method must run, just like one on a
+/// top-level function.
+#[test]
+fn comptime_attribute_on_trait_default_method_runs() {
+    let src = r#"
+    pub trait T {
+        #[must_abort]
+        fn default_method(self) {}
+    }
+
+    comptime fn must_abort(_: FunctionDefinition) {
+        assert(false);
+    }
+
+    fn main() {}
+    "#;
+    let errors = get_program_errors(src);
+    assert!(
+        errors.iter().any(is_failing_constraint),
+        "Expected the attribute's `assert(false)` to abort compilation, but got: {errors:#?}"
+    );
+}
+
+/// Regression for https://github.com/noir-lang/noir-claude/issues/1439.
+///
+/// A comptime attribute on a bodyless trait method declaration has no body to
+/// run against, so it is rejected rather than silently skipped or run.
+#[test]
+fn comptime_attribute_on_trait_method_declaration_errors() {
+    let src = r#"
+    trait T {
+        #[must_abort]
+        ^^^^^^^^^^^^^ Comptime attributes are not supported on trait method declarations without a default implementation
+        ~~~~~~~~~~~~~ Give this method a default implementation, or move the attribute onto the method in each impl, for it to run
+        fn required(self);
+    }
+
+    struct S {}
+
+    impl T for S {
+        fn required(self) {}
+    }
+
+    pub comptime fn must_abort(_: FunctionDefinition) {
+        assert(false);
+    }
+
+    fn main() {
+        let s = S {};
+        s.required();
+    }
+    "#;
+    check_errors(src);
+}
+
+/// Regression for https://github.com/noir-lang/noir-claude/issues/1439.
+///
+/// Only comptime (`Meta`) attributes are rejected on bodyless trait method
+/// declarations; ordinary secondary attributes such as `#[deprecated]` remain
+/// allowed.
+#[test]
+fn non_comptime_attribute_on_trait_method_declaration_is_allowed() {
+    let src = r#"
+    trait T {
+        #[deprecated]
+        fn required(self);
+    }
+
+    struct S {}
+
+    impl T for S {
+        fn required(self) {}
+    }
+
+    fn main() {
+        let _ = S {};
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+/// Regression for https://github.com/noir-lang/noir-claude/issues/1439.
+///
+/// A code-generating attribute on a trait default method runs and its generated
+/// item is usable, matching the macro-author use case.
+#[test]
+fn comptime_attribute_on_trait_method_can_generate_items() {
+    let src = r#"
+    pub trait T {
+        #[make_generated]
+        fn method(self) -> Self { self }
+    }
+
+    comptime fn make_generated(_: FunctionDefinition) -> Quoted {
+        quote { fn generated() -> Field { 1 } }
+    }
+
+    fn main() {
+        assert(generated() == 1);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+/// Regression for https://github.com/noir-lang/noir-claude/issues/1439.
+///
+/// An impl that inherits a trait's default method does not re-run a
+/// code-generating attribute on that default method. The default method reuses
+/// the trait's own `FuncId`, so its attribute is collected once at the trait
+/// definition; collecting it again per inheriting impl would generate a
+/// duplicate `generated` function.
+#[test]
+fn comptime_attribute_on_inherited_default_method_runs_once() {
+    let src = r#"
+    pub trait T {
+        #[make_generated]
+        fn method(self) -> Self { self }
+    }
+
+    struct S {}
+    impl T for S {}
+
+    comptime fn make_generated(_: FunctionDefinition) -> Quoted {
+        quote { fn generated() -> Field { 1 } }
+    }
+
+    fn main() {
+        let _ = S {};
+        assert(generated() == 1);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+/// Regression for https://github.com/noir-lang/noir-claude/issues/1439.
+///
+/// A comptime attribute on a trait-impl method runs, matching attributes on
+/// inherent-impl methods and top-level functions. This is the path a user
+/// reaches for when a trait method has no default implementation to attach the
+/// attribute to, so it must attach the attribute to each impl instead.
+#[test]
+fn comptime_attribute_on_trait_impl_method_runs() {
+    let src = r#"
+    pub trait T {
+        fn required(self);
+    }
+
+    struct S {}
+
+    impl T for S {
+        #[must_abort]
+        fn required(self) {}
+    }
+
+    comptime fn must_abort(_: FunctionDefinition) {
+        assert(false);
+    }
+
+    fn main() {}
+    "#;
+    let errors = get_program_errors(src);
+    assert!(
+        errors.iter().any(is_failing_constraint),
+        "Expected the attribute's `assert(false)` to abort compilation, but got: {errors:#?}"
+    );
+}
+
 #[test]
 fn spliced_field_type_generic_rebinds_to_generated_impl_generic() {
     // Regression test for https://github.com/noir-lang/noir/issues/10747
