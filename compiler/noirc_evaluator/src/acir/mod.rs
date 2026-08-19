@@ -661,8 +661,7 @@ impl<'a> Context<'a> {
                 // job is to bound validator-accepted SSA whose earlier failing
                 // instruction is missing.
                 let one = self.acir_context.add_constant(FieldElement::one());
-                self.acir_context
-                    .assert_zero_var(one, "Reached the unreachable".to_string())?;
+                self.acir_context.assert_zero_var(one, "Reached the unreachable".to_string())?;
                 return Ok((vec![], vec![]));
             }
         };
