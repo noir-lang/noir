@@ -605,8 +605,8 @@
 <a href=#605 id=605 data-nosnippet>605</a>                <span class="self">self</span>.brillig_context.codegen_return(<span class="kw-2">&amp;</span>return_registers);
 <a href=#606 id=606 data-nosnippet>606</a>            }
 <a href=#607 id=607 data-nosnippet>607</a>            TerminatorInstruction::Unreachable { .. } =&gt; {
-<a href=#608 id=608 data-nosnippet>608</a>                <span class="comment">// If we assume this is unreachable code then there's nothing to do here
-<a href=#609 id=609 data-nosnippet>609</a>            </span>}
+<a href=#608 id=608 data-nosnippet>608</a>                <span class="self">self</span>.brillig_context.codegen_trap();
+<a href=#609 id=609 data-nosnippet>609</a>            }
 <a href=#610 id=610 data-nosnippet>610</a>        }
 <a href=#611 id=611 data-nosnippet>611</a>    }
 <a href=#612 id=612 data-nosnippet>612</a>
