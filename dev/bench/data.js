@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1787137066129,
+  "lastUpdate": 1787137112949,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23371,48 +23371,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": false,
-          "id": "7926394ccfc0e1d34cd217905cb4c993976bb59b",
-          "message": "chore(deps): bump undici from 7.28.0 to 7.29.0 in /docs (#13459)\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
-          "timestamp": "2026-08-04T07:59:01Z",
-          "tree_id": "71163a0c043930cf442bea26ea803dd30db08441",
-          "url": "https://github.com/noir-lang/noir/commit/7926394ccfc0e1d34cd217905cb4c993976bb59b"
-        },
-        "date": 1785831538004,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 172272,
-            "range": "± 326",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 142524,
-            "range": "± 2534",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2669764,
-            "range": "± 2991",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "49699333+dependabot[bot]@users.noreply.github.com",
-            "name": "dependabot[bot]",
-            "username": "dependabot[bot]"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
           "id": "946f5094f23f057aad791b6e8f258f7851b3c237",
           "message": "chore(deps): bump the cargo-minor-and-patch group with 2 updates (#13454)\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
           "timestamp": "2026-08-04T07:59:05Z",
@@ -25454,6 +25412,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2649414,
             "range": "± 1690",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49558828+AztecBot@users.noreply.github.com",
+            "name": "Aztec Bot",
+            "username": "AztecBot"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "02329347d2fd7513e19e1739daa187570ecfb4a5",
+          "message": "fix(ast_fuzzer): bound literal vector indices, and diagnose leftover ACIR memory operations (#13478)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
+          "timestamp": "2026-08-19T10:33:11Z",
+          "tree_id": "b9a5980c17b6efb6ff2c80fd4e1338e13c9e18bf",
+          "url": "https://github.com/noir-lang/noir/commit/02329347d2fd7513e19e1739daa187570ecfb4a5"
+        },
+        "date": 1787137049610,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 126604,
+            "range": "± 2777",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 106337,
+            "range": "± 4496",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 1725630,
+            "range": "± 35011",
             "unit": "ns/iter"
           }
         ]
