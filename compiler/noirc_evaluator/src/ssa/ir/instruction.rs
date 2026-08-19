@@ -583,10 +583,12 @@ impl Instruction {
                         // `get_flattened_index` which reads the side-effects predicate
                         // to guard the element-type-sizes memory lookup.
                         Intrinsic::VectorPushBack => true,
-                        // Technically these don't use the side effects predicate, but they fail on empty vectors,
-                        // and by pretending that they require the predicate, we can preserve any current side
-                        // effect variable in the SSA and use it to optimize out memory operations that we know
-                        // would fail, but they shouldn't because they might be disabled.
+                        // These consult the side effects predicate during ACIR gen: a pop from a
+                        // vector whose backing store is empty asserts the predicate is false, and
+                        // a pop of a non-constant length predicates its emptiness assertion and
+                        // gates the decremented index. Reporting `true` also preserves the current
+                        // side effect variable in the SSA, which is used to optimize out memory
+                        // operations that would fail but shouldn't because they might be disabled.
                         Intrinsic::VectorPopFront | Intrinsic::VectorPopBack => true,
                         // RecursiveAggregation's predicate is injected implicitly from
                         // the side-effects predicate during ACIR generation, so we
