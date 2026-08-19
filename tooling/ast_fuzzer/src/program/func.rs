@@ -991,14 +991,24 @@ impl<'a> FunctionContext<'a> {
         let len_expr = self.call_array_len(Expression::Ident(ident_1), src_type.clone());
 
         // The rules around dynamic indexing is the same as for arrays.
+        let no_dynamic =
+            self.in_no_dynamic || !self.unconstrained() && types::contains_reference(item_type);
+        let was_in_no_dynamic = std::mem::replace(&mut self.in_no_dynamic, no_dynamic);
+
         let (idx_expr, idx_dyn) = if max_depth == 0 || bool::arbitrary(u)? {
             // Avoid any stack overflow where we look for an index in the vector itself.
-            (self.gen_literal(u, &types::U32)?, false)
-        } else {
-            let no_dynamic =
-                self.in_no_dynamic || !self.unconstrained() && types::contains_reference(item_type);
-            let was_in_no_dynamic = std::mem::replace(&mut self.in_no_dynamic, no_dynamic);
+            let mut idx_expr = self.gen_literal(u, &types::U32)?;
 
+            // A literal index is bounded here rather than by the caller, because a vector's
+            // length is not known at compile time: unlike an array, an out-of-bounds constant
+            // is not rejected during compilation, and reaches ACIR generation as an index which
+            // could not be simplified away.
+            if self.avoid_index_out_of_bounds(u)? {
+                idx_expr = expr::modulo(idx_expr, len_expr);
+            }
+
+            (idx_expr, false)
+        } else {
             // Choose a random index.
             let (mut idx_expr, idx_dyn) =
                 self.gen_expr(u, &types::U32, max_depth.saturating_sub(1), Flags::NESTED)?;
@@ -1010,9 +1020,10 @@ impl<'a> FunctionContext<'a> {
                 idx_expr = expr::modulo(idx_expr, len_expr);
             }
 
-            self.in_no_dynamic = was_in_no_dynamic;
             (idx_expr, idx_dyn)
         };
+
+        self.in_no_dynamic = was_in_no_dynamic;
 
         // Access the item by index
         let item_expr = access_item(self, ident_2, idx_expr);

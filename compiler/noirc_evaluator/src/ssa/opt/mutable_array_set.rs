@@ -64,11 +64,11 @@ fn mutable_array_set_optimization_pre_check(func: &Function) {
 
     // flatten_cfg must have run
     super::checks::assert_cfg_is_flattened(func);
-    super::checks::for_each_instruction(func, |instruction, _dfg| {
+    super::checks::for_each_instruction(func, |instruction, dfg| {
         // remove_if_else must have run
         super::checks::assert_not_if_else(instruction);
         // mem2reg must have run (no Load/Store remaining)
-        super::checks::assert_not_load_or_store(instruction);
+        super::checks::assert_not_load_or_store(func, instruction, dfg);
         // No mutable array sets should exist yet (they are created by this pass)
         super::checks::assert_not_mutable_array_set(instruction);
     });
