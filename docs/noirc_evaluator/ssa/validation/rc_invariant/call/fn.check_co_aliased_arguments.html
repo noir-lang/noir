@@ -1,0 +1,37 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Reject a `call` in which two argument positions may denote the same array storage with no protecting `inc_rc`."><title>check_co_aliased_arguments in noirc_evaluator::ssa::validation::rc_invariant::call - Rust</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../../../static.files/rustdoc-84e720fa.css"><meta name="rustdoc-vars" data-root-path="../../../../../" data-static-root-path="../../../../../static.files/" data-current-crate="noirc_evaluator" data-themes="" data-resource-suffix="" data-rustdoc-version="1.89.0 (29483883e 2025-08-04)" data-channel="1.89.0" data-search-js="search-92309212.js" data-settings-js="settings-5514c975.js" ><script src="../../../../../static.files/storage-4e99c027.js"></script><script defer src="sidebar-items.js"></script><script defer src="../../../../../static.files/main-fd3af306.js"></script><noscript><link rel="stylesheet" href="../../../../../static.files/noscript-32bb7600.css"></noscript><link rel="alternate icon" type="image/png" href="../../../../../static.files/favicon-32x32-6580c154.png"><link rel="icon" type="image/svg+xml" href="../../../../../static.files/favicon-044be391.svg"></head><body class="rustdoc fn"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="mobile-topbar"><button class="sidebar-menu-toggle" title="show sidebar"></button></nav><nav class="sidebar"><div class="sidebar-crate"><h2><a href="../../../../../noirc_evaluator/index.html">noirc_<wbr>evaluator</a><span class="version">1.0.0-beta.26</span></h2></div><div class="sidebar-elems"><div id="rustdoc-modnav"><h2><a href="index.html">In noirc_<wbr>evaluator::<wbr>ssa::<wbr>validation::<wbr>rc_<wbr>invariant::<wbr>call</a></h2></div></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><div class="width-limiter"><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="main-heading"><div class="rustdoc-breadcrumbs"><a href="../../../../index.html">noirc_evaluator</a>::<wbr><a href="../../../index.html">ssa</a>::<wbr><a href="../../index.html">validation</a>::<wbr><a href="../index.html">rc_invariant</a>::<wbr><a href="index.html">call</a></div><h1>Function <span class="fn">check_co_aliased_arguments</span><button id="copy-path" title="Copy item path to clipboard">Copy item path</button></h1><rustdoc-toolbar></rustdoc-toolbar><span class="sub-heading"><a class="src" href="../../../../../src/noirc_evaluator/ssa/validation/rc_invariant/call.rs.html#173-224">Source</a> </span></div><pre class="rust item-decl"><code>fn check_co_aliased_arguments(
+    function: &amp;<a class="struct" href="../../../ir/function/struct.Function.html" title="struct noirc_evaluator::ssa::ir::function::Function">Function</a>,
+    ctx: &amp;<a class="struct" href="../struct.Context.html" title="struct noirc_evaluator::ssa::validation::rc_invariant::Context">Context</a>&lt;'_&gt;,
+    arguments: &amp;[<a class="type" href="../../../ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a>],
+    block_id: <a class="type" href="../../../ir/basic_block/type.BasicBlockId.html" title="type noirc_evaluator::ssa::ir::basic_block::BasicBlockId">BasicBlockId</a>,
+    call_idx: <a class="primitive" href="https://doc.rust-lang.org/1.89.0/std/primitive.usize.html">usize</a>,
+    call_id: <a class="struct" href="../../../ir/map/struct.Id.html" title="struct noirc_evaluator::ssa::ir::map::Id">Id</a>&lt;<a class="enum" href="../../../ir/instruction/enum.Instruction.html" title="enum noirc_evaluator::ssa::ir::instruction::Instruction">Instruction</a>&gt;,
+) -&gt; <a class="type" href="../../../../errors/type.RtResult.html" title="type noirc_evaluator::errors::RtResult">RtResult</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/1.89.0/std/primitive.unit.html">()</a>&gt;</code></pre><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p>Reject a <code>call</code> in which two argument positions may denote the same array
+storage with no protecting <code>inc_rc</code>.</p>
+<p>The per-argument forward walk in <a href="fn.verify_function.html" title="fn noirc_evaluator::ssa::validation::rc_invariant::call::verify_function"><code>verify_function</code></a> looks for an aliased
+read <em>in the caller, after the call</em>, so it cannot see the hazard where the
+same buffer reaches the callee twice — as the same value in two positions
+(<code>f(v, v)</code>), or once as an array value and once as the pointee of a
+reference (the shape <code>ssa_gen</code> emits for <code>f(&amp;mut x, x)</code>). The callee can
+then mutate one handle in place at reference count 1 and observe (e.g.
+return) the pre-mutation contents through the other, entirely inside the
+callee — where the two parameters are unrelated values and the shared-buffer
+relation is invisible to the intraprocedural alias engine. The relation is
+only established here, at the call site, so this is where it must be checked
+(noir-lang/noir-claude#1563).</p>
+<p>Each argument position is resolved to the storage it denotes at the call:
+an array-typed argument to itself, and a reference argument to the value
+its in-block reaching <code>store</code> wrote, when there is one (after
+<code>mem2reg_brillig</code> the emitted shape keeps that <code>store</code> in the call’s own
+block; a pointee established elsewhere is not traced — a false negative,
+never a false positive). Two <em>reference</em> arguments sharing a pointee are
+not flagged: a write through a reference is ordinary reference semantics,
+visible through every alias of the reference by design, not a copy-on-write
+violation — so a pair must include at least one array-value position.</p>
+<p>Whether a pair denotes one buffer, and whether that buffer is protected, is
+decided per path by <a href="../struct.Context.html#method.pair_has_unprotected_shared_storage" title="method noirc_evaluator::ssa::validation::rc_invariant::Context::pair_has_unprotected_shared_storage"><code>Context::pair_has_unprotected_shared_storage</code></a>: a
+pair is flagged only when some backward path resolves both positions to the
+same storage with no <code>inc_rc</code> crossed on it. A whole-call relation is not
+path-sensitive enough — a branch-local <code>inc_rc</code> protecting the only sharing
+path, or two branches passing one buffer through <em>different</em> positions,
+must both be accepted.</p>
+</div></details></section></div></main></body></html>

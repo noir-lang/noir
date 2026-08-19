@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["callee_needs_arg_check","compute_may_mutate_args","compute_returns_arg_alias","fixpoint","function_returns_arg_alias","intrinsic_may_mutate_args","verify","verify_function"]};
+window.SIDEBAR_ITEMS = {"fn":["callee_needs_arg_check","check_co_aliased_arguments","compute_may_mutate_args","compute_returns_arg_alias","fixpoint","function_returns_arg_alias","in_block_reaching_store","intrinsic_may_mutate_args","verify","verify_function"]};
