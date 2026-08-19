@@ -7,6 +7,6 @@ single pass:</p>
 
 <div class="example-wrap ignore"><a href="#" class="tooltip" title="This example is not tested">ⓘ</a><pre class="rust rust-example-rendered"><code>checks::for_each_instruction(function, |instruction, dfg| {
     checks::assert_not_if_else(instruction);
-    checks::assert_not_load_or_store(instruction);
+    checks::assert_not_load_or_store(function, instruction, dfg);
 });</code></pre></div>
 </div></details></section></div></main></body></html>

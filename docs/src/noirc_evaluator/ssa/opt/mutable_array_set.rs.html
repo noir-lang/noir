@@ -64,11 +64,11 @@
 <a href=#64 id=64 data-nosnippet>64</a>
 <a href=#65 id=65 data-nosnippet>65</a>    <span class="comment">// flatten_cfg must have run
 <a href=#66 id=66 data-nosnippet>66</a>    </span><span class="kw">super</span>::checks::assert_cfg_is_flattened(func);
-<a href=#67 id=67 data-nosnippet>67</a>    <span class="kw">super</span>::checks::for_each_instruction(func, |instruction, _dfg| {
+<a href=#67 id=67 data-nosnippet>67</a>    <span class="kw">super</span>::checks::for_each_instruction(func, |instruction, dfg| {
 <a href=#68 id=68 data-nosnippet>68</a>        <span class="comment">// remove_if_else must have run
 <a href=#69 id=69 data-nosnippet>69</a>        </span><span class="kw">super</span>::checks::assert_not_if_else(instruction);
 <a href=#70 id=70 data-nosnippet>70</a>        <span class="comment">// mem2reg must have run (no Load/Store remaining)
-<a href=#71 id=71 data-nosnippet>71</a>        </span><span class="kw">super</span>::checks::assert_not_load_or_store(instruction);
+<a href=#71 id=71 data-nosnippet>71</a>        </span><span class="kw">super</span>::checks::assert_not_load_or_store(func, instruction, dfg);
 <a href=#72 id=72 data-nosnippet>72</a>        <span class="comment">// No mutable array sets should exist yet (they are created by this pass)
 <a href=#73 id=73 data-nosnippet>73</a>        </span><span class="kw">super</span>::checks::assert_not_mutable_array_set(instruction);
 <a href=#74 id=74 data-nosnippet>74</a>    });
