@@ -752,6 +752,7 @@ fn errors_on_use_of_private_exported_item() {
 
         use bar::baz;
 
+        #[allow(dead_code)]
         pub fn qux() {
             baz();
         }
@@ -1308,6 +1309,7 @@ fn errors_when_using_private_type_imported_via_value_name_collision() {
     mod moo {
         struct Foo {}
 
+        #[allow(dead_code)]
         pub fn Foo() {}
     }
 
@@ -1350,6 +1352,7 @@ fn allows_calling_value_when_using_private_type_imported_via_collision_still_err
     mod moo {
         struct Foo {}
 
+        #[allow(dead_code)]
         pub fn Foo() {}
     }
 
@@ -1395,6 +1398,7 @@ fn errors_when_using_private_type_imported_via_aliased_collision() {
     mod moo {
         struct Foo {}
 
+        #[allow(dead_code)]
         pub fn Foo() {}
     }
 
@@ -1416,6 +1420,7 @@ fn errors_on_qualified_access_to_private_type_colliding_with_public_value() {
     mod moo {
         struct Foo {}
 
+        #[allow(dead_code)]
         pub fn Foo() {}
     }
 
