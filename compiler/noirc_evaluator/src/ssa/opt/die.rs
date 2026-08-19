@@ -508,9 +508,34 @@ fn can_be_eliminated_if_unused(
 mod tests {
     use crate::{
         assert_ssa_snapshot,
-        ssa::{Ssa, opt::assert_ssa_does_not_change},
+        ssa::{Ssa, interpreter::value::Value, opt::assert_ssa_does_not_change},
     };
     use test_case::test_case;
+
+    /// Run DIE on `src` with a single `u32` argument that the original SSA rejects, and assert
+    /// that the optimized SSA rejects it too.
+    ///
+    /// In the ACIR runtime an `array_get` *is* the bounds check, so when DIE removes an unused one
+    /// it owes a `constrain index < length` in its place. An optimization that turns a rejected
+    /// execution into an accepted one is a soundness break, and a snapshot test alone cannot catch
+    /// it: the unsound output is just as easy to snapshot as the sound one.
+    fn assert_die_preserves_out_of_bounds_rejection(src: &str, arg: u32) -> Ssa {
+        let ssa = Ssa::from_str(src).unwrap();
+
+        let before = ssa.interpret(vec![Value::u32(arg)]);
+        assert!(before.is_err(), "expected the input SSA to reject this execution, got {before:?}");
+
+        let ssa = ssa.dead_instruction_elimination();
+
+        let after = ssa.interpret(vec![Value::u32(arg)]);
+        let after = format!("{after:?}");
+        assert!(
+            after.contains("out of bounds"),
+            "DIE turned an out-of-bounds rejection into {after}"
+        );
+
+        ssa
+    }
 
     #[test]
     fn dead_instruction_elimination() {
@@ -1144,6 +1169,10 @@ mod tests {
         // trailing offset reads are unused, the trailing reads still belong to the same
         // composite access (they share a common base index) and must collapse into a single
         // out-of-bounds check rather than one check per read.
+        //
+        // That single check has to bound the *largest* index of the group (`v0 + 2`): a check on
+        // `v0 + 1` would leave the read at `v0 + 2` unbounded, which at `v0 == 4` is a read of
+        // slot 6 of a 6-slot array.
         let src = r#"
         acir(inline) predicate_pure fn main f0 {
           b0(v0: u32):
@@ -1157,8 +1186,7 @@ mod tests {
             return
         }
         "#;
-        let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.dead_instruction_elimination();
+        let ssa = assert_die_preserves_out_of_bounds_rejection(src, 4);
 
         assert_ssa_snapshot!(ssa, @r#"
         acir(inline) predicate_pure fn main f0 {
@@ -1166,11 +1194,121 @@ mod tests {
             v7 = make_array [Field 1, Field 2, Field 3, Field 4, Field 5, Field 6] : [(Field, Field, Field); 2]
             v8 = array_get v7, index v0 -> Field
             v10 = add v0, u32 1
-            v11 = cast v10 as u64
-            v13 = lt v11, u64 6
-            constrain v13 == u1 1, "Index out of bounds"
-            v16 = add v0, u32 2
+            v12 = unchecked_add v0, u32 2
+            v13 = cast v12 as u64
+            v15 = lt v13, u64 6
+            constrain v15 == u1 1, "Index out of bounds"
+            v17 = add v0, u32 2
             constrain v8 == Field 1
+            return
+        }
+        "#);
+    }
+
+    #[test]
+    fn bounds_largest_index_of_composite_group_spanning_two_elements() {
+        // `[(Field, Field, Field); 2]` has `element_size == 3` and 6 addressable slots, and the
+        // base is built the way `ssa_gen` builds it, as `index * element_size`. The two unused
+        // reads are at `base + 1` and `base + 3`, which are two slots apart but sit in *different*
+        // elements. Collapsing them into one check on `base + 1` accepts `v0 == 1`, where the
+        // second read addresses slot 6 of a 6-slot array; the check has to bound `base + 3`.
+        let src = r#"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u32):
+            v1 = make_array [Field 1, Field 2, Field 3, Field 4, Field 5, Field 6] : [(Field, Field, Field); 2]
+            v2 = unchecked_mul v0, u32 3
+            v3 = unchecked_add v2, u32 1
+            v4 = array_get v1, index v3 -> Field
+            v5 = unchecked_add v2, u32 3
+            v6 = array_get v1, index v5 -> Field
+            return
+        }
+        "#;
+        let ssa = assert_die_preserves_out_of_bounds_rejection(src, 1);
+
+        assert_ssa_snapshot!(ssa, @r#"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u32):
+            v2 = unchecked_mul v0, u32 3
+            v3 = unchecked_add v2, u32 3
+            v4 = cast v3 as u64
+            v6 = lt v4, u64 6
+            constrain v6 == u1 1, "Index out of bounds"
+            return
+        }
+        "#);
+    }
+
+    #[test]
+    fn inserts_check_when_the_read_that_stays_does_not_bound_the_removed_one() {
+        // A read that stays behind carries ACIR's implicit bounds check on its own index, but that
+        // only covers the reads of its group at a smaller or equal offset. Here the read that stays
+        // is at `base + 2` while the removed one is at `base + 4`, so a check is still owed for it:
+        // at `v0 == 1` the removed read addresses slot 7 of a 6-slot array while the read that
+        // stays is in bounds.
+        let src = r#"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u32):
+            v1 = make_array [Field 1, Field 2, Field 3, Field 4, Field 5, Field 6] : [(Field, Field, Field); 2]
+            v2 = unchecked_mul v0, u32 3
+            v3 = unchecked_add v2, u32 4
+            v4 = array_get v1, index v3 -> Field
+            v5 = unchecked_add v2, u32 2
+            v6 = array_get v1, index v5 -> Field
+            constrain v6 == Field 6
+            return
+        }
+        "#;
+        let ssa = assert_die_preserves_out_of_bounds_rejection(src, 1);
+
+        assert_ssa_snapshot!(ssa, @r#"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u32):
+            v7 = make_array [Field 1, Field 2, Field 3, Field 4, Field 5, Field 6] : [(Field, Field, Field); 2]
+            v9 = unchecked_mul v0, u32 3
+            v11 = unchecked_add v9, u32 4
+            v12 = cast v11 as u64
+            v14 = lt v12, u64 6
+            constrain v14 == u1 1, "Index out of bounds"
+            v17 = unchecked_add v9, u32 2
+            v18 = array_get v7, index v17 -> Field
+            constrain v18 == Field 6
+            return
+        }
+        "#);
+    }
+
+    #[test]
+    fn omits_check_when_the_read_that_stays_bounds_the_removed_one() {
+        // The mirror image of the test above, pinning that the optimization is kept where it is
+        // sound: the read that stays behind is at `base + 2` and the removed one at `base + 1`, so
+        // the implicit bound of the surviving read already covers the removed read and DIE does
+        // not owe a `constrain` at all.
+        let src = r#"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u32):
+            v1 = make_array [Field 1, Field 2, Field 3, Field 4, Field 5, Field 6] : [(Field, Field, Field); 2]
+            v2 = unchecked_mul v0, u32 3
+            v3 = unchecked_add v2, u32 1
+            v4 = array_get v1, index v3 -> Field
+            v5 = unchecked_add v2, u32 2
+            v6 = array_get v1, index v5 -> Field
+            constrain v6 == Field 6
+            return
+        }
+        "#;
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.dead_instruction_elimination();
+
+        assert_ssa_snapshot!(ssa, @r#"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u32):
+            v7 = make_array [Field 1, Field 2, Field 3, Field 4, Field 5, Field 6] : [(Field, Field, Field); 2]
+            v9 = unchecked_mul v0, u32 3
+            v11 = unchecked_add v9, u32 1
+            v13 = unchecked_add v9, u32 2
+            v14 = array_get v7, index v13 -> Field
+            constrain v14 == Field 6
             return
         }
         "#);
