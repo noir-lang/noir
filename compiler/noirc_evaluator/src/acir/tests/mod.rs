@@ -83,6 +83,36 @@ pub(crate) fn try_ssa_to_acir(
 }
 
 #[test]
+fn unreachable_terminator_lowers_to_unsatisfiable_circuit() {
+    // ACIR has no `trap` opcode, so a bare `unreachable` terminator must be lowered as
+    // a constraint no prover can satisfy — anything else lets a compiler input producer
+    // (or a future internal producer) trade trap semantics for a satisfiable circuit.
+    // Mirrors the Brillig fix in noir-lang/noir#13448 for its ACIR sibling.
+    let src = "
+    acir(inline) fn main f0 {
+      b0():
+        unreachable
+    }
+    ";
+    let ssa = Ssa::from_str(src).unwrap();
+    let brillig = ssa.to_brillig(&BrilligOptions::default());
+    let (acir_functions, brillig_functions, _) = ssa
+        .into_acir(&brillig, &BrilligOptions::default())
+        .expect("bare-unreachable SSA should reach ACIR codegen");
+
+    assert_eq!(acir_functions.len(), 1);
+    let blackbox_solver = StubbedBlackBoxSolver;
+    let mut acvm = ACVM::new(
+        &blackbox_solver,
+        acir_functions[0].opcodes(),
+        WitnessMap::default(),
+        &brillig_functions,
+        &[],
+    );
+    assert!(matches!(acvm.solve(), ACVMStatus::Failure::<FieldElement>(_)));
+}
+
+#[test]
 fn unchecked_mul_should_not_have_range_check() {
     let src = "
     acir(inline) fn main f0 {
