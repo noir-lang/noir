@@ -1,37 +1,104 @@
 ---
 title: Oracles
-description: Dive into how Noir supports Oracles via RPC calls, and learn how to declare an Oracle in Noir with our comprehensive guide.
+description: Learn how Oracles let a Noir program use the result of a computation performed outside of it — how to declare them, why you must constrain them, and how to resolve oracle calls with Nargo and NoirJS.
 keywords:
   - Noir
   - Oracles
   - RPC Calls
   - Unconstrained Functions
-  - Programming
-  - Blockchain
+  - JSON-RPC
+  - Foreign Call Handlers
+  - NoirJS
+  - Nargo
 ---
 
-Noir has support for Oracles via RPC calls. This means Noir will make an RPC call and use the return value for proof generation.
+A Noir program is usually self-contained: you pass it inputs and it produces a deterministic output for those inputs. But what if you wanted to defer some calculation to an outside process or source?
 
-Since Oracles are not resolved by Noir, they are [`unconstrained` functions](./unconstrained.md)
+Oracles let you do exactly that: they allow a Noir program to use the result of a calculation performed outside of it. Noir makes an RPC call (or, in NoirJS, an arbitrary callback) and uses the returned value during proof generation.
 
-You can declare an Oracle through the `#[oracle(<name>)]` flag. Example:
+## Use cases
+
+- **Proving facts about external data.** For example, proving that the ETH-USDC quote was below a certain target at a certain block time, or proving ownership of an NFT as an anonymous login method.
+- **Offloading expensive calculations.** Defer a costly computation to be made outside the program and then constrain the result, similar to the use of [unconstrained functions](./unconstrained.md).
+
+In short, anything that can be constrained in a Noir program but needs to be fetched from an external source is a great candidate for an oracle.
+
+## Declaring an oracle
+
+Since oracles are not resolved by Noir, they are [`unconstrained` functions](./unconstrained.md). You declare one with the `#[oracle(<name>)]` attribute, where `<name>` is the method the resolver (RPC server or callback) will expose:
 
 ```rust
-#[oracle(get_number_sequence)]
-unconstrained fn get_number_sequence(_size: Field) -> [Field] {}
+#[oracle(getSqrt)]
+unconstrained fn sqrt(input: Field) -> Field {}
 ```
 
-The timeout for when using an external RPC oracle resolver can be set with the `NARGO_FOREIGN_CALL_TIMEOUT` environment variable. This timeout is in units of milliseconds.
+It is good practice to wrap the oracle in a regular unconstrained function, which you then call from your program like any other function:
+
+```rust
+unconstrained fn get_sqrt(input: Field) -> Field {
+    sqrt(input)
+}
+
+fn main(input: Field) {
+    let sqrt = get_sqrt(input);
+}
+```
+
+:::info
+
+Oracles only work with single params or array params. For example:
+
+```rust
+#[oracle(getSqrt)]
+unconstrained fn sqrt(_input: [Field; 2]) -> [Field; 2] {}
+```
+
+:::
+
+The timeout for an external RPC oracle resolver can be set with the `NARGO_FOREIGN_CALL_TIMEOUT` environment variable, in milliseconds.
+
+## Constraining oracles
+
+Oracles are powerful, but using one does not make its output true. The value an oracle returns is only as trustworthy as its source, so any claim that depends on it still relies on potentially untrusted information.
+
+For example, Alice wants to log in to the [NounsDAO](https://nouns.wtf/) forum by proving she owns a noun without revealing her Ethereum address. Her program might call:
+
+```rust
+#[oracle(getNoun)]
+unconstrained fn get_noun(address: Field) -> Field {}
+```
+
+This could naively resolve with her noun count — but that is useless as a trusted source, since the oracle could resolve to anything Alice wants. To make it meaningful, Alice must **constrain** the response, e.g. by proving her address and noun count belong to the contract's state tree.
+
+In short, **oracles don't prove anything. Your Noir program does.**
+
+:::danger
+
+If you don't constrain the return of your oracle, you open an attack vector on your program. Make double-triple sure the return of an oracle call is constrained! For example:
+
+```rust
+fn main(input: Field) {
+    let sqrt = get_sqrt(input);
+    assert(sqrt.pow_32(2) as u64 == input as u64); // <---- constrain the oracle's return!
+}
+```
+
+:::
+
+## Return types
+
+Oracles cannot return references (e.g. `&Field`, `&mut T`). Oracle functions represent external computations that execute outside the Noir program's memory space, so any value they return must be copied into the caller's context rather than referenced — there is no shared memory between the two. The compiler errors if an oracle's return type contains any references, including:
+
+- Direct references: `&Field`, `&mut u32`
+- Tuples with references: `(Field, &u32)`
+- Structs with reference fields
+- Enums with reference variants
 
 ## The `#[pure]` attribute
 
-By default, the compiler treats every oracle call as potentially impure: the return value
-may depend on hidden state, the call may have side effects, and as such two calls with the same
-arguments may produce different results. This forces the compiler to keep every oracle
-call exactly as written.
+By default the compiler treats every oracle call as potentially impure: the return value may depend on hidden state, the call may have side effects, and two calls with the same arguments may produce different results. This forces the compiler to keep every oracle call exactly as written.
 
-When you know an oracle's return value is purely a function of its arguments and the call
-has no observable effect on the program, you can mark the declaration with `#[pure]`:
+When you know an oracle's return value is purely a function of its arguments and the call has no observable effect, you can mark the declaration with `#[pure]`:
 
 ```rust
 #[pure]
@@ -39,16 +106,189 @@ has no observable effect on the program, you can mark the declaration with `#[pu
 unconstrained fn field_inverse_oracle(x: Field) -> Field {}
 ```
 
-`#[pure]` is an unchecked assertion. If you mismark an oracle that secretly reads ambient state
-or has side effects, the optimizer can produce wrong circuits, so use it only when you are certain.
-However, `#[pure]` is compatible with functions that can fail on some inputs (e.g division by zero).
+`#[pure]` is an unchecked assertion. If you mismark an oracle that secretly reads ambient state or has side effects, the optimizer can produce wrong circuits, so use it only when you are certain. It is, however, compatible with functions that can fail on some inputs (e.g. division by zero).
 
+`#[pure]` is rejected on functions that are not `#[oracle(...)]` and on constrained functions. Do not use it on oracles that read mutable external state (witness maps, RPC endpoints that change between calls, etc.) — those are inherently impure even if their signatures look pure.
 
-### Restrictions
+## Using oracles
 
-`#[pure]` is rejected on functions that are not `#[oracle(...)]`, and on constrained
-functions.
+The rest of this page walks through using oracles end to end. It assumes you have a Noir program to add oracles to (you can scaffold one from the [awesome-noir](https://github.com/noir-lang/awesome-noir?tab=readme-ov-file#boilerplates) boilerplates) and are comfortable with [JSON-RPC](https://www.jsonrpc.org/) and server-side JavaScript.
 
-Do not use `#[pure]` on oracles that read mutable external state (witness maps, RPC
-endpoints that change between calls, etc.) — those are inherently impure even if their
-signatures look pure.
+There are three steps: modify your Noir program, write a JSON-RPC server to resolve the oracle calls, then wire it up in Nargo and/or NoirJS.
+
+### Step 1 - Modify your Noir program
+
+Let's use an oracle that consumes an array of two `Field`s and returns their square roots:
+
+```rust
+#[oracle(getSqrt)]
+unconstrained fn sqrt(input: [Field; 2]) -> [Field; 2] {}
+
+unconstrained fn get_sqrt(input: [Field; 2]) -> [Field; 2] {
+    sqrt(input)
+}
+
+fn main(input: [Field; 2]) {
+    let sqrt = get_sqrt(input);
+    assert(sqrt[0].pow_32(2) as u64 == input[0] as u64);
+    assert(sqrt[1].pow_32(2) as u64 == input[1] as u64);
+}
+
+#[test]
+fn test() {
+    let input = [4, 16];
+    main(input);
+}
+```
+
+:::info
+
+Why square root? Computing square roots is more expensive than multiplication, which matters in ZK applications. Instead of computing the root in-circuit, we offload it to the oracle and simply multiply to verify the result.
+
+:::
+
+### Step 2 - Write an RPC server
+
+Brillig calls *one* RPC server. You'll likely write your own, in whatever language you prefer. Here we use JavaScript, starting from the [default JSON-RPC 2.0 boilerplate](https://www.npmjs.com/package/json-rpc-2.0#example):
+
+```js
+import { JSONRPCServer } from "json-rpc-2.0";
+import express from "express";
+import bodyParser from "body-parser";
+
+const app = express();
+app.use(bodyParser.json());
+
+const server = new JSONRPCServer();
+app.post("/", (req, res) => {
+ const jsonRPCRequest = req.body;
+ server.receive(jsonRPCRequest).then((jsonRPCResponse) => {
+  if (jsonRPCResponse) {
+   res.json(jsonRPCResponse);
+  } else {
+   res.sendStatus(204);
+  }
+ });
+});
+
+app.listen(5555);
+```
+
+Now add the `getSqrt` method expected by the `#[oracle(getSqrt)]` decorator. It maps over the params and returns their square roots:
+
+```js
+server.addMethod("resolve_foreign_call", async (params) => {
+    if (params[0].function !== "getSqrt") {
+        throw Error("Unexpected foreign call")
+    };
+    const values = params[0].inputs[0].map((field) => {
+        return `${Math.sqrt(parseInt(field, 16))}`;
+    });
+    return { values: [values] };
+});
+```
+
+If you're using TypeScript, these types describe the expected return value:
+
+```ts
+export type ForeignCallSingle = string;
+export type ForeignCallArray = string[];
+export type ForeignCallResult = {
+  values: (ForeignCallSingle | ForeignCallArray)[];
+};
+```
+
+:::info Multidimensional arrays
+
+If the oracle returns an array containing other arrays, such as `[['1','2'],['3','4']]`, provide the values in JSON as flattened values — `['1', '2', '3', '4']`. The Noir signature can still use a nested type; the flattened values are converted to it automatically.
+
+:::
+
+### Step 3 - Usage with Nargo
+
+Nargo can use oracles in `nargo test` and `nargo execute` by passing your RPC server URL to `--oracle-resolver`:
+
+```bash
+nargo test --oracle-resolver http://localhost:5555
+```
+
+This tells Nargo to use your server whenever it finds an oracle decorator.
+
+### Step 4 - Usage with NoirJS
+
+In a JS environment an RPC server is not strictly necessary: NoirJS just expects a callback (the `foreignCallHandler`) when generating proofs, and that callback can be anything.
+
+For example, if your program expects host-provided pseudo-randomness, you can pass it directly:
+
+```js
+const foreignCallHandler = (name, inputs) => crypto.randomBytes(16) // etc
+
+await noir.execute(inputs, foreignCallHandler)
+```
+
+:::tip
+
+Does this mean you don't need an RPC server like in [Step 2](#step-2---write-an-rpc-server)? Not technically — but then how would you run `nargo test`? To use both Nargo and NoirJS in your flow, you'll still want the JSON-RPC server.
+
+:::
+
+To have NoirJS call the server from Step 2, make the handler a JSON-RPC client. Using the same `getSqrt` program:
+
+```js
+import { JSONRPCClient } from "json-rpc-2.0";
+
+// declaring the JSONRPCClient
+const client = new JSONRPCClient((jsonRPCRequest) => {
+// hitting the same JSON RPC Server we coded above
+ return fetch("http://localhost:5555", {
+  method: "POST",
+  headers: {
+   "content-type": "application/json",
+  },
+  body: JSON.stringify(jsonRPCRequest),
+ }).then((response) => {
+  if (response.status === 200) {
+   return response
+    .json()
+    .then((jsonRPCResponse) => client.receive(jsonRPCResponse));
+  } else if (jsonRPCRequest.id !== undefined) {
+   return Promise.reject(new Error(response.statusText));
+  }
+ });
+});
+
+// declaring a function that takes the name of the foreign call (getSqrt) and the inputs
+const foreignCallHandler = async (name, input) => {
+  const inputs = input[0].map((i) => i.toString("hex"))
+  // notice that the "inputs" parameter contains *all* the inputs
+  // in this case we to make the RPC request with the first parameter "numbers", which would be input[0]
+  const oracleReturn = await client.request("resolve_foreign_call", [
+    {
+      function: name,
+      inputs: [inputs]
+    },
+  ]);
+  return [oracleReturn.values[0]];
+};
+
+// the rest of your NoirJS code
+const input = { input: [4, 16] };
+const { witness } = await noir.execute(input, foreignCallHandler);
+```
+
+:::tip
+
+Running your RPC server alongside a frontend app, you may hit requests being blocked by [CORS](https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS) policy. For development only, you can use the [`cors` npm package](https://www.npmjs.com/package/cors):
+
+```bash
+yarn add cors
+```
+
+```js
+import cors from "cors";
+
+const app = express();
+app.use(cors())
+```
+
+:::
