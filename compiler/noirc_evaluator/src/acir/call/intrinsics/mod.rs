@@ -1,4 +1,4 @@
-use acvm::acir::brillig::lengths::FlattenedLength;
+use acvm::acir::{BlackBoxFunc, brillig::lengths::FlattenedLength};
 use iter_extended::vecmap;
 
 use crate::errors::RuntimeError;
@@ -59,12 +59,8 @@ impl Context<'_> {
                 // injected as an extra witness input so aggregation can be conditionally
                 // executed. Other blackbox functions either take no predicate or receive
                 // one as an ordinary SSA-level argument (e.g. MSM, ECDSA).
-                let predicate =
-                    if matches!(black_box, acvm::acir::BlackBoxFunc::RecursiveAggregation) {
-                        Some(self.read_predicate())
-                    } else {
-                        None
-                    };
+                let predicate = matches!(black_box, BlackBoxFunc::RecursiveAggregation)
+                    .then(|| self.predicate());
 
                 let vars = self.acir_context.black_box_function(
                     black_box,

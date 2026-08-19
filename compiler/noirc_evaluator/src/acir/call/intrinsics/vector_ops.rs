@@ -1,6 +1,7 @@
 use itertools::Itertools;
 
 use crate::acir::arrays::{ElementTypeSizesArrayShift, IndexGating};
+use crate::acir::side_effects::PredicateNotNeeded;
 use crate::acir::types::flat_element_types;
 use crate::acir::{AcirDynamicArray, AcirValue, AcirVar};
 use crate::brillig::assert_u32;
@@ -197,9 +198,7 @@ impl Context<'_> {
         });
         let new_vector_val = if let Some(len_const) = len_const {
             // Length is known at compile time - we can precisely determine where to write
-            self.predicate_not_needed(
-                "vector length folded to a compile-time constant; elements placed inline",
-            );
+            self.predicate_not_needed(PredicateNotNeeded::ConstantVectorLength);
             let mut new_vector = self.read_array_with_type(vector, &vector_typ)?;
             // length of Acir Values vector
             let len = len_const.to_u128() as usize * elements_to_push.len();
@@ -281,7 +280,7 @@ impl Context<'_> {
                     // element-type-sizes table, but a whole-element append needs no per-member offsets:
                     // multiply the length by the flattened element size directly and skip building that
                     // table for this write.
-                    let predicate = self.read_predicate();
+                    let predicate = self.predicate();
                     let predicated_length = self.acir_context.mul_var(vector_length, predicate)?;
                     let element_flattened_size = self.acir_context.add_constant(elements_var.len());
                     self.acir_context.mul_var(predicated_length, element_flattened_size)?
@@ -388,11 +387,17 @@ impl Context<'_> {
         let vector_type = dfg.type_of_value(vector_contents_id);
         self.check_vector_result_count("vector_pop_back", result_ids, &vector_type)?;
 
-        // Check if we're trying to pop from a known empty vector.
-        if self.has_zero_length(vector_contents_id, dfg) {
+        let vector_length_var = vector_length_value.clone().into_var()?;
+
+        // Check if we're trying to pop from a known empty vector: one whose backing store
+        // is empty, or one whose semantic length is known to be zero (its backing store may
+        // still be non-empty padding in that case).
+        if self.has_zero_length(vector_contents_id, dfg)
+            || self.vector_length_is_known_zero(dfg, vector_length_id, vector_length_var)
+        {
             // Make sure this code is disabled, or fail with the empty-vector pop message.
             let msg = "Attempt to pop from an empty vector".to_string();
-            let predicate = self.read_predicate();
+            let predicate = self.predicate();
             self.acir_context.assert_zero_var(predicate, msg)?;
 
             // Fill the result with default values.
@@ -454,6 +459,25 @@ impl Context<'_> {
         Ok(results)
     }
 
+    /// Whether the vector's semantic length is known to be zero at this point: either the
+    /// SSA value is the constant zero, or its ACIR expression has folded to zero (which
+    /// happens when the side-effects predicate it was multiplied by collapsed to a
+    /// constant). The backing store cannot answer this question — merging branch arms of
+    /// unequal lengths pads the shorter arm, so a semantically empty vector may still have
+    /// a non-empty backing store, and `has_zero_length` inspects that backing store.
+    fn vector_length_is_known_zero(
+        &self,
+        dfg: &DataFlowGraph,
+        vector_length_id: ValueId,
+        vector_length_var: AcirVar,
+    ) -> bool {
+        let length_const = dfg.get_numeric_constant(vector_length_id).or_else(|| {
+            let expr = self.acir_context.var_to_expression(vector_length_var).ok()?;
+            expr.to_const().copied()
+        });
+        length_const.is_some_and(|length| length.is_zero())
+    }
+
     /// Compute the new vector length after popping one value from it.
     ///
     /// Assumes that we already handled the constant zero case.
@@ -475,7 +499,7 @@ impl Context<'_> {
             let assert_message = self.acir_context.generate_assertion_message_payload(
                 "Attempt to pop from an empty vector".to_string(),
             );
-            let predicate = self.read_predicate();
+            let predicate = self.predicate();
             self.acir_context.assert_neq_var(
                 vector_length_var,
                 zero,
@@ -485,7 +509,7 @@ impl Context<'_> {
         } else {
             // A known-constant, nonzero length (the constant-zero case was handled by the
             // caller) needs neither the runtime emptiness assertion nor index gating.
-            self.predicate_not_needed("vector length is a known nonzero constant");
+            self.predicate_not_needed(PredicateNotNeeded::ConstantVectorLength);
         }
 
         let one = self.acir_context.add_constant(FieldElement::one());
@@ -495,7 +519,7 @@ impl Context<'_> {
         // to ensure we don't end up trying to look up an item at index -1, when the semantic length is 0,
         // which can fail a circuit even when the side effects are disabled.
         if is_unknown_length {
-            let predicate = self.read_predicate();
+            let predicate = self.predicate();
             new_vector_length_var = self.acir_context.mul_var(new_vector_length_var, predicate)?;
         }
 
@@ -554,11 +578,17 @@ impl Context<'_> {
         self.check_vector_result_count("vector_pop_front", result_ids, &vector_type)?;
         let element_size = vector_type.element_size();
 
-        // Check if we're trying to pop from a known empty vector.
-        if self.has_zero_length(vector_contents_id, dfg) {
+        let vector_length_var = vector_length_value.clone().into_var()?;
+
+        // Check if we're trying to pop from a known empty vector: one whose backing store
+        // is empty, or one whose semantic length is known to be zero (its backing store may
+        // still be non-empty padding in that case).
+        if self.has_zero_length(vector_contents_id, dfg)
+            || self.vector_length_is_known_zero(dfg, vector_length_id, vector_length_var)
+        {
             // Make sure this code is disabled, or fail with the empty-vector pop message.
             let msg = "Attempt to pop from an empty vector".to_string();
-            let predicate = self.read_predicate();
+            let predicate = self.predicate();
             self.acir_context.assert_zero_var(predicate, msg)?;
 
             // Fill the result with default values.
@@ -672,7 +702,7 @@ impl Context<'_> {
         if is_safe_index {
             // A statically safe insert index needs no gating, so no lowering path below
             // consults the predicate.
-            self.predicate_not_needed("insert index is statically safe");
+            self.predicate_not_needed(PredicateNotNeeded::StaticallySafeIndex);
         }
         let insert_index = self.acir_context.mul_var(insert_index, item_size)?;
 
@@ -886,11 +916,16 @@ impl Context<'_> {
         let vector_typ = dfg.type_of_value(vector_contents);
         self.check_vector_result_count("vector_remove", result_ids, &vector_typ)?;
 
-        // Check if we're trying to remove from an empty vector
-        if self.has_zero_length(vector_contents, dfg) {
+        // Check if we're trying to remove from a known empty vector: one whose backing store
+        // is empty, or one whose semantic length is known to be zero (its backing store may
+        // still be non-empty padding in that case). Without the semantic-length check a length
+        // that has folded to zero reaches the `sub_var(length, 1)` below and produces `p - 1`.
+        if self.has_zero_length(vector_contents, dfg)
+            || self.vector_length_is_known_zero(dfg, arguments[0], vector_length)
+        {
             // Make sure this code is disabled, or fail with "Index out of bounds".
             let msg = "Index out of bounds, vector has size 0".to_string();
-            let predicate = self.read_predicate();
+            let predicate = self.predicate();
             self.acir_context.assert_zero_var(predicate, msg)?;
 
             // Fill the result with default values.
@@ -937,7 +972,7 @@ impl Context<'_> {
         if is_safe_index {
             // A statically safe remove index needs no gating, so no lowering path below
             // consults the predicate.
-            self.predicate_not_needed("remove index is statically safe");
+            self.predicate_not_needed(PredicateNotNeeded::StaticallySafeIndex);
         }
 
         // Fetch the flattened index from the user provided index argument.

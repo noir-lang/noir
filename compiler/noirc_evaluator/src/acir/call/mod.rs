@@ -118,7 +118,7 @@ impl Context<'_> {
             );
         };
 
-        let predicate = self.read_predicate();
+        let predicate = self.predicate();
         let output_vars = self.acir_context.call_acir_function(
             AcirFunctionId::new(acir_function_id),
             inputs,
@@ -142,9 +142,9 @@ impl Context<'_> {
         let arguments = self.gen_brillig_parameters(arguments, dfg);
         let outputs: Vec<AcirType> =
             vecmap(result_ids, |result_id| dfg.type_of_value(*result_id).as_ref().into());
+        let predicate = self.predicate();
 
         // Reuse or generate Brillig code
-        let predicate = self.read_predicate();
         let output_values = if let Some(generated_pointer) =
             self.shared_context.generated_brillig_pointer(func.id(), arguments.clone())
         {
