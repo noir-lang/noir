@@ -195,7 +195,7 @@ impl<'a> ValueMerger<'a> {
         then_value: ValueId,
         else_value: ValueId,
     ) -> Result<ValueId, RuntimeError> {
-        let mut merged = im::Vector::new();
+        let mut merged = imbl::Vector::new();
 
         let (element_types, len) = match &typ {
             Type::Array(elements, len) => (elements.as_slice(), *len),
@@ -238,7 +238,7 @@ impl<'a> ValueMerger<'a> {
         then_value_id: ValueId,
         else_value_id: ValueId,
     ) -> Result<ValueId, RuntimeError> {
-        let mut merged = im::Vector::new();
+        let mut merged = imbl::Vector::new();
 
         let element_types = match &typ {
             Type::Vector(elements) => elements.as_slice(),

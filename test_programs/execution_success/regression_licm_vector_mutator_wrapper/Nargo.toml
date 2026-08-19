@@ -1,0 +1,6 @@
+[package]
+name = "regression_licm_vector_mutator_wrapper"
+type = "bin"
+authors = [""]
+
+[dependencies]

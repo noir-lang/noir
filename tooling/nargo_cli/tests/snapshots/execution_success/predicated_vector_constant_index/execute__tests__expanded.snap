@@ -1,0 +1,16 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+struct S {
+    a: Field,
+    b: [u8; 2],
+}
+
+fn main(x: [S; 2], i: u32, c: bool, v: Field) -> pub [u8; 2] {
+    let mut s: [S] = x.as_vector();
+    s[i] = S { a: v, b: [0_u8, 0_u8] };
+    let mut r: [u8; 2] = [0_u8, 0_u8];
+    if c { r = s[1_u32].b; };
+    r
+}

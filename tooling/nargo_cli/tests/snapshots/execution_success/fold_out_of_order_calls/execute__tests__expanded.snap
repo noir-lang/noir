@@ -1,0 +1,20 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+#[fold]
+fn fold_one(x: Field) -> Field {
+    x + 1_Field
+}
+
+#[fold]
+fn fold_two(x: Field, y: Field) -> Field {
+    x + y
+}
+
+fn main(x: Field, y: pub Field) {
+    let a: Field = fold_two(x, y);
+    let b: Field = fold_one(x);
+    assert(a == (x + y));
+    assert(b == (x + 1_Field));
+}

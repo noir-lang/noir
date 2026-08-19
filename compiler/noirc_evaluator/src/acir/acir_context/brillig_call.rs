@@ -195,7 +195,7 @@ impl<F: AcirField> AcirContext<F> {
         element_types: &[AcirType],
         size: SemanticLength,
     ) -> AcirValue {
-        let mut array_values = im::Vector::new();
+        let mut array_values = imbl::Vector::new();
         for _ in 0..size.0 {
             for element_type in element_types {
                 match element_type {
@@ -222,7 +222,7 @@ impl<F: AcirField> AcirContext<F> {
         size: SemanticLength,
     ) -> (AcirValue, Vec<Witness>) {
         let mut witnesses = Vec::new();
-        let mut array_values = im::Vector::new();
+        let mut array_values = imbl::Vector::new();
         for _ in 0..size.0 {
             for element_type in element_types {
                 match element_type {

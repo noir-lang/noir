@@ -154,6 +154,7 @@
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
 use std::collections::BTreeSet;
+use std::hash::Hash;
 
 use acvm::FieldElement;
 
@@ -228,7 +229,7 @@ struct Context<'f> {
     /// reachable from the other along param→arg edges. This is what
     /// keeps path-merge over-approximation at join points out of the
     /// alias-set.
-    backward_aliases: HashMap<ValueId, im::HashSet<ValueId>>,
+    backward_aliases: HashMap<ValueId, imbl::HashSet<ValueId>>,
     /// For each array-typed value defined by an instruction, the
     /// `(block, instruction-position-within-block)` of the defining
     /// instruction. Used by the def-block-entry kill rule in
@@ -550,8 +551,8 @@ impl<'f> Context<'f> {
                 //   backward-set member — e.g. `jmp header(v, v)` feeds the
                 //   same `v` to both, so they're runtime-equal even though
                 //   the directed backward walk keeps them in separate sets.
-                let backward_set = |v: ValueId| -> im::HashSet<ValueId> {
-                    backward_aliases.get(&v).cloned().unwrap_or_else(|| im::HashSet::unit(v))
+                let backward_set = |v: ValueId| -> imbl::HashSet<ValueId> {
+                    backward_aliases.get(&v).cloned().unwrap_or_else(|| imbl::HashSet::unit(v))
                 };
                 let entry_aliased = edges
                     .iter()
@@ -683,12 +684,12 @@ impl<'f> Context<'f> {
         source: ValueId,
         array_set_block: BasicBlockId,
         array_set_idx: usize,
-    ) -> im::HashSet<ValueId> {
+    ) -> imbl::HashSet<ValueId> {
         let class = self
             .backward_aliases
             .get(&source)
             .cloned()
-            .unwrap_or_else(|| im::HashSet::unit(source));
+            .unwrap_or_else(|| imbl::HashSet::unit(source));
         class
             .into_iter()
             .filter(|&v| {
@@ -731,14 +732,14 @@ impl<'f> Context<'f> {
     /// after the `array_set`.
     fn unprotected_aliases(
         &self,
-        alias_set: &im::HashSet<ValueId>,
+        alias_set: &imbl::HashSet<ValueId>,
         source: ValueId,
         array_set_block: BasicBlockId,
         array_set_idx: usize,
-    ) -> im::HashSet<ValueId> {
+    ) -> imbl::HashSet<ValueId> {
         // Fast full-accept short-circuits cover the whole array_set at once.
         if self.some_inc_rc_precedes(alias_set, source, array_set_block, array_set_idx) {
-            return im::HashSet::new();
+            return imbl::HashSet::new();
         }
         // Otherwise compute per-member coverage and keep only uncovered members.
         let uncovered = self.compute_uncovered_values(source, array_set_block, array_set_idx);
@@ -774,7 +775,7 @@ impl<'f> Context<'f> {
     /// about a `dec_rc` intervening between the `inc_rc` and the `array_set`.
     fn some_inc_rc_precedes(
         &self,
-        alias_set: &im::HashSet<ValueId>,
+        alias_set: &imbl::HashSet<ValueId>,
         source: ValueId,
         array_set_block: BasicBlockId,
         array_set_idx: usize,
@@ -862,13 +863,9 @@ impl<'f> Context<'f> {
         array_set_block: BasicBlockId,
         array_set_idx: usize,
     ) -> HashSet<ValueId> {
-        struct Node {
-            successors: Vec<(BasicBlockId, ValueId)>,
-            uncovered_terminal: bool,
-        }
-
         // Phase 1: build the backward threading graph.
-        let mut graph: HashMap<(BasicBlockId, ValueId), Node> = HashMap::default();
+        let mut graph: HashMap<(BasicBlockId, ValueId), Node<(BasicBlockId, ValueId)>> =
+            HashMap::default();
         let mut worklist: Vec<(BasicBlockId, ValueId, Option<usize>)> =
             vec![(array_set_block, source, Some(array_set_idx))];
 
@@ -886,24 +883,18 @@ impl<'f> Context<'f> {
             }
 
             // Wall: an `inc_rc` on the threaded value in this block.
-            if let Some(locations) = self.inc_rc_locations.get(&value)
-                && locations
-                    .iter()
-                    .any(|&(b, i)| b == block && seed_idx.is_none_or(|limit| i < limit))
-            {
+            if self.inc_rc_in_block(value, block, seed_idx) {
                 graph
                     .insert((block, value), Node { successors: vec![], uncovered_terminal: false });
                 continue;
             }
 
             // If `value` is defined in this block, the walk stops here.
-            if let Some(&(def_block, def_idx)) = self.array_value_defs.get(&value)
-                && def_block == block
-            {
-                let inst_id = self.function.dfg[block].instructions()[def_idx];
+            if let Some(instruction) = self.def_in_block(value, block) {
                 // An `array_set` result shares its operand's storage; continue
                 // threading with the operand.
-                if let Instruction::ArraySet { array, .. } = self.function.dfg[inst_id] {
+                if let Instruction::ArraySet { array, .. } = instruction {
+                    let array = *array;
                     graph.insert(
                         (block, value),
                         Node { successors: vec![(block, array)], uncovered_terminal: false },
@@ -951,22 +942,7 @@ impl<'f> Context<'f> {
         }
 
         // Phase 2: propagate "uncovered" from terminals to a fixed point.
-        let mut uncovered: HashSet<(BasicBlockId, ValueId)> =
-            graph.iter().filter(|(_, n)| n.uncovered_terminal).map(|(k, _)| *k).collect();
-        let mut changed = true;
-        while changed {
-            changed = false;
-            for (state, node) in &graph {
-                if !uncovered.contains(state)
-                    && node.successors.iter().any(|s| uncovered.contains(s))
-                {
-                    uncovered.insert(*state);
-                    changed = true;
-                }
-            }
-        }
-
-        uncovered.into_iter().map(|(_, value)| value).collect()
+        propagate_uncovered(&graph).into_iter().map(|(_, value)| value).collect()
     }
 
     /// The argument passed to parameter position `i` of `dest` on the edge
@@ -996,6 +972,172 @@ impl<'f> Context<'f> {
         }
     }
 
+    /// Whether an `inc_rc` on `value` sits in `block`. `limit` restricts the
+    /// search to instruction indices before it — used in a backward walk's seed
+    /// block, where only bumps *preceding* the seed instruction have executed;
+    /// any other block on a backward path runs in full before the seed, so pass
+    /// `None` and count an `inc_rc` anywhere in it.
+    fn inc_rc_in_block(&self, value: ValueId, block: BasicBlockId, limit: Option<usize>) -> bool {
+        self.inc_rc_locations.get(&value).is_some_and(|locations| {
+            locations
+                .iter()
+                .any(|&(rc_block, i)| rc_block == block && limit.is_none_or(|limit| i < limit))
+        })
+    }
+
+    /// The instruction defining `value` in `block`, if `value` is an
+    /// array-typed instruction result defined there (per
+    /// [`Context::array_value_defs`]).
+    fn def_in_block(&self, value: ValueId, block: BasicBlockId) -> Option<&Instruction> {
+        let &(def_block, def_idx) = self.array_value_defs.get(&value)?;
+        (def_block == block)
+            .then(|| &self.function.dfg[self.function.dfg[block].instructions()[def_idx]])
+    }
+
+    /// Whether some backward path from the call at `(call_block, call_idx)`
+    /// resolves `a` and `b` — the storages two argument positions of that call
+    /// denote — to the **same** buffer without crossing an `inc_rc` on it.
+    ///
+    /// This is the path-sensitive relation the co-aliased-arguments check
+    /// needs. Relating the two positions' backward alias *sets* is not enough,
+    /// for both directions of error:
+    ///
+    /// - a join may pass one buffer through both positions on one branch and
+    ///   protect it with a branch-local `inc_rc` that dominates nothing (the
+    ///   `valid_after_pass` fuzzer seed `0x96293a520000f025`), and
+    /// - a join may pass one buffer through *different* positions per branch
+    ///   (`(a, x)` on one arm, `(y, a)` on the other), so the sets intersect
+    ///   even though no single path carries the buffer twice.
+    ///
+    /// The walk threads the *pair* `(a, b)` backward over `(block, a, b)`
+    /// states, mirroring [`Context::compute_uncovered_values`]: across a
+    /// block-parameter edge each side follows the predecessor's argument, and
+    /// an `array_set` result continues with its array operand (the result
+    /// shares the operand's storage). Walls and sinks, in the order checked:
+    ///
+    /// - **`inc_rc` on either name** in the current block (limited to bumps
+    ///   before the call in the call's own block): covered. If the two names
+    ///   denote one buffer on this path, either bump protects it; if they
+    ///   don't, there is no hazard on this path to begin with.
+    /// - **Names equal, defined here or entry reached**: one buffer reaches
+    ///   both positions with no bump crossed — an uncovered terminal.
+    /// - **Names distinct and one is defined here** (non-`array_set`): the
+    ///   two positions carry distinct storages on this path — covered. (Two
+    ///   distinct names for one buffer via un-threaded relations, e.g. an
+    ///   `array_get` extraction, are not modeled — consistent with the rest
+    ///   of the alias engine, a false negative but never a false positive.)
+    /// - **Names distinct at an entry block**: distinct roots — covered.
+    ///
+    /// An unresolvable edge argument is conservatively an uncovered terminal.
+    /// Phase 2 ([`propagate_uncovered`], shared with
+    /// [`Context::compute_uncovered_values`]) floods "uncovered" backward from
+    /// the terminals; a cycle with no uncovered terminal stays covered.
+    fn pair_has_unprotected_shared_storage(
+        &self,
+        a: ValueId,
+        b: ValueId,
+        call_block: BasicBlockId,
+        call_idx: usize,
+    ) -> bool {
+        type State = (BasicBlockId, ValueId, ValueId);
+
+        // Phase 1: build the backward threading graph over (block, a, b) states.
+        let mut graph: HashMap<State, Node<State>> = HashMap::default();
+        let mut worklist: Vec<(BasicBlockId, ValueId, ValueId, Option<usize>)> =
+            vec![(call_block, a, b, Some(call_idx))];
+
+        while let Some((block, a, b, seed_idx)) = worklist.pop() {
+            if graph.contains_key(&(block, a, b)) {
+                continue;
+            }
+
+            // Wall: a bump on either name protects the buffer if the names
+            // coincide, and if they don't there is no hazard on this path.
+            if self.inc_rc_in_block(a, block, seed_idx) || self.inc_rc_in_block(b, block, seed_idx)
+            {
+                graph.insert((block, a, b), Node { successors: vec![], uncovered_terminal: false });
+                continue;
+            }
+
+            // An `array_set` result shares its operand's storage; continue
+            // threading the pair with the operand.
+            if let Some(Instruction::ArraySet { array, .. }) = self.def_in_block(a, block) {
+                let array = *array;
+                graph.insert(
+                    (block, a, b),
+                    Node { successors: vec![(block, array, b)], uncovered_terminal: false },
+                );
+                worklist.push((block, array, b, seed_idx));
+                continue;
+            }
+            if let Some(Instruction::ArraySet { array, .. }) = self.def_in_block(b, block) {
+                let array = *array;
+                graph.insert(
+                    (block, a, b),
+                    Node { successors: vec![(block, a, array)], uncovered_terminal: false },
+                );
+                worklist.push((block, a, array, seed_idx));
+                continue;
+            }
+
+            if a == b {
+                // One name, both positions. If its storage originates here (an
+                // unthreadable definition) or the walk reached an entry with
+                // no bump crossed, this path hands the callee one buffer twice
+                // unprotected.
+                let defined_here = self.def_in_block(a, block).is_some();
+                let mut preds = self.cfg.predecessors(block).peekable();
+                if defined_here || preds.peek().is_none() {
+                    graph.insert(
+                        (block, a, b),
+                        Node { successors: vec![], uncovered_terminal: true },
+                    );
+                    continue;
+                }
+            } else if self.def_in_block(a, block).is_some() || self.def_in_block(b, block).is_some()
+            {
+                // Distinct names and one storage originates here: the other
+                // name cannot resolve to it further back, so this path carries
+                // two distinct buffers.
+                graph.insert((block, a, b), Node { successors: vec![], uncovered_terminal: false });
+                continue;
+            }
+
+            let preds: Vec<BasicBlockId> = self.cfg.predecessors(block).collect();
+            if preds.is_empty() {
+                // Entry reached with distinct names: distinct roots (the `a ==
+                // b` entry case is an uncovered terminal above).
+                graph.insert((block, a, b), Node { successors: vec![], uncovered_terminal: false });
+                continue;
+            }
+
+            let params = self.function.dfg.block_parameters(block);
+            let a_pos = params.iter().position(|&p| p == a);
+            let b_pos = params.iter().position(|&p| p == b);
+            let mut successors = Vec::new();
+            let mut uncovered_terminal = false;
+            for &pred in &preds {
+                let resolve = |pos: Option<usize>, value: ValueId| match pos {
+                    Some(i) => self.edge_arg(pred, block, i),
+                    None => Some(value),
+                };
+                match (resolve(a_pos, a), resolve(b_pos, b)) {
+                    (Some(next_a), Some(next_b)) => {
+                        successors.push((pred, next_a, next_b));
+                        worklist.push((pred, next_a, next_b, None));
+                    }
+                    // An unresolvable edge argument: conservatively treat as
+                    // uncovered rather than silently dropping the path.
+                    _ => uncovered_terminal = true,
+                }
+            }
+            graph.insert((block, a, b), Node { successors, uncovered_terminal });
+        }
+
+        // Phase 2: propagate "uncovered" from terminals to a fixed point.
+        propagate_uncovered(&graph).contains(&(call_block, a, b))
+    }
+
     /// Run the coverage narrowing + forward reachable-use walk for a single
     /// potential in-place mutation of `source` at `(block, idx)` (the
     /// instruction `mutator_id`). Returns the aliased use that would observe
@@ -1013,7 +1155,7 @@ impl<'f> Context<'f> {
         idx: usize,
         mutator_id: InstructionId,
         write_index_const: Option<FieldElement>,
-        initial_derived: im::HashSet<ValueId>,
+        initial_derived: imbl::HashSet<ValueId>,
     ) -> Option<AliasedUse> {
         let alias_set = self.alias_set_for(source, block, idx);
 
@@ -1106,13 +1248,13 @@ impl<'f> Context<'f> {
     #[allow(clippy::too_many_arguments)]
     fn find_reachable_aliased_use(
         &self,
-        alias_set: &im::HashSet<ValueId>,
+        alias_set: &imbl::HashSet<ValueId>,
         source: ValueId,
         mutator_id: InstructionId,
         mutator_block: BasicBlockId,
         mutator_idx: usize,
         write_index_const: Option<FieldElement>,
-        initial_derived: im::HashSet<ValueId>,
+        initial_derived: imbl::HashSet<ValueId>,
     ) -> Option<AliasedUse> {
         let mut visited: HashMap<BasicBlockId, WalkState> = HashMap::default();
 
@@ -1152,7 +1294,7 @@ impl<'f> Context<'f> {
         // the loop-header parameter on the back-edge, since the value
         // threaded back is this protected participant rather than a
         // still-live alias.
-        let protected: im::HashSet<ValueId> = alias_set
+        let protected: imbl::HashSet<ValueId> = alias_set
             .iter()
             .copied()
             .filter(|&v| {
@@ -1161,13 +1303,13 @@ impl<'f> Context<'f> {
                     && self.back_edge_participants.contains(&v)
             })
             .collect();
-        let use_set: im::HashSet<ValueId> =
+        let use_set: imbl::HashSet<ValueId> =
             alias_set.iter().copied().filter(|v| !protected.contains(v)).collect();
 
         let initial_state = WalkState {
             use_set,
             derived: initial_derived,
-            tainted: write_index_const.map(im::HashSet::unit),
+            tainted: write_index_const.map(imbl::HashSet::unit),
         };
         let mut worklist: Vec<WalkFrame> = vec![WalkFrame {
             block: mutator_block,
@@ -1349,7 +1491,7 @@ impl<'f> Context<'f> {
         dest: BasicBlockId,
         arguments: &[ValueId],
         state: &WalkState,
-        protected: &im::HashSet<ValueId>,
+        protected: &imbl::HashSet<ValueId>,
     ) -> WalkState {
         WalkState {
             use_set: self.succ_use_set(dest, arguments, &state.use_set, protected),
@@ -1392,9 +1534,9 @@ impl<'f> Context<'f> {
         &self,
         dest: BasicBlockId,
         arguments: &[ValueId],
-        use_set: &im::HashSet<ValueId>,
-        protected: &im::HashSet<ValueId>,
-    ) -> im::HashSet<ValueId> {
+        use_set: &imbl::HashSet<ValueId>,
+        protected: &imbl::HashSet<ValueId>,
+    ) -> imbl::HashSet<ValueId> {
         let mut result = use_set.clone();
 
         // (1) Per-arg propagation for params of `dest`.
@@ -1475,14 +1617,14 @@ fn compute_backward_aliases(
     function: &Function,
     rpo: &[BasicBlockId],
     incoming_edges: &HashMap<BasicBlockId, Vec<(BasicBlockId, Vec<ValueId>)>>,
-) -> HashMap<ValueId, im::HashSet<ValueId>> {
-    let mut result: HashMap<ValueId, im::HashSet<ValueId>> = HashMap::default();
+) -> HashMap<ValueId, imbl::HashSet<ValueId>> {
+    let mut result: HashMap<ValueId, imbl::HashSet<ValueId>> = HashMap::default();
 
     // Seed each array-typed block parameter with `{p}`.
     for &block_id in rpo {
         for &param in function.dfg.block_parameters(block_id) {
             if function.dfg.type_of_value(param).contains_an_array() {
-                result.insert(param, im::HashSet::unit(param));
+                result.insert(param, imbl::HashSet::unit(param));
             }
         }
     }
@@ -1502,7 +1644,7 @@ fn compute_backward_aliases(
                 if !function.dfg.type_of_value(param).contains_an_array() {
                     continue;
                 }
-                let mut new_set = result.get(&param).cloned().unwrap_or_else(im::HashSet::new);
+                let mut new_set = result.get(&param).cloned().unwrap_or_else(imbl::HashSet::new);
                 let prev_len = new_set.len();
                 for (_pred, args) in incoming {
                     if let Some(&arg) = args.get(i) {
@@ -1527,6 +1669,40 @@ fn compute_backward_aliases(
     result
 }
 
+/// A state in a backward threading graph: the states one step further back
+/// on each path, and whether the walk ended here on an uncovered terminal.
+struct Node<S> {
+    successors: Vec<S>,
+    uncovered_terminal: bool,
+}
+
+/// Propagate "uncovered" from terminal states to a fixed point: a state is
+/// uncovered if it is an uncovered terminal or any of its successors is
+/// uncovered. A cycle with no uncovered terminal stays covered.
+fn propagate_uncovered<S: Copy + Eq + Hash>(graph: &HashMap<S, Node<S>>) -> HashSet<S> {
+    // Invert the edges so the flood can step from a state to the states that
+    // point at it.
+    let mut incoming: HashMap<S, Vec<S>> = HashMap::default();
+    for (&state, node) in graph {
+        for &successor in &node.successors {
+            incoming.entry(successor).or_default().push(state);
+        }
+    }
+
+    // Flood backward from the uncovered terminals.
+    let mut worklist: Vec<S> = graph
+        .iter()
+        .filter_map(|(&state, node)| node.uncovered_terminal.then_some(state))
+        .collect();
+    let mut uncovered = HashSet::default();
+    while let Some(state) = worklist.pop() {
+        if uncovered.insert(state) {
+            worklist.extend(incoming.get(&state).into_iter().flatten());
+        }
+    }
+    uncovered
+}
+
 /// Per-frame state of the forward reachable-use walk: which alias-set
 /// members are live, which chain-derived values share storage with the
 /// source, and which storage positions any chain link may already have
@@ -1538,16 +1714,16 @@ struct WalkState {
     /// `array_set`'s source storage *at the `array_set`'s program point*. A
     /// non-terminator read of one of these is the hazard the walk is
     /// looking for.
-    use_set: im::HashSet<ValueId>,
+    use_set: imbl::HashSet<ValueId>,
     /// Values that may share the source's storage through transitive
     /// in-place chain mutations. Seeded with the `array_set`'s own result;
     /// extended by every later `array_set` whose `array` operand is
     /// already in `derived`.
-    derived: im::HashSet<ValueId>,
+    derived: imbl::HashSet<ValueId>,
     /// Storage positions any chain link may already have written. `None`
     /// (= "all positions") absorbs a dynamic chain write — once we lose
     /// precise tracking we can't recover it.
-    tainted: Option<im::HashSet<FieldElement>>,
+    tainted: Option<imbl::HashSet<FieldElement>>,
 }
 
 impl WalkState {

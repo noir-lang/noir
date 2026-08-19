@@ -841,11 +841,18 @@ fn can_be_deduplicated(instruction: &Instruction, dfg: &DataFlowGraph) -> CanBeD
         | DecrementRc { .. } => CanBeDeduplicated::Never,
 
         Call { func, .. } => match dfg[*func] {
-            Value::Intrinsic(intrinsic) => match intrinsic.purity() {
-                Purity::Pure => CanBeDeduplicated::Always,
-                Purity::PureWithPredicate => CanBeDeduplicated::UnderSamePredicate,
-                Purity::Impure => CanBeDeduplicated::Never,
-            },
+            Value::Intrinsic(intrinsic) => {
+                // Similar to the ArraySet case below: in Brillig vector intrinsics might mutate a vector in-place
+                if dfg.runtime().is_brillig() && intrinsic.mutates_array_operand_in_brillig() {
+                    CanBeDeduplicated::Never
+                } else {
+                    match intrinsic.purity() {
+                        Purity::Pure => CanBeDeduplicated::Always,
+                        Purity::PureWithPredicate => CanBeDeduplicated::UnderSamePredicate,
+                        Purity::Impure => CanBeDeduplicated::Never,
+                    }
+                }
+            }
             // A call to a user-defined function from an ACIR caller lowers to a predicated
             // `Opcode::Call` or `Opcode::BrilligCall`, which leaves the callee's outputs
             // unconstrained when the predicate is disabled. `DataFlowGraph::purity_of` already
@@ -3831,6 +3838,43 @@ mod test {
             });
     }
 
+    /// A borrow is always allocated as `&mut T` even when the source declares `&T`, so an
+    /// array of immutable references holds `&mut`-typed elements while the array type says
+    /// `&`. Folding `array_get` on such a `make_array` maps the `&u1`-typed result onto the
+    /// `&mut u1` cell; the post-check has to accept that weakening or constant folding panics
+    /// on any program that reads an immutable-reference array element.
+    #[test]
+    fn folds_array_get_of_immutable_reference_array_element() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: u1):
+            v1 = allocate -> &mut u1
+            store v0 at v1
+            v2 = make_array [v1, v1] : [&u1; 2]
+            v3 = array_get v2, index u32 0 -> &u1
+            v4 = load v3 -> u1
+            return v4
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let (ssa, execution_result) =
+            assert_pass_does_not_affect_execution(ssa, vec![Value::bool(true)], |ssa| {
+                ssa.fold_constants(DEFAULT_MAX_ITER)
+            });
+        assert_eq!(execution_result, Ok(vec![Value::bool(true)]));
+
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) fn main f0 {
+          b0(v0: u1):
+            v1 = allocate -> &mut u1
+            store v0 at v1
+            v2 = make_array [v1, v1] : [&u1; 2]
+            v3 = load v1 -> u1
+            return v3
+        }
+        ");
+    }
+
     /// Guard: the Brillig-caller relaxation must not leak to ACIR callers. The plain constant
     /// folding pass must not deduplicate an ACIR caller's repeated calls to a pure Brillig
     /// function, since that would drop the predicate sensitivity of the call opcode.
@@ -3851,5 +3895,48 @@ mod test {
         }
         ";
         assert_ssa_does_not_change(src, |ssa| ssa.fold_constants(MIN_ITER));
+    }
+
+    #[test_case("vector_push_front(v11, v12, u8 8)")]
+    #[test_case("vector_push_back(v11, v12, u8 8)")]
+    #[test_case("vector_pop_front(v11, v12)")]
+    #[test_case("vector_pop_back(v11, v12)")]
+    #[test_case("vector_insert(v11, v12, u32 1, u8 8)")]
+    #[test_case("vector_remove(v11, v12, u32 1)")]
+    fn does_not_deduplicate_possibly_mutable_vector_intrinsics_in_brillig(intrinsic: &'static str) {
+        let src = format!(
+            "
+        brillig(inline) predicate_pure fn main f0 {{
+          b0(v0: [u8; 2], v1: u1, v2: u1):
+            v6, v7 = call as_vector(v0) -> (u32, [u8])
+            v11, v12 = call vector_push_front(u32 2, v7, u8 9) -> (u32, [u8])
+            jmpif v1 then: b1(), else: b2()
+          b1():
+            v14, v15 = call {intrinsic} -> (u32, [u8])
+            v17 = lt u32 0, v14
+            constrain v17 == u1 1
+            v19 = array_get v15, index u32 0 -> u8
+            jmp b3(v19)
+          b2():
+            jmpif v2 then: b4(), else: b5()
+          b3(v3: u8):
+            return v3
+          b4():
+            v20, v21 = call {intrinsic} -> (u32, [u8])
+            v22 = lt u32 0, v20
+            constrain v22 == u1 1
+            v23 = array_get v21, index u32 0 -> u8
+            jmp b6(v23)
+          b5():
+            v24 = lt u32 0, v11
+            constrain v24 == u1 1
+            v25 = array_get v12, index u32 0 -> u8
+            jmp b6(v25)
+          b6(v4: u8):
+            jmp b3(v4)
+        }}
+        "
+        );
+        assert_ssa_does_not_change(&src, |ssa| ssa.fold_constants_using_constraints(MIN_ITER));
     }
 }
