@@ -649,7 +649,22 @@ impl<'a> Context<'a> {
             TerminatorInstruction::JmpIf { .. } | TerminatorInstruction::Jmp { .. } => {
                 unreachable!("ICE: Program must have a singular return")
             }
-            TerminatorInstruction::Unreachable { .. } => return Ok((vec![], vec![])),
+            TerminatorInstruction::Unreachable { .. } => {
+                // The SSA interpreter treats reaching `unreachable` as an error. The
+                // constrained ACIR runtime has no `trap` opcode, so match those semantics
+                // by planting an unsatisfiable constraint here: any prover that reaches
+                // this block cannot satisfy the circuit.
+                //
+                // The normal producer path (`remove_unreachable_instructions`) rewrites
+                // a terminator to `Unreachable` only after an earlier failing constraint,
+                // so on well-formed compiler output this constraint is redundant. Its
+                // job is to bound validator-accepted SSA whose earlier failing
+                // instruction is missing.
+                let one = self.acir_context.add_constant(FieldElement::one());
+                self.acir_context
+                    .assert_zero_var(one, "Reached the unreachable".to_string())?;
+                return Ok((vec![], vec![]));
+            }
         };
 
         let mut has_constant_return = false;
