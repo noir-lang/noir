@@ -32,6 +32,17 @@ fn flattened_inline_source(value: &AcirValue) -> Option<Vec<AcirVar>> {
     }
 }
 
+/// How much of a vector's semantic length is known while it is being lowered.
+///
+/// Produced by [`Context::resolve_vector_length`], which is also where a constant length's
+/// "no predicate needed" acknowledgment is recorded.
+enum VectorLength {
+    /// Known at compile time, so the lowering can address the affected slot exactly.
+    Constant(FieldElement),
+    /// Only known at runtime, so the lowering has to gate on the side-effects predicate.
+    Unknown,
+}
+
 impl Context<'_> {
     /// Reads the value of type `ssa_type` at the flattened position `var_index` of a vector,
     /// advancing `var_index` past it.
@@ -187,18 +198,12 @@ impl Context<'_> {
         let vector_typ = dfg.type_of_value(vector_contents);
         self.check_vector_element_count("vector_push_back", elements_to_push, &vector_typ)?;
 
-        // The length is known at compile time when it is either an SSA numeric constant or when its
-        // ACIR representation has folded to a constant (e.g. the length of a previous constant-length
-        // push). In that case we know exactly where the pushed elements land, so we can place them
-        // inline and let the block initialize with the final values — no `MemoryOp::Write` at a
-        // constant index into a freshly-initialized block.
-        let len_const = dfg.get_numeric_constant(arguments[0]).or_else(|| {
-            let expr = self.acir_context.var_to_expression(vector_length).ok()?;
-            expr.to_const().copied()
-        });
-        let new_vector_val = if let Some(len_const) = len_const {
-            // Length is known at compile time - we can precisely determine where to write
-            self.predicate_not_needed(PredicateNotNeeded::ConstantVectorLength);
+        // When the length is known at compile time we know exactly where the pushed elements land,
+        // so we can place them inline and let the block initialize with the final values — no
+        // `MemoryOp::Write` at a constant index into a freshly-initialized block.
+        let new_vector_val = if let VectorLength::Constant(len_const) =
+            self.resolve_vector_length(dfg, arguments[0], Some(vector_length))
+        {
             let mut new_vector = self.read_array_with_type(vector, &vector_typ)?;
             // length of Acir Values vector
             let len = len_const.to_u128() as usize * elements_to_push.len();
@@ -490,7 +495,12 @@ impl Context<'_> {
         vector_length_value: AcirValue,
     ) -> Result<AcirVar, RuntimeError> {
         let vector_length_var = vector_length_value.into_var()?;
-        let is_unknown_length = dfg.get_numeric_constant(vector_length_id).is_none();
+        // A length known at compile time is nonzero here (the caller handled the constant zero
+        // case), so it needs neither the runtime emptiness assertion nor index gating below.
+        let is_unknown_length = matches!(
+            self.resolve_vector_length(dfg, vector_length_id, None),
+            VectorLength::Unknown
+        );
 
         if is_unknown_length {
             // Check that the vector length is not zero.
@@ -506,10 +516,6 @@ impl Context<'_> {
                 predicate,
                 Some(assert_message),
             )?;
-        } else {
-            // A known-constant, nonzero length (the constant-zero case was handled by the
-            // caller) needs neither the runtime emptiness assertion nor index gating.
-            self.predicate_not_needed(PredicateNotNeeded::ConstantVectorLength);
         }
 
         let one = self.acir_context.add_constant(FieldElement::one());
@@ -698,12 +704,12 @@ impl Context<'_> {
 
         // Fetch the flattened index from the user provided index argument.
         let item_size = self.acir_context.add_constant(elements_to_insert.len());
-        let is_safe_index = Self::is_index_safe(arguments[2], dfg, &vector_typ, vector_size);
-        if is_safe_index {
-            // A statically safe insert index needs no gating, so no lowering path below
-            // consults the predicate.
-            self.predicate_not_needed(PredicateNotNeeded::StaticallySafeIndex);
-        }
+        let gating = self.index_gating_without_fallback(Self::is_index_safe(
+            arguments[2],
+            dfg,
+            &vector_typ,
+            vector_size,
+        ));
         let insert_index = self.acir_context.mul_var(insert_index, item_size)?;
 
         // Because the insert index might be at the end of the vector, the element type sizes we
@@ -714,7 +720,7 @@ impl Context<'_> {
             vector_contents,
             insert_index,
             dfg,
-            IndexGating::without_fallback(is_safe_index),
+            gating,
             shift,
         )?;
 
@@ -968,12 +974,12 @@ impl Context<'_> {
         let item_size = vector_typ.element_size().to_usize();
         let item_size_var = self.acir_context.add_constant(item_size);
         let remove_index = self.acir_context.mul_var(remove_index, item_size_var)?;
-        let is_safe_index = Self::is_index_safe(arguments[2], dfg, &vector_typ, vector_size);
-        if is_safe_index {
-            // A statically safe remove index needs no gating, so no lowering path below
-            // consults the predicate.
-            self.predicate_not_needed(PredicateNotNeeded::StaticallySafeIndex);
-        }
+        let gating = self.index_gating_without_fallback(Self::is_index_safe(
+            arguments[2],
+            dfg,
+            &vector_typ,
+            vector_size,
+        ));
 
         // Fetch the flattened index from the user provided index argument.
         let flat_user_index = self.get_flattened_index(
@@ -981,7 +987,7 @@ impl Context<'_> {
             vector_contents,
             remove_index,
             dfg,
-            IndexGating::without_fallback(is_safe_index),
+            gating,
             ElementTypeSizesArrayShift::None,
         )?;
 
@@ -1069,6 +1075,36 @@ impl Context<'_> {
         result.append(&mut popped_elements);
 
         Ok(result)
+    }
+
+    /// Resolves how much of a vector's semantic length is known while lowering it.
+    ///
+    /// `acir_length`, when given, is the length's ACIR representation: a length which has folded to
+    /// a constant there (e.g. the length of a previous constant-length push) is as good as an SSA
+    /// constant.
+    ///
+    /// A length known at compile time pins the slot an element is pushed to or popped from, so the
+    /// lowering emits the same ACIR whether side effects are enabled or not and consults no
+    /// predicate. That acknowledgment is recorded here, where the decision is made, rather than
+    /// left to each caller to remember.
+    fn resolve_vector_length(
+        &self,
+        dfg: &DataFlowGraph,
+        length: ValueId,
+        acir_length: Option<AcirVar>,
+    ) -> VectorLength {
+        let constant = dfg.get_numeric_constant(length).or_else(|| {
+            let expr = self.acir_context.var_to_expression(acir_length?).ok()?;
+            expr.to_const().copied()
+        });
+
+        match constant {
+            Some(constant) => {
+                self.predicate_not_needed(PredicateNotNeeded::ConstantVectorLength);
+                VectorLength::Constant(constant)
+            }
+            None => VectorLength::Unknown,
+        }
     }
 
     /// Returns true if the user-facing index is less than the vector capacity

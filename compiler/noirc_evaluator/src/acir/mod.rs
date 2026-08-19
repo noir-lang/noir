@@ -54,7 +54,7 @@ use crate::ssa::{
 use crate::{acir::shared_context::SharedContext, brillig::BrilligOptions};
 
 use acir_context::{AcirContext, BrilligStdLib};
-use side_effects::{SideEffectsLatch, Unpredicated};
+use side_effects::{PredicateContract, SideEffectsLatch, Unpredicated};
 use types::{AcirType, AcirVar};
 pub use {acir_context::GeneratedAcir, ssa::Artifacts};
 
@@ -468,25 +468,32 @@ impl<'a> Context<'a> {
         Ok(acir_var)
     }
 
-    /// Converts an SSA instruction into its ACIR representation
+    /// Converts an SSA instruction into its ACIR representation, holding the lowering to the
+    /// instruction's [`PredicateContract`].
+    ///
+    /// The bracketing lives here rather than in the lowering itself so that no path through it can
+    /// skip the end-of-instruction check by returning early.
     fn convert_ssa_instruction(
         &mut self,
         instruction_id: InstructionId,
         dfg: &DataFlowGraph,
         ssa: &Ssa,
     ) -> Result<Vec<SsaReport>, RuntimeError> {
+        self.side_effects.begin_instruction(PredicateContract::of(&dfg[instruction_id], dfg));
+        let warnings = self.convert_ssa_instruction_inner(instruction_id, dfg, ssa)?;
+        // Only checked once the lowering succeeded: one which bailed out may not have reached the
+        // path that reads the predicate.
+        self.side_effects.end_instruction();
+        Ok(warnings)
+    }
+
+    fn convert_ssa_instruction_inner(
+        &mut self,
+        instruction_id: InstructionId,
+        dfg: &DataFlowGraph,
+        ssa: &Ssa,
+    ) -> Result<Vec<SsaReport>, RuntimeError> {
         let instruction = &dfg[instruction_id];
-        // `EnableSideEffectsIf` writes the predicate rather than reading one, so it is held to
-        // neither direction of the check.
-        #[cfg(debug_assertions)]
-        let requires_predicate = instruction.requires_acir_gen_predicate(dfg)
-            && !matches!(instruction, Instruction::EnableSideEffectsIf { .. });
-        #[cfg(debug_assertions)]
-        self.side_effects.begin_instruction(
-            instruction.requires_acir_gen_predicate(dfg)
-                || matches!(instruction, Instruction::Constrain(..)),
-            requires_predicate,
-        );
         self.acir_context.set_call_stack(dfg.get_instruction_call_stack(instruction_id));
         let mut warnings = Vec::new();
 
@@ -579,9 +586,6 @@ impl<'a> Context<'a> {
             }
             Instruction::Noop => (),
         }
-
-        #[cfg(debug_assertions)]
-        self.side_effects.end_instruction();
 
         self.acir_context.set_call_stack(CallStack::empty());
         Ok(warnings)

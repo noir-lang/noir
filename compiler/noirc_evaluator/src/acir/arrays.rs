@@ -1223,6 +1223,21 @@ impl Context<'_> {
         Ok(())
     }
 
+    /// The gating for an access that addresses whole elements, and so has no field of the element
+    /// to fall back on: a disabled branch collapses it to the start of the block.
+    ///
+    /// A statically safe index is used as-is, so a lowering whose only predicated operand is this
+    /// index reads no predicate at all. That acknowledgment is recorded here, where the decision
+    /// is made, rather than left to each caller to remember.
+    pub(super) fn index_gating_without_fallback(&self, is_safe_index: bool) -> IndexGating {
+        if is_safe_index {
+            self.predicate_not_needed(PredicateNotNeeded::StaticallySafeIndex);
+            IndexGating::Safe
+        } else {
+            IndexGating::Gated { fallback_offset: 0 }
+        }
+    }
+
     /// Convert an SSA array index into a flat ACIR array index.
     ///
     /// ACIR memory is flat, while SSA arrays may be multi-dimensional or
@@ -1456,14 +1471,6 @@ pub(super) enum IndexGating {
     /// slot whose type is compatible with it (see [`Context::compute_offset`]); `0` for an
     /// access that has no such slot to land on and only needs to be in bounds.
     Gated { fallback_offset: usize },
-}
-
-impl IndexGating {
-    /// The gating for an access that addresses whole elements, and so has no field of the element
-    /// to fall back on: a disabled branch collapses it to the start of the block.
-    pub(super) fn without_fallback(is_safe_index: bool) -> Self {
-        if is_safe_index { Self::Safe } else { Self::Gated { fallback_offset: 0 } }
-    }
 }
 
 /// Represents a shift in the size of the element type sizes array.
