@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":["Value"],"struct":["ArrayValue","NumericValue","ReferenceValue"]};
+window.SIDEBAR_ITEMS = {"enum":["Value"],"struct":["ArrayValue","NumericValue","ReferenceValue"],"type":["StorageIdentity"]};
