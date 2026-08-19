@@ -18,13 +18,14 @@ use crate::ssa::ir::{
     printer::display_binary,
     types::NumericType,
 };
+use crate::ssa::opt::pure::{FunctionPurities, Purity};
 use acvm::{AcirField, FieldElement};
 use errors::{InternalError, InterpreterError, MAX_UNSIGNED_BIT_SIZE};
 use iter_extended::{try_vecmap, vecmap};
 use itertools::Itertools;
 use noirc_frontend::Shared;
-use rustc_hash::FxHashMap as HashMap;
-use value::{ArrayValue, NumericValue, ReferenceValue};
+use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
+use value::{ArrayValue, NumericValue, ReferenceValue, StorageIdentity};
 
 pub mod errors;
 mod intrinsics;
@@ -44,6 +45,12 @@ pub(crate) struct Interpreter<'ssa, W> {
 
     functions: &'ssa BTreeMap<FunctionId, Function>,
 
+    /// The purity of every function in the program, consulted to decide the pure
+    /// scope of each call. `None` when the interpreter was constructed without an
+    /// [`Ssa`] to project from — in that case every call is treated as impure,
+    /// which is the safe direction.
+    function_purities: Option<&'ssa FunctionPurities>,
+
     /// The options the interpreter was created with.
     options: InterpreterOptions,
 
@@ -52,6 +59,11 @@ pub(crate) struct Interpreter<'ssa, W> {
 
     /// Number of instructions and terminators executed.
     step_counter: usize,
+
+    /// Storage identities of every array or reference defined by global instructions.
+    /// Globals are visible everywhere, so mutating their storage inside a function
+    /// whose purity forbids caller-visible side effects is always a violation.
+    global_storage: HashSet<StorageIdentity>,
 }
 
 #[derive(Debug, Clone, Copy, Default)]
@@ -76,19 +88,51 @@ struct CallContext {
     /// expected to have no effect if there are no such instructions or if the code
     /// being executed is an unconstrained function.
     side_effects_enabled: bool,
+
+    /// Present when the called function's recorded purity is [Purity::Pure] or
+    /// [Purity::PureWithPredicate], both of which forbid mutating caller-visible
+    /// memory. Absent for `Impure` functions and when no purity analysis has run.
+    pure_scope: Option<PureScope>,
+}
+
+/// The purity contract the interpreter enforces for the duration of one call.
+///
+/// A violation can only stem from a bug in purity analysis or in an SSA pass that
+/// invalidated its results, so the interpreter reports it as an
+/// [InterpreterError::PurityViolation] rather than treating it as program behavior.
+struct PureScope {
+    /// The purity recorded for the called function, as observed by its caller
+    /// (see [DataFlowGraph::purity_of]).
+    purity: Purity,
+
+    /// Storage identities of everything reachable from the call's arguments at
+    /// entry. An in-place write to any of these during the call is observable by
+    /// the caller, which both `Pure` and `PureWithPredicate` forbid.
+    argument_storage: HashSet<StorageIdentity>,
+
+    /// Clones of the arguments, held only to keep the collected storage alive for
+    /// the duration of the call so that a freed allocation's address cannot be
+    /// reused by unrelated storage and trigger a false violation.
+    _argument_keepalive: Vec<Value>,
 }
 
 impl CallContext {
-    fn new(called_function: FunctionId) -> Self {
+    fn new(called_function: FunctionId, pure_scope: Option<PureScope>) -> Self {
         Self {
             called_function: Some(called_function),
             scope: Default::default(),
             side_effects_enabled: true,
+            pure_scope,
         }
     }
 
     fn global_context() -> Self {
-        Self { called_function: None, scope: Default::default(), side_effects_enabled: true }
+        Self {
+            called_function: None,
+            scope: Default::default(),
+            side_effects_enabled: true,
+            pure_scope: None,
+        }
     }
 }
 
@@ -125,7 +169,9 @@ impl Ssa {
 
 impl<'ssa, W: Write> Interpreter<'ssa, W> {
     fn new(ssa: &'ssa Ssa, options: InterpreterOptions, output: W) -> Self {
-        Self::new_from_functions(&ssa.functions, options, output)
+        let mut interpreter = Self::new_from_functions(&ssa.functions, options, output);
+        interpreter.function_purities = Some(&ssa.function_purities);
+        interpreter
     }
 
     pub(crate) fn new_from_functions(
@@ -134,7 +180,15 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
         output: W,
     ) -> Self {
         let call_stack = vec![CallContext::global_context()];
-        Self { functions, call_stack, options, output, step_counter: 0 }
+        Self {
+            functions,
+            function_purities: None,
+            call_stack,
+            options,
+            output,
+            step_counter: 0,
+            global_storage: HashSet::default(),
+        }
     }
 
     pub(crate) fn functions(&self) -> &BTreeMap<FunctionId, Function> {
@@ -263,6 +317,13 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
             };
             self.define(global_id, value)?;
         }
+
+        let mut global_storage = HashSet::default();
+        for value in self.global_scope().values() {
+            value.collect_storage_identities(&mut global_storage);
+        }
+        self.global_storage = global_storage;
+
         Ok(())
     }
 
@@ -283,8 +344,52 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
     ///
     /// Unlike `interpret_function` this does not reset the state;
     /// it is meant to be used for internal calls.
-    fn call_function(&mut self, function_id: FunctionId, mut arguments: Vec<Value>) -> IResults {
-        self.call_stack.push(CallContext::new(function_id));
+    ///
+    /// If the called function has a recorded purity, its behavior is checked against
+    /// the contract that purity promises: `Pure` and `PureWithPredicate` functions
+    /// must not mutate caller-visible memory (enforced at each in-place write via
+    /// [Self::check_purity_on_mutation]), and `Pure` functions additionally must not
+    /// fail, since passes are free to deduplicate or remove calls to them.
+    fn call_function(&mut self, function_id: FunctionId, arguments: Vec<Value>) -> IResults {
+        // The function's purity as its caller observes it; the innermost frame is
+        // still the caller here. For a top-level call there is no caller, so the
+        // callee's own runtime provides the (identity) projection.
+        let caller_id = self.call_context().called_function.unwrap_or(function_id);
+        let caller_runtime = self.functions[&caller_id].runtime();
+        let purity = self
+            .function_purities
+            .and_then(|purities| purities.purity_of(function_id, caller_runtime));
+
+        let pure_scope = purity.filter(|purity| *purity != Purity::Impure).map(|purity| {
+            let mut argument_storage = HashSet::default();
+            for argument in &arguments {
+                argument.collect_storage_identities(&mut argument_storage);
+            }
+            PureScope { purity, argument_storage, _argument_keepalive: arguments.clone() }
+        });
+
+        let result = self.call_function_inner(function_id, arguments, pure_scope);
+
+        if purity == Some(Purity::Pure)
+            && let Err(error) = &result
+            && error.is_execution_failure()
+        {
+            return Err(self.purity_violation(
+                function_id,
+                Purity::Pure,
+                format!("it failed with: {error}"),
+            ));
+        }
+        result
+    }
+
+    fn call_function_inner(
+        &mut self,
+        function_id: FunctionId,
+        mut arguments: Vec<Value>,
+        pure_scope: Option<PureScope>,
+    ) -> IResults {
+        self.call_stack.push(CallContext::new(function_id, pure_scope));
 
         if self.call_stack.len() >= MAX_INTERPRETER_CALL_STACK_SIZE {
             let call_stack = self
@@ -400,6 +505,62 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
         }
 
         Ok(return_values)
+    }
+
+    fn purity_violation(
+        &self,
+        function: FunctionId,
+        purity: Purity,
+        reason: String,
+    ) -> InterpreterError {
+        InterpreterError::PurityViolation {
+            function,
+            function_name: self.functions[&function].name().to_string(),
+            purity: purity.to_string(),
+            reason,
+        }
+    }
+
+    /// Check an in-place write to `storage` against every active purity scope.
+    ///
+    /// Writing to storage reachable from a call's arguments (or from a global) is
+    /// observable by that call's caller, which both [Purity::Pure] and
+    /// [Purity::PureWithPredicate] forbid. Storage allocated during the call is not
+    /// in any scope's set, so local mutations pass freely.
+    ///
+    /// Callers only invoke this for writes that are genuinely observable under the
+    /// current runtime's semantics: constrained-context `array_set`s marked mutable
+    /// are exempt, since they merely reuse the backing store of an array value
+    /// proven dead, under ACIR's value semantics.
+    fn check_purity_on_mutation(&self, storage: StorageIdentity, what: &str) -> IResult<()> {
+        for context in self.call_stack.iter().rev() {
+            let Some(scope) = &context.pure_scope else { continue };
+            if scope.argument_storage.contains(&storage) || self.global_storage.contains(&storage) {
+                let function = context
+                    .called_function
+                    .expect("purity scopes only exist on function call frames");
+                let reason = format!("it mutated caller-visible memory ({what})");
+                return Err(self.purity_violation(function, scope.purity, reason));
+            }
+        }
+        Ok(())
+    }
+
+    /// Check an executed foreign function call against every active purity scope.
+    ///
+    /// A foreign call is an observable side effect, so it is forbidden inside any
+    /// function whose recorded purity is not `Impure` (even a `#[pure]` oracle makes
+    /// its caller at most `PureWithPredicate`, and the only foreign function the
+    /// interpreter executes, `print`, is not a pure oracle).
+    fn check_purity_on_foreign_call(&self, name: &str) -> IResult<()> {
+        for context in self.call_stack.iter().rev() {
+            let Some(scope) = &context.pure_scope else { continue };
+            let function =
+                context.called_function.expect("purity scopes only exist on function call frames");
+            let reason = format!("it called foreign function `{name}`");
+            return Err(self.purity_violation(function, scope.purity, reason));
+        }
+        Ok(())
     }
 
     fn lookup(&self, id: ValueId) -> IResult<Value> {
@@ -852,7 +1013,10 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
                 Value::ForeignFunction(name) if self.options.no_foreign_calls => {
                     return Err(InterpreterError::UnknownForeignFunctionCall { name });
                 }
-                Value::ForeignFunction(name) if name == "print" => self.call_print(arguments)?,
+                Value::ForeignFunction(name) if name == "print" => {
+                    self.check_purity_on_foreign_call(&name)?;
+                    self.call_print(arguments)?
+                }
                 Value::ForeignFunction(name) => {
                     return Err(InterpreterError::UnknownForeignFunctionCall { name });
                 }
@@ -1016,6 +1180,11 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
             println!("store {value} at {address}");
         }
 
+        self.check_purity_on_mutation(
+            reference_address.element.as_ptr() as StorageIdentity,
+            "a store through a reference",
+        )?;
+
         *reference_address.element.borrow_mut() = Some(value);
 
         Ok(())
@@ -1142,6 +1311,18 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
             }
 
             if should_mutate {
+                // In a constrained context arrays have value semantics: an in-place write
+                // here only reuses the backing store of an array value that the Mutable
+                // Array Set Optimizations pass proved dead, so it is not a caller-visible
+                // mutation and purity analysis rightly ignores it. Only in Brillig, where
+                // the reference count governs genuine sharing, is writing through
+                // argument-reachable storage observable by the caller.
+                if self.in_unconstrained_context() {
+                    self.check_purity_on_mutation(
+                        array.elements.as_ptr() as StorageIdentity,
+                        "an in-place array_set",
+                    )?;
+                }
                 array.elements.borrow_mut()[index as usize] = value;
                 Value::ArrayOrVector(array)
             } else {
@@ -1238,7 +1419,7 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
 
     fn interpret_make_array(
         &mut self,
-        elements: &im::Vector<ValueId>,
+        elements: &imbl::Vector<ValueId>,
         result: ValueId,
         result_type: &Type,
     ) -> IResult<()> {

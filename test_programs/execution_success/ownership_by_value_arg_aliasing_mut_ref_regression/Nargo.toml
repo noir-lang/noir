@@ -1,0 +1,6 @@
+[package]
+name = "ownership_by_value_arg_aliasing_mut_ref_regression"
+type = "bin"
+authors = [""]
+
+[dependencies]

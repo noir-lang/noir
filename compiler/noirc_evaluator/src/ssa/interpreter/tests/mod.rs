@@ -29,6 +29,7 @@ use super::{Ssa, Value};
 mod black_box;
 mod instructions;
 mod intrinsics;
+mod purity;
 
 #[track_caller]
 fn executes_with_no_errors(src: &str) {

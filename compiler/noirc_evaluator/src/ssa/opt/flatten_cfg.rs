@@ -3655,7 +3655,6 @@ mod merge_provenance_tests {
             v11 = unchecked_mul v0, v4
             constrain v0 == u1 1
             constrain v2 == u1 1
-            constrain v0 == u1 1
             constrain v1 == u1 1
             return
         }

@@ -959,6 +959,13 @@ impl<T> Shared<T> {
         Shared(Rc::new(RefCell::new(thing)))
     }
 
+    /// A pointer identifying the shared allocation itself, for identity comparisons.
+    /// Two `Shared` handles observe each other's mutations exactly when their
+    /// `as_ptr` results are equal (note that `PartialEq` compares contents instead).
+    pub fn as_ptr(&self) -> *const T {
+        self.0.as_ptr()
+    }
+
     pub fn borrow(&self) -> std::cell::Ref<T> {
         self.0.borrow()
     }

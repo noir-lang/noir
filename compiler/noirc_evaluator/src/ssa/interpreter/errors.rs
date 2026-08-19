@@ -75,6 +75,44 @@ pub enum InterpreterError {
     OutOfBudget { steps: usize },
     #[error("Stack overflow in 'fn {} {}'", .call_stack.last().unwrap().1, .call_stack.last().unwrap().0)]
     StackOverflow { call_stack: Vec<(FunctionId, String)> },
+    /// A function behaved in a way its recorded purity forbids. This indicates a bug
+    /// in purity analysis, or in an SSA pass that invalidated its results.
+    #[error(
+        "purity violation: function {function} ({function_name}) is recorded as {purity} but {reason}"
+    )]
+    PurityViolation { function: FunctionId, function_name: String, purity: String, reason: String },
+    /// An intrinsic mutated its vector operand in place without being listed in
+    /// `Intrinsic::mutates_array_operand_in_brillig`. Purity analysis relies on that
+    /// list to classify callers, so an unlisted mutator silently poisons every
+    /// containing function's recorded purity.
+    #[error(
+        "purity violation: intrinsic {intrinsic} mutated its vector operand in place but is not marked as a vector mutator"
+    )]
+    IntrinsicPurityViolation { intrinsic: Intrinsic },
+}
+
+impl InterpreterError {
+    /// Whether this error is a failure of the interpreted program's own semantics
+    /// (a failed assertion, overflow, division by zero, ...) as opposed to an
+    /// artifact of interpretation (step budget, missing oracle, malformed SSA).
+    ///
+    /// Only these failures are purity violations when they escape a function
+    /// recorded as [Pure][crate::ssa::opt::pure::Purity::Pure]: a `Pure` function
+    /// must never fail, since passes may remove or reorder calls to it.
+    pub(super) fn is_execution_failure(&self) -> bool {
+        matches!(
+            self,
+            InterpreterError::ConstrainEqFailed { .. }
+                | InterpreterError::ConstrainNeFailed { .. }
+                | InterpreterError::StaticAssertFailed { .. }
+                | InterpreterError::RangeCheckFailed { .. }
+                | InterpreterError::DivisionByZero { .. }
+                | InterpreterError::Overflow { .. }
+                | InterpreterError::PoppedFromEmptyVector { .. }
+                | InterpreterError::IndexOutOfBounds { .. }
+                | InterpreterError::ReachedTheUnreachable
+        )
+    }
 }
 
 /// These errors can only result from interpreting malformed SSA

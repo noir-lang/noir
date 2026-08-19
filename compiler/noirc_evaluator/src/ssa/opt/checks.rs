@@ -32,7 +32,7 @@ use crate::ssa::ir::{
 /// ```ignore
 /// checks::for_each_instruction(function, |instruction, dfg| {
 ///     checks::assert_not_if_else(instruction);
-///     checks::assert_not_load_or_store(instruction);
+///     checks::assert_not_load_or_store(function, instruction, dfg);
 /// });
 /// ```
 pub(super) fn for_each_instruction(
@@ -117,10 +117,35 @@ pub(super) fn assert_not_if_else(instruction: &Instruction) {
 }
 
 /// Panics if the instruction is a Load or Store.
-pub(super) fn assert_not_load_or_store(instruction: &Instruction) {
-    assert!(
-        !matches!(instruction, Instruction::Load { .. } | Instruction::Store { .. }),
-        "Load or Store instruction found"
+///
+/// ACIR has no memory operations, so by this point `mem2reg` must have promoted every allocation.
+/// One surviving here means it could not: something kept the address first-class past the last
+/// `mem2reg` run, which is usually an aggregate that still holds the reference — an array of
+/// references which is live, or one which is dead but was not recognised as such, leaving the
+/// address ineligible for promotion.
+///
+/// Dynamically selecting a reference out of an array is the known way to keep an address
+/// first-class that far, and is reported to the user as
+/// [`RuntimeError::DynamicIndexingWithReference`][crate::errors::RuntimeError::DynamicIndexingWithReference]
+/// by [`verify_no_dynamic_indices_to_references`][crate::ssa::validation::dynamic_array_indices::verify_no_dynamic_indices_to_references],
+/// which runs earlier in the pipeline. Anything reaching this assertion got past that check, so
+/// the printed address and its type are the place to start.
+pub(super) fn assert_not_load_or_store(
+    function: &Function,
+    instruction: &Instruction,
+    dfg: &DataFlowGraph,
+) {
+    let (kind, address) = match instruction {
+        Instruction::Load { address } => ("Load", *address),
+        Instruction::Store { address, .. } => ("Store", *address),
+        _ => return,
+    };
+
+    panic!(
+        "{kind} instruction found in ACIR function '{}': the address {address} of type {} was not \
+         promoted by mem2reg, so a memory operation reached ACIR generation",
+        function.name(),
+        dfg.type_of_value(address),
     );
 }
 
@@ -201,5 +226,35 @@ fn is_signed_binary_op(instruction: &Instruction, dfg: &DataFlowGraph, op: Binar
         dfg.type_of_value(binary.lhs).is_signed() && binary.operator == op
     } else {
         false
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::ssa::ssa_gen::Ssa;
+
+    use super::assert_not_load_or_store;
+
+    /// A memory operation surviving into ACIR is a compiler bug with no user-facing cause to
+    /// report, so the panic has to carry enough to start debugging from: which function, which
+    /// address, and what that address is a reference to.
+    #[test]
+    #[should_panic(
+        expected = "Store instruction found in ACIR function 'main': the address v0 of type &mut Field was not promoted by mem2reg"
+    )]
+    fn load_or_store_assertion_names_the_function_and_address() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = allocate -> &mut Field
+            store Field 1 at v0
+            return
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let function = ssa.main();
+        super::for_each_instruction(function, |instruction, dfg| {
+            assert_not_load_or_store(function, instruction, dfg);
+        });
     }
 }

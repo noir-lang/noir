@@ -64,11 +64,11 @@ fn mutable_array_set_optimization_pre_check(func: &Function) {
 
     // flatten_cfg must have run
     super::checks::assert_cfg_is_flattened(func);
-    super::checks::for_each_instruction(func, |instruction, _dfg| {
+    super::checks::for_each_instruction(func, |instruction, dfg| {
         // remove_if_else must have run
         super::checks::assert_not_if_else(instruction);
         // mem2reg must have run (no Load/Store remaining)
-        super::checks::assert_not_load_or_store(instruction);
+        super::checks::assert_not_load_or_store(func, instruction, dfg);
         // No mutable array sets should exist yet (they are created by this pass)
         super::checks::assert_not_mutable_array_set(instruction);
     });
@@ -170,6 +170,8 @@ impl<'f> Context<'f> {
                     self.set_last_use(*array, *instruction_id);
 
                     if self.dfg.type_of_value(*value).is_array() {
+                        // Setting an array inside another array makes it an array element
+                        element_arrays.insert(*value);
                         self.set_last_use(*value, *instruction_id);
                     }
 
@@ -181,7 +183,8 @@ impl<'f> Context<'f> {
                         }
                     });
 
-                    // Block mutation when the input array is actually nested as a MakeArray element
+                    // Block mutation when the input array has been nested inside another array,
+                    // either as a `make_array` element or as an `array_set` value operand.
                     let is_nested = element_arrays.contains(array);
                     let can_mutate = !is_array_in_terminator && !is_nested;
 
@@ -509,6 +512,47 @@ mod tests {
             v2 = make_array [v1] : [[Field; 2]; 1]
             v5 = array_set v1, index u32 0, value Field 7
             return v2, v5
+        }
+        ");
+    }
+
+    #[test]
+    fn does_not_mutate_array_nested_via_array_set() {
+        let src = "
+            acir(inline) fn main f0 {
+              b0():
+                v1 = make_array [Field 0, Field 0, Field 0, Field 0] : [Field; 4]
+                v2 = make_array [Field 1, Field 1, Field 1, Field 1] : [Field; 4]
+                v3 = make_array [v2, v2] : [[Field; 4]; 2]
+                v4 = array_set v1, index u32 1, value Field 7
+                v5 = array_set v3, index u32 0, value v4
+
+                // This array_set must not be mut: v4 was nested inside v3
+                v6 = array_set v4, index u32 2, value Field 9
+
+                v7 = array_get v5, index u32 0 -> [Field; 4]
+                v8 = array_get v7, index u32 2 -> Field
+                return v8, v6
+            }
+            ";
+        let ssa = Ssa::from_str(src).unwrap();
+
+        let (ssa, value) =
+            assert_pass_does_not_affect_execution(ssa, vec![], Ssa::mutable_array_set_optimization);
+        assert_eq!(value.unwrap()[0], Value::field(0_u32.into()));
+
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0():
+            v1 = make_array [Field 0, Field 0, Field 0, Field 0] : [Field; 4]
+            v3 = make_array [Field 1, Field 1, Field 1, Field 1] : [Field; 4]
+            v4 = make_array [v3, v3] : [[Field; 4]; 2]
+            v7 = array_set mut v1, index u32 1, value Field 7
+            v9 = array_set v4, index u32 0, value v7
+            v12 = array_set v7, index u32 2, value Field 9
+            v13 = array_get v9, index u32 0 -> [Field; 4]
+            v14 = array_get v13, index u32 2 -> Field
+            return v14, v12
         }
         ");
     }

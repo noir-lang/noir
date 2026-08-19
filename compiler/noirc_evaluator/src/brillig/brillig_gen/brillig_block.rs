@@ -605,7 +605,7 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                 self.brillig_context.codegen_return(&return_registers);
             }
             TerminatorInstruction::Unreachable { .. } => {
-                // If we assume this is unreachable code then there's nothing to do here
+                self.brillig_context.codegen_trap();
             }
         }
     }

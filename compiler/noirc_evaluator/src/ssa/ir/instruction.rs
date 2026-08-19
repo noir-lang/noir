@@ -9,6 +9,7 @@ use acvm::{
 };
 use iter_extended::vecmap;
 use noirc_frontend::hir_def::types::Type as HirType;
+use noirc_frontend::shared::Builtin;
 
 use crate::ssa::{
     ir::integer::IntegerConstant,
@@ -278,7 +279,7 @@ impl Intrinsic {
 
             // Operations that remove items from a vector don't modify the vector, they just assert it's non-empty.
             // Vector insert also reads from its input vector, thus needing to assert that it is non-empty.
-            // Vector push back's ACIR lowering multiplies the write index by `current_side_effects_enabled_var`,
+            // Vector push back's ACIR lowering multiplies the write index by the side-effects predicate,
             // so deduplicating two pushes across different `enable_side_effects` predicates is unsound.
             Intrinsic::VectorPopBack
             | Intrinsic::VectorPopFront
@@ -293,8 +294,10 @@ impl Intrinsic {
             // runtime reference count is 1, so a pass that moves `Pure` calls freely
             // (e.g. loop-invariant code motion) could separate it from the `inc_rc`
             // that makes the mutation unobservable, or execute it on a path where the
-            // source program never runs it. The same applies to any Brillig function
-            // wrapping it, which inherits this purity through `purity_analysis`.
+            // source program never runs it. Note that this purity only covers moving
+            // or deduplicating the intrinsic call itself: a Brillig function calling a
+            // vector mutator on its own array parameter can mutate a buffer its caller
+            // still holds, so `Function::is_pure` classifies such a wrapper `Impure`.
             Intrinsic::VectorPushFront => Purity::PureWithPredicate,
 
             Intrinsic::AssertConstant
@@ -323,34 +326,53 @@ impl Intrinsic {
 
     /// Lookup an Intrinsic by name and return it if found.
     /// If there is no such intrinsic by that name, None is returned.
+    ///
+    /// This is only used where a name arrives as text (e.g. the SSA parser); the
+    /// compilation pipeline resolves names to [`Builtin`] once, in the frontend,
+    /// and maps them here via [`Self::from_builtin`].
     pub(crate) fn lookup(name: &str) -> Option<Intrinsic> {
-        match name {
-            "array_len" => Some(Intrinsic::ArrayLen),
-            "array_as_str_unchecked" => Some(Intrinsic::ArrayAsStrUnchecked),
-            "as_vector" => Some(Intrinsic::AsVector),
-            "assert_constant" => Some(Intrinsic::AssertConstant),
-            "static_assert" => Some(Intrinsic::StaticAssert),
-            "apply_range_constraint" => Some(Intrinsic::ApplyRangeConstraint),
-            "vector_push_back" => Some(Intrinsic::VectorPushBack),
-            "vector_push_front" => Some(Intrinsic::VectorPushFront),
-            "vector_pop_back" => Some(Intrinsic::VectorPopBack),
-            "vector_pop_front" => Some(Intrinsic::VectorPopFront),
-            "vector_insert" => Some(Intrinsic::VectorInsert),
-            "vector_remove" => Some(Intrinsic::VectorRemove),
-            "str_as_bytes" => Some(Intrinsic::StrAsBytes),
-            "to_le_radix" => Some(Intrinsic::ToRadix(Endian::Little)),
-            "to_be_radix" => Some(Intrinsic::ToRadix(Endian::Big)),
-            "to_le_bits" => Some(Intrinsic::ToBits(Endian::Little)),
-            "to_be_bits" => Some(Intrinsic::ToBits(Endian::Big)),
-            "as_witness" => Some(Intrinsic::AsWitness),
-            "is_unconstrained" => Some(Intrinsic::IsUnconstrained),
-            "derive_pedersen_generators" => Some(Intrinsic::DerivePedersenGenerators),
-            "field_less_than" => Some(Intrinsic::FieldLessThan),
-            "black_box" => Some(Intrinsic::Hint(Hint::BlackBox)),
-            "array_refcount" => Some(Intrinsic::ArrayRefCount),
-            "vector_refcount" => Some(Intrinsic::VectorRefCount),
+        Builtin::lookup(name).and_then(Self::from_builtin)
+    }
 
-            other => BlackBoxFunc::lookup(other).map(Intrinsic::BlackBox),
+    /// Map a frontend [`Builtin`] to the [`Intrinsic`] implementing it, or `None`
+    /// for builtins that never reach SSA (comptime-only builtins, and those the
+    /// monomorphizer evaluates away).
+    ///
+    /// `noirc_frontend::ownership::builtin_supports_clone_elision` keeps its own
+    /// clone-elision classification of these builtins (it cannot depend on this
+    /// crate). When adding or reclassifying a builtin here, update it as well;
+    /// `ownership_clone_elision_list_matches_intrinsic_purity` in `ssa_gen::tests`
+    /// checks the two agree.
+    pub(crate) fn from_builtin(builtin: Builtin) -> Option<Intrinsic> {
+        match builtin {
+            Builtin::ArrayLen => Some(Intrinsic::ArrayLen),
+            Builtin::ArrayAsStrUnchecked => Some(Intrinsic::ArrayAsStrUnchecked),
+            Builtin::AsVector => Some(Intrinsic::AsVector),
+            Builtin::AssertConstant => Some(Intrinsic::AssertConstant),
+            Builtin::StaticAssert => Some(Intrinsic::StaticAssert),
+            Builtin::ApplyRangeConstraint => Some(Intrinsic::ApplyRangeConstraint),
+            Builtin::VectorPushBack => Some(Intrinsic::VectorPushBack),
+            Builtin::VectorPushFront => Some(Intrinsic::VectorPushFront),
+            Builtin::VectorPopBack => Some(Intrinsic::VectorPopBack),
+            Builtin::VectorPopFront => Some(Intrinsic::VectorPopFront),
+            Builtin::VectorInsert => Some(Intrinsic::VectorInsert),
+            Builtin::VectorRemove => Some(Intrinsic::VectorRemove),
+            Builtin::StrAsBytes => Some(Intrinsic::StrAsBytes),
+            Builtin::ToLeRadix => Some(Intrinsic::ToRadix(Endian::Little)),
+            Builtin::ToBeRadix => Some(Intrinsic::ToRadix(Endian::Big)),
+            Builtin::ToLeBits => Some(Intrinsic::ToBits(Endian::Little)),
+            Builtin::ToBeBits => Some(Intrinsic::ToBits(Endian::Big)),
+            Builtin::AsWitness => Some(Intrinsic::AsWitness),
+            Builtin::IsUnconstrained => Some(Intrinsic::IsUnconstrained),
+            Builtin::DerivePedersenGenerators => Some(Intrinsic::DerivePedersenGenerators),
+            Builtin::FieldLessThan => Some(Intrinsic::FieldLessThan),
+            Builtin::BlackBoxHint => Some(Intrinsic::Hint(Hint::BlackBox)),
+            Builtin::ArrayRefcount => Some(Intrinsic::ArrayRefCount),
+            Builtin::VectorRefcount => Some(Intrinsic::VectorRefCount),
+
+            Builtin::BlackBox(func) => Some(Intrinsic::BlackBox(func)),
+
+            _ => None,
         }
     }
 }
@@ -449,14 +471,14 @@ pub enum Instruction {
     /// An instruction to increment the reference count of a value.
     ///
     /// This currently only has an effect in Brillig code where array sharing and copy on write is
-    /// implemented via reference counting. In ACIR code this is done with `im::Vector` and these
+    /// implemented via reference counting. In ACIR code this is done with `imbl::Vector` and these
     /// `IncrementRc` instructions are ignored.
     IncrementRc { value: ValueId },
 
     /// An instruction to decrement the reference count of a value.
     ///
     /// This currently only has an effect in Brillig code where array sharing and copy on write is
-    /// implemented via reference counting. In ACIR code this is done with `im::Vector` and these
+    /// implemented via reference counting. In ACIR code this is done with `imbl::Vector` and these
     /// `DecrementRc` instructions are ignored.
     DecrementRc { value: ValueId },
 
@@ -480,7 +502,7 @@ pub enum Instruction {
     ///
     /// `typ` should be an array or vector type with an element type
     /// matching each of the `elements` values' types.
-    MakeArray { elements: im::Vector<ValueId>, typ: Type },
+    MakeArray { elements: imbl::Vector<ValueId>, typ: Type },
 
     /// A No-op instruction. These are intended to replace other instructions in a block's
     /// instructions vector without having to move each instruction afterward.
@@ -561,16 +583,18 @@ impl Instruction {
                         // which uses the side effects predicate.
                         Intrinsic::VectorInsert | Intrinsic::VectorRemove => true,
                         // The heterogeneous vector path in ACIR lowering uses
-                        // `get_flattened_index` which reads `current_side_effects_enabled_var`
+                        // `get_flattened_index` which reads the side-effects predicate
                         // to guard the element-type-sizes memory lookup.
                         Intrinsic::VectorPushBack => true,
-                        // Technically these don't use the side effects predicate, but they fail on empty vectors,
-                        // and by pretending that they require the predicate, we can preserve any current side
-                        // effect variable in the SSA and use it to optimize out memory operations that we know
-                        // would fail, but they shouldn't because they might be disabled.
+                        // These consult the side effects predicate during ACIR gen: a pop from a
+                        // vector whose backing store is empty asserts the predicate is false, and
+                        // a pop of a non-constant length predicates its emptiness assertion and
+                        // gates the decremented index. Reporting `true` also preserves the current
+                        // side effect variable in the SSA, which is used to optimize out memory
+                        // operations that would fail but shouldn't because they might be disabled.
                         Intrinsic::VectorPopFront | Intrinsic::VectorPopBack => true,
                         // RecursiveAggregation's predicate is injected implicitly from
-                        // `current_side_effects_enabled_var` during ACIR generation, so we
+                        // the side-effects predicate during ACIR generation, so we
                         // must preserve the EnableSideEffectsIf that sets it.
                         Intrinsic::BlackBox(BlackBoxFunc::RecursiveAggregation) => true,
                         _ => false,
@@ -1220,7 +1244,7 @@ impl TerminatorInstruction {
 /// Try to avoid mutation until we know something changed, to take advantage of
 /// structural sharing, and avoid needlessly calling `Arc::make_mut` which clones
 /// the content and increases memory use by allocating more pointers on the heap.
-fn im_vec_map_values_mut<T, F>(xs: &mut im::Vector<T>, mut f: F)
+fn im_vec_map_values_mut<T, F>(xs: &mut imbl::Vector<T>, mut f: F)
 where
     T: Copy + PartialEq,
     F: FnMut(T) -> T,
@@ -1286,14 +1310,14 @@ mod tests {
 
         let typ = Type::Array(std::sync::Arc::new(vec![Type::field()]), SemanticLength(2));
         let mut instruction =
-            Instruction::MakeArray { elements: im::Vector::from(vec![v0, v1]), typ: typ.clone() };
+            Instruction::MakeArray { elements: imbl::Vector::from(vec![v0, v1]), typ: typ.clone() };
         assert!(instruction.replace_values(&mapping));
         let Instruction::MakeArray { elements, .. } = instruction else { unreachable!() };
         assert_eq!(elements[0], v0);
         assert_eq!(elements[1], v2);
 
         let mut unrelated =
-            Instruction::MakeArray { elements: im::Vector::from(vec![v0, v0]), typ };
+            Instruction::MakeArray { elements: imbl::Vector::from(vec![v0, v0]), typ };
         assert!(!unrelated.replace_values(&mapping));
         let Instruction::MakeArray { elements, .. } = unrelated else { unreachable!() };
         assert_eq!(elements[0], v0);

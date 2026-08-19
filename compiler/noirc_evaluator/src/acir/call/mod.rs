@@ -118,11 +118,12 @@ impl Context<'_> {
             );
         };
 
+        let predicate = self.predicate();
         let output_vars = self.acir_context.call_acir_function(
             AcirFunctionId::new(acir_function_id),
             inputs,
             output_count,
-            self.current_side_effects_enabled_var,
+            predicate,
         )?;
 
         let output_values = self.convert_vars_to_values(output_vars, dfg, result_ids);
@@ -141,6 +142,7 @@ impl Context<'_> {
         let arguments = self.gen_brillig_parameters(arguments, dfg);
         let outputs: Vec<AcirType> =
             vecmap(result_ids, |result_id| dfg.type_of_value(*result_id).as_ref().into());
+        let predicate = self.predicate();
 
         // Reuse or generate Brillig code
         let output_values = if let Some(generated_pointer) =
@@ -149,7 +151,7 @@ impl Context<'_> {
             let code = self.shared_context.generated_brillig(generated_pointer.as_usize());
             let skip_output_range_checks = false;
             self.acir_context.brillig_call(
-                self.current_side_effects_enabled_var,
+                predicate,
                 code,
                 inputs,
                 outputs,
@@ -162,7 +164,7 @@ impl Context<'_> {
             let generated_pointer = self.shared_context.new_generated_pointer();
             let skip_output_range_checks = false;
             let output_values = self.acir_context.brillig_call(
-                self.current_side_effects_enabled_var,
+                predicate,
                 &code,
                 inputs,
                 outputs,
@@ -276,7 +278,7 @@ impl Context<'_> {
                     .constant(&len, "len".to_string())
                     .expect("ICE - expected the variable to be a constant value")
                     .to_u128();
-                let mut element_values = im::Vector::new();
+                let mut element_values = imbl::Vector::new();
                 for _ in 0..len {
                     for element_type in elements_type.iter() {
                         let element = Self::convert_var_type_to_values(element_type, &mut vars);
@@ -305,7 +307,7 @@ impl Context<'_> {
     ) -> AcirValue {
         match result_type {
             Type::Array(elements, size) => {
-                let mut element_values = im::Vector::new();
+                let mut element_values = imbl::Vector::new();
                 for _ in 0..size.0 {
                     for element_type in elements.iter() {
                         let element = Self::convert_var_type_to_values(element_type, vars);

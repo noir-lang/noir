@@ -327,11 +327,21 @@ impl Function {
                                     result = Purity::PureWithPredicate;
                                 }
                             }
-                            Value::Intrinsic(intrinsic) => match intrinsic.purity() {
-                                Purity::Pure => (),
-                                Purity::PureWithPredicate => result = Purity::PureWithPredicate,
-                                Purity::Impure => return Purity::Impure,
-                            },
+                            Value::Intrinsic(intrinsic) => {
+                                // In Brillig, the vector-mutator intrinsics may write through
+                                // their vector operand in place when its reference count is 1,
+                                // so a call to one is a potential mutation, like `array_set`.
+                                if intrinsic.mutates_array_operand_in_brillig() {
+                                    has_array_set_or_rc = true;
+                                }
+                                match intrinsic.purity() {
+                                    Purity::Pure => (),
+                                    Purity::PureWithPredicate => {
+                                        result = Purity::PureWithPredicate;
+                                    }
+                                    Purity::Impure => return Purity::Impure,
+                                }
+                            }
                             Value::ForeignFunction { pure: true, .. } => {
                                 // A `#[pure]` oracle is treated as `PureWithPredicate`, because
                                 // they are unconstrained functions.
@@ -377,14 +387,25 @@ impl Function {
                         | Instruction::Constrain(..)
                         | Instruction::ConstrainNotEqual(..)
                         | Instruction::RangeCheck { .. }
-                        | Instruction::Call { .. }
                         | Instruction::Allocate
                         | Instruction::EnableSideEffectsIf { .. }
                         | Instruction::Noop => {
                             // This can't possibly move a Brillig array input.
-                            // A `call` could mutate a Brillig array input, but if that is the case
-                            // the the call itself will be marked as impure, and so then this function will
-                            // be impure... but that is a check that is done later on.
+                        }
+
+                        Instruction::Call { func, arguments } => {
+                            // A user-function callee that mutates a Brillig array input is
+                            // itself impure, and call-graph propagation raises this function
+                            // to impure as well. The vector-mutator intrinsics are not part
+                            // of that propagation, and in Brillig they write through their
+                            // vector operand in place when its reference count is 1, so a
+                            // call to one that receives a Brillig array input moves it.
+                            if let Value::Intrinsic(intrinsic) = &self.dfg[*func]
+                                && intrinsic.mutates_array_operand_in_brillig()
+                                && arguments.iter().any(|arg| brillig_array_inputs.contains(arg))
+                            {
+                                brillig_array_input_was_moved = true;
+                            }
                         }
 
                         Instruction::Load { .. }
@@ -814,6 +835,54 @@ mod tests {
         assert_eq!(purities.purities[&FunctionId::test_new(0)], Purity::Impure);
         // Brillig functions have a starting purity of PureWithPredicate
         assert_eq!(purities.purities[&FunctionId::test_new(1)], Purity::PureWithPredicate);
+    }
+
+    #[test_case("v3, v4 = call vector_push_back(v0, v1, Field 1) -> (u32, [Field])"; "push_back")]
+    #[test_case("v3, v4 = call vector_push_front(v0, v1, Field 1) -> (u32, [Field])"; "push_front")]
+    #[test_case("v3, v4, v5 = call vector_pop_back(v0, v1) -> (u32, [Field], Field)"; "pop_back")]
+    #[test_case("v3, v4, v5 = call vector_pop_front(v0, v1) -> (Field, u32, [Field])"; "pop_front")]
+    #[test_case("v3, v4 = call vector_insert(v0, v1, u32 0, Field 1) -> (u32, [Field])"; "insert")]
+    #[test_case("v3, v4, v5 = call vector_remove(v0, v1, u32 0) -> (u32, [Field], Field)"; "remove")]
+    fn brillig_vector_mutator_on_input_vector_is_impure(call: &str) {
+        // In Brillig the vector-mutator intrinsics write through their vector operand in place
+        // when its reference count is 1, so a function calling one on its own parameter may
+        // mutate state its caller can observe and must not be deduplicated.
+        let src = format!(
+            r#"
+            brillig(inline) fn mutator f0 {{
+              b0(v0: u32, v1: [Field]):
+                {call}
+                return
+            }}
+            "#
+        );
+
+        let ssa = Ssa::from_str(&src).unwrap();
+        let ssa = ssa.purity_analysis();
+
+        let purities = &ssa.main().dfg.function_purities;
+        assert_eq!(purities.purities[&FunctionId::test_new(0)], Purity::Impure);
+    }
+
+    #[test]
+    fn brillig_vector_mutator_on_local_vector_is_not_impure() {
+        // The mutation is only observable by the caller when it can hit a vector the caller
+        // also holds, so a mutator call on a locally created vector keeps the function's
+        // ordinary purity even though the function also has an (untouched) array input.
+        let src = r#"
+        brillig(inline) fn mutator f0 {
+          b0(v0: u32, v1: [Field]):
+            v4 = make_array [Field 1, Field 2] : [Field]
+            v7, v8 = call vector_push_back(u32 2, v4, Field 3) -> (u32, [Field])
+            return
+        }
+        "#;
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.purity_analysis();
+
+        let purities = &ssa.main().dfg.function_purities;
+        assert_eq!(purities.purities[&FunctionId::test_new(0)], Purity::PureWithPredicate);
     }
 
     #[test]

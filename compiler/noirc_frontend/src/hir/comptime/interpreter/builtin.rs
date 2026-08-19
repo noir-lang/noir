@@ -13,12 +13,12 @@ use builtin_helpers::{
     check_function_not_yet_resolved, check_one_argument, check_return_type_shape,
     check_three_arguments, check_two_arguments, get_bool, get_expr, get_field, get_format_string,
     get_function_def, get_location, get_module, get_quoted, get_trait_constraint, get_trait_def,
-    get_trait_impl, get_type, get_type_id, get_typed_expr, get_u32, get_unresolved_type,
-    get_vector, has_builtin_attribute, has_named_attribute, hir_pattern_to_tokens, new_binary_op,
-    new_unary_op, parse, quote_ident, type_shape, visibility_to_quoted,
+    get_trait_impl, get_type, get_type_id, get_typed_expr, get_u32, get_vector,
+    has_builtin_attribute, has_named_attribute, hir_pattern_to_tokens, new_binary_op, new_unary_op,
+    parse, quote_ident, type_shape, visibility_to_quoted,
 };
 use fm::FileMap;
-use im::Vector;
+use imbl::Vector;
 use iter_extended::{try_vecmap, vecmap};
 use itertools::Itertools;
 use noirc_errors::Location;
@@ -29,10 +29,10 @@ use crate::{
     Kind, QuotedType, Shared, Type, TypeBindings,
     ast::{
         ArrayLiteral, ConstrainKind, Expression, ExpressionKind, ForRange, IntegerBitSize, LValue,
-        Literal, Pattern, Statement, StatementKind, UnresolvedTypeData, UnsafeExpression,
+        Literal, Pattern, Statement, StatementKind, UnsafeExpression,
     },
     elaborator::{
-        ElaborateReason, Elaborator, PrimitiveType,
+        ElaborateReason, Elaborator,
         types::{WildcardAllowed, WildcardDisallowedContext},
     },
     hir::{
@@ -56,7 +56,7 @@ use crate::{
     },
     node_interner::{NodeInterner, TraitImplKind},
     parser::{Parser, StatementOrExpressionOrLValue},
-    shared::Signedness,
+    shared::{Builtin, Signedness},
     token::{LocatedToken, SecondaryAttribute, SecondaryAttributeKind, Token},
 };
 
@@ -70,7 +70,7 @@ pub(crate) mod builtin_helpers;
 impl Interpreter<'_, '_> {
     pub(super) fn call_builtin(
         &mut self,
-        name: &str,
+        builtin: Builtin,
         arguments: Vec<(Value, Location)>,
         return_type: Type,
         location: Location,
@@ -78,63 +78,73 @@ impl Interpreter<'_, '_> {
         let call_stack = &self.elaborator.interpreter_call_stack().clone();
         let expected_return_shape = type_shape(&return_type);
         let interner = &mut self.elaborator.interner;
-        let result = match name {
-            "apply_range_constraint" => apply_range_constraint(arguments, location, call_stack),
-            "array_as_str_unchecked" => array_as_str_unchecked(arguments, location),
-            "array_len" => array_len(arguments, location),
-            "array_refcount" => Ok(Value::u32(0)),
-            "assert_constant" => Ok(Value::Unit),
-            "as_vector" => as_vector(arguments, location),
-            "as_witness" => as_witness(arguments, location),
-            "black_box" => black_box(arguments, location),
-            "checked_transmute" => checked_transmute(arguments, return_type, location),
-            "ctstring_append" => ctstring_append(arguments, location),
-            "ctstring_eq" => eq_item(arguments, location, get_ctstring),
-            "ctstring_hash" => hash_item(arguments, location, get_ctstring),
-            "derive_pedersen_generators" => derive_generators(arguments, return_type, location),
-            "expr_as_array" => expr_as_array(interner, arguments, return_type, location),
-            "expr_as_assert" => expr_as_assert(interner, arguments, return_type, location),
-            "expr_as_assert_eq" => expr_as_assert_eq(interner, arguments, return_type, location),
-            "expr_as_assign" => expr_as_assign(interner, arguments, return_type, location),
-            "expr_as_binary_op" => expr_as_binary_op(interner, arguments, return_type, location),
-            "expr_as_block" => expr_as_block(interner, arguments, return_type, location),
-            "expr_as_bool" => expr_as_bool(interner, arguments, return_type, location),
-            "expr_as_cast" => expr_as_cast(interner, arguments, return_type, location),
-            "expr_as_comptime" => expr_as_comptime(interner, arguments, return_type, location),
-            "expr_as_constructor" => {
+        let result = match builtin {
+            Builtin::ApplyRangeConstraint => {
+                apply_range_constraint(arguments, location, call_stack)
+            }
+            Builtin::ArrayAsStrUnchecked => array_as_str_unchecked(arguments, location),
+            Builtin::ArrayLen => array_len(arguments, location),
+            Builtin::ArrayRefcount => Ok(Value::u32(0)),
+            Builtin::AssertConstant => Ok(Value::Unit),
+            Builtin::AsVector => as_vector(arguments, location),
+            Builtin::AsWitness => as_witness(arguments, location),
+            Builtin::BlackBoxHint => black_box(arguments, location),
+            Builtin::CheckedTransmute => checked_transmute(arguments, return_type, location),
+            Builtin::CtstringAppend => ctstring_append(arguments, location),
+            Builtin::CtstringEq => eq_item(arguments, location, get_ctstring),
+            Builtin::CtstringHash => hash_item(arguments, location, get_ctstring),
+            Builtin::DerivePedersenGenerators => {
+                derive_generators(arguments, return_type, location)
+            }
+            Builtin::ExprAsArray => expr_as_array(interner, arguments, return_type, location),
+            Builtin::ExprAsAssert => expr_as_assert(interner, arguments, return_type, location),
+            Builtin::ExprAsAssertEq => {
+                expr_as_assert_eq(interner, arguments, return_type, location)
+            }
+            Builtin::ExprAsAssign => expr_as_assign(interner, arguments, return_type, location),
+            Builtin::ExprAsBinaryOp => {
+                expr_as_binary_op(interner, arguments, return_type, location)
+            }
+            Builtin::ExprAsBlock => expr_as_block(interner, arguments, return_type, location),
+            Builtin::ExprAsBool => expr_as_bool(interner, arguments, return_type, location),
+            Builtin::ExprAsCast => expr_as_cast(interner, arguments, return_type, location),
+            Builtin::ExprAsComptime => expr_as_comptime(interner, arguments, return_type, location),
+            Builtin::ExprAsConstructor => {
                 expr_as_constructor(interner, arguments, return_type, location)
             }
-            "expr_as_for" => expr_as_for(interner, arguments, return_type, location),
-            "expr_as_for_range" => expr_as_for_range(interner, arguments, return_type, location),
-            "expr_as_function_call" => {
+            Builtin::ExprAsFor => expr_as_for(interner, arguments, return_type, location),
+            Builtin::ExprAsForRange => {
+                expr_as_for_range(interner, arguments, return_type, location)
+            }
+            Builtin::ExprAsFunctionCall => {
                 expr_as_function_call(interner, arguments, return_type, location)
             }
-            "expr_as_if" => expr_as_if(interner, arguments, return_type, location),
-            "expr_as_index" => expr_as_index(interner, arguments, return_type, location),
-            "expr_as_integer" => expr_as_integer(interner, arguments, return_type, location),
-            "expr_as_lambda" => expr_as_lambda(interner, arguments, return_type, location),
-            "expr_as_let" => expr_as_let(interner, arguments, return_type, location),
-            "expr_as_member_access" => {
+            Builtin::ExprAsIf => expr_as_if(interner, arguments, return_type, location),
+            Builtin::ExprAsIndex => expr_as_index(interner, arguments, return_type, location),
+            Builtin::ExprAsInteger => expr_as_integer(interner, arguments, return_type, location),
+            Builtin::ExprAsLambda => expr_as_lambda(interner, arguments, return_type, location),
+            Builtin::ExprAsLet => expr_as_let(interner, arguments, return_type, location),
+            Builtin::ExprAsMemberAccess => {
                 expr_as_member_access(interner, arguments, return_type, location)
             }
-            "expr_as_method_call" => {
+            Builtin::ExprAsMethodCall => {
                 expr_as_method_call(interner, arguments, return_type, location)
             }
-            "expr_as_repeated_element_array" => {
+            Builtin::ExprAsRepeatedElementArray => {
                 expr_as_repeated_element_array(interner, arguments, return_type, location)
             }
-            "expr_as_repeated_element_vector" => {
+            Builtin::ExprAsRepeatedElementVector => {
                 expr_as_repeated_element_vector(interner, arguments, return_type, location)
             }
-            "expr_as_vector" => expr_as_vector(interner, arguments, return_type, location),
-            "expr_as_tuple" => expr_as_tuple(interner, arguments, return_type, location),
-            "expr_as_unary_op" => expr_as_unary_op(interner, arguments, return_type, location),
-            "expr_as_unsafe" => expr_as_unsafe(interner, arguments, return_type, location),
-            "expr_has_semicolon" => expr_has_semicolon(interner, arguments, location),
-            "expr_is_break" => expr_is_break(interner, arguments, location),
-            "expr_is_continue" => expr_is_continue(interner, arguments, location),
-            "expr_resolve" => expr_resolve(self, arguments, location),
-            "is_unconstrained" => {
+            Builtin::ExprAsVector => expr_as_vector(interner, arguments, return_type, location),
+            Builtin::ExprAsTuple => expr_as_tuple(interner, arguments, return_type, location),
+            Builtin::ExprAsUnaryOp => expr_as_unary_op(interner, arguments, return_type, location),
+            Builtin::ExprAsUnsafe => expr_as_unsafe(interner, arguments, return_type, location),
+            Builtin::ExprHasSemicolon => expr_has_semicolon(interner, arguments, location),
+            Builtin::ExprIsBreak => expr_is_break(interner, arguments, location),
+            Builtin::ExprIsContinue => expr_is_continue(interner, arguments, location),
+            Builtin::ExprResolve => expr_resolve(self, arguments, location),
+            Builtin::IsUnconstrained => {
                 // When in coverage mode, have the comptime interpreter treat `is_unconstrained` the same
                 // way it's treated in ACIR and Brillig. Usually unconstrained code is faster and that's why
                 // in non-coverage mode we want to go through the fastest path, but in coverage mode it's fine
@@ -145,157 +155,168 @@ impl Interpreter<'_, '_> {
                     Ok(Value::Bool(true))
                 }
             }
-            "field_less_than" => field_less_than(arguments, location),
-            "issue_error" => issue_diagnostic(self, arguments, location, false),
-            "issue_warning" => issue_diagnostic(self, arguments, location, true),
-            "location_eq" => eq_item(arguments, location, get_location),
-            "location_hash" => hash_item(arguments, location, get_location),
-            "fmtstr_as_ctstring" => {
+            Builtin::FieldLessThan => field_less_than(arguments, location),
+            Builtin::IssueError => issue_diagnostic(self, arguments, location, false),
+            Builtin::IssueWarning => issue_diagnostic(self, arguments, location, true),
+            Builtin::LocationEq => eq_item(arguments, location, get_location),
+            Builtin::LocationHash => hash_item(arguments, location, get_location),
+            Builtin::FmtstrAsCtstring => {
                 fmtstr_as_ctstring(interner, self.elaborator.files, arguments, location)
             }
-            "fmtstr_quoted_contents" => {
+            Builtin::FmtstrQuotedContents => {
                 fmtstr_quoted_contents(interner, self.elaborator.files, arguments, location)
             }
-            "fresh_type_variable" => fresh_type_variable(interner),
-            "function_def_as_typed_expr" => function_def_as_typed_expr(self, arguments, location),
-            "function_def_body" => function_def_body(self, arguments, location),
-            "function_def_disable" => function_def_disable(self, arguments, location),
-            "function_def_eq" => eq_item(arguments, location, get_function_def),
-            "function_def_has_builtin_attribute" => {
+            Builtin::FreshTypeVariable => fresh_type_variable(interner),
+            Builtin::FunctionDefAsTypedExpr => {
+                function_def_as_typed_expr(self, arguments, location)
+            }
+            Builtin::FunctionDefBody => function_def_body(self, arguments, location),
+            Builtin::FunctionDefDisable => function_def_disable(self, arguments, location),
+            Builtin::FunctionDefEq => eq_item(arguments, location, get_function_def),
+            Builtin::FunctionDefHasBuiltinAttribute => {
                 function_def_has_attribute(interner, arguments, location, true)
             }
-            "function_def_has_named_attribute" => {
+            Builtin::FunctionDefHasNamedAttribute => {
                 function_def_has_attribute(interner, arguments, location, false)
             }
-            "function_def_named_attribute_args" => {
+            Builtin::FunctionDefNamedAttributeArgs => {
                 function_def_named_attribute_args(interner, arguments, location)
             }
-            "function_def_hash" => hash_item(arguments, location, get_function_def),
-            "function_def_is_unconstrained" => {
+            Builtin::FunctionDefHash => hash_item(arguments, location, get_function_def),
+            Builtin::FunctionDefIsUnconstrained => {
                 function_def_is_unconstrained(self, arguments, location)
             }
-            "function_def_location" => function_def_location(self.elaborator, arguments, location),
-            "function_def_module" => function_def_module(interner, arguments, location),
-            "function_def_name" => function_def_name(interner, arguments, location),
-            "function_def_parameters" => function_def_parameters(self, arguments, location),
-            "function_def_return_type" => function_def_return_type(self, arguments, location),
-            "function_def_visibility" => function_def_visibility(interner, arguments, location),
-            "module_child_modules" => module_child_modules(self, arguments, location),
-            "module_eq" => eq_item(arguments, location, get_module),
-            "module_functions" => module_functions(self, arguments, location),
-            "module_has_builtin_attribute" => module_has_attribute(self, arguments, location, true),
-            "module_has_named_attribute" => module_has_attribute(self, arguments, location, false),
-            "module_named_attribute_args" => module_named_attribute_args(self, arguments, location),
-            "module_hash" => hash_item(arguments, location, get_module),
-            "module_is_contract" => module_is_contract(self, arguments, location),
-            "module_location" => module_location(interner, arguments, location),
-            "module_name" => module_name(interner, arguments, location),
-            "module_parent" => module_parent(self, arguments, return_type, location),
-            "module_structs" => module_structs(self, arguments, location),
-            "modulus_be_bits" => modulus_be_bits(&arguments, location),
-            "modulus_be_bytes" => modulus_be_bytes(&arguments, location),
-            "modulus_le_bits" => modulus_le_bits(&arguments, location),
-            "modulus_le_bytes" => modulus_le_bytes(&arguments, location),
-            "modulus_num_bits" => modulus_num_bits(&arguments, location),
-            "quoted_as_expr" => quoted_as_expr(self.elaborator, arguments, return_type, location),
-            "quoted_as_module" => quoted_as_module(self, arguments, return_type, location),
-            "quoted_as_trait_constraint" => quoted_as_trait_constraint(self, arguments, location),
-            "quoted_as_type" => quoted_as_type(self, arguments, location),
-            "quoted_eq" => {
+            Builtin::FunctionDefLocation => {
+                function_def_location(self.elaborator, arguments, location)
+            }
+            Builtin::FunctionDefModule => function_def_module(interner, arguments, location),
+            Builtin::FunctionDefName => function_def_name(interner, arguments, location),
+            Builtin::FunctionDefParameters => function_def_parameters(self, arguments, location),
+            Builtin::FunctionDefReturnType => function_def_return_type(self, arguments, location),
+            Builtin::FunctionDefVisibility => {
+                function_def_visibility(interner, arguments, location)
+            }
+            Builtin::ModuleChildModules => module_child_modules(self, arguments, location),
+            Builtin::ModuleEq => eq_item(arguments, location, get_module),
+            Builtin::ModuleFunctions => module_functions(self, arguments, location),
+            Builtin::ModuleHasBuiltinAttribute => {
+                module_has_attribute(self, arguments, location, true)
+            }
+            Builtin::ModuleHasNamedAttribute => {
+                module_has_attribute(self, arguments, location, false)
+            }
+            Builtin::ModuleNamedAttributeArgs => {
+                module_named_attribute_args(self, arguments, location)
+            }
+            Builtin::ModuleHash => hash_item(arguments, location, get_module),
+            Builtin::ModuleIsContract => module_is_contract(self, arguments, location),
+            Builtin::ModuleLocation => module_location(interner, arguments, location),
+            Builtin::ModuleName => module_name(interner, arguments, location),
+            Builtin::ModuleParent => module_parent(self, arguments, return_type, location),
+            Builtin::ModuleStructs => module_structs(self, arguments, location),
+            Builtin::ModulusBeBits => modulus_be_bits(&arguments, location),
+            Builtin::ModulusBeBytes => modulus_be_bytes(&arguments, location),
+            Builtin::ModulusLeBits => modulus_le_bits(&arguments, location),
+            Builtin::ModulusLeBytes => modulus_le_bytes(&arguments, location),
+            Builtin::ModulusNumBits => modulus_num_bits(&arguments, location),
+            Builtin::QuotedAsExpr => {
+                quoted_as_expr(self.elaborator, arguments, return_type, location)
+            }
+            Builtin::QuotedAsModule => quoted_as_module(self, arguments, return_type, location),
+            Builtin::QuotedAsTraitConstraint => {
+                quoted_as_trait_constraint(self, arguments, location)
+            }
+            Builtin::QuotedAsType => quoted_as_type(self, arguments, location),
+            Builtin::QuotedEq => {
                 quoted_eq(self.elaborator.interner, self.elaborator.files, arguments, location)
             }
-            "quoted_hash" => {
+            Builtin::QuotedHash => {
                 quoted_hash(self.elaborator.interner, self.elaborator.files, arguments, location)
             }
-            "quoted_location" => quoted_location(arguments, return_type, location),
-            "quoted_tokens" => quoted_tokens(arguments, location),
-            "vector_insert" => vector_insert(arguments, location, call_stack),
-            "vector_pop_back" => vector_pop_back(arguments, location, call_stack),
-            "vector_pop_front" => vector_pop_front(arguments, location, call_stack),
-            "vector_push_back" => vector_push_back(arguments, location),
-            "vector_push_front" => vector_push_front(arguments, location),
-            "vector_refcount" => Ok(Value::u32(0)),
-            "vector_remove" => vector_remove(arguments, location, call_stack),
-            "static_assert" => {
+            Builtin::QuotedLocation => quoted_location(arguments, return_type, location),
+            Builtin::QuotedTokens => quoted_tokens(arguments, location),
+            Builtin::VectorInsert => vector_insert(arguments, location, call_stack),
+            Builtin::VectorPopBack => vector_pop_back(arguments, location, call_stack),
+            Builtin::VectorPopFront => vector_pop_front(arguments, location, call_stack),
+            Builtin::VectorPushBack => vector_push_back(arguments, location),
+            Builtin::VectorPushFront => vector_push_front(arguments, location),
+            Builtin::VectorRefcount => Ok(Value::u32(0)),
+            Builtin::VectorRemove => vector_remove(arguments, location, call_stack),
+            Builtin::StaticAssert => {
                 static_assert(interner, self.elaborator.files, arguments, location, call_stack)
             }
-            "str_as_bytes" => str_as_bytes(arguments, location),
-            "str_as_ctstring" => str_as_ctstring(arguments, location),
-            "to_be_radix" => to_be_radix(arguments, return_type, location, call_stack),
-            "to_le_radix" => to_le_radix(arguments, return_type, location, call_stack),
-            "to_be_bits" => to_be_bits(arguments, return_type, location, call_stack),
-            "to_le_bits" => to_le_bits(arguments, return_type, location, call_stack),
-            "trait_constraint_eq" => eq_item(arguments, location, get_trait_constraint),
-            "trait_constraint_hash" => hash_item(arguments, location, get_trait_constraint),
-            "trait_def_as_trait_constraint" => {
+            Builtin::StrAsBytes => str_as_bytes(arguments, location),
+            Builtin::StrAsCtstring => str_as_ctstring(arguments, location),
+            Builtin::ToBeRadix => to_be_radix(arguments, return_type, location, call_stack),
+            Builtin::ToLeRadix => to_le_radix(arguments, return_type, location, call_stack),
+            Builtin::ToBeBits => to_be_bits(arguments, return_type, location, call_stack),
+            Builtin::ToLeBits => to_le_bits(arguments, return_type, location, call_stack),
+            Builtin::TraitConstraintEq => eq_item(arguments, location, get_trait_constraint),
+            Builtin::TraitConstraintHash => hash_item(arguments, location, get_trait_constraint),
+            Builtin::TraitDefAsTraitConstraint => {
                 trait_def_as_trait_constraint(interner, arguments, location)
             }
-            "trait_def_eq" => eq_item(arguments, location, get_trait_def),
-            "trait_def_hash" => hash_item(arguments, location, get_trait_def),
-            "trait_def_location" => trait_def_location(interner, arguments, location),
-            "trait_impl_methods" => trait_impl_methods(interner, arguments, location),
-            "trait_impl_trait_generic_args" => {
+            Builtin::TraitDefEq => eq_item(arguments, location, get_trait_def),
+            Builtin::TraitDefHash => hash_item(arguments, location, get_trait_def),
+            Builtin::TraitDefLocation => trait_def_location(interner, arguments, location),
+            Builtin::TraitImplMethods => trait_impl_methods(interner, arguments, location),
+            Builtin::TraitImplTraitGenericArgs => {
                 trait_impl_trait_generic_args(interner, arguments, location)
             }
-            "type_as_array" => type_as_array(arguments, return_type, location),
-            "type_as_constant" => type_as_constant(arguments, return_type, location),
-            "type_as_integer" => type_as_integer(arguments, return_type, location),
-            "type_as_mutable_reference" => {
+            Builtin::TypeAsArray => type_as_array(arguments, return_type, location),
+            Builtin::TypeAsConstant => type_as_constant(arguments, return_type, location),
+            Builtin::TypeAsInteger => type_as_integer(arguments, return_type, location),
+            Builtin::TypeAsMutableReference => {
                 type_as_mutable_reference(arguments, return_type, location)
             }
-            "type_as_vector" => type_as_vector(arguments, return_type, location),
-            "type_as_str" => type_as_str(arguments, return_type, location),
-            "type_as_data_type" => type_as_data_type(arguments, return_type, location),
-            "type_as_tuple" => type_as_tuple(arguments, return_type, location),
-            "type_def_add_abi" => type_def_add_abi(self, arguments, location),
-            "type_def_as_type" => type_def_as_type(interner, arguments, location),
-            "type_def_as_type_with_generics" => {
+            Builtin::TypeAsVector => type_as_vector(arguments, return_type, location),
+            Builtin::TypeAsStr => type_as_str(arguments, return_type, location),
+            Builtin::TypeAsDataType => type_as_data_type(arguments, return_type, location),
+            Builtin::TypeAsTuple => type_as_tuple(arguments, return_type, location),
+            Builtin::TypeDefAddAbi => type_def_add_abi(self, arguments, location),
+            Builtin::TypeDefAsType => type_def_as_type(interner, arguments, location),
+            Builtin::TypeDefAsTypeWithGenerics => {
                 type_def_as_type_with_generics(interner, arguments, return_type, location)
             }
-            "type_def_eq" => eq_item(arguments, location, get_type_id),
-            "type_def_fields" => type_def_fields(self, arguments, location, call_stack),
-            "type_def_fields_as_written" => type_def_fields_as_written(self, arguments, location),
-            "type_def_generics" => type_def_generics(interner, arguments, return_type, location),
-            "type_def_has_builtin_attribute" => {
+            Builtin::TypeDefEq => eq_item(arguments, location, get_type_id),
+            Builtin::TypeDefFields => type_def_fields(self, arguments, location, call_stack),
+            Builtin::TypeDefFieldsAsWritten => {
+                type_def_fields_as_written(self, arguments, location)
+            }
+            Builtin::TypeDefGenerics => {
+                type_def_generics(interner, arguments, return_type, location)
+            }
+            Builtin::TypeDefHasBuiltinAttribute => {
                 type_def_has_attribute(interner, arguments, location, true)
             }
-            "type_def_has_named_attribute" => {
+            Builtin::TypeDefHasNamedAttribute => {
                 type_def_has_attribute(interner, arguments, location, false)
             }
-            "type_def_named_attribute_args" => {
+            Builtin::TypeDefNamedAttributeArgs => {
                 type_def_named_attribute_args(interner, arguments, location)
             }
-            "type_def_hash" => hash_item(arguments, location, get_type_id),
-            "type_def_location" => type_def_location(interner, arguments, location),
-            "type_def_module" => type_def_module(self, arguments, location),
-            "type_def_name" => type_def_name(interner, arguments, location),
-            "type_eq" => eq_item(arguments, location, get_type),
-            "type_get_trait_impl" => {
+            Builtin::TypeDefHash => hash_item(arguments, location, get_type_id),
+            Builtin::TypeDefLocation => type_def_location(interner, arguments, location),
+            Builtin::TypeDefModule => type_def_module(self, arguments, location),
+            Builtin::TypeDefName => type_def_name(interner, arguments, location),
+            Builtin::TypeEq => eq_item(arguments, location, get_type),
+            Builtin::TypeGetTraitImpl => {
                 type_get_trait_impl(interner, arguments, return_type, location)
             }
-            "type_hash" => hash_item(arguments, location, get_type),
-            "type_implements" => type_implements(interner, arguments, location),
-            "type_is_bool" => type_is_bool(arguments, location),
-            "type_is_field" => type_is_field(arguments, location),
-            "type_is_unit" => type_is_unit(arguments, location),
-            "type_of" => type_of(arguments, location),
-            "typed_expr_as_function_definition" => {
+            Builtin::TypeHash => hash_item(arguments, location, get_type),
+            Builtin::TypeImplements => type_implements(interner, arguments, location),
+            Builtin::TypeIsBool => type_is_bool(arguments, location),
+            Builtin::TypeIsField => type_is_field(arguments, location),
+            Builtin::TypeIsUnit => type_is_unit(arguments, location),
+            Builtin::TypeOf => type_of(arguments, location),
+            Builtin::TypedExprAsFunctionDefinition => {
                 typed_expr_as_function_definition(interner, arguments, return_type, location)
             }
-            "typed_expr_get_type" => {
+            Builtin::TypedExprGetType => {
                 typed_expr_get_type(interner, arguments, return_type, location)
             }
-            "typed_expr_location" => typed_expr_location(interner, arguments, location),
-            "unresolved_type_as_mutable_reference" => {
-                unresolved_type_as_mutable_reference(interner, arguments, return_type, location)
-            }
-            "unresolved_type_as_vector" => {
-                unresolved_type_as_vector(interner, arguments, return_type, location)
-            }
-            "unresolved_type_is_bool" => unresolved_type_is_bool(interner, arguments, location),
-            "unresolved_type_is_field" => unresolved_type_is_field(interner, arguments, location),
-            "unresolved_type_is_unit" => unresolved_type_is_unit(interner, arguments, location),
-            "zeroed" => {
+            Builtin::TypedExprLocation => typed_expr_location(interner, arguments, location),
+            Builtin::Zeroed => {
                 // Resolve any deferred struct fields or enum variants in the
                 // return type so `zeroed` returns a real `Value::Struct`/`Enum`
                 // instead of an opaque `Value::Zeroed` placeholder when called
@@ -304,7 +325,7 @@ impl Interpreter<'_, '_> {
                 Ok(zeroed(return_type, location))
             }
             _ => {
-                let item = format!("Comptime evaluation for builtin function '{name}'");
+                let item = format!("Comptime evaluation for builtin function '{builtin}'");
                 Err(InterpreterError::Unimplemented { item, location })
             }
         }?;
@@ -1531,119 +1552,6 @@ fn typed_expr_get_type(
     } else {
         None
     };
-    Ok(option(return_type, option_value, location))
-}
-
-// fn as_mutable_reference(self) -> Option<UnresolvedType>
-fn unresolved_type_as_mutable_reference(
-    interner: &NodeInterner,
-    arguments: Vec<(Value, Location)>,
-    return_type: Type,
-    location: Location,
-) -> IResult<Value> {
-    unresolved_type_as(interner, arguments, return_type, location, |typ| {
-        if let UnresolvedTypeData::Reference(typ, true) = typ {
-            Some(Value::UnresolvedType(typ.typ))
-        } else {
-            None
-        }
-    })
-}
-
-// fn as_vector(self) -> Option<UnresolvedType>
-fn unresolved_type_as_vector(
-    interner: &NodeInterner,
-    arguments: Vec<(Value, Location)>,
-    return_type: Type,
-    location: Location,
-) -> IResult<Value> {
-    unresolved_type_as(interner, arguments, return_type, location, |typ| {
-        if let UnresolvedTypeData::Vector(typ) = typ {
-            Some(Value::UnresolvedType(typ.typ))
-        } else {
-            None
-        }
-    })
-}
-
-// fn is_bool(self) -> bool
-fn unresolved_type_is_bool(
-    interner: &NodeInterner,
-    arguments: Vec<(Value, Location)>,
-    location: Location,
-) -> IResult<Value> {
-    let self_argument = check_one_argument(arguments, location)?;
-    let typ = get_unresolved_type(interner, self_argument)?;
-
-    // TODO: we should resolve the type here instead of just checking the name
-    // See https://github.com/noir-lang/noir/issues/8505
-    let UnresolvedTypeData::Named(path, generics, _) = typ else {
-        return Ok(Value::Bool(false));
-    };
-    if !generics.is_empty() {
-        return Ok(Value::Bool(false));
-    }
-    let Some(ident) = path.as_ident() else {
-        return Ok(Value::Bool(false));
-    };
-    let Some(primitive_type) = PrimitiveType::lookup_by_name(ident.as_str()) else {
-        return Ok(Value::Bool(false));
-    };
-    Ok(Value::Bool(primitive_type == PrimitiveType::Bool))
-}
-
-// fn is_field(self) -> bool
-fn unresolved_type_is_field(
-    interner: &NodeInterner,
-    arguments: Vec<(Value, Location)>,
-    location: Location,
-) -> IResult<Value> {
-    let self_argument = check_one_argument(arguments, location)?;
-    let typ = get_unresolved_type(interner, self_argument)?;
-
-    // TODO: we should resolve the type here instead of just checking the name
-    // See https://github.com/noir-lang/noir/issues/8505
-    let UnresolvedTypeData::Named(path, generics, _) = typ else {
-        return Ok(Value::Bool(false));
-    };
-    if !generics.is_empty() {
-        return Ok(Value::Bool(false));
-    }
-    let Some(ident) = path.as_ident() else {
-        return Ok(Value::Bool(false));
-    };
-    let Some(primitive_type) = PrimitiveType::lookup_by_name(ident.as_str()) else {
-        return Ok(Value::Bool(false));
-    };
-    Ok(Value::Bool(primitive_type == PrimitiveType::Field))
-}
-
-// fn is_unit(self) -> bool
-fn unresolved_type_is_unit(
-    interner: &NodeInterner,
-    arguments: Vec<(Value, Location)>,
-    location: Location,
-) -> IResult<Value> {
-    let self_argument = check_one_argument(arguments, location)?;
-    let typ = get_unresolved_type(interner, self_argument)?;
-    Ok(Value::Bool(matches!(typ, UnresolvedTypeData::Unit)))
-}
-
-// Helper function for implementing the `unresolved_type_as_...` functions.
-fn unresolved_type_as<F>(
-    interner: &NodeInterner,
-    arguments: Vec<(Value, Location)>,
-    return_type: Type,
-    location: Location,
-    f: F,
-) -> IResult<Value>
-where
-    F: FnOnce(UnresolvedTypeData) -> Option<Value>,
-{
-    let value = check_one_argument(arguments, location)?;
-    let typ = get_unresolved_type(interner, value)?;
-
-    let option_value = f(typ);
     Ok(option(return_type, option_value, location))
 }
 

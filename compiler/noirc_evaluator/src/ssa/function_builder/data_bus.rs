@@ -31,7 +31,7 @@ pub(crate) enum DatabusVisibility {
 /// replacing public inputs
 #[derive(Clone, Debug)]
 pub(crate) struct DataBusBuilder {
-    pub(crate) values: im::Vector<ValueId>,
+    pub(crate) values: imbl::Vector<ValueId>,
     index: usize,
     pub(crate) map: HashMap<ValueId, usize>,
     pub(crate) databus: Option<ValueId>,
@@ -44,7 +44,7 @@ impl DataBusBuilder {
             index: 0,
             map: HashMap::default(),
             databus: None,
-            values: im::Vector::new(),
+            values: imbl::Vector::new(),
             call_data_id: None,
         }
     }
@@ -226,7 +226,7 @@ impl FunctionBuilder {
             index: 0,
             map: databus.map,
             databus: array,
-            values: im::Vector::new(),
+            values: imbl::Vector::new(),
             call_data_id,
         }
     }
