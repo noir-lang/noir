@@ -860,8 +860,10 @@ mod tests {
         let ssa = Ssa::from_str(&src).unwrap();
         let ssa = ssa.purity_analysis();
 
-        let purities = &ssa.main().dfg.function_purities;
-        assert_eq!(purities.purities[&FunctionId::test_new(0)], Purity::Impure);
+        assert_eq!(
+            ssa.function_purities.intrinsic_purity_of(FunctionId::test_new(0)),
+            Some(Purity::Impure)
+        );
     }
 
     #[test]
@@ -881,8 +883,10 @@ mod tests {
         let ssa = Ssa::from_str(src).unwrap();
         let ssa = ssa.purity_analysis();
 
-        let purities = &ssa.main().dfg.function_purities;
-        assert_eq!(purities.purities[&FunctionId::test_new(0)], Purity::PureWithPredicate);
+        assert_eq!(
+            ssa.function_purities.intrinsic_purity_of(FunctionId::test_new(0)),
+            Some(Purity::PureWithPredicate)
+        );
     }
 
     #[test]
