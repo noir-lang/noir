@@ -14,7 +14,10 @@ use crate::{
     shared::Signedness,
     token::Attributes,
 };
-use crate::{shared::Visibility, token::FunctionAttributeKind};
+use crate::{
+    shared::{Builtin, Visibility},
+    token::FunctionAttributeKind,
+};
 use serde::{Deserialize, Serialize};
 
 use super::HirType;
@@ -214,8 +217,8 @@ pub enum Definition {
     Local(LocalId),
     Global(GlobalId),
     Function(FuncId),
-    Builtin(String),
-    LowLevel(String),
+    Builtin(Builtin),
+    LowLevel(Builtin),
     /// A foreign/externally-defined unconstrained function.
     ///
     /// `pure` is `true` when the user marked the oracle declaration with

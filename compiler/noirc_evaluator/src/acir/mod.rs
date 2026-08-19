@@ -26,6 +26,7 @@ mod acir_context;
 mod arrays;
 mod call;
 mod shared_context;
+mod side_effects;
 pub(crate) mod ssa;
 #[cfg(test)]
 pub(crate) mod tests;
@@ -53,6 +54,7 @@ use crate::ssa::{
 use crate::{acir::shared_context::SharedContext, brillig::BrilligOptions};
 
 use acir_context::{AcirContext, BrilligStdLib};
+use side_effects::{SideEffectsLatch, Unpredicated};
 use types::{AcirType, AcirVar};
 pub use {acir_context::GeneratedAcir, ssa::Artifacts};
 
@@ -67,9 +69,8 @@ struct Context<'a> {
     /// already exists for this Value, we return the `AcirVar`.
     ssa_values: HashMap<Id<Value>, AcirValue>,
 
-    /// The `AcirVar` that describes the condition belonging to the most recently invoked
-    /// `SideEffectsEnabled` instruction.
-    current_side_effects_enabled_var: AcirVar,
+    /// The condition belonging to the most recently invoked `SideEffectsEnabled` instruction.
+    side_effects: SideEffectsLatch,
 
     /// Manages and builds the `AcirVar`s to which the converted SSA values refer.
     acir_context: AcirContext<FieldElement>,
@@ -135,11 +136,11 @@ impl<'a> Context<'a> {
         brillig_options: &'a BrilligOptions,
     ) -> Context<'a> {
         let mut acir_context = AcirContext::new(brillig_stdlib);
-        let current_side_effects_enabled_var = acir_context.add_constant(FieldElement::one());
+        let side_effects = SideEffectsLatch::new(acir_context.add_constant(FieldElement::one()));
 
         Context {
             ssa_values: HashMap::default(),
-            current_side_effects_enabled_var,
+            side_effects,
             acir_context,
             initialized_arrays: HashSet::default(),
             memory_blocks: HashMap::default(),
@@ -328,8 +329,9 @@ impl<'a> Context<'a> {
         // We specifically do not attempt execution of the brillig code being generated as this can result in it being
         // replaced with constraints on witnesses to the program outputs.
         let skip_output_range_checks = true;
+        let predicate = self.no_predicate(Unpredicated::UnconstrainedEntryPoint);
         let output_values = self.acir_context.brillig_call(
-            self.current_side_effects_enabled_var,
+            predicate,
             &code,
             inputs,
             outputs,
@@ -474,6 +476,11 @@ impl<'a> Context<'a> {
         ssa: &Ssa,
     ) -> Result<Vec<SsaReport>, RuntimeError> {
         let instruction = &dfg[instruction_id];
+        #[cfg(debug_assertions)]
+        self.side_effects.begin_instruction(
+            instruction.requires_acir_gen_predicate(dfg)
+                || matches!(instruction, Instruction::Constrain(..)),
+        );
         self.acir_context.set_call_stack(dfg.get_instruction_call_stack(instruction_id));
         let mut warnings = Vec::new();
 
@@ -481,9 +488,9 @@ impl<'a> Context<'a> {
             Instruction::Binary(binary) => {
                 // Disable the side effects if the binary instruction does not require them
                 let predicate = if instruction.requires_acir_gen_predicate(dfg) {
-                    self.current_side_effects_enabled_var
+                    self.predicate()
                 } else {
-                    self.acir_context.add_constant(FieldElement::one())
+                    self.no_predicate(Unpredicated::CannotFail)
                 };
                 let result_acir_var = self.convert_ssa_binary(binary, dfg, predicate)?;
                 self.define_result_var(dfg, instruction_id, result_acir_var);
@@ -498,7 +505,7 @@ impl<'a> Context<'a> {
                 let lhs = self.convert_numeric_value(*lhs, dfg)?;
                 let rhs = self.convert_numeric_value(*rhs, dfg)?;
                 let assert_payload = self.convert_constrain_error(dfg, assert_message)?;
-                let predicate = self.current_side_effects_enabled_var;
+                let predicate = self.predicate();
                 self.acir_context.assert_neq_var(lhs, rhs, predicate, assert_payload)?;
             }
             Instruction::Cast(value_id, _) => {
@@ -523,7 +530,7 @@ impl<'a> Context<'a> {
             }
             Instruction::EnableSideEffectsIf { condition } => {
                 let acir_var = self.convert_numeric_value(*condition, dfg)?;
-                self.current_side_effects_enabled_var = acir_var;
+                self.set_predicate(acir_var);
             }
             Instruction::ArrayGet { .. } | Instruction::ArraySet { .. } => {
                 self.handle_array_operation(instruction_id, dfg)?;
