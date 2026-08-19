@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1787145574824,
+  "lastUpdate": 1787145579200,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -4968,105 +4968,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": true,
-          "id": "83fa188968f0a2220fa51382eb274ea822b53a9a",
-          "message": "fix: vector_push_front is PureWithPredicate (#13445)\n\nCo-authored-by: Ary Borenszweig <asterite@gmail.com>\nCo-authored-by: Claude Fable 5 <noreply@anthropic.com>\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
-          "timestamp": "2026-08-05T16:51:50Z",
-          "tree_id": "d02af53f76a68b4077f5acbd0fad40ec6613585b",
-          "url": "https://github.com/noir-lang/noir/commit/83fa188968f0a2220fa51382eb274ea822b53a9a"
-        },
-        "date": 1785950560022,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 7.438,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset-tail",
-            "value": 235,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 12.68,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-first-empty-tx",
-            "value": 2.388,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 2.74,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 3.3,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-checkpoint-merge",
-            "value": 1.518,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-checkpoint-root-single-block",
-            "value": 273,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-checkpoint-root",
-            "value": 258,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 2.806,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-tx-base-private",
-            "value": 13.88,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-tx-base-public",
-            "value": 51.4,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-tx-merge",
-            "value": 2.466,
-            "unit": "s"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 0.948,
-            "unit": "s"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 1.708,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "49558828+AztecBot@users.noreply.github.com",
-            "name": "Aztec Bot",
-            "username": "AztecBot"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
           "id": "2702a1e82e6e146119a65a39fb4f794a93536a50",
           "message": "feat(ast_fuzzer): generate arrays with non-homogeneous element types (#13473)",
           "timestamp": "2026-08-06T09:03:23Z",
@@ -9896,6 +9797,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "sha512-100-bytes",
             "value": 1.79,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "030e0d47470f54ec18b7005bc3cc0bc6952fd4a9",
+          "message": "fix(brillig): emit a trap for unreachable terminators (#13448)\n\nCo-authored-by: Claude Fable 5 <noreply@anthropic.com>",
+          "timestamp": "2026-08-19T12:26:17Z",
+          "tree_id": "2b1ca2d536cfe459fd04999493a9bd4aeb5eaee2",
+          "url": "https://github.com/noir-lang/noir/commit/030e0d47470f54ec18b7005bc3cc0bc6952fd4a9"
+        },
+        "date": 1787145483466,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 6.42,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset-tail",
+            "value": 203,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 13.74,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-first-empty-tx",
+            "value": 2.572,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 2.59,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 2.69,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-checkpoint-merge",
+            "value": 2.524,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-checkpoint-root-single-block",
+            "value": 284,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-checkpoint-root",
+            "value": 330,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 2.622,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-tx-base-private",
+            "value": 14.18,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-tx-base-public",
+            "value": 53.08,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-tx-merge",
+            "value": 2.006,
+            "unit": "s"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.808,
+            "unit": "s"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 1.692,
             "unit": "s"
           }
         ]
