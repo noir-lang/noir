@@ -38,6 +38,7 @@ pub enum MonomorphizationError {
     ReturnLimitExceeded { num_elements: u64, max_elements: u64, location: Location },
     ComplexType { complexity: usize, max_complexity: usize, location: Location },
     CannotUseFunctionAsValue { name: String, location: Location },
+    UnknownBuiltin { name: String, location: Location },
     GlobalContainsFunctionPointer { typ: String, location: Location },
     CalledDisabledFunction { name: String, location: Location },
 }
@@ -80,6 +81,7 @@ impl MonomorphizationError {
             | MonomorphizationError::ReturnLimitExceeded { location, .. }
             | MonomorphizationError::ComplexType { location, .. }
             | MonomorphizationError::CannotUseFunctionAsValue { location, .. }
+            | MonomorphizationError::UnknownBuiltin { location, .. }
             | MonomorphizationError::GlobalContainsFunctionPointer { location, .. }
             | MonomorphizationError::CalledDisabledFunction { location, .. } => *location,
             MonomorphizationError::InterpreterError(error) => error.location(),
@@ -256,6 +258,11 @@ impl From<MonomorphizationError> for CustomDiagnostic {
                     "`{name}` cannot be used as a function value; it must be called directly"
                 );
                 let secondary = "Used as a value here".to_string();
+                return CustomDiagnostic::simple_error(message, secondary, *location);
+            }
+            MonomorphizationError::UnknownBuiltin { name, location } => {
+                let message = format!("`{name}` is not a builtin function known to the compiler");
+                let secondary = "Called here".to_string();
                 return CustomDiagnostic::simple_error(message, secondary, *location);
             }
             MonomorphizationError::GlobalContainsFunctionPointer { typ, location } => {
