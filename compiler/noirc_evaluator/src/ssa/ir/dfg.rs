@@ -742,6 +742,28 @@ impl DataFlowGraph {
         self.get_numeric_constant_with_type(value).map(|(value, _typ)| value)
     }
 
+    /// Whether the given block's last non-terminator instruction is a `Constrain` or
+    /// `ConstrainNotEqual` that will trap for every witness — both operands are
+    /// compile-time numeric constants and their (in)equality already contradicts the
+    /// constraint. The `Unreachable` terminator that follows such an instruction needs
+    /// no additional trap: the block cannot be reached without also violating the
+    /// preceding constraint.
+    pub(crate) fn block_ends_with_always_failing_constraint(&self, block_id: BasicBlockId) -> bool {
+        let Some(&last_instr_id) = self[block_id].instructions().last() else {
+            return false;
+        };
+        let (lhs, rhs, expected_eq) = match &self[last_instr_id] {
+            Instruction::Constrain(lhs, rhs, _) => (*lhs, *rhs, true),
+            Instruction::ConstrainNotEqual(lhs, rhs, _) => (*lhs, *rhs, false),
+            _ => return false,
+        };
+        let (Some(a), Some(b)) = (self.get_numeric_constant(lhs), self.get_numeric_constant(rhs))
+        else {
+            return false;
+        };
+        (a == b) != expected_eq
+    }
+
     /// Similar to `get_numeric_constant` but returns the value as a signed or unsigned integer.
     /// Returns `None` if the given value is not an integer constant.
     pub(crate) fn get_integer_constant(&self, value: ValueId) -> Option<IntegerConstant> {

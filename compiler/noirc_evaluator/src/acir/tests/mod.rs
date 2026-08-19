@@ -113,6 +113,60 @@ fn unreachable_terminator_lowers_to_unsatisfiable_circuit() {
 }
 
 #[test]
+fn unreachable_after_always_failing_constrain_emits_no_extra_trap() {
+    // When the block's last instruction is an always-failing constrain
+    // (`remove_unreachable_instructions`'s canonical output shape), no additional
+    // ACIR constraint is required for the following `Unreachable` terminator: the
+    // preceding constraint already traps every witness. Assert both properties:
+    // the circuit still refuses to solve, and it contains no more opcodes than the
+    // failing constrain itself produces.
+    let src_guarded = "
+    acir(inline) fn main f0 {
+      b0():
+        constrain u32 0 == u32 1
+        unreachable
+    }
+    ";
+
+    // Baseline: the same failing constrain followed by a return, no `unreachable`.
+    // Whatever the constrain compiles to sets the opcode floor; the guarded case
+    // must not exceed it.
+    let src_baseline = "
+    acir(inline) fn main f0 {
+      b0():
+        constrain u32 0 == u32 1
+        return
+    }
+    ";
+    let baseline = Ssa::from_str(src_baseline).unwrap();
+    let (baseline_acir, _, _) = baseline
+        .into_acir(&Brillig::default(), &BrilligOptions::default())
+        .expect("baseline should compile");
+    let baseline_opcodes = baseline_acir[0].opcodes().len();
+
+    let guarded = Ssa::from_str(src_guarded).unwrap();
+    let (guarded_acir, guarded_brillig, _) = guarded
+        .into_acir(&Brillig::default(), &BrilligOptions::default())
+        .expect("guarded unreachable should compile");
+
+    assert_eq!(
+        guarded_acir[0].opcodes().len(),
+        baseline_opcodes,
+        "guarded unreachable should add no opcodes beyond its preceding failing constrain",
+    );
+
+    let blackbox_solver = StubbedBlackBoxSolver;
+    let mut acvm = ACVM::new(
+        &blackbox_solver,
+        guarded_acir[0].opcodes(),
+        WitnessMap::default(),
+        &guarded_brillig,
+        &[],
+    );
+    assert!(matches!(acvm.solve(), ACVMStatus::Failure::<FieldElement>(_)));
+}
+
+#[test]
 fn unchecked_mul_should_not_have_range_check() {
     let src = "
     acir(inline) fn main f0 {
