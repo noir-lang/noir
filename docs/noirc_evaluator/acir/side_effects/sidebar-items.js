@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":["StaleReadIsSafe","Unpredicated"],"struct":["SideEffectsLatch"]};
+window.SIDEBAR_ITEMS = {"enum":["PredicateContract","PredicateNotNeeded","StaleReadIsSafe","Unpredicated"],"mod":["audit"],"struct":["SideEffectsLatch"]};

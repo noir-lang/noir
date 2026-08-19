@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["flattened_inline_source"]};
+window.SIDEBAR_ITEMS = {"enum":["VectorLength"],"fn":["flattened_inline_source"]};
