@@ -256,13 +256,18 @@ impl Context {
             self.function_declarations
                 .iter()
                 .filter_map(|(callee_id, callee)| {
-                    can_call(
-                        id,
-                        unconstrained,
-                        types::contains_reference(&return_type),
-                        *callee_id,
-                        callee,
-                    )
+                    // A `#[fold]` function receives the recursion limit by value while every
+                    // other function receives it by mutable reference, so its signature does
+                    // not match the one a function pointer of that shape is rewritten to.
+                    (callee.inline_type != InlineType::Fold
+                        && can_call(
+                            id,
+                            unconstrained,
+                            types::contains_reference(&return_type),
+                            *callee_id,
+                            callee,
+                            !self.config.avoid_constrained_calls,
+                        ))
                     .then_some(*callee_id)
                 })
                 .collect()
@@ -328,13 +333,25 @@ impl Context {
         let inline_type = if is_main {
             InlineType::default()
         } else {
+            // A `#[fold]` function compiles into a separate ACIR circuit, so its signature
+            // has to cross a circuit boundary: `acir_gen` builds its parameters with
+            // `create_value_from_type`, which only understands numbers and arrays.
+            let can_be_folded = !self.config.avoid_fold
+                && types::can_be_main(&return_type)
+                && params.iter().all(|(_, _, _, typ, _)| types::can_be_main(typ));
+
             // Automatically include any new inline type, except where the compiler does not
             // support it: `#[fold]` compiles the function into a separate ACIR circuit, which
             // has no meaning for an unconstrained function, and `#[no_predicates]` acts on the
             // flattening pass that unconstrained code does not run.
             let choices = InlineType::iter()
                 .filter(|it| {
-                    !(unconstrained && matches!(it, InlineType::Fold | InlineType::NoPredicates))
+                    if unconstrained {
+                        !matches!(it, InlineType::Fold | InlineType::NoPredicates)
+                    } else {
+                        (*it != InlineType::Fold || can_be_folded)
+                            && (*it != InlineType::NoPredicates || !self.config.avoid_no_predicates)
+                    }
                 })
                 .collect::<Vec<_>>();
             *u.choose(&choices)?
@@ -392,7 +409,12 @@ impl Context {
             return_visibility: decl.return_visibility,
             unconstrained: decl.unconstrained,
             inline_type: decl.inline_type,
-            is_entry_point: id == FuncId(0), // we only need main as an entry point
+            // `main`, plus every constrained function compiled into its own ACIR circuit.
+            // `acir_gen` emits one ACIR per entry point and `combine_artifacts` asserts that
+            // count against the entry points, so a `#[fold]` function has to be one.
+            // Mirrors `Monomorphizer::into_program`.
+            is_entry_point: id == Program::main_id()
+                || (!decl.unconstrained && decl.inline_type.is_entry_point()),
             allow_constant_return: false,
         };
         self.functions.insert(id, func);
