@@ -1,0 +1,6 @@
+[package]
+name = "zero_length_array_set_out_of_bounds"
+type = "bin"
+authors = [""]
+
+[dependencies]
