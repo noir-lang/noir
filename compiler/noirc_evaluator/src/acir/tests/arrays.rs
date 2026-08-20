@@ -34,6 +34,46 @@ fn array_get_of_zero_length_element_emits_no_orphan_init() {
 }
 
 #[test]
+fn array_set_of_zero_width_value_emits_no_orphan_init() {
+    // A non-mutating `array_set` whose store value has zero flattened width
+    // (`[Field; 0]`) writes no `MemoryOp`, but `resolve_array_set_block`
+    // has already emitted a fresh `MemoryInit` via `copy_array`. The following
+    // `array_get` returns a zero-slot value, so it reads no memory either
+    // (`arrays.rs` zero-width guard). The block is then initialized with no
+    // linked use, which `assert_initialized_blocks_are_used` rejects with
+    // "ICE: memory blocks initialized without any linked read/write/Brillig use".
+    let src = "
+    acir(inline) fn main f0 {
+      b0(v0: Field, v1: u32, v2: u32):
+        v3 = make_array [] : [Field; 0]
+        v4 = make_array [v0, v3, v0, v3] : [(Field, [Field; 0]); 2]
+        v5 = array_set v4, index v1, value v3
+        v6 = array_get v5, index v2 -> [Field; 0]
+        return
+    }
+    ";
+    try_ssa_to_acir(src).expect("zero-width array_set should compile to ACIR");
+}
+
+#[test]
+fn mutating_array_set_of_zero_width_value_emits_no_orphan_init() {
+    // Same defect through the mutating branch of `resolve_array_set_block`:
+    // a mutating `array_set` promotes the source array with
+    // `ensure_array_is_initialized` and then writes nothing.
+    let src = "
+    acir(inline) fn main f0 {
+      b0(v0: Field, v1: u32, v2: u32):
+        v3 = make_array [] : [Field; 0]
+        v4 = make_array [v0, v3, v0, v3] : [(Field, [Field; 0]); 2]
+        v5 = array_set mut v4, index v1, value v3
+        v6 = array_get v5, index v2 -> [Field; 0]
+        return
+    }
+    ";
+    try_ssa_to_acir(src).expect("zero-width mutating array_set should compile to ACIR");
+}
+
+#[test]
 fn array_set_not_mutable() {
     let src = "
     acir(inline) fn main f0 {

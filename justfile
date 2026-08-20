@@ -35,6 +35,47 @@ install-js-tools: install-binstall
 install-playwright browsers='chromium webkit':
     npx -y playwright@1.58.2 install --with-deps {{ browsers }}
 
+# Asserts that every hard-coded Playwright version matches the one yarn.lock resolves.
+# Playwright's version is duplicated across four sites (this justfile's `install-playwright`
+# recipe, `.github/actions/install-playwright/action.yml`'s default input, the
+# `mcr.microsoft.com/playwright:vX.Y.Z-jammy` container image in
+# `.github/workflows/test-js-packages.yml`, and `yarn.lock`). A drift ships a browser
+# whose driver doesn't match — tests then fail with a red-herring launch error rather
+# than a version-mismatch one. This recipe fails loudly at the source instead.
+check-playwright-version:
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    lock=$(grep -oE '^"playwright@npm:[0-9]+\.[0-9]+\.[0-9]+' yarn.lock \
+        | head -n1 | sed -E 's/^"playwright@npm://')
+    if [[ -z "$lock" ]]; then
+        echo "check-playwright-version: could not find playwright's resolved version in yarn.lock" >&2
+        exit 1
+    fi
+
+    just_recipe=$(grep -oE 'playwright@[0-9]+\.[0-9]+\.[0-9]+' justfile | head -n1 | sed -E 's/^playwright@//')
+    action_default=$(grep -oE "default: *'[0-9]+\.[0-9]+\.[0-9]+'" .github/actions/install-playwright/action.yml \
+        | head -n1 | sed -E "s/^default: *'//" | tr -d "'")
+    workflow_image=$(grep -oE 'mcr\.microsoft\.com/playwright:v[0-9]+\.[0-9]+\.[0-9]+' .github/workflows/test-js-packages.yml \
+        | head -n1 | sed -E 's|^mcr\.microsoft\.com/playwright:v||')
+
+    fail=0
+    for entry in "justfile:install-playwright:$just_recipe" \
+                 "action.yml:playwright-version:$action_default" \
+                 "test-js-packages.yml:container:$workflow_image"; do
+        site="${entry%%:*}"; rest="${entry#*:}"
+        key="${rest%%:*}"; value="${rest#*:}"
+        if [[ "$value" != "$lock" ]]; then
+            echo "check-playwright-version: $site ($key) is $value but yarn.lock resolves $lock" >&2
+            fail=1
+        fi
+    done
+    if [[ "$fail" -ne 0 ]]; then
+        echo "check-playwright-version: bump every site to $lock (or downgrade the yarn dep and re-run \`yarn install\`)" >&2
+        exit 1
+    fi
+    echo "check-playwright-version: all Playwright references agree on $lock"
+
 # Installs Foundry (necessary for examples)
 install-foundry:
     #!/usr/bin/env bash

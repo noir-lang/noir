@@ -255,6 +255,19 @@ jobs:
     needs: [build-acvm-js]
     name: ACVM JS (Browser)
     runs-on: ubuntu-22.04
+    # Playwright's WebKit build needs a chunk of Ubuntu system libraries that
+    # `install-deps` fetches from the Azure apt mirror at job time. Those
+    # mirrors intermittently fail to fully install (see the
+    # `##[warning]playwright install-deps failed; continuing` step, followed by
+    # `browserType.launch: Target page, context or browser has been closed`
+    # for every WebKit test). Running inside Playwright's official container
+    # takes the apt round-trip out of the job entirely: the browsers and their
+    # system libs are already baked into the image, so `install-deps` doesn't
+    # run and can't flake. Tag pinned to the Playwright version yarn.lock
+    # resolves so the browsers match the driver.
+    container:
+      image: mcr.microsoft.com/playwright:v1.58.2-jammy
+      options: --user root
     timeout-minutes: 30
     permissions:
       contents: read
@@ -271,11 +284,6 @@ jobs:
 
       - name: Set up test environment
         uses: ./.github/actions/setup
-
-      - name: Install Playwright
-        uses: ./.github/actions/install-playwright
-        with:
-          browsers: "chromium webkit"
 
       - name: Run browser tests
         uses: ./.github/actions/retry

@@ -145,7 +145,7 @@ use crate::ssa::ir::{
 
 use super::{
     AcirVar, Context,
-    side_effects::StaleReadIsSafe,
+    side_effects::{PredicateNotNeeded, StaleReadIsSafe},
     types::{AcirDynamicArray, AcirValue},
 };
 
@@ -308,6 +308,9 @@ impl Context<'_> {
         // Resolving it as disabled is also unnecessary. A safe index is in bounds by construction,
         // so it never needs the predicate's fallback to a valid slot and the ordinary path emits
         // exactly the read the program asked for.
+        //
+        // This check runs before the predicate is inspected: a safe read's outcome here is
+        // "not handled" regardless of the predicate's value, so it is not a predicate read.
         if store_value.is_none() && dfg.is_safe_index(index, array) {
             return Ok(false);
         }
@@ -383,11 +386,27 @@ impl Context<'_> {
                     call_stack: self.acir_context.get_call_stack(),
                 }))
             }
-            AcirValue::Array(array) => {
+            AcirValue::Array(array_value) => {
                 // `AcirValue::Array` supports reading/writing to constant indices at compile-time in some cases.
                 if let Some(constant_index) = self.constant_index(index, dfg)? {
-                    let store_value = store_value.map(|value| self.convert_value(value, dfg));
-                    self.handle_constant_index(instruction, dfg, array, constant_index, store_value)
+                    let store = store_value.map(|value| self.convert_value(value, dfg));
+                    let resolved = self.handle_constant_index(
+                        instruction,
+                        dfg,
+                        array_value,
+                        constant_index,
+                        store,
+                    )?;
+                    // A compile-time read at an index that is not statically safe reports
+                    // `requires_acir_gen_predicate = true`, yet resolves optimistically
+                    // without consulting the predicate: if the predicate were false the
+                    // result is a don't-care that downstream predication masks anyway.
+                    if resolved && store_value.is_none() && !dfg.is_safe_index(index, array) {
+                        self.predicate_not_needed(
+                            PredicateNotNeeded::ConstantIndexResolvedAtCompileTime,
+                        );
+                    }
+                    Ok(resolved)
                 } else {
                     Ok(false)
                 }
@@ -847,7 +866,7 @@ impl Context<'_> {
         mutate_array: bool,
     ) -> Result<(), RuntimeError> {
         // Pass the instruction between array methods rather than the internal fields themselves
-        let Instruction::ArraySet { array, .. } = dfg[instruction] else {
+        let Instruction::ArraySet { array, value: store_value_id, .. } = dfg[instruction] else {
             return Err(InternalError::Unexpected {
                 expected: "Instruction should be an ArraySet".to_owned(),
                 found: format!("Instead got {:?}", dfg[instruction]),
@@ -855,6 +874,18 @@ impl Context<'_> {
             }
             .into());
         };
+
+        // A store value of zero flattened width (e.g. `[T; 0]` or `str<0>`) has no numeric leaves,
+        // so `array_set_value` below would emit no `MemoryOp`. Resolving a block for the result
+        // would then leave a `MemoryInit` with no linked use whenever every later access on the
+        // result is one ACIR gen resolves without touching memory — the mirror of the read-side
+        // guard in `array_get`. Writing a zero-slot value cannot change any slot, so the result
+        // array equals the source and is bound to the source's `AcirValue` directly.
+        if dfg.type_of_value(store_value_id).flattened_size().0 == 0 {
+            let value = self.convert_value(array, dfg);
+            self.define_result(dfg, instruction, value);
+            return Ok(());
+        }
 
         let [result_id] = dfg.instruction_result(instruction);
         let block_id = self.resolve_array_set_block(array, result_id, dfg, mutate_array)?;
@@ -1204,6 +1235,21 @@ impl Context<'_> {
         Ok(())
     }
 
+    /// The gating for an access that addresses whole elements, and so has no field of the element
+    /// to fall back on: a disabled branch collapses it to the start of the block.
+    ///
+    /// A statically safe index is used as-is, so a lowering whose only predicated operand is this
+    /// index reads no predicate at all. That acknowledgment is recorded here, where the decision
+    /// is made, rather than left to each caller to remember.
+    pub(super) fn index_gating_without_fallback(&self, is_safe_index: bool) -> IndexGating {
+        if is_safe_index {
+            self.predicate_not_needed(PredicateNotNeeded::StaticallySafeIndex);
+            IndexGating::Safe
+        } else {
+            IndexGating::Gated { fallback_offset: 0 }
+        }
+    }
+
     /// Convert an SSA array index into a flat ACIR array index.
     ///
     /// ACIR memory is flat, while SSA arrays may be multi-dimensional or
@@ -1253,6 +1299,9 @@ impl Context<'_> {
                 .get(index as usize)
                 .copied()
         {
+            if matches!(gating, IndexGating::Gated { .. }) {
+                self.predicate_not_needed(PredicateNotNeeded::ConstantFlattenedOffset);
+            }
             return Ok(self.acir_context.add_constant(offset));
         }
 
@@ -1434,14 +1483,6 @@ pub(super) enum IndexGating {
     /// slot whose type is compatible with it (see [`Context::compute_offset`]); `0` for an
     /// access that has no such slot to land on and only needs to be in bounds.
     Gated { fallback_offset: usize },
-}
-
-impl IndexGating {
-    /// The gating for an access that addresses whole elements, and so has no field of the element
-    /// to fall back on: a disabled branch collapses it to the start of the block.
-    pub(super) fn without_fallback(is_safe_index: bool) -> Self {
-        if is_safe_index { Self::Safe } else { Self::Gated { fallback_offset: 0 } }
-    }
 }
 
 /// Represents a shift in the size of the element type sizes array.
