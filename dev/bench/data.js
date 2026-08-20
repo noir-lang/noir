@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1787236378339,
+  "lastUpdate": 1787236792283,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23331,48 +23331,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "1718fa5280eadd0610cae69b06527942c8ab7ebd",
-          "message": "feat(acir_gen): bias disabled-branch array_get fallback to a type-compatible flat offset (#13466)\n\nCo-authored-by: AztecBot <tech@aztec-labs.com>\nCo-authored-by: Claude Fable 5 <noreply@anthropic.com>\nCo-authored-by: Aztec Bot <49558828+AztecBot@users.noreply.github.com>",
-          "timestamp": "2026-08-06T13:08:30Z",
-          "tree_id": "3e3f417db4593199e357f9e493d05b317b7ca48b",
-          "url": "https://github.com/noir-lang/noir/commit/1718fa5280eadd0610cae69b06527942c8ab7ebd"
-        },
-        "date": 1786024383362,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 173891,
-            "range": "± 403",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 142598,
-            "range": "± 5583",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2649349,
-            "range": "± 8695",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "49558828+AztecBot@users.noreply.github.com",
             "name": "Aztec Bot",
             "username": "AztecBot"
@@ -25424,6 +25382,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 3043782,
             "range": "± 6643",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49558828+AztecBot@users.noreply.github.com",
+            "name": "Aztec Bot",
+            "username": "AztecBot"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "36b2691e9b58445a749daeebdfa825c52a1c6338",
+          "message": "chore(ci): run acvm_js browser tests in the Playwright container (#13544)",
+          "timestamp": "2026-08-20T14:12:48Z",
+          "tree_id": "485362c5e57a90cee0c21ec739bd2b18e0f86ba5",
+          "url": "https://github.com/noir-lang/noir/commit/36b2691e9b58445a749daeebdfa825c52a1c6338"
+        },
+        "date": 1787236708462,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 126922,
+            "range": "± 341",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 112929,
+            "range": "± 2632",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 3042776,
+            "range": "± 8413",
             "unit": "ns/iter"
           }
         ]
