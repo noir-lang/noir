@@ -167,6 +167,33 @@ fn unreachable_after_always_failing_constrain_emits_no_extra_trap() {
 }
 
 #[test]
+fn unreachable_after_predicated_constrain_not_equal_still_traps() {
+    // `ConstrainNotEqual` is predicated at ACIR gen (`assert_neq_var` multiplies by the current
+    // side-effects predicate), so a `constrain_not_equal a != a` under a zero predicate does
+    // not actually fail at runtime: the emitted assertion folds to `0 == 0`. The `Unreachable`
+    // recognizer must therefore not treat that shape as always-failing — the trap has to be
+    // emitted, or the whole block compiles to an empty, satisfiable circuit.
+    let src = "
+    acir(inline) fn main f0 {
+      b0():
+        enable_side_effects u1 0
+        constrain u32 5 != u32 5
+        unreachable
+    }
+    ";
+    let (program, _) = try_ssa_to_acir(src).expect("SSA should compile");
+    let blackbox_solver = StubbedBlackBoxSolver;
+    let mut acvm = ACVM::new(
+        &blackbox_solver,
+        program.functions[0].opcodes.as_slice(),
+        WitnessMap::default(),
+        &[],
+        &[],
+    );
+    assert!(matches!(acvm.solve(), ACVMStatus::Failure::<FieldElement>(_)));
+}
+
+#[test]
 fn unchecked_mul_should_not_have_range_check() {
     let src = "
     acir(inline) fn main f0 {
