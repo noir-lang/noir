@@ -866,7 +866,7 @@ impl Context<'_> {
         mutate_array: bool,
     ) -> Result<(), RuntimeError> {
         // Pass the instruction between array methods rather than the internal fields themselves
-        let Instruction::ArraySet { array, .. } = dfg[instruction] else {
+        let Instruction::ArraySet { array, value: store_value_id, .. } = dfg[instruction] else {
             return Err(InternalError::Unexpected {
                 expected: "Instruction should be an ArraySet".to_owned(),
                 found: format!("Instead got {:?}", dfg[instruction]),
@@ -874,6 +874,18 @@ impl Context<'_> {
             }
             .into());
         };
+
+        // A store value of zero flattened width (e.g. `[T; 0]` or `str<0>`) has no numeric leaves,
+        // so `array_set_value` below would emit no `MemoryOp`. Resolving a block for the result
+        // would then leave a `MemoryInit` with no linked use whenever every later access on the
+        // result is one ACIR gen resolves without touching memory — the mirror of the read-side
+        // guard in `array_get`. Writing a zero-slot value cannot change any slot, so the result
+        // array equals the source and is bound to the source's `AcirValue` directly.
+        if dfg.type_of_value(store_value_id).flattened_size().0 == 0 {
+            let value = self.convert_value(array, dfg);
+            self.define_result(dfg, instruction, value);
+            return Ok(());
+        }
 
         let [result_id] = dfg.instruction_result(instruction);
         let block_id = self.resolve_array_set_block(array, result_id, dfg, mutate_array)?;
