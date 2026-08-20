@@ -101,8 +101,7 @@ struct CallContext {
 /// invalidated its results, so the interpreter reports it as an
 /// [InterpreterError::PurityViolation] rather than treating it as program behavior.
 struct PureScope {
-    /// The purity recorded for the called function, as observed by its caller
-    /// (see [DataFlowGraph::purity_of]).
+    /// The purity recorded for the called function, as observed by its caller.
     purity: Purity,
 
     /// Storage identities of everything reachable from the call's arguments at
