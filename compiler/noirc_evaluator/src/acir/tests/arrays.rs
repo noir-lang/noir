@@ -1,4 +1,5 @@
 use acvm::{
+    FieldElement,
     acir::circuit::{Opcode, opcodes::BlockId},
     assert_circuit_snapshot,
 };
@@ -71,6 +72,52 @@ fn mutating_array_set_of_zero_width_value_emits_no_orphan_init() {
     }
     ";
     try_ssa_to_acir(src).expect("zero-width mutating array_set should compile to ACIR");
+}
+
+#[test]
+fn zero_width_array_set_result_must_not_observe_a_later_mutable_set() {
+    // If a non-mutating `array_set` whose store value has zero flattened width binds its
+    // result to the source's `AcirValue`, and the source is backed by a memory block, the
+    // result becomes a second name for that block and silently observes any later
+    // in-place write. Here `v9` is a snapshot of the vector `v8`, and `v10 = array_set mut
+    // v8, index 0` writes `v1` into `v8`'s block; `v11 = array_get v9, index 0` must still
+    // read the pre-mutation value.
+    //
+    // Semi-flattened indices count members: `[(Field, [Field; 0])]` has `a` at 2i and `e`
+    // at 2i+1, so `array_set v8, index 3, value v3` writes the zero-width `e` of element 1.
+    let src = "
+    acir(inline) fn main f0 {
+      b0(v0: Field, v1: Field, v2: u32):
+        v3 = make_array [] : [Field; 0]
+        v4 = add v0, Field 1
+        v5 = make_array [v0, v3, v4, v3] : [(Field, [Field; 0])]
+        v6 = add v0, Field 2
+        v7, v8 = call vector_insert(u32 2, v5, v2, v6, v3) -> (u32, [(Field, [Field; 0])])
+        v9 = array_set v8, index u32 3, value v3
+        v10 = array_set mut v8, index u32 0, value v1
+        v11 = array_get v9, index u32 0 -> Field
+        return v11
+    }
+    ";
+
+    let ssa = Ssa::from_str(src).unwrap();
+    crate::ssa::ssa_gen::validate_ssa(&ssa, true);
+
+    // x = 1, z = 9, idx = 0 => v8 == [3, 1, 2].
+    // v9 is a non-mutating array_set of a zero-slot value, so v9 == v8 and v9[0] == 3.
+    let witness = acvm::acir::native_types::WitnessMap::from(std::collections::BTreeMap::from([
+        (acvm::acir::native_types::Witness(0), FieldElement::from(1u128)),
+        (acvm::acir::native_types::Witness(1), FieldElement::from(9u128)),
+        (acvm::acir::native_types::Witness(2), FieldElement::from(0u128)),
+    ]));
+    let (status, out) =
+        crate::acir::tests::execute_ssa(ssa, witness, Some(&acvm::acir::native_types::Witness(3)));
+    assert_eq!(status, acvm::pwg::ACVMStatus::Solved, "the circuit should solve");
+    assert_eq!(
+        out,
+        Some(FieldElement::from(3u128)),
+        "a non-mutating `array_set` result must not observe a later `array_set mut` on its source"
+    );
 }
 
 #[test]
