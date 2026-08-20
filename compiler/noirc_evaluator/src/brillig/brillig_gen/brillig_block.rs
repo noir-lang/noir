@@ -605,7 +605,12 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                 self.brillig_context.codegen_return(&return_registers);
             }
             TerminatorInstruction::Unreachable { .. } => {
-                self.brillig_context.codegen_trap();
+                // Skip the redundant trap when the block's last non-terminator instruction
+                // is already an always-failing constrain — the normal
+                // `remove_unreachable_instructions` producer emits exactly that shape.
+                if !dfg.block_ends_with_always_failing_constraint(self.block_id) {
+                    self.brillig_context.codegen_trap();
+                }
             }
         }
     }

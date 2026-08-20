@@ -186,9 +186,9 @@ fn brillig_global_array_not_coalesced_with_block_param() {
     let brillig = ssa_to_brillig_artifacts(src);
     let main = &brillig.ssa_function_to_brillig[&Id::test_new(0)];
     // Key opcodes:
-    //   19: sp[2] = @68  — global g0 lives in global register @68, copied into sp[2] (param v3's slot)
-    //   21: return        — returns sp[1]; global and param use separate allocations (not coalesced)
-    assert_artifact_snapshot!(main, @r"
+    //   17: sp[2] = @68  — global g0 lives in global register @68, copied into sp[2] (param v3's slot)
+    //   19: return        — returns sp[1]; global and param use separate allocations (not coalesced)
+    assert_artifact_snapshot!(main, @"
     fn main
      0: sp[3] = @1
      1: @1 = u32 add @1, @2
@@ -201,16 +201,14 @@ fn brillig_global_array_not_coalesced_with_block_param() {
      8: @0 = sp[0]
      9: sp[4] = sp[8]
     10: jump if sp[4] to 0 // -> 12: f0/b1
-    11: jump to 0 // -> 19: f0/b2
+    11: jump to 0 // -> 17: f0/b2
     12: sp[2] = const bool 1 // f0/b1
     13: sp[3] = bool eq @69, sp[2]
     14: jump if sp[3] to 0 // -> 17: f0/b1/1
     15: sp[4] = const u32 0
     16: trap @[@1; sp[4]]
-    17: sp[2] = const u32 0 // f0/b1/1
-    18: trap @[@1; sp[2]]
-    19: sp[2] = @68 // f0/b2
-    20: jump to 0 // -> 21: f0/b3
-    21: return // f0/b3
+    17: sp[2] = @68 // f0/b1/1, f0/b2
+    18: jump to 0 // -> 19: f0/b3
+    19: return // f0/b3
     ");
 }
