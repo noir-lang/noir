@@ -3479,6 +3479,7 @@ dependencies = [
  "clap",
  "color-eyre",
  "const_format",
+ "fm",
  "nargo",
  "noir_artifact_cli",
  "noirc_artifacts",

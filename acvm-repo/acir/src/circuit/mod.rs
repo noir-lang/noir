@@ -15,7 +15,12 @@ use msgpack_tagged::MsgpackTagged;
 pub use opcodes::Opcode;
 use thiserror::Error;
 
-use std::{collections::HashMap, io::prelude::*, num::ParseIntError, str::FromStr};
+use std::{
+    collections::{BTreeMap, HashMap},
+    io::prelude::*,
+    num::ParseIntError,
+    str::FromStr,
+};
 
 use base64::Engine;
 use flate2::Compression;
@@ -341,13 +346,14 @@ impl<F: AcirField + for<'a> Deserialize<'a> + MsgpackTagged> Program<F> {
 
 impl<F: AcirField> std::fmt::Display for Circuit<F> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        display_circuit(self, None, f)
+        display_circuit(self, None, None, f)
     }
 }
 
 pub fn display_circuit<F: AcirField>(
     circuit: &Circuit<F>,
     error_types: Option<&HashMap<ErrorSelector, String>>,
+    annotations: Option<&BTreeMap<usize, String>>,
     f: &mut std::fmt::Formatter<'_>,
 ) -> std::fmt::Result {
     let write_witness_indices =
@@ -382,6 +388,10 @@ pub fn display_circuit<F: AcirField>(
         circuit.assert_messages.iter().cloned().collect::<HashMap<_, _>>();
 
     for (index, opcode) in circuit.opcodes.iter().enumerate() {
+        if let Some(annotation) = annotations.and_then(|annotations| annotations.get(&index)) {
+            writeln!(f, "// {annotation}")?;
+        }
+
         display_opcode(opcode, Some(&circuit.return_values), f)?;
 
         if let Some(error_types) = error_types {
@@ -405,18 +415,20 @@ impl<F: AcirField> std::fmt::Debug for Circuit<F> {
 
 impl<F: AcirField> std::fmt::Display for Program<F> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        display_program(self, None, f)
+        display_program(self, None, None, f)
     }
 }
 
 pub fn display_program<F: AcirField>(
     program: &Program<F>,
     error_types: Option<&HashMap<ErrorSelector, String>>,
+    annotations: Option<&[BTreeMap<usize, String>]>,
     f: &mut std::fmt::Formatter<'_>,
 ) -> std::fmt::Result {
     for (func_index, function) in program.functions.iter().enumerate() {
         writeln!(f, "func {func_index}")?;
-        display_circuit(function, error_types, f)?;
+        let annotations = annotations.and_then(|annotations: &[_]| annotations.get(func_index));
+        display_circuit(function, error_types, annotations, f)?;
         writeln!(f)?;
     }
     for (func_index, function) in program.unconstrained_functions.iter().enumerate() {
