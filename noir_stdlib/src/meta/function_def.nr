@@ -1,3 +1,5 @@
+use crate::meta::item_visibility::ItemVisibility;
+
 /// A single parameter of a [`FunctionDefinition`], returned from
 /// [`FunctionDefinition::parameters`].
 pub comptime struct FunctionParameter {
@@ -85,10 +87,15 @@ impl FunctionDefinition {
     pub comptime fn return_type(self) -> Type {}
     // docs:end:return_type
 
-    #[builtin(function_def_visibility)]
+    /// The function's visibility.
     // docs:start:visibility
-    pub comptime fn visibility(self) -> Quoted {}
-    // docs:end:visibility
+    pub comptime fn visibility(self) -> ItemVisibility {
+        // docs:end:visibility
+        ItemVisibility::from_quoted(self.visibility_raw())
+    }
+
+    #[builtin(function_def_visibility)]
+    comptime fn visibility_raw(self) -> Quoted {}
 }
 
 impl crate::hash::Hash for FunctionDefinition {

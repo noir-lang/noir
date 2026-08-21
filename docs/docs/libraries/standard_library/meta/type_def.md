@@ -62,18 +62,20 @@ comptime fn example(foo: TypeDefinition) {
 
 #include_code fields noir_stdlib/src/meta/type_def.nr rust
 
-Returns each field in this struct type as a `StructField`. Use `name()`, `typ()`, and
-`visibility()` to inspect it. Generic types used in each field type are automatically
-substituted with the provided generic arguments.
+Returns each field in this struct type as a `StructField`. Use `name()` and `typ()` to inspect
+its name and type. `visibility()` returns the field's [`ItemVisibility`](./item_visibility.md).
+Generic types used in each field type are automatically substituted with the provided generic
+arguments.
 
 ### fields_as_written
 
 #include_code fields_as_written noir_stdlib/src/meta/type_def.nr rust
 
-Returns each field in this struct type as a `StructField`. Use `name()`, `typ()`, and
-`visibility()` to inspect it. Each type is returned as written, with any generic arguments
-unchanged. Unless the field types are not needed, users should generally prefer to use
-`TypeDefinition::fields` over this function if possible.
+Returns each field in this struct type as a `StructField`. Use `name()` and `typ()` to inspect
+its name and type. `visibility()` returns the field's [`ItemVisibility`](./item_visibility.md).
+Each type is returned as written, with any generic arguments unchanged. Unless the field types
+are not needed, users should generally prefer to use `TypeDefinition::fields` over this function
+if possible.
 
 ### has_named_attribute
 

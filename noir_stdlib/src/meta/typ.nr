@@ -132,9 +132,8 @@ impl Type {
     // docs:start:as_array
     pub comptime fn as_array(self) -> Option<ArrayType> {
         // docs:end:as_array
-        self.as_array_raw().map(|pair: (Type, Type)| ArrayType {
-            element_type: pair.0,
-            length_type: pair.1,
+        self.as_array_raw().map(|pair: (Type, Type)| {
+            ArrayType { element_type: pair.0, length_type: pair.1 }
         })
     }
 
@@ -152,10 +151,7 @@ impl Type {
     // docs:start:as_integer
     pub comptime fn as_integer(self) -> Option<IntegerType> {
         // docs:end:as_integer
-        self.as_integer_raw().map(|pair: (bool, u8)| IntegerType {
-            is_signed: pair.0,
-            bits: pair.1,
-        })
+        self.as_integer_raw().map(|pair: (bool, u8)| IntegerType { is_signed: pair.0, bits: pair.1 })
     }
 
     #[builtin(type_as_integer)]
@@ -189,9 +185,8 @@ impl Type {
     // docs:start:as_data_type
     pub comptime fn as_data_type(self) -> Option<DataType> {
         // docs:end:as_data_type
-        self.as_data_type_raw().map(|pair: (TypeDefinition, [Type])| DataType {
-            definition: pair.0,
-            generics: pair.1,
+        self.as_data_type_raw().map(|pair: (TypeDefinition, [Type])| {
+            DataType { definition: pair.0, generics: pair.1 }
         })
     }
 

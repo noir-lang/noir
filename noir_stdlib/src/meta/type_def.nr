@@ -1,3 +1,4 @@
+use crate::meta::item_visibility::ItemVisibility;
 use crate::option::Option;
 
 /// A generic parameter of a [`TypeDefinition`], returned from
@@ -24,7 +25,7 @@ impl TypeGeneric {
 pub comptime struct StructField {
     name: Quoted,
     typ: Type,
-    visibility: Quoted,
+    visibility: ItemVisibility,
 }
 
 impl StructField {
@@ -38,8 +39,8 @@ impl StructField {
         self.typ
     }
 
-    /// The field's declared visibility, as a [`Quoted`] visibility keyword.
-    pub comptime fn visibility(self) -> Quoted {
+    /// The field's declared visibility.
+    pub comptime fn visibility(self) -> ItemVisibility {
         self.visibility
     }
 }
@@ -106,7 +107,7 @@ impl TypeDefinition {
     pub comptime fn fields(self, generic_args: [Type]) -> [StructField] {
         // docs:end:fields
         self.fields_raw(generic_args).map(|f: (Quoted, Type, Quoted)| {
-            StructField { name: f.0, typ: f.1, visibility: f.2 }
+            StructField { name: f.0, typ: f.1, visibility: ItemVisibility::from_quoted(f.2) }
         })
     }
 
@@ -120,7 +121,7 @@ impl TypeDefinition {
     pub comptime fn fields_as_written(self) -> [StructField] {
         // docs:end:fields_as_written
         self.fields_as_written_raw().map(|f: (Quoted, Type, Quoted)| {
-            StructField { name: f.0, typ: f.1, visibility: f.2 }
+            StructField { name: f.0, typ: f.1, visibility: ItemVisibility::from_quoted(f.2) }
         })
     }
 
