@@ -71,8 +71,9 @@ impl Ssa {
         // Collect all brillig functions so that later we can find them when processing a call instruction
         let brillig_functions = clone_brillig_functions(&self.functions);
 
-        let mut interpreter = Interpreter::new_from_functions(
+        let mut interpreter = Interpreter::new_from_functions_with_purities(
             &brillig_functions,
+            Some(&self.function_purities),
             InterpreterOptions {
                 no_foreign_calls: true,
                 step_limit: Some(DEFAULT_INTERPRETER_STEP_LIMIT),
@@ -101,8 +102,9 @@ impl Ssa {
         // Collect all brillig functions so that later we can find them when processing a call instruction
         let brillig_functions = clone_brillig_functions(&self.functions);
 
-        let mut interpreter = Interpreter::new_from_functions(
+        let mut interpreter = Interpreter::new_from_functions_with_purities(
             &brillig_functions,
+            Some(&self.function_purities),
             InterpreterOptions {
                 no_foreign_calls: true,
                 step_limit: Some(DEFAULT_INTERPRETER_STEP_LIMIT),
@@ -1742,8 +1744,9 @@ mod test {
 
         // First demonstrate what happens if we don't revisit.
         let empty_functions_map = BTreeMap::new();
-        let mut empty_interpreter = Interpreter::new_from_functions(
+        let mut empty_interpreter = Interpreter::new_from_functions_with_purities(
             &empty_functions_map,
+            None,
             InterpreterOptions::default(),
             std::io::empty(),
         );
