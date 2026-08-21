@@ -168,20 +168,31 @@ impl Ssa {
 
 impl<'ssa, W: Write> Interpreter<'ssa, W> {
     fn new(ssa: &'ssa Ssa, options: InterpreterOptions, output: W) -> Self {
-        let mut interpreter = Self::new_from_functions(&ssa.functions, options, output);
-        interpreter.function_purities = Some(&ssa.function_purities);
-        interpreter
+        Self::new_from_functions_with_purities(
+            &ssa.functions,
+            Some(&ssa.function_purities),
+            options,
+            output,
+        )
     }
 
-    pub(crate) fn new_from_functions(
+    /// Construct an interpreter over a bare function map, recording the caller's
+    /// [`FunctionPurities`] to enable the purity-contract checks introduced by
+    /// [#13518](https://github.com/noir-lang/noir/pull/13518) — a `Pure`/`PureWithPredicate`
+    /// function that mutates caller-visible memory or calls a foreign function during
+    /// interpretation is a violation, not program behavior. Pass `None` when no purity
+    /// analysis has run yet; every call is then treated as impure, which is the safe
+    /// direction.
+    pub(crate) fn new_from_functions_with_purities(
         functions: &'ssa BTreeMap<FunctionId, Function>,
+        function_purities: Option<&'ssa FunctionPurities>,
         options: InterpreterOptions,
         output: W,
     ) -> Self {
         let call_stack = vec![CallContext::global_context()];
         Self {
             functions,
-            function_purities: None,
+            function_purities,
             call_stack,
             options,
             output,
