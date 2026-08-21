@@ -3,3 +3,10 @@
   ignore = "git diff --quiet $CACHED_COMMIT_REF $COMMIT_REF"
   base = "docs"
   functions = "netlify/functions"
+
+# Serve pre-built markdown to agents that request `Accept: text/markdown`. Bundled and
+# deployed by the Netlify CLI in the publish/preview workflows (the previous
+# nwtgck/actions-netlify upload did not deploy edge functions).
+[[edge_functions]]
+  path = "/*"
+  function = "markdown-negotiation"

@@ -132,14 +132,45 @@ jobs:
           name: docs
           path: ./docs/build
 
-      - name: Deploy to Netlify
-        uses: nwtgck/actions-netlify@d22a32a27c918fe470bbc562e984f80ec48c2668 # v4.0.0
+      - name: Setup Node.js
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
         with:
-          publish-dir: "./docs/build"
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          enable-github-deployment: false
-          deploy-message: "Deploy from GitHub Actions for PR ${{ github.event.number }}"
+          node-version: '22.15.0'
+          cache: 'yarn'
+          cache-dependency-path: 'docs/yarn.lock'
+
+      # Install the docs dependencies so the Netlify CLI can bundle what netlify.toml
+      # declares: the markdown content-negotiation edge function and the classic
+      # netlify/functions (which need node_modules, e.g. @getbrevo/brevo). This also
+      # provides the CLI itself (a docs devDependency), so no separate global install.
+      - name: Install docs dependencies
+        working-directory: docs
+        run: yarn install --immutable
+
+      # --no-build: deploy the artifact built in the build_preview job as-is. base="docs"
+      # in netlify.toml resolves relative to the repo root, so the edge-functions dir
+      # resolves correctly when run from docs/.
+      - name: Deploy preview to Netlify
+        id: netlify
+        working-directory: docs
+        run: |
+          output=$(yarn netlify deploy --no-build --dir build --json --message "Deploy from GitHub Actions for PR ${{ github.event.number }}")
+          echo "preview_url=$(echo "$output" | jq -r '.deploy_url')" >> "$GITHUB_OUTPUT"
         env:
           NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
           NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
-        timeout-minutes: 1
+        timeout-minutes: 10
+
+      - name: Comment preview URL on PR
+        if: steps.netlify.outputs.preview_url != ''
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const url = '${{ steps.netlify.outputs.preview_url }}';
+            github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: `📖 Docs preview deployed: ${url}/docs`
+            });
