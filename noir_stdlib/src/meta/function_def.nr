@@ -1,8 +1,5 @@
 /// A single parameter of a [`FunctionDefinition`], returned from
 /// [`FunctionDefinition::parameters`].
-///
-/// Fields are private so the shape can grow (e.g. to expose parameter locations or
-/// pattern information) without breaking source that reads them.
 pub comptime struct FunctionParameter {
     name: Quoted,
     typ: Type,
@@ -75,9 +72,8 @@ impl FunctionDefinition {
     // docs:start:parameters
     pub comptime fn parameters(self) -> [FunctionParameter] {
         // docs:end:parameters
-        self.parameters_raw().map(|param: (Quoted, Type)| FunctionParameter {
-            name: param.0,
-            typ: param.1,
+        self.parameters_raw().map(|param: (Quoted, Type)| {
+            FunctionParameter { name: param.0, typ: param.1 }
         })
     }
 

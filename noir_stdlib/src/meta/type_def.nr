@@ -2,9 +2,6 @@ use crate::option::Option;
 
 /// A generic parameter of a [`TypeDefinition`], returned from
 /// [`TypeDefinition::generics`].
-///
-/// Fields are private so that new information (e.g. bounds or defaults) can be added
-/// without breaking source that reads them.
 pub comptime struct TypeGeneric {
     typ: Type,
     numeric_type: Option<Type>,
@@ -24,9 +21,6 @@ impl TypeGeneric {
 
 /// A field of a [`TypeDefinition`], returned from
 /// [`TypeDefinition::fields`] and [`TypeDefinition::fields_as_written`].
-///
-/// Fields are private so that additional information (e.g. the field's location)
-/// can be added without breaking source that reads them.
 pub comptime struct StructField {
     name: Quoted,
     typ: Type,
@@ -98,9 +92,8 @@ impl TypeDefinition {
     // docs:start:generics
     pub comptime fn generics(self) -> [TypeGeneric] {
         // docs:end:generics
-        self.generics_raw().map(|g: (Type, Option<Type>)| TypeGeneric {
-            typ: g.0,
-            numeric_type: g.1,
+        self.generics_raw().map(|g: (Type, Option<Type>)| {
+            TypeGeneric { typ: g.0, numeric_type: g.1 }
         })
     }
 
@@ -112,10 +105,8 @@ impl TypeDefinition {
     // docs:start:fields
     pub comptime fn fields(self, generic_args: [Type]) -> [StructField] {
         // docs:end:fields
-        self.fields_raw(generic_args).map(|f: (Quoted, Type, Quoted)| StructField {
-            name: f.0,
-            typ: f.1,
-            visibility: f.2,
+        self.fields_raw(generic_args).map(|f: (Quoted, Type, Quoted)| {
+            StructField { name: f.0, typ: f.1, visibility: f.2 }
         })
     }
 
@@ -128,10 +119,8 @@ impl TypeDefinition {
     // docs:start:fields_as_written
     pub comptime fn fields_as_written(self) -> [StructField] {
         // docs:end:fields_as_written
-        self.fields_as_written_raw().map(|f: (Quoted, Type, Quoted)| StructField {
-            name: f.0,
-            typ: f.1,
-            visibility: f.2,
+        self.fields_as_written_raw().map(|f: (Quoted, Type, Quoted)| {
+            StructField { name: f.0, typ: f.1, visibility: f.2 }
         })
     }
 
