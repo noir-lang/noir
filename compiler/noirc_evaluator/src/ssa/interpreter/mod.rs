@@ -192,7 +192,16 @@ impl Ssa {
     ) -> IResults {
         let mut interpreter = Interpreter::new(self, options, output);
         interpreter.interpret_globals()?;
-        interpreter.interpret_function(function, args)
+
+        #[cfg(test)]
+        let globals_before = interpreter.globals_snapshot();
+
+        let result = interpreter.interpret_function(function, args);
+
+        #[cfg(test)]
+        interpreter.assert_globals_unchanged(&globals_before);
+
+        result
     }
 }
 
@@ -373,16 +382,36 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
         Ok(())
     }
 
+    /// A deep copy of the globals, to check an evaluation against.
+    #[cfg(test)]
+    fn globals_snapshot(&self) -> HashMap<ValueId, Value> {
+        self.globals.values.iter().map(|(id, value)| (*id, value.snapshot())).collect()
+    }
+
+    /// Assert that an evaluation left the globals as [`Self::interpret_globals`] established
+    /// them. Interpreting a program must not change the program.
+    ///
+    /// This is a postcondition rather than a check at each write site so that a mutation
+    /// path added later is caught too, not only the ones known when it was written.
+    #[cfg(test)]
+    fn assert_globals_unchanged(&self, before: &HashMap<ValueId, Value>) {
+        for (id, value) in before {
+            assert_eq!(
+                self.globals.values.get(id),
+                Some(value),
+                "interpreting a function changed the value of global {id}"
+            );
+        }
+    }
+
     /// Interpret an entry point, assuming the globals have already been interpreted.
     ///
     /// This starts from a fresh [`Evaluation`], so no call stack or step budget is
     /// carried over from a previous top-level call.
     ///
-    /// [`Interpreter::globals`] is deliberately not part of that reset: it is
-    /// program state established once by [`Interpreter::interpret_globals`]. Note
-    /// that this means the *contents* of a global are not restored either — an
-    /// in-place Brillig write to a global during one evaluation is still visible to
-    /// the next (noir-lang/noir-claude#1755); this refactor does not change that.
+    /// [`Interpreter::globals`] is deliberately not part of that reset: it is program
+    /// state established once by [`Interpreter::interpret_globals`], and no evaluation
+    /// may change it — see [`Interpreter::is_global_storage`].
     pub(crate) fn interpret_function(
         &mut self,
         function_id: FunctionId,
@@ -570,6 +599,18 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
         }
     }
 
+    /// Whether `storage` is owned by one of the program's globals.
+    ///
+    /// An in-place write into a global is never a write the program itself can make. The
+    /// globals are established once, before any evaluation, and every evaluation shares
+    /// them; at run time each Brillig entry point re-initialises the globals region
+    /// (`brillig_ir/entry_point.rs`) and ACVM builds a fresh VM per `BrilligCall`, so no
+    /// invocation can observe another's write. The interpreter therefore treats global
+    /// storage the way it treats storage with a reference count above 1: it copies.
+    fn is_global_storage(&self, storage: StorageIdentity) -> bool {
+        self.globals.storage.contains(&storage)
+    }
+
     /// Check an in-place write to `storage` against every active purity scope.
     ///
     /// Writing to storage reachable from a call's arguments (or from a global) is
@@ -584,8 +625,7 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
     fn check_purity_on_mutation(&self, storage: StorageIdentity, what: &str) -> IResult<()> {
         for context in self.evaluation.call_stack.iter().rev() {
             let Some(scope) = &context.pure_scope else { continue };
-            if scope.argument_storage.contains(&storage) || self.globals.storage.contains(&storage)
-            {
+            if scope.argument_storage.contains(&storage) || self.is_global_storage(storage) {
                 let function = context
                     .called_function
                     .expect("purity scopes only exist on function call frames");
@@ -1232,10 +1272,12 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
             println!("store {value} at {address}");
         }
 
-        self.check_purity_on_mutation(
-            reference_address.element.as_ptr() as StorageIdentity,
-            "a store through a reference",
-        )?;
+        let storage = reference_address.element.as_ptr() as StorageIdentity;
+        // A global is only ever a numeric constant or a `make_array`, so no reference is owned
+        // by one and this store cannot reach global storage. If that ever changes, the write
+        // would land in the shared global scope: see [`Self::is_global_storage`].
+        debug_assert!(!self.is_global_storage(storage), "store through a global reference");
+        self.check_purity_on_mutation(storage, "a store through a reference")?;
 
         *reference_address.element.borrow_mut() = Some(value);
 
@@ -1355,8 +1397,16 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
             let index = index - offset.to_u32();
             let value = self.copy_nested_array_in_acir(&self.lookup(value)?);
 
+            let storage = array.elements.as_ptr() as StorageIdentity;
             let is_rc_one = *array.rc.borrow() == 1;
-            let should_mutate = if self.in_unconstrained_context() { is_rc_one } else { mutable };
+            // A global is not the sole live reference to its storage even when its reference
+            // count says so, so `is_rc_one` alone is not licence to write through it — see
+            // [`Self::is_global_storage`].
+            let should_mutate = if self.in_unconstrained_context() {
+                is_rc_one && !self.is_global_storage(storage)
+            } else {
+                mutable
+            };
 
             if index >= length {
                 return Err(InterpreterError::IndexOutOfBounds { index: index.into(), length });
@@ -1370,10 +1420,7 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
                 // the reference count governs genuine sharing, is writing through
                 // argument-reachable storage observable by the caller.
                 if self.in_unconstrained_context() {
-                    self.check_purity_on_mutation(
-                        array.elements.as_ptr() as StorageIdentity,
-                        "an in-place array_set",
-                    )?;
+                    self.check_purity_on_mutation(storage, "an in-place array_set")?;
                 }
                 array.elements.borrow_mut()[index as usize] = value;
                 Value::ArrayOrVector(array)
