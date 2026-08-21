@@ -16,7 +16,11 @@ pub fn foo(x: Field, y: u32) -> u32 {
 comptime fn output_struct(f: FunctionDefinition) -> Quoted {
     let fields: Quoted = f
         .parameters()
-        .map(|(name, typ): (Quoted, Type)| -> Quoted quote { $name: $typ,  })
+        .map(|parameter: std::meta::function_def::FunctionParameter| -> Quoted {
+            let name: Quoted = parameter.name();
+            let typ: Type = parameter.typ();
+            quote { $name: $typ,  }
+        })
         .join(quote {  });
     quote {
         struct Foo {

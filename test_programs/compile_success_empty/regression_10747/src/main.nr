@@ -23,7 +23,9 @@ struct Storage<Context> {
 }
 
 pub comptime fn storage(s: TypeDefinition) -> Quoted {
-    let (name, typ, _) = s.fields_as_written()[0];
+    let field = s.fields_as_written()[0];
+    let name = field.name();
+    let typ = field.typ();
     quote {
         impl<Context> Storage<Context> {
             fn init(context: Context) -> Self {

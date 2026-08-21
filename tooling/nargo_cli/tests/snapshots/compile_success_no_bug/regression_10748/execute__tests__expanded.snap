@@ -17,7 +17,7 @@ impl<Context> StateVariable<Context> for PublicImmutable<Context> {
 }
 
 pub comptime fn storage(s: TypeDefinition) -> Quoted {
-    let (_name, typ, _): (Quoted, Type, Quoted) = s.fields_as_written()[0_u32];
+    let typ: Type = s.fields_as_written()[0_u32].typ();
     let context: Type = std::meta::typ::fresh_type_variable();
     assert(
         typ.implements(quote { crate::StateVariable < $context >  }.as_trait_constraint()),

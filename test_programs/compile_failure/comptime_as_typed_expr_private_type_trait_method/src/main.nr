@@ -6,9 +6,9 @@ struct Trigger {}
 
 comptime fn synthesize_private_call(_s: TypeDefinition) -> Quoted {
     let wrapper_type = quote { foo::PublicWrapper }.as_type();
-    let (wrapper_def, wrapper_generics) = wrapper_type.as_data_type().unwrap();
-    let fields = wrapper_def.fields(wrapper_generics);
-    let hidden_type = fields[0].1;
+    let data_type = wrapper_type.as_data_type().unwrap();
+    let fields = data_type.definition().fields(data_type.generics());
+    let hidden_type = fields[0].typ();
 
     let leak_trait = quote { foo::Leak }.as_trait_constraint();
     let leak_impl = hidden_type.get_trait_impl(leak_trait).unwrap();
