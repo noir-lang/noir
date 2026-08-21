@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<link rel="stylesheet" href="../../../styles.css">
+<script>window.docRoot = "../../../";</script>
+<script defer src="../../../search-index.js"></script>
+<script defer src="../../../nargo_doc.js"></script>
+<script defer src="../../../search.js"></script>
+<title>Struct ArrayType documentation</title>
+</head>
+<body>
+<div id="sidebar-toggle">
+<button id="sidebar-toggle-button"></button>
+<div id="sidebar-toggle-title">ArrayType</div>
+</div>
+<span id="main-contents">
+<nav class="sidebar">
+<h1><a href="../../../index.html">noir_stdlib</a></h1>
+<div><a href="../../../all.html">All items</a></div>
+<h2 id="crate-name"><a href="../../index.html">std</a></h2>
+<div id="crate-version">1.0.0-beta.26</div>
+<h2><a href="#struct">Struct ArrayType</a></h2>
+<h3>Methods</h3>
+<ul class="sidebar-list">
+<li><a href="#element_type">element_type</a></li>
+<li><a href="#length_type">length_type</a></li>
+</ul>
+<h2>In module typ</h2>
+<h3>Structs</h3><ul class="item-list">
+<li><a href="struct.ArrayType.html">ArrayType</a></div></li>
+<li><a href="struct.DataType.html">DataType</a></div></li>
+<li><a href="struct.IntegerType.html">IntegerType</a></div></li>
+</ul>
+<h3>Functions</h3><ul class="item-list">
+<li><a href="fn.fresh_type_variable.html">fresh_type_variable</a></div></li>
+</ul>
+</nav>
+<main>
+<div><a href="../../../index.html">noir_stdlib</a> - <a href="../../index.html">std</a>::<a href="../index.html">meta</a>::<a href="index.html">typ</a></div>
+<div class="heading-row">
+<h1 class="heading-content">Struct <span id="struct" class="struct">ArrayType</span></h1>
+<button id="search-toggle" type="button">Search</button>
+</div>
+<input id="search-input" type="search" placeholder="Type 's' or '/' to search" autocomplete="off" spellcheck="false" aria-label="Search" hidden>
+<div id="search-results" hidden></div>
+<div id="page-content">
+<pre><code>pub comptime struct ArrayType
+{ <span class="comment">/* private fields */</span> }
+</code></pre>
+<div class="comments">
+<p>An array type decomposed by <a href="../../../std/primitive.Type.html#as_array"><code>Type::as_array</code></a> into its element and length
+components.</p></div>
+<h2>Implementations</h2>
+<h3><code class="code-header">impl <a href="../../../std/meta/typ/struct.ArrayType.html" class="struct">ArrayType</a></code></h3>
+
+<div class="padded-methods"><code id="element_type" class="code-header">pub comptime fn <a href="#element_type" class="fn">element_type</a>(self) -> <a href="../../../std/primitive.Type.html" class="primitive">Type</a></code>
+
+<div class="padded-description"><div class="comments">
+<p>The type of each element the array holds.</p>
+</div>
+</div><code id="length_type" class="code-header">pub comptime fn <a href="#length_type" class="fn">length_type</a>(self) -> <a href="../../../std/primitive.Type.html" class="primitive">Type</a></code>
+
+<div class="padded-description"><div class="comments">
+<p>The type describing the array's length (a numeric-constant type).</p>
+</div>
+</div></div></div>
+</main>
+</span>
+</body>
+</html>

@@ -88,8 +88,7 @@ impl TypeDefinition {
     pub comptime fn location(self) -> Location {}
     // docs:end:location
 
-    /// Return each generic in this type definition. If a generic is numeric, its
-    /// [`TypeGeneric::numeric_type`] holds the numeric type.
+    /// Return each generic in this type definition.
     // docs:start:generics
     pub comptime fn generics(self) -> [TypeGeneric] {
         // docs:end:generics
