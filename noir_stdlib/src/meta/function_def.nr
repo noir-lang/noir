@@ -1,3 +1,25 @@
+/// A single parameter of a [`FunctionDefinition`], returned from
+/// [`FunctionDefinition::parameters`].
+///
+/// Fields are private so the shape can grow (e.g. to expose parameter locations or
+/// pattern information) without breaking source that reads them.
+pub comptime struct FunctionParameter {
+    name: Quoted,
+    typ: Type,
+}
+
+impl FunctionParameter {
+    /// The parameter's declared name, as a [`Quoted`] identifier.
+    pub comptime fn name(self) -> Quoted {
+        self.name
+    }
+
+    /// The parameter's declared type.
+    pub comptime fn typ(self) -> Type {
+        self.typ
+    }
+}
+
 impl FunctionDefinition {
     #[builtin(function_def_as_typed_expr)]
     // docs:start:as_typed_expr
@@ -49,10 +71,18 @@ impl FunctionDefinition {
     pub comptime fn name(self) -> Quoted {}
     // docs:end:name
 
-    #[builtin(function_def_parameters)]
+    /// The parameters this function was declared with, in source order.
     // docs:start:parameters
-    pub comptime fn parameters(self) -> [(Quoted, Type)] {}
-    // docs:end:parameters
+    pub comptime fn parameters(self) -> [FunctionParameter] {
+        // docs:end:parameters
+        self.parameters_raw().map(|param: (Quoted, Type)| FunctionParameter {
+            name: param.0,
+            typ: param.1,
+        })
+    }
+
+    #[builtin(function_def_parameters)]
+    comptime fn parameters_raw(self) -> [(Quoted, Type)] {}
 
     #[builtin(function_def_return_type)]
     // docs:start:return_type

@@ -127,9 +127,9 @@ pub comptime fn make_trait_impl<Env1, Env2>(
     let mut impl_generics = [].as_vector();
     let mut where_clause = [].as_vector();
     for g in s.generics() {
-        let (typ, numeric_type) = g;
+        let typ = g.typ();
         impl_generics = impl_generics.push_back(quote { $typ });
-        if numeric_type.is_none() {
+        if g.numeric_type().is_none() {
             where_clause = where_clause.push_back(quote { $typ: $trait_name });
         }
     }
@@ -138,7 +138,7 @@ pub comptime fn make_trait_impl<Env1, Env2>(
     let where_clause = where_clause.join(quote {, });
 
     // `for_each_field(field1) $join_fields_with for_each_field(field2) $join_fields_with ...`
-    let fields = s.fields_as_written().map(|(name, _, _)| for_each_field(name));
+    let fields = s.fields_as_written().map(|field| for_each_field(field.name()));
     let body = body(fields.join(join_fields_with));
 
     quote {
@@ -209,7 +209,7 @@ mod tests {
     comptime fn assert_field_is_type(s: TypeDefinition, typ: Type) {
         // Assert the first field in `s` has type `typ`
         let fields = s.fields([]);
-        assert_eq(fields[0].1, typ);
+        assert_eq(fields[0].typ(), typ);
     }
     // docs:end:annotation-arguments-example
 
