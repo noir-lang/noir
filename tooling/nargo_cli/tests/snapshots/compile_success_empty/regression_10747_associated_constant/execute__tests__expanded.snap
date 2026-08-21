@@ -25,8 +25,13 @@ impl<let N: u32, T> Ser for Wrapped<T, N> where T: Ser {
 
 pub comptime fn derive_ser(s: TypeDefinition) -> Quoted {
     let typ: Type = s.as_type();
-    let rhs: Quoted = s.fields_as_written().map(|(_, field_type, _): (Quoted, Type, Quoted)| -> Quoted quote {  < $field_type as Ser > ::N }).join(quote {  +  });
-    let generics: Quoted = s.generics().map(|(name, maybe_int): (Type, Option<Type>)| -> Quoted {
+    let rhs: Quoted = s.fields_as_written().map(|field: std::meta::type_def::StructField| -> Quoted {
+        let field_type: Type = field.typ();
+        quote {  < $field_type as Ser > ::N }
+    }).join(quote {  +  });
+    let generics: Quoted = s.generics().map(|generic: std::meta::type_def::TypeGeneric| -> Quoted {
+        let name: Type = generic.typ();
+        let maybe_int: Option<Type> = generic.numeric_type();
         if maybe_int.is_some() {
             let int_type: Type = maybe_int.unwrap();
             quote { let $name: $int_type }
@@ -34,7 +39,10 @@ pub comptime fn derive_ser(s: TypeDefinition) -> Quoted {
             quote { $name }
         }
     }).join(quote { ,  });
-    let where_clause: Quoted = s.generics().filter(|(_, maybe_int): (Type, Option<Type>)| -> bool maybe_int.is_none()).map(|(name, _): (Type, Option<Type>)| -> Quoted quote { $name: Ser }).join(quote { ,  });
+    let where_clause: Quoted = s.generics().filter(|generic: std::meta::type_def::TypeGeneric| -> bool generic.numeric_type().is_none()).map(|generic: std::meta::type_def::TypeGeneric| -> Quoted {
+        let name: Type = generic.typ();
+        quote { $name: Ser }
+    }).join(quote { ,  });
     quote {
         impl < $generics > Ser for $typ where $where_clause {
             let N: u32 = $rhs;

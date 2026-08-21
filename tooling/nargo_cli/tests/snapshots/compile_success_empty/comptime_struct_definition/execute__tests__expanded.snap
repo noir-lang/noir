@@ -20,12 +20,12 @@ comptime fn my_comptime_fn(typ: TypeDefinition) {
 }
 
 comptime fn check_struct_fields(s: TypeDefinition) {
-    let fields: [(Quoted, Type, Quoted)] = s.fields([].as_vector());
-    assert(fields[0_u32].2 == quote { pub });
-    assert(fields[1_u32].2 == quote { pub(crate) });
-    let fields: [(Quoted, Type, Quoted)] = s.fields_as_written();
-    assert(fields[0_u32].2 == quote { pub });
-    assert(fields[1_u32].2 == quote { pub(crate) });
+    let fields: [std::meta::type_def::StructField] = s.fields([].as_vector());
+    assert(fields[0_u32].visibility().is_public());
+    assert(fields[1_u32].visibility().is_public_crate());
+    let fields: [std::meta::type_def::StructField] = s.fields_as_written();
+    assert(fields[0_u32].visibility().as_quoted() == quote { pub });
+    assert(fields[1_u32].visibility().as_quoted() == quote { pub(crate) });
 }
 
 mod foo {

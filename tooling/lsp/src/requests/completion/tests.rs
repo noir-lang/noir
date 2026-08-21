@@ -739,7 +739,12 @@ mod completion_tests {
         "#;
 
         let (items, _) = get_completions(src);
-        let items = items.into_iter().filter(|item| item.label.starts_with('i')).collect();
+        let items = items
+            .into_iter()
+            .filter(|item| {
+                item.label.starts_with('i') && item.kind == Some(CompletionItemKind::STRUCT)
+            })
+            .collect();
 
         assert_items_match(
             items,

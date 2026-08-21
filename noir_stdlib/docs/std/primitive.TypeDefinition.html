@@ -150,26 +150,23 @@ Otherwise, this function returns Some with the resulting type inside.</p>
 
 <code id="location" class="code-header">pub comptime fn <a href="#location" class="fn">location</a>(self) -> <a href="../std/primitive.Location.html" class="primitive">Location</a></code>
 
-<code id="generics" class="code-header">pub comptime fn <a href="#generics" class="fn">generics</a>(self) -> [(<a href="../std/primitive.Type.html" class="primitive">Type</a>, <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;<a href="../std/primitive.Type.html" class="primitive">Type</a>&gt;)]</code>
+<code id="generics" class="code-header">pub comptime fn <a href="#generics" class="fn">generics</a>(self) -> [<a href="../std/meta/type_def/struct.TypeGeneric.html" class="struct">TypeGeneric</a>]</code>
 
 <div class="padded-description"><div class="comments">
-<p>Return (type, option<type>) pairs of each generic in this type definition.
-If a generic is numeric, the second element of the pair will contain the numeric type.</p>
+<p>Return each generic in this type definition.</p>
 </div>
-</div><code id="fields" class="code-header">pub comptime fn <a href="#fields" class="fn">fields</a>(self, generic_args: [<a href="../std/primitive.Type.html" class="primitive">Type</a>]) -> [(<a href="../std/primitive.Quoted.html" class="primitive">Quoted</a>, <a href="../std/primitive.Type.html" class="primitive">Type</a>, <a href="../std/primitive.Quoted.html" class="primitive">Quoted</a>)]</code>
+</div><code id="fields" class="code-header">pub comptime fn <a href="#fields" class="fn">fields</a>(self, generic_args: [<a href="../std/primitive.Type.html" class="primitive">Type</a>]) -> [<a href="../std/meta/type_def/struct.StructField.html" class="struct">StructField</a>]</code>
 
 <div class="padded-description"><div class="comments">
-<p>Returns (name, type, visibility) tuples of each field in this type.
-Any generic types used in each field type is automatically substituted with the
-provided generic arguments.</p>
+<p>Returns each field in this type. Any generic types used in each field type is
+automatically substituted with the provided generic arguments.</p>
 </div>
-</div><code id="fields_as_written" class="code-header">pub comptime fn <a href="#fields_as_written" class="fn">fields_as_written</a>(self) -> [(<a href="../std/primitive.Quoted.html" class="primitive">Quoted</a>, <a href="../std/primitive.Type.html" class="primitive">Type</a>, <a href="../std/primitive.Quoted.html" class="primitive">Quoted</a>)]</code>
+</div><code id="fields_as_written" class="code-header">pub comptime fn <a href="#fields_as_written" class="fn">fields_as_written</a>(self) -> [<a href="../std/meta/type_def/struct.StructField.html" class="struct">StructField</a>]</code>
 
 <div class="padded-description"><div class="comments">
-<p>Returns (name, type, visibility) tuples of each field in this type. Each type is as-is
-with any generic arguments unchanged. Unless the field types are not needed,
-users should generally prefer to use <a href="../std/primitive.TypeDefinition.html#fields"><code>TypeDefinition::fields</code></a> over this
-function if possible.</p></div>
+<p>Returns each field in this type. Each type is as-is with any generic arguments
+unchanged. Unless the field types are not needed, users should generally prefer
+to use <a href="../std/primitive.TypeDefinition.html#fields"><code>TypeDefinition::fields</code></a> over this function if possible.</p></div>
 </div><code id="module" class="code-header">pub comptime fn <a href="#module" class="fn">module</a>(self) -> <a href="../std/primitive.Module.html" class="primitive">Module</a></code>
 
 <code id="name" class="code-header">pub comptime fn <a href="#name" class="fn">name</a>(self) -> <a href="../std/primitive.Quoted.html" class="primitive">Quoted</a></code>
