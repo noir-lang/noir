@@ -88,16 +88,21 @@ fn value_to_field(value: &Value) -> FieldElement {
 }
 
 fn run_backend(src: &str, inputs: &[Input]) -> Outcome {
-    let src = src.to_string();
-    let inputs = inputs.to_vec();
-    catch(move || run_backend_inner(&src, &inputs))
+    run_backend_with(src, inputs, CompileOptions::default())
 }
 
-fn run_backend_inner(src: &str, inputs: &[Input]) -> Outcome {
+/// [`run_backend`] with explicit compile options, e.g. to skip a single SSA pass.
+fn run_backend_with(src: &str, inputs: &[Input], options: CompileOptions) -> Outcome {
+    let src = src.to_string();
+    let inputs = inputs.to_vec();
+    catch(move || run_backend_inner(&src, &inputs, &options))
+}
+
+fn run_backend_inner(src: &str, inputs: &[Input], options: &CompileOptions) -> Outcome {
     let Ok(ssa) = Ssa::from_str(src) else {
         return Outcome::Rejected;
     };
-    let compiled = match compile_from_ssa(ssa, &CompileOptions::default()) {
+    let compiled = match compile_from_ssa(ssa, options) {
         Ok(compiled) => compiled,
         // `compile_from_ssa` catches ICEs and reports them as a compilation error; distinguish a
         // genuine ICE ("Panic"/"unreachable"/"internal error") from a normal compile rejection.
@@ -475,4 +480,224 @@ fn interpreter_vs_backends_on_out_of_range_consumers() {
         assert_eq!(interp_acir, acir, "{name}: interp(acir) vs acir");
         assert_eq!(interp_brillig, brillig, "{name}: interp(brillig) vs brillig");
     }
+}
+
+// ---------------------------------------------------------------------------
+// Globals
+//
+// The engines model a global array differently, and nothing in the harness above
+// exercised that: the interpreter holds the globals in its own scope for as long as
+// the interpreter lives, while a compiled Brillig entry point re-initialises the
+// globals region on every invocation (`brillig_ir/entry_point.rs`) and ACVM builds a
+// fresh VM per `Opcode::BrilligCall`. The cases below pin the observable consequences
+// of that difference to the backends' behaviour.
+// ---------------------------------------------------------------------------
+
+const U32: NumericType = NumericType::Unsigned { bit_size: 32 };
+
+/// Run `src` through the interpreter and through the backend, and require both to produce
+/// `expected`. Inputs and outputs are `u32`-typed.
+fn assert_engines_agree(src: &str, inputs: &[u128], expected: &[u128]) {
+    let inputs: Vec<Input> = inputs.iter().map(|value| (field(*value), U32)).collect();
+    let expected = Outcome::Ok(expected.iter().map(|value| field(*value)).collect::<Vec<_>>());
+
+    let interpreted = run_interpreter(src, &inputs);
+    let executed = run_backend(src, &inputs);
+
+    println!("interp={interpreted} backend={executed}");
+    assert_eq!(executed, expected, "backend result");
+    assert_eq!(interpreted, expected, "interpreter result");
+}
+
+#[test]
+fn acir_reads_a_global() {
+    let src = "
+    g0 = make_array [u32 5, u32 7] : [u32; 2]
+
+    acir(inline) fn main f0 {
+      b0(v0: u32):
+        v1 = array_get g0, index v0 -> u32
+        return v1
+    }";
+
+    assert_engines_agree(src, &[1], &[7]);
+}
+
+#[test]
+fn brillig_reads_a_global() {
+    let src = "
+    g0 = make_array [u32 5, u32 7] : [u32; 2]
+
+    brillig(inline) fn main f0 {
+      b0(v0: u32):
+        v1 = array_get g0, index v0 -> u32
+        return v1
+    }";
+
+    assert_engines_agree(src, &[1], &[7]);
+}
+
+/// The `inc_rc` is what the frontend's `clone_elision` emits ahead of a mutating context, and
+/// it is the whole reason the write copies instead of landing in the global: reading `g0` back
+/// afterwards must still give 5, so the result is `5 + 100`.
+#[test]
+fn brillig_write_to_an_inc_rcd_global_copies() {
+    let src = "
+    g0 = make_array [u32 5, u32 7] : [u32; 2]
+
+    brillig(inline) fn main f0 {
+      b0(v0: u32):
+        inc_rc g0
+        v1 = array_set g0, index u32 0, value v0
+        v2 = array_get g0, index u32 0 -> u32
+        v3 = array_get v1, index u32 0 -> u32
+        v4 = add v2, v3
+        return v4
+    }";
+
+    assert_engines_agree(src, &[100], &[105]);
+}
+
+/// Two Brillig invocations from one ACIR entry point: each re-initialises the globals region,
+/// and the interpreter must agree that both see `g0[0]` = 5.
+#[test]
+fn two_brillig_calls_read_the_same_global() {
+    let src = "
+    g0 = make_array [u32 5, u32 7] : [u32; 2]
+
+    acir(inline) fn main f0 {
+      b0(v0: u32):
+        v1 = call f1(v0) -> u32
+        v2 = call f1(v0) -> u32
+        v3 = add v1, v2
+        return v3
+    }
+
+    brillig(inline) fn read f1 {
+      b0(v0: u32):
+        v1 = array_get g0, index v0 -> u32
+        return v1
+    }";
+
+    assert_engines_agree(src, &[0], &[10]);
+}
+
+/// The program a Brillig entry point sees on its second invocation must be the one it
+/// saw on its first: ACVM constructs a fresh VM per `Opcode::BrilligCall` and the entry
+/// point re-runs its globals initialisation, so an in-place write to a global made by
+/// one invocation cannot be observed by the next.
+///
+/// `f1` writes its argument into `g0[0]` in place — the write goes in place because the
+/// global's reference count is 1 and nothing bumped it — and returns `g0[0] + g0[1]` as
+/// read before the write. Both invocations must therefore return `5 + 7`.
+#[test]
+#[ignore = "interpreter shares one globals scope across Brillig invocations; \
+            see noir-lang/noir-claude#1755"]
+fn brillig_invocations_do_not_share_globals() {
+    let src = "
+    g0 = make_array [u32 5, u32 7] : [u32; 2]
+
+    acir(inline) fn main f0 {
+      b0(v0: u32, v1: u32):
+        v2 = call f1(v0) -> u32
+        v3 = call f1(v1) -> u32
+        return v2, v3
+    }
+
+    brillig(inline) fn mutate f1 {
+      b0(v0: u32):
+        v1 = call black_box(u32 0) -> u32
+        v2 = array_get g0, index v1 -> u32
+        v3 = array_set g0, index v1, value v0
+        v4 = array_get v3, index u32 1 -> u32
+        v5 = add v2, v4
+        return v5
+    }";
+
+    assert_engines_agree(src, &[100, 200], &[12, 12]);
+}
+
+/// Constant folding evaluates a constant-argument Brillig call in the compiler's own SSA
+/// interpreter and bakes the answer into the program, so it must not change what the program
+/// computes. Comparing the compiled-and-executed program against the same program compiled
+/// with the pass skipped uses ACVM as the oracle on both sides, so the check does not depend
+/// on the interpreter it is testing.
+///
+/// `evil` mutates `g0[0]` in place and `read` reads it, on mutually exclusive `jmpif` arms —
+/// no execution performs both, but constant folding evaluates both into one interpreter. The
+/// callees are `inline_never` and loop over a parameterised bound so that both calls are still
+/// present and unfolded when `Constant Folding` runs. With `v0 = false` only the `else` arm
+/// executes, so the program returns `g0[0]`, which is `Field 1`.
+#[test]
+#[ignore = "a global mutated while folding one call is visible to the next fold; \
+            see noir-lang/noir-claude#1755"]
+fn constant_folding_preserves_execution_with_globals() {
+    let src = "
+    g0 = make_array [Field 1, Field 2] : [Field; 2]
+
+    acir(inline) fn main f0 {
+      b0(v0: u1):
+        jmpif v0 then: b1(), else: b2()
+      b1():
+        v1 = make_array [Field 5, Field 6] : [Field; 2]
+        v2 = call f1(v1, u32 1) -> Field
+        jmp b3(v2)
+      b2():
+        v3 = call f2(u32 1) -> Field
+        jmp b3(v3)
+      b3(v4: Field):
+        return v4
+    }
+
+    brillig(inline_never) fn evil f1 {
+      b0(v0: [Field; 2], v1: u32):
+        jmp b1(u32 0, Field 0, v0)
+      b1(v2: u32, v3: Field, v4: [Field; 2]):
+        v5 = lt v2, v1
+        jmpif v5 then: b2(), else: b3()
+      b2():
+        v6 = array_set v4, index v2, value Field 7
+        v7 = array_set g0, index v2, value Field 99
+        v8 = array_get v6, index v2 -> Field
+        v9 = array_get v7, index v2 -> Field
+        v10 = add v3, v8
+        v11 = add v10, v9
+        v12 = unchecked_add v2, u32 1
+        jmp b1(v12, v11, v6)
+      b3():
+        return v3
+    }
+
+    brillig(inline_never) fn read f2 {
+      b0(v0: u32):
+        jmp b1(u32 0, Field 0)
+      b1(v1: u32, v2: Field):
+        v3 = lt v1, v0
+        jmpif v3 then: b2(), else: b3()
+      b2():
+        v4 = array_get g0, index v1 -> Field
+        v5 = add v2, v4
+        v6 = unchecked_add v1, u32 1
+        jmp b1(v6, v5)
+      b3():
+        return v2
+    }";
+
+    let inputs = [(field(0), NumericType::Unsigned { bit_size: 1 })];
+
+    let folded = run_backend(src, &inputs);
+    let unfolded = run_backend_with(
+        src,
+        &inputs,
+        CompileOptions {
+            skip_ssa_pass: vec!["Constant Folding".to_string()],
+            ..Default::default()
+        },
+    );
+    let interpreted = run_interpreter(src, &inputs);
+
+    println!("folded={folded} unfolded={unfolded} interp={interpreted}");
+    assert_eq!(unfolded, Outcome::Ok(vec![field(1)]), "reference execution");
+    assert_eq!(interpreted, unfolded, "interpreting the input SSA");
+    assert_eq!(folded, unfolded, "Constant Folding changed the executed result");
 }
