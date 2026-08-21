@@ -124,7 +124,9 @@ Returns the name of the function.
 
 #include_code parameters noir_stdlib/src/meta/function_def.nr rust
 
-Returns each parameter of the function as a tuple of (parameter pattern, parameter type).
+Returns the function's declared parameters in source order as `FunctionParameter` values.
+Use `name()` to get a parameter's declared name as a `Quoted` identifier and `typ()` to get
+its `Type`.
 
 ### return_type
 
@@ -137,6 +139,7 @@ The return type of the function.
 #include_code visibility noir_stdlib/src/meta/function_def.nr rust
 
 Returns the function's visibility as a `Quoted` value, which will be one of:
+
 - `quote { }`: the function is private
 - `quote { pub }`: the function is `pub`
 - `quote { pub(crate) }`: the function is `pub(crate)`
