@@ -1902,17 +1902,21 @@ fn call_stack_is_cleared_between_entry_calls() {
     // We are going to reuse the interpreter between calls, like we do in constant folding.
     let mut interpreter = Interpreter::new(&ssa, InterpreterOptions::default(), std::io::empty());
     interpreter.interpret_globals().unwrap();
-    assert_eq!(interpreter.call_stack.len(), 1, "starts with the global context");
+    assert_eq!(
+        interpreter.evaluation.call_stack.len(),
+        0,
+        "interpreting the globals leaves no frame behind"
+    );
 
     let main_id = FunctionId::new(0);
     interpreter.interpret_function(main_id, vec![Value::u32(0)]).expect("0 should succeed");
-    assert_eq!(interpreter.call_stack.len(), 1, "reset after successful call");
+    assert_eq!(interpreter.evaluation.call_stack.len(), 0, "reset after successful call");
 
     interpreter.interpret_function(main_id, vec![Value::u32(1)]).expect_err("1 should fail");
-    assert_eq!(interpreter.call_stack.len(), 2, "contains the last entry after failure");
+    assert_eq!(interpreter.evaluation.call_stack.len(), 1, "contains the last entry after failure");
 
     interpreter.interpret_function(main_id, vec![Value::u32(0)]).expect("0 should succeed");
-    assert_eq!(interpreter.call_stack.len(), 1, "should clear the previous leftover");
+    assert_eq!(interpreter.evaluation.call_stack.len(), 0, "should clear the previous leftover");
 }
 
 #[test]
