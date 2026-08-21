@@ -6,7 +6,7 @@
 //! may increase the ID counter so that later passes start at different offsets,
 //! even if they contain the same SSA code.
 
-use std::{collections::BTreeMap, sync::Arc};
+use std::collections::BTreeMap;
 
 use crate::ssa::{
     ir::{
@@ -16,10 +16,11 @@ use crate::ssa::{
         post_order::PostOrder,
         value::{Value, ValueId},
     },
-    opt::pure::{FunctionPurities, Purity},
+    opt::pure::FunctionPurities,
     ssa_gen::Ssa,
 };
 use iter_extended::vecmap;
+
 use itertools::Itertools;
 use rustc_hash::FxHashMap as HashMap;
 
@@ -33,6 +34,8 @@ impl Ssa {
             context.normalize_ids(function);
         }
         self.functions = context.functions.into_btree();
+        self.function_purities =
+            remap_purities(std::mem::take(&mut self.function_purities), &context.new_ids);
     }
 }
 
@@ -62,36 +65,11 @@ struct IdMaps {
 
 impl Context {
     fn populate_functions(&mut self, functions: &BTreeMap<FunctionId, Function>) {
-        let Some(old_purities) = functions.iter().next().map(|f| f.1.dfg.function_purities.clone())
-        else {
-            return;
-        };
-        let mut new_purities = FunctionPurities::default();
-        let old_intrinsic: HashMap<FunctionId, Purity> =
-            old_purities.intrinsic_purities().map(|(id, purity)| (*id, *purity)).collect();
-
         for (id, function) in functions {
             self.functions.insert_with_id(|new_id| {
                 self.new_ids.function_ids.insert(*id, new_id);
-
-                if let Some(purity) = old_intrinsic.get(id) {
-                    new_purities.insert_purity(new_id, *purity);
-                }
-
                 Function::clone_signature(new_id, function)
             });
-        }
-
-        // Remap the set of Brillig functions onto the new ids.
-        for old_id in old_purities.brillig_function_ids() {
-            if let Some(new_id) = self.new_ids.function_ids.get(old_id) {
-                new_purities.insert_brillig_function(*new_id);
-            }
-        }
-
-        let new_purities = Arc::new(new_purities);
-        for new_id in self.new_ids.function_ids.values() {
-            self.functions[*new_id].dfg.set_function_purities(new_purities.clone());
         }
     }
 
@@ -169,6 +147,22 @@ impl Context {
         new_function.dfg.data_bus = old_databus
             .map_values(|old_value| self.new_ids.map_value(new_function, old_function, old_value));
     }
+}
+
+/// Rebuild the purity map against the new function ids.
+fn remap_purities(old_purities: FunctionPurities, new_ids: &IdMaps) -> FunctionPurities {
+    let mut new_purities = FunctionPurities::default();
+    for (old_id, purity) in old_purities.intrinsic_purities() {
+        if let Some(new_id) = new_ids.function_ids.get(old_id) {
+            new_purities.insert_purity(*new_id, *purity);
+        }
+    }
+    for old_id in old_purities.brillig_function_ids() {
+        if let Some(new_id) = new_ids.function_ids.get(old_id) {
+            new_purities.insert_brillig_function(*new_id);
+        }
+    }
+    new_purities
 }
 
 impl IdMaps {

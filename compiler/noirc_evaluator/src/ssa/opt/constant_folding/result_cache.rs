@@ -11,7 +11,7 @@ use crate::ssa::{
         types::Type,
         value::{Value, ValueId},
     },
-    opt::pure::Purity,
+    opt::pure::{FunctionPurities, Purity},
 };
 use rustc_hash::FxHashMap as HashMap;
 
@@ -107,6 +107,7 @@ pub(super) struct InstructionResultCache(HashMap<CacheKey, HashMap<Option<ValueI
 
 impl InstructionResultCache {
     /// Get a cached result if it can be used in this context.
+    #[allow(clippy::too_many_arguments)]
     pub(super) fn get(
         &self,
         dfg: &DataFlowGraph,
@@ -115,13 +116,14 @@ impl InstructionResultCache {
         instruction: &Instruction,
         predicate: Option<ValueId>,
         block: BasicBlockId,
+        purities: &FunctionPurities,
     ) -> Option<CacheResult> {
         let results_for_instruction = self.0.get(&CacheKeyRef::from(instruction))?;
 
         let cached_results = results_for_instruction.get(&predicate)?.get(
             block,
             dom,
-            instruction.has_side_effects(dfg),
+            instruction.has_side_effects(dfg, purities),
         );
 
         cached_results.filter(|results| {
@@ -181,6 +183,7 @@ impl InstructionResultCache {
         &mut self,
         instruction: &Instruction,
         dfg: &DataFlowGraph,
+        purities: &FunctionPurities,
     ) {
         use Instruction::{ArraySet, Call, MakeArray, Store};
 
@@ -256,7 +259,10 @@ impl InstructionResultCache {
                 let mutates_arguments = match &dfg[*func] {
                     // A non-pure user-defined function may mutate its array arguments in place.
                     Value::Function(func_id) => {
-                        matches!(dfg.purity_of(*func_id), None | Some(Purity::Impure))
+                        matches!(
+                            purities.purity_of(*func_id, dfg.runtime()),
+                            None | Some(Purity::Impure)
+                        )
                     }
                     // The vector mutators (`push`/`pop`/`insert`/`remove`) write through their
                     // vector argument when its copy-on-write reference count is 1, even though they

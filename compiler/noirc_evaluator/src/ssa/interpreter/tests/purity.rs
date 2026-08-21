@@ -6,8 +6,6 @@
 //! invalidates its results), so these tests inject hand-crafted purities instead of
 //! running the real analysis, which would classify the functions correctly.
 
-use std::sync::Arc;
-
 use crate::ssa::{
     interpreter::{IResults, errors::InterpreterError, intrinsics::check_intrinsic_mutation_label},
     ir::{function::FunctionId, instruction::Intrinsic},
@@ -35,10 +33,7 @@ fn interpret_with_injected_purities(
         }
     }
 
-    let map = Arc::new(map);
-    for function in ssa.functions.values_mut() {
-        function.dfg.set_function_purities(map.clone());
-    }
+    ssa.function_purities = map;
     ssa.interpret(args)
 }
 

@@ -8,6 +8,8 @@
 //! If ACIR cost estimation is needed in the future, it can be added here alongside the
 //! Brillig estimates.
 
+use crate::ssa::opt::pure::FunctionPurities;
+
 use super::{
     dfg::DataFlowGraph,
     function::Function,
@@ -37,7 +39,11 @@ impl Instruction {
     ///
     /// Div/Mod and Shl/Shr are blocked unconditionally — even when `has_side_effects`
     /// would allow them (e.g. known non-zero divisor), they are rarely worth flattening.
-    pub(crate) fn can_flatten_in_conditional(&self, dfg: &DataFlowGraph) -> bool {
+    pub(crate) fn can_flatten_in_conditional(
+        &self,
+        dfg: &DataFlowGraph,
+        purities: &FunctionPurities,
+    ) -> bool {
         match self {
             Instruction::EnableSideEffectsIf { .. } => {
                 if dfg.runtime().is_brillig() {
@@ -58,10 +64,10 @@ impl Instruction {
 
             Instruction::Binary(binary) => match binary.operator {
                 BinaryOp::Div | BinaryOp::Mod | BinaryOp::Shl | BinaryOp::Shr => false,
-                _ => !self.has_side_effects(dfg),
+                _ => !self.has_side_effects(dfg, purities),
             },
 
-            _ => !self.has_side_effects(dfg),
+            _ => !self.has_side_effects(dfg, purities),
         }
     }
 }

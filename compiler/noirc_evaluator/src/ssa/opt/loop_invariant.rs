@@ -99,7 +99,7 @@ use crate::ssa::{
         types::{NumericType, Type},
         value::{Value, ValueId},
     },
-    opt::pure::Purity,
+    opt::pure::{FunctionPurities, Purity},
 };
 use acvm::{FieldElement, acir::AcirField};
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
@@ -113,7 +113,7 @@ impl Ssa {
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn loop_invariant_code_motion(mut self) -> Ssa {
         for function in self.functions.values_mut() {
-            function.loop_invariant_code_motion();
+            function.loop_invariant_code_motion(&self.function_purities);
         }
 
         self
@@ -121,14 +121,14 @@ impl Ssa {
 }
 
 impl Function {
-    pub(super) fn loop_invariant_code_motion(&mut self) {
-        Loops::find_all(self, LoopOrder::OutsideIn).hoist_loop_invariants(self);
+    pub(super) fn loop_invariant_code_motion(&mut self, purities: &FunctionPurities) {
+        Loops::find_all(self, LoopOrder::OutsideIn).hoist_loop_invariants(self, purities);
     }
 }
 
 impl Loops {
-    fn hoist_loop_invariants(mut self, function: &mut Function) {
-        let mut context = LoopInvariantContext::new(function, &self.yet_to_unroll);
+    fn hoist_loop_invariants(mut self, function: &mut Function, purities: &FunctionPurities) {
+        let mut context = LoopInvariantContext::new(function, &self.yet_to_unroll, purities);
 
         // The loops should be sorted by the number of blocks.
         // We want to access outer nested loops first, which we do by popping
@@ -189,6 +189,10 @@ impl Loop {
 /// Context with the scope of an entire function.
 struct LoopInvariantContext<'f> {
     inserter: FunctionInserter<'f>,
+
+    /// The purity of every function in the program, consulted to decide whether a call
+    /// has side effects.
+    purities: &'f FunctionPurities,
 
     /// Maps an outer loop's induction variable to its [`LoopBounds`] and the owning loop's blocks.
     ///
@@ -384,7 +388,7 @@ impl PostDominanceFrontiers {
 }
 
 impl<'f> LoopInvariantContext<'f> {
-    fn new(function: &'f mut Function, loops: &[Loop]) -> Self {
+    fn new(function: &'f mut Function, loops: &[Loop], purities: &'f FunctionPurities) -> Self {
         let cfg = ControlFlowGraph::with_function(function);
         let post_dom_frontiers = PostDominanceFrontiers::with_function(function);
         let true_value =
@@ -393,6 +397,7 @@ impl<'f> LoopInvariantContext<'f> {
             function.dfg.make_constant(FieldElement::zero(), NumericType::Unsigned { bit_size: 1 });
         let mut context = Self {
             inserter: FunctionInserter::new(function),
+            purities,
             outer_induction_variables: HashMap::default(),
             all_induction_variables: HashMap::default(),
             cfg,
@@ -486,7 +491,8 @@ impl<'f> LoopInvariantContext<'f> {
                     // Note that purity is dependent on the instruction ordering, which is expected because
                     // it tells us exactly if there is a side-effect instruction before the current one.
                     if !block_context.is_impure {
-                        block_context.is_impure = dfg[instruction_id].has_side_effects(dfg);
+                        block_context.is_impure =
+                            dfg[instruction_id].has_side_effects(dfg, self.purities);
                     }
                     self.inserter.push_instruction(instruction_id, *block, true);
                 }
@@ -669,7 +675,7 @@ impl<'f> LoopInvariantContext<'f> {
             dfg[*block]
                 .instructions()
                 .iter()
-                .any(|instruction| dfg[*instruction].has_side_effects(dfg))
+                .any(|instruction| dfg[*instruction].has_side_effects(dfg, self.purities))
         });
 
         // For control dependence we don't consider the header: all blocks are obviously control
@@ -841,7 +847,7 @@ impl<'f> LoopInvariantContext<'f> {
             return (true, returns_array);
         }
 
-        match can_be_hoisted(&instruction, dfg) {
+        match can_be_hoisted(&instruction, dfg, self.purities) {
             Yes => (true, returns_array),
             No => (false, false),
             WithPredicate => {
@@ -987,7 +993,11 @@ impl From<bool> for CanBeHoistedResult {
 /// This differs from `can_be_deduplicated` as that method assumes there is a matching instruction
 /// with the same inputs. Hoisting is for lone instructions, meaning a mislabeled hoist could cause
 /// unexpected failures if the instruction was never meant to be executed.
-fn can_be_hoisted(instruction: &Instruction, dfg: &DataFlowGraph) -> CanBeHoistedResult {
+fn can_be_hoisted(
+    instruction: &Instruction,
+    dfg: &DataFlowGraph,
+    purities: &FunctionPurities,
+) -> CanBeHoistedResult {
     use CanBeHoistedResult::*;
     use Instruction::*;
 
@@ -1003,7 +1013,7 @@ fn can_be_hoisted(instruction: &Instruction, dfg: &DataFlowGraph) -> CanBeHoiste
         Call { func, .. } => {
             let purity = match dfg[*func] {
                 Value::Intrinsic(intrinsic) => Some(intrinsic.purity()),
-                Value::Function(id) => dfg.purity_of(id),
+                Value::Function(id) => purities.purity_of(id, dfg.runtime()),
                 // A `#[pure]` oracle behaves like `PureWithPredicate`: its return is a
                 // function of its arguments, so hoisting it from a non-empty loop is sound.
                 Value::ForeignFunction { pure: true, .. } => Some(Purity::PureWithPredicate),
@@ -2737,7 +2747,7 @@ mod tests {
         let mut ssa = Ssa::from_str(src).unwrap();
         let function = ssa.functions.get_mut(&ssa.main_id).unwrap();
         let mut loops = Loops::find_all(function, LoopOrder::OutsideIn);
-        let ctx = LoopInvariantContext::new(function, &loops.yet_to_unroll);
+        let ctx = LoopInvariantContext::new(function, &loops.yet_to_unroll, &ssa.function_purities);
         let pre_header = BasicBlockId::new(0);
         let loop_ = loops.yet_to_unroll.pop().unwrap();
         let mut loop_ctx = LoopContext::new(&ctx.inserter, &ctx.cfg, &loop_, pre_header);
@@ -3253,7 +3263,7 @@ mod tests {
             typ: Type::Array(Arc::new(vec![]), SemanticLength(0)),
         };
 
-        assert_eq!(can_be_hoisted(&instruction, &function.dfg), result);
+        assert_eq!(can_be_hoisted(&instruction, &function.dfg, &ssa.function_purities), result);
     }
 
     /// Regression for noir-claude#244, found by the AST fuzzer `pass_vs_prev` on seed

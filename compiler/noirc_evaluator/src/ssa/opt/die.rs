@@ -59,7 +59,10 @@ use crate::ssa::{
         types::NumericType,
         value::{Value, ValueId},
     },
-    opt::{die::array_oob_checks::should_insert_oob_check, pure::Purity},
+    opt::{
+        die::array_oob_checks::should_insert_oob_check,
+        pure::{FunctionPurities, Purity},
+    },
     ssa_gen::Ssa,
 };
 
@@ -104,7 +107,8 @@ impl Ssa {
             .functions
             .par_iter_mut()
             .map(|(id, func)| {
-                let unused_params = func.dead_instruction_elimination(true);
+                let unused_params =
+                    func.dead_instruction_elimination(true, &self.function_purities);
                 let mut result = DIEResult::default();
 
                 result.unused_parameters.insert(*id, unused_params);
@@ -141,8 +145,9 @@ impl Function {
     fn dead_instruction_elimination(
         &mut self,
         insert_out_of_bounds_checks: bool,
+        purities: &FunctionPurities,
     ) -> HashMap<BasicBlockId, Vec<ValueId>> {
-        let mut context = Context::new();
+        let mut context = Context::new(purities);
 
         for call_data in &self.dfg.data_bus.call_data {
             context.mark_used_instruction_results(&self.dfg, call_data.array_id);
@@ -179,7 +184,7 @@ impl Function {
         // instructions (we don't want to remove those checks, or instructions that are
         // dependencies of those checks)
         if inserted_out_of_bounds_checks {
-            return self.dead_instruction_elimination(false);
+            return self.dead_instruction_elimination(false, purities);
         }
 
         context.remove_rc_instructions(&mut self.dfg);
@@ -193,7 +198,11 @@ struct DIEResult {
     unused_parameters: HashMap<FunctionId, HashMap<BasicBlockId, Vec<ValueId>>>,
 }
 /// Per function context for tracking unused values and which instructions to remove.
-struct Context {
+struct Context<'a> {
+    /// The purity of every function in the program, consulted to decide whether a call
+    /// can be eliminated when its results are unused.
+    purities: &'a FunctionPurities,
+
     used_values: HashSet<ValueId>,
     instructions_to_remove: HashSet<InstructionId>,
 
@@ -214,9 +223,10 @@ struct Context {
     parameter_keep_list: HashMap<BasicBlockId, Vec<bool>>,
 }
 
-impl Context {
-    fn new() -> Self {
+impl<'a> Context<'a> {
+    fn new(purities: &'a FunctionPurities) -> Self {
         Self {
+            purities,
             used_values: HashSet::default(),
             instructions_to_remove: HashSet::default(),
             rc_instructions: Vec::new(),
@@ -321,7 +331,7 @@ impl Context {
     fn is_unused(&self, instruction_id: InstructionId, function: &Function) -> bool {
         let instruction = &function.dfg[instruction_id];
 
-        can_be_eliminated_if_unused(instruction, function, &self.used_values) && {
+        can_be_eliminated_if_unused(instruction, function, &self.used_values, self.purities) && {
             let results = function.dfg.instruction_results(instruction_id);
             results.iter().all(|result| !self.used_values.contains(result))
         }
@@ -427,6 +437,7 @@ fn can_be_eliminated_if_unused(
     instruction: &Instruction,
     function: &Function,
     used_values: &HashSet<ValueId>,
+    purities: &FunctionPurities,
 ) -> bool {
     use Instruction::*;
     match instruction {
@@ -492,7 +503,7 @@ fn can_be_eliminated_if_unused(
 
             // We use purity to determine whether functions contain side effects.
             // If we have an impure function, we cannot remove it even if it is unused.
-            Value::Function(function_id) => match function.dfg.purity_of(function_id) {
+            Value::Function(function_id) => match purities.purity_of(function_id, function.runtime()) {
                 Some(Purity::Pure) => true,
                 Some(Purity::PureWithPredicate) => false,
                 Some(Purity::Impure) => false,
