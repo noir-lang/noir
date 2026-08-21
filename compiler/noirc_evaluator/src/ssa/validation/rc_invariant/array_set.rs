@@ -61,6 +61,28 @@ fn verify_function(function: &Function) -> RtResult<()> {
             // set — it shares the source's storage at runtime.
             let result = function.dfg.instruction_results(instruction_id)[0];
 
+            // A global's storage is not function-local: it is read by every other function
+            // and re-established on every Brillig entry-point invocation, so the observing
+            // read need not be anywhere the forward walk below can see it, and the storage
+            // is never "the last use". Block-parameter threading therefore cannot make an
+            // in-place mutation of a global unobservable — only an `inc_rc` can.
+            let alias_set = ctx.alias_set_for(array, block_id, idx);
+            if let Some(global) =
+                ctx.unprotected_global_for_source(&alias_set, array, block_id, idx)
+            {
+                let message = format!(
+                    "array_set in function {} on array {array} may mutate the storage of global \
+                     {global} in place, with no `inc_rc` protecting it on that path; a global is \
+                     live for the whole program, so the mutation would be observable",
+                    function.name(),
+                );
+                return Err(RuntimeError::ArraySetAliasViolation {
+                    message,
+                    call_stack: function.dfg.get_instruction_call_stack(instruction_id),
+                    aliased_use_call_stack: function.dfg.get_instruction_call_stack(instruction_id),
+                });
+            }
+
             let Some(hit) = ctx.aliased_use_for_source(
                 array,
                 block_id,
@@ -1627,6 +1649,35 @@ mod tests {
     #[test]
     fn end_to_end_forward_edge_sibling_join_without_inc_rc_is_accepted() {
         let src = r#"
+            brillig(inline) fn main f0 {
+              b0(v0: [u1; 4], v1: [u1; 4]):
+                v2 = array_get v0, index u32 0 -> u1
+                jmpif v2 then: b1(), else: b2(v0)
+              b1():
+                v4 = array_set v0, index u32 0, value u1 1
+                jmp b2(v1)
+              b2(v5: [u1; 4]):
+                v7 = array_get v5, index u32 1 -> u1
+                v9 = array_set v5, index u32 0, value u1 1
+                return
+            }"#;
+        assert_verifier_accepts_because(
+            src,
+            "backward-alias-set of v0 is {v0}; the b1→b2 edge passes v1 (not v0), so the add-on-edge rule doesn't pull v5 into the use-set; reads of v5 are unrelated to v0's storage",
+        );
+    }
+
+    /// The same shape with the sibling arm threading a **global** into the join, which is how
+    /// this case was originally written (from an AST-fuzzer finding) before the globals rule
+    /// existed. The aliasing walk still finds nothing — `v5`'s reads are unrelated to `v0`'s
+    /// storage, exactly as in the test above — but `v9 = array_set v5` may now write through
+    /// `g0`'s storage with its reference count still 1, and a global's storage is read by every
+    /// other function and re-established on every Brillig invocation, so no function-local walk
+    /// can see the observing read. Only an `inc_rc` can make that mutation unobservable; the
+    /// counterpart test with `inc_rc g0` present is accepted.
+    #[test]
+    fn end_to_end_forward_edge_sibling_join_with_unprotected_global_is_rejected() {
+        let src = r#"
             g0 = make_array [u1 0, u1 0, u1 0, u1 0] : [u1; 4]
 
             brillig(inline) fn main f0 {
@@ -1641,9 +1692,12 @@ mod tests {
                 v9 = array_set v5, index u32 0, value u1 1
                 return
             }"#;
-        assert_verifier_accepts_because(
-            src,
-            "backward-alias-set of v0 is {v0}; the b1→b2 edge passes g0 (not v0), so the add-on-edge rule doesn't pull v5 into the use-set; reads of v5 are unrelated to v0's storage",
+        let ssa = Ssa::from_str(src).expect("SSA parses");
+        let err = super::verify(&ssa).expect_err("expected the verifier to reject");
+        let message = err.to_string();
+        assert!(
+            message.contains("global"),
+            "expected the global rule to be the reason, got: {message}"
         );
     }
 

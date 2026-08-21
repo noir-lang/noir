@@ -590,6 +590,11 @@ fn two_brillig_calls_read_the_same_global() {
 /// `f1` writes its argument into `g0[0]` — with nothing bumping the global's reference
 /// count, this is the write that used to land in the interpreter's own global scope — and
 /// returns `g0[0] + g0[1]` as read before the write. Both invocations must return `5 + 7`.
+///
+/// The backend half of that comparison is gone as of this commit: an unprotected in-place
+/// mutation of a global is no longer valid SSA, so the compiler rejects this program before it
+/// can be executed. The interpreter half is still asserted here, and the interpreter-level
+/// regressions in `noirc_evaluator` (which do not run the validator) cover the rest.
 #[test]
 fn brillig_invocations_do_not_share_globals() {
     let src = "
@@ -612,22 +617,35 @@ fn brillig_invocations_do_not_share_globals() {
         return v5
     }";
 
-    assert_engines_agree(src, &[100, 200], &[12, 12]);
+    let inputs = [(field(100), U32), (field(200), U32)];
+    assert_eq!(
+        run_interpreter(src, &inputs),
+        Outcome::Ok(vec![field(12), field(12)]),
+        "neither invocation may observe the other's write"
+    );
+    assert_eq!(
+        run_backend(src, &inputs),
+        Outcome::Rejected,
+        "the unprotected in-place write to `g0` is rejected by the RC-invariant verifier"
+    );
 }
 
-/// Constant folding evaluates a constant-argument Brillig call in the compiler's own SSA
-/// interpreter and bakes the answer into the program, so it must not change what the program
-/// computes. Comparing the compiled-and-executed program against the same program compiled
-/// with the pass skipped uses ACVM as the oracle on both sides, so the check does not depend
-/// on the interpreter it is testing.
+/// The `noir-lang/noir-claude#1755` repro: a mutator and a reader on mutually exclusive
+/// `jmpif` arms, `inline_never` so both calls survive to `Constant Folding`, which evaluated
+/// both into one interpreter and baked the mutator's write into the reader's constant.
 ///
-/// `evil` mutates `g0[0]` in place and `read` reads it, on mutually exclusive `jmpif` arms —
-/// no execution performs both, but constant folding evaluates both into one interpreter. The
-/// callees are `inline_never` and loop over a parameterised bound so that both calls are still
-/// present and unfolded when `Constant Folding` runs. With `v0 = false` only the `else` arm
-/// executes, so the program returns `g0[0]`, which is `Field 1`.
+/// Before this commit the test compiled the program twice — with and without `Constant
+/// Folding` — and required the two executions to agree (they do, once the interpreter stops
+/// mutating globals). The RC-invariant verifier now rejects `array_set g0` with nothing
+/// protecting it, so the shape does not reach the pipeline at all and there is no execution to
+/// compare. What is asserted instead is that rejection, plus that interpreting the program
+/// directly still gives the value the program actually computes.
+///
+/// Note the rejection is `debug_assertions`-gated (`ssa/mod.rs`), so it is a CI, dev-build and
+/// fuzzing tripwire rather than something a release build enforces — which is why the
+/// interpreter fix, not this rule, is what makes the miscompilation impossible.
 #[test]
-fn constant_folding_preserves_execution_with_globals() {
+fn constant_folding_leak_shape_is_rejected_by_validation() {
     let src = "
     g0 = make_array [Field 1, Field 2] : [Field; 2]
 
@@ -681,19 +699,22 @@ fn constant_folding_preserves_execution_with_globals() {
 
     let inputs = [(field(0), NumericType::Unsigned { bit_size: 1 })];
 
-    let folded = run_backend(src, &inputs);
-    let unfolded = run_backend_with(
-        src,
-        &inputs,
-        CompileOptions {
-            skip_ssa_pass: vec!["Constant Folding".to_string()],
-            ..Default::default()
-        },
+    assert_eq!(
+        run_interpreter(src, &inputs),
+        Outcome::Ok(vec![field(1)]),
+        "the `else` arm returns the global's own value"
     );
-    let interpreted = run_interpreter(src, &inputs);
-
-    println!("folded={folded} unfolded={unfolded} interp={interpreted}");
-    assert_eq!(unfolded, Outcome::Ok(vec![field(1)]), "reference execution");
-    assert_eq!(interpreted, unfolded, "interpreting the input SSA");
-    assert_eq!(folded, unfolded, "Constant Folding changed the executed result");
+    assert_eq!(run_backend(src, &inputs), Outcome::Rejected, "rejected before it is compiled");
+    assert_eq!(
+        run_backend_with(
+            src,
+            &inputs,
+            CompileOptions {
+                skip_ssa_pass: vec!["Constant Folding".to_string()],
+                ..Default::default()
+            },
+        ),
+        Outcome::Rejected,
+        "rejected by validation, not by the pass under test"
+    );
 }
