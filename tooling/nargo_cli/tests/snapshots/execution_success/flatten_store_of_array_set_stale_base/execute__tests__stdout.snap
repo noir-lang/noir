@@ -1,0 +1,6 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+assertion_line: 179
+expression: stdout
+---
+[flatten_store_of_array_set_stale_base] Circuit output: 0x00
