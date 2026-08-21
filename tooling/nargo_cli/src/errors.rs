@@ -26,7 +26,7 @@ pub enum CliError {
     NargoInitCannotBeRunOnExistingPackages,
 
     #[error(
-        "Error: {0}\nIf you need a package name to not match the directory name, consider using the `--name` flag."
+        "Error: {0}\nIf you need a package name to not match the directory name, pass it to `nargo init <name>` or use the `--name` flag."
     )]
     InvalidPackageName(String),
 
