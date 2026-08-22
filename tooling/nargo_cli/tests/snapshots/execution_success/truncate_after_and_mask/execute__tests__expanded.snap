@@ -1,0 +1,14 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn main(x: u64, y: u32, expected_a: u8, expected_b: u8, expected_c: u16, expected_kept: u8) {
+    let a: u8 = (x & 123_u64) as u8;
+    assert(a == expected_a);
+    let b: u8 = (x & 171_u64) as u8;
+    assert(b == expected_b);
+    let c: u16 = (y & 4660_u32) as u16;
+    assert(c == expected_c);
+    let kept: u8 = (x & 427_u64) as u8;
+    assert(kept == expected_kept);
+}
