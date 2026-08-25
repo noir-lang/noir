@@ -2364,9 +2364,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@nomicfoundation/hardhat-keystore@npm:^3.0.12":
-  version: 3.0.12
-  resolution: "@nomicfoundation/hardhat-keystore@npm:3.0.12"
+"@nomicfoundation/hardhat-keystore@npm:^3.0.13":
+  version: 3.0.13
+  resolution: "@nomicfoundation/hardhat-keystore@npm:3.0.13"
   dependencies:
     "@noble/ciphers": "npm:1.2.1"
     "@noble/hashes": "npm:1.7.1"
@@ -2375,8 +2375,8 @@ __metadata:
     "@nomicfoundation/hardhat-zod-utils": "npm:^3.0.5"
     zod: "npm:^3.23.8"
   peerDependencies:
-    hardhat: ^3.8.0
-  checksum: 10/33323cec702fbdcffbc5f10dcadb7f20d39e43bf84cf534f44b6158d7a334ce177991d8dce1b145e66cf1ed40f006ce91117b348efd7c615d223ec203e52a81b
+    hardhat: ^3.13.0
+  checksum: 10/8a1500f39ba188a8c94c1f690cb217c00c68263cabf11f308006104e38dfcd1780ba52a84ed0b01852424ccf9c619f3ff5d849ae4585ad66d82db6e2bd7240f4
   languageName: node
   linkType: hard
 
@@ -8230,7 +8230,7 @@ __metadata:
     "@nomicfoundation/hardhat-ethers-chai-matchers": "npm:^3.0.11"
     "@nomicfoundation/hardhat-ignition": "npm:^3.1.8"
     "@nomicfoundation/hardhat-ignition-ethers": "npm:^3.1.6"
-    "@nomicfoundation/hardhat-keystore": "npm:^3.0.12"
+    "@nomicfoundation/hardhat-keystore": "npm:^3.0.13"
     "@nomicfoundation/hardhat-mocha": "npm:^3.1.0"
     "@nomicfoundation/hardhat-network-helpers": "npm:^3.0.11"
     "@nomicfoundation/hardhat-node-test-runner": "npm:^3.1.0"
