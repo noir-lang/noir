@@ -15,6 +15,7 @@
 use std::fmt;
 
 use acvm::FieldElement;
+use acvm::acir::circuit::Opcode;
 use acvm::acir::native_types::{Witness, WitnessMap};
 use noir_ssa_executor::compiler::compile_from_ssa;
 use noir_ssa_executor::runner::execute_single;
@@ -509,6 +510,19 @@ fn assert_engines_agree(src: &str, inputs: &[u128], expected: &[u128]) {
     assert_eq!(interpreted, expected, "interpreter result");
 }
 
+/// Assert that the compiled ACIR entry point carries `expected` `BrilligCall` opcodes, i.e. that
+/// the pipeline really does make the number of Brillig invocations the caller wrote.
+fn assert_brillig_call_count(src: &str, expected: usize) {
+    let ssa = Ssa::from_str(src).expect("SSA parses");
+    let compiled = compile_from_ssa(ssa, &CompileOptions::default()).expect("SSA compiles");
+    let calls = compiled.program.functions[0]
+        .opcodes
+        .iter()
+        .filter(|opcode| matches!(opcode, Opcode::BrilligCall { .. }))
+        .count();
+    assert_eq!(calls, expected, "BrilligCall opcodes in the compiled entry point");
+}
+
 #[test]
 fn acir_reads_a_global() {
     let src = "
@@ -558,19 +572,28 @@ fn brillig_write_to_an_inc_rcd_global_copies() {
     assert_engines_agree(src, &[100], &[105]);
 }
 
-/// Two Brillig invocations from one ACIR entry point: each re-initialises the globals region,
-/// and the interpreter must agree that both see `g0[0]` = 5.
+/// Two Brillig invocations from one ACIR entry point, each reading `g0` in its own VM.
+///
+/// The two calls must stay two calls for this to say anything: `f1` reads a global and writes
+/// nothing, so it is `Purity::Pure`, and CSE inside constant folding collapses two calls to a
+/// pure function that share an argument list. Passing a different index to each call is what
+/// keeps them distinct, and the `BrilligCall` count is asserted rather than assumed, because
+/// nothing else in the assertion below would notice if the pair collapsed back into one call.
+///
+/// Both invocations then read the globals region their own entry point initialised, so the
+/// answer is `g0[0] + g0[1]`. An invocation observing another invocation's *write* to a global
+/// is the neighbouring property, covered by `brillig_invocations_do_not_share_globals`.
 #[test]
 fn two_brillig_calls_read_the_same_global() {
     let src = "
     g0 = make_array [u32 5, u32 7] : [u32; 2]
 
     acir(inline) fn main f0 {
-      b0(v0: u32):
-        v1 = call f1(v0) -> u32
+      b0(v0: u32, v1: u32):
         v2 = call f1(v0) -> u32
-        v3 = add v1, v2
-        return v3
+        v3 = call f1(v1) -> u32
+        v4 = add v2, v3
+        return v4
     }
 
     brillig(inline) fn read f1 {
@@ -579,7 +602,8 @@ fn two_brillig_calls_read_the_same_global() {
         return v1
     }";
 
-    assert_engines_agree(src, &[0], &[10]);
+    assert_brillig_call_count(src, 2);
+    assert_engines_agree(src, &[0, 1], &[12]);
 }
 
 /// The program a Brillig entry point sees on its second invocation must be the one it
