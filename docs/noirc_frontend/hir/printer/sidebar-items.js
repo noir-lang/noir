@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["crate_to_module","display_crate"],"mod":["items"],"struct":["ItemPrinter"]};
+window.SIDEBAR_ITEMS = {"fn":["char_prints_readably","crate_to_module","display_crate","escape_format_string_fragment","escape_string_literal","format_string_fragment_is_representable","impl_trait_parameter_constraint","push_escaped_char","string_bytes_are_representable"],"mod":["items"],"struct":["ItemPrinter"]};

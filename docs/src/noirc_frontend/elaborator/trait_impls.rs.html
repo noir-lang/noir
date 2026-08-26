@@ -1156,7 +1156,7 @@
 <a href=#1156 id=1156 data-nosnippet>1156</a>        // This way associated types can be referred to even if their actual value (for associated constants)
 <a href=#1157 id=1157 data-nosnippet>1157</a>        // is not known yet. This is to allow associated constants to refer to associated constants
 <a href=#1158 id=1158 data-nosnippet>1158</a>        // in other trait impls.
-<a href=#1159 id=1159 data-nosnippet>1159</a>        </span><span class="kw">let </span>object = trait_impl.object_type.to_string();
+<a href=#1159 id=1159 data-nosnippet>1159</a>        </span><span class="kw">let </span>object = <span class="self">self</span>.unresolved_type_name(<span class="kw-2">&amp;</span>trait_impl.object_type);
 <a href=#1160 id=1160 data-nosnippet>1160</a>        <span class="kw">let </span>trait_name = trait_id.map(|id| <span class="self">self</span>.interner.get_trait(id).name.to_string());
 <a href=#1161 id=1161 data-nosnippet>1161</a>        <span class="kw">let </span>associated_types_behind_type_vars = vecmap(<span class="kw-2">&amp;</span>associated_types, |(name, _typ, kind)| {
 <a href=#1162 id=1162 data-nosnippet>1162</a>            <span class="kw">let </span>new_generic_id = <span class="self">self</span>.interner.next_type_variable_id();
