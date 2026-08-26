@@ -218,10 +218,6 @@ pub enum ResolverError {
     #[error("expected numeric expressions, got {typ}")]
     ExpectedNumericExpression { typ: String, location: Location },
     #[error(
-        "Indexing an array or vector with a type other than `u32` is deprecated and will soon be an error"
-    )]
-    NonU32Index { location: Location },
-    #[error(
         "The type parameter `{ident}` is not constrained by the impl trait, self type, or predicates"
     )]
     UnconstrainedTypeParameter { ident: Ident },
@@ -334,8 +330,7 @@ impl ResolverError {
             | ResolverError::VariableAlreadyDefinedInPattern { new_location: location, .. }
             | ResolverError::ExpectedNumericExpression { location, .. }
             | ResolverError::InvalidNumericAliasExpression { location } => *location,
-            ResolverError::NonU32Index { location }
-            | ResolverError::NoPredicatesAttributeOnUnconstrained { location, .. }
+            ResolverError::NoPredicatesAttributeOnUnconstrained { location, .. }
             | ResolverError::NoPredicatesAttributeOnEntryPoint { location, .. }
             | ResolverError::FoldAttributeOnUnconstrained { location, .. }
             | ResolverError::InlineNeverAttributeOnConstrained { location, .. }
@@ -1004,13 +999,6 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
             ResolverError::ExpectedNumericExpression { typ, location } => {
                 Diagnostic::simple_error(
                     format!("Expected a numeric expression, but got `{typ}`"),
-                    String::new(),
-                    *location,
-                )
-            },
-            ResolverError::NonU32Index { location } => {
-                Diagnostic::simple_warning(
-                    "Indexing an array or vector with a type other than `u32` is deprecated and will soon be an error".to_string(),
                     String::new(),
                     *location,
                 )
