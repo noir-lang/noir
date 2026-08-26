@@ -16,27 +16,19 @@ inputs:
 runs:
   using: composite
   steps:
-    # Browser builds are architecture-specific, so `runner.arch` belongs in the
-    # key: without it an x64 and an arm64 runner share one entry and whichever
-    # saves first hands the other a set of binaries it cannot execute.
     - name: Cache Playwright browsers
+      id: playwright-cache
       uses: actions/cache@v4
       with:
         path: ~/.cache/ms-playwright
-        key: playwright-${{ inputs.playwright-version }}-${{ inputs.browsers }}-${{ runner.os }}-${{ runner.arch }}
+        key: playwright-${{ inputs.playwright-version }}-${{ inputs.browsers }}-${{ runner.os }}
 
     # Composite-action steps do not support `timeout-minutes`, so each `npx` call
     # is bounded with coreutils `timeout`: a stalled download or apt mirror fails
     # fast (exit 124) and the retry wrapper takes a fresh, near-independent draw
     # rather than hanging until the job-level limit.
-    #
-    # This runs on a cache hit too. `install` is incremental — with the browsers
-    # already in place it verifies and exits in a second or two — and running it
-    # unconditionally means a cache entry whose contents do not match its key
-    # repairs itself here. Skipping on a hit instead defers that mismatch to
-    # browser launch, where it reads as a missing-executable error inside the
-    # test run and says nothing about the cache.
     - name: Install Playwright browsers
+      if: steps.playwright-cache.outputs.cache-hit != 'true'
       uses: ./.github/actions/retry
       with:
         run: timeout 240 npx -y playwright@${{ inputs.playwright-version }} install ${{ inputs.browsers }}
