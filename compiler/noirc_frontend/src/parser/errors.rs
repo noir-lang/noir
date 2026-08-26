@@ -68,8 +68,6 @@ pub enum ParserErrorReason {
     MissingSeparatingSemi,
     #[error("Expected a ; after `let` statement")]
     MissingSemicolonAfterLet,
-    #[error("constrain keyword is deprecated")]
-    ConstrainDeprecated,
     #[error(
         "Invalid type expression: '{0}'. Only unsigned integer constants up to `u32`, globals, generics, +, -, *, /, and % may be used in this context."
     )]
@@ -273,15 +271,6 @@ impl<'a> From<&'a ParserError> for Diagnostic {
     fn from(error: &'a ParserError) -> Diagnostic {
         match &error.reason {
             Some(reason) => match reason {
-                ParserErrorReason::ConstrainDeprecated => {
-                    let mut diagnostic = Diagnostic::simple_error(
-                        "Use of deprecated keyword 'constrain'".into(),
-                        "The 'constrain' keyword is deprecated. Please use the 'assert' function instead.".into(),
-                        error.location(),
-                    );
-                    diagnostic.deprecated = true;
-                    diagnostic
-                }
                 ParserErrorReason::ExperimentalFeature(feature) => {
                     let secondary = format!(
                         "Pass -Z{feature} to nargo to enable this feature at your own risk."
