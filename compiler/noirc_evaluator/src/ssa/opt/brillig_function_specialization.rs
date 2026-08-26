@@ -49,6 +49,7 @@ use crate::ssa::{
         types::NumericType,
         value::{Value, ValueId, ValueMapping},
     },
+    opt::pure::FunctionPurities,
     ssa_gen::Ssa,
 };
 
@@ -237,6 +238,7 @@ fn optimize_clone(
     function: &mut Function,
     constant_folding_max_iter: usize,
     all_functions: &BTreeMap<FunctionId, Function>,
+    purities: &FunctionPurities,
 ) {
     use crate::ssa::interpreter::{Interpreter, InterpreterOptions};
 
@@ -250,8 +252,9 @@ fn optimize_clone(
         .map(|(id, func)| (*id, func.clone()))
         .collect();
 
-    let mut interpreter = Interpreter::new_from_functions(
+    let mut interpreter = Interpreter::new_from_functions_with_purities(
         &brillig_functions,
+        Some(purities),
         InterpreterOptions {
             no_foreign_calls: true,
             step_limit: Some(10_000_000),
@@ -261,7 +264,7 @@ fn optimize_clone(
     );
     interpreter.interpret_globals().expect("ICE: Interpreter failed to interpret globals");
 
-    function.constant_fold(false, constant_folding_max_iter, &mut interpreter);
+    function.constant_fold(false, constant_folding_max_iter, &mut interpreter, purities);
 
     // Simplify CFG again after folding to merge any newly-dead blocks.
     // Note: We skip per-function DIE here because it is intentionally private
@@ -307,7 +310,12 @@ fn create_specialized_clones(
             substitute_constants(&mut clone, &key.constants);
 
             // Run per-function optimization passes on the clone.
-            optimize_clone(&mut clone, constant_folding_max_iter, &ssa.functions);
+            optimize_clone(
+                &mut clone,
+                constant_folding_max_iter,
+                &ssa.functions,
+                &ssa.function_purities,
+            );
 
             let specialized_cost = clone.cost();
             let savings_percent = if original_cost > specialized_cost {
@@ -318,6 +326,17 @@ fn create_specialized_clones(
 
             if savings_percent >= specialization_threshold {
                 let new_id = ssa.add_fn(|id| Function::clone_with_id(id, &clone));
+                // A specialized clone's body is the callee's body with constants
+                // substituted, so it keeps the callee's purity classification. Passes
+                // that inspect purities between here and the next `purity_analysis`
+                // would otherwise treat the clone as `Impure` (missing entry), losing
+                // an optimization opportunity that the callee itself was eligible for.
+                if let Some(purity) = ssa.function_purities.intrinsic_purity_of(callee_id) {
+                    ssa.function_purities.insert_purity(new_id, purity);
+                }
+                if ssa.function_purities.is_brillig_function(callee_id) {
+                    ssa.function_purities.insert_brillig_function(new_id);
+                }
                 surviving.insert(key.clone(), new_id);
                 specializations_for_callee += 1;
             }
@@ -801,5 +820,83 @@ mod tests {
             return
         }
         ");
+    }
+
+    #[test]
+    fn specialized_clones_inherit_callee_purity() {
+        // A callee's specialized clone has the same instructions as the original with
+        // constants substituted; it must inherit the callee's purity so that later passes
+        // treat it the same way. Without the carry-forward the clone's `purity_of` would
+        // return `None` and any purity-driven optimization would silently degrade until
+        // the next full `purity_analysis`.
+        //
+        // f1 is `pure`, f2 is `predicate_pure`; both get specialized on their `u32 1`
+        // argument.
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: Field, v1: Field):
+            v3 = call f1(u32 1, v0) -> Field
+            v5 = call f2(u32 1, v1) -> Field
+            v6 = add v3, v5
+            return v6
+        }
+        brillig(inline) pure fn callee_pure f1 {
+          b0(v0: u32, v1: Field):
+            v3 = eq v0, u32 1
+            jmpif v3 then: b1(), else: b2()
+          b1():
+            v4 = add v1, Field 1
+            jmp b3(v4)
+          b2():
+            v5 = sub v1, Field 1
+            jmp b3(v5)
+          b3(v6: Field):
+            return v6
+        }
+        brillig(inline) predicate_pure fn callee_predicate_pure f2 {
+          b0(v0: u32, v1: Field):
+            v3 = eq v0, u32 1
+            jmpif v3 then: b1(), else: b2()
+          b1():
+            v4 = add v1, Field 1
+            constrain v4 == Field 100
+            jmp b3(v4)
+          b2():
+            v5 = sub v1, Field 1
+            jmp b3(v5)
+          b3(v6: Field):
+            return v6
+        }
+        ";
+
+        let ssa = run_specialization(src);
+
+        // Any brillig function whose name matches a `pure`-declared callee must keep that
+        // purity; likewise for `predicate_pure`. The pass may have created clones, and the
+        // original callees survive alongside them — both must carry the right purity.
+        for function in ssa.functions.values() {
+            if !function.runtime().is_brillig() {
+                continue;
+            }
+            let expected = match function.name() {
+                "callee_pure" => Some(crate::ssa::opt::pure::Purity::Pure),
+                "callee_predicate_pure" => Some(crate::ssa::opt::pure::Purity::PureWithPredicate),
+                _ => continue,
+            };
+            let recorded = ssa.function_purities.intrinsic_purity_of(function.id());
+            assert_eq!(
+                recorded,
+                expected,
+                "function {} ({}) should keep its callee purity, got {recorded:?}",
+                function.name(),
+                function.id(),
+            );
+            assert!(
+                ssa.function_purities.is_brillig_function(function.id()),
+                "function {} ({}) should be recorded as a brillig function",
+                function.name(),
+                function.id(),
+            );
+        }
     }
 }

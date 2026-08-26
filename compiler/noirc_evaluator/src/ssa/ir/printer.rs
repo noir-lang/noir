@@ -13,6 +13,7 @@ use crate::ssa::{
         instruction::ArrayOffset,
         types::{NumericType, Type},
     },
+    opt::pure::FunctionPurities,
 };
 
 use super::{
@@ -69,7 +70,7 @@ impl Display for Printer<'_> {
         }
 
         for function in self.ssa.functions.values() {
-            display_function(function, self.fm, f)?;
+            display_function(function, self.fm, Some(&self.ssa.function_purities), f)?;
             writeln!(f)?;
         }
         Ok(())
@@ -78,17 +79,22 @@ impl Display for Printer<'_> {
 
 impl Display for Function {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
-        display_function(self, None, f)
+        display_function(self, None, None, f)
     }
 }
 
 /// Helper function for Function's Display impl to pretty-print the function with the given formatter.
+///
+/// Purities live on the [Ssa] rather than on each function, so a
+/// standalone [Function] display (which has no `purities`) omits the purity keyword.
 fn display_function(
     function: &Function,
     files: Option<&fm::FileManager>,
+    purities: Option<&FunctionPurities>,
     f: &mut Formatter,
 ) -> Result {
-    if let Some(purity) = function.dfg.purity_of(function.id()) {
+    let purity = purities.and_then(|purities| purities.intrinsic_purity_of(function.id()));
+    if let Some(purity) = purity {
         writeln!(f, "{} {purity} fn {} {} {{", function.runtime(), function.name(), function.id())?;
     } else {
         writeln!(f, "{} fn {} {} {{", function.runtime(), function.name(), function.id())?;

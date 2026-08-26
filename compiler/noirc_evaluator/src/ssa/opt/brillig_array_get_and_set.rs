@@ -301,7 +301,7 @@ mod tests {
             let func = ssa.main();
             let b0 = &func.dfg[func.entry_block()];
             let instruction = &func.dfg[b0.instructions()[0]];
-            instruction.has_side_effects(&func.dfg)
+            instruction.has_side_effects(&func.dfg, &ssa.function_purities)
         }
 
         let ssa = Ssa::from_str(src).unwrap();

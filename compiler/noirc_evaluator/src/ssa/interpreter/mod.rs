@@ -18,7 +18,7 @@ use crate::ssa::ir::{
     printer::display_binary,
     types::NumericType,
 };
-use crate::ssa::opt::pure::Purity;
+use crate::ssa::opt::pure::{FunctionPurities, Purity};
 use acvm::{AcirField, FieldElement};
 use errors::{InternalError, InterpreterError, MAX_UNSIGNED_BIT_SIZE};
 use iter_extended::{try_vecmap, vecmap};
@@ -44,6 +44,12 @@ pub(crate) struct Interpreter<'ssa, W> {
     call_stack: Vec<CallContext>,
 
     functions: &'ssa BTreeMap<FunctionId, Function>,
+
+    /// The purity of every function in the program, consulted to decide the pure
+    /// scope of each call. `None` when the interpreter was constructed without an
+    /// [`Ssa`] to project from — in that case every call is treated as impure,
+    /// which is the safe direction.
+    function_purities: Option<&'ssa FunctionPurities>,
 
     /// The options the interpreter was created with.
     options: InterpreterOptions,
@@ -95,8 +101,7 @@ struct CallContext {
 /// invalidated its results, so the interpreter reports it as an
 /// [InterpreterError::PurityViolation] rather than treating it as program behavior.
 struct PureScope {
-    /// The purity recorded for the called function, as observed by its caller
-    /// (see [DataFlowGraph::purity_of]).
+    /// The purity recorded for the called function, as observed by its caller.
     purity: Purity,
 
     /// Storage identities of everything reachable from the call's arguments at
@@ -163,17 +168,31 @@ impl Ssa {
 
 impl<'ssa, W: Write> Interpreter<'ssa, W> {
     fn new(ssa: &'ssa Ssa, options: InterpreterOptions, output: W) -> Self {
-        Self::new_from_functions(&ssa.functions, options, output)
+        Self::new_from_functions_with_purities(
+            &ssa.functions,
+            Some(&ssa.function_purities),
+            options,
+            output,
+        )
     }
 
-    pub(crate) fn new_from_functions(
+    /// Construct an interpreter over a bare function map, recording the caller's
+    /// [`FunctionPurities`] to enable the purity-contract checks introduced by
+    /// [#13518](https://github.com/noir-lang/noir/pull/13518) — a `Pure`/`PureWithPredicate`
+    /// function that mutates caller-visible memory or calls a foreign function during
+    /// interpretation is a violation, not program behavior. Pass `None` when no purity
+    /// analysis has run yet; every call is then treated as impure, which is the safe
+    /// direction.
+    pub(crate) fn new_from_functions_with_purities(
         functions: &'ssa BTreeMap<FunctionId, Function>,
+        function_purities: Option<&'ssa FunctionPurities>,
         options: InterpreterOptions,
         output: W,
     ) -> Self {
         let call_stack = vec![CallContext::global_context()];
         Self {
             functions,
+            function_purities,
             call_stack,
             options,
             output,
@@ -346,7 +365,10 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
         // still the caller here. For a top-level call there is no caller, so the
         // callee's own runtime provides the (identity) projection.
         let caller_id = self.call_context().called_function.unwrap_or(function_id);
-        let purity = self.functions[&caller_id].dfg.purity_of(function_id);
+        let caller_runtime = self.functions[&caller_id].runtime();
+        let purity = self
+            .function_purities
+            .and_then(|purities| purities.purity_of(function_id, caller_runtime));
 
         let pure_scope = purity.filter(|purity| *purity != Purity::Impure).map(|purity| {
             let mut argument_storage = HashSet::default();

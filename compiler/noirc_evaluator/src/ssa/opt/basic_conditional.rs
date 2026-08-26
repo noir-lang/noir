@@ -26,7 +26,7 @@ use crate::ssa::{
         types::Type,
         value::ValueId,
     },
-    opt::flatten_cfg::WorkList,
+    opt::{flatten_cfg::WorkList, pure::FunctionPurities},
 };
 
 use super::flatten_cfg::Context;
@@ -47,7 +47,7 @@ impl Ssa {
             self.functions.values().filter(|f| f.is_no_predicates()).map(|f| f.id()).collect();
 
         for function in self.functions.values_mut() {
-            flatten_function(function, &no_predicates);
+            flatten_function(function, &no_predicates, &self.function_purities);
         }
         self
     }
@@ -76,6 +76,7 @@ fn is_conditional(
     block: BasicBlockId,
     cfg: &ControlFlowGraph,
     function: &Function,
+    purities: &FunctionPurities,
 ) -> Option<BasicConditional> {
     // A conditional must end with a JmpIf
     let Some(TerminatorInstruction::JmpIf {
@@ -113,8 +114,8 @@ fn is_conditional(
         //    \    /
         //   next_then
         // We check that the cost of the flattened code is lower than the cost of the branches
-        let cost_left = block_flatten_cost(*then_destination, &function.dfg)?;
-        let cost_right = block_flatten_cost(*else_destination, &function.dfg)?;
+        let cost_left = block_flatten_cost(*then_destination, &function.dfg, purities)?;
+        let cost_right = block_flatten_cost(*else_destination, &function.dfg, purities)?;
         // Compute the actual branching overhead for this conditional:
         // Flattening eliminates: JmpIf + then's Jmp + else's Jmp
         // Flattening adds merge (IfElse) ops only for exit params where branches differ.
@@ -151,7 +152,7 @@ fn is_conditional(
         if !then_arguments.is_empty() || !else_arguments.is_empty() {
             return None;
         }
-        let cost = block_flatten_cost(*then_destination, &function.dfg)?;
+        let cost = block_flatten_cost(*then_destination, &function.dfg, purities)?;
         // Flattening eliminates: JmpIf + then's Jmp; adds IfElse per exit param
         let then_term_cost = function.dfg[*then_destination].unwrap_terminator().cost();
         let merge_cost = function.dfg.block_parameters(*else_destination).len() * 3;
@@ -180,7 +181,7 @@ fn is_conditional(
         if !then_arguments.is_empty() || !else_arguments.is_empty() {
             return None;
         }
-        let cost = block_flatten_cost(*else_destination, &function.dfg)?;
+        let cost = block_flatten_cost(*else_destination, &function.dfg, purities)?;
         // Flattening eliminates: JmpIf + else's Jmp; adds IfElse per exit param
         let else_term_cost = function.dfg[*else_destination].unwrap_terminator().cost();
         let merge_cost = function.dfg.block_parameters(*then_destination).len() * 3;
@@ -254,7 +255,11 @@ fn differing_merge_cost(
 /// reaching them as an ICE.) Hoisting an `inc_rc` only ever raises a reference
 /// count, so the later `array_set` copies rather than mutating in place — sound,
 /// and guarded by the `rc_invariant::array_set` validator.
-fn block_flatten_cost(block: BasicBlockId, dfg: &DataFlowGraph) -> Option<u32> {
+fn block_flatten_cost(
+    block: BasicBlockId,
+    dfg: &DataFlowGraph,
+    purities: &FunctionPurities,
+) -> Option<u32> {
     let mut cost: u32 = 0;
     for instruction_id in dfg[block].instructions() {
         let instruction = &dfg[*instruction_id];
@@ -267,7 +272,7 @@ fn block_flatten_cost(block: BasicBlockId, dfg: &DataFlowGraph) -> Option<u32> {
             continue;
         }
 
-        if !instruction.can_flatten_in_conditional(dfg) {
+        if !instruction.can_flatten_in_conditional(dfg, purities) {
             return None;
         }
 
@@ -277,7 +282,11 @@ fn block_flatten_cost(block: BasicBlockId, dfg: &DataFlowGraph) -> Option<u32> {
 }
 
 /// Identifies all simple conditionals in the function and flattens them
-fn flatten_function(function: &mut Function, no_predicates: &HashSet<FunctionId>) {
+fn flatten_function(
+    function: &mut Function,
+    no_predicates: &HashSet<FunctionId>,
+    purities: &FunctionPurities,
+) {
     // This pass is dedicated to brillig functions
     if !function.runtime().is_brillig() {
         return;
@@ -297,7 +306,7 @@ fn flatten_function(function: &mut Function, no_predicates: &HashSet<FunctionId>
         processed.insert(block);
 
         // Identify the simple conditionals
-        if let Some(conditional) = is_conditional(block, &cfg, function) {
+        if let Some(conditional) = is_conditional(block, &cfg, function, purities) {
             // no need to check the branches, process the join block directly
             stack.push(conditional.block_exit);
             conditionals.push(conditional);
