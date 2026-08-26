@@ -137,8 +137,6 @@ pub enum ParserErrorReason {
         "type expression is not allowed for type aliases (Is this a numeric type alias? If so, the numeric type must be specified with `: <type>`"
     )]
     UnexpectedTypeExpressionInTypeAlias,
-    #[error("`dep::{0}` path is deprecated, please use `::{0}` instead")]
-    DeprecatedDep(String),
     #[error("`call_data` id must fit in a `u32`")]
     CallDataIdMustFitInU32,
 }
@@ -337,11 +335,6 @@ impl<'a> From<&'a ParserError> for Diagnostic {
                     "Provide a type for the associated constant: `: u32`".to_string(),
                     error.location,
                 ),
-                ParserErrorReason::DeprecatedDep(name) => {
-                    let primary = format!("`dep::{name}` path is deprecated");
-                    let secondary = format!("Please use `::{name}` instead");
-                    Diagnostic::simple_warning(primary, secondary, error.location())
-                }
                 ParserErrorReason::StructLiteralInIfCondition => Diagnostic::simple_error(
                     "Struct literals are not allowed in `if` conditions".to_string(),
                     "Surround the struct literal with parentheses, for example: `if (MyStruct { field: true }).field { ... }`".to_string(),
