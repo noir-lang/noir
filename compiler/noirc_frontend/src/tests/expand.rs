@@ -905,3 +905,47 @@ fn expands_global_capturing_closure_as_its_initializer_expression() {
     }
     ");
 }
+
+#[test]
+fn expands_string_literal_with_noir_escapes() {
+    let src = r#"
+    global S: str<6> = "\r\n\t\0\"\\";
+
+    fn main() {
+        let _ = S;
+    }
+    "#;
+    let expanded = assert_no_errors_and_to_string(src);
+    insta::assert_snapshot!(expanded, @r#"
+    global S: str<6> = "\r\n\t\0\"\\";
+
+    fn main() {
+        let _: str<6> = S;
+    }
+    "#);
+}
+
+#[test]
+fn expands_string_literal_with_control_character() {
+    // Noir's lexer accepts a raw control character inside a string literal, and has no
+    // numeric escape to write one with, so it has to be printed back raw.
+    let src = "fn main() { let _ = \"a\u{7}b\"; }";
+    let expanded = assert_no_errors_and_to_string(src);
+    assert!(expanded.contains("let _: str<3> = \"a\u{7}b\";"), "{expanded}");
+}
+
+#[test]
+fn expands_string_literal_with_combining_mark() {
+    let src = "fn main() { let _ = \"e\u{301}\"; }";
+    let expanded = assert_no_errors_and_to_string(src);
+    assert!(expanded.contains("let _: str<3> = \"e\u{301}\";"), "{expanded}");
+}
+
+#[test]
+fn expands_global_string_with_control_character_as_its_initializer_expression() {
+    // The value prints as a literal holding a raw control character, so the initializer is
+    // preferred - which is that same literal, and must still round-trip.
+    let src = "global S: str<3> = \"a\u{7}b\";\n\nfn main() { let _ = S; }";
+    let expanded = assert_no_errors_and_to_string(src);
+    assert!(expanded.contains("global S: str<3> = \"a\u{7}b\";"), "{expanded}");
+}
