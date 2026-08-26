@@ -17,7 +17,7 @@ use crate::{
     token::FmtStrFragment,
 };
 
-use crate::hir::printer::ItemPrinter;
+use crate::hir::printer::{ItemPrinter, escape_format_string_fragment, escape_string_literal};
 
 impl ItemPrinter<'_, '_> {
     fn show_hir_expression_id(&mut self, expr_id: ExprId) {
@@ -698,20 +698,16 @@ impl ItemPrinter<'_, '_> {
             }
             HirLiteral::Str(bytes) => {
                 let string = String::from_utf8_lossy(&bytes);
-                self.push_str(&format!("{string:?}"));
+                self.push('"');
+                self.push_str(&escape_string_literal(&string));
+                self.push('"');
             }
             HirLiteral::FmtStr(fmt_str_fragments, _expr_ids, _) => {
                 self.push_str("f\"");
                 for fragment in fmt_str_fragments {
                     match fragment {
                         FmtStrFragment::String(string) => {
-                            let string = string
-                                .replace('\\', "\\\\")
-                                .replace('\n', "\\n")
-                                .replace('\t', "\\t")
-                                .replace('{', "{{")
-                                .replace('}', "}}");
-                            self.push_str(&string);
+                            self.push_str(&escape_format_string_fragment(&string));
                         }
                         FmtStrFragment::Interpolation(string, _) => {
                             self.push('{');

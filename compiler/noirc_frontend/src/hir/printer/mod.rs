@@ -1157,7 +1157,9 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
             Value::Integer(int) => self.push_str(&int.to_string()),
             Value::String(bytes) => {
                 let string = String::from_utf8_lossy(bytes);
-                self.push_str(&format!("{string:?}"));
+                self.push('"');
+                self.push_str(&escape_string_literal(&string));
+                self.push('"');
             }
             Value::FormatString(fragments, _typ, _) => {
                 let has_values = fragments
@@ -1190,7 +1192,7 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
                 for fragment in fragments.iter() {
                     match fragment {
                         FormatStringFragment::String(string) => {
-                            self.push_str(&string.replace('"', "\\\""));
+                            self.push_str(&escape_format_string_fragment(string));
                         }
                         FormatStringFragment::Value { name, value: _ } => {
                             self.push('{');
@@ -1206,10 +1208,10 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
                 }
             }
             Value::CtString(bytes) => {
-                let string = String::from_utf8_lossy(bytes);
+                let string = escape_string_literal(&String::from_utf8_lossy(bytes));
                 let std = if self.crate_id.is_stdlib() { "std" } else { "crate" };
                 self.push_str(&format!(
-                    "{std}::meta::ctstring::AsCtString::as_ctstring({string:?})"
+                    "{std}::meta::ctstring::AsCtString::as_ctstring(\"{string}\")"
                 ));
             }
             Value::Function(func_id, ..) => {
@@ -1650,34 +1652,76 @@ fn impl_trait_parameter_constraint<'meta>(
     })
 }
 
-/// Whether `show_value` can print these string bytes as a `"..."` literal that lexes back to
-/// the same bytes. The bytes must be valid UTF-8, and every character must survive the trip
-/// through Rust's `{:?}` formatting: Rust escapes control characters, combining marks and
-/// other special characters as `\u{..}`, which Noir's lexer doesn't accept (it only knows
-/// `\r \n \t \0 \" \\`).
+/// Whether these string bytes print as a `"..."` literal that both lexes back to the same
+/// bytes and is readable. Noir source is UTF-8, so bytes that aren't have no literal form at
+/// all. Beyond that this is a quality bar rather than a hard limit: Noir has no numeric
+/// escape, so a character outside [`escape_string_literal`]'s escape set can only be written
+/// raw, and a raw control character in expanded output is worse to read than the initializer
+/// expression it would replace.
 fn string_bytes_are_representable(bytes: &[u8]) -> bool {
     let Ok(string) = std::str::from_utf8(bytes) else {
         return false;
     };
-    string.chars().all(char_survives_debug_formatting)
+    string.chars().all(char_prints_readably)
 }
 
-fn char_survives_debug_formatting(char: char) -> bool {
+/// Whether this format string fragment prints readably inside an `f"..."` literal. Fragments
+/// are always UTF-8, so only the readability bar above applies.
+fn format_string_fragment_is_representable(string: &str) -> bool {
+    string.chars().all(char_prints_readably)
+}
+
+/// Whether a character has a printable form in a string literal: either it needs no escape,
+/// or it is one of the six [`escape_string_literal`] can escape. Rust's `{:?}` is the oracle
+/// for "needs an escape", since it escapes exactly the characters that don't render as
+/// themselves - control characters, combining marks and other format characters, all of which
+/// it writes as `\u{..}`, a form Noir has no equivalent of.
+fn char_prints_readably(char: char) -> bool {
     // `{:?}` on a string prints `'` unescaped, even though `char::escape_debug` escapes it.
     if char == '\'' {
         return true;
     }
     let mut escaped = char.escape_debug();
     match escaped.next() {
-        // The escapes Noir's lexer accepts; anything else (i.e. `\u{..}`) doesn't re-lex.
         Some('\\') => matches!(escaped.next(), Some('r' | 'n' | 't' | '0' | '"' | '\\')),
         _ => true,
     }
 }
 
-/// Whether `show_value` can print this format string fragment inside an `f"..."` literal.
-/// Fragments are printed raw with only `"` re-escaped, so any character that needs an escape,
-/// or that the f-string syntax gives meaning to (braces), doesn't round-trip.
-fn format_string_fragment_is_representable(string: &str) -> bool {
-    string.chars().all(|char| char != '\\' && char != '{' && char != '}' && !char.is_control())
+/// Escapes `string` so that it lexes back to exactly these characters inside a `"..."`
+/// literal. Noir's only escapes are `\r \n \t \0 \" \\` (see `Lexer::eat_string_literal`);
+/// there is no numeric escape, so every other character is written raw.
+fn escape_string_literal(string: &str) -> String {
+    let mut escaped = String::with_capacity(string.len());
+    for char in string.chars() {
+        push_escaped_char(&mut escaped, char);
+    }
+    escaped
+}
+
+/// Escapes `string` so that it lexes back to exactly these characters inside an `f"..."`
+/// literal: the same escapes as a plain string literal, except that `{` and `}` must be
+/// doubled so they aren't read as an interpolation (see `Lexer::eat_fmt_string`).
+fn escape_format_string_fragment(string: &str) -> String {
+    let mut escaped = String::with_capacity(string.len());
+    for char in string.chars() {
+        match char {
+            '{' => escaped.push_str("{{"),
+            '}' => escaped.push_str("}}"),
+            _ => push_escaped_char(&mut escaped, char),
+        }
+    }
+    escaped
+}
+
+fn push_escaped_char(escaped: &mut String, char: char) {
+    match char {
+        '\r' => escaped.push_str("\\r"),
+        '\n' => escaped.push_str("\\n"),
+        '\t' => escaped.push_str("\\t"),
+        '\0' => escaped.push_str("\\0"),
+        '"' => escaped.push_str("\\\""),
+        '\\' => escaped.push_str("\\\\"),
+        _ => escaped.push(char),
+    }
 }
