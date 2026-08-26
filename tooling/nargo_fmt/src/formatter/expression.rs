@@ -1249,11 +1249,6 @@ impl ChunkFormatter<'_, '_> {
         let keyword = match constrain_statement.kind {
             ConstrainKind::Assert => Keyword::Assert,
             ConstrainKind::AssertEq => Keyword::AssertEq,
-            ConstrainKind::Constrain => {
-                unreachable!(
-                    "constrain always produces an error, and the formatter doesn't run when there are errors"
-                )
-            }
         };
 
         group.text(self.chunk(|formatter| {
