@@ -268,9 +268,15 @@ jobs:
       - name: Checkout sources
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
+      # Resolve into a variable first. Inlining the substitution into the `echo`
+      # would hand the step `echo`'s exit status, so a failed resolve would
+      # publish an empty version and let every dependant start.
       - name: Resolve Playwright version
         id: playwright
-        run: echo "version=$(./scripts/playwright_version.sh)" >> "$GITHUB_OUTPUT"
+        run: |
+          set -euo pipefail
+          version="$(./scripts/playwright_version.sh)"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
 
   test-acvm_js-browser:
     needs: [build-acvm-js, playwright-version]

@@ -33,7 +33,13 @@ install-js-tools: install-binstall
 
 # Installs Playwright (necessary for Javascript browser tests but slow to install)
 install-playwright browsers='chromium webkit':
-    npx -y playwright@$(./scripts/playwright_version.sh) install --with-deps {{ browsers }}
+    #!/usr/bin/env bash
+    set -euo pipefail
+    # Resolve into a variable first: inlined in the `npx` argument, a failed
+    # resolve would leave `playwright@`, which npm reads as `*` and installs
+    # whatever the registry has published latest.
+    version="$(./scripts/playwright_version.sh)"
+    npx -y "playwright@${version}" install --with-deps {{ browsers }}
 
 # Installs Foundry (necessary for examples)
 install-foundry:
