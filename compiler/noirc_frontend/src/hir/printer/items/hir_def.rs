@@ -3,7 +3,7 @@ use std::borrow::Cow;
 use itertools::Itertools;
 
 use crate::{
-    NamedGeneric, Type, TypeBindings,
+    Kind, NamedGeneric, Type, TypeBinding, TypeBindings,
     ast::{ItemVisibility, UnaryOp},
     hir::def_map::ModuleDefId,
     hir_def::{
@@ -857,7 +857,15 @@ impl ItemPrinter<'_, '_> {
                 } else {
                     match &constraint.typ {
                         Type::TypeVariable(type_var) if type_var.borrow().is_unbound() => {
-                            // Don't show this as `AsTraitPath`
+                            // The trait's own `Self` type variable can only stay unbound inside
+                            // that trait's body, where the item is reachable as `Self::item`.
+                            if self.trait_self_typevar == Some(type_var.id()) {
+                                self.push_str("Self::");
+                                let name = self.interner.definition_name(trait_item.definition);
+                                self.push_str(name);
+                                return;
+                            }
+                            // Otherwise don't show this as `AsTraitPath`
                         }
                         _ => {
                             self.push('<');
@@ -950,9 +958,71 @@ impl ItemPrinter<'_, '_> {
                     use_import,
                 );
             }
-            DefinitionKind::Local(..)
-            | DefinitionKind::NumericGeneric(..)
-            | DefinitionKind::AssociatedConstant(..) => {
+            DefinitionKind::AssociatedConstant(trait_impl_id, ref name) => {
+                // The bare name only resolves inside the trait impl that defines the constant,
+                // so qualify it: `Self::N` within that impl, `<Type as Trait>::N` elsewhere.
+                let trait_impl = self.interner.get_trait_implementation(trait_impl_id);
+                let trait_impl = trait_impl.borrow();
+                if self.self_type.as_ref() == Some(&trait_impl.typ) {
+                    self.push_str("Self::");
+                } else {
+                    // The qualified form `<Type as Trait>::N` names the trait; when the trait
+                    // isn't visible from this module (e.g. the reference was spliced in by a
+                    // comptime `Expr::resolve` in another module's scope), print the constant's
+                    // compile-time value instead.
+                    let module_def_id = ModuleDefId::TraitId(trait_impl.trait_id);
+                    let trait_ = self.interner.get_trait(trait_impl.trait_id);
+                    let trait_is_visible = self
+                        .module_def_id_is_visible_or_reexported(module_def_id, trait_.visibility);
+                    if !trait_is_visible
+                        && let Some(named_type) = self
+                            .interner
+                            .get_associated_types_for_impl(trait_impl_id)
+                            .iter()
+                            .find(|named_type| named_type.name.as_str() == name)
+                        && let Type::Constant(constant) = named_type.typ.follow_bindings()
+                    {
+                        self.push_str(&constant.to_string());
+                        if let Kind::Numeric(numeric_type) = named_type.typ.kind() {
+                            self.push('_');
+                            self.show_type(&numeric_type);
+                        }
+                        return;
+                    }
+                    self.push('<');
+                    self.show_type(&trait_impl.typ);
+                    self.push_str(" as ");
+                    let trait_ = self.interner.get_trait(trait_impl.trait_id);
+                    self.show_reference_to_module_def_id(
+                        ModuleDefId::TraitId(trait_impl.trait_id),
+                        trait_.visibility,
+                        true,
+                    );
+                    let trait_generics = self.interner.get_trait_generics_for_impl(trait_impl_id);
+                    let use_colons = false;
+                    self.show_generic_types(&trait_generics.ordered, use_colons);
+                    self.push_str(">::");
+                }
+                self.push_str(name);
+            }
+            DefinitionKind::NumericGeneric(ref type_var, ref numeric_type) => {
+                // When a numeric type alias's parameter is used as a value (`AliasN::<1>`),
+                // the definition's type variable is bound to the resolved value and the bare
+                // name doesn't resolve at the use site (or worse, resolves to something else
+                // with the same name). Print the value instead, suffixed with its numeric
+                // type so it can't be inferred as a different one.
+                if let TypeBinding::Bound(binding) = &*type_var.borrow()
+                    && let Type::Constant(constant) = binding.follow_bindings()
+                {
+                    self.push_str(&constant.to_string());
+                    self.push('_');
+                    self.show_type(numeric_type);
+                    return;
+                }
+                let name = self.interner.definition_name(ident.id);
+                self.push_str(name);
+            }
+            DefinitionKind::Local(..) => {
                 let name = self.interner.definition_name(ident.id);
 
                 // The compiler uses '$' for some internal identifiers.
