@@ -39,6 +39,7 @@ use crate::errors::{InternalError, RuntimeError};
 use crate::ssa::{
     function_builder::data_bus::DataBus,
     ir::{
+        basic_block::BasicBlockId,
         dfg::{DataFlowGraph, MAX_ELEMENTS},
         function::{Function, RuntimeType},
         instruction::{
@@ -260,7 +261,7 @@ impl<'a> Context<'a> {
             warnings.extend(self.convert_ssa_instruction(*instruction_id, dfg, ssa)?);
         }
         let (return_vars, return_warnings) =
-            self.convert_ssa_return(entry_block.unwrap_terminator(), dfg)?;
+            self.convert_ssa_return(entry_block.unwrap_terminator(), main_func.entry_block(), dfg)?;
 
         // This is a naive method of assigning the return values to their witnesses as
         // we're likely to get a number of constraints which are asserting one witness to be equal to another.
@@ -652,6 +653,7 @@ impl<'a> Context<'a> {
     fn convert_ssa_return(
         &mut self,
         terminator: &TerminatorInstruction,
+        block_id: BasicBlockId,
         dfg: &DataFlowGraph,
     ) -> Result<(Vec<AcirVar>, Vec<SsaReport>), RuntimeError> {
         let (return_values, call_stack) = match terminator {
@@ -662,7 +664,23 @@ impl<'a> Context<'a> {
             TerminatorInstruction::JmpIf { .. } | TerminatorInstruction::Jmp { .. } => {
                 unreachable!("ICE: Program must have a singular return")
             }
-            TerminatorInstruction::Unreachable { .. } => return Ok((vec![], vec![])),
+            TerminatorInstruction::Unreachable { .. } => {
+                // The SSA interpreter treats reaching `unreachable` as an error. The
+                // constrained ACIR runtime has no `trap` opcode, so match those semantics
+                // by planting an unsatisfiable constraint: any prover that reaches this
+                // block cannot satisfy the circuit.
+                //
+                // Skip the redundant constraint when the block's last non-terminator
+                // instruction is already an always-failing constrain — the normal
+                // `remove_unreachable_instructions` producer emits exactly that shape,
+                // so on well-formed compiler output no extra opcode is needed.
+                if !dfg.block_ends_with_always_failing_constraint(block_id) {
+                    let one = self.acir_context.add_constant(FieldElement::one());
+                    self.acir_context
+                        .assert_zero_var(one, "Reached the unreachable".to_string())?;
+                }
+                return Ok((vec![], vec![]));
+            }
         };
 
         let mut has_constant_return = false;

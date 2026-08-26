@@ -7,9 +7,11 @@ inputs:
     required: false
     default: 'chromium'
   playwright-version:
-    description: 'Playwright version to install'
-    required: false
-    default: '1.58.2'
+    # No default: the browsers must match the driver `yarn install` puts in
+    # node_modules, and only the caller knows which checkout's lockfile that is.
+    # `scripts/playwright_version.sh` reads it out of yarn.lock.
+    description: "Playwright version to install, as resolved by scripts/playwright_version.sh"
+    required: true
 
 runs:
   using: composite
