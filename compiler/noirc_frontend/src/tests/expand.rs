@@ -949,3 +949,37 @@ fn expands_global_string_with_control_character_as_its_initializer_expression() 
     let expanded = assert_no_errors_and_to_string(src);
     assert!(expanded.contains("global S: str<3> = \"a\u{7}b\";"), "{expanded}");
 }
+
+#[test]
+fn expands_format_string_with_quote_and_escapes() {
+    let src = r#"
+    fn main() {
+        let _ = f"a\"b{{c}}d\\e\nf";
+    }
+    "#;
+    let expanded = assert_no_errors_and_to_string(src);
+    insta::assert_snapshot!(expanded, @r#"
+    fn main() {
+        let _: fmtstr<13, ()> = f"a\"b{{c}}d\\e\nf";
+    }
+    "#);
+}
+
+#[test]
+fn expands_global_format_string_value_with_quote_and_escapes() {
+    let src = r#"
+    global S: fmtstr<13, ()> = f"a\"b{{c}}d\\e\nf";
+
+    fn main() {
+        let _ = S;
+    }
+    "#;
+    let expanded = assert_no_errors_and_to_string(src);
+    insta::assert_snapshot!(expanded, @r#"
+    global S: fmtstr<13, ()> = f"a\"b{{c}}d\\e\nf";
+
+    fn main() {
+        let _: fmtstr<13, ()> = S;
+    }
+    "#);
+}

@@ -1192,7 +1192,7 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
                 for fragment in fragments.iter() {
                     match fragment {
                         FormatStringFragment::String(string) => {
-                            self.push_str(&string.replace('"', "\\\""));
+                            self.push_str(&escape_format_string_fragment(string));
                         }
                         FormatStringFragment::Value { name, value: _ } => {
                             self.push('{');
@@ -1665,6 +1665,12 @@ fn string_bytes_are_representable(bytes: &[u8]) -> bool {
     string.chars().all(char_prints_readably)
 }
 
+/// Whether this format string fragment prints readably inside an `f"..."` literal. Fragments
+/// are always UTF-8, so only the readability bar above applies.
+fn format_string_fragment_is_representable(string: &str) -> bool {
+    string.chars().all(char_prints_readably)
+}
+
 /// Whether a character has a printable form in a string literal: either it needs no escape,
 /// or it is one of the six [`escape_string_literal`] can escape. Rust's `{:?}` is the oracle
 /// for "needs an escape", since it escapes exactly the characters that don't render as
@@ -1693,6 +1699,21 @@ fn escape_string_literal(string: &str) -> String {
     escaped
 }
 
+/// Escapes `string` so that it lexes back to exactly these characters inside an `f"..."`
+/// literal: the same escapes as a plain string literal, except that `{` and `}` must be
+/// doubled so they aren't read as an interpolation (see `Lexer::eat_fmt_string`).
+fn escape_format_string_fragment(string: &str) -> String {
+    let mut escaped = String::with_capacity(string.len());
+    for char in string.chars() {
+        match char {
+            '{' => escaped.push_str("{{"),
+            '}' => escaped.push_str("}}"),
+            _ => push_escaped_char(&mut escaped, char),
+        }
+    }
+    escaped
+}
+
 fn push_escaped_char(escaped: &mut String, char: char) {
     match char {
         '\r' => escaped.push_str("\\r"),
@@ -1703,11 +1724,4 @@ fn push_escaped_char(escaped: &mut String, char: char) {
         '\\' => escaped.push_str("\\\\"),
         _ => escaped.push(char),
     }
-}
-
-/// Whether `show_value` can print this format string fragment inside an `f"..."` literal.
-/// Fragments are printed raw with only `"` re-escaped, so any character that needs an escape,
-/// or that the f-string syntax gives meaning to (braces), doesn't round-trip.
-fn format_string_fragment_is_representable(string: &str) -> bool {
-    string.chars().all(|char| char != '\\' && char != '{' && char != '}' && !char.is_control())
 }
