@@ -11,10 +11,43 @@ use crate::debug::DebugInfo;
 use crate::debug::ProgramDebugInfo;
 use crate::ssa::SsaReport;
 
-use super::{deserialize_hash, serialize_hash};
+use super::{
+    ArtifactKind, default_artifact_version, deserialize_artifact_version, deserialize_hash,
+    serialize_hash,
+};
+
+const fn default_program_artifact_kind() -> ArtifactKind {
+    ArtifactKind::Program
+}
+
+fn deserialize_program_artifact_kind<'de, D>(deserializer: D) -> Result<ArtifactKind, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    let kind = ArtifactKind::deserialize(deserializer)?;
+    if kind == ArtifactKind::Program {
+        Ok(kind)
+    } else {
+        Err(serde::de::Error::custom("expected a program artifact"))
+    }
+}
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct ProgramArtifact {
+    /// Version of the serialized artifact schema.
+    #[serde(
+        default = "default_artifact_version",
+        deserialize_with = "deserialize_artifact_version"
+    )]
+    pub artifact_version: u32,
+
+    /// Identifies this as a program artifact.
+    #[serde(
+        default = "default_program_artifact_kind",
+        deserialize_with = "deserialize_program_artifact_kind"
+    )]
+    pub artifact_kind: ArtifactKind,
+
     pub noir_version: String,
 
     /// Hash of the monomorphized program from which this [`ProgramArtifact`] was compiled.
@@ -44,6 +77,8 @@ pub struct ProgramArtifact {
 impl From<CompiledProgram> for ProgramArtifact {
     fn from(compiled_program: CompiledProgram) -> Self {
         ProgramArtifact {
+            artifact_version: super::ARTIFACT_VERSION,
+            artifact_kind: ArtifactKind::Program,
             hash: compiled_program.hash,
             abi: compiled_program.abi,
             noir_version: compiled_program.noir_version,

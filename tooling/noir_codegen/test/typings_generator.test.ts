@@ -5,6 +5,7 @@ import { codegen } from '../src/index.js';
 it('marks InputMap as a type-only import', () => {
   const program = {
     abi: {
+      abi_version: 1,
       parameters: [],
       return_type: null,
       error_types: {},

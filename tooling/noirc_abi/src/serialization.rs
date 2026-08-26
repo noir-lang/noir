@@ -73,7 +73,38 @@ where
 
 #[cfg(test)]
 mod tests {
-    use crate::{AbiParameter, AbiType, AbiVisibility, Sign};
+    use crate::{ABI_VERSION, Abi, AbiParameter, AbiType, AbiVisibility, Sign};
+
+    #[test]
+    fn abi_schema_version_serialization() {
+        let serialized = serde_json::to_value(Abi::default()).unwrap();
+        assert_eq!(serialized["abi_version"], ABI_VERSION);
+    }
+
+    #[test]
+    fn legacy_abi_defaults_to_version_one() {
+        let serialized = serde_json::json!({
+            "parameters": [],
+            "return_type": null,
+            "error_types": {},
+        });
+
+        let abi: Abi = serde_json::from_value(serialized).unwrap();
+        assert_eq!(abi.abi_version, ABI_VERSION);
+    }
+
+    #[test]
+    fn unsupported_abi_schema_version_is_rejected() {
+        let serialized = serde_json::json!({
+            "abi_version": ABI_VERSION + 1,
+            "parameters": [],
+            "return_type": null,
+            "error_types": {},
+        });
+
+        let error = serde_json::from_value::<Abi>(serialized).unwrap_err();
+        assert!(error.to_string().contains("unsupported ABI schema version"));
+    }
 
     #[test]
     fn abi_parameter_serialization() {

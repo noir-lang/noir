@@ -76,6 +76,10 @@ export interface NoirFunctionEntry {
  * The compilation result of an Noir contract.
  */
 export interface ContractArtifact {
+  /** Version of the serialized artifact schema. */
+  artifact_version: 1;
+  /** Identifies this as a contract artifact. */
+  artifact_kind: 'contract';
   /** The name of the contract. */
   name: string;
   /** Version of noir used for the build. */
@@ -95,6 +99,10 @@ export interface ContractArtifact {
  * The compilation result of an Noir contract.
  */
 export interface ProgramArtifact {
+  /** Version of the serialized artifact schema. */
+  artifact_version: 1;
+  /** Identifies this as a program artifact. */
+  artifact_kind: 'program';
   /** Version of noir used for the build. */
   noir_version: string;
   /** The hash of the circuit. */

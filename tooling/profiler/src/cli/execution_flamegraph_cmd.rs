@@ -226,6 +226,8 @@ mod tests {
         let prover_toml_path = temp_dir.path().join("Prover.toml");
 
         let artifact = ProgramArtifact {
+            artifact_version: noirc_artifacts::ARTIFACT_VERSION,
+            artifact_kind: noirc_artifacts::ArtifactKind::Program,
             noir_version: "0.0.0".to_string(),
             hash: 27,
             abi: noirc_abi::Abi::default(),

@@ -1,6 +1,11 @@
 #![forbid(unsafe_code)]
 #![cfg_attr(not(test), warn(unused_crate_dependencies, unused_extern_crates))]
 
+//! Types for Noir's serialized ABI format.
+//!
+//! The serialized format is the compatibility boundary. This crate's Rust API is an internal
+//! implementation detail and may change between Noir releases.
+
 use acvm::{
     AcirField, FieldElement,
     acir::{
@@ -16,7 +21,7 @@ use noirc_printable_type::{
     PrintableType, PrintableValue, PrintableValueDisplay, decode_printable_value,
     decode_string_value,
 };
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
 use std::borrow::Borrow;
 use std::{collections::BTreeMap, str};
 // This is the ABI used to bridge the different TOML formats for the initial
@@ -35,6 +40,27 @@ mod serialization;
 pub type InputMap = BTreeMap<String, InputValue>;
 
 pub const MAIN_RETURN_NAME: &str = "return";
+
+/// The version of the ABI schema emitted by this version of Noir.
+pub const ABI_VERSION: u32 = 1;
+
+const fn default_abi_version() -> u32 {
+    ABI_VERSION
+}
+
+fn deserialize_abi_version<'de, D>(deserializer: D) -> Result<u32, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let version = u32::deserialize(deserializer)?;
+    if version == ABI_VERSION {
+        Ok(version)
+    } else {
+        Err(serde::de::Error::custom(format!(
+            "unsupported ABI schema version {version}; expected {ABI_VERSION}"
+        )))
+    }
+}
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "lowercase")]
@@ -171,14 +197,29 @@ pub struct AbiReturnType {
     pub visibility: AbiVisibility,
 }
 
-#[derive(Clone, Debug, Default, Serialize, Deserialize, Hash)]
+#[derive(Clone, Debug, Serialize, Deserialize, Hash)]
 #[cfg_attr(test, derive(arbitrary::Arbitrary))]
 pub struct Abi {
+    /// The version of the serialized ABI schema.
+    #[serde(default = "default_abi_version", deserialize_with = "deserialize_abi_version")]
+    #[cfg_attr(test, proptest(strategy = "proptest::prelude::Just(ABI_VERSION)"))]
+    pub abi_version: u32,
     /// An ordered list of the arguments to the program's `main` function, specifying their types and visibility.
     pub parameters: Vec<AbiParameter>,
     pub return_type: Option<AbiReturnType>,
     #[cfg_attr(test, proptest(strategy = "proptest::prelude::Just(BTreeMap::from([]))"))]
     pub error_types: BTreeMap<ErrorSelector, AbiErrorType>,
+}
+
+impl Default for Abi {
+    fn default() -> Self {
+        Self {
+            abi_version: ABI_VERSION,
+            parameters: Vec::new(),
+            return_type: None,
+            error_types: BTreeMap::new(),
+        }
+    }
 }
 
 impl Abi {
@@ -536,7 +577,8 @@ mod tests {
     use proptest::prelude::*;
 
     use crate::{
-        Abi, AbiParameter, AbiType, AbiVisibility, Sign, arbitrary::arb_abi_and_input_map,
+        ABI_VERSION, Abi, AbiParameter, AbiType, AbiVisibility, Sign,
+        arbitrary::arb_abi_and_input_map,
     };
 
     proptest! {
@@ -552,6 +594,7 @@ mod tests {
 
     fn abi_with_single_param(typ: AbiType) -> Abi {
         Abi {
+            abi_version: ABI_VERSION,
             parameters: vec![AbiParameter {
                 name: "x".to_string(),
                 typ,

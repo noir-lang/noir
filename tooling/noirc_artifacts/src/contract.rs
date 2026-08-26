@@ -12,7 +12,26 @@ use crate::{
     ssa::SsaReport,
 };
 
-use super::{deserialize_hash, serialize_hash};
+use super::{
+    ArtifactKind, default_artifact_version, deserialize_artifact_version, deserialize_hash,
+    serialize_hash,
+};
+
+const fn default_contract_artifact_kind() -> ArtifactKind {
+    ArtifactKind::Contract
+}
+
+fn deserialize_contract_artifact_kind<'de, D>(deserializer: D) -> Result<ArtifactKind, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    let kind = ArtifactKind::deserialize(deserializer)?;
+    if kind == ArtifactKind::Contract {
+        Ok(kind)
+    } else {
+        Err(serde::de::Error::custom("expected a contract artifact"))
+    }
+}
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct ContractOutputsArtifact {
@@ -28,6 +47,20 @@ impl From<CompiledContractOutputs> for ContractOutputsArtifact {
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct ContractArtifact {
+    /// Version of the serialized artifact schema.
+    #[serde(
+        default = "default_artifact_version",
+        deserialize_with = "deserialize_artifact_version"
+    )]
+    pub artifact_version: u32,
+
+    /// Identifies this as a contract artifact.
+    #[serde(
+        default = "default_contract_artifact_kind",
+        deserialize_with = "deserialize_contract_artifact_kind"
+    )]
+    pub artifact_kind: ArtifactKind,
+
     /// Version of noir used to compile this contract
     pub noir_version: String,
     /// The name of the contract.
@@ -43,6 +76,8 @@ pub struct ContractArtifact {
 impl From<CompiledContract> for ContractArtifact {
     fn from(contract: CompiledContract) -> Self {
         ContractArtifact {
+            artifact_version: super::ARTIFACT_VERSION,
+            artifact_kind: ArtifactKind::Contract,
             noir_version: contract.noir_version,
             name: contract.name,
             functions: contract.functions.into_iter().map(ContractFunctionArtifact::from).collect(),

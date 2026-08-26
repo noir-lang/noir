@@ -147,6 +147,14 @@ prop_compose! {
             let parameters  = vecmap(&parameters_with_values, |(param, _)| param.clone());
             let input_map = btree_map(parameters_with_values, |(param, value)| (param.name, value));
 
-            (Abi { parameters, return_type, error_types: BTreeMap::default() }, input_map)
+            (
+                Abi {
+                    abi_version: crate::ABI_VERSION,
+                    parameters,
+                    return_type,
+                    error_types: BTreeMap::default(),
+                },
+                input_map,
+            )
     }
 }
