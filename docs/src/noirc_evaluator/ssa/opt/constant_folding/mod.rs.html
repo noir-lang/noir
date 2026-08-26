@@ -3939,4 +3939,69 @@
 <a href=#3939 id=3939 data-nosnippet>3939</a>        </span>);
 <a href=#3940 id=3940 data-nosnippet>3940</a>        assert_ssa_does_not_change(<span class="kw-2">&amp;</span>src, |ssa| ssa.fold_constants_using_constraints(MIN_ITER));
 <a href=#3941 id=3941 data-nosnippet>3941</a>    }
-<a href=#3942 id=3942 data-nosnippet>3942</a>}</code></pre></div></section></main></body></html>
+<a href=#3942 id=3942 data-nosnippet>3942</a>
+<a href=#3943 id=3943 data-nosnippet>3943</a>    <span class="doccomment">/// Folding a constant-argument Brillig call evaluates it in the compiler's own SSA
+<a href=#3944 id=3944 data-nosnippet>3944</a>    /// interpreter, and that evaluation is speculative: it happens for a call the compiled
+<a href=#3945 id=3945 data-nosnippet>3945</a>    /// program may never perform, on a path it may never take. It must therefore leave nothing
+<a href=#3946 id=3946 data-nosnippet>3946</a>    /// behind for the next call folded with the same interpreter.
+<a href=#3947 id=3947 data-nosnippet>3947</a>    ///
+<a href=#3948 id=3948 data-nosnippet>3948</a>    /// Here `evil` writes `Field 99` into the global while it is folded, and `read` — folded
+<a href=#3949 id=3949 data-nosnippet>3949</a>    /// next — must still see `Field 1`. The two calls are on mutually exclusive `jmpif` arms,
+<a href=#3950 id=3950 data-nosnippet>3950</a>    /// so no execution performs both. A snapshot assertion alone would not have caught the leak
+<a href=#3951 id=3951 data-nosnippet>3951</a>    /// (`Field 99` is a perfectly well-formed constant); interpreting before and after does.
+<a href=#3952 id=3952 data-nosnippet>3952</a>    </span><span class="attr">#[test]
+<a href=#3953 id=3953 data-nosnippet>3953</a>    </span><span class="kw">fn </span>folding_a_call_does_not_leak_a_global_mutation_into_the_next_call() {
+<a href=#3954 id=3954 data-nosnippet>3954</a>        <span class="kw">let </span>src = <span class="string">"
+<a href=#3955 id=3955 data-nosnippet>3955</a>        g0 = make_array [Field 1, Field 2] : [Field; 2]
+<a href=#3956 id=3956 data-nosnippet>3956</a>
+<a href=#3957 id=3957 data-nosnippet>3957</a>        acir(inline) fn main f0 {
+<a href=#3958 id=3958 data-nosnippet>3958</a>          b0(v0: u1):
+<a href=#3959 id=3959 data-nosnippet>3959</a>            jmpif v0 then: b1(), else: b2()
+<a href=#3960 id=3960 data-nosnippet>3960</a>          b1():
+<a href=#3961 id=3961 data-nosnippet>3961</a>            v1 = make_array [Field 5, Field 6] : [Field; 2]
+<a href=#3962 id=3962 data-nosnippet>3962</a>            v2 = call f1(v1) -&gt; Field
+<a href=#3963 id=3963 data-nosnippet>3963</a>            jmp b3(v2)
+<a href=#3964 id=3964 data-nosnippet>3964</a>          b2():
+<a href=#3965 id=3965 data-nosnippet>3965</a>            v3 = call f2(u32 0) -&gt; Field
+<a href=#3966 id=3966 data-nosnippet>3966</a>            jmp b3(v3)
+<a href=#3967 id=3967 data-nosnippet>3967</a>          b3(v4: Field):
+<a href=#3968 id=3968 data-nosnippet>3968</a>            return v4
+<a href=#3969 id=3969 data-nosnippet>3969</a>        }
+<a href=#3970 id=3970 data-nosnippet>3970</a>
+<a href=#3971 id=3971 data-nosnippet>3971</a>        brillig(inline) fn evil f1 {
+<a href=#3972 id=3972 data-nosnippet>3972</a>          b0(v0: [Field; 2]):
+<a href=#3973 id=3973 data-nosnippet>3973</a>            v1 = array_set v0, index u32 0, value Field 7
+<a href=#3974 id=3974 data-nosnippet>3974</a>            v2 = array_set g0, index u32 0, value Field 99
+<a href=#3975 id=3975 data-nosnippet>3975</a>            v3 = array_get v1, index u32 0 -&gt; Field
+<a href=#3976 id=3976 data-nosnippet>3976</a>            v4 = array_get v2, index u32 0 -&gt; Field
+<a href=#3977 id=3977 data-nosnippet>3977</a>            v5 = add v3, v4
+<a href=#3978 id=3978 data-nosnippet>3978</a>            return v5
+<a href=#3979 id=3979 data-nosnippet>3979</a>        }
+<a href=#3980 id=3980 data-nosnippet>3980</a>
+<a href=#3981 id=3981 data-nosnippet>3981</a>        brillig(inline) fn read f2 {
+<a href=#3982 id=3982 data-nosnippet>3982</a>          b0(v0: u32):
+<a href=#3983 id=3983 data-nosnippet>3983</a>            v1 = array_get g0, index v0 -&gt; Field
+<a href=#3984 id=3984 data-nosnippet>3984</a>            return v1
+<a href=#3985 id=3985 data-nosnippet>3985</a>        }
+<a href=#3986 id=3986 data-nosnippet>3986</a>        "</span>;
+<a href=#3987 id=3987 data-nosnippet>3987</a>
+<a href=#3988 id=3988 data-nosnippet>3988</a>        <span class="comment">// `v0 = false` takes the `else` arm, which reads the global.
+<a href=#3989 id=3989 data-nosnippet>3989</a>        </span><span class="kw">let </span>(ssa, result) = assert_pass_does_not_affect_execution(
+<a href=#3990 id=3990 data-nosnippet>3990</a>            Ssa::from_str(src).unwrap(),
+<a href=#3991 id=3991 data-nosnippet>3991</a>            <span class="macro">vec!</span>[Value::bool(<span class="bool-val">false</span>)],
+<a href=#3992 id=3992 data-nosnippet>3992</a>            |ssa| ssa.fold_constants(DEFAULT_MAX_ITER),
+<a href=#3993 id=3993 data-nosnippet>3993</a>        );
+<a href=#3994 id=3994 data-nosnippet>3994</a>        <span class="macro">assert_eq!</span>(
+<a href=#3995 id=3995 data-nosnippet>3995</a>            result,
+<a href=#3996 id=3996 data-nosnippet>3996</a>            <span class="prelude-val">Ok</span>(<span class="macro">vec!</span>[Value::field(<span class="number">1_u128</span>.into())]),
+<a href=#3997 id=3997 data-nosnippet>3997</a>            <span class="string">"the reader observes the global's own value"
+<a href=#3998 id=3998 data-nosnippet>3998</a>        </span>);
+<a href=#3999 id=3999 data-nosnippet>3999</a>
+<a href=#4000 id=4000 data-nosnippet>4000</a>        <span class="comment">// `evil`'s own write is still visible to `evil` itself: it reads back `Field 7 + Field 99`.
+<a href=#4001 id=4001 data-nosnippet>4001</a>        </span><span class="macro">assert_eq!</span>(
+<a href=#4002 id=4002 data-nosnippet>4002</a>            ssa.interpret(<span class="macro">vec!</span>[Value::bool(<span class="bool-val">true</span>)]),
+<a href=#4003 id=4003 data-nosnippet>4003</a>            <span class="prelude-val">Ok</span>(<span class="macro">vec!</span>[Value::field(<span class="number">106_u128</span>.into())]),
+<a href=#4004 id=4004 data-nosnippet>4004</a>            <span class="string">"the mutator observes its own copy"
+<a href=#4005 id=4005 data-nosnippet>4005</a>        </span>);
+<a href=#4006 id=4006 data-nosnippet>4006</a>    }
+<a href=#4007 id=4007 data-nosnippet>4007</a>}</code></pre></div></section></main></body></html>
