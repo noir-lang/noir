@@ -33,7 +33,7 @@ use super::ir::dfg::GlobalsGraph;
 use super::ir::instruction::ErrorType;
 use super::ir::types::NumericType;
 use super::should_show_invalid_ssa;
-use super::validation::validate_function;
+use super::validation::{self, validate_function};
 use super::{
     function_builder::data_bus::DataBus,
     ir::{
@@ -189,6 +189,8 @@ pub fn validate_ssa_or_err(ssa: Ssa, full: bool) -> Result<Ssa, RuntimeError> {
 }
 
 pub fn validate_ssa(ssa: &Ssa, full: bool) {
+    validation::purity::verify_all_functions_have_purity(ssa);
+
     for function in ssa.functions.values() {
         validate_function(function, ssa, full);
     }

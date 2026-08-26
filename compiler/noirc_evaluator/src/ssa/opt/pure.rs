@@ -82,7 +82,7 @@ pub(crate) fn compute_function_purities(ssa: &Ssa) -> FunctionPurities {
         .collect();
 
     let purities = analyze_call_graph(call_graph, purities, &sccs, &may_not_terminate);
-    FunctionPurities { purities, brillig_functions }
+    FunctionPurities { purities, brillig_functions, complete: true }
 }
 
 /// Returns `true` if the function contains a loop whose termination cannot be proven.
@@ -132,6 +132,15 @@ fn purity_analysis_post_check(ssa: &Ssa) {
 pub(crate) struct FunctionPurities {
     purities: HashMap<FunctionId, Purity>,
     brillig_functions: HashSet<FunctionId>,
+
+    /// Whether this map came from a [`compute_function_purities`] run over every function in the
+    /// program, and so is expected to have an entry for each of them.
+    ///
+    /// The SSA parser also builds a `FunctionPurities`, but only from the purity keywords actually
+    /// written in the source, so that map is partial by design: a hand-written test may annotate
+    /// one function and leave the rest bare. Only a complete map can be checked for missing
+    /// entries (see [crate::ssa::validation::purity]).
+    complete: bool,
 }
 
 impl FunctionPurities {
@@ -179,6 +188,21 @@ impl FunctionPurities {
     /// Whether no purities have been recorded.
     pub(crate) fn is_empty(&self) -> bool {
         self.purities.is_empty()
+    }
+
+    /// Whether this map is the output of a purity analysis over every function, rather than the
+    /// partial map the SSA parser builds from hand-written annotations.
+    pub(crate) fn is_complete(&self) -> bool {
+        self.complete
+    }
+
+    /// An empty map that keeps `self`'s completeness, for rebuilding the entries under new ids.
+    pub(crate) fn empty_preserving_completeness(&self) -> Self {
+        Self {
+            purities: HashMap::default(),
+            brillig_functions: HashSet::default(),
+            complete: self.complete,
+        }
     }
 
     /// Iterate over the intrinsic (un-projected) purities.

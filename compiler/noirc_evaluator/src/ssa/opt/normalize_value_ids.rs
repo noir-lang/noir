@@ -151,7 +151,7 @@ impl Context {
 
 /// Rebuild the purity map against the new function ids.
 fn remap_purities(old_purities: FunctionPurities, new_ids: &IdMaps) -> FunctionPurities {
-    let mut new_purities = FunctionPurities::default();
+    let mut new_purities = old_purities.empty_preserving_completeness();
     for (old_id, purity) in old_purities.intrinsic_purities() {
         if let Some(new_id) = new_ids.function_ids.get(old_id) {
             new_purities.insert_purity(*new_id, *purity);
