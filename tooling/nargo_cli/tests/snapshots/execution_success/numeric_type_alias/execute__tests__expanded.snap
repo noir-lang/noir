@@ -1,0 +1,117 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+type Double<let N: u32>: u32 = N * 2;
+
+type Quadruple<let N: u32>: u32 = (N * 2) + (N * 2);
+
+type Mixed<let N: u32>: u32 = N * ((N * 2) + 3);
+
+global One: u32 = 1;
+
+type Two: u32 = 2;
+
+type Three: u32 = 3;
+
+global N: u32 = 100;
+
+type AliasN<let N: u32>: u32 = N;
+
+fn main(x: Field) {
+    let arr: [Field; (2 * 2) + (2 * 2)] = [0_Field; 8];
+    assert(arr.len() == 8_u32);
+    let b: [u32; 12] = quadruple_array::<3>();
+    assert(b[0_u32] == 0_u32);
+    let c: [u32; 14] = mixed_array::<2>();
+    assert(c[0_u32] == 0_u32);
+    let two: u32 = One + One;
+    assert(two == 2_u32);
+    let three: u32 = (One + One) + One;
+    assert(three == 3_u32);
+    let arr2: [Field; 2] = [0_Field; 2];
+    assert(arr2.len() == 2_u32);
+    let a: u32 = 1_u32;
+    assert(a == 1_u32);
+    assert(N == 100_u32);
+    let b: u32 = 5_u32;
+    assert(b == 5_u32);
+    let mut m: Matrix<3, 4> = new_matrix::<3, 4>();
+    m.elements[(3_u32 * 2_u32) + 3_u32] = 10_Field;
+    m.elements[(3_u32 * 2_u32) + (x as u32)] = 5_Field + x;
+    assert(equal(m, m));
+    let b: Matrix<4, 3> = transpose(m);
+    assert(b.elements != m.elements);
+    assert(trace(b) != trace(m));
+    assert(sum(b) == sum(m));
+    let a: BoundedVec<Field, 4 * 2> = test_2::<4>(x);
+    assert(a.len() == 1_u32);
+}
+
+fn quadruple_array<let N: u32>() -> [u32; (N * 2) + (N * 2)] {
+    let mut a: [u32; (N * 2) + (N * 2)] = [0_u32; (N * 2) + (N * 2)];
+    for i in 0_u32..(N * 2_u32) + (N * 2_u32) {
+        a[i] = i;
+    }
+    a
+}
+
+fn mixed_array<let N: u32>() -> [u32; N * ((N * 2) + 3)] {
+    let mut a: [u32; N * ((N * 2) + 3)] = [0_u32; N * ((N * 2) + 3)];
+    for i in 0_u32..N * ((N * 2_u32) + 3_u32) {
+        a[i] = i;
+    }
+    a
+}
+
+fn test_2<let N: u32>(x: Field) -> BoundedVec<Field, Double<N>> {
+    let mut a: BoundedVec<Field, N * 2> = BoundedVec::<Field, N * 2>::new();
+    a.push(x);
+    a
+}
+
+type MSize<let N: u32, let M: u32>: u32 = N * M;
+
+struct Matrix<let N: u32, let M: u32> {
+    elements: [Field; N * M],
+}
+
+fn new_matrix<let N: u32, let M: u32>() -> Matrix<N, M> {
+    let mut a: [Field; N * M] = [0_Field; N * M];
+    Matrix::<N, M> { elements: a }
+}
+
+fn trace<let N: u32, let M: u32>(A: Matrix<N, M>) -> Field {
+    let n: u32 = if N > M { M } else { N };
+    let mut s: Field = 0_Field;
+    for i in 0_u32..n {
+        s = s + A.elements[(i * N) + i];
+    }
+    s
+}
+
+fn sum<let N: u32, let M: u32>(A: Matrix<N, M>) -> Field {
+    let mut s: Field = 0_Field;
+    for i in 0_u32..N * M {
+        s = s + A.elements[i];
+    }
+    s
+}
+
+fn equal<let N: u32, let M: u32>(A: Matrix<N, M>, B: Matrix<N, M>) -> bool {
+    let mut s: bool = true;
+    for i in 0_u32..N * M {
+        s = s | (A.elements[i] == B.elements[i]);
+    }
+    s
+}
+
+fn transpose<let N: u32, let M: u32>(a: Matrix<N, M>) -> Matrix<M, N> {
+    let mut b: Matrix<M, N> = new_matrix::<M, N>();
+    for i in 0_u32..N {
+        for j in 0_u32..M {
+            b.elements[(j * N) + i] = a.elements[(i * M) + j];
+        }
+    }
+    b
+}

@@ -1,0 +1,13 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+global BYTES: [u8; 4] = [102, 7, 111, 111];
+
+global S: str<4> = BYTES.as_str_unchecked();
+
+fn main(x: Field) {
+    let bytes: [u8; 4] = S.as_bytes();
+    assert(((bytes[1_u32] as Field) + x) == 12_Field);
+    assert(x == 5_Field);
+}

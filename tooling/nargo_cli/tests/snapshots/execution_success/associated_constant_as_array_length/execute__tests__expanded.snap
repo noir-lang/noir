@@ -9,7 +9,7 @@ trait HasSize {
 struct Packet {}
 
 impl HasSize for Packet {
-    let SIZE: u32 = 4;
+    let SIZE: u32 = 4_u32;
 }
 
 global N: u32 = 4;
