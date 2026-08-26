@@ -303,7 +303,7 @@
 <a href=#303 id=303 data-nosnippet>303</a>                    <span class="macro">panic!</span>(<span class="string">"ArrayGet/ArraySet index must be u32"</span>);
 <a href=#304 id=304 data-nosnippet>304</a>                }
 <a href=#305 id=305 data-nosnippet>305</a>                <span class="kw">let </span>array_type = dfg.type_of_value(<span class="kw-2">*</span>array);
-<a href=#306 id=306 data-nosnippet>306</a>                <span class="kw">if </span>!array_type.contains_an_array() {
+<a href=#306 id=306 data-nosnippet>306</a>                <span class="kw">if </span>!array_type.is_array() {
 <a href=#307 id=307 data-nosnippet>307</a>                    <span class="macro">panic!</span>(<span class="string">"ArrayGet/ArraySet must operate on an array; got {array_type}"</span>);
 <a href=#308 id=308 data-nosnippet>308</a>                }
 <a href=#309 id=309 data-nosnippet>309</a>                <span class="macro">assert!</span>(!array_type.is_nested_vector(), <span class="string">"ICE: Nested vector type is not supported"</span>);
@@ -3677,4 +3677,36 @@
 <a href=#3677 id=3677 data-nosnippet>3677</a>        <span class="kw">let </span>ssa = Ssa::from_str_no_validation(src).unwrap();
 <a href=#3678 id=3678 data-nosnippet>3678</a>        <span class="kw">super</span>::validate_terminators(ssa.main());
 <a href=#3679 id=3679 data-nosnippet>3679</a>    }
-<a href=#3680 id=3680 data-nosnippet>3680</a>}</code></pre></div></section></main></body></html>
+<a href=#3680 id=3680 data-nosnippet>3680</a>
+<a href=#3681 id=3681 data-nosnippet>3681</a>    <span class="attr">#[test]
+<a href=#3682 id=3682 data-nosnippet>3682</a>    #[should_panic(expected = <span class="string">"ArrayGet/ArraySet must operate on an array"</span>)]
+<a href=#3683 id=3683 data-nosnippet>3683</a>    </span><span class="kw">fn </span>disallows_array_get_on_reference_to_array() {
+<a href=#3684 id=3684 data-nosnippet>3684</a>        <span class="kw">let </span>src = <span class="string">"
+<a href=#3685 id=3685 data-nosnippet>3685</a>        brillig(inline) fn main f0 {
+<a href=#3686 id=3686 data-nosnippet>3686</a>          b0():
+<a href=#3687 id=3687 data-nosnippet>3687</a>            v1 = make_array [Field 11, Field 22, Field 33] : [Field; 3]
+<a href=#3688 id=3688 data-nosnippet>3688</a>            v2 = allocate -&gt; &amp;mut [Field; 3]
+<a href=#3689 id=3689 data-nosnippet>3689</a>            store v1 at v2
+<a href=#3690 id=3690 data-nosnippet>3690</a>            v3 = array_get v2, index u32 0 -&gt; Field // v2 is &amp;mut [Field; 3]
+<a href=#3691 id=3691 data-nosnippet>3691</a>            return v3
+<a href=#3692 id=3692 data-nosnippet>3692</a>        }
+<a href=#3693 id=3693 data-nosnippet>3693</a>        "</span>;
+<a href=#3694 id=3694 data-nosnippet>3694</a>        <span class="kw">let _ </span>= Ssa::from_str(src).unwrap();
+<a href=#3695 id=3695 data-nosnippet>3695</a>    }
+<a href=#3696 id=3696 data-nosnippet>3696</a>
+<a href=#3697 id=3697 data-nosnippet>3697</a>    <span class="attr">#[test]
+<a href=#3698 id=3698 data-nosnippet>3698</a>    #[should_panic(expected = <span class="string">"ArrayGet/ArraySet must operate on an array"</span>)]
+<a href=#3699 id=3699 data-nosnippet>3699</a>    </span><span class="kw">fn </span>disallows_array_set_on_reference_to_array() {
+<a href=#3700 id=3700 data-nosnippet>3700</a>        <span class="kw">let </span>src = <span class="string">"
+<a href=#3701 id=3701 data-nosnippet>3701</a>        brillig(inline) fn main f0 {
+<a href=#3702 id=3702 data-nosnippet>3702</a>          b0():
+<a href=#3703 id=3703 data-nosnippet>3703</a>            v1 = make_array [Field 11, Field 22, Field 33] : [Field; 3]
+<a href=#3704 id=3704 data-nosnippet>3704</a>            v2 = allocate -&gt; &amp;mut [Field; 3]
+<a href=#3705 id=3705 data-nosnippet>3705</a>            store v1 at v2
+<a href=#3706 id=3706 data-nosnippet>3706</a>            v3 = array_set v2, index u32 0, value Field 44 // v2 is &amp;mut [Field; 3]
+<a href=#3707 id=3707 data-nosnippet>3707</a>            return v3
+<a href=#3708 id=3708 data-nosnippet>3708</a>        }
+<a href=#3709 id=3709 data-nosnippet>3709</a>        "</span>;
+<a href=#3710 id=3710 data-nosnippet>3710</a>        <span class="kw">let _ </span>= Ssa::from_str(src).unwrap();
+<a href=#3711 id=3711 data-nosnippet>3711</a>    }
+<a href=#3712 id=3712 data-nosnippet>3712</a>}</code></pre></div></section></main></body></html>
