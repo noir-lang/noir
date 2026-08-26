@@ -33,6 +33,7 @@ use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 pub(crate) mod dynamic_array_indices;
 #[cfg(debug_assertions)]
 pub(crate) mod flatten_post_check;
+pub(crate) mod purity;
 #[cfg(debug_assertions)]
 pub(crate) mod rc_invariant;
 
