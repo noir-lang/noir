@@ -9,7 +9,7 @@ pub trait Deserialize {
 }
 
 impl Deserialize for Field {
-    let N: u32 = 1;
+    let N: u32 = 1_u32;
 
     fn deserialize(fields: [Self; 1]) -> Self {
         fields[0_u32]

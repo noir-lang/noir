@@ -4,7 +4,7 @@ mod similarly_named_types;
 use std::{borrow::Cow, collections::BTreeSet, rc::Rc};
 
 use acvm::{AcirField, FieldElement};
-use im::HashSet;
+use imbl::HashSet;
 use iter_extended::vecmap;
 use itertools::Itertools;
 use noirc_errors::Location;
@@ -125,6 +125,26 @@ impl Elaborator<'_> {
             PathResolutionMode::MarkAsReferenced,
             wildcard_allowed,
         )
+    }
+
+    /// Stringifies a type as written, for embedding in an associated type's name
+    /// (`"<{object} as {trait}>::{name}"`). A macro-spliced type arrives already resolved and
+    /// its `Display` is the "(resolved type)" placeholder, so look through the resolution to
+    /// the actual type. These names resurface in `nargo expand` output, where the placeholder
+    /// would not parse.
+    ///
+    /// Note that `Display` for a resolved [Type] is not source-faithful: data types print as
+    /// their bare name (no module path, so a same-named type in scope at the printing site can
+    /// shadow it) and unbound type variables print as `_` or their kind's default. These names
+    /// are display-only — nothing semantic keys off them — but the printed projection may not
+    /// re-resolve in every context.
+    pub(super) fn unresolved_type_name(&self, typ: &UnresolvedType) -> String {
+        match &typ.typ {
+            UnresolvedTypeData::Resolved(quoted_type_id) => {
+                self.interner.get_quoted_type(*quoted_type_id).to_string()
+            }
+            _ => typ.to_string(),
+        }
     }
 
     /// Resolves an [`UnresolvedType`] to a [Type] with [`Kind::Normal`] and marks it, and any generic types it contains, as _used_.

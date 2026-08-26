@@ -26,6 +26,7 @@ mod acir_context;
 mod arrays;
 mod call;
 mod shared_context;
+mod side_effects;
 pub(crate) mod ssa;
 #[cfg(test)]
 pub(crate) mod tests;
@@ -38,6 +39,7 @@ use crate::errors::{InternalError, RuntimeError};
 use crate::ssa::{
     function_builder::data_bus::DataBus,
     ir::{
+        basic_block::BasicBlockId,
         dfg::{DataFlowGraph, MAX_ELEMENTS},
         function::{Function, RuntimeType},
         instruction::{
@@ -53,6 +55,7 @@ use crate::ssa::{
 use crate::{acir::shared_context::SharedContext, brillig::BrilligOptions};
 
 use acir_context::{AcirContext, BrilligStdLib};
+use side_effects::{PredicateContract, SideEffectsLatch, Unpredicated};
 use types::{AcirType, AcirVar};
 pub use {acir_context::GeneratedAcir, ssa::Artifacts};
 
@@ -67,9 +70,8 @@ struct Context<'a> {
     /// already exists for this Value, we return the `AcirVar`.
     ssa_values: HashMap<Id<Value>, AcirValue>,
 
-    /// The `AcirVar` that describes the condition belonging to the most recently invoked
-    /// `SideEffectsEnabled` instruction.
-    current_side_effects_enabled_var: AcirVar,
+    /// The condition belonging to the most recently invoked `SideEffectsEnabled` instruction.
+    side_effects: SideEffectsLatch,
 
     /// Manages and builds the `AcirVar`s to which the converted SSA values refer.
     acir_context: AcirContext<FieldElement>,
@@ -135,11 +137,11 @@ impl<'a> Context<'a> {
         brillig_options: &'a BrilligOptions,
     ) -> Context<'a> {
         let mut acir_context = AcirContext::new(brillig_stdlib);
-        let current_side_effects_enabled_var = acir_context.add_constant(FieldElement::one());
+        let side_effects = SideEffectsLatch::new(acir_context.add_constant(FieldElement::one()));
 
         Context {
             ssa_values: HashMap::default(),
-            current_side_effects_enabled_var,
+            side_effects,
             acir_context,
             initialized_arrays: HashSet::default(),
             memory_blocks: HashMap::default(),
@@ -259,7 +261,7 @@ impl<'a> Context<'a> {
             warnings.extend(self.convert_ssa_instruction(*instruction_id, dfg, ssa)?);
         }
         let (return_vars, return_warnings) =
-            self.convert_ssa_return(entry_block.unwrap_terminator(), dfg)?;
+            self.convert_ssa_return(entry_block.unwrap_terminator(), main_func.entry_block(), dfg)?;
 
         // This is a naive method of assigning the return values to their witnesses as
         // we're likely to get a number of constraints which are asserting one witness to be equal to another.
@@ -328,8 +330,9 @@ impl<'a> Context<'a> {
         // We specifically do not attempt execution of the brillig code being generated as this can result in it being
         // replaced with constraints on witnesses to the program outputs.
         let skip_output_range_checks = true;
+        let predicate = self.no_predicate(Unpredicated::UnconstrainedEntryPoint);
         let output_values = self.acir_context.brillig_call(
-            self.current_side_effects_enabled_var,
+            predicate,
             &code,
             inputs,
             outputs,
@@ -427,7 +430,7 @@ impl<'a> Context<'a> {
                 Ok(AcirValue::Var(make_var(self, *numeric_type)?, *numeric_type))
             }
             Type::Array(element_types, length) => {
-                let mut elements = im::Vector::new();
+                let mut elements = imbl::Vector::new();
 
                 for _ in 0..length.0 {
                     for element in element_types.iter() {
@@ -466,8 +469,26 @@ impl<'a> Context<'a> {
         Ok(acir_var)
     }
 
-    /// Converts an SSA instruction into its ACIR representation
+    /// Converts an SSA instruction into its ACIR representation, holding the lowering to the
+    /// instruction's [`PredicateContract`].
+    ///
+    /// The bracketing lives here rather than in the lowering itself so that no path through it can
+    /// skip the end-of-instruction check by returning early.
     fn convert_ssa_instruction(
+        &mut self,
+        instruction_id: InstructionId,
+        dfg: &DataFlowGraph,
+        ssa: &Ssa,
+    ) -> Result<Vec<SsaReport>, RuntimeError> {
+        self.side_effects.begin_instruction(PredicateContract::of(&dfg[instruction_id], dfg));
+        let warnings = self.convert_ssa_instruction_inner(instruction_id, dfg, ssa)?;
+        // Only checked once the lowering succeeded: one which bailed out may not have reached the
+        // path that reads the predicate.
+        self.side_effects.end_instruction();
+        Ok(warnings)
+    }
+
+    fn convert_ssa_instruction_inner(
         &mut self,
         instruction_id: InstructionId,
         dfg: &DataFlowGraph,
@@ -481,9 +502,9 @@ impl<'a> Context<'a> {
             Instruction::Binary(binary) => {
                 // Disable the side effects if the binary instruction does not require them
                 let predicate = if instruction.requires_acir_gen_predicate(dfg) {
-                    self.current_side_effects_enabled_var
+                    self.predicate()
                 } else {
-                    self.acir_context.add_constant(FieldElement::one())
+                    self.no_predicate(Unpredicated::CannotFail)
                 };
                 let result_acir_var = self.convert_ssa_binary(binary, dfg, predicate)?;
                 self.define_result_var(dfg, instruction_id, result_acir_var);
@@ -498,7 +519,7 @@ impl<'a> Context<'a> {
                 let lhs = self.convert_numeric_value(*lhs, dfg)?;
                 let rhs = self.convert_numeric_value(*rhs, dfg)?;
                 let assert_payload = self.convert_constrain_error(dfg, assert_message)?;
-                let predicate = self.current_side_effects_enabled_var;
+                let predicate = self.predicate();
                 self.acir_context.assert_neq_var(lhs, rhs, predicate, assert_payload)?;
             }
             Instruction::Cast(value_id, _) => {
@@ -523,7 +544,7 @@ impl<'a> Context<'a> {
             }
             Instruction::EnableSideEffectsIf { condition } => {
                 let acir_var = self.convert_numeric_value(*condition, dfg)?;
-                self.current_side_effects_enabled_var = acir_var;
+                self.set_predicate(acir_var);
             }
             Instruction::ArrayGet { .. } | Instruction::ArraySet { .. } => {
                 self.handle_array_operation(instruction_id, dfg)?;
@@ -632,6 +653,7 @@ impl<'a> Context<'a> {
     fn convert_ssa_return(
         &mut self,
         terminator: &TerminatorInstruction,
+        block_id: BasicBlockId,
         dfg: &DataFlowGraph,
     ) -> Result<(Vec<AcirVar>, Vec<SsaReport>), RuntimeError> {
         let (return_values, call_stack) = match terminator {
@@ -642,7 +664,23 @@ impl<'a> Context<'a> {
             TerminatorInstruction::JmpIf { .. } | TerminatorInstruction::Jmp { .. } => {
                 unreachable!("ICE: Program must have a singular return")
             }
-            TerminatorInstruction::Unreachable { .. } => return Ok((vec![], vec![])),
+            TerminatorInstruction::Unreachable { .. } => {
+                // The SSA interpreter treats reaching `unreachable` as an error. The
+                // constrained ACIR runtime has no `trap` opcode, so match those semantics
+                // by planting an unsatisfiable constraint: any prover that reaches this
+                // block cannot satisfy the circuit.
+                //
+                // Skip the redundant constraint when the block's last non-terminator
+                // instruction is already an always-failing constrain — the normal
+                // `remove_unreachable_instructions` producer emits exactly that shape,
+                // so on well-formed compiler output no extra opcode is needed.
+                if !dfg.block_ends_with_always_failing_constraint(block_id) {
+                    let one = self.acir_context.add_constant(FieldElement::one());
+                    self.acir_context
+                        .assert_zero_var(one, "Reached the unreachable".to_string())?;
+                }
+                return Ok((vec![], vec![]));
+            }
         };
 
         let mut has_constant_return = false;

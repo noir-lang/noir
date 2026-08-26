@@ -493,7 +493,7 @@ impl Context<'_> {
 mod tests {
     use crate::{
         assert_ssa_snapshot,
-        ssa::{Ssa, opt::assert_ssa_does_not_change},
+        ssa::{Ssa, opt::assert_ssa_does_not_change, ssa_gen::validate_ssa},
     };
 
     #[test]
@@ -528,6 +528,32 @@ mod tests {
             return v10
         }
         ");
+    }
+
+    #[test]
+    fn merges_mixed_reference_mutability_at_the_weaker_type() {
+        // An immutable borrow of a temporary is allocated as `&mut u1` by ssa_gen, so a
+        // conditional can join it with a genuine `&u1`. The merged value must come back at
+        // `&u1` — typing it `&mut u1` (the "then" side) would hand out a writable alias of
+        // an immutable reference.
+        let src = "
+              brillig(inline) fn foo f0 {
+                b0(v0: u1, v1: &u1):
+                  v2 = allocate -> &mut u1
+                  store v0 at v2
+                  jmpif v0 then: b1(), else: b2()
+                b1():
+                  jmp b3(v2)
+                b2():
+                  jmp b3(v1)
+                b3(v3: &u1):
+                  v4 = load v3 -> u1
+                  return v4
+              }
+            ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.flatten_basic_conditionals();
+        validate_ssa(&ssa, true);
     }
 
     #[test]

@@ -1,0 +1,14 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+assertion_line: 374
+expression: expanded_code
+---
+fn main(x: Field, j: u32, k: u32, m: u32) -> pub Field {
+    let cells: [(Field, [Field; 0]); 2] = [(x, []), (x + 1_Field, [])];
+    let mut d: [(Field, [Field; 0]); 2] = cells;
+    d[j].1 = [];
+    let t: [Field; 0] = d[k].1;
+    let mut e: [(Field, [Field; 0]); 2] = cells;
+    e[m].1 = t;
+    e[m].0
+}

@@ -1,6 +1,7 @@
 use std::collections::VecDeque;
 
 use acvm::{FieldElement, acir::AcirField};
+use rustc_hash::FxHashSet as HashSet;
 
 use crate::ssa::ir::{
     dfg::DataFlowGraph,
@@ -8,6 +9,37 @@ use crate::ssa::ir::{
     types::{NumericType, Type},
     value::{Value, ValueId},
 };
+
+/// The set of `constrain lhs == rhs` pairs which still have to be considered for decomposition,
+/// where each pair is only ever considered once.
+///
+/// The values a constraint is decomposed into form a DAG rather than a tree: a value may be an
+/// operand of any number of later instructions, so it can be reachable from the constrained value
+/// along many distinct routes. Queueing a pair once per route would re-expand that pair's whole
+/// sub-graph once per route, making the traversal cost proportional to the number of paths through
+/// the DAG rather than to the number of values in it, which is exponential in its depth.
+///
+/// Skipping repeats is semantics-preserving: reaching a pair along a second route derives a
+/// constraint which is already queued or emitted, so dropping it cannot weaken the circuit.
+/// Constants are interned by [`DataFlowGraph::make_constant`], so the same constraint always
+/// yields the same pair of [`ValueId`]s.
+#[derive(Default)]
+struct ConstrainQueue {
+    queue: VecDeque<(ValueId, ValueId)>,
+    queued: HashSet<(ValueId, ValueId)>,
+}
+
+impl ConstrainQueue {
+    fn push(&mut self, lhs: ValueId, rhs: ValueId) {
+        if self.queued.insert((lhs, rhs)) {
+            self.queue.push_back((lhs, rhs));
+        }
+    }
+
+    fn pop(&mut self) -> Option<(ValueId, ValueId)> {
+        self.queue.pop_front()
+    }
+}
 
 /// Try to decompose this constrain instruction. This constraint will be broken down such that it instead constrains
 /// all the values which are used to compute the values which were being constrained.
@@ -20,12 +52,12 @@ pub(super) fn decompose_constrain(
     let mut instructions = Vec::new();
 
     // Sometimes when decomposing a constraint we may generate further constraints to decompose.
-    // A recursive version can hit stack overflow, so here we use a stack for an iterative approach.
-    // Each entry in the stack represents `constrain lhs == rhs`.
-    let mut constrains = VecDeque::new();
-    constrains.push_back((lhs, rhs));
+    // A recursive version can hit stack overflow, so here we use a queue for an iterative approach.
+    // Each entry in the queue represents `constrain lhs == rhs`.
+    let mut constrains = ConstrainQueue::default();
+    constrains.push(lhs, rhs);
 
-    while let Some((lhs, rhs)) = constrains.pop_front() {
+    while let Some((lhs, rhs)) = constrains.pop() {
         // Remove trivial case `assert_eq(x, x)`
         if lhs == rhs {
             continue;
@@ -76,8 +108,8 @@ pub(super) fn decompose_constrain(
                         let one = FieldElement::one();
                         let one = dfg.make_constant(one, NumericType::bool());
 
-                        constrains.push_back((lhs, one));
-                        constrains.push_back((rhs, one));
+                        constrains.push(lhs, one);
+                        constrains.push(rhs, one);
                     }
 
                     Instruction::Binary(Binary { lhs, rhs, operator: BinaryOp::Or })
@@ -101,8 +133,8 @@ pub(super) fn decompose_constrain(
                         let zero = FieldElement::zero();
                         let zero = dfg.make_constant(zero, dfg.type_of_value(lhs).unwrap_numeric());
 
-                        constrains.push_back((lhs, zero));
-                        constrains.push_back((rhs, zero));
+                        constrains.push(lhs, zero);
+                        constrains.push(rhs, zero);
                     }
 
                     Instruction::Not(value) => {
@@ -122,7 +154,7 @@ pub(super) fn decompose_constrain(
                         let reversed_constant =
                             dfg.make_constant(reversed_constant, NumericType::bool());
 
-                        constrains.push_back((value, reversed_constant));
+                        constrains.push(value, reversed_constant);
                     }
 
                     _ => {
@@ -169,7 +201,7 @@ pub(super) fn decompose_constrain(
 
                         let zero = FieldElement::zero();
                         let zero = dfg.make_constant(zero, dfg.type_of_value(lhs).unwrap_numeric());
-                        constrains.push_back((lhs, zero));
+                        constrains.push(lhs, zero);
                     }
 
                     // Casting a value just to constrain it to a constant.
@@ -416,6 +448,69 @@ mod tests {
             return
         }
         ");
+    }
+
+    #[test]
+    fn constraint_decomposition_over_shared_values() {
+        // `v2` and `v3` are both operands of `v4` and of `v5`, so each of them - and everything
+        // below them - is reachable from the constrained value `v6` along more than one route.
+        // The values being constrained form a DAG rather than a tree, and decomposition should
+        // emit one constraint per distinct value rather than one per route through the DAG.
+        let src = "
+            acir(inline) fn main f0 {
+              b0(v0: u1, v1: u1):
+                v2 = mul v0, v1
+                v3 = mul v1, v0
+                v4 = mul v2, v3
+                v5 = mul v3, v2
+                v6 = mul v4, v5
+                constrain v6 == u1 1
+                return
+            }
+            ";
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: u1, v1: u1):
+            v2 = unchecked_mul v0, v1
+            v3 = unchecked_mul v1, v0
+            v4 = unchecked_mul v2, v3
+            v5 = unchecked_mul v3, v2
+            v6 = unchecked_mul v4, v5
+            constrain v0 == u1 1
+            constrain v1 == u1 1
+            return
+        }
+        ");
+    }
+
+    #[test]
+    fn decomposition_is_linear_in_the_size_of_the_value_graph() {
+        // The same shape as `constraint_decomposition_over_shared_values`, but deep enough that
+        // the difference between visiting each value once and visiting it once per route through
+        // the graph is unmistakable: `DEPTH` levels of sharing have 2^(DEPTH + 1) routes down to
+        // the two parameters, but only 2 distinct constraints to emit.
+        const DEPTH: u32 = 12;
+
+        let mut src = "acir(inline) fn main f0 {\n  b0(v0: u1, v1: u1):\n".to_string();
+        let (mut x, mut y) = (0, 1);
+        for _ in 0..=DEPTH {
+            let (next_x, next_y) = (y + 1, y + 2);
+            src += &format!("    v{next_x} = mul v{x}, v{y}\n");
+            src += &format!("    v{next_y} = mul v{y}, v{x}\n");
+            (x, y) = (next_x, next_y);
+        }
+        src += &format!("    constrain v{x} == u1 1\n    return\n}}\n");
+
+        let ssa = Ssa::from_str_simplifying(&src).unwrap();
+
+        let constraints = ssa
+            .to_string()
+            .lines()
+            .filter(|line| line.trim_start().starts_with("constrain "))
+            .count();
+        assert_eq!(constraints, 2);
     }
 
     #[test]

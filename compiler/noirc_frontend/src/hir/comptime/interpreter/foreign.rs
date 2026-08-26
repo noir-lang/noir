@@ -1,8 +1,11 @@
 //! The foreign function counterpart to `interpreter/builtin.rs`, defines how to call
 //! all foreign functions available to the interpreter.
-use acvm::{BlackBoxResolutionError, FieldElement, blackbox_solver::BlackBoxFunctionSolver};
+use acvm::{
+    BlackBoxResolutionError, FieldElement, acir::BlackBoxFunc,
+    blackbox_solver::BlackBoxFunctionSolver,
+};
 use bn254_blackbox_solver::Bn254BlackBoxSolver; // Currently locked to only bn254!
-use im::{Vector, vector};
+use imbl::{Vector, vector};
 use noirc_errors::Location;
 
 use crate::{
@@ -14,6 +17,7 @@ use crate::{
             builtin::builtin_helpers::to_byte_array, builtin_helpers::check_argument_count,
         },
     },
+    shared::Builtin,
 };
 
 use super::{
@@ -28,12 +32,12 @@ use super::{
 impl Interpreter<'_, '_> {
     pub(super) fn call_foreign(
         &self,
-        name: &str,
+        foreign: Builtin,
         arguments: Vec<(Value, Location)>,
         return_type: Type,
         location: Location,
     ) -> IResult<Value> {
-        call_foreign(name, arguments, return_type, location)
+        call_foreign(foreign, arguments, return_type, location)
     }
 }
 
@@ -41,42 +45,46 @@ impl Interpreter<'_, '_> {
 ///
 /// Similar to `evaluate_black_box` in `brillig_vm`.
 fn call_foreign(
-    name: &str,
+    foreign: Builtin,
     args: Vec<(Value, Location)>,
     return_type: Type,
     location: Location,
 ) -> IResult<Value> {
     let expected_return_shape = type_shape(&return_type);
-    let result = match name {
-        "aes128_encrypt" => aes128_encrypt(args, location),
-        "blake2s" => blake_hash(args, location, acvm::blackbox_solver::blake2s),
-        "blake3" => blake_hash(args, location, acvm::blackbox_solver::blake3),
-        // cSpell:disable-next-line
-        "ecdsa_secp256k1" => {
+    let result = match foreign {
+        Builtin::BlackBox(BlackBoxFunc::AES128Encrypt) => aes128_encrypt(args, location),
+        Builtin::BlackBox(BlackBoxFunc::Blake2s) => {
+            blake_hash(args, location, acvm::blackbox_solver::blake2s)
+        }
+        Builtin::BlackBox(BlackBoxFunc::Blake3) => {
+            blake_hash(args, location, acvm::blackbox_solver::blake3)
+        }
+        Builtin::BlackBox(BlackBoxFunc::EcdsaSecp256k1) => {
             ecdsa_secp256_verify(args, location, acvm::blackbox_solver::ecdsa_secp256k1_verify)
         }
-        // cSpell:disable-next-line
-        "ecdsa_secp256r1" => {
+        Builtin::BlackBox(BlackBoxFunc::EcdsaSecp256r1) => {
             ecdsa_secp256_verify(args, location, acvm::blackbox_solver::ecdsa_secp256r1_verify)
         }
-        "embedded_curve_add" => embedded_curve_add(args, return_type, location),
-        "multi_scalar_mul" => multi_scalar_mul(args, return_type, location),
-        "poseidon2_permutation" => poseidon2_permutation(args, location),
-        "poseidon2_config_state_size" => poseidon2_config_state_size(&args, location),
-        "keccakf1600" => keccakf1600(args, location),
-        "sha256_compression" => sha256_compression(args, location),
-        _ => {
-            let explanation = match name {
-                "and" | "xor" => "It should be turned into a binary operation.".into(),
-                "recursive_aggregation" => "A proof cannot be verified at comptime.".into(),
-                _ => {
-                    let item = format!("Comptime evaluation for foreign function '{name}'");
-                    return Err(InterpreterError::Unimplemented { item, location });
-                }
-            };
-
-            let item = format!("Attempting to evaluate foreign function '{name}'");
+        Builtin::BlackBox(BlackBoxFunc::EmbeddedCurveAdd) => {
+            embedded_curve_add(args, return_type, location)
+        }
+        Builtin::BlackBox(BlackBoxFunc::MultiScalarMul) => {
+            multi_scalar_mul(args, return_type, location)
+        }
+        Builtin::BlackBox(BlackBoxFunc::Poseidon2Permutation) => {
+            poseidon2_permutation(args, location)
+        }
+        Builtin::Poseidon2ConfigStateSize => poseidon2_config_state_size(&args, location),
+        Builtin::BlackBox(BlackBoxFunc::Keccakf1600) => keccakf1600(args, location),
+        Builtin::BlackBox(BlackBoxFunc::Sha256Compression) => sha256_compression(args, location),
+        Builtin::BlackBox(BlackBoxFunc::RecursiveAggregation) => {
+            let item = format!("Attempting to evaluate foreign function '{foreign}'");
+            let explanation = "A proof cannot be verified at comptime.".into();
             Err(InterpreterError::InvalidInComptimeContext { item, location, explanation })
+        }
+        _ => {
+            let item = format!("Comptime evaluation for foreign function '{foreign}'");
+            Err(InterpreterError::Unimplemented { item, location })
         }
     }?;
 
@@ -125,7 +133,7 @@ fn get_aes128_block(
 
 fn aes128_error(reason: String, location: Location) -> InterpreterError {
     InterpreterError::BlackBoxError(
-        BlackBoxResolutionError::Failed(acvm::acir::BlackBoxFunc::AES128Encrypt, reason),
+        BlackBoxResolutionError::Failed(BlackBoxFunc::AES128Encrypt, reason),
         location,
     )
 }
@@ -353,14 +361,17 @@ mod tests {
         let mut not_implemented = Vec::new();
 
         for blackbox in BlackBoxFunc::iter() {
-            // There's no implementation for RANGE as it's actually a builtin function,
-            // and in the comptime interpreter it's not transformed to a foreign function call
-            if blackbox == BlackBoxFunc::RANGE {
+            // AND, XOR and RANGE are not callable functions — the compiler emits their
+            // opcodes from binary operations, casts and range checks — so they have no
+            // `Builtin` variant and cannot reach `call_foreign`.
+            if matches!(blackbox, BlackBoxFunc::AND | BlackBoxFunc::XOR | BlackBoxFunc::RANGE) {
                 continue;
             }
 
             let name = blackbox.name();
-            match call_foreign(name, Vec::new(), Type::Unit, no_location) {
+            let builtin = crate::shared::Builtin::lookup(name)
+                .unwrap_or_else(|| panic!("`{name}` has no `Builtin` variant"));
+            match call_foreign(builtin, Vec::new(), Type::Unit, no_location) {
                 Ok(_) => {
                     // Exists and works with no args (unlikely)
                 }
