@@ -51,8 +51,13 @@ fn expect_value(src: &str) -> Value {
 
 #[track_caller]
 fn expect_error(src: &str) -> InterpreterError {
+    expect_error_with_args(src, Vec::new())
+}
+
+#[track_caller]
+fn expect_error_with_args(src: &str, args: Vec<Value>) -> InterpreterError {
     let ssa = Ssa::from_str(src).unwrap();
-    ssa.interpret(Vec::new()).unwrap_err()
+    ssa.interpret(args).unwrap_err()
 }
 
 #[track_caller]

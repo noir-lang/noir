@@ -24,6 +24,7 @@ use errors::{InternalError, InterpreterError, MAX_UNSIGNED_BIT_SIZE};
 use iter_extended::{try_vecmap, vecmap};
 use itertools::Itertools;
 use noirc_frontend::Shared;
+use num_bigint::BigUint;
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 use value::{ArrayValue, NumericValue, ReferenceValue, StorageIdentity};
 
@@ -1634,14 +1635,23 @@ fn evaluate_integer_binary(
 
         // Unsigned checked arithmetic. ACIR computes in the field and range-checks the result, so an
         // out-of-range operand or an overflowing result is rejected; Brillig does true fixed-width
-        // checked arithmetic. (They only diverge once values can exceed the field modulus, i.e.
-        // `u128`, but keeping them separate is faithful to both.)
+        // checked arithmetic. The one place the range check is insufficient is a `u128` product,
+        // whose true value can exceed the field modulus and be reduced back below 2^128: the
+        // circuit rejects it via the constraint the `check_u128_mul_overflow` pass inserts, so the
+        // interpreter decides that overflow on the unreduced product.
         Add { unchecked: false } | Sub { unchecked: false } | Mul { unchecked: false }
             if !lhs.is_signed() =>
         {
             if is_brillig {
                 eval_via_constant_binary_op(lhs_field, rhs_field, operator, typ, binary, &overflow)
             } else {
+                if matches!(operator, Mul { .. }) && bit_size == 128 {
+                    let product = BigUint::from_bytes_be(&lhs_field.to_be_bytes())
+                        * BigUint::from_bytes_be(&rhs_field.to_be_bytes());
+                    if product.bits() > 128 {
+                        return Err(overflow());
+                    }
+                }
                 let value = NumericValue::int_from_field(field_arith(), typ)?;
                 if value.is_in_range() { Ok(value) } else { Err(overflow()) }
             }
