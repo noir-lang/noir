@@ -251,6 +251,10 @@ jobs:
       - name: Run node tests
         run: yarn workspace @noir-lang/acvm_js test
 
+  # Reads the Playwright version out of yarn.lock once for the whole workflow.
+  # It has to be a separate job rather than a step in each consumer: the
+  # `test-acvm_js-browser` container image is resolved before any step of that
+  # job runs, so the version can only reach it as a `needs` output.
   playwright-version:
     name: Resolve Playwright version
     runs-on: ubuntu-22.04
@@ -264,9 +268,6 @@ jobs:
       - name: Checkout sources
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      # `container.image` is resolved before any step of the consuming job runs,
-      # so the version has to arrive as a job output rather than be read from
-      # yarn.lock in place.
       - name: Resolve Playwright version
         id: playwright
         run: echo "version=$(./scripts/playwright_version.sh)" >> "$GITHUB_OUTPUT"
@@ -311,7 +312,7 @@ jobs:
           run: yarn workspace @noir-lang/acvm_js test:browser
 
   test-noirc-abi:
-    needs: [build-noirc-abi]
+    needs: [build-noirc-abi, playwright-version]
     name: noirc_abi
     runs-on: ubuntu-22.04
     timeout-minutes: 30
@@ -336,6 +337,8 @@ jobs:
 
       - name: Install Playwright
         uses: ./.github/actions/install-playwright
+        with:
+          playwright-version: ${{ needs.playwright-version.outputs.version }}
 
       - name: Run browser tests
         uses: ./.github/actions/retry
@@ -385,7 +388,7 @@ jobs:
           yarn workspace @noir-lang/noir_js test
 
   test-noir-wasm:
-    needs: [build-noir-wasm, build-binaries]
+    needs: [build-noir-wasm, build-binaries, playwright-version]
     name: noir_wasm
     runs-on: ubuntu-22.04
     timeout-minutes: 30
@@ -415,6 +418,8 @@ jobs:
 
       - name: Install Playwright
         uses: ./.github/actions/install-playwright
+        with:
+          playwright-version: ${{ needs.playwright-version.outputs.version }}
 
       - name: Run node tests
         run: yarn workspace @noir-lang/noir_wasm test:node
@@ -576,7 +581,7 @@ jobs:
   test-examples:
     name: Example scripts
     runs-on: ubuntu-24.04
-    needs: [build-binaries, build-acvm-js, build-noirc-abi]
+    needs: [build-binaries, build-acvm-js, build-noirc-abi, playwright-version]
     timeout-minutes: 30
     permissions:
       contents: read
@@ -595,6 +600,8 @@ jobs:
 
       - name: Install Playwright
         uses: ./.github/actions/install-playwright
+        with:
+          playwright-version: ${{ needs.playwright-version.outputs.version }}
 
       - uses: taiki-e/install-action@just
 
