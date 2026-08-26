@@ -587,12 +587,10 @@ fn two_brillig_calls_read_the_same_global() {
 /// point re-runs its globals initialisation, so an in-place write to a global made by
 /// one invocation cannot be observed by the next.
 ///
-/// `f1` writes its argument into `g0[0]` in place — the write goes in place because the
-/// global's reference count is 1 and nothing bumped it — and returns `g0[0] + g0[1]` as
-/// read before the write. Both invocations must therefore return `5 + 7`.
+/// `f1` writes its argument into `g0[0]` — with nothing bumping the global's reference
+/// count, this is the write that used to land in the interpreter's own global scope — and
+/// returns `g0[0] + g0[1]` as read before the write. Both invocations must return `5 + 7`.
 #[test]
-#[ignore = "interpreter shares one globals scope across Brillig invocations; \
-            see noir-lang/noir-claude#1755"]
 fn brillig_invocations_do_not_share_globals() {
     let src = "
     g0 = make_array [u32 5, u32 7] : [u32; 2]
@@ -629,8 +627,6 @@ fn brillig_invocations_do_not_share_globals() {
 /// present and unfolded when `Constant Folding` runs. With `v0 = false` only the `else` arm
 /// executes, so the program returns `g0[0]`, which is `Field 1`.
 #[test]
-#[ignore = "a global mutated while folding one call is visible to the next fold; \
-            see noir-lang/noir-claude#1755"]
 fn constant_folding_preserves_execution_with_globals() {
     let src = "
     g0 = make_array [Field 1, Field 2] : [Field; 2]

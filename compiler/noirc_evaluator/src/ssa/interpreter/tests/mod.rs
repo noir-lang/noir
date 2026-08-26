@@ -1919,6 +1919,69 @@ fn call_stack_is_cleared_between_entry_calls() {
     assert_eq!(interpreter.evaluation.call_stack.len(), 0, "should clear the previous leftover");
 }
 
+/// An in-place Brillig `array_set` writes through its array's storage when the reference
+/// count is 1. A global's storage is shared by every evaluation the interpreter performs, so
+/// the write must copy instead: `read` is interpreted after `evil` and must still see the
+/// global's original value.
+#[test]
+fn globals_are_not_mutated_between_entry_calls() {
+    let src = r#"
+    g0 = make_array [Field 1, Field 2] : [Field; 2]
+
+    brillig(inline) fn evil f0 {
+    b0():
+      v0 = array_set g0, index u32 0, value Field 99
+      v1 = array_get v0, index u32 0 -> Field
+      return v1
+    }
+    brillig(inline) fn read f1 {
+    b0():
+      v0 = array_get g0, index u32 0 -> Field
+      return v0
+    }
+    "#;
+    let ssa = Ssa::from_str(src).unwrap();
+
+    // One interpreter for both calls, as constant folding does.
+    let mut interpreter = Interpreter::new(&ssa, InterpreterOptions::default(), std::io::empty());
+    interpreter.interpret_globals().unwrap();
+
+    let evil = interpreter.interpret_function(FunctionId::new(0), vec![]).unwrap();
+    assert_eq!(evil, vec![Value::field(99_u128.into())], "the mutator reads back its own copy");
+
+    let read = interpreter.interpret_function(FunctionId::new(1), vec![]).unwrap();
+    assert_eq!(read, vec![Value::field(1_u128.into())], "the global is unchanged");
+}
+
+/// The same property within a single evaluation: at run time each of these two Brillig calls is
+/// a separate invocation, with ACVM building a fresh VM and the entry point re-initialising the
+/// globals region, so neither can see the other's in-place write to `g0`. Both calls read `g0[0]`
+/// (5) before writing to it and add `g0[1]` (7), so both must return 12.
+#[test]
+fn globals_are_not_shared_between_brillig_invocations() {
+    let src = r#"
+    acir(inline) fn main f0 {
+    b0(v0: u32, v1: u32):
+      v2 = call f1(v0) -> u32
+      v3 = call f1(v1) -> u32
+      return v2, v3
+    }
+    brillig(inline) fn mutate f1 {
+    b0(v0: u32):
+      v1 = array_get g0, index u32 0 -> u32
+      v2 = array_set g0, index u32 0, value v0
+      v3 = array_get v2, index u32 1 -> u32
+      v4 = add v1, v3
+      return v4
+    }
+    "#;
+    let src = format!("g0 = make_array [u32 5, u32 7] : [u32; 2]\n{src}");
+    let ssa = Ssa::from_str(&src).unwrap();
+
+    let result = ssa.interpret(vec![Value::u32(100), Value::u32(200)]).unwrap();
+    assert_eq!(result, vec![Value::u32(12), Value::u32(12)]);
+}
+
 #[test]
 fn allow_empty_zst_array() {
     let src = r#"  
