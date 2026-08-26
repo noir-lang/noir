@@ -6,20 +6,23 @@ inputs:
     description: 'Space-separated list of browsers to install (e.g. "chromium" or "chromium webkit")'
     required: false
     default: 'chromium'
-  playwright-version:
-    description: 'Playwright version to install'
-    required: false
-    default: '1.58.2'
 
 runs:
   using: composite
   steps:
+    # The browsers must match the driver that `yarn install` puts in
+    # node_modules, so the version comes from yarn.lock rather than an input.
+    - name: Resolve Playwright version
+      id: playwright
+      shell: bash
+      run: echo "version=$("${GITHUB_WORKSPACE}/scripts/playwright_version.sh")" >> "$GITHUB_OUTPUT"
+
     - name: Cache Playwright browsers
       id: playwright-cache
       uses: actions/cache@v4
       with:
         path: ~/.cache/ms-playwright
-        key: playwright-${{ inputs.playwright-version }}-${{ inputs.browsers }}-${{ runner.os }}
+        key: playwright-${{ steps.playwright.outputs.version }}-${{ inputs.browsers }}-${{ runner.os }}
 
     # Composite-action steps do not support `timeout-minutes`, so each `npx` call
     # is bounded with coreutils `timeout`: a stalled download or apt mirror fails
@@ -29,7 +32,7 @@ runs:
       if: steps.playwright-cache.outputs.cache-hit != 'true'
       uses: ./.github/actions/retry
       with:
-        run: timeout 240 npx -y playwright@${{ inputs.playwright-version }} install ${{ inputs.browsers }}
+        run: timeout 240 npx -y playwright@${{ steps.playwright.outputs.version }} install ${{ inputs.browsers }}
 
     # GitHub-hosted Ubuntu runner images already ship Chromium's system
     # libraries, so `install-deps` is only needed for engines like WebKit.
@@ -47,7 +50,7 @@ runs:
       if: contains(inputs.browsers, 'webkit') || contains(inputs.browsers, 'firefox')
       shell: bash
       env:
-        PLAYWRIGHT_VERSION: ${{ inputs.playwright-version }}
+        PLAYWRIGHT_VERSION: ${{ steps.playwright.outputs.version }}
         BROWSERS: ${{ inputs.browsers }}
       run: |
         timeout 120 npx -y "playwright@${PLAYWRIGHT_VERSION}" install-deps ${BROWSERS} \

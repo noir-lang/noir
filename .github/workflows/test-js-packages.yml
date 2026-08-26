@@ -251,8 +251,28 @@ jobs:
       - name: Run node tests
         run: yarn workspace @noir-lang/acvm_js test
 
+  playwright-version:
+    name: Resolve Playwright version
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    outputs:
+      version: ${{ steps.playwright.outputs.version }}
+
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      # `container.image` is resolved before any step of the consuming job runs,
+      # so the version has to arrive as a job output rather than be read from
+      # yarn.lock in place.
+      - name: Resolve Playwright version
+        id: playwright
+        run: echo "version=$(./scripts/playwright_version.sh)" >> "$GITHUB_OUTPUT"
+
   test-acvm_js-browser:
-    needs: [build-acvm-js]
+    needs: [build-acvm-js, playwright-version]
     name: ACVM JS (Browser)
     runs-on: ubuntu-22.04
     # Playwright's WebKit build needs a chunk of Ubuntu system libraries that
@@ -263,10 +283,10 @@ jobs:
     # for every WebKit test). Running inside Playwright's official container
     # takes the apt round-trip out of the job entirely: the browsers and their
     # system libs are already baked into the image, so `install-deps` doesn't
-    # run and can't flake. Tag pinned to the Playwright version yarn.lock
-    # resolves so the browsers match the driver.
+    # run and can't flake. Tag tracks the Playwright version yarn.lock resolves
+    # so the browsers match the driver.
     container:
-      image: mcr.microsoft.com/playwright:v1.58.2-jammy
+      image: mcr.microsoft.com/playwright:v${{ needs.playwright-version.outputs.version }}-jammy
       options: --user root
     timeout-minutes: 30
     permissions:
