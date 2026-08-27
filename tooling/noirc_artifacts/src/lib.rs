@@ -9,7 +9,7 @@
 //! The serialized format is the compatibility boundary. This crate's Rust API is an internal
 //! implementation detail and may change between Noir releases.
 
-use serde::{Deserialize, Deserializer, Serialize, Serializer, de::Visitor};
+use serde::{Deserialize, Deserializer, Serializer, de::Visitor};
 
 pub mod contract;
 pub mod debug;
@@ -36,14 +36,6 @@ where
             "unsupported artifact schema version {version}; expected {ARTIFACT_VERSION}"
         )))
     }
-}
-
-/// Identifies which artifact schema a serialized artifact contains.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "lowercase")]
-pub enum ArtifactKind {
-    Program,
-    Contract,
 }
 
 /// Serialize `hash` as `String`, so that it doesn't get truncated in Javascript.
@@ -93,7 +85,7 @@ mod tests {
     use noirc_abi::Abi;
 
     use crate::{
-        ARTIFACT_VERSION, ArtifactKind,
+        ARTIFACT_VERSION,
         contract::{ContractArtifact, ContractOutputsArtifact},
         debug::ProgramDebugInfo,
         program::ProgramArtifact,
@@ -102,7 +94,6 @@ mod tests {
     fn program_artifact() -> ProgramArtifact {
         ProgramArtifact {
             artifact_version: ARTIFACT_VERSION,
-            artifact_kind: ArtifactKind::Program,
             noir_version: "1.0.0".to_owned(),
             hash: 0,
             abi: Abi::default(),
@@ -115,7 +106,6 @@ mod tests {
     fn contract_artifact() -> ContractArtifact {
         ContractArtifact {
             artifact_version: ARTIFACT_VERSION,
-            artifact_kind: ArtifactKind::Contract,
             noir_version: "1.0.0".to_owned(),
             name: "contract".to_owned(),
             functions: Vec::new(),
@@ -125,33 +115,27 @@ mod tests {
     }
 
     #[test]
-    fn artifact_schema_markers_are_serialized() {
+    fn artifact_schema_version_is_serialized() {
         let program = serde_json::to_value(program_artifact()).unwrap();
         assert_eq!(program["artifact_version"], ARTIFACT_VERSION);
-        assert_eq!(program["artifact_kind"], "program");
 
         let contract = serde_json::to_value(contract_artifact()).unwrap();
         assert_eq!(contract["artifact_version"], ARTIFACT_VERSION);
-        assert_eq!(contract["artifact_kind"], "contract");
     }
 
     #[test]
-    fn legacy_artifacts_default_to_version_one_and_their_expected_kind() {
+    fn legacy_artifacts_default_to_version_one() {
         let mut program = serde_json::to_value(program_artifact()).unwrap();
         let program = program.as_object_mut().unwrap();
         program.remove("artifact_version");
-        program.remove("artifact_kind");
         let program: ProgramArtifact = serde_json::from_value(program.clone().into()).unwrap();
         assert_eq!(program.artifact_version, ARTIFACT_VERSION);
-        assert_eq!(program.artifact_kind, ArtifactKind::Program);
 
         let mut contract = serde_json::to_value(contract_artifact()).unwrap();
         let contract = contract.as_object_mut().unwrap();
         contract.remove("artifact_version");
-        contract.remove("artifact_kind");
         let contract: ContractArtifact = serde_json::from_value(contract.clone().into()).unwrap();
         assert_eq!(contract.artifact_version, ARTIFACT_VERSION);
-        assert_eq!(contract.artifact_kind, ArtifactKind::Contract);
     }
 
     #[test]
@@ -161,14 +145,5 @@ mod tests {
 
         let error = serde_json::from_value::<ProgramArtifact>(artifact).unwrap_err();
         assert!(error.to_string().contains("unsupported artifact schema version"));
-    }
-
-    #[test]
-    fn wrong_artifact_kind_is_rejected() {
-        let mut artifact = serde_json::to_value(program_artifact()).unwrap();
-        artifact["artifact_kind"] = "contract".into();
-
-        let error = serde_json::from_value::<ProgramArtifact>(artifact).unwrap_err();
-        assert!(error.to_string().contains("expected a program artifact"));
     }
 }

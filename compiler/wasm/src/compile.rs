@@ -30,7 +30,6 @@ export type ContractOutputsArtifact = {
 
 export type ContractArtifact = {
     artifact_version: 1;
-    artifact_kind: 'contract';
     noir_version: string;
     name: string;
     functions: Array<any>;
@@ -40,7 +39,6 @@ export type ContractArtifact = {
 
 export type ProgramArtifact = {
     artifact_version: 1;
-    artifact_kind: 'program';
     noir_version: string;
     hash: number;
     abi: any;
