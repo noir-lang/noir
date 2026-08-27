@@ -158,7 +158,7 @@ impl Value {
 
     /// Retrieves the type of this value. Types can always be determined from the value,
     /// in cases where it would be ambiguous, Values store the type directly.
-    pub(crate) fn get_type(&self) -> Cow<Type> {
+    pub fn get_type(&self) -> Cow<Type> {
         Cow::Owned(match self {
             Value::Unit => Type::Unit,
             Value::Bool(_) => Type::Bool,
