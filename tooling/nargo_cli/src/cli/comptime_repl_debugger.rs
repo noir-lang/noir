@@ -74,7 +74,7 @@ impl ComptimeReplDebugger {
     }
 
     fn print_variables(&self, interner: &NodeInterner, files: &FileMap) {
-        let vars: Vec<_> = interner.visible_comptime_variables().collect();
+        let vars = interner.visible_comptime_variables();
         if vars.is_empty() {
             println!("  (no variables)");
             return;

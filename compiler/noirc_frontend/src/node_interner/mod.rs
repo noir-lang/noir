@@ -852,12 +852,21 @@ impl NodeInterner {
         &self.definition(id).name
     }
 
-    /// Returns an iterator over all variables visible in the current comptime scope.
-    /// Each item is a `(DefinitionId, &Value)` pair.
-    pub fn visible_comptime_variables(
-        &self,
-    ) -> impl Iterator<Item = (&DefinitionId, &comptime::Value)> {
-        self.comptime_scopes[self.comptime_scope_floor..].iter().flat_map(|scope| scope.iter())
+    /// Returns variables visible in the current comptime scope, with shadowed
+    /// names filtered out (only the innermost binding for each name is returned).
+    pub fn visible_comptime_variables(&self) -> Vec<(&DefinitionId, &comptime::Value)> {
+        let mut seen_names = std::collections::HashSet::new();
+        let mut result = Vec::new();
+        // Iterate scopes innermost-first so the most recent binding wins.
+        for scope in self.comptime_scopes[self.comptime_scope_floor..].iter().rev() {
+            for (id, value) in scope {
+                let name = &self.definition(*id).name;
+                if seen_names.insert(name.clone()) {
+                    result.push((id, value));
+                }
+            }
+        }
+        result
     }
 
     pub fn expr_span(&self, expr_id: &ExprId) -> Span {
