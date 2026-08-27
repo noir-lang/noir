@@ -44,10 +44,6 @@ impl<'a, R: Read, W: Write> ComptimeDapDebugger<'a, R, W> {
         Self { server, stepping_mode, stop_depth: 0, breakpoints, first_stop: true, running: true }
     }
 
-    pub(crate) fn is_running(&self) -> bool {
-        self.running
-    }
-
     fn should_stop(&self, file: FileId, line: usize, call_depth: usize) -> bool {
         match self.stepping_mode {
             SteppingMode::StepIn => true,
