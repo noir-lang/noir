@@ -242,6 +242,8 @@ pub struct Elaborator<'context> {
     pub(crate) files: &'context FileMap,
     pub(crate) interpreter_output: &'context Option<Rc<RefCell<dyn std::io::Write>>>,
     pub(crate) evaluation_tracker: Option<&'context mut EvaluationTracker>,
+    pub(crate) comptime_debugger:
+        Option<Box<dyn crate::hir::comptime::ComptimeDebugger + 'context>>,
 
     required_unstable_features: &'context BTreeMap<CrateId, Vec<UnstableFeature>>,
 
@@ -494,6 +496,7 @@ impl<'context> Elaborator<'context> {
             files,
             interpreter_output,
             evaluation_tracker,
+            comptime_debugger: None,
             required_unstable_features,
             unresolved_globals,
             unsafe_block_status: UnsafeBlockStatus::NotInUnsafeBlock,

@@ -852,6 +852,14 @@ impl NodeInterner {
         &self.definition(id).name
     }
 
+    /// Returns an iterator over all variables visible in the current comptime scope.
+    /// Each item is a `(DefinitionId, &Value)` pair.
+    pub fn visible_comptime_variables(
+        &self,
+    ) -> impl Iterator<Item = (&DefinitionId, &comptime::Value)> {
+        self.comptime_scopes[self.comptime_scope_floor..].iter().flat_map(|scope| scope.iter())
+    }
+
     pub fn expr_span(&self, expr_id: &ExprId) -> Span {
         self.id_location(expr_id).span
     }

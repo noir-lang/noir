@@ -1412,6 +1412,17 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             return Err(InterpreterError::SkippedDueToEarlierErrors);
         }
 
+        if let Some(mut debugger) = self.elaborator.comptime_debugger.take() {
+            let location = self.elaborator.interner.id_location(statement);
+            debugger.on_statement(
+                location,
+                self.elaborator.interner,
+                self.elaborator.files,
+                self.elaborator.interpreter_call_stack(),
+            );
+            self.elaborator.comptime_debugger = Some(debugger);
+        }
+
         match self.elaborator.interner.statement(&statement) {
             HirStatement::Let(let_) => self.evaluate_let(let_),
             HirStatement::Assign(assign) => self.evaluate_assign(assign),
@@ -2004,6 +2015,26 @@ impl Context<'_, '_> {
         main_id: FuncId,
         args: Vec<(Value, Location)>,
     ) -> IResult<Value> {
+        self.interpret_function_inner(main_id, args, None)
+    }
+
+    /// Like `interpret_function`, but with a debugger attached that receives callbacks
+    /// at each statement boundary.
+    pub fn interpret_function_with_debugger<'a>(
+        &'a mut self,
+        main_id: FuncId,
+        args: Vec<(Value, Location)>,
+        debugger: Box<dyn super::ComptimeDebugger + 'a>,
+    ) -> IResult<Value> {
+        self.interpret_function_inner(main_id, args, Some(debugger))
+    }
+
+    fn interpret_function_inner<'a>(
+        &'a mut self,
+        main_id: FuncId,
+        args: Vec<(Value, Location)>,
+        debugger: Option<Box<dyn super::ComptimeDebugger + 'a>>,
+    ) -> IResult<Value> {
         let func_meta = self.def_interner.function_meta(&main_id);
         let crate_id = func_meta.source_crate;
         let local_id = func_meta.source_module;
@@ -2019,6 +2050,7 @@ impl Context<'_, '_> {
         let module_id = ModuleId { krate: crate_id, local_id };
 
         let mut elaborator = Elaborator::from_context(self, crate_id, cli_options);
+        elaborator.comptime_debugger = debugger;
         elaborator.setup_interpreter_for(module_id, |interpreter| {
             let instantiation_bindings = TypeBindings::default();
             interpreter.call_function(main_id, args, instantiation_bindings, location)
