@@ -6,7 +6,7 @@ use dap::prelude::Event;
 use dap::requests::Command;
 use dap::responses::{
     ResponseBody, ScopesResponse, SetBreakpointsResponse, SetExceptionBreakpointsResponse,
-    StackTraceResponse, ThreadsResponse, VariablesResponse,
+    SourceResponse, StackTraceResponse, ThreadsResponse, VariablesResponse,
 };
 use dap::server::Server;
 use dap::types::{Breakpoint, Scope, Source, StackFrame, StoppedEventReason, Thread, Variable};
@@ -132,100 +132,109 @@ impl<'a, R: Read, W: Write> ComptimeDapDebugger<'a, R, W> {
                 }
             };
 
-            let result = match req.command {
-                Command::Threads => {
-                    self.server.respond(req.success(ResponseBody::Threads(ThreadsResponse {
-                        threads: vec![Thread { id: 0, name: "main".to_string() }],
-                    })))
-                }
-                Command::StackTrace(_) => {
-                    let frames = self.build_stack_frames(
-                        location,
-                        interner,
-                        files,
-                        call_stack,
-                        current_function,
-                        call_stack_functions,
-                    );
-                    let total = frames.len() as i64;
-                    self.server.respond(req.success(ResponseBody::StackTrace(StackTraceResponse {
-                        stack_frames: frames,
-                        total_frames: Some(total),
-                    })))
-                }
-                Command::Scopes(_) => {
-                    self.server.respond(req.success(ResponseBody::Scopes(ScopesResponse {
-                        scopes: vec![Scope {
-                            name: "Locals".to_string(),
-                            variables_reference: LOCALS_SCOPE_REFERENCE,
-                            ..Scope::default()
-                        }],
-                    })))
-                }
-                Command::Variables(ref args) => {
-                    let variables = if args.variables_reference == LOCALS_SCOPE_REFERENCE {
-                        self.build_variables(interner, files)
-                    } else {
-                        vec![]
-                    };
-                    self.server.respond(
-                        req.success(ResponseBody::Variables(VariablesResponse { variables })),
-                    )
-                }
-                Command::SetBreakpoints(ref args) => {
-                    let breakpoints = self.handle_set_breakpoints(args, files);
-                    self.server.respond(req.success(ResponseBody::SetBreakpoints(
-                        SetBreakpointsResponse { breakpoints },
-                    )))
-                }
-                Command::Continue(_) => {
-                    self.stepping_mode = SteppingMode::Continue;
-                    self.last_stopped = None;
-                    self.respond_and_break(req);
-                    break;
-                }
-                Command::StepIn(_) => {
-                    self.stepping_mode = SteppingMode::StepIn;
-                    self.last_stopped = None;
-                    self.respond_and_break(req);
-                    break;
-                }
-                Command::Next(_) => {
-                    self.stepping_mode = SteppingMode::StepOver;
-                    self.stop_depth = call_stack.len();
-                    self.last_stopped = None;
-                    self.respond_and_break(req);
-                    break;
-                }
-                Command::StepOut(_) => {
-                    self.stepping_mode = SteppingMode::StepOut;
-                    self.stop_depth = call_stack.len();
-                    self.last_stopped = None;
-                    self.respond_and_break(req);
-                    break;
-                }
-                Command::SetExceptionBreakpoints(_) => {
-                    self.server.respond(req.success(ResponseBody::SetExceptionBreakpoints(
-                        SetExceptionBreakpointsResponse { breakpoints: None },
-                    )))
-                }
-                Command::ConfigurationDone => match req.ack() {
-                    Ok(resp) => self.server.respond(resp),
-                    Err(e) => {
-                        eprintln!("DAP error: {e}");
-                        Ok(())
+            let result =
+                match req.command {
+                    Command::Threads => {
+                        self.server.respond(req.success(ResponseBody::Threads(ThreadsResponse {
+                            threads: vec![Thread { id: 0, name: "main".to_string() }],
+                        })))
                     }
-                },
-                Command::Disconnect(_) => {
-                    let _ = req.ack().map(|r| self.server.respond(r));
-                    self.running = false;
-                    break;
-                }
-                _ => {
-                    eprintln!("Unhandled DAP command in sub-loop: {:?}", req.command);
-                    self.server.respond(req.error("Not supported"))
-                }
-            };
+                    Command::StackTrace(_) => {
+                        let frames = self.build_stack_frames(
+                            location,
+                            interner,
+                            files,
+                            call_stack,
+                            current_function,
+                            call_stack_functions,
+                        );
+                        let total = frames.len() as i64;
+                        self.server.respond(req.success(ResponseBody::StackTrace(
+                            StackTraceResponse { stack_frames: frames, total_frames: Some(total) },
+                        )))
+                    }
+                    Command::Scopes(_) => {
+                        self.server.respond(req.success(ResponseBody::Scopes(ScopesResponse {
+                            scopes: vec![Scope {
+                                name: "Locals".to_string(),
+                                variables_reference: LOCALS_SCOPE_REFERENCE,
+                                ..Scope::default()
+                            }],
+                        })))
+                    }
+                    Command::Variables(ref args) => {
+                        let variables = if args.variables_reference == LOCALS_SCOPE_REFERENCE {
+                            self.build_variables(interner, files)
+                        } else {
+                            vec![]
+                        };
+                        self.server.respond(
+                            req.success(ResponseBody::Variables(VariablesResponse { variables })),
+                        )
+                    }
+                    Command::SetBreakpoints(ref args) => {
+                        let breakpoints = self.handle_set_breakpoints(args, files);
+                        self.server.respond(req.success(ResponseBody::SetBreakpoints(
+                            SetBreakpointsResponse { breakpoints },
+                        )))
+                    }
+                    Command::Source(ref args) => {
+                        let file_id = FileId::new(args.source_reference as usize);
+                        let content =
+                            files.source(file_id).map(|s| s.to_string()).unwrap_or_default();
+                        self.server.respond(req.success(ResponseBody::Source(SourceResponse {
+                            content,
+                            mime_type: None,
+                        })))
+                    }
+                    Command::Continue(_) => {
+                        self.stepping_mode = SteppingMode::Continue;
+                        self.last_stopped = None;
+                        self.respond_and_break(req);
+                        break;
+                    }
+                    Command::StepIn(_) => {
+                        self.stepping_mode = SteppingMode::StepIn;
+                        self.last_stopped = None;
+                        self.respond_and_break(req);
+                        break;
+                    }
+                    Command::Next(_) => {
+                        self.stepping_mode = SteppingMode::StepOver;
+                        self.stop_depth = call_stack.len();
+                        self.last_stopped = None;
+                        self.respond_and_break(req);
+                        break;
+                    }
+                    Command::StepOut(_) => {
+                        self.stepping_mode = SteppingMode::StepOut;
+                        self.stop_depth = call_stack.len();
+                        self.last_stopped = None;
+                        self.respond_and_break(req);
+                        break;
+                    }
+                    Command::SetExceptionBreakpoints(_) => {
+                        self.server.respond(req.success(ResponseBody::SetExceptionBreakpoints(
+                            SetExceptionBreakpointsResponse { breakpoints: None },
+                        )))
+                    }
+                    Command::ConfigurationDone => match req.ack() {
+                        Ok(resp) => self.server.respond(resp),
+                        Err(e) => {
+                            eprintln!("DAP error: {e}");
+                            Ok(())
+                        }
+                    },
+                    Command::Disconnect(_) => {
+                        let _ = req.ack().map(|r| self.server.respond(r));
+                        self.running = false;
+                        break;
+                    }
+                    _ => {
+                        eprintln!("Unhandled DAP command in sub-loop: {:?}", req.command);
+                        self.server.respond(req.error("Not supported"))
+                    }
+                };
 
             if let Err(e) = result {
                 eprintln!("DAP error: {e}");
@@ -381,10 +390,20 @@ impl<R: Read, W: Write> ComptimeDebugger for ComptimeDapDebugger<'_, R, W> {
 
 fn location_to_stack_frame(id: i64, name: &str, location: Location, files: &FileMap) -> StackFrame {
     let (line, column) = location_to_line_column(files, location).unwrap_or((1, 1));
-    let source = files
-        .get_absolute_name(location.file)
-        .ok()
-        .map(|name| Source { path: Some(name.to_string()), ..Source::default() });
+    let source = files.get_absolute_name(location.file).ok().map(|file_name| {
+        let path_buf = file_name.clone().into_path_buf();
+        if path_buf.is_absolute() {
+            Source { path: Some(file_name.to_string()), ..Source::default() }
+        } else {
+            // Stdlib and other embedded files don't exist on disk.
+            // Set source_reference so VS Code fetches content via the Source request.
+            Source {
+                name: Some(file_name.to_string()),
+                source_reference: Some(location.file.as_usize() as i32),
+                ..Source::default()
+            }
+        }
+    });
 
     StackFrame {
         id,
