@@ -1,10 +1,15 @@
+use std::collections::{HashMap, HashSet};
+use std::io::{BufRead, BufReader, BufWriter, Read, Write};
+use std::path::Path;
+
 use clap::Args;
 use dap::errors::ServerError;
 use dap::events::OutputEventBody;
+use dap::prelude::Event;
 use dap::requests::Command;
-use dap::responses::ResponseBody;
+use dap::responses::{ResponseBody, SetBreakpointsResponse, ThreadsResponse};
 use dap::server::Server;
-use dap::types::{Capabilities, OutputEventCategory};
+use dap::types::{Breakpoint, Capabilities, OutputEventCategory, Thread};
 use nargo::constants::PROVER_INPUT_FILE;
 use nargo::ops::debug::{
     TestDefinition, compile_bin_package_for_debugging, compile_options_for_debugging,
@@ -22,11 +27,10 @@ use noirc_artifacts::debug::DebugInfo;
 use noirc_artifacts::program::CompiledProgram;
 use noirc_driver::{CompileOptions, NOIR_ARTIFACT_VERSION_STRING};
 use noirc_frontend::graph::CrateName;
-use std::io::{BufRead, BufReader, BufWriter, Read, Write};
-use std::path::Path;
-
 use serde_json::Value;
 
+use crate::cli::comptime_debugger::{ComptimeDapDebugger, SteppingMode, find_file_id};
+use crate::cli::execute_cmd::interpret::input_values_to_comptime_values;
 use crate::errors::CliError;
 
 /// Command variants (with camelCase renaming) that are unit types and take no arguments.
@@ -190,30 +194,58 @@ fn loop_uninitialized_dap<R: Read, W: Write>(mut server: Server<R, W>) -> Result
                     continue;
                 };
 
-                let project_folder = project_folder.as_str();
-                let package = additional_data.get("package").and_then(|v| v.as_str());
+                // Clone all values from launch arguments into owned Strings
+                // so we can release the borrow on `req` for `ack()`.
+                let project_folder = project_folder.clone();
+                let package: Option<String> =
+                    additional_data.get("package").and_then(|v| v.as_str()).map(String::from);
                 let prover_name = additional_data
                     .get("proverName")
                     .and_then(|v| v.as_str())
-                    .unwrap_or(PROVER_INPUT_FILE);
-
+                    .unwrap_or(PROVER_INPUT_FILE)
+                    .to_string();
+                let test_name =
+                    additional_data.get("testName").and_then(|v| v.as_str()).map(String::from);
+                let debug_mode = additional_data
+                    .get("debugMode")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("comptime")
+                    .to_string();
                 let generate_acir =
                     additional_data.get("generateAcir").and_then(|v| v.as_bool()).unwrap_or(false);
                 let skip_instrumentation = additional_data
                     .get("skipInstrumentation")
                     .and_then(|v| v.as_bool())
                     .unwrap_or(generate_acir);
-                let test_name =
-                    additional_data.get("testName").and_then(|v| v.as_str()).map(String::from);
                 let oracle_resolver_url = additional_data
                     .get("oracleResolver")
                     .and_then(|v| v.as_str())
                     .map(String::from);
 
                 eprintln!("Project folder: {project_folder}");
-                eprintln!("Package: {}", package.unwrap_or("(default)"));
+                eprintln!("Package: {}", package.as_deref().unwrap_or("(default)"));
                 eprintln!("Prover name: {prover_name}");
+                eprintln!("Debug mode: {debug_mode}");
 
+                server.respond(req.ack()?)?;
+
+                if debug_mode == "comptime" {
+                    match run_comptime_dap_loop(
+                        &mut server,
+                        &project_folder,
+                        package.as_deref(),
+                        &prover_name,
+                        test_name,
+                    ) {
+                        Ok(()) => {}
+                        Err(e) => {
+                            eprintln!("Comptime debugger error: {e}");
+                        }
+                    }
+                    break;
+                }
+
+                // Legacy ACIR/Brillig debug mode
                 let compile_options = compile_options_for_debugging(
                     generate_acir,
                     skip_instrumentation,
@@ -221,14 +253,13 @@ fn loop_uninitialized_dap<R: Read, W: Write>(mut server: Server<R, W>) -> Result
                 );
 
                 match load_and_compile_project(
-                    project_folder,
-                    package,
-                    prover_name,
+                    &project_folder,
+                    package.as_deref(),
+                    &prover_name,
                     compile_options,
                     test_name,
                 ) {
                     Ok((project, test)) => {
-                        server.respond(req.ack()?)?;
                         let abi = project.compiled_program.abi.clone();
                         let debug = project.compiled_program.debug.clone();
 
@@ -244,7 +275,9 @@ fn loop_uninitialized_dap<R: Read, W: Write>(mut server: Server<R, W>) -> Result
                         break;
                     }
                     Err(LoadError::Generic(message)) => {
-                        server.respond(req.error(message.as_str()))?;
+                        eprintln!("Load error: {message}");
+                        server.send_event(Event::Terminated(None))?;
+                        break;
                     }
                 }
             }
@@ -260,6 +293,135 @@ fn loop_uninitialized_dap<R: Read, W: Write>(mut server: Server<R, W>) -> Result
             }
         }
     }
+    Ok(())
+}
+
+fn run_comptime_dap_loop<R: Read, W: Write>(
+    server: &mut Server<R, W>,
+    project_folder: &str,
+    package_name: Option<&str>,
+    prover_name: &str,
+    test_name: Option<String>,
+) -> Result<(), DapError> {
+    // Set up workspace and package
+    let workspace = find_workspace(project_folder, package_name).ok_or_else(|| {
+        DapError::LoadError(LoadError::Generic(workspace_not_found_error_msg(
+            project_folder,
+            package_name,
+        )))
+    })?;
+    let package =
+        workspace.into_iter().find(|p| p.is_binary() || p.is_contract()).ok_or_else(|| {
+            DapError::LoadError(LoadError::Generic(
+                "No matching binary or contract packages found in workspace".into(),
+            ))
+        })?;
+
+    // Prepare and type-check (no ACIR/Brillig compilation needed)
+    let (file_manager, parsed_files) = load_workspace_files(&workspace);
+    let (mut context, crate_id) = nargo::prepare_package(&file_manager, &parsed_files, package);
+    context.package_build_path = workspace.package_build_path(package);
+
+    let compile_options = CompileOptions::default();
+    check_crate_and_report_errors(&mut context, crate_id, &compile_options)
+        .map_err(|_| DapError::LoadError(LoadError::Generic("Failed to compile project".into())))?;
+
+    // Find function to debug and prepare arguments
+    let (func_id, func_args) = if let Some(test_name) = test_name {
+        let test = get_test_function_for_debug(crate_id, &context, &test_name)
+            .map_err(|e| DapError::LoadError(LoadError::Generic(e)))?;
+        (test.function.id, vec![])
+    } else {
+        let main_id = context.get_main_function(&crate_id).ok_or_else(|| {
+            DapError::LoadError(LoadError::Generic("Could not find main function".into()))
+        })?;
+
+        let func_meta = context.def_interner.function_meta(&main_id);
+        let error_types = std::collections::BTreeMap::default();
+        let abi =
+            noirc_driver::gen_abi(&context, &main_id, func_meta.return_visibility, error_types);
+        let (prover_input, _) =
+            read_inputs_from_file(&package.root_dir.join(prover_name).with_extension("toml"), &abi)
+                .map_err(|e| {
+                    DapError::LoadError(LoadError::Generic(format!(
+                        "Failed to read inputs from {prover_name}: {e}"
+                    )))
+                })?;
+
+        let func_args =
+            input_values_to_comptime_values(&prover_input, func_meta, &context.def_interner);
+        (main_id, func_args)
+    };
+
+    // Phase 1: DAP initialization handshake
+    server.send_event(Event::Initialized)?;
+
+    // Phase 2: Collect initial breakpoints before starting the interpreter
+    let files = context.file_manager.as_file_map();
+    let mut breakpoints: HashMap<fm::FileId, HashSet<usize>> = HashMap::new();
+    loop {
+        let Some(req) = server.poll_request()? else {
+            return Ok(());
+        };
+        match req.command {
+            Command::SetBreakpoints(ref args) => {
+                let source_path = args.source.path.as_deref().unwrap_or("");
+                let file_id = find_file_id(files, source_path);
+
+                let response_bps = if let Some(requested) = &args.breakpoints {
+                    if let Some(fid) = file_id {
+                        let lines: HashSet<usize> =
+                            requested.iter().map(|bp| bp.line as usize).collect();
+                        breakpoints.insert(fid, lines);
+                    }
+                    requested
+                        .iter()
+                        .map(|bp| Breakpoint {
+                            verified: file_id.is_some(),
+                            line: Some(bp.line),
+                            ..Breakpoint::default()
+                        })
+                        .collect()
+                } else {
+                    if let Some(fid) = file_id {
+                        breakpoints.remove(&fid);
+                    }
+                    vec![]
+                };
+                server.respond(req.success(ResponseBody::SetBreakpoints(
+                    SetBreakpointsResponse { breakpoints: response_bps },
+                )))?;
+            }
+            Command::Threads => {
+                server.respond(req.success(ResponseBody::Threads(ThreadsResponse {
+                    threads: vec![Thread { id: 0, name: "main".to_string() }],
+                })))?;
+            }
+            Command::ConfigurationDone => {
+                server.respond(req.ack()?)?;
+                break;
+            }
+            _ => {
+                server.respond(req.ack()?)?;
+            }
+        }
+    }
+
+    // Phase 3: Run interpreter with debugger
+    {
+        let debugger = ComptimeDapDebugger::new(server, breakpoints, SteppingMode::StepIn);
+
+        let result =
+            context.interpret_function_with_debugger(func_id, func_args, Box::new(debugger));
+
+        if let Err(err) = result {
+            eprintln!("Interpreter error: {err:?}");
+        }
+    }
+
+    // Phase 4: Terminate
+    server.send_event(Event::Terminated(None))?;
+
     Ok(())
 }
 
@@ -297,7 +459,7 @@ fn analyze_test_result<R: Read, W: Write>(
         TestStatus::Skipped => "* Test skipped".into(),
     };
 
-    server.send_event(dap::events::Event::Output(OutputEventBody {
+    server.send_event(Event::Output(OutputEventBody {
         category: Some(OutputEventCategory::Console),
         output: test_result_message,
         ..OutputEventBody::default()

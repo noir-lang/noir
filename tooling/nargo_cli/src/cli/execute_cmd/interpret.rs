@@ -121,7 +121,7 @@ fn run_package_comptime(
     }
 }
 
-fn input_values_to_comptime_values(
+pub(crate) fn input_values_to_comptime_values(
     prover_input: &InputMap,
     func_meta: &FuncMeta,
     interner: &NodeInterner,
@@ -145,7 +145,11 @@ fn input_values_to_comptime_values(
     })
 }
 
-fn input_value_to_comptime_value(input: &InputValue, typ: &Type, location: Location) -> Value {
+pub(crate) fn input_value_to_comptime_value(
+    input: &InputValue,
+    typ: &Type,
+    location: Location,
+) -> Value {
     match typ {
         Type::Unit => Value::Unit,
         Type::Bool => {
