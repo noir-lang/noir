@@ -22,6 +22,7 @@ mod add_cmd;
 mod check_cmd;
 pub mod compile_cmd;
 mod comptime_debugger;
+mod comptime_repl_debugger;
 mod dap_cmd;
 mod debug_cmd;
 mod doc_cmd;
