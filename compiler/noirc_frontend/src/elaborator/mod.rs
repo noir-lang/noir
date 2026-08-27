@@ -328,6 +328,10 @@ pub struct Elaborator<'context> {
 
     interpreter_call_stack: imbl::Vector<Location>,
 
+    /// Parallel to `interpreter_call_stack`: stores the FuncId of the calling function
+    /// at each call site, used by the debugger for stack frame names.
+    interpreter_call_stack_functions: imbl::Vector<Option<FuncId>>,
+
     /// If greater than 0, field visibility errors won't be reported.
     /// This is used when elaborating a comptime expression that is a struct constructor
     /// like `Foo { inner: 5 }`: in that case we already elaborated the code that led to
@@ -514,6 +518,7 @@ impl<'context> Elaborator<'context> {
             current_impl: None,
             current_trait: None,
             interpreter_call_stack,
+            interpreter_call_stack_functions: imbl::Vector::new(),
             in_comptime_context: false,
             in_unconstrained_args: false,
             silence_field_visibility_errors: 0,
@@ -1301,6 +1306,7 @@ impl<'context> Elaborator<'context> {
     pub(crate) fn push_interpreter_call_stack(
         &mut self,
         location: Location,
+        caller_function: Option<FuncId>,
     ) -> Result<(), InterpreterError> {
         if self.interpreter_call_stack.len() >= MAX_INTERPRETER_CALL_STACK_SIZE {
             return Err(InterpreterError::StackOverflow {
@@ -1309,6 +1315,7 @@ impl<'context> Elaborator<'context> {
             });
         }
         self.interpreter_call_stack.push_back(location);
+        self.interpreter_call_stack_functions.push_back(caller_function);
         Ok(())
     }
 
@@ -1320,12 +1327,20 @@ impl<'context> Elaborator<'context> {
         self.interpreter_call_stack
             .pop_back()
             .expect("call stack pushes and pops should be balanced");
+        self.interpreter_call_stack_functions
+            .pop_back()
+            .expect("call stack pushes and pops should be balanced");
     }
 
     /// The current interpreter call stack.
     #[tracing::instrument(level = "trace", skip_all)]
     pub(crate) fn interpreter_call_stack(&self) -> &imbl::Vector<Location> {
         &self.interpreter_call_stack
+    }
+
+    /// The function IDs corresponding to each call stack entry (the calling function).
+    pub(crate) fn interpreter_call_stack_functions(&self) -> &imbl::Vector<Option<FuncId>> {
+        &self.interpreter_call_stack_functions
     }
 
     #[tracing::instrument(level = "trace", skip_all)]

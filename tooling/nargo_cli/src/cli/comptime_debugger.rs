@@ -15,7 +15,7 @@ use fm::{FileId, FileMap};
 use imbl::Vector;
 use noirc_errors::Location;
 use noirc_frontend::hir::comptime::ComptimeDebugger;
-use noirc_frontend::node_interner::NodeInterner;
+use noirc_frontend::node_interner::{FuncId, NodeInterner};
 
 const LOCALS_SCOPE_REFERENCE: i64 = 1;
 
@@ -72,6 +72,8 @@ impl<'a, R: Read, W: Write> ComptimeDapDebugger<'a, R, W> {
         interner: &NodeInterner,
         files: &FileMap,
         call_stack: &Vector<Location>,
+        current_function: Option<FuncId>,
+        call_stack_functions: &Vector<Option<FuncId>>,
         is_breakpoint: bool,
     ) {
         let reason = if self.first_stop {
@@ -97,7 +99,14 @@ impl<'a, R: Read, W: Write> ComptimeDapDebugger<'a, R, W> {
             return;
         }
 
-        self.dap_sub_loop(location, interner, files, call_stack);
+        self.dap_sub_loop(
+            location,
+            interner,
+            files,
+            call_stack,
+            current_function,
+            call_stack_functions,
+        );
     }
 
     fn dap_sub_loop(
@@ -106,6 +115,8 @@ impl<'a, R: Read, W: Write> ComptimeDapDebugger<'a, R, W> {
         interner: &NodeInterner,
         files: &FileMap,
         call_stack: &Vector<Location>,
+        current_function: Option<FuncId>,
+        call_stack_functions: &Vector<Option<FuncId>>,
     ) {
         loop {
             let req = match self.server.poll_request() {
@@ -128,7 +139,14 @@ impl<'a, R: Read, W: Write> ComptimeDapDebugger<'a, R, W> {
                     })))
                 }
                 Command::StackTrace(_) => {
-                    let frames = self.build_stack_frames(location, files, call_stack);
+                    let frames = self.build_stack_frames(
+                        location,
+                        interner,
+                        files,
+                        call_stack,
+                        current_function,
+                        call_stack_functions,
+                    );
                     let total = frames.len() as i64;
                     self.server.respond(req.success(ResponseBody::StackTrace(StackTraceResponse {
                         stack_frames: frames,
@@ -223,17 +241,25 @@ impl<'a, R: Read, W: Write> ComptimeDapDebugger<'a, R, W> {
     fn build_stack_frames(
         &self,
         current_location: Location,
+        interner: &NodeInterner,
         files: &FileMap,
         call_stack: &Vector<Location>,
+        current_function: Option<FuncId>,
+        call_stack_functions: &Vector<Option<FuncId>>,
     ) -> Vec<StackFrame> {
         let mut frames = Vec::new();
 
-        // Top frame: current statement location
-        frames.push(location_to_stack_frame(0, "main", current_location, files));
+        // Top frame: current function
+        let current_name = function_name(interner, current_function);
+        frames.push(location_to_stack_frame(0, &current_name, current_location, files));
 
-        // Upper frames from the call stack (most recent call site first)
-        for (i, &loc) in call_stack.iter().rev().enumerate() {
-            let name = format!("frame #{}", i + 1);
+        // Upper frames from the call stack (most recent call site first).
+        // call_stack_functions is parallel to call_stack: each entry is the
+        // FuncId of the function that *contains* the corresponding call site.
+        for (i, (&loc, &func_id)) in
+            call_stack.iter().rev().zip(call_stack_functions.iter().rev()).enumerate()
+        {
+            let name = function_name(interner, func_id);
             frames.push(location_to_stack_frame((i + 1) as i64, &name, loc, files));
         }
 
@@ -305,6 +331,8 @@ impl<R: Read, W: Write> ComptimeDebugger for ComptimeDapDebugger<'_, R, W> {
         interner: &NodeInterner,
         files: &FileMap,
         call_stack: &Vector<Location>,
+        current_function: Option<FuncId>,
+        call_stack_functions: &Vector<Option<FuncId>>,
     ) {
         if !self.running {
             return;
@@ -326,7 +354,15 @@ impl<R: Read, W: Write> ComptimeDebugger for ComptimeDapDebugger<'_, R, W> {
             }
 
             self.last_stopped = Some((location.file, line));
-            self.handle_stopped(location, interner, files, call_stack, is_breakpoint);
+            self.handle_stopped(
+                location,
+                interner,
+                files,
+                call_stack,
+                current_function,
+                call_stack_functions,
+                is_breakpoint,
+            );
         }
     }
 }
@@ -353,6 +389,13 @@ fn location_to_line_column(files: &FileMap, location: Location) -> Option<(usize
     let line_range = files.line_range(location.file, line).ok()?;
     let column = location.span.start() as usize - line_range.start + 1;
     Some((line + 1, column)) // Convert to 1-based
+}
+
+fn function_name(interner: &NodeInterner, func_id: Option<FuncId>) -> String {
+    match func_id {
+        Some(id) => interner.function_name(&id).to_string(),
+        None => "<global>".to_string(),
+    }
 }
 
 pub(crate) fn find_file_id(files: &FileMap, path: &str) -> Option<FileId> {

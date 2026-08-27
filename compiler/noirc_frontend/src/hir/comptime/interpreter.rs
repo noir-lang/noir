@@ -170,7 +170,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
 
         resolve_type_bindings(&mut instantiation_bindings);
 
-        self.elaborator.push_interpreter_call_stack(location)?;
+        self.elaborator.push_interpreter_call_stack(location, self.current_function)?;
 
         self.unbind_generics_from_previous_function();
         perform_instantiation_bindings(&instantiation_bindings);
@@ -365,7 +365,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         arguments: Vec<(Value, Location)>,
         call_location: Location,
     ) -> IResult<Value> {
-        self.elaborator.push_interpreter_call_stack(call_location)?;
+        self.elaborator.push_interpreter_call_stack(call_location, self.current_function)?;
 
         // Set the closure's scope to that of the function it was originally evaluated in
         let old_module = self.elaborator.replace_module(closure.module_scope);
@@ -1414,11 +1414,14 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
 
         if let Some(mut debugger) = self.elaborator.comptime_debugger.take() {
             let location = self.elaborator.interner.id_location(statement);
+            let current_function = self.current_function;
             debugger.on_statement(
                 location,
                 self.elaborator.interner,
                 self.elaborator.files,
                 self.elaborator.interpreter_call_stack(),
+                current_function,
+                self.elaborator.interpreter_call_stack_functions(),
             );
             self.elaborator.comptime_debugger = Some(debugger);
         }
