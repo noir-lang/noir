@@ -53,6 +53,10 @@ impl FileId {
         self.0
     }
 
+    pub const fn new(id: usize) -> FileId {
+        FileId(id)
+    }
+
     pub const fn dummy() -> FileId {
         FileId(0)
     }
