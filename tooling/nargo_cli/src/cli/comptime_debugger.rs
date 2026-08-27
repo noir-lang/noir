@@ -5,8 +5,8 @@ use dap::events::StoppedEventBody;
 use dap::prelude::Event;
 use dap::requests::Command;
 use dap::responses::{
-    ResponseBody, ScopesResponse, SetBreakpointsResponse, StackTraceResponse, ThreadsResponse,
-    VariablesResponse,
+    ResponseBody, ScopesResponse, SetBreakpointsResponse, SetExceptionBreakpointsResponse,
+    StackTraceResponse, ThreadsResponse, VariablesResponse,
 };
 use dap::server::Server;
 use dap::types::{Breakpoint, Scope, Source, StackFrame, StoppedEventReason, Thread, Variable};
@@ -204,6 +204,18 @@ impl<'a, R: Read, W: Write> ComptimeDapDebugger<'a, R, W> {
                     self.respond_and_break(req);
                     break;
                 }
+                Command::SetExceptionBreakpoints(_) => {
+                    self.server.respond(req.success(ResponseBody::SetExceptionBreakpoints(
+                        SetExceptionBreakpointsResponse { breakpoints: None },
+                    )))
+                }
+                Command::ConfigurationDone => match req.ack() {
+                    Ok(resp) => self.server.respond(resp),
+                    Err(e) => {
+                        eprintln!("DAP error: {e}");
+                        Ok(())
+                    }
+                },
                 Command::Disconnect(_) => {
                     let _ = req.ack().map(|r| self.server.respond(r));
                     self.running = false;
@@ -211,7 +223,7 @@ impl<'a, R: Read, W: Write> ComptimeDapDebugger<'a, R, W> {
                 }
                 _ => {
                     eprintln!("Unhandled DAP command in sub-loop: {:?}", req.command);
-                    req.ack().and_then(|r| self.server.respond(r))
+                    self.server.respond(req.error("Not supported"))
                 }
             };
 

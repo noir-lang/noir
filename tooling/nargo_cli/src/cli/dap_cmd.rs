@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::io::{BufRead, BufReader, BufWriter, Read, Write};
 use std::path::Path;
 
@@ -7,9 +7,9 @@ use dap::errors::ServerError;
 use dap::events::OutputEventBody;
 use dap::prelude::Event;
 use dap::requests::Command;
-use dap::responses::{ResponseBody, SetBreakpointsResponse, ThreadsResponse};
+use dap::responses::ResponseBody;
 use dap::server::Server;
-use dap::types::{Breakpoint, Capabilities, OutputEventCategory, Thread};
+use dap::types::{Capabilities, OutputEventCategory};
 use nargo::constants::PROVER_INPUT_FILE;
 use nargo::ops::debug::{
     TestDefinition, compile_bin_package_for_debugging, compile_options_for_debugging,
@@ -29,7 +29,7 @@ use noirc_driver::{CompileOptions, NOIR_ARTIFACT_VERSION_STRING};
 use noirc_frontend::graph::CrateName;
 use serde_json::Value;
 
-use crate::cli::comptime_debugger::{ComptimeDapDebugger, SteppingMode, find_file_id};
+use crate::cli::comptime_debugger::{ComptimeDapDebugger, SteppingMode};
 use crate::cli::execute_cmd::interpret::input_values_to_comptime_values;
 use crate::errors::CliError;
 
@@ -382,59 +382,11 @@ fn run_comptime_dap_loop_inner<R: Read, W: Write>(
         (main_id, func_args)
     };
 
-    // Collect initial breakpoints before starting the interpreter
-    let files = context.file_manager.as_file_map();
-    let mut breakpoints: HashMap<fm::FileId, HashSet<usize>> = HashMap::new();
-    loop {
-        let Some(req) = server.poll_request()? else {
-            return Ok(());
-        };
-        match req.command {
-            Command::SetBreakpoints(ref args) => {
-                let source_path = args.source.path.as_deref().unwrap_or("");
-                let file_id = find_file_id(files, source_path);
-
-                let response_bps = if let Some(requested) = &args.breakpoints {
-                    if let Some(fid) = file_id {
-                        let lines: HashSet<usize> =
-                            requested.iter().map(|bp| bp.line as usize).collect();
-                        breakpoints.insert(fid, lines);
-                    }
-                    requested
-                        .iter()
-                        .map(|bp| Breakpoint {
-                            verified: file_id.is_some(),
-                            line: Some(bp.line),
-                            ..Breakpoint::default()
-                        })
-                        .collect()
-                } else {
-                    if let Some(fid) = file_id {
-                        breakpoints.remove(&fid);
-                    }
-                    vec![]
-                };
-                server.respond(req.success(ResponseBody::SetBreakpoints(
-                    SetBreakpointsResponse { breakpoints: response_bps },
-                )))?;
-            }
-            Command::Threads => {
-                server.respond(req.success(ResponseBody::Threads(ThreadsResponse {
-                    threads: vec![Thread { id: 0, name: "main".to_string() }],
-                })))?;
-            }
-            Command::ConfigurationDone => {
-                server.respond(req.ack()?)?;
-                break;
-            }
-            _ => {
-                server.respond(req.ack()?)?;
-            }
-        }
-    }
-
-    // Run interpreter with debugger
+    // Run interpreter with debugger.
+    // The debugger stops at the first statement (StepIn mode) and enters a DAP sub-loop
+    // that handles all requests: SetBreakpoints, ConfigurationDone, StackTrace, Variables, etc.
     {
+        let breakpoints = HashMap::new();
         let debugger = ComptimeDapDebugger::new(server, breakpoints, SteppingMode::StepIn);
 
         let result =
