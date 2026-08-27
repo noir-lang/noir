@@ -290,6 +290,7 @@ impl<'a, R: Read, W: Write> ComptimeDapDebugger<'a, R, W> {
     fn build_variables(&self, interner: &NodeInterner, files: &FileMap) -> Vec<Variable> {
         interner
             .visible_comptime_variables()
+            .into_iter()
             .map(|(id, value)| {
                 let name = interner.definition_name(*id).to_string();
                 let display_value = value.display(interner, files).to_string();
