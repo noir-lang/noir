@@ -179,7 +179,7 @@ impl<'a, R: Read, W: Write> ComptimeDapDebugger<'a, R, W> {
                         )))
                     }
                     Command::Source(ref args) => {
-                        let file_id = FileId::new(args.source_reference as usize);
+                        let file_id = FileId::new(args.source_reference as usize - 1);
                         let content =
                             files.source(file_id).map(|s| s.to_string()).unwrap_or_default();
                         self.server.respond(req.success(ResponseBody::Source(SourceResponse {
@@ -399,7 +399,7 @@ fn location_to_stack_frame(id: i64, name: &str, location: Location, files: &File
             // Set source_reference so VS Code fetches content via the Source request.
             Source {
                 name: Some(file_name.to_string()),
-                source_reference: Some(location.file.as_usize() as i32),
+                source_reference: Some(location.file.as_usize() as i32 + 1),
                 ..Source::default()
             }
         }
