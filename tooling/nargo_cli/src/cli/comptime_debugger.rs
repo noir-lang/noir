@@ -33,6 +33,9 @@ pub(crate) struct ComptimeDapDebugger<'a, R: Read, W: Write> {
     breakpoints: HashMap<FileId, HashSet<usize>>,
     first_stop: bool,
     running: bool,
+    /// Tracks the last location where we stopped, to avoid stopping twice
+    /// on the same line during stepping (e.g. multiple statements on one line).
+    last_stopped: Option<(FileId, usize)>,
 }
 
 impl<'a, R: Read, W: Write> ComptimeDapDebugger<'a, R, W> {
@@ -41,7 +44,15 @@ impl<'a, R: Read, W: Write> ComptimeDapDebugger<'a, R, W> {
         breakpoints: HashMap<FileId, HashSet<usize>>,
         stepping_mode: SteppingMode,
     ) -> Self {
-        Self { server, stepping_mode, stop_depth: 0, breakpoints, first_stop: true, running: true }
+        Self {
+            server,
+            stepping_mode,
+            stop_depth: 0,
+            breakpoints,
+            first_stop: true,
+            running: true,
+            last_stopped: None,
+        }
     }
 
     fn should_stop(&self, file: FileId, line: usize, call_depth: usize) -> bool {
@@ -69,7 +80,7 @@ impl<'a, R: Read, W: Write> ComptimeDapDebugger<'a, R, W> {
         } else if is_breakpoint {
             StoppedEventReason::Breakpoint
         } else {
-            StoppedEventReason::Pause
+            StoppedEventReason::Step
         };
 
         if let Err(e) = self.server.send_event(Event::Stopped(StoppedEventBody {
@@ -151,23 +162,27 @@ impl<'a, R: Read, W: Write> ComptimeDapDebugger<'a, R, W> {
                 }
                 Command::Continue(_) => {
                     self.stepping_mode = SteppingMode::Continue;
+                    self.last_stopped = None;
                     self.respond_and_break(req);
                     break;
                 }
                 Command::StepIn(_) => {
                     self.stepping_mode = SteppingMode::StepIn;
+                    self.last_stopped = None;
                     self.respond_and_break(req);
                     break;
                 }
                 Command::Next(_) => {
                     self.stepping_mode = SteppingMode::StepOver;
                     self.stop_depth = call_stack.len();
+                    self.last_stopped = None;
                     self.respond_and_break(req);
                     break;
                 }
                 Command::StepOut(_) => {
                     self.stepping_mode = SteppingMode::StepOut;
                     self.stop_depth = call_stack.len();
+                    self.last_stopped = None;
                     self.respond_and_break(req);
                     break;
                 }
@@ -304,6 +319,13 @@ impl<R: Read, W: Write> ComptimeDebugger for ComptimeDapDebugger<'_, R, W> {
 
         let call_depth = call_stack.len();
         if self.should_stop(location.file, line, call_depth) {
+            // Skip if we already stopped on this exact line (avoids double-stops
+            // when multiple statements share a source line), unless it's a breakpoint.
+            if !is_breakpoint && self.last_stopped == Some((location.file, line)) {
+                return;
+            }
+
+            self.last_stopped = Some((location.file, line));
             self.handle_stopped(location, interner, files, call_stack, is_breakpoint);
         }
     }
