@@ -238,6 +238,10 @@ pub struct Elaborator<'context> {
 
     interpreter_call_stack: imbl::Vector<Location>,
 
+    /// Parallel to `interpreter_call_stack`: stores the FuncId of the calling function
+    /// at each call site, used by the debugger for stack frame names.
+    interpreter_call_stack_functions: imbl::Vector<Option<FuncId>>,
+
     /// Options from the nargo cli
     options: ElaboratorOptions<'context>,
 
@@ -329,6 +333,7 @@ impl<'context> Elaborator<'context> {
             resolving_ids: BTreeSet::new(),
             function_context: vec![FunctionContext::default()],
             interpreter_call_stack,
+            interpreter_call_stack_functions: imbl::Vector::new(),
             options,
             elaborate_reasons,
             comptime_evaluation_halted: false,
@@ -889,6 +894,7 @@ impl<'context> Elaborator<'context> {
     pub(crate) fn push_interpreter_call_stack(
         &mut self,
         location: Location,
+        caller_function: Option<FuncId>,
     ) -> Result<(), InterpreterError> {
         if self.interpreter_call_stack.len() >= MAX_INTERPRETER_CALL_STACK_SIZE {
             return Err(InterpreterError::StackOverflow {
@@ -897,6 +903,7 @@ impl<'context> Elaborator<'context> {
             });
         }
         self.interpreter_call_stack.push_back(location);
+        self.interpreter_call_stack_functions.push_back(caller_function);
         Ok(())
     }
 
@@ -908,12 +915,20 @@ impl<'context> Elaborator<'context> {
         self.interpreter_call_stack
             .pop_back()
             .expect("call stack pushes and pops should be balanced");
+        self.interpreter_call_stack_functions
+            .pop_back()
+            .expect("call stack pushes and pops should be balanced");
     }
 
     /// The current interpreter call stack.
     #[tracing::instrument(level = "trace", skip_all)]
     pub(crate) fn interpreter_call_stack(&self) -> &imbl::Vector<Location> {
         &self.interpreter_call_stack
+    }
+
+    /// The function IDs corresponding to each call stack entry (the calling function).
+    pub(crate) fn interpreter_call_stack_functions(&self) -> &imbl::Vector<Option<FuncId>> {
+        &self.interpreter_call_stack_functions
     }
 
     /// Check the current recursion depth. if the limit has been reached,
