@@ -1,0 +1,14 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+use std::embedded_curve_ops::{EmbeddedCurvePoint, EmbeddedCurveScalar, multi_scalar_mul};
+
+fn main(x: Field, y: Field, lo: Field, hi: Field, active: bool) {
+    if active {
+        let point: EmbeddedCurvePoint = EmbeddedCurvePoint { x: x, y: y };
+        let scalar: EmbeddedCurveScalar = EmbeddedCurveScalar::new(lo, hi);
+        let result: EmbeddedCurvePoint = multi_scalar_mul([point], [scalar]);
+        assert(!result.is_infinite());
+    }
+}
