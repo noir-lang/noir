@@ -230,17 +230,14 @@ fn loop_uninitialized_dap<R: Read, W: Write>(mut server: Server<R, W>) -> Result
                 server.respond(req.ack()?)?;
 
                 if debug_mode == "comptime" {
-                    match run_comptime_dap_loop(
+                    if let Err(e) = run_comptime_dap_loop(
                         &mut server,
                         &project_folder,
                         package.as_deref(),
                         &prover_name,
                         test_name,
                     ) {
-                        Ok(()) => {}
-                        Err(e) => {
-                            eprintln!("Comptime debugger error: {e}");
-                        }
+                        eprintln!("Comptime debugger error: {e}");
                     }
                     break;
                 }
@@ -303,6 +300,38 @@ fn run_comptime_dap_loop<R: Read, W: Write>(
     prover_name: &str,
     test_name: Option<String>,
 ) -> Result<(), DapError> {
+    // Send Initialized immediately so VS Code shows the debug panel.
+    // All errors after this point are reported via DAP Output events.
+    server.send_event(Event::Initialized)?;
+
+    let result =
+        run_comptime_dap_loop_inner(server, project_folder, package_name, prover_name, test_name);
+
+    if let Err(ref e) = result {
+        send_error_to_dap(server, &format!("{e}"));
+    }
+
+    // Always send Terminated so VS Code knows the session is over.
+    let _ = server.send_event(Event::Terminated(None));
+
+    result
+}
+
+fn send_error_to_dap<R: Read, W: Write>(server: &mut Server<R, W>, message: &str) {
+    let _ = server.send_event(Event::Output(OutputEventBody {
+        category: Some(OutputEventCategory::Console),
+        output: format!("Debugger error: {message}\n"),
+        ..OutputEventBody::default()
+    }));
+}
+
+fn run_comptime_dap_loop_inner<R: Read, W: Write>(
+    server: &mut Server<R, W>,
+    project_folder: &str,
+    package_name: Option<&str>,
+    prover_name: &str,
+    test_name: Option<String>,
+) -> Result<(), DapError> {
     // Set up workspace and package
     let workspace = find_workspace(project_folder, package_name).ok_or_else(|| {
         DapError::LoadError(LoadError::Generic(workspace_not_found_error_msg(
@@ -353,10 +382,7 @@ fn run_comptime_dap_loop<R: Read, W: Write>(
         (main_id, func_args)
     };
 
-    // Phase 1: DAP initialization handshake
-    server.send_event(Event::Initialized)?;
-
-    // Phase 2: Collect initial breakpoints before starting the interpreter
+    // Collect initial breakpoints before starting the interpreter
     let files = context.file_manager.as_file_map();
     let mut breakpoints: HashMap<fm::FileId, HashSet<usize>> = HashMap::new();
     loop {
@@ -407,7 +433,7 @@ fn run_comptime_dap_loop<R: Read, W: Write>(
         }
     }
 
-    // Phase 3: Run interpreter with debugger
+    // Run interpreter with debugger
     {
         let debugger = ComptimeDapDebugger::new(server, breakpoints, SteppingMode::StepIn);
 
@@ -418,9 +444,6 @@ fn run_comptime_dap_loop<R: Read, W: Write>(
             eprintln!("Interpreter error: {err:?}");
         }
     }
-
-    // Phase 4: Terminate
-    server.send_event(Event::Terminated(None))?;
 
     Ok(())
 }

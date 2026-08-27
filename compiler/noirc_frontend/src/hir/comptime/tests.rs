@@ -111,6 +111,101 @@ fn interpreter_works() {
     assert_eq!(result, Value::field(3u128.into()));
 }
 
+/// Set up a Context with a simple comptime program, elaborate it, and return
+/// the context and main function ID for use with `interpret_function_with_debugger`.
+fn setup_test_context(src: &str) -> (Context<'static, 'static>, FuncId) {
+    let file = FileId::default();
+    let location = Location::new(Default::default(), file);
+    let root_module = ModuleData::new(None, None, location, Vec::new(), Vec::new(), false, false);
+
+    let file_manager = FileManager::new(&PathBuf::new());
+    let parsed_files = ParsedFiles::new();
+    let mut context = Context::new(file_manager, parsed_files);
+    context.def_interner.populate_dummy_operator_traits();
+
+    let krate = context.crate_graph.add_crate_root_and_stdlib(FileId::dummy());
+
+    let (module, errors) = parse_program(src, file);
+    assert_eq!(errors.len(), 0);
+    let ast = module.into_sorted();
+
+    let def_map = CrateDefMap::new(krate, root_module);
+    let root_module_id = def_map.root();
+    let mut collector = DefCollector::new(def_map);
+
+    let reuse_existing_module_declarations = false;
+    collect_defs(
+        &mut collector,
+        ast,
+        FileId::dummy(),
+        root_module_id,
+        krate,
+        &mut context,
+        reuse_existing_module_declarations,
+    );
+    context.def_maps.insert(krate, collector.def_map);
+
+    let main = context.get_main_function(&krate).expect("Expected 'main' function");
+
+    let elaborator = Elaborator::elaborate_and_return_self(
+        &mut context,
+        krate,
+        collector.items,
+        ElaboratorOptions::test_default(),
+    );
+    assert_eq!(elaborator.errors.len(), 0, "Expected no elaboration errors");
+    drop(elaborator);
+
+    (context, main)
+}
+
+#[test]
+fn debugger_receives_on_statement_callbacks() {
+    use std::cell::RefCell;
+    use std::rc::Rc;
+
+    use fm::FileMap;
+    use imbl::Vector;
+
+    use super::ComptimeDebugger;
+
+    struct TestDebugger {
+        stop_count: Rc<RefCell<usize>>,
+    }
+
+    impl ComptimeDebugger for TestDebugger {
+        fn on_statement(
+            &mut self,
+            _location: Location,
+            _interner: &crate::node_interner::NodeInterner,
+            _files: &FileMap,
+            _call_stack: &Vector<Location>,
+            _current_function: Option<FuncId>,
+            _call_stack_functions: &Vector<Option<FuncId>>,
+        ) {
+            *self.stop_count.borrow_mut() += 1;
+        }
+    }
+
+    let program = "comptime fn main() -> pub Field {
+        let x = 3;
+        let y = 4;
+        x + y
+    }";
+
+    let (mut context, main_id) = setup_test_context(program);
+    let stop_count = Rc::new(RefCell::new(0));
+    let debugger = Box::new(TestDebugger { stop_count: stop_count.clone() });
+
+    let result = context.interpret_function_with_debugger(main_id, vec![], debugger);
+    assert!(result.is_ok(), "Interpreter should succeed, got: {result:?}");
+    assert_eq!(result.unwrap(), Value::field(7u128.into()));
+    assert!(
+        *stop_count.borrow() > 0,
+        "Debugger should have received at least one on_statement callback"
+    );
+}
+
 #[test]
 fn interpreter_type_checking_works() {
     let program = "comptime fn main() -> pub u8 { 3 }";
