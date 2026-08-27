@@ -10,6 +10,7 @@
 //! For more information on Noir's comptime execution and metaprogramming in general, see the linked page in
 //! the [Noir docs](<https://noir-lang.org/docs/noir/concepts/comptime>)
 
+mod debugger;
 mod display;
 mod errors;
 mod hir_to_display_ast;
@@ -18,6 +19,7 @@ mod interpreter;
 mod tests;
 mod value;
 
+pub use debugger::ComptimeDebugger;
 pub use display::{tokens_to_string, tokens_to_string_with_indent};
 pub use errors::{ComptimeError, InterpreterError};
 pub use integer::Integer;
