@@ -395,12 +395,24 @@ fn location_to_stack_frame(id: i64, name: &str, location: Location, files: &File
         if path_buf.is_absolute() {
             Source { path: Some(file_name.to_string()), ..Source::default() }
         } else {
-            // Stdlib and other embedded files don't exist on disk.
-            // Set source_reference so VS Code fetches content via the Source request.
-            Source {
-                name: Some(file_name.to_string()),
-                source_reference: Some(location.file.as_usize() as i32 + 1),
-                ..Source::default()
+            // Stdlib and other embedded files: try to resolve to a real disk path
+            // (works in debug builds where stdlib source is available on disk).
+            // Falls back to source_reference for release builds.
+            let disk_path = file_name.to_string().strip_prefix("std/").and_then(|rest| {
+                let disk_root = noirc_driver::stdlib_disk_path()?;
+                let resolved = disk_root.join(rest);
+                resolved.is_file().then(|| resolved.to_string_lossy().to_string())
+            });
+
+            if let Some(abs_path) = disk_path {
+                Source { path: Some(abs_path), ..Source::default() }
+            } else {
+                Source {
+                    name: Some(file_name.to_string()),
+                    path: Some(file_name.to_string()),
+                    source_reference: Some(location.file.as_usize() as i32 + 1),
+                    ..Source::default()
+                }
             }
         }
     });
