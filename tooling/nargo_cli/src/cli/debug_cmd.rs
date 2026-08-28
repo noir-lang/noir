@@ -135,6 +135,7 @@ pub(crate) fn run(args: DebugCommand, workspace: Workspace) -> Result<(), CliErr
 fn run_comptime(args: DebugCommand, workspace: Workspace) -> Result<(), CliError> {
     use crate::cli::comptime_repl_debugger::ComptimeReplDebugger;
     use crate::cli::execute_cmd::interpret::input_values_to_comptime_values;
+    use nargo::ops::test_status_comptime_interpret_result;
 
     let Some(package) = workspace.into_iter().find(|p| p.is_binary() || p.is_contract()) else {
         println!(
@@ -152,9 +153,16 @@ fn run_comptime(args: DebugCommand, workspace: Workspace) -> Result<(), CliError
 
         check_crate_and_report_errors(&mut context, crate_id, &compile_options)?;
 
-        let (func_id, func_args) = if let Some(ref test_name) = args.test_name {
-            let test = get_test_function_for_debug(crate_id, &context, test_name)
-                .map_err(CliError::Generic)?;
+        let test_function = if let Some(ref test_name) = args.test_name {
+            Some(
+                get_test_function_for_debug(crate_id, &context, test_name)
+                    .map_err(CliError::Generic)?,
+            )
+        } else {
+            None
+        };
+
+        let (func_id, func_args) = if let Some(ref test) = test_function {
             (test.function.id, vec![])
         } else {
             let main_id = context
@@ -175,19 +183,36 @@ fn run_comptime(args: DebugCommand, workspace: Workspace) -> Result<(), CliError
             (main_id, func_args)
         };
 
+        println!("Debugger started. Type 'help' for commands.");
+
         let (debugger, restart_requested) = ComptimeReplDebugger::new();
         let result =
             context.interpret_function_with_debugger(func_id, func_args, Box::new(debugger));
 
-        match result {
-            Ok(value) => {
-                println!(
-                    "Program completed. Return value: {}",
-                    value.display(&context.def_interner, context.file_manager.as_file_map())
-                );
+        if let Some(ref test) = test_function {
+            let status = test_status_comptime_interpret_result(result, &test.function);
+            let status_str = match &status {
+                TestStatus::Pass => "ok",
+                TestStatus::Skipped => "skipped",
+                _ => "FAILED",
+            };
+            println!("[{}] Testing {} ... {}", package.name, test.name, status_str);
+            match &status {
+                TestStatus::Fail { message, .. } => eprintln!("{message}"),
+                TestStatus::CompileError(diagnostic) => eprintln!("{}", diagnostic.message),
+                _ => {}
             }
-            Err(err) => {
-                eprintln!("Interpreter error: {err:?}");
+        } else {
+            match result {
+                Ok(value) => {
+                    println!(
+                        "Program completed. Return value: {}",
+                        value.display(&context.def_interner, context.file_manager.as_file_map())
+                    );
+                }
+                Err(err) => {
+                    eprintln!("Interpreter error: {err:?}");
+                }
             }
         }
 

@@ -10,7 +10,7 @@ use noirc_errors::Location;
 use noirc_frontend::hir::comptime::ComptimeDebugger;
 use noirc_frontend::node_interner::{FuncId, NodeInterner};
 
-use super::comptime_debugger::SteppingMode;
+use super::comptime_debugger::{SteppingMode, function_name, location_to_line_column};
 
 const CONTEXT_LINES: usize = 3;
 
@@ -18,7 +18,6 @@ pub(crate) struct ComptimeReplDebugger {
     stepping_mode: SteppingMode,
     stop_depth: usize,
     breakpoints: HashMap<FileId, HashSet<usize>>,
-    first_stop: bool,
     running: bool,
     last_stopped: Option<(FileId, usize)>,
     restart_requested: Rc<Cell<bool>>,
@@ -32,7 +31,6 @@ impl ComptimeReplDebugger {
                 stepping_mode: SteppingMode::StepIn,
                 stop_depth: 0,
                 breakpoints: HashMap::new(),
-                first_stop: true,
                 running: true,
                 last_stopped: None,
                 restart_requested: restart_requested.clone(),
@@ -74,10 +72,10 @@ impl ComptimeReplDebugger {
         let start = line.saturating_sub(CONTEXT_LINES + 1);
         let end = (line + CONTEXT_LINES).min(lines.len());
 
-        for i in start..end {
-            let line_num = i + 1;
+        for (i, source_line) in lines[start..end].iter().enumerate() {
+            let line_num = start + i + 1;
             let marker = if line_num == line { "->" } else { "  " };
-            println!("{marker} {line_num:>4} | {}", lines[i]);
+            println!("{marker} {line_num:>4} | {source_line}");
         }
     }
 
@@ -140,8 +138,8 @@ impl ComptimeReplDebugger {
                 break;
             }
 
-            let parts: Vec<&str> = input.trim().split_whitespace().collect();
-            let cmd = parts.first().map(|s| *s).unwrap_or("");
+            let parts: Vec<&str> = input.split_whitespace().collect();
+            let cmd = parts.first().copied().unwrap_or("");
 
             match cmd {
                 "s" | "step" => {
@@ -297,10 +295,7 @@ impl ComptimeDebugger for ComptimeReplDebugger {
 
             self.last_stopped = Some((location.file, line));
 
-            if self.first_stop {
-                self.first_stop = false;
-                println!("Debugger started. Type 'help' for commands.");
-            } else if is_breakpoint {
+            if is_breakpoint {
                 println!("Breakpoint hit.");
             }
 
@@ -314,19 +309,5 @@ impl ComptimeDebugger for ComptimeReplDebugger {
                 call_stack_functions,
             );
         }
-    }
-}
-
-fn location_to_line_column(files: &FileMap, location: Location) -> Option<(usize, usize)> {
-    let line = files.line_index(location.file, location.span.start() as usize).ok()?;
-    let line_range = files.line_range(location.file, line).ok()?;
-    let column = location.span.start() as usize - line_range.start + 1;
-    Some((line + 1, column))
-}
-
-fn function_name(interner: &NodeInterner, func_id: Option<FuncId>) -> String {
-    match func_id {
-        Some(id) => interner.function_name(&id).to_string(),
-        None => "<global>".to_string(),
     }
 }
