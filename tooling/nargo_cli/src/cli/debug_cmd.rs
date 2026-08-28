@@ -144,48 +144,59 @@ fn run_comptime(args: DebugCommand, workspace: Workspace) -> Result<(), CliError
     };
 
     let (file_manager, parsed_files) = load_workspace_files(&workspace);
-    let (mut context, crate_id) = nargo::prepare_package(&file_manager, &parsed_files, package);
-    context.package_build_path = workspace.package_build_path(package);
-
     let compile_options = args.compile_options;
-    check_crate_and_report_errors(&mut context, crate_id, &compile_options)?;
 
-    let (func_id, func_args) = if let Some(test_name) = args.test_name {
-        let test = get_test_function_for_debug(crate_id, &context, &test_name)
-            .map_err(CliError::Generic)?;
-        (test.function.id, vec![])
-    } else {
-        let main_id = context
-            .get_main_function(&crate_id)
-            .ok_or_else(|| CliError::Generic("Could not find main function".to_string()))?;
+    loop {
+        let (mut context, crate_id) = nargo::prepare_package(&file_manager, &parsed_files, package);
+        context.package_build_path = workspace.package_build_path(package);
 
-        let func_meta = context.def_interner.function_meta(&main_id);
-        let error_types = std::collections::BTreeMap::default();
-        let abi =
-            noirc_driver::gen_abi(&context, &main_id, func_meta.return_visibility, error_types);
-        let (prover_input, _) = read_inputs_from_file(
-            &package.root_dir.join(&args.prover_name).with_extension("toml"),
-            &abi,
-        )?;
+        check_crate_and_report_errors(&mut context, crate_id, &compile_options)?;
 
-        let func_args =
-            input_values_to_comptime_values(&prover_input, func_meta, &context.def_interner);
-        (main_id, func_args)
-    };
+        let (func_id, func_args) = if let Some(ref test_name) = args.test_name {
+            let test = get_test_function_for_debug(crate_id, &context, test_name)
+                .map_err(CliError::Generic)?;
+            (test.function.id, vec![])
+        } else {
+            let main_id = context
+                .get_main_function(&crate_id)
+                .ok_or_else(|| CliError::Generic("Could not find main function".to_string()))?;
 
-    let debugger = Box::new(ComptimeReplDebugger::new());
-    let result = context.interpret_function_with_debugger(func_id, func_args, debugger);
+            let func_meta = context.def_interner.function_meta(&main_id);
+            let error_types = std::collections::BTreeMap::default();
+            let abi =
+                noirc_driver::gen_abi(&context, &main_id, func_meta.return_visibility, error_types);
+            let (prover_input, _) = read_inputs_from_file(
+                &package.root_dir.join(&args.prover_name).with_extension("toml"),
+                &abi,
+            )?;
 
-    match result {
-        Ok(value) => {
-            println!(
-                "Program completed. Return value: {}",
-                value.display(&context.def_interner, context.file_manager.as_file_map())
-            );
+            let func_args =
+                input_values_to_comptime_values(&prover_input, func_meta, &context.def_interner);
+            (main_id, func_args)
+        };
+
+        let (debugger, restart_requested) = ComptimeReplDebugger::new();
+        let result =
+            context.interpret_function_with_debugger(func_id, func_args, Box::new(debugger));
+
+        match result {
+            Ok(value) => {
+                println!(
+                    "Program completed. Return value: {}",
+                    value.display(&context.def_interner, context.file_manager.as_file_map())
+                );
+            }
+            Err(err) => {
+                eprintln!("Interpreter error: {err:?}");
+            }
         }
-        Err(err) => {
-            eprintln!("Interpreter error: {err:?}");
+
+        if restart_requested.get() {
+            println!("Restarting debugger...");
+            continue;
         }
+
+        break;
     }
 
     Ok(())
