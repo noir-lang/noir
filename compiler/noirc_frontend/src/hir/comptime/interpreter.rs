@@ -348,6 +348,11 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             // Ignore debugger functions
             } else if oracle.starts_with("__debug") {
                 Ok(Value::Unit)
+            } else if let Some(mut executor) = self.elaborator.comptime_oracle_executor.take() {
+                let args = arguments.into_iter().map(|(v, _)| v).collect();
+                let result = executor.execute_oracle(oracle, args, &return_type, location);
+                self.elaborator.comptime_oracle_executor = Some(executor);
+                result
             } else {
                 let item = format!("Comptime evaluation for oracle functions like '{oracle}'");
                 Err(InterpreterError::Unimplemented { item, location })
@@ -2018,18 +2023,18 @@ impl Context<'_, '_> {
         main_id: FuncId,
         args: Vec<(Value, Location)>,
     ) -> IResult<Value> {
-        self.interpret_function_inner(main_id, args, None)
+        self.interpret_function_inner(main_id, args, None, None)
     }
 
-    /// Like `interpret_function`, but with a debugger attached that receives callbacks
-    /// at each statement boundary.
+    /// Like `interpret_function`, but with a debugger and optional oracle executor attached.
     pub fn interpret_function_with_debugger<'a>(
         &'a mut self,
         main_id: FuncId,
         args: Vec<(Value, Location)>,
         debugger: Box<dyn super::ComptimeDebugger + 'a>,
+        oracle_executor: Option<Box<dyn super::ComptimeOracleExecutor + 'a>>,
     ) -> IResult<Value> {
-        self.interpret_function_inner(main_id, args, Some(debugger))
+        self.interpret_function_inner(main_id, args, Some(debugger), oracle_executor)
     }
 
     fn interpret_function_inner<'a>(
@@ -2037,6 +2042,7 @@ impl Context<'_, '_> {
         main_id: FuncId,
         args: Vec<(Value, Location)>,
         debugger: Option<Box<dyn super::ComptimeDebugger + 'a>>,
+        oracle_executor: Option<Box<dyn super::ComptimeOracleExecutor + 'a>>,
     ) -> IResult<Value> {
         let func_meta = self.def_interner.function_meta(&main_id);
         let crate_id = func_meta.source_crate;
@@ -2054,6 +2060,7 @@ impl Context<'_, '_> {
 
         let mut elaborator = Elaborator::from_context(self, crate_id, cli_options);
         elaborator.comptime_debugger = debugger;
+        elaborator.comptime_oracle_executor = oracle_executor;
         elaborator.setup_interpreter_for(module_id, |interpreter| {
             let instantiation_bindings = TypeBindings::default();
             interpreter.call_function(main_id, args, instantiation_bindings, location)

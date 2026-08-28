@@ -133,6 +133,7 @@ pub(crate) fn run(args: DebugCommand, workspace: Workspace) -> Result<(), CliErr
 }
 
 fn run_comptime(args: DebugCommand, workspace: Workspace) -> Result<(), CliError> {
+    use crate::cli::comptime_oracle::ComptimeForeignCallExecutor;
     use crate::cli::comptime_repl_debugger::ComptimeReplDebugger;
     use crate::cli::execute_cmd::interpret::input_values_to_comptime_values;
     use nargo::ops::test_status_comptime_interpret_result;
@@ -186,8 +187,13 @@ fn run_comptime(args: DebugCommand, workspace: Workspace) -> Result<(), CliError
         println!("Debugger started. Type 'help' for commands.");
 
         let (debugger, restart_requested) = ComptimeReplDebugger::new();
-        let result =
-            context.interpret_function_with_debugger(func_id, func_args, Box::new(debugger));
+        let oracle_executor = ComptimeForeignCallExecutor::new();
+        let result = context.interpret_function_with_debugger(
+            func_id,
+            func_args,
+            Box::new(debugger),
+            Some(Box::new(oracle_executor)),
+        );
 
         if let Some(ref test) = test_function {
             let status = test_status_comptime_interpret_result(result, &test.function);
