@@ -1,5 +1,7 @@
+use std::cell::Cell;
 use std::collections::{HashMap, HashSet};
 use std::io::{self, Write};
+use std::rc::Rc;
 
 use fm::codespan_files::Files;
 use fm::{FileId, FileMap};
@@ -19,18 +21,24 @@ pub(crate) struct ComptimeReplDebugger {
     first_stop: bool,
     running: bool,
     last_stopped: Option<(FileId, usize)>,
+    restart_requested: Rc<Cell<bool>>,
 }
 
 impl ComptimeReplDebugger {
-    pub(crate) fn new() -> Self {
-        Self {
-            stepping_mode: SteppingMode::StepIn,
-            stop_depth: 0,
-            breakpoints: HashMap::new(),
-            first_stop: true,
-            running: true,
-            last_stopped: None,
-        }
+    pub(crate) fn new() -> (Self, Rc<Cell<bool>>) {
+        let restart_requested = Rc::new(Cell::new(false));
+        (
+            Self {
+                stepping_mode: SteppingMode::StepIn,
+                stop_depth: 0,
+                breakpoints: HashMap::new(),
+                first_stop: true,
+                running: true,
+                last_stopped: None,
+                restart_requested: restart_requested.clone(),
+            },
+            restart_requested,
+        )
     }
 
     fn should_stop(&self, file: FileId, line: usize, call_depth: usize) -> bool {
@@ -187,21 +195,70 @@ impl ComptimeReplDebugger {
                         println!("Usage: break <line_number>");
                     }
                 }
+                "d" | "delete" => {
+                    if let Some(line_str) = parts.get(1) {
+                        if let Ok(line_num) = line_str.parse::<usize>() {
+                            let removed = self
+                                .breakpoints
+                                .get_mut(&location.file)
+                                .is_some_and(|lines| lines.remove(&line_num));
+                            if removed {
+                                let file_name = files
+                                    .get_absolute_name(location.file)
+                                    .map(|n| n.to_string())
+                                    .unwrap_or_default();
+                                println!("Breakpoint removed at {file_name}:{line_num}");
+                            } else {
+                                println!("No breakpoint at line {line_num}");
+                            }
+                        } else {
+                            println!("Usage: delete <line_number>");
+                        }
+                    } else {
+                        println!("Usage: delete <line_number>");
+                    }
+                }
+                "bp" | "breakpoints" => {
+                    let mut any = false;
+                    for (file_id, lines) in &self.breakpoints {
+                        let file_name = files
+                            .get_absolute_name(*file_id)
+                            .map(|n| n.to_string())
+                            .unwrap_or_default();
+                        let mut sorted_lines: Vec<_> = lines.iter().copied().collect();
+                        sorted_lines.sort();
+                        for line_num in sorted_lines {
+                            println!("  {file_name}:{line_num}");
+                            any = true;
+                        }
+                    }
+                    if !any {
+                        println!("  (no breakpoints set)");
+                    }
+                }
+                "r" | "restart" => {
+                    self.restart_requested.set(true);
+                    self.running = false;
+                    break;
+                }
                 "q" | "quit" => {
                     self.running = false;
                     break;
                 }
                 "h" | "help" | "" => {
                     println!("Commands:");
-                    println!("  s, step       Step into next statement");
-                    println!("  n, next       Step over (skip function calls)");
-                    println!("  o, out        Step out of current function");
-                    println!("  c, continue   Continue until breakpoint");
-                    println!("  v, vars       Show local variables");
+                    println!("  s, step         Step into next statement");
+                    println!("  n, next         Step over (skip function calls)");
+                    println!("  o, out          Step out of current function");
+                    println!("  c, continue     Continue until breakpoint");
+                    println!("  v, vars         Show local variables");
                     println!("  bt, stacktrace  Show call stack");
-                    println!("  b, break <N>  Set breakpoint at line N");
-                    println!("  q, quit       Stop debugging");
-                    println!("  h, help       Show this help");
+                    println!("  b, break <N>    Set breakpoint at line N");
+                    println!("  d, delete <N>   Delete breakpoint at line N");
+                    println!("  bp, breakpoints List all breakpoints");
+                    println!("  r, restart      Restart debugging from the beginning");
+                    println!("  q, quit         Stop debugging");
+                    println!("  h, help         Show this help");
                 }
                 _ => {
                     println!("Unknown command: {cmd}. Type 'help' for commands.");
