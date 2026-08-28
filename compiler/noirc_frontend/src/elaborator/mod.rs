@@ -198,6 +198,8 @@ pub struct Elaborator<'context> {
     pub(crate) evaluation_tracker: Option<&'context mut EvaluationTracker>,
     pub(crate) comptime_debugger:
         Option<Box<dyn crate::hir::comptime::ComptimeDebugger + 'context>>,
+    pub(crate) comptime_oracle_executor:
+        Option<Box<dyn crate::hir::comptime::ComptimeOracleExecutor + 'context>>,
 
     required_unstable_features: &'context BTreeMap<CrateId, Vec<UnstableFeature>>,
 
@@ -326,6 +328,7 @@ impl<'context> Elaborator<'context> {
             interpreter_output,
             evaluation_tracker,
             comptime_debugger: None,
+            comptime_oracle_executor: None,
             required_unstable_features,
             unresolved_globals,
             item: ItemContext::new(ModuleContext::in_module(initial_module)),

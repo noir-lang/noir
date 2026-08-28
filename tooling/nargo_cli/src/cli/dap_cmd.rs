@@ -390,7 +390,7 @@ fn run_comptime_dap_loop_inner<R: Read, W: Write>(
         let debugger = ComptimeDapDebugger::new(server, breakpoints, SteppingMode::StepIn);
 
         let result =
-            context.interpret_function_with_debugger(func_id, func_args, Box::new(debugger));
+            context.interpret_function_with_debugger(func_id, func_args, Box::new(debugger), None);
 
         if let Err(err) = result {
             eprintln!("Interpreter error: {err:?}");

@@ -197,7 +197,7 @@ fn debugger_receives_on_statement_callbacks() {
     let stop_count = Rc::new(RefCell::new(0));
     let debugger = Box::new(TestDebugger { stop_count: stop_count.clone() });
 
-    let result = context.interpret_function_with_debugger(main_id, vec![], debugger);
+    let result = context.interpret_function_with_debugger(main_id, vec![], debugger, None);
     assert!(result.is_ok(), "Interpreter should succeed, got: {result:?}");
     assert_eq!(result.unwrap(), Value::field(7u128.into()));
     assert!(
