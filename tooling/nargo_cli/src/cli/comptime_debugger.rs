@@ -66,6 +66,7 @@ impl<'a, R: Read, W: Write> ComptimeDapDebugger<'a, R, W> {
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn handle_stopped(
         &mut self,
         location: Location,
@@ -428,14 +429,17 @@ fn location_to_stack_frame(id: i64, name: &str, location: Location, files: &File
     }
 }
 
-fn location_to_line_column(files: &FileMap, location: Location) -> Option<(usize, usize)> {
+pub(crate) fn location_to_line_column(
+    files: &FileMap,
+    location: Location,
+) -> Option<(usize, usize)> {
     let line = files.line_index(location.file, location.span.start() as usize).ok()?;
     let line_range = files.line_range(location.file, line).ok()?;
     let column = location.span.start() as usize - line_range.start + 1;
-    Some((line + 1, column)) // Convert to 1-based
+    Some((line + 1, column))
 }
 
-fn function_name(interner: &NodeInterner, func_id: Option<FuncId>) -> String {
+pub(crate) fn function_name(interner: &NodeInterner, func_id: Option<FuncId>) -> String {
     match func_id {
         Some(id) => interner.function_name(&id).to_string(),
         None => "<global>".to_string(),
@@ -445,10 +449,10 @@ fn function_name(interner: &NodeInterner, func_id: Option<FuncId>) -> String {
 pub(crate) fn find_file_id(files: &FileMap, path: &str) -> Option<FileId> {
     let path = std::path::Path::new(path);
     for file_id in files.all_file_ids() {
-        if let Ok(name) = files.get_absolute_name(*file_id) {
-            if name.into_path_buf() == path {
-                return Some(*file_id);
-            }
+        if let Ok(name) = files.get_absolute_name(*file_id)
+            && name.into_path_buf() == path
+        {
+            return Some(*file_id);
         }
     }
     None
