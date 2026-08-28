@@ -187,7 +187,11 @@ fn run_comptime(args: DebugCommand, workspace: Workspace) -> Result<(), CliError
         println!("Debugger started. Type 'help' for commands.");
 
         let (debugger, restart_requested) = ComptimeReplDebugger::new();
-        let oracle_executor = ComptimeForeignCallExecutor::new();
+        let oracle_executor = ComptimeForeignCallExecutor::new(
+            args.oracle_resolver.as_ref(),
+            Some(workspace.root_dir.clone()),
+            Some(package.name.to_string()),
+        );
         let result = context.interpret_function_with_debugger(
             func_id,
             func_args,

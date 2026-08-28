@@ -10,7 +10,7 @@ use noirc_frontend::shared::Signedness;
 use noirc_frontend::{Shared, Type};
 use rustc_hash::FxHashMap as HashMap;
 
-use nargo::foreign_calls::{DefaultForeignCallBuilder, ForeignCallExecutor};
+use nargo::foreign_calls::{DefaultForeignCallBuilder, ForeignCallExecutor, OracleResolverUrl};
 
 /// Bridges comptime `Value` to the existing `ForeignCallExecutor<FieldElement>` infrastructure.
 pub(crate) struct ComptimeForeignCallExecutor {
@@ -18,10 +18,19 @@ pub(crate) struct ComptimeForeignCallExecutor {
 }
 
 impl ComptimeForeignCallExecutor {
-    pub(crate) fn new() -> Self {
-        let executor = DefaultForeignCallBuilder::default()
-            .with_output(std::io::stdout())
-            .build::<FieldElement>();
+    pub(crate) fn new(
+        oracle_resolver: Option<&OracleResolverUrl>,
+        root_path: Option<std::path::PathBuf>,
+        package_name: Option<String>,
+    ) -> Self {
+        let builder = DefaultForeignCallBuilder {
+            output: std::io::stdout(),
+            enable_mocks: true,
+            resolver_url: oracle_resolver.map(|url| url.to_string()),
+            root_path,
+            package_name,
+        };
+        let executor = builder.build::<FieldElement>();
         Self { executor: Box::new(executor) }
     }
 }
