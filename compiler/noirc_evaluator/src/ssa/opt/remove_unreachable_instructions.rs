@@ -366,8 +366,12 @@ impl Function {
                     } else {
                         // We will never use the results (the constraint fails if the side effects are enabled),
                         // but we need them to make the rest of the SSA valid even if the side effects are off.
+                        // Keep processing later instructions normally. Replacing the rest of a predicated
+                        // vector update with defaults can leak a zero semantic length past the predicate
+                        // boundary and turn a later, correctly guarded bounds check into an unconditional
+                        // failure. Each later failing array operation will insert its own guarded constraint.
                         remove_and_replace_with_defaults(context, func_id, block_id);
-                        Reachability::UnreachableUnderPredicate
+                        Reachability::Reachable
                     };
                 }
                 Instruction::Call { func, arguments } if context.dfg.runtime().is_acir() => {

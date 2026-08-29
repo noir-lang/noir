@@ -1,0 +1,6 @@
+[package]
+name = "conditional_vector_push_dead_branch"
+type = "bin"
+authors = [""]
+
+[dependencies]
