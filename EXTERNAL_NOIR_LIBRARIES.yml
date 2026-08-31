@@ -1,4 +1,4 @@
-define: &AZ_COMMIT 28549d2f7df060c34c14a13efc9157b0f8ff51d3
+define: &AZ_COMMIT 7471a61f1a92f5b2f474db714f34430253892d99
 libraries:
   noir_check_shuffle:
     repo: noir-lang/noir_check_shuffle
