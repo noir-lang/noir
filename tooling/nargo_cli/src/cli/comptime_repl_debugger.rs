@@ -1,24 +1,22 @@
 use std::cell::Cell;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::io::{self, Write};
 use std::rc::Rc;
 
+use fm::FileMap;
 use fm::codespan_files::Files;
-use fm::{FileId, FileMap};
 use noirc_errors::Location;
 use noirc_frontend::hir::comptime::{ComptimeDebugger, DebugContext};
 use noirc_frontend::node_interner::{FuncId, NodeInterner};
 
-use super::comptime_debugger::{SteppingMode, function_name, location_to_line_column};
+use super::comptime_debugger::{
+    SteppingMode, SteppingState, function_name, location_to_line_column,
+};
 
 const CONTEXT_LINES: usize = 3;
 
 pub(crate) struct ComptimeReplDebugger {
-    stepping_mode: SteppingMode,
-    stop_depth: usize,
-    breakpoints: HashMap<FileId, HashSet<usize>>,
-    running: bool,
-    last_stopped: Option<(FileId, usize)>,
+    state: SteppingState,
     restart_requested: Rc<Cell<bool>>,
 }
 
@@ -27,26 +25,11 @@ impl ComptimeReplDebugger {
         let restart_requested = Rc::new(Cell::new(false));
         (
             Self {
-                stepping_mode: SteppingMode::StepIn,
-                stop_depth: 0,
-                breakpoints: HashMap::new(),
-                running: true,
-                last_stopped: None,
+                state: SteppingState::new(HashMap::new(), SteppingMode::StepIn),
                 restart_requested: restart_requested.clone(),
             },
             restart_requested,
         )
-    }
-
-    fn should_stop(&self, file: FileId, line: usize, call_depth: usize) -> bool {
-        match self.stepping_mode {
-            SteppingMode::StepIn => true,
-            SteppingMode::StepOver => call_depth <= self.stop_depth,
-            SteppingMode::StepOut => call_depth < self.stop_depth,
-            SteppingMode::Continue => {
-                self.breakpoints.get(&file).is_some_and(|lines| lines.contains(&line))
-            }
-        }
     }
 
     fn print_location(
@@ -129,7 +112,7 @@ impl ComptimeReplDebugger {
 
             let mut input = String::new();
             if io::stdin().read_line(&mut input).is_err() || input.is_empty() {
-                self.running = false;
+                self.state.running = false;
                 break;
             }
 
@@ -138,25 +121,25 @@ impl ComptimeReplDebugger {
 
             match cmd {
                 "s" | "step" => {
-                    self.stepping_mode = SteppingMode::StepIn;
-                    self.last_stopped = None;
+                    self.state.stepping_mode = SteppingMode::StepIn;
+                    self.state.clear_last_stopped();
                     break;
                 }
                 "n" | "next" => {
-                    self.stepping_mode = SteppingMode::StepOver;
-                    self.stop_depth = context.call_stack.len();
-                    self.last_stopped = None;
+                    self.state.stepping_mode = SteppingMode::StepOver;
+                    self.state.stop_depth = context.call_stack.len();
+                    self.state.clear_last_stopped();
                     break;
                 }
                 "o" | "out" => {
-                    self.stepping_mode = SteppingMode::StepOut;
-                    self.stop_depth = context.call_stack.len();
-                    self.last_stopped = None;
+                    self.state.stepping_mode = SteppingMode::StepOut;
+                    self.state.stop_depth = context.call_stack.len();
+                    self.state.clear_last_stopped();
                     break;
                 }
                 "c" | "continue" => {
-                    self.stepping_mode = SteppingMode::Continue;
-                    self.last_stopped = None;
+                    self.state.stepping_mode = SteppingMode::Continue;
+                    self.state.clear_last_stopped();
                     break;
                 }
                 "v" | "vars" => {
@@ -168,7 +151,8 @@ impl ComptimeReplDebugger {
                 "b" | "break" => {
                     if let Some(line_str) = parts.get(1) {
                         if let Ok(line_num) = line_str.parse::<usize>() {
-                            self.breakpoints
+                            self.state
+                                .breakpoints
                                 .entry(context.location.file)
                                 .or_default()
                                 .insert(line_num);
@@ -189,6 +173,7 @@ impl ComptimeReplDebugger {
                     if let Some(line_str) = parts.get(1) {
                         if let Ok(line_num) = line_str.parse::<usize>() {
                             let removed = self
+                                .state
                                 .breakpoints
                                 .get_mut(&context.location.file)
                                 .is_some_and(|lines| lines.remove(&line_num));
@@ -211,7 +196,7 @@ impl ComptimeReplDebugger {
                 }
                 "bp" | "breakpoints" => {
                     let mut any = false;
-                    for (file_id, lines) in &self.breakpoints {
+                    for (file_id, lines) in &self.state.breakpoints {
                         let file_name = context
                             .files
                             .get_absolute_name(*file_id)
@@ -230,11 +215,11 @@ impl ComptimeReplDebugger {
                 }
                 "r" | "restart" => {
                     self.restart_requested.set(true);
-                    self.running = false;
+                    self.state.running = false;
                     break;
                 }
                 "q" | "quit" => {
-                    self.running = false;
+                    self.state.running = false;
                     break;
                 }
                 "h" | "help" | "" => {
@@ -262,25 +247,7 @@ impl ComptimeReplDebugger {
 
 impl ComptimeDebugger for ComptimeReplDebugger {
     fn on_statement(&mut self, context: DebugContext<'_>) {
-        if !self.running {
-            return;
-        }
-
-        let Some((line, _column)) = location_to_line_column(context.files, context.location) else {
-            return;
-        };
-
-        let is_breakpoint =
-            self.breakpoints.get(&context.location.file).is_some_and(|lines| lines.contains(&line));
-
-        let call_depth = context.call_stack.len();
-        if self.should_stop(context.location.file, line, call_depth) {
-            if !is_breakpoint && self.last_stopped == Some((context.location.file, line)) {
-                return;
-            }
-
-            self.last_stopped = Some((context.location.file, line));
-
+        if let Some((line, is_breakpoint)) = self.state.check_stop(&context) {
             if is_breakpoint {
                 println!("Breakpoint hit.");
             }
