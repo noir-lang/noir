@@ -80,11 +80,12 @@ impl ComptimeReplDebugger {
     }
 
     fn print_variables(&self, interner: &NodeInterner, files: &FileMap) {
-        let vars = interner.visible_comptime_variables();
+        let mut vars = interner.visible_comptime_variables();
         if vars.is_empty() {
             println!("  (no variables)");
             return;
         }
+        vars.sort_by_key(|(id, _)| interner.definition_name(**id).to_string());
         for (id, value) in vars {
             let name = interner.definition_name(*id);
             let display_value = value.display(interner, files);

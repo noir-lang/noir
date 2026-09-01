@@ -286,7 +286,7 @@ fn loop_uninitialized_dap<R: Read, W: Write>(mut server: Server<R, W>) -> Result
 
             _ => {
                 let command = req.command;
-                eprintln!("ERROR: unhandled command: {command:?}");
+                eprintln!("ERROR: unhandled command in outer loop: {command:?}");
             }
         }
     }

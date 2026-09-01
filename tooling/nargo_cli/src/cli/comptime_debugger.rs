@@ -1,14 +1,16 @@
 use std::collections::{HashMap, HashSet};
 use std::io::{Read, Write};
 
-use dap::events::StoppedEventBody;
+use dap::events::{OutputEventBody, StoppedEventBody};
 use dap::prelude::Event;
 use dap::requests::Command;
 use dap::responses::{
-    ResponseBody, ScopesResponse, SetBreakpointsResponse, SetExceptionBreakpointsResponse,
-    SourceResponse, StackTraceResponse, ThreadsResponse, VariablesResponse,
+    ContinueResponse, EvaluateResponse, ResponseBody, ScopesResponse, SetBreakpointsResponse,
+    SetExceptionBreakpointsResponse, SetInstructionBreakpointsResponse, SourceResponse,
+    StackTraceResponse, ThreadsResponse, VariablesResponse,
 };
 use dap::server::Server;
+use dap::types::OutputEventCategory;
 use dap::types::{Breakpoint, Scope, Source, StackFrame, StoppedEventReason, Thread, Variable};
 use fm::codespan_files::Files;
 use fm::{FileId, FileMap};
@@ -53,6 +55,15 @@ impl<'a, R: Read, W: Write> ComptimeDapDebugger<'a, R, W> {
             running: true,
             last_stopped: None,
         }
+    }
+
+    #[allow(dead_code)]
+    fn dap_log(&mut self, message: &str) {
+        let _ = self.server.send_event(Event::Output(OutputEventBody {
+            category: Some(OutputEventCategory::Console),
+            output: format!("{message}\n"),
+            ..OutputEventBody::default()
+        }));
     }
 
     fn should_stop(&self, file: FileId, line: usize, call_depth: usize) -> bool {
@@ -191,7 +202,9 @@ impl<'a, R: Read, W: Write> ComptimeDapDebugger<'a, R, W> {
                     Command::Continue(_) => {
                         self.stepping_mode = SteppingMode::Continue;
                         self.last_stopped = None;
-                        self.respond_and_break(req);
+                        let _ = self.server.respond(req.success(ResponseBody::Continue(
+                            ContinueResponse { all_threads_continued: Some(true) },
+                        )));
                         break;
                     }
                     Command::StepIn(_) => {
@@ -218,6 +231,23 @@ impl<'a, R: Read, W: Write> ComptimeDapDebugger<'a, R, W> {
                         self.server.respond(req.success(ResponseBody::SetExceptionBreakpoints(
                             SetExceptionBreakpointsResponse { breakpoints: None },
                         )))
+                    }
+                    Command::SetInstructionBreakpoints(_) => {
+                        self.server.respond(req.success(ResponseBody::SetInstructionBreakpoints(
+                            SetInstructionBreakpointsResponse { breakpoints: vec![] },
+                        )))
+                    }
+                    Command::Evaluate(ref args) => {
+                        let result = format!("Cannot evaluate: {}", args.expression);
+                        self.server.respond(req.success(ResponseBody::Evaluate(EvaluateResponse {
+                            result,
+                            type_field: None,
+                            presentation_hint: None,
+                            variables_reference: 0,
+                            named_variables: None,
+                            indexed_variables: None,
+                            memory_reference: None,
+                        })))
                     }
                     Command::ConfigurationDone => match req.ack() {
                         Ok(resp) => self.server.respond(resp),
@@ -289,9 +319,9 @@ impl<'a, R: Read, W: Write> ComptimeDapDebugger<'a, R, W> {
     }
 
     fn build_variables(&self, interner: &NodeInterner, files: &FileMap) -> Vec<Variable> {
-        interner
-            .visible_comptime_variables()
-            .into_iter()
+        let mut vars = interner.visible_comptime_variables();
+        vars.sort_by_key(|(id, _)| interner.definition_name(**id).to_string());
+        vars.into_iter()
             .map(|(id, value)| {
                 let name = interner.definition_name(*id).to_string();
                 let display_value = value.display(interner, files).to_string();
@@ -448,6 +478,8 @@ pub(crate) fn function_name(interner: &NodeInterner, func_id: Option<FuncId>) ->
 
 pub(crate) fn find_file_id(files: &FileMap, path: &str) -> Option<FileId> {
     let path = std::path::Path::new(path);
+
+    // Try exact match first
     for file_id in files.all_file_ids() {
         if let Ok(name) = files.get_absolute_name(*file_id)
             && name.into_path_buf() == path
@@ -455,5 +487,20 @@ pub(crate) fn find_file_id(files: &FileMap, path: &str) -> Option<FileId> {
             return Some(*file_id);
         }
     }
+
+    // Fall back to canonical path comparison (resolves symlinks and normalization
+    // differences that can occur between VS Code's paths and the compiler's paths).
+    let Ok(canonical_path) = std::fs::canonicalize(path) else {
+        return None;
+    };
+    for file_id in files.all_file_ids() {
+        if let Ok(name) = files.get_absolute_name(*file_id)
+            && let Ok(canonical_name) = std::fs::canonicalize(name.into_path_buf())
+            && canonical_name == canonical_path
+        {
+            return Some(*file_id);
+        }
+    }
+
     None
 }
