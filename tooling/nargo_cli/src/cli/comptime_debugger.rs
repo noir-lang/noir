@@ -26,33 +26,22 @@ pub(crate) enum SteppingMode {
     StepOut,
 }
 
-pub(crate) struct ComptimeDapDebugger<'a, R: Read, W: Write> {
-    server: &'a mut Server<R, W>,
-    stepping_mode: SteppingMode,
-    stop_depth: usize,
-    breakpoints: HashMap<FileId, HashSet<usize>>,
-    first_stop: bool,
-    running: bool,
-    /// Tracks the last location where we stopped, to avoid stopping twice
-    /// on the same line during stepping (e.g. multiple statements on one line).
+/// Shared stepping state used by both the DAP and REPL debuggers.
+/// Tracks breakpoints, stepping mode, and deduplication of stops.
+pub(crate) struct SteppingState {
+    pub(crate) stepping_mode: SteppingMode,
+    pub(crate) stop_depth: usize,
+    pub(crate) breakpoints: HashMap<FileId, HashSet<usize>>,
+    pub(crate) running: bool,
     last_stopped: Option<(FileId, usize)>,
 }
 
-impl<'a, R: Read, W: Write> ComptimeDapDebugger<'a, R, W> {
+impl SteppingState {
     pub(crate) fn new(
-        server: &'a mut Server<R, W>,
         breakpoints: HashMap<FileId, HashSet<usize>>,
         stepping_mode: SteppingMode,
     ) -> Self {
-        Self {
-            server,
-            stepping_mode,
-            stop_depth: 0,
-            breakpoints,
-            first_stop: true,
-            running: true,
-            last_stopped: None,
-        }
+        Self { stepping_mode, stop_depth: 0, breakpoints, running: true, last_stopped: None }
     }
 
     fn should_stop(&self, file: FileId, line: usize, call_depth: usize) -> bool {
@@ -64,6 +53,55 @@ impl<'a, R: Read, W: Write> ComptimeDapDebugger<'a, R, W> {
                 self.breakpoints.get(&file).is_some_and(|lines| lines.contains(&line))
             }
         }
+    }
+
+    /// Evaluates whether to stop at the current location. Returns
+    /// `Some((line, is_breakpoint))` if the debugger should pause here,
+    /// `None` if execution should continue.
+    pub(crate) fn check_stop(&mut self, context: &DebugContext<'_>) -> Option<(usize, bool)> {
+        if !self.running {
+            return None;
+        }
+
+        let (line, _column) = location_to_line_column(context.files, context.location)?;
+
+        let is_breakpoint =
+            self.breakpoints.get(&context.location.file).is_some_and(|lines| lines.contains(&line));
+
+        let call_depth = context.call_stack.len();
+        if !self.should_stop(context.location.file, line, call_depth) {
+            return None;
+        }
+
+        // Skip if we already stopped on this exact line (avoids double-stops
+        // when multiple statements share a source line), unless it's a breakpoint.
+        if !is_breakpoint && self.last_stopped == Some((context.location.file, line)) {
+            return None;
+        }
+
+        self.last_stopped = Some((context.location.file, line));
+        Some((line, is_breakpoint))
+    }
+
+    /// Clears the last-stopped tracking so the next stop isn't deduplicated.
+    pub(crate) fn clear_last_stopped(&mut self) {
+        self.last_stopped = None;
+    }
+}
+
+pub(crate) struct ComptimeDapDebugger<'a, R: Read, W: Write> {
+    server: &'a mut Server<R, W>,
+    state: SteppingState,
+    first_stop: bool,
+}
+
+impl<'a, R: Read, W: Write> ComptimeDapDebugger<'a, R, W> {
+    pub(crate) fn new(
+        server: &'a mut Server<R, W>,
+        breakpoints: HashMap<FileId, HashSet<usize>>,
+        stepping_mode: SteppingMode,
+    ) -> Self {
+        Self { server, state: SteppingState::new(breakpoints, stepping_mode), first_stop: true }
     }
 
     fn handle_stopped(&mut self, context: &DebugContext<'_>, is_breakpoint: bool) {
@@ -86,7 +124,7 @@ impl<'a, R: Read, W: Write> ComptimeDapDebugger<'a, R, W> {
             hit_breakpoint_ids: None,
         })) {
             eprintln!("DAP error sending Stopped event: {e}");
-            self.running = false;
+            self.state.running = false;
             return;
         }
 
@@ -98,12 +136,12 @@ impl<'a, R: Read, W: Write> ComptimeDapDebugger<'a, R, W> {
             let req = match self.server.poll_request() {
                 Ok(Some(req)) => req,
                 Ok(None) => {
-                    self.running = false;
+                    self.state.running = false;
                     break;
                 }
                 Err(e) => {
                     eprintln!("DAP error polling request: {e}");
-                    self.running = false;
+                    self.state.running = false;
                     break;
                 }
             };
@@ -159,30 +197,30 @@ impl<'a, R: Read, W: Write> ComptimeDapDebugger<'a, R, W> {
                     )
                 }
                 Command::Continue(_) => {
-                    self.stepping_mode = SteppingMode::Continue;
-                    self.last_stopped = None;
+                    self.state.stepping_mode = SteppingMode::Continue;
+                    self.state.clear_last_stopped();
                     let _ = self.server.respond(req.success(ResponseBody::Continue(
                         ContinueResponse { all_threads_continued: Some(true) },
                     )));
                     break;
                 }
                 Command::StepIn(_) => {
-                    self.stepping_mode = SteppingMode::StepIn;
-                    self.last_stopped = None;
+                    self.state.stepping_mode = SteppingMode::StepIn;
+                    self.state.clear_last_stopped();
                     self.respond_and_break(req);
                     break;
                 }
                 Command::Next(_) => {
-                    self.stepping_mode = SteppingMode::StepOver;
-                    self.stop_depth = context.call_stack.len();
-                    self.last_stopped = None;
+                    self.state.stepping_mode = SteppingMode::StepOver;
+                    self.state.stop_depth = context.call_stack.len();
+                    self.state.clear_last_stopped();
                     self.respond_and_break(req);
                     break;
                 }
                 Command::StepOut(_) => {
-                    self.stepping_mode = SteppingMode::StepOut;
-                    self.stop_depth = context.call_stack.len();
-                    self.last_stopped = None;
+                    self.state.stepping_mode = SteppingMode::StepOut;
+                    self.state.stop_depth = context.call_stack.len();
+                    self.state.clear_last_stopped();
                     self.respond_and_break(req);
                     break;
                 }
@@ -217,7 +255,7 @@ impl<'a, R: Read, W: Write> ComptimeDapDebugger<'a, R, W> {
                 },
                 Command::Disconnect(_) => {
                     let _ = req.ack().map(|r| self.server.respond(r));
-                    self.running = false;
+                    self.state.running = false;
                     break;
                 }
                 _ => {
@@ -228,7 +266,7 @@ impl<'a, R: Read, W: Write> ComptimeDapDebugger<'a, R, W> {
 
             if let Err(e) = result {
                 eprintln!("DAP error: {e}");
-                self.running = false;
+                self.state.running = false;
                 break;
             }
         }
@@ -239,12 +277,12 @@ impl<'a, R: Read, W: Write> ComptimeDapDebugger<'a, R, W> {
             Ok(resp) => {
                 if let Err(e) = self.server.respond(resp) {
                     eprintln!("DAP error: {e}");
-                    self.running = false;
+                    self.state.running = false;
                 }
             }
             Err(e) => {
                 eprintln!("DAP error: {e}");
-                self.running = false;
+                self.state.running = false;
             }
         }
     }
@@ -301,14 +339,14 @@ impl<'a, R: Read, W: Write> ComptimeDapDebugger<'a, R, W> {
 
         let Some(requested) = &args.breakpoints else {
             if let Some(fid) = file_id {
-                self.breakpoints.remove(&fid);
+                self.state.breakpoints.remove(&fid);
             }
             return vec![];
         };
 
         if let Some(fid) = file_id {
             let lines: HashSet<usize> = requested.iter().map(|bp| bp.line as usize).collect();
-            self.breakpoints.insert(fid, lines);
+            self.state.breakpoints.insert(fid, lines);
 
             requested
                 .iter()
@@ -334,26 +372,7 @@ impl<'a, R: Read, W: Write> ComptimeDapDebugger<'a, R, W> {
 
 impl<R: Read, W: Write> ComptimeDebugger for ComptimeDapDebugger<'_, R, W> {
     fn on_statement(&mut self, context: DebugContext<'_>) {
-        if !self.running {
-            return;
-        }
-
-        let Some((line, _column)) = location_to_line_column(context.files, context.location) else {
-            return;
-        };
-
-        let is_breakpoint =
-            self.breakpoints.get(&context.location.file).is_some_and(|lines| lines.contains(&line));
-
-        let call_depth = context.call_stack.len();
-        if self.should_stop(context.location.file, line, call_depth) {
-            // Skip if we already stopped on this exact line (avoids double-stops
-            // when multiple statements share a source line), unless it's a breakpoint.
-            if !is_breakpoint && self.last_stopped == Some((context.location.file, line)) {
-                return;
-            }
-
-            self.last_stopped = Some((context.location.file, line));
+        if let Some((_line, is_breakpoint)) = self.state.check_stop(&context) {
             self.handle_stopped(&context, is_breakpoint);
         }
     }
