@@ -136,6 +136,7 @@ fn get_field(printable_type: &PrintableType, field_name: &str) -> Option<usize> 
         PrintableType::Tuple { .. } | PrintableType::Array { .. } => {
             field_name.parse::<usize>().ok()
         }
+        PrintableType::Reference { typ, .. } => get_field(typ, field_name),
         _ => None,
     }
 }
