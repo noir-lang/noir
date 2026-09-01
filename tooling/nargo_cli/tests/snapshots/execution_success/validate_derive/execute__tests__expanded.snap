@@ -1,0 +1,42 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+struct Point {
+    x: Field,
+    y: Field,
+}
+
+impl Validate for Point {
+    fn validate(&self) {
+        self.x.validate();
+        self.y.validate();
+    }
+}
+
+struct Shape {
+    corners: [Point; 3],
+    closed: bool,
+    labelled: (Field, bool),
+    origin: Option<Point>,
+}
+
+impl Validate for Shape {
+    fn validate(&self) {
+        self.corners.validate();
+        self.closed.validate();
+        self.labelled.validate();
+        self.origin.validate();
+    }
+}
+
+fn main(x: Field) {
+    let p: Point = Point { x: x, y: x };
+    let shape: Shape = Shape {
+        corners: [p, p, p],
+        closed: true,
+        labelled: (x, false),
+        origin: Option::<Point>::some(p),
+    };
+    shape.validate();
+}
