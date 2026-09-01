@@ -126,7 +126,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
             destinations.push(destination_register);
             sources.push(return_variable.extract_register());
         }
-        self.codegen_mov_registers_to_registers(&sources, &destinations);
+        self.codegen_mov_registers_to_registers(&sources, &destinations, None);
         self.return_instruction();
     }
 }
