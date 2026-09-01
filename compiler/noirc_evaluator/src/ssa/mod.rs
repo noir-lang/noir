@@ -393,6 +393,10 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
             // Remove any potentially unnecessary duplication from the Brillig entry point analysis.
             .and_then(Ssa::remove_unreachable_functions),
         SsaPass::new(Ssa::remove_truncate_after_range_check, "Removing Truncate after RangeCheck"),
+        // Elide range checks and unsigned `lt`s implied by a dominating bound on the same
+        // value. Runs after the truncate removal above, whose value-unification exposes
+        // duplicate checks to this pass.
+        SsaPass::new(Ssa::remove_redundant_range_checks, "Removing Redundant Range Checks"),
         SsaPass::new(Ssa::checked_to_unchecked, "Checked to unchecked"),
         SsaPass::new(
             |ssa| ssa.fold_constants_using_constraints(options.constant_folding_max_iter),
