@@ -1318,9 +1318,7 @@ impl<'context> Elaborator<'context> {
             });
         }
         self.interpreter_call_stack.push_back(location);
-        if self.comptime_debugger.is_some() {
-            self.interpreter_call_stack_functions.push_back(caller_function);
-        }
+        self.interpreter_call_stack_functions.push_back(caller_function);
         Ok(())
     }
 
@@ -1332,11 +1330,9 @@ impl<'context> Elaborator<'context> {
         self.interpreter_call_stack
             .pop_back()
             .expect("call stack pushes and pops should be balanced");
-        if self.comptime_debugger.is_some() {
-            self.interpreter_call_stack_functions
-                .pop_back()
-                .expect("call stack pushes and pops should be balanced");
-        }
+        self.interpreter_call_stack_functions
+            .pop_back()
+            .expect("call stack pushes and pops should be balanced");
     }
 
     /// The current interpreter call stack.
