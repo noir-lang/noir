@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1788277691421,
+  "lastUpdate": 1788278309588,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -9914,105 +9914,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": false,
-          "id": "57bf480c1ddff4cd674d17e63cddc2a8eef11b59",
-          "message": "fix(fuzzer): declare `str::as_bytes` in the comptime elaboration shim (#13513)",
-          "timestamp": "2026-08-12T13:01:31Z",
-          "tree_id": "32a7f4b0d593c0b5b1c7cd21ba0d6636a2ddae2f",
-          "url": "https://github.com/noir-lang/noir/commit/57bf480c1ddff4cd674d17e63cddc2a8eef11b59"
-        },
-        "date": 1786541471632,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 0.04,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset-tail",
-            "value": 0.174,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 0.116,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-first-empty-tx",
-            "value": 0.003,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 0.002,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 0.004,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-checkpoint-merge",
-            "value": 0.003,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-checkpoint-root-single-block",
-            "value": 6.066,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-checkpoint-root",
-            "value": 7.808,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 0.003,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-tx-base-private",
-            "value": 0.239,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-tx-base-public",
-            "value": 0.198,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-tx-merge",
-            "value": 0.002,
-            "unit": "s"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 0.008,
-            "unit": "s"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 0.042,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "49558828+AztecBot@users.noreply.github.com",
-            "name": "Aztec Bot",
-            "username": "AztecBot"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": true,
           "id": "da90b5279d776bedec6dc3726e53bab8eb814b0c",
           "message": "fix(ssa): let constant folding replace a `&T` result with the `&mut T` cell it reads (#13514)",
@@ -14843,6 +14744,90 @@ window.BENCHMARK_DATA = {
           {
             "name": "sha512-100-bytes",
             "value": 0.042,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "a1c6eb76457e61642de2be2e1b6a1b710fd8b7f9",
+          "message": "chore: remove some deprecated code and features (#13571)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>\nCo-authored-by: Aztec Bot <49558828+AztecBot@users.noreply.github.com>",
+          "timestamp": "2026-09-01T15:25:50Z",
+          "tree_id": "45ca199fa2a3ca030784676bbf1753057ce1e9c7",
+          "url": "https://github.com/noir-lang/noir/commit/a1c6eb76457e61642de2be2e1b6a1b710fd8b7f9"
+        },
+        "date": 1788278242248,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "rollup-block-root-first-empty-tx",
+            "value": 0.003,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 0.003,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 0.004,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-checkpoint-merge",
+            "value": 0.002,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-checkpoint-root-single-block",
+            "value": 7.674,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-checkpoint-root",
+            "value": 7.722,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 0.003,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-tx-base-private",
+            "value": 0.276,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-tx-base-public",
+            "value": 0.199,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-tx-merge",
+            "value": 0.002,
+            "unit": "s"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.008,
+            "unit": "s"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 0.047,
             "unit": "s"
           }
         ]
