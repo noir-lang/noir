@@ -773,6 +773,39 @@ impl<'f> Context<'f> {
     ///
     /// Well-formed SSA contains no `DecrementRc`, so we don't need to worry
     /// about a `dec_rc` intervening between the `inc_rc` and the `array_set`.
+    /// Whether `alias_set` contains a global.
+    ///
+    /// A global's storage is not function-local, so the forward walk that decides whether an
+    /// in-place mutation is observable cannot answer the question for it: the observing read
+    /// may be in another function, or in another invocation of this Brillig entry point (each
+    /// re-initialises the globals region, and ACVM builds a fresh VM per `BrilligCall`). The
+    /// storage is also live for the whole program, so it is never "the last use". Mechanism 2
+    /// (block-parameter threading) therefore cannot protect a mutation of a global; only an
+    /// `inc_rc` can. See [`Context::unprotected_global_for_source`].
+    fn alias_set_contains_global(&self, alias_set: &imbl::HashSet<ValueId>) -> bool {
+        alias_set.iter().any(|value| self.function.dfg.is_global(*value))
+    }
+
+    /// The global whose storage the mutation of `source` may write through, if any.
+    ///
+    /// Narrows the alias-set with the same per-path coverage the forward walk uses
+    /// ([`Context::unprotected_aliases`]), so a global that is `inc_rc`'d on every path where
+    /// it can be the source's storage is not reported — the mutation copies there. What is
+    /// left is a global whose storage the write may reach with its reference count still 1.
+    fn unprotected_global_for_source(
+        &self,
+        alias_set: &imbl::HashSet<ValueId>,
+        source: ValueId,
+        array_set_block: BasicBlockId,
+        array_set_idx: usize,
+    ) -> Option<ValueId> {
+        if !self.alias_set_contains_global(alias_set) {
+            return None;
+        }
+        let use_set = self.unprotected_aliases(alias_set, source, array_set_block, array_set_idx);
+        use_set.iter().copied().find(|value| self.function.dfg.is_global(*value))
+    }
+
     fn some_inc_rc_precedes(
         &self,
         alias_set: &imbl::HashSet<ValueId>,
