@@ -221,7 +221,14 @@ fn run_comptime(args: DebugCommand, workspace: Workspace) -> Result<(), CliError
                     );
                 }
                 Err(err) => {
-                    eprintln!("Interpreter error: {err:?}");
+                    let diagnostic = noirc_errors::CustomDiagnostic::from(&err);
+                    noirc_frontend::error_reporting::report_one(
+                        &diagnostic,
+                        &file_manager,
+                        &parsed_files,
+                        false,
+                        false,
+                    );
                 }
             }
         }
