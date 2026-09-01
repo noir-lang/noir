@@ -3187,7 +3187,6 @@ dependencies = [
  "fm",
  "fs2",
  "iai",
- "imbl",
  "insta",
  "iter-extended",
  "itertools 0.15.0",
