@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1788263965757,
+  "lastUpdate": 1788265790929,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23335,48 +23335,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": true,
-          "id": "c6b4e226fbd2641c481a60a43c58cf1ecf6726f4",
-          "message": "fix(acvm): enforce all-or-nothing scalar limbs in MultiScalarMul (#13512)",
-          "timestamp": "2026-08-12T10:41:44Z",
-          "tree_id": "c79405092421fbbe36f507fec0349b8653c81a8d",
-          "url": "https://github.com/noir-lang/noir/commit/c6b4e226fbd2641c481a60a43c58cf1ecf6726f4"
-        },
-        "date": 1786532524998,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 174213,
-            "range": "± 880",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 142319,
-            "range": "± 503",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2651776,
-            "range": "± 2412",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "49558828+AztecBot@users.noreply.github.com",
-            "name": "Aztec Bot",
-            "username": "AztecBot"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": false,
           "id": "57bf480c1ddff4cd674d17e63cddc2a8eef11b59",
           "message": "fix(fuzzer): declare `str::as_bytes` in the comptime elaboration shim (#13513)",
@@ -25419,6 +25377,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 3040319,
             "range": "± 5588",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49558828+AztecBot@users.noreply.github.com",
+            "name": "Aztec Bot",
+            "username": "AztecBot"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "49daec78d797347829a5c4678f6516a67b39947a",
+          "message": "feat(ssa): reject an unprotected in-place mutation of a global in the RC-invariant verifier (#13554)",
+          "timestamp": "2026-09-01T12:06:28Z",
+          "tree_id": "856220ee1b7cd3ecf779e694e20ca5fbf5371b71",
+          "url": "https://github.com/noir-lang/noir/commit/49daec78d797347829a5c4678f6516a67b39947a"
+        },
+        "date": 1788265721401,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 98882,
+            "range": "± 511",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 88176,
+            "range": "± 764",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2361239,
+            "range": "± 1069",
             "unit": "ns/iter"
           }
         ]
