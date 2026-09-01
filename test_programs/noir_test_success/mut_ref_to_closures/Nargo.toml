@@ -1,0 +1,6 @@
+[package]
+name = "mut_ref_to_closures"
+type = "bin"
+authors = [""]
+
+[dependencies] 
