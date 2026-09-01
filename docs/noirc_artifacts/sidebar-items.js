@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["deserialize_hash","serialize_hash"],"mod":["contract","debug","debug_vars","program","ssa"]};
+window.SIDEBAR_ITEMS = {"constant":["ARTIFACT_VERSION"],"fn":["default_artifact_version","deserialize_artifact_version","deserialize_hash","serialize_hash"],"mod":["contract","debug","debug_vars","program","ssa"]};
