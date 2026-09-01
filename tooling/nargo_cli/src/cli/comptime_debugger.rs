@@ -1,7 +1,7 @@
 use std::collections::{HashMap, HashSet};
 use std::io::{Read, Write};
 
-use dap::events::{OutputEventBody, StoppedEventBody};
+use dap::events::StoppedEventBody;
 use dap::prelude::Event;
 use dap::requests::Command;
 use dap::responses::{
@@ -10,7 +10,6 @@ use dap::responses::{
     StackTraceResponse, ThreadsResponse, VariablesResponse,
 };
 use dap::server::Server;
-use dap::types::OutputEventCategory;
 use dap::types::{Breakpoint, Scope, Source, StackFrame, StoppedEventReason, Thread, Variable};
 use fm::codespan_files::Files;
 use fm::{FileId, FileMap};
@@ -55,15 +54,6 @@ impl<'a, R: Read, W: Write> ComptimeDapDebugger<'a, R, W> {
             running: true,
             last_stopped: None,
         }
-    }
-
-    #[allow(dead_code)]
-    fn dap_log(&mut self, message: &str) {
-        let _ = self.server.send_event(Event::Output(OutputEventBody {
-            category: Some(OutputEventCategory::Console),
-            output: format!("{message}\n"),
-            ..OutputEventBody::default()
-        }));
     }
 
     fn should_stop(&self, file: FileId, line: usize, call_depth: usize) -> bool {
