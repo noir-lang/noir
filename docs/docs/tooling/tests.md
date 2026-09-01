@@ -24,10 +24,9 @@ fn test_add() {
 ```
 
 Running `nargo test` will test that the `test_add` function can be executed while satisfying all
-the constraints which allows you to test that add returns the expected values. Test functions can't
-have any arguments currently.
+the constraints which allows you to test that add returns the expected values.
 
-### Test fail
+## Tests that should fail
 
 You can write tests that are expected to fail by using the decorator `#[test(should_fail)]`. For example:
 
@@ -77,9 +76,100 @@ fn test_bridgekeeper() {
 }
 ```
 
-### Fuzz tests
+## How tests are executed
 
-You can write fuzzing harnesses that will run on `nargo test` by using the decorator `#[test]` with a function that has arguments. For example:
+A common misconception is that `nargo test` compiles everything to Brillig (the unconstrained
+bytecode) for speed. It does not. **The way a test is written determines which runtime it runs
+in, and Nargo never silently changes that runtime.** There are three possibilities:
+
+| Test | How it's written | Compiled to | Executed by |
+|------|------------------|-------------|-------------|
+| Constrained test | a plain `#[test] fn` | ACIR (an arithmetic circuit) | the ACVM |
+| Unconstrained test | `#[test] unconstrained fn` | [Brillig](../language/unconstrained.md) bytecode | the Brillig VM |
+| Comptime test | a `#[test] fn` that exercises a [`comptime`](../language/comptime.md) function or block | nothing — it is interpreted | the compiler's comptime interpreter |
+
+So a plain test exercises your code exactly as it will be proven (as a circuit), while an
+`unconstrained fn` test exercises it the way unconstrained code actually runs:
+
+```rust
+// Runs as a circuit (ACIR), executed by the ACVM.
+#[test]
+fn constrained_test() {
+    assert(add(2, 2) == 4);
+}
+
+// Runs as Brillig, executed by the Brillig VM.
+#[test]
+unconstrained fn unconstrained_test() {
+    assert(add(2, 2) == 4);
+}
+```
+
+### Why the runtime matters
+
+Keeping these runtimes distinct matters because **Noir code can observe which runtime it is
+running in**, so silently moving a test between them could hide real bugs.
+
+- [`std::runtime::is_unconstrained()`](../libraries/standard_library/is_unconstrained.md)
+  returns whether the current context is unconstrained, and it is resolved at compile time. A
+  library that does `if is_unconstrained() { ... } else { ... }` therefore takes a *different
+  branch* depending on the runtime. A constrained test exercises the constrained branch; the
+  same test compiled to Brillig would only ever exercise the unconstrained branch, so a bug
+  living in the constrained branch would go unnoticed.
+
+- Values returned from unconstrained code are **not** automatically constrained when they
+  flow back into ACIR — it is up to you to write the checks that verify them, and an ACIR
+  function that forgets to do so is under-constrained even though it executes fine. Crucially,
+  these verification checks are often written to run *only* in a constrained context and
+  skipped in Brillig (commonly by branching on
+  [`std::runtime::is_unconstrained()`](../libraries/standard_library/is_unconstrained.md), see
+  [Unconstrained functions](../language/unconstrained.md)). So if you want to test that an
+  ACIR function actually constrains its results correctly, the test must run in an ACIR
+  context — running it as Brillig skips exactly the checks you are trying to exercise.
+
+The practical rule: test your code in the runtime it will actually be compiled to. If a
+function is constrained in production, keep its test constrained.
+
+### Running constrained tests as unconstrained
+
+Sometimes you *do* want to additionally check how a constrained test behaves when run as if it
+were unconstrained — for example to compare results between the two runtimes. The
+`--force-brillig` flag forces every function to be compiled to Brillig for the run:
+
+```bash
+nargo test --force-brillig
+```
+
+This is an explicit, opt-in override, not the default, and it changes what the test proves
+(see [Why the runtime matters](#why-the-runtime-matters) above). Use it as an *additional*
+check, not as a replacement for the normal constrained run.
+
+### Testing comptime code
+
+If you want to test a [`comptime`](../language/comptime.md) function, call it from a `comptime`
+context inside a regular test. The body runs in the compiler's comptime interpreter rather
+than being compiled to a circuit or to Brillig:
+
+```rust
+comptime fn double(x: u32) -> u32 {
+    x * 2
+}
+
+#[test]
+fn test_double() {
+    comptime {
+        assert_eq(double(2), 4);
+    }
+}
+```
+
+Note that `is_unconstrained()` returns `true` in a `comptime` context, since comptime
+evaluation follows unconstrained semantics.
+
+## Fuzz tests
+
+A `#[test]` function that takes arguments is run as a fuzz test: instead of executing it once,
+`nargo test` generates and mutates inputs looking for a set of arguments that makes it fail.
 
 ```rust
 #[test]
@@ -87,71 +177,32 @@ fn test_basic(a: Field, b: Field) {
     assert(a + b == b + a);
 }
 ```
-The test above is not expected to fail. By default, the fuzzer will run for 1 second and use 100000 executions (whichever comes first). All available threads will be used for each fuzz test.
-The fuzz tests also work with `#[test(should_fail)]`, `#[test(should_fail_with = "<the reason for failure>")]` and `#[test(only_fail_with = "<the reason for failure>")]`. For example:
 
-```rust
-#[test(should_fail)]
-fn test_should_fail(a: [bool; 32]) {
-    let mut or_sum= false;
-    for i in 0..32 {
-        or_sum=or_sum|(a[i]==((i&1)as bool));
-    }
-    assert(!or_sum);
-}
+Fuzz tests support `#[test(should_fail)]`, `#[test(should_fail_with = "...")]` and
+`#[test(only_fail_with = "...")]` in the same way as ordinary tests. The underlying engine, the
+dedicated `nargo fuzz` command, and differential fuzzing against an oracle are all described in
+the [Fuzzer](./fuzzer.md) documentation.
+
+The following fuzzing-specific options are available on `nargo test`:
+
+```text
+--no-fuzz
+    Do not run fuzz tests (tests that have arguments)
+--only-fuzz
+    Only run fuzz tests (tests that have arguments)
+--corpus-dir <CORPUS_DIR>
+    If given, load/store fuzzer corpus from this folder
+--minimized-corpus-dir <MINIMIZED_CORPUS_DIR>
+    If given, perform corpus minimization instead of fuzzing and store results in the given folder
+--fuzzing-failure-dir <FUZZING_FAILURE_DIR>
+    If given, store the failing input in the given folder
+--fuzz-timeout <FUZZ_TIMEOUT>
+    Maximum time in seconds to spend fuzzing (default: 1 second)
+--fuzz-max-executions <FUZZ_MAX_EXECUTIONS>
+    Maximum number of executions to run for each fuzz test (default: 100000)
+--fuzz-show-progress
+    Show progress of fuzzing (default: false)
 ```
-or
-
-```rust
-#[test(should_fail_with = "This is the message that will be checked for")]
-fn test_should_fail_with(a: [bool; 32]) {
-    let mut or_sum= false;
-    for i in 0..32 {
-        or_sum=or_sum|(a[i]==((i&1)as bool));
-    }
-    assert(or_sum);
-    assert(false, "This is the message that will be checked for");
-}
-```
-
-```rust
-#[test(only_fail_with = "This is the message that will be checked for")]
-fn test_add(a: u64, b: u64) {
-    assert((a+b-15)!=(a-b+30), "This is the message that will be checked for");
-}
-```
-
-The underlying fuzzing mechanism is described in the [Fuzzer](../tooling/fuzzer) documentation.
-
-There are some fuzzing-specific options that can be used with `nargo test`:
-       --no-fuzz
-          Do not run fuzz tests (tests that have arguments)
-
-      --only-fuzz
-          Only run fuzz tests (tests that have arguments)
-
-      --corpus-dir <CORPUS_DIR>
-          If given, load/store fuzzer corpus from this folder
-
-      --minimized-corpus-dir <MINIMIZED_CORPUS_DIR>
-          If given, perform corpus minimization instead of fuzzing and store results in the given folder
-
-      --fuzzing-failure-dir <FUZZING_FAILURE_DIR>
-          If given, store the failing input in the given folder
-
-      --fuzz-timeout <FUZZ_TIMEOUT>
-          Maximum time in seconds to spend fuzzing (default: 1 second)
-
-          [default: 1]
-
-      --fuzz-max-executions <FUZZ_MAX_EXECUTIONS>
-          Maximum number of executions to run for each fuzz test (default: 100000)
-
-          [default: 100000]
-
-      --fuzz-show-progress
-          Show progress of fuzzing (default: false)
-
 
 By default, the fuzzing corpus is saved in a temporary directory, but this can be changed. This allows you to resume fuzzing from the same corpus if the process is interrupted, if you want to run continuous fuzzing on your corpus, or if you want to use previous failures for regression testing.
 
@@ -259,4 +310,3 @@ All methods are unconstrained.
 | `.times_called()` | Returns how many times this mock has been invoked. |
 | `.get_last_params()` | Returns the parameters from the most recent matching call. |
 | `.clear()` | Remove this mock so it no longer matches any calls. |
-
