@@ -1418,16 +1418,15 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         }
 
         if let Some(mut debugger) = self.elaborator.comptime_debugger.take() {
-            let location = self.elaborator.interner.id_location(statement);
-            let current_function = self.current_function;
-            debugger.on_statement(
-                location,
-                self.elaborator.interner,
-                self.elaborator.files,
-                self.elaborator.interpreter_call_stack(),
-                current_function,
-                self.elaborator.interpreter_call_stack_functions(),
-            );
+            let context = super::DebugContext {
+                location: self.elaborator.interner.id_location(statement),
+                interner: self.elaborator.interner,
+                files: self.elaborator.files,
+                call_stack: self.elaborator.interpreter_call_stack(),
+                current_function: self.current_function,
+                call_stack_functions: self.elaborator.interpreter_call_stack_functions(),
+            };
+            debugger.on_statement(context);
             self.elaborator.comptime_debugger = Some(debugger);
         }
 

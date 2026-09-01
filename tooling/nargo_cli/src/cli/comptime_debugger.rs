@@ -13,9 +13,8 @@ use dap::server::Server;
 use dap::types::{Breakpoint, Scope, Source, StackFrame, StoppedEventReason, Thread, Variable};
 use fm::codespan_files::Files;
 use fm::{FileId, FileMap};
-use imbl::Vector;
 use noirc_errors::Location;
-use noirc_frontend::hir::comptime::ComptimeDebugger;
+use noirc_frontend::hir::comptime::{ComptimeDebugger, DebugContext};
 use noirc_frontend::node_interner::{FuncId, NodeInterner};
 
 const LOCALS_SCOPE_REFERENCE: i64 = 1;
@@ -67,17 +66,7 @@ impl<'a, R: Read, W: Write> ComptimeDapDebugger<'a, R, W> {
         }
     }
 
-    #[allow(clippy::too_many_arguments)]
-    fn handle_stopped(
-        &mut self,
-        location: Location,
-        interner: &NodeInterner,
-        files: &FileMap,
-        call_stack: &Vector<Location>,
-        current_function: Option<FuncId>,
-        call_stack_functions: &Vector<Option<FuncId>>,
-        is_breakpoint: bool,
-    ) {
+    fn handle_stopped(&mut self, context: &DebugContext<'_>, is_breakpoint: bool) {
         let reason = if self.first_stop {
             self.first_stop = false;
             StoppedEventReason::Entry
@@ -101,25 +90,10 @@ impl<'a, R: Read, W: Write> ComptimeDapDebugger<'a, R, W> {
             return;
         }
 
-        self.dap_sub_loop(
-            location,
-            interner,
-            files,
-            call_stack,
-            current_function,
-            call_stack_functions,
-        );
+        self.dap_sub_loop(context);
     }
 
-    fn dap_sub_loop(
-        &mut self,
-        location: Location,
-        interner: &NodeInterner,
-        files: &FileMap,
-        call_stack: &Vector<Location>,
-        current_function: Option<FuncId>,
-        call_stack_functions: &Vector<Option<FuncId>>,
-    ) {
+    fn dap_sub_loop(&mut self, context: &DebugContext<'_>) {
         loop {
             let req = match self.server.poll_request() {
                 Ok(Some(req)) => req,
@@ -134,128 +108,123 @@ impl<'a, R: Read, W: Write> ComptimeDapDebugger<'a, R, W> {
                 }
             };
 
-            let result =
-                match req.command {
-                    Command::Threads => {
-                        self.server.respond(req.success(ResponseBody::Threads(ThreadsResponse {
-                            threads: vec![Thread { id: 0, name: "main".to_string() }],
-                        })))
-                    }
-                    Command::StackTrace(_) => {
-                        let frames = self.build_stack_frames(
-                            location,
-                            interner,
-                            files,
-                            call_stack,
-                            current_function,
-                            call_stack_functions,
-                        );
-                        let total = frames.len() as i64;
-                        self.server.respond(req.success(ResponseBody::StackTrace(
-                            StackTraceResponse { stack_frames: frames, total_frames: Some(total) },
-                        )))
-                    }
-                    Command::Scopes(_) => {
-                        self.server.respond(req.success(ResponseBody::Scopes(ScopesResponse {
-                            scopes: vec![Scope {
-                                name: "Locals".to_string(),
-                                variables_reference: LOCALS_SCOPE_REFERENCE,
-                                ..Scope::default()
-                            }],
-                        })))
-                    }
-                    Command::Variables(ref args) => {
-                        let variables = if args.variables_reference == LOCALS_SCOPE_REFERENCE {
-                            self.build_variables(interner, files)
-                        } else {
-                            vec![]
-                        };
-                        self.server.respond(
-                            req.success(ResponseBody::Variables(VariablesResponse { variables })),
-                        )
-                    }
-                    Command::SetBreakpoints(ref args) => {
-                        let breakpoints = self.handle_set_breakpoints(args, files);
-                        self.server.respond(req.success(ResponseBody::SetBreakpoints(
-                            SetBreakpointsResponse { breakpoints },
-                        )))
-                    }
-                    Command::Source(ref args) => {
-                        let file_id = FileId::new(args.source_reference as usize - 1);
-                        let content =
-                            files.source(file_id).map(|s| s.to_string()).unwrap_or_default();
-                        self.server.respond(req.success(ResponseBody::Source(SourceResponse {
+            let result = match req.command {
+                Command::Threads => {
+                    self.server.respond(req.success(ResponseBody::Threads(ThreadsResponse {
+                        threads: vec![Thread { id: 0, name: "main".to_string() }],
+                    })))
+                }
+                Command::StackTrace(_) => {
+                    let frames = self.build_stack_frames(context);
+                    let total = frames.len() as i64;
+                    self.server.respond(req.success(ResponseBody::StackTrace(StackTraceResponse {
+                        stack_frames: frames,
+                        total_frames: Some(total),
+                    })))
+                }
+                Command::Scopes(_) => {
+                    self.server.respond(req.success(ResponseBody::Scopes(ScopesResponse {
+                        scopes: vec![Scope {
+                            name: "Locals".to_string(),
+                            variables_reference: LOCALS_SCOPE_REFERENCE,
+                            ..Scope::default()
+                        }],
+                    })))
+                }
+                Command::Variables(ref args) => {
+                    let variables = if args.variables_reference == LOCALS_SCOPE_REFERENCE {
+                        self.build_variables(context.interner, context.files)
+                    } else {
+                        vec![]
+                    };
+                    self.server.respond(
+                        req.success(ResponseBody::Variables(VariablesResponse { variables })),
+                    )
+                }
+                Command::SetBreakpoints(ref args) => {
+                    let breakpoints = self.handle_set_breakpoints(args, context.files);
+                    self.server.respond(req.success(ResponseBody::SetBreakpoints(
+                        SetBreakpointsResponse { breakpoints },
+                    )))
+                }
+                Command::Source(ref args) => {
+                    let file_id = FileId::new(args.source_reference as usize - 1);
+                    let content =
+                        context.files.source(file_id).map(|s| s.to_string()).unwrap_or_default();
+                    self.server.respond(
+                        req.success(ResponseBody::Source(SourceResponse {
                             content,
                             mime_type: None,
-                        })))
+                        })),
+                    )
+                }
+                Command::Continue(_) => {
+                    self.stepping_mode = SteppingMode::Continue;
+                    self.last_stopped = None;
+                    let _ = self.server.respond(req.success(ResponseBody::Continue(
+                        ContinueResponse { all_threads_continued: Some(true) },
+                    )));
+                    break;
+                }
+                Command::StepIn(_) => {
+                    self.stepping_mode = SteppingMode::StepIn;
+                    self.last_stopped = None;
+                    self.respond_and_break(req);
+                    break;
+                }
+                Command::Next(_) => {
+                    self.stepping_mode = SteppingMode::StepOver;
+                    self.stop_depth = context.call_stack.len();
+                    self.last_stopped = None;
+                    self.respond_and_break(req);
+                    break;
+                }
+                Command::StepOut(_) => {
+                    self.stepping_mode = SteppingMode::StepOut;
+                    self.stop_depth = context.call_stack.len();
+                    self.last_stopped = None;
+                    self.respond_and_break(req);
+                    break;
+                }
+                Command::SetExceptionBreakpoints(_) => {
+                    self.server.respond(req.success(ResponseBody::SetExceptionBreakpoints(
+                        SetExceptionBreakpointsResponse { breakpoints: None },
+                    )))
+                }
+                Command::SetInstructionBreakpoints(_) => {
+                    self.server.respond(req.success(ResponseBody::SetInstructionBreakpoints(
+                        SetInstructionBreakpointsResponse { breakpoints: vec![] },
+                    )))
+                }
+                Command::Evaluate(ref args) => {
+                    let result = format!("Cannot evaluate: {}", args.expression);
+                    self.server.respond(req.success(ResponseBody::Evaluate(EvaluateResponse {
+                        result,
+                        type_field: None,
+                        presentation_hint: None,
+                        variables_reference: 0,
+                        named_variables: None,
+                        indexed_variables: None,
+                        memory_reference: None,
+                    })))
+                }
+                Command::ConfigurationDone => match req.ack() {
+                    Ok(resp) => self.server.respond(resp),
+                    Err(e) => {
+                        eprintln!("DAP error: {e}");
+                        Ok(())
                     }
-                    Command::Continue(_) => {
-                        self.stepping_mode = SteppingMode::Continue;
-                        self.last_stopped = None;
-                        let _ = self.server.respond(req.success(ResponseBody::Continue(
-                            ContinueResponse { all_threads_continued: Some(true) },
-                        )));
-                        break;
-                    }
-                    Command::StepIn(_) => {
-                        self.stepping_mode = SteppingMode::StepIn;
-                        self.last_stopped = None;
-                        self.respond_and_break(req);
-                        break;
-                    }
-                    Command::Next(_) => {
-                        self.stepping_mode = SteppingMode::StepOver;
-                        self.stop_depth = call_stack.len();
-                        self.last_stopped = None;
-                        self.respond_and_break(req);
-                        break;
-                    }
-                    Command::StepOut(_) => {
-                        self.stepping_mode = SteppingMode::StepOut;
-                        self.stop_depth = call_stack.len();
-                        self.last_stopped = None;
-                        self.respond_and_break(req);
-                        break;
-                    }
-                    Command::SetExceptionBreakpoints(_) => {
-                        self.server.respond(req.success(ResponseBody::SetExceptionBreakpoints(
-                            SetExceptionBreakpointsResponse { breakpoints: None },
-                        )))
-                    }
-                    Command::SetInstructionBreakpoints(_) => {
-                        self.server.respond(req.success(ResponseBody::SetInstructionBreakpoints(
-                            SetInstructionBreakpointsResponse { breakpoints: vec![] },
-                        )))
-                    }
-                    Command::Evaluate(ref args) => {
-                        let result = format!("Cannot evaluate: {}", args.expression);
-                        self.server.respond(req.success(ResponseBody::Evaluate(EvaluateResponse {
-                            result,
-                            type_field: None,
-                            presentation_hint: None,
-                            variables_reference: 0,
-                            named_variables: None,
-                            indexed_variables: None,
-                            memory_reference: None,
-                        })))
-                    }
-                    Command::ConfigurationDone => match req.ack() {
-                        Ok(resp) => self.server.respond(resp),
-                        Err(e) => {
-                            eprintln!("DAP error: {e}");
-                            Ok(())
-                        }
-                    },
-                    Command::Disconnect(_) => {
-                        let _ = req.ack().map(|r| self.server.respond(r));
-                        self.running = false;
-                        break;
-                    }
-                    _ => {
-                        eprintln!("Unhandled DAP command in sub-loop: {:?}", req.command);
-                        self.server.respond(req.error("Not supported"))
-                    }
-                };
+                },
+                Command::Disconnect(_) => {
+                    let _ = req.ack().map(|r| self.server.respond(r));
+                    self.running = false;
+                    break;
+                }
+                _ => {
+                    eprintln!("Unhandled DAP command in sub-loop: {:?}", req.command);
+                    self.server.respond(req.error("Not supported"))
+                }
+            };
 
             if let Err(e) = result {
                 eprintln!("DAP error: {e}");
@@ -280,29 +249,25 @@ impl<'a, R: Read, W: Write> ComptimeDapDebugger<'a, R, W> {
         }
     }
 
-    fn build_stack_frames(
-        &self,
-        current_location: Location,
-        interner: &NodeInterner,
-        files: &FileMap,
-        call_stack: &Vector<Location>,
-        current_function: Option<FuncId>,
-        call_stack_functions: &Vector<Option<FuncId>>,
-    ) -> Vec<StackFrame> {
+    fn build_stack_frames(&self, context: &DebugContext<'_>) -> Vec<StackFrame> {
         let mut frames = Vec::new();
 
         // Top frame: current function
-        let current_name = function_name(interner, current_function);
-        frames.push(location_to_stack_frame(0, &current_name, current_location, files));
+        let current_name = function_name(context.interner, context.current_function);
+        frames.push(location_to_stack_frame(0, &current_name, context.location, context.files));
 
         // Upper frames from the call stack (most recent call site first).
         // call_stack_functions is parallel to call_stack: each entry is the
         // FuncId of the function that *contains* the corresponding call site.
-        for (i, (&loc, &func_id)) in
-            call_stack.iter().rev().zip(call_stack_functions.iter().rev()).enumerate()
+        for (i, (&loc, &func_id)) in context
+            .call_stack
+            .iter()
+            .rev()
+            .zip(context.call_stack_functions.iter().rev())
+            .enumerate()
         {
-            let name = function_name(interner, func_id);
-            frames.push(location_to_stack_frame((i + 1) as i64, &name, loc, files));
+            let name = function_name(context.interner, func_id);
+            frames.push(location_to_stack_frame((i + 1) as i64, &name, loc, context.files));
         }
 
         frames
@@ -368,44 +333,28 @@ impl<'a, R: Read, W: Write> ComptimeDapDebugger<'a, R, W> {
 }
 
 impl<R: Read, W: Write> ComptimeDebugger for ComptimeDapDebugger<'_, R, W> {
-    fn on_statement(
-        &mut self,
-        location: Location,
-        interner: &NodeInterner,
-        files: &FileMap,
-        call_stack: &Vector<Location>,
-        current_function: Option<FuncId>,
-        call_stack_functions: &Vector<Option<FuncId>>,
-    ) {
+    fn on_statement(&mut self, context: DebugContext<'_>) {
         if !self.running {
             return;
         }
 
-        let Some((line, _column)) = location_to_line_column(files, location) else {
+        let Some((line, _column)) = location_to_line_column(context.files, context.location) else {
             return;
         };
 
         let is_breakpoint =
-            self.breakpoints.get(&location.file).is_some_and(|lines| lines.contains(&line));
+            self.breakpoints.get(&context.location.file).is_some_and(|lines| lines.contains(&line));
 
-        let call_depth = call_stack.len();
-        if self.should_stop(location.file, line, call_depth) {
+        let call_depth = context.call_stack.len();
+        if self.should_stop(context.location.file, line, call_depth) {
             // Skip if we already stopped on this exact line (avoids double-stops
             // when multiple statements share a source line), unless it's a breakpoint.
-            if !is_breakpoint && self.last_stopped == Some((location.file, line)) {
+            if !is_breakpoint && self.last_stopped == Some((context.location.file, line)) {
                 return;
             }
 
-            self.last_stopped = Some((location.file, line));
-            self.handle_stopped(
-                location,
-                interner,
-                files,
-                call_stack,
-                current_function,
-                call_stack_functions,
-                is_breakpoint,
-            );
+            self.last_stopped = Some((context.location.file, line));
+            self.handle_stopped(&context, is_breakpoint);
         }
     }
 }

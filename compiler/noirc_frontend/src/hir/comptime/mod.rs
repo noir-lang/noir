@@ -19,7 +19,7 @@ mod interpreter;
 mod tests;
 mod value;
 
-pub use debugger::{ComptimeDebugger, ComptimeOracleExecutor};
+pub use debugger::{ComptimeDebugger, ComptimeOracleExecutor, DebugContext};
 pub use display::{tokens_to_string, tokens_to_string_with_indent};
 pub use errors::{ComptimeError, InterpreterError};
 pub use integer::Integer;

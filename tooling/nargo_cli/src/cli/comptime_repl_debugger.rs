@@ -5,9 +5,8 @@ use std::rc::Rc;
 
 use fm::codespan_files::Files;
 use fm::{FileId, FileMap};
-use imbl::Vector;
 use noirc_errors::Location;
-use noirc_frontend::hir::comptime::ComptimeDebugger;
+use noirc_frontend::hir::comptime::{ComptimeDebugger, DebugContext};
 use noirc_frontend::node_interner::{FuncId, NodeInterner};
 
 use super::comptime_debugger::{SteppingMode, function_name, location_to_line_column};
@@ -94,41 +93,36 @@ impl ComptimeReplDebugger {
         }
     }
 
-    fn print_stack_trace(
-        &self,
-        location: Location,
-        interner: &NodeInterner,
-        files: &FileMap,
-        call_stack: &Vector<Location>,
-        current_function: Option<FuncId>,
-        call_stack_functions: &Vector<Option<FuncId>>,
-    ) {
-        let current_name = function_name(interner, current_function);
-        let (line, col) = location_to_line_column(files, location).unwrap_or((1, 1));
-        let file_name =
-            files.get_absolute_name(location.file).map(|n| n.to_string()).unwrap_or_default();
+    fn print_stack_trace(&self, context: &DebugContext<'_>) {
+        let current_name = function_name(context.interner, context.current_function);
+        let (line, col) =
+            location_to_line_column(context.files, context.location).unwrap_or((1, 1));
+        let file_name = context
+            .files
+            .get_absolute_name(context.location.file)
+            .map(|n| n.to_string())
+            .unwrap_or_default();
         println!("#0  {current_name} at {file_name}:{line}:{col}");
 
-        for (i, (&loc, &func_id)) in
-            call_stack.iter().rev().zip(call_stack_functions.iter().rev()).enumerate()
+        for (i, (&loc, &func_id)) in context
+            .call_stack
+            .iter()
+            .rev()
+            .zip(context.call_stack_functions.iter().rev())
+            .enumerate()
         {
-            let name = function_name(interner, func_id);
-            let (line, col) = location_to_line_column(files, loc).unwrap_or((1, 1));
-            let file_name =
-                files.get_absolute_name(loc.file).map(|n| n.to_string()).unwrap_or_default();
+            let name = function_name(context.interner, func_id);
+            let (line, col) = location_to_line_column(context.files, loc).unwrap_or((1, 1));
+            let file_name = context
+                .files
+                .get_absolute_name(loc.file)
+                .map(|n| n.to_string())
+                .unwrap_or_default();
             println!("#{:<2} {name} at {file_name}:{line}:{col}", i + 1);
         }
     }
 
-    fn repl_loop(
-        &mut self,
-        location: Location,
-        interner: &NodeInterner,
-        files: &FileMap,
-        call_stack: &Vector<Location>,
-        current_function: Option<FuncId>,
-        call_stack_functions: &Vector<Option<FuncId>>,
-    ) {
+    fn repl_loop(&mut self, context: &DebugContext<'_>) {
         loop {
             print!("debug> ");
             let _ = io::stdout().flush();
@@ -150,13 +144,13 @@ impl ComptimeReplDebugger {
                 }
                 "n" | "next" => {
                     self.stepping_mode = SteppingMode::StepOver;
-                    self.stop_depth = call_stack.len();
+                    self.stop_depth = context.call_stack.len();
                     self.last_stopped = None;
                     break;
                 }
                 "o" | "out" => {
                     self.stepping_mode = SteppingMode::StepOut;
-                    self.stop_depth = call_stack.len();
+                    self.stop_depth = context.call_stack.len();
                     self.last_stopped = None;
                     break;
                 }
@@ -166,24 +160,21 @@ impl ComptimeReplDebugger {
                     break;
                 }
                 "v" | "vars" => {
-                    self.print_variables(interner, files);
+                    self.print_variables(context.interner, context.files);
                 }
                 "bt" | "stacktrace" => {
-                    self.print_stack_trace(
-                        location,
-                        interner,
-                        files,
-                        call_stack,
-                        current_function,
-                        call_stack_functions,
-                    );
+                    self.print_stack_trace(context);
                 }
                 "b" | "break" => {
                     if let Some(line_str) = parts.get(1) {
                         if let Ok(line_num) = line_str.parse::<usize>() {
-                            self.breakpoints.entry(location.file).or_default().insert(line_num);
-                            let file_name = files
-                                .get_absolute_name(location.file)
+                            self.breakpoints
+                                .entry(context.location.file)
+                                .or_default()
+                                .insert(line_num);
+                            let file_name = context
+                                .files
+                                .get_absolute_name(context.location.file)
                                 .map(|n| n.to_string())
                                 .unwrap_or_default();
                             println!("Breakpoint set at {file_name}:{line_num}");
@@ -199,11 +190,12 @@ impl ComptimeReplDebugger {
                         if let Ok(line_num) = line_str.parse::<usize>() {
                             let removed = self
                                 .breakpoints
-                                .get_mut(&location.file)
+                                .get_mut(&context.location.file)
                                 .is_some_and(|lines| lines.remove(&line_num));
                             if removed {
-                                let file_name = files
-                                    .get_absolute_name(location.file)
+                                let file_name = context
+                                    .files
+                                    .get_absolute_name(context.location.file)
                                     .map(|n| n.to_string())
                                     .unwrap_or_default();
                                 println!("Breakpoint removed at {file_name}:{line_num}");
@@ -220,7 +212,8 @@ impl ComptimeReplDebugger {
                 "bp" | "breakpoints" => {
                     let mut any = false;
                     for (file_id, lines) in &self.breakpoints {
-                        let file_name = files
+                        let file_name = context
+                            .files
                             .get_absolute_name(*file_id)
                             .map(|n| n.to_string())
                             .unwrap_or_default();
@@ -268,47 +261,38 @@ impl ComptimeReplDebugger {
 }
 
 impl ComptimeDebugger for ComptimeReplDebugger {
-    fn on_statement(
-        &mut self,
-        location: Location,
-        interner: &NodeInterner,
-        files: &FileMap,
-        call_stack: &Vector<Location>,
-        current_function: Option<FuncId>,
-        call_stack_functions: &Vector<Option<FuncId>>,
-    ) {
+    fn on_statement(&mut self, context: DebugContext<'_>) {
         if !self.running {
             return;
         }
 
-        let Some((line, _column)) = location_to_line_column(files, location) else {
+        let Some((line, _column)) = location_to_line_column(context.files, context.location) else {
             return;
         };
 
         let is_breakpoint =
-            self.breakpoints.get(&location.file).is_some_and(|lines| lines.contains(&line));
+            self.breakpoints.get(&context.location.file).is_some_and(|lines| lines.contains(&line));
 
-        let call_depth = call_stack.len();
-        if self.should_stop(location.file, line, call_depth) {
-            if !is_breakpoint && self.last_stopped == Some((location.file, line)) {
+        let call_depth = context.call_stack.len();
+        if self.should_stop(context.location.file, line, call_depth) {
+            if !is_breakpoint && self.last_stopped == Some((context.location.file, line)) {
                 return;
             }
 
-            self.last_stopped = Some((location.file, line));
+            self.last_stopped = Some((context.location.file, line));
 
             if is_breakpoint {
                 println!("Breakpoint hit.");
             }
 
-            self.print_location(location, files, line, interner, current_function);
-            self.repl_loop(
-                location,
-                interner,
-                files,
-                call_stack,
-                current_function,
-                call_stack_functions,
+            self.print_location(
+                context.location,
+                context.files,
+                line,
+                context.interner,
+                context.current_function,
             );
+            self.repl_loop(&context);
         }
     }
 }
