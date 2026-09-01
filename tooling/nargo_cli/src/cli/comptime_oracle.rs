@@ -55,7 +55,18 @@ impl ComptimeOracleExecutor for ComptimeForeignCallExecutor {
             }
         })?;
 
-        foreign_call_result_to_value(&result, return_type, location)
+        let return_type = return_type.follow_bindings();
+        if result.values.is_empty() && !matches!(return_type, Type::Unit) {
+            return Err(InterpreterError::Unimplemented {
+                item: format!(
+                    "Oracle '{name}' returned no values. Is an oracle resolver running? \
+                     Use --oracle-resolver to specify one."
+                ),
+                location,
+            });
+        }
+
+        foreign_call_result_to_value(&result, &return_type, location)
     }
 }
 
