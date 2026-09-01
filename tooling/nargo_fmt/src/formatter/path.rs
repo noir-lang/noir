@@ -16,10 +16,6 @@ impl Formatter<'_> {
                 self.write_token(Token::DoubleColon);
             }
             PathKind::Absolute => {
-                // Deprecated `dep::` paths still exist. We'll change them to `::`.
-                if self.is_at_keyword(Keyword::Dep) {
-                    self.bump();
-                }
                 self.write_token(Token::DoubleColon);
             }
             PathKind::Super(extras) => {
