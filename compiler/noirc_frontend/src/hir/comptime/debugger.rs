@@ -8,20 +8,22 @@ use crate::node_interner::{FuncId, NodeInterner};
 use super::errors::InterpreterError;
 use super::value::Value;
 
+/// Snapshot of the interpreter's execution state, passed to the debugger
+/// at each statement boundary.
+pub struct DebugContext<'a> {
+    pub location: Location,
+    pub interner: &'a NodeInterner,
+    pub files: &'a FileMap,
+    pub call_stack: &'a Vector<Location>,
+    pub current_function: Option<FuncId>,
+    pub call_stack_functions: &'a Vector<Option<FuncId>>,
+}
+
 /// Callback for debugging the comptime interpreter.
 /// Called at each statement boundary during interpretation.
 pub trait ComptimeDebugger {
     /// Called before each statement is evaluated.
-    /// Receives the current execution state for inspection.
-    fn on_statement(
-        &mut self,
-        location: Location,
-        interner: &NodeInterner,
-        files: &FileMap,
-        call_stack: &Vector<Location>,
-        current_function: Option<FuncId>,
-        call_stack_functions: &Vector<Option<FuncId>>,
-    );
+    fn on_statement(&mut self, context: DebugContext<'_>);
 }
 
 /// Executor for oracle (foreign) calls during comptime interpretation.
