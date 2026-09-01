@@ -1156,7 +1156,7 @@ impl Elaborator<'_> {
         // This way associated types can be referred to even if their actual value (for associated constants)
         // is not known yet. This is to allow associated constants to refer to associated constants
         // in other trait impls.
-        let object = trait_impl.object_type.to_string();
+        let object = self.unresolved_type_name(&trait_impl.object_type);
         let trait_name = trait_id.map(|id| self.interner.get_trait(id).name.to_string());
         let associated_types_behind_type_vars = vecmap(&associated_types, |(name, _typ, kind)| {
             let new_generic_id = self.interner.next_type_variable_id();

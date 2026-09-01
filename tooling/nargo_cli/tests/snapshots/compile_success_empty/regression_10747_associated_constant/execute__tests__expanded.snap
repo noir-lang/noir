@@ -2,16 +2,18 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: expanded_code
 ---
-
 pub trait Ser {
     let N: u32;
 }
 
 impl Ser for Field {
-    let N: u32 = 1;
+    let N: u32 = 1_u32;
 }
 
-impl<let M: u32, T> Ser for [T; M] where T: Ser {
+impl<let M: u32, T> Ser for [T; M]
+where
+    T: Ser,
+{
     let N: u32 = M * <T as Ser>::N;
 }
 
@@ -19,8 +21,11 @@ struct Wrapped<T, let N: u32> {
     xs: [T; N],
 }
 
-impl<let N: u32, T> Ser for Wrapped<T, N> where T: Ser {
-    let N: u32 = N * <(resolved type) as Ser>::N;
+impl<let N: u32, T> Ser for Wrapped<T, N>
+where
+    T: Ser,
+{
+    let N: u32 = N * <T as Ser>::N;
 }
 
 pub comptime fn derive_ser(s: TypeDefinition) -> Quoted {
@@ -43,6 +48,7 @@ pub comptime fn derive_ser(s: TypeDefinition) -> Quoted {
         let name: Type = generic.typ();
         quote { $name: Ser }
     }).join(quote { ,  });
+
     quote {
         impl < $generics > Ser for $typ where $where_clause {
             let N: u32 = $rhs;
@@ -51,8 +57,6 @@ pub comptime fn derive_ser(s: TypeDefinition) -> Quoted {
 }
 
 fn main() {
-    let _wrapped: Wrapped<Field, 3> = Wrapped::<Field, 3> { xs: [1_Field, 2_Field, 3_Field]};
+    let _wrapped: Wrapped<Field, 3> = Wrapped::<Field, 3> { xs: [1_Field, 2_Field, 3_Field] };
     let _len: u32 = <Wrapped<Field, 3> as Ser<N = 3 * 1>>::N;
 }
-
-// Warning: the generated code has syntax errors

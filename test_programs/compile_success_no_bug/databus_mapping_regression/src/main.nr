@@ -26,7 +26,7 @@ where
         }
     }
 
-    BoundedVec::from_parts_unchecked(array, len)
+    BoundedVec::from_parts(array, len)
 }
 
 global TX_SIZE: u32 = 5;

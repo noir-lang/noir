@@ -33,7 +33,7 @@ where
 }
 
 impl Serialize for Field {
-    let Size: u32 = 1;
+    let Size: u32 = 1_u32;
 
     fn serialize(self) -> [Self; 1] {
         [self]

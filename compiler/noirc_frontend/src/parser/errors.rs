@@ -68,8 +68,6 @@ pub enum ParserErrorReason {
     MissingSeparatingSemi,
     #[error("Expected a ; after `let` statement")]
     MissingSemicolonAfterLet,
-    #[error("constrain keyword is deprecated")]
-    ConstrainDeprecated,
     #[error(
         "Invalid type expression: '{0}'. Only unsigned integer constants up to `u32`, globals, generics, +, -, *, /, and % may be used in this context."
     )]
@@ -139,8 +137,6 @@ pub enum ParserErrorReason {
         "type expression is not allowed for type aliases (Is this a numeric type alias? If so, the numeric type must be specified with `: <type>`"
     )]
     UnexpectedTypeExpressionInTypeAlias,
-    #[error("`dep::{0}` path is deprecated, please use `::{0}` instead")]
-    DeprecatedDep(String),
     #[error("`call_data` id must fit in a `u32`")]
     CallDataIdMustFitInU32,
 }
@@ -273,15 +269,6 @@ impl<'a> From<&'a ParserError> for Diagnostic {
     fn from(error: &'a ParserError) -> Diagnostic {
         match &error.reason {
             Some(reason) => match reason {
-                ParserErrorReason::ConstrainDeprecated => {
-                    let mut diagnostic = Diagnostic::simple_error(
-                        "Use of deprecated keyword 'constrain'".into(),
-                        "The 'constrain' keyword is deprecated. Please use the 'assert' function instead.".into(),
-                        error.location(),
-                    );
-                    diagnostic.deprecated = true;
-                    diagnostic
-                }
                 ParserErrorReason::ExperimentalFeature(feature) => {
                     let secondary = format!(
                         "Pass -Z{feature} to nargo to enable this feature at your own risk."
@@ -348,11 +335,6 @@ impl<'a> From<&'a ParserError> for Diagnostic {
                     "Provide a type for the associated constant: `: u32`".to_string(),
                     error.location,
                 ),
-                ParserErrorReason::DeprecatedDep(name) => {
-                    let primary = format!("`dep::{name}` path is deprecated");
-                    let secondary = format!("Please use `::{name}` instead");
-                    Diagnostic::simple_warning(primary, secondary, error.location())
-                }
                 ParserErrorReason::StructLiteralInIfCondition => Diagnostic::simple_error(
                     "Struct literals are not allowed in `if` conditions".to_string(),
                     "Surround the struct literal with parentheses, for example: `if (MyStruct { field: true }).field { ... }`".to_string(),

@@ -1,41 +1,45 @@
 define: &AZ_COMMIT 28549d2f7df060c34c14a13efc9157b0f8ff51d3
 projects:
-  private-kernel-inner:
-    repo: AztecProtocol/aztec-packages
-    ref: *AZ_COMMIT
-    path: noir-projects/fnd/noir-protocol-circuits/crates/private-kernel-inner
-    num_compile_runs: 5
-    num_execute_runs: 5
-    compilation-timeout: 10
-    execution-timeout: 0.08
-    brillig-compilation-timeout: 3.0
-    brillig-execution-timeout: 0.08
-    compilation-memory-limit: 350
-    execution-memory-limit: 300
-  private-kernel-reset-tail:
-    repo: AztecProtocol/aztec-packages
-    ref: *AZ_COMMIT
-    path: noir-projects/fnd/noir-protocol-circuits/crates/private-kernel-reset-tail
-    num_compile_runs: 1
-    num_execute_runs: 1
-    compilation-timeout: 300
-    execution-timeout: 1
-    brillig-compilation-timeout: 150
-    brillig-execution-timeout: 1
-    compilation-memory-limit: 650
-    execution-memory-limit: 350
-  private-kernel-reset:
-    repo: AztecProtocol/aztec-packages
-    ref: *AZ_COMMIT
-    path: noir-projects/fnd/noir-protocol-circuits/crates/private-kernel-reset
-    num_compile_runs: 5
-    num_execute_runs: 10
-    compilation-timeout: 35
-    execution-timeout: 0.35
-    brillig-compilation-timeout: 10
-    brillig-execution-timeout: 0.35
-    compilation-memory-limit: 750
-    execution-memory-limit: 350
+  # The private kernel circuits do not compile against this branch: the pinned
+  # aztec-packages commit calls `BoundedVec::from_parts_unchecked`, which this
+  # branch removes. Restore these entries once that commit is bumped to an
+  # aztec-packages revision using `BoundedVec::from_parts`.
+  # private-kernel-inner:
+  #   repo: AztecProtocol/aztec-packages
+  #   ref: *AZ_COMMIT
+  #   path: noir-projects/fnd/noir-protocol-circuits/crates/private-kernel-inner
+  #   num_compile_runs: 5
+  #   num_execute_runs: 5
+  #   compilation-timeout: 10
+  #   execution-timeout: 0.08
+  #   brillig-compilation-timeout: 3.0
+  #   brillig-execution-timeout: 0.08
+  #   compilation-memory-limit: 350
+  #   execution-memory-limit: 300
+  # private-kernel-reset-tail:
+  #   repo: AztecProtocol/aztec-packages
+  #   ref: *AZ_COMMIT
+  #   path: noir-projects/fnd/noir-protocol-circuits/crates/private-kernel-reset-tail
+  #   num_compile_runs: 1
+  #   num_execute_runs: 1
+  #   compilation-timeout: 300
+  #   execution-timeout: 1
+  #   brillig-compilation-timeout: 150
+  #   brillig-execution-timeout: 1
+  #   compilation-memory-limit: 650
+  #   execution-memory-limit: 350
+  # private-kernel-reset:
+  #   repo: AztecProtocol/aztec-packages
+  #   ref: *AZ_COMMIT
+  #   path: noir-projects/fnd/noir-protocol-circuits/crates/private-kernel-reset
+  #   num_compile_runs: 5
+  #   num_execute_runs: 10
+  #   compilation-timeout: 35
+  #   execution-timeout: 0.35
+  #   brillig-compilation-timeout: 10
+  #   brillig-execution-timeout: 0.35
+  #   compilation-memory-limit: 750
+  #   execution-memory-limit: 350
   rollup-block-root-first-empty-tx:
     repo: AztecProtocol/aztec-packages
     ref: *AZ_COMMIT

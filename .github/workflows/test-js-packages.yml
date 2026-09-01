@@ -251,8 +251,35 @@ jobs:
       - name: Run node tests
         run: yarn workspace @noir-lang/acvm_js test
 
+  # Reads the Playwright version out of yarn.lock once for the whole workflow.
+  # It has to be a separate job rather than a step in each consumer: the
+  # `test-acvm_js-browser` container image is resolved before any step of that
+  # job runs, so the version can only reach it as a `needs` output.
+  playwright-version:
+    name: Resolve Playwright version
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    outputs:
+      version: ${{ steps.playwright.outputs.version }}
+
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      # Resolve into a variable first. Inlining the substitution into the `echo`
+      # would hand the step `echo`'s exit status, so a failed resolve would
+      # publish an empty version and let every dependant start.
+      - name: Resolve Playwright version
+        id: playwright
+        run: |
+          set -euo pipefail
+          version="$(./scripts/playwright_version.sh)"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
   test-acvm_js-browser:
-    needs: [build-acvm-js]
+    needs: [build-acvm-js, playwright-version]
     name: ACVM JS (Browser)
     runs-on: ubuntu-22.04
     # Playwright's WebKit build needs a chunk of Ubuntu system libraries that
@@ -263,10 +290,10 @@ jobs:
     # for every WebKit test). Running inside Playwright's official container
     # takes the apt round-trip out of the job entirely: the browsers and their
     # system libs are already baked into the image, so `install-deps` doesn't
-    # run and can't flake. Tag pinned to the Playwright version yarn.lock
-    # resolves so the browsers match the driver.
+    # run and can't flake. Tag tracks the Playwright version yarn.lock resolves
+    # so the browsers match the driver.
     container:
-      image: mcr.microsoft.com/playwright:v1.58.2-jammy
+      image: mcr.microsoft.com/playwright:v${{ needs.playwright-version.outputs.version }}-jammy
       options: --user root
     timeout-minutes: 30
     permissions:
@@ -291,7 +318,7 @@ jobs:
           run: yarn workspace @noir-lang/acvm_js test:browser
 
   test-noirc-abi:
-    needs: [build-noirc-abi]
+    needs: [build-noirc-abi, playwright-version]
     name: noirc_abi
     runs-on: ubuntu-22.04
     timeout-minutes: 30
@@ -316,6 +343,8 @@ jobs:
 
       - name: Install Playwright
         uses: ./.github/actions/install-playwright
+        with:
+          playwright-version: ${{ needs.playwright-version.outputs.version }}
 
       - name: Run browser tests
         uses: ./.github/actions/retry
@@ -365,7 +394,7 @@ jobs:
           yarn workspace @noir-lang/noir_js test
 
   test-noir-wasm:
-    needs: [build-noir-wasm, build-binaries]
+    needs: [build-noir-wasm, build-binaries, playwright-version]
     name: noir_wasm
     runs-on: ubuntu-22.04
     timeout-minutes: 30
@@ -395,6 +424,8 @@ jobs:
 
       - name: Install Playwright
         uses: ./.github/actions/install-playwright
+        with:
+          playwright-version: ${{ needs.playwright-version.outputs.version }}
 
       - name: Run node tests
         run: yarn workspace @noir-lang/noir_wasm test:node
@@ -556,7 +587,7 @@ jobs:
   test-examples:
     name: Example scripts
     runs-on: ubuntu-24.04
-    needs: [build-binaries, build-acvm-js, build-noirc-abi]
+    needs: [build-binaries, build-acvm-js, build-noirc-abi, playwright-version]
     timeout-minutes: 30
     permissions:
       contents: read
@@ -575,6 +606,8 @@ jobs:
 
       - name: Install Playwright
         uses: ./.github/actions/install-playwright
+        with:
+          playwright-version: ${{ needs.playwright-version.outputs.version }}
 
       - uses: taiki-e/install-action@just
 

@@ -31,7 +31,6 @@
 <li><a href="#for_eachi">for_eachi</a></li>
 <li><a href="#from_array">from_array</a></li>
 <li><a href="#from_parts">from_parts</a></li>
-<li><a href="#from_parts_unchecked">from_parts_unchecked</a></li>
 <li><a href="#get">get</a></li>
 <li><a href="#get_unchecked">get_unchecked</a></li>
 <li><a href="#len">len</a></li>
@@ -410,31 +409,6 @@ The given length must be less than or equal to the length of the array.</p>
 <p>Example:</p>
 <pre><code><span class="kw">let</span> vec: BoundedVec&lt;u32, <span class="number">4</span>&gt; = BoundedVec::from_parts([<span class="number">1</span>, <span class="number">2</span>, <span class="number">3</span>, <span class="number">0</span>], <span class="number">3</span>);
 <span class="kw">assert_eq</span>(vec.len(), <span class="number">3</span>);</code></pre></div>
-</div><code id="from_parts_unchecked" class="code-header">pub fn <a href="#from_parts_unchecked" class="fn">from_parts_unchecked</a>(array: [T; MaxLen], len: <a href="../../../std/primitive.u32.html" class="primitive">u32</a>) -> Self</code>
-
-<div class="padded-description"><div class="deprecated">
-<span class="emoji">👎</span>
-Deprecated: `BoundedVec::from_parts` no longer requires an extra loop, `BoundedVec::from_parts_unchecked` is no longer required
-</div>
-<div class="comments">
-<p>Creates a new BoundedVec from the given array and length.
-The given length must be less than or equal to the length of the array.</p>
-<p>This function is unsafe because it expects all elements past the <code>len</code> index
-of <code>array</code> to be zeroed, but does not check for this internally. Use <code>from_parts</code>
-for a safe version of this function which does zero out any indices past the
-given length. Invalidating this assumption can notably cause <code>BoundedVec::eq</code>
-to give incorrect results since it will check even elements past <code>len</code>.</p>
-<p>Example:</p>
-<pre><code><span class="kw">let</span> vec: BoundedVec&lt;u32, <span class="number">4</span>&gt; = BoundedVec::from_parts_unchecked([<span class="number">1</span>, <span class="number">2</span>, <span class="number">3</span>, <span class="number">0</span>], <span class="number">3</span>);
-<span class="kw">assert_eq</span>(vec.len(), <span class="number">3</span>);
-
-<span class="comment">// invalid use!</span>
-<span class="kw">let</span> vec1: BoundedVec&lt;u32, <span class="number">4</span>&gt; = BoundedVec::from_parts_unchecked([<span class="number">1</span>, <span class="number">2</span>, <span class="number">3</span>, <span class="number">1</span>], <span class="number">3</span>);
-<span class="kw">let</span> vec2: BoundedVec&lt;u32, <span class="number">4</span>&gt; = BoundedVec::from_parts_unchecked([<span class="number">1</span>, <span class="number">2</span>, <span class="number">3</span>, <span class="number">2</span>], <span class="number">3</span>);
-
-<span class="comment">// both vecs have length 3 so we'd expect them to be equal, but this</span>
-<span class="comment">// fails because elements past the length are still checked in eq</span>
-<span class="kw">assert_eq</span>(vec1, vec2); <span class="comment">// fails</span></code></pre></div>
 </div></div><h2>Trait implementations</h2>
 <h3 id="impl-Eq-for-BoundedVec<T, MaxLen>"><code class="code-header">impl&lt;let MaxLen: <a href="../../../std/primitive.u32.html" class="primitive">u32</a>, T&gt; <a href="../../../std/cmp/trait.Eq.html" class="trait">Eq</a> for <a href="../../../std/collections/bounded_vec/struct.BoundedVec.html" class="struct">BoundedVec</a>&lt;T, MaxLen&gt;
 <div class="where-clause">where
