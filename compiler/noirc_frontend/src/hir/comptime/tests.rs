@@ -164,25 +164,15 @@ fn debugger_receives_on_statement_callbacks() {
     use std::cell::RefCell;
     use std::rc::Rc;
 
-    use fm::FileMap;
-    use imbl::Vector;
-
     use super::ComptimeDebugger;
+    use super::debugger::DebugContext;
 
     struct TestDebugger {
         stop_count: Rc<RefCell<usize>>,
     }
 
     impl ComptimeDebugger for TestDebugger {
-        fn on_statement(
-            &mut self,
-            _location: Location,
-            _interner: &crate::node_interner::NodeInterner,
-            _files: &FileMap,
-            _call_stack: &Vector<Location>,
-            _current_function: Option<FuncId>,
-            _call_stack_functions: &Vector<Option<FuncId>>,
-        ) {
+        fn on_statement(&mut self, _context: DebugContext<'_>) {
             *self.stop_count.borrow_mut() += 1;
         }
     }
