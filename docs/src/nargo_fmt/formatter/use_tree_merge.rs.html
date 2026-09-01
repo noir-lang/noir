@@ -643,8 +643,8 @@
 <a href=#643 id=643 data-nosnippet>643</a>    }
 <a href=#644 id=644 data-nosnippet>644</a>
 <a href=#645 id=645 data-nosnippet>645</a>    <span class="attr">#[test]
-<a href=#646 id=646 data-nosnippet>646</a>    </span><span class="kw">fn </span>format_use_dep() {
-<a href=#647 id=647 data-nosnippet>647</a>        <span class="kw">let </span>src = <span class="string">" use dep :: foo :: bar;  "</span>;
+<a href=#646 id=646 data-nosnippet>646</a>    </span><span class="kw">fn </span>format_use_absolute() {
+<a href=#647 id=647 data-nosnippet>647</a>        <span class="kw">let </span>src = <span class="string">" use  :: foo :: bar;  "</span>;
 <a href=#648 id=648 data-nosnippet>648</a>        <span class="kw">let </span>expected = <span class="string">"use ::foo::bar;\n"</span>;
 <a href=#649 id=649 data-nosnippet>649</a>        assert_format(src, expected);
 <a href=#650 id=650 data-nosnippet>650</a>    }

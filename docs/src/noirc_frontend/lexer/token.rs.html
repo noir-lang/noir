@@ -1069,162 +1069,156 @@
 <a href=#1069 id=1069 data-nosnippet>1069</a>    Break,
 <a href=#1070 id=1070 data-nosnippet>1070</a>    CallData,
 <a href=#1071 id=1071 data-nosnippet>1071</a>    Comptime,
-<a href=#1072 id=1072 data-nosnippet>1072</a>    Constrain,
-<a href=#1073 id=1073 data-nosnippet>1073</a>    Constrained,
-<a href=#1074 id=1074 data-nosnippet>1074</a>    Continue,
-<a href=#1075 id=1075 data-nosnippet>1075</a>    Contract,
-<a href=#1076 id=1076 data-nosnippet>1076</a>    Crate,
-<a href=#1077 id=1077 data-nosnippet>1077</a>    Dep,
-<a href=#1078 id=1078 data-nosnippet>1078</a>    Dual,
-<a href=#1079 id=1079 data-nosnippet>1079</a>    Else,
-<a href=#1080 id=1080 data-nosnippet>1080</a>    Enum,
-<a href=#1081 id=1081 data-nosnippet>1081</a>    Fn,
-<a href=#1082 id=1082 data-nosnippet>1082</a>    For,
-<a href=#1083 id=1083 data-nosnippet>1083</a>    Global,
-<a href=#1084 id=1084 data-nosnippet>1084</a>    If,
-<a href=#1085 id=1085 data-nosnippet>1085</a>    Impl,
-<a href=#1086 id=1086 data-nosnippet>1086</a>    In,
-<a href=#1087 id=1087 data-nosnippet>1087</a>    Let,
-<a href=#1088 id=1088 data-nosnippet>1088</a>    Loop,
-<a href=#1089 id=1089 data-nosnippet>1089</a>    Match,
-<a href=#1090 id=1090 data-nosnippet>1090</a>    Mod,
-<a href=#1091 id=1091 data-nosnippet>1091</a>    Mut,
-<a href=#1092 id=1092 data-nosnippet>1092</a>    Pub,
-<a href=#1093 id=1093 data-nosnippet>1093</a>    Return,
-<a href=#1094 id=1094 data-nosnippet>1094</a>    ReturnData,
-<a href=#1095 id=1095 data-nosnippet>1095</a>    Struct,
-<a href=#1096 id=1096 data-nosnippet>1096</a>    Super,
-<a href=#1097 id=1097 data-nosnippet>1097</a>    Trait,
-<a href=#1098 id=1098 data-nosnippet>1098</a>    Type,
-<a href=#1099 id=1099 data-nosnippet>1099</a>    Unchecked,
-<a href=#1100 id=1100 data-nosnippet>1100</a>    Unconstrained,
-<a href=#1101 id=1101 data-nosnippet>1101</a>    Unsafe,
-<a href=#1102 id=1102 data-nosnippet>1102</a>    Use,
-<a href=#1103 id=1103 data-nosnippet>1103</a>    Where,
-<a href=#1104 id=1104 data-nosnippet>1104</a>    While,
-<a href=#1105 id=1105 data-nosnippet>1105</a>}
-<a href=#1106 id=1106 data-nosnippet>1106</a>
-<a href=#1107 id=1107 data-nosnippet>1107</a><span class="kw">impl </span>Display <span class="kw">for </span>Keyword {
-<a href=#1108 id=1108 data-nosnippet>1108</a>    <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>fmt::Formatter) -&gt; fmt::Result {
-<a href=#1109 id=1109 data-nosnippet>1109</a>        <span class="kw">match </span><span class="kw-2">*</span><span class="self">self </span>{
-<a href=#1110 id=1110 data-nosnippet>1110</a>            Keyword::As =&gt; <span class="macro">write!</span>(f, <span class="string">"as"</span>),
-<a href=#1111 id=1111 data-nosnippet>1111</a>            Keyword::Assert =&gt; <span class="macro">write!</span>(f, <span class="string">"assert"</span>),
-<a href=#1112 id=1112 data-nosnippet>1112</a>            Keyword::AssertEq =&gt; <span class="macro">write!</span>(f, <span class="string">"assert_eq"</span>),
-<a href=#1113 id=1113 data-nosnippet>1113</a>            Keyword::Break =&gt; <span class="macro">write!</span>(f, <span class="string">"break"</span>),
-<a href=#1114 id=1114 data-nosnippet>1114</a>            Keyword::CallData =&gt; <span class="macro">write!</span>(f, <span class="string">"call_data"</span>),
-<a href=#1115 id=1115 data-nosnippet>1115</a>            Keyword::Comptime =&gt; <span class="macro">write!</span>(f, <span class="string">"comptime"</span>),
-<a href=#1116 id=1116 data-nosnippet>1116</a>            Keyword::Constrain =&gt; <span class="macro">write!</span>(f, <span class="string">"constrain"</span>),
-<a href=#1117 id=1117 data-nosnippet>1117</a>            Keyword::Constrained =&gt; <span class="macro">write!</span>(f, <span class="string">"constrained"</span>),
-<a href=#1118 id=1118 data-nosnippet>1118</a>            Keyword::Continue =&gt; <span class="macro">write!</span>(f, <span class="string">"continue"</span>),
-<a href=#1119 id=1119 data-nosnippet>1119</a>            Keyword::Contract =&gt; <span class="macro">write!</span>(f, <span class="string">"contract"</span>),
-<a href=#1120 id=1120 data-nosnippet>1120</a>            Keyword::Crate =&gt; <span class="macro">write!</span>(f, <span class="string">"crate"</span>),
-<a href=#1121 id=1121 data-nosnippet>1121</a>            Keyword::Dep =&gt; <span class="macro">write!</span>(f, <span class="string">"dep"</span>),
-<a href=#1122 id=1122 data-nosnippet>1122</a>            Keyword::Dual =&gt; <span class="macro">write!</span>(f, <span class="string">"dual"</span>),
-<a href=#1123 id=1123 data-nosnippet>1123</a>            Keyword::Else =&gt; <span class="macro">write!</span>(f, <span class="string">"else"</span>),
-<a href=#1124 id=1124 data-nosnippet>1124</a>            Keyword::Enum =&gt; <span class="macro">write!</span>(f, <span class="string">"enum"</span>),
-<a href=#1125 id=1125 data-nosnippet>1125</a>            Keyword::Fn =&gt; <span class="macro">write!</span>(f, <span class="string">"fn"</span>),
-<a href=#1126 id=1126 data-nosnippet>1126</a>            Keyword::For =&gt; <span class="macro">write!</span>(f, <span class="string">"for"</span>),
-<a href=#1127 id=1127 data-nosnippet>1127</a>            Keyword::Global =&gt; <span class="macro">write!</span>(f, <span class="string">"global"</span>),
-<a href=#1128 id=1128 data-nosnippet>1128</a>            Keyword::If =&gt; <span class="macro">write!</span>(f, <span class="string">"if"</span>),
-<a href=#1129 id=1129 data-nosnippet>1129</a>            Keyword::Impl =&gt; <span class="macro">write!</span>(f, <span class="string">"impl"</span>),
-<a href=#1130 id=1130 data-nosnippet>1130</a>            Keyword::In =&gt; <span class="macro">write!</span>(f, <span class="string">"in"</span>),
-<a href=#1131 id=1131 data-nosnippet>1131</a>            Keyword::Let =&gt; <span class="macro">write!</span>(f, <span class="string">"let"</span>),
-<a href=#1132 id=1132 data-nosnippet>1132</a>            Keyword::Loop =&gt; <span class="macro">write!</span>(f, <span class="string">"loop"</span>),
-<a href=#1133 id=1133 data-nosnippet>1133</a>            Keyword::Match =&gt; <span class="macro">write!</span>(f, <span class="string">"match"</span>),
-<a href=#1134 id=1134 data-nosnippet>1134</a>            Keyword::Mod =&gt; <span class="macro">write!</span>(f, <span class="string">"mod"</span>),
-<a href=#1135 id=1135 data-nosnippet>1135</a>            Keyword::Mut =&gt; <span class="macro">write!</span>(f, <span class="string">"mut"</span>),
-<a href=#1136 id=1136 data-nosnippet>1136</a>            Keyword::Pub =&gt; <span class="macro">write!</span>(f, <span class="string">"pub"</span>),
-<a href=#1137 id=1137 data-nosnippet>1137</a>            Keyword::Return =&gt; <span class="macro">write!</span>(f, <span class="string">"return"</span>),
-<a href=#1138 id=1138 data-nosnippet>1138</a>            Keyword::ReturnData =&gt; <span class="macro">write!</span>(f, <span class="string">"return_data"</span>),
-<a href=#1139 id=1139 data-nosnippet>1139</a>            Keyword::Struct =&gt; <span class="macro">write!</span>(f, <span class="string">"struct"</span>),
-<a href=#1140 id=1140 data-nosnippet>1140</a>            Keyword::Super =&gt; <span class="macro">write!</span>(f, <span class="string">"super"</span>),
-<a href=#1141 id=1141 data-nosnippet>1141</a>            Keyword::Trait =&gt; <span class="macro">write!</span>(f, <span class="string">"trait"</span>),
-<a href=#1142 id=1142 data-nosnippet>1142</a>            Keyword::Type =&gt; <span class="macro">write!</span>(f, <span class="string">"type"</span>),
-<a href=#1143 id=1143 data-nosnippet>1143</a>            Keyword::Unchecked =&gt; <span class="macro">write!</span>(f, <span class="string">"unchecked"</span>),
-<a href=#1144 id=1144 data-nosnippet>1144</a>            Keyword::Unconstrained =&gt; <span class="macro">write!</span>(f, <span class="string">"unconstrained"</span>),
-<a href=#1145 id=1145 data-nosnippet>1145</a>            Keyword::Unsafe =&gt; <span class="macro">write!</span>(f, <span class="string">"unsafe"</span>),
-<a href=#1146 id=1146 data-nosnippet>1146</a>            Keyword::Use =&gt; <span class="macro">write!</span>(f, <span class="string">"use"</span>),
-<a href=#1147 id=1147 data-nosnippet>1147</a>            Keyword::Where =&gt; <span class="macro">write!</span>(f, <span class="string">"where"</span>),
-<a href=#1148 id=1148 data-nosnippet>1148</a>            Keyword::While =&gt; <span class="macro">write!</span>(f, <span class="string">"while"</span>),
-<a href=#1149 id=1149 data-nosnippet>1149</a>        }
-<a href=#1150 id=1150 data-nosnippet>1150</a>    }
-<a href=#1151 id=1151 data-nosnippet>1151</a>}
-<a href=#1152 id=1152 data-nosnippet>1152</a>
-<a href=#1153 id=1153 data-nosnippet>1153</a><span class="kw">impl </span>Keyword {
-<a href=#1154 id=1154 data-nosnippet>1154</a>    <span class="doccomment">/// Looks up a word in the source program and returns the associated keyword, if found.
-<a href=#1155 id=1155 data-nosnippet>1155</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>lookup_keyword(word: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Option</span>&lt;Token&gt; {
-<a href=#1156 id=1156 data-nosnippet>1156</a>        <span class="kw">let </span>keyword = <span class="kw">match </span>word {
-<a href=#1157 id=1157 data-nosnippet>1157</a>            <span class="string">"as" </span>=&gt; Keyword::As,
-<a href=#1158 id=1158 data-nosnippet>1158</a>            <span class="string">"assert" </span>=&gt; Keyword::Assert,
-<a href=#1159 id=1159 data-nosnippet>1159</a>            <span class="string">"assert_eq" </span>=&gt; Keyword::AssertEq,
-<a href=#1160 id=1160 data-nosnippet>1160</a>            <span class="string">"break" </span>=&gt; Keyword::Break,
-<a href=#1161 id=1161 data-nosnippet>1161</a>            <span class="string">"call_data" </span>=&gt; Keyword::CallData,
-<a href=#1162 id=1162 data-nosnippet>1162</a>            <span class="string">"comptime" </span>=&gt; Keyword::Comptime,
-<a href=#1163 id=1163 data-nosnippet>1163</a>            <span class="string">"constrain" </span>=&gt; Keyword::Constrain,
-<a href=#1164 id=1164 data-nosnippet>1164</a>            <span class="string">"constrained" </span>=&gt; Keyword::Constrained,
-<a href=#1165 id=1165 data-nosnippet>1165</a>            <span class="string">"continue" </span>=&gt; Keyword::Continue,
-<a href=#1166 id=1166 data-nosnippet>1166</a>            <span class="string">"contract" </span>=&gt; Keyword::Contract,
-<a href=#1167 id=1167 data-nosnippet>1167</a>            <span class="string">"crate" </span>=&gt; Keyword::Crate,
-<a href=#1168 id=1168 data-nosnippet>1168</a>            <span class="string">"dep" </span>=&gt; Keyword::Dep,
-<a href=#1169 id=1169 data-nosnippet>1169</a>            <span class="string">"dual" </span>=&gt; Keyword::Dual,
-<a href=#1170 id=1170 data-nosnippet>1170</a>            <span class="string">"else" </span>=&gt; Keyword::Else,
-<a href=#1171 id=1171 data-nosnippet>1171</a>            <span class="string">"enum" </span>=&gt; Keyword::Enum,
-<a href=#1172 id=1172 data-nosnippet>1172</a>            <span class="string">"fn" </span>=&gt; Keyword::Fn,
-<a href=#1173 id=1173 data-nosnippet>1173</a>            <span class="string">"for" </span>=&gt; Keyword::For,
-<a href=#1174 id=1174 data-nosnippet>1174</a>            <span class="string">"global" </span>=&gt; Keyword::Global,
-<a href=#1175 id=1175 data-nosnippet>1175</a>            <span class="string">"if" </span>=&gt; Keyword::If,
-<a href=#1176 id=1176 data-nosnippet>1176</a>            <span class="string">"impl" </span>=&gt; Keyword::Impl,
-<a href=#1177 id=1177 data-nosnippet>1177</a>            <span class="string">"in" </span>=&gt; Keyword::In,
-<a href=#1178 id=1178 data-nosnippet>1178</a>            <span class="string">"let" </span>=&gt; Keyword::Let,
-<a href=#1179 id=1179 data-nosnippet>1179</a>            <span class="string">"loop" </span>=&gt; Keyword::Loop,
-<a href=#1180 id=1180 data-nosnippet>1180</a>            <span class="string">"match" </span>=&gt; Keyword::Match,
-<a href=#1181 id=1181 data-nosnippet>1181</a>            <span class="string">"mod" </span>=&gt; Keyword::Mod,
-<a href=#1182 id=1182 data-nosnippet>1182</a>            <span class="string">"mut" </span>=&gt; Keyword::Mut,
-<a href=#1183 id=1183 data-nosnippet>1183</a>            <span class="string">"pub" </span>=&gt; Keyword::Pub,
-<a href=#1184 id=1184 data-nosnippet>1184</a>            <span class="string">"return" </span>=&gt; Keyword::Return,
-<a href=#1185 id=1185 data-nosnippet>1185</a>            <span class="string">"return_data" </span>=&gt; Keyword::ReturnData,
-<a href=#1186 id=1186 data-nosnippet>1186</a>            <span class="string">"struct" </span>=&gt; Keyword::Struct,
-<a href=#1187 id=1187 data-nosnippet>1187</a>            <span class="string">"super" </span>=&gt; Keyword::Super,
-<a href=#1188 id=1188 data-nosnippet>1188</a>            <span class="string">"trait" </span>=&gt; Keyword::Trait,
-<a href=#1189 id=1189 data-nosnippet>1189</a>            <span class="string">"type" </span>=&gt; Keyword::Type,
-<a href=#1190 id=1190 data-nosnippet>1190</a>            <span class="string">"unchecked" </span>=&gt; Keyword::Unchecked,
-<a href=#1191 id=1191 data-nosnippet>1191</a>            <span class="string">"unconstrained" </span>=&gt; Keyword::Unconstrained,
-<a href=#1192 id=1192 data-nosnippet>1192</a>            <span class="string">"unsafe" </span>=&gt; Keyword::Unsafe,
-<a href=#1193 id=1193 data-nosnippet>1193</a>            <span class="string">"use" </span>=&gt; Keyword::Use,
-<a href=#1194 id=1194 data-nosnippet>1194</a>            <span class="string">"where" </span>=&gt; Keyword::Where,
-<a href=#1195 id=1195 data-nosnippet>1195</a>            <span class="string">"while" </span>=&gt; Keyword::While,
-<a href=#1196 id=1196 data-nosnippet>1196</a>
-<a href=#1197 id=1197 data-nosnippet>1197</a>            <span class="string">"true" </span>=&gt; <span class="kw">return </span><span class="prelude-val">Some</span>(Token::Bool(<span class="bool-val">true</span>)),
-<a href=#1198 id=1198 data-nosnippet>1198</a>            <span class="string">"false" </span>=&gt; <span class="kw">return </span><span class="prelude-val">Some</span>(Token::Bool(<span class="bool-val">false</span>)),
-<a href=#1199 id=1199 data-nosnippet>1199</a>            <span class="kw">_ </span>=&gt; <span class="kw">return </span><span class="prelude-val">None</span>,
-<a href=#1200 id=1200 data-nosnippet>1200</a>        };
-<a href=#1201 id=1201 data-nosnippet>1201</a>
-<a href=#1202 id=1202 data-nosnippet>1202</a>        <span class="prelude-val">Some</span>(Token::Keyword(keyword))
-<a href=#1203 id=1203 data-nosnippet>1203</a>    }
-<a href=#1204 id=1204 data-nosnippet>1204</a>}
-<a href=#1205 id=1205 data-nosnippet>1205</a>
-<a href=#1206 id=1206 data-nosnippet>1206</a><span class="attr">#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-<a href=#1207 id=1207 data-nosnippet>1207</a></span><span class="kw">pub struct </span>Tokens(<span class="kw">pub </span>Vec&lt;LocatedToken&gt;);
+<a href=#1072 id=1072 data-nosnippet>1072</a>    Constrained,
+<a href=#1073 id=1073 data-nosnippet>1073</a>    Continue,
+<a href=#1074 id=1074 data-nosnippet>1074</a>    Contract,
+<a href=#1075 id=1075 data-nosnippet>1075</a>    Crate,
+<a href=#1076 id=1076 data-nosnippet>1076</a>    Dual,
+<a href=#1077 id=1077 data-nosnippet>1077</a>    Else,
+<a href=#1078 id=1078 data-nosnippet>1078</a>    Enum,
+<a href=#1079 id=1079 data-nosnippet>1079</a>    Fn,
+<a href=#1080 id=1080 data-nosnippet>1080</a>    For,
+<a href=#1081 id=1081 data-nosnippet>1081</a>    Global,
+<a href=#1082 id=1082 data-nosnippet>1082</a>    If,
+<a href=#1083 id=1083 data-nosnippet>1083</a>    Impl,
+<a href=#1084 id=1084 data-nosnippet>1084</a>    In,
+<a href=#1085 id=1085 data-nosnippet>1085</a>    Let,
+<a href=#1086 id=1086 data-nosnippet>1086</a>    Loop,
+<a href=#1087 id=1087 data-nosnippet>1087</a>    Match,
+<a href=#1088 id=1088 data-nosnippet>1088</a>    Mod,
+<a href=#1089 id=1089 data-nosnippet>1089</a>    Mut,
+<a href=#1090 id=1090 data-nosnippet>1090</a>    Pub,
+<a href=#1091 id=1091 data-nosnippet>1091</a>    Return,
+<a href=#1092 id=1092 data-nosnippet>1092</a>    ReturnData,
+<a href=#1093 id=1093 data-nosnippet>1093</a>    Struct,
+<a href=#1094 id=1094 data-nosnippet>1094</a>    Super,
+<a href=#1095 id=1095 data-nosnippet>1095</a>    Trait,
+<a href=#1096 id=1096 data-nosnippet>1096</a>    Type,
+<a href=#1097 id=1097 data-nosnippet>1097</a>    Unchecked,
+<a href=#1098 id=1098 data-nosnippet>1098</a>    Unconstrained,
+<a href=#1099 id=1099 data-nosnippet>1099</a>    Unsafe,
+<a href=#1100 id=1100 data-nosnippet>1100</a>    Use,
+<a href=#1101 id=1101 data-nosnippet>1101</a>    Where,
+<a href=#1102 id=1102 data-nosnippet>1102</a>    While,
+<a href=#1103 id=1103 data-nosnippet>1103</a>}
+<a href=#1104 id=1104 data-nosnippet>1104</a>
+<a href=#1105 id=1105 data-nosnippet>1105</a><span class="kw">impl </span>Display <span class="kw">for </span>Keyword {
+<a href=#1106 id=1106 data-nosnippet>1106</a>    <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>fmt::Formatter) -&gt; fmt::Result {
+<a href=#1107 id=1107 data-nosnippet>1107</a>        <span class="kw">match </span><span class="kw-2">*</span><span class="self">self </span>{
+<a href=#1108 id=1108 data-nosnippet>1108</a>            Keyword::As =&gt; <span class="macro">write!</span>(f, <span class="string">"as"</span>),
+<a href=#1109 id=1109 data-nosnippet>1109</a>            Keyword::Assert =&gt; <span class="macro">write!</span>(f, <span class="string">"assert"</span>),
+<a href=#1110 id=1110 data-nosnippet>1110</a>            Keyword::AssertEq =&gt; <span class="macro">write!</span>(f, <span class="string">"assert_eq"</span>),
+<a href=#1111 id=1111 data-nosnippet>1111</a>            Keyword::Break =&gt; <span class="macro">write!</span>(f, <span class="string">"break"</span>),
+<a href=#1112 id=1112 data-nosnippet>1112</a>            Keyword::CallData =&gt; <span class="macro">write!</span>(f, <span class="string">"call_data"</span>),
+<a href=#1113 id=1113 data-nosnippet>1113</a>            Keyword::Comptime =&gt; <span class="macro">write!</span>(f, <span class="string">"comptime"</span>),
+<a href=#1114 id=1114 data-nosnippet>1114</a>            Keyword::Constrained =&gt; <span class="macro">write!</span>(f, <span class="string">"constrained"</span>),
+<a href=#1115 id=1115 data-nosnippet>1115</a>            Keyword::Continue =&gt; <span class="macro">write!</span>(f, <span class="string">"continue"</span>),
+<a href=#1116 id=1116 data-nosnippet>1116</a>            Keyword::Contract =&gt; <span class="macro">write!</span>(f, <span class="string">"contract"</span>),
+<a href=#1117 id=1117 data-nosnippet>1117</a>            Keyword::Crate =&gt; <span class="macro">write!</span>(f, <span class="string">"crate"</span>),
+<a href=#1118 id=1118 data-nosnippet>1118</a>            Keyword::Dual =&gt; <span class="macro">write!</span>(f, <span class="string">"dual"</span>),
+<a href=#1119 id=1119 data-nosnippet>1119</a>            Keyword::Else =&gt; <span class="macro">write!</span>(f, <span class="string">"else"</span>),
+<a href=#1120 id=1120 data-nosnippet>1120</a>            Keyword::Enum =&gt; <span class="macro">write!</span>(f, <span class="string">"enum"</span>),
+<a href=#1121 id=1121 data-nosnippet>1121</a>            Keyword::Fn =&gt; <span class="macro">write!</span>(f, <span class="string">"fn"</span>),
+<a href=#1122 id=1122 data-nosnippet>1122</a>            Keyword::For =&gt; <span class="macro">write!</span>(f, <span class="string">"for"</span>),
+<a href=#1123 id=1123 data-nosnippet>1123</a>            Keyword::Global =&gt; <span class="macro">write!</span>(f, <span class="string">"global"</span>),
+<a href=#1124 id=1124 data-nosnippet>1124</a>            Keyword::If =&gt; <span class="macro">write!</span>(f, <span class="string">"if"</span>),
+<a href=#1125 id=1125 data-nosnippet>1125</a>            Keyword::Impl =&gt; <span class="macro">write!</span>(f, <span class="string">"impl"</span>),
+<a href=#1126 id=1126 data-nosnippet>1126</a>            Keyword::In =&gt; <span class="macro">write!</span>(f, <span class="string">"in"</span>),
+<a href=#1127 id=1127 data-nosnippet>1127</a>            Keyword::Let =&gt; <span class="macro">write!</span>(f, <span class="string">"let"</span>),
+<a href=#1128 id=1128 data-nosnippet>1128</a>            Keyword::Loop =&gt; <span class="macro">write!</span>(f, <span class="string">"loop"</span>),
+<a href=#1129 id=1129 data-nosnippet>1129</a>            Keyword::Match =&gt; <span class="macro">write!</span>(f, <span class="string">"match"</span>),
+<a href=#1130 id=1130 data-nosnippet>1130</a>            Keyword::Mod =&gt; <span class="macro">write!</span>(f, <span class="string">"mod"</span>),
+<a href=#1131 id=1131 data-nosnippet>1131</a>            Keyword::Mut =&gt; <span class="macro">write!</span>(f, <span class="string">"mut"</span>),
+<a href=#1132 id=1132 data-nosnippet>1132</a>            Keyword::Pub =&gt; <span class="macro">write!</span>(f, <span class="string">"pub"</span>),
+<a href=#1133 id=1133 data-nosnippet>1133</a>            Keyword::Return =&gt; <span class="macro">write!</span>(f, <span class="string">"return"</span>),
+<a href=#1134 id=1134 data-nosnippet>1134</a>            Keyword::ReturnData =&gt; <span class="macro">write!</span>(f, <span class="string">"return_data"</span>),
+<a href=#1135 id=1135 data-nosnippet>1135</a>            Keyword::Struct =&gt; <span class="macro">write!</span>(f, <span class="string">"struct"</span>),
+<a href=#1136 id=1136 data-nosnippet>1136</a>            Keyword::Super =&gt; <span class="macro">write!</span>(f, <span class="string">"super"</span>),
+<a href=#1137 id=1137 data-nosnippet>1137</a>            Keyword::Trait =&gt; <span class="macro">write!</span>(f, <span class="string">"trait"</span>),
+<a href=#1138 id=1138 data-nosnippet>1138</a>            Keyword::Type =&gt; <span class="macro">write!</span>(f, <span class="string">"type"</span>),
+<a href=#1139 id=1139 data-nosnippet>1139</a>            Keyword::Unchecked =&gt; <span class="macro">write!</span>(f, <span class="string">"unchecked"</span>),
+<a href=#1140 id=1140 data-nosnippet>1140</a>            Keyword::Unconstrained =&gt; <span class="macro">write!</span>(f, <span class="string">"unconstrained"</span>),
+<a href=#1141 id=1141 data-nosnippet>1141</a>            Keyword::Unsafe =&gt; <span class="macro">write!</span>(f, <span class="string">"unsafe"</span>),
+<a href=#1142 id=1142 data-nosnippet>1142</a>            Keyword::Use =&gt; <span class="macro">write!</span>(f, <span class="string">"use"</span>),
+<a href=#1143 id=1143 data-nosnippet>1143</a>            Keyword::Where =&gt; <span class="macro">write!</span>(f, <span class="string">"where"</span>),
+<a href=#1144 id=1144 data-nosnippet>1144</a>            Keyword::While =&gt; <span class="macro">write!</span>(f, <span class="string">"while"</span>),
+<a href=#1145 id=1145 data-nosnippet>1145</a>        }
+<a href=#1146 id=1146 data-nosnippet>1146</a>    }
+<a href=#1147 id=1147 data-nosnippet>1147</a>}
+<a href=#1148 id=1148 data-nosnippet>1148</a>
+<a href=#1149 id=1149 data-nosnippet>1149</a><span class="kw">impl </span>Keyword {
+<a href=#1150 id=1150 data-nosnippet>1150</a>    <span class="doccomment">/// Looks up a word in the source program and returns the associated keyword, if found.
+<a href=#1151 id=1151 data-nosnippet>1151</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>lookup_keyword(word: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Option</span>&lt;Token&gt; {
+<a href=#1152 id=1152 data-nosnippet>1152</a>        <span class="kw">let </span>keyword = <span class="kw">match </span>word {
+<a href=#1153 id=1153 data-nosnippet>1153</a>            <span class="string">"as" </span>=&gt; Keyword::As,
+<a href=#1154 id=1154 data-nosnippet>1154</a>            <span class="string">"assert" </span>=&gt; Keyword::Assert,
+<a href=#1155 id=1155 data-nosnippet>1155</a>            <span class="string">"assert_eq" </span>=&gt; Keyword::AssertEq,
+<a href=#1156 id=1156 data-nosnippet>1156</a>            <span class="string">"break" </span>=&gt; Keyword::Break,
+<a href=#1157 id=1157 data-nosnippet>1157</a>            <span class="string">"call_data" </span>=&gt; Keyword::CallData,
+<a href=#1158 id=1158 data-nosnippet>1158</a>            <span class="string">"comptime" </span>=&gt; Keyword::Comptime,
+<a href=#1159 id=1159 data-nosnippet>1159</a>            <span class="string">"constrained" </span>=&gt; Keyword::Constrained,
+<a href=#1160 id=1160 data-nosnippet>1160</a>            <span class="string">"continue" </span>=&gt; Keyword::Continue,
+<a href=#1161 id=1161 data-nosnippet>1161</a>            <span class="string">"contract" </span>=&gt; Keyword::Contract,
+<a href=#1162 id=1162 data-nosnippet>1162</a>            <span class="string">"crate" </span>=&gt; Keyword::Crate,
+<a href=#1163 id=1163 data-nosnippet>1163</a>            <span class="string">"dual" </span>=&gt; Keyword::Dual,
+<a href=#1164 id=1164 data-nosnippet>1164</a>            <span class="string">"else" </span>=&gt; Keyword::Else,
+<a href=#1165 id=1165 data-nosnippet>1165</a>            <span class="string">"enum" </span>=&gt; Keyword::Enum,
+<a href=#1166 id=1166 data-nosnippet>1166</a>            <span class="string">"fn" </span>=&gt; Keyword::Fn,
+<a href=#1167 id=1167 data-nosnippet>1167</a>            <span class="string">"for" </span>=&gt; Keyword::For,
+<a href=#1168 id=1168 data-nosnippet>1168</a>            <span class="string">"global" </span>=&gt; Keyword::Global,
+<a href=#1169 id=1169 data-nosnippet>1169</a>            <span class="string">"if" </span>=&gt; Keyword::If,
+<a href=#1170 id=1170 data-nosnippet>1170</a>            <span class="string">"impl" </span>=&gt; Keyword::Impl,
+<a href=#1171 id=1171 data-nosnippet>1171</a>            <span class="string">"in" </span>=&gt; Keyword::In,
+<a href=#1172 id=1172 data-nosnippet>1172</a>            <span class="string">"let" </span>=&gt; Keyword::Let,
+<a href=#1173 id=1173 data-nosnippet>1173</a>            <span class="string">"loop" </span>=&gt; Keyword::Loop,
+<a href=#1174 id=1174 data-nosnippet>1174</a>            <span class="string">"match" </span>=&gt; Keyword::Match,
+<a href=#1175 id=1175 data-nosnippet>1175</a>            <span class="string">"mod" </span>=&gt; Keyword::Mod,
+<a href=#1176 id=1176 data-nosnippet>1176</a>            <span class="string">"mut" </span>=&gt; Keyword::Mut,
+<a href=#1177 id=1177 data-nosnippet>1177</a>            <span class="string">"pub" </span>=&gt; Keyword::Pub,
+<a href=#1178 id=1178 data-nosnippet>1178</a>            <span class="string">"return" </span>=&gt; Keyword::Return,
+<a href=#1179 id=1179 data-nosnippet>1179</a>            <span class="string">"return_data" </span>=&gt; Keyword::ReturnData,
+<a href=#1180 id=1180 data-nosnippet>1180</a>            <span class="string">"struct" </span>=&gt; Keyword::Struct,
+<a href=#1181 id=1181 data-nosnippet>1181</a>            <span class="string">"super" </span>=&gt; Keyword::Super,
+<a href=#1182 id=1182 data-nosnippet>1182</a>            <span class="string">"trait" </span>=&gt; Keyword::Trait,
+<a href=#1183 id=1183 data-nosnippet>1183</a>            <span class="string">"type" </span>=&gt; Keyword::Type,
+<a href=#1184 id=1184 data-nosnippet>1184</a>            <span class="string">"unchecked" </span>=&gt; Keyword::Unchecked,
+<a href=#1185 id=1185 data-nosnippet>1185</a>            <span class="string">"unconstrained" </span>=&gt; Keyword::Unconstrained,
+<a href=#1186 id=1186 data-nosnippet>1186</a>            <span class="string">"unsafe" </span>=&gt; Keyword::Unsafe,
+<a href=#1187 id=1187 data-nosnippet>1187</a>            <span class="string">"use" </span>=&gt; Keyword::Use,
+<a href=#1188 id=1188 data-nosnippet>1188</a>            <span class="string">"where" </span>=&gt; Keyword::Where,
+<a href=#1189 id=1189 data-nosnippet>1189</a>            <span class="string">"while" </span>=&gt; Keyword::While,
+<a href=#1190 id=1190 data-nosnippet>1190</a>
+<a href=#1191 id=1191 data-nosnippet>1191</a>            <span class="string">"true" </span>=&gt; <span class="kw">return </span><span class="prelude-val">Some</span>(Token::Bool(<span class="bool-val">true</span>)),
+<a href=#1192 id=1192 data-nosnippet>1192</a>            <span class="string">"false" </span>=&gt; <span class="kw">return </span><span class="prelude-val">Some</span>(Token::Bool(<span class="bool-val">false</span>)),
+<a href=#1193 id=1193 data-nosnippet>1193</a>            <span class="kw">_ </span>=&gt; <span class="kw">return </span><span class="prelude-val">None</span>,
+<a href=#1194 id=1194 data-nosnippet>1194</a>        };
+<a href=#1195 id=1195 data-nosnippet>1195</a>
+<a href=#1196 id=1196 data-nosnippet>1196</a>        <span class="prelude-val">Some</span>(Token::Keyword(keyword))
+<a href=#1197 id=1197 data-nosnippet>1197</a>    }
+<a href=#1198 id=1198 data-nosnippet>1198</a>}
+<a href=#1199 id=1199 data-nosnippet>1199</a>
+<a href=#1200 id=1200 data-nosnippet>1200</a><span class="attr">#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+<a href=#1201 id=1201 data-nosnippet>1201</a></span><span class="kw">pub struct </span>Tokens(<span class="kw">pub </span>Vec&lt;LocatedToken&gt;);
+<a href=#1202 id=1202 data-nosnippet>1202</a>
+<a href=#1203 id=1203 data-nosnippet>1203</a><span class="attr">#[cfg(test)]
+<a href=#1204 id=1204 data-nosnippet>1204</a></span><span class="kw">mod </span>keywords {
+<a href=#1205 id=1205 data-nosnippet>1205</a>    <span class="kw">use </span>strum::IntoEnumIterator;
+<a href=#1206 id=1206 data-nosnippet>1206</a>
+<a href=#1207 id=1207 data-nosnippet>1207</a>    <span class="kw">use super</span>::{Keyword, Token};
 <a href=#1208 id=1208 data-nosnippet>1208</a>
-<a href=#1209 id=1209 data-nosnippet>1209</a><span class="attr">#[cfg(test)]
-<a href=#1210 id=1210 data-nosnippet>1210</a></span><span class="kw">mod </span>keywords {
-<a href=#1211 id=1211 data-nosnippet>1211</a>    <span class="kw">use </span>strum::IntoEnumIterator;
-<a href=#1212 id=1212 data-nosnippet>1212</a>
-<a href=#1213 id=1213 data-nosnippet>1213</a>    <span class="kw">use super</span>::{Keyword, Token};
-<a href=#1214 id=1214 data-nosnippet>1214</a>
-<a href=#1215 id=1215 data-nosnippet>1215</a>    <span class="attr">#[test]
-<a href=#1216 id=1216 data-nosnippet>1216</a>    </span><span class="kw">fn </span>lookup_consistency() {
-<a href=#1217 id=1217 data-nosnippet>1217</a>        <span class="kw">for </span>keyword <span class="kw">in </span>Keyword::iter() {
-<a href=#1218 id=1218 data-nosnippet>1218</a>            <span class="kw">let </span>resolved_token =
-<a href=#1219 id=1219 data-nosnippet>1219</a>                Keyword::lookup_keyword(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">"{keyword}"</span>)).unwrap_or_else(|| {
-<a href=#1220 id=1220 data-nosnippet>1220</a>                    <span class="macro">panic!</span>(<span class="string">"Keyword::lookup_keyword couldn't find Keyword {keyword}"</span>)
-<a href=#1221 id=1221 data-nosnippet>1221</a>                });
-<a href=#1222 id=1222 data-nosnippet>1222</a>
-<a href=#1223 id=1223 data-nosnippet>1223</a>            <span class="macro">assert_eq!</span>(
-<a href=#1224 id=1224 data-nosnippet>1224</a>                resolved_token,
-<a href=#1225 id=1225 data-nosnippet>1225</a>                Token::Keyword(keyword),
-<a href=#1226 id=1226 data-nosnippet>1226</a>                <span class="string">"Keyword::lookup_keyword returns unexpected Keyword"
-<a href=#1227 id=1227 data-nosnippet>1227</a>            </span>);
-<a href=#1228 id=1228 data-nosnippet>1228</a>        }
-<a href=#1229 id=1229 data-nosnippet>1229</a>    }
-<a href=#1230 id=1230 data-nosnippet>1230</a>}</code></pre></div></section></main></body></html>
+<a href=#1209 id=1209 data-nosnippet>1209</a>    <span class="attr">#[test]
+<a href=#1210 id=1210 data-nosnippet>1210</a>    </span><span class="kw">fn </span>lookup_consistency() {
+<a href=#1211 id=1211 data-nosnippet>1211</a>        <span class="kw">for </span>keyword <span class="kw">in </span>Keyword::iter() {
+<a href=#1212 id=1212 data-nosnippet>1212</a>            <span class="kw">let </span>resolved_token =
+<a href=#1213 id=1213 data-nosnippet>1213</a>                Keyword::lookup_keyword(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">"{keyword}"</span>)).unwrap_or_else(|| {
+<a href=#1214 id=1214 data-nosnippet>1214</a>                    <span class="macro">panic!</span>(<span class="string">"Keyword::lookup_keyword couldn't find Keyword {keyword}"</span>)
+<a href=#1215 id=1215 data-nosnippet>1215</a>                });
+<a href=#1216 id=1216 data-nosnippet>1216</a>
+<a href=#1217 id=1217 data-nosnippet>1217</a>            <span class="macro">assert_eq!</span>(
+<a href=#1218 id=1218 data-nosnippet>1218</a>                resolved_token,
+<a href=#1219 id=1219 data-nosnippet>1219</a>                Token::Keyword(keyword),
+<a href=#1220 id=1220 data-nosnippet>1220</a>                <span class="string">"Keyword::lookup_keyword returns unexpected Keyword"
+<a href=#1221 id=1221 data-nosnippet>1221</a>            </span>);
+<a href=#1222 id=1222 data-nosnippet>1222</a>        }
+<a href=#1223 id=1223 data-nosnippet>1223</a>    }
+<a href=#1224 id=1224 data-nosnippet>1224</a>}</code></pre></div></section></main></body></html>

@@ -1121,7 +1121,7 @@
 <a href=#1121 id=1121 data-nosnippet>1121</a>        } <span class="kw">else </span>{
 <a href=#1122 id=1122 data-nosnippet>1122</a>            <span class="kw">let </span>message = has_optional_msg.then(|| expr.arguments.pop().unwrap());
 <a href=#1123 id=1123 data-nosnippet>1123</a>            <span class="kw">let </span>expr = <span class="kw">match </span>expr.kind {
-<a href=#1124 id=1124 data-nosnippet>1124</a>                ConstrainKind::Assert | ConstrainKind::Constrain =&gt; expr.arguments.pop().unwrap(),
+<a href=#1124 id=1124 data-nosnippet>1124</a>                ConstrainKind::Assert =&gt; expr.arguments.pop().unwrap(),
 <a href=#1125 id=1125 data-nosnippet>1125</a>                ConstrainKind::AssertEq =&gt; {
 <a href=#1126 id=1126 data-nosnippet>1126</a>                    <span class="kw">let </span>rhs = expr.arguments.pop().unwrap();
 <a href=#1127 id=1127 data-nosnippet>1127</a>                    <span class="kw">let </span>lhs = expr.arguments.pop().unwrap();
