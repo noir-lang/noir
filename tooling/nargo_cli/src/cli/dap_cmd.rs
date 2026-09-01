@@ -211,12 +211,8 @@ fn loop_uninitialized_dap<R: Read, W: Write>(mut server: Server<R, W>) -> Result
                     .and_then(|v| v.as_str())
                     .unwrap_or("comptime")
                     .to_string();
-                let generate_acir =
-                    additional_data.get("generateAcir").and_then(|v| v.as_bool()).unwrap_or(false);
-                let skip_instrumentation = additional_data
-                    .get("skipInstrumentation")
-                    .and_then(|v| v.as_bool())
-                    .unwrap_or(generate_acir);
+                let generate_acir = debug_mode == "acir";
+                let skip_instrumentation = generate_acir;
                 let oracle_resolver_url = additional_data
                     .get("oracleResolver")
                     .and_then(|v| v.as_str())

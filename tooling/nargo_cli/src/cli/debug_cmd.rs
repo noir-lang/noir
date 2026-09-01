@@ -3,7 +3,7 @@ use std::time::Duration;
 
 use acvm::FieldElement;
 use acvm::acir::native_types::{WitnessMap, WitnessStack};
-use clap::Args;
+use clap::{Args, ValueEnum};
 use fm::FileManager;
 use nargo::constants::PROVER_INPUT_FILE;
 use nargo::foreign_calls::OracleResolverUrl;
@@ -34,6 +34,17 @@ use super::{LockType, WorkspaceCommand};
 use crate::cli::test_cmd::formatters::PrettyFormatter;
 use crate::errors::CliError;
 
+/// Which debugger backend to use
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
+pub(crate) enum DebugMode {
+    /// Comptime interpreter debugger (default)
+    Comptime,
+    /// Legacy ACIR debugger
+    Acir,
+    /// Legacy Brillig debugger
+    Brillig,
+}
+
 /// Executes a circuit in debug mode
 #[derive(Debug, Clone, Args)]
 pub(crate) struct DebugCommand {
@@ -51,13 +62,9 @@ pub(crate) struct DebugCommand {
     #[clap(flatten)]
     compile_options: CompileOptions,
 
-    /// Force ACIR output (disabling instrumentation)
-    #[clap(long)]
-    acir_mode: bool,
-
-    /// Disable vars debug instrumentation (enabled by default)
-    #[clap(long)]
-    skip_instrumentation: Option<bool>,
+    /// Debugger mode: comptime (default), acir, or brillig
+    #[clap(long, default_value = "comptime")]
+    mode: DebugMode,
 
     /// Raw string printing of source for testing
     #[clap(long, hide = true)]
@@ -95,13 +102,13 @@ impl WorkspaceCommand for DebugCommand {
 }
 
 pub(crate) fn run(args: DebugCommand, workspace: Workspace) -> Result<(), CliError> {
-    let acir_mode = args.acir_mode;
+    let mode = args.mode;
 
-    if !acir_mode {
+    if mode == DebugMode::Comptime {
         return run_comptime(args, workspace);
     }
 
-    let skip_instrumentation = args.skip_instrumentation.unwrap_or(acir_mode);
+    let acir_mode = mode == DebugMode::Acir;
 
     let package_params = PackageParams {
         prover_name: args.prover_name,
@@ -122,8 +129,7 @@ pub(crate) fn run(args: DebugCommand, workspace: Workspace) -> Result<(), CliErr
         return Ok(());
     };
 
-    let compile_options =
-        compile_options_for_debugging(acir_mode, skip_instrumentation, args.compile_options);
+    let compile_options = compile_options_for_debugging(acir_mode, acir_mode, args.compile_options);
 
     if let Some(test_name) = args.test_name {
         debug_test(test_name, package, workspace, compile_options, run_params, package_params)
