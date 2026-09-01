@@ -207,7 +207,6 @@ fn element_type_at_index(printable_type: &PrintableType, i: usize) -> &Printable
         PrintableType::Tuple { types } => &types[i],
         PrintableType::Struct { name: _name, fields } => &fields[i].1,
         PrintableType::String { length: _length } => &PrintableType::UnsignedInteger { width: 8 },
-        PrintableType::Reference { typ, .. } => element_type_at_index(typ, i),
         other => {
             panic!["expected type with sub-fields, found terminal type: {other:?}"]
         }
