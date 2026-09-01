@@ -1,5 +1,7 @@
 #[cfg(test)]
 mod tests {
+    use std::collections::VecDeque;
+
     // Some of these imports are consumed by the injected tests
     #[allow(deprecated)]
     use assert_cmd::cargo::cargo_bin;
@@ -14,14 +16,18 @@ mod tests {
         let nargo_bin =
             cargo_bin("nargo").into_os_string().into_string().expect("Cannot parse nargo path");
 
-        let mut dbg_session =
-            start_debug_session(&format!("{nargo_bin} debug --program-dir {test_program_dir}"));
+        let mut dbg_session = start_debug_session(&format!(
+            "{nargo_bin} debug --program-dir {test_program_dir} --force-brillig"
+        ));
 
-        // Send continue to run the program to the end (no breakpoints set).
-        dbg_session.send_line("c").expect("Debugger panicked while attempting to continue.");
+        // send continue which should run to the program to end
+        // given we haven't set any breakpoints.
+        send_continue_and_check_no_panic(&mut dbg_session);
+
+        send_quit(&mut dbg_session);
         dbg_session
-            .exp_regex(".*Program completed.*")
-            .expect("Expected program to complete successfully.");
+            .exp_regex(".*Circuit witness successfully solved.*")
+            .expect("Expected circuit witness to be successfully solved.");
 
         exit(dbg_session);
     }
@@ -31,12 +37,17 @@ mod tests {
         let nargo_bin =
             cargo_bin("nargo").into_os_string().into_string().expect("Cannot parse nargo path");
 
-        let mut dbg_session = start_debug_session(&format!(
-            "{nargo_bin} debug --program-dir {test_program_dir} --test-name {test_name}"
-        ));
+        let mut dbg_session = start_debug_session(
+            &(format!(
+                "{nargo_bin} debug --program-dir {test_program_dir} --test-name {test_name} --force-brillig"
+            )),
+        );
 
-        // Send continue to run the test to the end (no breakpoints set).
-        dbg_session.send_line("c").expect("Debugger panicked while attempting to continue.");
+        // send continue which should run to the program to end
+        // given we haven't set any breakpoints.
+        send_continue_and_check_no_panic(&mut dbg_session);
+
+        send_quit(&mut dbg_session);
         dbg_session
             .exp_regex(".*Testing .*\\.\\.\\. .*ok.*")
             .expect("Expected test to be successful");
@@ -50,8 +61,14 @@ mod tests {
             spawn_bash(Some(timeout_seconds * 1000)).expect("Could not start bash session");
 
         // Start debugger and test that it loads for the given program.
-        dbg_session.execute(command, ".*Debugger started.*").expect("Could not start debugger");
+        dbg_session.execute(command, ".*\\Starting debugger.*").expect("Could not start debugger");
         dbg_session
+    }
+
+    fn send_quit(dbg_session: &mut PtyReplSession) {
+        // Run the "quit" command, then check that the debugger confirms
+        // having successfully solved the circuit witness.
+        dbg_session.send_line("quit").expect("Failed to quit debugger");
     }
 
     /// Exit the bash session.
@@ -59,11 +76,29 @@ mod tests {
         dbg_session.send_line("exit").expect("Failed to quit bash session");
     }
 
+    /// While running the debugger, issue a "continue" cmd,
+    /// which should run to the program to end or the next breakpoint
+    /// ">" is the debugger's prompt, so finding one
+    /// after running "continue" indicates that the
+    /// debugger has not panicked.
+    fn send_continue_and_check_no_panic(dbg_session: &mut PtyReplSession) {
+        dbg_session
+            .send_line("c")
+            .expect("Debugger panicked while attempting to step through program.");
+        dbg_session
+            .exp_string(">")
+            .expect("Failed while waiting for debugger to step through program.");
+    }
+
     #[test]
-    fn debugger_stepping() {
+    fn debugger_expected_call_stack() {
         #[allow(deprecated)]
         let nargo_bin =
             cargo_bin("nargo").into_os_string().into_string().expect("Cannot parse nargo path");
+
+        let timeout_seconds = 30;
+        let mut dbg_session =
+            spawn_bash(Some(timeout_seconds * 1000)).expect("Could not start bash session");
 
         let test_program_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
             .join("../../test_programs/execution_success/regression_7195")
@@ -71,74 +106,96 @@ mod tests {
             .unwrap();
         let test_program_dir = test_program_path.display();
 
-        let mut dbg_session =
-            start_debug_session(&format!("{nargo_bin} debug --program-dir {test_program_dir}"));
+        // Start debugger and test that it loads for the given program.
+        dbg_session
+            .execute(
+                &format!(
+                    "{nargo_bin} debug --raw-source-printing true --program-dir {test_program_dir} --force-brillig"
+                ),
+                ".*\\Starting debugger.*",
+            )
+            .expect("Could not start debugger");
 
-        // Consume the initial source display and prompt left over from start_debug_session
-        // (which only matches up to "Debugger started").
-        dbg_session.exp_string("debug>").expect("Failed to find initial debugger prompt.");
-
-        // The comptime debugger steps at source-statement level.
-        // Using "step" (step-into) on regression_7195/src/main.nr:
-        //
-        // fn bar(y: Field) {
-        //     assert(y != 0);
-        // }
-        // fn foo(x: Field) {
-        //     let y = unsafe { baz(x) };
-        //     bar(y);
-        // }
-        // unconstrained fn baz(x: Field) -> Field { x }
-        // fn main(x: Field, y: pub Field) {
-        //     let x = unsafe { baz(x) };   <- initial stop
-        //     foo(x);
-        //     foo(y);
-        //     assert(x != y);
-        // }
-        let expected_lines: Vec<&str> = vec![
-            // re-stop on unsafe block entry
-            "let x = unsafe { baz(x) };",
-            // step into baz from main
-            "x",
-            // back in main
-            "foo(x);",
-            // step into foo
-            "let y = unsafe { baz(x) };",
-            // re-stop on unsafe block entry in foo
-            "let y = unsafe { baz(x) };",
-            // step into baz from foo
-            "x",
-            // back in foo
-            "bar(y);",
-            // step into bar
-            "assert(y != 0);",
-            // bar returns, foo returns, back in main
-            "foo(y);",
+        let expected_lines_by_command: Vec<VecDeque<&str>> = vec![
+            VecDeque::from(["fn main(x: Field, y: pub Field) {"]),
+            VecDeque::from(["fn main(x: Field, y: pub Field) {"]),
+            VecDeque::from(["fn main(x: Field, y: pub Field) {"]),
+            VecDeque::from([
+                "let x = unsafe { baz(x) };",
+                "unconstrained fn baz(x: Field) -> Field {",
+            ]),
+            VecDeque::from([
+                "let x = unsafe { baz(x) };",
+                "unconstrained fn baz(x: Field) -> Field {",
+            ]),
+            VecDeque::from(["let x = unsafe { baz(x) };", "}"]),
+            VecDeque::from(["let x = unsafe { baz(x) };"]),
+            VecDeque::from(["foo(x);", "fn foo(x: Field) {"]),
+            VecDeque::from(["foo(x);", "fn foo(x: Field) {"]),
+            VecDeque::from([
+                "foo(x);",
+                "let y = unsafe { baz(x) };",
+                "unconstrained fn baz(x: Field) -> Field {",
+            ]),
+            VecDeque::from([
+                "foo(x);",
+                "let y = unsafe { baz(x) };",
+                "unconstrained fn baz(x: Field) -> Field {",
+            ]),
+            VecDeque::from(["foo(x);", "let y = unsafe { baz(x) };", "}"]),
+            VecDeque::from(["foo(x);", "let y = unsafe { baz(x) };"]),
+            VecDeque::from(["foo(x);", "bar(y);", "fn bar(y: Field) {"]),
+            VecDeque::from(["foo(x);", "bar(y);", "fn bar(y: Field) {"]),
+            VecDeque::from(["foo(x);", "bar(y);", "assert(y != 0);"]),
         ];
 
-        for expected_line in expected_lines {
-            dbg_session
-                .send_line("step")
-                .expect("Debugger panicked while attempting to step through program.");
-
-            // Match the arrow line (e.g. "->   17 | let x = unsafe { baz(x) };")
-            // which indicates the current source line in the debugger display.
-            let (_, arrow_line) = dbg_session
-                .exp_regex("->[ ]+[0-9]+ \\| [^\n]*")
-                .expect("Failed to find arrow line in debugger output.");
-
-            assert!(
-                arrow_line.contains(expected_line),
-                "{arrow_line:?}\ndid not contain\n{expected_line:?}",
+        // Try to use relative paths if possible, otherwise the test breaks when run from the repository root
+        let at_filename = std::env::current_dir()
+            .ok()
+            .and_then(|dir| test_program_path.strip_prefix(&dir).ok())
+            .map_or_else(
+                || format!("At {test_program_dir}"),
+                |stripped| format!("At {}", stripped.display()),
             );
 
-            // Consume the remaining output up to the next prompt.
-            dbg_session.exp_string("debug>").expect("Failed while waiting for debugger prompt.");
+        for mut expected_lines in expected_lines_by_command {
+            // While running the debugger, issue a "next" cmd,
+            // which should run to the program to the next source line given
+            // we haven't set any breakpoints.
+            // ">" is the debugger's prompt, so finding one
+            // after running "next" indicates that the
+            // debugger has not panicked for this step.
+            dbg_session
+                .send_line("next")
+                .expect("Debugger panicked while attempting to step through program.");
+            dbg_session
+                .exp_string(">")
+                .expect("Failed while waiting for debugger to step through program.");
+
+            while let Some(expected_line) = expected_lines.pop_front() {
+                let line = loop {
+                    let read_line = dbg_session.read_line().unwrap();
+                    if !(read_line.contains("> next")
+                        || read_line.contains("At opcode")
+                        || read_line.contains(at_filename.as_str())
+                        || read_line.contains("..."))
+                    {
+                        break read_line;
+                    }
+                };
+                let ascii_line: String = line.chars().filter(char::is_ascii).collect();
+                let line_expected_to_contain = expected_line.trim();
+                assert!(
+                    ascii_line.contains(line_expected_to_contain),
+                    "{ascii_line:?}\ndid not contain\n{line_expected_to_contain:?}",
+                );
+            }
         }
 
-        // Quit the debugger
+        // Run the "quit" command
         dbg_session.send_line("quit").expect("Failed to quit debugger");
 
-        exit(dbg_session);
+        // Exit the bash session.
+        dbg_session.send_line("exit").expect("Failed to quit bash session");
     }
 }
