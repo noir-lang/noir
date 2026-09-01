@@ -13,6 +13,7 @@ use clap::Args;
 use fm::{FileId, FileManager};
 use iter_extended::vecmap;
 use noirc_abi::{AbiErrorType, AbiNamedValue, AbiParameter, AbiType};
+use noirc_artifacts::annotations::program_opcode_annotations;
 use noirc_artifacts::contract::{CompiledContract, CompiledContractOutputs, ContractFunction};
 use noirc_artifacts::debug::{DebugFile, DebugInfo, FunctionLocation};
 use noirc_artifacts::program::CompiledProgram;
@@ -154,6 +155,11 @@ pub struct CompileOptions {
     /// Display the ACIR for compiled circuit, including the Brillig bytecode.
     #[arg(long)]
     pub print_acir: bool,
+
+    /// When displaying the ACIR (see `--print-acir`), annotate each opcode with the
+    /// Noir source location and code snippet it was compiled from.
+    #[arg(long)]
+    pub with_acir_locations: bool,
 
     /// Pretty print benchmark times of each code generation pass
     #[arg(long, hide = true)]
@@ -316,6 +322,7 @@ impl Default for CompileOptions {
             show_brillig: false,
             show_brillig_opcode_advisories: false,
             print_acir: false,
+            with_acir_locations: false,
             benchmark_codegen: false,
             deny_warnings: false,
             silence_warnings: false,
@@ -525,7 +532,10 @@ pub fn compile_main(
 
     if options.print_acir {
         noirc_errors::println_to_stdout!("Compiled ACIR for main:");
-        noirc_errors::println_to_stdout!("{}", display_compiled_program(&compiled_program));
+        noirc_errors::println_to_stdout!(
+            "{}",
+            display_compiled_program(&compiled_program, options.with_acir_locations)
+        );
     }
 
     Ok((compiled_program, warnings))
@@ -590,7 +600,14 @@ pub fn compile_contract(
                     "Compiled ACIR for {}::{} (non-transformed):",
                     compiled_contract.name, contract_function.name
                 );
-                println!("{}", contract_function.bytecode);
+                println!(
+                    "{}",
+                    display_contract_function(
+                        contract_function,
+                        &compiled_contract.file_map,
+                        options.with_acir_locations
+                    )
+                );
             }
         }
         Ok((compiled_contract, warnings))
@@ -1035,17 +1052,48 @@ fn ssa_report_to_custom_diagnostic(error: SsaReport) -> CustomDiagnostic {
     }
 }
 
-pub fn display_compiled_program(program: &CompiledProgram) -> String {
-    ProgramDisplay { program: &program.program, error_types: &program.abi.error_types }.to_string()
+pub fn display_compiled_program(program: &CompiledProgram, with_locations: bool) -> String {
+    let annotations =
+        program_annotations(&program.program, &program.debug, &program.file_map, with_locations);
+    ProgramDisplay { program: &program.program, error_types: &program.abi.error_types, annotations }
+        .to_string()
+}
+
+fn display_contract_function(
+    function: &ContractFunction,
+    file_map: &BTreeMap<FileId, DebugFile>,
+    with_locations: bool,
+) -> String {
+    let annotations =
+        program_annotations(&function.bytecode, &function.debug, file_map, with_locations);
+    let error_types = BTreeMap::new();
+    ProgramDisplay { program: &function.bytecode, error_types: &error_types, annotations }
+        .to_string()
+}
+
+/// Builds per-circuit opcode annotations for every ACIR function of a program, or
+/// `None` when source locations were not requested.
+fn program_annotations<F: AcirField>(
+    program: &Program<F>,
+    debug: &[DebugInfo],
+    file_map: &BTreeMap<FileId, DebugFile>,
+    with_locations: bool,
+) -> Option<Vec<BTreeMap<usize, String>>> {
+    with_locations.then(|| program_opcode_annotations(program, debug, file_map))
 }
 
 /// Formats an ACIR [Program] together with its ABI error types so that any static
 /// assertion payloads embedded in the program are rendered as a `// message` comment
 /// next to the relevant ACIR/Brillig opcode. This is the same display used by
 /// `nargo compile --print-acir`.
+///
+/// When `annotations` are present (see [program_opcode_annotations]), each annotated
+/// ACIR opcode is additionally preceded by a `// file:line:col: snippet` comment
+/// describing the Noir source it was compiled from.
 struct ProgramDisplay<'a, F: AcirField> {
     program: &'a Program<F>,
     error_types: &'a BTreeMap<ErrorSelector, AbiErrorType>,
+    annotations: Option<Vec<BTreeMap<usize, String>>>,
 }
 
 impl<F: AcirField> std::fmt::Display for ProgramDisplay<'_, F> {
@@ -1061,6 +1109,6 @@ impl<F: AcirField> std::fmt::Display for ProgramDisplay<'_, F> {
                 }
             })
             .collect::<HashMap<_, _>>();
-        display_program(self.program, Some(&error_types), f)
+        display_program(self.program, Some(&error_types), self.annotations.as_deref(), f)
     }
 }
