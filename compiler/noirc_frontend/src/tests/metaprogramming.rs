@@ -2197,6 +2197,25 @@ fn comptime_as_witness_returns_unit() {
 }
 
 #[test]
+fn varargs_through_vector_alias_rejects_vector_argument() {
+    // When the varargs parameter type is an alias to a vector, the element type used to check
+    // each extra argument must be the vector's element type (`Field`), not the alias itself.
+    let src = "
+    type Args = [Field];
+
+    #[attr([1, 2])]
+           ^^^^^^ Expected type Field, found type [Field; 2]
+    pub fn target() {}
+
+    #[varargs]
+    comptime fn attr(_f: FunctionDefinition, _xs: Args) {}
+
+    fn main() {}
+    ";
+    check_errors(src);
+}
+
+#[test]
 fn quote_at_runtime() {
     let src = r#"
     fn main() {
@@ -2211,6 +2230,24 @@ fn quote_at_runtime() {
     }
     "#;
     check_errors(src);
+}
+
+#[test]
+fn varargs_through_vector_alias_accepts_scalar_arguments() {
+    // The valid spelling `#[attr(1, 2)]` must type-check: each extra argument unifies with the
+    // alias's element type `Field`, not with the alias `Args` itself.
+    let src = "
+    type Args = [Field];
+
+    #[attr(1, 2)]
+    pub fn target() {}
+
+    #[varargs]
+    comptime fn attr(_f: FunctionDefinition, _xs: Args) {}
+
+    fn main() {}
+    ";
+    assert_no_errors(src);
 }
 
 #[test]
@@ -3029,6 +3066,7 @@ fn comptime_error_on_macro_expansion() {
         type_errors, 2,
         "Expected a binary operation type error from each generated function, got: {messages:?}"
     );
+>>>>>>> master
 }
 
 #[test]
