@@ -3755,7 +3755,8 @@ impl Elaborator<'_> {
                 if !matches!(actual_type, Type::Reference(..)) {
                     let location = self.interner.id_location(*object);
                     if mutable {
-                        self.check_can_mutate(*object, location);
+                        let inside_mutable_ref = false;
+                        self.check_can_mutate(*object, location, inside_mutable_ref);
                     }
 
                     let new_type = Type::Reference(Box::new(actual_type), mutable);

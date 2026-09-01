@@ -575,7 +575,8 @@ impl Elaborator<'_> {
             let rhs_location = inner.rhs.location;
             let (rhs, typ) = self.elaborate_expression(inner.rhs);
             if mutable {
-                self.check_can_mutate(rhs, rhs_location);
+                let inside_mutable_ref = false;
+                self.check_can_mutate(rhs, rhs_location, inside_mutable_ref);
             }
             return (rhs, typ);
         }
@@ -610,13 +611,9 @@ impl Elaborator<'_> {
 
         let trait_method_id = self.interner.get_prefix_operator_trait_method(&operator);
 
-        if let UnaryOp::Reference { mutable } = operator
-            && mutable
-        {
-            // If skip_op is set we already know we have a mutable reference
-            if !skip_op {
-                self.check_can_mutate(rhs, rhs_location);
-            }
+        if let UnaryOp::Reference { mutable: true } = operator {
+            let inside_mutable_ref = true;
+            self.check_can_mutate(rhs, rhs_location, inside_mutable_ref);
         }
 
         let expr = HirExpression::Prefix(HirPrefixExpression {
@@ -652,9 +649,23 @@ impl Elaborator<'_> {
     /// Check whether we can create a mutable reference over an expression.
     /// Pushes an error if it cannot be done.
     ///
+    /// The rule is: writes may only reach a value whose only path from the root
+    /// crosses `&mut` references and mutable local variables. A `&T` anywhere in
+    /// that path is an error, and the recursion stops at the first reference —
+    /// mutability is decided by the reference type, not by how the reference
+    /// variable itself was declared.
+    ///
     /// Also, if the expression is a local variable, marks it as mutated.
+    ///
+    /// `inside_mutable_ref` is true when this check is on behalf of an explicit
+    /// `&mut _` expression, and only chooses the diagnostic wording.
     #[tracing::instrument(level = "trace", skip_all)]
-    pub(super) fn check_can_mutate(&mut self, expr_id: ExprId, location: Location) {
+    pub(super) fn check_can_mutate(
+        &mut self,
+        expr_id: ExprId,
+        location: Location,
+        inside_mutable_ref: bool,
+    ) {
         match self.interner.expression(&expr_id) {
             HirExpression::Ident(hir_ident, _) => {
                 let definition = self.interner.definition(hir_ident.id);
@@ -671,12 +682,41 @@ impl Elaborator<'_> {
                 self.push_err(TypeCheckError::MutableReferenceToArrayElement { location });
             }
             HirExpression::MemberAccess(member_access) => {
-                self.check_can_mutate(member_access.lhs, location);
+                let lhs = member_access.lhs;
+                // A field access decides mutability from the receiver's type when the
+                // receiver is a reference: writes reach the referent, so `&mut T` allows
+                // the write outright and `&T` rejects it. Otherwise the receiver is a
+                // value and the recursion continues to whatever roots it.
+                match self.interner.id_type(lhs).follow_bindings() {
+                    Type::Reference(_, false) => {
+                        self.push_cannot_mutate_immutable_reference_error(
+                            lhs,
+                            location,
+                            inside_mutable_ref,
+                        );
+                    }
+                    Type::Reference(_, true) => {}
+                    _ => self.check_can_mutate(lhs, location, inside_mutable_ref),
+                }
             }
             HirExpression::Prefix(prefix)
                 if matches!(prefix.operator, UnaryOp::Dereference { .. }) =>
             {
-                // &ref cannot be mutated
+                // Mutating through `*r` is only legal when `r` is a `&mut` reference. An
+                // immutable `&T` deref (such as the implicit deref inserted for `ref.field`)
+                // must be rejected, exactly as a direct assignment through it would be.
+                let rhs = prefix.rhs;
+                if let Type::Reference(_, false) = self.interner.id_type(rhs).follow_bindings() {
+                    self.push_cannot_mutate_immutable_reference_error(
+                        rhs,
+                        location,
+                        inside_mutable_ref,
+                    );
+                }
+            }
+            HirExpression::Prefix(prefix)
+                if matches!(prefix.operator, UnaryOp::Reference { mutable: true }) =>
+            {
                 let typ = self.interner.id_type(prefix.rhs).follow_bindings();
                 if matches!(typ, Type::Reference(_, false)) {
                     self.push_err(TypeCheckError::MutableReferenceBehindImmutableReference {
@@ -685,6 +725,34 @@ impl Elaborator<'_> {
                 }
             }
             _ => (),
+        }
+    }
+
+    fn push_cannot_mutate_immutable_reference_error(
+        &mut self,
+        expr: ExprId,
+        location: Location,
+        inside_mutable_ref: bool,
+    ) {
+        if inside_mutable_ref {
+            self.push_err(TypeCheckError::MutableReferenceBehindImmutableReference { location });
+        } else {
+            let reference_ident =
+                if let HirExpression::Ident(hir_ident, _) = self.interner.expression(&expr) {
+                    let name = self.interner.definition(hir_ident.id).name.clone();
+                    Some((name, hir_ident.location))
+                } else {
+                    None
+                };
+            self.push_write_through_reference_error(reference_ident, |this| {
+                let location = this.interner.id_location(expr);
+                let lvalue = this
+                    .interner
+                    .expression(&expr)
+                    .to_display_ast(this.interner, location)
+                    .to_string();
+                (lvalue, location)
+            });
         }
     }
 
