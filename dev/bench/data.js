@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1788261458101,
+  "lastUpdate": 1788261781584,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23355,48 +23355,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": true,
-          "id": "4bcac14457bb2560510d81f53314ce88fe3d4984",
-          "message": "fix(ssa): scope LICM outer induction bounds to nested loops (#13481)\n\nCo-authored-by: Claude Fable 5 <noreply@anthropic.com>",
-          "timestamp": "2026-08-11T17:00:26Z",
-          "tree_id": "dc1d65faee2631bcc524dff1fdefc21b6d7be4f9",
-          "url": "https://github.com/noir-lang/noir/commit/4bcac14457bb2560510d81f53314ce88fe3d4984"
-        },
-        "date": 1786468881260,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 173678,
-            "range": "± 390",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 141990,
-            "range": "± 2241",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2652097,
-            "range": "± 1943",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": false,
           "id": "44aab2db1561d8cbd31a54bd39c3d7c4bcd5925e",
           "message": "fix(ssa): mark Brillig functions calling a vector mutator on an array input as impure (#13479)\n\nCo-authored-by: Claude Fable 5 <noreply@anthropic.com>\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
@@ -25439,6 +25397,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2645972,
             "range": "± 1533",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "b2d9352a124752c7724a0091659a4d8514fb10bf",
+          "message": "feat: version ABI and artifact schemas (#13572)",
+          "timestamp": "2026-09-01T10:56:16Z",
+          "tree_id": "b6d80d415866ab6aff49b01fdae3e6939544ba06",
+          "url": "https://github.com/noir-lang/noir/commit/b2d9352a124752c7724a0091659a4d8514fb10bf"
+        },
+        "date": 1788261699277,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 168831,
+            "range": "± 2364",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 136609,
+            "range": "± 601",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2652960,
+            "range": "± 2871",
             "unit": "ns/iter"
           }
         ]
