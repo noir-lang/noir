@@ -21,7 +21,7 @@ use noirc_frontend::{
             Parameters, Program, Type, While,
         },
     },
-    shared::{Signedness, Visibility},
+    shared::{Builtin, Signedness, Visibility},
     token::FmtStrFragment,
 };
 
@@ -1014,14 +1014,24 @@ impl<'a> FunctionContext<'a> {
         let len_expr = self.call_array_len(Expression::Ident(ident_1), src_type.clone());
 
         // The rules around dynamic indexing is the same as for arrays.
+        let no_dynamic =
+            self.in_no_dynamic || !self.unconstrained() && types::contains_reference(item_type);
+        let was_in_no_dynamic = std::mem::replace(&mut self.in_no_dynamic, no_dynamic);
+
         let (idx_expr, idx_dyn) = if max_depth == 0 || bool::arbitrary(u)? {
             // Avoid any stack overflow where we look for an index in the vector itself.
-            (self.gen_literal(u, &types::U32)?, false)
-        } else {
-            let no_dynamic =
-                self.in_no_dynamic || !self.unconstrained() && types::contains_reference(item_type);
-            let was_in_no_dynamic = std::mem::replace(&mut self.in_no_dynamic, no_dynamic);
+            let mut idx_expr = self.gen_literal(u, &types::U32)?;
 
+            // A literal index is bounded here rather than by the caller, because a vector's
+            // length is not known at compile time: unlike an array, an out-of-bounds constant
+            // is not rejected during compilation, and reaches ACIR generation as an index which
+            // could not be simplified away.
+            if self.avoid_index_out_of_bounds(u)? {
+                idx_expr = expr::modulo(idx_expr, len_expr);
+            }
+
+            (idx_expr, false)
+        } else {
             // Choose a random index.
             let (mut idx_expr, idx_dyn) =
                 self.gen_expr(u, &types::U32, max_depth.saturating_sub(1), Flags::NESTED)?;
@@ -1033,9 +1043,10 @@ impl<'a> FunctionContext<'a> {
                 idx_expr = expr::modulo(idx_expr, len_expr);
             }
 
-            self.in_no_dynamic = was_in_no_dynamic;
             (idx_expr, idx_dyn)
         };
+
+        self.in_no_dynamic = was_in_no_dynamic;
 
         // Access the item by index
         let item_expr = access_item(self, ident_2, idx_expr);
@@ -2630,7 +2641,7 @@ impl<'a> FunctionContext<'a> {
     fn call_array_len(&mut self, array_or_vector: Expression, typ: Type) -> Expression {
         let func_ident = Ident {
             location: None,
-            definition: Definition::Builtin("array_len".to_string()),
+            definition: Definition::Builtin(Builtin::ArrayLen),
             mutable: false,
             name: "len".to_string(),
             typ: Rc::new(Type::Function(
@@ -2653,7 +2664,7 @@ impl<'a> FunctionContext<'a> {
     fn call_str_as_bytes(&mut self, value: Expression, len: u32, bytes_type: Type) -> Expression {
         let func_ident = Ident {
             location: None,
-            definition: Definition::Builtin("str_as_bytes".to_string()),
+            definition: Definition::Builtin(Builtin::StrAsBytes),
             mutable: false,
             name: "as_bytes".to_string(),
             typ: Rc::new(Type::Function(
@@ -2681,7 +2692,7 @@ impl<'a> FunctionContext<'a> {
     ) -> Expression {
         let func_ident = Ident {
             location: None,
-            definition: Definition::Builtin("as_vector".to_string()),
+            definition: Definition::Builtin(Builtin::AsVector),
             mutable: false,
             name: "as_vector".to_string(),
             typ: Rc::new(Type::Function(
@@ -2703,14 +2714,18 @@ impl<'a> FunctionContext<'a> {
     /// Construct a `Call` to one of the `vector_*` builtin functions.
     fn call_vector_builtin(
         &mut self,
-        name: &str,
+        builtin: Builtin,
         return_type: Type,
         arg_types: Vec<Type>,
         args: Vec<Expression>,
     ) -> Expression {
+        let name = builtin
+            .name()
+            .strip_prefix("vector_")
+            .expect("call_vector_builtin expects a vector_* builtin");
         let func_ident = Ident {
             location: None,
-            definition: Definition::Builtin(format!("vector_{name}")),
+            definition: Definition::Builtin(builtin),
             mutable: false,
             name: name.to_string(),
             typ: Rc::new(Type::Function(
@@ -2739,7 +2754,7 @@ impl<'a> FunctionContext<'a> {
         item: Expression,
     ) -> Expression {
         self.call_vector_builtin(
-            if is_front { "push_front" } else { "push_back" },
+            if is_front { Builtin::VectorPushFront } else { Builtin::VectorPushBack },
             vector_type.clone(),
             vec![vector_type, item_type],
             vec![vector, item],
@@ -2760,7 +2775,7 @@ impl<'a> FunctionContext<'a> {
             vec![vector_type.clone(), item_type]
         };
         self.call_vector_builtin(
-            if is_front { "pop_front" } else { "pop_back" },
+            if is_front { Builtin::VectorPopFront } else { Builtin::VectorPopBack },
             Type::Tuple(return_fields),
             vec![vector_type],
             vec![vector],
@@ -2776,7 +2791,7 @@ impl<'a> FunctionContext<'a> {
         idx: Expression,
     ) -> Expression {
         self.call_vector_builtin(
-            "remove",
+            Builtin::VectorRemove,
             Type::Tuple(vec![vector_type.clone(), item_type]),
             vec![vector_type, types::U32],
             vec![vector, idx],
@@ -2793,7 +2808,7 @@ impl<'a> FunctionContext<'a> {
         item: Expression,
     ) -> Expression {
         self.call_vector_builtin(
-            "insert",
+            Builtin::VectorInsert,
             Type::Tuple(vec![vector_type.clone()]),
             vec![vector_type, types::U32, item_type],
             vec![vector, idx, item],

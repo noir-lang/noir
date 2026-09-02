@@ -20,7 +20,7 @@ use crate::ssa::{
     },
 };
 
-use super::{Ssa, executes_with_no_errors, expect_error};
+use super::{Ssa, executes_with_no_errors, expect_error, expect_error_with_args};
 
 fn make_unfit(value: impl Into<FieldElement>, typ: NumericType) -> Value {
     Value::int_from_field(value.into(), typ).unwrap()
@@ -353,6 +353,75 @@ fn mul_overflow_signed() {
     ",
     );
     assert!(matches!(error, InterpreterError::Overflow { .. }));
+}
+
+#[test]
+fn mul_overflow_u128_wrapping_past_modulus() {
+    // a = 2^127 + 12345 and b = ⌊p/a⌋ + 1: both fit in a u128, and a·b is the smallest multiple
+    // of a exceeding the modulus, so (a·b) mod p = a - (p mod a) passes a 128-bit range check.
+    let a = 170141183460469231731687303715884118073_u128;
+    let b = 128647529226366354083724114970452069444_u128;
+    let args = vec![
+        from_constant(a.into(), NumericType::unsigned(128)),
+        from_constant(b.into(), NumericType::unsigned(128)),
+    ];
+    for runtime in ["acir(inline)", "brillig(inline)"] {
+        let src = format!(
+            "
+            {runtime} fn main f0 {{
+              b0(v0: u128, v1: u128):
+                v2 = mul v0, v1
+                return v2
+            }}
+        "
+        );
+        let error = expect_error_with_args(&src, args.clone());
+        assert!(matches!(error, InterpreterError::Overflow { .. }), "{runtime}: {error:?}");
+    }
+}
+
+// Companion to [`mul_overflow_u128_wrapping_past_modulus`] with constant operands
+// (`u128::MAX` and `MAX_NON_OVERFLOWING_CONST_ARG + 1` from `check_u128_mul_overflow`).
+#[test]
+fn mul_overflow_u128_wrapping_past_modulus_constants() {
+    let error = expect_error(
+        "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = mul u128 340282366920938463463374607431768211455, u128 64323764613183177041862057485226039390
+            return v0
+        }
+    ",
+    );
+    assert!(matches!(error, InterpreterError::Overflow { .. }), "{error:?}");
+}
+
+// Companion to [`mul_overflow_u128_wrapping_past_modulus`] pinning the non-wrapping cases, so the
+// wrapping case cannot be fixed by rejecting every u128 multiplication: a product that overflows
+// 128 bits without exceeding the modulus still errors, and an in-range product still succeeds.
+#[test]
+fn mul_overflow_u128_non_wrapping() {
+    let error = expect_error(
+        "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = mul u128 340282366920938463463374607431768211455, u128 2
+            return v0
+        }
+    ",
+    );
+    assert!(matches!(error, InterpreterError::Overflow { .. }), "{error:?}");
+
+    let value = expect_value(
+        "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = mul u128 3, u128 5
+            return v0
+        }
+    ",
+    );
+    assert_eq!(value, from_constant(15_u128.into(), NumericType::unsigned(128)));
 }
 
 #[test]

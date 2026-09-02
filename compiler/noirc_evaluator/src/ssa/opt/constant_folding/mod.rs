@@ -841,11 +841,18 @@ fn can_be_deduplicated(instruction: &Instruction, dfg: &DataFlowGraph) -> CanBeD
         | DecrementRc { .. } => CanBeDeduplicated::Never,
 
         Call { func, .. } => match dfg[*func] {
-            Value::Intrinsic(intrinsic) => match intrinsic.purity() {
-                Purity::Pure => CanBeDeduplicated::Always,
-                Purity::PureWithPredicate => CanBeDeduplicated::UnderSamePredicate,
-                Purity::Impure => CanBeDeduplicated::Never,
-            },
+            Value::Intrinsic(intrinsic) => {
+                // Similar to the ArraySet case below: in Brillig vector intrinsics might mutate a vector in-place
+                if dfg.runtime().is_brillig() && intrinsic.mutates_array_operand_in_brillig() {
+                    CanBeDeduplicated::Never
+                } else {
+                    match intrinsic.purity() {
+                        Purity::Pure => CanBeDeduplicated::Always,
+                        Purity::PureWithPredicate => CanBeDeduplicated::UnderSamePredicate,
+                        Purity::Impure => CanBeDeduplicated::Never,
+                    }
+                }
+            }
             // A call to a user-defined function from an ACIR caller lowers to a predicated
             // `Opcode::Call` or `Opcode::BrilligCall`, which leaves the callee's outputs
             // unconstrained when the predicate is disabled. `DataFlowGraph::purity_of` already
@@ -3888,5 +3895,113 @@ mod test {
         }
         ";
         assert_ssa_does_not_change(src, |ssa| ssa.fold_constants(MIN_ITER));
+    }
+
+    #[test_case("vector_push_front(v11, v12, u8 8)")]
+    #[test_case("vector_push_back(v11, v12, u8 8)")]
+    #[test_case("vector_pop_front(v11, v12)")]
+    #[test_case("vector_pop_back(v11, v12)")]
+    #[test_case("vector_insert(v11, v12, u32 1, u8 8)")]
+    #[test_case("vector_remove(v11, v12, u32 1)")]
+    fn does_not_deduplicate_possibly_mutable_vector_intrinsics_in_brillig(intrinsic: &'static str) {
+        let src = format!(
+            "
+        brillig(inline) predicate_pure fn main f0 {{
+          b0(v0: [u8; 2], v1: u1, v2: u1):
+            v6, v7 = call as_vector(v0) -> (u32, [u8])
+            v11, v12 = call vector_push_front(u32 2, v7, u8 9) -> (u32, [u8])
+            jmpif v1 then: b1(), else: b2()
+          b1():
+            v14, v15 = call {intrinsic} -> (u32, [u8])
+            v17 = lt u32 0, v14
+            constrain v17 == u1 1
+            v19 = array_get v15, index u32 0 -> u8
+            jmp b3(v19)
+          b2():
+            jmpif v2 then: b4(), else: b5()
+          b3(v3: u8):
+            return v3
+          b4():
+            v20, v21 = call {intrinsic} -> (u32, [u8])
+            v22 = lt u32 0, v20
+            constrain v22 == u1 1
+            v23 = array_get v21, index u32 0 -> u8
+            jmp b6(v23)
+          b5():
+            v24 = lt u32 0, v11
+            constrain v24 == u1 1
+            v25 = array_get v12, index u32 0 -> u8
+            jmp b6(v25)
+          b6(v4: u8):
+            jmp b3(v4)
+        }}
+        "
+        );
+        assert_ssa_does_not_change(&src, |ssa| ssa.fold_constants_using_constraints(MIN_ITER));
+    }
+
+    /// Folding a constant-argument Brillig call evaluates it in the compiler's own SSA
+    /// interpreter, and that evaluation is speculative: it happens for a call the compiled
+    /// program may never perform, on a path it may never take. It must therefore leave nothing
+    /// behind for the next call folded with the same interpreter.
+    ///
+    /// Here `evil` writes `Field 99` into the global while it is folded, and `read` — folded
+    /// next — must still see `Field 1`. The two calls are on mutually exclusive `jmpif` arms,
+    /// so no execution performs both. A snapshot assertion alone would not have caught the leak
+    /// (`Field 99` is a perfectly well-formed constant); interpreting before and after does.
+    #[test]
+    fn folding_a_call_does_not_leak_a_global_mutation_into_the_next_call() {
+        let src = "
+        g0 = make_array [Field 1, Field 2] : [Field; 2]
+
+        acir(inline) fn main f0 {
+          b0(v0: u1):
+            jmpif v0 then: b1(), else: b2()
+          b1():
+            v1 = make_array [Field 5, Field 6] : [Field; 2]
+            v2 = call f1(v1) -> Field
+            jmp b3(v2)
+          b2():
+            v3 = call f2(u32 0) -> Field
+            jmp b3(v3)
+          b3(v4: Field):
+            return v4
+        }
+
+        brillig(inline) fn evil f1 {
+          b0(v0: [Field; 2]):
+            v1 = array_set v0, index u32 0, value Field 7
+            v2 = array_set g0, index u32 0, value Field 99
+            v3 = array_get v1, index u32 0 -> Field
+            v4 = array_get v2, index u32 0 -> Field
+            v5 = add v3, v4
+            return v5
+        }
+
+        brillig(inline) fn read f2 {
+          b0(v0: u32):
+            v1 = array_get g0, index v0 -> Field
+            return v1
+        }
+        ";
+
+        // `v0 = false` takes the `else` arm, which reads the global.
+        let (ssa, result) = assert_pass_does_not_affect_execution(
+            Ssa::from_str(src).unwrap(),
+            vec![Value::bool(false)],
+            |ssa| ssa.fold_constants(DEFAULT_MAX_ITER),
+        );
+        assert_eq!(
+            result,
+            Ok(vec![Value::field(1_u128.into())]),
+            "the reader observes the global's own value"
+        );
+
+        // `evil`'s own write is still visible to `evil` itself: it reads back `Field 7 + Field 99`.
+        assert_eq!(
+            ssa.interpret(vec![Value::bool(true)]),
+            Ok(vec![Value::field(106_u128.into())]),
+            "the mutator observes its own copy"
+        );
     }
 }

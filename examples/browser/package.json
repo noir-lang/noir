@@ -12,10 +12,10 @@
     "@noir-lang/noir_js": "workspace:*"
   },
   "devDependencies": {
-    "@playwright/test": "^1.58.2",
+    "@playwright/test": "^1.62.1",
     "@types/node": "^22.20.1",
     "typescript": "^6.0.3",
-    "vite": "^8.1.5",
+    "vite": "^8.2.2",
     "vite-plugin-node-polyfills": "0.28.0"
   }
 }

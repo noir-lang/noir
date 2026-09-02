@@ -1121,7 +1121,7 @@ impl Elaborator<'_> {
         } else {
             let message = has_optional_msg.then(|| expr.arguments.pop().unwrap());
             let expr = match expr.kind {
-                ConstrainKind::Assert | ConstrainKind::Constrain => expr.arguments.pop().unwrap(),
+                ConstrainKind::Assert => expr.arguments.pop().unwrap(),
                 ConstrainKind::AssertEq => {
                     let rhs = expr.arguments.pop().unwrap();
                     let lhs = expr.arguments.pop().unwrap();

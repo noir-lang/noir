@@ -321,6 +321,7 @@ mod tests {
     fn try_from_json_tuple_array_length_mismatch() {
         let typ = AbiType::Tuple { fields: vec![AbiType::Field, AbiType::Field] };
         let abi = Abi {
+            abi_version: crate::ABI_VERSION,
             parameters: vec![AbiParameter {
                 name: "input".to_string(),
                 typ,

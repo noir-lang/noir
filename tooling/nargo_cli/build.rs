@@ -214,30 +214,14 @@ const IGNORED_MINIMAL_EXECUTION_TESTS: [&str; 18] = [
 
 /// These tests are ignored because making them work involves a more complex test code that
 /// might not be worth it.
-/// Others are ignored because of existing bugs in `nargo expand`.
-/// As the bugs are fixed these tests should be removed from this list.
-const IGNORED_NARGO_EXPAND_EXECUTION_TESTS: [&str; 12] = [
-    // `nargo expand` prints an associated-constant access by its bare name (e.g. `N`),
-    // dropping the `Box::<Field>::` qualifier, so the expanded source no longer resolves.
-    "comptime_resolve_associated_constant_scope",
+const IGNORED_NARGO_EXPAND_EXECUTION_TESTS: [&str; 5] = [
     // There's nothing special about this program but making it work with a custom entry would involve
     // having to parse the Nargo.toml file, etc., which is not worth it
     "custom_entry",
     // There's no "src/main.nr" here so it's trickier to make this work
     "diamond_deps_0",
-    // bug
-    "numeric_type_alias",
-    "negative_associated_constants",
     // There's no "src/main.nr" here so it's trickier to make this work
     "overlapping_dep_and_mod",
-    // bug
-    "regression_9116",
-    // bug
-    "regression_10466",
-    // bug
-    "trait_associated_constant",
-    // Globals evaluate to invalid utf-8 which don't display correctly in a source file
-    "regression_12269",
     // There's no "src/main.nr" here so it's trickier to make this work
     "workspace",
     // There's no "src/main.nr" here so it's trickier to make this work
@@ -247,30 +231,17 @@ const IGNORED_NARGO_EXPAND_EXECUTION_TESTS: [&str; 12] = [
 /// Tests for which we don't check that stdout matches the expected output.
 const TESTS_WITHOUT_STDOUT_CHECK: [&str; 0] = [];
 
-/// These tests are ignored because of existing bugs in `nargo expand`.
-/// As the bugs are fixed these tests should be removed from this list.
-/// (some are ignored on purpose for the same reason as `IGNORED_NARGO_EXPAND_EXECUTION_TESTS`)
-const IGNORED_NARGO_EXPAND_COMPILE_SUCCESS_EMPTY_TESTS: [&str; 11] = [
-    // A generated associated constant resolves to `<[T; N] as Ser>::N`, which `nargo expand`
-    // prints as `<(resolved type) as Ser>::N` — not valid syntax to recompile.
-    "regression_10747_associated_constant",
+/// These tests are ignored on purpose for the same reason as
+/// `IGNORED_NARGO_EXPAND_EXECUTION_TESTS`: making them work involves more complex test code
+/// that might not be worth it.
+const IGNORED_NARGO_EXPAND_COMPILE_SUCCESS_EMPTY_TESTS: [&str; 5] = [
     // There's no "src/main.nr" here so it's trickier to make this work
     "overlapping_dep_and_mod",
     // this one works, but copying its `Nargo.toml` file to somewhere else doesn't work
     // because it references another project by a relative path
     "reexports",
-    // bug
-    "trait_function_calls",
-    // bug
-    "trait_method_mut_self",
-    // bug
-    "trait_static_methods",
     // There's no "src/main.nr" here so it's trickier to make this work
     "workspace_reexport_bug",
-    // bug
-    "trait_call_in_global",
-    // `nargo expand` drops the trait generic arguments on `impl Trait<...>` parameters
-    "regression_7648",
     // The expanded code names a transitive-only dependency (`leaflib`) by path, which isn't
     // directly importable when the expansion is recompiled as a standalone program.
     "comptime_as_typed_expr_public_type_trait_method",
@@ -281,26 +252,7 @@ const IGNORED_NARGO_EXPAND_COMPILE_SUCCESS_EMPTY_TESTS: [&str; 11] = [
 
 /// These tests are ignored because of existing bugs in `nargo expand`.
 /// As the bugs are fixed these tests should be removed from this list.
-const IGNORED_NARGO_EXPAND_COMPILE_SUCCESS_NO_BUG_TESTS: [&str; 17] = [
-    "noirc_frontend_tests_check_trait_as_type_as_fn_parameter",
-    "noirc_frontend_tests_check_trait_as_type_as_two_fn_parameters",
-    "noirc_frontend_tests_enums_match_on_empty_enum",
-    "noirc_frontend_tests_traits_trait_alias_polymorphic_inheritance",
-    "noirc_frontend_tests_traits_trait_alias_single_member",
-    "noirc_frontend_tests_traits_trait_alias_two_members",
-    "noirc_frontend_tests_traits_trait_impl_with_where_clause_with_trait_with_associated_numeric",
-    "noirc_frontend_tests_traits_accesses_associated_type_inside_trait_impl_using_self",
-    "noirc_frontend_tests_traits_accesses_associated_type_inside_trait_using_self",
-    "noirc_frontend_tests_u32_globals_as_sizes_in_types",
-    // This creates a struct at comptime which, expanded, gives a visibility error
-    "noirc_frontend_tests_visibility_visibility_bug_inside_comptime",
-    "noirc_frontend_tests_aliases_identity_numeric_type_alias_works",
-    "noirc_frontend_tests_aliases_type_alias_to_numeric_as_generic",
-    "noirc_frontend_tests_aliases_type_alias_to_numeric_generic",
-    "noirc_frontend_tests_traits_trait_bound_on_implementing_type",
-    "function_registry",
-    "regression_10887", // expands into global struct with private fields
-];
+const IGNORED_NARGO_EXPAND_COMPILE_SUCCESS_NO_BUG_TESTS: [&str; 0] = [];
 
 const IGNORED_NARGO_EXPAND_COMPILE_SUCCESS_WITH_BUG_TESTS: [&str; 0] = [];
 
