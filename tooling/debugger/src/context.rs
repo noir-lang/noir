@@ -430,6 +430,15 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> DebugContext<'a, B> {
         let instruction_pointer = self.acvm.instruction_pointer();
         let circuit_id = self.current_circuit_id;
         if let Some(ref solver) = self.brillig_solver {
+            // Include the ACIR frame for the BrilligCall opcode so that the
+            // call stack depth increases when stepping into a Brillig call.
+            // Without this, next_over cannot distinguish "at the call site"
+            // from "inside the called function".
+            frames.push(DebugLocation {
+                circuit_id,
+                opcode_location: OpcodeLocation::Acir(instruction_pointer),
+                brillig_function_id: None,
+            });
             frames.extend(solver.get_call_stack().iter().map(|program_counter| DebugLocation {
                 circuit_id,
                 opcode_location: OpcodeLocation::Brillig {
