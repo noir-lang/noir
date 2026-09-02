@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1788278974610,
+  "lastUpdate": 1788336988833,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23276,48 +23276,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": true,
-          "id": "da90b5279d776bedec6dc3726e53bab8eb814b0c",
-          "message": "fix(ssa): let constant folding replace a `&T` result with the `&mut T` cell it reads (#13514)",
-          "timestamp": "2026-08-12T13:51:15Z",
-          "tree_id": "1f1404692636911f542f1e847db900ecdd205f4f",
-          "url": "https://github.com/noir-lang/noir/commit/da90b5279d776bedec6dc3726e53bab8eb814b0c"
-        },
-        "date": 1786543873714,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 126790,
-            "range": "± 1252",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 113294,
-            "range": "± 2590",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 3046677,
-            "range": "± 1820",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "49558828+AztecBot@users.noreply.github.com",
-            "name": "Aztec Bot",
-            "username": "AztecBot"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
           "id": "9dfde92fe4020934c80855b3fb4f6fc2164445cc",
           "message": "fix(ssa): visit each value once when decomposing a constraint (#13516)",
           "timestamp": "2026-08-12T14:57:43Z",
@@ -25359,6 +25317,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2362821,
             "range": "± 4149",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "c4125b72e90ba0f9de5e9e1ebb73f88bc1c09dab",
+          "message": "chore(deps): bump postcss-selector-parser from 6.1.2 to 6.1.4 in /docs (#13582)\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2026-09-02T07:52:42Z",
+          "tree_id": "c094246d26c77f99a4e306d36ffff1761dba1bbf",
+          "url": "https://github.com/noir-lang/noir/commit/c4125b72e90ba0f9de5e9e1ebb73f88bc1c09dab"
+        },
+        "date": 1788336903320,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 173313,
+            "range": "± 530",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 136221,
+            "range": "± 2878",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2362073,
+            "range": "± 6401",
             "unit": "ns/iter"
           }
         ]
