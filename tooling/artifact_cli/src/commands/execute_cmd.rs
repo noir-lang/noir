@@ -24,8 +24,13 @@ pub struct ExecuteCommand {
 
     /// Path to the Prover.toml (or .json) file which contains the inputs and the
     /// optional return value in ABI format.
-    #[clap(long, short, value_parser = parse_and_normalize_path)]
-    pub prover_file: PathBuf,
+    #[clap(long, short, conflicts_with = "witness_file", value_parser = parse_and_normalize_path)]
+    pub prover_file: Option<PathBuf>,
+
+    /// Path to a witness file (.gz) to use as the initial witness instead of a
+    /// Prover.toml. This is the same gzipped format that `noir-execute` outputs.
+    #[clap(long, conflicts_with = "prover_file", value_parser = parse_and_normalize_path)]
+    pub witness_file: Option<PathBuf>,
 
     /// Optionally overwrite the `return` entry in the Prover.toml file.
     #[clap(long, default_value_t = false)]
@@ -69,6 +74,22 @@ pub struct ExecuteCommand {
 }
 
 pub fn run(args: ExecuteCommand) -> Result<(), CliError> {
+    let input = match (&args.prover_file, &args.witness_file) {
+        (Some(path), None) => InputSource::ProverFile(path.as_path()),
+        (None, Some(path)) => InputSource::WitnessFile(path.as_path()),
+        _ => {
+            return Err(CliError::Generic(
+                "exactly one of --prover-file or --witness-file must be provided".to_string(),
+            ));
+        }
+    };
+
+    if args.overwrite_return && args.witness_file.is_some() {
+        return Err(CliError::Generic(
+            "--overwrite-return cannot be used with --witness-file".to_string(),
+        ));
+    }
+
     let artifact = Artifact::read_from_file(&args.artifact_path)?;
     let artifact_name = args.artifact_path.file_stem().and_then(|s| s.to_str()).unwrap_or_default();
 
@@ -92,7 +113,7 @@ pub fn run(args: ExecuteCommand) -> Result<(), CliError> {
         &circuit,
         &circuit_name,
         &ExecuteProgramArgs {
-            prover_file: &args.prover_file,
+            input,
             output_dir: args.output_dir.as_deref(),
             witness_name: args.witness_name.as_deref(),
             overwrite_return: args.overwrite_return,
@@ -102,16 +123,24 @@ pub fn run(args: ExecuteCommand) -> Result<(), CliError> {
     )
 }
 
+/// Where the initial witness comes from.
+pub enum InputSource<'a> {
+    /// ABI-encoded inputs in TOML or JSON.
+    ProverFile(&'a Path),
+    /// Pre-computed initial witness (gzipped WitnessStack).
+    WitnessFile(&'a Path),
+}
+
 /// Inputs and output options for [`execute_program`], borrowed from the caller's own
 /// arguments (whether those come from an `ExecuteCommand` or from an in-memory compilation).
 pub struct ExecuteProgramArgs<'a> {
-    /// Prover inputs (and optional expected return value) in ABI format.
-    pub prover_file: &'a Path,
+    /// Source of the initial witness.
+    pub input: InputSource<'a>,
     /// Directory to save the output witness in; results are discarded if `None`.
     pub output_dir: Option<&'a Path>,
     /// Name for the saved witness file; defaults to the circuit name if `None`.
     pub witness_name: Option<&'a str>,
-    /// Overwrite the `return` entry in `prover_file` with the executed return value.
+    /// Overwrite the `return` entry in the prover file with the executed return value.
     pub overwrite_return: bool,
     /// Oracle transcript to replay in response to foreign calls.
     pub oracle_file: Option<&'a Path>,
@@ -138,11 +167,15 @@ pub fn execute_program(
                 args.output_dir,
                 args.witness_name,
             )?;
-            execution::check_return(
-                circuit,
-                results.return_values,
-                args.overwrite_return.then_some(args.prover_file),
-            )?;
+            let overwrite_prover_file = if args.overwrite_return {
+                match &args.input {
+                    InputSource::ProverFile(path) => Some(*path),
+                    InputSource::WitnessFile(_) => None,
+                }
+            } else {
+                None
+            };
+            execution::check_return(circuit, results.return_values, overwrite_prover_file)?;
             Ok(())
         }
         Err(e) => {
@@ -180,5 +213,5 @@ fn execute(
 
     let blackbox_solver = Bn254BlackBoxSolver;
 
-    execution::execute(circuit, &blackbox_solver, &mut foreign_call_executor, args.prover_file)
+    execution::execute(circuit, &blackbox_solver, &mut foreign_call_executor, &args.input)
 }

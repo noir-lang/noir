@@ -89,7 +89,8 @@ pub(crate) fn run(args: ExecuteCommand, workspace: Workspace) -> Result<(), CliE
 
         let cmd = noir_artifact_cli::commands::execute_cmd::ExecuteCommand {
             artifact_path: program_artifact_path,
-            prover_file,
+            prover_file: Some(prover_file),
+            witness_file: None,
             overwrite_return: args.overwrite_return,
             output_dir: Some(workspace.target_directory_path()),
             witness_name: Some(
@@ -137,7 +138,9 @@ fn execute_without_artifacts(args: ExecuteCommand, workspace: Workspace) -> Resu
             &program,
             &circuit_name,
             &noir_artifact_cli::commands::execute_cmd::ExecuteProgramArgs {
-                prover_file: &prover_file,
+                input: noir_artifact_cli::commands::execute_cmd::InputSource::ProverFile(
+                    &prover_file,
+                ),
                 output_dir: Some(&workspace.target_directory_path()),
                 witness_name: Some(&witness_name),
                 overwrite_return: args.overwrite_return,

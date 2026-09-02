@@ -8,10 +8,11 @@ use noirc_abi::{AbiType, MAIN_RETURN_NAME, Sign, input_parser::InputValue};
 use noirc_artifacts::{debug::DebugArtifact, program::CompiledProgram};
 
 use crate::{
+    commands::execute_cmd::InputSource,
     errors::CliError,
     fs::{
         inputs::{read_inputs_from_file, write_inputs_to_file},
-        witness::save_witness_to_dir,
+        witness::{load_witness_from_file, save_witness_to_dir},
     },
 };
 
@@ -36,15 +37,25 @@ pub fn execute<B, E>(
     circuit: &CompiledProgram,
     blackbox_solver: &B,
     foreign_call_executor: &mut E,
-    prover_file: &Path,
+    input: &InputSource,
 ) -> Result<ExecutionResults, CliError>
 where
     B: BlackBoxFunctionSolver<FieldElement>,
     E: ForeignCallExecutor<FieldElement>,
 {
-    let (input_map, expected_return) = read_inputs_from_file(prover_file, &circuit.abi)?;
-
-    let initial_witness = circuit.abi.encode(&input_map, None)?;
+    let (initial_witness, expected_return) = match input {
+        InputSource::ProverFile(prover_file) => {
+            let (input_map, expected_return) = read_inputs_from_file(prover_file, &circuit.abi)?;
+            let initial_witness = circuit.abi.encode(&input_map, None)?;
+            (initial_witness, expected_return)
+        }
+        InputSource::WitnessFile(witness_path) => {
+            let mut witness_stack = load_witness_from_file(witness_path)?;
+            let witness =
+                witness_stack.pop().expect("Should have at least one witness on the stack").witness;
+            (witness, None)
+        }
+    };
 
     let witness_stack = nargo::ops::execute_program(
         &circuit.program,
