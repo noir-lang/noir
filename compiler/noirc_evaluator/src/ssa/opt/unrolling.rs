@@ -1757,7 +1757,7 @@ impl Loop {
                     // A pred forms a back-edge if dest dominates it.
                     let forward_preds: Vec<_> = cfg
                         .predecessors(dest)
-                        .filter(|p| self.blocks.contains(p) && !dom.dominates_helper(dest, *p))
+                        .filter(|p| self.blocks.contains(p) && !dom.dominates(dest, *p))
                         .collect();
                     if forward_preds.is_empty() {
                         continue;

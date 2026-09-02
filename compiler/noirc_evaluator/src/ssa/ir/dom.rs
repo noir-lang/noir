@@ -4,7 +4,6 @@
 //! Dominator trees are useful for tasks such as identifying back-edges in loop analysis or
 //! calculating dominance frontiers.
 
-use std::cell::RefCell;
 use std::cmp::Ordering;
 
 #[cfg(test)]
@@ -22,6 +21,16 @@ struct DominatorTreeNode {
     ///
     /// This will be None for the entry block, which has no immediate dominator.
     immediate_dominator: Option<BasicBlockId>,
+
+    /// Entry time of this block in a depth-first walk of the dominator tree.
+    ///
+    /// Together with `dfs_exit` this brackets the block's whole dominator subtree, which is what
+    /// makes [`DominatorTree::dominates`] a pair of integer comparisons: `a` dominates `b` exactly
+    /// when `b`'s interval nests inside `a`'s.
+    dfs_entry: u32,
+
+    /// Exit time of this block in the same depth-first walk. See [`Self::dfs_entry`].
+    dfs_exit: u32,
 }
 
 impl DominatorTreeNode {
@@ -47,12 +56,6 @@ pub(crate) struct DominatorTree {
     /// After dominator tree computation has complete, this will contain a node for every
     /// reachable block, and no nodes for unreachable blocks.
     nodes: HashMap<BasicBlockId, DominatorTreeNode>,
-
-    /// Subsequent calls to `dominates` are cached to speed up access.
-    ///
-    /// Wrapped in a `RefCell` so that `dominates` can memoize behind a shared `&self` reference,
-    /// keeping it a logically-pure query that callers don't need to hold a `&mut` borrow to use.
-    cache: RefCell<HashMap<(BasicBlockId, BasicBlockId), bool>>,
 }
 
 /// Methods for querying the dominator tree.
@@ -99,35 +102,17 @@ impl DominatorTree {
     ///
     /// A block is considered to dominate itself.
     pub(crate) fn dominates(&self, block_a_id: BasicBlockId, block_b_id: BasicBlockId) -> bool {
-        if let Some(res) = self.cache.borrow().get(&(block_a_id, block_b_id)) {
-            return *res;
-        }
+        let a = self.node(block_a_id);
+        let b = self.node(block_b_id);
 
-        let result = self.dominates_helper(block_a_id, block_b_id);
-        self.cache.borrow_mut().insert((block_a_id, block_b_id), result);
-        result
+        // `a` dominates `b` exactly when `b` sits in `a`'s subtree of the dominator tree, and a
+        // depth-first walk brackets each subtree in a contiguous interval, so subtree membership
+        // is interval containment. Reflexive because a block's own interval contains itself.
+        a.dfs_entry <= b.dfs_entry && b.dfs_exit <= a.dfs_exit
     }
 
-    pub(crate) fn dominates_helper(
-        &self,
-        block_a_id: BasicBlockId,
-        mut block_b_id: BasicBlockId,
-    ) -> bool {
-        // Walk up the dominator tree from "b" until we encounter or pass "a". Doing the
-        // comparison on the reverse post-order may allow to test whether we have passed "a"
-        // without waiting until we reach the root of the tree.
-        loop {
-            match self.reverse_post_order_cmp(block_a_id, block_b_id) {
-                Ordering::Less => {
-                    block_b_id = match self.immediate_dominator(block_b_id) {
-                        Some(immediate_dominator) => immediate_dominator,
-                        None => return false, // a is unreachable, so we climbed past the entry
-                    }
-                }
-                Ordering::Greater => return false,
-                Ordering::Equal => return true,
-            }
-        }
+    fn node(&self, block_id: BasicBlockId) -> &DominatorTreeNode {
+        self.nodes.get(&block_id).expect("Dominance for unreachable block is undefined")
     }
 
     /// Walk up the dominator tree until we find a block for which `f` returns `Some` value.
@@ -156,7 +141,7 @@ impl DominatorTree {
     /// This method should be used for when we want to compute a post-dominator tree.
     /// A post-dominator tree just expects the control flow graph to be reversed.
     pub(crate) fn with_cfg_and_post_order(cfg: &ControlFlowGraph, post_order: &PostOrder) -> Self {
-        let mut dom_tree = DominatorTree { nodes: HashMap::default(), cache: RefCell::default() };
+        let mut dom_tree = DominatorTree { nodes: HashMap::default() };
         dom_tree.compute_dominator_tree(cfg, post_order);
         dom_tree
     }
@@ -198,7 +183,11 @@ impl DominatorTree {
         // entry block will be the only node with no immediate dominator.
         self.nodes.insert(
             *entry_block_id,
-            DominatorTreeNode { reverse_post_order_idx: 0, immediate_dominator: None },
+            DominatorTreeNode {
+                reverse_post_order_idx: 0,
+                immediate_dominator: None,
+                ..Default::default()
+            },
         );
         for (i, &block_id) in entry_free_post_order.iter().rev().enumerate() {
             // Indices have been displaced by 1 by the removal of the entry node
@@ -212,6 +201,7 @@ impl DominatorTree {
                 DominatorTreeNode {
                     immediate_dominator: Some(immediate_dominator),
                     reverse_post_order_idx,
+                    ..Default::default()
                 },
             );
         }
@@ -231,6 +221,55 @@ impl DominatorTree {
                     .expect("Assigned in first pass")
                     .update_estimate(immediate_dominator);
             }
+        }
+
+        self.compute_dfs_intervals();
+    }
+
+    /// Number every node with the entry and exit time of a depth-first walk of the dominator tree,
+    /// so that dominance is interval containment rather than a walk up the tree.
+    ///
+    /// The walk is never actually performed. A block's immediate dominator always precedes it in
+    /// the reverse post-order, so one descending pass over that order accumulates subtree sizes
+    /// into parents, and one ascending pass hands each node the next free slot in its parent's
+    /// interval — which is the depth-first numbering, in two linear scans of a flat array.
+    fn compute_dfs_intervals(&mut self) {
+        let num_nodes = self.nodes.len();
+
+        // Reverse post-order index of each node's immediate dominator; unused for the entry block.
+        let mut parents = vec![0u32; num_nodes];
+        for node in self.nodes.values() {
+            if let Some(immediate_dominator) = node.immediate_dominator {
+                let parent = self
+                    .reverse_post_order_idx(immediate_dominator)
+                    .expect("Immediate dominator is a reachable block");
+                parents[node.reverse_post_order_idx as usize] = parent;
+            }
+        }
+
+        // Children precede their parents here, so every subtree is complete before it is counted
+        // into the subtree above it.
+        let mut subtree_sizes = vec![1u32; num_nodes];
+        for idx in (1..num_nodes).rev() {
+            subtree_sizes[parents[idx] as usize] += subtree_sizes[idx];
+        }
+
+        // And parents precede their children here, so each node's interval is already open when
+        // its children come to claim slots inside it.
+        let mut entries = vec![0u32; num_nodes];
+        let mut next_free_slot = vec![0u32; num_nodes];
+        next_free_slot[0] = 1;
+        for idx in 1..num_nodes {
+            let parent = parents[idx] as usize;
+            entries[idx] = next_free_slot[parent];
+            next_free_slot[parent] += subtree_sizes[idx];
+            next_free_slot[idx] = entries[idx] + 1;
+        }
+
+        for node in self.nodes.values_mut() {
+            let idx = node.reverse_post_order_idx as usize;
+            node.dfs_entry = entries[idx];
+            node.dfs_exit = entries[idx] + subtree_sizes[idx] - 1;
         }
     }
 

@@ -1,10 +1,5 @@
 use serde::{Deserialize, Serialize};
-use std::{
-    collections::BTreeMap,
-    hash::Hash,
-    str::FromStr,
-    sync::atomic::{AtomicU32, Ordering},
-};
+use std::{collections::BTreeMap, hash::Hash, str::FromStr};
 use thiserror::Error;
 
 /// A unique ID corresponding to a value of type T.
@@ -274,28 +269,28 @@ impl<T> std::ops::IndexMut<Id<T>> for SparseMap<T> {
 /// A simple counter to create fresh Ids without any storage.
 /// Useful for assigning ids before the storage is created or assigning ids
 /// for types that have no single owner.
-///
-/// This type wraps an atomic number so it can safely be used across threads.
 #[derive(Debug, Serialize, Deserialize)]
-pub struct AtomicCounter<T> {
-    next: AtomicU32,
+pub struct Counter<T> {
+    next: u32,
     _marker: std::marker::PhantomData<T>,
 }
 
-impl<T> AtomicCounter<T> {
+impl<T> Counter<T> {
     /// Create a new counter starting after the given Id.
-    /// Use `AtomicCounter::default()` to start at zero.
+    /// Use `Counter::default()` to start at zero.
     pub(crate) fn starting_after(id: Id<T>) -> Self {
-        Self { next: AtomicU32::new(id.index + 1), _marker: Default::default() }
+        Self { next: id.index + 1, _marker: Default::default() }
     }
 
     /// Return the next fresh id
-    pub(crate) fn next(&self) -> Id<T> {
-        Id::new(self.next.fetch_add(1, Ordering::Relaxed))
+    pub(crate) fn next(&mut self) -> Id<T> {
+        let id = Id::new(self.next);
+        self.next += 1;
+        id
     }
 }
 
-impl<T> Default for AtomicCounter<T> {
+impl<T> Default for Counter<T> {
     fn default() -> Self {
         Self { next: Default::default(), _marker: Default::default() }
     }

@@ -8,7 +8,7 @@ use serde_with::serde_as;
 
 use crate::ssa::ir::{
     function::{Function, FunctionId},
-    map::AtomicCounter,
+    map::Counter,
     value::Value,
 };
 use noirc_frontend::hir_def::types::Type as HirType;
@@ -23,7 +23,7 @@ pub struct Ssa {
     pub functions: BTreeMap<FunctionId, Function>,
     pub main_id: FunctionId,
     #[serde(skip)]
-    pub next_id: AtomicCounter<Function>,
+    pub next_id: Counter<Function>,
     /// Maps SSA entry point function ID -> Final generated ACIR artifact index.
     /// There can be functions specified in SSA which do not act as ACIR entry points.
     /// This mapping is necessary to use the correct function pointer for an ACIR call,
@@ -55,7 +55,7 @@ impl Ssa {
         Self {
             functions,
             main_id,
-            next_id: AtomicCounter::starting_after(max_id),
+            next_id: Counter::starting_after(max_id),
             entry_point_to_generated_index: BTreeMap::new(),
             error_selector_to_type: error_types,
         }
