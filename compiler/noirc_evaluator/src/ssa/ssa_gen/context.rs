@@ -18,7 +18,6 @@ use crate::ssa::ir::basic_block::BasicBlockId;
 use crate::ssa::ir::function::FunctionId as IrFunctionId;
 use crate::ssa::ir::function::{Function, RuntimeType};
 use crate::ssa::ir::instruction::BinaryOp;
-use crate::ssa::ir::map::Counter;
 use crate::ssa::ir::types::{NumericType, Type};
 use crate::ssa::ir::value::ValueId;
 
@@ -117,8 +116,8 @@ pub(super) struct FunctionQueueState {
     /// to which functions.
     function_queue: FunctionQueue,
 
-    /// Counter used to assign the ID of the next function
-    function_counter: Counter<Function>,
+    /// The id to give the next function reached during SSA generation.
+    function_counter: u32,
 }
 
 impl FunctionQueueState {
@@ -135,7 +134,8 @@ impl FunctionQueueState {
             return *existing_id;
         }
 
-        let next_id = self.function_counter.next();
+        let next_id = IrFunctionId::new(self.function_counter);
+        self.function_counter += 1;
         self.function_queue.push((id, next_id));
         self.functions.insert(id, next_id);
 

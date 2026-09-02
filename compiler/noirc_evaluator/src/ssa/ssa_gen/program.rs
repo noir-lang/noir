@@ -8,7 +8,6 @@ use serde_with::serde_as;
 
 use crate::ssa::ir::{
     function::{Function, FunctionId},
-    map::Counter,
     value::Value,
 };
 use noirc_frontend::hir_def::types::Type as HirType;
@@ -22,8 +21,13 @@ pub struct Ssa {
     #[serde_as(as = "Vec<(_, _)>")]
     pub functions: BTreeMap<FunctionId, Function>,
     pub main_id: FunctionId,
+    /// The id to give the next function added by [`Ssa::add_fn`].
+    ///
+    /// Not derivable from `functions`: `remove_unreachable_functions` and `inlining` both shrink
+    /// that map, so the highest id in it can go down, while an id that has been handed out must
+    /// never be handed out again.
     #[serde(skip)]
-    pub next_id: Counter<Function>,
+    next_id: u32,
     /// Maps SSA entry point function ID -> Final generated ACIR artifact index.
     /// There can be functions specified in SSA which do not act as ACIR entry points.
     /// This mapping is necessary to use the correct function pointer for an ACIR call,
@@ -55,7 +59,7 @@ impl Ssa {
         Self {
             functions,
             main_id,
-            next_id: Counter::starting_after(max_id),
+            next_id: max_id.to_u32() + 1,
             entry_point_to_generated_index: BTreeMap::new(),
             error_selector_to_type: error_types,
         }
@@ -77,7 +81,12 @@ impl Ssa {
         &mut self,
         build_with_id: impl FnOnce(FunctionId) -> Function,
     ) -> FunctionId {
-        let new_id = self.next_id.next();
+        // `next_id` is not serialized, so a deserialized `Ssa` starts it at zero. Taking the
+        // highest id in use into account keeps a round-tripped program from minting an id that
+        // collides with a function it already has.
+        let highest_in_use = self.functions.keys().next_back().map_or(0, |id| id.to_u32() + 1);
+        let new_id = FunctionId::new(self.next_id.max(highest_in_use));
+        self.next_id = new_id.to_u32() + 1;
         let function = build_with_id(new_id);
         self.functions.insert(new_id, function);
         new_id
@@ -183,8 +192,28 @@ mod tests {
     use crate::ssa::ssa_gen::Ssa;
     use crate::ssa::{
         function_builder::FunctionBuilder,
-        ir::{instruction::BinaryOp, types::Type},
+        ir::{function::Function, instruction::BinaryOp, types::Type},
     };
+
+    /// `next_id` is not serialized, so [`Ssa::add_fn`] has to work out where the free ids start
+    /// from the program itself. Minting `f0` here would silently replace `main`.
+    #[test]
+    fn add_fn_after_deserialization_does_not_reuse_an_id() {
+        let mut builder = FunctionBuilder::new("main".into(), Id::test_new(0));
+        let v0 = builder.add_parameter(Type::field());
+        builder.terminate_with_return(vec![v0]);
+        let ssa = builder.finish();
+
+        let serialized = serde_json::to_string(&ssa).unwrap();
+        let mut ssa: Ssa = serde_json::from_str(&serialized).unwrap();
+
+        let functions_before = ssa.functions.len();
+        let new_id = ssa.add_fn(|id| Function::new("added".into(), id));
+
+        assert!(!ssa.functions.keys().any(|id| *id == new_id && *id == ssa.main_id));
+        assert_eq!(ssa.functions.len(), functions_before + 1);
+        assert_eq!(ssa.functions[&ssa.main_id].name(), "main");
+    }
 
     #[test]
     fn serialization_roundtrip() {

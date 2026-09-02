@@ -265,33 +265,3 @@ impl<T> std::ops::IndexMut<Id<T>> for SparseMap<T> {
         self.storage.get_mut(&id).expect("Invalid id used in SparseMap::index_mut")
     }
 }
-
-/// A simple counter to create fresh Ids without any storage.
-/// Useful for assigning ids before the storage is created or assigning ids
-/// for types that have no single owner.
-#[derive(Debug, Serialize, Deserialize)]
-pub struct Counter<T> {
-    next: u32,
-    _marker: std::marker::PhantomData<T>,
-}
-
-impl<T> Counter<T> {
-    /// Create a new counter starting after the given Id.
-    /// Use `Counter::default()` to start at zero.
-    pub(crate) fn starting_after(id: Id<T>) -> Self {
-        Self { next: id.index + 1, _marker: Default::default() }
-    }
-
-    /// Return the next fresh id
-    pub(crate) fn next(&mut self) -> Id<T> {
-        let id = Id::new(self.next);
-        self.next += 1;
-        id
-    }
-}
-
-impl<T> Default for Counter<T> {
-    fn default() -> Self {
-        Self { next: Default::default(), _marker: Default::default() }
-    }
-}
