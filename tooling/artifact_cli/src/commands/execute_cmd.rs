@@ -8,6 +8,7 @@ use crate::{
     Artifact,
     errors::CliError,
     execution::{self, ExecutionResults},
+    fs::artifact::load_program_from_parts,
 };
 use nargo::foreign_calls::{
     DefaultForeignCallBuilder, OracleResolverUrl, layers, transcript::ReplayForeignCallExecutor,
@@ -19,8 +20,18 @@ use super::parse_and_normalize_path;
 #[derive(Debug, Clone, Args)]
 pub struct ExecuteCommand {
     /// Path to the JSON build artifact (either a program or a contract).
-    #[clap(long, short, value_parser = parse_and_normalize_path)]
-    pub artifact_path: PathBuf,
+    #[clap(long, short, conflicts_with_all = ["bytecode_path", "abi_path"], value_parser = parse_and_normalize_path)]
+    pub artifact_path: Option<PathBuf>,
+
+    /// Path to the raw bytecode file (gzip-compressed), as an alternative to
+    /// `--artifact-path`. Must be used together with `--abi-path`.
+    #[clap(long, conflicts_with = "artifact_path", requires = "abi_path", value_parser = parse_and_normalize_path)]
+    pub bytecode_path: Option<PathBuf>,
+
+    /// Path to the ABI file (JSON), as an alternative to `--artifact-path`.
+    /// Must be used together with `--bytecode-path`.
+    #[clap(long, conflicts_with = "artifact_path", requires = "bytecode_path", value_parser = parse_and_normalize_path)]
+    pub abi_path: Option<PathBuf>,
 
     /// Path to the Prover.toml (or .json) file which contains the inputs and the
     /// optional return value in ABI format.
@@ -69,24 +80,55 @@ pub struct ExecuteCommand {
 }
 
 pub fn run(args: ExecuteCommand) -> Result<(), CliError> {
-    let artifact = Artifact::read_from_file(&args.artifact_path)?;
-    let artifact_name = args.artifact_path.file_stem().and_then(|s| s.to_str()).unwrap_or_default();
+    let (circuit, circuit_name): (CompiledProgram, String) =
+        match (&args.artifact_path, &args.bytecode_path, &args.abi_path) {
+            (Some(artifact_path), None, None) => {
+                let artifact = Artifact::read_from_file(artifact_path)?;
+                let artifact_name =
+                    artifact_path.file_stem().and_then(|s| s.to_str()).unwrap_or_default();
 
-    let (circuit, circuit_name): (CompiledProgram, String) = match artifact {
-        Artifact::Program(program) => (program.into(), artifact_name.to_string()),
-        Artifact::Contract(contract) => {
-            let names = || contract.functions.iter().map(|f| f.name.clone()).collect::<Vec<_>>();
+                match artifact {
+                    Artifact::Program(program) => (program.into(), artifact_name.to_string()),
+                    Artifact::Contract(contract) => {
+                        let names = || {
+                            contract.functions.iter().map(|f| f.name.clone()).collect::<Vec<_>>()
+                        };
 
-            let Some(ref name) = args.contract_fn else {
-                return Err(CliError::MissingContractFn { names: names() });
-            };
-            let Some(program) = contract.function_as_compiled_program(name) else {
-                return Err(CliError::UnknownContractFn { name: name.clone(), names: names() });
-            };
+                        let Some(ref name) = args.contract_fn else {
+                            return Err(CliError::MissingContractFn { names: names() });
+                        };
+                        let Some(program) = contract.function_as_compiled_program(name) else {
+                            return Err(CliError::UnknownContractFn {
+                                name: name.clone(),
+                                names: names(),
+                            });
+                        };
 
-            (program, format!("{artifact_name}::{name}"))
-        }
-    };
+                        (program, format!("{artifact_name}::{name}"))
+                    }
+                }
+            }
+            (None, Some(bytecode_path), Some(abi_path)) => {
+                if args.contract_fn.is_some() {
+                    return Err(CliError::Generic(
+                        "--contract-fn cannot be used with --bytecode-path".to_string(),
+                    ));
+                }
+                let circuit_name = bytecode_path
+                    .file_stem()
+                    .and_then(|s| s.to_str())
+                    .unwrap_or_default()
+                    .to_string();
+                let program = load_program_from_parts(bytecode_path, abi_path)?;
+                (program, circuit_name)
+            }
+            _ => {
+                return Err(CliError::Generic(
+                    "provide either --artifact-path or both --bytecode-path and --abi-path"
+                        .to_string(),
+                ));
+            }
+        };
 
     execute_program(
         &circuit,

@@ -1,11 +1,16 @@
+use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
+
+use acvm::FieldElement;
+use acvm::acir::circuit::Program;
+use noirc_abi::Abi;
 
 use crate::{
     Artifact,
     errors::{CliError, FilesystemError},
 };
 use noirc_artifacts::contract::ContractArtifact;
-use noirc_artifacts::program::ProgramArtifact;
+use noirc_artifacts::program::{CompiledProgram, ProgramArtifact};
 use noirc_driver::CrateName;
 use serde::de::Error;
 
@@ -83,6 +88,37 @@ fn save_build_artifact_to_file<T: ?Sized + serde::Serialize>(
     let bytes = serde_json::to_vec(build_artifact)?;
     write_to_file(&bytes, &artifact_path)?;
     Ok(artifact_path)
+}
+
+/// Load a [`CompiledProgram`] from separate bytecode and ABI files.
+///
+/// The bytecode file contains the raw gzip-compressed program (the same binary format
+/// produced by [`Program::serialize_program`]). The ABI file is plain JSON.
+///
+/// Debug symbols and source maps are not available in this mode, so error
+/// diagnostics will not include source-level stack traces.
+pub fn load_program_from_parts(
+    bytecode_path: &Path,
+    abi_path: &Path,
+) -> Result<CompiledProgram, CliError> {
+    let bytecode_bytes = std::fs::read(bytecode_path).map_err(|e| {
+        FilesystemError::InvalidBytecodeFile(bytecode_path.to_path_buf(), e.to_string())
+    })?;
+    let program = Program::<FieldElement>::deserialize_program(&bytecode_bytes)?;
+
+    let abi_bytes = std::fs::read(abi_path)
+        .map_err(|e| FilesystemError::InvalidInputFile(abi_path.to_path_buf(), e.to_string()))?;
+    let abi: Abi = serde_json::from_slice(&abi_bytes)?;
+
+    Ok(CompiledProgram {
+        noir_version: String::new(),
+        hash: 0,
+        program,
+        abi,
+        debug: vec![],
+        file_map: BTreeMap::new(),
+        warnings: vec![],
+    })
 }
 
 /// Create the parent directory if needed and write the bytes to a file.
