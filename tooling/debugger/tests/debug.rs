@@ -17,7 +17,7 @@ mod tests {
             cargo_bin("nargo").into_os_string().into_string().expect("Cannot parse nargo path");
 
         let mut dbg_session = start_debug_session(&format!(
-            "{nargo_bin} debug --program-dir {test_program_dir} --force-brillig"
+            "{nargo_bin} debug --program-dir {test_program_dir} --mode brillig"
         ));
 
         // send continue which should run to the program to end
@@ -39,7 +39,7 @@ mod tests {
 
         let mut dbg_session = start_debug_session(
             &(format!(
-                "{nargo_bin} debug --program-dir {test_program_dir} --test-name {test_name} --force-brillig"
+                "{nargo_bin} debug --program-dir {test_program_dir} --test-name {test_name} --mode brillig"
             )),
         );
 
@@ -110,7 +110,7 @@ mod tests {
         dbg_session
             .execute(
                 &format!(
-                    "{nargo_bin} debug --raw-source-printing true --program-dir {test_program_dir} --force-brillig"
+                    "{nargo_bin} debug --raw-source-printing true --program-dir {test_program_dir} --mode brillig"
                 ),
                 ".*\\Starting debugger.*",
             )

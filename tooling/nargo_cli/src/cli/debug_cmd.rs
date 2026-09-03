@@ -3,7 +3,7 @@ use std::time::Duration;
 
 use acvm::FieldElement;
 use acvm::acir::native_types::{WitnessMap, WitnessStack};
-use clap::Args;
+use clap::{Args, ValueEnum};
 use fm::FileManager;
 use nargo::constants::PROVER_INPUT_FILE;
 use nargo::foreign_calls::OracleResolverUrl;
@@ -34,6 +34,17 @@ use super::{LockType, WorkspaceCommand};
 use crate::cli::test_cmd::formatters::PrettyFormatter;
 use crate::errors::CliError;
 
+/// Which debugger backend to use
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
+pub(crate) enum DebugMode {
+    /// Comptime interpreter debugger (default)
+    Comptime,
+    /// Legacy ACIR debugger
+    Acir,
+    /// Legacy Brillig debugger
+    Brillig,
+}
+
 /// Executes a circuit in debug mode
 #[derive(Debug, Clone, Args)]
 pub(crate) struct DebugCommand {
@@ -51,13 +62,9 @@ pub(crate) struct DebugCommand {
     #[clap(flatten)]
     compile_options: CompileOptions,
 
-    /// Force ACIR output (disabling instrumentation)
-    #[clap(long)]
-    acir_mode: bool,
-
-    /// Disable vars debug instrumentation (enabled by default)
-    #[clap(long)]
-    skip_instrumentation: Option<bool>,
+    /// Debugger mode: comptime (default), acir, or brillig
+    #[clap(long, default_value = "comptime")]
+    mode: DebugMode,
 
     /// Raw string printing of source for testing
     #[clap(long, hide = true)]
@@ -95,8 +102,13 @@ impl WorkspaceCommand for DebugCommand {
 }
 
 pub(crate) fn run(args: DebugCommand, workspace: Workspace) -> Result<(), CliError> {
-    let acir_mode = args.acir_mode;
-    let skip_instrumentation = args.skip_instrumentation.unwrap_or(acir_mode);
+    let mode = args.mode;
+
+    if mode == DebugMode::Comptime {
+        return run_comptime(args, workspace);
+    }
+
+    let acir_mode = mode == DebugMode::Acir;
 
     let package_params = PackageParams {
         prover_name: args.prover_name,
@@ -117,14 +129,125 @@ pub(crate) fn run(args: DebugCommand, workspace: Workspace) -> Result<(), CliErr
         return Ok(());
     };
 
-    let compile_options =
-        compile_options_for_debugging(acir_mode, skip_instrumentation, args.compile_options);
+    let compile_options = compile_options_for_debugging(acir_mode, acir_mode, args.compile_options);
 
     if let Some(test_name) = args.test_name {
         debug_test(test_name, package, workspace, compile_options, run_params, package_params)
     } else {
         debug_main(package, workspace, compile_options, run_params, package_params)
     }
+}
+
+fn run_comptime(args: DebugCommand, workspace: Workspace) -> Result<(), CliError> {
+    use crate::cli::comptime_oracle::ComptimeForeignCallExecutor;
+    use crate::cli::comptime_repl_debugger::ComptimeReplDebugger;
+    use crate::cli::execute_cmd::interpret::input_values_to_comptime_values;
+    use nargo::ops::test_status_comptime_interpret_result;
+
+    let Some(package) = workspace.into_iter().find(|p| p.is_binary() || p.is_contract()) else {
+        println!(
+            "No matching binary or contract packages found in workspace. Only these packages can be debugged."
+        );
+        return Ok(());
+    };
+
+    let (file_manager, parsed_files) = load_workspace_files(&workspace);
+    let compile_options = args.compile_options;
+
+    loop {
+        let (mut context, crate_id) = nargo::prepare_package(&file_manager, &parsed_files, package);
+        context.package_build_path = workspace.package_build_path(package);
+
+        check_crate_and_report_errors(&mut context, crate_id, &compile_options)?;
+
+        let test_function = if let Some(ref test_name) = args.test_name {
+            Some(
+                get_test_function_for_debug(crate_id, &context, test_name)
+                    .map_err(CliError::Generic)?,
+            )
+        } else {
+            None
+        };
+
+        let (func_id, func_args) = if let Some(ref test) = test_function {
+            (test.function.id, vec![])
+        } else {
+            let main_id = context
+                .get_main_function(&crate_id)
+                .ok_or_else(|| CliError::Generic("Could not find main function".to_string()))?;
+
+            let func_meta = context.def_interner.function_meta(&main_id);
+            let error_types = std::collections::BTreeMap::default();
+            let abi =
+                noirc_driver::gen_abi(&context, &main_id, func_meta.return_visibility, error_types);
+            let (prover_input, _) = read_inputs_from_file(
+                &package.root_dir.join(&args.prover_name).with_extension("toml"),
+                &abi,
+            )?;
+
+            let func_args =
+                input_values_to_comptime_values(&prover_input, func_meta, &context.def_interner);
+            (main_id, func_args)
+        };
+
+        println!("Debugger started. Type 'help' for commands.");
+
+        let (debugger, restart_requested) = ComptimeReplDebugger::new();
+        let oracle_executor = ComptimeForeignCallExecutor::new(
+            args.oracle_resolver.as_ref(),
+            Some(workspace.root_dir.clone()),
+            Some(package.name.to_string()),
+        );
+        let result = context.interpret_function_with_debugger(
+            func_id,
+            func_args,
+            Box::new(debugger),
+            Some(Box::new(oracle_executor)),
+        );
+
+        if let Some(ref test) = test_function {
+            let status = test_status_comptime_interpret_result(result, &test.function);
+            let status_str = match &status {
+                TestStatus::Pass => "ok",
+                TestStatus::Skipped => "skipped",
+                _ => "FAILED",
+            };
+            println!("[{}] Testing {} ... {}", package.name, test.name, status_str);
+            match &status {
+                TestStatus::Fail { message, .. } => eprintln!("{message}"),
+                TestStatus::CompileError(diagnostic) => eprintln!("{}", diagnostic.message),
+                _ => {}
+            }
+        } else {
+            match result {
+                Ok(value) => {
+                    println!(
+                        "Program completed. Return value: {}",
+                        value.display(&context.def_interner, context.file_manager.as_file_map())
+                    );
+                }
+                Err(err) => {
+                    let diagnostic = noirc_errors::CustomDiagnostic::from(&err);
+                    noirc_frontend::error_reporting::report_one(
+                        &diagnostic,
+                        &file_manager,
+                        &parsed_files,
+                        false,
+                        false,
+                    );
+                }
+            }
+        }
+
+        if restart_requested.get() {
+            println!("Restarting debugger...");
+            continue;
+        }
+
+        break;
+    }
+
+    Ok(())
 }
 
 fn print_test_result(
